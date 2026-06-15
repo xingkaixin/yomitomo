@@ -62,6 +62,12 @@ type HighlightBoxGroup = {
   rect: GroupRect;
 };
 
+type AnnotationRailSpacing = {
+  groupGap: number;
+  stackTopOffset: number;
+  stackXOffset: number;
+};
+
 export type AnnotationFilterGroup = 'person' | 'type' | 'action';
 
 export type AnnotationFilterState = {
@@ -97,6 +103,16 @@ const annotationTypeOrder: AnnotationType[] = [
   'question',
   'quote',
 ];
+const defaultRailSpacing: AnnotationRailSpacing = {
+  groupGap: 18,
+  stackTopOffset: 42,
+  stackXOffset: 14,
+};
+const minRailSpacing: AnnotationRailSpacing = {
+  groupGap: 8,
+  stackTopOffset: 24,
+  stackXOffset: 8,
+};
 
 export function agentQueueKey(annotation: Annotation) {
   return annotation.agentId || annotation.agentUsername || '__agent__';
@@ -277,7 +293,7 @@ export function buildAnnotationRailItems(
 
   const groups = buildAnnotationRailGroups(positioned);
 
-  const railGroups = groups
+  const initialRailGroups = groups
     .map((group) =>
       group.toSorted((left, right) => left.top - right.top || left.index - right.index),
     )
@@ -289,13 +305,41 @@ export function buildAnnotationRailItems(
     }))
     .toSorted((left, right) => left.desiredTop - right.desiredTop);
 
-  const groupSides = resolveRailGroupSides(railGroups, railLayout);
-  const groupTops = resolveRailGroupTops(railGroups, groupSides, railLayout?.viewportHeight);
+  const initialGroupSides = resolveRailGroupSides(initialRailGroups, railLayout);
+  const { railGroups, groupSides } = mergeRailPressureGroups(
+    initialRailGroups,
+    initialGroupSides,
+    activeId,
+    noteHeights,
+  );
+  const groupSpacings = resolveRailGroupSpacings(
+    railGroups,
+    groupSides,
+    activeId,
+    noteHeights,
+    railLayout?.viewportHeight,
+  );
+  const compactedRailGroups = railGroups.map((railGroup, index) => ({
+    ...railGroup,
+    height: estimateRailGroupHeight(
+      railGroup.group,
+      activeId,
+      noteHeights,
+      groupSpacings[index]?.stackTopOffset ?? defaultRailSpacing.stackTopOffset,
+    ),
+  }));
+  const groupTops = resolveRailGroupTops(
+    compactedRailGroups,
+    groupSides,
+    groupSpacings,
+    railLayout?.viewportHeight,
+  );
 
   return railGroups.flatMap(({ group }, groupIndex) => {
     const stackCount = group.length;
     const groupTop = groupTops[groupIndex] || 0;
     const railSide = groupSides[groupIndex] || 'right';
+    const spacing = groupSpacings[groupIndex] ?? defaultRailSpacing;
     const activeIndex = group.findIndex((item) => item.annotation.id === activeId);
     const frontIndex = activeIndex >= 0 ? activeIndex : 0;
     return group.map((item, stackIndex) => {
@@ -303,9 +347,9 @@ export function buildAnnotationRailItems(
       const isStackFront = stackDepth === 0;
       const isActive = item.annotation.id === activeId;
       const style: React.CSSProperties = {
-        top: groupTop + stackDepth * 42,
+        top: groupTop + stackDepth * spacing.stackTopOffset,
         zIndex: isActive ? 90 : isStackFront ? 40 : 10 + stackCount - stackDepth,
-        '--stack-offset': `${Math.min(stackDepth, 4) * 14}px`,
+        '--stack-offset': `${Math.min(stackDepth, 4) * spacing.stackXOffset}px`,
       } as React.CSSProperties;
       if (railLayout && railLayout.mode !== 'stacked') {
         style.left = railSide === 'left' ? railLayout.leftRailLeft : railLayout.rightRailLeft;
@@ -544,7 +588,8 @@ function resolveRailGroupSides(
       const rightCost = railSidePlacementCost(group, right, preferredSide, sideBottoms[right]);
       return leftCost - rightCost;
     })[0];
-    sideBottoms[side] = Math.max(group.desiredTop, sideBottoms[side] + 18) + group.height;
+    sideBottoms[side] =
+      Math.max(group.desiredTop, sideBottoms[side] + defaultRailSpacing.groupGap) + group.height;
     sides.push(side);
   }
   return sides;
@@ -556,14 +601,187 @@ function railSidePlacementCost(
   preferredSide: 'left' | 'right',
   sideBottom: number,
 ) {
-  const displacedTop = Math.max(group.desiredTop, sideBottom + 18);
+  const displacedTop = Math.max(group.desiredTop, sideBottom + defaultRailSpacing.groupGap);
   const preferencePenalty = side === preferredSide ? 0 : 56;
   return displacedTop - group.desiredTop + preferencePenalty;
+}
+
+function mergeRailPressureGroups<
+  T extends { group: PositionedAnnotationRailItem[]; desiredTop: number },
+>(
+  railGroups: T[],
+  groupSides: AnnotationRailSide[],
+  activeId: string | null,
+  noteHeights: Record<string, number>,
+) {
+  const mergedRailGroups: Array<T & { height: number }> = [];
+  const mergedGroupSides: AnnotationRailSide[] = [];
+
+  railGroups.forEach((railGroup, index) => {
+    const side = groupSides[index] || 'right';
+    const previousIndex = mergedRailGroups.length - 1;
+    const previousGroup = mergedRailGroups[previousIndex];
+    const previousSide = mergedGroupSides[previousIndex];
+    if (previousGroup && previousSide === side && railGroupsShouldStack(previousGroup, railGroup)) {
+      const group = [...previousGroup.group, ...railGroup.group].toSorted(
+        (left, right) => left.top - right.top || left.index - right.index,
+      );
+      mergedRailGroups[previousIndex] = {
+        ...previousGroup,
+        group,
+        desiredTop: Math.min(previousGroup.desiredTop, railGroup.desiredTop),
+        height: estimateRailGroupHeight(group, activeId, noteHeights),
+      };
+      return;
+    }
+
+    mergedRailGroups.push({
+      ...railGroup,
+      height: estimateRailGroupHeight(railGroup.group, activeId, noteHeights),
+    });
+    mergedGroupSides.push(side);
+  });
+
+  return { railGroups: mergedRailGroups, groupSides: mergedGroupSides };
+}
+
+function railGroupsShouldStack(
+  previousGroup: { desiredTop: number; height: number },
+  railGroup: { desiredTop: number },
+) {
+  return (
+    railGroup.desiredTop <
+    previousGroup.desiredTop + previousGroup.height + defaultRailSpacing.groupGap
+  );
+}
+
+function resolveRailGroupSpacings(
+  railGroups: Array<{ group: Array<{ annotation: Annotation }>; height: number }>,
+  groupSides: AnnotationRailSide[],
+  activeId: string | null,
+  noteHeights: Record<string, number>,
+  viewportHeight = 0,
+) {
+  const spacings = railGroups.map(() => defaultRailSpacing);
+  if (!Number.isFinite(viewportHeight) || viewportHeight <= 0) return spacings;
+
+  for (const side of ['left', 'right'] as const) {
+    const indexes = groupSides
+      .map((groupSide, index) => (groupSide === side ? index : -1))
+      .filter((index) => index >= 0);
+    if (indexes.length === 0) continue;
+
+    const defaultHeight = railSideHeight(
+      railGroups,
+      indexes,
+      defaultRailSpacing,
+      activeId,
+      noteHeights,
+    );
+    if (defaultHeight <= viewportHeight) continue;
+
+    const gapCompressionCapacity =
+      indexes.length * (defaultRailSpacing.groupGap - minRailSpacing.groupGap);
+    const gapShortage = defaultHeight - viewportHeight;
+    const groupGap =
+      gapCompressionCapacity > 0
+        ? defaultRailSpacing.groupGap -
+          Math.min(gapShortage, gapCompressionCapacity) / indexes.length
+        : defaultRailSpacing.groupGap;
+    const compactGapSpacing = { ...defaultRailSpacing, groupGap };
+    const compactGapHeight = railSideHeight(
+      railGroups,
+      indexes,
+      compactGapSpacing,
+      activeId,
+      noteHeights,
+    );
+    if (compactGapHeight <= viewportHeight) {
+      applyRailSpacing(spacings, indexes, compactGapSpacing);
+      continue;
+    }
+
+    const stackTopOffset = resolveCompactStackTopOffset(
+      railGroups,
+      indexes,
+      groupGap,
+      activeId,
+      noteHeights,
+      viewportHeight,
+    );
+    const stackProgress =
+      (defaultRailSpacing.stackTopOffset - stackTopOffset) /
+      (defaultRailSpacing.stackTopOffset - minRailSpacing.stackTopOffset);
+    applyRailSpacing(spacings, indexes, {
+      groupGap,
+      stackTopOffset,
+      stackXOffset:
+        defaultRailSpacing.stackXOffset -
+        (defaultRailSpacing.stackXOffset - minRailSpacing.stackXOffset) * stackProgress,
+    });
+  }
+
+  return spacings;
+}
+
+function applyRailSpacing(
+  spacings: AnnotationRailSpacing[],
+  indexes: number[],
+  spacing: AnnotationRailSpacing,
+) {
+  for (const index of indexes) spacings[index] = spacing;
+}
+
+function railSideHeight(
+  railGroups: Array<{ group: Array<{ annotation: Annotation }>; height: number }>,
+  indexes: number[],
+  spacing: AnnotationRailSpacing,
+  activeId: string | null,
+  noteHeights: Record<string, number>,
+) {
+  return indexes.reduce(
+    (height, index) =>
+      height +
+      estimateRailGroupHeight(
+        railGroups[index].group,
+        activeId,
+        noteHeights,
+        spacing.stackTopOffset,
+      ) +
+      spacing.groupGap,
+    0,
+  );
+}
+
+function resolveCompactStackTopOffset(
+  railGroups: Array<{ group: Array<{ annotation: Annotation }>; height: number }>,
+  indexes: number[],
+  groupGap: number,
+  activeId: string | null,
+  noteHeights: Record<string, number>,
+  viewportHeight: number,
+) {
+  let low = minRailSpacing.stackTopOffset;
+  let high = defaultRailSpacing.stackTopOffset;
+  for (let step = 0; step < 8; step += 1) {
+    const mid = (low + high) / 2;
+    const height = railSideHeight(
+      railGroups,
+      indexes,
+      { ...defaultRailSpacing, groupGap, stackTopOffset: mid },
+      activeId,
+      noteHeights,
+    );
+    if (height > viewportHeight) high = mid;
+    else low = mid;
+  }
+  return low;
 }
 
 function resolveRailGroupTops(
   railGroups: Array<{ desiredTop: number; height: number }>,
   groupSides: AnnotationRailSide[],
+  groupSpacings: AnnotationRailSpacing[],
   viewportHeight = 0,
 ) {
   const groupTops = railGroups.map((group) => group.desiredTop);
@@ -575,20 +793,31 @@ function resolveRailGroupTops(
     for (let listIndex = 1; listIndex < indexes.length; listIndex += 1) {
       const previousIndex = indexes[listIndex - 1];
       const currentIndex = indexes[listIndex];
-      const previousBottom = groupTops[previousIndex] + railGroups[previousIndex].height + 18;
+      const gap = groupSpacings[currentIndex]?.groupGap ?? defaultRailSpacing.groupGap;
+      const previousBottom = groupTops[previousIndex] + railGroups[previousIndex].height + gap;
       groupTops[currentIndex] = Math.max(groupTops[currentIndex], previousBottom);
+    }
+    if (viewportBottom > 0 && indexes.length > 0) {
+      const lastIndex = indexes[indexes.length - 1];
+      const gap = groupSpacings[lastIndex]?.groupGap ?? defaultRailSpacing.groupGap;
+      const overflow = groupTops[lastIndex] + railGroups[lastIndex].height + gap - viewportBottom;
+      if (overflow > 0) {
+        for (const index of indexes) groupTops[index] = Math.max(0, groupTops[index] - overflow);
+      }
     }
     for (let listIndex = indexes.length - 2; listIndex >= 0; listIndex -= 1) {
       const currentIndex = indexes[listIndex];
       const nextIndex = indexes[listIndex + 1];
-      const nextTop = groupTops[nextIndex] - railGroups[currentIndex].height - 18;
+      const gap = groupSpacings[nextIndex]?.groupGap ?? defaultRailSpacing.groupGap;
+      const nextTop = groupTops[nextIndex] - railGroups[currentIndex].height - gap;
       groupTops[currentIndex] = Math.max(0, Math.min(groupTops[currentIndex], nextTop));
     }
-    if (viewportBottom > 0) {
-      for (const index of indexes) {
-        const maxTop = Math.max(0, viewportBottom - railGroups[index].height - 18);
-        groupTops[index] = Math.max(0, Math.min(groupTops[index], maxTop));
-      }
+    for (let listIndex = 1; listIndex < indexes.length; listIndex += 1) {
+      const previousIndex = indexes[listIndex - 1];
+      const currentIndex = indexes[listIndex];
+      const gap = groupSpacings[currentIndex]?.groupGap ?? defaultRailSpacing.groupGap;
+      const previousBottom = groupTops[previousIndex] + railGroups[previousIndex].height + gap;
+      groupTops[currentIndex] = Math.max(groupTops[currentIndex], previousBottom);
     }
   }
   return groupTops;
@@ -598,6 +827,7 @@ function estimateRailGroupHeight(
   group: Array<{ annotation: Annotation }>,
   activeId: string | null,
   noteHeights: Record<string, number>,
+  stackTopOffset = defaultRailSpacing.stackTopOffset,
 ) {
   if (group.length === 0) return 176;
 
@@ -607,7 +837,7 @@ function estimateRailGroupHeight(
     ...group.map((item, stackIndex) => {
       const stackDepth =
         group.length > 1 ? (stackIndex - frontIndex + group.length) % group.length : 0;
-      return annotationCardHeight(item.annotation, noteHeights) + stackDepth * 42;
+      return annotationCardHeight(item.annotation, noteHeights) + stackDepth * stackTopOffset;
     }),
   );
 }
