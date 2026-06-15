@@ -19,13 +19,16 @@ describe('article repository summaries', () => {
     expect(counts.get('article_a')).toEqual({
       annotationCount: 2,
       commentCount: 1,
+      aiCommentCount: 2,
       distillationCount: 1,
     });
     expect(counts.has('article_b')).toBe(false);
     expect(profile.map((entry) => entry.name)).toEqual([
       'count_annotations_by_article_scoped',
       'count_comments_by_article_scoped',
+      'count_ai_comments_by_article_scoped',
       'count_distillations_by_article_scoped',
+      'read_distillation_review_sessions_by_article_scoped',
     ]);
   });
 
@@ -35,11 +38,13 @@ describe('article repository summaries', () => {
     expect(counts.get('article_a')).toEqual({
       annotationCount: 2,
       commentCount: 1,
+      aiCommentCount: 2,
       distillationCount: 1,
     });
     expect(counts.get('article_b')).toEqual({
       annotationCount: 1,
       commentCount: 1,
+      aiCommentCount: 1,
       distillationCount: 1,
     });
   });
@@ -51,6 +56,7 @@ describe('article repository summaries', () => {
       id: 'article_a',
       annotationCount: 2,
       commentCount: 1,
+      aiCommentCount: 2,
       distillationCount: 1,
     });
   });
@@ -70,10 +76,12 @@ type AnnotationRow = {
   id: string;
   articleId: string;
   distillationStatus?: string;
+  distillationReviewSessions?: Array<{ messages: Array<{ author: string }> }>;
 };
 type CommentRow = {
   id: string;
   annotationId: string;
+  author: string;
   replyTo?: string;
 };
 
@@ -81,14 +89,14 @@ function repositoryDatabase(): StoreDatabase {
   const rows = {
     articles: [articleRow('article_a'), articleRow('article_b')],
     annotations: [
-      annotationRow('annotation_a_1', 'article_a', 'published'),
+      annotationRow('annotation_a_1', 'article_a', 'published', 1),
       annotationRow('annotation_a_2', 'article_a'),
       annotationRow('annotation_b_1', 'article_b', 'published'),
     ],
     comments: [
       commentRow('comment_a_1', 'annotation_a_1'),
-      commentRow('reply_a_1', 'annotation_a_1', 'comment_a_1'),
-      commentRow('comment_b_1', 'annotation_b_1'),
+      commentRow('reply_a_1', 'annotation_a_1', 'ai', 'comment_a_1'),
+      commentRow('comment_b_1', 'annotation_b_1', 'ai'),
     ],
   };
   return {
@@ -99,6 +107,7 @@ function repositoryDatabase(): StoreDatabase {
 class FakeSelect {
   private table: unknown;
   private condition: QueryCondition;
+  private grouped = false;
 
   constructor(
     private readonly rows: {
@@ -123,6 +132,7 @@ class FakeSelect {
   }
 
   groupBy() {
+    this.grouped = true;
     return this;
   }
 
@@ -132,6 +142,11 @@ class FakeSelect {
 
   all() {
     if (this.table === schema.annotations) {
+      if (!this.grouped)
+        return filterAnnotations(this.rows.annotations, this.condition).map((row) => ({
+          articleId: row.articleId,
+          reviewSessions: row.distillationReviewSessions,
+        }));
       return countAnnotations(this.rows.annotations, this.condition);
     }
     if (this.table === schema.comments) {
@@ -148,14 +163,21 @@ class FakeSelect {
 }
 
 function countAnnotations(rows: AnnotationRow[], condition: QueryCondition) {
-  const scopedArticleIds = articleIdsFromCondition(condition);
-  const publishedOnly = conditionValues(condition).has('published');
   return countByArticle(
-    rows.filter((row) => {
-      if (scopedArticleIds.size > 0 && !scopedArticleIds.has(row.articleId)) return false;
-      return !publishedOnly || row.distillationStatus === 'published';
-    }),
+    filterAnnotations(rows, condition, conditionValues(condition).has('published')),
   );
+}
+
+function filterAnnotations(
+  rows: AnnotationRow[],
+  condition: QueryCondition,
+  publishedOnly = false,
+) {
+  const scopedArticleIds = articleIdsFromCondition(condition);
+  return rows.filter((row) => {
+    if (scopedArticleIds.size > 0 && !scopedArticleIds.has(row.articleId)) return false;
+    return !publishedOnly || row.distillationStatus === 'published';
+  });
 }
 
 function countComments(
@@ -164,11 +186,12 @@ function countComments(
   condition: QueryCondition,
 ) {
   const scopedArticleIds = articleIdsFromCondition(condition);
+  const aiOnly = conditionValues(condition).has('ai');
   const articleByAnnotation = new Map(
     annotations.map((annotation) => [annotation.id, annotation.articleId]),
   );
   const rows = comments
-    .filter((comment) => !comment.replyTo)
+    .filter((comment) => (aiOnly ? comment.author === 'ai' : !comment.replyTo))
     .flatMap((comment) => {
       const articleId = articleByAnnotation.get(comment.annotationId);
       if (!articleId) return [];
@@ -231,10 +254,34 @@ function articleRow(id: string): ArticleRow {
   };
 }
 
-function annotationRow(id: string, articleId: string, distillationStatus?: string): AnnotationRow {
-  return { id, articleId, distillationStatus };
+function annotationRow(
+  id: string,
+  articleId: string,
+  distillationStatus?: string,
+  aiReviewMessages = 0,
+): AnnotationRow {
+  return {
+    id,
+    articleId,
+    distillationStatus,
+    distillationReviewSessions:
+      aiReviewMessages > 0
+        ? [{ messages: Array.from({ length: aiReviewMessages }, () => ({ author: 'ai' })) }]
+        : undefined,
+  };
 }
 
-function commentRow(id: string, annotationId: string, replyTo?: string): CommentRow {
-  return { id, annotationId, replyTo };
+function commentRow(
+  id: string,
+  annotationId: string,
+  authorOrReplyTo?: string,
+  replyTo?: string,
+): CommentRow {
+  const author = authorOrReplyTo === 'ai' ? 'ai' : 'user';
+  return {
+    id,
+    annotationId,
+    author,
+    replyTo: authorOrReplyTo === 'ai' ? replyTo : authorOrReplyTo,
+  };
 }

@@ -80,6 +80,7 @@ export function computeReadingActivityDays(
         day.annotations += counts.annotations;
         day.thoughts += counts.thoughts;
         day.comments += counts.thoughts;
+        day.aiComments += counts.aiComments;
         day.distillations += counts.distillations;
         day.score += counts.annotations + counts.thoughts + counts.distillations;
       });
@@ -94,12 +95,16 @@ export function computeReadingActivityDays(
         addToDay(comment.createdAt, (day) => {
           day.comments += 1;
           day.score += 1;
-          if (comment.author === 'ai') day.aiComments += 1;
         });
       }
       for (const comment of annotationThoughtComments(annotation)) {
         addToDay(comment.createdAt, (day) => {
           day.thoughts += 1;
+        });
+      }
+      for (const contribution of aiContributionDates(annotation)) {
+        addToDay(contribution, (day) => {
+          day.aiComments += 1;
         });
       }
       if (annotationHasPublishedDistillation(annotation)) {
@@ -142,7 +147,7 @@ function countReadingStats(
           annotations: result.annotations + (counts?.annotations || 0),
           thoughts: result.thoughts + (counts?.thoughts || 0),
           comments: result.comments + (counts?.thoughts || 0),
-          aiComments: result.aiComments,
+          aiComments: result.aiComments + (counts?.aiComments || 0),
           distillations: result.distillations + (counts?.distillations || 0),
         };
       }
@@ -161,14 +166,16 @@ function countReadingStats(
           annotationHasPublishedDistillation(annotation) &&
           inPeriod(distillationActivityDate(annotation)),
       );
+      const aiContributions = article.annotations.flatMap((annotation) =>
+        aiContributionDates(annotation).filter(inPeriod),
+      );
 
       return {
         articles: result.articles + (inPeriod(article.updatedAt) ? 1 : 0),
         annotations: result.annotations + annotations.length,
         thoughts: result.thoughts + thoughts.length,
         comments: result.comments + comments.length,
-        aiComments:
-          result.aiComments + comments.filter((comment) => comment.author === 'ai').length,
+        aiComments: result.aiComments + aiContributions.length,
         distillations: result.distillations + distillations.length,
       };
     },
@@ -190,10 +197,36 @@ function articleSummaryCounts(article: ArticleSummaryRecord) {
           count + annotation.comments.filter((comment) => !comment.replyTo).length,
         0,
       ),
+    aiComments:
+      article.aiCommentCount ??
+      article.annotations.reduce(
+        (count, annotation) => count + aiContributionDates(annotation).length,
+        0,
+      ),
     distillations:
       article.distillationCount ??
       article.annotations.filter(annotationHasPublishedDistillation).length,
   };
+}
+
+function aiContributionDates(annotation: Annotation) {
+  const dates: string[] = [];
+  const seenCommentIds = new Set<string>();
+  for (const comment of [
+    ...annotationThreadComments(annotation),
+    ...annotationThoughtComments(annotation),
+  ]) {
+    if (comment.author !== 'ai') continue;
+    if (seenCommentIds.has(comment.id)) continue;
+    seenCommentIds.add(comment.id);
+    dates.push(comment.createdAt);
+  }
+  for (const session of annotation.distillation?.reviewSessions || []) {
+    for (const message of session.messages) {
+      if (message.author === 'ai') dates.push(message.createdAt);
+    }
+  }
+  return dates;
 }
 
 function startOfDay(date: Date) {

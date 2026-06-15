@@ -191,6 +191,65 @@ describe('reading core', () => {
     });
   });
 
+  it('counts ai contribution sources across thoughts, replies and distillation reviews', () => {
+    const record = article('today', '2026-05-03T08:00:00.000Z', [
+      annotation('a1', 0, '2026-05-03T08:00:00.000Z', {
+        author: 'ai',
+        comments: [
+          {
+            id: 'agent-thought',
+            author: 'ai',
+            content: '助手想法',
+            createdAt: '2026-05-03T08:00:00.000Z',
+          },
+          {
+            id: 'agent-reply',
+            author: 'ai',
+            content: '助手回复',
+            createdAt: '2026-05-03T08:10:00.000Z',
+            replyTo: 'agent-thought',
+          },
+        ],
+        distillation: {
+          status: 'published',
+          content: '沉淀',
+          publishedAt: '2026-05-03T08:20:00.000Z',
+          reviewSessions: [
+            {
+              id: 'review',
+              agentId: 'agent',
+              createdAt: '2026-05-03T08:30:00.000Z',
+              updatedAt: '2026-05-03T08:35:00.000Z',
+              messages: [
+                {
+                  id: 'agent-review',
+                  author: 'ai',
+                  content: '助手参与沉淀',
+                  createdAt: '2026-05-03T08:35:00.000Z',
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    ]);
+    const stats = computeReadingStats([record], new Date('2026-05-03T12:00:00.000Z')).today;
+    const day = computeReadingActivityDays([record], 1, new Date('2026-05-03T12:00:00.000Z'))[0];
+
+    expect(stats).toMatchObject({
+      aiComments: 3,
+      comments: 1,
+      thoughts: 1,
+      distillations: 1,
+    });
+    expect(day).toMatchObject({
+      aiComments: 3,
+      comments: 1,
+      thoughts: 1,
+      distillations: 1,
+    });
+  });
+
   it('falls back to summary counts when annotation details are not loaded', () => {
     const summary: ArticleSummaryRecord = {
       id: 'summary',
@@ -201,6 +260,7 @@ describe('reading core', () => {
       annotations: [],
       annotationCount: 9,
       commentCount: 6,
+      aiCommentCount: 2,
       distillationCount: 2,
       createdAt: '2026-05-02T08:00:00.000Z',
       updatedAt: '2026-05-03T08:00:00.000Z',
@@ -211,7 +271,7 @@ describe('reading core', () => {
       annotations: 9,
       thoughts: 6,
       comments: 6,
-      aiComments: 0,
+      aiComments: 2,
       distillations: 2,
     });
     expect(
@@ -220,6 +280,7 @@ describe('reading core', () => {
       annotations: 9,
       thoughts: 6,
       comments: 6,
+      aiComments: 2,
       distillations: 2,
     });
   });
