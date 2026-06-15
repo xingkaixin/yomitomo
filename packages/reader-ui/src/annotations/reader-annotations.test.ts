@@ -271,6 +271,24 @@ describe('reader annotation filters', () => {
     ]);
   });
 
+  it('keeps cross-segment translation annotations apart despite colliding anchor offsets', () => {
+    const annotations = [
+      annotation('seg-1', { anchor: { ...anchor('seg-1', 0, 8), segmentId: 'block_1_aaa' } }),
+      annotation('seg-2', { anchor: { ...anchor('seg-2', 0, 8), segmentId: 'block_2_bbb' } }),
+      annotation('seg-3', { anchor: { ...anchor('seg-3', 0, 8), segmentId: 'block_3_ccc' } }),
+    ];
+    const items = buildAnnotationRailItems(
+      annotations,
+      [box('seg-1', { top: 100 }), box('seg-2', { top: 300 }), box('seg-3', { top: 500 })],
+      null,
+    );
+    const byId = new Map(items.map((item) => [item.annotation.id, item]));
+
+    expect(byId.get('seg-1')?.stackCount).toBe(1);
+    expect(byId.get('seg-2')?.stackCount).toBe(1);
+    expect(byId.get('seg-3')?.stackCount).toBe(1);
+  });
+
   it('places rail items on the side nearest their highlight when both sides fit', () => {
     const items = buildAnnotationRailItems(
       [
