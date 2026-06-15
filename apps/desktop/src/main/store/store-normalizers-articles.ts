@@ -20,6 +20,7 @@ type ArticleBaseRow = ArticleSummaryRow &
 export type ArticleSummaryCounts = {
   annotationCount: number;
   commentCount: number;
+  aiCommentCount: number;
   distillationCount: number;
 };
 
@@ -69,6 +70,7 @@ function rowToArticleBase(
     annotations,
     annotationCount: counts.annotationCount,
     commentCount: counts.commentCount,
+    aiCommentCount: counts.aiCommentCount,
     distillationCount: counts.distillationCount,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -83,6 +85,19 @@ function articleCountsFromAnnotations(annotations: Annotation[]): ArticleSummary
         count + annotation.comments.filter((comment) => !comment.replyTo).length,
       0,
     ),
+    aiCommentCount: annotations.reduce((count, annotation) => {
+      const commentIds = new Set<string>();
+      let aiCount = 0;
+      for (const comment of annotation.comments) {
+        if (comment.author !== 'ai' || commentIds.has(comment.id)) continue;
+        commentIds.add(comment.id);
+        aiCount += 1;
+      }
+      for (const session of annotation.distillation?.reviewSessions || []) {
+        aiCount += session.messages.filter((message) => message.author === 'ai').length;
+      }
+      return count + aiCount;
+    }, 0),
     distillationCount: annotations.filter(
       (annotation) => annotation.distillation?.status === 'published',
     ).length,

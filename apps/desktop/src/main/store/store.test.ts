@@ -541,12 +541,14 @@ describe('desktop store articles', () => {
     const article = rowToArticleSummary(storeSummaryRow(), [], {
       annotationCount: 2,
       commentCount: 1,
+      aiCommentCount: 1,
       distillationCount: 1,
     });
 
     expect(article.annotations).toEqual([]);
     expect(article.annotationCount).toBe(2);
     expect(article.commentCount).toBe(1);
+    expect(article.aiCommentCount).toBe(1);
     expect(article.distillationCount).toBe(1);
   });
 

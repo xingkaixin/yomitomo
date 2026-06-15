@@ -1,6 +1,7 @@
 import { and, count, desc, eq, inArray, isNull, or, type SQL } from 'drizzle-orm';
 import type {
   Annotation,
+  AnnotationDistillationReviewSession,
   ArticleDeletePatch,
   ArticleReaderChatStatePatch,
   ArticleRecord,
@@ -402,6 +403,21 @@ function readArticleSummaryCountsInternal(
       .groupBy(schema.annotations.articleId)
       .all(),
   );
+  const aiCommentCounts = measureStoreRead(
+    profile,
+    profileName('count_ai_comments_by_article'),
+    () =>
+      database
+        .select({
+          articleId: schema.annotations.articleId,
+          count: count(),
+        })
+        .from(schema.comments)
+        .innerJoin(schema.annotations, eq(schema.comments.annotationId, schema.annotations.id))
+        .where(andConditions(eq(schema.comments.author, 'ai'), articleFilter))
+        .groupBy(schema.annotations.articleId)
+        .all(),
+  );
   const distillationCounts = measureStoreRead(
     profile,
     profileName('count_distillations_by_article'),
@@ -416,12 +432,26 @@ function readArticleSummaryCountsInternal(
         .groupBy(schema.annotations.articleId)
         .all(),
   );
+  const distillationReviewRows = measureStoreRead(
+    profile,
+    profileName('read_distillation_review_sessions_by_article'),
+    () =>
+      database
+        .select({
+          articleId: schema.annotations.articleId,
+          reviewSessions: schema.annotations.distillationReviewSessions,
+        })
+        .from(schema.annotations)
+        .where(articleFilter)
+        .all(),
+  );
   const countsByArticle = new Map<string, ArticleSummaryCounts>();
 
   for (const row of annotationCounts) {
     countsByArticle.set(row.articleId, {
       annotationCount: row.count,
       commentCount: 0,
+      aiCommentCount: 0,
       distillationCount: 0,
     });
   }
@@ -433,6 +463,19 @@ function readArticleSummaryCountsInternal(
       countsByArticle.set(row.articleId, {
         annotationCount: 0,
         commentCount: row.count,
+        aiCommentCount: 0,
+        distillationCount: 0,
+      });
+  }
+
+  for (const row of aiCommentCounts) {
+    const counts = countsByArticle.get(row.articleId);
+    if (counts) counts.aiCommentCount = row.count;
+    else
+      countsByArticle.set(row.articleId, {
+        annotationCount: 0,
+        commentCount: 0,
+        aiCommentCount: row.count,
         distillationCount: 0,
       });
   }
@@ -444,11 +487,48 @@ function readArticleSummaryCountsInternal(
       countsByArticle.set(row.articleId, {
         annotationCount: 0,
         commentCount: 0,
+        aiCommentCount: 0,
         distillationCount: row.count,
       });
   }
 
+  for (const row of distillationReviewRows) {
+    const aiReviewMessageCount = countAiDistillationReviewMessages(row.reviewSessions);
+    if (aiReviewMessageCount === 0) continue;
+    const counts = countsByArticle.get(row.articleId);
+    if (counts) counts.aiCommentCount += aiReviewMessageCount;
+    else
+      countsByArticle.set(row.articleId, {
+        annotationCount: 0,
+        commentCount: 0,
+        aiCommentCount: aiReviewMessageCount,
+        distillationCount: 0,
+      });
+  }
+
   return countsByArticle;
+}
+
+function countAiDistillationReviewMessages(
+  sessions: AnnotationDistillationReviewSession[] | unknown,
+) {
+  if (!Array.isArray(sessions)) return 0;
+  return sessions.reduce(
+    (total, session) => total + countAiDistillationReviewSessionMessages(session),
+    0,
+  );
+}
+
+function countAiDistillationReviewSessionMessages(session: unknown) {
+  if (!session || typeof session !== 'object') return 0;
+  const messages = (session as { messages?: unknown }).messages;
+  if (!Array.isArray(messages)) return 0;
+  return messages.filter(
+    (message): message is { author: string } =>
+      Boolean(message) &&
+      typeof message === 'object' &&
+      (message as { author?: unknown }).author === 'ai',
+  ).length;
 }
 
 function andConditions(...conditions: Array<SQL | undefined>) {
