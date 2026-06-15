@@ -2,7 +2,7 @@
 
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DesktopStore } from '@yomitomo/shared';
+import type { ArticleStorePatch, DesktopStore } from '@yomitomo/shared';
 
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { emptyStore } from '../settings/app-settings';
@@ -24,7 +24,9 @@ describe('useDesktopStoreState', () => {
     const updatedStore = makeStore({ user: { nickname: '外部更新' } });
     const appliedStore = makeStore({ user: { nickname: '本地应用' } });
     const offStoreUpdated = vi.fn();
+    const offArticlePatched = vi.fn();
     let emitStoreUpdated = noopStoreUpdated;
+    let emitArticlePatched = noopArticlePatched;
 
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
@@ -33,6 +35,10 @@ describe('useDesktopStoreState', () => {
         onStoreUpdated: vi.fn((callback: (store: DesktopStore) => void) => {
           emitStoreUpdated = callback;
           return offStoreUpdated;
+        }),
+        onArticlePatched: vi.fn((callback: (patch: ArticleStorePatch) => void) => {
+          emitArticlePatched = callback;
+          return offArticlePatched;
         }),
       },
     });
@@ -56,6 +62,14 @@ describe('useDesktopStoreState', () => {
 
     expect(latest.current?.store).toBe(updatedStore);
     expect(latest.current?.storeRef.current).toBe(updatedStore);
+
+    const patchedArticle = articleSummary({ id: 'article_1', commentCount: 1 });
+    act(() => {
+      emitArticlePatched({ type: 'article-upsert', article: patchedArticle });
+    });
+
+    expect(latest.current?.store.articles).toEqual([patchedArticle]);
+    expect(latest.current?.storeRef.current.articles).toEqual([patchedArticle]);
 
     act(() => {
       latest.current?.applyStore(appliedStore);
@@ -104,6 +118,7 @@ describe('useDesktopStoreState', () => {
 });
 
 function noopStoreUpdated(_store: DesktopStore) {}
+function noopArticlePatched(_patch: ArticleStorePatch) {}
 
 function makeStore(
   input: {
@@ -120,5 +135,29 @@ function makeStore(
     providers: input.providers || [],
     agents: input.agents || [],
     articles: input.articles || [],
+  };
+}
+
+function articleSummary(
+  input: Partial<DesktopStore['articles'][number]>,
+): DesktopStore['articles'][number] {
+  return {
+    id: input.id || 'article_1',
+    title: input.title || '文章',
+    url: input.url || '',
+    canonicalUrl: input.canonicalUrl || input.url || '',
+    excerpt: input.excerpt || '',
+    byline: input.byline || '',
+    siteName: input.siteName || '',
+    contentHash: input.contentHash || 'hash',
+    sourceType: input.sourceType || 'web',
+    readingProgress: input.readingProgress,
+    annotations: input.annotations || [],
+    annotationCount: input.annotationCount || 0,
+    commentCount: input.commentCount || 0,
+    aiCommentCount: input.aiCommentCount || 0,
+    distillationCount: input.distillationCount || 0,
+    createdAt: input.createdAt || '2026-06-15T00:00:00.000Z',
+    updatedAt: input.updatedAt || '2026-06-15T00:00:00.000Z',
   };
 }

@@ -1,6 +1,6 @@
 import { performance } from 'node:perf_hooks';
 import { app, BrowserWindow, shell } from 'electron';
-import type { DesktopStore } from '@yomitomo/shared';
+import type { ArticleStorePatch, DesktopStore } from '@yomitomo/shared';
 import { getLogPath, logError, logInfo, pruneLogFile } from './app/logger';
 import { configureDesktopAppStorage } from './app/app-environment';
 import type { AppUpdateState } from '../app-update-types';
@@ -200,6 +200,7 @@ function registerIpc() {
     getAppUpdaterModule,
     getAppVersion: () => app.getVersion(),
     sendFullStoreUpdated,
+    sendArticlePatched,
     recordStartupTiming,
     recordPerformanceTiming,
     scheduleLogPrune,
@@ -222,6 +223,10 @@ function registerIpc() {
 
 function sendFullStoreUpdated(store: DesktopStore) {
   sendToRenderer('store:updated', store);
+}
+
+function sendArticlePatched(patch: ArticleStorePatch) {
+  sendToRenderer('article:patched', patch);
 }
 
 async function storeLoadErrorInfo(error: unknown): Promise<DesktopStoreLoadErrorInfo> {
@@ -248,6 +253,7 @@ function sendUpdateStatusUpdated(state: AppUpdateState) {
 
 function sendToRenderer(channel: 'store:updated', payload: DesktopStore): void;
 function sendToRenderer(channel: 'updates:status', payload: AppUpdateState): void;
+function sendToRenderer(channel: 'article:patched', payload: ArticleStorePatch): void;
 function sendToRenderer(channel: string, payload: unknown) {
   if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) return;
   mainWindow.webContents.send(channel, payload);

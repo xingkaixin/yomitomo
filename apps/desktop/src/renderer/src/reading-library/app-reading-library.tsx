@@ -35,6 +35,9 @@ import { WeReadBookcase } from '../shell/app-weread-bookcase';
 import { appToast } from '../shell/app-toast';
 import type { ArticleImportResult } from './app-reading-library-imports';
 import {
+  articleAnnotationCount,
+  articleDistillationCount,
+  articleThoughtCount,
   groupLibraryArticles,
   librarySourceForArticle,
   type LibrarySort,
@@ -253,6 +256,21 @@ export function ReadingLibrary({
       cancelled = true;
     };
   }, [onReadArticle, selectedArticle?.id, selectedArticle?.sourceType]);
+
+  useEffect(() => {
+    if (!selectedArticleId || !selectedArticle) return;
+    const summary = sortedArticles.find((article) => article.id === selectedArticleId);
+    if (!summary) return;
+    if (!articleSummaryChanged(summary, selectedArticle)) return;
+    let cancelled = false;
+    void onReadArticle(summary.id).then((fullArticle) => {
+      if (cancelled || !fullArticle || selectedArticleIdRef.current !== summary.id) return;
+      setSelectedArticle(fullArticle);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [onReadArticle, selectedArticle, selectedArticleId, sortedArticles]);
 
   useEffect(() => {
     onReadingModeChange?.(
@@ -878,6 +896,27 @@ function articleHasReadableBody(
     return Boolean(article.ebook && 'chapters' in article.ebook && article.ebook.chapters.length);
   if (article.sourceType === 'pdf') return false;
   return Boolean('contentHtml' in article && article.contentHtml);
+}
+
+function articleSummaryChanged(summary: ArticleSummaryRecord, article: ArticleRecord) {
+  return (
+    summary.updatedAt !== article.updatedAt ||
+    articleAnnotationCount(summary) !== articleAnnotationCount(article) ||
+    articleThoughtCount(summary) !== articleThoughtCount(article) ||
+    articleAiCommentCount(summary) !== articleAiCommentCount(article) ||
+    articleDistillationCount(summary) !== articleDistillationCount(article)
+  );
+}
+
+function articleAiCommentCount(article: ArticleSummaryRecord) {
+  return (
+    article.aiCommentCount ??
+    article.annotations.reduce(
+      (count, annotation) =>
+        count + annotation.comments.filter((comment) => comment.author === 'ai').length,
+      0,
+    )
+  );
 }
 
 function weReadOpenErrorMessage(error: unknown) {

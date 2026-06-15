@@ -42,6 +42,7 @@ import {
   saveArticleReaderChatStateRows,
   saveArticleReadingProgressRows,
   saveArticleRows,
+  touchArticleRows,
   upsertAnnotationRows,
   upsertCommentRows,
   writeArticleRows,
@@ -470,8 +471,11 @@ export async function deleteArticle(id: string) {
 export async function deleteArticleAnnotation(input: {
   articleId: string;
   annotationId: string;
+  updatedAt?: string;
 }): Promise<ArticleUpsertPatch | null> {
-  deleteAnnotationRowsWithMemoryLifecycle(sqliteExecutor(), input);
+  const updatedAt = input.updatedAt || new Date().toISOString();
+  deleteAnnotationRowsWithMemoryLifecycle(sqliteExecutor(), { ...input, deletedAt: updatedAt });
+  touchArticleRows(getDatabase(), input.articleId, updatedAt);
   const article = readArticleSummaryRows(getDatabase(), input.articleId);
   return article ? buildArticleUpsertPatch(article) : null;
 }
@@ -480,8 +484,11 @@ export async function deleteArticleComment(input: {
   articleId: string;
   annotationId: string;
   commentId: string;
+  updatedAt?: string;
 }): Promise<ArticleUpsertPatch | null> {
-  deleteCommentRowsWithMemoryLifecycle(sqliteExecutor(), input);
+  const updatedAt = input.updatedAt || new Date().toISOString();
+  deleteCommentRowsWithMemoryLifecycle(sqliteExecutor(), { ...input, deletedAt: updatedAt });
+  touchArticleRows(getDatabase(), input.articleId, updatedAt);
   const article = readArticleSummaryRows(getDatabase(), input.articleId);
   return article ? buildArticleUpsertPatch(article) : null;
 }

@@ -6,6 +6,7 @@ import {
 } from '../../../app-store-errors';
 
 import { emptyStore } from '../settings/app-settings';
+import { applyArticleStorePatch } from './app-article-store-actions';
 
 export function useDesktopStoreState() {
   const [store, setStore] = useState<DesktopStore>(emptyStore);
@@ -72,7 +73,15 @@ export function useDesktopStoreState() {
       setStoreLoadError(null);
       setStoreLoaded(true);
     });
+    const offArticlePatched =
+      desktop.onArticlePatched?.((patch) => {
+        const nextStore = applyArticleStorePatch(storeRef.current, patch);
+        applyStore(nextStore);
+        setStoreLoadError(null);
+        setStoreLoaded(true);
+      }) || (() => undefined);
     return () => {
+      offArticlePatched();
       offStoreUpdated();
     };
   }, [applyStore, refreshStore]);

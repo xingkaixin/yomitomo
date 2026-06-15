@@ -13,6 +13,7 @@ import type {
   AppSettings,
   ArticleRecord,
   ArticleReadingProgress,
+  ArticleStorePatch,
   ArticleTranslation,
   ArticleTranslationDeleteRequest,
   ArticleTranslationRequest,
@@ -116,6 +117,11 @@ const api = {
     const listener = (_event: IpcRendererEvent, store: DesktopStore) => callback(store);
     ipcRenderer.on('store:updated', listener);
     return () => ipcRenderer.removeListener('store:updated', listener);
+  },
+  onArticlePatched: (callback: (patch: ArticleStorePatch) => void) => {
+    const listener = (_event: IpcRendererEvent, patch: ArticleStorePatch) => callback(patch);
+    ipcRenderer.on('article:patched', listener);
+    return () => ipcRenderer.removeListener('article:patched', listener);
   },
   saveUser: (user: Partial<UserProfile>) => invokeDesktopIpc('user:save', user),
   saveSettings: (settings: AppSettings) => invokeDesktopIpc('settings:save', settings),

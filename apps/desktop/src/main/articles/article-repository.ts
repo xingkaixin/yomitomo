@@ -96,7 +96,11 @@ export function readArticleSummaryRows(
     .get();
   if (!row) return null;
 
-  return rowToArticleSummary(row, [], readArticleSummaryCountsForArticles(database, [id]).get(id));
+  return rowToArticleSummary(
+    row,
+    readArticleAnnotations(database, id),
+    readArticleSummaryCountsForArticles(database, [id]).get(id),
+  );
 }
 
 export function findArticleByIdentityRows(
@@ -687,7 +691,7 @@ function insertCommentRows(
   }
 }
 
-function touchArticleRows(database: StoreExecutor, articleId: string, updatedAt: string) {
+export function touchArticleRows(database: StoreExecutor, articleId: string, updatedAt: string) {
   database
     .update(schema.articles)
     .set({ updatedAt })
