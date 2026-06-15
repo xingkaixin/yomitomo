@@ -41,19 +41,27 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
   });
   handleDesktopIpc('article:save-annotation', async (_event, input) => {
     const { saveArticleAnnotation } = await context.getStoreModule();
-    return saveArticleAnnotation(input);
+    const patch = await saveArticleAnnotation(input);
+    if (patch) context.sendArticlePatched(patch);
+    return patch;
   });
   handleDesktopIpc('article:save-comment', async (_event, input) => {
     const { saveArticleComment } = await context.getStoreModule();
-    return saveArticleComment(input);
+    const patch = await saveArticleComment(input);
+    if (patch) context.sendArticlePatched(patch);
+    return patch;
   });
   handleDesktopIpc('article:delete-annotation', async (_event, input) => {
     const { deleteArticleAnnotation } = await context.getStoreModule();
-    return deleteArticleAnnotation(input);
+    const patch = await deleteArticleAnnotation(input);
+    if (patch) context.sendArticlePatched(patch);
+    return patch;
   });
   handleDesktopIpc('article:delete-comment', async (_event, input) => {
     const { deleteArticleComment } = await context.getStoreModule();
-    return deleteArticleComment(input);
+    const patch = await deleteArticleComment(input);
+    if (patch) context.sendArticlePatched(patch);
+    return patch;
   });
   handleDesktopIpc('article:reading-progress', async (_event, input) => {
     const { saveArticleReadingProgress } = await context.getStoreModule();

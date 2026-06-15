@@ -153,7 +153,12 @@ function HookProbe({
   });
 
   return (
-    <output data-testid="annotations">{api.annotations.map((item) => item.id).join(',')}</output>
+    <>
+      <output data-testid="annotations">{api.annotations.map((item) => item.id).join(',')}</output>
+      <output data-testid="comment-count">
+        {api.annotations.reduce((count, item) => count + item.comments.length, 0)}
+      </output>
+    </>
   );
 }
 
@@ -384,6 +389,39 @@ describe('useSourceAnnotations', () => {
     );
 
     expect(screen.getByTestId('annotations').textContent).toBe('remote');
+  });
+
+  it('accepts newer incoming article updates after external comment deletion', () => {
+    const target = annotation('question_1', {
+      comments: [comment({ id: 'thought_1', content: '待删除想法' })],
+    });
+    const { rerender } = render(
+      <HookProbe
+        articleRecord={article({
+          updatedAt: '2026-05-16T10:00:00.000Z',
+          annotations: [target],
+        })}
+        ignoreStaleArticleUpdates
+        onApi={() => undefined}
+      />,
+    );
+
+    expect(screen.getByTestId('annotations').textContent).toBe('question_1');
+    expect(screen.getByTestId('comment-count').textContent).toBe('1');
+
+    rerender(
+      <HookProbe
+        articleRecord={article({
+          updatedAt: '2026-05-16T10:00:01.000Z',
+          annotations: [{ ...target, comments: [] }],
+        })}
+        ignoreStaleArticleUpdates
+        onApi={() => undefined}
+      />,
+    );
+
+    expect(screen.getByTestId('annotations').textContent).toBe('question_1');
+    expect(screen.getByTestId('comment-count').textContent).toBe('0');
   });
 
   it('does not replace local annotations with equal timestamp incoming article updates', () => {

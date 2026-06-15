@@ -44,6 +44,12 @@ if (!Element.prototype.releasePointerCapture) {
 if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = () => undefined;
 }
+if (typeof Range !== 'undefined' && !Range.prototype.getClientRects) {
+  Object.defineProperty(Range.prototype, 'getClientRects', {
+    configurable: true,
+    value: () => [],
+  });
+}
 
 afterEach(() => {
   vi.useRealTimers();
@@ -815,6 +821,170 @@ describe('ReadingLibrary home', () => {
     ).toBe('enter-library');
     expect(screen.queryByText('正文')).toBeNull();
     expect(screen.getByRole('button', { name: '打开文章：网页文章' })).toBeTruthy();
+  });
+
+  it('refreshes the open article when its summary changes externally', async () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    vi.stubGlobal('yomitomoDesktop', {});
+    const initialArticle = article({ title: '同步文章' });
+    const updatedArticle = article({
+      title: '同步文章',
+      updatedAt: '2026-05-09T12:03:00.000Z',
+      annotations: [
+        {
+          ...annotation('annotation_1'),
+          comments: [
+            {
+              id: 'comment_1',
+              author: 'ai',
+              content: '助手想法',
+              agentId: 'agent_1',
+              agentNickname: '行开心',
+              createdAt: '2026-05-09T12:03:00.000Z',
+            },
+          ],
+          updatedAt: '2026-05-09T12:03:00.000Z',
+        },
+      ],
+      annotationCount: 1,
+      commentCount: 1,
+      aiCommentCount: 1,
+    });
+    const updatedSummary = {
+      ...articleSummary(updatedArticle),
+      annotations: [],
+      annotationCount: 1,
+      commentCount: 1,
+      aiCommentCount: 1,
+    };
+    const onReadArticle = vi
+      .fn<(articleId: string) => Promise<ArticleRecord | null>>()
+      .mockResolvedValueOnce(initialArticle)
+      .mockResolvedValue(updatedArticle);
+    let setArticles!: (articles: ArticleSummaryRecord[]) => void;
+
+    function Harness() {
+      const [articles, updateArticles] = React.useState([articleSummary(initialArticle)]);
+      setArticles = updateArticles;
+      return (
+        <ReadingLibrary
+          agents={[]}
+          articles={articles}
+          readerTheme={defaultTheme.reader}
+          userProfile={userProfile}
+          onDeleteArticle={vi.fn()}
+          onImportEbookFile={vi.fn()}
+          onImportPdfFile={vi.fn()}
+          onImportArticleUrl={vi.fn()}
+          onReadArticle={(articleId) => onReadArticle(articleId)}
+          onSaveArticle={vi.fn()}
+          onSaveArticleReadingProgress={vi.fn()}
+          onUpdateArticle={vi.fn()}
+        />
+      );
+    }
+
+    render(<Harness />);
+
+    fireEvent.click(screen.getAllByRole('button', { name: '打开文章：同步文章' })[0]);
+    await waitFor(() => expect(onReadArticle).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      setArticles([updatedSummary]);
+    });
+
+    await waitFor(() => expect(onReadArticle).toHaveBeenCalledTimes(2));
+    expect(onReadArticle).toHaveBeenLastCalledWith('article_1');
+  });
+
+  it('refreshes the open article when an external delete removes its last thought', async () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    vi.stubGlobal('yomitomoDesktop', {});
+    const initialArticle = article({
+      title: '删除同步文章',
+      annotations: [
+        {
+          ...annotation('annotation_1'),
+          comments: [
+            {
+              id: 'comment_1',
+              author: 'user',
+              content: '待删除想法',
+              createdAt: '2026-05-09T12:01:00.000Z',
+            },
+          ],
+        },
+      ],
+      annotationCount: 1,
+      commentCount: 1,
+      aiCommentCount: 0,
+    });
+    const updatedArticle = article({
+      title: '删除同步文章',
+      annotations: [{ ...annotation('annotation_1'), comments: [] }],
+      annotationCount: 1,
+      commentCount: 0,
+      aiCommentCount: 0,
+    });
+    const updatedSummary = {
+      ...articleSummary(updatedArticle),
+      annotations: [],
+      annotationCount: 1,
+      commentCount: 0,
+      aiCommentCount: 0,
+    };
+    const onReadArticle = vi
+      .fn<(articleId: string) => Promise<ArticleRecord | null>>()
+      .mockResolvedValueOnce(initialArticle)
+      .mockResolvedValue(updatedArticle);
+    let setArticles!: (articles: ArticleSummaryRecord[]) => void;
+
+    function Harness() {
+      const [articles, updateArticles] = React.useState([articleSummary(initialArticle)]);
+      setArticles = updateArticles;
+      return (
+        <ReadingLibrary
+          agents={[]}
+          articles={articles}
+          readerTheme={defaultTheme.reader}
+          userProfile={userProfile}
+          onDeleteArticle={vi.fn()}
+          onImportEbookFile={vi.fn()}
+          onImportPdfFile={vi.fn()}
+          onImportArticleUrl={vi.fn()}
+          onReadArticle={(articleId) => onReadArticle(articleId)}
+          onSaveArticle={vi.fn()}
+          onSaveArticleReadingProgress={vi.fn()}
+          onUpdateArticle={vi.fn()}
+        />
+      );
+    }
+
+    render(<Harness />);
+
+    fireEvent.click(screen.getAllByRole('button', { name: '打开文章：删除同步文章' })[0]);
+    await waitFor(() => expect(onReadArticle).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      setArticles([updatedSummary]);
+    });
+
+    await waitFor(() => expect(onReadArticle).toHaveBeenCalledTimes(2));
+    expect(onReadArticle).toHaveBeenLastCalledWith('article_1');
   });
 
   it('plays the distillation committed sound for publish and update events', async () => {

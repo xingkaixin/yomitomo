@@ -1,5 +1,5 @@
 import { ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
-import type { DesktopStore } from '@yomitomo/shared';
+import type { ArticleStorePatch, DesktopStore } from '@yomitomo/shared';
 import type { DesktopStoreLoadErrorInfo } from '../../app-store-errors';
 import type {
   DesktopIpcInvokeArgs,
@@ -16,6 +16,7 @@ export interface DesktopMainIpcContext {
   getAppUpdaterModule: () => Promise<typeof import('../app/app-updater')>;
   getAppVersion: () => string;
   sendFullStoreUpdated: (store: DesktopStore) => void;
+  sendArticlePatched: (patch: ArticleStorePatch) => void;
   recordStartupTiming: (event: string, data?: Record<string, unknown>) => void;
   recordPerformanceTiming: (input: unknown) => void;
   scheduleLogPrune: (retentionDays: number | undefined) => void;
