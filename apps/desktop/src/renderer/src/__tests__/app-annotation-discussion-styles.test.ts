@@ -29,10 +29,19 @@ describe('annotation discussion styles', () => {
     expect(styles).toMatch(
       /\.annotation-discussion-add-run-agent\.is-done \.annotation-discussion-add-run-avatar \{[\s\S]*animation: annotation-discussion-add-avatar-settle 0\.5s/,
     );
+    expect(styles).toMatch(
+      /\.annotation-discussion-add-run-writing-avatar \{[\s\S]*width: 42px;[\s\S]*height: 42px;[\s\S]*background-size: var\(--agent-writing-sheet-width\) 42px;[\s\S]*animation: annotation-discussion-add-writing-avatar var\(--agent-writing-duration\) steps\(7\)[\s\S]*infinite;[\s\S]*\}/,
+    );
+    expect(styles).toMatch(
+      /@keyframes annotation-discussion-add-writing-avatar \{[\s\S]*background-position-x: var\(--agent-writing-travel\);[\s\S]*\}/,
+    );
     expect(styles).not.toContain('annotation-discussion-add-agent-sway');
     expect(styles).not.toContain('reader-completion-burst');
     expect(styles).toMatch(
       /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.annotation-discussion-add-run-agent\.is-active \.annotation-discussion-add-run-inkline::before \{[\s\S]*animation: none;[\s\S]*\}/,
+    );
+    expect(styles).toMatch(
+      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.annotation-discussion-add-run-writing-avatar \{[\s\S]*animation: none;[\s\S]*\}/,
     );
   });
 
