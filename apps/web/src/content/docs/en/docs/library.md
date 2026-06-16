@@ -3,7 +3,7 @@ title: Library and Import
 description: Manage web articles, EPUB books, and PDF documents, and understand how Yomitomo stores reading materials.
 ---
 
-The Library is the entry point for all reading materials. Web articles, EPUB books, PDF documents, and WeRead notes are managed separately so each source can open into the right reading flow.
+The Library is the entry point for all reading materials. Web articles, EPUB books, PDF documents, and WeRead notes are managed separately so each source can open into the right reading flow. You can customize which content sources appear on the home view in Settings. Deleting items requires confirmation; successful imports and deletes can show toast and optional sound feedback.
 
 <picture>
   <source

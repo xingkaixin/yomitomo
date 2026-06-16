@@ -4,37 +4,37 @@
     {
       "type": "new",
       "title": "Language switching and bilingual docs",
-      "description": "The desktop app now supports language switching, with bilingual website docs and localized assistant persona presentations.",
+      "description": "The desktop app supports language switching, with bilingual website docs and localized assistant personas.",
       "audience": "settings"
     },
     {
       "type": "new",
-      "title": "Reader chat and search",
-      "description": "Reader now includes persistent chat and full-text search so you can ask follow-ups and find keywords while reading.",
+      "title": "Reader chat, search, and translation",
+      "description": "Persistent chat and in-reader search while you read; bilingual web-article translation with locale-aligned assistant replies.",
       "audience": "reader"
     },
     {
       "type": "changed",
-      "title": "Reader toolbar and article header",
-      "description": "Unified the floating reader toolbar and redesigned the article header, empty notes state, and annotation layout.",
+      "title": "Reader toolbar and annotations",
+      "description": "Unified floating toolbar with improved article header, empty notes, rail grouping, and distillation motion.",
       "audience": "reader"
     },
     {
       "type": "changed",
-      "title": "Settings and Library experience",
-      "description": "Reworked Settings IA, added Library content-source customization, and surfaced assistant usage in stats.",
+      "title": "Settings, theme, and sound",
+      "description": "Reworked Settings and Library IA, dusk indigo theme, hand-drawn paper picker, sound effects, and toast feedback.",
       "audience": "settings"
     },
     {
       "type": "new",
       "title": "Release-notes dialogs",
-      "description": "The update flow can now show release notes for the target version and read bundled notes after update.",
+      "description": "The update flow shows release notes for the target version and bundled notes after update.",
       "audience": "settings"
     },
     {
       "type": "fixed",
-      "title": "Reading and import stability",
-      "description": "Fixed issues across Settings, Reader, Library covers, SQLite native roots, and import flows.",
+      "title": "Security and stability",
+      "description": "HTML sanitization, renderer sandbox, SQLite runtime packaging, and fixes across import, stats, and the annotation rail.",
       "audience": "reader"
     }
   ]

@@ -3,7 +3,7 @@ title: Settings, Models, and Data
 description: Configure providers, task routing, shortcuts, local data, and app updates.
 ---
 
-Settings covers the product boundaries: external model providers, user input preferences, local data, and app updates.
+Settings covers the product boundaries: UI language, external model providers, themes and sound effects, user input preferences, local data, and app updates.
 
 ## Model Providers
 
@@ -37,9 +37,17 @@ After configuring providers, assign models to different tasks:
 | Reading assistants | Highlight thought generation and `@` mention replies |
 | Review assistants | Evidence, logic, and clarity review |
 
+## Language
+
+In Settings > General you can switch the UI language (for example Simplified Chinese and English). App UI, assistant persona copy, and many prompts follow the selected language.
+
 ## Theme and Reader Paper
 
-The theme button in the sidebar switches between light, dark, and reader paper themes. Reader paper only affects web articles, EPUB books, and PDF reading surfaces. In dark mode, PDFs keep their original page colors to avoid reducing document readability.
+The theme button in the sidebar switches between light, dark, dusk indigo, and reader paper themes, including a hand-drawn ink paper picker. Reader paper only affects web articles, EPUB books, and PDF reading surfaces. In dark mode, PDFs keep their original page colors to avoid reducing document readability.
+
+## Sound Effects
+
+Settings > General lets you toggle in-app sound effects and adjust volume—for example import success, library delete, highlight creation, distillation commit, and assistant writing in discussions.
 
 ## Shortcuts
 
@@ -51,7 +59,7 @@ Data management provides entries for the data directory, logs, and database file
 
 ## App Updates
 
-Yomitomo supports update flows on macOS and Windows. The app checks for new versions at startup, and you can also check manually in Settings > About.
+Yomitomo supports update flows on macOS and Windows. The app checks for new versions at startup, and you can also check manually in Settings > About. When an update is available, release notes for that version are shown (fetched from the website before update, bundled locally after update). Public macOS installers are signed and notarized.
 
 ## Assistant Diagnostics
 
