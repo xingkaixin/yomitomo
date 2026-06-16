@@ -9,32 +9,32 @@
     },
     {
       "type": "new",
-      "title": "阅读器聊天与搜索",
-      "description": "阅读器新增持久聊天和正文搜索，可以边读边追问并快速定位关键词。",
+      "title": "阅读器聊天、搜索与翻译",
+      "description": "持久聊天与正文搜索边读边用；网页文章支持双语翻译，助手回复语言与界面一致。",
       "audience": "reader"
     },
     {
       "type": "changed",
-      "title": "阅读器工具栏与文章头部",
-      "description": "统一悬浮阅读工具栏，重新设计文章 header、空笔记状态和批注布局。",
+      "title": "阅读器工具栏与批注体验",
+      "description": "统一悬浮工具栏，优化文章 header、空笔记、侧栏批注分组与沉淀动效。",
       "audience": "reader"
     },
     {
       "type": "changed",
-      "title": "设置与资料库体验",
-      "description": "设置页信息架构重做，资料库支持内容来源定制，并在统计中展示助手用量。",
+      "title": "设置、主题与音效",
+      "description": "设置与资料库信息架构重做，黄昏靛蓝主题与手绘纸张选择；可开关应用内音效与 Toast 反馈。",
       "audience": "settings"
     },
     {
       "type": "new",
       "title": "更新说明弹窗",
-      "description": "应用更新流程会展示对应版本的更新说明，更新后也能读取本地打包文案。",
+      "description": "应用更新流程展示对应版本说明，更新后可读取本地打包文案。",
       "audience": "settings"
     },
     {
       "type": "fixed",
-      "title": "阅读与导入稳定性",
-      "description": "修复设置、阅读器、资料库封面、SQLite native root 和导入链路中的多处问题。",
+      "title": "安全与稳定性",
+      "description": "网页内容消毒、renderer 沙箱、SQLite 运行时打包与导入/统计/侧栏等多处修复。",
       "audience": "reader"
     }
   ]

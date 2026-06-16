@@ -1,35 +1,44 @@
 # Changelog
 
-## 0.7.0 - 2026-06-08
+## 0.7.0 - 2026-06-16
 
 ### Features
 
-- Added desktop language switching, bilingual website documentation, and localized assistant role presentation so the app UI, documentation, and assistant descriptions stay consistent for Chinese and English usage. (#324, #326, #327)
-- Added persistent reader chat, body search, a unified floating toolbar, a redesigned article header, empty note states, and adaptive annotation layouts to improve daily reading workflows for long articles, EPUBs, and PDFs. (#314, #315, #321, #322, #329, #330)
-- Continued deepening the annotation and discussion flow with inline selection-input actions, reply routing to the root assistant, and more actionable review suggestions in the insight flow. (#251, #316, #323)
-- Reworked the settings page and library information architecture with customizable library content sources, source-aware popovers, directional transition animations, assistant usage statistics, and a dusk indigo theme. (#260, #261, #262, #263, #264, #274)
-- Added a desktop release-notes dialog, local annotation writes, redesigned PDF/web article media covers, ebook import cover feedback, and localized release-note resources. (#258, #273, #275, #294)
-- Gradually migrated AI, WeRead, article import, model pricing, inline images, and annotation memory flows to Effect orchestration for clearer runtime error boundaries and recovery paths. (#265, #266, #267, #268, #269, #270, #271)
+- Added desktop language switching, split app locale resources, bilingual website documentation, and localized assistant persona presentations so UI, docs, and assistant copy stay aligned for Chinese and English usage. (#324, #326, #327, #356, #374)
+- Added persistent reader chat, in-reader full-text search, a unified floating toolbar, a redesigned article header, polished empty-note states, adaptive annotation layouts, smooth stacked annotation card switching, and unified selection highlight/underline emphasis. (#314, #315, #321, #322, #329, #330, #394, #418)
+- Added bilingual web-article translation with cascade cleanup of related translation annotations on delete or retranslate, and enforced assistant response language near final prompts. (#407, #406, #414)
+- Continued deepening annotation and discussion flows with inline selection-input actions, root-assistant reply routing, distillation draft and review-proposal UX, distillation transition motion, an ink-writing ceremony for add-thought runs, and assistant writing animations. (#251, #316, #323, #336, #337, #411, #420)
+- Reworked Settings and Library information architecture with customizable library content sources, source-aware dialogs, direction-aware transitions, assistant usage in stats, the dusk indigo theme, and remembered paper tone selections; redesigned assistant card grids and profile detail dialogs, and moved setting descriptions into info tooltips. (#260, #261, #262, #263, #264, #274, #332, #349, #409)
+- Added release-notes dialogs, local annotation writes, redesigned PDF/web media covers, and ebook import cover feedback; extended hand-drawn ink visuals to the reader paper picker and theme dialog, and replaced the brand subtitle with phonetic pronunciation. (#258, #273, #275, #382, #383, #384)
+- Added unified toast feedback (including WeRead sync), sound-effect controls with volume, and audible/visual feedback for highlights, copy, library import/delete, distillation commits, and assistant thought playback. (#385, #386, #387, #389, #390, #403, #404, #412, #415, #393)
+- Migrated AI, WeRead, article import, model pricing, inline images, and annotation memory flows to Effect orchestration, with validated desktop IPC inputs and structured IPC errors. (#265, #266, #267, #268, #269, #270, #271, #375, #376)
+- Expanded the website with a reader-style landing page, blog scenario articles, and assistant header stickers. (#338, #346, #421)
 
 ### Performance
 
-- Reused EPUB indexes, reading memory views, and precomputed annotation-match context to reduce repeated scans during long-book reading, assistant generation, and memory queries. (#281, #303, #305)
-- Pushed assistant summary aggregation down to SQL and optimized reading memory queries plus batch operations in the article repository, reducing local database hot-path cost. (#279, #280, #298)
-- Deepened the article-source import lifecycle and source reader controller to reduce state coupling during import, open, and cross-source reading flows. (#296, #301)
+- Reused EPUB indexes, reading-memory views, and precomputed annotation-match context; pushed assistant summary aggregation to SQL; and optimized reading-memory queries plus article-repository batch operations. (#281, #279, #280, #298, #303, #305)
+- Memoized Markdown rendering in the renderer to reduce repeated layout work in discussion and annotation cards. (#372)
+- Deepened the article-source import lifecycle and source-reader workspace split to reduce state coupling during import, open, and cross-source reading. (#296, #301, #352, #396)
 
 ### Fixes
 
-- Fixed settings page surfaces, settings menu layout, title bar text constraints, reader title bar, annotation cards, and general UI polish issues. (#311, #312, #320, #325, #328, #329)
-- Fixed reading library list cards, web cover toolbar, flat cover progress bar, PDF cover ratio, and horizontal scrolling in the website product carousel. (#254, #256, #292, #318, #319)
-- Fixed discussion avatar spacing, the add-thought input, empty-reply opening position, and thought auto-scroll range. (#252, #253, #272, #313)
-- Fixed SQLite native root isolation, article summary count range, provider keyring regression risk, data restore failure paths, and article import worker failure coverage. (#276, #277, #293, #299, #307, #308)
+- Fixed Settings and Reader polish across settings surfaces, menu layout, titlebar text constraints, reader titlebar, annotation cards, assistant cards, and dialog close hit areas. (#311, #312, #320, #325, #328, #332, #344)
+- Fixed reading-library list cards, web cover toolbar overlays, flat-cover progress bars, PDF cover ratios, PDF TOC overlay styling, and reader viewport height stability. (#254, #256, #292, #318, #319, #334, #341)
+- Fixed annotation-rail grouping by geometry, dense-rail proximity to highlights, distillation card anchoring to the rail, annotation navigation state, and annotation delete surfaces. (#388, #392, #413, #417, #335, #419)
+- Fixed discussion avatar spacing, the add-thought composer, assistant reply-queue animation, preserved disabled-assistant reply rules, and thought deletion sync on cards. (#252, #253, #272, #313, #333, #405, #419)
+- Fixed assistant contributions missing from stats summaries, SQLite native-root isolation and runtime dependency packaging, article summary count scope, repeated memory-backfill retries, data-restore failure paths, and article import worker failure coverage. (#276, #277, #293, #299, #307, #308, #368, #416, #425)
+- Sanitized web-article HTML with DOMPurify and Markdown before HTML injection, and enabled the renderer sandbox. (#350, #366, #367)
+- Fixed website landing-page responsive layout and product-carousel horizontal scrolling. (#256, #347)
+- Limited pronunciation triggers to the phonetic label and unified reader toolbar tooltip copy. (#408, #410)
 
 ### Engineering
 
-- Split desktop main, renderer, source reader, settings, PDFium, reader shell, and global CSS boundaries to reduce single-file complexity and clarify domain boundaries. (#282, #284, #285, #286, #287, #288, #289, #296, #317)
-- Split shared/core/AI domain modules, assistant runtime kernel, provider assembly, and reading memory view assembly, while adding exports and runtime tests. (#290, #291, #297, #302, #303)
-- Added native root verification, a PR template, output directory ignore rules, and updated pnpm and dependency versions. (#300, #306)
-- Added tests for data management, store-db restore, provider secrets, article import worker, reader chat, and reader shell state to cover more local data and reading paths. (#276, #277, #307, #308, #322)
+- Split desktop main, renderer, source reader, settings, PDFium, reader shell, global CSS, and domain-scoped store normalizers. (#282, #284, #285, #286, #287, #288, #289, #296, #317, #400)
+- Split shared/core/AI domain modules, assistant runtime, reading-context provider, stream IPC, and explicit public exports, with added runtime and import tests. (#290, #291, #297, #302, #303, #369, #371, #397, #398, #399, #401, #402)
+- Migrated UI primitives to Base UI and removed Radix; aligned typography, theme tokens, semantic z-index, and reduced-motion preferences. (#339, #340, #342, #343, #357, #358, #359, #360, #361, #362, #363, #364)
+- Replaced hold-to-delete with confirm dialogs; centralized date formatting; added E2E smoke baseline, store-normalizer, and IPC/agent tests. (#351, #373, #378, #380)
+- Added workspace typecheck to CI; macOS release pipelines now sign, notarize, and validate notarized apps; added native-root verification, a PR template, and output-directory ignore rules. (#300, #306, #355, #422, #423, #424)
+- Updated pnpm and dependencies and refreshed desktop module-path documentation. (#365, #379)
 
 ## 0.6.0 - 2026-06-01
 

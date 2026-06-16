@@ -7,11 +7,11 @@ sidebar:
 
 ## 0.7.0
 
-Released: 2026-06-08
+Released: 2026-06-16
 
-- Added desktop language switching, bilingual website docs, and localized assistant persona presentations.
-- Added persistent reader chat, in-reader full-text search, the unified floating toolbar, and the redesigned article header.
-- Improved settings, Library, annotation cards, update dialogs, and import/AI runtime stability.
+- Language switching, reader chat/search, bilingual web-article translation, unified toasts and sound effects, hand-drawn theme visuals.
+- Deeper distillation and discussion motion; reworked Settings and Library IA; signed and notarized macOS releases.
+- HTML sanitization and renderer sandbox; fixes for annotation rail, stats, imports, and more.
 
 [View 0.7.0 release notes](/en/changelogs/v0-7-0/)
 

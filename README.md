@@ -13,12 +13,13 @@ You can currently download macOS Apple Silicon and Windows x64 installers from [
 - Web article import: extract body text, title, author, site metadata, and images from URLs.
 - EPUB import and reading: import local EPUB files and persist chapters, covers, and the original book files.
 - PDF import and reading: import local PDF files with outline, selection, highlights, notes, and assistant co-reading support.
-- Desktop reader: outline, font size, content width, highlights, full-text search, reader chat, floating toolbar, dual note sidebars, selection shortcuts, arrow-key paging, and annotation navigation.
-- Text annotations: highlights, annotation types, thought threads, discussion comments, insight publishing, and `@assistant` triggers.
+- Desktop reader: outline, font size, content width, highlights, full-text search, reader chat, floating toolbar, dual note sidebars, selection shortcuts, arrow-key paging, and annotation navigation; bilingual translation for web articles.
+- Text annotations: highlights, annotation types, thought threads, discussion comments, insight publishing, and `@assistant` triggers; discussion and distillation flows include motion and optional sound feedback (toggle in Settings).
 - Proactive close reading: choose one or more reading assistants so AI can generate annotations around web articles, EPUB chapters, or PDF documents while reusing local reading memory, role perspectives, and localized presentation.
 - WeRead sync: sync book notes, thoughts, and reading statistics after configuring an API key.
 - Reading library: manage web articles, ebooks, annotations, comments, and original-source links in one place.
-- App updates and data management: check for updates, view release notes, open the data directory, view logs, and back up or restore the local database.
+- UI and themes: Chinese/English switching, themes including dusk indigo, hand-drawn ink paper and theme pickers, and unified toast notifications.
+- App updates and data management: check for updates, view release notes, open the data directory, view logs, and back up or restore the local database; macOS installers are signed and notarized.
 - Reading statistics: generate local reading trends by article, annotation, and discussion.
 - Zero telemetry: reading data stays on your machine, and provider API keys are stored in the system keyring.
 

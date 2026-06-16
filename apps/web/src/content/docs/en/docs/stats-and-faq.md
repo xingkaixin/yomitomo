@@ -17,9 +17,9 @@ Stats shows:
 - Annotation count
 - Distilled note count
 - Discussion count
-- Assistant participation count
+- Assistant participation count (including assistant contributions in summary metrics)
 
-Charts show trends for article imports, highlights, distilled notes, and discussion comments. The activity calendar shows reading activity over the last 70 days.
+Charts show trends for article imports, highlights, distilled notes, and discussion comments. After the Settings IA refresh, assistant usage is also easier to review from stats-related views. The activity calendar shows reading activity over the last 70 days.
 
 ## WeRead Stats
 
