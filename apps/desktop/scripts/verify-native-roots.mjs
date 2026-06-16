@@ -25,6 +25,8 @@ function verifyNodeRoot() {
 
 function verifyElectronRoot() {
   const packagePath = join(electronNativeRoot, 'node_modules/better-sqlite3/package.json');
+  const bindingsPath = join(electronNativeRoot, 'node_modules/bindings/package.json');
+  const fileUriPath = join(electronNativeRoot, 'node_modules/file-uri-to-path/package.json');
   const addonPath = join(
     electronNativeRoot,
     'node_modules/better-sqlite3/build/Release/better_sqlite3.node',
@@ -32,6 +34,12 @@ function verifyElectronRoot() {
 
   if (!existsSync(packagePath)) {
     throw new Error(`Electron native root is missing better-sqlite3: ${packagePath}`);
+  }
+  if (!existsSync(bindingsPath)) {
+    throw new Error(`Electron native root is missing bindings: ${bindingsPath}`);
+  }
+  if (!existsSync(fileUriPath)) {
+    throw new Error(`Electron native root is missing file-uri-to-path: ${fileUriPath}`);
   }
   if (!existsSync(addonPath)) {
     throw new Error(`Electron better-sqlite3 native addon is missing: ${addonPath}`);
