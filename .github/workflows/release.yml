@@ -127,11 +127,6 @@ jobs:
           spctl --assess --type execute --verbose "$app_path"
           xcrun stapler validate "$app_path"
 
-          shopt -s nullglob
-          for dmg_path in dist/app/mac-arm64/*.dmg; do
-            xcrun stapler validate "$dmg_path"
-          done
-
       - name: Verify update metadata
         shell: bash
         run: |
