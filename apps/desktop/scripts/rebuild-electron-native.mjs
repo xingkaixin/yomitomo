@@ -16,5 +16,6 @@ execFileSync(
   {
     cwd: electronNativeRoot,
     stdio: 'inherit',
+    shell: process.platform === 'win32',
   },
 );

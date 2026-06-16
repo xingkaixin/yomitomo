@@ -64,6 +64,8 @@ jobs:
         shell: bash
         env:
           MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          MAC_CSC_HASH: ${{ secrets.MAC_CSC_HASH }}
+          MAC_CSC_NAME: ${{ secrets.MAC_CSC_NAME }}
           MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
           APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
@@ -72,6 +74,7 @@ jobs:
         run: |
           for secret_name in \
             MAC_CSC_LINK \
+            MAC_CSC_NAME \
             MAC_CSC_KEY_PASSWORD \
             APPLE_API_KEY_BASE64 \
             APPLE_API_KEY_ID \
@@ -83,6 +86,12 @@ jobs:
             fi
           done
 
+          echo "::add-mask::$MAC_CSC_NAME"
+          echo "::add-mask::$APPLE_TEAM_ID"
+          if [ -n "$MAC_CSC_HASH" ]; then
+            echo "::add-mask::$MAC_CSC_HASH"
+          fi
+
           api_key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
           printf '%s' "$APPLE_API_KEY_BASE64" | base64 -D > "$api_key_path"
           chmod 600 "$api_key_path"
@@ -90,6 +99,7 @@ jobs:
           YOMITOMO_FORCE_CODE_SIGNING=1 \
             YOMITOMO_MAC_NOTARIZE=1 \
             CSC_LINK="$MAC_CSC_LINK" \
+            CSC_NAME="$MAC_CSC_NAME" \
             CSC_KEY_PASSWORD="$MAC_CSC_KEY_PASSWORD" \
             APPLE_API_KEY="$api_key_path" \
             APPLE_API_KEY_ID="$APPLE_API_KEY_ID" \
