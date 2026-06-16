@@ -91,6 +91,8 @@ jobs:
           if [ -n "$MAC_CSC_HASH" ]; then
             echo "::add-mask::$MAC_CSC_HASH"
           fi
+          csc_name="${MAC_CSC_NAME#Developer ID Application: }"
+          echo "::add-mask::$csc_name"
 
           api_key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
           printf '%s' "$APPLE_API_KEY_BASE64" | base64 -D > "$api_key_path"
@@ -99,7 +101,7 @@ jobs:
           YOMITOMO_FORCE_CODE_SIGNING=1 \
             YOMITOMO_MAC_NOTARIZE=1 \
             CSC_LINK="$MAC_CSC_LINK" \
-            CSC_NAME="$MAC_CSC_NAME" \
+            CSC_NAME="$csc_name" \
             CSC_KEY_PASSWORD="$MAC_CSC_KEY_PASSWORD" \
             APPLE_API_KEY="$api_key_path" \
             APPLE_API_KEY_ID="$APPLE_API_KEY_ID" \
