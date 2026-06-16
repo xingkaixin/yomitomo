@@ -17,7 +17,7 @@ jobs:
       matrix:
         include:
           - name: macOS arm64
-            os: macos-latest
+            os: macos-26
             command: pnpm make:app:mac-arm
             artifact: yomitomo-macos-arm64
             updateMetadata: dist/app/mac-arm64/latest-mac.yml
@@ -59,8 +59,66 @@ jobs:
       - name: Build workspace
         run: pnpm build
 
+      - name: Make macOS release package
+        if: matrix.artifact == 'yomitomo-macos-arm64'
+        shell: bash
+        env:
+          MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          for secret_name in \
+            MAC_CSC_LINK \
+            MAC_CSC_KEY_PASSWORD \
+            APPLE_API_KEY_BASE64 \
+            APPLE_API_KEY_ID \
+            APPLE_API_ISSUER
+          do
+            if [ -z "${!secret_name}" ]; then
+              echo "::error::Missing required macOS release secret: $secret_name"
+              exit 1
+            fi
+          done
+
+          api_key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+          printf '%s' "$APPLE_API_KEY_BASE64" | base64 -D > "$api_key_path"
+          chmod 600 "$api_key_path"
+
+          YOMITOMO_FORCE_CODE_SIGNING=1 \
+            YOMITOMO_MAC_NOTARIZE=1 \
+            CSC_LINK="$MAC_CSC_LINK" \
+            CSC_KEY_PASSWORD="$MAC_CSC_KEY_PASSWORD" \
+            APPLE_API_KEY="$api_key_path" \
+            APPLE_API_KEY_ID="$APPLE_API_KEY_ID" \
+            APPLE_API_ISSUER="$APPLE_API_ISSUER" \
+            APPLE_TEAM_ID="$APPLE_TEAM_ID" \
+            ${{ matrix.command }}
+
       - name: Make release package
+        if: matrix.artifact != 'yomitomo-macos-arm64'
         run: ${{ matrix.command }}
+
+      - name: Verify macOS signing and notarization
+        if: matrix.artifact == 'yomitomo-macos-arm64'
+        shell: bash
+        run: |
+          app_path="$(find dist/app/mac-arm64 -type d -name 'Yomitomo.app' -print -quit)"
+          if [ -z "$app_path" ]; then
+            echo "::error::Missing packaged macOS app bundle."
+            exit 1
+          fi
+
+          codesign --verify --strict --verbose=2 "$app_path"
+          spctl --assess --type execute --verbose "$app_path"
+          xcrun stapler validate "$app_path"
+
+          shopt -s nullglob
+          for dmg_path in dist/app/mac-arm64/*.dmg; do
+            xcrun stapler validate "$dmg_path"
+          done
 
       - name: Verify update metadata
         shell: bash

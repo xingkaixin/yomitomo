@@ -1,6 +1,7 @@
 module.exports = {
   appId: 'app.yomitomo.desktop',
   productName: 'Yomitomo',
+  forceCodeSigning: process.env.YOMITOMO_FORCE_CODE_SIGNING === '1',
   directories: {
     buildResources: 'resources',
     output: '../../dist/app',
@@ -54,8 +55,11 @@ module.exports = {
   mac: {
     artifactName: '${productName}-${version}-mac-${arch}.${ext}',
     category: 'public.app-category.productivity',
+    entitlements: 'resources/entitlements.mac.plist',
+    entitlementsInherit: 'resources/entitlements.mac.inherit.plist',
+    hardenedRuntime: true,
     icon: 'resources/icon.icns',
-    identity: '-',
+    notarize: process.env.YOMITOMO_MAC_NOTARIZE === '1',
     target: ['dmg', 'zip'],
   },
   win: {
