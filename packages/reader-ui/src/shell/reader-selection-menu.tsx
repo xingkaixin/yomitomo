@@ -83,13 +83,8 @@ export function SelectionMenu({
             <Check size={15} strokeWidth={2.4} />
           </span>
         </span>
-        <span>{copied ? labels.copiedSelection : labels.copySelection}</span>
-        <Kbd
-          aria-hidden={copied ? 'true' : undefined}
-          className={copied ? 'reader-kbd reader-selection-copy-shortcut is-hidden' : 'reader-kbd'}
-        >
-          {shortcutKeys.copy}
-        </Kbd>
+        <span>{labels.copySelection}</span>
+        <Kbd className="reader-kbd">{shortcutKeys.copy}</Kbd>
       </button>
       <button className="reader-selection-primary" type="button" onClick={onAnnotate}>
         <MessageSquarePlus size={15} strokeWidth={2.2} />
