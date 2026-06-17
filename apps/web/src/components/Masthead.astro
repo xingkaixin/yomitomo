@@ -79,7 +79,7 @@ const assistantStickers = assistantStickerLayout.map((item) => {
   return {
     ...item,
     name,
-    src: `/agent-personas/${lang}/${item.kind}/${item.id}.webp`,
+    src: `/assets/landing-avatars/${lang}/${item.id}.webp`,
     label: isEnglish ? `Move assistant sticker: ${name}` : `移动助手贴纸：${name}`,
   };
 });
@@ -98,7 +98,7 @@ const assistantStickers = assistantStickerLayout.map((item) => {
             title={sticker.name}
             type="button"
           >
-            <img src={sticker.src} alt="" loading="eager" decoding="async" />
+            <img src={sticker.src} alt="" loading="lazy" decoding="async" fetchpriority="low" />
           </button>
         ))}
       </div>
@@ -260,7 +260,7 @@ const assistantStickers = assistantStickerLayout.map((item) => {
 <style>
   @font-face {
     font-family: 'Fraunces';
-    src: url('/assets/fonts/Fraunces-VariableFont.ttf') format('truetype');
+    src: url('/assets/fonts/Fraunces-Yomitomo.woff') format('woff');
     font-display: swap;
     font-style: normal;
     font-weight: 100 900;
@@ -363,7 +363,7 @@ const assistantStickers = assistantStickerLayout.map((item) => {
     cursor: default;
     user-select: none;
     color: #2a2218;
-    font-family: 'Fraunces', 'Noto Serif SC', 'Songti SC', 'STSong', Georgia, serif;
+    font-family: 'Fraunces', 'Songti SC', 'STSong', Georgia, serif;
     font-size: clamp(44px, 6vw, 88px);
     font-variation-settings:
       'SOFT' 80,
@@ -436,7 +436,7 @@ const assistantStickers = assistantStickerLayout.map((item) => {
     border-radius: 0;
     background: transparent;
     color: #2a2218;
-    font-family: 'Noto Serif SC', 'Songti SC', 'STSong', Georgia, serif;
+    font-family: 'Songti SC', 'STSong', Georgia, serif;
     font-size: 18px;
     font-weight: 760;
     padding: 0;
@@ -487,7 +487,7 @@ const assistantStickers = assistantStickerLayout.map((item) => {
     border-radius: 999px;
     background: #fffdfa;
     color: #2a2218;
-    font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+    font-family: 'SF Mono', ui-monospace, Menlo, Consolas, monospace;
     font-size: 0.72rem;
     font-weight: 600;
     text-decoration: none;

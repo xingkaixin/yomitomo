@@ -1,6 +1,5 @@
 ---
 import desktopPackage from '../../../desktop/package.json';
-import { readerConversationStyles } from '@yomitomo/reader-ui/reader-styles';
 import Masthead from './Masthead.astro';
 import SiteFooter from './SiteFooter.astro';
 import ReaderLanding from './landing/ReaderLanding';
@@ -24,6 +23,7 @@ const downloads = {
 const siteUrl = 'https://yomitomo.app';
 const canonicalUrl = isEnglish ? `${siteUrl}/en/` : `${siteUrl}/`;
 const alternateUrl = isEnglish ? `${siteUrl}/` : `${siteUrl}/en/`;
+const defaultLocaleUrl = `${siteUrl}/`;
 const pageTitle = isEnglish
   ? 'Yomitomo - Local-first AI reading companion'
   : 'Yomitomo - 本地优先的 AI 伴读桌面应用';
@@ -31,6 +31,44 @@ const pageDescription = isEnglish
   ? 'Yomitomo is a local-first AI reading companion for desktop. Highlight, capture thoughts, discuss with assistants, and keep your reading judgments anchored to the source.'
   : 'Yomitomo 是本地优先的 AI 伴读桌面应用。划线、记下想法、和 AI 助手讨论，把阅读判断留在原文现场。';
 const ogImageUrl = `${siteUrl}/assets/og-image.jpg`;
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      '@id': `${siteUrl}/#website`,
+      name: 'Yomitomo',
+      url: siteUrl,
+      inLanguage: lang,
+      description: pageDescription,
+    },
+    {
+      '@type': 'SoftwareApplication',
+      '@id': `${siteUrl}/#software`,
+      name: 'Yomitomo',
+      applicationCategory: 'ProductivityApplication',
+      operatingSystem: ['macOS', 'Windows'],
+      softwareVersion: releaseVersion,
+      url: canonicalUrl,
+      image: ogImageUrl,
+      description: pageDescription,
+      offers: [
+        {
+          '@type': 'Offer',
+          url: downloads.mac,
+          price: '0',
+          priceCurrency: 'USD',
+        },
+        {
+          '@type': 'Offer',
+          url: downloads.windows,
+          price: '0',
+          priceCurrency: 'USD',
+        },
+      ],
+    },
+  ],
+};
 ---
 
 <!doctype html>
@@ -44,6 +82,7 @@ const ogImageUrl = `${siteUrl}/assets/og-image.jpg`;
     <link rel="canonical" href={canonicalUrl} />
     <link rel="alternate" hreflang={isEnglish ? 'zh-CN' : 'en'} href={alternateUrl} />
     <link rel="alternate" hreflang={lang} href={canonicalUrl} />
+    <link rel="alternate" hreflang="x-default" href={defaultLocaleUrl} />
     <link rel="icon" type="image/png" sizes="64x64" href="/assets/favicon.png" />
 
     <meta property="og:type" content="website" />
@@ -61,20 +100,11 @@ const ogImageUrl = `${siteUrl}/assets/og-image.jpg`;
     <meta name="twitter:image" content={ogImageUrl} />
     <meta name="theme-color" content="#fffdf8" />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
-    />
-
-    {/* Inline the reader-ui conversation styles so cards render correctly in the
-        server-rendered HTML (no flash of unstyled content before hydration). */}
-    <style is:inline set:html={readerConversationStyles}></style>
+    <script type="application/ld+json" is:inline set:html={JSON.stringify(jsonLd)} />
   </head>
   <body style="background:#fffdf8">
     <Masthead lang={lang} active="home" />
-    <ReaderLanding lang={lang} downloads={downloads} client:load />
+    <ReaderLanding lang={lang} downloads={downloads} client:idle />
     <SiteFooter lang={lang} />
   </body>
 </html>

@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Layers2, MessageCircle, Quote } from 'lucide-react';
 import { AvatarBadge } from '@yomitomo/reader-ui/reader-component-primitives';
 import type { Annotation } from './data/article';
 import { useAgentResolver, useLanding } from './LandingContext';
-import DiscussionModal from './DiscussionModal';
+
+const DiscussionModal = lazy(() => import('./DiscussionModal'));
 
 type AnnotationCardProps = {
   annotation: Annotation;
@@ -192,12 +193,14 @@ export default function AnnotationCard({ annotation, onActivate }: AnnotationCar
         )}
       </div>
 
-      {!isDistillation && annotation.thoughts.length > 0 && (
-        <DiscussionModal
-          open={modalOpen}
-          annotation={annotation}
-          onClose={() => setModalOpen(false)}
-        />
+      {modalOpen && !isDistillation && annotation.thoughts.length > 0 && (
+        <Suspense fallback={null}>
+          <DiscussionModal
+            open={modalOpen}
+            annotation={annotation}
+            onClose={() => setModalOpen(false)}
+          />
+        </Suspense>
       )}
     </>
   );

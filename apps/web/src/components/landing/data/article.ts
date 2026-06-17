@@ -99,10 +99,10 @@ const agentColors: Record<string, string> = {
   'concept-translator': '#c8b88a',
 };
 
-/** English personas use their own avatar art under /en/. */
+/** Landing uses small persona thumbnails; full-size art stays in public for richer pages. */
 function avatarFor(id: string, lang: Locale): string {
-  if (id === 'yomitomo') return '/yomitomo-logo.webp';
-  return lang === 'en' ? `/en/${id}.webp` : `/${id}.webp`;
+  if (id === 'yomitomo') return '/assets/landing-avatars/common/yomitomo.webp';
+  return `/assets/landing-avatars/${lang}/${id}.webp`;
 }
 
 function buildAgents(lang: Locale, nicknames: Record<string, string>): Agent[] {
