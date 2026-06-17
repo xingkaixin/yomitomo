@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1 - 2026-06-17
+
+### Fixes
+
+- Fixed packaged desktop assistant avatars rendering as cropped `file://` text instead of images in reader chat, annotation discussion inputs, add-thought flows, and distillation review discussions.
+
 ## 0.7.0 - 2026-06-16
 
 ### Features

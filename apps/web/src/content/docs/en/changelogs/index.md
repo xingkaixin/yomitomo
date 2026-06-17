@@ -5,6 +5,15 @@ sidebar:
   hidden: true
 ---
 
+## 0.7.1
+
+Released: 2026-06-17
+
+- Fixed packaged assistant avatars rendering as `file://` text instead of images.
+- Covers reader chat, annotation discussion inputs, add-thought flows, and distillation review discussions.
+
+[View 0.7.1 release notes](/en/changelogs/v0-7-1/)
+
 ## 0.7.0
 
 Released: 2026-06-16
