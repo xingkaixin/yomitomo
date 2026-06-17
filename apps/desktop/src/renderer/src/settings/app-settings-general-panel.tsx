@@ -24,6 +24,7 @@ import {
 } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
 import { AutoSaveStatus } from './app-settings-save-status';
+import { SettingsElasticSlider } from './app-settings-elastic-slider';
 import type { SaveState } from '../shell/app-types';
 import {
   SettingsGroup,
@@ -72,17 +73,6 @@ type ContentSourceDragFrame = {
 };
 
 type GeneralSaveSection = 'language' | 'translation' | 'sound' | 'collection' | 'libraryEntrances';
-
-const soundVolumeCommitKeys = new Set([
-  'ArrowLeft',
-  'ArrowRight',
-  'ArrowUp',
-  'ArrowDown',
-  'Home',
-  'End',
-  'PageUp',
-  'PageDown',
-]);
 
 const contentSourceIcons: Record<LibraryContentSourceId, React.ReactNode> = {
   web: <Globe size={18} />,
@@ -200,10 +190,10 @@ export function GeneralSettings({
     if (checked) playAppSoundEffect('settings.sound_preview', nextDraft);
   }
 
-  function commitSoundVolume() {
-    if (committedSoundVolumePercentRef.current === soundVolumePercent) return;
-    committedSoundVolumePercentRef.current = soundVolumePercent;
-    const nextVolume = soundVolumePercent / 100;
+  function commitSoundVolume(nextPercent = soundVolumePercent) {
+    if (committedSoundVolumePercentRef.current === nextPercent) return;
+    committedSoundVolumePercentRef.current = nextPercent;
+    const nextVolume = nextPercent / 100;
     const nextDraft = saveSoundSettings({ soundEffectsVolume: nextVolume });
     playAppSoundEffect('settings.sound_preview', nextDraft);
   }
@@ -549,28 +539,18 @@ export function GeneralSettings({
           title={t('settings.general.soundVolumeTitle')}
           description={t('settings.general.soundVolumeDescription')}
         >
-          <label className="settings-slider-control">
-            <input
-              aria-label={t('settings.general.soundVolumeTitle')}
-              disabled={settingsDraft.soundEffectsEnabled === false}
-              max={100}
-              min={0}
-              step={5}
-              type="range"
-              value={soundVolumePercent}
-              onBlur={commitSoundVolume}
-              onChange={(event) => setSoundVolumePercent(Number(event.currentTarget.value))}
-              onKeyUp={(event) => {
-                if (soundVolumeCommitKeys.has(event.key)) commitSoundVolume();
-              }}
-              onPointerUp={commitSoundVolume}
-            />
-            <span>
-              {t('settings.general.soundVolumeValue', {
-                value: soundVolumePercent,
-              })}
-            </span>
-          </label>
+          <SettingsElasticSlider
+            ariaLabel={t('settings.general.soundVolumeTitle')}
+            disabled={settingsDraft.soundEffectsEnabled === false}
+            formatValue={(value) => t('settings.general.soundVolumeValue', { value })}
+            label={t('settings.general.soundVolumeTitle')}
+            max={100}
+            min={0}
+            step={5}
+            value={soundVolumePercent}
+            onCommit={commitSoundVolume}
+            onValueChange={setSoundVolumePercent}
+          />
         </SettingsRow>
       </SettingsGroup>
 
