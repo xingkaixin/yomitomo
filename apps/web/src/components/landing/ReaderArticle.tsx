@@ -44,17 +44,17 @@ function ArticleContent({
   return (
     <article className="mx-auto max-w-[680px] px-6 pb-24 pt-12 md:px-0">
       <header className="mb-12">
-        <p className="mb-3 font-mono text-xs font-medium tracking-widest text-[#9e9285] uppercase">
+        <p className="mb-3 font-mono text-xs font-medium tracking-widest text-[#8b8fa0] uppercase">
           {eyebrow}
         </p>
         <h1
-          className="mb-4 text-[clamp(32px,5vw,48px)] font-black leading-[1.15] tracking-tight"
-          style={{ fontFamily: 'var(--font-serif)' }}
+          className="mb-4 text-[clamp(32px,5vw,48px)] font-black leading-[1.12] tracking-tight"
+          style={{ fontFamily: 'var(--font-display)' }}
         >
           {meta.title}
         </h1>
-        <div className="flex items-center gap-3 text-sm text-[#7a6e5f]">
-          <span className="font-medium text-[#2a2218]">{meta.byline}</span>
+        <div className="flex items-center gap-3 text-sm text-[#5b6072]">
+          <span className="font-medium text-[#20242e]">{meta.byline}</span>
           <span className="text-[#d4ccc0]">·</span>
           <span>{meta.date}</span>
           <span className="text-[#d4ccc0]">·</span>
@@ -63,7 +63,7 @@ function ArticleContent({
       </header>
 
       <div
-        className="space-y-8 text-lg leading-[1.9] text-[#3a3028]"
+        className="space-y-8 text-lg leading-[1.9] text-[#363b48]"
         style={{ fontFamily: 'var(--font-serif)' }}
         onClick={() => onActivate(null)}
       >
@@ -96,21 +96,21 @@ function DownloadCard({ ui, downloads }: { ui: UiStrings; downloads: Downloads }
     <div className="rounded-2xl border border-[#e7c98a] bg-[#fdf6e3] p-5 shadow-[0_8px_24px_rgba(180,140,30,0.12)]">
       <div className="mb-1 flex items-center justify-between gap-3">
         <p
-          className="text-base font-bold text-[#2a2218]"
+          className="text-base font-bold text-[#20242e]"
           style={{ fontFamily: 'var(--font-serif)' }}
         >
           {ui.download.title}
         </p>
-        <span className="rounded-full bg-[#2a2218]/8 px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wide text-[#7a6e5f]">
+        <span className="rounded-full bg-[#20242e]/8 px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wide text-[#5b6072]">
           v{downloads.version}
         </span>
       </div>
-      <p className="mb-4 text-xs leading-relaxed text-[#7a6e5f]">{ui.download.desc}</p>
+      <p className="mb-4 text-xs leading-relaxed text-[#5b6072]">{ui.download.desc}</p>
 
       <div className="flex flex-col gap-2.5">
         <a
           href={downloads.mac}
-          className="flex items-center gap-3 rounded-xl bg-[#2a2218] px-4 py-3 text-white transition-colors hover:bg-[#4a3e30]"
+          className="flex items-center gap-3 rounded-xl bg-[#20242e] px-4 py-3 text-white transition-colors hover:bg-[#363b48]"
         >
           <span className="flex flex-col leading-tight">
             <span className="text-sm font-semibold">{ui.download.mac}</span>
@@ -120,11 +120,11 @@ function DownloadCard({ ui, downloads }: { ui: UiStrings; downloads: Downloads }
         </a>
         <a
           href={downloads.windows}
-          className="flex items-center gap-3 rounded-xl border border-[#dcd2bf] bg-white px-4 py-3 text-[#2a2218] transition-colors hover:bg-[#faf6ec]"
+          className="flex items-center gap-3 rounded-xl border border-[#dcd2bf] bg-white px-4 py-3 text-[#20242e] transition-colors hover:bg-[#faf6ec]"
         >
           <span className="flex flex-col leading-tight">
             <span className="text-sm font-semibold">{ui.download.win}</span>
-            <span className="text-[11px] text-[#9e9285]">{ui.download.winArch}</span>
+            <span className="text-[11px] text-[#8b8fa0]">{ui.download.winArch}</span>
           </span>
           <Download size={15} className="ml-auto shrink-0 text-[#b8b0a4]" />
         </a>
@@ -152,7 +152,7 @@ function AnnotationRail({
         {/* Download is the rail's primary action: keep it at the top. */}
         {downloads && <DownloadCard ui={ui} downloads={downloads} />}
         {header ? (
-          <p className="px-1 font-mono text-[10px] font-medium tracking-widest text-[#9e9285] uppercase">
+          <p className="px-1 font-mono text-[10px] font-medium tracking-widest text-[#8b8fa0] uppercase">
             {header}
           </p>
         ) : (
@@ -178,11 +178,11 @@ function MobileAnnotations({
   onActivate: (id: string | null) => void;
 }) {
   return (
-    <section className="border-t border-[#e8e0d4] bg-[#faf8f5] px-6 py-10 lg:hidden">
+    <section className="border-t border-[#e6e1d5] bg-[#faf8f5] px-6 py-10 lg:hidden">
       <div className="mx-auto mb-8 max-w-[680px]">
         <DownloadCard ui={ui} downloads={downloads} />
       </div>
-      <p className="mb-6 font-mono text-[10px] font-medium tracking-widest text-[#9e9285] uppercase">
+      <p className="mb-6 font-mono text-[10px] font-medium tracking-widest text-[#8b8fa0] uppercase">
         {ui.railHeader}
       </p>
       <div className="mx-auto max-w-[680px] space-y-4">

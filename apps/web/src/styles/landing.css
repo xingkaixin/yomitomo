@@ -1,20 +1,25 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-reader-bg: #fffdf8;
+  /* Warm ivory paper, blue-black ink, indigo (蓝黑墨水) as the single signature
+     accent. Gold is demoted to highlighter-only, green to discussion-only. */
+  --color-reader-bg: #fbf9f3;
   --color-reader-paper: #ffffff;
-  --color-reader-ink: #2a2218;
-  --color-reader-muted: #7a6e5f;
-  --color-reader-faint: #9e9285;
-  --color-reader-line: #e8e0d4;
-  --color-reader-accent: #a43f37;
-  --color-reader-accent-soft: #fdf4f2;
-  --color-reader-gold: #f4c95d;
+  --color-reader-ink: #20242e;
+  --color-reader-muted: #5b6072;
+  --color-reader-faint: #8b8fa0;
+  --color-reader-line: #e6e1d5;
+  --color-reader-accent: #2c4a7c;
+  --color-reader-accent-soft: #eef2f9;
+  --color-reader-gold: #e9b949;
   --color-reader-gold-soft: #fdf6e3;
-  --color-reader-green: #4a7c59;
+  --color-reader-green: #3f7a63;
   --color-reader-green-soft: #edf5ef;
 
-  --font-serif: 'Songti SC', 'STSong', 'Noto Serif CJK SC', Georgia, serif;
+  /* Fraunces carries the display voice for Latin/numerals; CJK falls to a
+     proper serif (Noto/Source Han) before the system Songti. */
+  --font-display: 'Fraunces', 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', Georgia, serif;
+  --font-serif: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'STSong', Georgia, serif;
   --font-sans:
     -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   --font-mono: 'SF Mono', ui-monospace, Menlo, Consolas, monospace;

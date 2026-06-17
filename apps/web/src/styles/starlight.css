@@ -10,20 +10,20 @@
   --sl-font-mono: 'JetBrains Mono', ui-monospace, 'IBM Plex Mono', Menlo, monospace;
   --color-page: hsl(0 0% 98%);
   --color-surface: hsl(0 0% 100%);
-  --color-ink: hsl(0 0% 8%);
+  --color-ink: hsl(225 19% 15%);
   --color-muted: hsl(0 0% 42%);
   --color-line: hsl(0 0% 78%);
-  --color-accent: hsl(3 62% 42%);
+  --color-accent: hsl(217 47% 33%);
   --color-accent-fg: hsl(0 0% 100%);
-  --color-accent-soft: hsl(4 68% 97%);
+  --color-accent-soft: hsl(217 50% 97%);
   --font-sans:
     -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', 'Segoe UI', system-ui,
     sans-serif;
   --font-serif: 'Noto Serif SC', 'Songti SC', 'Source Han Serif SC', Georgia, serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'IBM Plex Mono', Menlo, monospace;
-  --sl-color-accent-low: #f6d8d4;
-  --sl-color-accent: #a43f37;
-  --sl-color-accent-high: #5b1b16;
+  --sl-color-accent-low: #dce6f3;
+  --sl-color-accent: #2c4a7c;
+  --sl-color-accent-high: #1a2e52;
 
   /* The custom Masthead header (big title + section nav) is taller than
      Starlight's default nav. Match --sl-nav-height to its real height so the
@@ -46,18 +46,18 @@
 :root[data-theme='light'] {
   /* Match the landing page background so navigating between the home page and
      the docs/blog/changelog pages does not flash a different surface color. */
-  --sl-color-bg: #fffdf8;
-  --sl-color-bg-nav: #fffdf8;
-  --sl-color-bg-sidebar: #fffdf8;
-  --sl-color-text: #141414;
-  --sl-color-text-accent: #8f332d;
-  --sl-color-gray-1: #242424;
-  --sl-color-gray-2: #3f3f3f;
-  --sl-color-gray-3: #6b6b6b;
-  --sl-color-gray-4: #a9a39e;
-  --sl-color-gray-5: #d8d2cc;
-  --sl-color-gray-6: #eee9e4;
-  --sl-color-gray-7: #f6f2ee;
+  --sl-color-bg: #fbf9f3;
+  --sl-color-bg-nav: #fbf9f3;
+  --sl-color-bg-sidebar: #fbf9f3;
+  --sl-color-text: #20242e;
+  --sl-color-text-accent: #2c4a7c;
+  --sl-color-gray-1: #20242e;
+  --sl-color-gray-2: #3b4050;
+  --sl-color-gray-3: #5b6072;
+  --sl-color-gray-4: #8b8fa0;
+  --sl-color-gray-5: #d4cfc4;
+  --sl-color-gray-6: #ebe6dc;
+  --sl-color-gray-7: #f4f0e9;
 }
 
 .site-title {
@@ -68,7 +68,7 @@
   height: auto;
   padding: var(--safe-top) var(--safe-inline-end) 0 var(--safe-inline-start);
   border-bottom: 0;
-  background: #fffdf8;
+  background: #fbf9f3;
 }
 
 .header > astro-slot {
@@ -128,7 +128,18 @@ main .site-footer {
 .sidebar-content [aria-current='page']:hover,
 .sidebar-content [aria-current='page']:focus {
   color: #f8f5f2;
-  background-color: #9a4a43;
+  background-color: #2c4a7c;
+}
+
+/* Starlight colors sidebar links via a:where(...) (specificity 0,0,1); the UA
+   stylesheet's a:active rule (0,1,1) then wins on mousedown and flashes the
+   link red. Re-assert the intended color while the link is pressed. */
+.sidebar-content a:active {
+  color: var(--sl-color-text-accent);
+}
+
+.sidebar-content a[aria-current='page']:active {
+  color: #f8f5f2;
 }
 
 h1#_top {

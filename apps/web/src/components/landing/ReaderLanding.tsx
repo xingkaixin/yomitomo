@@ -21,13 +21,13 @@ export default function ReaderLanding({
   const content = getLandingContent(lang);
   return (
     <LandingProvider value={content}>
-      <div className="relative bg-[#fffdf8]">
-        {/* Subtle top glow */}
+      <div className="relative bg-[#fbf9f3]">
+        {/* Subtle top glow in the signature indigo ink */}
         <div
           className="pointer-events-none absolute inset-x-0 top-0 h-[400px] opacity-40"
           style={{
             background:
-              'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(244, 201, 93, 0.15), transparent)',
+              'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(44, 74, 124, 0.12), transparent)',
           }}
           aria-hidden="true"
         />
