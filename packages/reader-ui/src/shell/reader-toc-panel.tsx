@@ -1,3 +1,4 @@
+import React from 'react';
 import type { TocItem } from '@yomitomo/core';
 import { Highlighter, Layers2 } from 'lucide-react';
 import type { buildTocAnnotationStats } from '../annotations/reader-annotations';
@@ -25,6 +26,13 @@ export function ReaderTocPanel({
   tocOpen,
   onScrollToHeading,
 }: ReaderTocPanelProps) {
+  const activeItemRef = React.useRef<HTMLButtonElement | null>(null);
+
+  React.useEffect(() => {
+    if (!tocOpen || activeTocIndex === null || activeTocIndex === undefined) return;
+    activeItemRef.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [activeTocIndex, tocOpen]);
+
   return (
     <aside
       className={hasToc ? 'reader-toc' : 'reader-toc is-empty'}
@@ -42,6 +50,7 @@ export function ReaderTocPanel({
             className={active ? 'reader-toc-item is-active' : 'reader-toc-item'}
             data-depth={Math.min(item.depth, 4)}
             key={`${item.index}-${item.text}`}
+            ref={active ? activeItemRef : undefined}
             type="button"
             aria-current={active ? 'location' : undefined}
             onClick={() => onScrollToHeading(item)}

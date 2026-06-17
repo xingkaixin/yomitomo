@@ -36,6 +36,7 @@ export const sourceReaderTocStyles = `
 }
 .reader-toc-item{
   display:grid;
+  position:relative;
   width:100%;
   margin:0;
   border:0;
@@ -45,7 +46,22 @@ export const sourceReaderTocStyles = `
   font-size:12px;
   font-weight:820;
   line-height:1.3;
+  overflow:hidden;
   padding:9px 8px;
+  transition:background .16s ease,color .16s ease,transform .2s cubic-bezier(.22,1,.36,1);
+}
+.reader-toc-item::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:8px;
+  bottom:8px;
+  width:3px;
+  border-radius:999px;
+  background:var(--reader-green);
+  opacity:0;
+  transform:scaleY(.55);
+  transition:opacity .16s ease,transform .2s cubic-bezier(.22,1,.36,1);
 }
 .reader-toc-item:hover,
 .reader-toc-item.is-active{
@@ -53,7 +69,13 @@ export const sourceReaderTocStyles = `
   color:var(--reader-ink);
 }
 .reader-toc-item.is-active{
-  box-shadow:inset 3px 0 0 var(--reader-green);
+  background:color-mix(in srgb,var(--reader-green) 10%,var(--app-reader-toc-item-hover-bg));
+  box-shadow:none;
+  transform:translateX(2px);
+}
+.reader-toc-item.is-active::before{
+  opacity:1;
+  transform:scaleY(1);
 }
 .reader-toc-item-main{
   display:grid;
