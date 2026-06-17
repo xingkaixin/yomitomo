@@ -84,6 +84,7 @@ describe('app utils', () => {
     );
     expect(commentAuthorProfile({ author: 'user', userAvatar: '' } as Comment).name).toBe('我');
     expect(isImageAvatar('/avatar.png')).toBe(true);
+    expect(isImageAvatar('file:///Applications/Yomitomo.app/avatar.webp')).toBe(true);
     expect(isSvgAvatar('data:image/svg+xml,<svg />')).toBe(true);
   });
 
