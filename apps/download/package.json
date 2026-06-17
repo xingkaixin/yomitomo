@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev:worker": "wrangler dev",
-    "deploy:cf": "pnpm build && wrangler deploy",
+    "deploy:cf": "wrangler deploy",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "oxlint src --type-aware",
     "lint:fix": "oxlint src --fix",
