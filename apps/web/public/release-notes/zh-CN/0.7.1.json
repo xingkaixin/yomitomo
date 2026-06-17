@@ -1,0 +1,11 @@
+{
+  "version": "0.7.1",
+  "highlights": [
+    {
+      "type": "fixed",
+      "title": "修复生产包助手头像",
+      "description": "打包后的头像资源现在会正确显示，不再在阅读器和讨论输入区渲染成 file:// 文本。",
+      "audience": "reader"
+    }
+  ]
+}

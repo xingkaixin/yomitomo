@@ -1,0 +1,11 @@
+{
+  "version": "0.7.1",
+  "highlights": [
+    {
+      "type": "fixed",
+      "title": "Fixed packaged assistant avatars",
+      "description": "Bundled avatar assets now render correctly in reader and discussion inputs instead of appearing as file:// text.",
+      "audience": "reader"
+    }
+  ]
+}

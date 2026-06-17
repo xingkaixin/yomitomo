@@ -13,6 +13,7 @@ import { ReaderSettingsToolbarControls } from './reader-toolbar-controls';
 import { ReaderSurfaceView } from './reader-surface-view';
 import { ReaderTocPanel } from './reader-toc-panel';
 import { defaultReaderUiLabels } from './reader-app-view-types';
+import { AvatarBadge } from '../shared/reader-component-primitives';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
 
@@ -81,6 +82,20 @@ function annotation(overrides: Partial<Annotation> = {}): Annotation {
     ...overrides,
   };
 }
+
+describe('AvatarBadge', () => {
+  it('renders packaged file URLs as images', () => {
+    const avatar = 'file:///Applications/Yomitomo.app/Contents/Resources/app/assets/agent.webp';
+    const { container } = render(<AvatarBadge avatar={avatar} fallback="AI" />);
+
+    const badge = container.querySelector('.reader-avatar-badge');
+    const image = badge?.querySelector('img');
+
+    expect(badge?.classList.contains('is-image')).toBe(true);
+    expect(image?.getAttribute('src')).toBe(avatar);
+    expect(badge?.textContent).toBe('');
+  });
+});
 
 describe('Composer shortcut labels', () => {
   it('keeps cancel and submit shortcuts out of visible button labels', () => {
