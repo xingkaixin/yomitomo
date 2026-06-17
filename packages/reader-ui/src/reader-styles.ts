@@ -510,6 +510,10 @@ export const readerConversationStyles = `
 .reader-agent-annotate-popover .reader-agent-annotate-menu{margin:0}
 .reader-toc-item-main{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px}
 .reader-toc-item-main>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.reader-toc-item{position:relative;overflow:hidden;transition:background .16s ease,color .16s ease,transform .2s cubic-bezier(.22,1,.36,1)}
+.reader-toc-item::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:999px;background:var(--reader-green);opacity:0;transform:scaleY(.55);transition:opacity .16s ease,transform .2s cubic-bezier(.22,1,.36,1)}
+.reader-toc-item.is-active{background:color-mix(in srgb,var(--reader-green) 10%,var(--app-reader-toc-item-hover-bg));box-shadow:none;color:var(--reader-ink);transform:translateX(2px)}
+.reader-toc-item.is-active::before{opacity:1;transform:scaleY(1)}
 .reader-toc-meta{display:inline-flex;align-items:center;gap:8px}
 .reader-toc-item-main strong{display:grid;min-width:24px;height:24px;place-items:center;border:1px solid rgba(37,29,22,.12);border-radius:999px;background:var(--reader-paper-hover);color:var(--reader-ink);font-size:11px;font-weight:850}
 .reader-toc-markers{display:flex;align-items:center;gap:5px}

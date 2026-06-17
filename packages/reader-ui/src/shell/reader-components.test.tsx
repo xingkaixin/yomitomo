@@ -676,6 +676,25 @@ describe('AnnotationCard', () => {
   });
 });
 
+function mockScrollIntoView() {
+  const descriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView');
+  const scrollIntoView = vi.fn();
+  Object.defineProperty(Element.prototype, 'scrollIntoView', {
+    configurable: true,
+    value: scrollIntoView,
+  });
+  return {
+    scrollIntoView,
+    restore: () => {
+      if (descriptor) {
+        Object.defineProperty(Element.prototype, 'scrollIntoView', descriptor);
+        return;
+      }
+      delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+    },
+  };
+}
+
 describe('ReaderTocPanel', () => {
   it('summarizes highlights and distillations with icon stats', () => {
     render(
@@ -714,6 +733,69 @@ describe('ReaderTocPanel', () => {
     expect(activeButton.className).toContain('is-active');
     expect(activeButton.getAttribute('aria-current')).toBe('location');
     expect(screen.getByRole('button', { name: '后文' }).hasAttribute('aria-current')).toBe(false);
+  });
+
+  it('scrolls the active toc item into view when the panel is open', () => {
+    const { scrollIntoView, restore } = mockScrollIntoView();
+    try {
+      render(
+        <ReaderTocPanel
+          activeTocIndex={2}
+          annotationTotals={{ annotations: 0, distillations: 0 }}
+          hasToc
+          tocAnnotationStats={new Map()}
+          tocItems={[
+            { index: 1, text: '前文', depth: 1, start: 0, end: 10 },
+            { index: 2, text: '当前', depth: 1, start: 10, end: 20 },
+          ]}
+          tocOpen
+          onScrollToHeading={vi.fn()}
+        />,
+      );
+
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+    } finally {
+      restore();
+    }
+  });
+
+  it('does not scroll the active toc item while the panel is closed', () => {
+    const { scrollIntoView, restore } = mockScrollIntoView();
+    try {
+      const { rerender } = render(
+        <ReaderTocPanel
+          activeTocIndex={1}
+          annotationTotals={{ annotations: 0, distillations: 0 }}
+          hasToc
+          tocAnnotationStats={new Map()}
+          tocItems={[
+            { index: 1, text: '前文', depth: 1, start: 0, end: 10 },
+            { index: 2, text: '当前', depth: 1, start: 10, end: 20 },
+          ]}
+          tocOpen={false}
+          onScrollToHeading={vi.fn()}
+        />,
+      );
+
+      rerender(
+        <ReaderTocPanel
+          activeTocIndex={2}
+          annotationTotals={{ annotations: 0, distillations: 0 }}
+          hasToc
+          tocAnnotationStats={new Map()}
+          tocItems={[
+            { index: 1, text: '前文', depth: 1, start: 0, end: 10 },
+            { index: 2, text: '当前', depth: 1, start: 10, end: 20 },
+          ]}
+          tocOpen={false}
+          onScrollToHeading={vi.fn()}
+        />,
+      );
+
+      expect(scrollIntoView).not.toHaveBeenCalled();
+    } finally {
+      restore();
+    }
   });
 });
 
