@@ -1,0 +1,35 @@
+{
+  "version": "0.7.2",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "Added App Lock",
+      "description": "Enable PIN protection in Settings to add another access layer for your local reading workspace.",
+      "audience": "settings"
+    },
+    {
+      "type": "changed",
+      "title": "Clearer translation feedback",
+      "description": "Web-article paragraphs now show clearer feedback when translated text has been applied.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Smoother table of contents",
+      "description": "The reader TOC highlights and focuses the active section, with smoother open and close motion.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "More stable reader chat",
+      "description": "Assistant streaming is more stable, reducing inconsistent message state or rendering during generation.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Updated download and update flow",
+      "description": "Website installers and update assets now route through the download service for link checks and download metrics.",
+      "audience": "settings"
+    }
+  ]
+}

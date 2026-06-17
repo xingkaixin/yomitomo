@@ -1,0 +1,35 @@
+{
+  "version": "0.7.2",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "新增应用锁",
+      "description": "可以在设置中开启 PIN 保护，本地阅读空间离开后也能多一层访问保护。",
+      "audience": "settings"
+    },
+    {
+      "type": "changed",
+      "title": "翻译反馈更清楚",
+      "description": "网页文章段落翻译写回正文时会显示更明确的状态反馈，便于确认译文已应用。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "目录导航更顺手",
+      "description": "阅读器目录会高亮并聚焦当前章节，目录开合也加入了更平滑的动效。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "阅读器聊天更稳定",
+      "description": "优化助手回复的流式输出，减少生成过程中消息状态或渲染不一致的问题。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "下载与更新链路升级",
+      "description": "官网安装包和应用更新资源改走下载服务，便于验证更新链接并采集下载指标。",
+      "audience": "settings"
+    }
+  ]
+}
