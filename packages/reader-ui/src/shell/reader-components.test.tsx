@@ -765,6 +765,60 @@ describe('ReaderToolbar', () => {
   });
 });
 
+function renderFloatingToolbarWithToc(tocOpen: boolean, hasToc = true) {
+  return render(
+    <ReaderFloatingToolbar
+      annotationNavigation={{ previousId: null, nextId: null, totalCount: 0, currentIndex: 0 }}
+      hasToc={hasToc}
+      showAnnotationNavigation={false}
+      tocOpen={tocOpen}
+      onNavigateAnnotation={vi.fn()}
+      onToggleToc={vi.fn()}
+    />,
+  );
+}
+
+describe('ReaderFloatingToolbar toc toggle', () => {
+  it('reflects the toc open state on the animated toggle icon', () => {
+    const { container, rerender } = renderFloatingToolbarWithToc(false);
+
+    const toggle = screen.getByRole('button', { name: '切换目录' });
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    expect(toggle.classList.contains('is-active')).toBe(false);
+    expect(container.querySelector('.reader-toc-toggle-icon')?.getAttribute('data-state')).toBe(
+      'closed',
+    );
+
+    rerender(
+      <ReaderFloatingToolbar
+        annotationNavigation={{ previousId: null, nextId: null, totalCount: 0, currentIndex: 0 }}
+        hasToc
+        showAnnotationNavigation={false}
+        tocOpen
+        onNavigateAnnotation={vi.fn()}
+        onToggleToc={vi.fn()}
+      />,
+    );
+
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    expect(toggle.classList.contains('is-active')).toBe(true);
+    expect(container.querySelector('.reader-toc-toggle-icon')?.getAttribute('data-state')).toBe(
+      'open',
+    );
+  });
+
+  it('keeps the toggle disabled and visually closed without toc items', () => {
+    const { container } = renderFloatingToolbarWithToc(true, false);
+
+    const toggle = screen.getByRole('button', { name: '切换目录' });
+    expect((toggle as HTMLButtonElement).disabled).toBe(true);
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    expect(container.querySelector('.reader-toc-toggle-icon')?.getAttribute('data-state')).toBe(
+      'closed',
+    );
+  });
+});
+
 describe('ReaderFloatingToolbar search mode', () => {
   it('replaces the normal toolbar controls while searching', () => {
     const onClose = vi.fn();

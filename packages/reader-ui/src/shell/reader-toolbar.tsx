@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown, ChevronLeft, ChevronUp, List, PencilLine, Search, X } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronUp, PencilLine, Search, X } from 'lucide-react';
 import type {
   AnnotationNavigationDirection,
   AnnotationNavigationState,
@@ -148,7 +148,7 @@ export function ReaderFloatingToolbar({
             aria-label={labels.toggleToc}
             aria-pressed={hasToc && tocOpen}
           >
-            <List size={18} />
+            <ReaderTocToggleIcon open={hasToc && tocOpen} />
           </button>
         </ReaderTooltip>
       </div>
@@ -204,6 +204,37 @@ export function ReaderFloatingToolbar({
       ) : null}
       {controls ? <div className="reader-floating-toolbar-controls">{controls}</div> : null}
     </div>
+  );
+}
+
+function ReaderTocToggleIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className="reader-toc-toggle-icon"
+      data-state={open ? 'open' : 'closed'}
+      focusable="false"
+      height="18"
+      viewBox="0 0 18 18"
+      width="18"
+    >
+      <rect
+        className="reader-toc-toggle-frame"
+        x="3.25"
+        y="3.25"
+        width="11.5"
+        height="11.5"
+        rx="2.75"
+      />
+      <rect
+        className="reader-toc-toggle-rail"
+        x="5.25"
+        y="5.25"
+        width="2.4"
+        height="7.5"
+        rx="1.2"
+      />
+    </svg>
   );
 }
 
