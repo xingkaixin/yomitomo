@@ -443,6 +443,117 @@ describe('ReaderChatPanel', () => {
     expect(html).not.toContain('<script');
     expect(html).not.toContain('<img');
   });
+
+  it('renders quoted context only on reader chat user messages', () => {
+    const context = {
+      sourceType: 'web' as const,
+      quote: '这是划线引用',
+      title: '文章',
+    };
+    const { container } = render(
+      <ReaderChatPanel
+        agents={[agent('agent_2', '周砚')]}
+        messageSendShortcut="enter"
+        open
+        selectedAssistantId="agent_2"
+        shortcutModifier="⌘"
+        state={{
+          articleId: 'article_1',
+          activeSessionId: 'session_1',
+          selectedAssistantId: 'agent_2',
+          sessions: [
+            {
+              id: 'session_1',
+              articleId: 'article_1',
+              createdAt: now,
+              updatedAt: now,
+              messages: [
+                {
+                  id: 'message_1',
+                  role: 'user',
+                  content: '这是什么意思？',
+                  context,
+                  createdAt: now,
+                },
+                {
+                  id: 'message_2',
+                  role: 'assistant',
+                  assistantId: 'agent_2',
+                  content: '回答内容',
+                  context,
+                  createdAt: now,
+                },
+              ],
+            },
+          ],
+          createdAt: now,
+          updatedAt: now,
+        }}
+        onClose={vi.fn()}
+        onOpen={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelectorAll('.reader-chat-message-context')).toHaveLength(1);
+    expect(
+      container.querySelector('.reader-chat-message.is-user .reader-chat-message-context'),
+    ).toBeTruthy();
+    expect(
+      container.querySelector('.reader-chat-message.is-assistant .reader-chat-message-context'),
+    ).toBeFalsy();
+  });
+
+  it('renders streaming assistant reader chat text without markdown block structure', () => {
+    const { container } = render(
+      <ReaderChatPanel
+        agents={[agent('agent_2', '周砚')]}
+        messageSendShortcut="enter"
+        open
+        selectedAssistantId="agent_2"
+        sending
+        shortcutModifier="⌘"
+        state={{
+          articleId: 'article_1',
+          activeSessionId: 'session_1',
+          selectedAssistantId: 'agent_2',
+          sessions: [
+            {
+              id: 'session_1',
+              articleId: 'article_1',
+              createdAt: now,
+              updatedAt: now,
+              messages: [
+                {
+                  id: 'message_1',
+                  role: 'user',
+                  content: '这是什么意思？',
+                  createdAt: now,
+                },
+                {
+                  id: 'message_2',
+                  role: 'assistant',
+                  assistantId: 'agent_2',
+                  content: '> 这是流式过程中的半截引用\n\n回答正文',
+                  createdAt: now,
+                },
+              ],
+            },
+          ],
+          createdAt: now,
+          updatedAt: now,
+        }}
+        onClose={vi.fn()}
+        onOpen={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector('.reader-chat-markdown blockquote')).toBeFalsy();
+    expect(container.querySelector('.reader-chat-message.is-assistant p')?.textContent).toContain(
+      '> 这是流式过程中的半截引用',
+    );
+  });
 });
 
 describe('AnnotationCard', () => {

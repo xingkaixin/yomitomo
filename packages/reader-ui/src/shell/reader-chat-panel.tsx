@@ -76,6 +76,10 @@ export function ReaderChatPanel({
   const messageScrollKey = activeSession
     ? activeSession.messages.map((message) => `${message.id}:${message.content.length}`).join('|')
     : '';
+  const streamingAssistantMessageId =
+    sending && activeSession?.messages.at(-1)?.role === 'assistant'
+      ? activeSession.messages.at(-1)?.id
+      : undefined;
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -141,6 +145,7 @@ export function ReaderChatPanel({
               key={message.id}
               labels={labels}
               message={message}
+              streaming={message.id === streamingAssistantMessageId}
               onRevealContext={onRevealContext}
             />
           ))
@@ -216,11 +221,13 @@ function ReaderChatMessageView({
   agents,
   labels = defaultReaderUiLabels,
   message,
+  streaming = false,
   onRevealContext,
 }: {
   agents: PublicAgent[];
   labels?: ReaderUiLabels;
   message: ReaderChatMessage;
+  streaming?: boolean;
   onRevealContext?: (context: ReaderQuestionContext) => void | Promise<void>;
 }) {
   const isAssistant = message.role === 'assistant';
@@ -247,7 +254,7 @@ function ReaderChatMessageView({
             </time>
           </ReaderTooltip>
         </header>
-        {message.context ? (
+        {!isAssistant && message.context ? (
           <button
             className="reader-chat-message-context"
             type="button"
@@ -257,7 +264,9 @@ function ReaderChatMessageView({
             {message.context.quote}
           </button>
         ) : null}
-        {isAssistant ? (
+        {isAssistant && streaming ? (
+          <p>{message.content || labels.assistantAnswering}</p>
+        ) : isAssistant ? (
           <div className="reader-chat-markdown" dangerouslySetInnerHTML={{ __html: html }} />
         ) : (
           <p>{message.content}</p>
