@@ -91,7 +91,7 @@ export type Locale = 'zh-CN' | 'en';
 // ── Agent colors (shared) + locale-specific avatars ──────
 
 const agentColors: Record<string, string> = {
-  yomitomo: '#a43f37',
+  yomitomo: '#2c4a7c',
   'reading-partner': '#6fa48f',
   'root-reviewer': '#4f7f9f',
   'question-mentor': '#a7b8e8',

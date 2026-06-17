@@ -32,7 +32,7 @@ function computeConnection(
   if (cRect.bottom < 0 || cRect.top > window.innerHeight) return null;
 
   const path = buildAnnotationConnectionPath(startX, startY, endX, endY);
-  return { path, color: 'rgba(199, 164, 94, 0.55)' };
+  return { path, color: 'rgba(44, 74, 124, 0.6)' };
 }
 
 type AnnotationConnectionProps = {
