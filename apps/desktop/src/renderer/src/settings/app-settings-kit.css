@@ -1034,6 +1034,144 @@
   color: hsl(var(--muted-foreground));
 }
 
+.settings-pin-input {
+  width: 96px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+.settings-app-lock-form {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.settings-action-button {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid hsl(var(--border));
+  border-radius: 10px;
+  background: hsl(var(--foreground));
+  color: hsl(var(--background));
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0 12px;
+  cursor: pointer;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+.settings-action-button:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.settings-action-button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.settings-action-button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.settings-action-button:focus-visible {
+  outline: 2px solid hsl(var(--ring) / 0.42);
+  outline-offset: 2px;
+}
+
+.settings-action-button.is-secondary {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.app-lock-settings-dialog-overlay {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: hsl(var(--background) / 0.64);
+  padding: 24px;
+}
+
+.app-lock-settings-dialog {
+  width: min(420px, 100%);
+  border: 1px solid hsl(var(--border) / 0.76);
+  border-radius: 12px;
+  background: hsl(var(--card));
+  box-shadow: 0 24px 70px hsl(var(--foreground) / 0.16);
+  padding: 0;
+}
+
+.app-lock-settings-dialog form {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+}
+
+.app-lock-settings-dialog header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+}
+
+.app-lock-settings-dialog-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid hsl(var(--border) / 0.76);
+  border-radius: 999px;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.app-lock-settings-dialog h2 {
+  margin: 0;
+  color: hsl(var(--foreground));
+  font-size: 18px;
+  line-height: 1.24;
+}
+
+.app-lock-settings-dialog-title-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-lock-settings-dialog p {
+  margin: 6px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.app-lock-settings-dialog-fields {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.app-lock-settings-dialog-error {
+  color: hsl(var(--destructive)) !important;
+  font-weight: 760;
+}
+
+.app-lock-settings-dialog footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .settings-combobox-trigger {
   display: inline-flex;
   min-width: 168px;

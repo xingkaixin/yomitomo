@@ -23,6 +23,18 @@ export function mergeSettingsForUpsert(settings: AppSettings, existing?: AppSett
     soundEffectsVolume: settingsFieldProvided(settings, 'soundEffectsVolume')
       ? normalizeSoundEffectsVolume(settings.soundEffectsVolume)
       : normalizeSoundEffectsVolume(existing?.soundEffectsVolume),
+    appLockEnabled: settingsFieldProvided(settings, 'appLockEnabled')
+      ? Boolean(settings.appLockEnabled)
+      : Boolean(existing?.appLockEnabled),
+    appLockLocked: settingsFieldProvided(settings, 'appLockLocked')
+      ? Boolean(settings.appLockLocked)
+      : Boolean(existing?.appLockLocked),
+    appLockLockOnStartup: settingsFieldProvided(settings, 'appLockLockOnStartup')
+      ? Boolean(settings.appLockLockOnStartup)
+      : Boolean(existing?.appLockLockOnStartup),
+    appLockShortcut: settingsFieldProvided(settings, 'appLockShortcut')
+      ? normalizeAppLockShortcut(settings.appLockShortcut)
+      : normalizeAppLockShortcut(existing?.appLockShortcut),
     libraryPageSize: settingsFieldProvided(settings, 'libraryPageSize')
       ? normalizeLibraryPageSize(settings.libraryPageSize)
       : normalizeLibraryPageSize(existing?.libraryPageSize),
@@ -98,6 +110,10 @@ export function rowToSettings(
     themeId: row?.themeId || undefined,
     soundEffectsEnabled: normalizeBooleanSetting(row?.soundEffectsEnabled, true),
     soundEffectsVolume: normalizeSoundEffectsVolume(row?.soundEffectsVolume),
+    appLockEnabled: Boolean(row?.appLockEnabled),
+    appLockLocked: Boolean(row?.appLockEnabled && row?.appLockLocked),
+    appLockLockOnStartup: Boolean(row?.appLockEnabled && row?.appLockLockOnStartup),
+    appLockShortcut: normalizeAppLockShortcut(row?.appLockShortcut),
     libraryPageSize: normalizeLibraryPageSize(row?.libraryPageSize),
     libraryContentSources: normalizeLibraryContentSources(row?.libraryContentSources),
     defaultProviderId: row?.defaultProviderId || undefined,
@@ -126,6 +142,10 @@ export function normalizeSettings(settings: AppSettings | undefined): AppSetting
     themeId: settings?.themeId || undefined,
     soundEffectsEnabled: settings?.soundEffectsEnabled ?? true,
     soundEffectsVolume: normalizeSoundEffectsVolume(settings?.soundEffectsVolume),
+    appLockEnabled: Boolean(settings?.appLockEnabled),
+    appLockLocked: Boolean(settings?.appLockEnabled && settings?.appLockLocked),
+    appLockLockOnStartup: Boolean(settings?.appLockEnabled && settings?.appLockLockOnStartup),
+    appLockShortcut: normalizeAppLockShortcut(settings?.appLockShortcut),
     libraryPageSize: normalizeLibraryPageSize(settings?.libraryPageSize),
     libraryContentSources: normalizeLibraryContentSources(settings?.libraryContentSources),
     defaultProviderId: settings?.defaultProviderId || undefined,
@@ -158,6 +178,11 @@ function normalizeLogRetentionDays(value: unknown) {
 
 function normalizeLibraryPageSize(value: unknown) {
   return value === 6 || value === 12 || value === 18 || value === 24 ? value : undefined;
+}
+
+function normalizeAppLockShortcut(value: unknown) {
+  const text = typeof value === 'string' ? value.trim() : '';
+  return text.length > 0 && text.length <= 80 ? text : undefined;
 }
 
 function normalizeTranslationTargetLanguage(value: unknown) {

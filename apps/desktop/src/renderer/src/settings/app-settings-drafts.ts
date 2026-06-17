@@ -104,6 +104,8 @@ export function useSettingsDrafts({
       Boolean(settingsDraft.bilingualTranslationAiContextAware) !==
         Boolean(store.settings.bilingualTranslationAiContextAware) ||
       Boolean(settingsDraft.saveArticleImages) !== Boolean(store.settings.saveArticleImages) ||
+      Boolean(settingsDraft.appLockLockOnStartup) !==
+        Boolean(store.settings.appLockLockOnStartup) ||
       libraryContentSourcesChanged(
         settingsDraft.libraryContentSources,
         store.settings.libraryContentSources,
@@ -113,6 +115,7 @@ export function useSettingsDrafts({
       settingsDraft.bilingualTranslationAiContextAware,
       settingsDraft.bilingualTranslationStyle,
       settingsDraft.bilingualTranslationTargetLanguage,
+      settingsDraft.appLockLockOnStartup,
       settingsDraft.saveArticleImages,
       settingsDraft.soundEffectsEnabled,
       settingsDraft.soundEffectsVolume,
@@ -121,6 +124,7 @@ export function useSettingsDrafts({
       store.settings.bilingualTranslationAiContextAware,
       store.settings.bilingualTranslationStyle,
       store.settings.bilingualTranslationTargetLanguage,
+      store.settings.appLockLockOnStartup,
       store.settings.saveArticleImages,
       store.settings.soundEffectsEnabled,
       store.settings.soundEffectsVolume,

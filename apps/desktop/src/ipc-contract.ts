@@ -42,6 +42,39 @@ export type AppInfo = {
   desktopVersion: string;
 };
 
+export type AppLockStatus = {
+  configured: boolean;
+  enabled: boolean;
+  locked: boolean;
+  shortcut?: string;
+};
+
+export type AppLockSetPinInput = {
+  confirmPin: string;
+  pin: string;
+};
+
+export type AppLockVerifyPinInput = {
+  pin: string;
+};
+
+export type AppLockVerifyPinResult = {
+  ok: boolean;
+};
+
+export type AppLockSetEnabledInput = {
+  enabled: boolean;
+  pin?: string;
+};
+
+export type AppLockSetLockedInput = {
+  locked: boolean;
+};
+
+export type AppLockSetShortcutInput = {
+  shortcut: string | null;
+};
+
 export type ArticleImportResult =
   | { status: 'canceled' }
   | { status: 'duplicate'; article: ArticleRecord }
@@ -400,6 +433,30 @@ export type DesktopIpcInvokeMap = {
   'app:info': {
     args: [];
     result: AppInfo;
+  };
+  'appLock:getStatus': {
+    args: [];
+    result: AppLockStatus;
+  };
+  'appLock:setEnabled': {
+    args: [input: AppLockSetEnabledInput];
+    result: DesktopStore;
+  };
+  'appLock:setLocked': {
+    args: [input: AppLockSetLockedInput];
+    result: DesktopStore;
+  };
+  'appLock:setPin': {
+    args: [input: AppLockSetPinInput];
+    result: AppLockStatus;
+  };
+  'appLock:setShortcut': {
+    args: [input: AppLockSetShortcutInput];
+    result: DesktopStore;
+  };
+  'appLock:verifyPin': {
+    args: [input: AppLockVerifyPinInput];
+    result: AppLockVerifyPinResult;
   };
   'article:delete': {
     args: [id: string];

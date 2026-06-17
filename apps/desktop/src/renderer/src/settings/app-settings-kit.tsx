@@ -206,7 +206,7 @@ export function SettingsRowDescriptionTooltip({
   );
 }
 
-function SettingsInfoIndicator({
+export function SettingsInfoIndicator({
   description,
   interactive,
 }: {

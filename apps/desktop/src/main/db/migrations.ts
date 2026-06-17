@@ -780,6 +780,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS article_translation_segments_block_idx
 ON article_translation_segments(translation_id, source_block_id);
 `,
   },
+  {
+    id: '0052_app_lock_settings',
+    sql: `
+ALTER TABLE app_settings ADD COLUMN app_lock_enabled INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE app_settings ADD COLUMN app_lock_locked INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE app_settings ADD COLUMN app_lock_lock_on_startup INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE app_settings ADD COLUMN app_lock_shortcut TEXT;
+`,
+  },
 ];
 
 type MigrationDatabase = {
@@ -805,6 +814,22 @@ export function ensureAdditiveSchemaColumns(database: MigrationDatabase) {
     {
       name: 'bilingual_translation_ai_context_aware',
       sql: 'ALTER TABLE app_settings ADD COLUMN bilingual_translation_ai_context_aware INTEGER',
+    },
+    {
+      name: 'app_lock_enabled',
+      sql: 'ALTER TABLE app_settings ADD COLUMN app_lock_enabled INTEGER NOT NULL DEFAULT 0',
+    },
+    {
+      name: 'app_lock_locked',
+      sql: 'ALTER TABLE app_settings ADD COLUMN app_lock_locked INTEGER NOT NULL DEFAULT 0',
+    },
+    {
+      name: 'app_lock_lock_on_startup',
+      sql: 'ALTER TABLE app_settings ADD COLUMN app_lock_lock_on_startup INTEGER NOT NULL DEFAULT 0',
+    },
+    {
+      name: 'app_lock_shortcut',
+      sql: 'ALTER TABLE app_settings ADD COLUMN app_lock_shortcut TEXT',
     },
   ]) {
     if (tableHasColumn(database, 'app_settings', column.name)) continue;

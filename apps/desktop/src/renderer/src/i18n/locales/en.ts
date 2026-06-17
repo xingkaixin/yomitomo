@@ -456,6 +456,18 @@ export const enResources = {
       settings: 'Settings',
       profile: 'Open profile settings',
     },
+    appLock: {
+      lockNow: 'Lock app ({{shortcut}})',
+      title: 'App locked',
+      slideLabel: 'Slide to unlock',
+      pinDescription: 'Enter your 4-digit PIN to unlock.',
+      pinLabel: 'App lock PIN',
+      pinPlaceholder: 'PIN',
+      invalidPin: 'Incorrect PIN.',
+      verifyFailed: 'PIN verification failed. Try again.',
+      verifying: 'Verifying',
+      unlock: 'Unlock',
+    },
     library: {
       sources: {
         web: 'Web articles',
@@ -1195,6 +1207,46 @@ export const enResources = {
         soundVolumeTitle: 'Sound effect volume',
         soundVolumeDescription: 'Controls playback volume for all app sound effects.',
         soundVolumeValue: '{{value}}%',
+        appLockGroup: 'App lock',
+        appLockEnabledTitle: 'Enable app lock',
+        appLockEnabledDescription:
+          'Set and confirm a 4-digit PIN when enabling. Disabling requires the current PIN and deletes it, so the next enable flow starts fresh.',
+        appLockPinTitle: 'Set 4-digit PIN',
+        appLockPinDescription:
+          'The PIN is stored only as a salted verification record in the system keychain, not in the local database.',
+        appLockEnableDialogTitle: 'Set app lock PIN',
+        appLockEnableDialogDescription:
+          'Enter a 4-digit PIN. You will confirm it in the next step.',
+        appLockConfirmDialogTitle: 'Confirm app lock PIN',
+        appLockConfirmDialogDescription:
+          'Enter the same 4-digit PIN again. App lock is enabled only after both entries match.',
+        appLockEnableDialogNext: 'Continue',
+        appLockEnableDialogConfirm: 'Enable app lock',
+        appLockPinPlaceholder: 'PIN',
+        appLockConfirmPinPlaceholder: 'Confirm PIN',
+        appLockSetPin: 'Set and enable',
+        appLockUpdatePin: 'Update and enable',
+        appLockPinRequired: 'Enter the complete 4-digit numeric PIN.',
+        appLockPinMismatch: 'Enter matching 4-digit numeric PINs.',
+        appLockSetupRequired: 'Set a 4-digit PIN first.',
+        appLockDisableTitle: 'Disable app lock',
+        appLockDisableDescription:
+          'Enter the current PIN before disabling app lock so protection cannot be turned off casually.',
+        appLockDisableDialogTitle: 'Disable app lock',
+        appLockDisableDialogDescription:
+          'Enter the current PIN. After app lock is disabled, the PIN is deleted and must be set again next time.',
+        appLockDisableDialogConfirm: 'Disable app lock',
+        appLockDisablePinPlaceholder: 'Current PIN',
+        appLockDisablePinRequired: 'Enter the current 4-digit PIN.',
+        appLockDialogCancel: 'Cancel',
+        appLockShortcutTitle: 'Lock shortcut',
+        appLockShortcutDescription:
+          'Uses the system primary modifier plus L: ⌘+L on macOS, Ctrl+L on Windows.',
+        appLockShortcutValue: 'App lock shortcut: {{shortcut}}',
+        appLockStartupTitle: 'Lock on startup',
+        appLockStartupDescription:
+          'When enabled, every app launch or update restart starts locked. Release notes appear only after unlocking.',
+        appLockSaveError: 'Failed to save app lock settings.',
         collectionGroup: 'Capture',
         saveImagesTitle: 'Save article images while capturing',
         saveImagesDescription:
