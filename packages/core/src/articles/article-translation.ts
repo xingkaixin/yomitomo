@@ -11,7 +11,9 @@ export type WebArticleTranslationBlock = {
 };
 
 export type ArticleBilingualTranslationRenderOptions = {
+  retryLabel?: string;
   style?: string;
+  successBlockIds?: ReadonlySet<string>;
 };
 
 const translatableBlockSelector = 'p, li, blockquote, h1, h2, h3, h4, h5, h6';
@@ -64,10 +66,20 @@ export function articleHtmlWithBilingualTranslation(
       const segment = segmentsByBlockId.get(blockId);
       if (!segment) return;
       element.setAttribute('data-reader-source-block-id', blockId);
-      element.insertAdjacentElement(
-        'afterend',
-        createTranslationElement(articleDocument, segment, options.style || 'dashedLine'),
+      const indicator = createTranslationIndicator(articleDocument, segment, {
+        retryLabel: options.retryLabel,
+        status:
+          segment.status === 'ready' && options.successBlockIds?.has(blockId)
+            ? 'success'
+            : segment.status,
+      });
+      if (indicator) element.append(indicator);
+      const translationElement = createTranslationElement(
+        articleDocument,
+        segment,
+        options.style || 'dashedLine',
       );
+      if (translationElement) element.insertAdjacentElement('afterend', translationElement);
     });
 
   return container.innerHTML;
@@ -148,6 +160,8 @@ function createTranslationElement(
   segment: ArticleTranslation['segments'][number],
   style: string,
 ) {
+  if (segment.status === 'failed') return null;
+
   const element = articleDocument.createElement('div');
   element.className = `reader-bilingual-translation is-${segment.status}`;
   element.setAttribute('data-reader-translation', 'true');
@@ -159,17 +173,56 @@ function createTranslationElement(
     return element;
   }
 
-  const indicator = articleDocument.createElement(segment.status === 'failed' ? 'button' : 'span');
-  indicator.className =
-    segment.status === 'failed'
-      ? 'reader-bilingual-translation-retry'
-      : 'reader-bilingual-translation-loading';
-  indicator.setAttribute('data-reader-translation-action', segment.status);
-  indicator.setAttribute('data-reader-translation-block-id', segment.sourceBlockId);
-  indicator.setAttribute('aria-label', segment.status);
-  const icon = articleDocument.createElement('span');
-  icon.className = 'reader-bilingual-translation-spinner';
-  indicator.append(icon);
-  element.append(indicator);
+  element.append(createTranslationSkeleton(articleDocument, segment.sourceText));
   return element;
+}
+
+function createTranslationIndicator(
+  articleDocument: Document,
+  segment: ArticleTranslation['segments'][number],
+  options: {
+    retryLabel?: string;
+    status: ArticleTranslation['segments'][number]['status'] | 'success';
+  },
+) {
+  if (options.status === 'ready') return null;
+
+  const indicator = articleDocument.createElement(options.status === 'failed' ? 'button' : 'span');
+  indicator.className = `reader-bilingual-translation-indicator is-${options.status}`;
+  indicator.setAttribute('data-reader-translation-status', options.status);
+  indicator.setAttribute('data-reader-translation-block-id', segment.sourceBlockId);
+  if (options.status === 'failed') {
+    const label = options.retryLabel || 'Retry translation';
+    indicator.setAttribute('type', 'button');
+    indicator.setAttribute('data-reader-translation-action', 'failed');
+    indicator.setAttribute('aria-label', label);
+    indicator.setAttribute('title', label);
+  } else {
+    indicator.setAttribute('aria-hidden', 'true');
+  }
+
+  const icon = articleDocument.createElement('span');
+  icon.className =
+    options.status === 'success'
+      ? 'reader-bilingual-translation-check'
+      : 'reader-bilingual-translation-spinner';
+  indicator.append(icon);
+  return indicator;
+}
+
+function createTranslationSkeleton(articleDocument: Document, sourceText: string) {
+  const skeleton = articleDocument.createElement('span');
+  skeleton.className = 'reader-bilingual-translation-skeleton';
+  skeleton.setAttribute('aria-hidden', 'true');
+  const lineCount = Math.min(
+    4,
+    Math.max(1, Math.ceil(normalizeTranslationBlockText(sourceText).length / 48)),
+  );
+  for (let index = 0; index < lineCount; index += 1) {
+    const line = articleDocument.createElement('span');
+    line.className = 'reader-bilingual-translation-skeleton-line';
+    if (index === lineCount - 1) line.classList.add('is-last');
+    skeleton.append(line);
+  }
+  return skeleton;
 }

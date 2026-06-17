@@ -180,6 +180,13 @@ export function WebSourceBookcase({
   const [translationConfirm, setTranslationConfirm] = useState<TranslationConfirmAction | null>(
     null,
   );
+  const [translationSuccessBlockIds, setTranslationSuccessBlockIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const translationSegmentStatusRef = useRef(
+    new Map<string, ArticleTranslation['segments'][number]['status']>(),
+  );
+  const translationSuccessTimerRef = useRef(new Map<string, number>());
   const bilingualTranslationTargetLanguage = settings?.bilingualTranslationTargetLanguage;
   const bilingualTranslationStyle = settings?.bilingualTranslationStyle || 'dashedLine';
   const translationInProgress = translationBusy || translation?.status === 'translating';
@@ -227,9 +234,18 @@ export function WebSourceBookcase({
   const translatedContentHtml = useMemo(() => {
     if (!translationVisible || !translation) return contentHtml;
     return articleHtmlWithBilingualTranslation(document, contentHtml, translation, {
+      retryLabel: t('source.retryTranslationSegment'),
       style: bilingualTranslationStyle,
+      successBlockIds: translationSuccessBlockIds,
     });
-  }, [bilingualTranslationStyle, contentHtml, translation, translationVisible]);
+  }, [
+    bilingualTranslationStyle,
+    contentHtml,
+    t,
+    translation,
+    translationSuccessBlockIds,
+    translationVisible,
+  ]);
   const articleText = articleRef.current ? sourceTextContent(articleRef.current) : '';
   const searchResult = useMemo(
     () => findReaderSearchMatches(articleText, searchQuery),
@@ -334,6 +350,8 @@ export function WebSourceBookcase({
     setTranslationVisible(false);
     setTranslationMenuOpen(false);
     setTranslationConfirm(null);
+    clearTranslationSuccessFeedback();
+    translationSegmentStatusRef.current.clear();
     lastSavedWebProgressRef.current = normalizeSavedWebProgress(article.readingProgress);
     setReadingProgress(lastSavedWebProgressRef.current ?? 0);
     restoredWebProgressArticleRef.current = null;
@@ -370,6 +388,32 @@ export function WebSourceBookcase({
       setTranslationVisible(true);
     });
   }, [article.id]);
+
+  useEffect(() => {
+    return () => clearTranslationSuccessFeedback();
+  }, []);
+
+  useEffect(() => {
+    const previousStatuses = translationSegmentStatusRef.current;
+    const nextStatuses = new Map<string, ArticleTranslation['segments'][number]['status']>();
+
+    for (const segment of translation?.segments || []) {
+      nextStatuses.set(segment.sourceBlockId, segment.status);
+      const previousStatus = previousStatuses.get(segment.sourceBlockId);
+      if (previousStatus === 'translating' && segment.status === 'ready') {
+        showTranslationSuccessFeedback(segment.sourceBlockId);
+      }
+      if (segment.status !== 'ready') {
+        clearTranslationSuccessFeedback(segment.sourceBlockId);
+      }
+    }
+
+    for (const blockId of previousStatuses.keys()) {
+      if (!nextStatuses.has(blockId)) clearTranslationSuccessFeedback(blockId);
+    }
+
+    translationSegmentStatusRef.current = nextStatuses;
+  }, [translation]);
 
   useEffect(() => {
     setActiveSearchMatchIndex(0);
@@ -631,6 +675,41 @@ export function WebSourceBookcase({
 
     event.preventDefault();
     void window.yomitomoDesktop.openUrl(url);
+  }
+
+  function showTranslationSuccessFeedback(blockId: string) {
+    const previousTimer = translationSuccessTimerRef.current.get(blockId);
+    if (previousTimer) window.clearTimeout(previousTimer);
+    setTranslationSuccessBlockIds((current) => new Set(current).add(blockId));
+    const nextTimer = window.setTimeout(() => {
+      translationSuccessTimerRef.current.delete(blockId);
+      setTranslationSuccessBlockIds((current) => {
+        if (!current.has(blockId)) return current;
+        const next = new Set(current);
+        next.delete(blockId);
+        return next;
+      });
+    }, 2000);
+    translationSuccessTimerRef.current.set(blockId, nextTimer);
+  }
+
+  function clearTranslationSuccessFeedback(blockId?: string) {
+    if (blockId) {
+      const timer = translationSuccessTimerRef.current.get(blockId);
+      if (timer) window.clearTimeout(timer);
+      translationSuccessTimerRef.current.delete(blockId);
+      setTranslationSuccessBlockIds((current) => {
+        if (!current.has(blockId)) return current;
+        const next = new Set(current);
+        next.delete(blockId);
+        return next;
+      });
+      return;
+    }
+
+    for (const timer of translationSuccessTimerRef.current.values()) window.clearTimeout(timer);
+    translationSuccessTimerRef.current.clear();
+    setTranslationSuccessBlockIds((current) => (current.size === 0 ? current : new Set()));
   }
 
   function currentTranslationBlockIds() {
