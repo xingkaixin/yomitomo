@@ -805,7 +805,9 @@ describe('SelectionMenu', () => {
     });
 
     expect(onCopy).toHaveBeenCalledOnce();
-    expect(screen.getByText('已复制')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /复制/ }).className).toContain('is-copied');
+    expect(screen.queryByText('已复制')).toBeNull();
+    expect(screen.getByText('C').className).not.toContain('is-hidden');
     expect(onCopySettled).not.toHaveBeenCalled();
 
     act(() => {
@@ -843,7 +845,9 @@ describe('SelectionMenu', () => {
     });
 
     expect(onCopy).toHaveBeenCalledOnce();
-    expect(screen.getByText('已复制')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /复制/ }).className).toContain('is-copied');
+    expect(screen.queryByText('已复制')).toBeNull();
+    expect(screen.getByText('C').className).not.toContain('is-hidden');
     expect(onCopySettled).not.toHaveBeenCalled();
 
     act(() => {
