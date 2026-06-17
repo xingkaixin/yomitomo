@@ -15,10 +15,8 @@ import {
   ShortcutTooltipContent,
   SubmitShortcutTooltipContent,
 } from '@yomitomo/reader-ui/reader-component-primitives';
-import {
-  getShortcutModifier,
-  isMessageSendShortcutEvent,
-} from '@yomitomo/reader-ui/reader-shortcuts';
+import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
+import { useCompositionSubmit } from '@yomitomo/reader-ui/use-composition-submit';
 import {
   AddThoughtAssistantRunPanel,
   type AddThoughtAgentRun,
@@ -73,6 +71,11 @@ export function AddThoughtDialog({
   const showingAssistantRun = mode === 'assistant' && runningAgents.length > 0;
   const runIsActive = runningAgents.some((run) => run.status === 'active');
   const canCancel = !showingAssistantRun || !runIsActive;
+  const handleSubmitKeyDown = useCompositionSubmit({
+    messageSendShortcut: 'mod-enter',
+    onCancel,
+    onSubmit,
+  });
 
   useEffect(() => {
     setSelectedMentionIndex(0);
@@ -264,11 +267,6 @@ export function AddThoughtDialog({
                   },
                   onClick: (event) => updateCaret(event.currentTarget),
                   onKeyDown: (event) => {
-                    if (event.key === 'Escape') {
-                      event.preventDefault();
-                      onCancel();
-                      return;
-                    }
                     if (matchedAgents.length > 0 && event.key === 'ArrowDown') {
                       event.preventDefault();
                       setSelectedMentionIndex((index) => (index + 1) % matchedAgents.length);
@@ -287,10 +285,7 @@ export function AddThoughtDialog({
                       if (agent) selectMentionAgent(agent);
                       return;
                     }
-                    if (isMessageSendShortcutEvent(event, 'mod-enter')) {
-                      event.preventDefault();
-                      onSubmit();
-                    }
+                    handleSubmitKeyDown(event);
                   },
                   onKeyUp: (event) => {
                     if (event.key === 'Tab' || event.key === 'ArrowDown' || event.key === 'ArrowUp')

@@ -7,7 +7,7 @@ import {
 } from '../shared/reader-component-primitives';
 import { FloatingComposer } from '../shared/floating-composer';
 import type { PendingComposer } from '../reader-types';
-import { isMessageSendShortcutEvent } from '../reader-shortcuts';
+import { useCompositionSubmit } from '../use-composition-submit';
 import type { ReaderUiLabels } from './reader-app-view-types';
 import { defaultReaderUiLabels } from './reader-app-view-types';
 
@@ -76,22 +76,15 @@ export function Composer({
     onSave(note);
   }
 
+  const handleKeyDown = useCompositionSubmit({
+    messageSendShortcut,
+    onCancel,
+    onSubmit: save,
+  });
+
   function handleNoteChange(event: React.ChangeEvent<HTMLTextAreaElement>) {
     setNote(event.currentTarget.value);
     resizeTextarea(event.currentTarget);
-  }
-
-  function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      onCancel();
-      return;
-    }
-
-    if (isMessageSendShortcutEvent(event, messageSendShortcut)) {
-      event.preventDefault();
-      save();
-    }
   }
 
   return (

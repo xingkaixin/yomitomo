@@ -8,7 +8,7 @@ import {
   SubmitShortcutTooltipContent,
 } from '../shared/reader-component-primitives';
 import { matchesAgentMentionQuery, mentionDraftWithAgent } from '../reader-mention-utils';
-import { isMessageSendShortcutEvent } from '../reader-shortcuts';
+import { useCompositionSubmit } from '../use-composition-submit';
 
 export function AnnotationCommentComposer({
   agents,
@@ -64,6 +64,11 @@ export function AnnotationCommentComposer({
     setCaretIndex(0);
   }
 
+  const handleSubmitKeyDown = useCompositionSubmit({
+    messageSendShortcut,
+    onSubmit: submit,
+  });
+
   function selectAgent(agent: PublicAgent) {
     const next = mentionDraftWithAgent(draft, agent.username, mentionQuery);
     setDraft(next.content);
@@ -98,10 +103,7 @@ export function AnnotationCommentComposer({
       return;
     }
 
-    if (isMessageSendShortcutEvent(event, messageSendShortcut)) {
-      event.preventDefault();
-      submit();
-    }
+    handleSubmitKeyDown(event);
   }
 
   function handleKeyUp(event: React.KeyboardEvent<HTMLTextAreaElement>) {

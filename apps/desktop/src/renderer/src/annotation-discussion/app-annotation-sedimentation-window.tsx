@@ -35,10 +35,8 @@ import {
   ReaderTooltip,
   SubmitShortcutTooltipContent,
 } from '@yomitomo/reader-ui/reader-component-primitives';
-import {
-  getShortcutModifier,
-  isMessageSendShortcutEvent,
-} from '@yomitomo/reader-ui/reader-shortcuts';
+import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
+import { useCompositionSubmit } from '@yomitomo/reader-ui/use-composition-submit';
 import {
   applyAssistantRuntimeProgress,
   assistantRuntimeErrorMessage,
@@ -351,6 +349,15 @@ function SedimentationShell({
     }
   }
 
+  const handlePublishKeyDown = useCompositionSubmit({
+    messageSendShortcut,
+    onSubmit: () => void publishDistillation(),
+  });
+  const handleReviewKeyDown = useCompositionSubmit({
+    messageSendShortcut,
+    onSubmit: () => void submitReviewRound(),
+  });
+
   function organizeDiscussion() {
     void submitReviewRound({
       reviewMode: 'organize_discussion',
@@ -513,11 +520,7 @@ function SedimentationShell({
               recordDraftSelection();
             }}
             onClick={recordDraftSelection}
-            onKeyDown={(event) => {
-              if (!isMessageSendShortcutEvent(event, messageSendShortcut)) return;
-              event.preventDefault();
-              void publishDistillation();
-            }}
+            onKeyDown={handlePublishKeyDown}
             onKeyUp={recordDraftSelection}
             onSelect={recordDraftSelection}
           />
@@ -575,11 +578,7 @@ function SedimentationShell({
                 placeholder: t('sedimentation.reviewPlaceholder'),
                 rows: 2,
                 onChange: (event) => setReviewDraft(event.target.value),
-                onKeyDown: (event) => {
-                  if (!isMessageSendShortcutEvent(event, messageSendShortcut)) return;
-                  event.preventDefault();
-                  void submitReviewRound();
-                },
+                onKeyDown: handleReviewKeyDown,
               }}
               onSubmit={() => void submitReviewRound()}
             />
