@@ -1,8 +1,39 @@
 const GITHUB_RELEASES_ORIGIN = 'https://github.com/xingkaixin/yomitomo';
 
-const releaseAssetPathPattern =
-  /^\/releases\/download\/v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?\/Yomitomo-\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?-(?:mac-arm64|win-x64)\.(?:dmg|zip|exe)(?:\.blockmap)?$/;
+const versionSegment = String.raw`\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?`;
+const releaseAssetPathPattern = new RegExp(
+  String.raw`^/(?<prefix>updates/)?releases/download/v(?<releaseVersion>${versionSegment})/Yomitomo-(?<assetVersion>${versionSegment})-(?<platform>mac|win)-(?<arch>arm64|x64)\.(?<extension>dmg|zip|exe)(?<blockmap>\.blockmap)?$`,
+);
+const updateAssetPathPattern = new RegExp(
+  String.raw`^/updates/(?<filename>Yomitomo-(?<assetVersion>${versionSegment})-(?<platform>mac|win)-(?<arch>arm64|x64)\.(?<extension>dmg|zip|exe)(?<blockmap>\.blockmap)?)$`,
+);
 const latestManifestPathPattern = /^\/latest(?:-mac)?\.yml$/;
+const updateManifestPathPattern = /^\/updates\/latest(?:-mac)?\.yml$/;
+
+type Env = {
+  DOWNLOAD_ANALYTICS?: AnalyticsEngineDataset;
+};
+
+type AssetSource = 'website' | 'updater';
+type AssetKind = 'manifest' | 'installer' | 'zip' | 'blockmap';
+type DownloadEventType =
+  | 'manual_download_asset'
+  | 'update_manifest_check'
+  | 'update_asset_download'
+  | 'update_blockmap_download';
+
+type DownloadRequest = {
+  upstreamUrl: URL;
+  event: {
+    eventType: DownloadEventType;
+    releaseVersion: string;
+    assetVersion: string;
+    platform: 'mac' | 'windows' | 'unknown';
+    arch: 'arm64' | 'x64' | 'unknown';
+    assetKind: AssetKind;
+    source: AssetSource;
+  };
+};
 
 const notFound = () => new Response('Not found', { status: 404 });
 const methodNotAllowed = () =>
@@ -12,34 +43,43 @@ const methodNotAllowed = () =>
   });
 
 export default {
-  fetch(request: Request) {
-    return handleRequest(request);
+  fetch(request: Request, env: Env) {
+    return handleRequest(request, env);
   },
-} satisfies ExportedHandler;
+} satisfies ExportedHandler<Env>;
 
-export function handleRequest(request: Request) {
+export async function handleRequest(request: Request, env: Env = {}) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return methodNotAllowed();
 
   const requestUrl = new URL(request.url);
-  const upstreamUrl = githubReleaseUrl(requestUrl);
-  if (!upstreamUrl) return notFound();
+  const downloadRequest = parseDownloadRequest(requestUrl);
+  if (!downloadRequest) return notFound();
 
-  return fetch(upstreamRequest(upstreamUrl, request), {
+  const response = await fetch(upstreamRequest(downloadRequest.upstreamUrl, request), {
     redirect: 'follow',
     cf: cachePolicy(requestUrl.pathname),
   });
+  recordDownloadEvent(env, request, requestUrl, response, downloadRequest.event);
+  return response;
 }
 
 export function githubReleaseUrl(url: URL) {
-  if (releaseAssetPathPattern.test(url.pathname)) {
-    return new URL(`${GITHUB_RELEASES_ORIGIN}${url.pathname}`);
-  }
+  return parseDownloadRequest(url)?.upstreamUrl || null;
+}
+
+export function parseDownloadRequest(url: URL): DownloadRequest | null {
+  const releaseAsset = releaseAssetPathPattern.exec(url.pathname);
+  if (releaseAsset?.groups) return releaseAssetRequest(url.pathname, releaseAsset.groups);
+
+  const updateAsset = updateAssetPathPattern.exec(url.pathname);
+  if (updateAsset?.groups) return flatUpdateAssetRequest(updateAsset.groups);
 
   if (latestManifestPathPattern.test(url.pathname)) {
-    return new URL(
-      `/xingkaixin/yomitomo/releases/latest/download${url.pathname}`,
-      'https://github.com',
-    );
+    return manifestRequest(url.pathname);
+  }
+
+  if (updateManifestPathPattern.test(url.pathname)) {
+    return manifestRequest(url.pathname.replace('/updates', ''));
   }
 
   return null;
@@ -58,7 +98,7 @@ function upstreamRequest(url: URL, request: Request) {
 }
 
 function cachePolicy(pathname: string): RequestInitCfProperties {
-  if (latestManifestPathPattern.test(pathname)) {
+  if (latestManifestPathPattern.test(pathname) || updateManifestPathPattern.test(pathname)) {
     return {
       cacheEverything: true,
       cacheTtlByStatus: {
@@ -79,4 +119,112 @@ function cachePolicy(pathname: string): RequestInitCfProperties {
       '500-599': 0,
     },
   };
+}
+
+function releaseAssetRequest(pathname: string, groups: Record<string, string | undefined>) {
+  const source: AssetSource = groups.prefix ? 'updater' : 'website';
+  const upstreamPath = source === 'updater' ? pathname.replace('/updates', '') : pathname;
+  const extension = groups.extension || '';
+  const isBlockmap = groups.blockmap === '.blockmap';
+  const assetKind = isBlockmap ? 'blockmap' : extension === 'zip' ? 'zip' : 'installer';
+
+  return {
+    upstreamUrl: new URL(`${GITHUB_RELEASES_ORIGIN}${upstreamPath}`),
+    event: {
+      eventType: releaseAssetEventType(source, assetKind),
+      releaseVersion: groups.releaseVersion || 'unknown',
+      assetVersion: groups.assetVersion || 'unknown',
+      platform: platformName(groups.platform),
+      arch: archName(groups.arch),
+      assetKind,
+      source,
+    },
+  } satisfies DownloadRequest;
+}
+
+function flatUpdateAssetRequest(groups: Record<string, string | undefined>) {
+  const assetVersion = groups.assetVersion || 'unknown';
+  const filename = groups.filename || '';
+  const extension = groups.extension || '';
+  const isBlockmap = groups.blockmap === '.blockmap';
+  const assetKind = isBlockmap ? 'blockmap' : extension === 'zip' ? 'zip' : 'installer';
+
+  return {
+    upstreamUrl: new URL(
+      `${GITHUB_RELEASES_ORIGIN}/releases/download/v${assetVersion}/${filename}`,
+    ),
+    event: {
+      eventType: releaseAssetEventType('updater', assetKind),
+      releaseVersion: assetVersion,
+      assetVersion,
+      platform: platformName(groups.platform),
+      arch: archName(groups.arch),
+      assetKind,
+      source: 'updater',
+    },
+  } satisfies DownloadRequest;
+}
+
+function manifestRequest(pathname: string) {
+  return {
+    upstreamUrl: new URL(
+      `/xingkaixin/yomitomo/releases/latest/download${pathname}`,
+      'https://github.com',
+    ),
+    event: {
+      eventType: 'update_manifest_check',
+      releaseVersion: 'latest',
+      assetVersion: 'latest',
+      platform: pathname === '/latest-mac.yml' ? 'mac' : 'windows',
+      arch: 'unknown',
+      assetKind: 'manifest',
+      source: 'updater',
+    },
+  } satisfies DownloadRequest;
+}
+
+function releaseAssetEventType(source: AssetSource, assetKind: AssetKind): DownloadEventType {
+  if (source === 'website') return 'manual_download_asset';
+  return assetKind === 'blockmap' ? 'update_blockmap_download' : 'update_asset_download';
+}
+
+function platformName(platform: string | undefined) {
+  if (platform === 'mac') return 'mac';
+  if (platform === 'win') return 'windows';
+  return 'unknown';
+}
+
+function archName(arch: string | undefined) {
+  if (arch === 'arm64' || arch === 'x64') return arch;
+  return 'unknown';
+}
+
+function recordDownloadEvent(
+  env: Env,
+  request: Request,
+  url: URL,
+  response: Response,
+  event: DownloadRequest['event'],
+) {
+  env.DOWNLOAD_ANALYTICS?.writeDataPoint({
+    blobs: [
+      event.eventType,
+      request.method,
+      url.pathname,
+      event.releaseVersion,
+      event.assetVersion,
+      event.platform,
+      event.arch,
+      event.assetKind,
+      event.source,
+      cfString(request.cf?.country),
+      cfString(request.cf?.colo),
+    ],
+    doubles: [response.status],
+    indexes: [`${event.source}:${event.platform}:${event.assetKind}`],
+  });
+}
+
+function cfString(value: unknown) {
+  return typeof value === 'string' && value ? value : 'unknown';
 }

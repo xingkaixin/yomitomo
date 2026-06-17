@@ -9,4 +9,10 @@
       "custom_domain": true,
     },
   ],
+  "analytics_engine_datasets": [
+    {
+      "binding": "DOWNLOAD_ANALYTICS",
+      "dataset": "yomitomo_download_events",
+    },
+  ],
 }
