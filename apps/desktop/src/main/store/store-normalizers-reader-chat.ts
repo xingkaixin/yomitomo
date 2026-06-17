@@ -67,7 +67,7 @@ function normalizeReaderChatMessages(value: unknown): ReaderChatMessage[] {
     const role = normalizeReaderChatMessageRole(message.role);
     const content = stringValue(message.content);
     const createdAt = stringValue(message.createdAt);
-    if (!id || !role || !content || !createdAt) return [];
+    if (!id || !role || !createdAt || (role === 'user' && !content)) return [];
     return [
       {
         id,

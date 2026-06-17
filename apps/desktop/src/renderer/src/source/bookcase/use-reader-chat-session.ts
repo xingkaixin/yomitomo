@@ -52,12 +52,14 @@ export function useReaderChatSession({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const stateRef = useRef<ReaderChatState | undefined>(state);
+  const sendingRef = useRef(false);
 
   useEffect(() => {
+    if (sendingRef.current && stateRef.current?.articleId === article.id) return;
     setState(article.readerChatState);
     stateRef.current = article.readerChatState;
     setError('');
-  }, [article.readerChatState]);
+  }, [article.id, article.readerChatState]);
 
   useEffect(() => {
     setDraftContext(undefined);
@@ -72,6 +74,11 @@ export function useReaderChatSession({
     stateRef.current = nextState;
     setState(nextState);
     if (persist) void onSaveArticleReaderChatState?.(article.id, nextState);
+  }
+
+  function setSendingState(nextSending: boolean) {
+    sendingRef.current = nextSending;
+    setSending(nextSending);
   }
 
   function ensureState(assistantId = selectedAssistantId) {
@@ -127,12 +134,11 @@ export function useReaderChatSession({
       role: 'assistant',
       content: '',
       assistantId: assistant.id,
-      context,
       createdAt: new Date().toISOString(),
     };
 
     setDraftContext(undefined);
-    setSending(true);
+    setSendingState(true);
     setError('');
 
     const pendingState = updateActiveSession(ensureState(assistant.id), (messages) => [
@@ -185,7 +191,7 @@ export function useReaderChatSession({
       );
       replaceState(failedState, true);
     } finally {
-      setSending(false);
+      setSendingState(false);
     }
   }
 

@@ -594,6 +594,49 @@ describe('store normalizers annotation and chat records', () => {
       normalizeReaderChatState({ ...validState, activeSessionId: 'missing' }, 'article_1'),
     ).toBeUndefined();
   });
+
+  it('keeps empty assistant reader chat messages while dropping empty user messages', () => {
+    const state = {
+      articleId: 'article_1',
+      activeSessionId: 'session_1',
+      sessions: [
+        {
+          id: 'session_1',
+          articleId: 'article_1',
+          createdAt: '2026-06-11T00:00:00.000Z',
+          updatedAt: '2026-06-11T00:00:00.000Z',
+          messages: [
+            {
+              id: 'message_user_empty',
+              role: 'user',
+              content: '',
+              createdAt: '2026-06-11T00:00:00.000Z',
+            },
+            {
+              id: 'message_assistant_pending',
+              role: 'assistant',
+              content: '',
+              assistantId: 'agent_1',
+              createdAt: '2026-06-11T00:00:00.000Z',
+            },
+          ],
+        },
+      ],
+      createdAt: '2026-06-11T00:00:00.000Z',
+      updatedAt: '2026-06-11T00:00:00.000Z',
+    };
+
+    expect(normalizeReaderChatState(state, 'article_1')?.sessions[0]?.messages).toEqual([
+      {
+        id: 'message_assistant_pending',
+        role: 'assistant',
+        content: '',
+        assistantId: 'agent_1',
+        context: undefined,
+        createdAt: '2026-06-11T00:00:00.000Z',
+      },
+    ]);
+  });
 });
 
 function articleRowBase() {
