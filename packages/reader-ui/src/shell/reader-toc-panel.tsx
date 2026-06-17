@@ -5,6 +5,7 @@ import type { ReaderUiLabels } from './reader-app-view-types';
 import { defaultReaderUiLabels } from './reader-app-view-types';
 
 export type ReaderTocPanelProps = {
+  activeTocIndex?: number | null;
   annotationTotals: { annotations: number; distillations: number };
   hasToc: boolean;
   labels?: ReaderUiLabels;
@@ -15,6 +16,7 @@ export type ReaderTocPanelProps = {
 };
 
 export function ReaderTocPanel({
+  activeTocIndex,
   annotationTotals,
   hasToc,
   labels = defaultReaderUiLabels,
@@ -31,15 +33,17 @@ export function ReaderTocPanel({
     >
       <div className="reader-toc-title">{labels.toc}</div>
       {tocItems.map((item) => {
+        const active = item.index === activeTocIndex;
         const stats = tocAnnotationStats.get(item.index);
         const colors = stats?.colors ?? [];
         const distillationCount = stats?.distillationCount ?? 0;
         return (
           <button
-            className="reader-toc-item"
+            className={active ? 'reader-toc-item is-active' : 'reader-toc-item'}
             data-depth={Math.min(item.depth, 4)}
             key={`${item.index}-${item.text}`}
             type="button"
+            aria-current={active ? 'location' : undefined}
             onClick={() => onScrollToHeading(item)}
           >
             <span className="reader-toc-item-main">

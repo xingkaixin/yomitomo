@@ -157,6 +157,7 @@ export type ReaderSettingsModel = {
 };
 
 export type ReaderTocModel = {
+  activeIndex?: number | null;
   annotationStats: ReturnType<typeof buildTocAnnotationStats>;
   items: TocItem[];
   open: boolean;

@@ -117,6 +117,7 @@ export function WebSourceBookcase({
   const [readingProgress, setReadingProgress] = useState(
     () => normalizeSavedWebProgress(article.readingProgress) ?? 0,
   );
+  const [activeTocIndex, setActiveTocIndex] = useState<number | null>(null);
   const sourceReaderSession = useSourceReaderSession({
     agents,
     agentAnnotationAdapter: createWebSourceReaderController({
@@ -259,6 +260,36 @@ export function WebSourceBookcase({
     () => buildTocAnnotationStats(tocItems, annotations, userProfile, annotationAgents),
     [annotationAgents, annotations, tocItems, userProfile],
   );
+
+  useEffect(() => {
+    const scrollElement = scrollRef.current;
+    const articleElement = articleRef.current;
+    if (!scrollElement || !articleElement || tocItems.length === 0) {
+      setActiveTocIndex(null);
+      return;
+    }
+
+    let frame = 0;
+    const updateActiveTocIndex = () => {
+      frame = 0;
+      const nextIndex = webActiveTocIndex(articleElement, scrollElement, tocItems);
+      setActiveTocIndex((current) => (current === nextIndex ? current : nextIndex));
+    };
+    const scheduleUpdate = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(updateActiveTocIndex);
+    };
+
+    scheduleUpdate();
+    scrollElement.addEventListener('scroll', scheduleUpdate, { passive: true });
+    window.addEventListener('resize', scheduleUpdate);
+    return () => {
+      scrollElement.removeEventListener('scroll', scheduleUpdate);
+      window.removeEventListener('resize', scheduleUpdate);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [tocItems, translatedContentHtml]);
+
   const {
     agentDockCompleting,
     agentDockItems,
@@ -910,6 +941,7 @@ export function WebSourceBookcase({
           showSettings: false,
         }}
         toc={{
+          activeIndex: activeTocIndex,
           annotationStats: tocStats,
           items: tocItems,
           open: tocOpen,
@@ -1194,6 +1226,30 @@ function webReaderProgress(scrollElement: HTMLElement) {
   const maxScrollTop = webReaderMaxScrollTop(scrollElement);
   if (maxScrollTop <= 0) return 1;
   return Math.min(1, Math.max(0, scrollElement.scrollTop / maxScrollTop));
+}
+
+function webActiveTocIndex(
+  articleElement: HTMLElement,
+  scrollElement: HTMLElement,
+  tocItems: TocItem[],
+) {
+  const scrollRect = scrollElement.getBoundingClientRect();
+  const sampleY = scrollRect.top + scrollRect.height * 0.2;
+  const sortedItems = tocItems
+    .filter((item) => item.index >= 0)
+    .toSorted((left, right) => left.start - right.start);
+  let firstIndex: number | null = null;
+  let activeIndex: number | null = null;
+
+  for (const item of sortedItems) {
+    const target = findCurrentTocTarget(articleElement, item, sourceTocOptions);
+    if (!target) continue;
+    firstIndex ??= item.index;
+    if (target.getBoundingClientRect().top <= sampleY) activeIndex = item.index;
+    else break;
+  }
+
+  return activeIndex ?? firstIndex;
 }
 
 function webReadingProgressSnapshot(progress: number): ArticleReadingProgress {
