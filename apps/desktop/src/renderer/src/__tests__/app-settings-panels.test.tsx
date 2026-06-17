@@ -901,13 +901,22 @@ describe('GeneralSettings', () => {
       />,
     );
     const slider = screen.getByRole('slider', { name: '音效响度' });
-    fireEvent.change(slider, {
-      target: { value: '35' },
+    vi.spyOn(slider, 'getBoundingClientRect').mockReturnValue({
+      bottom: 36,
+      height: 36,
+      left: 0,
+      right: 200,
+      top: 0,
+      width: 200,
+      x: 0,
+      y: 0,
+      toJSON: () => {},
     });
+    fireEvent.pointerDown(slider, { button: 0, clientX: 70, pointerId: 1 });
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(onSettingsChange).toHaveBeenCalledTimes(1);
 
-    fireEvent.pointerUp(slider);
+    fireEvent.pointerUp(slider, { button: 0, clientX: 70, pointerId: 1 });
     expect(onSettingsChange).toHaveBeenLastCalledWith({
       soundEffectsEnabled: true,
       soundEffectsVolume: 0.35,
@@ -919,6 +928,19 @@ describe('GeneralSettings', () => {
     expect(playAppSoundEffect).toHaveBeenLastCalledWith('settings.sound_preview', {
       soundEffectsEnabled: true,
       soundEffectsVolume: 0.35,
+    });
+
+    fireEvent.keyDown(slider, { key: 'ArrowRight' });
+    expect(onSave).toHaveBeenCalledTimes(2);
+
+    fireEvent.keyUp(slider, { key: 'ArrowRight' });
+    expect(onSettingsChange).toHaveBeenLastCalledWith({
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 0.4,
+    });
+    expect(onSave).toHaveBeenLastCalledWith({
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 0.4,
     });
   });
 
