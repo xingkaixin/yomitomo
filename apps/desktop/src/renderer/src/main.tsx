@@ -3,8 +3,9 @@ import { createRoot } from 'react-dom/client';
 import type { AppSettings, ArticleSummaryRecord } from '@yomitomo/shared';
 import { normalizeUiLanguage } from '@yomitomo/shared';
 import { readerBackgroundTone } from '@yomitomo/reader-ui/reader-settings';
+import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
 import { useTranslation } from 'react-i18next';
-import { Volume2 } from 'lucide-react';
+import { LockKeyhole, Volume2 } from 'lucide-react';
 
 import type { SettingsSectionKey } from './settings/app-settings-panels';
 import { AvatarImage } from './shell/app-ui';
@@ -32,6 +33,14 @@ import {
 import { AnnotationDiscussionWindowApp } from './annotation-discussion/app-annotation-discussion-window';
 import { AnnotationSedimentationWindowApp } from './annotation-discussion/app-annotation-sedimentation-window';
 import { ThemeSelector } from './theme/app-theme-selector';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from './components/ui/input-otp';
+import { ShimmeringText } from './components/ui/shimmering-text';
+import {
+  SlideToUnlock,
+  SlideToUnlockHandle,
+  SlideToUnlockText,
+  SlideToUnlockTrack,
+} from './components/ui/slide-to-unlock';
 import { elementDialogSourceRect, type DialogSourceRect } from './shell/app-dialog-transition';
 import { UpdateReleaseDialog } from './shell/app-update-dialog';
 import { changeAppI18nLanguage, initializeAppI18n } from './i18n/app-i18n';
@@ -48,6 +57,7 @@ const startupThemeIdsByTone = readCachedThemeIdsByTone();
 const startupReaderSettings = readDesktopReaderSettings();
 const startupReaderBackgroundsByTone = readDesktopReaderBackgroundsByTone();
 applyAppTheme(themeRegistry[startupThemeId]);
+const appLockShortcutKeys = [getShortcutModifier(), 'L'];
 
 function compatibleReaderBackgroundForTheme(
   themeId: AppThemeId,
@@ -300,6 +310,11 @@ function App() {
   const [profileDialogSourceRect, setProfileDialogSourceRect] = useState<DialogSourceRect>();
   const [libraryReaderOpen, setLibraryReaderOpen] = useState(false);
   const [pendingOpenArticleId, setPendingOpenArticleId] = useState<string | null>(null);
+  const [appLockStep, setAppLockStep] = useState<'slide' | 'pin'>('slide');
+  const [appLockPin, setAppLockPin] = useState('');
+  const [appLockPinInputKey, setAppLockPinInputKey] = useState(0);
+  const [appLockError, setAppLockError] = useState('');
+  const [appLockVerifying, setAppLockVerifying] = useState(false);
   const [onboardingForced, setOnboardingForced] = useState(false);
   const [onboardingFlowKey, setOnboardingFlowKey] = useState(0);
   const [statsNavigationStartedAt, setStatsNavigationStartedAt] = useState<number | undefined>();
@@ -414,6 +429,28 @@ function App() {
   } = useSettingsDrafts({ store, storeSyncSnapshot, applyStore });
   const { agentSaveError, agentSaveState, toggleAgent } = useAppAgentActions({ applyStore });
   const showOnboarding = onboardingForced || !store.settings.onboardingCompletedAt;
+  const appLockEnabled = Boolean(store.settings.appLockEnabled);
+  const appLocked = Boolean(appLockEnabled && store.settings.appLockLocked);
+
+  useEffect(() => {
+    if (!appLocked) {
+      setAppLockStep('slide');
+      setAppLockPin('');
+      setAppLockError('');
+    }
+  }, [appLocked]);
+
+  useEffect(() => {
+    if (!appLockEnabled || appLocked) return;
+    function handleAppLockShortcut(event: KeyboardEvent) {
+      if (!isAppLockShortcutEvent(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      void lockApp();
+    }
+    window.addEventListener('keydown', handleAppLockShortcut, true);
+    return () => window.removeEventListener('keydown', handleAppLockShortcut, true);
+  }, [appLockEnabled, appLocked]);
 
   useEffect(() => {
     if (!storeLoaded && !storeLoadError) return;
@@ -570,6 +607,55 @@ function App() {
     setActiveSettingsSection(section);
   }
 
+  async function lockApp() {
+    if (!appLockEnabled) return;
+    setAppLockStep('slide');
+    setAppLockPin('');
+    setAppLockPinInputKey((key) => key + 1);
+    setAppLockError('');
+    try {
+      const nextStore = await window.yomitomoDesktop.setAppLockLocked({ locked: true });
+      applyStore(nextStore);
+      playAppSoundEffect('app_lock.locked', nextStore.settings);
+    } catch {
+      setAppLockError(t('appLock.verifyFailed'));
+    }
+  }
+
+  function completeAppLockSlide() {
+    setAppLockStep('pin');
+    setAppLockPin('');
+    setAppLockPinInputKey((key) => key + 1);
+    setAppLockError('');
+  }
+
+  async function unlockApp(pinOverride?: string) {
+    const pinToVerify = pinOverride ?? appLockPin;
+    if (!validAppLockPin(pinToVerify) || appLockVerifying) return;
+    setAppLockVerifying(true);
+    setAppLockError('');
+    try {
+      const result = await window.yomitomoDesktop.verifyAppLockPin({ pin: pinToVerify });
+      if (result.ok) {
+        const nextStore = await window.yomitomoDesktop.setAppLockLocked({ locked: false });
+        applyStore(nextStore);
+        playAppSoundEffect('app_lock.unlocked', nextStore.settings);
+        setAppLockStep('slide');
+        setAppLockPin('');
+        return;
+      }
+      setAppLockError(t('appLock.invalidPin'));
+      setAppLockPin('');
+      setAppLockPinInputKey((key) => key + 1);
+    } catch {
+      setAppLockError(t('appLock.verifyFailed'));
+      setAppLockPin('');
+      setAppLockPinInputKey((key) => key + 1);
+    } finally {
+      setAppLockVerifying(false);
+    }
+  }
+
   function requestMainWindow(reason: string, data: Record<string, unknown>) {
     if (windowShowRequestedRef.current) return;
     windowShowRequestedRef.current = true;
@@ -660,6 +746,17 @@ function App() {
           label={t('nav.settings')}
           onClick={openSettings}
         />
+        {appLockEnabled ? (
+          <button
+            aria-label={t('appLock.lockNow', { shortcut: appLockShortcutKeys.join('+') })}
+            className="app-nav-lock-button"
+            data-tooltip={t('appLock.lockNow', { shortcut: appLockShortcutKeys.join('+') })}
+            type="button"
+            onClick={lockApp}
+          >
+            <LockKeyhole aria-hidden="true" size={18} />
+          </button>
+        ) : null}
         <ThemeSelector
           activeThemeId={activeThemeId}
           open={themeDialogOpen}
@@ -823,19 +920,156 @@ function App() {
           />
         </Suspense>
       ) : null}
-      <UpdateReleaseDialog
-        store={store}
-        onSaveSettings={async (settings) => {
-          const nextStore = await window.yomitomoDesktop.saveSettings(settings);
-          const nextLanguage = normalizeUiLanguage(nextStore.settings.uiLanguage);
-          writeCachedUiLanguage(nextLanguage);
-          changeAppI18nLanguage(nextLanguage);
-          applyStore(nextStore);
-          return nextStore;
-        }}
-      />
+      {!appLocked ? (
+        <UpdateReleaseDialog
+          store={store}
+          onSaveSettings={async (settings) => {
+            const nextStore = await window.yomitomoDesktop.saveSettings(settings);
+            const nextLanguage = normalizeUiLanguage(nextStore.settings.uiLanguage);
+            writeCachedUiLanguage(nextLanguage);
+            changeAppI18nLanguage(nextLanguage);
+            applyStore(nextStore);
+            return nextStore;
+          }}
+        />
+      ) : null}
+      {appLocked ? (
+        <AppLockOverlay
+          error={appLockError}
+          inputKey={appLockPinInputKey}
+          pin={appLockPin}
+          step={appLockStep}
+          verifying={appLockVerifying}
+          onPinChange={(value) => {
+            setAppLockPin(digitsOnly(value));
+            setAppLockError('');
+          }}
+          onSlideComplete={completeAppLockSlide}
+          onUnlock={() => void unlockApp()}
+        />
+      ) : null}
       <AppToaster tone={themeRegistry[activeThemeId].meta.tone} topOffset={toastTopOffset} />
     </main>
+  );
+}
+
+function AppLockOverlay({
+  error,
+  inputKey,
+  pin,
+  step,
+  verifying,
+  onPinChange,
+  onSlideComplete,
+  onUnlock,
+}: {
+  error: string;
+  inputKey: number;
+  pin: string;
+  step: 'slide' | 'pin';
+  verifying: boolean;
+  onPinChange: (value: string) => void;
+  onSlideComplete: () => void;
+  onUnlock: (pin?: string) => void;
+}) {
+  const { t } = useTranslation();
+  const pinReady = validAppLockPin(pin);
+  return (
+    <div
+      aria-labelledby="app-lock-title"
+      aria-modal="true"
+      className="app-lock-overlay"
+      role="dialog"
+    >
+      <div className="app-lock-panel" data-step={step}>
+        <span className="app-lock-icon" aria-hidden="true">
+          <LockKeyhole size={24} />
+        </span>
+        <h2 id="app-lock-title">{t('appLock.title')}</h2>
+        {step === 'pin' ? <p>{t('appLock.pinDescription')}</p> : null}
+        {step === 'slide' ? (
+          <SlideToUnlock className="app-lock-slide" onUnlock={onSlideComplete}>
+            <SlideToUnlockTrack>
+              <SlideToUnlockText>
+                {({ isDragging }) => (
+                  <ShimmeringText text={t('appLock.slideLabel')} isStopped={isDragging} />
+                )}
+              </SlideToUnlockText>
+              <SlideToUnlockHandle aria-label={t('appLock.slideLabel')} />
+            </SlideToUnlockTrack>
+          </SlideToUnlock>
+        ) : (
+          <form
+            className="app-lock-pin-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              onUnlock();
+            }}
+          >
+            <PinOtpInput
+              key={inputKey}
+              ariaLabel={t('appLock.pinLabel')}
+              autoFocus
+              disabled={verifying}
+              value={pin}
+              onChange={onPinChange}
+              onComplete={onUnlock}
+            />
+            {error ? (
+              <span className="app-lock-error" role="alert">
+                {error}
+              </span>
+            ) : null}
+            <button
+              className="app-lock-unlock-button"
+              disabled={!pinReady || verifying}
+              type="submit"
+            >
+              {verifying ? t('appLock.verifying') : t('appLock.unlock')}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PinOtpInput({
+  ariaLabel,
+  autoFocus = false,
+  disabled = false,
+  value,
+  onChange,
+  onComplete,
+}: {
+  ariaLabel: string;
+  autoFocus?: boolean;
+  disabled?: boolean;
+  value: string;
+  onChange: (value: string) => void;
+  onComplete?: (value: string) => void;
+}) {
+  return (
+    <InputOTP
+      aria-label={ariaLabel}
+      autoFocus={autoFocus}
+      disabled={disabled}
+      maxLength={4}
+      value={value}
+      onChange={(nextValue) => onChange(digitsOnly(nextValue))}
+      onComplete={(nextValue) => {
+        const pin = digitsOnly(String(nextValue));
+        onChange(pin);
+        window.setTimeout(() => onComplete?.(pin), 0);
+      }}
+    >
+      <InputOTPGroup>
+        <InputOTPSlot index={0} />
+        <InputOTPSlot index={1} />
+        <InputOTPSlot index={2} />
+        <InputOTPSlot index={3} />
+      </InputOTPGroup>
+    </InputOTP>
   );
 }
 
@@ -942,6 +1176,22 @@ recordStartupTiming('react.render_scheduled');
 
 function desktopPlatform() {
   return window.yomitomoDesktop?.platform ?? 'unknown';
+}
+
+function isAppLockShortcutEvent(event: KeyboardEvent) {
+  const key = event.key.toLowerCase();
+  if (key !== 'l' || event.altKey || event.shiftKey || event.repeat) return false;
+  return desktopPlatform() === 'darwin'
+    ? event.metaKey && !event.ctrlKey
+    : event.ctrlKey && !event.metaKey;
+}
+
+function digitsOnly(value: string) {
+  return value.replace(/\D/g, '').slice(0, 4);
+}
+
+function validAppLockPin(value: string) {
+  return /^\d{4}$/.test(value);
 }
 
 function recordStartupTiming(event: string, data: Record<string, unknown> = {}) {

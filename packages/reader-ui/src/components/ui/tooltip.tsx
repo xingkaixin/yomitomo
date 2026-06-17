@@ -51,6 +51,7 @@ export const TooltipContent = React.forwardRef<
       collisionPadding={collisionPadding}
       side={side}
       sideOffset={sideOffset}
+      style={{ zIndex: 'var(--reader-z-tooltip, var(--app-z-tooltip, 340))' }}
     >
       <TooltipPrimitive.Popup
         className={['reader-tooltip-content', className].filter(Boolean).join(' ')}

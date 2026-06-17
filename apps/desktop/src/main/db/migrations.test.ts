@@ -61,6 +61,10 @@ ALTER TABLE app_settings ADD COLUMN bilingual_translation_target_language TEXT;
     expect(ensureAdditiveSchemaColumns(database)).toEqual([
       'app_settings.bilingual_translation_style',
       'app_settings.bilingual_translation_ai_context_aware',
+      'app_settings.app_lock_enabled',
+      'app_settings.app_lock_locked',
+      'app_settings.app_lock_lock_on_startup',
+      'app_settings.app_lock_shortcut',
     ]);
     expect(columnNames(database, 'app_settings')).toEqual(
       expect.arrayContaining([
@@ -68,6 +72,10 @@ ALTER TABLE app_settings ADD COLUMN bilingual_translation_target_language TEXT;
         'bilingual_translation_target_language',
         'bilingual_translation_style',
         'bilingual_translation_ai_context_aware',
+        'app_lock_enabled',
+        'app_lock_locked',
+        'app_lock_lock_on_startup',
+        'app_lock_shortcut',
       ]),
     );
     expect(ensureAdditiveSchemaColumns(database)).toEqual([]);

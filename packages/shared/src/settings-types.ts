@@ -38,6 +38,10 @@ export type AppSettings = {
   themeId?: string;
   soundEffectsEnabled?: boolean;
   soundEffectsVolume?: number;
+  appLockEnabled?: boolean;
+  appLockLocked?: boolean;
+  appLockLockOnStartup?: boolean;
+  appLockShortcut?: string;
   libraryPageSize?: number;
   libraryContentSources?: LibraryContentSourcePreference[];
   defaultProviderId?: string;

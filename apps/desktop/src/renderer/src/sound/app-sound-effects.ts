@@ -7,6 +7,7 @@ import brandPronunciationUrl from '../assets/audio/yomitomo.m4a';
 import distillationCommitStampUrl from '../assets/audio/distillation-commit-stamp.mp3';
 import importSuccessMultipleSoundUrl from '../assets/audio/import-success-multiple.mp3';
 import importSuccessSingleSoundUrl from '../assets/audio/import-success-single.mp3';
+import appLockSlideSoundUrl from '../assets/audio/app-lock-slide.mp3';
 import paperBinTossSoundUrl from '../assets/audio/paper-bin-toss.mp3';
 import penClickSoundUrl from '../assets/audio/pen-click.mp3';
 import pencilWritingLoopSoundUrl from '../assets/audio/pencil-writing-loop.mp3';
@@ -20,6 +21,8 @@ export type AppSoundEffectId =
   | 'library.import_success_multiple'
   | 'library.import_success_single'
   | 'library.delete_item'
+  | 'app_lock.locked'
+  | 'app_lock.unlocked'
   | 'reader.annotation_created'
   | 'reader.distillation_committed'
   | 'settings.sound_preview'
@@ -60,6 +63,16 @@ const soundEffects: Record<AppSoundEffectId, SoundEffectDefinition> = {
   'library.delete_item': {
     baseVolume: 0.8,
     urls: [paperBinTossSoundUrl],
+  },
+  'app_lock.locked': {
+    baseVolume: 0.72,
+    replayBehavior: 'restart',
+    urls: [appLockSlideSoundUrl],
+  },
+  'app_lock.unlocked': {
+    baseVolume: 0.72,
+    replayBehavior: 'restart',
+    urls: [appLockSlideSoundUrl],
   },
   'reader.annotation_created': {
     baseVolume: 0.75,

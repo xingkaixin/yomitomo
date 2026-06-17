@@ -21,6 +21,8 @@ const fileNameSchema = z.string().min(1).max(512);
 const mimeTypeSchema = z.string().min(1).max(255).optional();
 const httpUrlSchema = z.string().min(1).max(4096).refine(isHttpUrl);
 const arrayBufferSchema = z.custom<ArrayBuffer>(isArrayBuffer);
+const appLockPinSchema = z.string().regex(/^\d{4}$/);
+const appLockShortcutSchema = z.string().trim().min(1).max(80).nullable();
 const articleTranslationRequestSchema = z.object({
   articleId: idSchema,
   force: z.boolean().optional(),
@@ -33,6 +35,33 @@ const desktopIpcInvokeSchemas: DesktopIpcSchemaMap = {
   'article-translation:translate': z.tuple([articleTranslationRequestSchema]),
   'article-translation:delete-current': z.tuple([
     articleTranslationRequestSchema.pick({ articleId: true, targetLanguage: true }),
+  ]),
+  'appLock:setEnabled': z.tuple([
+    z.object({
+      enabled: z.boolean(),
+      pin: appLockPinSchema.optional(),
+    }),
+  ]),
+  'appLock:setLocked': z.tuple([
+    z.object({
+      locked: z.boolean(),
+    }),
+  ]),
+  'appLock:setPin': z.tuple([
+    z.object({
+      confirmPin: appLockPinSchema,
+      pin: appLockPinSchema,
+    }),
+  ]),
+  'appLock:setShortcut': z.tuple([
+    z.object({
+      shortcut: appLockShortcutSchema,
+    }),
+  ]),
+  'appLock:verifyPin': z.tuple([
+    z.object({
+      pin: appLockPinSchema,
+    }),
   ]),
   'article:import-url': z.tuple([
     z.union([

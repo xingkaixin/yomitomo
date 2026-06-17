@@ -9,6 +9,7 @@ import { DatabaseTooNewError } from './db/errors';
 import { registerAnnotationDiscussionWindowIpc } from './windows/annotation-discussion-window';
 import { registerAnnotationSedimentationWindowIpc } from './windows/annotation-sedimentation-window';
 import { registerAgentIpc } from './ipc/ipc-agent';
+import { registerAppLockIpc } from './ipc/ipc-app-lock';
 import { registerAppIpc } from './ipc/ipc-app';
 import { registerArticleIpc } from './ipc/ipc-article';
 import { registerProviderIpc } from './ipc/ipc-provider';
@@ -215,6 +216,7 @@ function registerIpc() {
   registerStoreDataIpc(context);
   registerArticleIpc(context);
   registerWeReadIpc(context);
+  registerAppLockIpc(context);
   registerProviderIpc(context);
   registerAgentIpc(context);
   registerAnnotationDiscussionWindowIpc(context);

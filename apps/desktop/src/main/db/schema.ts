@@ -25,6 +25,12 @@ export const appSettings = sqliteTable('app_settings', {
     .notNull()
     .default(true),
   soundEffectsVolume: real('sound_effects_volume').notNull().default(0.7),
+  appLockEnabled: integer('app_lock_enabled', { mode: 'boolean' }).notNull().default(false),
+  appLockLocked: integer('app_lock_locked', { mode: 'boolean' }).notNull().default(false),
+  appLockLockOnStartup: integer('app_lock_lock_on_startup', { mode: 'boolean' })
+    .notNull()
+    .default(false),
+  appLockShortcut: text('app_lock_shortcut'),
   libraryPageSize: integer('library_page_size'),
   libraryContentSources: text('library_content_sources', { mode: 'json' }),
   defaultProviderId: text('default_provider_id'),

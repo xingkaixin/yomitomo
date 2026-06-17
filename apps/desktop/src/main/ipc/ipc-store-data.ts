@@ -9,16 +9,26 @@ import {
 } from '../agents/agent-runtime-trace-log';
 import { clearLogFile, getLogPath, readLogFile } from '../app/logger';
 
+let startupAppLockApplied = false;
+
 export function registerStoreDataIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('store:get', async (): Promise<DesktopStoreGetResult> => {
     const startedAt = performance.now();
     context.recordStartupTiming('store.get_start');
     try {
       const importStartedAt = performance.now();
-      const { readStoreWithProfile } = await context.getStoreModule();
+      const { readStoreWithProfile, saveSettings } = await context.getStoreModule();
       const importDurationMs = context.elapsedMs(importStartedAt);
       const readStartedAt = performance.now();
-      const { store, profile } = await readStoreWithProfile();
+      let { store, profile } = await readStoreWithProfile();
+      if (shouldApplyStartupAppLock(store.settings)) {
+        const lockStartedAt = performance.now();
+        store = await saveSettings({ appLockLocked: true });
+        startupAppLockApplied = true;
+        context.recordStartupTiming('app_lock.startup_lock_applied', {
+          durationMs: context.elapsedMs(lockStartedAt),
+        });
+      }
       const readDurationMs = context.elapsedMs(readStartedAt);
       context.scheduleLogPrune(store.settings.logRetentionDays);
       context.recordStartupTiming('store.get_success', {
@@ -105,4 +115,16 @@ export function registerStoreDataIpc(context: DesktopMainIpcContext) {
     const { getReleaseNote } = await import('../app/release-notes');
     return getReleaseNote(input.version, input.source, input.language);
   });
+}
+
+function shouldApplyStartupAppLock(settings: {
+  appLockEnabled?: boolean;
+  appLockLocked?: boolean;
+  appLockLockOnStartup?: boolean;
+}) {
+  if (startupAppLockApplied) return false;
+  startupAppLockApplied = true;
+  return Boolean(
+    settings.appLockEnabled && settings.appLockLockOnStartup && !settings.appLockLocked,
+  );
 }
