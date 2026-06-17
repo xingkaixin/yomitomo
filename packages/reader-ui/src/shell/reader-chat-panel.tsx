@@ -16,7 +16,7 @@ import {
 } from '../shared/reader-component-primitives';
 import { FloatingComposer } from '../shared/floating-composer';
 import { formatRelativeTime, formatTime } from '../reader-date-utils';
-import { isMessageSendShortcutEvent } from '../reader-shortcuts';
+import { useCompositionSubmit } from '../use-composition-submit';
 import type { ReaderUiLabels } from './reader-app-view-types';
 import { defaultReaderUiLabels } from './reader-app-view-types';
 
@@ -95,6 +95,11 @@ export function ReaderChatPanel({
     await onSubmit(content);
   }
 
+  const handleKeyDown = useCompositionSubmit({
+    messageSendShortcut,
+    onSubmit: () => void submit(),
+  });
+
   function selectAssistant(agent: PublicAgent) {
     onSelectAssistant?.(agent.id);
   }
@@ -102,12 +107,6 @@ export function ReaderChatPanel({
   function handleDraftChange(event: React.ChangeEvent<HTMLTextAreaElement>) {
     setDraft(event.currentTarget.value);
     resizeTextarea(event.currentTarget);
-  }
-
-  function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (!isMessageSendShortcutEvent(event, messageSendShortcut)) return;
-    event.preventDefault();
-    void submit();
   }
 
   if (!open) {

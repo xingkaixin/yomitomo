@@ -15,10 +15,8 @@ import {
   ReaderTooltip,
   SubmitShortcutTooltipContent,
 } from '@yomitomo/reader-ui/reader-component-primitives';
-import {
-  getShortcutModifier,
-  isMessageSendShortcutEvent,
-} from '@yomitomo/reader-ui/reader-shortcuts';
+import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
+import { useCompositionSubmit } from '@yomitomo/reader-ui/use-composition-submit';
 import type { AnnotationMessageLayoutMode } from './app-annotation-layout-control';
 import { AssistantRuntimeProgressList } from '../shell/app-assistant-runtime-progress';
 import {
@@ -276,6 +274,11 @@ export function DiscussionThreadView({
     requestAnimationFrame(() => textareaRef.current?.focus());
   }
 
+  const handleSubmitKeyDown = useCompositionSubmit({
+    messageSendShortcut: 'mod-enter',
+    onSubmit: handleSubmitReply,
+  });
+
   return (
     <div className={bodyClassName}>
       <div
@@ -420,10 +423,7 @@ export function DiscussionThreadView({
                 if (agent) selectMentionAgent(agent);
                 return;
               }
-              if (isMessageSendShortcutEvent(event, 'mod-enter')) {
-                event.preventDefault();
-                handleSubmitReply();
-              }
+              handleSubmitKeyDown(event);
             },
             onKeyUp: (event) => {
               if (event.key === 'Tab' || event.key === 'ArrowDown' || event.key === 'ArrowUp')

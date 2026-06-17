@@ -22,6 +22,7 @@
     "./reader-annotation-connection": "./src/annotations/reader-annotation-connection.tsx",
     "./reader-connection-path": "./src/reader-connection-path.ts",
     "./reader-types": "./src/reader-types.ts",
+    "./use-composition-submit": "./src/use-composition-submit.ts",
     "./use-agent-annotation-queue": "./src/agent/use-agent-annotation-queue.ts",
     "./use-agent-reading-dock": "./src/agent/use-agent-reading-dock.ts"
   },
