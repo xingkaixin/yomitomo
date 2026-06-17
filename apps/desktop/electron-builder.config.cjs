@@ -47,9 +47,8 @@ module.exports = {
   asarUnpack: ['node_modules/@napi-rs/**/*.node'],
   publish: [
     {
-      provider: 'github',
-      owner: 'xingkaixin',
-      repo: 'yomitomo',
+      provider: 'generic',
+      url: 'https://download.yomitomo.app/updates/',
     },
   ],
   mac: {
