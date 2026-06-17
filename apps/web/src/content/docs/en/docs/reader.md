@@ -15,7 +15,7 @@ The Reader keeps source text, highlights, discussions, and distilled notes in on
 
 ## Reading View
 
-The Reader includes the body text, highlight marks, annotation connections, and a sidebar. The article header and unified floating toolbar provide in-reader search, persistent chat around the current item, and bilingual translation for web articles. EPUB books also show a table of contents and per-chapter counts for highlights and distilled notes.
+The Reader includes the body text, highlight marks, annotation connections, and a sidebar. The article header and unified floating toolbar provide in-reader search, persistent chat around the current item, and bilingual translation for web articles. Web-article translation shows feedback as translated paragraphs are applied, making it easier to confirm which text has changed. EPUB books also show a table of contents and per-chapter counts for highlights and distilled notes.
 
 You can adjust:
 
@@ -23,6 +23,8 @@ You can adjust:
 - Page width
 
 The theme button in the app sidebar switches between light, dark, dusk indigo, and reader paper themes, including a hand-drawn ink paper picker. Reader paper colors affect web articles, EPUB books, and PDF reading surfaces. In dark mode, PDFs keep their original page colors.
+
+When the table of contents opens, the Reader highlights and focuses the active section so you can inspect surrounding structure from your current position.
 
 Copy, highlight creation, and similar actions can show toast or sound feedback (toggle sound and volume in Settings > General).
 

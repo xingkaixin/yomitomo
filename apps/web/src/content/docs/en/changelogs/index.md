@@ -5,6 +5,16 @@ sidebar:
   hidden: true
 ---
 
+## 0.7.2
+
+Released: 2026-06-17
+
+- Added App Lock so a PIN can protect the local reading workspace and be managed from Settings.
+- Improved paragraph translation feedback, active table-of-contents focus, and smoother TOC toggle motion.
+- Routed website downloads and app updates through the Cloudflare download worker with download/update analytics.
+
+[View 0.7.2 release notes](/en/changelogs/v0-7-2/)
+
 ## 0.7.1
 
 Released: 2026-06-17

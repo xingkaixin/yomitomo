@@ -3,7 +3,7 @@ title: Settings, Models, and Data
 description: Configure providers, task routing, shortcuts, local data, and app updates.
 ---
 
-Settings covers the product boundaries: UI language, external model providers, themes and sound effects, user input preferences, local data, and app updates.
+Settings covers the product boundaries: UI language, external model providers, themes and sound effects, App Lock, user input preferences, local data, and app updates.
 
 ## Model Providers
 
@@ -47,7 +47,11 @@ The theme button in the sidebar switches between light, dark, dusk indigo, and r
 
 ## Sound Effects
 
-Settings > General lets you toggle in-app sound effects and adjust volume—for example import success, library delete, highlight creation, distillation commit, and assistant writing in discussions.
+Settings > General lets you toggle in-app sound effects and adjust volume—for example import success, library delete, highlight creation, distillation commit, App Lock unlock, and assistant writing in discussions.
+
+## App Lock
+
+Settings > General lets you enable App Lock and set a PIN. When enabled, Yomitomo shows a lock screen and requires the PIN before continuing into the local reading workspace. PIN verification material is stored in the system keyring; SQLite only stores the needed lock state.
 
 ## Shortcuts
 

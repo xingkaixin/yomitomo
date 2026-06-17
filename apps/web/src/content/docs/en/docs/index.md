@@ -31,7 +31,7 @@ Yomitomo is organized around a few core areas:
 - Reader handles reading, highlights, annotations, discussions, and distilled notes.
 - Assistants manages AI reading assistants and review assistants.
 - Stats reviews local reading activity and WeRead statistics.
-- Settings configures language, models, themes, sound effects, shortcuts, data management, and updates.
+- Settings configures language, models, themes, sound effects, App Lock, shortcuts, data management, and updates.
 - WeRead syncs highlights, thoughts, and reading progress through an API key.
 
 ## Reading Model

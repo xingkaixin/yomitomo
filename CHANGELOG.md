@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.7.2 - 2026-06-17
+
+### Features
+
+- Added an optional app lock in Settings, including PIN setup, lock-screen unlock, secure keyring-backed PIN storage, and lock feedback sound. (#438)
+- Added paragraph-level translation feedback for web articles so translated paragraphs show clearer state when translation results are applied. (#437)
+- Improved reader table-of-contents navigation with active-section highlighting, automatic focus for the active item, and smoother TOC toggle animation. (#432, #434, #435)
+- Routed website downloads and app update checks/assets through the Cloudflare download worker, including update manifests, release assets, blockmaps, and Analytics Engine event capture. (#430)
+- Refined website loading and visual presentation with the indigo ink palette and optimized landing-page resource loading. (#427, #429)
+
+### Fixes
+
+- Stabilized reader chat streaming so in-flight assistant messages keep their session state and render consistently during updates. (#439)
+- Kept the copy label visible after copying a selection so feedback does not disappear immediately after the copy action. (#431)
+
+
 ## 0.7.1 - 2026-06-17
 
 ### Fixes
