@@ -111,6 +111,20 @@ export function articleTitleTocItems(article: HTMLElement, title: string): TocIt
     : [];
 }
 
+export function activeTocIndexForOffset(tocItems: TocItem[], offset: number) {
+  if (!tocItems.length || !Number.isFinite(offset)) return null;
+  const sortedItems = tocItems.toSorted((left, right) => left.start - right.start);
+  let containingItem: TocItem | null = null;
+  let latestStartedItem: TocItem | null = null;
+  for (const item of sortedItems) {
+    if (offset < item.start) continue;
+    latestStartedItem = item;
+    if (offset >= item.end) continue;
+    if (!containingItem || item.depth > containingItem.depth) containingItem = item;
+  }
+  return containingItem?.index ?? latestStartedItem?.index ?? null;
+}
+
 export function findCurrentTocTarget(
   article: HTMLElement,
   item: TocItem,

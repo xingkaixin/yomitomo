@@ -24,6 +24,7 @@ import {
   type ReaderQuestionContext,
 } from '@yomitomo/shared';
 import {
+  activeTocIndexForOffset,
   annotationIdsAtHighlightPoint,
   createUserAnnotation,
   findReaderSearchMatches,
@@ -607,6 +608,10 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     onOpenAnnotation,
     onSetTocItems,
   });
+  const activeTocIndex = useMemo(
+    () => activeTocIndexForOffset(tocItems, currentPage - 1),
+    [currentPage, tocItems],
+  );
 
   useEffect(() => {
     recordedOpenPhasesRef.current = new Set();
@@ -1217,6 +1222,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
           showSettings: false,
         }}
         toc={{
+          activeIndex: activeTocIndex,
           annotationStats: tocStats,
           items: tocItems,
           open: tocOpen,

@@ -678,6 +678,28 @@ describe('ReaderTocPanel', () => {
     expect(screen.queryByText(/批注/)).toBeNull();
     expect(screen.queryByText(/评论/)).toBeNull();
   });
+
+  it('marks active toc index 0 as the current location', () => {
+    render(
+      <ReaderTocPanel
+        activeTocIndex={0}
+        annotationTotals={{ annotations: 0, distillations: 0 }}
+        hasToc
+        tocAnnotationStats={new Map()}
+        tocItems={[
+          { index: 0, text: '开头', depth: 1, start: 0, end: 10 },
+          { index: 1, text: '后文', depth: 1, start: 10, end: 20 },
+        ]}
+        tocOpen
+        onScrollToHeading={vi.fn()}
+      />,
+    );
+
+    const activeButton = screen.getByRole('button', { name: '开头' });
+    expect(activeButton.className).toContain('is-active');
+    expect(activeButton.getAttribute('aria-current')).toBe('location');
+    expect(screen.getByRole('button', { name: '后文' }).hasAttribute('aria-current')).toBe(false);
+  });
 });
 
 describe('ReaderToolbar', () => {

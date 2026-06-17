@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Annotation, ReaderQuestionContext } from '@yomitomo/shared';
 import {
+  activeTocIndexForOffset,
   annotationIdsAtHighlightPoint,
   createEpubTextAnchor,
   createUserAnnotation,
@@ -358,6 +359,11 @@ export function EbookBookcase({
     () => ebookTocItemsForReader(tocItems, article),
     [article, tocItems],
   );
+  const activeTocIndex = useMemo(() => {
+    const textLength = article.ebook.index?.textLength ?? 0;
+    if (textLength <= 0) return null;
+    return activeTocIndexForOffset(readerTocItems, progress * textLength);
+  }, [article.ebook.index?.textLength, progress, readerTocItems]);
   const tocStats = useMemo(
     () => buildTocAnnotationStats(readerTocItems, annotations, userProfile, annotationAgents),
     [annotationAgents, annotations, readerTocItems, userProfile],
@@ -863,6 +869,7 @@ export function EbookBookcase({
           showSettings: false,
         },
         toc: {
+          activeIndex: activeTocIndex,
           annotationStats: tocStats,
           items: readerTocItems,
           open: tocOpen,

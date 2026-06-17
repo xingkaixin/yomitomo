@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  activeTocIndexForOffset,
   annotationIdsAtHighlightPoint,
   articleTitleTocItems,
   buildHighlightSegments,
@@ -135,6 +136,39 @@ describe('reader DOM highlights', () => {
     expect(highlightSegmentStyle(segment, false)).toMatchObject({
       '--highlight-edge-size': '22px',
     });
+  });
+});
+
+describe('activeTocIndexForOffset', () => {
+  const tocItems = [
+    { index: 0, text: '开头', depth: 1, start: 0, end: 20 },
+    { index: 1, text: '中段', depth: 1, start: 20, end: 50 },
+    { index: 2, text: '结尾', depth: 1, start: 50, end: 80 },
+  ];
+
+  it('returns the toc item whose range contains the offset', () => {
+    expect(activeTocIndexForOffset(tocItems, 0)).toBe(0);
+    expect(activeTocIndexForOffset(tocItems, 20)).toBe(1);
+    expect(activeTocIndexForOffset(tocItems, 79)).toBe(2);
+  });
+
+  it('keeps the last item active past the final boundary', () => {
+    expect(activeTocIndexForOffset(tocItems, 120)).toBe(2);
+  });
+
+  it('prefers the deepest matching item inside nested toc ranges', () => {
+    const nestedItems = [
+      { index: 0, text: '上层', depth: 1, start: 0, end: 100 },
+      { index: 1, text: '中层', depth: 2, start: 20, end: 80 },
+      { index: 2, text: '下层', depth: 3, start: 40, end: 60 },
+    ];
+
+    expect(activeTocIndexForOffset(nestedItems, 45)).toBe(2);
+  });
+
+  it('returns null for invalid inputs', () => {
+    expect(activeTocIndexForOffset([], 10)).toBeNull();
+    expect(activeTocIndexForOffset(tocItems, Number.NaN)).toBeNull();
   });
 });
 

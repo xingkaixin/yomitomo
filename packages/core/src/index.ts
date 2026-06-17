@@ -133,6 +133,7 @@ export type { ReadingMemoryViewRequest } from './reading-memory/reading-memory-v
 
 export {
   alphaColor,
+  activeTocIndexForOffset,
   annotationIdsAtHighlightPoint,
   articleTitleTocItems,
   buildHighlightSegments,

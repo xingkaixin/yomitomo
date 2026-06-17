@@ -47,9 +47,13 @@ export const sourceReaderTocStyles = `
   line-height:1.3;
   padding:9px 8px;
 }
-.reader-toc-item:hover{
+.reader-toc-item:hover,
+.reader-toc-item.is-active{
   background:var(--app-reader-toc-item-hover-bg);
   color:var(--reader-ink);
+}
+.reader-toc-item.is-active{
+  box-shadow:inset 3px 0 0 var(--reader-green);
 }
 .reader-toc-item-main{
   display:grid;

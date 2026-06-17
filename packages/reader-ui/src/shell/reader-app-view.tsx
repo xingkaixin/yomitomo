@@ -216,6 +216,7 @@ export function ReaderAppView({
           annotationTotals={annotationTotals}
           hasToc={hasToc}
           labels={labels}
+          activeTocIndex={toc.activeIndex}
           tocAnnotationStats={toc.annotationStats}
           tocItems={tocItems}
           tocOpen={tocOpen}
