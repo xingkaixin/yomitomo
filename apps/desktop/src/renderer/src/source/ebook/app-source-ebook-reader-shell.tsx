@@ -1,10 +1,6 @@
 import type React from 'react';
 import { ReaderAppView, type ReaderAppViewProps } from '@yomitomo/reader-ui/reader-app-view';
-import {
-  readerConversationStyles,
-  readerDesktopEmbeddedStyles,
-  readerStyles,
-} from '@yomitomo/reader-ui/reader-styles';
+import { readerDesktopEmbeddedBundleStyles } from '@yomitomo/reader-ui/reader-styles';
 import { sourceEbookReaderStyles } from './app-source-bookcase-ebook-utils';
 
 type EbookReaderShellProps = {
@@ -29,7 +25,7 @@ export function EbookReaderShell({
 
   return (
     <section className="source-bookcase source-ebook-reader-shell ebook-reader-shell">
-      <style>{`${readerStyles}\n${readerConversationStyles}\n${readerDesktopEmbeddedStyles}\n${sourceEbookReaderStyles}`}</style>
+      <style>{`${readerDesktopEmbeddedBundleStyles}\n${sourceEbookReaderStyles}`}</style>
       <ReaderAppView
         {...readerApp}
         article={{

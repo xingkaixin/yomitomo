@@ -36,11 +36,7 @@ import { ReaderAppView } from '@yomitomo/reader-ui/reader-app-view';
 import { ReaderToolbarSliderPopover } from '@yomitomo/reader-ui/reader-toolbar-controls';
 import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
-import {
-  readerConversationStyles,
-  readerDesktopEmbeddedStyles,
-  readerStyles,
-} from '@yomitomo/reader-ui/reader-styles';
+import { readerDesktopEmbeddedBundleStyles } from '@yomitomo/reader-ui/reader-styles';
 import { animateTheaterHighlight, sleep } from '@yomitomo/reader-ui/reader-animation';
 import { selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
 import {
@@ -1086,7 +1082,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
         .join(' ')}
       onKeyDown={handleKeyDown}
     >
-      <style>{`${readerStyles}\n${readerConversationStyles}\n${readerDesktopEmbeddedStyles}`}</style>
+      <style>{readerDesktopEmbeddedBundleStyles}</style>
       <EmbedPdfSelectionBridge
         documentId={documentId}
         engine={engine}
