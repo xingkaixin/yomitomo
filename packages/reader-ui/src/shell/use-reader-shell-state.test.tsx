@@ -125,6 +125,62 @@ function ShellStateProbe({
   );
 }
 
+function AnnotationLayoutProbe({ contentWidth }: { contentWidth: number }) {
+  const articleRef = React.useRef<HTMLElement | null>(null);
+  const canvasRef = React.useRef<HTMLDivElement | null>(null);
+  const surfaceRef = React.useRef<HTMLDivElement | null>(null);
+  const noteRefs = React.useRef(new Map<string, HTMLElement>());
+  const shell = useReaderShellState({
+    activeId: null,
+    annotations: [],
+    articleId: 'article-1',
+    articleRef,
+    boxes: [],
+    canvasRef,
+    commentsCloseKey: 0,
+    composer: null,
+    filteredAnnotations: [],
+    highlightChoice: null,
+    noteRefs,
+    readerContentWidth: contentWidth,
+    selectionAction: null,
+    settingsOpen: false,
+    surfaceRef,
+    onCancelComposer: vi.fn(),
+    onClearActiveAnnotation: vi.fn(),
+    onClearSelection: vi.fn(),
+    onCloseFloatingPanels: vi.fn(),
+    onCloseHighlightChoice: vi.fn(),
+    onNavigateAnnotation: vi.fn(),
+    onOpenComposer: vi.fn(),
+    onToggleSettings: vi.fn(),
+  });
+
+  const setCanvasRef = React.useCallback((node: HTMLDivElement | null) => {
+    canvasRef.current = node;
+    if (node) elementWithRect(node, { left: 0, right: 1100, width: 1100 });
+  }, []);
+  const setArticleRef = React.useCallback(
+    (node: HTMLElement | null) => {
+      articleRef.current = node;
+      if (node) {
+        elementWithRect(node, { left: 0, right: 760, width: 760 });
+        node.style.setProperty('--reader-content-width', `${contentWidth}px`);
+      }
+    },
+    [contentWidth],
+  );
+
+  return (
+    <div ref={surfaceRef}>
+      <div ref={setCanvasRef}>
+        <article ref={setArticleRef} />
+      </div>
+      <output data-testid="layout-width">{shell.annotationRailLayout.articleWidth}</output>
+    </div>
+  );
+}
+
 describe('measureAnnotationRailLayout', () => {
   it('falls back to stacked layout when the shell has no measurable width', () => {
     const canvas = elementWithRect(document.createElement('div'), { width: 0 }) as HTMLDivElement;
@@ -197,6 +253,16 @@ describe('measureAnnotationRailLayout', () => {
 });
 
 describe('useReaderShellState', () => {
+  it('updates annotation layout when reader content width changes', () => {
+    const { rerender } = render(<AnnotationLayoutProbe contentWidth={760} />);
+
+    expect(screen.getByTestId('layout-width').textContent).toBe('760');
+
+    rerender(<AnnotationLayoutProbe contentWidth={820} />);
+
+    expect(screen.getByTestId('layout-width').textContent).toBe('820');
+  });
+
   it('resolves annotation navigation from visible annotations', async () => {
     const onNavigateAnnotation = vi.fn();
 
