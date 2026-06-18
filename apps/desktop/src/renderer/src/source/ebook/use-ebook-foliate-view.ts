@@ -1,7 +1,7 @@
 import type React from 'react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import i18next from 'i18next';
-import type { ArticleReadingProgress } from '@yomitomo/shared';
+import type { ArticleReadingProgress, ArticleRecord } from '@yomitomo/shared';
 import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
 import type { ReaderSettings } from '@yomitomo/reader-ui/reader-types';
 import { clampNumber } from '@yomitomo/reader-ui/reader-settings';
@@ -302,9 +302,7 @@ export function useEbookFoliateView({
         const data = await window.yomitomoDesktop.readEbookFile(article.id);
         if (cancelled) return;
 
-        const file = new File([data], article.ebook.metadata.fileName || `${article.title}.epub`, {
-          type: 'application/epub+zip',
-        });
+        const file = ebookSourceFile(article, data);
         ebookFileRef.current = file;
         view = document.createElement('foliate-view') as FoliateViewElement;
         view.className = 'ebook-foliate-view';
@@ -356,6 +354,7 @@ export function useEbookFoliateView({
   }, [
     article.id,
     article.ebook.metadata.fileName,
+    article.ebook.metadata.format,
     article.title,
     onAttachFoliateDocumentListeners,
     beginPageTurnTrace,
@@ -529,7 +528,7 @@ export function useEbookFoliateView({
         pageTurnRunningRef.current = false;
       }
     })();
-  }, [onScheduleEbookBoxUpdate]);
+  }, [article.id, article.ebook.metadata.format, beginPageTurnTrace, onScheduleEbookBoxUpdate]);
 
   const turnPage = useCallback(
     (direction: PageTurnDirection) => {
@@ -579,6 +578,22 @@ export function useEbookFoliateView({
     goToProgress,
     goToTocItem,
   };
+}
+
+export function ebookSourceFile(
+  article: ArticleRecord & { ebook: NonNullable<ArticleRecord['ebook']> },
+  data: ArrayBuffer,
+) {
+  const format = article.ebook.metadata.format;
+  return new File([data], article.ebook.metadata.fileName || `${article.title}.${format}`, {
+    type: ebookSourceMimeType(format),
+  });
+}
+
+function ebookSourceMimeType(format: NonNullable<ArticleRecord['ebook']>['metadata']['format']) {
+  if (format === 'azw3') return 'application/vnd.amazon.ebook';
+  if (format === 'mobi') return 'application/x-mobipocket-ebook';
+  return 'application/epub+zip';
 }
 
 function ebookOpenErrorMessage(error: unknown) {

@@ -25,7 +25,7 @@ export type FoliateTocItem = {
 };
 
 export type FoliateSectionSource = {
-  id?: string;
+  id?: unknown;
   linear?: string;
 };
 
@@ -478,6 +478,12 @@ export function ebookArticleText(
     .join('\n\n');
 }
 
+export function ebookHasStableSectionChapterMapping(
+  article: ArticleRecord & { ebook: NonNullable<ArticleRecord['ebook']> },
+) {
+  return article.ebook.metadata.format === 'epub';
+}
+
 function ebookChapterParagraphs(html: string) {
   const container = document.createElement('article');
   container.innerHTML = html;
@@ -557,7 +563,7 @@ function nextTocBoundary(
 
 export function ebookChapterForHref(
   article: ArticleRecord & { ebook: NonNullable<ArticleRecord['ebook']> },
-  href: string | undefined,
+  href: unknown,
 ) {
   const normalizedHref = normalizeEbookHref(href);
   if (!normalizedHref) return null;
@@ -593,8 +599,9 @@ export function ebookSectionIndexForChapter(
   return chapter.indexInBook < sections.length ? chapter.indexInBook : -1;
 }
 
-function normalizeEbookHref(value: string | undefined) {
-  return (value || '').split('#')[0]?.replace(/^\/+/, '') || '';
+function normalizeEbookHref(value: unknown) {
+  if (typeof value !== 'string') return '';
+  return value.split('#')[0]?.replace(/^\/+/, '') || '';
 }
 
 function ebookHrefMatches(left: string, right: string) {
@@ -632,9 +639,13 @@ export function selectionContextForRange(doc: Document, range: Range) {
   after.setStart(range.endContainer, range.endOffset);
 
   return {
-    prefix: normalizeRenderedText(before.toString()).slice(-96),
-    suffix: normalizeRenderedText(after.toString()).slice(0, 96),
+    prefix: normalizeRenderedText(selectionTextForRange(before)).slice(-96),
+    suffix: normalizeRenderedText(selectionTextForRange(after)).slice(0, 96),
   };
+}
+
+export function selectionTextForRange(range: Range) {
+  return renderedTextForNode(range.cloneContents()) || range.toString();
 }
 
 export function rangeForEbookAnchorInDocument(
@@ -715,10 +726,8 @@ function buildNormalizedDomTextIndex(
   let text = '';
   const positions: DomTextPosition[] = [];
   let pendingWhitespace = false;
-  const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
 
-  while (walker.nextNode()) {
-    const node = walker.currentNode as Text;
+  const appendTextNode = (node: Text) => {
     for (let offset = 0; offset < node.data.length; offset += 1) {
       const char = node.data[offset];
       if (/\s/.test(char)) {
@@ -733,7 +742,28 @@ function buildNormalizedDomTextIndex(
       text += char;
       positions.push({ node, offset, virtual: false });
     }
-  }
+  };
+
+  const visit = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      appendTextNode(node as Text);
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+    const element = node as Element;
+    if (element.localName === 'br') {
+      pendingWhitespace = text.length > 0;
+      return;
+    }
+
+    const isBlock = element !== root && element.matches(EBOOK_TEXT_BLOCK_SELECTOR);
+    if (isBlock && text.length > 0) pendingWhitespace = true;
+    element.childNodes.forEach(visit);
+    if (isBlock && text.length > 0) pendingWhitespace = true;
+  };
+
+  visit(root);
 
   if (timing) {
     timing.buildCount += 1;
@@ -848,6 +878,46 @@ function intersectRects(...rects: DOMRect[]): DOMRect | null {
 
 export function normalizeRenderedText(value: string) {
   return value.replace(/\s+/g, ' ').trim();
+}
+
+function renderedTextForNode(root: Node) {
+  let text = '';
+  let pendingWhitespace = false;
+
+  const appendText = (value: string) => {
+    for (const char of value) {
+      if (/\s/.test(char)) {
+        pendingWhitespace = text.length > 0;
+        continue;
+      }
+      if (pendingWhitespace && !text.endsWith(' ')) text += ' ';
+      pendingWhitespace = false;
+      text += char;
+    }
+  };
+
+  const visit = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      appendText(node.textContent || '');
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE && node.nodeType !== Node.DOCUMENT_FRAGMENT_NODE)
+      return;
+
+    const element = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : null;
+    if (element?.localName === 'br') {
+      pendingWhitespace = text.length > 0;
+      return;
+    }
+
+    const isBlock = Boolean(element?.matches(EBOOK_TEXT_BLOCK_SELECTOR));
+    if (isBlock && text.length > 0) pendingWhitespace = true;
+    node.childNodes.forEach(visit);
+    if (isBlock && text.length > 0) pendingWhitespace = true;
+  };
+
+  visit(root);
+  return text.trim();
 }
 
 function commonPrefixLength(left: string, right: string) {

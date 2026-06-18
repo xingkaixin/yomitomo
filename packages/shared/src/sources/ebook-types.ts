@@ -1,4 +1,4 @@
-export type EbookFormat = 'epub';
+export type EbookFormat = 'epub' | 'azw3' | 'mobi';
 
 export type EbookMetadata = {
   format: EbookFormat;

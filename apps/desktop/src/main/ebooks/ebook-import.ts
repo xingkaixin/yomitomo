@@ -18,6 +18,7 @@ import {
   type EbookChapterRecord,
 } from '@yomitomo/shared';
 import { MAX_EBOOK_IMPORT_BYTES } from '../../ipc-contract';
+import { articleRecordFromKindleFile, isKindleFile } from './kindle-import';
 
 const EPUB_MIME = 'application/epub+zip';
 const EBOOK_IMPORT_ENTRY_TOO_LARGE = 'EBOOK_IMPORT_ENTRY_TOO_LARGE';
@@ -91,6 +92,18 @@ type JSZipObjectWithData = JSZip.JSZipObject & {
     uncompressedSize?: unknown;
   };
 };
+
+export async function articleRecordFromEbookFile(
+  input: EbookImportFileInput,
+  options: EbookImportOptions = {},
+): Promise<ArticleRecord> {
+  const fileName = input.fileName.trim();
+  if (isEpubFile(fileName, input.mimeType)) return articleRecordFromEpubFile(input, options);
+  if (isKindleFile(fileName, input.mimeType, input.data)) {
+    return articleRecordFromKindleFile(input, options);
+  }
+  throw new Error('EBOOK_IMPORT_INVALID_FILE');
+}
 
 export async function articleRecordFromEpubFile(
   input: EbookImportFileInput,

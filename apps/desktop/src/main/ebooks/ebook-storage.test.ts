@@ -36,4 +36,18 @@ describe('ebook source storage', () => {
 
     await expect(readEbookSourceFile(articleId)).rejects.toThrow('EBOOK_SOURCE_FILE_MISSING');
   });
+
+  it('reads and deletes saved AZW3 and MOBI source files', async () => {
+    await saveEbookSourceFile('article-azw3', new Uint8Array([4, 5]).buffer, 'azw3');
+    await saveEbookSourceFile('article-mobi', new Uint8Array([6, 7]).buffer, 'mobi');
+
+    await expect(readEbookSourceFile('article-azw3')).resolves.toEqual(Buffer.from([4, 5]));
+    await expect(readEbookSourceFile('article-mobi')).resolves.toEqual(Buffer.from([6, 7]));
+
+    await deleteEbookSourceFile('article-azw3');
+    await deleteEbookSourceFile('article-mobi');
+
+    await expect(readEbookSourceFile('article-azw3')).rejects.toThrow('EBOOK_SOURCE_FILE_MISSING');
+    await expect(readEbookSourceFile('article-mobi')).rejects.toThrow('EBOOK_SOURCE_FILE_MISSING');
+  });
 });

@@ -635,6 +635,24 @@ describe('desktop store articles', () => {
     });
   });
 
+  it('preserves non-EPUB ebook formats in article summaries', () => {
+    const article = rowToArticleSummary(
+      {
+        ...storeSummaryRow(),
+        sourceType: 'ebook',
+        ebookMetadata: {
+          format: 'azw3',
+          fileName: 'book.azw3',
+          fileSize: 2400,
+        },
+      },
+      [],
+    );
+
+    expect(article.ebook?.metadata.format).toBe('azw3');
+    expect(article.ebook?.metadata.fileName).toBe('book.azw3');
+  });
+
   it('keeps reader chat state out of article summaries', () => {
     const article = rowToArticleSummary(storeSummaryRow(), []);
 

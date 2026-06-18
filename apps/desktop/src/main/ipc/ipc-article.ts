@@ -117,13 +117,14 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('ebook:import-file', async (_event, input: EbookImportFileInput) => {
     const { articlePersistence } = await context.getPersistenceModule();
     const { importArticleSource } = await import('../articles/article-source-import');
-    const { articleRecordFromEpubFile } = await import('../ebooks/ebook-import');
+    const { articleRecordFromEbookFile } = await import('../ebooks/ebook-import');
     const { deleteEbookSourceFile, saveEbookSourceFile } = await import('../ebooks/ebook-storage');
-    const record = await articleRecordFromEpubFile(input, { performanceLogger: context.logInfo });
+    const record = await articleRecordFromEbookFile(input, { performanceLogger: context.logInfo });
     return importArticleSource({
       record,
       repository: articleImportRepository(articlePersistence),
-      saveSourceFile: (articleId) => saveEbookSourceFile(articleId, input.data),
+      saveSourceFile: (articleId) =>
+        saveEbookSourceFile(articleId, input.data, record.ebook?.metadata.format),
       cleanupSourceFile: deleteEbookSourceFile,
       logError: context.logError,
     });

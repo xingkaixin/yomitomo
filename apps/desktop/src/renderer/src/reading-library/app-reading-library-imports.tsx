@@ -724,9 +724,10 @@ function EbookImportDialog({
         closeLabel: t('library.import.ebook.close'),
         idleMessage: t('library.import.ebook.idle', { count: MAX_BATCH_IMPORT_FILES }),
         batchIdleMessage: t('library.import.ebook.idle', { count: MAX_BATCH_IMPORT_FILES }),
-        accept: '.epub,application/epub+zip',
+        accept:
+          '.epub,.azw3,.mobi,application/epub+zip,application/vnd.amazon.ebook,application/x-mobipocket-ebook',
         inputId: 'library-ebook-file',
-        isValidFileName: (name) => name.toLowerCase().endsWith('.epub'),
+        isValidFileName: (name) => /\.(?:epub|azw3|mobi)$/i.test(name),
         maxBytes: MAX_EBOOK_IMPORT_BYTES,
         maxFileCount: MAX_BATCH_IMPORT_FILES,
         invalidFileMessage: t('library.import.ebook.invalidFile'),
