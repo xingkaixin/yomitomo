@@ -3,6 +3,7 @@ import { app, BrowserWindow, shell } from 'electron';
 import type { ArticleStorePatch, DesktopStore } from '@yomitomo/shared';
 import { getLogPath, logError, logInfo, pruneLogFile } from './app/logger';
 import { configureDesktopAppStorage } from './app/app-environment';
+import { installElectronSmokeProbe } from './app/electron-smoke-probe';
 import type { AppUpdateState } from '../app-update-types';
 import type { DesktopStoreLoadErrorInfo } from '../app-store-errors';
 import { DatabaseTooNewError } from './db/errors';
@@ -147,6 +148,7 @@ async function createWindow() {
   browserWindow.webContents.once('did-finish-load', () => {
     recordStartupTiming('renderer.did_finish_load');
   });
+  installElectronSmokeProbe(browserWindow);
 
   if (process.env.ELECTRON_RENDERER_URL) {
     recordStartupTiming('renderer.load_start', { mode: 'dev-server' });
