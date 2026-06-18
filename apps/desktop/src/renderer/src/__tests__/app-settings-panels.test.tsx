@@ -19,9 +19,18 @@ import { defaultUser, emptyProvider, emptyStore, type AgentDraft } from '../sett
 import type { Agent, AppSettings, LlmProvider } from '@yomitomo/shared';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
+import { appToast } from '../shell/app-toast';
 
 vi.mock('../sound/app-sound-effects', () => ({
   playAppSoundEffect: vi.fn(),
+}));
+
+vi.mock('../shell/app-toast', () => ({
+  appToast: {
+    error: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+  },
 }));
 
 const localStorageStore: Record<string, string> = {};
@@ -1638,12 +1647,15 @@ describe('DataManagementSettings', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '备份数据库' }));
     await waitFor(() => expect(desktop.backupDatabase).toHaveBeenCalledOnce());
-    expect(await screen.findByText(/数据库已备份到/)).toBeTruthy();
+    expect(appToast.success).toHaveBeenCalledWith('数据库备份完成', {
+      description: '已保存到 /tmp/yomitomo-backup.sqlite',
+    });
 
     fireEvent.click(screen.getByRole('button', { name: '从备份还原数据库' }));
     expect(screen.getByRole('dialog', { name: '从备份还原数据库？' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '取消，保留现状' }));
     expect(desktop.restoreDatabase).not.toHaveBeenCalled();
+    expect(appToast.warning).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: '从备份还原数据库' }));
     fireEvent.click(
@@ -1654,6 +1666,79 @@ describe('DataManagementSettings', () => {
     await waitFor(() => expect(desktop.restoreDatabase).toHaveBeenCalledOnce());
     expect(onStoreUpdated).toHaveBeenCalledWith(
       expect.objectContaining({ settings: expect.objectContaining({ logRetentionDays: 90 }) }),
+    );
+    expect(appToast.success).toHaveBeenCalledWith('数据库已还原', {
+      description: '原数据库已备份到 /tmp/yomitomo/backups/yomitomo-before-restore.sqlite',
+    });
+  });
+
+  it('shows warning toasts when database backup or restore is canceled', async () => {
+    const desktop = installDesktopDataApi();
+    desktop.backupDatabase.mockResolvedValueOnce({ canceled: true });
+    desktop.restoreDatabase.mockResolvedValueOnce({ canceled: true });
+
+    render(<DataManagementSettings settings={{}} onStoreUpdated={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '备份数据库' }));
+    await waitFor(() => expect(desktop.backupDatabase).toHaveBeenCalledOnce());
+    expect(appToast.warning).toHaveBeenCalledWith('已取消数据库备份', {
+      description: '未创建备份文件。',
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '从备份还原数据库' }));
+    fireEvent.click(
+      within(screen.getByRole('dialog', { name: '从备份还原数据库？' })).getByRole('button', {
+        name: '选择备份并还原',
+      }),
+    );
+
+    await waitFor(() => expect(desktop.restoreDatabase).toHaveBeenCalledOnce());
+    expect(appToast.warning).toHaveBeenCalledWith('已取消数据库还原', {
+      description: '当前数据库未发生变化。',
+    });
+  });
+
+  it('shows error toasts when data management actions fail', async () => {
+    const desktop = installDesktopDataApi();
+    desktop.clearLog.mockRejectedValueOnce(new Error('DATA_MANAGEMENT_DATABASE_NOT_OPEN'));
+    desktop.backupDatabase.mockRejectedValueOnce(
+      new Error('DATA_MANAGEMENT_BACKUP_TARGET_IS_CURRENT_DATABASE'),
+    );
+    desktop.restoreDatabase.mockRejectedValueOnce(
+      new Error('DATA_MANAGEMENT_RESTORE_SOURCE_IS_CURRENT_DATABASE'),
+    );
+
+    render(<DataManagementSettings settings={{}} onStoreUpdated={vi.fn()} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: '清空日志文件' }));
+    fireEvent.click(
+      within(screen.getByRole('dialog', { name: '清空日志文件？' })).getByRole('button', {
+        name: '清空日志文件',
+      }),
+    );
+    await waitFor(() =>
+      expect(appToast.error).toHaveBeenCalledWith('日志文件未清空', {
+        description: '本地数据库尚未打开。',
+      }),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '备份数据库' }));
+    await waitFor(() =>
+      expect(appToast.error).toHaveBeenCalledWith('数据库备份失败', {
+        description: '不能把备份保存到当前数据库文件。',
+      }),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '从备份还原数据库' }));
+    fireEvent.click(
+      within(screen.getByRole('dialog', { name: '从备份还原数据库？' })).getByRole('button', {
+        name: '选择备份并还原',
+      }),
+    );
+    await waitFor(() =>
+      expect(appToast.error).toHaveBeenCalledWith('数据库还原失败', {
+        description: '不能从当前数据库文件还原。',
+      }),
     );
   });
 
@@ -1675,7 +1760,9 @@ describe('DataManagementSettings', () => {
     );
 
     await waitFor(() => expect(desktop.clearLog).toHaveBeenCalledOnce());
-    expect(await screen.findByText('日志文件已清空。')).toBeTruthy();
+    expect(appToast.success).toHaveBeenCalledWith('日志文件已清空', {
+      description: '当前本机日志文件现在为空。',
+    });
   });
 });
 
