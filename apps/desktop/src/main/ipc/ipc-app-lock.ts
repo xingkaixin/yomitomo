@@ -22,7 +22,21 @@ export function registerAppLockIpc(context: DesktopMainIpcContext) {
     ok: await verifyAppLockPin(input.pin),
   }));
 
+  handleDesktopIpc('appLock:unlock', async (_event, input) => {
+    const { readStore, saveSettings } = await context.getStoreModule();
+    const store = await readStore();
+    if (!store.settings.appLockEnabled) throw new DesktopIpcError('APP_LOCK_DISABLED');
+    if (!(await hasAppLockPin())) throw new DesktopIpcError('APP_LOCK_PIN_REQUIRED');
+    if (!(await verifyAppLockPin(input.pin))) throw new DesktopIpcError('APP_LOCK_PIN_INVALID');
+    if (!store.settings.appLockLocked) return store;
+
+    const nextStore = await saveSettings({ appLockLocked: false });
+    context.sendFullStoreUpdated(nextStore);
+    return nextStore;
+  });
+
   handleDesktopIpc('appLock:setLocked', async (_event, input) => {
+    if (!input.locked) throw new DesktopIpcError('APP_LOCK_UNLOCK_REQUIRED');
     const { readStore, saveSettings } = await context.getStoreModule();
     const store = await readStore();
     if (input.locked && !store.settings.appLockEnabled) {

@@ -6,6 +6,7 @@ import { readerBackgroundTone } from '@yomitomo/reader-ui/reader-settings';
 import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
 import { useTranslation } from 'react-i18next';
 import { LockKeyhole, Volume2 } from 'lucide-react';
+import { isDesktopIpcErrorLike } from '../../ipc-errors';
 
 import type { SettingsSectionKey } from './settings/app-settings-panels';
 import { AvatarImage } from './shell/app-ui';
@@ -342,9 +343,11 @@ function App() {
     refreshStore,
     applyStore,
   } = useDesktopStoreState();
+  const appLockEnabled = Boolean(store.settings.appLockEnabled);
+  const appLocked = Boolean(appLockEnabled && store.settings.appLockLocked);
 
   useEffect(() => {
-    if (!storeLoaded || storeLoadError) return;
+    if (!storeLoaded || storeLoadError || appLocked) return;
     const storedUiLanguage = normalizeUiLanguage(store.settings.uiLanguage);
     writeCachedUiLanguage(storedUiLanguage);
     changeAppI18nLanguage(storedUiLanguage);
@@ -374,7 +377,7 @@ function App() {
       writeDesktopReaderSettings(nextSettings);
     }
     writeCachedThemeId(storedThemeId);
-  }, [store.settings.themeId, store.settings.uiLanguage, storeLoadError, storeLoaded]);
+  }, [appLocked, store.settings.themeId, store.settings.uiLanguage, storeLoadError, storeLoaded]);
 
   const {
     deleteArticle,
@@ -429,9 +432,6 @@ function App() {
   } = useSettingsDrafts({ store, storeSyncSnapshot, applyStore });
   const { agentSaveError, agentSaveState, toggleAgent } = useAppAgentActions({ applyStore });
   const showOnboarding = onboardingForced || !store.settings.onboardingCompletedAt;
-  const appLockEnabled = Boolean(store.settings.appLockEnabled);
-  const appLocked = Boolean(appLockEnabled && store.settings.appLockLocked);
-
   useEffect(() => {
     if (!appLocked) {
       setAppLockStep('slide');
@@ -635,20 +635,17 @@ function App() {
     setAppLockVerifying(true);
     setAppLockError('');
     try {
-      const result = await window.yomitomoDesktop.verifyAppLockPin({ pin: pinToVerify });
-      if (result.ok) {
-        const nextStore = await window.yomitomoDesktop.setAppLockLocked({ locked: false });
-        applyStore(nextStore);
-        playAppSoundEffect('app_lock.unlocked', nextStore.settings);
-        setAppLockStep('slide');
-        setAppLockPin('');
-        return;
-      }
-      setAppLockError(t('appLock.invalidPin'));
+      const nextStore = await window.yomitomoDesktop.unlockAppLock({ pin: pinToVerify });
+      applyStore(nextStore);
+      playAppSoundEffect('app_lock.unlocked', nextStore.settings);
+      setAppLockStep('slide');
       setAppLockPin('');
-      setAppLockPinInputKey((key) => key + 1);
-    } catch {
-      setAppLockError(t('appLock.verifyFailed'));
+    } catch (error) {
+      setAppLockError(
+        isDesktopIpcErrorLike(error) && error.code === 'APP_LOCK_PIN_INVALID'
+          ? t('appLock.invalidPin')
+          : t('appLock.verifyFailed'),
+      );
       setAppLockPin('');
       setAppLockPinInputKey((key) => key + 1);
     } finally {

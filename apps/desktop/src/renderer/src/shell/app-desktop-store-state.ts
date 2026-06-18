@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DesktopStore } from '@yomitomo/shared';
+import type { AppLockStatus } from '../../../ipc-contract';
 import {
   desktopStoreLoadErrorInfo,
   type DesktopStoreLoadErrorInfo,
 } from '../../../app-store-errors';
+import { isDesktopIpcErrorLike } from '../../../ipc-errors';
 
 import { emptyStore } from '../settings/app-settings';
 import { applyArticleStorePatch } from './app-article-store-actions';
@@ -50,11 +52,25 @@ export function useDesktopStoreState() {
       setStoreLoaded(true);
       return nextStore;
     } catch (error) {
+      let refreshError = error;
+      if (isDesktopIpcErrorLike(error) && error.code === 'APP_LOCK_REQUIRED') {
+        try {
+          const nextStore = lockedStoreFromStatus(await desktop.getAppLockStatus());
+          applyStore(nextStore);
+          setStoreSyncSnapshot(nextStore);
+          setStoreLoadError(null);
+          setStoreLoaded(true);
+          return nextStore;
+        } catch (statusError) {
+          refreshError = statusError;
+        }
+      }
+
       recordStartupTiming('store.refresh_exception', { durationMs: elapsedMs(startedAt) });
       setStoreLoadError(
-        desktopStoreLoadErrorInfo(error) || {
+        desktopStoreLoadErrorInfo(refreshError) || {
           code: 'DATABASE_UNAVAILABLE',
-          detail: error instanceof Error ? error.message : undefined,
+          detail: refreshError instanceof Error ? refreshError.message : undefined,
         },
       );
       setStoreLoaded(false);
@@ -94,6 +110,18 @@ export function useDesktopStoreState() {
     storeRef,
     refreshStore,
     applyStore,
+  };
+}
+
+function lockedStoreFromStatus(status: AppLockStatus): DesktopStore {
+  return {
+    ...emptyStore,
+    settings: {
+      ...emptyStore.settings,
+      appLockEnabled: status.enabled,
+      appLockLocked: status.locked,
+      appLockShortcut: status.shortcut,
+    },
   };
 }
 

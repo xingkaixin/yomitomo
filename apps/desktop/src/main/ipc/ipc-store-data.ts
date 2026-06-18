@@ -1,7 +1,8 @@
 import { performance } from 'node:perf_hooks';
 import type { DesktopStoreGetResult } from '../../app-store-errors';
+import { DesktopIpcError } from '../../ipc-errors';
 import type { DesktopMainIpcContext } from './ipc';
-import { handleDesktopIpc } from './ipc';
+import { assertAppLockSettingsUnlocked, handleDesktopIpc } from './ipc';
 import {
   clearAgentRuntimeTraces,
   getAgentRuntimeTracePath,
@@ -29,6 +30,7 @@ export function registerStoreDataIpc(context: DesktopMainIpcContext) {
           durationMs: context.elapsedMs(lockStartedAt),
         });
       }
+      assertAppLockSettingsUnlocked(store.settings);
       const readDurationMs = context.elapsedMs(readStartedAt);
       context.scheduleLogPrune(store.settings.logRetentionDays);
       context.recordStartupTiming('store.get_success', {
@@ -54,6 +56,7 @@ export function registerStoreDataIpc(context: DesktopMainIpcContext) {
       context.recordStartupTiming('store.get_profile', { steps: profile });
       return { ok: true, store };
     } catch (error) {
+      if (error instanceof DesktopIpcError) throw error;
       context.logError('store.get_failed', error);
       context.recordStartupTiming('store.get_error', { durationMs: context.elapsedMs(startedAt) });
       return { ok: false, error: await context.storeLoadErrorInfo(error) };

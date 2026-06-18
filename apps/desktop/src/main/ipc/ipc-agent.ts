@@ -12,7 +12,7 @@ import type {
 } from '@yomitomo/shared';
 import { makeId, normalizeAssistantExecutionMode, normalizeUiLanguage } from '@yomitomo/shared';
 import type { DesktopMainIpcContext } from './ipc';
-import { handleDesktopIpc } from './ipc';
+import { assertDesktopIpcAppLockUnlocked, handleDesktopIpc } from './ipc';
 import {
   createAgentTextStream,
   runAgentStreamIpc,
@@ -358,6 +358,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
         comment: { ...comment, pending: false },
       });
     },
+    () => assertDesktopIpcAppLockUnlocked(context),
   );
   runAgentStreamIpc<AgentDistillationReviewPayload, AgentStreamDistillationReviewEvent>(
     'agent:distillation-review:stream',
@@ -462,6 +463,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
         message,
       });
     },
+    () => assertDesktopIpcAppLockUnlocked(context),
   );
   handleDesktopIpc('agent:annotate', async (_event, payload) => {
     const ai = await context.getAiModule();
@@ -569,6 +571,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
         readingMemory: result.readingMemory,
       });
     },
+    () => assertDesktopIpcAppLockUnlocked(context),
   );
   handleDesktopIpc('agent:save', async (_event, input) => {
     const { saveAgent } = await context.getStoreModule();

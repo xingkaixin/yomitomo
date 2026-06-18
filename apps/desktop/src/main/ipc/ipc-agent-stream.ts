@@ -34,6 +34,11 @@ export type AgentStreamSender<TEvent extends AgentStreamEvent> = {
   send: (message: TEvent) => void;
 };
 
+export type AgentStreamGuard<TPayload> = (
+  input: AgentStreamRequest<TPayload>,
+  event: IpcMainEvent,
+) => Promise<void>;
+
 type AgentTextStreamEvent =
   | { type: 'delta'; delta: string }
   | { type: 'progress'; progress: AssistantRuntimeProgressEvent };
@@ -50,6 +55,7 @@ export function runAgentStreamIpc<TPayload, TEvent extends AgentStreamEvent>(
     sender: AgentStreamSender<TEvent>,
     event: IpcMainEvent,
   ) => Promise<void>,
+  guard?: AgentStreamGuard<TPayload>,
 ) {
   ipcMain.on(requestChannel, async (event, input: AgentStreamRequest<TPayload>) => {
     const sender = createAgentStreamSender<TEvent>(
@@ -57,6 +63,7 @@ export function runAgentStreamIpc<TPayload, TEvent extends AgentStreamEvent>(
       streamResponseChannel(requestChannel, input),
     );
     try {
+      await guard?.(input, event);
       await handler(input, sender, event);
     } catch (error) {
       sender.send(agentStreamError(error, fallbackMessage) as TEvent);

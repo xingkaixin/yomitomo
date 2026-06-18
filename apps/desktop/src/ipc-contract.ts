@@ -62,6 +62,10 @@ export type AppLockVerifyPinResult = {
   ok: boolean;
 };
 
+export type AppLockUnlockInput = {
+  pin: string;
+};
+
 export type AppLockSetEnabledInput = {
   enabled: boolean;
   pin?: string;
@@ -457,6 +461,10 @@ export type DesktopIpcInvokeMap = {
   'appLock:verifyPin': {
     args: [input: AppLockVerifyPinInput];
     result: AppLockVerifyPinResult;
+  };
+  'appLock:unlock': {
+    args: [input: AppLockUnlockInput];
+    result: DesktopStore;
   };
   'article:delete': {
     args: [id: string];

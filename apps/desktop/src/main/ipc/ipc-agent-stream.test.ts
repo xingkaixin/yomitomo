@@ -86,6 +86,34 @@ describe('runAgentStreamIpc', () => {
       }),
     );
   });
+
+  it('runs the guard before the stream handler', async () => {
+    const handler = vi.fn();
+    runAgentStreamIpc<{ value: string }, AgentStreamErrorEvent>(
+      'agent:test:guarded-stream',
+      'STREAM_FAILED',
+      handler,
+      async () => {
+        throw new DesktopIpcError(desktopIpcErrorCodes.appLockRequired);
+      },
+    );
+    const sender = { send: vi.fn() };
+
+    await ipcHandler('agent:test:guarded-stream')(
+      { sender },
+      request('req_4', { value: 'blocked' }),
+    );
+
+    expect(handler).not.toHaveBeenCalled();
+    expect(sender.send).toHaveBeenCalledWith(
+      'agent:test:guarded-stream:req_4',
+      expect.objectContaining({
+        type: 'error',
+        message: desktopIpcErrorCodes.appLockRequired,
+        error: expect.objectContaining({ code: desktopIpcErrorCodes.appLockRequired }),
+      }),
+    );
+  });
 });
 
 describe('createAgentTextStream', () => {
