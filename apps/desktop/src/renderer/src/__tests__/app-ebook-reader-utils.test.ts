@@ -8,6 +8,8 @@ import { readerBodyLineHeight } from '@yomitomo/reader-ui/reader-settings';
 import {
   configureFoliateView,
   ebookTocItemsForReader,
+  formatEbookPageLabel,
+  isEbookPaginationReady,
   mappedFoliateRangeRects,
   type FoliateTocItem,
 } from '../source/ebook/app-ebook-reader-utils';
@@ -101,6 +103,15 @@ function annotation(id: string, start: number): Annotation {
 }
 
 describe('ebook reader utils', () => {
+  it('treats current EPUB page info as enough for page controls', () => {
+    const pageInfo = { sectionIndex: 1, pageIndex: 2, pageCount: 5 };
+
+    expect(isEbookPaginationReady(pageInfo, [null, 5, null])).toBe(true);
+    expect(formatEbookPageLabel(pageInfo, [])).toBe('3 / 5');
+    expect(formatEbookPageLabel(pageInfo, [null, 5, null])).toBe('3 / 5');
+    expect(formatEbookPageLabel(pageInfo, [10, 5, 20])).toBe('13 / 35');
+  });
+
   it('extends a title-page toc item to include the following body spine until the next toc item', () => {
     const article = ebookArticle([
       chapter('title-1', '第1章 13毫秒的秘密', 'text00007.html', 0, 0, 100),

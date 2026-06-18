@@ -265,25 +265,28 @@ export function updateKnownSectionPageCount(
 
 export function isEbookPaginationReady(
   pageInfo: FoliatePageInfo | null,
-  counts: Array<number | null>,
+  _counts: Array<number | null>,
 ): pageInfo is FoliatePageInfo {
-  return Boolean(
-    pageInfo && counts.length > pageInfo.sectionIndex && counts.every((count) => count !== null),
-  );
+  return Boolean(pageInfo && pageInfo.pageCount > 0);
 }
 
 export function formatEbookPageLabel(pageInfo: FoliatePageInfo, counts: Array<number | null>) {
-  if (counts.length <= pageInfo.sectionIndex) return '';
+  const currentSectionPageCount =
+    counts.length > pageInfo.sectionIndex ? counts[pageInfo.sectionIndex] : null;
+  const currentPageCount = Math.max(1, currentSectionPageCount ?? pageInfo.pageCount);
+  const sectionPage = Math.min(pageInfo.pageIndex, Math.max(0, currentPageCount - 1)) + 1;
+
+  const hasAllSectionCounts =
+    counts.length > pageInfo.sectionIndex && counts.every((count) => count !== null);
+  if (!hasAllSectionCounts) {
+    return `${sectionPage} / ${currentPageCount}`;
+  }
 
   const precedingCounts = counts.slice(0, pageInfo.sectionIndex);
-  if (precedingCounts.some((count) => count === null)) return '';
-
-  const currentSectionPageCount = counts[pageInfo.sectionIndex] ?? pageInfo.pageCount;
   const currentPage =
     sumKnownPageCounts(precedingCounts) +
-    Math.min(pageInfo.pageIndex, Math.max(0, currentSectionPageCount - 1)) +
+    Math.min(pageInfo.pageIndex, Math.max(0, currentPageCount - 1)) +
     1;
-  if (counts.some((count) => count === null)) return '';
 
   return `${currentPage} / ${sumKnownPageCounts(counts)}`;
 }
