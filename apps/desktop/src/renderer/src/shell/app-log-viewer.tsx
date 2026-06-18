@@ -35,6 +35,7 @@ import {
   SettingsRowDescriptionTooltip,
   SettingsToggle,
 } from '../settings/app-settings-kit';
+import { appToast } from './app-toast';
 import { normalizeUiLanguage, type AppSettings, type DesktopStore } from '@yomitomo/shared';
 import type { AppInfo } from '../../../preload';
 import type { AppUpdateState } from '../../../app-update-types';
@@ -109,6 +110,11 @@ export function AboutSettings({
     if (typeof method !== 'function') return;
     const nextState = await method();
     setUpdateState(nextState);
+    if (action.method === 'checkForUpdates' && nextState.status === 'not-available') {
+      appToast.success(t('about.updateToast.notAvailableTitle'), {
+        description: t('about.updateToast.notAvailableDescription'),
+      });
+    }
   }
 
   async function toggleDeveloperMode() {

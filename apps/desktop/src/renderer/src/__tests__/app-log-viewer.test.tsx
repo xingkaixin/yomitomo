@@ -6,6 +6,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppUpdateState } from '../../../app-update-types';
 import { AboutSettings } from '../shell/app-log-viewer';
 import { initializeAppI18n } from '../i18n/app-i18n';
+import { appToast } from '../shell/app-toast';
+
+vi.mock('../shell/app-toast', () => ({
+  appToast: {
+    success: vi.fn(),
+  },
+}));
 
 beforeEach(() => {
   initializeAppI18n('zh-CN');
@@ -111,6 +118,9 @@ describe('AboutSettings', () => {
 
     await waitFor(() => expect(desktop.checkForUpdates).toHaveBeenCalledOnce());
     expect(await screen.findByLabelText('当前已是最新版本。')).toBeTruthy();
+    expect(appToast.success).toHaveBeenCalledWith('已是最新版本', {
+      description: '当前没有可用更新。',
+    });
   });
 
   it('downloads and installs an available update', async () => {
@@ -130,8 +140,10 @@ describe('AboutSettings', () => {
     fireEvent.click(await screen.findByRole('button', { name: /下载更新/ }));
 
     await waitFor(() => expect(desktop.downloadUpdate).toHaveBeenCalledOnce());
+    expect(appToast.success).not.toHaveBeenCalled();
     fireEvent.click(await screen.findByRole('button', { name: /重启安装/ }));
     expect(desktop.installUpdate).toHaveBeenCalledOnce();
+    expect(appToast.success).not.toHaveBeenCalled();
   });
 
   it('opens localized website links through the desktop bridge', async () => {
