@@ -142,6 +142,7 @@ pnpm lint
 pnpm lint:fix
 pnpm format
 pnpm format:check
+pnpm ui:check-primitives
 pnpm typecheck
 pnpm test
 pnpm build
@@ -167,8 +168,23 @@ pnpm build
 
 ## Pre-Commit Checks
 
+`mise run check` mirrors the GitHub Actions check order:
+
+```bash
+mise run check
+```
+
+For a faster local loop before the full gate, use:
+
+```bash
+mise run check:fast
+```
+
+The full gate expands to:
+
 ```bash
 pnpm lint
+pnpm ui:check-primitives
 pnpm format:check
 pnpm typecheck
 pnpm test
