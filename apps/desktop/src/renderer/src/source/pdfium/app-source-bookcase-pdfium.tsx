@@ -334,18 +334,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   const zoom = documentState?.scale || 1;
   const loadedDocument = documentState?.document ?? undefined;
   const {
-    currentArticleText,
-    extractPdfiumPageText,
-    markPdfiumFirstPageReady,
-    pdfTextDocument,
-    resetPdfiumTextDocument,
-  } = usePdfiumDocumentText({
-    articleId: article.id,
-    document: loadedDocument,
-    engine,
-    openTrace,
-  });
-  const {
     currentPage,
     initialPageNumber,
     jumpToPdfiumPage,
@@ -358,6 +346,20 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     documentReady: Boolean(loadedDocument),
     pageCount,
     onSaveArticleReadingProgress,
+  });
+  const {
+    currentArticleText,
+    extractPdfiumPageText,
+    markPdfiumFirstPageReady,
+    pdfTextDocument,
+    pdfTextIndexPreparing,
+    resetPdfiumTextDocument,
+  } = usePdfiumDocumentText({
+    articleId: article.id,
+    currentPageIndex: currentPage - 1,
+    document: loadedDocument,
+    engine,
+    openTrace,
   });
   const sourceReaderSession = useSourceReaderSession({
     agents,
@@ -1304,6 +1306,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
             limited: searchResult.limited,
             matches: searchResult.matches,
             open: searchOpen,
+            preparing: Boolean(searchQuery.trim()) && pdfTextIndexPreparing,
             query: searchQuery,
             onClose: closeSearch,
             onNextMatch: () => navigateSearchMatch('next'),

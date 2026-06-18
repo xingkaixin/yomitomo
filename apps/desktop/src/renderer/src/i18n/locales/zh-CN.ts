@@ -280,6 +280,7 @@ export const zhCNResources = {
       recordThought: '记录想法',
       searchBody: '搜索正文',
       searchBodyPlaceholder: '搜索正文',
+      searchPreparing: '准备中',
       searchToolbar: '正文搜索',
       submitHighlight: '划线',
       submitThought: '发布',

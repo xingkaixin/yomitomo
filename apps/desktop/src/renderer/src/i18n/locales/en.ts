@@ -288,6 +288,7 @@ export const enResources = {
       recordThought: 'Record thought',
       searchBody: 'Search body',
       searchBodyPlaceholder: 'Search body',
+      searchPreparing: 'Preparing',
       searchToolbar: 'Body search',
       submitHighlight: 'Highlight',
       submitThought: 'Post',

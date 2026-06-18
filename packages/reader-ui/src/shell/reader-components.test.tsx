@@ -1050,6 +1050,35 @@ describe('ReaderFloatingToolbar search mode', () => {
 
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it('shows a preparing search state before delayed indexes are ready', () => {
+    render(
+      <ReaderFloatingToolbar
+        annotationNavigation={{ previousId: null, nextId: null, totalCount: 0, currentIndex: 0 }}
+        hasToc={false}
+        search={{
+          activeMatchIndex: 0,
+          limited: false,
+          matches: [],
+          open: true,
+          preparing: true,
+          query: '目标',
+          onClose: vi.fn(),
+          onNextMatch: vi.fn(),
+          onOpen: vi.fn(),
+          onPreviousMatch: vi.fn(),
+          onQueryChange: vi.fn(),
+        }}
+        showAnnotationNavigation={false}
+        tocOpen={false}
+        onNavigateAnnotation={vi.fn()}
+        onToggleToc={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(defaultReaderUiLabels.searchPreparing)).toBeTruthy();
+    expect(screen.queryByText('0/0')).toBeNull();
+  });
 });
 
 describe('SelectionMenu', () => {
