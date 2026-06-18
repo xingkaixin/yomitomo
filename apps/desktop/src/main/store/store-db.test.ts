@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
+import BetterSqliteDatabase from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const testPaths = vi.hoisted(() => ({
@@ -23,9 +24,9 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 });
 
 vi.mock('../native/sqlite', async () => {
-  const { default: SQLiteDatabase } = await import('better-sqlite3');
+  const { default: SQLiteDatabaseDriver } = await import('better-sqlite3');
   return {
-    loadSQLiteDatabase: () => SQLiteDatabase,
+    loadSQLiteDatabase: () => SQLiteDatabaseDriver,
   };
 });
 
@@ -89,6 +90,34 @@ describe('store database backup and restore', () => {
     await expect(readFile(target)).rejects.toThrow();
   });
 
+  it('keeps an existing backup target when sqlite backup fails', async () => {
+    writeMarker('current');
+    const target = join(testPaths.userData, 'backup.sqlite');
+    await writeFile(target, 'existing target');
+    await writeFile(`${target}-wal`, 'existing wal');
+    const sqlite = getSqliteExecutor();
+    vi.spyOn(sqlite, 'backup').mockRejectedValueOnce(new Error('backup failed'));
+
+    await expect(backupDatabaseFile(target)).rejects.toThrow('backup failed');
+
+    await expect(readFile(target, 'utf8')).resolves.toBe('existing target');
+    await expect(readFile(`${target}-wal`, 'utf8')).resolves.toBe('existing wal');
+    expect(await backupTemporaryFiles(target)).toEqual([]);
+  });
+
+  it('replaces an existing backup target after sqlite backup succeeds', async () => {
+    writeMarker('current');
+    const target = join(testPaths.userData, 'backup.sqlite');
+    await writeFile(target, 'existing target');
+    await writeFile(`${target}-wal`, 'stale wal');
+
+    await expect(backupDatabaseFile(target)).resolves.toBe(target);
+
+    await expect(readFile(`${target}-wal`)).rejects.toThrow();
+    expect(readMarkerFromDatabase(target)).toBe('current');
+    expect(await backupTemporaryFiles(target)).toEqual([]);
+  });
+
   it('creates a safety backup before restoring another database file', async () => {
     writeMarker('source');
     const source = join(testPaths.userData, 'source.sqlite');
@@ -146,6 +175,22 @@ CREATE TABLE IF NOT EXISTS rd509_marker (
 function readMarker() {
   const row = getSqliteExecutor().prepare('SELECT value FROM rd509_marker WHERE id = 1').get();
   return isRecord(row) && typeof row.value === 'string' ? row.value : undefined;
+}
+
+function readMarkerFromDatabase(filePath: string) {
+  const database = new BetterSqliteDatabase(filePath, { readonly: true, fileMustExist: true });
+  try {
+    const row = database.prepare('SELECT value FROM rd509_marker WHERE id = 1').get();
+    return isRecord(row) && typeof row.value === 'string' ? row.value : undefined;
+  } finally {
+    database.close();
+  }
+}
+
+async function backupTemporaryFiles(target: string) {
+  const temporaryFilePrefix = `${basename(target)}.tmp-`;
+  const files = await actualFs.readdir(dirname(target));
+  return files.filter((file) => file.startsWith(temporaryFilePrefix)).toSorted();
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
