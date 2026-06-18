@@ -418,6 +418,52 @@ describe('ReadingLibrary home', () => {
     expect(screen.getByText('共 13 篇')).toBeTruthy();
   });
 
+  it('keeps source counts stable when switching to WeRead with server pagination', async () => {
+    const wereadBook: WeReadBook = {
+      bookId: 'weread_1',
+      title: '微信读书标题',
+      author: '微信作者',
+      reviewCount: 0,
+      noteCount: 0,
+      bookmarkCount: 0,
+      readingProgress: 0,
+      updatedAt: now,
+    };
+    const wereadState = {
+      settings: { configured: true, openMethod: 'deeplink' as const },
+      books: [wereadBook],
+    };
+    const listLibraryArticles = vi.fn().mockResolvedValue({
+      articles: [],
+      page: 1,
+      pageSize: 12,
+      query: '',
+      source: 'web',
+      sourceCounts: { web: 13, ebook: 2, pdf: 1 },
+      totalCount: 13,
+    });
+    vi.stubGlobal('yomitomoDesktop', {
+      getWeReadState: vi.fn().mockResolvedValue(wereadState),
+      listLibraryArticles,
+      syncWeRead: vi.fn().mockResolvedValue(wereadState),
+    });
+
+    renderLibrary([]);
+    const sourceTabs = within(await screen.findByRole('tablist', { name: '阅读库内容类型' }));
+
+    await waitFor(() => {
+      expect(sourceTabs.getByRole('tab', { name: /网页文章/ }).textContent).toContain('13');
+      expect(sourceTabs.getByRole('tab', { name: /电子书/ }).textContent).toContain('2');
+      expect(sourceTabs.getByRole('tab', { name: /PDF/ }).textContent).toContain('1');
+    });
+
+    fireEvent.click(sourceTabs.getByRole('tab', { name: /微信读书/ }));
+
+    expect(sourceTabs.getByRole('tab', { name: /网页文章/ }).textContent).toContain('13');
+    expect(sourceTabs.getByRole('tab', { name: /电子书/ }).textContent).toContain('2');
+    expect(sourceTabs.getByRole('tab', { name: /PDF/ }).textContent).toContain('1');
+  });
+
   it('enables server pagination before changing the page size', async () => {
     const listLibraryArticles = vi.fn(
       async ({ page }: { page: number }) =>
