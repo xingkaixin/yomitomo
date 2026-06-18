@@ -11,6 +11,7 @@ import {
   MoreHorizontal,
   Languages,
   LockKeyhole,
+  ShieldAlert,
   Volume2,
 } from 'lucide-react';
 import type {
@@ -26,6 +27,7 @@ import {
 import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
 import { useTranslation } from 'react-i18next';
 import { AutoSaveStatus } from './app-settings-save-status';
+import { SettingsConfirmDialog } from './app-settings-confirm-dialog';
 import { SettingsElasticSlider } from './app-settings-elastic-slider';
 import type { SaveState } from '../shell/app-types';
 import {
@@ -144,6 +146,7 @@ export function GeneralSettings({
   const [appLockDisablePin, setAppLockDisablePin] = useState('');
   const [appLockSaveState, setAppLockSaveState] = useState<SaveState>('idle');
   const [appLockError, setAppLockError] = useState('');
+  const [localNetworkConfirmOpen, setLocalNetworkConfirmOpen] = useState(false);
   const sourceMenuRef = useRef<HTMLDivElement | null>(null);
   const dragSessionRef = useRef<ContentSourceDragSession | null>(null);
   const committedSoundVolumePercentRef = useRef(savedSoundVolumePercent);
@@ -227,6 +230,31 @@ export function GeneralSettings({
   function toggleSoundEffects(checked: boolean) {
     const nextDraft = saveSoundSettings({ soundEffectsEnabled: checked });
     if (checked) playAppSoundEffect('settings.sound_preview', nextDraft);
+  }
+
+  function saveCollectionSettings(
+    patch: Partial<Pick<AppSettings, 'saveArticleImages' | 'allowLocalNetworkArticleImport'>>,
+  ) {
+    const nextDraft = {
+      ...settingsDraft,
+      ...patch,
+    };
+    onSettingsChange(nextDraft);
+    setSaveSection('collection');
+    onSave(nextDraft);
+  }
+
+  function toggleLocalNetworkArticleImport(checked: boolean) {
+    if (checked) {
+      setLocalNetworkConfirmOpen(true);
+      return;
+    }
+    saveCollectionSettings({ allowLocalNetworkArticleImport: false });
+  }
+
+  function confirmLocalNetworkArticleImport() {
+    setLocalNetworkConfirmOpen(false);
+    saveCollectionSettings({ allowLocalNetworkArticleImport: true });
   }
 
   async function submitAppLockSetup(completedValue?: string) {
@@ -770,12 +798,20 @@ export function GeneralSettings({
             id="general-save-images"
             checked={Boolean(settingsDraft.saveArticleImages)}
             label={t('settings.general.saveImagesTitle')}
-            onChange={(checked) => {
-              const nextDraft = { ...settingsDraft, saveArticleImages: checked };
-              onSettingsChange(nextDraft);
-              setSaveSection('collection');
-              onSave(nextDraft);
-            }}
+            onChange={(checked) => saveCollectionSettings({ saveArticleImages: checked })}
+          />
+        </SettingsRow>
+        <SettingsRow
+          align="start"
+          leading={<ShieldAlert size={20} />}
+          title={t('settings.general.localNetworkImportTitle')}
+          description={t('settings.general.localNetworkImportDescription')}
+        >
+          <SettingsToggle
+            id="general-local-network-import"
+            checked={Boolean(settingsDraft.allowLocalNetworkArticleImport)}
+            label={t('settings.general.localNetworkImportTitle')}
+            onChange={toggleLocalNetworkArticleImport}
           />
         </SettingsRow>
       </SettingsGroup>
@@ -906,6 +942,15 @@ export function GeneralSettings({
         onPinChange={(value) => setAppLockPin(digitsOnly(value))}
         onSetupComplete={(value) => void submitAppLockSetup(value)}
         onSetupSubmit={saveAppLockPin}
+      />
+      <SettingsConfirmDialog
+        cancelLabel={t('settings.confirm.cancel')}
+        confirmLabel={t('settings.general.localNetworkImportConfirm')}
+        description={t('settings.general.localNetworkImportConfirmDescription')}
+        open={localNetworkConfirmOpen}
+        title={t('settings.general.localNetworkImportConfirmTitle')}
+        onCancel={() => setLocalNetworkConfirmOpen(false)}
+        onConfirm={confirmLocalNetworkArticleImport}
       />
     </SettingsPage>
   );

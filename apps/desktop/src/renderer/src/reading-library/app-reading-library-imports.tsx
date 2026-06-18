@@ -111,6 +111,8 @@ function articleImportErrorKey(code: string) {
   if (code === 'ARTICLE_IMPORT_RESPONSE_TOO_LARGE')
     return 'library.import.article.responseTooLarge';
   if (code === 'ARTICLE_IMPORT_TIMEOUT') return 'library.import.article.timeout';
+  if (code === 'ARTICLE_IMPORT_BLOCKED_NETWORK_TARGET')
+    return 'library.import.article.blockedNetworkTarget';
   return '';
 }
 

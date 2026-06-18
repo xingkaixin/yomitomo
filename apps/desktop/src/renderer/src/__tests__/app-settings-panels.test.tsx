@@ -849,6 +849,50 @@ describe('GeneralSettings', () => {
     expect(onSettingsChange).toHaveBeenCalledWith({ saveArticleImages: true });
   });
 
+  it('requires confirmation before enabling local network article imports', () => {
+    const onSettingsChange = vi.fn();
+    const onSave = vi.fn();
+    render(
+      <GeneralSettings
+        settingsDraft={{ allowLocalNetworkArticleImport: false }}
+        canSave={false}
+        onSettingsChange={onSettingsChange}
+        onSave={onSave}
+        saveState="idle"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /允许导入本机和私有网络地址/ }));
+
+    expect(onSettingsChange).not.toHaveBeenCalled();
+    expect(screen.getByText('允许访问本机和私有网络？')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '确认开启' }));
+
+    expect(onSettingsChange).toHaveBeenCalledWith({ allowLocalNetworkArticleImport: true });
+    expect(onSave).toHaveBeenCalledWith({ allowLocalNetworkArticleImport: true });
+  });
+
+  it('disables local network article imports without confirmation', () => {
+    const onSettingsChange = vi.fn();
+    const onSave = vi.fn();
+    render(
+      <GeneralSettings
+        settingsDraft={{ allowLocalNetworkArticleImport: true }}
+        canSave={false}
+        onSettingsChange={onSettingsChange}
+        onSave={onSave}
+        saveState="idle"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /允许导入本机和私有网络地址/ }));
+
+    expect(screen.queryByText('允许访问本机和私有网络？')).toBeNull();
+    expect(onSettingsChange).toHaveBeenCalledWith({ allowLocalNetworkArticleImport: false });
+    expect(onSave).toHaveBeenCalledWith({ allowLocalNetworkArticleImport: false });
+  });
+
   it('saves the selected interface language', () => {
     const onSettingsChange = vi.fn();
     const onSave = vi.fn();

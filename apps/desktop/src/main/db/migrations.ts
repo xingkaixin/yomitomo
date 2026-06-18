@@ -789,6 +789,12 @@ ALTER TABLE app_settings ADD COLUMN app_lock_lock_on_startup INTEGER NOT NULL DE
 ALTER TABLE app_settings ADD COLUMN app_lock_shortcut TEXT;
 `,
   },
+  {
+    id: '0053_local_network_article_import_setting',
+    sql: `
+ALTER TABLE app_settings ADD COLUMN allow_local_network_article_import INTEGER NOT NULL DEFAULT 0;
+`,
+  },
 ];
 
 type MigrationDatabase = {
@@ -830,6 +836,10 @@ export function ensureAdditiveSchemaColumns(database: MigrationDatabase) {
     {
       name: 'app_lock_shortcut',
       sql: 'ALTER TABLE app_settings ADD COLUMN app_lock_shortcut TEXT',
+    },
+    {
+      name: 'allow_local_network_article_import',
+      sql: 'ALTER TABLE app_settings ADD COLUMN allow_local_network_article_import INTEGER NOT NULL DEFAULT 0',
     },
   ]) {
     if (tableHasColumn(database, 'app_settings', column.name)) continue;

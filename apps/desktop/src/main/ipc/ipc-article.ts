@@ -79,9 +79,11 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     const { articleRecordFromUrl, isArticleImportCanceledError, isArticleImportChallengeRecord } =
       await import('../articles/article-import');
     const importInput = articleImportUrlInput(input);
+    const importSettings = readImportSettings();
     const record = await canceledArticleSourceImport(
       articleRecordFromUrl(importInput.url, {
-        inlineImages: readImportSettings().saveArticleImages,
+        allowLocalNetworkArticleImport: importSettings.allowLocalNetworkArticleImport,
+        inlineImages: importSettings.saveArticleImages,
         requestId: importInput.requestId,
       }),
       isArticleImportCanceledError,

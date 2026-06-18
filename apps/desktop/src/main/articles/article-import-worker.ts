@@ -6,15 +6,27 @@ import {
   extractArticleFromDocument,
 } from '@yomitomo/core/article-extraction';
 import { inlineArticleFavicon, inlineArticleImages } from '@yomitomo/core/article-images';
+import {
+  assertAllowedArticleImportUrl,
+  isArticleImportRedirectStatus,
+  type ArticleImportNetworkPolicyOptions,
+} from './article-import-network-policy';
 
 const ARTICLE_IMAGE_TIMEOUT_MS = 10_000;
 const MAX_ARTICLE_IMAGE_BYTES = 2_000_000;
+const MAX_ARTICLE_IMAGE_REDIRECTS = 5;
 
 type ArticleImportWorkerData = {
+  allowLocalNetworkArticleImport?: boolean;
   html: string;
   inlineImages: boolean;
   url: string;
   userAgent?: string;
+};
+
+type ArticleImageResponse = {
+  response: Response;
+  url: string;
 };
 
 type ArticleImportWorkerPort = {
@@ -43,7 +55,9 @@ async function extractArticleRecord(input: unknown) {
   try {
     let article = await extractArticleFromDocument(dom.window.document, data.url);
     const fetcher = (imageUrl: string) =>
-      fetchArticleImageDataUrl(imageUrl, article.url, data.userAgent);
+      fetchArticleImageDataUrl(imageUrl, article.url, data.userAgent, {
+        allowLocalNetworkArticleImport: data.allowLocalNetworkArticleImport,
+      });
     if (data.inlineImages) {
       article = await inlineArticleImages(article, {
         articleDocument: dom.window.document,
@@ -66,6 +80,7 @@ function articleImportWorkerData(input: unknown): ArticleImportWorkerData {
   const userAgent = stringField(input.userAgent) || undefined;
   if (!html || !url) throw new Error('ARTICLE_IMPORT_INVALID_TASK');
   return {
+    allowLocalNetworkArticleImport: input.allowLocalNetworkArticleImport === true,
     html,
     inlineImages: input.inlineImages === true,
     url,
@@ -77,16 +92,19 @@ async function fetchArticleImageDataUrl(
   url: string,
   articleUrl: string,
   userAgent: string | undefined,
+  options: ArticleImportNetworkPolicyOptions = {},
 ) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), ARTICLE_IMAGE_TIMEOUT_MS);
 
   try {
-    const response = await fetch(url, {
-      headers: imageHeaders(articleUrl, userAgent),
-      redirect: 'follow',
-      signal: controller.signal,
-    });
+    const { response } = await fetchArticleImageResponse(
+      url,
+      articleUrl,
+      userAgent,
+      controller.signal,
+      options,
+    );
     if (!response.ok) return null;
 
     const contentType = imageContentType(response.headers.get('content-type'));
@@ -104,6 +122,36 @@ async function fetchArticleImageDataUrl(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function fetchArticleImageResponse(
+  initialUrl: string,
+  articleUrl: string,
+  userAgent: string | undefined,
+  signal: AbortSignal,
+  options: ArticleImportNetworkPolicyOptions,
+): Promise<ArticleImageResponse> {
+  let url = initialUrl;
+
+  for (let redirectCount = 0; redirectCount <= MAX_ARTICLE_IMAGE_REDIRECTS; redirectCount += 1) {
+    await assertAllowedArticleImportUrl(url, options);
+    const response = await fetch(url, {
+      headers: imageHeaders(articleUrl, userAgent),
+      redirect: 'manual',
+      signal,
+    });
+
+    if (!isArticleImportRedirectStatus(response.status)) return { response, url };
+    if (redirectCount === MAX_ARTICLE_IMAGE_REDIRECTS)
+      throw new Error('ARTICLE_IMAGE_TOO_MANY_REDIRECTS');
+
+    const location = response.headers.get('location');
+    if (!location) throw new Error('ARTICLE_IMAGE_INVALID_REDIRECT');
+    await response.body?.cancel().catch(() => undefined);
+    url = new URL(location, url).href;
+  }
+
+  throw new Error('ARTICLE_IMAGE_TOO_MANY_REDIRECTS');
 }
 
 function imageHeaders(articleUrl: string, userAgent: string | undefined): HeadersInit {

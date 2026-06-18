@@ -83,6 +83,12 @@ export function mergeSettingsForUpsert(settings: AppSettings, existing?: AppSett
     saveArticleImages: settingsFieldProvided(settings, 'saveArticleImages')
       ? Boolean(settings.saveArticleImages)
       : Boolean(existing?.saveArticleImages),
+    allowLocalNetworkArticleImport: settingsFieldProvided(
+      settings,
+      'allowLocalNetworkArticleImport',
+    )
+      ? Boolean(settings.allowLocalNetworkArticleImport)
+      : Boolean(existing?.allowLocalNetworkArticleImport),
     developerModeEnabled: settingsFieldProvided(settings, 'developerModeEnabled')
       ? Boolean(settings.developerModeEnabled)
       : Boolean(existing?.developerModeEnabled),
@@ -129,6 +135,7 @@ export function rowToSettings(
     messageSendShortcut: normalizeMessageSendShortcut(row?.messageSendShortcut),
     selectionActionShortcuts: normalizeSelectionActionShortcuts(row?.selectionActionShortcuts),
     saveArticleImages: Boolean(row?.saveArticleImages),
+    allowLocalNetworkArticleImport: Boolean(row?.allowLocalNetworkArticleImport),
     developerModeEnabled: Boolean(row?.developerModeEnabled),
     logRetentionDays: normalizeLogRetentionDays(row?.logRetentionDays),
     onboardingCompletedAt: row?.onboardingCompletedAt || undefined,
@@ -161,6 +168,7 @@ export function normalizeSettings(settings: AppSettings | undefined): AppSetting
     messageSendShortcut: normalizeMessageSendShortcut(settings?.messageSendShortcut),
     selectionActionShortcuts: normalizeSelectionActionShortcuts(settings?.selectionActionShortcuts),
     saveArticleImages: Boolean(settings?.saveArticleImages),
+    allowLocalNetworkArticleImport: Boolean(settings?.allowLocalNetworkArticleImport),
     developerModeEnabled: Boolean(settings?.developerModeEnabled),
     logRetentionDays: normalizeLogRetentionDays(settings?.logRetentionDays),
     onboardingCompletedAt: settings?.onboardingCompletedAt || undefined,

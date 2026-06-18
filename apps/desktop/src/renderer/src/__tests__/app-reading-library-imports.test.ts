@@ -27,6 +27,12 @@ describe('article import errors', () => {
         keyT,
       ),
     ).toBe('library.import.article.timeout');
+    expect(
+      readingLibraryImportTestApi.articleImportErrorMessage(
+        new Error('ARTICLE_IMPORT_BLOCKED_NETWORK_TARGET'),
+        keyT,
+      ),
+    ).toBe('library.import.article.blockedNetworkTarget');
   });
 
   it('falls back to the generic article import error for unknown errors', () => {

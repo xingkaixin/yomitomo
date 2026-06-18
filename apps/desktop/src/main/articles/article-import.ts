@@ -10,22 +10,33 @@ import {
 } from 'electron';
 import type { ArticleRecord } from '@yomitomo/shared';
 import { Effect } from 'effect';
+import {
+  assertAllowedArticleImportUrl,
+  isArticleImportRedirectStatus,
+  type ArticleImportNetworkPolicyOptions,
+} from './article-import-network-policy';
 
 const IMPORT_TIMEOUT_MS = 15_000;
 export const MAX_ARTICLE_IMPORT_HTML_BYTES = 5_000_000;
 const RENDERED_IMPORT_TIMEOUT_MS = 20_000;
 const RENDERED_IMPORT_SETTLE_MS = 1_500;
+const MAX_ARTICLE_IMPORT_REDIRECTS = 5;
 const WECHAT_MOBILE_USER_AGENT =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1 MicroMessenger/8.0.49';
 const ARTICLE_IMPORT_CANCELED_MESSAGE = 'ARTICLE_IMPORT_CANCELED';
 
-type ArticleImportOptions = {
+type ArticleImportOptions = ArticleImportNetworkPolicyOptions & {
   inlineImages?: boolean;
   requestId?: string;
 };
 
 type ArticleHtml = {
   html: string;
+  url: string;
+};
+
+type ArticleFetchResponse = {
+  response: Response;
   url: string;
 };
 
@@ -56,9 +67,10 @@ function articleRecordFromUrlEffect(input: string, options: ArticleImportOptions
       catch: (error) => error,
     });
     yield* throwIfArticleImportCanceledEffect(controller.signal);
-    const page = yield* fetchArticleHtmlEffect(url, controller.signal);
+    const page = yield* fetchArticleHtmlEffect(url, controller.signal, options);
     yield* throwIfArticleImportCanceledEffect(controller.signal);
     return yield* extractArticleRecordInWorkerEffect({
+      allowLocalNetworkArticleImport: options.allowLocalNetworkArticleImport,
       html: page.html,
       inlineImages: options.inlineImages === true,
       signal: controller.signal,
@@ -104,24 +116,19 @@ function normalizeImportUrl(input: string) {
   return url.href;
 }
 
-function fetchArticleHtmlEffect(url: string, signal: AbortSignal) {
-  const userAgent = importUserAgent(url);
-
+function fetchArticleHtmlEffect(url: string, signal: AbortSignal, options: ArticleImportOptions) {
   return withTimeoutSignalEffect(IMPORT_TIMEOUT_MS, signal, (fetchSignal) =>
     Effect.gen(function* () {
-      const response = yield* Effect.tryPromise({
-        try: () =>
-          fetch(url, {
-            headers: importHeaders(userAgent),
-            redirect: 'follow',
-            signal: fetchSignal,
-          }),
+      const page = yield* Effect.tryPromise({
+        try: () => fetchArticleResponse(url, fetchSignal, options),
         catch: (error) => articleFetchError(error, signal),
       });
+      const response = page.response;
+      const userAgent = importUserAgent(page.url);
 
       if (!response.ok) {
         if (shouldLoadWithBrowser(response)) {
-          return yield* loadRenderedArticleHtmlEffect(url, userAgent, signal);
+          return yield* loadRenderedArticleHtmlEffect(page.url, userAgent, signal, options);
         }
         return yield* Effect.fail(new Error('ARTICLE_IMPORT_REQUEST_FAILED'));
       }
@@ -131,11 +138,48 @@ function fetchArticleHtmlEffect(url: string, signal: AbortSignal) {
         catch: (error) => articleFetchError(error, signal),
       });
       if (isChallengeHtml(html)) {
-        return yield* loadRenderedArticleHtmlEffect(response.url || url, userAgent, signal);
+        return yield* loadRenderedArticleHtmlEffect(page.url, userAgent, signal, options);
       }
-      return { html, url: response.url || url };
+      return { html, url: page.url };
     }),
   );
+}
+
+async function fetchArticleResponse(
+  initialUrl: string,
+  signal: AbortSignal,
+  options: ArticleImportOptions,
+): Promise<ArticleFetchResponse> {
+  let url = initialUrl;
+
+  for (let redirectCount = 0; redirectCount <= MAX_ARTICLE_IMPORT_REDIRECTS; redirectCount += 1) {
+    await assertAllowedArticleImportUrl(url, options);
+    const response = await fetch(url, {
+      headers: importHeaders(importUserAgent(url)),
+      redirect: 'manual',
+      signal,
+    });
+
+    if (!isArticleImportRedirect(response)) return { response, url };
+    if (redirectCount === MAX_ARTICLE_IMPORT_REDIRECTS) {
+      throw new Error('ARTICLE_IMPORT_REQUEST_FAILED');
+    }
+
+    const location = response.headers.get('location');
+    if (!location) throw new Error('ARTICLE_IMPORT_REQUEST_FAILED');
+    await response.body?.cancel().catch(() => undefined);
+    try {
+      url = new URL(location, url).href;
+    } catch {
+      throw new Error('ARTICLE_IMPORT_REQUEST_FAILED');
+    }
+  }
+
+  throw new Error('ARTICLE_IMPORT_REQUEST_FAILED');
+}
+
+function isArticleImportRedirect(response: Response) {
+  return isArticleImportRedirectStatus(response.status);
 }
 
 function articleFetchError(error: unknown, signal: AbortSignal) {
@@ -175,9 +219,10 @@ function loadRenderedArticleHtmlEffect(
   url: string,
   userAgent: string | undefined,
   signal: AbortSignal,
+  options: ArticleImportOptions,
 ) {
   return Effect.tryPromise({
-    try: () => loadRenderedArticleHtml(url, userAgent, signal),
+    try: () => loadRenderedArticleHtml(url, userAgent, signal, options),
     catch: (error) => error,
   });
 }
@@ -186,7 +231,9 @@ async function loadRenderedArticleHtml(
   url: string,
   userAgent: string | undefined,
   signal: AbortSignal,
+  options: ArticleImportOptions,
 ): Promise<ArticleHtml> {
+  await assertAllowedArticleImportUrl(url, options);
   const importId = createArticleImportId();
   const webPreferences = createArticleImportWebPreferences(importId);
   const browserWindow = new BrowserWindow({
@@ -195,6 +242,8 @@ async function loadRenderedArticleHtml(
     height: 900,
     webPreferences,
   });
+  const importSession = browserWindow.webContents.session;
+  const clearRequestPolicy = installArticleImportRequestPolicy(importSession, options);
   logArticleImportSession(url, importId, webPreferences.partition);
 
   const deadline = Date.now() + RENDERED_IMPORT_TIMEOUT_MS;
@@ -214,17 +263,33 @@ async function loadRenderedArticleHtml(
       throw new Error('ARTICLE_IMPORT_RENDER_EMPTY');
     }
     assertArticleImportHtmlByteLimit(page.html);
+    const renderedUrl = typeof page.url === 'string' && page.url ? page.url : url;
+    await assertAllowedArticleImportUrl(renderedUrl, options);
     return {
       html: page.html,
-      url: typeof page.url === 'string' && page.url ? page.url : url,
+      url: renderedUrl,
     };
   } finally {
     signal.removeEventListener('abort', abort);
     clearTimeout(timeout);
-    const importSession = browserWindow.webContents.session;
+    clearRequestPolicy();
     if (!browserWindow.isDestroyed()) browserWindow.destroy();
     await clearArticleImportSession(importSession, importId);
   }
+}
+
+function installArticleImportRequestPolicy(importSession: Session, options: ArticleImportOptions) {
+  if (options.allowLocalNetworkArticleImport) return () => undefined;
+  importSession.webRequest.onBeforeRequest(
+    { urls: ['http://*/*', 'https://*/*'] },
+    (details, callback) => {
+      void assertAllowedArticleImportUrl(details.url, options).then(
+        () => callback({}),
+        () => callback({ cancel: true }),
+      );
+    },
+  );
+  return () => importSession.webRequest.onBeforeRequest(null);
 }
 
 function createArticleImportId() {
@@ -457,6 +522,7 @@ function concatUint8Arrays(chunks: Uint8Array[], byteLength: number) {
 }
 
 function extractArticleRecordInWorkerEffect({
+  allowLocalNetworkArticleImport,
   html,
   inlineImages,
   signal,
@@ -464,6 +530,7 @@ function extractArticleRecordInWorkerEffect({
   userAgent,
 }: {
   html: string;
+  allowLocalNetworkArticleImport?: boolean;
   inlineImages: boolean;
   signal: AbortSignal;
   url: string;
@@ -479,6 +546,7 @@ function extractArticleRecordInWorkerEffect({
     try {
       worker = new Worker(articleImportWorkerUrl(), {
         workerData: {
+          allowLocalNetworkArticleImport,
           html,
           inlineImages,
           url,

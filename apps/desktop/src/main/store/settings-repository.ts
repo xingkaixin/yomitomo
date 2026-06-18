@@ -20,9 +20,12 @@ import {
 
 export function readImportSettings(
   database: StoreExecutor,
-): Pick<AppSettings, 'saveArticleImages'> {
+): Pick<AppSettings, 'saveArticleImages' | 'allowLocalNetworkArticleImport'> {
   const settings = database.select().from(schema.appSettings).limit(1).get();
-  return { saveArticleImages: Boolean(settings?.saveArticleImages) };
+  return {
+    saveArticleImages: Boolean(settings?.saveArticleImages),
+    allowLocalNetworkArticleImport: Boolean(settings?.allowLocalNetworkArticleImport),
+  };
 }
 
 export function saveUserProfile(database: StoreExecutor, input: Partial<UserProfile>) {
@@ -78,6 +81,7 @@ export function upsertSettings(database: StoreExecutor, settings: AppSettings) {
     messageSendShortcut: normalizeMessageSendShortcut(merged.messageSendShortcut),
     selectionActionShortcuts: normalizeSelectionActionShortcuts(merged.selectionActionShortcuts),
     saveArticleImages: Boolean(merged.saveArticleImages),
+    allowLocalNetworkArticleImport: Boolean(merged.allowLocalNetworkArticleImport),
     developerModeEnabled: Boolean(merged.developerModeEnabled),
     logRetentionDays: merged.logRetentionDays || null,
     onboardingCompletedAt: merged.onboardingCompletedAt || null,
