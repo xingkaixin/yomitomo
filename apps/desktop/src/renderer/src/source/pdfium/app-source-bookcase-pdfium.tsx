@@ -52,6 +52,7 @@ import {
   type ReaderPageTurnDirection,
 } from '../../shell/use-reader-page-turn-keys';
 import { useSourceReaderSession } from '../bookcase/use-source-reader-session';
+import { formatPdfHeaderAuthors } from '../../shell/app-article-book';
 import {
   pdfiumAnnotationBoxes,
   pdfiumAnnotationIsVisible,
@@ -1107,6 +1108,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     onOpenAnnotationDiscussion,
     onRevealReaderChatContext: revealReaderChatContext,
   });
+  const pdfHeaderByline = formatPdfHeaderAuthors(article.pdf.metadata.author || '');
   const readerAppViewProps = buildSourceReaderAppViewProps({
     actions: readerActions,
     agentPlayback: {
@@ -1245,7 +1247,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       ),
       headerMeta: {
         title: article.pdf.metadata.title || article.title,
-        byline: article.pdf.metadata.author,
+        byline: pdfHeaderByline,
       },
       readingProgress: pageProgress(currentPage - 1, pageCount),
       search: {

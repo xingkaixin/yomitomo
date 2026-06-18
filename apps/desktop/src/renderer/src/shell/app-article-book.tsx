@@ -386,6 +386,15 @@ export function formatPdfAuthors(value: string, options: FormatPdfAuthorsOptions
   return pdfAuthorsLabel(authors, 1);
 }
 
+const PDF_HEADER_AUTHOR_FORMAT: FormatPdfAuthorsOptions = {
+  maxAuthors: 4,
+  maxLength: 72,
+};
+
+export function formatPdfHeaderAuthors(value: string) {
+  return formatPdfAuthors(value, PDF_HEADER_AUTHOR_FORMAT);
+}
+
 function splitPdfAuthors(value: string) {
   return normalizeLabel(value)
     .split(/\s*(?:;|；|\band\b|&)\s*/i)
