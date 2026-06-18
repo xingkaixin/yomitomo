@@ -28,10 +28,7 @@ type ProviderApiKeyStorageRow = {
 };
 
 export async function hydrateProviderApiKey(provider: LlmProvider): Promise<LlmProvider> {
-  const apiKey =
-    provider.apiKey?.trim() ||
-    (await readProviderApiKey(provider.id)) ||
-    readLegacyProviderApiKey(provider.id);
+  const apiKey = provider.apiKey?.trim() || (await readProviderApiKey(provider.id));
   if (!apiKey) throw new Error('PROVIDER_API_KEY_REQUIRED');
   return { ...provider, apiKey };
 }
@@ -40,15 +37,12 @@ export async function hydrateProviderInputApiKey(
   provider: Partial<LlmProvider>,
 ): Promise<Partial<LlmProvider>> {
   const apiKey =
-    provider.apiKey?.trim() ||
-    (provider.id
-      ? (await readProviderApiKey(provider.id)) || readLegacyProviderApiKey(provider.id)
-      : '');
+    provider.apiKey?.trim() || (provider.id ? await readProviderApiKey(provider.id) : '');
   return { ...provider, apiKey };
 }
 
 export async function readStoredProviderApiKey(providerId: string) {
-  return (await readProviderApiKey(providerId)) || readLegacyProviderApiKey(providerId);
+  return readProviderApiKey(providerId);
 }
 
 export async function resolveProviderApiKeyStorage(
@@ -57,7 +51,6 @@ export async function resolveProviderApiKeyStorage(
   existingRow: ProviderApiKeyStorageRow | undefined,
 ): Promise<ProviderApiKeyStorage> {
   const existingApiKeyRef = existingRow?.apiKeyRef || undefined;
-  const legacyApiKey = existingRow?.apiKey.trim() || '';
   const inputApiKey = input.apiKey?.trim();
 
   if (inputApiKey) {
@@ -80,7 +73,7 @@ export async function resolveProviderApiKeyStorage(
     return { apiKeyRef: existingApiKeyRef, storedApiKey: '' };
   }
 
-  return { storedApiKey: legacyApiKey };
+  return { storedApiKey: '' };
 }
 
 export function buildProviderRecord(
@@ -191,17 +184,6 @@ export function upsertProvider(
       },
     })
     .run();
-}
-
-function readLegacyProviderApiKey(providerId: string) {
-  return (
-    getDatabase()
-      .select({ apiKey: schema.providers.apiKey })
-      .from(schema.providers)
-      .where(eq(schema.providers.id, providerId))
-      .get()
-      ?.apiKey.trim() || ''
-  );
 }
 
 async function removeProviderApiKey(providerId: string, apiKeyRef?: string) {

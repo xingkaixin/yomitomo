@@ -107,26 +107,30 @@ async function migrateProviderApiKeys(database: StoreDatabase) {
   if (providerSecretsMigrated) return;
 
   const providerRows = database.select().from(schema.providers).all();
-  let migrated = false;
+  let legacySecretCleared = false;
   for (const provider of providerRows) {
     const apiKey = provider.apiKey.trim();
     if (!apiKey) continue;
 
-    let apiKeyRef: string;
     try {
-      apiKeyRef = await saveProviderApiKey(provider.id, apiKey);
-    } catch {
-      continue;
+      const apiKeyRef = await saveProviderApiKey(provider.id, apiKey);
+      database
+        .update(schema.providers)
+        .set({ apiKey: '', apiKeyRef })
+        .where(eq(schema.providers.id, provider.id))
+        .run();
+    } catch (error) {
+      database
+        .update(schema.providers)
+        .set({ apiKey: '', apiKeyRef: null })
+        .where(eq(schema.providers.id, provider.id))
+        .run();
+      logError('provider.migrate_api_key_failed', error, { providerId: provider.id });
     }
-    database
-      .update(schema.providers)
-      .set({ apiKey: '', apiKeyRef })
-      .where(eq(schema.providers.id, provider.id))
-      .run();
-    migrated = true;
+    legacySecretCleared = true;
   }
 
-  if (migrated) {
+  if (legacySecretCleared) {
     try {
       purgeLegacyProviderApiKeysFromSqliteFiles();
     } catch {

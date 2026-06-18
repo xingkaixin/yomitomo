@@ -77,7 +77,7 @@ describe('store normalizers provider and agent fields', () => {
       presetId: undefined,
       logo: undefined,
       apiKey: '',
-      hasApiKey: true,
+      hasApiKey: false,
       modelNames: ['gpt-5', 'gpt-4'],
       modelInputMode: 'list',
       reasoningEffort: 'none',
