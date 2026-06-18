@@ -2,10 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
 import type { Annotation, ArticleRecord, ReadingMemoryEntry } from '@yomitomo/shared';
 import { createTextAnchor } from '@yomitomo/shared';
-import {
-  assistantReadingToolDefinitions,
-  createAssistantReadingToolExecutor,
-} from './assistant-runtime-tools';
+import { createAssistantReadingTools } from './assistant-reading-tools';
 import { migrations } from '../db/migrations';
 import {
   appendReadingMemoryEntries,
@@ -13,8 +10,8 @@ import {
 } from '../reading-memory/reading-memory-store';
 
 describe('assistant runtime reading tools', () => {
-  it('returns current thread evidence with provenance', async () => {
-    const executor = createAssistantReadingToolExecutor({
+  it('creates runtime tools and executor through one module interface', async () => {
+    const readingTools = createAssistantReadingTools({
       article: articleRecord(),
       articleText: articleText(),
       agentId: 'agent_1',
@@ -22,7 +19,33 @@ describe('assistant runtime reading tools', () => {
       currentAnchor: anchor(),
     });
 
-    const result = await executor({
+    const result = await readingTools.toolExecutor({
+      name: 'get_current_thread',
+      input: {},
+    });
+
+    expect(readingTools.tools.map((tool) => tool.name)).toEqual([
+      'get_current_thread',
+      'get_anchor_context',
+      'search_article_passages',
+      'search_article_memory',
+      'search_own_memory',
+      'search_other_agents_memory',
+      'check_duplicate_thought',
+    ]);
+    expect(result.ok && result.evidence?.[0]?.summary).toBe('当前 thread：目标观点');
+  });
+
+  it('returns current thread evidence with provenance', async () => {
+    const { toolExecutor } = createAssistantReadingTools({
+      article: articleRecord(),
+      articleText: articleText(),
+      agentId: 'agent_1',
+      currentAnnotationId: 'annotation_1',
+      currentAnchor: anchor(),
+    });
+
+    const result = await toolExecutor({
       name: 'get_current_thread',
       input: {},
     });
@@ -48,7 +71,7 @@ describe('assistant runtime reading tools', () => {
   });
 
   it('focuses current thread evidence on the replied root thought', async () => {
-    const executor = createAssistantReadingToolExecutor({
+    const { toolExecutor } = createAssistantReadingTools({
       article: {
         id: 'article_1',
         title: '文章',
@@ -61,7 +84,7 @@ describe('assistant runtime reading tools', () => {
       currentAnchor: anchor(),
     });
 
-    const result = await executor({
+    const result = await toolExecutor({
       name: 'get_current_thread',
       input: {},
     });
@@ -96,18 +119,18 @@ describe('assistant runtime reading tools', () => {
       ],
       database,
     );
-    const executor = createAssistantReadingToolExecutor({
+    const { toolExecutor } = createAssistantReadingTools({
       article: articleRecord(),
       articleText: articleText(),
       agentId: 'agent_1',
       executor: database,
     });
 
-    const own = await executor({
+    const own = await toolExecutor({
       name: 'search_own_memory',
       input: { query: '选择压力' },
     });
-    const other = await executor({
+    const other = await toolExecutor({
       name: 'search_other_agents_memory',
       input: { query: '选择压力' },
     });
@@ -117,13 +140,13 @@ describe('assistant runtime reading tools', () => {
   });
 
   it('searches article passages without an ebook index', async () => {
-    const executor = createAssistantReadingToolExecutor({
+    const { toolExecutor } = createAssistantReadingTools({
       article: articleRecord(),
       articleText: articleText(),
       agentId: 'agent_1',
     });
 
-    const result = await executor({
+    const result = await toolExecutor({
       name: 'search_article_passages',
       input: { query: '选择压力' },
     });
@@ -139,12 +162,13 @@ describe('assistant runtime reading tools', () => {
   });
 
   it('declares validation for query based tools', () => {
-    const memoryTool = assistantReadingToolDefinitions.find(
-      (definition) => definition.name === 'search_article_memory',
-    );
-    const duplicateTool = assistantReadingToolDefinitions.find(
-      (definition) => definition.name === 'check_duplicate_thought',
-    );
+    const { tools } = createAssistantReadingTools({
+      article: articleRecord(),
+      articleText: articleText(),
+      agentId: 'agent_1',
+    });
+    const memoryTool = tools.find((definition) => definition.name === 'search_article_memory');
+    const duplicateTool = tools.find((definition) => definition.name === 'check_duplicate_thought');
 
     expect(memoryTool?.validateInput?.({ query: '' })).toBe('missing_query');
     expect(memoryTool?.validateInput?.({ query: '目标' })).toBeNull();
