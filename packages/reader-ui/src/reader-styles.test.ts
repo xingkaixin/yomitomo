@@ -1,12 +1,39 @@
 import { describe, expect, it } from 'vitest';
 import { readerBodyLineHeight } from './reader-settings';
 import {
+  composeReaderStyles,
   readerConversationStyles,
+  readerDesktopEmbeddedBundleStyles,
   readerDesktopEmbeddedStyles,
   readerStyles,
+  readerStyleBundles,
 } from './reader-styles';
 
 describe('reader embedded styles', () => {
+  it('keeps compatibility exports wired to explicit style bundles', () => {
+    expect(readerStyleBundles.base).toBe(readerStyles);
+    expect(readerStyleBundles.conversation).toBe(readerConversationStyles);
+    expect(readerStyleBundles.desktopEmbedded).toBe(readerDesktopEmbeddedStyles);
+  });
+
+  it('composes desktop embedded styles in base, conversation, embedded order', () => {
+    expect(readerDesktopEmbeddedBundleStyles).toBe(
+      composeReaderStyles(['base', 'conversation', 'desktopEmbedded']),
+    );
+
+    const baseIndex = readerDesktopEmbeddedBundleStyles.indexOf(':host{all:initial');
+    const conversationIndex = readerDesktopEmbeddedBundleStyles.indexOf(
+      '.reader-main{grid-template-columns:minmax(0,1fr)}',
+    );
+    const embeddedIndex = readerDesktopEmbeddedBundleStyles.indexOf(
+      '.source-reader-shell{grid-template-rows:minmax(0,1fr);padding:0}',
+    );
+
+    expect(baseIndex).toBeGreaterThanOrEqual(0);
+    expect(conversationIndex).toBeGreaterThan(baseIndex);
+    expect(embeddedIndex).toBeGreaterThan(conversationIndex);
+  });
+
   it('uses app-provided reader theme variables for core reader surfaces', () => {
     expect(combinedReaderStyles()).toContain('--reader-bg:var(--app-reader-bg)');
     expect(readerConversationStyles).toContain('--reader-z-popover:var(--app-z-popover,160)');
@@ -249,5 +276,5 @@ describe('reader embedded styles', () => {
 });
 
 function combinedReaderStyles() {
-  return readerStyles + readerConversationStyles + readerDesktopEmbeddedStyles;
+  return readerDesktopEmbeddedBundleStyles;
 }

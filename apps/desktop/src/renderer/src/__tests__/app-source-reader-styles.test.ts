@@ -1,11 +1,26 @@
 import { readRendererStyles } from './css-test-utils';
 import { describe, expect, it } from 'vitest';
+import { readerDesktopEmbeddedBundleStyles } from '@yomitomo/reader-ui/reader-styles';
 import { sourceEbookReaderStyles } from '../source/ebook/app-source-bookcase-ebook-utils';
 import { sourceReaderTocStyles } from '../source/web/app-source-bookcase-web-utils';
 
 const styles = readRendererStyles();
 
 describe('source reader annotation styles', () => {
+  it('composes Web, EPUB, and PDF source reader bundles from shared embedded styles', () => {
+    const webReaderStyles = `${readerDesktopEmbeddedBundleStyles}\n${sourceReaderTocStyles}`;
+    const ebookReaderStyles = `${readerDesktopEmbeddedBundleStyles}\n${sourceEbookReaderStyles}`;
+    const pdfReaderStyles = readerDesktopEmbeddedBundleStyles;
+
+    expectSharedEmbeddedReaderStyles(webReaderStyles);
+    expect(webReaderStyles).toContain('.source-reader-shell .reader-app.has-toc .reader-surface');
+
+    expectSharedEmbeddedReaderStyles(ebookReaderStyles);
+    expect(ebookReaderStyles).toContain('.source-ebook-reader-shell .ebook-reader-content');
+
+    expectSharedEmbeddedReaderStyles(pdfReaderStyles);
+  });
+
   it('keeps source reader specific styles on reader theme variables', () => {
     expect(sourceReaderTocStyles).toContain('background:var(--app-reader-toc-bg);');
     expect(sourceReaderTocStyles).toContain('color:var(--reader-muted);');
@@ -180,3 +195,11 @@ describe('source reader annotation styles', () => {
     );
   });
 });
+
+function expectSharedEmbeddedReaderStyles(bundleStyles: string) {
+  expect(bundleStyles).toContain(':host{all:initial');
+  expect(bundleStyles).toContain('.reader-main{grid-template-columns:minmax(0,1fr)}');
+  expect(bundleStyles).toContain(
+    '.source-reader-shell{grid-template-rows:minmax(0,1fr);padding:0}',
+  );
+}

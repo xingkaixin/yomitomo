@@ -37,11 +37,7 @@ import {
 } from '@yomitomo/reader-ui/reader-app-view';
 import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { ReaderSettingsToolbarControls } from '@yomitomo/reader-ui/reader-toolbar-controls';
-import {
-  readerConversationStyles,
-  readerDesktopEmbeddedStyles,
-  readerStyles,
-} from '@yomitomo/reader-ui/reader-styles';
+import { readerDesktopEmbeddedBundleStyles } from '@yomitomo/reader-ui/reader-styles';
 import {
   buildTocAnnotationStats,
   readerAnnotationScrollTop,
@@ -921,9 +917,7 @@ export function WebSourceBookcase({
   };
   return (
     <section className="source-bookcase source-reader-shell">
-      <style>
-        {`${readerStyles}\n${readerConversationStyles}\n${readerDesktopEmbeddedStyles}\n${sourceReaderTocStyles}`}
-      </style>
+      <style>{`${readerDesktopEmbeddedBundleStyles}\n${sourceReaderTocStyles}`}</style>
       <ReaderAppView
         actions={{
           annotation: {
