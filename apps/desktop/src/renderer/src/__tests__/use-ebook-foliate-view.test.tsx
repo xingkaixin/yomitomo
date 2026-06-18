@@ -4,6 +4,8 @@ import React from 'react';
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  ebookPaginationCacheKey,
+  ebookPaginationSectionOrder,
   ebookReadingProgressPageAnchor,
   ebookReadingProgressRestoreTarget,
   ebookReadingProgressSnapshot,
@@ -96,6 +98,27 @@ function FoliateViewProbe({
 }
 
 describe('useEbookFoliateView', () => {
+  it('prioritizes the current EPUB section when measuring page counts', () => {
+    expect(ebookPaginationSectionOrder(4, 2)).toEqual([2, 0, 1, 3]);
+    expect(ebookPaginationSectionOrder(3)).toEqual([0, 1, 2]);
+  });
+
+  it('separates EPUB pagination caches by book and layout inputs', () => {
+    const base = {
+      articleId: 'ebook-1',
+      contentWidth: 720,
+      fontSize: 18,
+      layoutKey: '800x600',
+    };
+
+    expect(ebookPaginationCacheKey(base)).not.toEqual(
+      ebookPaginationCacheKey({ ...base, fontSize: 20 }),
+    );
+    expect(ebookPaginationCacheKey(base)).not.toEqual(
+      ebookPaginationCacheKey({ ...base, articleId: 'ebook-2' }),
+    );
+  });
+
   it('stores the visible ebook page anchor separately from read-through progress', () => {
     expect(ebookReadingProgressPageAnchor({ sectionIndex: 2, pageIndex: 13, pageCount: 20 })).toBe(
       13 / 19,

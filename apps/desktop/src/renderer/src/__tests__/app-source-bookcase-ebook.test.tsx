@@ -28,10 +28,13 @@ const mocks = vi.hoisted(() => ({
         readerApp: {
           actions: { annotation: { onScrollToHighlight: (annotationId: string) => void } };
           article: { extracted: { title: string } };
+          toolbar: { controls: React.ReactNode };
         };
       }
     | undefined,
   view: null as unknown,
+  pageInfo: null as { sectionIndex: number; pageIndex: number; pageCount: number } | null,
+  sectionPageCounts: [] as Array<number | null>,
   foliateViewInput: undefined as
     | { onBeforePageTurn: (trace: EbookPageTurnTrace) => void }
     | undefined,
@@ -42,10 +45,16 @@ vi.mock('../source/ebook/app-source-ebook-reader-shell', () => ({
     readerApp: {
       actions: { annotation: { onScrollToHighlight: (annotationId: string) => void } };
       article: { extracted: { title: string } };
+      toolbar: { controls: React.ReactNode };
     };
   }) => {
     mocks.readerShellProps = props;
-    return <div data-testid="ebook-reader-shell">{props.readerApp.article.extracted.title}</div>;
+    return (
+      <div data-testid="ebook-reader-shell">
+        {props.readerApp.article.extracted.title}
+        {props.readerApp.toolbar.controls}
+      </div>
+    );
   },
 }));
 
@@ -64,8 +73,8 @@ vi.mock('../source/ebook/use-ebook-foliate-view', () => ({
       readerStateStatusRef: { current: 'ready' },
       tocItems: [],
       sectionFractions: [],
-      pageInfo: null,
-      sectionPageCounts: [],
+      pageInfo: mocks.pageInfo,
+      sectionPageCounts: mocks.sectionPageCounts,
       progress: 0,
       readerState: { status: 'ready', message: '' },
       goLeft: mocks.goLeft,
@@ -124,6 +133,8 @@ afterEach(() => {
   mocks.boxes = [];
   mocks.readerShellProps = undefined;
   mocks.view = null;
+  mocks.pageInfo = null;
+  mocks.sectionPageCounts = [];
   mocks.foliateViewInput = undefined;
 });
 
@@ -284,6 +295,23 @@ describe('EbookBookcase', () => {
 
     expect(mocks.resetEbookBoxState).toHaveBeenCalledTimes(1);
     expect(mocks.hideEbookBoxLayer).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps EPUB page controls enabled while full pagination is still pending', () => {
+    mocks.pageInfo = { sectionIndex: 1, pageIndex: 2, pageCount: 5 };
+    mocks.sectionPageCounts = [null, 5, null];
+
+    const { container } = renderEbookBookcase(ebookArticle(), []);
+
+    const previousButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="readerControls.previousPage"]',
+    );
+    const nextButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="readerControls.nextPage"]',
+    );
+    expect(previousButton?.disabled).toBe(false);
+    expect(nextButton?.disabled).toBe(false);
+    expect(container.textContent).toContain('3 / 5');
   });
 
   it('selects visible page annotations without re-navigating foliate', () => {

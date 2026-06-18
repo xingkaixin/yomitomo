@@ -41,6 +41,8 @@ type UseEbookFoliateViewInput = {
 
 type PageTurnDirection = 'left' | 'right';
 
+const ebookSectionPageCountsCache = new Map<string, Array<number | null>>();
+
 type EbookProgressRestoreTarget =
   | {
       kind: 'section-anchor';
@@ -51,6 +53,39 @@ type EbookProgressRestoreTarget =
       kind: 'fraction';
       fraction: number;
     };
+
+export function ebookPaginationCacheKey({
+  articleId,
+  contentWidth,
+  fontSize,
+  layoutKey,
+}: {
+  articleId: string;
+  contentWidth: number;
+  fontSize: number;
+  layoutKey: string;
+}) {
+  return `${articleId}:${layoutKey}:${fontSize}:${contentWidth}`;
+}
+
+export function ebookPaginationSectionOrder(sectionCount: number, currentSectionIndex?: number) {
+  const indexes: number[] = [];
+  const seen = new Set<number>();
+  const addIndex = (index: number) => {
+    if (index < 0 || index >= sectionCount || seen.has(index)) return;
+    seen.add(index);
+    indexes.push(index);
+  };
+
+  if (typeof currentSectionIndex === 'number' && Number.isInteger(currentSectionIndex)) {
+    addIndex(currentSectionIndex);
+  }
+  for (let index = 0; index < sectionCount; index += 1) {
+    addIndex(index);
+  }
+
+  return indexes;
+}
 
 export function ebookReadingProgressPageAnchor(pageInfo: FoliatePageInfo | null) {
   if (!pageInfo) return undefined;
@@ -387,18 +422,25 @@ export function useEbookFoliateView({
     const measureHostElement = measureHost;
     const sourceEbookFile = sourceFile;
     const visibleEbookView = visibleView;
+    const cacheKey = ebookPaginationCacheKey({
+      articleId: article.id,
+      contentWidth: readerSettings.contentWidth,
+      fontSize: readerSettings.fontSize,
+      layoutKey: paginationLayoutKey,
+    });
 
     let cancelled = false;
     let measureView: FoliateViewElement | null = null;
-    const counts: Array<number | null> = sections.map((section) =>
-      section.linear === 'no' ? 0 : null,
-    );
+    let counts: Array<number | null> =
+      ebookSectionPageCountsCache.get(cacheKey)?.length === sections.length
+        ? [...(ebookSectionPageCountsCache.get(cacheKey) ?? [])]
+        : sections.map((section) => (section.linear === 'no' ? 0 : null));
     const currentPageInfo = visibleEbookView.getPageInfo?.();
     pageInfoSectionIndexRef.current = currentPageInfo?.sectionIndex;
     setPageInfo(currentPageInfo ?? null);
-    setSectionPageCounts(
-      currentPageInfo ? updateKnownSectionPageCount(counts, currentPageInfo) : counts,
-    );
+    counts = currentPageInfo ? updateKnownSectionPageCount(counts, currentPageInfo) : counts;
+    ebookSectionPageCountsCache.set(cacheKey, [...counts]);
+    setSectionPageCounts([...counts]);
 
     const timer = window.setTimeout(() => {
       void measureEbookPages();
@@ -416,9 +458,15 @@ export function useEbookFoliateView({
         await measureView.open(sourceEbookFile);
         configureFoliateView(measureView, readerSettingsRef.current, readerThemeRef.current);
 
-        for (const [index, section] of sections.entries()) {
+        for (const index of ebookPaginationSectionOrder(
+          sections.length,
+          currentPageInfo?.sectionIndex,
+        )) {
           if (cancelled) return;
+          const section = sections[index];
+          if (!section) continue;
           if (section.linear === 'no') continue;
+          if (counts[index] !== null) continue;
 
           await waitForFoliateIdle();
           if (cancelled) return;
@@ -428,9 +476,10 @@ export function useEbookFoliateView({
           if (cancelled) return;
 
           counts[index] = Math.max(1, nextPageInfo?.pageCount ?? 1);
+          const nextCounts = [...counts];
+          ebookSectionPageCountsCache.set(cacheKey, nextCounts);
+          setSectionPageCounts(nextCounts);
         }
-
-        if (!cancelled) setSectionPageCounts(counts);
       } catch (error) {
         console.warn(error);
       } finally {
