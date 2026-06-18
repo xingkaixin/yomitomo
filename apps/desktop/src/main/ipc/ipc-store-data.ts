@@ -22,10 +22,15 @@ export function registerStoreDataIpc(context: DesktopMainIpcContext) {
         await context.getPersistenceModule();
       const importDurationMs = context.elapsedMs(importStartedAt);
       const readStartedAt = performance.now();
-      let { store, profile } = await storeSnapshotPersistence.readStoreWithProfile();
+      const readStoreWithProfile =
+        storeSnapshotPersistence.readShellStoreWithProfile ||
+        storeSnapshotPersistence.readStoreWithProfile;
+      let { store, profile } = await readStoreWithProfile();
       if (shouldApplyStartupAppLock(store.settings)) {
         const lockStartedAt = performance.now();
-        store = await settingsPersistence.saveSettings({ appLockLocked: true });
+        const saveSettings =
+          settingsPersistence.saveSettingsShell || settingsPersistence.saveSettings;
+        store = await saveSettings({ appLockLocked: true });
         startupAppLockApplied = true;
         context.recordStartupTiming('app_lock.startup_lock_applied', {
           durationMs: context.elapsedMs(lockStartedAt),

@@ -19,6 +19,7 @@ import {
 
 export const storeSnapshotPersistence = {
   readStore: store.readStore,
+  readShellStoreWithProfile: store.readShellStoreWithProfile,
   readStoreWithProfile: store.readStoreWithProfile,
   warmStoreDatabaseWithProfile: store.warmStoreDatabaseWithProfile,
 };
@@ -26,6 +27,7 @@ export const storeSnapshotPersistence = {
 export const settingsPersistence = {
   readStore: store.readStore,
   saveSettings: store.saveSettings,
+  saveSettingsShell: store.saveSettingsShell,
   saveUser: store.saveUser,
 };
 
@@ -36,8 +38,10 @@ export const articlePersistence = {
   deleteCurrentArticleTranslation: store.deleteCurrentArticleTranslation,
   ensureArticleSiteIcon: store.ensureArticleSiteIcon,
   findArticleByIdentity: store.findArticleByIdentity,
+  listLibraryArticles: store.listLibraryArticles,
   readArticle: store.readArticle,
   readArticleCover: store.readArticleCover,
+  readArticleStatsSummaries: store.readArticleStatsSummaries,
   readCurrentArticleTranslation: store.readCurrentArticleTranslation,
   readImportSettings: store.readImportSettings,
   saveArticle: store.saveArticle,

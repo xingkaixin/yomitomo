@@ -1,6 +1,7 @@
 import type {
   Annotation,
   ArticleRecord,
+  ArticleSummaryRecord,
   ArticleUpsertPatch,
   Comment,
   DesktopStore,
@@ -98,6 +99,27 @@ export type ArticleCommentUpsertInput = {
 export type ArticleReaderChatStateSaveInput = {
   articleId: string;
   readerChatState?: ReaderChatState;
+};
+
+export type ArticleLibrarySource = 'web' | 'ebook' | 'pdf';
+
+export type ArticleLibrarySourceCounts = Record<ArticleLibrarySource, number>;
+
+export type ArticleLibraryListInput = {
+  source: ArticleLibrarySource;
+  query?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export type ArticleLibraryListResult = {
+  articles: ArticleSummaryRecord[];
+  page: number;
+  pageSize: number;
+  query: string;
+  source: ArticleLibrarySource;
+  sourceCounts: ArticleLibrarySourceCounts;
+  totalCount: number;
 };
 
 export type WindowAnimationSourceRect = {

@@ -38,6 +38,11 @@ import type {
   EbookImportProgressCallback,
   PdfImportProgressCallback,
 } from '../shell/app-reading-types';
+import type {
+  ArticleLibraryListResult,
+  ArticleLibrarySource,
+  ArticleLibrarySourceCounts,
+} from '../../../ipc-contract';
 import {
   articleAnnotationCount,
   articleDistillationCount,
@@ -60,6 +65,7 @@ import { LibraryImportControls, type ArticleImportResult } from './app-reading-l
 import { ArticleDeleteMenuItem, useArticleDeleteConfirm } from './app-reading-library-delete';
 
 const LIBRARY_PAGE_SIZE_OPTIONS = [6, 12, 18, 24] as const;
+const emptyLocalSourceCounts: ArticleLibrarySourceCounts = { web: 0, ebook: 0, pdf: 0 };
 
 export function LibraryHome({
   activeSource,
@@ -118,6 +124,8 @@ export function LibraryHome({
     normalizeLibraryPageSize(settings.libraryPageSize),
   );
   const [searchQuery, setSearchQuery] = useState('');
+  const [serverResult, setServerResult] = useState<ArticleLibraryListResult | null>(null);
+  const [serverReloadKey, setServerReloadKey] = useState(0);
   const sourceTabRefs = useRef(new Map<LibrarySource, HTMLButtonElement>());
   const pendingSourceFocusRef = useRef<LibrarySource | null>(null);
   const sourceOptions = useMemo(() => libraryContentSourceOptions(settings), [settings]);
@@ -128,31 +136,78 @@ export function LibraryHome({
         .toSorted((left, right) => compareLibraryArticles(left, right, 'recentAdded')),
     [searchQuery, sortedArticles],
   );
-  const sourceArticles = useMemo(
-    () => filteredArticles.filter((article) => librarySourceForArticle(article) === activeSource),
-    [activeSource, filteredArticles],
-  );
   const filteredWeReadBooks = useMemo(
     () => wereadBooks.filter((book) => weReadBookMatchesSearch(book, searchQuery)),
     [searchQuery, wereadBooks],
   );
+  const serverListAvailable =
+    activeSource !== 'weread' && typeof window.yomitomoDesktop?.listLibraryArticles === 'function';
+  const serverCatalogResult =
+    serverListAvailable &&
+    serverResult?.source === activeSource &&
+    serverResult.pageSize === pageSize &&
+    serverResult.query === searchQuery.trim()
+      ? serverResult
+      : null;
+  const activeServerResult = serverCatalogResult?.page === page ? serverCatalogResult : null;
+  const fallbackSourceArticles = useMemo(
+    () => filteredArticles.filter((article) => librarySourceForArticle(article) === activeSource),
+    [activeSource, filteredArticles],
+  );
+  const sourceArticles = activeServerResult?.articles || fallbackSourceArticles;
   const activeItemsLength =
-    activeSource === 'weread' ? filteredWeReadBooks.length : sourceArticles.length;
+    activeSource === 'weread'
+      ? filteredWeReadBooks.length
+      : (serverCatalogResult?.totalCount ?? sourceArticles.length);
   const activeSourcePanelId = librarySourcePanelId(activeSource);
   const pageCount = Math.max(1, Math.ceil(activeItemsLength / pageSize));
-  const pageArticles = sourceArticles.slice((page - 1) * pageSize, page * pageSize);
+  const pageArticles = activeServerResult
+    ? activeServerResult.articles
+    : sourceArticles.slice((page - 1) * pageSize, page * pageSize);
   const pageWeReadBooks = filteredWeReadBooks.slice((page - 1) * pageSize, page * pageSize);
-  const counts = useMemo(
-    () =>
+  const counts = useMemo(() => {
+    const localCounts =
+      serverCatalogResult?.sourceCounts ||
       articles.reduce(
         (result, article) => {
-          result[librarySourceForArticle(article)] += 1;
+          const source = librarySourceForArticle(article) as ArticleLibrarySource;
+          result[source] += 1;
           return result;
         },
-        { web: 0, ebook: 0, pdf: 0, weread: wereadBooks.length },
-      ),
-    [articles, wereadBooks.length],
-  );
+        { ...emptyLocalSourceCounts },
+      );
+    return {
+      ...localCounts,
+      weread: wereadBooks.length,
+    };
+  }, [serverCatalogResult?.sourceCounts, articles, wereadBooks.length]);
+
+  useEffect(() => {
+    if (!serverListAvailable) {
+      setServerResult(null);
+      return;
+    }
+    const desktop = window.yomitomoDesktop;
+    if (typeof desktop?.listLibraryArticles !== 'function') return;
+    let cancelled = false;
+    void desktop
+      .listLibraryArticles({
+        source: activeSource as ArticleLibrarySource,
+        query: searchQuery,
+        page,
+        pageSize,
+      })
+      .then((result) => {
+        if (!cancelled) setServerResult(result);
+      })
+      .catch(() => {
+        if (!cancelled) setServerResult(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSource, page, pageSize, searchQuery, serverListAvailable, serverReloadKey]);
+
   const pageNumbers = useMemo(() => {
     const visibleCount = Math.min(5, pageCount);
     const start = Math.min(
@@ -185,16 +240,36 @@ export function LibraryHome({
 
   const activeSourceLabel = t(`library.sources.${activeSource}`);
   const footerCountLabel = t(`library.total.${activeSource}`, {
-    count: activeSource === 'weread' ? filteredWeReadBooks.length : sourceArticles.length,
+    count: activeItemsLength,
   });
   const emptyReason = emptyLibraryReason({
     activeSource,
-    itemsLength: activeSource === 'weread' ? wereadBooks.length : articles.length,
-    filteredLength:
-      activeSource === 'weread' ? filteredWeReadBooks.length : filteredArticles.length,
+    itemsLength: activeSource === 'weread' ? wereadBooks.length : counts[activeSource],
+    filteredLength: activeItemsLength,
     searchQuery,
     t,
   });
+
+  const reloadServerList = () => setServerReloadKey((key) => key + 1);
+  const deleteArticle = async (articleId: string) => {
+    await onDeleteArticle(articleId);
+    reloadServerList();
+  };
+  const importArticleUrl = async (url: string, requestId?: string) => {
+    const result = await onImportArticleUrl(url, requestId);
+    if (result.status !== 'canceled') reloadServerList();
+    return result;
+  };
+  const importEbookFile = async (file: File, onProgress?: EbookImportProgressCallback) => {
+    const result = await onImportEbookFile(file, onProgress);
+    if (result.status !== 'canceled') reloadServerList();
+    return result;
+  };
+  const importPdfFile = async (file: File, onProgress?: PdfImportProgressCallback) => {
+    const result = await onImportPdfFile(file, onProgress);
+    if (result.status !== 'canceled') reloadServerList();
+    return result;
+  };
 
   return (
     <section className={`library-home is-${activeSource}`} aria-label={activeSourceLabel}>
@@ -283,9 +358,9 @@ export function LibraryHome({
               <LibraryImportControls
                 defaultImportType={activeSource}
                 settings={settings}
-                onImportEbookFile={onImportEbookFile}
-                onImportPdfFile={onImportPdfFile}
-                onImportArticleUrl={onImportArticleUrl}
+                onImportEbookFile={importEbookFile}
+                onImportPdfFile={importPdfFile}
+                onImportArticleUrl={importArticleUrl}
                 onCancelArticleImport={onCancelArticleImport}
                 onOpenArticle={onOpenArticle}
               />
@@ -338,14 +413,14 @@ export function LibraryHome({
                   />
                 ))}
               </div>
-            ) : sourceArticles.length > 0 ? (
+            ) : pageArticles.length > 0 ? (
               activeSource === 'web' ? (
                 <div className="library-list library-web-grid">
                   {pageArticles.map((article) => (
                     <WebArticleListItem
                       article={article}
                       key={article.id}
-                      onDelete={() => void onDeleteArticle(article.id)}
+                      onDelete={() => void deleteArticle(article.id)}
                       onOpen={() => onOpenArticle(article)}
                     />
                   ))}
@@ -356,7 +431,7 @@ export function LibraryHome({
                     <LibraryDocumentListItem
                       article={article}
                       key={article.id}
-                      onDelete={() => void onDeleteArticle(article.id)}
+                      onDelete={() => void deleteArticle(article.id)}
                       onOpen={() => onOpenArticle(article)}
                     />
                   ))}

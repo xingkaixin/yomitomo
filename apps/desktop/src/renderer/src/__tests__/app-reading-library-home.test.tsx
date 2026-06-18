@@ -391,6 +391,71 @@ describe('ReadingLibrary home', () => {
     expect(screen.getByText('最近添加 · 降序')).toBeTruthy();
   });
 
+  it('loads the current local library page from the desktop pagination API', async () => {
+    const serverArticle = articleSummary(article({ id: 'server_1', title: '服务端分页文章' }));
+    const listLibraryArticles = vi.fn().mockResolvedValue({
+      articles: [serverArticle],
+      page: 1,
+      pageSize: 12,
+      query: '',
+      source: 'web',
+      sourceCounts: { web: 13, ebook: 2, pdf: 1 },
+      totalCount: 13,
+    });
+    vi.stubGlobal('yomitomoDesktop', { listLibraryArticles });
+
+    renderLibrary([]);
+
+    await waitFor(() =>
+      expect(listLibraryArticles).toHaveBeenCalledWith({
+        source: 'web',
+        query: '',
+        page: 1,
+        pageSize: 12,
+      }),
+    );
+    expect((await screen.findAllByText('服务端分页文章')).length).toBeGreaterThan(0);
+    expect(screen.getByText('共 13 篇')).toBeTruthy();
+  });
+
+  it('enables server pagination before changing the page size', async () => {
+    const listLibraryArticles = vi.fn(
+      async ({ page }: { page: number }) =>
+        ({
+          articles: [
+            articleSummary(
+              article({
+                id: `server_${page}`,
+                title: `服务端分页文章 ${page}`,
+              }),
+            ),
+          ],
+          page,
+          pageSize: 12,
+          query: '',
+          source: 'web',
+          sourceCounts: { web: 13, ebook: 0, pdf: 0 },
+          totalCount: 13,
+        }) as const,
+    );
+    vi.stubGlobal('yomitomoDesktop', { listLibraryArticles });
+
+    renderLibrary([]);
+
+    const nextPageButton = await screen.findByRole('button', { name: '下一页' });
+    fireEvent.click(nextPageButton);
+
+    await waitFor(() =>
+      expect(listLibraryArticles).toHaveBeenLastCalledWith({
+        source: 'web',
+        query: '',
+        page: 2,
+        pageSize: 12,
+      }),
+    );
+    expect((await screen.findAllByText('服务端分页文章 2')).length).toBeGreaterThan(0);
+  });
+
   it('plays the shared delete sound after confirming a reading item delete', async () => {
     const onDeleteArticle = vi.fn().mockResolvedValue(undefined);
     renderLibrary([article({ title: '待删除文章' })], {

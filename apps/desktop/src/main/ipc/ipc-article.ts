@@ -29,6 +29,14 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     const { articlePersistence } = await context.getPersistenceModule();
     return articlePersistence.ensureArticleSiteIcon(id);
   });
+  handleDesktopIpc('article:list-library', async (_event, input) => {
+    const { articlePersistence } = await context.getPersistenceModule();
+    return articlePersistence.listLibraryArticles(input);
+  });
+  handleDesktopIpc('article:stats-summaries', async () => {
+    const { articlePersistence } = await context.getPersistenceModule();
+    return articlePersistence.readArticleStatsSummaries();
+  });
   handleDesktopIpc('article:save', async (_event, input) => {
     const { articlePersistence } = await context.getPersistenceModule();
     return articlePersistence.saveArticle(input);

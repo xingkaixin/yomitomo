@@ -6,6 +6,7 @@ import type {
   AppSettings,
   ArticleRecord,
   ArticleReadingProgress,
+  ArticleSummaryRecord,
   ArticleTranslation,
   ArticleUpsertPatch,
   Comment,
@@ -23,7 +24,11 @@ import {
   listAssistantExecutionRuns,
   summarizeAssistantExecutions,
 } from '../assistant/assistant-execution-query-repository';
-import type { AssistantExecutionQueryInput } from '../../ipc-contract';
+import type {
+  ArticleLibraryListInput,
+  ArticleLibraryListResult,
+  AssistantExecutionQueryInput,
+} from '../../ipc-contract';
 import { refreshModelsDevPrices } from '../providers/model-pricing-repository';
 import {
   backfillStoredArticleAnnotationMemoryEntries,
@@ -32,6 +37,7 @@ import {
   deleteArticleRowsWithMemoryLifecycle,
   deleteCommentRowsWithMemoryLifecycle,
   findArticleByIdentityRows,
+  readArticleLibraryListRows,
   readArticleCoverRows,
   readArticleSiteIconRawRows,
   updateArticleSiteIconRows,
@@ -39,6 +45,7 @@ import {
   readArticleSummaryCounts,
   readArticleSummaryRows,
   readArticleSummaryRowsForStore,
+  readArticleStatsSummaryRows,
   saveArticleReaderChatStateRows,
   saveArticleReadingProgressRows,
   saveArticleRows,
@@ -159,6 +166,10 @@ export async function readStore(): Promise<DesktopStore> {
   return readStoreInternal();
 }
 
+export async function readShellStore(): Promise<DesktopStore> {
+  return readStoreInternal(undefined, { includeArticles: false });
+}
+
 export type AgentRuntimeStoreContext = Pick<DesktopStore, 'agents' | 'providers' | 'settings'>;
 
 export async function readAgentRuntimeContext(): Promise<AgentRuntimeStoreContext> {
@@ -175,19 +186,32 @@ export async function readStoreWithProfile(): Promise<{
   return { store: await readStoreInternal(profile), profile };
 }
 
+export async function readShellStoreWithProfile(): Promise<{
+  store: DesktopStore;
+  profile: StoreReadProfileEntry[];
+}> {
+  const profile: StoreReadProfileEntry[] = [];
+  return { store: await readStoreInternal(profile, { includeArticles: false }), profile };
+}
+
 export function warmStoreDatabaseWithProfile() {
   const profile: StoreReadProfileEntry[] = [];
   measureStoreRead(profile, 'get_database', getDatabase);
   return profile;
 }
 
-async function readStoreInternal(profile?: StoreReadProfileEntry[]): Promise<DesktopStore> {
+async function readStoreInternal(
+  profile?: StoreReadProfileEntry[],
+  options: { includeArticles?: boolean } = {},
+): Promise<DesktopStore> {
   const database = measureStoreRead(profile, 'get_database', getDatabase);
   await measureStoreReadAsync(profile, 'migrate_provider_api_keys', () =>
     migrateProviderApiKeys(database),
   );
   backfillAnnotationMemoryOnce(database, profile);
-  return measureStoreRead(profile, 'read_store_rows', () => readStoreRows(database, profile));
+  return measureStoreRead(profile, 'read_store_rows', () =>
+    readStoreRows(database, profile, { includeArticles: options.includeArticles !== false }),
+  );
 }
 
 export async function readArticle(id: string): Promise<ArticleRecord | null> {
@@ -202,6 +226,20 @@ export async function readArticleSummary(id: string) {
   const database = getDatabase();
   await migrateProviderApiKeys(database);
   return readArticleSummaryRows(database, id);
+}
+
+export async function listLibraryArticles(
+  input: ArticleLibraryListInput,
+): Promise<ArticleLibraryListResult> {
+  const database = getDatabase();
+  await migrateProviderApiKeys(database);
+  return readArticleLibraryListRows(database, input);
+}
+
+export async function readArticleStatsSummaries(): Promise<ArticleSummaryRecord[]> {
+  const database = getDatabase();
+  await migrateProviderApiKeys(database);
+  return readArticleStatsSummaryRows(database);
 }
 
 export async function readCurrentArticleTranslation(input: {
@@ -280,6 +318,11 @@ export async function saveUser(input: Partial<UserProfile>): Promise<DesktopStor
 export async function saveSettings(input: AppSettings): Promise<DesktopStore> {
   upsertSettings(getDatabase(), input);
   return readStore();
+}
+
+export async function saveSettingsShell(input: AppSettings): Promise<DesktopStore> {
+  upsertSettings(getDatabase(), input);
+  return readShellStore();
 }
 
 export function recordAssistantExecutionRun(input: AssistantExecutionRunInput) {
@@ -532,7 +575,11 @@ function backfillArticleAnnotationMemory(article: Pick<ArticleRecord, 'id' | 'an
   }
 }
 
-function readStoreRows(database: StoreDatabase, profile?: StoreReadProfileEntry[]): DesktopStore {
+function readStoreRows(
+  database: StoreDatabase,
+  profile?: StoreReadProfileEntry[],
+  options: { includeArticles: boolean } = { includeArticles: true },
+): DesktopStore {
   const user = measureStoreRead(profile, 'read_user', () =>
     database.select().from(schema.userProfiles).limit(1).get(),
   );
@@ -545,10 +592,14 @@ function readStoreRows(database: StoreDatabase, profile?: StoreReadProfileEntry[
   const agentRows = measureStoreRead(profile, 'ensure_preset_agents', () =>
     ensurePresetAgents(database, providerRows, settings),
   );
-  const articleRows = readArticleSummaryRowsForStore(database, profile);
-  const articleCounts = measureStoreRead(profile, 'read_article_summary_counts', () =>
-    readArticleSummaryCounts(database, profile),
-  );
+  const articleRows = options.includeArticles
+    ? readArticleSummaryRowsForStore(database, profile)
+    : [];
+  const articleCounts = options.includeArticles
+    ? measureStoreRead(profile, 'read_article_summary_counts', () =>
+        readArticleSummaryCounts(database, profile),
+      )
+    : new Map();
 
   return measureStoreRead(
     profile,

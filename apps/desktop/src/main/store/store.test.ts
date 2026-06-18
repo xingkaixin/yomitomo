@@ -4,6 +4,7 @@ import {
   createPdfTextAnchor,
   isPdfTextAnchor,
   type Annotation,
+  type ArticleRecord,
   type ArticleSummaryRecord,
   type Comment,
   type ReaderChatState,
@@ -67,6 +68,7 @@ import {
   buildArticleReadingProgressPatch,
   buildArticleUpsertPatch,
   findArticleInListByIdentity,
+  writeArticleRows,
 } from '../articles/article-repository';
 import { buildAgentRecord } from '../agents/agent-repository';
 import {
@@ -74,7 +76,7 @@ import {
   readStoredProviderApiKey,
   resolveProviderApiKeyStorage,
 } from '../providers/provider-repository';
-import { closeDatabase, readStore } from './store';
+import { closeDatabase, readShellStore, readStore } from './store';
 import {
   mergeSettingsForUpsert,
   rowToAnnotation,
@@ -639,6 +641,17 @@ describe('desktop store articles', () => {
     expect(Object.hasOwn(article, 'readerChatState')).toBe(false);
   });
 
+  it('keeps shell store reads free of article summaries', async () => {
+    const database = getDatabase();
+    writeArticleRows(database, articleRecord({ id: 'shell_article' }));
+
+    const fullStore = await readStore();
+    const shellStore = await readShellStore();
+
+    expect(fullStore.articles.map((article) => article.id)).toEqual(['shell_article']);
+    expect(shellStore.articles).toEqual([]);
+  });
+
   it('normalizes reader chat state patches', () => {
     const readerChatState: ReaderChatState = {
       articleId: 'store-summary-article',
@@ -1022,6 +1035,22 @@ function articleSummaryRecord(input: Partial<ArticleSummaryRecord>): ArticleSumm
     title: input.title || id,
     contentHash: input.contentHash || `hash-${id}`,
     annotations: input.annotations || [],
+    createdAt: input.createdAt || '2026-05-17T07:00:00.000Z',
+    updatedAt: input.updatedAt || '2026-05-17T08:00:00.000Z',
+  };
+}
+
+function articleRecord(input: Partial<ArticleRecord>): ArticleRecord {
+  const id = input.id || 'article';
+  return {
+    id,
+    url: input.url || `https://example.com/${id}`,
+    canonicalUrl: input.canonicalUrl || input.url || `https://example.com/${id}`,
+    sourceType: input.sourceType || 'web',
+    title: input.title || id,
+    contentHash: input.contentHash || `hash-${id}`,
+    annotations: input.annotations || [],
+    contentHtml: input.contentHtml || '<p>正文</p>',
     createdAt: input.createdAt || '2026-05-17T07:00:00.000Z',
     updatedAt: input.updatedAt || '2026-05-17T08:00:00.000Z',
   };
