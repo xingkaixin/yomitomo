@@ -46,6 +46,7 @@ import {
   SettingsRow,
   SettingsSegmented,
 } from './app-settings-kit';
+import type { SaveableDraft } from './use-saveable-draft';
 
 export { GeneralSettings } from './app-settings-general-panel';
 export { DataSourcesPanel, WeReadSettingsPanel } from './app-settings-weread-panel';
@@ -210,21 +211,20 @@ export function SettingsSectionShell({
   );
 }
 
-export function ShortcutSettings({
-  settingsDraft,
-  canSave,
-  onSettingsChange,
-  onSave,
-  saveError,
-  saveState,
-}: {
+type ShortcutSettingsLegacyProps = {
   settingsDraft: AppSettings;
   canSave: boolean;
   onSettingsChange: (draft: AppSettings) => void;
   onSave: (draft?: AppSettings) => void;
   saveError?: string;
   saveState: SaveState;
-}) {
+};
+
+type ShortcutSettingsProps = { draft: SaveableDraft<AppSettings> } | ShortcutSettingsLegacyProps;
+
+export function ShortcutSettings(props: ShortcutSettingsProps) {
+  const { settingsDraft, canSave, onSettingsChange, onSave, saveError, saveState } =
+    resolveShortcutSettingsProps(props);
   const { t } = useTranslation();
   const [recordingAction, setRecordingAction] = useState<SelectionShortcutAction | null>(null);
   const [saveSection, setSaveSection] = useState<ShortcutSaveSection | null>(null);
@@ -448,6 +448,22 @@ export function ShortcutSettings({
       </SettingsGroup>
     </SettingsPage>
   );
+}
+
+function resolveShortcutSettingsProps(props: ShortcutSettingsProps): ShortcutSettingsLegacyProps {
+  if ('draft' in props) {
+    return {
+      settingsDraft: props.draft.value,
+      canSave: props.draft.canSave,
+      onSettingsChange: props.draft.update,
+      onSave: (draft) => {
+        void props.draft.save(draft);
+      },
+      saveError: props.draft.saveError,
+      saveState: props.draft.saveState,
+    };
+  }
+  return props;
 }
 
 export function DataManagementSettings({

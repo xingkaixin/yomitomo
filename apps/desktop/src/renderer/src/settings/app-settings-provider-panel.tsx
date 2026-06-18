@@ -20,27 +20,18 @@ import {
 } from '../components/ui/select';
 import { useTranslation } from 'react-i18next';
 import { providerDisplayName } from '../i18n/app-i18n-labels';
+import type { SaveableDraft } from './use-saveable-draft';
 
-export function ProviderSettings({
-  draft,
-  settingsDraft,
-  providers,
-  testState,
-  canSave,
-  canSaveRoutes,
-  onChange,
-  onRouteChange,
-  onCreate,
-  onDelete,
-  onSave,
-  saveState,
-  saveError,
-  routeSaveState,
-  routeSaveError,
-  onRouteSave,
-  onSelect,
-  onTest,
-}: {
+type ProviderDraftController = SaveableDraft<ProviderDraft, boolean> & {
+  create: () => void;
+  deleteProvider: (id: string) => Promise<void> | void;
+  select: (provider: LlmProvider) => void;
+  selectedProviderId: string | null;
+  test: (draft: ProviderDraft) => Promise<void> | void;
+  testState: ProviderTestState;
+};
+
+type ProviderSettingsLegacyProps = {
   draft: ProviderDraft;
   settingsDraft: AppSettings;
   providers: LlmProvider[];
@@ -59,7 +50,37 @@ export function ProviderSettings({
   onRouteSave: (draft?: AppSettings) => void;
   onSelect: (provider: LlmProvider) => void;
   onTest: (draft: ProviderDraft) => Promise<void> | void;
-}) {
+};
+
+type ProviderSettingsProps =
+  | {
+      providerDraft: ProviderDraftController;
+      routesDraft: SaveableDraft<AppSettings>;
+      providers: LlmProvider[];
+    }
+  | ProviderSettingsLegacyProps;
+
+export function ProviderSettings(props: ProviderSettingsProps) {
+  const {
+    draft,
+    settingsDraft,
+    providers,
+    testState,
+    canSave,
+    canSaveRoutes,
+    onChange,
+    onRouteChange,
+    onCreate,
+    onDelete,
+    onSave,
+    saveState,
+    saveError,
+    routeSaveState,
+    routeSaveError,
+    onRouteSave,
+    onSelect,
+    onTest,
+  } = resolveProviderSettingsProps(props);
   const { t } = useTranslation();
   const saveLabel =
     saveState === 'saving'
@@ -161,6 +182,34 @@ export function ProviderSettings({
       {editorDialog}
     </>
   );
+}
+
+function resolveProviderSettingsProps(props: ProviderSettingsProps): ProviderSettingsLegacyProps {
+  if ('providerDraft' in props) {
+    return {
+      draft: props.providerDraft.value,
+      settingsDraft: props.routesDraft.value,
+      providers: props.providers,
+      testState: props.providerDraft.testState,
+      canSave: props.providerDraft.canSave,
+      canSaveRoutes: props.routesDraft.canSave,
+      onChange: props.providerDraft.update,
+      onRouteChange: props.routesDraft.update,
+      onCreate: props.providerDraft.create,
+      onDelete: props.providerDraft.deleteProvider,
+      onSave: async () => Boolean(await props.providerDraft.save()),
+      saveState: props.providerDraft.saveState,
+      saveError: props.providerDraft.saveError,
+      routeSaveState: props.routesDraft.saveState,
+      routeSaveError: props.routesDraft.saveError,
+      onRouteSave: (draft) => {
+        void props.routesDraft.save(draft);
+      },
+      onSelect: props.providerDraft.select,
+      onTest: props.providerDraft.test,
+    };
+  }
+  return props;
 }
 
 function ProviderEditorContent({
