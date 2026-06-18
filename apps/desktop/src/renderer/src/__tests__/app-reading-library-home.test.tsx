@@ -214,6 +214,10 @@ function deferredImportResult() {
   return { promise, resolve };
 }
 
+function hasScheduledDelay(setTimeoutSpy: { mock: { calls: Array<unknown[]> } }, delayMs: number) {
+  return setTimeoutSpy.mock.calls.some((call) => call[1] === delayMs);
+}
+
 describe('groupLibraryArticles', () => {
   it('groups recent reading by article update time', () => {
     vi.useFakeTimers();
@@ -1192,6 +1196,7 @@ describe('ReadingLibrary home', () => {
   });
 
   it('auto closes the webpage import dialog after a successful import', async () => {
+    const setTimeoutSpy = vi.spyOn(window, 'setTimeout');
     const imported = article({ id: 'article_imported', title: '新导入文章' });
     const onImportArticleUrl = vi.fn().mockResolvedValue({
       status: 'imported',
@@ -1227,6 +1232,8 @@ describe('ReadingLibrary home', () => {
       soundEffectsEnabled: true,
       soundEffectsVolume: 0.6,
     });
+    expect(hasScheduledDelay(setTimeoutSpy, 900)).toBe(true);
+    expect(hasScheduledDelay(setTimeoutSpy, 1200)).toBe(false);
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull(), { timeout: 2000 });
   });
@@ -1330,6 +1337,38 @@ describe('ReadingLibrary home', () => {
       soundEffectsEnabled: true,
       soundEffectsVolume: 0.7,
     });
+  });
+
+  it('auto closes successful ebook imports after the shorter celebration delay', async () => {
+    const setTimeoutSpy = vi.spyOn(window, 'setTimeout');
+    const imported = article({
+      id: 'ebook_autoclose',
+      url: 'ebook://ebook_autoclose',
+      canonicalUrl: 'ebook://ebook_autoclose',
+      sourceType: 'ebook',
+      title: '自动关闭电子书',
+      ebook: {
+        metadata: {
+          format: 'epub',
+          fileName: 'autoclose.epub',
+          fileSize: 1024,
+        },
+        chapters: [],
+      },
+    });
+    const onImportEbookFile = vi.fn().mockResolvedValue({
+      status: 'imported' as const,
+      article: imported,
+    });
+    const { container } = renderLibrary([], { onImportEbookFile });
+
+    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
+    fireEvent.click(screen.getByRole('button', { name: '添加电子书' }));
+    selectImportFile(container, 'library-ebook-file', fileWithSize('autoclose.epub', 1024));
+
+    expect((await screen.findAllByText('已导入 1 个文件')).length).toBeGreaterThan(0);
+    expect(hasScheduledDelay(setTimeoutSpy, 900)).toBe(true);
+    expect(hasScheduledDelay(setTimeoutSpy, 1600)).toBe(false);
   });
 
   it('imports multiple ebook files sequentially', async () => {
@@ -1496,6 +1535,39 @@ describe('ReadingLibrary home', () => {
     expect((await screen.findAllByText('已导入 1 个文件')).length).toBeGreaterThan(0);
     expect(screen.getByText('导入 PDF')).toBeTruthy();
     expect(screen.queryByRole('button', { name: '打开 PDF' })).toBeNull();
+  });
+
+  it('auto closes successful PDF imports after the shorter file delay', async () => {
+    const setTimeoutSpy = vi.spyOn(window, 'setTimeout');
+    const imported = article({
+      id: 'pdf_autoclose',
+      url: 'pdf:pdf_autoclose',
+      canonicalUrl: 'pdf:hash_autoclose',
+      sourceType: 'pdf',
+      title: '自动关闭 PDF',
+      siteName: 'PDF',
+      pdf: {
+        metadata: {
+          format: 'pdf',
+          fileName: 'autoclose.pdf',
+          fileSize: 2048,
+          pageCount: 12,
+        },
+      },
+    });
+    const onImportPdfFile = vi.fn().mockResolvedValue({
+      status: 'imported' as const,
+      article: imported,
+    });
+    const { container } = renderLibrary([], { onImportPdfFile });
+
+    fireEvent.click(screen.getByRole('tab', { name: /PDF/ }));
+    fireEvent.click(screen.getByRole('button', { name: '添加 PDF' }));
+    selectImportFile(container, 'library-pdf-file', fileWithSize('autoclose.pdf', 2048));
+
+    expect((await screen.findAllByText('已导入 1 个文件')).length).toBeGreaterThan(0);
+    expect(hasScheduledDelay(setTimeoutSpy, 900)).toBe(true);
+    expect(hasScheduledDelay(setTimeoutSpy, 1800)).toBe(false);
   });
 
   it('opens an existing PDF from the duplicate import state', async () => {
