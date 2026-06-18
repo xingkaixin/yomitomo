@@ -18,12 +18,15 @@ import { ReaderSettingsToolbarControls } from '@yomitomo/reader-ui/reader-toolba
 import {
   currentFoliateContent,
   ebookArticleText,
+  ebookHasStableSectionChapterMapping,
   ebookHighlightAnnotationsSignature,
   ebookSectionIndexForChapter,
+  ebookSectionSearchOrder,
   ebookTocItemsForReader,
   foliateRangeHighlightBoxes,
   formatEbookPageLabel,
   isEbookPaginationReady,
+  normalizeRenderedText,
   rangeForEbookAnchorInDocument,
   recordEbookPageTurnTrace,
   waitForAnimationFrame,
@@ -578,7 +581,7 @@ export function EbookBookcase({
 
   async function revealReaderChatContext(context: ReaderQuestionContext) {
     if (!context.anchor) return;
-    await goToEbookAnchor(context.anchor);
+    await goToEbookAnchor('reader-chat-context', context.anchor);
   }
 
   async function appendAgentAnnotationToArticle(articleId: string, annotation: Annotation) {
@@ -639,31 +642,103 @@ export function EbookBookcase({
   async function goToAnnotation(annotationId: string) {
     const annotation = annotationsRef.current.find((item) => item.id === annotationId);
     if (!annotation) return false;
-    return goToEbookAnchor(annotation.anchor);
+    return goToEbookAnchor(annotationId, annotation.anchor);
   }
 
-  async function goToEbookAnchor(anchor: Annotation['anchor']) {
+  async function locateEbookAnchor(annotationId: string, anchor: Annotation['anchor']) {
     const view = viewRef.current;
     const index = article.ebook.index;
-    if (!view || !index) return false;
+    if (!view || !index) {
+      debugEbookAnnotationNavigation('skip', {
+        articleId: article.id,
+        annotationId,
+        format: article.ebook.metadata.format,
+        hasView: Boolean(view),
+        hasIndex: Boolean(index),
+      });
+      return null;
+    }
 
     const chapter = anchor.chapterId
       ? index.chapters.find((item) => item.id === anchor.chapterId)
       : null;
     const sectionIndex = chapter ? ebookSectionIndexForChapter(article, view, chapter) : -1;
-    if (sectionIndex >= 0) await view.goTo(sectionIndex);
-    else if (typeof anchor.textStartInBook === 'number' && index.textLength > 0) {
-      await view.goToFraction(anchor.textStartInBook / index.textLength);
+    const sectionCount = view.book?.sections?.length ?? 0;
+    const stableSectionMapping = ebookHasStableSectionChapterMapping(article);
+    const estimatedSectionIndex = estimatedEbookSectionIndex(
+      anchor,
+      index.textLength,
+      sectionCount,
+    );
+    const attemptedSectionIndexes = new Set<number>();
+    debugEbookAnnotationNavigation('start', {
+      articleId: article.id,
+      annotationId,
+      format: article.ebook.metadata.format,
+      chapterId: anchor.chapterId,
+      chapterHref: chapter?.href,
+      chapterIndex: chapter?.indexInBook,
+      estimatedSectionIndex,
+      sectionIndex,
+      sectionCount,
+      stableSectionMapping,
+      textStartInBook: anchor.textStartInBook,
+      textEndInBook: anchor.textEndInBook,
+      exact: normalizeRenderedText(anchor.exact).slice(0, 80),
+    });
+
+    let resolved: EbookAnchorLocation | null = null;
+    if (sectionIndex >= 0) {
+      attemptedSectionIndexes.add(sectionIndex);
+      await view.goTo(sectionIndex);
+      resolved = await resolveCurrentEbookAnchor(view, anchor, 'chapter-section');
+    } else {
+      resolved = await resolveCurrentEbookAnchor(view, anchor, 'current-section');
     }
 
-    await waitForFoliateIdle();
-    await waitForAnimationFrame();
-    const doc = currentFoliateContent(view)?.doc;
-    const range = doc ? rangeForEbookAnchorInDocument(doc, anchor) : null;
-    if (range) await view.renderer?.scrollToAnchor?.(range);
+    if (!resolved?.range && !stableSectionMapping) {
+      const currentSectionIndex = currentEbookSectionIndex(view, pageInfoSectionIndexRef.current);
+      resolved =
+        (await searchEbookAnchorAcrossSections(view, anchor, {
+          attemptedSectionIndexes,
+          preferredSectionIndexes: [currentSectionIndex, estimatedSectionIndex],
+        })) || resolved;
+    }
+
+    if (
+      !resolved?.range &&
+      sectionIndex < 0 &&
+      typeof anchor.textStartInBook === 'number' &&
+      index.textLength > 0
+    ) {
+      await view.goToFraction(anchor.textStartInBook / index.textLength);
+      resolved = await resolveCurrentEbookAnchor(view, anchor, 'text-fraction');
+    }
+
+    debugEbookAnnotationNavigation('resolved', {
+      articleId: article.id,
+      annotationId,
+      format: article.ebook.metadata.format,
+      hasDocument: Boolean(resolved?.doc),
+      method: resolved?.method,
+      rangeFound: Boolean(resolved?.range),
+      resolvedSectionIndex: resolved?.sectionIndex,
+      documentTextIncludesExact: resolved?.doc
+        ? normalizeRenderedText(resolved.doc.body?.textContent || '').includes(
+            normalizeRenderedText(anchor.exact),
+          )
+        : false,
+    });
+    return resolved;
+  }
+
+  async function goToEbookAnchor(annotationId: string, anchor: Annotation['anchor']) {
+    const resolved = await locateEbookAnchor(annotationId, anchor);
+    if (!resolved) return false;
+    if (resolved?.range) await viewRef.current?.renderer?.scrollToAnchor?.(resolved.range);
     await waitForAnimationFrame();
     scheduleEbookBoxUpdate('annotation_navigation');
-    return true;
+    return Boolean(resolved?.range);
   }
 
   async function revealEbookSearchMatch(match: { id: string; start: number; end: number }) {
@@ -673,29 +748,20 @@ export function EbookBookcase({
     if (!view || !index || !canvasElement) return [];
 
     const anchor = createEpubTextAnchor(index, ebookText, match.start, match.end);
-    const chapter = anchor.chapterId
-      ? index.chapters.find((item) => item.id === anchor.chapterId)
-      : null;
-    const sectionIndex = chapter ? ebookSectionIndexForChapter(article, view, chapter) : -1;
-    if (sectionIndex >= 0) await view.goTo(sectionIndex);
-    else if (typeof anchor.textStartInBook === 'number' && index.textLength > 0) {
-      await view.goToFraction(anchor.textStartInBook / index.textLength);
-    }
-
-    await waitForFoliateIdle();
+    const resolved = await locateEbookAnchor(match.id, anchor);
+    if (!resolved?.range) return [];
+    await view.renderer?.scrollToAnchor?.(resolved.range);
     await waitForAnimationFrame();
-    const doc = currentFoliateContent(view)?.doc;
-    const range = doc ? rangeForEbookAnchorInDocument(doc, anchor) : null;
-    if (!range) return [];
-    await view.renderer?.scrollToAnchor?.(range);
-    await waitForAnimationFrame();
-    return foliateRangeHighlightBoxes(range, canvasElement.getBoundingClientRect(), match.id).map(
-      (box) =>
-        Object.assign(box, {
-          annotationId: '__search__',
-          contributorId: '__search__',
-          color: 'var(--reader-search-highlight-active)',
-        }),
+    return foliateRangeHighlightBoxes(
+      resolved.range,
+      canvasElement.getBoundingClientRect(),
+      match.id,
+    ).map((box) =>
+      Object.assign(box, {
+        annotationId: '__search__',
+        contributorId: '__search__',
+        color: 'var(--reader-search-highlight-active)',
+      }),
     );
   }
 
@@ -955,4 +1021,99 @@ export function EbookBookcase({
       onReaderKeyDown={handleReaderKeyDown}
     />
   );
+}
+
+type EbookAnchorLocation = {
+  doc: Document | null;
+  method: 'chapter-section' | 'current-section' | 'section-search' | 'text-fraction';
+  range: Range | null;
+  sectionIndex: number | null;
+};
+
+async function resolveCurrentEbookAnchor(
+  view: FoliateViewElement,
+  anchor: Annotation['anchor'],
+  method: EbookAnchorLocation['method'],
+): Promise<EbookAnchorLocation> {
+  await waitForFoliateIdle();
+  await waitForAnimationFrame();
+
+  const content = currentFoliateContent(view);
+  const doc = content?.doc ?? null;
+  const range = doc ? rangeForEbookAnchorInDocument(doc, anchor) : null;
+  return {
+    doc,
+    method,
+    range,
+    sectionIndex: currentEbookSectionIndex(view, content?.index),
+  };
+}
+
+async function searchEbookAnchorAcrossSections(
+  view: FoliateViewElement,
+  anchor: Annotation['anchor'],
+  options: {
+    attemptedSectionIndexes: Set<number>;
+    preferredSectionIndexes: Array<number | null>;
+  },
+) {
+  const sectionCount = view.book?.sections?.length ?? 0;
+  const query = normalizeRenderedText(anchor.exact);
+  if (sectionCount <= 0 || !query) return null;
+
+  const searchOrder = ebookSectionSearchOrder(sectionCount, options.preferredSectionIndexes).filter(
+    (sectionIndex) => !options.attemptedSectionIndexes.has(sectionIndex),
+  );
+  debugEbookAnnotationNavigation('search-start', {
+    preferredSectionIndexes: options.preferredSectionIndexes,
+    searchCount: searchOrder.length,
+    sectionCount,
+  });
+
+  for (let index = 0; index < searchOrder.length; index += 1) {
+    const sectionIndex = searchOrder[index];
+    options.attemptedSectionIndexes.add(sectionIndex);
+    await view.goTo(sectionIndex);
+    const resolved = await resolveCurrentEbookAnchor(view, anchor, 'section-search');
+    if (resolved.range) {
+      debugEbookAnnotationNavigation('search-hit', {
+        probedCount: index + 1,
+        sectionIndex: resolved.sectionIndex ?? sectionIndex,
+      });
+      return resolved;
+    }
+  }
+
+  debugEbookAnnotationNavigation('search-miss', {
+    probedCount: searchOrder.length,
+    sectionCount,
+  });
+  return null;
+}
+
+function estimatedEbookSectionIndex(
+  anchor: Annotation['anchor'],
+  textLength: number,
+  sectionCount: number,
+) {
+  if (typeof anchor.textStartInBook !== 'number' || textLength <= 0 || sectionCount <= 0) {
+    return null;
+  }
+  const index = Math.floor((anchor.textStartInBook / textLength) * sectionCount);
+  return Math.max(0, Math.min(sectionCount - 1, index));
+}
+
+function currentEbookSectionIndex(view: FoliateViewElement, fallback?: number) {
+  const index =
+    currentFoliateContent(view)?.index ?? view.getPageInfo?.()?.sectionIndex ?? fallback;
+  return typeof index === 'number' && Number.isInteger(index) ? index : null;
+}
+
+function debugEbookAnnotationNavigation(event: string, details: Record<string, unknown>) {
+  try {
+    if (window.localStorage.getItem('yomitomo:ebook-navigation-debug') !== '1') return;
+  } catch {
+    return;
+  }
+  console.info(`[yomitomo:ebook-navigation] ${event}`, details);
 }
