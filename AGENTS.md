@@ -44,6 +44,7 @@ pnpm lint
 pnpm lint:fix
 pnpm format
 pnpm format:check
+pnpm ui:check-primitives
 pnpm make
 ```
 
@@ -81,6 +82,7 @@ pnpm --filter @yomitomo/reader-ui test
 - Lint Fix：`pnpm lint:fix`，底层为 `turbo run lint:fix` 调度各包的 `oxlint . --fix`。
 - Format：`pnpm format`，底层为 `turbo run format` 调度各包的 `oxfmt --write "**/*.{ts,tsx,js,jsx,json,css,html}"`。
 - Format Check：`pnpm format:check`，底层为 `turbo run format:check` 调度各包的 `oxfmt --check "**/*.{ts,tsx,js,jsx,json,css,html}"`。
+- UI Primitive Check：`pnpm ui:check-primitives`，检查 Radix UI import、依赖和 lockfile 引用是否已退役。
 - Typecheck：`pnpm typecheck`，底层为 `turbo run typecheck`。
 - Test：`pnpm test`，底层为 `turbo test`。
 - Build：`pnpm build`，底层为 `turbo build`，会按依赖顺序构建 `shared`、`core`、`ai`、`reader-ui`、桌面端和官网。
@@ -91,7 +93,18 @@ pnpm --filter @yomitomo/reader-ui test
 提交前优先运行：
 
 ```bash
+mise run check
+```
+
+`mise run check` 与 CI 门禁顺序一致：`pnpm lint`、`pnpm ui:check-primitives`、
+`pnpm format:check`、`pnpm typecheck`、`pnpm test`、`pnpm build`。需要更快的本地循环时，
+可以先运行 `mise run check:fast`，它只覆盖 lint、format check、typecheck 和 test。
+
+如果本机未安装 mise，可直接运行等价命令：
+
+```bash
 pnpm lint
+pnpm ui:check-primitives
 pnpm format:check
 pnpm typecheck
 pnpm test
@@ -99,8 +112,7 @@ pnpm build
 ```
 
 推送 PR 分支前必须至少运行 `pnpm format:check`。如果本次改动会触发完整 CI，
-优先在推送前同时运行 `pnpm lint`、`pnpm format:check`、`pnpm typecheck`
-和相关测试，避免把可本地发现的格式问题推到 CI。
+优先在推送前运行 `mise run check` 或上述等价命令，避免把可本地发现的问题推到 CI。
 
 提交代码时不要把 `.issues/` 下的内容加入 Git。`.issues/` 是本地 issue
 跟踪数据，即使任务要求创建或更新 issue，也只应保留为本地文件；不要使用

@@ -8,16 +8,32 @@ run = "pnpm lint"
 [tasks."format:check"]
 run = "pnpm format:check"
 
+[tasks."ui:check-primitives"]
+run = "pnpm ui:check-primitives"
+
 [tasks."typecheck"]
 run = "pnpm typecheck"
 
 [tasks."test"]
 run = "pnpm test"
 
-[tasks."check"]
+[tasks."build"]
+run = "pnpm build"
+
+[tasks."check:fast"]
 run = [
   { task = "lint" },
   { task = "format:check" },
   { task = "typecheck" },
   { task = "test" },
+]
+
+[tasks."check"]
+run = [
+  { task = "lint" },
+  { task = "ui:check-primitives" },
+  { task = "format:check" },
+  { task = "typecheck" },
+  { task = "test" },
+  { task = "build" },
 ]
