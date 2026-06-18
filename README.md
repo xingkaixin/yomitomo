@@ -34,6 +34,7 @@ You can currently download macOS Apple Silicon and Windows x64 installers from [
 ```text
 apps/desktop       Electron desktop app, including main, preload, and renderer
 apps/web           Astro product website, including landing page, download entry point, SEO, and static product images
+apps/download      Cloudflare Worker for download.yomitomo.app and auto-update asset proxying
 packages/ai        LLM provider calls, model input budgeting, and AI generation pipelines
 packages/core      Core business logic, including annotations, comments, reading statistics, EPUB/PDF indexing, and pure reader DOM logic
 packages/reader-ui Desktop reader React UI, styles, utilities, and hooks
@@ -165,6 +166,7 @@ pnpm build
 - `apps/desktop/src/main` contains the Electron main process, SQLite store, LLM calls, article/ebook/PDF import, WeRead sync, and logging.
 - `apps/desktop/src/renderer/src/app-*` contains desktop reading library, statistics, settings, and log UI.
 - `apps/web/src` contains Astro website pages, product carousel, and global styles. Download links are generated from the version in `apps/desktop/package.json`.
+- `apps/download/src` contains the Cloudflare Worker that proxies GitHub Release installers, update manifests, and blockmap files for `download.yomitomo.app`.
 
 ## Pre-Commit Checks
 

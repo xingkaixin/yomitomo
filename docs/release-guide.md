@@ -29,6 +29,21 @@ pnpm --filter @yomitomo/desktop native:verify
 
 确认 `apps/desktop/package.json` 的 `version` 与目标版本一致。
 
+## 发布前检查（Download Worker）
+
+Download Worker 是官网下载入口和自动更新 feed 的代理层，入口域名为
+`https://download.yomitomo.app`。每次发布前都应把它作为独立链路检查；如果本轮修改了
+`apps/download/**`、`apps/download/wrangler.jsonc`、根目录部署脚本或下载/更新 asset
+命名规则，在公开发布前部署 Worker：
+
+```bash
+pnpm --filter @yomitomo/download test
+pnpm --filter @yomitomo/download typecheck
+pnpm deploy:download
+```
+
+如果本轮没有改动 Worker 代码或配置，可以跳过部署，但发布后 smoke check 仍必须执行。
+
 ## 发布前：图片资源（按需）
 
 每次发布前快速过一遍视觉是否仍代表当前产品，**不必每版都换图**，但若本版改了阅读器、设置、主题或品牌呈现，建议同步截图或插画。
@@ -86,6 +101,20 @@ pnpm --filter @yomitomo/desktop native:verify
 cp apps/desktop/resources/release-notes/zh-CN/X.Y.Z.json apps/web/public/release-notes/zh-CN/X.Y.Z.json
 cp apps/desktop/resources/release-notes/en/X.Y.Z.json apps/web/public/release-notes/en/X.Y.Z.json
 ```
+
+## 发布后：Download Worker Smoke Check
+
+GitHub Release 产物上传完成后、对外公告前，替换 `X.Y.Z` 并检查以下 URL。目标是确认官网下载入口、electron-updater manifest、`/updates` 前缀代理和 blockmap 代理都能访问真实 release asset。
+
+```bash
+curl -I https://download.yomitomo.app/releases/download/vX.Y.Z/Yomitomo-X.Y.Z-mac-arm64.dmg
+curl -I https://download.yomitomo.app/latest-mac.yml
+curl -I https://download.yomitomo.app/updates/latest-mac.yml
+curl -I https://download.yomitomo.app/updates/releases/download/vX.Y.Z/Yomitomo-X.Y.Z-mac-arm64.zip.blockmap
+```
+
+预期：安装包和 blockmap 返回 `200` 或 GitHub 跟随后的成功响应；manifest 内容来自 latest release
+的 `latest-mac.yml`，且 `/latest-mac.yml` 与 `/updates/latest-mac.yml` 指向同一上游 manifest。
 
 ## 撰写 CHANGELOG 的步骤
 
