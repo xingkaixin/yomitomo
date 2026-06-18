@@ -58,6 +58,8 @@ import { articleDisplayTitle } from '../../reading-library/app-reading-library-u
 import { useSourceReaderSession } from '../bookcase/use-source-reader-session';
 import { createEbookSourceReaderController } from './app-source-bookcase-ebook-controller';
 import { useSourceReaderWorkspace } from '../bookcase/use-source-reader-workspace';
+import { buildSourceReaderAppActions } from '../bookcase/source-reader-app-actions';
+import { buildSourceReaderAppViewProps } from '../bookcase/source-reader-app-view-props';
 
 export function EbookBookcase({
   agents,
@@ -197,9 +199,7 @@ export function EbookBookcase({
     deleteAnnotation,
     deleteComment,
     latestArticleRef,
-    pendingAnnotationAgents,
     replaceAnnotations,
-    reviewAgents,
     saveAnnotations,
   } = sourceReaderSession;
   const [annotatingAgentIds, setAnnotatingAgentIds] = useState<string[]>([]);
@@ -210,19 +210,7 @@ export function EbookBookcase({
   const [activeSearchMatchIndex, setActiveSearchMatchIndex] = useState(0);
   const [searchBoxes, setSearchBoxes] = useState<HighlightBox[]>([]);
 
-  const {
-    actionShortcuts,
-    annotationTotals,
-    closeFloatingComments,
-    commentsCloseKey,
-    labels,
-    readerChat,
-    readerSettings,
-    selection,
-    sendShortcut,
-    shortcutModifier,
-    updateReaderSettings: updateEbookReaderSettings,
-  } = useSourceReaderWorkspace({
+  const sourceReaderWorkspace = useSourceReaderWorkspace({
     article,
     canvasRef,
     getArticleText: currentArticleText,
@@ -233,11 +221,18 @@ export function EbookBookcase({
     onSaveArticleReaderChatState,
   });
   const {
+    actionShortcuts,
+    closeFloatingComments,
+    labels,
+    readerChat,
+    readerSettings,
+    selection,
+    updateReaderSettings: updateEbookReaderSettings,
+  } = sourceReaderWorkspace;
+  const {
     temporaryBoxes,
-    highlightChoice,
     setHighlightChoice,
     selectionAction,
-    copyRequestKey,
     composer,
     clearSelection,
     clearAnnotationUiState,
@@ -778,195 +773,181 @@ export function EbookBookcase({
     const visibleIds = new Set(boxes.map((box) => box.annotationId).filter(Boolean));
     return annotations.filter((annotation) => visibleIds.has(annotation.id));
   }, [annotations, boxes]);
+  const readerActions = buildSourceReaderAppActions({
+    articleId: article.id,
+    annotation: {
+      onAddComment: addComment,
+      onAnnotationLayoutChange: recalculateActiveConnection,
+      onClearActiveAnnotation: () => onOpenAnnotation(null),
+      onCreateAnnotation: createAnnotation,
+      onDeleteAnnotation: deleteAnnotation,
+      onDeleteComment: deleteComment,
+      onFocusAnnotation: openAnnotation,
+      onHighlightClick: handleHighlightClick,
+      onNavigateAnnotation: navigateAnnotation,
+      onResolveAnnotationNavigation: resolveAnnotationNavigation,
+      onScrollToHighlight: focusPageAnnotation,
+    },
+    chat: readerChat.actions,
+    selection: {
+      onCancelComposer: cancelComposer,
+      onClearSelection: clearSelection,
+      onCloseHighlightChoice: () => setHighlightChoice(null),
+      onCopySelection: copySelection,
+      onMouseUp: () => undefined,
+      onAskSelection: askSelection,
+      onOpenComposer: openComposer,
+    },
+    shell: {
+      onClose,
+      onCloseFloatingPanels: () => {
+        setSettingsOpen(false);
+      },
+      onCloseResponsivePanels: () => {
+        setTocOpen(false);
+      },
+      onToggleSettings: () => setSettingsOpen((open) => !open),
+      onUpdateReaderSettings: updateEbookReaderSettings,
+    },
+    toc: {
+      onScrollToHeading: goToReaderTocItem,
+      onToggleToc: () => setTocOpen((open) => !open),
+    },
+    onOpenAnnotationDiscussion,
+    onRevealReaderChatContext: revealReaderChatContext,
+  });
+  const readerAppViewProps = buildSourceReaderAppViewProps({
+    actions: readerActions,
+    agentPlayback: {
+      completionBurstKey: ebookCompletionBurstKey,
+      dockCompleting: ebookAgentDockCompleting,
+      dockItems: ebookAgentDockItems,
+      theaterBoxes: agentTheaterBoxes,
+      virtualCursors,
+    },
+    annotations: {
+      activeConnection,
+      activeId: selectedAnnotationId,
+      annotations: pageAnnotations,
+      boxes,
+      distillationAnimation,
+      filteredAnnotations: annotations,
+      newAnnotationIds,
+      searchBoxes,
+      showEmptyNotes: annotations.length === 0,
+      temporaryBoxes,
+    },
+    article: {
+      extracted: readerArticle,
+      id: article.id,
+    },
+    refs: {
+      articleRef,
+      canvasRef,
+      noteRefs,
+      notesRef: railRef,
+      surfaceRef,
+    },
+    session: sourceReaderSession,
+    toc: {
+      activeIndex: activeTocIndex,
+      annotationStats: tocStats,
+      items: readerTocItems,
+      open: tocOpen,
+    },
+    toolbar: {
+      articleLeadingVisual: (
+        <span className="ebook-toolbar-cover">
+          <ArticleBook article={article} />
+        </span>
+      ),
+      controls: (
+        <>
+          <div
+            className={
+              paginationReady
+                ? 'reader-floating-control-group'
+                : 'reader-floating-control-group is-paginating'
+            }
+          >
+            <ReaderTooltip content={t('readerControls.previousPage')} side="bottom">
+              <button
+                className="reader-icon-button"
+                type="button"
+                aria-label={t('readerControls.previousPage')}
+                disabled={readerState.status !== 'ready' || !paginationReady}
+                onClick={goLeft}
+              >
+                <ChevronLeft size={17} />
+              </button>
+            </ReaderTooltip>
+            <span className="reader-floating-value is-wide">{pageLabel}</span>
+            <input
+              aria-label={t('readerControls.jumpEbookProgress')}
+              className="ebook-progress-slider reader-floating-slider"
+              disabled={readerState.status !== 'ready'}
+              list={sectionFractions.length > 0 ? progressTickId : undefined}
+              max="1"
+              min="0"
+              step="any"
+              style={{ '--ebook-progress-percent': `${progressPercent}%` } as React.CSSProperties}
+              type="range"
+              value={progress}
+              onChange={goToProgress}
+            />
+            <ReaderTooltip content={t('readerControls.nextPage')} side="bottom">
+              <button
+                className="reader-icon-button"
+                type="button"
+                aria-label={t('readerControls.nextPage')}
+                disabled={readerState.status !== 'ready' || !paginationReady}
+                onClick={goRight}
+              >
+                <ChevronRight size={17} />
+              </button>
+            </ReaderTooltip>
+            {sectionFractions.length > 0 ? (
+              <datalist id={progressTickId}>
+                {sectionFractions.map((fraction, index) => (
+                  <option value={fraction} key={`${index}-${fraction}`} />
+                ))}
+              </datalist>
+            ) : null}
+          </div>
+          <ReaderSettingsToolbarControls
+            labels={{ articleWidth: labels.articleWidth, fontSize: labels.fontSize }}
+            settings={readerSettings}
+            onChange={updateEbookReaderSettings}
+          />
+        </>
+      ),
+      headerMeta: {
+        title: articleDisplayTitle(article),
+        byline: article.byline || article.ebook.metadata.fileName,
+        hasCover: true,
+      },
+      readingProgress: progress,
+      search: {
+        activeMatchIndex: activeSearchMatchIndex,
+        limited: searchResult.limited,
+        matches: searchResult.matches,
+        open: searchOpen,
+        query: searchQuery,
+        onClose: closeSearch,
+        onNextMatch: () => navigateSearchMatch('next'),
+        onOpen: () => setSearchOpen(true),
+        onPreviousMatch: () => navigateSearchMatch('previous'),
+        onQueryChange: setSearchQuery,
+      },
+    },
+    userProfile,
+    workspace: sourceReaderWorkspace,
+  });
 
   return (
     <EbookReaderShell
       measureHostRef={measureHostRef}
-      readerApp={{
-        actions: {
-          annotation: {
-            onAddComment: addComment,
-            onAnnotationLayoutChange: recalculateActiveConnection,
-            onClearActiveAnnotation: () => onOpenAnnotation(null),
-            onCreateAnnotation: createAnnotation,
-            onDeleteAnnotation: deleteAnnotation,
-            onDeleteComment: deleteComment,
-            onFocusAnnotation: openAnnotation,
-            onHighlightClick: handleHighlightClick,
-            onNavigateAnnotation: navigateAnnotation,
-            onOpenAnnotationDiscussion: (annotationId, sourceRect) =>
-              void onOpenAnnotationDiscussion?.(article.id, annotationId, sourceRect),
-            onResolveAnnotationNavigation: resolveAnnotationNavigation,
-            onScrollToHighlight: focusPageAnnotation,
-          },
-          chat: { ...readerChat.actions, onRevealContext: revealReaderChatContext },
-          selection: {
-            onCancelComposer: cancelComposer,
-            onClearSelection: clearSelection,
-            onCloseHighlightChoice: () => setHighlightChoice(null),
-            onCopySelection: copySelection,
-            onMouseUp: () => undefined,
-            onAskSelection: askSelection,
-            onOpenComposer: openComposer,
-          },
-          shell: {
-            onClose,
-            onCloseFloatingPanels: () => {
-              setSettingsOpen(false);
-            },
-            onCloseResponsivePanels: () => {
-              setTocOpen(false);
-            },
-            onToggleSettings: () => setSettingsOpen((open) => !open),
-            onUpdateReaderSettings: updateEbookReaderSettings,
-          },
-          toc: {
-            onScrollToHeading: goToReaderTocItem,
-            onToggleToc: () => setTocOpen((open) => !open),
-          },
-        },
-        agents: {
-          agents: annotationAgents,
-          completionBurstKey: ebookCompletionBurstKey,
-          dockCompleting: ebookAgentDockCompleting,
-          dockItems: ebookAgentDockItems,
-          pendingAnnotationAgents,
-          reviewAgents,
-          theaterBoxes: agentTheaterBoxes,
-          virtualCursors,
-        },
-        annotations: {
-          activeConnection,
-          activeId: selectedAnnotationId,
-          annotationTotals,
-          annotations: pageAnnotations,
-          boxes,
-          commentsCloseKey,
-          distillationAnimation,
-          filteredAnnotations: annotations,
-          newAnnotationIds,
-          searchBoxes,
-          showEmptyNotes: annotations.length === 0,
-          temporaryBoxes,
-        },
-        article: {
-          extracted: readerArticle,
-          id: article.id,
-        },
-        chat: readerChat.model,
-        labels,
-        options: { embedded: true },
-        refs: {
-          articleRef,
-          canvasRef,
-          noteRefs,
-          notesRef: railRef,
-          surfaceRef,
-        },
-        selection: { composer, copyRequestKey, highlightChoice, selectionAction },
-        settings: {
-          messageSendShortcut: sendShortcut,
-          readerSettings,
-          selectionActionShortcuts: actionShortcuts,
-          settingsOpen: false,
-          shortcutModifier,
-          showSettings: false,
-        },
-        toc: {
-          activeIndex: activeTocIndex,
-          annotationStats: tocStats,
-          items: readerTocItems,
-          open: tocOpen,
-        },
-        toolbar: {
-          articleLeadingVisual: (
-            <span className="ebook-toolbar-cover">
-              <ArticleBook article={article} />
-            </span>
-          ),
-          controls: (
-            <>
-              <div
-                className={
-                  paginationReady
-                    ? 'reader-floating-control-group'
-                    : 'reader-floating-control-group is-paginating'
-                }
-              >
-                <ReaderTooltip content={t('readerControls.previousPage')} side="bottom">
-                  <button
-                    className="reader-icon-button"
-                    type="button"
-                    aria-label={t('readerControls.previousPage')}
-                    disabled={readerState.status !== 'ready' || !paginationReady}
-                    onClick={goLeft}
-                  >
-                    <ChevronLeft size={17} />
-                  </button>
-                </ReaderTooltip>
-                <span className="reader-floating-value is-wide">{pageLabel}</span>
-                <input
-                  aria-label={t('readerControls.jumpEbookProgress')}
-                  className="ebook-progress-slider reader-floating-slider"
-                  disabled={readerState.status !== 'ready'}
-                  list={sectionFractions.length > 0 ? progressTickId : undefined}
-                  max="1"
-                  min="0"
-                  step="any"
-                  style={
-                    { '--ebook-progress-percent': `${progressPercent}%` } as React.CSSProperties
-                  }
-                  type="range"
-                  value={progress}
-                  onChange={goToProgress}
-                />
-                <ReaderTooltip content={t('readerControls.nextPage')} side="bottom">
-                  <button
-                    className="reader-icon-button"
-                    type="button"
-                    aria-label={t('readerControls.nextPage')}
-                    disabled={readerState.status !== 'ready' || !paginationReady}
-                    onClick={goRight}
-                  >
-                    <ChevronRight size={17} />
-                  </button>
-                </ReaderTooltip>
-                {sectionFractions.length > 0 ? (
-                  <datalist id={progressTickId}>
-                    {sectionFractions.map((fraction, index) => (
-                      <option value={fraction} key={`${index}-${fraction}`} />
-                    ))}
-                  </datalist>
-                ) : null}
-              </div>
-              <ReaderSettingsToolbarControls
-                labels={{ articleWidth: labels.articleWidth, fontSize: labels.fontSize }}
-                settings={readerSettings}
-                onChange={updateEbookReaderSettings}
-              />
-            </>
-          ),
-          headerMeta: {
-            title: articleDisplayTitle(article),
-            byline: article.byline || article.ebook.metadata.fileName,
-            hasCover: true,
-          },
-          readingProgress: progress,
-          search: {
-            activeMatchIndex: activeSearchMatchIndex,
-            limited: searchResult.limited,
-            matches: searchResult.matches,
-            open: searchOpen,
-            query: searchQuery,
-            onClose: closeSearch,
-            onNextMatch: () => navigateSearchMatch('next'),
-            onOpen: () => setSearchOpen(true),
-            onPreviousMatch: () => navigateSearchMatch('previous'),
-            onQueryChange: setSearchQuery,
-          },
-        },
-        userProfile,
-      }}
+      readerApp={readerAppViewProps}
       readerState={readerState}
       viewHostRef={viewHostRef}
       onReaderKeyDown={handleReaderKeyDown}

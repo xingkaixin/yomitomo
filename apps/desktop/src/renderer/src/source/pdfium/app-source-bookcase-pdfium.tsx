@@ -45,6 +45,8 @@ import {
 } from '../bookcase/app-source-bookcase-shared';
 import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
 import { useRecentAnnotationFeedback } from '../bookcase/use-recent-annotation-feedback';
+import { buildSourceReaderAppActions } from '../bookcase/source-reader-app-actions';
+import { buildSourceReaderAppViewProps } from '../bookcase/source-reader-app-view-props';
 import {
   useReaderPageTurnKeys,
   type ReaderPageTurnDirection,
@@ -408,8 +410,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     deleteAnnotation,
     deleteComment,
     latestArticleRef,
-    pendingAnnotationAgents,
-    reviewAgents,
     saveAnnotations,
   } = sourceReaderSession;
   const {
@@ -434,18 +434,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     onClearTheaterBoxes: () => setAgentTheaterBoxes([]),
     pageMetricsRef,
   });
-  const {
-    actionShortcuts,
-    annotationTotals,
-    commentsCloseKey,
-    labels,
-    readerChat,
-    readerSettings,
-    selection,
-    sendShortcut,
-    shortcutModifier,
-    updateReaderSettings: updatePdfReaderSettings,
-  } = useSourceReaderWorkspace({
+  const sourceReaderWorkspace = useSourceReaderWorkspace({
     article,
     canvasRef,
     getArticleText: currentArticleText,
@@ -455,6 +444,12 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     uiLanguage,
     onSaveArticleReaderChatState,
   });
+  const {
+    actionShortcuts,
+    readerChat,
+    selection,
+    updateReaderSettings: updatePdfReaderSettings,
+  } = sourceReaderWorkspace;
   const searchResult = useMemo(
     () => findReaderSearchMatches(pdfTextDocument?.text || '', searchQuery),
     [pdfTextDocument?.text, searchQuery],
@@ -463,10 +458,8 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     searchResult.matches[Math.min(activeSearchMatchIndex, searchResult.matches.length - 1)] || null;
   const {
     temporaryBoxes,
-    highlightChoice,
     setHighlightChoice,
     selectionAction,
-    copyRequestKey,
     composer,
     clearSelection,
     clearAnnotationUiState,
@@ -1072,6 +1065,207 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     [annotationAgents, annotations, pdfTextDocument, tocItems, userProfile],
   );
 
+  const readerActions = buildSourceReaderAppActions({
+    articleId: article.id,
+    annotation: {
+      onAddComment: addComment,
+      onAnnotationLayoutChange: handleAnnotationLayoutChange,
+      onClearActiveAnnotation: () => onOpenAnnotation(null),
+      onCreateAnnotation: createAnnotationFromComposer,
+      onDeleteAnnotation: deleteAnnotation,
+      onDeleteComment: deleteComment,
+      onFocusAnnotation: onOpenAnnotation,
+      onHighlightClick: handleHighlightClick,
+      onNavigateAnnotation: (annotationId) => scrollToAnnotation(annotationId),
+      onResolveAnnotationNavigation: () =>
+        pdfiumAnnotationNavigationState(annotations, selectedAnnotationId, currentPage),
+      onScrollToHighlight: scrollToAnnotation,
+    },
+    chat: readerChat.actions,
+    selection: {
+      onCancelComposer: cancelComposer,
+      onClearSelection: clearSelection,
+      onCloseHighlightChoice: () => setHighlightChoice(null),
+      onCopySelection: copySelection,
+      onMouseUp: () => undefined,
+      onAskSelection: askSelection,
+      onOpenComposer: openComposer,
+    },
+    shell: {
+      onClose,
+      onCloseFloatingPanels: () => {
+        onCloseToc();
+      },
+      onCloseResponsivePanels: onCloseToc,
+      onToggleSettings: () => undefined,
+      onUpdateReaderSettings: updatePdfReaderSettings,
+    },
+    toc: {
+      onScrollToHeading: scrollToTocItem,
+      onToggleToc,
+    },
+    onOpenAnnotationDiscussion,
+    onRevealReaderChatContext: revealReaderChatContext,
+  });
+  const readerAppViewProps = buildSourceReaderAppViewProps({
+    actions: readerActions,
+    agentPlayback: {
+      completionBurstKey,
+      dockCompleting: agentDockCompleting,
+      dockItems: agentDockItems,
+      theaterBoxes: agentTheaterBoxes,
+      virtualCursors,
+    },
+    annotations: {
+      activeConnection,
+      activeId: selectedAnnotationId,
+      annotations,
+      boxes,
+      distillationAnimation,
+      filteredAnnotations: visiblePdfAnnotations,
+      newAnnotationIds,
+      railLayoutOverride: annotationRailLayout,
+      railViewportHeight: annotationRailViewportHeight,
+      searchBoxes,
+      temporaryBoxes,
+    },
+    article: {
+      content: (
+        <div className="pdfium-spike-canvas">
+          <GlobalPointerProvider documentId={documentId}>
+            <Viewport className="pdfium-spike-viewport" documentId={documentId}>
+              <Scroller
+                documentId={documentId}
+                renderPage={({ pageIndex, rotatedWidth, rotatedHeight }) => (
+                  <div
+                    className="pdfium-spike-page-shell"
+                    data-pdfium-page-index={pageIndex}
+                    style={{ width: rotatedWidth, height: rotatedHeight }}
+                  >
+                    <PagePointerProvider
+                      className="pdfium-spike-page"
+                      documentId={documentId}
+                      pageIndex={pageIndex}
+                    >
+                      <RenderLayer
+                        documentId={documentId}
+                        pageIndex={pageIndex}
+                        style={{ pointerEvents: 'none' }}
+                      />
+                      <SelectionLayer
+                        documentId={documentId}
+                        pageIndex={pageIndex}
+                        textStyle={{ background: 'rgb(77 155 114 / 0.18)' }}
+                      />
+                    </PagePointerProvider>
+                  </div>
+                )}
+              />
+            </Viewport>
+          </GlobalPointerProvider>
+        </div>
+      ),
+      extracted: {
+        title: article.pdf.metadata.title || article.title,
+        byline: article.pdf.metadata.author,
+        content: '',
+      },
+      id: article.id,
+    },
+    refs: {
+      articleRef,
+      canvasRef,
+      noteRefs,
+      notesRef,
+      surfaceRef,
+    },
+    session: sourceReaderSession,
+    toc: {
+      activeIndex: activeTocIndex,
+      annotationStats: tocStats,
+      items: tocItems,
+      open: tocOpen,
+    },
+    toolbar: {
+      controls: (
+        <>
+          <div className="reader-floating-control-group">
+            <ReaderTooltip content={t('readerControls.previousPage')} side="bottom">
+              <button
+                aria-label={t('readerControls.previousPage')}
+                className="reader-icon-button"
+                disabled={currentPage <= 1}
+                type="button"
+                onClick={() => scroll?.scrollToPreviousPage('smooth')}
+              >
+                <ChevronLeft size={16} />
+              </button>
+            </ReaderTooltip>
+            <span className="reader-floating-value is-wide">
+              {currentPage} / {pageCount}
+            </span>
+            <input
+              aria-label={t('readerControls.jumpPdfPage')}
+              className="ebook-progress-slider reader-floating-slider pdfium-page-slider"
+              max={pageCount}
+              min="1"
+              step="1"
+              style={
+                {
+                  '--ebook-progress-percent': `${pdfPageProgressPercent(currentPage, pageCount)}%`,
+                } as React.CSSProperties
+              }
+              type="range"
+              value={currentPage}
+              onChange={(event) => jumpToPdfiumPage(Number(event.currentTarget.value))}
+            />
+            <ReaderTooltip content={t('readerControls.nextPage')} side="bottom">
+              <button
+                aria-label={t('readerControls.nextPage')}
+                className="reader-icon-button"
+                disabled={currentPage >= pageCount}
+                type="button"
+                onClick={() => scroll?.scrollToNextPage('smooth')}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </ReaderTooltip>
+          </div>
+          <ReaderToolbarSliderPopover
+            icon={<ZoomIn size={16} />}
+            label={t('readerControls.pdfZoom')}
+            max={200}
+            min={50}
+            step={5}
+            unit="%"
+            value={Math.round(zoom * 100)}
+            onChange={(value) => zoomControls?.requestZoom(value / 100)}
+          />
+        </>
+      ),
+      headerMeta: {
+        title: article.pdf.metadata.title || article.title,
+        byline: article.pdf.metadata.author,
+      },
+      readingProgress: pageProgress(currentPage - 1, pageCount),
+      search: {
+        activeMatchIndex: activeSearchMatchIndex,
+        limited: searchResult.limited,
+        matches: searchResult.matches,
+        open: searchOpen,
+        preparing: Boolean(searchQuery.trim()) && pdfTextIndexPreparing,
+        query: searchQuery,
+        onClose: closeSearch,
+        onNextMatch: () => navigateSearchMatch('next'),
+        onOpen: () => setSearchOpen(true),
+        onPreviousMatch: () => navigateSearchMatch('previous'),
+        onQueryChange: setSearchQuery,
+      },
+    },
+    userProfile,
+    workspace: sourceReaderWorkspace,
+  });
+
   return (
     <section
       className={[
@@ -1100,219 +1294,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
           <span>{statusMessage}</span>
         </div>
       ) : null}
-      <ReaderAppView
-        actions={{
-          annotation: {
-            onAddComment: addComment,
-            onAnnotationLayoutChange: handleAnnotationLayoutChange,
-            onClearActiveAnnotation: () => onOpenAnnotation(null),
-            onCreateAnnotation: createAnnotationFromComposer,
-            onDeleteAnnotation: deleteAnnotation,
-            onDeleteComment: deleteComment,
-            onFocusAnnotation: onOpenAnnotation,
-            onHighlightClick: handleHighlightClick,
-            onNavigateAnnotation: (annotationId) => scrollToAnnotation(annotationId),
-            onOpenAnnotationDiscussion: (annotationId, sourceRect) =>
-              void onOpenAnnotationDiscussion?.(article.id, annotationId, sourceRect),
-            onResolveAnnotationNavigation: () =>
-              pdfiumAnnotationNavigationState(annotations, selectedAnnotationId, currentPage),
-            onScrollToHighlight: scrollToAnnotation,
-          },
-          chat: { ...readerChat.actions, onRevealContext: revealReaderChatContext },
-          selection: {
-            onCancelComposer: cancelComposer,
-            onClearSelection: clearSelection,
-            onCloseHighlightChoice: () => setHighlightChoice(null),
-            onCopySelection: copySelection,
-            onMouseUp: () => undefined,
-            onAskSelection: askSelection,
-            onOpenComposer: openComposer,
-          },
-          shell: {
-            onClose,
-            onCloseFloatingPanels: () => {
-              onCloseToc();
-            },
-            onCloseResponsivePanels: onCloseToc,
-            onToggleSettings: () => undefined,
-            onUpdateReaderSettings: updatePdfReaderSettings,
-          },
-          toc: {
-            onScrollToHeading: scrollToTocItem,
-            onToggleToc,
-          },
-        }}
-        agents={{
-          agents: annotationAgents,
-          completionBurstKey,
-          dockCompleting: agentDockCompleting,
-          dockItems: agentDockItems,
-          pendingAnnotationAgents,
-          reviewAgents,
-          theaterBoxes: agentTheaterBoxes,
-          virtualCursors,
-        }}
-        annotations={{
-          activeConnection,
-          activeId: selectedAnnotationId,
-          annotationTotals,
-          annotations,
-          boxes,
-          commentsCloseKey,
-          distillationAnimation,
-          filteredAnnotations: visiblePdfAnnotations,
-          newAnnotationIds,
-          railLayoutOverride: annotationRailLayout,
-          railViewportHeight: annotationRailViewportHeight,
-          searchBoxes,
-          temporaryBoxes,
-        }}
-        article={{
-          content: (
-            <div className="pdfium-spike-canvas">
-              <GlobalPointerProvider documentId={documentId}>
-                <Viewport className="pdfium-spike-viewport" documentId={documentId}>
-                  <Scroller
-                    documentId={documentId}
-                    renderPage={({ pageIndex, rotatedWidth, rotatedHeight }) => (
-                      <div
-                        className="pdfium-spike-page-shell"
-                        data-pdfium-page-index={pageIndex}
-                        style={{ width: rotatedWidth, height: rotatedHeight }}
-                      >
-                        <PagePointerProvider
-                          className="pdfium-spike-page"
-                          documentId={documentId}
-                          pageIndex={pageIndex}
-                        >
-                          <RenderLayer
-                            documentId={documentId}
-                            pageIndex={pageIndex}
-                            style={{ pointerEvents: 'none' }}
-                          />
-                          <SelectionLayer
-                            documentId={documentId}
-                            pageIndex={pageIndex}
-                            textStyle={{ background: 'rgb(77 155 114 / 0.18)' }}
-                          />
-                        </PagePointerProvider>
-                      </div>
-                    )}
-                  />
-                </Viewport>
-              </GlobalPointerProvider>
-            </div>
-          ),
-          extracted: {
-            title: article.pdf.metadata.title || article.title,
-            byline: article.pdf.metadata.author,
-            content: '',
-          },
-          id: article.id,
-        }}
-        chat={readerChat.model}
-        labels={labels}
-        options={{ embedded: true }}
-        refs={{
-          articleRef,
-          canvasRef,
-          noteRefs,
-          notesRef,
-          surfaceRef,
-        }}
-        selection={{ composer, copyRequestKey, highlightChoice, selectionAction }}
-        settings={{
-          messageSendShortcut: sendShortcut,
-          readerSettings,
-          selectionActionShortcuts: actionShortcuts,
-          settingsOpen: false,
-          shortcutModifier,
-          showSettings: false,
-        }}
-        toc={{
-          activeIndex: activeTocIndex,
-          annotationStats: tocStats,
-          items: tocItems,
-          open: tocOpen,
-        }}
-        toolbar={{
-          controls: (
-            <>
-              <div className="reader-floating-control-group">
-                <ReaderTooltip content={t('readerControls.previousPage')} side="bottom">
-                  <button
-                    aria-label={t('readerControls.previousPage')}
-                    className="reader-icon-button"
-                    disabled={currentPage <= 1}
-                    type="button"
-                    onClick={() => scroll?.scrollToPreviousPage('smooth')}
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-                </ReaderTooltip>
-                <span className="reader-floating-value is-wide">
-                  {currentPage} / {pageCount}
-                </span>
-                <input
-                  aria-label={t('readerControls.jumpPdfPage')}
-                  className="ebook-progress-slider reader-floating-slider pdfium-page-slider"
-                  max={pageCount}
-                  min="1"
-                  step="1"
-                  style={
-                    {
-                      '--ebook-progress-percent': `${pdfPageProgressPercent(currentPage, pageCount)}%`,
-                    } as React.CSSProperties
-                  }
-                  type="range"
-                  value={currentPage}
-                  onChange={(event) => jumpToPdfiumPage(Number(event.currentTarget.value))}
-                />
-                <ReaderTooltip content={t('readerControls.nextPage')} side="bottom">
-                  <button
-                    aria-label={t('readerControls.nextPage')}
-                    className="reader-icon-button"
-                    disabled={currentPage >= pageCount}
-                    type="button"
-                    onClick={() => scroll?.scrollToNextPage('smooth')}
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                </ReaderTooltip>
-              </div>
-              <ReaderToolbarSliderPopover
-                icon={<ZoomIn size={16} />}
-                label={t('readerControls.pdfZoom')}
-                max={200}
-                min={50}
-                step={5}
-                unit="%"
-                value={Math.round(zoom * 100)}
-                onChange={(value) => zoomControls?.requestZoom(value / 100)}
-              />
-            </>
-          ),
-          headerMeta: {
-            title: article.pdf.metadata.title || article.title,
-            byline: article.pdf.metadata.author,
-          },
-          readingProgress: pageProgress(currentPage - 1, pageCount),
-          search: {
-            activeMatchIndex: activeSearchMatchIndex,
-            limited: searchResult.limited,
-            matches: searchResult.matches,
-            open: searchOpen,
-            preparing: Boolean(searchQuery.trim()) && pdfTextIndexPreparing,
-            query: searchQuery,
-            onClose: closeSearch,
-            onNextMatch: () => navigateSearchMatch('next'),
-            onOpen: () => setSearchOpen(true),
-            onPreviousMatch: () => navigateSearchMatch('previous'),
-            onQueryChange: setSearchQuery,
-          },
-        }}
-        userProfile={userProfile}
-      />
+      <ReaderAppView {...readerAppViewProps} />
     </section>
   );
 }

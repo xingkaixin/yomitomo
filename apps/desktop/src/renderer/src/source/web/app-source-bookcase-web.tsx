@@ -73,6 +73,8 @@ import {
 import { useSourceReaderSession } from '../bookcase/use-source-reader-session';
 import { createWebSourceReaderController } from './app-source-bookcase-web-controller';
 import { useSourceReaderWorkspace } from '../bookcase/use-source-reader-workspace';
+import { buildSourceReaderAppActions } from '../bookcase/source-reader-app-actions';
+import { buildSourceReaderAppViewProps } from '../bookcase/source-reader-app-view-props';
 
 export function WebSourceBookcase({
   agents,
@@ -163,8 +165,6 @@ export function WebSourceBookcase({
     deleteAnnotation,
     deleteComment,
     latestArticleRef,
-    pendingAnnotationAgents,
-    reviewAgents,
     saveAnnotations,
   } = sourceReaderSession;
   const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
@@ -195,18 +195,7 @@ export function WebSourceBookcase({
     return translationAnnotationsForBlocks(annotations, currentTranslationBlockIds()).length;
   }, [annotations, translation]);
 
-  const {
-    actionShortcuts,
-    annotationTotals,
-    commentsCloseKey,
-    labels,
-    readerChat,
-    readerSettings,
-    selection,
-    sendShortcut,
-    shortcutModifier,
-    updateReaderSettings,
-  } = useSourceReaderWorkspace({
+  const sourceReaderWorkspace = useSourceReaderWorkspace({
     article,
     canvasRef,
     getArticleText: currentArticleText,
@@ -216,12 +205,11 @@ export function WebSourceBookcase({
     uiLanguage,
     onSaveArticleReaderChatState,
   });
+  const { labels, readerChat, readerSettings, selection, updateReaderSettings } =
+    sourceReaderWorkspace;
   const {
     temporaryBoxes,
-    highlightChoice,
     setHighlightChoice,
-    selectionAction,
-    copyRequestKey,
     composer,
     clearSelection,
     clearAnnotationUiState,
@@ -915,162 +903,150 @@ export function WebSourceBookcase({
     excerpt: statusMessage,
     content: contentHtml,
   };
+  const readerActions = buildSourceReaderAppActions({
+    articleId: article.id,
+    annotation: {
+      onAddComment: addComment,
+      onAnnotationLayoutChange: recalculateActiveConnection,
+      onClearActiveAnnotation: () => onOpenAnnotation(null),
+      onCreateAnnotation: createAnnotation,
+      onDeleteAnnotation: deleteAnnotation,
+      onDeleteComment: deleteComment,
+      onFocusAnnotation: openAnnotation,
+      onHighlightClick: handleHighlightClick,
+      onNavigateAnnotation: navigateAnnotation,
+      onResolveAnnotationNavigation: resolveAnnotationNavigation,
+      onScrollToHighlight: (annotationId) => {
+        openAnnotation(annotationId);
+        scrollToAnnotation(annotationId);
+      },
+    },
+    chat: readerChat.actions,
+    selection: {
+      onCancelComposer: cancelComposer,
+      onClearSelection: clearSelection,
+      onCloseHighlightChoice: () => setHighlightChoice(null),
+      onCopySelection: copySelection,
+      onMouseUp: handleArticleMouseUp,
+      onAskSelection: askSelection,
+      onOpenComposer: openComposer,
+    },
+    shell: {
+      onClose,
+      onCloseFloatingPanels: () => {
+        setSettingsOpen(false);
+      },
+      onCloseResponsivePanels: () => {
+        setTocOpen(false);
+      },
+      onToggleSettings: () => setSettingsOpen((open) => !open),
+      onUpdateReaderSettings: updateReaderSettings,
+    },
+    toc: {
+      onScrollToHeading: scrollToTocItem,
+      onToggleToc: () => setTocOpen((open) => !open),
+    },
+    onOpenAnnotationDiscussion,
+    onRevealReaderChatContext: revealReaderChatContext,
+  });
+  const readerAppViewProps = buildSourceReaderAppViewProps({
+    actions: readerActions,
+    agentPlayback: {
+      completionBurstKey,
+      dockCompleting: agentDockCompleting,
+      dockItems: agentDockItems,
+      theaterBoxes: agentTheaterBoxes,
+      virtualCursors,
+    },
+    annotations: {
+      activeConnection,
+      activeId: selectedAnnotationId,
+      annotations,
+      boxes,
+      distillationAnimation,
+      filteredAnnotations: annotations,
+      newAnnotationIds,
+      searchBoxes,
+      temporaryBoxes,
+    },
+    article: {
+      content: (
+        <div
+          className="reader-article-body"
+          dangerouslySetInnerHTML={{ __html: translatedContentHtml }}
+          onClick={handleArticleClick}
+        />
+      ),
+      extracted: readerArticle,
+      id: article.id,
+    },
+    refs: {
+      articleRef,
+      canvasRef,
+      noteRefs,
+      notesRef: railRef,
+      surfaceRef: scrollRef,
+    },
+    session: sourceReaderSession,
+    toc: {
+      activeIndex: activeTocIndex,
+      annotationStats: tocStats,
+      items: tocItems,
+      open: tocOpen,
+    },
+    toolbar: {
+      articleAction: <OpenArticleButton article={article} iconOnly />,
+      controls: (
+        <>
+          <ReaderTranslationToolbarButton
+            busy={translationInProgress}
+            hasTranslation={Boolean(translation)}
+            labels={{
+              deleteTranslation: t('source.deleteTranslation'),
+              hideTranslation: t('source.hideTranslation'),
+              retranslateArticle: t('source.retranslateArticle'),
+              showTranslation: t('source.showTranslation'),
+              translateArticle: t('source.translateArticle'),
+            }}
+            menuOpen={translationMenuOpen}
+            visible={translationVisible}
+            onConfirm={(action) => setTranslationConfirm(action)}
+            onMenuOpenChange={setTranslationMenuOpen}
+            onSetVisible={setTranslationVisible}
+          />
+          <ReaderSettingsToolbarControls
+            labels={{ articleWidth: labels.articleWidth, fontSize: labels.fontSize }}
+            settings={readerSettings}
+            onChange={updateReaderSettings}
+          />
+        </>
+      ),
+      search: {
+        activeMatchIndex: activeSearchMatchIndex,
+        limited: searchResult.limited,
+        matches: searchResult.matches,
+        open: searchOpen,
+        query: searchQuery,
+        onClose: closeSearch,
+        onNextMatch: () => navigateSearchMatch('next'),
+        onOpen: () => setSearchOpen(true),
+        onPreviousMatch: () => navigateSearchMatch('previous'),
+        onQueryChange: setSearchQuery,
+      },
+      headerMeta: {
+        title: article.title,
+        byline: article.byline,
+        hasCover: Boolean(article.leadImageUrl),
+      },
+      readingProgress,
+    },
+    userProfile,
+    workspace: sourceReaderWorkspace,
+  });
   return (
     <section className="source-bookcase source-reader-shell">
       <style>{`${readerDesktopEmbeddedBundleStyles}\n${sourceReaderTocStyles}`}</style>
-      <ReaderAppView
-        actions={{
-          annotation: {
-            onAddComment: addComment,
-            onAnnotationLayoutChange: recalculateActiveConnection,
-            onClearActiveAnnotation: () => onOpenAnnotation(null),
-            onCreateAnnotation: createAnnotation,
-            onDeleteAnnotation: deleteAnnotation,
-            onDeleteComment: deleteComment,
-            onFocusAnnotation: openAnnotation,
-            onHighlightClick: handleHighlightClick,
-            onNavigateAnnotation: navigateAnnotation,
-            onOpenAnnotationDiscussion: (annotationId, sourceRect) =>
-              void onOpenAnnotationDiscussion?.(article.id, annotationId, sourceRect),
-            onResolveAnnotationNavigation: resolveAnnotationNavigation,
-            onScrollToHighlight: (annotationId) => {
-              openAnnotation(annotationId);
-              scrollToAnnotation(annotationId);
-            },
-          },
-          chat: { ...readerChat.actions, onRevealContext: revealReaderChatContext },
-          selection: {
-            onCancelComposer: cancelComposer,
-            onClearSelection: clearSelection,
-            onCloseHighlightChoice: () => setHighlightChoice(null),
-            onCopySelection: copySelection,
-            onMouseUp: handleArticleMouseUp,
-            onAskSelection: askSelection,
-            onOpenComposer: openComposer,
-          },
-          shell: {
-            onClose,
-            onCloseFloatingPanels: () => {
-              setSettingsOpen(false);
-            },
-            onCloseResponsivePanels: () => {
-              setTocOpen(false);
-            },
-            onToggleSettings: () => setSettingsOpen((open) => !open),
-            onUpdateReaderSettings: updateReaderSettings,
-          },
-          toc: {
-            onScrollToHeading: scrollToTocItem,
-            onToggleToc: () => setTocOpen((open) => !open),
-          },
-        }}
-        agents={{
-          agents: annotationAgents,
-          completionBurstKey,
-          dockCompleting: agentDockCompleting,
-          dockItems: agentDockItems,
-          pendingAnnotationAgents,
-          reviewAgents,
-          theaterBoxes: agentTheaterBoxes,
-          virtualCursors,
-        }}
-        annotations={{
-          activeConnection,
-          activeId: selectedAnnotationId,
-          annotationTotals,
-          annotations,
-          boxes,
-          commentsCloseKey,
-          distillationAnimation,
-          filteredAnnotations: annotations,
-          newAnnotationIds,
-          searchBoxes,
-          temporaryBoxes,
-        }}
-        article={{
-          content: (
-            <div
-              className="reader-article-body"
-              dangerouslySetInnerHTML={{ __html: translatedContentHtml }}
-              onClick={handleArticleClick}
-            />
-          ),
-          extracted: readerArticle,
-          id: article.id,
-        }}
-        chat={readerChat.model}
-        labels={labels}
-        options={{ embedded: true }}
-        refs={{
-          articleRef,
-          canvasRef,
-          noteRefs,
-          notesRef: railRef,
-          surfaceRef: scrollRef,
-        }}
-        selection={{ composer, copyRequestKey, highlightChoice, selectionAction }}
-        settings={{
-          messageSendShortcut: sendShortcut,
-          readerSettings,
-          selectionActionShortcuts: actionShortcuts,
-          settingsOpen: false,
-          shortcutModifier,
-          showSettings: false,
-        }}
-        toc={{
-          activeIndex: activeTocIndex,
-          annotationStats: tocStats,
-          items: tocItems,
-          open: tocOpen,
-        }}
-        toolbar={{
-          articleAction: <OpenArticleButton article={article} iconOnly />,
-          controls: (
-            <>
-              <ReaderTranslationToolbarButton
-                busy={translationInProgress}
-                hasTranslation={Boolean(translation)}
-                labels={{
-                  deleteTranslation: t('source.deleteTranslation'),
-                  hideTranslation: t('source.hideTranslation'),
-                  retranslateArticle: t('source.retranslateArticle'),
-                  showTranslation: t('source.showTranslation'),
-                  translateArticle: t('source.translateArticle'),
-                }}
-                menuOpen={translationMenuOpen}
-                visible={translationVisible}
-                onConfirm={(action) => setTranslationConfirm(action)}
-                onMenuOpenChange={setTranslationMenuOpen}
-                onSetVisible={setTranslationVisible}
-              />
-              <ReaderSettingsToolbarControls
-                labels={{ articleWidth: labels.articleWidth, fontSize: labels.fontSize }}
-                settings={readerSettings}
-                onChange={updateReaderSettings}
-              />
-            </>
-          ),
-          search: {
-            activeMatchIndex: activeSearchMatchIndex,
-            limited: searchResult.limited,
-            matches: searchResult.matches,
-            open: searchOpen,
-            query: searchQuery,
-            onClose: closeSearch,
-            onNextMatch: () => navigateSearchMatch('next'),
-            onOpen: () => setSearchOpen(true),
-            onPreviousMatch: () => navigateSearchMatch('previous'),
-            onQueryChange: setSearchQuery,
-          },
-          headerMeta: {
-            title: article.title,
-            byline: article.byline,
-            hasCover: Boolean(article.leadImageUrl),
-          },
-          readingProgress,
-        }}
-        userProfile={userProfile}
-      />
+      <ReaderAppView {...readerAppViewProps} />
       <ReaderTranslationConfirmDialog
         action={translationConfirm}
         annotationNotice={
