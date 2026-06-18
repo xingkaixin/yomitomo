@@ -1,6 +1,7 @@
+import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync } from 'node:fs';
-import { copyFile, mkdir, rm } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { copyFile, mkdir, rename, rm } from 'node:fs/promises';
+import { basename, dirname, join, resolve } from 'node:path';
 import { app } from 'electron';
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type SQLiteDatabase from 'better-sqlite3';
@@ -84,11 +85,21 @@ export async function backupDatabaseFile(targetPath: string) {
   if (target === source) throw new Error('DATA_MANAGEMENT_BACKUP_TARGET_IS_CURRENT_DATABASE');
 
   const database = getSqliteDatabase();
-  await mkdir(dirname(target), { recursive: true });
-  await rm(target, { force: true });
-  await removeSqliteSidecarFiles(target);
+  const targetDirectory = dirname(target);
+  const targetExists = existsSync(target);
+  const temporaryTarget = temporaryBackupPath(target);
+  await mkdir(targetDirectory, { recursive: true });
   database.pragma('wal_checkpoint(FULL)');
-  await database.backup(target);
+  try {
+    await database.backup(temporaryTarget);
+    await removeSqliteSidecarFiles(temporaryTarget);
+    if (!targetExists) await removeSqliteSidecarFiles(target);
+    await rename(temporaryTarget, target);
+    if (targetExists) await removeSqliteSidecarFiles(target);
+  } catch (error) {
+    await removeBackupTemporaryFiles(temporaryTarget);
+    throw error;
+  }
   return target;
 }
 
@@ -126,6 +137,14 @@ async function safetyBackupPath() {
   const directory = join(app.getPath('userData'), 'backups');
   await mkdir(directory, { recursive: true });
   return join(directory, `yomitomo-before-restore-${timestamp}.sqlite`);
+}
+
+function temporaryBackupPath(target: string) {
+  return join(dirname(target), `${basename(target)}.tmp-${randomUUID()}`);
+}
+
+async function removeBackupTemporaryFiles(filePath: string) {
+  await Promise.allSettled([rm(filePath, { force: true }), removeSqliteSidecarFiles(filePath)]);
 }
 
 async function removeSqliteSidecarFiles(filePath: string) {
