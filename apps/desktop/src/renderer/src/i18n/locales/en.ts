@@ -386,6 +386,10 @@ export const enResources = {
         download: 'Download update',
         install: 'Restart to install',
       },
+      updateToast: {
+        notAvailableTitle: 'You are up to date',
+        notAvailableDescription: 'No update is available right now.',
+      },
       updateState: {
         loading: 'Reading update status.',
         checking: 'Checking for a new version.',

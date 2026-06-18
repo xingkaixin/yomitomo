@@ -377,6 +377,10 @@ export const zhCNResources = {
         download: '下载更新',
         install: '重启安装',
       },
+      updateToast: {
+        notAvailableTitle: '已是最新版本',
+        notAvailableDescription: '当前没有可用更新。',
+      },
       updateState: {
         loading: '正在读取更新状态。',
         checking: '正在检查新版本。',
