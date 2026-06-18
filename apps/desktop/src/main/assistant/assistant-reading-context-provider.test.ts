@@ -2,10 +2,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
 import type { Annotation, ArticleRecord, ReadingMemoryEntry } from '@yomitomo/shared';
 import { createTextAnchor } from '@yomitomo/shared';
-import {
-  agentMessageReadingContextSnapshot,
-  createAssistantReadingContextProvider,
-} from './assistant-reading-context-provider';
+import { createAgentMessageReadingContextSnapshot } from './assistant-reading-tools';
+import { createAssistantReadingContextProvider } from './assistant-reading-context-provider';
 import { migrations } from '../db/migrations';
 import {
   appendReadingMemoryEntries,
@@ -54,7 +52,7 @@ describe('assistant reading context provider', () => {
       ],
       database,
     );
-    const snapshot = agentMessageReadingContextSnapshot({
+    const snapshot = createAgentMessageReadingContextSnapshot({
       payload: {
         agentUsername: 'lin',
         article: {

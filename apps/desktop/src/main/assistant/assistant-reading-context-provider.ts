@@ -1,6 +1,5 @@
-import type { AgentMessageReadingContextSnapshot, AssistantToolEvidenceInput } from '@yomitomo/ai';
+import type { AssistantToolEvidenceInput } from '@yomitomo/ai';
 import type {
-  AgentMessagePayload,
   Annotation,
   ArticleRecord,
   ReaderProgress,
@@ -69,79 +68,6 @@ export function createAssistantReadingContextProvider(input: AssistantReadingCon
       return duplicateThoughtEvidence(input, raw);
     },
   };
-}
-
-export function agentMessageReadingContextSnapshot(input: {
-  payload: AgentMessagePayload;
-  agentId: string;
-  executor?: ReadingMemorySqliteExecutor;
-}): AgentMessageReadingContextSnapshot | undefined {
-  const articleId = input.payload.article.id;
-  if (!articleId) return undefined;
-
-  const queries = snapshotSearchQueries([
-    input.payload.annotation.anchor.exact,
-    input.payload.userComment.content,
-    input.payload.instruction,
-  ]);
-  if (queries.length === 0) return undefined;
-
-  const provider = createAssistantReadingContextProvider({
-    article: {
-      id: articleId,
-      title: input.payload.article.title,
-      annotations: [input.payload.annotation],
-      ebook: input.payload.article.ebookIndex
-        ? ({ index: input.payload.article.ebookIndex } as ArticleRecord['ebook'])
-        : undefined,
-    },
-    articleText: input.payload.article.text,
-    agentId: input.agentId,
-    currentAnnotationId: input.payload.annotation.id,
-    currentThreadRootCommentId:
-      input.payload.reviewTargetCommentId || input.payload.userComment.replyTo,
-    currentAnchor: input.payload.annotation.anchor,
-    readerProgress: input.payload.readerProgress,
-    executor: input.executor,
-  });
-  const memoryEvidence = uniqueEvidence(
-    queries.flatMap((query) => provider.searchArticleMemory({ query })),
-  );
-  return memoryEvidence.length > 0 ? { memoryEvidence } : undefined;
-}
-
-function uniqueEvidence(evidence: AssistantToolEvidenceInput[]) {
-  const seen = new Set<string>();
-  return evidence.filter((item) => {
-    const key = [
-      item.provenance.sourceAnnotationId,
-      item.provenance.sourceCommentId,
-      item.provenance.sourceType,
-      item.summary,
-    ].join(':');
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
-function snapshotSearchQueries(values: Array<string | undefined>) {
-  const queries = values.flatMap((value) => {
-    const text = value?.trim();
-    if (!text) return [];
-    return [text, ...cjkSearchWindows(text)];
-  });
-  return Array.from(new Set(queries)).slice(0, 12);
-}
-
-function cjkSearchWindows(text: string) {
-  const normalized = text.replace(/[^\p{L}\p{N}_]+/gu, '');
-  if (!/[\p{Script=Han}]/u.test(normalized) || normalized.length <= 4) return [];
-  const windows: string[] = [];
-  for (let index = 0; index <= normalized.length - 4 && windows.length < 6; index += 1) {
-    windows.push(normalized.slice(index, index + 4));
-  }
-  return windows;
 }
 
 function currentThreadEvidence(
@@ -467,11 +393,11 @@ function queryTerms(query: string) {
   return Array.from(query.matchAll(/[\p{L}\p{M}\p{N}_]+/gu), (match) => match[0]).slice(0, 8);
 }
 
-export function stringField(value: unknown) {
+function stringField(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-export function recordField(input: unknown, field: string): unknown {
+function recordField(input: unknown, field: string): unknown {
   return isRecord(input) ? input[field] : undefined;
 }
 

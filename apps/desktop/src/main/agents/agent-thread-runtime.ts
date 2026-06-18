@@ -7,10 +7,7 @@ import type {
   Comment,
   LlmProvider,
 } from '@yomitomo/shared';
-import {
-  assistantReadingToolDefinitions,
-  createAssistantReadingToolExecutor,
-} from '../assistant/assistant-runtime-tools';
+import { createAssistantReadingTools } from '../assistant/assistant-reading-tools';
 
 type AiModule = typeof import('@yomitomo/ai');
 
@@ -35,6 +32,12 @@ export async function runAgentThreadReplyWithToolLoop(input: {
 }): Promise<ThreadReplyRuntimeResult> {
   const articleId = input.payload.article.id;
   if (!articleId) return { status: 'fallback', failureReason: 'missing_article_id' };
+  const readingTools = createAgentMessageReadingTools({
+    agent: input.agent,
+    payload: input.payload,
+    articleId,
+    currentThreadRootCommentId: threadRootCommentId(input.payload),
+  });
 
   const runtime = await input.ai.runAssistantAiSdkToolRuntime({
     taskType: 'thread_reply',
@@ -47,22 +50,9 @@ export async function runAgentThreadReplyWithToolLoop(input: {
       input.payload,
     ),
     onEvent: input.onRuntimeEvent,
-    tools: assistantReadingToolDefinitions,
+    tools: readingTools.tools,
     allowedAnnotationIds: [input.payload.annotation.id],
-    toolExecutor: createAssistantReadingToolExecutor({
-      article: {
-        id: articleId,
-        title: input.payload.article.title,
-        annotations: [input.payload.annotation],
-        ebook: ebookRuntimeRecord(input.payload),
-      },
-      articleText: input.payload.article.text,
-      agentId: input.agent.id,
-      currentAnnotationId: input.payload.annotation.id,
-      currentThreadRootCommentId: threadRootCommentId(input.payload),
-      currentAnchor: input.payload.annotation.anchor,
-      readerProgress: input.payload.readerProgress,
-    }),
+    toolExecutor: readingTools.toolExecutor,
   });
 
   if (runtime.status !== 'final') {
@@ -104,6 +94,11 @@ export async function runAgentCreateThoughtWithToolLoop(input: {
 }): Promise<ThreadReplyRuntimeResult> {
   const articleId = input.payload.article.id;
   if (!articleId) return { status: 'fallback', failureReason: 'missing_article_id' };
+  const readingTools = createAgentMessageReadingTools({
+    agent: input.agent,
+    payload: input.payload,
+    articleId,
+  });
 
   const runtime = await input.ai.runAssistantAiSdkToolRuntime({
     taskType: 'create_thought',
@@ -116,21 +111,9 @@ export async function runAgentCreateThoughtWithToolLoop(input: {
       input.payload,
     ),
     onEvent: input.onRuntimeEvent,
-    tools: assistantReadingToolDefinitions,
+    tools: readingTools.tools,
     allowedAnnotationIds: [input.payload.annotation.id],
-    toolExecutor: createAssistantReadingToolExecutor({
-      article: {
-        id: articleId,
-        title: input.payload.article.title,
-        annotations: [input.payload.annotation],
-        ebook: ebookRuntimeRecord(input.payload),
-      },
-      articleText: input.payload.article.text,
-      agentId: input.agent.id,
-      currentAnnotationId: input.payload.annotation.id,
-      currentAnchor: input.payload.annotation.anchor,
-      readerProgress: input.payload.readerProgress,
-    }),
+    toolExecutor: readingTools.toolExecutor,
   });
 
   if (runtime.status !== 'final') {
@@ -184,6 +167,11 @@ export async function runAgentDistillationReviewWithToolLoop(input: {
 }): Promise<DistillationReviewRuntimeResult> {
   const articleId = input.payload.article.id;
   if (!articleId) return { status: 'fallback', failureReason: 'missing_article_id' };
+  const readingTools = createAgentMessageReadingTools({
+    agent: input.agent,
+    payload: input.payload,
+    articleId,
+  });
 
   const runtime = await input.ai.runAssistantAiSdkToolRuntime({
     taskType: 'distillation_review',
@@ -196,21 +184,9 @@ export async function runAgentDistillationReviewWithToolLoop(input: {
       input.payload,
     ),
     onEvent: input.onRuntimeEvent,
-    tools: assistantReadingToolDefinitions,
+    tools: readingTools.tools,
     allowedAnnotationIds: [input.payload.annotation.id],
-    toolExecutor: createAssistantReadingToolExecutor({
-      article: {
-        id: articleId,
-        title: input.payload.article.title,
-        annotations: [input.payload.annotation],
-        ebook: ebookRuntimeRecord(input.payload),
-      },
-      articleText: input.payload.article.text,
-      agentId: input.agent.id,
-      currentAnnotationId: input.payload.annotation.id,
-      currentAnchor: input.payload.annotation.anchor,
-      readerProgress: input.payload.readerProgress,
-    }),
+    toolExecutor: readingTools.toolExecutor,
   });
 
   if (runtime.status !== 'final') {
@@ -245,6 +221,28 @@ export async function runAgentDistillationReviewWithToolLoop(input: {
 function ebookRuntimeRecord(payload: AgentMessagePayload): ArticleRecord['ebook'] {
   if (!payload.article.ebookIndex) return undefined;
   return { index: payload.article.ebookIndex } as ArticleRecord['ebook'];
+}
+
+function createAgentMessageReadingTools(input: {
+  agent: Agent;
+  payload: AgentMessagePayload;
+  articleId: string;
+  currentThreadRootCommentId?: string;
+}) {
+  return createAssistantReadingTools({
+    article: {
+      id: input.articleId,
+      title: input.payload.article.title,
+      annotations: [input.payload.annotation],
+      ebook: ebookRuntimeRecord(input.payload),
+    },
+    articleText: input.payload.article.text,
+    agentId: input.agent.id,
+    currentAnnotationId: input.payload.annotation.id,
+    currentThreadRootCommentId: input.currentThreadRootCommentId,
+    currentAnchor: input.payload.annotation.anchor,
+    readerProgress: input.payload.readerProgress,
+  });
 }
 
 function threadRootCommentId(payload: AgentMessagePayload) {

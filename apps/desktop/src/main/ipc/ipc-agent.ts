@@ -28,7 +28,7 @@ import {
   runAgentDistillationReviewWithToolLoop,
   runAgentThreadReplyWithToolLoop,
 } from '../agents/agent-thread-runtime';
-import { agentMessageReadingContextSnapshot } from '../assistant/assistant-reading-context-provider';
+import { createAgentMessageReadingContextSnapshot } from '../assistant/assistant-reading-tools';
 import {
   agentMessageRuntimeTaskType,
   agentNotFoundError,
@@ -647,7 +647,7 @@ function safeAgentMessageReadingContextSnapshot(
   agentId: string,
 ) {
   try {
-    return agentMessageReadingContextSnapshot({
+    return createAgentMessageReadingContextSnapshot({
       payload,
       agentId,
     });
