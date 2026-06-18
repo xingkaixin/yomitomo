@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { formatPdfAuthors } from '../shell/app-article-book';
+import { formatPdfAuthors, formatPdfHeaderAuthors } from '../shell/app-article-book';
 import { initializeAppI18n } from '../i18n/app-i18n';
 
 describe('PDF display metadata', () => {
@@ -38,5 +38,19 @@ describe('PDF display metadata', () => {
         maxLength: 42,
       }),
     ).toBe('Basant Mounir; Farida Madkour et al.');
+  });
+
+  it('formats PDF reader header authors with a wider budget than library lists', () => {
+    const authors =
+      'PENNY CHONG; HARSHAVARDHAN ABHICHANDANI; JIYUAN WANG; BASANT MOUNIR; FARIDA MADKOUR; AMIRA ABDEL; JOHN SMITH';
+
+    expect(formatPdfAuthors(authors, { maxAuthors: 3, maxLength: 42 })).toBe('Penny Chong et al.');
+    expect(formatPdfHeaderAuthors(authors)).toBe(
+      'Penny Chong; Harshavardhan Abhichandani; Jiyuan Wang et al.',
+    );
+  });
+
+  it('returns an empty PDF reader header author label for blank metadata', () => {
+    expect(formatPdfHeaderAuthors('   ')).toBe('');
   });
 });
