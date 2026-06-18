@@ -161,10 +161,17 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     const startedAt = performance.now();
     const { readPdfSourceFile } = await import('../pdf/pdf-storage');
     const file = await readPdfSourceFile(articleId);
-    const data = file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength);
+    const readDurationMs = context.elapsedMs(startedAt);
+    const ipcBufferStartedAt = performance.now();
+    const { copied, data } = pdfSourceArrayBufferForIpc(file);
     context.logInfo('performance.pdf.file_read_main', {
       articleId,
-      byteLength: data.byteLength,
+      byteLength: file.byteLength,
+      ipcBufferCopied: copied,
+      ipcBufferDurationMs: copied ? context.elapsedMs(ipcBufferStartedAt) : 0,
+      ipcByteLength: data.byteLength,
+      readByteLength: file.byteLength,
+      readDurationMs,
       durationMs: context.elapsedMs(startedAt),
     });
     return data;
@@ -180,6 +187,17 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     });
     return patch;
   });
+}
+
+export function pdfSourceArrayBufferForIpc(file: Buffer) {
+  const sourceBuffer = file.buffer as ArrayBuffer;
+  const usesWholeSourceBuffer =
+    file.byteOffset === 0 && file.byteLength === sourceBuffer.byteLength;
+  if (usesWholeSourceBuffer) return { copied: false, data: sourceBuffer };
+  return {
+    copied: true,
+    data: sourceBuffer.slice(file.byteOffset, file.byteOffset + file.byteLength),
+  };
 }
 
 async function readCurrentArticleTranslation(
