@@ -62,7 +62,8 @@ import type {
   ArticleLibraryListResult,
   ArticleReaderChatStateSaveInput,
   AssistantExecutionQueryInput,
-  AssistantExecutionRun,
+  AssistantExecutionRunDetail,
+  AssistantExecutionRunListItem,
   AssistantExecutionSummary,
   DataManagementPathKind,
   DataManagementPaths,
@@ -121,7 +122,11 @@ export type AgentIpcInvokeMap = {
   };
   'assistant-executions:list': {
     args: [input: AssistantExecutionQueryInput];
-    result: AssistantExecutionRun[];
+    result: AssistantExecutionRunListItem[];
+  };
+  'assistant-executions:detail': {
+    args: [id: string];
+    result: AssistantExecutionRunDetail | null;
   };
   'assistant-executions:summary': {
     args: [input: AssistantExecutionQueryInput];

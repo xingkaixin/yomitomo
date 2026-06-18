@@ -27,6 +27,8 @@ export type {
   AnnotationDistillationCommitTransition,
   AnnotationDistillationCommittedEvent,
   AssistantExecutionQueryInput,
+  AssistantExecutionRunDetail,
+  AssistantExecutionRunListItem,
   AssistantExecutionRun,
   AssistantExecutionStatus,
   AssistantExecutionSummary,

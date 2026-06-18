@@ -275,7 +275,7 @@ export type AssistantExecutionSafeStep = {
   failureReason?: string;
 };
 
-export type AssistantExecutionRun = {
+export type AssistantExecutionRunListItem = {
   id: string;
   createdAt: string;
   agentId: string;
@@ -294,8 +294,14 @@ export type AssistantExecutionRun = {
   currency?: string;
   durationMs?: number;
   stepCount: number;
+};
+
+export type AssistantExecutionRunDetail = {
+  id: string;
   safeSteps: AssistantExecutionSafeStep[];
 };
+
+export type AssistantExecutionRun = AssistantExecutionRunListItem & AssistantExecutionRunDetail;
 
 export type AssistantExecutionTotals = {
   runCount: number;

@@ -75,17 +75,20 @@ function installDiagnosticsApi() {
         currency: 'USD',
         durationMs: 1200,
         stepCount: 1,
-        safeSteps: [
-          {
-            stepIndex: 0,
-            eventType: 'tool_call',
-            toolName: 'search_memory',
-            latencyMs: 120,
-            resultCount: 2,
-          },
-        ],
       },
     ]),
+    getAssistantExecutionDetail: vi.fn().mockResolvedValue({
+      id: 'run_1',
+      safeSteps: [
+        {
+          stepIndex: 0,
+          eventType: 'tool_call',
+          toolName: 'search_memory',
+          latencyMs: 120,
+          resultCount: 2,
+        },
+      ],
+    }),
     summarizeAssistantExecutions: vi.fn().mockResolvedValue({
       totals: {
         runCount: 1,
@@ -141,16 +144,18 @@ function installDiagnosticsApi() {
 
 describe('assistant diagnostics panels', () => {
   it('shows assistant execution runs and expands safe steps', async () => {
-    installDiagnosticsApi();
+    const desktop = installDiagnosticsApi();
 
     render(<AiTraceSettingsPanel agents={agents} providers={providers} />);
 
     expect(await screen.findByText('助手调用链路')).toBeTruthy();
     expect(await screen.findByText('selection_first')).toBeTruthy();
+    expect(desktop.getAssistantExecutionDetail).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: /周现/ }));
 
     expect(await screen.findByText('search_memory')).toBeTruthy();
+    expect(desktop.getAssistantExecutionDetail).toHaveBeenCalledWith('run_1');
     expect(screen.queryByText('traceJson')).toBeNull();
     expect(screen.queryByText('无失败原因')).toBeNull();
     expect(screen.queryByText('无 tool')).toBeNull();

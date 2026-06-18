@@ -178,6 +178,8 @@ function createDiagnosticsPreloadApi() {
     clearAgentRuntimeTraces: () => invokeDesktopIpc('agent-trace:clear'),
     listAssistantExecutions: (input: AssistantExecutionQueryInput) =>
       invokeDesktopIpc('assistant-executions:list', input),
+    getAssistantExecutionDetail: (id: string) =>
+      invokeDesktopIpc('assistant-executions:detail', id),
     summarizeAssistantExecutions: (input: AssistantExecutionQueryInput) =>
       invokeDesktopIpc('assistant-executions:summary', input),
     recordPerformanceTiming: (input: PerformanceTimingInput) =>

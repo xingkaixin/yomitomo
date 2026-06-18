@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  assistantExecutionRunDetailDto,
   assistantExecutionRunDto,
+  listAssistantExecutionRuns,
+  getAssistantExecutionRunDetail,
   summarizeAssistantExecutions,
   summarizeAssistantExecutionRows,
 } from './assistant-execution-query-repository';
@@ -8,6 +11,7 @@ import * as schema from '../db/schema';
 import type { StoreExecutor } from '../store/store-db';
 
 type AssistantExecutionRow = typeof schema.assistantExecutionRuns.$inferSelect;
+type AssistantExecutionListRow = Omit<AssistantExecutionRow, 'traceJson'>;
 type AggregateRow = {
   runCount: number;
   successCount: number;
@@ -25,6 +29,24 @@ type AggregateRow = {
 };
 
 describe('assistant execution query repository', () => {
+  it('lists runs without selecting trace json', () => {
+    const database = fakeListDatabase(runListRow('run_1'));
+
+    const runs = listAssistantExecutionRuns(database, {
+      from: '2026-05-28T00:00:00.000Z',
+      to: '2026-05-29T00:00:00.000Z',
+    });
+
+    expect(database.selectedKeys).not.toContain('traceJson');
+    expect(runs[0]).toMatchObject({
+      id: 'run_1',
+      agentNickname: '周现',
+      usage: { inputTokens: 100, outputTokens: 20, totalTokens: 120 },
+      stepCount: 0,
+    });
+    expect(runs[0]).not.toHaveProperty('safeSteps');
+  });
+
   it('maps runs with safe trace steps only', () => {
     const run = assistantExecutionRunDto(
       runRow('run_1', {
@@ -58,6 +80,46 @@ describe('assistant execution query repository', () => {
       ],
     });
     expect(JSON.stringify(run)).not.toContain('hidden from dto');
+  });
+
+  it('loads safe trace steps by run id', () => {
+    const database = fakeDetailDatabase(
+      runRow('run_1', {
+        traceJson: {
+          steps: [
+            {
+              stepIndex: 1,
+              eventType: 'tool_result',
+              toolName: 'search_memory',
+              sanitizedToolInput: { query: 'hidden from dto' },
+              resultCount: 3,
+              latencyMs: 80,
+            },
+          ],
+        },
+      }),
+    );
+
+    const detail = getAssistantExecutionRunDetail(database, 'run_1');
+
+    expect(database.selectedKeys).toEqual(['id', 'traceJson']);
+    expect(detail).toEqual(
+      assistantExecutionRunDetailDto({
+        id: 'run_1',
+        traceJson: {
+          steps: [
+            {
+              stepIndex: 1,
+              eventType: 'tool_result',
+              toolName: 'search_memory',
+              resultCount: 3,
+              latencyMs: 80,
+            },
+          ],
+        },
+      }),
+    );
+    expect(JSON.stringify(detail)).not.toContain('hidden from dto');
   });
 
   it('summarizes usage and missing costs', () => {
@@ -234,6 +296,50 @@ function fakeSummaryDatabase(): StoreExecutor {
   } as unknown as StoreExecutor;
 }
 
+function fakeListDatabase(row: AssistantExecutionListRow) {
+  const state = { selectedKeys: [] as string[] };
+  const database = {
+    get selectedKeys() {
+      return state.selectedKeys;
+    },
+    select(selection: Record<string, unknown>) {
+      state.selectedKeys = Object.keys(selection);
+      return {
+        from: () => ({
+          where: () => ({
+            orderBy: () => ({
+              limit: () => ({
+                all: () => [row],
+              }),
+            }),
+          }),
+        }),
+      };
+    },
+  };
+  return database as unknown as StoreExecutor & { selectedKeys: string[] };
+}
+
+function fakeDetailDatabase(row: Pick<AssistantExecutionRow, 'id' | 'traceJson'>) {
+  const state = { selectedKeys: [] as string[] };
+  const database = {
+    get selectedKeys() {
+      return state.selectedKeys;
+    },
+    select(selection: Record<string, unknown>) {
+      state.selectedKeys = Object.keys(selection);
+      return {
+        from: () => ({
+          where: () => ({
+            get: () => row,
+          }),
+        }),
+      };
+    },
+  };
+  return database as unknown as StoreExecutor & { selectedKeys: string[] };
+}
+
 function aggregateGroupRow(key: string, label: string, overrides: Partial<AggregateRow> = {}) {
   return { key, label, ...aggregateRow(overrides) };
 }
@@ -285,4 +391,12 @@ function runRow(id: string, overrides: Partial<AssistantExecutionRow> = {}): Ass
     traceJson: null,
     ...overrides,
   };
+}
+
+function runListRow(
+  id: string,
+  overrides: Partial<AssistantExecutionListRow> = {},
+): AssistantExecutionListRow {
+  const { traceJson: _traceJson, ...row } = runRow(id);
+  return { ...row, ...overrides };
 }
