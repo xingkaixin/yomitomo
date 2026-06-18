@@ -125,6 +125,9 @@ export function LibraryHome({
   );
   const [searchQuery, setSearchQuery] = useState('');
   const [serverResult, setServerResult] = useState<ArticleLibraryListResult | null>(null);
+  const [serverSourceCounts, setServerSourceCounts] = useState<ArticleLibrarySourceCounts | null>(
+    null,
+  );
   const [serverReloadKey, setServerReloadKey] = useState(0);
   const sourceTabRefs = useRef(new Map<LibrarySource, HTMLButtonElement>());
   const pendingSourceFocusRef = useRef<LibrarySource | null>(null);
@@ -154,6 +157,18 @@ export function LibraryHome({
     () => filteredArticles.filter((article) => librarySourceForArticle(article) === activeSource),
     [activeSource, filteredArticles],
   );
+  const localSourceCounts = useMemo(
+    () =>
+      articles.reduce(
+        (result, article) => {
+          const source = librarySourceForArticle(article) as ArticleLibrarySource;
+          result[source] += 1;
+          return result;
+        },
+        { ...emptyLocalSourceCounts },
+      ),
+    [articles],
+  );
   const sourceArticles = activeServerResult?.articles || fallbackSourceArticles;
   const activeItemsLength =
     activeSource === 'weread'
@@ -166,21 +181,12 @@ export function LibraryHome({
     : sourceArticles.slice((page - 1) * pageSize, page * pageSize);
   const pageWeReadBooks = filteredWeReadBooks.slice((page - 1) * pageSize, page * pageSize);
   const counts = useMemo(() => {
-    const localCounts =
-      serverCatalogResult?.sourceCounts ||
-      articles.reduce(
-        (result, article) => {
-          const source = librarySourceForArticle(article) as ArticleLibrarySource;
-          result[source] += 1;
-          return result;
-        },
-        { ...emptyLocalSourceCounts },
-      );
+    const localCounts = serverSourceCounts || localSourceCounts;
     return {
       ...localCounts,
       weread: wereadBooks.length,
     };
-  }, [serverCatalogResult?.sourceCounts, articles, wereadBooks.length]);
+  }, [serverSourceCounts, localSourceCounts, wereadBooks.length]);
 
   useEffect(() => {
     if (!serverListAvailable) {
@@ -198,7 +204,10 @@ export function LibraryHome({
         pageSize,
       })
       .then((result) => {
-        if (!cancelled) setServerResult(result);
+        if (!cancelled) {
+          setServerResult(result);
+          setServerSourceCounts(result.sourceCounts);
+        }
       })
       .catch(() => {
         if (!cancelled) setServerResult(null);
