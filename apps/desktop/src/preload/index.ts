@@ -47,6 +47,7 @@ import type {
   AppLockSetLockedInput,
   AppLockSetPinInput,
   AppLockSetShortcutInput,
+  AppLockUnlockInput,
   AppLockVerifyPinInput,
   PerformanceTimingInput,
   ArticleImportUrlInput,
@@ -66,6 +67,7 @@ export type {
   AppLockSetPinInput,
   AppLockSetShortcutInput,
   AppLockStatus,
+  AppLockUnlockInput,
   AppLockVerifyPinInput,
   AppLockVerifyPinResult,
   AnnotationDiscussionWindowOpenInput,
@@ -140,6 +142,7 @@ const api = {
   getAppLockStatus: () => invokeDesktopIpc('appLock:getStatus'),
   setAppLockPin: (input: AppLockSetPinInput) => invokeDesktopIpc('appLock:setPin', input),
   verifyAppLockPin: (input: AppLockVerifyPinInput) => invokeDesktopIpc('appLock:verifyPin', input),
+  unlockAppLock: (input: AppLockUnlockInput) => invokeDesktopIpc('appLock:unlock', input),
   setAppLockEnabled: (input: AppLockSetEnabledInput) =>
     invokeDesktopIpc('appLock:setEnabled', input),
   setAppLockLocked: (input: AppLockSetLockedInput) => invokeDesktopIpc('appLock:setLocked', input),

@@ -1,6 +1,7 @@
 export const desktopIpcErrorCodes = {
   agentNotFound: 'AGENT_NOT_FOUND',
   annotationAgentNotFound: 'ANNOTATION_AGENT_NOT_FOUND',
+  appLockRequired: 'APP_LOCK_REQUIRED',
   handlerFailed: 'IPC_HANDLER_FAILED',
   invalidArgs: 'IPC_INVALID_ARGS',
   providerRouteRequired: 'PROVIDER_ROUTE_REQUIRED',

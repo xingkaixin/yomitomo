@@ -12,6 +12,7 @@ import { registerAgentIpc } from './ipc/ipc-agent';
 import { registerAppLockIpc } from './ipc/ipc-app-lock';
 import { registerAppIpc } from './ipc/ipc-app';
 import { registerArticleIpc } from './ipc/ipc-article';
+import { configureDesktopIpcAppLockGuardContext } from './ipc/ipc';
 import { registerProviderIpc } from './ipc/ipc-provider';
 import { registerStoreDataIpc } from './ipc/ipc-store-data';
 import { registerWeReadIpc } from './ipc/ipc-weread';
@@ -212,6 +213,7 @@ function registerIpc() {
     openExternalUrl,
   };
 
+  configureDesktopIpcAppLockGuardContext(context);
   registerAppIpc(context);
   registerStoreDataIpc(context);
   registerArticleIpc(context);

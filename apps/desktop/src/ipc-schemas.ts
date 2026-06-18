@@ -63,6 +63,11 @@ const desktopIpcInvokeSchemas: DesktopIpcSchemaMap = {
       pin: appLockPinSchema,
     }),
   ]),
+  'appLock:unlock': z.tuple([
+    z.object({
+      pin: appLockPinSchema,
+    }),
+  ]),
   'article:import-url': z.tuple([
     z.union([
       httpUrlSchema,

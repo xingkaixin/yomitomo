@@ -115,6 +115,44 @@ describe('useDesktopStoreState', () => {
       logPath: '/tmp/yomitomo-agent.log',
     });
   });
+
+  it('loads a minimal locked store when main requires app lock before store access', async () => {
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: {
+        getAppLockStatus: vi.fn().mockResolvedValue({
+          configured: true,
+          enabled: true,
+          locked: true,
+          shortcut: 'CommandOrControl+L',
+        }),
+        getStateResult: vi.fn().mockRejectedValue({
+          code: 'APP_LOCK_REQUIRED',
+          message: 'APP_LOCK_REQUIRED',
+        }),
+        onArticlePatched: vi.fn(() => vi.fn()),
+        onStoreUpdated: vi.fn(() => vi.fn()),
+      },
+    });
+
+    const latest: { current?: ReturnType<typeof useDesktopStoreState> } = {};
+
+    function Harness() {
+      latest.current = useDesktopStoreState();
+      return null;
+    }
+
+    render(<Harness />);
+
+    await waitFor(() => expect(latest.current?.storeLoaded).toBe(true));
+    expect(latest.current?.storeLoadError).toBeNull();
+    expect(latest.current?.store.settings).toMatchObject({
+      appLockEnabled: true,
+      appLockLocked: true,
+      appLockShortcut: 'CommandOrControl+L',
+    });
+    expect(latest.current?.store.articles).toEqual([]);
+  });
 });
 
 function noopStoreUpdated(_store: DesktopStore) {}
