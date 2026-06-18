@@ -96,6 +96,10 @@ export function registerStoreDataIpc(context: DesktopMainIpcContext) {
     const { assistantExecutionPersistence } = await context.getPersistenceModule();
     return assistantExecutionPersistence.queryAssistantExecutionRuns(input);
   });
+  handleDesktopIpc('assistant-executions:detail', async (_event, id) => {
+    const { assistantExecutionPersistence } = await context.getPersistenceModule();
+    return assistantExecutionPersistence.queryAssistantExecutionRunDetail(id);
+  });
   handleDesktopIpc('assistant-executions:summary', async (_event, input) => {
     const { assistantExecutionPersistence } = await context.getPersistenceModule();
     return assistantExecutionPersistence.queryAssistantExecutionSummary(input);

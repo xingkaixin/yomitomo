@@ -80,6 +80,7 @@ export const weReadPersistence = {
 };
 
 export const assistantExecutionPersistence = {
+  queryAssistantExecutionRunDetail: store.queryAssistantExecutionRunDetail,
   queryAssistantExecutionRuns: store.queryAssistantExecutionRuns,
   queryAssistantExecutionSummary: store.queryAssistantExecutionSummary,
   recordAssistantExecutionRun: store.recordAssistantExecutionRun,

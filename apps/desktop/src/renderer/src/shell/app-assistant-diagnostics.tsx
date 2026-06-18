@@ -5,7 +5,8 @@ import { Activity, CalendarIcon, ChevronDown, RefreshCw, Route } from 'lucide-re
 import type { Agent, LlmProvider } from '@yomitomo/shared';
 import type {
   AssistantExecutionQueryInput,
-  AssistantExecutionRun,
+  AssistantExecutionRunDetail,
+  AssistantExecutionRunListItem,
   AssistantExecutionSummary,
   AssistantExecutionSummaryGroup,
   AssistantExecutionTotals,
@@ -39,7 +40,10 @@ type Translate = ReturnType<typeof useTranslation>['t'];
 export function AiTraceSettingsPanel({ agents, providers }: DiagnosticsProps) {
   const { t, i18n } = useTranslation();
   const [filters, setFilters] = useState(defaultFilters);
-  const [runs, setRuns] = useState<AssistantExecutionRun[]>([]);
+  const [runs, setRuns] = useState<AssistantExecutionRunListItem[]>([]);
+  const [runDetails, setRunDetails] = useState<Record<string, AssistantExecutionRunDetail>>({});
+  const [detailLoadingId, setDetailLoadingId] = useState('');
+  const [detailErrors, setDetailErrors] = useState<Record<string, string>>({});
   const [summary, setSummary] = useState<AssistantExecutionSummary | null>(null);
   const [expandedId, setExpandedId] = useState('');
   const [busy, setBusy] = useState(false);
@@ -62,6 +66,9 @@ export function AiTraceSettingsPanel({ agents, providers }: DiagnosticsProps) {
         window.yomitomoDesktop.summarizeAssistantExecutions(query),
       ]);
       setRuns(nextRuns);
+      setRunDetails((current) => filterRunDetails(current, nextRuns));
+      setDetailErrors({});
+      setDetailLoadingId('');
       setSummary(nextSummary);
       if (expandedId && !nextRuns.some((run) => run.id === expandedId)) setExpandedId('');
     } catch (nextError) {
@@ -69,6 +76,33 @@ export function AiTraceSettingsPanel({ agents, providers }: DiagnosticsProps) {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function loadRunDetail(runId: string, force = false) {
+    if (!force && runDetails[runId]) return;
+    setDetailLoadingId(runId);
+    setDetailErrors((current) => ({ ...current, [runId]: '' }));
+    try {
+      const detail = await window.yomitomoDesktop.getAssistantExecutionDetail(runId);
+      if (!detail) throw new Error(t('diagnostics.traceReadFailed'));
+      setRunDetails((current) => ({ ...current, [runId]: detail }));
+    } catch (nextError) {
+      setDetailErrors((current) => ({
+        ...current,
+        [runId]: errorMessage(nextError, t('diagnostics.traceReadFailed')),
+      }));
+    } finally {
+      setDetailLoadingId((current) => (current === runId ? '' : current));
+    }
+  }
+
+  async function toggleRunDetail(runId: string) {
+    if (expandedId === runId) {
+      setExpandedId('');
+      return;
+    }
+    setExpandedId(runId);
+    await loadRunDetail(runId);
   }
 
   return (
@@ -97,7 +131,7 @@ export function AiTraceSettingsPanel({ agents, providers }: DiagnosticsProps) {
             <button
               className="diagnostics-run-header"
               type="button"
-              onClick={() => setExpandedId(expandedId === run.id ? '' : run.id)}
+              onClick={() => void toggleRunDetail(run.id)}
             >
               <span className={`diagnostics-status-dot is-${run.status}`} aria-hidden="true" />
               <AgentIdentity agent={agentById.get(run.agentId)} fallbackName={agentName(run)}>
@@ -115,7 +149,15 @@ export function AiTraceSettingsPanel({ agents, providers }: DiagnosticsProps) {
               </span>
               <ChevronDown size={16} />
             </button>
-            {expandedId === run.id ? <TraceRunDetails run={run} /> : null}
+            {expandedId === run.id ? (
+              <TraceRunDetails
+                busy={detailLoadingId === run.id}
+                detail={runDetails[run.id]}
+                error={detailErrors[run.id]}
+                run={run}
+                onRetry={() => void loadRunDetail(run.id, true)}
+              />
+            ) : null}
           </section>
         ))}
       </div>
@@ -434,8 +476,21 @@ function SummaryCard({ label, value, hint }: { label: string; value: string; hin
   );
 }
 
-function TraceRunDetails({ run }: { run: AssistantExecutionRun }) {
+function TraceRunDetails({
+  busy,
+  detail,
+  error,
+  run,
+  onRetry,
+}: {
+  busy: boolean;
+  detail?: AssistantExecutionRunDetail;
+  error?: string;
+  run: AssistantExecutionRunListItem;
+  onRetry: () => void;
+}) {
   const { t, i18n } = useTranslation();
+  const steps = detail?.safeSteps || [];
   return (
     <div className="diagnostics-run-details">
       <div className="diagnostics-usage-grid">
@@ -446,9 +501,13 @@ function TraceRunDetails({ run }: { run: AssistantExecutionRun }) {
         <UsageCell label="reasoning" locale={i18n.language} value={run.usage.reasoningTokens} />
         <UsageCell label="total" locale={i18n.language} value={run.usage.totalTokens} />
       </div>
-      {run.safeSteps.length > 0 ? (
+      {busy && !detail ? (
+        <DiagnosticsStatus message={t('diagnostics.loadingTraceDetail')} />
+      ) : error && !detail ? (
+        <DiagnosticsStatus status="error" message={error} onRetry={onRetry} />
+      ) : steps.length > 0 ? (
         <div className="diagnostics-step-list">
-          {run.safeSteps.map((step) => (
+          {steps.map((step) => (
             <div className="diagnostics-step-row" key={`${run.id}:${step.stepIndex}`}>
               <strong>#{step.stepIndex}</strong>
               <span>{step.eventType}</span>
@@ -575,7 +634,7 @@ function ProviderIdentity({
 }
 
 function useDiagnosticsOptions(
-  runs: AssistantExecutionRun[],
+  runs: AssistantExecutionRunListItem[],
   agents: Agent[],
   providers: LlmProvider[],
   t: Translate,
@@ -726,11 +785,19 @@ function dateRangeLabel(range: DateRange, t: Translate) {
   return `${format(range.from, 'yyyy/MM/dd')} - ${format(range.to, 'yyyy/MM/dd')}`;
 }
 
-function agentName(run: AssistantExecutionRun) {
+function filterRunDetails(
+  details: Record<string, AssistantExecutionRunDetail>,
+  runs: AssistantExecutionRunListItem[],
+) {
+  const nextIds = new Set(runs.map((run) => run.id));
+  return Object.fromEntries(Object.entries(details).filter(([id]) => nextIds.has(id)));
+}
+
+function agentName(run: AssistantExecutionRunListItem) {
   return run.agentNickname || (run.agentUsername ? `@${run.agentUsername}` : run.agentId);
 }
 
-function statusLabel(run: AssistantExecutionRun) {
+function statusLabel(run: AssistantExecutionRunListItem) {
   return run.fallbackReason ? `${run.status}: ${run.fallbackReason}` : run.status;
 }
 

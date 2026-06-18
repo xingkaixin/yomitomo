@@ -21,6 +21,7 @@ import {
 } from '../assistant/assistant-execution-repository';
 import { logError } from '../app/logger';
 import {
+  getAssistantExecutionRunDetail,
   listAssistantExecutionRuns,
   summarizeAssistantExecutions,
 } from '../assistant/assistant-execution-query-repository';
@@ -335,6 +336,10 @@ export function refreshModelPrices() {
 
 export function queryAssistantExecutionRuns(input: AssistantExecutionQueryInput) {
   return listAssistantExecutionRuns(getDatabase(), input);
+}
+
+export function queryAssistantExecutionRunDetail(id: string) {
+  return getAssistantExecutionRunDetail(getDatabase(), id);
 }
 
 export function queryAssistantExecutionSummary(input: AssistantExecutionQueryInput) {

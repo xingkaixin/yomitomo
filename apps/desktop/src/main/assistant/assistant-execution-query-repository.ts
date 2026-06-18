@@ -3,6 +3,8 @@ import type { AnySQLiteColumn } from 'drizzle-orm/sqlite-core';
 import type {
   AssistantExecutionQueryInput,
   AssistantExecutionRun,
+  AssistantExecutionRunDetail,
+  AssistantExecutionRunListItem,
   AssistantExecutionSafeStep,
   AssistantExecutionStatus,
   AssistantExecutionSummary,
@@ -17,6 +19,17 @@ const DEFAULT_LIMIT = 200;
 const MAX_LIMIT = 500;
 
 type AssistantExecutionRow = typeof schema.assistantExecutionRuns.$inferSelect;
+type AssistantExecutionListRow = Omit<AssistantExecutionRow, 'traceJson'>;
+type AssistantExecutionTraceRow = Pick<AssistantExecutionRow, 'id' | 'traceJson'>;
+type AssistantExecutionUsageRow = Pick<
+  AssistantExecutionRow,
+  | 'inputTokens'
+  | 'outputTokens'
+  | 'reasoningTokens'
+  | 'cachedInputTokens'
+  | 'cacheWriteTokens'
+  | 'totalTokens'
+>;
 type AssistantExecutionTotalsAccumulator = {
   totals: AssistantExecutionTotals;
   durationCount: number;
@@ -30,15 +43,30 @@ type AssistantExecutionAggregateRow = AssistantExecutionUsage &
 export function listAssistantExecutionRuns(
   database: StoreExecutor,
   input: AssistantExecutionQueryInput,
-): AssistantExecutionRun[] {
+): AssistantExecutionRunListItem[] {
   const rows = database
-    .select()
+    .select(assistantExecutionListSelection())
     .from(schema.assistantExecutionRuns)
     .where(assistantExecutionWhere(input))
     .orderBy(desc(schema.assistantExecutionRuns.createdAt))
     .limit(normalizeLimit(input.limit))
     .all();
-  return rows.map(assistantExecutionRunDto);
+  return rows.map(assistantExecutionRunListItemDto);
+}
+
+export function getAssistantExecutionRunDetail(
+  database: StoreExecutor,
+  id: string,
+): AssistantExecutionRunDetail | null {
+  const row = database
+    .select({
+      id: schema.assistantExecutionRuns.id,
+      traceJson: schema.assistantExecutionRuns.traceJson,
+    })
+    .from(schema.assistantExecutionRuns)
+    .where(eq(schema.assistantExecutionRuns.id, id))
+    .get();
+  return row ? assistantExecutionRunDetailDto(row) : null;
 }
 
 export function summarizeAssistantExecutions(
@@ -86,7 +114,9 @@ function assistantExecutionWhere(input: AssistantExecutionQueryInput) {
   return and(...clauses);
 }
 
-export function assistantExecutionRunDto(row: AssistantExecutionRow): AssistantExecutionRun {
+export function assistantExecutionRunListItemDto(
+  row: AssistantExecutionListRow,
+): AssistantExecutionRunListItem {
   return {
     id: row.id,
     createdAt: row.createdAt,
@@ -106,7 +136,22 @@ export function assistantExecutionRunDto(row: AssistantExecutionRow): AssistantE
     currency: row.currency || undefined,
     durationMs: row.durationMs ?? undefined,
     stepCount: row.stepCount,
+  };
+}
+
+export function assistantExecutionRunDetailDto(
+  row: AssistantExecutionTraceRow,
+): AssistantExecutionRunDetail {
+  return {
+    id: row.id,
     safeSteps: safeTraceSteps(row.traceJson),
+  };
+}
+
+export function assistantExecutionRunDto(row: AssistantExecutionRow): AssistantExecutionRun {
+  return {
+    ...assistantExecutionRunListItemDto(row),
+    ...assistantExecutionRunDetailDto(row),
   };
 }
 
@@ -164,6 +209,34 @@ function assistantExecutionAggregateSelection() {
     estimatedCostMicros: sumColumn(schema.assistantExecutionRuns.estimatedCostMicros),
     missingCostCount: sql<number>`coalesce(sum(case when ${schema.assistantExecutionRuns.estimatedCostMicros} is null then 1 else 0 end), 0)`,
     averageDurationMs: sql<number | null>`round(avg(${schema.assistantExecutionRuns.durationMs}))`,
+  };
+}
+
+function assistantExecutionListSelection() {
+  return {
+    id: schema.assistantExecutionRuns.id,
+    createdAt: schema.assistantExecutionRuns.createdAt,
+    agentId: schema.assistantExecutionRuns.agentId,
+    agentUsername: schema.assistantExecutionRuns.agentUsername,
+    agentNickname: schema.assistantExecutionRuns.agentNickname,
+    taskType: schema.assistantExecutionRuns.taskType,
+    requestedMode: schema.assistantExecutionRuns.requestedMode,
+    effectiveMode: schema.assistantExecutionRuns.effectiveMode,
+    providerId: schema.assistantExecutionRuns.providerId,
+    providerName: schema.assistantExecutionRuns.providerName,
+    modelName: schema.assistantExecutionRuns.modelName,
+    status: schema.assistantExecutionRuns.status,
+    fallbackReason: schema.assistantExecutionRuns.fallbackReason,
+    inputTokens: schema.assistantExecutionRuns.inputTokens,
+    outputTokens: schema.assistantExecutionRuns.outputTokens,
+    reasoningTokens: schema.assistantExecutionRuns.reasoningTokens,
+    cachedInputTokens: schema.assistantExecutionRuns.cachedInputTokens,
+    cacheWriteTokens: schema.assistantExecutionRuns.cacheWriteTokens,
+    totalTokens: schema.assistantExecutionRuns.totalTokens,
+    estimatedCostMicros: schema.assistantExecutionRuns.estimatedCostMicros,
+    currency: schema.assistantExecutionRuns.currency,
+    durationMs: schema.assistantExecutionRuns.durationMs,
+    stepCount: schema.assistantExecutionRuns.stepCount,
   };
 }
 
@@ -269,7 +342,7 @@ function emptyUsage(): AssistantExecutionUsage {
   };
 }
 
-function rowUsage(row: AssistantExecutionRow): AssistantExecutionUsage {
+function rowUsage(row: AssistantExecutionUsageRow): AssistantExecutionUsage {
   return {
     inputTokens: row.inputTokens || 0,
     outputTokens: row.outputTokens || 0,

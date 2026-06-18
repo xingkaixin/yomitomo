@@ -417,6 +417,7 @@ export const enResources = {
       traceReadFailed: 'Failed to read assistant traces.',
       noRuns: 'No assistant executions in the selected time range.',
       runList: 'Assistant trace list',
+      loadingTraceDetail: 'Reading trace details…',
       usageReadFailed: 'Failed to read assistant usage.',
       usageCaption:
         'Estimated usage from local assistant execution records over the last {{days}} days. For reference only; not an actual bill.',

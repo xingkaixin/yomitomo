@@ -407,6 +407,7 @@ export const zhCNResources = {
       traceReadFailed: '读取助手调用链路失败。',
       noRuns: '当前时间范围没有助手执行记录。',
       runList: '助手调用链路列表',
+      loadingTraceDetail: '正在读取 trace 详情…',
       usageReadFailed: '读取助手用量失败。',
       usageCaption: '最近 {{days}} 天，基于本地助手执行记录的预估用量，仅供参考，并非实际账单。',
       refresh: '刷新',
