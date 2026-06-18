@@ -209,6 +209,73 @@ describe('reading memory store', () => {
     );
   });
 
+  it('limits substring fallback candidates through SQL', () => {
+    const database = recordingExecutor(memoryDatabase());
+    const performanceLogger = vi.fn();
+    appendReadingMemoryEntries(
+      [
+        entry({
+          id: 'matching_entry',
+          payload: { summary: '人物动机变化', keyTerms: ['人物动机变化'] },
+        }),
+        entry({
+          id: 'second_match',
+          payload: { summary: '动机线索延展', keyTerms: ['动机线索延展'] },
+        }),
+        entry({
+          id: 'unrelated_entry',
+          payload: { summary: 'unrelated memory', keyTerms: ['unrelated'] },
+        }),
+      ],
+      database,
+    );
+    database.sqlLog.length = 0;
+
+    expect(
+      searchReadingMemoryEntries({
+        articleId: 'article_1',
+        query: '动机',
+        fallbackToSubstring: true,
+        limit: 1,
+        performanceLogger,
+        executor: database,
+      }).map((item) => item.id),
+    ).toEqual(['matching_entry']);
+
+    expect(database.sqlLog).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/FROM reading_memory_entry_fts AS fts[\s\S]+search_text LIKE \?/),
+        expect.stringMatching(/FROM reading_memory_entries[\s\S]+id IN/),
+      ]),
+    );
+    expect(database.sqlLog).not.toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(
+          /FROM reading_memory_entries[\s\S]+WHERE article_id = \?\s+AND deleted_at IS NULL\s+ORDER BY created_at ASC, id ASC/,
+        ),
+      ]),
+    );
+    expect(performanceLogger).toHaveBeenCalledWith(
+      'performance.reading_memory.substring_fallback',
+      expect.objectContaining({
+        articleId: 'article_1',
+        queryLength: 2,
+        limit: 1,
+        candidateCount: 1,
+        entryCount: 1,
+      }),
+    );
+    expect(performanceLogger).toHaveBeenCalledWith(
+      'performance.reading_memory.fts_query',
+      expect.objectContaining({
+        articleId: 'article_1',
+        fallback: 'substring',
+        fallbackCandidateCount: 1,
+        entryCount: 1,
+      }),
+    );
+  });
+
   it('soft-deletes source entries and removes their FTS rows', () => {
     const database = memoryDatabase();
     appendReadingMemoryEntries(

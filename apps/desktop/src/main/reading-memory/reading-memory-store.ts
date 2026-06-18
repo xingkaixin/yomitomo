@@ -63,6 +63,11 @@ export type SearchReadingMemoryEntriesOptions = {
   executor?: ReadingMemorySqliteExecutor;
 };
 
+type SubstringFallbackResult = {
+  entries: ReadingMemoryEntry[];
+  candidateCount: number;
+};
+
 export type BuildReadingMemoryViewOptions = {
   articleId: string;
   viewType: Extract<
@@ -215,14 +220,20 @@ LIMIT ?
   if (ids.length === 0) {
     const fallback = options.fallbackToSubstring
       ? searchReadingMemoryEntriesBySubstring(options, executor, limit)
-      : [];
+      : { entries: [], candidateCount: 0 };
     logReadingMemoryTiming(options.performanceLogger, 'fts_query', startedAt, {
       articleId: options.articleId,
       queryLength: query.length,
-      fallback: 'substring',
-      entryCount: fallback.length,
+      limit,
+      ...(options.fallbackToSubstring
+        ? {
+            fallback: 'substring',
+            fallbackCandidateCount: fallback.candidateCount,
+          }
+        : {}),
+      entryCount: fallback.entries.length,
     });
-    return fallback;
+    return fallback.entries;
   }
 
   const entries = readReadingMemoryEntriesByIds({
@@ -252,19 +263,53 @@ function searchReadingMemoryEntriesBySubstring(
   options: SearchReadingMemoryEntriesOptions,
   executor: ReadingMemorySqliteExecutor,
   limit: number,
-) {
-  const query = options.query.trim().toLocaleLowerCase();
-  if (!query) return [];
-  return readReadingMemoryEntries({
+): SubstringFallbackResult {
+  const startedAt = performance.now();
+  const query = options.query.trim();
+  if (!query) return { entries: [], candidateCount: 0 };
+  const { where, values } = readingMemoryWhereClause({
     articleId: options.articleId,
     agentId: options.agentId,
     excludeAgentId: options.excludeAgentId,
     requireAgentId: options.requireAgentId,
     visibility: options.visibility,
+  });
+  const rows = executor
+    .prepare(
+      `
+SELECT fts.entry_id AS entryId
+FROM reading_memory_entry_fts AS fts
+WHERE fts.article_id = ?
+  AND fts.search_text LIKE ? ESCAPE '\\'
+  AND EXISTS (
+    SELECT 1
+    FROM reading_memory_entries
+    ${where}
+      AND reading_memory_entries.id = fts.entry_id
+  )
+ORDER BY fts.rowid ASC
+LIMIT ?
+`,
+    )
+    .all(options.articleId, `%${escapeSqlLike(query)}%`, ...values, limit);
+  const ids = rows.map((row) => stringValue(recordField(row, 'entryId'))).filter(Boolean);
+  const entries = readReadingMemoryEntriesByIds({
+    articleId: options.articleId,
+    ids,
+    agentId: options.agentId,
+    excludeAgentId: options.excludeAgentId,
+    requireAgentId: options.requireAgentId,
+    visibility: options.visibility,
     executor,
-  })
-    .filter((entry) => readingMemoryEntrySearchText(entry).toLocaleLowerCase().includes(query))
-    .slice(0, limit);
+  });
+  logReadingMemoryTiming(options.performanceLogger, 'substring_fallback', startedAt, {
+    articleId: options.articleId,
+    queryLength: query.length,
+    limit,
+    candidateCount: ids.length,
+    entryCount: entries.length,
+  });
+  return { entries, candidateCount: ids.length };
 }
 
 function readReadingMemoryEntriesByIds(
@@ -883,6 +928,10 @@ function chunks<T>(values: T[], size: number) {
 
 function questionMarks(count: number) {
   return Array.from({ length: count }, () => '?').join(', ');
+}
+
+function escapeSqlLike(value: string) {
+  return value.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_');
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
