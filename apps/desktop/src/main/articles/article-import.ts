@@ -12,6 +12,7 @@ import type { ArticleRecord } from '@yomitomo/shared';
 import { Effect } from 'effect';
 
 const IMPORT_TIMEOUT_MS = 15_000;
+export const MAX_ARTICLE_IMPORT_HTML_BYTES = 5_000_000;
 const RENDERED_IMPORT_TIMEOUT_MS = 20_000;
 const RENDERED_IMPORT_SETTLE_MS = 1_500;
 const WECHAT_MOBILE_USER_AGENT =
@@ -126,7 +127,7 @@ function fetchArticleHtmlEffect(url: string, signal: AbortSignal) {
       }
 
       const html = yield* Effect.tryPromise({
-        try: () => response.text(),
+        try: () => readArticleImportResponseHtml(response, fetchSignal),
         catch: (error) => articleFetchError(error, signal),
       });
       if (isChallengeHtml(html)) {
@@ -212,6 +213,7 @@ async function loadRenderedArticleHtml(
     if (typeof page.html !== 'string' || !page.html.trim()) {
       throw new Error('ARTICLE_IMPORT_RENDER_EMPTY');
     }
+    assertArticleImportHtmlByteLimit(page.html);
     return {
       html: page.html,
       url: typeof page.url === 'string' && page.url ? page.url : url,
@@ -273,23 +275,35 @@ async function waitForRenderedPage(
   deadline: number,
   signal: AbortSignal,
 ) {
-  let lastPage: { html?: unknown; text?: unknown; title?: unknown; url?: unknown } = {};
+  let lastPage: {
+    html?: unknown;
+    htmlByteLength?: unknown;
+    text?: unknown;
+    title?: unknown;
+    url?: unknown;
+  } = {};
 
   while (Date.now() < deadline) {
     await wait(RENDERED_IMPORT_SETTLE_MS, signal);
     throwIfArticleImportCanceled(signal);
     lastPage = renderedPageValue(
       await webContents.executeJavaScript(
-        `({
-        html: document.documentElement.outerHTML,
+        `(() => {
+        const html = document.documentElement.outerHTML;
+        const htmlByteLength = new Blob([html]).size;
+        return {
+        html: htmlByteLength <= ${MAX_ARTICLE_IMPORT_HTML_BYTES} ? html : "",
+        htmlByteLength,
         text: document.body?.innerText || "",
         title: document.title || "",
         url: location.href
-      })`,
+      };
+      })()`,
         true,
       ),
     );
     throwIfArticleImportCanceled(signal);
+    if (renderedPageTooLarge(lastPage)) throw new Error('ARTICLE_IMPORT_RESPONSE_TOO_LARGE');
     if (!isChallengePage(lastPage)) return lastPage;
   }
 
@@ -321,11 +335,125 @@ function renderedPageValue(value: unknown) {
   return isRecord(value)
     ? {
         html: value.html,
+        htmlByteLength: value.htmlByteLength,
         text: value.text,
         title: value.title,
         url: value.url,
       }
     : {};
+}
+
+async function readArticleImportResponseHtml(response: Response, signal: AbortSignal) {
+  const declaredLength = contentLengthBytes(response.headers);
+  if (declaredLength !== null && declaredLength > MAX_ARTICLE_IMPORT_HTML_BYTES) {
+    throw new Error('ARTICLE_IMPORT_RESPONSE_TOO_LARGE');
+  }
+
+  const html = await readLimitedResponseText(response, signal);
+  if (isArticleImportHtmlResponse(response.headers, html)) return html;
+  throw new Error('ARTICLE_IMPORT_UNSUPPORTED_CONTENT_TYPE');
+}
+
+async function readLimitedResponseText(response: Response, signal: AbortSignal) {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    const buffer = await response.arrayBuffer();
+    if (buffer.byteLength > MAX_ARTICLE_IMPORT_HTML_BYTES) {
+      throw new Error('ARTICLE_IMPORT_RESPONSE_TOO_LARGE');
+    }
+    return new TextDecoder().decode(buffer);
+  }
+
+  const chunks: Uint8Array[] = [];
+  let byteLength = 0;
+
+  try {
+    for (;;) {
+      throwIfSignalAborted(signal);
+      const result = await reader.read();
+      if (result.done) break;
+      if (!result.value) continue;
+      byteLength += result.value.byteLength;
+      if (byteLength > MAX_ARTICLE_IMPORT_HTML_BYTES) {
+        await reader.cancel().catch(() => undefined);
+        throw new Error('ARTICLE_IMPORT_RESPONSE_TOO_LARGE');
+      }
+      chunks.push(result.value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return new TextDecoder().decode(concatUint8Arrays(chunks, byteLength));
+}
+
+function contentLengthBytes(headers: Headers) {
+  const value = headers.get('content-length')?.trim();
+  if (!value || !/^\d+$/.test(value)) return null;
+  return Number(value);
+}
+
+function isArticleImportHtmlResponse(headers: Headers, html: string) {
+  const contentType = responseContentType(headers);
+  if (isHtmlContentType(contentType)) return true;
+  return (!contentType || isHtmlLikeText(html)) && !isLikelyBinaryText(html);
+}
+
+function responseContentType(headers: Headers) {
+  return headers.get('content-type')?.split(';')[0]?.trim().toLowerCase() || '';
+}
+
+function isHtmlContentType(contentType: string) {
+  return (
+    contentType === 'text/html' ||
+    contentType === 'application/xhtml+xml' ||
+    contentType === 'application/xml' ||
+    contentType === 'text/xml'
+  );
+}
+
+function isHtmlLikeText(value: string) {
+  const sample = value.trimStart().slice(0, 512).toLowerCase();
+  return (
+    sample.startsWith('<!doctype html') ||
+    sample.startsWith('<html') ||
+    sample.includes('<head') ||
+    sample.includes('<body') ||
+    sample.includes('<article')
+  );
+}
+
+function isLikelyBinaryText(value: string) {
+  return value.includes('\u0000') || value.trimStart().startsWith('%PDF-');
+}
+
+function assertArticleImportHtmlByteLimit(html: string) {
+  if (new TextEncoder().encode(html).byteLength > MAX_ARTICLE_IMPORT_HTML_BYTES) {
+    throw new Error('ARTICLE_IMPORT_RESPONSE_TOO_LARGE');
+  }
+}
+
+function renderedPageTooLarge(page: { htmlByteLength?: unknown }) {
+  return (
+    typeof page.htmlByteLength === 'number' && page.htmlByteLength > MAX_ARTICLE_IMPORT_HTML_BYTES
+  );
+}
+
+function throwIfSignalAborted(signal: AbortSignal) {
+  if (!signal.aborted) return;
+  const error = new Error('aborted');
+  error.name = 'AbortError';
+  throw error;
+}
+
+function concatUint8Arrays(chunks: Uint8Array[], byteLength: number) {
+  const result = new Uint8Array(byteLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return result;
 }
 
 function extractArticleRecordInWorkerEffect({
