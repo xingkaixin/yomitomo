@@ -11,6 +11,7 @@ import {
 
 const testState = vi.hoisted(() => ({
   secrets: new Map<string, string>(),
+  saveProviderApiKeyError: undefined as Error | undefined,
   providerApiKeyRef: (providerId: string) => `provider:${providerId}:apiKey`,
   backfillAnnotationMemoryEntries: vi.fn(),
   logErrors: [] as Array<{ event: string; error: unknown; data?: Record<string, unknown> }>,
@@ -33,6 +34,7 @@ vi.mock('../providers/provider-secrets', () => {
   return {
     providerApiKeyRef: testState.providerApiKeyRef,
     saveProviderApiKey: async (providerId: string, apiKey: string) => {
+      if (testState.saveProviderApiKeyError) throw testState.saveProviderApiKeyError;
       const ref = testState.providerApiKeyRef(providerId);
       testState.secrets.set(ref, apiKey);
       return ref;
@@ -88,6 +90,7 @@ beforeEach(async () => {
   closeDatabase();
   await rm('/tmp/yomitomo-store-test', { recursive: true, force: true });
   testState.secrets.clear();
+  testState.saveProviderApiKeyError = undefined;
   testState.backfillAnnotationMemoryEntries.mockReset();
   testState.backfillAnnotationMemoryEntries.mockReturnValue({
     articleCount: 0,
@@ -251,10 +254,10 @@ describe('desktop store providers', () => {
     expect(testState.secrets.get('provider:provider_1:apiKey')).toBe('sk-test');
   });
 
-  it('preserves existing legacy api keys until migration can move them', async () => {
+  it('does not preserve existing legacy api keys as SQLite fallback', async () => {
     await expect(
       resolveProviderApiKeyStorage('provider_1', {}, { apiKey: 'legacy-key', apiKeyRef: null }),
-    ).resolves.toEqual({ storedApiKey: 'legacy-key' });
+    ).resolves.toEqual({ storedApiKey: '' });
   });
 
   it('builds provider records without leaking api keys into the public store', () => {
@@ -324,6 +327,54 @@ describe('desktop store providers', () => {
     testState.secrets.set('provider:provider_1:apiKey', 'sk-stored');
 
     await expect(readStoredProviderApiKey('provider_1')).resolves.toBe('sk-stored');
+  });
+
+  it('does not read legacy provider api keys from SQLite', async () => {
+    insertProviderRow({ id: 'provider_1', apiKey: 'legacy-key' });
+
+    await expect(readStoredProviderApiKey('provider_1')).resolves.toBe('');
+  });
+
+  it('migrates legacy provider api keys into keyring refs and clears SQLite secrets', async () => {
+    insertProviderRow({ id: 'provider_1', apiKey: 'legacy-key' });
+
+    const store = await readStore();
+    const row = readProviderRow('provider_1');
+
+    expect(testState.secrets.get('provider:provider_1:apiKey')).toBe('legacy-key');
+    expect(row).toMatchObject({
+      apiKey: '',
+      apiKeyRef: 'provider:provider_1:apiKey',
+    });
+    expect(store.providers.find((provider) => provider.id === 'provider_1')).toMatchObject({
+      hasApiKey: true,
+    });
+  });
+
+  it('clears legacy provider api keys and marks providers unconfigured when keyring migration fails', async () => {
+    const error = new Error('keyring locked');
+    testState.saveProviderApiKeyError = error;
+    insertProviderRow({
+      id: 'provider_1',
+      apiKey: 'legacy-key',
+      apiKeyRef: 'provider:provider_1:apiKey',
+    });
+
+    const store = await readStore();
+    const row = readProviderRow('provider_1');
+
+    expect(testState.secrets.has('provider:provider_1:apiKey')).toBe(false);
+    expect(row).toMatchObject({ apiKey: '', apiKeyRef: null });
+    expect(store.providers.find((provider) => provider.id === 'provider_1')).toMatchObject({
+      hasApiKey: false,
+    });
+    expect(testState.logErrors).toEqual([
+      {
+        event: 'provider.migrate_api_key_failed',
+        error,
+        data: { providerId: 'provider_1' },
+      },
+    ]);
   });
 });
 
@@ -1023,6 +1074,36 @@ function storeSummaryRow(): ArticleSummaryRow {
     createdAt: '2026-05-17T00:00:00.000Z',
     updatedAt: '2026-05-17T00:00:00.000Z',
   };
+}
+
+function insertProviderRow(input: Partial<typeof schema.providers.$inferInsert>) {
+  getDatabase()
+    .insert(schema.providers)
+    .values({
+      id: input.id || 'provider_1',
+      name: input.name || 'Provider',
+      type: input.type || 'openai-chat',
+      presetId: input.presetId ?? null,
+      logo: input.logo ?? null,
+      baseUrl: input.baseUrl || 'https://api.example.com',
+      apiKey: input.apiKey || '',
+      apiKeyRef: input.apiKeyRef ?? null,
+      modelName: input.modelName || 'model-a',
+      modelNames: input.modelNames,
+      modelInputMode: input.modelInputMode || 'custom',
+      reasoningEffort: input.reasoningEffort ?? null,
+      createdAt: input.createdAt || '2026-05-16T00:00:00.000Z',
+      updatedAt: input.updatedAt || '2026-05-16T00:00:00.000Z',
+    })
+    .run();
+}
+
+function readProviderRow(providerId: string) {
+  return getDatabase()
+    .select()
+    .from(schema.providers)
+    .all()
+    .find((provider) => provider.id === providerId);
 }
 
 function readAnnotationMemoryBackfillVersion() {

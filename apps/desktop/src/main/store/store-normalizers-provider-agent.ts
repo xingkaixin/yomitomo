@@ -21,7 +21,7 @@ export function rowToProvider(row: typeof schema.providers.$inferSelect): LlmPro
     logo: row.logo || undefined,
     baseUrl: row.baseUrl,
     apiKey: '',
-    hasApiKey: Boolean(row.apiKeyRef || row.apiKey),
+    hasApiKey: Boolean(row.apiKeyRef),
     modelName: row.modelName,
     modelNames: normalizeModelNames(row.modelNames) || undefined,
     modelInputMode: normalizeProviderModelInputMode(row.modelInputMode) || 'list',
