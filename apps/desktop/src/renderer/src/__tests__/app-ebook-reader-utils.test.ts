@@ -9,6 +9,7 @@ import {
   configureFoliateView,
   ebookChapterForFoliateSection,
   ebookSectionIndexForChapter,
+  ebookSectionSearchOrder,
   ebookTocItemsForReader,
   formatEbookPageLabel,
   isEbookPaginationReady,
@@ -24,6 +25,7 @@ const now = '2026-05-27T00:00:00.000Z';
 
 function ebookArticle(
   chapters: NonNullable<NonNullable<ArticleRecord['ebook']>['index']>['chapters'],
+  format: NonNullable<ArticleRecord['ebook']>['metadata']['format'] = 'epub',
 ) {
   return {
     id: 'ebook-1',
@@ -37,8 +39,8 @@ function ebookArticle(
     updatedAt: now,
     ebook: {
       metadata: {
-        format: 'epub',
-        fileName: 'book.epub',
+        format,
+        fileName: `book.${format}`,
         fileSize: 1024,
       },
       chapters: chapters.map((item) => ({
@@ -165,7 +167,7 @@ describe('ebook reader utils', () => {
     ]);
   });
 
-  it('falls back to section indexes when Foliate section ids are not href strings', () => {
+  it('falls back to section indexes for EPUB when Foliate section ids are not href strings', () => {
     const article = ebookArticle([
       chapter('cover', '封面', 'kindle:section:0', 0, 0, 100),
       chapter('chapter-1', '第一章', 'kindle:section:1', 1, 100, 500),
@@ -178,6 +180,30 @@ describe('ebook reader utils', () => {
 
     expect(ebookChapterForFoliateSection(article, view, 1)?.id).toBe('chapter-1');
     expect(ebookSectionIndexForChapter(article, view, article.ebook.index!.chapters[1])).toBe(1);
+  });
+
+  it('does not fall back to section indexes for Kindle formats', () => {
+    for (const format of ['azw3', 'mobi'] as const) {
+      const article = ebookArticle(
+        [
+          chapter('cover', '封面', 'kindle:section:0', 0, 0, 100),
+          chapter('chapter-1', '第一章', 'kindle:section:1', 1, 100, 500),
+        ],
+        format,
+      );
+      const view = {
+        book: {
+          sections: [{ id: '0' }, { id: '1' }],
+        },
+      } as unknown as FoliateViewElement;
+
+      expect(ebookChapterForFoliateSection(article, view, 1)).toBeNull();
+      expect(ebookSectionIndexForChapter(article, view, article.ebook.index!.chapters[1])).toBe(-1);
+    }
+  });
+
+  it('searches preferred ebook sections first before covering the rest', () => {
+    expect(ebookSectionSearchOrder(5, [3, 1])).toEqual([3, 1, 2, 4, 0]);
   });
 
   it('serializes cross-paragraph selections with a searchable text boundary', () => {
