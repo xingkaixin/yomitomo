@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { Buffer } from 'node:buffer';
 import JSZip from 'jszip';
-import { articleRecordFromEpubFile } from './ebook-import';
+import {
+  MAX_EPUB_CHAPTER_ENTRY_BYTES,
+  MAX_EPUB_CHAPTER_TEXT_CHARS,
+  MAX_EPUB_COVER_BYTES,
+  MAX_EPUB_METADATA_ENTRY_BYTES,
+  articleRecordFromEpubFile,
+} from './ebook-import';
 
 function arrayBufferFromBuffer(buffer: Buffer) {
   const data = new ArrayBuffer(buffer.byteLength);
@@ -122,6 +128,86 @@ describe('articleRecordFromEpubFile', () => {
       textLength: '第一章第一段。\n\n第一章第二段。'.length,
       previewStart: '第一章第一段。',
       previewEnd: '第一章第二段。',
+    });
+  });
+
+  it('rejects oversized metadata entries before parsing', async () => {
+    const zip = minimalEpubZip({
+      chapter: '<html><body><p>正文。</p></body></html>',
+    });
+    zip.file('OPS/package.opf', 'x'.repeat(MAX_EPUB_METADATA_ENTRY_BYTES + 1));
+
+    const buffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+
+    await expect(
+      articleRecordFromEpubFile({
+        fileName: 'oversized-opf.epub',
+        mimeType: 'application/epub+zip',
+        data: arrayBufferFromBuffer(buffer),
+      }),
+    ).rejects.toThrow('EBOOK_IMPORT_ENTRY_TOO_LARGE');
+  });
+
+  it('rejects oversized chapter entries before parsing', async () => {
+    const zip = minimalEpubZip({
+      chapter: `<html><body><p>${'x'.repeat(MAX_EPUB_CHAPTER_ENTRY_BYTES + 1)}</p></body></html>`,
+    });
+
+    const buffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+
+    await expect(
+      articleRecordFromEpubFile({
+        fileName: 'oversized-chapter-entry.epub',
+        mimeType: 'application/epub+zip',
+        data: arrayBufferFromBuffer(buffer),
+      }),
+    ).rejects.toThrow('EBOOK_IMPORT_ENTRY_TOO_LARGE');
+  });
+
+  it('rejects chapters with excessive extracted text', async () => {
+    const zip = minimalEpubZip({
+      chapter: `<html><body><p>${'x'.repeat(MAX_EPUB_CHAPTER_TEXT_CHARS + 1)}</p></body></html>`,
+    });
+
+    const buffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+
+    await expect(
+      articleRecordFromEpubFile({
+        fileName: 'oversized-chapter-text.epub',
+        mimeType: 'application/epub+zip',
+        data: arrayBufferFromBuffer(buffer),
+      }),
+    ).rejects.toThrow('EBOOK_IMPORT_ENTRY_TOO_LARGE');
+  });
+
+  it('skips oversized cover entries without failing the import', async () => {
+    const zip = minimalEpubZip({
+      chapter: '<html><body><p>正文。</p></body></html>',
+      cover: Buffer.alloc(MAX_EPUB_COVER_BYTES + 1, 1),
+    });
+    const events: { event: string; data?: Record<string, unknown> }[] = [];
+
+    const buffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+    const article = await articleRecordFromEpubFile(
+      {
+        fileName: 'oversized-cover.epub',
+        mimeType: 'application/epub+zip',
+        data: arrayBufferFromBuffer(buffer),
+      },
+      {
+        performanceLogger: (event, eventData) => events.push({ event, data: eventData }),
+      },
+    );
+
+    expect(article.ebook?.chapters[0]?.textLength).toBe('正文。'.length);
+    expect(article.leadImageUrl).toBeUndefined();
+    expect(
+      events.find((entry) => entry.event === 'performance.epub_import.cover_skipped')?.data,
+    ).toMatchObject({
+      path: 'OPS/cover.jpeg',
+      reason: 'too_large',
+      maxBytes: MAX_EPUB_COVER_BYTES,
+      uncompressedBytes: MAX_EPUB_COVER_BYTES + 1,
     });
   });
 
@@ -345,3 +431,39 @@ describe('articleRecordFromEpubFile', () => {
     });
   });
 });
+
+function minimalEpubZip(input: { chapter: string; cover?: Buffer }) {
+  const zip = new JSZip();
+  zip.file(
+    'META-INF/container.xml',
+    `<?xml version="1.0"?>
+    <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+      <rootfiles>
+        <rootfile full-path="OPS/package.opf" media-type="application/oebps-package+xml"/>
+      </rootfiles>
+    </container>`,
+  );
+  zip.file(
+    'OPS/package.opf',
+    `<?xml version="1.0"?>
+    <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="bookid" version="3.0">
+      <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+        <dc:title>边界测试电子书</dc:title>
+      </metadata>
+      <manifest>
+        <item id="c1" href="chapter.xhtml" media-type="application/xhtml+xml"/>
+        ${
+          input.cover
+            ? '<item id="cover" href="cover.jpeg" media-type="image/jpeg" properties="cover-image"/>'
+            : ''
+        }
+      </manifest>
+      <spine>
+        <itemref idref="c1"/>
+      </spine>
+    </package>`,
+  );
+  zip.file('OPS/chapter.xhtml', input.chapter);
+  if (input.cover) zip.file('OPS/cover.jpeg', input.cover);
+  return zip;
+}

@@ -137,6 +137,7 @@ function fileImportErrorMessage(error: unknown, fallback: string, t: AppT) {
 function fileImportErrorKey(code: string) {
   if (code === 'EBOOK_IMPORT_INVALID_FILE') return 'library.import.ebook.invalidFile';
   if (code === 'EBOOK_IMPORT_FILE_TOO_LARGE') return 'library.import.ebook.oversize';
+  if (code === 'EBOOK_IMPORT_ENTRY_TOO_LARGE') return 'library.import.ebook.entryTooLarge';
   if (code === 'EBOOK_IMPORT_NO_READABLE_CHAPTERS')
     return 'library.import.ebook.noReadableChapters';
   if (code === 'EBOOK_IMPORT_MISSING_CONTAINER') return 'library.import.ebook.missingContainer';
@@ -216,6 +217,8 @@ function playImportSuccessSound(importedCount: number, settings: AppSettings) {
 export const readingLibraryImportTestApi = {
   articleImportErrorKey,
   articleImportErrorMessage,
+  fileImportErrorKey,
+  fileImportErrorMessage,
 };
 
 export function LibraryImportControls({

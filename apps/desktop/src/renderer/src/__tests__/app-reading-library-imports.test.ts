@@ -36,6 +36,22 @@ describe('article import errors', () => {
   });
 });
 
+describe('file import errors', () => {
+  it('maps ebook decompressed entry failures to a specific message key', () => {
+    expect(
+      readingLibraryImportTestApi.fileImportErrorMessage(
+        new Error('EBOOK_IMPORT_ENTRY_TOO_LARGE'),
+        'fallback',
+        fileKeyT,
+      ),
+    ).toBe('library.import.ebook.entryTooLarge');
+  });
+});
+
 const keyT = ((key: string) => key) as Parameters<
   typeof readingLibraryImportTestApi.articleImportErrorMessage
 >[1];
+
+const fileKeyT = ((key: string) => key) as Parameters<
+  typeof readingLibraryImportTestApi.fileImportErrorMessage
+>[2];

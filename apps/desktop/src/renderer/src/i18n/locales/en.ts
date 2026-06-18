@@ -651,6 +651,7 @@ export const enResources = {
           idle: 'Batch import · EPUB · 80MB per book · Up to {{count}} books',
           invalidFile: 'Choose an EPUB file',
           oversize: 'EPUB files cannot exceed 80MB',
+          entryTooLarge: 'The EPUB contains oversized decompressed content and cannot be imported',
           noReadableChapters: 'This EPUB has no readable chapters',
           missingContainer: 'This EPUB is missing container.xml',
           missingOpf: 'This EPUB is missing the OPF package descriptor',

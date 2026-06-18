@@ -634,6 +634,7 @@ export const zhCNResources = {
           idle: '可批量导入 · EPUB · 单本最高 80MB · 最多 {{count}} 本',
           invalidFile: '请选择 EPUB 文件',
           oversize: 'EPUB 文件不能超过 80MB',
+          entryTooLarge: 'EPUB 解压后内容过大，无法导入',
           noReadableChapters: 'EPUB 中没有可读取章节',
           missingContainer: 'EPUB 缺少 container.xml',
           missingOpf: 'EPUB 缺少 OPF 包描述',

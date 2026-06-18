@@ -20,8 +20,14 @@ import {
 import { MAX_EBOOK_IMPORT_BYTES } from '../../ipc-contract';
 
 const EPUB_MIME = 'application/epub+zip';
+const EBOOK_IMPORT_ENTRY_TOO_LARGE = 'EBOOK_IMPORT_ENTRY_TOO_LARGE';
 const XHTML_TYPES = new Set(['application/xhtml+xml', 'text/html', 'application/xml', 'text/xml']);
 const CHAPTER_PARAGRAPH_SELECTOR = 'h1,h2,h3,h4,h5,h6,p,li,blockquote,pre,figcaption,td,th';
+export const MAX_EPUB_METADATA_ENTRY_BYTES = 1_000_000;
+export const MAX_EPUB_CHAPTER_ENTRY_BYTES = 2_000_000;
+export const MAX_EPUB_CHAPTER_TEXT_CHARS = 1_500_000;
+export const MAX_EPUB_TOTAL_TEXT_CHARS = 6_000_000;
+export const MAX_EPUB_COVER_BYTES = 2_000_000;
 const HTML_IMAGE_REFERENCE_ATTRIBUTES = [
   'src',
   'srcset',
@@ -78,6 +84,12 @@ type ImportedEbookChapter = EbookChapterRecord & {
 type ChapterImageMetrics = {
   imageElementCount: number;
   strippedImageCount: number;
+};
+
+type JSZipObjectWithData = JSZip.JSZipObject & {
+  _data?: {
+    uncompressedSize?: unknown;
+  };
 };
 
 export async function articleRecordFromEpubFile(
@@ -149,7 +161,7 @@ export async function articleRecordFromEpubFile(
   if (importedChapters.length === 0) throw new Error('EBOOK_IMPORT_NO_READABLE_CHAPTERS');
 
   const coverStartedAt = performanceStart();
-  const cover = await readCoverImage(zip, epub);
+  const cover = await readCoverImage(zip, epub, options.performanceLogger);
   logEpubImportTiming(options.performanceLogger, 'cover', coverStartedAt, {
     fileName,
     fileSize,
@@ -357,13 +369,14 @@ async function readEpubChapters(
 ): Promise<ImportedEbookChapter[]> {
   const manifestById = new Map(epub.manifest.map((item) => [item.id, item]));
   const chapters: ImportedEbookChapter[] = [];
+  let totalTextLength = 0;
 
   for (let spineIndex = 0; spineIndex < epub.spineIds.length; spineIndex += 1) {
     const chapterStartedAt = performanceStart();
     const idref = epub.spineIds[spineIndex];
     const item = manifestById.get(idref);
     if (!item || !XHTML_TYPES.has(item.mediaType)) continue;
-    const text = await zipText(zip, item.path);
+    const text = await zipText(zip, item.path, MAX_EPUB_CHAPTER_ENTRY_BYTES);
     if (!text) continue;
 
     const parseStartedAt = performanceStart();
@@ -425,6 +438,12 @@ async function readEpubChapters(
         });
         continue;
       }
+      if (
+        textLength > MAX_EPUB_CHAPTER_TEXT_CHARS ||
+        totalTextLength + textLength > MAX_EPUB_TOTAL_TEXT_CHARS
+      ) {
+        throw new Error(EBOOK_IMPORT_ENTRY_TOO_LARGE);
+      }
       chapters.push({
         id: `chapter-${chapters.length + 1}`,
         href: item.href,
@@ -436,6 +455,7 @@ async function readEpubChapters(
         paragraphs,
         textLength,
       });
+      totalTextLength += textLength;
       logEpubImportTiming(performanceLogger, 'chapter', chapterStartedAt, {
         result: 'imported',
         spineIndex,
@@ -527,7 +547,11 @@ function stripChapterImageReferences(document: Document) {
   return metrics;
 }
 
-async function readCoverImage(zip: JSZip, epub: EpubPackage) {
+async function readCoverImage(
+  zip: JSZip,
+  epub: EpubPackage,
+  performanceLogger: EbookImportOptions['performanceLogger'],
+) {
   const cover =
     epub.manifest.find((item) => item.properties.includes('cover-image')) ||
     epub.manifest.find((item) => item.id === epub.coverId) ||
@@ -539,7 +563,19 @@ async function readCoverImage(zip: JSZip, epub: EpubPackage) {
   const file = zipFile(zip, cover.path);
   const mediaType = imageMimeType(cover.mediaType, cover.path);
   if (!file || !mediaType) return undefined;
-  return `data:${mediaType};base64,${await file.async('base64')}`;
+  try {
+    const data = await readZipEntryBytes(file, MAX_EPUB_COVER_BYTES);
+    return `data:${mediaType};base64,${data.toString('base64')}`;
+  } catch (error) {
+    if (!isEbookEntryTooLargeError(error)) throw error;
+    logEpubImportTiming(performanceLogger, 'cover_skipped', performanceStart(), {
+      path: cover.path,
+      reason: 'too_large',
+      maxBytes: MAX_EPUB_COVER_BYTES,
+      uncompressedBytes: zipEntryUncompressedBytes(file),
+    });
+    return undefined;
+  }
 }
 
 function imageMimeType(mediaType: string | undefined, path: string) {
@@ -624,9 +660,63 @@ function textsByLocalName(root: Document | Element, localName: string) {
   });
 }
 
-async function zipText(zip: JSZip, path: string) {
+async function zipText(zip: JSZip, path: string, maxBytes = MAX_EPUB_METADATA_ENTRY_BYTES) {
   const file = zipFile(zip, path);
-  return file ? file.async('string') : null;
+  if (!file) return null;
+  return (await readZipEntryBytes(file, maxBytes)).toString('utf8');
+}
+
+async function readZipEntryBytes(file: JSZip.JSZipObject, maxBytes: number) {
+  const uncompressedBytes = zipEntryUncompressedBytes(file);
+  if (uncompressedBytes !== undefined && uncompressedBytes > maxBytes) {
+    throw new Error(EBOOK_IMPORT_ENTRY_TOO_LARGE);
+  }
+
+  const stream = file.nodeStream('nodebuffer');
+  const chunks: Buffer[] = [];
+  let totalBytes = 0;
+
+  return new Promise<Buffer>((resolve, reject) => {
+    let settled = false;
+
+    function fail(error: Error) {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    }
+
+    stream.on('data', (chunk: Buffer | Uint8Array | string) => {
+      if (settled) return;
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      totalBytes += buffer.byteLength;
+      if (totalBytes > maxBytes) {
+        (stream as NodeJS.ReadableStream & { destroy?: (error?: Error) => void }).destroy?.(
+          new Error(EBOOK_IMPORT_ENTRY_TOO_LARGE),
+        );
+        fail(new Error(EBOOK_IMPORT_ENTRY_TOO_LARGE));
+        return;
+      }
+      chunks.push(buffer);
+    });
+    stream.on('error', (error) => fail(error instanceof Error ? error : new Error(String(error))));
+    stream.on('end', () => {
+      if (settled) return;
+      settled = true;
+      resolve(Buffer.concat(chunks, totalBytes));
+    });
+  });
+}
+
+function zipEntryUncompressedBytes(file: JSZip.JSZipObject) {
+  const data = Reflect.get(file, '_data') as JSZipObjectWithData['_data'];
+  const uncompressedSize = data?.uncompressedSize;
+  return typeof uncompressedSize === 'number' && Number.isFinite(uncompressedSize)
+    ? uncompressedSize
+    : undefined;
+}
+
+function isEbookEntryTooLargeError(error: unknown) {
+  return error instanceof Error && error.message === EBOOK_IMPORT_ENTRY_TOO_LARGE;
 }
 
 function zipFile(zip: JSZip, path: string) {
