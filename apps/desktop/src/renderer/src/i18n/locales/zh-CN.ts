@@ -614,6 +614,7 @@ export const zhCNResources = {
           unsupportedContentType: '网页响应不是 HTML，无法导入',
           responseTooLarge: '网页内容超过 5MB，无法导入',
           timeout: '网页响应超时',
+          blockedNetworkTarget: '出于安全考虑，不能导入本机或私有网络地址',
           idleHeader: '输入文章链接，解析完成后会保存到阅读库。',
           idleFooter: 'Yomitomo 会提取标题、来源、正文和可阅读内容。',
           urlLabel: '网页地址',
@@ -1213,6 +1214,13 @@ export const zhCNResources = {
         saveImagesTitle: '采集文章时保存正文图片',
         saveImagesDescription:
           '把正文图片持久化保存，减少原站图片失效、防盗链或链接变更导致的阅读断裂。',
+        localNetworkImportTitle: '允许导入本机和私有网络地址',
+        localNetworkImportDescription:
+          '开启后，网页文章导入可以访问 localhost、局域网和云 metadata 地址。',
+        localNetworkImportConfirmTitle: '允许访问本机和私有网络？',
+        localNetworkImportConfirmDescription:
+          '开启后，网页文章导入会允许访问本机服务、局域网服务和云 metadata 地址。如果粘贴了不可信链接，主进程可能读取这些地址的响应并保存到阅读库。只在你明确需要导入内网文章时开启。',
+        localNetworkImportConfirm: '确认开启',
         libraryEntrancesGroup: '阅读库入口',
         libraryEntrancesNote: '开关控制是否在功能菜单显示，拖动手柄调整顺序。',
         moreTypes: '更多类型',

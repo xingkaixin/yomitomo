@@ -268,7 +268,10 @@ export async function deleteCurrentArticleTranslation(input: {
   return translation;
 }
 
-export function readImportSettings(): Pick<AppSettings, 'saveArticleImages'> {
+export function readImportSettings(): Pick<
+  AppSettings,
+  'saveArticleImages' | 'allowLocalNetworkArticleImport'
+> {
   return readImportSettingsRows(getDatabase());
 }
 

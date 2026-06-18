@@ -631,6 +631,8 @@ export const enResources = {
           unsupportedContentType: 'The response is not HTML and cannot be imported',
           responseTooLarge: 'The web page is larger than 5MB and cannot be imported',
           timeout: 'Web page request timed out',
+          blockedNetworkTarget:
+            'Localhost and private network addresses cannot be imported for security reasons',
           idleHeader: 'Paste an article link. It will be saved to the library after parsing.',
           idleFooter: 'Yomitomo extracts the title, source, body, and readable content.',
           urlLabel: 'Web address',
@@ -1256,6 +1258,13 @@ export const enResources = {
         saveImagesTitle: 'Save article images while capturing',
         saveImagesDescription:
           'Persist article images locally to reduce broken reading when source images expire, block hotlinking, or move.',
+        localNetworkImportTitle: 'Allow localhost and private network imports',
+        localNetworkImportDescription:
+          'When enabled, web article import can access localhost, LAN, and cloud metadata addresses.',
+        localNetworkImportConfirmTitle: 'Allow access to local and private networks?',
+        localNetworkImportConfirmDescription:
+          'When enabled, web article import can access local services, LAN services, and cloud metadata addresses. If you paste an untrusted link, the main process may read those responses and save them to the library. Enable this only when you explicitly need to import intranet articles.',
+        localNetworkImportConfirm: 'Enable anyway',
         libraryEntrancesGroup: 'Library entries',
         libraryEntrancesNote:
           'Toggle entries in the feature menu, and drag handles to change the order.',

@@ -14,9 +14,17 @@ const jsdomMocks = vi.hoisted(() => ({
   closeWindow: vi.fn(),
 }));
 
+const dnsMocks = vi.hoisted(() => ({
+  lookup: vi.fn(async () => [{ address: '93.184.216.34', family: 4 as const }]),
+}));
+
 vi.mock('@yomitomo/core/article-extraction', () => coreMocks);
 
 vi.mock('@yomitomo/core/article-images', () => imageMocks);
+
+vi.mock('node:dns/promises', () => ({
+  lookup: dnsMocks.lookup,
+}));
 
 vi.mock('jsdom', async () => {
   const actual = await vi.importActual<typeof import('jsdom')>('jsdom');
@@ -45,6 +53,8 @@ describe('article import worker', () => {
     vi.clearAllMocks();
     vi.restoreAllMocks();
     vi.useRealTimers();
+    dnsMocks.lookup.mockReset();
+    dnsMocks.lookup.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
   });
 
   it('posts the invalid import task error for invalid worker data', async () => {
@@ -126,6 +136,49 @@ describe('article import worker', () => {
     await expect(fetchImageDataUrl()).resolves.toBeNull();
   });
 
+  it('returns null for blocked image targets before fetching', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        new Response(new Uint8Array([1]), { headers: { 'content-type': 'image/png' } }),
+      );
+
+    await expect(fetchImageDataUrl('http://127.0.0.1/image.png')).resolves.toBeNull();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('returns null for image redirects to blocked targets', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response('', {
+        headers: { location: 'http://169.254.169.254/latest/meta-data' },
+        status: 302,
+      }),
+    );
+
+    await expect(fetchImageDataUrl()).resolves.toBeNull();
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://cdn.example.com/image.png',
+      expect.objectContaining({ redirect: 'manual' }),
+    );
+  });
+
+  it('allows blocked image targets when local network article import is enabled', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(new Uint8Array([1, 2]), {
+        headers: { 'content-type': 'image/png' },
+      }),
+    );
+
+    await expect(
+      fetchImageDataUrl('http://127.0.0.1/image.png', {
+        allowLocalNetworkArticleImport: true,
+      }),
+    ).resolves.toBe('data:image/png;base64,AQI=');
+  });
+
   it('returns null when image fetching times out', async () => {
     vi.useFakeTimers();
     vi.spyOn(globalThis, 'fetch').mockImplementation(
@@ -154,11 +207,15 @@ function validWorkerData() {
   };
 }
 
-function fetchImageDataUrl() {
+function fetchImageDataUrl(
+  url = 'https://cdn.example.com/image.png',
+  options: { allowLocalNetworkArticleImport?: boolean } = {},
+) {
   return articleImportWorkerTestApi.fetchArticleImageDataUrl(
-    'https://cdn.example.com/image.png',
+    url,
     'https://example.com/post',
     'Yomitomo Test',
+    options,
   );
 }
 

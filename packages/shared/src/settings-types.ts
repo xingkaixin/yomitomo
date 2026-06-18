@@ -55,6 +55,7 @@ export type AppSettings = {
   messageSendShortcut?: MessageSendShortcut;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   saveArticleImages?: boolean;
+  allowLocalNetworkArticleImport?: boolean;
   developerModeEnabled?: boolean;
   logRetentionDays?: number;
   onboardingCompletedAt?: string;
