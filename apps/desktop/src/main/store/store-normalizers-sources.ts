@@ -4,6 +4,7 @@ import type {
   ArticleSourceType,
   ArticleSummaryRecord,
   EbookChapterRecord,
+  EbookFormat,
   EbookMetadata,
   EpubBookIndex,
   EpubChapterIndex,
@@ -146,7 +147,7 @@ function normalizeEbookMetadata(value: unknown): EbookMetadata | undefined {
   const fileName = stringValue(metadata.fileName);
   const fileSize = Number(metadata.fileSize);
   return {
-    format: metadata.format === 'epub' ? 'epub' : 'epub',
+    format: normalizeEbookFormat(metadata.format),
     fileName,
     fileSize: Number.isFinite(fileSize) && fileSize > 0 ? fileSize : 0,
     originalTitle: stringValue(metadata.originalTitle) || undefined,
@@ -156,6 +157,10 @@ function normalizeEbookMetadata(value: unknown): EbookMetadata | undefined {
     publisher: stringValue(metadata.publisher) || undefined,
     description: stringValue(metadata.description) || undefined,
   };
+}
+
+function normalizeEbookFormat(value: unknown): EbookFormat {
+  return value === 'azw3' || value === 'mobi' ? value : 'epub';
 }
 
 function normalizeEbookChapters(value: unknown): EbookChapterRecord[] {

@@ -6,10 +6,13 @@ import { selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
 import {
   currentFoliateContent,
   ebookChapterForFoliateSection,
+  ebookHasStableSectionChapterMapping,
   foliateRangeHighlightBoxes,
   isRangeInsideDocumentBody,
   lastFoliateRangeViewportRect,
+  normalizeRenderedText,
   selectionContextForRange,
+  selectionTextForRange,
   type FoliatePageInfo,
   type FoliateViewElement,
 } from './app-ebook-reader-utils';
@@ -79,15 +82,28 @@ export function useEbookSelection({
       const sectionIndex = content?.index ?? pageInfo?.sectionIndex ?? 0;
       const chapter = ebookChapterForFoliateSection(article, view, sectionIndex);
       const context = selectionContextForRange(doc, range);
+      const quote = selectionTextForRange(range);
+      const constrainToChapter = ebookHasStableSectionChapterMapping(article) && Boolean(chapter);
       const anchor =
-        article.ebook.index && chapter
-          ? createEpubTextAnchorFromQuote(article.ebook.index, ebookText, range.toString(), {
-              chapterId: chapter.id,
+        article.ebook.index && (chapter || !constrainToChapter)
+          ? createEpubTextAnchorFromQuote(article.ebook.index, ebookText, quote, {
+              chapterId: constrainToChapter ? chapter?.id : undefined,
               prefix: context.prefix,
               suffix: context.suffix,
             })
           : null;
       if (!anchor?.exact.trim()) {
+        recordEbookSelectionDebug('locate_failed', {
+          articleId: article.id,
+          chapterId: chapter?.id,
+          constrainToChapter,
+          ebookTextChars: ebookText.length,
+          format: article.ebook.metadata.format,
+          hasIndex: Boolean(article.ebook.index),
+          normalizedQuoteChars: normalizeRenderedText(quote).length,
+          rawQuoteChars: range.toString().length,
+          sectionIndex,
+        });
         setStatusMessage(i18next.t('ebookReader.selectionLocateFailed'));
         window.setTimeout(() => setStatusMessage(''), 1800);
         selection.removeAllRanges();
@@ -160,6 +176,13 @@ export function useEbookSelection({
     handleFoliateSelection,
     handleFoliateSelectionShortcut,
   };
+}
+
+function recordEbookSelectionDebug(event: string, data: Record<string, unknown>) {
+  void window.yomitomoDesktop?.recordPerformanceTiming?.({
+    event: `ebook_selection_debug.${event}`,
+    data,
+  });
 }
 
 function isEditableKeyboardTarget(target: EventTarget | null) {

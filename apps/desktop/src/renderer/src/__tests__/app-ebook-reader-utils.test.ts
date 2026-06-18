@@ -7,10 +7,15 @@ import { buildTocAnnotationStats } from '@yomitomo/core';
 import { readerBodyLineHeight } from '@yomitomo/reader-ui/reader-settings';
 import {
   configureFoliateView,
+  ebookChapterForFoliateSection,
+  ebookSectionIndexForChapter,
   ebookTocItemsForReader,
   formatEbookPageLabel,
   isEbookPaginationReady,
   mappedFoliateRangeRects,
+  rangeForEbookAnchorInDocument,
+  selectionTextForRange,
+  type FoliateViewElement,
   type FoliateTocItem,
 } from '../source/ebook/app-ebook-reader-utils';
 import { defaultTheme, inkBlackTheme } from '../theme/app-theme';
@@ -158,6 +163,51 @@ describe('ebook reader utils', () => {
       [400, 900],
       [900, 1300],
     ]);
+  });
+
+  it('falls back to section indexes when Foliate section ids are not href strings', () => {
+    const article = ebookArticle([
+      chapter('cover', '封面', 'kindle:section:0', 0, 0, 100),
+      chapter('chapter-1', '第一章', 'kindle:section:1', 1, 100, 500),
+    ]);
+    const view = {
+      book: {
+        sections: [{ id: { index: 0 } }, { id: { index: 1 } }],
+      },
+    } as unknown as FoliateViewElement;
+
+    expect(ebookChapterForFoliateSection(article, view, 1)?.id).toBe('chapter-1');
+    expect(ebookSectionIndexForChapter(article, view, article.ebook.index!.chapters[1])).toBe(1);
+  });
+
+  it('serializes cross-paragraph selections with a searchable text boundary', () => {
+    const doc = document.implementation.createHTMLDocument('');
+    doc.body.innerHTML = '<p>第一段目标。</p><p>第二段目标。</p>';
+    const first = doc.querySelectorAll('p')[0].firstChild!;
+    const second = doc.querySelectorAll('p')[1].firstChild!;
+    const range = doc.createRange();
+    range.setStart(first, 2);
+    range.setEnd(second, 3);
+
+    expect(selectionTextForRange(range)).toBe('段目标。 第二段');
+  });
+
+  it('resolves ebook anchors across foliate block boundaries', () => {
+    const doc = document.implementation.createHTMLDocument('');
+    doc.body.innerHTML = '<p>第一段目标。</p><p>第二段目标。</p>';
+    const first = doc.querySelectorAll('p')[0].firstChild!;
+    const second = doc.querySelectorAll('p')[1].firstChild!;
+
+    const range = rangeForEbookAnchorInDocument(doc, {
+      exact: '段目标。\n\n第二段',
+      prefix: '第一',
+      suffix: '目标',
+      start: 2,
+      end: 10,
+    });
+
+    expect(range?.startContainer).toBe(first);
+    expect(range?.endContainer).toBe(second);
   });
 });
 

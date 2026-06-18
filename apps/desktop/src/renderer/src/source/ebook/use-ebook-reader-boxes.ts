@@ -7,6 +7,7 @@ import {
   currentFoliateContent,
   createEbookAnchorResolver,
   ebookChapterForFoliateSection,
+  ebookHasStableSectionChapterMapping,
   ebookHighlightAnnotationsSignature,
   foliateRangeHighlightBoxes,
   recordEbookPageTurnTrace,
@@ -209,9 +210,15 @@ export function useEbookReaderBoxes({
       const sameInputAsPrevious = lastEbookBoxInputFingerprintRef.current === inputFingerprint;
       const forceUpdate =
         schedule?.reasons.includes('resize_observer') || reason === 'resize_observer';
+      const constrainToChapter = ebookHasStableSectionChapterMapping(article);
       let skippedChapterCount = 0;
       const searchableAnnotations = visibleAnnotations.filter((annotation) => {
-        if (chapter && annotation.anchor.chapterId && annotation.anchor.chapterId !== chapter.id) {
+        if (
+          constrainToChapter &&
+          chapter &&
+          annotation.anchor.chapterId &&
+          annotation.anchor.chapterId !== chapter.id
+        ) {
           skippedChapterCount += 1;
           return false;
         }

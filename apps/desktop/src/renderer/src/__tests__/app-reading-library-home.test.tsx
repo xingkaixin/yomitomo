@@ -1352,10 +1352,13 @@ describe('ReadingLibrary home', () => {
     fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
     fireEvent.click(screen.getByRole('button', { name: '添加电子书' }));
 
-    expect(screen.getByRole('dialog')).toBeTruthy();
-    expect(screen.getByText('添加 EPUB 电子书')).toBeTruthy();
-    expect(screen.getByText('可批量导入 · EPUB · 单本最高 80MB · 最多 10 本')).toBeTruthy();
-    expect(screen.getByText('拖入 EPUB，或点击选择')).toBeTruthy();
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeTruthy();
+    expect(within(dialog).getByText('添加电子书')).toBeTruthy();
+    expect(
+      within(dialog).getByText('可批量导入 · EPUB/AZW3/MOBI · 单本最高 80MB · 最多 10 本'),
+    ).toBeTruthy();
+    expect(within(dialog).getByText('拖入电子书文件，或点击选择')).toBeTruthy();
   });
 
   it('imports an ebook file with progress feedback', async () => {
@@ -1554,14 +1557,16 @@ describe('ReadingLibrary home', () => {
     fireEvent.click(screen.getByRole('button', { name: '添加电子书' }));
     selectImportFile(container, 'library-ebook-file', fileWithSize('notes.txt', 1024));
 
-    expect((await screen.findAllByText('请选择 EPUB 文件')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('请选择 EPUB、AZW3 或 MOBI 文件')).length).toBeGreaterThan(
+      0,
+    );
     selectImportFile(
       container,
       'library-ebook-file',
-      fileWithSize('large.epub', 80 * 1024 * 1024 + 1),
+      fileWithSize('large.azw3', 80 * 1024 * 1024 + 1),
     );
 
-    expect((await screen.findAllByText('EPUB 文件不能超过 80MB')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('电子书文件不能超过 80MB')).length).toBeGreaterThan(0);
     expect(onImportEbookFile).not.toHaveBeenCalled();
   });
 

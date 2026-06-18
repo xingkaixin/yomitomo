@@ -9,6 +9,7 @@ import {
   ebookReadingProgressPageAnchor,
   ebookReadingProgressRestoreTarget,
   ebookReadingProgressSnapshot,
+  ebookSourceFile,
   useEbookFoliateView,
 } from '../source/ebook/use-ebook-foliate-view';
 import type { EbookArticleRecord } from '../source/bookcase/app-source-bookcase-shared';
@@ -117,6 +118,41 @@ describe('useEbookFoliateView', () => {
     expect(ebookPaginationCacheKey(base)).not.toEqual(
       ebookPaginationCacheKey({ ...base, articleId: 'ebook-2' }),
     );
+  });
+
+  it('constructs source files with format-specific names and MIME types', () => {
+    const azw3Article = {
+      ...article,
+      title: 'Kindle Book',
+      ebook: {
+        ...article.ebook,
+        metadata: {
+          ...article.ebook.metadata,
+          format: 'azw3' as const,
+          fileName: '',
+        },
+      },
+    };
+    const mobiArticle = {
+      ...article,
+      title: 'Mobi Book',
+      ebook: {
+        ...article.ebook,
+        metadata: {
+          ...article.ebook.metadata,
+          format: 'mobi' as const,
+          fileName: 'sample.mobi',
+        },
+      },
+    };
+
+    const azw3File = ebookSourceFile(azw3Article, new ArrayBuffer(1));
+    const mobiFile = ebookSourceFile(mobiArticle, new ArrayBuffer(1));
+
+    expect(azw3File.name).toBe('Kindle Book.azw3');
+    expect(azw3File.type).toBe('application/vnd.amazon.ebook');
+    expect(mobiFile.name).toBe('sample.mobi');
+    expect(mobiFile.type).toBe('application/x-mobipocket-ebook');
   });
 
   it('stores the visible ebook page anchor separately from read-through progress', () => {

@@ -49,7 +49,9 @@ export function cleanEpubDisplayTitle(input: EpubTitleCleanupInput) {
 }
 
 export function cleanEpubFileNameTitle(fileName: string | undefined, creator?: string) {
-  let title = normalizeTitleText(fileName ? baseFileName(fileName).replace(/\.epub$/i, '') : '');
+  let title = normalizeTitleText(
+    fileName ? baseFileName(fileName).replace(/\.(?:epub|azw3|mobi)$/i, '') : '',
+  );
   if (!title) return '';
 
   title = title

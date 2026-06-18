@@ -73,6 +73,13 @@ export const makeBook = async file => {
         const { EPUB } = await import('./epub.js')
         book = await new EPUB(loader).init()
     }
+    else {
+        const { isMOBI, MOBI } = await import('./mobi.js')
+        if (await isMOBI(file)) {
+            const fflate = await import('./vendor/fflate.js')
+            book = await new MOBI({ unzlib: fflate.unzlibSync }).open(file)
+        }
+    }
     if (!book) throw new UnsupportedTypeError('File type not supported')
     return book
 }
