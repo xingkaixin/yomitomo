@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { desktopIpcErrorCodes, type DesktopIpcInvokeEnvelope } from '../../ipc-errors';
 import { MAX_PDF_IMPORT_BYTES, type ArticleImportUrlInput } from '../../ipc-contract';
+import {
+  desktopIpcInvokeSchemaChannels,
+  highRiskDesktopIpcSchemaChannels,
+} from '../../ipc-schemas';
 import { handleDesktopIpc } from './ipc';
 
 const ipcHandlers = vi.hoisted(() => new Map<string, (...args: unknown[]) => unknown>());
@@ -67,6 +71,14 @@ describe('handleDesktopIpc', () => {
       },
     });
     expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('keeps high-risk channels covered by invoke arg schemas', () => {
+    const schemaChannels = new Set(desktopIpcInvokeSchemaChannels);
+
+    expect(
+      highRiskDesktopIpcSchemaChannels.filter((channel) => !schemaChannels.has(channel)),
+    ).toEqual([]);
   });
 });
 
