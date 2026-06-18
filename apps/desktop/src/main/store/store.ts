@@ -91,45 +91,6 @@ import {
   rowToSettings,
   rowToUser,
 } from './store-normalizers';
-export {
-  readStoredWeReadApiKey,
-  readWeReadBookDetail,
-  readWeReadBooks,
-  readWeReadReadingStatsState,
-  readWeReadSettings,
-  readWeReadState,
-  saveWeReadBookDetail,
-  saveWeReadBookDetails,
-  saveWeReadBooks,
-  saveWeReadReadingStatsSnapshot,
-  saveWeReadSettings,
-  saveWeReadTestResult,
-} from '../weread/weread-repository';
-
-export { mergeSettingsForUpsert } from './store-normalizers';
-export {
-  buildArticleChildRows,
-  buildArticleReaderChatStatePatch,
-  buildArticleReadingProgressPatch,
-  buildArticleUpsertPatch,
-  findArticleInListByIdentity,
-} from '../articles/article-repository';
-export {
-  backupDatabaseFile,
-  getDataDirectoryPath,
-  getDatabasePath,
-  replaceDatabaseFile,
-} from './store-db';
-export {
-  buildProviderRecord,
-  hydrateProviderApiKey,
-  hydrateProviderInputApiKey,
-  readStoredProviderApiKey,
-  resolveProviderApiKeyStorage,
-  type ProviderApiKeyStorage,
-  type SaveProviderInput,
-} from '../providers/provider-repository';
-export { buildAgentRecord } from '../agents/agent-repository';
 let providerSecretsMigrated = false;
 let annotationMemoryBackfilled = false;
 const annotationMemoryBackfillVersion = 'annotation-memory-v1';

@@ -11,7 +11,7 @@ import { validateDesktopIpcInvokeArgs } from '../../ipc-schemas';
 
 export interface DesktopMainIpcContext {
   getMainWindow: () => BrowserWindow | null;
-  getStoreModule: () => Promise<typeof import('../store/store')>;
+  getPersistenceModule: () => Promise<typeof import('../store/desktop-persistence')>;
   getAiModule: () => Promise<typeof import('@yomitomo/ai')>;
   getAppUpdaterModule: () => Promise<typeof import('../app/app-updater')>;
   getAppVersion: () => string;
@@ -62,8 +62,8 @@ export function handleDesktopIpc<Channel extends DesktopIpcInvokeChannel>(
 }
 
 export async function assertDesktopIpcAppLockUnlocked(context: DesktopMainIpcContext) {
-  const { readStore } = await context.getStoreModule();
-  const store = await readStore();
+  const { storeSnapshotPersistence } = await context.getPersistenceModule();
+  const store = await storeSnapshotPersistence.readStore();
   assertAppLockSettingsUnlocked(store.settings);
 }
 

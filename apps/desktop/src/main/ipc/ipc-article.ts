@@ -13,22 +13,25 @@ import { taskProvider } from '../agents/agent-runtime-routing';
 import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
 
+type DesktopPersistenceModule = Awaited<ReturnType<DesktopMainIpcContext['getPersistenceModule']>>;
+type ArticlePersistence = DesktopPersistenceModule['articlePersistence'];
+
 export function registerArticleIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('article:get', async (_event, id) => {
-    const { readArticle } = await context.getStoreModule();
-    return readArticle(id);
+    const { articlePersistence } = await context.getPersistenceModule();
+    return articlePersistence.readArticle(id);
   });
   handleDesktopIpc('article:get-cover', async (_event, id) => {
-    const { readArticleCover } = await context.getStoreModule();
-    return readArticleCover(id);
+    const { articlePersistence } = await context.getPersistenceModule();
+    return articlePersistence.readArticleCover(id);
   });
   handleDesktopIpc('article:get-site-icon', async (_event, id) => {
-    const { ensureArticleSiteIcon } = await context.getStoreModule();
-    return ensureArticleSiteIcon(id);
+    const { articlePersistence } = await context.getPersistenceModule();
+    return articlePersistence.ensureArticleSiteIcon(id);
   });
   handleDesktopIpc('article:save', async (_event, input) => {
-    const { saveArticle } = await context.getStoreModule();
-    return saveArticle(input);
+    const { articlePersistence } = await context.getPersistenceModule();
+    return articlePersistence.saveArticle(input);
   });
   handleDesktopIpc('article-translation:get-current', async (_event, input) => {
     return readCurrentArticleTranslation(context, input);
@@ -40,46 +43,45 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     return deleteCurrentArticleTranslation(context, input);
   });
   handleDesktopIpc('article:save-annotation', async (_event, input) => {
-    const { saveArticleAnnotation } = await context.getStoreModule();
-    const patch = await saveArticleAnnotation(input);
+    const { articlePersistence } = await context.getPersistenceModule();
+    const patch = await articlePersistence.saveArticleAnnotation(input);
     if (patch) context.sendArticlePatched(patch);
     return patch;
   });
   handleDesktopIpc('article:save-comment', async (_event, input) => {
-    const { saveArticleComment } = await context.getStoreModule();
-    const patch = await saveArticleComment(input);
+    const { articlePersistence } = await context.getPersistenceModule();
+    const patch = await articlePersistence.saveArticleComment(input);
     if (patch) context.sendArticlePatched(patch);
     return patch;
   });
   handleDesktopIpc('article:delete-annotation', async (_event, input) => {
-    const { deleteArticleAnnotation } = await context.getStoreModule();
-    const patch = await deleteArticleAnnotation(input);
+    const { articlePersistence } = await context.getPersistenceModule();
+    const patch = await articlePersistence.deleteArticleAnnotation(input);
     if (patch) context.sendArticlePatched(patch);
     return patch;
   });
   handleDesktopIpc('article:delete-comment', async (_event, input) => {
-    const { deleteArticleComment } = await context.getStoreModule();
-    const patch = await deleteArticleComment(input);
+    const { articlePersistence } = await context.getPersistenceModule();
+    const patch = await articlePersistence.deleteArticleComment(input);
     if (patch) context.sendArticlePatched(patch);
     return patch;
   });
   handleDesktopIpc('article:reading-progress', async (_event, input) => {
-    const { saveArticleReadingProgress } = await context.getStoreModule();
-    return saveArticleReadingProgress(input.articleId, input.progress);
+    const { articlePersistence } = await context.getPersistenceModule();
+    return articlePersistence.saveArticleReadingProgress(input.articleId, input.progress);
   });
   handleDesktopIpc('article:reader-chat-state', async (_event, input) => {
-    const { saveArticleReaderChatState } = await context.getStoreModule();
-    return saveArticleReaderChatState(input.articleId, input.readerChatState);
+    const { articlePersistence } = await context.getPersistenceModule();
+    return articlePersistence.saveArticleReaderChatState(input.articleId, input.readerChatState);
   });
   handleDesktopIpc('article:import-url', async (_event, input) => {
-    const { findArticleByIdentity, readArticle, readImportSettings, saveArticle } =
-      await context.getStoreModule();
+    const { articlePersistence } = await context.getPersistenceModule();
     const { canceledArticleSourceImport, importArticleSource } =
       await import('../articles/article-source-import');
     const { articleRecordFromUrl, isArticleImportCanceledError, isArticleImportChallengeRecord } =
       await import('../articles/article-import');
     const importInput = articleImportUrlInput(input);
-    const importSettings = readImportSettings();
+    const importSettings = articlePersistence.readImportSettings();
     const record = await canceledArticleSourceImport(
       articleRecordFromUrl(importInput.url, {
         allowLocalNetworkArticleImport: importSettings.allowLocalNetworkArticleImport,
@@ -92,7 +94,7 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
 
     return importArticleSource({
       record,
-      repository: { findArticleByIdentity, readArticle, saveArticle },
+      repository: articleImportRepository(articlePersistence),
       isDuplicate: (article) => Boolean(article && !isArticleImportChallengeRecord(article)),
       mergeExistingArticle: (next, existing) => ({
         ...next,
@@ -105,14 +107,14 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     return cancelArticleImport(requestId);
   });
   handleDesktopIpc('ebook:import-file', async (_event, input: EbookImportFileInput) => {
-    const { findArticleByIdentity, readArticle, saveArticle } = await context.getStoreModule();
+    const { articlePersistence } = await context.getPersistenceModule();
     const { importArticleSource } = await import('../articles/article-source-import');
     const { articleRecordFromEpubFile } = await import('../ebooks/ebook-import');
     const { deleteEbookSourceFile, saveEbookSourceFile } = await import('../ebooks/ebook-storage');
     const record = await articleRecordFromEpubFile(input, { performanceLogger: context.logInfo });
     return importArticleSource({
       record,
-      repository: { findArticleByIdentity, readArticle, saveArticle },
+      repository: articleImportRepository(articlePersistence),
       saveSourceFile: (articleId) => saveEbookSourceFile(articleId, input.data),
       cleanupSourceFile: deleteEbookSourceFile,
       logError: context.logError,
@@ -124,7 +126,7 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     return file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength);
   });
   handleDesktopIpc('pdf:import-file', async (_event, input: PdfImportFileInput) => {
-    const { findArticleByIdentity, readArticle, saveArticle } = await context.getStoreModule();
+    const { articlePersistence } = await context.getPersistenceModule();
     const { importArticleSource } = await import('../articles/article-source-import');
     const { articleRecordFromPdfFile } = await import('../pdf/pdf-import');
     const { deletePdfSourceFile, savePdfSourceFile } = await import('../pdf/pdf-storage');
@@ -132,7 +134,7 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     const { article: record, thumbnail } = await articleRecordFromPdfFile(input);
     return importArticleSource({
       record,
-      repository: { findArticleByIdentity, readArticle, saveArticle },
+      repository: articleImportRepository(articlePersistence),
       saveSourceFile: (articleId) => savePdfSourceFile(articleId, input.data),
       saveThumbnail: thumbnail ? (articleId) => savePdfThumbnail(articleId, thumbnail) : undefined,
       cleanupSourceFile: deletePdfSourceFile,
@@ -177,9 +179,9 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     return data;
   });
   handleDesktopIpc('article:delete', async (_event, id) => {
-    const { deleteArticle, readArticle } = await context.getStoreModule();
-    const article = await readArticle(id);
-    const patch = await deleteArticle(id);
+    const { articlePersistence } = await context.getPersistenceModule();
+    const article = await articlePersistence.readArticle(id);
+    const patch = await articlePersistence.deleteArticle(id);
     await cleanupDeletedArticleSourceAssets({
       articleId: id,
       sourceType: article?.sourceType,
@@ -200,17 +202,25 @@ export function pdfSourceArrayBufferForIpc(file: Buffer) {
   };
 }
 
+function articleImportRepository(articlePersistence: ArticlePersistence) {
+  return {
+    findArticleByIdentity: articlePersistence.findArticleByIdentity,
+    readArticle: articlePersistence.readArticle,
+    saveArticle: articlePersistence.saveArticle,
+  };
+}
+
 async function readCurrentArticleTranslation(
   context: DesktopMainIpcContext,
   input: ArticleTranslationRequest,
 ) {
-  const storeModule = await context.getStoreModule();
+  const { agentRuntimePersistence, articlePersistence } = await context.getPersistenceModule();
   const aiModule = await context.getAiModule();
-  const article = await storeModule.readArticle(input.articleId);
+  const article = await articlePersistence.readArticle(input.articleId);
   if (!article) return null;
-  const store = await storeModule.readStore();
+  const store = await agentRuntimePersistence.readAgentRuntimeContext();
   const targetLanguage = translationTargetLanguage(input.targetLanguage, store.settings);
-  return storeModule.readCurrentArticleTranslation({
+  return articlePersistence.readCurrentArticleTranslation({
     articleId: article.id,
     sourceContentHash: article.contentHash,
     targetLanguage,
@@ -223,15 +233,15 @@ async function translateArticle(
   event: IpcMainInvokeEvent,
   input: ArticleTranslationRequest,
 ): Promise<ArticleTranslation> {
-  const storeModule = await context.getStoreModule();
+  const { agentRuntimePersistence, articlePersistence } = await context.getPersistenceModule();
   const aiModule = await context.getAiModule();
-  const article = await storeModule.readArticle(input.articleId);
+  const article = await articlePersistence.readArticle(input.articleId);
   if (!article) throw new Error('ARTICLE_NOT_FOUND');
   if ((article.sourceType || 'web') !== 'web') throw new Error('ARTICLE_TRANSLATION_WEB_ONLY');
 
-  const store = await storeModule.readStore();
+  const store = await agentRuntimePersistence.readAgentRuntimeContext();
   const targetLanguage = translationTargetLanguage(input.targetLanguage, store.settings);
-  const current = await storeModule.readCurrentArticleTranslation({
+  const current = await articlePersistence.readCurrentArticleTranslation({
     articleId: article.id,
     sourceContentHash: article.contentHash,
     targetLanguage,
@@ -257,7 +267,7 @@ async function translateArticle(
   const currentSegmentsByBlockId = new Map(
     (current?.segments || []).map((segment) => [segment.sourceBlockId, segment]),
   );
-  const initial = await storeModule.saveArticleTranslation({
+  const initial = await articlePersistence.saveArticleTranslation({
     id: translationId,
     articleId: article.id,
     sourceContentHash: article.contentHash,
@@ -323,7 +333,7 @@ async function translateArticle(
           blockId: block.id,
           error: translatedText ? undefined : 'TRANSLATION_MISSING',
           status: translatedText ? 'ready' : 'failed',
-          storeModule,
+          articlePersistence,
           translatedText,
           updatedAt,
         }),
@@ -335,7 +345,7 @@ async function translateArticle(
           blockId: block.id,
           error: error instanceof Error ? error.message : 'TRANSLATION_FAILED',
           status: 'failed',
-          storeModule,
+          articlePersistence,
           updatedAt,
         }),
       );
@@ -343,7 +353,7 @@ async function translateArticle(
     sendArticleTranslationUpdated(event, latest);
   });
 
-  latest = await saveTranslationFinalStatus(storeModule, latest);
+  latest = await saveTranslationFinalStatus(articlePersistence, latest);
   sendArticleTranslationUpdated(event, latest);
   return latest;
 }
@@ -352,12 +362,12 @@ async function deleteCurrentArticleTranslation(
   context: DesktopMainIpcContext,
   input: ArticleTranslationRequest,
 ) {
-  const storeModule = await context.getStoreModule();
+  const { agentRuntimePersistence, articlePersistence } = await context.getPersistenceModule();
   const aiModule = await context.getAiModule();
-  const article = await storeModule.readArticle(input.articleId);
+  const article = await articlePersistence.readArticle(input.articleId);
   if (!article) return null;
-  const store = await storeModule.readStore();
-  return storeModule.deleteCurrentArticleTranslation({
+  const store = await agentRuntimePersistence.readAgentRuntimeContext();
+  return articlePersistence.deleteCurrentArticleTranslation({
     articleId: article.id,
     sourceContentHash: article.contentHash,
     targetLanguage: translationTargetLanguage(input.targetLanguage, store.settings),
@@ -383,7 +393,7 @@ async function saveTranslationSegmentStatus(input: {
   blockId: string;
   error?: string;
   status: 'ready' | 'failed';
-  storeModule: Awaited<ReturnType<DesktopMainIpcContext['getStoreModule']>>;
+  articlePersistence: ArticlePersistence;
   translatedText?: string;
   updatedAt: string;
 }) {
@@ -397,7 +407,7 @@ async function saveTranslationSegmentStatus(input: {
         })
       : segment,
   );
-  return input.storeModule.saveArticleTranslation({
+  return input.articlePersistence.saveArticleTranslation({
     ...input.base,
     error: undefined,
     segments,
@@ -407,14 +417,14 @@ async function saveTranslationSegmentStatus(input: {
 }
 
 async function saveTranslationFinalStatus(
-  storeModule: Awaited<ReturnType<DesktopMainIpcContext['getStoreModule']>>,
+  articlePersistence: ArticlePersistence,
   translation: ArticleTranslation,
 ) {
   const hasTranslating = translation.segments.some((segment) => segment.status === 'translating');
   const hasReady = translation.segments.some((segment) => segment.status === 'ready');
   const hasFailed = translation.segments.some((segment) => segment.status === 'failed');
   const status = hasTranslating ? 'translating' : hasFailed && !hasReady ? 'failed' : 'ready';
-  return storeModule.saveArticleTranslation({
+  return articlePersistence.saveArticleTranslation({
     ...translation,
     error: hasFailed ? 'TRANSLATION_INCOMPLETE' : undefined,
     status,

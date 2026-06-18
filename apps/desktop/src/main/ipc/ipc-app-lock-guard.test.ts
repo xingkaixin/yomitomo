@@ -150,7 +150,25 @@ function context(storeModule: ReturnType<typeof createStoreModule>): DesktopMain
     getAppUpdaterModule: vi.fn(),
     getAppVersion: () => '0.0.0-test',
     getMainWindow: () => null,
-    getStoreModule: async () => storeModule,
+    getPersistenceModule: async () => ({
+      articlePersistence: {
+        readArticle: storeModule.readArticle,
+      },
+      providerPersistence: {
+        readStoredProviderApiKey: storeModule.readStoredProviderApiKey,
+      },
+      settingsPersistence: {
+        readStore: storeModule.readStore,
+        saveSettings: storeModule.saveSettings,
+      },
+      storeSnapshotPersistence: {
+        readStore: storeModule.readStore,
+        readStoreWithProfile: storeModule.readStoreWithProfile,
+      },
+      weReadPersistence: {
+        readStoredWeReadApiKey: storeModule.readStoredWeReadApiKey,
+      },
+    }),
     logError: vi.fn(),
     logInfo: vi.fn(),
     openExternalUrl: vi.fn(),

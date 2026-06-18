@@ -23,37 +23,37 @@ export function registerAppLockIpc(context: DesktopMainIpcContext) {
   }));
 
   handleDesktopIpc('appLock:unlock', async (_event, input) => {
-    const { readStore, saveSettings } = await context.getStoreModule();
-    const store = await readStore();
+    const { settingsPersistence } = await context.getPersistenceModule();
+    const store = await settingsPersistence.readStore();
     if (!store.settings.appLockEnabled) throw new DesktopIpcError('APP_LOCK_DISABLED');
     if (!(await hasAppLockPin())) throw new DesktopIpcError('APP_LOCK_PIN_REQUIRED');
     if (!(await verifyAppLockPin(input.pin))) throw new DesktopIpcError('APP_LOCK_PIN_INVALID');
     if (!store.settings.appLockLocked) return store;
 
-    const nextStore = await saveSettings({ appLockLocked: false });
+    const nextStore = await settingsPersistence.saveSettings({ appLockLocked: false });
     context.sendFullStoreUpdated(nextStore);
     return nextStore;
   });
 
   handleDesktopIpc('appLock:setLocked', async (_event, input) => {
     if (!input.locked) throw new DesktopIpcError('APP_LOCK_UNLOCK_REQUIRED');
-    const { readStore, saveSettings } = await context.getStoreModule();
-    const store = await readStore();
+    const { settingsPersistence } = await context.getPersistenceModule();
+    const store = await settingsPersistence.readStore();
     if (input.locked && !store.settings.appLockEnabled) {
       throw new DesktopIpcError('APP_LOCK_DISABLED');
     }
     if (input.locked && !(await hasAppLockPin())) {
       throw new DesktopIpcError('APP_LOCK_PIN_REQUIRED');
     }
-    const nextStore = await saveSettings({ appLockLocked: input.locked });
+    const nextStore = await settingsPersistence.saveSettings({ appLockLocked: input.locked });
     context.sendFullStoreUpdated(nextStore);
     return nextStore;
   });
 
   handleDesktopIpc('appLock:setEnabled', async (_event, input) => {
     await assertCanSetAppLockEnabled(input);
-    const { saveSettings } = await context.getStoreModule();
-    const store = await saveSettings({
+    const { settingsPersistence } = await context.getPersistenceModule();
+    const store = await settingsPersistence.saveSettings({
       appLockEnabled: input.enabled,
       appLockLockOnStartup: input.enabled ? undefined : false,
       appLockLocked: input.enabled ? undefined : false,
@@ -64,16 +64,18 @@ export function registerAppLockIpc(context: DesktopMainIpcContext) {
   });
 
   handleDesktopIpc('appLock:setShortcut', async (_event, input) => {
-    const { saveSettings } = await context.getStoreModule();
-    const store = await saveSettings({ appLockShortcut: normalizeShortcutInput(input) });
+    const { settingsPersistence } = await context.getPersistenceModule();
+    const store = await settingsPersistence.saveSettings({
+      appLockShortcut: normalizeShortcutInput(input),
+    });
     context.sendFullStoreUpdated(store);
     return store;
   });
 }
 
 async function readAppLockStatus(context: DesktopMainIpcContext) {
-  const { readStore } = await context.getStoreModule();
-  const store = await readStore();
+  const { settingsPersistence } = await context.getPersistenceModule();
+  const store = await settingsPersistence.readStore();
   return {
     configured: await hasAppLockPin(),
     enabled: Boolean(store.settings.appLockEnabled),

@@ -26,7 +26,7 @@ const appIconPath = mainPath('../../resources/icon.png');
 let aiModulePromise: Promise<typeof import('@yomitomo/ai')> | null = null;
 let aiLoggerConfigured = false;
 let appUpdaterModulePromise: Promise<typeof import('./app/app-updater')> | null = null;
-let storeModulePromise: Promise<typeof import('./store/store')> | null = null;
+let persistenceModulePromise: Promise<typeof import('./store/desktop-persistence')> | null = null;
 let modelPriceRefreshTimer: NodeJS.Timeout | null = null;
 
 configureDesktopAppStorage();
@@ -53,23 +53,23 @@ async function getAppUpdaterModule() {
   return module;
 }
 
-function getStoreModule() {
-  storeModulePromise ||= import('./store/store');
-  return storeModulePromise;
+function getPersistenceModule() {
+  persistenceModulePromise ||= import('./store/desktop-persistence');
+  return persistenceModulePromise;
 }
 
 function preloadStoreModule(reason: string) {
-  if (storeModulePromise) return;
+  if (persistenceModulePromise) return;
   const startedAt = performance.now();
   recordStartupTiming('store.module_preload_start', { reason });
-  void getStoreModule()
+  void getPersistenceModule()
     .then((module) => {
       recordStartupTiming('store.module_preload_success', {
         reason,
         durationMs: elapsedMs(startedAt),
       });
       const warmStartedAt = performance.now();
-      const profile = module.warmStoreDatabaseWithProfile();
+      const profile = module.storeSnapshotPersistence.warmStoreDatabaseWithProfile();
       recordStartupTiming('store.database_warm_success', {
         reason,
         durationMs: elapsedMs(warmStartedAt),
@@ -101,8 +101,8 @@ function scheduleLogPrune(retentionDays: number | undefined) {
 function scheduleModelPriceRefresh() {
   const refresh = (reason: string) => {
     const startedAt = performance.now();
-    void getStoreModule()
-      .then((module) => module.refreshModelPrices())
+    void getPersistenceModule()
+      .then((module) => module.modelPricingPersistence.refreshModelPrices())
       .then((result) => {
         logInfo('model_pricing.refresh', {
           reason,
@@ -197,7 +197,7 @@ app.on('activate', () => {
 function registerIpc() {
   const context = {
     getMainWindow: () => mainWindow,
-    getStoreModule,
+    getPersistenceModule,
     getAiModule,
     getAppUpdaterModule,
     getAppVersion: () => app.getVersion(),

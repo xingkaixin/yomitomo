@@ -1,0 +1,86 @@
+import * as store from './store';
+import {
+  hydrateProviderApiKey,
+  hydrateProviderInputApiKey,
+  readStoredProviderApiKey,
+} from '../providers/provider-repository';
+import {
+  readStoredWeReadApiKey,
+  readWeReadBookDetail,
+  readWeReadReadingStatsState,
+  readWeReadSettings,
+  readWeReadState,
+  saveWeReadBookDetail,
+  saveWeReadBookDetails,
+  saveWeReadReadingStatsSnapshot,
+  saveWeReadSettings,
+  saveWeReadTestResult,
+} from '../weread/weread-repository';
+
+export const storeSnapshotPersistence = {
+  readStore: store.readStore,
+  readStoreWithProfile: store.readStoreWithProfile,
+  warmStoreDatabaseWithProfile: store.warmStoreDatabaseWithProfile,
+};
+
+export const settingsPersistence = {
+  readStore: store.readStore,
+  saveSettings: store.saveSettings,
+  saveUser: store.saveUser,
+};
+
+export const articlePersistence = {
+  deleteArticle: store.deleteArticle,
+  deleteArticleAnnotation: store.deleteArticleAnnotation,
+  deleteArticleComment: store.deleteArticleComment,
+  deleteCurrentArticleTranslation: store.deleteCurrentArticleTranslation,
+  ensureArticleSiteIcon: store.ensureArticleSiteIcon,
+  findArticleByIdentity: store.findArticleByIdentity,
+  readArticle: store.readArticle,
+  readArticleCover: store.readArticleCover,
+  readCurrentArticleTranslation: store.readCurrentArticleTranslation,
+  readImportSettings: store.readImportSettings,
+  saveArticle: store.saveArticle,
+  saveArticleAnnotation: store.saveArticleAnnotation,
+  saveArticleComment: store.saveArticleComment,
+  saveArticleReaderChatState: store.saveArticleReaderChatState,
+  saveArticleReadingProgress: store.saveArticleReadingProgress,
+  saveArticleTranslation: store.saveArticleTranslation,
+};
+
+export const providerPersistence = {
+  deleteProvider: store.deleteProvider,
+  hydrateProviderApiKey,
+  hydrateProviderInputApiKey,
+  readStoredProviderApiKey,
+  saveProvider: store.saveProvider,
+};
+
+export const agentRuntimePersistence = {
+  deleteAgent: store.deleteAgent,
+  readAgentRuntimeContext: store.readAgentRuntimeContext,
+  saveAgent: store.saveAgent,
+};
+
+export const weReadPersistence = {
+  readStoredWeReadApiKey,
+  readWeReadBookDetail,
+  readWeReadReadingStatsState,
+  readWeReadSettings,
+  readWeReadState,
+  saveWeReadBookDetail,
+  saveWeReadBookDetails,
+  saveWeReadReadingStatsSnapshot,
+  saveWeReadSettings,
+  saveWeReadTestResult,
+};
+
+export const assistantExecutionPersistence = {
+  queryAssistantExecutionRuns: store.queryAssistantExecutionRuns,
+  queryAssistantExecutionSummary: store.queryAssistantExecutionSummary,
+  recordAssistantExecutionRun: store.recordAssistantExecutionRun,
+};
+
+export const modelPricingPersistence = {
+  refreshModelPrices: store.refreshModelPrices,
+};
