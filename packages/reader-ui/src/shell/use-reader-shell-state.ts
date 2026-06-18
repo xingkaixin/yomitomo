@@ -49,6 +49,7 @@ export type UseReaderShellStateOptions = {
   filteredAnnotations: Annotation[];
   highlightChoice: HighlightChoice | null;
   noteRefs: React.MutableRefObject<Map<string, HTMLElement>>;
+  readerContentWidth?: number;
   selectionAction: SelectionAction | null;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   settingsOpen: boolean;
@@ -85,6 +86,7 @@ export function useReaderShellState({
   filteredAnnotations,
   highlightChoice,
   noteRefs,
+  readerContentWidth,
   selectionAction,
   selectionActionShortcuts,
   settingsOpen,
@@ -101,7 +103,12 @@ export function useReaderShellState({
   onResolveAnnotationNavigation,
   onToggleSettings,
 }: UseReaderShellStateOptions) {
-  const measuredAnnotationRailLayout = useAnnotationRailLayout(canvasRef, articleRef, articleId);
+  const measuredAnnotationRailLayout = useAnnotationRailLayout(
+    canvasRef,
+    articleRef,
+    articleId,
+    readerContentWidth,
+  );
   const annotationRailLayout = annotationRailLayoutOverride ?? measuredAnnotationRailLayout;
   const annotationRail = useReaderAnnotationRail({
     activeId,
@@ -207,6 +214,7 @@ function useAnnotationRailLayout(
   canvasRef: React.RefObject<HTMLDivElement | null>,
   articleRef: React.RefObject<HTMLElement | null>,
   articleId: string,
+  contentWidth?: number,
 ) {
   const [layout, setLayout] = React.useState<AnnotationRailLayout>(stackedAnnotationRailLayout);
 
@@ -223,7 +231,7 @@ function useAnnotationRailLayout(
     }
 
     const updateLayout = () => {
-      const nextLayout = measureAnnotationRailLayout(canvas, article);
+      const nextLayout = measureAnnotationRailLayout(canvas, article, contentWidth);
       setLayout((current) =>
         sameAnnotationRailLayout(current, nextLayout) ? current : nextLayout,
       );
@@ -245,7 +253,7 @@ function useAnnotationRailLayout(
       window.removeEventListener('resize', updateLayout);
       observer.disconnect();
     };
-  }, [articleId, articleRef, canvasRef]);
+  }, [articleId, articleRef, canvasRef, contentWidth]);
 
   return layout;
 }
@@ -253,6 +261,7 @@ function useAnnotationRailLayout(
 export function measureAnnotationRailLayout(
   canvas: HTMLDivElement,
   article: HTMLElement,
+  contentWidth?: number,
 ): AnnotationRailLayout {
   const canvasRect = canvas.getBoundingClientRect();
   const articleRect = article.getBoundingClientRect();
@@ -260,7 +269,7 @@ export function measureAnnotationRailLayout(
 
   const canvasWidth = Math.round(canvasRect.width);
   const targetArticleWidth = Math.min(
-    readerContentWidth(article) || articleRect.width,
+    positiveWidth(contentWidth) ?? computedReaderContentWidth(article) ?? articleRect.width,
     canvasWidth,
   );
   return annotationRailLayoutForWidth({
@@ -351,10 +360,14 @@ export function sameAnnotationRailLayout(left: AnnotationRailLayout, right: Anno
   );
 }
 
-function readerContentWidth(article: HTMLElement) {
+function computedReaderContentWidth(article: HTMLElement) {
   const value = window.getComputedStyle(article).getPropertyValue('--reader-content-width').trim();
-  const width = Number.parseFloat(value);
-  return Number.isFinite(width) && width > 0 ? width : null;
+  return positiveWidth(Number.parseFloat(value));
+}
+
+function positiveWidth(value: number | undefined) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
+  return value;
 }
 
 export function sameAnnotationNavigation(

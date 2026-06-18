@@ -115,6 +115,7 @@ export function ReaderAppView({
     filteredAnnotations,
     highlightChoice,
     noteRefs,
+    readerContentWidth: readerSettings.contentWidth,
     selectionAction,
     selectionActionShortcuts,
     settingsOpen,
