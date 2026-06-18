@@ -109,6 +109,8 @@ function HookProbe({
   onDeleteArticleAnnotation,
   onDeleteArticleComment,
   onOpenAnnotation,
+  onSaveArticleAnnotation,
+  onSaveArticleComment,
   onSaveArticle = vi.fn(),
   onAnnotationsApplied,
   onAnnotationsSaved,
@@ -128,6 +130,8 @@ function HookProbe({
   >[0]['onDeleteArticleAnnotation'];
   onDeleteArticleComment?: Parameters<typeof useSourceAnnotations>[0]['onDeleteArticleComment'];
   onOpenAnnotation?: (annotationId: string) => void;
+  onSaveArticleAnnotation?: Parameters<typeof useSourceAnnotations>[0]['onSaveArticleAnnotation'];
+  onSaveArticleComment?: Parameters<typeof useSourceAnnotations>[0]['onSaveArticleComment'];
   onSaveArticle?: (article: ArticleRecord) => Promise<void> | void;
   onAnnotationsApplied?: Parameters<typeof useSourceAnnotations>[0]['onAnnotationsApplied'];
   onAnnotationsSaved?: Parameters<typeof useSourceAnnotations>[0]['onAnnotationsSaved'];
@@ -142,6 +146,8 @@ function HookProbe({
     onDeleteArticleAnnotation,
     onDeleteArticleComment,
     onOpenAnnotation,
+    onSaveArticleAnnotation,
+    onSaveArticleComment,
     onSaveArticle,
     onAnnotationsApplied,
     onAnnotationsSaved,
@@ -251,6 +257,67 @@ describe('useSourceAnnotations', () => {
         mentionedAgents: [lin],
       }),
     );
+  });
+
+  it('saves one changed annotation through the single annotation path', async () => {
+    let api: SourceAnnotationsApi | null = null;
+    const onSaveArticle = vi.fn();
+    const onSaveArticleAnnotation = vi.fn();
+    const target = annotation('question_1');
+
+    render(
+      <HookProbe
+        articleRecord={article()}
+        onApi={(nextApi) => {
+          api = nextApi;
+        }}
+        onSaveArticle={onSaveArticle}
+        onSaveArticleAnnotation={onSaveArticleAnnotation}
+      />,
+    );
+
+    await act(async () => {
+      await api?.saveAnnotations([target]);
+    });
+
+    expect(onSaveArticleAnnotation).toHaveBeenCalledWith(
+      'article_1',
+      expect.objectContaining({ id: 'question_1' }),
+      expect.any(String),
+    );
+    expect(onSaveArticle).not.toHaveBeenCalled();
+    expect(screen.getByTestId('annotations').textContent).toBe('question_1');
+  });
+
+  it('saves newly added comments through the single comment path', async () => {
+    let api: SourceAnnotationsApi | null = null;
+    const onSaveArticle = vi.fn();
+    const onSaveArticleComment = vi.fn();
+    const question = annotation('question_1');
+
+    render(
+      <HookProbe
+        articleRecord={article({ annotations: [question] })}
+        onApi={(nextApi) => {
+          api = nextApi;
+        }}
+        onSaveArticle={onSaveArticle}
+        onSaveArticleComment={onSaveArticleComment}
+      />,
+    );
+
+    await act(async () => {
+      await api?.addComment('question_1', '单条评论');
+    });
+
+    expect(onSaveArticleComment).toHaveBeenCalledWith(
+      'article_1',
+      'question_1',
+      expect.objectContaining({ content: '单条评论' }),
+      expect.any(String),
+    );
+    expect(onSaveArticle).not.toHaveBeenCalled();
+    expect(screen.getByTestId('comment-count').textContent).toBe('1');
   });
 
   it('delegates delete cleanup', async () => {

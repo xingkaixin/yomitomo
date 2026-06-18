@@ -3,7 +3,13 @@
 import { createElement } from 'react';
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { ArticleRecord, ArticleSummaryRecord, DesktopStore } from '@yomitomo/shared';
+import type {
+  Annotation,
+  ArticleRecord,
+  ArticleSummaryRecord,
+  Comment,
+  DesktopStore,
+} from '@yomitomo/shared';
 
 import { emptyStore } from '../settings/app-settings';
 import {
@@ -108,6 +114,113 @@ describe('useAppArticleStoreActions', () => {
     expect(applyStore).toHaveBeenCalledWith({
       ...emptyStore,
       articles: [importedSummary, firstArticle],
+    });
+  });
+
+  it('applies the saved annotation patch without a full store result', async () => {
+    const firstArticle = makeArticle('article-1');
+    const savedArticle = {
+      ...firstArticle,
+      annotations: [makeAnnotation('annotation-1')],
+      updatedAt: '2026-05-17T08:00:00.000Z',
+    };
+    const savedSummary = articleSummary(savedArticle);
+    const storeRef: { current: DesktopStore } = {
+      current: {
+        ...emptyStore,
+        articles: [firstArticle],
+      },
+    };
+    const applyStore = vi.fn((store: DesktopStore) => {
+      storeRef.current = store;
+      return store;
+    });
+    const saveArticleAnnotation = vi.fn().mockResolvedValue({
+      type: 'article-upsert',
+      article: savedSummary,
+    });
+    let actions!: ReturnType<typeof useAppArticleStoreActions>;
+
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: { saveArticleAnnotation },
+    });
+    render(
+      createElement(function Harness() {
+        actions = useAppArticleStoreActions({ storeRef, applyStore });
+        return null;
+      }),
+    );
+
+    await act(async () => {
+      await actions.saveArticleAnnotation(
+        'article-1',
+        savedArticle.annotations[0],
+        savedArticle.updatedAt,
+      );
+    });
+
+    expect(saveArticleAnnotation).toHaveBeenCalledWith(
+      'article-1',
+      savedArticle.annotations[0],
+      savedArticle.updatedAt,
+    );
+    expect(applyStore).toHaveBeenCalledWith({
+      ...emptyStore,
+      articles: [savedSummary],
+    });
+  });
+
+  it('applies the saved comment patch without a full store result', async () => {
+    const firstArticle = makeArticle('article-1');
+    const annotation = makeAnnotation('annotation-1');
+    const comment = makeComment('comment-1');
+    const savedArticle = {
+      ...firstArticle,
+      annotations: [{ ...annotation, comments: [comment] }],
+      updatedAt: '2026-05-17T08:00:00.000Z',
+    };
+    const savedSummary = articleSummary(savedArticle);
+    const storeRef: { current: DesktopStore } = {
+      current: {
+        ...emptyStore,
+        articles: [firstArticle],
+      },
+    };
+    const applyStore = vi.fn((store: DesktopStore) => {
+      storeRef.current = store;
+      return store;
+    });
+    const saveArticleComment = vi.fn().mockResolvedValue({
+      type: 'article-upsert',
+      article: savedSummary,
+    });
+    let actions!: ReturnType<typeof useAppArticleStoreActions>;
+
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: { saveArticleComment },
+    });
+    render(
+      createElement(function Harness() {
+        actions = useAppArticleStoreActions({ storeRef, applyStore });
+        return null;
+      }),
+    );
+
+    await act(async () => {
+      await actions.saveArticleComment('article-1', annotation.id, comment, savedArticle.updatedAt);
+    });
+
+    expect(saveArticleComment).toHaveBeenCalledWith(
+      'article-1',
+      annotation.id,
+      comment,
+      savedArticle.updatedAt,
+    );
+    expect(applyStore).toHaveBeenCalledWith({
+      ...emptyStore,
+      articles: [savedSummary],
     });
   });
 
@@ -430,6 +543,33 @@ function makeArticle(id: string): ArticleRecord {
     annotations: [],
     createdAt: '2026-05-17T07:00:00.000Z',
     updatedAt: '2026-05-17T07:00:00.000Z',
+  };
+}
+
+function makeAnnotation(id: string): Annotation {
+  return {
+    id,
+    anchor: {
+      exact: 'highlight',
+      prefix: '',
+      suffix: '',
+      start: 0,
+      end: 9,
+    },
+    author: 'user',
+    color: '#f4c95d',
+    comments: [],
+    createdAt: '2026-05-17T07:30:00.000Z',
+    updatedAt: '2026-05-17T07:30:00.000Z',
+  };
+}
+
+function makeComment(id: string): Comment {
+  return {
+    id,
+    author: 'user',
+    content: 'comment',
+    createdAt: '2026-05-17T07:45:00.000Z',
   };
 }
 

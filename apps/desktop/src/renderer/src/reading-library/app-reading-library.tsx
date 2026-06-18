@@ -75,6 +75,8 @@ export function ReadingLibrary({
   onReadingModeChange,
   onReadArticle,
   onSaveArticle,
+  onSaveArticleAnnotation,
+  onSaveArticleComment,
   onSaveArticleReadingProgress,
   onSaveArticleReaderChatState,
   onSaveSettings,
@@ -115,6 +117,17 @@ export function ReadingLibrary({
   onReadingModeChange?: (open: boolean) => void;
   onReadArticle: (articleId: string) => Promise<ArticleRecord | null>;
   onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
+  onSaveArticleAnnotation?: (
+    articleId: string,
+    annotation: Annotation,
+    updatedAt?: string,
+  ) => Promise<void> | void;
+  onSaveArticleComment?: (
+    articleId: string,
+    annotationId: string,
+    comment: Comment,
+    updatedAt?: string,
+  ) => Promise<void> | void;
   onSaveArticleReadingProgress: (
     articleId: string,
     progress: ArticleReadingProgress,
@@ -647,6 +660,8 @@ export function ReadingLibrary({
                 onOpenAnnotationDiscussion={onOpenArticleDiscussion}
                 onOpenAnnotation={setSelectedAnnotationId}
                 onSaveArticle={saveSelectedArticle}
+                onSaveArticleAnnotation={onSaveArticleAnnotation}
+                onSaveArticleComment={onSaveArticleComment}
                 onSaveArticleReadingProgress={saveSelectedArticleReadingProgress}
                 onSaveArticleReaderChatState={saveSelectedArticleReaderChatState}
                 onUpdateArticle={updateSelectedArticle}

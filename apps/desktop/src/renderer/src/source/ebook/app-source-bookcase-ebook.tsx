@@ -79,6 +79,8 @@ export function EbookBookcase({
   onOpenAnnotationDiscussion,
   onOpenAnnotation,
   onSaveArticle,
+  onSaveArticleAnnotation,
+  onSaveArticleComment,
   onSaveArticleReadingProgress,
   onSaveArticleReaderChatState,
   onUpdateArticle,
@@ -181,6 +183,8 @@ export function EbookBookcase({
     onDeleteArticleAnnotation,
     onDeleteArticleComment,
     onSaveArticle,
+    onSaveArticleAnnotation,
+    onSaveArticleComment,
     setStatusMessage,
     userProfile,
   });
