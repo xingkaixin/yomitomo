@@ -103,6 +103,14 @@ describe('reader embedded styles', () => {
     expect(chatStyles).not.toContain('#fffaf0');
   });
 
+  it('renders search matches as filled highlights instead of annotation underlines', () => {
+    expect(readerConversationStyles).toContain('--reader-search-highlight:color-mix');
+    expect(readerConversationStyles).toContain('.reader-highlight.is-search::before{display:none}');
+    expect(readerConversationStyles).toContain(
+      '.reader-highlight.is-search.is-active{background:var(--reader-search-highlight-active)',
+    );
+  });
+
   it('does not render annotation cards with a thicker left rail', () => {
     expect(readerConversationStyles).not.toContain('border-left-width:4px');
     expect(readerConversationStyles).not.toContain('border-radius:18px 18px 18px 7px');

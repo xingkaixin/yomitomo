@@ -15,7 +15,6 @@ import {
   createTranslationTextAnchor,
   createEpubTextAnchor,
   findCurrentTocTarget,
-  findReaderSearchMatches,
   getArticleSelection,
   type HighlightBox,
   isRangeInsideArticle,
@@ -75,6 +74,7 @@ import { createWebSourceReaderController } from './app-source-bookcase-web-contr
 import { useSourceReaderWorkspace } from '../bookcase/use-source-reader-workspace';
 import { buildSourceReaderAppActions } from '../bookcase/source-reader-app-actions';
 import { buildSourceReaderAppViewProps } from '../bookcase/source-reader-app-view-props';
+import { useReaderSearchMatches } from '../bookcase/use-reader-search-matches';
 
 export function WebSourceBookcase({
   agents,
@@ -172,6 +172,7 @@ export function WebSourceBookcase({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSearchMatchIndex, setActiveSearchMatchIndex] = useState(0);
+  const [articleSearchText, setArticleSearchText] = useState('');
   const [searchBoxes, setSearchBoxes] = useState<HighlightBox[]>([]);
   const [translation, setTranslation] = useState<ArticleTranslation | null>(null);
   const [translationVisible, setTranslationVisible] = useState(false);
@@ -234,11 +235,11 @@ export function WebSourceBookcase({
     translationSuccessBlockIds,
     translationVisible,
   ]);
-  const articleText = articleRef.current ? sourceTextContent(articleRef.current) : '';
-  const searchResult = useMemo(
-    () => findReaderSearchMatches(articleText, searchQuery),
-    [articleText, searchQuery],
-  );
+  const {
+    matchedQuery: matchedSearchQuery,
+    preparing: searchPreparing,
+    result: searchResult,
+  } = useReaderSearchMatches(articleSearchText, searchQuery);
   const activeSearchMatch =
     searchResult.matches[Math.min(activeSearchMatchIndex, searchResult.matches.length - 1)] || null;
   const { boxes, tocItems } = useWebReaderBoxes({
@@ -332,6 +333,7 @@ export function WebSourceBookcase({
     setStatusMessage('');
     setSearchOpen(false);
     setSearchQuery('');
+    setArticleSearchText('');
     setActiveSearchMatchIndex(0);
     setSearchBoxes([]);
     setTranslation(null);
@@ -404,11 +406,23 @@ export function WebSourceBookcase({
   }, [translation]);
 
   useEffect(() => {
-    setActiveSearchMatchIndex(0);
-  }, [searchQuery]);
+    if (!searchOpen) {
+      setArticleSearchText('');
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      setArticleSearchText(articleRef.current ? sourceTextContent(articleRef.current) : '');
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [article.id, searchOpen, translatedContentHtml]);
 
   useEffect(() => {
-    if (!searchOpen || !activeSearchMatch) {
+    setActiveSearchMatchIndex(0);
+  }, [matchedSearchQuery]);
+
+  useEffect(() => {
+    if (searchPreparing || !searchOpen || !activeSearchMatch) {
       setSearchBoxes([]);
       return;
     }
@@ -436,11 +450,11 @@ export function WebSourceBookcase({
         Object.assign(box, {
           annotationId: '__search__',
           contributorId: '__search__',
-          color: '#d7a93f',
+          color: 'var(--reader-search-highlight-active)',
         }),
       ),
     );
-  }, [activeSearchMatch, searchOpen]);
+  }, [activeSearchMatch, searchOpen, searchPreparing]);
 
   useEffect(() => {
     const scrollElement = scrollRef.current;
@@ -1026,6 +1040,7 @@ export function WebSourceBookcase({
         limited: searchResult.limited,
         matches: searchResult.matches,
         open: searchOpen,
+        preparing: searchPreparing,
         query: searchQuery,
         onClose: closeSearch,
         onNextMatch: () => navigateSearchMatch('next'),
