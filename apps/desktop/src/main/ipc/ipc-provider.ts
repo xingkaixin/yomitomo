@@ -7,37 +7,37 @@ import { pruneLogFile } from '../app/logger';
 
 export function registerProviderIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('user:save', async (_event, input) => {
-    const { saveUser } = await context.getStoreModule();
-    return saveUser(input);
+    const { settingsPersistence } = await context.getPersistenceModule();
+    return settingsPersistence.saveUser(input);
   });
   handleDesktopIpc('settings:save', async (_event, input) => {
-    const { readStore, saveSettings } = await context.getStoreModule();
-    await assertSettingsAppLockChangeAllowed(input, await readStore());
-    const store = await saveSettings(input);
+    const { settingsPersistence } = await context.getPersistenceModule();
+    await assertSettingsAppLockChangeAllowed(input, await settingsPersistence.readStore());
+    const store = await settingsPersistence.saveSettings(input);
     await pruneLogFile(store.settings.logRetentionDays);
     context.sendFullStoreUpdated(store);
     return store;
   });
   handleDesktopIpc('provider:save', async (_event, input) => {
-    const { saveProvider } = await context.getStoreModule();
-    const store = await saveProvider(input);
+    const { providerPersistence } = await context.getPersistenceModule();
+    const store = await providerPersistence.saveProvider(input);
     return store;
   });
   handleDesktopIpc('provider:delete', async (_event, id) => {
-    const { deleteProvider } = await context.getStoreModule();
-    const store = await deleteProvider(id);
+    const { providerPersistence } = await context.getPersistenceModule();
+    const store = await providerPersistence.deleteProvider(id);
     return store;
   });
   handleDesktopIpc('provider:read-api-key', async (_event, providerId) => {
     if (!providerId) return '';
-    const { readStoredProviderApiKey } = await context.getStoreModule();
-    return readStoredProviderApiKey(providerId);
+    const { providerPersistence } = await context.getPersistenceModule();
+    return providerPersistence.readStoredProviderApiKey(providerId);
   });
   handleDesktopIpc('provider:test', async (_event, input) => {
     try {
-      const { hydrateProviderInputApiKey } = await context.getStoreModule();
+      const { providerPersistence } = await context.getPersistenceModule();
       const { testProvider } = await context.getAiModule();
-      const provider = await hydrateProviderInputApiKey(input);
+      const provider = await providerPersistence.hydrateProviderInputApiKey(input);
       const apiKey = provider.apiKey?.trim() || '';
       if (!apiKey) return { ok: false, message: 'PROVIDER_API_KEY_REQUIRED' };
       return testProvider({
@@ -64,9 +64,9 @@ export function registerProviderIpc(context: DesktopMainIpcContext) {
     }
   });
   handleDesktopIpc('provider:list-models', async (_event, input) => {
-    const { hydrateProviderInputApiKey } = await context.getStoreModule();
+    const { providerPersistence } = await context.getPersistenceModule();
     const { listProviderModels } = await context.getAiModule();
-    return listProviderModels(await hydrateProviderInputApiKey(input));
+    return listProviderModels(await providerPersistence.hydrateProviderInputApiKey(input));
   });
 }
 

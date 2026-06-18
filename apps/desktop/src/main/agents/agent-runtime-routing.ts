@@ -27,8 +27,8 @@ export async function taskProvider(
   const providerId = settings[providerTaskSettings[task]] || settings.defaultProviderId;
   const provider = providers.find((item) => item.id === providerId);
   if (!provider) throw providerRouteRequiredError(task);
-  const { hydrateProviderApiKey } = await context.getStoreModule();
-  return hydrateProviderApiKey(provider);
+  const { providerPersistence } = await context.getPersistenceModule();
+  return providerPersistence.hydrateProviderApiKey(provider);
 }
 
 export function agentNotFoundError(username: string) {

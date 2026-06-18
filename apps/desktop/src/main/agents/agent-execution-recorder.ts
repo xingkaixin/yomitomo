@@ -8,6 +8,7 @@ import type {
 import { appendAgentRuntimeTrace } from './agent-runtime-trace-log';
 import type { DesktopMainIpcContext } from '../ipc/ipc';
 import type { AgentRuntimeTaskType } from './agent-runtime-routing';
+import type { AssistantExecutionRunInput } from '../assistant/assistant-execution-repository';
 
 export function logAgentMessageRuntime(
   context: DesktopMainIpcContext,
@@ -85,11 +86,13 @@ export function logAgentMessageRuntime(
 
 export function recordAssistantExecutionRun(
   context: DesktopMainIpcContext,
-  input: Parameters<(typeof import('../store/store'))['recordAssistantExecutionRun']>[0],
+  input: AssistantExecutionRunInput,
 ) {
   void context
-    .getStoreModule()
-    .then((storeModule) => storeModule.recordAssistantExecutionRun(input))
+    .getPersistenceModule()
+    .then(({ assistantExecutionPersistence }) =>
+      assistantExecutionPersistence.recordAssistantExecutionRun(input),
+    )
     .catch((error) => context.logError('assistant.execution_run_write_failed', error));
 }
 

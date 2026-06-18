@@ -1,12 +1,40 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { WeReadBook, WeReadBookDetail } from '@yomitomo/shared';
-import { fetchWeReadSyncDetails } from './ipc-weread';
+import type { DesktopMainIpcContext } from './ipc';
+import { fetchWeReadSyncDetails, registerWeReadIpc } from './ipc-weread';
+
+const ipcMocks = vi.hoisted(() => ({
+  ipcMainHandle: vi.fn(),
+}));
 
 vi.mock('electron', () => ({
   ipcMain: {
-    handle: vi.fn(),
+    handle: ipcMocks.ipcMainHandle,
   },
 }));
+
+describe('weread IPC persistence boundary', () => {
+  it('reads WeRead API keys through WeRead persistence only', async () => {
+    ipcMocks.ipcMainHandle.mockClear();
+    const readStoredWeReadApiKey = vi.fn(async () => 'weread-secret');
+
+    registerWeReadIpc({
+      getPersistenceModule: async () => ({
+        weReadPersistence: { readStoredWeReadApiKey },
+      }),
+    } as unknown as DesktopMainIpcContext);
+
+    const handler = ipcMocks.ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === 'weread:read-api-key',
+    )?.[1];
+    expect(handler).toBeTypeOf('function');
+
+    const result = await handler({});
+
+    expect(result).toEqual({ ok: true, value: 'weread-secret' });
+    expect(readStoredWeReadApiKey).toHaveBeenCalled();
+  });
+});
 
 describe('weread IPC sync detail loading', () => {
   it('limits full sync detail fetches to the configured concurrency', async () => {

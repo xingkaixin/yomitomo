@@ -60,20 +60,21 @@ vi.mock('../app/logger', () => ({
 }));
 
 import {
-  buildArticleReadingProgressPatch,
-  buildAgentRecord,
   buildArticleChildRows,
   buildArticleReaderChatStatePatch,
+  buildArticleReadingProgressPatch,
   buildArticleUpsertPatch,
-  buildProviderRecord,
-  closeDatabase,
   findArticleInListByIdentity,
-  mergeSettingsForUpsert,
-  readStore,
+} from '../articles/article-repository';
+import { buildAgentRecord } from '../agents/agent-repository';
+import {
+  buildProviderRecord,
   readStoredProviderApiKey,
   resolveProviderApiKeyStorage,
-} from './store';
+} from '../providers/provider-repository';
+import { closeDatabase, readStore } from './store';
 import {
+  mergeSettingsForUpsert,
   rowToAnnotation,
   rowToArticleSummary,
   rowToComment,

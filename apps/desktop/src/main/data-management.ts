@@ -13,13 +13,13 @@ import {
   readAppliedDatabaseMigrationIds,
   readDatabaseReaderLevelIfPresent,
 } from './db/compatibility';
+import { readStore } from './store/store';
 import {
   backupDatabaseFile,
   getDataDirectoryPath,
   getDatabasePath,
-  readStore,
   replaceDatabaseFile,
-} from './store/store';
+} from './store/store-db';
 import { getLogPath } from './app/logger';
 import { loadSQLiteDatabase } from './native/sqlite';
 

@@ -181,12 +181,13 @@ function registerCommentHandler(
 }
 
 function ipcContext(store: ReturnType<typeof storeWith>, ai: Record<string, unknown>) {
-  const storeModule = {
+  const providerPersistence = {
     hydrateProviderApiKey: vi.fn(async (llmProvider: LlmProvider) => llmProvider),
+  };
+  const agentRuntimePersistence = {
     readAgentRuntimeContext: vi.fn(async () => store),
-    readStore: vi.fn(async () => {
-      throw new Error('READ_STORE_SHOULD_NOT_BE_USED');
-    }),
+  };
+  const assistantExecutionPersistence = {
     recordAssistantExecutionRun: vi.fn(),
   };
   return {
@@ -195,7 +196,11 @@ function ipcContext(store: ReturnType<typeof storeWith>, ai: Record<string, unkn
     getAppUpdaterModule: async () => ({}),
     getAppVersion: () => '0.0.0-test',
     getMainWindow: () => null,
-    getStoreModule: async () => storeModule,
+    getPersistenceModule: async () => ({
+      agentRuntimePersistence,
+      assistantExecutionPersistence,
+      providerPersistence,
+    }),
     logError: vi.fn(),
     logInfo: vi.fn(),
     openExternalUrl: vi.fn(),

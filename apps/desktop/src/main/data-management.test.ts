@@ -38,10 +38,13 @@ vi.mock('electron', () => ({
 }));
 
 vi.mock('./store/store', () => ({
+  readStore: testState.store.readStore,
+}));
+
+vi.mock('./store/store-db', () => ({
   backupDatabaseFile: testState.store.backupDatabaseFile,
   getDataDirectoryPath: () => testState.userData,
   getDatabasePath: () => join(testState.userData, 'yomitomo.sqlite'),
-  readStore: testState.store.readStore,
   replaceDatabaseFile: testState.store.replaceDatabaseFile,
 }));
 

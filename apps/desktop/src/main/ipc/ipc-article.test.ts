@@ -102,7 +102,9 @@ describe('article IPC patch broadcasts', () => {
     const sendArticlePatched = vi.fn();
 
     registerArticleIpc({
-      getStoreModule: async () => ({ saveArticleAnnotation }),
+      getPersistenceModule: async () => ({
+        articlePersistence: { saveArticleAnnotation },
+      }),
       sendArticlePatched,
     } as unknown as DesktopMainIpcContext);
 
@@ -140,7 +142,9 @@ describe('article IPC patch broadcasts', () => {
     const sendArticlePatched = vi.fn();
 
     registerArticleIpc({
-      getStoreModule: async () => ({ deleteArticleComment }),
+      getPersistenceModule: async () => ({
+        articlePersistence: { deleteArticleComment },
+      }),
       sendArticlePatched,
     } as unknown as DesktopMainIpcContext);
 

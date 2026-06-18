@@ -13,36 +13,36 @@ const WEREAD_SYNC_DETAIL_CONCURRENCY = 3;
 
 export function registerWeReadIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('weread:get-state', async () => {
-    const { readWeReadState } = await context.getStoreModule();
-    return readWeReadState();
+    const { weReadPersistence } = await context.getPersistenceModule();
+    return weReadPersistence.readWeReadState();
   });
   handleDesktopIpc('weread:read-api-key', async () => {
-    const { readStoredWeReadApiKey } = await context.getStoreModule();
-    return readStoredWeReadApiKey();
+    const { weReadPersistence } = await context.getPersistenceModule();
+    return weReadPersistence.readStoredWeReadApiKey();
   });
   handleDesktopIpc('weread:save-settings', async (_event, input) => {
-    const { saveWeReadSettings } = await context.getStoreModule();
-    return saveWeReadSettings(input);
+    const { weReadPersistence } = await context.getPersistenceModule();
+    return weReadPersistence.saveWeReadSettings(input);
   });
   handleDesktopIpc('weread:test', async (_event, apiKey) => {
-    const store = await context.getStoreModule();
-    const key = apiKey?.trim() || (await store.readStoredWeReadApiKey());
+    const { weReadPersistence } = await context.getPersistenceModule();
+    const key = apiKey?.trim() || (await weReadPersistence.readStoredWeReadApiKey());
     if (!key) return { ok: false, message: 'WEREAD_API_KEY_REQUIRED' };
     try {
       const { testWeReadConnection } = await import('../weread/weread-client');
       const result = await testWeReadConnection(key);
-      await store.saveWeReadTestResult(true, result.message);
+      await weReadPersistence.saveWeReadTestResult(true, result.message);
       return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'WEREAD_CONNECTION_FAILED';
-      await store.saveWeReadTestResult(false, message);
+      await weReadPersistence.saveWeReadTestResult(false, message);
       return { ok: false, message };
     }
   });
   handleDesktopIpc('weread:sync', async () => {
     const startedAt = performance.now();
-    const store = await context.getStoreModule();
-    const apiKey = await store.readStoredWeReadApiKey();
+    const { weReadPersistence } = await context.getPersistenceModule();
+    const apiKey = await weReadPersistence.readStoredWeReadApiKey();
     if (!apiKey) throw new Error('WEREAD_API_KEY_REQUIRED');
     const {
       fetchWeReadBookDetail,
@@ -67,7 +67,7 @@ export function registerWeReadIpc(context: DesktopMainIpcContext) {
         mergeNotebookBook: mergeWeReadNotebookBook,
         elapsedMs: context.elapsedMs,
       });
-      const result = await store.saveWeReadBookDetails(details);
+      const result = await weReadPersistence.saveWeReadBookDetails(details);
       context.logInfo('weread.sync.complete', {
         bookCount: books.length,
         detailCount: details.length,
@@ -82,36 +82,36 @@ export function registerWeReadIpc(context: DesktopMainIpcContext) {
     }
   });
   handleDesktopIpc('weread:sync-book', async (_event, bookId) => {
-    const store = await context.getStoreModule();
-    const apiKey = await store.readStoredWeReadApiKey();
+    const { weReadPersistence } = await context.getPersistenceModule();
+    const apiKey = await weReadPersistence.readStoredWeReadApiKey();
     if (!apiKey) throw new Error('WEREAD_API_KEY_REQUIRED');
     const { fetchWeReadBookDetail } = await import('../weread/weread-client');
     const detail = await fetchWeReadBookDetail(apiKey, bookId);
-    return store.saveWeReadBookDetail(detail);
+    return weReadPersistence.saveWeReadBookDetail(detail);
   });
   handleDesktopIpc('weread:get-book', async (_event, bookId) => {
-    const { readWeReadBookDetail } = await context.getStoreModule();
-    return readWeReadBookDetail(bookId);
+    const { weReadPersistence } = await context.getPersistenceModule();
+    return weReadPersistence.readWeReadBookDetail(bookId);
   });
   handleDesktopIpc('weread:open', async (_event, target) => {
-    const { readWeReadSettings } = await context.getStoreModule();
-    const settings = await readWeReadSettings();
+    const { weReadPersistence } = await context.getPersistenceModule();
+    const settings = await weReadPersistence.readWeReadSettings();
     return context.openExternalUrl(buildWeReadOpenUrl(target, settings.openMethod));
   });
   handleDesktopIpc('weread:get-reading-stats', async () => {
-    const { readWeReadReadingStatsState } = await context.getStoreModule();
-    return readWeReadReadingStatsState();
+    const { weReadPersistence } = await context.getPersistenceModule();
+    return weReadPersistence.readWeReadReadingStatsState();
   });
   handleDesktopIpc('weread:query-reading-stats', async (_event, input) => {
-    const store = await context.getStoreModule();
-    const apiKey = await store.readStoredWeReadApiKey();
+    const { weReadPersistence } = await context.getPersistenceModule();
+    const apiKey = await weReadPersistence.readStoredWeReadApiKey();
     if (!apiKey) throw new Error('WEREAD_API_KEY_REQUIRED');
     const { fetchWeReadReadingStats } = await import('../weread/weread-client');
     const sourceBaseTime =
       input.mode === 'overall' ? undefined : Math.floor((input.baseTime ?? Date.now()) / 1000);
     const periodStart = getWeReadStatsPeriodStart(input.mode, sourceBaseTime);
     const data = await fetchWeReadReadingStats(apiKey, input.mode, sourceBaseTime);
-    return store.saveWeReadReadingStatsSnapshot({
+    return weReadPersistence.saveWeReadReadingStatsSnapshot({
       id: `${input.mode}:${periodStart}`,
       mode: input.mode,
       periodStart,
