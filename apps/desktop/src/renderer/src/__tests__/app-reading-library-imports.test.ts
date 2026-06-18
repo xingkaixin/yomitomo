@@ -1,0 +1,41 @@
+import { describe, expect, it } from 'vitest';
+import { readingLibraryImportTestApi } from '../reading-library/app-reading-library-imports';
+
+describe('article import errors', () => {
+  it('maps import boundary failures to specific message keys', () => {
+    expect(
+      readingLibraryImportTestApi.articleImportErrorMessage(
+        new Error('ARTICLE_IMPORT_REQUEST_FAILED'),
+        keyT,
+      ),
+    ).toBe('library.import.article.requestFailed');
+    expect(
+      readingLibraryImportTestApi.articleImportErrorMessage(
+        new Error('ARTICLE_IMPORT_UNSUPPORTED_CONTENT_TYPE'),
+        keyT,
+      ),
+    ).toBe('library.import.article.unsupportedContentType');
+    expect(
+      readingLibraryImportTestApi.articleImportErrorMessage(
+        new Error('ARTICLE_IMPORT_RESPONSE_TOO_LARGE'),
+        keyT,
+      ),
+    ).toBe('library.import.article.responseTooLarge');
+    expect(
+      readingLibraryImportTestApi.articleImportErrorMessage(
+        new Error('ARTICLE_IMPORT_TIMEOUT'),
+        keyT,
+      ),
+    ).toBe('library.import.article.timeout');
+  });
+
+  it('falls back to the generic article import error for unknown errors', () => {
+    expect(readingLibraryImportTestApi.articleImportErrorMessage(new Error('UNKNOWN'), keyT)).toBe(
+      'library.import.article.errorTitle',
+    );
+  });
+});
+
+const keyT = ((key: string) => key) as Parameters<
+  typeof readingLibraryImportTestApi.articleImportErrorMessage
+>[1];

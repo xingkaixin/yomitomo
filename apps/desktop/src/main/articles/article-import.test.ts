@@ -51,12 +51,17 @@ vi.mock('node:worker_threads', () => ({
 vi.mock('electron', () => ({
   BrowserWindow: class MockBrowserWindow {
     readonly webContents = {
-      executeJavaScript: vi.fn().mockResolvedValue({
-        html: '<html><body>正文</body></html>',
-        text: '正文',
-        title: 'Article',
-        url: 'https://example.com/post',
-      }),
+      executeJavaScript: vi.fn().mockImplementation(() =>
+        Promise.resolve(
+          browserWindowMocks.nextRenderedPage || {
+            html: '<html><body>正文</body></html>',
+            htmlByteLength: 32,
+            text: '正文',
+            title: 'Article',
+            url: 'https://example.com/post',
+          },
+        ),
+      ),
       session: {
         clearCache: vi.fn().mockResolvedValue(undefined),
         clearStorageData: vi.fn().mockResolvedValue(undefined),
@@ -111,15 +116,29 @@ const browserWindowMocks = vi.hoisted(() => ({
       };
     };
   }>,
+  nextRenderedPage: undefined as
+    | {
+        html: string;
+        htmlByteLength?: number;
+        text: string;
+        title: string;
+        url: string;
+      }
+    | undefined,
 }));
 
-import { articleRecordFromUrl, cancelArticleImport } from './article-import';
+import {
+  articleRecordFromUrl,
+  cancelArticleImport,
+  MAX_ARTICLE_IMPORT_HTML_BYTES,
+} from './article-import';
 
 describe('article import', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     workerMocks.instances.length = 0;
     browserWindowMocks.instances.length = 0;
+    browserWindowMocks.nextRenderedPage = undefined;
     workerMocks.MockWorker.nextMessage = undefined;
     workerMocks.MockWorker.delayMessage = false;
   });
@@ -147,6 +166,100 @@ describe('article import', () => {
     });
     expect(workerMocks.instances[0].terminated).toBe(true);
     expect(cancelArticleImport('import-1')).toBe(false);
+  });
+
+  it('rejects non-html response content types before worker parsing', async () => {
+    const article = articleRecord();
+    workerMocks.MockWorker.nextMessage = { ok: true, article };
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('%PDF-1.7 binary', {
+        headers: { 'content-type': 'application/pdf' },
+      }),
+    );
+
+    await expect(articleRecordFromUrl('https://example.com/file.pdf')).rejects.toThrow(
+      'ARTICLE_IMPORT_UNSUPPORTED_CONTENT_TYPE',
+    );
+
+    expect(workerMocks.instances).toHaveLength(0);
+  });
+
+  it('rejects html responses with content-length over the import limit', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('<html><body>正文</body></html>', {
+        headers: {
+          'content-length': String(MAX_ARTICLE_IMPORT_HTML_BYTES + 1),
+          'content-type': 'text/html',
+        },
+      }),
+    );
+
+    await expect(articleRecordFromUrl('https://example.com/large')).rejects.toThrow(
+      'ARTICLE_IMPORT_RESPONSE_TOO_LARGE',
+    );
+
+    expect(workerMocks.instances).toHaveLength(0);
+  });
+
+  it('cancels streaming response reads when the body exceeds the import limit', async () => {
+    const cancel = vi.fn();
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.enqueue(new Uint8Array(MAX_ARTICLE_IMPORT_HTML_BYTES + 1));
+      },
+      cancel,
+    });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(stream, {
+        headers: { 'content-type': 'text/html' },
+      }),
+    );
+
+    await expect(articleRecordFromUrl('https://example.com/stream')).rejects.toThrow(
+      'ARTICLE_IMPORT_RESPONSE_TOO_LARGE',
+    );
+
+    expect(cancel).toHaveBeenCalled();
+    expect(workerMocks.instances).toHaveLength(0);
+  });
+
+  it('allows missing or inaccurate content types when the limited body is html', async () => {
+    const article = articleRecord();
+    workerMocks.MockWorker.nextMessage = { ok: true, article };
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('<html><body>正文</body></html>'))
+      .mockResolvedValueOnce(
+        new Response('<!doctype html><html><body>正文</body></html>', {
+          headers: { 'content-type': 'text/plain' },
+        }),
+      );
+
+    await expect(articleRecordFromUrl('https://example.com/missing-type')).resolves.toEqual(
+      article,
+    );
+    await expect(articleRecordFromUrl('https://example.com/plain-type')).resolves.toEqual(article);
+
+    expect(workerMocks.instances).toHaveLength(2);
+  });
+
+  it('rejects rendered fallback html over the import limit', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('<html>cf-browser-verification</html>'),
+    );
+    browserWindowMocks.nextRenderedPage = {
+      html: '',
+      htmlByteLength: MAX_ARTICLE_IMPORT_HTML_BYTES + 1,
+      text: '正文',
+      title: 'Article',
+      url: 'https://example.com/post',
+    };
+
+    await expect(articleRecordFromUrl('https://example.com/post')).rejects.toThrow(
+      'ARTICLE_IMPORT_RESPONSE_TOO_LARGE',
+    );
+
+    expect(workerMocks.instances).toHaveLength(0);
   });
 
   it('maps fetch AbortError to the import timeout code', async () => {

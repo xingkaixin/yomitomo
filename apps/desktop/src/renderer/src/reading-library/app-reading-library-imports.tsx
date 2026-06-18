@@ -99,8 +99,19 @@ function advanceImportProgress(current: number) {
 
 type AppT = ReturnType<typeof useTranslation>['t'];
 
-function articleImportErrorMessage(_error: unknown, t: AppT) {
-  return t('library.import.article.errorTitle');
+function articleImportErrorMessage(error: unknown, t: AppT) {
+  const key = articleImportErrorKey(error instanceof Error ? error.message.trim() : '');
+  return t(key || 'library.import.article.errorTitle');
+}
+
+function articleImportErrorKey(code: string) {
+  if (code === 'ARTICLE_IMPORT_REQUEST_FAILED') return 'library.import.article.requestFailed';
+  if (code === 'ARTICLE_IMPORT_UNSUPPORTED_CONTENT_TYPE')
+    return 'library.import.article.unsupportedContentType';
+  if (code === 'ARTICLE_IMPORT_RESPONSE_TOO_LARGE')
+    return 'library.import.article.responseTooLarge';
+  if (code === 'ARTICLE_IMPORT_TIMEOUT') return 'library.import.article.timeout';
+  return '';
 }
 
 function isValidArticleImportUrl(value: string) {
@@ -201,6 +212,11 @@ function playImportSuccessSound(importedCount: number, settings: AppSettings) {
     settings,
   );
 }
+
+export const readingLibraryImportTestApi = {
+  articleImportErrorKey,
+  articleImportErrorMessage,
+};
 
 export function LibraryImportControls({
   defaultImportType,
