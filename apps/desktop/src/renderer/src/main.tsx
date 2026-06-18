@@ -193,7 +193,7 @@ const preloadEntries = {
   ),
 };
 
-function preloadIdleModules(articles: ArticleSummaryRecord[]) {
+function preloadIdleModules() {
   recordStartupTiming('secondary_modules.preload_scheduled');
   const tasks = [
     () => preloadEntries.settingsPanels.load(),
@@ -201,11 +201,7 @@ function preloadIdleModules(articles: ArticleSummaryRecord[]) {
     () => preloadEntries.settingsAbout.load(),
     () => preloadEntries.profileDialog.load(),
     () => preloadEntries.agents.load(),
-    () =>
-      preloadEntries.stats.load().then((module) => {
-        module.preloadReadingStatsFirstPaintData(articles);
-        return module.preloadReadingStatsDeferredModules();
-      }),
+    () => preloadEntries.stats.load().then((module) => module.preloadReadingStatsDeferredModules()),
   ];
   scheduleIdlePreloadQueue(tasks);
 }
@@ -258,6 +254,7 @@ function App() {
   const [pendingOpenArticleId, setPendingOpenArticleId] = useState<string | null>(null);
   const [onboardingForced, setOnboardingForced] = useState(false);
   const [onboardingFlowKey, setOnboardingFlowKey] = useState(0);
+  const [statsArticles, setStatsArticles] = useState<ArticleSummaryRecord[] | null>(null);
   const [statsNavigationStartedAt, setStatsNavigationStartedAt] = useState<number | undefined>();
   const windowShowRequestedRef = useRef(false);
   const idlePreloadStartedRef = useRef(false);
@@ -332,10 +329,10 @@ function App() {
     idlePreloadStartedRef.current = true;
     const idleId = scheduleIdlePreload(() => {
       recordStartupTiming('secondary_modules.preload_start');
-      preloadIdleModules(store.articles);
+      preloadIdleModules();
     });
     return () => cancelIdlePreload(idleId);
-  }, [showOnboarding, store.articles, storeLoadError, storeLoaded]);
+  }, [showOnboarding, storeLoadError, storeLoaded]);
 
   useEffect(() => {
     if (activeSetting !== 'library') setLibraryReaderOpen(false);
@@ -406,11 +403,26 @@ function App() {
     const startedAt = performance.now();
     setStatsNavigationStartedAt(startedAt);
     recordStatsTiming('navigation_click', {
-      articleCount: store.articles.length,
+      articleCount: statsArticles?.length ?? store.articles.length,
       rendererElapsedMs: elapsedMs(0),
       preloadStatus: preloadEntries.stats.status,
     });
     setActiveSetting('stats');
+    void refreshStatsArticles();
+  }
+
+  async function refreshStatsArticles() {
+    const desktop = window.yomitomoDesktop;
+    if (typeof desktop?.readArticleStatsSummaries !== 'function') {
+      setStatsArticles(storeRef.current.articles);
+      return;
+    }
+    try {
+      const articles = await desktop.readArticleStatsSummaries();
+      setStatsArticles(articles);
+    } catch {
+      setStatsArticles(storeRef.current.articles);
+    }
   }
 
   function changeSettingsSection(section: SettingsSectionKey) {
@@ -594,10 +606,10 @@ function App() {
               {activeSetting === 'stats' ? (
                 <ActiveReadingStatsPanel
                   agents={store.agents}
-                  articles={store.articles}
+                  articles={statsArticles || store.articles}
                   navigationStartedAt={statsNavigationStartedAt}
                   settings={store.settings}
-                  onRefresh={refreshStore}
+                  onRefresh={() => void refreshStatsArticles()}
                 />
               ) : null}
               {activeSetting === 'settings' ? (

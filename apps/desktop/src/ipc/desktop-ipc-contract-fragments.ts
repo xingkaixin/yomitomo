@@ -14,6 +14,7 @@ import type {
   ArticleReadingProgress,
   ArticleReadingProgressPatch,
   ArticleRecord,
+  ArticleSummaryRecord,
   ArticleTranslation,
   ArticleTranslationDeleteRequest,
   ArticleTranslationRequest,
@@ -57,6 +58,8 @@ import type {
   ArticleCommentUpsertInput,
   ArticleImportResult,
   ArticleImportUrlInput,
+  ArticleLibraryListInput,
+  ArticleLibraryListResult,
   ArticleReaderChatStateSaveInput,
   AssistantExecutionQueryInput,
   AssistantExecutionRun,
@@ -231,6 +234,14 @@ export type ArticleIpcInvokeMap = {
   'article:import-url-cancel': {
     args: [requestId: string];
     result: boolean;
+  };
+  'article:list-library': {
+    args: [input: ArticleLibraryListInput];
+    result: ArticleLibraryListResult;
+  };
+  'article:stats-summaries': {
+    args: [];
+    result: ArticleSummaryRecord[];
   };
   'article:reading-progress': {
     args: [input: { articleId: string; progress: ArticleReadingProgress }];

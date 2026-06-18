@@ -44,6 +44,7 @@ import type {
   AppLockUnlockInput,
   AppLockVerifyPinInput,
   ArticleImportUrlInput,
+  ArticleLibraryListInput,
   AssistantExecutionQueryInput,
   DataManagementPathKind,
   DesktopIpcInvokeArgs,
@@ -218,6 +219,9 @@ function createArticlePreloadApi() {
     getArticle: (id: string) => invokeDesktopIpc('article:get', id),
     getArticleCover: (id: string) => invokeDesktopIpc('article:get-cover', id),
     getArticleSiteIcon: (id: string) => invokeDesktopIpc('article:get-site-icon', id),
+    listLibraryArticles: (input: ArticleLibraryListInput) =>
+      invokeDesktopIpc('article:list-library', input),
+    readArticleStatsSummaries: () => invokeDesktopIpc('article:stats-summaries'),
     getPdfThumbnail: (id: string) => invokeDesktopIpc('pdf:get-thumbnail', id),
     saveArticle: (article: ArticleRecord) => invokeDesktopIpc('article:save', article),
     saveArticleAnnotation: (articleId: string, annotation: Annotation, updatedAt?: string) =>

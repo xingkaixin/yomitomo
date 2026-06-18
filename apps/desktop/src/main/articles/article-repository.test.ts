@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import SQLiteDatabase from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from '../db/schema';
 import type { StoreDatabase, StoreReadProfileEntry } from '../store/store-db';
 import type { ArticleSummaryRow } from '../store/store-normalizers';
 import {
+  readArticleLibraryListRows,
   readArticleSummaryCounts,
   readArticleSummaryCountsForArticles,
   readArticleSummaryRows,
@@ -67,6 +70,40 @@ describe('article repository summaries', () => {
     expect(readArticleSummaryCountsForArticles(repositoryDatabase(), [], profile).size).toBe(0);
     expect(profile).toEqual([]);
   });
+
+  it('reads a paged library list with source counts and scoped article counts', () => {
+    const profile: StoreReadProfileEntry[] = [];
+
+    const result = readArticleLibraryListRows(
+      repositoryDatabase(),
+      { source: 'web', page: 1, pageSize: 1 },
+      profile,
+    );
+
+    expect(result).toMatchObject({
+      page: 1,
+      pageSize: 1,
+      query: '',
+      source: 'web',
+      sourceCounts: { web: 2, ebook: 1, pdf: 0 },
+      totalCount: 2,
+    });
+    expect(result.articles.map((article) => article.id)).toEqual(['article_c']);
+    expect(result.articles[0].annotationCount).toBe(0);
+    expect(profile.map((entry) => entry.name)).toContain('count_annotations_by_article_scoped');
+  });
+
+  it('filters library pages by source metadata search', () => {
+    const result = readArticleLibraryListRows(sqliteRepositoryDatabase(), {
+      source: 'web',
+      query: 'alpha',
+      page: 1,
+      pageSize: 10,
+    });
+
+    expect(result.totalCount).toBe(1);
+    expect(result.articles.map((article) => article.id)).toEqual(['sqlite_alpha']);
+  });
 });
 
 type QueryCondition = { queryChunks?: unknown[] } | undefined;
@@ -87,7 +124,19 @@ type CommentRow = {
 
 function repositoryDatabase(): StoreDatabase {
   const rows = {
-    articles: [articleRow('article_a'), articleRow('article_b')],
+    articles: [
+      articleRow('article_a', {
+        createdAt: '2026-06-04T00:00:00.000Z',
+        title: 'Alpha article',
+      }),
+      articleRow('article_b', {
+        createdAt: '2026-06-05T00:00:00.000Z',
+        sourceType: 'ebook',
+      }),
+      articleRow('article_c', {
+        createdAt: '2026-06-06T00:00:00.000Z',
+      }),
+    ],
     annotations: [
       annotationRow('annotation_a_1', 'article_a', 'published', 1),
       annotationRow('annotation_a_2', 'article_a'),
@@ -100,14 +149,102 @@ function repositoryDatabase(): StoreDatabase {
     ],
   };
   return {
-    select: () => new FakeSelect(rows),
+    select: (selection?: unknown) => new FakeSelect(rows, selection),
   } as unknown as StoreDatabase;
+}
+
+function sqliteRepositoryDatabase(): StoreDatabase {
+  const sqlite = new SQLiteDatabase(':memory:');
+  sqlite.exec(`
+    CREATE TABLE articles (
+      id TEXT PRIMARY KEY,
+      url TEXT NOT NULL,
+      canonical_url TEXT NOT NULL,
+      source_type TEXT NOT NULL DEFAULT 'web',
+      title TEXT NOT NULL,
+      byline TEXT,
+      excerpt TEXT,
+      site_name TEXT,
+      theme_color TEXT,
+      content_hash TEXT NOT NULL,
+      ebook_metadata TEXT,
+      pdf_metadata TEXT,
+      reading_progress TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE annotations (
+      id TEXT PRIMARY KEY,
+      article_id TEXT NOT NULL,
+      distillation_status TEXT,
+      distillation_review_sessions TEXT
+    );
+    CREATE TABLE comments (
+      id TEXT PRIMARY KEY,
+      annotation_id TEXT NOT NULL,
+      author TEXT NOT NULL,
+      reply_to TEXT
+    );
+  `);
+  sqlite
+    .prepare(
+      `INSERT INTO articles (
+        id, url, canonical_url, source_type, title, byline, excerpt, site_name,
+        theme_color, content_hash, ebook_metadata, pdf_metadata, reading_progress,
+        created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      'sqlite_alpha',
+      'https://example.com/alpha',
+      'https://example.com/alpha',
+      'web',
+      'Alpha article',
+      null,
+      null,
+      null,
+      null,
+      'hash-alpha',
+      null,
+      null,
+      null,
+      '2026-06-06T00:00:00.000Z',
+      '2026-06-06T00:00:00.000Z',
+    );
+  sqlite
+    .prepare(
+      `INSERT INTO articles (
+        id, url, canonical_url, source_type, title, byline, excerpt, site_name,
+        theme_color, content_hash, ebook_metadata, pdf_metadata, reading_progress,
+        created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      'sqlite_beta',
+      'https://example.com/beta',
+      'https://example.com/beta',
+      'web',
+      'Beta article',
+      null,
+      null,
+      null,
+      null,
+      'hash-beta',
+      null,
+      null,
+      null,
+      '2026-06-05T00:00:00.000Z',
+      '2026-06-05T00:00:00.000Z',
+    );
+  return drizzle(sqlite, { schema });
 }
 
 class FakeSelect {
   private table: unknown;
   private condition: QueryCondition;
   private grouped = false;
+  private limitValue: number | null = null;
+  private offsetValue = 0;
 
   constructor(
     private readonly rows: {
@@ -115,6 +252,7 @@ class FakeSelect {
       annotations: AnnotationRow[];
       comments: CommentRow[];
     },
+    private readonly selection?: unknown,
   ) {}
 
   from(table: unknown) {
@@ -140,7 +278,29 @@ class FakeSelect {
     return this;
   }
 
+  limit(value: number) {
+    this.limitValue = value;
+    return this;
+  }
+
+  offset(value: number) {
+    this.offsetValue = value;
+    return this;
+  }
+
   all() {
+    if (this.table === schema.articles) {
+      const rows = filterArticles(this.rows.articles, this.condition);
+      if (this.grouped) return countBySource(rows);
+      return rows
+        .toSorted(
+          (left, right) =>
+            Date.parse(right.createdAt) - Date.parse(left.createdAt) ||
+            Date.parse(right.updatedAt) - Date.parse(left.updatedAt) ||
+            left.title.localeCompare(right.title, 'zh-CN'),
+        )
+        .slice(this.offsetValue, this.limitValue ? this.offsetValue + this.limitValue : undefined);
+    }
     if (this.table === schema.annotations) {
       if (!this.grouped)
         return filterAnnotations(this.rows.annotations, this.condition).map((row) => ({
@@ -158,8 +318,49 @@ class FakeSelect {
   get() {
     const articleIds = articleIdsFromCondition(this.condition);
     if (this.table !== schema.articles) return undefined;
+    if (isCountSelection(this.selection)) {
+      return { count: filterArticles(this.rows.articles, this.condition).length };
+    }
     return this.rows.articles.find((article) => articleIds.has(article.id)) || null;
   }
+}
+
+function isCountSelection(selection: unknown) {
+  return Boolean(
+    selection &&
+    typeof selection === 'object' &&
+    Object.prototype.hasOwnProperty.call(selection, 'count'),
+  );
+}
+
+function filterArticles(rows: ArticleRow[], condition: QueryCondition) {
+  const values = conditionValues(condition);
+  const source = ['web', 'ebook', 'pdf'].find((item) => values.has(item));
+  const search = Array.from(values).find((value) => value.startsWith('%') && value.endsWith('%'));
+  const normalizedSearch = search?.slice(1, -1).toLocaleLowerCase('zh-CN');
+  return rows.filter((row) => {
+    if (source && row.sourceType !== source) return false;
+    if (!normalizedSearch) return true;
+    return [
+      row.title,
+      row.byline,
+      row.siteName,
+      row.excerpt,
+      row.url,
+      row.canonicalUrl,
+      row.ebookMetadata ? JSON.stringify(row.ebookMetadata) : '',
+      row.pdfMetadata ? JSON.stringify(row.pdfMetadata) : '',
+    ]
+      .join(' ')
+      .toLocaleLowerCase('zh-CN')
+      .includes(normalizedSearch);
+  });
+}
+
+function countBySource(rows: ArticleRow[]) {
+  const counts = new Map<string, number>();
+  for (const row of rows) counts.set(row.sourceType, (counts.get(row.sourceType) || 0) + 1);
+  return Array.from(counts.entries()).map(([sourceType, count]) => ({ sourceType, count }));
 }
 
 function countAnnotations(rows: AnnotationRow[], condition: QueryCondition) {
@@ -209,32 +410,37 @@ function countByArticle(rows: Array<{ articleId: string }>) {
 
 function conditionValues(condition: QueryCondition) {
   const values = new Set<string>();
-  collectConditionValues(condition, values);
+  collectConditionValues(condition, values, new WeakSet<object>());
   return values;
 }
 
-function collectConditionValues(input: unknown, values: Set<string>) {
+function collectConditionValues(input: unknown, values: Set<string>, seen: WeakSet<object>) {
   if (!input || typeof input !== 'object') return;
+  if (seen.has(input)) return;
+  seen.add(input);
   const value = (input as { value?: unknown }).value;
   if (typeof value === 'string') values.add(value);
   const chunks = (input as { queryChunks?: unknown[] }).queryChunks;
   if (Array.isArray(chunks)) {
     for (const chunk of chunks) {
       if (Array.isArray(chunk)) {
-        for (const item of chunk) collectConditionValues(item, values);
+        for (const item of chunk) collectConditionValues(item, values, seen);
       } else {
-        collectConditionValues(chunk, values);
+        collectConditionValues(chunk, values, seen);
       }
     }
+  }
+  for (const key of Reflect.ownKeys(input)) {
+    collectConditionValues((input as Record<PropertyKey, unknown>)[key], values, seen);
   }
 }
 
 function articleIdsFromCondition(condition: QueryCondition) {
   const values = conditionValues(condition);
-  return new Set(['article_a', 'article_b'].filter((id) => values.has(id)));
+  return new Set(['article_a', 'article_b', 'article_c'].filter((id) => values.has(id)));
 }
 
-function articleRow(id: string): ArticleRow {
+function articleRow(id: string, overrides: Partial<ArticleRow> = {}): ArticleRow {
   return {
     id,
     url: `https://example.com/${id}`,
@@ -251,6 +457,7 @@ function articleRow(id: string): ArticleRow {
     readingProgress: null,
     createdAt: '2026-06-04T00:00:00.000Z',
     updatedAt: '2026-06-04T00:00:00.000Z',
+    ...overrides,
   };
 }
 

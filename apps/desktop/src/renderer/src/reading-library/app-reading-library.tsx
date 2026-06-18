@@ -174,6 +174,7 @@ export function ReadingLibrary({
   const distillationAnimationTimerRef = useRef<number | null>(null);
   const didAutoSyncWeReadRef = useRef(false);
   const sortedArticles = useMemo<ArticleSummaryRecord[]>(() => sortArticles(articles), [articles]);
+  const hasLocalArticleCatalog = articles.length > 0;
   const enabledSources = useMemo(() => enabledLibraryContentSources(settings), [settings]);
   const wereadSourceEnabled = enabledSources.includes('weread');
   const annotations = useMemo<Annotation[]>(
@@ -244,20 +245,28 @@ export function ReadingLibrary({
   }, [selectedArticle?.id]);
 
   useEffect(() => {
+    if (!hasLocalArticleCatalog) return;
     if (selectedArticleId && !sortedArticles.some((article) => article.id === selectedArticleId)) {
       void onCloseArticleDiscussions?.(selectedArticleId);
       setSelectedArticleId(null);
       setSelectedArticle(null);
     }
-  }, [onCloseArticleDiscussions, selectedArticleId, sortedArticles]);
+  }, [hasLocalArticleCatalog, onCloseArticleDiscussions, selectedArticleId, sortedArticles]);
 
   useEffect(() => {
     if (!openArticleId) return;
     const article = sortedArticles.find((item) => item.id === openArticleId);
-    if (!article) return;
-    void openArticle(article);
-    onArticleOpened?.(article.id);
-  }, [openArticleId, onArticleOpened, sortedArticles]);
+    if (article) {
+      void openArticle(article);
+      onArticleOpened?.(article.id);
+      return;
+    }
+    void onReadArticle(openArticleId).then((fullArticle) => {
+      if (!fullArticle) return;
+      void openArticle(fullArticle);
+      onArticleOpened?.(fullArticle.id);
+    });
+  }, [onReadArticle, openArticleId, onArticleOpened, sortedArticles]);
 
   useEffect(() => {
     if (!selectedArticle || selectedArticle.sourceType !== 'pdf') return;
