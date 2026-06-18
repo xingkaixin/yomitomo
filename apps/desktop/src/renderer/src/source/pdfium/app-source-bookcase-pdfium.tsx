@@ -27,7 +27,6 @@ import {
   activeTocIndexForOffset,
   annotationIdsAtHighlightPoint,
   createUserAnnotation,
-  findReaderSearchMatches,
   selectionActionPosition,
   type HighlightBox,
   type TocItem,
@@ -80,6 +79,7 @@ import { usePdfiumDocumentText } from './app-source-bookcase-pdfium-document-tex
 import { usePdfiumReadingProgress } from './app-source-bookcase-pdfium-reading-progress';
 import { usePdfiumNavigation } from './app-source-bookcase-pdfium-navigation';
 import { useSourceReaderWorkspace } from '../bookcase/use-source-reader-workspace';
+import { useReaderSearchMatches } from '../bookcase/use-reader-search-matches';
 import { usePdfiumDocumentSource } from './use-pdfium-document-source';
 import { usePdfiumPlugins } from './use-pdfium-plugins';
 import {
@@ -451,10 +451,11 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     selection,
     updateReaderSettings: updatePdfReaderSettings,
   } = sourceReaderWorkspace;
-  const searchResult = useMemo(
-    () => findReaderSearchMatches(pdfTextDocument?.text || '', searchQuery),
-    [pdfTextDocument?.text, searchQuery],
-  );
+  const {
+    matchedQuery: matchedSearchQuery,
+    preparing: searchPreparing,
+    result: searchResult,
+  } = useReaderSearchMatches(pdfTextDocument?.text || '', searchQuery);
   const activeSearchMatch =
     searchResult.matches[Math.min(activeSearchMatchIndex, searchResult.matches.length - 1)] || null;
   const {
@@ -686,10 +687,16 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
 
   useEffect(() => {
     setActiveSearchMatchIndex(0);
-  }, [searchQuery]);
+  }, [matchedSearchQuery]);
 
   useEffect(() => {
-    if (!searchOpen || !activeSearchMatch || !pdfTextDocument || !loadedDocument) {
+    if (
+      searchPreparing ||
+      !searchOpen ||
+      !activeSearchMatch ||
+      !pdfTextDocument ||
+      !loadedDocument
+    ) {
       setSearchBoxes([]);
       return;
     }
@@ -708,6 +715,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     pageMetrics,
     pdfTextDocument,
     searchOpen,
+    searchPreparing,
     zoom,
   ]);
 
@@ -873,7 +881,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
         id: `${match.id}-${index}`,
         annotationId: '__search__',
         contributorId: '__search__',
-        color: '#d7a93f',
+        color: 'var(--reader-search-highlight-active)',
         top: metric.top + rect.y * metric.height,
         left: metric.left + rect.x * metric.width,
         width: Math.max(1, rect.width * metric.width),
@@ -1255,7 +1263,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
         limited: searchResult.limited,
         matches: searchResult.matches,
         open: searchOpen,
-        preparing: Boolean(searchQuery.trim()) && pdfTextIndexPreparing,
+        preparing: Boolean(searchQuery.trim()) && (pdfTextIndexPreparing || searchPreparing),
         query: searchQuery,
         onClose: closeSearch,
         onNextMatch: () => navigateSearchMatch('next'),

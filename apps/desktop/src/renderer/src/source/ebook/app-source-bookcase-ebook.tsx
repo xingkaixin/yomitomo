@@ -8,7 +8,6 @@ import {
   annotationIdsAtHighlightPoint,
   createEpubTextAnchor,
   createUserAnnotation,
-  findReaderSearchMatches,
   type HighlightBox,
   type TocItem,
 } from '@yomitomo/core';
@@ -60,6 +59,7 @@ import { createEbookSourceReaderController } from './app-source-bookcase-ebook-c
 import { useSourceReaderWorkspace } from '../bookcase/use-source-reader-workspace';
 import { buildSourceReaderAppActions } from '../bookcase/source-reader-app-actions';
 import { buildSourceReaderAppViewProps } from '../bookcase/source-reader-app-view-props';
+import { useReaderSearchMatches } from '../bookcase/use-reader-search-matches';
 
 export function EbookBookcase({
   agents,
@@ -243,10 +243,11 @@ export function EbookBookcase({
     openComposer,
   } = selection;
   const ebookText = useMemo(() => ebookArticleText(article), [article]);
-  const searchResult = useMemo(
-    () => findReaderSearchMatches(ebookText, searchQuery),
-    [ebookText, searchQuery],
-  );
+  const {
+    matchedQuery: matchedSearchQuery,
+    preparing: searchPreparing,
+    result: searchResult,
+  } = useReaderSearchMatches(ebookText, searchQuery);
   const activeSearchMatch =
     searchResult.matches[Math.min(activeSearchMatchIndex, searchResult.matches.length - 1)] || null;
   const articleAnnotationSignature = useMemo(
@@ -436,10 +437,10 @@ export function EbookBookcase({
 
   useEffect(() => {
     setActiveSearchMatchIndex(0);
-  }, [searchQuery]);
+  }, [matchedSearchQuery]);
 
   useEffect(() => {
-    if (!searchOpen || !activeSearchMatch) {
+    if (searchPreparing || !searchOpen || !activeSearchMatch) {
       setSearchBoxes([]);
       return;
     }
@@ -450,7 +451,7 @@ export function EbookBookcase({
     return () => {
       cancelled = true;
     };
-  }, [activeSearchMatch, searchOpen]);
+  }, [activeSearchMatch, searchOpen, searchPreparing]);
 
   useEffect(
     () => () => {
@@ -693,7 +694,7 @@ export function EbookBookcase({
         Object.assign(box, {
           annotationId: '__search__',
           contributorId: '__search__',
-          color: '#d7a93f',
+          color: 'var(--reader-search-highlight-active)',
         }),
     );
   }
@@ -932,6 +933,7 @@ export function EbookBookcase({
         limited: searchResult.limited,
         matches: searchResult.matches,
         open: searchOpen,
+        preparing: searchPreparing,
         query: searchQuery,
         onClose: closeSearch,
         onNextMatch: () => navigateSearchMatch('next'),

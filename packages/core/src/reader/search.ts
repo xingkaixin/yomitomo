@@ -63,7 +63,7 @@ export function findReaderSearchMatches(
 }
 
 function normalizeSearchText(text: string, caseSensitive = false) {
-  let normalized = '';
+  const normalized: string[] = [];
   const map: number[] = [];
   let pendingWhitespace = false;
 
@@ -73,16 +73,23 @@ function normalizeSearchText(text: string, caseSensitive = false) {
       pendingWhitespace = normalized.length > 0;
       continue;
     }
-    if (pendingWhitespace && !normalized.endsWith(' ')) {
-      normalized += ' ';
+    if (pendingWhitespace && normalized[normalized.length - 1] !== ' ') {
+      normalized.push(' ');
       map.push(index);
     }
     pendingWhitespace = false;
-    normalized += caseSensitive ? char : char.toLocaleLowerCase();
+    normalized.push(caseSensitive ? char : char.toLocaleLowerCase());
     map.push(index);
   }
 
-  return { text: normalized.trimEnd(), map };
+  return { text: trimTrailingSearchWhitespace(normalized).join(''), map };
+}
+
+function trimTrailingSearchWhitespace(text: string[]) {
+  while (text[text.length - 1] === ' ') {
+    text.pop();
+  }
+  return text;
 }
 
 function searchPreview(text: string, start: number, end: number, radius: number) {

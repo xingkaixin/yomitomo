@@ -300,7 +300,7 @@ export function ReaderSurfaceView({
             ))}
             {searchSegments.map((segment) => (
               <div
-                className="reader-highlight is-search"
+                className="reader-highlight is-search is-active"
                 key={`search-${segment.id}`}
                 style={highlightSegmentStyle(segment, true) as React.CSSProperties}
               />
