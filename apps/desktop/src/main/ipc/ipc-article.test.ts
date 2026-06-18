@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Annotation } from '@yomitomo/shared';
-import { cleanupDeletedArticleSourceAssets, registerArticleIpc } from './ipc-article';
+import {
+  cleanupDeletedArticleSourceAssets,
+  pdfSourceArrayBufferForIpc,
+  registerArticleIpc,
+} from './ipc-article';
 import type { DesktopMainIpcContext } from './ipc';
 
 const storageMocks = vi.hoisted(() => ({
@@ -8,6 +12,7 @@ const storageMocks = vi.hoisted(() => ({
   deletePdfSourceFile: vi.fn<(articleId: string) => Promise<void>>(),
   deletePdfThumbnail: vi.fn<(articleId: string) => Promise<void>>(),
   ipcMainHandle: vi.fn(),
+  readPdfSourceFile: vi.fn<(articleId: string) => Promise<Buffer>>(),
 }));
 
 vi.mock('electron', () => ({
@@ -22,6 +27,7 @@ vi.mock('../ebooks/ebook-storage', () => ({
 
 vi.mock('../pdf/pdf-storage', () => ({
   deletePdfSourceFile: storageMocks.deletePdfSourceFile,
+  readPdfSourceFile: storageMocks.readPdfSourceFile,
 }));
 
 vi.mock('../pdf/pdf-thumbnail-storage', () => ({
@@ -153,5 +159,58 @@ describe('article IPC patch broadcasts', () => {
     expect(deleteArticleComment).toHaveBeenCalledWith(input);
     expect(result).toEqual({ ok: true, value: patch });
     expect(sendArticlePatched).toHaveBeenCalledWith(patch);
+  });
+});
+
+describe('article IPC PDF source reads', () => {
+  it('reuses exact PDF source ArrayBuffers for IPC', () => {
+    const source = new Uint8Array([1, 2, 3]).buffer;
+    const file = Buffer.from(source);
+
+    const result = pdfSourceArrayBufferForIpc(file);
+
+    expect(result).toEqual({ copied: false, data: source });
+  });
+
+  it('copies only sliced PDF source Buffer views for IPC', () => {
+    const source = new Uint8Array([0, 1, 2, 3]).buffer;
+    const file = Buffer.from(source, 1, 2);
+
+    const result = pdfSourceArrayBufferForIpc(file);
+
+    expect(result.copied).toBe(true);
+    expect(result.data).not.toBe(source);
+    expect(Array.from(new Uint8Array(result.data))).toEqual([1, 2]);
+  });
+
+  it('records PDF IPC payload timing when reading source files', async () => {
+    storageMocks.ipcMainHandle.mockClear();
+    const source = new Uint8Array([1, 2, 3]).buffer;
+    storageMocks.readPdfSourceFile.mockResolvedValue(Buffer.from(source));
+    const logInfo = vi.fn();
+
+    registerArticleIpc({
+      elapsedMs: () => 1.25,
+      logInfo,
+    } as unknown as DesktopMainIpcContext);
+
+    const handler = storageMocks.ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === 'pdf:read-file',
+    )?.[1];
+    expect(handler).toBeTypeOf('function');
+
+    const result = await handler({}, 'pdf_article_1');
+
+    expect(result).toEqual({ ok: true, value: source });
+    expect(logInfo).toHaveBeenCalledWith('performance.pdf.file_read_main', {
+      articleId: 'pdf_article_1',
+      byteLength: 3,
+      ipcBufferCopied: false,
+      ipcBufferDurationMs: 0,
+      ipcByteLength: 3,
+      readByteLength: 3,
+      readDurationMs: 1.25,
+      durationMs: 1.25,
+    });
   });
 });

@@ -64,14 +64,14 @@ export function usePdfiumDocumentSource(article: PdfArticleRecord) {
     void window.yomitomoDesktop
       .readPdfFile(article.id)
       .then((data) => {
-        const copyStartedAt = performance.now();
-        const nextBuffer = data.slice(0);
         if (!cancelled) {
-          setBuffer(nextBuffer);
+          setBuffer(data);
           recordPdfOpenTiming(openTrace, 'file_read_done', {
-            byteLength: nextBuffer.byteLength,
-            copyDurationMs: rendererPerformanceElapsedMs(copyStartedAt),
+            byteLength: data.byteLength,
+            copyDurationMs: 0,
             durationMs: rendererPerformanceElapsedMs(fileReadStartedAt),
+            ipcByteLength: data.byteLength,
+            rendererCopiedBuffer: false,
           });
         }
       })
