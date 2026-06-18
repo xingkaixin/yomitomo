@@ -21,26 +21,31 @@ import {
   DialogPortal,
   DialogTitle,
 } from '../components/ui/dialog';
+import type { SaveableDraft } from './use-saveable-draft';
 
-export function UserProfileSettingsDialog({
-  draft,
-  canSave,
-  onChange,
-  onClose,
-  onSave,
-  saveError,
-  saveState,
-  sourceRect,
-}: {
+type UserProfileSettingsLegacyProps = {
   draft: UserDraft;
   canSave: boolean;
   onChange: (draft: UserDraft) => void;
   onClose: () => void;
-  onSave: () => void;
+  onSave: () => Promise<unknown> | void;
   saveError?: string;
   saveState: SaveState;
   sourceRect?: DialogSourceRect;
-}) {
+};
+
+type UserProfileSettingsProps =
+  | {
+      profileDraft: SaveableDraft<UserDraft>;
+      onClose: () => void;
+      onSaved?: () => void;
+      sourceRect?: DialogSourceRect;
+    }
+  | UserProfileSettingsLegacyProps;
+
+export function UserProfileSettingsDialog(props: UserProfileSettingsProps) {
+  const { draft, canSave, onChange, onClose, onSave, saveError, saveState, sourceRect } =
+    resolveUserProfileSettingsProps(props);
   const { t } = useTranslation();
   const dialogStyle = useSourceAwareDialogTransition(sourceRect);
   const saveLabel =
@@ -157,6 +162,26 @@ export function UserProfileSettingsDialog({
       </DialogPortal>
     </Dialog>
   );
+}
+
+function resolveUserProfileSettingsProps(
+  props: UserProfileSettingsProps,
+): UserProfileSettingsLegacyProps {
+  if ('profileDraft' in props) {
+    return {
+      draft: props.profileDraft.value,
+      canSave: props.profileDraft.canSave,
+      onChange: props.profileDraft.update,
+      onClose: props.onClose,
+      onSave: async () => {
+        if (await props.profileDraft.save()) props.onSaved?.();
+      },
+      saveError: props.profileDraft.saveError,
+      saveState: props.profileDraft.saveState,
+      sourceRect: props.sourceRect,
+    };
+  }
+  return props;
 }
 
 function AnnotationColorPreview({

@@ -22,7 +22,7 @@ import {
   type ProviderTestState,
   type UserDraft,
 } from './app-settings';
-import type { SaveState } from '../shell/app-types';
+import { useSaveableDraft } from './use-saveable-draft';
 
 type UseSettingsDraftsInput = {
   store: DesktopStore;
@@ -41,49 +41,13 @@ export function useSettingsDrafts({
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
   const [providerEditorActive, setProviderEditorActive] = useState(false);
   const [testState, setTestState] = useState<ProviderTestState>({ status: 'idle' });
-  const [profileSaveState, setProfileSaveState] = useState<SaveState>('idle');
-  const [generalSaveState, setGeneralSaveState] = useState<SaveState>('idle');
-  const [shortcutSaveState, setShortcutSaveState] = useState<SaveState>('idle');
-  const [providerSaveState, setProviderSaveState] = useState<SaveState>('idle');
-  const [routeSaveState, setRouteSaveState] = useState<SaveState>('idle');
-  const [profileSaveError, setProfileSaveError] = useState('');
-  const [generalSaveError, setGeneralSaveError] = useState('');
-  const [shortcutSaveError, setShortcutSaveError] = useState('');
-  const [providerSaveError, setProviderSaveError] = useState('');
-  const [routeSaveError, setRouteSaveError] = useState('');
   const initialProviderSelectedRef = useRef(false);
-
-  const selectProvider = useCallback((provider: LlmProvider) => {
-    setSelectedProviderId(provider.id);
-    setProviderDraft(provider);
-    setProviderEditorActive(true);
-    setTestState({ status: 'idle' });
-    setProviderSaveState('idle');
-    setProviderSaveError('');
-  }, []);
-
-  const createProvider = useCallback(() => {
-    setSelectedProviderId(null);
-    setProviderDraft(localizedEmptyProvider());
-    setProviderEditorActive(true);
-    setTestState({ status: 'idle' });
-    setProviderSaveState('idle');
-    setProviderSaveError('');
-  }, []);
 
   useEffect(() => {
     if (!storeSyncSnapshot) return;
     setUserDraft(storeSyncSnapshot.user);
     setSettingsDraft(storeSyncSnapshot.settings);
   }, [storeSyncSnapshot]);
-
-  useEffect(() => {
-    if (initialProviderSelectedRef.current) return;
-    const firstProvider = store.providers[0];
-    if (!firstProvider) return;
-    initialProviderSelectedRef.current = true;
-    selectProvider(firstProvider);
-  }, [selectProvider, store.providers]);
 
   const userHasChanges = useMemo(
     () => userDraftHasChanges(userDraft, store.user),
@@ -191,152 +155,125 @@ export function useSettingsDrafts({
     [providerDraft, selectedProvider],
   );
 
-  const canSaveProvider =
-    providerEditorActive &&
-    providerSaveState !== 'saving' &&
-    (selectedProviderId ? providerHasChanges : true);
-  const canSaveProviderRoutes = routeSaveState !== 'saving' && providerRoutesHaveChanges;
-  const canSaveUser = profileSaveState !== 'saving' && userHasChanges;
-  const canSaveGeneralSettings = generalSaveState !== 'saving' && settingsHasChanges;
-  const canSaveShortcutSettings =
-    shortcutSaveState !== 'saving' && shortcutSettingsHaveChanges && !shortcutSettingsHaveConflict;
-
-  const updateUserDraft = useCallback((draft: UserDraft) => {
-    setUserDraft(draft);
-    setProfileSaveState('idle');
-    setProfileSaveError('');
-  }, []);
-
-  const updateGeneralSettingsDraft = useCallback((draft: AppSettings) => {
-    setSettingsDraft(draft);
-    setGeneralSaveState('idle');
-    setGeneralSaveError('');
-  }, []);
-
-  const updateShortcutSettingsDraft = useCallback((draft: AppSettings) => {
-    setSettingsDraft(draft);
-    setShortcutSaveState('idle');
-    setShortcutSaveError('');
-  }, []);
-
-  const updateProviderDraft = useCallback((draft: ProviderDraft) => {
+  const updateProviderDraftValue = useCallback((draft: ProviderDraft) => {
     setProviderDraft(draft);
     setTestState({ status: 'idle' });
-    setProviderSaveState('idle');
-    setProviderSaveError('');
   }, []);
 
-  const updateProviderRoutesDraft = useCallback((draft: AppSettings) => {
-    setSettingsDraft(draft);
-    setRouteSaveState('idle');
-    setRouteSaveError('');
+  const saveUserDraft = useCallback(async (draft: UserDraft) => {
+    if (!window.yomitomoDesktop) return null;
+    return window.yomitomoDesktop.saveUser(draft);
   }, []);
 
-  const saveProfileDraft = useCallback(async () => {
-    if (!window.yomitomoDesktop || !userHasChanges) return false;
-    setProfileSaveState('saving');
-    try {
-      const nextStore = await window.yomitomoDesktop.saveUser(userDraft);
+  const applySavedUserStore = useCallback(
+    (nextStore: DesktopStore | null) => {
+      if (!nextStore) return false;
       applyStore(nextStore);
       setUserDraft(nextStore.user);
-      setProfileSaveState('saved');
-      window.setTimeout(() => setProfileSaveState('idle'), 1200);
       return true;
-    } catch (error) {
-      setProfileSaveError(settingsSaveErrorMessage(error));
-      setProfileSaveState('error');
-      return false;
-    }
-  }, [applyStore, userDraft, userHasChanges]);
-
-  const saveGeneralSettingsDraft = useCallback(
-    async (draftOverride?: AppSettings) => {
-      const draft = draftOverride || settingsDraft;
-      if (!window.yomitomoDesktop || (!draftOverride && !settingsHasChanges)) return;
-      setGeneralSaveState('saving');
-      setGeneralSaveError('');
-      try {
-        const nextStore = await window.yomitomoDesktop.saveSettings(draft);
-        syncUiLanguageCache(nextStore.settings);
-        applyStore(nextStore);
-        setSettingsDraft(nextStore.settings);
-        setGeneralSaveState('saved');
-        window.setTimeout(() => setGeneralSaveState('idle'), 1200);
-      } catch (error) {
-        setGeneralSaveError(settingsSaveErrorMessage(error));
-        setGeneralSaveState('error');
-      }
     },
-    [applyStore, settingsDraft, settingsHasChanges],
+    [applyStore],
   );
 
-  const saveShortcutSettingsDraft = useCallback(
-    async (draftOverride?: AppSettings) => {
-      const draft = draftOverride || settingsDraft;
-      if (!window.yomitomoDesktop || (!draftOverride && !shortcutSettingsHaveChanges)) return;
-      setShortcutSaveState('saving');
-      setShortcutSaveError('');
-      try {
-        const nextStore = await window.yomitomoDesktop.saveSettings(draft);
-        syncUiLanguageCache(nextStore.settings);
-        applyStore(nextStore);
-        setSettingsDraft(nextStore.settings);
-        setShortcutSaveState('saved');
-        window.setTimeout(() => setShortcutSaveState('idle'), 1200);
-      } catch (error) {
-        setShortcutSaveError(settingsSaveErrorMessage(error));
-        setShortcutSaveState('error');
-      }
+  const saveSettingsDraft = useCallback(async (draft: AppSettings) => {
+    if (!window.yomitomoDesktop) return null;
+    return window.yomitomoDesktop.saveSettings(draft);
+  }, []);
+
+  const applySavedSettingsStore = useCallback(
+    (nextStore: DesktopStore | null) => {
+      if (!nextStore) return false;
+      syncUiLanguageCache(nextStore.settings);
+      applyStore(nextStore);
+      setSettingsDraft(nextStore.settings);
+      return true;
     },
-    [applyStore, settingsDraft, shortcutSettingsHaveChanges],
+    [applyStore],
   );
 
-  const saveProviderDraft = useCallback(async () => {
-    if (!window.yomitomoDesktop || !canSaveProvider) return false;
-    setProviderSaveState('saving');
-    try {
-      const nextStore = await window.yomitomoDesktop.saveProvider(providerDraft);
-      const savedProvider = providerDraft.id
-        ? nextStore.providers.find((provider) => provider.id === providerDraft.id)
+  const saveProviderDraftValue = useCallback(
+    async (draft: ProviderDraft) => {
+      if (!window.yomitomoDesktop) return false;
+      const nextStore = await window.yomitomoDesktop.saveProvider(draft);
+      const savedProvider = draft.id
+        ? nextStore.providers.find((provider) => provider.id === draft.id)
         : nextStore.providers.at(-1);
       applyStore(nextStore);
       setTestState({ status: 'idle' });
-      if (savedProvider) {
-        setSelectedProviderId(savedProvider.id);
-        setProviderDraft(savedProvider);
-        setProviderSaveState('saved');
-        window.setTimeout(() => setProviderSaveState('idle'), 1200);
-        return true;
-      }
-      setProviderSaveState('idle');
-      return false;
-    } catch (error) {
-      setProviderSaveError(settingsSaveErrorMessage(error));
-      setProviderSaveState('error');
-      return false;
-    }
-  }, [applyStore, canSaveProvider, providerDraft]);
-
-  const saveProviderRoutes = useCallback(
-    async (draftOverride?: AppSettings) => {
-      const draft = draftOverride || settingsDraft;
-      if (!window.yomitomoDesktop || (!draftOverride && !canSaveProviderRoutes)) return;
-      setRouteSaveState('saving');
-      setRouteSaveError('');
-      try {
-        const nextStore = await window.yomitomoDesktop.saveSettings(draft);
-        syncUiLanguageCache(nextStore.settings);
-        applyStore(nextStore);
-        setSettingsDraft(nextStore.settings);
-        setRouteSaveState('saved');
-        window.setTimeout(() => setRouteSaveState('idle'), 1200);
-      } catch (error) {
-        setRouteSaveError(settingsSaveErrorMessage(error));
-        setRouteSaveState('error');
-      }
+      if (!savedProvider) return false;
+      setSelectedProviderId(savedProvider.id);
+      setProviderDraft(savedProvider);
+      return true;
     },
-    [applyStore, canSaveProviderRoutes, settingsDraft],
+    [applyStore],
   );
+
+  const profile = useSaveableDraft<UserDraft, DesktopStore | null>({
+    value: userDraft,
+    canSave: () => userHasChanges,
+    errorMessage: settingsSaveErrorMessage,
+    onChange: setUserDraft,
+    onSaved: applySavedUserStore,
+    persist: saveUserDraft,
+  });
+  const general = useSaveableDraft<AppSettings, DesktopStore | null>({
+    value: settingsDraft,
+    canSave: () => settingsHasChanges,
+    errorMessage: settingsSaveErrorMessage,
+    onChange: setSettingsDraft,
+    onSaved: applySavedSettingsStore,
+    persist: saveSettingsDraft,
+  });
+  const shortcuts = useSaveableDraft<AppSettings, DesktopStore | null>({
+    value: settingsDraft,
+    canSave: () => shortcutSettingsHaveChanges && !shortcutSettingsHaveConflict,
+    errorMessage: settingsSaveErrorMessage,
+    onChange: setSettingsDraft,
+    onSaved: applySavedSettingsStore,
+    persist: saveSettingsDraft,
+  });
+  const routes = useSaveableDraft<AppSettings, DesktopStore | null>({
+    value: settingsDraft,
+    canSave: () => providerRoutesHaveChanges,
+    errorMessage: settingsSaveErrorMessage,
+    onChange: setSettingsDraft,
+    onSaved: applySavedSettingsStore,
+    persist: saveSettingsDraft,
+  });
+  const providerDraftController = useSaveableDraft<ProviderDraft, boolean>({
+    value: providerDraft,
+    canSave: () => providerEditorActive && (selectedProviderId ? providerHasChanges : true),
+    errorMessage: settingsSaveErrorMessage,
+    onChange: updateProviderDraftValue,
+    onSaved: keepSavedProviderState,
+    persist: saveProviderDraftValue,
+  });
+  const { reset: resetProviderDraft } = providerDraftController;
+
+  const selectProvider = useCallback(
+    (provider: LlmProvider) => {
+      setSelectedProviderId(provider.id);
+      resetProviderDraft(provider);
+      setProviderEditorActive(true);
+      setTestState({ status: 'idle' });
+    },
+    [resetProviderDraft],
+  );
+
+  const createProvider = useCallback(() => {
+    setSelectedProviderId(null);
+    resetProviderDraft(localizedEmptyProvider());
+    setProviderEditorActive(true);
+    setTestState({ status: 'idle' });
+  }, [resetProviderDraft]);
+
+  useEffect(() => {
+    if (initialProviderSelectedRef.current) return;
+    const firstProvider = store.providers[0];
+    if (!firstProvider) return;
+    initialProviderSelectedRef.current = true;
+    selectProvider(firstProvider);
+  }, [selectProvider, store.providers]);
 
   const deleteProvider = useCallback(
     async (id: string) => {
@@ -348,11 +285,11 @@ export function useSettingsDrafts({
       if (nextProvider) selectProvider(nextProvider);
       if (!nextProvider) {
         setSelectedProviderId(null);
-        setProviderDraft(localizedEmptyProvider());
+        resetProviderDraft(localizedEmptyProvider());
         setProviderEditorActive(false);
       }
     },
-    [applyStore, selectProvider],
+    [applyStore, resetProviderDraft, selectProvider],
   );
 
   const testProvider = useCallback(async (provider: ProviderDraft) => {
@@ -366,42 +303,28 @@ export function useSettingsDrafts({
     }
   }, []);
 
-  return {
-    userDraft,
-    settingsDraft,
-    providerDraft,
-    selectedProviderId,
-    testState,
-    profileSaveState,
-    generalSaveState,
-    shortcutSaveState,
-    providerSaveState,
-    routeSaveState,
-    profileSaveError,
-    generalSaveError,
-    shortcutSaveError,
-    providerSaveError,
-    routeSaveError,
-    canSaveUser,
-    canSaveGeneralSettings,
-    canSaveShortcutSettings,
-    canSaveProvider,
-    canSaveProviderRoutes,
-    updateUserDraft,
-    updateGeneralSettingsDraft,
-    updateShortcutSettingsDraft,
-    updateProviderDraft,
-    updateProviderRoutesDraft,
-    saveProfileDraft,
-    saveGeneralSettingsDraft,
-    saveShortcutSettingsDraft,
-    selectProvider,
-    createProvider,
-    deleteProvider,
-    saveProviderDraft,
-    saveProviderRoutes,
-    testProvider,
-  };
+  const provider = useMemo(
+    () => ({
+      ...providerDraftController,
+      create: createProvider,
+      deleteProvider,
+      select: selectProvider,
+      selectedProviderId,
+      test: testProvider,
+      testState,
+    }),
+    [
+      createProvider,
+      deleteProvider,
+      providerDraftController,
+      selectProvider,
+      selectedProviderId,
+      testProvider,
+      testState,
+    ],
+  );
+
+  return { profile, general, shortcuts, provider, routes };
 }
 
 function localizedEmptyProvider(): ProviderDraft {
@@ -423,6 +346,10 @@ function syncUiLanguageCache(settings: AppSettings) {
   const language = normalizeUiLanguage(settings.uiLanguage);
   writeCachedUiLanguage(language);
   changeAppI18nLanguage(language);
+}
+
+function keepSavedProviderState(saved: boolean) {
+  return saved;
 }
 
 function settingsSaveErrorMessage(error: unknown) {

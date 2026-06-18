@@ -314,41 +314,7 @@ function App() {
     importEbookFile,
     importPdfFile,
   } = useAppArticleStoreActions({ storeRef, applyStore });
-  const {
-    userDraft,
-    settingsDraft,
-    providerDraft,
-    testState,
-    profileSaveState,
-    generalSaveState,
-    shortcutSaveState,
-    providerSaveState,
-    routeSaveState,
-    profileSaveError,
-    generalSaveError,
-    shortcutSaveError,
-    providerSaveError,
-    routeSaveError,
-    canSaveUser,
-    canSaveGeneralSettings,
-    canSaveShortcutSettings,
-    canSaveProvider,
-    canSaveProviderRoutes,
-    updateUserDraft,
-    updateGeneralSettingsDraft,
-    updateShortcutSettingsDraft,
-    updateProviderDraft,
-    updateProviderRoutesDraft,
-    saveProfileDraft,
-    saveGeneralSettingsDraft,
-    saveShortcutSettingsDraft,
-    selectProvider,
-    createProvider,
-    deleteProvider,
-    saveProviderDraft,
-    saveProviderRoutes,
-    testProvider,
-  } = useSettingsDrafts({ store, storeSyncSnapshot, applyStore });
+  const settingsDrafts = useSettingsDrafts({ store, storeSyncSnapshot, applyStore });
   const { agentSaveError, agentSaveState, toggleAgent } = useAppAgentActions({ applyStore });
   const showOnboarding = onboardingForced || !store.settings.onboardingCompletedAt;
 
@@ -641,47 +607,18 @@ function App() {
                   onSectionChange={changeSettingsSection}
                 >
                   {activeSettingsSection === 'collection' ? (
-                    <ActiveGeneralSettings
-                      settingsDraft={settingsDraft}
-                      canSave={canSaveGeneralSettings}
-                      onSettingsChange={updateGeneralSettingsDraft}
-                      onSave={saveGeneralSettingsDraft}
-                      saveState={generalSaveState}
-                      saveError={generalSaveError}
-                    />
+                    <ActiveGeneralSettings draft={settingsDrafts.general} />
                   ) : null}
                   {activeSettingsSection === 'models' ? (
                     <ActiveProviderSettings
-                      draft={providerDraft}
-                      settingsDraft={settingsDraft}
+                      providerDraft={settingsDrafts.provider}
+                      routesDraft={settingsDrafts.routes}
                       providers={store.providers}
-                      testState={testState}
-                      canSave={canSaveProvider}
-                      canSaveRoutes={canSaveProviderRoutes}
-                      onChange={updateProviderDraft}
-                      onRouteChange={updateProviderRoutesDraft}
-                      onCreate={createProvider}
-                      onDelete={deleteProvider}
-                      onSave={saveProviderDraft}
-                      saveState={providerSaveState}
-                      saveError={providerSaveError}
-                      routeSaveState={routeSaveState}
-                      routeSaveError={routeSaveError}
-                      onRouteSave={saveProviderRoutes}
-                      onSelect={selectProvider}
-                      onTest={testProvider}
                     />
                   ) : null}
                   {activeSettingsSection === 'dataSources' ? <ActiveDataSourcesPanel /> : null}
                   {activeSettingsSection === 'shortcuts' ? (
-                    <ActiveShortcutSettings
-                      settingsDraft={settingsDraft}
-                      canSave={canSaveShortcutSettings}
-                      onSettingsChange={updateShortcutSettingsDraft}
-                      onSave={saveShortcutSettingsDraft}
-                      saveState={shortcutSaveState}
-                      saveError={shortcutSaveError}
-                    />
+                    <ActiveShortcutSettings draft={settingsDrafts.shortcuts} />
                   ) : null}
                   {activeSettingsSection === 'data' ? (
                     <ActiveDataManagementSettings
@@ -717,16 +654,9 @@ function App() {
           {profileDialogOpen ? (
             <Suspense fallback={null}>
               <ActiveUserProfileSettingsDialog
-                draft={userDraft}
-                canSave={canSaveUser}
-                onChange={updateUserDraft}
+                profileDraft={settingsDrafts.profile}
                 onClose={() => setProfileDialogOpen(false)}
-                onSave={async () => {
-                  if (await saveProfileDraft())
-                    window.setTimeout(() => setProfileDialogOpen(false), 700);
-                }}
-                saveState={profileSaveState}
-                saveError={profileSaveError}
+                onSaved={() => window.setTimeout(() => setProfileDialogOpen(false), 700)}
                 sourceRect={profileDialogSourceRect}
               />
             </Suspense>

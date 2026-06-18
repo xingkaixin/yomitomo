@@ -499,6 +499,48 @@ describe('ProviderSettings', () => {
     expect(onSave).toHaveBeenCalledOnce();
   });
 
+  it('keeps the provider editor open when controller saving fails', async () => {
+    const provider = makeProvider('provider_1', 'Anthropic');
+    const save = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <ProviderSettings
+        providerDraft={{
+          value: provider,
+          canSave: true,
+          create: vi.fn(),
+          deleteProvider: vi.fn(),
+          reset: vi.fn(),
+          save,
+          saveError: '',
+          saveState: 'idle',
+          select: vi.fn(),
+          selectedProviderId: provider.id,
+          test: vi.fn(),
+          testState: { status: 'idle' },
+          update: vi.fn(),
+        }}
+        routesDraft={{
+          value: {},
+          canSave: false,
+          reset: vi.fn(),
+          save: vi.fn(),
+          saveError: '',
+          saveState: 'idle',
+          update: vi.fn(),
+        }}
+        providers={[provider]}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText('打开Anthropic设置菜单'));
+    fireEvent.click(screen.getByRole('menuitem', { name: '编辑' }));
+    fireEvent.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => expect(save).toHaveBeenCalledOnce());
+    expect(screen.getByText('编辑供应商')).toBeTruthy();
+  });
+
   it('deletes a provider only after confirming in the dialog', () => {
     const provider = makeProvider('provider_1', 'Anthropic');
     const onDelete = vi.fn();

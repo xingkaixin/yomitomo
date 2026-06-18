@@ -54,6 +54,7 @@ import {
   DialogPortal,
   DialogTitle,
 } from '../components/ui/dialog';
+import type { SaveableDraft } from './use-saveable-draft';
 
 const appLockShortcutKeys = [getShortcutModifier(), 'L'];
 
@@ -105,21 +106,20 @@ const contentSourceIcons: Record<LibraryContentSourceId, React.ReactNode> = {
   weread: <MessageCircle size={18} />,
 };
 
-export function GeneralSettings({
-  settingsDraft,
-  canSave,
-  onSettingsChange,
-  onSave,
-  saveError,
-  saveState,
-}: {
+type GeneralSettingsLegacyProps = {
   settingsDraft: AppSettings;
   canSave: boolean;
   onSettingsChange: (draft: AppSettings) => void;
   onSave: (draft?: AppSettings) => void;
   saveError?: string;
   saveState: SaveState;
-}) {
+};
+
+type GeneralSettingsProps = { draft: SaveableDraft<AppSettings> } | GeneralSettingsLegacyProps;
+
+export function GeneralSettings(props: GeneralSettingsProps) {
+  const { settingsDraft, canSave, onSettingsChange, onSave, saveError, saveState } =
+    resolveGeneralSettingsProps(props);
   const { t } = useTranslation();
   const uiLanguage = normalizeUiLanguage(settingsDraft.uiLanguage);
   const sourcePreferences = libraryContentSourcePreferences(settingsDraft);
@@ -954,6 +954,22 @@ export function GeneralSettings({
       />
     </SettingsPage>
   );
+}
+
+function resolveGeneralSettingsProps(props: GeneralSettingsProps): GeneralSettingsLegacyProps {
+  if ('draft' in props) {
+    return {
+      settingsDraft: props.draft.value,
+      canSave: props.draft.canSave,
+      onSettingsChange: props.draft.update,
+      onSave: (draft) => {
+        void props.draft.save(draft);
+      },
+      saveError: props.draft.saveError,
+      saveState: props.draft.saveState,
+    };
+  }
+  return props;
 }
 
 function AppLockSettingsDialog({

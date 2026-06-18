@@ -32,17 +32,17 @@ describe('useSettingsDrafts', () => {
     }
 
     const view = render(<Harness store={initialStore} storeSyncSnapshot={initialStore} />);
-    await waitFor(() => expect(latest.current?.settingsDraft.saveArticleImages).toBe(false));
+    await waitFor(() => expect(latest.current?.general.value.saveArticleImages).toBe(false));
 
     act(() => {
-      latest.current?.updateGeneralSettingsDraft({ saveArticleImages: true });
+      latest.current?.general.update({ saveArticleImages: true });
     });
 
     view.rerender(<Harness store={articleStore} storeSyncSnapshot={initialStore} />);
-    expect(latest.current?.settingsDraft.saveArticleImages).toBe(true);
+    expect(latest.current?.general.value.saveArticleImages).toBe(true);
 
     view.rerender(<Harness store={refreshedStore} storeSyncSnapshot={refreshedStore} />);
-    await waitFor(() => expect(latest.current?.settingsDraft.saveArticleImages).toBe(false));
+    await waitFor(() => expect(latest.current?.general.value.saveArticleImages).toBe(false));
   });
 
   it('returns true after saving profile changes', async () => {
@@ -67,15 +67,15 @@ describe('useSettingsDrafts', () => {
     }
 
     render(<Harness />);
-    await waitFor(() => expect(latest.current?.userDraft.nickname).toBe('我'));
+    await waitFor(() => expect(latest.current?.profile.value.nickname).toBe('我'));
 
     act(() => {
-      latest.current?.updateUserDraft({ ...emptyStore.user, nickname: '行开心' });
+      latest.current?.profile.update({ ...emptyStore.user, nickname: '行开心' });
     });
 
     let result = false;
     await act(async () => {
-      result = Boolean(await latest.current?.saveProfileDraft());
+      result = Boolean(await latest.current?.profile.save());
     });
 
     expect(result).toBe(true);
@@ -103,15 +103,15 @@ describe('useSettingsDrafts', () => {
     }
 
     render(<Harness />);
-    await waitFor(() => expect(latest.current?.userDraft.nickname).toBe('我'));
+    await waitFor(() => expect(latest.current?.profile.value.nickname).toBe('我'));
 
     act(() => {
-      latest.current?.updateUserDraft({ ...emptyStore.user, nickname: '行开心' });
+      latest.current?.profile.update({ ...emptyStore.user, nickname: '行开心' });
     });
 
     let result = true;
     await act(async () => {
-      result = Boolean(await latest.current?.saveProfileDraft());
+      result = Boolean(await latest.current?.profile.save());
     });
 
     expect(result).toBe(false);
