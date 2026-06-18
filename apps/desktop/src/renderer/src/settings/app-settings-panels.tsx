@@ -34,6 +34,7 @@ import { useTranslation } from 'react-i18next';
 import { messageSendShortcutOptions } from './app-settings';
 import type { DataManagementPathKind, DataManagementPaths } from '../../../preload';
 import { CopyIconButton } from '../shell/app-ui';
+import { appToast } from '../shell/app-toast';
 import { AutoSaveStatus } from './app-settings-save-status';
 import { SettingsConfirmDialog } from './app-settings-confirm-dialog';
 import type { SaveState } from '../shell/app-types';
@@ -526,18 +527,24 @@ export function DataManagementSettings({
     setConfirmAction(null);
     await runDataAction('clear-log', async () => {
       await window.yomitomoDesktop.clearLog();
-      setStatus(t('settings.data.logCleared'));
+      appToast.success(t('settings.data.toast.logClearedTitle'), {
+        description: t('settings.data.toast.logClearedDescription'),
+      });
     });
   }
 
   async function backupDatabase() {
     await runDataAction('backup-db', async () => {
       const result = await window.yomitomoDesktop.backupDatabase();
-      setStatus(
-        result.canceled
-          ? t('settings.data.backupCanceled')
-          : t('settings.data.backupDone', { path: result.filePath }),
-      );
+      if (result.canceled) {
+        appToast.warning(t('settings.data.toast.backupCanceledTitle'), {
+          description: t('settings.data.toast.backupCanceledDescription'),
+        });
+        return;
+      }
+      appToast.success(t('settings.data.toast.backupDoneTitle'), {
+        description: t('settings.data.toast.backupDoneDescription', { path: result.filePath }),
+      });
     });
   }
 
@@ -546,12 +553,16 @@ export function DataManagementSettings({
     await runDataAction('restore-db', async () => {
       const result = await window.yomitomoDesktop.restoreDatabase();
       if (result.canceled) {
-        setStatus(t('settings.data.restoreCanceled'));
+        appToast.warning(t('settings.data.toast.restoreCanceledTitle'), {
+          description: t('settings.data.toast.restoreCanceledDescription'),
+        });
         return;
       }
 
       onStoreUpdated(result.store);
-      setStatus(t('settings.data.restoreDone', { path: result.backupPath }));
+      appToast.success(t('settings.data.toast.restoreDoneTitle'), {
+        description: t('settings.data.toast.restoreDoneDescription', { path: result.backupPath }),
+      });
     });
   }
 
@@ -562,10 +573,14 @@ export function DataManagementSettings({
       await task();
     } catch (error) {
       const message = dataManagementErrorMessage(error, t);
-      setStatus(message);
       if (action.startsWith('retention:')) {
+        setStatus(message);
         setRetentionSaveError(message);
         setRetentionSaveState('error');
+      } else if (isToastDataAction(action)) {
+        appToast.error(t(dataActionErrorToastTitleKey(action)), { description: message });
+      } else {
+        setStatus(message);
       }
     } finally {
       setBusyAction('');
@@ -615,86 +630,84 @@ export function DataManagementSettings({
         />
       </SettingsGroup>
 
-      <div className="settings-group-grid">
-        <SettingsGroup
-          label={t('settings.data.retentionGroup')}
-          padded
-          aside={
-            <AutoSaveStatus
-              error={retentionSaveError}
-              state={retentionSaveState}
-              onRetry={() => void saveLogRetention(lastRetentionDays)}
-            />
-          }
-        >
-          <SettingsSegmented
-            ariaLabel={t('settings.data.retentionAria')}
-            block
-            wrap
-            value={retentionValue}
-            options={logRetentionOptions.map((option) => ({
-              label: option.value
-                ? t('settings.data.retentionDays', { count: option.value })
-                : t('settings.data.retentionForever'),
-              value: option.value ?? 0,
-              disabled: busyAction === `retention:${option.value ?? 'forever'}`,
-            }))}
-            onChange={(value) => void saveLogRetention(value === 0 ? undefined : value)}
+      <SettingsGroup
+        label={t('settings.data.retentionGroup')}
+        padded
+        aside={
+          <AutoSaveStatus
+            error={retentionSaveError}
+            state={retentionSaveState}
+            onRetry={() => void saveLogRetention(lastRetentionDays)}
           />
-          <div className="settings-card-actions">
-            <Button
-              className={
-                busyAction === 'clear-log'
-                  ? 'action-button data-danger-action is-loading'
-                  : 'action-button data-danger-action'
-              }
-              disabled={busyAction === 'clear-log'}
-              type="button"
-              variant="secondary"
-              onClick={() => setConfirmAction('clear-log')}
-            >
-              <Trash2 size={15} />
-              {t('settings.data.clearLog')}
-            </Button>
-          </div>
-        </SettingsGroup>
+        }
+      >
+        <SettingsSegmented
+          ariaLabel={t('settings.data.retentionAria')}
+          block
+          wrap
+          value={retentionValue}
+          options={logRetentionOptions.map((option) => ({
+            label: option.value
+              ? t('settings.data.retentionDays', { count: option.value })
+              : t('settings.data.retentionForever'),
+            value: option.value ?? 0,
+            disabled: busyAction === `retention:${option.value ?? 'forever'}`,
+          }))}
+          onChange={(value) => void saveLogRetention(value === 0 ? undefined : value)}
+        />
+        <div className="settings-card-actions">
+          <Button
+            className={
+              busyAction === 'clear-log'
+                ? 'action-button data-danger-action is-loading'
+                : 'action-button data-danger-action'
+            }
+            disabled={busyAction === 'clear-log'}
+            type="button"
+            variant="secondary"
+            onClick={() => setConfirmAction('clear-log')}
+          >
+            <Trash2 size={15} />
+            {t('settings.data.clearLog')}
+          </Button>
+        </div>
+      </SettingsGroup>
 
-        <SettingsGroup label={t('settings.data.databaseGroup')} padded>
-          <div className="settings-callout">
-            <Info size={16} />
-            <span>{t('settings.data.backupNote')}</span>
-          </div>
-          <div className="settings-card-actions">
-            <Button
-              className={
-                busyAction === 'backup-db'
-                  ? 'action-button data-primary-action is-loading'
-                  : 'action-button data-primary-action'
-              }
-              disabled={busyAction === 'backup-db'}
-              type="button"
-              onClick={() => void backupDatabase()}
-            >
-              <Download size={15} />
-              {t('settings.data.backupDatabase')}
-            </Button>
-            <Button
-              className={
-                busyAction === 'restore-db'
-                  ? 'action-button data-restore-action is-loading'
-                  : 'action-button data-restore-action'
-              }
-              disabled={busyAction === 'restore-db'}
-              type="button"
-              variant="secondary"
-              onClick={() => setConfirmAction('restore-db')}
-            >
-              <Upload size={15} />
-              {t('settings.data.restoreDatabase')}
-            </Button>
-          </div>
-        </SettingsGroup>
-      </div>
+      <SettingsGroup label={t('settings.data.databaseGroup')} padded>
+        <div className="settings-callout">
+          <Info size={16} />
+          <span>{t('settings.data.backupNote')}</span>
+        </div>
+        <div className="settings-card-actions">
+          <Button
+            className={
+              busyAction === 'backup-db'
+                ? 'action-button data-primary-action is-loading'
+                : 'action-button data-primary-action'
+            }
+            disabled={busyAction === 'backup-db'}
+            type="button"
+            onClick={() => void backupDatabase()}
+          >
+            <Download size={15} />
+            {t('settings.data.backupDatabase')}
+          </Button>
+          <Button
+            className={
+              busyAction === 'restore-db'
+                ? 'action-button data-restore-action is-loading'
+                : 'action-button data-restore-action'
+            }
+            disabled={busyAction === 'restore-db'}
+            type="button"
+            variant="secondary"
+            onClick={() => setConfirmAction('restore-db')}
+          >
+            <Upload size={15} />
+            {t('settings.data.restoreDatabase')}
+          </Button>
+        </div>
+      </SettingsGroup>
 
       {status ? <p className="data-management-status">{status}</p> : null}
       {confirmDialog ? (
@@ -760,4 +773,14 @@ function dataManagementErrorKey(message: string) {
     .replace(/^DATA_MANAGEMENT_/, '')
     .toLowerCase()
     .replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase())}`;
+}
+
+function isToastDataAction(action: string) {
+  return action === 'clear-log' || action === 'backup-db' || action === 'restore-db';
+}
+
+function dataActionErrorToastTitleKey(action: string) {
+  if (action === 'clear-log') return 'settings.data.toast.clearLogFailedTitle';
+  if (action === 'backup-db') return 'settings.data.toast.backupFailedTitle';
+  return 'settings.data.toast.restoreFailedTitle';
 }

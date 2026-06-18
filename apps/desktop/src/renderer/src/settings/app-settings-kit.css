@@ -345,22 +345,6 @@
   border-top: 0;
 }
 
-/* 并排分组网格（如数据管理的日志 / 数据库） */
-.settings-group-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 16px;
-  margin-bottom: 28px;
-}
-
-.settings-group-grid:last-child {
-  margin-bottom: 0;
-}
-
-.settings-group-grid > .settings-group {
-  margin-bottom: 0;
-}
-
 /* 分段控件 */
 .settings-segmented {
   display: inline-flex;
