@@ -74,6 +74,7 @@ export function readerUiLabels(): ReaderUiLabels {
     recordThought: i18next.t('readerUi.recordThought'),
     searchBody: i18next.t('readerUi.searchBody'),
     searchBodyPlaceholder: i18next.t('readerUi.searchBodyPlaceholder'),
+    searchPreparing: i18next.t('readerUi.searchPreparing'),
     searchToolbar: i18next.t('readerUi.searchToolbar'),
     send: i18next.t('common.send'),
     sending: i18next.t('common.sending'),

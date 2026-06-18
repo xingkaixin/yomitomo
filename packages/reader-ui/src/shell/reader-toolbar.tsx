@@ -248,11 +248,15 @@ function ReaderFloatingSearchToolbar({
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const total = search.matches.length;
   const hasMatches = total > 0;
-  const countLabel = hasMatches
-    ? `${Math.min(search.activeMatchIndex + 1, total)}/${total}${search.limited ? '+' : ''}`
-    : search.query.trim()
-      ? '0/0'
-      : '';
+  const hasQuery = Boolean(search.query.trim());
+  const countLabel =
+    search.preparing && hasQuery
+      ? labels.searchPreparing
+      : hasMatches
+        ? `${Math.min(search.activeMatchIndex + 1, total)}/${total}${search.limited ? '+' : ''}`
+        : hasQuery
+          ? '0/0'
+          : '';
 
   React.useEffect(() => {
     inputRef.current?.focus();
@@ -290,7 +294,11 @@ function ReaderFloatingSearchToolbar({
           type="search"
         />
       </div>
-      <span className="reader-floating-value is-search-count" aria-live="polite">
+      <span
+        className="reader-floating-value is-search-count"
+        aria-busy={search.preparing && hasQuery ? true : undefined}
+        aria-live="polite"
+      >
         {countLabel}
       </span>
       <ReaderTooltip content={labels.previousSearchResult} disabled={!hasMatches} side="bottom">

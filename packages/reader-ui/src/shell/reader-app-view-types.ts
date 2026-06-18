@@ -75,6 +75,7 @@ export type ReaderSearchToolbarState = {
   limited: boolean;
   matches: ReaderSearchToolbarMatch[];
   open: boolean;
+  preparing?: boolean;
   query: string;
   onClose: () => void;
   onNextMatch: () => void;
@@ -233,6 +234,7 @@ export type ReaderUiLabels = {
   recordThought: string;
   searchBody: string;
   searchBodyPlaceholder: string;
+  searchPreparing: string;
   searchToolbar: string;
   send: string;
   sending: string;
@@ -312,6 +314,7 @@ export const defaultReaderUiLabels: ReaderUiLabels = {
   recordThought: '记录想法',
   searchBody: '搜索正文',
   searchBodyPlaceholder: '搜索正文',
+  searchPreparing: '准备中',
   searchToolbar: '正文搜索',
   send: '发送',
   sending: '发送中',
