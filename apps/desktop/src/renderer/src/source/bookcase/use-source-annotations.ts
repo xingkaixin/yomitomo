@@ -35,6 +35,17 @@ type UseSourceAnnotationsOptions = {
   }) => void;
   onOpenAnnotation?: (annotationId: string) => void;
   onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
+  onSaveArticleAnnotation?: (
+    articleId: string,
+    annotation: Annotation,
+    updatedAt?: string,
+  ) => Promise<void> | void;
+  onSaveArticleComment?: (
+    articleId: string,
+    annotationId: string,
+    comment: AnnotationComment,
+    updatedAt?: string,
+  ) => Promise<void> | void;
   onAnnotationsApplied?: (change: SourceAnnotationsChange) => void;
   onAnnotationsSaved?: (change: SourceAnnotationsChange) => void;
   userProfile: UserProfile;
@@ -55,6 +66,8 @@ export function useSourceAnnotations({
   onCommentSaved,
   onOpenAnnotation,
   onSaveArticle,
+  onSaveArticleAnnotation,
+  onSaveArticleComment,
   onAnnotationsApplied,
   onAnnotationsSaved,
   userProfile,
@@ -92,7 +105,35 @@ export function useSourceAnnotations({
       latestArticleRef.current = nextArticle;
       annotationsRef.current = sortedAnnotations;
       setAnnotations(sortedAnnotations);
-      await onSaveArticle(nextArticle);
+      const localWrite = localAnnotationWrite(
+        previousAnnotations,
+        sortedAnnotations,
+        nextArticle.updatedAt,
+      );
+      if (localWrite?.kind === 'annotation-upsert' && onSaveArticleAnnotation) {
+        await onSaveArticleAnnotation(
+          currentArticle.id,
+          localWrite.annotation,
+          localWrite.updatedAt,
+        );
+      } else if (localWrite?.kind === 'comment-upsert' && onSaveArticleComment) {
+        await onSaveArticleComment(
+          currentArticle.id,
+          localWrite.annotationId,
+          localWrite.comment,
+          localWrite.updatedAt,
+        );
+      } else if (localWrite?.kind === 'comment-delete' && onDeleteArticleComment) {
+        await onDeleteArticleComment(
+          currentArticle.id,
+          localWrite.annotationId,
+          localWrite.commentId,
+        );
+      } else if (localWrite?.kind === 'annotation-delete' && onDeleteArticleAnnotation) {
+        await onDeleteArticleAnnotation(currentArticle.id, localWrite.annotationId);
+      } else {
+        await onSaveArticle(nextArticle);
+      }
       onAnnotationsSaved?.({
         previousAnnotations,
         nextAnnotations: sortedAnnotations,
@@ -100,7 +141,14 @@ export function useSourceAnnotations({
         nextArticle,
       });
     },
-    [onAnnotationsSaved, onSaveArticle],
+    [
+      onAnnotationsSaved,
+      onDeleteArticleAnnotation,
+      onDeleteArticleComment,
+      onSaveArticle,
+      onSaveArticleAnnotation,
+      onSaveArticleComment,
+    ],
   );
 
   const applyAnnotations = useCallback(
@@ -233,6 +281,119 @@ export function useSourceAnnotations({
     replaceAnnotations,
     saveAnnotations,
   };
+}
+
+type LocalAnnotationWrite =
+  | {
+      kind: 'annotation-upsert';
+      annotation: Annotation;
+      updatedAt: string;
+    }
+  | {
+      kind: 'annotation-delete';
+      annotationId: string;
+    }
+  | {
+      kind: 'comment-upsert';
+      annotationId: string;
+      comment: AnnotationComment;
+      updatedAt: string;
+    }
+  | {
+      kind: 'comment-delete';
+      annotationId: string;
+      commentId: string;
+    };
+
+function localAnnotationWrite(
+  previousAnnotations: Annotation[],
+  nextAnnotations: Annotation[],
+  updatedAt: string,
+): LocalAnnotationWrite | null {
+  const previousById = new Map(
+    previousAnnotations.map((annotation) => [annotation.id, annotation]),
+  );
+  const nextById = new Map(nextAnnotations.map((annotation) => [annotation.id, annotation]));
+  const addedAnnotations = nextAnnotations.filter((annotation) => !previousById.has(annotation.id));
+  const removedAnnotations = previousAnnotations.filter(
+    (annotation) => !nextById.has(annotation.id),
+  );
+  const changedAnnotations = nextAnnotations.filter((annotation) => {
+    const previous = previousById.get(annotation.id);
+    return previous && annotationChanged(previous, annotation);
+  });
+  const changeCount =
+    addedAnnotations.length + removedAnnotations.length + changedAnnotations.length;
+
+  if (changeCount !== 1) return null;
+  if (addedAnnotations.length === 1) {
+    return { kind: 'annotation-upsert', annotation: addedAnnotations[0], updatedAt };
+  }
+  if (removedAnnotations.length === 1) {
+    return { kind: 'annotation-delete', annotationId: removedAnnotations[0].id };
+  }
+
+  const nextAnnotation = changedAnnotations[0];
+  const previousAnnotation = previousById.get(nextAnnotation.id);
+  if (!previousAnnotation) return null;
+  const commentWrite = localCommentWrite(previousAnnotation, nextAnnotation, updatedAt);
+  return commentWrite || { kind: 'annotation-upsert', annotation: nextAnnotation, updatedAt };
+}
+
+function localCommentWrite(
+  previousAnnotation: Annotation,
+  nextAnnotation: Annotation,
+  updatedAt: string,
+): LocalAnnotationWrite | null {
+  const previousWithoutComments = { ...previousAnnotation, comments: [], updatedAt: '' };
+  const nextWithoutComments = { ...nextAnnotation, comments: [], updatedAt: '' };
+  if (annotationChanged(previousWithoutComments, nextWithoutComments)) return null;
+
+  const previousById = new Map(previousAnnotation.comments.map((comment) => [comment.id, comment]));
+  const nextById = new Map(nextAnnotation.comments.map((comment) => [comment.id, comment]));
+  const addedComments = nextAnnotation.comments.filter((comment) => !previousById.has(comment.id));
+  const removedComments = previousAnnotation.comments.filter(
+    (comment) => !nextById.has(comment.id),
+  );
+  const changedComments = nextAnnotation.comments.filter((comment) => {
+    const previous = previousById.get(comment.id);
+    return previous && commentChanged(previous, comment);
+  });
+  const changeCount = addedComments.length + removedComments.length + changedComments.length;
+
+  if (changeCount !== 1) return null;
+  if (addedComments.length === 1) {
+    return {
+      kind: 'comment-upsert',
+      annotationId: nextAnnotation.id,
+      comment: addedComments[0],
+      updatedAt,
+    };
+  }
+  if (changedComments.length === 1) {
+    return {
+      kind: 'comment-upsert',
+      annotationId: nextAnnotation.id,
+      comment: changedComments[0],
+      updatedAt,
+    };
+  }
+  if (removedComments.length === 1) {
+    return {
+      kind: 'comment-delete',
+      annotationId: nextAnnotation.id,
+      commentId: removedComments[0].id,
+    };
+  }
+  return null;
+}
+
+function annotationChanged(previous: Annotation, next: Annotation) {
+  return JSON.stringify(previous) !== JSON.stringify(next);
+}
+
+function commentChanged(previous: AnnotationComment, next: AnnotationComment) {
+  return JSON.stringify(previous) !== JSON.stringify(next);
 }
 
 function acceptIncomingArticle(

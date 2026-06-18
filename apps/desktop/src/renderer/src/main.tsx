@@ -387,6 +387,8 @@ function App() {
     openArticleDiscussion,
     readArticle,
     saveArticle,
+    saveArticleAnnotation,
+    saveArticleComment,
     updateArticle,
     saveArticleReadingProgress,
     saveArticleReaderChatState,
@@ -805,6 +807,8 @@ function App() {
               onReadingModeChange={setLibraryReaderOpen}
               onReadArticle={readArticle}
               onSaveArticle={saveArticle}
+              onSaveArticleAnnotation={saveArticleAnnotation}
+              onSaveArticleComment={saveArticleComment}
               onSaveArticleReadingProgress={saveArticleReadingProgress}
               onSaveArticleReaderChatState={saveArticleReaderChatState}
               onSaveSettings={saveLibrarySettings}

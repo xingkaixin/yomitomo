@@ -8,6 +8,7 @@ import type {
   AppSettings,
   ArticleReadingProgress,
   ArticleRecord,
+  Comment,
   MessageSendShortcut,
   PublicAgent,
   SelectionActionShortcuts,
@@ -464,6 +465,17 @@ export type SourceBookcaseProps = {
   ) => Promise<void> | void;
   onOpenAnnotation: (annotationId: string | null) => void;
   onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
+  onSaveArticleAnnotation?: (
+    articleId: string,
+    annotation: Annotation,
+    updatedAt?: string,
+  ) => Promise<void> | void;
+  onSaveArticleComment?: (
+    articleId: string,
+    annotationId: string,
+    comment: Comment,
+    updatedAt?: string,
+  ) => Promise<void> | void;
   onSaveArticleReadingProgress: (
     articleId: string,
     progress: ArticleReadingProgress,

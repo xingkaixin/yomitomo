@@ -8,6 +8,8 @@ import type {
   ArticleStorePatch,
   ArticleSummaryRecord,
   ArticleUpsertPatch,
+  Annotation,
+  Comment,
   DesktopStore,
   ReaderChatState,
 } from '@yomitomo/shared';
@@ -106,6 +108,34 @@ export function useAppArticleStoreActions({
       if (!desktop) return;
 
       const patch = await desktop.deleteArticleComment(articleId, annotationId, commentId);
+      if (!patch) return;
+      const nextStore = applyArticleStorePatch(storeRef.current, patch);
+      storeRef.current = nextStore;
+      applyStore(nextStore);
+    },
+    [applyStore, storeRef],
+  );
+
+  const saveArticleAnnotation = useCallback(
+    async (articleId: string, annotation: Annotation, updatedAt?: string) => {
+      const desktop = window.yomitomoDesktop;
+      if (!desktop) return;
+
+      const patch = await desktop.saveArticleAnnotation(articleId, annotation, updatedAt);
+      if (!patch) return;
+      const nextStore = applyArticleStorePatch(storeRef.current, patch);
+      storeRef.current = nextStore;
+      applyStore(nextStore);
+    },
+    [applyStore, storeRef],
+  );
+
+  const saveArticleComment = useCallback(
+    async (articleId: string, annotationId: string, comment: Comment, updatedAt?: string) => {
+      const desktop = window.yomitomoDesktop;
+      if (!desktop) return;
+
+      const patch = await desktop.saveArticleComment(articleId, annotationId, comment, updatedAt);
       if (!patch) return;
       const nextStore = applyArticleStorePatch(storeRef.current, patch);
       storeRef.current = nextStore;
@@ -254,6 +284,8 @@ export function useAppArticleStoreActions({
     openArticleDiscussion,
     readArticle,
     saveArticle,
+    saveArticleAnnotation,
+    saveArticleComment,
     updateArticle,
     saveArticleReadingProgress,
     saveArticleReaderChatState,

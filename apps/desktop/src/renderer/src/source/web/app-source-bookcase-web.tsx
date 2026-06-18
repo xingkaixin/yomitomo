@@ -97,6 +97,8 @@ export function WebSourceBookcase({
   onOpenAnnotationDiscussion,
   onOpenAnnotation,
   onSaveArticle,
+  onSaveArticleAnnotation,
+  onSaveArticleComment,
   onSaveArticleReadingProgress,
   onSaveArticleReaderChatState,
   onUpdateArticle,
@@ -152,6 +154,8 @@ export function WebSourceBookcase({
     onDeleteArticleAnnotation,
     onDeleteArticleComment,
     onSaveArticle,
+    onSaveArticleAnnotation,
+    onSaveArticleComment,
     setStatusMessage,
     userProfile,
   });

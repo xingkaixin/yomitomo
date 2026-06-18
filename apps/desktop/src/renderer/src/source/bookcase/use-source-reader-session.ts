@@ -58,6 +58,17 @@ type UseSourceReaderSessionOptions = {
   ) => Promise<void> | void;
   onOpenAnnotation?: (annotationId: string) => void;
   onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
+  onSaveArticleAnnotation?: (
+    articleId: string,
+    annotation: Annotation,
+    updatedAt?: string,
+  ) => Promise<void> | void;
+  onSaveArticleComment?: (
+    articleId: string,
+    annotationId: string,
+    comment: AnnotationComment,
+    updatedAt?: string,
+  ) => Promise<void> | void;
   setStatusMessage?: (message: string) => void;
   uiLanguage?: UiLanguage;
   userProfile: UserProfile;
@@ -175,6 +186,8 @@ export function useSourceReaderSession({
   onDeleteArticleComment,
   onOpenAnnotation,
   onSaveArticle,
+  onSaveArticleAnnotation,
+  onSaveArticleComment,
   setStatusMessage,
   uiLanguage,
   userProfile,
@@ -220,6 +233,8 @@ export function useSourceReaderSession({
     onDeleteArticleAnnotation,
     onDeleteArticleComment,
     onSaveArticle,
+    onSaveArticleAnnotation,
+    onSaveArticleComment,
     onAnnotationsApplied,
     onAnnotationsSaved,
     userProfile,

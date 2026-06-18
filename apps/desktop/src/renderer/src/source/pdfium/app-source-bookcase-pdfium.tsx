@@ -120,6 +120,8 @@ export function PdfiumBookcase({
   onOpenAnnotationDiscussion,
   onOpenAnnotation,
   onSaveArticle,
+  onSaveArticleAnnotation,
+  onSaveArticleComment,
   onSaveArticleReadingProgress,
   onSaveArticleReaderChatState,
   onUpdateArticle,
@@ -165,6 +167,8 @@ export function PdfiumBookcase({
                           onOpenAnnotationDiscussion,
                           onOpenAnnotation,
                           onSaveArticle,
+                          onSaveArticleAnnotation,
+                          onSaveArticleComment,
                           onSaveArticleReadingProgress,
                           onSaveArticleReaderChatState,
                           onUpdateArticle,
@@ -227,6 +231,8 @@ type PdfiumDocumentProps = {
     onOpenAnnotationDiscussion: SourceBookcaseProps['onOpenAnnotationDiscussion'];
     onOpenAnnotation: SourceBookcaseProps['onOpenAnnotation'];
     onSaveArticle: SourceBookcaseProps['onSaveArticle'];
+    onSaveArticleAnnotation: SourceBookcaseProps['onSaveArticleAnnotation'];
+    onSaveArticleComment: SourceBookcaseProps['onSaveArticleComment'];
     onSaveArticleReadingProgress: SourceBookcaseProps['onSaveArticleReadingProgress'];
     onSaveArticleReaderChatState: SourceBookcaseProps['onSaveArticleReaderChatState'];
     onUpdateArticle: SourceBookcaseProps['onUpdateArticle'];
@@ -282,6 +288,8 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     onOpenAnnotationDiscussion,
     onOpenAnnotation,
     onSaveArticle,
+    onSaveArticleAnnotation,
+    onSaveArticleComment,
     onSaveArticleReadingProgress,
     onSaveArticleReaderChatState,
     onUpdateArticle,
@@ -388,6 +396,8 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     onDeleteArticleAnnotation,
     onDeleteArticleComment,
     onSaveArticle,
+    onSaveArticleAnnotation,
+    onSaveArticleComment,
     setStatusMessage,
     userProfile,
   });
