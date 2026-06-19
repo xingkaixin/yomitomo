@@ -601,34 +601,6 @@ export function ebookSectionIndexForChapter(
   return chapter.indexInBook < sections.length ? chapter.indexInBook : -1;
 }
 
-export function ebookSectionSearchOrder(
-  sectionCount: number,
-  preferredIndexes: Array<number | null | undefined>,
-) {
-  const order: number[] = [];
-  const seen = new Set<number>();
-  const add = (index: number | null | undefined) => {
-    if (typeof index !== 'number' || !Number.isInteger(index)) return;
-    if (index < 0 || index >= sectionCount || seen.has(index)) return;
-    seen.add(index);
-    order.push(index);
-  };
-
-  preferredIndexes.forEach(add);
-  const preferred = preferredIndexes.find(
-    (index): index is number =>
-      typeof index === 'number' && Number.isInteger(index) && index >= 0 && index < sectionCount,
-  );
-  if (preferred !== undefined) {
-    for (let distance = 1; distance < sectionCount; distance += 1) {
-      add(preferred - distance);
-      add(preferred + distance);
-    }
-  }
-  for (let index = 0; index < sectionCount; index += 1) add(index);
-  return order;
-}
-
 function normalizeEbookHref(value: unknown) {
   if (typeof value !== 'string') return '';
   return value.split('#')[0]?.replace(/^\/+/, '') || '';

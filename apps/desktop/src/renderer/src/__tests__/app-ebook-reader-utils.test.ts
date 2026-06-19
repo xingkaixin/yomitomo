@@ -9,7 +9,6 @@ import {
   configureFoliateView,
   ebookChapterForFoliateSection,
   ebookSectionIndexForChapter,
-  ebookSectionSearchOrder,
   ebookTocItemsForReader,
   formatEbookPageLabel,
   isEbookPaginationReady,
@@ -200,10 +199,6 @@ describe('ebook reader utils', () => {
       expect(ebookChapterForFoliateSection(article, view, 1)).toBeNull();
       expect(ebookSectionIndexForChapter(article, view, article.ebook.index!.chapters[1])).toBe(-1);
     }
-  });
-
-  it('searches preferred ebook sections first before covering the rest', () => {
-    expect(ebookSectionSearchOrder(5, [3, 1])).toEqual([3, 1, 2, 4, 0]);
   });
 
   it('serializes cross-paragraph selections with a searchable text boundary', () => {
