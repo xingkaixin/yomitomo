@@ -19,6 +19,14 @@ export function installElectronSmokeProbe(browserWindow: BrowserWindow) {
   browserWindow.webContents.once('did-fail-load', (_event, code, description) => {
     fail(new Error(`renderer load failed ${code}: ${description}`));
   });
+  browserWindow.webContents.on('console-message', (event) => {
+    console.error(
+      `YOMITOMO_ELECTRON_SMOKE_CONSOLE ${event.level} ${event.sourceId}:${event.lineNumber} ${event.message}`,
+    );
+  });
+  browserWindow.webContents.on('preload-error', (_event, preloadPath, error) => {
+    fail(new Error(`preload failed ${preloadPath}: ${error.message}`));
+  });
   browserWindow.webContents.once('render-process-gone', (_event, details) => {
     fail(new Error(`renderer process gone: ${details.reason}`));
   });

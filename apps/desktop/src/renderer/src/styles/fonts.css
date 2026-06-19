@@ -48,7 +48,7 @@
 
 @font-face {
   font-family: 'Noto Serif SC';
-  src: url('./assets/fonts/NotoSerifSC-Regular.ttf') format('truetype');
+  src: url('./assets/fonts/NotoSerifSC-Regular.woff2') format('woff2');
   font-display: swap;
   font-style: normal;
   font-weight: 400;
@@ -56,7 +56,7 @@
 
 @font-face {
   font-family: 'Noto Sans SC';
-  src: url('./assets/fonts/NotoSansSC-Regular.ttf') format('truetype');
+  src: url('./assets/fonts/NotoSansSC-Regular.woff2') format('woff2');
   font-display: swap;
   font-style: normal;
   font-weight: 400;

@@ -42,6 +42,19 @@ function electronMainImportMetaCompat() {
   };
 }
 
+function dropEmbedPdfFallbackWasm() {
+  return {
+    name: 'drop-embedpdf-fallback-wasm',
+    generateBundle(_options: unknown, bundle: Record<string, { fileName?: string }>) {
+      for (const [key, item] of Object.entries(bundle)) {
+        if (item.fileName && /^assets\/pdfium-[^/]+\.wasm$/.test(item.fileName)) {
+          delete bundle[key];
+        }
+      }
+    },
+  };
+}
+
 export default defineConfig({
   main: {
     build: {
@@ -88,6 +101,6 @@ export default defineConfig({
         input: resolve(rendererRoot, 'index.html'),
       },
     },
-    plugins: [react()],
+    plugins: [react(), dropEmbedPdfFallbackWasm()],
   },
 });

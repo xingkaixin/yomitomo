@@ -49,6 +49,7 @@ describe('usePdfiumDocumentSource', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
+        pdfiumWasmUrl: 'file:///packaged/pdfium.wasm',
         readPdfFile,
         recordPerformanceTiming,
       },
@@ -76,5 +77,31 @@ describe('usePdfiumDocumentSource', () => {
       ipcByteLength: 3,
       rendererCopiedBuffer: false,
     });
+  });
+
+  it('uses the Vite-served PDFium wasm URL in dev', () => {
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: {
+        pdfiumWasmUrl: 'file:///blocked/pdfium.wasm',
+        readPdfFile: vi.fn().mockResolvedValue(new ArrayBuffer(0)),
+        recordPerformanceTiming: vi.fn().mockResolvedValue(undefined),
+      },
+    });
+
+    function Probe() {
+      usePdfiumDocumentSource(pdfArticle());
+      return null;
+    }
+
+    render(<Probe />);
+
+    const lastEngineCall = engineMocks.usePdfiumEngine.mock.calls.at(-1) as
+      | [{ wasmUrl: string }]
+      | undefined;
+    const engineOptions = lastEngineCall?.[0];
+    expect(engineOptions?.wasmUrl).toContain('pdfium.wasm');
+    expect(engineOptions?.wasmUrl).not.toBe('file:///blocked/pdfium.wasm');
+    expect(engineOptions?.wasmUrl.startsWith('file:')).toBe(false);
   });
 });

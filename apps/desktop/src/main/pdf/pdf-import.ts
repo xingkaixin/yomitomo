@@ -6,6 +6,7 @@ import { init } from '@embedpdf/pdfium';
 import { nativeImage } from 'electron';
 import type { ArticleRecord } from '@yomitomo/shared';
 import { MAX_PDF_IMPORT_BYTES } from '../../ipc-contract';
+import { readPdfiumWasmBinary } from './pdfium-resource';
 
 export const MAX_PDF_BYTES = MAX_PDF_IMPORT_BYTES;
 
@@ -140,7 +141,7 @@ async function pdfImportEngine() {
 
 async function createPdfImportEngine() {
   const logger = new NoopLogger();
-  const pdfiumModule = await init({});
+  const pdfiumModule = await init({ wasmBinary: await readPdfiumWasmBinary() });
   const native = new PdfiumNative(pdfiumModule, { logger });
   return new PdfEngine<Buffer>(native, { imageConverter: pdfImportImageConverter, logger });
 }
