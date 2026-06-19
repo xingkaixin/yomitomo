@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePdfiumEngine } from '@embedpdf/engines/react';
+import devPdfiumWasmUrl from '@embedpdf/pdfium/pdfium.wasm?url';
 import type { ArticleRecord } from '@yomitomo/shared';
 import i18next from 'i18next';
 import { rendererPerformanceElapsedMs } from '../bookcase/app-source-bookcase-shared';
@@ -27,7 +28,7 @@ export function usePdfiumDocumentSource(article: PdfArticleRecord) {
     error: engineError,
     isLoading,
   } = usePdfiumEngine({
-    wasmUrl: window.yomitomoDesktop.pdfiumWasmUrl,
+    wasmUrl: pdfiumEngineWasmUrl(),
     worker: false,
     fontFallback: pdfiumFontFallback,
   });
@@ -98,6 +99,10 @@ export function usePdfiumDocumentSource(article: PdfArticleRecord) {
     loadError,
     openTrace,
   };
+}
+
+function pdfiumEngineWasmUrl() {
+  return import.meta.env.DEV ? devPdfiumWasmUrl : window.yomitomoDesktop.pdfiumWasmUrl;
 }
 
 function pdfReadErrorMessage(error: unknown) {
