@@ -1,0 +1,81 @@
+---
+type Props = {
+  lang?: 'zh-CN' | 'en';
+};
+
+const { lang = 'zh-CN' } = Astro.props;
+const isEnglish = lang === 'en';
+
+const ids = [
+  'reading-partner',
+  'question-mentor',
+  'insight-editor',
+  'root-reviewer',
+  'concept-translator',
+  'structure-navigator',
+] as const;
+
+const profiles: Record<string, { name: string; role: string }> = isEnglish
+  ? {
+      'reading-partner': { name: 'June Hartley', role: 'Margin reading companion' },
+      'question-mentor': { name: 'Maya Brooks', role: 'Questioner' },
+      'insight-editor': { name: 'Marcus Reed', role: 'Insight editor' },
+      'root-reviewer': { name: 'Gideon Frost', role: 'Root-cause reviewer' },
+      'concept-translator': { name: 'Iris Chen', role: 'Concept translator' },
+      'structure-navigator': { name: 'Daniel Park', role: 'Structure navigator' },
+    }
+  : {
+      'reading-partner': { name: '林知微', role: '页边同读者' },
+      'question-mentor': { name: '许问渠', role: '提问者' },
+      'insight-editor': { name: '陈砚书', role: '洞见整理者' },
+      'root-reviewer': { name: '周砚', role: '根因审读者' },
+      'concept-translator': { name: '沈清源', role: '概念翻译者' },
+      'structure-navigator': { name: '顾行简', role: '结构梳理者' },
+    };
+
+const copy = isEnglish
+  ? {
+      kicker: 'Six AI companions',
+      title: "They don't read for you—they read with you.",
+      lead: [
+        'Six perspectives question, dig deeper, translate and edit, but the final judgment always stays yours.',
+        'You can choose who joins each line, or mute them all.',
+      ],
+    }
+  : {
+      kicker: '六位 AI 伴读',
+      title: '它们不替你读，而是陪你读。',
+      lead: [
+        '六种视角各自提问、追根、翻译和编辑，但最终的判断始终留给你。',
+        '你可以为每条划线指定谁参与，也可以让它们全部安静下来。',
+      ],
+    };
+
+const avatarDir = isEnglish ? 'en' : 'zh-CN';
+---
+
+<section class="section">
+  <div class="lp-container">
+    <p class="sec-kicker">{copy.kicker}</p>
+    <h2 class="sec-title">{copy.title}</h2>
+    <p class="sec-lead">{copy.lead[0]}<br />{copy.lead[1]}</p>
+    <div class="agents-row">
+      {
+        ids.map((id) => (
+          <div class="agent-card">
+            <div class="face">
+              <img
+                src={`/assets/landing-avatars/${avatarDir}/${id}.webp`}
+                alt={profiles[id].name}
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
+            <div class="nm">{profiles[id].name}</div>
+            <div class="role">{profiles[id].role}</div>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>

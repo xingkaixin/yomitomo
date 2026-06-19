@@ -1,0 +1,61 @@
+---
+type Props = {
+  lang?: 'zh-CN' | 'en';
+  downloads: { version: string; mac: string; windows: string };
+};
+
+const { lang = 'zh-CN', downloads } = Astro.props;
+const isEnglish = lang === 'en';
+
+const copy = isEnglish
+  ? {
+      version: `v${downloads.version} · Available now`,
+      title: ['Download Yomitomo,', 'and start keeping what you read.'],
+      desc: ['Completely free, open source, all data stays local.', 'Available for macOS and Windows.'],
+    }
+  : {
+      version: `v${downloads.version} · 现已发布`,
+      title: ['下载 Yomitomo，', '开始把读过的留下来。'],
+      desc: ['完全免费、开源，数据全在本地。', '支持 macOS 与 Windows。'],
+    };
+---
+
+<section class="section" id="download">
+  <div class="lp-container">
+    <div class="dl">
+      <div class="dl-copy">
+        <p class="dl-version"><span class="pulse"></span>{copy.version}</p>
+        <h2>{copy.title[0]}<br />{copy.title[1]}</h2>
+        <p>{copy.desc[0]}<br />{copy.desc[1]}</p>
+      </div>
+      <div class="dl-cards">
+        <a class="dl-card" href={downloads.mac}>
+          <span class="plat">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M16.7 12.7c0-2.7 2.2-4 2.3-4.1-1.2-1.8-3.2-2.1-3.9-2.1-1.7-.2-3.2 1-4.1 1-.8 0-2.1-1-3.5-1-1.8 0-3.5 1.1-4.4 2.7-1.9 3.4-.5 8.4 1.4 11.1.9 1.3 2 2.8 3.5 2.8 1.4-.1 1.9-.9 3.5-.9s2.1.9 3.6.9c1.5 0 2.4-1.4 3.3-2.7 1-1.5 1.5-3 1.5-3.1 0-.1-3.1-1.3-3.2-4.6ZM14 4.7c.8-1 1.3-2.3 1.1-3.7-1.1 0-2.5.8-3.3 1.7-.7.9-1.3 2.2-1.2 3.5 1.3.1 2.6-.6 3.4-1.5Z"
+              ></path>
+            </svg>
+            <b>macOS</b>
+          </span>
+          <span class="arch">Apple Silicon</span>
+          <span class="ext">.DMG</span>
+        </a>
+        <a class="dl-card" href={downloads.windows}>
+          <span class="plat">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M1.8 4.2 10.8 3v8.5h-9V4.2Zm10.4-1.4 10-1.4v10.1h-10V2.8ZM1.8 12.5h9V21l-9-1.2v-7.3Zm10.4 0h10v10.1l-10-1.4v-8.7Z"
+              ></path>
+            </svg>
+            <b>Windows</b>
+          </span>
+          <span class="arch">x64</span>
+          <span class="ext">.EXE</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>

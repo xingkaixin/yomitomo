@@ -127,71 +127,8 @@ const zhAgents = buildAgents('zh-CN', {
 
 const zhAnnotations: Annotation[] = [
   {
-    id: 'ann-1',
-    quote: '什么都没留下',
-    authorId: 'yomitomo',
-    type: 'discussion',
-    createdAt: '2025-01-15',
-    agentIds: ['reading-partner', 'root-reviewer'],
-    thoughts: [
-      {
-        id: 't1-1',
-        authorId: 'reading-partner',
-        content: '收藏夹越来越满，但真正记住的却越来越少。是不是「收藏」和「记住」之间缺了什么？',
-        comments: [
-          {
-            id: 't1-1-c1',
-            authorId: 'yomitomo',
-            content:
-              '缺了一个「主动处理」的环节。Yomitomo 的划线不只是标记，而是让你在划下的瞬间就和原文建立了锚点。',
-          },
-          {
-            id: 't1-1-c2',
-            authorId: 'root-reviewer',
-            content: '对，而且这个锚点是精确到段落和句子的，不是模糊的「这篇文章不错」。',
-          },
-          {
-            id: 't1-1-c3',
-            authorId: 'reading-partner',
-            content: '那如果我当时划了线，过几个月忘了为什么划，怎么办？',
-          },
-          {
-            id: 't1-1-c4',
-            authorId: 'yomitomo',
-            content:
-              '划线旁边可以挂你的想法和讨论。回头看时，你不只看到那句话，还看到当时自己为什么停下来。',
-          },
-        ],
-      },
-      {
-        id: 't1-2',
-        authorId: 'root-reviewer',
-        content: '怎么才能让读过的东西不白读？有没有具体的方法论？',
-        comments: [
-          {
-            id: 't1-2-c1',
-            authorId: 'yomitomo',
-            content: '关键是给每个判断一个回到原文的路径。划线是锚点，想法是判断，沉淀是结论。',
-          },
-          {
-            id: 't1-2-c2',
-            authorId: 'root-reviewer',
-            content: '所以是一个从「标记」到「判断」再到「结论」的三层结构？',
-          },
-          {
-            id: 't1-2-c3',
-            authorId: 'yomitomo',
-            content:
-              '对。三层下来，三个月后你还能接上当时的思路，而不是面对一篇划满线却想不起来的文章。',
-          },
-        ],
-      },
-    ],
-  },
-  {
     id: 'ann-d1',
     quote: '什么都没留下',
-    highlightId: 'ann-1',
     authorId: 'yomitomo',
     content:
       '划线不是装饰，是判断。每一条线都锚定在原文的具体位置，三个月后你还能回到当时的上下文。',
@@ -233,6 +170,17 @@ const zhAnnotations: Annotation[] = [
         ],
       },
     ],
+  },
+  {
+    id: 'ann-d2',
+    quote: '云端阅读器',
+    authorId: 'yomitomo',
+    content:
+      '你的文章、批注、讨论、API Key 全部保存在你的电脑上。我们不会上传你的阅读数据到任何云端。',
+    type: 'distillation',
+    createdAt: '2025-01-15',
+    agentIds: ['yomitomo'],
+    thoughts: [],
   },
   {
     id: 'ann-3',
@@ -290,18 +238,6 @@ const zhAnnotations: Annotation[] = [
         ],
       },
     ],
-  },
-  {
-    id: 'ann-d2',
-    quote: '本地优先',
-    highlightId: 'ann-2',
-    authorId: 'yomitomo',
-    content:
-      '你的文章、批注、讨论、API Key 全部保存在你的电脑上。我们不会上传你的阅读数据到任何云端。',
-    type: 'distillation',
-    createdAt: '2025-01-15',
-    agentIds: ['yomitomo'],
-    thoughts: [],
   },
   {
     id: 'ann-4',
@@ -411,47 +347,8 @@ const zhAnnotations: Annotation[] = [
     ],
   },
   {
-    id: 'ann-6',
-    quote: '六位性格各异的 AI 伴读',
-    authorId: 'yomitomo',
-    type: 'discussion',
-    createdAt: '2025-01-15',
-    agentIds: ['reading-partner', 'root-reviewer', 'question-mentor'],
-    thoughts: [
-      {
-        id: 't6-1',
-        authorId: 'question-mentor',
-        content: '为什么要分成六位伴读？一个全能助手不就够了吗？',
-        comments: [
-          {
-            id: 't6-1-c1',
-            authorId: 'yomitomo',
-            content:
-              '因为阅读时你需要的视角不止一种。有人帮你提问，有人帮你追根，有人帮你翻译概念。',
-          },
-          {
-            id: 't6-1-c2',
-            authorId: 'reading-partner',
-            content: '一个声音容易让人盲从，几位性格不同的伴读反而能逼你自己做判断。',
-          },
-          {
-            id: 't6-1-c3',
-            authorId: 'question-mentor',
-            content: '那我可以只用其中一两位吗？',
-          },
-          {
-            id: 't6-1-c4',
-            authorId: 'yomitomo',
-            content: '当然。你可以为每条划线指定参与的伴读，安静读书时也可以谁都不叫。',
-          },
-        ],
-      },
-    ],
-  },
-  {
     id: 'ann-d3',
     quote: '六位性格各异的 AI 伴读',
-    highlightId: 'ann-6',
     authorId: 'yomitomo',
     content:
       '伴读不是替你读，而是陪你读。六种视角各自提问、追根、翻译和编辑，但最终的判断始终留给你。',
@@ -499,7 +396,7 @@ const zhParagraphs: Paragraph[] = [
     id: 'p1',
     segments: [
       { type: 'text', content: '我们读了那么多，最后' },
-      { type: 'highlight', content: '什么都没留下', annotationId: 'ann-1' },
+      { type: 'highlight', content: '什么都没留下', annotationId: 'ann-d1' },
       {
         type: 'text',
         content: '。收藏夹越来越满，稍后读队列越来越长，但真正沉淀下来的判断却少得可怜。',
@@ -509,13 +406,14 @@ const zhParagraphs: Paragraph[] = [
   {
     id: 'p2',
     segments: [
-      { type: 'highlight', content: 'Yomitomo', annotationId: 'ann-2' },
-      { type: 'text', content: ' 是一款' },
+      { type: 'text', content: 'Yomitomo 是一款' },
       { type: 'highlight', content: '本地优先', annotationId: 'ann-2' },
       {
         type: 'text',
-        content: ' 的 AI 伴读桌面应用。它不是又一个云端阅读器，而是你电脑上的一个阅读工作台。',
+        content: ' 的 AI 伴读桌面应用。它不是又一个',
       },
+      { type: 'highlight', content: '云端阅读器', annotationId: 'ann-d2' },
+      { type: 'text', content: '，而是你电脑上的一个阅读工作台。' },
     ],
   },
   {
@@ -572,7 +470,7 @@ const zhParagraphs: Paragraph[] = [
     id: 'p6',
     segments: [
       { type: 'text', content: '陪你完成这条路径的，是' },
-      { type: 'highlight', content: '六位性格各异的 AI 伴读', annotationId: 'ann-6' },
+      { type: 'highlight', content: '六位性格各异的 AI 伴读', annotationId: 'ann-d3' },
       {
         type: 'text',
         content:
@@ -658,75 +556,8 @@ const enAgents = buildAgents('en', {
 
 const enAnnotations: Annotation[] = [
   {
-    id: 'ann-1',
-    quote: 'almost nothing stays',
-    authorId: 'yomitomo',
-    type: 'discussion',
-    createdAt: '2025-01-15',
-    agentIds: ['reading-partner', 'root-reviewer'],
-    thoughts: [
-      {
-        id: 't1-1',
-        authorId: 'reading-partner',
-        content:
-          'Bookmarks keep filling up, but what we actually remember keeps shrinking. Is something missing between "saving" and "remembering"?',
-        comments: [
-          {
-            id: 't1-1-c1',
-            authorId: 'yomitomo',
-            content:
-              "What's missing is an act of active processing. Yomitomo's line isn't just a mark — the moment you draw it, you anchor it to the source.",
-          },
-          {
-            id: 't1-1-c2',
-            authorId: 'root-reviewer',
-            content:
-              'Right, and that anchor is precise down to the paragraph and sentence, not a vague "nice article".',
-          },
-          {
-            id: 't1-1-c3',
-            authorId: 'reading-partner',
-            content: 'But if I draw a line and forget why a few months later, what then?',
-          },
-          {
-            id: 't1-1-c4',
-            authorId: 'yomitomo',
-            content:
-              "Beside the line you can hang your thoughts and discussion. Looking back, you don't just see the sentence — you see why you stopped.",
-          },
-        ],
-      },
-      {
-        id: 't1-2',
-        authorId: 'root-reviewer',
-        content:
-          "How do you keep what you've read from being read in vain? Is there a concrete method?",
-        comments: [
-          {
-            id: 't1-2-c1',
-            authorId: 'yomitomo',
-            content:
-              'The key is giving every judgment a path back to the source. The line is the anchor, the thought is the judgment, the distillation is the conclusion.',
-          },
-          {
-            id: 't1-2-c2',
-            authorId: 'root-reviewer',
-            content: 'So it\'s a three-layer structure from "mark" to "judgment" to "conclusion"?',
-          },
-          {
-            id: 't1-2-c3',
-            authorId: 'yomitomo',
-            content:
-              'Yes. Three layers down, three months later you can pick up your old train of thought — instead of facing an article full of lines you no longer understand.',
-          },
-        ],
-      },
-    ],
-  },
-  {
     id: 'ann-d1',
     quote: 'almost nothing stays',
-    highlightId: 'ann-1',
     authorId: 'yomitomo',
     content:
       "A line isn't decoration, it's judgment. Every line is anchored to a specific spot in the source, so three months later you can return to the original context.",
@@ -768,6 +599,17 @@ const enAnnotations: Annotation[] = [
         ],
       },
     ],
+  },
+  {
+    id: 'ann-d2',
+    quote: 'cloud reader',
+    authorId: 'yomitomo',
+    content:
+      'Your articles, annotations, discussions and API keys are all kept on your own computer. We never upload your reading data to any cloud.',
+    type: 'distillation',
+    createdAt: '2025-01-15',
+    agentIds: ['yomitomo'],
+    thoughts: [],
   },
   {
     id: 'ann-3',
@@ -827,18 +669,6 @@ const enAnnotations: Annotation[] = [
         ],
       },
     ],
-  },
-  {
-    id: 'ann-d2',
-    quote: 'local-first',
-    highlightId: 'ann-2',
-    authorId: 'yomitomo',
-    content:
-      'Your articles, annotations, discussions and API keys are all kept on your own computer. We never upload your reading data to any cloud.',
-    type: 'distillation',
-    createdAt: '2025-01-15',
-    agentIds: ['yomitomo'],
-    thoughts: [],
   },
   {
     id: 'ann-4',
@@ -951,49 +781,8 @@ const enAnnotations: Annotation[] = [
     ],
   },
   {
-    id: 'ann-6',
-    quote: 'six AI companions, each with a different temperament',
-    authorId: 'yomitomo',
-    type: 'discussion',
-    createdAt: '2025-01-15',
-    agentIds: ['reading-partner', 'root-reviewer', 'question-mentor'],
-    thoughts: [
-      {
-        id: 't6-1',
-        authorId: 'question-mentor',
-        content: "Why split into six companions? Isn't one all-purpose assistant enough?",
-        comments: [
-          {
-            id: 't6-1-c1',
-            authorId: 'yomitomo',
-            content:
-              'Because reading needs more than one kind of perspective. One helps you ask, one digs to the root, one translates concepts.',
-          },
-          {
-            id: 't6-1-c2',
-            authorId: 'reading-partner',
-            content:
-              'A single voice makes it easy to follow blindly; a few companions with different temperaments push you to judge for yourself.',
-          },
-          {
-            id: 't6-1-c3',
-            authorId: 'question-mentor',
-            content: 'Can I use just one or two of them?',
-          },
-          {
-            id: 't6-1-c4',
-            authorId: 'yomitomo',
-            content:
-              'Of course. You can assign which companions join each line, and call none of them when you just want to read quietly.',
-          },
-        ],
-      },
-    ],
-  },
-  {
     id: 'ann-d3',
     quote: 'six AI companions, each with a different temperament',
-    highlightId: 'ann-6',
     authorId: 'yomitomo',
     content:
       "Companions don't read for you — they read with you. Six perspectives ask, dig, translate and edit, but the final judgment always stays with you.",
@@ -1043,7 +832,7 @@ const enParagraphs: Paragraph[] = [
     id: 'p1',
     segments: [
       { type: 'text', content: 'We read so much, and in the end ' },
-      { type: 'highlight', content: 'almost nothing stays', annotationId: 'ann-1' },
+      { type: 'highlight', content: 'almost nothing stays', annotationId: 'ann-d1' },
       {
         type: 'text',
         content:
@@ -1054,13 +843,16 @@ const enParagraphs: Paragraph[] = [
   {
     id: 'p2',
     segments: [
-      { type: 'highlight', content: 'Yomitomo', annotationId: 'ann-2' },
-      { type: 'text', content: ' is a ' },
+      { type: 'text', content: 'Yomitomo is a ' },
       { type: 'highlight', content: 'local-first', annotationId: 'ann-2' },
       {
         type: 'text',
-        content:
-          " AI reading companion for desktop. It isn't yet another cloud reader — it's a reading workbench that lives on your own computer.",
+        content: " AI reading companion for desktop. It isn't yet another ",
+      },
+      { type: 'highlight', content: 'cloud reader', annotationId: 'ann-d2' },
+      {
+        type: 'text',
+        content: " — it's a reading workbench that lives on your own computer.",
       },
     ],
   },
@@ -1131,7 +923,7 @@ const enParagraphs: Paragraph[] = [
       {
         type: 'highlight',
         content: 'six AI companions, each with a different temperament',
-        annotationId: 'ann-6',
+        annotationId: 'ann-d3',
       },
       {
         type: 'text',

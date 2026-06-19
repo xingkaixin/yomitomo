@@ -1,7 +1,7 @@
 ---
-import SiteFooter from '../SiteFooter.astro';
+import LandingFooter from '../landing/LandingFooter.astro';
 
 const lang = Astro.url.pathname.startsWith('/en/') ? 'en' : 'zh-CN';
 ---
 
-<SiteFooter lang={lang} />
+<LandingFooter lang={lang} />

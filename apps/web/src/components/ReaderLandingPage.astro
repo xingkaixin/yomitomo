@@ -1,8 +1,13 @@
 ---
 import desktopPackage from '../../../desktop/package.json';
-import Masthead from './Masthead.astro';
-import SiteFooter from './SiteFooter.astro';
-import ReaderLanding from './landing/ReaderLanding';
+import LandingMasthead from './landing/LandingMasthead.astro';
+import HeroSection from './landing/HeroSection.astro';
+import DemoSection from './landing/DemoSection.astro';
+import StepsSection from './landing/StepsSection.astro';
+import AgentsSection from './landing/AgentsSection.astro';
+import FeaturesSection from './landing/FeaturesSection.astro';
+import DownloadSection from './landing/DownloadSection.astro';
+import LandingFooter from './landing/LandingFooter.astro';
 import '../styles/landing.css';
 
 type Props = {
@@ -84,6 +89,28 @@ const jsonLd = {
     <link rel="alternate" hreflang={lang} href={canonicalUrl} />
     <link rel="alternate" hreflang="x-default" href={defaultLocaleUrl} />
     <link rel="icon" type="image/png" sizes="64x64" href="/assets/favicon.png" />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/assets/fonts/SourceSerif4-Bold.woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/assets/fonts/JetBrainsMono-Bold.woff2"
+      crossorigin
+    />
+    <noscript>
+      <style>
+        .reveal {
+          opacity: 1;
+          transform: none;
+        }
+      </style>
+    </noscript>
 
     <meta property="og:type" content="website" />
     <meta property="og:locale" content={isEnglish ? 'en_US' : 'zh_CN'} />
@@ -102,9 +129,36 @@ const jsonLd = {
 
     <script type="application/ld+json" is:inline set:html={JSON.stringify(jsonLd)} />
   </head>
-  <body style="background:#fbf9f3">
-    <Masthead lang={lang} active="home" />
-    <ReaderLanding lang={lang} downloads={downloads} client:idle />
-    <SiteFooter lang={lang} />
+  <body>
+    <div class="lp-root">
+      <LandingMasthead lang={lang} active="home" />
+      <HeroSection lang={lang} version={downloads.version} />
+      <DemoSection lang={lang} />
+      <div class="reveal"><StepsSection lang={lang} /></div>
+      <div class="reveal"><AgentsSection lang={lang} /></div>
+      <div class="reveal"><FeaturesSection lang={lang} /></div>
+      <div class="reveal"><DownloadSection lang={lang} downloads={downloads} /></div>
+      <LandingFooter lang={lang} />
+    </div>
+
+    <script is:inline>
+      const reveals = document.querySelectorAll('.reveal');
+      if ('IntersectionObserver' in window) {
+        const io = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (entry.isIntersecting) {
+                entry.target.classList.add('in');
+                io.unobserve(entry.target);
+              }
+            }
+          },
+          { threshold: 0.12 },
+        );
+        for (const el of reveals) io.observe(el);
+      } else {
+        for (const el of reveals) el.classList.add('in');
+      }
+    </script>
   </body>
 </html>

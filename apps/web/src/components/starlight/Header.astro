@@ -1,5 +1,6 @@
 ---
-import Masthead from '../Masthead.astro';
+import LandingMasthead from '../landing/LandingMasthead.astro';
+import '../../styles/landing.css';
 
 const path = Astro.url.pathname;
 const lang = path.startsWith('/en/') ? 'en' : 'zh-CN';
@@ -13,4 +14,4 @@ const active = normalized.startsWith('/blog')
       : undefined;
 ---
 
-<Masthead lang={lang} active={active} />
+<LandingMasthead lang={lang} active={active} />
