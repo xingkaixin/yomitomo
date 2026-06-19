@@ -13,6 +13,7 @@ const pdfMocks = vi.hoisted(() => ({
   PdfiumNative: vi.fn(),
   init: vi.fn(),
   createFromBitmap: vi.fn(),
+  readPdfiumWasmBinary: vi.fn(),
   toJPEG: vi.fn(),
 }));
 
@@ -23,6 +24,10 @@ vi.mock('@embedpdf/pdfium', () => ({
 vi.mock('@embedpdf/engines/pdfium', () => ({
   PdfEngine: pdfMocks.PdfEngine,
   PdfiumNative: pdfMocks.PdfiumNative,
+}));
+
+vi.mock('./pdfium-resource', () => ({
+  readPdfiumWasmBinary: pdfMocks.readPdfiumWasmBinary,
 }));
 
 vi.mock('electron', () => ({
@@ -59,6 +64,7 @@ async function importPdfModule() {
 describe('articleRecordFromPdfFile', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    pdfMocks.readPdfiumWasmBinary.mockResolvedValue(new ArrayBuffer(8));
     pdfMocks.init.mockResolvedValue({});
     pdfMocks.PdfEngine.mockImplementation(function PdfEngineMock() {
       return pdfMocks.engine;
@@ -230,6 +236,7 @@ describe('articleRecordFromPdfFile', () => {
 describe('renderPdfThumbnailFromBuffer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    pdfMocks.readPdfiumWasmBinary.mockResolvedValue(new ArrayBuffer(8));
     pdfMocks.init.mockResolvedValue({});
     pdfMocks.PdfEngine.mockImplementation(function PdfEngineMock() {
       return pdfMocks.engine;

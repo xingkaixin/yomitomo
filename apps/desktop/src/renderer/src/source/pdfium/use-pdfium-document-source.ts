@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePdfiumEngine } from '@embedpdf/engines/react';
-import pdfiumWasmUrl from '@embedpdf/pdfium/pdfium.wasm?url';
 import type { ArticleRecord } from '@yomitomo/shared';
 import i18next from 'i18next';
 import { rendererPerformanceElapsedMs } from '../bookcase/app-source-bookcase-shared';
@@ -28,7 +27,7 @@ export function usePdfiumDocumentSource(article: PdfArticleRecord) {
     error: engineError,
     isLoading,
   } = usePdfiumEngine({
-    wasmUrl: pdfiumWasmUrl,
+    wasmUrl: window.yomitomoDesktop.pdfiumWasmUrl,
     worker: false,
     fontFallback: pdfiumFontFallback,
   });

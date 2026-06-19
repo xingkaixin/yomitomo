@@ -26,7 +26,7 @@ describe('renderer styles entry', () => {
 
     expect(styles).toContain("@font-face {\n  font-family: 'JetBrains Mono';");
     expect(styles).toContain(
-      "src: url('./assets/fonts/NotoSansSC-Regular.ttf') format('truetype');",
+      "src: url('./assets/fonts/NotoSansSC-Regular.woff2') format('woff2');",
     );
     expect(styles).toContain(
       "--font-ui:\n      'PingFang SC', 'Microsoft YaHei UI', 'Noto Sans SC', system-ui, -apple-system,\n      BlinkMacSystemFont, sans-serif;",

@@ -66,6 +66,7 @@ export type DesktopPreloadApiInput = {
 export function createYomitomoDesktopApi(input: DesktopPreloadApiInput) {
   return {
     platform: input.platform,
+    pdfiumWasmUrl: readPdfiumWasmUrl(),
     startupTiming: {
       preloadLoadedAt: input.preloadLoadedAt,
     },
@@ -81,6 +82,12 @@ export function createYomitomoDesktopApi(input: DesktopPreloadApiInput) {
     ...createWeReadPreloadApi(),
     ...createAgentPreloadApi(),
   };
+}
+
+function readPdfiumWasmUrl() {
+  const value = ipcRenderer.sendSync('app:pdfium-wasm-url');
+  if (typeof value !== 'string' || !value) throw new Error('PDFIUM_WASM_URL_UNAVAILABLE');
+  return value;
 }
 
 function createAppPreloadApi() {
