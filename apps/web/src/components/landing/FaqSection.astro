@@ -1,0 +1,35 @@
+---
+import { getFaqItems } from './faq-data';
+
+type Props = {
+  lang?: 'zh-CN' | 'en';
+};
+
+const { lang = 'zh-CN' } = Astro.props;
+const isEnglish = lang === 'en';
+
+const kicker = isEnglish ? 'FAQ' : '常见问题';
+const title = isEnglish ? 'Questions before you download.' : '下载前，先看看这些问题。';
+
+const items = getFaqItems(lang);
+---
+
+<section class="section">
+  <div class="lp-container">
+    <p class="sec-kicker">{kicker}</p>
+    <h2 class="sec-title">{title}</h2>
+    <div class="faq-list">
+      {
+        items.map((item) => (
+          <details class="faq-item">
+            <summary>
+              <span class="faq-q">{item.question}</span>
+              <span class="faq-mark" aria-hidden="true" />
+            </summary>
+            <p class="faq-a">{item.answer}</p>
+          </details>
+        ))
+      }
+    </div>
+  </div>
+</section>

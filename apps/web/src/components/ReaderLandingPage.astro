@@ -6,8 +6,11 @@ import DemoSection from './landing/DemoSection.astro';
 import StepsSection from './landing/StepsSection.astro';
 import AgentsSection from './landing/AgentsSection.astro';
 import FeaturesSection from './landing/FeaturesSection.astro';
+import FaqSection from './landing/FaqSection.astro';
 import DownloadSection from './landing/DownloadSection.astro';
 import LandingFooter from './landing/LandingFooter.astro';
+import { getFaqItems } from './landing/faq-data';
+import { githubUrl, xUrl, youtubeUrl } from '../site-links';
 import '../styles/landing.css';
 
 type Props = {
@@ -36,9 +39,18 @@ const pageDescription = isEnglish
   ? 'Yomitomo is a local-first AI reading companion for desktop. Highlight, capture thoughts, discuss with assistants, and keep your reading judgments anchored to the source.'
   : 'Yomitomo 是本地优先的 AI 伴读桌面应用。划线、记下想法、和 AI 助手讨论，把阅读判断留在原文现场。';
 const ogImageUrl = `${siteUrl}/assets/og-image.jpg`;
+const faqItems = getFaqItems(lang);
 const jsonLd = {
   '@context': 'https://schema.org',
   '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': `${siteUrl}/#org`,
+      name: 'Yomitomo',
+      url: siteUrl,
+      logo: `${siteUrl}/assets/yomitomo-logo.png`,
+      sameAs: [githubUrl, xUrl, youtubeUrl],
+    },
     {
       '@type': 'WebSite',
       '@id': `${siteUrl}/#website`,
@@ -46,6 +58,7 @@ const jsonLd = {
       url: siteUrl,
       inLanguage: lang,
       description: pageDescription,
+      publisher: { '@id': `${siteUrl}/#org` },
     },
     {
       '@type': 'SoftwareApplication',
@@ -56,7 +69,13 @@ const jsonLd = {
       softwareVersion: releaseVersion,
       url: canonicalUrl,
       image: ogImageUrl,
+      screenshot: [
+        `${siteUrl}/assets/read.webp`,
+        `${siteUrl}/assets/epub.webp`,
+        `${siteUrl}/assets/webpage.webp`,
+      ],
       description: pageDescription,
+      publisher: { '@id': `${siteUrl}/#org` },
       offers: [
         {
           '@type': 'Offer',
@@ -71,6 +90,19 @@ const jsonLd = {
           priceCurrency: 'USD',
         },
       ],
+    },
+    {
+      '@type': 'FAQPage',
+      '@id': `${canonicalUrl}#faq`,
+      inLanguage: lang,
+      mainEntity: faqItems.map((item) => ({
+        '@type': 'Question',
+        name: item.question,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: item.answer,
+        },
+      })),
     },
   ],
 };
@@ -137,6 +169,7 @@ const jsonLd = {
       <div class="reveal"><StepsSection lang={lang} /></div>
       <div class="reveal"><AgentsSection lang={lang} /></div>
       <div class="reveal"><FeaturesSection lang={lang} /></div>
+      <div class="reveal"><FaqSection lang={lang} /></div>
       <div class="reveal"><DownloadSection lang={lang} downloads={downloads} /></div>
       <LandingFooter lang={lang} />
     </div>
