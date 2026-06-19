@@ -13,28 +13,21 @@
   --color-ink: hsl(225 19% 15%);
   --color-muted: hsl(0 0% 42%);
   --color-line: hsl(0 0% 78%);
-  --color-accent: hsl(217 47% 33%);
+  --color-accent: hsl(3 62% 42%);
   --color-accent-fg: hsl(0 0% 100%);
-  --color-accent-soft: hsl(217 50% 97%);
+  --color-accent-soft: hsl(4 68% 97%);
   --font-sans:
     -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', 'Segoe UI', system-ui,
     sans-serif;
   --font-serif: 'Noto Serif SC', 'Songti SC', 'Source Han Serif SC', Georgia, serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'IBM Plex Mono', Menlo, monospace;
-  --sl-color-accent-low: #dce6f3;
-  --sl-color-accent: #2c4a7c;
-  --sl-color-accent-high: #1a2e52;
+  --sl-color-accent-low: #f4dcd8;
+  --sl-color-accent: #b23223;
+  --sl-color-accent-high: #8a2419;
 
-  /* The custom Masthead header (big title + section nav) is taller than
-     Starlight's default nav. Match --sl-nav-height to its real height so the
-     sticky sidebar / content start below it instead of under it. */
-  --sl-nav-height: 201px;
-}
-
-@media (max-width: 50rem) {
-  :root {
-    --sl-nav-height: 170px;
-  }
+  /* The shared landing masthead is a deterministic 134px tall (mh-bar 84 + nav
+     50). Keep --sl-nav-height exact so Starlight's sidebar offset stays aligned. */
+  --sl-nav-height: 134px;
 }
 
 @supports (height: 100dvh) {
@@ -50,7 +43,7 @@
   --sl-color-bg-nav: #fbf9f3;
   --sl-color-bg-sidebar: #fbf9f3;
   --sl-color-text: #20242e;
-  --sl-color-text-accent: #2c4a7c;
+  --sl-color-text-accent: #b23223;
   --sl-color-gray-1: #20242e;
   --sl-color-gray-2: #3b4050;
   --sl-color-gray-3: #5b6072;
@@ -66,14 +59,21 @@
 
 .header {
   height: auto;
+  position: relative;
+  inset-block-start: auto;
+  z-index: var(--sl-z-index-navbar);
   padding: var(--safe-top) var(--safe-inline-end) 0 var(--safe-inline-start);
   border-bottom: 0;
-  background: #fbf9f3;
+  background: transparent;
 }
 
 .header > astro-slot {
   display: block;
   width: 100%;
+}
+
+.main-frame {
+  padding-top: var(--sl-mobile-toc-height, 0px);
 }
 
 @media (min-width: 72rem) {
@@ -111,7 +111,22 @@ main .site-footer {
   width: 100%;
   margin-inline-start: 0;
   margin-inline-end: 0;
-  background: var(--sl-color-bg);
+  background: transparent;
+}
+
+main .sl-container > .lp-footer {
+  width: 100vw;
+  margin-inline-start: calc(
+    -1 * (var(--sl-content-inline-start, 0px) + var(--sl-content-pad-x, 0px))
+  );
+}
+
+main .sl-container > .lp-footer > .lp-container {
+  width: min(1120px, 100vw - 64px);
+}
+
+main .content-panel:has(> .sl-container > .lp-footer) .sl-markdown-content {
+  padding-block-end: 5rem;
 }
 
 .sidebar-content {
@@ -128,7 +143,7 @@ main .site-footer {
 .sidebar-content [aria-current='page']:hover,
 .sidebar-content [aria-current='page']:focus {
   color: #f8f5f2;
-  background-color: #2c4a7c;
+  background-color: #b23223;
 }
 
 /* Starlight colors sidebar links via a:where(...) (specificity 0,0,1); the UA
@@ -226,19 +241,158 @@ h1#_top {
     height: auto;
   }
 
-  .content-panel:has(.site-footer) > .sl-container {
+  main .content-panel:has(> .sl-container > .lp-footer) > .sl-container {
     display: flex;
     min-height: calc(var(--app-viewport-height) - var(--sl-nav-height) - var(--safe-bottom));
     flex-direction: column;
   }
 
-  main .site-footer {
+  main .sl-container > .lp-footer {
     margin-block-start: auto;
+    margin-inline-start: calc(
+      -1 *
+        (
+          var(--docs-shell-margin, 0px) + var(--sl-sidebar-width, 0px) +
+            var(--sl-content-pad-x, 0px)
+        )
+    );
   }
 }
 
 @media (max-width: 50rem) {
+  :root {
+    --docs-menu-button-block-start: calc(var(--safe-top) + 95px);
+    --docs-menu-button-height: 30px;
+    --docs-menu-button-inline-end: calc((100vw - min(1120px, 100vw - 64px)) / 2 + 66px);
+  }
+
   .header .header-actions {
     margin-inline-end: 48px;
+  }
+
+  starlight-menu-button button[aria-controls='starlight__sidebar'] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    top: var(--docs-menu-button-block-start);
+    inset-inline-end: calc(var(--safe-inline-end) + var(--docs-menu-button-inline-end));
+    width: auto;
+    min-width: 40px;
+    height: var(--docs-menu-button-height);
+    padding: 0 11px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background-color: var(--surface);
+    color: var(--ink);
+    box-shadow: none;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    transition:
+      border-color 140ms ease,
+      background-color 140ms ease,
+      transform 140ms ease;
+  }
+
+  starlight-menu-button button[aria-controls='starlight__sidebar']::after {
+    content: attr(aria-label);
+  }
+
+  starlight-menu-button button[aria-controls='starlight__sidebar'] svg {
+    width: 15px;
+    height: 15px;
+    color: var(--ink-2);
+  }
+
+  starlight-menu-button button[aria-controls='starlight__sidebar']:hover {
+    border-color: var(--accent-ring);
+    transform: translateY(-1px);
+  }
+
+  starlight-menu-button button[aria-controls='starlight__sidebar']:hover svg,
+  starlight-menu-button[aria-expanded='true'] button[aria-controls='starlight__sidebar'] svg {
+    color: var(--accent);
+  }
+
+  starlight-menu-button button[aria-controls='starlight__sidebar']:active {
+    transform: translateY(0);
+  }
+
+  starlight-menu-button[aria-expanded='true'] button[aria-controls='starlight__sidebar'] {
+    border-color: var(--accent-ring);
+    background-color: var(--surface);
+  }
+
+  .sidebar-pane {
+    background-color: rgb(248 245 239 / 0.97);
+    box-shadow:
+      inset 0 1px 0 rgb(0 0 0 / 0.1),
+      0 24px 50px rgb(31 24 16 / 0.16);
+    backdrop-filter: blur(10px);
+  }
+
+  .sidebar-content {
+    width: min(1120px, 100% - 64px);
+    margin-inline: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --sl-nav-height: 120px;
+    --docs-menu-button-block-start: calc(var(--safe-top) + 81px);
+    --docs-menu-button-height: 32px;
+    --docs-menu-button-inline-end: calc((100vw - min(1120px, 100vw - 40px)) / 2 + 64px);
+  }
+
+  :lang(en) starlight-menu-button button[aria-controls='starlight__sidebar'] {
+    gap: 5px;
+    padding-inline: 8px;
+    font-size: 10px;
+    letter-spacing: 0.02em;
+  }
+}
+
+/* ============================================================
+ * Match the landing page: grid-paper background showing through the
+ * shell, so docs / blog / changelog pages share the home page look.
+ * ============================================================ */
+html {
+  scrollbar-gutter: stable;
+}
+
+body {
+  background-color: #fcfbf7;
+  background-image:
+    linear-gradient(rgba(90, 70, 45, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(90, 70, 45, 0.06) 1px, transparent 1px);
+  background-size: 30px 30px;
+  background-position: -1px -1px;
+}
+
+:root[data-theme='light'] {
+  /* Let the grid show through the nav and sidebar; the page background and
+     mobile menu overlay keep their solid --sl-color-bg. */
+  --sl-color-bg-nav: transparent;
+  --sl-color-bg-sidebar: transparent;
+}
+
+.main-pane,
+.content-panel {
+  background: transparent;
+}
+
+@media (min-width: 50rem) {
+  .sidebar-pane {
+    background: transparent;
+  }
+}
+
+@media (max-width: 50rem) {
+  .sidebar-pane {
+    background: rgb(248 245 239 / 0.97);
   }
 }

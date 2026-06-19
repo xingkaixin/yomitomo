@@ -1,0 +1,62 @@
+---
+type Props = {
+  lang?: 'zh-CN' | 'en';
+};
+
+const { lang = 'zh-CN' } = Astro.props;
+const isEnglish = lang === 'en';
+
+const features = isEnglish
+  ? [
+      {
+        title: 'Local-first',
+        desc: 'Articles, annotations, discussions and API keys all live on your computer. We never upload your reading data to any cloud.',
+      },
+      {
+        title: 'Open & free',
+        desc: 'Yomitomo is completely free and open source under the MIT license. It never pushes to you, never reorders for you, and never sells your reading.',
+      },
+      {
+        title: 'Many sources, one desk',
+        desc: 'Content from different sources—your lines and discussions all land on the same workbench, and synced notes keep their original anchors.',
+        tags: ['Web articles', 'PDF', 'EPUB', 'WeRead'],
+      },
+    ]
+  : [
+      {
+        title: '本地优先',
+        desc: '文章、批注、讨论、API Key 全部保存在你的电脑上。我们不会上传你的阅读数据到任何云端。',
+      },
+      {
+        title: '开源免费',
+        desc: 'Yomitomo 完全免费、开源，在 MIT 协议下。它不向你推送，不替你排序，也不把你的阅读卖给任何人。',
+      },
+      {
+        title: '多来源汇集',
+        desc: '不同来源的内容，划线和讨论都落在同一个工作台里，同步过来的笔记也会保留原文锚点。',
+        tags: ['网页文章', 'PDF', 'EPUB', '微信读书'],
+      },
+    ];
+---
+
+<section class="section">
+  <div class="lp-container">
+    <div class="feat-trio">
+      {
+        features.map((feat) => (
+          <div class="feat">
+            <h3>{feat.title}</h3>
+            <p>{feat.desc}</p>
+            {feat.tags && (
+              <div class="src-tags">
+                {feat.tags.map((tag) => (
+                  <span>{tag}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>

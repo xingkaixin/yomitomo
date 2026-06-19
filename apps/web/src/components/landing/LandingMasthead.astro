@@ -1,0 +1,165 @@
+---
+import { changelogsUrl, englishChangelogsUrl } from '../../site-links';
+
+type Props = {
+  lang?: 'zh-CN' | 'en';
+  active?: 'home' | 'docs' | 'blog' | 'changelogs';
+};
+
+const { lang = 'zh-CN', active = 'home' } = Astro.props;
+const isEnglish = lang === 'en';
+
+const homeUrl = isEnglish ? '/en/' : '/';
+const prefix = isEnglish ? '/en' : '';
+const currentPath = Astro.url.pathname;
+const currentSearch = Astro.url.search;
+const pathWithoutEnglishPrefix = currentPath.replace(/^\/en(?=\/|$)/, '') || '/';
+const zhLocaleUrl = `${isEnglish ? pathWithoutEnglishPrefix : currentPath}${currentSearch}`;
+const enLocalePath = isEnglish ? currentPath : currentPath === '/' ? '/en/' : `/en${currentPath}`;
+const enLocaleUrl = `${enLocalePath}${currentSearch}`;
+
+const kicker = isEnglish ? 'Local-first · AI reading companion' : '本地优先 · AI 伴读';
+const languageLabel = isEnglish ? 'EN' : '中';
+const now = new Date();
+const dateFormatOptions: Intl.DateTimeFormatOptions = {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+  weekday: 'long',
+};
+const mastheadDate = new Intl.DateTimeFormat(lang, dateFormatOptions).format(now);
+const mastheadDateTime = now.toISOString().slice(0, 10);
+
+const navLinks = [
+  { key: 'home', label: isEnglish ? 'Home' : '首页', href: homeUrl },
+  { key: 'docs', label: isEnglish ? 'Docs' : '文档', href: `${prefix}/docs/` },
+  { key: 'blog', label: isEnglish ? 'Blog' : '博客', href: `${prefix}/blog/` },
+  {
+    key: 'changelogs',
+    label: isEnglish ? 'Release Notes' : '更新日志',
+    href: isEnglish ? englishChangelogsUrl : changelogsUrl,
+  },
+] as const;
+---
+
+<header class="mh">
+  <div class="lp-container">
+    <div class="mh-bar">
+      <span class="mh-kicker">{kicker}</span>
+      {
+        active === 'home' ? (
+          <a class="mh-wordmark" href={homeUrl}>
+            <span class="mh-title">Yomitomo</span>
+          </a>
+        ) : (
+          <span class="mh-wordmark">
+            <span class="mh-title">Yomitomo</span>
+          </span>
+        )
+      }
+      <time class="mh-date" data-masthead-date datetime={mastheadDateTime}>{mastheadDate}</time>
+    </div>
+    <nav class="mh-nav" aria-label={isEnglish ? 'Main navigation' : '主导航'}>
+      {
+        navLinks.map((link) => (
+          <a class:list={['nav-item', active === link.key && 'is-active']} href={link.href}>
+            {link.label}
+          </a>
+        ))
+      }
+      <span class="nav-spacer"></span>
+      <div class="lang-switch" data-lang-switch>
+        <button
+          class="mh-pill lang-trigger"
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded="false"
+          aria-label={isEnglish ? 'Select language' : '选择语言'}
+          data-lang-trigger
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m5 8 6 6"></path>
+            <path d="m4 14 6-6 2-3"></path>
+            <path d="M2 5h12"></path>
+            <path d="M7 2h1"></path>
+            <path d="m22 22-5-10-5 10"></path>
+            <path d="M14 18h6"></path>
+          </svg>
+          <span class="lang-cur">{languageLabel}</span>
+        </button>
+        <div class="lang-menu" role="listbox" data-lang-menu>
+          <a
+            class:list={['lang-opt', !isEnglish && 'sel']}
+            href={zhLocaleUrl}
+            role="option"
+            aria-selected={!isEnglish}
+          >
+            <span>简体中文</span>
+            {
+              !isEnglish && (
+                <span class="lang-opt-check">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </span>
+              )
+            }
+          </a>
+          <a
+            class:list={['lang-opt', isEnglish && 'sel']}
+            href={enLocaleUrl}
+            role="option"
+            aria-selected={isEnglish}
+          >
+            <span>English</span>
+            {
+              isEnglish && (
+                <span class="lang-opt-check">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </span>
+              )
+            }
+          </a>
+        </div>
+      </div>
+    </nav>
+  </div>
+</header>
+
+<script is:inline define:vars={{ locale: lang }}>
+  const dateEl = document.querySelector('[data-masthead-date]');
+  if (dateEl) {
+    const currentDate = new Intl.DateTimeFormat(locale, {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      weekday: 'long',
+    }).format(new Date());
+    if (dateEl.textContent.trim() !== currentDate) {
+      dateEl.textContent = currentDate;
+    }
+  }
+
+  for (const root of document.querySelectorAll('[data-lang-switch]')) {
+    const trigger = root.querySelector('[data-lang-trigger]');
+    const menu = root.querySelector('[data-lang-menu]');
+    if (!trigger || !menu) continue;
+    const setOpen = (open) => {
+      trigger.classList.toggle('open', open);
+      menu.classList.toggle('open', open);
+      trigger.setAttribute('aria-expanded', String(open));
+    };
+    trigger.addEventListener('click', (event) => {
+      event.stopPropagation();
+      setOpen(!menu.classList.contains('open'));
+    });
+    document.addEventListener('pointerdown', (event) => {
+      if (!root.contains(event.target)) setOpen(false);
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') setOpen(false);
+    });
+  }
+</script>

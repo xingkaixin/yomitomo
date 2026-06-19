@@ -26,23 +26,31 @@ export default defineConfig({
         {
           tag: 'link',
           attrs: {
-            rel: 'preconnect',
-            href: 'https://fonts.googleapis.com',
-          },
-        },
-        {
-          tag: 'link',
-          attrs: {
-            rel: 'preconnect',
-            href: 'https://fonts.gstatic.com',
+            rel: 'preload',
+            as: 'font',
+            type: 'font/woff2',
+            href: '/assets/fonts/SourceSerif4-Bold.woff2',
             crossorigin: '',
           },
         },
         {
           tag: 'link',
           attrs: {
-            rel: 'stylesheet',
-            href: 'https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&display=swap',
+            rel: 'preload',
+            as: 'font',
+            type: 'font/woff2',
+            href: '/assets/fonts/JetBrainsMono-Bold.woff2',
+            crossorigin: '',
+          },
+        },
+        {
+          tag: 'link',
+          attrs: {
+            rel: 'preload',
+            as: 'font',
+            type: 'font/woff2',
+            href: '/assets/fonts/NotoSerifSC-Regular.woff2',
+            crossorigin: '',
           },
         },
       ],
