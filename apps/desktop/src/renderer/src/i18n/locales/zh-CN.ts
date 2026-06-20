@@ -758,10 +758,23 @@ export const zhCNResources = {
       deleteTranslation: '删除译文',
       retryTranslationSegment: '重试这一段',
       translatingArticle: '正在生成双语翻译',
+      translationInProgressToastDescription: '翻译期间暂时无法划线，页面会保留段落占位和状态。',
+      translationProgressToastDescription: '已翻译 {{ready}}/{{total}} 段。',
+      translationProgressWithFailuresToastDescription:
+        '已翻译 {{ready}}/{{total}} 段，{{failed}} 段失败。',
       translationReady: '双语翻译已完成',
+      translationCompleteToast: '双语翻译已完成',
+      translationCompleteToastDescription: '已翻译 {{ready}}/{{total}} 段。',
+      translationCompleteWithFailuresToast: '双语翻译完成，{{failed}} 段失败',
+      translationCompleteWithFailuresDescription:
+        '已翻译 {{ready}}/{{total}} 段，失败段落可在正文中重试。',
+      translationFailedToastAction: '查看失败段落',
+      translationFailedToastActionDone: '已定位',
       translationFailed: '双语翻译失败，请稍后重试',
       deleteTranslationFailed: '删除译文失败，请稍后重试',
       mixedSelectionToast: '请只选择原文或只选择译文',
+      translationSelectionDisabledToast: '文章正在翻译，暂时无法划线',
+      translationSelectionDisabledToastDescription: '翻译完成后即可继续选择和划线。',
     },
     discussion: {
       title: '批注讨论',

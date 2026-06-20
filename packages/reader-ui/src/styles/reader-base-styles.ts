@@ -15,6 +15,7 @@ export const readerBaseStyles = `
 .reader-background-options button.is-active{border-color:var(--reader-green);box-shadow:0 0 0 2px color-mix(in srgb,var(--reader-green) 22%,transparent),inset 0 0 0 1px rgba(255,255,255,.72)}
 .reader-background-options button:hover{transform:translateY(-1px)}
 .reader-article{background:var(--reader-content-bg,var(--reader-paper))}
+.reader-article-body.is-translation-select-disabled{user-select:none;-webkit-user-select:none}
 .reader-selection-menu{display:inline-flex;align-items:center;gap:4px}
 .reader-selection-primary.is-copied{border-color:color-mix(in srgb,var(--reader-green) 34%,transparent);background:color-mix(in srgb,var(--reader-green) 10%,var(--reader-paper));color:var(--reader-green)}
 .reader-selection-copy-icon.t-icon-swap{position:relative;display:inline-grid;width:15px;height:15px;place-items:center;flex:0 0 auto;--icon-swap-dur:200ms;--icon-swap-blur:2px;--icon-swap-start-scale:.25;--icon-swap-ease:cubic-bezier(.2,0,0,1)}

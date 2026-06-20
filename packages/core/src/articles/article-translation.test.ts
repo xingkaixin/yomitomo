@@ -131,6 +131,7 @@ describe('article bilingual translation', () => {
       '.reader-bilingual-translation-indicator.is-translating',
     );
     const translation = container.querySelector<HTMLElement>('[data-reader-translation]');
+    expect(source).toBeTruthy();
     expect(indicator?.querySelector('.reader-bilingual-translation-spinner')).toBeTruthy();
     expect(translation?.querySelector('.reader-bilingual-translation-skeleton-line')).toBeTruthy();
     expect(translation?.querySelector('.reader-bilingual-translation-spinner')).toBeNull();
