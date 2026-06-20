@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   Annotation,
   ArticleRecord,
@@ -8,8 +8,13 @@ import type {
   PublicAgent,
 } from '@yomitomo/shared';
 import { runSourceAgentCommentRequest } from '../source/bookcase/app-source-agent-comment-request';
+import { initializeAppI18n } from '../i18n/app-i18n';
 
 const now = '2026-05-17T06:00:00.000Z';
+
+beforeEach(() => {
+  initializeAppI18n('zh-CN');
+});
 
 const agent: PublicAgent = {
   id: 'agent_lin',
@@ -76,6 +81,119 @@ function annotation(comments: AnnotationComment[]): Annotation {
 }
 
 describe('runSourceAgentCommentRequest', () => {
+  it('saves a failed assistant reply when the stream rejects', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const rootComment = comment();
+    const targetAnnotation = annotation([rootComment]);
+    const annotationsRef = { current: [targetAnnotation] };
+    const applyAnnotations = vi.fn((annotations: Annotation[]) => {
+      annotationsRef.current = annotations;
+      return article(annotations[0]);
+    });
+    const saveAnnotations = vi.fn(async (annotations: Annotation[]) => {
+      annotationsRef.current = annotations;
+    });
+    const desktop = {
+      requestAgentCommentStream: vi.fn(async () => {
+        throw new Error('network failed');
+      }),
+    };
+
+    await runSourceAgentCommentRequest({
+      agent,
+      annotation: targetAnnotation,
+      userComment: rootComment,
+      desktop,
+      currentArticle: article(targetAnnotation),
+      articleText: '正文',
+      annotationsRef,
+      applyAnnotations,
+      saveAnnotations,
+      setStatusMessage: vi.fn(),
+    });
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[agent-comment] assistant reply failed',
+      expect.objectContaining({
+        agentId: agent.id,
+        annotationId: targetAnnotation.id,
+        message: 'network failed',
+        replyTargetId: rootComment.id,
+      }),
+    );
+    expect(saveAnnotations).toHaveBeenCalled();
+    expect(annotationsRef.current[0]?.comments).toContainEqual(
+      expect.objectContaining({
+        author: 'ai',
+        content: 'network failed',
+        pending: false,
+        replyTo: rootComment.id,
+      }),
+    );
+  });
+
+  it('keeps partial streamed reply content and marks active progress failed when the stream rejects', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const rootComment = comment();
+    const targetAnnotation = annotation([rootComment]);
+    const annotationsRef = { current: [targetAnnotation] };
+    const applyAnnotations = vi.fn((annotations: Annotation[]) => {
+      annotationsRef.current = annotations;
+      return article(annotations[0]);
+    });
+    const saveAnnotations = vi.fn(async (annotations: Annotation[]) => {
+      annotationsRef.current = annotations;
+    });
+    const pendingAgentComment = {
+      id: 'comment_agent',
+      author: 'ai' as const,
+      content: '',
+      createdAt: now,
+      agentId: agent.id,
+      agentUsername: agent.username,
+      agentNickname: agent.nickname,
+      pending: true,
+    };
+    const desktop = {
+      requestAgentCommentStream: vi.fn(async (_payload, onEvent) => {
+        onEvent({ type: 'start', comment: pendingAgentComment });
+        onEvent({
+          type: 'progress',
+          progress: {
+            type: 'step',
+            step: { id: 'get_current_thread', label: '读取当前讨论', status: 'active' },
+          },
+        });
+        onEvent({ type: 'delta', delta: '已经输出的部分' });
+        throw new Error('stream failed');
+      }),
+    };
+
+    await runSourceAgentCommentRequest({
+      agent,
+      annotation: targetAnnotation,
+      userComment: rootComment,
+      desktop,
+      currentArticle: article(targetAnnotation),
+      articleText: '正文',
+      annotationsRef,
+      applyAnnotations,
+      saveAnnotations,
+      setStatusMessage: vi.fn(),
+    });
+
+    expect(annotationsRef.current[0]?.comments).toContainEqual(
+      expect.objectContaining({
+        id: 'comment_agent',
+        content: '已经输出的部分\n\n请求失败：stream failed',
+        pending: false,
+        assistantProgress: {
+          steps: [{ id: 'get_current_thread', label: '读取当前讨论', status: 'failed' }],
+        },
+      }),
+    );
+  });
+
   it('shows a pending reply before the stream starts', async () => {
     const rootComment = comment();
     const targetAnnotation = annotation([rootComment]);

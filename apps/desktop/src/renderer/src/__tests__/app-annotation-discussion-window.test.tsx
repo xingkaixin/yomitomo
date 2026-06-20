@@ -468,6 +468,41 @@ describe('AnnotationDiscussionWindowApp', () => {
     await waitFor(() => expect(screen.queryByRole('region', { name: '助手回复队列' })).toBeNull());
   });
 
+  it('turns a failed assistant reply into a discussion message', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const desktop = installDesktopApi(article(annotation({ comments: [rootThought()] })), {
+      requestAgentCommentStream: vi.fn(async () => {
+        throw new Error('PROVIDER_API_KEY_REQUIRED');
+      }),
+    });
+    openDiscussionRoute();
+
+    render(<AnnotationDiscussionWindowApp />);
+
+    fireEvent.change(await screen.findByPlaceholderText(/回复这条想法/), {
+      target: { value: '@zhou 你怎么看' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '回复' }));
+
+    await waitFor(() =>
+      expect(
+        document.querySelector('.annotation-discussion-message.is-assistant')?.textContent,
+      ).toContain('请先为供应商配置 API Key。'),
+    );
+    expect(screen.queryByRole('region', { name: '助手回复队列' })).toBeNull();
+    expect(screen.queryByText('助手回复中')).toBeNull();
+    expect(screen.queryByText('回复发送失败')).toBeNull();
+    expect(desktop.saveArticleAnnotation).toHaveBeenCalledTimes(2);
+    expect(desktop.saveArticleAnnotation.mock.calls[1]?.[1].comments).toContainEqual(
+      expect.objectContaining({
+        author: 'ai',
+        content: '请先为供应商配置 API Key。',
+        pending: false,
+        replyTo: 'thought_1',
+      }),
+    );
+  });
+
   it('keeps a reply-free thought at the top instead of scrolling to the bottom', async () => {
     const scrollTo = vi.fn();
     Object.defineProperty(HTMLElement.prototype, 'scrollTo', {

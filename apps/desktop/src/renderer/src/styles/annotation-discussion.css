@@ -2265,6 +2265,14 @@
   overflow-wrap: anywhere;
 }
 
+.annotation-sedimentation-review-error {
+  margin: 5px 0 0;
+  color: var(--app-reader-danger);
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1.45;
+}
+
 .annotation-sedimentation-proposals {
   display: grid;
   gap: 8px;

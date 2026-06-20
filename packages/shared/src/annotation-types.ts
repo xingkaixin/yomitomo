@@ -66,6 +66,8 @@ export type AnnotationDistillationReviewMessage = {
   author: AnnotationAuthor;
   content: string;
   createdAt: string;
+  status?: 'pending' | 'done' | 'failed';
+  errorMessage?: string;
   agentId?: string;
   agentUsername?: string;
   agentNickname?: string;

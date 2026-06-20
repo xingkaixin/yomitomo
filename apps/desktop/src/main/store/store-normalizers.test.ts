@@ -555,6 +555,71 @@ describe('store normalizers annotation and chat records', () => {
     });
   });
 
+  it('keeps failed distillation review messages without content', () => {
+    const annotation = rowToAnnotation(
+      {
+        id: 'annotation_failed_review',
+        articleId: 'article_1',
+        anchor: {
+          exact: 'Quote',
+          start: 0,
+          end: 4,
+        },
+        author: 'user',
+        annotationType: null,
+        readingIntent: null,
+        moveType: null,
+        whyHere: null,
+        evidenceUsed: null,
+        confidence: null,
+        shouldShow: null,
+        color: '#f4c95d',
+        agentId: null,
+        agentUsername: null,
+        agentNickname: null,
+        agentAvatar: null,
+        agentAnnotationColor: null,
+        userId: null,
+        userUsername: null,
+        userNickname: null,
+        userAvatar: null,
+        userAnnotationColor: null,
+        distillationStatus: 'unpublished',
+        distillationContent: '草稿',
+        distillationPublishedAt: null,
+        distillationUpdatedAt: null,
+        distillationReviewSessions: [
+          {
+            id: 'review_session_failed',
+            agentId: 'agent_1',
+            messages: [
+              {
+                id: 'review_message_failed',
+                author: 'ai',
+                content: '',
+                createdAt: '2026-06-20T00:00:00.000Z',
+                errorMessage: 'provider failed',
+                status: 'failed',
+              },
+            ],
+            createdAt: '2026-06-20T00:00:00.000Z',
+            updatedAt: '2026-06-20T00:00:00.000Z',
+          },
+        ],
+        createdAt: '2026-06-20T00:00:00.000Z',
+        updatedAt: '2026-06-20T00:00:00.000Z',
+      } as Parameters<typeof rowToAnnotation>[0],
+      [],
+    );
+
+    expect(annotation.distillation?.reviewSessions?.[0]?.messages[0]).toMatchObject({
+      id: 'review_message_failed',
+      content: '',
+      errorMessage: 'provider failed',
+      status: 'failed',
+    });
+  });
+
   it('drops reader chat state when article or active session is inconsistent', () => {
     const validState = {
       articleId: 'article_1',
