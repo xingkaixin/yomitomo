@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.8.0 - 2026-06-20
+
+### Features
+
+- Added AZW3 and MOBI ebook import and reading alongside EPUB, including Kindle metadata, cover, chapter extraction, original source preservation, Foliate MOBI support, and text-based annotation location for Kindle content. (#473, #474)
+- Improved Data Management settings with clearer local data, log, and database entries, log retention and clearing controls, and safer database backup and restore flows. (#458)
+- Added a website FAQ section backed by shared bilingual data and FAQPage JSON-LD, and expanded structured data with Organization publisher information and screenshot URLs. (#479)
+
+### Performance
+
+- Made ebook pagination incremental, deferred PDF text indexing, avoided extra PDF source-buffer copies, and paginated the local article catalog for larger libraries. (#449, #447, #448, #469)
+- Bounded reading-memory substring fallback and lazy-loaded assistant diagnostics trace details to keep long histories and trace views responsive. (#471, #472)
+- Reduced packaged app size by tightening desktop build resources, using WOFF2 reading fonts, and compressing bundled assistant persona imagery. (#476)
+
+### Fixes
+
+- Hardened import and lock boundaries by blocking local/private-network article imports by default, limiting article HTML responses to 5MB, limiting oversized EPUB decompressed entries, preserving backup targets, and enforcing App Lock on guarded IPC. (#445, #442, #443, #444, #441)
+- Kept reader state more stable across width changes and search interactions, including annotation layout recalculation and more responsive in-reader search. (#466, #465)
+- Fixed library source counts, PDF header author overflow, update-check toast feedback, import success dialog timing, and the unsupported AZW3/MOBI annotation selector. (#475, #459, #468, #457, #477)
+
+### Engineering
+
+- Split IPC contract/schema fragments, preload API fragments, persistence boundaries, source reader wiring, settings draft state, reader style bundles, and assistant reading tools to reduce desktop coupling. (#454, #455, #451, #452, #456, #450, #453)
+- Switched annotation persistence to single-row writes and retired provider key fallback behavior after keyring-backed provider storage became the only supported path. (#446, #461)
+- Added Electron launch smoke coverage to CI, app-updater tests, CI-aligned `mise run check`, release-guide download worker checks, UI primitive status docs, and Astro 6.4.6. (#467, #463, #462, #464, #460, #470)
+
 ## 0.7.2 - 2026-06-17
 
 ### Features

@@ -19,7 +19,7 @@ Yomitomo is a local-first AI reading companion for desktop. It does not read ins
 2. Go to Settings, then Models and Routing.
 3. Add a model provider, enter its API key, and test the connection.
 4. Assign task routes for reading assistants and review assistants.
-5. Return to the Library and import a web article, EPUB book, or PDF document.
+5. Return to the Library and import a web article, EPUB/AZW3/MOBI ebook, or PDF document.
 
 You can switch the app language in Settings. Website docs are available in [Chinese](/docs/) and [English](/en/docs/). To sync highlights, thoughts, and reading progress from WeRead, first read "[Get a WeRead API Key](/en/docs/weread-api-key/)".
 
@@ -27,7 +27,7 @@ You can switch the app language in Settings. Website docs are available in [Chin
 
 Yomitomo is organized around a few core areas:
 
-- Library manages web articles, EPUB books, and PDF documents.
+- Library manages web articles, EPUB/AZW3/MOBI ebooks, and PDF documents.
 - Reader handles reading, highlights, annotations, discussions, and distilled notes.
 - Assistants manages AI reading assistants and review assistants.
 - Stats reviews local reading activity and WeRead statistics.

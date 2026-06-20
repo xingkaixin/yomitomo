@@ -1,0 +1,35 @@
+{
+  "version": "0.8.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "AZW3 and MOBI support",
+      "description": "If your books come from the Kindle ecosystem, you can now import AZW3 or MOBI files like EPUB while keeping covers, chapters, and reading progress.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Large libraries feel lighter",
+      "description": "Local article catalogs now load in pages, while ebook pagination, PDF text indexing, and assistant diagnostics do less work up front.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Clearer data management",
+      "description": "When you need backup, restore, data paths, or log cleanup, Settings now groups paths, log retention, and database actions in a clearer place.",
+      "audience": "settings"
+    },
+    {
+      "type": "fixed",
+      "title": "Safer import boundaries",
+      "description": "Web import blocks localhost and private networks by default and limits oversized web and ebook content to avoid saving unintended private resources.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "More stable reader details",
+      "description": "Search responsiveness, annotation layout after window resizing, PDF author titles, update-check feedback, and Kindle annotation location are steadier.",
+      "audience": "reader"
+    }
+  ]
+}

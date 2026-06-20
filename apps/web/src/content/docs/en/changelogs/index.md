@@ -5,6 +5,16 @@ sidebar:
   hidden: true
 ---
 
+## 0.8.0
+
+Released: 2026-06-20
+
+- Added AZW3/MOBI ebook import and reading, with better annotation location for Kindle content.
+- Made large libraries, ebook pagination, PDF opening, and assistant diagnostics feel lighter.
+- Hardened web import, EPUB decompression, App Lock, and database backup boundaries while clarifying Data Management settings.
+
+[View 0.8.0 release notes](/en/changelogs/v0-8-0/)
+
 ## 0.7.2
 
 Released: 2026-06-17
