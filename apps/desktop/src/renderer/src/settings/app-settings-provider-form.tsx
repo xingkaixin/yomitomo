@@ -18,102 +18,114 @@ import {
 } from '../components/ui/select';
 import { useTranslation } from 'react-i18next';
 import { providerPresetDisplayName } from '../i18n/app-i18n-labels';
+import type { ProviderPreset } from '@yomitomo/shared';
+
+export function providerDraftFromPreset(
+  draft: ProviderDraft,
+  preset: ProviderPreset,
+): ProviderDraft {
+  return {
+    ...draft,
+    presetId: preset.id,
+    name: providerPresetDisplayName(preset.id, preset.name),
+    type: preset.type,
+    logo: preset.logo,
+    baseUrl: preset.baseUrl,
+    modelName: preset.modelName,
+    modelNames: preset.modelNames,
+    modelInputMode: 'list',
+    reasoningEffort: 'none',
+  };
+}
 
 export function ProviderForm({
   draft,
   onChange,
   selectContentClassName = 'theme-select-content',
+  showProviderIdentityFields = true,
 }: {
   draft: ProviderDraft;
   onChange: (draft: ProviderDraft) => void;
   selectContentClassName?: string;
+  showProviderIdentityFields?: boolean;
 }) {
   const { t } = useTranslation();
-  const { fetchModels, clearModelStatus, modelError, modelLoading, modelNotice, visibleModels } =
-    useProviderModelFetch(draft, onChange);
+  const {
+    fetchModels,
+    clearModelStatus,
+    modelError,
+    modelLoading,
+    modelNotice,
+    presetModels,
+    visibleModels,
+  } = useProviderModelFetch(draft, onChange);
 
   function applyPreset(presetId: string) {
     const preset = providerPresets.find((item) => item.id === presetId);
     if (!preset) return;
     clearModelStatus();
-    onChange({
-      ...draft,
-      presetId: preset.id,
-      name: providerPresetDisplayName(preset.id, preset.name),
-      type: preset.type,
-      logo: preset.logo,
-      baseUrl: preset.baseUrl,
-      modelName: preset.modelName,
-      modelNames: preset.modelNames,
-      modelInputMode: 'list',
-      reasoningEffort: 'none',
-    });
-  }
-
-  function useCustomModel() {
-    clearModelStatus();
-    onChange({
-      ...draft,
-      modelInputMode: 'custom',
-      modelNames: undefined,
-    });
+    onChange(providerDraftFromPreset(draft, preset));
   }
 
   const selectedPreset = providerPresets.find((preset) => preset.id === draft.presetId);
 
   return (
     <div className="settings-form-grid">
-      <Field
-        id="provider-preset"
-        className="col-span-2"
-        label={t('settings.models.presetProvider')}
-      >
-        <Select value={draft.presetId || ''} onValueChange={applyPreset}>
-          <SelectTrigger
+      {showProviderIdentityFields ? (
+        <>
+          <Field
             id="provider-preset"
-            aria-labelledby="provider-preset-label"
-            className="provider-select-trigger"
+            className="col-span-2"
+            label={t('settings.models.presetProvider')}
           >
-            <SelectValue placeholder={t('settings.models.chooseProviderPreset')}>
-              {selectedPreset ? (
-                <span className="provider-preset-item">
-                  <img
-                    className="provider-preset-logo"
-                    src={providerLogoMap[selectedPreset.logo]}
-                    alt=""
-                  />
-                  {providerPresetDisplayName(selectedPreset.id, selectedPreset.name)}
-                </span>
-              ) : undefined}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent className={selectContentClassName}>
-            <SelectGroup>
-              {providerPresets.map((preset) => (
-                <SelectItem key={preset.id} value={preset.id}>
-                  <span className="provider-preset-item">
-                    <img
-                      className="provider-preset-logo"
-                      src={providerLogoMap[preset.logo]}
-                      alt=""
-                    />
-                    {providerPresetDisplayName(preset.id, preset.name)}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </Field>
-      <Field id="provider-name" label={t('settings.models.providerName')}>
-        <Input
-          id="provider-name"
-          name="provider-name"
-          autoComplete="off"
-          value={draft.name || ''}
-          onChange={(event) => onChange({ ...draft, name: event.target.value })}
-        />
-      </Field>
+            <Select value={draft.presetId || ''} onValueChange={applyPreset}>
+              <SelectTrigger
+                id="provider-preset"
+                aria-labelledby="provider-preset-label"
+                className="provider-select-trigger"
+              >
+                <SelectValue placeholder={t('settings.models.chooseProviderPreset')}>
+                  {selectedPreset ? (
+                    <span className="provider-preset-item">
+                      <img
+                        className="provider-preset-logo"
+                        src={providerLogoMap[selectedPreset.logo]}
+                        alt=""
+                      />
+                      {providerPresetDisplayName(selectedPreset.id, selectedPreset.name)}
+                    </span>
+                  ) : undefined}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className={selectContentClassName}>
+                <SelectGroup>
+                  {providerPresets.map((preset) => (
+                    <SelectItem key={preset.id} value={preset.id}>
+                      <span className="provider-preset-item">
+                        <img
+                          className="provider-preset-logo"
+                          src={providerLogoMap[preset.logo]}
+                          alt=""
+                        />
+                        {providerPresetDisplayName(preset.id, preset.name)}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field id="provider-name" label={t('settings.models.providerName')}>
+            <Input
+              id="provider-name"
+              name="provider-name"
+              autoComplete="off"
+              value={draft.name || ''}
+              onChange={(event) => onChange({ ...draft, name: event.target.value })}
+            />
+          </Field>
+        </>
+      ) : null}
       <Field id="provider-base-url" label="Base URL">
         <Input
           id="provider-base-url"
@@ -129,10 +141,10 @@ export function ProviderForm({
         modelError={modelError}
         modelLoading={modelLoading}
         modelNotice={modelNotice}
+        presetModels={presetModels}
         visibleModels={visibleModels}
         onChange={onChange}
         onFetchModels={fetchModels}
-        onUseCustomModel={useCustomModel}
       />
       <Field id="provider-api-key" className="col-span-2" label="API Key">
         <SecretInput

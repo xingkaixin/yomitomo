@@ -52,7 +52,7 @@ describe('store normalizers provider and agent fields', () => {
       'gpt-5',
       'claude',
     ]);
-    expect(normalizeModelNames(['', 42])).toBeUndefined();
+    expect(normalizeModelNames(['', 42])).toEqual([]);
   });
 
   it('maps provider rows to safe store records', () => {

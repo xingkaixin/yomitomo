@@ -23,7 +23,7 @@ export function rowToProvider(row: typeof schema.providers.$inferSelect): LlmPro
     apiKey: '',
     hasApiKey: Boolean(row.apiKeyRef),
     modelName: row.modelName,
-    modelNames: normalizeModelNames(row.modelNames) || undefined,
+    modelNames: normalizeModelNames(row.modelNames),
     modelInputMode: normalizeProviderModelInputMode(row.modelInputMode) || 'list',
     reasoningEffort: 'none',
     createdAt: row.createdAt,
@@ -91,7 +91,7 @@ export function normalizeModelNames(value: unknown): string[] | undefined {
       value.filter((item): item is string => typeof item === 'string').map((item) => item.trim()),
     ),
   ).filter(Boolean);
-  return names.length > 0 ? names : undefined;
+  return names;
 }
 
 export function normalizeReasoningEffort(value: unknown): ReasoningEffort | undefined {
