@@ -936,6 +936,10 @@ describe('desktop store articles', () => {
                         status: 'pending',
                         title: '',
                         content: '新增判断',
+                        sourceDraftHash: 'draft_hash_1',
+                        sourceReviewSessionId: 'review-session-proposals',
+                        sourceReviewMessageId: 'review-message-proposals',
+                        sourceAgentId: 'review-agent-1',
                         updatedAt: '2026-05-17T01:31:00.000Z',
                       },
                       {
@@ -996,6 +1000,10 @@ describe('desktop store articles', () => {
         status: 'pending',
         title: '新增：新增判断',
         content: '新增判断',
+        sourceDraftHash: 'draft_hash_1',
+        sourceReviewSessionId: 'review-session-proposals',
+        sourceReviewMessageId: 'review-message-proposals',
+        sourceAgentId: 'review-agent-1',
       }),
     ]);
   });

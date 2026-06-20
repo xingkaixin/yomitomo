@@ -1,14 +1,24 @@
 import i18next from 'i18next';
-import type {
-  AnnotationDistillationProposal,
-  AnnotationDistillationProposalStatus,
-  AnnotationDistillationReviewSession,
+import {
+  hashText,
+  type AnnotationDistillationProposal,
+  type AnnotationDistillationProposalStatus,
+  type AnnotationDistillationReviewSession,
 } from '@yomitomo/shared';
 
 export type DraftSelectionSnapshot = {
   start: number;
   end: number;
 };
+
+export type ProposalApplyFailureReason =
+  | 'missing_insert_content'
+  | 'missing_replace_target'
+  | 'missing_delete_target'
+  | 'target_not_found'
+  | 'target_ambiguous'
+  | 'insert_anchor_not_found'
+  | 'duplicate_insert';
 
 export type ProposalApplyResult =
   | {
@@ -19,8 +29,30 @@ export type ProposalApplyResult =
     }
   | {
       ok: false;
-      reason: string;
+      reason: ProposalApplyFailureReason;
     };
+
+export function proposalApplyFailureMessage(reason: ProposalApplyFailureReason) {
+  if (reason === 'missing_insert_content') {
+    return i18next.t('sedimentation.proposalErrors.missingInsertContent');
+  }
+  if (reason === 'missing_replace_target') {
+    return i18next.t('sedimentation.proposalErrors.missingReplaceTarget');
+  }
+  if (reason === 'missing_delete_target') {
+    return i18next.t('sedimentation.proposalErrors.missingDeleteTarget');
+  }
+  if (reason === 'target_ambiguous') {
+    return i18next.t('sedimentation.proposalErrors.targetAmbiguous');
+  }
+  if (reason === 'insert_anchor_not_found') {
+    return i18next.t('sedimentation.proposalErrors.insertAnchorNotFound');
+  }
+  if (reason === 'duplicate_insert') {
+    return i18next.t('sedimentation.proposalErrors.duplicateInsert');
+  }
+  return i18next.t('sedimentation.proposalErrors.targetNotFound');
+}
 
 export function applyDistillationProposalToDraft(
   draft: string,
@@ -29,8 +61,8 @@ export function applyDistillationProposalToDraft(
 ): ProposalApplyResult {
   if (proposal.kind === 'insert') {
     const content = proposal.content?.trim();
-    if (!content)
-      return { ok: false, reason: i18next.t('sedimentation.proposalErrors.missingInsertContent') };
+    if (!content) return { ok: false, reason: 'missing_insert_content' };
+    if (draftContainsContent(draft, content)) return { ok: false, reason: 'duplicate_insert' };
     const selectionIndex = validSelectionEnd(draft, selection);
     if (selectionIndex !== null) {
       const result = insertTextAt(draft, content, selectionIndex);
@@ -42,16 +74,23 @@ export function applyDistillationProposalToDraft(
         const result = insertTextAt(draft, content, match.index + match.text.length);
         return { ok: true, ...result };
       }
+      return {
+        ok: false,
+        reason:
+          match.reason === 'target_ambiguous' ? 'target_ambiguous' : 'insert_anchor_not_found',
+      };
     }
-    const result = insertTextAt(draft, content, draft.length);
-    return { ok: true, ...result };
+    if (proposal.sourceDraftHash && proposal.sourceDraftHash === hashText(draft)) {
+      const result = insertTextAt(draft, content, draft.length);
+      return { ok: true, ...result };
+    }
+    return { ok: false, reason: 'insert_anchor_not_found' };
   }
 
   if (proposal.kind === 'replace') {
     const targetText = proposal.targetText?.trim();
     const replacementText = proposal.replacementText?.trim();
-    if (!targetText || !replacementText)
-      return { ok: false, reason: i18next.t('sedimentation.proposalErrors.missingReplaceTarget') };
+    if (!targetText || !replacementText) return { ok: false, reason: 'missing_replace_target' };
     const match = uniqueTextMatch(draft, targetText);
     if (!match.ok) return { ok: false, reason: match.reason };
     return {
@@ -63,8 +102,7 @@ export function applyDistillationProposalToDraft(
   }
 
   const targetText = proposal.targetText?.trim();
-  if (!targetText)
-    return { ok: false, reason: i18next.t('sedimentation.proposalErrors.missingDeleteTarget') };
+  if (!targetText) return { ok: false, reason: 'missing_delete_target' };
   const match = uniqueTextMatch(draft, targetText);
   if (!match.ok) return { ok: false, reason: match.reason };
   return {
@@ -120,7 +158,7 @@ function uniqueTextMatch(draft: string, text: string) {
   if (draft.indexOf(text, index + text.length) >= 0) {
     return {
       ok: false as const,
-      reason: i18next.t('sedimentation.proposalErrors.targetAmbiguous'),
+      reason: 'target_ambiguous' as const,
     };
   }
   return { ok: true as const, index, text };
@@ -131,7 +169,7 @@ function uniqueCompactTextMatch(draft: string, text: string) {
   if (!target) {
     return {
       ok: false as const,
-      reason: i18next.t('sedimentation.proposalErrors.targetNotFound'),
+      reason: 'target_not_found' as const,
     };
   }
   const source = compactDraft(draft);
@@ -139,13 +177,13 @@ function uniqueCompactTextMatch(draft: string, text: string) {
   if (compactIndex < 0) {
     return {
       ok: false as const,
-      reason: i18next.t('sedimentation.proposalErrors.targetNotFound'),
+      reason: 'target_not_found' as const,
     };
   }
   if (source.text.indexOf(target, compactIndex + target.length) >= 0) {
     return {
       ok: false as const,
-      reason: i18next.t('sedimentation.proposalErrors.targetAmbiguous'),
+      reason: 'target_ambiguous' as const,
     };
   }
   const start = source.offsets[compactIndex];
@@ -153,7 +191,7 @@ function uniqueCompactTextMatch(draft: string, text: string) {
   if (start === undefined || last === undefined) {
     return {
       ok: false as const,
-      reason: i18next.t('sedimentation.proposalErrors.targetNotFound'),
+      reason: 'target_not_found' as const,
     };
   }
   return {
@@ -177,6 +215,11 @@ function compactDraft(value: string) {
 
 function compactText(value: string) {
   return value.replace(/\s+/g, '');
+}
+
+function draftContainsContent(draft: string, content: string) {
+  const target = compactText(content);
+  return Boolean(target && compactText(draft).includes(target));
 }
 
 function insertTextAt(

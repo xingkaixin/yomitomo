@@ -3,7 +3,7 @@
 import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Agent, Annotation, ArticleRecord } from '@yomitomo/shared';
+import { hashText, type Agent, type Annotation, type ArticleRecord } from '@yomitomo/shared';
 import { AnnotationDiscussionWindowApp } from '../annotation-discussion/app-annotation-discussion-window';
 import { AnnotationSedimentationWindowApp } from '../annotation-discussion/app-annotation-sedimentation-window';
 import { applyDistillationProposalToDraft } from '../annotation-discussion/app-annotation-sedimentation-proposals';
@@ -91,7 +91,7 @@ describe('annotation distillation UI', () => {
         annotation({
           distillation: {
             status: 'unpublished',
-            content: '',
+            content: '已有判断。',
             reviewSessions: [
               {
                 id: 'review_session_1',
@@ -108,6 +108,7 @@ describe('annotation distillation UI', () => {
                         kind: 'insert',
                         status: 'pending',
                         title: '新增判断',
+                        insertAfterText: '已有判断。',
                         content: '这是一条新的沉淀判断。',
                         updatedAt: now,
                       },
@@ -131,7 +132,7 @@ describe('annotation distillation UI', () => {
 
     await waitFor(() => {
       const textarea = screen.getByPlaceholderText(/写下你想沉淀/) as HTMLTextAreaElement;
-      expect(textarea.value).toBe('这是一条新的沉淀判断。');
+      expect(textarea.value).toBe('已有判断。\n这是一条新的沉淀判断。');
     });
     await waitFor(() => {
       expect(desktop.saveArticle).toHaveBeenCalledWith(
@@ -176,7 +177,7 @@ describe('annotation distillation UI', () => {
     render(<AnnotationSedimentationWindowApp />);
 
     const textarea = (await screen.findByPlaceholderText(
-      '让已选审阅助手讨论这份沉淀...',
+      '让当前审阅助手讨论这份沉淀...',
     )) as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: '请重点看证据边界' } });
     fireEvent.click(await screen.findByRole('button', { name: '发送' }));
@@ -194,6 +195,61 @@ describe('annotation distillation UI', () => {
         expect.any(Function),
       );
     });
+  });
+
+  it('switches the selected review assistant instead of selecting multiple assistants', async () => {
+    const desktop = installDesktopApi(article(annotation()));
+    desktop.requestAgentDistillationReviewStream.mockImplementation(async (payload) => ({
+      id: payload.reviewMessageId || 'review_message_1',
+      author: 'ai',
+      content: '收到，我来审阅。',
+      createdAt: now,
+      agentId: payload.agentId,
+      proposals: [],
+    }));
+    window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
+
+    render(<AnnotationSedimentationWindowApp />);
+
+    await screen.findByPlaceholderText('让当前审阅助手讨论这份沉淀...');
+    fireEvent.click(await screen.findByRole('button', { name: '@梁证言' }));
+    fireEvent.click(await screen.findByRole('button', { name: '发送' }));
+
+    await waitFor(() => {
+      expect(desktop.requestAgentDistillationReviewStream).toHaveBeenCalledOnce();
+    });
+    expect(desktop.requestAgentDistillationReviewStream).toHaveBeenCalledWith(
+      expect.objectContaining({ agentId: 'agent_2' }),
+      expect.any(Function),
+    );
+  });
+
+  it('keeps the current review assistant selected when clicked again', async () => {
+    const desktop = installDesktopApi(article(annotation()));
+    desktop.requestAgentDistillationReviewStream.mockImplementation(async (payload) => ({
+      id: payload.reviewMessageId || 'review_message_1',
+      author: 'ai',
+      content: '收到，我来审阅。',
+      createdAt: now,
+      agentId: payload.agentId,
+      proposals: [],
+    }));
+    window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
+
+    render(<AnnotationSedimentationWindowApp />);
+
+    await screen.findByPlaceholderText('让当前审阅助手讨论这份沉淀...');
+    fireEvent.click(await screen.findByRole('button', { name: '@周现' }));
+    expect(await screen.findByText('需要保留一个审阅助手')).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: '发送' }));
+
+    await waitFor(() => {
+      expect(desktop.requestAgentDistillationReviewStream).toHaveBeenCalledOnce();
+    });
+    expect(desktop.requestAgentDistillationReviewStream).toHaveBeenCalledWith(
+      expect.objectContaining({ agentId: 'agent_1' }),
+      expect.any(Function),
+    );
   });
 
   it('renders and saves streamed structured review items', async () => {
@@ -235,7 +291,7 @@ describe('annotation distillation UI', () => {
 
     render(<AnnotationSedimentationWindowApp />);
 
-    await screen.findByPlaceholderText('让已选审阅助手讨论这份沉淀...');
+    await screen.findByPlaceholderText('让当前审阅助手讨论这份沉淀...');
     fireEvent.click(await screen.findByRole('button', { name: '发送' }));
 
     expect(await screen.findByText('这段判断有价值，但证据边界还不够清楚。')).toBeTruthy();
@@ -250,8 +306,29 @@ describe('annotation distillation UI', () => {
                   expect.objectContaining({
                     messages: [
                       expect.objectContaining({
-                        items: [overviewItem, proposalItem],
-                        proposals: [proposal],
+                        items: [
+                          overviewItem,
+                          expect.objectContaining({
+                            id: proposalItem.id,
+                            type: 'proposal',
+                            proposal: expect.objectContaining({
+                              id: proposal.id,
+                              sourceDraftHash: hashText(''),
+                              sourceReviewSessionId: expect.any(String),
+                              sourceReviewMessageId: expect.any(String),
+                              sourceAgentId: 'agent_1',
+                            }),
+                          }),
+                        ],
+                        proposals: [
+                          expect.objectContaining({
+                            id: proposal.id,
+                            sourceDraftHash: hashText(''),
+                            sourceReviewSessionId: expect.any(String),
+                            sourceReviewMessageId: expect.any(String),
+                            sourceAgentId: 'agent_1',
+                          }),
+                        ],
                         status: 'done',
                       }),
                     ],
@@ -377,7 +454,7 @@ describe('annotation distillation UI', () => {
 
     render(<AnnotationSedimentationWindowApp />);
 
-    await screen.findByPlaceholderText('让已选审阅助手讨论这份沉淀...');
+    await screen.findByPlaceholderText('让当前审阅助手讨论这份沉淀...');
     fireEvent.click(await screen.findByRole('button', { name: '发送' }));
 
     expect(await screen.findAllByText('provider failed')).toHaveLength(2);
@@ -468,7 +545,137 @@ describe('annotation distillation proposals', () => {
 
     expect(result).toEqual({
       ok: false,
-      reason: '目标文本在当前草稿中出现多次，需要手动定位',
+      reason: 'target_ambiguous',
+    });
+  });
+
+  it('inserts after a unique anchor', () => {
+    const result = applyDistillationProposalToDraft(
+      '第一段\n第二段',
+      {
+        id: 'proposal_1',
+        kind: 'insert',
+        status: 'pending',
+        title: '新增',
+        insertAfterText: '第一段',
+        content: '新增段落',
+        updatedAt: now,
+      },
+      null,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      draft: '第一段\n新增段落\n第二段',
+      changeOffset: 4,
+      changeLength: 4,
+    });
+  });
+
+  it('does not append insert proposals when the anchor is missing', () => {
+    const result = applyDistillationProposalToDraft(
+      '第一段',
+      {
+        id: 'proposal_1',
+        kind: 'insert',
+        status: 'pending',
+        title: '新增',
+        insertAfterText: '不存在的段落',
+        content: '新增段落',
+        updatedAt: now,
+      },
+      null,
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      reason: 'insert_anchor_not_found',
+    });
+  });
+
+  it('does not append insert proposals without selection or anchor', () => {
+    const result = applyDistillationProposalToDraft(
+      '第一段',
+      {
+        id: 'proposal_1',
+        kind: 'insert',
+        status: 'pending',
+        title: '新增',
+        content: '新增段落',
+        updatedAt: now,
+      },
+      null,
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      reason: 'insert_anchor_not_found',
+    });
+  });
+
+  it('appends unanchored insert proposals when the source draft is unchanged', () => {
+    const draft = '第一段';
+    const result = applyDistillationProposalToDraft(
+      draft,
+      {
+        id: 'proposal_1',
+        kind: 'insert',
+        status: 'pending',
+        title: '新增',
+        content: '新增段落',
+        sourceDraftHash: hashText(draft),
+        updatedAt: now,
+      },
+      null,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      draft: '第一段\n新增段落',
+      changeOffset: 4,
+      changeLength: 4,
+    });
+  });
+
+  it('does not append unanchored insert proposals when the source draft changed', () => {
+    const result = applyDistillationProposalToDraft(
+      '第一段',
+      {
+        id: 'proposal_1',
+        kind: 'insert',
+        status: 'pending',
+        title: '新增',
+        content: '新增段落',
+        sourceDraftHash: hashText('旧草稿'),
+        updatedAt: now,
+      },
+      null,
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      reason: 'insert_anchor_not_found',
+    });
+  });
+
+  it('does not insert duplicate proposal content', () => {
+    const result = applyDistillationProposalToDraft(
+      '第一段\n新增段落',
+      {
+        id: 'proposal_1',
+        kind: 'insert',
+        status: 'pending',
+        title: '新增',
+        insertAfterText: '第一段',
+        content: '新增 段落',
+        updatedAt: now,
+      },
+      null,
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      reason: 'duplicate_insert',
     });
   });
 
@@ -601,6 +808,21 @@ function agents(): Agent[] {
       annotationColor: '#f4c95d',
       annotationDensity: 'medium',
       temperature: 0.5,
+      soul: '',
+      enabled: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'agent_2',
+      kind: 'review',
+      providerId: 'provider_1',
+      nickname: '梁证言',
+      username: 'liang',
+      avatar: '',
+      annotationColor: '#8ab4f8',
+      annotationDensity: 'medium',
+      temperature: 0.4,
       soul: '',
       enabled: true,
       createdAt: now,

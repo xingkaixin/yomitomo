@@ -159,6 +159,10 @@ function proposalArray(value: unknown): AnnotationDistillationProposal[] {
         targetText: targetText || undefined,
         replacementText: kind === 'replace' ? replacementText : undefined,
         content: kind === 'insert' ? content : undefined,
+        sourceDraftHash: stringField(item.sourceDraftHash) || undefined,
+        sourceReviewSessionId: stringField(item.sourceReviewSessionId) || undefined,
+        sourceReviewMessageId: stringField(item.sourceReviewMessageId) || undefined,
+        sourceAgentId: stringField(item.sourceAgentId) || undefined,
         updatedAt: stringField(item.updatedAt),
       },
     ];
