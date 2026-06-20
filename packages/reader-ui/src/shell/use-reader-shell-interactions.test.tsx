@@ -32,6 +32,7 @@ const highlightChoice: HighlightChoice = {
 function ShellProbe({
   activeId = null,
   composer = null,
+  readerChatOpen = false,
   settingsOpen = false,
   selectionAction: currentSelectionAction = selectionAction,
   visibleAnnotationIds = new Set<string>(),
@@ -40,8 +41,10 @@ function ShellProbe({
   onClearSelection = vi.fn(),
   onCloseFloatingPanels = vi.fn(),
   onCloseHighlightChoice = vi.fn(),
+  onCloseReaderChat = vi.fn(),
   onAskSelection = vi.fn(),
   onCopySelection = vi.fn(),
+  onOpenReaderChat = vi.fn(),
   onOpenComposer = vi.fn(),
   onToggleSettings = vi.fn(),
 }: Partial<Parameters<typeof useReaderShellInteractions>[0]>) {
@@ -58,10 +61,13 @@ function ShellProbe({
     onClearSelection,
     onCloseFloatingPanels,
     onCloseHighlightChoice,
+    onCloseReaderChat,
     onAskSelection,
     onCopySelection,
+    onOpenReaderChat,
     onOpenComposer,
     onToggleSettings,
+    readerChatOpen,
   });
 
   return (
@@ -110,12 +116,65 @@ describe('useReaderShellInteractions', () => {
 
   it('routes the ask selection shortcut', () => {
     const onAskSelection = vi.fn();
+    const onOpenReaderChat = vi.fn();
 
-    render(<ShellProbe onAskSelection={onAskSelection} />);
+    render(<ShellProbe onAskSelection={onAskSelection} onOpenReaderChat={onOpenReaderChat} />);
 
     fireEvent.keyDown(window, { key: 'q' });
 
     expect(onAskSelection).toHaveBeenCalledWith(selectionAction);
+    expect(onOpenReaderChat).not.toHaveBeenCalled();
+  });
+
+  it('toggles reader chat with Q when no selection action is active', () => {
+    const onOpenReaderChat = vi.fn();
+    const onCloseReaderChat = vi.fn();
+    const { rerender } = render(
+      <ShellProbe
+        selectionAction={null}
+        onCloseReaderChat={onCloseReaderChat}
+        onOpenReaderChat={onOpenReaderChat}
+      />,
+    );
+
+    fireEvent.keyDown(window, { key: 'q' });
+
+    expect(onOpenReaderChat).toHaveBeenCalledTimes(1);
+    expect(onCloseReaderChat).not.toHaveBeenCalled();
+
+    rerender(
+      <ShellProbe
+        selectionAction={null}
+        onCloseReaderChat={onCloseReaderChat}
+        onOpenReaderChat={onOpenReaderChat}
+        readerChatOpen
+      />,
+    );
+
+    fireEvent.keyDown(window, { key: 'Q' });
+
+    expect(onCloseReaderChat).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not toggle reader chat from editable keyboard targets', () => {
+    const onCloseReaderChat = vi.fn();
+    const onOpenReaderChat = vi.fn();
+
+    render(
+      <>
+        <ShellProbe
+          selectionAction={null}
+          onCloseReaderChat={onCloseReaderChat}
+          onOpenReaderChat={onOpenReaderChat}
+        />
+        <textarea aria-label="draft" />
+      </>,
+    );
+
+    fireEvent.keyDown(screen.getByLabelText('draft'), { key: 'q' });
+
+    expect(onCloseReaderChat).not.toHaveBeenCalled();
+    expect(onOpenReaderChat).not.toHaveBeenCalled();
   });
 
   it('clears selection action on outside pointer down', () => {

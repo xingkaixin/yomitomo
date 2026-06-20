@@ -338,6 +338,146 @@ describe('ReaderSurfaceView empty notes', () => {
 });
 
 describe('ReaderChatPanel', () => {
+  it('focuses the composer when the reader chat opens with quoted context', () => {
+    render(
+      <ReaderChatPanel
+        agents={[agent('agent_1', '林知微')]}
+        draftContext={{
+          sourceType: 'web',
+          quote: '这是划线引用',
+          title: '文章',
+        }}
+        messageSendShortcut="enter"
+        open
+        selectedAssistantId="agent_1"
+        shortcutModifier="⌘"
+        onClose={vi.fn()}
+        onOpen={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('阅读问答内容')).toBe(document.activeElement);
+  });
+
+  it('shows the Q shortcut on the minimized reader chat button', () => {
+    const { container } = render(
+      <ReaderChatPanel
+        agents={[agent('agent_1', '林知微')]}
+        messageSendShortcut="enter"
+        open={false}
+        selectedAssistantId="agent_1"
+        shortcutModifier="⌘"
+        onClose={vi.fn()}
+        onOpen={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: '打开阅读问答' })).toBeTruthy();
+    expect(container.querySelector('.reader-chat-fab-shortcut')?.textContent).toBe('Q');
+  });
+
+  it('keeps a single minimize control and clamps manual reader chat resizing to the viewport', () => {
+    const originalInnerWidth = window.innerWidth;
+    const originalInnerHeight = window.innerHeight;
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 900 });
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 900 });
+
+    try {
+      const { container } = render(
+        <ReaderChatPanel
+          agents={[agent('agent_1', '林知微')]}
+          messageSendShortcut="enter"
+          open
+          selectedAssistantId="agent_1"
+          shortcutModifier="⌘"
+          onClose={vi.fn()}
+          onOpen={vi.fn()}
+          onSubmit={vi.fn()}
+        />,
+      );
+      const panel = container.querySelector<HTMLElement>('.reader-chat-panel')!;
+
+      expect(panel.style.getPropertyValue('--reader-chat-panel-width')).toBe('410px');
+      expect(panel.style.getPropertyValue('--reader-chat-panel-height')).toBe('640px');
+      expect(screen.getByRole('button', { name: '收起阅读问答' })).toBeTruthy();
+      expect(container.querySelectorAll('.reader-chat-header-actions button')).toHaveLength(1);
+
+      const resizeHandle = container.querySelector<HTMLElement>(
+        '.reader-chat-resize-handle.is-top-left',
+      )!;
+      fireEvent.pointerDown(resizeHandle, {
+        button: 0,
+        clientX: 100,
+        clientY: 100,
+        pointerId: 1,
+      });
+      fireEvent.pointerMove(window, {
+        clientX: 60,
+        clientY: 70,
+        pointerId: 1,
+      });
+
+      expect(panel.classList.contains('is-custom')).toBe(true);
+      expect(panel.classList.contains('is-resizing')).toBe(true);
+      expect(panel.style.getPropertyValue('--reader-chat-panel-width')).toBe('450px');
+      expect(panel.style.getPropertyValue('--reader-chat-panel-height')).toBe('670px');
+      expect(panel.style.getPropertyValue('--reader-chat-resize-scale-x')).not.toBe('1.0000');
+
+      fireEvent.pointerMove(window, {
+        clientX: -1000,
+        clientY: -1000,
+        pointerId: 1,
+      });
+
+      expect(panel.style.getPropertyValue('--reader-chat-panel-width')).toBe('868px');
+      expect(panel.style.getPropertyValue('--reader-chat-panel-height')).toBe('788px');
+
+      fireEvent.pointerUp(window, { pointerId: 1 });
+
+      expect(panel.classList.contains('is-resizing')).toBe(false);
+      expect(panel.style.getPropertyValue('--reader-chat-resize-scale-x')).toBe('1.0000');
+    } finally {
+      Object.defineProperty(window, 'innerWidth', {
+        configurable: true,
+        value: originalInnerWidth,
+      });
+      Object.defineProperty(window, 'innerHeight', {
+        configurable: true,
+        value: originalInnerHeight,
+      });
+    }
+  });
+
+  it('keeps the reader chat panel mounted while it collapses into the minimized button', () => {
+    vi.useFakeTimers();
+    const props: React.ComponentProps<typeof ReaderChatPanel> = {
+      agents: [agent('agent_1', '林知微')],
+      messageSendShortcut: 'enter',
+      open: true,
+      selectedAssistantId: 'agent_1',
+      shortcutModifier: '⌘',
+      onClose: vi.fn(),
+      onOpen: vi.fn(),
+      onSubmit: vi.fn(),
+    };
+    const { container, rerender } = render(<ReaderChatPanel {...props} />);
+
+    rerender(<ReaderChatPanel {...props} open={false} />);
+
+    expect(screen.getByRole('button', { name: '打开阅读问答' })).toBeTruthy();
+    expect(container.querySelector('.reader-chat-panel')?.classList.contains('is-closing')).toBe(
+      true,
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(220);
+    });
+
+    expect(container.querySelector('.reader-chat-panel')).toBeNull();
+  });
+
   it('uses avatar assistant selection and keeps quoted context inside the composer', () => {
     const agents = [agent('agent_1', '林知微'), agent('agent_2', '周砚')];
 

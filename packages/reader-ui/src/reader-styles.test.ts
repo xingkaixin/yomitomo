@@ -107,6 +107,14 @@ describe('reader embedded styles', () => {
     expect(chatStyles).toContain('color:var(--app-reader-chat-user-bubble-fg)');
     expect(chatStyles).toContain('background:var(--app-reader-chat-assistant-bubble-bg)');
     expect(chatStyles).toContain('background:var(--app-reader-chat-send-bg)');
+    expect(chatStyles).toContain('width:var(--reader-chat-panel-width');
+    expect(chatStyles).toContain('.reader-chat-fab-shortcut');
+    expect(chatStyles).toContain('overflow:hidden');
+    expect(chatStyles).toContain('.reader-chat-panel.is-opening');
+    expect(chatStyles).toContain('.reader-chat-panel.is-closing');
+    expect(chatStyles).toContain('.reader-chat-panel.is-resizing');
+    expect(chatStyles).toContain('.reader-chat-resize-handle.is-top-left');
+    expect(chatStyles).not.toContain('.reader-chat-resize-handle.is-top-left::after');
     expect(chatStyles).not.toContain('#fffaf0');
   });
 
