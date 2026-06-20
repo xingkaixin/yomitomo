@@ -18,6 +18,7 @@ import {
   getArticleSelection,
   type HighlightBox,
   isRangeInsideArticle,
+  offsetFromArticleStart,
   offsetFromArticleStartIgnoringSelector,
   rangeHighlightBoxes,
   rangeForTranslationTextAnchor,
@@ -106,6 +107,15 @@ export function WebSourceBookcase({
   const articleRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const railRef = useRef<HTMLElement | null>(null);
+  const articleHtmlRenderRef = useRef<ArticleHtmlRenderState>({
+    articleId: '',
+    frozen: false,
+    html: '',
+    pendingHtml: null,
+  });
+  const articleHtmlRenderFlushTimerRef = useRef<number | null>(null);
+  const articleSelectionGestureActiveRef = useRef(false);
+  const deferredArticleTranslationRef = useRef<ArticleTranslation | null>(null);
   const lastSavedWebProgressRef = useRef<number | null>(null);
   const restoredWebProgressArticleRef = useRef<string | null>(null);
   const noteRefs = useRef(new Map<string, HTMLElement>());
@@ -181,6 +191,7 @@ export function WebSourceBookcase({
   const [translationConfirm, setTranslationConfirm] = useState<TranslationConfirmAction | null>(
     null,
   );
+  const [, forceArticleHtmlRender] = useState(0);
   const [translationSuccessBlockIds, setTranslationSuccessBlockIds] = useState<Set<string>>(
     () => new Set(),
   );
@@ -188,9 +199,13 @@ export function WebSourceBookcase({
     new Map<string, ArticleTranslation['segments'][number]['status']>(),
   );
   const translationSuccessTimerRef = useRef(new Map<string, number>());
+  const translationSelectionToastAtRef = useRef(0);
+  const translationToastIdRef = useRef<TranslationToastId | null>(null);
+  const translationToastDismissTimerRef = useRef<number | null>(null);
   const bilingualTranslationTargetLanguage = settings?.bilingualTranslationTargetLanguage;
   const bilingualTranslationStyle = settings?.bilingualTranslationStyle || 'dashedLine';
   const translationInProgress = translationBusy || translation?.status === 'translating';
+  const translationSelectionDisabled = translationVisible && translationInProgress;
   const translationAnnotationCount = useMemo(() => {
     if (!translation) return 0;
     return translationAnnotationsForBlocks(annotations, currentTranslationBlockIds()).length;
@@ -210,6 +225,7 @@ export function WebSourceBookcase({
     sourceReaderWorkspace;
   const {
     temporaryBoxes,
+    selectionAction,
     setHighlightChoice,
     composer,
     clearSelection,
@@ -219,22 +235,33 @@ export function WebSourceBookcase({
     copySelection,
     openComposer,
   } = selection;
+  const selectionDebugContextRef = useRef<Record<string, unknown>>({});
+  const renderedArticleTranslation = translation?.articleId === article.id ? translation : null;
+  const renderedTranslationSuccessBlockIds =
+    translation?.status === 'translating'
+      ? emptyTranslationSuccessBlockIds
+      : translationSuccessBlockIds;
   const contentHtml = useMemo(() => (article ? sourceArticleBodyHtml(article) : ''), [article]);
-  const translatedContentHtml = useMemo(() => {
-    if (!translationVisible || !translation) return contentHtml;
-    return articleHtmlWithBilingualTranslation(document, contentHtml, translation, {
+  const computedTranslatedContentHtml = useMemo(() => {
+    if (!translationVisible || !renderedArticleTranslation) return contentHtml;
+    return articleHtmlWithBilingualTranslation(document, contentHtml, renderedArticleTranslation, {
       retryLabel: t('source.retryTranslationSegment'),
       style: bilingualTranslationStyle,
-      successBlockIds: translationSuccessBlockIds,
+      successBlockIds: renderedTranslationSuccessBlockIds,
     });
   }, [
     bilingualTranslationStyle,
     contentHtml,
+    renderedArticleTranslation,
+    renderedTranslationSuccessBlockIds,
     t,
-    translation,
-    translationSuccessBlockIds,
     translationVisible,
   ]);
+  const translatedContentHtml = articleHtmlForRender(
+    articleHtmlRenderRef.current,
+    article.id,
+    computedTranslatedContentHtml,
+  );
   const {
     matchedQuery: matchedSearchQuery,
     preparing: searchPreparing,
@@ -340,6 +367,8 @@ export function WebSourceBookcase({
     setTranslationVisible(false);
     setTranslationMenuOpen(false);
     setTranslationConfirm(null);
+    deferredArticleTranslationRef.current = null;
+    articleSelectionGestureActiveRef.current = false;
     clearTranslationSuccessFeedback();
     translationSegmentStatusRef.current.clear();
     lastSavedWebProgressRef.current = normalizeSavedWebProgress(article.readingProgress);
@@ -357,8 +386,12 @@ export function WebSourceBookcase({
       })
       .then((current) => {
         if (cancelled) return;
-        setTranslation(current);
-        setTranslationVisible(Boolean(current));
+        if (current) {
+          receiveArticleTranslationUpdate(current, 'initial-load');
+        } else {
+          setTranslation(null);
+          setTranslationVisible(false);
+        }
       })
       .catch(() => {
         if (!cancelled) setTranslation(null);
@@ -374,13 +407,19 @@ export function WebSourceBookcase({
     if (!subscribe) return;
     return subscribe((nextTranslation) => {
       if (nextTranslation.articleId !== article.id) return;
-      setTranslation(nextTranslation);
-      setTranslationVisible(true);
+      receiveArticleTranslationUpdate(nextTranslation, 'subscription');
     });
   }, [article.id]);
 
   useEffect(() => {
-    return () => clearTranslationSuccessFeedback();
+    return () => {
+      if (articleHtmlRenderFlushTimerRef.current) {
+        window.clearTimeout(articleHtmlRenderFlushTimerRef.current);
+        articleHtmlRenderFlushTimerRef.current = null;
+      }
+      clearTranslationSuccessFeedback();
+      dismissTranslationProgressToast();
+    };
   }, []);
 
   useEffect(() => {
@@ -594,24 +633,295 @@ export function WebSourceBookcase({
     return latestArticleRef.current?.id === articleId;
   }
 
-  function handleArticleMouseUp() {
+  function selectionDebugContext() {
+    return {
+      articleId: article.id,
+      sourceType: article.sourceType || 'web',
+      translationVisible,
+      hasTranslation: Boolean(translation),
+      translationStatus: translation?.status ?? null,
+      translationSegmentCount: translation?.segments.length ?? 0,
+      composerOpen: Boolean(composer),
+      selectionActionOpen: Boolean(selectionAction),
+      temporaryBoxCount: temporaryBoxes.length,
+      articleHtmlFrozen: articleHtmlRenderRef.current.frozen,
+      pendingArticleHtml: Boolean(articleHtmlRenderRef.current.pendingHtml),
+      translationSelectionDisabled,
+    };
+  }
+
+  selectionDebugContextRef.current = selectionDebugContext();
+
+  function freezeArticleHtmlRendering(reason: string) {
+    const renderState = articleHtmlRenderRef.current;
+    articleSelectionGestureActiveRef.current = true;
+    if (renderState.frozen) return;
+    renderState.frozen = true;
+    if (articleHtmlRenderFlushTimerRef.current) {
+      window.clearTimeout(articleHtmlRenderFlushTimerRef.current);
+      articleHtmlRenderFlushTimerRef.current = null;
+    }
+    logReaderSelectionDebug('article-html:freeze', {
+      ...selectionDebugContextRef.current,
+      reason,
+      htmlChars: renderState.html.length,
+    });
+  }
+
+  function scheduleArticleHtmlRenderFlush(reason: string) {
+    if (articleHtmlRenderFlushTimerRef.current) {
+      window.clearTimeout(articleHtmlRenderFlushTimerRef.current);
+    }
+    articleHtmlRenderFlushTimerRef.current = window.setTimeout(() => {
+      articleHtmlRenderFlushTimerRef.current = null;
+      flushArticleHtmlRendering(reason);
+      flushDeferredArticleTranslation(reason);
+    }, 0);
+  }
+
+  function flushArticleHtmlRendering(reason: string) {
+    const renderState = articleHtmlRenderRef.current;
+    const pendingHtml = renderState.pendingHtml;
+    renderState.frozen = false;
+    renderState.pendingHtml = null;
+    if (!pendingHtml || pendingHtml === renderState.html) return;
+
+    renderState.html = pendingHtml;
+    logReaderSelectionDebug('article-html:flush', {
+      ...selectionDebugContextRef.current,
+      reason,
+      htmlChars: pendingHtml.length,
+    });
+    forceArticleHtmlRender((version) => version + 1);
+  }
+
+  function receiveArticleTranslationUpdate(nextTranslation: ArticleTranslation, reason: string) {
+    if (nextTranslation.articleId !== article.id) return;
+    updateTranslationProgressToast(nextTranslation);
+    if (shouldDeferArticleTranslationUpdate()) {
+      deferredArticleTranslationRef.current = nextTranslation;
+      logReaderSelectionDebug('translation-update:deferred', {
+        ...selectionDebugContextRef.current,
+        reason,
+        latestUpdatedAt: nextTranslation.updatedAt,
+        latestStatus: nextTranslation.status,
+        latestReadySegmentCount: nextTranslation.segments.filter(
+          (segment) => segment.status === 'ready',
+        ).length,
+      });
+      return;
+    }
+
+    setTranslation(nextTranslation);
+    setTranslationVisible(true);
+  }
+
+  function flushDeferredArticleTranslation(reason: string) {
+    articleSelectionGestureActiveRef.current = false;
+    const pendingTranslation = deferredArticleTranslationRef.current;
+    deferredArticleTranslationRef.current = null;
+    if (!pendingTranslation) return;
+
+    logReaderSelectionDebug('translation-update:flushed', {
+      ...selectionDebugContextRef.current,
+      reason,
+      latestUpdatedAt: pendingTranslation.updatedAt,
+      latestStatus: pendingTranslation.status,
+      latestReadySegmentCount: pendingTranslation.segments.filter(
+        (segment) => segment.status === 'ready',
+      ).length,
+    });
+    setTranslation(pendingTranslation);
+    setTranslationVisible(true);
+  }
+
+  function shouldDeferArticleTranslationUpdate() {
+    if (articleSelectionGestureActiveRef.current) return true;
+    const articleElement = articleRef.current;
+    if (!articleElement) return false;
+    const nativeSelection = getArticleSelection(articleElement);
+    if (!nativeSelection || nativeSelection.rangeCount === 0 || nativeSelection.isCollapsed) {
+      return false;
+    }
+    return isRangeInsideArticle(nativeSelection.getRangeAt(0), articleElement);
+  }
+
+  useEffect(() => {
+    const articleElement = articleRef.current;
+    if (!articleElement) return;
+    logReaderSelectionDebug('article-dom:rendered', {
+      ...selectionDebugContextRef.current,
+      contentHtmlChars: translatedContentHtml.length,
+      renderedTranslationStatus: renderedArticleTranslation?.status ?? null,
+      renderedTranslationSegmentCount: renderedArticleTranslation?.segments.length ?? 0,
+      dom: describeArticleTranslationDom(articleElement),
+    });
+  }, [renderedArticleTranslation, translatedContentHtml]);
+
+  function logCurrentSelectionDebug(event: string, details: Record<string, unknown> = {}) {
+    const articleElement = articleRef.current;
+    logReaderSelectionDebug(event, {
+      ...selectionDebugContext(),
+      selection: articleElement
+        ? describeReaderSelection(getArticleSelection(articleElement), articleElement)
+        : { present: false, articleMounted: false },
+      ...details,
+    });
+  }
+
+  useEffect(() => {
+    const ownerDocument = articleRef.current?.ownerDocument || document;
+    let frame = 0;
+
+    const debugArticle = { articleId: article.id, sourceType: article.sourceType || 'web' };
+    const currentContext = () => selectionDebugContextRef.current;
+    const currentOpenState = () => {
+      const context = currentContext();
+      return {
+        composerOpen: context.composerOpen === true,
+        selectionActionOpen: context.selectionActionOpen === true,
+      };
+    };
+
+    const logSelectionState = (event: string, details: Record<string, unknown> = {}) => {
+      if (!readerSelectionDebugEnabled()) return;
+      const articleElement = articleRef.current;
+      if (!articleElement) return;
+      const nativeSelection = getArticleSelection(articleElement);
+      logReaderSelectionDebug(event, {
+        ...currentContext(),
+        selection: describeReaderSelection(nativeSelection, articleElement),
+        ...details,
+      });
+    };
+
+    const handleSelectionChange = () => {
+      if (!readerSelectionDebugEnabled() || frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        const articleElement = articleRef.current;
+        if (!articleElement) return;
+        const nativeSelection = getArticleSelection(articleElement);
+        if (!shouldLogSelectionDebug(nativeSelection, articleElement, currentOpenState())) {
+          return;
+        }
+        logReaderSelectionDebug('selectionchange', {
+          ...currentContext(),
+          selection: describeReaderSelection(nativeSelection, articleElement),
+        });
+      });
+    };
+
+    const handlePointerEvent = (event: PointerEvent) => {
+      const articleElement = articleRef.current;
+      const surfaceElement = scrollRef.current;
+      if (!articleElement) return;
+      const targetNode = event.target instanceof Node ? event.target : null;
+      const nativeSelection = getArticleSelection(articleElement);
+      const insideReader = Boolean(
+        targetNode && (articleElement.contains(targetNode) || surfaceElement?.contains(targetNode)),
+      );
+      const shouldFlush = event.type === 'pointerup' || event.type === 'pointercancel';
+      if (targetNode && articleElement.contains(targetNode)) {
+        if (event.type === 'pointerdown') freezeArticleHtmlRendering('pointerdown');
+        if (shouldFlush) scheduleArticleHtmlRenderFlush(event.type);
+      } else if (shouldFlush) {
+        scheduleArticleHtmlRenderFlush(`${event.type}-outside-article`);
+      }
+      if (!readerSelectionDebugEnabled()) return;
+      if (
+        !insideReader &&
+        !shouldLogSelectionDebug(nativeSelection, articleElement, currentOpenState())
+      ) {
+        return;
+      }
+
+      logReaderSelectionDebug(event.type, {
+        ...currentContext(),
+        button: event.button,
+        buttons: event.buttons,
+        pointer: describePointerForDebug(event, articleElement, surfaceElement),
+        target: describeSelectionNode(targetNode, articleElement),
+        selection: describeReaderSelection(nativeSelection, articleElement),
+      });
+    };
+
+    const handleWindowBlur = () => scheduleArticleHtmlRenderFlush('window-blur');
+
+    logSelectionState('reader-mounted');
+    ownerDocument.addEventListener('selectionchange', handleSelectionChange);
+    window.addEventListener('pointerdown', handlePointerEvent, true);
+    window.addEventListener('pointerup', handlePointerEvent, true);
+    window.addEventListener('pointercancel', handlePointerEvent, true);
+    window.addEventListener('blur', handleWindowBlur);
+    return () => {
+      ownerDocument.removeEventListener('selectionchange', handleSelectionChange);
+      window.removeEventListener('pointerdown', handlePointerEvent, true);
+      window.removeEventListener('pointerup', handlePointerEvent, true);
+      window.removeEventListener('pointercancel', handlePointerEvent, true);
+      window.removeEventListener('blur', handleWindowBlur);
+      if (frame) window.cancelAnimationFrame(frame);
+      logReaderSelectionDebug('reader-unmounted', debugArticle);
+    };
+  }, [article.id, article.sourceType]);
+
+  function handleArticleMouseUp(event?: React.MouseEvent<HTMLElement>) {
     const articleElement = articleRef.current;
     const canvasElement = canvasRef.current;
-    if (!articleElement || !canvasElement) return;
+    if (!articleElement || !canvasElement) {
+      logCurrentSelectionDebug('mouseup:missing-elements', {
+        hasArticle: Boolean(articleElement),
+        hasCanvas: Boolean(canvasElement),
+      });
+      return;
+    }
 
     const articleSelection = getArticleSelection(articleElement);
+    logReaderSelectionDebug('mouseup:start', {
+      ...selectionDebugContext(),
+      target: describeSelectionNode(
+        event?.target instanceof Node ? event.target : null,
+        articleElement,
+      ),
+      selection: describeReaderSelection(articleSelection, articleElement),
+    });
     if (!articleSelection || articleSelection.rangeCount === 0 || articleSelection.isCollapsed) {
       // Clicks inside the composer bubble up with an empty native selection;
       // while the composer owns the highlight, blank-click clearing is handled
       // by the reader shell pointer capture instead.
+      logReaderSelectionDebug('mouseup:empty-selection', {
+        ...selectionDebugContext(),
+        clearedUiSelection: !composer,
+        selection: describeReaderSelection(articleSelection, articleElement),
+      });
       if (!composer) clearSelection();
+      return;
+    }
+    if (translationSelectionDisabled) {
+      logReaderSelectionDebug('mouseup:translation-selection-disabled', {
+        ...selectionDebugContext(),
+        selection: describeReaderSelection(articleSelection, articleElement),
+      });
+      articleSelection.removeAllRanges();
+      clearSelection();
+      showTranslationSelectionDisabledToast();
       return;
     }
 
     const range = articleSelection.getRangeAt(0);
-    if (!isRangeInsideArticle(range, articleElement)) return;
+    if (!isRangeInsideArticle(range, articleElement)) {
+      logReaderSelectionDebug('mouseup:range-outside-article', {
+        ...selectionDebugContext(),
+        range: describeRangeForDebug(range, articleElement),
+      });
+      return;
+    }
     const translationElement = translationElementForRange(range);
     if (!translationElement && rangeIntersectsIgnoredSelector(range, '[data-reader-translation]')) {
+      logReaderSelectionDebug('mouseup:mixed-source-translation', {
+        ...selectionDebugContext(),
+        range: describeRangeForDebug(range, articleElement),
+      });
       articleSelection.removeAllRanges();
       clearSelection();
       appToast.warning(t('source.mixedSelectionToast'));
@@ -637,26 +947,60 @@ export function WebSourceBookcase({
             ? createEpubTextAnchor(article.ebook.index, selectedArticleText, start, end)
             : createTextAnchor(selectedArticleText, start, end);
         })();
-    if (!anchor) return;
-    if (!anchor.exact.trim()) return;
+    if (!anchor) {
+      logReaderSelectionDebug('mouseup:anchor-missing', {
+        ...selectionDebugContext(),
+        range: describeRangeForDebug(range, articleElement),
+      });
+      return;
+    }
+    if (!anchor.exact.trim()) {
+      logReaderSelectionDebug('mouseup:blank-anchor', {
+        ...selectionDebugContext(),
+        anchor: describeAnchorForDebug(anchor),
+        range: describeRangeForDebug(range, articleElement),
+      });
+      return;
+    }
 
     const rects = range.getClientRects();
     const lastRect = rects[rects.length - 1];
-    if (!lastRect) return;
+    if (!lastRect) {
+      logReaderSelectionDebug('mouseup:missing-rect', {
+        ...selectionDebugContext(),
+        anchor: describeAnchorForDebug(anchor),
+        range: describeRangeForDebug(range, articleElement),
+      });
+      return;
+    }
 
     const canvasRect = canvasElement.getBoundingClientRect();
     const position = selectionActionPosition(lastRect, canvasRect);
-    openSelectionAction(
-      { x: position.x, y: position.y, anchor },
-      rangeHighlightBoxes(range, canvasRect, 'source-selection').map((box) =>
-        Object.assign(box, {
-          annotationId: '__selection__',
-          contributorId: userProfile.id,
-          color: userProfile.annotationColor,
-        }),
-      ),
+    const highlightBoxes = rangeHighlightBoxes(range, canvasRect, 'source-selection').map((box) =>
+      Object.assign(box, {
+        annotationId: '__selection__',
+        contributorId: userProfile.id,
+        color: userProfile.annotationColor,
+      }),
     );
+    openSelectionAction({ x: position.x, y: position.y, anchor }, highlightBoxes);
+    logReaderSelectionDebug('mouseup:selection-action-opened', {
+      ...selectionDebugContext(),
+      anchor: describeAnchorForDebug(anchor),
+      range: describeRangeForDebug(range, articleElement),
+      boxes: describeHighlightBoxesForDebug(highlightBoxes),
+      position,
+      rectCount: rects.length,
+    });
     articleSelection.removeAllRanges();
+    logCurrentSelectionDebug('mouseup:native-selection-cleared');
+  }
+
+  function handleArticleMouseDown(event: React.MouseEvent<HTMLElement>) {
+    if (!translationSelectionDisabled || event.button !== 0) return;
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest(translationSelectionToastIgnoredSelector)) return;
+    showTranslationSelectionDisabledToast();
   }
 
   function handleArticleClick(event: React.MouseEvent<HTMLElement>) {
@@ -718,6 +1062,182 @@ export function WebSourceBookcase({
     return new Set((translation?.segments || []).map((segment) => segment.sourceBlockId));
   }
 
+  function showTranslationSelectionDisabledToast() {
+    const now = Date.now();
+    if (now - translationSelectionToastAtRef.current < translationSelectionToastThrottleMs) return;
+    translationSelectionToastAtRef.current = now;
+    appToast.warning(t('source.translationSelectionDisabledToast'), {
+      description: t('source.translationSelectionDisabledToastDescription'),
+    });
+  }
+
+  function translationCompletionToastTitle(nextTranslation: ArticleTranslation) {
+    const stats = articleTranslationStats(nextTranslation);
+    if (stats.failed > 0) {
+      return t('source.translationCompleteWithFailuresToast', {
+        failed: stats.failed,
+      });
+    }
+    return t('source.translationCompleteToast');
+  }
+
+  function translationCompletionToastDescription(nextTranslation: ArticleTranslation) {
+    const stats = articleTranslationStats(nextTranslation);
+    if (stats.failed > 0) {
+      return t('source.translationCompleteWithFailuresDescription', {
+        failed: stats.failed,
+        ready: stats.ready,
+        total: stats.total,
+      });
+    }
+    return t('source.translationCompleteToastDescription', {
+      ready: stats.ready,
+      total: stats.total,
+    });
+  }
+
+  function translationProgressToastText(nextTranslation: ArticleTranslation) {
+    const stats = articleTranslationStats(nextTranslation);
+    if (stats.failed > 0) {
+      return t('source.translationProgressWithFailuresToastDescription', {
+        failed: stats.failed,
+        ready: stats.ready,
+        total: stats.total,
+      });
+    }
+    return t('source.translationProgressToastDescription', {
+      ready: stats.ready,
+      total: stats.total,
+    });
+  }
+
+  function translationProgressToastDescription(
+    nextTranslation: ArticleTranslation | null,
+  ): React.ReactNode {
+    const stats = nextTranslation ? articleTranslationStats(nextTranslation) : null;
+    const completed = stats ? stats.ready + stats.failed : 0;
+    const progress = stats && stats.total > 0 ? completed / stats.total : 0;
+    const width = `${Math.max(0, Math.min(100, Math.round(progress * 100)))}%`;
+
+    return (
+      <div
+        className={stats ? 'translation-toast-progress' : 'translation-toast-progress is-pending'}
+      >
+        <span>
+          {nextTranslation
+            ? translationProgressToastText(nextTranslation)
+            : t('source.translationInProgressToastDescription')}
+        </span>
+        <i aria-hidden="true" className="translation-toast-progress-track">
+          <b className="translation-toast-progress-fill" style={{ width }} />
+        </i>
+      </div>
+    );
+  }
+
+  function startTranslationProgressToast() {
+    dismissTranslationProgressToast();
+    translationToastIdRef.current = appToast.info(t('source.translatingArticle'), {
+      description: translationProgressToastDescription(null),
+      duration: Infinity,
+      timing: { displayDuration: translationToastExpandedDurationMs },
+    });
+  }
+
+  function updateTranslationProgressToast(nextTranslation: ArticleTranslation) {
+    const toastId = translationToastIdRef.current;
+    if (!toastId || nextTranslation.status !== 'translating') return;
+    appToast.update(toastId, {
+      description: translationProgressToastDescription(nextTranslation),
+      title: t('source.translatingArticle'),
+      type: 'info',
+    });
+  }
+
+  function finishTranslationProgressToast(nextTranslation: ArticleTranslation) {
+    const toastId = translationToastIdRef.current;
+    if (!toastId) return;
+    const stats = articleTranslationStats(nextTranslation);
+    appToast.update(toastId, {
+      action:
+        stats.failed > 0
+          ? {
+              label: t('source.translationFailedToastAction'),
+              onClick: () => revealFirstFailedTranslationSegment(nextTranslation),
+              successLabel: t('source.translationFailedToastActionDone'),
+            }
+          : undefined,
+      description: translationCompletionToastDescription(nextTranslation),
+      title: translationCompletionToastTitle(nextTranslation),
+      type: stats.failed > 0 ? 'warning' : 'success',
+    });
+    scheduleTranslationProgressToastDismiss(stats.failed > 0 ? 12_000 : 6_000);
+  }
+
+  function failTranslationProgressToast(error: unknown) {
+    const toastId = translationToastIdRef.current;
+    if (!toastId) {
+      appToast.error(assistantRuntimeErrorMessage(error, 'source.translationFailed'));
+      return;
+    }
+    appToast.update(toastId, {
+      title: assistantRuntimeErrorMessage(error, 'source.translationFailed'),
+      type: 'error',
+    });
+    scheduleTranslationProgressToastDismiss(8_000);
+  }
+
+  function scheduleTranslationProgressToastDismiss(delayMs: number) {
+    clearTranslationProgressToastDismissTimer();
+    const toastId = translationToastIdRef.current;
+    if (!toastId) return;
+    translationToastDismissTimerRef.current = window.setTimeout(() => {
+      translationToastDismissTimerRef.current = null;
+      if (translationToastIdRef.current !== toastId) return;
+      appToast.dismiss(toastId);
+      translationToastIdRef.current = null;
+    }, delayMs);
+  }
+
+  function dismissTranslationProgressToast() {
+    clearTranslationProgressToastDismissTimer();
+    const toastId = translationToastIdRef.current;
+    if (!toastId) return;
+    appToast.dismiss(toastId);
+    translationToastIdRef.current = null;
+  }
+
+  function clearTranslationProgressToastDismissTimer() {
+    if (!translationToastDismissTimerRef.current) return;
+    window.clearTimeout(translationToastDismissTimerRef.current);
+    translationToastDismissTimerRef.current = null;
+  }
+
+  function revealFirstFailedTranslationSegment(nextTranslation: ArticleTranslation) {
+    const blockId = nextTranslation.segments.find(
+      (segment) => segment.status === 'failed',
+    )?.sourceBlockId;
+    if (!blockId) return;
+    setTranslationVisible(true);
+    window.requestAnimationFrame(() => scrollTranslationBlockIntoView(blockId));
+  }
+
+  function scrollTranslationBlockIntoView(blockId: string) {
+    const articleElement = articleRef.current;
+    const scrollElement = scrollRef.current;
+    if (!articleElement || !scrollElement) return;
+    const target = Array.from(
+      articleElement.querySelectorAll<HTMLElement>('[data-reader-translation-block-id]'),
+    ).find((element) => element.getAttribute('data-reader-translation-block-id') === blockId);
+    const source = Array.from(
+      articleElement.querySelectorAll<HTMLElement>('[data-reader-source-block-id]'),
+    ).find((element) => element.getAttribute('data-reader-source-block-id') === blockId);
+    const element = target || source;
+    if (!element) return;
+    scrollReaderSurfaceToRect(scrollElement, element.getBoundingClientRect(), 82);
+    if (target instanceof HTMLButtonElement) target.focus();
+  }
+
   // 译文锚定在生成文本上，删除/重翻会让旧划线失效，连带删除受影响段的译文批注，
   // 复用单条删除生命周期（讨论、已沉淀卡片、store patch 一并清理）。
   async function deleteTranslationAnnotations(blockIds: Set<string>) {
@@ -738,8 +1258,10 @@ export function WebSourceBookcase({
       setTranslationVisible(true);
       return;
     }
+    setTranslationVisible(true);
     setTranslationBusy(true);
-    try {
+    startTranslationProgressToast();
+    const translationTask = (async () => {
       const retranslatedBlockIds = input.force
         ? currentTranslationBlockIds()
         : input.sourceBlockIds?.length
@@ -752,10 +1274,13 @@ export function WebSourceBookcase({
         sourceBlockIds: input.sourceBlockIds,
         targetLanguage: bilingualTranslationTargetLanguage,
       });
-      setTranslation(nextTranslation);
-      setTranslationVisible(true);
+      receiveArticleTranslationUpdate(nextTranslation, 'request');
+      return nextTranslation;
+    })();
+    try {
+      finishTranslationProgressToast(await translationTask);
     } catch (error) {
-      appToast.error(assistantRuntimeErrorMessage(error, 'source.translationFailed'));
+      failTranslationProgressToast(error);
     } finally {
       setTranslationBusy(false);
     }
@@ -769,6 +1294,8 @@ export function WebSourceBookcase({
         articleId: article.id,
         targetLanguage: bilingualTranslationTargetLanguage,
       });
+      deferredArticleTranslationRef.current = null;
+      dismissTranslationProgressToast();
       setTranslation(null);
       setTranslationVisible(false);
       setTranslationMenuOpen(false);
@@ -782,6 +1309,10 @@ export function WebSourceBookcase({
     const currentComposer = composer;
     const currentArticle = latestArticleRef.current;
     if (!currentArticle) return;
+    logCurrentSelectionDebug('composer:create-annotation', {
+      anchor: describeAnchorForDebug(currentComposer.anchor),
+      noteLength: note.length,
+    });
     cancelComposer();
     const annotation = createUserAnnotation(currentComposer.anchor, userProfile, note);
     await saveAnnotations([...currentArticle.annotations, annotation]);
@@ -790,8 +1321,33 @@ export function WebSourceBookcase({
   }
 
   function askSelection(action: { anchor: Annotation['anchor'] }) {
+    logCurrentSelectionDebug('selection:ask', {
+      anchor: describeAnchorForDebug(action.anchor),
+    });
     readerChat.askSelection(readerQuestionContext(action.anchor));
     clearSelection();
+  }
+
+  function clearSelectionFromShell() {
+    logCurrentSelectionDebug('selection:clear-ui');
+    clearSelection();
+  }
+
+  function cancelComposerFromShell() {
+    logCurrentSelectionDebug('composer:cancel');
+    cancelComposer();
+  }
+
+  function openComposerFromSelection(action: {
+    anchor: Annotation['anchor'];
+    x: number;
+    y: number;
+  }) {
+    logCurrentSelectionDebug('selection:open-composer', {
+      anchor: describeAnchorForDebug(action.anchor),
+      position: { x: action.x, y: action.y },
+    });
+    openComposer(action);
   }
 
   function readerQuestionContext(anchor: Annotation['anchor']): ReaderQuestionContext {
@@ -937,13 +1493,13 @@ export function WebSourceBookcase({
     },
     chat: readerChat.actions,
     selection: {
-      onCancelComposer: cancelComposer,
-      onClearSelection: clearSelection,
+      onCancelComposer: cancelComposerFromShell,
+      onClearSelection: clearSelectionFromShell,
       onCloseHighlightChoice: () => setHighlightChoice(null),
       onCopySelection: copySelection,
       onMouseUp: handleArticleMouseUp,
       onAskSelection: askSelection,
-      onOpenComposer: openComposer,
+      onOpenComposer: openComposerFromSelection,
     },
     shell: {
       onClose,
@@ -986,9 +1542,16 @@ export function WebSourceBookcase({
     article: {
       content: (
         <div
-          className="reader-article-body"
+          aria-busy={translationSelectionDisabled || undefined}
+          className={[
+            'reader-article-body',
+            translationSelectionDisabled ? 'is-translation-select-disabled' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
           dangerouslySetInnerHTML={{ __html: translatedContentHtml }}
           onClick={handleArticleClick}
+          onMouseDown={handleArticleMouseDown}
         />
       ),
       extracted: readerArticle,
@@ -1093,6 +1656,7 @@ export function WebSourceBookcase({
 }
 
 type TranslationConfirmAction = 'translate' | 'retranslate' | 'delete';
+type TranslationToastId = string | number;
 
 type ReaderTranslationLabels = {
   deleteTranslation: string;
@@ -1280,6 +1844,20 @@ function translationAnnotationsForBlocks(annotations: Annotation[], blockIds: Se
   );
 }
 
+function articleTranslationStats(translation: ArticleTranslation) {
+  let ready = 0;
+  let failed = 0;
+  for (const segment of translation.segments) {
+    if (segment.status === 'ready') ready += 1;
+    else if (segment.status === 'failed') failed += 1;
+  }
+  return {
+    failed,
+    ready,
+    total: translation.segments.length,
+  };
+}
+
 function normalizeSavedWebProgress(progress: ArticleReadingProgress | undefined) {
   if (!progress) return null;
   if (!Number.isFinite(progress.progress)) return null;
@@ -1343,4 +1921,416 @@ function rangeIntersectsIgnoredSelector(range: Range, selector: string) {
   const container = document.createElement('div');
   container.append(range.cloneContents());
   return Boolean(container.querySelector(selector));
+}
+
+const readerSelectionDebugStorageKey = 'yomitomo:reader-selection-debug';
+const translationSelectionToastIgnoredSelector =
+  '[data-reader-translation-action], a[href], button, input, textarea, select, [role="button"]';
+const translationSelectionToastThrottleMs = 2000;
+const translationToastExpandedDurationMs = 24 * 60 * 60 * 1000;
+const emptyTranslationSuccessBlockIds = new Set<string>();
+
+type ArticleHtmlRenderState = {
+  articleId: string;
+  frozen: boolean;
+  html: string;
+  pendingHtml: string | null;
+};
+
+function articleHtmlForRender(state: ArticleHtmlRenderState, articleId: string, nextHtml: string) {
+  if (state.articleId !== articleId) {
+    state.articleId = articleId;
+    state.frozen = false;
+    state.html = nextHtml;
+    state.pendingHtml = null;
+    return state.html;
+  }
+
+  if (state.frozen) {
+    if (state.html !== nextHtml) state.pendingHtml = nextHtml;
+    return state.html;
+  }
+
+  state.html = nextHtml;
+  state.pendingHtml = null;
+  return state.html;
+}
+
+function readerSelectionDebugEnabled() {
+  if (import.meta.env.VITE_YOMITOMO_READER_SELECTION_DEBUG === '1') return true;
+  if (import.meta.env.DEV) return true;
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(readerSelectionDebugStorageKey) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function logReaderSelectionDebug(event: string, details: Record<string, unknown>) {
+  if (!readerSelectionDebugEnabled()) return;
+  console.debug('[reader-selection]', event, details);
+  const recordTiming = window.yomitomoDesktop?.recordPerformanceTiming;
+  if (!recordTiming) return;
+  void recordTiming({
+    event: `reader_selection.${selectionDebugEventName(event)}`,
+    data: details,
+  }).catch(() => undefined);
+}
+
+function shouldLogSelectionDebug(
+  selection: Selection | null,
+  articleElement: HTMLElement,
+  openState: { composerOpen: boolean; selectionActionOpen: boolean },
+) {
+  if (openState.composerOpen || openState.selectionActionOpen) return true;
+  if (!selection || selection.rangeCount === 0) return false;
+
+  for (let index = 0; index < selection.rangeCount; index += 1) {
+    try {
+      if (rangeTouchesArticleForDebug(selection.getRangeAt(index), articleElement)) return true;
+    } catch {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function describeReaderSelection(selection: Selection | null, articleElement: HTMLElement) {
+  if (!selection) return { present: false };
+
+  const details: Record<string, unknown> = {
+    present: true,
+    rangeCount: selection.rangeCount,
+    isCollapsed: selection.isCollapsed,
+    type: (selection as Selection & { type?: string }).type ?? null,
+    anchorOffset: selection.anchorOffset,
+    focusOffset: selection.focusOffset,
+    anchorNode: describeSelectionNode(selection.anchorNode, articleElement),
+    focusNode: describeSelectionNode(selection.focusNode, articleElement),
+  };
+
+  if (selection.rangeCount === 0) return details;
+
+  try {
+    const range = selection.getRangeAt(0);
+    details.anchorIsRangeStart =
+      selection.anchorNode === range.startContainer && selection.anchorOffset === range.startOffset;
+    details.focusIsRangeEnd =
+      selection.focusNode === range.endContainer && selection.focusOffset === range.endOffset;
+    details.anchorSourceOffset = safeNumber(() =>
+      selection.anchorNode
+        ? offsetFromArticleStartIgnoringSelector(
+            articleElement,
+            selection.anchorNode,
+            selection.anchorOffset,
+            '[data-reader-translation]',
+          )
+        : -1,
+    );
+    details.focusSourceOffset = safeNumber(() =>
+      selection.focusNode
+        ? offsetFromArticleStartIgnoringSelector(
+            articleElement,
+            selection.focusNode,
+            selection.focusOffset,
+            '[data-reader-translation]',
+          )
+        : -1,
+    );
+    details.firstRange = describeRangeForDebug(range, articleElement);
+  } catch (error) {
+    details.firstRangeError = debugErrorMessage(error);
+  }
+
+  return details;
+}
+
+function describeRangeForDebug(range: Range, articleElement: HTMLElement) {
+  const rects = Array.from(range.getClientRects());
+
+  return {
+    collapsed: range.collapsed,
+    startOffset: range.startOffset,
+    endOffset: range.endOffset,
+    selectedTextLength: safeNumber(() => range.toString().length),
+    start: describeSelectionNode(range.startContainer, articleElement),
+    end: describeSelectionNode(range.endContainer, articleElement),
+    commonAncestor: describeSelectionNode(range.commonAncestorContainer, articleElement),
+    insideArticle: safeBoolean(() => isRangeInsideArticle(range, articleElement)),
+    touchesArticle: safeBoolean(() => rangeTouchesArticleForDebug(range, articleElement)),
+    rawStart: safeNumber(() =>
+      offsetFromArticleStart(articleElement, range.startContainer, range.startOffset),
+    ),
+    rawEnd: safeNumber(() =>
+      offsetFromArticleStart(articleElement, range.endContainer, range.endOffset),
+    ),
+    sourceStart: safeNumber(() =>
+      offsetFromArticleStartIgnoringSelector(
+        articleElement,
+        range.startContainer,
+        range.startOffset,
+        '[data-reader-translation]',
+      ),
+    ),
+    sourceEnd: safeNumber(() =>
+      offsetFromArticleStartIgnoringSelector(
+        articleElement,
+        range.endContainer,
+        range.endOffset,
+        '[data-reader-translation]',
+      ),
+    ),
+    translationBlockId:
+      translationElementForRange(range)?.getAttribute('data-reader-translation-block-id') ?? null,
+    intersectsTranslation: safeBoolean(() =>
+      rangeIntersectsIgnoredSelector(range, '[data-reader-translation]'),
+    ),
+    rectCount: rects.length,
+    firstRect: rects[0] ? describeRectForDebug(rects[0]) : null,
+    lastRect: rects.at(-1) ? describeRectForDebug(rects.at(-1) as DOMRect) : null,
+  };
+}
+
+function describePointerForDebug(
+  event: PointerEvent,
+  articleElement: HTMLElement,
+  surfaceElement: HTMLElement | null,
+) {
+  const elementAtPoint = document.elementFromPoint(event.clientX, event.clientY);
+  const targetElement = event.target instanceof Element ? event.target : null;
+  const targetSourceBlock = targetElement?.closest<HTMLElement>('[data-reader-source-block-id]');
+  const pointSourceBlock = elementAtPoint?.closest<HTMLElement>('[data-reader-source-block-id]');
+
+  return {
+    clientX: Math.round(event.clientX),
+    clientY: Math.round(event.clientY),
+    pageX: Math.round(event.pageX),
+    pageY: Math.round(event.pageY),
+    targetRect: targetElement ? describeRectForDebug(targetElement.getBoundingClientRect()) : null,
+    targetSourceBlockRect: targetSourceBlock
+      ? describeRectForDebug(targetSourceBlock.getBoundingClientRect())
+      : null,
+    elementAtPoint: describeSelectionNode(elementAtPoint, articleElement),
+    pointSourceBlockId: pointSourceBlock?.getAttribute('data-reader-source-block-id') ?? null,
+    pointSourceBlockRect: pointSourceBlock
+      ? describeRectForDebug(pointSourceBlock.getBoundingClientRect())
+      : null,
+    articleRect: describeRectForDebug(articleElement.getBoundingClientRect()),
+    surfaceRect: surfaceElement
+      ? describeRectForDebug(surfaceElement.getBoundingClientRect())
+      : null,
+  };
+}
+
+function describeSelectionNode(node: Node | null, articleElement: HTMLElement | null) {
+  if (!node) return { present: false };
+
+  const element = node instanceof Element ? node : node.parentElement;
+  const translationElement = element?.closest<HTMLElement>('[data-reader-translation]') ?? null;
+  const sourceBlockElement = element?.closest<HTMLElement>('[data-reader-source-block-id]') ?? null;
+  const actionElement = element?.closest<HTMLElement>('[data-reader-translation-action]') ?? null;
+  const className =
+    element && typeof element.className === 'string'
+      ? element.className.trim().split(/\s+/).filter(Boolean).slice(0, 4).join(' ')
+      : '';
+
+  return {
+    present: true,
+    nodeType: node.nodeType,
+    nodeName: node.nodeName,
+    elementTag: element?.tagName.toLowerCase() ?? null,
+    elementId: element?.id || null,
+    className: className || null,
+    role: element?.getAttribute('role') ?? null,
+    inArticle: articleElement ? articleElement.contains(node) : null,
+    css: describeElementSelectionCss(element),
+    sourceBlockId: sourceBlockElement?.getAttribute('data-reader-source-block-id') ?? null,
+    translationBlockId:
+      translationElement?.getAttribute('data-reader-translation-block-id') ?? null,
+    translationStatus:
+      translationElement?.getAttribute('data-reader-translation-status') ??
+      actionElement?.getAttribute('data-reader-translation-status') ??
+      null,
+    translationAction: actionElement?.getAttribute('data-reader-translation-action') ?? null,
+  };
+}
+
+function describeArticleTranslationDom(articleElement: HTMLElement) {
+  const bodyElement = articleElement.querySelector<HTMLElement>('.reader-article-body');
+  const root = bodyElement || articleElement;
+  const sourceBlocks = Array.from(
+    root.querySelectorAll<HTMLElement>('[data-reader-source-block-id]'),
+  );
+  const translationBlocks = Array.from(
+    root.querySelectorAll<HTMLElement>('[data-reader-translation]'),
+  );
+  const indicators = Array.from(
+    root.querySelectorAll<HTMLElement>('.reader-bilingual-translation-indicator'),
+  );
+
+  return {
+    rootChildCount: root.children.length,
+    bodyChildCount: bodyElement?.children.length ?? null,
+    sourceBlockCount: sourceBlocks.length,
+    translationBlockCount: translationBlocks.length,
+    indicatorCount: indicators.length,
+    translationStatuses: countByAttribute(translationBlocks, 'data-reader-translation-status'),
+    indicatorStatuses: countByAttribute(indicators, 'data-reader-translation-status'),
+    sourceBlocks: sourceBlocks.slice(0, 24).map((element) => {
+      const nextElement = nextElementSiblingSkippingEmptyText(element);
+      const indicator = element.querySelector<HTMLElement>(
+        '.reader-bilingual-translation-indicator',
+      );
+      return {
+        blockId: element.getAttribute('data-reader-source-block-id'),
+        tag: element.tagName.toLowerCase(),
+        childIndex: elementChildIndex(element),
+        textLength: element.textContent?.length ?? 0,
+        rect: describeElementRect(element),
+        css: describeElementSelectionCss(element),
+        indicatorStatus: indicator?.getAttribute('data-reader-translation-status') ?? null,
+        nextElement: describeElementForDomDebug(nextElement),
+      };
+    }),
+    translationBlocks: translationBlocks.slice(0, 24).map((element) => ({
+      blockId: element.getAttribute('data-reader-translation-block-id'),
+      status: element.getAttribute('data-reader-translation-status'),
+      tag: element.tagName.toLowerCase(),
+      childIndex: elementChildIndex(element),
+      textLength: element.textContent?.length ?? 0,
+      rect: describeElementRect(element),
+      css: describeElementSelectionCss(element),
+      previousElement: describeElementForDomDebug(previousElementSiblingSkippingEmptyText(element)),
+      nextElement: describeElementForDomDebug(nextElementSiblingSkippingEmptyText(element)),
+    })),
+  };
+}
+
+function describeElementForDomDebug(element: Element | null) {
+  if (!element) return null;
+  const htmlElement = element instanceof HTMLElement ? element : null;
+  return {
+    tag: element.tagName.toLowerCase(),
+    className:
+      typeof element.className === 'string'
+        ? element.className.trim().split(/\s+/).filter(Boolean).slice(0, 4).join(' ') || null
+        : null,
+    sourceBlockId: htmlElement?.getAttribute('data-reader-source-block-id') ?? null,
+    translationBlockId: htmlElement?.getAttribute('data-reader-translation-block-id') ?? null,
+    translationStatus: htmlElement?.getAttribute('data-reader-translation-status') ?? null,
+    childIndex: elementChildIndex(element),
+    textLength: element.textContent?.length ?? 0,
+  };
+}
+
+function describeElementSelectionCss(element: Element | null) {
+  if (!element || typeof window === 'undefined') return null;
+  const style = window.getComputedStyle(element);
+  return {
+    display: style.display,
+    pointerEvents: style.pointerEvents,
+    userSelect: style.userSelect,
+    webkitUserSelect: style.getPropertyValue('-webkit-user-select') || null,
+    visibility: style.visibility,
+  };
+}
+
+function describeElementRect(element: Element) {
+  return describeRectForDebug(element.getBoundingClientRect());
+}
+
+function describeRectForDebug(rect: DOMRect | DOMRectReadOnly) {
+  return {
+    top: Math.round(rect.top),
+    right: Math.round(rect.right),
+    bottom: Math.round(rect.bottom),
+    left: Math.round(rect.left),
+    width: Math.round(rect.width),
+    height: Math.round(rect.height),
+  };
+}
+
+function describeHighlightBoxesForDebug(boxes: HighlightBox[]) {
+  return {
+    count: boxes.length,
+    first: boxes[0] ? describeHighlightBoxForDebug(boxes[0]) : null,
+    last: boxes.at(-1) ? describeHighlightBoxForDebug(boxes.at(-1) as HighlightBox) : null,
+    boxes: boxes.slice(0, 6).map(describeHighlightBoxForDebug),
+  };
+}
+
+function describeHighlightBoxForDebug(box: HighlightBox) {
+  return {
+    id: box.id,
+    top: Math.round(box.top),
+    left: Math.round(box.left),
+    width: Math.round(box.width),
+    height: Math.round(box.height),
+  };
+}
+
+function countByAttribute(elements: HTMLElement[], attribute: string) {
+  const counts: Record<string, number> = {};
+  for (const element of elements) {
+    const value = element.getAttribute(attribute) || 'none';
+    counts[value] = (counts[value] || 0) + 1;
+  }
+  return counts;
+}
+
+function elementChildIndex(element: Element) {
+  if (!element.parentElement) return null;
+  return Array.prototype.indexOf.call(element.parentElement.children, element);
+}
+
+function nextElementSiblingSkippingEmptyText(element: Element) {
+  return element.nextElementSibling;
+}
+
+function previousElementSiblingSkippingEmptyText(element: Element) {
+  return element.previousElementSibling;
+}
+
+function describeAnchorForDebug(anchor: Annotation['anchor']) {
+  return {
+    start: anchor.start,
+    end: anchor.end,
+    exactLength: anchor.exact.length,
+    trimmedLength: anchor.exact.trim().length,
+    segmentId: anchor.segmentId ?? null,
+  };
+}
+
+function rangeTouchesArticleForDebug(range: Range, articleElement: HTMLElement) {
+  const startNode = range.startContainer;
+  const endNode = range.endContainer;
+  if (articleElement.contains(startNode) || articleElement.contains(endNode)) return true;
+  if (articleElement.contains(range.commonAncestorContainer)) return true;
+  return range.intersectsNode(articleElement);
+}
+
+function safeBoolean(read: () => boolean) {
+  try {
+    return read();
+  } catch (error) {
+    return debugErrorMessage(error);
+  }
+}
+
+function safeNumber(read: () => number) {
+  try {
+    return read();
+  } catch (error) {
+    return debugErrorMessage(error);
+  }
+}
+
+function debugErrorMessage(error: unknown) {
+  return error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+}
+
+function selectionDebugEventName(event: string) {
+  return event.replace(/[^a-z0-9_.:-]+/gi, '_');
 }

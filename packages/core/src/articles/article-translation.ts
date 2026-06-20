@@ -55,6 +55,7 @@ export function articleHtmlWithBilingualTranslation(
   const segmentsByBlockId = new Map(
     translation.segments.map((segment) => [segment.sourceBlockId, segment]),
   );
+  let changed = false;
 
   Array.from(container.querySelectorAll<HTMLElement>(translatableBlockSelector))
     .filter(isTopLevelTranslationBlock)
@@ -65,7 +66,6 @@ export function articleHtmlWithBilingualTranslation(
       const blockId = `block_${index + 1}_${textHash.slice(0, 10)}`;
       const segment = segmentsByBlockId.get(blockId);
       if (!segment) return;
-      element.setAttribute('data-reader-source-block-id', blockId);
       const indicator = createTranslationIndicator(articleDocument, segment, {
         retryLabel: options.retryLabel,
         status:
@@ -73,16 +73,19 @@ export function articleHtmlWithBilingualTranslation(
             ? 'success'
             : segment.status,
       });
-      if (indicator) element.append(indicator);
       const translationElement = createTranslationElement(
         articleDocument,
         segment,
         options.style || 'dashedLine',
       );
+      if (!indicator && !translationElement) return;
+      element.setAttribute('data-reader-source-block-id', blockId);
+      if (indicator) element.append(indicator);
       if (translationElement) element.insertAdjacentElement('afterend', translationElement);
+      changed = true;
     });
 
-  return container.innerHTML;
+  return changed ? container.innerHTML : html;
 }
 
 export function sourceTextContent(
@@ -168,8 +171,9 @@ function createTranslationElement(
   element.setAttribute('data-reader-translation-style', style);
   element.setAttribute('data-reader-translation-status', segment.status);
   element.setAttribute('data-reader-translation-block-id', segment.sourceBlockId);
-  if (segment.status === 'ready' && segment.translatedText?.trim()) {
-    element.textContent = segment.translatedText.trim();
+  const translatedText = segment.translatedText?.trim();
+  if (segment.status === 'ready' && translatedText) {
+    element.textContent = translatedText;
     return element;
   }
 

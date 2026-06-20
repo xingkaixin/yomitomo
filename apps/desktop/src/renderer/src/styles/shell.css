@@ -8,6 +8,58 @@
   color: hsl(var(--foreground));
 }
 
+.translation-toast-progress {
+  display: grid;
+  min-width: 220px;
+  gap: 8px;
+}
+
+.translation-toast-progress span {
+  line-height: 1.45;
+}
+
+.translation-toast-progress-track {
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--app-reader-toolbar-progress-track, hsl(var(--border) / 0.48));
+}
+
+.translation-toast-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--app-reader-toolbar-progress-fill, var(--app-reader-primary));
+  transition: width 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.translation-toast-progress.is-pending .translation-toast-progress-fill {
+  width: 42% !important;
+  animation: translation-toast-progress-pending 1.18s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+@keyframes translation-toast-progress-pending {
+  0% {
+    transform: translateX(-110%);
+  }
+
+  100% {
+    transform: translateX(245%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .translation-toast-progress-fill {
+    transition: none;
+  }
+
+  .translation-toast-progress.is-pending .translation-toast-progress-fill {
+    animation: none;
+    transform: none;
+  }
+}
+
 .store-load-error-shell {
   display: grid;
   min-height: 100%;

@@ -779,10 +779,26 @@ export const enResources = {
       deleteTranslation: 'Delete translation',
       retryTranslationSegment: 'Retry this paragraph',
       translatingArticle: 'Generating bilingual translation',
+      translationInProgressToastDescription:
+        'Highlights are temporarily unavailable while translation is running. Paragraph placeholders and status stay visible.',
+      translationProgressToastDescription: 'Translated {{ready}}/{{total}} paragraphs.',
+      translationProgressWithFailuresToastDescription:
+        'Translated {{ready}}/{{total}} paragraphs, {{failed}} failed.',
       translationReady: 'Bilingual translation is ready',
+      translationCompleteToast: 'Bilingual translation is ready',
+      translationCompleteToastDescription: 'Translated {{ready}}/{{total}} paragraphs.',
+      translationCompleteWithFailuresToast: 'Bilingual translation finished with failures',
+      translationCompleteWithFailuresDescription:
+        'Translated {{ready}}/{{total}} paragraphs. Failed paragraphs can be retried in the article.',
+      translationFailedToastAction: 'View failed paragraph',
+      translationFailedToastActionDone: 'Located',
       translationFailed: 'Bilingual translation failed. Try again later.',
       deleteTranslationFailed: 'Could not delete the translation. Try again later.',
       mixedSelectionToast: 'Select only the original text or only the translation',
+      translationSelectionDisabledToast:
+        'The article is being translated. Highlights are temporarily unavailable.',
+      translationSelectionDisabledToastDescription:
+        'You can select and highlight text again after translation finishes.',
     },
     discussion: {
       title: 'Annotation discussion',

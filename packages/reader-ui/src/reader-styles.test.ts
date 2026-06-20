@@ -89,6 +89,13 @@ describe('reader embedded styles', () => {
     );
   });
 
+  it('disables article text selection during visible translation work', () => {
+    expect(readerStyles).toContain(
+      '.reader-article-body.is-translation-select-disabled{user-select:none;-webkit-user-select:none}',
+    );
+    expect(readerStyles).toContain('.reader-bilingual-translation-indicator.is-failed{');
+  });
+
   it('keeps reader chat colors on reader theme tokens', () => {
     const chatStyles = readerConversationStyles.slice(
       readerConversationStyles.indexOf('.reader-chat-fab{'),
