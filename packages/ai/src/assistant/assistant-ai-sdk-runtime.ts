@@ -93,6 +93,7 @@ function runAssistantAiSdkToolRuntimeEffect(
       prompt: useStructuredDistillationReview
         ? `${options.payload.user}\n\n${distillationReviewStructuredOutputPrompt({
             jsonlFallback: distillationReviewUsesJsonlFallback,
+            mode: options.payload.distillationReviewMode,
           })}`
         : options.payload.user,
       maxOutputTokens: options.payload.maxTokens,

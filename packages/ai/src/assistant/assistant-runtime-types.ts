@@ -299,6 +299,7 @@ export type AssistantAiSdkRuntimeOptions = {
     user: string;
     maxTokens: number;
     temperature?: number;
+    distillationReviewMode?: 'review' | 'organize_discussion';
   };
   tools: AssistantToolDefinition[];
   allowedAnnotationIds: string[];

@@ -120,6 +120,7 @@ describe('agent thread reply tool loop', () => {
           user: 'user',
           maxTokens: 1200,
           temperature: 0.4,
+          distillationReviewMode: 'review' as const,
         })),
         runAssistantAiSdkToolRuntime: runtime,
       },

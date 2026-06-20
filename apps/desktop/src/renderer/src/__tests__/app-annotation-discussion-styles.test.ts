@@ -97,11 +97,11 @@ describe('annotation discussion styles', () => {
     expect(styles).toContain('.annotation-sedimentation-action-tooltip {');
     expect(styles).toContain('max-width: 260px;');
     expect(styles).toContain('@media (max-width: 1040px) {');
-    expect(styles).toContain(`  .annotation-sedimentation-document header button {
+    expect(styles).toContain(`  .annotation-sedimentation-document > header button {
     width: 40px;
     padding: 0;
   }`);
-    expect(styles).toContain(`  .annotation-sedimentation-document header button span {
+    expect(styles).toContain(`  .annotation-sedimentation-document > header button span {
     position: absolute;
     width: 1px;
     height: 1px;

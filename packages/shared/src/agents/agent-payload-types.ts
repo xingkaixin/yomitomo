@@ -12,6 +12,9 @@ export type AgentMessagePayload = {
   uiLanguage?: UiLanguage;
   responseMode?: 'thread_reply' | 'create_thought' | 'distillation_review';
   distillationReviewMode?: 'review' | 'organize_discussion';
+  distillationDraft?: string;
+  distillationReviewRequest?: string;
+  distillationReviewTranscript?: string;
   readingIntent?: AgentReadingIntent;
   instruction?: string;
   reviewTargetCommentId?: string;

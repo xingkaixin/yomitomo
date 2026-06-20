@@ -65,6 +65,26 @@ describe('annotation distillation UI', () => {
     expect(screen.queryByText('草稿')).toBeNull();
   });
 
+  it('keeps an intentionally empty local distillation draft', async () => {
+    installDesktopApi(
+      article(
+        annotation({
+          distillation: {
+            status: 'unpublished',
+            content: '旧的沉淀草稿',
+          },
+        }),
+      ),
+    );
+    window.localStorage.setItem('annotation-distillation-draft:article_1:annotation_1', '');
+    window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
+
+    render(<AnnotationSedimentationWindowApp />);
+
+    const textarea = (await screen.findByPlaceholderText(/写下你想沉淀/)) as HTMLTextAreaElement;
+    expect(textarea.value).toBe('');
+  });
+
   it('accepts a pending proposal into the local distillation draft', async () => {
     const desktop = installDesktopApi(
       article(
@@ -167,7 +187,9 @@ describe('annotation distillation UI', () => {
     await waitFor(() => {
       expect(desktop.requestAgentDistillationReviewStream).toHaveBeenCalledWith(
         expect.objectContaining({
-          instruction: expect.stringContaining('请重点看证据边界'),
+          distillationDraft: '',
+          distillationReviewRequest: '请重点看证据边界',
+          instruction: '',
         }),
         expect.any(Function),
       );
@@ -241,6 +263,111 @@ describe('annotation distillation UI', () => {
         }),
       );
     });
+  });
+
+  it('renders organized discussion in the draft area without saving a review session', async () => {
+    const desktop = installDesktopApi(article(annotation()));
+    const overviewItem = {
+      id: 'review_item_1',
+      type: 'overview' as const,
+      stance: 'solid' as const,
+      content: '可以沉淀为一个可迁移的判断。',
+    };
+    desktop.requestAgentDistillationReviewStream.mockImplementation(async (payload, onEvent) => {
+      onEvent({ type: 'item', item: overviewItem });
+      return {
+        id: payload.reviewMessageId || 'review_message_1',
+        author: 'ai',
+        content: overviewItem.content,
+        createdAt: now,
+        agentId: 'agent_1',
+        items: [overviewItem],
+        proposals: [],
+        status: 'done',
+      };
+    });
+    window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
+
+    render(<AnnotationSedimentationWindowApp />);
+
+    fireEvent.click(await screen.findByRole('button', { name: '整理讨论' }));
+    expect(await screen.findByText('整理当前讨论？')).toBeTruthy();
+    expect(screen.getByText(/不会自动改写草稿/)).toBeTruthy();
+    expect(desktop.requestAgentDistillationReviewStream).not.toHaveBeenCalled();
+    fireEvent.click(await screen.findByRole('button', { name: '开始整理' }));
+
+    expect(await screen.findByText('讨论整理')).toBeTruthy();
+    expect(await screen.findByText('可以沉淀为一个可迁移的判断。')).toBeTruthy();
+    expect(screen.getByText('还没有审阅讨论')).toBeTruthy();
+    expect(desktop.requestAgentDistillationReviewStream).toHaveBeenCalledWith(
+      expect.objectContaining({
+        distillationReviewMode: 'organize_discussion',
+        distillationDraft: '',
+        distillationReviewRequest: expect.stringContaining('请整理'),
+        instruction: '',
+      }),
+      expect.any(Function),
+    );
+    expect(desktop.saveArticle).not.toHaveBeenCalled();
+  });
+
+  it('appends an organized insert proposal to the local draft', async () => {
+    const desktop = installDesktopApi(article(annotation()));
+    const proposal = {
+      id: 'proposal_1',
+      kind: 'insert' as const,
+      status: 'pending' as const,
+      title: '补一个判断',
+      content: '讨论可以沉淀成这条判断。',
+      updatedAt: now,
+    };
+    const proposalItem = {
+      id: 'review_item_1',
+      type: 'proposal' as const,
+      proposal,
+    };
+    desktop.requestAgentDistillationReviewStream.mockImplementation(async (payload, onEvent) => {
+      onEvent({ type: 'item', item: proposalItem });
+      return {
+        id: payload.reviewMessageId || 'review_message_1',
+        author: 'ai',
+        content: '整理完成。',
+        createdAt: now,
+        agentId: 'agent_1',
+        items: [proposalItem],
+        proposals: [proposal],
+        status: 'done',
+      };
+    });
+    window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
+
+    render(<AnnotationSedimentationWindowApp />);
+
+    await startOrganizeDiscussion();
+    expect(await screen.findByText('补一个判断')).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: '加入草稿' }));
+
+    await waitFor(() => {
+      const textarea = screen.getByPlaceholderText(/写下你想沉淀/) as HTMLTextAreaElement;
+      expect(textarea.value).toBe('讨论可以沉淀成这条判断。');
+    });
+    expect(screen.getAllByText('已加入草稿').length).toBeGreaterThan(0);
+    expect(desktop.saveArticle).not.toHaveBeenCalled();
+  });
+
+  it('shows organized discussion failures in the draft area', async () => {
+    const desktop = installDesktopApi(article(annotation()));
+    desktop.requestAgentDistillationReviewStream.mockRejectedValue(new Error('provider failed'));
+    window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
+
+    render(<AnnotationSedimentationWindowApp />);
+
+    await startOrganizeDiscussion();
+
+    expect(await screen.findByText('整理失败')).toBeTruthy();
+    expect(await screen.findByText('provider failed')).toBeTruthy();
+    expect(await screen.findByRole('button', { name: '重试' })).toBeTruthy();
+    expect(desktop.saveArticle).not.toHaveBeenCalled();
   });
 
   it('marks failed distillation review messages as failed', async () => {
@@ -420,6 +547,11 @@ function installDesktopApi(sourceArticle: ArticleRecord) {
     value: desktop,
   });
   return desktop;
+}
+
+async function startOrganizeDiscussion() {
+  fireEvent.click(await screen.findByRole('button', { name: '整理讨论' }));
+  fireEvent.click(await screen.findByRole('button', { name: '开始整理' }));
 }
 
 function article(sourceAnnotation: Annotation): ArticleRecord {
