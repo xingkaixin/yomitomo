@@ -117,6 +117,7 @@ export {
   buildAgentThreadReplyRuntimePayload,
   buildAgentPrompt,
   runAgent,
+  runAgentDistillationReviewStructuredStream,
   runAgentStream,
   type AgentMessageReadingContextSnapshot,
   type AgentMessageRunOptions,

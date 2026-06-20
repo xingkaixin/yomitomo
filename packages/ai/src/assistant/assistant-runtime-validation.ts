@@ -1,6 +1,10 @@
 import type {
   AnnotationDistillationProposal,
   AnnotationDistillationProposalKind,
+  AnnotationDistillationReviewFindingCategory,
+  AnnotationDistillationReviewFindingSeverity,
+  AnnotationDistillationReviewItem,
+  AnnotationDistillationReviewStance,
   TextAnchor,
 } from '@yomitomo/shared';
 import type { AssistantFinalAction } from './assistant-runtime-types';
@@ -80,6 +84,7 @@ export function validateAssistantFinalAction(
         type,
         annotationId,
         content,
+        items: reviewItemArray(value.items),
         proposals: proposalArray(value.proposals),
         evidenceIds,
         confidence,
@@ -162,6 +167,71 @@ function proposalArray(value: unknown): AnnotationDistillationProposal[] {
 
 function proposalKind(value: unknown): AnnotationDistillationProposalKind | null {
   return value === 'insert' || value === 'replace' || value === 'delete' ? value : null;
+}
+
+function reviewItemArray(value: unknown): AnnotationDistillationReviewItem[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap<AnnotationDistillationReviewItem>(
+    (item): AnnotationDistillationReviewItem[] => {
+      if (!isRecord(item)) return [];
+      const id = stringField(item.id);
+      if (!id) return [];
+      if (item.type === 'overview') {
+        const content = stringField(item.content);
+        if (!content) return [];
+        return [
+          {
+            id,
+            type: 'overview' as const,
+            stance: reviewStance(item.stance),
+            content,
+          },
+        ];
+      }
+      if (item.type === 'finding') {
+        const title = stringField(item.title);
+        const content = stringField(item.content);
+        if (!title || !content) return [];
+        return [
+          {
+            id,
+            type: 'finding' as const,
+            category: reviewFindingCategory(item.category),
+            severity: reviewFindingSeverity(item.severity),
+            title,
+            content,
+            draftTargetText: stringField(item.draftTargetText) || undefined,
+          },
+        ];
+      }
+      if (item.type === 'proposal') {
+        const proposal = proposalArray([item.proposal])[0];
+        return proposal ? [{ id, type: 'proposal' as const, proposal }] : [];
+      }
+      return [];
+    },
+  );
+}
+
+function reviewStance(value: unknown): AnnotationDistillationReviewStance {
+  return value === 'solid' || value === 'weak' || value === 'mixed' ? value : 'mixed';
+}
+
+function reviewFindingCategory(value: unknown): AnnotationDistillationReviewFindingCategory {
+  if (
+    value === 'evidence' ||
+    value === 'logic' ||
+    value === 'coverage' ||
+    value === 'clarity' ||
+    value === 'actionability'
+  ) {
+    return value;
+  }
+  return 'evidence';
+}
+
+function reviewFindingSeverity(value: unknown): AnnotationDistillationReviewFindingSeverity {
+  return value === 'low' || value === 'high' || value === 'medium' ? value : 'medium';
 }
 
 function validProposalFields(

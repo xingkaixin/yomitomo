@@ -5,6 +5,7 @@ import type {
   AgentDistillationReviewPayload,
   AgentMessagePayload,
   AnnotationDistillationReviewMessage,
+  AnnotationDistillationReviewItem,
   AssistantRuntimeProgressEvent,
   ArticleRecord,
   Comment,
@@ -43,9 +44,7 @@ import {
   taskProvider,
 } from '../agents/agent-runtime-routing';
 import {
-  commentToDistillationReviewMessage,
   distillationReviewMessagePayload,
-  extractDistillationReviewProposals,
   messageWithReviewId,
 } from '../agents/agent-distillation-proposals';
 import {
@@ -214,19 +213,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     const message =
       runtime.status === 'message'
         ? runtime.message
-        : commentToDistillationReviewMessage(
-            await runFastAgent(context, ai, provider, agent, payloadWithRoster),
-            payload.reviewMessageId,
-          );
-    if (!message.proposals?.length) {
-      message.proposals = await extractDistillationReviewProposals({
-        ai,
-        provider,
-        payload: payloadWithRoster,
-        messageContent: message.content,
-        logError: context.logError,
-      });
-    }
+        : await structuredFastDistillationReview(context, ai, provider, agent, payloadWithRoster);
     if (runtime.status !== 'message') {
       recordAssistantExecutionRun(context, {
         agent,
@@ -404,7 +391,14 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
               provider,
               agent,
               payload: payloadWithRoster,
-              onRuntimeEvent: (runtimeEvent) => textStream.runtimeEvent(runtimeEvent),
+              onRuntimeEvent: (runtimeEvent) => {
+                if (runtimeEvent.type === 'distillation_review_item') {
+                  appendDistillationReviewItem(message, runtimeEvent.item);
+                  sender.send({ type: 'item', item: runtimeEvent.item });
+                  return;
+                }
+                textStream.runtimeEvent(runtimeEvent);
+              },
             })
           : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
       logAgentMessageRuntime(
@@ -421,26 +415,23 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           message.content = runtime.message.content;
           sender.send({ type: 'delta', delta: message.content });
         }
+        message.items = runtime.message.items || message.items || [];
         message.proposals = runtime.message.proposals || [];
       } else {
-        const fastInput = agentMessageFastInput(context, payloadWithRoster, agent.id);
-        await ai.runAgentStream(
-          provider,
-          agent,
-          fastInput.payload,
-          (delta) => {
-            message.content += delta;
-            sender.send({ type: 'delta', delta });
-          },
-          fastInput.options,
-        );
-        message.proposals = await extractDistillationReviewProposals({
+        const fastMessage = await structuredFastDistillationReview(
+          context,
           ai,
           provider,
-          payload: payloadWithRoster,
-          messageContent: message.content,
-          logError: context.logError,
-        });
+          agent,
+          payloadWithRoster,
+          (item) => {
+            appendDistillationReviewItem(message, item);
+            sender.send({ type: 'item', item });
+          },
+        );
+        message.content = fastMessage.content;
+        message.items = fastMessage.items || message.items || [];
+        message.proposals = fastMessage.proposals || [];
         recordAssistantExecutionRun(context, {
           agent,
           provider,
@@ -587,6 +578,7 @@ type AgentStreamCommentEvent =
 type AgentStreamDistillationReviewEvent =
   | { type: 'start'; message: AnnotationDistillationReviewMessage }
   | { type: 'delta'; delta: string }
+  | { type: 'item'; item: AnnotationDistillationReviewItem }
   | { type: 'progress'; progress: AssistantRuntimeProgressEvent }
   | { type: 'done'; message: AnnotationDistillationReviewMessage }
   | AgentStreamErrorEvent;
@@ -600,6 +592,34 @@ type AgentStreamAnnotateEvent =
       readingMemory?: AgentAnnotateResult['readingMemory'];
     }
   | AgentStreamErrorEvent;
+
+function appendDistillationReviewItem(
+  message: AnnotationDistillationReviewMessage,
+  item: AnnotationDistillationReviewItem,
+) {
+  message.items = [...(message.items || []), item];
+  if (item.type === 'proposal') {
+    message.proposals = [...(message.proposals || []), item.proposal];
+  }
+}
+
+async function structuredFastDistillationReview(
+  context: DesktopMainIpcContext,
+  ai: Pick<typeof import('@yomitomo/ai'), 'runAgentDistillationReviewStructuredStream'>,
+  provider: LlmProvider,
+  agent: Agent,
+  payload: AgentMessagePayload,
+  onItem: (item: AnnotationDistillationReviewItem) => void = () => undefined,
+) {
+  const fastInput = agentMessageFastInput(context, payload, agent.id);
+  return ai.runAgentDistillationReviewStructuredStream(
+    provider,
+    agent,
+    fastInput.payload,
+    onItem,
+    fastInput.options,
+  );
+}
 
 async function readAgentRuntimeStore(context: DesktopMainIpcContext) {
   const { agentRuntimePersistence } = await context.getPersistenceModule();

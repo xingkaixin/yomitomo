@@ -21,6 +21,15 @@ import {
   AssistantRuntimeProviderFailure,
   assistantRuntimeFailureReason,
 } from './assistant-runtime-errors';
+import {
+  collectDistillationReviewItemsFromElementStream,
+  collectDistillationReviewItemsFromJsonTextStream,
+  distillationReviewContentFromItems,
+  distillationReviewProposalsFromItems,
+  distillationReviewStructuredOutput,
+  distillationReviewStructuredOutputPrompt,
+  type GeneratedDistillationReviewItem,
+} from './distillation-review-structured-output';
 import { promiseEffect, toolExecutorEffect } from './assistant-runtime-effects';
 import {
   createAssistantRuntimeKernel,
@@ -59,6 +68,9 @@ function runAssistantAiSdkToolRuntimeEffect(
   }
 
   const adapter = createYomitomoLanguageModel(options.provider);
+  const useStructuredDistillationReview = options.taskType === 'distillation_review';
+  const distillationReviewUsesJsonlFallback =
+    useStructuredDistillationReview && !adapter.supportsStructuredOutput;
   const aiSdkTools = Object.fromEntries(
     options.tools.map((toolDefinition) => [
       toolDefinition.name,
@@ -78,12 +90,22 @@ function runAssistantAiSdkToolRuntimeEffect(
     const result = yield* aiSdkStreamTextEffect({
       model: adapter.model,
       system: options.payload.system,
-      prompt: options.payload.user,
+      prompt: useStructuredDistillationReview
+        ? `${options.payload.user}\n\n${distillationReviewStructuredOutputPrompt({
+            jsonlFallback: distillationReviewUsesJsonlFallback,
+          })}`
+        : options.payload.user,
       maxOutputTokens: options.payload.maxTokens,
       temperature: options.payload.temperature,
       providerOptions: adapter.providerOptions,
       tools: aiSdkTools,
-      stopWhen: stepCountIs(budget.maxSteps),
+      stopWhen: stepCountIs(
+        useStructuredDistillationReview ? budget.maxSteps + 1 : budget.maxSteps,
+      ),
+      output:
+        useStructuredDistillationReview && adapter.supportsStructuredOutput
+          ? distillationReviewStructuredOutput
+          : undefined,
       prepareStep: ({ stepNumber }) =>
         stepNumber === 0 && options.tools.length > 0
           ? {
@@ -94,7 +116,18 @@ function runAssistantAiSdkToolRuntimeEffect(
             }
           : undefined,
     });
-    const text = yield* consumeRuntimeTextStreamEffect(result.textStream, options.onEvent);
+    const action = useStructuredDistillationReview
+      ? yield* consumeDistillationReviewStructuredOutputEffect({
+          result,
+          annotationId: options.allowedAnnotationIds[0] || '',
+          onEvent: options.onEvent,
+          now,
+          structuredOutput: adapter.supportsStructuredOutput,
+        })
+      : finalActionFromText(
+          options,
+          yield* consumeRuntimeTextStreamEffect(result.textStream, options.onEvent),
+        );
     const finishReason = yield* promiseEffect(result.finishReason, AssistantRuntimeProviderFailure);
     kernel.setUsage(
       normalizeAiUsage(yield* promiseEffect(result.totalUsage, AssistantRuntimeProviderFailure)),
@@ -106,7 +139,6 @@ function runAssistantAiSdkToolRuntimeEffect(
       );
     }
 
-    const action = finalActionFromText(options, text);
     const step = kernel.handleFinalAction(
       nextStepIndex,
       { type: 'final_action', action },
@@ -126,6 +158,45 @@ function runAssistantAiSdkToolRuntimeEffect(
       ),
     ),
   );
+}
+
+function consumeDistillationReviewStructuredOutputEffect(input: {
+  result: ReturnType<typeof streamText>;
+  annotationId: string;
+  onEvent?: (event: AssistantRuntimeStreamEvent) => void;
+  now: () => string;
+  structuredOutput: boolean;
+}) {
+  return Effect.tryPromise({
+    try: async (): Promise<AssistantFinalAction> => {
+      const items = input.structuredOutput
+        ? await collectDistillationReviewItemsFromElementStream({
+            elementStream: input.result
+              .elementStream as AsyncIterable<GeneratedDistillationReviewItem>,
+            onItem: (item) => input.onEvent?.({ type: 'distillation_review_item', item }),
+            now: input.now,
+          })
+        : await collectDistillationReviewItemsFromJsonTextStream({
+            textStream: input.result.textStream,
+            onItem: (item) => input.onEvent?.({ type: 'distillation_review_item', item }),
+            now: input.now,
+          });
+      if (input.structuredOutput) await Promise.resolve(input.result.output);
+      const content = distillationReviewContentFromItems(items);
+      if (!content) throw new Error('Provider returned no distillation review items');
+      return {
+        type: 'review_distillation',
+        annotationId: input.annotationId,
+        content,
+        items,
+        proposals: distillationReviewProposalsFromItems(items),
+        evidenceIds: [],
+        confidence: 0.7,
+        reason: 'AI SDK structured distillation review',
+      };
+    },
+    catch: (error) => new AssistantRuntimeProviderFailure(error),
+  });
 }
 
 function firstRequiredRuntimeToolName(tools: AssistantToolDefinition[]) {

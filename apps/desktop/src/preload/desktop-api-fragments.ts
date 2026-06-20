@@ -8,6 +8,7 @@ import type {
   AgentMessagePayload,
   AgentReviewPayload,
   Annotation,
+  AnnotationDistillationReviewItem,
   AnnotationDistillationReviewMessage,
   AppSettings,
   ArticleReadingProgress,
@@ -309,6 +310,7 @@ function createAgentPreloadApi() {
         event:
           | { type: 'start'; message: AnnotationDistillationReviewMessage }
           | { type: 'delta'; delta: string }
+          | { type: 'item'; item: AnnotationDistillationReviewItem }
           | { type: 'progress'; progress: AssistantRuntimeProgressEvent },
       ) => void,
     ) => {
@@ -320,11 +322,17 @@ function createAgentPreloadApi() {
           message:
             | { type: 'start'; message: AnnotationDistillationReviewMessage }
             | { type: 'delta'; delta: string }
+            | { type: 'item'; item: AnnotationDistillationReviewItem }
             | { type: 'progress'; progress: AssistantRuntimeProgressEvent }
             | { type: 'done'; message: AnnotationDistillationReviewMessage }
             | { type: 'error'; message: string; error?: SerializedDesktopIpcError },
         ) => {
-          if (message.type === 'start' || message.type === 'delta' || message.type === 'progress') {
+          if (
+            message.type === 'start' ||
+            message.type === 'delta' ||
+            message.type === 'item' ||
+            message.type === 'progress'
+          ) {
             onEvent(message);
             return;
           }

@@ -174,6 +174,75 @@ describe('annotation distillation UI', () => {
     });
   });
 
+  it('renders and saves streamed structured review items', async () => {
+    const desktop = installDesktopApi(article(annotation()));
+    const overviewItem = {
+      id: 'review_item_1',
+      type: 'overview' as const,
+      stance: 'mixed' as const,
+      content: '这段判断有价值，但证据边界还不够清楚。',
+    };
+    const proposal = {
+      id: 'proposal_1',
+      kind: 'insert' as const,
+      status: 'pending' as const,
+      title: '补证据边界',
+      content: '补一条证据边界。',
+      updatedAt: now,
+    };
+    const proposalItem = {
+      id: 'review_item_2',
+      type: 'proposal' as const,
+      proposal,
+    };
+    desktop.requestAgentDistillationReviewStream.mockImplementation(async (payload, onEvent) => {
+      onEvent({ type: 'item', item: overviewItem });
+      onEvent({ type: 'item', item: proposalItem });
+      return {
+        id: payload.reviewMessageId || 'review_message_1',
+        author: 'ai',
+        content: overviewItem.content,
+        createdAt: now,
+        agentId: 'agent_1',
+        items: [overviewItem, proposalItem],
+        proposals: [proposal],
+        status: 'done',
+      };
+    });
+    window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
+
+    render(<AnnotationSedimentationWindowApp />);
+
+    await screen.findByPlaceholderText('让已选审阅助手讨论这份沉淀...');
+    fireEvent.click(await screen.findByRole('button', { name: '发送' }));
+
+    expect(await screen.findByText('这段判断有价值，但证据边界还不够清楚。')).toBeTruthy();
+    expect(await screen.findByText('补证据边界')).toBeTruthy();
+    await waitFor(() => {
+      expect(desktop.saveArticle).toHaveBeenCalledWith(
+        expect.objectContaining({
+          annotations: [
+            expect.objectContaining({
+              distillation: expect.objectContaining({
+                reviewSessions: [
+                  expect.objectContaining({
+                    messages: [
+                      expect.objectContaining({
+                        items: [overviewItem, proposalItem],
+                        proposals: [proposal],
+                        status: 'done',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            }),
+          ],
+        }),
+      );
+    });
+  });
+
   it('marks failed distillation review messages as failed', async () => {
     const desktop = installDesktopApi(article(annotation()));
     desktop.requestAgentDistillationReviewStream.mockRejectedValue(new Error('provider failed'));

@@ -6,7 +6,11 @@ import type {
   AnnotationDistillationProposal,
   AnnotationDistillationProposalKind,
   AnnotationDistillationProposalStatus,
+  AnnotationDistillationReviewFindingCategory,
+  AnnotationDistillationReviewFindingSeverity,
+  AnnotationDistillationReviewItem,
   AnnotationDistillationReviewMessage,
+  AnnotationDistillationReviewStance,
   AnnotationDistillationReviewSession,
   AnnotationDistillationStatus,
   AnnotationEvidenceSource,
@@ -148,7 +152,8 @@ function normalizeAnnotationDistillationReviewMessages(value: unknown) {
     const id = stringValue(message.id);
     const content = stringValue(message.content);
     const errorMessage = stringValue(message.errorMessage);
-    if (!id || (!content && !errorMessage)) return [];
+    const items = normalizeAnnotationDistillationReviewItems(message.items);
+    if (!id || (!content && !errorMessage && items.length === 0)) return [];
     return [
       {
         id,
@@ -162,6 +167,7 @@ function normalizeAnnotationDistillationReviewMessages(value: unknown) {
         agentNickname: stringValue(message.agentNickname) || undefined,
         agentAvatar: stringValue(message.agentAvatar) || undefined,
         assistantProgress: normalizeAssistantRuntimeProgress(message.assistantProgress),
+        items,
         proposals: normalizeAnnotationDistillationProposals(message.proposals),
       },
     ];
@@ -179,42 +185,121 @@ function normalizeAnnotationDistillationProposals(
 ): AnnotationDistillationProposal[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item) => {
-    if (!item || typeof item !== 'object') return [];
-    const proposal = recordValue(item);
-    const id = stringValue(proposal.id);
-    const kind = normalizeAnnotationDistillationProposalKind(proposal.kind);
-    if (!id || !kind) return [];
-
-    const content = stringValue(proposal.content);
-    const targetText = stringValue(proposal.targetText);
-    const replacementText = stringValue(proposal.replacementText);
-    if (!validAnnotationDistillationProposalFields(kind, content, targetText, replacementText)) {
-      return [];
-    }
-
-    return [
-      {
-        id,
-        kind,
-        status: normalizeAnnotationDistillationProposalStatus(proposal.status),
-        title: stringValue(proposal.title) || proposalTitleFallback(kind, content, targetText),
-        rationale: stringValue(proposal.rationale) || undefined,
-        insertAfterText: stringValue(proposal.insertAfterText) || undefined,
-        targetText: targetText || undefined,
-        replacementText: kind === 'replace' ? replacementText : undefined,
-        content: kind === 'insert' ? content : undefined,
-        acceptedAt: stringValue(proposal.acceptedAt) || undefined,
-        ignoredAt: stringValue(proposal.ignoredAt) || undefined,
-        updatedAt: stringValue(proposal.updatedAt),
-      },
-    ];
+    const proposal = normalizeAnnotationDistillationProposal(item);
+    return proposal ? [proposal] : [];
   });
+}
+
+function normalizeAnnotationDistillationProposal(
+  value: unknown,
+): AnnotationDistillationProposal | null {
+  if (!value || typeof value !== 'object') return null;
+  const proposal = recordValue(value);
+  const id = stringValue(proposal.id);
+  const kind = normalizeAnnotationDistillationProposalKind(proposal.kind);
+  if (!id || !kind) return null;
+
+  const content = stringValue(proposal.content);
+  const targetText = stringValue(proposal.targetText);
+  const replacementText = stringValue(proposal.replacementText);
+  if (!validAnnotationDistillationProposalFields(kind, content, targetText, replacementText)) {
+    return null;
+  }
+
+  return {
+    id,
+    kind,
+    status: normalizeAnnotationDistillationProposalStatus(proposal.status),
+    title: stringValue(proposal.title) || proposalTitleFallback(kind, content, targetText),
+    rationale: stringValue(proposal.rationale) || undefined,
+    insertAfterText: stringValue(proposal.insertAfterText) || undefined,
+    targetText: targetText || undefined,
+    replacementText: kind === 'replace' ? replacementText : undefined,
+    content: kind === 'insert' ? content : undefined,
+    acceptedAt: stringValue(proposal.acceptedAt) || undefined,
+    ignoredAt: stringValue(proposal.ignoredAt) || undefined,
+    updatedAt: stringValue(proposal.updatedAt),
+  };
+}
+
+function normalizeAnnotationDistillationReviewItems(
+  value: unknown,
+): AnnotationDistillationReviewItem[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap<AnnotationDistillationReviewItem>(
+    (item): AnnotationDistillationReviewItem[] => {
+      if (!item || typeof item !== 'object') return [];
+      const reviewItem = recordValue(item);
+      const id = stringValue(reviewItem.id);
+      if (!id) return [];
+      if (reviewItem.type === 'overview') {
+        const content = stringValue(reviewItem.content);
+        if (!content) return [];
+        return [
+          {
+            id,
+            type: 'overview' as const,
+            stance: normalizeAnnotationDistillationReviewStance(reviewItem.stance),
+            content,
+          },
+        ];
+      }
+      if (reviewItem.type === 'finding') {
+        const title = stringValue(reviewItem.title);
+        const content = stringValue(reviewItem.content);
+        if (!title || !content) return [];
+        return [
+          {
+            id,
+            type: 'finding' as const,
+            category: normalizeAnnotationDistillationReviewFindingCategory(reviewItem.category),
+            severity: normalizeAnnotationDistillationReviewFindingSeverity(reviewItem.severity),
+            title,
+            content,
+            draftTargetText: stringValue(reviewItem.draftTargetText) || undefined,
+          },
+        ];
+      }
+      if (reviewItem.type === 'proposal') {
+        const proposal = normalizeAnnotationDistillationProposal(reviewItem.proposal);
+        return proposal ? [{ id, type: 'proposal' as const, proposal }] : [];
+      }
+      return [];
+    },
+  );
 }
 
 function normalizeAnnotationDistillationProposalKind(
   value: unknown,
 ): AnnotationDistillationProposalKind | null {
   return value === 'insert' || value === 'replace' || value === 'delete' ? value : null;
+}
+
+function normalizeAnnotationDistillationReviewStance(
+  value: unknown,
+): AnnotationDistillationReviewStance {
+  return value === 'solid' || value === 'weak' || value === 'mixed' ? value : 'mixed';
+}
+
+function normalizeAnnotationDistillationReviewFindingCategory(
+  value: unknown,
+): AnnotationDistillationReviewFindingCategory {
+  if (
+    value === 'evidence' ||
+    value === 'logic' ||
+    value === 'coverage' ||
+    value === 'clarity' ||
+    value === 'actionability'
+  ) {
+    return value;
+  }
+  return 'evidence';
+}
+
+function normalizeAnnotationDistillationReviewFindingSeverity(
+  value: unknown,
+): AnnotationDistillationReviewFindingSeverity {
+  return value === 'low' || value === 'high' || value === 'medium' ? value : 'medium';
 }
 
 function normalizeAnnotationDistillationProposalStatus(
