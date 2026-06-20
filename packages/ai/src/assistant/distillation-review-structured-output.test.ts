@@ -3,6 +3,7 @@ import {
   collectDistillationReviewItemsFromJsonTextStream,
   distillationReviewContentFromItems,
   distillationReviewProposalsFromItems,
+  distillationReviewStructuredOutputPrompt,
 } from './distillation-review-structured-output';
 
 describe('distillation review structured output', () => {
@@ -34,6 +35,18 @@ describe('distillation review structured output', () => {
         updatedAt: '2026-06-20T00:00:00.000Z',
       }),
     ]);
+  });
+
+  it('keeps discussion organization output rules from evaluating draft quality', () => {
+    const prompt = distillationReviewStructuredOutputPrompt({
+      jsonlFallback: false,
+      mode: 'organize_discussion',
+    });
+
+    expect(prompt).toContain('可沉淀方向');
+    expect(prompt).toContain('不要评价现有草稿质量');
+    expect(prompt).toContain('proposal 只能使用 kind="insert"');
+    expect(prompt).not.toContain('第一条应该是 overview，用自然语言给出总评。');
   });
 });
 

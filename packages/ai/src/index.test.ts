@@ -16,6 +16,7 @@ import {
 } from '@yomitomo/core';
 import {
   buildAgentCreateThoughtRuntimePayload,
+  buildAgentDistillationReviewRuntimePayload,
   buildAgentMessageSystemPrompt,
   buildAgentPrompt,
   buildAgentThreadReplyRuntimePayload,
@@ -248,6 +249,47 @@ describe('agent message prompts', () => {
     expect(system).toContain('之前阅读助手说过的话不能自动视为证据');
     expect(system).toContain('用户当前草稿是要改进的对象，不应被整体覆盖');
     expect(system).toContain('新增、修改、删除、合并、拆分、移动、澄清、补证据');
+  });
+
+  it('keeps discussion organization prompts from evaluating empty drafts', () => {
+    const organizePayload: AgentMessagePayload = {
+      ...payload,
+      responseMode: 'distillation_review',
+      distillationReviewMode: 'organize_discussion',
+      instruction: '',
+      distillationDraft: '',
+      distillationReviewRequest: '请整理讨论，生成可加入沉淀稿的新增建议。',
+      userComment: {
+        ...payload.userComment,
+        content: '请整理讨论，生成可加入沉淀稿的新增建议。',
+      },
+    };
+    const runtimeAgent = {
+      id: lin.id,
+      presetId: 'reading-partner',
+      soul: readingPartnerSoul,
+      username: lin.username,
+      nickname: lin.nickname,
+      avatar: lin.avatar,
+      annotationColor: lin.annotationColor,
+      temperature: lin.temperature,
+    };
+    const prompt = buildAgentPrompt(provider, organizePayload, lin);
+    const runtimePayload = buildAgentDistillationReviewRuntimePayload(
+      provider,
+      runtimeAgent,
+      organizePayload,
+    );
+
+    expect(prompt).toContain('请整理讨论');
+    expect(prompt).toContain('当前草稿为空，不能写“草稿已经”“草稿抓住”“草稿遗漏”“整体可靠”');
+    expect(prompt).toContain('不要假装用户已经写出了这些判断');
+    expect(prompt).not.toContain('请审阅这段沉淀');
+    expect(prompt).not.toContain('是否值得发布');
+    expect(runtimePayload.user).toContain('讨论整理要求');
+    expect(runtimePayload.user).toContain('不要评价现有草稿质量');
+    expect(runtimePayload.user).not.toContain('判断沉淀稿是否站得住');
+    expect(runtimePayload.distillationReviewMode).toBe('organize_discussion');
   });
 
   it('adds the selected interface language to assistant replies', () => {

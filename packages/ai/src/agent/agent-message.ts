@@ -76,7 +76,10 @@ export async function runAgentDistillationReviewStructuredStream(
   const adapter = createYomitomoLanguageModel(provider);
   const system = buildAgentMessageSystemPrompt(agent, payload);
   const user = `${buildAgentPrompt(provider, payload, agent, options)}\n\n${distillationReviewStructuredOutputPrompt(
-    { jsonlFallback: !adapter.supportsStructuredOutput },
+    {
+      jsonlFallback: !adapter.supportsStructuredOutput,
+      mode: payload.distillationReviewMode,
+    },
   )}`;
   const result = streamText({
     model: adapter.model,
@@ -200,15 +203,28 @@ export function buildAgentDistillationReviewRuntimePayload(
     responseMode: 'distillation_review' as const,
     readingMemoryView: undefined,
   };
-  const proposalRequirement =
-    payload.distillationReviewMode === 'organize_discussion'
-      ? 'proposals 只能包含 insert，用 content 放可直接追加到沉淀稿的新增文本；不要生成 replace 或 delete。'
-      : 'proposals 可以为空，也可以包含 insert、replace、delete；replace/delete 必须带当前草稿中明确存在的 targetText。';
+  const isOrganizeDiscussion = payload.distillationReviewMode === 'organize_discussion';
+  const proposalRequirement = isOrganizeDiscussion
+    ? 'proposals 只能包含 insert，用 content 放可直接追加到沉淀稿的新增文本；不要生成 replace 或 delete。'
+    : 'proposals 可以为空，也可以包含 insert、replace、delete；replace/delete 必须带当前草稿中明确存在的 targetText。';
+  const taskRequirement = isOrganizeDiscussion
+    ? `讨论整理要求：
+- 先核对当前高亮、已有想法和讨论，再整理可新增到沉淀稿的内容。
+- 当前草稿只用于避免重复，不要评价现有草稿质量。
+- 当前草稿为空时，不要写“草稿已经”“草稿抓住”“草稿遗漏”“整体可靠”等评价现有草稿的话。
+- 只输出可新增的方向、判断或补充，不修改、不删除、不发布沉淀稿。
+- 没有工具证据时不要编造历史断言。`
+    : `沉淀审阅要求：
+- 先核对当前高亮、已有想法和讨论，再判断沉淀稿是否站得住。
+- 可以查证原文上下文、当前 thread 和阅读记忆。
+- 只输出审阅意见、质疑、补充或可带走的判断框架，不直接发布或覆盖沉淀稿。
+- 没有工具证据时不要编造历史断言。`;
   return {
     system: `${buildAgentMessageSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 审阅当前批注的沉淀稿。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。完成工具探索后，按运行时要求输出结构化审阅 item。`,
-    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\n沉淀审阅要求：\n- 先核对当前高亮、已有想法和讨论，再判断沉淀稿是否站得住。\n- 可以查证原文上下文、当前 thread 和阅读记忆。\n- 只输出审阅意见、质疑、补充或可带走的判断框架，不直接发布或覆盖沉淀稿。\n- 没有工具证据时不要编造历史断言。\n\n最终输出要求：按运行时要求输出结构化审阅 item。proposal 只允许 insert、replace、delete。insert 必须带 content；replace 必须带 targetText 和 replacementText；delete 必须带 targetText。没有可靠建议时不要输出 proposal。删除和替换必须能在当前草稿中找到明确目标，不要无依据删除用户观点。${proposalRequirement}${finalResponseLanguageReminder(payload.uiLanguage)}`,
+    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\n${taskRequirement}\n\n最终输出要求：按运行时要求输出结构化审阅 item。proposal 只允许 insert、replace、delete。insert 必须带 content；replace 必须带 targetText 和 replacementText；delete 必须带 targetText。没有可靠建议时不要输出 proposal。删除和替换必须能在当前草稿中找到明确目标，不要无依据删除用户观点。${proposalRequirement}${finalResponseLanguageReminder(payload.uiLanguage)}`,
     maxTokens: 1200,
     temperature: agent.temperature,
+    distillationReviewMode: payload.distillationReviewMode,
   };
 }
 
@@ -362,13 +378,34 @@ function buildAgentDistillationReviewPrompt(
   threadContextPrompt: string,
   options: AgentMessageRunOptions = {},
 ) {
-  const draft = payload.instruction?.trim() || '用户还没有写沉淀草稿。';
+  const rawDraft = payload.distillationDraft ?? payload.instruction ?? '';
+  const hasDraft = Boolean(rawDraft.trim());
+  const draft = rawDraft.trim() || '用户还没有写沉淀草稿。';
   const discussion = formatCreateThoughtContext(payload.annotation);
-  const modeRequirement =
+  const reviewRequest = payload.distillationReviewRequest?.trim() || payload.userComment.content;
+  const requestBlock = reviewRequest ? `\n\n本轮用户请求：\n${reviewRequest}` : '';
+  const previousReview = payload.distillationReviewTranscript?.trim();
+  const previousReviewBlock = previousReview ? `\n\n此前沉淀审阅讨论：\n${previousReview}` : '';
+  const task =
     payload.distillationReviewMode === 'organize_discussion'
-      ? '本轮任务是整理讨论：只提出可新增到沉淀稿的方向，不要建议修改或删除现有草稿。'
-      : '本轮任务是审阅草稿：可以指出新增、修改或删除方向，但不要直接替用户改稿。';
-  const task = `${readingIntentPromptLine(payload)}${spoilerScopePrompt(context)}
+      ? `${readingIntentPromptLine(payload)}${spoilerScopePrompt(context)}
+
+用户高亮：
+${payload.annotation.anchor.exact}
+
+当前沉淀草稿（仅用于避免重复）：
+${draft}
+
+已有想法和讨论：
+${discussion}${previousReviewBlock}${requestBlock}
+
+请整理讨论。要求：
+- 本轮任务是把高亮、想法和审阅讨论整理成可加入沉淀稿的新内容。
+- 只输出可新增的方向、判断或补充；proposal 只能是 insert。
+- ${hasDraft ? '当前草稿只用于避免提出重复新增，不要评价草稿整体质量。' : '当前草稿为空，不能写“草稿已经”“草稿抓住”“草稿遗漏”“整体可靠”等评价现有草稿的话。'}
+- 用“可以沉淀为”“建议新增”“可以补充”描述，不要假装用户已经写出了这些判断。
+- 不要修改或删除现有草稿，不要给发布决定，不要输出 Markdown 标题或 JSON。`
+      : `${readingIntentPromptLine(payload)}${spoilerScopePrompt(context)}
 
 用户高亮：
 ${payload.annotation.anchor.exact}
@@ -377,10 +414,10 @@ ${payload.annotation.anchor.exact}
 ${draft}
 
 已有想法和讨论：
-${discussion}
+${discussion}${previousReviewBlock}${requestBlock}
 
 请审阅这段沉淀。要求：
-- ${modeRequirement}
+- 本轮任务是审阅草稿：可以指出新增、修改或删除方向，但不要直接替用户改稿。
 - 输出应该帮助用户判断这段沉淀是否值得发布、是否缺证据、是否可以更准确。
 - 如果草稿为空，基于高亮、想法和讨论给出可沉淀方向、风险或反问。
 - 不要替用户完整改写，不要给发布决定，不要输出 Markdown 标题或 JSON。`;

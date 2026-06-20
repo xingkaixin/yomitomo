@@ -44,11 +44,26 @@ export const distillationReviewStructuredOutput = Output.array<GeneratedDistilla
   }),
 });
 
-export function distillationReviewStructuredOutputPrompt(input: { jsonlFallback: boolean }) {
+export function distillationReviewStructuredOutputPrompt(input: {
+  jsonlFallback: boolean;
+  mode?: 'review' | 'organize_discussion';
+}) {
   const itemRules = `结构化 item 类型：
 - overview：整体判断，字段为 type="overview"、stance="solid"|"mixed"|"weak"、content。
 - finding：审阅意见，字段为 type="finding"、category="evidence"|"logic"|"coverage"|"clarity"|"actionability"、severity="low"|"medium"|"high"、title、content，可选 draftTargetText。
 - proposal：可直接应用到沉淀稿的修改建议，字段为 type="proposal"、kind="insert"|"replace"|"delete"、title，可选 rationale。insert 必须有 content；replace 必须有 targetText 和 replacementText；delete 必须有 targetText。`;
+  const overviewRule =
+    input.mode === 'organize_discussion'
+      ? '- 第一条应该是 overview，用自然语言概括可沉淀方向；不要评价现有草稿质量。'
+      : '- 第一条应该是 overview，用自然语言给出总评。';
+  const modeRules =
+    input.mode === 'organize_discussion'
+      ? `
+整理讨论模式约束：
+- overview 总结可沉淀方向，不要写成“草稿已经...”这类现有草稿评价。
+- finding 只指出可以补充、澄清或拆出的方向，不要断言空草稿已经具备某种质量。
+- proposal 只能使用 kind="insert"，用 content 放可直接加入草稿的新文本。`
+      : '';
 
   const outputRule = input.jsonlFallback
     ? '最终只输出 JSONL：每行一个完整 JSON object，不要输出数组、Markdown、代码块或解释性包装。'
@@ -56,10 +71,10 @@ export function distillationReviewStructuredOutputPrompt(input: { jsonlFallback:
 
   return `${outputRule}
 
-${itemRules}
+${itemRules}${modeRules}
 
 输出约束：
-- 第一条应该是 overview，用自然语言给出总评。
+${overviewRule}
 - finding 用于指出证据、逻辑、覆盖范围、表达清晰度或可行动性问题。
 - proposal 只用于真正能被用户接受/忽略并应用到草稿的修改，不要把泛泛评价写成 proposal。
 - 没有可靠可应用修改时可以不输出 proposal。`;
