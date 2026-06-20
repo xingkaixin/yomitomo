@@ -37,10 +37,13 @@ export type UseReaderShellInteractionsOptions = {
   onClearSelection: () => void;
   onCloseFloatingPanels: () => void;
   onCloseHighlightChoice: () => void;
+  onCloseReaderChat?: () => void;
   onAskSelection?: (action: SelectionAction) => void;
   onCopySelection: (action: SelectionAction) => void | Promise<void>;
+  onOpenReaderChat?: () => void;
   onOpenComposer: (action: SelectionAction) => void;
   onToggleSettings: () => void;
+  readerChatOpen?: boolean;
 };
 
 export type ReaderShellInteractions = {
@@ -61,10 +64,13 @@ export function useReaderShellInteractions({
   onClearSelection,
   onCloseFloatingPanels,
   onCloseHighlightChoice,
+  onCloseReaderChat,
   onAskSelection,
   onCopySelection,
+  onOpenReaderChat,
   onOpenComposer,
   onToggleSettings,
+  readerChatOpen = false,
 }: UseReaderShellInteractionsOptions): ReaderShellInteractions {
   React.useEffect(() => {
     if (!activeId || visibleAnnotationIds.has(activeId)) return;
@@ -78,12 +84,7 @@ export function useReaderShellInteractions({
 
     function handleSelectionShortcut(event: KeyboardEvent) {
       if (event.defaultPrevented) return;
-      if (
-        event.target instanceof Element &&
-        event.target.closest('input,textarea,select,[contenteditable="true"]')
-      ) {
-        return;
-      }
+      if (isEditableKeyboardTarget(event.target)) return;
 
       const shortcut = selectionActionShortcut(event, selectionActionShortcuts);
       if (!shortcut) return;
@@ -114,6 +115,29 @@ export function useReaderShellInteractions({
     selectionAction,
     selectionActionShortcuts,
   ]);
+
+  React.useEffect(() => {
+    if (!onOpenReaderChat || !onCloseReaderChat || selectionAction || composer) return;
+    const openReaderChat = onOpenReaderChat;
+    const closeReaderChat = onCloseReaderChat;
+
+    function handleReaderChatShortcut(event: KeyboardEvent) {
+      if (!readerChatShortcut(event)) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      if (readerChatOpen) {
+        closeReaderChat();
+        return;
+      }
+      openReaderChat();
+    }
+
+    window.addEventListener('keydown', handleReaderChatShortcut);
+    return () => {
+      window.removeEventListener('keydown', handleReaderChatShortcut);
+    };
+  }, [composer, onCloseReaderChat, onOpenReaderChat, readerChatOpen, selectionAction]);
 
   const toggleSettings = React.useCallback(() => {
     onToggleSettings();
@@ -166,4 +190,26 @@ export function useReaderShellInteractions({
     handleReaderPointerDownCapture,
     toggleSettings,
   };
+}
+
+function readerChatShortcut(event: KeyboardEvent) {
+  if (
+    event.defaultPrevented ||
+    event.repeat ||
+    event.isComposing ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.altKey ||
+    event.key.toUpperCase() !== 'Q'
+  ) {
+    return false;
+  }
+  return !isEditableKeyboardTarget(event.target);
+}
+
+function isEditableKeyboardTarget(target: EventTarget | null) {
+  return (
+    target instanceof Element &&
+    Boolean(target.closest('input,textarea,select,[contenteditable="true"]'))
+  );
 }

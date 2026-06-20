@@ -60,13 +60,16 @@ export type UseReaderShellStateOptions = {
   onClearSelection: () => void;
   onCloseFloatingPanels: () => void;
   onCloseHighlightChoice: () => void;
+  onCloseReaderChat?: () => void;
   onAskSelection?: (action: SelectionAction) => void;
   onNavigateAnnotation?: (annotationId: string, direction: AnnotationNavigationDirection) => void;
+  onOpenReaderChat?: () => void;
   onOpenComposer: (action: SelectionAction) => void;
   onResolveAnnotationNavigation?: (
     request: AnnotationNavigationRequest,
   ) => AnnotationNavigationState;
   onToggleSettings: () => void;
+  readerChatOpen?: boolean;
 };
 
 export type ReaderShellState = ReturnType<typeof useReaderShellState>;
@@ -97,11 +100,14 @@ export function useReaderShellState({
   onClearSelection,
   onCloseFloatingPanels,
   onCloseHighlightChoice,
+  onCloseReaderChat,
   onAskSelection,
   onNavigateAnnotation,
+  onOpenReaderChat,
   onOpenComposer,
   onResolveAnnotationNavigation,
   onToggleSettings,
+  readerChatOpen,
 }: UseReaderShellStateOptions) {
   const measuredAnnotationRailLayout = useAnnotationRailLayout(
     canvasRef,
@@ -147,10 +153,13 @@ export function useReaderShellState({
     onClearSelection,
     onCloseFloatingPanels,
     onCloseHighlightChoice,
+    onCloseReaderChat,
     onAskSelection,
     onCopySelection: requestSelectionCopy,
+    onOpenReaderChat,
     onOpenComposer,
     onToggleSettings,
+    readerChatOpen,
   });
 
   React.useEffect(() => {

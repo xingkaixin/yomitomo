@@ -126,11 +126,14 @@ export function ReaderAppView({
     onClearSelection: selectionActions.onClearSelection,
     onCloseFloatingPanels: shell.onCloseFloatingPanels,
     onCloseHighlightChoice: selectionActions.onCloseHighlightChoice,
+    onCloseReaderChat: chatActions?.onClose,
     onAskSelection: selectionActions.onAskSelection,
     onNavigateAnnotation: annotationActions.onNavigateAnnotation,
+    onOpenReaderChat: chatActions?.onOpen,
     onOpenComposer: selectionActions.onOpenComposer,
     onResolveAnnotationNavigation: annotationActions.onResolveAnnotationNavigation,
     onToggleSettings: shell.onToggleSettings,
+    readerChatOpen: chat?.open,
   });
   const {
     annotationRailItems,
