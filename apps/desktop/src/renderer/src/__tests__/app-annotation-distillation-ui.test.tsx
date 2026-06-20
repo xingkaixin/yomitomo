@@ -173,6 +173,45 @@ describe('annotation distillation UI', () => {
       );
     });
   });
+
+  it('marks failed distillation review messages as failed', async () => {
+    const desktop = installDesktopApi(article(annotation()));
+    desktop.requestAgentDistillationReviewStream.mockRejectedValue(new Error('provider failed'));
+    window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
+
+    render(<AnnotationSedimentationWindowApp />);
+
+    await screen.findByPlaceholderText('让已选审阅助手讨论这份沉淀...');
+    fireEvent.click(await screen.findByRole('button', { name: '发送' }));
+
+    expect(await screen.findAllByText('provider failed')).toHaveLength(2);
+    expect(screen.queryByText('正在审阅...')).toBeNull();
+    expect(desktop.requestAgentDistillationReviewStream).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(desktop.saveArticle).toHaveBeenCalledWith(
+        expect.objectContaining({
+          annotations: [
+            expect.objectContaining({
+              distillation: expect.objectContaining({
+                reviewSessions: [
+                  expect.objectContaining({
+                    messages: [
+                      expect.objectContaining({
+                        author: 'ai',
+                        content: '',
+                        errorMessage: 'provider failed',
+                        status: 'failed',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            }),
+          ],
+        }),
+      );
+    });
+  });
 });
 
 describe('annotation distillation proposals', () => {

@@ -300,6 +300,8 @@ function SedimentationShell({
     setReviewNotice('');
     const effectiveReviewDraft = input?.reviewDraftOverride ?? reviewDraft;
     if (!input?.reviewDraftOverride) setReviewDraft('');
+    let workingArticle = article;
+    let workingAnnotation = annotation;
     try {
       const now = new Date().toISOString();
       const userMessage = effectiveReviewDraft.trim()
@@ -310,8 +312,6 @@ function SedimentationShell({
             createdAt: now,
           } satisfies AnnotationDistillationReviewMessage)
         : undefined;
-      let workingArticle = article;
-      let workingAnnotation = annotation;
       for (const agent of activeAgents) {
         const result = await requestAgentReviewRound({
           agent,
@@ -320,15 +320,22 @@ function SedimentationShell({
           draft,
           reviewDraft: effectiveReviewDraft,
           reviewMode: input?.reviewMode || 'review',
-          sessions,
+          sessions: workingAnnotation.distillation?.reviewSessions || sessions,
           uiLanguage,
           userMessage,
           onOptimisticSession: (session) => {
             const nextAnnotation = annotationWithReviewSession(workingAnnotation, session);
+            const nextArticle = updateAnnotation(
+              workingArticle,
+              workingAnnotation.id,
+              () => nextAnnotation,
+            );
+            workingAnnotation = nextAnnotation;
+            workingArticle = nextArticle;
             onStatusChange({
               type: 'ready',
               agents,
-              article: updateAnnotation(workingArticle, workingAnnotation.id, () => nextAnnotation),
+              article: nextArticle,
               annotation: nextAnnotation,
               uiLanguage,
             });
@@ -344,6 +351,13 @@ function SedimentationShell({
       await saveAndRefresh(workingArticle, agents, annotation.id, uiLanguage, onStatusChange);
     } catch (error) {
       setReviewNotice(assistantRuntimeErrorMessage(error, 'sedimentation.reviewFailed'));
+      if (workingArticle !== article) {
+        try {
+          await saveAndRefresh(workingArticle, agents, annotation.id, uiLanguage, onStatusChange);
+        } catch {
+          setReviewNotice(assistantRuntimeErrorMessage(error, 'sedimentation.reviewFailed'));
+        }
+      }
     } finally {
       setReviewing(false);
     }
@@ -619,6 +633,7 @@ async function requestAgentReviewRound({
     author: 'ai',
     content: '',
     createdAt: now,
+    status: 'pending',
     agentId: agent.id,
     agentUsername: agent.username,
     agentNickname: agent.nickname,
@@ -631,46 +646,60 @@ async function requestAgentReviewRound({
   };
   onOptimisticSession(workingSession);
 
-  const finalMessage = await window.yomitomoDesktop.requestAgentDistillationReviewStream(
-    {
-      agentId: agent.id,
-      agentUsername: agent.username,
-      uiLanguage,
-      reviewMessageId: assistantMessage.id,
-      distillationReviewMode: reviewMode,
-      instruction: distillationReviewInstruction(draft, reviewDraft, session),
-      article: promptArticle(article, articlePlainText(article)),
-      annotation,
-      userComment: reviewRequestComment(userMessage, now),
-    },
-    (event) => {
-      if (event.type === 'start') return;
-      if (event.type === 'progress') {
+  const finalMessage = await window.yomitomoDesktop
+    .requestAgentDistillationReviewStream(
+      {
+        agentId: agent.id,
+        agentUsername: agent.username,
+        uiLanguage,
+        reviewMessageId: assistantMessage.id,
+        distillationReviewMode: reviewMode,
+        instruction: distillationReviewInstruction(draft, reviewDraft, session),
+        article: promptArticle(article, articlePlainText(article)),
+        annotation,
+        userComment: reviewRequestComment(userMessage, now),
+      },
+      (event) => {
+        if (event.type === 'start') return;
+        if (event.type === 'progress') {
+          workingSession = updateSessionMessage(workingSession, assistantMessage.id, (message) =>
+            Object.assign({}, message, {
+              assistantProgress: applyAssistantRuntimeProgress(
+                message.assistantProgress,
+                event.progress,
+              ),
+            }),
+          );
+          onOptimisticSession(workingSession);
+          return;
+        }
+        if (event.type !== 'delta') return;
         workingSession = updateSessionMessage(workingSession, assistantMessage.id, (message) =>
-          Object.assign({}, message, {
-            assistantProgress: applyAssistantRuntimeProgress(
-              message.assistantProgress,
-              event.progress,
-            ),
-          }),
+          Object.assign({}, message, { content: `${message.content}${event.delta}` }),
         );
         onOptimisticSession(workingSession);
-        return;
-      }
-      if (event.type !== 'delta') return;
+      },
+    )
+    .catch((error: unknown) => {
+      const errorMessage = assistantRuntimeErrorMessage(error, 'sedimentation.reviewFailed');
       workingSession = updateSessionMessage(workingSession, assistantMessage.id, (message) =>
-        Object.assign({}, message, { content: `${message.content}${event.delta}` }),
+        Object.assign({}, message, {
+          errorMessage,
+          status: 'failed' as const,
+        }),
       );
       onOptimisticSession(workingSession);
-    },
-  );
+      throw error;
+    });
   workingSession = updateSessionMessage(workingSession, assistantMessage.id, (message) =>
     Object.assign({}, message, {
       content:
         finalMessage.content ||
         workingSession.messages.find((item) => item.id === assistantMessage.id)?.content ||
         '',
+      errorMessage: undefined,
       proposals: finalMessage.proposals || message.proposals || [],
+      status: 'done' as const,
     }),
   );
 
@@ -800,6 +829,7 @@ function ReviewTimelineMessage({
       message.agentNickname ||
       message.agentUsername ||
       t('sedimentation.reviewAssistant');
+  const isFailed = message.status === 'failed';
   const fallback = isUser
     ? userProfile.nickname.slice(0, 1) || t('common.me')
     : nickname.slice(0, 1) || t('sedimentation.reviewAssistantFallback');
@@ -807,11 +837,15 @@ function ReviewTimelineMessage({
     'annotation-discussion-message',
     'annotation-sedimentation-review-message',
     isUser ? 'is-user' : 'is-assistant',
-  ].join(' ');
+    isFailed ? 'is-failed' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
   const reviewingLabel = t('sedimentation.reviewing');
+  const errorMessage = message.errorMessage || t('sedimentation.reviewFailed');
   const html = useMemo(
-    () => renderSafeMarkdown(message.content || reviewingLabel),
-    [message.content, reviewingLabel],
+    () => renderSafeMarkdown(message.content || (isFailed ? errorMessage : reviewingLabel)),
+    [errorMessage, isFailed, message.content, reviewingLabel],
   );
 
   return (
@@ -833,6 +867,9 @@ function ReviewTimelineMessage({
             __html: html,
           }}
         />
+        {isFailed && message.content ? (
+          <p className="annotation-sedimentation-review-error">{errorMessage}</p>
+        ) : null}
         {!isUser && message.proposals?.length ? (
           <ReviewProposalList
             messageId={message.id}

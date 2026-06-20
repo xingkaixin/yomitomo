@@ -6,6 +6,7 @@ import type {
   AnnotationDistillationProposal,
   AnnotationDistillationProposalKind,
   AnnotationDistillationProposalStatus,
+  AnnotationDistillationReviewMessage,
   AnnotationDistillationReviewSession,
   AnnotationDistillationStatus,
   AnnotationEvidenceSource,
@@ -146,13 +147,16 @@ function normalizeAnnotationDistillationReviewMessages(value: unknown) {
     const message = recordValue(item);
     const id = stringValue(message.id);
     const content = stringValue(message.content);
-    if (!id || !content) return [];
+    const errorMessage = stringValue(message.errorMessage);
+    if (!id || (!content && !errorMessage)) return [];
     return [
       {
         id,
         author: normalizeAnnotationAuthor(message.author),
         content,
         createdAt: stringValue(message.createdAt),
+        status: normalizeAnnotationDistillationReviewMessageStatus(message.status) || undefined,
+        errorMessage: errorMessage || undefined,
         agentId: stringValue(message.agentId) || undefined,
         agentUsername: stringValue(message.agentUsername) || undefined,
         agentNickname: stringValue(message.agentNickname) || undefined,
@@ -162,6 +166,12 @@ function normalizeAnnotationDistillationReviewMessages(value: unknown) {
       },
     ];
   });
+}
+
+function normalizeAnnotationDistillationReviewMessageStatus(
+  value: unknown,
+): AnnotationDistillationReviewMessage['status'] | null {
+  return value === 'pending' || value === 'done' || value === 'failed' ? value : null;
 }
 
 function normalizeAnnotationDistillationProposals(
