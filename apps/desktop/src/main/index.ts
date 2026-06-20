@@ -3,6 +3,7 @@ import { app, BrowserWindow, shell } from 'electron';
 import type { ArticleStorePatch, DesktopStore } from '@yomitomo/shared';
 import { getLogPath, logError, logInfo, pruneLogFile } from './app/logger';
 import { configureDesktopAppStorage } from './app/app-environment';
+import { installDevProcessLifecycle } from './app/dev-process-lifecycle';
 import { installElectronSmokeProbe } from './app/electron-smoke-probe';
 import type { AppUpdateState } from '../app-update-types';
 import type { DesktopStoreLoadErrorInfo } from '../app-store-errors';
@@ -31,8 +32,10 @@ let persistenceModulePromise: Promise<typeof import('./store/desktop-persistence
 let modelPriceRefreshTimer: NodeJS.Timeout | null = null;
 
 configureDesktopAppStorage();
+installDevProcessLifecycle(logInfo);
 recordStartupTiming('main.module_loaded', {
   pid: process.pid,
+  parentPid: process.ppid,
   platform: process.platform,
   packaged: app.isPackaged,
 });
