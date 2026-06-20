@@ -117,9 +117,9 @@ export function buildProviderRecord(
     modelNames:
       modelInputMode === 'custom'
         ? undefined
-        : normalizeModelNames(input.modelNames) ||
-          normalizeModelNames(existing?.modelNames) ||
-          preset?.modelNames,
+        : (normalizeModelNames(input.modelNames) ??
+          normalizeModelNames(existing?.modelNames) ??
+          preset?.modelNames),
     modelInputMode,
     reasoningEffort: 'none',
     createdAt: existing?.createdAt || options.now,

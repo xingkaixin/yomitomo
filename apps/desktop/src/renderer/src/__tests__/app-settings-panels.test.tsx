@@ -159,22 +159,28 @@ describe('ProviderForm', () => {
           type: 'openai-chat',
           apiKey: 'sk-test',
           modelName: 'gpt-5.1',
+          modelNames: undefined,
         }}
         onChange={onChange}
       />,
     );
 
+    openModelMenu();
     fireEvent.click(screen.getByRole('button', { name: /获取/ }));
 
     expect(await screen.findByText('已获取 2 个模型')).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '模型' })).toBeTruthy();
     expect(listProviderModels).toHaveBeenCalledOnce();
     expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ modelInputMode: 'list', modelName: 'gpt-5.2' }),
+      expect.objectContaining({
+        modelInputMode: 'list',
+        modelName: 'gpt-5.1',
+        modelNames: expect.arrayContaining(['gpt-5.2', 'gpt-5.2-mini']),
+      }),
     );
   });
 
-  it('switches model input between custom text and fetched list', async () => {
+  it('adds custom models into the mixed model list', async () => {
     const listProviderModels = vi.fn().mockResolvedValue([{ id: 'kimi-k2' }]);
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
@@ -195,17 +201,74 @@ describe('ProviderForm', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /自定义/ }));
-    const input = screen.getByRole('textbox', { name: '模型' }) as HTMLInputElement;
-    expect(input.value).toBe('vendor/model');
+    openModelMenu();
+    fireEvent.change(screen.getByLabelText('自定义模型名称'), {
+      target: { value: 'custom/model' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '使用' }));
 
-    fireEvent.change(input, { target: { value: 'custom/model' } });
-    expect(input.value).toBe('custom/model');
+    const trigger = screen.getByRole('combobox', { name: '模型' });
+    expect(trigger.textContent).toContain('custom/model');
 
+    openModelMenu();
     fireEvent.click(screen.getByRole('button', { name: /获取/ }));
 
     expect(await screen.findByText('已获取 1 个模型')).toBeTruthy();
-    expect(screen.getByRole('combobox', { name: '模型' })).toBeTruthy();
+    expect(trigger.textContent).toContain('custom/model');
+  });
+
+  it('edits and deletes custom models without exposing preset models to editing', () => {
+    render(
+      <StatefulProviderForm
+        initialDraft={{
+          ...emptyProvider,
+          modelName: 'custom/model',
+          modelNames: ['deepseek-chat', 'custom/model'],
+          modelInputMode: 'list',
+        }}
+      />,
+    );
+
+    openModelMenu();
+    expect(screen.queryByLabelText('编辑自定义模型 deepseek-chat')).toBeNull();
+
+    fireEvent.click(screen.getByLabelText('编辑自定义模型 custom/model'));
+    fireEvent.change(screen.getByLabelText('自定义模型名称'), {
+      target: { value: 'custom/model-v2' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '更新' }));
+
+    expect(screen.getByRole('combobox', { name: '模型' }).textContent).toContain('custom/model-v2');
+
+    openModelMenu();
+    fireEvent.click(screen.getByLabelText('删除自定义模型 custom/model-v2'));
+
+    expect(screen.getByRole('combobox', { name: '模型' }).textContent).toContain('deepseek-chat');
+    openModelMenu();
+    expect(screen.queryByText('custom/model-v2')).toBeNull();
+  });
+
+  it('hides and restores preset models from the provider visible model list', () => {
+    render(
+      <StatefulProviderForm
+        initialDraft={{
+          ...emptyProvider,
+          modelName: 'deepseek-chat',
+          modelNames: ['deepseek-chat', 'deepseek-reasoner'],
+          modelInputMode: 'list',
+        }}
+      />,
+    );
+
+    openModelMenu();
+    fireEvent.click(screen.getByLabelText('隐藏预设模型 deepseek-reasoner'));
+
+    const listbox = screen.getByRole('listbox');
+    expect(within(listbox).queryByRole('option', { name: /deepseek-reasoner/ })).toBeNull();
+    expect(screen.getByText('隐藏的预设模型')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'deepseek-reasoner' }));
+    expect(within(listbox).getByRole('option', { name: /deepseek-reasoner/ })).toBeTruthy();
   });
 
   it('filters long fetched model lists in the model menu', () => {
@@ -222,12 +285,12 @@ describe('ProviderForm', () => {
       />,
     );
 
-    const combobox = screen.getByRole('combobox', { name: '模型' }) as HTMLInputElement;
+    const combobox = screen.getByRole('combobox', { name: '模型' });
     fireEvent.click(combobox);
-    fireEvent.change(combobox, { target: { value: 'qwen' } });
+    fireEvent.change(screen.getByPlaceholderText('搜索模型'), { target: { value: 'qwen' } });
 
     const listbox = screen.getByRole('listbox');
-    expect(within(listbox).getByRole('option', { name: 'qwen-max-latest' })).toBeTruthy();
+    expect(within(listbox).getByRole('option', { name: /qwen-max-latest/ })).toBeTruthy();
     expect(within(listbox).queryByRole('button', { name: 'qwen-max-latest' })).toBeNull();
     expect(within(listbox).queryByText('model-01')).toBeNull();
   });
@@ -257,6 +320,7 @@ describe('ProviderForm', () => {
     expect(apiKeyInput.value).toBe('');
     expect(apiKeyInput.placeholder).toBe('已安全保存，输入新 Key 会覆盖');
 
+    openModelMenu();
     fireEvent.click(screen.getByRole('button', { name: /获取/ }));
 
     expect(await screen.findByText('已获取 1 个模型')).toBeTruthy();
@@ -341,11 +405,17 @@ describe('ProviderForm', () => {
       />,
     );
 
+    openModelMenu();
     fireEvent.click(screen.getByRole('button', { name: /获取/ }));
 
-    expect(await screen.findByText('已显示预设模型；填写 API Key 后可获取实时列表')).toBeTruthy();
+    await waitFor(() =>
+      expect(appToast.warning).toHaveBeenCalledWith('填写 API Key 后可获取模型列表', {
+        description: '已显示预设模型；填写 API Key 后可获取实时列表',
+      }),
+    );
+    expect(screen.queryByText('已显示预设模型；填写 API Key 后可获取实时列表')).toBeNull();
     expect(listProviderModels).not.toHaveBeenCalled();
-    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ modelInputMode: 'list' }));
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it('shows provider model fetch failures while keeping preset candidates', async () => {
@@ -367,6 +437,7 @@ describe('ProviderForm', () => {
       />,
     );
 
+    openModelMenu();
     fireEvent.click(screen.getByRole('button', { name: /获取/ }));
 
     expect(await screen.findByText('Bad credentials')).toBeTruthy();
@@ -597,26 +668,7 @@ describe('ProviderSettings', () => {
     const onCreate = vi.fn();
     const onTest = vi.fn();
 
-    render(
-      <ProviderSettings
-        draft={emptyProvider}
-        settingsDraft={{}}
-        providers={[]}
-        testState={{ status: 'idle' }}
-        canSave={false}
-        canSaveRoutes={false}
-        onChange={vi.fn()}
-        onRouteChange={vi.fn()}
-        onCreate={onCreate}
-        onDelete={vi.fn()}
-        onSave={vi.fn()}
-        saveState="idle"
-        routeSaveState="idle"
-        onRouteSave={vi.fn()}
-        onSelect={vi.fn()}
-        onTest={onTest}
-      />,
-    );
+    render(<StatefulEmptyProviderSettings onCreate={onCreate} onTest={onTest} />);
 
     expect(
       screen.getByText('当前还没有可选供应商。新增并保存供应商后，这里会开放选择。'),
@@ -629,15 +681,57 @@ describe('ProviderSettings', () => {
     fireEvent.click(screen.getByRole('button', { name: /新增模型供应商/ }));
     expect(onCreate).toHaveBeenCalledOnce();
     expect(screen.getByText('新增供应商')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^OpenAIOpenAI compatible/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /深度求索/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /阿里云百炼/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Anthropic/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Gemini/ })).toBeTruthy();
 
+    fireEvent.click(screen.getByRole('button', { name: /^OpenAIOpenAI compatible/ }));
+    expect(screen.getByLabelText('Base URL')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '测试' }));
-    expect(onTest).toHaveBeenCalledWith(emptyProvider);
+    expect(onTest).toHaveBeenCalledWith(expect.objectContaining({ presetId: 'openai' }));
   });
 });
 
 function StatefulProviderForm({ initialDraft }: { initialDraft: typeof emptyProvider }) {
   const [draft, setDraft] = React.useState(initialDraft);
   return <ProviderForm draft={draft} onChange={setDraft} />;
+}
+
+function StatefulEmptyProviderSettings({
+  onCreate,
+  onTest,
+}: {
+  onCreate: () => void;
+  onTest: (draft: typeof emptyProvider) => void;
+}) {
+  const [draft, setDraft] = React.useState(emptyProvider);
+
+  return (
+    <ProviderSettings
+      draft={draft}
+      settingsDraft={{}}
+      providers={[]}
+      testState={{ status: 'idle' }}
+      canSave={false}
+      canSaveRoutes={false}
+      onChange={setDraft}
+      onRouteChange={vi.fn()}
+      onCreate={onCreate}
+      onDelete={vi.fn()}
+      onSave={vi.fn()}
+      saveState="idle"
+      routeSaveState="idle"
+      onRouteSave={vi.fn()}
+      onSelect={vi.fn()}
+      onTest={onTest}
+    />
+  );
+}
+
+function openModelMenu() {
+  fireEvent.click(screen.getByRole('combobox', { name: '模型' }));
 }
 
 function makeProvider(id: string, name: string): LlmProvider {
