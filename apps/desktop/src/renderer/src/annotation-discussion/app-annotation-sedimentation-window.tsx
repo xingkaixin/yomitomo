@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import {
   Check,
   MessageCircleQuestion,
+  Plus,
   RotateCcw,
   Send,
   Sparkles,
@@ -36,6 +37,14 @@ import {
   ReaderTooltip,
   SubmitShortcutTooltipContent,
 } from '@yomitomo/reader-ui/reader-component-primitives';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+} from '../components/ui/dialog';
 import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
 import { useCompositionSubmit } from '@yomitomo/reader-ui/use-composition-submit';
 import {
@@ -61,6 +70,15 @@ type SedimentationWindowStatus =
     }
   | { type: 'missing' }
   | { type: 'error'; message: string };
+
+type OrganizeDiscussionState =
+  | { type: 'idle' }
+  | {
+      type: 'running' | 'done' | 'failed';
+      agent: PublicAgent;
+      message: AnnotationDistillationReviewMessage;
+      notice?: string;
+    };
 
 export function AnnotationSedimentationWindowApp() {
   const { t } = useTranslation();
@@ -169,6 +187,11 @@ function SedimentationShell({
   const [saving, setSaving] = useState(false);
   const [reviewing, setReviewing] = useState(false);
   const [reviewNotice, setReviewNotice] = useState('');
+  const [organizeState, setOrganizeState] = useState<OrganizeDiscussionState>({ type: 'idle' });
+  const [organizeConfirmOpen, setOrganizeConfirmOpen] = useState(false);
+  const [appliedOrganizeProposalIds, setAppliedOrganizeProposalIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const draftKey = distillationDraftKey(article.id, annotation.id);
   const draftTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const draftSelectionRef = useRef<DraftSelectionSnapshot | null>(null);
@@ -176,7 +199,10 @@ function SedimentationShell({
   const shortcutModifier = getShortcutModifier();
   const messageSendShortcut = 'mod-enter' as const;
   const canPublish = Boolean(draft.trim()) && !saving;
-  const canReview = activeAgents.length > 0 && !reviewing;
+  const organizing = organizeState.type === 'running';
+  const assistantBusy = reviewing || organizing;
+  const canReview = activeAgents.length > 0 && !assistantBusy;
+  const canOrganize = activeAgents.length > 0 && !assistantBusy;
   const sessions = annotation.distillation?.reviewSessions || [];
   const isPublished = annotation.distillation?.status === 'published';
   const statusLabel = isPublished
@@ -296,7 +322,7 @@ function SedimentationShell({
     reviewDraftOverride?: string;
     reviewMode?: 'review' | 'organize_discussion';
   }) {
-    if (activeAgents.length === 0 || reviewing) return;
+    if (activeAgents.length === 0 || assistantBusy) return;
     setReviewing(true);
     setReviewNotice('');
     const effectiveReviewDraft = input?.reviewDraftOverride ?? reviewDraft;
@@ -374,10 +400,104 @@ function SedimentationShell({
   });
 
   function organizeDiscussion() {
-    void submitReviewRound({
-      reviewMode: 'organize_discussion',
-      reviewDraftOverride: t('sedimentation.organizeDiscussionInstruction'),
-    });
+    if (!canOrganize) return;
+    setOrganizeConfirmOpen(true);
+  }
+
+  function confirmOrganizeDiscussion() {
+    if (!canOrganize) return;
+    setOrganizeConfirmOpen(false);
+    void runOrganizeDiscussion();
+  }
+
+  async function runOrganizeDiscussion() {
+    const agent = activeAgents[0];
+    if (!agent || assistantBusy) return;
+    setAppliedOrganizeProposalIds(new Set());
+    setReviewNotice('');
+    const now = new Date().toISOString();
+    const instruction = t('sedimentation.organizeDiscussionInstruction');
+    const session = existingSessionForAgent(sessions, agent) || createReviewSession(agent, now);
+    let workingMessage: AnnotationDistillationReviewMessage = {
+      id: makeId('distillation_review_message'),
+      author: 'ai',
+      content: '',
+      createdAt: now,
+      status: 'pending',
+      agentId: agent.id,
+      agentUsername: agent.username,
+      agentNickname: agent.nickname,
+      agentAvatar: agent.avatar,
+    };
+    const setMessage = (message: AnnotationDistillationReviewMessage) => {
+      workingMessage = message;
+      setOrganizeState({
+        type: message.status === 'failed' ? 'failed' : 'running',
+        agent,
+        message,
+      });
+    };
+    setOrganizeState({ type: 'running', agent, message: workingMessage });
+
+    try {
+      const finalMessage = await window.yomitomoDesktop.requestAgentDistillationReviewStream(
+        {
+          agentId: agent.id,
+          agentUsername: agent.username,
+          uiLanguage,
+          reviewMessageId: workingMessage.id,
+          distillationReviewMode: 'organize_discussion',
+          ...distillationReviewPayloadFields(draft, instruction, session),
+          article: promptArticle(article, articlePlainText(article)),
+          annotation,
+          userComment: {
+            id: makeId('distillation_review_request'),
+            author: 'user',
+            content: instruction,
+            createdAt: now,
+          },
+        },
+        (event) => {
+          if (event.type === 'start') return;
+          if (event.type === 'progress') {
+            setMessage(
+              Object.assign({}, workingMessage, {
+                assistantProgress: applyAssistantRuntimeProgress(
+                  workingMessage.assistantProgress,
+                  event.progress,
+                ),
+              }),
+            );
+            return;
+          }
+          if (event.type === 'item') {
+            setMessage(appendReviewItemToMessage(workingMessage, event.item));
+            return;
+          }
+          if (event.type !== 'delta') return;
+          setMessage(
+            Object.assign({}, workingMessage, {
+              content: `${workingMessage.content}${event.delta}`,
+            }),
+          );
+        },
+      );
+      workingMessage = Object.assign({}, workingMessage, {
+        content: finalMessage.content || workingMessage.content || '',
+        errorMessage: undefined,
+        items: finalMessage.items || workingMessage.items || [],
+        proposals: finalMessage.proposals || workingMessage.proposals || [],
+        status: 'done' as const,
+      });
+      setOrganizeState({ type: 'done', agent, message: workingMessage });
+    } catch (error) {
+      const errorMessage = assistantRuntimeErrorMessage(error, 'sedimentation.reviewFailed');
+      workingMessage = Object.assign({}, workingMessage, {
+        errorMessage,
+        status: 'failed' as const,
+      });
+      setOrganizeState({ type: 'failed', agent, message: workingMessage });
+    }
   }
 
   function recordDraftSelection() {
@@ -416,6 +536,35 @@ function SedimentationShell({
   async function handleProposalRestore(messageId: string, proposalId: string) {
     await updateProposalStatus(messageId, proposalId, 'pending');
     setReviewNotice('');
+  }
+
+  function handleOrganizeProposalAppend(proposal: AnnotationDistillationProposal) {
+    const content = proposal.content?.trim();
+    if (proposal.kind !== 'insert' || !content) {
+      setOrganizeNotice(t('sedimentation.organizeUnsupportedProposal'));
+      return;
+    }
+    if (draftContainsContent(draft, content)) {
+      setOrganizeNotice(t('sedimentation.organizeDuplicateDraft'));
+      return;
+    }
+    const result = appendContentToDraft(draft, content);
+    setDraft(result.draft);
+    setAppliedOrganizeProposalIds((current) => new Set(current).add(proposal.id));
+    setOrganizeNotice(t('sedimentation.organizeAddedToDraft'));
+    requestAnimationFrame(() => {
+      const textarea = draftTextareaRef.current;
+      if (!textarea) return;
+      textarea.focus();
+      textarea.setSelectionRange(result.changeOffset, result.changeOffset + result.changeLength);
+      scrollTextareaToOffset(textarea, result.changeOffset);
+    });
+  }
+
+  function setOrganizeNotice(notice: string) {
+    setOrganizeState((current) =>
+      current.type === 'idle' ? current : Object.assign({}, current, { notice }),
+    );
   }
 
   async function updateProposalStatus(
@@ -499,7 +648,7 @@ function SedimentationShell({
                 <button
                   className="is-secondary"
                   type="button"
-                  disabled={!canReview}
+                  disabled={!canOrganize}
                   onClick={organizeDiscussion}
                 >
                   <Sparkles size={15} />
@@ -526,19 +675,30 @@ function SedimentationShell({
               </ReaderTooltip>
             </div>
           </header>
-          <textarea
-            ref={draftTextareaRef}
-            value={draft}
-            placeholder={t('sedimentation.draftPlaceholder')}
-            onChange={(event) => {
-              setDraft(event.target.value);
-              recordDraftSelection();
-            }}
-            onClick={recordDraftSelection}
-            onKeyDown={handlePublishKeyDown}
-            onKeyUp={recordDraftSelection}
-            onSelect={recordDraftSelection}
-          />
+          <div className="annotation-sedimentation-draft-workspace">
+            <textarea
+              ref={draftTextareaRef}
+              value={draft}
+              placeholder={t('sedimentation.draftPlaceholder')}
+              onChange={(event) => {
+                setDraft(event.target.value);
+                recordDraftSelection();
+              }}
+              onClick={recordDraftSelection}
+              onKeyDown={handlePublishKeyDown}
+              onKeyUp={recordDraftSelection}
+              onSelect={recordDraftSelection}
+            />
+            {organizeState.type !== 'idle' ? (
+              <OrganizeDiscussionCard
+                state={organizeState}
+                appliedProposalIds={appliedOrganizeProposalIds}
+                onAppendProposal={handleOrganizeProposalAppend}
+                onClose={() => setOrganizeState({ type: 'idle' })}
+                onRetry={() => void runOrganizeDiscussion()}
+              />
+            ) : null}
+          </div>
         </section>
 
         <aside
@@ -600,6 +760,12 @@ function SedimentationShell({
           </footer>
         </aside>
       </section>
+      <OrganizeDiscussionConfirmDialog
+        disabled={!canOrganize}
+        open={organizeConfirmOpen}
+        onCancel={() => setOrganizeConfirmOpen(false)}
+        onConfirm={confirmOrganizeDiscussion}
+      />
     </main>
   );
 }
@@ -655,7 +821,7 @@ async function requestAgentReviewRound({
         uiLanguage,
         reviewMessageId: assistantMessage.id,
         distillationReviewMode: reviewMode,
-        instruction: distillationReviewInstruction(draft, reviewDraft, session),
+        ...distillationReviewPayloadFields(draft, reviewDraft, session),
         article: promptArticle(article, articlePlainText(article)),
         annotation,
         userComment: reviewRequestComment(userMessage, now),
@@ -729,6 +895,253 @@ function SedimentationActionTooltipContent({
       <strong>{label}</strong>
       <em>{description}</em>
     </span>
+  );
+}
+
+function OrganizeDiscussionConfirmDialog({
+  disabled,
+  open,
+  onCancel,
+  onConfirm,
+}: {
+  disabled: boolean;
+  open: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const { t } = useTranslation();
+
+  if (!open) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={(nextOpen) => (!nextOpen ? onCancel() : undefined)}>
+      <DialogPortal>
+        <DialogOverlay className="annotation-sedimentation-confirm-overlay">
+          <DialogContent
+            aria-describedby="annotation-sedimentation-organize-confirm-description"
+            aria-labelledby="annotation-sedimentation-organize-confirm-title"
+            className="annotation-sedimentation-confirm"
+          >
+            <header>
+              <span className="annotation-sedimentation-confirm-icon" aria-hidden="true">
+                <Sparkles size={18} />
+              </span>
+              <div>
+                <DialogTitle id="annotation-sedimentation-organize-confirm-title">
+                  {t('sedimentation.organizeConfirmTitle')}
+                </DialogTitle>
+                <DialogDescription id="annotation-sedimentation-organize-confirm-description">
+                  {t('sedimentation.organizeConfirmDescription')}
+                </DialogDescription>
+              </div>
+            </header>
+            <footer>
+              <button type="button" onClick={onCancel}>
+                {t('sedimentation.organizeConfirmCancel')}
+              </button>
+              <button className="is-primary" type="button" disabled={disabled} onClick={onConfirm}>
+                {t('sedimentation.organizeConfirmSubmit')}
+              </button>
+            </footer>
+          </DialogContent>
+        </DialogOverlay>
+      </DialogPortal>
+    </Dialog>
+  );
+}
+
+function OrganizeDiscussionCard({
+  appliedProposalIds,
+  onAppendProposal,
+  onClose,
+  onRetry,
+  state,
+}: {
+  appliedProposalIds: Set<string>;
+  onAppendProposal: (proposal: AnnotationDistillationProposal) => void;
+  onClose: () => void;
+  onRetry: () => void;
+  state: Exclude<OrganizeDiscussionState, { type: 'idle' }>;
+}) {
+  const { t } = useTranslation();
+  const { agent, message } = state;
+  const isRunning = state.type === 'running';
+  const isFailed = state.type === 'failed';
+  const structuredItems = (message.items || []).filter((item) => item.type !== 'proposal');
+  const proposals = message.proposals || [];
+  const appendableProposalCount = proposals.filter((proposal) => proposal.kind === 'insert').length;
+  const statusLabel = isFailed
+    ? t('sedimentation.organizeCardFailed')
+    : isRunning
+      ? t('sedimentation.organizeCardRunning')
+      : appendableProposalCount > 0
+        ? t('sedimentation.organizeCardDoneWithProposals', { count: appendableProposalCount })
+        : structuredItems.length > 0
+          ? t('sedimentation.organizeCardDoneWithFindings', { count: structuredItems.length })
+          : t('sedimentation.organizeCardDone');
+  const errorMessage = message.errorMessage || t('sedimentation.reviewFailed');
+  const fallback = isFailed ? errorMessage : t('sedimentation.organizeCardEmpty');
+  const shouldShowMarkdown =
+    structuredItems.length === 0 && (Boolean(message.content.trim()) || proposals.length === 0);
+  const html = useMemo(
+    () => renderSafeMarkdown(message.content || fallback),
+    [fallback, message.content],
+  );
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const [hasScrollMore, setHasScrollMore] = useState(false);
+
+  function updateScrollHint() {
+    const body = bodyRef.current;
+    if (!body) {
+      setHasScrollMore(false);
+      return;
+    }
+    setHasScrollMore(body.scrollTop + body.clientHeight < body.scrollHeight - 3);
+  }
+
+  useEffect(() => {
+    updateScrollHint();
+    const body = bodyRef.current;
+    if (!body || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(updateScrollHint);
+    observer.observe(body);
+    return () => observer.disconnect();
+  }, [
+    message.assistantProgress,
+    message.content,
+    message.items,
+    message.proposals,
+    state.notice,
+    state.type,
+  ]);
+
+  return (
+    <article className={`annotation-sedimentation-organize-card is-${state.type}`}>
+      <header>
+        <div className="annotation-sedimentation-organize-title">
+          <span className="annotation-sedimentation-organize-icon">
+            <Sparkles size={15} />
+          </span>
+          <div>
+            <strong>{t('sedimentation.organizeCardTitle')}</strong>
+            <span>{statusLabel}</span>
+          </div>
+        </div>
+        <div className="annotation-sedimentation-organize-meta">
+          <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
+          <span>{agent.nickname}</span>
+          {isFailed ? (
+            <button type="button" onClick={onRetry}>
+              <RotateCcw size={14} />
+              <span>{t('sedimentation.organizeCardRetry')}</span>
+            </button>
+          ) : null}
+          {!isRunning ? (
+            <button
+              className="is-icon"
+              type="button"
+              aria-label={t('sedimentation.organizeCardClose')}
+              onClick={onClose}
+            >
+              <X size={14} />
+            </button>
+          ) : null}
+        </div>
+      </header>
+      <div
+        ref={bodyRef}
+        className={[
+          'annotation-sedimentation-organize-body',
+          hasScrollMore ? 'has-scroll-more' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        onScroll={updateScrollHint}
+      >
+        <AssistantRuntimeProgressList progress={message.assistantProgress} />
+        {structuredItems.length > 0 ? (
+          <StructuredReviewItems items={structuredItems} />
+        ) : shouldShowMarkdown ? (
+          <div
+            className="annotation-discussion-markdown"
+            dangerouslySetInnerHTML={{
+              __html: html,
+            }}
+          />
+        ) : null}
+        {isFailed && message.content ? (
+          <p className="annotation-sedimentation-review-error">{errorMessage}</p>
+        ) : null}
+        {proposals.length > 0 ? (
+          <OrganizeProposalList
+            appliedProposalIds={appliedProposalIds}
+            proposals={proposals}
+            onAppendProposal={onAppendProposal}
+          />
+        ) : null}
+        {state.notice ? (
+          <p className="annotation-sedimentation-organize-notice">{state.notice}</p>
+        ) : null}
+        <span className="annotation-sedimentation-organize-scroll-glow" aria-hidden="true" />
+      </div>
+    </article>
+  );
+}
+
+function OrganizeProposalList({
+  appliedProposalIds,
+  onAppendProposal,
+  proposals,
+}: {
+  appliedProposalIds: Set<string>;
+  onAppendProposal: (proposal: AnnotationDistillationProposal) => void;
+  proposals: AnnotationDistillationProposal[];
+}) {
+  const { t } = useTranslation();
+  return (
+    <section
+      className="annotation-sedimentation-proposals annotation-sedimentation-organize-proposals"
+      aria-label={t('sedimentation.proposals')}
+    >
+      {proposals.map((proposal) => {
+        const applied = appliedProposalIds.has(proposal.id);
+        return (
+          <article
+            className={[
+              'annotation-sedimentation-proposal',
+              `is-${proposal.status}`,
+              `is-${proposal.kind}`,
+            ].join(' ')}
+            key={proposal.id}
+          >
+            <div className="annotation-sedimentation-proposal-main">
+              <header>
+                <span>{proposalKindLabel(proposal.kind)}</span>
+                <strong>{proposal.title}</strong>
+              </header>
+              {proposal.rationale ? <p>{proposal.rationale}</p> : null}
+              <ProposalDiffPreview proposal={proposal} />
+            </div>
+            <div className="annotation-sedimentation-proposal-actions">
+              {applied ? (
+                <span className="annotation-sedimentation-proposal-state">
+                  {t('sedimentation.organizeAddedToDraft')}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  disabled={proposal.kind !== 'insert'}
+                  onClick={() => onAppendProposal(proposal)}
+                >
+                  <Plus size={14} />
+                  <span>{t('sedimentation.organizeAppendProposal')}</span>
+                </button>
+              )}
+            </div>
+          </article>
+        );
+      })}
+    </section>
   );
 }
 
@@ -1258,12 +1671,22 @@ function reviewRequestComment(
   };
 }
 
-function distillationReviewInstruction(
+function distillationReviewPayloadFields(
   draft: string,
   reviewDraft: string,
   session: AnnotationDistillationReviewSession,
 ) {
-  const transcript = session.messages
+  return {
+    instruction: draft,
+    distillationDraft: draft,
+    distillationReviewRequest:
+      reviewDraft.trim() || i18next.t('sedimentation.reviewPrompt.defaultReviewRequest'),
+    distillationReviewTranscript: distillationReviewTranscript(session),
+  };
+}
+
+function distillationReviewTranscript(session: AnnotationDistillationReviewSession) {
+  return session.messages
     .map((message) =>
       i18next.t('sedimentation.reviewPrompt.transcriptLine', {
         role:
@@ -1274,25 +1697,31 @@ function distillationReviewInstruction(
       }),
     )
     .join('\n');
-  return [
-    i18next.t('sedimentation.reviewPrompt.currentDraft', {
-      draft: draft.trim() || i18next.t('sedimentation.reviewPrompt.emptyDraft'),
-    }),
-    i18next.t('sedimentation.reviewPrompt.currentRequest', {
-      request: reviewDraft.trim() || i18next.t('sedimentation.reviewPrompt.defaultReviewRequest'),
-    }),
-    transcript ? i18next.t('sedimentation.reviewPrompt.previousDiscussion', { transcript }) : '',
-  ]
-    .filter(Boolean)
-    .join('\n\n');
+}
+
+function appendContentToDraft(draft: string, content: string) {
+  const cleanContent = content.trim();
+  const before = draft.trimEnd();
+  const prefix = before ? '\n' : '';
+  return {
+    draft: `${before}${prefix}${cleanContent}`,
+    changeOffset: before.length + prefix.length,
+    changeLength: cleanContent.length,
+  };
+}
+
+function draftContainsContent(draft: string, content: string) {
+  const target = compactDraftText(content);
+  return Boolean(target && compactDraftText(draft).includes(target));
+}
+
+function compactDraftText(value: string) {
+  return value.replace(/\s+/g, '');
 }
 
 function initialDistillationDraft(articleId: string, annotation: Annotation) {
-  return (
-    window.localStorage.getItem(distillationDraftKey(articleId, annotation.id)) ||
-    annotation.distillation?.content ||
-    ''
-  );
+  const localDraft = window.localStorage.getItem(distillationDraftKey(articleId, annotation.id));
+  return localDraft ?? annotation.distillation?.content ?? '';
 }
 
 function distillationDraftKey(articleId: string, annotationId: string) {
