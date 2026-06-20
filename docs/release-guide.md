@@ -80,7 +80,7 @@ pnpm deploy:download
 | 官网 changelog 详情（英） | `apps/web/src/content/docs/en/changelogs/v0-X-Y-Z.md` | 同上 |
 | 帮助文档（中） | `apps/web/src/content/docs/docs/*.md` | 按功能变更按需改 `index`、`reader`、`settings`、`library`、`stats-and-faq` 等 |
 | 帮助文档（英） | `apps/web/src/content/docs/en/docs/*.md` | 与中文页面对齐 |
-| 更新弹窗（打包进应用） | `apps/desktop/resources/release-notes/zh-CN/X.Y.Z.json` | 短亮点，`audience`: `reader` / `settings` |
+| 更新弹窗（打包进应用） | `apps/desktop/resources/release-notes/zh-CN/X.Y.Z.json` | 短亮点，，`audience`: `reader` / `settings` |
 | 更新弹窗（打包进应用） | `apps/desktop/resources/release-notes/en/X.Y.Z.json` | 同上 |
 | 更新弹窗（官网 CDN） | `apps/web/public/release-notes/zh-CN/X.Y.Z.json` | **与 desktop resources 内容保持一致** |
 | 更新弹窗（官网 CDN） | `apps/web/public/release-notes/en/X.Y.Z.json` | 同上 |
@@ -90,6 +90,7 @@ pnpm deploy:download
 - 顶层：`version`、`highlights[]`。
 - 每条 highlight：`type`（`new` | `changed` | `fixed` | `deprecated`）、`title`、`description`、`audience`。
 - 条数建议 4–6 条，面向「更新前 / 更新后」弹窗，不要粘贴完整 CHANGELOG。
+- 把功能翻译成「这跟我有关」，落到一个具体的人身上（场景、情绪、身份），公式是帮助谁、在什么时候、解决什么问题。
 - 桌面端读取逻辑见 `apps/desktop/src/main/app/release-notes.ts`：
   - **更新前**：`remote` → `https://yomitomo.app/release-notes/{locale}/{version}.json`
   - **更新后**：`local` → `apps/desktop/resources/release-notes/...`

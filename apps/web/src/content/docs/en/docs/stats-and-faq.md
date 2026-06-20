@@ -41,14 +41,16 @@ Check:
 Common causes include:
 
 - The URL is not a valid `http://` or `https://` address.
+- The URL points to localhost, a private network, or a cloud metadata address, which is blocked by default.
+- The HTML response is larger than 5 MB.
 - The source site has anti-scraping protection.
 - The network connection timed out.
 
 Yomitomo tries to render pages with the built-in browser, but some sites may still fail to parse.
 
-## EPUB Import Fails
+## Ebook Import Fails
 
-Make sure the file is a standard `.epub` file and is no larger than 80 MB.
+Make sure the file is a `.epub`, `.azw3`, or `.mobi` file and is no larger than 80 MB. DRM-protected files or files with oversized decompressed content cannot be imported.
 
 ## PDF Import Fails
 

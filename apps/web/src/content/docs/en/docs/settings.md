@@ -59,7 +59,11 @@ Message sending can use either `Enter` or `Cmd/Ctrl+Enter`. Reader selection act
 
 ## Data Management
 
-Data management provides entries for the data directory, logs, and database file. It also supports SQLite database backup and restore.
+Data management provides entries for the data directory, logs, and database file. It can configure log retention, clear logs, and back up or restore the SQLite database. Database backups do not include model API keys stored in the system keyring or separately saved ebook source files.
+
+## Web Import Safety
+
+Settings > General can allow or block web-article import access to localhost, private network, and cloud metadata addresses. It is off by default; enable it only when you explicitly need to import intranet articles.
 
 ## App Updates
 

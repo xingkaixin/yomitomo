@@ -4,18 +4,18 @@
 
 # Yomitomo
 
-Yomitomo is a local-first AI reading companion desktop app. The Electron desktop app handles web article, EPUB, and PDF imports, the reading library, highlights, notes, discussion comments, insight publishing, reader chat, WeRead sync, LLM provider management, and reading assistants. The Astro website provides product pages, download entry points, bilingual documentation, and social previews.
+Yomitomo is a local-first AI reading companion desktop app. The Electron desktop app handles web article, EPUB/AZW3/MOBI ebook, and PDF imports, the reading library, highlights, notes, discussion comments, insight publishing, reader chat, WeRead sync, LLM provider management, and reading assistants. The Astro website provides product pages, download entry points, bilingual documentation, and social previews.
 
 You can currently download macOS Apple Silicon and Windows x64 installers from [yomitomo.app](https://yomitomo.app) or [GitHub Releases](https://github.com/xingkaixin/yomitomo/releases). The project is still in early alpha.
 
 ## Core Capabilities
 
 - Web article import: extract body text, title, author, site metadata, and images from URLs.
-- EPUB import and reading: import local EPUB files and persist chapters, covers, and the original book files.
+- Ebook import and reading: import local EPUB, AZW3, and MOBI files, and persist chapters, covers, and the original book files.
 - PDF import and reading: import local PDF files with outline, selection, highlights, notes, and assistant co-reading support.
 - Desktop reader: outline, font size, content width, highlights, full-text search, reader chat, floating toolbar, dual note sidebars, selection shortcuts, arrow-key paging, and annotation navigation; bilingual translation for web articles.
 - Text annotations: highlights, annotation types, thought threads, discussion comments, insight publishing, and `@assistant` triggers; discussion and distillation flows include motion and optional sound feedback (toggle in Settings).
-- Proactive close reading: choose one or more reading assistants so AI can generate annotations around web articles, EPUB chapters, or PDF documents while reusing local reading memory, role perspectives, and localized presentation.
+- Proactive close reading: choose one or more reading assistants so AI can generate annotations around web articles, ebook chapters, or PDF documents while reusing local reading memory, role perspectives, and localized presentation.
 - WeRead sync: sync book notes, thoughts, and reading statistics after configuring an API key.
 - Reading library: manage web articles, ebooks, annotations, comments, and original-source links in one place.
 - UI and themes: Chinese/English switching, themes including dusk indigo, hand-drawn ink paper and theme pickers, and unified toast notifications.
@@ -86,7 +86,7 @@ After startup, the desktop app will:
 
 - Store `yomitomo.sqlite` under Electron's `userData` directory.
 - Provide user, provider, assistant, reading library, statistics, and log views.
-- Support importing web URLs, local EPUB files, or local PDF files from the reading library.
+- Support importing web URLs, local EPUB/AZW3/MOBI files, or local PDF files from the reading library.
 
 ### Run the Website
 
@@ -122,7 +122,7 @@ Pushing a `vX.Y.Z` tag triggers the GitHub Release workflow, which builds and up
 1. Start the desktop app.
 2. Create an LLM provider on the Providers page, then enter the base URL, API key, and model name.
 3. Create annotation assistants or review assistants on the Assistants page, and connect them to a provider.
-4. Import a web URL, local EPUB file, or local PDF file from the Reading Library.
+4. Import a web URL, local EPUB/AZW3/MOBI file, or local PDF file from the Reading Library.
 5. Open an article or ebook, select text to create highlights and annotations, or choose reading assistants in Close Reading to generate AI annotations.
 6. To sync WeRead, configure a WeRead API key in Settings and then sync notes and reading statistics.
 
@@ -154,7 +154,7 @@ pnpm build
 - The desktop app stores users, providers, assistants, articles, PDF metadata, WeRead sync data, annotations, comments, and reading progress in SQLite.
 - Provider API keys are stored in the system keyring. The database only stores key references and provider configuration.
 - When importing an article from a web URL, the desktop app reads the target page and creates a local article record.
-- When importing an EPUB, the desktop app stores the original ebook file, chapter index, and local article record.
+- When importing an EPUB, AZW3, or MOBI ebook, the desktop app stores the original ebook file, chapter index, and local article record.
 - When importing a PDF, the desktop app stores the original PDF file, page information, and local article record.
 
 ## Layering Conventions
