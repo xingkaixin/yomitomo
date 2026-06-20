@@ -2265,6 +2265,59 @@
   overflow-wrap: anywhere;
 }
 
+.annotation-sedimentation-review-items {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.annotation-sedimentation-review-item {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--app-reader-paper) 94%, var(--app-reader-ink) 6%);
+  padding: 9px 10px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-reader-toolbar-border) 74%, transparent);
+}
+
+.annotation-sedimentation-review-item > span,
+.annotation-sedimentation-review-item header span {
+  color: var(--app-reader-muted);
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.annotation-sedimentation-review-item p {
+  margin: 0;
+  color: var(--app-reader-ink);
+  font-size: 12.5px;
+  line-height: 1.58;
+  overflow-wrap: anywhere;
+}
+
+.annotation-sedimentation-review-item header {
+  display: grid;
+  gap: 4px;
+}
+
+.annotation-sedimentation-review-item header strong {
+  color: var(--app-reader-ink);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.annotation-sedimentation-review-item blockquote {
+  margin: 0;
+  border-left: 2px solid color-mix(in srgb, var(--app-reader-accent) 46%, transparent);
+  color: var(--app-reader-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  padding-left: 8px;
+  overflow-wrap: anywhere;
+}
+
 .annotation-sedimentation-review-error {
   margin: 5px 0 0;
   color: var(--app-reader-danger);

@@ -12,6 +12,7 @@ import type {
   Agent,
   Annotation,
   AnnotationDistillationProposal,
+  AnnotationDistillationReviewItem,
   AnnotationDistillationReviewMessage,
   AnnotationDistillationReviewSession,
   ArticleRecord,
@@ -673,6 +674,13 @@ async function requestAgentReviewRound({
           onOptimisticSession(workingSession);
           return;
         }
+        if (event.type === 'item') {
+          workingSession = updateSessionMessage(workingSession, assistantMessage.id, (message) =>
+            appendReviewItemToMessage(message, event.item),
+          );
+          onOptimisticSession(workingSession);
+          return;
+        }
         if (event.type !== 'delta') return;
         workingSession = updateSessionMessage(workingSession, assistantMessage.id, (message) =>
           Object.assign({}, message, { content: `${message.content}${event.delta}` }),
@@ -698,6 +706,7 @@ async function requestAgentReviewRound({
         workingSession.messages.find((item) => item.id === assistantMessage.id)?.content ||
         '',
       errorMessage: undefined,
+      items: finalMessage.items || message.items || [],
       proposals: finalMessage.proposals || message.proposals || [],
       status: 'done' as const,
     }),
@@ -746,7 +755,10 @@ function ReviewSessions({
   const listRef = useRef<HTMLElement | null>(null);
   const scrollSignal = messages
     .map(
-      (item) => `${item.key}:${item.message.content.length}:${item.message.proposals?.length || 0}`,
+      (item) =>
+        `${item.key}:${item.message.content.length}:${item.message.items?.length || 0}:${
+          item.message.proposals?.length || 0
+        }`,
     )
     .join('|');
 
@@ -843,6 +855,9 @@ function ReviewTimelineMessage({
     .join(' ');
   const reviewingLabel = t('sedimentation.reviewing');
   const errorMessage = message.errorMessage || t('sedimentation.reviewFailed');
+  const structuredItems = (message.items || []).filter(
+    (reviewItem) => reviewItem.type !== 'proposal',
+  );
   const html = useMemo(
     () => renderSafeMarkdown(message.content || (isFailed ? errorMessage : reviewingLabel)),
     [errorMessage, isFailed, message.content, reviewingLabel],
@@ -861,12 +876,16 @@ function ReviewTimelineMessage({
           </ReaderTooltip>
         </header>
         <AssistantRuntimeProgressList progress={message.assistantProgress} />
-        <div
-          className="annotation-discussion-markdown"
-          dangerouslySetInnerHTML={{
-            __html: html,
-          }}
-        />
+        {structuredItems.length > 0 ? (
+          <StructuredReviewItems items={structuredItems} />
+        ) : (
+          <div
+            className="annotation-discussion-markdown"
+            dangerouslySetInnerHTML={{
+              __html: html,
+            }}
+          />
+        )}
         {isFailed && message.content ? (
           <p className="annotation-sedimentation-review-error">{errorMessage}</p>
         ) : null}
@@ -881,6 +900,44 @@ function ReviewTimelineMessage({
         ) : null}
       </div>
     </article>
+  );
+}
+
+function StructuredReviewItems({ items }: { items: AnnotationDistillationReviewItem[] }) {
+  const visibleItems = items.filter((item) => item.type !== 'proposal');
+  if (visibleItems.length === 0) return null;
+  return (
+    <div className="annotation-sedimentation-review-items">
+      {visibleItems.map((item) => {
+        if (item.type === 'overview') {
+          return (
+            <article
+              className={`annotation-sedimentation-review-item is-overview is-${item.stance}`}
+              key={item.id}
+            >
+              <span>{reviewStanceLabel(item.stance)}</span>
+              <p>{item.content}</p>
+            </article>
+          );
+        }
+        return (
+          <article
+            className={`annotation-sedimentation-review-item is-finding is-${item.severity}`}
+            key={item.id}
+          >
+            <header>
+              <span>
+                {reviewFindingCategoryLabel(item.category)} ·{' '}
+                {reviewFindingSeverityLabel(item.severity)}
+              </span>
+              <strong>{item.title}</strong>
+            </header>
+            <p>{item.content}</p>
+            {item.draftTargetText ? <blockquote>{item.draftTargetText}</blockquote> : null}
+          </article>
+        );
+      })}
+    </div>
   );
 }
 
@@ -957,6 +1014,39 @@ function ReviewProposalList({
       ))}
     </section>
   );
+}
+
+function reviewStanceLabel(
+  value: Extract<AnnotationDistillationReviewItem, { type: 'overview' }>['stance'],
+) {
+  if (i18next.language.startsWith('zh')) {
+    if (value === 'solid') return '基本站得住';
+    if (value === 'weak') return '仍需补强';
+    return '有亮点也有缺口';
+  }
+  if (value === 'solid') return 'Solid';
+  if (value === 'weak') return 'Needs work';
+  return 'Mixed';
+}
+
+function reviewFindingCategoryLabel(
+  value: Extract<AnnotationDistillationReviewItem, { type: 'finding' }>['category'],
+) {
+  const zh = i18next.language.startsWith('zh');
+  if (value === 'evidence') return zh ? '证据' : 'Evidence';
+  if (value === 'logic') return zh ? '逻辑' : 'Logic';
+  if (value === 'coverage') return zh ? '覆盖' : 'Coverage';
+  if (value === 'clarity') return zh ? '表达' : 'Clarity';
+  return zh ? '行动' : 'Action';
+}
+
+function reviewFindingSeverityLabel(
+  value: Extract<AnnotationDistillationReviewItem, { type: 'finding' }>['severity'],
+) {
+  const zh = i18next.language.startsWith('zh');
+  if (value === 'high') return zh ? '关键' : 'High';
+  if (value === 'low') return zh ? '轻微' : 'Low';
+  return zh ? '一般' : 'Medium';
 }
 
 function proposalKindLabel(kind: AnnotationDistillationProposal['kind']) {
@@ -1141,6 +1231,19 @@ function updateSessionMessage(
     ),
     updatedAt: new Date().toISOString(),
   };
+}
+
+function appendReviewItemToMessage(
+  message: AnnotationDistillationReviewMessage,
+  item: AnnotationDistillationReviewItem,
+) {
+  return Object.assign({}, message, {
+    items: [...(message.items || []), item],
+    proposals:
+      item.type === 'proposal'
+        ? [...(message.proposals || []), item.proposal]
+        : message.proposals || [],
+  });
 }
 
 function reviewRequestComment(
