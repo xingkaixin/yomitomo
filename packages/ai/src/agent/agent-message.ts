@@ -1,4 +1,13 @@
-import type { AgentMessagePayload, Annotation, Comment, LlmProvider } from '@yomitomo/shared';
+import { streamText } from 'ai';
+import type {
+  AgentMessagePayload,
+  Agent,
+  Annotation,
+  AnnotationDistillationReviewItem,
+  AnnotationDistillationReviewMessage,
+  Comment,
+  LlmProvider,
+} from '@yomitomo/shared';
 import {
   buildCurrentChapterLexicalRelatedPassages,
   buildReadingContextBundle,
@@ -7,9 +16,19 @@ import {
   type ReadingContextBundle,
 } from '@yomitomo/core';
 import { resolvePromptAgentIdentity } from '@yomitomo/shared';
+import { createYomitomoLanguageModel } from '../provider/ai-sdk-provider-adapter';
 import { budgetArticleText, formatBudgetNotice } from '../provider/budget';
 import { logAiInfo } from '../logger';
 import { callProviderText, streamProviderText } from '../provider/provider-client';
+import {
+  collectDistillationReviewItemsFromElementStream,
+  collectDistillationReviewItemsFromJsonTextStream,
+  distillationReviewContentFromItems,
+  distillationReviewProposalsFromItems,
+  distillationReviewStructuredOutput,
+  distillationReviewStructuredOutputPrompt,
+  type GeneratedDistillationReviewItem,
+} from '../assistant/distillation-review-structured-output';
 import { buildAgentRoleCard, type PromptAgent } from './agent-role-card';
 import type { AgentMessageRunOptions } from './agent-message-reading-context';
 import {
@@ -45,6 +64,57 @@ export async function runAgentStream(
     { system, user, maxTokens: agentMessageMaxTokens(payload), temperature: agent.temperature },
     onDelta,
   );
+}
+
+export async function runAgentDistillationReviewStructuredStream(
+  provider: LlmProvider,
+  agent: Agent,
+  payload: AgentMessagePayload,
+  onItem: (item: AnnotationDistillationReviewItem) => void,
+  options: AgentMessageRunOptions = {},
+): Promise<AnnotationDistillationReviewMessage> {
+  const adapter = createYomitomoLanguageModel(provider);
+  const system = buildAgentMessageSystemPrompt(agent, payload);
+  const user = `${buildAgentPrompt(provider, payload, agent, options)}\n\n${distillationReviewStructuredOutputPrompt(
+    { jsonlFallback: !adapter.supportsStructuredOutput },
+  )}`;
+  const result = streamText({
+    model: adapter.model,
+    system,
+    prompt: user,
+    maxOutputTokens: agentMessageMaxTokens(payload),
+    temperature: agent.temperature,
+    providerOptions: adapter.providerOptions,
+    output: adapter.supportsStructuredOutput ? distillationReviewStructuredOutput : undefined,
+  });
+  const items = adapter.supportsStructuredOutput
+    ? await collectDistillationReviewItemsFromElementStream({
+        elementStream: result.elementStream as AsyncIterable<GeneratedDistillationReviewItem>,
+        onItem,
+      })
+    : await collectDistillationReviewItemsFromJsonTextStream({
+        textStream: result.textStream,
+        onItem,
+      });
+  if (adapter.supportsStructuredOutput) await Promise.resolve(result.output);
+  const finishReason = await result.finishReason;
+  if (finishReason === 'length') {
+    throw new Error(`Provider output reached max_tokens=${agentMessageMaxTokens(payload)}`);
+  }
+  const content = distillationReviewContentFromItems(items);
+  if (!content) throw new Error('Provider returned no distillation review items');
+  return {
+    id: '',
+    author: 'ai',
+    content,
+    items,
+    proposals: distillationReviewProposalsFromItems(items),
+    createdAt: new Date().toISOString(),
+    agentId: agent.id,
+    agentUsername: agent.username,
+    agentNickname: agent.nickname,
+    agentAvatar: agent.avatar,
+  };
 }
 
 export async function runAgent(
@@ -135,8 +205,8 @@ export function buildAgentDistillationReviewRuntimePayload(
       ? 'proposals 只能包含 insert，用 content 放可直接追加到沉淀稿的新增文本；不要生成 replace 或 delete。'
       : 'proposals 可以为空，也可以包含 insert、replace、delete；replace/delete 必须带当前草稿中明确存在的 targetText。';
   return {
-    system: `${buildAgentMessageSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 审阅当前批注的沉淀稿。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。完成工具探索后，用 review_distillation final action 返回审阅正文和可采纳的稿件建议。`,
-    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\n沉淀审阅要求：\n- 先核对当前高亮、已有想法和讨论，再判断沉淀稿是否站得住。\n- 可以查证原文上下文、当前 thread 和阅读记忆。\n- 只输出审阅意见、质疑、补充或可带走的判断框架，不直接发布或覆盖沉淀稿。\n- 没有工具证据时不要编造历史断言。\n\n最终输出要求：返回 review_distillation final action。content 是自然语言审阅正文；proposals 是 0 到多条可采纳稿件建议，只允许 insert、replace、delete。insert 必须带 content；replace 必须带 targetText 和 replacementText；delete 必须带 targetText。没有可靠建议时返回空 proposals。删除和替换必须能在当前草稿中找到明确目标，不要无依据删除用户观点。${proposalRequirement}${finalResponseLanguageReminder(payload.uiLanguage)}`,
+    system: `${buildAgentMessageSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 审阅当前批注的沉淀稿。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。完成工具探索后，按运行时要求输出结构化审阅 item。`,
+    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\n沉淀审阅要求：\n- 先核对当前高亮、已有想法和讨论，再判断沉淀稿是否站得住。\n- 可以查证原文上下文、当前 thread 和阅读记忆。\n- 只输出审阅意见、质疑、补充或可带走的判断框架，不直接发布或覆盖沉淀稿。\n- 没有工具证据时不要编造历史断言。\n\n最终输出要求：按运行时要求输出结构化审阅 item。proposal 只允许 insert、replace、delete。insert 必须带 content；replace 必须带 targetText 和 replacementText；delete 必须带 targetText。没有可靠建议时不要输出 proposal。删除和替换必须能在当前草稿中找到明确目标，不要无依据删除用户观点。${proposalRequirement}${finalResponseLanguageReminder(payload.uiLanguage)}`,
     maxTokens: 1200,
     temperature: agent.temperature,
   };

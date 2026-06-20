@@ -18,6 +18,9 @@ type StreamTextOptions = {
 let streamTextImpl: (options: StreamTextOptions) => unknown;
 
 vi.mock('ai', () => ({
+  Output: {
+    array: vi.fn((value: unknown) => ({ name: 'array', value })),
+  },
   jsonSchema: vi.fn((schema: unknown) => ({ schema })),
   stepCountIs: vi.fn((count: number) => ({ count })),
   streamText: vi.fn((options: StreamTextOptions) => streamTextImpl(options)),

@@ -44,6 +44,45 @@ export type AnnotationDistillationProposal = {
   updatedAt: string;
 };
 
+export type AnnotationDistillationReviewStance = 'solid' | 'mixed' | 'weak';
+
+export type AnnotationDistillationReviewFindingCategory =
+  | 'evidence'
+  | 'logic'
+  | 'coverage'
+  | 'clarity'
+  | 'actionability';
+
+export type AnnotationDistillationReviewFindingSeverity = 'low' | 'medium' | 'high';
+
+export type AnnotationDistillationReviewOverviewItem = {
+  id: string;
+  type: 'overview';
+  stance: AnnotationDistillationReviewStance;
+  content: string;
+};
+
+export type AnnotationDistillationReviewFindingItem = {
+  id: string;
+  type: 'finding';
+  category: AnnotationDistillationReviewFindingCategory;
+  severity: AnnotationDistillationReviewFindingSeverity;
+  title: string;
+  content: string;
+  draftTargetText?: string;
+};
+
+export type AnnotationDistillationReviewProposalItem = {
+  id: string;
+  type: 'proposal';
+  proposal: AnnotationDistillationProposal;
+};
+
+export type AnnotationDistillationReviewItem =
+  | AnnotationDistillationReviewOverviewItem
+  | AnnotationDistillationReviewFindingItem
+  | AnnotationDistillationReviewProposalItem;
+
 export type AssistantRuntimeProgressStepStatus = 'active' | 'done' | 'failed';
 
 export type AssistantRuntimeProgressStep = {
@@ -73,6 +112,7 @@ export type AnnotationDistillationReviewMessage = {
   agentNickname?: string;
   agentAvatar?: string;
   assistantProgress?: AssistantRuntimeProgressSummary;
+  items?: AnnotationDistillationReviewItem[];
   proposals?: AnnotationDistillationProposal[];
 };
 

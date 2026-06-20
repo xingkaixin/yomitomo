@@ -472,6 +472,7 @@ describe('assistant final action validation', () => {
         type: 'review_distillation',
         annotationId: 'annotation_1',
         content: '这个沉淀缺少原文证据，可以先补出判断边界。',
+        items: [],
         proposals: [],
         evidenceIds: [],
         confidence: 0.81,

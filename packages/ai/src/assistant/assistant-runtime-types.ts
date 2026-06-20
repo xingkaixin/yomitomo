@@ -1,4 +1,9 @@
-import type { AnnotationDistillationProposal, LlmProvider, TextAnchor } from '@yomitomo/shared';
+import type {
+  AnnotationDistillationProposal,
+  AnnotationDistillationReviewItem,
+  LlmProvider,
+  TextAnchor,
+} from '@yomitomo/shared';
 import type { NormalizedAiUsage } from '../provider/usage';
 
 export type AssistantRuntimeTaskType =
@@ -173,6 +178,7 @@ export type AssistantFinalAction =
       type: 'review_distillation';
       annotationId: string;
       content: string;
+      items?: AnnotationDistillationReviewItem[];
       proposals?: AnnotationDistillationProposal[];
       evidenceIds: string[];
       confidence: number;
@@ -255,6 +261,10 @@ export type AssistantRuntimeStreamEvent =
   | {
       type: 'text_delta';
       delta: string;
+    }
+  | {
+      type: 'distillation_review_item';
+      item: AnnotationDistillationReviewItem;
     }
   | {
       type: 'fallback';
