@@ -11,7 +11,10 @@ import { makeId } from '@yomitomo/shared';
 import type { RefObject } from 'react';
 import { appendAnnotationComment, updateAnnotationComment } from '@yomitomo/core';
 import { promptArticle } from './app-source-bookcase-shared';
-import { applyAssistantRuntimeProgress } from '../../shell/app-assistant-runtime-progress';
+import {
+  applyAssistantRuntimeProgress,
+  assistantRuntimeErrorMessage,
+} from '../../shell/app-assistant-runtime-progress';
 
 type RunSourceAgentCommentRequestInput = {
   agent: PublicAgent;
@@ -95,6 +98,65 @@ export async function runSourceAgentCommentRequest({
     if (pendingFrame) return;
     pendingFrame = window.requestAnimationFrame(flushDelta);
   };
+  const saveFailedReply = async (error: unknown) => {
+    const message = assistantRuntimeErrorMessage(error, 'discussion.replyFailed');
+    console.warn('[agent-comment] assistant reply failed', {
+      agentId: agent.id,
+      agentUsername: agent.username,
+      annotationId: annotation.id,
+      replyTargetId,
+      message,
+      error,
+    });
+    if (pendingFrame) {
+      window.cancelAnimationFrame(pendingFrame);
+      flushDelta();
+    }
+
+    const currentComment = currentAnnotationComment(
+      annotationsRef.current,
+      annotation.id,
+      pendingCommentId,
+    );
+    const baseComment = currentComment || pendingComment;
+    const failedComment = localizedAgentComment(agent, {
+      ...(baseComment || {
+        id: pendingCommentId || makeId('comment'),
+        author: 'ai' as const,
+        content: '',
+        createdAt: new Date().toISOString(),
+      }),
+      content: failedReplyContent(baseComment?.content || streamedContent, message),
+      replyTo: replyTargetId,
+      pending: false,
+      readingIntent:
+        baseComment?.readingIntent ||
+        readingIntent ||
+        annotation.readingIntent ||
+        userComment.readingIntent,
+      assistantProgress: failedAssistantProgress(baseComment?.assistantProgress),
+    });
+    const updatedAnnotations = updateAnnotationComment(
+      annotationsRef.current,
+      annotation.id,
+      failedComment.id,
+      () => failedComment,
+    );
+    if (
+      updatedAnnotations &&
+      hasAnnotationComment(updatedAnnotations, annotation.id, failedComment.id)
+    ) {
+      await saveAnnotations(updatedAnnotations);
+    } else if (hasAnnotationComment(annotationsRef.current, annotation.id, replyTargetId)) {
+      const restoredAnnotations = appendAnnotationComment(
+        annotationsRef.current,
+        annotation.id,
+        failedComment,
+        failedComment.createdAt,
+      );
+      if (restoredAnnotations) await saveAnnotations(restoredAnnotations);
+    }
+  };
   try {
     const placeholderComment: AnnotationComment = {
       id: makeId('comment'),
@@ -120,76 +182,82 @@ export async function runSourceAgentCommentRequest({
     );
     if (pendingAnnotations) applyAnnotations(pendingAnnotations);
 
-    const finalComment = await desktop.requestAgentCommentStream(
-      {
-        agentId: agent.id,
-        agentUsername: agent.username,
-        uiLanguage,
-        readingIntent: readingIntent || annotation.readingIntent || userComment.readingIntent,
-        instruction,
-        reviewTargetCommentId,
-        allowDisabledAgentForRule,
-        article: promptArticle(currentArticle, articleText),
-        annotation,
-        userComment,
-      },
-      (event) => {
-        if (event.type === 'start') {
-          const placeholderId = pendingCommentId;
-          pendingCommentId = event.comment.id || placeholderId;
-          pendingComment = localizedAgentComment(agent, {
-            ...event.comment,
-            id: pendingCommentId,
-            replyTo: replyTargetId,
-          });
-          const nextAnnotations = updateAnnotationComment(
-            annotationsRef.current,
-            annotation.id,
-            placeholderId,
-            () => pendingComment!,
-            pendingComment.createdAt,
-          );
-          if (
-            nextAnnotations &&
-            hasAnnotationComment(nextAnnotations, annotation.id, pendingCommentId)
-          ) {
-            applyAnnotations(nextAnnotations);
+    let finalComment: AnnotationComment;
+    try {
+      finalComment = await desktop.requestAgentCommentStream(
+        {
+          agentId: agent.id,
+          agentUsername: agent.username,
+          uiLanguage,
+          readingIntent: readingIntent || annotation.readingIntent || userComment.readingIntent,
+          instruction,
+          reviewTargetCommentId,
+          allowDisabledAgentForRule,
+          article: promptArticle(currentArticle, articleText),
+          annotation,
+          userComment,
+        },
+        (event) => {
+          if (event.type === 'start') {
+            const placeholderId = pendingCommentId;
+            pendingCommentId = event.comment.id || placeholderId;
+            pendingComment = localizedAgentComment(agent, {
+              ...event.comment,
+              id: pendingCommentId,
+              replyTo: replyTargetId,
+            });
+            const nextAnnotations = updateAnnotationComment(
+              annotationsRef.current,
+              annotation.id,
+              placeholderId,
+              () => pendingComment!,
+              pendingComment.createdAt,
+            );
+            if (
+              nextAnnotations &&
+              hasAnnotationComment(nextAnnotations, annotation.id, pendingCommentId)
+            ) {
+              applyAnnotations(nextAnnotations);
+            }
+            return;
           }
-          return;
-        }
 
-        if (event.type === 'progress') {
-          const placeholderId = pendingCommentId;
-          if (!placeholderId) return;
-          const nextAnnotations = updateAnnotationComment(
-            annotationsRef.current,
-            annotation.id,
-            placeholderId,
-            (comment) => {
-              const nextComment = {
-                ...comment,
-                assistantProgress: applyAssistantRuntimeProgress(
-                  comment.assistantProgress,
-                  event.progress,
-                ),
-              };
-              pendingComment = nextComment;
-              return nextComment;
-            },
-          );
-          if (
-            nextAnnotations &&
-            hasAnnotationComment(nextAnnotations, annotation.id, pendingCommentId)
-          ) {
-            applyAnnotations(nextAnnotations);
+          if (event.type === 'progress') {
+            const placeholderId = pendingCommentId;
+            if (!placeholderId) return;
+            const nextAnnotations = updateAnnotationComment(
+              annotationsRef.current,
+              annotation.id,
+              placeholderId,
+              (comment) => {
+                const nextComment = {
+                  ...comment,
+                  assistantProgress: applyAssistantRuntimeProgress(
+                    comment.assistantProgress,
+                    event.progress,
+                  ),
+                };
+                pendingComment = nextComment;
+                return nextComment;
+              },
+            );
+            if (
+              nextAnnotations &&
+              hasAnnotationComment(nextAnnotations, annotation.id, pendingCommentId)
+            ) {
+              applyAnnotations(nextAnnotations);
+            }
+            return;
           }
-          return;
-        }
 
-        pendingDelta += event.delta;
-        scheduleDeltaFlush();
-      },
-    );
+          pendingDelta += event.delta;
+          scheduleDeltaFlush();
+        },
+      );
+    } catch (error) {
+      await saveFailedReply(error);
+      return;
+    }
     if (pendingFrame) {
       window.cancelAnimationFrame(pendingFrame);
       flushDelta();
@@ -242,10 +310,36 @@ function localizedAgentComment(agent: PublicAgent, comment: AnnotationComment): 
   };
 }
 
+function currentAnnotationComment(
+  annotations: Annotation[],
+  annotationId: string,
+  commentId: string,
+) {
+  return annotations
+    .find((annotation) => annotation.id === annotationId)
+    ?.comments.find((comment) => comment.id === commentId);
+}
+
 function hasAnnotationComment(annotations: Annotation[], annotationId: string, commentId: string) {
   return annotations.some(
     (annotation) =>
       annotation.id === annotationId &&
       annotation.comments.some((comment) => comment.id === commentId),
   );
+}
+
+function failedReplyContent(partialContent: string | undefined, message: string) {
+  const partial = partialContent?.trimEnd();
+  if (!partial) return message;
+  return `${partial}\n\n${i18next.t('source.requestFailedWithMessage', { message })}`;
+}
+
+function failedAssistantProgress(progress: AnnotationComment['assistantProgress']) {
+  if (!progress) return undefined;
+  return {
+    ...progress,
+    steps: progress.steps.map((step) =>
+      step.status === 'active' ? { ...step, status: 'failed' as const } : step,
+    ),
+  };
 }
