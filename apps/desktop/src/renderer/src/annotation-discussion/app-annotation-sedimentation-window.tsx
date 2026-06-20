@@ -22,7 +22,7 @@ import type {
   UiLanguage,
   UserProfile,
 } from '@yomitomo/shared';
-import { makeId, normalizeUiLanguage } from '@yomitomo/shared';
+import { hashText, makeId, normalizeUiLanguage } from '@yomitomo/shared';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { formatAbsoluteTime, formatRelativeTime } from './app-annotation-discussion-utils';
@@ -55,6 +55,7 @@ import {
 import { useSourceAwareWindowTransition } from '../shell/app-window-transition';
 import {
   applyDistillationProposalToDraft,
+  proposalApplyFailureMessage,
   updateReviewProposalStatus,
   type DraftSelectionSnapshot,
 } from './app-annotation-sedimentation-proposals';
@@ -178,10 +179,11 @@ function SedimentationShell({
   const { agents, article, annotation, uiLanguage } = status;
   const reviewAgents = useMemo(() => publicReviewAgents(agents, uiLanguage), [agents, uiLanguage]);
   const userProfile = sedimentationUserProfile(annotation, article);
-  const [activeAgentIds, setActiveAgentIds] = useState<Set<string>>(
-    () => new Set(reviewAgents[0] ? [reviewAgents[0].id] : []),
+  const [activeAgentId, setActiveAgentId] = useState<string | null>(
+    () => reviewAgents[0]?.id || null,
   );
-  const activeAgents = reviewAgents.filter((agent) => activeAgentIds.has(agent.id));
+  const activeAgent = reviewAgents.find((agent) => agent.id === activeAgentId) || null;
+  const activeAgents = activeAgent ? [activeAgent] : [];
   const [draft, setDraft] = useState(() => initialDistillationDraft(article.id, annotation));
   const [reviewDraft, setReviewDraft] = useState('');
   const [saving, setSaving] = useState(false);
@@ -212,11 +214,9 @@ function SedimentationShell({
   const canUnpublish = isPublished && !saving;
 
   useEffect(() => {
-    setActiveAgentIds((current) => {
-      const available = new Set(reviewAgents.map((agent) => agent.id));
-      const next = new Set(Array.from(current).filter((id) => available.has(id)));
-      if (next.size === 0 && reviewAgents[0]) next.add(reviewAgents[0].id);
-      return sameSet(current, next) ? current : next;
+    setActiveAgentId((current) => {
+      if (current && reviewAgents.some((agent) => agent.id === current)) return current;
+      return reviewAgents[0]?.id || null;
     });
   }, [reviewAgents]);
 
@@ -301,20 +301,14 @@ function SedimentationShell({
     }
   }
 
-  function toggleReviewAgent(agent: PublicAgent) {
-    setActiveAgentIds((current) => {
-      const next = new Set(current);
-      if (next.has(agent.id)) {
-        if (next.size === 1) {
-          setReviewNotice(t('sedimentation.selectReviewerRequired'));
-          return current;
-        }
-        next.delete(agent.id);
-      } else {
-        next.add(agent.id);
+  function selectReviewAgent(agent: PublicAgent) {
+    setActiveAgentId((current) => {
+      if (current === agent.id) {
+        setReviewNotice(t('sedimentation.selectReviewerRequired'));
+        return current;
       }
       setReviewNotice('');
-      return next;
+      return agent.id;
     });
   }
 
@@ -429,6 +423,12 @@ function SedimentationShell({
       agentNickname: agent.nickname,
       agentAvatar: agent.avatar,
     };
+    const proposalSource = distillationProposalSource({
+      draft,
+      sessionId: session.id,
+      messageId: workingMessage.id,
+      agentId: agent.id,
+    });
     const setMessage = (message: AnnotationDistillationReviewMessage) => {
       workingMessage = message;
       setOrganizeState({
@@ -471,7 +471,12 @@ function SedimentationShell({
             return;
           }
           if (event.type === 'item') {
-            setMessage(appendReviewItemToMessage(workingMessage, event.item));
+            setMessage(
+              appendReviewItemToMessage(
+                workingMessage,
+                reviewItemWithProposalSource(event.item, proposalSource),
+              ),
+            );
             return;
           }
           if (event.type !== 'delta') return;
@@ -482,11 +487,12 @@ function SedimentationShell({
           );
         },
       );
+      const sourcedFinalMessage = reviewMessageWithProposalSource(finalMessage, proposalSource);
       workingMessage = Object.assign({}, workingMessage, {
-        content: finalMessage.content || workingMessage.content || '',
+        content: sourcedFinalMessage.content || workingMessage.content || '',
         errorMessage: undefined,
-        items: finalMessage.items || workingMessage.items || [],
-        proposals: finalMessage.proposals || workingMessage.proposals || [],
+        items: sourcedFinalMessage.items || workingMessage.items || [],
+        proposals: sourcedFinalMessage.proposals || workingMessage.proposals || [],
         status: 'done' as const,
       });
       setOrganizeState({ type: 'done', agent, message: workingMessage });
@@ -513,7 +519,7 @@ function SedimentationShell({
     if (proposal.status !== 'pending') return;
     const result = applyDistillationProposalToDraft(draft, proposal, draftSelectionRef.current);
     if (!result.ok) {
-      setReviewNotice(result.reason);
+      setReviewNotice(proposalApplyFailureMessage(result.reason));
       return;
     }
     setDraft(result.draft);
@@ -730,11 +736,11 @@ function SedimentationShell({
                 >
                   <AgentAvatarStack
                     agents={reviewAgents}
-                    activeAgentIds={activeAgentIds}
+                    activeAgentIds={activeAgentId ? [activeAgentId] : []}
                     ariaLabel={t('sedimentation.reviewAgents')}
                     className={reviewing ? 'is-reviewing' : ''}
                     revealLabelOnDoubleClick={false}
-                    onAgentClick={toggleReviewAgent}
+                    onAgentClick={selectReviewAgent}
                   />
                 </div>
               }
@@ -806,6 +812,12 @@ async function requestAgentReviewRound({
     agentNickname: agent.nickname,
     agentAvatar: agent.avatar,
   };
+  const proposalSource = distillationProposalSource({
+    draft,
+    sessionId: session.id,
+    messageId: assistantMessage.id,
+    agentId: agent.id,
+  });
   let workingSession = {
     ...session,
     messages: [...session.messages, ...(userMessage ? [userMessage] : []), assistantMessage],
@@ -841,8 +853,9 @@ async function requestAgentReviewRound({
           return;
         }
         if (event.type === 'item') {
+          const item = reviewItemWithProposalSource(event.item, proposalSource);
           workingSession = updateSessionMessage(workingSession, assistantMessage.id, (message) =>
-            appendReviewItemToMessage(message, event.item),
+            appendReviewItemToMessage(message, item),
           );
           onOptimisticSession(workingSession);
           return;
@@ -865,15 +878,16 @@ async function requestAgentReviewRound({
       onOptimisticSession(workingSession);
       throw error;
     });
+  const sourcedFinalMessage = reviewMessageWithProposalSource(finalMessage, proposalSource);
   workingSession = updateSessionMessage(workingSession, assistantMessage.id, (message) =>
     Object.assign({}, message, {
       content:
-        finalMessage.content ||
+        sourcedFinalMessage.content ||
         workingSession.messages.find((item) => item.id === assistantMessage.id)?.content ||
         '',
       errorMessage: undefined,
-      items: finalMessage.items || message.items || [],
-      proposals: finalMessage.proposals || message.proposals || [],
+      items: sourcedFinalMessage.items || message.items || [],
+      proposals: sourcedFinalMessage.proposals || message.proposals || [],
       status: 'done' as const,
     }),
   );
@@ -1659,6 +1673,64 @@ function appendReviewItemToMessage(
   });
 }
 
+type DistillationProposalSource = Required<
+  Pick<
+    AnnotationDistillationProposal,
+    'sourceDraftHash' | 'sourceReviewSessionId' | 'sourceReviewMessageId' | 'sourceAgentId'
+  >
+>;
+
+function distillationProposalSource({
+  agentId,
+  draft,
+  messageId,
+  sessionId,
+}: {
+  agentId: string;
+  draft: string;
+  messageId: string;
+  sessionId: string;
+}): DistillationProposalSource {
+  return {
+    sourceDraftHash: hashText(draft),
+    sourceReviewSessionId: sessionId,
+    sourceReviewMessageId: messageId,
+    sourceAgentId: agentId,
+  };
+}
+
+function reviewMessageWithProposalSource(
+  message: AnnotationDistillationReviewMessage,
+  source: DistillationProposalSource,
+) {
+  return {
+    ...message,
+    items: message.items?.map((item) => reviewItemWithProposalSource(item, source)),
+    proposals: message.proposals?.map((proposal) => proposalWithSource(proposal, source)),
+  };
+}
+
+function reviewItemWithProposalSource(
+  item: AnnotationDistillationReviewItem,
+  source: DistillationProposalSource,
+): AnnotationDistillationReviewItem {
+  if (item.type !== 'proposal') return item;
+  return {
+    ...item,
+    proposal: proposalWithSource(item.proposal, source),
+  };
+}
+
+function proposalWithSource(
+  proposal: AnnotationDistillationProposal,
+  source: DistillationProposalSource,
+) {
+  return {
+    ...proposal,
+    ...source,
+  };
+}
+
 function reviewRequestComment(
   message: AnnotationDistillationReviewMessage | undefined,
   createdAt: string,
@@ -1726,14 +1798,6 @@ function initialDistillationDraft(articleId: string, annotation: Annotation) {
 
 function distillationDraftKey(articleId: string, annotationId: string) {
   return `annotation-distillation-draft:${articleId}:${annotationId}`;
-}
-
-function sameSet(left: Set<string>, right: Set<string>) {
-  if (left.size !== right.size) return false;
-  for (const value of left) {
-    if (!right.has(value)) return false;
-  }
-  return true;
 }
 
 function sedimentationWindowClassName() {

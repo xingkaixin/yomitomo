@@ -950,12 +950,12 @@ export const enResources = {
       draftPlaceholder: 'Write a judgment, structure, question, or reusable reminder...',
       reviewPanel: 'Review discussion panel',
       reviewTitle: 'Review discussion',
-      reviewHint: 'Select at least one review assistant, then discuss the draft',
+      reviewHint: 'Select one review assistant, then discuss the draft',
       reviewAgents: 'Review assistants',
       send: 'Send',
       sendReviewRequest: 'Send review request',
-      reviewPlaceholder: 'Ask selected review assistants to discuss this distillation...',
-      selectReviewerRequired: 'Select at least one review assistant',
+      reviewPlaceholder: 'Ask the current review assistant to discuss this distillation...',
+      selectReviewerRequired: 'Keep one review assistant selected',
       reviewFailed: 'Review failed',
       organizeDiscussionInstruction:
         'Organize the current highlight, thoughts, and review discussion into additions that can be inserted directly into the distillation draft. Only provide new additions; do not modify or delete the current draft.',
@@ -982,6 +982,9 @@ export const enResources = {
         targetNotFound: 'Target text was not found in the current draft',
         targetAmbiguous:
           'Target text appears multiple times in the current draft and needs manual placement',
+        insertAnchorNotFound:
+          'This suggestion was based on an older draft and its insertion point cannot be found. Review again or handle it manually.',
+        duplicateInsert: 'This content is already in the current draft',
       },
       reviewPrompt: {
         defaultRequest:

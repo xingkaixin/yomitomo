@@ -39,6 +39,10 @@ export type AnnotationDistillationProposal = {
   targetText?: string;
   replacementText?: string;
   content?: string;
+  sourceDraftHash?: string;
+  sourceReviewSessionId?: string;
+  sourceReviewMessageId?: string;
+  sourceAgentId?: string;
   acceptedAt?: string;
   ignoredAt?: string;
   updatedAt: string;
