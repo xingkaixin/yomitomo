@@ -79,8 +79,9 @@ describe('reading library styles', () => {
     expect(styles).not.toContain('padding-block-start: calc(13% + 22px);');
   });
 
-  it('uses a narrower display ratio for PDF covers only', () => {
+  it('uses narrower display ratios for PDF and web covers', () => {
     expectRule('.article-book.is-pdf-cover', ['--book-cover-ratio: 0.7;']);
+    expectRule('.article-book.is-web-cover', ['--book-cover-ratio: 0.68;']);
     expectRule('.article-book', ['--book-cover-ratio: 0.8167;']);
   });
 
@@ -109,6 +110,7 @@ describe('reading library styles', () => {
     ]);
     expectRule('.library-search-combo .library-type-filter-trigger', ['width: 108px;']);
     expectRule('.library-list', ['grid-template-columns: repeat(3, minmax(0, 1fr));']);
+    expectRule('.library-entity-grid', ['grid-auto-rows: minmax(156px, auto);']);
     expectRule('.library-web-item-cover', ['align-self: start;']);
     expectRule('.library-web-item', ['grid-template-columns: 120px minmax(0, 1fr);']);
     expectRule('.library-web-item-source span', ['font-size: 10px;', 'line-height: 1;']);
@@ -133,10 +135,105 @@ describe('reading library styles', () => {
     expectRule('.library-ebook-list-item', ['padding: 18px 68px 18px 16px;']);
     expectRule(
       '.library-entity-grid .library-article-list-item.library-web-item,\n.library-entity-grid .library-article-list-item.library-ebook-list-item',
-      ['padding: 14px 68px 14px 8px;'],
+      ['min-height: 156px;', 'padding: 14px 68px 14px 8px;'],
+    );
+    expectRule('.library-entity-grid .library-collection-list-item', [
+      'min-height: 156px;',
+      'padding: 14px 68px 14px 8px;',
+    ]);
+    expectRule('.library-collection-list-item .library-card-pin-indicator', [
+      'width: 18px;',
+      'height: 18px;',
+      'background: color-mix(in srgb, var(--app-interactive-link) 12%, hsl(var(--card)));',
+    ]);
+    expectRule('.library-collection-cover-copy .library-card-pin-indicator', [
+      'align-self: center;',
+      'width: 18px;',
+      'height: 18px;',
+      'color: var(--app-interactive-link);',
+      'transform: none;',
+    ]);
+    expectRule('.library-collection-list-item .library-collection-cover-item', ['left: 50%;']);
+    expectRule('.library-collection-list-item .library-collection-cover-item', [
+      '--cover-rel: calc(var(--cover-index, 0) - (var(--cover-count, 1) - 1) / 2);',
+      'z-index: calc(12 - var(--cover-index, 0));',
+    ]);
+    expect(styles).toContain(
+      '.library-collection-list-item:hover .library-collection-cover-item {',
+    );
+    expect(styles).toContain('scale(1.02)');
+    expectRule(
+      '.library-collection-list-item .library-collection-cover-item .article-book,\n.library-collection-list-item .library-collection-cover-item .weread-book-cover',
+      [
+        '--book-cover-height: 54px;',
+        '--book-depth: 0px;',
+        'width: var(--book-cover-width);',
+        'height: var(--book-cover-height);',
+      ],
+    );
+    expectRule('.library-collection-list-item .library-collection-cover-item .article-book-scene', [
+      'top: 0;',
+      'left: 0;',
+      'transform: none;',
+    ]);
+    expect(
+      rulesFor('.library-collection-cover-copy .library-card-pin-indicator').some((rule) =>
+        rule.includes('border: 0;'),
+      ),
+    ).toBe(false);
+    expect(
+      rulesFor('.library-collection-cover-copy .library-card-pin-indicator').some((rule) =>
+        rule.includes('background: transparent;'),
+      ),
+    ).toBe(false);
+    expect(
+      rulesFor('.library-collection-list-item .library-collection-cover-item:nth-child(1)').some(
+        (rule) => rule.includes('rotate(-5deg);'),
+      ),
+    ).toBe(false);
+    expect(
+      rulesFor(
+        '.library-collection-list-item:hover .library-collection-cover-item:nth-child(5)',
+      ).some((rule) => rule.includes('translate(24px, -14px)')),
+    ).toBe(false);
+    expect(styles).not.toMatch(
+      /\.library-collection-list-item:focus-within \.library-collection-cover-item:nth-child\(1\)/,
+    );
+    expect(styles).not.toMatch(
+      /\.library-collection-list-item:focus-within \.library-collection-cover-item:nth-child\(10\)/,
+    );
+    expectRule('.library-collection-cover-copy h3', ['overflow: visible;']);
+    expectRule('.library-collection-empty-cover', ['width: 112px;']);
+    expectRule('.library-collection-empty-cover span', ['white-space: nowrap;']);
+    expectRule('.library-collection-picker-list > .library-collection-picker-item.is-dragging', [
+      'min-height: 0;',
+      'height: 0;',
+      'opacity: 0;',
+    ]);
+    expectRule(
+      '.library-collection-picker-cover .article-book,\n.library-collection-picker-cover .weread-book-cover,\n.library-collection-picker-selected-cover .article-book,\n.library-collection-picker-selected-cover .weread-book-cover',
+      [
+        '--book-depth: 0px;',
+        'width: var(--book-cover-width);',
+        'height: var(--book-cover-height);',
+      ],
+    );
+    expectRule('.library-collection-picker-selected-grid', [
+      'grid-template-columns: repeat(auto-fill, 64px);',
+      'justify-content: start;',
+    ]);
+    expectRule('.library-collection-picker-selected-item', ['width: 64px;']);
+    expectRule('.library-collection-picker-selected-remove', [
+      'top: 50%;',
+      'left: 50%;',
+      'width: 26px;',
+      'height: 26px;',
+    ]);
+    expect(styles).toMatch(
+      /\.library-entity-grid \.library-article-list-item \.library-web-item-meta,[\s\S]*\.library-entity-grid \.library-article-list-item \.library-ebook-list-meta \{[\s\S]*justify-content: space-between;[\s\S]*width: 100%;[\s\S]*margin-top: auto;[\s\S]*margin-bottom: 2px;/,
     );
     expect(styles).toMatch(
-      /\.library-entity-grid \.library-article-list-item \.library-web-item-meta,[\s\S]*\.library-entity-grid \.library-article-list-item \.library-ebook-list-meta \{[\s\S]*justify-content: space-between;[\s\S]*width: calc\(100% \+ 58px\);[\s\S]*margin-top: auto;/,
+      /\.library-entity-grid \.library-article-list-item \.library-count-stats \{[\s\S]*justify-content: flex-end;[\s\S]*flex-wrap: nowrap;[\s\S]*margin-right: -58px;/,
     );
     expect(styles).toMatch(
       /\.library-entity-grid \.library-article-list-item \.library-item-date-source \{[\s\S]*display: inline-flex;[\s\S]*gap: 7px;/,

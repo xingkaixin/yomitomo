@@ -12,6 +12,7 @@ import type {
   Collection,
   CollectionMember,
   Comment,
+  ContentRef,
   LibraryPin,
   MessageSendShortcut,
   PublicAgent,
@@ -577,6 +578,44 @@ export function ReadingLibrary({
     );
   }
 
+  async function createLibraryCollection(name: string) {
+    const desktop = window.yomitomoDesktop;
+    if (!desktop?.createCollection) throw new Error(t('library.collection.apiUnavailable'));
+    const result = await desktop.createCollection({ name });
+    appToast.success(t('library.collection.createdToast'), {
+      description: result.collection.name,
+    });
+    return result.collection;
+  }
+
+  async function renameLibraryCollection(collectionId: string, name: string) {
+    const desktop = window.yomitomoDesktop;
+    if (!desktop?.renameCollection) throw new Error(t('library.collection.apiUnavailable'));
+    await desktop.renameCollection({ collectionId, name });
+    appToast.success(t('library.collection.renamedToast'), { description: name });
+  }
+
+  async function deleteLibraryCollection(collectionId: string) {
+    const desktop = window.yomitomoDesktop;
+    if (!desktop?.deleteCollection) throw new Error(t('library.collection.apiUnavailable'));
+    await desktop.deleteCollection(collectionId);
+    appToast.success(t('library.collection.deletedToast'));
+  }
+
+  async function addLibraryCollectionMembers(collectionId: string, members: ContentRef[]) {
+    const desktop = window.yomitomoDesktop;
+    if (!desktop?.addCollectionMembers) throw new Error(t('library.collection.apiUnavailable'));
+    await desktop.addCollectionMembers({ collectionId, members });
+    appToast.success(t('library.collection.membersAddedToast', { count: members.length }));
+  }
+
+  async function removeLibraryCollectionMember(collectionId: string, member: ContentRef) {
+    const desktop = window.yomitomoDesktop;
+    if (!desktop?.removeCollectionMember) throw new Error(t('library.collection.apiUnavailable'));
+    await desktop.removeCollectionMember({ collectionId, member });
+    appToast.success(t('library.collection.memberRemovedToast'));
+  }
+
   const libraryHomeProps = {
     collectionMembers,
     collections,
@@ -590,6 +629,11 @@ export function ReadingLibrary({
     onOpenArticle: (article: ArticleSummaryRecord) => void openArticle(article),
     onOpenWeReadBook: (book: WeReadBook) => void openWeReadBook(book),
     onOpenWeReadExternal: (book: WeReadBook) => void openWeReadExternal(book),
+    onCreateCollection: createLibraryCollection,
+    onRenameCollection: renameLibraryCollection,
+    onDeleteCollection: deleteLibraryCollection,
+    onAddCollectionMembers: addLibraryCollectionMembers,
+    onRemoveCollectionMember: removeLibraryCollectionMember,
     onSaveSettings: onSaveSettings || (() => undefined),
     onSetLibraryPin: (input: SetLibraryPinInput) =>
       void window.yomitomoDesktop?.setLibraryPin?.(input),
