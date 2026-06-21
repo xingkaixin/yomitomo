@@ -2287,6 +2287,60 @@
   pointer-events: none;
 }
 
+.annotation-sedimentation-draft-anchor-layer {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.annotation-sedimentation-draft-anchor-text {
+  min-height: 100%;
+  color: transparent;
+  font: inherit;
+  font-family: var(--font-serif, Georgia, serif);
+  font-size: 18px;
+  font-weight: 430;
+  line-height: 1.82;
+  overflow-wrap: break-word;
+  padding: 18px 28px 36px;
+  transform-origin: 0 0;
+  white-space: pre-wrap;
+}
+
+.annotation-sedimentation-draft-anchor-mark {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--app-reader-accent-strong) 18%, transparent);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--app-reader-accent-strong) 20%, transparent),
+    0 8px 20px color-mix(in srgb, var(--app-reader-accent-strong) 8%, transparent);
+  color: transparent;
+  padding: 1px 2px;
+  transition:
+    background 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.annotation-sedimentation-draft-anchor-mark.is-drifted {
+  background: color-mix(in srgb, var(--app-reader-primary, #38a169) 16%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--app-reader-primary, #38a169) 18%, transparent),
+    0 8px 20px color-mix(in srgb, var(--app-reader-primary, #38a169) 7%, transparent);
+}
+
+.annotation-sedimentation-draft-anchor-point {
+  display: inline-block;
+  width: 2px;
+  height: 1.42em;
+  border-radius: 999px;
+  background: var(--app-reader-accent-strong);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--app-reader-accent-strong) 12%, transparent);
+  vertical-align: text-bottom;
+}
+
 .annotation-sedimentation-draft-preview-text {
   min-height: 100%;
   color: var(--app-reader-ink);

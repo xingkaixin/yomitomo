@@ -966,6 +966,7 @@ export const enResources = {
       reviewAssistantFallback: 'R',
       reviewing: 'Reviewing...',
       proposals: 'Draft change suggestions',
+      draftAnchorHighlight: 'Draft anchor highlight',
       draftChangePreview: 'Draft change preview',
       previewProposal: 'Preview change',
       previewingProposal: 'Previewing',

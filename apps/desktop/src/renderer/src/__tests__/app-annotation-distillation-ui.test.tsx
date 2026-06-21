@@ -9,6 +9,7 @@ import { AnnotationSedimentationWindowApp } from '../annotation-discussion/app-a
 import {
   applyDistillationProposalToDraft,
   composeDistillationProposalDraftChangeSetEntries,
+  planDistillationProposalDraftAnchor,
   planDistillationProposalChange,
   planDistillationProposalChangeSet,
 } from '../annotation-discussion/app-annotation-sedimentation-proposals';
@@ -168,6 +169,161 @@ describe('annotation distillation UI', () => {
         }),
       );
     });
+  });
+
+  it('highlights the current draft anchor when hovering a review proposal', async () => {
+    installDesktopApi(
+      article(
+        annotation({
+          distillation: {
+            status: 'unpublished',
+            content: '已有判断。旧判断需要收敛。',
+            reviewSessions: [
+              {
+                id: 'review_session_1',
+                agentId: 'agent_1',
+                messages: [
+                  {
+                    id: 'review_message_1',
+                    author: 'ai',
+                    content: '建议改写旧判断。',
+                    createdAt: now,
+                    proposals: [
+                      {
+                        id: 'proposal_1',
+                        kind: 'replace',
+                        status: 'pending',
+                        title: '修改判断',
+                        targetText: '旧判断',
+                        replacementText: '新判断',
+                        updatedAt: now,
+                      },
+                    ],
+                  },
+                ],
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          },
+        }),
+      ),
+    );
+    window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
+
+    render(<AnnotationSedimentationWindowApp />);
+
+    const proposal = (await screen.findByText('修改判断')).closest(
+      '.annotation-sedimentation-proposal',
+    );
+    expect(proposal).toBeTruthy();
+    fireEvent.mouseEnter(proposal!);
+    const highlight = await screen.findByLabelText('草稿锚点高亮');
+    expect(within(highlight).getByText('旧判断')).toBeTruthy();
+    fireEvent.mouseLeave(proposal!);
+    expect(screen.queryByLabelText('草稿锚点高亮')).toBeNull();
+  });
+
+  it('does not show draft anchor highlights while previewing proposal changes', async () => {
+    installDesktopApi(
+      article(
+        annotation({
+          distillation: {
+            status: 'unpublished',
+            content: '已有判断。旧判断。',
+            reviewSessions: [
+              {
+                id: 'review_session_1',
+                agentId: 'agent_1',
+                messages: [
+                  {
+                    id: 'review_message_1',
+                    author: 'ai',
+                    content: '建议换一个判断。',
+                    createdAt: now,
+                    proposals: [
+                      {
+                        id: 'proposal_1',
+                        kind: 'replace',
+                        status: 'pending',
+                        title: '修改判断',
+                        targetText: '旧判断',
+                        replacementText: '新判断',
+                        updatedAt: now,
+                      },
+                    ],
+                  },
+                ],
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          },
+        }),
+      ),
+    );
+    window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
+
+    render(<AnnotationSedimentationWindowApp />);
+
+    const proposal = (await screen.findByText('修改判断')).closest(
+      '.annotation-sedimentation-proposal',
+    );
+    expect(proposal).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '预览变更' }));
+    expect(await screen.findByLabelText('草稿变更预览')).toBeTruthy();
+    fireEvent.mouseEnter(proposal!);
+    expect(screen.queryByLabelText('草稿锚点高亮')).toBeNull();
+  });
+
+  it('silently skips draft anchor highlights when the proposal target is stale', async () => {
+    installDesktopApi(
+      article(
+        annotation({
+          distillation: {
+            status: 'unpublished',
+            content: '当前草稿已经没有旧判断。',
+            reviewSessions: [
+              {
+                id: 'review_session_1',
+                agentId: 'agent_1',
+                messages: [
+                  {
+                    id: 'review_message_1',
+                    author: 'ai',
+                    content: '这条建议基于旧草稿。',
+                    createdAt: now,
+                    proposals: [
+                      {
+                        id: 'proposal_1',
+                        kind: 'replace',
+                        status: 'pending',
+                        title: '修改不存在的判断',
+                        targetText: '不存在的判断',
+                        replacementText: '新判断',
+                        updatedAt: now,
+                      },
+                    ],
+                  },
+                ],
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          },
+        }),
+      ),
+    );
+    window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
+
+    render(<AnnotationSedimentationWindowApp />);
+
+    const proposal = (await screen.findByText('修改不存在的判断')).closest(
+      '.annotation-sedimentation-proposal',
+    );
+    expect(proposal).toBeTruthy();
+    fireEvent.mouseEnter(proposal!);
+    expect(screen.queryByLabelText('草稿锚点高亮')).toBeNull();
   });
 
   it('previews one review message and decides each draft change separately', async () => {
@@ -679,6 +835,105 @@ describe('annotation distillation UI', () => {
 });
 
 describe('annotation distillation proposals', () => {
+  it('plans a resolved draft anchor for a replace proposal', () => {
+    const result = planDistillationProposalDraftAnchor('已有判断。旧判断。', {
+      id: 'proposal_1',
+      kind: 'replace',
+      status: 'pending',
+      title: '修改',
+      targetText: '旧判断',
+      replacementText: '新判断',
+      sourceDraftHash: hashText('已有判断。旧判断。'),
+      updatedAt: now,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      status: 'resolved',
+      anchorKind: 'text',
+      range: { start: 5, end: 8 },
+      text: '旧判断',
+    });
+  });
+
+  it('marks a draft anchor as drifted when the source draft changed but text still matches', () => {
+    const result = planDistillationProposalDraftAnchor('新前缀。旧判断。', {
+      id: 'proposal_1',
+      kind: 'replace',
+      status: 'pending',
+      title: '修改',
+      targetText: '旧判断',
+      replacementText: '新判断',
+      sourceDraftHash: hashText('旧草稿。旧判断。'),
+      updatedAt: now,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      status: 'drifted',
+      anchorKind: 'text',
+      range: { start: 4, end: 7 },
+      text: '旧判断',
+    });
+  });
+
+  it('marks a draft anchor as ambiguous when target text appears multiple times', () => {
+    const result = planDistillationProposalDraftAnchor('旧判断。旧判断。', {
+      id: 'proposal_1',
+      kind: 'replace',
+      status: 'pending',
+      title: '修改',
+      targetText: '旧判断',
+      replacementText: '新判断',
+      updatedAt: now,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      status: 'ambiguous',
+    });
+  });
+
+  it('recovers an insert draft anchor from instruction-shaped content', () => {
+    const result = planDistillationProposalDraftAnchor('第一段。第二段。', {
+      id: 'proposal_1',
+      kind: 'insert',
+      status: 'pending',
+      title: '新增',
+      content: '在“第一段”之后，补充：“新增段落。”',
+      updatedAt: now,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      status: 'resolved',
+      anchorKind: 'text',
+      range: { start: 0, end: 3 },
+      text: '第一段',
+    });
+  });
+
+  it('uses a point draft anchor for unchanged unanchored inserts', () => {
+    const draft = '第一段';
+    const result = planDistillationProposalDraftAnchor(draft, {
+      id: 'proposal_1',
+      kind: 'insert',
+      status: 'pending',
+      title: '新增',
+      content: '新增段落',
+      sourceDraftHash: hashText(draft),
+      updatedAt: now,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      status: 'resolved',
+      anchorKind: 'point',
+      range: { start: 3, end: 3 },
+      text: '',
+    });
+  });
+
   it('inserts proposal content at the latest selection end', () => {
     const result = applyDistillationProposalToDraft(
       '第一段\n第二段',

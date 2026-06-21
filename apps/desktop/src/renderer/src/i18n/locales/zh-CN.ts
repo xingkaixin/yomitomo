@@ -937,6 +937,7 @@ export const zhCNResources = {
       reviewAssistantFallback: '审',
       reviewing: '正在审阅...',
       proposals: '稿件修改建议',
+      draftAnchorHighlight: '草稿锚点高亮',
       draftChangePreview: '草稿变更预览',
       previewProposal: '预览变更',
       previewingProposal: '预览中',
