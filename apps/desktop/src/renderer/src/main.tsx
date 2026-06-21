@@ -576,7 +576,10 @@ function App() {
                 <ReadingLibrary
                   agents={store.agents}
                   articles={store.articles}
+                  collectionMembers={store.collectionMembers}
+                  collections={store.collections}
                   messageSendShortcut={store.settings.messageSendShortcut}
+                  pins={store.pins}
                   readerTheme={theme.readerTheme}
                   settings={store.settings}
                   selectionActionShortcuts={store.settings.selectionActionShortcuts}

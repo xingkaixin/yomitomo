@@ -130,7 +130,7 @@ describe('ReadingStatsPanel', () => {
     expect(onRefresh).toHaveBeenCalledOnce();
   });
 
-  it('hides the WeRead stats source when the WeRead library source is disabled', () => {
+  it('keeps the WeRead stats source when old library source preferences disabled it', () => {
     render(
       <ReadingStatsPanel
         articles={[]}
@@ -148,7 +148,7 @@ describe('ReadingStatsPanel', () => {
 
     const sourceTabs = screen.getByRole('tablist', { name: '统计来源' });
     expect(sourceTabs.textContent).toContain('本地阅读');
-    expect(sourceTabs.textContent).not.toContain('微信读书');
+    expect(sourceTabs.textContent).toContain('微信读书');
   });
 
   it('records stats loading timing phases', async () => {

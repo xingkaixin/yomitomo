@@ -9,6 +9,7 @@ import {
   Globe2,
   LoaderCircle,
   Plus,
+  RefreshCw,
   Upload,
   X,
 } from 'lucide-react';
@@ -231,6 +232,10 @@ export function LibraryImportControls({
   onImportArticleUrl,
   onCancelArticleImport,
   onOpenArticle,
+  onSyncWeRead,
+  weReadSyncDisabled = false,
+  weReadSyncVisible = false,
+  weReadSyncing = false,
 }: {
   defaultImportType?: 'web' | 'ebook' | 'pdf';
   settings: AppSettings;
@@ -245,6 +250,10 @@ export function LibraryImportControls({
   onImportArticleUrl: (url: string, requestId?: string) => Promise<ArticleImportResult>;
   onCancelArticleImport?: (requestId: string) => Promise<boolean> | boolean;
   onOpenArticle: (article: ArticleRecord) => void;
+  onSyncWeRead?: () => void;
+  weReadSyncDisabled?: boolean;
+  weReadSyncVisible?: boolean;
+  weReadSyncing?: boolean;
 }) {
   const { t } = useTranslation();
   const [addMenuOpen, setAddMenuOpen] = useState(false);
@@ -271,6 +280,11 @@ export function LibraryImportControls({
     setArticleImportOpen(false);
     setEbookImportOpen(false);
     setPdfImportOpen(true);
+  }
+
+  function syncWeRead() {
+    setAddMenuOpen(false);
+    onSyncWeRead?.();
   }
 
   return (
@@ -314,7 +328,7 @@ export function LibraryImportControls({
             <>
               <DropdownMenuTrigger asChild>
                 <Button
-                  aria-label={t('library.import.addWebArticle')}
+                  aria-label={t('library.import.addContent')}
                   className="library-add-trigger"
                   type="button"
                   variant="secondary"
@@ -341,6 +355,14 @@ export function LibraryImportControls({
                     {t('library.import.pdfDocument')}
                   </button>
                 </DropdownMenuItem>
+                {weReadSyncVisible ? (
+                  <DropdownMenuItem asChild>
+                    <button type="button" disabled={weReadSyncDisabled} onClick={syncWeRead}>
+                      <RefreshCw size={15} />
+                      {weReadSyncing ? t('library.syncing') : t('library.sync')}
+                    </button>
+                  </DropdownMenuItem>
+                ) : null}
               </DropdownMenuContent>
             </>
           )}

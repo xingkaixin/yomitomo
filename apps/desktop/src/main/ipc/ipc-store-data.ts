@@ -22,10 +22,7 @@ export function registerStoreDataIpc(context: DesktopMainIpcContext) {
         await context.getPersistenceModule();
       const importDurationMs = context.elapsedMs(importStartedAt);
       const readStartedAt = performance.now();
-      const readStoreWithProfile =
-        storeSnapshotPersistence.readShellStoreWithProfile ||
-        storeSnapshotPersistence.readStoreWithProfile;
-      let { store, profile } = await readStoreWithProfile();
+      let { store, profile } = await storeSnapshotPersistence.readStoreWithProfile();
       if (shouldApplyStartupAppLock(store.settings)) {
         const lockStartedAt = performance.now();
         const saveSettings =

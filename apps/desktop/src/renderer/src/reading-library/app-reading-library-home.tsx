@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   BookOpen,
   BookText,
@@ -8,13 +8,17 @@ import {
   Highlighter,
   Layers2,
   MoreHorizontal,
-  RefreshCw,
+  Pin,
+  PinOff,
   Search,
   Smartphone,
 } from 'lucide-react';
 import type {
   AppSettings,
   ArticleSummaryRecord,
+  Collection,
+  CollectionMember,
+  LibraryPin,
   WeReadBook,
   WeReadSettings,
 } from '@yomitomo/shared';
@@ -38,41 +42,35 @@ import type {
   EbookImportProgressCallback,
   PdfImportProgressCallback,
 } from '../shell/app-reading-types';
-import type {
-  ArticleLibraryListResult,
-  ArticleLibrarySource,
-  ArticleLibrarySourceCounts,
-} from '../../../ipc-contract';
-import {
-  articleAnnotationCount,
-  articleDistillationCount,
-  articleDisplayTitle,
-  articleMatchesLibrarySearch,
-  compareLibraryArticles,
-  librarySourceForArticle,
-  type LibrarySource,
-} from './app-reading-library-utils';
+import type { SetLibraryPinInput } from '../../../ipc-contract';
 import {
   ArticleBook,
   BookCoverFrame,
-  formatPdfAuthors,
   nativeBookCoverStyle,
   useNativeCoverRatio,
 } from '../shell/app-article-book';
-import { libraryContentSourceOptions } from './app-library-content-sources';
-import { urlHost } from '../shell/app-utils';
+import { libraryContentSourceBaseOptions } from './app-library-content-sources';
 import { LibraryImportControls, type ArticleImportResult } from './app-reading-library-imports';
-import { ArticleDeleteMenuItem, useArticleDeleteConfirm } from './app-reading-library-delete';
+import { ArticleLibraryCard } from './app-reading-library-card';
+import { formatLibraryShortDate } from './app-reading-library-utils';
+import {
+  buildLibraryEntities,
+  groupLibraryEntities,
+  libraryEntityPinTarget,
+} from './app-reading-library-entities';
+import type {
+  LibraryCollectionEntity,
+  LibraryEntity,
+  LibraryItemType,
+  LibraryTypeScope,
+} from './library-entity-types';
 
 const LIBRARY_PAGE_SIZE_OPTIONS = [6, 12, 18, 24] as const;
-const emptyLocalSourceCounts: ArticleLibrarySourceCounts = { web: 0, ebook: 0, pdf: 0 };
+const LOCAL_LIBRARY_TYPES: LibraryItemType[] = ['web', 'ebook', 'pdf'];
 
 export function LibraryHome({
-  activeSource,
-  articles,
-  sourceTransitionDirection = 'none',
-  onActiveSourceChange,
-  sortedArticles,
+  collectionMembers,
+  collections,
   onDeleteArticle,
   onImportEbookFile,
   onImportPdfFile,
@@ -82,18 +80,18 @@ export function LibraryHome({
   onOpenWeReadBook,
   onOpenWeReadExternal,
   onSaveSettings,
+  onSetLibraryPin,
   onSyncWeRead,
+  pins,
   settings,
+  sortedArticles,
   wereadBooks,
   wereadOpenMessage,
   wereadSettings,
   wereadSyncing,
 }: {
-  activeSource: LibrarySource;
-  articles: ArticleSummaryRecord[];
-  sourceTransitionDirection?: LibrarySourceTransitionDirection;
-  onActiveSourceChange: (source: LibrarySource) => void;
-  sortedArticles: ArticleSummaryRecord[];
+  collectionMembers: CollectionMember[];
+  collections: Collection[];
   onDeleteArticle: (articleId: string) => Promise<void>;
   onImportEbookFile: (
     file: File,
@@ -109,8 +107,11 @@ export function LibraryHome({
   onOpenWeReadBook: (book: WeReadBook) => void;
   onOpenWeReadExternal: (book: WeReadBook) => void;
   onSaveSettings: (settings: AppSettings) => Promise<void> | void;
+  onSetLibraryPin: (input: SetLibraryPinInput) => Promise<void> | void;
   onSyncWeRead: () => void;
+  pins: LibraryPin[];
   settings: AppSettings;
+  sortedArticles: ArticleSummaryRecord[];
   wereadBooks: WeReadBook[];
   wereadOpenMessage: string;
   wereadSettings: WeReadSettings;
@@ -124,99 +125,62 @@ export function LibraryHome({
     normalizeLibraryPageSize(settings.libraryPageSize),
   );
   const [searchQuery, setSearchQuery] = useState('');
-  const [serverResult, setServerResult] = useState<ArticleLibraryListResult | null>(null);
-  const [serverSourceCounts, setServerSourceCounts] = useState<ArticleLibrarySourceCounts | null>(
-    null,
+  const [typeScope, setTypeScope] = useState<LibraryTypeScope>('all');
+  const wereadAvailable = wereadSettings.configured || wereadBooks.length > 0;
+  const availableTypes = useMemo<LibraryItemType[]>(
+    () => (wereadAvailable ? [...LOCAL_LIBRARY_TYPES, 'weread'] : LOCAL_LIBRARY_TYPES),
+    [wereadAvailable],
   );
-  const [serverReloadKey, setServerReloadKey] = useState(0);
-  const sourceTabRefs = useRef(new Map<LibrarySource, HTMLButtonElement>());
-  const pendingSourceFocusRef = useRef<LibrarySource | null>(null);
-  const sourceOptions = useMemo(() => libraryContentSourceOptions(settings), [settings]);
-  const filteredArticles = useMemo(
+  const typeOptions = useMemo(
+    () => [
+      { value: 'all' as const, label: t('library.typeFilter.all') },
+      ...libraryContentSourceBaseOptions()
+        .filter((option) => availableTypes.includes(option.value))
+        .map((option) => ({ value: option.value, label: option.label })),
+    ],
+    [availableTypes, t],
+  );
+  const unfilteredEntities = useMemo(
     () =>
-      sortedArticles
-        .filter((article) => articleMatchesLibrarySearch(article, searchQuery))
-        .toSorted((left, right) => compareLibraryArticles(left, right, 'recentAdded')),
-    [searchQuery, sortedArticles],
+      buildLibraryEntities({
+        articles: sortedArticles,
+        collectionMembers,
+        collections,
+        enabledTypes: availableTypes,
+        pins,
+        query: '',
+        typeScope,
+        wereadBooks,
+      }),
+    [availableTypes, collectionMembers, collections, pins, sortedArticles, typeScope, wereadBooks],
   );
-  const filteredWeReadBooks = useMemo(
-    () => wereadBooks.filter((book) => weReadBookMatchesSearch(book, searchQuery)),
-    [searchQuery, wereadBooks],
-  );
-  const serverListAvailable =
-    activeSource !== 'weread' && typeof window.yomitomoDesktop?.listLibraryArticles === 'function';
-  const serverCatalogResult =
-    serverListAvailable &&
-    serverResult?.source === activeSource &&
-    serverResult.pageSize === pageSize &&
-    serverResult.query === searchQuery.trim()
-      ? serverResult
-      : null;
-  const activeServerResult = serverCatalogResult?.page === page ? serverCatalogResult : null;
-  const fallbackSourceArticles = useMemo(
-    () => filteredArticles.filter((article) => librarySourceForArticle(article) === activeSource),
-    [activeSource, filteredArticles],
-  );
-  const localSourceCounts = useMemo(
+  const filteredEntities = useMemo(
     () =>
-      articles.reduce(
-        (result, article) => {
-          const source = librarySourceForArticle(article) as ArticleLibrarySource;
-          result[source] += 1;
-          return result;
-        },
-        { ...emptyLocalSourceCounts },
-      ),
-    [articles],
-  );
-  const sourceArticles = activeServerResult?.articles || fallbackSourceArticles;
-  const activeItemsLength =
-    activeSource === 'weread'
-      ? filteredWeReadBooks.length
-      : (serverCatalogResult?.totalCount ?? sourceArticles.length);
-  const activeSourcePanelId = librarySourcePanelId(activeSource);
-  const pageCount = Math.max(1, Math.ceil(activeItemsLength / pageSize));
-  const pageArticles = activeServerResult
-    ? activeServerResult.articles
-    : sourceArticles.slice((page - 1) * pageSize, page * pageSize);
-  const pageWeReadBooks = filteredWeReadBooks.slice((page - 1) * pageSize, page * pageSize);
-  const counts = useMemo(() => {
-    const localCounts = serverSourceCounts || localSourceCounts;
-    return {
-      ...localCounts,
-      weread: wereadBooks.length,
-    };
-  }, [serverSourceCounts, localSourceCounts, wereadBooks.length]);
-
-  useEffect(() => {
-    if (!serverListAvailable) {
-      setServerResult(null);
-      return;
-    }
-    const desktop = window.yomitomoDesktop;
-    if (typeof desktop?.listLibraryArticles !== 'function') return;
-    let cancelled = false;
-    void desktop
-      .listLibraryArticles({
-        source: activeSource as ArticleLibrarySource,
+      buildLibraryEntities({
+        articles: sortedArticles,
+        collectionMembers,
+        collections,
+        enabledTypes: availableTypes,
+        pins,
         query: searchQuery,
-        page,
-        pageSize,
-      })
-      .then((result) => {
-        if (!cancelled) {
-          setServerResult(result);
-          setServerSourceCounts(result.sourceCounts);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setServerResult(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeSource, page, pageSize, searchQuery, serverListAvailable, serverReloadKey]);
-
+        typeScope,
+        wereadBooks,
+      }),
+    [
+      collectionMembers,
+      collections,
+      availableTypes,
+      pins,
+      searchQuery,
+      sortedArticles,
+      typeScope,
+      wereadBooks,
+    ],
+  );
+  const activeItemsLength = filteredEntities.length;
+  const pageCount = Math.max(1, Math.ceil(activeItemsLength / pageSize));
+  const pageEntities = filteredEntities.slice((page - 1) * pageSize, page * pageSize);
+  const pageGroups = groupLibraryEntities(pageEntities);
   const pageNumbers = useMemo(() => {
     const visibleCount = Math.min(5, pageCount);
     const start = Math.min(
@@ -225,6 +189,25 @@ export function LibraryHome({
     );
     return Array.from({ length: visibleCount }, (_, index) => start + index);
   }, [page, pageCount]);
+  const activeTypeLabel =
+    typeOptions.find((option) => option.value === typeScope)?.label || t('library.typeFilter.all');
+  const footerCountLabel =
+    typeScope === 'all'
+      ? t('library.total.all', { count: activeItemsLength })
+      : t(`library.total.${typeScope}`, { count: activeItemsLength });
+  const emptyReason = emptyLibraryReason({
+    filteredLength: activeItemsLength,
+    itemsLength: unfilteredEntities.length,
+    searchQuery,
+    t,
+    typeScope,
+    wereadConfigured: wereadSettings.configured,
+  });
+
+  useEffect(() => {
+    if (typeScope === 'all' || availableTypes.includes(typeScope)) return;
+    setTypeScope('all');
+  }, [availableTypes, typeScope]);
 
   useEffect(() => {
     setPage((current) => {
@@ -237,215 +220,96 @@ export function LibraryHome({
   useEffect(() => {
     setPageTransitionDirection('none');
     setPage(1);
-    if (pendingSourceFocusRef.current === activeSource) {
-      pendingSourceFocusRef.current = null;
-      sourceTabRefs.current.get(activeSource)?.focus();
-    }
-  }, [activeSource, pageSize, searchQuery]);
+  }, [pageSize, searchQuery, typeScope]);
 
   useEffect(() => {
     setPageSize(normalizeLibraryPageSize(settings.libraryPageSize));
   }, [settings.libraryPageSize]);
 
-  const activeSourceLabel = t(`library.sources.${activeSource}`);
-  const footerCountLabel = t(`library.total.${activeSource}`, {
-    count: activeItemsLength,
-  });
-  const emptyReason = emptyLibraryReason({
-    activeSource,
-    itemsLength: activeSource === 'weread' ? wereadBooks.length : counts[activeSource],
-    filteredLength: activeItemsLength,
-    searchQuery,
-    t,
-  });
-
-  const reloadServerList = () => setServerReloadKey((key) => key + 1);
   const deleteArticle = async (articleId: string) => {
     await onDeleteArticle(articleId);
-    reloadServerList();
   };
-  const importArticleUrl = async (url: string, requestId?: string) => {
-    const result = await onImportArticleUrl(url, requestId);
-    if (result.status !== 'canceled') reloadServerList();
-    return result;
-  };
-  const importEbookFile = async (file: File, onProgress?: EbookImportProgressCallback) => {
-    const result = await onImportEbookFile(file, onProgress);
-    if (result.status !== 'canceled') reloadServerList();
-    return result;
-  };
-  const importPdfFile = async (file: File, onProgress?: PdfImportProgressCallback) => {
-    const result = await onImportPdfFile(file, onProgress);
-    if (result.status !== 'canceled') reloadServerList();
-    return result;
-  };
+  const importArticleUrl = async (url: string, requestId?: string) =>
+    onImportArticleUrl(url, requestId);
+  const importEbookFile = async (file: File, onProgress?: EbookImportProgressCallback) =>
+    onImportEbookFile(file, onProgress);
+  const importPdfFile = async (file: File, onProgress?: PdfImportProgressCallback) =>
+    onImportPdfFile(file, onProgress);
 
   return (
-    <section className={`library-home is-${activeSource}`} aria-label={activeSourceLabel}>
+    <section className="library-home is-mixed" aria-label={t('library.title')}>
       <header className="library-home-header">
         <div className="library-home-header-main">
-          <div
-            className="library-source-tabs"
-            role="tablist"
-            aria-label={t('library.sourceTabsLabel')}
-            onKeyDown={(event) => {
-              if (
-                event.key !== 'ArrowLeft' &&
-                event.key !== 'ArrowRight' &&
-                event.key !== 'Home' &&
-                event.key !== 'End'
-              )
-                return;
-              event.preventDefault();
-              const enabledOptions = sourceOptions.filter(
-                (item) => item.value !== 'weread' || wereadSettings.configured,
-              );
-              if (enabledOptions.length === 0) return;
-              const currentIndex = Math.max(
-                0,
-                enabledOptions.findIndex((item) => item.value === activeSource),
-              );
-              const nextIndex =
-                event.key === 'Home'
-                  ? 0
-                  : event.key === 'End'
-                    ? enabledOptions.length - 1
-                    : event.key === 'ArrowRight'
-                      ? (currentIndex + 1) % enabledOptions.length
-                      : (currentIndex - 1 + enabledOptions.length) % enabledOptions.length;
-              const nextSource = enabledOptions[nextIndex].value;
-              pendingSourceFocusRef.current = nextSource;
-              onActiveSourceChange(nextSource);
-            }}
-          >
-            {sourceOptions.map((option) => {
-              const selected = activeSource === option.value;
-              const unavailable = option.value === 'weread' && !wereadSettings.configured;
-              const disabledReason = unavailable ? t('library.weReadSetupTooltip') : undefined;
-              return (
-                <button
-                  aria-controls={librarySourcePanelId(option.value)}
-                  aria-disabled={unavailable}
-                  aria-selected={selected}
-                  className={[selected ? 'is-active' : '', unavailable ? 'is-disabled' : '']
-                    .filter(Boolean)
-                    .join(' ')}
-                  data-tooltip={disabledReason}
-                  id={librarySourceTabId(option.value)}
-                  ref={(element) => {
-                    if (element) sourceTabRefs.current.set(option.value, element);
-                    else sourceTabRefs.current.delete(option.value);
-                  }}
-                  role="tab"
-                  tabIndex={selected ? 0 : -1}
-                  title={disabledReason}
-                  key={option.value}
-                  type="button"
-                  onClick={() => {
-                    if (unavailable) return;
-                    onActiveSourceChange(option.value);
-                  }}
-                >
-                  <span>{t(`library.sources.${option.value}`)}</span>
-                  <em>{counts[option.value]}</em>
-                </button>
-              );
-            })}
+          <div className="library-search library-search-combo">
+            <Search size={16} />
+            <Input
+              type="search"
+              value={searchQuery}
+              placeholder={t('library.searchPlaceholder')}
+              aria-label={t('library.searchLabel')}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+            <Select
+              value={typeScope}
+              onValueChange={(value) => setTypeScope(value as LibraryTypeScope)}
+            >
+              <SelectTrigger
+                className="library-type-filter-trigger"
+                aria-label={t('library.typeFilter.label')}
+              >
+                <span>{activeTypeLabel}</span>
+              </SelectTrigger>
+              <SelectContent className="theme-select-content">
+                <SelectGroup>
+                  {typeOptions.map((option) => (
+                    <SelectItem value={option.value} key={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </div>
           <div className="library-home-actions">
-            <label className="library-search">
-              <Search size={16} />
-              <Input
-                type="search"
-                value={searchQuery}
-                placeholder={t('library.searchPlaceholder')}
-                aria-label={t('library.searchLabel')}
-                onChange={(event) => setSearchQuery(event.target.value)}
-              />
-            </label>
-            {activeSource === 'weread' ? null : (
-              <LibraryImportControls
-                defaultImportType={activeSource}
-                settings={settings}
-                onImportEbookFile={importEbookFile}
-                onImportPdfFile={importPdfFile}
-                onImportArticleUrl={importArticleUrl}
-                onCancelArticleImport={onCancelArticleImport}
-                onOpenArticle={onOpenArticle}
-              />
-            )}
-            {activeSource === 'weread' ? (
-              <button
-                className="library-sync-button"
-                type="button"
-                disabled={!wereadSettings.configured || wereadSyncing}
-                onClick={onSyncWeRead}
-              >
-                <RefreshCw size={15} />
-                {wereadSyncing ? t('library.syncing') : t('library.sync')}
-              </button>
-            ) : null}
-            {activeSource === 'weread' && wereadOpenMessage ? (
-              <p className="library-inline-error">{wereadOpenMessage}</p>
-            ) : null}
+            <LibraryImportControls
+              settings={settings}
+              weReadSyncDisabled={!wereadSettings.configured || wereadSyncing}
+              weReadSyncVisible={wereadAvailable}
+              weReadSyncing={wereadSyncing}
+              onImportEbookFile={importEbookFile}
+              onImportPdfFile={importPdfFile}
+              onImportArticleUrl={importArticleUrl}
+              onCancelArticleImport={onCancelArticleImport}
+              onOpenArticle={onOpenArticle}
+              onSyncWeRead={onSyncWeRead}
+            />
+            {wereadOpenMessage ? <p className="library-inline-error">{wereadOpenMessage}</p> : null}
           </div>
         </div>
       </header>
       <div className="library-toolbar" aria-label={t('library.toolbarLabel')}>
         <span>{t('library.toolbarSort')}</span>
       </div>
-      <div className="library-home-body" data-source-transition={sourceTransitionDirection}>
+      <div className="library-home-body" data-source-transition="none">
         <div
           className="library-source-panel"
-          id={activeSourcePanelId}
+          id="library-source-panel-all"
           role="tabpanel"
-          aria-labelledby={librarySourceTabId(activeSource)}
+          aria-label={t('library.groups.all')}
           data-page-transition={pageTransitionDirection}
-          key={activeSource}
         >
-          <div className="library-page-panel" key={`${activeSource}-${page}`}>
-            {activeSource === 'weread' && !wereadSettings.configured ? (
-              <LibraryEmptyState
-                icon={<Smartphone size={32} />}
-                title={t('library.weReadSetupTitle')}
-              >
-                {t('library.weReadSetupDescription')}
-              </LibraryEmptyState>
-            ) : activeSource === 'weread' && filteredWeReadBooks.length > 0 ? (
-              <div className="library-list library-ebook-list">
-                {pageWeReadBooks.map((book) => (
-                  <WeReadBookListItem
-                    book={book}
-                    key={book.bookId}
-                    onOpen={() => onOpenWeReadBook(book)}
-                    onOpenExternal={() => onOpenWeReadExternal(book)}
-                  />
-                ))}
-              </div>
-            ) : pageArticles.length > 0 ? (
-              activeSource === 'web' ? (
-                <div className="library-list library-web-grid">
-                  {pageArticles.map((article) => (
-                    <WebArticleListItem
-                      article={article}
-                      key={article.id}
-                      onDelete={() => void deleteArticle(article.id)}
-                      onOpen={() => onOpenArticle(article)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="library-list library-ebook-list">
-                  {pageArticles.map((article) => (
-                    <LibraryDocumentListItem
-                      article={article}
-                      key={article.id}
-                      onDelete={() => void deleteArticle(article.id)}
-                      onOpen={() => onOpenArticle(article)}
-                    />
-                  ))}
-                </div>
-              )
+          <div className="library-page-panel" key={`${typeScope}-${page}`}>
+            {activeItemsLength > 0 ? (
+              <LibraryEntityGrid
+                groups={pageGroups}
+                onDeleteArticle={(article) => void deleteArticle(article.id)}
+                onOpenArticle={onOpenArticle}
+                onOpenWeReadBook={onOpenWeReadBook}
+                onOpenWeReadExternal={onOpenWeReadExternal}
+                onSetPinned={(entity, pinned) =>
+                  void onSetLibraryPin({ target: libraryEntityPinTarget(entity), pinned })
+                }
+              />
             ) : (
               <LibraryEmptyState icon={emptyReason.icon} title={emptyReason.title}>
                 {emptyReason.description}
@@ -535,161 +399,344 @@ export function LibraryHome({
 
 export type LibrarySourceTransitionDirection = 'backward' | 'forward' | 'none';
 
-function normalizeLibraryPageSize(value: unknown) {
-  return LIBRARY_PAGE_SIZE_OPTIONS.includes(value as (typeof LIBRARY_PAGE_SIZE_OPTIONS)[number])
-    ? (value as (typeof LIBRARY_PAGE_SIZE_OPTIONS)[number])
-    : 12;
-}
-
-function WebArticleListItem({
-  article,
-  onDelete,
-  onOpen,
+function LibraryEntityGrid({
+  groups,
+  onDeleteArticle,
+  onOpenArticle,
+  onOpenWeReadBook,
+  onOpenWeReadExternal,
+  onSetPinned,
 }: {
-  article: ArticleSummaryRecord;
-  onDelete: () => void;
-  onOpen: () => void;
+  groups: { pinned: LibraryEntity[]; rest: LibraryEntity[] };
+  onDeleteArticle: (article: ArticleSummaryRecord) => void;
+  onOpenArticle: (article: ArticleSummaryRecord) => void;
+  onOpenWeReadBook: (book: WeReadBook) => void;
+  onOpenWeReadExternal: (book: WeReadBook) => void;
+  onSetPinned: (entity: LibraryEntity, pinned: boolean) => void;
 }) {
-  const { t, i18n } = useTranslation();
-  const counts = articleCounts(article);
-  const host = webArticleHost(article);
-  const title = articleDisplayTitle(article);
+  const { t } = useTranslation();
+  const sections = [
+    { key: 'pinned', title: t('library.groups.pinned'), entities: groups.pinned },
+    { key: 'rest', title: t('library.groups.all'), entities: groups.rest },
+  ].filter((section) => section.entities.length > 0);
 
   return (
-    <article className="library-list-item library-web-item">
-      <button
-        className="library-list-item-open"
-        type="button"
-        aria-label={t('library.actions.openArticle', { title })}
-        onClick={onOpen}
-      />
-      <div className="library-web-item-cover" aria-hidden="true">
-        <ArticleBook article={article} />
-        <LibraryCoverProgress progress={article.readingProgress?.progress ?? 0} />
-      </div>
-      <div className="library-web-item-source">
-        <span>{host}</span>
-      </div>
-      <div className="library-web-item-main">
-        <h3 title={title}>{title}</h3>
-      </div>
-      <div className="library-web-item-meta">
-        <time dateTime={article.createdAt}>
-          {formatLibraryShortDate(article.createdAt, i18n.language)}
-        </time>
-        <ArticleCountStats counts={counts} />
-      </div>
-      <LibraryItemActions title={title} onDelete={onDelete} />
-    </article>
-  );
-}
-
-function LibraryDocumentListItem({
-  article,
-  onDelete,
-  onOpen,
-}: {
-  article: ArticleSummaryRecord;
-  onDelete: () => void;
-  onOpen: () => void;
-}) {
-  const { t, i18n } = useTranslation();
-  const counts = articleCounts(article);
-  const sourceLabel = libraryDocumentSourceLabel(article, t('library.fallback.ebook'));
-  const title = articleDisplayTitle(article);
-
-  return (
-    <article className="library-list-item library-ebook-list-item">
-      <button
-        className="library-list-item-open"
-        type="button"
-        aria-label={t('library.actions.openDocument', {
-          title,
-          type: article.sourceType === 'pdf' ? 'PDF' : t('library.fallback.ebook'),
-        })}
-        onClick={onOpen}
-      />
-      <div className="library-ebook-cover-column">
-        <ArticleBook article={article} />
-        <LibraryCoverProgress progress={article.readingProgress?.progress ?? 0} />
-      </div>
-      <div className="library-ebook-list-copy">
-        {sourceLabel ? (
-          <div
-            className={[
-              'library-ebook-list-source',
-              article.sourceType === 'pdf' ? 'is-pdf-source' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-          >
-            <span>{sourceLabel}</span>
+    <div className="library-entity-scroll">
+      {sections.map((section) => (
+        <section className="library-card-group" key={section.key} aria-label={section.title}>
+          {section.key === 'pinned' ? (
+            <h3 className="library-card-group-title">{section.title}</h3>
+          ) : null}
+          <div className="library-entity-grid">
+            {section.entities.map((entity) => (
+              <LibraryEntityCard
+                entity={entity}
+                key={libraryEntityKey(entity)}
+                onDeleteArticle={onDeleteArticle}
+                onOpenArticle={onOpenArticle}
+                onOpenWeReadBook={onOpenWeReadBook}
+                onOpenWeReadExternal={onOpenWeReadExternal}
+                onSetPinned={(pinned) => onSetPinned(entity, pinned)}
+              />
+            ))}
           </div>
-        ) : null}
-        <div className="library-ebook-list-main">
-          <h3 title={title}>{title}</h3>
-        </div>
-        <div className="library-ebook-list-meta">
-          <time dateTime={article.createdAt}>
-            {formatLibraryShortDate(article.createdAt, i18n.language)}
-          </time>
-          <ArticleCountStats counts={counts} />
-        </div>
-      </div>
-      <LibraryItemActions title={title} onDelete={onDelete} />
-    </article>
+        </section>
+      ))}
+    </div>
   );
 }
 
-function WeReadBookListItem({
+function LibraryEntityCard({
+  entity,
+  onDeleteArticle,
+  onOpenArticle,
+  onOpenWeReadBook,
+  onOpenWeReadExternal,
+  onSetPinned,
+}: {
+  entity: LibraryEntity;
+  onDeleteArticle: (article: ArticleSummaryRecord) => void;
+  onOpenArticle: (article: ArticleSummaryRecord) => void;
+  onOpenWeReadBook: (book: WeReadBook) => void;
+  onOpenWeReadExternal: (book: WeReadBook) => void;
+  onSetPinned: (pinned: boolean) => void;
+}) {
+  if (entity.kind === 'col') {
+    return (
+      <LibraryCollectionCard entity={entity} onSetPinned={onSetPinned} pinned={entity.pinned} />
+    );
+  }
+
+  if (entity.article) {
+    return (
+      <ArticleLibraryCard
+        article={entity.article}
+        onDelete={() => onDeleteArticle(entity.article!)}
+        onOpen={() => onOpenArticle(entity.article!)}
+        onSetPinned={onSetPinned}
+        pinned={entity.pinned}
+      />
+    );
+  }
+
+  if (entity.weread) {
+    return (
+      <WeReadLibraryCard
+        book={entity.weread}
+        pinned={entity.pinned}
+        onOpen={() => onOpenWeReadBook(entity.weread!)}
+        onOpenExternal={() => onOpenWeReadExternal(entity.weread!)}
+        onSetPinned={onSetPinned}
+      />
+    );
+  }
+
+  return null;
+}
+
+function WeReadLibraryCard({
   book,
   onOpen,
   onOpenExternal,
+  onSetPinned,
+  pinned,
 }: {
   book: WeReadBook;
   onOpen: () => void;
   onOpenExternal: () => void;
+  onSetPinned: (pinned: boolean) => void;
+  pinned: boolean;
 }) {
-  const { t, i18n } = useTranslation();
-  const lastReadAt = formatWeReadLastReadDate(book.lastReadAt, i18n.language);
+  const { t } = useTranslation();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const statsLabel = t('library.stats.label', {
+    annotations: book.noteCount,
+    distillations: 0,
+  });
+
   return (
-    <article className="library-list-item library-ebook-list-item">
+    <article className="library-list-item library-article-list-item library-ebook-list-item library-weread-list-item">
       <button
         className="library-list-item-open"
         type="button"
         aria-label={t('library.actions.openWeRead', { title: book.title })}
         onClick={onOpen}
       />
-      <div className="library-ebook-cover-column">
+      {pinned ? (
+        <div className="library-item-top-meta">
+          <PinnedIndicator pinned={pinned} />
+        </div>
+      ) : null}
+      <div className="library-item-actions">
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+          <div className="library-card-menu">
+            <DropdownMenuTrigger asChild>
+              <button
+                className={menuOpen ? 'library-card-more is-active' : 'library-card-more'}
+                type="button"
+                aria-label={t('library.actions.more', { title: book.title })}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <MoreHorizontal size={17} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              className="library-card-menu-popover"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <LibraryPinMenuItem
+                pinned={pinned}
+                onSelect={() => {
+                  setMenuOpen(false);
+                  onSetPinned(!pinned);
+                }}
+              />
+              <DropdownMenuItem asChild>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onOpenExternal();
+                  }}
+                >
+                  <Smartphone size={14} />
+                  <span>{t('library.actions.openWeReadExternal')}</span>
+                </button>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </div>
+        </DropdownMenu>
+      </div>
+      <div className="library-ebook-cover-column" aria-hidden="true">
         <WeReadCover book={book} />
         <LibraryCoverProgress progress={book.readingProgress / 100} />
       </div>
       <div className="library-ebook-list-copy">
-        <div className="library-ebook-list-source">
+        <p className="library-card-author">
           <span>{book.author || t('library.fallback.weread')}</span>
-        </div>
+        </p>
         <div className="library-ebook-list-main">
           <h3 title={book.title}>{book.title}</h3>
         </div>
         <div className="library-ebook-list-meta">
-          {lastReadAt ? <time dateTime={lastReadAt.dateTime}>{lastReadAt.label}</time> : null}
-          <ArticleCountStats counts={{ annotations: book.noteCount, distillations: 0 }} />
+          <span className="library-item-date-source">
+            <time dateTime={book.updatedAt}>{formatLibraryShortDate(book.updatedAt)}</time>
+            <span className="library-source-badge">{t('library.sources.wereadShort')}</span>
+          </span>
+          <div className="library-count-stats" aria-label={statsLabel} data-tooltip={statsLabel}>
+            <span className="library-count-stat">
+              <Highlighter size={13} />
+              <span className="library-count-value">{book.noteCount}</span>
+            </span>
+            <span className="library-count-stat">
+              <Layers2 size={13} />
+              <span className="library-count-value">0</span>
+            </span>
+          </div>
         </div>
       </div>
-      <WeReadItemActions title={book.title} onOpenExternal={onOpenExternal} />
     </article>
   );
 }
 
-function formatWeReadLastReadDate(value: number | undefined, locale: string) {
-  if (!value) return null;
-  const timestamp = value < 1_000_000_000_000 ? value * 1000 : value;
-  const date = new Date(timestamp);
-  if (Number.isNaN(date.getTime())) return null;
-  return {
-    dateTime: date.toISOString(),
-    label: formatLibraryShortDate(date.toISOString(), locale),
-  };
+function LibraryCollectionCard({
+  entity,
+  onSetPinned,
+  pinned,
+}: {
+  entity: LibraryCollectionEntity;
+  onSetPinned: (pinned: boolean) => void;
+  pinned: boolean;
+}) {
+  const { t } = useTranslation();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const title = entity.collection.name;
+  const statsLabel = t('library.collection.memberCount', { count: entity.memberCount });
+
+  return (
+    <article className="library-card library-collection-card" aria-label={title}>
+      <div className="library-card-top-actions">
+        <PinnedIndicator pinned={pinned} />
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+          <div className="library-card-menu">
+            <DropdownMenuTrigger asChild>
+              <button
+                className={menuOpen ? 'library-card-more is-active' : 'library-card-more'}
+                type="button"
+                aria-label={t('library.actions.more', { title })}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <MoreHorizontal size={17} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              className="library-card-menu-popover"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <LibraryPinMenuItem
+                pinned={pinned}
+                onSelect={() => {
+                  setMenuOpen(false);
+                  onSetPinned(!pinned);
+                }}
+              />
+            </DropdownMenuContent>
+          </div>
+        </DropdownMenu>
+      </div>
+      <div className="library-card-main">
+        <div className="library-collection-cover-stack" aria-hidden="true">
+          {entity.coverMembers.length > 0 ? (
+            entity.coverMembers.slice(0, 3).map((item) => (
+              <div
+                className="library-collection-cover-item"
+                key={`${item.ref.kind}:${item.ref.id}`}
+              >
+                {item.article ? <ArticleBook article={item.article} /> : null}
+                {item.weread ? <WeReadCover book={item.weread} variant="cover" /> : null}
+              </div>
+            ))
+          ) : (
+            <div className="library-collection-empty-cover">
+              <BookOpen size={24} />
+            </div>
+          )}
+        </div>
+        <div className="library-card-copy">
+          <div>
+            <div className="library-card-status-row">
+              <span className="library-status-badge is-collection">
+                {t('library.sources.collection')}
+              </span>
+              <span>{statsLabel}</span>
+            </div>
+            <h3 title={title}>{title}</h3>
+            {entity.collection.desc ? (
+              <p className="library-card-author">
+                <span>{entity.collection.desc}</span>
+              </p>
+            ) : null}
+            <time dateTime={entity.collection.updatedAt}>
+              {t('library.meta.updatedAt', { date: formatLibraryShortDate(entity.sortTime) })}
+            </time>
+          </div>
+        </div>
+      </div>
+      <footer className="library-card-footer">
+        <div className="library-card-meta" aria-label={statsLabel} data-tooltip={statsLabel}>
+          <span>
+            <BookOpen size={13} />
+            {statsLabel}
+          </span>
+        </div>
+        <span className="library-source-badge">{t('library.sources.collectionShort')}</span>
+      </footer>
+    </article>
+  );
+}
+
+function LibraryPinMenuItem({ pinned, onSelect }: { pinned: boolean; onSelect: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <DropdownMenuItem asChild>
+      <button type="button" onClick={onSelect}>
+        {pinned ? <PinOff size={14} /> : <Pin size={14} />}
+        <span>{pinned ? t('library.actions.unpin') : t('library.actions.pin')}</span>
+      </button>
+    </DropdownMenuItem>
+  );
+}
+
+function PinnedIndicator({ pinned }: { pinned: boolean }) {
+  const { t } = useTranslation();
+  if (!pinned) return null;
+  return (
+    <span
+      className="library-card-pin-indicator"
+      aria-label={t('library.actions.pinned')}
+      data-tooltip={t('library.actions.pinned')}
+    >
+      <Pin size={15} />
+    </span>
+  );
+}
+
+function LibraryEmptyState({
+  children,
+  icon,
+  title,
+}: {
+  children: React.ReactNode;
+  icon: React.ReactNode;
+  title: string;
+}) {
+  return (
+    <section className="library-empty">
+      {icon}
+      <h3>{title}</h3>
+      <p>{children}</p>
+    </section>
+  );
 }
 
 export function WeReadCover({
@@ -713,160 +760,6 @@ export function WeReadCover({
   );
 }
 
-function WeReadItemActions({
-  title,
-  onOpenExternal,
-}: {
-  title: string;
-  onOpenExternal: () => void;
-}) {
-  const { t } = useTranslation();
-  const [menuOpen, setMenuOpen] = useState(false);
-  return (
-    <div className="library-item-actions" onClick={(event) => event.stopPropagation()}>
-      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-        <div className="library-card-menu">
-          <DropdownMenuTrigger asChild>
-            <button
-              className={menuOpen ? 'library-card-more is-active' : 'library-card-more'}
-              type="button"
-              aria-label={t('library.actions.more', { title })}
-            >
-              <MoreHorizontal size={17} />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="library-card-menu-popover">
-            <DropdownMenuItem asChild>
-              <button
-                type="button"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onOpenExternal();
-                }}
-              >
-                <Smartphone size={14} />
-                <span>{t('library.actions.openWeReadExternal')}</span>
-              </button>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </div>
-      </DropdownMenu>
-    </div>
-  );
-}
-
-function libraryDocumentSourceLabel(article: ArticleSummaryRecord, ebookFallback: string) {
-  if (article.sourceType === 'pdf')
-    return formatPdfAuthors(article.pdf?.metadata.author || '', { maxAuthors: 3, maxLength: 42 });
-  return article.byline || article.ebook?.metadata.fileName || ebookFallback;
-}
-
-function LibraryItemActions({ title, onDelete }: { title: string; onDelete: () => void }) {
-  const { t } = useTranslation();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const { dialog: deleteDialog, requestDelete } = useArticleDeleteConfirm(title, onDelete);
-
-  return (
-    <div className="library-item-actions" onClick={(event) => event.stopPropagation()}>
-      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-        <div className="library-card-menu">
-          <DropdownMenuTrigger asChild>
-            <button
-              className={menuOpen ? 'library-card-more is-active' : 'library-card-more'}
-              type="button"
-              aria-label={t('library.actions.more', { title })}
-            >
-              <MoreHorizontal size={17} />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="library-card-menu-popover">
-            <ArticleDeleteMenuItem
-              title={title}
-              onSelect={() => {
-                setMenuOpen(false);
-                requestDelete();
-              }}
-            />
-          </DropdownMenuContent>
-        </div>
-      </DropdownMenu>
-      {deleteDialog}
-    </div>
-  );
-}
-
-function LibraryEmptyState({
-  children,
-  icon,
-  title,
-}: {
-  children: React.ReactNode;
-  icon: React.ReactNode;
-  title: string;
-}) {
-  return (
-    <section className="library-empty">
-      {icon}
-      <h3>{title}</h3>
-      <p>{children}</p>
-    </section>
-  );
-}
-
-function ArticleCountStats({
-  counts,
-}: {
-  counts: {
-    annotations: number;
-    distillations: number;
-  };
-}) {
-  const { t } = useTranslation();
-  if (counts.annotations === 0 && counts.distillations === 0) return null;
-  const label = libraryCountStatsLabel(counts, t);
-
-  return (
-    <span className="library-count-stats" aria-label={label} data-tooltip={label}>
-      <span className="library-count-stat">
-        <span className="library-count-value">{counts.annotations}</span>
-        <Highlighter size={14} aria-hidden="true" />
-      </span>
-      <span className="library-count-separator" aria-hidden="true">
-        ·
-      </span>
-      <span className="library-count-stat">
-        <span className="library-count-value">{counts.distillations}</span>
-        <Layers2 size={14} aria-hidden="true" />
-      </span>
-    </span>
-  );
-}
-
-function libraryCountStatsLabel(
-  counts: { annotations: number; distillations: number },
-  t: ReturnType<typeof useTranslation>['t'],
-) {
-  return t('library.stats.label', {
-    annotations: counts.annotations,
-    distillations: counts.distillations,
-  });
-}
-
-function articleCounts(article: ArticleSummaryRecord) {
-  return {
-    annotations: articleAnnotationCount(article),
-    distillations: articleDistillationCount(article),
-  };
-}
-
-function librarySourceTabId(source: LibrarySource) {
-  return `library-source-tab-${source}`;
-}
-
-function librarySourcePanelId(source: LibrarySource) {
-  return `library-source-panel-${source}`;
-}
-
 function LibraryCoverProgress({ progress }: { progress: number }) {
   const { t } = useTranslation();
   return (
@@ -878,17 +771,15 @@ function LibraryCoverProgress({ progress }: { progress: number }) {
   );
 }
 
-function webArticleHost(article: ArticleSummaryRecord) {
-  return urlHost(article.canonicalUrl || article.url).replace(/^www\./, '') || 'web';
+function normalizeLibraryPageSize(value: unknown) {
+  return LIBRARY_PAGE_SIZE_OPTIONS.includes(value as (typeof LIBRARY_PAGE_SIZE_OPTIONS)[number])
+    ? (value as (typeof LIBRARY_PAGE_SIZE_OPTIONS)[number])
+    : 12;
 }
 
-function formatLibraryShortDate(value: string, locale: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat(locale, {
-    month: '2-digit',
-    day: '2-digit',
-  }).format(date);
+function libraryEntityKey(entity: LibraryEntity) {
+  if (entity.kind === 'col') return `collection:${entity.collection.id}`;
+  return `${entity.ref.kind}:${entity.ref.id}`;
 }
 
 function coverProgressStyle(value: number) {
@@ -896,27 +787,29 @@ function coverProgressStyle(value: number) {
   return { '--ebook-progress': `${Math.round(progress * 100)}%` } as React.CSSProperties;
 }
 
-function weReadBookMatchesSearch(book: WeReadBook, query: string) {
-  const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery) return true;
-  return [book.title, book.author, book.intro]
-    .filter(Boolean)
-    .some((value) => String(value).toLowerCase().includes(normalizedQuery));
-}
-
 function emptyLibraryReason({
-  activeSource,
-  itemsLength,
   filteredLength,
+  itemsLength,
   searchQuery,
   t,
+  typeScope,
+  wereadConfigured,
 }: {
-  activeSource: LibrarySource;
-  itemsLength: number;
   filteredLength: number;
+  itemsLength: number;
   searchQuery: string;
   t: ReturnType<typeof useTranslation>['t'];
+  typeScope: LibraryTypeScope;
+  wereadConfigured: boolean;
 }) {
+  if (typeScope === 'weread' && !wereadConfigured) {
+    return {
+      description: t('library.weReadSetupDescription'),
+      icon: <Smartphone size={32} />,
+      title: t('library.weReadSetupTitle'),
+    };
+  }
+
   if (itemsLength === 0) {
     return {
       description: t('library.empty.libraryDescription'),
@@ -933,7 +826,7 @@ function emptyLibraryReason({
     };
   }
 
-  if (activeSource === 'web') {
+  if (typeScope === 'web') {
     return {
       description: t('library.empty.webDescription'),
       icon: <FileText size={32} />,
@@ -941,7 +834,7 @@ function emptyLibraryReason({
     };
   }
 
-  if (activeSource === 'pdf') {
+  if (typeScope === 'pdf') {
     return {
       description: t('library.empty.pdfDescription'),
       icon: <FileText size={32} />,
@@ -949,7 +842,7 @@ function emptyLibraryReason({
     };
   }
 
-  if (activeSource === 'weread') {
+  if (typeScope === 'weread') {
     return {
       description: t('library.empty.wereadDescription'),
       icon: <Smartphone size={32} />,
@@ -957,9 +850,17 @@ function emptyLibraryReason({
     };
   }
 
+  if (typeScope === 'ebook') {
+    return {
+      description: t('library.empty.ebookDescription'),
+      icon: <BookText size={32} />,
+      title: t('library.empty.ebookTitle'),
+    };
+  }
+
   return {
-    description: t('library.empty.ebookDescription'),
-    icon: <BookText size={32} />,
-    title: t('library.empty.ebookTitle'),
+    description: t('library.empty.noMatchDescription'),
+    icon: <Search size={32} />,
+    title: t('library.empty.noMatchTitle'),
   };
 }

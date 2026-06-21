@@ -9,6 +9,9 @@ import type {
   ArticleRecord,
   ArticleSummaryRecord,
   AppSettings,
+  Collection,
+  CollectionMember,
+  LibraryPin,
   UserProfile,
   WeReadBook,
 } from '@yomitomo/shared';
@@ -160,6 +163,9 @@ function renderLibrary(
       progress: ArticleReadingProgress,
     ) => Promise<void> | void;
     onSaveSettings?: (settings: AppSettings) => Promise<void> | void;
+    collections?: Collection[];
+    collectionMembers?: CollectionMember[];
+    pins?: LibraryPin[];
     settings?: AppSettings;
   } = {},
 ) {
@@ -167,6 +173,9 @@ function renderLibrary(
     <ReadingLibrary
       agents={[]}
       articles={articles}
+      collectionMembers={options.collectionMembers}
+      collections={options.collections}
+      pins={options.pins}
       readerTheme={defaultTheme.reader}
       settings={options.settings}
       userProfile={userProfile}
@@ -216,6 +225,19 @@ function deferredImportResult() {
 
 function hasScheduledDelay(setTimeoutSpy: { mock: { calls: Array<unknown[]> } }, delayMs: number) {
   return setTimeoutSpy.mock.calls.some((call) => call[1] === delayMs);
+}
+
+async function selectLibraryType(name: string | RegExp) {
+  fireEvent.click(screen.getByRole('combobox', { name: '筛选内容类型' }));
+  const option = await screen.findByRole('option', { name });
+  fireEvent.pointerDown(option, { pointerType: 'mouse' });
+  fireEvent.click(option);
+}
+
+async function openAddMenuItem(name: string | RegExp) {
+  fireEvent.click(screen.getByRole('button', { name: '添加内容' }));
+  const item = await screen.findByRole('menuitem', { name });
+  fireEvent.click(item);
 }
 
 describe('groupLibraryArticles', () => {
@@ -298,48 +320,100 @@ describe('groupLibraryArticles', () => {
 });
 
 describe('ReadingLibrary home', () => {
-  it('defaults to the first enabled source preference', () => {
+  it('renders a single mixed grid sorted by update time', () => {
+    renderLibrary([
+      article({
+        id: 'older_web',
+        title: '较早网页',
+        updatedAt: '2026-05-01T12:00:00.000Z',
+      }),
+      article({
+        id: 'newer_pdf',
+        url: 'pdf:newer_pdf',
+        canonicalUrl: 'pdf:hash_newer',
+        sourceType: 'pdf',
+        title: '较新 PDF',
+        updatedAt: '2026-05-10T12:00:00.000Z',
+      }),
+    ]);
+
+    expect(screen.queryByRole('tablist', { name: '阅读库内容类型' })).toBeNull();
+    expect(screen.getByRole('combobox', { name: '筛选内容类型' }).textContent).toContain(
+      '全部类型',
+    );
+    expect(screen.getAllByRole('heading', { level: 3 }).map((item) => item.textContent)).toEqual([
+      '较新 PDF',
+      '较早网页',
+    ]);
+    expect(screen.getByText('最近更新 · 降序')).toBeTruthy();
+    expect(screen.getByText('共 2 项')).toBeTruthy();
+  });
+
+  it('keeps local articles in the mixed grid when only the WeRead source is enabled', async () => {
+    const state = {
+      settings: { configured: true, openMethod: 'deeplink' as const },
+      books: [
+        {
+          bookId: 'weread_1',
+          title: '微信读书标题',
+          author: '微信作者',
+          reviewCount: 0,
+          noteCount: 0,
+          bookmarkCount: 0,
+          readingProgress: 20,
+          updatedAt: now,
+        },
+      ],
+    };
+    vi.stubGlobal('yomitomoDesktop', {
+      getWeReadState: vi.fn().mockResolvedValue(state),
+      syncWeRead: vi.fn().mockResolvedValue(state),
+    });
+
     renderLibrary(
       [
         article({ id: 'web_1', title: '网页文章' }),
         article({
           id: 'pdf_1',
-          url: 'file://paper.pdf',
-          canonicalUrl: 'file://paper.pdf',
+          url: 'pdf:pdf_1',
+          canonicalUrl: 'pdf:hash_1',
           sourceType: 'pdf',
-          title: 'PDF 文档',
+          title: 'PDF 标题',
         }),
       ],
       {
         settings: {
           libraryContentSources: [
-            { id: 'pdf', enabled: true },
-            { id: 'web', enabled: true },
-            { id: 'ebook', enabled: true },
-            { id: 'weread', enabled: false },
+            { id: 'web', enabled: false },
+            { id: 'ebook', enabled: false },
+            { id: 'pdf', enabled: false },
+            { id: 'weread', enabled: true },
           ],
         },
       },
     );
 
-    expect(
-      within(screen.getByRole('tablist', { name: '阅读库内容类型' }))
-        .getByRole('tab', { name: /PDF/ })
-        .getAttribute('aria-selected'),
-    ).toBe('true');
-    expect(screen.getByText('共 1 份')).toBeTruthy();
+    expect(screen.getAllByText('网页文章').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('PDF 标题').length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('微信读书标题')).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: '同步' })).toBeNull();
+    fireEvent.click(screen.getByRole('combobox', { name: '筛选内容类型' }));
+    expect(await screen.findByRole('option', { name: '网页文章' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'PDF' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: '微信读书' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '添加内容' }));
+    expect(await screen.findByRole('menuitem', { name: '同步' })).toBeTruthy();
   });
 
-  it('keeps library controls in one header row and shows source-specific totals', () => {
-    const { container } = renderLibrary([
-      article({ id: 'web_1', title: '第一篇网页' }),
-      article({ id: 'web_2', title: '第二篇网页' }),
+  it('filters the mixed grid by type scope', async () => {
+    renderLibrary([
+      article({ id: 'web_1', title: '网页文章' }),
       article({
         id: 'ebook_1',
         url: 'ebook://ebook_1',
         canonicalUrl: 'ebook://ebook_1',
         sourceType: 'ebook',
-        title: '第一本书',
+        title: '电子书标题',
         ebook: {
           metadata: {
             format: 'epub',
@@ -351,155 +425,75 @@ describe('ReadingLibrary home', () => {
       }),
     ]);
 
-    const headerMain = container.querySelector('.library-home-header-main');
+    await selectLibraryType(/电子书/);
 
-    expect(container.querySelector('.library-home-header h2')).toBeNull();
-    expect(Array.from(headerMain?.children ?? []).map((item) => item.className)).toEqual([
-      'library-source-tabs',
-      'library-home-actions',
-    ]);
-    expect(screen.getByText('共 2 篇')).toBeTruthy();
-    expect(screen.queryByText(/网页文章 · 共/)).toBeNull();
-
-    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
-
-    expect(
-      container.querySelector('.library-home-body')?.getAttribute('data-source-transition'),
-    ).toBe('forward');
     expect(screen.getByText('共 1 本')).toBeTruthy();
-    expect(screen.queryByText(/电子书 · 共/)).toBeNull();
-
-    fireEvent.click(screen.getByRole('tab', { name: /网页文章/ }));
-
-    expect(
-      container.querySelector('.library-home-body')?.getAttribute('data-source-transition'),
-    ).toBe('backward');
+    expect(screen.getAllByText('电子书标题').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: '打开文章：网页文章' })).toBeNull();
+    expect(screen.getByRole('combobox', { name: '筛选内容类型' }).textContent).toContain('电子书');
+    expect(document.querySelector('.library-filter-chips')).toBeNull();
+    expect(document.querySelector('.library-toolbar')?.textContent).not.toContain('电子书');
+    expect(screen.getByRole('button', { name: '添加内容' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '添加电子书' })).toBeNull();
   });
 
-  it('renders webpage articles sorted by recent added time', () => {
-    renderLibrary([
-      article({ id: 'older', title: '较早文章', createdAt: '2026-05-01T12:00:00.000Z' }),
-      article({ id: 'newer', title: '较新文章', createdAt: '2026-05-10T12:00:00.000Z' }),
-    ]);
-
-    expect(screen.getAllByRole('heading', { level: 3 }).map((item) => item.textContent)).toEqual([
-      '较新文章',
-      '较早文章',
-    ]);
-    expect(screen.queryByLabelText('0 条划线 · 0 条沉淀')).toBeNull();
-    expect(screen.getByRole('tab', { name: /PDF/ })).toBeTruthy();
-    expect(screen.getByText('最近添加 · 降序')).toBeTruthy();
-  });
-
-  it('loads the current local library page from the desktop pagination API', async () => {
-    const serverArticle = articleSummary(article({ id: 'server_1', title: '服务端分页文章' }));
-    const listLibraryArticles = vi.fn().mockResolvedValue({
-      articles: [serverArticle],
-      page: 1,
-      pageSize: 12,
-      query: '',
-      source: 'web',
-      sourceCounts: { web: 13, ebook: 2, pdf: 1 },
-      totalCount: 13,
+  it('pins articles from the card menu', async () => {
+    const setLibraryPin = vi.fn().mockResolvedValue({
+      type: 'library-pin',
+      pin: {
+        targetKind: 'article',
+        targetId: 'article_1',
+        pinnedAt: '2026-06-21T00:00:00.000Z',
+      },
+      pinned: true,
     });
-    vi.stubGlobal('yomitomoDesktop', { listLibraryArticles });
+    vi.stubGlobal('yomitomoDesktop', { setLibraryPin });
+    renderLibrary([article({ title: '待置顶文章' })]);
 
-    renderLibrary([]);
+    fireEvent.click(screen.getByRole('button', { name: '更多操作：待置顶文章' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '置顶' }));
 
     await waitFor(() =>
-      expect(listLibraryArticles).toHaveBeenCalledWith({
-        source: 'web',
-        query: '',
-        page: 1,
-        pageSize: 12,
+      expect(setLibraryPin).toHaveBeenCalledWith({
+        target: { kind: 'article', id: 'article_1' },
+        pinned: true,
       }),
     );
-    expect((await screen.findAllByText('服务端分页文章')).length).toBeGreaterThan(0);
-    expect(screen.getByText('共 13 篇')).toBeTruthy();
   });
 
-  it('keeps source counts stable when switching to WeRead with server pagination', async () => {
-    const wereadBook: WeReadBook = {
-      bookId: 'weread_1',
-      title: '微信读书标题',
-      author: '微信作者',
-      reviewCount: 0,
-      noteCount: 0,
-      bookmarkCount: 0,
-      readingProgress: 0,
-      updatedAt: now,
+  it('shows collections for collected members in all scope and flattens them in type scope', async () => {
+    const collectedArticle = article({
+      id: 'article_collected',
+      title: '集合内文章',
+      updatedAt: '2026-05-10T12:00:00.000Z',
+    });
+    const collection: Collection = {
+      id: 'collection_1',
+      name: '研究集合',
+      createdAt: '2026-05-01T12:00:00.000Z',
+      updatedAt: '2026-05-10T12:00:00.000Z',
     };
-    const wereadState = {
-      settings: { configured: true, openMethod: 'deeplink' as const },
-      books: [wereadBook],
+    const member: CollectionMember = {
+      collectionId: collection.id,
+      member: { kind: 'article', id: collectedArticle.id },
+      addedAt: '2026-05-10T12:00:00.000Z',
     };
-    const listLibraryArticles = vi.fn().mockResolvedValue({
-      articles: [],
-      page: 1,
-      pageSize: 12,
-      query: '',
-      source: 'web',
-      sourceCounts: { web: 13, ebook: 2, pdf: 1 },
-      totalCount: 13,
-    });
-    vi.stubGlobal('yomitomoDesktop', {
-      getWeReadState: vi.fn().mockResolvedValue(wereadState),
-      listLibraryArticles,
-      syncWeRead: vi.fn().mockResolvedValue(wereadState),
+    renderLibrary([collectedArticle], {
+      collections: [collection],
+      collectionMembers: [member],
     });
 
-    renderLibrary([]);
-    const sourceTabs = within(await screen.findByRole('tablist', { name: '阅读库内容类型' }));
-
-    await waitFor(() => {
-      expect(sourceTabs.getByRole('tab', { name: /网页文章/ }).textContent).toContain('13');
-      expect(sourceTabs.getByRole('tab', { name: /电子书/ }).textContent).toContain('2');
-      expect(sourceTabs.getByRole('tab', { name: /PDF/ }).textContent).toContain('1');
+    fireEvent.change(screen.getByLabelText('搜索文章、集合、作者或来源'), {
+      target: { value: '集合内文章' },
     });
 
-    fireEvent.click(sourceTabs.getByRole('tab', { name: /微信读书/ }));
+    expect(screen.getByText('研究集合')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '打开文章：集合内文章' })).toBeNull();
 
-    expect(sourceTabs.getByRole('tab', { name: /网页文章/ }).textContent).toContain('13');
-    expect(sourceTabs.getByRole('tab', { name: /电子书/ }).textContent).toContain('2');
-    expect(sourceTabs.getByRole('tab', { name: /PDF/ }).textContent).toContain('1');
-  });
+    await selectLibraryType(/网页文章/);
 
-  it('enables server pagination before changing the page size', async () => {
-    const listLibraryArticles = vi.fn(
-      async ({ page }: { page: number }) =>
-        ({
-          articles: [
-            articleSummary(
-              article({
-                id: `server_${page}`,
-                title: `服务端分页文章 ${page}`,
-              }),
-            ),
-          ],
-          page,
-          pageSize: 12,
-          query: '',
-          source: 'web',
-          sourceCounts: { web: 13, ebook: 0, pdf: 0 },
-          totalCount: 13,
-        }) as const,
-    );
-    vi.stubGlobal('yomitomoDesktop', { listLibraryArticles });
-
-    renderLibrary([]);
-
-    const nextPageButton = await screen.findByRole('button', { name: '下一页' });
-    fireEvent.click(nextPageButton);
-
-    await waitFor(() =>
-      expect(listLibraryArticles).toHaveBeenLastCalledWith({
-        source: 'web',
-        query: '',
-        page: 2,
-        pageSize: 12,
-      }),
-    );
-    expect((await screen.findAllByText('服务端分页文章 2')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('集合内文章').length).toBeGreaterThan(0);
+    expect(screen.queryByText('研究集合')).toBeNull();
   });
 
   it('plays the shared delete sound after confirming a reading item delete', async () => {
@@ -538,7 +532,7 @@ describe('ReadingLibrary home', () => {
       settings: { libraryPageSize: 18, themeId: 'ink-paper' },
     });
 
-    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(18);
+    expect(document.querySelectorAll('.library-article-list-item h3')).toHaveLength(18);
 
     fireEvent.click(screen.getByRole('combobox', { name: '每页显示数量' }));
     const pageSizeOption = await screen.findByRole('option', { name: '每页 24 项' });
@@ -586,7 +580,7 @@ describe('ReadingLibrary home', () => {
     ]);
 
     expect(screen.queryByRole('button', { name: '已读完' })).toBeNull();
-    fireEvent.change(screen.getByLabelText('搜索文章、作者或来源'), {
+    fireEvent.change(screen.getByLabelText('搜索文章、集合、作者或来源'), {
       target: { value: 'acme' },
     });
     expect(screen.getAllByText('新文章').length).toBeGreaterThan(0);
@@ -614,10 +608,14 @@ describe('ReadingLibrary home', () => {
       }),
     ]);
 
+    expect(screen.queryByText('原始作者')).toBeNull();
     expect(screen.getAllByText('nooneshappy.com').length).toBeGreaterThan(1);
     const stats = screen.getByLabelText('2 条划线 · 2 条沉淀');
     expect(stats).toBeTruthy();
     expect(stats.getAttribute('title')).toBeNull();
+    expect(
+      Array.from(stats.querySelectorAll('.library-count-stat')).map((item) => item.textContent),
+    ).toEqual(['2', '2']);
     expect(container.querySelector('.library-web-item-cover .web-cover-domain')?.textContent).toBe(
       'nooneshappy.com',
     );
@@ -627,9 +625,14 @@ describe('ReadingLibrary home', () => {
         .querySelector<HTMLElement>('.library-web-item-cover .library-cover-progress')
         ?.style.getPropertyValue('--ebook-progress'),
     ).toBe('40%');
+    expect(screen.getAllByText('05/09').length).toBeGreaterThan(0);
+    expect(
+      container.querySelector('.library-web-item-meta .library-source-badge')?.textContent,
+    ).toBe('网页');
+    expect(container.querySelector('.library-item-top-meta .library-source-badge')).toBeNull();
     expect(screen.queryByText('站点名称不显示')).toBeNull();
-    expect(screen.queryByText('原始作者')).toBeNull();
     expect(container.querySelector('.library-site-icon')).toBeNull();
+    expect(screen.queryByText(/进行中|已读完|约 1 分钟|最近阅读/)).toBeNull();
   });
 
   it('renders ebooks as list rows with cover progress', async () => {
@@ -668,8 +671,6 @@ describe('ReadingLibrary home', () => {
       }),
     ]);
 
-    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
-
     expect(screen.queryByRole('button', { name: '书架' })).toBeNull();
     expect(screen.queryByRole('button', { name: '列表' })).toBeNull();
     expect(screen.getAllByText('作者名').length).toBeGreaterThan(1);
@@ -678,6 +679,9 @@ describe('ReadingLibrary home', () => {
     const stats = screen.getByLabelText('1 条划线 · 1 条沉淀');
     expect(stats).toBeTruthy();
     expect(stats.getAttribute('title')).toBeNull();
+    expect(
+      Array.from(stats.querySelectorAll('.library-count-stat')).map((item) => item.textContent),
+    ).toEqual(['1', '1']);
     expect(container.querySelector('.library-ebook-progress')).toBeTruthy();
     await waitFor(() => expect(getArticleCover).toHaveBeenCalledWith('ebook_1'));
     expect(container.querySelector('.article-book-cover-image')?.getAttribute('src')).toBe(
@@ -705,8 +709,6 @@ describe('ReadingLibrary home', () => {
       }),
     ]);
 
-    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
-
     expect(screen.getAllByText('艾伦·图灵传——如谜的解谜者').length).toBeGreaterThan(0);
     expect(screen.queryByText(/87届奥斯卡/)).toBeNull();
   });
@@ -732,8 +734,6 @@ describe('ReadingLibrary home', () => {
         },
       }),
     ]);
-
-    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
 
     expect(screen.getAllByText('一个故事的99种讲法').length).toBeGreaterThan(0);
     expect(screen.queryByText(/豆瓣评分/)).toBeNull();
@@ -761,14 +761,12 @@ describe('ReadingLibrary home', () => {
       }),
     ]);
 
-    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
-
     expect(screen.getAllByText('一个故事的99种讲法').length).toBeGreaterThan(0);
     expect(screen.queryByText(/浦睿文化出品/)).toBeNull();
     expect(screen.queryByText(/豆瓣评分/)).toBeNull();
   });
 
-  it('renders PDFs as document rows with metadata', () => {
+  it('renders PDFs as document rows with metadata', async () => {
     renderLibrary([
       article({
         id: 'pdf_1',
@@ -791,16 +789,16 @@ describe('ReadingLibrary home', () => {
       }),
     ]);
 
-    fireEvent.click(screen.getByRole('tab', { name: /PDF/ }));
+    await selectLibraryType(/PDF/);
 
     expect(screen.getByText('共 1 份')).toBeTruthy();
     expect(screen.getByText('Basant Mounir; Farida Madkour et al.')).toBeTruthy();
     expect(screen.queryByText(/BASANT MOUNIR/)).toBeNull();
     expect(screen.queryByText('paper.pdf')).toBeNull();
-    expect(screen.getByRole('button', { name: '打开PDF：PDF 标题' })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: '打开PDF：PDF 标题' }).length).toBeGreaterThan(0);
   });
 
-  it('shows the WeRead last read date instead of reading minutes in the list', async () => {
+  it('renders WeRead books without reading time metadata in the list', async () => {
     const book: WeReadBook = {
       bookId: 'weread_1',
       title: '微信读书标题',
@@ -824,22 +822,27 @@ describe('ReadingLibrary home', () => {
 
     renderLibrary([]);
 
-    await waitFor(() => {
-      expect(screen.getByRole('tab', { name: /微信读书/ }).getAttribute('aria-disabled')).toBe(
-        'false',
-      );
-    });
-    fireEvent.click(screen.getByRole('tab', { name: /微信读书/ }));
-
     expect(
-      await screen.findByRole('button', { name: '打开微信读书笔记：微信读书标题' }),
-    ).toBeTruthy();
-    expect(screen.getByText('05/28')).toBeTruthy();
+      (await screen.findAllByRole('button', { name: '打开微信读书笔记：微信读书标题' })).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getAllByText('微信读书标题').length).toBeGreaterThan(0);
+    expect(screen.queryByText('05/28')).toBeNull();
+    expect(screen.getAllByText('05/09').length).toBeGreaterThan(0);
     expect(screen.queryByText(/阅读 7 分钟/)).toBeNull();
-    expect(screen.getByLabelText('2 条划线 · 0 条沉淀')).toBeTruthy();
+    expect(screen.queryByText(/微信读书进度/)).toBeNull();
+    const stats = screen.getByLabelText('2 条划线 · 0 条沉淀');
+    expect(stats).toBeTruthy();
+    expect(
+      Array.from(stats.querySelectorAll('.library-count-stat')).map((item) => item.textContent),
+    ).toEqual(['2', '0']);
+    expect(
+      document
+        .querySelector('.library-weread-list-item')
+        ?.classList.contains('library-ebook-list-item'),
+    ).toBe(true);
   });
 
-  it('hides disabled content source tabs and does not auto-sync hidden WeRead', async () => {
+  it('keeps WeRead mixed when old source preferences disabled it', async () => {
     const state = {
       settings: { configured: true, openMethod: 'deeplink' as const },
       books: [],
@@ -861,11 +864,12 @@ describe('ReadingLibrary home', () => {
       },
     });
 
-    const sourceTabs = within(screen.getByRole('tablist', { name: '阅读库内容类型' }));
-    expect(sourceTabs.queryByRole('tab', { name: /网页文章/ })).toBeNull();
-    expect(sourceTabs.getByRole('tab', { name: /电子书/ })).toBeTruthy();
-    expect(sourceTabs.queryByRole('tab', { name: /微信读书/ })).toBeNull();
-    await waitFor(() => expect(syncWeRead).not.toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('combobox', { name: '筛选内容类型' }));
+    expect(await screen.findByRole('option', { name: '网页文章' })).toBeTruthy();
+    expect(await screen.findByRole('option', { name: '电子书' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'PDF' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: '微信读书' })).toBeTruthy();
+    await waitFor(() => expect(syncWeRead).toHaveBeenCalled());
   });
 
   it('loads the full article before opening a PDF summary', async () => {
@@ -890,8 +894,7 @@ describe('ReadingLibrary home', () => {
     const onReadArticle = vi.fn().mockResolvedValue(null);
     renderLibrary([pdfSummary], { onReadArticle });
 
-    fireEvent.click(screen.getByRole('tab', { name: /PDF/ }));
-    fireEvent.click(screen.getByRole('button', { name: '打开PDF：PDF 标题' }));
+    fireEvent.click(screen.getAllByRole('button', { name: '打开PDF：PDF 标题' })[0]);
 
     await waitFor(() => {
       expect(onReadArticle).toHaveBeenCalledWith('pdf_1');
@@ -935,7 +938,7 @@ describe('ReadingLibrary home', () => {
       document.querySelector('.library-bookcase-screen')?.getAttribute('data-route-transition'),
     ).toBe('enter-library');
     expect(screen.queryByText('正文')).toBeNull();
-    expect(screen.getByRole('button', { name: '打开文章：网页文章' })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: '打开文章：网页文章' }).length).toBeGreaterThan(0);
   });
 
   it('refreshes the open article when its summary changes externally', async () => {
@@ -1205,7 +1208,7 @@ describe('ReadingLibrary home', () => {
       { onSaveArticleReadingProgress },
     );
 
-    fireEvent.click(screen.getByRole('button', { name: '打开文章：网页进度文章' }));
+    fireEvent.click(screen.getAllByRole('button', { name: '打开文章：网页进度文章' })[0]);
     expect(await screen.findByRole('button', { name: '返回阅读库' })).toBeTruthy();
 
     const surface = document.querySelector<HTMLElement>('.reader-surface');
@@ -1228,7 +1231,7 @@ describe('ReadingLibrary home', () => {
     );
   });
 
-  it('returns to the ebook section after reading an ebook', async () => {
+  it('returns to the mixed library after reading an ebook', async () => {
     vi.stubGlobal(
       'ResizeObserver',
       class {
@@ -1257,19 +1260,14 @@ describe('ReadingLibrary home', () => {
       }),
     ]);
 
-    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
-    fireEvent.click(screen.getByRole('button', { name: '打开电子书：电子书标题' }));
+    fireEvent.click(screen.getAllByRole('button', { name: '打开电子书：电子书标题' })[0]);
     expect(await screen.findByRole('button', { name: '返回阅读库' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '返回阅读库' }));
 
-    const sourceTabs = screen.getByRole('tablist', { name: '阅读库内容类型' });
     expect(
-      within(sourceTabs)
-        .getByRole('tab', { name: /电子书/ })
-        .getAttribute('aria-selected'),
-    ).toBe('true');
-    expect(screen.getByRole('button', { name: '打开电子书：电子书标题' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '打开文章：网页文章' })).toBeNull();
+      screen.getAllByRole('button', { name: '打开电子书：电子书标题' }).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: '打开文章：网页文章' }).length).toBeGreaterThan(0);
   });
 
   it('imports a webpage and shows duplicate article action', async () => {
@@ -1280,7 +1278,8 @@ describe('ReadingLibrary home', () => {
     });
     renderLibrary([duplicate], { onImportArticleUrl });
 
-    fireEvent.click(screen.getByRole('button', { name: '添加网页文章' }));
+    await selectLibraryType(/网页文章/);
+    await openAddMenuItem('添加网页文章');
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(within(screen.getByRole('dialog')).getByText('添加网页文章')).toBeTruthy();
     expect(screen.getByLabelText('网页地址').tagName).toBe('INPUT');
@@ -1321,7 +1320,8 @@ describe('ReadingLibrary home', () => {
       },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: '添加网页文章' }));
+    await selectLibraryType(/网页文章/);
+    await openAddMenuItem('添加网页文章');
     fireEvent.change(screen.getByLabelText('网页地址'), {
       target: { value: 'https://example.com/post' },
     });
@@ -1356,7 +1356,8 @@ describe('ReadingLibrary home', () => {
     const onCancelArticleImport = vi.fn();
     renderLibrary([], { onImportArticleUrl, onCancelArticleImport });
 
-    fireEvent.click(screen.getByRole('button', { name: '添加网页文章' }));
+    await selectLibraryType(/网页文章/);
+    await openAddMenuItem('添加网页文章');
     fireEvent.change(screen.getByLabelText('网页地址'), {
       target: { value: 'https://example.com/slow' },
     });
@@ -1379,7 +1380,8 @@ describe('ReadingLibrary home', () => {
     const onImportArticleUrl = vi.fn().mockRejectedValue(new Error('fetch failed'));
     renderLibrary([], { onImportArticleUrl });
 
-    fireEvent.click(screen.getByRole('button', { name: '添加网页文章' }));
+    await selectLibraryType(/网页文章/);
+    await openAddMenuItem('添加网页文章');
     fireEvent.change(screen.getByLabelText('网页地址'), {
       target: { value: 'https://example.com/post' },
     });
@@ -1392,11 +1394,11 @@ describe('ReadingLibrary home', () => {
     expect(screen.getByRole('dialog')).toBeTruthy();
   });
 
-  it('opens ebook import dialog from the ebook section action', () => {
+  it('opens ebook import dialog from the ebook type action', async () => {
     renderLibrary([]);
 
-    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
-    fireEvent.click(screen.getByRole('button', { name: '添加电子书' }));
+    await selectLibraryType(/电子书/);
+    await openAddMenuItem('电子书文件');
 
     const dialog = screen.getByRole('dialog');
     expect(dialog).toBeTruthy();
@@ -1435,8 +1437,8 @@ describe('ReadingLibrary home', () => {
       },
     });
 
-    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
-    fireEvent.click(screen.getByRole('button', { name: '添加电子书' }));
+    await selectLibraryType(/电子书/);
+    await openAddMenuItem('电子书文件');
     const file = fileWithSize('book.epub', 1024);
     selectImportFile(container, 'library-ebook-file', file);
 
@@ -1476,8 +1478,8 @@ describe('ReadingLibrary home', () => {
     });
     const { container } = renderLibrary([], { onImportEbookFile });
 
-    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
-    fireEvent.click(screen.getByRole('button', { name: '添加电子书' }));
+    await selectLibraryType(/电子书/);
+    await openAddMenuItem('电子书文件');
     selectImportFile(container, 'library-ebook-file', fileWithSize('autoclose.epub', 1024));
 
     expect((await screen.findAllByText('已导入 1 个文件')).length).toBeGreaterThan(0);
@@ -1533,8 +1535,8 @@ describe('ReadingLibrary home', () => {
       },
     });
 
-    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
-    fireEvent.click(screen.getByRole('button', { name: '添加电子书' }));
+    await selectLibraryType(/电子书/);
+    await openAddMenuItem('电子书文件');
     const one = fileWithSize('one.epub', 1024);
     const two = fileWithSize('two.epub', 1024);
     selectImportFiles(container, 'library-ebook-file', [one, two]);
@@ -1585,8 +1587,8 @@ describe('ReadingLibrary home', () => {
       onReadArticle,
     });
 
-    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
-    fireEvent.click(screen.getByRole('button', { name: '添加电子书' }));
+    await selectLibraryType(/电子书/);
+    await openAddMenuItem('电子书文件');
     selectImportFile(container, 'library-ebook-file', fileWithSize('duplicate.epub', 1024));
 
     expect((await screen.findAllByText('这本电子书已在阅读库')).length).toBeGreaterThan(0);
@@ -1599,8 +1601,8 @@ describe('ReadingLibrary home', () => {
     const onImportEbookFile = vi.fn();
     const { container } = renderLibrary([], { onImportEbookFile });
 
-    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
-    fireEvent.click(screen.getByRole('button', { name: '添加电子书' }));
+    await selectLibraryType(/电子书/);
+    await openAddMenuItem('电子书文件');
     selectImportFile(container, 'library-ebook-file', fileWithSize('notes.txt', 1024));
 
     expect((await screen.findAllByText('请选择 EPUB、AZW3 或 MOBI 文件')).length).toBeGreaterThan(
@@ -1639,8 +1641,8 @@ describe('ReadingLibrary home', () => {
     });
     const { container } = renderLibrary([], { onImportPdfFile });
 
-    fireEvent.click(screen.getByRole('tab', { name: /PDF/ }));
-    fireEvent.click(screen.getByRole('button', { name: '添加 PDF' }));
+    await selectLibraryType(/PDF/);
+    await openAddMenuItem('PDF 文档');
     const file = fileWithSize('paper.pdf', 2048);
     selectImportFile(container, 'library-pdf-file', file);
 
@@ -1677,8 +1679,8 @@ describe('ReadingLibrary home', () => {
     });
     const { container } = renderLibrary([], { onImportPdfFile });
 
-    fireEvent.click(screen.getByRole('tab', { name: /PDF/ }));
-    fireEvent.click(screen.getByRole('button', { name: '添加 PDF' }));
+    await selectLibraryType(/PDF/);
+    await openAddMenuItem('PDF 文档');
     selectImportFile(container, 'library-pdf-file', fileWithSize('autoclose.pdf', 2048));
 
     expect((await screen.findAllByText('已导入 1 个文件')).length).toBeGreaterThan(0);
@@ -1713,8 +1715,8 @@ describe('ReadingLibrary home', () => {
       onReadArticle,
     });
 
-    fireEvent.click(screen.getByRole('tab', { name: /PDF/ }));
-    fireEvent.click(screen.getByRole('button', { name: '添加 PDF' }));
+    await selectLibraryType(/PDF/);
+    await openAddMenuItem('PDF 文档');
     selectImportFile(container, 'library-pdf-file', fileWithSize('duplicate.pdf', 2048));
 
     expect((await screen.findAllByText('这份 PDF 已在阅读库')).length).toBeGreaterThan(0);
@@ -1727,8 +1729,8 @@ describe('ReadingLibrary home', () => {
     const onImportPdfFile = vi.fn();
     const { container } = renderLibrary([], { onImportPdfFile });
 
-    fireEvent.click(screen.getByRole('tab', { name: /PDF/ }));
-    fireEvent.click(screen.getByRole('button', { name: '添加 PDF' }));
+    await selectLibraryType(/PDF/);
+    await openAddMenuItem('PDF 文档');
     selectImportFile(container, 'library-pdf-file', fileWithSize('book.epub', 1024));
 
     expect((await screen.findAllByText('请选择 PDF 文件')).length).toBeGreaterThan(0);

@@ -475,12 +475,18 @@ export const enResources = {
       unlock: 'Unlock',
     },
     library: {
+      title: 'Library',
       sources: {
         web: 'Web articles',
         ebook: 'Ebooks',
         pdf: 'PDF',
         weread: 'WeRead',
         webShort: 'Web',
+        ebookShort: 'Ebook',
+        pdfShort: 'PDF',
+        wereadShort: 'WeRead',
+        collection: 'Collection',
+        collectionShort: 'Collection',
       },
       sourceDescriptions: {
         web: 'Articles collected from web pages or imported by pasted links.',
@@ -526,12 +532,16 @@ export const enResources = {
         yesterday: 'Yesterday {{time}}',
       },
       sourceTabsLabel: 'Library content types',
-      searchPlaceholder: 'Search title / source / author',
-      searchLabel: 'Search articles, authors, or sources',
+      searchPlaceholder: 'Search articles and collections...',
+      searchLabel: 'Search articles, collections, authors, or sources',
+      typeFilter: {
+        label: 'Filter content type',
+        all: 'All types',
+      },
       weReadSetupTooltip: 'Configure the WeRead API key in Settings / WeRead first',
       sync: 'Sync',
       syncing: 'Syncing',
-      toolbarSort: 'Recently added · Descending',
+      toolbarSort: 'Recently updated · Descending',
       toolbarLabel: 'Library toolbar',
       weReadSetupTitle: 'WeRead setup required',
       weReadSetupDescription:
@@ -541,10 +551,15 @@ export const enResources = {
         'Synced {{books}} books · {{bookmarks}} highlights · {{reviews}} thoughts',
       weReadSyncFailed: 'WeRead sync failed',
       total: {
+        all: '{{count}} items',
         web: '{{count}} articles',
         ebook: '{{count}} books',
         pdf: '{{count}} files',
         weread: '{{count}} books',
+      },
+      groups: {
+        pinned: 'Pinned',
+        all: 'All',
       },
       pagination: {
         label: 'Library pagination',
@@ -565,6 +580,9 @@ export const enResources = {
           'This removes the item from the local library, including its highlights, thoughts, comments, and distilled notes. It cannot be restored from inside the app.',
         deleteArticleConfirm: 'Delete item',
         openWeReadExternal: 'Open in WeRead',
+        pin: 'Pin',
+        unpin: 'Unpin',
+        pinned: 'Pinned',
         progress: 'Reading progress',
       },
       stats: {
@@ -574,9 +592,13 @@ export const enResources = {
         readingMinutes: 'About {{count}} min',
         addedAt: 'Added {{date}}',
         recentReading: 'Last read {{time}}',
+        updatedAt: 'Updated {{date}}',
         annotations: '{{count}} highlights',
         distillations: '{{count}} distillations',
         unknownAuthor: 'Unknown author',
+      },
+      collection: {
+        memberCount: '{{count}} items',
       },
       fallback: {
         ebook: 'Ebook',
@@ -585,7 +607,7 @@ export const enResources = {
       empty: {
         libraryTitle: 'Your library is empty',
         libraryDescription:
-          'Use the plus button to add web articles or import ebooks. The library will keep each source type separate.',
+          'Use the plus button to add web articles or import ebooks. The library will mix them by time.',
         noMatchTitle: 'No matches',
         noMatchDescription: 'Adjust the search terms and keep browsing.',
         webTitle: 'No web articles',
@@ -602,6 +624,7 @@ export const enResources = {
           'Use the plus button to import EPUB, AZW3, or MOBI files. Ebooks keep covers and reading progress.',
       },
       import: {
+        addContent: 'Add content',
         addWebArticle: 'Add web article',
         addEbook: 'Add ebook',
         addPdf: 'Add PDF',
@@ -1217,7 +1240,7 @@ export const enResources = {
         about: 'About',
       },
       descriptions: {
-        collection: 'Save article media and choose library entry points.',
+        collection: 'Save article media and local import access preferences.',
         models: 'Assign task models and maintain model providers.',
         dataSources: 'Manage external content sources such as WeRead.',
         shortcuts: 'Configure selection, thought, and reply shortcuts.',
@@ -1235,7 +1258,7 @@ export const enResources = {
         trailRoot: 'Settings',
         trailPage: 'General',
         description:
-          'Control interface language, local article media storage, and library entry points.',
+          'Control interface language, translation, sound, app lock, and local article capture behavior.',
         languageGroup: 'Interface',
         languageTitle: 'Interface language',
         languageDescription:
@@ -1319,13 +1342,6 @@ export const enResources = {
         localNetworkImportConfirmDescription:
           'When enabled, web article import can access local services, LAN services, and cloud metadata addresses. If you paste an untrusted link, the main process may read those responses and save them to the library. Enable this only when you explicitly need to import intranet articles.',
         localNetworkImportConfirm: 'Enable anyway',
-        libraryEntrancesGroup: 'Library entries',
-        libraryEntrancesNote:
-          'Toggle entries in the feature menu, and drag handles to change the order.',
-        moreTypes: 'More types',
-        comingSoon: 'Coming soon',
-        toggleEntrance: 'Toggle {{label}} entry',
-        libraryEntranceControl: 'Toggle {{label}} entry, use Up and Down arrows to reorder',
       },
       data: {
         trailRoot: 'Settings',

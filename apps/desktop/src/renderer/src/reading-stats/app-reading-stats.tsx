@@ -7,7 +7,6 @@ import { SegmentedControl } from '../components/ui/segmented-control';
 import { PanelHeader } from '../shell/app-ui';
 import { AiUsagePanel } from '../shell/app-assistant-diagnostics';
 import { WeReadReadingStatsPanel } from './app-reading-stats-weread';
-import { enabledLibraryContentSources } from '../reading-library/app-library-content-sources';
 import {
   activityMapDescription,
   activityStampLabel,
@@ -43,7 +42,6 @@ export function ReadingStatsPanel({
   articles,
   navigationStartedAt,
   onRefresh,
-  settings,
 }: {
   agents?: Agent[];
   articles: ArticleSummaryRecord[];
@@ -61,21 +59,14 @@ export function ReadingStatsPanel({
   const recordedChartReadyRef = useRef<number | undefined>(undefined);
   const recordedReadyRef = useRef<number | undefined>(undefined);
   const data = useMemo(() => getReadingStatsViewData(articles), [articles]);
-  const wereadStatsEnabled = enabledLibraryContentSources(settings).includes('weread');
-  const sourceOptions = wereadStatsEnabled
-    ? [
-        { value: 'local' as const, label: t('readingStats.sources.local') },
-        { value: 'weread' as const, label: t('readingStats.sources.weread') },
-      ]
-    : [{ value: 'local' as const, label: t('readingStats.sources.local') }];
+  const sourceOptions = [
+    { value: 'local' as const, label: t('readingStats.sources.local') },
+    { value: 'weread' as const, label: t('readingStats.sources.weread') },
+  ];
   const viewOptions = [
     { value: 'reading' as const, label: t('readingStats.views.reading') },
     { value: 'usage' as const, label: t('readingStats.views.usage') },
   ];
-
-  useEffect(() => {
-    if (!wereadStatsEnabled && source === 'weread') setSource('local');
-  }, [source, wereadStatsEnabled]);
 
   useEffect(() => {
     setShowDeferredContent(false);

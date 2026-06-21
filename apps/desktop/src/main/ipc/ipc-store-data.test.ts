@@ -33,6 +33,30 @@ beforeEach(() => {
 });
 
 describe('store data update IPC', () => {
+  it('loads the full store for the reading library even when shell store loading is available', async () => {
+    const fullStore = desktopStore({
+      articles: [{ id: 'article_1', annotations: [], annotationCount: 0, commentCount: 0 }],
+    });
+    const shellStore = desktopStore({ articles: [] });
+    const readStoreWithProfile = vi.fn(async () => ({ store: fullStore, profile: [] }));
+    const readShellStoreWithProfile = vi.fn(async () => ({ store: shellStore, profile: [] }));
+    const context = storeContext({
+      readShellStoreWithProfile,
+      readStoreWithProfile,
+    });
+
+    registerStoreDataIpc(context);
+
+    const envelope = await invokeRegisteredHandler('store:get');
+
+    expect(envelope).toEqual({
+      ok: true,
+      value: { ok: true, store: fullStore },
+    });
+    expect(readStoreWithProfile).toHaveBeenCalledTimes(1);
+    expect(readShellStoreWithProfile).not.toHaveBeenCalled();
+  });
+
   it('forwards update channels to the app updater module', async () => {
     const updaterModule = {
       checkForAppUpdates: vi.fn(async () => updateState('available')),
@@ -82,5 +106,41 @@ function updateState(status: AppUpdateState['status']): AppUpdateState {
   return {
     status,
     currentVersion: '1.2.3-test',
+  };
+}
+
+function storeContext(input: {
+  readShellStoreWithProfile?: ReturnType<typeof vi.fn>;
+  readStoreWithProfile: ReturnType<typeof vi.fn>;
+}) {
+  return {
+    elapsedMs: () => 1,
+    getPersistenceModule: async () => ({
+      settingsPersistence: {
+        saveSettingsShell: vi.fn(async (settings: Record<string, unknown>) => ({
+          ...desktopStore({ articles: [] }),
+          settings,
+        })),
+      },
+      storeSnapshotPersistence: input,
+    }),
+    logError: vi.fn(),
+    recordStartupTiming: vi.fn(),
+    scheduleLogPrune: vi.fn(),
+    storeLoadErrorInfo: vi.fn(),
+  } as unknown as DesktopMainIpcContext;
+}
+
+function desktopStore(overrides: Partial<Record<'articles' | 'settings', unknown>> = {}) {
+  return {
+    agents: [],
+    articles: [],
+    collectionMembers: [],
+    collections: [],
+    pins: [],
+    providers: [],
+    settings: {},
+    user: {},
+    ...overrides,
   };
 }

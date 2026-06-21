@@ -85,6 +85,29 @@ describe('reading library styles', () => {
   });
 
   it('keeps library card action buttons anchored in narrow card layouts', () => {
+    expectRule('.library-home-header-main', ['justify-content: center;', 'gap: 14px;']);
+    expectRule('.library-search-combo', [
+      'flex: 0 1 clamp(340px, 34vw, 480px);',
+      'width: clamp(340px, 34vw, 480px);',
+      'min-width: 0;',
+    ]);
+    expectRule('.library-add-menu-popover,\n.library-card-menu-popover,\n.library-import-dialog', [
+      'background: hsl(var(--popover) / 0.98);',
+      'color: hsl(var(--popover-foreground));',
+    ]);
+    expectRule('.library-add-menu-popover button,\n.library-card-menu-popover button', [
+      'color: hsl(var(--popover-foreground));',
+    ]);
+    expectRule(
+      '.library-add-menu-popover button:disabled,\n.library-card-menu-popover button:disabled',
+      ['color: hsl(var(--muted-foreground));', 'opacity: 0.52;'],
+    );
+    expectRule('.library-home-actions .library-add-trigger', [
+      'width: 54px;',
+      'height: 38px;',
+      'padding: 0;',
+    ]);
+    expectRule('.library-search-combo .library-type-filter-trigger', ['width: 108px;']);
     expectRule('.library-list', ['grid-template-columns: repeat(3, minmax(0, 1fr));']);
     expectRule('.library-web-item-cover', ['align-self: start;']);
     expectRule('.library-web-item', ['grid-template-columns: 120px minmax(0, 1fr);']);
@@ -108,6 +131,40 @@ describe('reading library styles', () => {
     expectRule('.library-web-item', ['padding: 18px 68px 18px 16px;']);
     expectRule('.library-ebook-list-item', ['padding: 18px 68px 18px 0;']);
     expectRule('.library-ebook-list-item', ['padding: 18px 68px 18px 16px;']);
+    expectRule(
+      '.library-entity-grid .library-article-list-item.library-web-item,\n.library-entity-grid .library-article-list-item.library-ebook-list-item',
+      ['padding: 14px 68px 14px 8px;'],
+    );
+    expect(styles).toMatch(
+      /\.library-entity-grid \.library-article-list-item \.library-web-item-meta,[\s\S]*\.library-entity-grid \.library-article-list-item \.library-ebook-list-meta \{[\s\S]*justify-content: space-between;[\s\S]*width: calc\(100% \+ 58px\);[\s\S]*margin-top: auto;/,
+    );
+    expect(styles).toMatch(
+      /\.library-entity-grid \.library-article-list-item \.library-item-date-source \{[\s\S]*display: inline-flex;[\s\S]*gap: 7px;/,
+    );
+    expect(styles).toMatch(
+      /\.library-entity-grid[\s\S]*\.article-book\.is-web-cover[\s\S]*\+ \.library-cover-progress \{[\s\S]*transform: none;/,
+    );
+    expect(styles).toMatch(
+      /\.library-entity-grid \.library-article-list-item \.library-web-item-cover,[\s\S]*\.library-entity-grid \.library-article-list-item \.library-ebook-cover-column \{[\s\S]*width: 126px;[\s\S]*align-content: center;[\s\S]*align-self: center;[\s\S]*justify-items: center;/,
+    );
+    expect(styles).toMatch(
+      /\.library-entity-grid \.library-article-list-item \.library-cover-progress,[\s\S]*\.library-entity-grid \.library-article-list-item \.library-ebook-progress \{[\s\S]*inset: auto;[\s\S]*width: 58px;[\s\S]*transform: translateX\(-10px\);/,
+    );
+    expect(styles).toMatch(
+      /\.library-entity-grid \.library-article-list-item \.library-ebook-cover-column \.library-cover-progress,[\s\S]*\.library-entity-grid\s+\.library-article-list-item\s+\.library-ebook-cover-column\s+\.library-ebook-progress \{[\s\S]*transform: translateX\(-10px\);/,
+    );
+    expect(styles).toMatch(
+      /@container app-content \(max-width: 980px\) \{[\s\S]*\.library-home \.library-home-actions \{[\s\S]*display: flex;[\s\S]*width: auto;[\s\S]*flex: 0 0 auto;/,
+    );
+    expect(styles).toMatch(
+      /@container app-content \(max-width: 980px\) \{[\s\S]*\.library-home \.library-search \{[\s\S]*flex: 0 1 clamp\(340px, 34vw, 480px\);[\s\S]*width: clamp\(340px, 34vw, 480px\);[\s\S]*min-width: 0;/,
+    );
+    expect(styles).toMatch(
+      /@media \(max-width: 980px\) \{[\s\S]*\.library-home \.library-home-actions \{[\s\S]*display: flex;[\s\S]*width: auto;[\s\S]*flex: 0 0 auto;/,
+    );
+    expect(styles).toMatch(
+      /@media \(max-width: 980px\) \{[\s\S]*\.library-home \.library-search \{[\s\S]*flex: 0 1 clamp\(340px, 34vw, 480px\);[\s\S]*width: clamp\(340px, 34vw, 480px\);[\s\S]*min-width: 0;/,
+    );
     expect(styles).toMatch(
       /@media \(max-width: 1120px\) \{[\s\S]*\.library-list \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[\s\S]*\}/,
     );
@@ -116,6 +173,12 @@ describe('reading library styles', () => {
     );
     expect(styles).toMatch(
       /@media \(max-width: 760px\) \{[\s\S]*\.library-ebook-list-item \{[\s\S]*padding-right: 68px;[\s\S]*\}/,
+    );
+    expect(styles).toMatch(
+      /@media \(max-width: 760px\) \{[\s\S]*\.library-home \.library-search \{[\s\S]*flex: 0 1 clamp\(320px, 55vw, 360px\);[\s\S]*width: clamp\(320px, 55vw, 360px\);[\s\S]*max-width: 360px;/,
+    );
+    expect(styles).toMatch(
+      /@media \(max-width: 760px\) \{[\s\S]*\.library-search-combo \.library-type-filter-trigger \{[\s\S]*width: 104px;/,
     );
     expect(styles).toMatch(
       /@media \(max-width: 760px\) \{[\s\S]*\.library-list \{[\s\S]*grid-template-columns: minmax\(0, 1fr\);[\s\S]*\}/,
