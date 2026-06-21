@@ -3,8 +3,15 @@ import type {
   ArticleRecord,
   ArticleSummaryRecord,
   ArticleUpsertPatch,
+  Collection,
+  CollectionStorePatch,
+  CollectionWithMembers,
   Comment,
+  ContentRef,
   DesktopStore,
+  LibraryPin,
+  LibraryPinPatch,
+  LibraryPinTargetKind,
   ReaderChatState,
   WeReadBook,
   WeReadOpenMethod,
@@ -18,6 +25,7 @@ import type {
   AppLockIpcInvokeMap,
   ArticleIpcInvokeMap,
   DataIpcInvokeMap,
+  LibraryCollectionIpcInvokeMap,
   ProviderIpcInvokeMap,
   StoreIpcInvokeMap,
   UpdateIpcInvokeMap,
@@ -382,12 +390,42 @@ export type WeReadReadingStatsQueryInput = {
   baseTime?: number;
 };
 
+export type CreateCollectionInput = {
+  name: string;
+};
+
+export type CreateCollectionResult = {
+  collection: Collection;
+  patch: CollectionStorePatch;
+};
+
+export type RenameCollectionInput = {
+  collectionId: string;
+  name: string;
+};
+
+export type AddCollectionMembersInput = {
+  collectionId: string;
+  members: ContentRef[];
+};
+
+export type RemoveCollectionMemberInput = {
+  collectionId: string;
+  member: ContentRef;
+};
+
+export type SetLibraryPinInput = {
+  target: { kind: LibraryPinTargetKind; id: string };
+  pinned: boolean;
+};
+
 export type DesktopIpcInvokeMap = AgentIpcInvokeMap &
   AnnotationWindowIpcInvokeMap &
   AppIpcInvokeMap &
   AppLockIpcInvokeMap &
   ArticleIpcInvokeMap &
   DataIpcInvokeMap &
+  LibraryCollectionIpcInvokeMap &
   ProviderIpcInvokeMap &
   StoreIpcInvokeMap &
   UpdateIpcInvokeMap &
