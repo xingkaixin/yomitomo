@@ -2570,39 +2570,6 @@
   color: hsl(var(--foreground));
 }
 
-.library-sync-button {
-  display: inline-flex;
-  min-height: 36px;
-  align-items: center;
-  gap: 7px;
-  border: 1px solid hsl(var(--border) / 0.74);
-  border-radius: 999px;
-  background: hsl(var(--background) / 0.88);
-  color: hsl(var(--foreground));
-  font: inherit;
-  font-size: 12px;
-  font-weight: 820;
-  padding: 0 12px;
-  transition:
-    transform 140ms ease,
-    border-color 140ms ease,
-    background-color 140ms ease;
-}
-
-.library-sync-button:hover:not(:disabled) {
-  border-color: hsl(var(--foreground) / 0.24);
-  background: hsl(var(--card));
-}
-
-.library-sync-button:active:not(:disabled) {
-  transform: scale(0.96);
-}
-
-.library-sync-button:disabled {
-  cursor: default;
-  opacity: 0.55;
-}
-
 .weread-bookcase-actions button {
   display: inline-flex;
   min-height: 40px;

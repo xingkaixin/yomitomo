@@ -174,6 +174,15 @@ export function articleReadingMinutes(article: ArticleSummaryRecord) {
   return Math.max(1, Math.round(cjkCount / 450 + wordCount / 220));
 }
 
+export function formatLibraryShortDate(value: string, locale = i18next.language || 'zh-CN') {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat(locale, {
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
 function formatLibraryDateGroup(value: string) {
   const days = localDayDistance(value);
   if (days <= 0) return i18next.t('library.dateGroup.today');

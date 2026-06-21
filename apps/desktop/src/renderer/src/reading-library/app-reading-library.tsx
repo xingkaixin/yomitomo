@@ -9,7 +9,10 @@ import type {
   ArticleRecord,
   ArticleSummaryRecord,
   AppSettings,
+  Collection,
+  CollectionMember,
   Comment,
+  LibraryPin,
   MessageSendShortcut,
   PublicAgent,
   ReaderChatState,
@@ -29,8 +32,7 @@ import type {
   EbookImportProgressCallback,
   PdfImportProgressCallback,
 } from '../shell/app-reading-types';
-import { LibraryHome, type LibrarySourceTransitionDirection } from './app-reading-library-home';
-import { enabledLibraryContentSources } from './app-library-content-sources';
+import { LibraryHome } from './app-reading-library-home';
 import { WeReadBookcase } from '../shell/app-weread-bookcase';
 import { appToast } from '../shell/app-toast';
 import type { ArticleImportResult } from './app-reading-library-imports';
@@ -39,15 +41,14 @@ import {
   articleDistillationCount,
   articleThoughtCount,
   groupLibraryArticles,
-  librarySourceForArticle,
   type LibrarySort,
-  type LibrarySource,
 } from './app-reading-library-utils';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 import type {
   AnnotationDiscussionWindowState,
   AnnotationDistillationCommittedEvent,
   WindowAnimationSourceRect,
+  SetLibraryPinInput,
 } from '../../../ipc-contract';
 
 export { groupLibraryArticles };
@@ -56,6 +57,9 @@ export type { LibrarySort };
 export function ReadingLibrary({
   agents,
   articles,
+  collectionMembers = [],
+  collections = [],
+  pins = [],
   messageSendShortcut,
   readerTheme,
   settings,
@@ -84,6 +88,9 @@ export function ReadingLibrary({
 }: {
   agents: Agent[];
   articles: ArticleSummaryRecord[];
+  collectionMembers?: CollectionMember[];
+  collections?: Collection[];
+  pins?: LibraryPin[];
   messageSendShortcut?: MessageSendShortcut;
   readerTheme: ReaderTheme;
   settings?: AppSettings;
@@ -145,11 +152,6 @@ export function ReadingLibrary({
   const [selectedArticle, setSelectedArticle] = useState<ArticleRecord | null>(null);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
   const [sourceFocusAnnotationId, setSourceFocusAnnotationId] = useState<string | null>(null);
-  const [librarySource, setLibrarySource] = useState<LibrarySource>(
-    () => enabledLibraryContentSources(settings)[0] || 'web',
-  );
-  const [librarySourceTransitionDirection, setLibrarySourceTransitionDirection] =
-    useState<LibrarySourceTransitionDirection>('none');
   const [wereadBooks, setWeReadBooks] = useState<WeReadBook[]>([]);
   const [wereadSettings, setWeReadSettings] = useState<WeReadSettings>({
     configured: false,
@@ -175,8 +177,6 @@ export function ReadingLibrary({
   const didAutoSyncWeReadRef = useRef(false);
   const sortedArticles = useMemo<ArticleSummaryRecord[]>(() => sortArticles(articles), [articles]);
   const hasLocalArticleCatalog = articles.length > 0;
-  const enabledSources = useMemo(() => enabledLibraryContentSources(settings), [settings]);
-  const wereadSourceEnabled = enabledSources.includes('weread');
   const annotations = useMemo<Annotation[]>(
     () => (selectedArticle ? sortAnnotations(selectedArticle.annotations) : []),
     [selectedArticle],
@@ -309,7 +309,7 @@ export function ReadingLibrary({
         if (cancelled) return;
         setWeReadSettings(state.settings);
         setWeReadBooks(state.books);
-        if (wereadSourceEnabled && state.settings.configured && !didAutoSyncWeReadRef.current) {
+        if (state.settings.configured && !didAutoSyncWeReadRef.current) {
           didAutoSyncWeReadRef.current = true;
           void syncWeReadLibrary();
         }
@@ -318,13 +318,7 @@ export function ReadingLibrary({
     return () => {
       cancelled = true;
     };
-  }, [wereadSourceEnabled]);
-
-  useEffect(() => {
-    if (enabledSources.includes(librarySource)) return;
-    setLibrarySource(enabledSources[0] || 'web');
-    setLibrarySourceTransitionDirection('none');
-  }, [enabledSources, librarySource]);
+  }, []);
 
   async function deleteLibraryArticle(articleId: string) {
     await onDeleteArticle(articleId);
@@ -341,7 +335,6 @@ export function ReadingLibrary({
     }
     const loadId = articleLoadRef.current + 1;
     articleLoadRef.current = loadId;
-    setLibrarySource(librarySourceForArticle(article));
     setSelectedArticleId(article.id);
     setSelectedAnnotationId(null);
     setSourceFocusAnnotationId(null);
@@ -356,7 +349,6 @@ export function ReadingLibrary({
   async function focusCommittedDistillation(event: AnnotationDistillationCommittedEvent) {
     const fullArticle = await onReadArticle(event.articleId);
     if (!fullArticle) return;
-    setLibrarySource(librarySourceForArticle(fullArticle));
     setSelectedArticleId(fullArticle.id);
     setSelectedArticle(fullArticle);
     setSelectedWeReadBook(null);
@@ -450,7 +442,6 @@ export function ReadingLibrary({
 
   async function openWeReadBook(book: WeReadBook) {
     if (selectedArticleId) void onCloseArticleDiscussions?.(selectedArticleId);
-    setLibrarySource('weread');
     setSelectedArticle(null);
     setSelectedArticleId(null);
     setSelectedAnnotationId(null);
@@ -471,20 +462,12 @@ export function ReadingLibrary({
     if (selectedArticleId) void onCloseArticleDiscussions?.(selectedArticleId);
     setSelectedAnnotationId(null);
     setSourceFocusAnnotationId(null);
-    setLibrarySourceTransitionDirection('none');
     setRouteTransition('enter-library');
     setActiveShelf('library');
   }
 
-  function changeLibrarySource(nextSource: LibrarySource) {
-    setLibrarySourceTransitionDirection(
-      librarySourceTransitionDirectionForChange(librarySource, nextSource, enabledSources),
-    );
-    setLibrarySource(nextSource);
-  }
-
   async function syncWeReadLibrary(options: { manual?: boolean } = {}) {
-    if (!window.yomitomoDesktop || !wereadSourceEnabled) return;
+    if (!window.yomitomoDesktop) return;
     setWeReadSyncing(true);
     try {
       const result = await window.yomitomoDesktop.syncWeRead();
@@ -595,10 +578,9 @@ export function ReadingLibrary({
   }
 
   const libraryHomeProps = {
-    activeSource: librarySource,
-    articles,
-    sourceTransitionDirection: librarySourceTransitionDirection,
-    onActiveSourceChange: changeLibrarySource,
+    collectionMembers,
+    collections,
+    pins,
     sortedArticles,
     onDeleteArticle: deleteLibraryArticle,
     onImportEbookFile,
@@ -609,6 +591,8 @@ export function ReadingLibrary({
     onOpenWeReadBook: (book: WeReadBook) => void openWeReadBook(book),
     onOpenWeReadExternal: (book: WeReadBook) => void openWeReadExternal(book),
     onSaveSettings: onSaveSettings || (() => undefined),
+    onSetLibraryPin: (input: SetLibraryPinInput) =>
+      void window.yomitomoDesktop?.setLibraryPin?.(input),
     onSyncWeRead: () => void syncWeReadLibrary({ manual: true }),
     settings: settings || {},
     wereadBooks,
@@ -757,18 +741,6 @@ function assistantParticipants(
     });
   }
   return [...assistants.values()];
-}
-
-function librarySourceTransitionDirectionForChange(
-  currentSource: LibrarySource,
-  nextSource: LibrarySource,
-  sourceOrder: LibrarySource[],
-): LibrarySourceTransitionDirection {
-  if (currentSource === nextSource) return 'none';
-  const currentIndex = sourceOrder.indexOf(currentSource);
-  const nextIndex = sourceOrder.indexOf(nextSource);
-  if (currentIndex < 0 || nextIndex < 0) return 'none';
-  return nextIndex > currentIndex ? 'forward' : 'backward';
 }
 
 export function AnnotationDiscussionCapsules({

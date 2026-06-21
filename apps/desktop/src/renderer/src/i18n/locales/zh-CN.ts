@@ -463,12 +463,18 @@ export const zhCNResources = {
       unlock: '解锁',
     },
     library: {
+      title: '阅读库',
       sources: {
         web: '网页文章',
         ebook: '电子书',
         pdf: 'PDF',
         weread: '微信读书',
         webShort: '网页',
+        ebookShort: '电子书',
+        pdfShort: 'PDF',
+        wereadShort: '微信读书',
+        collection: '集合',
+        collectionShort: '集合',
       },
       sourceDescriptions: {
         web: '网页采集和粘贴链接导入的文章。',
@@ -514,12 +520,16 @@ export const zhCNResources = {
         yesterday: '昨天 {{time}}',
       },
       sourceTabsLabel: '阅读库内容类型',
-      searchPlaceholder: '搜索标题 / 来源 / 作者',
-      searchLabel: '搜索文章、作者或来源',
+      searchPlaceholder: '搜索文章与集合…',
+      searchLabel: '搜索文章、集合、作者或来源',
+      typeFilter: {
+        label: '筛选内容类型',
+        all: '全部类型',
+      },
       weReadSetupTooltip: '请先到设置 / 微信读书配置 API Key',
       sync: '同步',
       syncing: '同步中',
-      toolbarSort: '最近添加 · 降序',
+      toolbarSort: '最近更新 · 降序',
       toolbarLabel: '阅读库工具栏',
       weReadSetupTitle: '需要配置微信读书',
       weReadSetupDescription: '请先到设置 / 微信读书配置 API Key，再同步你的划线和想法。',
@@ -528,10 +538,15 @@ export const zhCNResources = {
         '已同步 {{books}} 本书 · {{bookmarks}} 条划线 · {{reviews}} 条想法',
       weReadSyncFailed: '微信读书同步失败',
       total: {
+        all: '共 {{count}} 项',
         web: '共 {{count}} 篇',
         ebook: '共 {{count}} 本',
         pdf: '共 {{count}} 份',
         weread: '共 {{count}} 本',
+      },
+      groups: {
+        pinned: '置顶',
+        all: '全部',
       },
       pagination: {
         label: '阅读库分页',
@@ -552,6 +567,9 @@ export const zhCNResources = {
           '会从本地阅读库删除这篇材料，以及其中的划线、想法、评论和沉淀。此操作无法从应用内恢复。',
         deleteArticleConfirm: '删除材料',
         openWeReadExternal: '打开微信读书',
+        pin: '置顶',
+        unpin: '取消置顶',
+        pinned: '已置顶',
         progress: '阅读进度',
       },
       stats: {
@@ -561,9 +579,13 @@ export const zhCNResources = {
         readingMinutes: '约 {{count}} 分钟',
         addedAt: '添加于 {{date}}',
         recentReading: '最近阅读 {{time}}',
+        updatedAt: '更新于 {{date}}',
         annotations: '{{count}} 划线',
         distillations: '{{count}} 沉淀',
         unknownAuthor: '未知作者',
+      },
+      collection: {
+        memberCount: '{{count}} 项内容',
       },
       fallback: {
         ebook: '电子书',
@@ -571,7 +593,7 @@ export const zhCNResources = {
       },
       empty: {
         libraryTitle: '阅读库还没有内容',
-        libraryDescription: '从右上角加号添加网页文章或导入电子书，阅读库会按类型分开呈现。',
+        libraryDescription: '从右上角加号添加网页文章或导入电子书，阅读库会按时间混排展示。',
         noMatchTitle: '暂无匹配内容',
         noMatchDescription: '调整搜索词后继续浏览。',
         webTitle: '暂无网页文章',
@@ -585,6 +607,7 @@ export const zhCNResources = {
         ebookDescription: '点击加号导入 EPUB、AZW3 或 MOBI 文件，电子书会保留封面并显示阅读进度。',
       },
       import: {
+        addContent: '添加内容',
         addWebArticle: '添加网页文章',
         addEbook: '添加电子书',
         addPdf: '添加 PDF',
@@ -1178,7 +1201,7 @@ export const zhCNResources = {
         about: '关于',
       },
       descriptions: {
-        collection: '保存原文图片与阅读库入口显示偏好。',
+        collection: '保存原文图片与导入文章时的本地访问偏好。',
         models: '分配任务模型，并维护模型供应商。',
         dataSources: '管理微信读书等外部内容来源。',
         shortcuts: '配置划线、想法和回复等应用快捷键。',
@@ -1195,7 +1218,7 @@ export const zhCNResources = {
       general: {
         trailRoot: '设置',
         trailPage: '通用',
-        description: '控制界面语言、导入文章时的本地保存行为与阅读库入口显示。',
+        description: '控制界面语言、翻译、音效、应用锁和导入文章时的本地保存行为。',
         languageGroup: '界面',
         languageTitle: '界面语言',
         languageDescription: '控制应用界面语言，并让助手默认使用相同语言回复。',
@@ -1270,12 +1293,6 @@ export const zhCNResources = {
         localNetworkImportConfirmDescription:
           '开启后，网页文章导入会允许访问本机服务、局域网服务和云 metadata 地址。如果粘贴了不可信链接，主进程可能读取这些地址的响应并保存到阅读库。只在你明确需要导入内网文章时开启。',
         localNetworkImportConfirm: '确认开启',
-        libraryEntrancesGroup: '阅读库入口',
-        libraryEntrancesNote: '开关控制是否在功能菜单显示，拖动手柄调整顺序。',
-        moreTypes: '更多类型',
-        comingSoon: '敬请期待',
-        toggleEntrance: '切换{{label}}入口',
-        libraryEntranceControl: '切换{{label}}入口，使用上下方向键调整顺序',
       },
       data: {
         trailRoot: '设置',
