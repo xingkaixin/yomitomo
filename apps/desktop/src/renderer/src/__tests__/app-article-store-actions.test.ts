@@ -522,10 +522,48 @@ describe('applyArticleDeletePatch', () => {
     const store: DesktopStore = {
       ...emptyStore,
       articles: [firstArticle, secondArticle],
+      collectionMembers: [
+        {
+          collectionId: 'collection_1',
+          member: { kind: 'article', id: firstArticle.id },
+          addedAt: '2026-06-21T00:00:00.000Z',
+        },
+        {
+          collectionId: 'collection_1',
+          member: { kind: 'article', id: secondArticle.id },
+          addedAt: '2026-06-21T00:01:00.000Z',
+        },
+      ],
+      pins: [
+        {
+          targetKind: 'article',
+          targetId: firstArticle.id,
+          pinnedAt: '2026-06-21T00:02:00.000Z',
+        },
+        {
+          targetKind: 'article',
+          targetId: secondArticle.id,
+          pinnedAt: '2026-06-21T00:03:00.000Z',
+        },
+      ],
     };
 
-    expect(applyArticleDeletePatch(store, { articleId: firstArticle.id }).articles).toEqual([
-      secondArticle,
+    const nextStore = applyArticleDeletePatch(store, { articleId: firstArticle.id });
+
+    expect(nextStore.articles).toEqual([secondArticle]);
+    expect(nextStore.collectionMembers).toEqual([
+      {
+        collectionId: 'collection_1',
+        member: { kind: 'article', id: secondArticle.id },
+        addedAt: '2026-06-21T00:01:00.000Z',
+      },
+    ]);
+    expect(nextStore.pins).toEqual([
+      {
+        targetKind: 'article',
+        targetId: secondArticle.id,
+        pinnedAt: '2026-06-21T00:03:00.000Z',
+      },
     ]);
   });
 });

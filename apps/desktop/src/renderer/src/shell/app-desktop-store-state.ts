@@ -9,6 +9,10 @@ import { isDesktopIpcErrorLike } from '../../../ipc-errors';
 
 import { emptyStore } from '../settings/app-settings';
 import { applyArticleStorePatch } from './app-article-store-actions';
+import {
+  applyCollectionStorePatch,
+  applyLibraryPinPatch,
+} from './app-library-collection-store-actions';
 
 export function useDesktopStoreState() {
   const [store, setStore] = useState<DesktopStore>(emptyStore);
@@ -96,7 +100,23 @@ export function useDesktopStoreState() {
         setStoreLoadError(null);
         setStoreLoaded(true);
       }) || (() => undefined);
+    const offCollectionPatched =
+      desktop.onCollectionPatched?.((patch) => {
+        const nextStore = applyCollectionStorePatch(storeRef.current, patch);
+        applyStore(nextStore);
+        setStoreLoadError(null);
+        setStoreLoaded(true);
+      }) || (() => undefined);
+    const offLibraryPinPatched =
+      desktop.onLibraryPinPatched?.((patch) => {
+        const nextStore = applyLibraryPinPatch(storeRef.current, patch);
+        applyStore(nextStore);
+        setStoreLoadError(null);
+        setStoreLoaded(true);
+      }) || (() => undefined);
     return () => {
+      offLibraryPinPatched();
+      offCollectionPatched();
       offArticlePatched();
       offStoreUpdated();
     };

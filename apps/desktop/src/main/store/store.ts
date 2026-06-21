@@ -9,6 +9,7 @@ import type {
   ArticleSummaryRecord,
   ArticleTranslation,
   ArticleUpsertPatch,
+  CollectionMember,
   Comment,
   DesktopStore,
   UserProfile,
@@ -61,6 +62,21 @@ import {
   readCurrentArticleTranslationRows,
   upsertArticleTranslationRows,
 } from '../articles/article-translation-repository';
+import {
+  addCollectionMembersRows,
+  createCollectionRows,
+  deleteCollectionRows,
+  readCollectionMemberRows,
+  readCollectionRows,
+  readCollectionsWithMembersRows,
+  readLibraryPinRows,
+  removeCollectionMemberRows,
+  renameCollectionRows,
+  setLibraryPinRows,
+  writeCollectionMemberRows,
+  writeCollectionRows,
+  writeLibraryPinRows,
+} from '../collections/collection-repository';
 import * as schema from '../db/schema';
 import { providerApiKeyRef, saveProviderApiKey } from '../providers/provider-secrets';
 import {
@@ -78,6 +94,7 @@ import {
   getSqliteExecutor,
   purgeSqliteFiles,
   type StoreDatabase,
+  type StoreExecutor,
   type StoreReadProfileEntry,
 } from './store-db';
 import {
@@ -241,6 +258,44 @@ export async function readArticleStatsSummaries(): Promise<ArticleSummaryRecord[
   const database = getDatabase();
   await migrateProviderApiKeys(database);
   return readArticleStatsSummaryRows(database);
+}
+
+export async function listCollections() {
+  return readCollectionsWithMembersRows(getDatabase());
+}
+
+export async function createCollection(input: { name: string }) {
+  return createCollectionRows(getDatabase(), input);
+}
+
+export async function renameCollection(input: { collectionId: string; name: string }) {
+  return renameCollectionRows(getDatabase(), input);
+}
+
+export async function deleteCollection(collectionId: string) {
+  return deleteCollectionRows(getDatabase(), collectionId);
+}
+
+export async function addCollectionMembers(input: {
+  collectionId: string;
+  members: CollectionMember['member'][];
+}) {
+  return addCollectionMembersRows(getDatabase(), input);
+}
+
+export async function removeCollectionMember(input: {
+  collectionId: string;
+  member: CollectionMember['member'];
+}) {
+  return removeCollectionMemberRows(getDatabase(), input);
+}
+
+export async function listLibraryPins() {
+  return readLibraryPinRows(getDatabase());
+}
+
+export async function setLibraryPin(input: Parameters<typeof setLibraryPinRows>[1]) {
+  return setLibraryPinRows(getDatabase(), input);
 }
 
 export async function readCurrentArticleTranslation(input: {
@@ -600,6 +655,15 @@ function readStoreRows(
   const articleRows = options.includeArticles
     ? readArticleSummaryRowsForStore(database, profile)
     : [];
+  const collectionRows = measureStoreRead(profile, 'read_collections', () =>
+    readCollectionRows(database),
+  );
+  const collectionMemberRows = measureStoreRead(profile, 'read_collection_members', () =>
+    readCollectionMemberRows(database),
+  );
+  const pinRows = measureStoreRead(profile, 'read_library_pins', () =>
+    readLibraryPinRows(database),
+  );
   const articleCounts = options.includeArticles
     ? measureStoreRead(profile, 'read_article_summary_counts', () =>
         readArticleSummaryCounts(database, profile),
@@ -615,8 +679,16 @@ function readStoreRows(
       providers: providerRows.map(rowToProvider),
       agents: agentRows.map(rowToAgent),
       articles: articleRows.map((row) => rowToArticleSummary(row, [], articleCounts.get(row.id))),
+      collections: collectionRows,
+      collectionMembers: collectionMemberRows,
+      pins: pinRows,
     }),
-    { articleCount: articleRows.length, agentCount: agentRows.length },
+    {
+      articleCount: articleRows.length,
+      agentCount: agentRows.length,
+      collectionCount: collectionRows.length,
+      pinCount: pinRows.length,
+    },
   );
 }
 
@@ -633,6 +705,9 @@ function readAgentRuntimeContextRows(database: StoreDatabase): AgentRuntimeStore
 
 function writeStoreRows(database: StoreDatabase, store: WritableDesktopStore) {
   database.transaction((tx) => {
+    tx.delete(schema.libraryPins).run();
+    tx.delete(schema.collectionMembers).run();
+    tx.delete(schema.collections).run();
     tx.delete(schema.comments).run();
     tx.delete(schema.annotations).run();
     tx.delete(schema.articles).run();
@@ -647,5 +722,15 @@ function writeStoreRows(database: StoreDatabase, store: WritableDesktopStore) {
       upsertProvider(tx, provider, provider.hasApiKey ? providerApiKeyRef(provider.id) : undefined);
     for (const agent of store.agents) upsertAgent(tx, agent);
     for (const article of store.articles) writeArticleRows(tx, article);
+    writeCollectionStoreRows(tx, store);
   });
+}
+
+function writeCollectionStoreRows(
+  database: StoreExecutor,
+  store: Pick<DesktopStore, 'collections' | 'collectionMembers' | 'pins'>,
+) {
+  for (const collection of store.collections) writeCollectionRows(database, collection);
+  for (const member of store.collectionMembers) writeCollectionMemberRows(database, member);
+  for (const pin of store.pins) writeLibraryPinRows(database, pin);
 }

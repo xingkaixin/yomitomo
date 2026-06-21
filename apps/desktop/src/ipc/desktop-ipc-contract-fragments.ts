@@ -19,8 +19,12 @@ import type {
   ArticleTranslationDeleteRequest,
   ArticleTranslationRequest,
   ArticleUpsertPatch,
+  CollectionStorePatch,
+  CollectionWithMembers,
   Comment,
   DesktopStore,
+  LibraryPin,
+  LibraryPinPatch,
   LlmProvider,
   ProviderModel,
   UiLanguage,
@@ -61,10 +65,13 @@ import type {
   ArticleLibraryListInput,
   ArticleLibraryListResult,
   ArticleReaderChatStateSaveInput,
+  AddCollectionMembersInput,
   AssistantExecutionQueryInput,
   AssistantExecutionRunDetail,
   AssistantExecutionRunListItem,
   AssistantExecutionSummary,
+  CreateCollectionInput,
+  CreateCollectionResult,
   DataManagementPathKind,
   DataManagementPaths,
   DatabaseBackupResult,
@@ -73,6 +80,9 @@ import type {
   PdfImportFileInput,
   PerformanceTimingInput,
   ProviderTestResult,
+  RemoveCollectionMemberInput,
+  RenameCollectionInput,
+  SetLibraryPinInput,
   WeReadOpenTarget,
   WeReadReadingStatsQueryInput,
   WeReadSaveSettingsInput,
@@ -322,6 +332,41 @@ export type DataIpcInvokeMap = {
   'log:read': {
     args: [];
     result: string;
+  };
+};
+
+export type LibraryCollectionIpcInvokeMap = {
+  'library-collection:list': {
+    args: [];
+    result: CollectionWithMembers[];
+  };
+  'library-collection:create': {
+    args: [input: CreateCollectionInput];
+    result: CreateCollectionResult;
+  };
+  'library-collection:rename': {
+    args: [input: RenameCollectionInput];
+    result: CollectionStorePatch;
+  };
+  'library-collection:delete': {
+    args: [collectionId: string];
+    result: CollectionStorePatch;
+  };
+  'library-collection:add-members': {
+    args: [input: AddCollectionMembersInput];
+    result: CollectionStorePatch;
+  };
+  'library-collection:remove-member': {
+    args: [input: RemoveCollectionMemberInput];
+    result: CollectionStorePatch;
+  };
+  'library-pin:list': {
+    args: [];
+    result: LibraryPin[];
+  };
+  'library-pin:set': {
+    args: [input: SetLibraryPinInput];
+    result: LibraryPinPatch;
   };
 };
 

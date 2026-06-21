@@ -73,6 +73,25 @@ describe('handleDesktopIpc', () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
+  it('rejects invalid collection member refs before invoking the handler', async () => {
+    const handler = vi.fn();
+    handleDesktopIpc('library-collection:add-members', handler);
+
+    const envelope = await invokeRegisteredHandler('library-collection:add-members', {
+      collectionId: 'collection_1',
+      members: [{ kind: 'collection', id: 'collection_2' }],
+    });
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      error: {
+        code: desktopIpcErrorCodes.invalidArgs,
+        detail: { channel: 'library-collection:add-members' },
+      },
+    });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
   it('keeps high-risk channels covered by invoke arg schemas', () => {
     const schemaChannels = new Set(desktopIpcInvokeSchemaChannels);
 

@@ -3,6 +3,7 @@ import type { DesktopStore } from '@yomitomo/shared';
 import { desktopIpcErrorCodes, type DesktopIpcInvokeEnvelope } from '../../ipc-errors';
 import { registerArticleIpc } from './ipc-article';
 import { registerAppLockIpc } from './ipc-app-lock';
+import { registerLibraryCollectionIpc } from './ipc-library-collection';
 import { registerProviderIpc } from './ipc-provider';
 import { registerStoreDataIpc } from './ipc-store-data';
 import { registerWeReadIpc } from './ipc-weread';
@@ -60,6 +61,7 @@ describe('app lock IPC guard', () => {
     configureDesktopIpcAppLockGuardContext(ipcContext);
 
     registerArticleIpc(ipcContext);
+    registerLibraryCollectionIpc(ipcContext);
     registerProviderIpc(ipcContext);
     registerStoreDataIpc(ipcContext);
     registerWeReadIpc(ipcContext);
@@ -70,6 +72,7 @@ describe('app lock IPC guard', () => {
     await expectAppLockRequired('log:read');
     await expectAppLockRequired('data:paths');
     await expectAppLockRequired('article:get', 'article_1');
+    await expectAppLockRequired('library-collection:create', { name: '集合' });
 
     expect(storeModule.readStoredProviderApiKey).not.toHaveBeenCalled();
     expect(storeModule.readStoredWeReadApiKey).not.toHaveBeenCalled();

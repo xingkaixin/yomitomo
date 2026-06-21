@@ -11,6 +11,11 @@ const httpUrlSchema = z.string().min(1).max(4096).refine(isHttpUrl);
 const arrayBufferSchema = z.custom<ArrayBuffer>(isArrayBuffer);
 const appLockPinSchema = z.string().regex(/^\d{4}$/);
 const appLockShortcutSchema = z.string().trim().min(1).max(80).nullable();
+const collectionNameSchema = z.string().trim().min(1).max(160);
+const contentRefSchema = z.object({
+  id: idSchema,
+  kind: z.enum(['article', 'weread']),
+});
 const articleTranslationRequestSchema = z.object({
   articleId: idSchema,
   force: z.boolean().optional(),
@@ -92,6 +97,42 @@ export const dataIpcInvokeSchemas = {
   'data:open-path': z.tuple([z.enum(['dataDir', 'logFile', 'databaseFile'])]),
 } satisfies DesktopIpcSchemaMap;
 
+export const libraryCollectionIpcInvokeSchemas = {
+  'library-collection:add-members': z.tuple([
+    z.object({
+      collectionId: idSchema,
+      members: z.array(contentRefSchema).max(500),
+    }),
+  ]),
+  'library-collection:create': z.tuple([
+    z.object({
+      name: collectionNameSchema,
+    }),
+  ]),
+  'library-collection:delete': z.tuple([idSchema]),
+  'library-collection:remove-member': z.tuple([
+    z.object({
+      collectionId: idSchema,
+      member: contentRefSchema,
+    }),
+  ]),
+  'library-collection:rename': z.tuple([
+    z.object({
+      collectionId: idSchema,
+      name: collectionNameSchema,
+    }),
+  ]),
+  'library-pin:set': z.tuple([
+    z.object({
+      pinned: z.boolean(),
+      target: z.object({
+        id: idSchema,
+        kind: z.enum(['article', 'weread', 'collection']),
+      }),
+    }),
+  ]),
+} satisfies DesktopIpcSchemaMap;
+
 export const wereadIpcInvokeSchemas = {
   'weread:get-book': z.tuple([idSchema]),
   'weread:open': z.tuple([
@@ -138,6 +179,12 @@ export const highRiskDesktopIpcSchemaChannels = [
   'weread:get-book',
   'weread:open',
   'weread:query-reading-stats',
+  'library-collection:add-members',
+  'library-collection:create',
+  'library-collection:delete',
+  'library-collection:remove-member',
+  'library-collection:rename',
+  'library-pin:set',
 ] satisfies DesktopIpcInvokeChannel[];
 
 function isHttpUrl(value: string) {

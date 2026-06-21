@@ -1,4 +1,4 @@
-import { desc, eq, inArray, notInArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, notInArray } from 'drizzle-orm';
 import type {
   WeReadBook,
   WeReadBookDetail,
@@ -326,6 +326,24 @@ function removeStaleWeReadBooks(database: StoreExecutor, bookIds: string[]) {
 }
 
 function removeWeReadBookRows(database: StoreExecutor, staleBookIds: string[]) {
+  database
+    .delete(schema.collectionMembers)
+    .where(
+      and(
+        eq(schema.collectionMembers.memberKind, 'weread'),
+        inArray(schema.collectionMembers.memberId, staleBookIds),
+      ),
+    )
+    .run();
+  database
+    .delete(schema.libraryPins)
+    .where(
+      and(
+        eq(schema.libraryPins.targetKind, 'weread'),
+        inArray(schema.libraryPins.targetId, staleBookIds),
+      ),
+    )
+    .run();
   database
     .delete(schema.wereadChapters)
     .where(inArray(schema.wereadChapters.bookId, staleBookIds))

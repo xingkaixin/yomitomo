@@ -11,6 +11,7 @@ export function deleteArticleRowsWithMemoryLifecycle(
 ) {
   withReadingMemoryTransaction(executor, () => {
     deleteReadingMemoryForArticle(articleId, executor, { useTransaction: false });
+    deleteArticleLibraryReferences(executor, articleId);
     executor.prepare('DELETE FROM articles WHERE id = ?').run(articleId);
   });
   return { articleId };
@@ -171,6 +172,15 @@ WHERE id IN (${sqlPlaceholders(input.commentIds)})
       )
       .run(...input.commentIds, input.annotationId, input.articleId),
   );
+}
+
+function deleteArticleLibraryReferences(executor: ReadingMemorySqliteExecutor, articleId: string) {
+  executor
+    .prepare("DELETE FROM collection_members WHERE member_kind = 'article' AND member_id = ?")
+    .run(articleId);
+  executor
+    .prepare("DELETE FROM library_pins WHERE target_kind = 'article' AND target_id = ?")
+    .run(articleId);
 }
 
 function sqlPlaceholders(values: unknown[]) {

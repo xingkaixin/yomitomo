@@ -8,6 +8,7 @@ export * from './sources/ebook-types';
 export * from './sources/ebook-title-cleanup';
 export * from './sources/pdf-types';
 export * from './sources/weread-types';
+export * from './sources/collection-types';
 export * from './reader-context-types';
 export * from './reading-memory/reading-memory-types';
 export * from './reading-memory/reading-memory-entry-types';

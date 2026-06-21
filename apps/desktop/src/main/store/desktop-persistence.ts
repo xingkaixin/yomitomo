@@ -52,6 +52,17 @@ export const articlePersistence = {
   saveArticleTranslation: store.saveArticleTranslation,
 };
 
+export const collectionPersistence = {
+  addCollectionMembers: store.addCollectionMembers,
+  createCollection: store.createCollection,
+  deleteCollection: store.deleteCollection,
+  listCollections: store.listCollections,
+  listLibraryPins: store.listLibraryPins,
+  removeCollectionMember: store.removeCollectionMember,
+  renameCollection: store.renameCollection,
+  setLibraryPin: store.setLibraryPin,
+};
+
 export const providerPersistence = {
   deleteProvider: store.deleteProvider,
   hydrateProviderApiKey,

@@ -2,7 +2,12 @@
 
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ArticleStorePatch, DesktopStore } from '@yomitomo/shared';
+import type {
+  ArticleStorePatch,
+  CollectionStorePatch,
+  DesktopStore,
+  LibraryPinPatch,
+} from '@yomitomo/shared';
 
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { emptyStore } from '../settings/app-settings';
@@ -25,8 +30,12 @@ describe('useDesktopStoreState', () => {
     const appliedStore = makeStore({ user: { nickname: '本地应用' } });
     const offStoreUpdated = vi.fn();
     const offArticlePatched = vi.fn();
+    const offCollectionPatched = vi.fn();
+    const offLibraryPinPatched = vi.fn();
     let emitStoreUpdated = noopStoreUpdated;
     let emitArticlePatched = noopArticlePatched;
+    let emitCollectionPatched = noopCollectionPatched;
+    let emitLibraryPinPatched = noopLibraryPinPatched;
 
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
@@ -39,6 +48,14 @@ describe('useDesktopStoreState', () => {
         onArticlePatched: vi.fn((callback: (patch: ArticleStorePatch) => void) => {
           emitArticlePatched = callback;
           return offArticlePatched;
+        }),
+        onCollectionPatched: vi.fn((callback: (patch: CollectionStorePatch) => void) => {
+          emitCollectionPatched = callback;
+          return offCollectionPatched;
+        }),
+        onLibraryPinPatched: vi.fn((callback: (patch: LibraryPinPatch) => void) => {
+          emitLibraryPinPatched = callback;
+          return offLibraryPinPatched;
         }),
       },
     });
@@ -70,6 +87,45 @@ describe('useDesktopStoreState', () => {
 
     expect(latest.current?.store.articles).toEqual([patchedArticle]);
     expect(latest.current?.storeRef.current.articles).toEqual([patchedArticle]);
+
+    act(() => {
+      emitCollectionPatched({
+        type: 'collection-upsert',
+        collection: {
+          id: 'collection_1',
+          name: '集合',
+          createdAt: '2026-06-21T00:00:00.000Z',
+          updatedAt: '2026-06-21T00:00:00.000Z',
+        },
+      });
+    });
+
+    expect(latest.current?.store.collections.map((collection) => collection.id)).toEqual([
+      'collection_1',
+    ]);
+    expect(latest.current?.storeRef.current.collections.map((collection) => collection.id)).toEqual(
+      ['collection_1'],
+    );
+
+    act(() => {
+      emitLibraryPinPatched({
+        type: 'library-pin',
+        pinned: true,
+        pin: {
+          targetKind: 'collection',
+          targetId: 'collection_1',
+          pinnedAt: '2026-06-21T00:01:00.000Z',
+        },
+      });
+    });
+
+    expect(latest.current?.store.pins).toEqual([
+      {
+        targetKind: 'collection',
+        targetId: 'collection_1',
+        pinnedAt: '2026-06-21T00:01:00.000Z',
+      },
+    ]);
 
     act(() => {
       latest.current?.applyStore(appliedStore);
@@ -157,6 +213,8 @@ describe('useDesktopStoreState', () => {
 
 function noopStoreUpdated(_store: DesktopStore) {}
 function noopArticlePatched(_patch: ArticleStorePatch) {}
+function noopCollectionPatched(_patch: CollectionStorePatch) {}
+function noopLibraryPinPatched(_patch: LibraryPinPatch) {}
 
 function makeStore(
   input: {
@@ -165,6 +223,9 @@ function makeStore(
     providers?: DesktopStore['providers'];
     agents?: DesktopStore['agents'];
     articles?: DesktopStore['articles'];
+    collections?: DesktopStore['collections'];
+    collectionMembers?: DesktopStore['collectionMembers'];
+    pins?: DesktopStore['pins'];
   } = {},
 ): DesktopStore {
   return {
@@ -173,6 +234,9 @@ function makeStore(
     providers: input.providers || [],
     agents: input.agents || [],
     articles: input.articles || [],
+    collections: input.collections || [],
+    collectionMembers: input.collectionMembers || [],
+    pins: input.pins || [],
   };
 }
 

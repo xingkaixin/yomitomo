@@ -51,6 +51,14 @@ export {
   type ArticleSummaryRow,
 } from './store-normalizers-articles';
 export {
+  normalizeContentRef,
+  normalizeContentRefKind,
+  normalizeLibraryPinTargetKind,
+  rowToCollection,
+  rowToCollectionMember,
+  rowToLibraryPin,
+} from './store-normalizers-collections';
+export {
   normalizeArticleReadingProgress,
   normalizeArticleSourceType,
   normalizeEbookRecord,
@@ -70,6 +78,9 @@ export const defaultStore: DesktopStore = {
   providers: [],
   agents: [],
   articles: [],
+  collections: [],
+  collectionMembers: [],
+  pins: [],
 };
 
 export function normalizeStore(store: DesktopStore): DesktopStore {
@@ -107,5 +118,8 @@ export function normalizeStore(store: DesktopStore): DesktopStore {
         readingProgress: normalizeArticleReadingProgress(article.readingProgress),
       }),
     ),
+    collections: store.collections || [],
+    collectionMembers: store.collectionMembers || [],
+    pins: store.pins || [],
   };
 }
