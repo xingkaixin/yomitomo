@@ -82,6 +82,21 @@ export type ProposalDraftChangeSetResult =
   | { ok: true; changeSet: DistillationProposalDraftChangeSet }
   | { ok: false; reason: ProposalApplyFailureReason };
 
+export type DistillationProposalDraftAnchorStatus = 'resolved' | 'drifted' | 'stale' | 'ambiguous';
+
+export type DistillationProposalDraftAnchorResult =
+  | {
+      ok: true;
+      status: Extract<DistillationProposalDraftAnchorStatus, 'resolved' | 'drifted'>;
+      anchorKind: 'text' | 'point';
+      range: { start: number; end: number };
+      text: string;
+    }
+  | {
+      ok: false;
+      status: Extract<DistillationProposalDraftAnchorStatus, 'stale' | 'ambiguous'>;
+    };
+
 export function proposalApplyFailureMessage(reason: ProposalApplyFailureReason) {
   if (reason === 'missing_insert_content') {
     return i18next.t('sedimentation.proposalErrors.missingInsertContent');
@@ -249,6 +264,37 @@ export function planDistillationProposalChangeSet(
       changes: orderedChanges,
     },
   };
+}
+
+export function planDistillationProposalDraftAnchor(
+  draft: string,
+  proposal: AnnotationDistillationProposal,
+): DistillationProposalDraftAnchorResult {
+  if (proposal.kind === 'insert') {
+    const insertProposal = normalizeInsertProposalInput(proposal);
+    if (insertProposal.insertAfterText) {
+      return anchorMatchResult(
+        draft,
+        insertProposal.insertAfterText,
+        proposal.sourceDraftHash,
+        'text',
+      );
+    }
+    if (proposal.sourceDraftHash && proposal.sourceDraftHash === hashText(draft)) {
+      return {
+        ok: true,
+        status: 'resolved',
+        anchorKind: 'point',
+        range: { start: draft.length, end: draft.length },
+        text: '',
+      };
+    }
+    return { ok: false, status: 'stale' };
+  }
+
+  const targetText = proposal.targetText?.trim();
+  if (!targetText) return { ok: false, status: 'stale' };
+  return anchorMatchResult(draft, targetText, proposal.sourceDraftHash, 'text');
 }
 
 export function updateReviewProposalStatus(
@@ -449,6 +495,25 @@ function unwrapQuotedInstructionText(value: string) {
     }
   }
   return text;
+}
+
+function anchorMatchResult(
+  draft: string,
+  targetText: string,
+  sourceDraftHash: string | undefined,
+  anchorKind: 'text' | 'point',
+): DistillationProposalDraftAnchorResult {
+  const match = uniqueTextMatch(draft, targetText);
+  if (!match.ok) {
+    return { ok: false, status: match.reason === 'target_ambiguous' ? 'ambiguous' : 'stale' };
+  }
+  return {
+    ok: true,
+    status: sourceDraftHash && sourceDraftHash !== hashText(draft) ? 'drifted' : 'resolved',
+    anchorKind,
+    range: { start: match.index, end: match.index + match.text.length },
+    text: match.text,
+  };
 }
 
 function validSelectionEnd(draft: string, selection: DraftSelectionSnapshot | null) {

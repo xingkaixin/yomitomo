@@ -56,10 +56,12 @@ import { useSourceAwareWindowTransition } from '../shell/app-window-transition';
 import {
   composeDistillationProposalDraftChangeSetEntries,
   normalizeDistillationProposalDraftChangeSetEntries,
+  planDistillationProposalDraftAnchor,
   planDistillationProposalChangeSet,
   proposalApplyFailureMessage,
   updateReviewProposalStatusMap,
   type DistillationProposalDraftChange,
+  type DistillationProposalDraftAnchorResult,
   type DistillationProposalDraftChangeSet,
   type DistillationProposalDraftChangeSetEntry,
   type DraftSelectionSnapshot,
@@ -103,6 +105,7 @@ type PendingDraftPreview =
 
 type PendingDraftPreviewDecision = 'pending' | 'accepted' | 'rejected';
 type PendingDraftPreviewDecisions = Record<string, PendingDraftPreviewDecision>;
+type HoveredDraftAnchor = Extract<DistillationProposalDraftAnchorResult, { ok: true }>;
 
 function pendingDraftProposalIds(
   preview: PendingDraftPreview | null,
@@ -142,6 +145,12 @@ function previewStatusesFromDecisions(decisions: PendingDraftPreviewDecisions) {
       decision === 'accepted' ? 'accepted' : 'ignored',
     ]),
   ) as Record<string, AnnotationDistillationProposal['status']>;
+}
+
+function focusStayedInside(currentTarget: EventTarget, relatedTarget: EventTarget | null) {
+  return relatedTarget instanceof Node && currentTarget instanceof Node
+    ? currentTarget.contains(relatedTarget)
+    : false;
 }
 
 export function AnnotationSedimentationWindowApp() {
@@ -255,6 +264,7 @@ function SedimentationShell({
   const [organizeState, setOrganizeState] = useState<OrganizeDiscussionState>({ type: 'idle' });
   const [organizeConfirmOpen, setOrganizeConfirmOpen] = useState(false);
   const [pendingDraftPreview, setPendingDraftPreview] = useState<PendingDraftPreview | null>(null);
+  const [hoveredDraftAnchor, setHoveredDraftAnchor] = useState<HoveredDraftAnchor | null>(null);
   const [draftPreviewScroll, setDraftPreviewScroll] = useState({ left: 0, top: 0 });
   const [appliedOrganizeProposalIds, setAppliedOrganizeProposalIds] = useState<Set<string>>(
     () => new Set(),
@@ -297,6 +307,10 @@ function SedimentationShell({
   useEffect(() => {
     draftRef.current = draft;
   }, [draft]);
+
+  useEffect(() => {
+    if (pendingDraftPreview) setHoveredDraftAnchor(null);
+  }, [pendingDraftPreview]);
 
   async function publishDistillation() {
     const content = draft.trim();
@@ -601,6 +615,16 @@ function SedimentationShell({
       start: textarea.selectionStart,
       end: textarea.selectionEnd,
     };
+  }
+
+  function handleDraftAnchorEnter(proposal: AnnotationDistillationProposal) {
+    if (pendingDraftPreview) return;
+    const result = planDistillationProposalDraftAnchor(draftRef.current, proposal);
+    setHoveredDraftAnchor(result.ok ? result : null);
+  }
+
+  function handleDraftAnchorLeave() {
+    setHoveredDraftAnchor(null);
   }
 
   function syncDraftPreviewScroll() {
@@ -931,6 +955,13 @@ function SedimentationShell({
                     void handleDraftPreviewDecision(proposalId, decision)
                   }
                 />
+              ) : hoveredDraftAnchor ? (
+                <DraftAnchorHighlightLayer
+                  anchor={hoveredDraftAnchor}
+                  draft={draft}
+                  scrollLeft={draftPreviewScroll.left}
+                  scrollTop={draftPreviewScroll.top}
+                />
               ) : null}
               <textarea
                 ref={draftTextareaRef}
@@ -938,6 +969,7 @@ function SedimentationShell({
                 readOnly={Boolean(pendingDraftPreview)}
                 placeholder={pendingDraftPreview ? '' : t('sedimentation.draftPlaceholder')}
                 onChange={(event) => {
+                  setHoveredDraftAnchor(null);
                   setDraft(event.target.value);
                   recordDraftSelection();
                 }}
@@ -954,6 +986,8 @@ function SedimentationShell({
                 appliedProposalIds={appliedOrganizeProposalIds}
                 dismissedProposalIds={dismissedOrganizeProposalIds}
                 pendingProposalIds={pendingDraftProposalIds(pendingDraftPreview, 'organize')}
+                onProposalAnchorEnter={handleDraftAnchorEnter}
+                onProposalAnchorLeave={handleDraftAnchorLeave}
                 onPreviewProposals={handleOrganizeProposalPreview}
                 onClose={() => {
                   if (pendingDraftPreview?.source === 'organize') setPendingDraftPreview(null);
@@ -980,6 +1014,8 @@ function SedimentationShell({
             sessions={sessions}
             userProfile={userProfile}
             pendingProposalIds={pendingDraftProposalIds(pendingDraftPreview, 'review')}
+            onProposalAnchorEnter={handleDraftAnchorEnter}
+            onProposalAnchorLeave={handleDraftAnchorLeave}
             onProposalPreview={handleProposalPreview}
             onProposalIgnore={handleProposalIgnore}
             onProposalRestore={handleProposalRestore}
@@ -1278,6 +1314,44 @@ function DraftChangePreviewLayer({
   );
 }
 
+function DraftAnchorHighlightLayer({
+  anchor,
+  draft,
+  scrollLeft,
+  scrollTop,
+}: {
+  anchor: HoveredDraftAnchor;
+  draft: string;
+  scrollLeft: number;
+  scrollTop: number;
+}) {
+  const before = draft.slice(0, anchor.range.start);
+  const target = draft.slice(anchor.range.start, anchor.range.end);
+  const after = draft.slice(anchor.range.end);
+  return (
+    <div
+      className="annotation-sedimentation-draft-anchor-layer"
+      aria-label={i18next.t('sedimentation.draftAnchorHighlight')}
+      role="region"
+    >
+      <div
+        className="annotation-sedimentation-draft-anchor-text"
+        style={{ transform: `translate(${-scrollLeft}px, ${-scrollTop}px)` }}
+      >
+        <span>{before}</span>
+        {anchor.anchorKind === 'point' ? (
+          <span className="annotation-sedimentation-draft-anchor-point" />
+        ) : (
+          <mark className={`annotation-sedimentation-draft-anchor-mark is-${anchor.status}`}>
+            {target}
+          </mark>
+        )}
+        <span>{after}</span>
+      </div>
+    </div>
+  );
+}
+
 function DraftChangePreviewChange({
   change,
   decision,
@@ -1347,6 +1421,8 @@ function OrganizeDiscussionCard({
   appliedProposalIds,
   dismissedProposalIds,
   onClose,
+  onProposalAnchorEnter,
+  onProposalAnchorLeave,
   onPreviewProposals,
   onRetry,
   pendingProposalIds,
@@ -1355,6 +1431,8 @@ function OrganizeDiscussionCard({
   appliedProposalIds: Set<string>;
   dismissedProposalIds: Set<string>;
   onClose: () => void;
+  onProposalAnchorEnter: (proposal: AnnotationDistillationProposal) => void;
+  onProposalAnchorLeave: () => void;
   onPreviewProposals: (proposals: AnnotationDistillationProposal[]) => void;
   onRetry: () => void;
   pendingProposalIds: string[];
@@ -1504,6 +1582,8 @@ function OrganizeDiscussionCard({
             dismissedProposalIds={dismissedProposalIds}
             pendingProposalIds={pendingProposalIds}
             proposals={proposals}
+            onProposalAnchorEnter={onProposalAnchorEnter}
+            onProposalAnchorLeave={onProposalAnchorLeave}
             onPreviewProposals={onPreviewProposals}
           />
         ) : null}
@@ -1519,12 +1599,16 @@ function OrganizeDiscussionCard({
 function OrganizeProposalList({
   appliedProposalIds,
   dismissedProposalIds,
+  onProposalAnchorEnter,
+  onProposalAnchorLeave,
   onPreviewProposals,
   pendingProposalIds,
   proposals,
 }: {
   appliedProposalIds: Set<string>;
   dismissedProposalIds: Set<string>;
+  onProposalAnchorEnter: (proposal: AnnotationDistillationProposal) => void;
+  onProposalAnchorLeave: () => void;
   onPreviewProposals: (proposals: AnnotationDistillationProposal[]) => void;
   pendingProposalIds: string[];
   proposals: AnnotationDistillationProposal[];
@@ -1552,6 +1636,14 @@ function OrganizeProposalList({
               `is-${proposal.kind}`,
             ].join(' ')}
             key={proposal.id}
+            onBlur={(event) => {
+              if (!focusStayedInside(event.currentTarget, event.relatedTarget)) {
+                onProposalAnchorLeave();
+              }
+            }}
+            onFocus={() => onProposalAnchorEnter(proposal)}
+            onMouseEnter={() => onProposalAnchorEnter(proposal)}
+            onMouseLeave={onProposalAnchorLeave}
           >
             <div className="annotation-sedimentation-proposal-main">
               <header>
@@ -1590,6 +1682,8 @@ function OrganizeProposalList({
 
 function ReviewSessions({
   agents,
+  onProposalAnchorEnter,
+  onProposalAnchorLeave,
   onProposalIgnore,
   onProposalPreview,
   onProposalRestore,
@@ -1598,6 +1692,8 @@ function ReviewSessions({
   userProfile,
 }: {
   agents: PublicAgent[];
+  onProposalAnchorEnter: (proposal: AnnotationDistillationProposal) => void;
+  onProposalAnchorLeave: () => void;
   onProposalPreview: (
     messageId: string,
     proposals: AnnotationDistillationProposal[],
@@ -1656,6 +1752,8 @@ function ReviewSessions({
           key={message.key}
           agents={agents}
           userProfile={userProfile}
+          onProposalAnchorEnter={onProposalAnchorEnter}
+          onProposalAnchorLeave={onProposalAnchorLeave}
           onProposalIgnore={onProposalIgnore}
           onProposalPreview={onProposalPreview}
           onProposalRestore={onProposalRestore}
@@ -1674,6 +1772,8 @@ type ReviewTimelineItem = {
 function ReviewTimelineMessage({
   agents,
   item,
+  onProposalAnchorEnter,
+  onProposalAnchorLeave,
   onProposalIgnore,
   onProposalPreview,
   onProposalRestore,
@@ -1682,6 +1782,8 @@ function ReviewTimelineMessage({
 }: {
   agents: PublicAgent[];
   item: ReviewTimelineItem;
+  onProposalAnchorEnter: (proposal: AnnotationDistillationProposal) => void;
+  onProposalAnchorLeave: () => void;
   onProposalPreview: (
     messageId: string,
     proposals: AnnotationDistillationProposal[],
@@ -1755,6 +1857,8 @@ function ReviewTimelineMessage({
             messageId={message.id}
             proposals={message.proposals}
             pendingProposalIds={pendingProposalIds}
+            onAnchorEnter={onProposalAnchorEnter}
+            onAnchorLeave={onProposalAnchorLeave}
             onIgnore={onProposalIgnore}
             onPreview={onProposalPreview}
             onRestore={onProposalRestore}
@@ -1805,6 +1909,8 @@ function StructuredReviewItems({ items }: { items: AnnotationDistillationReviewI
 
 function ReviewProposalList({
   messageId,
+  onAnchorEnter,
+  onAnchorLeave,
   onIgnore,
   onPreview,
   onRestore,
@@ -1812,6 +1918,8 @@ function ReviewProposalList({
   proposals,
 }: {
   messageId: string;
+  onAnchorEnter: (proposal: AnnotationDistillationProposal) => void;
+  onAnchorLeave: () => void;
   onPreview: (
     messageId: string,
     proposals: AnnotationDistillationProposal[],
@@ -1838,6 +1946,14 @@ function ReviewProposalList({
               `is-${proposal.kind}`,
             ].join(' ')}
             key={proposal.id}
+            onBlur={(event) => {
+              if (!focusStayedInside(event.currentTarget, event.relatedTarget)) {
+                onAnchorLeave();
+              }
+            }}
+            onFocus={() => onAnchorEnter(proposal)}
+            onMouseEnter={() => onAnchorEnter(proposal)}
+            onMouseLeave={onAnchorLeave}
           >
             <div className="annotation-sedimentation-proposal-main">
               <header>
