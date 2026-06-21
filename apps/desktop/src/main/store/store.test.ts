@@ -76,7 +76,14 @@ import {
   readStoredProviderApiKey,
   resolveProviderApiKeyStorage,
 } from '../providers/provider-repository';
-import { closeDatabase, readShellStore, readStore } from './store';
+import {
+  addCollectionMembers,
+  closeDatabase,
+  createCollection,
+  readShellStore,
+  readStore,
+  setLibraryPin,
+} from './store';
 import {
   mergeSettingsForUpsert,
   rowToAnnotation,
@@ -668,6 +675,43 @@ describe('desktop store articles', () => {
 
     expect(fullStore.articles.map((article) => article.id)).toEqual(['shell_article']);
     expect(shellStore.articles).toEqual([]);
+  });
+
+  it('includes collections members and pins in store snapshots', async () => {
+    const { collection } = await createCollection({ name: '主题研究' });
+    await addCollectionMembers({
+      collectionId: collection.id,
+      members: [
+        { kind: 'article', id: 'article_1' },
+        { kind: 'weread', id: 'book_1' },
+      ],
+    });
+    await setLibraryPin({
+      target: { kind: 'collection', id: collection.id },
+      pinned: true,
+    });
+
+    const store = await readStore();
+
+    expect(store.collections).toMatchObject([{ id: collection.id, name: '主题研究' }]);
+    expect(store.collectionMembers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          collectionId: collection.id,
+          member: { kind: 'article', id: 'article_1' },
+        }),
+        expect.objectContaining({
+          collectionId: collection.id,
+          member: { kind: 'weread', id: 'book_1' },
+        }),
+      ]),
+    );
+    expect(store.pins).toEqual([
+      expect.objectContaining({
+        targetKind: 'collection',
+        targetId: collection.id,
+      }),
+    ]);
   });
 
   it('normalizes reader chat state patches', () => {

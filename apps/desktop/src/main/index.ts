@@ -1,6 +1,11 @@
 import { performance } from 'node:perf_hooks';
 import { app, BrowserWindow, shell } from 'electron';
-import type { ArticleStorePatch, DesktopStore } from '@yomitomo/shared';
+import type {
+  ArticleStorePatch,
+  CollectionStorePatch,
+  DesktopStore,
+  LibraryPinPatch,
+} from '@yomitomo/shared';
 import { getLogPath, logError, logInfo, pruneLogFile } from './app/logger';
 import { configureDesktopAppStorage } from './app/app-environment';
 import { installDevProcessLifecycle } from './app/dev-process-lifecycle';
@@ -15,6 +20,7 @@ import { registerAppLockIpc } from './ipc/ipc-app-lock';
 import { registerAppIpc } from './ipc/ipc-app';
 import { registerArticleIpc } from './ipc/ipc-article';
 import { configureDesktopIpcAppLockGuardContext } from './ipc/ipc';
+import { registerLibraryCollectionIpc } from './ipc/ipc-library-collection';
 import { registerProviderIpc } from './ipc/ipc-provider';
 import { registerStoreDataIpc } from './ipc/ipc-store-data';
 import { registerWeReadIpc } from './ipc/ipc-weread';
@@ -208,6 +214,8 @@ function registerIpc() {
     getAppVersion: () => app.getVersion(),
     sendFullStoreUpdated,
     sendArticlePatched,
+    sendCollectionPatched,
+    sendLibraryPinPatched,
     recordStartupTiming,
     recordPerformanceTiming,
     scheduleLogPrune,
@@ -222,6 +230,7 @@ function registerIpc() {
   registerAppIpc(context);
   registerStoreDataIpc(context);
   registerArticleIpc(context);
+  registerLibraryCollectionIpc(context);
   registerWeReadIpc(context);
   registerAppLockIpc(context);
   registerProviderIpc(context);
@@ -236,6 +245,14 @@ function sendFullStoreUpdated(store: DesktopStore) {
 
 function sendArticlePatched(patch: ArticleStorePatch) {
   sendToRenderer('article:patched', patch);
+}
+
+function sendCollectionPatched(patch: CollectionStorePatch) {
+  sendToRenderer('collection:patched', patch);
+}
+
+function sendLibraryPinPatched(patch: LibraryPinPatch) {
+  sendToRenderer('library-pin:patched', patch);
 }
 
 async function storeLoadErrorInfo(error: unknown): Promise<DesktopStoreLoadErrorInfo> {
@@ -263,6 +280,8 @@ function sendUpdateStatusUpdated(state: AppUpdateState) {
 function sendToRenderer(channel: 'store:updated', payload: DesktopStore): void;
 function sendToRenderer(channel: 'updates:status', payload: AppUpdateState): void;
 function sendToRenderer(channel: 'article:patched', payload: ArticleStorePatch): void;
+function sendToRenderer(channel: 'collection:patched', payload: CollectionStorePatch): void;
+function sendToRenderer(channel: 'library-pin:patched', payload: LibraryPinPatch): void;
 function sendToRenderer(channel: string, payload: unknown) {
   if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) return;
   mainWindow.webContents.send(channel, payload);

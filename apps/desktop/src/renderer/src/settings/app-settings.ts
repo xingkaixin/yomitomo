@@ -96,6 +96,9 @@ export const emptyStore: DesktopStore = {
   providers: [],
   agents: [],
   articles: [],
+  collections: [],
+  collectionMembers: [],
+  pins: [],
 };
 
 export function createEmptyAgent(

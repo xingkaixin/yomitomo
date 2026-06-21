@@ -795,6 +795,49 @@ ALTER TABLE app_settings ADD COLUMN app_lock_shortcut TEXT;
 ALTER TABLE app_settings ADD COLUMN allow_local_network_article_import INTEGER NOT NULL DEFAULT 0;
 `,
   },
+  {
+    id: '0054_library_collections_pins',
+    sql: `
+CREATE TABLE IF NOT EXISTS collections (
+  id TEXT PRIMARY KEY NOT NULL,
+  name TEXT NOT NULL,
+  desc TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS collection_members (
+  collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+  member_kind TEXT NOT NULL,
+  member_id TEXT NOT NULL,
+  added_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS library_pins (
+  target_kind TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  pinned_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS collections_updated_at_idx
+ON collections(updated_at);
+
+CREATE UNIQUE INDEX IF NOT EXISTS collection_members_unique_idx
+ON collection_members(collection_id, member_kind, member_id);
+
+CREATE INDEX IF NOT EXISTS collection_members_collection_idx
+ON collection_members(collection_id, added_at);
+
+CREATE INDEX IF NOT EXISTS collection_members_member_idx
+ON collection_members(member_kind, member_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS library_pins_unique_idx
+ON library_pins(target_kind, target_id);
+
+CREATE INDEX IF NOT EXISTS library_pins_pinned_at_idx
+ON library_pins(pinned_at);
+`,
+  },
 ];
 
 type MigrationDatabase = {

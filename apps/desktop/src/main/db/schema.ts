@@ -413,6 +413,52 @@ export const articleTranslationSegments = sqliteTable(
   ],
 );
 
+export const collections = sqliteTable(
+  'collections',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    desc: text('desc'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [index('collections_updated_at_idx').on(table.updatedAt)],
+);
+
+export const collectionMembers = sqliteTable(
+  'collection_members',
+  {
+    collectionId: text('collection_id')
+      .notNull()
+      .references(() => collections.id, { onDelete: 'cascade' }),
+    memberKind: text('member_kind').notNull(),
+    memberId: text('member_id').notNull(),
+    addedAt: text('added_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('collection_members_unique_idx').on(
+      table.collectionId,
+      table.memberKind,
+      table.memberId,
+    ),
+    index('collection_members_collection_idx').on(table.collectionId, table.addedAt),
+    index('collection_members_member_idx').on(table.memberKind, table.memberId),
+  ],
+);
+
+export const libraryPins = sqliteTable(
+  'library_pins',
+  {
+    targetKind: text('target_kind').notNull(),
+    targetId: text('target_id').notNull(),
+    pinnedAt: text('pinned_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('library_pins_unique_idx').on(table.targetKind, table.targetId),
+    index('library_pins_pinned_at_idx').on(table.pinnedAt),
+  ],
+);
+
 export const wereadAccounts = sqliteTable('weread_accounts', {
   id: text('id').primaryKey(),
   apiKeyRef: text('api_key_ref'),

@@ -44,6 +44,16 @@ describe('article memory lifecycle', () => {
     ).toEqual([]);
   });
 
+  it('deletes article collection memberships and pins with the article', () => {
+    const database = lifecycleDatabase();
+    insertCollectionReferences(database, 'article_1');
+
+    deleteArticleRowsWithMemoryLifecycle(database, 'article_1');
+
+    expect(countRows(database, 'collection_members')).toBe(0);
+    expect(countRows(database, 'library_pins')).toBe(0);
+  });
+
   it('soft-deletes annotation source memory without touching original summaries', () => {
     const database = lifecycleDatabase();
     insertAnnotation(database, 'annotation_1');
@@ -298,9 +308,13 @@ function lifecycleDatabase(): ReadingMemorySqliteExecutor {
   database.exec('PRAGMA foreign_keys = ON');
   const initial = migrations.find((migration) => migration.id === '0001_initial');
   const readingMemory = migrations.find((migration) => migration.id === '0035_reading_memory_tape');
-  if (!initial || !readingMemory) throw new Error('missing migrations for test');
+  const collections = migrations.find(
+    (migration) => migration.id === '0054_library_collections_pins',
+  );
+  if (!initial || !readingMemory || !collections) throw new Error('missing migrations for test');
   database.exec(initial.sql);
   database.exec(readingMemory.sql);
+  database.exec(collections.sql);
   const executor = memoryExecutor(database);
   insertArticle(executor, 'article_1');
   return executor;
@@ -422,6 +436,33 @@ VALUES ('projection_1', 'article_1', 'legacy', 'article_1', '{}', '["entry_1"]',
 `,
     )
     .run('2026-05-26T00:00:00.000Z');
+}
+
+function insertCollectionReferences(database: ReadingMemorySqliteExecutor, articleId: string) {
+  database
+    .prepare(
+      `
+INSERT INTO collections (id, name, created_at, updated_at)
+VALUES ('collection_1', '集合', ?, ?)
+`,
+    )
+    .run('2026-05-26T00:00:00.000Z', '2026-05-26T00:00:00.000Z');
+  database
+    .prepare(
+      `
+INSERT INTO collection_members (collection_id, member_kind, member_id, added_at)
+VALUES ('collection_1', 'article', ?, ?)
+`,
+    )
+    .run(articleId, '2026-05-26T00:00:00.000Z');
+  database
+    .prepare(
+      `
+INSERT INTO library_pins (target_kind, target_id, pinned_at)
+VALUES ('article', ?, ?)
+`,
+    )
+    .run(articleId, '2026-05-26T00:00:00.000Z');
 }
 
 function annotation(overrides: Partial<Annotation> = {}): Annotation {

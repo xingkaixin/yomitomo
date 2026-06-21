@@ -19,7 +19,9 @@ import type {
   ArticleTranslationRequest,
   AssistantRuntimeProgressEvent,
   Comment,
+  CollectionStorePatch,
   DesktopStore,
+  LibraryPinPatch,
   LlmProvider,
   ReaderChatState,
   UserProfile,
@@ -44,9 +46,11 @@ import type {
   AppLockSetShortcutInput,
   AppLockUnlockInput,
   AppLockVerifyPinInput,
+  AddCollectionMembersInput,
   ArticleImportUrlInput,
   ArticleLibraryListInput,
   AssistantExecutionQueryInput,
+  CreateCollectionInput,
   DataManagementPathKind,
   DesktopIpcInvokeArgs,
   DesktopIpcInvokeChannel,
@@ -54,6 +58,9 @@ import type {
   EbookImportFileInput,
   PdfImportFileInput,
   PerformanceTimingInput,
+  RemoveCollectionMemberInput,
+  RenameCollectionInput,
+  SetLibraryPinInput,
   WeReadOpenTarget,
   WeReadReadingStatsQueryInput,
   WeReadSaveSettingsInput,
@@ -80,6 +87,7 @@ export function createYomitomoDesktopApi(input: DesktopPreloadApiInput) {
     ...createDataPreloadApi(),
     ...createUpdatePreloadApi(),
     ...createArticlePreloadApi(),
+    ...createLibraryCollectionPreloadApi(),
     ...createWeReadPreloadApi(),
     ...createAgentPreloadApi(),
   };
@@ -275,6 +283,28 @@ function createArticlePreloadApi() {
     importPdfFile: (input: PdfImportFileInput) => invokeDesktopIpc('pdf:import-file', input),
     readPdfFile: (articleId: string) => invokeDesktopIpc('pdf:read-file', articleId),
     deleteArticle: (id: string) => invokeDesktopIpc('article:delete', id),
+  };
+}
+
+function createLibraryCollectionPreloadApi() {
+  return {
+    onCollectionPatched: (callback: (patch: CollectionStorePatch) => void) =>
+      onIpcEvent('collection:patched', (patch) => callback(patch as CollectionStorePatch)),
+    onLibraryPinPatched: (callback: (patch: LibraryPinPatch) => void) =>
+      onIpcEvent('library-pin:patched', (patch) => callback(patch as LibraryPinPatch)),
+    listCollections: () => invokeDesktopIpc('library-collection:list'),
+    createCollection: (input: CreateCollectionInput) =>
+      invokeDesktopIpc('library-collection:create', input),
+    renameCollection: (input: RenameCollectionInput) =>
+      invokeDesktopIpc('library-collection:rename', input),
+    deleteCollection: (collectionId: string) =>
+      invokeDesktopIpc('library-collection:delete', collectionId),
+    addCollectionMembers: (input: AddCollectionMembersInput) =>
+      invokeDesktopIpc('library-collection:add-members', input),
+    removeCollectionMember: (input: RemoveCollectionMemberInput) =>
+      invokeDesktopIpc('library-collection:remove-member', input),
+    listLibraryPins: () => invokeDesktopIpc('library-pin:list'),
+    setLibraryPin: (input: SetLibraryPinInput) => invokeDesktopIpc('library-pin:set', input),
   };
 }
 

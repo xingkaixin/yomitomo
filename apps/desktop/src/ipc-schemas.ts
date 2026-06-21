@@ -5,6 +5,7 @@ import {
   articleIpcInvokeSchemas,
   dataIpcInvokeSchemas,
   highRiskDesktopIpcSchemaChannels,
+  libraryCollectionIpcInvokeSchemas,
   wereadIpcInvokeSchemas,
 } from './ipc/desktop-ipc-schema-fragments';
 import type { DesktopIpcSchemaMap } from './ipc/desktop-ipc-schema-types';
@@ -15,6 +16,7 @@ export const desktopIpcInvokeSchemas: DesktopIpcSchemaMap = {
   ...appLockIpcInvokeSchemas,
   ...articleIpcInvokeSchemas,
   ...dataIpcInvokeSchemas,
+  ...libraryCollectionIpcInvokeSchemas,
   ...wereadIpcInvokeSchemas,
 };
 

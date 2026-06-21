@@ -1,5 +1,10 @@
 import { ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
-import type { ArticleStorePatch, DesktopStore } from '@yomitomo/shared';
+import type {
+  ArticleStorePatch,
+  CollectionStorePatch,
+  DesktopStore,
+  LibraryPinPatch,
+} from '@yomitomo/shared';
 import type { DesktopStoreLoadErrorInfo } from '../../app-store-errors';
 import type {
   DesktopIpcInvokeArgs,
@@ -17,6 +22,8 @@ export interface DesktopMainIpcContext {
   getAppVersion: () => string;
   sendFullStoreUpdated: (store: DesktopStore) => void;
   sendArticlePatched: (patch: ArticleStorePatch) => void;
+  sendCollectionPatched: (patch: CollectionStorePatch) => void;
+  sendLibraryPinPatched: (patch: LibraryPinPatch) => void;
   recordStartupTiming: (event: string, data?: Record<string, unknown>) => void;
   recordPerformanceTiming: (input: unknown) => void;
   scheduleLogPrune: (retentionDays: number | undefined) => void;

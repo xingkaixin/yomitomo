@@ -351,6 +351,12 @@ export function applyArticleDeletePatch(
   return {
     ...store,
     articles: store.articles.filter((article) => article.id !== patch.articleId),
+    collectionMembers: store.collectionMembers.filter(
+      (member) => member.member.kind !== 'article' || member.member.id !== patch.articleId,
+    ),
+    pins: store.pins.filter(
+      (pin) => pin.targetKind !== 'article' || pin.targetId !== patch.articleId,
+    ),
   };
 }
 

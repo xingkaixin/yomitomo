@@ -190,6 +190,50 @@ VALUES (
     expect(countRows(database, 'reading_memory_entries')).toBe(0);
     expect(countRows(database, 'reading_memory_projections')).toBe(0);
   });
+
+  it('creates library collection member and pin tables', () => {
+    const database = new DatabaseSync(':memory:');
+    database.exec('PRAGMA foreign_keys = ON');
+    for (const id of ['0001_initial', '0054_library_collections_pins']) {
+      const migration = migrations.find((item) => item.id === id);
+      if (!migration) throw new Error(`missing migration ${id}`);
+      database.exec(migration.sql);
+    }
+
+    expect(tableNames(database)).toEqual(
+      expect.arrayContaining(['collections', 'collection_members', 'library_pins']),
+    );
+    expect(indexNames(database)).toEqual(
+      expect.arrayContaining([
+        'collections_updated_at_idx',
+        'collection_members_unique_idx',
+        'collection_members_collection_idx',
+        'collection_members_member_idx',
+        'library_pins_unique_idx',
+        'library_pins_pinned_at_idx',
+      ]),
+    );
+
+    database
+      .prepare(
+        `
+INSERT INTO collections (id, name, created_at, updated_at)
+VALUES ('collection_1', '集合', '2026-06-21T00:00:00.000Z', '2026-06-21T00:00:00.000Z')
+`,
+      )
+      .run();
+    database
+      .prepare(
+        `
+INSERT INTO collection_members (collection_id, member_kind, member_id, added_at)
+VALUES ('collection_1', 'article', 'article_1', '2026-06-21T00:01:00.000Z')
+`,
+      )
+      .run();
+    database.prepare("DELETE FROM collections WHERE id = 'collection_1'").run();
+
+    expect(countRows(database, 'collection_members')).toBe(0);
+  });
 });
 
 function migratedDatabase() {
