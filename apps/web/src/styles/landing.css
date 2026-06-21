@@ -331,6 +331,58 @@ body {
 .lang-trigger.open {
   border-color: var(--accent-ring);
 }
+
+/* mobile contents toggle (sits next to the language switcher in the masthead) */
+.toc-toggle {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 0 11px;
+}
+.toc-toggle svg {
+  width: 15px;
+  height: 15px;
+  color: var(--ink-2);
+  transition: color var(--dur-1) var(--ease);
+}
+.toc-toggle .toc-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.toc-toggle:hover svg,
+.toc-toggle[aria-expanded='true'] svg {
+  color: var(--accent);
+}
+.toc-toggle[aria-expanded='true'] {
+  border-color: var(--accent-ring);
+}
+@media (max-width: 50rem) {
+  .toc-toggle {
+    display: inline-flex;
+  }
+}
+
+/* Bottom-sheet drawer overlay: dims the page above the drawer, click to dismiss. */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  display: none;
+  background: hsl(31 34% 14% / 0.4);
+  opacity: 0;
+  transition: opacity var(--dur-3, 320ms) var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));
+}
+@media (max-width: 50rem) {
+  body[data-mobile-menu-expanded] .drawer-overlay {
+    display: block;
+    opacity: 1;
+  }
+}
+
 .lang-menu {
   position: absolute;
   top: calc(100% + 8px);

@@ -8,6 +8,8 @@ type Props = {
 
 const { lang = 'zh-CN', active = 'home' } = Astro.props;
 const isEnglish = lang === 'en';
+const showMobileMenu = active !== 'home';
+const menuLabel = isEnglish ? 'Contents' : '目录';
 
 const homeUrl = isEnglish ? '/en/' : '/';
 const prefix = isEnglish ? '/en' : '';
@@ -68,6 +70,25 @@ const navLinks = [
         ))
       }
       <span class="nav-spacer"></span>
+      {
+        showMobileMenu && (
+          <button
+            class="mh-pill toc-toggle"
+            type="button"
+            aria-expanded="false"
+            aria-controls="starlight__sidebar"
+            aria-label={menuLabel}
+            data-toc-toggle
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="4" y1="6" x2="20" y2="6" />
+              <line x1="8" y1="12" x2="20" y2="12" />
+              <line x1="8" y1="18" x2="20" y2="18" />
+            </svg>
+            <span class="toc-label">{menuLabel}</span>
+          </button>
+        )
+      }
       <div class="lang-switch" data-lang-switch>
         <button
           class="mh-pill lang-trigger"
@@ -127,6 +148,11 @@ const navLinks = [
     </nav>
   </div>
 </header>
+{
+  showMobileMenu && (
+    <div class="drawer-overlay" data-drawer-overlay aria-hidden="true" />
+  )
+}
 
 <script is:inline define:vars={{ locale: lang }}>
   const dateEl = document.querySelector('[data-masthead-date]');
@@ -160,6 +186,27 @@ const navLinks = [
     });
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') setOpen(false);
+    });
+  }
+
+  const tocToggle = document.querySelector('[data-toc-toggle]');
+  const drawerOverlay = document.querySelector('[data-drawer-overlay]');
+  if (tocToggle) {
+    const setTocOpen = (open) => {
+      tocToggle.setAttribute('aria-expanded', String(open));
+      document.body.toggleAttribute('data-mobile-menu-expanded', open);
+    };
+    tocToggle.addEventListener('click', () => {
+      setTocOpen(tocToggle.getAttribute('aria-expanded') !== 'true');
+    });
+    if (drawerOverlay) {
+      drawerOverlay.addEventListener('click', () => setTocOpen(false));
+    }
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        setTocOpen(false);
+        tocToggle.focus();
+      }
     });
   }
 </script>
