@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   Check,
+  Eye,
   MessageCircleQuestion,
-  Plus,
   RotateCcw,
   Send,
   Sparkles,
@@ -54,9 +54,14 @@ import {
 } from '../shell/app-assistant-runtime-progress';
 import { useSourceAwareWindowTransition } from '../shell/app-window-transition';
 import {
-  applyDistillationProposalToDraft,
+  composeDistillationProposalDraftChangeSetEntries,
+  normalizeDistillationProposalDraftChangeSetEntries,
+  planDistillationProposalChangeSet,
   proposalApplyFailureMessage,
-  updateReviewProposalStatus,
+  updateReviewProposalStatusMap,
+  type DistillationProposalDraftChange,
+  type DistillationProposalDraftChangeSet,
+  type DistillationProposalDraftChangeSetEntry,
   type DraftSelectionSnapshot,
 } from './app-annotation-sedimentation-proposals';
 
@@ -80,6 +85,64 @@ type OrganizeDiscussionState =
       message: AnnotationDistillationReviewMessage;
       notice?: string;
     };
+
+type PendingDraftPreview =
+  | {
+      source: 'review';
+      messageId: string;
+      proposals: AnnotationDistillationProposal[];
+      changeSet: DistillationProposalDraftChangeSet;
+      decisions: PendingDraftPreviewDecisions;
+    }
+  | {
+      source: 'organize';
+      proposals: AnnotationDistillationProposal[];
+      changeSet: DistillationProposalDraftChangeSet;
+      decisions: PendingDraftPreviewDecisions;
+    };
+
+type PendingDraftPreviewDecision = 'pending' | 'accepted' | 'rejected';
+type PendingDraftPreviewDecisions = Record<string, PendingDraftPreviewDecision>;
+
+function pendingDraftProposalIds(
+  preview: PendingDraftPreview | null,
+  source: PendingDraftPreview['source'],
+) {
+  if (!preview || preview.source !== source) return [];
+  return preview.proposals.map((proposal) => proposal.id);
+}
+
+function pendingReviewProposals(proposals: AnnotationDistillationProposal[]) {
+  return proposals.filter((proposal) => proposal.status === 'pending');
+}
+
+function pendingOrganizeProposals(
+  proposals: AnnotationDistillationProposal[],
+  appliedProposalIds: Set<string>,
+  dismissedProposalIds: Set<string>,
+) {
+  return proposals.filter(
+    (proposal) =>
+      proposal.status === 'pending' &&
+      !appliedProposalIds.has(proposal.id) &&
+      !dismissedProposalIds.has(proposal.id),
+  );
+}
+
+function pendingDraftPreviewDecisions(
+  proposals: AnnotationDistillationProposal[],
+): PendingDraftPreviewDecisions {
+  return Object.fromEntries(proposals.map((proposal) => [proposal.id, 'pending']));
+}
+
+function previewStatusesFromDecisions(decisions: PendingDraftPreviewDecisions) {
+  return Object.fromEntries(
+    Object.entries(decisions).map(([proposalId, decision]) => [
+      proposalId,
+      decision === 'accepted' ? 'accepted' : 'ignored',
+    ]),
+  ) as Record<string, AnnotationDistillationProposal['status']>;
+}
 
 export function AnnotationSedimentationWindowApp() {
   const { t } = useTranslation();
@@ -191,20 +254,27 @@ function SedimentationShell({
   const [reviewNotice, setReviewNotice] = useState('');
   const [organizeState, setOrganizeState] = useState<OrganizeDiscussionState>({ type: 'idle' });
   const [organizeConfirmOpen, setOrganizeConfirmOpen] = useState(false);
+  const [pendingDraftPreview, setPendingDraftPreview] = useState<PendingDraftPreview | null>(null);
+  const [draftPreviewScroll, setDraftPreviewScroll] = useState({ left: 0, top: 0 });
   const [appliedOrganizeProposalIds, setAppliedOrganizeProposalIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const [dismissedOrganizeProposalIds, setDismissedOrganizeProposalIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const draftKey = distillationDraftKey(article.id, annotation.id);
+  const draftRef = useRef(draft);
   const draftTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const draftSelectionRef = useRef<DraftSelectionSnapshot | null>(null);
   const reviewTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const shortcutModifier = getShortcutModifier();
   const messageSendShortcut = 'mod-enter' as const;
-  const canPublish = Boolean(draft.trim()) && !saving;
+  const hasPendingDraftPreview = Boolean(pendingDraftPreview);
+  const canPublish = Boolean(draft.trim()) && !saving && !hasPendingDraftPreview;
   const organizing = organizeState.type === 'running';
   const assistantBusy = reviewing || organizing;
-  const canReview = activeAgents.length > 0 && !assistantBusy;
-  const canOrganize = activeAgents.length > 0 && !assistantBusy;
+  const canReview = activeAgents.length > 0 && !assistantBusy && !hasPendingDraftPreview;
+  const canOrganize = activeAgents.length > 0 && !assistantBusy && !hasPendingDraftPreview;
   const sessions = annotation.distillation?.reviewSessions || [];
   const isPublished = annotation.distillation?.status === 'published';
   const statusLabel = isPublished
@@ -223,6 +293,10 @@ function SedimentationShell({
   useEffect(() => {
     window.localStorage.setItem(draftKey, draft);
   }, [draft, draftKey]);
+
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
 
   async function publishDistillation() {
     const content = draft.trim();
@@ -333,6 +407,7 @@ function SedimentationShell({
             createdAt: now,
           } satisfies AnnotationDistillationReviewMessage)
         : undefined;
+      const completedReviewMessages: AnnotationDistillationReviewMessage[] = [];
       for (const agent of activeAgents) {
         const result = await requestAgentReviewRound({
           agent,
@@ -363,6 +438,7 @@ function SedimentationShell({
           },
         });
         workingAnnotation = result.annotation;
+        completedReviewMessages.push(result.message);
         workingArticle = updateAnnotation(
           workingArticle,
           workingAnnotation.id,
@@ -370,6 +446,14 @@ function SedimentationShell({
         );
       }
       await saveAndRefresh(workingArticle, agents, annotation.id, uiLanguage, onStatusChange);
+      const previewMessage = completedReviewMessages.find(
+        (message) => pendingReviewProposals(message.proposals || []).length > 0,
+      );
+      if (previewMessage && draftRef.current === draft) {
+        previewReviewProposals(previewMessage.id, previewMessage.proposals || [], {
+          showFailure: false,
+        });
+      }
     } catch (error) {
       setReviewNotice(assistantRuntimeErrorMessage(error, 'sedimentation.reviewFailed'));
       if (workingArticle !== article) {
@@ -408,6 +492,7 @@ function SedimentationShell({
     const agent = activeAgents[0];
     if (!agent || assistantBusy) return;
     setAppliedOrganizeProposalIds(new Set());
+    setDismissedOrganizeProposalIds(new Set());
     setReviewNotice('');
     const now = new Date().toISOString();
     const instruction = t('sedimentation.organizeDiscussionInstruction');
@@ -496,6 +581,9 @@ function SedimentationShell({
         status: 'done' as const,
       });
       setOrganizeState({ type: 'done', agent, message: workingMessage });
+      if (draftRef.current === draft) {
+        previewOrganizeProposals(workingMessage.proposals || [], { showFailure: false });
+      }
     } catch (error) {
       const errorMessage = assistantRuntimeErrorMessage(error, 'sedimentation.reviewFailed');
       workingMessage = Object.assign({}, workingMessage, {
@@ -515,26 +603,116 @@ function SedimentationShell({
     };
   }
 
-  async function handleProposalAccept(messageId: string, proposal: AnnotationDistillationProposal) {
-    if (proposal.status !== 'pending') return;
-    const result = applyDistillationProposalToDraft(draft, proposal, draftSelectionRef.current);
+  function syncDraftPreviewScroll() {
+    const textarea = draftTextareaRef.current;
+    if (!textarea) return;
+    setDraftPreviewScroll({ left: textarea.scrollLeft, top: textarea.scrollTop });
+  }
+
+  async function handleProposalPreview(
+    messageId: string,
+    proposals: AnnotationDistillationProposal[],
+  ) {
+    previewReviewProposals(messageId, proposals, { showFailure: true });
+  }
+
+  function previewReviewProposals(
+    messageId: string,
+    proposals: AnnotationDistillationProposal[],
+    options: { showFailure: boolean },
+  ) {
+    const pendingProposals = pendingReviewProposals(proposals);
+    if (pendingProposals.length === 0) return false;
+    const selection = pendingProposals.length === 1 ? draftSelectionRef.current : null;
+    const result = planDistillationProposalChangeSet(draftRef.current, pendingProposals, selection);
     if (!result.ok) {
-      setReviewNotice(proposalApplyFailureMessage(result.reason));
+      if (options.showFailure) {
+        setReviewNotice(proposalApplyFailureMessage(result.reason));
+      }
+      return false;
+    }
+    setPendingDraftPreview({
+      source: 'review',
+      messageId,
+      proposals: pendingProposals,
+      changeSet: result.changeSet,
+      decisions: pendingDraftPreviewDecisions(pendingProposals),
+    });
+    setReviewNotice(t('sedimentation.previewReady'));
+    focusDraftChangeSet(result.changeSet);
+    return true;
+  }
+
+  async function handleDraftPreviewDecision(
+    proposalId: string,
+    decision: Exclude<PendingDraftPreviewDecision, 'pending'>,
+  ) {
+    const preview = pendingDraftPreview;
+    if (!preview || preview.decisions[proposalId] !== 'pending') return;
+    const nextDecisions: PendingDraftPreviewDecisions = {
+      ...preview.decisions,
+      [proposalId]: decision,
+    };
+    if (Object.values(nextDecisions).some((value) => value === 'pending')) {
+      setPendingDraftPreview(Object.assign({}, preview, { decisions: nextDecisions }));
       return;
     }
-    setDraft(result.draft);
-    await updateProposalStatus(messageId, proposal.id, 'accepted');
-    setReviewNotice('');
-    requestAnimationFrame(() => {
-      const textarea = draftTextareaRef.current;
-      if (!textarea) return;
-      textarea.focus();
-      textarea.setSelectionRange(result.changeOffset, result.changeOffset + result.changeLength);
-      scrollTextareaToOffset(textarea, result.changeOffset);
+    await finalizeDraftPreview(preview, nextDecisions);
+  }
+
+  async function finalizeDraftPreview(
+    preview: PendingDraftPreview,
+    decisions: PendingDraftPreviewDecisions,
+  ) {
+    const acceptedChanges = preview.changeSet.changes.filter(
+      (change) => decisions[change.proposalId] === 'accepted',
+    );
+    const nextDraft = composeDistillationProposalDraftChangeSetEntries(
+      preview.changeSet.baseDraft,
+      acceptedChanges,
+    );
+    setDraft(nextDraft);
+    setPendingDraftPreview(null);
+
+    if (preview.source === 'review') {
+      await updateProposalStatusesById(preview.messageId, previewStatusesFromDecisions(decisions));
+      setReviewNotice('');
+    } else {
+      applyOrganizePreviewDecisions(decisions);
+      setOrganizeNotice(acceptedChanges.length > 0 ? t('sedimentation.organizeAddedToDraft') : '');
+    }
+
+    if (acceptedChanges[0]) {
+      focusDraftChange(acceptedChanges[0]);
+    } else {
+      focusDraftTextarea();
+    }
+  }
+
+  function applyOrganizePreviewDecisions(decisions: PendingDraftPreviewDecisions) {
+    setAppliedOrganizeProposalIds((current) => {
+      const next = new Set(current);
+      for (const [proposalId, decision] of Object.entries(decisions)) {
+        if (decision === 'accepted') next.add(proposalId);
+      }
+      return next;
+    });
+    setDismissedOrganizeProposalIds((current) => {
+      const next = new Set(current);
+      for (const [proposalId, decision] of Object.entries(decisions)) {
+        if (decision === 'rejected') next.add(proposalId);
+      }
+      return next;
     });
   }
 
   async function handleProposalIgnore(messageId: string, proposalId: string) {
+    if (
+      pendingDraftPreview?.source === 'review' &&
+      pendingDraftPreview.proposals.some((proposal) => proposal.id === proposalId)
+    ) {
+      setPendingDraftPreview(null);
+    }
     await updateProposalStatus(messageId, proposalId, 'ignored');
     setReviewNotice('');
   }
@@ -544,26 +722,59 @@ function SedimentationShell({
     setReviewNotice('');
   }
 
-  function handleOrganizeProposalAppend(proposal: AnnotationDistillationProposal) {
-    const content = proposal.content?.trim();
-    if (proposal.kind !== 'insert' || !content) {
-      setOrganizeNotice(t('sedimentation.organizeUnsupportedProposal'));
-      return;
+  function handleOrganizeProposalPreview(proposals: AnnotationDistillationProposal[]) {
+    previewOrganizeProposals(proposals, { showFailure: true });
+  }
+
+  function previewOrganizeProposals(
+    proposals: AnnotationDistillationProposal[],
+    options: { showFailure: boolean },
+  ) {
+    const pendingProposals = pendingOrganizeProposals(
+      proposals,
+      appliedOrganizeProposalIds,
+      dismissedOrganizeProposalIds,
+    );
+    if (pendingProposals.length === 0) return false;
+    const result = planDistillationProposalChangeSet(draftRef.current, pendingProposals, null);
+    if (!result.ok) {
+      if (options.showFailure) {
+        setOrganizeNotice(proposalApplyFailureMessage(result.reason));
+      }
+      return false;
     }
-    if (draftContainsContent(draft, content)) {
-      setOrganizeNotice(t('sedimentation.organizeDuplicateDraft'));
-      return;
-    }
-    const result = appendContentToDraft(draft, content);
-    setDraft(result.draft);
-    setAppliedOrganizeProposalIds((current) => new Set(current).add(proposal.id));
-    setOrganizeNotice(t('sedimentation.organizeAddedToDraft'));
+    setPendingDraftPreview({
+      source: 'organize',
+      proposals: pendingProposals,
+      changeSet: result.changeSet,
+      decisions: pendingDraftPreviewDecisions(pendingProposals),
+    });
+    setOrganizeNotice(t('sedimentation.previewReady'));
+    focusDraftChangeSet(result.changeSet);
+    return true;
+  }
+
+  function focusDraftChangeSet(changeSet: DistillationProposalDraftChangeSet) {
+    focusDraftChange(changeSet.changes[0]);
+  }
+
+  function focusDraftChange(change: DistillationProposalDraftChange | undefined) {
+    if (!change) return;
     requestAnimationFrame(() => {
       const textarea = draftTextareaRef.current;
       if (!textarea) return;
       textarea.focus();
-      textarea.setSelectionRange(result.changeOffset, result.changeOffset + result.changeLength);
-      scrollTextareaToOffset(textarea, result.changeOffset);
+      textarea.setSelectionRange(change.changeOffset, change.changeOffset + change.changeLength);
+      scrollTextareaToOffset(textarea, change.changeOffset);
+      syncDraftPreviewScroll();
+    });
+  }
+
+  function focusDraftTextarea() {
+    requestAnimationFrame(() => {
+      const textarea = draftTextareaRef.current;
+      if (!textarea) return;
+      textarea.focus();
     });
   }
 
@@ -578,11 +789,31 @@ function SedimentationShell({
     proposalId: string,
     proposalStatus: AnnotationDistillationProposal['status'],
   ) {
-    const nextSessions = updateReviewProposalStatus(
+    await updateProposalStatuses(messageId, [proposalId], proposalStatus);
+  }
+
+  async function updateProposalStatuses(
+    messageId: string,
+    proposalIds: string[],
+    proposalStatus: AnnotationDistillationProposal['status'],
+  ) {
+    await updateProposalStatusesById(
+      messageId,
+      Object.fromEntries(proposalIds.map((proposalId) => [proposalId, proposalStatus])) as Record<
+        string,
+        AnnotationDistillationProposal['status']
+      >,
+    );
+  }
+
+  async function updateProposalStatusesById(
+    messageId: string,
+    proposalStatusById: Record<string, AnnotationDistillationProposal['status']>,
+  ) {
+    const nextSessions = updateReviewProposalStatusMap(
       annotation.distillation?.reviewSessions || [],
       messageId,
-      proposalId,
-      proposalStatus,
+      proposalStatusById,
       new Date().toISOString(),
     );
     const nextArticle = updateAnnotation(article, annotation.id, (current) => ({
@@ -682,25 +913,52 @@ function SedimentationShell({
             </div>
           </header>
           <div className="annotation-sedimentation-draft-workspace">
-            <textarea
-              ref={draftTextareaRef}
-              value={draft}
-              placeholder={t('sedimentation.draftPlaceholder')}
-              onChange={(event) => {
-                setDraft(event.target.value);
-                recordDraftSelection();
-              }}
-              onClick={recordDraftSelection}
-              onKeyDown={handlePublishKeyDown}
-              onKeyUp={recordDraftSelection}
-              onSelect={recordDraftSelection}
-            />
+            <div
+              className={[
+                'annotation-sedimentation-draft-editor',
+                pendingDraftPreview ? 'has-preview' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+            >
+              {pendingDraftPreview ? (
+                <DraftChangePreviewLayer
+                  changeSet={pendingDraftPreview.changeSet}
+                  decisions={pendingDraftPreview.decisions}
+                  scrollLeft={draftPreviewScroll.left}
+                  scrollTop={draftPreviewScroll.top}
+                  onDecision={(proposalId, decision) =>
+                    void handleDraftPreviewDecision(proposalId, decision)
+                  }
+                />
+              ) : null}
+              <textarea
+                ref={draftTextareaRef}
+                value={draft}
+                readOnly={Boolean(pendingDraftPreview)}
+                placeholder={pendingDraftPreview ? '' : t('sedimentation.draftPlaceholder')}
+                onChange={(event) => {
+                  setDraft(event.target.value);
+                  recordDraftSelection();
+                }}
+                onClick={recordDraftSelection}
+                onKeyDown={handlePublishKeyDown}
+                onKeyUp={recordDraftSelection}
+                onScroll={syncDraftPreviewScroll}
+                onSelect={recordDraftSelection}
+              />
+            </div>
             {organizeState.type !== 'idle' ? (
               <OrganizeDiscussionCard
                 state={organizeState}
                 appliedProposalIds={appliedOrganizeProposalIds}
-                onAppendProposal={handleOrganizeProposalAppend}
-                onClose={() => setOrganizeState({ type: 'idle' })}
+                dismissedProposalIds={dismissedOrganizeProposalIds}
+                pendingProposalIds={pendingDraftProposalIds(pendingDraftPreview, 'organize')}
+                onPreviewProposals={handleOrganizeProposalPreview}
+                onClose={() => {
+                  if (pendingDraftPreview?.source === 'organize') setPendingDraftPreview(null);
+                  setOrganizeState({ type: 'idle' });
+                }}
                 onRetry={() => void runOrganizeDiscussion()}
               />
             ) : null}
@@ -721,7 +979,8 @@ function SedimentationShell({
             agents={reviewAgents}
             sessions={sessions}
             userProfile={userProfile}
-            onProposalAccept={handleProposalAccept}
+            pendingProposalIds={pendingDraftProposalIds(pendingDraftPreview, 'review')}
+            onProposalPreview={handleProposalPreview}
             onProposalIgnore={handleProposalIgnore}
             onProposalRestore={handleProposalRestore}
           />
@@ -891,9 +1150,13 @@ async function requestAgentReviewRound({
       status: 'done' as const,
     }),
   );
+  const completedMessage =
+    workingSession.messages.find((message) => message.id === assistantMessage.id) ||
+    assistantMessage;
 
   return {
     annotation: annotationWithReviewSession(annotation, workingSession),
+    message: completedMessage,
   };
 }
 
@@ -964,35 +1227,162 @@ function OrganizeDiscussionConfirmDialog({
   );
 }
 
+function DraftChangePreviewLayer({
+  changeSet,
+  decisions,
+  onDecision,
+  scrollLeft,
+  scrollTop,
+}: {
+  changeSet: DistillationProposalDraftChangeSet;
+  decisions: PendingDraftPreviewDecisions;
+  onDecision: (
+    proposalId: string,
+    decision: Exclude<PendingDraftPreviewDecision, 'pending'>,
+  ) => void;
+  scrollLeft: number;
+  scrollTop: number;
+}) {
+  let cursor = 0;
+  const visibleChanges = normalizeDistillationProposalDraftChangeSetEntries(
+    changeSet.baseDraft,
+    changeSet.changes.filter((change) => decisions[change.proposalId] !== 'rejected'),
+  );
+  return (
+    <div
+      className="annotation-sedimentation-draft-preview-layer"
+      aria-label={i18next.t('sedimentation.draftChangePreview')}
+      role="region"
+    >
+      <div
+        className="annotation-sedimentation-draft-preview-text"
+        style={{ transform: `translate(${-scrollLeft}px, ${-scrollTop}px)` }}
+      >
+        {visibleChanges.map((change, index) => {
+          const before = changeSet.baseDraft.slice(cursor, change.range.start);
+          cursor = change.kind === 'insert' ? change.range.start : change.range.end;
+          return (
+            <span key={`${change.range.start}-${change.range.end}-${index}`}>
+              <span>{before}</span>
+              <DraftChangePreviewChange
+                change={change}
+                decision={decisions[change.proposalId] || 'pending'}
+                onDecision={onDecision}
+              />
+            </span>
+          );
+        })}
+        <span>{changeSet.baseDraft.slice(cursor)}</span>
+      </div>
+    </div>
+  );
+}
+
+function DraftChangePreviewChange({
+  change,
+  decision,
+  onDecision,
+}: {
+  change: DistillationProposalDraftChangeSetEntry;
+  decision: PendingDraftPreviewDecision;
+  onDecision: (
+    proposalId: string,
+    decision: Exclude<PendingDraftPreviewDecision, 'pending'>,
+  ) => void;
+}) {
+  return (
+    <span className="annotation-sedimentation-draft-preview-change">
+      <DraftChangePreviewMark change={change} />
+      {decision === 'pending' ? (
+        <span
+          className="annotation-sedimentation-draft-preview-change-actions"
+          contentEditable={false}
+        >
+          <button type="button" onClick={() => onDecision(change.proposalId, 'accepted')}>
+            <Check size={13} />
+            <span>{i18next.t('sedimentation.keepProposalChange')}</span>
+          </button>
+          <button
+            className="is-secondary"
+            type="button"
+            onClick={() => onDecision(change.proposalId, 'rejected')}
+          >
+            <X size={13} />
+            <span>{i18next.t('sedimentation.discardProposalChange')}</span>
+          </button>
+        </span>
+      ) : (
+        <span
+          className="annotation-sedimentation-draft-preview-change-state"
+          contentEditable={false}
+        >
+          <Check size={12} />
+          <span>{i18next.t('sedimentation.keptProposalChange')}</span>
+        </span>
+      )}
+    </span>
+  );
+}
+
+function DraftChangePreviewMark({ change }: { change: DistillationProposalDraftChange }) {
+  if (change.kind === 'insert') {
+    return (
+      <ins className="annotation-sedimentation-draft-preview-insert">{change.insertedText}</ins>
+    );
+  }
+  if (change.kind === 'delete') {
+    return (
+      <del className="annotation-sedimentation-draft-preview-delete">{change.deletedText}</del>
+    );
+  }
+  return (
+    <>
+      <del className="annotation-sedimentation-draft-preview-delete">{change.deletedText}</del>
+      <ins className="annotation-sedimentation-draft-preview-insert">{change.insertedText}</ins>
+    </>
+  );
+}
+
 function OrganizeDiscussionCard({
   appliedProposalIds,
-  onAppendProposal,
+  dismissedProposalIds,
   onClose,
+  onPreviewProposals,
   onRetry,
+  pendingProposalIds,
   state,
 }: {
   appliedProposalIds: Set<string>;
-  onAppendProposal: (proposal: AnnotationDistillationProposal) => void;
+  dismissedProposalIds: Set<string>;
   onClose: () => void;
+  onPreviewProposals: (proposals: AnnotationDistillationProposal[]) => void;
   onRetry: () => void;
+  pendingProposalIds: string[];
   state: Exclude<OrganizeDiscussionState, { type: 'idle' }>;
 }) {
   const { t } = useTranslation();
   const { agent, message } = state;
   const isRunning = state.type === 'running';
   const isFailed = state.type === 'failed';
+  const minimized = pendingProposalIds.length > 0;
   const structuredItems = (message.items || []).filter((item) => item.type !== 'proposal');
   const proposals = message.proposals || [];
-  const appendableProposalCount = proposals.filter((proposal) => proposal.kind === 'insert').length;
-  const statusLabel = isFailed
-    ? t('sedimentation.organizeCardFailed')
-    : isRunning
-      ? t('sedimentation.organizeCardRunning')
-      : appendableProposalCount > 0
-        ? t('sedimentation.organizeCardDoneWithProposals', { count: appendableProposalCount })
-        : structuredItems.length > 0
-          ? t('sedimentation.organizeCardDoneWithFindings', { count: structuredItems.length })
-          : t('sedimentation.organizeCardDone');
+  const appendableProposalCount = pendingOrganizeProposals(
+    proposals,
+    appliedProposalIds,
+    dismissedProposalIds,
+  ).length;
+  const statusLabel = minimized
+    ? t('sedimentation.previewingProposal')
+    : isFailed
+      ? t('sedimentation.organizeCardFailed')
+      : isRunning
+        ? t('sedimentation.organizeCardRunning')
+        : appendableProposalCount > 0
+          ? t('sedimentation.organizeCardDoneWithProposals', { count: appendableProposalCount })
+          : structuredItems.length > 0
+            ? t('sedimentation.organizeCardDoneWithFindings', { count: structuredItems.length })
+            : t('sedimentation.organizeCardDone');
   const errorMessage = message.errorMessage || t('sedimentation.reviewFailed');
   const fallback = isFailed ? errorMessage : t('sedimentation.organizeCardEmpty');
   const shouldShowMarkdown =
@@ -1028,6 +1418,28 @@ function OrganizeDiscussionCard({
     state.notice,
     state.type,
   ]);
+
+  if (minimized) {
+    return (
+      <article className={`annotation-sedimentation-organize-card is-${state.type} is-minimized`}>
+        <header>
+          <div className="annotation-sedimentation-organize-title">
+            <span className="annotation-sedimentation-organize-icon">
+              <Sparkles size={15} />
+            </span>
+            <div>
+              <strong>{t('sedimentation.organizeCardTitle')}</strong>
+              <span>{statusLabel}</span>
+            </div>
+          </div>
+          <div className="annotation-sedimentation-organize-meta">
+            <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
+            <span>{agent.nickname}</span>
+          </div>
+        </header>
+      </article>
+    );
+  }
 
   return (
     <article className={`annotation-sedimentation-organize-card is-${state.type}`}>
@@ -1089,8 +1501,10 @@ function OrganizeDiscussionCard({
         {proposals.length > 0 ? (
           <OrganizeProposalList
             appliedProposalIds={appliedProposalIds}
+            dismissedProposalIds={dismissedProposalIds}
+            pendingProposalIds={pendingProposalIds}
             proposals={proposals}
-            onAppendProposal={onAppendProposal}
+            onPreviewProposals={onPreviewProposals}
           />
         ) : null}
         {state.notice ? (
@@ -1104,14 +1518,23 @@ function OrganizeDiscussionCard({
 
 function OrganizeProposalList({
   appliedProposalIds,
-  onAppendProposal,
+  dismissedProposalIds,
+  onPreviewProposals,
+  pendingProposalIds,
   proposals,
 }: {
   appliedProposalIds: Set<string>;
-  onAppendProposal: (proposal: AnnotationDistillationProposal) => void;
+  dismissedProposalIds: Set<string>;
+  onPreviewProposals: (proposals: AnnotationDistillationProposal[]) => void;
+  pendingProposalIds: string[];
   proposals: AnnotationDistillationProposal[];
 }) {
   const { t } = useTranslation();
+  const pendingProposals = pendingOrganizeProposals(
+    proposals,
+    appliedProposalIds,
+    dismissedProposalIds,
+  );
   return (
     <section
       className="annotation-sedimentation-proposals annotation-sedimentation-organize-proposals"
@@ -1119,6 +1542,8 @@ function OrganizeProposalList({
     >
       {proposals.map((proposal) => {
         const applied = appliedProposalIds.has(proposal.id);
+        const dismissed = dismissedProposalIds.has(proposal.id);
+        const previewing = pendingProposalIds.includes(proposal.id);
         return (
           <article
             className={[
@@ -1141,14 +1566,18 @@ function OrganizeProposalList({
                 <span className="annotation-sedimentation-proposal-state">
                   {t('sedimentation.organizeAddedToDraft')}
                 </span>
+              ) : dismissed ? (
+                <span className="annotation-sedimentation-proposal-state">
+                  {t('sedimentation.discardedProposal')}
+                </span>
+              ) : previewing ? (
+                <span className="annotation-sedimentation-proposal-state">
+                  {t('sedimentation.previewingProposal')}
+                </span>
               ) : (
-                <button
-                  type="button"
-                  disabled={proposal.kind !== 'insert'}
-                  onClick={() => onAppendProposal(proposal)}
-                >
-                  <Plus size={14} />
-                  <span>{t('sedimentation.organizeAppendProposal')}</span>
+                <button type="button" onClick={() => onPreviewProposals(pendingProposals)}>
+                  <Eye size={14} />
+                  <span>{t('sedimentation.previewProposal')}</span>
                 </button>
               )}
             </div>
@@ -1161,19 +1590,21 @@ function OrganizeProposalList({
 
 function ReviewSessions({
   agents,
-  onProposalAccept,
   onProposalIgnore,
+  onProposalPreview,
   onProposalRestore,
+  pendingProposalIds,
   sessions,
   userProfile,
 }: {
   agents: PublicAgent[];
-  onProposalAccept: (
+  onProposalPreview: (
     messageId: string,
-    proposal: AnnotationDistillationProposal,
+    proposals: AnnotationDistillationProposal[],
   ) => void | Promise<void>;
   onProposalIgnore: (messageId: string, proposalId: string) => void | Promise<void>;
   onProposalRestore: (messageId: string, proposalId: string) => void | Promise<void>;
+  pendingProposalIds: string[];
   sessions: AnnotationDistillationReviewSession[];
   userProfile: UserProfile;
 }) {
@@ -1225,9 +1656,10 @@ function ReviewSessions({
           key={message.key}
           agents={agents}
           userProfile={userProfile}
-          onProposalAccept={onProposalAccept}
           onProposalIgnore={onProposalIgnore}
+          onProposalPreview={onProposalPreview}
           onProposalRestore={onProposalRestore}
+          pendingProposalIds={pendingProposalIds}
         />
       ))}
     </section>
@@ -1242,19 +1674,21 @@ type ReviewTimelineItem = {
 function ReviewTimelineMessage({
   agents,
   item,
-  onProposalAccept,
   onProposalIgnore,
+  onProposalPreview,
   onProposalRestore,
+  pendingProposalIds,
   userProfile,
 }: {
   agents: PublicAgent[];
   item: ReviewTimelineItem;
-  onProposalAccept: (
+  onProposalPreview: (
     messageId: string,
-    proposal: AnnotationDistillationProposal,
+    proposals: AnnotationDistillationProposal[],
   ) => void | Promise<void>;
   onProposalIgnore: (messageId: string, proposalId: string) => void | Promise<void>;
   onProposalRestore: (messageId: string, proposalId: string) => void | Promise<void>;
+  pendingProposalIds: string[];
   userProfile: UserProfile;
 }) {
   const { t } = useTranslation();
@@ -1320,8 +1754,9 @@ function ReviewTimelineMessage({
           <ReviewProposalList
             messageId={message.id}
             proposals={message.proposals}
-            onAccept={onProposalAccept}
+            pendingProposalIds={pendingProposalIds}
             onIgnore={onProposalIgnore}
+            onPreview={onProposalPreview}
             onRestore={onProposalRestore}
           />
         ) : null}
@@ -1370,75 +1805,93 @@ function StructuredReviewItems({ items }: { items: AnnotationDistillationReviewI
 
 function ReviewProposalList({
   messageId,
-  onAccept,
   onIgnore,
+  onPreview,
   onRestore,
+  pendingProposalIds,
   proposals,
 }: {
   messageId: string;
-  onAccept: (messageId: string, proposal: AnnotationDistillationProposal) => void | Promise<void>;
+  onPreview: (
+    messageId: string,
+    proposals: AnnotationDistillationProposal[],
+  ) => void | Promise<void>;
   onIgnore: (messageId: string, proposalId: string) => void | Promise<void>;
   onRestore: (messageId: string, proposalId: string) => void | Promise<void>;
+  pendingProposalIds: string[];
   proposals: AnnotationDistillationProposal[];
 }) {
   const { t } = useTranslation();
+  const pendingProposals = pendingReviewProposals(proposals);
   return (
     <section
       className="annotation-sedimentation-proposals"
       aria-label={t('sedimentation.proposals')}
     >
-      {proposals.map((proposal) => (
-        <article
-          className={[
-            'annotation-sedimentation-proposal',
-            `is-${proposal.status}`,
-            `is-${proposal.kind}`,
-          ].join(' ')}
-          key={proposal.id}
-        >
-          <div className="annotation-sedimentation-proposal-main">
-            <header>
-              <span>{proposalKindLabel(proposal.kind)}</span>
-              <strong>{proposal.title}</strong>
-            </header>
-            {proposal.rationale ? <p>{proposal.rationale}</p> : null}
-            <ProposalDiffPreview proposal={proposal} />
-          </div>
-          <div className="annotation-sedimentation-proposal-actions">
-            {proposal.status === 'pending' ? (
-              <>
-                <button type="button" onClick={() => void onAccept(messageId, proposal)}>
-                  <Check size={14} />
-                  <span>{t('sedimentation.acceptProposal')}</span>
-                </button>
+      {proposals.map((proposal) => {
+        const previewing = pendingProposalIds.includes(proposal.id);
+        return (
+          <article
+            className={[
+              'annotation-sedimentation-proposal',
+              `is-${proposal.status}`,
+              `is-${proposal.kind}`,
+            ].join(' ')}
+            key={proposal.id}
+          >
+            <div className="annotation-sedimentation-proposal-main">
+              <header>
+                <span>{proposalKindLabel(proposal.kind)}</span>
+                <strong>{proposal.title}</strong>
+              </header>
+              {proposal.rationale ? <p>{proposal.rationale}</p> : null}
+              <ProposalDiffPreview proposal={proposal} />
+            </div>
+            <div className="annotation-sedimentation-proposal-actions">
+              {proposal.status === 'pending' ? (
+                previewing ? (
+                  <span className="annotation-sedimentation-proposal-state">
+                    {t('sedimentation.previewingProposal')}
+                  </span>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => void onPreview(messageId, pendingProposals)}
+                    >
+                      <Eye size={14} />
+                      <span>{t('sedimentation.previewProposal')}</span>
+                    </button>
+                    <button
+                      className="is-secondary"
+                      type="button"
+                      onClick={() => void onIgnore(messageId, proposal.id)}
+                    >
+                      <X size={14} />
+                      <span>{t('sedimentation.ignoreProposal')}</span>
+                    </button>
+                  </>
+                )
+              ) : null}
+              {proposal.status === 'ignored' ? (
                 <button
                   className="is-secondary"
                   type="button"
-                  onClick={() => void onIgnore(messageId, proposal.id)}
+                  onClick={() => void onRestore(messageId, proposal.id)}
                 >
-                  <X size={14} />
-                  <span>{t('sedimentation.ignoreProposal')}</span>
+                  <RotateCcw size={14} />
+                  <span>{t('sedimentation.restoreProposal')}</span>
                 </button>
-              </>
-            ) : null}
-            {proposal.status === 'ignored' ? (
-              <button
-                className="is-secondary"
-                type="button"
-                onClick={() => void onRestore(messageId, proposal.id)}
-              >
-                <RotateCcw size={14} />
-                <span>{t('sedimentation.restoreProposal')}</span>
-              </button>
-            ) : null}
-            {proposal.status === 'accepted' ? (
-              <span className="annotation-sedimentation-proposal-state">
-                {t('sedimentation.acceptedProposal')}
-              </span>
-            ) : null}
-          </div>
-        </article>
-      ))}
+              ) : null}
+              {proposal.status === 'accepted' ? (
+                <span className="annotation-sedimentation-proposal-state">
+                  {t('sedimentation.acceptedProposal')}
+                </span>
+              ) : null}
+            </div>
+          </article>
+        );
+      })}
     </section>
   );
 }
@@ -1769,26 +2222,6 @@ function distillationReviewTranscript(session: AnnotationDistillationReviewSessi
       }),
     )
     .join('\n');
-}
-
-function appendContentToDraft(draft: string, content: string) {
-  const cleanContent = content.trim();
-  const before = draft.trimEnd();
-  const prefix = before ? '\n' : '';
-  return {
-    draft: `${before}${prefix}${cleanContent}`,
-    changeOffset: before.length + prefix.length,
-    changeLength: cleanContent.length,
-  };
-}
-
-function draftContainsContent(draft: string, content: string) {
-  const target = compactDraftText(content);
-  return Boolean(target && compactDraftText(draft).includes(target));
-}
-
-function compactDraftText(value: string) {
-  return value.replace(/\s+/g, '');
 }
 
 function initialDistillationDraft(articleId: string, annotation: Annotation) {

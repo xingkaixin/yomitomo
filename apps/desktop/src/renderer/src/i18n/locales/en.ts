@@ -966,6 +966,14 @@ export const enResources = {
       reviewAssistantFallback: 'R',
       reviewing: 'Reviewing...',
       proposals: 'Draft change suggestions',
+      draftChangePreview: 'Draft change preview',
+      previewProposal: 'Preview change',
+      previewingProposal: 'Previewing',
+      previewReady: 'Previewing the change in the draft',
+      keepProposalChange: 'Keep',
+      keptProposalChange: 'Kept',
+      discardProposalChange: 'Discard',
+      discardedProposal: 'Discarded',
       acceptProposal: 'Accept',
       ignoreProposal: 'Ignore',
       restoreProposal: 'Restore',
@@ -985,6 +993,8 @@ export const enResources = {
         insertAnchorNotFound:
           'This suggestion was based on an older draft and its insertion point cannot be found. Review again or handle it manually.',
         duplicateInsert: 'This content is already in the current draft',
+        conflictingChanges:
+          'This round of suggestions overlaps and cannot be previewed as a group. Handle it manually.',
       },
       reviewPrompt: {
         defaultRequest:

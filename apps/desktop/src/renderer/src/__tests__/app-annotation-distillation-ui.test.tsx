@@ -1,12 +1,17 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hashText, type Agent, type Annotation, type ArticleRecord } from '@yomitomo/shared';
 import { AnnotationDiscussionWindowApp } from '../annotation-discussion/app-annotation-discussion-window';
 import { AnnotationSedimentationWindowApp } from '../annotation-discussion/app-annotation-sedimentation-window';
-import { applyDistillationProposalToDraft } from '../annotation-discussion/app-annotation-sedimentation-proposals';
+import {
+  applyDistillationProposalToDraft,
+  composeDistillationProposalDraftChangeSetEntries,
+  planDistillationProposalChange,
+  planDistillationProposalChangeSet,
+} from '../annotation-discussion/app-annotation-sedimentation-proposals';
 import { initializeAppI18n } from '../i18n/app-i18n';
 
 const now = '2026-05-31T06:00:00.000Z';
@@ -85,7 +90,7 @@ describe('annotation distillation UI', () => {
     expect(textarea.value).toBe('');
   });
 
-  it('accepts a pending proposal into the local distillation draft', async () => {
+  it('previews and keeps a pending proposal in the local distillation draft', async () => {
     const desktop = installDesktopApi(
       article(
         annotation({
@@ -128,11 +133,14 @@ describe('annotation distillation UI', () => {
     render(<AnnotationSedimentationWindowApp />);
 
     expect(await screen.findByText('新增判断')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '采纳' }));
+    fireEvent.click(screen.getByRole('button', { name: '预览变更' }));
+    expect(await screen.findByLabelText('草稿变更预览')).toBeTruthy();
+    expect(screen.queryByText('正在预览一条建议，确认后才会改写草稿')).toBeNull();
+    expect(draftTextarea().value).toBe('已有判断。');
+    fireEvent.click(screen.getByRole('button', { name: '保留' }));
 
     await waitFor(() => {
-      const textarea = screen.getByPlaceholderText(/写下你想沉淀/) as HTMLTextAreaElement;
-      expect(textarea.value).toBe('已有判断。\n这是一条新的沉淀判断。');
+      expect(draftTextarea().value).toBe('已有判断。\n这是一条新的沉淀判断。');
     });
     await waitFor(() => {
       expect(desktop.saveArticle).toHaveBeenCalledWith(
@@ -148,6 +156,186 @@ describe('annotation distillation UI', () => {
                           expect.objectContaining({
                             id: 'proposal_1',
                             status: 'accepted',
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            }),
+          ],
+        }),
+      );
+    });
+  });
+
+  it('previews one review message and decides each draft change separately', async () => {
+    const desktop = installDesktopApi(
+      article(
+        annotation({
+          distillation: {
+            status: 'unpublished',
+            content: '已有判断。旧判断。',
+            reviewSessions: [
+              {
+                id: 'review_session_1',
+                agentId: 'agent_1',
+                messages: [
+                  {
+                    id: 'review_message_1',
+                    author: 'ai',
+                    content: '这一轮需要同时补充和改写。',
+                    createdAt: now,
+                    proposals: [
+                      {
+                        id: 'proposal_1',
+                        kind: 'insert',
+                        status: 'pending',
+                        title: '新增判断',
+                        insertAfterText: '已有判断。',
+                        content: '补充判断。',
+                        updatedAt: now,
+                      },
+                      {
+                        id: 'proposal_2',
+                        kind: 'replace',
+                        status: 'pending',
+                        title: '修改判断',
+                        targetText: '旧判断',
+                        replacementText: '新判断',
+                        updatedAt: now,
+                      },
+                    ],
+                  },
+                ],
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          },
+        }),
+      ),
+    );
+    window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
+
+    render(<AnnotationSedimentationWindowApp />);
+
+    expect(await screen.findByText('新增判断')).toBeTruthy();
+    fireEvent.click(screen.getAllByRole('button', { name: '预览变更' })[0]);
+    const preview = await screen.findByLabelText('草稿变更预览');
+    expect(within(preview).getByText('补充判断。')).toBeTruthy();
+    expect(within(preview).getByText('旧判断')).toBeTruthy();
+    expect(within(preview).getByText('新判断')).toBeTruthy();
+    expect(screen.getAllByText('预览中')).toHaveLength(2);
+    expect(draftTextarea().value).toBe('已有判断。旧判断。');
+    fireEvent.click(screen.getAllByRole('button', { name: '保留' })[0]);
+    expect(await screen.findByText('已保留')).toBeTruthy();
+    expect(draftTextarea().value).toBe('已有判断。旧判断。');
+    fireEvent.click(screen.getByRole('button', { name: '放弃' }));
+
+    await waitFor(() => {
+      expect(draftTextarea().value).toBe('已有判断。\n补充判断。\n旧判断。');
+    });
+    await waitFor(() => {
+      expect(desktop.saveArticle).toHaveBeenCalledWith(
+        expect.objectContaining({
+          annotations: [
+            expect.objectContaining({
+              distillation: expect.objectContaining({
+                reviewSessions: [
+                  expect.objectContaining({
+                    messages: [
+                      expect.objectContaining({
+                        proposals: [
+                          expect.objectContaining({
+                            id: 'proposal_1',
+                            status: 'accepted',
+                          }),
+                          expect.objectContaining({
+                            id: 'proposal_2',
+                            status: 'ignored',
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            }),
+          ],
+        }),
+      );
+    });
+  });
+
+  it('discards a previewed proposal without changing the draft', async () => {
+    const desktop = installDesktopApi(
+      article(
+        annotation({
+          distillation: {
+            status: 'unpublished',
+            content: '旧判断需要收敛',
+            reviewSessions: [
+              {
+                id: 'review_session_1',
+                agentId: 'agent_1',
+                messages: [
+                  {
+                    id: 'review_message_1',
+                    author: 'ai',
+                    content: '建议换一个判断。',
+                    createdAt: now,
+                    proposals: [
+                      {
+                        id: 'proposal_1',
+                        kind: 'replace',
+                        status: 'pending',
+                        title: '修改判断',
+                        targetText: '旧判断',
+                        replacementText: '新判断',
+                        updatedAt: now,
+                      },
+                    ],
+                  },
+                ],
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          },
+        }),
+      ),
+    );
+    window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
+
+    render(<AnnotationSedimentationWindowApp />);
+
+    expect(await screen.findByText('修改判断')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '预览变更' }));
+    const preview = await screen.findByLabelText('草稿变更预览');
+    expect(within(preview).getByText('旧判断')).toBeTruthy();
+    expect(within(preview).getByText('新判断')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '放弃' }));
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText('草稿变更预览')).toBeNull();
+    });
+    expect(draftTextarea().value).toBe('旧判断需要收敛');
+    await waitFor(() => {
+      expect(desktop.saveArticle).toHaveBeenCalledWith(
+        expect.objectContaining({
+          annotations: [
+            expect.objectContaining({
+              distillation: expect.objectContaining({
+                reviewSessions: [
+                  expect.objectContaining({
+                    messages: [
+                      expect.objectContaining({
+                        proposals: [
+                          expect.objectContaining({
+                            id: 'proposal_1',
+                            status: 'ignored',
                           }),
                         ],
                       }),
@@ -296,6 +484,7 @@ describe('annotation distillation UI', () => {
 
     expect(await screen.findByText('这段判断有价值，但证据边界还不够清楚。')).toBeTruthy();
     expect(await screen.findByText('补证据边界')).toBeTruthy();
+    expect(await screen.findByLabelText('草稿变更预览')).toBeTruthy();
     await waitFor(() => {
       expect(desktop.saveArticle).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -421,12 +610,14 @@ describe('annotation distillation UI', () => {
     render(<AnnotationSedimentationWindowApp />);
 
     await startOrganizeDiscussion();
-    expect(await screen.findByText('补一个判断')).toBeTruthy();
-    fireEvent.click(await screen.findByRole('button', { name: '加入草稿' }));
+    expect(await screen.findByLabelText('草稿变更预览')).toBeTruthy();
+    expect(draftTextarea().placeholder).toBe('');
+    expect(screen.getByText('预览中')).toBeTruthy();
+    expect(screen.queryByLabelText('稿件修改建议')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '保留' }));
 
     await waitFor(() => {
-      const textarea = screen.getByPlaceholderText(/写下你想沉淀/) as HTMLTextAreaElement;
-      expect(textarea.value).toBe('讨论可以沉淀成这条判断。');
+      expect(draftTextarea().value).toBe('讨论可以沉淀成这条判断。');
     });
     expect(screen.getAllByText('已加入草稿').length).toBeGreaterThan(0);
     expect(desktop.saveArticle).not.toHaveBeenCalled();
@@ -510,6 +701,247 @@ describe('annotation distillation proposals', () => {
     });
   });
 
+  it('plans an insert proposal change for draft preview', () => {
+    const result = planDistillationProposalChange(
+      '第一段\n第二段',
+      {
+        id: 'proposal_1',
+        kind: 'insert',
+        status: 'pending',
+        title: '新增',
+        content: '新增段落',
+        updatedAt: now,
+      },
+      { start: 0, end: 3 },
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      change: {
+        kind: 'insert',
+        baseDraft: '第一段\n第二段',
+        draft: '第一段\n新增段落\n第二段',
+        range: { start: 3, end: 3 },
+        insertedText: '\n新增段落',
+        changeOffset: 4,
+        changeLength: 4,
+      },
+    });
+  });
+
+  it('plans a grouped proposal change set against one base draft', () => {
+    const result = planDistillationProposalChangeSet(
+      '已有判断。旧判断。',
+      [
+        {
+          id: 'proposal_1',
+          kind: 'insert',
+          status: 'pending',
+          title: '新增',
+          insertAfterText: '已有判断。',
+          content: '补充判断。',
+          updatedAt: now,
+        },
+        {
+          id: 'proposal_2',
+          kind: 'replace',
+          status: 'pending',
+          title: '修改',
+          targetText: '旧判断',
+          replacementText: '新判断',
+          updatedAt: now,
+        },
+      ],
+      null,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      changeSet: expect.objectContaining({
+        baseDraft: '已有判断。旧判断。',
+        draft: '已有判断。\n补充判断。\n新判断。',
+        changes: [
+          expect.objectContaining({
+            kind: 'insert',
+            range: { start: 5, end: 5 },
+            insertedText: '\n补充判断。\n',
+          }),
+          expect.objectContaining({
+            kind: 'replace',
+            range: { start: 5, end: 8 },
+            deletedText: '旧判断',
+            insertedText: '新判断',
+          }),
+        ],
+      }),
+    });
+  });
+
+  it('plans grouped proposals when insert content carries the anchor instruction', () => {
+    const draft =
+      'Agentic Coding的边界之一是隐性知识不在语料库中。作者以ScopeDB开发为例，指出@andylokandy随手指出Rust库或标准库接口、@leiysky随手丢论文和友商文档，以及作者自己“莫名其妙知道的很多诡异的细节”——这些在特定场合能提效十倍以上的知识，AI搜不到、组合不出来。';
+    const result = planDistillationProposalChangeSet(
+      draft,
+      [
+        {
+          id: 'proposal_insert_examples',
+          kind: 'insert',
+          status: 'pending',
+          title: '补充证据锚点',
+          content:
+            '在“作者以ScopeDB开发为例”之后，补充具体案例：“例如@andylokandy随手指出Rust库或标准库接口、@leiysky随手丢论文和友商文档。”',
+          updatedAt: now,
+        },
+        {
+          id: 'proposal_insert_review',
+          kind: 'insert',
+          status: 'pending',
+          title: '补充推导中间步骤',
+          content:
+            '在“AI搜不到、组合不出来”之后，补充：“作者认为，由于这些隐性知识缺失，AI实际每段核心代码的产出都需要Review。”',
+          updatedAt: now,
+        },
+        {
+          id: 'proposal_replace_quotes',
+          kind: 'replace',
+          status: 'pending',
+          title: '替换诡异细节',
+          targetText: '自己莫名其妙知道的很多诡异的细节',
+          replacementText: '自己积累的特定领域工具链知识、标准库接口、论文引用等隐性知识',
+          updatedAt: now,
+        },
+      ],
+      null,
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.changeSet.changes).toHaveLength(3);
+    expect(result.changeSet.changes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          proposalId: 'proposal_insert_examples',
+          kind: 'insert',
+          insertedText: expect.stringContaining('例如@andylokandy随手指出Rust库或标准库接口'),
+        }),
+        expect.objectContaining({
+          proposalId: 'proposal_insert_review',
+          kind: 'insert',
+          insertedText: expect.stringContaining('AI实际每段核心代码的产出都需要Review'),
+        }),
+        expect.objectContaining({
+          proposalId: 'proposal_replace_quotes',
+          kind: 'replace',
+          deletedText: '自己“莫名其妙知道的很多诡异的细节”',
+        }),
+      ]),
+    );
+  });
+
+  it('keeps same-position inserts readable when grouping an empty draft', () => {
+    const draft = '';
+    const result = planDistillationProposalChangeSet(
+      draft,
+      [
+        {
+          id: 'proposal_1',
+          kind: 'insert',
+          status: 'pending',
+          title: '新增一',
+          content: '第一条',
+          sourceDraftHash: hashText(draft),
+          updatedAt: now,
+        },
+        {
+          id: 'proposal_2',
+          kind: 'insert',
+          status: 'pending',
+          title: '新增二',
+          content: '第二条',
+          sourceDraftHash: hashText(draft),
+          updatedAt: now,
+        },
+      ],
+      null,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      changeSet: expect.objectContaining({
+        draft: '第一条\n第二条',
+        changes: [
+          expect.objectContaining({ insertedText: '第一条' }),
+          expect.objectContaining({ insertedText: '\n第二条' }),
+        ],
+      }),
+    });
+  });
+
+  it('recomputes insert spacing when composing a kept subset of grouped changes', () => {
+    const draft = '';
+    const result = planDistillationProposalChangeSet(
+      draft,
+      [
+        {
+          id: 'proposal_1',
+          kind: 'insert',
+          status: 'pending',
+          title: '新增一',
+          content: '第一条',
+          sourceDraftHash: hashText(draft),
+          updatedAt: now,
+        },
+        {
+          id: 'proposal_2',
+          kind: 'insert',
+          status: 'pending',
+          title: '新增二',
+          content: '第二条',
+          sourceDraftHash: hashText(draft),
+          updatedAt: now,
+        },
+      ],
+      null,
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(
+      composeDistillationProposalDraftChangeSetEntries(draft, [result.changeSet.changes[1]]),
+    ).toBe('第二条');
+  });
+
+  it('rejects grouped proposal changes when their draft ranges conflict', () => {
+    const result = planDistillationProposalChangeSet(
+      '旧判断需要收敛',
+      [
+        {
+          id: 'proposal_1',
+          kind: 'replace',
+          status: 'pending',
+          title: '修改一',
+          targetText: '旧判断',
+          replacementText: '新判断',
+          updatedAt: now,
+        },
+        {
+          id: 'proposal_2',
+          kind: 'delete',
+          status: 'pending',
+          title: '删除一',
+          targetText: '旧判断需要',
+          updatedAt: now,
+        },
+      ],
+      null,
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      reason: 'conflicting_changes',
+    });
+  });
+
   it('replaces a proposal target only when the text is unique', () => {
     const result = applyDistillationProposalToDraft(
       '旧判断需要收敛',
@@ -526,6 +958,36 @@ describe('annotation distillation proposals', () => {
     );
 
     expect(result).toEqual({ ok: true, draft: '新判断需要收敛', changeOffset: 0, changeLength: 3 });
+  });
+
+  it('plans a replace proposal change for draft preview', () => {
+    const result = planDistillationProposalChange(
+      '旧判断需要收敛',
+      {
+        id: 'proposal_1',
+        kind: 'replace',
+        status: 'pending',
+        title: '修改',
+        targetText: '旧判断',
+        replacementText: '新判断',
+        updatedAt: now,
+      },
+      null,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      change: {
+        kind: 'replace',
+        baseDraft: '旧判断需要收敛',
+        draft: '新判断需要收敛',
+        range: { start: 0, end: 3 },
+        deletedText: '旧判断',
+        insertedText: '新判断',
+        changeOffset: 0,
+        changeLength: 3,
+      },
+    });
   });
 
   it('keeps the draft unchanged when a replace target appears multiple times', () => {
@@ -569,6 +1031,28 @@ describe('annotation distillation proposals', () => {
       draft: '第一段\n新增段落\n第二段',
       changeOffset: 4,
       changeLength: 4,
+    });
+  });
+
+  it('recovers the insertion anchor when a model writes it into content', () => {
+    const result = applyDistillationProposalToDraft(
+      '第一段。第二段',
+      {
+        id: 'proposal_1',
+        kind: 'insert',
+        status: 'pending',
+        title: '新增',
+        content: '在“第一段”之后，补充：“新增段落。”',
+        updatedAt: now,
+      },
+      null,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      draft: '第一段。\n新增段落。\n第二段',
+      changeOffset: 5,
+      changeLength: 5,
     });
   });
 
@@ -697,6 +1181,29 @@ describe('annotation distillation proposals', () => {
     expect(result).toEqual({ ok: true, draft: '新判断', changeOffset: 0, changeLength: 3 });
   });
 
+  it('replaces a proposal target when only quote marks differ', () => {
+    const result = applyDistillationProposalToDraft(
+      '作者自己“莫名其妙知道的很多诡异的细节”需要收敛',
+      {
+        id: 'proposal_1',
+        kind: 'replace',
+        status: 'pending',
+        title: '修改',
+        targetText: '自己莫名其妙知道的很多诡异的细节',
+        replacementText: '自己积累的特定领域知识',
+        updatedAt: now,
+      },
+      null,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      draft: '作者自己积累的特定领域知识需要收敛',
+      changeOffset: 2,
+      changeLength: 11,
+    });
+  });
+
   it('deletes a proposal target only when the text is unique', () => {
     const result = applyDistillationProposalToDraft(
       '保留。删除这句。继续。',
@@ -712,6 +1219,34 @@ describe('annotation distillation proposals', () => {
     );
 
     expect(result).toEqual({ ok: true, draft: '保留。继续。', changeOffset: 3, changeLength: 0 });
+  });
+
+  it('plans a delete proposal change for draft preview', () => {
+    const result = planDistillationProposalChange(
+      '保留。删除这句。继续。',
+      {
+        id: 'proposal_1',
+        kind: 'delete',
+        status: 'pending',
+        title: '删除',
+        targetText: '删除这句。',
+        updatedAt: now,
+      },
+      null,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      change: {
+        kind: 'delete',
+        baseDraft: '保留。删除这句。继续。',
+        draft: '保留。继续。',
+        range: { start: 3, end: 8 },
+        deletedText: '删除这句。',
+        changeOffset: 3,
+        changeLength: 0,
+      },
+    });
   });
 
   it('deletes a proposal target when only whitespace differs', () => {
@@ -759,6 +1294,16 @@ function installDesktopApi(sourceArticle: ArticleRecord) {
 async function startOrganizeDiscussion() {
   fireEvent.click(await screen.findByRole('button', { name: '整理讨论' }));
   fireEvent.click(await screen.findByRole('button', { name: '开始整理' }));
+}
+
+function draftTextarea() {
+  const textarea = document.querySelector<HTMLTextAreaElement>(
+    '.annotation-sedimentation-document textarea',
+  );
+  if (!textarea) {
+    throw new Error('Draft textarea not found');
+  }
+  return textarea;
 }
 
 function article(sourceAnnotation: Annotation): ArticleRecord {
