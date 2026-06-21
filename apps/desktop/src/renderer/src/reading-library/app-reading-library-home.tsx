@@ -1611,19 +1611,6 @@ function contentRefsEqual(left: ContentRef, right: ContentRef) {
   return left.kind === right.kind && left.id === right.id;
 }
 
-function parseDraggedContentRef(value: string): ContentRef | null {
-  if (!value) return null;
-  try {
-    const ref = JSON.parse(value) as ContentRef;
-    if ((ref.kind === 'article' || ref.kind === 'weread') && typeof ref.id === 'string') {
-      return ref;
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
-
 function libraryItemTitle(item: LibraryItemEntity) {
   if (item.article) return articleDisplayTitle(item.article);
   return item.weread?.title || '';
