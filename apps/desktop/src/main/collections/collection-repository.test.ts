@@ -69,7 +69,7 @@ describe('collection repository', () => {
 
   it('removes one member without deleting sibling members', () => {
     const database = repositoryDatabase();
-    const { collection } = createCollectionRows(database, { name: '集合' });
+    const { collection } = createCollectionRows(database, { name: '合集' });
     addCollectionMembersRows(database, {
       collectionId: collection.id,
       members: [
@@ -119,7 +119,7 @@ describe('collection repository', () => {
 
   it('deletes members and collection pins with the collection', () => {
     const database = repositoryDatabase();
-    const { collection } = createCollectionRows(database, { name: '集合' });
+    const { collection } = createCollectionRows(database, { name: '合集' });
     addCollectionMembersRows(database, {
       collectionId: collection.id,
       members: [{ kind: 'article', id: 'article_1' }],

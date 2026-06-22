@@ -61,7 +61,7 @@ export function rowToLibraryPin(row: LibraryPinRow): LibraryPin | null {
 
 function normalizeCollectionName(value: unknown) {
   const name = typeof value === 'string' ? value.trim() : '';
-  return name || '未命名集合';
+  return name || '未命名合集';
 }
 
 function normalizeId(value: unknown) {

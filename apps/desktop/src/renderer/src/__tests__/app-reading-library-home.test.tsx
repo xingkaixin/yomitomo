@@ -400,13 +400,13 @@ describe('ReadingLibrary home', () => {
   it('orders collections by created time instead of updated time', () => {
     const olderCollection: Collection = {
       id: 'collection_older',
-      name: '较早集合',
+      name: '较早合集',
       createdAt: '2026-05-01T12:00:00.000Z',
       updatedAt: '2026-05-20T12:00:00.000Z',
     };
     const newerCollection: Collection = {
       id: 'collection_newer',
-      name: '较新集合',
+      name: '较新合集',
       createdAt: '2026-05-10T12:00:00.000Z',
       updatedAt: '2026-05-01T12:00:00.000Z',
     };
@@ -414,8 +414,8 @@ describe('ReadingLibrary home', () => {
     renderLibrary([], { collections: [olderCollection, newerCollection] });
 
     expect(screen.getAllByRole('article').map((item) => item.getAttribute('aria-label'))).toEqual([
-      '较新集合',
-      '较早集合',
+      '较新合集',
+      '较早合集',
     ]);
   });
 
@@ -534,12 +534,12 @@ describe('ReadingLibrary home', () => {
   it('shows collections for collected members in all scope and flattens them in type scope', async () => {
     const collectedArticle = article({
       id: 'article_collected',
-      title: '集合内文章',
+      title: '合集内文章',
       updatedAt: '2026-05-10T12:00:00.000Z',
     });
     const collection: Collection = {
       id: 'collection_1',
-      name: '研究集合',
+      name: '研究合集',
       createdAt: '2026-05-01T12:00:00.000Z',
       updatedAt: '2026-05-10T12:00:00.000Z',
     };
@@ -553,17 +553,17 @@ describe('ReadingLibrary home', () => {
       collectionMembers: [member],
     });
 
-    fireEvent.change(screen.getByLabelText('搜索文章、集合、作者或来源'), {
-      target: { value: '集合内文章' },
+    fireEvent.change(screen.getByLabelText('搜索文章、合集、作者或来源'), {
+      target: { value: '合集内文章' },
     });
 
-    expect(screen.getByText('研究集合')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '打开文章：集合内文章' })).toBeNull();
+    expect(screen.getByText('研究合集')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '打开文章：合集内文章' })).toBeNull();
 
     await selectLibraryType(/网页文章/);
 
-    expect(screen.getAllByText('集合内文章').length).toBeGreaterThan(0);
-    expect(screen.queryByText('研究集合')).toBeNull();
+    expect(screen.getAllByText('合集内文章').length).toBeGreaterThan(0);
+    expect(screen.queryByText('研究合集')).toBeNull();
   });
 
   it('keeps collection search independent from the cover preview limit', () => {
@@ -600,28 +600,28 @@ describe('ReadingLibrary home', () => {
       collectionMembers,
     });
 
-    fireEvent.change(screen.getByLabelText('搜索文章、集合、作者或来源'), {
+    fireEvent.change(screen.getByLabelText('搜索文章、合集、作者或来源'), {
       target: { value: '深层命中' },
     });
 
-    expect(screen.getByRole('button', { name: '打开集合：长期研究' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '打开合集：长期研究' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '打开文章：深层命中文章' })).toBeNull();
   });
 
   it('filters the main library list to collections only', async () => {
     const collection: Collection = {
       id: 'collection_1',
-      name: '只看集合',
+      name: '只看合集',
       createdAt: '2026-05-01T12:00:00.000Z',
       updatedAt: '2026-05-10T12:00:00.000Z',
     };
     renderLibrary([article({ title: '普通文章' })], { collections: [collection] });
 
-    await selectLibraryType(/^集合$/);
+    await selectLibraryType(/^合集$/);
 
-    expect(screen.getByRole('button', { name: '打开集合：只看集合' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '打开合集：只看合集' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '打开文章：普通文章' })).toBeNull();
-    expect(screen.getByText('共 1 个集合')).toBeTruthy();
+    expect(screen.getByText('共 1 个合集')).toBeTruthy();
   });
 
   it('opens a collection and removes a member from its article menu', async () => {
@@ -633,12 +633,12 @@ describe('ReadingLibrary home', () => {
     vi.stubGlobal('yomitomoDesktop', { removeCollectionMember });
     const collectedArticle = article({
       id: 'article_collected',
-      title: '集合内文章',
+      title: '合集内文章',
       updatedAt: '2026-05-10T12:00:00.000Z',
     });
     const collection: Collection = {
       id: 'collection_1',
-      name: '研究集合',
+      name: '研究合集',
       createdAt: '2026-05-01T12:00:00.000Z',
       updatedAt: '2026-05-10T12:00:00.000Z',
     };
@@ -654,10 +654,10 @@ describe('ReadingLibrary home', () => {
       ],
     });
 
-    fireEvent.click(screen.getByRole('button', { name: '打开集合：研究集合' }));
+    fireEvent.click(screen.getByRole('button', { name: '打开合集：研究合集' }));
     expect(screen.getByRole('button', { name: '返回全部' }).textContent).toContain('阅读库');
-    fireEvent.click(screen.getByRole('button', { name: '更多操作：集合内文章' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: '从集合中移除' }));
+    fireEvent.click(screen.getByRole('button', { name: '更多操作：合集内文章' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '从合集中移除' }));
 
     await waitFor(() =>
       expect(removeCollectionMember).toHaveBeenCalledWith({
@@ -670,17 +670,17 @@ describe('ReadingLibrary home', () => {
   it('orders pinned collection members before unpinned members without a pinned heading', () => {
     const pinnedArticle = article({
       id: 'article_pinned',
-      title: '置顶集合文章',
+      title: '置顶合集文章',
       createdAt: '2026-05-01T12:00:00.000Z',
     });
     const unpinnedArticle = article({
       id: 'article_unpinned',
-      title: '未置顶集合文章',
+      title: '未置顶合集文章',
       createdAt: '2026-05-02T12:00:00.000Z',
     });
     const collection: Collection = {
       id: 'collection_1',
-      name: '研究集合',
+      name: '研究合集',
       createdAt: '2026-05-01T12:00:00.000Z',
       updatedAt: '2026-05-10T12:00:00.000Z',
     };
@@ -708,12 +708,12 @@ describe('ReadingLibrary home', () => {
       ],
     });
 
-    fireEvent.click(screen.getByRole('button', { name: '打开集合：研究集合' }));
+    fireEvent.click(screen.getByRole('button', { name: '打开合集：研究合集' }));
 
     expect(screen.queryByRole('heading', { name: '置顶' })).toBeNull();
     expect(screen.getAllByRole('heading', { level: 3 }).map((item) => item.textContent)).toEqual([
-      '置顶集合文章',
-      '未置顶集合文章',
+      '置顶合集文章',
+      '未置顶合集文章',
     ]);
   });
 
@@ -745,20 +745,20 @@ describe('ReadingLibrary home', () => {
     });
     const collection: Collection = {
       id: 'collection_1',
-      name: '研究集合',
+      name: '研究合集',
       createdAt: '2026-05-01T12:00:00.000Z',
       updatedAt: '2026-05-10T12:00:00.000Z',
     };
 
     renderLibrary([], { collections: [collection] });
 
-    fireEvent.click(screen.getByRole('button', { name: '打开集合：研究集合' }));
+    fireEvent.click(screen.getByRole('button', { name: '打开合集：研究合集' }));
     fireEvent.click(screen.getByRole('button', { name: '添加内容' }));
     fireEvent.click(await screen.findByRole('menuitem', { name: '添加已有文章' }));
     const picker = document.querySelector<HTMLElement>('.library-collection-picker-dialog');
     expect(picker).toBeTruthy();
     await within(picker!).findAllByText('微信读书标题');
-    fireEvent.click(within(picker!).getByRole('button', { name: '添加到此集合：微信读书标题' }));
+    fireEvent.click(within(picker!).getByRole('button', { name: '添加到此合集：微信读书标题' }));
     fireEvent.click(within(picker!).getByRole('button', { name: '加入 1 项' }));
 
     await waitFor(() =>
@@ -772,21 +772,21 @@ describe('ReadingLibrary home', () => {
   it('collapses a picker item while it is being dragged into the pending list', async () => {
     const collection: Collection = {
       id: 'collection_1',
-      name: '研究集合',
+      name: '研究合集',
       createdAt: '2026-05-01T12:00:00.000Z',
       updatedAt: '2026-05-10T12:00:00.000Z',
     };
-    renderLibrary([article({ id: 'article_drag_picker', title: '待拖入集合' })], {
+    renderLibrary([article({ id: 'article_drag_picker', title: '待拖入合集' })], {
       collections: [collection],
     });
 
-    fireEvent.click(screen.getByRole('button', { name: '打开集合：研究集合' }));
+    fireEvent.click(screen.getByRole('button', { name: '打开合集：研究合集' }));
     fireEvent.click(screen.getByRole('button', { name: '添加内容' }));
     fireEvent.click(await screen.findByRole('menuitem', { name: '添加已有文章' }));
     const picker = document.querySelector<HTMLElement>('.library-collection-picker-dialog');
     expect(picker).toBeTruthy();
     const item = within(picker!)
-      .getAllByText('待拖入集合')[1]
+      .getAllByText('待拖入合集')[1]
       .closest('.library-collection-picker-item') as HTMLElement;
     expect(item).toBeTruthy();
     const dragHandle = item.querySelector<HTMLElement>('.library-collection-picker-drag-handle')!;
@@ -810,7 +810,7 @@ describe('ReadingLibrary home', () => {
     vi.stubGlobal('yomitomoDesktop', { addCollectionMembers });
     const collection: Collection = {
       id: 'collection_1',
-      name: '研究集合',
+      name: '研究合集',
       createdAt: '2026-05-01T12:00:00.000Z',
       updatedAt: '2026-05-10T12:00:00.000Z',
     };
@@ -821,7 +821,7 @@ describe('ReadingLibrary home', () => {
       .getByRole('button', { name: '打开文章：可拖文章' })
       .closest('article');
     const collectionCard = screen
-      .getByRole('button', { name: '打开集合：研究集合' })
+      .getByRole('button', { name: '打开合集：研究合集' })
       .closest('article');
     const dragData = new Map<string, string>();
     const dataTransfer = {
@@ -927,7 +927,7 @@ describe('ReadingLibrary home', () => {
     ]);
 
     expect(screen.queryByRole('button', { name: '已读完' })).toBeNull();
-    fireEvent.change(screen.getByLabelText('搜索文章、集合、作者或来源'), {
+    fireEvent.change(screen.getByLabelText('搜索文章、合集、作者或来源'), {
       target: { value: 'acme' },
     });
     expect(screen.getAllByText('新文章').length).toBeGreaterThan(0);
