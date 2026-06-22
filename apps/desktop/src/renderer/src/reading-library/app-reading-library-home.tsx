@@ -57,6 +57,7 @@ import {
   buildCollectionMemberEntities,
   buildLibraryEntities,
   libraryEntityPinTarget,
+  libraryTypeFilterFromScope,
 } from './app-reading-library-entities';
 import type { LibraryItemType, LibraryTypeScope } from './library-entity-types';
 
@@ -181,7 +182,7 @@ export function LibraryHome({
         enabledTypes: availableTypes,
         pins,
         query: '',
-        typeScope,
+        typeFilter: libraryTypeFilterFromScope(typeScope),
         wereadBooks,
       });
     }
@@ -193,7 +194,7 @@ export function LibraryHome({
       enabledTypes: availableTypes,
       pins,
       query: '',
-      typeScope,
+      typeFilter: libraryTypeFilterFromScope(typeScope),
       wereadBooks,
     });
   }, [
@@ -215,7 +216,7 @@ export function LibraryHome({
         enabledTypes: availableTypes,
         pins,
         query: searchQuery,
-        typeScope,
+        typeFilter: libraryTypeFilterFromScope(typeScope),
         wereadBooks,
       });
     }
@@ -227,7 +228,7 @@ export function LibraryHome({
       enabledTypes: availableTypes,
       pins,
       query: searchQuery,
-      typeScope,
+      typeFilter: libraryTypeFilterFromScope(typeScope),
       wereadBooks,
     });
   }, [
