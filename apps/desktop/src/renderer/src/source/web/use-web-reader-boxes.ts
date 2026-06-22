@@ -139,10 +139,17 @@ export function useWebReaderBoxes({
 }
 
 function webReaderBoxesLayoutSignature(articleElement: HTMLElement, canvasElement: HTMLElement) {
-  return [elementLayoutSignature(articleElement), elementLayoutSignature(canvasElement)].join('|');
+  return [elementLayoutSignature(articleElement), canvasCoordinateSignature(canvasElement)].join(
+    '|',
+  );
 }
 
 function elementLayoutSignature(element: HTMLElement) {
   const rect = element.getBoundingClientRect();
   return `${Math.round(rect.width)}x${Math.round(rect.height)}`;
+}
+
+function canvasCoordinateSignature(element: HTMLElement) {
+  const rect = element.getBoundingClientRect();
+  return `${Math.round(rect.left)}:${Math.round(rect.width)}`;
 }
