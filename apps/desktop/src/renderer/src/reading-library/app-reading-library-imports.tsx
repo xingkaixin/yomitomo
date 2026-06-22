@@ -6,6 +6,8 @@ import {
   ExternalLink,
   FileText,
   FileUp,
+  FolderOpen,
+  FolderPlus,
   Globe2,
   LoaderCircle,
   Plus,
@@ -232,6 +234,8 @@ export function LibraryImportControls({
   onImportArticleUrl,
   onCancelArticleImport,
   onOpenArticle,
+  onCreateCollection,
+  onOpenCollectionPicker,
   onSyncWeRead,
   weReadSyncDisabled = false,
   weReadSyncVisible = false,
@@ -250,6 +254,8 @@ export function LibraryImportControls({
   onImportArticleUrl: (url: string, requestId?: string) => Promise<ArticleImportResult>;
   onCancelArticleImport?: (requestId: string) => Promise<boolean> | boolean;
   onOpenArticle: (article: ArticleRecord) => void;
+  onCreateCollection?: () => void;
+  onOpenCollectionPicker?: () => void;
   onSyncWeRead?: () => void;
   weReadSyncDisabled?: boolean;
   weReadSyncVisible?: boolean;
@@ -285,6 +291,16 @@ export function LibraryImportControls({
   function syncWeRead() {
     setAddMenuOpen(false);
     onSyncWeRead?.();
+  }
+
+  function createCollection() {
+    setAddMenuOpen(false);
+    onCreateCollection?.();
+  }
+
+  function openCollectionPicker() {
+    setAddMenuOpen(false);
+    onOpenCollectionPicker?.();
   }
 
   return (
@@ -355,6 +371,22 @@ export function LibraryImportControls({
                     {t('library.import.pdfDocument')}
                   </button>
                 </DropdownMenuItem>
+                {onOpenCollectionPicker ? (
+                  <DropdownMenuItem asChild>
+                    <button type="button" onClick={openCollectionPicker}>
+                      <FolderOpen size={15} />
+                      {t('library.collection.addExisting')}
+                    </button>
+                  </DropdownMenuItem>
+                ) : null}
+                {onCreateCollection ? (
+                  <DropdownMenuItem asChild>
+                    <button type="button" onClick={createCollection}>
+                      <FolderPlus size={15} />
+                      {t('library.collection.create')}
+                    </button>
+                  </DropdownMenuItem>
+                ) : null}
                 {weReadSyncVisible ? (
                   <DropdownMenuItem asChild>
                     <button type="button" disabled={weReadSyncDisabled} onClick={syncWeRead}>

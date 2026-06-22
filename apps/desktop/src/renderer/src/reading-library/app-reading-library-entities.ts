@@ -11,15 +11,17 @@ import {
   articleDisplayTitle,
   articleMatchesLibrarySearch,
   librarySourceForArticle,
+  weReadBookLibraryDate,
 } from './app-reading-library-utils';
 import type {
   LibraryCollectionEntity,
   LibraryEntity,
-  LibraryEntityGroups,
   LibraryItemEntity,
   LibraryItemType,
   LibraryTypeScope,
 } from './library-entity-types';
+
+const COLLECTION_COVER_PREVIEW_LIMIT = 8;
 
 export function buildLibraryEntities({
   articles,
@@ -44,29 +46,62 @@ export function buildLibraryEntities({
   const baseItems = buildLibraryItemEntities({ articles, enabledTypes, pinMap, wereadBooks });
   const itemByRef = new Map(baseItems.map((item) => [contentRefKey(item.ref), item]));
   const collectedRefs = new Set(collectionMembers.map((member) => contentRefKey(member.member)));
+  const collectionEntities = buildCollectionEntities({
+    collectionMembers,
+    collections,
+    itemByRef,
+    pinMap,
+  });
+  if (typeScope === 'collection') {
+    return collectionEntities
+      .filter((entity) => libraryEntityMatchesSearch(entity, query))
+      .toSorted(compareLibraryEntities);
+  }
   const visibleItems = baseItems.filter((item) => {
     if (!itemTypeMatchesScope(item.type, typeScope)) return false;
     return typeScope === 'all' ? !collectedRefs.has(contentRefKey(item.ref)) : true;
   });
 
-  const entities =
-    typeScope === 'all'
-      ? [
-          ...buildCollectionEntities({ collectionMembers, collections, itemByRef, pinMap }),
-          ...visibleItems,
-        ]
-      : visibleItems;
+  const entities = typeScope === 'all' ? [...collectionEntities, ...visibleItems] : visibleItems;
 
   return entities
     .filter((entity) => libraryEntityMatchesSearch(entity, query))
     .toSorted(compareLibraryEntities);
 }
 
-export function groupLibraryEntities(entities: LibraryEntity[]): LibraryEntityGroups {
-  return {
-    pinned: entities.filter((entity) => entity.pinned),
-    rest: entities.filter((entity) => !entity.pinned),
-  };
+export function buildCollectionMemberEntities({
+  articles,
+  collectionId,
+  collectionMembers,
+  enabledTypes,
+  pins,
+  query,
+  typeScope,
+  wereadBooks,
+}: {
+  articles: ArticleSummaryRecord[];
+  collectionId: string;
+  collectionMembers: CollectionMember[];
+  enabledTypes: LibraryItemType[];
+  pins: LibraryPin[];
+  query: string;
+  typeScope: LibraryTypeScope;
+  wereadBooks: WeReadBook[];
+}): LibraryItemEntity[] {
+  const pinMap = new Map(pins.map((pin) => [pinKey(pin.targetKind, pin.targetId), pin]));
+  const baseItems = buildLibraryItemEntities({ articles, enabledTypes, pinMap, wereadBooks });
+  const itemByRef = new Map(baseItems.map((item) => [contentRefKey(item.ref), item]));
+
+  return collectionMembers
+    .filter((member) => member.collectionId === collectionId)
+    .map((member) => {
+      const item = itemByRef.get(contentRefKey(member.member));
+      return item ? Object.assign({}, item, { sortTime: member.addedAt }) : null;
+    })
+    .filter((item): item is LibraryItemEntity => Boolean(item))
+    .filter((item) => itemTypeMatchesScope(item.type, typeScope))
+    .filter((item) => libraryEntityMatchesSearch(item, query))
+    .toSorted(compareLibraryEntities);
 }
 
 export function libraryEntityPinTarget(entity: LibraryEntity): {
@@ -101,7 +136,7 @@ function buildLibraryItemEntities({
       kind: 'item',
       ref,
       type,
-      sortTime: article.updatedAt || article.createdAt,
+      sortTime: article.createdAt || article.updatedAt,
       pinned: pinMap.has(pinKey('article', article.id)),
       article,
     });
@@ -144,17 +179,20 @@ function buildCollectionEntities({
   }
 
   return collections.map((collection) => {
-    const members = membersByCollection.get(collection.id) || [];
-    const coverMembers = members
+    const members = (membersByCollection.get(collection.id) || []).toSorted(
+      (left, right) => timestampValue(right.addedAt) - timestampValue(left.addedAt),
+    );
+    const searchableMembers = members
       .map((member) => itemByRef.get(contentRefKey(member.member)))
       .filter((item): item is LibraryItemEntity => Boolean(item));
     return {
       kind: 'col',
       collection,
       memberRefs: members.map((member) => member.member),
-      coverMembers,
+      coverMembers: searchableMembers.slice(0, COLLECTION_COVER_PREVIEW_LIMIT),
+      searchMembers: searchableMembers,
       memberCount: members.length,
-      sortTime: collectionSortTime(collection, coverMembers),
+      sortTime: collectionSortTime(collection),
       pinned: pinMap.has(pinKey('collection', collection.id)),
     };
   });
@@ -167,7 +205,7 @@ function libraryEntityMatchesSearch(entity: LibraryEntity, query: string): boole
   if (entity.kind === 'col') {
     return (
       collectionMatchesSearch(entity.collection, normalizedQuery) ||
-      entity.coverMembers.some((item) => libraryEntityMatchesSearch(item, normalizedQuery))
+      entity.searchMembers.some((item) => libraryEntityMatchesSearch(item, normalizedQuery))
     );
   }
 
@@ -214,23 +252,12 @@ function entityTitle(entity: LibraryEntity) {
   return entity.weread?.title || '';
 }
 
-function collectionSortTime(collection: Collection, coverMembers: LibraryItemEntity[]) {
-  return (
-    coverMembers
-      .map((item) => item.sortTime)
-      .toSorted((left, right) => timestampValue(right) - timestampValue(left))[0] ||
-    collection.updatedAt ||
-    collection.createdAt
-  );
+function collectionSortTime(collection: Collection) {
+  return collection.createdAt || collection.updatedAt;
 }
 
 function wereadBookSortTime(book: WeReadBook) {
-  if (book.lastReadAt) {
-    const timestamp =
-      book.lastReadAt < 1_000_000_000_000 ? book.lastReadAt * 1000 : book.lastReadAt;
-    return new Date(timestamp).toISOString();
-  }
-  return book.updatedAt;
+  return weReadBookLibraryDate(book);
 }
 
 function normalizeSearchQuery(query: string) {

@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useState, type CSSProperties, type DragEvent } from 'react';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { Layers2, MoreHorizontal, PencilLine, Pin, PinOff } from 'lucide-react';
@@ -21,14 +21,22 @@ import {
 
 export function ArticleLibraryCard({
   article,
+  draggable = false,
   onDelete,
+  onDragEnd,
+  onDragStart,
   onOpen,
+  onRemoveFromCollection,
   onSetPinned,
   pinned = false,
 }: {
   article: ArticleSummaryRecord;
+  draggable?: boolean;
   onDelete: () => void;
+  onDragEnd?: () => void;
+  onDragStart?: (event: DragEvent<HTMLElement>) => void;
   onOpen: () => void;
+  onRemoveFromCollection?: () => Promise<void> | void;
   onSetPinned?: (pinned: boolean) => Promise<void> | void;
   pinned?: boolean;
 }) {
@@ -58,24 +66,18 @@ export function ArticleLibraryCard({
       : t('library.actions.openArticle', { title });
 
   return (
-    <article className={`library-list-item library-article-list-item ${itemClassName}`}>
+    <article
+      className={`library-list-item library-article-list-item ${itemClassName}`}
+      draggable={draggable}
+      onDragEnd={onDragEnd}
+      onDragStart={onDragStart}
+    >
       <button
         className="library-list-item-open"
         type="button"
         aria-label={openLabel}
         onClick={onOpen}
       />
-      {pinned ? (
-        <div className="library-item-top-meta">
-          <span
-            className="library-card-pin-indicator"
-            aria-label={t('library.actions.pinned')}
-            data-tooltip={t('library.actions.pinned')}
-          >
-            <Pin size={15} />
-          </span>
-        </div>
-      ) : null}
       <div className="library-item-actions">
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
           <div className="library-card-menu">
@@ -104,6 +106,20 @@ export function ArticleLibraryCard({
                   >
                     {pinned ? <PinOff size={14} /> : <Pin size={14} />}
                     <span>{pinned ? t('library.actions.unpin') : t('library.actions.pin')}</span>
+                  </button>
+                </DropdownMenuItem>
+              ) : null}
+              {onRemoveFromCollection ? (
+                <DropdownMenuItem asChild>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      void onRemoveFromCollection();
+                    }}
+                  >
+                    <Layers2 size={14} />
+                    <span>{t('library.collection.removeMember')}</span>
                   </button>
                 </DropdownMenuItem>
               ) : null}
@@ -136,6 +152,15 @@ export function ArticleLibraryCard({
           <span className="library-item-date-source">
             <time dateTime={article.createdAt}>{formatLibraryShortDate(article.createdAt)}</time>
             <span className="library-source-badge">{sourceLabel}</span>
+            {pinned ? (
+              <span
+                className="library-card-pin-indicator"
+                aria-label={t('library.actions.pinned')}
+                data-tooltip={t('library.actions.pinned')}
+              >
+                <Pin size={15} />
+              </span>
+            ) : null}
           </span>
           <div className="library-count-stats" aria-label={statsLabel} data-tooltip={statsLabel}>
             <span className="library-count-stat">

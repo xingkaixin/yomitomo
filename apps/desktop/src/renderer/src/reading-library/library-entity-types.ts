@@ -17,6 +17,7 @@ export type LibraryCollectionEntity = {
   collection: Collection;
   memberRefs: ContentRef[];
   coverMembers: LibraryItemEntity[];
+  searchMembers: LibraryItemEntity[];
   memberCount: number;
   sortTime: string;
   pinned: boolean;
@@ -24,9 +25,4 @@ export type LibraryCollectionEntity = {
 
 export type LibraryEntity = LibraryItemEntity | LibraryCollectionEntity;
 
-export type LibraryTypeScope = 'all' | LibraryItemType;
-
-export type LibraryEntityGroups = {
-  pinned: LibraryEntity[];
-  rest: LibraryEntity[];
-};
+export type LibraryTypeScope = 'all' | 'collection' | LibraryItemType;

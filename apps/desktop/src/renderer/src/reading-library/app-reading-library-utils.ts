@@ -1,6 +1,10 @@
 import i18next from 'i18next';
 import { articlePublishedDistillationCount } from '@yomitomo/core';
-import { cleanEpubDisplayTitle, type ArticleSummaryRecord } from '@yomitomo/shared';
+import {
+  cleanEpubDisplayTitle,
+  type ArticleSummaryRecord,
+  type WeReadBook,
+} from '@yomitomo/shared';
 import { articlePlainText, formatDate, urlHost } from '../shell/app-utils';
 
 export type LibraryFilter = 'all' | 'new' | 'progress' | 'done';
@@ -181,6 +185,17 @@ export function formatLibraryShortDate(value: string, locale = i18next.language 
     month: '2-digit',
     day: '2-digit',
   }).format(date);
+}
+
+export function weReadBookLibraryDate(book: WeReadBook) {
+  return weReadTimestampIso(book.lastReadAt) || book.updatedAt;
+}
+
+function weReadTimestampIso(value: number | undefined) {
+  if (!value) return undefined;
+  const timestamp = value < 1_000_000_000_000 ? value * 1000 : value;
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
 }
 
 function formatLibraryDateGroup(value: string) {
