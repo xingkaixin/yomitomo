@@ -11,9 +11,9 @@ export const readerDesktopEmbeddedStyles = `
 .reader-app.is-embedded .reader-annotation-connection{position:absolute;width:100%;height:100%}
 .reader-app.is-embedded .reader-completion-burst{position:absolute}
 .reader-app.is-embedded .reader-agent-dock{position:absolute}
-.reader-toolbar-article{display:flex;align-items:center;gap:12px;min-width:0;font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif)}
-.reader-toolbar-article-copy{display:grid;gap:5px;min-width:0}
-.reader-toolbar-article-title{overflow:hidden;color:var(--reader-ink);font-size:15px;font-weight:920;line-height:1.18;text-overflow:ellipsis;white-space:nowrap}
+.reader-toolbar-article{display:flex;flex:1 1 auto;max-width:100%;align-items:center;gap:12px;min-width:0;overflow:hidden;font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif)}
+.reader-toolbar-article-copy{display:grid;flex:0 1 auto;gap:5px;max-width:100%;min-width:0;overflow:hidden}
+.reader-toolbar-article-title{max-width:100%;overflow:hidden;color:var(--reader-ink);font-size:15px;font-weight:920;line-height:1.18;text-overflow:ellipsis;white-space:nowrap}
 .reader-toolbar-article-meta{display:flex;align-items:center;gap:8px;min-width:0;margin:0;color:var(--reader-muted);font-size:12px;font-weight:760;line-height:1.25}
 .reader-toolbar-article-meta span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .reader-toolbar-article-meta span+span::before{content:"";display:inline-block;width:4px;height:4px;margin-right:8px;border-radius:999px;background:var(--reader-ink-weak);vertical-align:2px}

@@ -12,13 +12,14 @@ export const readerConversationStyles = `
 .reader-back span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .reader-back:hover,.reader-back:focus-visible{background:var(--app-reader-toolbar-control-hover-bg);color:var(--reader-ink);outline:0}
 .reader-back:active{transform:scale(.96)}
-.reader-toolbar-article{display:flex;flex:1 1 auto;align-items:center;gap:12px;min-width:0;font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif)}
-.reader-toolbar>.reader-toolbar-article{grid-column:2;justify-content:center;text-align:center}
+.reader-toolbar-article{display:flex;flex:1 1 auto;max-width:100%;align-items:center;gap:12px;min-width:0;overflow:hidden;font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif)}
+.reader-toolbar>.reader-toolbar-article{grid-column:2;width:100%;justify-content:center;text-align:center}
 .reader-toolbar-article-visual{display:grid;flex:0 0 auto;place-items:center}
-.reader-toolbar-article-copy{display:grid;gap:5px;min-width:0;justify-items:center;text-align:center}
-.reader-toolbar-article.has-cover .reader-toolbar-article-copy{justify-items:center}
-.reader-toolbar-article-title{overflow:hidden;color:var(--reader-ink);font-size:15px;font-weight:920;line-height:1.18;text-overflow:ellipsis;white-space:nowrap}
+.reader-toolbar-article-copy{display:grid;flex:0 1 auto;gap:5px;max-width:100%;min-width:0;overflow:hidden;justify-items:center;text-align:center}
+.reader-toolbar-article.has-cover .reader-toolbar-article-copy{justify-items:start;text-align:left}
+.reader-toolbar-article-title{max-width:100%;overflow:hidden;color:var(--reader-ink);font-size:15px;font-weight:920;line-height:1.18;text-overflow:ellipsis;white-space:nowrap}
 .reader-toolbar-article-meta{display:flex;align-items:center;justify-content:center;gap:8px;min-width:0;margin:0;color:var(--reader-muted);font-size:12px;font-weight:760;line-height:1.25}
+.reader-toolbar-article.has-cover .reader-toolbar-article-meta{justify-content:flex-start}
 .reader-toolbar-article-meta span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .reader-toolbar-article-meta span+span::before{content:"";display:inline-block;width:4px;height:4px;margin-right:8px;border-radius:999px;background:var(--reader-ink-weak);vertical-align:2px}
 .reader-toolbar-article-action{display:flex;flex:0 0 auto;align-items:center;gap:8px}
