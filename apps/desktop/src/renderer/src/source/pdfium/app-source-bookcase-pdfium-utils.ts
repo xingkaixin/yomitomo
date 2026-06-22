@@ -16,6 +16,7 @@ import {
 } from '@yomitomo/shared';
 import {
   annotationColor,
+  annotationIdsAtHighlightPoint,
   annotationHasPublishedDistillation,
   type HighlightBox,
   type TocItem,
@@ -64,6 +65,44 @@ export type PdfAnnotationNavigationState = {
   nextId: string | null;
   totalCount: number;
 };
+
+export type PdfiumCanvasPoint = {
+  x: number;
+  y: number;
+};
+
+export function pdfiumHighlightHitAtClientPoint({
+  boxes,
+  canvasRect,
+  clientX,
+  clientY,
+  preferredAnnotationIds = [],
+}: {
+  boxes: HighlightBox[];
+  canvasRect: Pick<DOMRect, 'left' | 'top'>;
+  clientX: number;
+  clientY: number;
+  preferredAnnotationIds?: string[];
+}) {
+  const point = {
+    x: clientX - canvasRect.left,
+    y: clientY - canvasRect.top,
+  };
+  return {
+    annotationIds:
+      preferredAnnotationIds.length > 0
+        ? preferredAnnotationIds
+        : annotationIdsAtHighlightPoint(boxes, point, 1),
+    point,
+  };
+}
+
+export function pdfiumHighlightChoicePosition(canvasWidth: number, point: PdfiumCanvasPoint) {
+  return {
+    x: Math.max(8, Math.min(Math.max(8, canvasWidth - 236), point.x + 8)),
+    y: Math.max(8, point.y + 8),
+  };
+}
 
 export function pdfiumAnnotationAgentName(annotation: Annotation) {
   return annotation.agentNickname || annotation.agentUsername || i18next.t('common.assistant');

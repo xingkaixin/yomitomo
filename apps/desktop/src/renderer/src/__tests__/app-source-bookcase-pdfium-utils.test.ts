@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { PdfPageGeometry } from '@embedpdf/models';
 import { createPdfTextAnchor, createTextAnchor, type Annotation } from '@yomitomo/shared';
-import type { TocItem } from '@yomitomo/core';
+import type { HighlightBox, TocItem } from '@yomitomo/core';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import {
   buildPdfTextDocument,
@@ -16,6 +16,8 @@ import {
   pdfiumAnnotationNavigationState,
   pdfiumRectsForTextRange,
   pdfiumVisibleAnnotations,
+  pdfiumHighlightChoicePosition,
+  pdfiumHighlightHitAtClientPoint,
   primaryPdfiumTocItems,
 } from '../source/pdfium/app-source-bookcase-pdfium-utils';
 
@@ -35,6 +37,54 @@ describe('app-source-bookcase-pdfium-utils', () => {
     expect(pdfPageProgressPercent(1, 5)).toBe(0);
     expect(pdfPageProgressPercent(3, 5)).toBe(50);
     expect(pdfPageProgressPercent(9, 5)).toBe(100);
+  });
+
+  it('maps PDF highlight clicks from client coordinates to canvas hits', () => {
+    const boxes: HighlightBox[] = [
+      {
+        annotationId: 'first',
+        color: '#f4c95d',
+        contributorId: 'user',
+        height: 10,
+        id: 'first-0',
+        left: 20,
+        top: 30,
+        width: 80,
+      },
+    ];
+
+    expect(
+      pdfiumHighlightHitAtClientPoint({
+        boxes,
+        canvasRect: { left: 100, top: 200 },
+        clientX: 119,
+        clientY: 229,
+      }),
+    ).toEqual({
+      annotationIds: ['first'],
+      point: { x: 19, y: 29 },
+    });
+
+    expect(
+      pdfiumHighlightHitAtClientPoint({
+        boxes,
+        canvasRect: { left: 100, top: 200 },
+        clientX: 10,
+        clientY: 10,
+        preferredAnnotationIds: ['preferred'],
+      }).annotationIds,
+    ).toEqual(['preferred']);
+  });
+
+  it('keeps PDF highlight choice menus inside the reader canvas', () => {
+    expect(pdfiumHighlightChoicePosition(500, { x: 480, y: -20 })).toEqual({
+      x: 264,
+      y: 8,
+    });
+    expect(pdfiumHighlightChoicePosition(200, { x: -10, y: 40 })).toEqual({
+      x: 8,
+      y: 48,
+    });
   });
 
   it('places PDF annotation rail on the available page side', () => {
