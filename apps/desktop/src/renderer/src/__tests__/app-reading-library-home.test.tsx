@@ -1797,13 +1797,34 @@ describe('ReadingLibrary home', () => {
     expect(within(dialog).getByText('拖入电子书文件，或点击选择')).toBeTruthy();
   });
 
+  it('renders the first-use empty state with import entries', () => {
+    renderLibrary([]);
+
+    expect(screen.getByText('书桌还空着')).toBeTruthy();
+    expect(screen.getByText('粘贴网页链接')).toBeTruthy();
+    expect(screen.getByText('导入电子书')).toBeTruthy();
+    expect(screen.getByText('导入 PDF')).toBeTruthy();
+
+    const wereadEntry = screen.getByText('连接微信读书').closest('button');
+    expect((wereadEntry as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('opens the web article import dialog from the empty-state entry', async () => {
+    renderLibrary([]);
+
+    fireEvent.click(screen.getByText('粘贴网页链接'));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('添加网页文章')).toBeTruthy();
+  });
+
   it('imports an ebook file with progress feedback', async () => {
     const imported = article({
       id: 'ebook_imported',
       url: 'ebook://ebook_imported',
       canonicalUrl: 'ebook://ebook_imported',
       sourceType: 'ebook',
-      title: '导入电子书',
+      title: '导入的电子书示例',
       ebook: {
         metadata: {
           format: 'epub',
@@ -1835,7 +1856,7 @@ describe('ReadingLibrary home', () => {
       screen.getByRole('progressbar', { name: '电子书导入进度' }).getAttribute('aria-valuenow'),
     ).toBe('100');
     expect((await screen.findAllByText('已导入 1 个文件')).length).toBeGreaterThan(0);
-    expect(screen.getByText('导入电子书')).toBeTruthy();
+    expect(screen.getByText('导入的电子书示例')).toBeTruthy();
     expect(screen.queryByRole('button', { name: '打开电子书' })).toBeNull();
     expect(playAppSoundEffect).toHaveBeenCalledWith('library.import_success_single', {
       soundEffectsEnabled: true,
@@ -2012,7 +2033,7 @@ describe('ReadingLibrary home', () => {
       url: 'pdf:pdf_imported',
       canonicalUrl: 'pdf:hash_imported',
       sourceType: 'pdf',
-      title: '导入 PDF',
+      title: '导入的 PDF 示例',
       siteName: 'PDF',
       pdf: {
         metadata: {
@@ -2039,7 +2060,7 @@ describe('ReadingLibrary home', () => {
       screen.getByRole('progressbar', { name: 'PDF 导入进度' }).getAttribute('aria-valuenow'),
     ).toBe('100');
     expect((await screen.findAllByText('已导入 1 个文件')).length).toBeGreaterThan(0);
-    expect(screen.getByText('导入 PDF')).toBeTruthy();
+    expect(screen.getByText('导入的 PDF 示例')).toBeTruthy();
     expect(screen.queryByRole('button', { name: '打开 PDF' })).toBeNull();
   });
 

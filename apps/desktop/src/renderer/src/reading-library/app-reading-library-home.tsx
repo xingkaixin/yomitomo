@@ -8,6 +8,7 @@ import {
   ChevronRight,
   FileText,
   FolderOpen,
+  Globe2,
   GripVertical,
   Highlighter,
   Layers2,
@@ -70,7 +71,11 @@ import {
   useNativeCoverRatio,
 } from '../shell/app-article-book';
 import { libraryContentSourceBaseOptions } from './app-library-content-sources';
-import { LibraryImportControls, type ArticleImportResult } from './app-reading-library-imports';
+import {
+  LibraryImportControls,
+  useLibraryImportDialogs,
+  type ArticleImportResult,
+} from './app-reading-library-imports';
 import { ArticleLibraryCard } from './app-reading-library-card';
 import {
   articleDisplayTitle,
@@ -287,10 +292,11 @@ export function LibraryHome({
     : typeScope === 'all'
       ? t('library.total.all', { count: activeItemsLength })
       : t(`library.total.${typeScope}`, { count: activeItemsLength });
+  const libraryHasItems = sortedArticles.length > 0 || wereadBooks.length > 0;
   const emptyReason = activeCollection
     ? emptyCollectionReason({
         filteredLength: activeItemsLength,
-        itemsLength: unfilteredEntities.length,
+        libraryHasItems,
         searchQuery,
         t,
       })
@@ -340,6 +346,14 @@ export function LibraryHome({
     onImportEbookFile(file, onProgress);
   const importPdfFile = async (file: File, onProgress?: PdfImportProgressCallback) =>
     onImportPdfFile(file, onProgress);
+  const importDialogs = useLibraryImportDialogs({
+    settings,
+    onImportArticleUrl: importArticleUrl,
+    onImportEbookFile: importEbookFile,
+    onImportPdfFile: importPdfFile,
+    onCancelArticleImport,
+    onOpenArticle,
+  });
   const createCollection = async (name: string) => {
     const collection = await onCreateCollection(name);
     setActiveCollectionId(collection.id);
@@ -416,15 +430,12 @@ export function LibraryHome({
           </div>
           <div className="library-home-actions">
             <LibraryImportControls
-              settings={settings}
               weReadSyncDisabled={!wereadSettings.configured || wereadSyncing}
               weReadSyncVisible={wereadAvailable}
               weReadSyncing={wereadSyncing}
-              onImportEbookFile={importEbookFile}
-              onImportPdfFile={importPdfFile}
-              onImportArticleUrl={importArticleUrl}
-              onCancelArticleImport={onCancelArticleImport}
-              onOpenArticle={onOpenArticle}
+              onAddWebArticle={importDialogs.openArticleImport}
+              onAddEbook={importDialogs.openEbookImport}
+              onAddPdf={importDialogs.openPdfImport}
               onCreateCollection={
                 activeCollection ? undefined : () => setCollectionNameDialog({ type: 'create' })
               }
@@ -474,6 +485,29 @@ export function LibraryHome({
                 }
                 onDragStart={startLibraryDrag}
                 onDragEnd={endLibraryDrag}
+              />
+            ) : emptyReason.variant === 'first-use' ? (
+              <LibraryFirstUseEmpty
+                weReadConfigured={wereadSettings.configured}
+                weReadSyncing={wereadSyncing}
+                onAddWebArticle={importDialogs.openArticleImport}
+                onAddEbook={importDialogs.openEbookImport}
+                onAddPdf={importDialogs.openPdfImport}
+                onSyncWeRead={onSyncWeRead}
+              />
+            ) : emptyReason.variant === 'collection' ? (
+              <LibraryCollectionEmpty
+                libraryHasItems={emptyReason.libraryHasItems}
+                weReadConfigured={wereadSettings.configured}
+                weReadSyncing={wereadSyncing}
+                onAddExisting={
+                  activeCollection ? () => setPickerCollectionId(activeCollection.id) : undefined
+                }
+                onBackToAll={() => setActiveCollectionId(null)}
+                onAddWebArticle={importDialogs.openArticleImport}
+                onAddEbook={importDialogs.openEbookImport}
+                onAddPdf={importDialogs.openPdfImport}
+                onSyncWeRead={onSyncWeRead}
               />
             ) : (
               <LibraryEmptyState icon={emptyReason.icon} title={emptyReason.title}>
@@ -580,6 +614,7 @@ export function LibraryHome({
           onClose={() => setPickerCollectionId(null)}
         />
       ) : null}
+      {importDialogs.dialogs}
     </section>
   );
 
@@ -1560,6 +1595,140 @@ function LibraryEmptyState({
   );
 }
 
+type LibraryImportEntryHandlers = {
+  weReadConfigured: boolean;
+  weReadSyncing: boolean;
+  onAddWebArticle: () => void;
+  onAddEbook: () => void;
+  onAddPdf: () => void;
+  onSyncWeRead: () => void;
+};
+
+function LibraryImportEntryGrid({
+  weReadConfigured,
+  weReadSyncing,
+  onAddWebArticle,
+  onAddEbook,
+  onAddPdf,
+  onSyncWeRead,
+}: LibraryImportEntryHandlers) {
+  const { t } = useTranslation();
+  return (
+    <div className="library-empty-entries">
+      <button className="library-empty-entry" type="button" onClick={onAddWebArticle}>
+        <span className="library-empty-entry-icon">
+          <Globe2 size={18} />
+        </span>
+        <span className="library-empty-entry-copy">
+          <strong>{t('library.empty.entry.webTitle')}</strong>
+          <em>{t('library.empty.entry.webHint')}</em>
+        </span>
+      </button>
+      <button className="library-empty-entry" type="button" onClick={onAddEbook}>
+        <span className="library-empty-entry-icon">
+          <BookText size={18} />
+        </span>
+        <span className="library-empty-entry-copy">
+          <strong>{t('library.empty.entry.ebookTitle')}</strong>
+          <em>{t('library.empty.entry.ebookHint')}</em>
+        </span>
+      </button>
+      <button className="library-empty-entry" type="button" onClick={onAddPdf}>
+        <span className="library-empty-entry-icon">
+          <FileText size={18} />
+        </span>
+        <span className="library-empty-entry-copy">
+          <strong>{t('library.empty.entry.pdfTitle')}</strong>
+          <em>{t('library.empty.entry.pdfHint')}</em>
+        </span>
+      </button>
+      <button
+        className="library-empty-entry"
+        type="button"
+        disabled={!weReadConfigured || weReadSyncing}
+        onClick={weReadConfigured ? onSyncWeRead : undefined}
+      >
+        <span className="library-empty-entry-icon">
+          <Smartphone size={18} />
+        </span>
+        <span className="library-empty-entry-copy">
+          <strong>{t('library.empty.entry.wereadTitle')}</strong>
+          <em>
+            {weReadConfigured
+              ? t('library.empty.entry.wereadHintReady')
+              : t('library.empty.entry.wereadHint')}
+          </em>
+        </span>
+      </button>
+    </div>
+  );
+}
+
+function LibraryFirstUseEmpty(handlers: LibraryImportEntryHandlers) {
+  const { t } = useTranslation();
+  return (
+    <section className="library-empty is-first-use">
+      <div className="library-empty-marks" aria-hidden="true">
+        {[-6, 3, -3, 6].map((angle, index) => (
+          <i key={index} style={{ transform: `rotate(${angle}deg)` }} />
+        ))}
+      </div>
+      <h3>{t('library.empty.libraryTitle')}</h3>
+      <p>{t('library.empty.libraryDescription')}</p>
+      <LibraryImportEntryGrid {...handlers} />
+    </section>
+  );
+}
+
+function LibraryCollectionEmpty({
+  libraryHasItems,
+  onAddExisting,
+  onBackToAll,
+  ...entryHandlers
+}: LibraryImportEntryHandlers & {
+  libraryHasItems: boolean;
+  onAddExisting?: () => void;
+  onBackToAll: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <section className="library-empty is-collection">
+      <div className="library-empty-pile" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+      </div>
+      <h3>{t('library.collection.emptyTitle')}</h3>
+      {libraryHasItems ? (
+        <>
+          <p>{t('library.collection.emptyDescription')}</p>
+          <div className="library-empty-actions">
+            {onAddExisting ? (
+              <button
+                className="library-empty-action is-primary"
+                type="button"
+                onClick={onAddExisting}
+              >
+                <FolderOpen size={15} />
+                {t('library.collection.addExisting')}
+              </button>
+            ) : null}
+            <button className="library-empty-action" type="button" onClick={onBackToAll}>
+              <ArrowLeft size={15} />
+              {t('library.collection.emptyBackToDrag')}
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p>{t('library.collection.emptyNoLibraryDescription')}</p>
+          <LibraryImportEntryGrid {...entryHandlers} />
+        </>
+      )}
+    </section>
+  );
+}
+
 export function WeReadCover({
   book,
   variant = 'book',
@@ -1628,6 +1797,11 @@ function coverProgressStyle(value: number) {
   return { '--ebook-progress': `${Math.round(progress * 100)}%` } as React.CSSProperties;
 }
 
+type LibraryEmptyReason =
+  | { variant: 'first-use' }
+  | { variant: 'collection'; libraryHasItems: boolean }
+  | { variant: 'message'; icon: React.ReactNode; title: string; description: string };
+
 function emptyLibraryReason({
   filteredLength,
   itemsLength,
@@ -1642,9 +1816,10 @@ function emptyLibraryReason({
   t: ReturnType<typeof useTranslation>['t'];
   typeScope: LibraryTypeScope;
   wereadConfigured: boolean;
-}) {
+}): LibraryEmptyReason {
   if (typeScope === 'weread' && !wereadConfigured) {
     return {
+      variant: 'message',
       description: t('library.weReadSetupDescription'),
       icon: <Smartphone size={32} />,
       title: t('library.weReadSetupTitle'),
@@ -1652,15 +1827,12 @@ function emptyLibraryReason({
   }
 
   if (itemsLength === 0) {
-    return {
-      description: t('library.empty.libraryDescription'),
-      icon: <BookOpen size={32} />,
-      title: t('library.empty.libraryTitle'),
-    };
+    return { variant: 'first-use' };
   }
 
   if (filteredLength === 0 || searchQuery.trim()) {
     return {
+      variant: 'message',
       description: t('library.empty.noMatchDescription'),
       icon: <Search size={32} />,
       title: t('library.empty.noMatchTitle'),
@@ -1669,6 +1841,7 @@ function emptyLibraryReason({
 
   if (typeScope === 'web') {
     return {
+      variant: 'message',
       description: t('library.empty.webDescription'),
       icon: <FileText size={32} />,
       title: t('library.empty.webTitle'),
@@ -1677,6 +1850,7 @@ function emptyLibraryReason({
 
   if (typeScope === 'pdf') {
     return {
+      variant: 'message',
       description: t('library.empty.pdfDescription'),
       icon: <FileText size={32} />,
       title: t('library.empty.pdfTitle'),
@@ -1685,6 +1859,7 @@ function emptyLibraryReason({
 
   if (typeScope === 'weread') {
     return {
+      variant: 'message',
       description: t('library.empty.wereadDescription'),
       icon: <Smartphone size={32} />,
       title: t('library.empty.wereadTitle'),
@@ -1693,6 +1868,7 @@ function emptyLibraryReason({
 
   if (typeScope === 'ebook') {
     return {
+      variant: 'message',
       description: t('library.empty.ebookDescription'),
       icon: <BookText size={32} />,
       title: t('library.empty.ebookTitle'),
@@ -1700,6 +1876,7 @@ function emptyLibraryReason({
   }
 
   return {
+    variant: 'message',
     description: t('library.empty.noMatchDescription'),
     icon: <Search size={32} />,
     title: t('library.empty.noMatchTitle'),
@@ -1708,34 +1885,23 @@ function emptyLibraryReason({
 
 function emptyCollectionReason({
   filteredLength,
-  itemsLength,
+  libraryHasItems,
   searchQuery,
   t,
 }: {
   filteredLength: number;
-  itemsLength: number;
+  libraryHasItems: boolean;
   searchQuery: string;
   t: ReturnType<typeof useTranslation>['t'];
-}) {
-  if (itemsLength === 0) {
+}): LibraryEmptyReason {
+  if (filteredLength === 0 && searchQuery.trim()) {
     return {
-      description: t('library.collection.emptyDescription'),
-      icon: <FolderOpen size={32} />,
-      title: t('library.collection.emptyTitle'),
-    };
-  }
-
-  if (filteredLength === 0 || searchQuery.trim()) {
-    return {
+      variant: 'message',
       description: t('library.empty.noMatchDescription'),
       icon: <Search size={32} />,
       title: t('library.empty.noMatchTitle'),
     };
   }
 
-  return {
-    description: t('library.collection.emptyDescription'),
-    icon: <FolderOpen size={32} />,
-    title: t('library.collection.emptyTitle'),
-  };
+  return { variant: 'collection', libraryHasItems };
 }

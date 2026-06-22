@@ -624,7 +624,10 @@ export const enResources = {
         emptyCover: 'Empty collection · Add later',
         emptyTitle: 'This collection is empty',
         emptyDescription:
-          'Choose items from the library, or go back to all and drag an item into the collection.',
+          'Pick existing items from the library, or go back to all and drag articles onto the collection.',
+        emptyBackToDrag: 'Back to all to drag',
+        emptyNoLibraryDescription:
+          'The library is still empty. Add some reading first, then group it into this collection.',
         pickFromLibrary: 'Choose from library',
         searchPlaceholder: 'Search in this collection...',
         pickerTitle: 'Choose from library',
@@ -650,9 +653,20 @@ export const enResources = {
         weread: 'WeRead',
       },
       empty: {
-        libraryTitle: 'Your library is empty',
+        libraryTitle: 'The desk is still empty',
         libraryDescription:
-          'Use the plus button to add web articles or import ebooks. The library will mix them by time.',
+          'Drop a link, an ebook, or a PDF — Yomitomo detects the type and mixes everything by time. You can also connect WeRead.',
+        entry: {
+          webTitle: 'Paste a web link',
+          webHint: 'URL, fetches the article',
+          ebookTitle: 'Import an ebook',
+          ebookHint: 'EPUB / AZW3 / MOBI · batch',
+          pdfTitle: 'Import a PDF',
+          pdfHint: 'First page as cover',
+          wereadTitle: 'Connect WeRead',
+          wereadHint: 'Set the API key in settings',
+          wereadHintReady: 'Sync highlights and thoughts',
+        },
         noMatchTitle: 'No matches',
         noMatchDescription: 'Adjust the search terms and keep browsing.',
         webTitle: 'No web articles',
