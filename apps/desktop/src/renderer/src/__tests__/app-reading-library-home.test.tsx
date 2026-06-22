@@ -1569,6 +1569,61 @@ describe('ReadingLibrary home', () => {
     expect(playAppSoundEffect).toHaveBeenCalledTimes(2);
   });
 
+  it('does not keep reloading when summary counts distillation review AI messages', async () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    const reviewedAnnotation = annotationWithPublishedDistillation('reviewed_note');
+    reviewedAnnotation.distillation = {
+      ...reviewedAnnotation.distillation!,
+      reviewSessions: [
+        {
+          id: 'review_session_1',
+          agentId: 'agent_1',
+          agentUsername: 'distiller',
+          agentNickname: '沉淀助手',
+          createdAt: now,
+          updatedAt: now,
+          messages: [
+            {
+              id: 'review_message_1',
+              author: 'ai',
+              content: '这里需要再压缩一点。',
+              createdAt: now,
+            },
+          ],
+        },
+      ],
+    };
+    const fullArticle = article({
+      id: 'reviewed_distillation_article',
+      title: '评审沉淀文章',
+      annotations: [reviewedAnnotation],
+    });
+    const summary = {
+      ...articleSummary(fullArticle),
+      aiCommentCount: 1,
+      annotationCount: 1,
+      commentCount: 0,
+      distillationCount: 1,
+    };
+    const onReadArticle = vi.fn().mockResolvedValue(fullArticle);
+    renderLibrary([summary], { onReadArticle });
+
+    fireEvent.click(screen.getAllByRole('button', { name: '打开文章：评审沉淀文章' })[0]);
+    expect(await screen.findByRole('button', { name: '返回阅读库' })).toBeTruthy();
+    await act(async () => {
+      for (let index = 0; index < 8; index += 1) await Promise.resolve();
+    });
+
+    expect(onReadArticle.mock.calls.length).toBeLessThanOrEqual(2);
+  });
+
   it('saves webpage reading progress from the reader scroll position', async () => {
     vi.stubGlobal(
       'ResizeObserver',

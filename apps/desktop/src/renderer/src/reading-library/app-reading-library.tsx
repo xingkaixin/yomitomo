@@ -956,9 +956,21 @@ function articleAiCommentCount(article: ArticleSummaryRecord) {
     article.aiCommentCount ??
     article.annotations.reduce(
       (count, annotation) =>
-        count + annotation.comments.filter((comment) => comment.author === 'ai').length,
+        count +
+        annotation.comments.filter((comment) => comment.author === 'ai').length +
+        annotationDistillationReviewAiMessageCount(annotation),
       0,
     )
+  );
+}
+
+function annotationDistillationReviewAiMessageCount(annotation: Annotation) {
+  return (
+    annotation.distillation?.reviewSessions?.reduce(
+      (count, session) =>
+        count + session.messages.filter((message) => message.author === 'ai').length,
+      0,
+    ) ?? 0
   );
 }
 
