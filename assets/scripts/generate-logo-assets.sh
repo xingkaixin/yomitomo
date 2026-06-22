@@ -50,6 +50,19 @@ check_size() {
   fi
 }
 
+check_transparent_corner() {
+  local file="$1" label="$2"
+  local corner
+  corner=$(magick identify -format "%[pixel:p{0,0}]" "$file")
+  if [[ "$corner" == *",0)" || "$corner" == "none" ]]; then
+    printf "  \033[32mPASS\033[0m %-45s %s\n" "$label" "$corner"
+    PASS=$((PASS + 1))
+  else
+    printf "  \033[31mFAIL\033[0m %-45s corner is %s\n" "$label" "$corner"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
 echo "Generating logo assets from: $SOURCE (${SRC_W}x${SRC_W})"
 echo ""
 
@@ -62,11 +75,13 @@ CORNER_RADIUS=$(awk "BEGIN{printf \"%d\", $SRC_W * 0.22}")
 magick -size "${SRC_W}x${SRC_W}" xc:none \
   -fill white -draw "roundrectangle 0,0 $((SRC_W-1)),$((SRC_W-1)) $CORNER_RADIUS,$CORNER_RADIUS" \
   "$MASK"
-magick "$SOURCE" "$MASK" -compose DstIn -composite "$SOURCE_ROUNDED"
+magick "$SOURCE" -alpha set "$MASK" -compose DstIn -composite "$SOURCE_ROUNDED"
 
-# 预压缩：桌面端（圆角，有 alpha）和 web（直角，无 alpha）分别压缩
-pngquant --quality 30-65 --strip --force --output "$TMP_DIR/rounded-pq.png" "$SOURCE_ROUNDED"
-SOURCE_ROUNDED_PQ="$TMP_DIR/rounded-pq.png"
+# 预压缩：macOS .icns 对 alpha 体积更敏感，单独使用更激进的源图。
+pngquant --quality 0-40 --strip --force --output "$TMP_DIR/rounded-iconset-pq.png" "$SOURCE_ROUNDED"
+SOURCE_ROUNDED_ICONSET_PQ="$TMP_DIR/rounded-iconset-pq.png"
+pngquant --quality 25-60 --strip --force --output "$TMP_DIR/rounded-runtime-pq.png" "$SOURCE_ROUNDED"
+SOURCE_ROUNDED_RUNTIME_PQ="$TMP_DIR/rounded-runtime-pq.png"
 pngquant --quality 30-65 --strip --force --output "$TMP_DIR/source-pq.png" "$SOURCE"
 SOURCE_PQ="$TMP_DIR/source-pq.png"
 
@@ -77,26 +92,29 @@ for spec in "16:icon_16x16" "32:icon_16x16@2x" "32:icon_32x32" "64:icon_32x32@2x
            "512:icon_512x512" "1024:icon_512x512@2x"; do
   px="${spec%%:*}"
   name="${spec##*:}"
-  sips -s format png -z "$px" "$px" "$SOURCE_ROUNDED_PQ" --out "$ICONSET/$name.raw.png" >/dev/null 2>&1
-  pngquant --quality 35-70 --strip --force --output "$ICONSET/$name.png" "$ICONSET/$name.raw.png"
+  sips -s format png -z "$px" "$px" "$SOURCE_ROUNDED_ICONSET_PQ" --out "$ICONSET/$name.raw.png" >/dev/null 2>&1
+  pngquant --quality 0-40 --strip --force --output "$ICONSET/$name.png" "$ICONSET/$name.raw.png"
   oxipng -o max --strip safe --quiet "$ICONSET/$name.png" >/dev/null 2>&1 || true
   rm -f "$ICONSET/$name.raw.png"
 done
 iconutil -c icns "$ICONSET" -o "$TMP_DIR/icon.icns" >/dev/null
 cp "$TMP_DIR/icon.icns" "$DESKTOP_RES/icon.icns"
 check_size "$DESKTOP_RES/icon.icns" "$ICNS_MAX" "icon.icns (macOS)"
+check_transparent_corner "$ICONSET/icon_512x512@2x.png" "iconset 1024 corner alpha"
 
 # --- icon.png (runtime, 1024, 圆角) ---
 echo "[2/5] Runtime icon.png"
-sips -s format png -z 1024 1024 "$SOURCE_ROUNDED_PQ" --out "$TMP_DIR/icon-1024.png" >/dev/null 2>&1
-pngquant --quality 30-65 --strip --force --output "$DESKTOP_RES/icon.png" "$TMP_DIR/icon-1024.png"
+sips -s format png -z 1024 1024 "$SOURCE_ROUNDED_RUNTIME_PQ" --out "$TMP_DIR/icon-1024.png" >/dev/null 2>&1
+pngquant --quality 25-60 --strip --force --output "$DESKTOP_RES/icon.png" "$TMP_DIR/icon-1024.png"
 oxipng -o max --strip safe --quiet "$DESKTOP_RES/icon.png" >/dev/null 2>&1 || true
 check_size "$DESKTOP_RES/icon.png" "$ICON_PNG_MAX" "icon.png (runtime)"
+check_transparent_corner "$DESKTOP_RES/icon.png" "icon.png corner alpha"
 
 # --- icon.ico (Windows, multi-size, 圆角) ---
 echo "[3/5] Windows icon.ico"
-magick "$SOURCE_ROUNDED_PQ" -define icon:auto-resize=16,24,32,48,64,128,256 "$DESKTOP_RES/icon.ico"
+magick "$SOURCE_ROUNDED_RUNTIME_PQ" -define icon:auto-resize=16,24,32,48,64,128,256 "$DESKTOP_RES/icon.ico"
 check_size "$DESKTOP_RES/icon.ico" "$ICO_MAX" "icon.ico (Windows)"
+check_transparent_corner "$DESKTOP_RES/icon.ico[6]" "icon.ico 256 corner alpha"
 
 # --- favicon.png (web, 直角, 64) ---
 echo "[4/5] Web favicon"

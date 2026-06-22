@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/yomitomo-logo.png" alt="Yomitomo logo" width="120" />
+  <img src="assets/yomitomo-logo.webp" alt="Yomitomo logo" width="120" />
 </p>
 
 # Yomitomo
