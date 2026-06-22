@@ -3376,7 +3376,7 @@
   --cover-rel: calc(var(--cover-index, 0) - (var(--cover-count, 1) - 1) / 2);
   position: absolute;
   top: 50%;
-  left: 50%;
+  left: calc(50% + 30px);
   width: auto;
   z-index: calc(12 - var(--cover-index, 0));
   transform-origin: center center;
@@ -3470,7 +3470,7 @@
   z-index: 20;
   display: flex;
   min-width: 0;
-  align-items: end;
+  align-items: baseline;
   justify-content: space-between;
   gap: 10px;
   pointer-events: none;

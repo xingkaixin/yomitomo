@@ -153,7 +153,9 @@ describe('reading library styles', () => {
       'color: var(--app-interactive-link);',
       'transform: none;',
     ]);
-    expectRule('.library-collection-list-item .library-collection-cover-item', ['left: 50%;']);
+    expectRule('.library-collection-list-item .library-collection-cover-item', [
+      'left: calc(50% + 30px);',
+    ]);
     expectRule('.library-collection-list-item .library-collection-cover-item', [
       '--cover-rel: calc(var(--cover-index, 0) - (var(--cover-count, 1) - 1) / 2);',
       'z-index: calc(12 - var(--cover-index, 0));',
