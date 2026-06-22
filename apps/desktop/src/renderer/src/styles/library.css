@@ -1273,8 +1273,8 @@
 /* 类型筛选内嵌搜索框（方案 C，阅读库主视图） */
 .library-search-typed {
   display: grid;
-  flex: 1 1 360px;
-  width: min(640px, 54vw);
+  flex: 1 1 540px;
+  width: min(960px, 81vw);
   min-width: 260px;
   grid-template-columns: auto auto minmax(0, 1fr);
   align-items: center;
