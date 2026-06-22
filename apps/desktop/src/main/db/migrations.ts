@@ -838,6 +838,12 @@ CREATE INDEX IF NOT EXISTS library_pins_pinned_at_idx
 ON library_pins(pinned_at);
 `,
   },
+  {
+    id: '0055_weread_sync_mode',
+    sql: `
+ALTER TABLE weread_accounts ADD COLUMN sync_mode TEXT NOT NULL DEFAULT 'manual';
+`,
+  },
 ];
 
 type MigrationDatabase = {

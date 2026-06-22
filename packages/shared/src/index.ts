@@ -194,6 +194,7 @@ export type {
   WeReadReadingStatsSnapshot,
   WeReadReadingStatsState,
   WeReadSettings,
+  WeReadSyncMode,
   WeReadSyncResult,
   WeReadThought,
   WeReadUser,
