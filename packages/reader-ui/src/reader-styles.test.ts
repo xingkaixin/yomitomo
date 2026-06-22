@@ -58,13 +58,34 @@ describe('reader embedded styles', () => {
       '.reader-back,.reader-toolbar-actions,.reader-toolbar-article-action,.reader-toolbar button{-webkit-app-region:no-drag}',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-toolbar-article-copy{display:grid;gap:5px;min-width:0;justify-items:center;text-align:center}',
+      '.reader-toolbar-article-copy{display:grid;flex:0 1 auto;gap:5px;max-width:100%;min-width:0;overflow:hidden;justify-items:center;text-align:center}',
     );
     expect(readerConversationStyles).toContain(
       '.reader-toolbar-article-meta{display:flex;align-items:center;justify-content:center;',
     );
     expect(readerConversationStyles).toContain(
+      '.reader-toolbar-article.has-cover .reader-toolbar-article-copy{justify-items:start;text-align:left}',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-toolbar-article.has-cover .reader-toolbar-article-meta{justify-content:flex-start}',
+    );
+    expect(readerConversationStyles).toContain(
       '.reader-toolbar-article-copy,.reader-toolbar-article.has-cover .reader-toolbar-article-copy{justify-items:start;text-align:left}',
+    );
+  });
+
+  it('keeps long toolbar titles from squeezing leading visuals', () => {
+    expect(readerConversationStyles).toContain(
+      '.reader-toolbar-article{display:flex;flex:1 1 auto;max-width:100%;align-items:center;gap:12px;min-width:0;overflow:hidden;',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-toolbar-article-visual{display:grid;flex:0 0 auto;place-items:center}',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-toolbar-article-title{max-width:100%;overflow:hidden;',
+    );
+    expect(readerDesktopEmbeddedStyles).toContain(
+      '.reader-toolbar-article-copy{display:grid;flex:0 1 auto;gap:5px;max-width:100%;min-width:0;overflow:hidden}',
     );
   });
 

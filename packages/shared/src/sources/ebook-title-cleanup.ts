@@ -29,6 +29,13 @@ const MARKETING_KEYWORDS = [
   '勇夺',
   '揭露',
 ];
+const CREATOR_TAIL_MARKETING_KEYWORDS = [
+  '全新长篇',
+  '长篇历史小说',
+  '历史小说',
+  '心灵之旅',
+  '作品系列',
+];
 
 const BRACKET_PAIRS: Array<[string, string]> = [
   ['（', '）'],
@@ -44,7 +51,7 @@ export function cleanEpubDisplayTitle(input: EpubTitleCleanupInput) {
   const fileNameTitle = cleanEpubFileNameTitle(input.fileName, input.creator);
   const title = isUnhelpfulTitle(metadataTitle)
     ? fileNameTitle
-    : cleanMarketingTitleSegments(metadataTitle);
+    : cleanMarketingTitleSegments(metadataTitle, input.creator);
   return normalizeTitleText(title) || fileNameTitle || metadataTitle || FALLBACK_TITLE;
 }
 
@@ -69,11 +76,13 @@ export function cleanEpubFileNameTitle(fileName: string | undefined, creator?: s
   return normalizeTitleText(title);
 }
 
-function cleanMarketingTitleSegments(value: string) {
+function cleanMarketingTitleSegments(value: string, creator?: string) {
   let title = value;
   for (const [open, close] of BRACKET_PAIRS) {
     title = removeMarketingBracketSegments(title, open, close);
+    title = removeCreatorSeriesBracketSegments(title, open, close, creator);
   }
+  title = removeCreatorMarketingTail(title, creator);
   return normalizeTitleText(
     title
       .replace(/[，,、\s]+[^，,、\s]{1,18}出品$/u, '')
@@ -82,7 +91,49 @@ function cleanMarketingTitleSegments(value: string) {
   );
 }
 
+function removeCreatorMarketingTail(value: string, creator?: string) {
+  const creatorText = normalizeTitleText(creator);
+  if (!creatorText) return value;
+
+  const creatorIndex = value.indexOf(creatorText);
+  if (creatorIndex <= 0) return value;
+
+  const titlePrefix = value.slice(0, creatorIndex);
+  const tail = value.slice(creatorIndex + creatorText.length);
+  if (!normalizeTitleText(titlePrefix) || !isCreatorMarketingTail(tail)) return value;
+
+  return trimTitleTail(titlePrefix);
+}
+
+function isCreatorMarketingTail(value: string) {
+  const text = normalizeTitleText(value);
+  if (!text) return false;
+  return CREATOR_TAIL_MARKETING_KEYWORDS.some((keyword) => text.includes(keyword));
+}
+
+function removeCreatorSeriesBracketSegments(
+  value: string,
+  open: string,
+  close: string,
+  creator?: string,
+) {
+  const creatorText = normalizeTitleText(creator);
+  if (!creatorText) return value;
+  return removeBracketSegments(value, open, close, (content) =>
+    normalizeTitleText(content).includes(`${creatorText}作品系列`),
+  );
+}
+
 function removeMarketingBracketSegments(value: string, open: string, close: string) {
+  return removeBracketSegments(value, open, close, isMarketingText);
+}
+
+function removeBracketSegments(
+  value: string,
+  open: string,
+  close: string,
+  shouldRemove: (content: string) => boolean,
+) {
   let result = '';
   let cursor = 0;
 
@@ -96,17 +147,21 @@ function removeMarketingBracketSegments(value: string, open: string, close: stri
     const end = value.indexOf(close, start + open.length);
     if (end === -1) {
       const content = value.slice(start + open.length);
-      result += value.slice(cursor, isMarketingText(content) ? start : value.length);
+      result += value.slice(cursor, shouldRemove(content) ? start : value.length);
       break;
     }
 
     const content = value.slice(start + open.length, end);
     result += value.slice(cursor, start);
-    if (!isMarketingText(content)) result += value.slice(start, end + close.length);
+    if (!shouldRemove(content)) result += value.slice(start, end + close.length);
     cursor = end + close.length;
   }
 
   return result;
+}
+
+function trimTitleTail(value: string) {
+  return value.replace(/(?:[\s,，、:：;；.。!！?？|｜\-—–_]|[([{（【「『])+$/u, '');
 }
 
 function isMarketingText(value: string) {

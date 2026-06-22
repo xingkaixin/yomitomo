@@ -73,6 +73,33 @@ describe('cleanEpubDisplayTitle', () => {
       }),
     ).toBe('一个故事的99种讲法');
   });
+
+  it('removes creator-prefixed marketing tails without dropping useful volume markers', () => {
+    expect(
+      cleanEpubDisplayTitle({
+        metadataTitle:
+          '两京十五日(全2册) 马伯庸2020年全新长篇历史小说。四个痞人、十五天、两千两百余里路的心灵之旅。)(马伯庸作品系列)',
+        creator: '马伯庸',
+      }),
+    ).toBe('两京十五日(全2册)');
+    expect(
+      cleanEpubDisplayTitle({
+        metadataTitle: '两京十五日(全2册)(马伯庸作品系列)',
+        creator: '马伯庸',
+      }),
+    ).toBe('两京十五日(全2册)');
+    expect(
+      cleanEpubDisplayTitle({
+        metadataTitle:
+          '两京十五日(全2册)(马伯庸2020年全新长篇历史小说。四个痞人、十五天、两千两百余里路的心灵之旅。)(马伯庸作品系列)',
+        creator: '马伯庸',
+      }),
+    ).toBe('两京十五日(全2册)');
+
+    expect(cleanEpubDisplayTitle({ metadataTitle: '魔鬼经济学系列(套装共4册)' })).toBe(
+      '魔鬼经济学系列(套装共4册)',
+    );
+  });
 });
 
 describe('cleanEpubFileNameTitle', () => {
