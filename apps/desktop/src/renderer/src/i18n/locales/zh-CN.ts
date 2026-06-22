@@ -1367,10 +1367,8 @@ export const zhCNResources = {
         openPath: '打开{{label}}',
         retentionGroup: '日志保留',
         retentionAria: '日志保留时间',
-        retentionForever: '永久',
         retentionDays: '{{count}} 天',
         retentionSavedDays: '日志将保留最近 {{count}} 天。',
-        retentionSavedForever: '日志将永久保留，直到手动清空。',
         clearLog: '清空日志文件',
         clearLogConfirmTitle: '清空日志文件？',
         clearLogConfirmDescription:

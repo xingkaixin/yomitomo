@@ -209,6 +209,15 @@ describe('desktop store settings', () => {
     });
   });
 
+  it('defaults log retention to 90 days', () => {
+    expect(mergeSettingsForUpsert({}, {})).toMatchObject({
+      logRetentionDays: 90,
+    });
+    expect(mergeSettingsForUpsert({}, { logRetentionDays: undefined })).toMatchObject({
+      logRetentionDays: 90,
+    });
+  });
+
   it('normalizes persisted library page size settings', () => {
     expect(mergeSettingsForUpsert({ libraryPageSize: 18 }, {})).toMatchObject({
       libraryPageSize: 18,

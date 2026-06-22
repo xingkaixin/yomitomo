@@ -186,7 +186,7 @@ function normalizeBooleanSetting(value: unknown, fallback = false) {
 }
 
 function normalizeLogRetentionDays(value: unknown) {
-  return value === 15 || value === 30 || value === 90 ? value : undefined;
+  return value === 15 || value === 30 || value === 90 ? value : 90;
 }
 
 function normalizeLibraryPageSize(value: unknown) {
