@@ -13,7 +13,7 @@ import type {
   ReadonlyAnnotationCardThought,
 } from '@yomitomo/reader-ui/reader-readonly-annotation-card';
 import { ReadonlyAnnotationCard } from '@yomitomo/reader-ui/reader-readonly-annotation-card';
-import { WeReadCover } from '../reading-library/app-reading-library-home';
+import { WeReadCover } from '../reading-library/app-reading-library-covers';
 import { useTranslation } from 'react-i18next';
 import { readerUiLabels } from '../i18n/app-i18n-labels';
 

@@ -248,8 +248,12 @@ function compareSortTime(left: LibraryEntity, right: LibraryEntity) {
 
 function entityTitle(entity: LibraryEntity) {
   if (entity.kind === 'col') return entity.collection.name;
-  if (entity.article) return articleDisplayTitle(entity.article);
-  return entity.weread?.title || '';
+  return libraryItemTitle(entity);
+}
+
+export function libraryItemTitle(item: LibraryItemEntity) {
+  if (item.article) return articleDisplayTitle(item.article);
+  return item.weread?.title || '';
 }
 
 function collectionSortTime(collection: Collection) {
@@ -264,7 +268,7 @@ function normalizeSearchQuery(query: string) {
   return query.trim().toLocaleLowerCase('zh-CN');
 }
 
-function contentRefKey(ref: ContentRef) {
+export function contentRefKey(ref: ContentRef) {
   return `${ref.kind}:${ref.id}`;
 }
 
