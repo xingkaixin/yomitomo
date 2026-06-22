@@ -69,6 +69,12 @@ export const telemetryState = sqliteTable('telemetry_state', {
   updatedAt: text('updated_at').notNull(),
 });
 
+export const databaseMaintenanceState = sqliteTable('database_maintenance_state', {
+  id: text('id').primaryKey(),
+  lastVacuumAt: text('last_vacuum_at'),
+  updatedAt: text('updated_at').notNull(),
+});
+
 export const assistantExecutionRuns = sqliteTable(
   'assistant_execution_runs',
   {

@@ -162,6 +162,21 @@ VALUES (
     });
   });
 
+  it('adds private sqlite maintenance state storage', () => {
+    const database = new DatabaseSync(':memory:');
+    const migration = migrations.find((item) => item.id === '0059_database_maintenance_state');
+    if (!migration) throw new Error('missing migration 0059_database_maintenance_state');
+
+    database.exec(migration.sql);
+
+    expect(tableNames(database)).toContain('database_maintenance_state');
+    expect(columnNames(database, 'database_maintenance_state')).toEqual([
+      'id',
+      'last_vacuum_at',
+      'updated_at',
+    ]);
+  });
+
   it('repairs bilingual translation settings columns for databases with old applied migrations', () => {
     const database = new DatabaseSync(':memory:');
     for (const id of ['0001_initial', '0005_settings_reading_card']) {

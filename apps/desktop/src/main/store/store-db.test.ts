@@ -36,6 +36,7 @@ import {
   getDatabasePath,
   getSqliteExecutor,
   replaceDatabaseFile,
+  runSqliteMaintenance,
 } from './store-db';
 import { copyFile, rm } from 'node:fs/promises';
 
@@ -161,6 +162,51 @@ describe('store database backup and restore', () => {
   });
 });
 
+describe('store database sqlite maintenance', () => {
+  it('skips startup vacuum when reusable pages are below the threshold', () => {
+    const database = maintenanceDatabase();
+    try {
+      const result = runSqliteMaintenance(database, {
+        now: new Date('2026-06-22T00:00:00.000Z'),
+        freelistThresholdBytes: Number.MAX_SAFE_INTEGER,
+      });
+
+      expect(result).toMatchObject({
+        status: 'skipped',
+        reason: 'freelist_below_threshold',
+      });
+      expect(readMaintenanceVacuumAt(database)).toBeUndefined();
+    } finally {
+      database.close();
+    }
+  });
+
+  it('records startup vacuum time and respects the maintenance interval', () => {
+    const database = maintenanceDatabase();
+    const firstVacuumAt = new Date('2026-06-22T00:00:00.000Z');
+    try {
+      const vacuumed = runSqliteMaintenance(database, {
+        now: firstVacuumAt,
+        freelistThresholdBytes: 0,
+      });
+      const skipped = runSqliteMaintenance(database, {
+        now: new Date('2026-06-23T00:00:00.000Z'),
+        freelistThresholdBytes: 0,
+      });
+
+      expect(vacuumed.status).toBe('vacuumed');
+      expect(readMaintenanceVacuumAt(database)).toBe(firstVacuumAt.toISOString());
+      expect(skipped).toMatchObject({
+        status: 'skipped',
+        reason: 'interval_not_due',
+        lastVacuumAt: firstVacuumAt.toISOString(),
+      });
+    } finally {
+      database.close();
+    }
+  });
+});
+
 function writeMarker(value: string) {
   const sqlite = getSqliteExecutor();
   sqlite.exec(`
@@ -191,6 +237,19 @@ async function backupTemporaryFiles(target: string) {
   const temporaryFilePrefix = `${basename(target)}.tmp-`;
   const files = await actualFs.readdir(dirname(target));
   return files.filter((file) => file.startsWith(temporaryFilePrefix)).toSorted();
+}
+
+function maintenanceDatabase() {
+  const database = new BetterSqliteDatabase(join(testPaths.userData, 'maintenance.sqlite'));
+  database.pragma('journal_mode = WAL');
+  return database;
+}
+
+function readMaintenanceVacuumAt(database: BetterSqliteDatabase.Database) {
+  const row = database
+    .prepare("SELECT last_vacuum_at FROM database_maintenance_state WHERE id = 'startup-vacuum'")
+    .get();
+  return isRecord(row) && typeof row.last_vacuum_at === 'string' ? row.last_vacuum_at : undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -870,6 +870,16 @@ UPDATE annotations SET agent_avatar = NULL, user_avatar = NULL;
 UPDATE comments SET agent_avatar = NULL, user_avatar = NULL;
 `,
   },
+  {
+    id: '0059_database_maintenance_state',
+    sql: `
+CREATE TABLE IF NOT EXISTS database_maintenance_state (
+  id TEXT PRIMARY KEY NOT NULL,
+  last_vacuum_at TEXT,
+  updated_at TEXT NOT NULL
+);
+`,
+  },
 ];
 
 type MigrationDatabase = {
