@@ -21,7 +21,7 @@ import type {
   LibraryTypeScope,
 } from './library-entity-types';
 
-const COLLECTION_COVER_PREVIEW_LIMIT = 8;
+const COLLECTION_COVER_PREVIEW_LIMIT = 9;
 
 export function buildLibraryEntities({
   articles,
