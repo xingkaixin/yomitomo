@@ -1345,7 +1345,6 @@
 .library-type-filter-chips {
   display: inline-flex;
   flex: 0 0 auto;
-  align-self: stretch;
   align-items: center;
   gap: 4px;
   padding-right: 10px;
