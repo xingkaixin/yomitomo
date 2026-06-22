@@ -10,6 +10,7 @@ import {
   FolderOpen,
   Globe2,
   LibraryBig,
+  ListFilter,
   Search,
   Smartphone,
   X,
@@ -411,7 +412,9 @@ export function LibraryHome({
                 >
                   {selectedTypes.size === 0 ? (
                     <span>{t('library.typeFilter.allShort')}</span>
-                  ) : null}
+                  ) : (
+                    <ListFilter size={15} aria-hidden="true" />
+                  )}
                   <ChevronDown size={14} aria-hidden="true" />
                 </button>
               </PopoverTrigger>
