@@ -379,6 +379,8 @@ export function LibraryHome({
       const next = new Set(current);
       if (next.has(type)) next.delete(type);
       else next.add(type);
+      // 选满所有类型等价于「全部」，回退到空集
+      if (next.size === typeOptions.length) return new Set();
       return next;
     });
   };
@@ -452,9 +454,6 @@ export function LibraryHome({
                 <span className="library-type-filter-chips">
                   {selectedTypeChips.map((chip) => (
                     <span className="library-type-filter-chip" key={chip.value}>
-                      <span className="library-type-filter-chip-icon" aria-hidden="true">
-                        {TYPE_FILTER_ICONS[chip.value]}
-                      </span>
                       {chip.label}
                       <button
                         className="library-type-filter-chip-remove"

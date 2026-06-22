@@ -530,6 +530,22 @@ describe('ReadingLibrary home', () => {
     expect(screen.getByRole('button', { name: '移除网页文章' })).toBeTruthy();
   });
 
+  it('reverts to all when every type is selected', async () => {
+    renderLibrary([article({ id: 'web_1', title: '网页文章' })]);
+
+    fireEvent.click(screen.getByRole('button', { name: '筛选内容类型' }));
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: '合集' }));
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '网页文章' }));
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '电子书' }));
+    expect(screen.getByRole('button', { name: '移除网页文章' })).toBeTruthy();
+
+    // 选满最后一个类型后应回退到「全部」
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'PDF' }));
+
+    expect(screen.queryByRole('button', { name: '移除网页文章' })).toBeNull();
+    expect(screen.getByRole('button', { name: '筛选内容类型' }).textContent).toContain('全部');
+  });
+
   it('returns to the active collection view after a remount', () => {
     const collectedArticle = article({ id: 'article_collected', title: '合集内文章' });
     const collection: Collection = {
