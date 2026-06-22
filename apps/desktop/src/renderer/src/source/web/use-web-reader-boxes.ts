@@ -57,9 +57,14 @@ export function useWebReaderBoxes({
     }
 
     let frame = 0;
-    const updateBoxes = () => {
-      window.cancelAnimationFrame(frame);
+    let lastLayoutSignature = '';
+    const updateBoxes = (force = false) => {
+      const layoutSignature = webReaderBoxesLayoutSignature(articleElement, canvasElement);
+      if (!force && layoutSignature === lastLayoutSignature) return;
+      lastLayoutSignature = layoutSignature;
+      if (frame) return;
       frame = window.requestAnimationFrame(() => {
+        frame = 0;
         const startedAt = performance.now();
         const text = sourceTextContent(articleElement);
         const canvasRect = canvasElement.getBoundingClientRect();
@@ -116,18 +121,28 @@ export function useWebReaderBoxes({
       });
     };
 
-    updateBoxes();
-    const resizeObserver = new ResizeObserver(updateBoxes);
+    updateBoxes(true);
+    const resizeObserver = new ResizeObserver(() => updateBoxes());
     resizeObserver.observe(articleElement);
     resizeObserver.observe(canvasElement);
-    window.addEventListener('resize', updateBoxes);
+    const updateBoxesForWindowResize = () => updateBoxes();
+    window.addEventListener('resize', updateBoxesForWindowResize);
 
     return () => {
       window.cancelAnimationFrame(frame);
       resizeObserver.disconnect();
-      window.removeEventListener('resize', updateBoxes);
+      window.removeEventListener('resize', updateBoxesForWindowResize);
     };
   }, [annotationAgents, annotations, article, articleRef, canvasRef, contentHtml, userProfile]);
 
   return { boxes, tocItems };
+}
+
+function webReaderBoxesLayoutSignature(articleElement: HTMLElement, canvasElement: HTMLElement) {
+  return [elementLayoutSignature(articleElement), elementLayoutSignature(canvasElement)].join('|');
+}
+
+function elementLayoutSignature(element: HTMLElement) {
+  const rect = element.getBoundingClientRect();
+  return `${Math.round(rect.width)}x${Math.round(rect.height)}`;
 }
