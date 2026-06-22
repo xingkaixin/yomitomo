@@ -166,6 +166,52 @@ describe('buildCurrentChapterLexicalRelatedPassages', () => {
     expect(excluded.map((passage) => passage.paragraphId)).not.toContain('chapter-2-paragraph-3');
     expect(included[0]?.paragraphId).toBe('chapter-2-paragraph-3');
   });
+
+  it('counts document frequency from current candidate paragraphs only', () => {
+    const chapters: EpubBookIndexChapterInput[] = [
+      {
+        id: 'chapter-1',
+        title: '第一章',
+        paragraphs: [
+          'alpha alpha alpha topic',
+          'gamma topic',
+          'alpha alpha alpha excluded paragraph',
+        ],
+      },
+    ];
+    const index = buildEpubBookIndex({ articleId: 'book-1', chapters });
+    const text = epubIndexText(chapters);
+    const timings: Record<string, unknown>[] = [];
+    const passages = buildCurrentChapterLexicalRelatedPassages({
+      articleText: text,
+      ebookIndex: index,
+      query: 'alpha gamma',
+      chapterId: 'chapter-1',
+      excludeParagraphIds: ['chapter-1-paragraph-3'],
+      maxPassages: 2,
+      neighborParagraphs: 0,
+      performanceLogger: (_name: string, data?: Record<string, unknown>) => {
+        if (data) timings.push(data);
+      },
+    });
+
+    expect(passages.map((passage) => passage.paragraphId)).toEqual([
+      'chapter-1-paragraph-1',
+      'chapter-1-paragraph-2',
+    ]);
+    const [first, second] = passages;
+    if (!first || !second) throw new Error('expected two related passages');
+    if (first.score === undefined || second.score === undefined) {
+      throw new Error('expected related passage scores');
+    }
+    expect(first.score).toBeGreaterThan(second.score);
+    const [timing] = timings;
+    if (!timing) throw new Error('expected lexical timing log');
+    expect(timing).toMatchObject({
+      candidateParagraphCount: 2,
+      queryTermCount: 2,
+    });
+  });
 });
 
 function bookFixture() {
