@@ -62,6 +62,7 @@ import {
   buildLibraryEntities,
   libraryEntityPinTarget,
 } from './app-reading-library-entities';
+import { librarySession } from './app-reading-library-session';
 import type { LibraryItemType, LibraryTypeFilter } from './library-entity-types';
 
 const LIBRARY_PAGE_SIZE_OPTIONS = [6, 12, 18, 24] as const;
@@ -143,10 +144,14 @@ export function LibraryHome({
   const [pageSize, setPageSize] = useState(() =>
     normalizeLibraryPageSize(settings.libraryPageSize),
   );
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTypes, setSelectedTypes] = useState<Set<LibraryTypeFilter>>(() => new Set());
+  const [searchQuery, setSearchQuery] = useState(() => librarySession.searchQuery);
+  const [selectedTypes, setSelectedTypes] = useState<Set<LibraryTypeFilter>>(
+    () => new Set(librarySession.selectedTypes),
+  );
   const [typeMenuOpen, setTypeMenuOpen] = useState(false);
-  const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
+  const [activeCollectionId, setActiveCollectionId] = useState<string | null>(
+    () => librarySession.activeCollectionId,
+  );
   const [collectionNameDialog, setCollectionNameDialog] =
     useState<CollectionNameDialogState | null>(null);
   const [pickerCollectionId, setPickerCollectionId] = useState<string | null>(null);
@@ -311,6 +316,12 @@ export function LibraryHome({
     setPageTransitionDirection('none');
     setPage(1);
   }, [activeCollectionId, pageSize, searchQuery, selectedTypesKey]);
+
+  useEffect(() => {
+    librarySession.searchQuery = searchQuery;
+    librarySession.selectedTypes = selectedTypes;
+    librarySession.activeCollectionId = activeCollectionId;
+  }, [searchQuery, selectedTypes, activeCollectionId]);
 
   useEffect(() => {
     setPageSize(normalizeLibraryPageSize(settings.libraryPageSize));

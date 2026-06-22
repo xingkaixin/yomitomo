@@ -16,6 +16,7 @@ import type {
   WeReadBook,
 } from '@yomitomo/shared';
 import { ReadingLibrary, groupLibraryArticles } from '../reading-library/app-reading-library';
+import { librarySession } from '../reading-library/app-reading-library-session';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { defaultTheme } from '../theme/app-theme';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
@@ -63,6 +64,9 @@ afterEach(() => {
 
 beforeEach(() => {
   initializeAppI18n('zh-CN');
+  librarySession.searchQuery = '';
+  librarySession.selectedTypes = new Set();
+  librarySession.activeCollectionId = null;
 });
 
 function annotation(id: string, createdAt = now): Annotation {
@@ -504,6 +508,57 @@ describe('ReadingLibrary home', () => {
     expect(document.querySelector('.library-toolbar')).toBeNull();
     expect(screen.getByRole('button', { name: '添加内容' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '添加电子书' })).toBeNull();
+  });
+
+  it('keeps search query and type filter across remounts within the session', async () => {
+    const articles = [article({ id: 'web_1', title: '网页文章' })];
+    renderLibrary(articles);
+
+    fireEvent.change(screen.getByLabelText('搜索文章、合集、作者或来源'), {
+      target: { value: '关键字' },
+    });
+    await selectLibraryType(/网页文章/);
+    expect(screen.getByRole('button', { name: '移除网页文章' })).toBeTruthy();
+
+    // 模拟切到其他菜单或进入文章：卸载后再次进入阅读库
+    cleanup();
+    renderLibrary(articles);
+
+    expect(screen.getByLabelText<HTMLInputElement>('搜索文章、合集、作者或来源').value).toBe(
+      '关键字',
+    );
+    expect(screen.getByRole('button', { name: '移除网页文章' })).toBeTruthy();
+  });
+
+  it('returns to the active collection view after a remount', () => {
+    const collectedArticle = article({ id: 'article_collected', title: '合集内文章' });
+    const collection: Collection = {
+      id: 'collection_1',
+      name: '研究合集',
+      createdAt: now,
+      updatedAt: now,
+    };
+    const options = {
+      collections: [collection],
+      collectionMembers: [
+        {
+          collectionId: collection.id,
+          member: { kind: 'article' as const, id: collectedArticle.id },
+          addedAt: now,
+        },
+      ],
+    };
+    renderLibrary([collectedArticle], options);
+
+    fireEvent.click(screen.getByRole('button', { name: '打开合集：研究合集' }));
+    expect(screen.getByRole('button', { name: '返回全部' })).toBeTruthy();
+
+    // 模拟在合集内进入文章后返回：卸载后再次进入阅读库应仍停留在该合集
+    cleanup();
+    renderLibrary([collectedArticle], options);
+
+    expect(screen.getByRole('button', { name: '返回全部' })).toBeTruthy();
+    expect(screen.getByText('研究合集')).toBeTruthy();
   });
 
   it('pins articles from the card menu', async () => {
