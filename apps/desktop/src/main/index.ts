@@ -12,6 +12,7 @@ import { installDevProcessLifecycle } from './app/dev-process-lifecycle';
 import { installElectronSmokeProbe } from './app/electron-smoke-probe';
 import type { AppUpdateState } from '../app-update-types';
 import type { DesktopStoreLoadErrorInfo } from '../app-store-errors';
+import type { WeReadState } from '../ipc-contract';
 import { DatabaseTooNewError } from './db/errors';
 import { registerAnnotationDiscussionWindowIpc } from './windows/annotation-discussion-window';
 import { registerAnnotationSedimentationWindowIpc } from './windows/annotation-sedimentation-window';
@@ -25,6 +26,7 @@ import { registerProviderIpc } from './ipc/ipc-provider';
 import { registerStoreDataIpc } from './ipc/ipc-store-data';
 import { registerWeReadIpc } from './ipc/ipc-weread';
 import { modelPriceRefreshIntervalMs } from './providers/model-pricing-repository';
+import { syncWeReadLibrary } from './weread/weread-sync';
 import { secureRendererWebPreferences } from './windows/renderer-window-security';
 import { windowChromeOptions } from './windows/window-chrome';
 import { mainPath } from './app/main-paths';
@@ -36,6 +38,13 @@ let aiLoggerConfigured = false;
 let appUpdaterModulePromise: Promise<typeof import('./app/app-updater')> | null = null;
 let persistenceModulePromise: Promise<typeof import('./store/desktop-persistence')> | null = null;
 let modelPriceRefreshTimer: NodeJS.Timeout | null = null;
+let weReadAutoSyncStartupTimer: NodeJS.Timeout | null = null;
+let weReadAutoSyncIntervalTimer: NodeJS.Timeout | null = null;
+let weReadAutoSyncConfigureToken = 0;
+let weReadAutoSyncRunning = false;
+
+const WEREAD_AUTO_SYNC_STARTUP_DELAY_MS = 5_000;
+const WEREAD_AUTO_SYNC_INTERVAL_MS = 30 * 60 * 1000;
 
 configureDesktopAppStorage();
 installDevProcessLifecycle(logInfo);
@@ -131,6 +140,95 @@ function scheduleModelPriceRefresh() {
   modelPriceRefreshTimer.unref?.();
 }
 
+function configureWeReadAutoSync(reason: string) {
+  const token = ++weReadAutoSyncConfigureToken;
+  clearWeReadAutoSyncTimers();
+  void getPersistenceModule()
+    .then(async (module) => {
+      const settings = await module.weReadPersistence.readWeReadSettings();
+      if (token !== weReadAutoSyncConfigureToken) return;
+      if (!settings.configured || settings.syncMode !== 'auto') {
+        logInfo('weread.auto_sync.disabled', {
+          reason,
+          configured: settings.configured,
+          syncMode: settings.syncMode ?? 'manual',
+        });
+        return;
+      }
+
+      weReadAutoSyncStartupTimer = setTimeout(
+        () => void runWeReadAutoSync('startup'),
+        WEREAD_AUTO_SYNC_STARTUP_DELAY_MS,
+      );
+      weReadAutoSyncStartupTimer.unref?.();
+      weReadAutoSyncIntervalTimer = setInterval(
+        () => void runWeReadAutoSync('interval'),
+        WEREAD_AUTO_SYNC_INTERVAL_MS,
+      );
+      weReadAutoSyncIntervalTimer.unref?.();
+      logInfo('weread.auto_sync.scheduled', {
+        reason,
+        startupDelayMs: WEREAD_AUTO_SYNC_STARTUP_DELAY_MS,
+        intervalMs: WEREAD_AUTO_SYNC_INTERVAL_MS,
+      });
+    })
+    .catch((error) => {
+      logError('weread.auto_sync.configure_failed', error, { reason });
+    });
+}
+
+function clearWeReadAutoSyncTimers() {
+  if (weReadAutoSyncStartupTimer) {
+    clearTimeout(weReadAutoSyncStartupTimer);
+    weReadAutoSyncStartupTimer = null;
+  }
+  if (weReadAutoSyncIntervalTimer) {
+    clearInterval(weReadAutoSyncIntervalTimer);
+    weReadAutoSyncIntervalTimer = null;
+  }
+}
+
+async function runWeReadAutoSync(reason: string) {
+  if (weReadAutoSyncRunning) {
+    logInfo('weread.auto_sync.skipped', { reason, skippedReason: 'in_flight' });
+    return;
+  }
+
+  const startedAt = performance.now();
+  weReadAutoSyncRunning = true;
+  try {
+    const module = await getPersistenceModule();
+    const settings = await module.weReadPersistence.readWeReadSettings();
+    if (!settings.configured || settings.syncMode !== 'auto') {
+      logInfo('weread.auto_sync.skipped', {
+        reason,
+        configured: settings.configured,
+        syncMode: settings.syncMode ?? 'manual',
+        skippedReason: 'disabled',
+      });
+      return;
+    }
+
+    const result = await syncWeReadLibrary({
+      persistence: module.weReadPersistence,
+      reason: `auto:${reason}`,
+      logInfo,
+      logError,
+      elapsedMs,
+    });
+    sendWeReadStateUpdated(result);
+    logInfo('weread.auto_sync.complete', {
+      reason,
+      bookCount: result.books.length,
+      durationMs: elapsedMs(startedAt),
+    });
+  } catch (error) {
+    logError('weread.auto_sync.failed', error, { reason, durationMs: elapsedMs(startedAt) });
+  } finally {
+    weReadAutoSyncRunning = false;
+  }
+}
+
 async function createWindow() {
   recordStartupTiming('window.create_start');
   const browserWindow = new BrowserWindow({
@@ -190,6 +288,7 @@ void app.whenReady().then(async () => {
   if (process.platform === 'darwin' && app.dock) app.dock.setIcon(appIconPath);
   registerIpc();
   scheduleModelPriceRefresh();
+  configureWeReadAutoSync('startup');
   recordStartupTiming('ipc.registered');
   recordStartupTiming('updater.deferred');
   await createWindow();
@@ -219,6 +318,7 @@ function registerIpc() {
     recordStartupTiming,
     recordPerformanceTiming,
     scheduleLogPrune,
+    configureWeReadAutoSync,
     storeLoadErrorInfo,
     elapsedMs,
     logInfo,
@@ -255,6 +355,10 @@ function sendLibraryPinPatched(patch: LibraryPinPatch) {
   sendToRenderer('library-pin:patched', patch);
 }
 
+function sendWeReadStateUpdated(state: WeReadState) {
+  sendToRenderer('weread:state-updated', state);
+}
+
 async function storeLoadErrorInfo(error: unknown): Promise<DesktopStoreLoadErrorInfo> {
   if (error instanceof DatabaseTooNewError) {
     return {
@@ -282,6 +386,7 @@ function sendToRenderer(channel: 'updates:status', payload: AppUpdateState): voi
 function sendToRenderer(channel: 'article:patched', payload: ArticleStorePatch): void;
 function sendToRenderer(channel: 'collection:patched', payload: CollectionStorePatch): void;
 function sendToRenderer(channel: 'library-pin:patched', payload: LibraryPinPatch): void;
+function sendToRenderer(channel: 'weread:state-updated', payload: WeReadState): void;
 function sendToRenderer(channel: string, payload: unknown) {
   if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) return;
   mainWindow.webContents.send(channel, payload);

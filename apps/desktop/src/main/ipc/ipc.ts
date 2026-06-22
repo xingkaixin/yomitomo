@@ -27,6 +27,7 @@ export interface DesktopMainIpcContext {
   recordStartupTiming: (event: string, data?: Record<string, unknown>) => void;
   recordPerformanceTiming: (input: unknown) => void;
   scheduleLogPrune: (retentionDays: number | undefined) => void;
+  configureWeReadAutoSync: (reason: string) => void;
   storeLoadErrorInfo: (error: unknown) => Promise<DesktopStoreLoadErrorInfo>;
   elapsedMs: (startedAt: number) => number;
   logInfo: typeof import('../app/logger').logInfo;

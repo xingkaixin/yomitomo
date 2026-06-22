@@ -1607,6 +1607,12 @@ export const enResources = {
           'Requires the app to be installed. Can locate the matching highlight or thought.',
         webLabel: 'Use the web version',
         webDescription: 'Does not require the app. Opens the matching chapter only.',
+        syncModeGroup: 'Sync mode',
+        syncModeAria: 'WeRead sync mode',
+        manualSyncLabel: 'Manual',
+        manualSyncDescription: 'Sync only when you click "Sync WeRead" in the library.',
+        autoSyncLabel: 'Automatic',
+        autoSyncDescription: 'Sync once after startup, then every 30 minutes in the background.',
       },
       models: {
         trailRoot: 'Settings',

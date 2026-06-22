@@ -64,6 +64,7 @@ import type {
   WeReadOpenTarget,
   WeReadReadingStatsQueryInput,
   WeReadSaveSettingsInput,
+  WeReadState,
 } from '../ipc-contract';
 
 export type DesktopPreloadApiInput = {
@@ -322,6 +323,8 @@ function createWeReadPreloadApi() {
     getWeReadReadingStats: () => invokeDesktopIpc('weread:get-reading-stats'),
     queryWeReadReadingStats: (input: WeReadReadingStatsQueryInput) =>
       invokeDesktopIpc('weread:query-reading-stats', input),
+    onWeReadStateUpdated: (callback: (state: WeReadState) => void) =>
+      onIpcEvent('weread:state-updated', (state) => callback(state as WeReadState)),
   };
 }
 

@@ -12,6 +12,7 @@ import type {
   ReaderChatState,
   WeReadBook,
   WeReadOpenMethod,
+  WeReadSyncMode,
   WeReadReadingStatsMode,
   WeReadSettings,
 } from '@yomitomo/shared';
@@ -367,7 +368,8 @@ export type ProviderTestResult = {
 export type WeReadSaveSettingsInput = {
   apiKey?: string;
   removeApiKey?: boolean;
-  openMethod: WeReadOpenMethod;
+  openMethod?: WeReadOpenMethod;
+  syncMode?: WeReadSyncMode;
 };
 
 export type WeReadOpenTarget = {

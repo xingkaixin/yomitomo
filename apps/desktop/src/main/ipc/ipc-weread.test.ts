@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { WeReadBook, WeReadBookDetail } from '@yomitomo/shared';
 import type { DesktopMainIpcContext } from './ipc';
-import { fetchWeReadSyncDetails, registerWeReadIpc } from './ipc-weread';
+import { registerWeReadIpc } from './ipc-weread';
+import { fetchWeReadSyncDetails } from '../weread/weread-sync';
 
 const ipcMocks = vi.hoisted(() => ({
   ipcMainHandle: vi.fn(),
@@ -33,6 +34,34 @@ describe('weread IPC persistence boundary', () => {
 
     expect(result).toEqual({ ok: true, value: 'weread-secret' });
     expect(readStoredWeReadApiKey).toHaveBeenCalled();
+  });
+
+  it('reconfigures auto sync after saving settings', async () => {
+    ipcMocks.ipcMainHandle.mockClear();
+    const state = {
+      settings: { configured: true, openMethod: 'deeplink', syncMode: 'auto' },
+      books: [],
+    };
+    const saveWeReadSettings = vi.fn(async () => state);
+    const configureWeReadAutoSync = vi.fn();
+
+    registerWeReadIpc({
+      configureWeReadAutoSync,
+      getPersistenceModule: async () => ({
+        weReadPersistence: { saveWeReadSettings },
+      }),
+    } as unknown as DesktopMainIpcContext);
+
+    const handler = ipcMocks.ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === 'weread:save-settings',
+    )?.[1];
+    expect(handler).toBeTypeOf('function');
+
+    const result = await handler({}, { syncMode: 'auto' });
+
+    expect(result).toEqual({ ok: true, value: state });
+    expect(saveWeReadSettings).toHaveBeenCalledWith({ syncMode: 'auto' });
+    expect(configureWeReadAutoSync).toHaveBeenCalledWith('settings-saved');
   });
 });
 

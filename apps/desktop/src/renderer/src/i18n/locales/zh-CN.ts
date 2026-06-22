@@ -1549,6 +1549,12 @@ export const zhCNResources = {
         deeplinkDescription: '需要已安装 App，可定位到对应划线或想法。',
         webLabel: '使用网页版',
         webDescription: '无需安装 App，只能打开到对应章节。',
+        syncModeGroup: '同步模式',
+        syncModeAria: '微信读书同步模式',
+        manualSyncLabel: '手动',
+        manualSyncDescription: '仅在阅读库点击“同步微信读书”时同步。',
+        autoSyncLabel: '自动',
+        autoSyncDescription: '应用启动后同步一次，并每 30 分钟在后台同步。',
       },
       models: {
         trailRoot: '设置',

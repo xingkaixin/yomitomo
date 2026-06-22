@@ -1,8 +1,10 @@
 export type WeReadOpenMethod = 'deeplink' | 'web';
+export type WeReadSyncMode = 'manual' | 'auto';
 
 export type WeReadSettings = {
   configured: boolean;
   openMethod: WeReadOpenMethod;
+  syncMode?: WeReadSyncMode;
   status?: 'idle' | 'connected' | 'error';
   lastSyncAt?: string;
   lastTestAt?: string;

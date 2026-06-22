@@ -1232,7 +1232,7 @@ describe('ReadingLibrary home', () => {
     ]);
   });
 
-  it('keeps WeRead mixed when old source preferences disabled it', async () => {
+  it('keeps WeRead mixed when old source preferences disabled it without auto sync', async () => {
     const state = {
       settings: { configured: true, openMethod: 'deeplink' as const },
       books: [],
@@ -1259,7 +1259,48 @@ describe('ReadingLibrary home', () => {
     expect(await screen.findByRole('option', { name: '电子书' })).toBeTruthy();
     expect(screen.getByRole('option', { name: 'PDF' })).toBeTruthy();
     expect(screen.getByRole('option', { name: '微信读书' })).toBeTruthy();
-    await waitFor(() => expect(syncWeRead).toHaveBeenCalled());
+    expect(syncWeRead).not.toHaveBeenCalled();
+  });
+
+  it('applies WeRead state updates emitted after main auto sync', async () => {
+    const initialState = {
+      settings: { configured: true, openMethod: 'deeplink' as const, syncMode: 'auto' as const },
+      books: [],
+    };
+    const nextState = {
+      settings: initialState.settings,
+      books: [
+        {
+          bookId: 'weread_auto',
+          title: '自动同步书籍',
+          author: '微信作者',
+          reviewCount: 0,
+          noteCount: 0,
+          bookmarkCount: 0,
+          readingProgress: 20,
+          updatedAt: now,
+        },
+      ],
+    };
+    const syncWeRead = vi.fn().mockResolvedValue(nextState);
+    let emitWeReadState: ((state: typeof nextState) => void) | null = null;
+    vi.stubGlobal('yomitomoDesktop', {
+      getWeReadState: vi.fn().mockResolvedValue(initialState),
+      onWeReadStateUpdated: vi.fn((callback) => {
+        emitWeReadState = callback;
+        return vi.fn();
+      }),
+      syncWeRead,
+    });
+
+    renderLibrary([]);
+
+    await waitFor(() => expect(emitWeReadState).toBeTypeOf('function'));
+    expect(screen.queryByText('自动同步书籍')).toBeNull();
+    act(() => emitWeReadState?.(nextState));
+
+    expect((await screen.findAllByText('自动同步书籍')).length).toBeGreaterThan(0);
+    expect(syncWeRead).not.toHaveBeenCalled();
   });
 
   it('loads the full article before opening a PDF summary', async () => {

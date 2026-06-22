@@ -463,6 +463,7 @@ export const wereadAccounts = sqliteTable('weread_accounts', {
   id: text('id').primaryKey(),
   apiKeyRef: text('api_key_ref'),
   openMethod: text('open_method').notNull().default('deeplink'),
+  syncMode: text('sync_mode').notNull().default('manual'),
   skillVersion: text('skill_version').notNull(),
   status: text('status').notNull().default('idle'),
   message: text('message'),

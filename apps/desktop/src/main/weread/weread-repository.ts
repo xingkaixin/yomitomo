@@ -9,6 +9,7 @@ import type {
   WeReadReadingStatsSnapshot,
   WeReadReadingStatsState,
   WeReadSettings,
+  WeReadSyncMode,
   WeReadThought,
   WeReadUser,
 } from '@yomitomo/shared';
@@ -40,6 +41,7 @@ export async function readWeReadSettings(): Promise<WeReadSettings> {
   return {
     configured: Boolean(account?.apiKeyRef && (await readWeReadApiKey(account.apiKeyRef))),
     openMethod: normalizeWeReadOpenMethod(account?.openMethod),
+    syncMode: normalizeWeReadSyncMode(account?.syncMode),
     status: normalizeWeReadStatus(account?.status),
     lastSyncAt: account?.lastSyncAt || undefined,
     lastTestAt: account?.lastTestAt || undefined,
@@ -50,7 +52,8 @@ export async function readWeReadSettings(): Promise<WeReadSettings> {
 export async function saveWeReadSettings(input: {
   apiKey?: string;
   removeApiKey?: boolean;
-  openMethod: WeReadOpenMethod;
+  openMethod?: WeReadOpenMethod;
+  syncMode?: WeReadSyncMode;
 }) {
   const existing = readWeReadAccountRow();
   let apiKeyRef = existing?.apiKeyRef || null;
@@ -61,7 +64,8 @@ export async function saveWeReadSettings(input: {
   }
   upsertWeReadAccount({
     apiKeyRef,
-    openMethod: normalizeWeReadOpenMethod(input.openMethod),
+    openMethod: normalizeWeReadOpenMethod(input.openMethod ?? existing?.openMethod),
+    syncMode: normalizeWeReadSyncMode(input.syncMode ?? existing?.syncMode),
     status: apiKeyRef ? existing?.status || 'idle' : 'idle',
     message: apiKeyRef ? existing?.message : null,
     lastSyncAt: existing?.lastSyncAt,
@@ -75,6 +79,7 @@ export async function saveWeReadTestResult(ok: boolean, message: string) {
   upsertWeReadAccount({
     apiKeyRef: existing?.apiKeyRef || null,
     openMethod: normalizeWeReadOpenMethod(existing?.openMethod),
+    syncMode: normalizeWeReadSyncMode(existing?.syncMode),
     status: ok ? 'connected' : 'error',
     message,
     lastSyncAt: existing?.lastSyncAt,
@@ -99,6 +104,7 @@ export async function saveWeReadBooks(books: WeReadBook[]) {
     upsertWeReadAccountRow(tx, {
       apiKeyRef: existing?.apiKeyRef || null,
       openMethod: normalizeWeReadOpenMethod(existing?.openMethod),
+      syncMode: normalizeWeReadSyncMode(existing?.syncMode),
       status: 'connected',
       message: null,
       lastSyncAt: new Date().toISOString(),
@@ -124,6 +130,7 @@ export async function saveWeReadBookDetails(details: WeReadBookDetail[]) {
     upsertWeReadAccountRow(tx, {
       apiKeyRef: existing?.apiKeyRef || null,
       openMethod: normalizeWeReadOpenMethod(existing?.openMethod),
+      syncMode: normalizeWeReadSyncMode(existing?.syncMode),
       status: 'connected',
       message: null,
       lastSyncAt: new Date().toISOString(),
@@ -226,6 +233,7 @@ function readWeReadAccountRow() {
 function upsertWeReadAccount(input: {
   apiKeyRef: string | null;
   openMethod: WeReadOpenMethod;
+  syncMode: WeReadSyncMode;
   status: string;
   message?: string | null;
   lastSyncAt?: string | null;
@@ -239,6 +247,7 @@ function upsertWeReadAccountRow(
   input: {
     apiKeyRef: string | null;
     openMethod: WeReadOpenMethod;
+    syncMode: WeReadSyncMode;
     status: string;
     message?: string | null;
     lastSyncAt?: string | null;
@@ -249,6 +258,7 @@ function upsertWeReadAccountRow(
     id: WEREAD_ACCOUNT_ID,
     apiKeyRef: input.apiKeyRef,
     openMethod: input.openMethod,
+    syncMode: input.syncMode,
     skillVersion: WEREAD_SKILL_VERSION,
     status: input.status,
     message: input.message || null,
@@ -489,6 +499,10 @@ function rowToWeReadThought(row: typeof schema.wereadThoughts.$inferSelect): WeR
 
 function normalizeWeReadOpenMethod(value: unknown): WeReadOpenMethod {
   return value === 'web' ? 'web' : 'deeplink';
+}
+
+function normalizeWeReadSyncMode(value: unknown): WeReadSyncMode {
+  return value === 'auto' ? 'auto' : 'manual';
 }
 
 function normalizeWeReadUser(value: unknown): WeReadUser | undefined {

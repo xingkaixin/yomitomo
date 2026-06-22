@@ -1,15 +1,8 @@
-import { performance } from 'node:perf_hooks';
 import { createHash } from 'node:crypto';
-import type {
-  WeReadBook,
-  WeReadBookDetail,
-  WeReadOpenMethod,
-  WeReadReadingStatsMode,
-} from '@yomitomo/shared';
+import type { WeReadOpenMethod, WeReadReadingStatsMode } from '@yomitomo/shared';
 import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
-
-const WEREAD_SYNC_DETAIL_CONCURRENCY = 3;
+import { syncWeReadLibrary } from '../weread/weread-sync';
 
 export function registerWeReadIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('weread:get-state', async () => {
@@ -22,7 +15,9 @@ export function registerWeReadIpc(context: DesktopMainIpcContext) {
   });
   handleDesktopIpc('weread:save-settings', async (_event, input) => {
     const { weReadPersistence } = await context.getPersistenceModule();
-    return weReadPersistence.saveWeReadSettings(input);
+    const state = await weReadPersistence.saveWeReadSettings(input);
+    context.configureWeReadAutoSync('settings-saved');
+    return state;
   });
   handleDesktopIpc('weread:test', async (_event, apiKey) => {
     const { weReadPersistence } = await context.getPersistenceModule();
@@ -40,46 +35,14 @@ export function registerWeReadIpc(context: DesktopMainIpcContext) {
     }
   });
   handleDesktopIpc('weread:sync', async () => {
-    const startedAt = performance.now();
     const { weReadPersistence } = await context.getPersistenceModule();
-    const apiKey = await weReadPersistence.readStoredWeReadApiKey();
-    if (!apiKey) throw new Error('WEREAD_API_KEY_REQUIRED');
-    const {
-      fetchWeReadBookDetail,
-      fetchWeReadNotebooks,
-      hasValidWeReadBookDetailContent,
-      mergeWeReadNotebookBook,
-    } = await import('../weread/weread-client');
-    context.logInfo('weread.sync.start');
-    try {
-      const notebooksStartedAt = performance.now();
-      const books = await fetchWeReadNotebooks(apiKey);
-      context.logInfo('weread.sync.notebooks_loaded', {
-        bookCount: books.length,
-        durationMs: context.elapsedMs(notebooksStartedAt),
-      });
-      const details = await fetchWeReadSyncDetails({
-        books,
-        fetchBookDetail: (bookId) => fetchWeReadBookDetail(apiKey, bookId),
-        hasValidContent: hasValidWeReadBookDetailContent,
-        logError: context.logError,
-        logInfo: context.logInfo,
-        mergeNotebookBook: mergeWeReadNotebookBook,
-        elapsedMs: context.elapsedMs,
-      });
-      const result = await weReadPersistence.saveWeReadBookDetails(details);
-      context.logInfo('weread.sync.complete', {
-        bookCount: books.length,
-        detailCount: details.length,
-        durationMs: context.elapsedMs(startedAt),
-      });
-      return result;
-    } catch (error) {
-      context.logError('weread.sync.failed', error, {
-        durationMs: context.elapsedMs(startedAt),
-      });
-      throw error;
-    }
+    return syncWeReadLibrary({
+      persistence: weReadPersistence,
+      reason: 'manual',
+      logInfo: context.logInfo,
+      logError: context.logError,
+      elapsedMs: context.elapsedMs,
+    });
   });
   handleDesktopIpc('weread:sync-book', async (_event, bookId) => {
     const { weReadPersistence } = await context.getPersistenceModule();
@@ -120,58 +83,6 @@ export function registerWeReadIpc(context: DesktopMainIpcContext) {
       fetchedAt: new Date().toISOString(),
     });
   });
-}
-
-export async function fetchWeReadSyncDetails(input: {
-  books: WeReadBook[];
-  fetchBookDetail: (bookId: string) => Promise<WeReadBookDetail>;
-  hasValidContent: (detail: WeReadBookDetail) => boolean;
-  mergeNotebookBook: (detail: WeReadBookDetail, book: WeReadBook) => WeReadBookDetail;
-  logInfo: DesktopMainIpcContext['logInfo'];
-  logError: DesktopMainIpcContext['logError'];
-  elapsedMs?: (startedAt: number) => number;
-  concurrency?: number;
-}) {
-  const concurrency = Math.max(1, input.concurrency ?? WEREAD_SYNC_DETAIL_CONCURRENCY);
-  const details: Array<WeReadBookDetail | undefined> = [];
-  let nextIndex = 0;
-
-  async function worker() {
-    for (;;) {
-      const index = nextIndex;
-      nextIndex += 1;
-      const book = input.books[index];
-      if (!book) return;
-
-      const startedAt = performance.now();
-      try {
-        const detail = input.mergeNotebookBook(await input.fetchBookDetail(book.bookId), book);
-        if (input.hasValidContent(detail)) details[index] = detail;
-        input.logInfo('weread.sync.book_detail_loaded', {
-          bookId: book.bookId,
-          title: book.title,
-          stage: 'book_detail',
-          durationMs: elapsedMs(input, startedAt),
-        });
-      } catch (error) {
-        input.logError('weread.sync.book_detail_failed', error, {
-          bookId: book.bookId,
-          title: book.title,
-          stage: 'book_detail',
-          durationMs: elapsedMs(input, startedAt),
-        });
-        throw error;
-      }
-    }
-  }
-
-  const workerCount = Math.min(concurrency, input.books.length);
-  await Promise.all(Array.from({ length: workerCount }, () => worker()));
-  return details.filter((detail): detail is WeReadBookDetail => Boolean(detail));
-}
-
-function elapsedMs(input: { elapsedMs?: (startedAt: number) => number }, startedAt: number) {
-  return input.elapsedMs?.(startedAt) ?? Number((performance.now() - startedAt).toFixed(2));
 }
 
 function buildWeReadOpenUrl(

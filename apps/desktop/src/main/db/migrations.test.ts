@@ -234,6 +234,38 @@ VALUES ('collection_1', 'article', 'article_1', '2026-06-21T00:01:00.000Z')
 
     expect(countRows(database, 'collection_members')).toBe(0);
   });
+
+  it('adds WeRead sync mode with manual default', () => {
+    const database = new DatabaseSync(':memory:');
+    for (const id of ['0001_initial', '0033_weread_sync', '0055_weread_sync_mode']) {
+      const migration = migrations.find((item) => item.id === id);
+      if (!migration) throw new Error(`missing migration ${id}`);
+      database.exec(migration.sql);
+    }
+
+    expect(columnNames(database, 'weread_accounts')).toContain('sync_mode');
+    database
+      .prepare(
+        `
+INSERT INTO weread_accounts (
+  id,
+  skill_version,
+  updated_at
+)
+VALUES (
+  'default',
+  '1.0.3',
+  '2026-06-22T00:00:00.000Z'
+)
+`,
+      )
+      .run();
+
+    const row = database
+      .prepare("SELECT sync_mode AS syncMode FROM weread_accounts WHERE id = 'default'")
+      .get() as { syncMode: string } | undefined;
+    expect(row?.syncMode).toBe('manual');
+  });
 });
 
 function migratedDatabase() {
