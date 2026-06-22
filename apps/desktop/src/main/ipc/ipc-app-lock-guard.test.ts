@@ -72,7 +72,7 @@ describe('app lock IPC guard', () => {
     await expectAppLockRequired('log:read');
     await expectAppLockRequired('data:paths');
     await expectAppLockRequired('article:get', 'article_1');
-    await expectAppLockRequired('library-collection:create', { name: '集合' });
+    await expectAppLockRequired('library-collection:create', { name: '合集' });
 
     expect(storeModule.readStoredProviderApiKey).not.toHaveBeenCalled();
     expect(storeModule.readStoredWeReadApiKey).not.toHaveBeenCalled();

@@ -93,7 +93,7 @@ describe('useDesktopStoreState', () => {
         type: 'collection-upsert',
         collection: {
           id: 'collection_1',
-          name: '集合',
+          name: '合集',
           createdAt: '2026-06-21T00:00:00.000Z',
           updatedAt: '2026-06-21T00:00:00.000Z',
         },

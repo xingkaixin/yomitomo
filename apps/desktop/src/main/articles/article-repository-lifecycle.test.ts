@@ -443,7 +443,7 @@ function insertCollectionReferences(database: ReadingMemorySqliteExecutor, artic
     .prepare(
       `
 INSERT INTO collections (id, name, created_at, updated_at)
-VALUES ('collection_1', '集合', ?, ?)
+VALUES ('collection_1', '合集', ?, ?)
 `,
     )
     .run('2026-05-26T00:00:00.000Z', '2026-05-26T00:00:00.000Z');

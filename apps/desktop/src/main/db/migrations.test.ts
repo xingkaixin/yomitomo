@@ -218,7 +218,7 @@ VALUES (
       .prepare(
         `
 INSERT INTO collections (id, name, created_at, updated_at)
-VALUES ('collection_1', '集合', '2026-06-21T00:00:00.000Z', '2026-06-21T00:00:00.000Z')
+VALUES ('collection_1', '合集', '2026-06-21T00:00:00.000Z', '2026-06-21T00:00:00.000Z')
 `,
       )
       .run();

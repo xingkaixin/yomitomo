@@ -121,7 +121,7 @@ const collectionCoverItem = makeItem(
     article: makeMockArticle({
       id: 'article-col-1',
       sourceType: 'web',
-      title: '集合成员文章',
+      title: '合集成员文章',
       updatedAt: '2026-06-06T08:00:00.000Z',
     }),
   },
