@@ -278,10 +278,7 @@ function scoreDocuments(
 ): ScoredParagraph[] {
   const avgLength =
     documents.reduce((total, document) => total + document.length, 0) / documents.length || 1;
-  const documentFrequency = new Map<string, number>();
-  for (const term of queryTerms.keys()) {
-    documentFrequency.set(term, documents.filter((document) => document.terms.has(term)).length);
-  }
+  const documentFrequency = documentFrequencyForQueryTerms(documents, queryTerms);
 
   return documents.flatMap((document) => {
     let score = 0;
@@ -313,6 +310,21 @@ function scoreDocuments(
         ]
       : [];
   });
+}
+
+function documentFrequencyForQueryTerms(
+  documents: ParagraphDocument[],
+  queryTerms: Map<string, number>,
+) {
+  const queryTermSet = new Set(queryTerms.keys());
+  const documentFrequency = new Map<string, number>();
+  for (const document of documents) {
+    for (const term of document.terms.keys()) {
+      if (!queryTermSet.has(term)) continue;
+      documentFrequency.set(term, (documentFrequency.get(term) || 0) + 1);
+    }
+  }
+  return documentFrequency;
 }
 
 function buildPassages(
