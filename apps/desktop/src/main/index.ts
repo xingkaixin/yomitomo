@@ -8,6 +8,10 @@ import type {
 } from '@yomitomo/shared';
 import { getLogPath, logError, logInfo, pruneLogFile } from './app/logger';
 import { configureDesktopAppStorage } from './app/app-environment';
+import {
+  runPendingChromiumCacheCleanup,
+  scheduleChromiumCacheInspection,
+} from './app/chromium-cache-maintenance';
 import { installDevProcessLifecycle } from './app/dev-process-lifecycle';
 import { installElectronSmokeProbe } from './app/electron-smoke-probe';
 import type { AppUpdateState } from '../app-update-types';
@@ -120,6 +124,27 @@ function scheduleLogPrune(retentionDays: number | undefined) {
       logError('log.prune_failed', error);
       recordStartupTiming('log.prune_error', { durationMs: elapsedMs(startedAt) });
     });
+}
+
+async function runStartupChromiumCacheCleanup() {
+  const startedAt = performance.now();
+  recordStartupTiming('chromium_cache.cleanup_check_start');
+  try {
+    const result = await runPendingChromiumCacheCleanup({
+      logger: { info: logInfo, error: logError },
+    });
+    recordStartupTiming('chromium_cache.cleanup_check_complete', {
+      durationMs: elapsedMs(startedAt),
+      status: result.status,
+    });
+  } catch (error) {
+    logError('chromium_cache.cleanup_check_failed', error, {
+      durationMs: elapsedMs(startedAt),
+    });
+    recordStartupTiming('chromium_cache.cleanup_check_error', {
+      durationMs: elapsedMs(startedAt),
+    });
+  }
 }
 
 function scheduleModelPriceRefresh() {
@@ -302,7 +327,9 @@ void app.whenReady().then(async () => {
   });
   recordStartupTiming('ipc.registered');
   recordStartupTiming('updater.deferred');
+  await runStartupChromiumCacheCleanup();
   await createWindow();
+  scheduleChromiumCacheInspection({ logger: { info: logInfo, error: logError } });
 });
 
 app.on('window-all-closed', () => {
