@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { WeReadBook, WeReadBookDetail } from '@yomitomo/shared';
 import type { DesktopMainIpcContext } from './ipc';
-import { fetchWeReadSyncDetails, registerWeReadIpc } from './ipc-weread';
+import { registerWeReadIpc } from './ipc-weread';
+import { fetchWeReadSyncDetails } from '../weread/weread-sync';
 
 const ipcMocks = vi.hoisted(() => ({
   ipcMainHandle: vi.fn(),
