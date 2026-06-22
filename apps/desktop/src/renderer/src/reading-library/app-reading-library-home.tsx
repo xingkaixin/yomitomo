@@ -2,14 +2,18 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   BookText,
+  Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   FileText,
   FolderOpen,
   Globe2,
   LibraryBig,
+  ListFilter,
   Search,
   Smartphone,
+  X,
 } from 'lucide-react';
 import type {
   AppSettings,
@@ -31,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { Button } from '../components/ui/button';
 import {
   Dialog,
@@ -58,10 +63,19 @@ import {
   buildLibraryEntities,
   libraryEntityPinTarget,
 } from './app-reading-library-entities';
-import type { LibraryItemType, LibraryTypeScope } from './library-entity-types';
+import { librarySession } from './app-reading-library-session';
+import type { LibraryItemType, LibraryTypeFilter } from './library-entity-types';
 
 const LIBRARY_PAGE_SIZE_OPTIONS = [6, 12, 18, 24] as const;
 const LOCAL_LIBRARY_TYPES: LibraryItemType[] = ['web', 'ebook', 'pdf'];
+
+const TYPE_FILTER_ICONS: Record<LibraryTypeFilter, React.ReactNode> = {
+  collection: <LibraryBig size={15} />,
+  web: <Globe2 size={15} />,
+  ebook: <BookText size={15} />,
+  pdf: <FileText size={15} />,
+  weread: <Smartphone size={15} />,
+};
 
 export function LibraryHome({
   collectionMembers,
@@ -131,9 +145,14 @@ export function LibraryHome({
   const [pageSize, setPageSize] = useState(() =>
     normalizeLibraryPageSize(settings.libraryPageSize),
   );
-  const [searchQuery, setSearchQuery] = useState('');
-  const [typeScope, setTypeScope] = useState<LibraryTypeScope>('all');
-  const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState(() => librarySession.searchQuery);
+  const [selectedTypes, setSelectedTypes] = useState<Set<LibraryTypeFilter>>(
+    () => new Set(librarySession.selectedTypes),
+  );
+  const [typeMenuOpen, setTypeMenuOpen] = useState(false);
+  const [activeCollectionId, setActiveCollectionId] = useState<string | null>(
+    () => librarySession.activeCollectionId,
+  );
   const [collectionNameDialog, setCollectionNameDialog] =
     useState<CollectionNameDialogState | null>(null);
   const [pickerCollectionId, setPickerCollectionId] = useState<string | null>(null);
@@ -156,14 +175,12 @@ export function LibraryHome({
     () =>
       libraryContentSourceBaseOptions()
         .filter((option) => availableTypes.includes(option.value))
-        .map((option) => ({ value: option.value as LibraryTypeScope, label: option.label })),
+        .map((option) => ({ value: option.value as LibraryTypeFilter, label: option.label })),
     [availableTypes],
   );
-  const typeOptions = useMemo(() => {
-    if (activeCollection)
-      return [{ value: 'all' as const, label: t('library.typeFilter.all') }, ...itemTypeOptions];
+  const typeOptions = useMemo<{ value: LibraryTypeFilter; label: string }[]>(() => {
+    if (activeCollection) return itemTypeOptions;
     return [
-      { value: 'all' as const, label: t('library.typeFilter.all') },
       { value: 'collection' as const, label: t('library.sources.collection') },
       ...itemTypeOptions,
     ];
@@ -172,6 +189,12 @@ export function LibraryHome({
     () => [{ value: 'all' as const, label: t('library.typeFilter.all') }, ...itemTypeOptions],
     [itemTypeOptions, t],
   );
+  const selectedTypesKey = useMemo(() => [...selectedTypes].toSorted().join(','), [selectedTypes]);
+  const selectedTypeChips = useMemo(
+    () => typeOptions.filter((option) => selectedTypes.has(option.value)),
+    [typeOptions, selectedTypes],
+  );
+  const singleSelectedType = selectedTypes.size === 1 ? [...selectedTypes][0] : null;
   const unfilteredEntities = useMemo(() => {
     if (activeCollection) {
       return buildCollectionMemberEntities({
@@ -181,7 +204,7 @@ export function LibraryHome({
         enabledTypes: availableTypes,
         pins,
         query: '',
-        typeScope,
+        typeFilter: selectedTypes,
         wereadBooks,
       });
     }
@@ -193,7 +216,7 @@ export function LibraryHome({
       enabledTypes: availableTypes,
       pins,
       query: '',
-      typeScope,
+      typeFilter: selectedTypes,
       wereadBooks,
     });
   }, [
@@ -203,7 +226,7 @@ export function LibraryHome({
     collections,
     pins,
     sortedArticles,
-    typeScope,
+    selectedTypes,
     wereadBooks,
   ]);
   const filteredEntities = useMemo(() => {
@@ -215,7 +238,7 @@ export function LibraryHome({
         enabledTypes: availableTypes,
         pins,
         query: searchQuery,
-        typeScope,
+        typeFilter: selectedTypes,
         wereadBooks,
       });
     }
@@ -227,7 +250,7 @@ export function LibraryHome({
       enabledTypes: availableTypes,
       pins,
       query: searchQuery,
-      typeScope,
+      typeFilter: selectedTypes,
       wereadBooks,
     });
   }, [
@@ -238,7 +261,7 @@ export function LibraryHome({
     pins,
     searchQuery,
     sortedArticles,
-    typeScope,
+    selectedTypes,
     wereadBooks,
   ]);
   const activeItemsLength = filteredEntities.length;
@@ -252,13 +275,11 @@ export function LibraryHome({
     );
     return Array.from({ length: visibleCount }, (_, index) => start + index);
   }, [page, pageCount]);
-  const activeTypeLabel =
-    typeOptions.find((option) => option.value === typeScope)?.label || t('library.typeFilter.all');
   const footerCountLabel = activeCollection
     ? t('library.collection.total', { count: activeItemsLength })
-    : typeScope === 'all'
-      ? t('library.total.all', { count: activeItemsLength })
-      : t(`library.total.${typeScope}`, { count: activeItemsLength });
+    : singleSelectedType
+      ? t(`library.total.${singleSelectedType}`, { count: activeItemsLength })
+      : t('library.total.all', { count: activeItemsLength });
   const libraryHasItems = sortedArticles.length > 0 || wereadBooks.length > 0;
   const emptyReason = activeCollection
     ? emptyCollectionReason({
@@ -272,14 +293,17 @@ export function LibraryHome({
         itemsLength: unfilteredEntities.length,
         searchQuery,
         t,
-        typeScope,
+        selectedType: singleSelectedType,
         wereadConfigured: wereadSettings.configured,
       });
 
   useEffect(() => {
-    if (typeOptions.some((option) => option.value === typeScope)) return;
-    setTypeScope('all');
-  }, [typeOptions, typeScope]);
+    const valid = new Set(typeOptions.map((option) => option.value));
+    setSelectedTypes((current) => {
+      const next = new Set([...current].filter((type) => valid.has(type)));
+      return next.size === current.size ? current : next;
+    });
+  }, [typeOptions]);
 
   useEffect(() => {
     setPage((current) => {
@@ -292,7 +316,13 @@ export function LibraryHome({
   useEffect(() => {
     setPageTransitionDirection('none');
     setPage(1);
-  }, [activeCollectionId, pageSize, searchQuery, typeScope]);
+  }, [activeCollectionId, pageSize, searchQuery, selectedTypesKey]);
+
+  useEffect(() => {
+    librarySession.searchQuery = searchQuery;
+    librarySession.selectedTypes = selectedTypes;
+    librarySession.activeCollectionId = activeCollectionId;
+  }, [searchQuery, selectedTypes, activeCollectionId]);
 
   useEffect(() => {
     setPageSize(normalizeLibraryPageSize(settings.libraryPageSize));
@@ -345,6 +375,16 @@ export function LibraryHome({
     event.dataTransfer.setData('application/x-yomitomo-ref', JSON.stringify(ref));
   };
   const endLibraryDrag = () => setDraggedRef(null);
+  const toggleType = (type: LibraryTypeFilter) => {
+    setSelectedTypes((current) => {
+      const next = new Set(current);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      // 选满所有类型等价于「全部」，回退到空集
+      if (next.size === typeOptions.length) return new Set();
+      return next;
+    });
+  };
 
   return (
     <section className="library-home is-mixed" aria-label={t('library.title')}>
@@ -361,39 +401,87 @@ export function LibraryHome({
               <span>{t('library.title')}</span>
             </button>
           ) : null}
-          <div className="library-search library-search-combo">
+          <div className="library-search-typed">
             <Search size={16} />
-            <Input
-              type="search"
-              value={searchQuery}
-              placeholder={
-                activeCollection
-                  ? t('library.collection.searchPlaceholder')
-                  : t('library.searchPlaceholder')
-              }
-              aria-label={t('library.searchLabel')}
-              onChange={(event) => setSearchQuery(event.target.value)}
-            />
-            <Select
-              value={typeScope}
-              onValueChange={(value) => setTypeScope(value as LibraryTypeScope)}
-            >
-              <SelectTrigger
-                className="library-type-filter-trigger"
-                aria-label={t('library.typeFilter.label')}
-              >
-                <span>{activeTypeLabel}</span>
-              </SelectTrigger>
-              <SelectContent className="theme-select-content">
-                <SelectGroup>
-                  {typeOptions.map((option) => (
-                    <SelectItem value={option.value} key={option.value}>
-                      {option.label}
-                    </SelectItem>
+            <Popover open={typeMenuOpen} onOpenChange={setTypeMenuOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  className="library-type-filter-button"
+                  type="button"
+                  aria-label={t('library.typeFilter.label')}
+                >
+                  {selectedTypes.size === 0 ? (
+                    <span>{t('library.typeFilter.allShort')}</span>
+                  ) : (
+                    <ListFilter size={15} aria-hidden="true" />
+                  )}
+                  <ChevronDown size={14} aria-hidden="true" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="library-type-filter-menu" sideOffset={10}>
+                <div className="library-type-filter-menu-head">
+                  <span>{t('library.typeFilter.menuTitle')}</span>
+                  {selectedTypes.size > 0 ? (
+                    <button type="button" onClick={() => setSelectedTypes(new Set())}>
+                      {t('library.typeFilter.reset')}
+                    </button>
+                  ) : null}
+                </div>
+                {typeOptions.map((option) => {
+                  const checked = selectedTypes.has(option.value);
+                  return (
+                    <button
+                      className={
+                        checked ? 'library-type-filter-option is-on' : 'library-type-filter-option'
+                      }
+                      type="button"
+                      role="menuitemcheckbox"
+                      aria-checked={checked}
+                      key={option.value}
+                      onClick={() => toggleType(option.value)}
+                    >
+                      <span className="library-type-filter-check">
+                        {checked ? <Check size={13} /> : null}
+                      </span>
+                      <span className="library-type-filter-option-icon" aria-hidden="true">
+                        {TYPE_FILTER_ICONS[option.value]}
+                      </span>
+                      <span className="library-type-filter-option-label">{option.label}</span>
+                    </button>
+                  );
+                })}
+              </PopoverContent>
+            </Popover>
+            <div className="library-search-field">
+              {selectedTypeChips.length > 0 ? (
+                <span className="library-type-filter-chips">
+                  {selectedTypeChips.map((chip) => (
+                    <span className="library-type-filter-chip" key={chip.value}>
+                      {chip.label}
+                      <button
+                        className="library-type-filter-chip-remove"
+                        type="button"
+                        aria-label={t('library.typeFilter.remove', { type: chip.label })}
+                        onClick={() => toggleType(chip.value)}
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
                   ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+                </span>
+              ) : null}
+              <Input
+                type="search"
+                value={searchQuery}
+                placeholder={
+                  activeCollection
+                    ? t('library.collection.searchPlaceholder')
+                    : t('library.searchPlaceholder')
+                }
+                aria-label={t('library.searchLabel')}
+                onChange={(event) => setSearchQuery(event.target.value)}
+              />
+            </div>
           </div>
           <div className="library-home-actions">
             <LibraryImportControls
@@ -423,7 +511,7 @@ export function LibraryHome({
           aria-label={t('library.groups.all')}
           data-page-transition={pageTransitionDirection}
         >
-          <div className="library-page-panel" key={`${typeScope}-${page}`}>
+          <div className="library-page-panel" key={`${selectedTypesKey}-${page}`}>
             {activeItemsLength > 0 ? (
               <LibraryEntityGrid
                 activeCollectionId={activeCollection?.id || null}
@@ -841,17 +929,17 @@ function emptyLibraryReason({
   itemsLength,
   searchQuery,
   t,
-  typeScope,
+  selectedType,
   wereadConfigured,
 }: {
   filteredLength: number;
   itemsLength: number;
   searchQuery: string;
   t: ReturnType<typeof useTranslation>['t'];
-  typeScope: LibraryTypeScope;
+  selectedType: LibraryTypeFilter | null;
   wereadConfigured: boolean;
 }): LibraryEmptyReason {
-  if (typeScope === 'weread' && !wereadConfigured) {
+  if (selectedType === 'weread' && !wereadConfigured) {
     return {
       variant: 'message',
       description: t('library.weReadSetupDescription'),
@@ -873,7 +961,7 @@ function emptyLibraryReason({
     };
   }
 
-  if (typeScope === 'web') {
+  if (selectedType === 'web') {
     return {
       variant: 'message',
       description: t('library.empty.webDescription'),
@@ -882,7 +970,7 @@ function emptyLibraryReason({
     };
   }
 
-  if (typeScope === 'pdf') {
+  if (selectedType === 'pdf') {
     return {
       variant: 'message',
       description: t('library.empty.pdfDescription'),
@@ -891,7 +979,7 @@ function emptyLibraryReason({
     };
   }
 
-  if (typeScope === 'weread') {
+  if (selectedType === 'weread') {
     return {
       variant: 'message',
       description: t('library.empty.wereadDescription'),
@@ -900,7 +988,7 @@ function emptyLibraryReason({
     };
   }
 
-  if (typeScope === 'ebook') {
+  if (selectedType === 'ebook') {
     return {
       variant: 'message',
       description: t('library.empty.ebookDescription'),

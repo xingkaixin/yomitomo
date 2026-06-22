@@ -32,6 +32,7 @@ import {
   buildLibraryEntities,
   contentRefKey,
   libraryItemTitle,
+  libraryTypeFilterFromScope,
 } from './app-reading-library-entities';
 import { formatLibraryShortDate } from './app-reading-library-utils';
 import { WeReadCover } from './app-reading-library-covers';
@@ -105,7 +106,7 @@ export function CollectionPickerDialog({
         enabledTypes: availableTypes,
         pins,
         query: '',
-        typeScope: 'all',
+        typeFilter: libraryTypeFilterFromScope('all'),
         wereadBooks,
       })
         .filter((entity): entity is LibraryItemEntity => entity.kind === 'item')
@@ -121,7 +122,7 @@ export function CollectionPickerDialog({
         enabledTypes: availableTypes,
         pins,
         query,
-        typeScope,
+        typeFilter: libraryTypeFilterFromScope(typeScope),
         wereadBooks,
       })
         .filter((entity): entity is LibraryItemEntity => entity.kind === 'item')

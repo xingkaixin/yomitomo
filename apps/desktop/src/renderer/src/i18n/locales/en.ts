@@ -537,6 +537,10 @@ export const enResources = {
       typeFilter: {
         label: 'Filter content type',
         all: 'All types',
+        allShort: 'All',
+        menuTitle: 'Filter by type',
+        reset: 'Reset',
+        remove: 'Remove {{type}}',
       },
       weReadSetupTooltip: 'Configure the WeRead API key in Settings / WeRead first',
       sync: 'Sync WeRead',

@@ -18,10 +18,19 @@ import type {
   LibraryEntity,
   LibraryItemEntity,
   LibraryItemType,
+  LibraryTypeFilter,
   LibraryTypeScope,
 } from './library-entity-types';
 
 const COLLECTION_COVER_PREVIEW_LIMIT = 9;
+
+const EMPTY_TYPE_FILTER: ReadonlySet<LibraryTypeFilter> = new Set();
+
+export function libraryTypeFilterFromScope(
+  scope: LibraryTypeScope,
+): ReadonlySet<LibraryTypeFilter> {
+  return scope === 'all' ? EMPTY_TYPE_FILTER : new Set([scope]);
+}
 
 export function buildLibraryEntities({
   articles,
@@ -30,7 +39,7 @@ export function buildLibraryEntities({
   enabledTypes,
   pins,
   query,
-  typeScope,
+  typeFilter,
   wereadBooks,
 }: {
   articles: ArticleSummaryRecord[];
@@ -39,7 +48,7 @@ export function buildLibraryEntities({
   enabledTypes: LibraryItemType[];
   pins: LibraryPin[];
   query: string;
-  typeScope: LibraryTypeScope;
+  typeFilter: ReadonlySet<LibraryTypeFilter>;
   wereadBooks: WeReadBook[];
 }): LibraryEntity[] {
   const pinMap = new Map(pins.map((pin) => [pinKey(pin.targetKind, pin.targetId), pin]));
@@ -52,17 +61,13 @@ export function buildLibraryEntities({
     itemByRef,
     pinMap,
   });
-  if (typeScope === 'collection') {
-    return collectionEntities
-      .filter((entity) => libraryEntityMatchesSearch(entity, query))
-      .toSorted(compareLibraryEntities);
-  }
+  const showCollections = typeFilter.size === 0 || typeFilter.has('collection');
   const visibleItems = baseItems.filter((item) => {
-    if (!itemTypeMatchesScope(item.type, typeScope)) return false;
-    return typeScope === 'all' ? !collectedRefs.has(contentRefKey(item.ref)) : true;
+    if (!typeMatchesFilter(item.type, typeFilter)) return false;
+    // 合集卡片可见时隐藏已入合集的散件，避免与合集卡片重复
+    return showCollections ? !collectedRefs.has(contentRefKey(item.ref)) : true;
   });
-
-  const entities = typeScope === 'all' ? [...collectionEntities, ...visibleItems] : visibleItems;
+  const entities = showCollections ? [...collectionEntities, ...visibleItems] : visibleItems;
 
   return entities
     .filter((entity) => libraryEntityMatchesSearch(entity, query))
@@ -76,7 +81,7 @@ export function buildCollectionMemberEntities({
   enabledTypes,
   pins,
   query,
-  typeScope,
+  typeFilter,
   wereadBooks,
 }: {
   articles: ArticleSummaryRecord[];
@@ -85,7 +90,7 @@ export function buildCollectionMemberEntities({
   enabledTypes: LibraryItemType[];
   pins: LibraryPin[];
   query: string;
-  typeScope: LibraryTypeScope;
+  typeFilter: ReadonlySet<LibraryTypeFilter>;
   wereadBooks: WeReadBook[];
 }): LibraryItemEntity[] {
   const pinMap = new Map(pins.map((pin) => [pinKey(pin.targetKind, pin.targetId), pin]));
@@ -99,7 +104,7 @@ export function buildCollectionMemberEntities({
       return item ? Object.assign({}, item, { sortTime: member.addedAt }) : null;
     })
     .filter((item): item is LibraryItemEntity => Boolean(item))
-    .filter((item) => itemTypeMatchesScope(item.type, typeScope))
+    .filter((item) => typeMatchesFilter(item.type, typeFilter))
     .filter((item) => libraryEntityMatchesSearch(item, query))
     .toSorted(compareLibraryEntities);
 }
@@ -214,8 +219,8 @@ function libraryEntityMatchesSearch(entity: LibraryEntity, query: string): boole
   return false;
 }
 
-function itemTypeMatchesScope(type: LibraryItemType, typeScope: LibraryTypeScope) {
-  return typeScope === 'all' || type === typeScope;
+function typeMatchesFilter(type: LibraryItemType, typeFilter: ReadonlySet<LibraryTypeFilter>) {
+  return typeFilter.size === 0 || typeFilter.has(type);
 }
 
 function collectionMatchesSearch(collection: Collection, normalizedQuery: string) {

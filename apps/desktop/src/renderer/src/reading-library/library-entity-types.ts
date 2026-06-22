@@ -26,3 +26,5 @@ export type LibraryCollectionEntity = {
 export type LibraryEntity = LibraryItemEntity | LibraryCollectionEntity;
 
 export type LibraryTypeScope = 'all' | 'collection' | LibraryItemType;
+
+export type LibraryTypeFilter = 'collection' | LibraryItemType;
