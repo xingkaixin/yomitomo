@@ -24,6 +24,7 @@ import {
   ebookTocItemsForReader,
   foliateRangeHighlightBoxes,
   formatEbookPageLabel,
+  isEbookPageNavigationReady,
   isEbookPaginationReady,
   normalizeRenderedText,
   rangeForEbookAnchorInDocument,
@@ -913,6 +914,7 @@ export function EbookBookcase({
   }, [article.id, focusAnnotationId]);
 
   const progressPercent = Math.round(progress * 100);
+  const pageNavigationReady = isEbookPageNavigationReady(pageInfo);
   const paginationReady = isEbookPaginationReady(pageInfo, sectionPageCounts);
   const pageLabel = paginationReady ? formatEbookPageLabel(pageInfo, sectionPageCounts) : '';
   const progressTickId = `ebook-progress-ticks-${article.id}`;
@@ -1031,13 +1033,22 @@ export function EbookBookcase({
                 className="reader-icon-button"
                 type="button"
                 aria-label={t('readerControls.previousPage')}
-                disabled={readerState.status !== 'ready' || !paginationReady}
+                disabled={readerState.status !== 'ready' || !pageNavigationReady}
                 onClick={goLeft}
               >
                 <ChevronLeft size={17} />
               </button>
             </ReaderTooltip>
-            <span className="reader-floating-value is-wide">{pageLabel}</span>
+            <span
+              className={
+                paginationReady
+                  ? 'reader-floating-value is-wide'
+                  : 'reader-floating-value is-wide is-paginating'
+              }
+              aria-busy={!paginationReady}
+            >
+              {pageLabel}
+            </span>
             <input
               aria-label={t('readerControls.jumpEbookProgress')}
               className="ebook-progress-slider reader-floating-slider"
@@ -1056,7 +1067,7 @@ export function EbookBookcase({
                 className="reader-icon-button"
                 type="button"
                 aria-label={t('readerControls.nextPage')}
-                disabled={readerState.status !== 'ready' || !paginationReady}
+                disabled={readerState.status !== 'ready' || !pageNavigationReady}
                 onClick={goRight}
               >
                 <ChevronRight size={17} />
