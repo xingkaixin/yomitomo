@@ -25,7 +25,6 @@ import {
 } from '@yomitomo/shared';
 import {
   activeTocIndexForOffset,
-  annotationIdsAtHighlightPoint,
   createUserAnnotation,
   selectionActionPosition,
   type HighlightBox,
@@ -61,6 +60,8 @@ import {
   pdfiumAnnotationAgentName,
   pdfiumAnnotationRailLayout,
   pageProgress,
+  pdfiumHighlightChoicePosition,
+  pdfiumHighlightHitAtClientPoint,
   pdfPageProgressPercent,
   pdfiumTemporaryBoxes,
   pdfiumTocAnnotationStats,
@@ -98,6 +99,28 @@ function firstVisiblePdfPageWidth(pageMetrics: Record<number, { top: number; wid
   const firstPage = Object.values(pageMetrics).toSorted((left, right) => left.top - right.top)[0];
   const width = firstPage?.width ?? 0;
   return Number.isFinite(width) && width > 0 ? Math.round(width) : 0;
+}
+
+function debugPoint(point: { x: number; y: number }) {
+  return {
+    x: Math.round(point.x),
+    y: Math.round(point.y),
+  };
+}
+
+function debugElement(element: Element | null) {
+  if (!element) return null;
+  return {
+    className: element.getAttribute('class') ?? '',
+    tagName: element.tagName.toLowerCase(),
+  };
+}
+
+function pdfiumPageIndexFromTarget(target: Element | null) {
+  const page = target?.closest<HTMLElement>('[data-pdfium-page-index]');
+  if (!page) return null;
+  const pageIndex = Number(page.dataset.pdfiumPageIndex);
+  return Number.isInteger(pageIndex) ? pageIndex : null;
 }
 
 export function PdfiumBookcase({
@@ -812,22 +835,84 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     event: React.MouseEvent<HTMLButtonElement>,
     annotationIds: string[],
   ) {
-    const ids =
-      annotationIds.length > 0
-        ? annotationIds
-        : annotationIdsAtHighlightPoint(boxes, {
-            x: event.currentTarget.offsetLeft + event.nativeEvent.offsetX,
-            y: event.currentTarget.offsetTop + event.nativeEvent.offsetY,
-          });
-    if (ids.length <= 1) {
-      onOpenAnnotation(ids[0] || annotationId);
-      return;
+    openPdfiumHighlightAtClientPoint(event.clientX, event.clientY, {
+      fallbackAnnotationId: annotationId,
+      preferredAnnotationIds: annotationIds,
+      source: 'highlight-button',
+    });
+  }
+
+  function handlePdfiumCanvasClickCapture(event: React.MouseEvent<HTMLDivElement>) {
+    if (event.button !== 0 || event.defaultPrevented) return;
+    const target = event.target instanceof Element ? event.target : null;
+    const handled = openPdfiumHighlightAtClientPoint(event.clientX, event.clientY, {
+      pageIndex: pdfiumPageIndexFromTarget(target),
+      source: 'pdf-content',
+      target,
+    });
+    if (!handled) return;
+    event.preventDefault();
+  }
+
+  function openPdfiumHighlightAtClientPoint(
+    clientX: number,
+    clientY: number,
+    options: {
+      fallbackAnnotationId?: string;
+      pageIndex?: number | null;
+      preferredAnnotationIds?: string[];
+      source: 'highlight-button' | 'pdf-content';
+      target?: Element | null;
+    },
+  ) {
+    if (selectionAction || composer) {
+      debugPdfLayout('highlight-hit-test-skipped', {
+        composerOpen: Boolean(composer),
+        selectionActionOpen: Boolean(selectionAction),
+        source: options.source,
+      });
+      return false;
     }
+
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      if (options.fallbackAnnotationId) onOpenAnnotation(options.fallbackAnnotationId);
+      return Boolean(options.fallbackAnnotationId);
+    }
+
+    const canvasRect = canvas.getBoundingClientRect();
+    const { annotationIds: ids, point } = pdfiumHighlightHitAtClientPoint({
+      boxes,
+      canvasRect,
+      clientX,
+      clientY,
+      preferredAnnotationIds: options.preferredAnnotationIds,
+    });
+
+    debugPdfLayout('highlight-hit-test', {
+      annotationIds: ids,
+      canvasRect: debugRect(canvasRect),
+      pageIndex: options.pageIndex,
+      point: debugPoint(point),
+      source: options.source,
+      target: debugElement(options.target ?? null),
+      totalBoxes: boxes.length,
+    });
+
+    if (ids.length === 0) return false;
+
+    if (ids.length <= 1) {
+      const annotationId = ids[0] || options.fallbackAnnotationId;
+      if (!annotationId) return false;
+      onOpenAnnotation(annotationId);
+      return true;
+    }
+
     setHighlightChoice({
-      x: event.clientX,
-      y: event.clientY,
+      ...pdfiumHighlightChoicePosition(canvasRect.width, point),
       annotationIds: ids,
     });
+    return true;
   }
 
   function handleAnnotationLayoutChange() {
@@ -1141,7 +1226,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     },
     article: {
       content: (
-        <div className="pdfium-spike-canvas">
+        <div className="pdfium-spike-canvas" onClickCapture={handlePdfiumCanvasClickCapture}>
           <GlobalPointerProvider documentId={documentId}>
             <Viewport className="pdfium-spike-viewport" documentId={documentId}>
               <Scroller
