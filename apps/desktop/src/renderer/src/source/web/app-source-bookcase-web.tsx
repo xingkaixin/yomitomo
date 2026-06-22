@@ -129,6 +129,7 @@ export function WebSourceBookcase({
   const articleHtmlRenderFlushTimerRef = useRef<number | null>(null);
   const articleSelectionGestureActiveRef = useRef(false);
   const articleSelectionGestureRef = useRef<WebSelectionGesturePoint | null>(null);
+  const articleSelectionGestureDragPointRef = useRef<WebSelectionGestureClientPoint | null>(null);
   const deferredArticleTranslationRef = useRef<ArticleTranslation | null>(null);
   const lastSavedWebProgressRef = useRef<number | null>(null);
   const restoredWebProgressArticleRef = useRef<string | null>(null);
@@ -393,6 +394,7 @@ export function WebSourceBookcase({
     deferredArticleTranslationRef.current = null;
     articleSelectionGestureActiveRef.current = false;
     articleSelectionGestureRef.current = null;
+    articleSelectionGestureDragPointRef.current = null;
     clearTranslationSuccessFeedback();
     translationSegmentStatusRef.current.clear();
     lastSavedWebProgressRef.current = normalizeSavedWebProgress(article.readingProgress);
@@ -907,6 +909,45 @@ export function WebSourceBookcase({
     });
   }
 
+  function correctArticleSelectionDuringGesture(reason: string) {
+    const articleElement = articleRef.current;
+    const selectionGesture = articleSelectionGestureRef.current;
+    const dragPoint = articleSelectionGestureDragPointRef.current;
+    if (!articleElement || !selectionGesture || !dragPoint) return;
+
+    const articleSelection = getArticleSelection(articleElement);
+    if (!articleSelection || articleSelection.rangeCount === 0) return;
+
+    const gestureRange = webSelectionGestureRangeFromClientPoint(
+      articleElement,
+      selectionGesture,
+      dragPoint.clientX,
+      dragPoint.clientY,
+    );
+    if (!gestureRange) return;
+
+    const nativeRange = articleSelection.getRangeAt(0);
+    if (
+      !shouldUseWebSelectionGestureRange(
+        nativeRange,
+        articleElement,
+        selectionGesture,
+        gestureRange,
+      )
+    ) {
+      return;
+    }
+
+    articleSelection.removeAllRanges();
+    articleSelection.addRange(gestureRange.range);
+    logReaderSelectionDebug('selectionchange:gesture-range-applied', {
+      ...selectionDebugContextRef.current,
+      reason,
+      nativeRange: describeRangeForDebug(nativeRange, articleElement),
+      gestureRange: describeWebSelectionGestureRangeForDebug(gestureRange),
+    });
+  }
+
   useEffect(() => {
     const ownerDocument = articleRef.current?.ownerDocument || document;
     let frame = 0;
@@ -934,6 +975,7 @@ export function WebSourceBookcase({
     };
 
     const handleSelectionChange = () => {
+      correctArticleSelectionDuringGesture('selectionchange');
       if (!readerSelectionDebugEnabled() || frame) return;
       frame = window.requestAnimationFrame(() => {
         frame = 0;
@@ -968,13 +1010,39 @@ export function WebSourceBookcase({
             event.clientX,
             event.clientY,
           );
+          articleSelectionGestureDragPointRef.current = {
+            clientX: event.clientX,
+            clientY: event.clientY,
+          };
+        }
+        if (
+          event.type === 'pointermove' &&
+          articleSelectionGestureRef.current &&
+          event.buttons === 1
+        ) {
+          articleSelectionGestureDragPointRef.current = {
+            clientX: event.clientX,
+            clientY: event.clientY,
+          };
+        }
+        if (event.type === 'pointerup') {
+          articleSelectionGestureDragPointRef.current = {
+            clientX: event.clientX,
+            clientY: event.clientY,
+          };
+        }
+        if (event.type === 'pointercancel') {
+          articleSelectionGestureRef.current = null;
+          articleSelectionGestureDragPointRef.current = null;
         }
         if (shouldFlush) scheduleArticleHtmlRenderFlush(event.type);
       } else if (shouldFlush) {
         scheduleArticleHtmlRenderFlush(`${event.type}-outside-article`);
       } else if (event.type === 'pointerdown') {
         articleSelectionGestureRef.current = null;
+        articleSelectionGestureDragPointRef.current = null;
       }
+      if (event.type === 'pointermove') return;
       if (!readerSelectionDebugEnabled()) return;
       if (
         !insideReader &&
@@ -998,12 +1066,14 @@ export function WebSourceBookcase({
     logSelectionState('reader-mounted');
     ownerDocument.addEventListener('selectionchange', handleSelectionChange);
     window.addEventListener('pointerdown', handlePointerEvent, true);
+    window.addEventListener('pointermove', handlePointerEvent, true);
     window.addEventListener('pointerup', handlePointerEvent, true);
     window.addEventListener('pointercancel', handlePointerEvent, true);
     window.addEventListener('blur', handleWindowBlur);
     return () => {
       ownerDocument.removeEventListener('selectionchange', handleSelectionChange);
       window.removeEventListener('pointerdown', handlePointerEvent, true);
+      window.removeEventListener('pointermove', handlePointerEvent, true);
       window.removeEventListener('pointerup', handlePointerEvent, true);
       window.removeEventListener('pointercancel', handlePointerEvent, true);
       window.removeEventListener('blur', handleWindowBlur);
@@ -1034,6 +1104,7 @@ export function WebSourceBookcase({
     });
     const selectionGesture = articleSelectionGestureRef.current;
     articleSelectionGestureRef.current = null;
+    articleSelectionGestureDragPointRef.current = null;
     const gestureRange = event
       ? webSelectionGestureRangeFromClientPoint(
           articleElement,
@@ -1951,6 +2022,11 @@ type ArticleHtmlRenderState = {
   frozen: boolean;
   html: string;
   pendingHtml: string | null;
+};
+
+type WebSelectionGestureClientPoint = {
+  clientX: number;
+  clientY: number;
 };
 
 function articleHtmlForRender(state: ArticleHtmlRenderState, articleId: string, nextHtml: string) {

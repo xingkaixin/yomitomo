@@ -8,7 +8,7 @@ import {
 const ignoredTranslationSelector = '[data-reader-translation]';
 const minimumSelectionGestureDistancePx = 4;
 const nativeEndpointToleranceChars = 64;
-const nativeExtraLengthToleranceChars = 512;
+const nativeExtraLengthToleranceChars = 64;
 const nativeLengthMultiplierTolerance = 3;
 
 type CaretPositionLike = {
@@ -110,7 +110,6 @@ export function shouldUseWebSelectionGestureRange(
   );
 
   return shouldPreferWebSelectionGestureRange({
-    gestureStartOffset: startPoint.sourceOffset,
     nativeStart,
     nativeEnd,
     pointerStart: gestureRange.startOffset,
@@ -119,13 +118,11 @@ export function shouldUseWebSelectionGestureRange(
 }
 
 export function shouldPreferWebSelectionGestureRange({
-  gestureStartOffset,
   nativeStart,
   nativeEnd,
   pointerStart,
   pointerEnd,
 }: {
-  gestureStartOffset: number;
   nativeStart: number;
   nativeEnd: number;
   pointerStart: number;
@@ -133,14 +130,12 @@ export function shouldPreferWebSelectionGestureRange({
 }) {
   const nativeLength = Math.abs(nativeEnd - nativeStart);
   const pointerLength = Math.abs(pointerEnd - pointerStart);
-  const nativeStartsAtGesture =
-    Math.min(
-      Math.abs(nativeStart - gestureStartOffset),
-      Math.abs(nativeEnd - gestureStartOffset),
-    ) <= nativeEndpointToleranceChars;
+  const nativeMatchesPointerRange =
+    Math.abs(nativeStart - pointerStart) <= nativeEndpointToleranceChars &&
+    Math.abs(nativeEnd - pointerEnd) <= nativeEndpointToleranceChars;
 
   return (
-    !nativeStartsAtGesture &&
+    !nativeMatchesPointerRange &&
     nativeLength > pointerLength + nativeExtraLengthToleranceChars &&
     nativeLength > pointerLength * nativeLengthMultiplierTolerance
   );

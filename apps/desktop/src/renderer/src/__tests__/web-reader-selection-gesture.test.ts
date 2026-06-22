@@ -5,7 +5,6 @@ describe('web reader selection gesture', () => {
   it('keeps native selections when the native range starts at the pointer down offset', () => {
     expect(
       shouldPreferWebSelectionGestureRange({
-        gestureStartOffset: 4790,
         nativeStart: 4788,
         nativeEnd: 4966,
         pointerStart: 4790,
@@ -17,7 +16,6 @@ describe('web reader selection gesture', () => {
   it('rebuilds selections when the native range expands far before the pointer down offset', () => {
     expect(
       shouldPreferWebSelectionGestureRange({
-        gestureStartOffset: 4790,
         nativeStart: 0,
         nativeEnd: 4966,
         pointerStart: 4790,
@@ -26,10 +24,20 @@ describe('web reader selection gesture', () => {
     ).toBe(true);
   });
 
+  it('rebuilds visible selections that drift to the article start while dragging', () => {
+    expect(
+      shouldPreferWebSelectionGestureRange({
+        nativeStart: 13,
+        nativeEnd: 156,
+        pointerStart: 139,
+        pointerEnd: 158,
+      }),
+    ).toBe(true);
+  });
+
   it('keeps large deliberate selections when the pointer range is similarly large', () => {
     expect(
       shouldPreferWebSelectionGestureRange({
-        gestureStartOffset: 4790,
         nativeStart: 0,
         nativeEnd: 4966,
         pointerStart: 0,
