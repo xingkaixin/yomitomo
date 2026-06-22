@@ -2,11 +2,11 @@ import { useMemo, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import type { Comment, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { commentPersona } from '@yomitomo/core';
-import { renderSafeMarkdown } from '@yomitomo/core/article-extraction';
 import { useTranslation } from 'react-i18next';
 import { AvatarBadge, ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { AssistantRuntimeProgressList } from '../shell/app-assistant-runtime-progress';
 import { formatAbsoluteTime, formatRelativeTime } from './app-annotation-discussion-utils';
+import { renderDiscussionMessageMarkdown } from './app-annotation-discussion-mention-chips';
 import { SettingsConfirmDialog } from '../settings/app-settings-confirm-dialog';
 
 export function DiscussionMessage({
@@ -25,7 +25,10 @@ export function DiscussionMessage({
   const { t } = useTranslation();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const author = commentPersona(message, userProfile, agents);
-  const html = useMemo(() => renderSafeMarkdown(message.content), [message.content]);
+  const html = useMemo(
+    () => renderDiscussionMessageMarkdown(message.content, agents, message.author),
+    [agents, message.author, message.content],
+  );
   const className = [
     'annotation-discussion-message',
     message.author === 'user' ? 'is-user' : 'is-assistant',

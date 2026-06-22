@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { ChevronDown, MessageCircle, Send } from 'lucide-react';
 import type { PublicAgent, UserProfile } from '@yomitomo/shared';
 import { getMentionQuery } from '@yomitomo/core';
-import { renderSafeMarkdown } from '@yomitomo/core/article-extraction';
 import { FloatingComposer } from '@yomitomo/reader-ui/floating-composer';
 import {
   matchesAgentMentionQuery,
@@ -25,6 +24,7 @@ import {
   insertMentionAtSelection,
   type DiscussionThread,
 } from './app-annotation-discussion-utils';
+import { renderDiscussionMessageMarkdown } from './app-annotation-discussion-mention-chips';
 import { DiscussionMessage } from './app-annotation-discussion-message';
 
 type DiscussionLayoutMode = AnnotationMessageLayoutMode;
@@ -79,8 +79,9 @@ export function DiscussionThreadView({
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
   const rootThoughtHtml = useMemo(
-    () => renderSafeMarkdown(thread.root.content),
-    [thread.root.content],
+    () =>
+      renderDiscussionMessageMarkdown(thread.root.content, annotationAgents, thread.root.author),
+    [annotationAgents, thread.root.author, thread.root.content],
   );
   const rootVersion = `${thread.root.content}:${thread.root.pending ? 'pending' : 'ready'}`;
   const messagesVersion = messages
