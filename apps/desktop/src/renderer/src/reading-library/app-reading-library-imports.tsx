@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BookText,
   Check,
@@ -255,23 +255,23 @@ export const readingLibraryImportTestApi = {
   fileImportErrorMessage,
 };
 
-export function LibraryImportControls({
-  defaultImportType,
+export type LibraryImportDialogs = {
+  openArticleImport: () => void;
+  openEbookImport: () => void;
+  openPdfImport: () => void;
+  dialogs: React.ReactNode;
+};
+
+export function useLibraryImportDialogs({
   settings,
+  onImportArticleUrl,
   onImportEbookFile,
   onImportPdfFile,
-  onImportArticleUrl,
   onCancelArticleImport,
   onOpenArticle,
-  onCreateCollection,
-  onOpenCollectionPicker,
-  onSyncWeRead,
-  weReadSyncDisabled = false,
-  weReadSyncVisible = false,
-  weReadSyncing = false,
 }: {
-  defaultImportType?: 'web' | 'ebook' | 'pdf';
   settings: AppSettings;
+  onImportArticleUrl: (url: string, requestId?: string) => Promise<ArticleImportResult>;
   onImportEbookFile: (
     file: File,
     onProgress?: EbookImportProgressCallback,
@@ -280,155 +280,31 @@ export function LibraryImportControls({
     file: File,
     onProgress?: PdfImportProgressCallback,
   ) => Promise<ArticleImportResult>;
-  onImportArticleUrl: (url: string, requestId?: string) => Promise<ArticleImportResult>;
   onCancelArticleImport?: (requestId: string) => Promise<boolean> | boolean;
   onOpenArticle: (article: ArticleRecord) => void;
-  onCreateCollection?: () => void;
-  onOpenCollectionPicker?: () => void;
-  onSyncWeRead?: () => void;
-  weReadSyncDisabled?: boolean;
-  weReadSyncVisible?: boolean;
-  weReadSyncing?: boolean;
-}) {
-  const { t } = useTranslation();
-  const [addMenuOpen, setAddMenuOpen] = useState(false);
+}): LibraryImportDialogs {
   const [articleImportOpen, setArticleImportOpen] = useState(false);
   const [ebookImportOpen, setEbookImportOpen] = useState(false);
   const [pdfImportOpen, setPdfImportOpen] = useState(false);
 
-  function openArticleImportDialog() {
-    setAddMenuOpen(false);
+  const openArticleImport = useCallback(() => {
     setEbookImportOpen(false);
     setPdfImportOpen(false);
     setArticleImportOpen(true);
-  }
-
-  function openEbookImportDialog() {
-    setAddMenuOpen(false);
+  }, []);
+  const openEbookImport = useCallback(() => {
     setArticleImportOpen(false);
     setPdfImportOpen(false);
     setEbookImportOpen(true);
-  }
-
-  function openPdfImportDialog() {
-    setAddMenuOpen(false);
+  }, []);
+  const openPdfImport = useCallback(() => {
     setArticleImportOpen(false);
     setEbookImportOpen(false);
     setPdfImportOpen(true);
-  }
+  }, []);
 
-  function syncWeRead() {
-    setAddMenuOpen(false);
-    onSyncWeRead?.();
-  }
-
-  function createCollection() {
-    setAddMenuOpen(false);
-    onCreateCollection?.();
-  }
-
-  function openCollectionPicker() {
-    setAddMenuOpen(false);
-    onOpenCollectionPicker?.();
-  }
-
-  return (
+  const dialogs = (
     <>
-      <DropdownMenu open={addMenuOpen} onOpenChange={setAddMenuOpen}>
-        <div className="library-add-control">
-          {defaultImportType ? (
-            <Button
-              aria-label={
-                defaultImportType === 'ebook'
-                  ? t('library.import.addEbook')
-                  : defaultImportType === 'pdf'
-                    ? t('library.import.addPdf')
-                    : t('library.import.addWebArticle')
-              }
-              className="library-add-trigger"
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                if (defaultImportType === 'web') {
-                  openArticleImportDialog();
-                  return;
-                }
-                if (defaultImportType === 'ebook') {
-                  openEbookImportDialog();
-                  return;
-                }
-                openPdfImportDialog();
-              }}
-            >
-              <Plus size={16} />
-              {defaultImportType === 'web' ? (
-                <span>{t('library.import.addWebArticle')}</span>
-              ) : defaultImportType === 'ebook' ? (
-                <span>{t('library.import.addEbook')}</span>
-              ) : (
-                <span>{t('library.import.addPdf')}</span>
-              )}
-            </Button>
-          ) : (
-            <>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  aria-label={t('library.import.addContent')}
-                  className="library-add-trigger"
-                  type="button"
-                  variant="secondary"
-                >
-                  <Plus size={16} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="library-add-menu-popover">
-                <DropdownMenuItem asChild>
-                  <button type="button" onClick={openArticleImportDialog}>
-                    <Globe2 size={15} />
-                    {t('library.import.addWebArticle')}
-                  </button>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <button type="button" onClick={openEbookImportDialog}>
-                    <BookText size={15} />
-                    {t('library.import.epubEbook')}
-                  </button>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <button type="button" onClick={openPdfImportDialog}>
-                    <FileText size={15} />
-                    {t('library.import.pdfDocument')}
-                  </button>
-                </DropdownMenuItem>
-                {onOpenCollectionPicker ? (
-                  <DropdownMenuItem asChild>
-                    <button type="button" onClick={openCollectionPicker}>
-                      <FolderOpen size={15} />
-                      {t('library.collection.addExisting')}
-                    </button>
-                  </DropdownMenuItem>
-                ) : null}
-                {onCreateCollection ? (
-                  <DropdownMenuItem asChild>
-                    <button type="button" onClick={createCollection}>
-                      <FolderPlus size={15} />
-                      {t('library.collection.create')}
-                    </button>
-                  </DropdownMenuItem>
-                ) : null}
-                {weReadSyncVisible ? (
-                  <DropdownMenuItem asChild>
-                    <button type="button" disabled={weReadSyncDisabled} onClick={syncWeRead}>
-                      <RefreshCw size={15} />
-                      {weReadSyncing ? t('library.syncing') : t('library.sync')}
-                    </button>
-                  </DropdownMenuItem>
-                ) : null}
-              </DropdownMenuContent>
-            </>
-          )}
-        </div>
-      </DropdownMenu>
       {articleImportOpen ? (
         <ArticleImportDialog
           settings={settings}
@@ -455,6 +331,163 @@ export function LibraryImportControls({
         />
       ) : null}
     </>
+  );
+
+  return { openArticleImport, openEbookImport, openPdfImport, dialogs };
+}
+
+export function LibraryImportControls({
+  defaultImportType,
+  onAddWebArticle,
+  onAddEbook,
+  onAddPdf,
+  onCreateCollection,
+  onOpenCollectionPicker,
+  onSyncWeRead,
+  weReadSyncDisabled = false,
+  weReadSyncVisible = false,
+  weReadSyncing = false,
+}: {
+  defaultImportType?: 'web' | 'ebook' | 'pdf';
+  onAddWebArticle: () => void;
+  onAddEbook: () => void;
+  onAddPdf: () => void;
+  onCreateCollection?: () => void;
+  onOpenCollectionPicker?: () => void;
+  onSyncWeRead?: () => void;
+  weReadSyncDisabled?: boolean;
+  weReadSyncVisible?: boolean;
+  weReadSyncing?: boolean;
+}) {
+  const { t } = useTranslation();
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+
+  function openArticleImportDialog() {
+    setAddMenuOpen(false);
+    onAddWebArticle();
+  }
+
+  function openEbookImportDialog() {
+    setAddMenuOpen(false);
+    onAddEbook();
+  }
+
+  function openPdfImportDialog() {
+    setAddMenuOpen(false);
+    onAddPdf();
+  }
+
+  function syncWeRead() {
+    setAddMenuOpen(false);
+    onSyncWeRead?.();
+  }
+
+  function createCollection() {
+    setAddMenuOpen(false);
+    onCreateCollection?.();
+  }
+
+  function openCollectionPicker() {
+    setAddMenuOpen(false);
+    onOpenCollectionPicker?.();
+  }
+
+  return (
+    <DropdownMenu open={addMenuOpen} onOpenChange={setAddMenuOpen}>
+      <div className="library-add-control">
+        {defaultImportType ? (
+          <Button
+            aria-label={
+              defaultImportType === 'ebook'
+                ? t('library.import.addEbook')
+                : defaultImportType === 'pdf'
+                  ? t('library.import.addPdf')
+                  : t('library.import.addWebArticle')
+            }
+            className="library-add-trigger"
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              if (defaultImportType === 'web') {
+                openArticleImportDialog();
+                return;
+              }
+              if (defaultImportType === 'ebook') {
+                openEbookImportDialog();
+                return;
+              }
+              openPdfImportDialog();
+            }}
+          >
+            <Plus size={16} />
+            {defaultImportType === 'web' ? (
+              <span>{t('library.import.addWebArticle')}</span>
+            ) : defaultImportType === 'ebook' ? (
+              <span>{t('library.import.addEbook')}</span>
+            ) : (
+              <span>{t('library.import.addPdf')}</span>
+            )}
+          </Button>
+        ) : (
+          <>
+            <DropdownMenuTrigger asChild>
+              <Button
+                aria-label={t('library.import.addContent')}
+                className="library-add-trigger"
+                type="button"
+                variant="secondary"
+              >
+                <Plus size={16} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="library-add-menu-popover">
+              <DropdownMenuItem asChild>
+                <button type="button" onClick={openArticleImportDialog}>
+                  <Globe2 size={15} />
+                  {t('library.import.addWebArticle')}
+                </button>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <button type="button" onClick={openEbookImportDialog}>
+                  <BookText size={15} />
+                  {t('library.import.epubEbook')}
+                </button>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <button type="button" onClick={openPdfImportDialog}>
+                  <FileText size={15} />
+                  {t('library.import.pdfDocument')}
+                </button>
+              </DropdownMenuItem>
+              {onOpenCollectionPicker ? (
+                <DropdownMenuItem asChild>
+                  <button type="button" onClick={openCollectionPicker}>
+                    <FolderOpen size={15} />
+                    {t('library.collection.addExisting')}
+                  </button>
+                </DropdownMenuItem>
+              ) : null}
+              {onCreateCollection ? (
+                <DropdownMenuItem asChild>
+                  <button type="button" onClick={createCollection}>
+                    <FolderPlus size={15} />
+                    {t('library.collection.create')}
+                  </button>
+                </DropdownMenuItem>
+              ) : null}
+              {weReadSyncVisible ? (
+                <DropdownMenuItem asChild>
+                  <button type="button" disabled={weReadSyncDisabled} onClick={syncWeRead}>
+                    <RefreshCw size={15} />
+                    {weReadSyncing ? t('library.syncing') : t('library.sync')}
+                  </button>
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </>
+        )}
+      </div>
+    </DropdownMenu>
   );
 }
 

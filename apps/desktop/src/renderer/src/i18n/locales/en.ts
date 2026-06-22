@@ -623,8 +623,9 @@ export const enResources = {
         saveFailed: 'Collection save failed',
         emptyCover: 'Empty collection · Add later',
         emptyTitle: 'This collection is empty',
-        emptyDescription:
-          'Choose items from the library, or go back to all and drag an item into the collection.',
+        emptyDescription: 'Pick existing items from the library to add.',
+        emptyNoLibraryDescription:
+          'The library is still empty. Add some reading first, then group it into this collection.',
         pickFromLibrary: 'Choose from library',
         searchPlaceholder: 'Search in this collection...',
         pickerTitle: 'Choose from library',
@@ -652,7 +653,18 @@ export const enResources = {
       empty: {
         libraryTitle: 'Your library is empty',
         libraryDescription:
-          'Use the plus button to add web articles or import ebooks. The library will mix them by time.',
+          'Pick an entry below to add content; the library mixes everything by the time it was added. You can also connect WeRead.',
+        entry: {
+          webTitle: 'Paste a web link',
+          webHint: 'URL, fetches the article',
+          ebookTitle: 'Import an ebook',
+          ebookHint: 'EPUB / AZW3 / MOBI · batch',
+          pdfTitle: 'Import a PDF',
+          pdfHint: 'Local PDF document',
+          wereadTitle: 'Connect WeRead',
+          wereadHint: 'Set the API key in settings',
+          wereadHintReady: 'Sync highlights and thoughts',
+        },
         noMatchTitle: 'No matches',
         noMatchDescription: 'Adjust the search terms and keep browsing.',
         webTitle: 'No web articles',

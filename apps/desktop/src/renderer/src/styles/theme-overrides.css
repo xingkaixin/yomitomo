@@ -3441,25 +3441,16 @@
   display: none;
 }
 
-.library-collection-empty-cover {
-  display: grid;
-  width: 112px;
-  height: 72px;
-  align-content: center;
-  justify-items: center;
-  gap: 5px;
-  border: 0;
-  background: transparent;
-  color: hsl(var(--muted-foreground));
-}
-
-.library-collection-empty-cover span {
-  max-width: none;
-  font-size: 10px;
-  font-weight: 760;
-  line-height: 1.2;
-  text-align: center;
-  white-space: nowrap;
+.library-collection-list-item .library-collection-cover-placeholder {
+  display: block;
+  width: 38px;
+  height: 54px;
+  border: 1.5px dashed hsl(var(--border) / 0.85);
+  border-radius: 3px;
+  background: hsl(var(--card));
+  box-shadow:
+    0 1px 1px hsl(var(--foreground) / 0.05),
+    0 8px 18px -10px hsl(var(--foreground) / 0.28);
 }
 
 .library-collection-cover-copy {
