@@ -57,6 +57,7 @@ function ebookArticle(): EbookArticleRecord {
 
 const article = ebookArticle();
 const annotationAgents: PublicAgent[] = [];
+const onFoliateClick = vi.fn();
 const onFoliatePointerDown = vi.fn();
 const onFoliatePageTurnKey = vi.fn();
 const onFoliateSelection = vi.fn();
@@ -114,6 +115,7 @@ function EbookBoxesProbe({
     readerStateStatus: 'ready',
     readerStateStatusRef,
     userProfile,
+    onFoliateClick,
     onFoliatePointerDown,
     onFoliatePageTurnKey,
     onFoliateSelection,

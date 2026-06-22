@@ -111,6 +111,33 @@ describe('useWebReaderBoxes', () => {
 
     expect(recordPerformanceTiming).toHaveBeenCalledTimes(1);
   });
+
+  it('skips repeated box updates when resized layout produces the same result', async () => {
+    const recordPerformanceTiming = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: { recordPerformanceTiming },
+    });
+    const rects = {
+      article: rect({ width: 680, height: 1200 }),
+      canvas: rect({ left: 24, width: 1080, height: 1200 }),
+    };
+
+    render(<WebReaderBoxesProbe rects={rects} />);
+
+    await act(async () => {
+      vi.runOnlyPendingTimers();
+    });
+    expect(recordPerformanceTiming).toHaveBeenCalledTimes(1);
+
+    rects.article = rect({ width: 680, height: 1240 });
+    await act(async () => {
+      MockResizeObserver.instances[0]?.trigger();
+      vi.runOnlyPendingTimers();
+    });
+
+    expect(recordPerformanceTiming).toHaveBeenCalledTimes(1);
+  });
 });
 
 function WebReaderBoxesProbe({ rects }: { rects?: { article: DOMRect; canvas: DOMRect } }) {

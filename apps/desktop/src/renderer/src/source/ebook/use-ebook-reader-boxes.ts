@@ -41,6 +41,7 @@ type UseEbookReaderBoxesInput = {
   readerStateStatus: 'loading' | 'ready' | 'error';
   readerStateStatusRef: RefObject<'loading' | 'ready' | 'error'>;
   userProfile: UserProfile;
+  onFoliateClick: (event: MouseEvent, doc: Document) => void;
   onFoliatePointerDown: () => void;
   onFoliatePageTurnKey: (direction: ReaderPageTurnDirection) => void;
   onFoliateSelection: (doc: Document) => void;
@@ -76,6 +77,7 @@ export function useEbookReaderBoxes({
   readerStateStatus,
   readerStateStatusRef,
   userProfile,
+  onFoliateClick,
   onFoliatePointerDown,
   onFoliatePageTurnKey,
   onFoliateSelection,
@@ -98,11 +100,13 @@ export function useEbookReaderBoxes({
   const observedFoliateDocsRef = useRef(new WeakSet<Document>());
   const foliateDocCleanupsRef = useRef<Array<() => void>>([]);
   const handleFoliateSelectionRef = useRef(onFoliateSelection);
+  const handleFoliateClickRef = useRef(onFoliateClick);
   const handleFoliatePageTurnKeyRef = useRef(onFoliatePageTurnKey);
   const handleFoliatePointerDownRef = useRef(onFoliatePointerDown);
   const handleFoliateSelectionShortcutRef = useRef(onFoliateSelectionShortcut);
 
   handleFoliateSelectionRef.current = onFoliateSelection;
+  handleFoliateClickRef.current = onFoliateClick;
   handleFoliatePageTurnKeyRef.current = onFoliatePageTurnKey;
   handleFoliatePointerDownRef.current = onFoliatePointerDown;
   handleFoliateSelectionShortcutRef.current = onFoliateSelectionShortcut;
@@ -478,6 +482,7 @@ export function useEbookReaderBoxes({
         handleFoliateSelectionRef.current(doc);
       }, 0);
     };
+    const handleClick = (event: MouseEvent) => handleFoliateClickRef.current(event, doc);
     const handlePointerDown = () => handleFoliatePointerDownRef.current();
     const handleKeyDown = (event: KeyboardEvent) => {
       handleFoliateSelectionShortcutRef.current(event);
@@ -488,11 +493,13 @@ export function useEbookReaderBoxes({
     };
 
     doc.addEventListener('mouseup', handleSelection);
+    doc.addEventListener('click', handleClick);
     doc.addEventListener('keyup', handleSelection);
     doc.addEventListener('keydown', handleKeyDown);
     doc.addEventListener('pointerdown', handlePointerDown, true);
     foliateDocCleanupsRef.current.push(() => {
       doc.removeEventListener('mouseup', handleSelection);
+      doc.removeEventListener('click', handleClick);
       doc.removeEventListener('keyup', handleSelection);
       doc.removeEventListener('keydown', handleKeyDown);
       doc.removeEventListener('pointerdown', handlePointerDown, true);

@@ -1142,6 +1142,11 @@ export function WebSourceBookcase({
       return;
     }
 
+    if (openHighlightAtClientPoint(event.clientX, event.clientY)) {
+      event.preventDefault();
+      return;
+    }
+
     const anchor = target?.closest<HTMLAnchorElement>('a[href]');
     if (!anchor) return;
 
@@ -1150,6 +1155,48 @@ export function WebSourceBookcase({
 
     event.preventDefault();
     void window.yomitomoDesktop.openUrl(url);
+  }
+
+  function openHighlightAtClientPoint(
+    clientX: number,
+    clientY: number,
+    preferredAnnotationIds: string[] = [],
+    fallbackAnnotationId?: string,
+  ) {
+    const canvasElement = canvasRef.current;
+    if (!canvasElement) {
+      if (fallbackAnnotationId) openAnnotation(fallbackAnnotationId);
+      return Boolean(fallbackAnnotationId);
+    }
+
+    const canvasRect = canvasElement.getBoundingClientRect();
+    const annotationIds =
+      preferredAnnotationIds.length > 0
+        ? preferredAnnotationIds
+        : annotationIdsAtHighlightPoint(
+            boxes,
+            {
+              x: clientX - canvasRect.left,
+              y: clientY - canvasRect.top,
+            },
+            1,
+          );
+    if (annotationIds.length === 0) return false;
+
+    if (annotationIds.length <= 1) {
+      const annotationId = annotationIds[0] || fallbackAnnotationId;
+      if (!annotationId) return false;
+      openAnnotation(annotationId);
+      return true;
+    }
+
+    const x = clientX - canvasRect.left + 8;
+    setHighlightChoice({
+      x: Math.max(8, Math.min(Math.max(8, canvasRect.width - 236), x)),
+      y: Math.max(8, clientY - canvasRect.top + 8),
+      annotationIds,
+    });
+    return true;
   }
 
   function showTranslationSuccessFeedback(blockId: string) {
@@ -1524,36 +1571,7 @@ export function WebSourceBookcase({
     event: React.MouseEvent<HTMLButtonElement>,
     visibleAnnotationIds: string[],
   ) {
-    const canvasElement = canvasRef.current;
-    if (!canvasElement) {
-      openAnnotation(annotationId);
-      return;
-    }
-
-    const canvasRect = canvasElement.getBoundingClientRect();
-    const annotationIds =
-      visibleAnnotationIds.length > 0
-        ? visibleAnnotationIds
-        : annotationIdsAtHighlightPoint(
-            boxes,
-            {
-              x: event.clientX - canvasRect.left,
-              y: event.clientY - canvasRect.top,
-            },
-            1,
-          );
-
-    if (annotationIds.length <= 1) {
-      openAnnotation(annotationIds[0] || annotationId);
-      return;
-    }
-
-    const x = event.clientX - canvasRect.left + 8;
-    setHighlightChoice({
-      x: Math.max(8, Math.min(Math.max(8, canvasRect.width - 236), x)),
-      y: Math.max(8, event.clientY - canvasRect.top + 8),
-      annotationIds,
-    });
+    openHighlightAtClientPoint(event.clientX, event.clientY, visibleAnnotationIds, annotationId);
   }
 
   function scrollToTocItem(item: TocItem) {

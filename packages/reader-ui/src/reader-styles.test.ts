@@ -101,10 +101,10 @@ describe('reader embedded styles', () => {
       '.reader-highlight-layer{position:absolute;inset:0;z-index:3;pointer-events:none;user-select:none;-webkit-user-select:none}',
     );
     expect(combinedReaderStyles()).toContain(
-      '.reader-highlight{position:absolute;border:0;border-radius:4px;background:rgba(234,216,157,.34);box-shadow:0 0 0 1px rgba(199,164,94,.18);mix-blend-mode:multiply;padding:0;pointer-events:auto;user-select:none;-webkit-user-select:none}',
+      '.reader-highlight{position:absolute;border:0;border-radius:4px;background:rgba(234,216,157,.34);box-shadow:0 0 0 1px rgba(199,164,94,.18);mix-blend-mode:multiply;padding:0;pointer-events:none;user-select:none;-webkit-user-select:none}',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-highlight{overflow:visible;background:transparent;box-shadow:none;mix-blend-mode:normal;user-select:none;-webkit-user-select:none}',
+      '.reader-highlight{overflow:visible;background:transparent;box-shadow:none;mix-blend-mode:normal;pointer-events:none;user-select:none;-webkit-user-select:none}',
     );
   });
 

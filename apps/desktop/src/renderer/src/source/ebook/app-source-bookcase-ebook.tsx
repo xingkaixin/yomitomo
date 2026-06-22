@@ -259,6 +259,7 @@ export function EbookBookcase({
     [annotationAgents, articleAnnotations, userProfile],
   );
   const latestArticleAnnotationsRef = useRef(articleAnnotations);
+  const ebookBoxesRef = useRef<HighlightBox[]>([]);
   const articleAnnotationSignatureRef = useRef({
     articleId: article.id,
     signature: articleAnnotationSignature,
@@ -344,11 +345,13 @@ export function EbookBookcase({
     readerStateStatus: readerState.status,
     readerStateStatusRef,
     userProfile,
+    onFoliateClick: handleFoliateClick,
     onFoliatePointerDown: handleFoliatePointerDown,
     onFoliatePageTurnKey: turnPageFromKeyboard,
     onFoliateSelection: handleFoliateSelection,
     onFoliateSelectionShortcut: handleFoliateSelectionShortcut,
   });
+  ebookBoxesRef.current = boxes;
   attachFoliateDocumentListenersRef.current = attachFoliateDocumentListeners;
   cleanupFoliateDocumentListenersRef.current = cleanupFoliateDocumentListeners;
   scheduleEbookBoxUpdateRef.current = scheduleEbookBoxUpdateImpl;
@@ -611,36 +614,60 @@ export function EbookBookcase({
     event: React.MouseEvent<HTMLButtonElement>,
     visibleAnnotationIds: string[],
   ) {
+    openHighlightAtClientPoint(event.clientX, event.clientY, visibleAnnotationIds, annotationId);
+  }
+
+  function handleFoliateClick(event: MouseEvent, doc: Document) {
+    const docSelection = doc.getSelection();
+    if (docSelection && docSelection.rangeCount > 0 && !docSelection.isCollapsed) return;
+
+    const frame = doc.defaultView?.frameElement;
+    if (!(frame instanceof HTMLIFrameElement)) return;
+
+    const frameRect = frame.getBoundingClientRect();
+    openHighlightAtClientPoint(frameRect.left + event.clientX, frameRect.top + event.clientY);
+  }
+
+  function openHighlightAtClientPoint(
+    clientX: number,
+    clientY: number,
+    preferredAnnotationIds: string[] = [],
+    fallbackAnnotationId?: string,
+  ) {
     const canvasElement = canvasRef.current;
     if (!canvasElement) {
-      openAnnotation(annotationId);
-      return;
+      if (fallbackAnnotationId) openAnnotation(fallbackAnnotationId);
+      return Boolean(fallbackAnnotationId);
     }
 
     const canvasRect = canvasElement.getBoundingClientRect();
     const annotationIds =
-      visibleAnnotationIds.length > 0
-        ? visibleAnnotationIds
+      preferredAnnotationIds.length > 0
+        ? preferredAnnotationIds
         : annotationIdsAtHighlightPoint(
-            boxes,
+            ebookBoxesRef.current,
             {
-              x: event.clientX - canvasRect.left,
-              y: event.clientY - canvasRect.top,
+              x: clientX - canvasRect.left,
+              y: clientY - canvasRect.top,
             },
             1,
           );
+    if (annotationIds.length === 0) return false;
 
     if (annotationIds.length <= 1) {
-      openAnnotation(annotationIds[0] || annotationId);
-      return;
+      const annotationId = annotationIds[0] || fallbackAnnotationId;
+      if (!annotationId) return false;
+      openAnnotation(annotationId);
+      return true;
     }
 
-    const x = event.clientX - canvasRect.left + 8;
+    const x = clientX - canvasRect.left + 8;
     setHighlightChoice({
       x: Math.max(8, Math.min(Math.max(8, canvasRect.width - 236), x)),
-      y: Math.max(8, event.clientY - canvasRect.top + 8),
+      y: Math.max(8, clientY - canvasRect.top + 8),
       annotationIds,
     });
+    return true;
   }
 
   async function goToAnnotation(annotationId: string) {
