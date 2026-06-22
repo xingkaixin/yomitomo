@@ -1155,21 +1155,6 @@ body {
 .dm-msg.me .dm-msg-name {
   text-align: right;
 }
-.dm-msg.me .dm-msg-bubble {
-  background: var(--accent);
-  color: var(--accent-fg);
-  border-radius: 12px 12px 4px 12px;
-  padding: 10px 13px;
-}
-.dm-msg.me .dm-msg-body {
-  color: var(--accent-fg);
-}
-.dm-msg .dm-msg-bubble.them {
-  background: hsl(40 30% 97%);
-  border: 1px solid var(--line);
-  border-radius: 12px 12px 12px 4px;
-  padding: 10px 13px;
-}
 
 /* ============================================================
  * Concept sections (the "focusing" explainer)
