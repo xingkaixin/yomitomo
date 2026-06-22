@@ -18,6 +18,9 @@ import * as schema from '../db/schema';
 import { loadSQLiteDatabase } from '../native/sqlite';
 
 const DB_FILE_NAME = 'yomitomo.sqlite';
+const SQLITE_MAINTENANCE_STATE_ID = 'startup-vacuum';
+const SQLITE_VACUUM_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+const SQLITE_VACUUM_FREELIST_THRESHOLD_BYTES = 32 * 1024 * 1024;
 
 let sqlite: SQLiteDatabase.Database | null = null;
 let db: StoreDatabase | null = null;
@@ -34,6 +37,20 @@ export type StoreReadProfileEntry = {
   name: string;
   durationMs: number;
   data?: Record<string, number>;
+};
+type SqliteMaintenanceStatement = {
+  get(...params: unknown[]): unknown;
+  run(...params: unknown[]): unknown;
+};
+type SqliteMaintenanceDatabase = {
+  exec(sql: string): unknown;
+  prepare(sql: string): SqliteMaintenanceStatement;
+};
+export type SqliteMaintenanceResult = {
+  status: 'vacuumed' | 'skipped';
+  reason?: 'freelist_below_threshold' | 'interval_not_due';
+  freelistBytes: number;
+  lastVacuumAt?: string;
 };
 
 export function configureStoreDatabaseSeeder(seeder: (database: StoreDatabase) => void) {
@@ -63,6 +80,11 @@ export function getDatabase() {
   sqlite.pragma('journal_mode = WAL');
   sqlite.pragma('foreign_keys = ON');
   runMigrations(sqlite);
+  try {
+    runSqliteMaintenance(sqlite);
+  } catch (error) {
+    console.warn('[sqlite] startup maintenance failed', error);
+  }
 
   db = drizzle(sqlite, { schema });
   seedDatabase?.(db);
@@ -130,6 +152,39 @@ export function purgeSqliteFiles() {
   if (!sqlite) return;
   sqlite.pragma('wal_checkpoint(TRUNCATE)');
   sqlite.exec('VACUUM');
+}
+
+export function runSqliteMaintenance(
+  database: SqliteMaintenanceDatabase,
+  options: {
+    now?: Date;
+    minIntervalMs?: number;
+    freelistThresholdBytes?: number;
+  } = {},
+): SqliteMaintenanceResult {
+  const now = options.now || new Date();
+  const minIntervalMs = options.minIntervalMs ?? SQLITE_VACUUM_INTERVAL_MS;
+  const freelistThresholdBytes =
+    options.freelistThresholdBytes ?? SQLITE_VACUUM_FREELIST_THRESHOLD_BYTES;
+
+  ensureSqliteMaintenanceStateTable(database);
+  database.exec('PRAGMA optimize');
+
+  const freelistBytes =
+    sqlitePragmaNumber(database, 'freelist_count') * sqlitePragmaNumber(database, 'page_size');
+  if (freelistBytes < freelistThresholdBytes) {
+    return { status: 'skipped', reason: 'freelist_below_threshold', freelistBytes };
+  }
+
+  const lastVacuumAt = readSqliteMaintenanceLastVacuumAt(database);
+  if (lastVacuumAt && Date.parse(lastVacuumAt) + minIntervalMs > now.getTime()) {
+    return { status: 'skipped', reason: 'interval_not_due', freelistBytes, lastVacuumAt };
+  }
+
+  database.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+  database.exec('VACUUM');
+  writeSqliteMaintenanceLastVacuumAt(database, now.toISOString());
+  return { status: 'vacuumed', freelistBytes, lastVacuumAt };
 }
 
 async function safetyBackupPath() {
@@ -201,4 +256,49 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function stringField(value: unknown) {
   return typeof value === 'string' ? value : '';
+}
+
+function numberField(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function ensureSqliteMaintenanceStateTable(database: SqliteMaintenanceDatabase) {
+  database.exec(`
+CREATE TABLE IF NOT EXISTS database_maintenance_state (
+  id TEXT PRIMARY KEY NOT NULL,
+  last_vacuum_at TEXT,
+  updated_at TEXT NOT NULL
+);
+`);
+}
+
+function sqlitePragmaNumber(database: SqliteMaintenanceDatabase, name: string) {
+  return numberField(recordField(database.prepare(`PRAGMA ${name}`).get(), name));
+}
+
+function readSqliteMaintenanceLastVacuumAt(database: SqliteMaintenanceDatabase) {
+  const value = recordField(
+    database
+      .prepare('SELECT last_vacuum_at FROM database_maintenance_state WHERE id = ?')
+      .get(SQLITE_MAINTENANCE_STATE_ID),
+    'last_vacuum_at',
+  );
+  return typeof value === 'string' && value ? value : undefined;
+}
+
+function writeSqliteMaintenanceLastVacuumAt(
+  database: SqliteMaintenanceDatabase,
+  lastVacuumAt: string,
+) {
+  database
+    .prepare(
+      `
+INSERT INTO database_maintenance_state (id, last_vacuum_at, updated_at)
+VALUES (?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+  last_vacuum_at = excluded.last_vacuum_at,
+  updated_at = excluded.updated_at
+`,
+    )
+    .run(SQLITE_MAINTENANCE_STATE_ID, lastVacuumAt, lastVacuumAt);
 }

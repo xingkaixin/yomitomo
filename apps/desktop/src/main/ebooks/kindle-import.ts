@@ -175,7 +175,6 @@ export async function articleRecordFromKindleFile(
     `ebook:${parsed.format}:${title}:${parsed.metadata.creator || ''}:${contentHash}`,
   );
   const index = buildEpubBookIndex({ articleId: id, chapters: indexChapters });
-  const contentHtml = chaptersToArticleHtml(chapters);
   logKindleImportTiming(options.performanceLogger, 'index', indexStartedAt, {
     fileName,
     fileSize,
@@ -183,7 +182,7 @@ export async function articleRecordFromKindleFile(
     paragraphCount: index.paragraphs.length,
     segmentCount: index.segments.length,
     textChars: fullText.length,
-    contentHtmlChars: contentHtml.length,
+    chapterHtmlChars: chapters.reduce((total, chapter) => total + chapter.html.length, 0),
   });
 
   const now = new Date().toISOString();
@@ -207,7 +206,6 @@ export async function articleRecordFromKindleFile(
     excerpt: parsed.metadata.description,
     siteName: parsed.format.toUpperCase(),
     leadImageUrl: parsed.cover,
-    contentHtml,
     contentHash,
     ebook: {
       metadata: {
@@ -546,15 +544,6 @@ function ebookChapterRecord(chapter: ImportedKindleChapter): EbookChapterRecord 
   };
 }
 
-function chaptersToArticleHtml(chapters: EbookChapterRecord[]) {
-  return chapters
-    .map(
-      (chapter, index) =>
-        `<section data-ebook-chapter="${index}"><h2>${escapeHtml(chapter.title)}</h2>${chapter.html}</section>`,
-    )
-    .join('\n');
-}
-
 function detectKindleFormat(fileName: string): EbookFormat {
   const lowerName = fileName.toLowerCase();
   if (lowerName.endsWith('.azw3')) return 'azw3';
@@ -759,13 +748,4 @@ function fileTitle(fileName: string) {
 
 function cleanString(value: unknown) {
   return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() || undefined : undefined;
-}
-
-function escapeHtml(input: string) {
-  return input
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }

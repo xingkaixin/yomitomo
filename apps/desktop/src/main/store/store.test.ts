@@ -68,6 +68,7 @@ import {
   buildArticleReadingProgressPatch,
   buildArticleUpsertPatch,
   findArticleInListByIdentity,
+  readArticleRows,
   writeArticleRows,
 } from '../articles/article-repository';
 import { buildAgentRecord } from '../agents/agent-repository';
@@ -704,6 +705,117 @@ describe('desktop store articles', () => {
     expect(shellStore.articles).toEqual([]);
   });
 
+  it('does not persist derived content html for ebook articles', () => {
+    const database = getDatabase();
+    const ebookArticle: ArticleRecord = {
+      ...articleRecord({
+        id: 'ebook_article',
+        sourceType: 'ebook',
+        contentHtml: '<section><p>derived html</p></section>',
+      }),
+      ebook: {
+        metadata: { format: 'epub', fileName: 'book.epub', fileSize: 1200 },
+        chapters: [
+          {
+            id: 'chapter-1',
+            title: '第一章',
+            href: 'chapter-1.xhtml',
+            html: '<p>chapter html</p>',
+            textLength: 12,
+          },
+        ],
+      },
+    };
+
+    writeArticleRows(database, ebookArticle);
+
+    const row = database
+      .select()
+      .from(schema.articles)
+      .all()
+      .find((item) => item.id === 'ebook_article');
+    expect(row?.contentHtml).toBeNull();
+    expect(row?.ebookChapters).toEqual(ebookArticle.ebook?.chapters);
+  });
+
+  it('hydrates annotation avatars from current actor rows without persisting copies', () => {
+    const database = getDatabase();
+    insertProviderRow({ id: 'provider_avatar' });
+    database.insert(schema.agents).values(agentRow()).run();
+    database.insert(schema.userProfiles).values(userProfileRow()).run();
+
+    const article = articleRecord({
+      id: 'avatar_article',
+      annotations: [
+        {
+          ...annotationRecord('annotation_user_avatar', [
+            {
+              ...commentRecord('comment_user_avatar', '用户评论'),
+              userAvatar: 'stale-user-avatar',
+            },
+          ]),
+          userAvatar: 'stale-user-avatar',
+        },
+        {
+          ...annotationRecord('annotation_agent_avatar', [
+            {
+              ...commentRecord('comment_agent_avatar', '助手评论'),
+              author: 'ai',
+              agentId: 'agent_avatar',
+              agentAvatar: 'stale-agent-avatar',
+            },
+          ]),
+          author: 'ai',
+          agentId: 'agent_avatar',
+          agentAvatar: 'stale-agent-avatar',
+        },
+      ],
+    });
+
+    writeArticleRows(database, article);
+
+    const annotationRows = database.select().from(schema.annotations).all();
+    const commentRows = database.select().from(schema.comments).all();
+    expect(annotationRows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'annotation_user_avatar', userAvatar: null }),
+        expect.objectContaining({ id: 'annotation_agent_avatar', agentAvatar: null }),
+      ]),
+    );
+    expect(commentRows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'comment_user_avatar', userAvatar: null }),
+        expect.objectContaining({ id: 'comment_agent_avatar', agentAvatar: null }),
+      ]),
+    );
+
+    const hydratedArticle = readArticleRows(database, 'avatar_article');
+    expect(hydratedArticle?.annotations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'annotation_user_avatar',
+          userAvatar: 'current-user-avatar',
+          comments: [
+            expect.objectContaining({
+              id: 'comment_user_avatar',
+              userAvatar: 'current-user-avatar',
+            }),
+          ],
+        }),
+        expect.objectContaining({
+          id: 'annotation_agent_avatar',
+          agentAvatar: 'current-agent-avatar',
+          comments: [
+            expect.objectContaining({
+              id: 'comment_agent_avatar',
+              agentAvatar: 'current-agent-avatar',
+            }),
+          ],
+        }),
+      ]),
+    );
+  });
+
   it('includes collections members and pins in store snapshots', async () => {
     const { collection } = await createCollection({ name: '主题研究' });
     await addCollectionMembers({
@@ -1222,6 +1334,36 @@ function insertProviderRow(input: Partial<typeof schema.providers.$inferInsert>)
       updatedAt: input.updatedAt || '2026-05-16T00:00:00.000Z',
     })
     .run();
+}
+
+function agentRow(): typeof schema.agents.$inferInsert {
+  return {
+    id: 'agent_avatar',
+    kind: 'annotation',
+    presetId: null,
+    enabled: true,
+    providerId: 'provider_avatar',
+    nickname: 'Agent',
+    username: 'agent',
+    avatar: 'current-agent-avatar',
+    annotationColor: '#8ab6d6',
+    annotationDensity: 'medium',
+    temperature: 0.7,
+    soul: 'test',
+    createdAt: '2026-05-16T00:00:00.000Z',
+    updatedAt: '2026-05-16T00:00:00.000Z',
+  };
+}
+
+function userProfileRow(): typeof schema.userProfiles.$inferInsert {
+  return {
+    id: 'user-test',
+    nickname: 'Kevin',
+    username: 'kevin',
+    avatar: 'current-user-avatar',
+    annotationColor: '#f59e0b',
+    updatedAt: '2026-05-16T00:00:00.000Z',
+  };
 }
 
 function readProviderRow(providerId: string) {

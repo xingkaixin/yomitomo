@@ -161,10 +161,14 @@ type Rows = {
   articles: ArticleRow[];
   annotations: AnnotationRow[];
   comments: CommentRow[];
+  agents: AgentRow[];
+  users: UserProfileRow[];
 };
 type ArticleRow = typeof schema.articles.$inferSelect;
 type AnnotationRow = typeof schema.annotations.$inferSelect;
 type CommentRow = typeof schema.comments.$inferSelect;
+type AgentRow = typeof schema.agents.$inferSelect;
+type UserProfileRow = typeof schema.userProfiles.$inferSelect;
 type QueryCondition = { queryChunks?: unknown[] } | undefined;
 
 function repositoryDatabase(): StoreDatabase {
@@ -173,6 +177,8 @@ function repositoryDatabase(): StoreDatabase {
     articles: [articleRow('article_1'), articleRow('article_2')],
     annotations: [],
     comments: [],
+    agents: [],
+    users: [userProfileRow()],
   };
   const database = new FakeStoreDatabase(rows) as unknown as StoreDatabase;
   upsertAnnotationRows(
@@ -245,6 +251,10 @@ class FakeSelect {
     return this;
   }
 
+  limit() {
+    return this;
+  }
+
   orderBy() {
     return this;
   }
@@ -262,6 +272,14 @@ class FakeSelect {
       if (isCountQuery(this.condition)) return countRootComments(this.rows, values);
       return this.rows.comments.filter((row) => values.size === 0 || values.has(row.annotationId));
     }
+    if (this.table === schema.agents) {
+      const values = conditionValues(this.condition);
+      return this.rows.agents.filter((row) => values.size === 0 || values.has(row.id));
+    }
+    if (this.table === schema.userProfiles) {
+      const values = conditionValues(this.condition);
+      return this.rows.users.filter((row) => values.size === 0 || values.has(row.id));
+    }
     return this.rows.articles;
   }
 
@@ -269,6 +287,9 @@ class FakeSelect {
     const ids = conditionValues(this.condition);
     if (this.table === schema.annotations) {
       return this.rows.annotations.find((row) => ids.has(row.id)) || null;
+    }
+    if (this.table === schema.userProfiles) {
+      return this.rows.users.find((row) => ids.size === 0 || ids.has(row.id)) || null;
     }
     if (this.table !== schema.articles) return undefined;
     return this.rows.articles.find((article) => ids.has(article.id)) || null;
@@ -437,6 +458,17 @@ function articleRow(id: string): ArticleRow {
     readerChatState: null,
     focusCoReadingPlan: null,
     createdAt: '2026-06-04T00:00:00.000Z',
+    updatedAt: '2026-06-04T00:00:00.000Z',
+  };
+}
+
+function userProfileRow(): UserProfileRow {
+  return {
+    id: 'user-test',
+    nickname: 'Kevin',
+    username: 'kevin',
+    avatar: 'user-avatar',
+    annotationColor: '#f59e0b',
     updatedAt: '2026-06-04T00:00:00.000Z',
   };
 }
