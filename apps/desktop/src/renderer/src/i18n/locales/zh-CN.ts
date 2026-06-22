@@ -527,7 +527,7 @@ export const zhCNResources = {
         all: '全部类型',
       },
       weReadSetupTooltip: '请先到设置 / 微信读书配置 API Key',
-      sync: '同步',
+      sync: '同步微信读书',
       syncing: '同步中',
       toolbarSort: '最近更新 · 降序',
       toolbarLabel: '阅读库工具栏',

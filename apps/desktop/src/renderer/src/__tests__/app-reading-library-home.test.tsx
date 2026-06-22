@@ -468,13 +468,13 @@ describe('ReadingLibrary home', () => {
     expect(screen.getAllByText('网页文章').length).toBeGreaterThan(0);
     expect(screen.getAllByText('PDF 标题').length).toBeGreaterThan(0);
     expect((await screen.findAllByText('微信读书标题')).length).toBeGreaterThan(0);
-    expect(screen.queryByRole('button', { name: '同步' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '同步微信读书' })).toBeNull();
     fireEvent.click(screen.getByRole('combobox', { name: '筛选内容类型' }));
     expect(await screen.findByRole('option', { name: '网页文章' })).toBeTruthy();
     expect(screen.getByRole('option', { name: 'PDF' })).toBeTruthy();
     expect(screen.getByRole('option', { name: '微信读书' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '添加内容' }));
-    expect(await screen.findByRole('menuitem', { name: '同步' })).toBeTruthy();
+    expect(await screen.findByRole('menuitem', { name: '同步微信读书' })).toBeTruthy();
   });
 
   it('filters the mixed grid by type scope', async () => {
