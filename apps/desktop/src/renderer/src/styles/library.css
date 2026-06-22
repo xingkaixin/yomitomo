@@ -1214,22 +1214,10 @@
   box-shadow: none;
 }
 
-.library-type-filter-trigger {
-  width: 138px;
-  height: 40px;
-  flex: 0 0 auto;
-  border-color: hsl(36 31% 72% / 0.76);
-  border-radius: 999px;
-  background: hsl(45 72% 98% / 0.82);
-  color: hsl(31 23% 20%);
-  font-size: 13px;
-  font-weight: 760;
-}
-
 .library-search-combo {
   display: grid;
   width: min(640px, 54vw);
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto auto minmax(0, 1fr);
   align-items: center;
   border: 1px solid hsl(var(--border) / 0.82);
   border-radius: 999px;
@@ -1244,30 +1232,186 @@
   transform: none;
 }
 
-.library-search-combo input {
+/* 内嵌左侧类型筛选触发器（方案 C） */
+.library-type-filter-trigger {
+  display: inline-flex;
   height: 40px;
+  align-items: center;
+  gap: 5px;
   border: 0;
-  background: transparent;
-  box-shadow: none;
-  color: hsl(var(--foreground));
-  padding-right: 10px;
-  padding-left: 10px;
-}
-
-.library-search-combo input:focus {
-  background: transparent;
-  box-shadow: none;
-}
-
-.library-search-combo .library-type-filter-trigger {
-  width: 142px;
-  height: 40px;
-  border: 0;
-  border-left: 1px solid hsl(var(--border) / 0.72);
+  border-right: 1px solid hsl(var(--border) / 0.72);
   border-radius: 0;
   background: transparent;
   box-shadow: none;
   color: hsl(var(--foreground));
+  font-size: 13px;
+  font-weight: 760;
+  padding: 0 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 150ms ease;
+}
+
+.library-type-filter-trigger:hover {
+  background: hsl(var(--app-interactive-hover-bg));
+}
+
+.library-type-filter-trigger > svg {
+  color: hsl(var(--muted-foreground));
+}
+
+.library-search-field {
+  display: flex;
+  min-width: 0;
+  height: 40px;
+  align-items: center;
+  gap: 6px;
+  padding-left: 10px;
+  overflow: hidden;
+}
+
+.library-search-field input {
+  height: 40px;
+  flex: 1 1 auto;
+  min-width: 60px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: hsl(var(--foreground));
+  padding-right: 12px;
+  padding-left: 0;
+}
+
+.library-search-field input:focus {
+  background: transparent;
+  box-shadow: none;
+}
+
+.library-type-filter-chips {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+}
+
+.library-type-filter-chip {
+  display: inline-flex;
+  height: 26px;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid hsl(var(--app-interactive-badge-border));
+  border-radius: 999px;
+  background: hsl(var(--app-interactive-badge-bg));
+  color: hsl(var(--app-interactive-badge-fg));
+  font-size: 12px;
+  font-weight: 760;
+  padding: 0 6px 0 9px;
+  white-space: nowrap;
+}
+
+.library-type-filter-chip-icon {
+  display: inline-grid;
+  place-items: center;
+}
+
+.library-type-filter-chip-remove {
+  display: inline-grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: hsl(var(--app-interactive-badge-fg) / 0.7);
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.library-type-filter-chip-remove:hover {
+  background: hsl(var(--app-interactive-hover-bg));
+  color: hsl(var(--app-interactive-badge-fg));
+}
+
+/* 类型多选菜单 */
+.library-type-filter-menu {
+  display: grid;
+  width: 232px;
+  gap: 1px;
+  padding: 6px;
+}
+
+.library-type-filter-menu-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px 8px;
+}
+
+.library-type-filter-menu-head span {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.library-type-filter-menu-head button {
+  border: 0;
+  background: transparent;
+  color: hsl(var(--app-interactive-link));
+  font-size: 12px;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.library-type-filter-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 120ms ease;
+}
+
+.library-type-filter-option:hover {
+  background: hsl(var(--app-interactive-hover-bg));
+}
+
+.library-type-filter-check {
+  display: inline-grid;
+  width: 17px;
+  height: 17px;
+  flex: none;
+  place-items: center;
+  border: 1.5px solid hsl(var(--border));
+  border-radius: 5px;
+  color: transparent;
+}
+
+.library-type-filter-option.is-on .library-type-filter-check {
+  border-color: hsl(var(--app-interactive-selected-bg));
+  background: hsl(var(--app-interactive-selected-bg));
+  color: hsl(var(--app-interactive-selected-fg));
+}
+
+.library-type-filter-option-icon {
+  display: inline-grid;
+  place-items: center;
+  color: hsl(var(--muted-foreground));
+}
+
+.library-type-filter-option-label {
+  flex: 1;
 }
 
 .library-toolbar {

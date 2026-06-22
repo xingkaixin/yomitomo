@@ -525,6 +525,10 @@ export const zhCNResources = {
       typeFilter: {
         label: '筛选内容类型',
         all: '全部类型',
+        allShort: '全部',
+        menuTitle: '按类型筛选',
+        reset: '重置',
+        remove: '移除{{type}}',
       },
       weReadSetupTooltip: '请先到设置 / 微信读书配置 API Key',
       sync: '同步微信读书',

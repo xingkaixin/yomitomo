@@ -230,9 +230,8 @@ function hasScheduledDelay(setTimeoutSpy: { mock: { calls: Array<unknown[]> } },
 }
 
 async function selectLibraryType(name: string | RegExp) {
-  fireEvent.click(screen.getByRole('combobox', { name: '筛选内容类型' }));
-  const option = await screen.findByRole('option', { name });
-  fireEvent.pointerDown(option, { pointerType: 'mouse' });
+  fireEvent.click(screen.getByRole('button', { name: '筛选内容类型' }));
+  const option = await screen.findByRole('menuitemcheckbox', { name });
   fireEvent.click(option);
 }
 
@@ -342,9 +341,7 @@ describe('ReadingLibrary home', () => {
     ]);
 
     expect(screen.queryByRole('tablist', { name: '阅读库内容类型' })).toBeNull();
-    expect(screen.getByRole('combobox', { name: '筛选内容类型' }).textContent).toContain(
-      '全部类型',
-    );
+    expect(screen.getByRole('button', { name: '筛选内容类型' }).textContent).toContain('全部');
     expect(screen.getAllByRole('heading', { level: 3 }).map((item) => item.textContent)).toEqual([
       '较新 PDF',
       '较早网页',
@@ -469,10 +466,10 @@ describe('ReadingLibrary home', () => {
     expect(screen.getAllByText('PDF 标题').length).toBeGreaterThan(0);
     expect((await screen.findAllByText('微信读书标题')).length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: '同步微信读书' })).toBeNull();
-    fireEvent.click(screen.getByRole('combobox', { name: '筛选内容类型' }));
-    expect(await screen.findByRole('option', { name: '网页文章' })).toBeTruthy();
-    expect(screen.getByRole('option', { name: 'PDF' })).toBeTruthy();
-    expect(screen.getByRole('option', { name: '微信读书' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '筛选内容类型' }));
+    expect(await screen.findByRole('menuitemcheckbox', { name: '网页文章' })).toBeTruthy();
+    expect(screen.getByRole('menuitemcheckbox', { name: 'PDF' })).toBeTruthy();
+    expect(screen.getByRole('menuitemcheckbox', { name: '微信读书' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '添加内容' }));
     expect(await screen.findByRole('menuitem', { name: '同步微信读书' })).toBeTruthy();
   });
@@ -502,7 +499,7 @@ describe('ReadingLibrary home', () => {
     expect(screen.getByText('共 1 本')).toBeTruthy();
     expect(screen.getAllByText('电子书标题').length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: '打开文章：网页文章' })).toBeNull();
-    expect(screen.getByRole('combobox', { name: '筛选内容类型' }).textContent).toContain('电子书');
+    expect(screen.getByRole('button', { name: '移除电子书' })).toBeTruthy();
     expect(document.querySelector('.library-filter-chips')).toBeNull();
     expect(document.querySelector('.library-toolbar')).toBeNull();
     expect(screen.getByRole('button', { name: '添加内容' })).toBeTruthy();
@@ -1254,11 +1251,11 @@ describe('ReadingLibrary home', () => {
       },
     });
 
-    fireEvent.click(screen.getByRole('combobox', { name: '筛选内容类型' }));
-    expect(await screen.findByRole('option', { name: '网页文章' })).toBeTruthy();
-    expect(await screen.findByRole('option', { name: '电子书' })).toBeTruthy();
-    expect(screen.getByRole('option', { name: 'PDF' })).toBeTruthy();
-    expect(screen.getByRole('option', { name: '微信读书' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '筛选内容类型' }));
+    expect(await screen.findByRole('menuitemcheckbox', { name: '网页文章' })).toBeTruthy();
+    expect(await screen.findByRole('menuitemcheckbox', { name: '电子书' })).toBeTruthy();
+    expect(screen.getByRole('menuitemcheckbox', { name: 'PDF' })).toBeTruthy();
+    expect(screen.getByRole('menuitemcheckbox', { name: '微信读书' })).toBeTruthy();
     expect(syncWeRead).not.toHaveBeenCalled();
   });
 
