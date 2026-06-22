@@ -3470,7 +3470,7 @@
   z-index: 20;
   display: flex;
   min-width: 0;
-  align-items: end;
+  align-items: baseline;
   justify-content: space-between;
   gap: 10px;
   pointer-events: none;
