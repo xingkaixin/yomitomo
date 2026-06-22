@@ -857,6 +857,19 @@ CREATE TABLE IF NOT EXISTS telemetry_state (
 );
 `,
   },
+  {
+    id: '0057_ebook_content_html_cleanup',
+    sql: `
+UPDATE articles SET content_html = NULL WHERE source_type = 'ebook';
+`,
+  },
+  {
+    id: '0058_annotation_avatar_cleanup',
+    sql: `
+UPDATE annotations SET agent_avatar = NULL, user_avatar = NULL;
+UPDATE comments SET agent_avatar = NULL, user_avatar = NULL;
+`,
+  },
 ];
 
 type MigrationDatabase = {

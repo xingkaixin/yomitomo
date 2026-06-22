@@ -15,6 +15,10 @@ function arrayBufferFromBuffer(buffer: Buffer) {
   return data;
 }
 
+function ebookChaptersHtml(article: Awaited<ReturnType<typeof articleRecordFromEpubFile>>) {
+  return article.ebook?.chapters.map((chapter) => chapter.html).join('\n') || '';
+}
+
 describe('articleRecordFromEpubFile', () => {
   it('extracts epub metadata and chapters into an article record', async () => {
     const zip = new JSZip();
@@ -109,8 +113,9 @@ describe('articleRecordFromEpubFile', () => {
     expect(article.ebook?.metadata.titleCleanupVersion).toBe(1);
     expect(article.ebook?.metadata.language).toBe('zh-CN');
     expect(article.ebook?.chapters.map((chapter) => chapter.title)).toEqual(['第一章', '第二章']);
-    expect(article.contentHtml).toContain('第一章第一段');
-    expect(article.contentHtml).not.toContain('Table of Contents');
+    expect(article.contentHtml).toBeUndefined();
+    expect(ebookChaptersHtml(article)).toContain('第一章第一段');
+    expect(ebookChaptersHtml(article)).not.toContain('Table of Contents');
     expect(article.ebook?.index?.chapters.map((chapter) => chapter.id)).toEqual([
       'chapter-1',
       'chapter-2',
@@ -302,7 +307,7 @@ describe('articleRecordFromEpubFile', () => {
 
     expect(article.title).toBe('松散标记电子书');
     expect(article.ebook?.chapters[0]?.title).toBe('宽松章节');
-    expect(article.contentHtml).toContain('真实 EPUB 正文');
+    expect(ebookChaptersHtml(article)).toContain('真实 EPUB 正文');
   });
 
   it('extracts sanitized paragraphs from nested chapter blocks', async () => {
@@ -357,7 +362,7 @@ describe('articleRecordFromEpubFile', () => {
       '表头。',
       '表格内容。',
     ]);
-    expect(article.contentHtml).not.toContain('隐藏文本');
+    expect(ebookChaptersHtml(article)).not.toContain('隐藏文本');
   });
 
   it('strips html and svg chapter image references', async () => {
@@ -414,12 +419,12 @@ describe('articleRecordFromEpubFile', () => {
       },
     );
 
-    expect(article.contentHtml).toContain('带图片的正文。');
-    expect(article.contentHtml).not.toContain('data:image/');
-    expect(article.contentHtml).not.toContain('https://ebook.local/');
-    expect(article.contentHtml).not.toContain('src=');
-    expect(article.contentHtml).not.toContain('href=');
-    expect(article.contentHtml).not.toContain('srcset=');
+    expect(ebookChaptersHtml(article)).toContain('带图片的正文。');
+    expect(ebookChaptersHtml(article)).not.toContain('data:image/');
+    expect(ebookChaptersHtml(article)).not.toContain('https://ebook.local/');
+    expect(ebookChaptersHtml(article)).not.toContain('src=');
+    expect(ebookChaptersHtml(article)).not.toContain('href=');
+    expect(ebookChaptersHtml(article)).not.toContain('srcset=');
     expect(
       events.find(
         (entry) =>

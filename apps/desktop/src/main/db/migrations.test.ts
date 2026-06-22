@@ -56,6 +56,112 @@ describe('reading memory migrations', () => {
     expect(tableNames(database)).toContain('telemetry_state');
   });
 
+  it('clears derived ebook content html without touching web articles', () => {
+    const database = new DatabaseSync(':memory:');
+    for (const id of ['0001_initial', '0004_article_content_html', '0022_article_ebook_source']) {
+      const migration = migrations.find((item) => item.id === id);
+      if (!migration) throw new Error(`missing migration ${id}`);
+      database.exec(migration.sql);
+    }
+    database
+      .prepare(
+        `
+INSERT INTO articles (
+  id,
+  url,
+  canonical_url,
+  title,
+  content_hash,
+  source_type,
+  content_html,
+  created_at,
+  updated_at
+)
+VALUES
+  ('web-1', 'https://example.com/web', 'https://example.com/web', 'Web', 'web-hash', 'web', '<p>web</p>', ?, ?),
+  ('ebook-1', 'ebook:1', 'ebook:1', 'Ebook', 'ebook-hash', 'ebook', '<p>ebook</p>', ?, ?)
+`,
+      )
+      .run(
+        '2026-06-22T00:00:00.000Z',
+        '2026-06-22T00:00:00.000Z',
+        '2026-06-22T00:00:00.000Z',
+        '2026-06-22T00:00:00.000Z',
+      );
+
+    const migration = migrations.find((item) => item.id === '0057_ebook_content_html_cleanup');
+    if (!migration) throw new Error('missing migration 0057_ebook_content_html_cleanup');
+    database.exec(migration.sql);
+
+    expect(articleContentHtml(database, 'web-1')).toBe('<p>web</p>');
+    expect(articleContentHtml(database, 'ebook-1')).toBeNull();
+  });
+
+  it('clears inline annotation and comment avatars', () => {
+    const database = new DatabaseSync(':memory:');
+    for (const id of ['0001_initial']) {
+      const migration = migrations.find((item) => item.id === id);
+      if (!migration) throw new Error(`missing migration ${id}`);
+      database.exec(migration.sql);
+    }
+    insertArticle(database, 'article-1');
+    database.exec(`
+INSERT INTO annotations (
+  id,
+  article_id,
+  anchor,
+  author,
+  color,
+  agent_avatar,
+  user_avatar,
+  created_at,
+  updated_at
+)
+VALUES (
+  'annotation-1',
+  'article-1',
+  '{"exact":"quote","start":0,"end":5}',
+  'user',
+  '#f59e0b',
+  'agent-avatar',
+  'user-avatar',
+  '2026-06-22T00:00:00.000Z',
+  '2026-06-22T00:00:00.000Z'
+);
+INSERT INTO comments (
+  id,
+  annotation_id,
+  author,
+  content,
+  created_at,
+  agent_avatar,
+  user_avatar
+)
+VALUES (
+  'comment-1',
+  'annotation-1',
+  'user',
+  'comment',
+  '2026-06-22T00:00:00.000Z',
+  'agent-avatar',
+  'user-avatar'
+);
+`);
+
+    const migration = migrations.find((item) => item.id === '0058_annotation_avatar_cleanup');
+    if (!migration) throw new Error('missing migration 0058_annotation_avatar_cleanup');
+    database.exec(migration.sql);
+
+    expect(annotationAvatars(database, 'annotation-1')).toEqual({
+      agent_avatar: null,
+      user_avatar: null,
+    });
+    expect(commentAvatars(database, 'comment-1')).toEqual({
+      agent_avatar: null,
+      user_avatar: null,
+    });
+  });
+
   it('repairs bilingual translation settings columns for databases with old applied migrations', () => {
     const database = new DatabaseSync(':memory:');
     for (const id of ['0001_initial', '0005_settings_reading_card']) {
@@ -334,6 +440,29 @@ VALUES (?, 'https://example.com/book', 'https://example.com/book', 'Book', 'hash
 `,
     )
     .run(id, '2026-05-26T00:00:00.000Z', '2026-05-26T00:00:00.000Z');
+}
+
+function articleContentHtml(database: DatabaseSync, id: string) {
+  return (
+    database.prepare('SELECT content_html FROM articles WHERE id = ?').get(id) as {
+      content_html: string | null;
+    }
+  ).content_html;
+}
+
+function annotationAvatars(database: DatabaseSync, id: string) {
+  return database
+    .prepare('SELECT agent_avatar, user_avatar FROM annotations WHERE id = ?')
+    .get(id) as { agent_avatar: string | null; user_avatar: string | null };
+}
+
+function commentAvatars(database: DatabaseSync, id: string) {
+  return database
+    .prepare('SELECT agent_avatar, user_avatar FROM comments WHERE id = ?')
+    .get(id) as {
+    agent_avatar: string | null;
+    user_avatar: string | null;
+  };
 }
 
 function countRows(database: DatabaseSync, table: string) {
