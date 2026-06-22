@@ -1418,10 +1418,8 @@ export const enResources = {
         openPath: 'Open {{label}}',
         retentionGroup: 'Log retention',
         retentionAria: 'Log retention period',
-        retentionForever: 'Forever',
         retentionDays: '{{count}} days',
         retentionSavedDays: 'Logs will keep the most recent {{count}} days.',
-        retentionSavedForever: 'Logs will be kept until manually cleared.',
         clearLog: 'Clear log file',
         clearLogConfirmTitle: 'Clear the log file?',
         clearLogConfirmDescription:

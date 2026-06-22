@@ -144,6 +144,7 @@ describe('store normalizers settings', () => {
       allowLocalNetworkArticleImport: false,
       telemetryEnabled: true,
       developerModeEnabled: false,
+      logRetentionDays: 90,
     });
   });
 
@@ -199,7 +200,7 @@ describe('store normalizers settings', () => {
       allowLocalNetworkArticleImport: true,
       telemetryEnabled: false,
       developerModeEnabled: false,
-      logRetentionDays: undefined,
+      logRetentionDays: 90,
     });
   });
 

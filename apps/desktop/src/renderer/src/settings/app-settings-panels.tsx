@@ -108,12 +108,7 @@ const selectionShortcutRows: Array<{
   },
 ];
 
-const logRetentionOptions: Array<{ value?: number }> = [
-  {},
-  { value: 90 },
-  { value: 30 },
-  { value: 15 },
-];
+const logRetentionOptions = [{ value: 90 }, { value: 30 }, { value: 15 }];
 
 const settingsSections: Array<{
   key: SettingsSectionKey;
@@ -480,7 +475,7 @@ export function DataManagementSettings({
   const [status, setStatus] = useState('');
   const [retentionSaveState, setRetentionSaveState] = useState<SaveState>('idle');
   const [retentionSaveError, setRetentionSaveError] = useState('');
-  const [lastRetentionDays, setLastRetentionDays] = useState<number | undefined>(undefined);
+  const [lastRetentionDays, setLastRetentionDays] = useState(90);
   const [confirmAction, setConfirmAction] = useState<'clear-log' | 'restore-db' | null>(null);
 
   useEffect(() => {
@@ -504,21 +499,17 @@ export function DataManagementSettings({
     });
   }
 
-  async function saveLogRetention(days?: number) {
+  async function saveLogRetention(days: number) {
     setLastRetentionDays(days);
     setRetentionSaveState('saving');
     setRetentionSaveError('');
-    await runDataAction(`retention:${days ?? 'forever'}`, async () => {
+    await runDataAction(`retention:${days}`, async () => {
       const input: AppSettings = { ...settings };
       Object.assign(input, { logRetentionDays: days });
       const nextStore = await window.yomitomoDesktop.saveSettings(input);
       onStoreUpdated(nextStore);
       setRetentionSaveState('saved');
-      setStatus(
-        days
-          ? t('settings.data.retentionSavedDays', { count: days })
-          : t('settings.data.retentionSavedForever'),
-      );
+      setStatus(t('settings.data.retentionSavedDays', { count: days }));
       window.setTimeout(() => setRetentionSaveState('idle'), 1200);
     });
   }
@@ -587,8 +578,7 @@ export function DataManagementSettings({
     }
   }
 
-  const activeRetentionDays = settings.logRetentionDays;
-  const retentionValue = activeRetentionDays || 0;
+  const retentionValue = settings.logRetentionDays ?? 90;
   const confirmDialog =
     confirmAction === 'clear-log'
       ? {
@@ -644,16 +634,13 @@ export function DataManagementSettings({
         <SettingsSegmented
           ariaLabel={t('settings.data.retentionAria')}
           block
-          wrap
           value={retentionValue}
           options={logRetentionOptions.map((option) => ({
-            label: option.value
-              ? t('settings.data.retentionDays', { count: option.value })
-              : t('settings.data.retentionForever'),
-            value: option.value ?? 0,
-            disabled: busyAction === `retention:${option.value ?? 'forever'}`,
+            label: t('settings.data.retentionDays', { count: option.value }),
+            value: option.value,
+            disabled: busyAction === `retention:${option.value}`,
           }))}
-          onChange={(value) => void saveLogRetention(value === 0 ? undefined : value)}
+          onChange={(value) => void saveLogRetention(value)}
         />
         <div className="settings-card-actions">
           <Button

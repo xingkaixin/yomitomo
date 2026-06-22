@@ -1487,6 +1487,9 @@ describe('DataManagementSettings', () => {
       />,
     );
 
+    expect(screen.queryByRole('button', { name: '永久' })).toBeNull();
+    expect(screen.getByRole('button', { name: '90 天' }).getAttribute('aria-pressed')).toBe('true');
+
     fireEvent.click(screen.getByRole('button', { name: '15 天' }));
 
     await waitFor(() =>

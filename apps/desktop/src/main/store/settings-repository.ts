@@ -84,7 +84,7 @@ export function upsertSettings(database: StoreExecutor, settings: AppSettings) {
     allowLocalNetworkArticleImport: Boolean(merged.allowLocalNetworkArticleImport),
     telemetryEnabled: merged.telemetryEnabled ?? true,
     developerModeEnabled: Boolean(merged.developerModeEnabled),
-    logRetentionDays: merged.logRetentionDays || null,
+    logRetentionDays: merged.logRetentionDays ?? 90,
     onboardingCompletedAt: merged.onboardingCompletedAt || null,
     lastSeenVersion: merged.lastSeenVersion || null,
     updatedAt: new Date().toISOString(),
