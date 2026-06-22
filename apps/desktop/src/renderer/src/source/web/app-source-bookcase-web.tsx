@@ -76,6 +76,13 @@ import {
   readerSelectionDebugEnabled,
   shouldLogSelectionDebug,
 } from './web-reader-selection-debug';
+import {
+  shouldUseWebSelectionGestureRange,
+  webSelectionGesturePointFromClientPoint,
+  webSelectionGestureRangeFromClientPoint,
+  type WebSelectionGestureRange,
+  type WebSelectionGesturePoint,
+} from './web-reader-selection-gesture';
 import { useSourceReaderSession } from '../bookcase/use-source-reader-session';
 import { createWebSourceReaderController } from './app-source-bookcase-web-controller';
 import { useSourceReaderWorkspace } from '../bookcase/use-source-reader-workspace';
@@ -121,6 +128,7 @@ export function WebSourceBookcase({
   });
   const articleHtmlRenderFlushTimerRef = useRef<number | null>(null);
   const articleSelectionGestureActiveRef = useRef(false);
+  const articleSelectionGestureRef = useRef<WebSelectionGesturePoint | null>(null);
   const deferredArticleTranslationRef = useRef<ArticleTranslation | null>(null);
   const lastSavedWebProgressRef = useRef<number | null>(null);
   const restoredWebProgressArticleRef = useRef<string | null>(null);
@@ -384,6 +392,7 @@ export function WebSourceBookcase({
     setTranslationConfirm(null);
     deferredArticleTranslationRef.current = null;
     articleSelectionGestureActiveRef.current = false;
+    articleSelectionGestureRef.current = null;
     clearTranslationSuccessFeedback();
     translationSegmentStatusRef.current.clear();
     lastSavedWebProgressRef.current = normalizeSavedWebProgress(article.readingProgress);
@@ -952,10 +961,19 @@ export function WebSourceBookcase({
       );
       const shouldFlush = event.type === 'pointerup' || event.type === 'pointercancel';
       if (targetNode && articleElement.contains(targetNode)) {
-        if (event.type === 'pointerdown') freezeArticleHtmlRendering('pointerdown');
+        if (event.type === 'pointerdown') {
+          freezeArticleHtmlRendering('pointerdown');
+          articleSelectionGestureRef.current = webSelectionGesturePointFromClientPoint(
+            articleElement,
+            event.clientX,
+            event.clientY,
+          );
+        }
         if (shouldFlush) scheduleArticleHtmlRenderFlush(event.type);
       } else if (shouldFlush) {
         scheduleArticleHtmlRenderFlush(`${event.type}-outside-article`);
+      } else if (event.type === 'pointerdown') {
+        articleSelectionGestureRef.current = null;
       }
       if (!readerSelectionDebugEnabled()) return;
       if (
@@ -1014,7 +1032,41 @@ export function WebSourceBookcase({
       ),
       selection: describeReaderSelection(articleSelection, articleElement),
     });
-    if (!articleSelection || articleSelection.rangeCount === 0 || articleSelection.isCollapsed) {
+    const selectionGesture = articleSelectionGestureRef.current;
+    articleSelectionGestureRef.current = null;
+    const gestureRange = event
+      ? webSelectionGestureRangeFromClientPoint(
+          articleElement,
+          selectionGesture,
+          event.clientX,
+          event.clientY,
+        )
+      : null;
+    const nativeRange =
+      articleSelection && articleSelection.rangeCount > 0 && !articleSelection.isCollapsed
+        ? articleSelection.getRangeAt(0)
+        : null;
+    const shouldUseGestureRange =
+      nativeRange && selectionGesture && gestureRange
+        ? shouldUseWebSelectionGestureRange(
+            nativeRange,
+            articleElement,
+            selectionGesture,
+            gestureRange,
+          )
+        : !nativeRange && Boolean(gestureRange);
+    const range = shouldUseGestureRange ? gestureRange?.range || null : nativeRange;
+
+    if (shouldUseGestureRange && gestureRange) {
+      logReaderSelectionDebug('mouseup:gesture-range-used', {
+        ...selectionDebugContext(),
+        reason: nativeRange ? 'native-anchor-mismatch' : 'native-empty',
+        nativeRange: nativeRange ? describeRangeForDebug(nativeRange, articleElement) : null,
+        gestureRange: describeWebSelectionGestureRangeForDebug(gestureRange),
+      });
+    }
+
+    if (!range) {
       // Clicks inside the composer bubble up with an empty native selection;
       // while the composer owns the highlight, blank-click clearing is handled
       // by the reader shell pointer capture instead.
@@ -1031,13 +1083,12 @@ export function WebSourceBookcase({
         ...selectionDebugContext(),
         selection: describeReaderSelection(articleSelection, articleElement),
       });
-      articleSelection.removeAllRanges();
+      articleSelection?.removeAllRanges();
       clearSelection();
       showTranslationSelectionDisabledToast();
       return;
     }
 
-    const range = articleSelection.getRangeAt(0);
     if (!isRangeInsideArticle(range, articleElement)) {
       logReaderSelectionDebug('mouseup:range-outside-article', {
         ...selectionDebugContext(),
@@ -1051,7 +1102,7 @@ export function WebSourceBookcase({
         ...selectionDebugContext(),
         range: describeRangeForDebug(range, articleElement),
       });
-      articleSelection.removeAllRanges();
+      articleSelection?.removeAllRanges();
       clearSelection();
       appToast.warning(t('source.mixedSelectionToast'));
       return;
@@ -1121,7 +1172,7 @@ export function WebSourceBookcase({
       position,
       rectCount: rects.length,
     });
-    articleSelection.removeAllRanges();
+    articleSelection?.removeAllRanges();
     logCurrentSelectionDebug('mouseup:native-selection-cleared');
   }
 
@@ -1919,4 +1970,22 @@ function articleHtmlForRender(state: ArticleHtmlRenderState, articleId: string, 
   state.html = nextHtml;
   state.pendingHtml = null;
   return state.html;
+}
+
+function describeWebSelectionGestureRangeForDebug(gestureRange: WebSelectionGestureRange) {
+  return {
+    startOffset: gestureRange.startOffset,
+    endOffset: gestureRange.endOffset,
+    startPoint: describeWebSelectionGesturePointForDebug(gestureRange.startPoint),
+    endPoint: describeWebSelectionGesturePointForDebug(gestureRange.endPoint),
+  };
+}
+
+function describeWebSelectionGesturePointForDebug(point: WebSelectionGesturePoint) {
+  return {
+    clientX: Math.round(point.clientX),
+    clientY: Math.round(point.clientY),
+    sourceOffset: point.sourceOffset,
+    translationBlockId: point.translationBlockId,
+  };
 }
