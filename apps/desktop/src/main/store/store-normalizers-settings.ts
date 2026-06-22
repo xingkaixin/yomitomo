@@ -89,6 +89,9 @@ export function mergeSettingsForUpsert(settings: AppSettings, existing?: AppSett
     )
       ? Boolean(settings.allowLocalNetworkArticleImport)
       : Boolean(existing?.allowLocalNetworkArticleImport),
+    telemetryEnabled: settingsFieldProvided(settings, 'telemetryEnabled')
+      ? Boolean(settings.telemetryEnabled)
+      : (existing?.telemetryEnabled ?? true),
     developerModeEnabled: settingsFieldProvided(settings, 'developerModeEnabled')
       ? Boolean(settings.developerModeEnabled)
       : Boolean(existing?.developerModeEnabled),
@@ -136,6 +139,7 @@ export function rowToSettings(
     selectionActionShortcuts: normalizeSelectionActionShortcuts(row?.selectionActionShortcuts),
     saveArticleImages: Boolean(row?.saveArticleImages),
     allowLocalNetworkArticleImport: Boolean(row?.allowLocalNetworkArticleImport),
+    telemetryEnabled: normalizeBooleanSetting(row?.telemetryEnabled, true),
     developerModeEnabled: Boolean(row?.developerModeEnabled),
     logRetentionDays: normalizeLogRetentionDays(row?.logRetentionDays),
     onboardingCompletedAt: row?.onboardingCompletedAt || undefined,
@@ -169,6 +173,7 @@ export function normalizeSettings(settings: AppSettings | undefined): AppSetting
     selectionActionShortcuts: normalizeSelectionActionShortcuts(settings?.selectionActionShortcuts),
     saveArticleImages: Boolean(settings?.saveArticleImages),
     allowLocalNetworkArticleImport: Boolean(settings?.allowLocalNetworkArticleImport),
+    telemetryEnabled: settings?.telemetryEnabled ?? true,
     developerModeEnabled: Boolean(settings?.developerModeEnabled),
     logRetentionDays: normalizeLogRetentionDays(settings?.logRetentionDays),
     onboardingCompletedAt: settings?.onboardingCompletedAt || undefined,

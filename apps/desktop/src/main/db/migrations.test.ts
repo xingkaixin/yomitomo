@@ -44,6 +44,18 @@ describe('reading memory migrations', () => {
     expect(columnNames(database, 'articles')).toContain('reader_chat_state');
   });
 
+  it('adds telemetry settings and private heartbeat state storage', () => {
+    const database = new DatabaseSync(':memory:');
+    for (const id of ['0001_initial', '0005_settings_reading_card', '0056_telemetry_settings']) {
+      const migration = migrations.find((item) => item.id === id);
+      if (!migration) throw new Error(`missing migration ${id}`);
+      database.exec(migration.sql);
+    }
+
+    expect(columnNames(database, 'app_settings')).toContain('telemetry_enabled');
+    expect(tableNames(database)).toContain('telemetry_state');
+  });
+
   it('repairs bilingual translation settings columns for databases with old applied migrations', () => {
     const database = new DatabaseSync(':memory:');
     for (const id of ['0001_initial', '0005_settings_reading_card']) {
@@ -66,6 +78,7 @@ ALTER TABLE app_settings ADD COLUMN bilingual_translation_target_language TEXT;
       'app_settings.app_lock_lock_on_startup',
       'app_settings.app_lock_shortcut',
       'app_settings.allow_local_network_article_import',
+      'app_settings.telemetry_enabled',
     ]);
     expect(columnNames(database, 'app_settings')).toEqual(
       expect.arrayContaining([
@@ -78,6 +91,7 @@ ALTER TABLE app_settings ADD COLUMN bilingual_translation_target_language TEXT;
         'app_lock_lock_on_startup',
         'app_lock_shortcut',
         'allow_local_network_article_import',
+        'telemetry_enabled',
       ]),
     );
     expect(ensureAdditiveSchemaColumns(database)).toEqual([]);

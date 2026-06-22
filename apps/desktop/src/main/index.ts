@@ -26,6 +26,10 @@ import { registerProviderIpc } from './ipc/ipc-provider';
 import { registerStoreDataIpc } from './ipc/ipc-store-data';
 import { registerWeReadIpc } from './ipc/ipc-weread';
 import { modelPriceRefreshIntervalMs } from './providers/model-pricing-repository';
+import {
+  createDesktopTelemetryController,
+  type DesktopTelemetryController,
+} from './telemetry/desktop-telemetry';
 import { syncWeReadLibrary } from './weread/weread-sync';
 import { secureRendererWebPreferences } from './windows/renderer-window-security';
 import { windowChromeOptions } from './windows/window-chrome';
@@ -42,6 +46,7 @@ let weReadAutoSyncStartupTimer: NodeJS.Timeout | null = null;
 let weReadAutoSyncIntervalTimer: NodeJS.Timeout | null = null;
 let weReadAutoSyncConfigureToken = 0;
 let weReadAutoSyncRunning = false;
+let desktopTelemetryController: DesktopTelemetryController | null = null;
 
 const WEREAD_AUTO_SYNC_STARTUP_DELAY_MS = 5_000;
 const WEREAD_AUTO_SYNC_INTERVAL_MS = 30 * 60 * 1000;
@@ -249,6 +254,7 @@ async function createWindow() {
   browserWindow.on('closed', () => {
     if (mainWindow === browserWindow) mainWindow = null;
   });
+  browserWindow.on('focus', () => desktopTelemetryController?.check('focus'));
   browserWindow.webContents.once('dom-ready', () => {
     recordStartupTiming('renderer.dom_ready');
   });
@@ -289,6 +295,11 @@ void app.whenReady().then(async () => {
   registerIpc();
   scheduleModelPriceRefresh();
   configureWeReadAutoSync('startup');
+  desktopTelemetryController = createDesktopTelemetryController({
+    getAppVersion: () => app.getVersion(),
+    logInfo,
+    logError,
+  });
   recordStartupTiming('ipc.registered');
   recordStartupTiming('updater.deferred');
   await createWindow();
@@ -296,6 +307,11 @@ void app.whenReady().then(async () => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('before-quit', () => {
+  desktopTelemetryController?.dispose();
+  desktopTelemetryController = null;
 });
 
 app.on('activate', () => {

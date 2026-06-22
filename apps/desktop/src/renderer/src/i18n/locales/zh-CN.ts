@@ -1349,6 +1349,10 @@ export const zhCNResources = {
         localNetworkImportConfirmDescription:
           '开启后，网页文章导入会允许访问本机服务、局域网服务和云 metadata 地址。如果粘贴了不可信链接，主进程可能读取这些地址的响应并保存到阅读库。只在你明确需要导入内网文章时开启。',
         localNetworkImportConfirm: '确认开启',
+        privacyGroup: '隐私',
+        telemetryTitle: '发送匿名版本与系统指标',
+        telemetryDescription:
+          '每天最多发送一次应用版本、系统版本和架构，用于了解活跃版本分布；不采集阅读内容、书名、批注、文件路径或 AI 对话。',
       },
       data: {
         trailRoot: '设置',

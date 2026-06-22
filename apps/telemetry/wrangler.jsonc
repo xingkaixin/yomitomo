@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "yomitomo-telemetry",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-22",
+  "routes": [
+    {
+      "pattern": "telemetry.yomitomo.app",
+      "custom_domain": true,
+    },
+  ],
+  "analytics_engine_datasets": [
+    {
+      "binding": "TELEMETRY_ANALYTICS",
+      "dataset": "yomitomo_telemetry_events",
+    },
+  ],
+}

@@ -1016,6 +1016,26 @@ describe('GeneralSettings', () => {
     expect(onSave).toHaveBeenCalledWith({ allowLocalNetworkArticleImport: false });
   });
 
+  it('saves the telemetry opt-out setting without confirmation', () => {
+    const onSettingsChange = vi.fn();
+    const onSave = vi.fn();
+    render(
+      <GeneralSettings
+        settingsDraft={{ telemetryEnabled: true }}
+        canSave={false}
+        onSettingsChange={onSettingsChange}
+        onSave={onSave}
+        saveState="idle"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /发送匿名版本与系统指标/ }));
+
+    expect(screen.queryByText('允许访问本机和私有网络？')).toBeNull();
+    expect(onSettingsChange).toHaveBeenCalledWith({ telemetryEnabled: false });
+    expect(onSave).toHaveBeenCalledWith({ telemetryEnabled: false });
+  });
+
   it('saves the selected interface language', () => {
     const onSettingsChange = vi.fn();
     const onSave = vi.fn();

@@ -82,6 +82,7 @@ export function upsertSettings(database: StoreExecutor, settings: AppSettings) {
     selectionActionShortcuts: normalizeSelectionActionShortcuts(merged.selectionActionShortcuts),
     saveArticleImages: Boolean(merged.saveArticleImages),
     allowLocalNetworkArticleImport: Boolean(merged.allowLocalNetworkArticleImport),
+    telemetryEnabled: merged.telemetryEnabled ?? true,
     developerModeEnabled: Boolean(merged.developerModeEnabled),
     logRetentionDays: merged.logRetentionDays || null,
     onboardingCompletedAt: merged.onboardingCompletedAt || null,
