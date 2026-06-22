@@ -398,12 +398,12 @@ export function LibraryHome({
               <span>{t('library.title')}</span>
             </button>
           ) : null}
-          <div className="library-search library-search-combo">
+          <div className="library-search-typed">
             <Search size={16} />
             <Popover open={typeMenuOpen} onOpenChange={setTypeMenuOpen}>
               <PopoverTrigger asChild>
                 <button
-                  className="library-type-filter-trigger"
+                  className="library-type-filter-button"
                   type="button"
                   aria-label={t('library.typeFilter.label')}
                 >

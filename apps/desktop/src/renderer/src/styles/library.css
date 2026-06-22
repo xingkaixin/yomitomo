@@ -1214,10 +1214,22 @@
   box-shadow: none;
 }
 
+.library-type-filter-trigger {
+  width: 138px;
+  height: 40px;
+  flex: 0 0 auto;
+  border-color: hsl(36 31% 72% / 0.76);
+  border-radius: 999px;
+  background: hsl(45 72% 98% / 0.82);
+  color: hsl(31 23% 20%);
+  font-size: 13px;
+  font-weight: 760;
+}
+
 .library-search-combo {
   display: grid;
   width: min(640px, 54vw);
-  grid-template-columns: auto auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   border: 1px solid hsl(var(--border) / 0.82);
   border-radius: 999px;
@@ -1232,17 +1244,60 @@
   transform: none;
 }
 
+.library-search-combo input {
+  height: 40px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: hsl(var(--foreground));
+  padding-right: 10px;
+  padding-left: 10px;
+}
+
+.library-search-combo input:focus {
+  background: transparent;
+  box-shadow: none;
+}
+
+.library-search-combo .library-type-filter-trigger {
+  width: 142px;
+  height: 40px;
+  border: 0;
+  border-left: 1px solid hsl(var(--border) / 0.72);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: hsl(var(--foreground));
+}
+
+/* 类型筛选内嵌搜索框（方案 C，阅读库主视图） */
+.library-search-typed {
+  display: grid;
+  flex: 1 1 360px;
+  width: min(640px, 54vw);
+  min-width: 260px;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  border: 1px solid hsl(var(--border) / 0.82);
+  border-radius: 999px;
+  background: hsl(var(--card) / 0.86);
+  overflow: hidden;
+}
+
+.library-search-typed > svg {
+  margin-left: 14px;
+  color: hsl(var(--muted-foreground));
+}
+
 /* 内嵌左侧类型筛选触发器（方案 C） */
-.library-type-filter-trigger {
+.library-type-filter-button {
   display: inline-flex;
   height: 40px;
   align-items: center;
   gap: 5px;
   border: 0;
   border-right: 1px solid hsl(var(--border) / 0.72);
-  border-radius: 0;
   background: transparent;
-  box-shadow: none;
   color: hsl(var(--foreground));
   font-size: 13px;
   font-weight: 760;
@@ -1252,11 +1307,11 @@
   transition: background 150ms ease;
 }
 
-.library-type-filter-trigger:hover {
+.library-type-filter-button:hover {
   background: hsl(var(--app-interactive-hover-bg));
 }
 
-.library-type-filter-trigger > svg {
+.library-type-filter-button > svg {
   color: hsl(var(--muted-foreground));
 }
 
@@ -2118,6 +2173,7 @@
 
   .library-home-actions,
   .library-search,
+  .library-search-typed,
   .library-sort-trigger,
   .library-type-filter-trigger {
     width: 100%;
@@ -2162,6 +2218,7 @@
 
   .library-home-actions,
   .library-search,
+  .library-search-typed,
   .library-sort-trigger,
   .library-type-filter-trigger {
     width: 100%;
