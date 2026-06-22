@@ -32,7 +32,12 @@ const PopoverContent = React.forwardRef<
   PopoverContentProps
 >(({ className, align = 'start', sideOffset = 8, side, ...props }, ref) => (
   <PopoverPrimitive.Portal>
-    <PopoverPrimitive.Positioner align={align} side={side} sideOffset={sideOffset}>
+    <PopoverPrimitive.Positioner
+      align={align}
+      side={side}
+      sideOffset={sideOffset}
+      style={{ zIndex: 'var(--app-z-popover, 160)' }}
+    >
       <PopoverPrimitive.Popup
         className={cn(
           'ui-popover-content z-[var(--app-z-popover)] rounded-xl border border-border bg-popover p-4 text-popover-foreground shadow-lg outline-none',
