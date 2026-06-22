@@ -383,6 +383,7 @@ export function DiscussionThreadView({
               </div>
             ) : null
           }
+          mentionAgents={annotationAgents}
           status={composerStatus || undefined}
           submitDisabled={!replyDraft.trim() || sendingReply}
           submitIcon={<Send size={14} />}
