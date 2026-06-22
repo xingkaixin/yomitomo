@@ -49,6 +49,7 @@ module.exports = {
     'package.json',
     '!resources/entitlements*.plist',
     '!resources/icon.icns',
+    '!resources/icon.ico',
     '!resources/licenses/**',
     '!node_modules/@embedpdf/fonts-*/fonts/**',
     '!node_modules/**/*.map',
@@ -109,6 +110,7 @@ module.exports = {
   },
   win: {
     artifactName: '${productName}-${version}-win-${arch}.${ext}',
+    icon: 'resources/icon.ico',
     target: [
       {
         target: 'nsis',
