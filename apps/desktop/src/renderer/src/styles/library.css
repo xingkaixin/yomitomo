@@ -1352,38 +1352,43 @@
 }
 
 .library-type-filter-chip {
+  position: relative;
   display: inline-flex;
   height: 22px;
   align-items: center;
-  gap: 3px;
   border: 1px solid var(--app-interactive-badge-border);
   border-radius: 999px;
   background: var(--app-interactive-badge-bg);
   color: var(--app-interactive-badge-fg);
   font-size: 11px;
   font-weight: 760;
-  padding: 0 4px 0 8px;
+  padding: 0 8px;
   white-space: nowrap;
   cursor: default;
+  overflow: hidden;
 }
 
+/* 删除按钮默认隐藏，hover 整个 chip 时居中浮现覆盖层 */
 .library-type-filter-chip-remove {
-  display: inline-grid;
-  width: 15px;
-  height: 15px;
+  position: absolute;
+  inset: 0;
+  display: grid;
   place-items: center;
   border: 0;
-  border-radius: 50%;
-  background: transparent;
+  background: color-mix(
+    in srgb,
+    var(--app-interactive-badge-fg) 22%,
+    var(--app-interactive-badge-bg)
+  );
   color: var(--app-interactive-badge-fg);
-  cursor: pointer;
-  transition:
-    background 120ms ease,
-    color 120ms ease;
+  cursor: default;
+  opacity: 0;
+  transition: opacity 120ms ease;
 }
 
-.library-type-filter-chip-remove:hover {
-  background: color-mix(in srgb, var(--app-interactive-badge-fg) 24%, transparent);
+.library-type-filter-chip:hover .library-type-filter-chip-remove,
+.library-type-filter-chip-remove:focus-visible {
+  opacity: 1;
 }
 
 /* 类型多选菜单 */
