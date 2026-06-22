@@ -1,8 +1,5 @@
 import { createHash } from 'node:crypto';
-import type {
-  WeReadOpenMethod,
-  WeReadReadingStatsMode,
-} from '@yomitomo/shared';
+import type { WeReadOpenMethod, WeReadReadingStatsMode } from '@yomitomo/shared';
 import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
 import { syncWeReadLibrary } from '../weread/weread-sync';

@@ -1229,6 +1229,33 @@ describe('WeReadSettingsPanel', () => {
       }),
     );
   });
+
+  it('saves the WeRead sync mode independently', async () => {
+    const saveWeReadSettings = vi.fn().mockResolvedValue({
+      settings: { configured: true, openMethod: 'deeplink', syncMode: 'auto' },
+      books: [],
+    });
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: {
+        getWeReadState: vi.fn().mockResolvedValue({
+          settings: { configured: true, openMethod: 'deeplink', syncMode: 'manual' },
+          books: [],
+        }),
+        saveWeReadSettings,
+      },
+    });
+
+    render(<WeReadSettingsPanel />);
+
+    fireEvent.click(await screen.findByRole('radio', { name: /自动/ }));
+
+    await waitFor(() =>
+      expect(saveWeReadSettings).toHaveBeenCalledWith({
+        syncMode: 'auto',
+      }),
+    );
+  });
 });
 
 describe('ShortcutSettings', () => {

@@ -180,7 +180,6 @@ export function ReadingLibrary({
   const selectedArticleIdRef = useRef<string | null>(null);
   const pendingDistillationAnimationRef = useRef<AnnotationDistillationCommittedEvent | null>(null);
   const distillationAnimationTimerRef = useRef<number | null>(null);
-  const didAutoSyncWeReadRef = useRef(false);
   const sortedArticles = useMemo<ArticleSummaryRecord[]>(() => sortArticles(articles), [articles]);
   const hasLocalArticleCatalog = articles.length > 0;
   const annotations = useMemo<Annotation[]>(
@@ -322,15 +321,20 @@ export function ReadingLibrary({
         if (cancelled) return;
         setWeReadSettings(state.settings);
         setWeReadBooks(state.books);
-        if (state.settings.configured && !didAutoSyncWeReadRef.current) {
-          didAutoSyncWeReadRef.current = true;
-          void syncWeReadLibrary();
-        }
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    const desktop = window.yomitomoDesktop;
+    if (!desktop?.onWeReadStateUpdated) return;
+    return desktop.onWeReadStateUpdated((state) => {
+      setWeReadSettings(state.settings);
+      setWeReadBooks(state.books);
+    });
   }, []);
 
   async function deleteLibraryArticle(articleId: string) {

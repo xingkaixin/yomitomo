@@ -14,10 +14,12 @@ type WeReadSyncPersistence = {
   saveWeReadBookDetails: (details: WeReadBookDetail[]) => Promise<WeReadSyncResult>;
 };
 
-export async function syncWeReadLibrary(input: {
-  persistence: WeReadSyncPersistence;
-  reason: string;
-} & WeReadSyncLogger) {
+export async function syncWeReadLibrary(
+  input: {
+    persistence: WeReadSyncPersistence;
+    reason: string;
+  } & WeReadSyncLogger,
+) {
   const startedAt = performance.now();
   const apiKey = await input.persistence.readStoredWeReadApiKey();
   if (!apiKey) throw new Error('WEREAD_API_KEY_REQUIRED');

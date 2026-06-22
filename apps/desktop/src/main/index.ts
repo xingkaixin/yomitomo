@@ -12,6 +12,7 @@ import { installDevProcessLifecycle } from './app/dev-process-lifecycle';
 import { installElectronSmokeProbe } from './app/electron-smoke-probe';
 import type { AppUpdateState } from '../app-update-types';
 import type { DesktopStoreLoadErrorInfo } from '../app-store-errors';
+import type { WeReadState } from '../ipc-contract';
 import { DatabaseTooNewError } from './db/errors';
 import { registerAnnotationDiscussionWindowIpc } from './windows/annotation-discussion-window';
 import { registerAnnotationSedimentationWindowIpc } from './windows/annotation-sedimentation-window';
@@ -215,6 +216,7 @@ async function runWeReadAutoSync(reason: string) {
       logError,
       elapsedMs,
     });
+    sendWeReadStateUpdated(result);
     logInfo('weread.auto_sync.complete', {
       reason,
       bookCount: result.books.length,
@@ -353,6 +355,10 @@ function sendLibraryPinPatched(patch: LibraryPinPatch) {
   sendToRenderer('library-pin:patched', patch);
 }
 
+function sendWeReadStateUpdated(state: WeReadState) {
+  sendToRenderer('weread:state-updated', state);
+}
+
 async function storeLoadErrorInfo(error: unknown): Promise<DesktopStoreLoadErrorInfo> {
   if (error instanceof DatabaseTooNewError) {
     return {
@@ -380,6 +386,7 @@ function sendToRenderer(channel: 'updates:status', payload: AppUpdateState): voi
 function sendToRenderer(channel: 'article:patched', payload: ArticleStorePatch): void;
 function sendToRenderer(channel: 'collection:patched', payload: CollectionStorePatch): void;
 function sendToRenderer(channel: 'library-pin:patched', payload: LibraryPinPatch): void;
+function sendToRenderer(channel: 'weread:state-updated', payload: WeReadState): void;
 function sendToRenderer(channel: string, payload: unknown) {
   if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) return;
   mainWindow.webContents.send(channel, payload);

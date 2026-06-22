@@ -11,7 +11,12 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { normalizeUiLanguage, type WeReadOpenMethod, type WeReadSettings } from '@yomitomo/shared';
+import {
+  normalizeUiLanguage,
+  type WeReadOpenMethod,
+  type WeReadSettings,
+  type WeReadSyncMode,
+} from '@yomitomo/shared';
 import { AutoSaveStatus } from './app-settings-save-status';
 import type { SaveState } from '../shell/app-types';
 import { Button } from '../components/ui/button';
@@ -36,6 +41,7 @@ export function WeReadSettingsPanel() {
   const [settings, setSettings] = useState<WeReadSettings>({
     configured: false,
     openMethod: 'deeplink',
+    syncMode: 'manual',
   });
   const [apiKey, setApiKey] = useState('');
   const [apiKeyVisible, setApiKeyVisible] = useState(false);
@@ -43,8 +49,10 @@ export function WeReadSettingsPanel() {
   const [revealLoading, setRevealLoading] = useState(false);
   const [apiKeyMessage, setApiKeyMessage] = useState('');
   const [openMethodSaveError, setOpenMethodSaveError] = useState('');
+  const [syncModeSaveError, setSyncModeSaveError] = useState('');
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [openMethodSaveState, setOpenMethodSaveState] = useState<SaveState>('idle');
+  const [syncModeSaveState, setSyncModeSaveState] = useState<SaveState>('idle');
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
   const [testState, setTestState] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [testMessage, setTestMessage] = useState('');
@@ -178,6 +186,24 @@ export function WeReadSettingsPanel() {
       setSettings((current) => ({ ...current, openMethod: previous }));
       setOpenMethodSaveError(settingsSaveErrorMessage(error, t));
       setOpenMethodSaveState('error');
+    }
+  }
+
+  async function saveSyncMode(syncMode: WeReadSyncMode) {
+    if (!window.yomitomoDesktop) return;
+    const previous = settings.syncMode ?? 'manual';
+    setSettings((current) => ({ ...current, syncMode }));
+    setSyncModeSaveState('saving');
+    setSyncModeSaveError('');
+    try {
+      const state = await window.yomitomoDesktop.saveWeReadSettings({ syncMode });
+      setSettings(state.settings);
+      setSyncModeSaveState('saved');
+      window.setTimeout(() => setSyncModeSaveState('idle'), 1200);
+    } catch (error) {
+      setSettings((current) => ({ ...current, syncMode: previous }));
+      setSyncModeSaveError(settingsSaveErrorMessage(error, t));
+      setSyncModeSaveState('error');
     }
   }
 
@@ -379,6 +405,44 @@ export function WeReadSettingsPanel() {
           );
         })}
       </SettingsGroup>
+
+      <SettingsGroup
+        label={t('settings.weread.syncModeGroup')}
+        aside={
+          <AutoSaveStatus
+            error={syncModeSaveError}
+            state={syncModeSaveState}
+            onRetry={() => void saveSyncMode(settings.syncMode ?? 'manual')}
+          />
+        }
+        cardProps={{ role: 'radiogroup', 'aria-label': t('settings.weread.syncModeAria') }}
+      >
+        {wereadSyncModes.map((option) => {
+          const active = (settings.syncMode ?? 'manual') === option.value;
+          const label = t(option.labelKey);
+          const description = t(option.descriptionKey);
+          return (
+            <SettingsRowDescriptionTooltip description={description} key={option.value}>
+              <button
+                aria-checked={active}
+                aria-label={`${label}. ${description}`}
+                className="settings-row settings-row-button"
+                type="button"
+                role="radio"
+                onClick={() => {
+                  if (active) return;
+                  void saveSyncMode(option.value);
+                }}
+              >
+                <span className="settings-row-leading">
+                  <SettingsRadioDot checked={active} />
+                </span>
+                <SettingsRowCopy title={label} description={description} infoMode="decorative" />
+              </button>
+            </SettingsRowDescriptionTooltip>
+          );
+        })}
+      </SettingsGroup>
     </SettingsPage>
   );
 }
@@ -409,6 +473,23 @@ const wereadOpenMethods: Array<{
     value: 'web',
     labelKey: 'settings.weread.webLabel',
     descriptionKey: 'settings.weread.webDescription',
+  },
+];
+
+const wereadSyncModes: Array<{
+  value: WeReadSyncMode;
+  labelKey: string;
+  descriptionKey: string;
+}> = [
+  {
+    value: 'manual',
+    labelKey: 'settings.weread.manualSyncLabel',
+    descriptionKey: 'settings.weread.manualSyncDescription',
+  },
+  {
+    value: 'auto',
+    labelKey: 'settings.weread.autoSyncLabel',
+    descriptionKey: 'settings.weread.autoSyncDescription',
   },
 ];
 
