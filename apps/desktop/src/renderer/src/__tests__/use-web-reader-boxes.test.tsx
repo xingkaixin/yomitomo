@@ -84,9 +84,63 @@ describe('useWebReaderBoxes', () => {
 
     expect(recordPerformanceTiming).toHaveBeenCalledTimes(1);
   });
+
+  it('ignores canvas height changes because annotation rail height does not move text ranges', async () => {
+    const recordPerformanceTiming = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: { recordPerformanceTiming },
+    });
+    const rects = {
+      article: rect({ width: 680, height: 1200 }),
+      canvas: rect({ left: 24, width: 1080, height: 1200 }),
+    };
+
+    render(<WebReaderBoxesProbe rects={rects} />);
+
+    await act(async () => {
+      vi.runOnlyPendingTimers();
+    });
+    expect(recordPerformanceTiming).toHaveBeenCalledTimes(1);
+
+    rects.canvas = rect({ left: 24, width: 1080, height: 1600 });
+    await act(async () => {
+      MockResizeObserver.instances[0]?.trigger();
+      vi.runOnlyPendingTimers();
+    });
+
+    expect(recordPerformanceTiming).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips repeated box updates when resized layout produces the same result', async () => {
+    const recordPerformanceTiming = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: { recordPerformanceTiming },
+    });
+    const rects = {
+      article: rect({ width: 680, height: 1200 }),
+      canvas: rect({ left: 24, width: 1080, height: 1200 }),
+    };
+
+    render(<WebReaderBoxesProbe rects={rects} />);
+
+    await act(async () => {
+      vi.runOnlyPendingTimers();
+    });
+    expect(recordPerformanceTiming).toHaveBeenCalledTimes(1);
+
+    rects.article = rect({ width: 680, height: 1240 });
+    await act(async () => {
+      MockResizeObserver.instances[0]?.trigger();
+      vi.runOnlyPendingTimers();
+    });
+
+    expect(recordPerformanceTiming).toHaveBeenCalledTimes(1);
+  });
 });
 
-function WebReaderBoxesProbe() {
+function WebReaderBoxesProbe({ rects }: { rects?: { article: DOMRect; canvas: DOMRect } }) {
   const articleRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   useWebReaderBoxes({
@@ -100,12 +154,48 @@ function WebReaderBoxesProbe() {
   });
 
   return (
-    <div ref={canvasRef} data-testid="canvas">
-      <article ref={articleRef}>
+    <div
+      ref={(element) => {
+        canvasRef.current = element;
+        if (element && rects) mockRect(element, () => rects.canvas);
+      }}
+      data-testid="canvas"
+    >
+      <article
+        ref={(element) => {
+          articleRef.current = element;
+          if (element && rects) mockRect(element, () => rects.article);
+        }}
+      >
         <p>正文</p>
       </article>
     </div>
   );
+}
+
+function rect(values: Partial<DOMRect> = {}): DOMRect {
+  const left = values.left ?? 0;
+  const top = values.top ?? 0;
+  const width = values.width ?? 0;
+  const height = values.height ?? 0;
+  return {
+    x: values.x ?? left,
+    y: values.y ?? top,
+    left,
+    top,
+    width,
+    height,
+    right: values.right ?? left + width,
+    bottom: values.bottom ?? top + height,
+    toJSON: () => ({}),
+  } as DOMRect;
+}
+
+function mockRect(element: Element, getRect: () => DOMRect) {
+  Object.defineProperty(element, 'getBoundingClientRect', {
+    configurable: true,
+    value: getRect,
+  });
 }
 
 class MockResizeObserver {

@@ -77,6 +77,10 @@ export const sourceReaderTocStyles = `
   opacity:1;
   transform:scaleY(1);
 }
+.source-reader-shell .reader-article.is-web-selection-gesture ::selection,
+.source-reader-shell .reader-article.is-web-selection-gesture::selection{
+  background:transparent;
+}
 .reader-toc-item-main{
   display:grid;
   grid-template-columns:minmax(0,1fr) auto;

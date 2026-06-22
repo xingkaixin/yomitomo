@@ -1,4 +1,4 @@
-import { useEffect, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { Annotation, ArticleRecord, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { resolveTextAnchor } from '@yomitomo/shared';
 import {
@@ -46,11 +46,13 @@ export function useWebReaderBoxes({
 }: UseWebReaderBoxesInput) {
   const [boxes, setBoxes] = useState<HighlightBox[]>([]);
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
+  const lastResultSignatureRef = useRef('');
 
   useEffect(() => {
     const articleElement = articleRef.current;
     const canvasElement = canvasRef.current;
     if (!articleElement || !canvasElement) {
+      lastResultSignatureRef.current = '';
       setBoxes([]);
       setTocItems([]);
       return;
@@ -104,6 +106,9 @@ export function useWebReaderBoxes({
             }),
           );
         });
+        const resultSignature = webReaderBoxesResultSignature(nextBoxes, nextTocItems);
+        if (lastResultSignatureRef.current === resultSignature) return;
+        lastResultSignatureRef.current = resultSignature;
         setTocItems(nextTocItems);
         setBoxes(nextBoxes);
         recordRendererPerformanceTiming('reader_highlight_boxes', {
@@ -139,10 +144,35 @@ export function useWebReaderBoxes({
 }
 
 function webReaderBoxesLayoutSignature(articleElement: HTMLElement, canvasElement: HTMLElement) {
-  return [elementLayoutSignature(articleElement), elementLayoutSignature(canvasElement)].join('|');
+  return [elementLayoutSignature(articleElement), canvasCoordinateSignature(canvasElement)].join(
+    '|',
+  );
 }
 
 function elementLayoutSignature(element: HTMLElement) {
   const rect = element.getBoundingClientRect();
   return `${Math.round(rect.width)}x${Math.round(rect.height)}`;
+}
+
+function canvasCoordinateSignature(element: HTMLElement) {
+  const rect = element.getBoundingClientRect();
+  return `${Math.round(rect.left)}:${Math.round(rect.width)}`;
+}
+
+function webReaderBoxesResultSignature(boxes: HighlightBox[], tocItems: TocItem[]) {
+  return [
+    boxes
+      .map(
+        (box) =>
+          `${box.id}:${box.annotationId}:${box.contributorId || ''}:${box.color}:${roundedBoxValue(box.top)}:${roundedBoxValue(box.left)}:${roundedBoxValue(box.width)}:${roundedBoxValue(box.height)}`,
+      )
+      .join('|'),
+    tocItems
+      .map((item) => `${item.index}:${item.depth}:${item.start}:${item.end}:${item.text}`)
+      .join('|'),
+  ].join('||');
+}
+
+function roundedBoxValue(value: number) {
+  return Math.round(value * 100) / 100;
 }

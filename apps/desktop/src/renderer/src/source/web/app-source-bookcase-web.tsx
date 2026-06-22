@@ -1,6 +1,5 @@
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Eye, EyeOff, Languages, RefreshCw, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type {
   Annotation,
@@ -18,7 +17,6 @@ import {
   getArticleSelection,
   type HighlightBox,
   isRangeInsideArticle,
-  offsetFromArticleStart,
   offsetFromArticleStartIgnoringSelector,
   rangeHighlightBoxes,
   rangeForTranslationTextAnchor,
@@ -35,7 +33,6 @@ import {
   ReaderAppView,
   type AnnotationNavigationDirection,
 } from '@yomitomo/reader-ui/reader-app-view';
-import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { ReaderSettingsToolbarControls } from '@yomitomo/reader-ui/reader-toolbar-controls';
 import { readerDesktopEmbeddedBundleStyles } from '@yomitomo/reader-ui/reader-styles';
 import {
@@ -47,15 +44,6 @@ import { OpenArticleButton } from '../../shell/app-ui';
 import { articleIdentityLine } from '../../shell/app-utils';
 import { appToast } from '../../shell/app-toast';
 import { assistantRuntimeErrorMessage } from '../../shell/app-assistant-runtime-progress';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogOverlay,
-  DialogPortal,
-  DialogTitle,
-} from '../../components/ui/dialog';
-import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover';
 import {
   defaultTocOpen,
   recordRendererPerformanceTiming,
@@ -71,12 +59,38 @@ import {
   sourceReaderTocStyles,
   webAnnotationNavigationState,
 } from './app-source-bookcase-web-utils';
+import {
+  ReaderTranslationConfirmDialog,
+  ReaderTranslationToolbarButton,
+  type TranslationConfirmAction,
+} from './web-reader-translation-controls';
+import {
+  describeAnchorForDebug,
+  describeArticleTranslationDom,
+  describeHighlightBoxesForDebug,
+  describePointerForDebug,
+  describeRangeForDebug,
+  describeReaderSelection,
+  describeSelectionNode,
+  logReaderSelectionDebug,
+  readerSelectionDebugEnabled,
+  shouldLogSelectionDebug,
+} from './web-reader-selection-debug';
+import {
+  shouldUseWebSelectionGestureRange,
+  webSelectionGesturePointFromClientPoint,
+  webSelectionGestureRangeFromClientPoint,
+  type WebSelectionGestureRange,
+  type WebSelectionGesturePoint,
+} from './web-reader-selection-gesture';
 import { useSourceReaderSession } from '../bookcase/use-source-reader-session';
 import { createWebSourceReaderController } from './app-source-bookcase-web-controller';
 import { useSourceReaderWorkspace } from '../bookcase/use-source-reader-workspace';
 import { buildSourceReaderAppActions } from '../bookcase/source-reader-app-actions';
 import { buildSourceReaderAppViewProps } from '../bookcase/source-reader-app-view-props';
 import { useReaderSearchMatches } from '../bookcase/use-reader-search-matches';
+
+const WEB_SELECTION_DRAG_ANNOTATION_ID = '__selection_drag__';
 
 export function WebSourceBookcase({
   agents,
@@ -116,6 +130,8 @@ export function WebSourceBookcase({
   });
   const articleHtmlRenderFlushTimerRef = useRef<number | null>(null);
   const articleSelectionGestureActiveRef = useRef(false);
+  const articleSelectionGestureRef = useRef<WebSelectionGesturePoint | null>(null);
+  const articleSelectionGestureDragPointRef = useRef<WebSelectionGestureClientPoint | null>(null);
   const deferredArticleTranslationRef = useRef<ArticleTranslation | null>(null);
   const lastSavedWebProgressRef = useRef<number | null>(null);
   const restoredWebProgressArticleRef = useRef<string | null>(null);
@@ -229,6 +245,7 @@ export function WebSourceBookcase({
     sourceReaderWorkspace;
   const {
     temporaryBoxes,
+    setTemporaryBoxes,
     selectionAction,
     setHighlightChoice,
     composer,
@@ -379,6 +396,8 @@ export function WebSourceBookcase({
     setTranslationConfirm(null);
     deferredArticleTranslationRef.current = null;
     articleSelectionGestureActiveRef.current = false;
+    articleSelectionGestureRef.current = null;
+    articleSelectionGestureDragPointRef.current = null;
     clearTranslationSuccessFeedback();
     translationSegmentStatusRef.current.clear();
     lastSavedWebProgressRef.current = normalizeSavedWebProgress(article.readingProgress);
@@ -893,9 +912,62 @@ export function WebSourceBookcase({
     });
   }
 
+  function setArticleSelectionGestureVisible(visible: boolean) {
+    const articleElement = articleRef.current;
+    articleElement?.classList.toggle('is-web-selection-gesture', visible);
+  }
+
+  function removeArticleSelectionGesturePreviewBoxes() {
+    setTemporaryBoxes((currentBoxes) => {
+      if (!currentBoxes.some((box) => box.annotationId === WEB_SELECTION_DRAG_ANNOTATION_ID)) {
+        return currentBoxes;
+      }
+      return currentBoxes.filter((box) => box.annotationId !== WEB_SELECTION_DRAG_ANNOTATION_ID);
+    });
+  }
+
+  function clearArticleSelectionGesturePreview() {
+    setArticleSelectionGestureVisible(false);
+    removeArticleSelectionGesturePreviewBoxes();
+  }
+
+  function previewArticleSelectionGesture() {
+    const articleElement = articleRef.current;
+    const canvasElement = canvasRef.current;
+    const selectionGesture = articleSelectionGestureRef.current;
+    const dragPoint = articleSelectionGestureDragPointRef.current;
+    if (!articleElement || !canvasElement || !selectionGesture || !dragPoint) return;
+
+    const gestureRange = webSelectionGestureRangeFromClientPoint(
+      articleElement,
+      selectionGesture,
+      dragPoint.clientX,
+      dragPoint.clientY,
+    );
+    if (!gestureRange) {
+      removeArticleSelectionGesturePreviewBoxes();
+      return;
+    }
+
+    const canvasRect = canvasElement.getBoundingClientRect();
+    const previewBoxes = rangeHighlightBoxes(
+      gestureRange.range,
+      canvasRect,
+      'source-selection-drag',
+    ).map((box) =>
+      Object.assign(box, {
+        annotationId: WEB_SELECTION_DRAG_ANNOTATION_ID,
+        contributorId: userProfile.id,
+        color: userProfile.annotationColor,
+      }),
+    );
+    setTemporaryBoxes(previewBoxes);
+  }
+
   useEffect(() => {
     const ownerDocument = articleRef.current?.ownerDocument || document;
     let frame = 0;
+    let previewFrame = 0;
 
     const debugArticle = { articleId: article.id, sourceType: article.sourceType || 'web' };
     const currentContext = () => selectionDebugContextRef.current;
@@ -947,11 +1019,56 @@ export function WebSourceBookcase({
       );
       const shouldFlush = event.type === 'pointerup' || event.type === 'pointercancel';
       if (targetNode && articleElement.contains(targetNode)) {
-        if (event.type === 'pointerdown') freezeArticleHtmlRendering('pointerdown');
+        if (event.type === 'pointerdown') {
+          freezeArticleHtmlRendering('pointerdown');
+          articleSelectionGestureRef.current = webSelectionGesturePointFromClientPoint(
+            articleElement,
+            event.clientX,
+            event.clientY,
+          );
+          articleSelectionGestureDragPointRef.current = {
+            clientX: event.clientX,
+            clientY: event.clientY,
+          };
+          setArticleSelectionGestureVisible(true);
+        }
+        if (
+          event.type === 'pointermove' &&
+          articleSelectionGestureRef.current &&
+          event.buttons === 1
+        ) {
+          articleSelectionGestureDragPointRef.current = {
+            clientX: event.clientX,
+            clientY: event.clientY,
+          };
+          if (!previewFrame) {
+            previewFrame = window.requestAnimationFrame(() => {
+              previewFrame = 0;
+              previewArticleSelectionGesture();
+            });
+          }
+        }
+        if (event.type === 'pointerup') {
+          articleSelectionGestureDragPointRef.current = {
+            clientX: event.clientX,
+            clientY: event.clientY,
+          };
+        }
+        if (event.type === 'pointercancel') {
+          articleSelectionGestureRef.current = null;
+          articleSelectionGestureDragPointRef.current = null;
+          clearArticleSelectionGesturePreview();
+        }
         if (shouldFlush) scheduleArticleHtmlRenderFlush(event.type);
       } else if (shouldFlush) {
         scheduleArticleHtmlRenderFlush(`${event.type}-outside-article`);
+        clearArticleSelectionGesturePreview();
+      } else if (event.type === 'pointerdown') {
+        articleSelectionGestureRef.current = null;
+        articleSelectionGestureDragPointRef.current = null;
+        clearArticleSelectionGesturePreview();
       }
+      if (event.type === 'pointermove') return;
       if (!readerSelectionDebugEnabled()) return;
       if (
         !insideReader &&
@@ -975,21 +1092,26 @@ export function WebSourceBookcase({
     logSelectionState('reader-mounted');
     ownerDocument.addEventListener('selectionchange', handleSelectionChange);
     window.addEventListener('pointerdown', handlePointerEvent, true);
+    window.addEventListener('pointermove', handlePointerEvent, true);
     window.addEventListener('pointerup', handlePointerEvent, true);
     window.addEventListener('pointercancel', handlePointerEvent, true);
     window.addEventListener('blur', handleWindowBlur);
     return () => {
       ownerDocument.removeEventListener('selectionchange', handleSelectionChange);
       window.removeEventListener('pointerdown', handlePointerEvent, true);
+      window.removeEventListener('pointermove', handlePointerEvent, true);
       window.removeEventListener('pointerup', handlePointerEvent, true);
       window.removeEventListener('pointercancel', handlePointerEvent, true);
       window.removeEventListener('blur', handleWindowBlur);
       if (frame) window.cancelAnimationFrame(frame);
+      if (previewFrame) window.cancelAnimationFrame(previewFrame);
+      setArticleSelectionGestureVisible(false);
       logReaderSelectionDebug('reader-unmounted', debugArticle);
     };
   }, [article.id, article.sourceType]);
 
   function handleArticleMouseUp(event?: React.MouseEvent<HTMLElement>) {
+    clearArticleSelectionGesturePreview();
     const articleElement = articleRef.current;
     const canvasElement = canvasRef.current;
     if (!articleElement || !canvasElement) {
@@ -1009,7 +1131,42 @@ export function WebSourceBookcase({
       ),
       selection: describeReaderSelection(articleSelection, articleElement),
     });
-    if (!articleSelection || articleSelection.rangeCount === 0 || articleSelection.isCollapsed) {
+    const selectionGesture = articleSelectionGestureRef.current;
+    articleSelectionGestureRef.current = null;
+    articleSelectionGestureDragPointRef.current = null;
+    const gestureRange = event
+      ? webSelectionGestureRangeFromClientPoint(
+          articleElement,
+          selectionGesture,
+          event.clientX,
+          event.clientY,
+        )
+      : null;
+    const nativeRange =
+      articleSelection && articleSelection.rangeCount > 0 && !articleSelection.isCollapsed
+        ? articleSelection.getRangeAt(0)
+        : null;
+    const shouldUseGestureRange =
+      nativeRange && selectionGesture && gestureRange
+        ? shouldUseWebSelectionGestureRange(
+            nativeRange,
+            articleElement,
+            selectionGesture,
+            gestureRange,
+          )
+        : !nativeRange && Boolean(gestureRange);
+    const range = shouldUseGestureRange ? gestureRange?.range || null : nativeRange;
+
+    if (shouldUseGestureRange && gestureRange) {
+      logReaderSelectionDebug('mouseup:gesture-range-used', {
+        ...selectionDebugContext(),
+        reason: nativeRange ? 'native-anchor-mismatch' : 'native-empty',
+        nativeRange: nativeRange ? describeRangeForDebug(nativeRange, articleElement) : null,
+        gestureRange: describeWebSelectionGestureRangeForDebug(gestureRange),
+      });
+    }
+
+    if (!range) {
       // Clicks inside the composer bubble up with an empty native selection;
       // while the composer owns the highlight, blank-click clearing is handled
       // by the reader shell pointer capture instead.
@@ -1026,13 +1183,12 @@ export function WebSourceBookcase({
         ...selectionDebugContext(),
         selection: describeReaderSelection(articleSelection, articleElement),
       });
-      articleSelection.removeAllRanges();
+      articleSelection?.removeAllRanges();
       clearSelection();
       showTranslationSelectionDisabledToast();
       return;
     }
 
-    const range = articleSelection.getRangeAt(0);
     if (!isRangeInsideArticle(range, articleElement)) {
       logReaderSelectionDebug('mouseup:range-outside-article', {
         ...selectionDebugContext(),
@@ -1046,7 +1202,7 @@ export function WebSourceBookcase({
         ...selectionDebugContext(),
         range: describeRangeForDebug(range, articleElement),
       });
-      articleSelection.removeAllRanges();
+      articleSelection?.removeAllRanges();
       clearSelection();
       appToast.warning(t('source.mixedSelectionToast'));
       return;
@@ -1116,7 +1272,7 @@ export function WebSourceBookcase({
       position,
       rectCount: rects.length,
     });
-    articleSelection.removeAllRanges();
+    articleSelection?.removeAllRanges();
     logCurrentSelectionDebug('mouseup:native-selection-cleared');
   }
 
@@ -1137,6 +1293,11 @@ export function WebSourceBookcase({
       return;
     }
 
+    if (openHighlightAtClientPoint(event.clientX, event.clientY)) {
+      event.preventDefault();
+      return;
+    }
+
     const anchor = target?.closest<HTMLAnchorElement>('a[href]');
     if (!anchor) return;
 
@@ -1145,6 +1306,48 @@ export function WebSourceBookcase({
 
     event.preventDefault();
     void window.yomitomoDesktop.openUrl(url);
+  }
+
+  function openHighlightAtClientPoint(
+    clientX: number,
+    clientY: number,
+    preferredAnnotationIds: string[] = [],
+    fallbackAnnotationId?: string,
+  ) {
+    const canvasElement = canvasRef.current;
+    if (!canvasElement) {
+      if (fallbackAnnotationId) openAnnotation(fallbackAnnotationId);
+      return Boolean(fallbackAnnotationId);
+    }
+
+    const canvasRect = canvasElement.getBoundingClientRect();
+    const annotationIds =
+      preferredAnnotationIds.length > 0
+        ? preferredAnnotationIds
+        : annotationIdsAtHighlightPoint(
+            boxes,
+            {
+              x: clientX - canvasRect.left,
+              y: clientY - canvasRect.top,
+            },
+            1,
+          );
+    if (annotationIds.length === 0) return false;
+
+    if (annotationIds.length <= 1) {
+      const annotationId = annotationIds[0] || fallbackAnnotationId;
+      if (!annotationId) return false;
+      openAnnotation(annotationId);
+      return true;
+    }
+
+    const x = clientX - canvasRect.left + 8;
+    setHighlightChoice({
+      x: Math.max(8, Math.min(Math.max(8, canvasRect.width - 236), x)),
+      y: Math.max(8, clientY - canvasRect.top + 8),
+      annotationIds,
+    });
+    return true;
   }
 
   function showTranslationSuccessFeedback(blockId: string) {
@@ -1519,36 +1722,7 @@ export function WebSourceBookcase({
     event: React.MouseEvent<HTMLButtonElement>,
     visibleAnnotationIds: string[],
   ) {
-    const canvasElement = canvasRef.current;
-    if (!canvasElement) {
-      openAnnotation(annotationId);
-      return;
-    }
-
-    const canvasRect = canvasElement.getBoundingClientRect();
-    const annotationIds =
-      visibleAnnotationIds.length > 0
-        ? visibleAnnotationIds
-        : annotationIdsAtHighlightPoint(
-            boxes,
-            {
-              x: event.clientX - canvasRect.left,
-              y: event.clientY - canvasRect.top,
-            },
-            1,
-          );
-
-    if (annotationIds.length <= 1) {
-      openAnnotation(annotationIds[0] || annotationId);
-      return;
-    }
-
-    const x = event.clientX - canvasRect.left + 8;
-    setHighlightChoice({
-      x: Math.max(8, Math.min(Math.max(8, canvasRect.width - 236), x)),
-      y: Math.max(8, event.clientY - canvasRect.top + 8),
-      annotationIds,
-    });
+    openHighlightAtClientPoint(event.clientX, event.clientY, visibleAnnotationIds, annotationId);
   }
 
   function scrollToTocItem(item: TocItem) {
@@ -1779,188 +1953,7 @@ export function WebSourceBookcase({
   );
 }
 
-type TranslationConfirmAction = 'translate' | 'retranslate' | 'delete';
 type TranslationToastId = string | number;
-
-type ReaderTranslationLabels = {
-  deleteTranslation: string;
-  hideTranslation: string;
-  retranslateArticle: string;
-  showTranslation: string;
-  translateArticle: string;
-};
-
-function ReaderTranslationToolbarButton({
-  busy,
-  hasTranslation,
-  labels,
-  menuOpen,
-  visible,
-  onConfirm,
-  onMenuOpenChange,
-  onSetVisible,
-}: {
-  busy: boolean;
-  hasTranslation: boolean;
-  labels: ReaderTranslationLabels;
-  menuOpen: boolean;
-  visible: boolean;
-  onConfirm: (action: TranslationConfirmAction) => void;
-  onMenuOpenChange: (open: boolean) => void;
-  onSetVisible: (visible: boolean) => void;
-}) {
-  if (!hasTranslation) {
-    return (
-      <ReaderTooltip content={labels.translateArticle} side="bottom">
-        <button
-          aria-label={labels.translateArticle}
-          className={['reader-icon-button', busy ? 'is-busy' : ''].filter(Boolean).join(' ')}
-          disabled={busy}
-          type="button"
-          onClick={() => onConfirm('translate')}
-        >
-          {busy ? <RefreshCw size={18} /> : <Languages size={18} />}
-        </button>
-      </ReaderTooltip>
-    );
-  }
-
-  const buttonLabel = visible ? labels.hideTranslation : labels.showTranslation;
-  return (
-    <Popover open={menuOpen} onOpenChange={onMenuOpenChange}>
-      <ReaderTooltip content={buttonLabel} side="bottom">
-        <PopoverTrigger asChild>
-          <button
-            aria-label={buttonLabel}
-            className={['reader-icon-button', visible ? 'is-active' : '', busy ? 'is-busy' : '']
-              .filter(Boolean)
-              .join(' ')}
-            type="button"
-          >
-            {busy ? <RefreshCw size={18} /> : visible ? <EyeOff size={18} /> : <Eye size={18} />}
-          </button>
-        </PopoverTrigger>
-      </ReaderTooltip>
-      <PopoverContent align="end" className="reader-translation-menu" side="bottom" sideOffset={10}>
-        <button
-          aria-label={buttonLabel}
-          type="button"
-          onClick={() => {
-            onSetVisible(!visible);
-            onMenuOpenChange(false);
-          }}
-        >
-          {visible ? <EyeOff size={15} /> : <Eye size={15} />}
-          <span>{buttonLabel}</span>
-        </button>
-        <button
-          aria-label={labels.retranslateArticle}
-          disabled={busy}
-          type="button"
-          onClick={() => {
-            onMenuOpenChange(false);
-            onConfirm('retranslate');
-          }}
-        >
-          <RefreshCw size={15} />
-          <span>{labels.retranslateArticle}</span>
-        </button>
-        <button
-          aria-label={labels.deleteTranslation}
-          className="is-danger"
-          disabled={busy}
-          type="button"
-          onClick={() => {
-            onMenuOpenChange(false);
-            onConfirm('delete');
-          }}
-        >
-          <Trash2 size={15} />
-          <span>{labels.deleteTranslation}</span>
-        </button>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-type ReaderTranslationConfirmLabels = {
-  cancel: string;
-  confirmDeleteTranslation: string;
-  confirmDeleteTranslationDescription: string;
-  confirmDeleteTranslationTitle: string;
-  confirmRetranslate: string;
-  confirmRetranslateDescription: string;
-  confirmRetranslateTitle: string;
-  confirmTranslate: string;
-  confirmTranslateDescription: string;
-  confirmTranslateTitle: string;
-};
-
-function ReaderTranslationConfirmDialog({
-  action,
-  annotationNotice,
-  labels,
-  onClose,
-  onConfirm,
-}: {
-  action: TranslationConfirmAction | null;
-  annotationNotice: string;
-  labels: ReaderTranslationConfirmLabels;
-  onClose: () => void;
-  onConfirm: (action: TranslationConfirmAction) => Promise<void>;
-}) {
-  const copy =
-    action === 'delete'
-      ? {
-          confirm: labels.confirmDeleteTranslation,
-          description: labels.confirmDeleteTranslationDescription,
-          title: labels.confirmDeleteTranslationTitle,
-        }
-      : action === 'retranslate'
-        ? {
-            confirm: labels.confirmRetranslate,
-            description: labels.confirmRetranslateDescription,
-            title: labels.confirmRetranslateTitle,
-          }
-        : {
-            confirm: labels.confirmTranslate,
-            description: labels.confirmTranslateDescription,
-            title: labels.confirmTranslateTitle,
-          };
-  return (
-    <Dialog open={Boolean(action)} onOpenChange={(open) => (!open ? onClose() : undefined)}>
-      <DialogPortal>
-        <DialogOverlay className="reader-translation-confirm-overlay">
-          <DialogContent
-            aria-describedby="reader-translation-confirm-description"
-            aria-labelledby="reader-translation-confirm-title"
-            className="reader-translation-confirm"
-          >
-            <DialogTitle id="reader-translation-confirm-title">{copy.title}</DialogTitle>
-            <DialogDescription id="reader-translation-confirm-description">
-              {annotationNotice ? `${copy.description} ${annotationNotice}` : copy.description}
-            </DialogDescription>
-            <div className="reader-translation-confirm-actions">
-              <button type="button" onClick={onClose}>
-                {labels.cancel}
-              </button>
-              <button
-                className={action === 'delete' ? 'is-danger' : 'is-primary'}
-                disabled={!action}
-                type="button"
-                onClick={() => {
-                  if (action) void onConfirm(action);
-                }}
-              >
-                {copy.confirm}
-              </button>
-            </div>
-          </DialogContent>
-        </DialogOverlay>
-      </DialogPortal>
-    </Dialog>
-  );
-}
 
 function translationAnnotationsForBlocks(annotations: Annotation[], blockIds: Set<string>) {
   return annotations.filter(
@@ -2047,7 +2040,6 @@ function rangeIntersectsIgnoredSelector(range: Range, selector: string) {
   return Boolean(container.querySelector(selector));
 }
 
-const readerSelectionDebugStorageKey = 'yomitomo:reader-selection-debug';
 const translationSelectionToastIgnoredSelector =
   '[data-reader-translation-action], a[href], button, input, textarea, select, [role="button"]';
 const translationSelectionToastThrottleMs = 2000;
@@ -2059,6 +2051,11 @@ type ArticleHtmlRenderState = {
   frozen: boolean;
   html: string;
   pendingHtml: string | null;
+};
+
+type WebSelectionGestureClientPoint = {
+  clientX: number;
+  clientY: number;
 };
 
 function articleHtmlForRender(state: ArticleHtmlRenderState, articleId: string, nextHtml: string) {
@@ -2080,381 +2077,20 @@ function articleHtmlForRender(state: ArticleHtmlRenderState, articleId: string, 
   return state.html;
 }
 
-function readerSelectionDebugEnabled() {
-  if (import.meta.env.VITE_YOMITOMO_READER_SELECTION_DEBUG === '1') return true;
-  if (import.meta.env.DEV) return true;
-  if (typeof window === 'undefined') return false;
-  try {
-    return window.localStorage.getItem(readerSelectionDebugStorageKey) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function logReaderSelectionDebug(event: string, details: Record<string, unknown>) {
-  if (!readerSelectionDebugEnabled()) return;
-  console.debug('[reader-selection]', event, details);
-  const recordTiming = window.yomitomoDesktop?.recordPerformanceTiming;
-  if (!recordTiming) return;
-  void recordTiming({
-    event: `reader_selection.${selectionDebugEventName(event)}`,
-    data: details,
-  }).catch(() => undefined);
-}
-
-function shouldLogSelectionDebug(
-  selection: Selection | null,
-  articleElement: HTMLElement,
-  openState: { composerOpen: boolean; selectionActionOpen: boolean },
-) {
-  if (openState.composerOpen || openState.selectionActionOpen) return true;
-  if (!selection || selection.rangeCount === 0) return false;
-
-  for (let index = 0; index < selection.rangeCount; index += 1) {
-    try {
-      if (rangeTouchesArticleForDebug(selection.getRangeAt(index), articleElement)) return true;
-    } catch {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function describeReaderSelection(selection: Selection | null, articleElement: HTMLElement) {
-  if (!selection) return { present: false };
-
-  const details: Record<string, unknown> = {
-    present: true,
-    rangeCount: selection.rangeCount,
-    isCollapsed: selection.isCollapsed,
-    type: (selection as Selection & { type?: string }).type ?? null,
-    anchorOffset: selection.anchorOffset,
-    focusOffset: selection.focusOffset,
-    anchorNode: describeSelectionNode(selection.anchorNode, articleElement),
-    focusNode: describeSelectionNode(selection.focusNode, articleElement),
-  };
-
-  if (selection.rangeCount === 0) return details;
-
-  try {
-    const range = selection.getRangeAt(0);
-    details.anchorIsRangeStart =
-      selection.anchorNode === range.startContainer && selection.anchorOffset === range.startOffset;
-    details.focusIsRangeEnd =
-      selection.focusNode === range.endContainer && selection.focusOffset === range.endOffset;
-    details.anchorSourceOffset = safeNumber(() =>
-      selection.anchorNode
-        ? offsetFromArticleStartIgnoringSelector(
-            articleElement,
-            selection.anchorNode,
-            selection.anchorOffset,
-            '[data-reader-translation]',
-          )
-        : -1,
-    );
-    details.focusSourceOffset = safeNumber(() =>
-      selection.focusNode
-        ? offsetFromArticleStartIgnoringSelector(
-            articleElement,
-            selection.focusNode,
-            selection.focusOffset,
-            '[data-reader-translation]',
-          )
-        : -1,
-    );
-    details.firstRange = describeRangeForDebug(range, articleElement);
-  } catch (error) {
-    details.firstRangeError = debugErrorMessage(error);
-  }
-
-  return details;
-}
-
-function describeRangeForDebug(range: Range, articleElement: HTMLElement) {
-  const rects = Array.from(range.getClientRects());
-
+function describeWebSelectionGestureRangeForDebug(gestureRange: WebSelectionGestureRange) {
   return {
-    collapsed: range.collapsed,
-    startOffset: range.startOffset,
-    endOffset: range.endOffset,
-    selectedTextLength: safeNumber(() => range.toString().length),
-    start: describeSelectionNode(range.startContainer, articleElement),
-    end: describeSelectionNode(range.endContainer, articleElement),
-    commonAncestor: describeSelectionNode(range.commonAncestorContainer, articleElement),
-    insideArticle: safeBoolean(() => isRangeInsideArticle(range, articleElement)),
-    touchesArticle: safeBoolean(() => rangeTouchesArticleForDebug(range, articleElement)),
-    rawStart: safeNumber(() =>
-      offsetFromArticleStart(articleElement, range.startContainer, range.startOffset),
-    ),
-    rawEnd: safeNumber(() =>
-      offsetFromArticleStart(articleElement, range.endContainer, range.endOffset),
-    ),
-    sourceStart: safeNumber(() =>
-      offsetFromArticleStartIgnoringSelector(
-        articleElement,
-        range.startContainer,
-        range.startOffset,
-        '[data-reader-translation]',
-      ),
-    ),
-    sourceEnd: safeNumber(() =>
-      offsetFromArticleStartIgnoringSelector(
-        articleElement,
-        range.endContainer,
-        range.endOffset,
-        '[data-reader-translation]',
-      ),
-    ),
-    translationBlockId:
-      translationElementForRange(range)?.getAttribute('data-reader-translation-block-id') ?? null,
-    intersectsTranslation: safeBoolean(() =>
-      rangeIntersectsIgnoredSelector(range, '[data-reader-translation]'),
-    ),
-    rectCount: rects.length,
-    firstRect: rects[0] ? describeRectForDebug(rects[0]) : null,
-    lastRect: rects.at(-1) ? describeRectForDebug(rects.at(-1) as DOMRect) : null,
+    startOffset: gestureRange.startOffset,
+    endOffset: gestureRange.endOffset,
+    startPoint: describeWebSelectionGesturePointForDebug(gestureRange.startPoint),
+    endPoint: describeWebSelectionGesturePointForDebug(gestureRange.endPoint),
   };
 }
 
-function describePointerForDebug(
-  event: PointerEvent,
-  articleElement: HTMLElement,
-  surfaceElement: HTMLElement | null,
-) {
-  const elementAtPoint = document.elementFromPoint(event.clientX, event.clientY);
-  const targetElement = event.target instanceof Element ? event.target : null;
-  const targetSourceBlock = targetElement?.closest<HTMLElement>('[data-reader-source-block-id]');
-  const pointSourceBlock = elementAtPoint?.closest<HTMLElement>('[data-reader-source-block-id]');
-
+function describeWebSelectionGesturePointForDebug(point: WebSelectionGesturePoint) {
   return {
-    clientX: Math.round(event.clientX),
-    clientY: Math.round(event.clientY),
-    pageX: Math.round(event.pageX),
-    pageY: Math.round(event.pageY),
-    targetRect: targetElement ? describeRectForDebug(targetElement.getBoundingClientRect()) : null,
-    targetSourceBlockRect: targetSourceBlock
-      ? describeRectForDebug(targetSourceBlock.getBoundingClientRect())
-      : null,
-    elementAtPoint: describeSelectionNode(elementAtPoint, articleElement),
-    pointSourceBlockId: pointSourceBlock?.getAttribute('data-reader-source-block-id') ?? null,
-    pointSourceBlockRect: pointSourceBlock
-      ? describeRectForDebug(pointSourceBlock.getBoundingClientRect())
-      : null,
-    articleRect: describeRectForDebug(articleElement.getBoundingClientRect()),
-    surfaceRect: surfaceElement
-      ? describeRectForDebug(surfaceElement.getBoundingClientRect())
-      : null,
+    clientX: Math.round(point.clientX),
+    clientY: Math.round(point.clientY),
+    sourceOffset: point.sourceOffset,
+    translationBlockId: point.translationBlockId,
   };
-}
-
-function describeSelectionNode(node: Node | null, articleElement: HTMLElement | null) {
-  if (!node) return { present: false };
-
-  const element = node instanceof Element ? node : node.parentElement;
-  const translationElement = element?.closest<HTMLElement>('[data-reader-translation]') ?? null;
-  const sourceBlockElement = element?.closest<HTMLElement>('[data-reader-source-block-id]') ?? null;
-  const actionElement = element?.closest<HTMLElement>('[data-reader-translation-action]') ?? null;
-  const className =
-    element && typeof element.className === 'string'
-      ? element.className.trim().split(/\s+/).filter(Boolean).slice(0, 4).join(' ')
-      : '';
-
-  return {
-    present: true,
-    nodeType: node.nodeType,
-    nodeName: node.nodeName,
-    elementTag: element?.tagName.toLowerCase() ?? null,
-    elementId: element?.id || null,
-    className: className || null,
-    role: element?.getAttribute('role') ?? null,
-    inArticle: articleElement ? articleElement.contains(node) : null,
-    css: describeElementSelectionCss(element),
-    sourceBlockId: sourceBlockElement?.getAttribute('data-reader-source-block-id') ?? null,
-    translationBlockId:
-      translationElement?.getAttribute('data-reader-translation-block-id') ?? null,
-    translationStatus:
-      translationElement?.getAttribute('data-reader-translation-status') ??
-      actionElement?.getAttribute('data-reader-translation-status') ??
-      null,
-    translationAction: actionElement?.getAttribute('data-reader-translation-action') ?? null,
-  };
-}
-
-function describeArticleTranslationDom(articleElement: HTMLElement) {
-  const bodyElement = articleElement.querySelector<HTMLElement>('.reader-article-body');
-  const root = bodyElement || articleElement;
-  const sourceBlocks = Array.from(
-    root.querySelectorAll<HTMLElement>('[data-reader-source-block-id]'),
-  );
-  const translationBlocks = Array.from(
-    root.querySelectorAll<HTMLElement>('[data-reader-translation]'),
-  );
-  const indicators = Array.from(
-    root.querySelectorAll<HTMLElement>('.reader-bilingual-translation-indicator'),
-  );
-
-  return {
-    rootChildCount: root.children.length,
-    bodyChildCount: bodyElement?.children.length ?? null,
-    sourceBlockCount: sourceBlocks.length,
-    translationBlockCount: translationBlocks.length,
-    indicatorCount: indicators.length,
-    translationStatuses: countByAttribute(translationBlocks, 'data-reader-translation-status'),
-    indicatorStatuses: countByAttribute(indicators, 'data-reader-translation-status'),
-    sourceBlocks: sourceBlocks.slice(0, 24).map((element) => {
-      const nextElement = nextElementSiblingSkippingEmptyText(element);
-      const indicator = element.querySelector<HTMLElement>(
-        '.reader-bilingual-translation-indicator',
-      );
-      return {
-        blockId: element.getAttribute('data-reader-source-block-id'),
-        tag: element.tagName.toLowerCase(),
-        childIndex: elementChildIndex(element),
-        textLength: element.textContent?.length ?? 0,
-        rect: describeElementRect(element),
-        css: describeElementSelectionCss(element),
-        indicatorStatus: indicator?.getAttribute('data-reader-translation-status') ?? null,
-        nextElement: describeElementForDomDebug(nextElement),
-      };
-    }),
-    translationBlocks: translationBlocks.slice(0, 24).map((element) => ({
-      blockId: element.getAttribute('data-reader-translation-block-id'),
-      status: element.getAttribute('data-reader-translation-status'),
-      tag: element.tagName.toLowerCase(),
-      childIndex: elementChildIndex(element),
-      textLength: element.textContent?.length ?? 0,
-      rect: describeElementRect(element),
-      css: describeElementSelectionCss(element),
-      previousElement: describeElementForDomDebug(previousElementSiblingSkippingEmptyText(element)),
-      nextElement: describeElementForDomDebug(nextElementSiblingSkippingEmptyText(element)),
-    })),
-  };
-}
-
-function describeElementForDomDebug(element: Element | null) {
-  if (!element) return null;
-  const htmlElement = element instanceof HTMLElement ? element : null;
-  return {
-    tag: element.tagName.toLowerCase(),
-    className:
-      typeof element.className === 'string'
-        ? element.className.trim().split(/\s+/).filter(Boolean).slice(0, 4).join(' ') || null
-        : null,
-    sourceBlockId: htmlElement?.getAttribute('data-reader-source-block-id') ?? null,
-    translationBlockId: htmlElement?.getAttribute('data-reader-translation-block-id') ?? null,
-    translationStatus: htmlElement?.getAttribute('data-reader-translation-status') ?? null,
-    childIndex: elementChildIndex(element),
-    textLength: element.textContent?.length ?? 0,
-  };
-}
-
-function describeElementSelectionCss(element: Element | null) {
-  if (!element || typeof window === 'undefined') return null;
-  const style = window.getComputedStyle(element);
-  return {
-    display: style.display,
-    pointerEvents: style.pointerEvents,
-    userSelect: style.userSelect,
-    webkitUserSelect: style.getPropertyValue('-webkit-user-select') || null,
-    visibility: style.visibility,
-  };
-}
-
-function describeElementRect(element: Element) {
-  return describeRectForDebug(element.getBoundingClientRect());
-}
-
-function describeRectForDebug(rect: DOMRect | DOMRectReadOnly) {
-  return {
-    top: Math.round(rect.top),
-    right: Math.round(rect.right),
-    bottom: Math.round(rect.bottom),
-    left: Math.round(rect.left),
-    width: Math.round(rect.width),
-    height: Math.round(rect.height),
-  };
-}
-
-function describeHighlightBoxesForDebug(boxes: HighlightBox[]) {
-  return {
-    count: boxes.length,
-    first: boxes[0] ? describeHighlightBoxForDebug(boxes[0]) : null,
-    last: boxes.at(-1) ? describeHighlightBoxForDebug(boxes.at(-1) as HighlightBox) : null,
-    boxes: boxes.slice(0, 6).map(describeHighlightBoxForDebug),
-  };
-}
-
-function describeHighlightBoxForDebug(box: HighlightBox) {
-  return {
-    id: box.id,
-    top: Math.round(box.top),
-    left: Math.round(box.left),
-    width: Math.round(box.width),
-    height: Math.round(box.height),
-  };
-}
-
-function countByAttribute(elements: HTMLElement[], attribute: string) {
-  const counts: Record<string, number> = {};
-  for (const element of elements) {
-    const value = element.getAttribute(attribute) || 'none';
-    counts[value] = (counts[value] || 0) + 1;
-  }
-  return counts;
-}
-
-function elementChildIndex(element: Element) {
-  if (!element.parentElement) return null;
-  return Array.prototype.indexOf.call(element.parentElement.children, element);
-}
-
-function nextElementSiblingSkippingEmptyText(element: Element) {
-  return element.nextElementSibling;
-}
-
-function previousElementSiblingSkippingEmptyText(element: Element) {
-  return element.previousElementSibling;
-}
-
-function describeAnchorForDebug(anchor: Annotation['anchor']) {
-  return {
-    start: anchor.start,
-    end: anchor.end,
-    exactLength: anchor.exact.length,
-    trimmedLength: anchor.exact.trim().length,
-    segmentId: anchor.segmentId ?? null,
-  };
-}
-
-function rangeTouchesArticleForDebug(range: Range, articleElement: HTMLElement) {
-  const startNode = range.startContainer;
-  const endNode = range.endContainer;
-  if (articleElement.contains(startNode) || articleElement.contains(endNode)) return true;
-  if (articleElement.contains(range.commonAncestorContainer)) return true;
-  return range.intersectsNode(articleElement);
-}
-
-function safeBoolean(read: () => boolean) {
-  try {
-    return read();
-  } catch (error) {
-    return debugErrorMessage(error);
-  }
-}
-
-function safeNumber(read: () => number) {
-  try {
-    return read();
-  } catch (error) {
-    return debugErrorMessage(error);
-  }
-}
-
-function debugErrorMessage(error: unknown) {
-  return error instanceof Error ? `${error.name}: ${error.message}` : String(error);
-}
-
-function selectionDebugEventName(event: string) {
-  return event.replace(/[^a-z0-9_.:-]+/gi, '_');
 }

@@ -155,6 +155,16 @@ describe('source reader annotation styles', () => {
     );
   });
 
+  it('hides native web article selection during custom drag selection', () => {
+    expect(sourceReaderTocStyles).toContain(
+      '.source-reader-shell .reader-article.is-web-selection-gesture ::selection',
+    );
+    expect(sourceReaderTocStyles).toContain(
+      '.source-reader-shell .reader-article.is-web-selection-gesture::selection',
+    );
+    expect(sourceReaderTocStyles).toContain('background:transparent');
+  });
+
   it('keeps PDFium annotation rail above the full-size PDF article surface', () => {
     expect(styles).toMatch(
       /\.source-pdf-reader-shell \{[\s\S]*height: 100%;[\s\S]*min-height: 0;[\s\S]*\}/,
