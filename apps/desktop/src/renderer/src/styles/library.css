@@ -1346,7 +1346,7 @@
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   padding-right: 10px;
   border-right: 1px solid hsl(var(--border) / 0.72);
 }
