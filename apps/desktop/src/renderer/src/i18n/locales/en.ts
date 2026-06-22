@@ -539,7 +539,7 @@ export const enResources = {
         all: 'All types',
       },
       weReadSetupTooltip: 'Configure the WeRead API key in Settings / WeRead first',
-      sync: 'Sync',
+      sync: 'Sync WeRead',
       syncing: 'Syncing',
       toolbarSort: 'Recently updated · Descending',
       toolbarLabel: 'Library toolbar',
