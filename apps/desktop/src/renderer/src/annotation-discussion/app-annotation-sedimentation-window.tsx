@@ -22,7 +22,7 @@ import type {
   UiLanguage,
   UserProfile,
 } from '@yomitomo/shared';
-import { hashText, makeId, normalizeUiLanguage } from '@yomitomo/shared';
+import { makeId, normalizeUiLanguage } from '@yomitomo/shared';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { formatAbsoluteTime, formatRelativeTime } from './app-annotation-discussion-utils';
@@ -54,18 +54,42 @@ import {
 } from '../shell/app-assistant-runtime-progress';
 import { useSourceAwareWindowTransition } from '../shell/app-window-transition';
 import {
-  composeDistillationProposalDraftChangeSetEntries,
   normalizeDistillationProposalDraftChangeSetEntries,
   planDistillationProposalDraftAnchor,
   planDistillationProposalChangeSet,
   proposalApplyFailureMessage,
-  updateReviewProposalStatusMap,
   type DistillationProposalDraftChange,
   type DistillationProposalDraftAnchorResult,
   type DistillationProposalDraftChangeSet,
   type DistillationProposalDraftChangeSetEntry,
   type DraftSelectionSnapshot,
 } from './app-annotation-sedimentation-proposals';
+import {
+  acceptedDraftPreviewChanges,
+  annotationWithReviewSession,
+  appendReviewItemToMessage,
+  articleWithReviewProposalStatuses,
+  createReviewSession,
+  draftPreviewDecisionsForProposals,
+  draftPreviewDraft,
+  draftPreviewStatusesFromDecisions,
+  distillationProposalSource,
+  existingSessionForAgent,
+  hasPendingDraftPreviewDecisions,
+  organizeProposalDecisionSets,
+  pendingOrganizeProposals,
+  pendingReviewProposals,
+  publishedDistillationArticle,
+  reviewItemWithProposalSource,
+  reviewMessageWithProposalSource,
+  reviewTimelineMessages,
+  unpublishedDistillationArticle,
+  updateArticleAnnotation,
+  updateSessionMessage,
+  type DraftPreviewDecision,
+  type DraftPreviewDecisions,
+  type ReviewTimelineItem,
+} from './app-annotation-sedimentation-state';
 
 type SedimentationWindowStatus =
   | { type: 'loading' }
@@ -94,17 +118,15 @@ type PendingDraftPreview =
       messageId: string;
       proposals: AnnotationDistillationProposal[];
       changeSet: DistillationProposalDraftChangeSet;
-      decisions: PendingDraftPreviewDecisions;
+      decisions: DraftPreviewDecisions;
     }
   | {
       source: 'organize';
       proposals: AnnotationDistillationProposal[];
       changeSet: DistillationProposalDraftChangeSet;
-      decisions: PendingDraftPreviewDecisions;
+      decisions: DraftPreviewDecisions;
     };
 
-type PendingDraftPreviewDecision = 'pending' | 'accepted' | 'rejected';
-type PendingDraftPreviewDecisions = Record<string, PendingDraftPreviewDecision>;
 type HoveredDraftAnchor = Extract<DistillationProposalDraftAnchorResult, { ok: true }>;
 
 function pendingDraftProposalIds(
@@ -113,38 +135,6 @@ function pendingDraftProposalIds(
 ) {
   if (!preview || preview.source !== source) return [];
   return preview.proposals.map((proposal) => proposal.id);
-}
-
-function pendingReviewProposals(proposals: AnnotationDistillationProposal[]) {
-  return proposals.filter((proposal) => proposal.status === 'pending');
-}
-
-function pendingOrganizeProposals(
-  proposals: AnnotationDistillationProposal[],
-  appliedProposalIds: Set<string>,
-  dismissedProposalIds: Set<string>,
-) {
-  return proposals.filter(
-    (proposal) =>
-      proposal.status === 'pending' &&
-      !appliedProposalIds.has(proposal.id) &&
-      !dismissedProposalIds.has(proposal.id),
-  );
-}
-
-function pendingDraftPreviewDecisions(
-  proposals: AnnotationDistillationProposal[],
-): PendingDraftPreviewDecisions {
-  return Object.fromEntries(proposals.map((proposal) => [proposal.id, 'pending']));
-}
-
-function previewStatusesFromDecisions(decisions: PendingDraftPreviewDecisions) {
-  return Object.fromEntries(
-    Object.entries(decisions).map(([proposalId, decision]) => [
-      proposalId,
-      decision === 'accepted' ? 'accepted' : 'ignored',
-    ]),
-  ) as Record<string, AnnotationDistillationProposal['status']>;
 }
 
 function focusStayedInside(currentTarget: EventTarget, relatedTarget: EventTarget | null) {
@@ -318,18 +308,12 @@ function SedimentationShell({
     const transition = isPublished ? 'update' : 'publish';
     setSaving(true);
     try {
-      const nextArticle = updateAnnotation(article, annotation.id, (current) => ({
-        ...current,
-        distillation: {
-          ...current.distillation,
-          status: 'published',
-          content,
-          publishedAt: current.distillation?.publishedAt || new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          reviewSessions: current.distillation?.reviewSessions,
-        },
-        updatedAt: new Date().toISOString(),
-      }));
+      const nextArticle = publishedDistillationArticle({
+        annotationId: annotation.id,
+        article,
+        content,
+        now: new Date().toISOString(),
+      });
       const nextAnnotation = await saveAndRefresh(
         nextArticle,
         agents,
@@ -356,18 +340,12 @@ function SedimentationShell({
     if (!isPublished || saving) return;
     setSaving(true);
     try {
-      const nextArticle = updateAnnotation(article, annotation.id, (current) => ({
-        ...current,
-        distillation: {
-          ...current.distillation,
-          status: 'unpublished',
-          content: current.distillation?.content || draft.trim(),
-          publishedAt: current.distillation?.publishedAt,
-          updatedAt: new Date().toISOString(),
-          reviewSessions: current.distillation?.reviewSessions,
-        },
-        updatedAt: new Date().toISOString(),
-      }));
+      const nextArticle = unpublishedDistillationArticle({
+        annotationId: annotation.id,
+        article,
+        fallbackContent: draft.trim(),
+        now: new Date().toISOString(),
+      });
       const nextAnnotation = await saveAndRefresh(
         nextArticle,
         agents,
@@ -434,11 +412,17 @@ function SedimentationShell({
           uiLanguage,
           userMessage,
           onOptimisticSession: (session) => {
-            const nextAnnotation = annotationWithReviewSession(workingAnnotation, session);
-            const nextArticle = updateAnnotation(
+            const optimisticNow = new Date().toISOString();
+            const nextAnnotation = annotationWithReviewSession({
+              annotation: workingAnnotation,
+              session,
+              now: optimisticNow,
+            });
+            const nextArticle = updateArticleAnnotation(
               workingArticle,
               workingAnnotation.id,
               () => nextAnnotation,
+              optimisticNow,
             );
             workingAnnotation = nextAnnotation;
             workingArticle = nextArticle;
@@ -453,10 +437,11 @@ function SedimentationShell({
         });
         workingAnnotation = result.annotation;
         completedReviewMessages.push(result.message);
-        workingArticle = updateAnnotation(
+        workingArticle = updateArticleAnnotation(
           workingArticle,
           workingAnnotation.id,
           () => result.annotation,
+          new Date().toISOString(),
         );
       }
       await saveAndRefresh(workingArticle, agents, annotation.id, uiLanguage, onStatusChange);
@@ -660,7 +645,7 @@ function SedimentationShell({
       messageId,
       proposals: pendingProposals,
       changeSet: result.changeSet,
-      decisions: pendingDraftPreviewDecisions(pendingProposals),
+      decisions: draftPreviewDecisionsForProposals(pendingProposals),
     });
     setReviewNotice(t('sedimentation.previewReady'));
     focusDraftChangeSet(result.changeSet);
@@ -669,15 +654,15 @@ function SedimentationShell({
 
   async function handleDraftPreviewDecision(
     proposalId: string,
-    decision: Exclude<PendingDraftPreviewDecision, 'pending'>,
+    decision: Exclude<DraftPreviewDecision, 'pending'>,
   ) {
     const preview = pendingDraftPreview;
     if (!preview || preview.decisions[proposalId] !== 'pending') return;
-    const nextDecisions: PendingDraftPreviewDecisions = {
+    const nextDecisions: DraftPreviewDecisions = {
       ...preview.decisions,
       [proposalId]: decision,
     };
-    if (Object.values(nextDecisions).some((value) => value === 'pending')) {
+    if (hasPendingDraftPreviewDecisions(nextDecisions)) {
       setPendingDraftPreview(Object.assign({}, preview, { decisions: nextDecisions }));
       return;
     }
@@ -686,20 +671,18 @@ function SedimentationShell({
 
   async function finalizeDraftPreview(
     preview: PendingDraftPreview,
-    decisions: PendingDraftPreviewDecisions,
+    decisions: DraftPreviewDecisions,
   ) {
-    const acceptedChanges = preview.changeSet.changes.filter(
-      (change) => decisions[change.proposalId] === 'accepted',
-    );
-    const nextDraft = composeDistillationProposalDraftChangeSetEntries(
-      preview.changeSet.baseDraft,
-      acceptedChanges,
-    );
+    const acceptedChanges = acceptedDraftPreviewChanges(preview.changeSet, decisions);
+    const nextDraft = draftPreviewDraft(preview.changeSet, decisions);
     setDraft(nextDraft);
     setPendingDraftPreview(null);
 
     if (preview.source === 'review') {
-      await updateProposalStatusesById(preview.messageId, previewStatusesFromDecisions(decisions));
+      await updateProposalStatusesById(
+        preview.messageId,
+        draftPreviewStatusesFromDecisions(decisions),
+      );
       setReviewNotice('');
     } else {
       applyOrganizePreviewDecisions(decisions);
@@ -713,20 +696,20 @@ function SedimentationShell({
     }
   }
 
-  function applyOrganizePreviewDecisions(decisions: PendingDraftPreviewDecisions) {
+  function applyOrganizePreviewDecisions(decisions: DraftPreviewDecisions) {
     setAppliedOrganizeProposalIds((current) => {
-      const next = new Set(current);
-      for (const [proposalId, decision] of Object.entries(decisions)) {
-        if (decision === 'accepted') next.add(proposalId);
-      }
-      return next;
+      return organizeProposalDecisionSets({
+        appliedProposalIds: current,
+        dismissedProposalIds: new Set(),
+        decisions,
+      }).appliedProposalIds;
     });
     setDismissedOrganizeProposalIds((current) => {
-      const next = new Set(current);
-      for (const [proposalId, decision] of Object.entries(decisions)) {
-        if (decision === 'rejected') next.add(proposalId);
-      }
-      return next;
+      return organizeProposalDecisionSets({
+        appliedProposalIds: new Set(),
+        dismissedProposalIds: current,
+        decisions,
+      }).dismissedProposalIds;
     });
   }
 
@@ -771,7 +754,7 @@ function SedimentationShell({
       source: 'organize',
       proposals: pendingProposals,
       changeSet: result.changeSet,
-      decisions: pendingDraftPreviewDecisions(pendingProposals),
+      decisions: draftPreviewDecisionsForProposals(pendingProposals),
     });
     setOrganizeNotice(t('sedimentation.previewReady'));
     focusDraftChangeSet(result.changeSet);
@@ -834,23 +817,13 @@ function SedimentationShell({
     messageId: string,
     proposalStatusById: Record<string, AnnotationDistillationProposal['status']>,
   ) {
-    const nextSessions = updateReviewProposalStatusMap(
-      annotation.distillation?.reviewSessions || [],
+    const nextArticle = articleWithReviewProposalStatuses({
+      annotation,
+      article,
       messageId,
+      now: new Date().toISOString(),
       proposalStatusById,
-      new Date().toISOString(),
-    );
-    const nextArticle = updateAnnotation(article, annotation.id, (current) => ({
-      ...current,
-      distillation: {
-        status: current.distillation?.status || 'unpublished',
-        content: current.distillation?.content || '',
-        publishedAt: current.distillation?.publishedAt,
-        updatedAt: new Date().toISOString(),
-        reviewSessions: nextSessions,
-      },
-      updatedAt: new Date().toISOString(),
-    }));
+    });
     await saveAndRefresh(nextArticle, agents, annotation.id, uiLanguage, onStatusChange);
   }
 
@@ -1136,62 +1109,84 @@ async function requestAgentReviewRound({
       (event) => {
         if (event.type === 'start') return;
         if (event.type === 'progress') {
-          workingSession = updateSessionMessage(workingSession, assistantMessage.id, (message) =>
-            Object.assign({}, message, {
-              assistantProgress: applyAssistantRuntimeProgress(
-                message.assistantProgress,
-                event.progress,
-              ),
-            }),
+          workingSession = updateSessionMessage(
+            workingSession,
+            assistantMessage.id,
+            (message) =>
+              Object.assign({}, message, {
+                assistantProgress: applyAssistantRuntimeProgress(
+                  message.assistantProgress,
+                  event.progress,
+                ),
+              }),
+            new Date().toISOString(),
           );
           onOptimisticSession(workingSession);
           return;
         }
         if (event.type === 'item') {
           const item = reviewItemWithProposalSource(event.item, proposalSource);
-          workingSession = updateSessionMessage(workingSession, assistantMessage.id, (message) =>
-            appendReviewItemToMessage(message, item),
+          workingSession = updateSessionMessage(
+            workingSession,
+            assistantMessage.id,
+            (message) => appendReviewItemToMessage(message, item),
+            new Date().toISOString(),
           );
           onOptimisticSession(workingSession);
           return;
         }
         if (event.type !== 'delta') return;
-        workingSession = updateSessionMessage(workingSession, assistantMessage.id, (message) =>
-          Object.assign({}, message, { content: `${message.content}${event.delta}` }),
+        workingSession = updateSessionMessage(
+          workingSession,
+          assistantMessage.id,
+          (message) => Object.assign({}, message, { content: `${message.content}${event.delta}` }),
+          new Date().toISOString(),
         );
         onOptimisticSession(workingSession);
       },
     )
     .catch((error: unknown) => {
       const errorMessage = assistantRuntimeErrorMessage(error, 'sedimentation.reviewFailed');
-      workingSession = updateSessionMessage(workingSession, assistantMessage.id, (message) =>
-        Object.assign({}, message, {
-          errorMessage,
-          status: 'failed' as const,
-        }),
+      workingSession = updateSessionMessage(
+        workingSession,
+        assistantMessage.id,
+        (message) =>
+          Object.assign({}, message, {
+            errorMessage,
+            status: 'failed' as const,
+          }),
+        new Date().toISOString(),
       );
       onOptimisticSession(workingSession);
       throw error;
     });
   const sourcedFinalMessage = reviewMessageWithProposalSource(finalMessage, proposalSource);
-  workingSession = updateSessionMessage(workingSession, assistantMessage.id, (message) =>
-    Object.assign({}, message, {
-      content:
-        sourcedFinalMessage.content ||
-        workingSession.messages.find((item) => item.id === assistantMessage.id)?.content ||
-        '',
-      errorMessage: undefined,
-      items: sourcedFinalMessage.items || message.items || [],
-      proposals: sourcedFinalMessage.proposals || message.proposals || [],
-      status: 'done' as const,
-    }),
+  workingSession = updateSessionMessage(
+    workingSession,
+    assistantMessage.id,
+    (message) =>
+      Object.assign({}, message, {
+        content:
+          sourcedFinalMessage.content ||
+          workingSession.messages.find((item) => item.id === assistantMessage.id)?.content ||
+          '',
+        errorMessage: undefined,
+        items: sourcedFinalMessage.items || message.items || [],
+        proposals: sourcedFinalMessage.proposals || message.proposals || [],
+        status: 'done' as const,
+      }),
+    new Date().toISOString(),
   );
   const completedMessage =
     workingSession.messages.find((message) => message.id === assistantMessage.id) ||
     assistantMessage;
 
   return {
-    annotation: annotationWithReviewSession(annotation, workingSession),
+    annotation: annotationWithReviewSession({
+      annotation,
+      session: workingSession,
+      now: new Date().toISOString(),
+    }),
     message: completedMessage,
   };
 }
@@ -1271,11 +1266,8 @@ function DraftChangePreviewLayer({
   scrollTop,
 }: {
   changeSet: DistillationProposalDraftChangeSet;
-  decisions: PendingDraftPreviewDecisions;
-  onDecision: (
-    proposalId: string,
-    decision: Exclude<PendingDraftPreviewDecision, 'pending'>,
-  ) => void;
+  decisions: DraftPreviewDecisions;
+  onDecision: (proposalId: string, decision: Exclude<DraftPreviewDecision, 'pending'>) => void;
   scrollLeft: number;
   scrollTop: number;
 }) {
@@ -1358,11 +1350,8 @@ function DraftChangePreviewChange({
   onDecision,
 }: {
   change: DistillationProposalDraftChangeSetEntry;
-  decision: PendingDraftPreviewDecision;
-  onDecision: (
-    proposalId: string,
-    decision: Exclude<PendingDraftPreviewDecision, 'pending'>,
-  ) => void;
+  decision: DraftPreviewDecision;
+  onDecision: (proposalId: string, decision: Exclude<DraftPreviewDecision, 'pending'>) => void;
 }) {
   return (
     <span className="annotation-sedimentation-draft-preview-change">
@@ -1764,11 +1753,6 @@ function ReviewSessions({
   );
 }
 
-type ReviewTimelineItem = {
-  key: string;
-  message: AnnotationDistillationReviewMessage;
-};
-
 function ReviewTimelineMessage({
   agents,
   item,
@@ -2074,47 +2058,6 @@ function ProposalDiffPreview({ proposal }: { proposal: AnnotationDistillationPro
   );
 }
 
-function reviewTimelineMessages(
-  sessions: AnnotationDistillationReviewSession[],
-  agents: PublicAgent[],
-): ReviewTimelineItem[] {
-  const seenUserMessages = new Set<string>();
-  const items: ReviewTimelineItem[] = [];
-
-  for (const session of sessions) {
-    for (const message of session.messages) {
-      if (message.author === 'user') {
-        const userKey = `user:${message.id}`;
-        if (seenUserMessages.has(userKey)) continue;
-        seenUserMessages.add(userKey);
-        items.push({ key: userKey, message });
-        continue;
-      }
-
-      const agentId = message.agentId || session.agentId;
-      const agent = agents.find((item) => item.id === agentId);
-      items.push({
-        key: `assistant:${session.id}:${message.id}`,
-        message: {
-          ...message,
-          agentId,
-          agentUsername: agent?.username || message.agentUsername || session.agentUsername,
-          agentNickname: agent?.nickname || message.agentNickname || session.agentNickname,
-          agentAvatar: agent?.avatar || message.agentAvatar || session.agentAvatar,
-        },
-      });
-    }
-  }
-
-  return items.toSorted((left, right) => {
-    const timeDelta = timestamp(left.message.createdAt) - timestamp(right.message.createdAt);
-    if (timeDelta !== 0) return timeDelta;
-    if (left.message.author !== right.message.author)
-      return left.message.author === 'user' ? -1 : 1;
-    return left.key.localeCompare(right.key);
-  });
-}
-
 function SedimentationEmptyState({
   className,
   status,
@@ -2159,145 +2102,6 @@ async function saveAndRefresh(
     uiLanguage,
   });
   return nextAnnotation;
-}
-
-function updateAnnotation(
-  article: ArticleRecord,
-  annotationId: string,
-  update: (annotation: Annotation) => Annotation,
-) {
-  return {
-    ...article,
-    annotations: article.annotations.map((item) =>
-      item.id === annotationId ? update(item) : item,
-    ),
-    updatedAt: new Date().toISOString(),
-  };
-}
-
-function annotationWithReviewSession(
-  annotation: Annotation,
-  session: AnnotationDistillationReviewSession,
-) {
-  const sessions = annotation.distillation?.reviewSessions || [];
-  const nextSessions = sessions.some((item) => item.id === session.id)
-    ? sessions.map((item) => (item.id === session.id ? session : item))
-    : [...sessions, session];
-  return {
-    ...annotation,
-    distillation: {
-      status: annotation.distillation?.status || 'unpublished',
-      content: annotation.distillation?.content || '',
-      publishedAt: annotation.distillation?.publishedAt,
-      updatedAt: new Date().toISOString(),
-      reviewSessions: nextSessions,
-    },
-  } satisfies Annotation;
-}
-
-function existingSessionForAgent(
-  sessions: AnnotationDistillationReviewSession[],
-  agent: PublicAgent,
-) {
-  return sessions.find((session) => session.agentId === agent.id);
-}
-
-function createReviewSession(agent: PublicAgent, now: string): AnnotationDistillationReviewSession {
-  return {
-    id: makeId('distillation_review'),
-    agentId: agent.id,
-    agentUsername: agent.username,
-    agentNickname: agent.nickname,
-    agentAvatar: agent.avatar,
-    messages: [],
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
-function updateSessionMessage(
-  session: AnnotationDistillationReviewSession,
-  messageId: string,
-  update: (message: AnnotationDistillationReviewMessage) => AnnotationDistillationReviewMessage,
-) {
-  return {
-    ...session,
-    messages: session.messages.map((message) =>
-      message.id === messageId ? update(message) : message,
-    ),
-    updatedAt: new Date().toISOString(),
-  };
-}
-
-function appendReviewItemToMessage(
-  message: AnnotationDistillationReviewMessage,
-  item: AnnotationDistillationReviewItem,
-) {
-  return Object.assign({}, message, {
-    items: [...(message.items || []), item],
-    proposals:
-      item.type === 'proposal'
-        ? [...(message.proposals || []), item.proposal]
-        : message.proposals || [],
-  });
-}
-
-type DistillationProposalSource = Required<
-  Pick<
-    AnnotationDistillationProposal,
-    'sourceDraftHash' | 'sourceReviewSessionId' | 'sourceReviewMessageId' | 'sourceAgentId'
-  >
->;
-
-function distillationProposalSource({
-  agentId,
-  draft,
-  messageId,
-  sessionId,
-}: {
-  agentId: string;
-  draft: string;
-  messageId: string;
-  sessionId: string;
-}): DistillationProposalSource {
-  return {
-    sourceDraftHash: hashText(draft),
-    sourceReviewSessionId: sessionId,
-    sourceReviewMessageId: messageId,
-    sourceAgentId: agentId,
-  };
-}
-
-function reviewMessageWithProposalSource(
-  message: AnnotationDistillationReviewMessage,
-  source: DistillationProposalSource,
-) {
-  return {
-    ...message,
-    items: message.items?.map((item) => reviewItemWithProposalSource(item, source)),
-    proposals: message.proposals?.map((proposal) => proposalWithSource(proposal, source)),
-  };
-}
-
-function reviewItemWithProposalSource(
-  item: AnnotationDistillationReviewItem,
-  source: DistillationProposalSource,
-): AnnotationDistillationReviewItem {
-  if (item.type !== 'proposal') return item;
-  return {
-    ...item,
-    proposal: proposalWithSource(item.proposal, source),
-  };
-}
-
-function proposalWithSource(
-  proposal: AnnotationDistillationProposal,
-  source: DistillationProposalSource,
-) {
-  return {
-    ...proposal,
-    ...source,
-  };
 }
 
 function reviewRequestComment(
@@ -2365,11 +2169,6 @@ function sedimentationWindowTitle(annotation: Annotation) {
 function compactTitleText(value: string) {
   const normalized = value.replace(/\s+/g, ' ').trim();
   return normalized.length > 34 ? `${normalized.slice(0, 34)}...` : normalized;
-}
-
-function timestamp(value: string) {
-  const time = Date.parse(value);
-  return Number.isNaN(time) ? 0 : time;
 }
 
 function sedimentationUserProfile(annotation: Annotation, article: ArticleRecord): UserProfile {
