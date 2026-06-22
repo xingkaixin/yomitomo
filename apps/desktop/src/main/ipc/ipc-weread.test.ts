@@ -35,6 +35,34 @@ describe('weread IPC persistence boundary', () => {
     expect(result).toEqual({ ok: true, value: 'weread-secret' });
     expect(readStoredWeReadApiKey).toHaveBeenCalled();
   });
+
+  it('reconfigures auto sync after saving settings', async () => {
+    ipcMocks.ipcMainHandle.mockClear();
+    const state = {
+      settings: { configured: true, openMethod: 'deeplink', syncMode: 'auto' },
+      books: [],
+    };
+    const saveWeReadSettings = vi.fn(async () => state);
+    const configureWeReadAutoSync = vi.fn();
+
+    registerWeReadIpc({
+      configureWeReadAutoSync,
+      getPersistenceModule: async () => ({
+        weReadPersistence: { saveWeReadSettings },
+      }),
+    } as unknown as DesktopMainIpcContext);
+
+    const handler = ipcMocks.ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === 'weread:save-settings',
+    )?.[1];
+    expect(handler).toBeTypeOf('function');
+
+    const result = await handler({}, { syncMode: 'auto' });
+
+    expect(result).toEqual({ ok: true, value: state });
+    expect(saveWeReadSettings).toHaveBeenCalledWith({ syncMode: 'auto' });
+    expect(configureWeReadAutoSync).toHaveBeenCalledWith('settings-saved');
+  });
 });
 
 describe('weread IPC sync detail loading', () => {

@@ -18,7 +18,9 @@ export function registerWeReadIpc(context: DesktopMainIpcContext) {
   });
   handleDesktopIpc('weread:save-settings', async (_event, input) => {
     const { weReadPersistence } = await context.getPersistenceModule();
-    return weReadPersistence.saveWeReadSettings(input);
+    const state = await weReadPersistence.saveWeReadSettings(input);
+    context.configureWeReadAutoSync('settings-saved');
+    return state;
   });
   handleDesktopIpc('weread:test', async (_event, apiKey) => {
     const { weReadPersistence } = await context.getPersistenceModule();
