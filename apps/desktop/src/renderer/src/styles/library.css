@@ -1659,16 +1659,13 @@
   --book-cover-height: 104px;
 }
 
-.library-collection-empty-cover {
-  display: inline-flex;
-  width: 72px;
+.library-collection-cover-placeholder {
+  display: block;
+  width: 64px;
   height: 92px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid hsl(36 31% 72% / 0.52);
-  border-radius: 8px;
-  background: hsl(45 72% 98% / 0.78);
-  color: hsl(34 18% 42%);
+  border: 1.5px dashed hsl(36 31% 72% / 0.7);
+  border-radius: 4px;
+  background: hsl(45 72% 98% / 0.6);
 }
 
 .library-card-copy {
@@ -3303,27 +3300,6 @@
 .library-empty-actions {
   display: flex;
   gap: 10px;
-}
-
-.library-empty-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 36px;
-  padding: 0 16px;
-  border: 1px solid hsl(var(--border));
-  border-radius: 999px;
-  background: hsl(var(--card));
-  color: hsl(var(--foreground));
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.library-empty-action.is-primary {
-  border-color: var(--app-action-primary-border);
-  background: var(--app-action-primary-bg);
-  color: var(--app-action-primary-fg);
 }
 
 .annotation-notebook {

@@ -85,6 +85,7 @@ export function ReadingLibrary({
   onSaveArticleReadingProgress,
   onSaveArticleReaderChatState,
   onSaveSettings,
+  onOpenDataSources,
   onUpdateArticle,
 }: {
   agents: Agent[];
@@ -142,6 +143,7 @@ export function ReadingLibrary({
   ) => Promise<void> | void;
   onSaveArticleReaderChatState?: (articleId: string, readerChatState?: ReaderChatState) => unknown;
   onSaveSettings?: (settings: AppSettings) => Promise<void> | void;
+  onOpenDataSources?: () => void;
   onUpdateArticle: (articleId: string, update: ArticleUpdater) => Promise<void> | void;
 }) {
   const { t } = useTranslation();
@@ -635,6 +637,7 @@ export function ReadingLibrary({
     onAddCollectionMembers: addLibraryCollectionMembers,
     onRemoveCollectionMember: removeLibraryCollectionMember,
     onSaveSettings: onSaveSettings || (() => undefined),
+    onOpenDataSources,
     onSetLibraryPin: (input: SetLibraryPinInput) =>
       void window.yomitomoDesktop?.setLibraryPin?.(input),
     onSyncWeRead: () => void syncWeReadLibrary({ manual: true }),

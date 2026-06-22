@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import {
   ArrowLeft,
-  BookOpen,
   BookText,
   ChevronLeft,
   ChevronRight,
@@ -115,6 +114,7 @@ export function LibraryHome({
   onAddCollectionMembers,
   onRemoveCollectionMember,
   onSaveSettings,
+  onOpenDataSources,
   onSetLibraryPin,
   onSyncWeRead,
   pins,
@@ -147,6 +147,7 @@ export function LibraryHome({
   onAddCollectionMembers: (collectionId: string, members: ContentRef[]) => Promise<void> | void;
   onRemoveCollectionMember: (collectionId: string, member: ContentRef) => Promise<void> | void;
   onSaveSettings: (settings: AppSettings) => Promise<void> | void;
+  onOpenDataSources?: () => void;
   onSetLibraryPin: (input: SetLibraryPinInput) => Promise<void> | void;
   onSyncWeRead: () => void;
   pins: LibraryPin[];
@@ -494,6 +495,7 @@ export function LibraryHome({
                 onAddEbook={importDialogs.openEbookImport}
                 onAddPdf={importDialogs.openPdfImport}
                 onSyncWeRead={onSyncWeRead}
+                onConnectWeRead={onOpenDataSources}
               />
             ) : emptyReason.variant === 'collection' ? (
               <LibraryCollectionEmpty
@@ -503,11 +505,11 @@ export function LibraryHome({
                 onAddExisting={
                   activeCollection ? () => setPickerCollectionId(activeCollection.id) : undefined
                 }
-                onBackToAll={() => setActiveCollectionId(null)}
                 onAddWebArticle={importDialogs.openArticleImport}
                 onAddEbook={importDialogs.openEbookImport}
                 onAddPdf={importDialogs.openPdfImport}
                 onSyncWeRead={onSyncWeRead}
+                onConnectWeRead={onOpenDataSources}
               />
             ) : (
               <LibraryEmptyState icon={emptyReason.icon} title={emptyReason.title}>
@@ -1039,25 +1041,28 @@ function LibraryCollectionCard({
         <div
           className="library-collection-cover-stack"
           aria-hidden="true"
-          style={{ '--cover-count': entity.coverMembers.length } as React.CSSProperties}
+          style={{ '--cover-count': entity.coverMembers.length || 3 } as React.CSSProperties}
         >
-          {entity.coverMembers.length > 0 ? (
-            entity.coverMembers.map((item, index) => (
-              <div
-                className="library-collection-cover-item"
-                key={`${item.ref.kind}:${item.ref.id}`}
-                style={{ '--cover-index': index } as React.CSSProperties}
-              >
-                {item.article ? <ArticleBook article={item.article} /> : null}
-                {item.weread ? <WeReadCover book={item.weread} variant="cover" /> : null}
-              </div>
-            ))
-          ) : (
-            <div className="library-collection-empty-cover">
-              <BookOpen size={24} />
-              <span>{t('library.collection.emptyCover')}</span>
-            </div>
-          )}
+          {entity.coverMembers.length > 0
+            ? entity.coverMembers.map((item, index) => (
+                <div
+                  className="library-collection-cover-item"
+                  key={`${item.ref.kind}:${item.ref.id}`}
+                  style={{ '--cover-index': index } as React.CSSProperties}
+                >
+                  {item.article ? <ArticleBook article={item.article} /> : null}
+                  {item.weread ? <WeReadCover book={item.weread} variant="cover" /> : null}
+                </div>
+              ))
+            : [0, 1, 2].map((index) => (
+                <div
+                  className="library-collection-cover-item is-placeholder"
+                  key={index}
+                  style={{ '--cover-index': index } as React.CSSProperties}
+                >
+                  <span className="library-collection-cover-placeholder" />
+                </div>
+              ))}
           <div className="library-collection-cover-copy">
             <h3 title={title}>
               <span>{title}</span>
@@ -1602,6 +1607,7 @@ type LibraryImportEntryHandlers = {
   onAddEbook: () => void;
   onAddPdf: () => void;
   onSyncWeRead: () => void;
+  onConnectWeRead?: () => void;
 };
 
 function LibraryImportEntryGrid({
@@ -1611,6 +1617,7 @@ function LibraryImportEntryGrid({
   onAddEbook,
   onAddPdf,
   onSyncWeRead,
+  onConnectWeRead,
 }: LibraryImportEntryHandlers) {
   const { t } = useTranslation();
   return (
@@ -1645,8 +1652,8 @@ function LibraryImportEntryGrid({
       <button
         className="library-empty-entry"
         type="button"
-        disabled={!weReadConfigured || weReadSyncing}
-        onClick={weReadConfigured ? onSyncWeRead : undefined}
+        disabled={weReadConfigured && weReadSyncing}
+        onClick={weReadConfigured ? onSyncWeRead : onConnectWeRead}
       >
         <span className="library-empty-entry-icon">
           <Smartphone size={18} />
@@ -1683,12 +1690,10 @@ function LibraryFirstUseEmpty(handlers: LibraryImportEntryHandlers) {
 function LibraryCollectionEmpty({
   libraryHasItems,
   onAddExisting,
-  onBackToAll,
   ...entryHandlers
 }: LibraryImportEntryHandlers & {
   libraryHasItems: boolean;
   onAddExisting?: () => void;
-  onBackToAll: () => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -1702,22 +1707,14 @@ function LibraryCollectionEmpty({
       {libraryHasItems ? (
         <>
           <p>{t('library.collection.emptyDescription')}</p>
-          <div className="library-empty-actions">
-            {onAddExisting ? (
-              <button
-                className="library-empty-action is-primary"
-                type="button"
-                onClick={onAddExisting}
-              >
+          {onAddExisting ? (
+            <div className="library-empty-actions">
+              <Button type="button" variant="secondary" onClick={onAddExisting}>
                 <FolderOpen size={15} />
                 {t('library.collection.addExisting')}
-              </button>
-            ) : null}
-            <button className="library-empty-action" type="button" onClick={onBackToAll}>
-              <ArrowLeft size={15} />
-              {t('library.collection.emptyBackToDrag')}
-            </button>
-          </div>
+              </Button>
+            </div>
+          ) : null}
         </>
       ) : (
         <>

@@ -390,6 +390,11 @@ function App() {
     setActiveSetting('settings');
   }
 
+  function openDataSources() {
+    openSettings();
+    changeSettingsSection('dataSources');
+  }
+
   function openProfileDialog(sourceElement?: Element) {
     recordStartupTiming('secondary_modules.navigation', {
       key: 'profile-dialog',
@@ -603,6 +608,7 @@ function App() {
                   onSaveArticleReadingProgress={saveArticleReadingProgress}
                   onSaveArticleReaderChatState={saveArticleReaderChatState}
                   onSaveSettings={saveLibrarySettings}
+                  onOpenDataSources={openDataSources}
                   onUpdateArticle={updateArticle}
                 />
               ) : null}

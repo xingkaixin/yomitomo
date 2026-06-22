@@ -205,8 +205,11 @@ describe('reading library styles', () => {
       /\.library-collection-list-item:focus-within \.library-collection-cover-item:nth-child\(10\)/,
     );
     expectRule('.library-collection-cover-copy h3', ['overflow: visible;']);
-    expectRule('.library-collection-empty-cover', ['width: 112px;']);
-    expectRule('.library-collection-empty-cover span', ['white-space: nowrap;']);
+    expectRule('.library-collection-cover-placeholder', ['width: 64px;']);
+    expectRule('.library-collection-list-item .library-collection-cover-placeholder', [
+      'width: 38px;',
+      'height: 54px;',
+    ]);
     expectRule('.library-collection-picker-list > .library-collection-picker-item.is-dragging', [
       'min-height: 0;',
       'height: 0;',

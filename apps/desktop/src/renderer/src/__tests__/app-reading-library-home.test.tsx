@@ -163,6 +163,7 @@ function renderLibrary(
       progress: ArticleReadingProgress,
     ) => Promise<void> | void;
     onSaveSettings?: (settings: AppSettings) => Promise<void> | void;
+    onOpenDataSources?: () => void;
     collections?: Collection[];
     collectionMembers?: CollectionMember[];
     pins?: LibraryPin[];
@@ -192,6 +193,7 @@ function renderLibrary(
       onSaveArticle={vi.fn()}
       onSaveArticleReadingProgress={options.onSaveArticleReadingProgress || vi.fn()}
       onSaveSettings={options.onSaveSettings}
+      onOpenDataSources={options.onOpenDataSources}
       onUpdateArticle={vi.fn()}
     />,
   );
@@ -1800,13 +1802,11 @@ describe('ReadingLibrary home', () => {
   it('renders the first-use empty state with import entries', () => {
     renderLibrary([]);
 
-    expect(screen.getByText('书桌还空着')).toBeTruthy();
+    expect(screen.getByText('阅读库还空着')).toBeTruthy();
     expect(screen.getByText('粘贴网页链接')).toBeTruthy();
     expect(screen.getByText('导入电子书')).toBeTruthy();
     expect(screen.getByText('导入 PDF')).toBeTruthy();
-
-    const wereadEntry = screen.getByText('连接微信读书').closest('button');
-    expect((wereadEntry as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText('连接微信读书')).toBeTruthy();
   });
 
   it('opens the web article import dialog from the empty-state entry', async () => {
@@ -1816,6 +1816,17 @@ describe('ReadingLibrary home', () => {
 
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('添加网页文章')).toBeTruthy();
+  });
+
+  it('routes the unconfigured WeRead entry to data source settings', () => {
+    const onOpenDataSources = vi.fn();
+    renderLibrary([], { onOpenDataSources });
+
+    const wereadEntry = screen.getByText('连接微信读书').closest('button');
+    expect((wereadEntry as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.click(wereadEntry!);
+    expect(onOpenDataSources).toHaveBeenCalledTimes(1);
   });
 
   it('imports an ebook file with progress feedback', async () => {
