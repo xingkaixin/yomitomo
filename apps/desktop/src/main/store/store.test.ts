@@ -144,6 +144,7 @@ describe('desktop store settings', () => {
           soundEffectsVolume: 0.3,
           saveArticleImages: true,
           allowLocalNetworkArticleImport: true,
+          telemetryEnabled: false,
           developerModeEnabled: false,
           logRetentionDays: 30,
           onboardingCompletedAt: '2026-05-12T00:00:00.000Z',
@@ -177,6 +178,7 @@ describe('desktop store settings', () => {
       appLockShortcut: undefined,
       saveArticleImages: true,
       allowLocalNetworkArticleImport: true,
+      telemetryEnabled: false,
       developerModeEnabled: false,
       logRetentionDays: 30,
       onboardingCompletedAt: '2026-05-12T00:00:00.000Z',
@@ -246,6 +248,22 @@ describe('desktop store settings', () => {
       onboardingCompletedAt: '2026-05-12T00:00:00.000Z',
       logRetentionDays: 15,
       saveArticleImages: true,
+    });
+  });
+
+  it('defaults telemetry on and preserves it during partial settings updates', () => {
+    expect(mergeSettingsForUpsert({}, {})).toMatchObject({ telemetryEnabled: true });
+    expect(
+      mergeSettingsForUpsert(
+        { saveArticleImages: true },
+        {
+          telemetryEnabled: false,
+          saveArticleImages: false,
+        },
+      ),
+    ).toMatchObject({
+      saveArticleImages: true,
+      telemetryEnabled: false,
     });
   });
 });

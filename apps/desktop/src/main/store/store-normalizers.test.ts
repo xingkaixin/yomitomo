@@ -142,6 +142,7 @@ describe('store normalizers settings', () => {
       appLockShortcut: undefined,
       saveArticleImages: false,
       allowLocalNetworkArticleImport: false,
+      telemetryEnabled: true,
       developerModeEnabled: false,
     });
   });
@@ -170,6 +171,7 @@ describe('store normalizers settings', () => {
         selectionActionShortcuts: { copy: '', annotate: 'B', ask: 'Q' },
         saveArticleImages: 1,
         allowLocalNetworkArticleImport: 1,
+        telemetryEnabled: 0,
         developerModeEnabled: 0,
         logRetentionDays: 7,
         onboardingCompletedAt: '',
@@ -195,6 +197,7 @@ describe('store normalizers settings', () => {
       appLockShortcut: undefined,
       saveArticleImages: true,
       allowLocalNetworkArticleImport: true,
+      telemetryEnabled: false,
       developerModeEnabled: false,
       logRetentionDays: undefined,
     });
@@ -213,6 +216,7 @@ describe('store normalizers settings', () => {
           appLockShortcut: 'CommandOrControl+L',
           saveArticleImages: true,
           allowLocalNetworkArticleImport: true,
+          telemetryEnabled: false,
         },
       ),
     ).toMatchObject({
@@ -224,6 +228,7 @@ describe('store normalizers settings', () => {
       appLockShortcut: 'CommandOrControl+L',
       saveArticleImages: true,
       allowLocalNetworkArticleImport: true,
+      telemetryEnabled: false,
       logRetentionDays: 90,
     });
   });

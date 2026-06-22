@@ -56,6 +56,7 @@ export type AppSettings = {
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   saveArticleImages?: boolean;
   allowLocalNetworkArticleImport?: boolean;
+  telemetryEnabled?: boolean;
   developerModeEnabled?: boolean;
   logRetentionDays?: number;
   onboardingCompletedAt?: string;

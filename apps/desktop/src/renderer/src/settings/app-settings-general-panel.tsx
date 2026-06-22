@@ -6,6 +6,7 @@ import {
   ChevronDown,
   Languages,
   LockKeyhole,
+  RadioTower,
   ShieldAlert,
   Volume2,
 } from 'lucide-react';
@@ -57,7 +58,13 @@ const translationStyleOptions = [
   { value: 'border', labelKey: 'settings.general.translationStyleBorder' },
 ] as const;
 
-type GeneralSaveSection = 'language' | 'translation' | 'sound' | 'appLock' | 'collection';
+type GeneralSaveSection =
+  | 'language'
+  | 'translation'
+  | 'sound'
+  | 'appLock'
+  | 'collection'
+  | 'telemetry';
 type AppLockDialogMode = 'enable' | 'disable';
 type AppLockSetupStep = 'pin' | 'confirm';
 
@@ -165,6 +172,16 @@ export function GeneralSettings(props: GeneralSettingsProps) {
     };
     onSettingsChange(nextDraft);
     setSaveSection('collection');
+    onSave(nextDraft);
+  }
+
+  function saveTelemetrySettings(patch: Pick<AppSettings, 'telemetryEnabled'>) {
+    const nextDraft = {
+      ...settingsDraft,
+      ...patch,
+    };
+    onSettingsChange(nextDraft);
+    setSaveSection('telemetry');
     onSave(nextDraft);
   }
 
@@ -621,6 +638,31 @@ export function GeneralSettings(props: GeneralSettingsProps) {
             checked={Boolean(settingsDraft.allowLocalNetworkArticleImport)}
             label={t('settings.general.localNetworkImportTitle')}
             onChange={toggleLocalNetworkArticleImport}
+          />
+        </SettingsRow>
+      </SettingsGroup>
+
+      <SettingsGroup
+        label={t('settings.general.privacyGroup')}
+        aside={
+          <AutoSaveStatus
+            error={saveError}
+            state={saveSection === 'telemetry' ? saveState : 'idle'}
+            onRetry={canSave ? () => retrySave('telemetry') : undefined}
+          />
+        }
+      >
+        <SettingsRow
+          align="start"
+          leading={<RadioTower size={20} />}
+          title={t('settings.general.telemetryTitle')}
+          description={t('settings.general.telemetryDescription')}
+        >
+          <SettingsToggle
+            id="general-telemetry-enabled"
+            checked={settingsDraft.telemetryEnabled ?? true}
+            label={t('settings.general.telemetryTitle')}
+            onChange={(checked) => saveTelemetrySettings({ telemetryEnabled: checked })}
           />
         </SettingsRow>
       </SettingsGroup>

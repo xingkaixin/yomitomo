@@ -1399,6 +1399,10 @@ export const enResources = {
         localNetworkImportConfirmDescription:
           'When enabled, web article import can access local services, LAN services, and cloud metadata addresses. If you paste an untrusted link, the main process may read those responses and save them to the library. Enable this only when you explicitly need to import intranet articles.',
         localNetworkImportConfirm: 'Enable anyway',
+        privacyGroup: 'Privacy',
+        telemetryTitle: 'Send anonymous version and system metrics',
+        telemetryDescription:
+          'Sends the app version, OS version, and architecture at most once per day to understand active version distribution. Reading content, book titles, annotations, file paths, and AI chats are never collected.',
       },
       data: {
         trailRoot: 'Settings',

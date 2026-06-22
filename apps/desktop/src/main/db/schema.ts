@@ -51,6 +51,7 @@ export const appSettings = sqliteTable('app_settings', {
   })
     .notNull()
     .default(false),
+  telemetryEnabled: integer('telemetry_enabled', { mode: 'boolean' }).notNull().default(true),
   developerModeEnabled: integer('developer_mode_enabled', { mode: 'boolean' })
     .notNull()
     .default(false),
@@ -58,6 +59,13 @@ export const appSettings = sqliteTable('app_settings', {
   annotationMemoryBackfillVersion: text('annotation_memory_backfill_version'),
   onboardingCompletedAt: text('onboarding_completed_at'),
   lastSeenVersion: text('last_seen_version'),
+  updatedAt: text('updated_at').notNull(),
+});
+
+export const telemetryState = sqliteTable('telemetry_state', {
+  id: text('id').primaryKey(),
+  installId: text('install_id').notNull(),
+  lastHeartbeatDay: text('last_heartbeat_day'),
   updatedAt: text('updated_at').notNull(),
 });
 

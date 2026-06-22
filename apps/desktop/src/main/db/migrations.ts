@@ -844,6 +844,19 @@ ON library_pins(pinned_at);
 ALTER TABLE weread_accounts ADD COLUMN sync_mode TEXT NOT NULL DEFAULT 'manual';
 `,
   },
+  {
+    id: '0056_telemetry_settings',
+    sql: `
+ALTER TABLE app_settings ADD COLUMN telemetry_enabled INTEGER NOT NULL DEFAULT 1;
+
+CREATE TABLE IF NOT EXISTS telemetry_state (
+  id TEXT PRIMARY KEY NOT NULL,
+  install_id TEXT NOT NULL,
+  last_heartbeat_day TEXT,
+  updated_at TEXT NOT NULL
+);
+`,
+  },
 ];
 
 type MigrationDatabase = {
@@ -889,6 +902,10 @@ export function ensureAdditiveSchemaColumns(database: MigrationDatabase) {
     {
       name: 'allow_local_network_article_import',
       sql: 'ALTER TABLE app_settings ADD COLUMN allow_local_network_article_import INTEGER NOT NULL DEFAULT 0',
+    },
+    {
+      name: 'telemetry_enabled',
+      sql: 'ALTER TABLE app_settings ADD COLUMN telemetry_enabled INTEGER NOT NULL DEFAULT 1',
     },
   ]) {
     if (tableHasColumn(database, 'app_settings', column.name)) continue;
