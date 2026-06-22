@@ -90,6 +90,8 @@ import { buildSourceReaderAppActions } from '../bookcase/source-reader-app-actio
 import { buildSourceReaderAppViewProps } from '../bookcase/source-reader-app-view-props';
 import { useReaderSearchMatches } from '../bookcase/use-reader-search-matches';
 
+const WEB_SELECTION_DRAG_ANNOTATION_ID = '__selection_drag__';
+
 export function WebSourceBookcase({
   agents,
   annotations: articleAnnotations,
@@ -243,6 +245,7 @@ export function WebSourceBookcase({
     sourceReaderWorkspace;
   const {
     temporaryBoxes,
+    setTemporaryBoxes,
     selectionAction,
     setHighlightChoice,
     composer,
@@ -909,14 +912,31 @@ export function WebSourceBookcase({
     });
   }
 
-  function correctArticleSelectionDuringGesture(reason: string) {
+  function setArticleSelectionGestureVisible(visible: boolean) {
     const articleElement = articleRef.current;
+    articleElement?.classList.toggle('is-web-selection-gesture', visible);
+  }
+
+  function removeArticleSelectionGesturePreviewBoxes() {
+    setTemporaryBoxes((currentBoxes) => {
+      if (!currentBoxes.some((box) => box.annotationId === WEB_SELECTION_DRAG_ANNOTATION_ID)) {
+        return currentBoxes;
+      }
+      return currentBoxes.filter((box) => box.annotationId !== WEB_SELECTION_DRAG_ANNOTATION_ID);
+    });
+  }
+
+  function clearArticleSelectionGesturePreview() {
+    setArticleSelectionGestureVisible(false);
+    removeArticleSelectionGesturePreviewBoxes();
+  }
+
+  function previewArticleSelectionGesture() {
+    const articleElement = articleRef.current;
+    const canvasElement = canvasRef.current;
     const selectionGesture = articleSelectionGestureRef.current;
     const dragPoint = articleSelectionGestureDragPointRef.current;
-    if (!articleElement || !selectionGesture || !dragPoint) return;
-
-    const articleSelection = getArticleSelection(articleElement);
-    if (!articleSelection || articleSelection.rangeCount === 0) return;
+    if (!articleElement || !canvasElement || !selectionGesture || !dragPoint) return;
 
     const gestureRange = webSelectionGestureRangeFromClientPoint(
       articleElement,
@@ -924,33 +944,30 @@ export function WebSourceBookcase({
       dragPoint.clientX,
       dragPoint.clientY,
     );
-    if (!gestureRange) return;
-
-    const nativeRange = articleSelection.getRangeAt(0);
-    if (
-      !shouldUseWebSelectionGestureRange(
-        nativeRange,
-        articleElement,
-        selectionGesture,
-        gestureRange,
-      )
-    ) {
+    if (!gestureRange) {
+      removeArticleSelectionGesturePreviewBoxes();
       return;
     }
 
-    articleSelection.removeAllRanges();
-    articleSelection.addRange(gestureRange.range);
-    logReaderSelectionDebug('selectionchange:gesture-range-applied', {
-      ...selectionDebugContextRef.current,
-      reason,
-      nativeRange: describeRangeForDebug(nativeRange, articleElement),
-      gestureRange: describeWebSelectionGestureRangeForDebug(gestureRange),
-    });
+    const canvasRect = canvasElement.getBoundingClientRect();
+    const previewBoxes = rangeHighlightBoxes(
+      gestureRange.range,
+      canvasRect,
+      'source-selection-drag',
+    ).map((box) =>
+      Object.assign(box, {
+        annotationId: WEB_SELECTION_DRAG_ANNOTATION_ID,
+        contributorId: userProfile.id,
+        color: userProfile.annotationColor,
+      }),
+    );
+    setTemporaryBoxes(previewBoxes);
   }
 
   useEffect(() => {
     const ownerDocument = articleRef.current?.ownerDocument || document;
     let frame = 0;
+    let previewFrame = 0;
 
     const debugArticle = { articleId: article.id, sourceType: article.sourceType || 'web' };
     const currentContext = () => selectionDebugContextRef.current;
@@ -975,7 +992,6 @@ export function WebSourceBookcase({
     };
 
     const handleSelectionChange = () => {
-      correctArticleSelectionDuringGesture('selectionchange');
       if (!readerSelectionDebugEnabled() || frame) return;
       frame = window.requestAnimationFrame(() => {
         frame = 0;
@@ -1014,6 +1030,7 @@ export function WebSourceBookcase({
             clientX: event.clientX,
             clientY: event.clientY,
           };
+          setArticleSelectionGestureVisible(true);
         }
         if (
           event.type === 'pointermove' &&
@@ -1024,6 +1041,12 @@ export function WebSourceBookcase({
             clientX: event.clientX,
             clientY: event.clientY,
           };
+          if (!previewFrame) {
+            previewFrame = window.requestAnimationFrame(() => {
+              previewFrame = 0;
+              previewArticleSelectionGesture();
+            });
+          }
         }
         if (event.type === 'pointerup') {
           articleSelectionGestureDragPointRef.current = {
@@ -1034,13 +1057,16 @@ export function WebSourceBookcase({
         if (event.type === 'pointercancel') {
           articleSelectionGestureRef.current = null;
           articleSelectionGestureDragPointRef.current = null;
+          clearArticleSelectionGesturePreview();
         }
         if (shouldFlush) scheduleArticleHtmlRenderFlush(event.type);
       } else if (shouldFlush) {
         scheduleArticleHtmlRenderFlush(`${event.type}-outside-article`);
+        clearArticleSelectionGesturePreview();
       } else if (event.type === 'pointerdown') {
         articleSelectionGestureRef.current = null;
         articleSelectionGestureDragPointRef.current = null;
+        clearArticleSelectionGesturePreview();
       }
       if (event.type === 'pointermove') return;
       if (!readerSelectionDebugEnabled()) return;
@@ -1078,11 +1104,14 @@ export function WebSourceBookcase({
       window.removeEventListener('pointercancel', handlePointerEvent, true);
       window.removeEventListener('blur', handleWindowBlur);
       if (frame) window.cancelAnimationFrame(frame);
+      if (previewFrame) window.cancelAnimationFrame(previewFrame);
+      setArticleSelectionGestureVisible(false);
       logReaderSelectionDebug('reader-unmounted', debugArticle);
     };
   }, [article.id, article.sourceType]);
 
   function handleArticleMouseUp(event?: React.MouseEvent<HTMLElement>) {
+    clearArticleSelectionGesturePreview();
     const articleElement = articleRef.current;
     const canvasElement = canvasRef.current;
     if (!articleElement || !canvasElement) {
