@@ -1304,11 +1304,6 @@
   padding: 0 12px;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 150ms ease;
-}
-
-.library-type-filter-button:hover {
-  background: var(--app-interactive-hover-bg);
 }
 
 .library-type-filter-button > svg {
