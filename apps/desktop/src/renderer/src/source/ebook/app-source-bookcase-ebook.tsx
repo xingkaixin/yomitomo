@@ -40,6 +40,7 @@ import { playEbookAgentAnnotationPlayback } from './app-source-ebook-agent-playb
 import {
   articleWithMergedAgentAnnotation,
   defaultTocOpen,
+  recordRendererPerformanceTiming,
   usesOverlayToc,
   type EbookBookcaseProps,
 } from '../bookcase/app-source-bookcase-shared';
@@ -102,6 +103,7 @@ export function EbookBookcase({
   const scheduleEbookBoxUpdateRef = useRef<(reason: EbookBoxUpdateReason) => void>(() => {});
   const pageTurnTraceRef = useRef<EbookPageTurnTrace | null>(null);
   const beforeEbookPageTurnRef = useRef<(trace: EbookPageTurnTrace) => void>(() => {});
+  const onFocusedAnnotationRef = useRef(onFocusedAnnotation);
   const attachFoliateDocumentListenersRef = useRef<(view: FoliateViewElement | null) => void>(
     () => {},
   );
@@ -261,6 +263,9 @@ export function EbookBookcase({
     articleId: article.id,
     signature: articleAnnotationSignature,
   });
+  useEffect(() => {
+    onFocusedAnnotationRef.current = onFocusedAnnotation;
+  }, [onFocusedAnnotation]);
   latestArticleAnnotationsRef.current = articleAnnotations;
   const {
     viewHostRef,
@@ -820,21 +825,65 @@ export function EbookBookcase({
 
   useEffect(() => {
     if (!focusAnnotationId) return;
-    if (!annotations.some((annotation) => annotation.id === focusAnnotationId)) {
-      onFocusedAnnotation();
+    recordRendererPerformanceTiming('reader_focus', {
+      source: 'ebook',
+      phase: 'effect_start',
+      articleId: article.id,
+      annotationId: focusAnnotationId,
+      annotationCount: annotations.length,
+      boxCount: boxes.length,
+      pageInfo: viewRef.current?.getPageInfo?.() ?? null,
+      hasView: Boolean(viewRef.current),
+    });
+    const currentAnnotations = annotationsRef.current;
+    if (!currentAnnotations.some((annotation) => annotation.id === focusAnnotationId)) {
+      recordRendererPerformanceTiming('reader_focus', {
+        source: 'ebook',
+        phase: 'annotation_missing_consume',
+        articleId: article.id,
+        annotationId: focusAnnotationId,
+        annotationCount: currentAnnotations.length,
+      });
+      onFocusedAnnotationRef.current();
       return;
     }
     let cancelled = false;
     let timer: number | null = null;
-    void goToAnnotation(focusAnnotationId).then(() => {
+    void goToAnnotation(focusAnnotationId).then((navigated) => {
+      recordRendererPerformanceTiming('reader_focus', {
+        source: 'ebook',
+        phase: cancelled ? 'navigation_cancelled' : 'navigation_complete',
+        articleId: article.id,
+        annotationId: focusAnnotationId,
+        navigated,
+        boxCount: boxes.length,
+        pageInfo: viewRef.current?.getPageInfo?.() ?? null,
+      });
       if (cancelled) return;
-      timer = window.setTimeout(onFocusedAnnotation, 180);
+      timer = window.setTimeout(() => {
+        recordRendererPerformanceTiming('reader_focus', {
+          source: 'ebook',
+          phase: 'complete_timer',
+          articleId: article.id,
+          annotationId: focusAnnotationId,
+          pageInfo: viewRef.current?.getPageInfo?.() ?? null,
+        });
+        onFocusedAnnotationRef.current();
+      }, 180);
     });
     return () => {
       cancelled = true;
+      recordRendererPerformanceTiming('reader_focus', {
+        source: 'ebook',
+        phase: 'effect_cleanup',
+        articleId: article.id,
+        annotationId: focusAnnotationId,
+        hadTimer: timer !== null,
+        pageInfo: viewRef.current?.getPageInfo?.() ?? null,
+      });
       if (timer !== null) window.clearTimeout(timer);
     };
-  }, [annotations, focusAnnotationId, onFocusedAnnotation]);
+  }, [article.id, focusAnnotationId]);
 
   const progressPercent = Math.round(progress * 100);
   const paginationReady = isEbookPaginationReady(pageInfo, sectionPageCounts);

@@ -27,7 +27,10 @@ import { normalizeUiLanguage } from '@yomitomo/shared';
 import { sortAnnotations, sortArticles } from '@yomitomo/core';
 import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
 import { SourceBookcase } from '../source/bookcase/app-source-bookcase';
-import { publicAnnotationAgents } from '../source/bookcase/app-source-bookcase-shared';
+import {
+  publicAnnotationAgents,
+  recordRendererPerformanceTiming,
+} from '../source/bookcase/app-source-bookcase-shared';
 import type {
   ArticleUpdater,
   EbookImportProgressCallback,
@@ -225,6 +228,13 @@ export function ReadingLibrary({
     const desktop = window.yomitomoDesktop;
     if (!desktop?.onAnnotationDistillationCommitted) return;
     return desktop.onAnnotationDistillationCommitted((event) => {
+      recordRendererPerformanceTiming('reader_focus', {
+        source: 'library',
+        phase: 'distillation_event_received',
+        articleId: event.articleId,
+        annotationId: event.annotationId,
+        transition: event.transition,
+      });
       void focusCommittedDistillation(event);
     });
   }, [onReadArticle]);
@@ -350,8 +360,19 @@ export function ReadingLibrary({
   }
 
   async function focusCommittedDistillation(event: AnnotationDistillationCommittedEvent) {
+    const startedAt = performance.now();
     const fullArticle = await onReadArticle(event.articleId);
-    if (!fullArticle) return;
+    if (!fullArticle) {
+      recordRendererPerformanceTiming('reader_focus', {
+        source: 'library',
+        phase: 'distillation_article_missing',
+        articleId: event.articleId,
+        annotationId: event.annotationId,
+        transition: event.transition,
+        elapsedMs: Number((performance.now() - startedAt).toFixed(2)),
+      });
+      return;
+    }
     setSelectedArticleId(fullArticle.id);
     setSelectedArticle(fullArticle);
     setSelectedWeReadBook(null);
@@ -360,6 +381,18 @@ export function ReadingLibrary({
     setSelectedAnnotationId(event.annotationId);
     setSourceFocusAnnotationId(event.annotationId);
     pendingDistillationAnimationRef.current = event;
+    recordRendererPerformanceTiming('reader_focus', {
+      source: 'library',
+      phase: 'focus_set',
+      articleId: fullArticle.id,
+      annotationId: event.annotationId,
+      transition: event.transition,
+      articleSourceType: fullArticle.sourceType || 'web',
+      annotationExists: fullArticle.annotations.some(
+        (annotation) => annotation.id === event.annotationId,
+      ),
+      elapsedMs: Number((performance.now() - startedAt).toFixed(2)),
+    });
   }
 
   function clearDistillationTimer() {
@@ -376,6 +409,14 @@ export function ReadingLibrary({
     const WOBBLE_MS = 150;
 
     clearDistillationTimer();
+    recordRendererPerformanceTiming('reader_focus', {
+      source: 'library',
+      phase: 'distillation_animation_start',
+      articleId: event.articleId,
+      annotationId: event.annotationId,
+      transition: event.transition,
+      token,
+    });
     if (event.transition === 'publish' || event.transition === 'update') {
       playAppSoundEffect('reader.distillation_committed', settings || {});
     }
@@ -438,6 +479,13 @@ export function ReadingLibrary({
 
   function handleSourceFocusedAnnotation() {
     const pendingAnimation = pendingDistillationAnimationRef.current;
+    recordRendererPerformanceTiming('reader_focus', {
+      source: 'library',
+      phase: 'focus_consumed',
+      articleId: selectedArticleId,
+      annotationId: sourceFocusAnnotationId,
+      pendingTransition: pendingAnimation?.transition || null,
+    });
     pendingDistillationAnimationRef.current = null;
     setSourceFocusAnnotationId(null);
     if (pendingAnimation) playDistillationMorph(pendingAnimation);

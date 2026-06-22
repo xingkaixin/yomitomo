@@ -1,8 +1,11 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useBookmarkCapability } from '@embedpdf/plugin-bookmark/react';
 import { isPdfTextAnchor, type Annotation } from '@yomitomo/shared';
 import type { TocItem } from '@yomitomo/core';
-import type { SourceBookcaseProps } from '../bookcase/app-source-bookcase-shared';
+import {
+  recordRendererPerformanceTiming,
+  type SourceBookcaseProps,
+} from '../bookcase/app-source-bookcase-shared';
 import { pdfiumBookmarkTocItems } from './app-source-bookcase-pdfium-utils';
 
 type PdfiumScroll = {
@@ -31,6 +34,12 @@ export function usePdfiumNavigation({
   onSetTocItems: (items: TocItem[]) => void;
 }) {
   const { provides: bookmark } = useBookmarkCapability();
+  const onFocusedAnnotationRef = useRef(onFocusedAnnotation);
+  const scrollToAnnotationRef = useRef<(annotationId: string) => void>(() => {});
+
+  useEffect(() => {
+    onFocusedAnnotationRef.current = onFocusedAnnotation;
+  }, [onFocusedAnnotation]);
 
   useEffect(() => {
     if (!bookmark) return;
@@ -62,13 +71,46 @@ export function usePdfiumNavigation({
     },
     [annotations, onOpenAnnotation, scroll],
   );
+  useEffect(() => {
+    scrollToAnnotationRef.current = scrollToAnnotation;
+  }, [scrollToAnnotation]);
 
   useEffect(() => {
     if (!focusAnnotationId) return;
-    scrollToAnnotation(focusAnnotationId);
-    const timer = window.setTimeout(onFocusedAnnotation, 520);
-    return () => window.clearTimeout(timer);
-  }, [focusAnnotationId, onFocusedAnnotation, scrollToAnnotation]);
+    recordRendererPerformanceTiming('reader_focus', {
+      source: 'pdf',
+      phase: 'effect_start',
+      articleId: documentId,
+      annotationId: focusAnnotationId,
+      annotationCount: annotations.length,
+      hasScroll: Boolean(scroll),
+    });
+    scrollToAnnotationRef.current(focusAnnotationId);
+    recordRendererPerformanceTiming('reader_focus', {
+      source: 'pdf',
+      phase: 'navigation_requested',
+      articleId: documentId,
+      annotationId: focusAnnotationId,
+    });
+    const timer = window.setTimeout(() => {
+      recordRendererPerformanceTiming('reader_focus', {
+        source: 'pdf',
+        phase: 'complete_timer',
+        articleId: documentId,
+        annotationId: focusAnnotationId,
+      });
+      onFocusedAnnotationRef.current();
+    }, 520);
+    return () => {
+      recordRendererPerformanceTiming('reader_focus', {
+        source: 'pdf',
+        phase: 'effect_cleanup',
+        articleId: documentId,
+        annotationId: focusAnnotationId,
+      });
+      window.clearTimeout(timer);
+    };
+  }, [documentId, focusAnnotationId]);
 
   function scrollToTocItem(item: TocItem) {
     onCloseToc();
