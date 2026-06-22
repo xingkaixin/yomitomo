@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { act, cleanup, render } from '@testing-library/react';
+import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, UserProfile } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
@@ -129,6 +129,7 @@ const userProfile: UserProfile = {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.clearAllMocks();
   mocks.boxes = [];
   mocks.readerShellProps = undefined;
@@ -359,5 +360,79 @@ describe('EbookBookcase', () => {
 
     expect(onOpenAnnotation).toHaveBeenCalledWith('note-1');
     expect(goToFraction).not.toHaveBeenCalled();
+  });
+
+  it('consumes focused annotations once when the reader rerenders during navigation', async () => {
+    const note = annotation('note-1');
+    const doc = document.implementation.createHTMLDocument('ebook');
+    doc.body.innerHTML = '<p>quote note-1</p>';
+    let resolveScrollToAnchor: (() => void) | null = null;
+    const scrollToAnchor = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveScrollToAnchor = resolve;
+        }),
+    );
+    mocks.view = {
+      book: { sections: [{ id: 'chapter-1' }] },
+      getPageInfo: () => ({ sectionIndex: 0, pageIndex: 0, pageCount: 1 }),
+      goTo: vi.fn().mockResolvedValue(undefined),
+      goToFraction: vi.fn().mockResolvedValue(undefined),
+      renderer: {
+        getContents: () => [{ doc, index: 0 }],
+        scrollToAnchor,
+      },
+    };
+
+    const firstFocused = vi.fn();
+    const latestFocused = vi.fn();
+    const view = render(
+      <EbookBookcase
+        agents={[]}
+        annotations={[note]}
+        article={ebookArticle({ annotations: [note] })}
+        focusAnnotationId="note-1"
+        readerTheme={defaultTheme.reader}
+        selectedAnnotationId={null}
+        uiLanguage="zh-CN"
+        userProfile={userProfile}
+        onClose={vi.fn()}
+        onFocusedAnnotation={firstFocused}
+        onOpenAnnotation={vi.fn()}
+        onSaveArticle={vi.fn()}
+        onSaveArticleReadingProgress={vi.fn()}
+        onUpdateArticle={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(scrollToAnchor).toHaveBeenCalledTimes(1));
+
+    view.rerender(
+      <EbookBookcase
+        agents={[]}
+        annotations={[note]}
+        article={ebookArticle({ annotations: [note] })}
+        focusAnnotationId="note-1"
+        readerTheme={defaultTheme.reader}
+        selectedAnnotationId={null}
+        uiLanguage="zh-CN"
+        userProfile={userProfile}
+        onClose={vi.fn()}
+        onFocusedAnnotation={latestFocused}
+        onOpenAnnotation={vi.fn()}
+        onSaveArticle={vi.fn()}
+        onSaveArticleReadingProgress={vi.fn()}
+        onUpdateArticle={vi.fn()}
+      />,
+    );
+    expect(scrollToAnchor).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveScrollToAnchor?.();
+    });
+
+    await waitFor(() => expect(latestFocused).toHaveBeenCalledTimes(1));
+    expect(scrollToAnchor).toHaveBeenCalledTimes(1);
+    expect(firstFocused).not.toHaveBeenCalled();
   });
 });

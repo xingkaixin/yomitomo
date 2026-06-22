@@ -58,6 +58,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover';
 import {
   defaultTocOpen,
+  recordRendererPerformanceTiming,
   usesOverlayToc,
   type WebSourceBookcaseProps,
 } from '../bookcase/app-source-bookcase-shared';
@@ -202,6 +203,9 @@ export function WebSourceBookcase({
   const translationSelectionToastAtRef = useRef(0);
   const translationToastIdRef = useRef<TranslationToastId | null>(null);
   const translationToastDismissTimerRef = useRef<number | null>(null);
+  const onFocusedAnnotationRef = useRef(onFocusedAnnotation);
+  const webFocusBoxCountRef = useRef(0);
+  const scrollToAnnotationRef = useRef<(annotationId: string) => boolean>(() => false);
   const bilingualTranslationTargetLanguage = settings?.bilingualTranslationTargetLanguage;
   const bilingualTranslationStyle = settings?.bilingualTranslationStyle || 'dashedLine';
   const translationInProgress = translationBusy || translation?.status === 'translating';
@@ -278,6 +282,12 @@ export function WebSourceBookcase({
     contentHtml: translatedContentHtml,
     userProfile,
   });
+  useEffect(() => {
+    onFocusedAnnotationRef.current = onFocusedAnnotation;
+  }, [onFocusedAnnotation]);
+  useEffect(() => {
+    webFocusBoxCountRef.current = boxes.length;
+  }, [boxes.length]);
   const { activeConnection, recalculateActiveConnection } = useSourceActiveConnection({
     annotationAgents,
     annotations,
@@ -581,6 +591,29 @@ export function WebSourceBookcase({
     },
     [boxes],
   );
+  useEffect(() => {
+    scrollToAnnotationRef.current = scrollToAnnotation;
+  }, [scrollToAnnotation]);
+
+  useEffect(() => {
+    if (!focusAnnotationId) return;
+    const scrollElement = scrollRef.current;
+    if (!scrollElement) return;
+    const handleWheel = (event: WheelEvent) => {
+      recordRendererPerformanceTiming('reader_scroll_input', {
+        source: 'web',
+        articleId: article.id,
+        annotationId: focusAnnotationId,
+        deltaY: event.deltaY,
+        defaultPrevented: event.defaultPrevented,
+        scrollTop: scrollElement.scrollTop,
+        scrollHeight: scrollElement.scrollHeight,
+        clientHeight: scrollElement.clientHeight,
+      });
+    };
+    scrollElement.addEventListener('wheel', handleWheel, { passive: true });
+    return () => scrollElement.removeEventListener('wheel', handleWheel);
+  }, [article.id, focusAnnotationId]);
 
   const resolveAnnotationNavigation = useCallback(
     ({
@@ -611,14 +644,105 @@ export function WebSourceBookcase({
 
   useEffect(() => {
     if (!focusAnnotationId) return;
-    if (!annotations.some((annotation) => annotation.id === focusAnnotationId)) {
-      onFocusedAnnotation();
-      return;
-    }
-    if (!scrollToAnnotation(focusAnnotationId)) return;
-    const timer = window.setTimeout(onFocusedAnnotation, 520);
-    return () => window.clearTimeout(timer);
-  }, [annotations, focusAnnotationId, onFocusedAnnotation, scrollToAnnotation]);
+    const scrollElement = scrollRef.current;
+    recordRendererPerformanceTiming('reader_focus', {
+      source: 'web',
+      phase: 'effect_start',
+      articleId: article.id,
+      annotationId: focusAnnotationId,
+      annotationCount: annotations.length,
+      boxCount: boxes.length,
+      hasScrollElement: Boolean(scrollElement),
+      scrollTop: scrollElement?.scrollTop ?? null,
+      scrollHeight: scrollElement?.scrollHeight ?? null,
+      clientHeight: scrollElement?.clientHeight ?? null,
+    });
+    const maxAttemptCount = 30;
+    let attemptCount = 0;
+    let cancelled = false;
+    let frame: number | null = null;
+    let timer: number | null = null;
+
+    const completeFocus = (phase: string, delayMs: number) => {
+      timer = window.setTimeout(() => {
+        if (cancelled) return;
+        const currentScrollElement = scrollRef.current;
+        recordRendererPerformanceTiming('reader_focus', {
+          source: 'web',
+          phase,
+          articleId: article.id,
+          annotationId: focusAnnotationId,
+          scrollTop: currentScrollElement?.scrollTop ?? null,
+        });
+        onFocusedAnnotationRef.current();
+      }, delayMs);
+    };
+
+    const attemptFocus = () => {
+      if (cancelled) return;
+      const currentScrollElement = scrollRef.current;
+      const currentAnnotations = annotationsRef.current;
+      if (!currentAnnotations.some((annotation) => annotation.id === focusAnnotationId)) {
+        recordRendererPerformanceTiming('reader_focus', {
+          source: 'web',
+          phase: 'annotation_missing_consume',
+          articleId: article.id,
+          annotationId: focusAnnotationId,
+          annotationCount: currentAnnotations.length,
+          attemptCount,
+        });
+        onFocusedAnnotationRef.current();
+        return;
+      }
+
+      const scrolled = scrollToAnnotationRef.current(focusAnnotationId);
+      recordRendererPerformanceTiming('reader_focus', {
+        source: 'web',
+        phase: 'navigation_requested',
+        articleId: article.id,
+        annotationId: focusAnnotationId,
+        scrolled,
+        attemptCount,
+        scrollTop: currentScrollElement?.scrollTop ?? null,
+        boxCount: webFocusBoxCountRef.current,
+      });
+
+      if (scrolled) {
+        completeFocus('complete_timer', 520);
+        return;
+      }
+
+      attemptCount += 1;
+      if (attemptCount >= maxAttemptCount) {
+        recordRendererPerformanceTiming('reader_focus', {
+          source: 'web',
+          phase: 'navigation_unavailable_consume',
+          articleId: article.id,
+          annotationId: focusAnnotationId,
+          attemptCount,
+          boxCount: webFocusBoxCountRef.current,
+        });
+        completeFocus('unavailable_complete', 0);
+        return;
+      }
+
+      frame = window.requestAnimationFrame(attemptFocus);
+    };
+
+    frame = window.requestAnimationFrame(attemptFocus);
+    return () => {
+      recordRendererPerformanceTiming('reader_focus', {
+        source: 'web',
+        phase: 'effect_cleanup',
+        articleId: article.id,
+        annotationId: focusAnnotationId,
+        scrollTop: scrollElement?.scrollTop ?? null,
+      });
+      cancelled = true;
+      if (frame !== null) window.cancelAnimationFrame(frame);
+      if (timer !== null) window.clearTimeout(timer);
+    };
+  }, [annotationsRef, article.id, focusAnnotationId]);
 
   function openAnnotation(annotationId: string) {
     clearAnnotationUiState();
