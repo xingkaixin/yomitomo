@@ -235,6 +235,7 @@ export function AddThoughtDialog({
                     </div>
                   ) : null
                 }
+                mentionAgents={mode === 'assistant' ? agents : []}
                 submitDisabled={!canSubmit}
                 submitIcon={<Plus size={14} />}
                 submitLabel={

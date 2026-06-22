@@ -1186,6 +1186,30 @@
   padding: 1px 4px;
 }
 
+.annotation-discussion-mention-chip {
+  display: inline-flex;
+  min-height: 20px;
+  align-items: center;
+  max-width: 100%;
+  transform: translateY(-1px);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--mention-accent, var(--app-reader-accent)) 18%, transparent);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--mention-accent, var(--app-reader-accent)) 28%, transparent);
+  color: color-mix(
+    in srgb,
+    var(--mention-accent, var(--app-reader-accent)) 76%,
+    var(--app-reader-ink)
+  );
+  font-size: 0.92em;
+  font-weight: 760;
+  line-height: 1;
+  margin: 0 1px;
+  padding: 2px 7px;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+
 .annotation-discussion-add-run {
   position: relative;
   min-height: 244px;
@@ -1836,6 +1860,11 @@
   padding: 10px;
 }
 
+.floating-composer-textarea-shell {
+  position: relative;
+  min-width: 0;
+}
+
 @keyframes annotation-reply-agent-tray-enter {
   from {
     opacity: 0;
@@ -1909,6 +1938,8 @@
 }
 
 .floating-composer-textarea {
+  position: relative;
+  z-index: 1;
   width: 100%;
   min-width: 0;
   min-height: 40px;
@@ -1923,6 +1954,60 @@
   field-sizing: content;
   line-height: 1.5;
   padding: 0;
+}
+
+.floating-composer.has-mention-overlay .floating-composer-textarea {
+  color: transparent;
+  caret-color: var(--app-reader-ink);
+}
+
+.floating-composer.has-mention-overlay .floating-composer-textarea::selection {
+  background: color-mix(in srgb, var(--app-reader-accent) 22%, transparent);
+  color: transparent;
+}
+
+.floating-composer-mention-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  color: var(--app-reader-ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 430;
+  line-height: 1.5;
+  pointer-events: none;
+}
+
+.floating-composer-mention-overlay-inner {
+  transform: translate(var(--floating-composer-scroll-x, 0), var(--floating-composer-scroll-y, 0));
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.floating-composer-mention-chip {
+  display: inline-flex;
+  min-height: 20px;
+  align-items: center;
+  max-width: 100%;
+  transform: translateY(-1px);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--mention-accent, var(--app-reader-accent)) 18%, transparent);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--mention-accent, var(--app-reader-accent)) 28%, transparent);
+  color: color-mix(
+    in srgb,
+    var(--mention-accent, var(--app-reader-accent)) 76%,
+    var(--app-reader-ink)
+  );
+  font-size: 0.92em;
+  font-weight: 760;
+  line-height: 1;
+  margin: 0 1px;
+  padding: 2px 7px;
+  vertical-align: baseline;
+  white-space: nowrap;
 }
 
 .floating-composer-textarea:focus {
