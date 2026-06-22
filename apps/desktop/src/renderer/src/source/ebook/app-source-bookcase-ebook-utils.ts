@@ -42,9 +42,22 @@ export const sourceEbookReaderStyles = `
   margin:0 auto;
 }
 .source-ebook-reader-shell .reader-floating-control-group.is-paginating{
-  pointer-events:none;
-  opacity:.46;
-  filter:blur(1px);
+  opacity:1;
+  filter:none;
+}
+.source-ebook-reader-shell .reader-floating-value.is-paginating{
+  position:relative;
+  color:transparent;
+  overflow:hidden;
+}
+.source-ebook-reader-shell .reader-floating-value.is-paginating::after{
+  content:"";
+  width:42px;
+  height:10px;
+  border-radius:999px;
+  background:var(--reader-border);
+  opacity:.7;
+  filter:blur(3px);
 }
 .source-ebook-reader-shell .reader-canvas,
 .source-ebook-reader-shell .reader-article{

@@ -312,7 +312,20 @@ describe('EbookBookcase', () => {
     );
     expect(previousButton?.disabled).toBe(false);
     expect(nextButton?.disabled).toBe(false);
-    expect(container.textContent).toContain('3 / 5');
+    const controls = container.querySelector('.reader-floating-control-group');
+    expect(controls?.classList.contains('is-paginating')).toBe(true);
+    expect(container.textContent).not.toContain('3 / 5');
+  });
+
+  it('shows the final EPUB page label after full pagination is complete', () => {
+    mocks.pageInfo = { sectionIndex: 1, pageIndex: 2, pageCount: 5 };
+    mocks.sectionPageCounts = [10, 5, 20];
+
+    const { container } = renderEbookBookcase(ebookArticle(), []);
+
+    const controls = container.querySelector('.reader-floating-control-group');
+    expect(controls?.classList.contains('is-paginating')).toBe(false);
+    expect(container.textContent).toContain('13 / 35');
   });
 
   it('selects visible page annotations without re-navigating foliate', () => {

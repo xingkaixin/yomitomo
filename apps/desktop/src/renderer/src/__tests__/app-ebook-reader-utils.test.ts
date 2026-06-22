@@ -11,6 +11,7 @@ import {
   ebookSectionIndexForChapter,
   ebookTocItemsForReader,
   formatEbookPageLabel,
+  isEbookPageNavigationReady,
   isEbookPaginationReady,
   mappedFoliateRangeRects,
   rangeForEbookAnchorInDocument,
@@ -109,12 +110,13 @@ function annotation(id: string, start: number): Annotation {
 }
 
 describe('ebook reader utils', () => {
-  it('treats current EPUB page info as enough for page controls', () => {
+  it('requires complete EPUB section page counts before showing the page label', () => {
     const pageInfo = { sectionIndex: 1, pageIndex: 2, pageCount: 5 };
 
-    expect(isEbookPaginationReady(pageInfo, [null, 5, null])).toBe(true);
-    expect(formatEbookPageLabel(pageInfo, [])).toBe('3 / 5');
-    expect(formatEbookPageLabel(pageInfo, [null, 5, null])).toBe('3 / 5');
+    expect(isEbookPageNavigationReady(pageInfo)).toBe(true);
+    expect(isEbookPaginationReady(pageInfo, [null, 5, null])).toBe(false);
+    expect(formatEbookPageLabel(pageInfo, [])).toBe('');
+    expect(formatEbookPageLabel(pageInfo, [null, 5, null])).toBe('');
     expect(formatEbookPageLabel(pageInfo, [10, 5, 20])).toBe('13 / 35');
   });
 
