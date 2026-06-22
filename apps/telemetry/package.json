@@ -1,0 +1,23 @@
+{
+  "name": "@yomitomo/telemetry",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:worker": "wrangler dev",
+    "deploy:cf": "wrangler deploy",
+    "build": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "oxlint src --type-aware",
+    "lint:fix": "oxlint src --fix",
+    "format": "oxfmt --write \"src/**/*.ts\" package.json tsconfig.json wrangler.jsonc",
+    "format:check": "oxfmt --check \"src/**/*.ts\" package.json tsconfig.json wrangler.jsonc",
+    "test": "vitest run --passWithNoTests"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260610.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8",
+    "wrangler": "^4.99.0"
+  }
+}

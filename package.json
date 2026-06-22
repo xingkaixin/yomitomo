@@ -16,6 +16,7 @@
     "make:app:win-x64": "pnpm --filter @yomitomo/desktop make:win-x64",
     "deploy:cf": "pnpm --filter @yomitomo/web deploy:cf",
     "deploy:download": "pnpm --filter @yomitomo/download deploy:cf",
+    "deploy:telemetry": "pnpm --filter @yomitomo/telemetry deploy:cf",
     "build": "turbo build",
     "build:app": "pnpm --filter @yomitomo/desktop build",
     "build:web": "pnpm --filter @yomitomo/web build",

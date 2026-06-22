@@ -22,6 +22,7 @@
 - `apps/desktop`：Electron 桌面端，包含 main、preload、renderer。
 - `apps/web`：Astro 产品官网，包含 landing page、下载入口、SEO 和产品静态图。
 - `apps/download`：Cloudflare Worker 下载服务，处理安装包下载入口和跳转。
+- `apps/telemetry`：Cloudflare Worker 匿名遥测服务，接收桌面端 daily heartbeat 并写入 Analytics Engine。
 - `packages/shared`：共享类型、ID/哈希工具、文本锚定逻辑、PDF 和微信读书协议类型。
 - `packages/core`：业务核心逻辑，包括批注、评论、阅读统计、EPUB/PDF 索引和阅读器 DOM 纯逻辑。
 - `packages/ai`：LLM provider 调用、AI SDK 运行时、模型输入预算、AI 批注和 EPUB/PDF 阅读上下文。
@@ -63,6 +64,10 @@ pnpm --filter @yomitomo/download dev:worker
 pnpm --filter @yomitomo/download deploy:cf
 pnpm --filter @yomitomo/download test
 
+pnpm --filter @yomitomo/telemetry dev:worker
+pnpm --filter @yomitomo/telemetry deploy:cf
+pnpm --filter @yomitomo/telemetry test
+
 pnpm --filter @yomitomo/shared build
 pnpm --filter @yomitomo/shared test
 
@@ -85,9 +90,10 @@ pnpm --filter @yomitomo/reader-ui test
 - UI Primitive Check：`pnpm ui:check-primitives`，检查 Radix UI import、依赖和 lockfile 引用是否已退役。
 - Typecheck：`pnpm typecheck`，底层为 `turbo run typecheck`。
 - Test：`pnpm test`，底层为 `turbo test`。
-- Build：`pnpm build`，底层为 `turbo build`，会按依赖顺序构建 `shared`、`core`、`ai`、`reader-ui`、桌面端和官网。
+- Build：`pnpm build`，底层为 `turbo build`，会按依赖顺序构建 `shared`、`core`、`ai`、`reader-ui`、telemetry worker、桌面端和官网。
 - 包内测试脚本统一使用 `vitest run --passWithNoTests`。
 - `@yomitomo/shared`、`@yomitomo/core`、`@yomitomo/ai` 和 `@yomitomo/reader-ui` 的 build 使用 `tsc -p tsconfig.json --noEmit` 做类型检查。
+- `@yomitomo/telemetry` 的 build 使用 `tsc -p tsconfig.json --noEmit` 做类型检查。
 - `@yomitomo/web` 的 build 使用 `astro check && astro build`。
 
 提交前优先运行：
