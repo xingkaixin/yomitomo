@@ -31,6 +31,7 @@ import type {
   PdfImportProgressCallback,
 } from '../shell/app-reading-types';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
+import rabbitWalkSprite from '../assets/reading-library/rabbit-walk.webp';
 
 const MAX_EBOOK_IMPORT_BYTES = 80 * 1024 * 1024;
 const MAX_PDF_IMPORT_BYTES = 120 * 1024 * 1024;
@@ -98,6 +99,34 @@ type FileImportDialogConfig = {
 function advanceImportProgress(current: number) {
   if (current >= 94) return current;
   return Math.min(94, current + Math.max(0.8, (94 - current) * 0.08));
+}
+
+function LibraryImportProgressBar({ percent, ariaLabel }: { percent: number; ariaLabel: string }) {
+  return (
+    <span
+      className="library-import-progress"
+      role="progressbar"
+      aria-label={ariaLabel}
+      aria-valuemax={100}
+      aria-valuemin={0}
+      aria-valuenow={percent}
+      style={
+        {
+          '--library-import-progress': `${percent}%`,
+          '--library-import-walker-sprite': `url(${rabbitWalkSprite})`,
+        } as React.CSSProperties
+      }
+    >
+      <span className="library-import-progress-track">
+        <span />
+      </span>
+      <i
+        className={`library-import-progress-walker${percent >= 100 ? ' is-done' : ''}`}
+        aria-hidden="true"
+      />
+      <em>{percent}%</em>
+    </span>
+  );
 }
 
 type AppT = ReturnType<typeof useTranslation>['t'];
@@ -700,24 +729,10 @@ function ArticleImportDialog({
                 ) : null}
               </span>
               {importState === 'idle' ? null : (
-                <span
-                  className="library-import-progress"
-                  role="progressbar"
-                  aria-label={t('library.import.article.progress')}
-                  aria-valuemax={100}
-                  aria-valuemin={0}
-                  aria-valuenow={importProgressPercent}
-                  style={
-                    {
-                      '--library-import-progress': `${importProgressPercent}%`,
-                    } as React.CSSProperties
-                  }
-                >
-                  <span className="library-import-progress-track">
-                    <span />
-                  </span>
-                  <em>{importProgressPercent}%</em>
-                </span>
+                <LibraryImportProgressBar
+                  percent={importProgressPercent}
+                  ariaLabel={t('library.import.article.progress')}
+                />
               )}
               {importState === 'duplicate' ? (
                 <span className="library-article-duplicate-callout" role="status">
@@ -1190,24 +1205,10 @@ function FileImportDialog({
                 <em>{config.dropHint}</em>
               </span>
               {showProgress ? (
-                <span
-                  className="library-import-progress"
-                  role="progressbar"
-                  aria-label={config.progressLabel}
-                  aria-valuemax={100}
-                  aria-valuemin={0}
-                  aria-valuenow={importProgressPercent}
-                  style={
-                    {
-                      '--library-import-progress': `${importProgressPercent}%`,
-                    } as React.CSSProperties
-                  }
-                >
-                  <span className="library-import-progress-track">
-                    <span />
-                  </span>
-                  <em>{importProgressPercent}%</em>
-                </span>
+                <LibraryImportProgressBar
+                  percent={importProgressPercent}
+                  ariaLabel={config.progressLabel}
+                />
               ) : null}
             </label>
             {showCelebration ? (
