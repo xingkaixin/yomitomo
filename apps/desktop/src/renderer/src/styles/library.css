@@ -1273,8 +1273,8 @@
 /* 类型筛选内嵌搜索框（方案 C，阅读库主视图） */
 .library-search-typed {
   display: grid;
-  flex: 1 1 420px;
-  width: min(720px, 58vw);
+  flex: 0 1 auto;
+  width: min(560px, 48vw);
   min-width: 260px;
   grid-template-columns: auto auto minmax(0, 1fr);
   align-items: center;
@@ -1345,8 +1345,11 @@
 .library-type-filter-chips {
   display: inline-flex;
   flex: 0 0 auto;
+  align-self: stretch;
   align-items: center;
   gap: 4px;
+  padding-right: 10px;
+  border-right: 1px solid hsl(var(--border) / 0.72);
 }
 
 .library-type-filter-chip {
@@ -1380,7 +1383,7 @@
 }
 
 .library-type-filter-chip-remove:hover {
-  background: hsl(var(--app-interactive-hover-bg));
+  background: hsl(var(--app-interactive-badge-fg) / 0.16);
   color: hsl(var(--app-interactive-badge-fg));
 }
 
