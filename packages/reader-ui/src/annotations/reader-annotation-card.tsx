@@ -222,17 +222,16 @@ export function AnnotationCard({
               </span>
               <span className="reader-note-meta-copy">
                 <strong>{author.nickname}</strong>
-                <span className="reader-note-me-badge">{labels.me}</span>
                 <ReaderRelativeTime labels={labels} value={annotation.createdAt} />
               </span>
-              <DeleteActionMenu
-                ariaLabel={labels.openHighlightActions}
-                className="reader-note-action-menu"
-                deleteAriaLabel={labels.deleteHighlight}
-                labels={labels}
-                onDelete={() => onDelete(annotation.id)}
-              />
             </div>
+            <DeleteActionMenu
+              ariaLabel={labels.openHighlightActions}
+              className="reader-note-action-menu"
+              deleteAriaLabel={labels.deleteHighlight}
+              labels={labels}
+              onDelete={() => onDelete(annotation.id)}
+            />
             <footer className={toolbarClassName}>
               <div
                 className={summaryClassName}

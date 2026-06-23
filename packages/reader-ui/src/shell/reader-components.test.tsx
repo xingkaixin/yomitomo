@@ -719,7 +719,8 @@ describe('AnnotationCard', () => {
     expect(screen.getByLabelText('1 条想法')).toBeTruthy();
     expect(container.querySelector('.reader-note.has-discussion')).toBeTruthy();
     expect(container.querySelector('.reader-note-tab')?.textContent).toBe('批注');
-    expect(container.querySelector('.reader-note-me-badge')?.textContent).toBe('我');
+    expect(container.querySelector('.reader-note-me-badge')).toBeNull();
+    expect(container.querySelector('.reader-note-body > .reader-note-action-menu')).toBeTruthy();
     expect(container.querySelector('.reader-note-quote-badge')).toBeNull();
     expect(container.querySelector('.reader-note-left-line')).toBeNull();
     expect(screen.getByRole('button', { name: '进入讨论区' })).toBeTruthy();

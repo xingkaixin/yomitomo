@@ -291,6 +291,13 @@ describe('reader embedded styles', () => {
       '.reader-note.has-discussion .reader-note-toolbar{align-items:center;gap:10px;margin:14px 0 0;padding:13px 0 0;border-top:1px solid var(--reader-ink-hairline);background:transparent}',
     );
     expect(readerConversationStyles).toContain(
+      '.reader-note-discussion-entry{position:relative;display:inline-flex;flex:0 0 auto;min-width:92px;min-height:34px;',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-note-discussion-entry::after{content:"";position:absolute;inset:-3px -4px}',
+    );
+    expect(readerConversationStyles).not.toContain('.reader-note-me-badge');
+    expect(readerConversationStyles).toContain(
       '.reader-note.has-distillation{padding-bottom:0;border-color:var(--app-reader-note-distillation-border);background:var(--app-reader-note-distillation-mat);--reader-note-accent:var(--app-reader-note-distillation-accent);--reader-note-border:var(--app-reader-note-distillation-border)}',
     );
     expect(readerConversationStyles).toContain(

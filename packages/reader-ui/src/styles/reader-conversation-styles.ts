@@ -568,7 +568,8 @@ export const readerConversationStyles = `
 .reader-note-discussion-summary .reader-note-thread-toggle-main{gap:9px}
 .reader-note-assistant-summary{display:block;min-width:0;overflow:hidden;color:var(--reader-muted);font-size:11px;font-weight:760;line-height:1.25;text-overflow:ellipsis;white-space:nowrap}
 .reader-note-discussion-summary.is-busy .reader-note-assistant-summary{color:var(--reader-ink)}
-.reader-note-discussion-entry{display:inline-flex;flex:0 0 auto;min-width:104px;min-height:40px;align-items:center;justify-content:center;gap:6px;margin:0 -3px 0 auto;border:0;border-radius:8px;background:transparent;color:var(--reader-green);font:inherit;font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);font-size:12px;font-weight:840;padding:0 3px 0 10px;transition:background-color .14s ease,color .14s ease,transform .14s ease}
+.reader-note-discussion-entry{position:relative;display:inline-flex;flex:0 0 auto;min-width:92px;min-height:34px;align-items:center;justify-content:center;gap:5px;margin:0 -2px 0 auto;border:0;border-radius:8px;background:transparent;color:var(--reader-green);font:inherit;font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);font-size:11.5px;font-weight:820;padding:0 2px 0 8px;transition:background-color .14s ease,color .14s ease,transform .14s ease}
+.reader-note-discussion-entry::after{content:"";position:absolute;inset:-3px -4px}
 .reader-note-discussion-entry:hover{background:var(--reader-paper-hover);color:var(--reader-ink)}
 .reader-note-discussion-entry:active{transform:scale(.96)}
 .reader-note-discussion-entry[aria-disabled="true"]{cursor:default;opacity:.72}
@@ -618,11 +619,10 @@ export const readerConversationStyles = `
 .reader-note-owner{display:grid;width:23px;height:23px;place-items:center;flex:0 0 auto;border:0;border-radius:999px;background:transparent;color:inherit;padding:0}
 .reader-note-owner .reader-avatar-badge{width:23px;height:23px;overflow:hidden;border-radius:999px;background:var(--reader-avatar-color,var(--reader-green));font-size:10px}
 .reader-note-owner .reader-avatar-badge.is-image{background:transparent}
-.reader-note-meta{position:relative;z-index:1;display:flex;min-width:0;align-items:center;gap:8px;margin-top:15px;color:var(--reader-muted);font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif)}
+.reader-note-meta{display:flex;min-width:0;align-items:center;gap:8px;margin-top:15px;color:var(--reader-muted);font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif)}
 .reader-note.has-discussion .reader-note-meta{padding-left:0}
 .reader-note-meta-copy{display:flex;flex:1 1 auto;min-width:0;align-items:baseline;gap:7px}
 .reader-note-meta strong{overflow:hidden;color:var(--reader-ink);font-size:12px;font-weight:820;text-overflow:ellipsis;white-space:nowrap}
-.reader-note-me-badge{display:inline-flex;align-items:center;border-radius:6px;background:color-mix(in srgb,var(--reader-avatar-color,var(--reader-note-accent)) 16%,transparent);color:color-mix(in srgb,var(--reader-avatar-color,var(--reader-note-accent)) 80%,var(--reader-ink));font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);font-size:10px;font-weight:800;line-height:1;padding:2px 6px;white-space:nowrap}
 .reader-note-meta time{flex:0 0 auto;color:var(--reader-muted);font-size:11px;font-weight:760;font-variant-numeric:tabular-nums;white-space:nowrap}
 .reader-note-meta-copy time{margin-left:auto}
 .reader-comment-count{display:inline-flex;align-items:center;gap:6px;min-width:0;color:inherit;font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);font-size:12px;font-weight:820;font-variant-numeric:tabular-nums;white-space:nowrap}
