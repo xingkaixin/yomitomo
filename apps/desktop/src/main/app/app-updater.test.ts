@@ -231,6 +231,38 @@ describe('app updater state machine', () => {
     );
   });
 
+  it('tags the available state with the originating check trigger', async () => {
+    const updater = await loadUpdater();
+    updater.configureAppUpdater(vi.fn());
+
+    await updater.checkForAppUpdates('auto');
+    emitUpdaterEvent('update-available', {
+      releaseDate: '2026-06-18T00:00:00.000Z',
+      releaseName: 'Yomitomo 1.2.4',
+      version: '1.2.4',
+    });
+    expect(updater.getAppUpdateState()).toMatchObject({ status: 'available', trigger: 'auto' });
+
+    await updater.checkForAppUpdates();
+    emitUpdaterEvent('update-available', {
+      releaseDate: '2026-06-18T00:00:00.000Z',
+      releaseName: 'Yomitomo 1.2.4',
+      version: '1.2.4',
+    });
+    expect(updater.getAppUpdateState()).toMatchObject({ status: 'available', trigger: 'manual' });
+  });
+
+  it('carries the trigger when simulating an available update in dev', async () => {
+    electronMocks.app.isPackaged = false;
+    const updater = await loadUpdater();
+    updater.configureAppUpdater(vi.fn());
+
+    expect(updater.simulateUpdateAvailable('auto')).toMatchObject({
+      status: 'available',
+      trigger: 'auto',
+    });
+  });
+
   it('installs only after an update has been downloaded', async () => {
     const updater = await loadUpdater();
     updater.configureAppUpdater(vi.fn());
