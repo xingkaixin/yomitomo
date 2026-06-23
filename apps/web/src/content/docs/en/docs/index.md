@@ -7,10 +7,10 @@ Yomitomo is a local-first AI reading companion for desktop. It does not read ins
 
 <picture>
   <source
-    srcset="/assets/webpage-1600.webp 1600w, /assets/webpage-2400.webp 2400w, /assets/webpage.webp 4654w"
+    srcset="/assets/en-home-1600.webp 1600w, /assets/en-home-2400.webp 2400w, /assets/en-home.webp 3388w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/webpage.webp" alt="Yomitomo reading library" loading="eager" decoding="async" />
+  <img src="/assets/en-home.webp" alt="Yomitomo reading library" loading="eager" decoding="async" />
 </picture>
 
 ## First Run
