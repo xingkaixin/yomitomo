@@ -413,7 +413,7 @@ export function ReadingLibrary({
 
   function playDistillationMorph(event: AnnotationDistillationCommittedEvent) {
     const token = Date.now();
-    const PUBLISH_OUT_MS = 200;
+    const PUBLISH_OUT_MS = 150;
     const STAMP_IN_MS = 620;
     const REVEAL_OUT_MS = 620;
     const UPDATE_MS = 850;
