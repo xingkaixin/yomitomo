@@ -46,6 +46,7 @@ let aiLoggerConfigured = false;
 let appUpdaterModulePromise: Promise<typeof import('./app/app-updater')> | null = null;
 let persistenceModulePromise: Promise<typeof import('./store/desktop-persistence')> | null = null;
 let modelPriceRefreshTimer: NodeJS.Timeout | null = null;
+let appUpdateCheckTimer: NodeJS.Timeout | null = null;
 let weReadAutoSyncStartupTimer: NodeJS.Timeout | null = null;
 let weReadAutoSyncIntervalTimer: NodeJS.Timeout | null = null;
 let weReadAutoSyncConfigureToken = 0;
@@ -54,6 +55,14 @@ let desktopTelemetryController: DesktopTelemetryController | null = null;
 
 const WEREAD_AUTO_SYNC_STARTUP_DELAY_MS = 5_000;
 const WEREAD_AUTO_SYNC_INTERVAL_MS = 30 * 60 * 1000;
+const APP_UPDATE_CHECK_STARTUP_DELAY_MS = 8_000;
+const DEFAULT_APP_UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+// 自动检查间隔默认 24h，YOMITOMO_UPDATE_CHECK_MS 可缩短间隔用于开发期验证。
+function appUpdateCheckIntervalMs() {
+  const raw = Number(process.env.YOMITOMO_UPDATE_CHECK_MS);
+  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_APP_UPDATE_CHECK_INTERVAL_MS;
+}
 
 configureDesktopAppStorage();
 installDevProcessLifecycle(logInfo);
@@ -168,6 +177,22 @@ function scheduleModelPriceRefresh() {
   setTimeout(() => refresh('startup'), 5_000);
   modelPriceRefreshTimer ||= setInterval(() => refresh('interval'), modelPriceRefreshIntervalMs());
   modelPriceRefreshTimer.unref?.();
+}
+
+function scheduleAppUpdateCheck() {
+  const check = (reason: string) => {
+    void getAppUpdaterModule()
+      .then((module) => module.checkForAppUpdates('auto'))
+      .then((state) => {
+        logInfo('updater.auto_check', { reason, status: state.status });
+      })
+      .catch((error) => {
+        logError('updater.auto_check_failed', error, { reason });
+      });
+  };
+  setTimeout(() => check('startup'), APP_UPDATE_CHECK_STARTUP_DELAY_MS);
+  appUpdateCheckTimer ||= setInterval(() => check('interval'), appUpdateCheckIntervalMs());
+  appUpdateCheckTimer.unref?.();
 }
 
 function configureWeReadAutoSync(reason: string) {
@@ -319,6 +344,7 @@ void app.whenReady().then(async () => {
   if (process.platform === 'darwin' && app.dock) app.dock.setIcon(appIconPath);
   registerIpc();
   scheduleModelPriceRefresh();
+  scheduleAppUpdateCheck();
   configureWeReadAutoSync('startup');
   desktopTelemetryController = createDesktopTelemetryController({
     getAppVersion: () => app.getVersion(),
