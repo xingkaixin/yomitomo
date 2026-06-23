@@ -7,10 +7,10 @@ Yomitomo is a local-first AI reading companion for desktop. It does not read ins
 
 <picture>
   <source
-    srcset="/assets/webpage-1600.webp 1600w, /assets/webpage-2400.webp 2400w, /assets/webpage.webp 4654w"
+    srcset="/assets/en-home-1600.webp 1600w, /assets/en-home-2400.webp 2400w, /assets/en-home.webp 3388w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/webpage.webp" alt="Yomitomo reading library" loading="eager" decoding="async" />
+  <img src="/assets/en-home.webp" alt="Yomitomo reading library" loading="eager" decoding="async" />
 </picture>
 
 ## First Run
@@ -27,11 +27,11 @@ You can switch the app language in Settings. Website docs are available in [Chin
 
 Yomitomo is organized around a few core areas:
 
-- Library manages web articles, EPUB/AZW3/MOBI ebooks, and PDF documents.
-- Reader handles reading, highlights, annotations, discussions, and distilled notes.
+- Library manages web articles, EPUB/AZW3/MOBI ebooks, PDF documents, WeRead notes, and collections.
+- Reader handles reading, highlights, annotations, discussions, and distilled notes (see "Distilled Notes and Review").
 - Assistants manages AI reading assistants and review assistants.
 - Stats reviews local reading activity and WeRead statistics.
-- Settings configures language, models, themes, sound effects, App Lock, shortcuts, data management, and updates.
+- Settings configures language, models, themes, sound effects, App Lock, shortcuts, data management, updates, and privacy.
 - WeRead syncs highlights, thoughts, and reading progress through an API key.
 
 ## Reading Model
