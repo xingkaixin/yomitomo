@@ -5,6 +5,14 @@ description: Configure reading assistants and review assistants, then use them i
 
 Yomitomo's AI features work around source-text anchors. Assistant thoughts, replies, and review comments are designed to point back to specific paragraphs, selections, or distilled drafts so you can return to the evidence.
 
+<picture>
+  <source
+    srcset="/assets/en-assistant-1600.webp 1600w, /assets/en-assistant-2400.webp 2400w, /assets/en-assistant.webp 3388w"
+    sizes="(max-width: 760px) calc(100vw - 32px), 640px"
+  />
+  <img src="/assets/en-assistant.webp" alt="Yomitomo assistants" loading="eager" decoding="async" />
+</picture>
+
 ## Use Assistants While Reading
 
 There are three ways to involve assistants:
@@ -30,26 +38,26 @@ For EPUB books, you can also configure spoiler scope: current selection, current
 
 Reading assistants focus on co-reading, explanation, questioning, and structure:
 
-| Assistant | Role | Good At |
-| --- | --- | --- |
-| June | Marginal co-reader | Clarifying concepts and adding context |
-| Rowan | Root-cause reader | Examining premises and tracing causality |
-| Maya | Question mentor | Turning vague confusion into precise questions |
-| Iris | Insight editor | Extracting transferable insights |
-| Theo | Concept translator | Explaining terms and conceptual background |
-| Nolan | Structure guide | Identifying structure and paragraph function |
+| Assistant    | Role               | Good At                                        |
+| ------------ | ------------------ | ---------------------------------------------- |
+| June Hartley | Marginal co-reader | Clarifying concepts and adding context         |
+| Gideon Frost | Root-cause reader  | Examining premises and tracing causality       |
+| Maya Brooks  | Question mentor    | Turning vague confusion into precise questions |
+| Marcus Reed  | Insight editor     | Extracting transferable insights               |
+| Iris Chen    | Concept translator | Explaining terms and conceptual background     |
+| Daniel Park  | Structure guide    | Identifying structure and paragraph function   |
 
 ## Review Assistants
 
 Review assistants focus on evidence, logic, clarity, risk, and actionability:
 
-| Assistant | Role | Good At |
-| --- | --- | --- |
-| Vera | Evidence librarian | Checking facts and evidence chains |
-| Elena | Reader advocate | Protecting the reader's real question |
-| Clare | Final editor | Reducing redundancy and improving clarity |
-| Marcus | Logic reviewer | Detecting gaps in reasoning |
-| Silas | Risk reviewer | Flagging overgeneralization and risk |
-| Nina | Action calibrator | Checking whether next steps are executable |
+| Assistant        | Role               | Good At                                    |
+| ---------------- | ------------------ | ------------------------------------------ |
+| Arthur Whitfield | Evidence librarian | Checking facts and evidence chains         |
+| Hannah Wells     | Reader advocate    | Protecting the reader's real question      |
+| Julian Cross     | Final editor       | Reducing redundancy and improving clarity  |
+| Simone Carter    | Logic reviewer     | Detecting gaps in reasoning                |
+| Victor Tan       | Risk reviewer      | Flagging overgeneralization and risk       |
+| Grace Kim        | Action calibrator  | Checking whether next steps are executable |
 
 You can enable or disable assistants and review their role descriptions in the Assistants page.
