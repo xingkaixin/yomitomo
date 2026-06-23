@@ -91,6 +91,7 @@ import { buildSourceReaderAppViewProps } from '../bookcase/source-reader-app-vie
 import { useReaderSearchMatches } from '../bookcase/use-reader-search-matches';
 
 const WEB_SELECTION_DRAG_ANNOTATION_ID = '__selection_drag__';
+const WEB_HIGHLIGHT_HIT_PADDING = 8;
 
 type ReaderRailViewport = {
   height: number;
@@ -1378,14 +1379,16 @@ export function WebSourceBookcase({
               x: clientX - canvasRect.left,
               y: clientY - canvasRect.top,
             },
-            1,
+            WEB_HIGHLIGHT_HIT_PADDING,
           );
-    if (annotationIds.length === 0) return false;
+    if (annotationIds.length === 0) {
+      if (!fallbackAnnotationId) return false;
+      openAnnotation(fallbackAnnotationId);
+      return true;
+    }
 
     if (annotationIds.length <= 1) {
-      const annotationId = annotationIds[0] || fallbackAnnotationId;
-      if (!annotationId) return false;
-      openAnnotation(annotationId);
+      openAnnotation(annotationIds[0]);
       return true;
     }
 
