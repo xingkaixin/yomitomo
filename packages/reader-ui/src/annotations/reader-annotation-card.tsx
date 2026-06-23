@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   Layers2,
@@ -110,6 +110,11 @@ export function AnnotationCard({
     pendingAgents,
     labels,
   );
+  const isDualMorph =
+    distillationAnimation?.phase !== 'update' &&
+    (distillationAnimation?.transition === 'publish' ||
+      distillationAnimation?.transition === 'unpublish') &&
+    Boolean(distillationAnimation.overlayDistillation);
   const thoughtSummaryId = `annotation-${annotation.id}-thought-summary`;
   const discussionSummaryLabel = `${labels.thoughtSummary(visibleThoughtCount, false)}，${assistantSummary}`;
   const summaryClassName = [
@@ -126,6 +131,14 @@ export function AnnotationCard({
     'reader-note',
     active ? 'is-active' : '',
     annotation.distillation?.status === 'published' ? 'has-distillation' : 'has-discussion',
+    isDualMorph ? 'is-distillation-dual-morph' : '',
+    isDualMorph && annotation.distillation?.status === 'published' ? 'is-dual-show-dist' : '',
+    isDualMorph && annotation.distillation?.status !== 'published' ? 'is-dual-show-anno' : '',
+    isDualMorph &&
+    distillationAnimation?.transition === 'publish' &&
+    annotation.distillation?.status === 'published'
+      ? 'is-dual-stamp-in'
+      : '',
     distillationAnimation ? `is-distillation-${distillationAnimation.phase}` : '',
     exiting ? 'is-filtering-out' : '',
     stackCount > 1 ? 'is-stacked' : '',
@@ -137,16 +150,34 @@ export function AnnotationCard({
   const displaysDistillation =
     annotation.distillation?.status === 'published' && distillationContent.length > 0;
   const displayedText = displaysDistillation ? distillationContent : annotation.anchor.exact;
-  const unpublishOverlay =
-    distillationAnimation?.transition === 'unpublish' &&
-    distillationAnimation.phase === 'morph-out' &&
-    distillationAnimation.overlayDistillation
-      ? distillationAnimation.overlayDistillation
-      : null;
   const distillationPublishedAt =
     annotation.distillation?.updatedAt ||
     annotation.distillation?.publishedAt ||
     annotation.updatedAt;
+  const dualMorphDistillation = distillationAnimation?.overlayDistillation;
+  const dualMorphDistillationContent = dualMorphDistillation?.content.trim() || distillationContent;
+  const dualMorphDistillationTime =
+    dualMorphDistillation?.updatedAt ||
+    dualMorphDistillation?.publishedAt ||
+    distillationPublishedAt;
+  const dualMorphAnnotationRef = useRef<HTMLDivElement | null>(null);
+  const dualMorphDistillationRef = useRef<HTMLDivElement | null>(null);
+  const [dualMorphHeight, setDualMorphHeight] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    if (!isDualMorph) {
+      setDualMorphHeight(null);
+      return;
+    }
+
+    const targetElement =
+      annotation.distillation?.status === 'published'
+        ? dualMorphDistillationRef.current
+        : dualMorphAnnotationRef.current;
+    const nextHeight = targetElement?.offsetHeight ?? null;
+    if (nextHeight === null) return;
+    setDualMorphHeight((current) => (current === nextHeight ? current : nextHeight));
+  });
 
   const setNoteElement = useCallback(
     (element: HTMLElement | null) => {
@@ -167,40 +198,91 @@ export function AnnotationCard({
     onOpenDiscussion?.(annotation.id, elementWindowSourceRect(sourceElement));
   }
 
-  return (
-    <section
-      className={noteClassName}
-      data-stack-count={stackCount}
-      data-stack-index={stackIndex}
-      data-annotation-id={annotation.id}
-      data-rail-side={railSide}
-      data-distillation-animation={distillationAnimation?.token}
-      data-distillation-transition={distillationAnimation?.transition}
-      ref={setNoteElement}
-      style={style}
-      onClick={handleCardClick}
-    >
-      <span className="reader-note-tab">
-        {displaysDistillation ? (
-          <>
-            <Layers2 size={13} strokeWidth={2} />
-            <span>{labels.distillations}</span>
-          </>
-        ) : (
-          labels.annotationCardTab
-        )}
-      </span>
-      <div className="reader-note-body">
-        <header className="reader-note-card-header">
-          <button
-            className="reader-note-quote"
-            type="button"
-            onClick={() => onFocus(annotation.id)}
-          >
-            <span className="reader-note-quote-text">{displayedText}</span>
-          </button>
-        </header>
-        {displaysDistillation ? (
+  function renderAnnotationSurface() {
+    return (
+      <>
+        <span className="reader-note-tab">{labels.annotationCardTab}</span>
+        <div className="reader-note-body">
+          <header className="reader-note-card-header">
+            <button
+              className="reader-note-quote"
+              type="button"
+              onClick={() => onFocus(annotation.id)}
+            >
+              <span className="reader-note-quote-text">{annotation.anchor.exact}</span>
+            </button>
+          </header>
+          <div className="reader-note-meta">
+            <span
+              className="reader-note-owner"
+              style={avatarColorStyle(author.color)}
+              aria-hidden="true"
+            >
+              <AvatarBadge avatar={author.avatar} fallback={author.fallback} />
+            </span>
+            <span className="reader-note-meta-copy">
+              <strong>{author.nickname}</strong>
+              <ReaderRelativeTime labels={labels} value={annotation.createdAt} />
+            </span>
+          </div>
+          <DeleteActionMenu
+            ariaLabel={labels.openHighlightActions}
+            className="reader-note-action-menu"
+            deleteAriaLabel={labels.deleteHighlight}
+            labels={labels}
+            onDelete={() => onDelete(annotation.id)}
+          />
+          <footer className={toolbarClassName}>
+            <div
+              className={summaryClassName}
+              id={thoughtSummaryId}
+              aria-label={discussionSummaryLabel}
+            >
+              <span className="reader-note-thread-toggle-main">
+                <span
+                  className="reader-comment-count"
+                  aria-label={labels.thoughtSummary(visibleThoughtCount, pendingAgents.length > 0)}
+                >
+                  <span>{visibleThoughtCount}</span>
+                  <Lightbulb size={14} />
+                </span>
+                <ThoughtAuthorStack authors={assistantParticipants} />
+                <PendingAgentStack agents={pendingAgents} labels={labels} />
+              </span>
+            </div>
+            <button
+              className="reader-note-discussion-entry"
+              type="button"
+              aria-label={labels.enterDiscussion}
+              aria-describedby={thoughtSummaryId}
+              onClick={(event) => openDiscussion(event.currentTarget)}
+            >
+              <MessageCircle size={14} />
+              <span>{labels.enterDiscussion}</span>
+            </button>
+          </footer>
+        </div>
+      </>
+    );
+  }
+
+  function renderDistillationSurface(content: string, time?: string) {
+    return (
+      <>
+        <span className="reader-note-tab">
+          <Layers2 size={13} strokeWidth={2} />
+          <span>{labels.distillations}</span>
+        </span>
+        <div className="reader-note-body">
+          <header className="reader-note-card-header">
+            <button
+              className="reader-note-quote"
+              type="button"
+              onClick={() => onFocus(annotation.id)}
+            >
+              <span className="reader-note-quote-text">{content}</span>
+            </button>
+          </header>
           <DeleteActionMenu
             ariaLabel={labels.openDistillationActions}
             className="reader-note-action-menu reader-note-distillation-menu"
@@ -210,120 +292,63 @@ export function AnnotationCard({
             onDelete={() => onDelete(annotation.id)}
             onOpenDiscussion={openDiscussion}
           />
-        ) : (
-          <>
-            <div className="reader-note-meta">
-              <span
-                className="reader-note-owner"
-                style={avatarColorStyle(author.color)}
-                aria-hidden="true"
-              >
-                <AvatarBadge avatar={author.avatar} fallback={author.fallback} />
-              </span>
-              <span className="reader-note-meta-copy">
-                <strong>{author.nickname}</strong>
-                <ReaderRelativeTime labels={labels} value={annotation.createdAt} />
-              </span>
-            </div>
-            <DeleteActionMenu
-              ariaLabel={labels.openHighlightActions}
-              className="reader-note-action-menu"
-              deleteAriaLabel={labels.deleteHighlight}
+        </div>
+        {time ? (
+          <footer className="reader-note-toolbar reader-note-distillation-footer">
+            <ReaderRelativeTime
+              className="reader-note-distillation-time"
               labels={labels}
-              onDelete={() => onDelete(annotation.id)}
+              value={time}
             />
-            <footer className={toolbarClassName}>
-              <div
-                className={summaryClassName}
-                id={thoughtSummaryId}
-                aria-label={discussionSummaryLabel}
-              >
-                <span className="reader-note-thread-toggle-main">
-                  <span
-                    className="reader-comment-count"
-                    aria-label={labels.thoughtSummary(
-                      visibleThoughtCount,
-                      pendingAgents.length > 0,
-                    )}
-                  >
-                    <span>{visibleThoughtCount}</span>
-                    <Lightbulb size={14} />
-                  </span>
-                  <ThoughtAuthorStack authors={assistantParticipants} />
-                  <PendingAgentStack agents={pendingAgents} labels={labels} />
-                </span>
-              </div>
-              <button
-                className="reader-note-discussion-entry"
-                type="button"
-                aria-label={labels.enterDiscussion}
-                aria-describedby={thoughtSummaryId}
-                onClick={(event) => openDiscussion(event.currentTarget)}
-              >
-                <MessageCircle size={14} />
-                <span>{labels.enterDiscussion}</span>
-              </button>
-            </footer>
-          </>
-        )}
-      </div>
-      {displaysDistillation ? (
-        <footer className="reader-note-toolbar reader-note-distillation-footer">
-          <ReaderRelativeTime
-            className="reader-note-distillation-time"
-            labels={labels}
-            value={distillationPublishedAt}
-          />
-        </footer>
-      ) : null}
-      {unpublishOverlay ? (
-        <DistillationUnpublishOverlay
-          content={unpublishOverlay.content}
-          labels={labels}
-          publishedAt={unpublishOverlay.publishedAt}
-          updatedAt={unpublishOverlay.updatedAt}
-        />
-      ) : null}
-    </section>
-  );
-}
+          </footer>
+        ) : null}
+      </>
+    );
+  }
 
-function DistillationUnpublishOverlay({
-  content,
-  labels,
-  publishedAt,
-  updatedAt,
-}: {
-  content: string;
-  labels: ReaderUiLabels;
-  publishedAt?: string;
-  updatedAt?: string;
-}) {
-  const time = updatedAt || publishedAt;
+  const commonSectionProps = {
+    className: noteClassName,
+    'data-stack-count': stackCount,
+    'data-stack-index': stackIndex,
+    'data-annotation-id': annotation.id,
+    'data-rail-side': railSide,
+    'data-distillation-animation': distillationAnimation?.token,
+    'data-distillation-transition': distillationAnimation?.transition,
+    ref: setNoteElement,
+    style,
+    onClick: handleCardClick,
+  };
+
+  if (isDualMorph) {
+    return (
+      <section {...commonSectionProps}>
+        <div
+          className="reader-note-dual-morph-stage"
+          style={dualMorphHeight === null ? undefined : { height: `${dualMorphHeight}px` }}
+        >
+          <div
+            className="reader-note-dual-face reader-note-dual-face-annotation"
+            ref={dualMorphAnnotationRef}
+          >
+            {renderAnnotationSurface()}
+          </div>
+          <div
+            className="reader-note-dual-face reader-note-dual-face-distillation"
+            ref={dualMorphDistillationRef}
+          >
+            {renderDistillationSurface(dualMorphDistillationContent, dualMorphDistillationTime)}
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
-    <div className="reader-note-unpublish-overlay" aria-hidden="true">
-      <span className="reader-note-tab">
-        <Layers2 size={13} strokeWidth={2} />
-        <span>{labels.distillations}</span>
-      </span>
-      <div className="reader-note-body">
-        <header className="reader-note-card-header">
-          <span className="reader-note-quote">
-            <span className="reader-note-quote-text">{content}</span>
-          </span>
-        </header>
-      </div>
-      {time ? (
-        <footer className="reader-note-toolbar reader-note-distillation-footer">
-          <ReaderRelativeTime
-            className="reader-note-distillation-time"
-            labels={labels}
-            value={time}
-          />
-        </footer>
-      ) : null}
-    </div>
+    <section {...commonSectionProps}>
+      {displaysDistillation
+        ? renderDistillationSurface(displayedText, distillationPublishedAt)
+        : renderAnnotationSurface()}
+    </section>
   );
 }
 

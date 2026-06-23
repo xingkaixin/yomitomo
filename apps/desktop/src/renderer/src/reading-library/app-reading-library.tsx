@@ -413,9 +413,8 @@ export function ReadingLibrary({
 
   function playDistillationMorph(event: AnnotationDistillationCommittedEvent) {
     const token = Date.now();
-    const PUBLISH_OUT_MS = 110;
-    const STAMP_IN_MS = 360;
-    const REVEAL_OUT_MS = 620;
+    const DUAL_PREPARE_MS = 16;
+    const DUAL_MORPH_MS = 620;
     const UPDATE_MS = 850;
 
     clearDistillationTimer();
@@ -446,11 +445,14 @@ export function ReadingLibrary({
       return;
     }
 
-    const startMorphOut = (morphOutMs: number, morphInMs: number) => {
+    const startDualMorph = (
+      overlayDistillation = distillationOverlayForAnimation(selectedArticle, event),
+    ) => {
       setDistillationAnimation({
         annotationId: event.annotationId,
         transition: event.transition,
         phase: 'morph-out',
+        overlayDistillation,
         token,
       });
       distillationAnimationTimerRef.current = window.setTimeout(() => {
@@ -461,35 +463,23 @@ export function ReadingLibrary({
           annotationId: event.annotationId,
           transition: event.transition,
           phase: 'morph-in',
+          overlayDistillation,
           token,
         });
         distillationAnimationTimerRef.current = window.setTimeout(() => {
           setDistillationAnimation((current) => (current?.token === token ? null : current));
           distillationAnimationTimerRef.current = null;
-        }, morphInMs);
-      }, morphOutMs);
+        }, DUAL_MORPH_MS);
+      }, DUAL_PREPARE_MS);
     };
 
     if (event.transition === 'unpublish') {
       const overlayDistillation = distillationOverlayForAnimation(selectedArticle, event);
-      setSelectedArticle((current) =>
-        current ? articleWithCommittedDistillation(current, event) : current,
-      );
-      setDistillationAnimation({
-        annotationId: event.annotationId,
-        transition: event.transition,
-        phase: 'morph-out',
-        overlayDistillation,
-        token,
-      });
-      distillationAnimationTimerRef.current = window.setTimeout(() => {
-        setDistillationAnimation((current) => (current?.token === token ? null : current));
-        distillationAnimationTimerRef.current = null;
-      }, REVEAL_OUT_MS);
+      startDualMorph(overlayDistillation);
       return;
     }
 
-    startMorphOut(PUBLISH_OUT_MS, STAMP_IN_MS);
+    startDualMorph();
   }
 
   function handleSourceFocusedAnnotation() {

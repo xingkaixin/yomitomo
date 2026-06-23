@@ -307,18 +307,19 @@ describe('reader embedded styles', () => {
       '.reader-note-distillation-footer{position:relative;z-index:1;display:flex;justify-content:flex-end;margin:0;padding:4px 12px 7px;border-top:0;background:transparent}',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-note.is-distillation-morph-in[data-distillation-transition="publish"] .reader-note-body,.reader-note.is-distillation-morph-in[data-distillation-transition="publish"] .reader-note-tab,.reader-note.is-distillation-morph-in[data-distillation-transition="publish"] .reader-note-distillation-footer{transform-origin:center center;will-change:transform,opacity;animation:reader-distillation-settle-in 320ms cubic-bezier(.22,1,.36,1) both}',
-    );
-    expect(readerConversationStyles).not.toContain('reader-distillation-stamp-in');
-    expect(readerConversationStyles).toContain(
-      '.reader-note-unpublish-overlay{position:absolute;inset:0;z-index:8;overflow:visible;padding:11px 11px 0;border:1px solid var(--app-reader-note-distillation-border);',
+      '.reader-note.is-distillation-dual-morph{overflow:visible;padding:0;border:0;background:transparent;box-shadow:none;transition:height .55s cubic-bezier(.22,1,.36,1),',
     );
     expect(readerConversationStyles).toContain(
-      'animation:reader-distillation-cloud-recede 620ms cubic-bezier(.22,1,.36,1) both',
+      '.reader-note-dual-face-distillation{z-index:3;padding:11px 11px 0;border:1px solid var(--app-reader-note-distillation-border);',
     );
     expect(readerConversationStyles).toContain(
-      '@keyframes reader-distillation-cloud-recede{0%{clip-path:circle(170% at 58px -1px);',
+      '.reader-note.is-dual-stamp-in .reader-note-dual-face-distillation{animation:reader-distillation-stamp-in .62s cubic-bezier(.22,1,.36,1) both}',
     );
+    expect(readerConversationStyles).toContain(
+      '@keyframes reader-distillation-stamp-in{0%{transform:scale(1.45) rotate(-7deg);opacity:0}',
+    );
+    expect(readerConversationStyles).not.toContain('reader-note-unpublish-overlay');
+    expect(readerConversationStyles).not.toContain('reader-distillation-cloud-recede');
     expect(readerConversationStyles).not.toContain('reader-annotation-reveal-in');
   });
 
