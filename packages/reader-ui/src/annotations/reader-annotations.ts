@@ -336,6 +336,7 @@ export function buildAnnotationRailItems(
     groupSides,
     groupSpacings,
     activeId,
+    noteHeights,
     railLayout?.viewportTop,
     railLayout?.viewportHeight,
   );
@@ -818,6 +819,7 @@ function resolveRailGroupTops(
   groupSides: AnnotationRailSide[],
   groupSpacings: AnnotationRailSpacing[],
   activeId: string | null,
+  noteHeights: Record<string, number>,
   viewportTop = 0,
   viewportHeight = 0,
 ) {
@@ -837,6 +839,7 @@ function resolveRailGroupTops(
       groupSpacings,
       viewport,
       activeId,
+      noteHeights,
     );
   }
   return groupTops;
@@ -849,6 +852,7 @@ function resolveRailGroupTopsForSide(
   groupSpacings: AnnotationRailSpacing[],
   viewport: RailViewportBounds | null,
   activeId: string | null,
+  noteHeights: Record<string, number>,
 ) {
   const activeListIndex = activeId
     ? indexes.findIndex((index) => railGroupHasAnnotation(railGroups[index], activeId))
@@ -862,6 +866,7 @@ function resolveRailGroupTopsForSide(
       groupSpacings,
       viewport,
       activeId,
+      noteHeights,
     );
     return;
   }
@@ -879,15 +884,16 @@ function anchorActiveRailGroup(
   groupSpacings: AnnotationRailSpacing[],
   viewport: RailViewportBounds | null,
   activeId: string | null,
+  noteHeights: Record<string, number>,
 ) {
   const activeIndex = indexes[activeListIndex];
-  groupTops[activeIndex] = clampRailGroupTop(
-    activeId
-      ? activeRailGroupTop(railGroups[activeIndex], activeId)
-      : railGroups[activeIndex].desiredTop,
-    railGroups[activeIndex].height,
-    viewport,
-  );
+  const activeTop = activeId
+    ? activeRailGroupTop(railGroups[activeIndex], activeId)
+    : railGroups[activeIndex].desiredTop;
+  const activeHeight = activeId
+    ? activeRailGroupCardHeight(railGroups[activeIndex], activeId, noteHeights)
+    : railGroups[activeIndex].height;
+  groupTops[activeIndex] = clampRailGroupTop(activeTop, activeHeight, viewport);
 
   for (let listIndex = activeListIndex - 1; listIndex >= 0; listIndex -= 1) {
     const currentIndex = indexes[listIndex];
@@ -913,6 +919,15 @@ function activeRailGroupTop(
   return (
     railGroup.group.find((item) => item.annotation.id === activeId)?.top ?? railGroup.desiredTop
   );
+}
+
+function activeRailGroupCardHeight(
+  railGroup: { group: PositionedAnnotationRailItem[]; height: number },
+  activeId: string,
+  noteHeights: Record<string, number>,
+) {
+  const activeItem = railGroup.group.find((item) => item.annotation.id === activeId);
+  return activeItem ? annotationCardHeight(activeItem.annotation, noteHeights) : railGroup.height;
 }
 
 function clampRailGroupTop(
