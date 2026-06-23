@@ -117,9 +117,9 @@ export function registerStoreDataIpc(context: DesktopMainIpcContext) {
     const { installAppUpdate } = await context.getAppUpdaterModule();
     return installAppUpdate();
   });
-  handleDesktopIpc('updates:simulate-available', async () => {
+  handleDesktopIpc('updates:simulate-available', async (_event, trigger) => {
     const { simulateUpdateAvailable } = await context.getAppUpdaterModule();
-    return simulateUpdateAvailable();
+    return simulateUpdateAvailable(trigger);
   });
   handleDesktopIpc('release-notes:get', async (_event, input) => {
     const { getReleaseNote } = await import('../app/release-notes');

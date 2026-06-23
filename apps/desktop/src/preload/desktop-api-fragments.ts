@@ -26,7 +26,7 @@ import type {
   ReaderChatState,
   UserProfile,
 } from '@yomitomo/shared';
-import type { AppUpdateState } from '../app-update-types';
+import type { AppUpdateState, AppUpdateTrigger } from '../app-update-types';
 import { DesktopStoreLoadError } from '../app-store-errors';
 import {
   desktopIpcErrorFromSerialized,
@@ -220,7 +220,8 @@ function createUpdatePreloadApi() {
     checkForUpdates: () => invokeDesktopIpc('updates:check'),
     downloadUpdate: () => invokeDesktopIpc('updates:download'),
     installUpdate: () => invokeDesktopIpc('updates:install'),
-    simulateUpdateAvailable: () => invokeDesktopIpc('updates:simulate-available'),
+    simulateUpdateAvailable: (trigger?: AppUpdateTrigger) =>
+      invokeDesktopIpc('updates:simulate-available', trigger),
     getReleaseNote: (
       version: string,
       source: 'local' | 'remote',
