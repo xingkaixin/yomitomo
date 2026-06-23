@@ -1276,6 +1276,49 @@ describe('WeReadSettingsPanel', () => {
       }),
     );
   });
+
+  it('clears pending WeRead save-state timers on unmount', async () => {
+    const setTimeoutSpy = vi.spyOn(window, 'setTimeout');
+    const clearTimeoutSpy = vi.spyOn(window, 'clearTimeout');
+    const saveWeReadSettings = vi.fn().mockResolvedValue({
+      settings: { configured: true, openMethod: 'deeplink', syncMode: 'auto' },
+      books: [],
+    });
+
+    try {
+      Object.defineProperty(window, 'yomitomoDesktop', {
+        configurable: true,
+        value: {
+          getWeReadState: vi.fn().mockResolvedValue({
+            settings: { configured: true, openMethod: 'deeplink', syncMode: 'manual' },
+            books: [],
+          }),
+          saveWeReadSettings,
+        },
+      });
+
+      const view = render(<WeReadSettingsPanel />);
+
+      fireEvent.click(await screen.findByRole('radio', { name: /自动/ }));
+
+      await waitFor(() =>
+        expect(saveWeReadSettings).toHaveBeenCalledWith({
+          syncMode: 'auto',
+        }),
+      );
+
+      const resetTimerCount = setTimeoutSpy.mock.calls.filter((call) => call[1] === 1200).length;
+      const clearCallsBeforeUnmount = clearTimeoutSpy.mock.calls.length;
+
+      view.unmount();
+
+      expect(resetTimerCount).toBe(1);
+      expect(clearTimeoutSpy).toHaveBeenCalledTimes(clearCallsBeforeUnmount + resetTimerCount);
+    } finally {
+      setTimeoutSpy.mockRestore();
+      clearTimeoutSpy.mockRestore();
+    }
+  });
 });
 
 describe('ShortcutSettings', () => {
