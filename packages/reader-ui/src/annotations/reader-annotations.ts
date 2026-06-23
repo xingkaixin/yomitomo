@@ -307,7 +307,7 @@ export function buildAnnotationRailItems(
     }))
     .toSorted((left, right) => left.desiredTop - right.desiredTop);
 
-  const initialGroupSides = resolveRailGroupSides(initialRailGroups, railLayout);
+  const initialGroupSides = resolveRailGroupSides(initialRailGroups, railLayout, activeId);
   const { railGroups, groupSides } = mergeRailPressureGroups(
     initialRailGroups,
     initialGroupSides,
@@ -335,6 +335,7 @@ export function buildAnnotationRailItems(
     compactedRailGroups,
     groupSides,
     groupSpacings,
+    activeId,
     railLayout?.viewportTop,
     railLayout?.viewportHeight,
   );
@@ -571,9 +572,22 @@ function railGroupPreferredSide(group: PositionedAnnotationRailItem[]): Annotati
   return leftCount > rightCount ? 'left' : 'right';
 }
 
+function railGroupHasAnnotation(
+  group: { group: PositionedAnnotationRailItem[] },
+  annotationId: string,
+) {
+  return group.group.some((item) => item.annotation.id === annotationId);
+}
+
 function resolveRailGroupSides(
-  railGroups: Array<{ desiredTop: number; height: number; side: AnnotationRailSide }>,
+  railGroups: Array<{
+    desiredTop: number;
+    group: PositionedAnnotationRailItem[];
+    height: number;
+    side: AnnotationRailSide;
+  }>,
   railLayout: AnnotationRailLayout | undefined,
+  activeId: string | null,
 ): AnnotationRailSide[] {
   if (!railLayout || railLayout.mode === 'stacked') {
     return railGroups.map(() => 'right');
@@ -590,11 +604,19 @@ function resolveRailGroupSides(
   };
   for (const group of railGroups) {
     const preferredSide = group.side === 'left' ? 'left' : 'right';
-    const side = (['left', 'right'] as const).toSorted((left, right) => {
-      const leftCost = railSidePlacementCost(group, left, preferredSide, sideBottoms[left]);
-      const rightCost = railSidePlacementCost(group, right, preferredSide, sideBottoms[right]);
-      return leftCost - rightCost;
-    })[0];
+    const side =
+      activeId && railGroupHasAnnotation(group, activeId)
+        ? preferredSide
+        : (['left', 'right'] as const).toSorted((left, right) => {
+            const leftCost = railSidePlacementCost(group, left, preferredSide, sideBottoms[left]);
+            const rightCost = railSidePlacementCost(
+              group,
+              right,
+              preferredSide,
+              sideBottoms[right],
+            );
+            return leftCost - rightCost;
+          })[0];
     sideBottoms[side] =
       Math.max(group.desiredTop, sideBottoms[side] + defaultRailSpacing.groupGap) + group.height;
     sides.push(side);
@@ -792,9 +814,10 @@ function resolveCompactStackTopOffset(
 }
 
 function resolveRailGroupTops(
-  railGroups: Array<{ desiredTop: number; height: number }>,
+  railGroups: Array<{ desiredTop: number; group: PositionedAnnotationRailItem[]; height: number }>,
   groupSides: AnnotationRailSide[],
   groupSpacings: AnnotationRailSpacing[],
+  activeId: string | null,
   viewportTop = 0,
   viewportHeight = 0,
 ) {
@@ -807,21 +830,99 @@ function resolveRailGroupTops(
     const viewportIndexes = viewport
       ? indexes.filter((index) => railGroupNearViewport(railGroups[index], viewport))
       : indexes;
-    resolveRailGroupTopsForSide(groupTops, railGroups, viewportIndexes, groupSpacings, viewport);
+    resolveRailGroupTopsForSide(
+      groupTops,
+      railGroups,
+      viewportIndexes,
+      groupSpacings,
+      viewport,
+      activeId,
+    );
   }
   return groupTops;
 }
 
 function resolveRailGroupTopsForSide(
   groupTops: number[],
-  railGroups: Array<{ height: number }>,
+  railGroups: Array<{ desiredTop: number; group: PositionedAnnotationRailItem[]; height: number }>,
   indexes: number[],
   groupSpacings: AnnotationRailSpacing[],
   viewport: RailViewportBounds | null,
+  activeId: string | null,
 ) {
+  const activeListIndex = activeId
+    ? indexes.findIndex((index) => railGroupHasAnnotation(railGroups[index], activeId))
+    : -1;
+  if (activeListIndex >= 0) {
+    anchorActiveRailGroup(
+      groupTops,
+      railGroups,
+      indexes,
+      activeListIndex,
+      groupSpacings,
+      viewport,
+      activeId,
+    );
+    return;
+  }
+
   pushRailGroupsDown(groupTops, railGroups, indexes, groupSpacings, viewport?.top ?? 0);
   if (viewport) pullRailGroupsIntoViewport(groupTops, railGroups, indexes, groupSpacings, viewport);
   pushRailGroupsDown(groupTops, railGroups, indexes, groupSpacings, viewport?.top ?? 0);
+}
+
+function anchorActiveRailGroup(
+  groupTops: number[],
+  railGroups: Array<{ desiredTop: number; group: PositionedAnnotationRailItem[]; height: number }>,
+  indexes: number[],
+  activeListIndex: number,
+  groupSpacings: AnnotationRailSpacing[],
+  viewport: RailViewportBounds | null,
+  activeId: string | null,
+) {
+  const activeIndex = indexes[activeListIndex];
+  groupTops[activeIndex] = clampRailGroupTop(
+    activeId
+      ? activeRailGroupTop(railGroups[activeIndex], activeId)
+      : railGroups[activeIndex].desiredTop,
+    railGroups[activeIndex].height,
+    viewport,
+  );
+
+  for (let listIndex = activeListIndex - 1; listIndex >= 0; listIndex -= 1) {
+    const currentIndex = indexes[listIndex];
+    const nextIndex = indexes[listIndex + 1];
+    const nextGap = groupSpacings[nextIndex]?.groupGap ?? defaultRailSpacing.groupGap;
+    const nextTop = groupTops[nextIndex] - railGroups[currentIndex].height - nextGap;
+    groupTops[currentIndex] = Math.max(0, Math.min(groupTops[currentIndex], nextTop));
+  }
+
+  for (let listIndex = activeListIndex + 1; listIndex < indexes.length; listIndex += 1) {
+    const previousIndex = indexes[listIndex - 1];
+    const currentIndex = indexes[listIndex];
+    const gap = groupSpacings[currentIndex]?.groupGap ?? defaultRailSpacing.groupGap;
+    const previousBottom = groupTops[previousIndex] + railGroups[previousIndex].height + gap;
+    groupTops[currentIndex] = Math.max(groupTops[currentIndex], previousBottom);
+  }
+}
+
+function activeRailGroupTop(
+  railGroup: { desiredTop: number; group: PositionedAnnotationRailItem[] },
+  activeId: string,
+) {
+  return (
+    railGroup.group.find((item) => item.annotation.id === activeId)?.top ?? railGroup.desiredTop
+  );
+}
+
+function clampRailGroupTop(
+  desiredTop: number,
+  height: number,
+  viewport: RailViewportBounds | null,
+) {
+  if (!viewport) return desiredTop;
+  const maxTop = Math.max(viewport.top, viewport.bottom - height - defaultRailSpacing.groupGap);
+  return Math.max(viewport.top, Math.min(desiredTop, maxTop));
 }
 
 function pushRailGroupsDown(

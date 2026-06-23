@@ -499,6 +499,70 @@ describe('reader annotation filters', () => {
     expect(farBelowTop).toBe(3590);
   });
 
+  it('anchors the active rail card near its highlight under same-side pressure', () => {
+    const viewportTop = 1600;
+    const viewportHeight = 760;
+    const annotations = [
+      annotation('right-above', { anchor: anchor('right above', 0, 10) }),
+      annotation('active-right', { anchor: anchor('active right', 40, 50) }),
+    ];
+    const items = buildAnnotationRailItems(
+      annotations,
+      [
+        box('right-above', { left: 560, top: 1310, width: 220 }),
+        box('active-right', { left: 520, top: 2060, width: 220 }),
+      ],
+      'active-right',
+      { 'right-above': 600, 'active-right': 250 },
+      {
+        articleCenterX: 500,
+        leftRailLeft: 24,
+        mode: 'right',
+        railWidth: 320,
+        rightRailLeft: 980,
+        viewportHeight,
+        viewportTop,
+      },
+    );
+    const byId = new Map(items.map((item) => [item.annotation.id, item]));
+    const activeTop = Number(byId.get('active-right')?.style.top);
+    const aboveTop = Number(byId.get('right-above')?.style.top);
+
+    expect(activeTop).toBe(2050);
+    expect(activeTop + 250).toBeLessThanOrEqual(viewportTop + viewportHeight);
+    expect(aboveTop + 600).toBeLessThanOrEqual(activeTop - 18);
+  });
+
+  it('anchors the active stacked card to its own highlight', () => {
+    const annotations = [
+      annotation('right-above', { anchor: anchor('right above', 0, 10) }),
+      annotation('active-right', { anchor: anchor('active right', 40, 50) }),
+    ];
+    const items = buildAnnotationRailItems(
+      annotations,
+      [
+        box('right-above', { left: 560, top: 1610, width: 220 }),
+        box('active-right', { left: 520, top: 1850, width: 220 }),
+      ],
+      'active-right',
+      { 'right-above': 300, 'active-right': 250 },
+      {
+        articleCenterX: 500,
+        leftRailLeft: 24,
+        mode: 'right',
+        railWidth: 320,
+        rightRailLeft: 980,
+        viewportHeight: 760,
+        viewportTop: 1600,
+      },
+    );
+    const byId = new Map(items.map((item) => [item.annotation.id, item]));
+
+    expect(byId.get('active-right')?.stackCount).toBe(2);
+    expect(byId.get('active-right')?.stackIndex).toBe(0);
+    expect(byId.get('active-right')?.style.top).toBe(1840);
+  });
+
   it('resolves navigation around an explicit reference annotation', () => {
     const annotations = [annotation('first'), annotation('second'), annotation('third')];
 
