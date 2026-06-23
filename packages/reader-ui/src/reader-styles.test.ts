@@ -251,7 +251,7 @@ describe('reader embedded styles', () => {
 
   it('keeps long annotation text at readable body weights', () => {
     expect(readerConversationStyles).toContain(
-      '.reader-note-quote-text{display:block;color:var(--reader-ink);font-size:14px;font-style:normal;font-weight:690;line-height:1.72',
+      '.reader-note-quote-text{display:block;color:var(--reader-ink);font-size:14.5px;font-style:normal;font-weight:600;line-height:1.72',
     );
     expect(readerConversationStyles).not.toContain(
       '.reader-note-quote:hover .reader-note-quote-text',
@@ -276,28 +276,34 @@ describe('reader embedded styles', () => {
       '.reader-action-menu-button:hover,.reader-action-menu.is-open .reader-action-menu-button{background:var(--reader-paper-hover);color:var(--reader-ink)}',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-note-distillation-menu .reader-action-menu-button:hover,.reader-note-distillation-menu.is-open .reader-action-menu-button{background:var(--reader-paper-hover);color:var(--reader-ink)}',
+      '.reader-note.has-discussion .reader-action-menu-button:hover,.reader-note.has-discussion .reader-action-menu.is-open .reader-action-menu-button,.reader-note-distillation-menu .reader-action-menu-button:hover,.reader-note-distillation-menu.is-open .reader-action-menu-button{background:var(--reader-paper-hover);color:var(--reader-ink)}',
     );
   });
 
   it('keeps redesigned annotation cards on reader theme tokens', () => {
     expect(readerConversationStyles).toContain(
-      '.reader-note.has-discussion .reader-note-quote-badge{',
+      '.reader-note.has-discussion,.reader-note.has-distillation{position:relative;overflow:visible;padding:11px;border:1px solid var(--app-reader-note-annotation-border);',
     );
     expect(readerConversationStyles).toContain(
-      'background:color-mix(in srgb,var(--reader-note-accent) 16%,transparent)',
+      '.reader-note.has-discussion .reader-note-tab{border:1px solid var(--app-reader-note-annotation-border);border-bottom:0;background:var(--reader-paper);color:color-mix(in srgb,var(--reader-note-accent) 76%,var(--reader-ink))}',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-note.has-discussion .reader-note-toolbar{margin:20px -22px 0;border-top:1.5px solid color-mix(in srgb,var(--reader-note-accent) 46%,var(--app-reader-note-border));background:color-mix(in srgb,var(--app-reader-note-bg) 82%,var(--reader-bg))}',
+      '.reader-note.has-discussion .reader-note-toolbar{align-items:center;gap:10px;margin:14px 0 0;padding:13px 0 0;border-top:1px solid var(--reader-ink-hairline);background:transparent}',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-note.has-distillation{overflow:visible;border:0;background:transparent;box-shadow:none;--reader-note-ticket-fill:var(--app-reader-note-bg);--reader-note-ticket-stroke:color-mix(in srgb,var(--reader-note-accent) 48%,var(--app-reader-note-border))}',
-    );
-    expect(readerConversationStyles).not.toContain(
-      '.reader-note.has-distillation{position:relative;',
+      '.reader-note.has-distillation{padding-bottom:0;border-color:var(--app-reader-note-distillation-border);background:var(--app-reader-note-distillation-mat);--reader-note-accent:var(--app-reader-note-distillation-accent);--reader-note-border:var(--app-reader-note-distillation-border)}',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-note-distillation-footer::before{content:"";position:absolute;left:28px;right:28px;top:0;border-top:1.5px dashed color-mix(in srgb,var(--reader-note-accent) 36%,var(--app-reader-note-border));pointer-events:none}',
+      '.reader-note.has-distillation .reader-note-tab{top:-14px;border:1px solid var(--reader-note-accent);background:var(--reader-note-accent);color:var(--app-reader-note-distillation-tab-fg)}',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-note-distillation-footer{position:relative;z-index:1;display:flex;justify-content:flex-end;margin:0;padding:4px 12px 7px;border-top:0;background:transparent}',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-note.is-distillation-morph-in[data-distillation-transition="publish"] .reader-note-body,.reader-note.is-distillation-morph-in[data-distillation-transition="publish"] .reader-note-tab,.reader-note.is-distillation-morph-in[data-distillation-transition="publish"] .reader-note-distillation-footer{transform-origin:center center;will-change:transform,opacity;animation:reader-distillation-stamp-in 620ms cubic-bezier(.22,1,.36,1) both}',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-note.is-distillation-morph-out[data-distillation-transition="unpublish"]{clip-path:circle(160% at 13% 0%);will-change:clip-path,opacity;animation:reader-distillation-reveal-contract 620ms cubic-bezier(.22,1,.36,1) both}',
     );
   });
 

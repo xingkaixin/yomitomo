@@ -211,6 +211,7 @@ export const enResources = {
     },
     readerUi: {
       annotations: 'Highlights',
+      annotationCardTab: 'Annotation',
       annotationNavigation: 'Highlight navigation',
       annotationProcessing: 'assistant processing',
       articleWidth: 'Article width',

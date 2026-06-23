@@ -111,7 +111,7 @@ export type ReaderAnnotationModel = {
   distillationAnimation?: {
     annotationId: string;
     transition: 'publish' | 'update' | 'unpublish';
-    phase: 'morph-out' | 'morph-in' | 'update' | 'unpublish-wobble';
+    phase: 'morph-out' | 'morph-in' | 'update';
     token: number;
   } | null;
   filteredAnnotations: Annotation[];
@@ -175,6 +175,7 @@ export type ReaderToolbarModel = {
 
 export type ReaderUiLabels = {
   annotations: string;
+  annotationCardTab: string;
   annotationNavigation: string;
   annotationProcessing: string;
   articleWidth: string;
@@ -250,6 +251,7 @@ export type ReaderUiLabels = {
 
 export const defaultReaderUiLabels: ReaderUiLabels = {
   annotations: '划线',
+  annotationCardTab: '批注',
   annotationNavigation: '划线快捷选择',
   annotationProcessing: '助手处理中',
   articleWidth: '文章宽度',

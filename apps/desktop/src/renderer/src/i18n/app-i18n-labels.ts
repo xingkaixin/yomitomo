@@ -5,6 +5,7 @@ import type { ReaderUiLabels } from '@yomitomo/reader-ui/reader-app-view';
 export function readerUiLabels(): ReaderUiLabels {
   return {
     annotations: i18next.t('readerUi.annotations'),
+    annotationCardTab: i18next.t('readerUi.annotationCardTab'),
     annotationNavigation: i18next.t('readerUi.annotationNavigation'),
     annotationProcessing: i18next.t('readerUi.annotationProcessing'),
     articleWidth: i18next.t('readerUi.articleWidth'),

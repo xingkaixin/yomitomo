@@ -440,7 +440,7 @@ export type SourceBookcaseProps = {
   distillationAnimation?: {
     annotationId: string;
     transition: 'publish' | 'update' | 'unpublish';
-    phase: 'morph-out' | 'morph-in' | 'update' | 'unpublish-wobble';
+    phase: 'morph-out' | 'morph-in' | 'update';
     token: number;
   } | null;
   focusAnnotationId: string | null;

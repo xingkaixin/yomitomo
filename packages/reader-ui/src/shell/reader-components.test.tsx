@@ -718,8 +718,10 @@ describe('AnnotationCard', () => {
 
     expect(screen.getByLabelText('1 条想法')).toBeTruthy();
     expect(container.querySelector('.reader-note.has-discussion')).toBeTruthy();
-    expect(container.querySelector('.reader-note-quote-badge')).toBeTruthy();
-    expect(container.querySelector('.reader-note-left-line')).toBeTruthy();
+    expect(container.querySelector('.reader-note-tab')?.textContent).toBe('批注');
+    expect(container.querySelector('.reader-note-me-badge')?.textContent).toBe('我');
+    expect(container.querySelector('.reader-note-quote-badge')).toBeNull();
+    expect(container.querySelector('.reader-note-left-line')).toBeNull();
     expect(screen.getByRole('button', { name: '进入讨论区' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '添加想法' })).toBeNull();
     expect(screen.queryByRole('button', { name: '回复' })).toBeNull();
@@ -871,7 +873,8 @@ describe('AnnotationCard', () => {
 
     expect(screen.getByText('可迁移的沉淀判断')).toBeTruthy();
     expect(container.querySelector('.reader-note.has-distillation')).toBeTruthy();
-    expect(container.querySelector('.reader-note-distillation-ticket')).toBeTruthy();
+    expect(container.querySelector('.reader-note-tab')?.textContent).toBe('沉淀');
+    expect(container.querySelector('.reader-note-distillation-ticket')).toBeNull();
     expect(container.querySelector('.reader-note-quote-badge')).toBeNull();
     expect(screen.queryByText('需要批注的原文')).toBeNull();
   });

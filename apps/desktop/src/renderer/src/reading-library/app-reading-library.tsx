@@ -173,7 +173,7 @@ export function ReadingLibrary({
   const [distillationAnimation, setDistillationAnimation] = useState<{
     annotationId: string;
     transition: AnnotationDistillationCommittedEvent['transition'];
-    phase: 'morph-out' | 'morph-in' | 'update' | 'unpublish-wobble';
+    phase: 'morph-out' | 'morph-in' | 'update';
     token: number;
   } | null>(null);
   const articleLoadRef = useRef(0);
@@ -408,9 +408,11 @@ export function ReadingLibrary({
 
   function playDistillationMorph(event: AnnotationDistillationCommittedEvent) {
     const token = Date.now();
-    const MORPH_OUT_MS = 200;
-    const MORPH_IN_MS = 300;
-    const WOBBLE_MS = 150;
+    const PUBLISH_OUT_MS = 200;
+    const STAMP_IN_MS = 620;
+    const REVEAL_OUT_MS = 620;
+    const REVEAL_IN_MS = 180;
+    const UPDATE_MS = 850;
 
     clearDistillationTimer();
     recordRendererPerformanceTiming('reader_focus', {
@@ -438,11 +440,11 @@ export function ReadingLibrary({
       distillationAnimationTimerRef.current = window.setTimeout(() => {
         setDistillationAnimation((current) => (current?.token === token ? null : current));
         distillationAnimationTimerRef.current = null;
-      }, 650);
+      }, UPDATE_MS);
       return;
     }
 
-    const startMorphOut = () => {
+    const startMorphOut = (morphOutMs: number, morphInMs: number) => {
       setDistillationAnimation({
         annotationId: event.annotationId,
         transition: event.transition,
@@ -462,22 +464,14 @@ export function ReadingLibrary({
         distillationAnimationTimerRef.current = window.setTimeout(() => {
           setDistillationAnimation((current) => (current?.token === token ? null : current));
           distillationAnimationTimerRef.current = null;
-        }, MORPH_IN_MS);
-      }, MORPH_OUT_MS);
+        }, morphInMs);
+      }, morphOutMs);
     };
 
     if (event.transition === 'unpublish') {
-      setDistillationAnimation({
-        annotationId: event.annotationId,
-        transition: 'unpublish',
-        phase: 'unpublish-wobble',
-        token,
-      });
-      distillationAnimationTimerRef.current = window.setTimeout(() => {
-        startMorphOut();
-      }, WOBBLE_MS);
+      startMorphOut(REVEAL_OUT_MS, REVEAL_IN_MS);
     } else {
-      startMorphOut();
+      startMorphOut(PUBLISH_OUT_MS, STAMP_IN_MS);
     }
   }
 

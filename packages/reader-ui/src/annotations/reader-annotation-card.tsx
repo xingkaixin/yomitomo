@@ -5,14 +5,12 @@ import {
   Lightbulb,
   MessageCircle,
   MoreHorizontal,
-  Quote,
   Trash2,
 } from 'lucide-react';
 import type { Annotation, MessageSendShortcut, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { annotationPersona as annotationAuthor, commentPersona } from '@yomitomo/core';
 import { AvatarBadge, ReaderTooltip } from '../shared/reader-component-primitives';
 import { formatRelativeTime, formatTime } from '../reader-date-utils';
-import { noteStyle } from '../reader-style-utils';
 import type { AnnotationRailSide } from './reader-annotations';
 import type { ReaderUiLabels } from '../shell/reader-app-view-types';
 import { defaultReaderUiLabels } from '../shell/reader-app-view-types';
@@ -68,7 +66,7 @@ export function AnnotationCard({
   distillationAnimation?: {
     annotationId: string;
     transition: 'publish' | 'update' | 'unpublish';
-    phase: 'morph-out' | 'morph-in' | 'update' | 'unpublish-wobble';
+    phase: 'morph-out' | 'morph-in' | 'update';
     token: number;
   } | null;
   exiting?: boolean;
@@ -133,11 +131,6 @@ export function AnnotationCard({
   const distillationContent = annotation.distillation?.content.trim() || '';
   const displaysDistillation =
     annotation.distillation?.status === 'published' && distillationContent.length > 0;
-  const annotationStyle = {
-    ...(displaysDistillation ? {} : noteStyle(author.color, active)),
-    '--reader-note-accent': author.color || annotation.color,
-    ...style,
-  } as React.CSSProperties;
   const displayedText = displaysDistillation ? distillationContent : annotation.anchor.exact;
   const distillationPublishedAt =
     annotation.distillation?.updatedAt ||
@@ -171,88 +164,41 @@ export function AnnotationCard({
       data-annotation-id={annotation.id}
       data-rail-side={railSide}
       data-distillation-animation={distillationAnimation?.token}
+      data-distillation-transition={distillationAnimation?.transition}
       ref={setNoteElement}
-      style={annotationStyle}
+      style={style}
       onClick={handleCardClick}
     >
-      <div className="reader-note-body">
+      <span className="reader-note-tab">
         {displaysDistillation ? (
-          <svg
-            className="reader-note-distillation-ticket"
-            viewBox="0 0 560 340"
-            preserveAspectRatio="none"
-            aria-hidden="true"
-          >
-            <defs>
-              <filter
-                id={`reader-note-ticket-shadow-${annotation.id}`}
-                x="-8%"
-                y="-10%"
-                width="116%"
-                height="124%"
-                colorInterpolationFilters="sRGB"
-              >
-                <feDropShadow dx="0" dy="10" stdDeviation="10" floodOpacity="0.12" />
-                <feDropShadow dx="0" dy="1" stdDeviation="1" floodOpacity="0.1" />
-              </filter>
-            </defs>
-            <path
-              filter={`url(#reader-note-ticket-shadow-${annotation.id})`}
-              d="M16,0 H544 A16,16 0 0 1 560,16 V60 C560,60 544,60 544,76 C544,92 560,92 560,92 V324 A16,16 0 0 1 544,340 H16 A16,16 0 0 1 0,324 V280 C0,280 16,280 16,264 C16,248 0,248 0,248 V16 A16,16 0 0 1 16,0 Z"
-              fill="var(--reader-note-ticket-fill)"
-              stroke="var(--reader-note-ticket-stroke)"
-              strokeWidth="1.25"
-              vectorEffect="non-scaling-stroke"
-            />
-          </svg>
-        ) : null}
+          <>
+            <Layers2 size={13} strokeWidth={2} />
+            <span>{labels.distillations}</span>
+          </>
+        ) : (
+          labels.annotationCardTab
+        )}
+      </span>
+      <div className="reader-note-body">
         <header className="reader-note-card-header">
-          {!displaysDistillation ? (
-            <>
-              <span className="reader-note-quote-badge" aria-hidden="true">
-                <Quote size={18} strokeWidth={2.35} />
-              </span>
-              <span className="reader-note-left-line" aria-hidden="true" />
-              <span className="reader-note-background-quote" aria-hidden="true">
-                ”
-              </span>
-            </>
-          ) : null}
           <button
             className="reader-note-quote"
             type="button"
             onClick={() => onFocus(annotation.id)}
           >
-            {displaysDistillation ? null : (
-              <span className="reader-note-quote-mark" aria-hidden="true">
-                “
-              </span>
-            )}
             <span className="reader-note-quote-text">{displayedText}</span>
           </button>
         </header>
         {displaysDistillation ? (
-          <>
-            <DeleteActionMenu
-              ariaLabel={labels.openDistillationActions}
-              className="reader-note-action-menu reader-note-distillation-menu"
-              deleteAriaLabel={labels.deleteHighlight}
-              discussionAriaLabel={labels.enterDiscussion}
-              labels={labels}
-              onDelete={() => onDelete(annotation.id)}
-              onOpenDiscussion={openDiscussion}
-            />
-            <footer className="reader-note-toolbar reader-note-distillation-footer">
-              <span className="reader-note-distillation-badge" aria-hidden="true">
-                <Layers2 size={16} strokeWidth={1.9} />
-              </span>
-              <ReaderRelativeTime
-                className="reader-note-distillation-time"
-                labels={labels}
-                value={distillationPublishedAt}
-              />
-            </footer>
-          </>
+          <DeleteActionMenu
+            ariaLabel={labels.openDistillationActions}
+            className="reader-note-action-menu reader-note-distillation-menu"
+            deleteAriaLabel={labels.deleteHighlight}
+            discussionAriaLabel={labels.enterDiscussion}
+            labels={labels}
+            onDelete={() => onDelete(annotation.id)}
+            onOpenDiscussion={openDiscussion}
+          />
         ) : (
           <>
             <div className="reader-note-meta">
@@ -265,6 +211,7 @@ export function AnnotationCard({
               </span>
               <span className="reader-note-meta-copy">
                 <strong>{author.nickname}</strong>
+                <span className="reader-note-me-badge">{labels.me}</span>
                 <ReaderRelativeTime labels={labels} value={annotation.createdAt} />
               </span>
               <DeleteActionMenu
@@ -310,6 +257,15 @@ export function AnnotationCard({
           </>
         )}
       </div>
+      {displaysDistillation ? (
+        <footer className="reader-note-toolbar reader-note-distillation-footer">
+          <ReaderRelativeTime
+            className="reader-note-distillation-time"
+            labels={labels}
+            value={distillationPublishedAt}
+          />
+        </footer>
+      ) : null}
     </section>
   );
 }

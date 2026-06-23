@@ -206,6 +206,7 @@ export const zhCNResources = {
     },
     readerUi: {
       annotations: '划线',
+      annotationCardTab: '批注',
       annotationNavigation: '划线快捷选择',
       annotationProcessing: '助手处理中',
       articleWidth: '文章宽度',
