@@ -351,6 +351,22 @@ describe('reader embedded styles', () => {
       '.reader-app.is-annotation-stacked .reader-annotation-rail>.reader-empty,.reader-app.is-annotation-stacked .reader-annotation-rail>.reader-note{position:relative;top:auto!important;left:auto!important;width:100%;pointer-events:auto;transform:none}',
     );
   });
+
+  it('keeps rail cards out of normal document flow', () => {
+    const cardSurfaceIndex = readerConversationStyles.indexOf(
+      '.reader-note.has-discussion,.reader-note.has-distillation{position:relative;',
+    );
+    const railOverrideIndex = readerConversationStyles.indexOf(
+      '.reader-annotation-rail>.reader-note.has-discussion,.reader-annotation-rail>.reader-note.has-distillation{position:absolute}',
+    );
+    const stackedOverrideIndex = readerConversationStyles.indexOf(
+      '.reader-app.is-annotation-stacked .reader-annotation-rail>.reader-empty,.reader-app.is-annotation-stacked .reader-annotation-rail>.reader-note{position:relative;',
+    );
+
+    expect(cardSurfaceIndex).toBeGreaterThanOrEqual(0);
+    expect(railOverrideIndex).toBeGreaterThan(cardSurfaceIndex);
+    expect(stackedOverrideIndex).toBeGreaterThan(railOverrideIndex);
+  });
 });
 
 function combinedReaderStyles() {
