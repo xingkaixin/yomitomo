@@ -27,11 +27,11 @@ You can switch the app language in Settings. Website docs are available in [Chin
 
 Yomitomo is organized around a few core areas:
 
-- Library manages web articles, EPUB/AZW3/MOBI ebooks, and PDF documents.
-- Reader handles reading, highlights, annotations, discussions, and distilled notes.
+- Library manages web articles, EPUB/AZW3/MOBI ebooks, PDF documents, WeRead notes, and collections.
+- Reader handles reading, highlights, annotations, discussions, and distilled notes (see "Distilled Notes and Review").
 - Assistants manages AI reading assistants and review assistants.
 - Stats reviews local reading activity and WeRead statistics.
-- Settings configures language, models, themes, sound effects, App Lock, shortcuts, data management, and updates.
+- Settings configures language, models, themes, sound effects, App Lock, shortcuts, data management, updates, and privacy.
 - WeRead syncs highlights, thoughts, and reading progress through an API key.
 
 ## Reading Model
