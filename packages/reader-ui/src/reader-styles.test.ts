@@ -288,13 +288,13 @@ describe('reader embedded styles', () => {
       '.reader-note.has-discussion .reader-note-tab{border:1px solid var(--app-reader-note-annotation-border);border-bottom:0;background:var(--reader-paper);color:color-mix(in srgb,var(--reader-note-accent) 76%,var(--reader-ink))}',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-note.has-discussion .reader-note-toolbar{align-items:center;gap:10px;margin:14px 0 0;padding:13px 0 0;border-top:1px solid var(--reader-ink-hairline);background:transparent}',
+      '.reader-note.has-discussion .reader-note-toolbar{align-items:center;gap:8px;margin:8px 0 0;padding:0;border-top:0;background:transparent}',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-note-discussion-entry{position:relative;display:inline-flex;flex:0 0 auto;min-width:92px;min-height:34px;',
+      '.reader-note-discussion-entry{position:relative;display:inline-flex;flex:0 0 auto;min-width:86px;min-height:30px;',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-note-discussion-entry::after{content:"";position:absolute;inset:-3px -4px}',
+      '.reader-note-discussion-entry::after{content:"";position:absolute;inset:-5px 0}',
     );
     expect(readerConversationStyles).not.toContain('.reader-note-me-badge');
     expect(readerConversationStyles).toContain(
