@@ -190,7 +190,14 @@
   z-index: 4;
 }
 
+/* Cap height on the inner card, not the note: the redesigned card's tab sits
+   above the note box (negative top offset), so clipping the note itself would
+   shear the tab off. Scrolling the body keeps the tab fully visible. */
 .source-pdfium-spike-reader .reader-annotation-rail > .reader-note {
+  overflow: visible;
+}
+
+.source-pdfium-spike-reader .reader-annotation-rail > .reader-note .reader-note-body {
   max-height: min(calc(var(--app-viewport-height) * 0.72), 560px);
   overflow: auto;
   overscroll-behavior: contain;
@@ -202,11 +209,24 @@
   .reader-annotation-rail
   > .reader-note:has(.reader-comment-agent-more-menu) {
   z-index: 26;
-  overflow: visible;
 }
 
-.source-pdfium-spike-reader .reader-annotation-rail > .reader-note.has-review-burst,
-.source-pdfium-spike-reader .reader-annotation-rail > .reader-note.has-review-menu {
+.source-pdfium-spike-reader
+  .reader-annotation-rail
+  > .reader-note:has(.reader-agent-menu)
+  .reader-note-body,
+.source-pdfium-spike-reader
+  .reader-annotation-rail
+  > .reader-note:has(.reader-comment-agent-more-menu)
+  .reader-note-body,
+.source-pdfium-spike-reader
+  .reader-annotation-rail
+  > .reader-note.has-review-burst
+  .reader-note-body,
+.source-pdfium-spike-reader
+  .reader-annotation-rail
+  > .reader-note.has-review-menu
+  .reader-note-body {
   overflow: visible;
 }
 
