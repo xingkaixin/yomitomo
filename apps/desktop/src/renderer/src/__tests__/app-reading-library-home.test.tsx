@@ -17,6 +17,7 @@ import type {
 } from '@yomitomo/shared';
 import {
   ReadingLibrary,
+  articleWithCommittedDistillation,
   articleWithDistillationAnimationStart,
   groupLibraryArticles,
 } from '../reading-library/app-reading-library';
@@ -358,6 +359,64 @@ describe('articleWithDistillationAnimationStart', () => {
     });
 
     expect(result.annotations[0]?.distillation?.status).toBe('published');
+  });
+
+  it('commits publish morph to a newer published article state', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-09T12:04:00.020Z'));
+
+    const published = annotationWithPublishedDistillation('note_1');
+    const currentArticle = article({
+      updatedAt: '2026-05-09T12:04:00.000Z',
+      annotations: [
+        {
+          ...published,
+          distillation: {
+            ...published.distillation!,
+            status: 'unpublished',
+            updatedAt: '2026-05-09T12:04:00.000Z',
+          },
+        },
+      ],
+    });
+    const result = articleWithCommittedDistillation(currentArticle, {
+      articleId: 'article_1',
+      annotationId: 'note_1',
+      distillation: currentArticle.annotations[0]?.distillation,
+      transition: 'publish',
+    });
+
+    expect(result.annotations[0]?.distillation?.status).toBe('published');
+    expect(Date.parse(result.updatedAt)).toBeGreaterThan(Date.parse(currentArticle.updatedAt));
+  });
+
+  it('commits unpublish morph to a newer annotation card state', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-09T12:04:00.020Z'));
+
+    const published = annotationWithPublishedDistillation('note_1');
+    const currentArticle = article({
+      updatedAt: '2026-05-09T12:04:00.000Z',
+      annotations: [
+        {
+          ...published,
+          distillation: {
+            ...published.distillation!,
+            status: 'published',
+            updatedAt: '2026-05-09T12:04:00.000Z',
+          },
+        },
+      ],
+    });
+    const result = articleWithCommittedDistillation(currentArticle, {
+      articleId: 'article_1',
+      annotationId: 'note_1',
+      distillation: currentArticle.annotations[0]?.distillation,
+      transition: 'unpublish',
+    });
+
+    expect(result.annotations[0]?.distillation?.status).toBe('unpublished');
+    expect(Date.parse(result.updatedAt)).toBeGreaterThan(Date.parse(currentArticle.updatedAt));
   });
 });
 
@@ -1641,7 +1700,7 @@ describe('ReadingLibrary home', () => {
     expect(onReadArticle).toHaveBeenLastCalledWith('article_1');
   });
 
-  it('plays the distillation committed sound for publish and update events', async () => {
+  it('plays the distillation committed sound for publish, update, and unpublish events', async () => {
     vi.stubGlobal(
       'ResizeObserver',
       class {
@@ -1717,7 +1776,12 @@ describe('ReadingLibrary home', () => {
     });
 
     await waitFor(() => expect(screen.getAllByText('沉淀文章').length).toBeGreaterThan(0));
-    expect(playAppSoundEffect).toHaveBeenCalledTimes(2);
+    expect(playAppSoundEffect).toHaveBeenCalledTimes(3);
+    expect(playAppSoundEffect).toHaveBeenNthCalledWith(
+      3,
+      'reader.distillation_committed',
+      settings,
+    );
   });
 
   it('does not keep reloading when summary counts distillation review AI messages', async () => {

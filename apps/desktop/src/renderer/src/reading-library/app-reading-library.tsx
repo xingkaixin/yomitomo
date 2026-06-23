@@ -427,9 +427,7 @@ export function ReadingLibrary({
       transition: event.transition,
       token,
     });
-    if (event.transition === 'publish' || event.transition === 'update') {
-      playAppSoundEffect('reader.distillation_committed', settings || {});
-    }
+    playAppSoundEffect('reader.distillation_committed', settings || {});
 
     if (event.transition === 'update') {
       setSelectedArticle((current) =>
@@ -975,25 +973,55 @@ export function AnnotationDiscussionCapsules({
   );
 }
 
-function articleWithCommittedDistillation(
+export function articleWithCommittedDistillation(
   article: ArticleRecord,
   event: AnnotationDistillationCommittedEvent,
 ): ArticleRecord {
+  let changed = false;
+  const annotations = article.annotations.map((annotation) => {
+    if (annotation.id !== event.annotationId) return annotation;
+    const distillation = event.distillation || annotation.distillation;
+    if (!distillation) return annotation;
+    changed = true;
+    return {
+      ...annotation,
+      distillation: {
+        ...distillation,
+        status: committedDistillationStatus(event.transition),
+      },
+    };
+  });
+  if (!changed) return article;
   return {
     ...article,
-    annotations: article.annotations.map((annotation) => {
-      if (annotation.id !== event.annotationId) return annotation;
-      if (event.distillation) return { ...annotation, distillation: event.distillation };
-      if (!annotation.distillation) return annotation;
-      return {
-        ...annotation,
-        distillation: {
-          ...annotation.distillation,
-          status: event.transition === 'unpublish' ? 'unpublished' : 'published',
-        },
-      };
-    }),
+    annotations,
+    updatedAt: nextDistillationAnimationArticleUpdatedAt(
+      article.updatedAt,
+      event.distillation?.updatedAt,
+    ),
   };
+}
+
+function committedDistillationStatus(
+  transition: AnnotationDistillationCommittedEvent['transition'],
+): NonNullable<Annotation['distillation']>['status'] {
+  return transition === 'unpublish' ? 'unpublished' : 'published';
+}
+
+function nextDistillationAnimationArticleUpdatedAt(
+  currentUpdatedAt: string | number | undefined,
+  distillationUpdatedAt: string | undefined,
+) {
+  const currentTime = timestampValue(currentUpdatedAt);
+  const distillationTime = timestampValue(distillationUpdatedAt);
+  return new Date(Math.max(Date.now(), currentTime + 1, distillationTime)).toISOString();
+}
+
+function timestampValue(value: string | number | undefined) {
+  if (typeof value === 'number') return value;
+  if (!value) return 0;
+  const time = Date.parse(value);
+  return Number.isNaN(time) ? 0 : time;
 }
 
 export function articleWithDistillationAnimationStart(
