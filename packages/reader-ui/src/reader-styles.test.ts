@@ -285,7 +285,10 @@ describe('reader embedded styles', () => {
       '.reader-note.has-discussion,.reader-note.has-distillation{position:relative;overflow:visible;padding:11px;border:1px solid var(--app-reader-note-annotation-border);',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-note.has-discussion .reader-note-tab{border:1px solid var(--app-reader-note-annotation-border);border-bottom:0;background:var(--reader-paper);color:color-mix(in srgb,var(--reader-note-accent) 76%,var(--reader-ink))}',
+      '.reader-note.has-discussion .reader-note-tab{border:1px solid var(--app-reader-note-annotation-border);border-bottom:0;background:var(--reader-note-surface);color:color-mix(in srgb,var(--reader-note-accent) 76%,var(--reader-ink))}',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-note.has-discussion .reader-note-body,.reader-note.has-distillation .reader-note-body{position:relative;min-width:0;overflow:visible;border-radius:10px 0 10px 0;background:var(--reader-note-surface);',
     );
     expect(readerConversationStyles).toContain(
       '.reader-note.has-discussion .reader-note-toolbar{align-items:center;gap:8px;margin:8px 0 0;padding:0;border-top:0;background:transparent}',
@@ -298,7 +301,7 @@ describe('reader embedded styles', () => {
     );
     expect(readerConversationStyles).not.toContain('.reader-note-me-badge');
     expect(readerConversationStyles).toContain(
-      '.reader-note.has-distillation{padding-bottom:0;border-color:var(--app-reader-note-distillation-border);background:var(--app-reader-note-distillation-mat);--reader-note-accent:var(--app-reader-note-distillation-accent);--reader-note-border:var(--app-reader-note-distillation-border)}',
+      '.reader-note.has-distillation{padding-bottom:0;border-color:var(--app-reader-note-distillation-border);background:var(--app-reader-note-distillation-mat);--reader-note-accent:var(--app-reader-note-distillation-accent);--reader-note-border:var(--app-reader-note-distillation-border);--reader-note-surface:var(--app-reader-note-distillation-surface)}',
     );
     expect(readerConversationStyles).toContain(
       '.reader-note.has-distillation .reader-note-tab{top:-14px;border:1px solid var(--reader-note-accent);background:var(--reader-note-accent);color:var(--app-reader-note-distillation-tab-fg)}',
@@ -311,6 +314,9 @@ describe('reader embedded styles', () => {
     );
     expect(readerConversationStyles).toContain(
       '.reader-note-dual-face-distillation{z-index:3;padding:11px 11px 0;border:1px solid var(--app-reader-note-distillation-border);',
+    );
+    expect(readerConversationStyles).toContain(
+      '--reader-note-surface:var(--app-reader-note-distillation-surface);transition:clip-path .62s cubic-bezier(.22,1,.36,1),opacity .62s step-end}',
     );
     expect(readerConversationStyles).toContain(
       '.reader-note.is-dual-stamp-in .reader-note-dual-face-distillation{animation:reader-distillation-stamp-in .62s cubic-bezier(.22,1,.36,1) both}',

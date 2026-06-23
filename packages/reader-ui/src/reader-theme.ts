@@ -26,11 +26,13 @@ export type ReaderTheme = {
     annotationAccent: string;
     annotationBorder: string;
     annotationMat: string;
+    annotationSurface: string;
     background: string;
     border: string;
     distillationAccent: string;
     distillationBorder: string;
     distillationMat: string;
+    distillationSurface: string;
     distillationTabForeground: string;
     shadow: string;
     quoteBackground: string;
@@ -100,9 +102,11 @@ export const readerThemeVariableNames = [
   '--app-reader-note-annotation-accent',
   '--app-reader-note-annotation-border',
   '--app-reader-note-annotation-mat',
+  '--app-reader-note-annotation-surface',
   '--app-reader-note-distillation-accent',
   '--app-reader-note-distillation-border',
   '--app-reader-note-distillation-mat',
+  '--app-reader-note-distillation-surface',
   '--app-reader-note-distillation-tab-fg',
   '--app-reader-note-shadow',
   '--app-reader-note-quote-bg',
@@ -162,9 +166,11 @@ export function readerThemeToCssVariables(theme: ReaderTheme): CssVariableMap {
     '--app-reader-note-annotation-accent': theme.note.annotationAccent,
     '--app-reader-note-annotation-border': theme.note.annotationBorder,
     '--app-reader-note-annotation-mat': theme.note.annotationMat,
+    '--app-reader-note-annotation-surface': theme.note.annotationSurface,
     '--app-reader-note-distillation-accent': theme.note.distillationAccent,
     '--app-reader-note-distillation-border': theme.note.distillationBorder,
     '--app-reader-note-distillation-mat': theme.note.distillationMat,
+    '--app-reader-note-distillation-surface': theme.note.distillationSurface,
     '--app-reader-note-distillation-tab-fg': theme.note.distillationTabForeground,
     '--app-reader-note-shadow': theme.note.shadow,
     '--app-reader-note-quote-bg': theme.note.quoteBackground,
