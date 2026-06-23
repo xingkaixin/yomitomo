@@ -629,11 +629,11 @@ export const readerConversationStyles = `
 .reader-comment-count svg{color:var(--reader-note-accent)}
 .reader-note-type,.reader-note-intent{display:inline-flex;width:fit-content;align-items:center;gap:4px;border:1px solid rgba(159,91,80,.16);border-radius:999px;background:rgba(159,91,80,.07);color:var(--reader-red);font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);font-size:11px;font-weight:850;line-height:1;padding:4px 7px;white-space:nowrap}
 .reader-note-intent{border-color:color-mix(in srgb,var(--reader-ink) 12%,transparent);background:color-mix(in srgb,var(--reader-ink) 6%,transparent);color:var(--reader-muted)}
-.reader-note-quote{position:relative;z-index:1;display:grid;width:100%;gap:5px;padding:0;border:0;background:transparent;color:var(--reader-ink);font-family:var(--font-reader-serif, Charter, Georgia, Cambria, "Times New Roman", serif);text-align:left;text-decoration:none}
+.reader-note-quote{position:relative;z-index:1;display:grid;width:100%;min-width:0;gap:5px;padding:0;border:0;background:transparent;color:var(--reader-ink);font-family:var(--font-reader-serif, Charter, Georgia, Cambria, "Times New Roman", serif);text-align:left;text-decoration:none}
 .reader-note.has-discussion .reader-note-quote{padding-right:22px}
 .reader-note-quote-mark{display:block;color:var(--reader-note-accent);font-family:var(--font-reader-serif, Georgia, Cambria, "Times New Roman", serif);font-size:28px;font-style:normal;font-weight:900;line-height:.78}
 .reader-note.has-discussion .reader-note-quote-mark{display:none}
-.reader-note-quote-text{display:block;color:var(--reader-ink);font-size:14.5px;font-style:normal;font-weight:600;line-height:1.72;text-wrap:pretty}
+.reader-note-quote-text{display:block;min-width:0;max-width:100%;overflow-wrap:anywhere;color:var(--reader-ink);font-size:14.5px;font-style:normal;font-weight:600;line-height:1.72;text-wrap:pretty;word-break:break-word}
 .reader-note.has-distillation .reader-note-quote{align-items:center;padding-right:22px}
 .reader-note.has-distillation .reader-note-quote-text{font-size:15px;font-weight:600;letter-spacing:0;line-height:1.75}
 .reader-note.has-discussion .reader-note-action-menu,.reader-note-distillation-menu{position:absolute;right:12px;top:12px;z-index:5}

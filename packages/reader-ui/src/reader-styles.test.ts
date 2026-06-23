@@ -251,7 +251,7 @@ describe('reader embedded styles', () => {
 
   it('keeps long annotation text at readable body weights', () => {
     expect(readerConversationStyles).toContain(
-      '.reader-note-quote-text{display:block;color:var(--reader-ink);font-size:14.5px;font-style:normal;font-weight:600;line-height:1.72',
+      '.reader-note-quote-text{display:block;min-width:0;max-width:100%;overflow-wrap:anywhere;color:var(--reader-ink);font-size:14.5px;font-style:normal;font-weight:600;line-height:1.72;text-wrap:pretty;word-break:break-word}',
     );
     expect(readerConversationStyles).not.toContain(
       '.reader-note-quote:hover .reader-note-quote-text',
