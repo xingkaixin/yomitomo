@@ -174,6 +174,11 @@ export function ReadingLibrary({
     annotationId: string;
     transition: AnnotationDistillationCommittedEvent['transition'];
     phase: 'morph-out' | 'morph-in' | 'update';
+    overlayDistillation?: {
+      content: string;
+      publishedAt?: string;
+      updatedAt?: string;
+    };
     token: number;
   } | null>(null);
   const articleLoadRef = useRef(0);
@@ -411,7 +416,6 @@ export function ReadingLibrary({
     const PUBLISH_OUT_MS = 200;
     const STAMP_IN_MS = 620;
     const REVEAL_OUT_MS = 620;
-    const REVEAL_IN_MS = 180;
     const UPDATE_MS = 850;
 
     clearDistillationTimer();
@@ -469,10 +473,25 @@ export function ReadingLibrary({
     };
 
     if (event.transition === 'unpublish') {
-      startMorphOut(REVEAL_OUT_MS, REVEAL_IN_MS);
-    } else {
-      startMorphOut(PUBLISH_OUT_MS, STAMP_IN_MS);
+      const overlayDistillation = distillationOverlayForAnimation(selectedArticle, event);
+      setSelectedArticle((current) =>
+        current ? articleWithCommittedDistillation(current, event) : current,
+      );
+      setDistillationAnimation({
+        annotationId: event.annotationId,
+        transition: event.transition,
+        phase: 'morph-out',
+        overlayDistillation,
+        token,
+      });
+      distillationAnimationTimerRef.current = window.setTimeout(() => {
+        setDistillationAnimation((current) => (current?.token === token ? null : current));
+        distillationAnimationTimerRef.current = null;
+      }, REVEAL_OUT_MS);
+      return;
     }
+
+    startMorphOut(PUBLISH_OUT_MS, STAMP_IN_MS);
   }
 
   function handleSourceFocusedAnnotation() {
@@ -974,6 +993,21 @@ function articleWithCommittedDistillation(
         },
       };
     }),
+  };
+}
+
+function distillationOverlayForAnimation(
+  article: ArticleRecord | null,
+  event: AnnotationDistillationCommittedEvent,
+) {
+  const annotation = article?.annotations.find((item) => item.id === event.annotationId);
+  const distillation = event.distillation || annotation?.distillation;
+  const content = distillation?.content.trim();
+  if (!content) return undefined;
+  return {
+    content,
+    publishedAt: distillation?.publishedAt,
+    updatedAt: distillation?.updatedAt,
   };
 }
 

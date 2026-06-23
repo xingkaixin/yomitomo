@@ -112,6 +112,11 @@ export type ReaderAnnotationModel = {
     annotationId: string;
     transition: 'publish' | 'update' | 'unpublish';
     phase: 'morph-out' | 'morph-in' | 'update';
+    overlayDistillation?: {
+      content: string;
+      publishedAt?: string;
+      updatedAt?: string;
+    };
     token: number;
   } | null;
   filteredAnnotations: Annotation[];

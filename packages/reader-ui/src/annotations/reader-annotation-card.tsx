@@ -67,6 +67,11 @@ export function AnnotationCard({
     annotationId: string;
     transition: 'publish' | 'update' | 'unpublish';
     phase: 'morph-out' | 'morph-in' | 'update';
+    overlayDistillation?: {
+      content: string;
+      publishedAt?: string;
+      updatedAt?: string;
+    };
     token: number;
   } | null;
   exiting?: boolean;
@@ -132,6 +137,12 @@ export function AnnotationCard({
   const displaysDistillation =
     annotation.distillation?.status === 'published' && distillationContent.length > 0;
   const displayedText = displaysDistillation ? distillationContent : annotation.anchor.exact;
+  const unpublishOverlay =
+    distillationAnimation?.transition === 'unpublish' &&
+    distillationAnimation.phase === 'morph-out' &&
+    distillationAnimation.overlayDistillation
+      ? distillationAnimation.overlayDistillation
+      : null;
   const distillationPublishedAt =
     annotation.distillation?.updatedAt ||
     annotation.distillation?.publishedAt ||
@@ -266,7 +277,54 @@ export function AnnotationCard({
           />
         </footer>
       ) : null}
+      {unpublishOverlay ? (
+        <DistillationUnpublishOverlay
+          content={unpublishOverlay.content}
+          labels={labels}
+          publishedAt={unpublishOverlay.publishedAt}
+          updatedAt={unpublishOverlay.updatedAt}
+        />
+      ) : null}
     </section>
+  );
+}
+
+function DistillationUnpublishOverlay({
+  content,
+  labels,
+  publishedAt,
+  updatedAt,
+}: {
+  content: string;
+  labels: ReaderUiLabels;
+  publishedAt?: string;
+  updatedAt?: string;
+}) {
+  const time = updatedAt || publishedAt;
+
+  return (
+    <div className="reader-note-unpublish-overlay" aria-hidden="true">
+      <span className="reader-note-tab">
+        <Layers2 size={13} strokeWidth={2} />
+        <span>{labels.distillations}</span>
+      </span>
+      <div className="reader-note-body">
+        <header className="reader-note-card-header">
+          <span className="reader-note-quote">
+            <span className="reader-note-quote-text">{content}</span>
+          </span>
+        </header>
+      </div>
+      {time ? (
+        <footer className="reader-note-toolbar reader-note-distillation-footer">
+          <ReaderRelativeTime
+            className="reader-note-distillation-time"
+            labels={labels}
+            value={time}
+          />
+        </footer>
+      ) : null}
+    </div>
   );
 }
 

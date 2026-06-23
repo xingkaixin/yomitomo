@@ -303,8 +303,15 @@ describe('reader embedded styles', () => {
       '.reader-note.is-distillation-morph-in[data-distillation-transition="publish"] .reader-note-body,.reader-note.is-distillation-morph-in[data-distillation-transition="publish"] .reader-note-tab,.reader-note.is-distillation-morph-in[data-distillation-transition="publish"] .reader-note-distillation-footer{transform-origin:center center;will-change:transform,opacity;animation:reader-distillation-stamp-in 620ms cubic-bezier(.22,1,.36,1) both}',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-note.is-distillation-morph-out[data-distillation-transition="unpublish"]{clip-path:circle(160% at 13% 0%);will-change:clip-path,opacity;animation:reader-distillation-reveal-contract 620ms cubic-bezier(.22,1,.36,1) both}',
+      '.reader-note-unpublish-overlay{position:absolute;inset:0;z-index:8;overflow:visible;padding:11px 11px 0;border:1px solid var(--app-reader-note-distillation-border);',
     );
+    expect(readerConversationStyles).toContain(
+      'animation:reader-distillation-cloud-recede 620ms cubic-bezier(.22,1,.36,1) both',
+    );
+    expect(readerConversationStyles).toContain(
+      '@keyframes reader-distillation-cloud-recede{0%{clip-path:circle(170% at 58px -1px);',
+    );
+    expect(readerConversationStyles).not.toContain('reader-annotation-reveal-in');
   });
 
   it('keeps the reader surface as the stable scroll container while assistant menus are open', () => {

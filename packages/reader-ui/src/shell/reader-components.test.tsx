@@ -879,6 +879,51 @@ describe('AnnotationCard', () => {
     expect(screen.queryByText('需要批注的原文')).toBeNull();
   });
 
+  it('reveals the annotation card under the unpublish distillation overlay', () => {
+    const { container } = render(
+      <AnnotationCard
+        active
+        agents={[]}
+        annotation={annotation({
+          distillation: {
+            status: 'unpublished',
+            content: '正在退散的沉淀内容',
+            publishedAt: now,
+            updatedAt: now,
+          },
+        })}
+        commentsCloseKey={0}
+        distillationAnimation={{
+          annotationId: 'annotation-1',
+          transition: 'unpublish',
+          phase: 'morph-out',
+          overlayDistillation: {
+            content: '正在退散的沉淀内容',
+            publishedAt: now,
+            updatedAt: now,
+          },
+          token: 1,
+        }}
+        messageSendShortcut="enter"
+        noteRef={vi.fn()}
+        primaryCommentExpanded={false}
+        shortcutModifier="⌘"
+        userProfile={userProfile}
+        onAddComment={vi.fn()}
+        onDelete={vi.fn()}
+        onFocus={vi.fn()}
+        onPrimaryCommentExpandedChange={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector('.reader-note.has-discussion')).toBeTruthy();
+    expect(container.querySelector('.reader-note.has-distillation')).toBeNull();
+    expect(container.querySelector('.reader-note-unpublish-overlay')?.textContent).toContain(
+      '正在退散的沉淀内容',
+    );
+    expect(container.querySelector('.reader-note-body')?.textContent).toContain('需要批注的原文');
+  });
+
   it('deletes the annotation only after confirming in the dialog', () => {
     const onDelete = vi.fn();
     const onDeleteComment = vi.fn();
