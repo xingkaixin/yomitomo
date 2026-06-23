@@ -34,14 +34,6 @@ A collection card shows a cover stack built from up to 9 member covers, with the
 
 Deleting a collection removes only the collection and its memberships. The articles, ebooks, PDFs, and WeRead books inside stay in your library. A confirmation dialog explains this before you delete.
 
-<picture>
-  <source
-    srcset="/assets/epub-1600.webp 1600w, /assets/epub-2400.webp 2400w, /assets/epub.webp 4654w"
-    sizes="(max-width: 760px) calc(100vw - 32px), 640px"
-  />
-  <img src="/assets/epub.webp" alt="Yomitomo EPUB library" loading="eager" decoding="async" />
-</picture>
-
 ## Import Web Articles
 
 1. Click the "+" button in the Library.
@@ -51,6 +43,14 @@ Deleting a collection removes only the collection and its memberships. The artic
 
 For pages that need browser rendering, Yomitomo tries to render the page with the built-in browser before extracting the article body. By default, localhost, private network, and cloud metadata addresses are blocked, and HTML responses larger than 5 MB are not imported.
 
+<picture>
+  <source
+    srcset="/assets/en-import-web-1600.webp 1600w, /assets/en-import-web-2400.webp 2400w, /assets/en-import-web.webp 3388w"
+    sizes="(max-width: 760px) calc(100vw - 32px), 640px"
+  />
+  <img src="/assets/en-import-web.webp" alt="Yomitomo import a web article" loading="lazy" decoding="async" />
+</picture>
+
 ## Import Ebooks
 
 1. Click the "+" button in the Library.
@@ -59,6 +59,14 @@ For pages that need browser rendering, Yomitomo tries to render the page with th
 
 Yomitomo parses the cover, table of contents, chapters, and body structure. Ebook import supports batches of up to 10 books, with an 80 MB limit per file. DRM-protected files or files with oversized decompressed content cannot be imported.
 
+<picture>
+  <source
+    srcset="/assets/en-import-ebook-1600.webp 1600w, /assets/en-import-ebook-2400.webp 2400w, /assets/en-import-ebook.webp 3388w"
+    sizes="(max-width: 760px) calc(100vw - 32px), 640px"
+  />
+  <img src="/assets/en-import-ebook.webp" alt="Yomitomo import an ebook" loading="lazy" decoding="async" />
+</picture>
+
 ## Import PDF
 
 1. Click the "+" button in the Library.
@@ -66,6 +74,14 @@ Yomitomo parses the cover, table of contents, chapters, and body structure. Eboo
 3. Select or drop a local `.pdf` file.
 
 PDF import supports batches of up to 10 files, with a 120 MB limit per file. After import, the Library shows page count, file name, and basic metadata. If you import the same PDF again, Yomitomo will tell you it already exists and let you open the existing document.
+
+<picture>
+  <source
+    srcset="/assets/en-import-pdf-1600.webp 1600w, /assets/en-import-pdf-2400.webp 2400w, /assets/en-import-pdf.webp 3388w"
+    sizes="(max-width: 760px) calc(100vw - 32px), 640px"
+  />
+  <img src="/assets/en-import-pdf.webp" alt="Yomitomo import a PDF" loading="lazy" decoding="async" />
+</picture>
 
 ## Filter, Search, and Sort
 
