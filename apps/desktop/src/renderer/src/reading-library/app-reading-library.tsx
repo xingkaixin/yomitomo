@@ -185,6 +185,7 @@ export function ReadingLibrary({
   const selectedArticleIdRef = useRef<string | null>(null);
   const pendingDistillationAnimationRef = useRef<AnnotationDistillationCommittedEvent | null>(null);
   const distillationAnimationTimerRef = useRef<number | null>(null);
+  const distillationAnimationUpdatedAtRef = useRef(new Map<string, number>());
   const sortedArticles = useMemo<ArticleSummaryRecord[]>(() => sortArticles(articles), [articles]);
   const hasLocalArticleCatalog = articles.length > 0;
   const annotations = useMemo<Annotation[]>(
@@ -383,7 +384,13 @@ export function ReadingLibrary({
       return;
     }
     setSelectedArticleId(fullArticle.id);
-    setSelectedArticle(articleWithDistillationAnimationStart(fullArticle, event));
+    setSelectedArticle(
+      articleWithDistillationAnimationStart(
+        fullArticle,
+        event,
+        reserveDistillationAnimationUpdatedAt(fullArticle, event),
+      ),
+    );
     setSelectedWeReadBook(null);
     setRouteTransition('enter-source');
     setActiveShelf('source');
@@ -426,11 +433,19 @@ export function ReadingLibrary({
       transition: event.transition,
       token,
     });
-    playAppSoundEffect('reader.distillation_committed', settings || {});
+    if (event.transition !== 'unpublish') {
+      playAppSoundEffect('reader.distillation_committed', settings || {});
+    }
 
     if (event.transition === 'update') {
       setSelectedArticle((current) =>
-        current ? articleWithCommittedDistillation(current, event) : current,
+        current
+          ? articleWithCommittedDistillation(
+              current,
+              event,
+              reserveDistillationAnimationUpdatedAt(current, event),
+            )
+          : current,
       );
       setDistillationAnimation({
         annotationId: event.annotationId,
@@ -457,7 +472,13 @@ export function ReadingLibrary({
       });
       distillationAnimationTimerRef.current = window.setTimeout(() => {
         setSelectedArticle((current) =>
-          current ? articleWithCommittedDistillation(current, event) : current,
+          current
+            ? articleWithCommittedDistillation(
+                current,
+                event,
+                reserveDistillationAnimationUpdatedAt(current, event),
+              )
+            : current,
         );
         setDistillationAnimation({
           annotationId: event.annotationId,
@@ -480,6 +501,20 @@ export function ReadingLibrary({
     }
 
     startDualMorph();
+  }
+
+  function reserveDistillationAnimationUpdatedAt(
+    article: ArticleRecord,
+    event: AnnotationDistillationCommittedEvent,
+  ) {
+    const previousUpdatedAt = distillationAnimationUpdatedAtRef.current.get(article.id);
+    const nextUpdatedAt = nextDistillationAnimationArticleUpdatedAt(
+      article.updatedAt,
+      event.distillation?.updatedAt,
+      previousUpdatedAt,
+    );
+    distillationAnimationUpdatedAtRef.current.set(article.id, timestampValue(nextUpdatedAt));
+    return nextUpdatedAt;
   }
 
   function handleSourceFocusedAnnotation() {
@@ -966,6 +1001,10 @@ export function AnnotationDiscussionCapsules({
 export function articleWithCommittedDistillation(
   article: ArticleRecord,
   event: AnnotationDistillationCommittedEvent,
+  updatedAt = nextDistillationAnimationArticleUpdatedAt(
+    article.updatedAt,
+    event.distillation?.updatedAt,
+  ),
 ): ArticleRecord {
   let changed = false;
   const annotations = article.annotations.map((annotation) => {
@@ -985,10 +1024,7 @@ export function articleWithCommittedDistillation(
   return {
     ...article,
     annotations,
-    updatedAt: nextDistillationAnimationArticleUpdatedAt(
-      article.updatedAt,
-      event.distillation?.updatedAt,
-    ),
+    updatedAt,
   };
 }
 
@@ -998,13 +1034,23 @@ function committedDistillationStatus(
   return transition === 'unpublish' ? 'unpublished' : 'published';
 }
 
-function nextDistillationAnimationArticleUpdatedAt(
+function animationStartDistillationStatus(
+  transition: AnnotationDistillationCommittedEvent['transition'],
+): NonNullable<Annotation['distillation']>['status'] {
+  return transition === 'unpublish' ? 'published' : 'unpublished';
+}
+
+export function nextDistillationAnimationArticleUpdatedAt(
   currentUpdatedAt: string | number | undefined,
   distillationUpdatedAt: string | undefined,
+  previousReservedUpdatedAt?: string | number,
 ) {
   const currentTime = timestampValue(currentUpdatedAt);
   const distillationTime = timestampValue(distillationUpdatedAt);
-  return new Date(Math.max(Date.now(), currentTime + 1, distillationTime)).toISOString();
+  const previousReservedTime = timestampValue(previousReservedUpdatedAt);
+  return new Date(
+    Math.max(Date.now(), currentTime + 1, distillationTime + 1, previousReservedTime + 1),
+  ).toISOString();
 }
 
 function timestampValue(value: string | number | undefined) {
@@ -1017,22 +1063,28 @@ function timestampValue(value: string | number | undefined) {
 export function articleWithDistillationAnimationStart(
   article: ArticleRecord,
   event: AnnotationDistillationCommittedEvent,
+  updatedAt = article.updatedAt,
 ): ArticleRecord {
   if (event.transition === 'update') return article;
+  let changed = false;
+  const annotations = article.annotations.map((annotation) => {
+    if (annotation.id !== event.annotationId) return annotation;
+    const distillation = event.distillation || annotation.distillation;
+    if (!distillation) return annotation;
+    changed = true;
+    return {
+      ...annotation,
+      distillation: {
+        ...distillation,
+        status: animationStartDistillationStatus(event.transition),
+      },
+    };
+  });
+  if (!changed) return article;
   return {
     ...article,
-    annotations: article.annotations.map((annotation) => {
-      if (annotation.id !== event.annotationId) return annotation;
-      const distillation = event.distillation || annotation.distillation;
-      if (!distillation) return annotation;
-      return {
-        ...annotation,
-        distillation: {
-          ...distillation,
-          status: event.transition === 'unpublish' ? 'published' : 'unpublished',
-        },
-      };
-    }),
+    annotations,
+    updatedAt,
   };
 }
 

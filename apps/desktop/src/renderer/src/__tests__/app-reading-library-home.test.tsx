@@ -20,6 +20,7 @@ import {
   articleWithCommittedDistillation,
   articleWithDistillationAnimationStart,
   groupLibraryArticles,
+  nextDistillationAnimationArticleUpdatedAt,
 } from '../reading-library/app-reading-library';
 import { librarySession } from '../reading-library/app-reading-library-session';
 import { initializeAppI18n } from '../i18n/app-i18n';
@@ -332,14 +333,19 @@ describe('groupLibraryArticles', () => {
 describe('articleWithDistillationAnimationStart', () => {
   it('starts publish morph from the unpublished annotation card state', () => {
     const published = annotationWithPublishedDistillation('note_1');
-    const result = articleWithDistillationAnimationStart(article({ annotations: [published] }), {
-      articleId: 'article_1',
-      annotationId: 'note_1',
-      distillation: published.distillation,
-      transition: 'publish',
-    });
+    const result = articleWithDistillationAnimationStart(
+      article({ annotations: [published] }),
+      {
+        articleId: 'article_1',
+        annotationId: 'note_1',
+        distillation: published.distillation,
+        transition: 'publish',
+      },
+      '2026-05-09T12:04:00.001Z',
+    );
 
     expect(result.annotations[0]?.distillation?.status).toBe('unpublished');
+    expect(result.updatedAt).toBe('2026-05-09T12:04:00.001Z');
   });
 
   it('starts unpublish morph from the published distillation card state', () => {
@@ -417,6 +423,20 @@ describe('articleWithDistillationAnimationStart', () => {
 
     expect(result.annotations[0]?.distillation?.status).toBe('unpublished');
     expect(Date.parse(result.updatedAt)).toBeGreaterThan(Date.parse(currentArticle.updatedAt));
+  });
+
+  it('keeps repeated distillation morph article timestamps monotonic', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-09T12:04:00.000Z'));
+
+    const previousAnimationUpdatedAt = '2026-05-09T12:04:00.020Z';
+    const nextUpdatedAt = nextDistillationAnimationArticleUpdatedAt(
+      '2026-05-09T12:04:00.000Z',
+      '2026-05-09T12:04:00.000Z',
+      previousAnimationUpdatedAt,
+    );
+
+    expect(Date.parse(nextUpdatedAt)).toBeGreaterThan(Date.parse(previousAnimationUpdatedAt));
   });
 });
 
@@ -1700,7 +1720,7 @@ describe('ReadingLibrary home', () => {
     expect(onReadArticle).toHaveBeenLastCalledWith('article_1');
   });
 
-  it('plays the distillation committed sound for publish, update, and unpublish events', async () => {
+  it('plays the distillation committed sound for publish and update events', async () => {
     vi.stubGlobal(
       'ResizeObserver',
       class {
@@ -1776,12 +1796,7 @@ describe('ReadingLibrary home', () => {
     });
 
     await waitFor(() => expect(screen.getAllByText('沉淀文章').length).toBeGreaterThan(0));
-    expect(playAppSoundEffect).toHaveBeenCalledTimes(3);
-    expect(playAppSoundEffect).toHaveBeenNthCalledWith(
-      3,
-      'reader.distillation_committed',
-      settings,
-    );
+    expect(playAppSoundEffect).toHaveBeenCalledTimes(2);
   });
 
   it('does not keep reloading when summary counts distillation review AI messages', async () => {
