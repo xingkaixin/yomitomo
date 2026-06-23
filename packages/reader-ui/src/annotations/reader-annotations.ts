@@ -307,7 +307,7 @@ export function buildAnnotationRailItems(
     }))
     .toSorted((left, right) => left.desiredTop - right.desiredTop);
 
-  const initialGroupSides = resolveRailGroupSides(initialRailGroups, railLayout, activeId);
+  const initialGroupSides = resolveRailGroupSides(initialRailGroups, railLayout);
   const { railGroups, groupSides } = mergeRailPressureGroups(
     initialRailGroups,
     initialGroupSides,
@@ -588,7 +588,6 @@ function resolveRailGroupSides(
     side: AnnotationRailSide;
   }>,
   railLayout: AnnotationRailLayout | undefined,
-  activeId: string | null,
 ): AnnotationRailSide[] {
   if (!railLayout || railLayout.mode === 'stacked') {
     return railGroups.map(() => 'right');
@@ -605,19 +604,11 @@ function resolveRailGroupSides(
   };
   for (const group of railGroups) {
     const preferredSide = group.side === 'left' ? 'left' : 'right';
-    const side =
-      activeId && railGroupHasAnnotation(group, activeId)
-        ? preferredSide
-        : (['left', 'right'] as const).toSorted((left, right) => {
-            const leftCost = railSidePlacementCost(group, left, preferredSide, sideBottoms[left]);
-            const rightCost = railSidePlacementCost(
-              group,
-              right,
-              preferredSide,
-              sideBottoms[right],
-            );
-            return leftCost - rightCost;
-          })[0];
+    const side = (['left', 'right'] as const).toSorted((left, right) => {
+      const leftCost = railSidePlacementCost(group, left, preferredSide, sideBottoms[left]);
+      const rightCost = railSidePlacementCost(group, right, preferredSide, sideBottoms[right]);
+      return leftCost - rightCost;
+    })[0];
     sideBottoms[side] =
       Math.max(group.desiredTop, sideBottoms[side] + defaultRailSpacing.groupGap) + group.height;
     sides.push(side);

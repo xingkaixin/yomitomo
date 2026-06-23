@@ -186,6 +186,11 @@
   min-height: 0;
 }
 
+.source-pdfium-spike-reader .reader-app.is-annotation-left .reader-article,
+.source-pdfium-spike-reader .reader-app.is-annotation-right .reader-article {
+  width: 100%;
+}
+
 .source-pdfium-spike-reader .reader-annotation-rail {
   z-index: 4;
 }
@@ -256,9 +261,19 @@
   margin-right: auto;
 }
 
+.source-pdfium-spike-reader .reader-app.is-annotation-right .pdfium-spike-viewport > * {
+  margin-left: 0 !important;
+  margin-right: auto !important;
+}
+
 .source-pdfium-spike-reader .reader-app.is-annotation-left .pdfium-spike-page-shell {
   margin-left: auto;
   margin-right: 0;
+}
+
+.source-pdfium-spike-reader .reader-app.is-annotation-left .pdfium-spike-viewport > * {
+  margin-left: auto !important;
+  margin-right: 0 !important;
 }
 
 .source-pdfium-spike-reader .reader-app.is-annotation-both .pdfium-spike-page-shell {

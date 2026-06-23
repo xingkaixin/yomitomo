@@ -337,6 +337,29 @@ describe('reader annotation filters', () => {
     ]);
   });
 
+  it('keeps active rail groups on the pressure-selected side', () => {
+    const annotations = [
+      annotation('first', { anchor: anchor('first', 0, 10) }),
+      annotation('second', { anchor: anchor('second', 20, 30) }),
+    ];
+    const boxes = [box('first', { left: 120, top: 120 }), box('second', { left: 140, top: 170 })];
+    const railLayout = {
+      articleCenterX: 500,
+      leftRailLeft: 24,
+      mode: 'both' as const,
+      railWidth: 320,
+      rightRailLeft: 980,
+    };
+
+    const inactiveItems = buildAnnotationRailItems(annotations, boxes, null, {}, railLayout);
+    const activeItems = buildAnnotationRailItems(annotations, boxes, 'second', {}, railLayout);
+    const inactiveSecond = inactiveItems.find((item) => item.annotation.id === 'second');
+    const activeSecond = activeItems.find((item) => item.annotation.id === 'second');
+
+    expect(inactiveSecond?.railSide).toBe('right');
+    expect(activeSecond?.railSide).toBe('right');
+  });
+
   it('keeps tall rail cards inside a bounded viewport', () => {
     const items = buildAnnotationRailItems(
       [annotation('long-note', { anchor: anchor('long', 0, 10) })],
