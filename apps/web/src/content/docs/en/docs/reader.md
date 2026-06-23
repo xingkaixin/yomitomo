@@ -40,25 +40,25 @@ The annotation is highlighted with your personal color and anchored to the sourc
 
 Yomitomo classifies annotations to make later filtering and review easier:
 
-| Type | Meaning |
-| --- | --- |
-| Key Point | A core argument or important piece of information |
-| Assumption | A premise or implied condition in the source |
-| Concept | A term or idea that needs clarification |
-| Question | Something confusing or worth discussing |
-| Quote | Source text worth keeping |
+| Type       | Meaning                                           |
+| ---------- | ------------------------------------------------- |
+| Key Point  | A core argument or important piece of information |
+| Assumption | A premise or implied condition in the source      |
+| Concept    | A term or idea that needs clarification           |
+| Question   | Something confusing or worth discussing           |
+| Quote      | Source text worth keeping                         |
 
 ## Reading Intent
 
 When creating an annotation, you can choose a reading intent to tell assistants what kind of response you want:
 
-| Intent | Meaning |
-| --- | --- |
-| Explain | Explain this passage |
+| Intent    | Meaning                           |
+| --------- | --------------------------------- |
+| Explain   | Explain this passage              |
 | Decompose | Break down the argument structure |
-| Challenge | Challenge the claim |
-| Question | Ask follow-up questions |
-| Connect | Connect it with other knowledge |
+| Challenge | Challenge the claim               |
+| Question  | Ask follow-up questions           |
+| Connect   | Connect it with other knowledge   |
 
 ## Discussion
 
@@ -68,20 +68,13 @@ Discussions support pinning important notes, deleting your own notes, and switch
 
 ## Distilled Notes
 
-When a highlight has grown into a judgment, framework, question, or action reminder worth keeping, open the distillation window and turn scattered comments into a concise note.
-
-In the distillation window you can:
-
-- Edit the distilled note.
-- Ask one or more review assistants for feedback.
-- Publish the note so it replaces the raw highlight in the sidebar.
-- Unpublish it while keeping the draft and review records.
+When a highlight has grown into a judgment, framework, question, or action reminder worth keeping, open the distillation window and turn scattered comments into a concise note, then validate, preview, and apply review assistants' structured feedback item by item. See "[Distilled Notes and Review](/en/docs/sedimentation/)".
 
 ## Shortcuts
 
-| Shortcut | Action |
-| --- | --- |
-| `C` | Copy selected text |
-| `A` | Create an annotation from selected text |
+| Shortcut | Action                                  |
+| -------- | --------------------------------------- |
+| `C`      | Copy selected text                      |
+| `A`      | Create an annotation from selected text |
 
 These shortcuts can be customized in Settings > Shortcuts.
