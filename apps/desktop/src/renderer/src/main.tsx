@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import type { AppSettings, ArticleSummaryRecord } from '@yomitomo/shared';
 import { normalizeUiLanguage } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
-import { ArrowUpCircle, LockKeyhole, Volume2 } from 'lucide-react';
+import { LockKeyhole, PartyPopper, Volume2 } from 'lucide-react';
 
 import type { SettingsSectionKey } from './settings/app-settings-panels';
 import { AppLockGate } from './app-lock/app-lock-gate';
@@ -551,7 +551,7 @@ function App() {
                   changeSettingsSection('about');
                 }}
               >
-                <ArrowUpCircle aria-hidden="true" size={16} />
+                <PartyPopper aria-hidden="true" size={13} />
                 {t('nav.updateAvailable')}
               </button>
             ) : null}

@@ -1129,27 +1129,28 @@
   margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 34px;
-  padding: 0 14px;
-  border: 1px solid var(--app-interactive-link);
+  gap: 5px;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid hsl(var(--foreground) / 0.18);
   border-radius: 999px;
   background: transparent;
   color: var(--app-interactive-link);
-  font-family: var(--font-reader-serif);
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
+  font-family: var(--font-reader-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  cursor: default;
   transition:
     background-color 150ms ease,
-    box-shadow 150ms ease,
+    border-color 150ms ease,
     transform 150ms ease;
 }
 
 .app-nav-update-button:hover,
 .app-nav-update-button:focus-visible {
   background-color: var(--app-interactive-hover-bg);
-  box-shadow: 0 0 0 1px hsl(var(--foreground) / 0.16);
+  border-color: var(--app-interactive-link);
   outline: 0;
 }
 
