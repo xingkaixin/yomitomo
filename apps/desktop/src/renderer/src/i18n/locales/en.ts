@@ -377,6 +377,7 @@ export const enResources = {
       dev: {
         simulateAfter: 'Simulate version update (after-update dialog)',
         simulateBefore: 'Simulate new version (before-update dialog)',
+        simulateAuto: 'Simulate auto-check hit (badge only)',
         resetDone: 'Update marker reset. Restart the app to preview the updated dialog.',
         hint: 'Development only: reset for after-update preview, or trigger before-update immediately.',
       },
@@ -461,6 +462,8 @@ export const enResources = {
       stats: 'Stats',
       settings: 'Settings',
       profile: 'Open profile settings',
+      updateAvailable: 'Update available',
+      updateAvailableTooltip: 'A new version is available — click to update',
     },
     appLock: {
       lockNow: 'Lock app ({{shortcut}})',

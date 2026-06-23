@@ -77,6 +77,8 @@ export function UpdateReleaseDialog({
   useEffect(() => {
     const unsubscribe = window.yomitomoDesktop.onUpdateStatus((state) => {
       if (state.status !== 'available' || !state.availableVersion) return;
+      // 仅手动检查命中才弹更新前弹窗；自动检查（含运行期定时命中）只点亮常驻入口。
+      if (state.trigger === 'auto') return;
       const targetVersion = state.availableVersion;
       void window.yomitomoDesktop
         .getReleaseNote(targetVersion, 'remote', normalizeUiLanguage(i18n.language))

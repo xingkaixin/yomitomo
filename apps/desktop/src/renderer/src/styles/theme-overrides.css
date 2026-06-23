@@ -1125,6 +1125,44 @@
   transform: scaleX(1);
 }
 
+.app-nav-update-button {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid hsl(var(--foreground) / 0.18);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--app-interactive-link);
+  font-family: var(--font-reader-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  cursor: default;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    transform 150ms ease;
+}
+
+.app-nav-update-button:hover,
+.app-nav-update-button:focus-visible {
+  background-color: var(--app-interactive-hover-bg);
+  border-color: var(--app-interactive-link);
+  outline: 0;
+}
+
+.app-nav-update-button:active {
+  transform: scale(0.97);
+}
+
+/* 药丸已占据右侧起始 margin，紧随其后的锁按钮无需再 margin-left:auto */
+.app-nav-update-button + .app-nav-lock-button {
+  margin-left: 0;
+}
+
 .app-nav-lock-button,
 .app-nav-theme-button,
 .app-nav-profile-button {

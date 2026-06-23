@@ -35,7 +35,7 @@ import type {
   WeReadSyncResult,
 } from '@yomitomo/shared';
 import type { DesktopStoreGetResult } from '../app-store-errors';
-import type { AppUpdateState } from '../app-update-types';
+import type { AppUpdateState, AppUpdateTrigger } from '../app-update-types';
 import type {
   AgentRuntimeTraceEntry,
   AgentRuntimeTraceListInput,
@@ -426,7 +426,7 @@ export type UpdateIpcInvokeMap = {
     result: AppUpdateState;
   };
   'updates:simulate-available': {
-    args: [];
+    args: [trigger?: AppUpdateTrigger];
     result: AppUpdateState;
   };
   'release-notes:get': {

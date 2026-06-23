@@ -15,6 +15,8 @@ export type AppUpdateProgress = {
   bytesPerSecond: number;
 };
 
+export type AppUpdateTrigger = 'manual' | 'auto';
+
 export type AppUpdateState = {
   status: AppUpdateStatus;
   currentVersion: string;
@@ -24,4 +26,5 @@ export type AppUpdateState = {
   checkedAt?: string;
   message?: string;
   progress?: AppUpdateProgress;
+  trigger?: AppUpdateTrigger;
 };

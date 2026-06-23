@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ReleaseNoteHighlight } from '@yomitomo/shared';
-import { UpdateReleaseDialogView } from '../shell/app-update-dialog';
+import type { DesktopStore, ReleaseNoteHighlight } from '@yomitomo/shared';
+import type { AppUpdateState } from '../../../app-update-types';
+import { UpdateReleaseDialog, UpdateReleaseDialogView } from '../shell/app-update-dialog';
 import { initializeAppI18n } from '../i18n/app-i18n';
 
 beforeEach(() => {
@@ -97,5 +98,50 @@ describe('UpdateReleaseDialogView', () => {
     expect(screen.getByText('v0.7.0')).toBeTruthy();
     expect(screen.getByText('Yomitomo 已更新到最新版本。')).toBeTruthy();
     expect(screen.queryByText('修复进度回退')).toBeNull();
+  });
+});
+
+describe('UpdateReleaseDialog before-update gating', () => {
+  let emitUpdateStatus: ((state: AppUpdateState) => void) | null = null;
+
+  const renderContainer = () => {
+    emitUpdateStatus = null;
+    const store = {
+      settings: { lastSeenVersion: '0.8.0', uiLanguage: 'zh-CN' },
+    } as unknown as DesktopStore;
+    vi.stubGlobal('yomitomoDesktop', {
+      getAppInfo: vi.fn().mockResolvedValue({ desktopVersion: '0.8.0' }),
+      getReleaseNote: vi.fn().mockResolvedValue(null),
+      onUpdateStatus: (callback: (state: AppUpdateState) => void) => {
+        emitUpdateStatus = callback;
+        return () => undefined;
+      },
+      downloadUpdate: vi.fn().mockResolvedValue(undefined),
+    });
+    render(<UpdateReleaseDialog store={store} onSaveSettings={vi.fn().mockResolvedValue(store)} />);
+  };
+
+  const available = (trigger: AppUpdateState['trigger']): AppUpdateState => ({
+    status: 'available',
+    currentVersion: '0.8.0',
+    availableVersion: '0.9.0',
+    trigger,
+  });
+
+  it('does not pop the dialog for an auto-check hit', async () => {
+    renderContainer();
+    await act(async () => {
+      emitUpdateStatus?.(available('auto'));
+    });
+    expect(screen.queryByText('发现新版本')).toBeNull();
+  });
+
+  it('pops the dialog for a manual-check hit', async () => {
+    renderContainer();
+    await act(async () => {
+      emitUpdateStatus?.(available('manual'));
+    });
+    expect(await screen.findByText('发现新版本')).toBeTruthy();
+    expect(screen.getByText('v0.9.0')).toBeTruthy();
   });
 });

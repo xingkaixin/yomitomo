@@ -4,7 +4,7 @@ import electronUpdater, {
   type UpdateDownloadedEvent,
   type UpdateInfo,
 } from 'electron-updater';
-import type { AppUpdateState } from '../../app-update-types';
+import type { AppUpdateState, AppUpdateTrigger } from '../../app-update-types';
 import { logError, logInfo } from './logger';
 
 const { autoUpdater } = electronUpdater;
@@ -17,6 +17,8 @@ let notifyUpdateState: (state: AppUpdateState) => void = () => undefined;
 let listenersRegistered = false;
 let checkPromise: Promise<AppUpdateState> | null = null;
 let downloadPromise: Promise<AppUpdateState> | null = null;
+// 记录本次检查来源，供 update-available 区分模态/常驻入口；事件回调拿不到 trigger 故用模块级状态承接。
+let pendingTrigger: AppUpdateTrigger = 'manual';
 
 export function configureAppUpdater(notify: (state: AppUpdateState) => void) {
   notifyUpdateState = notify;
@@ -71,20 +73,23 @@ export function getAppUpdateState() {
 
 // 开发用：不走真实检查，直接注入一个「发现新版本」状态并广播，
 // 触发更新前弹窗（A 场景）走与生产一致的 onUpdateStatus 链路。仅开发环境生效。
-export function simulateUpdateAvailable() {
+export function simulateUpdateAvailable(trigger: AppUpdateTrigger = 'manual') {
   if (app.isPackaged) return updateState;
+  pendingTrigger = trigger;
   return setUpdateState({
     status: 'available',
     availableVersion: app.getVersion(),
     checkedAt: new Date().toISOString(),
+    trigger,
   });
 }
 
-export async function checkForAppUpdates() {
+export async function checkForAppUpdates(trigger: AppUpdateTrigger = 'manual') {
   const unsupported = supportedState();
   if (unsupported) return setUpdateState(unsupported);
   if (checkPromise) return checkPromise;
 
+  pendingTrigger = trigger;
   checkPromise = autoUpdater
     .checkForUpdates()
     .then(() => updateState)
@@ -195,6 +200,7 @@ function updateAvailableState(info: UpdateInfo): AppUpdateState {
     releaseName: info.releaseName,
     releaseDate: info.releaseDate,
     checkedAt: new Date().toISOString(),
+    trigger: pendingTrigger,
   };
 }
 

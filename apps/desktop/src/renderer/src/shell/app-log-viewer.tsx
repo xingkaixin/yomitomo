@@ -54,11 +54,18 @@ const feedbackUrl = 'https://github.com/xingkaixin/yomitomo/issues';
 const thirdPartyPackages = parseThirdPartyNotices(thirdPartyNoticesRaw);
 type AppT = ReturnType<typeof useTranslation>['t'];
 
-// 开发用：注入「发现新版本」状态，即时弹出更新前弹窗（A 场景），无需重启。
+// 开发用：注入「发现新版本」状态，无需重启。
+// manual 走更新前弹窗（A 场景）；auto 只点亮常驻入口、不弹窗（自动检查场景）。
 async function handleSimulatePreUpdate() {
   const desktop = window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined;
   if (typeof desktop?.simulateUpdateAvailable !== 'function') return;
-  await desktop.simulateUpdateAvailable();
+  await desktop.simulateUpdateAvailable('manual');
+}
+
+async function handleSimulateAutoUpdate() {
+  const desktop = window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined;
+  if (typeof desktop?.simulateUpdateAvailable !== 'function') return;
+  await desktop.simulateUpdateAvailable('auto');
 }
 
 export function AboutSettings({
@@ -244,6 +251,9 @@ export function AboutSettings({
             </Button>
             <Button className="action-button" type="button" onClick={handleSimulatePreUpdate}>
               {t('about.dev.simulateBefore')}
+            </Button>
+            <Button className="action-button" type="button" onClick={handleSimulateAutoUpdate}>
+              {t('about.dev.simulateAuto')}
             </Button>
             <p className="about-update-status">
               {devResetDone ? t('about.dev.resetDone') : t('about.dev.hint')}
