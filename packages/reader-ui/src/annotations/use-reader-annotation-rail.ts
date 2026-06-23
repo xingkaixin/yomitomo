@@ -21,6 +21,7 @@ export type UseReaderAnnotationRailOptions = {
   activeId: string | null;
   annotationRailLayout?: AnnotationRailLayout;
   annotationRailViewportHeight?: number;
+  annotationRailViewportTop?: number;
   annotations: Annotation[];
   articleId: string;
   autoExpandNewAnnotations?: boolean;
@@ -46,6 +47,7 @@ export function useReaderAnnotationRail({
   activeId,
   annotationRailLayout,
   annotationRailViewportHeight,
+  annotationRailViewportTop,
   annotations,
   articleId,
   autoExpandNewAnnotations = true,
@@ -102,9 +104,13 @@ export function useReaderAnnotationRail({
   const boundedAnnotationRailLayout = React.useMemo(
     () =>
       annotationRailViewportHeight && annotationRailLayout
-        ? { ...annotationRailLayout, viewportHeight: annotationRailViewportHeight }
+        ? {
+            ...annotationRailLayout,
+            viewportHeight: annotationRailViewportHeight,
+            viewportTop: annotationRailViewportTop,
+          }
         : annotationRailLayout,
-    [annotationRailLayout, annotationRailViewportHeight],
+    [annotationRailLayout, annotationRailViewportHeight, annotationRailViewportTop],
   );
   const annotationRailItems = React.useMemo(
     () =>

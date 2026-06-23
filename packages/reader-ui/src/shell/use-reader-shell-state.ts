@@ -38,6 +38,7 @@ export type UseReaderShellStateOptions = {
   activeId: string | null;
   annotationRailLayoutOverride?: AnnotationRailLayout;
   annotationRailViewportHeight?: number;
+  annotationRailViewportTop?: number;
   annotations: Annotation[];
   articleId: string;
   articleRef: React.RefObject<HTMLElement | null>;
@@ -78,6 +79,7 @@ export function useReaderShellState({
   activeId,
   annotationRailLayoutOverride,
   annotationRailViewportHeight,
+  annotationRailViewportTop,
   annotations,
   articleId,
   articleRef,
@@ -120,6 +122,7 @@ export function useReaderShellState({
     activeId,
     annotationRailLayout,
     annotationRailViewportHeight,
+    annotationRailViewportTop,
     annotations,
     articleId,
     autoExpandNewAnnotations,

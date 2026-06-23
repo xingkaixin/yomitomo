@@ -40,6 +40,7 @@ export type AnnotationRailLayout = {
   railWidth: number;
   rightRailLeft: number;
   viewportHeight?: number;
+  viewportTop?: number;
 };
 
 type GroupRect = {
@@ -113,6 +114,7 @@ const minRailSpacing: AnnotationRailSpacing = {
   stackTopOffset: 24,
   stackXOffset: 8,
 };
+const railViewportOverscan = 96;
 
 export function agentQueueKey(annotation: Annotation) {
   return annotation.agentId || annotation.agentUsername || '__agent__';
@@ -317,6 +319,7 @@ export function buildAnnotationRailItems(
     groupSides,
     activeId,
     noteHeights,
+    railLayout?.viewportTop,
     railLayout?.viewportHeight,
   );
   const compactedRailGroups = railGroups.map((railGroup, index) => ({
@@ -332,6 +335,7 @@ export function buildAnnotationRailItems(
     compactedRailGroups,
     groupSides,
     groupSpacings,
+    railLayout?.viewportTop,
     railLayout?.viewportHeight,
   );
 
@@ -659,19 +663,25 @@ function railGroupsShouldStack(
 }
 
 function resolveRailGroupSpacings(
-  railGroups: Array<{ group: Array<{ annotation: Annotation }>; height: number }>,
+  railGroups: Array<{
+    desiredTop: number;
+    group: Array<{ annotation: Annotation }>;
+    height: number;
+  }>,
   groupSides: AnnotationRailSide[],
   activeId: string | null,
   noteHeights: Record<string, number>,
+  viewportTop = 0,
   viewportHeight = 0,
 ) {
   const spacings = railGroups.map(() => defaultRailSpacing);
-  if (!Number.isFinite(viewportHeight) || viewportHeight <= 0) return spacings;
+  const viewport = railViewportBounds(viewportTop, viewportHeight);
+  if (!viewport) return spacings;
 
   for (const side of ['left', 'right'] as const) {
     const indexes = groupSides
       .map((groupSide, index) => (groupSide === side ? index : -1))
-      .filter((index) => index >= 0);
+      .filter((index) => index >= 0 && railGroupNearViewport(railGroups[index], viewport));
     if (indexes.length === 0) continue;
 
     const defaultHeight = railSideHeight(
@@ -681,11 +691,11 @@ function resolveRailGroupSpacings(
       activeId,
       noteHeights,
     );
-    if (defaultHeight <= viewportHeight) continue;
+    if (defaultHeight <= viewport.height) continue;
 
     const gapCompressionCapacity =
       indexes.length * (defaultRailSpacing.groupGap - minRailSpacing.groupGap);
-    const gapShortage = defaultHeight - viewportHeight;
+    const gapShortage = defaultHeight - viewport.height;
     const groupGap =
       gapCompressionCapacity > 0
         ? defaultRailSpacing.groupGap -
@@ -699,7 +709,7 @@ function resolveRailGroupSpacings(
       activeId,
       noteHeights,
     );
-    if (compactGapHeight <= viewportHeight) {
+    if (compactGapHeight <= viewport.height) {
       applyRailSpacing(spacings, indexes, compactGapSpacing);
       continue;
     }
@@ -710,7 +720,7 @@ function resolveRailGroupSpacings(
       groupGap,
       activeId,
       noteHeights,
-      viewportHeight,
+      viewport.height,
     );
     const stackProgress =
       (defaultRailSpacing.stackTopOffset - stackTopOffset) /
@@ -785,45 +795,107 @@ function resolveRailGroupTops(
   railGroups: Array<{ desiredTop: number; height: number }>,
   groupSides: AnnotationRailSide[],
   groupSpacings: AnnotationRailSpacing[],
+  viewportTop = 0,
   viewportHeight = 0,
 ) {
   const groupTops = railGroups.map((group) => group.desiredTop);
-  const viewportBottom = Number.isFinite(viewportHeight) && viewportHeight > 0 ? viewportHeight : 0;
+  const viewport = railViewportBounds(viewportTop, viewportHeight);
   for (const side of ['left', 'right'] as const) {
     const indexes = groupSides
       .map((groupSide, index) => (groupSide === side ? index : -1))
       .filter((index) => index >= 0);
-    for (let listIndex = 1; listIndex < indexes.length; listIndex += 1) {
-      const previousIndex = indexes[listIndex - 1];
-      const currentIndex = indexes[listIndex];
-      const gap = groupSpacings[currentIndex]?.groupGap ?? defaultRailSpacing.groupGap;
-      const previousBottom = groupTops[previousIndex] + railGroups[previousIndex].height + gap;
-      groupTops[currentIndex] = Math.max(groupTops[currentIndex], previousBottom);
-    }
-    if (viewportBottom > 0 && indexes.length > 0) {
-      const lastIndex = indexes[indexes.length - 1];
-      const gap = groupSpacings[lastIndex]?.groupGap ?? defaultRailSpacing.groupGap;
-      const overflow = groupTops[lastIndex] + railGroups[lastIndex].height + gap - viewportBottom;
-      if (overflow > 0) {
-        for (const index of indexes) groupTops[index] = Math.max(0, groupTops[index] - overflow);
-      }
-    }
-    for (let listIndex = indexes.length - 2; listIndex >= 0; listIndex -= 1) {
-      const currentIndex = indexes[listIndex];
-      const nextIndex = indexes[listIndex + 1];
-      const gap = groupSpacings[nextIndex]?.groupGap ?? defaultRailSpacing.groupGap;
-      const nextTop = groupTops[nextIndex] - railGroups[currentIndex].height - gap;
-      groupTops[currentIndex] = Math.max(0, Math.min(groupTops[currentIndex], nextTop));
-    }
-    for (let listIndex = 1; listIndex < indexes.length; listIndex += 1) {
-      const previousIndex = indexes[listIndex - 1];
-      const currentIndex = indexes[listIndex];
-      const gap = groupSpacings[currentIndex]?.groupGap ?? defaultRailSpacing.groupGap;
-      const previousBottom = groupTops[previousIndex] + railGroups[previousIndex].height + gap;
-      groupTops[currentIndex] = Math.max(groupTops[currentIndex], previousBottom);
-    }
+    const viewportIndexes = viewport
+      ? indexes.filter((index) => railGroupNearViewport(railGroups[index], viewport))
+      : indexes;
+    resolveRailGroupTopsForSide(groupTops, railGroups, viewportIndexes, groupSpacings, viewport);
   }
   return groupTops;
+}
+
+function resolveRailGroupTopsForSide(
+  groupTops: number[],
+  railGroups: Array<{ height: number }>,
+  indexes: number[],
+  groupSpacings: AnnotationRailSpacing[],
+  viewport: RailViewportBounds | null,
+) {
+  pushRailGroupsDown(groupTops, railGroups, indexes, groupSpacings, viewport?.top ?? 0);
+  if (viewport) pullRailGroupsIntoViewport(groupTops, railGroups, indexes, groupSpacings, viewport);
+  pushRailGroupsDown(groupTops, railGroups, indexes, groupSpacings, viewport?.top ?? 0);
+}
+
+function pushRailGroupsDown(
+  groupTops: number[],
+  railGroups: Array<{ height: number }>,
+  indexes: number[],
+  groupSpacings: AnnotationRailSpacing[],
+  minTop: number,
+) {
+  if (indexes.length === 0) return;
+  groupTops[indexes[0]] = Math.max(minTop, groupTops[indexes[0]]);
+  for (let listIndex = 1; listIndex < indexes.length; listIndex += 1) {
+    const previousIndex = indexes[listIndex - 1];
+    const currentIndex = indexes[listIndex];
+    const gap = groupSpacings[currentIndex]?.groupGap ?? defaultRailSpacing.groupGap;
+    const previousBottom = groupTops[previousIndex] + railGroups[previousIndex].height + gap;
+    groupTops[currentIndex] = Math.max(minTop, groupTops[currentIndex], previousBottom);
+  }
+}
+
+function pullRailGroupsIntoViewport(
+  groupTops: number[],
+  railGroups: Array<{ height: number }>,
+  indexes: number[],
+  groupSpacings: AnnotationRailSpacing[],
+  viewport: RailViewportBounds,
+) {
+  if (indexes.length === 0) return;
+  const lastIndex = indexes[indexes.length - 1];
+  const gap = groupSpacings[lastIndex]?.groupGap ?? defaultRailSpacing.groupGap;
+  const overflow = groupTops[lastIndex] + railGroups[lastIndex].height + gap - viewport.bottom;
+  if (overflow > 0) {
+    for (const index of indexes)
+      groupTops[index] = Math.max(viewport.top, groupTops[index] - overflow);
+  }
+
+  for (let listIndex = indexes.length - 2; listIndex >= 0; listIndex -= 1) {
+    const currentIndex = indexes[listIndex];
+    const nextIndex = indexes[listIndex + 1];
+    const nextGap = groupSpacings[nextIndex]?.groupGap ?? defaultRailSpacing.groupGap;
+    const nextTop = groupTops[nextIndex] - railGroups[currentIndex].height - nextGap;
+    groupTops[currentIndex] = Math.max(viewport.top, Math.min(groupTops[currentIndex], nextTop));
+  }
+}
+
+type RailViewportBounds = {
+  bottom: number;
+  height: number;
+  top: number;
+};
+
+function railViewportBounds(
+  viewportTop: number,
+  viewportHeight: number,
+): RailViewportBounds | null {
+  if (!Number.isFinite(viewportTop) || !Number.isFinite(viewportHeight) || viewportHeight <= 0) {
+    return null;
+  }
+  const top = Math.max(0, viewportTop);
+  return {
+    bottom: top + viewportHeight,
+    height: viewportHeight,
+    top,
+  };
+}
+
+function railGroupNearViewport(
+  railGroup: { desiredTop: number; height: number },
+  viewport: RailViewportBounds,
+) {
+  return (
+    railGroup.desiredTop <= viewport.bottom + railViewportOverscan &&
+    railGroup.desiredTop + railGroup.height >= viewport.top - railViewportOverscan
+  );
 }
 
 function estimateRailGroupHeight(

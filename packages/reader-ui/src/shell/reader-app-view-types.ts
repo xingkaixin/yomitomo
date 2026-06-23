@@ -103,6 +103,7 @@ export type ReaderAnnotationModel = {
   activeConnection: ActiveConnection | null;
   railLayoutOverride?: AnnotationRailLayout;
   railViewportHeight?: number;
+  railViewportTop?: number;
   annotationTotals: { annotations: number; distillations: number };
   annotations: Annotation[];
   autoExpandNewAnnotations?: boolean;

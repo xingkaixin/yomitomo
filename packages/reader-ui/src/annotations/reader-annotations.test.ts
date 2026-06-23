@@ -461,6 +461,44 @@ describe('reader annotation filters', () => {
     expect(secondOffset).toBeGreaterThanOrEqual(8);
   });
 
+  it('keeps visible scrolled rail cards inside the current viewport', () => {
+    const viewportTop = 2050;
+    const viewportHeight = 620;
+    const annotations = [
+      annotation('upper', { anchor: anchor('upper', 0, 10) }),
+      annotation('middle', { anchor: anchor('middle', 20, 30) }),
+      annotation('lower', { anchor: anchor('lower', 40, 50) }),
+      annotation('far-below', { anchor: anchor('far below', 60, 70) }),
+    ];
+    const items = buildAnnotationRailItems(
+      annotations,
+      [
+        box('upper', { left: 120, top: 2140 }),
+        box('middle', { left: 140, top: 2290 }),
+        box('lower', { left: 130, top: 2460 }),
+        box('far-below', { left: 120, top: 3600 }),
+      ],
+      null,
+      { upper: 220, middle: 220, lower: 220, 'far-below': 220 },
+      {
+        articleCenterX: 500,
+        leftRailLeft: 24,
+        mode: 'both',
+        railWidth: 320,
+        rightRailLeft: 980,
+        viewportHeight,
+        viewportTop,
+      },
+    );
+    const byId = new Map(items.map((item) => [item.annotation.id, item]));
+    const lowerTop = Number(byId.get('lower')?.style.top);
+    const farBelowTop = Number(byId.get('far-below')?.style.top);
+
+    expect(lowerTop).toBeGreaterThanOrEqual(viewportTop);
+    expect(lowerTop + 220).toBeLessThanOrEqual(viewportTop + viewportHeight);
+    expect(farBelowTop).toBe(3590);
+  });
+
   it('resolves navigation around an explicit reference annotation', () => {
     const annotations = [annotation('first'), annotation('second'), annotation('third')];
 
