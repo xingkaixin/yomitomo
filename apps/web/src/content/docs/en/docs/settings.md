@@ -7,7 +7,7 @@ Settings covers the product boundaries: UI language, external model providers, t
 
 ## Model Providers
 
-Yomitomo supports preset providers and custom OpenAI-compatible providers. When adding a provider, enter its name, base URL, API key, model, and reasoning effort.
+Yomitomo supports preset providers and custom OpenAI-compatible providers. Configuring a provider takes two steps: first choose a protocol provider, then add the connection details and models.
 
 Preset providers include:
 
@@ -22,20 +22,29 @@ Preset providers include:
 - Volcengine
 - Xiaomi MiMo
 
+After choosing a provider in the first step, the second step asks for its name, base URL, and API key, plus the models to use. Once an API key is entered, you can click "Fetch" to pull the available model list from the provider; if fetching fails, preset models are shown as fallback candidates. Preset models are tagged "Preset" and custom models "Custom". You can add, edit, and delete custom models, and hide preset models you do not need.
+
 API keys are saved in the system keyring. SQLite only stores provider settings and key references.
 
 ## WeRead
 
 WeRead sync requires a separate WeRead API key. See "[Get a WeRead API Key](/en/docs/weread-api-key/)".
 
+Once the API key is set, choose a sync mode:
+
+- **Manual**: sync only when you click "Sync WeRead" in the library.
+- **Automatic**: sync once after startup, then every 30 minutes in the background.
+
+Automatic mode does not collide with manual sync: if a sync is still running, the scheduled tick is skipped.
+
 ## Task Routing
 
 After configuring providers, assign models to different tasks:
 
-| Task | Purpose |
-| --- | --- |
+| Task               | Purpose                                              |
+| ------------------ | ---------------------------------------------------- |
 | Reading assistants | Highlight thought generation and `@` mention replies |
-| Review assistants | Evidence, logic, and clarity review |
+| Review assistants  | Evidence, logic, and clarity review                  |
 
 ## Language
 
@@ -67,7 +76,11 @@ Settings > General can allow or block web-article import access to localhost, pr
 
 ## App Updates
 
-Yomitomo supports update flows on macOS and Windows. The app checks for new versions at startup, and you can also check manually in Settings > About. When an update is available, release notes for that version are shown (fetched from the website before update, bundled locally after update). Public macOS installers are signed and notarized.
+Yomitomo supports update flows on macOS and Windows. The app checks for new versions automatically after startup, then silently every 24 hours. When an update is available it does not open a dialog to interrupt reading; instead a "Update available" badge appears in the top navigation, and clicking it opens Settings > About to download and install. You can also check manually with "Check for updates" in Settings > About. When an update is available, release notes for that version are shown (fetched from the website before update, bundled locally after update). Public macOS installers are signed and notarized.
+
+## Privacy and Telemetry
+
+The Privacy group in Settings > General provides a "Send anonymous version and system metrics" toggle, on by default. When enabled, Yomitomo sends an anonymous heartbeat at most once per day containing only the app version, OS version, and architecture, used to understand active version distribution. It does not collect reading content, book titles, annotations, file paths, or AI conversations. You can turn it off at any time to stop reporting.
 
 ## Assistant Diagnostics
 
