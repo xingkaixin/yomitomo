@@ -1649,8 +1649,11 @@ describe('ReadingLibrary home', () => {
       });
     });
 
-    await waitFor(() =>
-      expect(playAppSoundEffect).toHaveBeenCalledWith('reader.distillation_committed', settings),
+    await waitFor(() => expect(playAppSoundEffect).toHaveBeenCalledTimes(1));
+    expect(playAppSoundEffect).toHaveBeenNthCalledWith(
+      1,
+      'reader.distillation_committed',
+      settings,
     );
 
     await act(async () => {
@@ -1661,10 +1664,12 @@ describe('ReadingLibrary home', () => {
       });
     });
 
-    await waitFor(() =>
-      expect(playAppSoundEffect).toHaveBeenCalledWith('reader.distillation_committed', settings),
+    await waitFor(() => expect(playAppSoundEffect).toHaveBeenCalledTimes(2));
+    expect(playAppSoundEffect).toHaveBeenNthCalledWith(
+      2,
+      'reader.distillation_committed',
+      settings,
     );
-    expect(playAppSoundEffect).toHaveBeenCalledTimes(2);
 
     await act(async () => {
       onCommitted?.({
