@@ -15,7 +15,6 @@ Preset providers include:
 - Anthropic
 - Google Gemini
 - DeepSeek
-- MiniMax
 - Alibaba Cloud Bailian
 - Moonshot
 - Zhipu
@@ -24,7 +23,7 @@ Preset providers include:
 
 After choosing a provider in the first step, the second step asks for its name, base URL, and API key, plus the models to use. Once an API key is entered, you can click "Fetch" to pull the available model list from the provider; if fetching fails, preset models are shown as fallback candidates. Preset models are tagged "Preset" and custom models "Custom". You can add, edit, and delete custom models, and hide preset models you do not need.
 
-API keys are saved in the system keyring. SQLite only stores provider settings and key references.
+API keys are stored securely by the operating system—Keychain on macOS and Credential Manager on Windows. Yomitomo keeps only the provider settings and a reference to the key on your machine, never the key itself.
 
 ## WeRead
 
@@ -60,7 +59,7 @@ Settings > General lets you toggle in-app sound effects and adjust volume—for 
 
 ## App Lock
 
-Settings > General lets you enable App Lock and set a PIN. When enabled, Yomitomo shows a lock screen and requires the PIN before continuing into the local reading workspace. PIN verification material is stored in the system keyring; SQLite only stores the needed lock state.
+Settings > General lets you enable App Lock and set a PIN. When enabled, Yomitomo shows a lock screen and requires the PIN before continuing into the local reading workspace. PIN verification material is stored securely by the operating system—Keychain on macOS and Credential Manager on Windows.
 
 ## Shortcuts
 
@@ -68,7 +67,7 @@ Message sending can use either `Enter` or `Cmd/Ctrl+Enter`. Reader selection act
 
 ## Data Management
 
-Data management provides entries for the data directory, logs, and database file. It can configure log retention, clear logs, and back up or restore the SQLite database. Database backups do not include model API keys stored in the system keyring or separately saved ebook source files.
+Data management provides entries for the data directory, logs, and database file. It can configure log retention, clear logs, and back up or restore the SQLite database. Database backups do not include model API keys stored in Keychain or Credential Manager, or separately saved ebook source files.
 
 ## Web Import Safety
 

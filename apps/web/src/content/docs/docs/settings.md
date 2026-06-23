@@ -15,7 +15,6 @@ Yomitomo 支持预设供应商和 OpenAI 兼容自定义供应商。配置供应
 - Anthropic
 - Google Gemini
 - DeepSeek
-- MiniMax
 - 阿里云百炼
 - Moonshot
 - 智谱
@@ -24,7 +23,7 @@ Yomitomo 支持预设供应商和 OpenAI 兼容自定义供应商。配置供应
 
 第一步选择服务商后，第二步填写名称、Base URL 和 API Key，并配置模型。填写 API Key 后可以点击「获取」从供应商拉取可用模型列表；拉取失败时会回退到预设模型作为候选。预设模型会标注「预设」，自定义模型标注「自定义」。你可以新增、编辑、删除自定义模型，也可以隐藏不需要的预设模型。
 
-API Key 会保存在系统 keyring 中，SQLite 只保留 provider 配置和 key 引用。
+API Key 会由系统安全存储：在 macOS 上保存到钥匙串，在 Windows 上保存到凭据管理器。Yomitomo 只在本机保留 provider 配置和对密钥的引用，不保存密钥本身。
 
 ## 微信读书
 
@@ -60,7 +59,7 @@ API Key 会保存在系统 keyring 中，SQLite 只保留 provider 配置和 key
 
 ## 应用锁
 
-「设置 > 通用」可开启应用锁并设置 PIN。开启后，Yomitomo 会在锁定界面要求输入 PIN 才能继续访问本地阅读空间。PIN 校验材料保存在系统 keyring 中，SQLite 只保存必要的锁定状态。
+「设置 > 通用」可开启应用锁并设置 PIN。开启后，Yomitomo 会在锁定界面要求输入 PIN 才能继续访问本地阅读空间。PIN 校验材料由系统安全存储：在 macOS 上保存到钥匙串，在 Windows 上保存到凭据管理器。
 
 ## 快捷键
 
@@ -68,7 +67,7 @@ API Key 会保存在系统 keyring 中，SQLite 只保留 provider 配置和 key
 
 ## 数据管理
 
-数据管理提供查看数据目录、日志和数据库文件的入口，可设置日志保留时间、清空日志，也支持备份和还原 SQLite 数据库。数据库备份不包含系统 keyring 中的模型 API Key，也不包含单独保存的电子书原文件。
+数据管理提供查看数据目录、日志和数据库文件的入口，可设置日志保留时间、清空日志，也支持备份和还原 SQLite 数据库。数据库备份不包含保存在系统钥匙串或凭据管理器中的模型 API Key，也不包含单独保存的电子书原文件。
 
 ## 网页导入安全
 
