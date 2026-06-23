@@ -15,7 +15,11 @@ import type {
   UserProfile,
   WeReadBook,
 } from '@yomitomo/shared';
-import { ReadingLibrary, groupLibraryArticles } from '../reading-library/app-reading-library';
+import {
+  ReadingLibrary,
+  articleWithDistillationAnimationStart,
+  groupLibraryArticles,
+} from '../reading-library/app-reading-library';
 import { librarySession } from '../reading-library/app-reading-library-session';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { defaultTheme } from '../theme/app-theme';
@@ -321,6 +325,39 @@ describe('groupLibraryArticles', () => {
       { label: '2 条沉淀', ids: ['two_distillations'] },
       { label: '暂无沉淀', ids: ['no_distillations'] },
     ]);
+  });
+});
+
+describe('articleWithDistillationAnimationStart', () => {
+  it('starts publish morph from the unpublished annotation card state', () => {
+    const published = annotationWithPublishedDistillation('note_1');
+    const result = articleWithDistillationAnimationStart(article({ annotations: [published] }), {
+      articleId: 'article_1',
+      annotationId: 'note_1',
+      distillation: published.distillation,
+      transition: 'publish',
+    });
+
+    expect(result.annotations[0]?.distillation?.status).toBe('unpublished');
+  });
+
+  it('starts unpublish morph from the published distillation card state', () => {
+    const unpublished = {
+      ...annotationWithPublishedDistillation('note_1'),
+      distillation: {
+        status: 'unpublished' as const,
+        content: '沉淀 note_1',
+        publishedAt: '2026-05-09T12:04:00.000Z',
+      },
+    };
+    const result = articleWithDistillationAnimationStart(article({ annotations: [unpublished] }), {
+      articleId: 'article_1',
+      annotationId: 'note_1',
+      distillation: unpublished.distillation,
+      transition: 'unpublish',
+    });
+
+    expect(result.annotations[0]?.distillation?.status).toBe('published');
   });
 });
 

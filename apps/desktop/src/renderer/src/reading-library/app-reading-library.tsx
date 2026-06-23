@@ -383,7 +383,7 @@ export function ReadingLibrary({
       return;
     }
     setSelectedArticleId(fullArticle.id);
-    setSelectedArticle(fullArticle);
+    setSelectedArticle(articleWithDistillationAnimationStart(fullArticle, event));
     setSelectedWeReadBook(null);
     setRouteTransition('enter-source');
     setActiveShelf('source');
@@ -413,8 +413,8 @@ export function ReadingLibrary({
 
   function playDistillationMorph(event: AnnotationDistillationCommittedEvent) {
     const token = Date.now();
-    const PUBLISH_OUT_MS = 150;
-    const STAMP_IN_MS = 620;
+    const PUBLISH_OUT_MS = 110;
+    const STAMP_IN_MS = 360;
     const REVEAL_OUT_MS = 620;
     const UPDATE_MS = 850;
 
@@ -990,6 +990,28 @@ function articleWithCommittedDistillation(
         distillation: {
           ...annotation.distillation,
           status: event.transition === 'unpublish' ? 'unpublished' : 'published',
+        },
+      };
+    }),
+  };
+}
+
+export function articleWithDistillationAnimationStart(
+  article: ArticleRecord,
+  event: AnnotationDistillationCommittedEvent,
+): ArticleRecord {
+  if (event.transition === 'update') return article;
+  return {
+    ...article,
+    annotations: article.annotations.map((annotation) => {
+      if (annotation.id !== event.annotationId) return annotation;
+      const distillation = event.distillation || annotation.distillation;
+      if (!distillation) return annotation;
+      return {
+        ...annotation,
+        distillation: {
+          ...distillation,
+          status: event.transition === 'unpublish' ? 'published' : 'unpublished',
         },
       };
     }),
