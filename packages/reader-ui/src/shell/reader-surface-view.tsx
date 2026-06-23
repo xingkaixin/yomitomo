@@ -55,7 +55,12 @@ export type ReaderSurfaceViewProps = {
   distillationAnimation?: {
     annotationId: string;
     transition: 'publish' | 'update' | 'unpublish';
-    phase: 'morph-out' | 'morph-in' | 'update' | 'unpublish-wobble';
+    phase: 'morph-out' | 'morph-in' | 'update';
+    overlayDistillation?: {
+      content: string;
+      publishedAt?: string;
+      updatedAt?: string;
+    };
     token: number;
   } | null;
   exitingAnnotationIds: Set<string>;

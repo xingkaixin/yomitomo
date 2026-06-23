@@ -1,5 +1,5 @@
 import React from 'react';
-import type { HighlightBox } from '@yomitomo/core';
+import { annotationIdsAtHighlightPoint, type HighlightBox } from '@yomitomo/core';
 import type { Annotation, SelectionActionShortcuts } from '@yomitomo/shared';
 import type { AnnotationRailLayout } from '../annotations/reader-annotations';
 import { useReaderAnnotationRail } from '../annotations/use-reader-annotation-rail';
@@ -26,6 +26,7 @@ const READER_ANNOTATION_RAIL_GAP = 20;
 const READER_MIN_ANNOTATION_RAIL_WIDTH = 220;
 const READER_ANNOTATION_RAIL_WIDTH = 360;
 const READER_MIN_ASIDE_ARTICLE_WIDTH = 600;
+const READER_HIGHLIGHT_POINTER_PRESERVE_PADDING = 8;
 
 const emptyAnnotationNavigation: AnnotationNavigationState = {
   currentIndex: 0,
@@ -38,6 +39,7 @@ export type UseReaderShellStateOptions = {
   activeId: string | null;
   annotationRailLayoutOverride?: AnnotationRailLayout;
   annotationRailViewportHeight?: number;
+  annotationRailViewportTop?: number;
   annotations: Annotation[];
   articleId: string;
   articleRef: React.RefObject<HTMLElement | null>;
@@ -78,6 +80,7 @@ export function useReaderShellState({
   activeId,
   annotationRailLayoutOverride,
   annotationRailViewportHeight,
+  annotationRailViewportTop,
   annotations,
   articleId,
   articleRef,
@@ -120,6 +123,7 @@ export function useReaderShellState({
     activeId,
     annotationRailLayout,
     annotationRailViewportHeight,
+    annotationRailViewportTop,
     annotations,
     articleId,
     autoExpandNewAnnotations,
@@ -129,6 +133,25 @@ export function useReaderShellState({
     noteRefs,
     onAnnotationLayoutChange,
   });
+  const shouldPreserveActiveAnnotationOnPointerDown = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas || boxes.length === 0) return false;
+
+      const canvasRect = canvas.getBoundingClientRect();
+      return (
+        annotationIdsAtHighlightPoint(
+          boxes,
+          {
+            x: event.clientX - canvasRect.left,
+            y: event.clientY - canvasRect.top,
+          },
+          READER_HIGHLIGHT_POINTER_PRESERVE_PADDING,
+        ).length > 0
+      );
+    },
+    [boxes, canvasRef],
+  );
   const [annotationNavigation, setAnnotationNavigation] = React.useState<AnnotationNavigationState>(
     () =>
       onResolveAnnotationNavigation?.({
@@ -160,6 +183,7 @@ export function useReaderShellState({
     onOpenComposer,
     onToggleSettings,
     readerChatOpen,
+    shouldPreserveActiveAnnotationOnPointerDown,
   });
 
   React.useEffect(() => {

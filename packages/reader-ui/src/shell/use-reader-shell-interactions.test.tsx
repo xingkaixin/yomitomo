@@ -47,6 +47,7 @@ function ShellProbe({
   onOpenReaderChat = vi.fn(),
   onOpenComposer = vi.fn(),
   onToggleSettings = vi.fn(),
+  shouldPreserveActiveAnnotationOnPointerDown,
 }: Partial<Parameters<typeof useReaderShellInteractions>[0]>) {
   const shell = useReaderShellInteractions({
     activeId,
@@ -68,6 +69,7 @@ function ShellProbe({
     onOpenComposer,
     onToggleSettings,
     readerChatOpen,
+    shouldPreserveActiveAnnotationOnPointerDown,
   });
 
   return (
@@ -185,6 +187,25 @@ describe('useReaderShellInteractions', () => {
     fireEvent.pointerDown(screen.getByTestId('outside'));
 
     expect(onClearSelection).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps active annotation when pointer down lands on highlight geometry', () => {
+    const onClearActiveAnnotation = vi.fn();
+    const onCloseHighlightChoice = vi.fn();
+
+    render(
+      <ShellProbe
+        activeId="annotation-1"
+        visibleAnnotationIds={new Set(['annotation-1'])}
+        onClearActiveAnnotation={onClearActiveAnnotation}
+        onCloseHighlightChoice={onCloseHighlightChoice}
+        shouldPreserveActiveAnnotationOnPointerDown={() => true}
+      />,
+    );
+
+    fireEvent.pointerDown(screen.getByTestId('outside'));
+
+    expect(onClearActiveAnnotation).not.toHaveBeenCalled();
   });
 
   it('uses the latest selection action when outside pointer handling changes', () => {

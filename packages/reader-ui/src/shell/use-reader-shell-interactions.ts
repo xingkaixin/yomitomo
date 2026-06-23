@@ -44,6 +44,9 @@ export type UseReaderShellInteractionsOptions = {
   onOpenComposer: (action: SelectionAction) => void;
   onToggleSettings: () => void;
   readerChatOpen?: boolean;
+  shouldPreserveActiveAnnotationOnPointerDown?: (
+    event: React.PointerEvent<HTMLDivElement>,
+  ) => boolean;
 };
 
 export type ReaderShellInteractions = {
@@ -71,6 +74,7 @@ export function useReaderShellInteractions({
   onOpenComposer,
   onToggleSettings,
   readerChatOpen = false,
+  shouldPreserveActiveAnnotationOnPointerDown,
 }: UseReaderShellInteractionsOptions): ReaderShellInteractions {
   React.useEffect(() => {
     if (!activeId || visibleAnnotationIds.has(activeId)) return;
@@ -168,6 +172,7 @@ export function useReaderShellInteractions({
 
       if (!activeId) return;
       if (target.closest(activeAnnotationPreserveSelector)) return;
+      if (shouldPreserveActiveAnnotationOnPointerDown?.(event)) return;
 
       onCloseHighlightChoice();
       onClearActiveAnnotation();
@@ -182,6 +187,7 @@ export function useReaderShellInteractions({
       onCloseFloatingPanels,
       onCloseHighlightChoice,
       settingsOpen,
+      shouldPreserveActiveAnnotationOnPointerDown,
       selectionAction,
     ],
   );

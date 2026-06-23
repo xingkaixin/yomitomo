@@ -28,8 +28,19 @@ const theme: ReaderTheme = {
     itemHoverBackground: 'rgba(255,253,248,.82)',
   },
   note: {
+    annotationAccent: 'var(--app-reader-accent-strong)',
+    annotationBorder:
+      'color-mix(in srgb,var(--app-reader-accent-strong) 24%,var(--app-reader-note-border))',
+    annotationMat: 'color-mix(in srgb,var(--app-reader-accent) 20%,var(--app-reader-paper))',
+    annotationSurface: 'var(--app-reader-paper)',
     background: 'rgba(255,253,248,.88)',
     border: 'rgba(40,35,29,.1)',
+    distillationAccent: 'var(--app-reader-accent-strong)',
+    distillationBorder:
+      'color-mix(in srgb,var(--app-reader-accent-strong) 46%,var(--app-reader-note-border))',
+    distillationMat: 'color-mix(in srgb,var(--app-reader-accent) 34%,var(--app-reader-note-bg))',
+    distillationSurface: 'var(--app-reader-paper)',
+    distillationTabForeground: '#fffdf8',
     shadow: '0 8px 24px rgba(40,35,29,.07)',
     quoteBackground: 'rgba(234,216,157,.18)',
     quoteText: '#3f352c',

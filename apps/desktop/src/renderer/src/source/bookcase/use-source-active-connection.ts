@@ -15,29 +15,15 @@ type UseSourceActiveConnectionInput = {
   userProfile: UserProfile;
 };
 
+const NOTE_CONNECTION_TARGET_OFFSET = 34;
+
 function connectionTargetForNote(noteElement: HTMLElement, readerRect: DOMRect) {
   const noteRect = noteElement.getBoundingClientRect();
   const side = noteElement.dataset.railSide === 'left' ? 'left' : 'right';
-  const offsetParent = noteElement.offsetParent;
-  if (!(offsetParent instanceof HTMLElement)) {
-    return {
-      side,
-      x: (side === 'left' ? noteRect.right : noteRect.left) - readerRect.left,
-      y: noteRect.top - readerRect.top + Math.min(72, noteRect.height / 2),
-    };
-  }
-
-  const parentRect = offsetParent.getBoundingClientRect();
-  const top = Number.parseFloat(noteElement.style.top);
-  const layoutTop = Number.isFinite(top) ? top : noteElement.offsetTop;
   return {
     side,
-    x:
-      parentRect.left -
-      readerRect.left +
-      noteElement.offsetLeft +
-      (side === 'left' ? noteElement.offsetWidth : 0),
-    y: parentRect.top - readerRect.top + layoutTop + Math.min(72, noteRect.height / 2),
+    x: (side === 'left' ? noteRect.right : noteRect.left) - readerRect.left,
+    y: noteRect.top - readerRect.top + Math.min(NOTE_CONNECTION_TARGET_OFFSET, noteRect.height / 2),
   };
 }
 

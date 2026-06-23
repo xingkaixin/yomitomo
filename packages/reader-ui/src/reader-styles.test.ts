@@ -251,7 +251,7 @@ describe('reader embedded styles', () => {
 
   it('keeps long annotation text at readable body weights', () => {
     expect(readerConversationStyles).toContain(
-      '.reader-note-quote-text{display:block;color:var(--reader-ink);font-size:14px;font-style:normal;font-weight:690;line-height:1.72',
+      '.reader-note-quote-text{display:block;min-width:0;max-width:100%;overflow-wrap:anywhere;color:var(--reader-ink);font-size:14.5px;font-style:normal;font-weight:600;line-height:1.72;text-wrap:pretty;word-break:break-word}',
     );
     expect(readerConversationStyles).not.toContain(
       '.reader-note-quote:hover .reader-note-quote-text',
@@ -276,29 +276,57 @@ describe('reader embedded styles', () => {
       '.reader-action-menu-button:hover,.reader-action-menu.is-open .reader-action-menu-button{background:var(--reader-paper-hover);color:var(--reader-ink)}',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-note-distillation-menu .reader-action-menu-button:hover,.reader-note-distillation-menu.is-open .reader-action-menu-button{background:var(--reader-paper-hover);color:var(--reader-ink)}',
+      '.reader-note.has-discussion .reader-action-menu-button:hover,.reader-note.has-discussion .reader-action-menu.is-open .reader-action-menu-button,.reader-note-distillation-menu .reader-action-menu-button:hover,.reader-note-distillation-menu.is-open .reader-action-menu-button{background:var(--reader-paper-hover);color:var(--reader-ink)}',
     );
   });
 
   it('keeps redesigned annotation cards on reader theme tokens', () => {
     expect(readerConversationStyles).toContain(
-      '.reader-note.has-discussion .reader-note-quote-badge{',
+      '.reader-note.has-discussion,.reader-note.has-distillation{position:relative;overflow:visible;padding:11px;border:1px solid var(--app-reader-note-annotation-border);',
     );
     expect(readerConversationStyles).toContain(
-      'background:color-mix(in srgb,var(--reader-note-accent) 16%,transparent)',
+      '.reader-note.has-discussion .reader-note-tab{border:1px solid var(--app-reader-note-annotation-border);border-bottom:0;background:var(--reader-note-surface);color:color-mix(in srgb,var(--reader-note-accent) 76%,var(--reader-ink))}',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-note.has-discussion .reader-note-toolbar{margin:20px -22px 0;border-top:1.5px solid color-mix(in srgb,var(--reader-note-accent) 46%,var(--app-reader-note-border));background:color-mix(in srgb,var(--app-reader-note-bg) 82%,var(--reader-bg))}',
+      '.reader-note.has-discussion .reader-note-body,.reader-note.has-distillation .reader-note-body{position:relative;min-width:0;overflow:visible;border-radius:10px 0 10px 0;background:var(--reader-note-surface);',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-note.has-distillation{overflow:visible;border:0;background:transparent;box-shadow:none;--reader-note-ticket-fill:var(--app-reader-note-bg);--reader-note-ticket-stroke:color-mix(in srgb,var(--reader-note-accent) 48%,var(--app-reader-note-border))}',
-    );
-    expect(readerConversationStyles).not.toContain(
-      '.reader-note.has-distillation{position:relative;',
+      '.reader-note.has-discussion .reader-note-toolbar{align-items:center;gap:8px;margin:8px 0 0;padding:0;border-top:0;background:transparent}',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-note-distillation-footer::before{content:"";position:absolute;left:28px;right:28px;top:0;border-top:1.5px dashed color-mix(in srgb,var(--reader-note-accent) 36%,var(--app-reader-note-border));pointer-events:none}',
+      '.reader-note-discussion-entry{position:relative;display:inline-flex;flex:0 0 auto;min-width:86px;min-height:30px;',
     );
+    expect(readerConversationStyles).toContain(
+      '.reader-note-discussion-entry::after{content:"";position:absolute;inset:-5px 0}',
+    );
+    expect(readerConversationStyles).not.toContain('.reader-note-me-badge');
+    expect(readerConversationStyles).toContain(
+      '.reader-note.has-distillation{padding-bottom:0;border-color:var(--app-reader-note-distillation-border);background:var(--app-reader-note-distillation-mat);--reader-note-accent:var(--app-reader-note-distillation-accent);--reader-note-border:var(--app-reader-note-distillation-border);--reader-note-surface:var(--app-reader-note-distillation-surface)}',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-note.has-distillation .reader-note-tab{top:-14px;border:1px solid var(--reader-note-accent);background:var(--reader-note-accent);color:var(--app-reader-note-distillation-tab-fg)}',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-note-distillation-footer{position:relative;z-index:1;display:flex;justify-content:flex-end;margin:0;padding:4px 12px 7px;border-top:0;background:transparent}',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-note.is-distillation-dual-morph{overflow:visible;padding:0;border:0;background:transparent;box-shadow:none;transition:height .55s cubic-bezier(.22,1,.36,1),',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-note-dual-face-distillation{z-index:3;padding:11px 11px 0;border:1px solid var(--app-reader-note-distillation-border);',
+    );
+    expect(readerConversationStyles).toContain(
+      '--reader-note-surface:var(--app-reader-note-distillation-surface);transition:clip-path .62s cubic-bezier(.22,1,.36,1),opacity .62s step-end}',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-note.is-dual-stamp-in .reader-note-dual-face-distillation{animation:reader-distillation-stamp-in .62s cubic-bezier(.22,1,.36,1) both}',
+    );
+    expect(readerConversationStyles).toContain(
+      '@keyframes reader-distillation-stamp-in{0%{transform:scale(1.45) rotate(-7deg);opacity:0}',
+    );
+    expect(readerConversationStyles).not.toContain('reader-note-unpublish-overlay');
+    expect(readerConversationStyles).not.toContain('reader-distillation-cloud-recede');
+    expect(readerConversationStyles).not.toContain('reader-annotation-reveal-in');
   });
 
   it('keeps the reader surface as the stable scroll container while assistant menus are open', () => {
@@ -328,6 +356,22 @@ describe('reader embedded styles', () => {
     expect(readerConversationStyles).toContain(
       '.reader-app.is-annotation-stacked .reader-annotation-rail>.reader-empty,.reader-app.is-annotation-stacked .reader-annotation-rail>.reader-note{position:relative;top:auto!important;left:auto!important;width:100%;pointer-events:auto;transform:none}',
     );
+  });
+
+  it('keeps rail cards out of normal document flow', () => {
+    const cardSurfaceIndex = readerConversationStyles.indexOf(
+      '.reader-note.has-discussion,.reader-note.has-distillation{position:relative;',
+    );
+    const railOverrideIndex = readerConversationStyles.indexOf(
+      '.reader-annotation-rail>.reader-note.has-discussion,.reader-annotation-rail>.reader-note.has-distillation{position:absolute}',
+    );
+    const stackedOverrideIndex = readerConversationStyles.indexOf(
+      '.reader-app.is-annotation-stacked .reader-annotation-rail>.reader-empty,.reader-app.is-annotation-stacked .reader-annotation-rail>.reader-note{position:relative;',
+    );
+
+    expect(cardSurfaceIndex).toBeGreaterThanOrEqual(0);
+    expect(railOverrideIndex).toBeGreaterThan(cardSurfaceIndex);
+    expect(stackedOverrideIndex).toBeGreaterThan(railOverrideIndex);
   });
 });
 

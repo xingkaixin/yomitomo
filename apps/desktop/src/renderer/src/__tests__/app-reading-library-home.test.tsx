@@ -15,7 +15,14 @@ import type {
   UserProfile,
   WeReadBook,
 } from '@yomitomo/shared';
-import { ReadingLibrary, groupLibraryArticles } from '../reading-library/app-reading-library';
+import {
+  ReadingLibrary,
+  articleDistillationStateChanged,
+  articleWithCommittedDistillation,
+  articleWithDistillationAnimationStart,
+  groupLibraryArticles,
+  nextDistillationAnimationArticleUpdatedAt,
+} from '../reading-library/app-reading-library';
 import { librarySession } from '../reading-library/app-reading-library-session';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { defaultTheme } from '../theme/app-theme';
@@ -233,6 +240,12 @@ function hasScheduledDelay(setTimeoutSpy: { mock: { calls: Array<unknown[]> } },
   return setTimeoutSpy.mock.calls.some((call) => call[1] === delayMs);
 }
 
+async function flushMicrotasks() {
+  await act(async () => {
+    for (let index = 0; index < 4; index += 1) await Promise.resolve();
+  });
+}
+
 async function selectLibraryType(name: string | RegExp) {
   fireEvent.click(screen.getByRole('button', { name: '筛选内容类型' }));
   const option = await screen.findByRole('menuitemcheckbox', { name });
@@ -321,6 +334,150 @@ describe('groupLibraryArticles', () => {
       { label: '2 条沉淀', ids: ['two_distillations'] },
       { label: '暂无沉淀', ids: ['no_distillations'] },
     ]);
+  });
+});
+
+describe('articleWithDistillationAnimationStart', () => {
+  it('starts publish morph from the unpublished annotation card state', () => {
+    const published = annotationWithPublishedDistillation('note_1');
+    const result = articleWithDistillationAnimationStart(
+      article({ annotations: [published] }),
+      {
+        articleId: 'article_1',
+        annotationId: 'note_1',
+        distillation: published.distillation,
+        transition: 'publish',
+      },
+      '2026-05-09T12:04:00.001Z',
+    );
+
+    expect(result.annotations[0]?.distillation?.status).toBe('unpublished');
+    expect(result.updatedAt).toBe('2026-05-09T12:04:00.001Z');
+  });
+
+  it('starts unpublish morph from the published distillation card state', () => {
+    const unpublished = {
+      ...annotationWithPublishedDistillation('note_1'),
+      distillation: {
+        status: 'unpublished' as const,
+        content: '沉淀 note_1',
+        publishedAt: '2026-05-09T12:04:00.000Z',
+      },
+    };
+    const result = articleWithDistillationAnimationStart(article({ annotations: [unpublished] }), {
+      articleId: 'article_1',
+      annotationId: 'note_1',
+      distillation: unpublished.distillation,
+      transition: 'unpublish',
+    });
+
+    expect(result.annotations[0]?.distillation?.status).toBe('published');
+  });
+
+  it('commits publish morph to a newer published article state', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-09T12:04:00.020Z'));
+
+    const published = annotationWithPublishedDistillation('note_1');
+    const currentArticle = article({
+      updatedAt: '2026-05-09T12:04:00.000Z',
+      annotations: [
+        {
+          ...published,
+          distillation: {
+            ...published.distillation!,
+            status: 'unpublished',
+            updatedAt: '2026-05-09T12:04:00.000Z',
+          },
+        },
+      ],
+    });
+    const result = articleWithCommittedDistillation(currentArticle, {
+      articleId: 'article_1',
+      annotationId: 'note_1',
+      distillation: currentArticle.annotations[0]?.distillation,
+      transition: 'publish',
+    });
+
+    expect(result.annotations[0]?.distillation?.status).toBe('published');
+    expect(Date.parse(result.updatedAt)).toBeGreaterThan(Date.parse(currentArticle.updatedAt));
+  });
+
+  it('commits unpublish morph to a newer annotation card state', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-09T12:04:00.020Z'));
+
+    const published = annotationWithPublishedDistillation('note_1');
+    const currentArticle = article({
+      updatedAt: '2026-05-09T12:04:00.000Z',
+      annotations: [
+        {
+          ...published,
+          distillation: {
+            ...published.distillation!,
+            status: 'published',
+            updatedAt: '2026-05-09T12:04:00.000Z',
+          },
+        },
+      ],
+    });
+    const result = articleWithCommittedDistillation(currentArticle, {
+      articleId: 'article_1',
+      annotationId: 'note_1',
+      distillation: currentArticle.annotations[0]?.distillation,
+      transition: 'unpublish',
+    });
+
+    expect(result.annotations[0]?.distillation?.status).toBe('unpublished');
+    expect(Date.parse(result.updatedAt)).toBeGreaterThan(Date.parse(currentArticle.updatedAt));
+  });
+
+  it('keeps repeated distillation morph article timestamps monotonic', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-09T12:04:00.000Z'));
+
+    const previousAnimationUpdatedAt = '2026-05-09T12:04:00.020Z';
+    const nextUpdatedAt = nextDistillationAnimationArticleUpdatedAt(
+      '2026-05-09T12:04:00.000Z',
+      '2026-05-09T12:04:00.000Z',
+      previousAnimationUpdatedAt,
+    );
+
+    expect(Date.parse(nextUpdatedAt)).toBeGreaterThan(Date.parse(previousAnimationUpdatedAt));
+  });
+
+  it('detects distillation status changes separately from other article syncs', () => {
+    const previous = article({
+      annotations: [
+        {
+          ...annotation('note_1'),
+          distillation: {
+            status: 'unpublished',
+            content: '沉淀 note_1',
+          },
+        },
+      ],
+    });
+    const next = article({
+      annotations: [
+        {
+          ...annotation('note_1'),
+          distillation: {
+            status: 'published',
+            content: '沉淀 note_1',
+            publishedAt: '2026-05-09T12:03:00.000Z',
+          },
+        },
+      ],
+    });
+
+    expect(articleDistillationStateChanged(previous, next)).toBe(true);
+    expect(
+      articleDistillationStateChanged(previous, {
+        ...previous,
+        updatedAt: '2026-05-09T12:03:00.000Z',
+      }),
+    ).toBe(false);
   });
 });
 
@@ -1736,6 +1893,139 @@ describe('ReadingLibrary home', () => {
     });
 
     expect(onReadArticle.mock.calls.length).toBeLessThanOrEqual(2);
+  });
+
+  it('keeps publish morph at the annotation start state when summary sync arrives first', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    const requestAnimationFrameMock = vi.fn((callback: FrameRequestCallback) =>
+      window.setTimeout(() => callback(performance.now()), 0),
+    );
+    const cancelAnimationFrameMock = vi.fn((handle: number) => window.clearTimeout(handle));
+    vi.stubGlobal('requestAnimationFrame', requestAnimationFrameMock);
+    vi.stubGlobal('cancelAnimationFrame', cancelAnimationFrameMock);
+    window.requestAnimationFrame = requestAnimationFrameMock;
+    window.cancelAnimationFrame = cancelAnimationFrameMock;
+    let onCommitted:
+      | ((event: {
+          articleId: string;
+          annotationId: string;
+          distillation?: Annotation['distillation'];
+          transition: 'publish' | 'update' | 'unpublish';
+        }) => void)
+      | null = null;
+    vi.stubGlobal('yomitomoDesktop', {
+      onAnnotationDistillationCommitted: vi.fn((listener) => {
+        onCommitted = listener;
+        return vi.fn();
+      }),
+    });
+    const initialAnnotation = {
+      ...annotation('note_1'),
+      distillation: {
+        status: 'unpublished' as const,
+        content: '沉淀 note_1',
+        updatedAt: '2026-05-09T12:00:00.000Z',
+      },
+    };
+    const publishedAnnotation = {
+      ...initialAnnotation,
+      distillation: {
+        ...initialAnnotation.distillation,
+        status: 'published' as const,
+        publishedAt: '2026-05-09T12:03:00.000Z',
+        updatedAt: '2026-05-09T12:03:00.000Z',
+      },
+    };
+    const initialArticle = article({
+      title: '同步沉淀文章',
+      annotations: [initialAnnotation],
+      annotationCount: 1,
+      distillationCount: 0,
+      updatedAt: '2026-05-09T12:00:00.000Z',
+    });
+    const publishedArticle = article({
+      title: '同步沉淀文章',
+      annotations: [publishedAnnotation],
+      annotationCount: 1,
+      distillationCount: 1,
+      updatedAt: '2026-05-09T12:03:00.000Z',
+    });
+    const publishedSummary = {
+      ...articleSummary(publishedArticle),
+      annotations: [],
+      annotationCount: 1,
+      distillationCount: 1,
+    };
+    const onReadArticle = vi
+      .fn<(articleId: string) => Promise<ArticleRecord | null>>()
+      .mockResolvedValueOnce(initialArticle)
+      .mockResolvedValue(publishedArticle);
+    let setArticles!: (articles: ArticleSummaryRecord[]) => void;
+
+    function Harness() {
+      const [articles, updateArticles] = React.useState([articleSummary(initialArticle)]);
+      setArticles = updateArticles;
+      return (
+        <ReadingLibrary
+          agents={[]}
+          articles={articles}
+          readerTheme={defaultTheme.reader}
+          userProfile={userProfile}
+          onDeleteArticle={vi.fn()}
+          onImportEbookFile={vi.fn()}
+          onImportPdfFile={vi.fn()}
+          onImportArticleUrl={vi.fn()}
+          onReadArticle={(articleId) => onReadArticle(articleId)}
+          onSaveArticle={vi.fn()}
+          onSaveArticleReadingProgress={vi.fn()}
+          onUpdateArticle={vi.fn()}
+        />
+      );
+    }
+
+    render(<Harness />);
+
+    fireEvent.click(screen.getAllByRole('button', { name: '打开文章：同步沉淀文章' })[0]);
+    await flushMicrotasks();
+    expect(onReadArticle).toHaveBeenCalledTimes(1);
+    expect(onCommitted).toBeTruthy();
+
+    act(() => {
+      setArticles([publishedSummary]);
+    });
+    await flushMicrotasks();
+    expect(onReadArticle).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      onCommitted?.({
+        articleId: 'article_1',
+        annotationId: 'note_1',
+        distillation: publishedAnnotation.distillation,
+        transition: 'publish',
+      });
+    });
+    await flushMicrotasks();
+    for (let frame = 0; frame < 40; frame += 1) {
+      await act(async () => {
+        await vi.advanceTimersToNextTimerAsync();
+      });
+      await flushMicrotasks();
+      if (document.querySelector('.reader-note.is-distillation-dual-morph')) break;
+    }
+
+    expect(document.querySelector('.reader-note.is-distillation-dual-morph')).toBeTruthy();
+    expect(document.querySelector('.reader-note.is-dual-show-anno')).toBeTruthy();
+    expect(document.querySelector('.reader-note.is-dual-show-dist')).toBeNull();
+    cleanup();
+    vi.useRealTimers();
   });
 
   it('saves webpage reading progress from the reader scroll position', async () => {

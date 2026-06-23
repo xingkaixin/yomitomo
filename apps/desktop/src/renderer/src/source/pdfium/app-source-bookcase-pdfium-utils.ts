@@ -71,6 +71,48 @@ export type PdfiumCanvasPoint = {
   y: number;
 };
 
+export type PdfiumWheelDelta = {
+  x: number;
+  y: number;
+};
+
+export type PdfiumScrollSnapshot = {
+  clientSize: number;
+  scrollOffset: number;
+  scrollSize: number;
+};
+
+const WHEEL_DELTA_LINE = 1;
+const WHEEL_DELTA_PAGE = 2;
+const WHEEL_LINE_HEIGHT = 16;
+const SCROLL_EDGE_EPSILON = 1;
+
+export function pdfiumWheelDeltaPixels(
+  event: Pick<WheelEvent, 'deltaMode' | 'deltaX' | 'deltaY'>,
+  pageSize: number,
+): PdfiumWheelDelta {
+  const deltaScale =
+    event.deltaMode === WHEEL_DELTA_LINE
+      ? WHEEL_LINE_HEIGHT
+      : event.deltaMode === WHEEL_DELTA_PAGE
+        ? pageSize
+        : 1;
+  return {
+    x: event.deltaX * deltaScale,
+    y: event.deltaY * deltaScale,
+  };
+}
+
+export function pdfiumScrollSnapshotCanConsumeDelta(snapshot: PdfiumScrollSnapshot, delta: number) {
+  if (Math.abs(delta) < SCROLL_EDGE_EPSILON) return false;
+
+  const maxScrollOffset = Math.max(0, snapshot.scrollSize - snapshot.clientSize);
+  if (maxScrollOffset <= SCROLL_EDGE_EPSILON) return false;
+  return delta < 0
+    ? snapshot.scrollOffset > SCROLL_EDGE_EPSILON
+    : snapshot.scrollOffset < maxScrollOffset - SCROLL_EDGE_EPSILON;
+}
+
 export function pdfiumHighlightHitAtClientPoint({
   boxes,
   canvasRect,
@@ -108,6 +150,12 @@ export function pdfiumAnnotationAgentName(annotation: Annotation) {
   return annotation.agentNickname || annotation.agentUsername || i18next.t('common.assistant');
 }
 
+const PDF_ANNOTATION_RAIL_GAP = 20;
+const PDF_ANNOTATION_RAIL_MIN_WIDTH = 220;
+const PDF_ANNOTATION_RAIL_MAX_WIDTH = 420;
+const PDF_ANNOTATION_RAIL_EDGE_INSET = 24;
+const PDF_ANNOTATION_RAIL_STACK_OUTSET = 56;
+
 export function pdfiumAnnotationRailLayout(
   pageMetrics: Record<number, PageMetric>,
   canvas: HTMLDivElement | null,
@@ -121,11 +169,12 @@ export function pdfiumAnnotationRailLayout(
   const pageMetric = Object.values(pageMetrics).toSorted((left, right) => left.top - right.top)[0];
   if (!pageMetric) return undefined;
 
-  const gap = 20;
-  const minimumRailWidth = 220;
-  const maximumRailWidth = 420;
+  const gap = PDF_ANNOTATION_RAIL_GAP;
+  const minimumRailWidth = PDF_ANNOTATION_RAIL_MIN_WIDTH;
+  const maximumRailWidth = PDF_ANNOTATION_RAIL_MAX_WIDTH;
+  const railOuterGuard = PDF_ANNOTATION_RAIL_EDGE_INSET + PDF_ANNOTATION_RAIL_STACK_OUTSET;
   const pageWidth = Math.min(canvasWidth, Math.round(layoutPageWidth ?? pageMetric.width));
-  const sideSpace = minimumRailWidth + gap;
+  const sideSpace = minimumRailWidth + gap + railOuterGuard;
   if (canvasWidth < pageWidth + sideSpace) {
     const articleLeft = Math.max(0, Math.round(pageMetric.left));
     const articleRight = Math.min(canvasWidth, Math.round(pageMetric.left + pageMetric.width));
@@ -146,7 +195,10 @@ export function pdfiumAnnotationRailLayout(
   const rightSpace = Math.max(0, canvasWidth - articleRight);
   const mode = hasTwoSidedRails ? 'both' : 'right';
   const usableSpace = hasTwoSidedRails ? Math.min(leftSpace, rightSpace) : rightSpace;
-  const railWidth = Math.min(maximumRailWidth, Math.max(minimumRailWidth, usableSpace - gap));
+  const railWidth = Math.min(
+    maximumRailWidth,
+    Math.max(minimumRailWidth, usableSpace - gap - railOuterGuard),
+  );
   return {
     articleCenterX: Math.round((articleLeft + articleRight) / 2),
     leftRailLeft: mode === 'right' ? 0 : Math.round(articleLeft - gap - railWidth),

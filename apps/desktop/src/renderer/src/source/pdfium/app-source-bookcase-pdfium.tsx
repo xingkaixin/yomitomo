@@ -65,7 +65,9 @@ import {
   pdfPageProgressPercent,
   pdfiumTemporaryBoxes,
   pdfiumTocAnnotationStats,
+  pdfiumScrollSnapshotCanConsumeDelta,
   pdfiumRectsForTextRange,
+  pdfiumWheelDeltaPixels,
   type PdfTextDocument,
 } from './app-source-bookcase-pdfium-utils';
 import { createPdfiumSourceReaderController } from './app-source-bookcase-pdfium-controller';
@@ -121,6 +123,48 @@ function pdfiumPageIndexFromTarget(target: Element | null) {
   if (!page) return null;
   const pageIndex = Number(page.dataset.pdfiumPageIndex);
   return Number.isInteger(pageIndex) ? pageIndex : null;
+}
+
+function pdfiumOverflowAllowsScroll(overflow: string) {
+  return overflow === 'auto' || overflow === 'scroll' || overflow === 'overlay';
+}
+
+function pdfiumElementCanConsumeWheel(element: HTMLElement, delta: { x: number; y: number }) {
+  const style = window.getComputedStyle(element);
+  const canScrollY =
+    pdfiumOverflowAllowsScroll(style.overflowY) &&
+    pdfiumScrollSnapshotCanConsumeDelta(
+      {
+        clientSize: element.clientHeight,
+        scrollOffset: element.scrollTop,
+        scrollSize: element.scrollHeight,
+      },
+      delta.y,
+    );
+  const canScrollX =
+    pdfiumOverflowAllowsScroll(style.overflowX) &&
+    pdfiumScrollSnapshotCanConsumeDelta(
+      {
+        clientSize: element.clientWidth,
+        scrollOffset: element.scrollLeft,
+        scrollSize: element.scrollWidth,
+      },
+      delta.x,
+    );
+  return canScrollY || canScrollX;
+}
+
+function pdfiumRailWheelHasLocalScrollTarget(
+  target: Element | null,
+  rail: HTMLElement,
+  delta: { x: number; y: number },
+) {
+  let element = target instanceof HTMLElement ? target : (target?.parentElement ?? null);
+  while (element && element !== rail) {
+    if (pdfiumElementCanConsumeWheel(element, delta)) return true;
+    element = element.parentElement;
+  }
+  return false;
 }
 
 export function PdfiumBookcase({
@@ -613,6 +657,42 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     visiblePdfAnnotations.length,
     zoom,
   ]);
+  useEffect(() => {
+    const rail = notesRef.current;
+    if (!rail) return;
+    const handleWheel = (event: WheelEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      const viewport =
+        canvasRef.current?.querySelector<HTMLElement>('.pdfium-spike-viewport') ?? null;
+      if (!viewport) return;
+
+      const delta = pdfiumWheelDeltaPixels(event, viewport.clientHeight);
+      const viewportCanScroll =
+        pdfiumScrollSnapshotCanConsumeDelta(
+          {
+            clientSize: viewport.clientHeight,
+            scrollOffset: viewport.scrollTop,
+            scrollSize: viewport.scrollHeight,
+          },
+          delta.y,
+        ) ||
+        pdfiumScrollSnapshotCanConsumeDelta(
+          {
+            clientSize: viewport.clientWidth,
+            scrollOffset: viewport.scrollLeft,
+            scrollSize: viewport.scrollWidth,
+          },
+          delta.x,
+        );
+      if (!viewportCanScroll || pdfiumRailWheelHasLocalScrollTarget(target, rail, delta)) return;
+
+      event.preventDefault();
+      viewport.scrollBy({ left: delta.x, top: delta.y, behavior: 'auto' });
+    };
+
+    rail.addEventListener('wheel', handleWheel, { passive: false });
+    return () => rail.removeEventListener('wheel', handleWheel);
+  }, [canvasRef, notesRef]);
   const { activeConnection, recalculateActiveConnection } = useSourceActiveConnection({
     annotationAgents,
     annotations,

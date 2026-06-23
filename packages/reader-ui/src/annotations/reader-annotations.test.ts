@@ -337,6 +337,29 @@ describe('reader annotation filters', () => {
     ]);
   });
 
+  it('keeps active rail groups on the pressure-selected side', () => {
+    const annotations = [
+      annotation('first', { anchor: anchor('first', 0, 10) }),
+      annotation('second', { anchor: anchor('second', 20, 30) }),
+    ];
+    const boxes = [box('first', { left: 120, top: 120 }), box('second', { left: 140, top: 170 })];
+    const railLayout = {
+      articleCenterX: 500,
+      leftRailLeft: 24,
+      mode: 'both' as const,
+      railWidth: 320,
+      rightRailLeft: 980,
+    };
+
+    const inactiveItems = buildAnnotationRailItems(annotations, boxes, null, {}, railLayout);
+    const activeItems = buildAnnotationRailItems(annotations, boxes, 'second', {}, railLayout);
+    const inactiveSecond = inactiveItems.find((item) => item.annotation.id === 'second');
+    const activeSecond = activeItems.find((item) => item.annotation.id === 'second');
+
+    expect(inactiveSecond?.railSide).toBe('right');
+    expect(activeSecond?.railSide).toBe('right');
+  });
+
   it('keeps tall rail cards inside a bounded viewport', () => {
     const items = buildAnnotationRailItems(
       [annotation('long-note', { anchor: anchor('long', 0, 10) })],
@@ -459,6 +482,145 @@ describe('reader annotation filters', () => {
     expect(secondOffsetY).toBeGreaterThanOrEqual(24);
     expect(secondOffset).toBeLessThan(14);
     expect(secondOffset).toBeGreaterThanOrEqual(8);
+  });
+
+  it('keeps visible scrolled rail cards inside the current viewport', () => {
+    const viewportTop = 2050;
+    const viewportHeight = 620;
+    const annotations = [
+      annotation('upper', { anchor: anchor('upper', 0, 10) }),
+      annotation('middle', { anchor: anchor('middle', 20, 30) }),
+      annotation('lower', { anchor: anchor('lower', 40, 50) }),
+      annotation('far-below', { anchor: anchor('far below', 60, 70) }),
+    ];
+    const items = buildAnnotationRailItems(
+      annotations,
+      [
+        box('upper', { left: 120, top: 2140 }),
+        box('middle', { left: 140, top: 2290 }),
+        box('lower', { left: 130, top: 2460 }),
+        box('far-below', { left: 120, top: 3600 }),
+      ],
+      null,
+      { upper: 220, middle: 220, lower: 220, 'far-below': 220 },
+      {
+        articleCenterX: 500,
+        leftRailLeft: 24,
+        mode: 'both',
+        railWidth: 320,
+        rightRailLeft: 980,
+        viewportHeight,
+        viewportTop,
+      },
+    );
+    const byId = new Map(items.map((item) => [item.annotation.id, item]));
+    const lowerTop = Number(byId.get('lower')?.style.top);
+    const farBelowTop = Number(byId.get('far-below')?.style.top);
+
+    expect(lowerTop).toBeGreaterThanOrEqual(viewportTop);
+    expect(lowerTop + 220).toBeLessThanOrEqual(viewportTop + viewportHeight);
+    expect(farBelowTop).toBe(3590);
+  });
+
+  it('anchors the active rail card near its highlight under same-side pressure', () => {
+    const viewportTop = 1600;
+    const viewportHeight = 760;
+    const annotations = [
+      annotation('right-above', { anchor: anchor('right above', 0, 10) }),
+      annotation('active-right', { anchor: anchor('active right', 40, 50) }),
+    ];
+    const items = buildAnnotationRailItems(
+      annotations,
+      [
+        box('right-above', { left: 560, top: 1310, width: 220 }),
+        box('active-right', { left: 520, top: 2060, width: 220 }),
+      ],
+      'active-right',
+      { 'right-above': 600, 'active-right': 250 },
+      {
+        articleCenterX: 500,
+        leftRailLeft: 24,
+        mode: 'right',
+        railWidth: 320,
+        rightRailLeft: 980,
+        viewportHeight,
+        viewportTop,
+      },
+    );
+    const byId = new Map(items.map((item) => [item.annotation.id, item]));
+    const activeTop = Number(byId.get('active-right')?.style.top);
+    const aboveTop = Number(byId.get('right-above')?.style.top);
+
+    expect(activeTop).toBe(2050);
+    expect(activeTop + 250).toBeLessThanOrEqual(viewportTop + viewportHeight);
+    expect(aboveTop + 600).toBeLessThanOrEqual(activeTop - 18);
+  });
+
+  it('anchors the active stacked card to its own highlight', () => {
+    const annotations = [
+      annotation('right-above', { anchor: anchor('right above', 0, 10) }),
+      annotation('active-right', { anchor: anchor('active right', 40, 50) }),
+    ];
+    const items = buildAnnotationRailItems(
+      annotations,
+      [
+        box('right-above', { left: 560, top: 1610, width: 220 }),
+        box('active-right', { left: 520, top: 1850, width: 220 }),
+      ],
+      'active-right',
+      { 'right-above': 300, 'active-right': 250 },
+      {
+        articleCenterX: 500,
+        leftRailLeft: 24,
+        mode: 'right',
+        railWidth: 320,
+        rightRailLeft: 980,
+        viewportHeight: 760,
+        viewportTop: 1600,
+      },
+    );
+    const byId = new Map(items.map((item) => [item.annotation.id, item]));
+
+    expect(byId.get('active-right')?.stackCount).toBe(2);
+    expect(byId.get('active-right')?.stackIndex).toBe(0);
+    expect(byId.get('active-right')?.style.top).toBe(1840);
+  });
+
+  it('keeps the active stacked rail card close to its highlight in the viewport', () => {
+    const viewportTop = 0;
+    const viewportHeight = 760;
+    const annotations = [
+      annotation('upper', { anchor: anchor('upper', 0, 10) }),
+      annotation('middle', { anchor: anchor('middle', 20, 30) }),
+      annotation('lower', { anchor: anchor('lower', 40, 50) }),
+    ];
+    const items = buildAnnotationRailItems(
+      annotations,
+      [
+        box('upper', { left: 120, top: 80, width: 220 }),
+        box('middle', { left: 540, top: 300, width: 220 }),
+        box('lower', { left: 560, top: 520, width: 220 }),
+      ],
+      'lower',
+      { upper: 220, middle: 220, lower: 220 },
+      {
+        articleCenterX: 500,
+        leftRailLeft: 24,
+        mode: 'both',
+        railWidth: 320,
+        rightRailLeft: 980,
+        viewportHeight,
+        viewportTop,
+      },
+    );
+    const byId = new Map(items.map((item) => [item.annotation.id, item]));
+
+    expect(byId.get('upper')?.style.top).toBe(70);
+    expect(byId.get('middle')?.stackCount).toBe(2);
+    expect(byId.get('middle')?.stackIndex).toBe(1);
+    expect(byId.get('lower')?.stackCount).toBe(2);
+    expect(byId.get('lower')?.stackIndex).toBe(0);
+    expect(byId.get('lower')?.style.top).toBe(510);
   });
 
   it('resolves navigation around an explicit reference annotation', () => {

@@ -718,8 +718,11 @@ describe('AnnotationCard', () => {
 
     expect(screen.getByLabelText('1 条想法')).toBeTruthy();
     expect(container.querySelector('.reader-note.has-discussion')).toBeTruthy();
-    expect(container.querySelector('.reader-note-quote-badge')).toBeTruthy();
-    expect(container.querySelector('.reader-note-left-line')).toBeTruthy();
+    expect(container.querySelector('.reader-note-tab')?.textContent).toBe('批注');
+    expect(container.querySelector('.reader-note-me-badge')).toBeNull();
+    expect(container.querySelector('.reader-note-body > .reader-note-action-menu')).toBeTruthy();
+    expect(container.querySelector('.reader-note-quote-badge')).toBeNull();
+    expect(container.querySelector('.reader-note-left-line')).toBeNull();
     expect(screen.getByRole('button', { name: '进入讨论区' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '添加想法' })).toBeNull();
     expect(screen.queryByRole('button', { name: '回复' })).toBeNull();
@@ -871,9 +874,147 @@ describe('AnnotationCard', () => {
 
     expect(screen.getByText('可迁移的沉淀判断')).toBeTruthy();
     expect(container.querySelector('.reader-note.has-distillation')).toBeTruthy();
-    expect(container.querySelector('.reader-note-distillation-ticket')).toBeTruthy();
+    expect(container.querySelector('.reader-note-tab')?.textContent).toBe('沉淀');
+    expect(container.querySelector('.reader-note-distillation-ticket')).toBeNull();
     expect(container.querySelector('.reader-note-quote-badge')).toBeNull();
     expect(screen.queryByText('需要批注的原文')).toBeNull();
+  });
+
+  it('reveals the annotation card under the dual distillation face', () => {
+    const { container } = render(
+      <AnnotationCard
+        active
+        agents={[]}
+        annotation={annotation({
+          distillation: {
+            status: 'unpublished',
+            content: '正在退散的沉淀内容',
+            publishedAt: now,
+            updatedAt: now,
+          },
+        })}
+        commentsCloseKey={0}
+        distillationAnimation={{
+          annotationId: 'annotation-1',
+          transition: 'unpublish',
+          phase: 'morph-out',
+          overlayDistillation: {
+            content: '正在退散的沉淀内容',
+            publishedAt: now,
+            updatedAt: now,
+          },
+          token: 1,
+        }}
+        messageSendShortcut="enter"
+        noteRef={vi.fn()}
+        primaryCommentExpanded={false}
+        shortcutModifier="⌘"
+        userProfile={userProfile}
+        onAddComment={vi.fn()}
+        onDelete={vi.fn()}
+        onFocus={vi.fn()}
+        onPrimaryCommentExpandedChange={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector('.reader-note.is-distillation-dual-morph')).toBeTruthy();
+    expect(container.querySelector('.reader-note.is-dual-show-anno')).toBeTruthy();
+    expect(container.querySelector('.reader-note.is-dual-stamp-in')).toBeNull();
+    expect(container.querySelector('.reader-note-dual-face-annotation')?.textContent).toContain(
+      '需要批注的原文',
+    );
+    expect(container.querySelector('.reader-note-dual-face-distillation')?.textContent).toContain(
+      '正在退散的沉淀内容',
+    );
+    expect(container.querySelector('.reader-note-unpublish-overlay')).toBeNull();
+  });
+
+  it('keeps the annotation and target distillation faces mounted during publish morph', () => {
+    const { container } = render(
+      <AnnotationCard
+        active
+        agents={[]}
+        annotation={annotation({
+          distillation: {
+            status: 'unpublished',
+            content: '准备进入的沉淀内容',
+            publishedAt: now,
+            updatedAt: now,
+          },
+        })}
+        commentsCloseKey={0}
+        distillationAnimation={{
+          annotationId: 'annotation-1',
+          transition: 'publish',
+          phase: 'morph-out',
+          overlayDistillation: {
+            content: '准备进入的沉淀内容',
+            publishedAt: now,
+            updatedAt: now,
+          },
+          token: 1,
+        }}
+        messageSendShortcut="enter"
+        noteRef={vi.fn()}
+        primaryCommentExpanded={false}
+        shortcutModifier="⌘"
+        userProfile={userProfile}
+        onAddComment={vi.fn()}
+        onDelete={vi.fn()}
+        onFocus={vi.fn()}
+        onPrimaryCommentExpandedChange={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector('.reader-note.is-distillation-dual-morph')).toBeTruthy();
+    expect(container.querySelector('.reader-note.is-dual-show-anno')).toBeTruthy();
+    expect(container.querySelector('.reader-note-dual-face-annotation')?.textContent).toContain(
+      '需要批注的原文',
+    );
+    expect(container.querySelector('.reader-note-dual-face-distillation')?.textContent).toContain(
+      '准备进入的沉淀内容',
+    );
+  });
+
+  it('only stamps the distillation face when publish morph enters the distillation state', () => {
+    const { container } = render(
+      <AnnotationCard
+        active
+        agents={[]}
+        annotation={annotation({
+          distillation: {
+            status: 'published',
+            content: '刚进入的沉淀内容',
+            publishedAt: now,
+            updatedAt: now,
+          },
+        })}
+        commentsCloseKey={0}
+        distillationAnimation={{
+          annotationId: 'annotation-1',
+          transition: 'publish',
+          phase: 'morph-in',
+          overlayDistillation: {
+            content: '刚进入的沉淀内容',
+            publishedAt: now,
+            updatedAt: now,
+          },
+          token: 1,
+        }}
+        messageSendShortcut="enter"
+        noteRef={vi.fn()}
+        primaryCommentExpanded={false}
+        shortcutModifier="⌘"
+        userProfile={userProfile}
+        onAddComment={vi.fn()}
+        onDelete={vi.fn()}
+        onFocus={vi.fn()}
+        onPrimaryCommentExpandedChange={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector('.reader-note.is-dual-show-dist')).toBeTruthy();
+    expect(container.querySelector('.reader-note.is-dual-stamp-in')).toBeTruthy();
   });
 
   it('deletes the annotation only after confirming in the dialog', () => {

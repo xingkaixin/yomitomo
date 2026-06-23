@@ -14,8 +14,10 @@ import {
   pdfReaderBookmarkRanges,
   pdfReaderReadingSections,
   pdfiumAnnotationNavigationState,
+  pdfiumScrollSnapshotCanConsumeDelta,
   pdfiumRectsForTextRange,
   pdfiumVisibleAnnotations,
+  pdfiumWheelDeltaPixels,
   pdfiumHighlightChoicePosition,
   pdfiumHighlightHitAtClientPoint,
   primaryPdfiumTocItems,
@@ -87,13 +89,61 @@ describe('app-source-bookcase-pdfium-utils', () => {
     });
   });
 
+  it('normalizes PDF rail wheel deltas to pixels', () => {
+    expect(pdfiumWheelDeltaPixels({ deltaMode: 0, deltaX: 3, deltaY: 5 }, 700)).toEqual({
+      x: 3,
+      y: 5,
+    });
+    expect(pdfiumWheelDeltaPixels({ deltaMode: 1, deltaX: 2, deltaY: -3 }, 700)).toEqual({
+      x: 32,
+      y: -48,
+    });
+    expect(pdfiumWheelDeltaPixels({ deltaMode: 2, deltaX: 0, deltaY: 1 }, 700)).toEqual({
+      x: 0,
+      y: 700,
+    });
+  });
+
+  it('detects whether a scroll snapshot can consume wheel delta', () => {
+    expect(
+      pdfiumScrollSnapshotCanConsumeDelta(
+        { clientSize: 400, scrollOffset: 0, scrollSize: 1200 },
+        -24,
+      ),
+    ).toBe(false);
+    expect(
+      pdfiumScrollSnapshotCanConsumeDelta(
+        { clientSize: 400, scrollOffset: 200, scrollSize: 1200 },
+        -24,
+      ),
+    ).toBe(true);
+    expect(
+      pdfiumScrollSnapshotCanConsumeDelta(
+        { clientSize: 400, scrollOffset: 799.5, scrollSize: 1200 },
+        24,
+      ),
+    ).toBe(false);
+    expect(
+      pdfiumScrollSnapshotCanConsumeDelta(
+        { clientSize: 400, scrollOffset: 200, scrollSize: 1200 },
+        24,
+      ),
+    ).toBe(true);
+    expect(
+      pdfiumScrollSnapshotCanConsumeDelta(
+        { clientSize: 400, scrollOffset: 0, scrollSize: 400 },
+        24,
+      ),
+    ).toBe(false);
+  });
+
   it('places PDF annotation rail on the available page side', () => {
     const canvas = {
-      getBoundingClientRect: () => ({ width: 1000 }),
+      getBoundingClientRect: () => ({ width: 1200 }),
     } as HTMLDivElement;
     const pageMetrics = {
       0: {
-        left: 320,
+        left: 400,
         top: 10,
         width: 400,
         height: 600,
@@ -105,18 +155,45 @@ describe('app-source-bookcase-pdfium-utils', () => {
     };
 
     expect(pdfiumAnnotationRailLayout(pageMetrics, canvas, 640)).toMatchObject({
-      articleCenterX: 500,
-      leftRailLeft: 0,
+      articleCenterX: 600,
+      leftRailLeft: 80,
       mode: 'both',
-      railWidth: 280,
-      rightRailLeft: 720,
+      railWidth: 300,
+      rightRailLeft: 820,
       viewportHeight: 640,
+    });
+  });
+
+  it('reserves PDF rail edge space for stacked card spread', () => {
+    const canvas = {
+      getBoundingClientRect: () => ({ width: 1341 }),
+    } as HTMLDivElement;
+    const pageMetrics = {
+      0: {
+        left: 422,
+        top: 10,
+        width: 498,
+        height: 704,
+        clipLeft: 0,
+        clipTop: 0,
+        clipRight: 1341,
+        clipBottom: 724,
+      },
+    };
+
+    expect(pdfiumAnnotationRailLayout(pageMetrics, canvas, 724, 1341, 498)).toMatchObject({
+      articleCenterX: 671,
+      leftRailLeft: 81,
+      mode: 'both',
+      railWidth: 321,
+      rightRailLeft: 940,
+      viewportHeight: 724,
     });
   });
 
   it('left-aligns PDF pages when only a right annotation rail fits', () => {
     const canvas = {
-      getBoundingClientRect: () => ({ width: 760 }),
+      getBoundingClientRect: () => ({ width: 860 }),
     } as HTMLDivElement;
     const pageMetrics = {
       0: {
@@ -135,7 +212,7 @@ describe('app-source-bookcase-pdfium-utils', () => {
       articleCenterX: 250,
       leftRailLeft: 0,
       mode: 'right',
-      railWidth: 240,
+      railWidth: 260,
       rightRailLeft: 520,
       viewportHeight: 640,
     });
@@ -143,7 +220,7 @@ describe('app-source-bookcase-pdfium-utils', () => {
 
   it('uses stable layout page width when deciding PDF rail mode', () => {
     const canvas = {
-      getBoundingClientRect: () => ({ width: 1000 }),
+      getBoundingClientRect: () => ({ width: 1200 }),
     } as HTMLDivElement;
     const pageMetrics = {
       0: {
@@ -158,11 +235,12 @@ describe('app-source-bookcase-pdfium-utils', () => {
       },
     };
 
-    expect(pdfiumAnnotationRailLayout(pageMetrics, canvas, 640, 1000, 500)).toMatchObject({
-      articleCenterX: 500,
+    expect(pdfiumAnnotationRailLayout(pageMetrics, canvas, 640, 1200, 500)).toMatchObject({
+      articleCenterX: 600,
+      leftRailLeft: 80,
       mode: 'both',
-      railWidth: 230,
-      rightRailLeft: 770,
+      railWidth: 250,
+      rightRailLeft: 870,
       viewportHeight: 640,
     });
   });

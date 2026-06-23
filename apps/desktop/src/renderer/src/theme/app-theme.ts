@@ -159,8 +159,19 @@ const defaultReaderTheme: ReaderTheme = {
     itemHoverBackground: 'rgba(255,253,248,.82)',
   },
   note: {
+    annotationAccent: 'var(--app-reader-accent-strong)',
+    annotationBorder:
+      'color-mix(in srgb,var(--app-reader-accent-strong) 24%,var(--app-reader-note-border))',
+    annotationMat: 'color-mix(in srgb,var(--app-reader-accent) 20%,var(--app-reader-paper))',
+    annotationSurface: 'var(--app-reader-paper)',
     background: 'rgba(255,253,248,.88)',
     border: 'rgba(40,35,29,.1)',
+    distillationAccent: 'var(--app-reader-accent-strong)',
+    distillationBorder:
+      'color-mix(in srgb,var(--app-reader-accent-strong) 46%,var(--app-reader-note-border))',
+    distillationMat: 'color-mix(in srgb,var(--app-reader-accent) 34%,var(--app-reader-note-bg))',
+    distillationSurface: 'var(--app-reader-paper)',
+    distillationTabForeground: '#fffdf8',
     shadow: '0 8px 24px rgba(40,35,29,.07)',
     quoteBackground: 'rgba(234,216,157,.18)',
     quoteText: '#3f352c',
@@ -338,8 +349,19 @@ const beigePaperReaderTheme: ReaderTheme = {
     itemHoverBackground: 'rgba(255,244,223,.78)',
   },
   note: {
+    annotationAccent: 'var(--app-reader-accent-strong)',
+    annotationBorder:
+      'color-mix(in srgb,var(--app-reader-accent-strong) 24%,var(--app-reader-note-border))',
+    annotationMat: 'color-mix(in srgb,var(--app-reader-accent) 20%,var(--app-reader-paper))',
+    annotationSurface: 'var(--app-reader-paper)',
     background: 'rgba(255,246,229,.9)',
     border: 'rgba(74,50,27,.14)',
+    distillationAccent: 'var(--app-reader-accent-strong)',
+    distillationBorder:
+      'color-mix(in srgb,var(--app-reader-accent-strong) 46%,var(--app-reader-note-border))',
+    distillationMat: 'color-mix(in srgb,var(--app-reader-accent) 34%,var(--app-reader-note-bg))',
+    distillationSurface: 'var(--app-reader-paper)',
+    distillationTabForeground: '#fff4df',
     shadow: '0 10px 28px rgba(74,50,27,.1)',
     quoteBackground: 'rgba(225,194,125,.2)',
     quoteText: '#4d3924',
@@ -513,8 +535,20 @@ const inkBlackReaderTheme: ReaderTheme = {
     itemHoverBackground: 'rgba(48,42,34,.82)',
   },
   note: {
+    annotationAccent: 'var(--app-reader-accent-strong)',
+    annotationBorder:
+      'color-mix(in srgb,var(--app-reader-accent-strong) 24%,var(--app-reader-note-border))',
+    annotationMat: 'color-mix(in srgb,var(--app-reader-accent-strong) 8%,var(--app-reader-bg))',
+    annotationSurface: 'color-mix(in srgb,var(--app-reader-paper) 86%,var(--app-reader-ink) 14%)',
     background: 'rgba(36,32,25,.9)',
     border: 'rgba(224,217,204,.12)',
+    distillationAccent: 'var(--app-reader-accent-strong)',
+    distillationBorder:
+      'color-mix(in srgb,var(--app-reader-accent-strong) 46%,var(--app-reader-note-border))',
+    distillationMat: 'color-mix(in srgb,var(--app-reader-accent-strong) 13%,var(--app-reader-bg))',
+    distillationSurface:
+      'color-mix(in srgb,var(--app-reader-paper) 88%,var(--app-reader-accent-strong) 12%)',
+    distillationTabForeground: '#1a1815',
     shadow: '0 18px 44px rgba(0,0,0,.42)',
     quoteBackground: 'rgba(224,132,79,.16)',
     quoteText: '#e0d9cc',
@@ -688,8 +722,20 @@ const duskIndigoReaderTheme: ReaderTheme = {
     itemHoverBackground: 'hsl(221 15% 19% / 0.82)',
   },
   note: {
+    annotationAccent: 'var(--app-reader-accent-strong)',
+    annotationBorder:
+      'color-mix(in srgb,var(--app-reader-accent-strong) 24%,var(--app-reader-note-border))',
+    annotationMat: 'color-mix(in srgb,var(--app-reader-accent-strong) 8%,var(--app-reader-bg))',
+    annotationSurface: 'color-mix(in srgb,var(--app-reader-paper) 86%,var(--app-reader-ink) 14%)',
     background: 'hsl(223 15% 15% / 0.9)',
     border: 'hsl(222 13% 27% / 0.86)',
+    distillationAccent: 'var(--app-reader-accent-strong)',
+    distillationBorder:
+      'color-mix(in srgb,var(--app-reader-accent-strong) 46%,var(--app-reader-note-border))',
+    distillationMat: 'color-mix(in srgb,var(--app-reader-accent-strong) 14%,var(--app-reader-bg))',
+    distillationSurface:
+      'color-mix(in srgb,var(--app-reader-paper) 88%,var(--app-reader-accent-strong) 12%)',
+    distillationTabForeground: '#12141b',
     shadow: '0 18px 44px hsl(228 40% 3% / 0.52)',
     quoteBackground: 'hsl(8 32% 16% / 0.72)',
     quoteText: '#dbe2eb',
@@ -863,8 +909,19 @@ const inkPaperReaderTheme: ReaderTheme = {
     itemHoverBackground: 'rgba(250,249,245,.82)',
   },
   note: {
+    annotationAccent: 'var(--app-reader-accent-strong)',
+    annotationBorder:
+      'color-mix(in srgb,var(--app-reader-accent-strong) 24%,var(--app-reader-note-border))',
+    annotationMat: 'color-mix(in srgb,var(--app-reader-accent) 20%,var(--app-reader-paper))',
+    annotationSurface: 'var(--app-reader-paper)',
     background: 'rgba(250,249,245,.9)',
     border: 'rgba(27,54,93,.12)',
+    distillationAccent: 'var(--app-reader-accent-strong)',
+    distillationBorder:
+      'color-mix(in srgb,var(--app-reader-accent-strong) 46%,var(--app-reader-note-border))',
+    distillationMat: 'color-mix(in srgb,var(--app-reader-accent) 34%,var(--app-reader-note-bg))',
+    distillationSurface: 'var(--app-reader-paper)',
+    distillationTabForeground: '#faf9f5',
     shadow: '0 10px 28px rgba(20,20,19,.08)',
     quoteBackground: 'rgba(214,225,238,.34)',
     quoteText: '#1b365d',

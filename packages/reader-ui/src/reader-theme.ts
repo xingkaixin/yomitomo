@@ -23,8 +23,17 @@ export type ReaderTheme = {
     itemHoverBackground: string;
   };
   note: {
+    annotationAccent: string;
+    annotationBorder: string;
+    annotationMat: string;
+    annotationSurface: string;
     background: string;
     border: string;
+    distillationAccent: string;
+    distillationBorder: string;
+    distillationMat: string;
+    distillationSurface: string;
+    distillationTabForeground: string;
     shadow: string;
     quoteBackground: string;
     quoteText: string;
@@ -90,6 +99,15 @@ export const readerThemeVariableNames = [
   '--app-reader-toc-item-hover-bg',
   '--app-reader-note-bg',
   '--app-reader-note-border',
+  '--app-reader-note-annotation-accent',
+  '--app-reader-note-annotation-border',
+  '--app-reader-note-annotation-mat',
+  '--app-reader-note-annotation-surface',
+  '--app-reader-note-distillation-accent',
+  '--app-reader-note-distillation-border',
+  '--app-reader-note-distillation-mat',
+  '--app-reader-note-distillation-surface',
+  '--app-reader-note-distillation-tab-fg',
   '--app-reader-note-shadow',
   '--app-reader-note-quote-bg',
   '--app-reader-note-quote-text',
@@ -145,6 +163,15 @@ export function readerThemeToCssVariables(theme: ReaderTheme): CssVariableMap {
     '--app-reader-toc-item-hover-bg': theme.toc.itemHoverBackground,
     '--app-reader-note-bg': theme.note.background,
     '--app-reader-note-border': theme.note.border,
+    '--app-reader-note-annotation-accent': theme.note.annotationAccent,
+    '--app-reader-note-annotation-border': theme.note.annotationBorder,
+    '--app-reader-note-annotation-mat': theme.note.annotationMat,
+    '--app-reader-note-annotation-surface': theme.note.annotationSurface,
+    '--app-reader-note-distillation-accent': theme.note.distillationAccent,
+    '--app-reader-note-distillation-border': theme.note.distillationBorder,
+    '--app-reader-note-distillation-mat': theme.note.distillationMat,
+    '--app-reader-note-distillation-surface': theme.note.distillationSurface,
+    '--app-reader-note-distillation-tab-fg': theme.note.distillationTabForeground,
     '--app-reader-note-shadow': theme.note.shadow,
     '--app-reader-note-quote-bg': theme.note.quoteBackground,
     '--app-reader-note-quote-text': theme.note.quoteText,

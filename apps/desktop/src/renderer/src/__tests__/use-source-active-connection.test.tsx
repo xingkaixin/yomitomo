@@ -150,11 +150,11 @@ afterEach(() => {
 });
 
 describe('useSourceActiveConnection', () => {
-  it('targets the final layout edge of an active stacked note', async () => {
+  it('targets the visible upper edge of an active stacked note', async () => {
     render(<HookProbe />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('path').textContent).toMatch(/372 330$/);
+      expect(screen.getByTestId('path').textContent).toMatch(/400 336$/);
     });
   });
 });

@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   Annotation,
@@ -91,6 +91,12 @@ import { buildSourceReaderAppViewProps } from '../bookcase/source-reader-app-vie
 import { useReaderSearchMatches } from '../bookcase/use-reader-search-matches';
 
 const WEB_SELECTION_DRAG_ANNOTATION_ID = '__selection_drag__';
+const WEB_HIGHLIGHT_HIT_PADDING = 8;
+
+type ReaderRailViewport = {
+  height: number;
+  top: number;
+};
 
 export function WebSourceBookcase({
   agents,
@@ -144,6 +150,10 @@ export function WebSourceBookcase({
   const [readingProgress, setReadingProgress] = useState(
     () => normalizeSavedWebProgress(article.readingProgress) ?? 0,
   );
+  const [annotationRailViewport, setAnnotationRailViewport] = useState<ReaderRailViewport>({
+    height: 0,
+    top: 0,
+  });
   const [activeTocIndex, setActiveTocIndex] = useState<number | null>(null);
   const sourceReaderSession = useSourceReaderSession({
     agents,
@@ -589,6 +599,45 @@ export function WebSourceBookcase({
       if (saveTimer !== undefined) window.clearTimeout(saveTimer);
     };
   }, [article.id, onSaveArticleReadingProgress]);
+
+  useLayoutEffect(() => {
+    const scrollElement = scrollRef.current;
+    const canvasElement = canvasRef.current;
+    if (!scrollElement || !canvasElement) {
+      setAnnotationRailViewport((current) =>
+        current.height === 0 && current.top === 0 ? current : { height: 0, top: 0 },
+      );
+      return;
+    }
+
+    let frame = 0;
+    const updateViewport = () => {
+      frame = 0;
+      const top = Math.max(0, Math.round(scrollElement.scrollTop - canvasElement.offsetTop));
+      const height = Math.max(0, Math.round(scrollElement.clientHeight));
+      setAnnotationRailViewport((current) =>
+        current.height === height && current.top === top ? current : { height, top },
+      );
+    };
+    const scheduleUpdate = () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(updateViewport);
+    };
+    const resizeObserver =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleUpdate);
+
+    updateViewport();
+    scrollElement.addEventListener('scroll', scheduleUpdate, { passive: true });
+    window.addEventListener('resize', scheduleUpdate);
+    resizeObserver?.observe(scrollElement);
+    resizeObserver?.observe(canvasElement);
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      scrollElement.removeEventListener('scroll', scheduleUpdate);
+      window.removeEventListener('resize', scheduleUpdate);
+      resizeObserver?.disconnect();
+    };
+  }, [article.id]);
 
   const scrollToAnnotation = useCallback(
     (annotationId: string) => {
@@ -1330,14 +1379,16 @@ export function WebSourceBookcase({
               x: clientX - canvasRect.left,
               y: clientY - canvasRect.top,
             },
-            1,
+            WEB_HIGHLIGHT_HIT_PADDING,
           );
-    if (annotationIds.length === 0) return false;
+    if (annotationIds.length === 0) {
+      if (!fallbackAnnotationId) return false;
+      openAnnotation(fallbackAnnotationId);
+      return true;
+    }
 
     if (annotationIds.length <= 1) {
-      const annotationId = annotationIds[0] || fallbackAnnotationId;
-      if (!annotationId) return false;
-      openAnnotation(annotationId);
+      openAnnotation(annotationIds[0]);
       return true;
     }
 
@@ -1834,6 +1885,8 @@ export function WebSourceBookcase({
       distillationAnimation,
       filteredAnnotations: annotations,
       newAnnotationIds,
+      railViewportHeight: annotationRailViewport.height,
+      railViewportTop: annotationRailViewport.top,
       searchBoxes,
       temporaryBoxes,
     },
