@@ -58,6 +58,14 @@ import type {
 export { groupLibraryArticles };
 export type { LibrarySort };
 
+const DISTILLATION_SYNC_EVENT_GRACE_MS = 320;
+
+type DistillationSyncBlock = {
+  articleId: string;
+  annotationId: string;
+  token: number;
+};
+
 export function ReadingLibrary({
   agents,
   articles,
@@ -185,6 +193,10 @@ export function ReadingLibrary({
   const selectedArticleIdRef = useRef<string | null>(null);
   const pendingDistillationAnimationRef = useRef<AnnotationDistillationCommittedEvent | null>(null);
   const distillationAnimationTimerRef = useRef<number | null>(null);
+  const pendingArticleSyncTimerRef = useRef<number | null>(null);
+  const deferredArticleSyncRef = useRef<{ article: ArticleRecord; articleId: string } | null>(null);
+  const distillationSyncBlockRef = useRef<DistillationSyncBlock | null>(null);
+  const distillationSyncBlockTokenRef = useRef(0);
   const distillationAnimationUpdatedAtRef = useRef(new Map<string, number>());
   const sortedArticles = useMemo<ArticleSummaryRecord[]>(() => sortArticles(articles), [articles]);
   const hasLocalArticleCatalog = articles.length > 0;
@@ -249,6 +261,7 @@ export function ReadingLibrary({
       if (distillationAnimationTimerRef.current !== null) {
         window.clearTimeout(distillationAnimationTimerRef.current);
       }
+      clearPendingArticleSync();
     },
     [],
   );
@@ -305,6 +318,23 @@ export function ReadingLibrary({
     let cancelled = false;
     void onReadArticle(summary.id).then((fullArticle) => {
       if (cancelled || !fullArticle || selectedArticleIdRef.current !== summary.id) return;
+      if (distillationSyncBlocked(summary.id)) {
+        deferredArticleSyncRef.current = { article: fullArticle, articleId: summary.id };
+        return;
+      }
+      if (articleDistillationStateChanged(selectedArticle, fullArticle)) {
+        clearPendingArticleSync();
+        pendingArticleSyncTimerRef.current = window.setTimeout(() => {
+          pendingArticleSyncTimerRef.current = null;
+          if (cancelled || selectedArticleIdRef.current !== summary.id) return;
+          if (distillationSyncBlocked(summary.id)) {
+            deferredArticleSyncRef.current = { article: fullArticle, articleId: summary.id };
+            return;
+          }
+          setSelectedArticle(fullArticle);
+        }, DISTILLATION_SYNC_EVENT_GRACE_MS);
+        return;
+      }
       setSelectedArticle(fullArticle);
     });
     return () => {
@@ -371,8 +401,10 @@ export function ReadingLibrary({
 
   async function focusCommittedDistillation(event: AnnotationDistillationCommittedEvent) {
     const startedAt = performance.now();
+    const syncBlockToken = startDistillationSyncBlock(event);
     const fullArticle = await onReadArticle(event.articleId);
     if (!fullArticle) {
+      clearDistillationSyncBlock(syncBlockToken);
       recordRendererPerformanceTiming('reader_focus', {
         source: 'library',
         phase: 'distillation_article_missing',
@@ -418,6 +450,42 @@ export function ReadingLibrary({
     }
   }
 
+  function clearPendingArticleSync() {
+    if (pendingArticleSyncTimerRef.current !== null) {
+      window.clearTimeout(pendingArticleSyncTimerRef.current);
+      pendingArticleSyncTimerRef.current = null;
+    }
+  }
+
+  function startDistillationSyncBlock(event: AnnotationDistillationCommittedEvent) {
+    clearPendingArticleSync();
+    const token = distillationSyncBlockTokenRef.current + 1;
+    distillationSyncBlockTokenRef.current = token;
+    deferredArticleSyncRef.current = null;
+    distillationSyncBlockRef.current = {
+      articleId: event.articleId,
+      annotationId: event.annotationId,
+      token,
+    };
+    return token;
+  }
+
+  function clearDistillationSyncBlock(token: number | null | undefined) {
+    const block = distillationSyncBlockRef.current;
+    if (!token || block?.token !== token) return;
+    distillationSyncBlockRef.current = null;
+    const deferredSync = deferredArticleSyncRef.current;
+    if (!deferredSync || deferredSync.articleId !== block.articleId) return;
+    deferredArticleSyncRef.current = null;
+    if (selectedArticleIdRef.current === deferredSync.articleId) {
+      setSelectedArticle(deferredSync.article);
+    }
+  }
+
+  function distillationSyncBlocked(articleId: string) {
+    return distillationSyncBlockRef.current?.articleId === articleId;
+  }
+
   function playDistillationMorph(event: AnnotationDistillationCommittedEvent) {
     const token = Date.now();
     const DUAL_PREPARE_MS = 16;
@@ -425,6 +493,7 @@ export function ReadingLibrary({
     const UPDATE_MS = 850;
 
     clearDistillationTimer();
+    const syncBlockToken = distillationSyncBlockRef.current?.token;
     recordRendererPerformanceTiming('reader_focus', {
       source: 'library',
       phase: 'distillation_animation_start',
@@ -456,6 +525,7 @@ export function ReadingLibrary({
       distillationAnimationTimerRef.current = window.setTimeout(() => {
         setDistillationAnimation((current) => (current?.token === token ? null : current));
         distillationAnimationTimerRef.current = null;
+        clearDistillationSyncBlock(syncBlockToken);
       }, UPDATE_MS);
       return;
     }
@@ -490,6 +560,7 @@ export function ReadingLibrary({
         distillationAnimationTimerRef.current = window.setTimeout(() => {
           setDistillationAnimation((current) => (current?.token === token ? null : current));
           distillationAnimationTimerRef.current = null;
+          clearDistillationSyncBlock(syncBlockToken);
         }, DUAL_MORPH_MS);
       }, DUAL_PREPARE_MS);
     };
@@ -1121,6 +1192,39 @@ function articleSummaryChanged(summary: ArticleSummaryRecord, article: ArticleRe
     articleAiCommentCount(summary) !== articleAiCommentCount(article) ||
     articleDistillationCount(summary) !== articleDistillationCount(article)
   );
+}
+
+export function articleDistillationStateChanged(
+  previousArticle: ArticleRecord,
+  nextArticle: ArticleRecord,
+) {
+  const previousAnnotations = new Map(
+    previousArticle.annotations.map((annotation) => [annotation.id, annotation]),
+  );
+  const nextAnnotations = new Map(
+    nextArticle.annotations.map((annotation) => [annotation.id, annotation]),
+  );
+  const annotationIds = new Set([...previousAnnotations.keys(), ...nextAnnotations.keys()]);
+  for (const annotationId of annotationIds) {
+    if (
+      annotationDistillationSignature(previousAnnotations.get(annotationId)) !==
+      annotationDistillationSignature(nextAnnotations.get(annotationId))
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function annotationDistillationSignature(annotation: Annotation | undefined) {
+  const distillation = annotation?.distillation;
+  if (!distillation) return '';
+  return [
+    distillation.status || '',
+    distillation.content || '',
+    distillation.publishedAt || '',
+    distillation.updatedAt || '',
+  ].join('\u001f');
 }
 
 function articleAiCommentCount(article: ArticleSummaryRecord) {
