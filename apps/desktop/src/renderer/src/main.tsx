@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import type { AppSettings, ArticleSummaryRecord } from '@yomitomo/shared';
 import { normalizeUiLanguage } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
-import { LockKeyhole, Volume2 } from 'lucide-react';
+import { ArrowUpCircle, LockKeyhole, Volume2 } from 'lucide-react';
 
 import type { SettingsSectionKey } from './settings/app-settings-panels';
 import { AppLockGate } from './app-lock/app-lock-gate';
@@ -20,6 +20,7 @@ import { ThemeSelector } from './theme/app-theme-selector';
 import { useReaderThemeController } from './theme/use-reader-theme-controller';
 import { elementDialogSourceRect, type DialogSourceRect } from './shell/app-dialog-transition';
 import { UpdateReleaseDialog } from './shell/app-update-dialog';
+import { useAppUpdateState } from './shell/use-app-update-state';
 import { changeAppI18nLanguage, initializeAppI18n } from './i18n/app-i18n';
 import { readCachedUiLanguage, writeCachedUiLanguage } from './i18n/app-language-cache';
 import { playAppSoundEffect } from './sound/app-sound-effects';
@@ -246,6 +247,9 @@ function App() {
   const [activeSetting, setActiveSetting] = useState<SettingKey>('library');
   const [activeSettingsSection, setActiveSettingsSection] =
     useState<SettingsSectionKey>('collection');
+  const appUpdateState = useAppUpdateState();
+  const updateReady =
+    appUpdateState?.status === 'available' || appUpdateState?.status === 'downloaded';
   const [, setPreloadVersion] = useState(0);
   const [themeDialogOpen, setThemeDialogOpen] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
@@ -536,6 +540,21 @@ function App() {
               label={t('nav.settings')}
               onClick={openSettings}
             />
+            {updateReady ? (
+              <button
+                type="button"
+                className="app-nav-update-button"
+                aria-label={t('nav.updateAvailableTooltip')}
+                data-tooltip={t('nav.updateAvailableTooltip')}
+                onClick={() => {
+                  openSettings();
+                  changeSettingsSection('about');
+                }}
+              >
+                <ArrowUpCircle aria-hidden="true" size={16} />
+                {t('nav.updateAvailable')}
+              </button>
+            ) : null}
             {lockEnabled ? (
               <button
                 aria-label={t('appLock.lockNow', { shortcut: shortcutLabel })}

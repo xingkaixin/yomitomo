@@ -450,6 +450,8 @@ export const zhCNResources = {
       stats: '统计',
       settings: '设置',
       profile: '个人设置',
+      updateAvailable: '有新版本',
+      updateAvailableTooltip: '有新版本可更新，点击前往更新',
     },
     appLock: {
       lockNow: '锁定应用（{{shortcut}}）',

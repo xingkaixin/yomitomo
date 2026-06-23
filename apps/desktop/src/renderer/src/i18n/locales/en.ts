@@ -462,6 +462,8 @@ export const enResources = {
       stats: 'Stats',
       settings: 'Settings',
       profile: 'Open profile settings',
+      updateAvailable: 'Update available',
+      updateAvailableTooltip: 'A new version is available — click to update',
     },
     appLock: {
       lockNow: 'Lock app ({{shortcut}})',
