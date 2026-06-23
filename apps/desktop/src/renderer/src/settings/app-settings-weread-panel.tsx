@@ -36,6 +36,8 @@ const WEREAD_API_KEY_HELP_URLS = {
   en: 'https://yomitomo.app/en/docs/weread-api-key/',
 } as const;
 
+type WeReadResetTimerKey = 'openMethod' | 'save' | 'syncMode' | 'test';
+
 export function WeReadSettingsPanel() {
   const { i18n, t } = useTranslation();
   const [settings, setSettings] = useState<WeReadSettings>({
@@ -57,7 +59,17 @@ export function WeReadSettingsPanel() {
   const [testState, setTestState] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [testMessage, setTestMessage] = useState('');
   const revealRequestRef = useRef(0);
+  const resetTimersRef = useRef<Partial<Record<WeReadResetTimerKey, number>>>({});
   const displayedApiKey = apiKey || (apiKeyVisible ? revealedStoredApiKey : '');
+
+  useEffect(() => {
+    return () => {
+      for (const timerId of Object.values(resetTimersRef.current)) {
+        if (timerId !== undefined) window.clearTimeout(timerId);
+      }
+      resetTimersRef.current = {};
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,9 +85,26 @@ export function WeReadSettingsPanel() {
     };
   }, []);
 
+  function clearResetTimer(key: WeReadResetTimerKey) {
+    const timerId = resetTimersRef.current[key];
+    if (timerId === undefined) return;
+    window.clearTimeout(timerId);
+    delete resetTimersRef.current[key];
+  }
+
+  function scheduleResetTimer(key: WeReadResetTimerKey, delay: number, callback: () => void) {
+    clearResetTimer(key);
+    const timerId = window.setTimeout(() => {
+      delete resetTimersRef.current[key];
+      callback();
+    }, delay);
+    resetTimersRef.current[key] = timerId;
+  }
+
   async function saveSettings() {
     if (!window.yomitomoDesktop) return;
     if (!apiKey.trim()) return;
+    clearResetTimer('save');
     setSaveState('saving');
     setApiKeyMessage('');
     try {
@@ -88,7 +117,7 @@ export function WeReadSettingsPanel() {
       setApiKeyVisible(false);
       setRevealedStoredApiKey('');
       setSaveState('saved');
-      window.setTimeout(() => setSaveState('idle'), 1200);
+      scheduleResetTimer('save', 1200, () => setSaveState('idle'));
     } catch (error) {
       setApiKeyMessage(settingsSaveErrorMessage(error, t));
       setSaveState('error');
@@ -98,6 +127,7 @@ export function WeReadSettingsPanel() {
   async function removeStoredApiKey() {
     if (!window.yomitomoDesktop || !settings.configured) return;
     setRemoveConfirmOpen(false);
+    clearResetTimer('save');
     setSaveState('saving');
     setApiKeyMessage('');
     try {
@@ -112,7 +142,7 @@ export function WeReadSettingsPanel() {
       setTestState('idle');
       setTestMessage('');
       setSaveState('saved');
-      window.setTimeout(() => setSaveState('idle'), 1200);
+      scheduleResetTimer('save', 1200, () => setSaveState('idle'));
     } catch (error) {
       setApiKeyMessage(settingsSaveErrorMessage(error, t));
       setSaveState('error');
@@ -121,6 +151,7 @@ export function WeReadSettingsPanel() {
 
   async function testConnection() {
     if (!window.yomitomoDesktop) return;
+    clearResetTimer('test');
     setTestState('testing');
     setTestMessage('');
     try {
@@ -135,7 +166,7 @@ export function WeReadSettingsPanel() {
       setTestState('error');
       setTestMessage(wereadErrorMessage(error, t));
     } finally {
-      window.setTimeout(() => setTestState('idle'), 1400);
+      scheduleResetTimer('test', 1400, () => setTestState('idle'));
     }
   }
 
@@ -175,13 +206,14 @@ export function WeReadSettingsPanel() {
     if (!window.yomitomoDesktop) return;
     const previous = settings.openMethod;
     setSettings((current) => ({ ...current, openMethod }));
+    clearResetTimer('openMethod');
     setOpenMethodSaveState('saving');
     setOpenMethodSaveError('');
     try {
       const state = await window.yomitomoDesktop.saveWeReadSettings({ openMethod });
       setSettings(state.settings);
       setOpenMethodSaveState('saved');
-      window.setTimeout(() => setOpenMethodSaveState('idle'), 1200);
+      scheduleResetTimer('openMethod', 1200, () => setOpenMethodSaveState('idle'));
     } catch (error) {
       setSettings((current) => ({ ...current, openMethod: previous }));
       setOpenMethodSaveError(settingsSaveErrorMessage(error, t));
@@ -193,13 +225,14 @@ export function WeReadSettingsPanel() {
     if (!window.yomitomoDesktop) return;
     const previous = settings.syncMode ?? 'manual';
     setSettings((current) => ({ ...current, syncMode }));
+    clearResetTimer('syncMode');
     setSyncModeSaveState('saving');
     setSyncModeSaveError('');
     try {
       const state = await window.yomitomoDesktop.saveWeReadSettings({ syncMode });
       setSettings(state.settings);
       setSyncModeSaveState('saved');
-      window.setTimeout(() => setSyncModeSaveState('idle'), 1200);
+      scheduleResetTimer('syncMode', 1200, () => setSyncModeSaveState('idle'));
     } catch (error) {
       setSettings((current) => ({ ...current, syncMode: previous }));
       setSyncModeSaveError(settingsSaveErrorMessage(error, t));
@@ -281,6 +314,7 @@ export function WeReadSettingsPanel() {
               onChange={(event) => {
                 setApiKey(event.target.value);
                 setRevealedStoredApiKey('');
+                clearResetTimer('save');
                 setSaveState('idle');
                 setApiKeyMessage('');
               }}
