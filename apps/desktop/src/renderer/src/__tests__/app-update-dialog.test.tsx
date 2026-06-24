@@ -31,6 +31,13 @@ const highlights: ReleaseNoteHighlight[] = [
   { type: 'fixed', title: '修复进度回退' },
 ];
 
+const available = (trigger: AppUpdateState['trigger']): AppUpdateState => ({
+  status: 'available',
+  currentVersion: '0.8.0',
+  availableVersion: '0.9.0',
+  trigger,
+});
+
 describe('UpdateReleaseDialogView', () => {
   it('renders the after-update scene with full highlights and a single primary action', () => {
     render(
@@ -120,13 +127,6 @@ describe('UpdateReleaseDialog before-update gating', () => {
     });
     render(<UpdateReleaseDialog store={store} onSaveSettings={vi.fn().mockResolvedValue(store)} />);
   };
-
-  const available = (trigger: AppUpdateState['trigger']): AppUpdateState => ({
-    status: 'available',
-    currentVersion: '0.8.0',
-    availableVersion: '0.9.0',
-    trigger,
-  });
 
   it('does not pop the dialog for an auto-check hit', async () => {
     renderContainer();
