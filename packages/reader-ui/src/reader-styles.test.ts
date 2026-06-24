@@ -268,8 +268,13 @@ describe('reader embedded styles', () => {
       '.reader-composer .floating-composer-actions .reader-composer-cancel{background:color-mix(in srgb,var(--reader-ink) 8%,transparent);color:var(--reader-ink)}',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-composer{position:absolute;z-index:var(--reader-z-popover);width:min(520px,calc(100vw - 24px));',
+      '.reader-composer{--transform-origin:24px 18px;position:absolute;z-index:var(--reader-z-popover);width:min(520px,calc(100vw - 24px));',
     );
+    expect(readerConversationStyles).toContain(
+      '.reader-composer[data-placement="above"]{--transform-origin:24px calc(100% - 18px)}',
+    );
+    expect(readerConversationStyles).not.toContain('reader-composer-pop');
+    expect(readerConversationStyles).not.toContain('scale(.88)');
     expect(readerConversationStyles).toContain(
       '.reader-composer textarea{display:block;min-height:88px;max-height:calc(1.55em * 8 + 28px);',
     );
