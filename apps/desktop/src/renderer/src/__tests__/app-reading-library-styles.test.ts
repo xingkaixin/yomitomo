@@ -343,4 +343,40 @@ describe('reading library styles', () => {
       /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.library-bookcase-screen\[data-route-transition\] \.library-shelf-content,[\s\S]*\.library-home-body\[data-list-transition\] \.library-source-panel,[\s\S]*\.library-source-panel\[data-page-transition\] \.library-page-panel \{[\s\S]*animation: none !important;[\s\S]*will-change: auto;[\s\S]*\}/,
     );
   });
+
+  it('aligns import completion motion to success and reveal tokens', () => {
+    expectRule('.library-import-dialog', [
+      '--library-import-success-dur: 500ms;',
+      '--library-import-success-ease: cubic-bezier(0.22, 1, 0.36, 1);',
+      '--library-import-success-scale-from: 0.96;',
+      '--library-import-check-path: 1;',
+      '--library-import-reveal-dur: 400ms;',
+      '--library-import-reveal-distance: 4px;',
+      '--library-import-reveal-blur: 2px;',
+      '--library-import-cover-stagger: 70ms;',
+    ]);
+    expectRule(
+      '.library-article-import-result-check svg path,\n.library-import-success-icon path',
+      [
+        'stroke-dasharray: var(--library-import-check-path);',
+        'stroke-dashoffset: var(--library-import-check-path);',
+        'animation: library-import-check-draw var(--library-import-success-dur)',
+      ],
+    );
+    expectRule('.library-file-import-result', [
+      'animation: library-import-content-reveal var(--library-import-reveal-dur)',
+      'var(--library-import-reveal-ease) both;',
+    ]);
+    expectRule('.library-ebook-import-cover-card', [
+      'animation: ebook-import-cover-fan-in var(--library-import-cover-dur)',
+      'animation-delay: calc(var(--ebook-import-cover-order) * var(--library-import-cover-stagger));',
+    ]);
+    expect(styles).not.toContain('stroke-dasharray: 18;');
+    expect(styles).not.toContain('scale(0.25)');
+    expect(styles).not.toContain('@keyframes ebook-success-pop');
+    expect(styles).not.toContain('@keyframes file-import-result-in');
+    expect(styles).toMatch(
+      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.library-article-import-box\.has-parsed-title \.library-article-import-input input,[\s\S]*\.library-import-success-icon path \{[\s\S]*animation: none !important;[\s\S]*stroke-dashoffset: 0 !important;[\s\S]*\}[\s\S]*\.library-ebook-import-cover-card \{[\s\S]*animation: none !important;[\s\S]*filter: none;[\s\S]*opacity: 1;[\s\S]*transform: translateX\(calc\(-50% \+ var\(--ebook-import-cover-x\)\)\)/,
+    );
+  });
 });
