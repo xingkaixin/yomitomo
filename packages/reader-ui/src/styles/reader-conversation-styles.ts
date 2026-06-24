@@ -791,8 +791,8 @@ export const readerConversationStyles = `
 .reader-composer textarea:focus,.reader-composer textarea:focus-visible,.reader-note-comments-panel .reader-comment-box textarea:focus,.reader-note-comments-panel .reader-comment-box textarea:focus-visible{outline:0;box-shadow:none}
 .reader-note-footer .reader-shortcut-hint{flex:0 0 auto;margin-right:0}
 .reader-note-footer .reader-add-comment{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;gap:4px;padding:7px 10px}
-.reader-composer{position:absolute;z-index:var(--reader-z-popover);width:min(520px,calc(100vw - 24px));padding:0;overflow:visible;border-color:var(--app-reader-composer-border);border-radius:20px;background:var(--reader-paper);box-shadow:var(--app-reader-composer-shadow),0 0 0 1px color-mix(in srgb,var(--reader-paper) 58%,transparent) inset;transform-origin:24px 18px;animation:reader-composer-pop .22s cubic-bezier(.22,1,.36,1)}
-.reader-composer[data-placement="above"]{transform-origin:24px calc(100% - 18px)}
+.reader-composer{--transform-origin:24px 18px;position:absolute;z-index:var(--reader-z-popover);width:min(520px,calc(100vw - 24px));padding:0;overflow:visible;border-color:var(--app-reader-composer-border);border-radius:20px;background:var(--reader-paper);box-shadow:var(--app-reader-composer-shadow),0 0 0 1px color-mix(in srgb,var(--reader-paper) 58%,transparent) inset}
+.reader-composer[data-placement="above"]{--transform-origin:24px calc(100% - 18px)}
 .reader-composer-header{display:grid;gap:8px;padding:12px 14px 10px;border-bottom:1px solid var(--app-reader-composer-border);border-radius:19px 19px 0 0;background:var(--reader-paper);font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif)}
 .reader-composer-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .reader-composer-title-row strong{font-size:14px;font-weight:900;letter-spacing:0}
@@ -826,7 +826,6 @@ export const readerConversationStyles = `
 .reader-tooltip-content .reader-kbd{border-color:color-mix(in srgb,var(--reader-paper,var(--app-reader-paper,#fffaf0)) 24%,transparent);border-bottom-color:color-mix(in srgb,var(--reader-paper,var(--app-reader-paper,#fffaf0)) 34%,transparent);background:color-mix(in srgb,var(--reader-paper,var(--app-reader-paper,#fffaf0)) 12%,transparent);box-shadow:none;color:var(--reader-paper,var(--app-reader-paper,#fffaf0))}
 .reader-shortcut-tooltip{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
 .reader-shortcut-tooltip-keys{display:inline-flex;align-items:center;gap:3px}
-@keyframes reader-composer-pop{from{opacity:0;transform:translateY(-6px) scale(.88);filter:blur(2px)}to{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
 @keyframes reader-tooltip-in{from{opacity:0;transform:translateY(2px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes reader-review-scale{0%,100%{transform:rotate(0deg) scale(1)}45%{transform:rotate(-8deg) scale(1.08)}70%{transform:rotate(5deg) scale(.98)}}
 @keyframes reader-review-avatar-float{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-2px) scale(1.04)}}

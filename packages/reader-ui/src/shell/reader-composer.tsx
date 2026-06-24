@@ -18,6 +18,7 @@ const COMPOSER_FALLBACK_HEIGHT = 232;
 const COMPOSER_MAX_TEXTAREA_ROWS = 8;
 
 type ComposerPlacement = 'below' | 'above';
+export type ComposerPopupPhase = 'opening' | 'open' | 'closing';
 
 type ComposerPosition = {
   left: number;
@@ -29,6 +30,7 @@ export function Composer({
   composer,
   labels = defaultReaderUiLabels,
   messageSendShortcut,
+  phase = 'open',
   shortcutModifier,
   onCancel,
   onSave,
@@ -37,9 +39,10 @@ export function Composer({
   composer: PendingComposer;
   labels?: ReaderUiLabels;
   messageSendShortcut: MessageSendShortcut;
+  phase?: ComposerPopupPhase;
   shortcutModifier: string;
   onCancel: () => void;
-  onSave: (note: string) => void;
+  onSave: (note: string) => void | Promise<void>;
 }) {
   const [note, setNote] = useState('');
   const [position, setPosition] = useState<ComposerPosition>(() => ({
@@ -51,6 +54,15 @@ export function Composer({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const trimmedNote = note.trim();
   const submitLabel = trimmedNote ? labels.submitThought : labels.submitHighlight;
+  const interactive = phase !== 'closing';
+  const className = [
+    'reader-composer',
+    't-dropdown',
+    phase === 'open' ? 'is-open' : '',
+    phase === 'closing' ? 'is-closing' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   useLayoutEffect(() => {
     resizeTextarea(textareaRef.current);
@@ -61,6 +73,8 @@ export function Composer({
   }, [composer, note]);
 
   useEffect(() => {
+    if (!interactive) return;
+
     function handleCancelShortcut(event: KeyboardEvent) {
       if (event.defaultPrevented || event.key !== 'Escape' || event.isComposing) return;
       event.preventDefault();
@@ -70,15 +84,16 @@ export function Composer({
 
     window.addEventListener('keydown', handleCancelShortcut);
     return () => window.removeEventListener('keydown', handleCancelShortcut);
-  }, [onCancel]);
+  }, [interactive, onCancel]);
 
   function save() {
-    onSave(note);
+    if (!interactive) return;
+    void onSave(note);
   }
 
   const handleKeyDown = useCompositionSubmit({
     messageSendShortcut,
-    onCancel,
+    onCancel: interactive ? onCancel : undefined,
     onSubmit: save,
   });
 
@@ -89,8 +104,12 @@ export function Composer({
 
   return (
     <div
-      className="reader-composer"
+      className={className}
       data-placement={position.placement}
+      data-side={position.placement === 'above' ? 'top' : 'bottom'}
+      data-state={phase}
+      aria-hidden={phase === 'closing'}
+      inert={phase === 'closing' ? true : undefined}
       ref={rootRef}
       style={{ left: position.left, top: position.top }}
     >

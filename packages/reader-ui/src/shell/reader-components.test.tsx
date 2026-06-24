@@ -248,16 +248,21 @@ describe('ReaderSettingsToolbarControls', () => {
 });
 
 describe('ReaderSurfaceView empty notes', () => {
-  function renderSurface(
-    showEmptyNotes?: boolean,
-    highlights: {
+  function surfaceView({
+    composer = null,
+    highlights = {},
+    showEmptyNotes,
+  }: {
+    composer?: { x: number; y: number; anchor: Annotation['anchor'] } | null;
+    highlights?: {
       annotations?: Annotation[];
       boxes?: HighlightBox[];
       newAnnotationIds?: Set<string>;
-    } = {},
-  ) {
+    };
+    showEmptyNotes?: boolean;
+  }) {
     const annotations = highlights.annotations ?? [];
-    return render(
+    return (
       <ReaderSurfaceView
         activeId={null}
         agentTheaterBoxes={[]}
@@ -276,7 +281,7 @@ describe('ReaderSurfaceView empty notes', () => {
         boxes={highlights.boxes ?? []}
         canvasRef={React.createRef<HTMLDivElement>()}
         commentsCloseKey={0}
-        composer={null}
+        composer={composer}
         exitingAnnotationIds={new Set()}
         expandedPrimaryCommentIds={new Set()}
         extracted={{ title: '文章', content: '<p>正文</p>' }}
@@ -307,8 +312,19 @@ describe('ReaderSurfaceView empty notes', () => {
         onOpenComposer={vi.fn()}
         onPrimaryCommentExpandedChange={vi.fn()}
         onScrollToHighlight={vi.fn()}
-      />,
+      />
     );
+  }
+
+  function renderSurface(
+    showEmptyNotes?: boolean,
+    highlights: {
+      annotations?: Annotation[];
+      boxes?: HighlightBox[];
+      newAnnotationIds?: Set<string>;
+    } = {},
+  ) {
+    return render(surfaceView({ highlights, showEmptyNotes }));
   }
 
   it('keeps the default whole-article empty state for readers without an override', () => {
@@ -345,6 +361,70 @@ describe('ReaderSurfaceView empty notes', () => {
 
     expect(highlight?.classList.contains('is-new')).toBe(true);
     expect(highlight?.style.getPropertyValue('--highlight-grow-delay')).toBe('0ms');
+  });
+
+  it('keeps the composer mounted through the close transition', () => {
+    vi.useFakeTimers();
+    const pendingComposer = { x: 40, y: 60, anchor: annotation().anchor };
+    const { container, rerender } = render(surfaceView({ composer: pendingComposer }));
+
+    act(() => {
+      vi.advanceTimersByTime(20);
+    });
+
+    const opened = container.querySelector<HTMLElement>('.reader-composer');
+    expect(opened?.classList.contains('t-dropdown')).toBe(true);
+    expect(opened?.classList.contains('is-open')).toBe(true);
+    expect(opened?.getAttribute('data-state')).toBe('open');
+
+    act(() => {
+      rerender(surfaceView({ composer: null }));
+    });
+
+    const closing = container.querySelector<HTMLElement>('.reader-composer');
+    expect(closing?.classList.contains('is-closing')).toBe(true);
+    expect(closing?.getAttribute('aria-hidden')).toBe('true');
+    expect(closing?.hasAttribute('inert')).toBe(true);
+
+    act(() => {
+      vi.advanceTimersByTime(120);
+    });
+
+    expect(container.querySelector('.reader-composer')).toBeNull();
+  });
+
+  it('lets a new composer interrupt the previous close transition', () => {
+    vi.useFakeTimers();
+    const firstComposer = { x: 40, y: 60, anchor: annotation().anchor };
+    const nextComposer = { x: 84, y: 96, anchor: annotation({ id: 'annotation-2' }).anchor };
+    const { container, rerender } = render(surfaceView({ composer: firstComposer }));
+
+    act(() => {
+      vi.advanceTimersByTime(20);
+    });
+    act(() => {
+      rerender(surfaceView({ composer: null }));
+    });
+    expect(container.querySelector('.reader-composer')?.classList.contains('is-closing')).toBe(
+      true,
+    );
+
+    act(() => {
+      rerender(surfaceView({ composer: nextComposer }));
+    });
+    act(() => {
+      vi.advanceTimersByTime(20);
+    });
+
+    const reopened = container.querySelector<HTMLElement>('.reader-composer');
+    expect(reopened?.classList.contains('is-open')).toBe(true);
+    expect(reopened?.getAttribute('data-state')).toBe('open');
+
+    act(() => {
+      vi.advanceTimersByTime(120);
+    });
+
+    expect(container.querySelector('.reader-composer')).toBeTruthy();
   });
 });
 
