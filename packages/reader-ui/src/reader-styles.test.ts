@@ -70,6 +70,32 @@ describe('reader embedded styles', () => {
     expect(readerConversationStyles).not.toContain('data-origin');
   });
 
+  it('keeps selection copy icon swap on one reader motion contract', () => {
+    const combinedStyles = combinedReaderStyles();
+
+    expect(readerStyles).toContain('--reader-icon-swap-dur:250ms');
+    expect(readerStyles).toContain('--reader-icon-swap-ease:ease-in-out');
+    expect(readerStyles).toContain('--reader-icon-swap-blur:2px');
+    expect(readerStyles).toContain('--reader-icon-swap-start-scale:.25');
+    expect(readerStyles).toContain('--icon-swap-dur:var(--reader-icon-swap-dur)');
+    expect(readerStyles).toContain('--icon-swap-ease:var(--reader-icon-swap-ease)');
+    expect(readerStyles).toContain(
+      '@media(prefers-reduced-motion:reduce){.reader-selection-copy-icon .t-icon{transition:none!important;will-change:auto}}',
+    );
+    expect(countOccurrences(combinedStyles, '.reader-selection-copy-icon.t-icon-swap{')).toBe(1);
+    expect(countOccurrences(combinedStyles, '.reader-selection-copy-icon .t-icon{grid-area')).toBe(
+      1,
+    );
+    expect(
+      countOccurrences(
+        combinedStyles,
+        '@media(prefers-reduced-motion:reduce){.reader-selection-copy-icon .t-icon{transition:none!important;will-change:auto}}',
+      ),
+    ).toBe(1);
+    expect(readerConversationStyles).not.toContain('--icon-swap-dur');
+    expect(readerConversationStyles).not.toContain('.reader-selection-copy-icon .t-icon{');
+  });
+
   it('keeps reader chrome draggable with centered article metadata', () => {
     expect(readerConversationStyles).toContain('-webkit-app-region:drag');
     expect(readerConversationStyles).toContain(
@@ -401,4 +427,8 @@ describe('reader embedded styles', () => {
 
 function combinedReaderStyles() {
   return readerDesktopEmbeddedBundleStyles;
+}
+
+function countOccurrences(source: string, needle: string) {
+  return source.split(needle).length - 1;
 }
