@@ -47,6 +47,8 @@ const annotationTypeIcons: Record<AnnotationType, LucideIcon> = {
   question: Sprout,
   quote: Sparkles,
 };
+const readerTooltipDelayDuration = 360;
+const readerTooltipSkipDelayDuration = 80;
 
 export function ReadingIntentIcon({
   intent,
@@ -336,6 +338,17 @@ export function SubmitShortcutTooltipContent({
   );
 }
 
+export function ReaderTooltipProvider({ children }: { children: ReactNode }) {
+  return (
+    <TooltipProvider
+      delayDuration={readerTooltipDelayDuration}
+      skipDelayDuration={readerTooltipSkipDelayDuration}
+    >
+      {children}
+    </TooltipProvider>
+  );
+}
+
 export function ReaderTooltip({
   children,
   content,
@@ -349,12 +362,10 @@ export function ReaderTooltip({
 }) {
   if (disabled) return children;
   return (
-    <TooltipProvider delayDuration={360} skipDelayDuration={80}>
-      <Tooltip>
-        <TooltipTrigger asChild>{children}</TooltipTrigger>
-        <TooltipContent side={side}>{content}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side={side}>{content}</TooltipContent>
+    </Tooltip>
   );
 }
 

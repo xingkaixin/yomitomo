@@ -213,6 +213,12 @@ describe('reader embedded styles', () => {
     expect(readerConversationStyles).toContain(
       'background:var(--reader-ink,var(--app-reader-ink,#251d16));',
     );
+    expect(readerConversationStyles).toContain(
+      '.reader-tooltip-content[data-state="delayed-open"]{animation:reader-tooltip-in .12s ease-out}',
+    );
+    expect(readerConversationStyles).not.toContain(
+      '.reader-tooltip-content[data-state="delayed-open"],.reader-tooltip-content[data-state="instant-open"]',
+    );
     expect(readerConversationStyles).toContain('.reader-shortcut-tooltip{');
     expect(readerConversationStyles).toContain(
       '.reader-composer .floating-composer-actions .reader-composer-cancel{background:color-mix(in srgb,var(--reader-ink) 8%,transparent);color:var(--reader-ink)}',
