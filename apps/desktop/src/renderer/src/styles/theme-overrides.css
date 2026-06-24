@@ -4263,9 +4263,6 @@ body.library-picker-dragging * {
   background: transparent;
   color: hsl(var(--muted-foreground));
   box-shadow: none;
-  transition:
-    color 150ms ease,
-    transform 150ms ease;
 }
 
 .agent-filter-tab:hover,
@@ -4282,11 +4279,6 @@ body.library-picker-dragging * {
   background: transparent;
   color: hsl(var(--card));
   box-shadow: none;
-}
-
-.agent-filter-tab:active,
-.stats-chart-switch .segmented-control-option:active {
-  transform: scale(0.96);
 }
 
 .agent-filter-tab[aria-checked='true'] svg,

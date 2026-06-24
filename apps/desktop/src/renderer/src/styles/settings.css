@@ -121,10 +121,6 @@
   color: hsl(var(--muted-foreground));
   padding: 11px 22px;
   text-align: left;
-  transition:
-    background 140ms ease,
-    color 140ms ease,
-    box-shadow 140ms ease;
 }
 
 .agent-filter-tab span {
@@ -3383,11 +3379,16 @@
 .segmented-control {
   --segment-count: 1;
   --segment-index: 0;
+  --segmented-active-scale: 0.96;
+  --segmented-feedback-dur: 150ms;
+  --segmented-feedback-ease: var(--segmented-slide-ease);
   --segmented-padding: 3px;
   --segmented-radius: 8px;
   --segmented-indicator-radius: 6px;
   --segmented-indicator-bg: hsl(var(--background));
   --segmented-indicator-shadow: 0 4px 12px hsl(var(--foreground) / 0.08);
+  --segmented-slide-dur: 250ms;
+  --segmented-slide-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   display: grid;
   position: relative;
@@ -3412,10 +3413,8 @@
   background: var(--segmented-indicator-bg);
   box-shadow: var(--segmented-indicator-shadow);
   transform: translateX(calc(var(--segment-index) * 100%));
-  transition:
-    transform 180ms cubic-bezier(0.2, 0, 0, 1),
-    background-color 150ms ease,
-    box-shadow 150ms ease;
+  transition: transform var(--segmented-slide-dur) var(--segmented-slide-ease);
+  will-change: transform;
 }
 
 .segmented-control-option {
@@ -3434,9 +3433,9 @@
   font-weight: 850;
   padding: 0 12px;
   transition:
-    color 150ms ease,
-    opacity 150ms ease,
-    transform 150ms ease;
+    color var(--segmented-feedback-dur) var(--segmented-feedback-ease),
+    opacity var(--segmented-feedback-dur) var(--segmented-feedback-ease),
+    transform var(--segmented-feedback-dur) var(--segmented-feedback-ease);
   white-space: nowrap;
 }
 
@@ -3450,7 +3449,7 @@
 }
 
 .segmented-control-option:active:not(:disabled) {
-  transform: scale(0.96);
+  transform: scale(var(--segmented-active-scale));
 }
 
 .segmented-control-option:disabled {
@@ -3461,6 +3460,23 @@
 .segmented-control-option:focus-visible {
   outline: 2px solid var(--app-interactive-focus-ring);
   outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segmented-control-indicator {
+    transition: none !important;
+    will-change: auto;
+  }
+
+  .segmented-control-option {
+    transition:
+      color var(--segmented-feedback-dur) var(--segmented-feedback-ease),
+      opacity var(--segmented-feedback-dur) var(--segmented-feedback-ease);
+  }
+
+  .segmented-control-option:active:not(:disabled) {
+    transform: none;
+  }
 }
 
 .stats-view-tabs {
