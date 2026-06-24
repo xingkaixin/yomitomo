@@ -734,6 +734,38 @@ describe('ReadingLibrary home', () => {
     expect(screen.getByText('研究合集')).toBeTruthy();
   });
 
+  it('marks collection drill direction when entering and returning', () => {
+    const collectedArticle = article({ id: 'article_collected', title: '合集内文章' });
+    const collection: Collection = {
+      id: 'collection_1',
+      name: '研究合集',
+      createdAt: now,
+      updatedAt: now,
+    };
+    renderLibrary([collectedArticle], {
+      collections: [collection],
+      collectionMembers: [
+        {
+          collectionId: collection.id,
+          member: { kind: 'article', id: collectedArticle.id },
+          addedAt: now,
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '打开合集：研究合集' }));
+
+    expect(document.querySelector('.library-home-body')?.getAttribute('data-list-transition')).toBe(
+      'forward',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '返回全部' }));
+
+    expect(document.querySelector('.library-home-body')?.getAttribute('data-list-transition')).toBe(
+      'backward',
+    );
+  });
+
   it('pins articles from the card menu', async () => {
     const setLibraryPin = vi.fn().mockResolvedValue({
       type: 'library-pin',
@@ -1140,6 +1172,17 @@ describe('ReadingLibrary home', () => {
     expect(
       container.querySelector('.library-source-panel')?.getAttribute('data-page-transition'),
     ).toBe('backward');
+
+    fireEvent.change(screen.getByLabelText('搜索文章、合集、作者或来源'), {
+      target: { value: '分页文章 1' },
+    });
+
+    expect(
+      container.querySelector('.library-source-panel')?.getAttribute('data-page-transition'),
+    ).toBe('none');
+    expect(
+      container.querySelector('.library-home-body')?.getAttribute('data-list-transition'),
+    ).toBe('none');
   });
 
   it('searches source metadata without reading status filters', () => {
