@@ -93,8 +93,9 @@ const navLinks = [
         <button
           class="mh-pill lang-trigger"
           type="button"
-          aria-haspopup="listbox"
+          aria-haspopup="menu"
           aria-expanded="false"
+          aria-controls="masthead-language-menu"
           aria-label={isEnglish ? 'Select language' : '选择语言'}
           data-lang-trigger
         >
@@ -108,12 +109,20 @@ const navLinks = [
           </svg>
           <span class="lang-cur">{languageLabel}</span>
         </button>
-        <div class="lang-menu" role="listbox" data-lang-menu>
+        <div
+          id="masthead-language-menu"
+          class="lang-menu"
+          role="menu"
+          aria-hidden="true"
+          data-origin="top-right"
+          data-lang-menu
+        >
           <a
             class:list={['lang-opt', !isEnglish && 'sel']}
             href={zhLocaleUrl}
-            role="option"
-            aria-selected={!isEnglish}
+            role="menuitem"
+            aria-current={!isEnglish ? 'true' : undefined}
+            tabindex="-1"
           >
             <span>简体中文</span>
             {
@@ -129,8 +138,9 @@ const navLinks = [
           <a
             class:list={['lang-opt', isEnglish && 'sel']}
             href={enLocaleUrl}
-            role="option"
-            aria-selected={isEnglish}
+            role="menuitem"
+            aria-current={isEnglish ? 'true' : undefined}
+            tabindex="-1"
           >
             <span>English</span>
             {
@@ -172,41 +182,174 @@ const navLinks = [
     const trigger = root.querySelector('[data-lang-trigger]');
     const menu = root.querySelector('[data-lang-menu]');
     if (!trigger || !menu) continue;
-    const setOpen = (open) => {
-      trigger.classList.toggle('open', open);
-      menu.classList.toggle('open', open);
-      trigger.setAttribute('aria-expanded', String(open));
+    const menuItems = Array.from(menu.querySelectorAll('[role="menuitem"]'));
+    let closeTimer = 0;
+
+    const dropdownCloseMs = getMotionMs('--dropdown-close-dur', 150);
+    const isOpen = () => menu.classList.contains('is-open');
+    const currentMenuItem = () =>
+      menu.querySelector('[aria-current="true"]') || menuItems[0];
+    const focusMenuItem = (index) => {
+      if (!menuItems.length) return;
+      const nextIndex = (index + menuItems.length) % menuItems.length;
+      menuItems[nextIndex].focus();
+    };
+    const focusCurrentMenuItem = () => {
+      requestAnimationFrame(() => {
+        if (!isOpen()) return;
+        const item = currentMenuItem();
+        if (item instanceof HTMLElement) item.focus();
+      });
+    };
+    const openMenu = ({ focusCurrent = false } = {}) => {
+      window.clearTimeout(closeTimer);
+      trigger.classList.add('open');
+      menu.classList.remove('is-closing');
+      menu.classList.add('is-open');
+      menu.setAttribute('aria-hidden', 'false');
+      trigger.setAttribute('aria-expanded', 'true');
+      if (focusCurrent) focusCurrentMenuItem();
+    };
+    const closeMenu = ({ restoreFocus = false } = {}) => {
+      if (!isOpen() && !menu.classList.contains('is-closing')) return;
+      window.clearTimeout(closeTimer);
+      trigger.classList.remove('open');
+      menu.classList.remove('is-open');
+      menu.classList.add('is-closing');
+      menu.setAttribute('aria-hidden', 'true');
+      trigger.setAttribute('aria-expanded', 'false');
+      if (restoreFocus) trigger.focus();
+      closeTimer = window.setTimeout(() => {
+        menu.classList.remove('is-closing');
+      }, prefersReducedMotion() ? 0 : dropdownCloseMs);
     };
     trigger.addEventListener('click', (event) => {
       event.stopPropagation();
-      setOpen(!menu.classList.contains('open'));
+      if (isOpen()) {
+        closeMenu({ restoreFocus: true });
+      } else {
+        openMenu({ focusCurrent: true });
+      }
+    });
+    trigger.addEventListener('keydown', (event) => {
+      if (!['Enter', ' ', 'ArrowDown', 'ArrowUp'].includes(event.key)) return;
+      event.preventDefault();
+      openMenu({ focusCurrent: true });
+    });
+    menu.addEventListener('keydown', (event) => {
+      const activeIndex = menuItems.indexOf(document.activeElement);
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeMenu({ restoreFocus: true });
+        return;
+      }
+      if (event.key === 'Tab') {
+        closeMenu();
+        return;
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        focusMenuItem(activeIndex + 1);
+        return;
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        focusMenuItem(activeIndex - 1);
+        return;
+      }
+      if (event.key === 'Home') {
+        event.preventDefault();
+        focusMenuItem(0);
+        return;
+      }
+      if (event.key === 'End') {
+        event.preventDefault();
+        focusMenuItem(menuItems.length - 1);
+        return;
+      }
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        if (document.activeElement instanceof HTMLElement) document.activeElement.click();
+      }
     });
     document.addEventListener('pointerdown', (event) => {
-      if (!root.contains(event.target)) setOpen(false);
+      if (event.target instanceof Node && !root.contains(event.target)) closeMenu();
     });
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape') closeMenu({ restoreFocus: isOpen() });
     });
   }
 
   const tocToggle = document.querySelector('[data-toc-toggle]');
   const drawerOverlay = document.querySelector('[data-drawer-overlay]');
   if (tocToggle) {
-    const setTocOpen = (open) => {
+    const drawerCloseMs = getMotionMs('--panel-close-dur', 350);
+    const sidebar = document.getElementById('starlight__sidebar');
+    const focusableDrawerSelector = [
+      'a[href]',
+      'button:not([disabled])',
+      'summary',
+      'textarea:not([disabled])',
+      'input:not([disabled])',
+      'select:not([disabled])',
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(',');
+    let drawerCloseTimer = 0;
+
+    const isTocOpen = () => tocToggle.getAttribute('aria-expanded') === 'true';
+    const focusFirstDrawerControl = () => {
+      requestAnimationFrame(() => {
+        if (!isTocOpen()) return;
+        const firstControl = sidebar?.querySelector(focusableDrawerSelector);
+        if (firstControl instanceof HTMLElement) {
+          firstControl.focus();
+          return;
+        }
+        if (sidebar instanceof HTMLElement) {
+          sidebar.setAttribute('tabindex', '-1');
+          sidebar.focus();
+        }
+      });
+    };
+    const setTocOpen = (open, { restoreFocus = false } = {}) => {
+      window.clearTimeout(drawerCloseTimer);
       tocToggle.setAttribute('aria-expanded', String(open));
       document.body.toggleAttribute('data-mobile-menu-expanded', open);
+      if (open) {
+        document.body.toggleAttribute('data-mobile-menu-visible', true);
+        document.body.toggleAttribute('data-mobile-menu-closing', false);
+        focusFirstDrawerControl();
+        return;
+      }
+      if (!document.body.hasAttribute('data-mobile-menu-visible')) return;
+      document.body.toggleAttribute('data-mobile-menu-closing', true);
+      if (restoreFocus) tocToggle.focus();
+      drawerCloseTimer = window.setTimeout(() => {
+        document.body.toggleAttribute('data-mobile-menu-visible', false);
+        document.body.toggleAttribute('data-mobile-menu-closing', false);
+      }, prefersReducedMotion() ? 0 : drawerCloseMs);
     };
     tocToggle.addEventListener('click', () => {
-      setTocOpen(tocToggle.getAttribute('aria-expanded') !== 'true');
+      setTocOpen(tocToggle.getAttribute('aria-expanded') !== 'true', { restoreFocus: true });
     });
     if (drawerOverlay) {
-      drawerOverlay.addEventListener('click', () => setTocOpen(false));
+      drawerOverlay.addEventListener('click', () => setTocOpen(false, { restoreFocus: true }));
     }
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
-        setTocOpen(false);
-        tocToggle.focus();
+        setTocOpen(false, { restoreFocus: isTocOpen() });
       }
     });
+  }
+
+  function prefersReducedMotion() {
+    return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  }
+
+  function getMotionMs(token, fallback) {
+    const raw = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+    const value = Number.parseFloat(raw);
+    if (!Number.isFinite(value)) return fallback;
+    return raw.endsWith('ms') ? value : value * 1000;
   }
 </script>
