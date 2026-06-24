@@ -525,12 +525,7 @@ function DeleteActionMenu({
             <MoreHorizontal size={16} />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent
-          className="reader-action-menu-panel t-dropdown is-open"
-          side="bottom"
-          sideOffset={7}
-          data-origin="top-right"
-        >
+        <DropdownMenuContent className="reader-action-menu-panel" side="bottom" sideOffset={7}>
           {onOpenDiscussion ? (
             <DropdownMenuItem asChild>
               <button

@@ -222,6 +222,17 @@ describe('ReaderSettingsToolbarControls', () => {
 
     expect(screen.getByRole('slider', { name: '字号' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '减少字号' })).toBeTruthy();
+    expect(
+      document.querySelector('.reader-toolbar-popover')?.classList.contains('t-dropdown'),
+    ).toBe(true);
+    expect(
+      document.querySelector('.reader-toolbar-popover')?.classList.contains('reader-popup-content'),
+    ).toBe(true);
+    expect(
+      document
+        .querySelector('.reader-toolbar-popover')
+        ?.classList.contains('reader-popover-content'),
+    ).toBe(true);
 
     fireEvent.click(screen.getByRole('button', { name: '文章宽度' }));
 

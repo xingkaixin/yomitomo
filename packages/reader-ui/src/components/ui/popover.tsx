@@ -1,5 +1,6 @@
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
 import * as React from 'react';
+import { composePopupClassName } from './popup-class-name';
 
 export function Popover(props: React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Root>) {
   return <PopoverPrimitive.Root modal={false} {...props} />;
@@ -57,7 +58,10 @@ export const PopoverContent = React.forwardRef<
         style={{ zIndex: 'var(--reader-z-popover)' }}
       >
         <PopoverPrimitive.Popup
-          className={className}
+          className={composePopupClassName(
+            'reader-popup-content reader-popover-content t-dropdown',
+            className,
+          )}
           ref={ref}
           style={{ position: 'static', ...style }}
           {...props}
