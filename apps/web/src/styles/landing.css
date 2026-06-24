@@ -111,6 +111,11 @@
   --panel-translate-y: 100px;
   --panel-blur: 2px;
   --panel-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --modal-open-dur: 250ms;
+  --modal-close-dur: 150ms;
+  --modal-scale: 0.96;
+  --modal-scale-close: 0.96;
+  --modal-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 * {
@@ -998,13 +1003,21 @@ body {
   -webkit-backdrop-filter: blur(8px);
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--dur-3) var(--ease);
+  transition: opacity var(--modal-close-dur) var(--modal-ease);
 }
-.dm-overlay.open {
+.dm-overlay[data-state='open'] {
   opacity: 1;
   pointer-events: auto;
+  transition: opacity var(--modal-open-dur) var(--modal-ease);
+}
+.dm-overlay[data-state='closing'] {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--modal-close-dur) var(--modal-ease);
 }
 .dm-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   width: min(940px, 100%);
   height: min(680px, calc(100vh - 48px));
   background: var(--surface);
@@ -1012,13 +1025,38 @@ body {
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 30px 80px hsl(31 34% 24% / 0.32);
-  transform: scale(0.97);
-  transition: transform var(--dur-3) var(--ease-out);
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  opacity: 0;
+  transform: scale(var(--modal-scale));
+  transform-origin: center;
+  pointer-events: none;
+  transition:
+    transform var(--modal-open-dur) var(--modal-ease),
+    opacity var(--modal-open-dur) var(--modal-ease);
+  will-change: transform, opacity;
 }
-.dm-overlay.open .dm-panel {
+.dm-overlay[data-state='open'] .dm-panel {
+  opacity: 1;
   transform: scale(1);
+  pointer-events: auto;
+}
+.dm-overlay[data-state='closing'] .dm-panel {
+  opacity: 0;
+  transform: scale(var(--modal-scale-close));
+  pointer-events: none;
+  transition:
+    transform var(--modal-close-dur) var(--modal-ease),
+    opacity var(--modal-close-dur) var(--modal-ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .dm-overlay,
+  .dm-panel {
+    transition: none !important;
+  }
+
+  .dm-panel,
+  .dm-overlay[data-state='closing'] .dm-panel {
+    transform: none;
+  }
 }
 .dm-quote {
   position: relative;

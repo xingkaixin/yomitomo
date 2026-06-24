@@ -10,9 +10,21 @@ import {
 } from './data/article';
 
 type ConnectionPath = { d: string; arrow: string; sx: number; sy: number };
+type DiscussionModalPhase = 'closed' | 'opening' | 'open' | 'closing';
 
 function useAgentResolver(agents: Agent[]) {
   return useCallback((id: string) => agents.find((a) => a.id === id) ?? agents[0], [agents]);
+}
+
+function prefersReducedMotion() {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+}
+
+function getCssDurationMs(variableName: string, fallback: number) {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
+  const value = Number.parseFloat(raw);
+  if (!Number.isFinite(value)) return fallback;
+  return raw.endsWith('ms') ? value : value * 1000;
 }
 
 /** Discussion modal: idea list on the left, selected thread on the right. */
@@ -20,48 +32,130 @@ function DiscussionModal({
   annotation,
   agents,
   labels,
-  onClose,
+  returnFocusTarget,
+  onClosed,
 }: {
   annotation: Annotation | null;
   agents: Agent[];
   labels: { quote: string; ideas: string; discussion: (n: number) => string; pick: string };
-  onClose: () => void;
+  returnFocusTarget: HTMLElement | null;
+  onClosed: () => void;
 }) {
   const getAgent = useAgentResolver(agents);
   const [selected, setSelected] = useState(0);
+  const [phase, setPhase] = useState<DiscussionModalPhase>('closed');
+  const [visibleAnnotation, setVisibleAnnotation] = useState<Annotation | null>(null);
   // Portal to <body> so the fixed overlay centers against the viewport instead
   // of the demo section, whose backdrop-filter would otherwise contain it.
   const [mounted, setMounted] = useState(false);
-  const open = !!annotation;
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const closeTimerRef = useRef<number | null>(null);
+  const openFrameRef = useRef<number | null>(null);
+  const focusFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    setSelected(0);
-  }, [annotation?.id]);
+    return () => {
+      if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+      if (openFrameRef.current !== null) window.cancelAnimationFrame(openFrameRef.current);
+      if (focusFrameRef.current !== null) window.cancelAnimationFrame(focusFrameRef.current);
+    };
+  }, []);
 
   useEffect(() => {
+    if (!annotation) return;
+    if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+    if (openFrameRef.current !== null) window.cancelAnimationFrame(openFrameRef.current);
+    setVisibleAnnotation(annotation);
+    setSelected(0);
+    setPhase('opening');
+    openFrameRef.current = window.requestAnimationFrame(() => {
+      setPhase('open');
+      openFrameRef.current = null;
+    });
+  }, [annotation]);
+
+  const finishClose = useCallback(() => {
+    setVisibleAnnotation(null);
+    setPhase('closed');
+    onClosed();
+  }, [onClosed]);
+
+  const requestClose = useCallback(() => {
+    if (phase === 'closed' || phase === 'closing') return;
+    if (openFrameRef.current !== null) {
+      window.cancelAnimationFrame(openFrameRef.current);
+      openFrameRef.current = null;
+    }
+    if (focusFrameRef.current !== null) {
+      window.cancelAnimationFrame(focusFrameRef.current);
+      focusFrameRef.current = null;
+    }
+    setPhase('closing');
+    returnFocusTarget?.focus({ preventScroll: true });
+    const closeMs = prefersReducedMotion() ? 0 : getCssDurationMs('--modal-close-dur', 150);
+    closeTimerRef.current = window.setTimeout(() => {
+      closeTimerRef.current = null;
+      finishClose();
+    }, closeMs);
+  }, [finishClose, phase, returnFocusTarget]);
+
+  useEffect(() => {
+    if (phase !== 'open' && phase !== 'opening') return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') requestClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [phase, requestClose]);
 
-  const thoughts: Thought[] = annotation?.thoughts ?? [];
+  useEffect(() => {
+    if (phase !== 'open') return;
+    focusFrameRef.current = requestAnimationFrame(() => {
+      focusFrameRef.current = null;
+      closeButtonRef.current?.focus({ preventScroll: true });
+    });
+    return () => {
+      if (focusFrameRef.current !== null) {
+        window.cancelAnimationFrame(focusFrameRef.current);
+        focusFrameRef.current = null;
+      }
+    };
+  }, [phase, visibleAnnotation?.id]);
+
+  const thoughts: Thought[] = visibleAnnotation?.thoughts ?? [];
   const current = thoughts[selected];
 
-  if (!mounted) return null;
+  if (!mounted || !visibleAnnotation || phase === 'closed') return null;
 
   return createPortal(
-    <div className={`dm-overlay${open ? ' open' : ''}`} onClick={onClose}>
-      <div className="dm-panel" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="dm-overlay"
+      data-state={phase}
+      aria-hidden={phase === 'closing'}
+      inert={phase === 'closing' ? true : undefined}
+      onClick={requestClose}
+    >
+      <div
+        className="dm-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label={labels.ideas}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="dm-quote">
           <span className="lbl">{labels.quote}</span>
-          <p>{annotation?.quote ?? ''}</p>
-          <button className="dm-close" type="button" onClick={onClose} aria-label="关闭">
+          <p>{visibleAnnotation.quote}</p>
+          <button
+            className="dm-close"
+            ref={closeButtonRef}
+            type="button"
+            onClick={requestClose}
+            aria-label="关闭"
+          >
             <X size={16} />
           </button>
         </div>
@@ -141,7 +235,7 @@ function Note({
   active: boolean;
   labels: { distill: string; enter: string };
   onActivate: (id: string) => void;
-  onOpen: (annotation: Annotation) => void;
+  onOpen: (annotation: Annotation, returnFocusTarget: HTMLElement) => void;
 }) {
   const getAgent = useAgentResolver(agents);
 
@@ -193,7 +287,11 @@ function Note({
             </span>
           ))}
         </span>
-        <button className="note-enter" type="button" onClick={() => onOpen(annotation)}>
+        <button
+          className="note-enter"
+          type="button"
+          onClick={(event) => onOpen(annotation, event.currentTarget)}
+        >
           <MessageCircle />
           {labels.enter}
         </button>
@@ -211,6 +309,7 @@ export default function ReaderDemo({ lang = 'zh-CN' }: { lang?: Locale }) {
   const [modal, setModal] = useState<Annotation | null>(null);
   const [path, setPath] = useState<ConnectionPath | null>(null);
   const readerRef = useRef<HTMLDivElement>(null);
+  const modalReturnFocusRef = useRef<HTMLElement | null>(null);
 
   const draw = useCallback(() => {
     const root = readerRef.current;
@@ -277,6 +376,17 @@ export default function ReaderDemo({ lang = 'zh-CN' }: { lang?: Locale }) {
     enter: ui.enterDiscussion,
   };
   const windowTitle = isEnglish ? 'About Yomitomo · Reading' : '关于 Yomitomo · 阅读中';
+  const openDiscussionModal = useCallback(
+    (annotation: Annotation, returnFocusTarget: HTMLElement) => {
+      modalReturnFocusRef.current = returnFocusTarget;
+      setModal(annotation);
+    },
+    [],
+  );
+  const handleModalClosed = useCallback(() => {
+    setModal(null);
+    modalReturnFocusRef.current = null;
+  }, []);
 
   return (
     <div className="win">
@@ -363,7 +473,7 @@ export default function ReaderDemo({ lang = 'zh-CN' }: { lang?: Locale }) {
               active={active === annotation.id}
               labels={noteLabels}
               onActivate={setActive}
-              onOpen={setModal}
+              onOpen={openDiscussionModal}
             />
           ))}
         </div>
@@ -372,7 +482,8 @@ export default function ReaderDemo({ lang = 'zh-CN' }: { lang?: Locale }) {
         annotation={modal}
         agents={agents}
         labels={modalLabels}
-        onClose={() => setModal(null)}
+        returnFocusTarget={modalReturnFocusRef.current}
+        onClosed={handleModalClosed}
       />
     </div>
   );
