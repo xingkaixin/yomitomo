@@ -1,6 +1,6 @@
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
 import * as React from 'react';
-import { cn } from '../../lib/utils';
+import { composePopupClassName } from './popup-class-name';
 
 type PopoverTriggerProps = React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Trigger> & {
   asChild?: boolean;
@@ -39,8 +39,8 @@ const PopoverContent = React.forwardRef<
       style={{ zIndex: 'var(--app-z-popover, 160)' }}
     >
       <PopoverPrimitive.Popup
-        className={cn(
-          'ui-popover-content z-[var(--app-z-popover)] rounded-xl border border-border bg-popover p-4 text-popover-foreground shadow-lg outline-none',
+        className={composePopupClassName(
+          'ui-popup-content ui-popover-content t-dropdown z-[var(--app-z-popover)] rounded-xl border border-border bg-popover p-4 text-popover-foreground shadow-lg outline-none',
           className,
         )}
         ref={ref}

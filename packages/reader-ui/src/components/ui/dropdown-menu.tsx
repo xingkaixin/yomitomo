@@ -1,5 +1,6 @@
 import { Menu as MenuPrimitive } from '@base-ui/react/menu';
 import * as React from 'react';
+import { composePopupClassName } from './popup-class-name';
 
 export function DropdownMenu(props: React.ComponentPropsWithoutRef<typeof MenuPrimitive.Root>) {
   return <MenuPrimitive.Root modal={false} {...props} />;
@@ -44,7 +45,10 @@ export const DropdownMenuContent = React.forwardRef<
       style={{ zIndex: 'var(--reader-z-popover, var(--app-z-popover, 160))' }}
     >
       <MenuPrimitive.Popup
-        className={className}
+        className={composePopupClassName(
+          'reader-popup-content reader-dropdown-content t-dropdown',
+          className,
+        )}
         ref={ref}
         style={{ position: 'static', ...style }}
         {...props}

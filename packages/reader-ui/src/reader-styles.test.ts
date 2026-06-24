@@ -52,6 +52,24 @@ describe('reader embedded styles', () => {
     expect(readerDesktopEmbeddedStyles).not.toContain('--reader-bg:#f5f1e8');
   });
 
+  it('wires popup surfaces to the shared motion contract', () => {
+    expect(readerConversationStyles).toContain('--dropdown-open-dur:190ms');
+    expect(readerConversationStyles).toContain('--dropdown-close-dur:120ms');
+    expect(readerConversationStyles).toContain(
+      '.t-dropdown{transform-origin:var(--transform-origin,var(--popup-transform-origin,top left));',
+    );
+    expect(readerConversationStyles).toContain(
+      '.t-dropdown[data-open],.t-dropdown.is-open{transform:scale(1);opacity:1;pointer-events:auto}',
+    );
+    expect(readerConversationStyles).toContain(
+      '.t-dropdown[data-closed],.t-dropdown[data-ending-style],.t-dropdown.is-closing{transform:scale(var(--dropdown-closing-scale));opacity:0;',
+    );
+    expect(readerConversationStyles).toContain(
+      '@media(prefers-reduced-motion:reduce){.t-dropdown,.t-dropdown[data-closed],.t-dropdown[data-ending-style]{transform:none!important;transition:none!important}',
+    );
+    expect(readerConversationStyles).not.toContain('data-origin');
+  });
+
   it('keeps reader chrome draggable with centered article metadata', () => {
     expect(readerConversationStyles).toContain('-webkit-app-region:drag');
     expect(readerConversationStyles).toContain(

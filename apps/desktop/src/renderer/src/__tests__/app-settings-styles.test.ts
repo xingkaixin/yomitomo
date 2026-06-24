@@ -39,6 +39,37 @@ describe('settings styles', () => {
     expectRule('.ui-popover-content *', ['-webkit-app-region: no-drag;']);
   });
 
+  it('defines the shared popup surface motion contract', () => {
+    expect(styles).toContain('--dropdown-open-dur: 190ms;');
+    expect(styles).toContain('--dropdown-close-dur: 120ms;');
+    expectRule('.ui-popup-content.t-dropdown', [
+      'transform-origin: var(--transform-origin, var(--popup-transform-origin, top left));',
+      'opacity: 0;',
+      'will-change: transform, opacity;',
+    ]);
+    expectRule('.ui-popup-content.t-dropdown[data-open]', [
+      'transform: scale(1);',
+      'opacity: 1;',
+      'pointer-events: auto;',
+    ]);
+    expectRule('.ui-popup-content.t-dropdown[data-starting-style]', [
+      'transform: scale(var(--dropdown-pre-scale));',
+      'opacity: 0;',
+    ]);
+    expectRule('.ui-popup-content.t-dropdown[data-ending-style]', [
+      'transform: scale(var(--dropdown-closing-scale));',
+      'var(--dropdown-close-dur)',
+    ]);
+    expect(styles).toMatch(
+      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.ui-popup-content\.t-dropdown,[\s\S]*transform: none;[\s\S]*transition: none;/,
+    );
+  });
+
+  it('does not default stagger high-frequency popup menu items', () => {
+    expect(styles).not.toContain('menu-item-stagger-in');
+    expect(styles).not.toContain('animation: menu-item-stagger-in');
+  });
+
   it('keeps the license dialog clickable over draggable window chrome', () => {
     expectRule('.license-dialog-overlay', ['-webkit-app-region: no-drag;']);
     expectRule('.license-dialog', ['-webkit-app-region: no-drag;']);
