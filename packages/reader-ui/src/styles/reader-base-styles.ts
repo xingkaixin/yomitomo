@@ -18,11 +18,12 @@ export const readerBaseStyles = `
 .reader-article-body.is-translation-select-disabled{user-select:none;-webkit-user-select:none}
 .reader-selection-menu{display:inline-flex;align-items:center;gap:4px}
 .reader-selection-primary.is-copied{border-color:color-mix(in srgb,var(--reader-green) 34%,transparent);background:color-mix(in srgb,var(--reader-green) 10%,var(--reader-paper));color:var(--reader-green)}
-.reader-selection-copy-icon.t-icon-swap{position:relative;display:inline-grid;width:15px;height:15px;place-items:center;flex:0 0 auto;--icon-swap-dur:200ms;--icon-swap-blur:2px;--icon-swap-start-scale:.25;--icon-swap-ease:cubic-bezier(.2,0,0,1)}
+.reader-selection-copy-icon.t-icon-swap{position:relative;display:inline-grid;width:15px;height:15px;place-items:center;flex:0 0 auto;--reader-icon-swap-dur:250ms;--reader-icon-swap-blur:2px;--reader-icon-swap-start-scale:.25;--reader-icon-swap-ease:ease-in-out;--icon-swap-dur:var(--reader-icon-swap-dur);--icon-swap-blur:var(--reader-icon-swap-blur);--icon-swap-start-scale:var(--reader-icon-swap-start-scale);--icon-swap-ease:var(--reader-icon-swap-ease)}
 .reader-selection-copy-icon .t-icon{grid-area:1/1;display:grid;place-items:center;transition:opacity var(--icon-swap-dur) var(--icon-swap-ease),filter var(--icon-swap-dur) var(--icon-swap-ease),transform var(--icon-swap-dur) var(--icon-swap-ease);will-change:opacity,filter,transform}
 .reader-selection-copy-icon[data-state="a"] .t-icon[data-icon="a"],.reader-selection-copy-icon[data-state="b"] .t-icon[data-icon="b"]{opacity:1;filter:blur(0);transform:scale(1)}
 .reader-selection-copy-icon[data-state="a"] .t-icon[data-icon="b"],.reader-selection-copy-icon[data-state="b"] .t-icon[data-icon="a"]{opacity:0;filter:blur(var(--icon-swap-blur));transform:scale(var(--icon-swap-start-scale))}
 .reader-selection-copy-shortcut.is-hidden{opacity:0}
+@media(prefers-reduced-motion:reduce){.reader-selection-copy-icon .t-icon{transition:none!important;will-change:auto}}
 .reader-surface-frame{position:relative;min-width:0;min-height:0;overflow:hidden}
 .reader-surface-frame>.reader-surface{height:100%}
 .reader-edge-blur{position:absolute;left:0;right:0;z-index:120;height:38px;overflow:hidden;pointer-events:none}
