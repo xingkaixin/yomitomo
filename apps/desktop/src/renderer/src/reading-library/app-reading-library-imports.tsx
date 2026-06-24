@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BookText,
-  Check,
   CircleAlert,
   ExternalLink,
   FileText,
@@ -126,6 +125,26 @@ function LibraryImportProgressBar({ percent, ariaLabel }: { percent: number; ari
       />
       <em>{percent}%</em>
     </span>
+  );
+}
+
+function LibraryImportSuccessCheck({ className, size }: { className: string; size: number }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      focusable="false"
+      height={size}
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+      width={size}
+    >
+      <path d="M20 6 9 17l-5-5" pathLength={1} />
+    </svg>
   );
 }
 
@@ -704,7 +723,10 @@ function ArticleImportDialog({
                 <span className="library-article-import-input">
                   {showParsedTitle && importState === 'imported' ? (
                     <span className="library-article-import-result-check" aria-hidden="true">
-                      <Check className="library-article-import-result-icon" size={16} />
+                      <LibraryImportSuccessCheck
+                        className="library-article-import-result-icon"
+                        size={16}
+                      />
                     </span>
                   ) : (
                     <Globe2 size={16} />
@@ -1224,7 +1246,7 @@ function FileImportDialog({
                 {importState === 'submitting' ? (
                   <LoaderCircle className="is-spinning" size={22} />
                 ) : importState === 'imported' ? (
-                  <Check className="library-import-success-icon" size={24} />
+                  <LibraryImportSuccessCheck className="library-import-success-icon" size={24} />
                 ) : importState === 'error' ? (
                   <X size={24} />
                 ) : dragging ? (
