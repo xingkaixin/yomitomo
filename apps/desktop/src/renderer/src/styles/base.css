@@ -31,9 +31,9 @@
     --radius: 0.85rem;
     --resize-dur: 300ms;
     --resize-ease: cubic-bezier(0.22, 1, 0.36, 1);
-    --page-slide-dur: 200ms;
-    --page-fade-dur: 200ms;
-    --page-slide-distance: 10px;
+    --page-slide-dur: 250ms;
+    --page-fade-dur: 250ms;
+    --page-slide-distance: 8px;
     --page-blur: 3px;
     --page-slide-ease: cubic-bezier(0.22, 1, 0.36, 1);
     --page-fade-ease: cubic-bezier(0.22, 1, 0.36, 1);

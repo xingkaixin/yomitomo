@@ -2409,12 +2409,12 @@
 }
 
 .library-bookcase-screen[data-route-transition='enter-source'] .library-shelf-content {
-  animation: library-route-source-enter var(--page-slide-dur) var(--page-slide-ease) both;
+  animation: library-page-forward-enter var(--page-slide-dur) var(--page-slide-ease) both;
   will-change: opacity, transform, filter;
 }
 
 .library-bookcase-screen[data-route-transition='enter-library'] .library-shelf-content {
-  animation: library-route-library-enter var(--page-slide-dur) var(--page-slide-ease) both;
+  animation: library-page-backward-enter var(--page-slide-dur) var(--page-slide-ease) both;
   will-change: opacity, transform, filter;
 }
 
@@ -2424,31 +2424,31 @@
   height: 100%;
 }
 
-@keyframes library-route-source-enter {
+@keyframes library-page-forward-enter {
   from {
     opacity: 0;
     filter: blur(var(--page-blur));
-    transform: translateY(var(--page-slide-distance)) scale(0.996);
+    transform: translateX(var(--page-slide-distance));
   }
 
   to {
     opacity: 1;
     filter: blur(0);
-    transform: translateY(0) scale(1);
+    transform: translateX(0);
   }
 }
 
-@keyframes library-route-library-enter {
+@keyframes library-page-backward-enter {
   from {
     opacity: 0;
     filter: blur(var(--page-blur));
-    transform: translateY(calc(var(--page-slide-distance) * -1)) scale(0.996);
+    transform: translateX(calc(var(--page-slide-distance) * -1));
   }
 
   to {
     opacity: 1;
     filter: blur(0);
-    transform: translateY(0) scale(1);
+    transform: translateX(0);
   }
 }
 

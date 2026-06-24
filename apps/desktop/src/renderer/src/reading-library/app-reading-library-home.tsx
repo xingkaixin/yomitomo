@@ -141,7 +141,9 @@ export function LibraryHome({
   const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [pageTransitionDirection, setPageTransitionDirection] =
-    useState<LibrarySourceTransitionDirection>('none');
+    useState<LibraryTransitionDirection>('none');
+  const [listTransitionDirection, setListTransitionDirection] =
+    useState<LibraryTransitionDirection>('none');
   const [pageSize, setPageSize] = useState(() =>
     normalizeLibraryPageSize(settings.libraryPageSize),
   );
@@ -314,9 +316,10 @@ export function LibraryHome({
   }, [pageCount]);
 
   useEffect(() => {
+    setListTransitionDirection('none');
     setPageTransitionDirection('none');
     setPage(1);
-  }, [activeCollectionId, pageSize, searchQuery, selectedTypesKey]);
+  }, [pageSize, searchQuery]);
 
   useEffect(() => {
     librarySession.searchQuery = searchQuery;
@@ -331,6 +334,9 @@ export function LibraryHome({
   useEffect(() => {
     if (!activeCollectionId) return;
     if (collections.some((collection) => collection.id === activeCollectionId)) return;
+    setListTransitionDirection('none');
+    setPageTransitionDirection('none');
+    setPage(1);
     setActiveCollectionId(null);
   }, [activeCollectionId, collections]);
 
@@ -353,14 +359,14 @@ export function LibraryHome({
   });
   const createCollection = async (name: string) => {
     const collection = await onCreateCollection(name);
-    setActiveCollectionId(collection.id);
+    openCollection(collection.id);
   };
   const renameCollection = async (collectionId: string, name: string) => {
     await onRenameCollection(collectionId, name);
   };
   const deleteCollection = async (collectionId: string) => {
     await onDeleteCollection(collectionId);
-    if (activeCollectionId === collectionId) setActiveCollectionId(null);
+    if (activeCollectionId === collectionId) closeCollection();
   };
   const addCollectionMembers = async (collectionId: string, members: ContentRef[]) => {
     if (members.length === 0) return;
@@ -375,7 +381,25 @@ export function LibraryHome({
     event.dataTransfer.setData('application/x-yomitomo-ref', JSON.stringify(ref));
   };
   const endLibraryDrag = () => setDraggedRef(null);
+  const resetListContentTransition = () => {
+    setListTransitionDirection('none');
+    setPageTransitionDirection('none');
+    setPage(1);
+  };
+  const openCollection = (collectionId: string) => {
+    setListTransitionDirection('forward');
+    setPageTransitionDirection('none');
+    setPage(1);
+    setActiveCollectionId(collectionId);
+  };
+  const closeCollection = () => {
+    setListTransitionDirection('backward');
+    setPageTransitionDirection('none');
+    setPage(1);
+    setActiveCollectionId(null);
+  };
   const toggleType = (type: LibraryTypeFilter) => {
+    resetListContentTransition();
     setSelectedTypes((current) => {
       const next = new Set(current);
       if (next.has(type)) next.delete(type);
@@ -395,7 +419,7 @@ export function LibraryHome({
               className="library-collection-inline-back"
               type="button"
               aria-label={t('library.collection.back')}
-              onClick={() => setActiveCollectionId(null)}
+              onClick={closeCollection}
             >
               <ArrowLeft size={16} />
               <span>{t('library.title')}</span>
@@ -479,7 +503,10 @@ export function LibraryHome({
                     : t('library.searchPlaceholder')
                 }
                 aria-label={t('library.searchLabel')}
-                onChange={(event) => setSearchQuery(event.target.value)}
+                onChange={(event) => {
+                  resetListContentTransition();
+                  setSearchQuery(event.target.value);
+                }}
               />
             </div>
           </div>
@@ -503,7 +530,7 @@ export function LibraryHome({
           </div>
         </div>
       </header>
-      <div className="library-home-body" data-source-transition="none">
+      <div className="library-home-body" data-list-transition={listTransitionDirection}>
         <div
           className="library-source-panel"
           id="library-source-panel-all"
@@ -518,7 +545,7 @@ export function LibraryHome({
                 draggedRef={draggedRef}
                 entities={pageEntities}
                 onDeleteArticle={(article) => void deleteArticle(article.id)}
-                onOpenCollection={(collection) => setActiveCollectionId(collection.id)}
+                onOpenCollection={(collection) => openCollection(collection.id)}
                 onOpenArticle={onOpenArticle}
                 onOpenWeReadBook={onOpenWeReadBook}
                 onOpenWeReadExternal={onOpenWeReadExternal}
@@ -623,6 +650,7 @@ export function LibraryHome({
             value={String(pageSize)}
             onValueChange={(value) => {
               const nextPageSize = normalizeLibraryPageSize(Number(value));
+              setListTransitionDirection('none');
               setPageTransitionDirection('none');
               setPageSize(nextPageSize);
               setPage(1);
@@ -684,7 +712,7 @@ export function LibraryHome({
   }
 }
 
-export type LibrarySourceTransitionDirection = 'backward' | 'forward' | 'none';
+type LibraryTransitionDirection = 'backward' | 'forward' | 'none';
 
 type CollectionNameDialogState = { type: 'create' } | { type: 'rename'; collection: Collection };
 

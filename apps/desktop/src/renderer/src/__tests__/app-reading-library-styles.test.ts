@@ -16,6 +16,10 @@ function expectRule(selector: string, properties: string[]) {
   ).toBe(true);
 }
 
+function countOccurrences(source: string, needle: string) {
+  return source.split(needle).length - 1;
+}
+
 describe('reading library styles', () => {
   it('keeps long document list text inside the item bounds', () => {
     expectRule('.library-ebook-list-copy', ['min-width: 0;', 'overflow: hidden;']);
@@ -298,35 +302,45 @@ describe('reading library styles', () => {
   });
 
   it('defines direction-aware reading library transitions with reduced motion support', () => {
-    expect(styles).toContain('--page-slide-dur: 200ms;');
+    expect(styles).toContain('--page-slide-dur: 250ms;');
+    expect(styles).toContain('--page-fade-dur: 250ms;');
+    expect(styles).toContain('--page-slide-distance: 8px;');
+    expect(styles).toContain('--page-blur: 3px;');
+    expect(countOccurrences(styles, '@keyframes library-page-forward-enter')).toBe(1);
+    expect(countOccurrences(styles, '@keyframes library-page-backward-enter')).toBe(1);
     expectRule(
       ".library-bookcase-screen[data-route-transition='enter-source'] .library-shelf-content",
       [
-        'animation: library-route-source-enter var(--page-slide-dur) var(--page-slide-ease) both;',
+        'animation: library-page-forward-enter var(--page-slide-dur) var(--page-slide-ease) both;',
         'will-change: opacity, transform, filter;',
       ],
     );
     expectRule(
       ".library-bookcase-screen[data-route-transition='enter-library'] .library-shelf-content",
       [
-        'animation: library-route-library-enter var(--page-slide-dur) var(--page-slide-ease) both;',
+        'animation: library-page-backward-enter var(--page-slide-dur) var(--page-slide-ease) both;',
         'will-change: opacity, transform, filter;',
       ],
     );
-    expectRule(".library-home-body[data-source-transition='forward'] .library-source-panel", [
-      'animation: library-source-panel-forward var(--page-slide-dur) var(--page-slide-ease) both;',
+    expectRule(".library-home-body[data-list-transition='forward'] .library-source-panel", [
+      'animation: library-page-forward-enter var(--page-slide-dur) var(--page-slide-ease) both;',
     ]);
-    expectRule(".library-home-body[data-source-transition='backward'] .library-source-panel", [
-      'animation: library-source-panel-backward var(--page-slide-dur) var(--page-slide-ease) both;',
+    expectRule(".library-home-body[data-list-transition='backward'] .library-source-panel", [
+      'animation: library-page-backward-enter var(--page-slide-dur) var(--page-slide-ease) both;',
     ]);
     expectRule(".library-source-panel[data-page-transition='forward'] .library-page-panel", [
-      'animation: library-page-panel-forward var(--page-slide-dur) var(--page-slide-ease) both;',
+      'animation: library-page-forward-enter var(--page-slide-dur) var(--page-slide-ease) both;',
     ]);
     expectRule(".library-source-panel[data-page-transition='backward'] .library-page-panel", [
-      'animation: library-page-panel-backward var(--page-slide-dur) var(--page-slide-ease) both;',
+      'animation: library-page-backward-enter var(--page-slide-dur) var(--page-slide-ease) both;',
     ]);
+    expect(styles).not.toContain('data-source-transition');
+    expect(styles).not.toContain('library-route-source-enter');
+    expect(styles).not.toContain('library-route-library-enter');
+    expect(styles).not.toContain('library-source-panel-forward');
+    expect(styles).not.toContain('library-page-panel-forward');
     expect(styles).toMatch(
-      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.library-bookcase-screen\[data-route-transition\] \.library-shelf-content,[\s\S]*\.library-home-body\[data-source-transition\] \.library-source-panel,[\s\S]*\.library-source-panel\[data-page-transition\] \.library-page-panel \{[\s\S]*animation: none !important;[\s\S]*will-change: auto;[\s\S]*\}/,
+      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.library-bookcase-screen\[data-route-transition\] \.library-shelf-content,[\s\S]*\.library-home-body\[data-list-transition\] \.library-source-panel,[\s\S]*\.library-source-panel\[data-page-transition\] \.library-page-panel \{[\s\S]*animation: none !important;[\s\S]*will-change: auto;[\s\S]*\}/,
     );
   });
 });
