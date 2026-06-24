@@ -5,6 +5,16 @@ sidebar:
   hidden: true
 ---
 
+## 0.9.0
+
+Released: 2026-06-24
+
+- The Library is now a mixed list across content types, with collections, pinned items, session-aware type filters, and fuller empty states.
+- Distillation review now streams structured suggestions that can be previewed, accepted, or dismissed in the draft.
+- WeRead can sync automatically, the app can check for updates automatically, and local storage, cache maintenance, and reader details are steadier.
+
+[View 0.9.0 release notes](/en/changelogs/v0-9-0/)
+
 ## 0.8.0
 
 Released: 2026-06-20

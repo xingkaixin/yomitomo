@@ -1,0 +1,41 @@
+{
+  "version": "0.9.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "One unified Library",
+      "description": "Web articles, ebooks, PDFs, WeRead items, and collections now live in one Library, with filters and paging that make it easier to return to the same view.",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "Organize with collections",
+      "description": "Group related reading into a collection, then keep paging, filtering, and opening articles inside a focused Library subset.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Review inside the draft",
+      "description": "The review assistant streams structured suggestions, previews additions, removals, and edits in the draft, and keeps organized discussion near the writing area.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Sync and updates need less work",
+      "description": "WeRead can sync automatically, and Yomitomo now checks for updates silently with a persistent top-bar entry when a new version is available.",
+      "audience": "settings"
+    },
+    {
+      "type": "fixed",
+      "title": "More stable over time",
+      "description": "SQLite storage, Chromium cache, and log retention are tighter, with fixes for PDF highlight clicks, web translation selection, failed assistant states, and ebook titles.",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "Anonymous stats can be disabled",
+      "description": "Settings now includes a version and system-environment statistics switch. It tracks active version distribution without collecting reading content, titles, annotations, or AI chats.",
+      "audience": "settings"
+    }
+  ]
+}
