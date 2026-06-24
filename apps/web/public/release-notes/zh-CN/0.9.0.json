@@ -1,0 +1,41 @@
+{
+  "version": "0.9.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "阅读库变成统一列表",
+      "description": "网页文章、电子书、PDF、微信读书和合集现在放在同一个阅读库里，筛选和翻页后返回也更容易保持刚才的位置。",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "用合集整理资料",
+      "description": "你可以把相关内容收进合集，打开合集后继续翻页、筛选和进入文章，像在一个已整理好的阅读库子集里阅读。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "沉淀审阅更贴近草稿",
+      "description": "审阅助手会流式给出结构化建议，采纳前能在草稿里预览新增、删除或修改，整理讨论也回到草稿区处理。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "同步和更新更省心",
+      "description": "微信读书可以按设置自动同步，应用也会静默检查新版本；有可用更新时，顶部会出现常驻入口。",
+      "audience": "settings"
+    },
+    {
+      "type": "fixed",
+      "title": "长期使用更稳",
+      "description": "优化 SQLite 存储、Chromium 缓存和日志保留，并修复 PDF 划线点击、网页翻译选区、助手失败状态和电子书标题细节。",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "匿名统计可关闭",
+      "description": "设置中新增版本与系统环境统计开关，用来了解活跃版本分布；不会采集阅读内容、书名、批注或 AI 对话。",
+      "audience": "settings"
+    }
+  ]
+}

@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.9.0 - 2026-06-24
+
+### Features
+
+- Reworked the Library into one mixed reading list for web articles, ebooks, PDFs, WeRead items, and collections, with pinned items, session-aware type filters, richer empty states, multi-source add actions, collection cover previews, and import-completion motion. (#492, #493, #494, #495, #496, #499, #500, #515)
+- Deepened distillation review and draft organization with single-pass structured streaming, organized discussion drafts, proposal validation, inline proposal previews, draft anchor highlighting, assistant mention chips, refined reader chat controls, and redesigned annotation/distillation cards. (#482, #485, #486, #488, #489, #491, #501, #520)
+- Added automatic WeRead sync, clearer WeRead sync copy, provider model routing setup, automatic update checks with a persistent update entry, and an opt-out anonymous desktop heartbeat for active version/system distribution. (#506, #507, #483, #516, #510)
+- Refreshed product presentation with the new brand mark, updated reader screenshots/help docs, the mobile docs TOC bottom sheet, and stronger keyboard/modal lifecycle behavior in the website masthead and reader demo. (#497, #519, #521, #490, #529, #530)
+
+### Performance
+
+- Reused lexical document frequencies in related-passage scoring to reduce repeated corpus scans. (#504)
+- Reduced SQLite growth by deduplicating ebook content, avoiding repeated inline avatar storage, and adding database cleanup. (#512)
+- Added Chromium cache maintenance and a 90-day log-retention default to keep long-running local data smaller. (#514, #511)
+
+### Fixes
+
+- Restored stable web-article translation selection and consumed reader focus navigation only once. (#481, #502)
+- Kept failed assistant requests and WeRead settings reset timers from lingering in active or saving states. (#484, #517)
+- Restored PDF highlight clicks linking back to annotation/distillation surfaces and cleaned long ebook titles while hiding pending page totals. (#513, #509, #508)
+- Stabilized reader tooltip delay sharing, App Lock reduced-motion shimmer behavior, import-completion motion, and website reader-demo visual details. (#522, #526, #528, #498)
+
+### Engineering
+
+- Split reading-library home boundaries and source-reader web translation/debug boundaries to reduce cross-feature coupling. (#503, #505)
+- Established shared popup and motion contracts across Base UI popups, page transitions, segmented controls, copy-icon swaps, inline composers, and reader-demo modals. (#523, #525, #527, #524, #531, #530)
+- Tightened dev app lifecycle handling when the parent process exits, refreshed post-0.8.0 docs, and stabilized distillation sound assertions. (#487, #519, #518)
+
 ## 0.8.0 - 2026-06-20
 
 ### Features
