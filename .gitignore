@@ -14,7 +14,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 coverage
-.issues/
+.issues
 
 assets/*.mp4
 
@@ -29,7 +29,7 @@ outputs
 .agents
 .claude
 skills-lock.json
-
+.codex
 
 # chore
 videos/
