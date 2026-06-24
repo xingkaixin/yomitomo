@@ -4,6 +4,16 @@ import { describe, expect, it } from 'vitest';
 const styles = readRendererStyles();
 
 describe('annotation discussion styles', () => {
+  it('does not replay tooltip enter animation for instant hover opens', () => {
+    expect(styles).toMatch(
+      /\.reader-tooltip-content\[data-state='delayed-open'\] \{[\s\S]*animation: reader-tooltip-in 120ms ease-out;[\s\S]*\}/,
+    );
+    expect(styles).not.toContain(".reader-tooltip-content[data-state='instant-open']");
+    expect(styles).toMatch(
+      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.reader-tooltip-content \{[\s\S]*animation: none !important;[\s\S]*will-change: auto;[\s\S]*\}/,
+    );
+  });
+
   it('keeps the add thought modal editor integrated with the modal shell', () => {
     expect(styles).toMatch(
       /\.floating-composer\.annotation-discussion-add-editor \{[\s\S]*border: 0;[\s\S]*border-radius: 0 0 16px 16px;[\s\S]*box-shadow: none;[\s\S]*\}/,

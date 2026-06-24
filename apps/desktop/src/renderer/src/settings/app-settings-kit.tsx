@@ -1,5 +1,8 @@
 import React from 'react';
-import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
+import {
+  ReaderTooltip,
+  ReaderTooltipProvider,
+} from '@yomitomo/reader-ui/reader-component-primitives';
 import { ChevronRight, Info } from 'lucide-react';
 import './app-settings-kit.css';
 
@@ -22,25 +25,31 @@ export function SettingsPage({
   children: React.ReactNode;
 }) {
   return (
-    <div className="settings-page">
-      <header className="settings-breadcrumb">
-        <div className="settings-breadcrumb-copy">
-          <p className="settings-breadcrumb-trail">
-            {trail.map((item, index) => (
-              <React.Fragment key={item}>
-                {index > 0 ? (
-                  <ChevronRight aria-hidden="true" className="settings-breadcrumb-sep" size={13} />
-                ) : null}
-                <span>{item}</span>
-              </React.Fragment>
-            ))}
-          </p>
-          {description ? <p className="settings-breadcrumb-desc">{description}</p> : null}
-        </div>
-        {action ? <div className="settings-breadcrumb-action">{action}</div> : null}
-      </header>
-      {children}
-    </div>
+    <ReaderTooltipProvider>
+      <div className="settings-page">
+        <header className="settings-breadcrumb">
+          <div className="settings-breadcrumb-copy">
+            <p className="settings-breadcrumb-trail">
+              {trail.map((item, index) => (
+                <React.Fragment key={item}>
+                  {index > 0 ? (
+                    <ChevronRight
+                      aria-hidden="true"
+                      className="settings-breadcrumb-sep"
+                      size={13}
+                    />
+                  ) : null}
+                  <span>{item}</span>
+                </React.Fragment>
+              ))}
+            </p>
+            {description ? <p className="settings-breadcrumb-desc">{description}</p> : null}
+          </div>
+          {action ? <div className="settings-breadcrumb-action">{action}</div> : null}
+        </header>
+        {children}
+      </div>
+    </ReaderTooltipProvider>
   );
 }
 

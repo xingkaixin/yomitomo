@@ -34,6 +34,7 @@ import { articlePlainText } from '../shell/app-utils';
 import {
   AgentAvatarStack,
   AvatarBadge,
+  ReaderTooltipProvider,
   ReaderTooltip,
   SubmitShortcutTooltipContent,
 } from '@yomitomo/reader-ui/reader-component-primitives';
@@ -828,219 +829,221 @@ function SedimentationShell({
   }
 
   return (
-    <main
-      className={[sedimentationWindowClassName(), className].filter(Boolean).join(' ')}
-      style={style}
-    >
-      <section className="annotation-sedimentation-quote" aria-label={t('sedimentation.quote')}>
-        <span aria-hidden="true">“</span>
-        <p>{annotation.anchor.exact}</p>
-      </section>
-      <section className="annotation-sedimentation-body">
-        <section
-          className="annotation-sedimentation-document"
-          aria-label={t('sedimentation.document')}
-        >
-          <header>
-            <div className="annotation-sedimentation-document-title">
-              <strong>{t('sedimentation.draftTitle')}</strong>
-              <span
-                className={`annotation-sedimentation-status is-${isPublished ? 'published' : 'draft'}`}
-              >
-                {statusLabel}
-              </span>
-            </div>
-            <div className="annotation-sedimentation-document-actions">
-              {isPublished ? (
+    <ReaderTooltipProvider>
+      <main
+        className={[sedimentationWindowClassName(), className].filter(Boolean).join(' ')}
+        style={style}
+      >
+        <section className="annotation-sedimentation-quote" aria-label={t('sedimentation.quote')}>
+          <span aria-hidden="true">“</span>
+          <p>{annotation.anchor.exact}</p>
+        </section>
+        <section className="annotation-sedimentation-body">
+          <section
+            className="annotation-sedimentation-document"
+            aria-label={t('sedimentation.document')}
+          >
+            <header>
+              <div className="annotation-sedimentation-document-title">
+                <strong>{t('sedimentation.draftTitle')}</strong>
+                <span
+                  className={`annotation-sedimentation-status is-${isPublished ? 'published' : 'draft'}`}
+                >
+                  {statusLabel}
+                </span>
+              </div>
+              <div className="annotation-sedimentation-document-actions">
+                {isPublished ? (
+                  <ReaderTooltip
+                    content={
+                      <SedimentationActionTooltipContent
+                        label={t('sedimentation.unpublish')}
+                        description={t('sedimentation.unpublishTooltip')}
+                      />
+                    }
+                  >
+                    <button
+                      className="is-secondary"
+                      type="button"
+                      disabled={!canUnpublish}
+                      onClick={() => void unpublishDistillation()}
+                    >
+                      <RotateCcw size={15} />
+                      <span>{t('sedimentation.unpublish')}</span>
+                    </button>
+                  </ReaderTooltip>
+                ) : null}
                 <ReaderTooltip
                   content={
                     <SedimentationActionTooltipContent
-                      label={t('sedimentation.unpublish')}
-                      description={t('sedimentation.unpublishTooltip')}
+                      label={t('sedimentation.organizeDiscussion')}
+                      description={t('sedimentation.organizeTooltip')}
                     />
                   }
                 >
                   <button
                     className="is-secondary"
                     type="button"
-                    disabled={!canUnpublish}
-                    onClick={() => void unpublishDistillation()}
+                    disabled={!canOrganize}
+                    onClick={organizeDiscussion}
                   >
-                    <RotateCcw size={15} />
-                    <span>{t('sedimentation.unpublish')}</span>
+                    <Sparkles size={15} />
+                    <span>{t('sedimentation.organizeDiscussion')}</span>
                   </button>
                 </ReaderTooltip>
-              ) : null}
-              <ReaderTooltip
-                content={
-                  <SedimentationActionTooltipContent
-                    label={t('sedimentation.organizeDiscussion')}
-                    description={t('sedimentation.organizeTooltip')}
-                  />
-                }
-              >
-                <button
-                  className="is-secondary"
-                  type="button"
-                  disabled={!canOrganize}
-                  onClick={organizeDiscussion}
+                <ReaderTooltip
+                  content={
+                    <SubmitShortcutTooltipContent
+                      label={publishLabel}
+                      shortcut={messageSendShortcut}
+                      shortcutModifier={shortcutModifier}
+                    />
+                  }
                 >
-                  <Sparkles size={15} />
-                  <span>{t('sedimentation.organizeDiscussion')}</span>
-                </button>
-              </ReaderTooltip>
-              <ReaderTooltip
-                content={
+                  <button
+                    type="button"
+                    disabled={!canPublish}
+                    onClick={() => void publishDistillation()}
+                  >
+                    <UploadCloud size={15} />
+                    <span>{publishLabel}</span>
+                  </button>
+                </ReaderTooltip>
+              </div>
+            </header>
+            <div className="annotation-sedimentation-draft-workspace">
+              <div
+                className={[
+                  'annotation-sedimentation-draft-editor',
+                  pendingDraftPreview ? 'has-preview' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+              >
+                {pendingDraftPreview ? (
+                  <DraftChangePreviewLayer
+                    changeSet={pendingDraftPreview.changeSet}
+                    decisions={pendingDraftPreview.decisions}
+                    scrollLeft={draftPreviewScroll.left}
+                    scrollTop={draftPreviewScroll.top}
+                    onDecision={(proposalId, decision) =>
+                      void handleDraftPreviewDecision(proposalId, decision)
+                    }
+                  />
+                ) : hoveredDraftAnchor ? (
+                  <DraftAnchorHighlightLayer
+                    anchor={hoveredDraftAnchor}
+                    draft={draft}
+                    scrollLeft={draftPreviewScroll.left}
+                    scrollTop={draftPreviewScroll.top}
+                  />
+                ) : null}
+                <textarea
+                  ref={draftTextareaRef}
+                  value={draft}
+                  readOnly={Boolean(pendingDraftPreview)}
+                  placeholder={pendingDraftPreview ? '' : t('sedimentation.draftPlaceholder')}
+                  onChange={(event) => {
+                    setHoveredDraftAnchor(null);
+                    setDraft(event.target.value);
+                    recordDraftSelection();
+                  }}
+                  onClick={recordDraftSelection}
+                  onKeyDown={handlePublishKeyDown}
+                  onKeyUp={recordDraftSelection}
+                  onScroll={syncDraftPreviewScroll}
+                  onSelect={recordDraftSelection}
+                />
+              </div>
+              {organizeState.type !== 'idle' ? (
+                <OrganizeDiscussionCard
+                  state={organizeState}
+                  appliedProposalIds={appliedOrganizeProposalIds}
+                  dismissedProposalIds={dismissedOrganizeProposalIds}
+                  pendingProposalIds={pendingDraftProposalIds(pendingDraftPreview, 'organize')}
+                  onProposalAnchorEnter={handleDraftAnchorEnter}
+                  onProposalAnchorLeave={handleDraftAnchorLeave}
+                  onPreviewProposals={handleOrganizeProposalPreview}
+                  onClose={() => {
+                    if (pendingDraftPreview?.source === 'organize') setPendingDraftPreview(null);
+                    setOrganizeState({ type: 'idle' });
+                  }}
+                  onRetry={() => void runOrganizeDiscussion()}
+                />
+              ) : null}
+            </div>
+          </section>
+
+          <aside
+            className="annotation-sedimentation-review-panel"
+            aria-label={t('sedimentation.reviewPanel')}
+          >
+            <header>
+              <div>
+                <strong>{t('sedimentation.reviewTitle')}</strong>
+                <span>{reviewNotice || t('sedimentation.reviewHint')}</span>
+              </div>
+            </header>
+            <ReviewSessions
+              agents={reviewAgents}
+              sessions={sessions}
+              userProfile={userProfile}
+              pendingProposalIds={pendingDraftProposalIds(pendingDraftPreview, 'review')}
+              onProposalAnchorEnter={handleDraftAnchorEnter}
+              onProposalAnchorLeave={handleDraftAnchorLeave}
+              onProposalPreview={handleProposalPreview}
+              onProposalIgnore={handleProposalIgnore}
+              onProposalRestore={handleProposalRestore}
+            />
+            <footer>
+              <FloatingComposer
+                ref={reviewTextareaRef}
+                className="annotation-sedimentation-review-composer"
+                accessory={
+                  <div
+                    className="annotation-sedimentation-review-composer-accessory"
+                    aria-label={t('sedimentation.reviewAgents')}
+                  >
+                    <AgentAvatarStack
+                      agents={reviewAgents}
+                      activeAgentIds={activeAgentId ? [activeAgentId] : []}
+                      ariaLabel={t('sedimentation.reviewAgents')}
+                      className={reviewing ? 'is-reviewing' : ''}
+                      revealLabelOnDoubleClick={false}
+                      onAgentClick={selectReviewAgent}
+                    />
+                  </div>
+                }
+                submitDisabled={!canReview}
+                submitIcon={<Send size={14} />}
+                submitLabel={t('sedimentation.send')}
+                submitTooltip={
                   <SubmitShortcutTooltipContent
-                    label={publishLabel}
+                    label={t('sedimentation.sendReviewRequest')}
                     shortcut={messageSendShortcut}
                     shortcutModifier={shortcutModifier}
                   />
                 }
-              >
-                <button
-                  type="button"
-                  disabled={!canPublish}
-                  onClick={() => void publishDistillation()}
-                >
-                  <UploadCloud size={15} />
-                  <span>{publishLabel}</span>
-                </button>
-              </ReaderTooltip>
-            </div>
-          </header>
-          <div className="annotation-sedimentation-draft-workspace">
-            <div
-              className={[
-                'annotation-sedimentation-draft-editor',
-                pendingDraftPreview ? 'has-preview' : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-            >
-              {pendingDraftPreview ? (
-                <DraftChangePreviewLayer
-                  changeSet={pendingDraftPreview.changeSet}
-                  decisions={pendingDraftPreview.decisions}
-                  scrollLeft={draftPreviewScroll.left}
-                  scrollTop={draftPreviewScroll.top}
-                  onDecision={(proposalId, decision) =>
-                    void handleDraftPreviewDecision(proposalId, decision)
-                  }
-                />
-              ) : hoveredDraftAnchor ? (
-                <DraftAnchorHighlightLayer
-                  anchor={hoveredDraftAnchor}
-                  draft={draft}
-                  scrollLeft={draftPreviewScroll.left}
-                  scrollTop={draftPreviewScroll.top}
-                />
-              ) : null}
-              <textarea
-                ref={draftTextareaRef}
-                value={draft}
-                readOnly={Boolean(pendingDraftPreview)}
-                placeholder={pendingDraftPreview ? '' : t('sedimentation.draftPlaceholder')}
-                onChange={(event) => {
-                  setHoveredDraftAnchor(null);
-                  setDraft(event.target.value);
-                  recordDraftSelection();
+                textarea={{
+                  value: reviewDraft,
+                  placeholder: t('sedimentation.reviewPlaceholder'),
+                  rows: 2,
+                  onChange: (event) => setReviewDraft(event.target.value),
+                  onKeyDown: handleReviewKeyDown,
                 }}
-                onClick={recordDraftSelection}
-                onKeyDown={handlePublishKeyDown}
-                onKeyUp={recordDraftSelection}
-                onScroll={syncDraftPreviewScroll}
-                onSelect={recordDraftSelection}
+                onSubmit={() => void submitReviewRound()}
               />
-            </div>
-            {organizeState.type !== 'idle' ? (
-              <OrganizeDiscussionCard
-                state={organizeState}
-                appliedProposalIds={appliedOrganizeProposalIds}
-                dismissedProposalIds={dismissedOrganizeProposalIds}
-                pendingProposalIds={pendingDraftProposalIds(pendingDraftPreview, 'organize')}
-                onProposalAnchorEnter={handleDraftAnchorEnter}
-                onProposalAnchorLeave={handleDraftAnchorLeave}
-                onPreviewProposals={handleOrganizeProposalPreview}
-                onClose={() => {
-                  if (pendingDraftPreview?.source === 'organize') setPendingDraftPreview(null);
-                  setOrganizeState({ type: 'idle' });
-                }}
-                onRetry={() => void runOrganizeDiscussion()}
-              />
-            ) : null}
-          </div>
+            </footer>
+          </aside>
         </section>
-
-        <aside
-          className="annotation-sedimentation-review-panel"
-          aria-label={t('sedimentation.reviewPanel')}
-        >
-          <header>
-            <div>
-              <strong>{t('sedimentation.reviewTitle')}</strong>
-              <span>{reviewNotice || t('sedimentation.reviewHint')}</span>
-            </div>
-          </header>
-          <ReviewSessions
-            agents={reviewAgents}
-            sessions={sessions}
-            userProfile={userProfile}
-            pendingProposalIds={pendingDraftProposalIds(pendingDraftPreview, 'review')}
-            onProposalAnchorEnter={handleDraftAnchorEnter}
-            onProposalAnchorLeave={handleDraftAnchorLeave}
-            onProposalPreview={handleProposalPreview}
-            onProposalIgnore={handleProposalIgnore}
-            onProposalRestore={handleProposalRestore}
-          />
-          <footer>
-            <FloatingComposer
-              ref={reviewTextareaRef}
-              className="annotation-sedimentation-review-composer"
-              accessory={
-                <div
-                  className="annotation-sedimentation-review-composer-accessory"
-                  aria-label={t('sedimentation.reviewAgents')}
-                >
-                  <AgentAvatarStack
-                    agents={reviewAgents}
-                    activeAgentIds={activeAgentId ? [activeAgentId] : []}
-                    ariaLabel={t('sedimentation.reviewAgents')}
-                    className={reviewing ? 'is-reviewing' : ''}
-                    revealLabelOnDoubleClick={false}
-                    onAgentClick={selectReviewAgent}
-                  />
-                </div>
-              }
-              submitDisabled={!canReview}
-              submitIcon={<Send size={14} />}
-              submitLabel={t('sedimentation.send')}
-              submitTooltip={
-                <SubmitShortcutTooltipContent
-                  label={t('sedimentation.sendReviewRequest')}
-                  shortcut={messageSendShortcut}
-                  shortcutModifier={shortcutModifier}
-                />
-              }
-              textarea={{
-                value: reviewDraft,
-                placeholder: t('sedimentation.reviewPlaceholder'),
-                rows: 2,
-                onChange: (event) => setReviewDraft(event.target.value),
-                onKeyDown: handleReviewKeyDown,
-              }}
-              onSubmit={() => void submitReviewRound()}
-            />
-          </footer>
-        </aside>
-      </section>
-      <OrganizeDiscussionConfirmDialog
-        disabled={!canOrganize}
-        open={organizeConfirmOpen}
-        onCancel={() => setOrganizeConfirmOpen(false)}
-        onConfirm={confirmOrganizeDiscussion}
-      />
-    </main>
+        <OrganizeDiscussionConfirmDialog
+          disabled={!canOrganize}
+          open={organizeConfirmOpen}
+          onCancel={() => setOrganizeConfirmOpen(false)}
+          onConfirm={confirmOrganizeDiscussion}
+        />
+      </main>
+    </ReaderTooltipProvider>
   );
 }
 

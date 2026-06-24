@@ -11,6 +11,7 @@ import {
 import {
   AgentAvatarStack,
   AvatarBadge,
+  ReaderTooltipProvider,
   ReaderTooltip,
   SubmitShortcutTooltipContent,
 } from '@yomitomo/reader-ui/reader-component-primitives';
@@ -281,163 +282,165 @@ export function DiscussionThreadView({
   });
 
   return (
-    <div className={bodyClassName}>
-      <div
-        ref={threadScrollRef}
-        className="annotation-discussion-thread-scroll"
-        onScroll={updateScrollBottomVisibility}
-      >
-        <section
-          className="annotation-discussion-root-thought"
-          aria-label={t('discussion.threadView.rootThought')}
+    <ReaderTooltipProvider>
+      <div className={bodyClassName}>
+        <div
+          ref={threadScrollRef}
+          className="annotation-discussion-thread-scroll"
+          onScroll={updateScrollBottomVisibility}
         >
-          <div className="annotation-discussion-root-thought-content">
-            <AssistantRuntimeProgressList progress={thread.root.assistantProgress} />
-            <div dangerouslySetInnerHTML={{ __html: rootThoughtHtml }} />
-          </div>
-          <div className="annotation-discussion-thread-meta">
-            <ReaderTooltip content={formatAbsoluteTime(thread.root.createdAt)}>
-              <time dateTime={thread.root.createdAt} tabIndex={0}>
-                {formatAbsoluteTime(thread.root.createdAt)}
-              </time>
-            </ReaderTooltip>
-            {thread.pending ? <span>{t('discussion.threadView.assistantReplying')}</span> : null}
-          </div>
-        </section>
-        <div className="annotation-discussion-thread-divider" role="separator">
-          <span>{t('discussion.threadView.expanded')}</span>
-        </div>
-        {messages.length > 0 ? (
-          <div className={className}>
-            {messages.map((message) => (
-              <DiscussionMessage
-                agents={annotationAgents}
-                isDeleting={deletingCommentId === message.id}
-                key={message.id}
-                message={message}
-                userProfile={userProfile}
-                onDelete={() => onDelete(message.id)}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="annotation-discussion-reply-empty">
-            <MessageCircle size={24} />
-            <strong>{t('discussion.threadView.noDiscussionTitle')}</strong>
-            <p>{t('discussion.threadView.noDiscussionDescription')}</p>
-          </div>
-        )}
-      </div>
-      <footer className="annotation-discussion-composer">
-        {showScrollBottom ? (
-          <button
-            className="annotation-discussion-scroll-bottom"
-            type="button"
-            aria-label={t('discussion.threadView.scrollBottom')}
-            onClick={() => scrollDiscussionToBottom('smooth')}
+          <section
+            className="annotation-discussion-root-thought"
+            aria-label={t('discussion.threadView.rootThought')}
           >
-            <ChevronDown size={16} />
-          </button>
-        ) : null}
-        {activeReplyAgents && activeReplyAgents.length > 0 ? (
-          <ReplyAgentQueueTray agents={activeReplyAgents} />
-        ) : null}
-        <FloatingComposer
-          ref={textareaRef}
-          className="annotation-discussion-composer-input"
-          accessory={
-            annotationAgents.length > 0 ? (
-              <div
-                className="annotation-discussion-agent-dock"
-                aria-label={t('discussion.threadView.mentionableAssistants')}
-              >
-                <AgentAvatarStack
+            <div className="annotation-discussion-root-thought-content">
+              <AssistantRuntimeProgressList progress={thread.root.assistantProgress} />
+              <div dangerouslySetInnerHTML={{ __html: rootThoughtHtml }} />
+            </div>
+            <div className="annotation-discussion-thread-meta">
+              <ReaderTooltip content={formatAbsoluteTime(thread.root.createdAt)}>
+                <time dateTime={thread.root.createdAt} tabIndex={0}>
+                  {formatAbsoluteTime(thread.root.createdAt)}
+                </time>
+              </ReaderTooltip>
+              {thread.pending ? <span>{t('discussion.threadView.assistantReplying')}</span> : null}
+            </div>
+          </section>
+          <div className="annotation-discussion-thread-divider" role="separator">
+            <span>{t('discussion.threadView.expanded')}</span>
+          </div>
+          {messages.length > 0 ? (
+            <div className={className}>
+              {messages.map((message) => (
+                <DiscussionMessage
                   agents={annotationAgents}
-                  ariaLabel={t('discussion.threadView.mentionableAssistants')}
-                  onAgentClick={insertAgentMention}
+                  isDeleting={deletingCommentId === message.id}
+                  key={message.id}
+                  message={message}
+                  userProfile={userProfile}
+                  onDelete={() => onDelete(message.id)}
                 />
-              </div>
-            ) : undefined
-          }
-          mentionMenu={
-            matchedAgents.length > 0 ? (
-              <div className="reader-agent-menu annotation-discussion-mention-menu">
-                {matchedAgents.map((agent, index) => (
-                  <button
-                    className={index === selectedMentionIndex ? 'is-active' : ''}
-                    key={agent.id}
-                    ref={(element) => {
-                      mentionCandidateRefs.current[index] = element;
-                    }}
-                    type="button"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => selectMentionAgent(agent)}
-                  >
-                    <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
-                    <span>
-                      <strong>{agent.nickname}</strong>
-                      <em>@{agent.username}</em>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ) : null
-          }
-          mentionAgents={annotationAgents}
-          status={composerStatus || undefined}
-          submitDisabled={!replyDraft.trim() || sendingReply}
-          submitIcon={<Send size={14} />}
-          submitLabel={t('discussion.threadView.reply')}
-          submitTooltip={
-            <SubmitShortcutTooltipContent
-              label={t('discussion.threadView.reply')}
-              shortcut="mod-enter"
-              shortcutModifier={shortcutModifier}
-            />
-          }
-          textarea={{
-            value: replyDraft,
-            placeholder: replyPlaceholder,
-            rows: 1,
-            disabled: sendingReply,
-            onChange: (event) => {
-              onReplyDraftChange(event.currentTarget.value);
-              updateCaret(event.currentTarget);
-              requestAnimationFrame(resizeReplyTextarea);
-            },
-            onClick: (event) => updateCaret(event.currentTarget),
-            onKeyDown: (event) => {
-              if (matchedAgents.length > 0 && event.key === 'ArrowDown') {
-                event.preventDefault();
-                setSelectedMentionIndex((index) => (index + 1) % matchedAgents.length);
-                return;
-              }
-              if (matchedAgents.length > 0 && event.key === 'ArrowUp') {
-                event.preventDefault();
-                setSelectedMentionIndex(
-                  (index) => (index - 1 + matchedAgents.length) % matchedAgents.length,
-                );
-                return;
-              }
-              if (matchedAgents.length > 0 && event.key === 'Tab') {
-                event.preventDefault();
-                const agent = matchedAgents[selectedMentionIndex] || matchedAgents[0];
-                if (agent) selectMentionAgent(agent);
-                return;
-              }
-              handleSubmitKeyDown(event);
-            },
-            onKeyUp: (event) => {
-              if (event.key === 'Tab' || event.key === 'ArrowDown' || event.key === 'ArrowUp')
-                return;
-              updateCaret(event.currentTarget);
-            },
-            onSelect: (event) => updateCaret(event.currentTarget),
-          }}
-          onSubmit={handleSubmitReply}
-        />
-      </footer>
-    </div>
+              ))}
+            </div>
+          ) : (
+            <div className="annotation-discussion-reply-empty">
+              <MessageCircle size={24} />
+              <strong>{t('discussion.threadView.noDiscussionTitle')}</strong>
+              <p>{t('discussion.threadView.noDiscussionDescription')}</p>
+            </div>
+          )}
+        </div>
+        <footer className="annotation-discussion-composer">
+          {showScrollBottom ? (
+            <button
+              className="annotation-discussion-scroll-bottom"
+              type="button"
+              aria-label={t('discussion.threadView.scrollBottom')}
+              onClick={() => scrollDiscussionToBottom('smooth')}
+            >
+              <ChevronDown size={16} />
+            </button>
+          ) : null}
+          {activeReplyAgents && activeReplyAgents.length > 0 ? (
+            <ReplyAgentQueueTray agents={activeReplyAgents} />
+          ) : null}
+          <FloatingComposer
+            ref={textareaRef}
+            className="annotation-discussion-composer-input"
+            accessory={
+              annotationAgents.length > 0 ? (
+                <div
+                  className="annotation-discussion-agent-dock"
+                  aria-label={t('discussion.threadView.mentionableAssistants')}
+                >
+                  <AgentAvatarStack
+                    agents={annotationAgents}
+                    ariaLabel={t('discussion.threadView.mentionableAssistants')}
+                    onAgentClick={insertAgentMention}
+                  />
+                </div>
+              ) : undefined
+            }
+            mentionMenu={
+              matchedAgents.length > 0 ? (
+                <div className="reader-agent-menu annotation-discussion-mention-menu">
+                  {matchedAgents.map((agent, index) => (
+                    <button
+                      className={index === selectedMentionIndex ? 'is-active' : ''}
+                      key={agent.id}
+                      ref={(element) => {
+                        mentionCandidateRefs.current[index] = element;
+                      }}
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => selectMentionAgent(agent)}
+                    >
+                      <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
+                      <span>
+                        <strong>{agent.nickname}</strong>
+                        <em>@{agent.username}</em>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : null
+            }
+            mentionAgents={annotationAgents}
+            status={composerStatus || undefined}
+            submitDisabled={!replyDraft.trim() || sendingReply}
+            submitIcon={<Send size={14} />}
+            submitLabel={t('discussion.threadView.reply')}
+            submitTooltip={
+              <SubmitShortcutTooltipContent
+                label={t('discussion.threadView.reply')}
+                shortcut="mod-enter"
+                shortcutModifier={shortcutModifier}
+              />
+            }
+            textarea={{
+              value: replyDraft,
+              placeholder: replyPlaceholder,
+              rows: 1,
+              disabled: sendingReply,
+              onChange: (event) => {
+                onReplyDraftChange(event.currentTarget.value);
+                updateCaret(event.currentTarget);
+                requestAnimationFrame(resizeReplyTextarea);
+              },
+              onClick: (event) => updateCaret(event.currentTarget),
+              onKeyDown: (event) => {
+                if (matchedAgents.length > 0 && event.key === 'ArrowDown') {
+                  event.preventDefault();
+                  setSelectedMentionIndex((index) => (index + 1) % matchedAgents.length);
+                  return;
+                }
+                if (matchedAgents.length > 0 && event.key === 'ArrowUp') {
+                  event.preventDefault();
+                  setSelectedMentionIndex(
+                    (index) => (index - 1 + matchedAgents.length) % matchedAgents.length,
+                  );
+                  return;
+                }
+                if (matchedAgents.length > 0 && event.key === 'Tab') {
+                  event.preventDefault();
+                  const agent = matchedAgents[selectedMentionIndex] || matchedAgents[0];
+                  if (agent) selectMentionAgent(agent);
+                  return;
+                }
+                handleSubmitKeyDown(event);
+              },
+              onKeyUp: (event) => {
+                if (event.key === 'Tab' || event.key === 'ArrowDown' || event.key === 'ArrowUp')
+                  return;
+                updateCaret(event.currentTarget);
+              },
+              onSelect: (event) => updateCaret(event.currentTarget),
+            }}
+            onSubmit={handleSubmitReply}
+          />
+        </footer>
+      </div>
+    </ReaderTooltipProvider>
   );
 }
 

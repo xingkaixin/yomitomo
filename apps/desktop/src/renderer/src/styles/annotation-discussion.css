@@ -3370,8 +3370,7 @@
   will-change: transform, opacity;
 }
 
-.reader-tooltip-content[data-state='delayed-open'],
-.reader-tooltip-content[data-state='instant-open'] {
+.reader-tooltip-content[data-state='delayed-open'] {
   animation: reader-tooltip-in 120ms ease-out;
 }
 
@@ -3414,6 +3413,13 @@
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reader-tooltip-content {
+    animation: none !important;
+    will-change: auto;
   }
 }
 

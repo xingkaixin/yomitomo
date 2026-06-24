@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
+import {
+  ReaderTooltip,
+  ReaderTooltipProvider,
+} from '@yomitomo/reader-ui/reader-component-primitives';
 import { GripVertical, LibraryBig, Plus, Search, X } from 'lucide-react';
 import type {
   ArticleSummaryRecord,
@@ -242,160 +245,162 @@ export function CollectionPickerDialog({
   if (typeof document === 'undefined') return null;
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogPortal>
-        <DialogOverlay className="library-collection-dialog-overlay">
-          <DialogContent className="library-collection-picker-dialog">
-            <header>
-              <div>
-                <DialogTitle>{t('library.collection.pickerTitle')}</DialogTitle>
-                <DialogDescription>
-                  {t('library.collection.pickerDescription', { name: collection.name })}
-                </DialogDescription>
-              </div>
-            </header>
-            <div className="library-collection-picker-toolbar">
-              <div className="library-search library-search-combo">
-                <Search size={16} />
-                <Input
-                  type="search"
-                  value={query}
-                  placeholder={t('library.collection.pickerSearchPlaceholder')}
-                  aria-label={t('library.collection.pickerSearchLabel')}
-                  onChange={(event) => setQuery(event.target.value)}
-                />
-                <Select
-                  value={typeScope}
-                  onValueChange={(value) => setTypeScope(value as LibraryTypeScope)}
-                >
-                  <SelectTrigger
-                    className="library-type-filter-trigger"
-                    aria-label={t('library.typeFilter.label')}
+    <ReaderTooltipProvider>
+      <Dialog open onOpenChange={(open) => !open && onClose()}>
+        <DialogPortal>
+          <DialogOverlay className="library-collection-dialog-overlay">
+            <DialogContent className="library-collection-picker-dialog">
+              <header>
+                <div>
+                  <DialogTitle>{t('library.collection.pickerTitle')}</DialogTitle>
+                  <DialogDescription>
+                    {t('library.collection.pickerDescription', { name: collection.name })}
+                  </DialogDescription>
+                </div>
+              </header>
+              <div className="library-collection-picker-toolbar">
+                <div className="library-search library-search-combo">
+                  <Search size={16} />
+                  <Input
+                    type="search"
+                    value={query}
+                    placeholder={t('library.collection.pickerSearchPlaceholder')}
+                    aria-label={t('library.collection.pickerSearchLabel')}
+                    onChange={(event) => setQuery(event.target.value)}
+                  />
+                  <Select
+                    value={typeScope}
+                    onValueChange={(value) => setTypeScope(value as LibraryTypeScope)}
                   >
-                    <span>{activeTypeLabel}</span>
-                  </SelectTrigger>
-                  <SelectContent className="theme-select-content">
-                    <SelectGroup>
-                      {typeOptions.map((option) => (
-                        <SelectItem value={option.value} key={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
+                    <SelectTrigger
+                      className="library-type-filter-trigger"
+                      aria-label={t('library.typeFilter.label')}
+                    >
+                      <span>{activeTypeLabel}</span>
+                    </SelectTrigger>
+                    <SelectContent className="theme-select-content">
+                      <SelectGroup>
+                        {typeOptions.map((option) => (
+                          <SelectItem value={option.value} key={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            </div>
-            <div className="library-collection-picker-body">
-              <div className="library-collection-picker-list">
-                {pickerItems.length > 0 ? (
-                  pickerItems.map((item) => {
-                    const key = contentRefKey(item.ref);
-                    return (
-                      <div
-                        className={`library-collection-picker-item${
-                          draggedPickerKey === key ? ' is-dragging' : ''
-                        }`}
-                        key={key}
-                      >
-                        <span
-                          className="library-collection-picker-drag-handle"
-                          aria-hidden="true"
-                          onPointerDown={(event) => startPickerDrag(item, event)}
-                          onPointerMove={movePickerDrag}
-                          onPointerUp={endPickerDrag}
-                        >
-                          <GripVertical size={15} />
-                        </span>
-                        <CollectionPickerCover
-                          item={item}
-                          className="library-collection-picker-cover"
-                        />
-                        <span className="library-collection-picker-copy">
-                          <strong>{libraryItemTitle(item)}</strong>
-                          <span className="library-collection-picker-meta">
-                            <span className="library-source-badge">
-                              {libraryTypeLabel(item.type, t)}
-                            </span>
-                            <time dateTime={item.sortTime}>
-                              {formatLibraryShortDate(item.sortTime)}
-                            </time>
-                          </span>
-                        </span>
-                        <button
-                          type="button"
-                          className="library-collection-picker-add"
-                          aria-label={`${t('library.collection.addMembers')}：${libraryItemTitle(item)}`}
-                          onClick={() => toggleItem(item.ref)}
-                        >
-                          <Plus size={15} />
-                        </button>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <p>{t('library.collection.pickerNoItems')}</p>
-                )}
-              </div>
-              <div
-                ref={pickerSelectionRef}
-                className={
-                  selectionDragOver
-                    ? 'library-collection-picker-selection is-drag-over'
-                    : 'library-collection-picker-selection'
-                }
-              >
-                <h3>{t('library.collection.pendingMembers', { count: selectedItems.length })}</h3>
-                {selectedEntities.length > 0 ? (
-                  <div className="library-collection-picker-selected-grid">
-                    {selectedEntities.map((item) => {
-                      const title = libraryItemTitle(item);
+              <div className="library-collection-picker-body">
+                <div className="library-collection-picker-list">
+                  {pickerItems.length > 0 ? (
+                    pickerItems.map((item) => {
+                      const key = contentRefKey(item.ref);
                       return (
-                        <ReaderTooltip content={title} key={contentRefKey(item.ref)}>
+                        <div
+                          className={`library-collection-picker-item${
+                            draggedPickerKey === key ? ' is-dragging' : ''
+                          }`}
+                          key={key}
+                        >
+                          <span
+                            className="library-collection-picker-drag-handle"
+                            aria-hidden="true"
+                            onPointerDown={(event) => startPickerDrag(item, event)}
+                            onPointerMove={movePickerDrag}
+                            onPointerUp={endPickerDrag}
+                          >
+                            <GripVertical size={15} />
+                          </span>
+                          <CollectionPickerCover
+                            item={item}
+                            className="library-collection-picker-cover"
+                          />
+                          <span className="library-collection-picker-copy">
+                            <strong>{libraryItemTitle(item)}</strong>
+                            <span className="library-collection-picker-meta">
+                              <span className="library-source-badge">
+                                {libraryTypeLabel(item.type, t)}
+                              </span>
+                              <time dateTime={item.sortTime}>
+                                {formatLibraryShortDate(item.sortTime)}
+                              </time>
+                            </span>
+                          </span>
                           <button
-                            className="library-collection-picker-selected-item"
                             type="button"
-                            aria-label={`${t('library.collection.removeMember')}：${title}`}
+                            className="library-collection-picker-add"
+                            aria-label={`${t('library.collection.addMembers')}：${libraryItemTitle(item)}`}
                             onClick={() => toggleItem(item.ref)}
                           >
-                            <CollectionPickerCover
-                              item={item}
-                              className="library-collection-picker-selected-cover"
-                            />
-                            <span className="library-collection-picker-selected-remove">
-                              <X size={12} />
-                            </span>
+                            <Plus size={15} />
                           </button>
-                        </ReaderTooltip>
+                        </div>
                       );
-                    })}
-                  </div>
-                ) : (
-                  <div className="library-collection-picker-empty-drop">
-                    <LibraryBig size={26} />
-                    <strong>{t('library.collection.dropHintTitle')}</strong>
-                    <span>{t('library.collection.dropHint')}</span>
-                  </div>
-                )}
+                    })
+                  ) : (
+                    <p>{t('library.collection.pickerNoItems')}</p>
+                  )}
+                </div>
+                <div
+                  ref={pickerSelectionRef}
+                  className={
+                    selectionDragOver
+                      ? 'library-collection-picker-selection is-drag-over'
+                      : 'library-collection-picker-selection'
+                  }
+                >
+                  <h3>{t('library.collection.pendingMembers', { count: selectedItems.length })}</h3>
+                  {selectedEntities.length > 0 ? (
+                    <div className="library-collection-picker-selected-grid">
+                      {selectedEntities.map((item) => {
+                        const title = libraryItemTitle(item);
+                        return (
+                          <ReaderTooltip content={title} key={contentRefKey(item.ref)}>
+                            <button
+                              className="library-collection-picker-selected-item"
+                              type="button"
+                              aria-label={`${t('library.collection.removeMember')}：${title}`}
+                              onClick={() => toggleItem(item.ref)}
+                            >
+                              <CollectionPickerCover
+                                item={item}
+                                className="library-collection-picker-selected-cover"
+                              />
+                              <span className="library-collection-picker-selected-remove">
+                                <X size={12} />
+                              </span>
+                            </button>
+                          </ReaderTooltip>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="library-collection-picker-empty-drop">
+                      <LibraryBig size={26} />
+                      <strong>{t('library.collection.dropHintTitle')}</strong>
+                      <span>{t('library.collection.dropHint')}</span>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-            {error ? <p className="library-collection-dialog-error">{error}</p> : null}
-            <footer>
-              <Button type="button" variant="secondary" onClick={onClose}>
-                {t('common.cancel')}
-              </Button>
-              <Button
-                type="button"
-                disabled={submitting || selectedItems.length === 0}
-                onClick={confirm}
-              >
-                {t('library.collection.addSelected', { count: selectedItems.length })}
-              </Button>
-            </footer>
-          </DialogContent>
-        </DialogOverlay>
-      </DialogPortal>
-    </Dialog>
+              {error ? <p className="library-collection-dialog-error">{error}</p> : null}
+              <footer>
+                <Button type="button" variant="secondary" onClick={onClose}>
+                  {t('common.cancel')}
+                </Button>
+                <Button
+                  type="button"
+                  disabled={submitting || selectedItems.length === 0}
+                  onClick={confirm}
+                >
+                  {t('library.collection.addSelected', { count: selectedItems.length })}
+                </Button>
+              </footer>
+            </DialogContent>
+          </DialogOverlay>
+        </DialogPortal>
+      </Dialog>
+    </ReaderTooltipProvider>
   );
 }
 
