@@ -539,6 +539,7 @@ export const enResources = {
       sourceTabsLabel: 'Library content types',
       searchPlaceholder: 'Search articles and collections...',
       searchLabel: 'Search articles, collections, authors, or sources',
+      clearSearch: 'Clear search',
       typeFilter: {
         label: 'Filter content type',
         all: 'All types',
