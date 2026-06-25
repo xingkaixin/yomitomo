@@ -527,6 +527,7 @@ export const zhCNResources = {
       sourceTabsLabel: '阅读库内容类型',
       searchPlaceholder: '搜索文章与合集…',
       searchLabel: '搜索文章、合集、作者或来源',
+      clearSearch: '清空搜索',
       typeFilter: {
         label: '筛选内容类型',
         all: '全部类型',

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   BookText,
@@ -63,6 +63,7 @@ import {
   buildLibraryEntities,
   libraryEntityPinTarget,
 } from './app-reading-library-entities';
+import { useLibrarySearchClearDissolve } from './app-reading-library-search-clear-dissolve';
 import { librarySession } from './app-reading-library-session';
 import type { LibraryItemType, LibraryTypeFilter } from './library-entity-types';
 
@@ -155,6 +156,7 @@ export function LibraryHome({
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(
     () => librarySession.activeCollectionId,
   );
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [collectionNameDialog, setCollectionNameDialog] =
     useState<CollectionNameDialogState | null>(null);
   const [pickerCollectionId, setPickerCollectionId] = useState<string | null>(null);
@@ -386,6 +388,18 @@ export function LibraryHome({
     setPageTransitionDirection('none');
     setPage(1);
   };
+  const updateSearchQuery = (nextQuery: string) => {
+    resetListContentTransition();
+    setSearchQuery(nextQuery);
+  };
+  const searchClear = useLibrarySearchClearDissolve({
+    inputRef: searchInputRef,
+    onQueryChange: updateSearchQuery,
+    query: searchQuery,
+  });
+  const searchPlaceholder = activeCollection
+    ? t('library.collection.searchPlaceholder')
+    : t('library.searchPlaceholder');
   const openCollection = (collectionId: string) => {
     setListTransitionDirection('forward');
     setPageTransitionDirection('none');
@@ -494,20 +508,48 @@ export function LibraryHome({
                   ))}
                 </span>
               ) : null}
-              <Input
-                type="search"
-                value={searchQuery}
-                placeholder={
-                  activeCollection
-                    ? t('library.collection.searchPlaceholder')
-                    : t('library.searchPlaceholder')
-                }
-                aria-label={t('library.searchLabel')}
-                onChange={(event) => {
-                  resetListContentTransition();
-                  setSearchQuery(event.target.value);
-                }}
-              />
+              <div
+                ref={searchClear.wrapRef}
+                className={[
+                  'library-search-input-clear t-clear',
+                  searchQuery ? 'has-value' : '',
+                  searchClear.clearing ? 'is-clearing' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+              >
+                <Input
+                  ref={searchInputRef}
+                  type="search"
+                  value={searchQuery}
+                  placeholder={searchPlaceholder}
+                  aria-label={t('library.searchLabel')}
+                  onChange={(event) => updateSearchQuery(event.currentTarget.value)}
+                />
+                <div ref={searchClear.mirrorRef} className="t-clear-mirror" aria-hidden="true">
+                  {searchClear.mirrorText}
+                </div>
+                <div
+                  ref={searchClear.placeholderRef}
+                  className="t-clear-placeholder"
+                  aria-hidden="true"
+                >
+                  {searchPlaceholder}
+                </div>
+                <div ref={searchClear.glowRef} className="t-clear-glow" aria-hidden="true" />
+                {searchQuery ? (
+                  <button
+                    className="library-search-clear-button t-clear-btn"
+                    type="button"
+                    aria-label={t('library.clearSearch')}
+                    onClick={searchClear.clearWithDissolve}
+                    onMouseDown={searchClear.preserveFocus}
+                    onPointerDown={searchClear.preserveFocus}
+                  >
+                    <X size={15} />
+                  </button>
+                ) : null}
+              </div>
             </div>
           </div>
           <div className="library-home-actions">

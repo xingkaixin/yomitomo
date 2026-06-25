@@ -258,6 +258,22 @@ async function openAddMenuItem(name: string | RegExp) {
   fireEvent.click(item);
 }
 
+function stubReducedMotion(matches: boolean) {
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn().mockImplementation((query: string) => ({
+      matches: query === '(prefers-reduced-motion: reduce)' ? matches : false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  );
+}
+
 describe('groupLibraryArticles', () => {
   it('groups recent reading by article update time', () => {
     vi.useFakeTimers();
@@ -865,6 +881,104 @@ describe('ReadingLibrary home', () => {
 
     expect(screen.getByRole('button', { name: '打开合集：长期研究' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '打开文章：深层命中文章' })).toBeNull();
+  });
+
+  it('clears the main library search through the dissolve clear affordance', async () => {
+    vi.useFakeTimers();
+    stubReducedMotion(false);
+    let frameTime = 0;
+    const performanceNow = vi.spyOn(performance, 'now').mockImplementation(() => frameTime);
+    const requestAnimationFrameMock = vi.fn((callback: FrameRequestCallback) =>
+      window.setTimeout(() => {
+        frameTime += 1000;
+        callback(frameTime);
+      }, 0),
+    );
+    const cancelAnimationFrameMock = vi.fn((handle: number) => window.clearTimeout(handle));
+    vi.stubGlobal('requestAnimationFrame', requestAnimationFrameMock);
+    vi.stubGlobal('cancelAnimationFrame', cancelAnimationFrameMock);
+    window.requestAnimationFrame = requestAnimationFrameMock;
+    window.cancelAnimationFrame = cancelAnimationFrameMock;
+    renderLibrary([
+      article({ id: 'alpha_article', title: 'Alpha 阅读' }),
+      article({ id: 'beta_article', title: 'Beta 阅读' }),
+    ]);
+
+    const input = screen.getByLabelText('搜索文章、合集、作者或来源') as HTMLInputElement;
+    input.focus();
+    fireEvent.change(input, { target: { value: 'Beta' } });
+
+    expect(screen.queryByRole('button', { name: '打开文章：Alpha 阅读' })).toBeNull();
+    expect(screen.getByRole('button', { name: '打开文章：Beta 阅读' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '清空搜索' }));
+
+    const clearShell = document.querySelector('.library-search-input-clear');
+    expect(input.value).toBe('');
+    expect(clearShell?.classList.contains('is-clearing')).toBe(true);
+    expect(clearShell?.querySelector('.t-clear-mirror')?.textContent).toBe('Beta');
+    expect(screen.getByRole('button', { name: '打开文章：Alpha 阅读' })).toBeTruthy();
+
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await vi.runOnlyPendingTimersAsync();
+    });
+
+    expect(document.activeElement).toBe(input);
+    expect(clearShell?.classList.contains('is-clearing')).toBe(false);
+    performanceNow.mockRestore();
+  });
+
+  it('clears collection list search immediately when reduced motion is requested', () => {
+    stubReducedMotion(true);
+    const firstArticle = article({
+      id: 'collection_first',
+      title: '合集文章一',
+    });
+    const secondArticle = article({
+      id: 'collection_second',
+      title: '合集文章二',
+    });
+    const collection: Collection = {
+      id: 'collection_1',
+      name: '长期研究',
+      createdAt: '2026-05-01T12:00:00.000Z',
+      updatedAt: '2026-05-10T12:00:00.000Z',
+    };
+    const collectionMembers: CollectionMember[] = [
+      {
+        collectionId: collection.id,
+        member: { kind: 'article', id: firstArticle.id },
+        addedAt: '2026-05-10T12:00:00.000Z',
+      },
+      {
+        collectionId: collection.id,
+        member: { kind: 'article', id: secondArticle.id },
+        addedAt: '2026-05-09T12:00:00.000Z',
+      },
+    ];
+    renderLibrary([firstArticle, secondArticle], {
+      collections: [collection],
+      collectionMembers,
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '打开合集：长期研究' }));
+    const input = screen.getByLabelText('搜索文章、合集、作者或来源') as HTMLInputElement;
+    expect(input.getAttribute('placeholder')).toBe('搜索合集内文章…');
+
+    input.focus();
+    fireEvent.change(input, { target: { value: '文章一' } });
+
+    expect(screen.getByRole('button', { name: '打开文章：合集文章一' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '打开文章：合集文章二' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '清空搜索' }));
+
+    expect(input.value).toBe('');
+    expect(document.querySelector('.library-search-input-clear.is-clearing')).toBeNull();
+    expect(document.activeElement).toBe(input);
+    expect(screen.getByRole('button', { name: '打开文章：合集文章一' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '打开文章：合集文章二' })).toBeTruthy();
   });
 
   it('filters the main library list to collections only', async () => {

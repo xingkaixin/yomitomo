@@ -142,21 +142,155 @@
   overflow: hidden;
 }
 
-.library-search-field input {
+.library-search-input-clear {
+  --clear-dur: 1000ms;
+  --clear-out-dur: 400ms;
+  --clear-in-dur: 400ms;
+  --clear-out-fly: 12px;
+  --clear-in-fly: 12px;
+  --clear-out-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --clear-in-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --clear-blur: 2px;
+  --glow-delay: 50ms;
+  --glow-peak-at: 0.15;
+  --glow-opacity: 0.42;
+  --glow-spread: 1.5;
+  --library-search-clear-pad: 36px;
+  position: relative;
+  display: block;
   height: 40px;
   flex: 1 1 auto;
+  min-width: 48px;
+  overflow: hidden;
+}
+
+.library-search-input-clear[data-clear-tone='dark'] {
+  --glow-opacity: 0.85;
+}
+
+.library-search-field input {
+  position: relative;
+  z-index: 1;
+  height: 40px;
+  width: 100%;
   min-width: 48px;
   border: 0;
   background: transparent;
   box-shadow: none;
+  caret-color: hsl(var(--foreground));
   color: hsl(var(--foreground));
-  padding-right: 12px;
+  padding-right: var(--library-search-clear-pad);
   padding-left: 0;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .library-search-field input:focus {
   background: transparent;
   box-shadow: none;
+}
+
+.library-search-field input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.library-search-input-clear input::placeholder {
+  color: transparent;
+}
+
+.library-search-input-clear .t-clear-mirror,
+.library-search-input-clear .t-clear-placeholder {
+  position: absolute;
+  inset: 0 var(--library-search-clear-pad) 0 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  color: hsl(var(--foreground));
+  font: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.library-search-input-clear .t-clear-placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+.library-search-input-clear .t-clear-mirror {
+  opacity: 0;
+}
+
+.library-search-input-clear.has-value .t-clear-mirror,
+.library-search-input-clear.is-clearing .t-clear-mirror {
+  opacity: 1;
+}
+
+.library-search-input-clear.has-value > input,
+.library-search-input-clear.is-clearing > input {
+  -webkit-text-fill-color: transparent;
+}
+
+.library-search-input-clear.has-value .t-clear-placeholder {
+  opacity: 0;
+}
+
+.library-search-input-clear .t-clear-glow {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  opacity: 0;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+.library-search-input-clear[data-clear-tone='dark'] .t-clear-glow {
+  mix-blend-mode: screen;
+}
+
+.library-search-clear-button {
+  position: absolute;
+  top: 6px;
+  right: 5px;
+  z-index: 4;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  padding: 0;
+  transition:
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.library-search-clear-button:hover,
+.library-search-clear-button:focus-visible {
+  color: var(--app-interactive-link);
+  outline: 0;
+}
+
+.library-search-clear-button:active {
+  transform: scale(0.92);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .library-search-input-clear .t-clear-glow {
+    opacity: 0 !important;
+  }
+
+  .library-search-input-clear .t-clear-mirror,
+  .library-search-input-clear .t-clear-placeholder,
+  .library-search-clear-button {
+    filter: none !important;
+    transition: none;
+    transform: none !important;
+  }
 }
 
 .library-type-filter-chips {
