@@ -39,7 +39,9 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
   });
   handleDesktopIpc('article:save', async (_event, input) => {
     const { articlePersistence } = await context.getPersistenceModule();
-    return articlePersistence.saveArticle(input);
+    const patch = await articlePersistence.saveArticle(input);
+    if (shouldBroadcastArticleSavePatch(context, _event)) context.sendArticlePatched(patch);
+    return patch;
   });
   handleDesktopIpc('article-translation:get-current', async (_event, input) => {
     return readCurrentArticleTranslation(context, input);
@@ -198,6 +200,15 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     });
     return patch;
   });
+}
+
+function shouldBroadcastArticleSavePatch(
+  context: DesktopMainIpcContext,
+  event: IpcMainInvokeEvent,
+) {
+  const mainWindow = context.getMainWindow();
+  if (!mainWindow || mainWindow.isDestroyed()) return true;
+  return event.sender.id !== mainWindow.webContents.id;
 }
 
 export function pdfSourceArrayBufferForIpc(file: Buffer) {
