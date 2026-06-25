@@ -28,6 +28,7 @@ export function readerUiLabels(): ReaderUiLabels {
             processing: processing ? i18next.t('readerUi.processingSuffix') : '',
           }),
     cancel: i18next.t('common.cancel'),
+    clearSearch: i18next.t('readerUi.clearSearch'),
     closeReader: i18next.t('readerUi.closeReader'),
     closeHighlightChoice: i18next.t('readerUi.closeHighlightChoice'),
     closeSearch: i18next.t('readerUi.closeSearch'),

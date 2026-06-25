@@ -219,6 +219,7 @@ export const zhCNResources = {
       assistantReadingActive: '正在共读',
       assistantReadingStatus: '助手共读状态',
       backToLibrary: '返回阅读库',
+      clearSearch: '清空搜索',
       closeReader: '关闭阅读器',
       closeHighlightChoice: '关闭划线选择',
       closeSearch: '关闭搜索',

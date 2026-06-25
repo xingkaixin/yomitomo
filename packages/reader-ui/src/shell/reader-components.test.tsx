@@ -24,6 +24,7 @@ afterEach(() => {
   vi.useRealTimers();
   vi.clearAllMocks();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 function agent(id: string, nickname: string): PublicAgent {
@@ -81,6 +82,69 @@ function annotation(overrides: Partial<Annotation> = {}): Annotation {
     updatedAt: now,
     ...overrides,
   };
+}
+
+function stubReducedMotion(matches: boolean) {
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn((query: string) => ({
+      matches: query === '(prefers-reduced-motion: reduce)' ? matches : false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  );
+}
+
+function renderSearchToolbar({
+  initialQuery = '目标',
+  matches = [{ id: 'm1', start: 0, end: 4, preview: '目标' }],
+}: {
+  initialQuery?: string;
+  matches?: { id: string; start: number; end: number; preview: string }[];
+} = {}) {
+  const onClose = vi.fn();
+  const onQueryChange = vi.fn();
+
+  function SearchToolbarHarness() {
+    const [query, setQuery] = React.useState(initialQuery);
+
+    function handleQueryChange(nextQuery: string) {
+      onQueryChange(nextQuery);
+      setQuery(nextQuery);
+    }
+
+    return (
+      <ReaderFloatingToolbar
+        annotationNavigation={{ previousId: 'a1', nextId: 'a2', totalCount: 2, currentIndex: 1 }}
+        controls={<button type="button">Aa</button>}
+        hasToc
+        search={{
+          activeMatchIndex: 0,
+          limited: true,
+          matches,
+          open: true,
+          query,
+          onClose,
+          onNextMatch: vi.fn(),
+          onOpen: vi.fn(),
+          onPreviousMatch: vi.fn(),
+          onQueryChange: handleQueryChange,
+        }}
+        showAnnotationNavigation
+        tocOpen={false}
+        onNavigateAnnotation={vi.fn()}
+        onToggleToc={vi.fn()}
+      />
+    );
+  }
+
+  const result = render(<SearchToolbarHarness />);
+  return { ...result, onClose, onQueryChange };
 }
 
 describe('AvatarBadge', () => {
@@ -1450,6 +1514,46 @@ describe('ReaderFloatingToolbar search mode', () => {
 
     expect(screen.getByText(defaultReaderUiLabels.searchPreparing)).toBeTruthy();
     expect(screen.queryByText('0/0')).toBeNull();
+  });
+
+  it('clears the search query without closing the toolbar when motion is reduced', () => {
+    stubReducedMotion(true);
+    const { onClose, onQueryChange } = renderSearchToolbar({ matches: [] });
+    const input = screen.getByLabelText('搜索正文') as HTMLInputElement;
+
+    expect(input).toBe(document.activeElement);
+
+    const clearButton = screen.getByRole('button', { name: '清空搜索' });
+    fireEvent.mouseDown(clearButton);
+    fireEvent.click(clearButton);
+
+    expect(onQueryChange).toHaveBeenCalledWith('');
+    expect(onClose).not.toHaveBeenCalled();
+    expect(input.value).toBe('');
+    expect(input).toBe(document.activeElement);
+    expect(screen.queryByText('0/0')).toBeNull();
+  });
+
+  it('keeps the cleared text in the dissolve mirror while clearing', () => {
+    stubReducedMotion(false);
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      vi.fn(() => 1),
+    );
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    const { container, onQueryChange } = renderSearchToolbar({ initialQuery: 'alpha beta' });
+
+    fireEvent.click(screen.getByRole('button', { name: '清空搜索' }));
+
+    const clearShell = container.querySelector('.reader-search-input-shell');
+    if (!clearShell) throw new Error('Expected the search clear shell to render');
+    const glow = clearShell.querySelector<HTMLElement>('.t-clear-glow');
+    if (!glow) throw new Error('Expected the search clear glow to render');
+
+    expect(onQueryChange).toHaveBeenCalledWith('');
+    expect(clearShell.classList.contains('is-clearing')).toBe(true);
+    expect(clearShell.querySelector('.t-clear-mirror')?.textContent).toBe('alpha\u00a0beta');
+    expect(glow.style.background).toContain('radial-gradient');
   });
 });
 

@@ -9,6 +9,7 @@ import type {
   ReaderUiLabels,
 } from './reader-app-view-types';
 import { defaultReaderUiLabels } from './reader-app-view-types';
+import { useSearchClearDissolve } from './reader-search-clear-dissolve';
 import { ReaderTooltip } from '../shared/reader-component-primitives';
 
 export type ReaderToolbarProps = {
@@ -246,9 +247,15 @@ function ReaderFloatingSearchToolbar({
   search: ReaderSearchToolbarState;
 }) {
   const inputRef = React.useRef<HTMLInputElement | null>(null);
+  const clear = useSearchClearDissolve({
+    inputRef,
+    query: search.query,
+    onQueryChange: search.onQueryChange,
+  });
   const total = search.matches.length;
   const hasMatches = total > 0;
   const hasQuery = Boolean(search.query.trim());
+  const hasSearchText = search.query.length > 0;
   const countLabel =
     search.preparing && hasQuery
       ? labels.searchPreparing
@@ -285,14 +292,45 @@ function ReaderFloatingSearchToolbar({
     >
       <div className="reader-search-box">
         <Search size={16} aria-hidden="true" />
-        <input
-          ref={inputRef}
-          aria-label={labels.searchBody}
-          value={search.query}
-          onChange={(event) => search.onQueryChange(event.currentTarget.value)}
-          placeholder={labels.searchBodyPlaceholder}
-          type="search"
-        />
+        <div
+          ref={clear.wrapRef}
+          className={[
+            'reader-search-input-shell t-clear',
+            hasSearchText ? 'has-value' : '',
+            clear.clearing ? 'is-clearing' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
+          <input
+            ref={inputRef}
+            aria-label={labels.searchBody}
+            value={search.query}
+            onChange={(event) => search.onQueryChange(event.currentTarget.value)}
+            placeholder={labels.searchBodyPlaceholder}
+            type="search"
+          />
+          <div ref={clear.mirrorRef} className="t-clear-mirror" aria-hidden="true">
+            {clear.mirrorText}
+          </div>
+          <div ref={clear.placeholderRef} className="t-clear-placeholder" aria-hidden="true">
+            {labels.searchBodyPlaceholder}
+          </div>
+          <div ref={clear.glowRef} className="t-clear-glow" aria-hidden="true" />
+          <ReaderTooltip content={labels.clearSearch} disabled={!hasSearchText} side="bottom">
+            <button
+              aria-label={labels.clearSearch}
+              className="reader-search-clear-button t-clear-btn"
+              disabled={!hasSearchText || clear.clearing}
+              type="button"
+              onClick={clear.clearWithDissolve}
+              onMouseDown={clear.preserveFocus}
+              onPointerDown={clear.preserveFocus}
+            >
+              <X size={13} />
+            </button>
+          </ReaderTooltip>
+        </div>
       </div>
       <span
         className="reader-floating-value is-search-count"
