@@ -1,0 +1,563 @@
+.weread-bookcase-actions button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: hsl(var(--foreground));
+  font: inherit;
+  font-size: 12px;
+  font-weight: 820;
+  padding: 0 10px;
+  transition:
+    transform 140ms ease,
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.weread-bookcase-actions button:hover:not(:disabled),
+.weread-bookcase-actions button:focus-visible:not(:disabled) {
+  background: hsl(var(--foreground) / 0.08);
+  outline: 0;
+}
+
+.weread-bookcase-actions button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.weread-bookcase-actions button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.weread-open-book-button {
+  width: 40px;
+  justify-content: center;
+  padding: 0;
+}
+
+.weread-book-cover {
+  --book-cover-height: 94px;
+}
+
+.weread-book-cover.is-flat-cover {
+  width: var(--book-cover-width);
+  height: var(--book-cover-height);
+}
+
+.weread-book-cover.is-flat-cover .article-book-ground-shadow,
+.weread-book-cover.is-flat-cover .article-book-pages,
+.weread-book-cover.is-flat-cover .article-book-back {
+  display: none;
+}
+
+.weread-book-cover.is-flat-cover .article-book-scene {
+  top: 0;
+  left: 0;
+  transform: none;
+}
+
+.weread-book-cover.is-flat-cover .article-book-front {
+  box-shadow:
+    0 1px 1px rgb(0 0 0 / 0.05),
+    0 8px 18px -10px rgb(0 0 0 / 0.28);
+  transform: none;
+}
+
+.weread-bookcase {
+  --reader-ink: hsl(var(--foreground));
+  --reader-muted: hsl(var(--muted-foreground));
+  --reader-green: hsl(var(--foreground));
+  --reader-red: var(--app-interactive-link);
+  --reader-yellow: hsl(var(--border));
+  --reader-yellow-strong: hsl(var(--foreground));
+  display: grid;
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: var(--app-paper-pattern-image), var(--app-paper-pattern-bg);
+  background-size: var(--app-paper-pattern-size) var(--app-paper-pattern-size);
+}
+
+.weread-bookcase-header {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(112px, 1fr) minmax(0, 2fr) minmax(112px, 1fr);
+  align-items: center;
+  gap: 16px;
+  border-bottom: 0;
+  background: hsl(var(--card));
+  padding: 14px var(--reader-titlebar-padding-right) 17px var(--reader-titlebar-back-left);
+  -webkit-app-region: drag;
+}
+
+.weread-bookcase-header .reader-back {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 40px;
+  align-items: center;
+  justify-self: start;
+  gap: 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--app-reader-muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 820;
+  padding: 0 8px;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.weread-bookcase-header .reader-back span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weread-bookcase-header .reader-back:hover,
+.weread-bookcase-header .reader-back:focus-visible {
+  background: var(--app-reader-toolbar-control-hover-bg);
+  color: var(--app-reader-ink);
+  outline: 0;
+}
+
+.weread-bookcase-header .reader-back:active {
+  transform: scale(0.96);
+}
+
+.weread-bookcase-title {
+  display: flex;
+  grid-column: 2;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  perspective: 920px;
+  text-align: center;
+  -webkit-app-region: drag;
+}
+
+.weread-bookcase-title > div {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.weread-bookcase-title .weread-book-cover {
+  --book-depth: clamp(12px, 29cqw, 18px);
+  --book-cover-height: 42px;
+  flex: 0 0 auto;
+}
+
+.weread-bookcase-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.weread-bookcase-title h2 {
+  min-width: 0;
+  flex: 1 1 auto;
+  margin: 0;
+  overflow: hidden;
+  color: hsl(var(--foreground));
+  font-size: 18px;
+  font-weight: 920;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weread-bookcase-title p {
+  margin: 4px 0 0;
+  overflow: hidden;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weread-bookcase-actions {
+  display: flex;
+  grid-column: 3;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.weread-bookcase-header button {
+  -webkit-app-region: no-drag;
+}
+
+.weread-bookcase-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  overflow: hidden;
+  background: var(--app-reader-toolbar-progress-track);
+  pointer-events: none;
+}
+
+.weread-bookcase-progress span {
+  display: block;
+  height: 100%;
+  border-radius: 0 999px 999px 0;
+  background: var(--app-reader-toolbar-progress-fill);
+  transition: width 180ms ease;
+}
+
+.weread-bookcase-body {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: 260px minmax(0, 1fr);
+}
+
+.weread-toc {
+  min-height: 0;
+  overflow: auto;
+  border-right: 1px solid hsl(var(--border) / 0.66);
+  background: hsl(var(--muted) / 0.28);
+  padding: 12px;
+}
+
+.weread-toc button {
+  display: grid;
+  width: 100%;
+  min-height: 38px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font: inherit;
+  padding: 8px 10px 8px calc(10px + var(--toc-level, 0) * 12px);
+  text-align: left;
+}
+
+.weread-toc button:hover,
+.weread-toc button.is-active {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.weread-toc span {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 780;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weread-toc em {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.weread-note-wall {
+  min-height: 0;
+  overflow: auto;
+  column-width: 280px;
+  column-gap: 14px;
+  padding: 18px;
+}
+
+.weread-note-wall.is-empty {
+  display: grid;
+  grid-template-columns: 1fr;
+  column-width: auto;
+  column-gap: 0;
+}
+
+.weread-note-wall .reader-note.weread-note-card {
+  display: inline-block;
+  width: 100%;
+  break-inside: avoid;
+  margin: 0 0 14px;
+  overflow: hidden;
+  border-left-width: 4px;
+  border-radius: 18px 18px 18px 7px;
+  background: hsl(var(--card));
+  box-shadow:
+    0 14px 36px hsl(31 34% 24% / 0.12),
+    inset 0 0 0 1px hsl(var(--border) / 0.68);
+}
+
+.weread-note-card .reader-note-body {
+  position: relative;
+  min-width: 0;
+  padding: 16px 16px 0;
+  background: hsl(var(--card));
+}
+
+.weread-note-wall .reader-note-card-header:empty {
+  display: none;
+}
+
+.weread-note-card .reader-note-quote {
+  display: grid;
+  width: 100%;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  color: hsl(var(--foreground));
+  font-family: var(--font-reader-serif);
+  padding: 0;
+  text-align: left;
+}
+
+.weread-note-card .reader-note-quote-mark {
+  display: block;
+  color: var(--reader-note-accent);
+  font-family: var(--font-reader-serif);
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 0.78;
+}
+
+.weread-note-card .reader-note-quote-text {
+  display: block;
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  font-style: italic;
+  font-weight: 760;
+  line-height: 1.62;
+}
+
+.weread-note-card .reader-note-meta {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  margin-top: 14px;
+  color: hsl(var(--muted-foreground));
+}
+
+.weread-note-card .reader-note-owner,
+.weread-note-card .reader-avatar-badge {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--reader-avatar-color, hsl(var(--foreground)));
+  color: hsl(var(--card));
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.weread-note-card .reader-avatar-badge.is-image {
+  background: transparent;
+}
+
+.weread-note-card .reader-avatar-badge img {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  object-fit: cover;
+}
+
+.weread-note-card .reader-note-meta-copy {
+  display: block;
+  min-width: 0;
+}
+
+.weread-note-card .reader-note-meta strong {
+  display: block;
+  overflow: hidden;
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  font-weight: 880;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weread-note-card .reader-note-time-actions {
+  display: grid;
+  min-width: 88px;
+  justify-items: end;
+}
+
+.weread-note-card .reader-note-meta time,
+.weread-note-card .reader-comment-author time {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-weight: 760;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.weread-note-card .reader-note-toolbar {
+  display: flex;
+  align-items: stretch;
+  margin: 14px -16px 0;
+  border-top: 1px solid hsl(var(--border) / 0.72);
+  background: hsl(var(--muted) / 0.42);
+}
+
+.weread-note-card .reader-readonly-note-toolbar {
+  align-items: center;
+}
+
+.weread-note-card .reader-readonly-note-toolbar .reader-note-thread-toggle {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  cursor: default;
+  color: hsl(var(--muted-foreground));
+  padding: 0 14px 0 16px;
+  pointer-events: none;
+}
+
+.weread-note-card .reader-comment-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 820;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.weread-note-card .reader-readonly-note-toolbar > button {
+  display: inline-flex;
+  width: auto;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  border-left: 1px solid hsl(var(--border) / 0.72);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 820;
+  padding: 0 14px;
+}
+
+.weread-note-card .reader-readonly-note-toolbar > button:hover {
+  background: hsl(var(--muted) / 0.64);
+  color: hsl(var(--foreground));
+}
+
+.weread-note-card .reader-note-comments-panel {
+  display: block;
+  border-top: 1px solid hsl(var(--border) / 0.72);
+  background: hsl(var(--muted) / 0.42);
+  padding: 12px;
+}
+
+.weread-note-card .reader-comments {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.weread-note-card .reader-comment {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+}
+
+.weread-note-card .reader-comment-body {
+  min-width: 0;
+}
+
+.weread-note-card .reader-comment-author {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.weread-note-card .reader-comment-author strong {
+  overflow: hidden;
+  color: hsl(var(--foreground));
+  font-size: 12px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weread-note-card .reader-markdown,
+.weread-note-card .reader-markdown p {
+  color: hsl(var(--foreground) / 0.86);
+  font-size: 13px;
+  line-height: 1.66;
+  margin: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.weread-empty-chapter {
+  display: grid;
+  min-height: 120px;
+  align-content: start;
+  justify-items: start;
+  padding: 72px 36px 0;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.weread-api-key-field {
+  position: relative;
+}
+
+.weread-api-key-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.weread-help-link {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: transparent;
+  color: hsl(118 24% 32%);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 780;
+  padding: 2px 0;
+  text-align: left;
+}
+
+.weread-help-link:hover,
+.weread-help-link:focus-visible {
+  color: hsl(118 30% 24%);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.weread-remove-action:disabled {
+  opacity: 0.46;
+}

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { readRendererStyles } from './css-test-utils';
 
 const entryStyles = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+const settingsStyles = readFileSync(new URL('../styles/settings.css', import.meta.url), 'utf8');
 const annotationDiscussionStyles = readFileSync(
   new URL('../styles/annotation-discussion.css', import.meta.url),
   'utf8',
@@ -28,6 +29,25 @@ describe('renderer styles entry', () => {
 @import './styles/source-pdf.css';
 @import './styles/theme-overrides.css';
 @config "../../../tailwind.config.ts";`);
+  });
+
+  it('keeps settings styles as ordered partial imports', () => {
+    expect(settingsStyles.trim()).toBe(`@import './settings/base-panels.css';
+@import './settings/provider-cards.css';
+@import './settings/provider-models.css';
+@import './settings/agent-library.css';
+@import './settings/provider-editor.css';
+@import './settings/agent-profile-dialogs.css';
+@import './settings/forms-actions.css';
+@import './settings/weread-bookcase.css';
+@import './settings/provider-select-responsive.css';
+@import './settings/stats-overview.css';
+@import './settings/weread-stats.css';
+@import './settings/logs-and-secrets.css';
+@import './settings/profile-customization.css';
+@import './settings/data-diagnostics.css';
+@import './settings/trace-license.css';
+@import './settings/onboarding.css';`);
   });
 
   it('keeps annotation discussion styles as ordered partial imports', () => {
