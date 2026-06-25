@@ -11,6 +11,7 @@ const heartbeat = {
   clientDay: '2026-06-22',
   timezone: 'Asia/Shanghai',
 };
+const requestOptions = { now: new Date('2026-06-22T12:00:00.000Z') };
 
 describe('telemetry worker', () => {
   it('accepts valid desktop heartbeat payloads', async () => {
@@ -18,9 +19,11 @@ describe('telemetry worker', () => {
     const response = await handleRequest(
       new Request('https://telemetry.yomitomo.app/v1/heartbeat', {
         method: 'POST',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify(heartbeat),
       }),
       { TELEMETRY_ANALYTICS: { writeDataPoint } },
+      requestOptions,
     );
 
     expect(response.status).toBe(204);
@@ -46,9 +49,11 @@ describe('telemetry worker', () => {
     const response = await handleRequest(
       new Request('https://telemetry.yomitomo.app/v1/heartbeat', {
         method: 'POST',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ ...heartbeat, timezone: undefined }),
       }),
       { TELEMETRY_ANALYTICS: { writeDataPoint } },
+      requestOptions,
     );
 
     expect(response.status).toBe(204);
@@ -60,9 +65,11 @@ describe('telemetry worker', () => {
     const response = await handleRequest(
       new Request('https://telemetry.yomitomo.app/v1/heartbeat', {
         method: 'POST',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ ...heartbeat, installId: '', platform: 'freebsd' }),
       }),
       { TELEMETRY_ANALYTICS: { writeDataPoint } },
+      requestOptions,
     );
 
     expect(response.status).toBe(400);
@@ -81,8 +88,64 @@ describe('telemetry worker', () => {
   });
 
   it('parses only the allowed heartbeat shape', () => {
-    expect(parseHeartbeat(heartbeat)).toEqual(heartbeat);
-    expect(parseHeartbeat({ ...heartbeat, clientDay: '2026-6-22' })).toBeNull();
-    expect(parseHeartbeat({ ...heartbeat, osVersion: '' })).toBeNull();
+    expect(parseHeartbeat(heartbeat, requestOptions.now)).toEqual(heartbeat);
+    expect(parseHeartbeat({ ...heartbeat, clientDay: '2026-6-22' }, requestOptions.now)).toBeNull();
+    expect(parseHeartbeat({ ...heartbeat, osVersion: '' }, requestOptions.now)).toBeNull();
+  });
+
+  it('rejects non-json heartbeat requests before reading analytics', async () => {
+    const writeDataPoint = vi.fn();
+    const response = await handleRequest(
+      new Request('https://telemetry.yomitomo.app/v1/heartbeat', {
+        method: 'POST',
+        headers: { 'content-type': 'text/plain' },
+        body: JSON.stringify(heartbeat),
+      }),
+      { TELEMETRY_ANALYTICS: { writeDataPoint } },
+      requestOptions,
+    );
+
+    expect(response.status).toBe(400);
+    expect(writeDataPoint).not.toHaveBeenCalled();
+  });
+
+  it('rejects oversized heartbeat requests before writing analytics', async () => {
+    const writeDataPoint = vi.fn();
+    const response = await handleRequest(
+      new Request('https://telemetry.yomitomo.app/v1/heartbeat', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...heartbeat, padding: 'x'.repeat(5000) }),
+      }),
+      { TELEMETRY_ANALYTICS: { writeDataPoint } },
+      requestOptions,
+    );
+
+    expect(response.status).toBe(400);
+    expect(writeDataPoint).not.toHaveBeenCalled();
+  });
+
+  it('rejects heartbeat days outside the accepted reporting window', async () => {
+    const writeDataPoint = vi.fn();
+    for (const clientDay of ['2026-06-18', '2026-06-25']) {
+      const response = await handleRequest(
+        new Request('https://telemetry.yomitomo.app/v1/heartbeat', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ ...heartbeat, clientDay }),
+        }),
+        { TELEMETRY_ANALYTICS: { writeDataPoint } },
+        requestOptions,
+      );
+
+      expect(response.status).toBe(400);
+    }
+    expect(writeDataPoint).not.toHaveBeenCalled();
+  });
+
+  it('rejects non-calendar heartbeat days', () => {
+    expect(
+      parseHeartbeat({ ...heartbeat, clientDay: '2026-02-30' }, requestOptions.now),
+    ).toBeNull();
   });
 });
