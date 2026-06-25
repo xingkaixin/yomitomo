@@ -1,0 +1,399 @@
+.annotation-discussion-add-run {
+  position: relative;
+  min-height: 244px;
+  overflow: hidden;
+  border-radius: 0 0 16px 16px;
+  padding: 34px 28px 32px;
+}
+
+.annotation-discussion-add-run-summary {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  margin: -8px auto 24px;
+  color: var(--app-reader-muted);
+  text-align: center;
+}
+
+.annotation-discussion-add-run-summary strong {
+  color: var(--app-reader-ink);
+  font-size: 13px;
+  font-weight: 820;
+}
+
+.annotation-discussion-add-run-summary p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.annotation-discussion-add-run-bloom {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.annotation-discussion-add-run-bloom-ripple {
+  position: absolute;
+  width: 130px;
+  height: 130px;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--app-reader-primary) 18%, transparent),
+    transparent 70%
+  );
+  opacity: 0;
+  transform: scale(0.4);
+  animation: annotation-discussion-add-bloom 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.annotation-discussion-add-run-bloom-ripple.is-wide {
+  width: 250px;
+  height: 250px;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--app-reader-accent-strong) 12%, transparent),
+    transparent 68%
+  );
+  animation-delay: 0.1s;
+}
+
+.annotation-discussion-add-run-agents {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 22px;
+}
+
+.annotation-discussion-add-run-agent {
+  display: grid;
+  width: 150px;
+  min-width: 0;
+  justify-items: center;
+  gap: 8px;
+  color: var(--app-reader-muted);
+  text-align: center;
+}
+
+.annotation-discussion-add-run-avatar {
+  position: relative;
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 2px solid var(--app-reader-paper);
+  border-radius: 999px;
+  background: var(--app-reader-paper);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--app-reader-ink) 14%, transparent);
+}
+
+.annotation-discussion-add-run-avatar .reader-avatar-badge {
+  width: 42px;
+  height: 42px;
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.annotation-discussion-add-run-writing-avatar {
+  display: block;
+  width: 42px;
+  height: 42px;
+  overflow: hidden;
+  border-radius: 999px;
+  background-image: var(--agent-writing-sprite);
+  background-position: 0 0;
+  background-repeat: no-repeat;
+  background-size: var(--agent-writing-sheet-width) 42px;
+  animation: annotation-discussion-add-writing-avatar var(--agent-writing-duration) steps(7)
+    infinite;
+}
+
+.annotation-discussion-add-run-agent.is-done .annotation-discussion-add-run-avatar {
+  animation: annotation-discussion-add-avatar-settle 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.annotation-discussion-add-run-agent.is-failed .annotation-discussion-add-run-avatar {
+  opacity: 0.82;
+}
+
+.annotation-discussion-add-run-check {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: grid;
+  width: 19px;
+  height: 19px;
+  place-items: center;
+  border: 2px solid var(--app-reader-paper);
+  border-radius: 999px;
+  background: var(--agent-ink, var(--app-reader-primary));
+  color: var(--app-reader-paper);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--app-reader-ink) 18%, transparent);
+  animation: annotation-discussion-add-check-pop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  animation-delay: 0.16s;
+}
+
+.annotation-discussion-add-run-inkline {
+  position: relative;
+  width: 62px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-reader-ink) 8%, transparent);
+}
+
+.annotation-discussion-add-run-inkline::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--agent-ink, var(--app-reader-primary));
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.annotation-discussion-add-run-agent.is-active .annotation-discussion-add-run-inkline::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 42%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--agent-ink, var(--app-reader-primary)),
+    transparent
+  );
+  animation: annotation-discussion-add-ink-write 1.15s ease-in-out infinite;
+  animation-delay: var(--agent-run-delay);
+}
+
+.annotation-discussion-add-run-agent.is-done .annotation-discussion-add-run-inkline::after {
+  transform: scaleX(1);
+}
+
+.annotation-discussion-add-run-agent.is-failed .annotation-discussion-add-run-inkline {
+  background: color-mix(in srgb, var(--app-reader-danger) 24%, transparent);
+}
+
+.annotation-discussion-add-run-agent > strong {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--app-reader-ink);
+  font-size: 11px;
+  font-weight: 780;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.annotation-discussion-add-run-agent .assistant-runtime-progress {
+  justify-items: center;
+  margin-top: 0;
+}
+
+.annotation-discussion-add-run-failure {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.annotation-discussion-add-run-failure p {
+  max-width: 100%;
+  margin: 0;
+  overflow: hidden;
+  color: var(--app-reader-danger);
+  font-size: 10px;
+  font-weight: 680;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.annotation-discussion-add-run-failure button,
+.annotation-discussion-add-run-actions button {
+  border: 1px solid var(--app-reader-border);
+  border-radius: 999px;
+  background: var(--app-reader-paper);
+  color: var(--app-reader-ink);
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1;
+  padding: 7px 10px;
+}
+
+.annotation-discussion-add-run-failure button:hover,
+.annotation-discussion-add-run-actions button:hover {
+  background: var(--app-reader-agent-panel-hover-bg);
+}
+
+.annotation-discussion-add-run-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.assistant-runtime-progress {
+  display: grid;
+  gap: 3px;
+  margin: 0 0 9px;
+  color: color-mix(in srgb, var(--app-reader-muted) 86%, transparent);
+  font-size: 9px;
+  font-weight: 590;
+  line-height: 1.15;
+}
+
+.annotation-discussion-root-thought-content > .assistant-runtime-progress {
+  font-size: 9px;
+  font-weight: 590;
+  line-height: 1.15;
+}
+
+.assistant-runtime-progress ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.assistant-runtime-progress li,
+.assistant-runtime-progress p {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 2px;
+  max-width: 170px;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--app-reader-ink) 7%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-reader-ink) 2.5%, transparent);
+  padding: 1px 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assistant-runtime-progress span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assistant-runtime-progress svg {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+}
+
+.assistant-runtime-progress li.is-done {
+  color: var(--app-reader-primary);
+}
+
+.assistant-runtime-progress li.is-failed,
+.assistant-runtime-progress p {
+  color: var(--app-reader-danger);
+}
+
+.assistant-runtime-progress li.is-active svg {
+  animation: assistant-runtime-progress-spin 0.88s linear infinite;
+}
+
+@keyframes assistant-runtime-progress-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes annotation-discussion-add-ink-write {
+  0% {
+    transform: translateX(-30%);
+  }
+  50% {
+    transform: translateX(150%);
+  }
+  100% {
+    transform: translateX(-30%);
+  }
+}
+
+@keyframes annotation-discussion-add-avatar-settle {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes annotation-discussion-add-writing-avatar {
+  to {
+    background-position-x: var(--agent-writing-travel);
+  }
+}
+
+@keyframes annotation-discussion-add-check-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes annotation-discussion-add-bloom {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.25);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .annotation-discussion-add-run-agent.is-active .annotation-discussion-add-run-inkline::before {
+    animation: none;
+  }
+  .annotation-discussion-add-run-writing-avatar {
+    animation: none;
+  }
+  .annotation-discussion-add-run-agent.is-done .annotation-discussion-add-run-avatar,
+  .annotation-discussion-add-run-bloom-ripple {
+    animation: none;
+  }
+  .annotation-discussion-add-run-check {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .annotation-discussion-add-run-bloom-ripple {
+    opacity: 0;
+  }
+}

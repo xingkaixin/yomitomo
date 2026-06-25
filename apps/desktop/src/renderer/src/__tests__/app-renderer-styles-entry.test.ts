@@ -3,6 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { readRendererStyles } from './css-test-utils';
 
 const entryStyles = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+const annotationDiscussionStyles = readFileSync(
+  new URL('../styles/annotation-discussion.css', import.meta.url),
+  'utf8',
+);
 
 describe('renderer styles entry', () => {
   it('keeps styles.css as the ordered global CSS entry', () => {
@@ -19,6 +23,16 @@ describe('renderer styles entry', () => {
 @import './styles/source-pdf.css';
 @import './styles/theme-overrides.css';
 @config "../../../tailwind.config.ts";`);
+  });
+
+  it('keeps annotation discussion styles as ordered partial imports', () => {
+    expect(annotationDiscussionStyles.trim()).toBe(`@import './annotation-discussion/window.css';
+@import './annotation-discussion/ideas.css';
+@import './annotation-discussion/thread.css';
+@import './annotation-discussion/add-run.css';
+@import './annotation-discussion/composer.css';
+@import './annotation-discussion/sedimentation.css';
+@import './annotation-discussion/shared.css';`);
   });
 
   it('expands local CSS imports for style assertions', () => {
