@@ -73,6 +73,7 @@ import {
 import { createPdfiumSourceReaderController } from './app-source-bookcase-pdfium-controller';
 import { EmbedPdfSelectionBridge } from './app-source-bookcase-pdfium-selection-bridge';
 import {
+  recordPdfOpenTiming,
   recordPdfOpenTimingOnce,
   type PdfOpenTrace,
 } from './app-source-bookcase-pdfium-open-trace';
@@ -410,6 +411,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     article,
     documentId,
     documentReady: Boolean(loadedDocument),
+    openTrace,
     pageCount,
     onSaveArticleReadingProgress,
   });
@@ -723,6 +725,12 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     recordedOpenPhasesRef.current = new Set();
   }, [article.id]);
 
+  const restoreMetricsWaitLoggedRef = useRef(false);
+
+  useEffect(() => {
+    restoreMetricsWaitLoggedRef.current = false;
+  }, [article.id]);
+
   useEffect(() => {
     const loadedPdfDocument = documentState?.document;
     if (!loadedPdfDocument) return;
@@ -740,7 +748,24 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     const visiblePageCount = Object.keys(pageMetrics).length;
     if (visiblePageCount === 0) return;
     const expectedPageIndex = initialPageNumber - 1;
-    if (expectedPageIndex > 0 && !pageMetrics[expectedPageIndex]) return;
+    if (expectedPageIndex > 0 && !pageMetrics[expectedPageIndex]) {
+      if (!restoreMetricsWaitLoggedRef.current) {
+        restoreMetricsWaitLoggedRef.current = true;
+        recordPdfOpenTiming(openTrace, 'initial_restore_metrics_wait', {
+          targetPage: initialPageNumber,
+          visiblePageCount,
+          visiblePageIndexes: Object.keys(pageMetrics).map(Number),
+        });
+      }
+      return;
+    }
+    if (expectedPageIndex > 0) {
+      recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'initial_restore_metrics_ready', {
+        targetPage: initialPageNumber,
+        visiblePageCount,
+        visiblePageIndexes: Object.keys(pageMetrics).map(Number),
+      });
+    }
     markInitialPageReady();
     markPdfiumFirstPageReady();
     recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'first_page_ready', {
