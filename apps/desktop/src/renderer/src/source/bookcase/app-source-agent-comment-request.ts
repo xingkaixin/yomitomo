@@ -30,7 +30,7 @@ type RunSourceAgentCommentRequestInput = {
   articleText: string;
   annotationsRef: RefObject<Annotation[]>;
   applyAnnotations: (annotations: Annotation[]) => ArticleRecord | null;
-  saveAnnotations: (annotations: Annotation[]) => Promise<void>;
+  saveComment: (annotationId: string, comment: AnnotationComment) => Promise<void>;
   setStatusMessage: (message: string) => void;
 };
 
@@ -48,7 +48,7 @@ export async function runSourceAgentCommentRequest({
   articleText,
   annotationsRef,
   applyAnnotations,
-  saveAnnotations,
+  saveComment,
   setStatusMessage,
 }: RunSourceAgentCommentRequestInput) {
   setStatusMessage(
@@ -136,25 +136,11 @@ export async function runSourceAgentCommentRequest({
         userComment.readingIntent,
       assistantProgress: failedAssistantProgress(baseComment?.assistantProgress),
     });
-    const updatedAnnotations = updateAnnotationComment(
-      annotationsRef.current,
-      annotation.id,
-      failedComment.id,
-      () => failedComment,
-    );
     if (
-      updatedAnnotations &&
-      hasAnnotationComment(updatedAnnotations, annotation.id, failedComment.id)
+      hasAnnotationComment(annotationsRef.current, annotation.id, failedComment.id) ||
+      hasAnnotationComment(annotationsRef.current, annotation.id, replyTargetId)
     ) {
-      await saveAnnotations(updatedAnnotations);
-    } else if (hasAnnotationComment(annotationsRef.current, annotation.id, replyTargetId)) {
-      const restoredAnnotations = appendAnnotationComment(
-        annotationsRef.current,
-        annotation.id,
-        failedComment,
-        failedComment.createdAt,
-      );
-      if (restoredAnnotations) await saveAnnotations(restoredAnnotations);
+      await saveComment(annotation.id, failedComment);
     }
   };
   try {
@@ -273,25 +259,11 @@ export async function runSourceAgentCommentRequest({
           ?.comments.find((comment) => comment.id === pendingCommentId)?.assistantProgress,
       pending: false,
     };
-    const nextAnnotations = updateAnnotationComment(
-      annotationsRef.current,
-      annotation.id,
-      completedComment.id,
-      () => completedComment,
-    );
     if (
-      nextAnnotations &&
-      hasAnnotationComment(nextAnnotations, annotation.id, completedComment.id)
+      hasAnnotationComment(annotationsRef.current, annotation.id, completedComment.id) ||
+      hasAnnotationComment(annotationsRef.current, annotation.id, replyTargetId)
     ) {
-      await saveAnnotations(nextAnnotations);
-    } else if (hasAnnotationComment(annotationsRef.current, annotation.id, replyTargetId)) {
-      const restoredAnnotations = appendAnnotationComment(
-        annotationsRef.current,
-        annotation.id,
-        completedComment,
-        completedComment.createdAt,
-      );
-      if (restoredAnnotations) await saveAnnotations(restoredAnnotations);
+      await saveComment(annotation.id, completedComment);
     }
   } finally {
     if (pendingFrame) window.cancelAnimationFrame(pendingFrame);

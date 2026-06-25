@@ -205,7 +205,7 @@ export function EbookBookcase({
     deleteComment,
     latestArticleRef,
     replaceAnnotations,
-    saveAnnotations,
+    saveAnnotation,
   } = sourceReaderSession;
   const [annotatingAgentIds, setAnnotatingAgentIds] = useState<string[]>([]);
   const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
@@ -556,11 +556,10 @@ export function EbookBookcase({
   async function createAnnotation(note: string) {
     if (!composer) return;
     const currentComposer = composer;
-    const currentArticle = latestArticleRef.current;
-    if (!currentArticle) return;
+    if (!latestArticleRef.current) return;
     cancelComposer();
     const annotation = createUserAnnotation(currentComposer.anchor, userProfile, note);
-    await saveAnnotations([...currentArticle.annotations, annotation]);
+    await saveAnnotation(annotation);
     markAnnotationCreated(annotation.id);
     openAnnotation(annotation.id);
   }

@@ -478,7 +478,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     deleteAnnotation,
     deleteComment,
     latestArticleRef,
-    saveAnnotations,
+    saveAnnotation,
   } = sourceReaderSession;
   const {
     agentDockCompleting,
@@ -1176,11 +1176,10 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   async function createAnnotationFromComposer(note: string) {
     if (!composer) return;
     const currentComposer = composer;
-    const currentArticle = latestArticleRef.current;
-    if (!currentArticle) return;
+    if (!latestArticleRef.current) return;
     cancelComposer();
     const annotation = createUserAnnotation(currentComposer.anchor, userProfile, note);
-    await saveAnnotations([...currentArticle.annotations, annotation]);
+    await saveAnnotation(annotation);
     markAnnotationCreated(annotation.id);
     onOpenAnnotation(annotation.id);
   }

@@ -13,7 +13,11 @@ import {
   findMentionedAgents,
   sortAnnotations,
 } from '@yomitomo/core';
-import { articleWithAnnotations } from './app-source-bookcase-shared';
+import {
+  annotationsWithSavedAnnotation,
+  annotationsWithSavedComment,
+  articleWithAnnotations,
+} from './app-source-bookcase-shared';
 
 type SourceAnnotationsChange = {
   previousAnnotations: Annotation[];
@@ -94,61 +98,88 @@ export function useSourceAnnotations({
     replaceAnnotations(articleAnnotations);
   }, [article, articleAnnotations, ignoreStaleArticleUpdates, replaceAnnotations]);
 
+  const applySavedAnnotations = useCallback((nextAnnotations: Annotation[]) => {
+    const currentArticle = latestArticleRef.current;
+    if (!currentArticle) return null;
+
+    const previousAnnotations = annotationsRef.current;
+    const nextArticle = articleWithAnnotations(currentArticle, nextAnnotations);
+    const sortedAnnotations = nextArticle.annotations;
+    latestArticleRef.current = nextArticle;
+    annotationsRef.current = sortedAnnotations;
+    setAnnotations(sortedAnnotations);
+    return {
+      previousAnnotations,
+      nextAnnotations: sortedAnnotations,
+      previousArticle: currentArticle,
+      nextArticle,
+    };
+  }, []);
+
+  const saveAnnotationChange = useCallback(
+    async (change: SourceAnnotationsChange | null) => {
+      if (!change) return null;
+      await onSaveArticle(change.nextArticle);
+      onAnnotationsSaved?.(change);
+      return change;
+    },
+    [onAnnotationsSaved, onSaveArticle],
+  );
+
   const saveAnnotations = useCallback(
     async (nextAnnotations: Annotation[]) => {
-      const currentArticle = latestArticleRef.current;
-      if (!currentArticle) return;
-
-      const previousAnnotations = annotationsRef.current;
-      const nextArticle = articleWithAnnotations(currentArticle, nextAnnotations);
-      const sortedAnnotations = nextArticle.annotations;
-      latestArticleRef.current = nextArticle;
-      annotationsRef.current = sortedAnnotations;
-      setAnnotations(sortedAnnotations);
-      const localWrite = localAnnotationWrite(
-        previousAnnotations,
-        sortedAnnotations,
-        nextArticle.updatedAt,
-      );
-      if (localWrite?.kind === 'annotation-upsert' && onSaveArticleAnnotation) {
-        await onSaveArticleAnnotation(
-          currentArticle.id,
-          localWrite.annotation,
-          localWrite.updatedAt,
-        );
-      } else if (localWrite?.kind === 'comment-upsert' && onSaveArticleComment) {
-        await onSaveArticleComment(
-          currentArticle.id,
-          localWrite.annotationId,
-          localWrite.comment,
-          localWrite.updatedAt,
-        );
-      } else if (localWrite?.kind === 'comment-delete' && onDeleteArticleComment) {
-        await onDeleteArticleComment(
-          currentArticle.id,
-          localWrite.annotationId,
-          localWrite.commentId,
-        );
-      } else if (localWrite?.kind === 'annotation-delete' && onDeleteArticleAnnotation) {
-        await onDeleteArticleAnnotation(currentArticle.id, localWrite.annotationId);
-      } else {
-        await onSaveArticle(nextArticle);
-      }
-      onAnnotationsSaved?.({
-        previousAnnotations,
-        nextAnnotations: sortedAnnotations,
-        previousArticle: currentArticle,
-        nextArticle,
-      });
+      await saveAnnotationChange(applySavedAnnotations(nextAnnotations));
     },
-    [
-      onAnnotationsSaved,
-      onDeleteArticleAnnotation,
-      onDeleteArticleComment,
-      onSaveArticle,
-      onSaveArticleAnnotation,
-      onSaveArticleComment,
-    ],
+    [applySavedAnnotations, saveAnnotationChange],
+  );
+
+  const saveAnnotation = useCallback(
+    async (annotation: Annotation) => {
+      const change = applySavedAnnotations(
+        annotationsWithSavedAnnotation(annotationsRef.current, annotation),
+      );
+      if (!change) return;
+      if (onSaveArticleAnnotation) {
+        await onSaveArticleAnnotation(
+          change.nextArticle.id,
+          annotation,
+          change.nextArticle.updatedAt,
+        );
+        onAnnotationsSaved?.(change);
+        return;
+      }
+      await saveAnnotationChange(change);
+    },
+    [applySavedAnnotations, onAnnotationsSaved, onSaveArticleAnnotation, saveAnnotationChange],
+  );
+
+  const saveComment = useCallback(
+    async (
+      annotationId: string,
+      comment: AnnotationComment,
+      updatedAt = new Date().toISOString(),
+    ) => {
+      const nextAnnotations = annotationsWithSavedComment(
+        annotationsRef.current,
+        annotationId,
+        comment,
+        updatedAt,
+      );
+      const change = nextAnnotations ? applySavedAnnotations(nextAnnotations) : null;
+      if (!change) return;
+      if (onSaveArticleComment) {
+        await onSaveArticleComment(
+          change.nextArticle.id,
+          annotationId,
+          comment,
+          change.nextArticle.updatedAt,
+        );
+        onAnnotationsSaved?.(change);
+        return;
+      }
+      await saveAnnotationChange(change);
+    },
+    [applySavedAnnotations, onAnnotationsSaved, onSaveArticleComment, saveAnnotationChange],
   );
 
   const applyAnnotations = useCallback(
@@ -193,7 +224,7 @@ export function useSourceAnnotations({
       const nextAnnotation = nextAnnotations?.find((annotation) => annotation.id === annotationId);
       if (!nextAnnotations || !nextAnnotation) return;
 
-      await saveAnnotations(nextAnnotations);
+      await saveComment(annotationId, comment);
       onOpenAnnotation?.(annotationId);
 
       const result = {
@@ -203,7 +234,7 @@ export function useSourceAnnotations({
       };
       onCommentSaved?.(result);
     },
-    [annotationAgents, onCommentSaved, onOpenAnnotation, saveAnnotations, userProfile],
+    [annotationAgents, onCommentSaved, onOpenAnnotation, saveComment, userProfile],
   );
 
   const deleteAnnotation = useCallback(
@@ -219,21 +250,18 @@ export function useSourceAnnotations({
         return;
       }
 
-      const previousAnnotations = annotationsRef.current;
-      const nextArticle = articleWithAnnotations(currentArticle, nextAnnotations);
-      const sortedAnnotations = nextArticle.annotations;
-      latestArticleRef.current = nextArticle;
-      annotationsRef.current = sortedAnnotations;
-      setAnnotations(sortedAnnotations);
+      const change = applySavedAnnotations(nextAnnotations);
+      if (!change) return;
       await onDeleteArticleAnnotation(currentArticle.id, annotationId);
-      onAnnotationsSaved?.({
-        previousAnnotations,
-        nextAnnotations: sortedAnnotations,
-        previousArticle: currentArticle,
-        nextArticle,
-      });
+      onAnnotationsSaved?.(change);
     },
-    [onAnnotationsSaved, onBeforeDeleteAnnotation, onDeleteArticleAnnotation, saveAnnotations],
+    [
+      applySavedAnnotations,
+      onAnnotationsSaved,
+      onBeforeDeleteAnnotation,
+      onDeleteArticleAnnotation,
+      saveAnnotations,
+    ],
   );
 
   const deleteComment = useCallback(
@@ -252,22 +280,19 @@ export function useSourceAnnotations({
         return;
       }
 
-      const previousAnnotations = annotationsRef.current;
-      const nextArticle = articleWithAnnotations(currentArticle, nextAnnotations);
-      const sortedAnnotations = nextArticle.annotations;
-      latestArticleRef.current = nextArticle;
-      annotationsRef.current = sortedAnnotations;
-      setAnnotations(sortedAnnotations);
+      const change = applySavedAnnotations(nextAnnotations);
+      if (!change) return;
       await onDeleteArticleComment(currentArticle.id, annotationId, commentId);
-      onAnnotationsSaved?.({
-        previousAnnotations,
-        nextAnnotations: sortedAnnotations,
-        previousArticle: currentArticle,
-        nextArticle,
-      });
+      onAnnotationsSaved?.(change);
       onOpenAnnotation?.(annotationId);
     },
-    [onAnnotationsSaved, onDeleteArticleComment, onOpenAnnotation, saveAnnotations],
+    [
+      applySavedAnnotations,
+      onAnnotationsSaved,
+      onDeleteArticleComment,
+      onOpenAnnotation,
+      saveAnnotations,
+    ],
   );
 
   return {
@@ -279,121 +304,10 @@ export function useSourceAnnotations({
     deleteAnnotation,
     latestArticleRef,
     replaceAnnotations,
+    saveAnnotation,
     saveAnnotations,
+    saveComment,
   };
-}
-
-type LocalAnnotationWrite =
-  | {
-      kind: 'annotation-upsert';
-      annotation: Annotation;
-      updatedAt: string;
-    }
-  | {
-      kind: 'annotation-delete';
-      annotationId: string;
-    }
-  | {
-      kind: 'comment-upsert';
-      annotationId: string;
-      comment: AnnotationComment;
-      updatedAt: string;
-    }
-  | {
-      kind: 'comment-delete';
-      annotationId: string;
-      commentId: string;
-    };
-
-function localAnnotationWrite(
-  previousAnnotations: Annotation[],
-  nextAnnotations: Annotation[],
-  updatedAt: string,
-): LocalAnnotationWrite | null {
-  const previousById = new Map(
-    previousAnnotations.map((annotation) => [annotation.id, annotation]),
-  );
-  const nextById = new Map(nextAnnotations.map((annotation) => [annotation.id, annotation]));
-  const addedAnnotations = nextAnnotations.filter((annotation) => !previousById.has(annotation.id));
-  const removedAnnotations = previousAnnotations.filter(
-    (annotation) => !nextById.has(annotation.id),
-  );
-  const changedAnnotations = nextAnnotations.filter((annotation) => {
-    const previous = previousById.get(annotation.id);
-    return previous && annotationChanged(previous, annotation);
-  });
-  const changeCount =
-    addedAnnotations.length + removedAnnotations.length + changedAnnotations.length;
-
-  if (changeCount !== 1) return null;
-  if (addedAnnotations.length === 1) {
-    return { kind: 'annotation-upsert', annotation: addedAnnotations[0], updatedAt };
-  }
-  if (removedAnnotations.length === 1) {
-    return { kind: 'annotation-delete', annotationId: removedAnnotations[0].id };
-  }
-
-  const nextAnnotation = changedAnnotations[0];
-  const previousAnnotation = previousById.get(nextAnnotation.id);
-  if (!previousAnnotation) return null;
-  const commentWrite = localCommentWrite(previousAnnotation, nextAnnotation, updatedAt);
-  return commentWrite || { kind: 'annotation-upsert', annotation: nextAnnotation, updatedAt };
-}
-
-function localCommentWrite(
-  previousAnnotation: Annotation,
-  nextAnnotation: Annotation,
-  updatedAt: string,
-): LocalAnnotationWrite | null {
-  const previousWithoutComments = { ...previousAnnotation, comments: [], updatedAt: '' };
-  const nextWithoutComments = { ...nextAnnotation, comments: [], updatedAt: '' };
-  if (annotationChanged(previousWithoutComments, nextWithoutComments)) return null;
-
-  const previousById = new Map(previousAnnotation.comments.map((comment) => [comment.id, comment]));
-  const nextById = new Map(nextAnnotation.comments.map((comment) => [comment.id, comment]));
-  const addedComments = nextAnnotation.comments.filter((comment) => !previousById.has(comment.id));
-  const removedComments = previousAnnotation.comments.filter(
-    (comment) => !nextById.has(comment.id),
-  );
-  const changedComments = nextAnnotation.comments.filter((comment) => {
-    const previous = previousById.get(comment.id);
-    return previous && commentChanged(previous, comment);
-  });
-  const changeCount = addedComments.length + removedComments.length + changedComments.length;
-
-  if (changeCount !== 1) return null;
-  if (addedComments.length === 1) {
-    return {
-      kind: 'comment-upsert',
-      annotationId: nextAnnotation.id,
-      comment: addedComments[0],
-      updatedAt,
-    };
-  }
-  if (changedComments.length === 1) {
-    return {
-      kind: 'comment-upsert',
-      annotationId: nextAnnotation.id,
-      comment: changedComments[0],
-      updatedAt,
-    };
-  }
-  if (removedComments.length === 1) {
-    return {
-      kind: 'comment-delete',
-      annotationId: nextAnnotation.id,
-      commentId: removedComments[0].id,
-    };
-  }
-  return null;
-}
-
-function annotationChanged(previous: Annotation, next: Annotation) {
-  return JSON.stringify(previous) !== JSON.stringify(next);
-}
-
-function commentChanged(previous: AnnotationComment, next: AnnotationComment) {
-  return JSON.stringify(previous) !== JSON.stringify(next);
 }
 
 function acceptIncomingArticle(

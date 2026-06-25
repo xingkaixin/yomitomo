@@ -13,7 +13,7 @@ type RunSourceAgentReviewRequestInput = {
   uiLanguage?: UiLanguage;
   annotationsRef: RefObject<Annotation[]>;
   applyAnnotations: (annotations: Annotation[]) => ArticleRecord | null;
-  saveAnnotations: (annotations: Annotation[]) => Promise<void>;
+  saveComment: (annotationId: string, comment: Comment) => Promise<void>;
   setStatusMessage: (message: string) => void;
 };
 
@@ -26,7 +26,7 @@ export async function runSourceAgentReviewRequest({
   uiLanguage,
   annotationsRef,
   applyAnnotations,
-  saveAnnotations,
+  saveComment,
   setStatusMessage,
 }: RunSourceAgentReviewRequestInput) {
   setStatusMessage(
@@ -35,7 +35,7 @@ export async function runSourceAgentReviewRequest({
     }),
   );
   let latestAnnotations = annotationsRef.current;
-  let changed = false;
+  const commentsToSave: Comment[] = [];
 
   try {
     for (const agent of agents) {
@@ -46,20 +46,17 @@ export async function runSourceAgentReviewRequest({
         article: promptArticle(currentArticle, articleText),
         annotation: latestAnnotation(latestAnnotations, annotation.id) || annotation,
       });
-      const nextAnnotations = appendReviewComments(
-        latestAnnotations,
-        annotation.id,
-        agent,
-        comments,
-      );
-      if (nextAnnotations !== latestAnnotations) {
-        latestAnnotations = nextAnnotations;
-        changed = true;
+      const result = appendReviewComments(latestAnnotations, annotation.id, agent, comments);
+      if (result.annotations !== latestAnnotations) {
+        latestAnnotations = result.annotations;
+        commentsToSave.push(...result.comments);
         applyAnnotations(latestAnnotations);
       }
     }
 
-    if (changed) await saveAnnotations(latestAnnotations);
+    for (const comment of commentsToSave) {
+      await saveComment(annotation.id, comment);
+    }
   } finally {
     setStatusMessage('');
   }
@@ -72,6 +69,7 @@ function appendReviewComments(
   comments: Comment[],
 ) {
   let nextAnnotations = annotations;
+  const appendedComments: Comment[] = [];
   for (const comment of comments) {
     if (
       !comment.replyTo ||
@@ -87,15 +85,17 @@ function appendReviewComments(
       agentAvatar: agent.avatar,
       agentAnnotationColor: agent.annotationColor,
     };
-    nextAnnotations =
-      appendAnnotationComment(
-        nextAnnotations,
-        annotationId,
-        localizedComment,
-        localizedComment.createdAt,
-      ) || nextAnnotations;
+    const appendedAnnotations = appendAnnotationComment(
+      nextAnnotations,
+      annotationId,
+      localizedComment,
+      localizedComment.createdAt,
+    );
+    if (!appendedAnnotations) continue;
+    nextAnnotations = appendedAnnotations;
+    appendedComments.push(localizedComment);
   }
-  return nextAnnotations;
+  return { annotations: nextAnnotations, comments: appendedComments };
 }
 
 function reviewerAlreadyCommented(

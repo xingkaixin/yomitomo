@@ -80,6 +80,21 @@ function annotation(comments: AnnotationComment[]): Annotation {
   };
 }
 
+function saveCommentMock(annotationsRef: { current: Annotation[] }) {
+  return vi.fn(async (annotationId: string, nextComment: AnnotationComment) => {
+    annotationsRef.current = annotationsRef.current.map((candidate) => {
+      if (candidate.id !== annotationId) return candidate;
+      const existingComment = candidate.comments.some((item) => item.id === nextComment.id);
+      return {
+        ...candidate,
+        comments: existingComment
+          ? candidate.comments.map((item) => (item.id === nextComment.id ? nextComment : item))
+          : [...candidate.comments, nextComment],
+      };
+    });
+  });
+}
+
 describe('runSourceAgentCommentRequest', () => {
   it('saves a failed assistant reply when the stream rejects', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
@@ -90,9 +105,7 @@ describe('runSourceAgentCommentRequest', () => {
       annotationsRef.current = annotations;
       return article(annotations[0]);
     });
-    const saveAnnotations = vi.fn(async (annotations: Annotation[]) => {
-      annotationsRef.current = annotations;
-    });
+    const saveComment = saveCommentMock(annotationsRef);
     const desktop = {
       requestAgentCommentStream: vi.fn(async () => {
         throw new Error('network failed');
@@ -108,7 +121,7 @@ describe('runSourceAgentCommentRequest', () => {
       articleText: '正文',
       annotationsRef,
       applyAnnotations,
-      saveAnnotations,
+      saveComment,
       setStatusMessage: vi.fn(),
     });
 
@@ -121,7 +134,7 @@ describe('runSourceAgentCommentRequest', () => {
         replyTargetId: rootComment.id,
       }),
     );
-    expect(saveAnnotations).toHaveBeenCalled();
+    expect(saveComment).toHaveBeenCalled();
     expect(annotationsRef.current[0]?.comments).toContainEqual(
       expect.objectContaining({
         author: 'ai',
@@ -141,9 +154,7 @@ describe('runSourceAgentCommentRequest', () => {
       annotationsRef.current = annotations;
       return article(annotations[0]);
     });
-    const saveAnnotations = vi.fn(async (annotations: Annotation[]) => {
-      annotationsRef.current = annotations;
-    });
+    const saveComment = saveCommentMock(annotationsRef);
     const pendingAgentComment = {
       id: 'comment_agent',
       author: 'ai' as const,
@@ -178,7 +189,7 @@ describe('runSourceAgentCommentRequest', () => {
       articleText: '正文',
       annotationsRef,
       applyAnnotations,
-      saveAnnotations,
+      saveComment,
       setStatusMessage: vi.fn(),
     });
 
@@ -202,9 +213,7 @@ describe('runSourceAgentCommentRequest', () => {
       annotationsRef.current = annotations;
       return article(annotations[0]);
     });
-    const saveAnnotations = vi.fn(async (annotations: Annotation[]) => {
-      annotationsRef.current = annotations;
-    });
+    const saveComment = saveCommentMock(annotationsRef);
     const desktop = {
       requestAgentCommentStream: vi.fn(async (_payload, onEvent) => {
         const pendingReply = annotationsRef.current[0]?.comments.find(
@@ -252,7 +261,7 @@ describe('runSourceAgentCommentRequest', () => {
       articleText: '正文',
       annotationsRef,
       applyAnnotations,
-      saveAnnotations,
+      saveComment,
       setStatusMessage: vi.fn(),
     });
 
@@ -282,9 +291,7 @@ describe('runSourceAgentCommentRequest', () => {
       annotationsRef.current = annotations;
       return article(annotations[0]);
     });
-    const saveAnnotations = vi.fn(async (annotations: Annotation[]) => {
-      annotationsRef.current = annotations;
-    });
+    const saveComment = saveCommentMock(annotationsRef);
     const pendingAgentComment = {
       id: 'comment_agent',
       author: 'ai' as const,
@@ -319,7 +326,7 @@ describe('runSourceAgentCommentRequest', () => {
       articleText: '正文',
       annotationsRef,
       applyAnnotations,
-      saveAnnotations,
+      saveComment,
       setStatusMessage: vi.fn(),
     });
 
@@ -333,7 +340,7 @@ describe('runSourceAgentCommentRequest', () => {
         replyTo: rootComment.id,
       }),
     );
-    expect(saveAnnotations).toHaveBeenCalled();
+    expect(saveComment).toHaveBeenCalled();
   });
 
   it('keeps deep runtime progress while applying streamed reply deltas', async () => {
@@ -344,9 +351,7 @@ describe('runSourceAgentCommentRequest', () => {
       annotationsRef.current = annotations;
       return article(annotations[0]);
     });
-    const saveAnnotations = vi.fn(async (annotations: Annotation[]) => {
-      annotationsRef.current = annotations;
-    });
+    const saveComment = saveCommentMock(annotationsRef);
     const pendingAgentComment = {
       id: 'comment_agent',
       author: 'ai' as const,
@@ -392,7 +397,7 @@ describe('runSourceAgentCommentRequest', () => {
       articleText: '正文',
       annotationsRef,
       applyAnnotations,
-      saveAnnotations,
+      saveComment,
       setStatusMessage: vi.fn(),
     });
 
@@ -420,9 +425,7 @@ describe('runSourceAgentCommentRequest', () => {
       annotationsRef.current = annotations;
       return article(annotations[0]);
     });
-    const saveAnnotations = vi.fn(async (annotations: Annotation[]) => {
-      annotationsRef.current = annotations;
-    });
+    const saveComment = saveCommentMock(annotationsRef);
     const pendingAgentComment = {
       id: 'comment_agent',
       author: 'ai' as const,
@@ -455,12 +458,12 @@ describe('runSourceAgentCommentRequest', () => {
       articleText: '正文',
       annotationsRef,
       applyAnnotations,
-      saveAnnotations,
+      saveComment,
       setStatusMessage: vi.fn(),
     });
 
     expect(annotationsRef.current[0]?.comments).toEqual([]);
-    expect(saveAnnotations).not.toHaveBeenCalled();
+    expect(saveComment).not.toHaveBeenCalled();
   });
 
   it('saves review replies under the requested target thought', async () => {
@@ -471,9 +474,7 @@ describe('runSourceAgentCommentRequest', () => {
       annotationsRef.current = annotations;
       return article(annotations[0]);
     });
-    const saveAnnotations = vi.fn(async (annotations: Annotation[]) => {
-      annotationsRef.current = annotations;
-    });
+    const saveComment = saveCommentMock(annotationsRef);
     const pendingAgentComment = {
       id: 'comment_review',
       author: 'ai' as const,
@@ -505,7 +506,7 @@ describe('runSourceAgentCommentRequest', () => {
       articleText: '正文',
       annotationsRef,
       applyAnnotations,
-      saveAnnotations,
+      saveComment,
       setStatusMessage: vi.fn(),
     });
 
