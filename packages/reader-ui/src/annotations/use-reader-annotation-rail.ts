@@ -20,8 +20,6 @@ function stringSetsEqual(left: Set<string>, right: Set<string>): boolean {
 export type UseReaderAnnotationRailOptions = {
   activeId: string | null;
   annotationRailLayout?: AnnotationRailLayout;
-  annotationRailViewportHeight?: number;
-  annotationRailViewportTop?: number;
   annotations: Annotation[];
   articleId: string;
   autoExpandNewAnnotations?: boolean;
@@ -46,8 +44,6 @@ export type ReaderAnnotationRailState = {
 export function useReaderAnnotationRail({
   activeId,
   annotationRailLayout,
-  annotationRailViewportHeight,
-  annotationRailViewportTop,
   annotations,
   articleId,
   autoExpandNewAnnotations = true,
@@ -101,17 +97,26 @@ export function useReaderAnnotationRail({
         .filter((annotation): annotation is Annotation => Boolean(annotation)),
     [railAnimation.ids, railAnnotationById],
   );
-  const boundedAnnotationRailLayout = React.useMemo(
-    () =>
-      annotationRailViewportHeight && annotationRailLayout
-        ? {
-            ...annotationRailLayout,
-            viewportHeight: annotationRailViewportHeight,
-            viewportTop: annotationRailViewportTop,
-          }
-        : annotationRailLayout,
-    [annotationRailLayout, annotationRailViewportHeight, annotationRailViewportTop],
-  );
+  const documentAnnotationRailLayout = React.useMemo(() => {
+    if (!annotationRailLayout) return undefined;
+    const layout: AnnotationRailLayout = {
+      articleCenterX: annotationRailLayout.articleCenterX,
+      leftRailLeft: annotationRailLayout.leftRailLeft,
+      mode: annotationRailLayout.mode,
+      railWidth: annotationRailLayout.railWidth,
+      rightRailLeft: annotationRailLayout.rightRailLeft,
+    };
+    if (annotationRailLayout.articleWidth !== undefined)
+      layout.articleWidth = annotationRailLayout.articleWidth;
+    return layout;
+  }, [
+    annotationRailLayout?.articleCenterX,
+    annotationRailLayout?.articleWidth,
+    annotationRailLayout?.leftRailLeft,
+    annotationRailLayout?.mode,
+    annotationRailLayout?.railWidth,
+    annotationRailLayout?.rightRailLeft,
+  ]);
   const annotationRailItems = React.useMemo(
     () =>
       buildAnnotationRailItems(
@@ -119,9 +124,9 @@ export function useReaderAnnotationRail({
         boxes,
         activeId,
         noteHeights,
-        boundedAnnotationRailLayout,
+        documentAnnotationRailLayout,
       ),
-    [activeId, boundedAnnotationRailLayout, boxes, noteHeights, railAnnotations],
+    [activeId, documentAnnotationRailLayout, boxes, noteHeights, railAnnotations],
   );
 
   const flushPendingNoteHeights = React.useCallback(() => {

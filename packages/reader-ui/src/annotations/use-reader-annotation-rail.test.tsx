@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, UserProfile } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
 import { useReaderAnnotationRail } from './use-reader-annotation-rail';
+import type { AnnotationRailLayout } from './reader-annotations';
 
 const now = '2026-05-12T08:00:00.000Z';
 
@@ -103,6 +104,7 @@ function createNoteRefs(): React.MutableRefObject<Map<string, HTMLElement>> {
 
 function HookProbe({
   annotations,
+  annotationRailLayout,
   articleId = 'article-1',
   boxes = [],
   commentsCloseKey = 0,
@@ -111,6 +113,7 @@ function HookProbe({
   onAnnotationLayoutChange,
 }: {
   annotations: Annotation[];
+  annotationRailLayout?: AnnotationRailLayout;
   articleId?: string;
   boxes?: HighlightBox[];
   commentsCloseKey?: number;
@@ -120,6 +123,7 @@ function HookProbe({
 }) {
   const rail = useReaderAnnotationRail({
     activeId: null,
+    annotationRailLayout,
     annotations,
     articleId,
     boxes,
@@ -136,6 +140,11 @@ function HookProbe({
       </output>
       <output data-testid="rail">
         {rail.annotationRailItems.map((item) => item.annotation.id).join(',')}
+      </output>
+      <output data-testid="rail-layout">
+        {rail.annotationRailItems
+          .map((item) => `${item.annotation.id}:${String(item.style.top)}:${item.stackCount}`)
+          .join('|')}
       </output>
       <output data-testid="exiting">{Array.from(rail.exitingAnnotationIds).join(',')}</output>
       <output data-testid="expanded">{Array.from(rail.expandedPrimaryCommentIds).join(',')}</output>
@@ -314,6 +323,67 @@ describe('useReaderAnnotationRail', () => {
     expect(onAnnotationLayoutChange).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps rail layout stable when only the scroll viewport top changes', () => {
+    vi.useFakeTimers();
+    MockResizeObserver.instances = [];
+    vi.stubGlobal('ResizeObserver', MockResizeObserver);
+    const annotations = [
+      annotation('old-active', { anchor: anchor('old active', 0, 10) }),
+      annotation('old-second', { anchor: anchor('old second', 20, 30) }),
+      annotation('old-third', { anchor: anchor('old third', 40, 50) }),
+      annotation('old-fourth', { anchor: anchor('old fourth', 60, 70) }),
+      annotation('old-fifth', { anchor: anchor('old fifth', 80, 90) }),
+      annotation('near-first', { anchor: anchor('near first', 100, 110) }),
+      annotation('visible-first', { anchor: anchor('visible first', 120, 130) }),
+    ];
+    const boxes = [
+      { ...box('old-active', 307), height: 23 },
+      { ...box('old-second', 307), height: 23 },
+      { ...box('old-third', 307), height: 23 },
+      { ...box('old-fourth', 353), height: 67 },
+      { ...box('old-fifth', 443), height: 51 },
+      { ...box('near-first', 574), height: 125 },
+      { ...box('visible-first', 750), height: 22 },
+    ];
+    const annotationRailLayout: AnnotationRailLayout = {
+      articleCenterX: 500,
+      leftRailLeft: 24,
+      mode: 'right',
+      railWidth: 320,
+      rightRailLeft: 980,
+      viewportHeight: 754,
+      viewportTop: 0,
+    };
+    const noteRefs = createNoteRefs();
+    const { rerender } = render(
+      <HookProbe
+        annotations={annotations}
+        annotationRailLayout={annotationRailLayout}
+        boxes={boxes}
+        noteRefs={noteRefs}
+      />,
+    );
+    const observer = MockResizeObserver.instances[0];
+
+    act(() => {
+      observer.emit(Array.from(observer.elements).map((target) => ({ target, height: 160 })));
+      vi.advanceTimersByTime(16);
+    });
+
+    const initialLayout = screen.getByTestId('rail-layout').textContent;
+
+    rerender(
+      <HookProbe
+        annotations={annotations}
+        annotationRailLayout={{ ...annotationRailLayout, viewportTop: 220 }}
+        boxes={boxes}
+        noteRefs={noteRefs}
+      />,
+    );
+
+    expect(screen.getByTestId('rail-layout').textContent).toBe(initialLayout);
+  });
+
   it('expands new annotations and clears expansion on article switch', async () => {
     const firstNote = annotation('user-note');
     const addedNote = annotation('agent-note', {
@@ -405,3 +475,13 @@ describe('useReaderAnnotationRail', () => {
     });
   });
 });
+
+function anchor(exact: string, start: number, end: number) {
+  return {
+    exact,
+    prefix: '',
+    suffix: '',
+    start,
+    end,
+  };
+}

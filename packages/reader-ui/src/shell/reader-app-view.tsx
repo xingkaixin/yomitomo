@@ -66,8 +66,6 @@ export function ReaderAppView({
     filteredAnnotations,
     newAnnotationIds,
     railLayoutOverride,
-    railViewportHeight,
-    railViewportTop,
     searchBoxes,
     showEmptyNotes,
     temporaryBoxes,
@@ -105,8 +103,6 @@ export function ReaderAppView({
   } = useReaderShellState({
     activeId,
     annotationRailLayoutOverride: railLayoutOverride,
-    annotationRailViewportHeight: railViewportHeight,
-    annotationRailViewportTop: railViewportTop,
     annotations,
     articleId: article.id,
     articleRef,

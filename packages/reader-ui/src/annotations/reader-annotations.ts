@@ -300,6 +300,8 @@ export function buildAnnotationRailItems(
       group.toSorted((left, right) => left.top - right.top || left.index - right.index),
     )
     .map((group) => ({
+      anchorBottom: railGroupAnchorBottom(group),
+      anchorTop: railGroupAnchorTop(group),
       group,
       desiredTop: group[0]?.top || 0,
       height: estimateRailGroupHeight(group, activeId, noteHeights),
@@ -308,11 +310,16 @@ export function buildAnnotationRailItems(
     .toSorted((left, right) => left.desiredTop - right.desiredTop);
 
   const initialGroupSides = resolveRailGroupSides(initialRailGroups, railLayout);
+  const railViewport = railViewportBounds(
+    railLayout?.viewportTop ?? 0,
+    railLayout?.viewportHeight ?? 0,
+  );
   const { railGroups, groupSides } = mergeRailPressureGroups(
     initialRailGroups,
     initialGroupSides,
     activeId,
     noteHeights,
+    railViewport,
   );
   const groupSpacings = resolveRailGroupSpacings(
     railGroups,
@@ -628,12 +635,18 @@ function railSidePlacementCost(
 }
 
 function mergeRailPressureGroups<
-  T extends { group: PositionedAnnotationRailItem[]; desiredTop: number },
+  T extends {
+    anchorBottom: number;
+    anchorTop: number;
+    group: PositionedAnnotationRailItem[];
+    desiredTop: number;
+  },
 >(
   railGroups: T[],
   groupSides: AnnotationRailSide[],
   activeId: string | null,
   noteHeights: Record<string, number>,
+  viewport: RailViewportBounds | null,
 ) {
   const mergedRailGroups: Array<T & { height: number }> = [];
   const mergedGroupSides: AnnotationRailSide[] = [];
@@ -643,12 +656,18 @@ function mergeRailPressureGroups<
     const previousIndex = mergedRailGroups.length - 1;
     const previousGroup = mergedRailGroups[previousIndex];
     const previousSide = mergedGroupSides[previousIndex];
-    if (previousGroup && previousSide === side && railGroupsShouldStack(previousGroup, railGroup)) {
+    if (
+      previousGroup &&
+      previousSide === side &&
+      railGroupsShouldStack(previousGroup, railGroup, viewport)
+    ) {
       const group = [...previousGroup.group, ...railGroup.group].toSorted(
         (left, right) => left.top - right.top || left.index - right.index,
       );
       mergedRailGroups[previousIndex] = {
         ...previousGroup,
+        anchorBottom: Math.max(previousGroup.anchorBottom, railGroup.anchorBottom),
+        anchorTop: Math.min(previousGroup.anchorTop, railGroup.anchorTop),
         group,
         desiredTop: Math.min(previousGroup.desiredTop, railGroup.desiredTop),
         height: estimateRailGroupHeight(group, activeId, noteHeights),
@@ -667,9 +686,16 @@ function mergeRailPressureGroups<
 }
 
 function railGroupsShouldStack(
-  previousGroup: { desiredTop: number; height: number },
-  railGroup: { desiredTop: number },
+  previousGroup: { anchorBottom?: number; anchorTop?: number; desiredTop: number; height: number },
+  railGroup: { anchorBottom?: number; anchorTop?: number; desiredTop: number },
+  viewport: RailViewportBounds | null,
 ) {
+  if (
+    viewport &&
+    railGroupNearViewport(previousGroup, viewport) !== railGroupNearViewport(railGroup, viewport)
+  ) {
+    return false;
+  }
   return (
     railGroup.desiredTop <
     previousGroup.desiredTop + previousGroup.height + defaultRailSpacing.groupGap
@@ -996,13 +1022,25 @@ function railViewportBounds(
 }
 
 function railGroupNearViewport(
-  railGroup: { desiredTop: number; height: number },
+  railGroup: { anchorBottom?: number; anchorTop?: number; desiredTop: number },
   viewport: RailViewportBounds,
 ) {
+  const anchorTop = railGroup.anchorTop ?? railGroup.desiredTop;
+  const anchorBottom = railGroup.anchorBottom ?? railGroup.desiredTop;
   return (
-    railGroup.desiredTop <= viewport.bottom + railViewportOverscan &&
-    railGroup.desiredTop + railGroup.height >= viewport.top - railViewportOverscan
+    anchorTop <= viewport.bottom + railViewportOverscan &&
+    anchorBottom >= viewport.top - railViewportOverscan
   );
+}
+
+function railGroupAnchorTop(group: PositionedAnnotationRailItem[]) {
+  if (group.length === 0) return 0;
+  return Math.min(...group.map((item) => item.rect?.top ?? item.top));
+}
+
+function railGroupAnchorBottom(group: PositionedAnnotationRailItem[]) {
+  if (group.length === 0) return 0;
+  return Math.max(...group.map((item) => item.rect?.bottom ?? item.top));
 }
 
 function estimateRailGroupHeight(
