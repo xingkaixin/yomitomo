@@ -1508,6 +1508,24 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .source-note-delete.is-holding::before {
+    width: 100%;
+    animation: none !important;
+  }
+
+  .source-virtual-cursor {
+    transition: none !important;
+    will-change: auto;
+  }
+
+  .source-virtual-cursor.is-leaving {
+    animation: none !important;
+    filter: none;
+    opacity: 0;
+  }
+}
+
 .source-empty {
   color: hsl(var(--muted-foreground));
   font-size: 14px;
