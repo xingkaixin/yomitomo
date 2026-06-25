@@ -277,7 +277,7 @@ describe('useSourceAnnotations', () => {
     );
 
     await act(async () => {
-      await api?.saveAnnotations([target]);
+      await api?.saveAnnotation(target);
     });
 
     expect(onSaveArticleAnnotation).toHaveBeenCalledWith(
@@ -286,6 +286,32 @@ describe('useSourceAnnotations', () => {
       expect.any(String),
     );
     expect(onSaveArticle).not.toHaveBeenCalled();
+    expect(screen.getByTestId('annotations').textContent).toBe('question_1');
+  });
+
+  it('keeps full annotation replacement explicit', async () => {
+    let api: SourceAnnotationsApi | null = null;
+    const onSaveArticle = vi.fn();
+    const onSaveArticleAnnotation = vi.fn();
+    const target = annotation('question_1');
+
+    render(
+      <HookProbe
+        articleRecord={article()}
+        onApi={(nextApi) => {
+          api = nextApi;
+        }}
+        onSaveArticle={onSaveArticle}
+        onSaveArticleAnnotation={onSaveArticleAnnotation}
+      />,
+    );
+
+    await act(async () => {
+      await api?.saveAnnotations([target]);
+    });
+
+    expect(onSaveArticle).toHaveBeenCalledWith(expect.objectContaining({ annotations: [target] }));
+    expect(onSaveArticleAnnotation).not.toHaveBeenCalled();
     expect(screen.getByTestId('annotations').textContent).toBe('question_1');
   });
 

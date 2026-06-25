@@ -275,7 +275,7 @@ export function useSourceReaderSession({
           uiLanguage,
           annotationsRef: sourceAnnotations.annotationsRef,
           applyAnnotations: sourceAnnotations.applyAnnotations,
-          saveAnnotations: sourceAnnotations.saveAnnotations,
+          saveComment: sourceAnnotations.saveComment,
           setStatusMessage,
         });
       } finally {
@@ -291,7 +291,7 @@ export function useSourceReaderSession({
       sourceAnnotations.annotationsRef,
       sourceAnnotations.applyAnnotations,
       sourceAnnotations.latestArticleRef,
-      sourceAnnotations.saveAnnotations,
+      sourceAnnotations.saveComment,
       uiLanguage,
     ],
   );
@@ -324,7 +324,7 @@ export function useSourceReaderSession({
         uiLanguage,
         annotationsRef: sourceAnnotations.annotationsRef,
         applyAnnotations: sourceAnnotations.applyAnnotations,
-        saveAnnotations: sourceAnnotations.saveAnnotations,
+        saveComment: sourceAnnotations.saveComment,
         setStatusMessage,
       });
     },
@@ -334,7 +334,7 @@ export function useSourceReaderSession({
       sourceAnnotations.annotationsRef,
       sourceAnnotations.applyAnnotations,
       sourceAnnotations.latestArticleRef,
-      sourceAnnotations.saveAnnotations,
+      sourceAnnotations.saveComment,
       uiLanguage,
     ],
   );

@@ -71,15 +71,24 @@ function ref<T>(current: T): React.RefObject<T> {
   return { current } as React.RefObject<T>;
 }
 
+function saveAnnotationMock(annotationsRef: React.MutableRefObject<Annotation[]>) {
+  return vi.fn(async (nextAnnotation: Annotation) => {
+    const existing = annotationsRef.current.some((item) => item.id === nextAnnotation.id);
+    annotationsRef.current = existing
+      ? annotationsRef.current.map((item) =>
+          item.id === nextAnnotation.id ? nextAnnotation : item,
+        )
+      : [...annotationsRef.current, nextAnnotation];
+  });
+}
+
 function playbackOptions(nextAnnotation = annotation()) {
   const article = document.createElement('article');
   article.textContent = 'quote';
   const canvas = document.createElement('div');
   const surface = document.createElement('div');
   const annotationsRef: React.MutableRefObject<Annotation[]> = { current: [] };
-  const saveAnnotations = vi.fn(async (annotations: Annotation[]) => {
-    annotationsRef.current = annotations;
-  });
+  const saveAnnotation = saveAnnotationMock(annotationsRef);
 
   vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue(rect({ top: 0, left: 0 }));
   vi.spyOn(surface, 'getBoundingClientRect').mockReturnValue(
@@ -92,7 +101,7 @@ function playbackOptions(nextAnnotation = annotation()) {
     canvasRef: ref<HTMLDivElement | null>(canvas),
     surfaceRef: ref<HTMLDivElement | null>(surface),
     annotationsRef,
-    saveAnnotations,
+    saveAnnotation,
     setActiveId: vi.fn(),
     setAgentTheaterBoxes: vi.fn(),
     getVirtualCursor: vi.fn(),
@@ -140,14 +149,12 @@ describe('playAgentAnnotationPlayback', () => {
       updatedAt: '2026-05-16T00:01:00.000Z',
     });
     const annotationsRef: React.MutableRefObject<Annotation[]> = { current: [existing] };
-    const saveAnnotations = vi.fn(async (annotations: Annotation[]) => {
-      annotationsRef.current = annotations;
-    });
+    const saveAnnotation = saveAnnotationMock(annotationsRef);
 
     const activeId = await saveAgentAnnotationAsThought({
       annotation: incoming,
       annotationsRef,
-      saveAnnotations,
+      saveAnnotation,
     });
 
     expect(activeId).toBe(existing.id);
@@ -162,18 +169,17 @@ describe('playAgentAnnotationPlayback', () => {
   it('does not duplicate an agent annotation that was already saved', async () => {
     const existing = annotation();
     const annotationsRef: React.MutableRefObject<Annotation[]> = { current: [existing] };
-    const saveAnnotations = vi.fn(async (annotations: Annotation[]) => {
-      annotationsRef.current = annotations;
-    });
+    const saveAnnotation = saveAnnotationMock(annotationsRef);
 
     const activeId = await saveAgentAnnotationAsThought({
       annotation: existing,
       annotationsRef,
-      saveAnnotations,
+      saveAnnotation,
     });
 
     expect(activeId).toBe(existing.id);
     expect(annotationsRef.current).toEqual([existing]);
+    expect(saveAnnotation).not.toHaveBeenCalled();
   });
 
   it('saves the annotation when resolved range has no visible rects', async () => {
@@ -186,7 +192,7 @@ describe('playAgentAnnotationPlayback', () => {
     expect(options.readerLog).toHaveBeenCalledWith('agent.play.range_empty', {
       annotationId: target.id,
     });
-    expect(options.saveAnnotations).toHaveBeenCalledWith([target]);
+    expect(options.saveAnnotation).toHaveBeenCalledWith(target);
     expect(options.setActiveId).not.toHaveBeenCalled();
   });
 
@@ -203,7 +209,7 @@ describe('playAgentAnnotationPlayback', () => {
 
     await playAgentAnnotationPlayback(options);
 
-    expect(options.saveAnnotations).toHaveBeenCalledWith([target]);
+    expect(options.saveAnnotation).toHaveBeenCalledWith(target);
     expect(options.setActiveId).toHaveBeenCalledWith(target.id);
     expect(options.setAgentTheaterBoxes).toHaveBeenLastCalledWith([]);
     expect(options.finishVirtualReading).toHaveBeenCalledWith(target.agentId);

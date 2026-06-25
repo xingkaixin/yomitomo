@@ -16,7 +16,7 @@ type UseAgentAnnotationQueueOptions = {
   surfaceRef: React.RefObject<HTMLDivElement | null>;
   articleBodySelector?: string;
   annotationsRef: React.MutableRefObject<Annotation[]>;
-  saveAnnotations: (annotations: Annotation[]) => void | Promise<void>;
+  saveAnnotation: (annotation: Annotation) => void | Promise<void>;
   setActiveId: (annotationId: string) => void;
   readerLog: (event: string, data?: Record<string, unknown>) => void;
 };
@@ -28,7 +28,7 @@ export function useAgentAnnotationQueue({
   surfaceRef,
   articleBodySelector = '.reader-article-body',
   annotationsRef,
-  saveAnnotations,
+  saveAnnotation,
   setActiveId,
   readerLog,
 }: UseAgentAnnotationQueueOptions) {
@@ -89,7 +89,7 @@ export function useAgentAnnotationQueue({
             canvasRef,
             surfaceRef,
             annotationsRef,
-            saveAnnotations,
+            saveAnnotation,
             setActiveId,
             setAgentTheaterBoxes,
             getVirtualCursor: virtualReading.getVirtualCursor,
@@ -106,7 +106,7 @@ export function useAgentAnnotationQueue({
           await saveAgentAnnotationAsThought({
             annotation: item.annotation,
             annotationsRef,
-            saveAnnotations,
+            saveAnnotation,
           });
         } finally {
           virtualReading.resumeVirtualReading(item.annotation.agentId);

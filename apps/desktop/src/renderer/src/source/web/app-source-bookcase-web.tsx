@@ -202,7 +202,7 @@ export function WebSourceBookcase({
     deleteAnnotation,
     deleteComment,
     latestArticleRef,
-    saveAnnotations,
+    saveAnnotation,
   } = sourceReaderSession;
   const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
   const [, setSettingsOpen] = useState(false);
@@ -381,7 +381,7 @@ export function WebSourceBookcase({
     surfaceRef: scrollRef,
     articleBodySelector: '.reader-article-body',
     annotationsRef,
-    saveAnnotations,
+    saveAnnotation,
     setActiveId: openAnnotation,
     readerLog: () => {},
   });
@@ -1685,15 +1685,14 @@ export function WebSourceBookcase({
   async function createAnnotation(note: string) {
     if (!composer) return;
     const currentComposer = composer;
-    const currentArticle = latestArticleRef.current;
-    if (!currentArticle) return;
+    if (!latestArticleRef.current) return;
     logCurrentSelectionDebug('composer:create-annotation', {
       anchor: describeAnchorForDebug(currentComposer.anchor),
       noteLength: note.length,
     });
     cancelComposer();
     const annotation = createUserAnnotation(currentComposer.anchor, userProfile, note);
-    await saveAnnotations([...currentArticle.annotations, annotation]);
+    await saveAnnotation(annotation);
     markAnnotationCreated(annotation.id);
     openAnnotation(annotation.id);
   }

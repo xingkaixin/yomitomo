@@ -26,6 +26,7 @@ import {
 import { applyAppTheme, readCachedThemeId, themeRegistry } from '../theme/app-theme';
 import {
   agentInstructionFromNote,
+  annotationsWithSavedComment,
   mentionDirectivesForAgent,
   promptArticle,
   publicAnnotationAgents,
@@ -354,6 +355,20 @@ function AnnotationDiscussionShell({
     );
   }
 
+  async function saveComment(
+    annotationId: string,
+    comment: Comment,
+    updatedAt = new Date().toISOString(),
+  ) {
+    const nextAnnotations = annotationsWithSavedComment(
+      annotationsRef.current,
+      annotationId,
+      comment,
+      updatedAt,
+    );
+    if (nextAnnotations) await saveAnnotations(nextAnnotations);
+  }
+
   async function submitReply() {
     const selectedRoot = selectedThread?.root;
     const trimmed = replyDraft.trim();
@@ -621,7 +636,7 @@ function AnnotationDiscussionShell({
       uiLanguage,
       annotationsRef,
       applyAnnotations,
-      saveAnnotations,
+      saveComment,
       setStatusMessage,
     });
   }

@@ -13,7 +13,7 @@ type AgentAnnotationPlaybackOptions = {
   canvasRef: React.RefObject<HTMLDivElement | null>;
   surfaceRef: React.RefObject<HTMLDivElement | null>;
   annotationsRef: React.MutableRefObject<Annotation[]>;
-  saveAnnotations: (annotations: Annotation[]) => void | Promise<void>;
+  saveAnnotation: (annotation: Annotation) => void | Promise<void>;
   setActiveId: (annotationId: string) => void;
   setAgentTheaterBoxes: (boxes: HighlightBox[]) => void;
   getVirtualCursor: (agentId: string) => VirtualCursorState | undefined;
@@ -85,13 +85,16 @@ export function mergeAgentAnnotationAsThought(
 export async function saveAgentAnnotationAsThought({
   annotation,
   annotationsRef,
-  saveAnnotations,
+  saveAnnotation,
 }: Pick<
   AgentAnnotationPlaybackOptions,
-  'annotation' | 'annotationsRef' | 'saveAnnotations'
+  'annotation' | 'annotationsRef' | 'saveAnnotation'
 >): Promise<string> {
   const result = mergeAgentAnnotationAsThought(annotationsRef.current, annotation);
-  await saveAnnotations(result.annotations);
+  if (result.annotations !== annotationsRef.current) {
+    const annotationToSave = result.annotations.find((item) => item.id === result.activeId);
+    if (annotationToSave) await saveAnnotation(annotationToSave);
+  }
   return result.activeId;
 }
 
@@ -101,7 +104,7 @@ export async function playAgentAnnotationPlayback({
   canvasRef,
   surfaceRef,
   annotationsRef,
-  saveAnnotations,
+  saveAnnotation,
   setActiveId,
   setAgentTheaterBoxes,
   getVirtualCursor,
@@ -115,20 +118,20 @@ export async function playAgentAnnotationPlayback({
   const elements = playbackElements(articleRef, canvasRef, surfaceRef);
   if (!elements) {
     readerLog('agent.play.no_surface', { annotationId: annotation.id });
-    await saveAgentAnnotationAsThought({ annotation, annotationsRef, saveAnnotations });
+    await saveAgentAnnotationAsThought({ annotation, annotationsRef, saveAnnotation });
     return;
   }
 
   const range = playbackRange(elements.article, annotation, readerLog);
   if (!range) {
-    await saveAgentAnnotationAsThought({ annotation, annotationsRef, saveAnnotations });
+    await saveAgentAnnotationAsThought({ annotation, annotationsRef, saveAnnotation });
     return;
   }
 
   const rects = playbackRects(range);
   if (!rects) {
     readerLog('agent.play.range_empty', { annotationId: annotation.id });
-    await saveAgentAnnotationAsThought({ annotation, annotationsRef, saveAnnotations });
+    await saveAgentAnnotationAsThought({ annotation, annotationsRef, saveAnnotation });
     return;
   }
 
@@ -142,7 +145,7 @@ export async function playAgentAnnotationPlayback({
       firstRect: rects.firstRect,
       finishVirtualReading,
       getVirtualReadingMode,
-      saveAnnotations,
+      saveAnnotation,
       setActiveId,
       surfaceRect,
       updateVirtualCursor,
@@ -162,7 +165,7 @@ export async function playAgentAnnotationPlayback({
     getVirtualReadingMode,
     lastRect: rects.lastRect,
     range,
-    saveAnnotations,
+    saveAnnotation,
     setActiveId,
     setAgentTheaterBoxes,
     updateVirtualCursor,
@@ -224,7 +227,7 @@ async function playOffscreenAnnotation({
   firstRect,
   finishVirtualReading,
   getVirtualReadingMode,
-  saveAnnotations,
+  saveAnnotation,
   setActiveId,
   surfaceRect,
   updateVirtualCursor,
@@ -234,7 +237,7 @@ async function playOffscreenAnnotation({
   | 'annotationsRef'
   | 'finishVirtualReading'
   | 'getVirtualReadingMode'
-  | 'saveAnnotations'
+  | 'saveAnnotation'
   | 'setActiveId'
   | 'updateVirtualCursor'
 > & {
@@ -257,7 +260,7 @@ async function playOffscreenAnnotation({
   const activeId = await saveAgentAnnotationAsThought({
     annotation,
     annotationsRef,
-    saveAnnotations,
+    saveAnnotation,
   });
   setActiveId(activeId);
   if (getVirtualReadingMode(cursorId) === 'target') finishVirtualReading(cursorId);
@@ -275,7 +278,7 @@ async function playVisibleAnnotation({
   getVirtualReadingMode,
   lastRect,
   range,
-  saveAnnotations,
+  saveAnnotation,
   setActiveId,
   setAgentTheaterBoxes,
   updateVirtualCursor,
@@ -286,7 +289,7 @@ async function playVisibleAnnotation({
   | 'finishVirtualReading'
   | 'getVirtualCursor'
   | 'getVirtualReadingMode'
-  | 'saveAnnotations'
+  | 'saveAnnotation'
   | 'setActiveId'
   | 'setAgentTheaterBoxes'
   | 'updateVirtualCursor'
@@ -346,7 +349,7 @@ async function playVisibleAnnotation({
   const activeId = await saveAgentAnnotationAsThought({
     annotation,
     annotationsRef,
-    saveAnnotations,
+    saveAnnotation,
   });
   setActiveId(activeId);
   setAgentTheaterBoxes([]);
