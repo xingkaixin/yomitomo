@@ -1,0 +1,220 @@
+.agent-filter-tabs,
+.stats-chart-switch {
+  --segmented-padding: 0px;
+  --segmented-radius: 0;
+  --segmented-indicator-radius: 0;
+  --segmented-indicator-bg: hsl(var(--foreground));
+  --segmented-indicator-shadow: none;
+
+  border: 1px solid hsl(var(--foreground));
+  background: hsl(var(--card));
+  gap: 0;
+  box-shadow: none;
+}
+
+.agent-filter-tab,
+.stats-chart-switch .segmented-control-option {
+  min-height: 42px;
+  border-radius: 0;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  box-shadow: none;
+}
+
+.agent-filter-tab:hover,
+.stats-chart-switch .segmented-control-option:hover {
+  background: transparent;
+  color: hsl(var(--foreground));
+  box-shadow: none;
+}
+
+.agent-filter-tab[aria-checked='true'],
+.agent-filter-tab[aria-selected='true'],
+.stats-chart-switch .segmented-control-option[aria-checked='true'],
+.stats-chart-switch .segmented-control-option[aria-selected='true'] {
+  background: transparent;
+  color: hsl(var(--card));
+  box-shadow: none;
+}
+
+.agent-filter-tab[aria-checked='true'] svg,
+.agent-filter-tab[aria-checked='true'] strong,
+.agent-filter-tab[aria-checked='true'] span,
+.agent-filter-tab[aria-selected='true'] svg,
+.agent-filter-tab[aria-selected='true'] strong,
+.agent-filter-tab[aria-selected='true'] span {
+  color: hsl(var(--card));
+}
+
+.agent-settings-panel,
+.settings-panel,
+.detail-pane,
+.agent-route-notice,
+.provider-editor-dialog,
+.agent-profile-card,
+.settings-empty-panel,
+.stats-status-card,
+.stats-chart-card,
+.stats-activity-card,
+.stats-insights,
+.stats-metric,
+.stats-goal-card,
+.stats-insight-list p {
+  border-radius: 0;
+  background: hsl(var(--card));
+  box-shadow: none;
+}
+
+.settings-panel,
+.settings-hub-layout {
+  background: hsl(var(--card));
+}
+
+.settings-panel,
+.stats-status-card,
+.stats-chart-card,
+.stats-activity-card,
+.stats-insights {
+  border-color: hsl(var(--border) / 0.86);
+}
+
+.stats-chart-card::before,
+.stats-activity-card::before {
+  display: none;
+}
+
+.stats-total-strip {
+  border: 1px solid hsl(var(--border) / 0.72);
+  border-radius: 0;
+  background: hsl(var(--card));
+  box-shadow: none;
+}
+
+.shortcut-tips {
+  border: 0;
+  border-radius: 0;
+  background: hsl(var(--card));
+  box-shadow: none;
+}
+
+.stats-goal-copy p,
+.stats-goal-steps .is-lit,
+.activity-stamp.status-today,
+.activity-stamp.is-special {
+  color: var(--app-interactive-link);
+}
+
+.stats-goal-steps .is-lit {
+  background: var(--app-interactive-link);
+}
+
+.stats-chart-tooltip {
+  border-color: hsl(var(--foreground) / 0.32);
+  border-radius: 0;
+  background: hsl(var(--card));
+  box-shadow: 0 18px 44px rgb(0 0 0 / 0.12);
+  backdrop-filter: none;
+}
+
+.license-package,
+.agent-route-notice,
+.provider-select-trigger,
+.task-route-select-trigger,
+.provider-editor-close,
+.agent-create-choice,
+.user-profile-avatar-row {
+  border-radius: 0;
+  background: hsl(var(--card));
+  box-shadow: none;
+}
+
+.agent-route-notice > span,
+.agent-create-choice-icon,
+.user-profile-dialog-heading > span {
+  border: 1px solid hsl(var(--border) / 0.82);
+  border-radius: 0;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  box-shadow: none;
+}
+
+.provider-select-trigger,
+.provider-select-trigger:hover:not(:disabled),
+.provider-select-trigger[data-state='open'],
+.theme-select-content {
+  background: hsl(var(--card));
+  box-shadow: none;
+}
+
+.theme-select-content [role='option']:focus,
+.theme-select-content [role='option'][data-highlighted] {
+  background: hsl(0 0% 0% / 0.05);
+}
+
+.provider-select-item-mark,
+.save-action.is-saved,
+.log-clear-action.is-cleared {
+  background: var(--app-interactive-link);
+}
+
+.agent-list-card,
+.agent-list-card.is-enabled,
+.agent-list-card:hover,
+.agent-list-card.is-enabled:hover {
+  border-radius: 16px;
+  background: hsl(var(--card));
+  box-shadow: none;
+  filter: none;
+}
+
+.agent-list-card.is-enabled {
+  border-color: hsl(var(--foreground) / 0.72);
+}
+
+.agent-detail-intro {
+  color: hsl(var(--foreground));
+}
+
+.agent-list-line-bubble,
+.agent-list-line-bubble.is-entering,
+.agent-list-line-bubble.is-resting {
+  border-color: color-mix(
+    in srgb,
+    var(--agent-accent, var(--app-interactive-link)) 28%,
+    hsl(var(--border))
+  );
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  box-shadow:
+    0 14px 32px rgb(0 0 0 / 0.16),
+    0 0 0 1px hsl(var(--foreground) / 0.06);
+}
+
+.agent-list-role-badge {
+  background: hsl(var(--card));
+}
+
+.agent-card-toggle input:checked + .settings-toggle-switch {
+  background: var(--app-interactive-link);
+  box-shadow: inset 0 0 0 1px var(--app-interactive-link);
+}
+
+.stats-chart-card .recharts-cartesian-grid line {
+  stroke: hsl(var(--border) / 0.62);
+}
+
+.stats-chart-card .recharts-cartesian-axis-tick text {
+  fill: hsl(var(--muted-foreground));
+}
+
+.stats-chart-unstarted-area {
+  fill: hsl(var(--muted) / 0.38);
+}
+
+.stats-chart-unstarted-label {
+  fill: hsl(var(--muted-foreground));
+}
+
+.stats-handdrawn-stroke {
+  mix-blend-mode: normal;
+}

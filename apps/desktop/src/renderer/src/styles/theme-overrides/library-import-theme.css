@@ -1,0 +1,58 @@
+.library-search svg {
+  color: hsl(var(--muted-foreground));
+}
+
+.library-search input {
+  color: hsl(var(--foreground));
+}
+
+.library-search input::placeholder {
+  color: hsl(var(--muted-foreground));
+  opacity: 1;
+}
+
+.library-article-import-box {
+  border-color: hsl(var(--border) / 0.92);
+  background: hsl(var(--background) / 0.36);
+  color: hsl(var(--foreground));
+}
+
+.library-article-import-box.is-imported {
+  border-color: color-mix(in srgb, var(--app-interactive-link) 56%, hsl(var(--border)));
+  background: color-mix(in srgb, var(--app-interactive-link) 8%, hsl(var(--card)));
+}
+
+.library-article-import-box.is-duplicate {
+  border-color: color-mix(in srgb, var(--app-reader-accent-strong) 56%, hsl(var(--border)));
+  background: color-mix(in srgb, var(--app-reader-accent-strong) 8%, hsl(var(--card)));
+}
+
+.library-article-import-box.is-error {
+  border-color: color-mix(in srgb, var(--app-action-danger-bg) 56%, hsl(var(--border)));
+  background: color-mix(in srgb, var(--app-action-danger-bg) 8%, hsl(var(--card)));
+}
+
+.library-article-import-url {
+  color: hsl(var(--muted-foreground));
+}
+
+.library-article-import-input,
+.library-article-import-input:hover,
+.library-article-import-input:focus-within {
+  border-color: hsl(var(--border) / 0.92);
+  background: hsl(var(--card));
+  box-shadow: none;
+}
+
+.library-article-import-input input,
+.library-article-import-input input:focus,
+.library-article-import-box.has-parsed-title .library-article-import-input input {
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  box-shadow: none;
+}
+
+.library-article-import-input input::placeholder {
+  color: hsl(var(--muted-foreground));
+  opacity: 1;
+}

@@ -8,6 +8,10 @@ const annotationDiscussionStyles = readFileSync(
   'utf8',
 );
 const libraryStyles = readFileSync(new URL('../styles/library.css', import.meta.url), 'utf8');
+const themeOverridesStyles = readFileSync(
+  new URL('../styles/theme-overrides.css', import.meta.url),
+  'utf8',
+);
 
 describe('renderer styles entry', () => {
   it('keeps styles.css as the ordered global CSS entry', () => {
@@ -45,6 +49,23 @@ describe('renderer styles entry', () => {
 @import './library/covers.css';
 @import './library/actions-empty.css';
 @import './library/notebook.css';`);
+  });
+
+  it('keeps theme override styles as ordered partial imports', () => {
+    expect(themeOverridesStyles.trim()).toBe(`@import './theme-overrides/foundation.css';
+@import './theme-overrides/legacy-shell.css';
+@import './theme-overrides/legacy-library.css';
+@import './theme-overrides/masthead-lock.css';
+@import './theme-overrides/theme-dialog.css';
+@import './theme-overrides/library-skeleton.css';
+@import './theme-overrides/library-layout.css';
+@import './theme-overrides/library-import.css';
+@import './theme-overrides/reader-open-library.css';
+@import './theme-overrides/library-collections.css';
+@import './theme-overrides/article-import-tweaks.css';
+@import './theme-overrides/settings-agent-stats.css';
+@import './theme-overrides/library-import-theme.css';
+@import './theme-overrides/responsive-overrides.css';`);
   });
 
   it('expands local CSS imports for style assertions', () => {

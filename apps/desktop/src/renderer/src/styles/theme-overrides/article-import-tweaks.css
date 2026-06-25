@@ -1,0 +1,51 @@
+.library-ebook-list-source span {
+  font-size: 10px;
+}
+
+.library-ebook-list-item h3 {
+  font-size: clamp(19px, 1.45vw, 25px);
+}
+
+.library-ebook-list-meta {
+  gap: 12px;
+}
+
+.library-article-import-box {
+  background: hsl(0 0% 99%);
+}
+
+.library-article-import-url > span:first-child {
+  color: hsl(var(--foreground));
+  font-weight: 880;
+}
+
+.library-article-import-input input {
+  height: 44px;
+  border: 0;
+  background: linear-gradient(180deg, hsl(0 0% 100%), hsl(0 0% 98.5%)), hsl(var(--card));
+  box-shadow: inset 0 1px 0 hsl(0 0% 0% / 0.04);
+}
+
+.library-article-import-input input::placeholder {
+  color: hsl(var(--muted-foreground));
+  opacity: 0.92;
+}
+
+.library-article-import-input:hover {
+  border-color: hsl(var(--foreground) / 0.78);
+  background: hsl(var(--card));
+  box-shadow:
+    0 0 0 3px hsl(0 0% 0% / 0.05),
+    inset 0 0 0 1px hsl(0 0% 100% / 0.72);
+}
+
+.library-article-import-input:focus-within {
+  border-color: hsl(var(--foreground) / 0.58);
+  box-shadow:
+    0 0 0 3px hsl(0 0% 0% / 0.035),
+    inset 0 0 0 1px hsl(0 0% 100% / 0.72);
+}
+
+.library-article-import-input input:focus {
+  box-shadow: inset 0 1px 0 hsl(0 0% 0% / 0.04);
+}
