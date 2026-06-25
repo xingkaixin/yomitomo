@@ -1190,6 +1190,7 @@ export function themeToCssVariables(theme: AppTheme): CssVariableMap {
 
 export function applyAppTheme(theme: AppTheme, root: HTMLElement = document.documentElement) {
   root.dataset.theme = theme.meta.id;
+  root.dataset.themeTone = theme.meta.tone;
   const variables = themeToCssVariables(theme);
   for (const [name, value] of Object.entries(variables)) {
     root.style.setProperty(name, value);

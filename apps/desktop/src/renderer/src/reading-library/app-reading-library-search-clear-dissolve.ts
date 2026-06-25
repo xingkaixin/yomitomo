@@ -301,52 +301,5 @@ function buildLibrarySearchClearGlow({
 }
 
 function isDarkClearSurface(wrap: HTMLElement) {
-  let current: HTMLElement | null = wrap;
-
-  while (current) {
-    const color = parseCssColor(getComputedStyle(current).backgroundColor);
-    if (color && color.alpha > 0.02) return relativeLuminance(color) < 0.35;
-    current = current.parentElement;
-  }
-
-  const bodyColor = parseCssColor(getComputedStyle(document.body).backgroundColor);
-  return bodyColor ? relativeLuminance(bodyColor) < 0.35 : false;
-}
-
-function parseCssColor(value: string) {
-  const rgbMatch = value.match(/rgba?\(([^)]+)\)/i);
-  if (rgbMatch) {
-    const parts = rgbMatch[1]
-      .replace(/\//g, ' ')
-      .split(/[,\s]+/)
-      .filter(Boolean)
-      .map(Number);
-    if (parts.length >= 3 && parts.slice(0, 3).every(Number.isFinite)) {
-      return { red: parts[0], green: parts[1], blue: parts[2], alpha: parts[3] ?? 1 };
-    }
-  }
-
-  const srgbMatch = value.match(/color\(\s*srgb\s+([^)]+)\)/i);
-  if (srgbMatch) {
-    const parts = srgbMatch[1].replace(/\//g, ' ').split(/\s+/).filter(Boolean).map(Number);
-    if (parts.length >= 3 && parts.slice(0, 3).every(Number.isFinite)) {
-      return {
-        red: parts[0] * 255,
-        green: parts[1] * 255,
-        blue: parts[2] * 255,
-        alpha: parts[3] ?? 1,
-      };
-    }
-  }
-
-  return null;
-}
-
-function relativeLuminance({ blue, green, red }: { blue: number; green: number; red: number }) {
-  const [r, g, b] = [red, green, blue].map((channel) => {
-    const normalized = channel / 255;
-    return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
-  });
-
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return wrap.ownerDocument.documentElement.dataset.themeTone === 'dark';
 }

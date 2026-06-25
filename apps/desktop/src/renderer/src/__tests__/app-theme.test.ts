@@ -104,9 +104,15 @@ describe('app theme contract', () => {
     applyAppTheme(beigePaperTheme, root);
 
     expect(root.dataset.theme).toBe(beigePaperThemeId);
+    expect(root.dataset.themeTone).toBe('light');
     expect(styleValues.get('--background')).toBe(beigePaperTheme.palette.background);
     expect(styleValues.get('--app-reader-paper')).toBe(beigePaperTheme.reader.paper);
     expect(styleValues.get('--app-z-modal')).toBe(beigePaperTheme.effect.zIndex.modal);
+
+    applyAppTheme(inkBlackTheme, root);
+
+    expect(root.dataset.theme).toBe(inkBlackThemeId);
+    expect(root.dataset.themeTone).toBe('dark');
   });
 
   it('normalizes and caches startup theme ids', () => {

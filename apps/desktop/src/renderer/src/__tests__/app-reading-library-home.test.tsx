@@ -65,12 +65,14 @@ if (typeof Range !== 'undefined' && !Range.prototype.getClientRects) {
 afterEach(() => {
   vi.useRealTimers();
   cleanup();
+  delete document.documentElement.dataset.themeTone;
   vi.clearAllMocks();
   vi.unstubAllGlobals();
 });
 
 beforeEach(() => {
   initializeAppI18n('zh-CN');
+  document.documentElement.dataset.themeTone = defaultTheme.meta.tone;
   librarySession.searchQuery = '';
   librarySession.selectedTypes = new Set();
   librarySession.activeCollectionId = null;
@@ -886,6 +888,7 @@ describe('ReadingLibrary home', () => {
   it('clears the main library search through the dissolve clear affordance', async () => {
     vi.useFakeTimers();
     stubReducedMotion(false);
+    document.documentElement.dataset.themeTone = 'dark';
     let frameTime = 0;
     const performanceNow = vi.spyOn(performance, 'now').mockImplementation(() => frameTime);
     const requestAnimationFrameMock = vi.fn((callback: FrameRequestCallback) =>
@@ -916,6 +919,7 @@ describe('ReadingLibrary home', () => {
     const clearShell = document.querySelector('.library-search-input-clear');
     expect(input.value).toBe('');
     expect(clearShell?.classList.contains('is-clearing')).toBe(true);
+    expect(clearShell?.getAttribute('data-clear-tone')).toBe('dark');
     expect(clearShell?.querySelector('.t-clear-mirror')?.textContent).toBe('Beta');
     expect(screen.getByRole('button', { name: '打开文章：Alpha 阅读' })).toBeTruthy();
 
