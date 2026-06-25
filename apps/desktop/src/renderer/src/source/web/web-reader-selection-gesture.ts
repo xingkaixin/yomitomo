@@ -89,6 +89,10 @@ export function webSelectionGestureRangeFromClientPoint(
   return { range, startOffset, endOffset, startPoint, endPoint };
 }
 
+export function shouldUseWebSelectionGesturePreview(startPoint: WebSelectionGesturePoint | null) {
+  return Boolean(startPoint && !startPoint.translationBlockId);
+}
+
 export function shouldUseWebSelectionGestureRange(
   nativeRange: Range,
   articleElement: HTMLElement,

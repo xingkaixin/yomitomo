@@ -1,7 +1,36 @@
 import { describe, expect, it } from 'vitest';
-import { shouldPreferWebSelectionGestureRange } from '../source/web/web-reader-selection-gesture';
+import {
+  shouldPreferWebSelectionGestureRange,
+  shouldUseWebSelectionGesturePreview,
+} from '../source/web/web-reader-selection-gesture';
 
 describe('web reader selection gesture', () => {
+  it('uses custom drag previews for source text gestures', () => {
+    expect(
+      shouldUseWebSelectionGesturePreview({
+        clientX: 120,
+        clientY: 220,
+        sourceOffset: 42,
+        translationBlockId: null,
+      }),
+    ).toBe(true);
+  });
+
+  it('keeps native drag selection visible for translation gestures', () => {
+    expect(
+      shouldUseWebSelectionGesturePreview({
+        clientX: 120,
+        clientY: 220,
+        sourceOffset: 42,
+        translationBlockId: 'block_1',
+      }),
+    ).toBe(false);
+  });
+
+  it('does not start custom drag previews without a gesture point', () => {
+    expect(shouldUseWebSelectionGesturePreview(null)).toBe(false);
+  });
+
   it('keeps native selections when the native range starts at the pointer down offset', () => {
     expect(
       shouldPreferWebSelectionGestureRange({
