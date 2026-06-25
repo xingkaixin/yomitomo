@@ -30,6 +30,7 @@ export function usePdfiumReadingProgress({
   const lastSavedPageRef = useRef(initialPageIndexRef.current);
   const restoredInitialPageRef = useRef(false);
   const restoreOverlayHiddenLoggedRef = useRef(false);
+  const restoringInitialPageRef = useRef(initialPageIndexRef.current > 0);
   const suppressPageSaveUntilRestoreRef = useRef(initialPageIndexRef.current > 0);
   const { provides: scroll } = useScroll(documentId);
   const { provides: scrollCapability } = useScrollCapability();
@@ -43,6 +44,7 @@ export function usePdfiumReadingProgress({
     lastSavedPageRef.current = initialPageIndexRef.current;
     restoredInitialPageRef.current = false;
     restoreOverlayHiddenLoggedRef.current = false;
+    restoringInitialPageRef.current = initialPageIndexRef.current > 0;
     suppressPageSaveUntilRestoreRef.current = initialPageIndexRef.current > 0;
     setCurrentPage(initialPageIndexRef.current + 1);
     setRestoringInitialPage(initialPageIndexRef.current > 0);
@@ -105,6 +107,7 @@ export function usePdfiumReadingProgress({
   }, [article.id, documentReady, onSaveArticleReadingProgress, openTrace, pageCount, scroll]);
 
   const markInitialPageReady = useCallback(() => {
+    restoringInitialPageRef.current = false;
     suppressPageSaveUntilRestoreRef.current = false;
     if (initialPageIndexRef.current > 0 && !restoreOverlayHiddenLoggedRef.current) {
       restoreOverlayHiddenLoggedRef.current = true;
@@ -119,11 +122,23 @@ export function usePdfiumReadingProgress({
   const jumpToPdfiumPage = useCallback(
     (value: number) => {
       const pageNumber = clampPageIndex(value - 1, pageCount) + 1;
+      if (restoringInitialPageRef.current) {
+        restoringInitialPageRef.current = false;
+        restoredInitialPageRef.current = true;
+        restoreOverlayHiddenLoggedRef.current = true;
+        recordPdfOpenTiming(openTrace, 'initial_restore_cancelled_by_user_jump', {
+          currentPage,
+          pageCount,
+          targetPage: pageNumber,
+          initialRestoreTargetPage: initialPageIndexRef.current + 1,
+        });
+        setRestoringInitialPage(false);
+      }
       suppressPageSaveUntilRestoreRef.current = false;
       setCurrentPage(pageNumber);
       scroll?.scrollToPage({ pageNumber, behavior: 'instant' });
     },
-    [pageCount, scroll],
+    [currentPage, openTrace, pageCount, scroll],
   );
 
   return {

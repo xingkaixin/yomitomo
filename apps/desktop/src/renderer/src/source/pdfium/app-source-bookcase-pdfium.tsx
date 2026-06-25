@@ -748,10 +748,12 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     const visiblePageCount = Object.keys(pageMetrics).length;
     if (visiblePageCount === 0) return;
     const expectedPageIndex = initialPageNumber - 1;
-    if (expectedPageIndex > 0 && !pageMetrics[expectedPageIndex]) {
+    const waitingForInitialRestorePage = restoringInitialPage && expectedPageIndex > 0;
+    if (waitingForInitialRestorePage && !pageMetrics[expectedPageIndex]) {
       if (!restoreMetricsWaitLoggedRef.current) {
         restoreMetricsWaitLoggedRef.current = true;
         recordPdfOpenTiming(openTrace, 'initial_restore_metrics_wait', {
+          currentPage,
           targetPage: initialPageNumber,
           visiblePageCount,
           visiblePageIndexes: Object.keys(pageMetrics).map(Number),
@@ -759,8 +761,9 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       }
       return;
     }
-    if (expectedPageIndex > 0) {
+    if (waitingForInitialRestorePage) {
       recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'initial_restore_metrics_ready', {
+        currentPage,
         targetPage: initialPageNumber,
         visiblePageCount,
         visiblePageIndexes: Object.keys(pageMetrics).map(Number),
@@ -774,7 +777,15 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'interactive_ready', {
       visiblePageCount,
     });
-  }, [initialPageNumber, markInitialPageReady, markPdfiumFirstPageReady, openTrace, pageMetrics]);
+  }, [
+    currentPage,
+    initialPageNumber,
+    markInitialPageReady,
+    markPdfiumFirstPageReady,
+    openTrace,
+    pageMetrics,
+    restoringInitialPage,
+  ]);
 
   useEffect(() => {
     const unsubscribe = scroll?.onScroll?.(() => {
