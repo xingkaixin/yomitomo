@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.9.1 - 2026-06-25
+
+### Features
+
+- Reworked search and Ask affordances to use in-place morph and dissolve transitions: the reading-library search (main list and collections) and reader search gained dedicated clear actions, and the reader chat panel now shares a bottom-right morph with the Ask button, all reduced-motion-safe. (#541, #542, #544)
+
+### Fixes
+
+- Sped up restoring the last-read PDF page and let progress-slider jumps cancel a stale saved-page restore. (#549, #550)
+- Broadcast article saves from sedimentation windows to the main window so Library summaries no longer go stale after distillation edits. (#548)
+- Stabilized annotation-rail scrolling, kept web-translation drag selection visible, aligned the discussion mention-chip caret, and honored reduced motion in the source reader. (#547, #546, #538, #537)
+- Kept the dock icon source consistent and soft-deleted reading memory (FTS rows and projections) for annotations and comments removed during a full article save. (#536, #535)
+- Hardened telemetry heartbeat ingestion by rejecting non-JSON and oversized requests and constraining `clientDay` before writing Analytics Engine rows. (#545)
+
+### Engineering
+
+- Exposed app theme tone, split desktop style files, and switched annotation persistence to explicit save operations to reduce coupling. (#543, #539, #534)
+
 ## 0.9.0 - 2026-06-24
 
 ### Features
