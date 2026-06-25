@@ -529,7 +529,9 @@ describe('ReaderChatPanel', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: '打开阅读问答' })).toBeTruthy();
+    const openButton = screen.getByRole('button', { name: '打开阅读问答' });
+    expect(openButton).toBeTruthy();
+    expect(openButton.getAttribute('aria-expanded')).toBe('false');
     expect(container.querySelector('.reader-chat-fab-shortcut')?.textContent).toBe('Q');
   });
 
@@ -621,13 +623,16 @@ describe('ReaderChatPanel', () => {
 
     rerender(<ReaderChatPanel {...props} open={false} />);
 
-    expect(screen.getByRole('button', { name: '打开阅读问答' })).toBeTruthy();
-    expect(container.querySelector('.reader-chat-panel')?.classList.contains('is-closing')).toBe(
-      true,
-    );
+    const returningButton = screen.getByRole('button', { name: '打开阅读问答' });
+    expect(returningButton).toBeTruthy();
+    expect(returningButton.classList.contains('is-returning')).toBe(true);
+    const closingPanel = container.querySelector<HTMLElement>('.reader-chat-panel');
+    expect(closingPanel?.classList.contains('is-closing')).toBe(true);
+    expect(closingPanel?.getAttribute('data-open')).toBe('false');
+    expect(closingPanel?.getAttribute('data-state')).toBe('closing');
 
     act(() => {
-      vi.advanceTimersByTime(220);
+      vi.advanceTimersByTime(260);
     });
 
     expect(container.querySelector('.reader-chat-panel')).toBeNull();

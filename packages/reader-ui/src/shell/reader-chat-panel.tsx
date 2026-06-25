@@ -24,7 +24,7 @@ import { defaultReaderUiLabels } from './reader-app-view-types';
 const CHAT_MAX_TEXTAREA_ROWS = 8;
 const CHAT_DEFAULT_SIZE = { width: 410, height: 640 };
 const CHAT_MIN_SIZE = { width: 320, height: 360 };
-const CHAT_PANEL_ANIMATION_MS = 190;
+const CHAT_PANEL_ANIMATION_MS = 250;
 const CHAT_VIEWPORT_GUTTER = { width: 32, height: 112 };
 
 type ReaderChatPanelMode = 'default' | 'custom';
@@ -262,15 +262,20 @@ export function ReaderChatPanel({
     window.addEventListener('pointercancel', handlePointerUp);
   }
 
+  const returningToFab = !open && panelVisible && panelPhase === 'closing';
+  const minimizedButtonClassName = ['reader-chat-fab', returningToFab ? 'is-returning' : '']
+    .filter(Boolean)
+    .join(' ');
   const minimizedButton = !open ? (
     <ReaderTooltip
       content={<ShortcutTooltipContent keys={['Q']} label={labels.openReaderChat} />}
       side="top"
     >
       <button
-        className="reader-chat-fab"
+        className={minimizedButtonClassName}
         type="button"
         aria-label={labels.openReaderChat}
+        aria-expanded={false}
         onClick={onOpen}
       >
         <MessageCircleQuestion size={20} strokeWidth={2.15} />
@@ -302,7 +307,13 @@ export function ReaderChatPanel({
   return (
     <>
       {minimizedButton}
-      <section className={panelClassName} style={panelStyle} aria-label={labels.readerChatAria}>
+      <section
+        className={panelClassName}
+        data-open={open ? 'true' : 'false'}
+        data-state={effectivePanelPhase}
+        style={panelStyle}
+        aria-label={labels.readerChatAria}
+      >
         <div
           className="reader-chat-resize-handle is-top-left"
           aria-hidden="true"
