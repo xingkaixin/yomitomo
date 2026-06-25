@@ -196,20 +196,29 @@ function readClearMotion(styles: CSSStyleDeclaration) {
     blur: readClearNumber(styles, '--clear-blur', 2),
     easeIn: clearBezier(styles.getPropertyValue('--clear-in-ease')),
     easeOut: clearBezier(styles.getPropertyValue('--clear-out-ease')),
-    glowDelay: readClearNumber(styles, '--glow-delay', 50),
+    glowDelay: readClearDuration(styles, '--glow-delay', 50),
     glowOpacity: readClearNumber(styles, '--glow-opacity', 0.42),
     glowPeakAt: readClearNumber(styles, '--glow-peak-at', 0.15),
-    inDuration: readClearNumber(styles, '--clear-in-dur', 400),
+    inDuration: readClearDuration(styles, '--clear-in-dur', 400),
     inFly: readClearNumber(styles, '--clear-in-fly', 12),
-    outDuration: readClearNumber(styles, '--clear-out-dur', 400),
+    outDuration: readClearDuration(styles, '--clear-out-dur', 400),
     outFly: readClearNumber(styles, '--clear-out-fly', 12),
-    totalDuration: readClearNumber(styles, '--clear-dur', 1000),
+    totalDuration: readClearDuration(styles, '--clear-dur', 1000),
   };
 }
 
 function readClearNumber(styles: CSSStyleDeclaration, name: string, fallback: number) {
   const value = parseFloat(styles.getPropertyValue(name));
   return Number.isFinite(value) ? value : fallback;
+}
+
+function readClearDuration(styles: CSSStyleDeclaration, name: string, fallback: number) {
+  const rawValue = styles.getPropertyValue(name).trim();
+  const value = parseFloat(rawValue);
+  if (!Number.isFinite(value)) return fallback;
+  if (rawValue.endsWith('ms')) return value;
+  if (rawValue.endsWith('s')) return value * 1000;
+  return value;
 }
 
 function clearBezier(value: string) {
