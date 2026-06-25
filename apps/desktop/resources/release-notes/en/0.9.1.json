@@ -1,0 +1,29 @@
+{
+  "version": "0.9.1",
+  "highlights": [
+    {
+      "type": "changed",
+      "title": "Smoother search and Ask",
+      "description": "Library and reader search now have a dedicated clear button, separate from closing search, and the reader Ask panel opens and closes with an in-place morph that honors your reduced-motion setting.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "Faster, steadier PDF resume",
+      "description": "Opening a PDF returns to your last-read page faster, and jumping with the progress slider no longer gets interrupted by the old resume, so you land on the page you picked.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "Library updates after distillation",
+      "description": "Edit an article in a sedimentation window and the Library summary in the main window syncs right away, so you no longer see a stale title or content.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "Steadier reading details",
+      "description": "Fixed annotation-rail scrolling, web-translation drag selection, the discussion mention caret, and leftover reading memory after you delete an annotation or comment.",
+      "audience": "reader"
+    }
+  ]
+}

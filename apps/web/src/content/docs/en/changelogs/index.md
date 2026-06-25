@@ -5,6 +5,16 @@ sidebar:
   hidden: true
 ---
 
+## 0.9.1
+
+Released: 2026-06-25
+
+- Library and reader search gained clear actions, and the Ask panel now uses in-place morph and dissolve transitions.
+- Last-read PDF page restore is faster and steadier, and Library summaries sync right after distillation edits.
+- Fixed annotation-rail scrolling, web-translation drag selection, mention-chip caret alignment, and leftover reading memory after deletion.
+
+[View 0.9.1 release notes](/en/changelogs/v0-9-1/)
+
 ## 0.9.0
 
 Released: 2026-06-24

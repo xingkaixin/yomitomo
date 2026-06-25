@@ -1,0 +1,29 @@
+{
+  "version": "0.9.1",
+  "highlights": [
+    {
+      "type": "changed",
+      "title": "搜索和问一问的开合更顺手",
+      "description": "阅读库和阅读器搜索新增了独立的清空按钮，清空与收起分开；阅读器问一问面板改用就地形变过渡，开合更连贯，并尊重「减弱动效」设置。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "PDF 续读更快更准",
+      "description": "打开 PDF 时能更快回到上次阅读的页；拖动进度条跳转也不会再被旧的续读流程打断，停在你想去的页上。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "沉淀后阅读库即时更新",
+      "description": "在沉淀窗口里改完文章，回到主窗口的阅读库摘要会立刻同步，不用再担心看到旧标题或旧内容。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "阅读细节更稳",
+      "description": "修复批注栏滚动、网页翻译拖选可见性、讨论提及光标对齐，以及删除批注或评论后阅读记忆残留等问题。",
+      "audience": "reader"
+    }
+  ]
+}
