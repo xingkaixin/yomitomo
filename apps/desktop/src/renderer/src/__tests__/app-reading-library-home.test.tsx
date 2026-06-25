@@ -1927,6 +1927,15 @@ describe('ReadingLibrary home', () => {
         disconnect() {}
       },
     );
+    const requestAnimationFrameMock = vi.fn((callback: FrameRequestCallback) => {
+      callback(performance.now());
+      return 1;
+    });
+    const cancelAnimationFrameMock = vi.fn();
+    vi.stubGlobal('requestAnimationFrame', requestAnimationFrameMock);
+    vi.stubGlobal('cancelAnimationFrame', cancelAnimationFrameMock);
+    window.requestAnimationFrame = requestAnimationFrameMock;
+    window.cancelAnimationFrame = cancelAnimationFrameMock;
     let onCommitted:
       | ((event: {
           articleId: string;
