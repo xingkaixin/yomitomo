@@ -79,7 +79,7 @@ Yomitomo supports update flows on macOS and Windows. The app checks for new vers
 
 ## Privacy and Telemetry
 
-The Privacy group in Settings > General provides a "Send anonymous version and system metrics" toggle, on by default. When enabled, Yomitomo sends an anonymous heartbeat at most once per day containing only the app version, OS version, and architecture, used to understand active version distribution. It does not collect reading content, book titles, annotations, file paths, or AI conversations. You can turn it off at any time to stop reporting.
+The Privacy group in Settings > General provides a "Send anonymous version and system metrics" toggle, on by default. When enabled, Yomitomo sends an anonymous heartbeat at most once per day containing an anonymous installation ID, app version, platform, OS version, architecture, local day, and optional timezone, used to understand active version and system distribution. It does not collect reading content, book titles, annotations, file paths, or AI conversations. You can turn it off at any time to stop reporting.
 
 ## Assistant Diagnostics
 

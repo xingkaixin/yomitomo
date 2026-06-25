@@ -62,7 +62,7 @@ All data is stored in the local app data directory and is not uploaded to Yomito
 
 ## Does Yomitomo Send Anonymous Data?
 
-By default, Yomitomo sends an anonymous heartbeat at most once per day containing only the app version, OS version, and architecture, used to understand active version distribution. It does not collect reading content, book titles, annotations, file paths, or AI conversations. You can turn it off with the "Send anonymous version and system metrics" toggle in the Privacy group under Settings > General.
+By default, Yomitomo sends an anonymous heartbeat at most once per day containing an anonymous installation ID, app version, platform, OS version, architecture, local day, and optional timezone, used to understand active version and system distribution. It does not collect reading content, book titles, annotations, file paths, or AI conversations. You can turn it off with the "Send anonymous version and system metrics" toggle in the Privacy group under Settings > General.
 
 ## Supported Systems
 

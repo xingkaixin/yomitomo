@@ -148,7 +148,7 @@ const zhAnnotations: Annotation[] = [
       {
         id: 't2-1',
         authorId: 'question-mentor',
-        content: '数据全在本地，会不会不方便同步？万一换了电脑怎么办？',
+        content: '阅读数据保存在本地，会不会不方便同步？万一换了电脑怎么办？',
         comments: [
           {
             id: 't2-1-c1',
@@ -527,7 +527,7 @@ const zhContent: LandingContent = {
     railHeader: '划线与讨论',
     download: {
       title: '下载 Yomitomo',
-      desc: '完全免费、开源，数据全在本地。',
+      desc: '完全免费、开源，阅读数据保存在本地。',
       mac: 'macOS',
       macArch: 'Apple Silicon',
       win: 'Windows',
@@ -577,7 +577,7 @@ const enAnnotations: Annotation[] = [
       {
         id: 't2-1',
         authorId: 'question-mentor',
-        content: "If all the data stays local, isn't syncing a hassle? What if I switch computers?",
+        content: "If reading data stays local, isn't syncing a hassle? What if I switch computers?",
         comments: [
           {
             id: 't2-1-c1',

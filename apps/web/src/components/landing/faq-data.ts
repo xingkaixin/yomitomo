@@ -7,7 +7,7 @@ const zhFaq: FaqItem[] = [
   {
     question: 'Yomitomo 是什么？',
     answer:
-      'Yomitomo 是一款本地优先的 AI 伴读桌面应用，支持 macOS 和 Windows。你可以在原文上划线、记录想法、和 AI 助手讨论，把阅读判断锚定在原文现场，所有数据都保存在本地。',
+      'Yomitomo 是一款本地优先的 AI 伴读桌面应用，支持 macOS 和 Windows。你可以在原文上划线、记录想法、和 AI 助手讨论，把阅读判断锚定在原文现场，阅读数据保存在本地。',
   },
   {
     question: 'Yomitomo 支持哪些阅读来源？',
@@ -40,7 +40,7 @@ const enFaq: FaqItem[] = [
   {
     question: 'What is Yomitomo?',
     answer:
-      'Yomitomo is a local-first AI reading companion for macOS and Windows. You highlight text, capture thoughts, and discuss with AI assistants—keeping every reading judgment anchored to the source, with all data stored locally.',
+      'Yomitomo is a local-first AI reading companion for macOS and Windows. You highlight text, capture thoughts, and discuss with AI assistants—keeping every reading judgment anchored to the source, with reading data stored locally.',
   },
   {
     question: 'What sources does Yomitomo support?',

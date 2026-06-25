@@ -21,7 +21,7 @@ You can currently download macOS Apple Silicon and Windows x64 installers from [
 - UI and themes: Chinese/English switching, themes including dusk indigo, hand-drawn ink paper and theme pickers, and unified toast notifications.
 - App updates and data management: check for updates, view release notes, open the data directory, view logs, and back up or restore the local database; macOS installers are signed and notarized.
 - Reading statistics: generate local reading trends by article, annotation, and discussion.
-- Zero telemetry: reading data stays on your machine, and provider API keys are stored in the system keyring.
+- Local-first reading privacy: reading content, book titles, annotations, file paths, AI conversations, and provider API keys stay local; anonymous app, version, and system metrics are sent at most once per day by default and can be disabled in Settings.
 
 ## Screenshots
 
