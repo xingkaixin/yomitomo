@@ -165,6 +165,18 @@ describe('source reader annotation styles', () => {
     expect(sourceReaderTocStyles).toContain('background:transparent');
   });
 
+  it('removes source reader hold and cursor motion for reduced motion users', () => {
+    expect(styles).toMatch(
+      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.source-note-delete\.is-holding::before \{[\s\S]*width: 100%;[\s\S]*animation: none !important;[\s\S]*\}/,
+    );
+    expect(styles).toMatch(
+      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.source-virtual-cursor \{[\s\S]*transition: none !important;[\s\S]*will-change: auto;[\s\S]*\}/,
+    );
+    expect(styles).toMatch(
+      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.source-virtual-cursor\.is-leaving \{[\s\S]*animation: none !important;[\s\S]*filter: none;[\s\S]*opacity: 0;[\s\S]*\}/,
+    );
+  });
+
   it('keeps PDFium annotation rail above the full-size PDF article surface', () => {
     expect(styles).toMatch(
       /\.source-pdf-reader-shell \{[\s\S]*height: 100%;[\s\S]*min-height: 0;[\s\S]*\}/,
