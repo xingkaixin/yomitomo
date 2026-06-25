@@ -116,7 +116,15 @@ function Probe({ onSave }: { onSave: (articleId: string, progress: unknown) => v
     onSaveArticleReadingProgress: onSave,
   });
 
-  return <output data-testid="page">{progress.currentPage}</output>;
+  return (
+    <>
+      <output data-testid="page">{progress.currentPage}</output>
+      <output data-testid="restoring">{String(progress.restoringInitialPage)}</output>
+      <button type="button" onClick={() => progress.jumpToPdfiumPage(4)}>
+        jump to page 4
+      </button>
+    </>
+  );
 }
 
 afterEach(() => {
@@ -162,5 +170,32 @@ describe('usePdfiumReadingProgress', () => {
         progress: 7 / 9,
       }),
     );
+  });
+
+  it('cancels the saved page restore when the user jumps pages before it completes', async () => {
+    const onSave = vi.fn();
+    render(<Probe onSave={onSave} />);
+
+    await waitFor(() => {
+      expect(scrollMocks.layoutReadyListeners.size).toBe(1);
+    });
+
+    expect(screen.getByTestId('page').textContent).toBe('10');
+    expect(screen.getByTestId('restoring').textContent).toBe('true');
+
+    act(() => {
+      screen.getByRole('button', { name: 'jump to page 4' }).click();
+    });
+
+    expect(screen.getByTestId('page').textContent).toBe('4');
+    expect(screen.getByTestId('restoring').textContent).toBe('false');
+    expect(scrollMocks.scrollToPage).toHaveBeenCalledWith({
+      behavior: 'instant',
+      pageNumber: 4,
+    });
+
+    act(() => emitLayoutReady());
+
+    expect(scrollMocks.scopeScrollToPage).not.toHaveBeenCalled();
   });
 });
