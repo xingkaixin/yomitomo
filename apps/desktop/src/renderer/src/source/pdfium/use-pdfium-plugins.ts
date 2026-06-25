@@ -33,7 +33,7 @@ export function usePdfiumPlugins(input: {
         ],
       }),
       createPluginRegistration(ViewportPluginPackage),
-      createPluginRegistration(ScrollPluginPackage, { defaultPageGap: 24 }),
+      createPluginRegistration(ScrollPluginPackage, { defaultBufferSize: 1, defaultPageGap: 24 }),
       createPluginRegistration(RenderPluginPackage),
       createPluginRegistration(InteractionManagerPluginPackage),
       createPluginRegistration(SelectionPluginPackage, { marquee: { enabled: false } }),
