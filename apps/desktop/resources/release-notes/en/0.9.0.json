@@ -34,7 +34,7 @@
     {
       "type": "new",
       "title": "Anonymous stats can be disabled",
-      "description": "Settings now includes a version and system-environment statistics switch. It tracks active version distribution without collecting reading content, titles, annotations, or AI chats.",
+      "description": "Settings now includes an anonymous version and system metrics switch. It helps understand active version and system distribution without collecting reading content, titles, annotations, file paths, or AI chats.",
       "audience": "settings"
     }
   ]
