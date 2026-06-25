@@ -22,12 +22,10 @@ export function deleteAnnotationRowsWithMemoryLifecycle(
   input: { articleId: string; annotationId: string; deletedAt?: string },
 ) {
   return withReadingMemoryTransaction(executor, () => {
-    const deletedMemoryCount = softDeleteReadingMemoryEntriesBySource({
+    const deletedMemoryCount = softDeleteAnnotationMemoryEntries(executor, {
       articleId: input.articleId,
-      sourceAnnotationId: input.annotationId,
+      annotationId: input.annotationId,
       deletedAt: input.deletedAt,
-      deletionReason: 'annotation_deleted',
-      executor,
       useTransaction: false,
     });
     const deletedAnnotationCount = runChanges(
@@ -49,6 +47,7 @@ export function deleteCommentRowsWithMemoryLifecycle(
       articleId: input.articleId,
       commentIds,
       deletedAt: input.deletedAt,
+      useTransaction: false,
     });
     const deletedCommentCount = deleteCommentsByIds(executor, {
       articleId: input.articleId,
@@ -57,6 +56,20 @@ export function deleteCommentRowsWithMemoryLifecycle(
     });
 
     return { deletedCommentCount, deletedMemoryCount };
+  });
+}
+
+export function softDeleteAnnotationMemoryEntries(
+  executor: ReadingMemorySqliteExecutor,
+  input: { articleId: string; annotationId: string; deletedAt?: string; useTransaction?: boolean },
+) {
+  return softDeleteReadingMemoryEntriesBySource({
+    articleId: input.articleId,
+    sourceAnnotationId: input.annotationId,
+    deletedAt: input.deletedAt,
+    deletionReason: 'annotation_deleted',
+    executor,
+    useTransaction: input.useTransaction,
   });
 }
 
@@ -101,53 +114,56 @@ WHERE annotation_id = ?
   return [...deletedIds].toSorted();
 }
 
-function softDeleteCommentMemoryEntries(
+export function softDeleteCommentMemoryEntries(
   executor: ReadingMemorySqliteExecutor,
-  input: { articleId: string; commentIds: string[]; deletedAt?: string },
+  input: { articleId: string; commentIds: string[]; deletedAt?: string; useTransaction?: boolean },
 ) {
   if (input.commentIds.length === 0) return 0;
 
-  const deletedAt = input.deletedAt || new Date().toISOString();
-  const placeholders = sqlPlaceholders(input.commentIds);
-  const ids = executor
-    .prepare(
-      `
+  const run = () => {
+    const deletedAt = input.deletedAt || new Date().toISOString();
+    const placeholders = sqlPlaceholders(input.commentIds);
+    const ids = executor
+      .prepare(
+        `
 SELECT id
 FROM reading_memory_entries
 WHERE article_id = ?
   AND deleted_at IS NULL
   AND source_comment_id IN (${placeholders})
 `,
-    )
-    .all(input.articleId, ...input.commentIds)
-    .map((row) => stringField(recordField(row, 'id')))
-    .filter(Boolean);
-  if (ids.length === 0) return 0;
+      )
+      .all(input.articleId, ...input.commentIds)
+      .map((row) => stringField(recordField(row, 'id')))
+      .filter(Boolean);
+    if (ids.length === 0) return 0;
 
-  executor
-    .prepare(
-      `
+    executor
+      .prepare(
+        `
 UPDATE reading_memory_entries
 SET deleted_at = ?, deletion_reason = 'comment_deleted', updated_at = ?
 WHERE article_id = ?
   AND deleted_at IS NULL
   AND source_comment_id IN (${placeholders})
 `,
-    )
-    .run(deletedAt, deletedAt, input.articleId, ...input.commentIds);
-  executor
-    .prepare(
-      `
+      )
+      .run(deletedAt, deletedAt, input.articleId, ...input.commentIds);
+    executor
+      .prepare(
+        `
 DELETE FROM reading_memory_entry_fts
 WHERE article_id = ?
   AND entry_id IN (${sqlPlaceholders(ids)})
 `,
-    )
-    .run(input.articleId, ...ids);
-  executor
-    .prepare('DELETE FROM reading_memory_projections WHERE article_id = ?')
-    .run(input.articleId);
-  return ids.length;
+      )
+      .run(input.articleId, ...ids);
+    executor
+      .prepare('DELETE FROM reading_memory_projections WHERE article_id = ?')
+      .run(input.articleId);
+    return ids.length;
+  };
+  return input.useTransaction === false ? run() : withReadingMemoryTransaction(executor, run);
 }
 
 function deleteCommentsByIds(

@@ -56,6 +56,10 @@ export {
   deleteCommentRowsWithMemoryLifecycle,
 } from './article-repository-lifecycle';
 import {
+  softDeleteAnnotationMemoryEntries,
+  softDeleteCommentMemoryEntries,
+} from './article-repository-lifecycle';
+import {
   normalizeArticleReadingProgress,
   normalizeArticleSourceType,
   normalizeReaderChatState,
@@ -196,16 +200,21 @@ export function updateArticleSiteIconRows(
 }
 
 export async function saveArticleRows(input: ArticleRecord): Promise<ArticleUpsertPatch> {
-  writeArticleRowsInTransaction(getDatabase(), input);
-  trySyncArticleAnnotationMemoryEntries(input);
-  const article = readArticleSummaryRows(getDatabase(), input.id);
+  const database = getDatabase();
+  const executor = getSqliteExecutor() as unknown as ReadingMemorySqliteExecutor;
+  writeArticleRowsInTransaction(database, input, executor);
+  trySyncArticleAnnotationMemoryEntries(input, executor);
+  const article = readArticleSummaryRows(database, input.id);
   if (!article) throw new Error('ARTICLE_SAVE_FAILED');
   return buildArticleUpsertPatch(article);
 }
 
-function trySyncArticleAnnotationMemoryEntries(article: Pick<ArticleRecord, 'id' | 'annotations'>) {
+function trySyncArticleAnnotationMemoryEntries(
+  article: Pick<ArticleRecord, 'id' | 'annotations'>,
+  executor?: ReadingMemorySqliteExecutor,
+) {
   try {
-    return syncArticleAnnotationMemoryEntries(article);
+    return syncArticleAnnotationMemoryEntries(article, executor);
   } catch (error) {
     console.warn('[reading-memory] sync annotation memory entries failed', {
       articleId: article.id,
@@ -765,10 +774,79 @@ export function writeArticleRows(database: StoreExecutor, article: ArticleRecord
   }
 }
 
-function writeArticleRowsInTransaction(database: StoreDatabase, article: ArticleRecord) {
+function writeArticleRowsInTransaction(
+  database: StoreDatabase,
+  article: ArticleRecord,
+  executor: ReadingMemorySqliteExecutor,
+) {
   database.transaction((tx) => {
+    softDeleteRemovedArticleAnnotationMemoryEntries(tx, executor, article);
     writeArticleRows(tx, article);
   });
+}
+
+type ArticleAnnotationSourceSnapshot = {
+  annotationIds: string[];
+  comments: Array<{ id: string; annotationId: string }>;
+};
+
+function softDeleteRemovedArticleAnnotationMemoryEntries(
+  database: StoreExecutor,
+  executor: ReadingMemorySqliteExecutor,
+  article: Pick<ArticleRecord, 'id' | 'annotations'>,
+) {
+  const currentAnnotationIds = new Set(uniqueStrings(article.annotations.map((item) => item.id)));
+  const currentCommentIds = new Set(
+    uniqueStrings(
+      article.annotations.flatMap((item) => item.comments.map((comment) => comment.id)),
+    ),
+  );
+  const storedSources = readArticleAnnotationSourceSnapshot(database, article.id);
+  const removedAnnotationIds = storedSources.annotationIds.filter(
+    (annotationId) => !currentAnnotationIds.has(annotationId),
+  );
+  const removedAnnotationIdSet = new Set(removedAnnotationIds);
+  const removedCommentIds = storedSources.comments
+    .filter(
+      (comment) =>
+        !removedAnnotationIdSet.has(comment.annotationId) && !currentCommentIds.has(comment.id),
+    )
+    .map((comment) => comment.id);
+
+  for (const annotationId of removedAnnotationIds) {
+    softDeleteAnnotationMemoryEntries(executor, {
+      articleId: article.id,
+      annotationId,
+      useTransaction: false,
+    });
+  }
+  softDeleteCommentMemoryEntries(executor, {
+    articleId: article.id,
+    commentIds: removedCommentIds,
+    useTransaction: false,
+  });
+}
+
+function readArticleAnnotationSourceSnapshot(
+  database: StoreExecutor,
+  articleId: string,
+): ArticleAnnotationSourceSnapshot {
+  const annotationRows = database
+    .select({ id: schema.annotations.id })
+    .from(schema.annotations)
+    .where(eq(schema.annotations.articleId, articleId))
+    .all();
+  const commentRows = database
+    .select({ id: schema.comments.id, annotationId: schema.comments.annotationId })
+    .from(schema.comments)
+    .innerJoin(schema.annotations, eq(schema.annotations.id, schema.comments.annotationId))
+    .where(eq(schema.annotations.articleId, articleId))
+    .all();
+
+  return {
+    annotationIds: annotationRows.map((row) => row.id),
+    comments: commentRows.map((row) => ({ id: row.id, annotationId: row.annotationId })),
+  };
 }
 
 export function upsertAnnotationRows(
