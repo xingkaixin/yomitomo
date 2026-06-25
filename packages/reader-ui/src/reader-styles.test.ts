@@ -21,11 +21,12 @@ describe('reader embedded styles', () => {
       composeReaderStyles(['base', 'conversation', 'desktopEmbedded']),
     );
 
-    const baseIndex = readerDesktopEmbeddedBundleStyles.indexOf(':host{all:initial');
-    const conversationIndex = readerDesktopEmbeddedBundleStyles.indexOf(
+    const bundledStyles = compactCss(readerDesktopEmbeddedBundleStyles);
+    const baseIndex = bundledStyles.indexOf(compactCss(':host { all: initial'));
+    const conversationIndex = bundledStyles.indexOf(
       '.reader-main{grid-template-columns:minmax(0,1fr)}',
     );
-    const embeddedIndex = readerDesktopEmbeddedBundleStyles.indexOf(
+    const embeddedIndex = bundledStyles.indexOf(
       '.source-reader-shell{grid-template-rows:minmax(0,1fr);padding:0}',
     );
 
@@ -35,21 +36,30 @@ describe('reader embedded styles', () => {
   });
 
   it('uses app-provided reader theme variables for core reader surfaces', () => {
-    expect(combinedReaderStyles()).toContain('--reader-bg:var(--app-reader-bg)');
+    expectCssToContain(combinedReaderStyles(), '--reader-bg:var(--app-reader-bg)');
     expect(readerConversationStyles).toContain('--reader-z-popover:var(--app-z-popover,160)');
     expect(readerConversationStyles).toContain('--reader-z-tooltip:var(--app-z-tooltip,340)');
     expect(readerConversationStyles).toContain('--app-viewport-height:100vh');
     expect(readerConversationStyles).toContain('@supports (height:100dvh)');
-    expect(combinedReaderStyles()).toContain('--reader-content-bg');
-    expect(combinedReaderStyles()).toContain(
+    expectCssToContain(combinedReaderStyles(), '--reader-content-bg');
+    expectCssToContain(
+      combinedReaderStyles(),
       '.reader-article{background:var(--reader-content-bg,var(--reader-paper))}',
     );
-    expect(combinedReaderStyles()).toContain('.reader-background-options{');
-    expect(combinedReaderStyles()).toContain('background:var(--app-reader-edge-blur-top)');
+    expectCssToContain(combinedReaderStyles(), '.reader-background-options{');
+    expectCssToContain(combinedReaderStyles(), 'background:var(--app-reader-edge-blur-top)');
     expect(combinedReaderStyles()).toContain('background:var(--app-reader-scrim)');
     expect(readerDesktopEmbeddedStyles).toContain('--reader-bg:var(--app-reader-bg)');
-    expect(combinedReaderStyles()).not.toContain('--reader-bg:#f5f1e8');
+    expectCssNotToContain(combinedReaderStyles(), '--reader-bg:#f5f1e8');
     expect(readerDesktopEmbeddedStyles).not.toContain('--reader-bg:#f5f1e8');
+  });
+
+  it('keeps base reader CSS source reviewable', () => {
+    const longestLine = Math.max(...readerStyles.split('\n').map((line) => line.length));
+
+    expect(readerStyles).toContain('\n.reader-article {\n');
+    expect(readerStyles).toContain('\n@media(max-width:940px) {\n');
+    expect(longestLine).toBeLessThanOrEqual(220);
   });
 
   it('wires popup surfaces to the shared motion contract', () => {
@@ -73,13 +83,14 @@ describe('reader embedded styles', () => {
   it('keeps selection copy icon swap on one reader motion contract', () => {
     const combinedStyles = combinedReaderStyles();
 
-    expect(readerStyles).toContain('--reader-icon-swap-dur:250ms');
-    expect(readerStyles).toContain('--reader-icon-swap-ease:ease-in-out');
-    expect(readerStyles).toContain('--reader-icon-swap-blur:2px');
-    expect(readerStyles).toContain('--reader-icon-swap-start-scale:.25');
-    expect(readerStyles).toContain('--icon-swap-dur:var(--reader-icon-swap-dur)');
-    expect(readerStyles).toContain('--icon-swap-ease:var(--reader-icon-swap-ease)');
-    expect(readerStyles).toContain(
+    expectCssToContain(readerStyles, '--reader-icon-swap-dur:250ms');
+    expectCssToContain(readerStyles, '--reader-icon-swap-ease:ease-in-out');
+    expectCssToContain(readerStyles, '--reader-icon-swap-blur:2px');
+    expectCssToContain(readerStyles, '--reader-icon-swap-start-scale:.25');
+    expectCssToContain(readerStyles, '--icon-swap-dur:var(--reader-icon-swap-dur)');
+    expectCssToContain(readerStyles, '--icon-swap-ease:var(--reader-icon-swap-ease)');
+    expectCssToContain(
+      readerStyles,
       '@media(prefers-reduced-motion:reduce){.reader-selection-copy-icon .t-icon{transition:none!important;will-change:auto}}',
     );
     expect(countOccurrences(combinedStyles, '.reader-selection-copy-icon.t-icon-swap{')).toBe(1);
@@ -134,38 +145,45 @@ describe('reader embedded styles', () => {
   });
 
   it('keeps article blockquotes on reader theme tokens', () => {
-    expect(readerStyles).toContain(
+    expectCssToContain(
+      readerStyles,
       '.reader-article blockquote{margin-left:0;padding-left:22px;border-left:4px solid var(--reader-yellow);color:var(--reader-ink)}',
     );
     expect(combinedReaderStyles()).toContain(
       '.reader-markdown blockquote{margin:8px 0;padding-left:10px;border-left:3px solid color-mix(in srgb,var(--reader-red) 28%,transparent);color:var(--reader-ink)}',
     );
-    expect(readerStyles).not.toContain(
+    expectCssNotToContain(
+      readerStyles,
       '.reader-article blockquote{margin-left:0;padding-left:22px;border-left:4px solid var(--reader-yellow);color:#574f45}',
     );
-    expect(readerStyles).not.toContain(
+    expectCssNotToContain(
+      readerStyles,
       '.reader-markdown blockquote{margin:8px 0;padding-left:10px;border-left:3px solid rgba(159,91,80,.28);color:#5d5147}',
     );
   });
 
   it('uses the shared body line height for article reading', () => {
-    expect(readerStyles).toContain(
+    expectCssToContain(
+      readerStyles,
       `.reader-article{position:relative;z-index:1;padding:56px 64px;border:1px solid var(--app-reader-note-border);border-radius:22px;background:var(--reader-paper);box-shadow:var(--app-reader-note-shadow);font-size:var(--reader-font-size);line-height:${readerBodyLineHeight};`,
     );
   });
 
   it('disables article text selection during visible translation work', () => {
-    expect(readerStyles).toContain(
+    expectCssToContain(
+      readerStyles,
       '.reader-article-body.is-translation-select-disabled{user-select:none;-webkit-user-select:none}',
     );
-    expect(readerStyles).toContain('.reader-bilingual-translation-indicator.is-failed{');
+    expectCssToContain(readerStyles, '.reader-bilingual-translation-indicator.is-failed{');
   });
 
   it('keeps highlight controls out of native text selection', () => {
-    expect(combinedReaderStyles()).toContain(
+    expectCssToContain(
+      combinedReaderStyles(),
       '.reader-highlight-layer{position:absolute;inset:0;z-index:3;pointer-events:none;user-select:none;-webkit-user-select:none}',
     );
-    expect(combinedReaderStyles()).toContain(
+    expectCssToContain(
+      combinedReaderStyles(),
       '.reader-highlight{position:absolute;border:0;border-radius:4px;background:rgba(234,216,157,.34);box-shadow:0 0 0 1px rgba(199,164,94,.18);mix-blend-mode:multiply;padding:0;pointer-events:none;user-select:none;-webkit-user-select:none}',
     );
     expect(readerConversationStyles).toContain(
@@ -401,8 +419,9 @@ describe('reader embedded styles', () => {
     expect(readerConversationStyles).toContain(
       '.reader-empty{display:grid;justify-items:center;gap:14px;margin:0;padding:18px 4px;border:0!important;',
     );
-    expect(readerStyles).not.toContain('.reader-empty,.reader-note{');
-    expect(readerStyles).toContain(
+    expectCssNotToContain(readerStyles, '.reader-empty,.reader-note{');
+    expectCssToContain(
+      readerStyles,
       '.reader-empty{display:grid;justify-items:center;gap:14px;margin:0;padding:18px 4px;border:0;',
     );
     expect(readerConversationStyles).toContain(
@@ -434,6 +453,25 @@ function combinedReaderStyles() {
   return readerDesktopEmbeddedBundleStyles;
 }
 
+function expectCssToContain(source: string, expected: string) {
+  expect(compactCss(source)).toContain(compactCss(expected));
+}
+
+function expectCssNotToContain(source: string, expected: string) {
+  expect(compactCss(source)).not.toContain(compactCss(expected));
+}
+
+function compactCss(source: string) {
+  return source
+    .replace(/\s+/g, ' ')
+    .replace(/\s*([{}:;,])\s*/g, '$1')
+    .replace(/;}/g, '}')
+    .trim();
+}
+
 function countOccurrences(source: string, needle: string) {
-  return source.split(needle).length - 1;
+  const compactSource = compactCss(source);
+  const compactNeedle = compactCss(needle);
+
+  return compactSource.split(compactNeedle).length - 1;
 }

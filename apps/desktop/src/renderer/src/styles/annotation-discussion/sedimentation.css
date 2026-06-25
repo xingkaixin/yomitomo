@@ -1,0 +1,1189 @@
+.annotation-sedimentation-window {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: var(--app-viewport-height);
+  overflow: hidden;
+  background: var(--app-reader-paper);
+  color: var(--app-reader-ink);
+  font-family: var(--font-ui, ui-sans-serif, system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+}
+
+.annotation-sedimentation-quote {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  border-bottom: 1px solid var(--app-reader-toolbar-border);
+  color: var(--app-reader-accent-strong);
+  padding: 14px 28px;
+}
+
+.annotation-sedimentation-quote span {
+  font-family: var(--font-reader-serif, Georgia, Cambria, 'Times New Roman', serif);
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.annotation-sedimentation-quote p {
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-reader-serif, Georgia, Cambria, 'Times New Roman', serif);
+  font-size: 14px;
+  font-weight: 640;
+  line-height: 1.6;
+}
+
+.annotation-sedimentation-body {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 45%);
+}
+
+.annotation-sedimentation-document {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  border-right: 1px solid var(--app-reader-toolbar-border);
+  background: color-mix(in srgb, var(--app-reader-paper) 96%, var(--app-reader-ink) 4%);
+}
+
+.annotation-sedimentation-document > header {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 28px;
+}
+
+.annotation-sedimentation-document > header strong {
+  font-size: 14px;
+  font-weight: 760;
+}
+
+.annotation-sedimentation-document-title {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+}
+
+.annotation-sedimentation-status {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  border: 1px solid var(--app-reader-toolbar-border);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 820;
+  line-height: 1;
+  padding: 0 9px;
+}
+
+.annotation-sedimentation-status.is-draft {
+  background: color-mix(in srgb, var(--app-reader-muted) 10%, transparent);
+  color: var(--app-reader-muted);
+}
+
+.annotation-sedimentation-status.is-published {
+  border-color: color-mix(
+    in srgb,
+    var(--app-action-primary-bg) 46%,
+    var(--app-reader-toolbar-border)
+  );
+  background: color-mix(in srgb, var(--app-action-primary-bg) 12%, transparent);
+  color: var(--app-action-primary-bg);
+}
+
+.annotation-sedimentation-document-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.annotation-sedimentation-document > header button {
+  display: inline-flex;
+  position: relative;
+  flex: 0 0 auto;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--app-reader-toolbar-border);
+  border-radius: 999px;
+  background: var(--app-reader-accent-strong);
+  color: var(--app-reader-paper);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 740;
+  padding: 0 14px;
+  white-space: nowrap;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+
+.annotation-sedimentation-document > header button svg {
+  flex: 0 0 auto;
+}
+
+.annotation-sedimentation-document > header button.is-secondary {
+  background: var(--app-reader-toolbar-control-bg);
+  color: var(--app-reader-ink);
+}
+
+.annotation-sedimentation-document > header button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.annotation-sedimentation-document > header button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.annotation-sedimentation-action-tooltip {
+  display: grid;
+  gap: 3px;
+  max-width: 260px;
+}
+
+.annotation-sedimentation-action-tooltip strong {
+  font-size: 11px;
+  font-weight: 820;
+}
+
+.annotation-sedimentation-action-tooltip em {
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 620;
+  opacity: 0.78;
+}
+
+.annotation-sedimentation-confirm-overlay {
+  position: fixed;
+  z-index: var(--app-z-modal);
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--app-reader-ink) 34%, transparent);
+  padding: 24px;
+}
+
+.annotation-sedimentation-confirm {
+  display: grid;
+  width: min(430px, 100%);
+  gap: 18px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--app-reader-paper) 98%, var(--app-reader-ink) 2%);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--app-reader-toolbar-border) 86%, transparent),
+    0 30px 90px color-mix(in srgb, var(--app-reader-ink) 24%, transparent);
+  padding: 18px;
+}
+
+.annotation-sedimentation-confirm header {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+
+.annotation-sedimentation-confirm-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-reader-accent-strong) 13%, transparent);
+  color: var(--app-reader-accent-strong);
+}
+
+.annotation-sedimentation-confirm h2 {
+  margin: 0;
+  color: var(--app-reader-ink);
+  font-size: 17px;
+  font-weight: 820;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.annotation-sedimentation-confirm p {
+  margin: 6px 0 0;
+  color: var(--app-reader-muted);
+  font-size: 13px;
+  font-weight: 560;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+.annotation-sedimentation-confirm footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.annotation-sedimentation-confirm footer button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: var(--app-reader-toolbar-control-bg);
+  box-shadow: inset 0 0 0 1px var(--app-reader-toolbar-border);
+  color: var(--app-reader-ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 760;
+  padding: 0 15px;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+
+.annotation-sedimentation-confirm footer button.is-primary {
+  background: var(--app-reader-accent-strong);
+  box-shadow: none;
+  color: var(--app-reader-paper);
+}
+
+.annotation-sedimentation-confirm footer button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.annotation-sedimentation-confirm footer button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.annotation-sedimentation-draft-workspace {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+.annotation-sedimentation-draft-editor {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-width: 640px;
+  min-width: 0;
+  min-height: 0;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+.annotation-sedimentation-document textarea {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0 auto;
+  resize: none;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--app-reader-ink);
+  font: inherit;
+  font-family: var(--font-serif, Georgia, serif);
+  font-size: 18px;
+  font-weight: 430;
+  line-height: 1.82;
+  padding: 18px 28px 36px;
+}
+
+.annotation-sedimentation-draft-editor.has-preview textarea {
+  color: transparent;
+  caret-color: transparent;
+  padding-bottom: 92px;
+}
+
+.annotation-sedimentation-document textarea::placeholder {
+  color: var(--app-reader-muted);
+  font-family: var(--font-ui, ui-sans-serif, system-ui, sans-serif);
+  font-size: 15px;
+  font-weight: 420;
+}
+
+.annotation-sedimentation-draft-preview-layer {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.annotation-sedimentation-draft-anchor-layer {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.annotation-sedimentation-draft-anchor-text {
+  min-height: 100%;
+  color: transparent;
+  font: inherit;
+  font-family: var(--font-serif, Georgia, serif);
+  font-size: 18px;
+  font-weight: 430;
+  line-height: 1.82;
+  overflow-wrap: break-word;
+  padding: 18px 28px 36px;
+  transform-origin: 0 0;
+  white-space: pre-wrap;
+}
+
+.annotation-sedimentation-draft-anchor-mark {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--app-reader-accent-strong) 18%, transparent);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--app-reader-accent-strong) 20%, transparent),
+    0 8px 20px color-mix(in srgb, var(--app-reader-accent-strong) 8%, transparent);
+  color: transparent;
+  padding: 1px 2px;
+  transition:
+    background 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.annotation-sedimentation-draft-anchor-mark.is-drifted {
+  background: color-mix(in srgb, var(--app-reader-primary, #38a169) 16%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--app-reader-primary, #38a169) 18%, transparent),
+    0 8px 20px color-mix(in srgb, var(--app-reader-primary, #38a169) 7%, transparent);
+}
+
+.annotation-sedimentation-draft-anchor-point {
+  display: inline-block;
+  width: 2px;
+  height: 1.42em;
+  border-radius: 999px;
+  background: var(--app-reader-accent-strong);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--app-reader-accent-strong) 12%, transparent);
+  vertical-align: text-bottom;
+}
+
+.annotation-sedimentation-draft-preview-text {
+  min-height: 100%;
+  color: var(--app-reader-ink);
+  font: inherit;
+  font-family: var(--font-serif, Georgia, serif);
+  font-size: 18px;
+  font-weight: 430;
+  line-height: 1.82;
+  overflow-wrap: break-word;
+  padding: 18px 28px 92px;
+  transform-origin: 0 0;
+  white-space: pre-wrap;
+}
+
+.annotation-sedimentation-draft-preview-insert,
+.annotation-sedimentation-draft-preview-delete {
+  border-radius: 4px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding: 1px 2px;
+}
+
+.annotation-sedimentation-draft-preview-insert {
+  background: color-mix(in srgb, var(--app-reader-primary, #38a169) 18%, transparent);
+  color: var(--app-reader-primary, #38a169);
+  text-decoration: none;
+}
+
+.annotation-sedimentation-draft-preview-delete {
+  background: color-mix(in srgb, var(--app-reader-danger, #e53e3e) 16%, transparent);
+  color: var(--app-reader-danger, #e53e3e);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.annotation-sedimentation-draft-preview-change {
+  display: inline;
+}
+
+.annotation-sedimentation-draft-preview-change-actions,
+.annotation-sedimentation-draft-preview-change-state {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 5px;
+  pointer-events: auto;
+  vertical-align: text-bottom;
+  white-space: nowrap;
+}
+
+.annotation-sedimentation-draft-preview-change-state {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-reader-primary, #38a169) 11%, var(--app-reader-paper));
+  color: var(--app-reader-primary, #38a169);
+  font-family: var(--font-ui, ui-sans-serif, system-ui, sans-serif);
+  font-size: 11px;
+  font-weight: 720;
+  line-height: 1;
+  padding: 7px 9px;
+}
+
+.annotation-sedimentation-draft-preview-change-actions button {
+  display: inline-flex;
+  position: relative;
+  min-width: 34px;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--app-reader-accent-strong);
+  color: var(--app-reader-paper);
+  font: inherit;
+  font-family: var(--font-ui, ui-sans-serif, system-ui, sans-serif);
+  font-size: 11px;
+  font-weight: 760;
+  padding: 0 10px;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+
+.annotation-sedimentation-draft-preview-change-actions button::before {
+  position: absolute;
+  inset: -5px;
+  content: '';
+}
+
+.annotation-sedimentation-draft-preview-change-actions button.is-secondary {
+  background: var(--app-reader-toolbar-control-bg);
+  box-shadow: inset 0 0 0 1px var(--app-reader-toolbar-border);
+  color: var(--app-reader-ink);
+}
+
+.annotation-sedimentation-draft-preview-change-actions button:active {
+  transform: scale(0.96);
+}
+
+@media (max-width: 760px) {
+  .annotation-sedimentation-draft-preview-change-actions button {
+    width: 32px;
+    padding: 0;
+  }
+
+  .annotation-sedimentation-draft-preview-change-actions button span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+.annotation-sedimentation-organize-card {
+  display: grid;
+  width: min(640px, calc(100% - 56px));
+  max-height: min(46vh, 380px);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+  margin: 0 auto 18px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--app-reader-paper) 98%, var(--app-reader-ink) 2%);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--app-reader-toolbar-border) 88%, transparent),
+    0 14px 34px color-mix(in srgb, var(--app-reader-ink) 12%, transparent);
+  padding: 12px;
+}
+
+.annotation-sedimentation-organize-card.is-minimized {
+  grid-template-rows: auto;
+  max-height: none;
+  margin-bottom: 10px;
+  border-radius: 999px;
+  padding: 8px 10px;
+}
+
+.annotation-sedimentation-organize-card > header {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0;
+}
+
+.annotation-sedimentation-organize-card.is-minimized > header {
+  min-height: 30px;
+}
+
+.annotation-sedimentation-organize-title {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+}
+
+.annotation-sedimentation-organize-icon {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-reader-accent-strong) 12%, transparent);
+  color: var(--app-reader-accent-strong);
+}
+
+.annotation-sedimentation-organize-title > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.annotation-sedimentation-organize-title strong {
+  color: var(--app-reader-ink);
+  font-size: 13px;
+  font-weight: 780;
+  line-height: 1.25;
+}
+
+.annotation-sedimentation-organize-title span {
+  color: var(--app-reader-muted);
+  font-size: 11px;
+  font-weight: 640;
+  line-height: 1.3;
+}
+
+.annotation-sedimentation-organize-meta {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.annotation-sedimentation-organize-meta > .reader-avatar-badge {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-reader-accent-strong) 18%, transparent);
+  color: var(--app-reader-accent-strong);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.annotation-sedimentation-organize-card.is-minimized
+  .annotation-sedimentation-organize-meta
+  > .reader-avatar-badge {
+  width: 22px;
+  height: 22px;
+}
+
+.annotation-sedimentation-organize-meta > .reader-avatar-badge img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+  outline: 1px solid rgba(0, 0, 0, 0.1);
+  outline-offset: -1px;
+}
+
+.annotation-sedimentation-organize-meta > span {
+  max-width: 90px;
+  overflow: hidden;
+  color: var(--app-reader-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.annotation-sedimentation-organize-meta button {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--app-reader-toolbar-control-bg);
+  box-shadow: inset 0 0 0 1px var(--app-reader-toolbar-border);
+  color: var(--app-reader-ink);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 740;
+  padding: 0 9px;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+
+.annotation-sedimentation-organize-meta button.is-icon {
+  width: 30px;
+  padding: 0;
+}
+
+.annotation-sedimentation-organize-meta button:active {
+  transform: scale(0.96);
+}
+
+.annotation-sedimentation-organize-body {
+  display: grid;
+  position: relative;
+  min-height: 0;
+  gap: 10px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.annotation-sedimentation-organize-scroll-glow {
+  position: sticky;
+  z-index: 1;
+  bottom: -1px;
+  height: 28px;
+  margin-top: -28px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--app-reader-paper) 0%, transparent),
+    color-mix(in srgb, var(--app-reader-paper) 96%, transparent)
+  );
+  box-shadow: 0 -18px 28px color-mix(in srgb, var(--app-reader-paper) 88%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease;
+}
+
+.annotation-sedimentation-organize-body.has-scroll-more
+  .annotation-sedimentation-organize-scroll-glow {
+  opacity: 1;
+}
+
+.annotation-sedimentation-organize-card .annotation-discussion-markdown {
+  color: var(--app-reader-ink);
+  font-size: 12.5px;
+  line-height: 1.58;
+}
+
+.annotation-sedimentation-organize-card .annotation-discussion-markdown p,
+.annotation-sedimentation-organize-card .annotation-discussion-markdown ul,
+.annotation-sedimentation-organize-card .annotation-discussion-markdown ol,
+.annotation-sedimentation-organize-card .annotation-discussion-markdown blockquote,
+.annotation-sedimentation-organize-card .annotation-discussion-markdown pre {
+  margin-bottom: 7px;
+  overflow-wrap: anywhere;
+}
+
+.annotation-sedimentation-organize-proposals .annotation-sedimentation-proposal {
+  background: color-mix(in srgb, var(--app-reader-paper) 94%, var(--app-reader-ink) 6%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-reader-toolbar-border) 76%, transparent);
+}
+
+.annotation-sedimentation-organize-notice {
+  margin: 0;
+  color: var(--app-reader-muted);
+  font-size: 12px;
+  font-weight: 680;
+  line-height: 1.45;
+}
+
+@media (max-width: 1040px) {
+  .annotation-sedimentation-document > header {
+    gap: 10px;
+    padding: 0 20px;
+  }
+
+  .annotation-sedimentation-document > header button {
+    width: 40px;
+    padding: 0;
+  }
+
+  .annotation-sedimentation-document > header button span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+.annotation-sedimentation-review-panel {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  background: var(--app-reader-paper);
+}
+
+.annotation-sedimentation-review-panel > header {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--app-reader-toolbar-border);
+  padding: 0 18px;
+}
+
+.annotation-sedimentation-review-panel > header > div:first-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.annotation-sedimentation-review-panel > header strong {
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.annotation-sedimentation-review-panel > header span {
+  color: var(--app-reader-muted);
+  font-size: 11px;
+  font-weight: 620;
+  line-height: 1.35;
+}
+
+.annotation-sedimentation-review-list {
+  min-width: 0;
+  overflow: auto;
+  overflow-x: hidden;
+  padding: 18px 18px 10px;
+}
+
+.annotation-sedimentation-review-message {
+  justify-self: start;
+  width: 100%;
+  max-width: none;
+  grid-template-columns: 34px minmax(0, 1fr);
+  min-width: 0;
+  font-size: 13px;
+  text-align: left;
+}
+
+.annotation-sedimentation-review-message.is-user > .reader-avatar-badge {
+  order: 0;
+}
+
+.annotation-sedimentation-review-message .annotation-discussion-message-bubble {
+  justify-items: start;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.annotation-sedimentation-review-message .annotation-discussion-message-bubble header {
+  width: 100%;
+  max-width: 100%;
+  justify-content: start;
+  text-align: left;
+}
+
+.annotation-sedimentation-review-message .annotation-discussion-markdown {
+  width: 100%;
+  max-width: 100%;
+  text-align: left;
+  font-size: 12.5px;
+  line-height: 1.58;
+}
+
+.annotation-sedimentation-review-message .annotation-discussion-markdown p,
+.annotation-sedimentation-review-message .annotation-discussion-markdown ul,
+.annotation-sedimentation-review-message .annotation-discussion-markdown ol,
+.annotation-sedimentation-review-message .annotation-discussion-markdown blockquote,
+.annotation-sedimentation-review-message .annotation-discussion-markdown pre {
+  margin-bottom: 7px;
+  overflow-wrap: anywhere;
+}
+
+.annotation-sedimentation-review-items {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.annotation-sedimentation-review-item {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--app-reader-paper) 94%, var(--app-reader-ink) 6%);
+  padding: 9px 10px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-reader-toolbar-border) 74%, transparent);
+}
+
+.annotation-sedimentation-review-item > span,
+.annotation-sedimentation-review-item header span {
+  color: var(--app-reader-muted);
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.annotation-sedimentation-review-item p {
+  margin: 0;
+  color: var(--app-reader-ink);
+  font-size: 12.5px;
+  line-height: 1.58;
+  overflow-wrap: anywhere;
+}
+
+.annotation-sedimentation-review-item header {
+  display: grid;
+  gap: 4px;
+}
+
+.annotation-sedimentation-review-item header strong {
+  color: var(--app-reader-ink);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.annotation-sedimentation-review-item blockquote {
+  margin: 0;
+  border-left: 2px solid color-mix(in srgb, var(--app-reader-accent) 46%, transparent);
+  color: var(--app-reader-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  padding-left: 8px;
+  overflow-wrap: anywhere;
+}
+
+.annotation-sedimentation-review-error {
+  margin: 5px 0 0;
+  color: var(--app-reader-danger);
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1.45;
+}
+
+.annotation-sedimentation-proposals {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.annotation-sedimentation-proposal {
+  display: grid;
+  gap: 10px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--app-reader-paper) 92%, var(--app-reader-ink) 8%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--app-reader-toolbar-border) 76%, transparent),
+    0 10px 24px color-mix(in srgb, var(--app-reader-ink) 8%, transparent);
+  padding: 10px;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+
+.annotation-sedimentation-proposal.is-ignored {
+  opacity: 0.56;
+}
+
+.annotation-sedimentation-proposal.is-ignored .annotation-sedimentation-proposal-main {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.annotation-sedimentation-proposal-main {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.annotation-sedimentation-proposal-main header {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+}
+
+.annotation-sedimentation-proposal-main header span {
+  display: inline-flex;
+  min-height: 22px;
+  flex: 0 0 auto;
+  align-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-reader-accent-strong) 12%, transparent);
+  color: var(--app-reader-accent-strong);
+  font-size: 11px;
+  font-weight: 780;
+  line-height: 1;
+  padding: 0 8px;
+}
+
+.annotation-sedimentation-proposal-main header strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--app-reader-ink);
+  font-size: 12px;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.annotation-sedimentation-proposal-main p {
+  margin: 0;
+  color: var(--app-reader-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.annotation-sedimentation-proposal-main blockquote {
+  margin: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--app-reader-paper) 80%, var(--app-reader-ink) 20%);
+  color: var(--app-reader-ink);
+  font-family: var(--font-reader-serif, Georgia, Cambria, 'Times New Roman', serif);
+  font-size: 12px;
+  line-height: 1.55;
+  padding: 9px 10px;
+  white-space: pre-wrap;
+}
+
+.proposal-diff {
+  display: grid;
+  gap: 4px;
+}
+
+.proposal-diff-delete {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--app-reader-danger, #e53e3e) 12%, transparent);
+  color: var(--app-reader-danger, #e53e3e);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.proposal-diff-insert {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--app-reader-primary, #38a169) 12%, transparent);
+  color: var(--app-reader-primary, #38a169);
+  text-decoration: none;
+}
+
+.annotation-sedimentation-proposal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.annotation-sedimentation-proposal-actions button {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--app-reader-accent-strong);
+  color: var(--app-reader-paper);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 740;
+  padding: 0 10px;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+
+.annotation-sedimentation-proposal-actions button.is-secondary {
+  background: var(--app-reader-toolbar-control-bg);
+  box-shadow: inset 0 0 0 1px var(--app-reader-toolbar-border);
+  color: var(--app-reader-ink);
+}
+
+.annotation-sedimentation-proposal-actions button:active {
+  transform: scale(0.96);
+}
+
+.annotation-sedimentation-proposal-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.annotation-sedimentation-proposal-state {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-action-primary-bg) 12%, transparent);
+  color: var(--app-action-primary-bg);
+  font-size: 12px;
+  font-weight: 760;
+  padding: 0 10px;
+}
+
+.annotation-sedimentation-review-empty {
+  display: grid;
+  justify-items: center;
+  align-self: center;
+  gap: 8px;
+  color: var(--app-reader-muted);
+  padding: 48px 20px;
+  text-align: center;
+}
+
+.annotation-sedimentation-review-empty strong {
+  color: var(--app-reader-ink);
+  font-size: 14px;
+  font-weight: 720;
+}
+
+.annotation-sedimentation-review-empty p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.annotation-sedimentation-review-panel > footer {
+  padding: 14px 18px 18px;
+}
+
+.annotation-sedimentation-review-composer {
+  min-height: 124px;
+}
+
+.annotation-sedimentation-review-composer .floating-composer-textarea {
+  max-height: 128px;
+}
+
+.annotation-sedimentation-review-composer-accessory {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  overflow: visible;
+}
+
+.annotation-sedimentation-review-composer-accessory .reader-agent-avatar-stack {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  overflow: visible;
+}
+
+.annotation-sedimentation-review-composer-accessory .reader-agent-avatar-stack-item {
+  position: relative;
+  display: grid;
+  flex: 0 0 auto;
+  width: 30px;
+  min-width: 30px;
+  max-width: 30px;
+  height: 30px;
+  place-items: center;
+  margin-left: -8px;
+  appearance: none;
+  border: 2px solid var(--app-reader-paper);
+  border-radius: 999px;
+  background: var(--app-reader-paper);
+  box-shadow: 0 2px 7px color-mix(in srgb, var(--app-reader-ink) 12%, transparent);
+  color: inherit;
+  line-height: 1;
+  overflow: visible;
+  padding: 0;
+  opacity: 0.46;
+  transform: translateY(var(--avatar-shift, 0px)) scale(var(--avatar-scale-active, 1));
+  transform-origin: center;
+  transition:
+    transform var(--avatar-dur, 320ms) var(--avatar-ease-in, cubic-bezier(0.22, 1, 0.36, 1)),
+    box-shadow 160ms ease,
+    opacity 160ms ease,
+    z-index 160ms ease;
+  will-change: transform;
+}
+
+.annotation-sedimentation-review-composer-accessory .reader-agent-avatar-stack-item:first-child {
+  margin-left: 0;
+}
+
+.annotation-sedimentation-review-composer-accessory .reader-agent-avatar-stack-item.is-active,
+.annotation-sedimentation-review-composer-accessory .reader-agent-avatar-stack-item.is-revealed {
+  z-index: 2;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--app-reader-ink) 16%, transparent);
+  opacity: 1;
+  transform: translateY(-4px) scale(1.12);
+}
+
+.annotation-sedimentation-review-composer-accessory
+  .reader-agent-avatar-stack-item:hover:not(.is-active) {
+  opacity: 0.72;
+}
+
+.annotation-sedimentation-review-composer-accessory .reader-agent-avatar-stack-item:focus-visible {
+  outline: 2px solid var(--app-reader-accent-strong);
+  outline-offset: 2px;
+}
+
+.annotation-sedimentation-review-composer-accessory
+  .reader-agent-avatar-stack.is-reviewing
+  .reader-agent-avatar-stack-item.is-active {
+  animation: annotation-sedimentation-review-avatar-float 0.9s ease-in-out infinite;
+}
+
+.annotation-sedimentation-review-composer-accessory
+  .reader-agent-avatar-stack-item
+  .reader-avatar-badge {
+  width: 26px;
+  height: 26px;
+  overflow: hidden;
+  border-radius: 999px;
+  font-size: 10px;
+}
+
+.annotation-sedimentation-review-composer-accessory
+  .reader-agent-avatar-stack-item
+  .reader-avatar-badge
+  img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@keyframes annotation-sedimentation-review-avatar-float {
+  0%,
+  100% {
+    transform: translateY(-4px) scale(1.12);
+  }
+
+  50% {
+    transform: translateY(-8px) scale(1.14);
+  }
+}
+
+.annotation-sedimentation-empty {
+  display: grid;
+  height: var(--app-viewport-height);
+  place-content: center;
+  gap: 8px;
+  background: var(--app-reader-paper);
+  color: var(--app-reader-muted);
+  font-family: var(--font-ui, ui-sans-serif, system-ui, sans-serif);
+  text-align: center;
+}
+
+.annotation-sedimentation-empty strong {
+  color: var(--app-reader-ink);
+  font-size: 15px;
+}
+
+.annotation-sedimentation-empty p {
+  margin: 0;
+  font-size: 12px;
+}

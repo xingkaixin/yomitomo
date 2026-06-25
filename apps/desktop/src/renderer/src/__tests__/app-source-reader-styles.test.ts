@@ -219,9 +219,19 @@ describe('source reader annotation styles', () => {
 });
 
 function expectSharedEmbeddedReaderStyles(bundleStyles: string) {
-  expect(bundleStyles).toContain(':host{all:initial');
-  expect(bundleStyles).toContain('.reader-main{grid-template-columns:minmax(0,1fr)}');
-  expect(bundleStyles).toContain(
+  const compactStyles = compactCss(bundleStyles);
+
+  expect(compactStyles).toContain(':host{all:initial');
+  expect(compactStyles).toContain('.reader-main{grid-template-columns:minmax(0,1fr)}');
+  expect(compactStyles).toContain(
     '.source-reader-shell{grid-template-rows:minmax(0,1fr);padding:0}',
   );
+}
+
+function compactCss(source: string) {
+  return source
+    .replace(/\s+/g, ' ')
+    .replace(/\s*([{}:;,])\s*/g, '$1')
+    .replace(/;}/g, '}')
+    .trim();
 }

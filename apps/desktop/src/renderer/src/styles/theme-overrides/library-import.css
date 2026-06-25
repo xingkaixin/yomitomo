@@ -1,0 +1,230 @@
+.library-import-modal-scrim {
+  background: rgb(0 0 0 / 0.34);
+  backdrop-filter: blur(3px);
+}
+
+.library-import-dialog {
+  border: 1px solid hsl(var(--border) / 0.92);
+  border-radius: 0;
+  background: hsl(var(--card));
+  box-shadow: 0 24px 70px rgb(0 0 0 / 0.22);
+  color: hsl(var(--foreground));
+  padding: 22px;
+}
+
+.library-import-dialog.is-error,
+.library-import-dialog.is-duplicate {
+  border-color: hsl(3 62% 39% / 0.68);
+}
+
+.library-import-dialog.is-imported {
+  border-color: hsl(var(--foreground));
+}
+
+.library-import-dialog > header strong {
+  color: hsl(var(--foreground));
+  font-family: var(--font-reader-serif);
+  font-size: 22px;
+  letter-spacing: 0;
+}
+
+.library-import-dialog > header span,
+.library-import-dialog > footer span,
+.library-article-import-url,
+.library-ebook-dropzone-copy em,
+.library-import-progress em,
+.library-article-duplicate-callout em {
+  color: hsl(var(--muted-foreground));
+}
+
+.library-import-dialog > header button {
+  width: 40px;
+  height: 40px;
+  border-color: hsl(var(--border) / 0.86);
+  border-radius: 0;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
+}
+
+.library-import-dialog > header button:hover,
+.library-import-dialog > header button:focus-visible {
+  border-color: hsl(var(--foreground));
+  background: hsl(var(--foreground));
+  color: hsl(var(--card));
+  outline: 0;
+}
+
+.library-import-dialog > header button:active {
+  transform: scale(0.96);
+}
+
+.library-article-import-box,
+.library-ebook-dropzone {
+  border-color: hsl(var(--border) / 0.92);
+  border-radius: 0;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  box-shadow: none;
+}
+
+.library-article-import-box.is-imported,
+.library-ebook-dropzone.is-imported {
+  border-color: hsl(var(--foreground));
+  background: hsl(var(--card));
+}
+
+.library-article-import-box.is-duplicate,
+.library-article-import-box.is-error,
+.library-ebook-dropzone.is-error {
+  border-color: hsl(3 62% 39% / 0.68);
+  background: hsl(4 68% 96% / 0.44);
+  box-shadow: none;
+}
+
+.library-ebook-dropzone:hover,
+.library-ebook-dropzone.is-dragging {
+  border-color: hsl(var(--foreground));
+  background: hsl(0 0% 0% / 0.025);
+  box-shadow: none;
+}
+
+.library-article-import-input svg {
+  color: hsl(var(--muted-foreground));
+}
+
+.library-article-import-input input {
+  border-color: hsl(var(--border) / 0.92);
+  border-radius: 0;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  box-shadow: none;
+}
+
+.library-article-import-input input:focus {
+  border-color: hsl(var(--foreground));
+  background: hsl(var(--card));
+  box-shadow: 0 0 0 2px hsl(3 62% 39% / 0.12);
+}
+
+.library-import-status-icon,
+.library-ebook-dropzone-icon {
+  border-color: hsl(var(--border) / 0.92);
+  border-radius: 0;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  box-shadow: none;
+}
+
+.library-import-status-icon.is-success,
+.library-ebook-dropzone-icon.is-success {
+  border-color: hsl(var(--foreground));
+  background: hsl(var(--foreground));
+  color: hsl(var(--card));
+}
+
+.library-import-status-icon.is-duplicate,
+.library-import-status-icon.is-error,
+.library-ebook-dropzone-icon.is-error {
+  border-color: hsl(3 62% 39% / 0.68);
+  background: hsl(var(--card));
+  color: var(--app-interactive-link);
+}
+
+.library-article-import-submit,
+.library-article-import-cancel {
+  border: 1px solid hsl(var(--foreground));
+  border-radius: 0;
+  background: hsl(var(--foreground));
+  color: hsl(var(--card));
+  box-shadow: none;
+}
+
+.library-article-import-submit:hover,
+.library-article-import-submit:focus-visible,
+.library-article-import-cancel:hover,
+.library-article-import-cancel:focus-visible {
+  border-color: var(--app-interactive-link);
+  background: var(--app-interactive-link);
+  color: hsl(var(--card));
+}
+
+.library-import-progress-track {
+  height: 4px;
+  border-radius: 0;
+  background: hsl(var(--border) / 0.55);
+}
+
+.library-import-progress-track span,
+.library-import-dialog.is-imported .library-import-progress-track span {
+  border-radius: 0;
+  background: hsl(var(--foreground));
+}
+
+.library-import-dialog.is-duplicate .library-import-progress-track span,
+.library-import-dialog.is-error .library-import-progress-track span {
+  background: var(--app-interactive-link);
+}
+
+.library-file-import-result {
+  border-color: hsl(var(--border) / 0.82);
+  border-radius: 0;
+  background: hsl(var(--card));
+  box-shadow: none;
+}
+
+.library-file-import-result.is-error {
+  border-color: hsl(3 62% 39% / 0.48);
+  background: hsl(4 68% 96% / 0.34);
+}
+
+.library-file-import-cover {
+  border-color: hsl(var(--border) / 0.82);
+  border-radius: 0;
+  background: hsl(0 0% 0% / 0.025);
+  color: hsl(var(--foreground));
+}
+
+.library-file-import-result-copy strong {
+  color: hsl(var(--foreground));
+}
+
+.library-file-import-result-copy em,
+.library-file-import-result-state {
+  color: hsl(var(--muted-foreground));
+}
+
+.library-article-duplicate-callout {
+  border-color: hsl(3 62% 39% / 0.38);
+  border-radius: 0;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  box-shadow: none;
+}
+
+.library-article-duplicate-callout > svg {
+  color: var(--app-interactive-link);
+}
+
+.library-article-duplicate-callout strong {
+  color: hsl(var(--foreground));
+}
+
+.library-import-dialog > footer button {
+  border-color: hsl(var(--foreground));
+  border-radius: 0;
+  background: hsl(var(--foreground));
+  color: hsl(var(--card));
+}
+
+.library-import-dialog > footer button:hover,
+.library-import-dialog > footer button:focus-visible {
+  border-color: var(--app-interactive-link);
+  background: var(--app-interactive-link);
+  color: hsl(var(--card));
+  outline: 0;
+}

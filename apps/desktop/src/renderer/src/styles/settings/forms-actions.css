@@ -1,0 +1,284 @@
+.settings-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.action-button {
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease,
+    color 140ms ease,
+    opacity 140ms ease;
+}
+
+.action-button:hover:not(:disabled) {
+  box-shadow: 0 10px 22px hsl(31 34% 24% / 0.12);
+  transform: translateY(-1px);
+}
+
+.action-button:active:not(:disabled) {
+  box-shadow: 0 4px 12px hsl(31 34% 24% / 0.1);
+  transform: translateY(1px) scale(0.96);
+}
+
+.action-button:disabled {
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.save-action.is-saved {
+  background: hsl(83 24% 35%);
+  color: hsl(var(--primary-foreground));
+  animation: save-confirm 520ms ease;
+}
+
+.save-action.is-saved:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.auto-save-status {
+  display: inline-flex;
+  min-height: 34px;
+  max-width: min(360px, 100%);
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 820;
+  line-height: 1.25;
+}
+
+.auto-save-status svg {
+  flex: 0 0 auto;
+}
+
+.auto-save-status.is-saving svg {
+  animation: app-spin 780ms linear infinite;
+}
+
+.auto-save-status.is-saved {
+  color: hsl(141 41% 36%);
+  animation: save-confirm 520ms ease;
+}
+
+.auto-save-status.is-error {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  color: hsl(var(--destructive));
+}
+
+.auto-save-status.is-error span {
+  max-width: 220px;
+  overflow-wrap: anywhere;
+}
+
+.auto-save-status button {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid hsl(var(--destructive) / 0.32);
+  border-radius: 999px;
+  background: hsl(var(--destructive) / 0.08);
+  color: hsl(var(--destructive));
+  font: inherit;
+  font-size: 12px;
+  font-weight: 860;
+  padding: 0 10px;
+}
+
+.auto-save-status button:hover {
+  background: hsl(var(--destructive) / 0.12);
+}
+
+.settings-inline-error {
+  margin: 0;
+  color: hsl(var(--destructive));
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1.45;
+}
+
+.test-action:hover:not(:disabled) {
+  box-shadow: 0 10px 22px hsl(83 24% 30% / 0.12);
+}
+
+.test-action.is-loading svg {
+  animation: app-spin 780ms linear infinite;
+}
+
+.test-action.is-success {
+  border-color: hsl(141 41% 42% / 0.38);
+  background: hsl(141 41% 40%);
+  color: white;
+}
+
+.test-action.is-error {
+  border-color: hsl(var(--destructive) / 0.38);
+  background: hsl(var(--destructive));
+  color: hsl(var(--destructive-foreground));
+}
+
+.log-refresh-action,
+.log-clear-action {
+  min-width: 86px;
+}
+
+.log-refresh-action.is-loading svg {
+  animation: log-refresh-spin 720ms linear infinite;
+}
+
+.log-clear-action.is-cleared {
+  background: hsl(83 24% 35%);
+  color: hsl(var(--primary-foreground));
+}
+
+.log-clear-action.is-cleared:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+@keyframes log-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes save-confirm {
+  0% {
+    transform: scale(0.96);
+  }
+
+  45% {
+    transform: scale(1.04);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-list-line-bubble,
+  .provider-test-status,
+  .save-action.is-saved,
+  .auto-save-status.is-saved,
+  .activity-stamp.status-today,
+  .onboarding-screen::after,
+  .onboarding-background,
+  .onboarding-enter-button {
+    animation: none;
+  }
+
+  .settings-toggle-switch::after {
+    transition-duration: 1ms;
+    transition-timing-function: linear;
+  }
+
+  .onboarding-line {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+    transition-duration: 0ms;
+  }
+
+  .onboarding-screen::after {
+    opacity: 0;
+  }
+
+  .onboarding-background {
+    filter: brightness(1) saturate(1.04) contrast(1.02);
+  }
+}
+
+.field-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.field-copy p {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.settings-toggle-switch {
+  --toggle-spring-dur: 280ms;
+  --toggle-spring-ease: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  position: relative;
+  width: 44px;
+  height: 26px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: hsl(var(--muted));
+  box-shadow: inset 0 0 0 1px hsl(var(--border));
+  transition:
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.settings-toggle-switch::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: hsl(var(--background));
+  box-shadow: 0 2px 7px hsl(31 34% 24% / 0.22);
+  content: '';
+  transition: transform var(--toggle-spring-dur) var(--toggle-spring-ease);
+}
+
+.data-sources-coming-soon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 16px 0 0;
+  border: 1px dashed hsl(var(--border) / 0.72);
+  border-radius: 8px;
+  background: hsl(var(--muted) / 0.18);
+  padding: 14px;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.shortcut-conflict-badge {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  border-radius: 999px;
+  background: hsl(12 72% 50% / 0.12);
+  color: hsl(12 62% 32%);
+  font-size: 12px;
+  font-weight: 820;
+  line-height: 1.2;
+  padding: 5px 9px;
+}
+
+.theme-select-content {
+  border-color: hsl(var(--border) / 0.82);
+  background:
+    linear-gradient(180deg, hsl(var(--card) / 0.98), hsl(38 43% 93% / 0.98)), hsl(var(--card));
+  box-shadow:
+    0 20px 50px hsl(31 34% 24% / 0.16),
+    inset 0 1px 0 hsl(40 100% 98% / 0.72);
+}
+
+.theme-select-content [role='option'] {
+  color: hsl(var(--foreground));
+}
+
+.theme-select-content [role='option']:focus,
+.theme-select-content [role='option'][data-highlighted] {
+  background: hsl(76 21% 72% / 0.38);
+  color: hsl(var(--foreground));
+}
