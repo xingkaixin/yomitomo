@@ -77,6 +77,7 @@ import {
   shouldLogSelectionDebug,
 } from './web-reader-selection-debug';
 import {
+  shouldUseWebSelectionGesturePreview,
   shouldUseWebSelectionGestureRange,
   webSelectionGesturePointFromClientPoint,
   webSelectionGestureRangeFromClientPoint,
@@ -1079,11 +1080,14 @@ export function WebSourceBookcase({
             clientX: event.clientX,
             clientY: event.clientY,
           };
-          setArticleSelectionGestureVisible(true);
+          setArticleSelectionGestureVisible(
+            shouldUseWebSelectionGesturePreview(articleSelectionGestureRef.current),
+          );
         }
         if (
           event.type === 'pointermove' &&
           articleSelectionGestureRef.current &&
+          shouldUseWebSelectionGesturePreview(articleSelectionGestureRef.current) &&
           event.buttons === 1
         ) {
           articleSelectionGestureDragPointRef.current = {
