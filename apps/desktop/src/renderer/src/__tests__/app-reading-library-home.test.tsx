@@ -933,6 +933,54 @@ describe('ReadingLibrary home', () => {
     performanceNow.mockRestore();
   });
 
+  it('keeps production-minified clear durations in milliseconds', async () => {
+    vi.useFakeTimers();
+    stubReducedMotion(false);
+    let frameTime = 0;
+    const performanceNow = vi.spyOn(performance, 'now').mockImplementation(() => frameTime);
+    const frameTimes = [16, 1000, 1016];
+    const requestAnimationFrameMock = vi.fn((callback: FrameRequestCallback) =>
+      window.setTimeout(() => {
+        frameTime = frameTimes.shift() ?? frameTime + 16;
+        callback(frameTime);
+      }, 0),
+    );
+    const cancelAnimationFrameMock = vi.fn((handle: number) => window.clearTimeout(handle));
+    vi.stubGlobal('requestAnimationFrame', requestAnimationFrameMock);
+    vi.stubGlobal('cancelAnimationFrame', cancelAnimationFrameMock);
+    window.requestAnimationFrame = requestAnimationFrameMock;
+    window.cancelAnimationFrame = cancelAnimationFrameMock;
+    renderLibrary([
+      article({ id: 'alpha_article', title: 'Alpha 阅读' }),
+      article({ id: 'beta_article', title: 'Beta 阅读' }),
+    ]);
+
+    const input = screen.getByLabelText('搜索文章、合集、作者或来源') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'Beta' } });
+    const clearShell = document.querySelector<HTMLElement>('.library-search-input-clear');
+    clearShell?.style.setProperty('--clear-dur', '1s');
+    clearShell?.style.setProperty('--clear-out-dur', '.4s');
+    clearShell?.style.setProperty('--clear-in-dur', '.4s');
+    clearShell?.style.setProperty('--glow-delay', '50ms');
+    clearShell?.style.setProperty('--clear-in-fly', '12px');
+
+    fireEvent.click(screen.getByRole('button', { name: '清空搜索' }));
+
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+
+    expect(clearShell?.classList.contains('is-clearing')).toBe(true);
+
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await vi.runOnlyPendingTimersAsync();
+    });
+
+    expect(clearShell?.classList.contains('is-clearing')).toBe(false);
+    performanceNow.mockRestore();
+  });
+
   it('clears collection list search immediately when reduced motion is requested', () => {
     stubReducedMotion(true);
     const firstArticle = article({
