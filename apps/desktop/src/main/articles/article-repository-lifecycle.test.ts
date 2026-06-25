@@ -1,12 +1,34 @@
 import { DatabaseSync } from 'node:sqlite';
-import { describe, expect, it } from 'vitest';
-import type { Annotation, ReadingMemoryEntry } from '@yomitomo/shared';
+import SQLiteDatabase from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { Annotation, ArticleRecord, Comment, ReadingMemoryEntry } from '@yomitomo/shared';
 import { migrations } from '../db/migrations';
+import * as schema from '../db/schema';
+import type { StoreDatabase } from '../store/store-db';
+
+const storeDbState = vi.hoisted(() => ({
+  database: null as StoreDatabase | null,
+  executor: null as ReadingMemorySqliteExecutor | null,
+}));
+
+vi.mock('../store/store-db', () => ({
+  getDatabase: () => {
+    if (!storeDbState.database) throw new Error('test database is not configured');
+    return storeDbState.database;
+  },
+  getSqliteExecutor: () => {
+    if (!storeDbState.executor) throw new Error('test executor is not configured');
+    return storeDbState.executor;
+  },
+}));
+
 import {
   backfillArticleAnnotationMemoryEntries,
   deleteAnnotationRowsWithMemoryLifecycle,
   deleteArticleRowsWithMemoryLifecycle,
   deleteCommentRowsWithMemoryLifecycle,
+  saveArticleRows,
   syncArticleAnnotationMemoryEntries,
 } from './article-repository';
 import {
@@ -17,6 +39,11 @@ import {
 } from '../reading-memory/reading-memory-store';
 
 describe('article memory lifecycle', () => {
+  afterEach(() => {
+    storeDbState.database = null;
+    storeDbState.executor = null;
+  });
+
   it('deletes article memory entries, projections, and FTS rows with the article', () => {
     const database = lifecycleDatabase();
     appendReadingMemoryEntries(
@@ -237,6 +264,129 @@ describe('article memory lifecycle', () => {
     });
   });
 
+  it('soft-deletes removed annotation memory during full article saves', async () => {
+    const database = articleRowsDatabase();
+    const removedAnnotation = annotation({
+      id: 'annotation_removed',
+      comments: [
+        annotationComment({
+          id: 'comment_removed',
+          content: 'removed annotation comment memory',
+        }),
+      ],
+    });
+
+    await saveArticleRows(articleRecord({ annotations: [removedAnnotation] }));
+    insertProjection(database);
+
+    await saveArticleRows(
+      articleRecord({
+        annotations: [],
+        updatedAt: '2026-05-26T01:00:00.000Z',
+      }),
+    );
+
+    const activeMemoryIds = readReadingMemoryEntries({
+      articleId: 'article_1',
+      executor: database,
+    }).map((entry) => entry.id);
+    expect(activeMemoryIds).toEqual([]);
+    expect(countRows(database, 'reading_memory_projections')).toBe(0);
+    expect(
+      searchReadingMemoryEntries({
+        articleId: 'article_1',
+        query: 'removed',
+        executor: database,
+      }),
+    ).toEqual([]);
+    expect(
+      readReadingMemoryEntries({
+        articleId: 'article_1',
+        includeDeleted: true,
+        executor: database,
+      })
+        .filter((entry) => entry.deletedAt)
+        .map((entry) => ({
+          id: entry.id,
+          deletionReason: entry.deletionReason,
+        })),
+    ).toEqual([
+      {
+        id: 'annotation_memory_annotation_removed',
+        deletionReason: 'annotation_deleted',
+      },
+      {
+        id: 'comment_memory_comment_removed',
+        deletionReason: 'annotation_deleted',
+      },
+    ]);
+  });
+
+  it('soft-deletes removed comment memory during full article saves', async () => {
+    const database = articleRowsDatabase();
+    const retainedComment = annotationComment({
+      id: 'comment_retained',
+      content: 'retained comment memory',
+    });
+    const removedComment = annotationComment({
+      id: 'comment_removed',
+      content: 'removed comment memory',
+    });
+
+    await saveArticleRows(
+      articleRecord({
+        annotations: [
+          annotation({
+            id: 'annotation_1',
+            comments: [retainedComment, removedComment],
+          }),
+        ],
+      }),
+    );
+
+    await saveArticleRows(
+      articleRecord({
+        annotations: [
+          annotation({
+            id: 'annotation_1',
+            comments: [retainedComment],
+          }),
+        ],
+        updatedAt: '2026-05-26T01:00:00.000Z',
+      }),
+    );
+
+    expect(
+      readReadingMemoryEntries({ articleId: 'article_1', executor: database }).map(
+        (entry) => entry.id,
+      ),
+    ).toEqual(['annotation_memory_annotation_1', 'comment_memory_comment_retained']);
+    expect(
+      searchReadingMemoryEntries({
+        articleId: 'article_1',
+        query: 'removed',
+        executor: database,
+      }),
+    ).toEqual([]);
+    expect(
+      readReadingMemoryEntries({
+        articleId: 'article_1',
+        includeDeleted: true,
+        executor: database,
+      })
+        .filter((entry) => entry.deletedAt)
+        .map((entry) => ({
+          id: entry.id,
+          deletionReason: entry.deletionReason,
+        })),
+    ).toEqual([
+      {
+        id: 'comment_memory_comment_removed',
+        deletionReason: 'comment_deleted',
+      },
+    ]);
+  });
+
   it('backfills existing web annotations idempotently and leaves PDFs for lazy fill', () => {
     const database = lifecycleDatabase();
     insertArticle(database, 'web_article');
@@ -318,6 +468,39 @@ function lifecycleDatabase(): ReadingMemorySqliteExecutor {
   const executor = memoryExecutor(database);
   insertArticle(executor, 'article_1');
   return executor;
+}
+
+function articleRowsDatabase(): ReadingMemorySqliteExecutor {
+  const sqlite = new SQLiteDatabase(':memory:');
+  sqlite.pragma('foreign_keys = ON');
+  for (const migration of migrations) {
+    sqlite.exec(migration.sql);
+  }
+
+  const database = drizzle(sqlite, { schema });
+  const executor = sqlite as unknown as ReadingMemorySqliteExecutor;
+  storeDbState.database = database;
+  storeDbState.executor = executor;
+  return executor;
+}
+
+function articleRecord(overrides: Partial<ArticleRecord> = {}): ArticleRecord {
+  return {
+    id: 'article_1',
+    url: 'https://example.com/book',
+    canonicalUrl: 'https://example.com/book',
+    sourceType: 'web',
+    title: 'Book',
+    byline: 'Author',
+    excerpt: 'Excerpt',
+    siteName: 'Example',
+    contentHtml: '<p>目标句子</p>',
+    contentHash: 'hash',
+    annotations: [],
+    createdAt: '2026-05-26T00:00:00.000Z',
+    updatedAt: '2026-05-26T00:00:00.000Z',
+    ...overrides,
+  };
 }
 
 function memoryEntry(overrides: Partial<ReadingMemoryEntry> = {}): ReadingMemoryEntry {
@@ -480,6 +663,16 @@ function annotation(overrides: Partial<Annotation> = {}): Annotation {
     comments: [],
     createdAt: '2026-05-26T00:00:00.000Z',
     updatedAt: '2026-05-26T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+function annotationComment(overrides: Partial<Comment> = {}): Comment {
+  return {
+    id: 'comment_1',
+    author: 'user',
+    content: 'comment memory',
+    createdAt: '2026-05-26T00:10:00.000Z',
     ...overrides,
   };
 }
