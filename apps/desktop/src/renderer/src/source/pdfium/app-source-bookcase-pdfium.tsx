@@ -1299,7 +1299,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       filteredAnnotations: visiblePdfAnnotations,
       newAnnotationIds,
       railLayoutOverride: annotationRailLayout,
-      railViewportHeight: annotationRailViewportHeight,
       searchBoxes,
       temporaryBoxes,
     },

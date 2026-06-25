@@ -93,11 +93,68 @@ import { useReaderSearchMatches } from '../bookcase/use-reader-search-matches';
 
 const WEB_SELECTION_DRAG_ANNOTATION_ID = '__selection_drag__';
 const WEB_HIGHLIGHT_HIT_PADDING = 8;
+const WEB_ANNOTATION_RAIL_DEBUG_STORAGE_KEY = 'yomitomo:web-annotation-rail-debug';
+const WEB_ANNOTATION_RAIL_DEBUG_INTERVAL_MS = 80;
+const WEB_ANNOTATION_RAIL_DEBUG_OVERSCAN = 96;
+const WEB_ANNOTATION_RAIL_DEBUG_SAMPLE_LIMIT = 12;
 
 type ReaderRailViewport = {
   height: number;
   top: number;
 };
+
+type AnnotationRailDebugBoxGroup = {
+  bottom: number;
+  top: number;
+};
+
+function webAnnotationRailDebugEnabled() {
+  try {
+    return (
+      (window as unknown as { yomitomoWebAnnotationRailDebug?: boolean })
+        .yomitomoWebAnnotationRailDebug === true ||
+      window.localStorage.getItem(WEB_ANNOTATION_RAIL_DEBUG_STORAGE_KEY) === '1'
+    );
+  } catch {
+    return false;
+  }
+}
+
+function annotationRailDebugNumber(value: number | undefined | null) {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : null;
+}
+
+function annotationRailDebugRect(rect: DOMRect | DOMRectReadOnly | undefined | null) {
+  if (!rect) return null;
+  return {
+    bottom: annotationRailDebugNumber(rect.bottom),
+    height: annotationRailDebugNumber(rect.height),
+    left: annotationRailDebugNumber(rect.left),
+    right: annotationRailDebugNumber(rect.right),
+    top: annotationRailDebugNumber(rect.top),
+    width: annotationRailDebugNumber(rect.width),
+  };
+}
+
+function annotationRailDebugStyleNumber(value: string) {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? Math.round(parsed) : null;
+}
+
+function annotationRailDebugBoxGroups(boxes: HighlightBox[]) {
+  const groups = new Map<string, AnnotationRailDebugBoxGroup>();
+  for (const box of boxes) {
+    const group = groups.get(box.annotationId);
+    const bottom = box.top + box.height;
+    if (group) {
+      group.top = Math.min(group.top, box.top);
+      group.bottom = Math.max(group.bottom, bottom);
+    } else {
+      groups.set(box.annotationId, { bottom, top: box.top });
+    }
+  }
+  return groups;
+}
 
 export function WebSourceBookcase({
   agents,
@@ -232,6 +289,7 @@ export function WebSourceBookcase({
   const translationToastDismissTimerRef = useRef<number | null>(null);
   const onFocusedAnnotationRef = useRef(onFocusedAnnotation);
   const webFocusBoxCountRef = useRef(0);
+  const annotationRailDebugLastLogRef = useRef(0);
   const scrollToAnnotationRef = useRef<(annotationId: string) => boolean>(() => false);
   const bilingualTranslationTargetLanguage = settings?.bilingualTranslationTargetLanguage;
   const bilingualTranslationStyle = settings?.bilingualTranslationStyle || 'dashedLine';
@@ -639,6 +697,88 @@ export function WebSourceBookcase({
       resizeObserver?.disconnect();
     };
   }, [article.id]);
+
+  useLayoutEffect(() => {
+    if (!webAnnotationRailDebugEnabled()) return;
+    const now = performance.now();
+    if (now - annotationRailDebugLastLogRef.current < WEB_ANNOTATION_RAIL_DEBUG_INTERVAL_MS) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      const scrollElement = scrollRef.current;
+      const canvasElement = canvasRef.current;
+      const railElement = railRef.current;
+      if (!scrollElement || !canvasElement || !railElement) return;
+
+      annotationRailDebugLastLogRef.current = performance.now();
+      const canvasRect = canvasElement.getBoundingClientRect();
+      const scrollRect = scrollElement.getBoundingClientRect();
+      const railRect = railElement.getBoundingClientRect();
+      const viewportTop = annotationRailViewport.top;
+      const viewportBottom = viewportTop + annotationRailViewport.height;
+      const boxGroups = annotationRailDebugBoxGroups(boxes);
+      const noteElements = Array.from(
+        railElement.querySelectorAll<HTMLElement>('.reader-note[data-annotation-id]'),
+      );
+      const notes = noteElements
+        .map((note) => {
+          const annotationId = note.dataset.annotationId || '';
+          const rect = note.getBoundingClientRect();
+          const computed = window.getComputedStyle(note);
+          const inlineTop = annotationRailDebugStyleNumber(note.style.top || computed.top);
+          const actualTop = rect.top - canvasRect.top;
+          const actualBottom = rect.bottom - canvasRect.top;
+          const anchor = boxGroups.get(annotationId) ?? null;
+          return {
+            actualBottom: annotationRailDebugNumber(actualBottom),
+            actualTop: annotationRailDebugNumber(actualTop),
+            actualViewportTop: annotationRailDebugNumber(rect.top - scrollRect.top),
+            anchorBottom: annotationRailDebugNumber(anchor?.bottom),
+            anchorNearViewport: anchor
+              ? anchor.top <= viewportBottom + WEB_ANNOTATION_RAIL_DEBUG_OVERSCAN &&
+                anchor.bottom >= viewportTop - WEB_ANNOTATION_RAIL_DEBUG_OVERSCAN
+              : null,
+            anchorTop: annotationRailDebugNumber(anchor?.top),
+            anchorVisible: anchor
+              ? anchor.top <= viewportBottom && anchor.bottom >= viewportTop
+              : null,
+            classes: note.className,
+            id: annotationId,
+            inlineTop,
+            railSide: note.dataset.railSide ?? null,
+            stackCount: note.dataset.stackCount ?? null,
+            stackIndex: note.dataset.stackIndex ?? null,
+            transform: computed.transform === 'none' ? 'none' : computed.transform,
+          };
+        })
+        .toSorted((left, right) => (left.actualTop ?? 0) - (right.actualTop ?? 0))
+        .slice(0, WEB_ANNOTATION_RAIL_DEBUG_SAMPLE_LIMIT);
+
+      recordRendererPerformanceTiming('reader_annotation_rail_layout', {
+        articleId: article.id,
+        canvasOffsetTop: annotationRailDebugNumber(canvasElement.offsetTop),
+        canvasRect: annotationRailDebugRect(canvasRect),
+        noteCount: noteElements.length,
+        railRect: annotationRailDebugRect(railRect),
+        scroll: {
+          clientHeight: annotationRailDebugNumber(scrollElement.clientHeight),
+          scrollHeight: annotationRailDebugNumber(scrollElement.scrollHeight),
+          scrollTop: annotationRailDebugNumber(scrollElement.scrollTop),
+        },
+        selectedAnnotationId,
+        viewport: {
+          bottom: annotationRailDebugNumber(viewportBottom),
+          height: annotationRailDebugNumber(annotationRailViewport.height),
+          top: annotationRailDebugNumber(viewportTop),
+        },
+        visibleAnchorCount: Array.from(boxGroups.values()).filter(
+          (group) => group.top <= viewportBottom && group.bottom >= viewportTop,
+        ).length,
+        notes,
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [annotationRailViewport, article.id, boxes, selectedAnnotationId]);
 
   const scrollToAnnotation = useCallback(
     (annotationId: string) => {
@@ -1888,8 +2028,6 @@ export function WebSourceBookcase({
       distillationAnimation,
       filteredAnnotations: annotations,
       newAnnotationIds,
-      railViewportHeight: annotationRailViewport.height,
-      railViewportTop: annotationRailViewport.top,
       searchBoxes,
       temporaryBoxes,
     },

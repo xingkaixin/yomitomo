@@ -522,6 +522,74 @@ describe('reader annotation filters', () => {
     expect(farBelowTop).toBe(3590);
   });
 
+  it('does not pull cards into the viewport after their highlight leaves overscan', () => {
+    const items = buildAnnotationRailItems(
+      [annotation('above', { anchor: anchor('above', 0, 10) })],
+      [box('above', { top: 1013, height: 22 })],
+      null,
+      { above: 220 },
+      {
+        articleCenterX: 500,
+        leftRailLeft: 24,
+        mode: 'right',
+        railWidth: 320,
+        rightRailLeft: 980,
+        viewportHeight: 754,
+        viewportTop: 1212,
+      },
+    );
+
+    expect(items[0]?.style.top).toBe(1003);
+  });
+
+  it('does not merge offscreen rail pressure stacks into visible stacks', () => {
+    const annotations = [
+      annotation('old-active', { anchor: anchor('old active', 0, 10) }),
+      annotation('old-second', { anchor: anchor('old second', 20, 30) }),
+      annotation('old-third', { anchor: anchor('old third', 40, 50) }),
+      annotation('old-fourth', { anchor: anchor('old fourth', 60, 70) }),
+      annotation('old-fifth', { anchor: anchor('old fifth', 80, 90) }),
+      annotation('near-first', { anchor: anchor('near first', 100, 110) }),
+      annotation('visible-first', { anchor: anchor('visible first', 120, 130) }),
+    ];
+    const items = buildAnnotationRailItems(
+      annotations,
+      [
+        box('old-active', { top: 307, height: 23 }),
+        box('old-second', { top: 307, height: 23 }),
+        box('old-third', { top: 307, height: 23 }),
+        box('old-fourth', { top: 353, height: 67 }),
+        box('old-fifth', { top: 443, height: 51 }),
+        box('near-first', { top: 574, height: 125 }),
+        box('visible-first', { top: 750, height: 22 }),
+      ],
+      'old-active',
+      {
+        'old-active': 160,
+        'old-second': 160,
+        'old-third': 160,
+        'old-fourth': 160,
+        'old-fifth': 160,
+        'near-first': 160,
+        'visible-first': 160,
+      },
+      {
+        articleCenterX: 500,
+        leftRailLeft: 24,
+        mode: 'right',
+        railWidth: 320,
+        rightRailLeft: 980,
+        viewportHeight: 754,
+        viewportTop: 726,
+      },
+    );
+    const byId = new Map(items.map((item) => [item.annotation.id, item]));
+
+    expect(byId.get('old-active')?.style.top).toBe(297);
+    expect(byId.get('old-active')?.stackCount).toBe(5);
+    expect(byId.get('near-first')?.stackCount).toBe(2);
+  });
+
   it('anchors the active rail card near its highlight under same-side pressure', () => {
     const viewportTop = 1600;
     const viewportHeight = 760;
