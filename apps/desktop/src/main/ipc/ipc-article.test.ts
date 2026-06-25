@@ -72,6 +72,87 @@ describe('article IPC source asset cleanup', () => {
 });
 
 describe('article IPC patch broadcasts', () => {
+  it('broadcasts article patches after saving whole articles from secondary windows', async () => {
+    storageMocks.ipcMainHandle.mockClear();
+    const article = {
+      id: 'article_1',
+      url: 'https://example.com',
+      canonicalUrl: 'https://example.com',
+      sourceType: 'web' as const,
+      title: '文章',
+      contentHash: 'hash',
+      annotations: [],
+      createdAt: '2026-06-15T00:00:00.000Z',
+      updatedAt: '2026-06-15T00:01:00.000Z',
+    };
+    const patch = { type: 'article-upsert' as const, article };
+    const saveArticle = vi.fn().mockResolvedValue(patch);
+    const sendArticlePatched = vi.fn();
+
+    registerArticleIpc({
+      getMainWindow: () =>
+        ({
+          isDestroyed: () => false,
+          webContents: { id: 1 },
+        }) as never,
+      getPersistenceModule: async () => ({
+        articlePersistence: { saveArticle },
+      }),
+      sendArticlePatched,
+    } as unknown as DesktopMainIpcContext);
+
+    const handler = storageMocks.ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === 'article:save',
+    )?.[1];
+    expect(handler).toBeTypeOf('function');
+
+    const result = await handler({ sender: { id: 2 } }, article);
+
+    expect(saveArticle).toHaveBeenCalledWith(article);
+    expect(result).toEqual({ ok: true, value: patch });
+    expect(sendArticlePatched).toHaveBeenCalledWith(patch);
+  });
+
+  it('does not rebroadcast article patches after saving from the main window', async () => {
+    storageMocks.ipcMainHandle.mockClear();
+    const article = {
+      id: 'article_1',
+      url: 'https://example.com',
+      canonicalUrl: 'https://example.com',
+      sourceType: 'web' as const,
+      title: '文章',
+      contentHash: 'hash',
+      annotations: [],
+      createdAt: '2026-06-15T00:00:00.000Z',
+      updatedAt: '2026-06-15T00:01:00.000Z',
+    };
+    const patch = { type: 'article-upsert' as const, article };
+    const saveArticle = vi.fn().mockResolvedValue(patch);
+    const sendArticlePatched = vi.fn();
+
+    registerArticleIpc({
+      getMainWindow: () =>
+        ({
+          isDestroyed: () => false,
+          webContents: { id: 1 },
+        }) as never,
+      getPersistenceModule: async () => ({
+        articlePersistence: { saveArticle },
+      }),
+      sendArticlePatched,
+    } as unknown as DesktopMainIpcContext);
+
+    const handler = storageMocks.ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === 'article:save',
+    )?.[1];
+    expect(handler).toBeTypeOf('function');
+
+    const result = await handler({ sender: { id: 1 } }, article);
+
+    expect(result).toEqual({ ok: true, value: patch });
+    expect(sendArticlePatched).not.toHaveBeenCalled();
+  });
+
   it('broadcasts article patches after saving annotations', async () => {
     storageMocks.ipcMainHandle.mockClear();
     const annotation: Annotation = {
