@@ -341,7 +341,7 @@ async function createWindow() {
 void app.whenReady().then(async () => {
   logInfo('app.ready', { logPath: getLogPath() });
   recordStartupTiming('app.ready');
-  if (process.platform === 'darwin' && app.dock) app.dock.setIcon(appIconPath);
+  if (!app.isPackaged && process.platform === 'darwin' && app.dock) app.dock.setIcon(appIconPath);
   registerIpc();
   scheduleModelPriceRefresh();
   scheduleAppUpdateCheck();
