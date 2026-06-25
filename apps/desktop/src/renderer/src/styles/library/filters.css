@@ -1,0 +1,370 @@
+.library-search {
+  position: relative;
+  display: block;
+  flex: 1 1 320px;
+  width: min(420px, 42vw);
+  min-width: 240px;
+}
+
+.library-search svg {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  z-index: 1;
+  color: hsl(34 18% 45%);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.library-search input {
+  height: 40px;
+  border-color: hsl(36 31% 72% / 0.62);
+  border-radius: 999px;
+  background: hsl(45 72% 98% / 0.82);
+  color: hsl(31 23% 20%);
+  font-size: 13px;
+  font-weight: 720;
+  padding-left: 40px;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    background 150ms ease;
+}
+
+.library-search input:focus {
+  background: hsl(45 72% 99% / 0.92);
+  box-shadow: none;
+}
+
+.library-type-filter-trigger {
+  width: 138px;
+  height: 40px;
+  flex: 0 0 auto;
+  border-color: hsl(36 31% 72% / 0.76);
+  border-radius: 999px;
+  background: hsl(45 72% 98% / 0.82);
+  color: hsl(31 23% 20%);
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.library-search-combo {
+  display: grid;
+  width: min(640px, 54vw);
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  border: 1px solid hsl(var(--border) / 0.82);
+  border-radius: 999px;
+  background: hsl(var(--card) / 0.86);
+  overflow: hidden;
+}
+
+.library-search-combo > svg {
+  position: static;
+  margin-left: 14px;
+  color: hsl(var(--muted-foreground));
+  transform: none;
+}
+
+.library-search-combo input {
+  height: 40px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: hsl(var(--foreground));
+  padding-right: 10px;
+  padding-left: 10px;
+}
+
+.library-search-combo input:focus {
+  background: transparent;
+  box-shadow: none;
+}
+
+.library-search-combo .library-type-filter-trigger {
+  width: 142px;
+  height: 40px;
+  border: 0;
+  border-left: 1px solid hsl(var(--border) / 0.72);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: hsl(var(--foreground));
+}
+
+/* 类型筛选内嵌搜索框（方案 C，阅读库主视图） */
+.library-search-typed {
+  display: grid;
+  flex: 0 1 auto;
+  width: min(560px, 48vw);
+  min-width: 260px;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  border: 1px solid hsl(var(--border) / 0.82);
+  border-radius: 999px;
+  background: hsl(var(--card) / 0.86);
+  overflow: hidden;
+}
+
+.library-search-typed > svg {
+  margin-left: 14px;
+  color: hsl(var(--muted-foreground));
+}
+
+/* 内嵌左侧类型筛选触发器（方案 C） */
+.library-type-filter-button {
+  display: inline-flex;
+  height: 40px;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-right: 1px solid hsl(var(--border) / 0.72);
+  background: transparent;
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  font-weight: 760;
+  padding: 0 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.library-type-filter-button > svg {
+  color: hsl(var(--muted-foreground));
+}
+
+.library-search-field {
+  display: flex;
+  min-width: 0;
+  height: 40px;
+  align-items: center;
+  gap: 6px;
+  padding-left: 10px;
+  overflow: hidden;
+}
+
+.library-search-field input {
+  height: 40px;
+  flex: 1 1 auto;
+  min-width: 48px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: hsl(var(--foreground));
+  padding-right: 12px;
+  padding-left: 0;
+}
+
+.library-search-field input:focus {
+  background: transparent;
+  box-shadow: none;
+}
+
+.library-type-filter-chips {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  padding-right: 10px;
+  border-right: 1px solid hsl(var(--border) / 0.72);
+}
+
+.library-type-filter-chip {
+  position: relative;
+  display: inline-flex;
+  height: 22px;
+  align-items: center;
+  border: 1px solid var(--app-interactive-badge-border);
+  border-radius: 999px;
+  background: var(--app-interactive-badge-bg);
+  color: var(--app-interactive-badge-fg);
+  font-size: 11px;
+  font-weight: 760;
+  padding: 0 8px;
+  white-space: nowrap;
+  cursor: default;
+  overflow: hidden;
+}
+
+/* 删除按钮默认隐藏，hover 整个 chip 时居中浮现覆盖层 */
+.library-type-filter-chip-remove {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: color-mix(
+    in srgb,
+    var(--app-interactive-badge-fg) 22%,
+    var(--app-interactive-badge-bg)
+  );
+  color: var(--app-interactive-badge-fg);
+  cursor: default;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.library-type-filter-chip:hover .library-type-filter-chip-remove,
+.library-type-filter-chip-remove:focus-visible {
+  opacity: 1;
+}
+
+/* 类型多选菜单 */
+.library-type-filter-menu {
+  display: grid;
+  width: 232px;
+  gap: 1px;
+  padding: 6px;
+}
+
+.library-type-filter-menu-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px 8px;
+}
+
+.library-type-filter-menu-head span {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.library-type-filter-menu-head button {
+  border: 0;
+  background: transparent;
+  color: var(--app-interactive-link);
+  font-size: 12px;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.library-type-filter-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 120ms ease;
+}
+
+.library-type-filter-option:hover {
+  background: var(--app-interactive-hover-bg);
+}
+
+.library-type-filter-check {
+  display: inline-grid;
+  width: 17px;
+  height: 17px;
+  flex: none;
+  place-items: center;
+  border: 1.5px solid hsl(var(--border));
+  border-radius: 5px;
+  color: transparent;
+}
+
+.library-type-filter-option.is-on .library-type-filter-check {
+  border-color: var(--app-interactive-selected-bg);
+  background: var(--app-interactive-selected-bg);
+  color: var(--app-interactive-selected-fg);
+}
+
+.library-type-filter-option-icon {
+  display: inline-grid;
+  place-items: center;
+  color: hsl(var(--muted-foreground));
+}
+
+.library-type-filter-option-label {
+  flex: 1;
+}
+
+.library-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 0 26px 18px;
+}
+
+.library-toolbar span {
+  color: hsl(34 18% 42%);
+  font-size: 12px;
+  font-weight: 860;
+  line-height: 1;
+}
+
+.library-filter-group {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 4px;
+  overflow: auto;
+  border: 1px solid hsl(36 31% 76% / 0.52);
+  border-radius: 999px;
+  background: hsl(39 42% 88% / 0.34);
+  padding: 4px;
+}
+
+.library-filter-group button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: hsl(34 18% 42%);
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1;
+  padding: 0 12px;
+  white-space: nowrap;
+  transition:
+    background 150ms ease,
+    box-shadow 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
+}
+
+.library-filter-group button:hover,
+.library-filter-group button.is-active {
+  background: hsl(45 68% 98% / 0.92);
+  color: hsl(31 23% 20%);
+  box-shadow: 0 6px 18px hsl(31 34% 24% / 0.08);
+}
+
+.library-filter-group button:active {
+  transform: scale(0.96);
+}
+
+.library-sort-trigger {
+  width: 142px;
+  height: 40px;
+  flex: 0 0 auto;
+  border-color: hsl(36 31% 72% / 0.76);
+  border-radius: 999px;
+  background: hsl(45 72% 98% / 0.82);
+  color: hsl(31 23% 20%);
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.library-home-body {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
+  border-top: 1px solid hsl(var(--border) / 0.72);
+  background:
+    linear-gradient(90deg, hsl(45 60% 98% / 0.24), transparent 48%),
+    repeating-linear-gradient(90deg, hsl(31 24% 38% / 0.025) 0 1px, transparent 1px 14px);
+  padding: 20px 26px;
+}

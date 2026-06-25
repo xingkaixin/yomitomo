@@ -7,6 +7,7 @@ const annotationDiscussionStyles = readFileSync(
   new URL('../styles/annotation-discussion.css', import.meta.url),
   'utf8',
 );
+const libraryStyles = readFileSync(new URL('../styles/library.css', import.meta.url), 'utf8');
 
 describe('renderer styles entry', () => {
   it('keeps styles.css as the ordered global CSS entry', () => {
@@ -33,6 +34,17 @@ describe('renderer styles entry', () => {
 @import './annotation-discussion/composer.css';
 @import './annotation-discussion/sedimentation.css';
 @import './annotation-discussion/shared.css';`);
+  });
+
+  it('keeps library styles as ordered partial imports', () => {
+    expect(libraryStyles.trim()).toBe(`@import './library/shell.css';
+@import './library/home-import.css';
+@import './library/filters.css';
+@import './library/cards.css';
+@import './library/bookcase.css';
+@import './library/covers.css';
+@import './library/actions-empty.css';
+@import './library/notebook.css';`);
   });
 
   it('expands local CSS imports for style assertions', () => {
