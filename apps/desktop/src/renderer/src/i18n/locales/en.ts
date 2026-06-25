@@ -225,6 +225,7 @@ export const enResources = {
       assistantReadingActive: 'co-reading',
       assistantReadingStatus: 'Assistant co-reading status',
       backToLibrary: 'Back to library',
+      clearSearch: 'Clear search',
       closeReader: 'Close reader',
       closeHighlightChoice: 'Close highlight picker',
       closeSearch: 'Close search',

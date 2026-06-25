@@ -194,6 +194,7 @@ export type ReaderUiLabels = {
   assistantReadingStatus: string;
   backToLibrary: string;
   cancel: string;
+  clearSearch: string;
   closeReader: string;
   closeHighlightChoice: string;
   closeSearch: string;
@@ -275,6 +276,7 @@ export const defaultReaderUiLabels: ReaderUiLabels = {
   },
   backToLibrary: '阅读库',
   cancel: '取消',
+  clearSearch: '清空搜索',
   closeReader: '关闭阅读器',
   closeHighlightChoice: '关闭划线选择',
   closeSearch: '关闭搜索',
