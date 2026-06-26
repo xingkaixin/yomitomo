@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.2 - 2026-06-26
+
+### Fixes
+
+- Preserved production-minified search clear animation durations in the Library, so `1s` / `.4s` CSS values are interpreted as seconds instead of milliseconds and the clear dissolve no longer ends too early. (#552)
+
 ## 0.9.1 - 2026-06-25
 
 ### Features

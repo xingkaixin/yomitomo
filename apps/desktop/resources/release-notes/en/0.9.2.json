@@ -1,0 +1,11 @@
+{
+  "version": "0.9.2",
+  "highlights": [
+    {
+      "type": "fixed",
+      "title": "Steadier Library search clearing",
+      "description": "Fixed production duration parsing for clearing search. The clear button dissolve now plays for its intended length instead of flashing away too early.",
+      "audience": "reader"
+    }
+  ]
+}
