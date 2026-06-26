@@ -1,0 +1,11 @@
+{
+  "version": "0.9.2",
+  "highlights": [
+    {
+      "type": "fixed",
+      "title": "阅读库搜索清空动效更稳定",
+      "description": "修复生产构建中清空搜索时长单位被误读的问题。清空按钮的溶解过渡会按设计完整播放，不再一闪而过。",
+      "audience": "reader"
+    }
+  ]
+}

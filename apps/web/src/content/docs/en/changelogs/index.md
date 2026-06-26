@@ -5,6 +5,15 @@ sidebar:
   hidden: true
 ---
 
+## 0.9.2
+
+Released: 2026-06-26
+
+- Fixed Library search clear duration parsing in production builds, so the dissolve transition no longer ends too early.
+- This is a patch release for the Library search experience.
+
+[View 0.9.2 release notes](/en/changelogs/v0-9-2/)
+
 ## 0.9.1
 
 Released: 2026-06-25
