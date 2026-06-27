@@ -132,16 +132,21 @@ describe('reader embedded styles', () => {
   it('renders the table of contents as line navigation with count badges', () => {
     expectCssToContain(
       readerStyles,
-      '.reader-toc{--reader-toc-line-width:10px;--reader-toc-line-active-width:20px;--reader-toc-line-current-width:var(--reader-toc-line-width);',
+      '.reader-toc{--reader-toc-line-width:10px;--reader-toc-line-active-width:24px;--reader-toc-line-active-delta:calc(var(--reader-toc-line-active-width) - var(--reader-toc-line-width));--reader-toc-line-current-width:var(--reader-toc-line-width);--reader-toc-title-shift:0px;',
     );
     expectCssToContain(
       readerStyles,
-      '.reader-toc-item{display:grid;grid-template-columns:var(--reader-toc-line-current-width) minmax(0,1fr);',
+      '.reader-toc-item{display:grid;grid-template-columns:var(--reader-toc-line-width) minmax(0,1fr);',
     );
-    expect(readerConversationStyles).toContain('.reader-toc-line{');
+    expect(readerConversationStyles).toContain(
+      '.reader-toc-item-main{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;min-width:0;box-sizing:border-box;padding-right:var(--reader-toc-title-shift,0px);transform:translateX(var(--reader-toc-title-shift,0px));',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-toc-line{display:block;width:var(--reader-toc-line-current-width);',
+    );
     expect(readerConversationStyles).toContain('.reader-toc-count{');
     expect(readerConversationStyles).toContain(
-      '@media(prefers-reduced-motion:reduce){.reader-toc-item,.reader-toc-line{transform:none!important;',
+      '@media(prefers-reduced-motion:reduce){.reader-toc-item,.reader-toc-line,.reader-toc-item-main{transition:none!important;will-change:auto}.reader-toc-item{transform:none!important}',
     );
     expect(readerConversationStyles).not.toContain('.reader-toc-markers');
     expect(readerConversationStyles).not.toContain('.reader-toc-item::before');

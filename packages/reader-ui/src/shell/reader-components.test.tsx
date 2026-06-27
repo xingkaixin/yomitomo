@@ -1308,17 +1308,20 @@ describe('ReaderTocPanel', () => {
 
     expect(focusedButton.style.getPropertyValue('--reader-toc-shift')).toBe('3.000px');
     expect(focusedButton.style.getPropertyValue('--reader-toc-line-current-width')).toBe(
-      '20.000px',
+      '24.000px',
     );
+    expect(focusedButton.style.getPropertyValue('--reader-toc-title-shift')).toBe('14.000px');
     expect(previousButton.style.getPropertyValue('--reader-toc-shift')).toBe('1.440px');
     expect(previousButton.style.getPropertyValue('--reader-toc-line-current-width')).toBe(
-      '14.800px',
+      '16.720px',
     );
+    expect(previousButton.style.getPropertyValue('--reader-toc-title-shift')).toBe('6.720px');
 
     fireEvent.blur(focusedButton);
 
     expect(focusedButton.style.getPropertyValue('--reader-toc-shift')).toBe('');
     expect(focusedButton.style.getPropertyValue('--reader-toc-line-current-width')).toBe('');
+    expect(focusedButton.style.getPropertyValue('--reader-toc-title-shift')).toBe('');
   });
 
   it('marks active toc index 0 as the current location', () => {
