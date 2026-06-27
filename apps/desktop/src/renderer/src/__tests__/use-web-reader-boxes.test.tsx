@@ -138,19 +138,72 @@ describe('useWebReaderBoxes', () => {
 
     expect(recordPerformanceTiming).toHaveBeenCalledTimes(1);
   });
+
+  it('keeps the box effect stable when store patches rebuild equivalent inputs', async () => {
+    const recordPerformanceTiming = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: { recordPerformanceTiming },
+    });
+    const originalArticle = article();
+
+    const { rerender } = render(
+      <WebReaderBoxesProbe
+        annotationAgents={[]}
+        annotations={[]}
+        articleInput={originalArticle}
+        userProfileInput={userProfile}
+      />,
+    );
+
+    await act(async () => {
+      vi.runOnlyPendingTimers();
+    });
+    expect(MockResizeObserver.instances).toHaveLength(1);
+
+    rerender(
+      <WebReaderBoxesProbe
+        annotationAgents={[]}
+        annotations={[]}
+        articleInput={{ ...originalArticle }}
+        userProfileInput={{ ...userProfile }}
+      />,
+    );
+
+    await act(async () => {
+      vi.runOnlyPendingTimers();
+    });
+
+    expect(MockResizeObserver.instances).toHaveLength(1);
+    expect(recordPerformanceTiming).toHaveBeenCalledTimes(1);
+  });
 });
 
-function WebReaderBoxesProbe({ rects }: { rects?: { article: DOMRect; canvas: DOMRect } }) {
+function WebReaderBoxesProbe({
+  annotationAgents = probeAnnotationAgents,
+  annotations = probeAnnotations,
+  articleInput = probeArticle,
+  contentHtml = '<p>正文</p>',
+  rects,
+  userProfileInput = userProfile,
+}: {
+  annotationAgents?: PublicAgent[];
+  annotations?: Annotation[];
+  articleInput?: ArticleRecord;
+  contentHtml?: string;
+  rects?: { article: DOMRect; canvas: DOMRect };
+  userProfileInput?: UserProfile;
+}) {
   const articleRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   useWebReaderBoxes({
-    annotationAgents: probeAnnotationAgents,
-    annotations: probeAnnotations,
-    article: probeArticle,
+    annotationAgents,
+    annotations,
+    article: articleInput,
     articleRef,
     canvasRef,
-    contentHtml: '<p>正文</p>',
-    userProfile,
+    contentHtml,
+    userProfile: userProfileInput,
   });
 
   return (

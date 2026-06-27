@@ -47,6 +47,15 @@ export function useWebReaderBoxes({
   const [boxes, setBoxes] = useState<HighlightBox[]>([]);
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
   const lastResultSignatureRef = useRef('');
+  const inputRef = useRef({ annotationAgents, annotations, article, contentHtml, userProfile });
+  inputRef.current = { annotationAgents, annotations, article, contentHtml, userProfile };
+  const articleId = article.id;
+  const articleTitle = article.title;
+  const annotationBoxesSignature = webReaderAnnotationBoxesSignature(
+    annotations,
+    userProfile,
+    annotationAgents,
+  );
 
   useEffect(() => {
     const articleElement = articleRef.current;
@@ -67,6 +76,7 @@ export function useWebReaderBoxes({
       if (frame) return;
       frame = window.requestAnimationFrame(() => {
         frame = 0;
+        const currentInput = inputRef.current;
         const startedAt = performance.now();
         const text = sourceTextContent(articleElement);
         const canvasRect = canvasElement.getBoundingClientRect();
@@ -74,10 +84,10 @@ export function useWebReaderBoxes({
         const nextTocItems =
           extractedTocItems.length > 0
             ? extractedTocItems
-            : articleTitleTocItems(articleElement, article.title);
+            : articleTitleTocItems(articleElement, currentInput.article.title);
         let resolvedAnchorCount = 0;
         let rangeCount = 0;
-        const nextBoxes = annotations.flatMap((annotation) => {
+        const nextBoxes = currentInput.annotations.flatMap((annotation) => {
           const range = annotation.anchor.segmentId
             ? rangeForTranslationTextAnchor(articleElement, annotation.anchor)
             : (() => {
@@ -96,13 +106,12 @@ export function useWebReaderBoxes({
           return rangeHighlightBoxes(range, canvasRect, annotation.id).map((box) =>
             Object.assign(box, {
               annotationId: annotation.id,
-              contributorId:
-                annotation.agentId ||
-                annotation.agentUsername ||
-                annotation.userId ||
-                annotation.userUsername ||
-                annotation.author,
-              color: annotationColor(annotation, userProfile, annotationAgents),
+              contributorId: webReaderAnnotationContributorId(annotation),
+              color: annotationColor(
+                annotation,
+                currentInput.userProfile,
+                currentInput.annotationAgents,
+              ),
             }),
           );
         });
@@ -114,14 +123,14 @@ export function useWebReaderBoxes({
         recordRendererPerformanceTiming('reader_highlight_boxes', {
           source: 'web',
           elapsedMs: rendererPerformanceElapsedMs(startedAt),
-          articleId: article.id,
-          annotationCount: annotations.length,
+          articleId: currentInput.article.id,
+          annotationCount: currentInput.annotations.length,
           resolvedAnchorCount,
           rangeCount,
           boxCount: nextBoxes.length,
           textChars: text.length,
           tocItemCount: nextTocItems.length,
-          contentHtmlChars: contentHtml.length,
+          contentHtmlChars: currentInput.contentHtml.length,
         });
       });
     };
@@ -138,7 +147,7 @@ export function useWebReaderBoxes({
       resizeObserver.disconnect();
       window.removeEventListener('resize', updateBoxesForWindowResize);
     };
-  }, [annotationAgents, annotations, article, articleRef, canvasRef, contentHtml, userProfile]);
+  }, [annotationBoxesSignature, articleId, articleTitle, articleRef, canvasRef, contentHtml]);
 
   return { boxes, tocItems };
 }
@@ -175,4 +184,47 @@ function webReaderBoxesResultSignature(boxes: HighlightBox[], tocItems: TocItem[
 
 function roundedBoxValue(value: number) {
   return Math.round(value * 100) / 100;
+}
+
+function webReaderAnnotationBoxesSignature(
+  annotations: Annotation[],
+  userProfile: UserProfile,
+  annotationAgents: PublicAgent[],
+) {
+  return JSON.stringify(
+    annotations.map((annotation) => [
+      annotation.id,
+      webReaderAnchorSignature(annotation.anchor),
+      webReaderAnnotationContributorId(annotation),
+      annotationColor(annotation, userProfile, annotationAgents),
+    ]),
+  );
+}
+
+function webReaderAnchorSignature(anchor: Annotation['anchor']) {
+  return [
+    anchor.exact,
+    anchor.prefix,
+    anchor.suffix,
+    anchor.start,
+    anchor.end,
+    anchor.paragraphId ?? '',
+    anchor.chapterId ?? '',
+    anchor.segmentId ?? '',
+    anchor.textStartInParagraph ?? null,
+    anchor.textEndInParagraph ?? null,
+    anchor.textStartInBook ?? null,
+    anchor.textEndInBook ?? null,
+    anchor.quoteHash ?? '',
+  ];
+}
+
+function webReaderAnnotationContributorId(annotation: Annotation) {
+  return (
+    annotation.agentId ||
+    annotation.agentUsername ||
+    annotation.userId ||
+    annotation.userUsername ||
+    annotation.author
+  );
 }

@@ -4,6 +4,8 @@ import React from 'react';
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  EBOOK_PAGINATION_PAGE_COUNT_CACHE_LIMIT,
+  EbookPaginationPageCountCache,
   ebookPaginationCacheKey,
   ebookPendingPaginationSectionIndexes,
   ebookPaginationSectionOrder,
@@ -351,6 +353,28 @@ describe('useEbookFoliateView', () => {
     expect(ebookPaginationCacheKey(base)).not.toEqual(
       ebookPaginationCacheKey({ ...base, columns: 2 }),
     );
+  });
+
+  it('bounds EPUB pagination page-count cache entries with LRU eviction', () => {
+    const cache = new EbookPaginationPageCountCache(2);
+
+    cache.set('a', [1]);
+    cache.set('b', [2]);
+    expect(cache.get('a')).toEqual([1]);
+    cache.set('c', [3]);
+
+    expect(cache.size).toBe(2);
+    expect(cache.get('b')).toBeUndefined();
+    expect(cache.get('a')).toEqual([1]);
+    expect(cache.get('c')).toEqual([3]);
+
+    const fullCache = new EbookPaginationPageCountCache(EBOOK_PAGINATION_PAGE_COUNT_CACHE_LIMIT);
+    for (let index = 0; index < EBOOK_PAGINATION_PAGE_COUNT_CACHE_LIMIT + 3; index += 1) {
+      fullCache.set(`key-${index}`, [index]);
+    }
+
+    expect(fullCache.size).toBe(EBOOK_PAGINATION_PAGE_COUNT_CACHE_LIMIT);
+    expect(fullCache.get('key-0')).toBeUndefined();
   });
 
   it('joins concurrent EPUB page-count measurements for the same layout', async () => {

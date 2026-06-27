@@ -5,7 +5,7 @@ import {
   desc,
   eq,
   inArray,
-  isNull,
+  isNotNull,
   or,
   sql,
   type AnyColumn,
@@ -539,58 +539,34 @@ function readArticleSummaryCountsInternal(
 ) {
   const articleFilter = scope ? inArray(schema.annotations.articleId, scope.articleIds) : undefined;
   const profileName = (name: string) => `${name}${scope?.profileNameSuffix || ''}`;
-  const annotationCounts = measureStoreRead(
+  const annotationSummaryCounts = measureStoreRead(
     profile,
-    profileName('count_annotations_by_article'),
+    profileName('count_annotation_summary_by_article'),
     () =>
       database
         .select({
           articleId: schema.annotations.articleId,
-          count: count(),
+          annotationCount: count(),
+          distillationCount: sql<number>`coalesce(sum(case when ${schema.annotations.distillationStatus} = ${'published'} then 1 else 0 end), 0)`,
         })
         .from(schema.annotations)
         .where(articleFilter)
         .groupBy(schema.annotations.articleId)
         .all(),
   );
-  const commentCounts = measureStoreRead(profile, profileName('count_comments_by_article'), () =>
-    database
-      .select({
-        articleId: schema.annotations.articleId,
-        count: count(),
-      })
-      .from(schema.comments)
-      .innerJoin(schema.annotations, eq(schema.comments.annotationId, schema.annotations.id))
-      .where(andConditions(isNull(schema.comments.replyTo), articleFilter))
-      .groupBy(schema.annotations.articleId)
-      .all(),
-  );
-  const aiCommentCounts = measureStoreRead(
+  const commentSummaryCounts = measureStoreRead(
     profile,
-    profileName('count_ai_comments_by_article'),
+    profileName('count_comment_summary_by_article'),
     () =>
       database
         .select({
           articleId: schema.annotations.articleId,
-          count: count(),
+          commentCount: sql<number>`coalesce(sum(case when ${schema.comments.replyTo} is null then 1 else 0 end), 0)`,
+          aiCommentCount: sql<number>`coalesce(sum(case when ${schema.comments.author} = ${'ai'} then 1 else 0 end), 0)`,
         })
         .from(schema.comments)
         .innerJoin(schema.annotations, eq(schema.comments.annotationId, schema.annotations.id))
-        .where(andConditions(eq(schema.comments.author, 'ai'), articleFilter))
-        .groupBy(schema.annotations.articleId)
-        .all(),
-  );
-  const distillationCounts = measureStoreRead(
-    profile,
-    profileName('count_distillations_by_article'),
-    () =>
-      database
-        .select({
-          articleId: schema.annotations.articleId,
-          count: count(),
-        })
-        .from(schema.annotations)
-        .where(andConditions(eq(schema.annotations.distillationStatus, 'published'), articleFilter))
+        .where(articleFilter)
         .groupBy(schema.annotations.articleId)
         .all(),
   );
@@ -604,53 +580,33 @@ function readArticleSummaryCountsInternal(
           reviewSessions: schema.annotations.distillationReviewSessions,
         })
         .from(schema.annotations)
-        .where(articleFilter)
+        .where(
+          andConditions(articleFilter, isNotNull(schema.annotations.distillationReviewSessions)),
+        )
         .all(),
   );
   const countsByArticle = new Map<string, ArticleSummaryCounts>();
 
-  for (const row of annotationCounts) {
+  for (const row of annotationSummaryCounts) {
     countsByArticle.set(row.articleId, {
-      annotationCount: row.count,
+      annotationCount: row.annotationCount || 0,
       commentCount: 0,
       aiCommentCount: 0,
-      distillationCount: 0,
+      distillationCount: row.distillationCount || 0,
     });
   }
 
-  for (const row of commentCounts) {
+  for (const row of commentSummaryCounts) {
     const counts = countsByArticle.get(row.articleId);
-    if (counts) counts.commentCount = row.count;
-    else
+    if (counts) {
+      counts.commentCount = row.commentCount || 0;
+      counts.aiCommentCount = row.aiCommentCount || 0;
+    } else
       countsByArticle.set(row.articleId, {
         annotationCount: 0,
-        commentCount: row.count,
-        aiCommentCount: 0,
+        commentCount: row.commentCount || 0,
+        aiCommentCount: row.aiCommentCount || 0,
         distillationCount: 0,
-      });
-  }
-
-  for (const row of aiCommentCounts) {
-    const counts = countsByArticle.get(row.articleId);
-    if (counts) counts.aiCommentCount = row.count;
-    else
-      countsByArticle.set(row.articleId, {
-        annotationCount: 0,
-        commentCount: 0,
-        aiCommentCount: row.count,
-        distillationCount: 0,
-      });
-  }
-
-  for (const row of distillationCounts) {
-    const counts = countsByArticle.get(row.articleId);
-    if (counts) counts.distillationCount = row.count;
-    else
-      countsByArticle.set(row.articleId, {
-        annotationCount: 0,
-        commentCount: 0,
-        aiCommentCount: 0,
-        distillationCount: row.count,
       });
   }
 
