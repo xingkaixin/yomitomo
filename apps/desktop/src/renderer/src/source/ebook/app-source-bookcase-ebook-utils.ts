@@ -218,6 +218,23 @@ export type EbookSpreadLayout = {
   railLayout: AnnotationRailLayout;
 };
 
+const EBOOK_ANNOTATION_RAIL_STACK_OVERFLOW_RESERVE = 56;
+
+export function ebookSpreadAvailableWidth({
+  layoutWidth,
+  paddingLeft = 0,
+  paddingRight = 0,
+}: {
+  layoutWidth: number;
+  paddingLeft?: number;
+  paddingRight?: number;
+}) {
+  return Math.max(
+    0,
+    layoutWidth - paddingLeft - paddingRight - EBOOK_ANNOTATION_RAIL_STACK_OVERFLOW_RESERVE,
+  );
+}
+
 export function ebookSpreadLayout({
   canvasWidth,
   contentWidth,

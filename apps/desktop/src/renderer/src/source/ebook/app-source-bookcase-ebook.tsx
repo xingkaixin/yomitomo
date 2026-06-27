@@ -57,6 +57,7 @@ import { useSourceActiveConnection } from '../bookcase/use-source-active-connect
 import { useRecentAnnotationFeedback } from '../bookcase/use-recent-annotation-feedback';
 import {
   ebookAnnotationNavigationState,
+  ebookSpreadAvailableWidth,
   ebookSpreadLayout,
 } from './app-source-bookcase-ebook-utils';
 import { ArticleBook } from '../../shell/app-article-book';
@@ -67,6 +68,11 @@ import { useSourceReaderWorkspace } from '../bookcase/use-source-reader-workspac
 import { buildSourceReaderAppActions } from '../bookcase/source-reader-app-actions';
 import { buildSourceReaderAppViewProps } from '../bookcase/source-reader-app-view-props';
 import { useReaderSearchMatches } from '../bookcase/use-reader-search-matches';
+
+function cssPixelValue(value: string) {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 
 export function EbookBookcase({
   agents,
@@ -282,8 +288,14 @@ export function EbookBookcase({
     const update = () => {
       const rect = layoutElement.getBoundingClientRect();
       if (rect.width <= 0) return;
+      const style = window.getComputedStyle(layoutElement);
+      const layoutWidth = ebookSpreadAvailableWidth({
+        layoutWidth: rect.width,
+        paddingLeft: cssPixelValue(style.paddingLeft),
+        paddingRight: cssPixelValue(style.paddingRight),
+      });
       const nextSpreadLayout = ebookSpreadLayout({
-        canvasWidth: rect.width,
+        canvasWidth: layoutWidth,
         contentWidth: readerSettings.contentWidth,
       });
       const traceKey = [
@@ -299,7 +311,8 @@ export function EbookBookcase({
           columns: nextSpreadLayout.columns,
           contentWidth: readerSettings.contentWidth,
           layoutSource: layoutElement === surfaceRef.current ? 'surface' : 'canvas',
-          layoutWidth: Math.round(rect.width),
+          layoutWidth: Math.round(layoutWidth),
+          measuredWidth: Math.round(rect.width),
           railLayout: nextSpreadLayout.railLayout,
         });
       }

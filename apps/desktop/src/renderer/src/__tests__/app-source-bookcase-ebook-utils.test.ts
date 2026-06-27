@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { ebookSpreadLayout } from '../source/ebook/app-source-bookcase-ebook-utils';
+import {
+  ebookSpreadAvailableWidth,
+  ebookSpreadLayout,
+} from '../source/ebook/app-source-bookcase-ebook-utils';
 
 const CONTENT_WIDTH = 860;
 const SPREAD_WIDTH = CONTENT_WIDTH * 2;
@@ -36,6 +39,19 @@ describe('ebookSpreadLayout', () => {
     const result = ebookSpreadLayout({ canvasWidth, contentWidth: CONTENT_WIDTH });
     expect(result.columns).toBe(2);
     expect(result.railLayout.mode).toBe('right');
+  });
+
+  it('reserves surface padding and rail stack overflow before choosing spread', () => {
+    const availableWidth = ebookSpreadAvailableWidth({
+      layoutWidth: 1492,
+      paddingLeft: 14,
+      paddingRight: 14,
+    });
+    const result = ebookSpreadLayout({ canvasWidth: availableWidth, contentWidth: 600 });
+
+    expect(availableWidth).toBe(1408);
+    expect(result.columns).toBe(1);
+    expect(result.railLayout.mode).toBe('both');
   });
 
   it('enables spread with both rails when the canvas fits the spread plus two full rails', () => {
