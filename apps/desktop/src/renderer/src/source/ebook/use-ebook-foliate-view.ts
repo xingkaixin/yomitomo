@@ -48,7 +48,45 @@ type UseEbookFoliateViewInput = {
 
 type PageTurnDirection = 'left' | 'right';
 
-const ebookSectionPageCountsCache = new Map<string, Array<number | null>>();
+export const EBOOK_PAGINATION_PAGE_COUNT_CACHE_LIMIT = 48;
+
+export class EbookPaginationPageCountCache {
+  private readonly entries = new Map<string, Array<number | null>>();
+
+  constructor(private readonly maxEntries = EBOOK_PAGINATION_PAGE_COUNT_CACHE_LIMIT) {}
+
+  get size() {
+    return this.entries.size;
+  }
+
+  clear() {
+    this.entries.clear();
+  }
+
+  get(key: string) {
+    const counts = this.entries.get(key);
+    if (!counts) return undefined;
+    this.entries.delete(key);
+    this.entries.set(key, counts);
+    return [...counts];
+  }
+
+  set(key: string, counts: Array<number | null>) {
+    if (this.maxEntries <= 0) {
+      this.entries.clear();
+      return;
+    }
+    if (this.entries.has(key)) this.entries.delete(key);
+    this.entries.set(key, [...counts]);
+    while (this.entries.size > this.maxEntries) {
+      const oldestKey = this.entries.keys().next().value;
+      if (oldestKey === undefined) return;
+      this.entries.delete(oldestKey);
+    }
+  }
+}
+
+const ebookSectionPageCountsCache = new EbookPaginationPageCountCache();
 const ebookPaginationMeasurements = new Map<string, Promise<EbookPaginationMeasurementResult>>();
 const EBOOK_PAGINATION_MEASURE_DELAY_MS = 360;
 const EBOOK_PAGINATION_RESIZE_SETTLE_DELAY_MS = 240;
@@ -604,7 +642,7 @@ export function useEbookFoliateView({
     if (currentPageInfo) lastStablePageInfoRef.current = currentPageInfo;
     setPageInfo(currentPageInfo ?? null);
     counts = currentPageInfo ? updateKnownSectionPageCount(counts, currentPageInfo) : counts;
-    ebookSectionPageCountsCache.set(cacheKey, [...counts]);
+    ebookSectionPageCountsCache.set(cacheKey, counts);
     setSectionPageCounts([...counts]);
     const pendingSectionIndexes = ebookPendingPaginationSectionIndexes(
       sections,
@@ -616,6 +654,7 @@ export function useEbookFoliateView({
     recordRendererPerformanceTiming('ebook_pagination', {
       articleId: article.id,
       cachedSectionCount: counts.filter((count) => count !== null).length,
+      cacheEntryCount: ebookSectionPageCountsCache.size,
       columns: maxColumnCountRef.current,
       elapsedMs: rendererPerformanceElapsedMs(paginationStartedAt),
       hasCacheEntry: cachedCounts?.length === sections.length,
