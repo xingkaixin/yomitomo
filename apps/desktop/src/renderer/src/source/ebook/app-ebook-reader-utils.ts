@@ -27,6 +27,7 @@ export type FoliateTocItem = {
 export type FoliateSectionSource = {
   id?: unknown;
   linear?: string;
+  size?: unknown;
 };
 
 export type FoliatePageInfo = {

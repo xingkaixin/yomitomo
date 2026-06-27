@@ -19,20 +19,39 @@ import type {
   EbookPageTurnTrace,
   FoliatePageInfo,
   FoliateViewElement,
+  FoliateSectionSource,
 } from '../source/ebook/app-ebook-reader-utils';
 import { defaultTheme } from '../theme/app-theme';
+
+vi.mock('../vendor/foliate-js/view.js', () => ({}));
 
 const now = '2026-05-16T08:00:00.000Z';
 
 type FoliateViewState = ReturnType<typeof useEbookFoliateView>;
+type MockFoliateView = FoliateViewElement & {
+  role: 'measure' | 'visible';
+};
 
 let latestViewState: FoliateViewState | null = null;
+let mockFoliateViews: MockFoliateView[] = [];
+let mockFoliatePageCounts: number[] = [];
+let mockFoliateVisibleViewCount = 0;
+let onMockMeasureGoTo: ((index: number) => void) | null = null;
+let originalCreateElement: typeof document.createElement | null = null;
 
 afterEach(() => {
+  cleanup();
   latestViewState = null;
+  mockFoliateViews = [];
+  mockFoliatePageCounts = [];
+  mockFoliateVisibleViewCount = 0;
+  MockResizeObserver.instances = [];
+  onMockMeasureGoTo = null;
   pageTurnTraceRef.current = null;
   Reflect.deleteProperty(window, 'yomitomoDesktop');
-  cleanup();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   vi.clearAllMocks();
 });
 
@@ -104,6 +123,203 @@ function FoliateViewProbe({
   return null;
 }
 
+function MountedFoliateViewProbe({
+  articleInput,
+  height = 900,
+  layoutBox,
+  maxColumnCount = 1,
+  onBeforePageTurn,
+  onScheduleEbookBoxUpdate,
+  width = 720,
+}: {
+  articleInput: EbookArticleRecord;
+  height?: number;
+  layoutBox?: { height: number; width: number };
+  maxColumnCount?: number;
+  onBeforePageTurn: (trace: EbookPageTurnTrace) => void;
+  onScheduleEbookBoxUpdate: (reason: EbookBoxUpdateReason) => void;
+  width?: number;
+}) {
+  const viewState = useEbookFoliateView({
+    article: articleInput,
+    maxColumnCount,
+    readerTheme: defaultTheme.reader,
+    readerSettings: { fontSize: 18, contentWidth: 720, backgroundColor: '#fffdf8' },
+    onSaveArticleReadingProgress,
+    onAttachFoliateDocumentListeners,
+    onBeforePageTurn,
+    onCleanupFoliateDocumentListeners,
+    onScheduleEbookBoxUpdate,
+    pageTurnTraceRef,
+  });
+  latestViewState = viewState;
+
+  const setViewHost = (node: HTMLDivElement | null) => {
+    if (node) {
+      node.getBoundingClientRect = () =>
+        ({
+          bottom: layoutBox?.height ?? height,
+          height: layoutBox?.height ?? height,
+          left: 0,
+          right: layoutBox?.width ?? width,
+          top: 0,
+          width: layoutBox?.width ?? width,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        }) as DOMRect;
+    }
+    viewState.viewHostRef.current = node;
+  };
+  const setMeasureHost = (node: HTMLDivElement | null) => {
+    viewState.measureHostRef.current = node;
+  };
+
+  return (
+    <>
+      <div ref={setViewHost} />
+      <div ref={setMeasureHost} />
+    </>
+  );
+}
+
+function ebookArticleWithId(id: string): EbookArticleRecord {
+  const nextArticle = ebookArticle();
+  return {
+    ...nextArticle,
+    canonicalUrl: `file://${id}.epub`,
+    id,
+    url: `file://${id}.epub`,
+  };
+}
+
+function installMockFoliateEnvironment(pageCounts: number[], visibleViewCount = 1) {
+  vi.useFakeTimers();
+  mockFoliatePageCounts = pageCounts;
+  mockFoliateVisibleViewCount = visibleViewCount;
+  MockResizeObserver.instances = [];
+  vi.stubGlobal('ResizeObserver', MockResizeObserver);
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
+    window.setTimeout(() => callback(performance.now()), 0),
+  );
+  Object.defineProperty(window, 'yomitomoDesktop', {
+    configurable: true,
+    value: {
+      openUrl: vi.fn(),
+      readEbookFile: vi.fn().mockResolvedValue(new ArrayBuffer(1)),
+      recordPerformanceTiming: vi.fn().mockResolvedValue(undefined),
+    },
+  });
+  originalCreateElement = document.createElement.bind(document);
+  const createElement = ((tagName: string, options?: ElementCreationOptions) => {
+    if (tagName === 'foliate-view') return createMockFoliateView();
+    return originalCreateElement!(tagName, options);
+  }) as typeof document.createElement;
+  vi.spyOn(document, 'createElement').mockImplementation(createElement);
+}
+
+function createMockFoliateView() {
+  if (!originalCreateElement) throw new Error('document.createElement mock is not installed');
+  let sectionIndex = 0;
+  const role = mockFoliateViews.length < mockFoliateVisibleViewCount ? 'visible' : 'measure';
+  const view = originalCreateElement('div') as unknown as MockFoliateView;
+  const renderer = originalCreateElement('div') as unknown as HTMLElement & {
+    getContents: () => Array<{ index: number }>;
+    goTo: (target: { index: number }) => Promise<void>;
+    setStyles: (styles: string | string[]) => void;
+  };
+  const sections = mockFoliatePageCounts.map(
+    (_, index): FoliateSectionSource => ({
+      id: `section-${index}`,
+    }),
+  );
+  renderer.getContents = () => [{ index: sectionIndex }];
+  renderer.goTo = vi.fn().mockImplementation(async (target: { index: number }) => {
+    sectionIndex = target.index;
+    if (role === 'measure') onMockMeasureGoTo?.(target.index);
+  });
+  renderer.setStyles = vi.fn();
+  view.role = role;
+  view.book = { sections };
+  view.renderer = renderer;
+  view.open = vi.fn().mockResolvedValue(undefined);
+  view.close = vi.fn();
+  view.goLeft = vi.fn().mockResolvedValue(undefined);
+  view.goRight = vi.fn().mockResolvedValue(undefined);
+  view.goTo = vi.fn().mockImplementation(async (target: string | number) => {
+    if (typeof target === 'number') {
+      sectionIndex = target;
+      onMockMeasureGoTo?.(target);
+    }
+  });
+  view.goToFraction = vi.fn().mockResolvedValue(undefined);
+  view.next = vi.fn().mockResolvedValue(undefined);
+  view.prev = vi.fn().mockResolvedValue(undefined);
+  view.getPageInfo = () => ({
+    pageCount: mockFoliatePageCounts[sectionIndex] ?? 1,
+    pageIndex: 0,
+    sectionIndex,
+  });
+  view.getSectionFractions = () =>
+    mockFoliatePageCounts.map((_, index) => index / mockFoliatePageCounts.length);
+  mockFoliateViews.push(view);
+  return view;
+}
+
+function mockedRendererGoTo(view: MockFoliateView) {
+  return vi.mocked(view.renderer?.goTo);
+}
+
+function mockRendererGoToCount(view: MockFoliateView) {
+  return mockedRendererGoTo(view)?.mock.calls.length ?? 0;
+}
+
+async function flushPromises(times = 4) {
+  for (let index = 0; index < times; index += 1) await Promise.resolve();
+}
+
+async function runPendingEbookPaginationWork() {
+  await act(async () => {
+    await flushPromises(10);
+  });
+  await act(async () => {
+    await vi.runAllTimersAsync();
+    await flushPromises(10);
+  });
+}
+
+async function settleResizeObserverWork() {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(240);
+    await flushPromises(2);
+    await vi.advanceTimersByTimeAsync(16);
+    await flushPromises(2);
+    await vi.advanceTimersByTimeAsync(0);
+    await flushPromises(2);
+    await vi.advanceTimersByTimeAsync(0);
+    await flushPromises(10);
+  });
+}
+
+class MockResizeObserver {
+  static instances: MockResizeObserver[] = [];
+
+  private readonly callback: ResizeObserverCallback;
+
+  constructor(callback: ResizeObserverCallback) {
+    this.callback = callback;
+    MockResizeObserver.instances.push(this);
+  }
+
+  observe = vi.fn();
+  disconnect = vi.fn();
+  unobserve = vi.fn();
+
+  trigger() {
+    this.callback([], this as unknown as ResizeObserver);
+  }
+}
+
 describe('useEbookFoliateView', () => {
   it('prioritizes the current EPUB section when measuring page counts', () => {
     expect(ebookPaginationSectionOrder(4, 2)).toEqual([2, 0, 1, 3]);
@@ -135,6 +351,104 @@ describe('useEbookFoliateView', () => {
     expect(ebookPaginationCacheKey(base)).not.toEqual(
       ebookPaginationCacheKey({ ...base, columns: 2 }),
     );
+  });
+
+  it('joins concurrent EPUB page-count measurements for the same layout', async () => {
+    installMockFoliateEnvironment([3, 4, 5, 6], 2);
+    const onBeforePageTurn = vi.fn();
+    const onScheduleEbookBoxUpdate = vi.fn((_reason: EbookBoxUpdateReason) => undefined);
+
+    render(
+      <>
+        <MountedFoliateViewProbe
+          articleInput={ebookArticleWithId('ebook-single-flight')}
+          onBeforePageTurn={onBeforePageTurn}
+          onScheduleEbookBoxUpdate={onScheduleEbookBoxUpdate}
+        />
+        <MountedFoliateViewProbe
+          articleInput={ebookArticleWithId('ebook-single-flight')}
+          onBeforePageTurn={onBeforePageTurn}
+          onScheduleEbookBoxUpdate={onScheduleEbookBoxUpdate}
+        />
+      </>,
+    );
+
+    await runPendingEbookPaginationWork();
+
+    const measureViews = mockFoliateViews.filter((view) => mockRendererGoToCount(view) > 0);
+    const measureGoToCount = measureViews.reduce(
+      (count, view) => count + mockRendererGoToCount(view),
+      0,
+    );
+    expect(measureViews).toHaveLength(1);
+    expect(measureGoToCount).toBe(3);
+  });
+
+  it('stops measuring later EPUB sections when the layout becomes stale', async () => {
+    installMockFoliateEnvironment([3, 4, 5, 6]);
+    const onBeforePageTurn = vi.fn();
+    const onScheduleEbookBoxUpdate = vi.fn((_reason: EbookBoxUpdateReason) => undefined);
+    onMockMeasureGoTo = () => {
+      requireViewState().paginationLayoutKeyRef.current = '721x900';
+    };
+
+    render(
+      <MountedFoliateViewProbe
+        articleInput={ebookArticleWithId('ebook-stale-layout')}
+        onBeforePageTurn={onBeforePageTurn}
+        onScheduleEbookBoxUpdate={onScheduleEbookBoxUpdate}
+      />,
+    );
+
+    await runPendingEbookPaginationWork();
+
+    const measureView = mockFoliateViews.find((view) => mockRendererGoToCount(view) > 0);
+
+    expect(measureView).toBeDefined();
+    expect(mockedRendererGoTo(measureView!)).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for a quiet resize window before measuring EPUB page counts', async () => {
+    installMockFoliateEnvironment([3, 4, 5, 6]);
+    const onBeforePageTurn = vi.fn();
+    const onScheduleEbookBoxUpdate = vi.fn((_reason: EbookBoxUpdateReason) => undefined);
+    const layoutBox = { height: 900, width: 720 };
+
+    render(
+      <MountedFoliateViewProbe
+        articleInput={ebookArticleWithId('ebook-resize-quiet')}
+        layoutBox={layoutBox}
+        onBeforePageTurn={onBeforePageTurn}
+        onScheduleEbookBoxUpdate={onScheduleEbookBoxUpdate}
+      />,
+    );
+    await runPendingEbookPaginationWork();
+    mockFoliateViews.forEach((view) => mockedRendererGoTo(view)?.mockClear());
+
+    layoutBox.height = 901;
+    act(() => {
+      MockResizeObserver.instances[0]?.trigger();
+    });
+    await settleResizeObserverWork();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(360);
+      await flushPromises(10);
+    });
+
+    const measuredBeforeQuiet = mockFoliateViews.some((view) => mockRendererGoToCount(view) > 0);
+    expect(measuredBeforeQuiet).toBe(false);
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+      await flushPromises(10);
+    });
+
+    const measuredAfterQuiet = mockFoliateViews.reduce(
+      (count, view) => count + mockRendererGoToCount(view),
+      0,
+    );
+    expect(measuredAfterQuiet).toBe(3);
   });
 
   it('constructs source files with format-specific names and MIME types', () => {
