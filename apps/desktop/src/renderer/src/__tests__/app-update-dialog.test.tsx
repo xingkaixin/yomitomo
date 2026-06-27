@@ -106,40 +106,88 @@ describe('UpdateReleaseDialogView', () => {
     expect(screen.getByText('Yomitomo 已更新到最新版本。')).toBeTruthy();
     expect(screen.queryByText('修复进度回退')).toBeNull();
   });
+
+  it('shows download percent on the primary button while downloading', () => {
+    render(
+      <UpdateReleaseDialogView
+        scene="before-update"
+        version="0.9.0"
+        highlights={[]}
+        downloadStatus="downloading"
+        downloadPercent={42.6}
+        onPrimary={() => undefined}
+        onSecondary={() => undefined}
+      />,
+    );
+    expect(screen.getByText('43%')).toBeTruthy();
+    expect(screen.queryByText('立即更新')).toBeNull();
+  });
+
+  it('switches the primary button to restart-install once downloaded', () => {
+    render(
+      <UpdateReleaseDialogView
+        scene="before-update"
+        version="0.9.0"
+        highlights={[]}
+        downloadStatus="downloaded"
+        onPrimary={() => undefined}
+        onSecondary={() => undefined}
+      />,
+    );
+    expect(screen.getByText('重启安装')).toBeTruthy();
+    expect(screen.queryByText('立即更新')).toBeNull();
+  });
 });
 
-describe('UpdateReleaseDialog before-update gating', () => {
-  let emitUpdateStatus: ((state: AppUpdateState) => void) | null = null;
+const stubDesktop = () => {
+  vi.stubGlobal('yomitomoDesktop', {
+    getAppInfo: vi.fn().mockResolvedValue({ desktopVersion: '0.8.0' }),
+    getReleaseNote: vi.fn().mockResolvedValue(null),
+    downloadUpdate: vi.fn().mockResolvedValue(undefined),
+    installUpdate: vi.fn().mockResolvedValue(undefined),
+  });
+};
 
-  const renderContainer = () => {
-    emitUpdateStatus = null;
-    const store = {
-      settings: { lastSeenVersion: '0.8.0', uiLanguage: 'zh-CN' },
-    } as unknown as DesktopStore;
-    vi.stubGlobal('yomitomoDesktop', {
-      getAppInfo: vi.fn().mockResolvedValue({ desktopVersion: '0.8.0' }),
-      getReleaseNote: vi.fn().mockResolvedValue(null),
-      onUpdateStatus: (callback: (state: AppUpdateState) => void) => {
-        emitUpdateStatus = callback;
-        return () => undefined;
-      },
-      downloadUpdate: vi.fn().mockResolvedValue(undefined),
-    });
-    render(<UpdateReleaseDialog store={store} onSaveSettings={vi.fn().mockResolvedValue(store)} />);
-  };
+describe('UpdateReleaseDialog before-update gating', () => {
+  const store = {
+    settings: { lastSeenVersion: '0.8.0', uiLanguage: 'zh-CN' },
+  } as unknown as DesktopStore;
+
+  const container = (updateState: AppUpdateState | null, openRequest: number) => (
+    <UpdateReleaseDialog
+      store={store}
+      updateState={updateState}
+      openRequest={openRequest}
+      onSaveSettings={vi.fn().mockResolvedValue(store)}
+    />
+  );
 
   it('does not pop the dialog for an auto-check hit', async () => {
-    renderContainer();
+    stubDesktop();
     await act(async () => {
-      emitUpdateStatus?.(available('auto'));
+      render(container(available('auto'), 0));
     });
     expect(screen.queryByText('发现新版本')).toBeNull();
   });
 
   it('pops the dialog for a manual-check hit', async () => {
-    renderContainer();
+    stubDesktop();
     await act(async () => {
-      emitUpdateStatus?.(available('manual'));
+      render(container(available('manual'), 0));
+    });
+    expect(await screen.findByText('发现新版本')).toBeTruthy();
+    expect(screen.getByText('v0.9.0')).toBeTruthy();
+  });
+
+  it('pops the dialog for an auto-check hit when the user requests it from the header', async () => {
+    stubDesktop();
+    let view!: ReturnType<typeof render>;
+    await act(async () => {
+      view = render(container(available('auto'), 0));
+    });
+    expect(screen.queryByText('发现新版本')).toBeNull();
+    await act(async () => {
+      view.rerender(container(available('auto'), 1));
     });
     expect(await screen.findByText('发现新版本')).toBeTruthy();
     expect(screen.getByText('v0.9.0')).toBeTruthy();

@@ -250,6 +250,7 @@ function App() {
   const appUpdateState = useAppUpdateState();
   const updateReady =
     appUpdateState?.status === 'available' || appUpdateState?.status === 'downloaded';
+  const [updateDialogRequest, setUpdateDialogRequest] = useState(0);
   const [, setPreloadVersion] = useState(0);
   const [themeDialogOpen, setThemeDialogOpen] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
@@ -549,6 +550,7 @@ function App() {
                 onClick={() => {
                   openSettings();
                   changeSettingsSection('about');
+                  setUpdateDialogRequest((n) => n + 1);
                 }}
               >
                 <PartyPopper aria-hidden="true" size={13} />
@@ -704,6 +706,8 @@ function App() {
           {!lockOverlayVisible ? (
             <UpdateReleaseDialog
               store={store}
+              updateState={appUpdateState}
+              openRequest={updateDialogRequest}
               onSaveSettings={async (settings) => {
                 const nextStore = await window.yomitomoDesktop.saveSettings(settings);
                 const nextLanguage = normalizeUiLanguage(nextStore.settings.uiLanguage);

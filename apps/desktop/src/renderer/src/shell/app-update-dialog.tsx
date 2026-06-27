@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Sparkles, RefreshCw, ArrowUpCircle, CircleSlash, Wrench, PenLine } from 'lucide-react';
 import './app-update-dialog.css';
 import type {
@@ -8,6 +8,7 @@ import type {
   ReleaseNoteHighlightType,
 } from '@yomitomo/shared';
 import { normalizeUiLanguage, selectHighlights, shouldShowAfterUpdate } from '@yomitomo/shared';
+import type { AppUpdateState } from '../../../app-update-types';
 import { resolveAppThemeId, themeRegistry } from '../theme/app-theme';
 import coverLighterImage from '../assets/update/updater-cover-lighter.webp';
 import coverDarkerImage from '../assets/update/updater-cover-darker.webp';
@@ -15,6 +16,8 @@ import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogOverlay, DialogPortal } from '../components/ui/dialog';
 
 type ReleaseDialogScene = 'before-update' | 'after-update';
+
+type DownloadStatus = 'idle' | 'downloading' | 'downloaded';
 
 type ActiveReleaseDialog = {
   scene: ReleaseDialogScene;
@@ -30,25 +33,47 @@ const TYPE_ICON: Record<ReleaseNoteHighlightType, typeof Sparkles> = {
 };
 
 // 容器：负责 A/B 触发时机与文案数据获取，渲染纯展示的 View。
+// 共享状态来自父级 useAppUpdateState，弹窗不再单独订阅 onUpdateStatus，避免重复订阅与状态割裂。
 // B（更新后）：启动比对 lastSeenVersion 与当前版本，命中则读本地文案并弹窗，随后推进 lastSeenVersion。
-// A（更新前）：监听 update-available，按目标版本远程拉文案后弹窗，主操作触发下载。
+// A（更新前）：手动检查命中即弹；自动检查命中只点亮常驻入口，用户从 header 主动请求时再弹（openRequest）。
 export function UpdateReleaseDialog({
   store,
+  updateState,
+  openRequest,
   onSaveSettings,
 }: {
   store: DesktopStore;
+  updateState: AppUpdateState | null;
+  openRequest: number;
   onSaveSettings: (settings: AppSettings) => Promise<DesktopStore>;
 }) {
   const { i18n } = useTranslation();
   const [version, setVersion] = useState('');
   const [dialog, setDialog] = useState<ActiveReleaseDialog | null>(null);
-  const [busy, setBusy] = useState(false);
   const afterUpdateHandledRef = useRef(false);
+  const handledManualRef = useRef<string | null>(null);
   const settingsRef = useRef(store.settings);
   settingsRef.current = store.settings;
+  const updateStateRef = useRef(updateState);
+  updateStateRef.current = updateState;
+  const languageRef = useRef(i18n.language);
+  languageRef.current = i18n.language;
 
   useEffect(() => {
     void window.yomitomoDesktop.getAppInfo().then((info) => setVersion(info.desktopVersion));
+  }, []);
+
+  // 远程拉目标版本文案后弹更新前弹窗；拉取失败仍弹纯版本号提示，不阻塞下载决策。
+  const openBeforeUpdate = useCallback((targetVersion: string) => {
+    void window.yomitomoDesktop
+      .getReleaseNote(targetVersion, 'remote', normalizeUiLanguage(languageRef.current))
+      .then((note) => {
+        setDialog({
+          scene: 'before-update',
+          version: targetVersion,
+          highlights: note ? selectHighlights(note, 'before-update') : [],
+        });
+      });
   }, []);
 
   // B：每次启动只判定一次。无论是否弹窗，都把 lastSeenVersion 推进到当前版本，避免下次误判。
@@ -73,40 +98,44 @@ export function UpdateReleaseDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [i18n.language, version]);
 
-  // A：检测到新版本时按目标版本远程拉文案；拉取失败仍弹纯版本号提示，不阻塞下载决策。
+  // A：手动检查命中即弹。以 checkedAt 去重，保证同一次命中只弹一次、再次手动检查会重新弹。
   useEffect(() => {
-    const unsubscribe = window.yomitomoDesktop.onUpdateStatus((state) => {
-      if (state.status !== 'available' || !state.availableVersion) return;
-      // 仅手动检查命中才弹更新前弹窗；自动检查（含运行期定时命中）只点亮常驻入口。
-      if (state.trigger === 'auto') return;
-      const targetVersion = state.availableVersion;
-      void window.yomitomoDesktop
-        .getReleaseNote(targetVersion, 'remote', normalizeUiLanguage(i18n.language))
-        .then((note) => {
-          setDialog({
-            scene: 'before-update',
-            version: targetVersion,
-            highlights: note ? selectHighlights(note, 'before-update') : [],
-          });
-        });
-    });
-    return () => {
-      unsubscribe();
-    };
-  }, [i18n.language]);
+    if (updateState?.status !== 'available' || !updateState.availableVersion) return;
+    if (updateState.trigger !== 'manual') return;
+    const dedupeKey = updateState.checkedAt ?? updateState.availableVersion;
+    if (handledManualRef.current === dedupeKey) return;
+    handledManualRef.current = dedupeKey;
+    openBeforeUpdate(updateState.availableVersion);
+  }, [updateState, openBeforeUpdate]);
+
+  // 自动检查命中后，用户从 header「有新版本」主动请求时弹窗；当前必为 available（入口仅此时显示）。
+  useEffect(() => {
+    if (openRequest === 0) return;
+    const state = updateStateRef.current;
+    if (state?.status !== 'available' || !state.availableVersion) return;
+    openBeforeUpdate(state.availableVersion);
+  }, [openRequest, openBeforeUpdate]);
 
   if (!dialog) return null;
 
+  const downloadStatus: DownloadStatus =
+    dialog.scene === 'before-update' && updateState?.status === 'downloading'
+      ? 'downloading'
+      : dialog.scene === 'before-update' && updateState?.status === 'downloaded'
+        ? 'downloaded'
+        : 'idle';
+
   const handlePrimary = () => {
-    if (dialog.scene === 'before-update') {
-      setBusy(true);
-      void window.yomitomoDesktop.downloadUpdate().finally(() => {
-        setBusy(false);
-        setDialog(null);
-      });
+    if (dialog.scene === 'after-update') {
+      setDialog(null);
       return;
     }
-    setDialog(null);
+    // 下载完成停留在「重启安装」态；点击触发安装。其余情况触发下载，下载进度在弹窗内推进，不关闭弹窗。
+    if (downloadStatus === 'downloaded') {
+      void window.yomitomoDesktop.installUpdate();
+      return;
+    }
+    void window.yomitomoDesktop.downloadUpdate();
   };
 
   const tone = themeRegistry[resolveAppThemeId(document.documentElement.dataset.theme)].meta.tone;
@@ -118,7 +147,8 @@ export function UpdateReleaseDialog({
       version={dialog.version}
       highlights={dialog.highlights}
       coverImage={coverImage}
-      busy={busy}
+      downloadStatus={downloadStatus}
+      downloadPercent={updateState?.progress?.percent ?? 0}
       onPrimary={handlePrimary}
       onSecondary={() => setDialog(null)}
     />
@@ -130,7 +160,8 @@ export function UpdateReleaseDialogView({
   version,
   highlights,
   coverImage,
-  busy = false,
+  downloadStatus = 'idle',
+  downloadPercent = 0,
   onPrimary,
   onSecondary,
 }: {
@@ -138,7 +169,8 @@ export function UpdateReleaseDialogView({
   version: string;
   highlights: ReleaseNoteHighlight[];
   coverImage?: string;
-  busy?: boolean;
+  downloadStatus?: DownloadStatus;
+  downloadPercent?: number;
   onPrimary: () => void;
   onSecondary: () => void;
 }) {
@@ -211,20 +243,34 @@ export function UpdateReleaseDialogView({
                   <button
                     className="update-dialog-button is-ghost"
                     type="button"
-                    disabled={busy}
                     onClick={onSecondary}
                   >
                     {t('updateDialog.later')}
                   </button>
-                  <button
-                    className="update-dialog-button is-primary"
-                    type="button"
-                    disabled={busy}
-                    onClick={onPrimary}
-                  >
-                    <ArrowUpCircle size={16} aria-hidden />
-                    {busy ? t('updateDialog.downloading') : t('updateDialog.updateNow')}
-                  </button>
+                  {downloadStatus === 'downloaded' ? (
+                    <button
+                      className="update-dialog-button is-primary"
+                      type="button"
+                      onClick={onPrimary}
+                    >
+                      <RefreshCw size={16} aria-hidden />
+                      {t('updateDialog.install')}
+                    </button>
+                  ) : downloadStatus === 'downloading' ? (
+                    <button className="update-dialog-button is-primary" type="button" disabled>
+                      <ArrowUpCircle size={16} aria-hidden />
+                      {`${Math.round(downloadPercent)}%`}
+                    </button>
+                  ) : (
+                    <button
+                      className="update-dialog-button is-primary"
+                      type="button"
+                      onClick={onPrimary}
+                    >
+                      <ArrowUpCircle size={16} aria-hidden />
+                      {t('updateDialog.updateNow')}
+                    </button>
+                  )}
                 </>
               )}
             </div>

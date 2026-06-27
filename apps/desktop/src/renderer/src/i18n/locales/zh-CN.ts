@@ -309,8 +309,8 @@ export const zhCNResources = {
       tagline: '翻开新的一页',
       start: '开始使用',
       later: '稍后',
-      downloading: '正在下载',
       updateNow: '立即更新',
+      install: '重启安装',
     },
     about: {
       trailSettings: '设置',
