@@ -85,6 +85,7 @@ function FoliateViewProbe({
 }) {
   latestViewState = useEbookFoliateView({
     article,
+    maxColumnCount: 1,
     readerTheme: defaultTheme.reader,
     readerSettings: { fontSize: 18, contentWidth: 720, backgroundColor: '#fffdf8' },
     onSaveArticleReadingProgress,

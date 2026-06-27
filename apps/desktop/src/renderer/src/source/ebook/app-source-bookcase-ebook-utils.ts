@@ -118,6 +118,9 @@ export const sourceEbookReaderStyles = `
     margin:0;
   }
 }
+.source-ebook-reader-shell.is-ebook-spread .reader-article{
+  width:min(100%,calc(var(--reader-content-width) * 2));
+}
 `;
 
 export function ebookAnnotationNavigationState({

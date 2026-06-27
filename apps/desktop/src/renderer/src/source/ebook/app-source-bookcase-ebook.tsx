@@ -55,7 +55,10 @@ import {
 } from '../../shell/use-reader-page-turn-keys';
 import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
 import { useRecentAnnotationFeedback } from '../bookcase/use-recent-annotation-feedback';
-import { ebookAnnotationNavigationState } from './app-source-bookcase-ebook-utils';
+import {
+  ebookAnnotationNavigationState,
+  ebookSpreadLayout,
+} from './app-source-bookcase-ebook-utils';
 import { ArticleBook } from '../../shell/app-article-book';
 import { articleDisplayTitle } from '../../reading-library/app-reading-library-utils';
 import { useSourceReaderSession } from '../bookcase/use-source-reader-session';
@@ -269,6 +272,24 @@ export function EbookBookcase({
     onFocusedAnnotationRef.current = onFocusedAnnotation;
   }, [onFocusedAnnotation]);
   latestArticleAnnotationsRef.current = articleAnnotations;
+  const [spreadLayout, setSpreadLayout] = useState(() =>
+    ebookSpreadLayout({ canvasWidth: 0, contentWidth: readerSettings.contentWidth }),
+  );
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const update = () => {
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      setSpreadLayout(
+        ebookSpreadLayout({ canvasWidth: rect.width, contentWidth: readerSettings.contentWidth }),
+      );
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [canvasRef, readerSettings.contentWidth]);
   const {
     viewHostRef,
     measureHostRef,
@@ -289,6 +310,7 @@ export function EbookBookcase({
     goToTocItem,
   } = useEbookFoliateView({
     article,
+    maxColumnCount: spreadLayout.columns,
     readerTheme,
     readerSettings,
     onSaveArticleReadingProgress,
@@ -990,6 +1012,7 @@ export function EbookBookcase({
       distillationAnimation,
       filteredAnnotations: annotations,
       newAnnotationIds,
+      railLayoutOverride: spreadLayout.columns === 2 ? spreadLayout.railLayout : undefined,
       searchBoxes,
       showEmptyNotes: annotations.length === 0,
       temporaryBoxes,
@@ -1113,6 +1136,7 @@ export function EbookBookcase({
 
   return (
     <EbookReaderShell
+      isSpread={spreadLayout.columns === 2}
       measureHostRef={measureHostRef}
       readerApp={readerAppViewProps}
       readerState={readerState}

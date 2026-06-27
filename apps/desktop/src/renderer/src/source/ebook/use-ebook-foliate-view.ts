@@ -29,6 +29,7 @@ type EbookReaderState = {
 
 type UseEbookFoliateViewInput = {
   article: EbookBookcaseProps['article'];
+  maxColumnCount: number;
   readerTheme: ReaderTheme;
   readerSettings: ReaderSettings;
   onSaveArticleReadingProgress: EbookBookcaseProps['onSaveArticleReadingProgress'];
@@ -148,6 +149,7 @@ export function ebookReadingProgressRestoreTarget(
 
 export function useEbookFoliateView({
   article,
+  maxColumnCount,
   readerTheme,
   readerSettings,
   onSaveArticleReadingProgress,
@@ -191,6 +193,10 @@ export function useEbookFoliateView({
     onBeforePageTurnRef.current = onBeforePageTurn;
   }, [onBeforePageTurn]);
 
+  useEffect(() => {
+    maxColumnCountRef.current = maxColumnCount;
+  }, [maxColumnCount]);
+
   useLayoutEffect(() => {
     onCleanupFoliateDocumentListeners();
     pageTurnQueueRef.current = [];
@@ -232,7 +238,7 @@ export function useEbookFoliateView({
     readerThemeRef.current = readerTheme;
     configureFoliateView(viewRef.current, readerSettings, readerTheme, maxColumnCountRef.current);
     onScheduleEbookBoxUpdate('reader_settings');
-  }, [onScheduleEbookBoxUpdate, readerSettings, readerTheme]);
+  }, [onScheduleEbookBoxUpdate, readerSettings, readerTheme, maxColumnCount]);
 
   useEffect(() => {
     readerStateStatusRef.current = readerState.status;
@@ -511,6 +517,7 @@ export function useEbookFoliateView({
     };
   }, [
     article.id,
+    maxColumnCount,
     paginationLayoutKey,
     readerSettings.contentWidth,
     readerSettings.fontSize,
