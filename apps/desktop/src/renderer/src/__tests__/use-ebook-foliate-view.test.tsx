@@ -29,6 +29,7 @@ let latestViewState: FoliateViewState | null = null;
 afterEach(() => {
   latestViewState = null;
   pageTurnTraceRef.current = null;
+  Reflect.deleteProperty(window, 'yomitomoDesktop');
   cleanup();
   vi.clearAllMocks();
 });
@@ -77,15 +78,17 @@ function requireViewState() {
 }
 
 function FoliateViewProbe({
+  maxColumnCount = 1,
   onBeforePageTurn,
   onScheduleEbookBoxUpdate,
 }: {
+  maxColumnCount?: number;
   onBeforePageTurn: (trace: EbookPageTurnTrace) => void;
   onScheduleEbookBoxUpdate: (reason: EbookBoxUpdateReason) => void;
 }) {
   latestViewState = useEbookFoliateView({
     article,
-    maxColumnCount: 1,
+    maxColumnCount,
     readerTheme: defaultTheme.reader,
     readerSettings: { fontSize: 18, contentWidth: 720, backgroundColor: '#fffdf8' },
     onSaveArticleReadingProgress,
@@ -275,5 +278,60 @@ describe('useEbookFoliateView', () => {
 
     expect(onScheduleEbookBoxUpdate).toHaveBeenCalledTimes(2);
     expect(onScheduleEbookBoxUpdate).toHaveBeenLastCalledWith('page_turn');
+  });
+
+  it('relocates the visible page when the column count changes', async () => {
+    const onBeforePageTurn = vi.fn();
+    const onScheduleEbookBoxUpdate = vi.fn((_reason: EbookBoxUpdateReason) => undefined);
+    const recordPerformanceTiming = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: { recordPerformanceTiming },
+    });
+    const rendererGoTo = vi.fn().mockResolvedValue(undefined);
+
+    const { rerender } = render(
+      <FoliateViewProbe
+        onBeforePageTurn={onBeforePageTurn}
+        onScheduleEbookBoxUpdate={onScheduleEbookBoxUpdate}
+      />,
+    );
+
+    const viewState = requireViewState();
+    viewState.viewRef.current = {
+      getPageInfo: () => ({ sectionIndex: 2, pageIndex: 4, pageCount: 9 }),
+      renderer: {
+        goTo: rendererGoTo,
+        removeAttribute: vi.fn(),
+        setAttribute: vi.fn(),
+        setStyles: vi.fn(),
+      },
+    } as unknown as FoliateViewElement;
+    viewState.readerStateStatusRef.current = 'ready';
+    onScheduleEbookBoxUpdate.mockClear();
+
+    await act(async () => {
+      rerender(
+        <FoliateViewProbe
+          maxColumnCount={2}
+          onBeforePageTurn={onBeforePageTurn}
+          onScheduleEbookBoxUpdate={onScheduleEbookBoxUpdate}
+        />,
+      );
+      await Promise.resolve();
+    });
+
+    expect(rendererGoTo).toHaveBeenCalledWith({ index: 2, anchor: 4 / 8 });
+    expect(recordPerformanceTiming).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'ebook_layout',
+        data: expect.objectContaining({
+          articleId: 'ebook-1',
+          fromColumns: 1,
+          toColumns: 2,
+        }),
+      }),
+    );
+    expect(onScheduleEbookBoxUpdate).toHaveBeenCalledWith('reader_settings');
   });
 });

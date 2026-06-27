@@ -20,7 +20,10 @@ import {
   type FoliateRelocateDetail,
   type FoliateViewElement,
 } from './app-ebook-reader-utils';
-import type { EbookBookcaseProps } from '../bookcase/app-source-bookcase-shared';
+import {
+  recordRendererPerformanceTiming,
+  type EbookBookcaseProps,
+} from '../bookcase/app-source-bookcase-shared';
 
 type EbookReaderState = {
   status: 'loading' | 'ready' | 'error';
@@ -168,6 +171,7 @@ export function useEbookFoliateView({
   const readerSettingsRef = useRef<ReaderSettings>(readerSettings);
   const readerThemeRef = useRef<ReaderTheme>(readerTheme);
   const maxColumnCountRef = useRef(1);
+  const progressRef = useRef(article.readingProgress?.progress ?? 0);
   const onSaveArticleReadingProgressRef = useRef(onSaveArticleReadingProgress);
   const onBeforePageTurnRef = useRef(onBeforePageTurn);
   const pageTurnQueueRef = useRef<PageTurnDirection[]>([]);
@@ -193,10 +197,6 @@ export function useEbookFoliateView({
     onBeforePageTurnRef.current = onBeforePageTurn;
   }, [onBeforePageTurn]);
 
-  useEffect(() => {
-    maxColumnCountRef.current = maxColumnCount;
-  }, [maxColumnCount]);
-
   useLayoutEffect(() => {
     onCleanupFoliateDocumentListeners();
     pageTurnQueueRef.current = [];
@@ -209,6 +209,7 @@ export function useEbookFoliateView({
     setSectionPageCounts([]);
     paginationLayoutKeyRef.current = '';
     setPaginationLayoutKey('');
+    progressRef.current = article.readingProgress?.progress ?? 0;
     setProgress(article.readingProgress?.progress ?? 0);
     readerStateStatusRef.current = 'loading';
     setReaderState({ status: 'loading', message: i18next.t('ebookReader.opening') });
@@ -234,11 +235,35 @@ export function useEbookFoliateView({
   );
 
   useEffect(() => {
+    const previousMaxColumnCount = maxColumnCountRef.current;
+    maxColumnCountRef.current = maxColumnCount;
     readerSettingsRef.current = readerSettings;
     readerThemeRef.current = readerTheme;
-    configureFoliateView(viewRef.current, readerSettings, readerTheme, maxColumnCountRef.current);
+    const view = viewRef.current;
+    configureFoliateView(view, readerSettings, readerTheme, maxColumnCount);
+    if (
+      view &&
+      readerStateStatusRef.current === 'ready' &&
+      previousMaxColumnCount !== maxColumnCount
+    ) {
+      const currentPageInfo = view.getPageInfo?.() ?? null;
+      recordRendererPerformanceTiming('ebook_layout', {
+        articleId: article.id,
+        fromColumns: previousMaxColumnCount,
+        pageInfo: currentPageInfo,
+        toColumns: maxColumnCount,
+      });
+      void restoreEbookReadingProgress(view, {
+        chapterIndex: currentPageInfo?.sectionIndex,
+        chapterProgress: ebookReadingProgressPageAnchor(currentPageInfo),
+        pageCount: currentPageInfo?.pageCount ?? 1,
+        pageIndex: currentPageInfo?.pageIndex ?? 0,
+        progress: progressRef.current,
+        updatedAt: new Date().toISOString(),
+      });
+    }
     onScheduleEbookBoxUpdate('reader_settings');
-  }, [onScheduleEbookBoxUpdate, readerSettings, readerTheme, maxColumnCount]);
+  }, [article.id, maxColumnCount, onScheduleEbookBoxUpdate, readerSettings, readerTheme]);
 
   useEffect(() => {
     readerStateStatusRef.current = readerState.status;
@@ -266,6 +291,7 @@ export function useEbookFoliateView({
       });
 
       setProgress(nextProgress);
+      progressRef.current = nextProgress;
       pageInfoSectionIndexRef.current = nextPageInfo?.sectionIndex;
       setPageInfo(nextPageInfo);
       if (nextPageInfo) {
@@ -575,6 +601,7 @@ export function useEbookFoliateView({
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const nextProgress = clampNumber(Number(event.currentTarget.value), 0, 1, progress);
       setProgress(nextProgress);
+      progressRef.current = nextProgress;
       void viewRef.current?.goToFraction(nextProgress);
     },
     [progress],
