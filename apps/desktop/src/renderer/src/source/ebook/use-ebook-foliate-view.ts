@@ -49,6 +49,7 @@ type PageTurnDirection = 'left' | 'right';
 
 const ebookSectionPageCountsCache = new Map<string, Array<number | null>>();
 const EBOOK_PAGINATION_RESIZE_SETTLE_DELAY_MS = 240;
+const EBOOK_PAGINATION_SECTION_YIELD_INTERVAL = 12;
 
 type EbookProgressRestoreTarget =
   | {
@@ -580,9 +581,6 @@ export function useEbookFoliateView({
           if (cancelled) return;
           const sectionStartedAt = performance.now();
 
-          await waitForFoliateIdle();
-          if (cancelled) return;
-
           await measureView.goTo(index);
           const nextPageInfo = await waitForFoliatePageInfo(measureView, index);
           if (cancelled) return;
@@ -595,8 +593,11 @@ export function useEbookFoliateView({
           });
           const nextCounts = [...counts];
           ebookSectionPageCountsCache.set(cacheKey, nextCounts);
-          setSectionPageCounts(nextCounts);
+          if (sectionTimings.length % EBOOK_PAGINATION_SECTION_YIELD_INTERVAL === 0) {
+            await waitForFoliateIdle();
+          }
         }
+        if (!cancelled) setSectionPageCounts([...counts]);
       } catch (error) {
         console.warn(error);
       } finally {
