@@ -59,6 +59,7 @@ import {
   pdfiumVisibleAnnotations,
   pdfiumAnnotationAgentName,
   pdfiumAnnotationRailLayout,
+  computeAutoPdfZoom,
   pageProgress,
   pdfiumHighlightChoicePosition,
   pdfiumHighlightHitAtClientPoint,
@@ -400,6 +401,17 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   } = usePdfiumPageMetrics({ canvasRef, pageCount });
   const zoom = documentState?.scale || 1;
   const loadedDocument = documentState?.document ?? undefined;
+  const pdfBaseWidth = useMemo(() => {
+    const pages = loadedDocument?.pages;
+    if (!pages || pages.length === 0) return 0;
+    return pages.reduce((max, page) => Math.max(max, page.size.width), 0);
+  }, [loadedDocument]);
+  // 自适应初始缩放：手动调缩放后置 false，退出自适应、不再随 resize 回弹。
+  const [autoZoomEnabled, setAutoZoomEnabled] = useState(true);
+  const appliedAutoZoomRef = useRef<number | null>(null);
+  // zoomControls 每次 render 是新引用，放进 effect 依赖会和 requestZoom 形成渲染死循环，故用 ref 旁路。
+  const zoomControlsRef = useRef(zoomControls);
+  zoomControlsRef.current = zoomControls;
   const {
     currentPage,
     initialPageNumber,
@@ -569,6 +581,16 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       ),
     [annotationRailViewportHeight, annotationRailViewportWidth, layoutPageWidth, pageMetrics],
   );
+  useEffect(() => {
+    if (!autoZoomEnabled) return;
+    const scale = computeAutoPdfZoom({
+      viewportWidth: annotationRailViewportWidth,
+      baseWidth: pdfBaseWidth,
+    });
+    if (scale == null || appliedAutoZoomRef.current === scale) return;
+    appliedAutoZoomRef.current = scale;
+    zoomControlsRef.current?.requestZoom(scale);
+  }, [autoZoomEnabled, annotationRailViewportWidth, pdfBaseWidth]);
   useEffect(() => {
     if (!annotationRailLayout) return;
     schedulePageMetricsUpdate();
@@ -1448,7 +1470,10 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
             step={5}
             unit="%"
             value={Math.round(zoom * 100)}
-            onChange={(value) => zoomControls?.requestZoom(value / 100)}
+            onChange={(value) => {
+              setAutoZoomEnabled(false);
+              zoomControls?.requestZoom(value / 100);
+            }}
           />
         </>
       ),
