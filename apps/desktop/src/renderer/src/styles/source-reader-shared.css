@@ -273,19 +273,31 @@
   color: hsl(var(--foreground));
 }
 
-.source-reader-shell .reader-toc-item-main strong,
-.source-ebook-reader-shell .reader-toc-item-main strong,
-.source-pdf-reader-shell .reader-toc-item-main strong {
-  border-color: hsl(var(--border) / 0.82);
-  border-radius: 0;
-  background: hsl(var(--card));
-  color: hsl(var(--foreground));
+.source-reader-shell .reader-toc-line,
+.source-ebook-reader-shell .reader-toc-line,
+.source-pdf-reader-shell .reader-toc-line {
+  background: hsl(var(--foreground) / 0.22);
 }
 
-.source-reader-shell .reader-toc-markers i,
-.source-ebook-reader-shell .reader-toc-markers i,
-.source-pdf-reader-shell .reader-toc-markers i {
+.source-reader-shell .reader-toc-item:hover .reader-toc-line,
+.source-reader-shell .reader-toc-item.is-active .reader-toc-line,
+.source-ebook-reader-shell .reader-toc-item:hover .reader-toc-line,
+.source-ebook-reader-shell .reader-toc-item.is-active .reader-toc-line,
+.source-pdf-reader-shell .reader-toc-item:hover .reader-toc-line,
+.source-pdf-reader-shell .reader-toc-item.is-active .reader-toc-line {
+  background: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-toc-count,
+.source-ebook-reader-shell .reader-toc-count,
+.source-pdf-reader-shell .reader-toc-count {
   border-color: hsl(var(--border) / 0.82);
+  background: color-mix(
+    in srgb,
+    var(--reader-toc-count-color, hsl(var(--foreground))) 52%,
+    hsl(var(--card))
+  );
+  color: hsl(var(--foreground));
   box-shadow: none;
 }
 

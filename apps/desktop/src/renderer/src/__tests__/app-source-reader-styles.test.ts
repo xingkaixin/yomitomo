@@ -63,7 +63,10 @@ describe('source reader annotation styles', () => {
       /\.source-reader-shell \.reader-floating-toolbar,[\s\S]*\.source-ebook-reader-shell \.reader-floating-toolbar,[\s\S]*\.source-pdf-reader-shell \.reader-floating-toolbar \{[\s\S]*z-index: var\(--app-z-overlay\);[\s\S]*\}/,
     );
     expect(styles).toMatch(
-      /\.source-reader-shell \.reader-toc-markers i,[\s\S]*\.source-ebook-reader-shell \.reader-toc-markers i,[\s\S]*\.source-pdf-reader-shell \.reader-toc-markers i \{[\s\S]*border-color: hsl\(var\(--border\) \/ 0\.82\);[\s\S]*box-shadow: none;[\s\S]*\}/,
+      /\.source-reader-shell \.reader-toc-line,[\s\S]*\.source-ebook-reader-shell \.reader-toc-line,[\s\S]*\.source-pdf-reader-shell \.reader-toc-line \{[\s\S]*background: hsl\(var\(--foreground\) \/ 0\.22\);[\s\S]*\}/,
+    );
+    expect(styles).toMatch(
+      /\.source-reader-shell \.reader-toc-count,[\s\S]*\.source-ebook-reader-shell \.reader-toc-count,[\s\S]*\.source-pdf-reader-shell \.reader-toc-count \{[\s\S]*border-color: hsl\(var\(--border\) \/ 0\.82\);[\s\S]*box-shadow: none;[\s\S]*\}/,
     );
     expect(styles).toMatch(
       /\.source-reader-shell \.reader-toc-summary,[\s\S]*\.source-ebook-reader-shell \.reader-toc-summary,[\s\S]*\.source-pdf-reader-shell \.reader-toc-summary \{[\s\S]*border-radius: 0;[\s\S]*background: hsl\(var\(--card\)\);[\s\S]*color: hsl\(var\(--muted-foreground\)\);[\s\S]*\}/,

@@ -1265,6 +1265,58 @@ describe('ReaderTocPanel', () => {
     expect(screen.queryByText(/评论/)).toBeNull();
   });
 
+  it('renders toc annotation totals as one colored count badge', () => {
+    const { container } = render(
+      <ReaderTocPanel
+        annotationTotals={{ annotations: 3, distillations: 1 }}
+        hasToc
+        tocAnnotationStats={new Map([[1, { count: 3, colors: ['#e2b84c'], distillationCount: 1 }]])}
+        tocItems={[{ index: 1, text: '引文', depth: 2, start: 0, end: 10 }]}
+        tocOpen
+        onScrollToHeading={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: '引文，3 划线' })).toBeTruthy();
+    expect(container.querySelector('.reader-toc-count')?.textContent).toBe('3');
+    expect(
+      (container.querySelector('.reader-toc-count') as HTMLElement).style.getPropertyValue(
+        '--reader-toc-count-color',
+      ),
+    ).toBe('#e2b84c');
+    expect(container.querySelector('.reader-toc-markers')).toBeNull();
+    expect(container.querySelector('.reader-toc-meta')).toBeNull();
+  });
+
+  it('applies distance-falloff proximity variables to focused toc items', () => {
+    render(
+      <ReaderTocPanel
+        annotationTotals={{ annotations: 0, distillations: 0 }}
+        hasToc
+        tocAnnotationStats={new Map()}
+        tocItems={[
+          { index: 1, text: '前文', depth: 1, start: 0, end: 10 },
+          { index: 2, text: '当前', depth: 1, start: 10, end: 20 },
+        ]}
+        tocOpen
+        onScrollToHeading={vi.fn()}
+      />,
+    );
+
+    const [previousButton, focusedButton] = screen.getAllByRole('button');
+    fireEvent.focus(focusedButton);
+
+    expect(focusedButton.style.getPropertyValue('--reader-toc-shift')).toBe('3.000px');
+    expect(focusedButton.style.getPropertyValue('--reader-toc-line-scale')).toBe('1.720');
+    expect(previousButton.style.getPropertyValue('--reader-toc-shift')).toBe('1.440px');
+    expect(previousButton.style.getPropertyValue('--reader-toc-line-scale')).toBe('1.346');
+
+    fireEvent.blur(focusedButton);
+
+    expect(focusedButton.style.getPropertyValue('--reader-toc-shift')).toBe('');
+    expect(focusedButton.style.getPropertyValue('--reader-toc-line-scale')).toBe('');
+  });
+
   it('marks active toc index 0 as the current location', () => {
     render(
       <ReaderTocPanel
