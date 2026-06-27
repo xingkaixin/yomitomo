@@ -19,6 +19,9 @@ export const readerBaseStyles = `
   --reader-ink-hairline: color-mix(in srgb,var(--reader-ink) 8%,transparent);
   --reader-paper-hover: color-mix(in srgb,var(--reader-ink) 6%,var(--reader-paper));
   --reader-paper-panel: color-mix(in srgb,var(--app-reader-note-bg) 74%,var(--reader-paper));
+  --reader-focus-ring: var(--app-interactive-focus-ring,color-mix(in srgb,var(--reader-ink) 42%,transparent));
+  --reader-code-bg: color-mix(in srgb,var(--reader-ink) 92%,var(--reader-paper));
+  --reader-code-fg: var(--reader-paper);
   --reader-elevated-shadow: 0 18px 48px color-mix(in srgb,var(--reader-ink) 16%,transparent);
   --reader-soft-shadow: 0 8px 20px color-mix(in srgb,var(--reader-ink) 6%,transparent);
   font-family: var(--font-reader-serif, Charter, Georgia, Cambria, "Times New Roman", serif);
@@ -559,8 +562,8 @@ export const readerBaseStyles = `
   overflow: auto;
   padding: 18px;
   border-radius: 16px;
-  background: #24211d;
-  color: #fbf6ec;
+  background: var(--reader-code-bg);
+  color: var(--reader-code-fg);
   font-family: var(--font-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
 }
 
