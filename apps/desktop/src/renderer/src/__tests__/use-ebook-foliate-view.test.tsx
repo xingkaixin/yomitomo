@@ -107,6 +107,7 @@ describe('useEbookFoliateView', () => {
   it('separates EPUB pagination caches by book and layout inputs', () => {
     const base = {
       articleId: 'ebook-1',
+      columns: 1,
       contentWidth: 720,
       fontSize: 18,
       layoutKey: '800x600',
@@ -117,6 +118,9 @@ describe('useEbookFoliateView', () => {
     );
     expect(ebookPaginationCacheKey(base)).not.toEqual(
       ebookPaginationCacheKey({ ...base, articleId: 'ebook-2' }),
+    );
+    expect(ebookPaginationCacheKey(base)).not.toEqual(
+      ebookPaginationCacheKey({ ...base, columns: 2 }),
     );
   });
 

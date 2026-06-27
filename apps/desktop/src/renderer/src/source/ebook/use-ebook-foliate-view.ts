@@ -56,16 +56,18 @@ type EbookProgressRestoreTarget =
 
 export function ebookPaginationCacheKey({
   articleId,
+  columns,
   contentWidth,
   fontSize,
   layoutKey,
 }: {
   articleId: string;
+  columns: number;
   contentWidth: number;
   fontSize: number;
   layoutKey: string;
 }) {
-  return `${articleId}:${layoutKey}:${fontSize}:${contentWidth}`;
+  return `${articleId}:${layoutKey}:${fontSize}:${contentWidth}:${columns}`;
 }
 
 export function ebookPaginationSectionOrder(sectionCount: number, currentSectionIndex?: number) {
@@ -163,6 +165,7 @@ export function useEbookFoliateView({
   const paginationLayoutKeyRef = useRef('');
   const readerSettingsRef = useRef<ReaderSettings>(readerSettings);
   const readerThemeRef = useRef<ReaderTheme>(readerTheme);
+  const maxColumnCountRef = useRef(1);
   const onSaveArticleReadingProgressRef = useRef(onSaveArticleReadingProgress);
   const onBeforePageTurnRef = useRef(onBeforePageTurn);
   const pageTurnQueueRef = useRef<PageTurnDirection[]>([]);
@@ -227,7 +230,7 @@ export function useEbookFoliateView({
   useEffect(() => {
     readerSettingsRef.current = readerSettings;
     readerThemeRef.current = readerTheme;
-    configureFoliateView(viewRef.current, readerSettings, readerTheme);
+    configureFoliateView(viewRef.current, readerSettings, readerTheme, maxColumnCountRef.current);
     onScheduleEbookBoxUpdate('reader_settings');
   }, [onScheduleEbookBoxUpdate, readerSettings, readerTheme]);
 
@@ -315,7 +318,12 @@ export function useEbookFoliateView({
         if (cancelled) return;
 
         viewRef.current = view;
-        configureFoliateView(view, readerSettingsRef.current, readerThemeRef.current);
+        configureFoliateView(
+          view,
+          readerSettingsRef.current,
+          readerThemeRef.current,
+          maxColumnCountRef.current,
+        );
         setTocItems(flattenFoliateToc(view.book?.toc ?? []));
         setSectionFractions(view.getSectionFractions?.() ?? []);
         readerStateStatusRef.current = 'ready';
@@ -423,6 +431,7 @@ export function useEbookFoliateView({
     const visibleEbookView = visibleView;
     const cacheKey = ebookPaginationCacheKey({
       articleId: article.id,
+      columns: maxColumnCountRef.current,
       contentWidth: readerSettings.contentWidth,
       fontSize: readerSettings.fontSize,
       layoutKey: paginationLayoutKey,
@@ -455,7 +464,12 @@ export function useEbookFoliateView({
         measureView.className = 'ebook-foliate-view';
         measureHostElement.replaceChildren(measureView);
         await measureView.open(sourceEbookFile);
-        configureFoliateView(measureView, readerSettingsRef.current, readerThemeRef.current);
+        configureFoliateView(
+          measureView,
+          readerSettingsRef.current,
+          readerThemeRef.current,
+          maxColumnCountRef.current,
+        );
 
         for (const index of ebookPaginationSectionOrder(
           sections.length,
