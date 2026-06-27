@@ -4,6 +4,8 @@ import {
   annotationNavigationForInsertionIndex,
   annotationNavigationForReferenceIndex,
 } from '@yomitomo/reader-ui/reader-navigation';
+import { annotationRailLayoutForWidth } from '@yomitomo/reader-ui/reader-shell-state';
+import type { AnnotationRailLayout } from '@yomitomo/reader-ui/reader-annotations';
 import {
   ebookChapterForFoliateSection,
   type FoliatePageInfo,
@@ -206,4 +208,40 @@ function ebookPageTextRange(
     start: chapter.textStart + Math.floor(chapter.textLength * startRatio),
     end: chapter.textStart + Math.ceil(chapter.textLength * endRatio),
   };
+}
+
+export type EbookSpreadLayout = {
+  columns: 1 | 2;
+  railLayout: AnnotationRailLayout;
+};
+
+export function ebookSpreadLayout({
+  canvasWidth,
+  contentWidth,
+}: {
+  canvasWidth: number;
+  contentWidth: number;
+}): EbookSpreadLayout {
+  if (canvasWidth <= 0 || contentWidth <= 0) {
+    return {
+      columns: 1,
+      railLayout: annotationRailLayoutForWidth({ canvasWidth, targetArticleWidth: contentWidth }),
+    };
+  }
+
+  const singlePageLayout = annotationRailLayoutForWidth({
+    canvasWidth,
+    targetArticleWidth: contentWidth,
+  });
+  const spreadWidth = contentWidth * 2;
+  const spreadLayout = annotationRailLayoutForWidth({
+    canvasWidth,
+    targetArticleWidth: spreadWidth,
+  });
+
+  const spreadFits = spreadLayout.mode !== 'stacked' && spreadLayout.articleWidth === spreadWidth;
+
+  return spreadFits
+    ? { columns: 2, railLayout: spreadLayout }
+    : { columns: 1, railLayout: singlePageLayout };
 }
