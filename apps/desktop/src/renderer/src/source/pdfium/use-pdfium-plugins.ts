@@ -38,7 +38,7 @@ export function usePdfiumPlugins(input: {
       createPluginRegistration(InteractionManagerPluginPackage),
       createPluginRegistration(SelectionPluginPackage, { marquee: { enabled: false } }),
       createPluginRegistration(BookmarkPluginPackage),
-      createPluginRegistration(ZoomPluginPackage, { defaultZoomLevel: ZoomMode.FitPage }),
+      createPluginRegistration(ZoomPluginPackage, { defaultZoomLevel: ZoomMode.FitWidth }),
     ];
   }, [article.pdf.metadata.title, article.title, buffer, documentId]);
 }

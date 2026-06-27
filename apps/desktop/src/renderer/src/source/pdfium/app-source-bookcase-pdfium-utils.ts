@@ -209,6 +209,28 @@ export function pdfiumAnnotationRailLayout(
   };
 }
 
+const PDF_AUTO_ZOOM_MAX_SCALE = 2;
+const PDF_AUTO_ZOOM_MIN_SCALE = 0.5;
+
+// 预留单侧批注栏空间后按宽度优先算初始缩放：页宽 = viewport 宽 − 单侧预留，随窗口放大/缩小。
+// 上限 2.0 仅兜底极端超宽屏（避免页面被放得过大）、下限 0.5 兜底极窄窗口。
+// both/right/stacked 的模式过渡交给 pdfiumAnnotationRailLayout 依据剩余空间自动决定，
+// 这里只负责让页宽填充「viewport − 批注栏预留」、始终给批注栏留出至少单栏空间。
+export function computeAutoPdfZoom(input: {
+  viewportWidth: number;
+  baseWidth: number;
+}): number | null {
+  const { viewportWidth, baseWidth } = input;
+  if (viewportWidth <= 0 || baseWidth <= 0) return null;
+  const reservedSideSpace =
+    PDF_ANNOTATION_RAIL_MIN_WIDTH +
+    PDF_ANNOTATION_RAIL_GAP +
+    PDF_ANNOTATION_RAIL_EDGE_INSET +
+    PDF_ANNOTATION_RAIL_STACK_OUTSET;
+  const widthFirst = (viewportWidth - reservedSideSpace) / baseWidth;
+  return Math.min(PDF_AUTO_ZOOM_MAX_SCALE, Math.max(PDF_AUTO_ZOOM_MIN_SCALE, widthFirst));
+}
+
 export function pdfiumPromptArticle(
   article: ArticleRecord,
   anchor: Annotation['anchor'] | undefined,

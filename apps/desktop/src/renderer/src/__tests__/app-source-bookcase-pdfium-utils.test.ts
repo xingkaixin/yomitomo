@@ -6,6 +6,7 @@ import { initializeAppI18n } from '../i18n/app-i18n';
 import {
   buildPdfTextDocument,
   clampPageIndex,
+  computeAutoPdfZoom,
   pdfiumAgentAnnotationRequestOptions,
   pdfiumAnnotationRailLayout,
   pdfiumMapReadingPlanAgentAnnotation,
@@ -557,6 +558,31 @@ function textAnnotation(id: string, overrides: Partial<Annotation> = {}): Annota
     ...overrides,
   } as Annotation;
 }
+
+describe('computeAutoPdfZoom', () => {
+  // sideSpace = minRail(220) + gap(20) + edgeInset(24) + stackOutset(56) = 320
+  it('upscales width-first to fill the viewport minus the reserved rail side', () => {
+    // (1180 - 320) / 612 ≈ 1.405 — pages grow past 100% as the window widens
+    expect(computeAutoPdfZoom({ viewportWidth: 1180, baseWidth: 612 })).toBeCloseTo(1.405, 3);
+  });
+
+  it('caps at the max scale on extreme ultrawide viewports', () => {
+    expect(computeAutoPdfZoom({ viewportWidth: 2000, baseWidth: 600 })).toBe(2);
+  });
+
+  it('scales down below 1.0 on narrow viewports', () => {
+    expect(computeAutoPdfZoom({ viewportWidth: 800, baseWidth: 600 })).toBeCloseTo(0.8, 5);
+  });
+
+  it('floors at the hard minimum on narrow viewports', () => {
+    expect(computeAutoPdfZoom({ viewportWidth: 500, baseWidth: 600 })).toBe(0.5);
+  });
+
+  it('returns null when viewport or page width is not measurable yet', () => {
+    expect(computeAutoPdfZoom({ viewportWidth: 0, baseWidth: 600 })).toBeNull();
+    expect(computeAutoPdfZoom({ viewportWidth: 800, baseWidth: 0 })).toBeNull();
+  });
+});
 
 function glyphGeometry(length: number): PdfPageGeometry {
   return {
