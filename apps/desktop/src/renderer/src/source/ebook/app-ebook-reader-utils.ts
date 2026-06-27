@@ -56,6 +56,18 @@ export type FoliateRelocateDetail = {
   };
 };
 
+export type FoliatePageInfoWaitTiming = {
+  assetWaitMs: number;
+  fontWaitMs: number;
+  imageWaitMs: number;
+  pendingImageCount: number;
+  frameWaitMs: number;
+  frameWaitCount: number;
+  matched: boolean;
+  matchedAfterAssets: boolean;
+  elapsedMs: number;
+};
+
 export type EbookPageTurnTrace = {
   turnId: string;
   startedAt: number;
@@ -92,6 +104,28 @@ export type FoliateViewElement = HTMLElement & {
 
 function rendererPerformanceElapsedMs(startedAt: number) {
   return Number((performance.now() - startedAt).toFixed(2));
+}
+
+function emptyFoliatePageInfoWaitTiming(): FoliatePageInfoWaitTiming {
+  return {
+    assetWaitMs: 0,
+    fontWaitMs: 0,
+    imageWaitMs: 0,
+    pendingImageCount: 0,
+    frameWaitMs: 0,
+    frameWaitCount: 0,
+    matched: false,
+    matchedAfterAssets: false,
+    elapsedMs: 0,
+  };
+}
+
+function assignFoliatePageInfoWaitTiming(
+  target: FoliatePageInfoWaitTiming | undefined,
+  source: FoliatePageInfoWaitTiming,
+) {
+  if (!target) return;
+  Object.assign(target, source);
 }
 
 export function recordEbookPageTurnTrace(
@@ -328,17 +362,45 @@ function waitForTimeout(ms: number) {
   });
 }
 
-export async function waitForFoliatePageInfo(view: FoliateViewElement, sectionIndex?: number) {
-  await waitForFoliateAssets(view);
+export async function waitForFoliatePageInfo(
+  view: FoliateViewElement,
+  sectionIndex?: number,
+  timing?: FoliatePageInfoWaitTiming,
+) {
+  const startedAt = performance.now();
+  const waitTiming = emptyFoliatePageInfoWaitTiming();
+  const assetTiming = await waitForFoliateAssets(view);
+  waitTiming.assetWaitMs = assetTiming.elapsedMs;
+  waitTiming.fontWaitMs = assetTiming.fontWaitMs;
+  waitTiming.imageWaitMs = assetTiming.imageWaitMs;
+  waitTiming.pendingImageCount = assetTiming.pendingImageCount;
 
   let pageInfo = view.getPageInfo?.() ?? null;
-  if (foliatePageInfoMatchesSection(pageInfo, sectionIndex)) return pageInfo;
+  if (foliatePageInfoMatchesSection(pageInfo, sectionIndex)) {
+    waitTiming.matched = true;
+    waitTiming.matchedAfterAssets = true;
+    waitTiming.elapsedMs = rendererPerformanceElapsedMs(startedAt);
+    assignFoliatePageInfoWaitTiming(timing, waitTiming);
+    return pageInfo;
+  }
 
+  const frameStartedAt = performance.now();
   for (let attempt = 0; attempt < 6; attempt += 1) {
     await waitForAnimationFrame();
+    waitTiming.frameWaitCount += 1;
     pageInfo = view.getPageInfo?.() ?? null;
-    if (foliatePageInfoMatchesSection(pageInfo, sectionIndex)) return pageInfo;
+    if (foliatePageInfoMatchesSection(pageInfo, sectionIndex)) {
+      waitTiming.matched = true;
+      waitTiming.frameWaitMs = rendererPerformanceElapsedMs(frameStartedAt);
+      waitTiming.elapsedMs = rendererPerformanceElapsedMs(startedAt);
+      assignFoliatePageInfoWaitTiming(timing, waitTiming);
+      return pageInfo;
+    }
   }
+  waitTiming.frameWaitMs = rendererPerformanceElapsedMs(frameStartedAt);
+  waitTiming.elapsedMs = rendererPerformanceElapsedMs(startedAt);
+  waitTiming.matched = sectionIndex === undefined || pageInfo?.sectionIndex === sectionIndex;
+  assignFoliatePageInfoWaitTiming(timing, waitTiming);
   return sectionIndex === undefined || pageInfo?.sectionIndex === sectionIndex ? pageInfo : null;
 }
 
@@ -352,20 +414,37 @@ function foliatePageInfoMatchesSection(
 }
 
 async function waitForFoliateAssets(view: FoliateViewElement) {
+  const startedAt = performance.now();
+  const timing = {
+    elapsedMs: 0,
+    fontWaitMs: 0,
+    imageWaitMs: 0,
+    pendingImageCount: 0,
+  };
+  const finish = () => {
+    timing.elapsedMs = rendererPerformanceElapsedMs(startedAt);
+    return timing;
+  };
   const doc = view.renderer?.getContents?.()[0]?.doc;
-  if (!doc) return;
+  if (!doc) return finish();
 
+  const fontStartedAt = performance.now();
   await Promise.race([doc.fonts.ready.then(() => undefined), waitForTimeout(800)]).catch(() => {
     return undefined;
   });
+  timing.fontWaitMs = rendererPerformanceElapsedMs(fontStartedAt);
 
   const pendingImages = Array.from(doc.images).filter((image) => !image.complete);
-  if (pendingImages.length === 0) return;
+  timing.pendingImageCount = pendingImages.length;
+  if (pendingImages.length === 0) return finish();
 
+  const imageStartedAt = performance.now();
   await Promise.race([
     Promise.allSettled(pendingImages.map(waitForImage)).then(() => undefined),
     waitForTimeout(800),
   ]);
+  timing.imageWaitMs = rendererPerformanceElapsedMs(imageStartedAt);
+  return finish();
 }
 
 function waitForImage(image: HTMLImageElement) {

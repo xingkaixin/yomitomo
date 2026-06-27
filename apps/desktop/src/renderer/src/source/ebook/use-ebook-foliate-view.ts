@@ -17,6 +17,7 @@ import {
   type EbookBoxUpdateReason,
   type EbookPageTurnTrace,
   type FoliatePageInfo,
+  type FoliatePageInfoWaitTiming,
   type FoliateRelocateDetail,
   type FoliateSectionSource,
   type FoliateViewElement,
@@ -50,6 +51,23 @@ type PageTurnDirection = 'left' | 'right';
 const ebookSectionPageCountsCache = new Map<string, Array<number | null>>();
 const EBOOK_PAGINATION_RESIZE_SETTLE_DELAY_MS = 240;
 const EBOOK_PAGINATION_SECTION_YIELD_INTERVAL = 12;
+
+type EbookPaginationSectionTiming = {
+  elapsedMs: number;
+  index: number;
+  pageCount: number;
+  goToMs: number;
+  pageInfoWaitMs: number;
+  assetWaitMs: number;
+  fontWaitMs: number;
+  imageWaitMs: number;
+  pendingImageCount: number;
+  frameWaitMs: number;
+  frameWaitCount: number;
+  pageInfoMatched: boolean;
+  pageInfoMatchedAfterAssets: boolean;
+  idleYieldMs: number;
+};
 
 type EbookProgressRestoreTarget =
   | {
@@ -557,13 +575,20 @@ export function useEbookFoliateView({
 
     async function measureEbookPages() {
       const measureStartedAt = performance.now();
+      let importMs = 0;
+      let initialIdleMs = 0;
       let openMs = 0;
-      const sectionTimings: Array<{ elapsedMs: number; index: number; pageCount: number }> = [];
+      let idleYieldMs = 0;
+      const sectionTimings: EbookPaginationSectionTiming[] = [];
       try {
+        const initialIdleStartedAt = performance.now();
         await waitForFoliateIdle();
+        initialIdleMs = rendererPerformanceElapsedMs(initialIdleStartedAt);
         if (cancelled) return;
 
+        const importStartedAt = performance.now();
         await import('../../vendor/foliate-js/view.js');
+        importMs = rendererPerformanceElapsedMs(importStartedAt);
         measureView = document.createElement('foliate-view') as FoliateViewElement;
         measureView.className = 'ebook-foliate-view';
         measureHostElement.replaceChildren(measureView);
@@ -580,22 +605,51 @@ export function useEbookFoliateView({
         for (const index of pendingSectionIndexes) {
           if (cancelled) return;
           const sectionStartedAt = performance.now();
+          const goToStartedAt = performance.now();
 
           await measureView.goTo(index);
-          const nextPageInfo = await waitForFoliatePageInfo(measureView, index);
+          const goToMs = rendererPerformanceElapsedMs(goToStartedAt);
+          const pageInfoTiming: FoliatePageInfoWaitTiming = {
+            assetWaitMs: 0,
+            fontWaitMs: 0,
+            imageWaitMs: 0,
+            pendingImageCount: 0,
+            frameWaitMs: 0,
+            frameWaitCount: 0,
+            matched: false,
+            matchedAfterAssets: false,
+            elapsedMs: 0,
+          };
+          const nextPageInfo = await waitForFoliatePageInfo(measureView, index, pageInfoTiming);
           if (cancelled) return;
 
           counts[index] = Math.max(1, nextPageInfo?.pageCount ?? 1);
+          const nextCounts = [...counts];
+          ebookSectionPageCountsCache.set(cacheKey, nextCounts);
+          let sectionIdleYieldMs = 0;
+          if ((sectionTimings.length + 1) % EBOOK_PAGINATION_SECTION_YIELD_INTERVAL === 0) {
+            const idleStartedAt = performance.now();
+            await waitForFoliateIdle();
+            sectionIdleYieldMs = rendererPerformanceElapsedMs(idleStartedAt);
+            idleYieldMs += sectionIdleYieldMs;
+            if (cancelled) return;
+          }
           sectionTimings.push({
             elapsedMs: rendererPerformanceElapsedMs(sectionStartedAt),
             index,
             pageCount: counts[index] ?? 1,
+            goToMs,
+            pageInfoWaitMs: pageInfoTiming.elapsedMs,
+            assetWaitMs: pageInfoTiming.assetWaitMs,
+            fontWaitMs: pageInfoTiming.fontWaitMs,
+            imageWaitMs: pageInfoTiming.imageWaitMs,
+            pendingImageCount: pageInfoTiming.pendingImageCount,
+            frameWaitMs: pageInfoTiming.frameWaitMs,
+            frameWaitCount: pageInfoTiming.frameWaitCount,
+            pageInfoMatched: pageInfoTiming.matched,
+            pageInfoMatchedAfterAssets: pageInfoTiming.matchedAfterAssets,
+            idleYieldMs: sectionIdleYieldMs,
           });
-          const nextCounts = [...counts];
-          ebookSectionPageCountsCache.set(cacheKey, nextCounts);
-          if (sectionTimings.length % EBOOK_PAGINATION_SECTION_YIELD_INTERVAL === 0) {
-            await waitForFoliateIdle();
-          }
         }
         if (!cancelled) setSectionPageCounts([...counts]);
       } catch (error) {
@@ -606,6 +660,9 @@ export function useEbookFoliateView({
           columns: maxColumnCountRef.current,
           elapsedMs: rendererPerformanceElapsedMs(measureStartedAt),
           hasCacheEntry: cachedCounts?.length === sections.length,
+          idleYieldMs,
+          importMs,
+          initialIdleMs,
           layoutKey: paginationLayoutKey,
           openMs,
           phase: 'measure',

@@ -17,6 +17,7 @@ import {
   rangeForEbookAnchorInDocument,
   selectionTextForRange,
   waitForFoliatePageInfo,
+  type FoliatePageInfoWaitTiming,
   type FoliateViewElement,
   type FoliateTocItem,
 } from '../source/ebook/app-ebook-reader-utils';
@@ -114,6 +115,20 @@ function annotation(id: string, start: number): Annotation {
   };
 }
 
+function pageInfoWaitTiming(): FoliatePageInfoWaitTiming {
+  return {
+    assetWaitMs: 0,
+    fontWaitMs: 0,
+    imageWaitMs: 0,
+    pendingImageCount: 0,
+    frameWaitMs: 0,
+    frameWaitCount: 0,
+    matched: false,
+    matchedAfterAssets: false,
+    elapsedMs: 0,
+  };
+}
+
 describe('ebook reader utils', () => {
   it('returns matching Foliate page info without waiting for an animation frame', async () => {
     const requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
@@ -126,9 +141,37 @@ describe('ebook reader utils', () => {
     const view = {
       getPageInfo: vi.fn(() => pageInfo),
     } as unknown as FoliateViewElement;
+    const timing = pageInfoWaitTiming();
 
-    await expect(waitForFoliatePageInfo(view, 2)).resolves.toBe(pageInfo);
+    await expect(waitForFoliatePageInfo(view, 2, timing)).resolves.toBe(pageInfo);
     expect(requestAnimationFrame).not.toHaveBeenCalled();
+    expect(timing).toMatchObject({
+      frameWaitCount: 0,
+      matched: true,
+      matchedAfterAssets: true,
+    });
+  });
+
+  it('records Foliate page info animation frame waits', async () => {
+    const requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
+      callback(performance.now());
+      return 1;
+    });
+    vi.stubGlobal('requestAnimationFrame', requestAnimationFrame);
+    window.requestAnimationFrame = requestAnimationFrame;
+    const pageInfo = { sectionIndex: 2, pageIndex: 3, pageCount: 8 };
+    const view = {
+      getPageInfo: vi.fn().mockReturnValueOnce(null).mockReturnValue(pageInfo),
+    } as unknown as FoliateViewElement;
+    const timing = pageInfoWaitTiming();
+
+    await expect(waitForFoliatePageInfo(view, 2, timing)).resolves.toBe(pageInfo);
+    expect(requestAnimationFrame).toHaveBeenCalledTimes(1);
+    expect(timing).toMatchObject({
+      frameWaitCount: 1,
+      matched: true,
+      matchedAfterAssets: false,
+    });
   });
 
   it('requires complete EPUB section page counts before showing the page label', () => {
