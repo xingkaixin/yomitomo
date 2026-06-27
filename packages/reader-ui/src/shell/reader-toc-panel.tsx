@@ -2,6 +2,8 @@ import React from 'react';
 import type { TocItem } from '@yomitomo/core';
 import { Highlighter, Layers2 } from 'lucide-react';
 import type { buildTocAnnotationStats } from '../annotations/reader-annotations';
+import { TooltipProvider } from '../components/ui/tooltip';
+import { ReaderTooltip } from '../shared/reader-component-primitives';
 import type { ReaderUiLabels } from './reader-app-view-types';
 import { defaultReaderUiLabels } from './reader-app-view-types';
 
@@ -103,51 +105,54 @@ export function ReaderTocPanel({
       onPointerLeave={() => setTocProximity(null, 'out')}
     >
       <div className="reader-toc-title">{labels.toc}</div>
-      {tocItems.map((item, tocPosition) => {
-        const active = item.index === activeTocIndex;
-        const stats = tocAnnotationStats.get(item.index);
-        const colors = stats?.colors ?? [];
-        const annotationCount = stats?.count ?? 0;
-        const annotationColor = colors[0];
-        const badgeStyle =
-          annotationCount > 0 && annotationColor
-            ? ({ '--reader-toc-count-color': annotationColor } as React.CSSProperties)
-            : undefined;
-        const buttonLabel =
-          annotationCount > 0
-            ? `${item.text}，${annotationCount} ${labels.annotations}`
-            : item.text;
-        return (
-          <button
-            className={active ? 'reader-toc-item is-active' : 'reader-toc-item'}
-            data-depth={Math.min(item.depth, 4)}
-            key={`${item.index}-${item.text}`}
-            ref={active ? activeItemRef : undefined}
-            type="button"
-            aria-label={buttonLabel}
-            aria-current={active ? 'location' : undefined}
-            onPointerEnter={() => setTocProximity(tocPosition, 'in')}
-            onFocus={() => setTocProximity(tocPosition, 'in')}
-            onBlur={() => setTocProximity(null, 'out')}
-            onClick={() => onScrollToHeading(item)}
-          >
-            <span className="reader-toc-line" aria-hidden="true" />
-            <span className="reader-toc-item-main">
-              <span className="reader-toc-label">{item.text}</span>
-              {annotationCount > 0 ? (
-                <span
-                  className="reader-toc-count"
-                  style={badgeStyle}
-                  title={`${annotationCount} ${labels.annotations}`}
-                  aria-hidden="true"
-                >
-                  {annotationCount}
+      <TooltipProvider delayDuration={500} skipDelayDuration={0}>
+        {tocItems.map((item, tocPosition) => {
+          const active = item.index === activeTocIndex;
+          const stats = tocAnnotationStats.get(item.index);
+          const colors = stats?.colors ?? [];
+          const annotationCount = stats?.count ?? 0;
+          const annotationColor = colors[0];
+          const badgeStyle =
+            annotationCount > 0 && annotationColor
+              ? ({ '--reader-toc-count-color': annotationColor } as React.CSSProperties)
+              : undefined;
+          const buttonLabel =
+            annotationCount > 0
+              ? `${item.text}，${annotationCount} ${labels.annotations}`
+              : item.text;
+          return (
+            <ReaderTooltip content={item.text} key={`${item.index}-${item.text}`} side="right">
+              <button
+                className={active ? 'reader-toc-item is-active' : 'reader-toc-item'}
+                data-depth={Math.min(item.depth, 4)}
+                ref={active ? activeItemRef : undefined}
+                type="button"
+                aria-label={buttonLabel}
+                aria-current={active ? 'location' : undefined}
+                onPointerEnter={() => setTocProximity(tocPosition, 'in')}
+                onFocus={() => setTocProximity(tocPosition, 'in')}
+                onBlur={() => setTocProximity(null, 'out')}
+                onClick={() => onScrollToHeading(item)}
+              >
+                <span className="reader-toc-line" aria-hidden="true" />
+                <span className="reader-toc-item-main">
+                  <span className="reader-toc-label">{item.text}</span>
+                  {annotationCount > 0 ? (
+                    <span
+                      className="reader-toc-count"
+                      style={badgeStyle}
+                      title={`${annotationCount} ${labels.annotations}`}
+                      aria-hidden="true"
+                    >
+                      {annotationCount}
+                    </span>
+                  ) : null}
                 </span>
-              ) : null}
-            </span>
-          </button>
-        );
-      })}
+              </button>
+            </ReaderTooltip>
+          );
+        })}
+      </TooltipProvider>
       <div
         className="reader-toc-summary"
         aria-label={labels.tocSummary(annotationTotals.annotations, annotationTotals.distillations)}
