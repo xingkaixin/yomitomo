@@ -200,18 +200,22 @@ function fetchWeReadReadingStatsEffect(
 function fetchWeReadThoughtsEffect(apiKey: string, bookId: string) {
   return Effect.gen(function* () {
     const thoughts: Record<string, unknown>[] = [];
-    let synckey = 0;
+    let synckey: number | undefined;
 
     for (let page = 0; page < 50; page += 1) {
       const response = yield* requestWeReadEffect(apiKey, '/review/list/mine', {
         bookid: bookId,
         count: 100,
-        ...(synckey ? { synckey } : {}),
+        ...(synckey === undefined ? {} : { synckey }),
       });
       thoughts.push(...arrayValue(response.reviews));
       if (response.hasMore !== 1) break;
-      const nextSynckey = numberValue(response.synckey);
-      if (!nextSynckey || nextSynckey === synckey) break;
+      const nextSynckey = optionalNumber(response.synckey);
+      if (nextSynckey === undefined) {
+        console.warn('[weread] thoughts pagination stopped without synckey', { bookId, page });
+        break;
+      }
+      if (synckey !== undefined && nextSynckey === synckey) break;
       synckey = nextSynckey;
     }
 

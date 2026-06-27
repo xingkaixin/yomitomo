@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  fetchWeReadBookDetail,
   fetchWeReadNotebooks,
   fetchWeReadReadingStats,
   testWeReadConnection,
@@ -15,6 +16,52 @@ function response(body: unknown, status = 200) {
 function requestBody(call: Parameters<typeof fetch>) {
   const body = call[1]?.body;
   return JSON.parse(typeof body === 'string' ? body : '') as Record<string, unknown>;
+}
+
+function reviewRequestBodies(fetchMock: { mock: { calls: Parameters<typeof fetch>[] } }) {
+  return fetchMock.mock.calls
+    .map((call) => requestBody(call))
+    .filter((body) => body.api_name === '/review/list/mine');
+}
+
+function reviewPage(
+  reviewId: string,
+  input: { hasMore: number; synckey?: number; range?: string },
+) {
+  return {
+    hasMore: input.hasMore,
+    ...(input.synckey === undefined ? {} : { synckey: input.synckey }),
+    reviews: [
+      {
+        review: {
+          reviewId,
+          bookId: 'book_1',
+          chapterUid: 1,
+          range: input.range || `${reviewId}-range`,
+          abstract: `${reviewId}-abstract`,
+          content: `${reviewId}-content`,
+          createTime: 1,
+        },
+      },
+    ],
+  };
+}
+
+function mockBookDetailFetch(reviewResponses: Record<string, unknown>[]) {
+  let reviewIndex = 0;
+  return vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
+    const body = requestBody([_input, init] as Parameters<typeof fetch>);
+    if (body.api_name === '/review/list/mine') {
+      return response(reviewResponses[reviewIndex++] || reviewResponses.at(-1) || {});
+    }
+    if (body.api_name === '/book/chapterinfo') {
+      return response({ chapters: [{ chapterUid: 1, chapterIdx: 1, title: '第一章' }] });
+    }
+    if (body.api_name === '/book/bookmarklist') return response({ updated: [] });
+    if (body.api_name === '/book/info') return response({ bookId: 'book_1', title: '书' });
+    if (body.api_name === '/book/getprogress') return response({ book: {} });
+    throw new Error(`Unexpected WeRead API: ${String(body.api_name)}`);
+  });
 }
 
 describe('weread client', () => {
@@ -109,5 +156,58 @@ describe('weread client', () => {
     );
 
     await expect(fetchWeReadReadingStats('secret', 'overall')).rejects.toThrow('签名无效');
+  });
+
+  it('continues thoughts pagination when the next synckey is zero', async () => {
+    const fetchMock = mockBookDetailFetch([
+      reviewPage('review_1', { hasMore: 1, synckey: 0 }),
+      reviewPage('review_2', { hasMore: 0 }),
+    ]);
+
+    const detail = await fetchWeReadBookDetail('secret', 'book_1');
+
+    expect(detail.thoughts.map((thought) => thought.reviewId)).toEqual(['review_1', 'review_2']);
+    expect(reviewRequestBodies(fetchMock)).toMatchObject([
+      { api_name: '/review/list/mine', bookid: 'book_1', count: 100 },
+      { api_name: '/review/list/mine', bookid: 'book_1', count: 100, synckey: 0 },
+    ]);
+  });
+
+  it('stops thoughts pagination when hasMore is false', async () => {
+    const fetchMock = mockBookDetailFetch([reviewPage('review_1', { hasMore: 0, synckey: 9 })]);
+
+    const detail = await fetchWeReadBookDetail('secret', 'book_1');
+
+    expect(detail.thoughts.map((thought) => thought.reviewId)).toEqual(['review_1']);
+    expect(reviewRequestBodies(fetchMock)).toHaveLength(1);
+  });
+
+  it('stops thoughts pagination when hasMore lacks a next synckey', async () => {
+    const warnMock = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const fetchMock = mockBookDetailFetch([reviewPage('review_1', { hasMore: 1 })]);
+
+    const detail = await fetchWeReadBookDetail('secret', 'book_1');
+
+    expect(detail.thoughts.map((thought) => thought.reviewId)).toEqual(['review_1']);
+    expect(reviewRequestBodies(fetchMock)).toHaveLength(1);
+    expect(warnMock).toHaveBeenCalledWith('[weread] thoughts pagination stopped without synckey', {
+      bookId: 'book_1',
+      page: 0,
+    });
+  });
+
+  it('stops thoughts pagination when the next synckey repeats', async () => {
+    const fetchMock = mockBookDetailFetch([
+      reviewPage('review_1', { hasMore: 1, synckey: 7 }),
+      reviewPage('review_2', { hasMore: 1, synckey: 7 }),
+    ]);
+
+    const detail = await fetchWeReadBookDetail('secret', 'book_1');
+
+    expect(detail.thoughts.map((thought) => thought.reviewId)).toEqual(['review_1', 'review_2']);
+    expect(reviewRequestBodies(fetchMock)).toMatchObject([
+      { api_name: '/review/list/mine', bookid: 'book_1', count: 100 },
+      { api_name: '/review/list/mine', bookid: 'book_1', count: 100, synckey: 7 },
+    ]);
   });
 });
