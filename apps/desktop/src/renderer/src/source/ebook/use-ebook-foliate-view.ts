@@ -18,9 +18,11 @@ import {
   type EbookPageTurnTrace,
   type FoliatePageInfo,
   type FoliateRelocateDetail,
+  type FoliateSectionSource,
   type FoliateViewElement,
 } from './app-ebook-reader-utils';
 import {
+  rendererPerformanceElapsedMs,
   recordRendererPerformanceTiming,
   type EbookBookcaseProps,
 } from '../bookcase/app-source-bookcase-shared';
@@ -91,6 +93,19 @@ export function ebookPaginationSectionOrder(sectionCount: number, currentSection
   }
 
   return indexes;
+}
+
+export function ebookPendingPaginationSectionIndexes(
+  sections: FoliateSectionSource[],
+  counts: Array<number | null>,
+  currentSectionIndex?: number,
+) {
+  return ebookPaginationSectionOrder(sections.length, currentSectionIndex).filter((index) => {
+    const section = sections[index];
+    if (!section) return false;
+    if (section.linear === 'no') return false;
+    return counts[index] === null;
+  });
 }
 
 export function ebookReadingProgressPageAnchor(pageInfo: FoliatePageInfo | null) {
@@ -478,6 +493,7 @@ export function useEbookFoliateView({
     const measureHostElement = measureHost;
     const sourceEbookFile = sourceFile;
     const visibleEbookView = visibleView;
+    const paginationStartedAt = performance.now();
     const cacheKey = ebookPaginationCacheKey({
       articleId: article.id,
       columns: maxColumnCountRef.current,
@@ -485,12 +501,13 @@ export function useEbookFoliateView({
       fontSize: readerSettings.fontSize,
       layoutKey: paginationLayoutKey,
     });
+    const cachedCounts = ebookSectionPageCountsCache.get(cacheKey);
 
     let cancelled = false;
     let measureView: FoliateViewElement | null = null;
     let counts: Array<number | null> =
-      ebookSectionPageCountsCache.get(cacheKey)?.length === sections.length
-        ? [...(ebookSectionPageCountsCache.get(cacheKey) ?? [])]
+      cachedCounts?.length === sections.length
+        ? [...cachedCounts]
         : sections.map((section) => (section.linear === 'no' ? 0 : null));
     const currentPageInfo = visibleEbookView.getPageInfo?.();
     pageInfoSectionIndexRef.current = currentPageInfo?.sectionIndex;
@@ -499,12 +516,33 @@ export function useEbookFoliateView({
     counts = currentPageInfo ? updateKnownSectionPageCount(counts, currentPageInfo) : counts;
     ebookSectionPageCountsCache.set(cacheKey, [...counts]);
     setSectionPageCounts([...counts]);
+    const pendingSectionIndexes = ebookPendingPaginationSectionIndexes(
+      sections,
+      counts,
+      currentPageInfo?.sectionIndex,
+    );
+    recordRendererPerformanceTiming('ebook_pagination', {
+      articleId: article.id,
+      cachedSectionCount: counts.filter((count) => count !== null).length,
+      columns: maxColumnCountRef.current,
+      elapsedMs: rendererPerformanceElapsedMs(paginationStartedAt),
+      hasCacheEntry: cachedCounts?.length === sections.length,
+      layoutKey: paginationLayoutKey,
+      phase: 'plan',
+      pendingSectionCount: pendingSectionIndexes.length,
+      result: pendingSectionIndexes.length === 0 ? 'cache_hit' : 'scheduled',
+      sectionCount: sections.length,
+    });
+    if (pendingSectionIndexes.length === 0) return;
 
     const timer = window.setTimeout(() => {
       void measureEbookPages();
     }, 360);
 
     async function measureEbookPages() {
+      const measureStartedAt = performance.now();
+      let openMs = 0;
+      const sectionTimings: Array<{ elapsedMs: number; index: number; pageCount: number }> = [];
       try {
         await waitForFoliateIdle();
         if (cancelled) return;
@@ -513,7 +551,9 @@ export function useEbookFoliateView({
         measureView = document.createElement('foliate-view') as FoliateViewElement;
         measureView.className = 'ebook-foliate-view';
         measureHostElement.replaceChildren(measureView);
+        const openStartedAt = performance.now();
         await measureView.open(sourceEbookFile);
+        openMs = rendererPerformanceElapsedMs(openStartedAt);
         configureFoliateView(
           measureView,
           readerSettingsRef.current,
@@ -521,15 +561,9 @@ export function useEbookFoliateView({
           maxColumnCountRef.current,
         );
 
-        for (const index of ebookPaginationSectionOrder(
-          sections.length,
-          currentPageInfo?.sectionIndex,
-        )) {
+        for (const index of pendingSectionIndexes) {
           if (cancelled) return;
-          const section = sections[index];
-          if (!section) continue;
-          if (section.linear === 'no') continue;
-          if (counts[index] !== null) continue;
+          const sectionStartedAt = performance.now();
 
           await waitForFoliateIdle();
           if (cancelled) return;
@@ -539,6 +573,11 @@ export function useEbookFoliateView({
           if (cancelled) return;
 
           counts[index] = Math.max(1, nextPageInfo?.pageCount ?? 1);
+          sectionTimings.push({
+            elapsedMs: rendererPerformanceElapsedMs(sectionStartedAt),
+            index,
+            pageCount: counts[index] ?? 1,
+          });
           const nextCounts = [...counts];
           ebookSectionPageCountsCache.set(cacheKey, nextCounts);
           setSectionPageCounts(nextCounts);
@@ -546,6 +585,19 @@ export function useEbookFoliateView({
       } catch (error) {
         console.warn(error);
       } finally {
+        recordRendererPerformanceTiming('ebook_pagination', {
+          articleId: article.id,
+          columns: maxColumnCountRef.current,
+          elapsedMs: rendererPerformanceElapsedMs(measureStartedAt),
+          hasCacheEntry: cachedCounts?.length === sections.length,
+          layoutKey: paginationLayoutKey,
+          openMs,
+          phase: 'measure',
+          pendingSectionCount: pendingSectionIndexes.length,
+          result: cancelled ? 'cancelled' : 'complete',
+          sectionCount: sections.length,
+          sectionTimings,
+        });
         closeFoliateView(measureView);
         measureView?.remove();
         if (measureHostElement.firstChild === measureView) measureHostElement.replaceChildren();

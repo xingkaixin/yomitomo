@@ -5,6 +5,7 @@ import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   ebookPaginationCacheKey,
+  ebookPendingPaginationSectionIndexes,
   ebookPaginationSectionOrder,
   ebookReadingProgressPageAnchor,
   ebookReadingProgressRestoreTarget,
@@ -107,6 +108,13 @@ describe('useEbookFoliateView', () => {
   it('prioritizes the current EPUB section when measuring page counts', () => {
     expect(ebookPaginationSectionOrder(4, 2)).toEqual([2, 0, 1, 3]);
     expect(ebookPaginationSectionOrder(3)).toEqual([0, 1, 2]);
+  });
+
+  it('plans only missing linear EPUB sections for page-count measurement', () => {
+    const sections = [{}, { linear: 'no' }, {}, {}];
+
+    expect(ebookPendingPaginationSectionIndexes(sections, [null, 0, null, 8], 2)).toEqual([2, 0]);
+    expect(ebookPendingPaginationSectionIndexes(sections, [6, 0, 7, 8], 2)).toEqual([]);
   });
 
   it('separates EPUB pagination caches by book and layout inputs', () => {
