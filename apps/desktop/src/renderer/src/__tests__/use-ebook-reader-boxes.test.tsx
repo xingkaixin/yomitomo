@@ -297,6 +297,24 @@ describe('useEbookReaderBoxes', () => {
     expect(onFoliatePageTurnClick).toHaveBeenNthCalledWith(1, 'left');
     expect(onFoliatePageTurnClick).toHaveBeenNthCalledWith(2, 'right');
   });
+
+  it('turns pages from visible foliate view clicks outside iframe documents', () => {
+    const doc = foliateDocument('正文', { left: 0, width: 800 });
+    const view = foliateView(doc, { left: 0, width: 800 });
+    render(<EbookBoxesProbe view={view} />);
+
+    const canvas = screen.getByTestId('canvas');
+    view.dispatchEvent(foliateMouseEvent('mousemove', { clientX: 20 }));
+    view.dispatchEvent(foliateMouseEvent('click', { clientX: 20 }));
+    expect(canvas.dataset.ebookClickPagingHover).toBe('left');
+
+    view.dispatchEvent(foliateMouseEvent('mousemove', { clientX: 780 }));
+    view.dispatchEvent(foliateMouseEvent('click', { clientX: 780 }));
+    expect(canvas.dataset.ebookClickPagingHover).toBe('right');
+
+    expect(onFoliatePageTurnClick).toHaveBeenNthCalledWith(1, 'left');
+    expect(onFoliatePageTurnClick).toHaveBeenNthCalledWith(2, 'right');
+  });
 });
 
 function foliateDocument(

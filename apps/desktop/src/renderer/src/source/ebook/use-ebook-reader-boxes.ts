@@ -127,6 +127,7 @@ export function useEbookReaderBoxes({
     rangeCount: 0,
     resolvedAnchorCount: 0,
   });
+  const observedFoliateViewsRef = useRef(new WeakSet<FoliateViewElement>());
   const observedFoliateDocsRef = useRef(new WeakSet<Document>());
   const foliateDocCleanupsRef = useRef<Array<() => void>>([]);
   const handleFoliateSelectionRef = useRef(onFoliateSelection);
@@ -501,6 +502,7 @@ export function useEbookReaderBoxes({
   const cleanupFoliateDocumentListeners = useCallback(() => {
     for (const cleanup of foliateDocCleanupsRef.current) cleanup();
     foliateDocCleanupsRef.current = [];
+    observedFoliateViewsRef.current = new WeakSet<FoliateViewElement>();
     observedFoliateDocsRef.current = new WeakSet<Document>();
     const canvas = canvasRef.current;
     if (canvas) delete canvas.dataset.ebookClickPagingHover;
@@ -520,6 +522,33 @@ export function useEbookReaderBoxes({
     const selection = doc.getSelection();
     return Boolean(selection && selection.rangeCount > 0 && !selection.isCollapsed);
   }, []);
+
+  const foliateViewHasExpandedSelection = useCallback(
+    (view: FoliateViewElement | null) =>
+      currentFoliateContents(view).some(({ doc }) =>
+        doc ? foliateDocumentHasExpandedSelection(doc) : false,
+      ),
+    [foliateDocumentHasExpandedSelection],
+  );
+
+  const foliateViewClickPagingDirection = useCallback(
+    (event: MouseEvent, view: FoliateViewElement) => {
+      const viewRect = view.getBoundingClientRect();
+      const direction = ebookClickPagingDirectionAtClientX({
+        clientX: event.clientX,
+        rect: viewRect,
+      });
+      debugEbookLayout('click-paging-view-direction', {
+        canvas: debugRect(canvasRef.current?.getBoundingClientRect()),
+        clientX: Math.round(event.clientX),
+        direction,
+        eventType: event.type,
+        view: debugRect(viewRect),
+      });
+      return direction;
+    },
+    [canvasRef],
+  );
 
   const foliateClickPagingDirection = useCallback(
     (event: MouseEvent, doc: Document) => {
@@ -548,8 +577,50 @@ export function useEbookReaderBoxes({
     [canvasRef, viewRef],
   );
 
+  const attachFoliateViewListeners = useCallback(
+    (view: FoliateViewElement | null) => {
+      if (!view || observedFoliateViewsRef.current.has(view)) return;
+      observedFoliateViewsRef.current.add(view);
+
+      const handleClick = (event: MouseEvent) => {
+        if (event.button !== 0 || event.defaultPrevented) return;
+        if (foliateViewHasExpandedSelection(view)) return;
+        if (foliateClickTargetIsInteractive(event.target)) return;
+        const direction = foliateViewClickPagingDirection(event, view);
+        if (!direction) return;
+        handleFoliatePageTurnClickRef.current(direction);
+      };
+      const handleMouseMove = (event: MouseEvent) => {
+        if (foliateViewHasExpandedSelection(view)) {
+          setClickPagingHoverDirection(null);
+          return;
+        }
+        setClickPagingHoverDirection(foliateViewClickPagingDirection(event, view));
+      };
+      const handleMouseLeave = () => setClickPagingHoverDirection(null);
+      const handlePointerDown = () => handleFoliatePointerDownRef.current();
+
+      view.addEventListener('click', handleClick);
+      view.addEventListener('mousemove', handleMouseMove);
+      view.addEventListener('mouseleave', handleMouseLeave);
+      view.addEventListener('pointerdown', handlePointerDown, true);
+      foliateDocCleanupsRef.current.push(() => {
+        view.removeEventListener('click', handleClick);
+        view.removeEventListener('mousemove', handleMouseMove);
+        view.removeEventListener('mouseleave', handleMouseLeave);
+        view.removeEventListener('pointerdown', handlePointerDown, true);
+      });
+    },
+    [
+      foliateViewClickPagingDirection,
+      foliateViewHasExpandedSelection,
+      setClickPagingHoverDirection,
+    ],
+  );
+
   const attachFoliateDocumentListeners = useCallback(
     (view: FoliateViewElement | null) => {
+      attachFoliateViewListeners(view);
       const contents = currentFoliateContents(view);
       for (const { doc } of contents) {
         if (!doc || observedFoliateDocsRef.current.has(doc)) continue;
@@ -608,6 +679,7 @@ export function useEbookReaderBoxes({
       }
     },
     [
+      attachFoliateViewListeners,
       foliateClickPagingDirection,
       foliateDocumentHasExpandedSelection,
       setClickPagingHoverDirection,
