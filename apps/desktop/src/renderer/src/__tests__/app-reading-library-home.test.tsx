@@ -23,6 +23,7 @@ import {
   groupLibraryArticles,
   nextDistillationAnimationArticleUpdatedAt,
 } from '../reading-library/app-reading-library';
+import type { AppMenuCommandRequest } from '../../../app-menu-types';
 import { librarySession } from '../reading-library/app-reading-library-session';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { defaultTheme } from '../theme/app-theme';
@@ -179,6 +180,7 @@ function renderLibrary(
     onOpenDataSources?: () => void;
     collections?: Collection[];
     collectionMembers?: CollectionMember[];
+    menuRequest?: AppMenuCommandRequest | null;
     pins?: LibraryPin[];
     settings?: AppSettings;
   } = {},
@@ -189,6 +191,7 @@ function renderLibrary(
       articles={articles}
       collectionMembers={options.collectionMembers}
       collections={options.collections}
+      menuRequest={options.menuRequest}
       pins={options.pins}
       readerTheme={defaultTheme.reader}
       settings={options.settings}
@@ -2474,6 +2477,13 @@ describe('ReadingLibrary home', () => {
       within(dialog).getByText('可批量导入 · EPUB/AZW3/MOBI · 单本最高 80MB · 最多 10 本'),
     ).toBeTruthy();
     expect(within(dialog).getByText('拖入电子书文件，或点击选择')).toBeTruthy();
+  });
+
+  it('opens PDF import dialog from an app menu request', async () => {
+    renderLibrary([], { menuRequest: { command: 'import-pdf', id: 1 } });
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('添加 PDF 文档')).toBeTruthy();
   });
 
   it('renders the first-use empty state with import entries', () => {

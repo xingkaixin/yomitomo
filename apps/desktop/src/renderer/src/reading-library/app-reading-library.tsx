@@ -54,6 +54,7 @@ import type {
   WindowAnimationSourceRect,
   SetLibraryPinInput,
 } from '../../../ipc-contract';
+import type { AppMenuCommandRequest } from '../../../app-menu-types';
 
 export { groupLibraryArticles };
 export type { LibrarySort };
@@ -73,6 +74,7 @@ export function ReadingLibrary({
   collections = [],
   pins = [],
   messageSendShortcut,
+  menuRequest,
   readerTheme,
   settings,
   selectionActionShortcuts,
@@ -105,6 +107,7 @@ export function ReadingLibrary({
   collections?: Collection[];
   pins?: LibraryPin[];
   messageSendShortcut?: MessageSendShortcut;
+  menuRequest?: AppMenuCommandRequest | null;
   readerTheme: ReaderTheme;
   settings?: AppSettings;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
@@ -372,6 +375,23 @@ export function ReadingLibrary({
       setWeReadBooks(state.books);
     });
   }, []);
+
+  useEffect(() => {
+    if (!menuRequest) return;
+    if (menuRequest.command === 'sync-weread') {
+      void syncWeReadLibrary({ manual: true });
+      return;
+    }
+    if (!isImportMenuCommand(menuRequest.command)) return;
+    if (selectedArticleId) void onCloseArticleDiscussions?.(selectedArticleId);
+    setSelectedArticleId(null);
+    setSelectedArticle(null);
+    setSelectedWeReadBook(null);
+    setSelectedAnnotationId(null);
+    setSourceFocusAnnotationId(null);
+    setRouteTransition('enter-library');
+    setActiveShelf('library');
+  }, [menuRequest?.command, menuRequest?.id]);
 
   async function deleteLibraryArticle(articleId: string) {
     await onDeleteArticle(articleId);
@@ -800,6 +820,7 @@ export function ReadingLibrary({
     onSetLibraryPin: (input: SetLibraryPinInput) =>
       void window.yomitomoDesktop?.setLibraryPin?.(input),
     onSyncWeRead: () => void syncWeReadLibrary({ manual: true }),
+    menuRequest,
     settings: settings || {},
     wereadBooks,
     wereadOpenMessage,
@@ -1192,6 +1213,10 @@ function articleSummaryChanged(summary: ArticleSummaryRecord, article: ArticleRe
     articleAiCommentCount(summary) !== articleAiCommentCount(article) ||
     articleDistillationCount(summary) !== articleDistillationCount(article)
   );
+}
+
+function isImportMenuCommand(command: AppMenuCommandRequest['command']) {
+  return command === 'import-web' || command === 'import-ebook' || command === 'import-pdf';
 }
 
 export function articleDistillationStateChanged(

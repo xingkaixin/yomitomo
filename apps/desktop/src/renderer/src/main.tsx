@@ -25,6 +25,7 @@ import { changeAppI18nLanguage, initializeAppI18n } from './i18n/app-i18n';
 import { readCachedUiLanguage, writeCachedUiLanguage } from './i18n/app-language-cache';
 import { playAppSoundEffect } from './sound/app-sound-effects';
 import { AppToaster, useHeaderToastOffset } from './shell/app-toast';
+import type { AppMenuCommand, AppMenuCommandRequest } from '../../app-menu-types';
 import './styles.css';
 import 'goey-toast/styles.css';
 
@@ -257,10 +258,12 @@ function App() {
   const [profileDialogSourceRect, setProfileDialogSourceRect] = useState<DialogSourceRect>();
   const [libraryReaderOpen, setLibraryReaderOpen] = useState(false);
   const [pendingOpenArticleId, setPendingOpenArticleId] = useState<string | null>(null);
+  const [libraryMenuRequest, setLibraryMenuRequest] = useState<AppMenuCommandRequest | null>(null);
   const [onboardingForced, setOnboardingForced] = useState(false);
   const [onboardingFlowKey, setOnboardingFlowKey] = useState(0);
   const [statsArticles, setStatsArticles] = useState<ArticleSummaryRecord[] | null>(null);
   const [statsNavigationStartedAt, setStatsNavigationStartedAt] = useState<number | undefined>();
+  const menuRequestIdRef = useRef(0);
   const windowShowRequestedRef = useRef(false);
   const idlePreloadStartedRef = useRef(false);
   const toastTopOffset = useHeaderToastOffset(libraryReaderOpen);
@@ -400,6 +403,15 @@ function App() {
     changeSettingsSection('dataSources');
   }
 
+  useEffect(() => {
+    const desktop = window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined;
+    if (typeof desktop?.onAppMenuCommand !== 'function') return;
+    return desktop.onAppMenuCommand((command) => {
+      if (appLocked) return;
+      handleAppMenuCommand(command);
+    });
+  }, [appLocked, applyStore]);
+
   function openProfileDialog(sourceElement?: Element) {
     recordStartupTiming('secondary_modules.navigation', {
       key: 'profile-dialog',
@@ -454,6 +466,39 @@ function App() {
     windowShowRequestedRef.current = true;
     recordStartupTiming('window.show_requested', { reason, ...data });
     window.yomitomoDesktop.showMainWindow();
+  }
+
+  function handleAppMenuCommand(command: AppMenuCommand) {
+    if (command === 'open-settings') {
+      openSettings();
+      return;
+    }
+    if (command === 'open-about') {
+      openSettings();
+      changeSettingsSection('about');
+      return;
+    }
+    if (command === 'backup-database') {
+      void window.yomitomoDesktop.backupDatabase().catch(() => undefined);
+      return;
+    }
+    if (command === 'restore-database') {
+      void window.yomitomoDesktop
+        .restoreDatabase()
+        .then((result) => {
+          if (!result.canceled) applyStore(result.store);
+        })
+        .catch(() => undefined);
+      return;
+    }
+    if (command === 'check-updates') {
+      void window.yomitomoDesktop.checkForUpdates().catch(() => undefined);
+      return;
+    }
+    if (isLibraryMenuCommand(command)) {
+      setActiveSetting('library');
+      setLibraryMenuRequest({ command, id: ++menuRequestIdRef.current });
+    }
   }
 
   if (storeLoadError) {
@@ -609,6 +654,7 @@ function App() {
                   readerTheme={theme.readerTheme}
                   settings={store.settings}
                   selectionActionShortcuts={store.settings.selectionActionShortcuts}
+                  menuRequest={libraryMenuRequest}
                   openArticleId={pendingOpenArticleId}
                   userProfile={store.user}
                   onDeleteArticle={deleteArticle}
@@ -828,6 +874,15 @@ recordStartupTiming('react.render_scheduled');
 
 function desktopPlatform() {
   return window.yomitomoDesktop?.platform ?? 'unknown';
+}
+
+function isLibraryMenuCommand(command: AppMenuCommand) {
+  return (
+    command === 'import-web' ||
+    command === 'import-ebook' ||
+    command === 'import-pdf' ||
+    command === 'sync-weread'
+  );
 }
 
 function recordStartupTiming(event: string, data: Record<string, unknown> = {}) {
