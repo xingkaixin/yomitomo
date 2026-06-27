@@ -36,7 +36,7 @@ export const sourceReaderTocStyles = `
 }
 .reader-toc-item{
   display:grid;
-  grid-template-columns:var(--reader-toc-line-width) minmax(0,1fr);
+  grid-template-columns:var(--reader-toc-line-current-width) minmax(0,1fr);
   align-items:center;
   gap:8px;
   position:relative;
@@ -52,12 +52,12 @@ export const sourceReaderTocStyles = `
   overflow:hidden;
   padding:9px 8px;
   transform:translateX(var(--reader-toc-shift,0px));
-  transition:background .16s ease,color .16s ease,transform var(--reader-toc-dur) var(--reader-toc-ease,cubic-bezier(.22,1,.36,1));
+  transition:background .16s ease,color .16s ease,grid-template-columns var(--reader-toc-motion),transform var(--reader-toc-motion);
   will-change:transform;
 }
 .reader-toc-item:hover,
 .reader-toc-item.is-active{
-  --reader-toc-line-scale:var(--reader-toc-line-active-scale);
+  --reader-toc-line-current-width:var(--reader-toc-line-active-width);
   background:var(--app-reader-toc-item-hover-bg);
   color:var(--reader-ink);
 }
@@ -67,14 +67,11 @@ export const sourceReaderTocStyles = `
 }
 .reader-toc-line{
   display:block;
-  width:var(--reader-toc-line-width);
+  width:100%;
   height:1px;
   border-radius:999px;
   background:color-mix(in srgb,var(--reader-ink) 22%,transparent);
-  transform:scaleX(var(--reader-toc-line-scale,1));
-  transform-origin:left center;
-  transition:background .16s ease,transform var(--reader-toc-dur) var(--reader-toc-ease,cubic-bezier(.22,1,.36,1));
-  will-change:transform;
+  transition:background .16s ease;
 }
 .reader-toc-item:hover .reader-toc-line,
 .reader-toc-item.is-active .reader-toc-line{

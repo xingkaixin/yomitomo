@@ -132,11 +132,11 @@ describe('reader embedded styles', () => {
   it('renders the table of contents as line navigation with count badges', () => {
     expectCssToContain(
       readerStyles,
-      '.reader-toc{--reader-toc-line-width:18px;--reader-toc-line-active-scale:1.72;',
+      '.reader-toc{--reader-toc-line-width:10px;--reader-toc-line-active-width:20px;--reader-toc-line-current-width:var(--reader-toc-line-width);',
     );
     expectCssToContain(
       readerStyles,
-      '.reader-toc-item{display:grid;grid-template-columns:var(--reader-toc-line-width) minmax(0,1fr);',
+      '.reader-toc-item{display:grid;grid-template-columns:var(--reader-toc-line-current-width) minmax(0,1fr);',
     );
     expect(readerConversationStyles).toContain('.reader-toc-line{');
     expect(readerConversationStyles).toContain('.reader-toc-count{');
