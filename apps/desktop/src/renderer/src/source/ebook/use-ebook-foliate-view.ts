@@ -66,6 +66,7 @@ type EbookPaginationSectionTiming = {
   frameWaitCount: number;
   pageInfoMatched: boolean;
   pageInfoMatchedAfterAssets: boolean;
+  pageInfoSynthesized: boolean;
   observedSectionIndex?: number | null;
   observedPageIndex?: number | null;
   observedPageCount?: number | null;
@@ -625,6 +626,7 @@ export function useEbookFoliateView({
             frameWaitCount: 0,
             matched: false,
             matchedAfterAssets: false,
+            synthesized: false,
             observedPageInfo: null,
             contentIndexes: [],
             elapsedMs: 0,
@@ -657,6 +659,7 @@ export function useEbookFoliateView({
             frameWaitCount: pageInfoTiming.frameWaitCount,
             pageInfoMatched: pageInfoTiming.matched,
             pageInfoMatchedAfterAssets: pageInfoTiming.matchedAfterAssets,
+            pageInfoSynthesized: pageInfoTiming.synthesized,
             observedSectionIndex: pageInfoTiming.matched
               ? undefined
               : (pageInfoTiming.observedPageInfo?.sectionIndex ?? null),

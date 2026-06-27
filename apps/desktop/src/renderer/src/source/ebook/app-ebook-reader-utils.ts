@@ -65,6 +65,7 @@ export type FoliatePageInfoWaitTiming = {
   frameWaitCount: number;
   matched: boolean;
   matchedAfterAssets: boolean;
+  synthesized: boolean;
   observedPageInfo: FoliatePageInfo | null;
   contentIndexes: number[];
   elapsedMs: number;
@@ -118,6 +119,7 @@ function emptyFoliatePageInfoWaitTiming(): FoliatePageInfoWaitTiming {
     frameWaitCount: 0,
     matched: false,
     matchedAfterAssets: false,
+    synthesized: false,
     observedPageInfo: null,
     contentIndexes: [],
     elapsedMs: 0,
@@ -400,6 +402,16 @@ export async function waitForFoliatePageInfo(
     assignFoliatePageInfoWaitTiming(timing, waitTiming);
     return pageInfo;
   }
+  if (foliateContentMatchesSection(contentIndexes, sectionIndex)) {
+    const synthesizedPageInfo = { sectionIndex, pageIndex: 0, pageCount: 1 };
+    waitTiming.matched = true;
+    waitTiming.matchedAfterAssets = true;
+    waitTiming.synthesized = true;
+    waitTiming.observedPageInfo = synthesizedPageInfo;
+    waitTiming.elapsedMs = rendererPerformanceElapsedMs(startedAt);
+    assignFoliatePageInfoWaitTiming(timing, waitTiming);
+    return synthesizedPageInfo;
+  }
 
   const frameStartedAt = performance.now();
   for (let attempt = 0; attempt < 6; attempt += 1) {
@@ -415,12 +427,29 @@ export async function waitForFoliatePageInfo(
       assignFoliatePageInfoWaitTiming(timing, waitTiming);
       return pageInfo;
     }
+    if (foliateContentMatchesSection(contentIndexes, sectionIndex)) {
+      const synthesizedPageInfo = { sectionIndex, pageIndex: 0, pageCount: 1 };
+      waitTiming.matched = true;
+      waitTiming.synthesized = true;
+      waitTiming.observedPageInfo = synthesizedPageInfo;
+      waitTiming.frameWaitMs = rendererPerformanceElapsedMs(frameStartedAt);
+      waitTiming.elapsedMs = rendererPerformanceElapsedMs(startedAt);
+      assignFoliatePageInfoWaitTiming(timing, waitTiming);
+      return synthesizedPageInfo;
+    }
   }
   waitTiming.frameWaitMs = rendererPerformanceElapsedMs(frameStartedAt);
   waitTiming.elapsedMs = rendererPerformanceElapsedMs(startedAt);
   waitTiming.matched = sectionIndex === undefined || pageInfo?.sectionIndex === sectionIndex;
   assignFoliatePageInfoWaitTiming(timing, waitTiming);
   return sectionIndex === undefined || pageInfo?.sectionIndex === sectionIndex ? pageInfo : null;
+}
+
+function foliateContentMatchesSection(
+  contentIndexes: number[],
+  sectionIndex: number | undefined,
+): sectionIndex is number {
+  return typeof sectionIndex === 'number' && contentIndexes.includes(sectionIndex);
 }
 
 function foliatePageInfoMatchesSection(

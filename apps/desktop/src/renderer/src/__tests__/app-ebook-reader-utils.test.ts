@@ -125,6 +125,7 @@ function pageInfoWaitTiming(): FoliatePageInfoWaitTiming {
     frameWaitCount: 0,
     matched: false,
     matchedAfterAssets: false,
+    synthesized: false,
     observedPageInfo: null,
     contentIndexes: [],
     elapsedMs: 0,
@@ -151,6 +152,7 @@ describe('ebook reader utils', () => {
       frameWaitCount: 0,
       matched: true,
       matchedAfterAssets: true,
+      synthesized: false,
       observedPageInfo: pageInfo,
     });
   });
@@ -174,7 +176,39 @@ describe('ebook reader utils', () => {
       frameWaitCount: 1,
       matched: true,
       matchedAfterAssets: false,
+      synthesized: false,
       observedPageInfo: pageInfo,
+    });
+  });
+
+  it('synthesizes one page when Foliate loads a section without page info', async () => {
+    const requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
+      callback(performance.now());
+      return 1;
+    });
+    vi.stubGlobal('requestAnimationFrame', requestAnimationFrame);
+    window.requestAnimationFrame = requestAnimationFrame;
+    const view = {
+      getPageInfo: vi.fn(() => null),
+      renderer: {
+        getContents: vi.fn(() => [{ index: 2 }]),
+      },
+    } as unknown as FoliateViewElement;
+    const timing = pageInfoWaitTiming();
+
+    await expect(waitForFoliatePageInfo(view, 2, timing)).resolves.toEqual({
+      sectionIndex: 2,
+      pageIndex: 0,
+      pageCount: 1,
+    });
+    expect(requestAnimationFrame).not.toHaveBeenCalled();
+    expect(timing).toMatchObject({
+      contentIndexes: [2],
+      frameWaitCount: 0,
+      matched: true,
+      matchedAfterAssets: true,
+      synthesized: true,
+      observedPageInfo: { sectionIndex: 2, pageIndex: 0, pageCount: 1 },
     });
   });
 
