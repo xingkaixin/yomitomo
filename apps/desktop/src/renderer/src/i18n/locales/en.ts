@@ -317,8 +317,8 @@ export const enResources = {
       tagline: 'Turn to a new page',
       start: 'Start using',
       later: 'Later',
-      downloading: 'Downloading',
       updateNow: 'Update now',
+      install: 'Restart to install',
     },
     about: {
       trailSettings: 'Settings',
