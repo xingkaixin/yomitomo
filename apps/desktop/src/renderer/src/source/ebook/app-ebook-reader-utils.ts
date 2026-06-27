@@ -65,6 +65,8 @@ export type FoliatePageInfoWaitTiming = {
   frameWaitCount: number;
   matched: boolean;
   matchedAfterAssets: boolean;
+  observedPageInfo: FoliatePageInfo | null;
+  contentIndexes: number[];
   elapsedMs: number;
 };
 
@@ -116,7 +118,20 @@ function emptyFoliatePageInfoWaitTiming(): FoliatePageInfoWaitTiming {
     frameWaitCount: 0,
     matched: false,
     matchedAfterAssets: false,
+    observedPageInfo: null,
+    contentIndexes: [],
     elapsedMs: 0,
+  };
+}
+
+function observeFoliatePageInfo(view: FoliateViewElement) {
+  return {
+    contentIndexes:
+      view.renderer
+        ?.getContents?.()
+        .map((content) => content.index)
+        .filter((index): index is number => typeof index === 'number') ?? [],
+    pageInfo: view.getPageInfo?.() ?? null,
   };
 }
 
@@ -375,7 +390,9 @@ export async function waitForFoliatePageInfo(
   waitTiming.imageWaitMs = assetTiming.imageWaitMs;
   waitTiming.pendingImageCount = assetTiming.pendingImageCount;
 
-  let pageInfo = view.getPageInfo?.() ?? null;
+  let { contentIndexes, pageInfo } = observeFoliatePageInfo(view);
+  waitTiming.observedPageInfo = pageInfo;
+  waitTiming.contentIndexes = contentIndexes;
   if (foliatePageInfoMatchesSection(pageInfo, sectionIndex)) {
     waitTiming.matched = true;
     waitTiming.matchedAfterAssets = true;
@@ -388,7 +405,9 @@ export async function waitForFoliatePageInfo(
   for (let attempt = 0; attempt < 6; attempt += 1) {
     await waitForAnimationFrame();
     waitTiming.frameWaitCount += 1;
-    pageInfo = view.getPageInfo?.() ?? null;
+    ({ contentIndexes, pageInfo } = observeFoliatePageInfo(view));
+    waitTiming.observedPageInfo = pageInfo;
+    waitTiming.contentIndexes = contentIndexes;
     if (foliatePageInfoMatchesSection(pageInfo, sectionIndex)) {
       waitTiming.matched = true;
       waitTiming.frameWaitMs = rendererPerformanceElapsedMs(frameStartedAt);

@@ -125,6 +125,8 @@ function pageInfoWaitTiming(): FoliatePageInfoWaitTiming {
     frameWaitCount: 0,
     matched: false,
     matchedAfterAssets: false,
+    observedPageInfo: null,
+    contentIndexes: [],
     elapsedMs: 0,
   };
 }
@@ -149,6 +151,7 @@ describe('ebook reader utils', () => {
       frameWaitCount: 0,
       matched: true,
       matchedAfterAssets: true,
+      observedPageInfo: pageInfo,
     });
   });
 
@@ -171,6 +174,7 @@ describe('ebook reader utils', () => {
       frameWaitCount: 1,
       matched: true,
       matchedAfterAssets: false,
+      observedPageInfo: pageInfo,
     });
   });
 

@@ -66,6 +66,12 @@ type EbookPaginationSectionTiming = {
   frameWaitCount: number;
   pageInfoMatched: boolean;
   pageInfoMatchedAfterAssets: boolean;
+  observedSectionIndex?: number | null;
+  observedPageIndex?: number | null;
+  observedPageCount?: number | null;
+  contentIndexes?: number[];
+  sectionId?: string;
+  sectionLinear?: string;
   idleYieldMs: number;
 };
 
@@ -604,6 +610,7 @@ export function useEbookFoliateView({
 
         for (const index of pendingSectionIndexes) {
           if (cancelled) return;
+          const section = sections[index];
           const sectionStartedAt = performance.now();
           const goToStartedAt = performance.now();
 
@@ -618,6 +625,8 @@ export function useEbookFoliateView({
             frameWaitCount: 0,
             matched: false,
             matchedAfterAssets: false,
+            observedPageInfo: null,
+            contentIndexes: [],
             elapsedMs: 0,
           };
           const nextPageInfo = await waitForFoliatePageInfo(measureView, index, pageInfoTiming);
@@ -648,6 +657,18 @@ export function useEbookFoliateView({
             frameWaitCount: pageInfoTiming.frameWaitCount,
             pageInfoMatched: pageInfoTiming.matched,
             pageInfoMatchedAfterAssets: pageInfoTiming.matchedAfterAssets,
+            observedSectionIndex: pageInfoTiming.matched
+              ? undefined
+              : (pageInfoTiming.observedPageInfo?.sectionIndex ?? null),
+            observedPageIndex: pageInfoTiming.matched
+              ? undefined
+              : (pageInfoTiming.observedPageInfo?.pageIndex ?? null),
+            observedPageCount: pageInfoTiming.matched
+              ? undefined
+              : (pageInfoTiming.observedPageInfo?.pageCount ?? null),
+            contentIndexes: pageInfoTiming.matched ? undefined : pageInfoTiming.contentIndexes,
+            sectionId: typeof section?.id === 'string' ? section.id : undefined,
+            sectionLinear: section?.linear,
             idleYieldMs: sectionIdleYieldMs,
           });
         }
