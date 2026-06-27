@@ -8,6 +8,7 @@ import type {
 } from '@yomitomo/shared';
 import { getLogPath, logError, logInfo, pruneLogFile } from './app/logger';
 import { configureDesktopAppStorage } from './app/app-environment';
+import { installAppMenu } from './app/app-menu';
 import {
   runPendingChromiumCacheCleanup,
   scheduleChromiumCacheInspection,
@@ -42,6 +43,7 @@ import { syncWeReadLibrary } from './weread/weread-sync';
 import { secureRendererWebPreferences } from './windows/renderer-window-security';
 import { windowChromeOptions } from './windows/window-chrome';
 import { mainPath } from './app/main-paths';
+import type { AppMenuCommand } from '../app-menu-types';
 
 let mainWindow: BrowserWindow | null = null;
 const appIconPath = mainPath('../../resources/icon.png');
@@ -62,6 +64,8 @@ const WEREAD_AUTO_SYNC_STARTUP_DELAY_MS = 5_000;
 const WEREAD_AUTO_SYNC_INTERVAL_MS = 30 * 60 * 1000;
 const APP_UPDATE_CHECK_STARTUP_DELAY_MS = 8_000;
 const DEFAULT_APP_UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const HOMEPAGE_URL = 'https://yomitomo.app';
+const FEEDBACK_URL = 'https://github.com/xingkaixin/yomitomo/issues';
 
 // 自动检查间隔默认 24h，YOMITOMO_UPDATE_CHECK_MS 可缩短间隔用于开发期验证。
 function appUpdateCheckIntervalMs() {
@@ -347,6 +351,14 @@ void app.whenReady().then(async () => {
   logInfo('app.ready', { logPath: getLogPath() });
   recordStartupTiming('app.ready');
   if (!app.isPackaged && process.platform === 'darwin' && app.dock) app.dock.setIcon(appIconPath);
+  installAppMenu({
+    appName: 'Yomitomo',
+    isPackaged: app.isPackaged,
+    locale: app.getLocale(),
+    onCommand: handleAppMenuCommand,
+    platform: process.platform,
+    logInfo,
+  });
   registerIpc();
   scheduleModelPriceRefresh();
   scheduleAppUpdateCheck();
@@ -442,6 +454,47 @@ function sendWeReadStateUpdated(state: WeReadState) {
 
 function setSensitiveRendererEventsLocked(locked: boolean) {
   sensitiveRendererEventsLocked = locked;
+}
+
+function handleAppMenuCommand(command: AppMenuCommand) {
+  logInfo('app.menu.command', { command });
+  if (command === 'open-help-docs') {
+    void openMenuExternalUrl(menuResourceUrls().docs, command);
+    return;
+  }
+  if (command === 'open-release-notes') {
+    void openMenuExternalUrl(menuResourceUrls().releaseNotes, command);
+    return;
+  }
+  if (command === 'report-issue') {
+    void openMenuExternalUrl(FEEDBACK_URL, command);
+    return;
+  }
+  sendAppMenuCommand(command);
+}
+
+async function openMenuExternalUrl(url: string, command: AppMenuCommand) {
+  try {
+    await openExternalUrl(url);
+  } catch (error) {
+    logError('app.menu.command_failed', error, { command });
+  }
+}
+
+function menuResourceUrls() {
+  const prefix = app.getLocale().toLowerCase().startsWith('zh') ? '' : '/en';
+  return {
+    docs: `${HOMEPAGE_URL}${prefix}/docs/`,
+    releaseNotes: `${HOMEPAGE_URL}${prefix}/changelogs/`,
+  };
+}
+
+function sendAppMenuCommand(command: AppMenuCommand) {
+  if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) {
+    logInfo('app.menu.command_skipped', { command, reason: 'main_window_unavailable' });
+    return;
+  }
+  mainWindow.webContents.send('app-menu:command', command);
 }
 
 async function storeLoadErrorInfo(error: unknown): Promise<DesktopStoreLoadErrorInfo> {

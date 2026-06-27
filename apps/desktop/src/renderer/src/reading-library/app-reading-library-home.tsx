@@ -50,6 +50,7 @@ import type {
   PdfImportProgressCallback,
 } from '../shell/app-reading-types';
 import type { SetLibraryPinInput } from '../../../ipc-contract';
+import type { AppMenuCommandRequest } from '../../../app-menu-types';
 import { libraryContentSourceBaseOptions } from './app-library-content-sources';
 import { CollectionPickerDialog } from './app-reading-library-collection-picker';
 import { LibraryEntityGrid } from './app-reading-library-entity-grid';
@@ -98,6 +99,7 @@ export function LibraryHome({
   onOpenDataSources,
   onSetLibraryPin,
   onSyncWeRead,
+  menuRequest,
   pins,
   settings,
   sortedArticles,
@@ -131,6 +133,7 @@ export function LibraryHome({
   onOpenDataSources?: () => void;
   onSetLibraryPin: (input: SetLibraryPinInput) => Promise<void> | void;
   onSyncWeRead: () => void;
+  menuRequest?: AppMenuCommandRequest | null;
   pins: LibraryPin[];
   settings: AppSettings;
   sortedArticles: ArticleSummaryRecord[];
@@ -359,6 +362,28 @@ export function LibraryHome({
     onCancelArticleImport,
     onOpenArticle,
   });
+
+  useEffect(() => {
+    if (!menuRequest) return;
+    if (menuRequest.command === 'import-web') {
+      importDialogs.openArticleImport();
+      return;
+    }
+    if (menuRequest.command === 'import-ebook') {
+      importDialogs.openEbookImport();
+      return;
+    }
+    if (menuRequest.command === 'import-pdf') {
+      importDialogs.openPdfImport();
+    }
+  }, [
+    importDialogs.openArticleImport,
+    importDialogs.openEbookImport,
+    importDialogs.openPdfImport,
+    menuRequest?.command,
+    menuRequest?.id,
+  ]);
+
   const createCollection = async (name: string) => {
     const collection = await onCreateCollection(name);
     openCollection(collection.id);

@@ -27,6 +27,7 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import type { AppUpdateState, AppUpdateTrigger } from '../app-update-types';
+import type { AppMenuCommand } from '../app-menu-types';
 import { DesktopStoreLoadError } from '../app-store-errors';
 import {
   desktopIpcErrorFromSerialized,
@@ -105,6 +106,10 @@ function createAppPreloadApi() {
     getAppInfo: () => invokeDesktopIpc('app:info'),
     showMainWindow: () => ipcRenderer.send('app:renderer-ready'),
     openUrl: (url: string) => invokeDesktopIpc('url:open', url),
+    onAppMenuCommand: (callback: (command: AppMenuCommand) => void) =>
+      onIpcEvent('app-menu:command', (command) => {
+        if (isAppMenuCommand(command)) callback(command);
+      }),
   };
 }
 
@@ -479,6 +484,23 @@ function onIpcEvent(channel: string, callback: (payload: unknown) => void) {
 
 function articleImportUrlInput(url: string, requestId?: string): ArticleImportUrlInput {
   return requestId ? { url, requestId } : url;
+}
+
+function isAppMenuCommand(value: unknown): value is AppMenuCommand {
+  return (
+    value === 'backup-database' ||
+    value === 'check-updates' ||
+    value === 'import-ebook' ||
+    value === 'import-pdf' ||
+    value === 'import-web' ||
+    value === 'open-about' ||
+    value === 'open-release-notes' ||
+    value === 'open-settings' ||
+    value === 'open-help-docs' ||
+    value === 'report-issue' ||
+    value === 'restore-database' ||
+    value === 'sync-weread'
+  );
 }
 
 function invokeDesktopIpc<Channel extends DesktopIpcInvokeChannel>(
