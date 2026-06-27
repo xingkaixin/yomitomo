@@ -3,7 +3,7 @@
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DesktopStore } from '@yomitomo/shared';
-import { useAppLockController } from '../app-lock/app-lock-gate';
+import { AppLockGate, useAppLockController } from '../app-lock/app-lock-gate';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { emptyStore } from '../settings/app-settings';
 
@@ -19,7 +19,10 @@ afterEach(() => {
 
 describe('useAppLockController', () => {
   it('locks the app through the desktop preload facade', async () => {
-    const lockedStore = makeStore({ appLockEnabled: true, appLockLocked: true });
+    const lockedStore = makeStore({
+      articles: [articleSummary({ id: 'article_secret' })],
+      settings: { appLockEnabled: true, appLockLocked: true },
+    });
     const onStoreUpdated = vi.fn();
     const latest: { current?: ReturnType<typeof useAppLockController> } = {};
 
@@ -38,11 +41,16 @@ describe('useAppLockController', () => {
     });
 
     expect(window.yomitomoDesktop.setAppLockLocked).toHaveBeenCalledWith({ locked: true });
-    expect(onStoreUpdated).toHaveBeenCalledWith(lockedStore);
+    expect(onStoreUpdated).toHaveBeenCalledWith(
+      expect.objectContaining({
+        articles: [],
+        settings: expect.objectContaining({ appLockEnabled: true, appLockLocked: true }),
+      }),
+    );
   });
 
   it('handles slide, invalid PIN, and successful unlock states', async () => {
-    const unlockedStore = makeStore({ appLockEnabled: true, appLockLocked: false });
+    const unlockedStore = makeStore({ settings: { appLockEnabled: true, appLockLocked: false } });
     const onStoreUpdated = vi.fn();
     const latest: { current?: ReturnType<typeof useAppLockController> } = {};
 
@@ -87,6 +95,19 @@ describe('useAppLockController', () => {
   });
 });
 
+describe('AppLockGate', () => {
+  it('does not mount protected children while locked', () => {
+    render(
+      <AppLockGate enabled locked onStoreUpdated={vi.fn()}>
+        {() => <span data-testid="protected-content">敏感内容</span>}
+      </AppLockGate>,
+    );
+
+    expect(screen.queryByTestId('protected-content')).toBeNull();
+    expect(screen.getByRole('dialog')).not.toBeNull();
+  });
+});
+
 function Harness({
   enabled = true,
   latest,
@@ -114,12 +135,40 @@ function Harness({
   );
 }
 
-function makeStore(settings: DesktopStore['settings']): DesktopStore {
+function makeStore(input: {
+  articles?: DesktopStore['articles'];
+  settings: DesktopStore['settings'];
+}): DesktopStore {
   return {
     ...emptyStore,
+    articles: input.articles || [],
     settings: {
       soundEffectsEnabled: false,
-      ...settings,
+      ...input.settings,
     },
+  };
+}
+
+function articleSummary(
+  input: Partial<DesktopStore['articles'][number]>,
+): DesktopStore['articles'][number] {
+  return {
+    id: input.id || 'article_1',
+    title: input.title || '文章',
+    url: input.url || '',
+    canonicalUrl: input.canonicalUrl || input.url || '',
+    excerpt: input.excerpt || '',
+    byline: input.byline || '',
+    siteName: input.siteName || '',
+    contentHash: input.contentHash || 'hash',
+    sourceType: input.sourceType || 'web',
+    readingProgress: input.readingProgress,
+    annotations: input.annotations || [],
+    annotationCount: input.annotationCount || 0,
+    commentCount: input.commentCount || 0,
+    aiCommentCount: input.aiCommentCount || 0,
+    distillationCount: input.distillationCount || 0,
+    createdAt: input.createdAt || '2026-06-27T00:00:00.000Z',
+    updatedAt: input.updatedAt || '2026-06-27T00:00:00.000Z',
   };
 }

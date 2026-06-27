@@ -13,6 +13,9 @@ import type {
 } from '../../ipc-contract';
 import { DesktopIpcError, desktopIpcErrorCodes, serializeDesktopIpcError } from '../../ipc-errors';
 import { validateDesktopIpcInvokeArgs } from '../../ipc-schemas';
+import { isAppLockSettingsLocked } from './app-lock-renderer-store';
+
+export { isAppLockSettingsLocked } from './app-lock-renderer-store';
 
 export interface DesktopMainIpcContext {
   getMainWindow: () => BrowserWindow | null;
@@ -24,6 +27,7 @@ export interface DesktopMainIpcContext {
   sendArticlePatched: (patch: ArticleStorePatch) => void;
   sendCollectionPatched: (patch: CollectionStorePatch) => void;
   sendLibraryPinPatched: (patch: LibraryPinPatch) => void;
+  setSensitiveRendererEventsLocked: (locked: boolean) => void;
   recordStartupTiming: (event: string, data?: Record<string, unknown>) => void;
   recordPerformanceTiming: (input: unknown) => void;
   scheduleLogPrune: (retentionDays: number | undefined) => void;
@@ -78,10 +82,6 @@ export async function assertDesktopIpcAppLockUnlocked(context: DesktopMainIpcCon
 export function assertAppLockSettingsUnlocked(settings: DesktopStore['settings']) {
   if (!isAppLockSettingsLocked(settings)) return;
   throw new DesktopIpcError(desktopIpcErrorCodes.appLockRequired);
-}
-
-export function isAppLockSettingsLocked(settings: DesktopStore['settings']) {
-  return Boolean(settings.appLockEnabled && settings.appLockLocked);
 }
 
 async function assertDesktopIpcChannelAllowedByAppLock(channel: DesktopIpcInvokeChannel) {

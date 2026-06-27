@@ -209,6 +209,78 @@ describe('useDesktopStoreState', () => {
     });
     expect(latest.current?.store.articles).toEqual([]);
   });
+
+  it('scrubs locked store updates and ignores article patches while locked', async () => {
+    const initialArticle = articleSummary({ id: 'article_initial' });
+    const initialStore = makeStore({
+      articles: [initialArticle],
+      settings: { appLockEnabled: true, appLockLocked: false },
+    });
+    const lockedStore = makeStore({
+      articles: [articleSummary({ id: 'article_secret', title: '敏感文章' })],
+      settings: { appLockEnabled: true, appLockLocked: true },
+    });
+    const unlockedArticle = articleSummary({ id: 'article_unlocked' });
+    const unlockedStore = makeStore({
+      articles: [unlockedArticle],
+      settings: { appLockEnabled: true, appLockLocked: false },
+    });
+    let emitStoreUpdated = noopStoreUpdated;
+    let emitArticlePatched = noopArticlePatched;
+
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: {
+        getStateResult: vi.fn().mockResolvedValue({ ok: true, store: initialStore }),
+        onArticlePatched: vi.fn((callback: (patch: ArticleStorePatch) => void) => {
+          emitArticlePatched = callback;
+          return vi.fn();
+        }),
+        onStoreUpdated: vi.fn((callback: (store: DesktopStore) => void) => {
+          emitStoreUpdated = callback;
+          return vi.fn();
+        }),
+      },
+    });
+
+    const latest: { current?: ReturnType<typeof useDesktopStoreState> } = {};
+
+    function Harness() {
+      latest.current = useDesktopStoreState();
+      return null;
+    }
+
+    render(<Harness />);
+
+    await waitFor(() => expect(latest.current?.storeLoaded).toBe(true));
+    expect(latest.current?.store.articles).toEqual([initialArticle]);
+
+    act(() => {
+      emitStoreUpdated(lockedStore);
+    });
+
+    expect(latest.current?.store.settings).toMatchObject({
+      appLockEnabled: true,
+      appLockLocked: true,
+    });
+    expect(latest.current?.store.articles).toEqual([]);
+    expect(latest.current?.storeRef.current.articles).toEqual([]);
+
+    act(() => {
+      emitArticlePatched({
+        type: 'article-upsert',
+        article: articleSummary({ id: 'article_patch', title: '锁定期间 patch' }),
+      });
+    });
+
+    expect(latest.current?.store.articles).toEqual([]);
+
+    act(() => {
+      emitStoreUpdated(unlockedStore);
+    });
+
+    expect(latest.current?.store.articles).toEqual([unlockedArticle]);
+  });
 });
 
 function noopStoreUpdated(_store: DesktopStore) {}

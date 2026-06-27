@@ -22,6 +22,10 @@ import { registerAnnotationDiscussionWindowIpc } from './windows/annotation-disc
 import { registerAnnotationSedimentationWindowIpc } from './windows/annotation-sedimentation-window';
 import { registerAgentIpc } from './ipc/ipc-agent';
 import { registerAppLockIpc } from './ipc/ipc-app-lock';
+import {
+  isAppLockSettingsLocked,
+  rendererStoreForAppLockState,
+} from './ipc/app-lock-renderer-store';
 import { registerAppIpc } from './ipc/ipc-app';
 import { registerArticleIpc } from './ipc/ipc-article';
 import { configureDesktopIpcAppLockGuardContext } from './ipc/ipc';
@@ -52,6 +56,7 @@ let weReadAutoSyncIntervalTimer: NodeJS.Timeout | null = null;
 let weReadAutoSyncConfigureToken = 0;
 let weReadAutoSyncRunning = false;
 let desktopTelemetryController: DesktopTelemetryController | null = null;
+let sensitiveRendererEventsLocked = false;
 
 const WEREAD_AUTO_SYNC_STARTUP_DELAY_MS = 5_000;
 const WEREAD_AUTO_SYNC_INTERVAL_MS = 30 * 60 * 1000;
@@ -384,6 +389,7 @@ function registerIpc() {
     sendArticlePatched,
     sendCollectionPatched,
     sendLibraryPinPatched,
+    setSensitiveRendererEventsLocked,
     recordStartupTiming,
     recordPerformanceTiming,
     scheduleLogPrune,
@@ -409,23 +415,33 @@ function registerIpc() {
 }
 
 function sendFullStoreUpdated(store: DesktopStore) {
-  sendToRenderer('store:updated', store);
+  const rendererStore = rendererStoreForAppLockState(store);
+  setSensitiveRendererEventsLocked(isAppLockSettingsLocked(rendererStore.settings));
+  sendToRenderer('store:updated', rendererStore);
 }
 
 function sendArticlePatched(patch: ArticleStorePatch) {
+  if (sensitiveRendererEventsLocked) return;
   sendToRenderer('article:patched', patch);
 }
 
 function sendCollectionPatched(patch: CollectionStorePatch) {
+  if (sensitiveRendererEventsLocked) return;
   sendToRenderer('collection:patched', patch);
 }
 
 function sendLibraryPinPatched(patch: LibraryPinPatch) {
+  if (sensitiveRendererEventsLocked) return;
   sendToRenderer('library-pin:patched', patch);
 }
 
 function sendWeReadStateUpdated(state: WeReadState) {
+  if (sensitiveRendererEventsLocked) return;
   sendToRenderer('weread:state-updated', state);
+}
+
+function setSensitiveRendererEventsLocked(locked: boolean) {
+  sensitiveRendererEventsLocked = locked;
 }
 
 async function storeLoadErrorInfo(error: unknown): Promise<DesktopStoreLoadErrorInfo> {
