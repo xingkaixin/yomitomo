@@ -13,6 +13,7 @@ import {
   SlideToUnlockTrack,
 } from '../components/ui/slide-to-unlock';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
+import { rendererStoreForAppLockState } from '../shell/app-desktop-store-state';
 
 type AppLockStep = 'slide' | 'pin';
 
@@ -35,12 +36,14 @@ export function AppLockGate({ children, enabled, locked, onStoreUpdated }: AppLo
 
   return (
     <>
-      {children({
-        enabled,
-        locked,
-        lockApp: controller.lockApp,
-        shortcutLabel: controller.shortcutLabel,
-      })}
+      {locked
+        ? null
+        : children({
+            enabled,
+            locked,
+            lockApp: controller.lockApp,
+            shortcutLabel: controller.shortcutLabel,
+          })}
       {locked ? (
         <AppLockOverlay
           error={controller.error}
@@ -102,7 +105,7 @@ export function useAppLockController({
     setError('');
     try {
       const nextStore = await window.yomitomoDesktop.setAppLockLocked({ locked: true });
-      onStoreUpdated(nextStore);
+      onStoreUpdated(rendererStoreForAppLockState(nextStore));
       playAppSoundEffect('app_lock.locked', nextStore.settings);
     } catch {
       setError(t('appLock.verifyFailed'));

@@ -127,6 +127,7 @@ function storeContext(input: {
     logError: vi.fn(),
     recordStartupTiming: vi.fn(),
     scheduleLogPrune: vi.fn(),
+    setSensitiveRendererEventsLocked: vi.fn(),
     storeLoadErrorInfo: vi.fn(),
   } as unknown as DesktopMainIpcContext;
 }

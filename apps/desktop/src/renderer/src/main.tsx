@@ -321,7 +321,18 @@ function App() {
   } = useAppArticleStoreActions({ storeRef, applyStore });
   const settingsDrafts = useSettingsDrafts({ store, storeSyncSnapshot, applyStore });
   const { agentSaveError, agentSaveState, toggleAgent } = useAppAgentActions({ applyStore });
-  const showOnboarding = onboardingForced || !store.settings.onboardingCompletedAt;
+  const showOnboarding = !appLocked && (onboardingForced || !store.settings.onboardingCompletedAt);
+
+  useEffect(() => {
+    if (!appLocked) return;
+    setLibraryReaderOpen(false);
+    setPendingOpenArticleId(null);
+    setProfileDialogOpen(false);
+    setProfileDialogSourceRect(undefined);
+    setStatsArticles(null);
+    setStatsNavigationStartedAt(undefined);
+    setThemeDialogOpen(false);
+  }, [appLocked]);
 
   useEffect(() => {
     if (!storeLoaded && !storeLoadError) return;

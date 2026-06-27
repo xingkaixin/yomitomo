@@ -22,9 +22,10 @@ export function useDesktopStoreState() {
   const storeRef = useRef<DesktopStore>(emptyStore);
 
   const applyStore = useCallback((nextStore: DesktopStore) => {
-    storeRef.current = nextStore;
-    setStore(nextStore);
-    return nextStore;
+    const rendererStore = rendererStoreForAppLockState(nextStore);
+    storeRef.current = rendererStore;
+    setStore(rendererStore);
+    return rendererStore;
   }, []);
 
   const refreshStore = useCallback(async () => {
@@ -50,8 +51,8 @@ export function useDesktopStoreState() {
         durationMs: elapsedMs(startedAt),
         articleCount: nextStore.articles.length,
       });
-      applyStore(nextStore);
-      setStoreSyncSnapshot(nextStore);
+      const rendererStore = applyStore(nextStore);
+      setStoreSyncSnapshot(rendererStore);
       setStoreLoadError(null);
       setStoreLoaded(true);
       return nextStore;
@@ -60,8 +61,8 @@ export function useDesktopStoreState() {
       if (isDesktopIpcErrorLike(error) && error.code === 'APP_LOCK_REQUIRED') {
         try {
           const nextStore = lockedStoreFromStatus(await desktop.getAppLockStatus());
-          applyStore(nextStore);
-          setStoreSyncSnapshot(nextStore);
+          const rendererStore = applyStore(nextStore);
+          setStoreSyncSnapshot(rendererStore);
           setStoreLoadError(null);
           setStoreLoaded(true);
           return nextStore;
@@ -88,13 +89,14 @@ export function useDesktopStoreState() {
 
     void refreshStore();
     const offStoreUpdated = desktop.onStoreUpdated((nextStore) => {
-      applyStore(nextStore);
-      setStoreSyncSnapshot(nextStore);
+      const rendererStore = applyStore(nextStore);
+      setStoreSyncSnapshot(rendererStore);
       setStoreLoadError(null);
       setStoreLoaded(true);
     });
     const offArticlePatched =
       desktop.onArticlePatched?.((patch) => {
+        if (isStoreAppLocked(storeRef.current)) return;
         const nextStore = applyArticleStorePatch(storeRef.current, patch);
         applyStore(nextStore);
         setStoreLoadError(null);
@@ -102,6 +104,7 @@ export function useDesktopStoreState() {
       }) || (() => undefined);
     const offCollectionPatched =
       desktop.onCollectionPatched?.((patch) => {
+        if (isStoreAppLocked(storeRef.current)) return;
         const nextStore = applyCollectionStorePatch(storeRef.current, patch);
         applyStore(nextStore);
         setStoreLoadError(null);
@@ -109,6 +112,7 @@ export function useDesktopStoreState() {
       }) || (() => undefined);
     const offLibraryPinPatched =
       desktop.onLibraryPinPatched?.((patch) => {
+        if (isStoreAppLocked(storeRef.current)) return;
         const nextStore = applyLibraryPinPatch(storeRef.current, patch);
         applyStore(nextStore);
         setStoreLoadError(null);
@@ -133,7 +137,7 @@ export function useDesktopStoreState() {
   };
 }
 
-function lockedStoreFromStatus(status: AppLockStatus): DesktopStore {
+export function lockedStoreFromStatus(status: AppLockStatus): DesktopStore {
   return {
     ...emptyStore,
     settings: {
@@ -143,6 +147,33 @@ function lockedStoreFromStatus(status: AppLockStatus): DesktopStore {
       appLockShortcut: status.shortcut,
     },
   };
+}
+
+export function rendererStoreForAppLockState(store: DesktopStore): DesktopStore {
+  if (!isStoreAppLocked(store)) return store;
+  return lockedStoreFromSettings(store.settings);
+}
+
+export function lockedStoreFromSettings(settings: DesktopStore['settings']): DesktopStore {
+  return {
+    ...emptyStore,
+    settings: {
+      ...emptyStore.settings,
+      appLockEnabled: Boolean(settings.appLockEnabled),
+      appLockLocked: Boolean(settings.appLockEnabled && settings.appLockLocked),
+      appLockLockOnStartup: Boolean(settings.appLockLockOnStartup),
+      appLockShortcut: settings.appLockShortcut,
+      onboardingCompletedAt: settings.onboardingCompletedAt,
+      soundEffectsEnabled: settings.soundEffectsEnabled,
+      soundEffectsVolume: settings.soundEffectsVolume,
+      themeId: settings.themeId,
+      uiLanguage: settings.uiLanguage,
+    },
+  };
+}
+
+function isStoreAppLocked(store: Pick<DesktopStore, 'settings'>) {
+  return Boolean(store.settings.appLockEnabled && store.settings.appLockLocked);
 }
 
 function recordStartupTiming(event: string, data: Record<string, unknown> = {}) {

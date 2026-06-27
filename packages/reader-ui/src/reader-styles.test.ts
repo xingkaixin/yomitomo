@@ -54,6 +54,48 @@ describe('reader embedded styles', () => {
     expect(readerDesktopEmbeddedStyles).not.toContain('--reader-bg:#f5f1e8');
   });
 
+  it('routes reader focus and semantic surfaces through theme variables', () => {
+    const combinedStyles = combinedReaderStyles();
+
+    expectCssToContain(
+      readerConversationStyles,
+      '--reader-focus-ring:var(--app-interactive-focus-ring,color-mix(in srgb,var(--reader-ink) 42%,transparent))',
+    );
+    expectCssToContain(
+      readerConversationStyles,
+      '.reader-app.is-reader-background-dark{--glow-opacity:.85;--reader-focus-ring:color-mix(in srgb,var(--reader-paper) 18%,var(--reader-ink));',
+    );
+    expectCssToContain(
+      readerConversationStyles,
+      '.reader-app :where(button,textarea,input,[tabindex]):focus-visible{outline:2px solid var(--reader-focus-ring);outline-offset:3px}',
+    );
+    expectCssToContain(
+      readerConversationStyles,
+      '.reader-review-label.is-support{border-color:var(--reader-review-support-border);background:var(--reader-review-support-bg);color:var(--reader-review-support-fg)}',
+    );
+    expectCssToContain(
+      readerConversationStyles,
+      '.reader-review-label.is-supplement{border-color:var(--reader-review-supplement-border);background:var(--reader-review-supplement-bg);color:var(--reader-review-supplement-fg)}',
+    );
+    expectCssToContain(
+      readerConversationStyles,
+      '.reader-agent-annotate-menu .reader-focus-card-summary:hover{background:var(--reader-focus-card-hover-bg)}',
+    );
+    expectCssToContain(
+      readerConversationStyles,
+      '.reader-markdown pre{max-width:100%;overflow:auto;margin:8px 0;padding:10px;border-radius:10px;background:var(--reader-code-bg);color:var(--reader-code-fg)}',
+    );
+    expectCssToContain(
+      readerStyles,
+      '.reader-article pre{overflow:auto;padding:18px;border-radius:16px;background:var(--reader-code-bg);color:var(--reader-code-fg);',
+    );
+
+    expect(combinedStyles).not.toContain('outline:2px solid rgba(37,29,22,.42)');
+    expect(combinedStyles).not.toContain('color:#356f51');
+    expect(combinedStyles).not.toContain('background:#f6f6f5');
+    expect(combinedStyles).not.toContain('background:#251d16;color:#fffaf0');
+  });
+
   it('keeps base reader CSS source reviewable', () => {
     const longestLine = Math.max(...readerStyles.split('\n').map((line) => line.length));
 

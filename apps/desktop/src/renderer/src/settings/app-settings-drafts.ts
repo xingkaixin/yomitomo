@@ -250,6 +250,15 @@ export function useSettingsDrafts({
   });
   const { reset: resetProviderDraft } = providerDraftController;
 
+  useEffect(() => {
+    if (store.providers.length > 0) return;
+    initialProviderSelectedRef.current = false;
+    setSelectedProviderId(null);
+    resetProviderDraft(localizedEmptyProvider());
+    setProviderEditorActive(false);
+    setTestState({ status: 'idle' });
+  }, [resetProviderDraft, store.providers.length]);
+
   const selectProvider = useCallback(
     (provider: LlmProvider) => {
       setSelectedProviderId(provider.id);
