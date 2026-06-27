@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { vi } from 'vitest';
 import type { Annotation, ArticleRecord } from '@yomitomo/shared';
 import { buildTocAnnotationStats } from '@yomitomo/core';
@@ -16,12 +16,17 @@ import {
   mappedFoliateRangeRects,
   rangeForEbookAnchorInDocument,
   selectionTextForRange,
+  waitForFoliatePageInfo,
   type FoliateViewElement,
   type FoliateTocItem,
 } from '../source/ebook/app-ebook-reader-utils';
 import { defaultTheme, inkBlackTheme } from '../theme/app-theme';
 
 const now = '2026-05-27T00:00:00.000Z';
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 function ebookArticle(
   chapters: NonNullable<NonNullable<ArticleRecord['ebook']>['index']>['chapters'],
@@ -110,6 +115,22 @@ function annotation(id: string, start: number): Annotation {
 }
 
 describe('ebook reader utils', () => {
+  it('returns matching Foliate page info without waiting for an animation frame', async () => {
+    const requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
+      callback(performance.now());
+      return 1;
+    });
+    vi.stubGlobal('requestAnimationFrame', requestAnimationFrame);
+    window.requestAnimationFrame = requestAnimationFrame;
+    const pageInfo = { sectionIndex: 2, pageIndex: 3, pageCount: 8 };
+    const view = {
+      getPageInfo: vi.fn(() => pageInfo),
+    } as unknown as FoliateViewElement;
+
+    await expect(waitForFoliatePageInfo(view, 2)).resolves.toBe(pageInfo);
+    expect(requestAnimationFrame).not.toHaveBeenCalled();
+  });
+
   it('requires complete EPUB section page counts before showing the page label', () => {
     const pageInfo = { sectionIndex: 1, pageIndex: 2, pageCount: 5 };
 

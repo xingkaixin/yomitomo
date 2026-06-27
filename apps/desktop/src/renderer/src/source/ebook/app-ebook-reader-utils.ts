@@ -331,15 +331,24 @@ function waitForTimeout(ms: number) {
 export async function waitForFoliatePageInfo(view: FoliateViewElement, sectionIndex?: number) {
   await waitForFoliateAssets(view);
 
-  let pageInfo: FoliatePageInfo | null = null;
+  let pageInfo = view.getPageInfo?.() ?? null;
+  if (foliatePageInfoMatchesSection(pageInfo, sectionIndex)) return pageInfo;
+
   for (let attempt = 0; attempt < 6; attempt += 1) {
     await waitForAnimationFrame();
     pageInfo = view.getPageInfo?.() ?? null;
-    if (pageInfo && (sectionIndex === undefined || pageInfo.sectionIndex === sectionIndex)) {
-      return pageInfo;
-    }
+    if (foliatePageInfoMatchesSection(pageInfo, sectionIndex)) return pageInfo;
   }
   return sectionIndex === undefined || pageInfo?.sectionIndex === sectionIndex ? pageInfo : null;
+}
+
+function foliatePageInfoMatchesSection(
+  pageInfo: FoliatePageInfo | null,
+  sectionIndex: number | undefined,
+) {
+  return Boolean(
+    pageInfo && (sectionIndex === undefined || pageInfo.sectionIndex === sectionIndex),
+  );
 }
 
 async function waitForFoliateAssets(view: FoliateViewElement) {

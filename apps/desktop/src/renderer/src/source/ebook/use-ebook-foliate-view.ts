@@ -48,6 +48,7 @@ type UseEbookFoliateViewInput = {
 type PageTurnDirection = 'left' | 'right';
 
 const ebookSectionPageCountsCache = new Map<string, Array<number | null>>();
+const EBOOK_PAGINATION_RESIZE_SETTLE_DELAY_MS = 240;
 
 type EbookProgressRestoreTarget =
   | {
@@ -184,6 +185,7 @@ export function useEbookFoliateView({
   const pageInfoSectionIndexRef = useRef<number | undefined>(undefined);
   const lastStablePageInfoRef = useRef<FoliatePageInfo | null>(null);
   const paginationLayoutKeyRef = useRef('');
+  const committedPaginationLayoutKeyRef = useRef('');
   const readerSettingsRef = useRef<ReaderSettings>(readerSettings);
   const readerThemeRef = useRef<ReaderTheme>(readerTheme);
   const maxColumnCountRef = useRef(1);
@@ -225,6 +227,7 @@ export function useEbookFoliateView({
     setPageInfo(null);
     setSectionPageCounts([]);
     paginationLayoutKeyRef.current = '';
+    committedPaginationLayoutKeyRef.current = '';
     setPaginationLayoutKey('');
     progressRef.current = article.readingProgress?.progress ?? 0;
     setProgress(article.readingProgress?.progress ?? 0);
@@ -440,11 +443,23 @@ export function useEbookFoliateView({
     if (!host) return;
     let resizeTimer = 0;
 
-    const updateLayoutKey = (reason: EbookBoxUpdateReason, scheduleBoxUpdate = true) => {
+    const readLayoutKey = () => {
       const rect = host.getBoundingClientRect();
-      const nextLayoutKey = `${Math.round(rect.width)}x${Math.round(rect.height)}`;
+      return `${Math.round(rect.width)}x${Math.round(rect.height)}`;
+    };
+    const updateLayoutKeyRef = () => {
+      const nextLayoutKey = readLayoutKey();
       paginationLayoutKeyRef.current = nextLayoutKey;
+      return nextLayoutKey;
+    };
+    const commitPaginationLayoutKey = (nextLayoutKey: string) => {
+      if (committedPaginationLayoutKeyRef.current === nextLayoutKey) return;
+      committedPaginationLayoutKeyRef.current = nextLayoutKey;
       setPaginationLayoutKey(nextLayoutKey);
+    };
+    const updateLayoutKey = (reason: EbookBoxUpdateReason, scheduleBoxUpdate = true) => {
+      const nextLayoutKey = updateLayoutKeyRef();
+      commitPaginationLayoutKey(nextLayoutKey);
       if (!scheduleBoxUpdate) return;
       onScheduleEbookBoxUpdate(reason);
     };
@@ -459,11 +474,11 @@ export function useEbookFoliateView({
           await waitForAnimationFrame();
           updateLayoutKey('resize_observer');
         })();
-      }, 80);
+      }, EBOOK_PAGINATION_RESIZE_SETTLE_DELAY_MS);
     };
 
     const observer = new ResizeObserver(() => {
-      updateLayoutKey('resize_observer', false);
+      updateLayoutKeyRef();
       scheduleResizeBoxUpdate();
     });
     observer.observe(host);
