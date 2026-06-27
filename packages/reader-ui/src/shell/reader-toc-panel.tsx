@@ -52,7 +52,7 @@ export function ReaderTocPanel({
     const shift = readTocNumber(root, '--reader-toc-shift-max', 3);
     const falloff = readTocNumber(root, '--reader-toc-falloff', 0.48);
     const lineWidth = readTocNumber(root, '--reader-toc-line-width', 10);
-    const activeLineWidth = readTocNumber(root, '--reader-toc-line-active-width', 20);
+    const activeLineWidth = readTocNumber(root, '--reader-toc-line-active-width', 24);
     const timing =
       phase === 'out'
         ? readTocEase(root, '--reader-toc-ease-out', 'cubic-bezier(0.34,3.85,0.64,1)')
@@ -63,15 +63,21 @@ export function ReaderTocPanel({
       if (activeIndex === null) {
         element.style.removeProperty('--reader-toc-shift');
         element.style.removeProperty('--reader-toc-line-current-width');
+        element.style.removeProperty('--reader-toc-title-shift');
         return;
       }
 
       const distance = Math.abs(index - activeIndex);
       const strength = Math.pow(falloff, distance);
+      const currentLineWidth = lineWidth + (activeLineWidth - lineWidth) * strength;
       element.style.setProperty('--reader-toc-shift', `${(shift * strength).toFixed(3)}px`);
       element.style.setProperty(
         '--reader-toc-line-current-width',
-        `${(lineWidth + (activeLineWidth - lineWidth) * strength).toFixed(3)}px`,
+        `${currentLineWidth.toFixed(3)}px`,
+      );
+      element.style.setProperty(
+        '--reader-toc-title-shift',
+        `${(currentLineWidth - lineWidth).toFixed(3)}px`,
       );
     });
   }

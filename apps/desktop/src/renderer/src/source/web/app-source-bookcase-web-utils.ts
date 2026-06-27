@@ -36,7 +36,7 @@ export const sourceReaderTocStyles = `
 }
 .reader-toc-item{
   display:grid;
-  grid-template-columns:var(--reader-toc-line-current-width) minmax(0,1fr);
+  grid-template-columns:var(--reader-toc-line-width) minmax(0,1fr);
   align-items:center;
   gap:8px;
   position:relative;
@@ -52,12 +52,13 @@ export const sourceReaderTocStyles = `
   overflow:hidden;
   padding:9px 8px;
   transform:translateX(var(--reader-toc-shift,0px));
-  transition:background .16s ease,color .16s ease,grid-template-columns var(--reader-toc-motion),transform var(--reader-toc-motion);
+  transition:background .16s ease,color .16s ease,transform var(--reader-toc-motion);
   will-change:transform;
 }
 .reader-toc-item:hover,
 .reader-toc-item.is-active{
   --reader-toc-line-current-width:var(--reader-toc-line-active-width);
+  --reader-toc-title-shift:var(--reader-toc-line-active-delta);
   background:var(--app-reader-toc-item-hover-bg);
   color:var(--reader-ink);
 }
@@ -67,11 +68,13 @@ export const sourceReaderTocStyles = `
 }
 .reader-toc-line{
   display:block;
-  width:100%;
+  width:var(--reader-toc-line-current-width);
   height:1px;
   border-radius:999px;
   background:color-mix(in srgb,var(--reader-ink) 22%,transparent);
-  transition:background .16s ease;
+  transform-origin:left center;
+  transition:width var(--reader-toc-motion),background .16s ease;
+  will-change:width;
 }
 .reader-toc-item:hover .reader-toc-line,
 .reader-toc-item.is-active .reader-toc-line{
@@ -86,6 +89,12 @@ export const sourceReaderTocStyles = `
   grid-template-columns:minmax(0,1fr) auto;
   align-items:center;
   gap:8px;
+  min-width:0;
+  box-sizing:border-box;
+  padding-right:var(--reader-toc-title-shift,0px);
+  transform:translateX(var(--reader-toc-title-shift,0px));
+  transition:padding-right var(--reader-toc-motion),transform var(--reader-toc-motion);
+  will-change:transform;
 }
 .reader-toc-label{
   overflow:hidden;
@@ -113,10 +122,13 @@ export const sourceReaderTocStyles = `
 }
 @media(prefers-reduced-motion:reduce){
   .reader-toc-item,
-  .reader-toc-line{
-    transform:none!important;
+  .reader-toc-line,
+  .reader-toc-item-main{
     transition:none!important;
     will-change:auto;
+  }
+  .reader-toc-item{
+    transform:none!important;
   }
 }
 @media(max-width:760px){
