@@ -208,7 +208,7 @@ class FakeStoreDatabase {
   }
 
   select(selection?: unknown) {
-    return new FakeSelect(this.rows, Boolean(selection));
+    return new FakeSelect(this.rows, selection);
   }
 
   insert(table: unknown) {
@@ -227,10 +227,11 @@ class FakeStoreDatabase {
 class FakeSelect {
   private table: unknown;
   private condition: QueryCondition;
+  private grouped = false;
 
   constructor(
     private readonly rows: Rows,
-    private readonly aggregate: boolean,
+    private readonly selection?: unknown,
   ) {}
 
   from(table: unknown) {
@@ -248,6 +249,7 @@ class FakeSelect {
   }
 
   groupBy() {
+    this.grouped = true;
     return this;
   }
 
@@ -262,14 +264,20 @@ class FakeSelect {
   all() {
     if (this.table === schema.annotations) {
       const articleIds = conditionValues(this.condition);
-      if (this.aggregate) return countAnnotations(this.rows, articleIds, this.condition);
+      if (this.grouped && hasSelectionKey(this.selection, 'annotationCount')) {
+        return countAnnotationSummaries(this.rows, articleIds);
+      }
+      if (this.grouped) return countAnnotations(this.rows, articleIds, this.condition);
       return this.rows.annotations.filter(
         (row) => articleIds.size === 0 || articleIds.has(row.articleId),
       );
     }
     if (this.table === schema.comments) {
       const values = conditionValues(this.condition);
-      if (isCountQuery(this.condition)) return countRootComments(this.rows, values);
+      if (this.grouped && hasSelectionKey(this.selection, 'commentCount')) {
+        return countCommentSummaries(this.rows, values);
+      }
+      if (this.grouped) return countRootComments(this.rows, values);
       return this.rows.comments.filter((row) => values.size === 0 || values.has(row.annotationId));
     }
     if (this.table === schema.agents) {
@@ -398,6 +406,22 @@ function countRootComments(rows: Rows, articleIds: Set<string>) {
   return Array.from(counts.entries()).map(([articleId, count]) => ({ articleId, count }));
 }
 
+function countCommentSummaries(rows: Rows, articleIds: Set<string>) {
+  const articleByAnnotation = new Map(rows.annotations.map((row) => [row.id, row.articleId]));
+  const counts = new Map<string, { commentCount: number; aiCommentCount: number }>();
+  for (const commentRow of rows.comments) {
+    const articleId = articleByAnnotation.get(commentRow.annotationId);
+    if (!articleId || (articleIds.size > 0 && !articleIds.has(articleId))) continue;
+    const count = counts.get(articleId) || { commentCount: 0, aiCommentCount: 0 };
+    if (!commentRow.replyTo) count.commentCount += 1;
+    if (commentRow.author === 'ai') count.aiCommentCount += 1;
+    counts.set(articleId, count);
+  }
+  return Array.from(counts.entries()).map(([articleId, count]) =>
+    Object.assign({ articleId }, count),
+  );
+}
+
 function countAnnotations(rows: Rows, articleIds: Set<string>, condition: QueryCondition) {
   const publishedOnly = conditionValues(condition).has('published');
   const counts = new Map<string, number>();
@@ -409,8 +433,29 @@ function countAnnotations(rows: Rows, articleIds: Set<string>, condition: QueryC
   return Array.from(counts.entries()).map(([articleId, count]) => ({ articleId, count }));
 }
 
-function isCountQuery(condition: QueryCondition) {
-  return conditionValues(condition).has('article_1');
+function countAnnotationSummaries(rows: Rows, articleIds: Set<string>) {
+  const counts = new Map<string, { annotationCount: number; distillationCount: number }>();
+  for (const annotationRow of rows.annotations) {
+    if (articleIds.size > 0 && !articleIds.has(annotationRow.articleId)) continue;
+    const count = counts.get(annotationRow.articleId) || {
+      annotationCount: 0,
+      distillationCount: 0,
+    };
+    count.annotationCount += 1;
+    if (annotationRow.distillationStatus === 'published') count.distillationCount += 1;
+    counts.set(annotationRow.articleId, count);
+  }
+  return Array.from(counts.entries()).map(([articleId, count]) =>
+    Object.assign({ articleId }, count),
+  );
+}
+
+function hasSelectionKey(selection: unknown, key: string) {
+  return Boolean(
+    selection &&
+    typeof selection === 'object' &&
+    Object.prototype.hasOwnProperty.call(selection, key),
+  );
 }
 
 function conditionValues(condition: QueryCondition) {

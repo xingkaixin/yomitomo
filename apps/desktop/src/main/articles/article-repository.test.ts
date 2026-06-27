@@ -27,10 +27,8 @@ describe('article repository summaries', () => {
     });
     expect(counts.has('article_b')).toBe(false);
     expect(profile.map((entry) => entry.name)).toEqual([
-      'count_annotations_by_article_scoped',
-      'count_comments_by_article_scoped',
-      'count_ai_comments_by_article_scoped',
-      'count_distillations_by_article_scoped',
+      'count_annotation_summary_by_article_scoped',
+      'count_comment_summary_by_article_scoped',
       'read_distillation_review_sessions_by_article_scoped',
     ]);
   });
@@ -90,7 +88,9 @@ describe('article repository summaries', () => {
     });
     expect(result.articles.map((article) => article.id)).toEqual(['article_c']);
     expect(result.articles[0].annotationCount).toBe(0);
-    expect(profile.map((entry) => entry.name)).toContain('count_annotations_by_article_scoped');
+    expect(profile.map((entry) => entry.name)).toContain(
+      'count_annotation_summary_by_article_scoped',
+    );
   });
 
   it('filters library pages by source metadata search', () => {
@@ -103,6 +103,38 @@ describe('article repository summaries', () => {
 
     expect(result.totalCount).toBe(1);
     expect(result.articles.map((article) => article.id)).toEqual(['sqlite_alpha']);
+  });
+
+  it('combines summary count reads without changing sqlite count semantics', () => {
+    const database = summaryCountsSqliteDatabase(200, 50);
+    const fullProfile: StoreReadProfileEntry[] = [];
+    const scopedProfile: StoreReadProfileEntry[] = [];
+
+    const fullCounts = readArticleSummaryCounts(database, fullProfile);
+    const scopedCounts = readArticleSummaryCountsForArticles(
+      database,
+      ['article_1', 'article_2', 'article_3', 'article_4', 'article_5'],
+      scopedProfile,
+    );
+
+    expect(fullCounts.get('article_1')).toEqual({
+      annotationCount: 50,
+      commentCount: 56,
+      aiCommentCount: 72,
+      distillationCount: 10,
+    });
+    expect(scopedCounts.get('article_1')).toEqual(fullCounts.get('article_1'));
+    expect(scopedCounts.size).toBe(5);
+    expect(fullProfile.map((entry) => entry.name)).toEqual([
+      'count_annotation_summary_by_article',
+      'count_comment_summary_by_article',
+      'read_distillation_review_sessions_by_article',
+    ]);
+    expect(scopedProfile.map((entry) => entry.name)).toEqual([
+      'count_annotation_summary_by_article_scoped',
+      'count_comment_summary_by_article_scoped',
+      'read_distillation_review_sessions_by_article_scoped',
+    ]);
   });
 });
 
@@ -239,6 +271,63 @@ function sqliteRepositoryDatabase(): StoreDatabase {
   return drizzle(sqlite, { schema });
 }
 
+function summaryCountsSqliteDatabase(articleCount: number, annotationsPerArticle: number) {
+  const sqlite = new SQLiteDatabase(':memory:');
+  sqlite.exec(`
+    CREATE TABLE annotations (
+      id TEXT PRIMARY KEY,
+      article_id TEXT NOT NULL,
+      distillation_status TEXT,
+      distillation_review_sessions TEXT
+    );
+    CREATE TABLE comments (
+      id TEXT PRIMARY KEY,
+      annotation_id TEXT NOT NULL,
+      author TEXT NOT NULL,
+      reply_to TEXT
+    );
+  `);
+  const insertAnnotation = sqlite.prepare(
+    `INSERT INTO annotations (
+      id, article_id, distillation_status, distillation_review_sessions
+    ) VALUES (?, ?, ?, ?)`,
+  );
+  const insertComment = sqlite.prepare(
+    'INSERT INTO comments (id, annotation_id, author, reply_to) VALUES (?, ?, ?, ?)',
+  );
+  sqlite.transaction(() => {
+    for (let articleIndex = 0; articleIndex < articleCount; articleIndex += 1) {
+      const articleId = `article_${articleIndex}`;
+      for (let annotationIndex = 0; annotationIndex < annotationsPerArticle; annotationIndex += 1) {
+        const annotationId = `${articleId}_annotation_${annotationIndex}`;
+        const reviewSessions =
+          annotationIndex % 7 === 0
+            ? JSON.stringify([
+                { messages: [{ author: 'ai' }, { author: 'user' }, { author: 'ai' }] },
+              ])
+            : null;
+        insertAnnotation.run(
+          annotationId,
+          articleId,
+          annotationIndex % 5 === 0 ? 'published' : null,
+          reviewSessions,
+        );
+        insertComment.run(`${annotationId}_comment_user`, annotationId, 'user', null);
+        insertComment.run(
+          `${annotationId}_comment_ai_reply`,
+          annotationId,
+          'ai',
+          `${annotationId}_comment_user`,
+        );
+        if (annotationIndex % 9 === 0) {
+          insertComment.run(`${annotationId}_comment_ai_top`, annotationId, 'ai', null);
+        }
+      }
+    }
+  })();
+  return drizzle(sqlite, { schema });
+}
+
 class FakeSelect {
   private table: unknown;
   private condition: QueryCondition;
@@ -307,9 +396,15 @@ class FakeSelect {
           articleId: row.articleId,
           reviewSessions: row.distillationReviewSessions,
         }));
+      if (hasSelectionKey(this.selection, 'annotationCount')) {
+        return countAnnotationSummaries(this.rows.annotations, this.condition);
+      }
       return countAnnotations(this.rows.annotations, this.condition);
     }
     if (this.table === schema.comments) {
+      if (hasSelectionKey(this.selection, 'commentCount')) {
+        return countCommentSummaries(this.rows.annotations, this.rows.comments, this.condition);
+      }
       return countComments(this.rows.annotations, this.rows.comments, this.condition);
     }
     return this.rows.articles;
@@ -326,10 +421,14 @@ class FakeSelect {
 }
 
 function isCountSelection(selection: unknown) {
+  return hasSelectionKey(selection, 'count');
+}
+
+function hasSelectionKey(selection: unknown, key: string) {
   return Boolean(
     selection &&
     typeof selection === 'object' &&
-    Object.prototype.hasOwnProperty.call(selection, 'count'),
+    Object.prototype.hasOwnProperty.call(selection, key),
   );
 }
 
@@ -369,6 +468,16 @@ function countAnnotations(rows: AnnotationRow[], condition: QueryCondition) {
   );
 }
 
+function countAnnotationSummaries(rows: AnnotationRow[], condition: QueryCondition) {
+  return Array.from(groupRowsByArticle(filterAnnotations(rows, condition)).entries()).map(
+    ([articleId, articleRows]) => ({
+      articleId,
+      annotationCount: articleRows.length,
+      distillationCount: articleRows.filter((row) => row.distillationStatus === 'published').length,
+    }),
+  );
+}
+
 function filterAnnotations(
   rows: AnnotationRow[],
   condition: QueryCondition,
@@ -400,6 +509,40 @@ function countComments(
       return [{ articleId }];
     });
   return countByArticle(rows);
+}
+
+function countCommentSummaries(
+  annotations: AnnotationRow[],
+  comments: CommentRow[],
+  condition: QueryCondition,
+) {
+  const scopedArticleIds = articleIdsFromCondition(condition);
+  const articleByAnnotation = new Map(
+    annotations.map((annotation) => [annotation.id, annotation.articleId]),
+  );
+  const counts = new Map<string, { commentCount: number; aiCommentCount: number }>();
+  for (const comment of comments) {
+    const articleId = articleByAnnotation.get(comment.annotationId);
+    if (!articleId) continue;
+    if (scopedArticleIds.size > 0 && !scopedArticleIds.has(articleId)) continue;
+    const count = counts.get(articleId) || { commentCount: 0, aiCommentCount: 0 };
+    if (!comment.replyTo) count.commentCount += 1;
+    if (comment.author === 'ai') count.aiCommentCount += 1;
+    counts.set(articleId, count);
+  }
+  return Array.from(counts.entries()).map(([articleId, count]) =>
+    Object.assign({ articleId }, count),
+  );
+}
+
+function groupRowsByArticle<T extends { articleId: string }>(rows: T[]) {
+  const grouped = new Map<string, T[]>();
+  for (const row of rows) {
+    const articleRows = grouped.get(row.articleId) || [];
+    articleRows.push(row);
+    grouped.set(row.articleId, articleRows);
+  }
+  return grouped;
 }
 
 function countByArticle(rows: Array<{ articleId: string }>) {
