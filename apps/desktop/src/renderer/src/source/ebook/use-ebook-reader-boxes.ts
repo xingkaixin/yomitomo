@@ -70,6 +70,17 @@ function debugEbookLayout(event: string, details: Record<string, unknown>) {
   console.info(`[yomitomo:ebook-layout] ${event}`, details);
 }
 
+function debugRect(rect: DOMRect | null | undefined) {
+  if (!rect) return null;
+  return {
+    height: Math.round(rect.height),
+    left: Math.round(rect.left),
+    right: Math.round(rect.right),
+    top: Math.round(rect.top),
+    width: Math.round(rect.width),
+  };
+}
+
 function foliateClickTargetIsInteractive(target: EventTarget | null) {
   if (!target || !('closest' in target)) return false;
   const closest = (target as { closest?: (selector: string) => Element | null }).closest;
@@ -510,19 +521,37 @@ export function useEbookReaderBoxes({
     return Boolean(selection && selection.rangeCount > 0 && !selection.isCollapsed);
   }, []);
 
-  const foliateClickPagingDirection = useCallback((event: MouseEvent, doc: Document) => {
-    const frame = doc.defaultView?.frameElement;
-    if (!(frame instanceof HTMLIFrameElement)) return null;
-    const frameRect = frame.getBoundingClientRect();
-    return ebookClickPagingDirectionAtClientX({
-      clientX: frameRect.left + event.clientX,
-      rect: frameRect,
-    });
-  }, []);
+  const foliateClickPagingDirection = useCallback(
+    (event: MouseEvent, doc: Document) => {
+      const frame = doc.defaultView?.frameElement;
+      if (!(frame instanceof HTMLIFrameElement)) return null;
+      const frameRect = frame.getBoundingClientRect();
+      const viewRect = viewRef.current?.getBoundingClientRect() ?? null;
+      const hitRect = viewRect && viewRect.width > 0 ? viewRect : frameRect;
+      const clientX = frameRect.left + event.clientX;
+      const direction = ebookClickPagingDirectionAtClientX({
+        clientX,
+        rect: hitRect,
+      });
+      debugEbookLayout('click-paging-direction', {
+        canvas: debugRect(canvasRef.current?.getBoundingClientRect()),
+        clientX: Math.round(clientX),
+        direction,
+        eventClientX: Math.round(event.clientX),
+        eventType: event.type,
+        frame: debugRect(frameRect),
+        hitRect: debugRect(hitRect),
+        view: debugRect(viewRect),
+      });
+      return direction;
+    },
+    [canvasRef, viewRef],
+  );
 
   const attachFoliateDocumentListeners = useCallback(
     (view: FoliateViewElement | null) => {
-      for (const { doc } of currentFoliateContents(view)) {
+      const contents = currentFoliateContents(view);
+      for (const { doc } of contents) {
         if (!doc || observedFoliateDocsRef.current.has(doc)) continue;
         observedFoliateDocsRef.current.add(doc);
 
