@@ -59,6 +59,7 @@ const article = ebookArticle();
 const annotationAgents: PublicAgent[] = [];
 const onFoliateClick = vi.fn();
 const onFoliatePointerDown = vi.fn();
+const onFoliatePageTurnClick = vi.fn();
 const onFoliatePageTurnKey = vi.fn();
 const onFoliateSelection = vi.fn();
 const onFoliateSelectionShortcut = vi.fn();
@@ -117,6 +118,7 @@ function EbookBoxesProbe({
     userProfile,
     onFoliateClick,
     onFoliatePointerDown,
+    onFoliatePageTurnClick,
     onFoliatePageTurnKey,
     onFoliateSelection,
     onFoliateSelectionShortcut,
@@ -203,21 +205,111 @@ describe('useEbookReaderBoxes', () => {
     expect(onFoliateSelectionShortcut).toHaveBeenCalledTimes(1);
     expect(onFoliatePageTurnKey).not.toHaveBeenCalled();
   });
+
+  it('turns pages from foliate document clicks in the edge hot zones', () => {
+    const doc = foliateDocument('正文');
+    render(<EbookBoxesProbe view={foliateView(doc)} />);
+
+    doc.body.dispatchEvent(foliateMouseEvent('click', { clientX: 20 }));
+    doc.body.dispatchEvent(foliateMouseEvent('click', { clientX: 780 }));
+
+    expect(onFoliateClick).toHaveBeenCalledTimes(2);
+    expect(onFoliatePageTurnClick).toHaveBeenNthCalledWith(1, 'left');
+    expect(onFoliatePageTurnClick).toHaveBeenNthCalledWith(2, 'right');
+  });
+
+  it('does not turn pages when the foliate document has an expanded selection', () => {
+    const doc = foliateDocument('正文');
+    vi.spyOn(doc, 'getSelection').mockReturnValue({
+      isCollapsed: false,
+      rangeCount: 1,
+    } as Selection);
+    render(<EbookBoxesProbe view={foliateView(doc)} />);
+
+    doc.body.dispatchEvent(foliateMouseEvent('click', { clientX: 20 }));
+
+    expect(onFoliateClick).not.toHaveBeenCalled();
+    expect(onFoliatePageTurnClick).not.toHaveBeenCalled();
+  });
+
+  it('does not turn pages when a highlight click is handled first', () => {
+    const doc = foliateDocument('正文');
+    onFoliateClick.mockReturnValueOnce(true);
+    render(<EbookBoxesProbe view={foliateView(doc)} />);
+
+    doc.body.dispatchEvent(foliateMouseEvent('click', { clientX: 20 }));
+
+    expect(onFoliateClick).toHaveBeenCalledTimes(1);
+    expect(onFoliatePageTurnClick).not.toHaveBeenCalled();
+  });
+
+  it('does not turn pages from interactive foliate targets', () => {
+    const doc = foliateDocument('');
+    const button = doc.createElement('button');
+    button.textContent = 'Action';
+    doc.body.append(button);
+    render(<EbookBoxesProbe view={foliateView(doc)} />);
+
+    button.dispatchEvent(foliateMouseEvent('click', { clientX: 20 }));
+
+    expect(onFoliateClick).toHaveBeenCalledTimes(1);
+    expect(onFoliatePageTurnClick).not.toHaveBeenCalled();
+  });
+
+  it('attaches foliate listeners to every current content document', () => {
+    const firstDoc = foliateDocument('第一页');
+    const secondDoc = foliateDocument('第二页');
+    render(<EbookBoxesProbe view={foliateView([firstDoc, secondDoc])} />);
+
+    secondDoc.body.dispatchEvent(foliateMouseEvent('click', { clientX: 780 }));
+
+    expect(onFoliateClick).toHaveBeenCalledTimes(1);
+    expect(onFoliatePageTurnClick).toHaveBeenCalledWith('right');
+  });
+
+  it('sets a non-intercepting hover direction on the reader canvas', () => {
+    const doc = foliateDocument('正文');
+    render(<EbookBoxesProbe view={foliateView(doc)} />);
+
+    const canvas = screen.getByTestId('canvas');
+    doc.body.dispatchEvent(foliateMouseEvent('mousemove', { clientX: 20 }));
+    expect(canvas.dataset.ebookClickPagingHover).toBe('left');
+
+    doc.body.dispatchEvent(foliateMouseEvent('mousemove', { clientX: 400 }));
+    expect(canvas.dataset.ebookClickPagingHover).toBeUndefined();
+  });
 });
 
 function foliateDocument(text: string) {
   const frame = document.createElement('iframe');
   document.body.append(frame);
+  frame.getBoundingClientRect = () =>
+    ({
+      bottom: 1000,
+      height: 1000,
+      left: 0,
+      right: 800,
+      top: 0,
+      width: 800,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    }) as DOMRect;
   const doc = frame.contentDocument!;
   doc.body.textContent = text;
   return doc;
 }
 
-function foliateView(doc: Document) {
+function foliateMouseEvent(type: string, { clientX }: { clientX: number }) {
+  return new MouseEvent(type, { bubbles: true, button: 0, cancelable: true, clientX, clientY: 12 });
+}
+
+function foliateView(docs: Document | Document[]) {
+  const contents = (Array.isArray(docs) ? docs : [docs]).map((doc, index) => ({ doc, index }));
   const renderer = document.createElement('div') as unknown as HTMLElement & {
     getContents: () => Array<{ doc: Document; index: number }>;
   };
-  renderer.getContents = () => [{ doc, index: 0 }];
+  renderer.getContents = () => contents;
   return Object.assign(document.createElement('div'), {
     renderer,
     getPageInfo: () => ({ sectionIndex: 0, pageIndex: 0, pageCount: 1 }),

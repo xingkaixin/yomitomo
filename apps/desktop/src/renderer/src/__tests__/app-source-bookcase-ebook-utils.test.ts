@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ebookClickPagingDirectionAtClientX,
+  ebookClickPagingHotZoneWidth,
   ebookSpreadAvailableWidth,
   ebookSpreadLayout,
 } from '../source/ebook/app-source-bookcase-ebook-utils';
@@ -75,5 +77,22 @@ describe('ebookSpreadLayout', () => {
     });
     expect(spread.columns).toBe(2);
     expect(spread.railLayout.articleWidth).toBe(SPREAD_WIDTH);
+  });
+});
+
+describe('ebookClickPagingDirectionAtClientX', () => {
+  it('clamps the hot zone width with min, ratio, and max values', () => {
+    expect(ebookClickPagingHotZoneWidth(300)).toBe(48);
+    expect(ebookClickPagingHotZoneWidth(800)).toBe(96);
+    expect(ebookClickPagingHotZoneWidth(1400)).toBe(120);
+  });
+
+  it('returns a direction only inside the left or right hot zone', () => {
+    const rect = { left: 100, width: 800 } as DOMRect;
+
+    expect(ebookClickPagingDirectionAtClientX({ clientX: 140, rect })).toBe('left');
+    expect(ebookClickPagingDirectionAtClientX({ clientX: 500, rect })).toBeNull();
+    expect(ebookClickPagingDirectionAtClientX({ clientX: 860, rect })).toBe('right');
+    expect(ebookClickPagingDirectionAtClientX({ clientX: 99, rect })).toBeNull();
   });
 });
