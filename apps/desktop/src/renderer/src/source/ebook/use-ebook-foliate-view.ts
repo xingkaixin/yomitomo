@@ -167,6 +167,7 @@ export function useEbookFoliateView({
   const viewRef = useRef<FoliateViewElement | null>(null);
   const ebookFileRef = useRef<File | null>(null);
   const pageInfoSectionIndexRef = useRef<number | undefined>(undefined);
+  const lastStablePageInfoRef = useRef<FoliatePageInfo | null>(null);
   const paginationLayoutKeyRef = useRef('');
   const readerSettingsRef = useRef<ReaderSettings>(readerSettings);
   const readerThemeRef = useRef<ReaderTheme>(readerTheme);
@@ -205,6 +206,7 @@ export function useEbookFoliateView({
     setTocItems([]);
     setSectionFractions([]);
     pageInfoSectionIndexRef.current = undefined;
+    lastStablePageInfoRef.current = null;
     setPageInfo(null);
     setSectionPageCounts([]);
     paginationLayoutKeyRef.current = '';
@@ -240,27 +242,41 @@ export function useEbookFoliateView({
     readerSettingsRef.current = readerSettings;
     readerThemeRef.current = readerTheme;
     const view = viewRef.current;
+    const pageInfoBeforeLayout = view?.getPageInfo?.() ?? lastStablePageInfoRef.current;
+    if (pageInfoBeforeLayout) lastStablePageInfoRef.current = pageInfoBeforeLayout;
     configureFoliateView(view, readerSettings, readerTheme, maxColumnCount);
     if (
       view &&
       readerStateStatusRef.current === 'ready' &&
       previousMaxColumnCount !== maxColumnCount
     ) {
-      const currentPageInfo = view.getPageInfo?.() ?? null;
+      const livePageInfo = view.getPageInfo?.() ?? null;
+      const restorePageInfo = pageInfoBeforeLayout ?? livePageInfo;
+      if (restorePageInfo) lastStablePageInfoRef.current = restorePageInfo;
+      const restoreProgress = restorePageInfo
+        ? {
+            chapterIndex: restorePageInfo.sectionIndex,
+            chapterProgress: ebookReadingProgressPageAnchor(restorePageInfo),
+            pageCount: restorePageInfo.pageCount,
+            pageIndex: restorePageInfo.pageIndex,
+            progress: progressRef.current,
+            updatedAt: new Date().toISOString(),
+          }
+        : {
+            pageCount: 1000,
+            pageIndex: Math.round(clampNumber(progressRef.current, 0, 1, 0) * 1000),
+            progress: clampNumber(progressRef.current, 0, 1, 0),
+            updatedAt: new Date().toISOString(),
+          };
       recordRendererPerformanceTiming('ebook_layout', {
         articleId: article.id,
         fromColumns: previousMaxColumnCount,
-        pageInfo: currentPageInfo,
+        livePageInfo,
+        pageInfo: restorePageInfo,
+        progress: progressRef.current,
         toColumns: maxColumnCount,
       });
-      void restoreEbookReadingProgress(view, {
-        chapterIndex: currentPageInfo?.sectionIndex,
-        chapterProgress: ebookReadingProgressPageAnchor(currentPageInfo),
-        pageCount: currentPageInfo?.pageCount ?? 1,
-        pageIndex: currentPageInfo?.pageIndex ?? 0,
-        progress: progressRef.current,
-        updatedAt: new Date().toISOString(),
-      });
+      void restoreEbookReadingProgress(view, restoreProgress);
     }
     onScheduleEbookBoxUpdate('reader_settings');
   }, [article.id, maxColumnCount, onScheduleEbookBoxUpdate, readerSettings, readerTheme]);
@@ -293,6 +309,7 @@ export function useEbookFoliateView({
       setProgress(nextProgress);
       progressRef.current = nextProgress;
       pageInfoSectionIndexRef.current = nextPageInfo?.sectionIndex;
+      if (nextPageInfo) lastStablePageInfoRef.current = nextPageInfo;
       setPageInfo(nextPageInfo);
       if (nextPageInfo) {
         setSectionPageCounts((counts) => updateKnownSectionPageCount(counts, nextPageInfo));
@@ -477,6 +494,7 @@ export function useEbookFoliateView({
         : sections.map((section) => (section.linear === 'no' ? 0 : null));
     const currentPageInfo = visibleEbookView.getPageInfo?.();
     pageInfoSectionIndexRef.current = currentPageInfo?.sectionIndex;
+    if (currentPageInfo) lastStablePageInfoRef.current = currentPageInfo;
     setPageInfo(currentPageInfo ?? null);
     counts = currentPageInfo ? updateKnownSectionPageCount(counts, currentPageInfo) : counts;
     ebookSectionPageCountsCache.set(cacheKey, [...counts]);
