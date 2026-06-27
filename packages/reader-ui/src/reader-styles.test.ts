@@ -129,6 +129,24 @@ describe('reader embedded styles', () => {
     );
   });
 
+  it('renders the table of contents as line navigation with count badges', () => {
+    expectCssToContain(
+      readerStyles,
+      '.reader-toc{--reader-toc-line-width:10px;--reader-toc-line-active-width:20px;--reader-toc-line-current-width:var(--reader-toc-line-width);',
+    );
+    expectCssToContain(
+      readerStyles,
+      '.reader-toc-item{display:grid;grid-template-columns:var(--reader-toc-line-current-width) minmax(0,1fr);',
+    );
+    expect(readerConversationStyles).toContain('.reader-toc-line{');
+    expect(readerConversationStyles).toContain('.reader-toc-count{');
+    expect(readerConversationStyles).toContain(
+      '@media(prefers-reduced-motion:reduce){.reader-toc-item,.reader-toc-line{transform:none!important;',
+    );
+    expect(readerConversationStyles).not.toContain('.reader-toc-markers');
+    expect(readerConversationStyles).not.toContain('.reader-toc-item::before');
+  });
+
   it('keeps long toolbar titles from squeezing leading visuals', () => {
     expect(readerConversationStyles).toContain(
       '.reader-toolbar-article{display:flex;flex:1 1 auto;max-width:100%;align-items:center;gap:12px;min-width:0;overflow:hidden;',

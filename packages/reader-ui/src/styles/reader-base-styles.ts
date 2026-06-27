@@ -197,6 +197,15 @@ export const readerBaseStyles = `
 }
 
 .reader-toc {
+  --reader-toc-line-width: 10px;
+  --reader-toc-line-active-width: 20px;
+  --reader-toc-line-current-width: var(--reader-toc-line-width);
+  --reader-toc-shift-max: 3px;
+  --reader-toc-falloff: .48;
+  --reader-toc-dur: 260ms;
+  --reader-toc-ease-in: cubic-bezier(.22,1,.36,1);
+  --reader-toc-ease-out: cubic-bezier(.34,3.85,.64,1);
+  --reader-toc-motion: var(--reader-toc-dur) var(--reader-toc-ease,cubic-bezier(.22,1,.36,1));
   min-width: 0;
   overflow: auto;
   padding: 42px 18px 48px 22px;
@@ -219,7 +228,10 @@ export const readerBaseStyles = `
 }
 
 .reader-toc-item {
-  display: block;
+  display: grid;
+  grid-template-columns: var(--reader-toc-line-current-width) minmax(0,1fr);
+  align-items: center;
+  gap: 10px;
   width: 100%;
   margin: 2px 0;
   border: 0;
@@ -229,18 +241,64 @@ export const readerBaseStyles = `
   font: inherit;
   font-size: 13px;
   line-height: 1.35;
+  transform: translateX(var(--reader-toc-shift,0px));
+  transition: background .16s ease,color .16s ease,grid-template-columns var(--reader-toc-motion),transform var(--reader-toc-motion);
   padding: 7px 8px;
   text-align: left;
+  will-change: transform;
 }
 
 .reader-toc-item:hover,.reader-toc-item.is-active {
+  --reader-toc-line-current-width: var(--reader-toc-line-active-width);
   background: var(--app-reader-toc-item-hover-bg);
   color: var(--reader-ink);
 }
 
 .reader-toc-item.is-active {
-  box-shadow: inset 3px 0 0 var(--reader-green);
+  box-shadow: none;
   font-weight: 820;
+}
+
+.reader-toc-line {
+  display: block;
+  width: 100%;
+  height: 1px;
+  border-radius: 999px;
+  background: color-mix(in srgb,var(--reader-ink) 22%,transparent);
+  transition: background .16s ease;
+}
+
+.reader-toc-item:hover .reader-toc-line,.reader-toc-item.is-active .reader-toc-line {
+  background: var(--reader-green);
+}
+
+.reader-toc-item-main {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.reader-toc-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-toc-count {
+  display: grid;
+  min-width: 23px;
+  height: 23px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb,var(--reader-toc-count-color,var(--reader-green)) 42%,rgba(37,29,22,.14));
+  border-radius: 999px;
+  background: color-mix(in srgb,var(--reader-toc-count-color,var(--reader-green)) 58%,var(--reader-paper));
+  color: var(--reader-ink);
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1;
+  padding: 0 6px;
+  box-shadow: inset 0 1px 0 color-mix(in srgb,var(--reader-paper) 46%,transparent);
 }
 
 .reader-toc-item[data-depth="2"] {
@@ -253,6 +311,13 @@ export const readerBaseStyles = `
 
 .reader-toc-item[data-depth="4"] {
   padding-left: 44px;
+}
+
+@media(prefers-reduced-motion: reduce) {
+  .reader-toc-item,.reader-toc-line {
+    transform: none !important;
+    transition: none !important;
+  }
 }
 
 .reader-surface {
