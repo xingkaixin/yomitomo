@@ -758,6 +758,10 @@ export function currentFoliateContent(view: FoliateViewElement | null) {
   return view?.renderer?.getContents?.()[0] || null;
 }
 
+export function currentFoliateContents(view: FoliateViewElement | null) {
+  return view?.renderer?.getContents?.().filter((content) => content.doc) ?? [];
+}
+
 export function isRangeInsideDocumentBody(doc: Document, range: Range) {
   const body = doc.body;
   const start =

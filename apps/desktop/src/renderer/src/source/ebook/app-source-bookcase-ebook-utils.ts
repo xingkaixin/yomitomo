@@ -16,6 +16,12 @@ import {
   navigationForActiveAnnotation,
 } from '../bookcase/app-source-bookcase-shared';
 
+export type EbookClickPagingDirection = 'left' | 'right';
+
+export const EBOOK_CLICK_PAGING_HOT_ZONE_MIN_WIDTH = 48;
+export const EBOOK_CLICK_PAGING_HOT_ZONE_MAX_WIDTH = 120;
+export const EBOOK_CLICK_PAGING_HOT_ZONE_RATIO = 0.12;
+
 export const sourceEbookReaderStyles = `
 .source-ebook-reader-shell{
   grid-template-rows:minmax(0,1fr);
@@ -76,8 +82,43 @@ export const sourceEbookReaderStyles = `
   width:100%;
 }
 .source-ebook-reader-shell .ebook-page-stage{
+  position:relative;
   width:100%;
   min-height:0;
+}
+.source-ebook-reader-shell .ebook-click-paging-hints{
+  position:absolute;
+  inset:0;
+  z-index:2;
+  pointer-events:none;
+}
+.source-ebook-reader-shell .ebook-click-paging-hint{
+  position:absolute;
+  top:50%;
+  display:grid;
+  width:38px;
+  height:54px;
+  place-items:center;
+  border:1px solid color-mix(in srgb,var(--reader-border) 72%,transparent);
+  border-radius:8px;
+  background:color-mix(in srgb,var(--reader-paper) 76%,transparent);
+  box-shadow:var(--reader-soft-shadow);
+  color:var(--reader-muted);
+  opacity:0;
+  transform:translateY(-50%) scale(.96);
+  transition:opacity .14s ease,transform .14s ease,color .14s ease;
+}
+.source-ebook-reader-shell .ebook-click-paging-hint.is-left{
+  left:10px;
+}
+.source-ebook-reader-shell .ebook-click-paging-hint.is-right{
+  right:10px;
+}
+.source-ebook-reader-shell .reader-canvas[data-ebook-click-paging-hover="left"] .ebook-click-paging-hint.is-left,
+.source-ebook-reader-shell .reader-canvas[data-ebook-click-paging-hover="right"] .ebook-click-paging-hint.is-right{
+  color:var(--reader-ink);
+  opacity:.72;
+  transform:translateY(-50%) scale(1);
 }
 .source-ebook-reader-shell .reader-edge-blur.is-bottom{
   display:none;
@@ -122,6 +163,31 @@ export const sourceEbookReaderStyles = `
   width:min(100%,calc(var(--reader-content-width) * 2));
 }
 `;
+
+export function ebookClickPagingHotZoneWidth(stageWidth: number) {
+  if (!Number.isFinite(stageWidth) || stageWidth <= 0) return 0;
+  return Math.min(
+    EBOOK_CLICK_PAGING_HOT_ZONE_MAX_WIDTH,
+    Math.max(EBOOK_CLICK_PAGING_HOT_ZONE_MIN_WIDTH, stageWidth * EBOOK_CLICK_PAGING_HOT_ZONE_RATIO),
+  );
+}
+
+export function ebookClickPagingDirectionAtClientX({
+  clientX,
+  rect,
+}: {
+  clientX: number;
+  rect: Pick<DOMRect, 'left' | 'width'>;
+}): EbookClickPagingDirection | null {
+  const hotZoneWidth = ebookClickPagingHotZoneWidth(rect.width);
+  if (!hotZoneWidth) return null;
+
+  const localX = clientX - rect.left;
+  if (localX < 0 || localX > rect.width) return null;
+  if (localX <= hotZoneWidth) return 'left';
+  if (localX >= rect.width - hotZoneWidth) return 'right';
+  return null;
+}
 
 export function ebookAnnotationNavigationState({
   activeId,

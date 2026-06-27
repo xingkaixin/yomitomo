@@ -1,4 +1,5 @@
 import type React from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ReaderAppView, type ReaderAppViewProps } from '@yomitomo/reader-ui/reader-app-view';
 import { readerDesktopEmbeddedBundleStyles } from '@yomitomo/reader-ui/reader-styles';
 import { sourceEbookReaderStyles } from './app-source-bookcase-ebook-utils';
@@ -57,6 +58,14 @@ export function EbookReaderShell({
                 }
               >
                 <div className="ebook-foliate-frame" ref={viewHostRef} />
+                <div className="ebook-click-paging-hints" aria-hidden="true">
+                  <span className="ebook-click-paging-hint is-left">
+                    <ChevronLeft size={24} strokeWidth={2.2} />
+                  </span>
+                  <span className="ebook-click-paging-hint is-right">
+                    <ChevronRight size={24} strokeWidth={2.2} />
+                  </span>
+                </div>
                 {readerState.status !== 'ready' ? (
                   <div className="ebook-reader-status" role="status">
                     {readerState.message}

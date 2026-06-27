@@ -28,6 +28,7 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   Reflect.deleteProperty(window, 'yomitomoDesktop');
+  Reflect.deleteProperty(window, 'yomitomoEbookLayoutDebug');
 });
 
 function ebookArticle(): EbookArticleRecord {
@@ -59,6 +60,7 @@ const article = ebookArticle();
 const annotationAgents: PublicAgent[] = [];
 const onFoliateClick = vi.fn();
 const onFoliatePointerDown = vi.fn();
+const onFoliatePageTurnClick = vi.fn();
 const onFoliatePageTurnKey = vi.fn();
 const onFoliateSelection = vi.fn();
 const onFoliateSelectionShortcut = vi.fn();
@@ -117,6 +119,7 @@ function EbookBoxesProbe({
     userProfile,
     onFoliateClick,
     onFoliatePointerDown,
+    onFoliatePageTurnClick,
     onFoliatePageTurnKey,
     onFoliateSelection,
     onFoliateSelectionShortcut,
@@ -203,22 +206,167 @@ describe('useEbookReaderBoxes', () => {
     expect(onFoliateSelectionShortcut).toHaveBeenCalledTimes(1);
     expect(onFoliatePageTurnKey).not.toHaveBeenCalled();
   });
+
+  it('turns pages from foliate document clicks in the edge hot zones', () => {
+    const doc = foliateDocument('正文');
+    render(<EbookBoxesProbe view={foliateView(doc)} />);
+
+    doc.body.dispatchEvent(foliateMouseEvent('click', { clientX: 20 }));
+    doc.body.dispatchEvent(foliateMouseEvent('click', { clientX: 780 }));
+
+    expect(onFoliateClick).toHaveBeenCalledTimes(2);
+    expect(onFoliatePageTurnClick).toHaveBeenNthCalledWith(1, 'left');
+    expect(onFoliatePageTurnClick).toHaveBeenNthCalledWith(2, 'right');
+  });
+
+  it('does not turn pages when the foliate document has an expanded selection', () => {
+    const doc = foliateDocument('正文');
+    vi.spyOn(doc, 'getSelection').mockReturnValue({
+      isCollapsed: false,
+      rangeCount: 1,
+    } as Selection);
+    render(<EbookBoxesProbe view={foliateView(doc)} />);
+
+    doc.body.dispatchEvent(foliateMouseEvent('click', { clientX: 20 }));
+
+    expect(onFoliateClick).not.toHaveBeenCalled();
+    expect(onFoliatePageTurnClick).not.toHaveBeenCalled();
+  });
+
+  it('does not turn pages when a highlight click is handled first', () => {
+    const doc = foliateDocument('正文');
+    onFoliateClick.mockReturnValueOnce(true);
+    render(<EbookBoxesProbe view={foliateView(doc)} />);
+
+    doc.body.dispatchEvent(foliateMouseEvent('click', { clientX: 20 }));
+
+    expect(onFoliateClick).toHaveBeenCalledTimes(1);
+    expect(onFoliatePageTurnClick).not.toHaveBeenCalled();
+  });
+
+  it('does not turn pages from interactive foliate targets', () => {
+    const doc = foliateDocument('');
+    const button = doc.createElement('button');
+    button.textContent = 'Action';
+    doc.body.append(button);
+    render(<EbookBoxesProbe view={foliateView(doc)} />);
+
+    button.dispatchEvent(foliateMouseEvent('click', { clientX: 20 }));
+
+    expect(onFoliateClick).toHaveBeenCalledTimes(1);
+    expect(onFoliatePageTurnClick).not.toHaveBeenCalled();
+  });
+
+  it('attaches foliate listeners to every current content document', () => {
+    const firstDoc = foliateDocument('第一页');
+    const secondDoc = foliateDocument('第二页');
+    render(<EbookBoxesProbe view={foliateView([firstDoc, secondDoc])} />);
+
+    secondDoc.body.dispatchEvent(foliateMouseEvent('click', { clientX: 780 }));
+
+    expect(onFoliateClick).toHaveBeenCalledTimes(1);
+    expect(onFoliatePageTurnClick).toHaveBeenCalledWith('right');
+  });
+
+  it('sets a non-intercepting hover direction on the reader canvas', () => {
+    const doc = foliateDocument('正文');
+    render(<EbookBoxesProbe view={foliateView(doc)} />);
+
+    const canvas = screen.getByTestId('canvas');
+    doc.body.dispatchEvent(foliateMouseEvent('mousemove', { clientX: 20 }));
+    expect(canvas.dataset.ebookClickPagingHover).toBe('left');
+
+    doc.body.dispatchEvent(foliateMouseEvent('mousemove', { clientX: 400 }));
+    expect(canvas.dataset.ebookClickPagingHover).toBeUndefined();
+  });
+
+  it('uses the visible foliate view for hit testing when the iframe is expanded', () => {
+    const doc = foliateDocument('正文', { left: -600, width: 2000 });
+    const view = foliateView(doc, { left: 0, width: 800 });
+    render(<EbookBoxesProbe view={view} />);
+
+    const canvas = screen.getByTestId('canvas');
+    doc.body.dispatchEvent(foliateMouseEvent('mousemove', { clientX: 620 }));
+    doc.body.dispatchEvent(foliateMouseEvent('click', { clientX: 620 }));
+    expect(canvas.dataset.ebookClickPagingHover).toBe('left');
+
+    doc.body.dispatchEvent(foliateMouseEvent('mousemove', { clientX: 1380 }));
+    doc.body.dispatchEvent(foliateMouseEvent('click', { clientX: 1380 }));
+    expect(canvas.dataset.ebookClickPagingHover).toBe('right');
+
+    expect(onFoliatePageTurnClick).toHaveBeenNthCalledWith(1, 'left');
+    expect(onFoliatePageTurnClick).toHaveBeenNthCalledWith(2, 'right');
+  });
+
+  it('turns pages from visible foliate view clicks outside iframe documents', () => {
+    const doc = foliateDocument('正文', { left: 0, width: 800 });
+    const view = foliateView(doc, { left: 0, width: 800 });
+    render(<EbookBoxesProbe view={view} />);
+
+    const canvas = screen.getByTestId('canvas');
+    view.dispatchEvent(foliateMouseEvent('mousemove', { clientX: 20 }));
+    view.dispatchEvent(foliateMouseEvent('click', { clientX: 20 }));
+    expect(canvas.dataset.ebookClickPagingHover).toBe('left');
+
+    view.dispatchEvent(foliateMouseEvent('mousemove', { clientX: 780 }));
+    view.dispatchEvent(foliateMouseEvent('click', { clientX: 780 }));
+    expect(canvas.dataset.ebookClickPagingHover).toBe('right');
+
+    expect(onFoliatePageTurnClick).toHaveBeenNthCalledWith(1, 'left');
+    expect(onFoliatePageTurnClick).toHaveBeenNthCalledWith(2, 'right');
+  });
 });
 
-function foliateDocument(text: string) {
+function foliateDocument(
+  text: string,
+  rect: { left: number; width: number } = { left: 0, width: 800 },
+) {
   const frame = document.createElement('iframe');
   document.body.append(frame);
+  frame.getBoundingClientRect = () =>
+    ({
+      bottom: 1000,
+      height: 1000,
+      left: rect.left,
+      right: rect.left + rect.width,
+      top: 0,
+      width: rect.width,
+      x: rect.left,
+      y: 0,
+      toJSON: () => ({}),
+    }) as DOMRect;
   const doc = frame.contentDocument!;
   doc.body.textContent = text;
   return doc;
 }
 
-function foliateView(doc: Document) {
+function foliateMouseEvent(type: string, { clientX }: { clientX: number }) {
+  return new MouseEvent(type, { bubbles: true, button: 0, cancelable: true, clientX, clientY: 12 });
+}
+
+function foliateView(
+  docs: Document | Document[],
+  rect: { left: number; width: number } = { left: 0, width: 800 },
+) {
+  const contents = (Array.isArray(docs) ? docs : [docs]).map((doc, index) => ({ doc, index }));
   const renderer = document.createElement('div') as unknown as HTMLElement & {
     getContents: () => Array<{ doc: Document; index: number }>;
   };
-  renderer.getContents = () => [{ doc, index: 0 }];
-  return Object.assign(document.createElement('div'), {
+  renderer.getContents = () => contents;
+  const view = document.createElement('div');
+  view.getBoundingClientRect = () =>
+    ({
+      bottom: 1000,
+      height: 1000,
+      left: rect.left,
+      right: rect.left + rect.width,
+      top: 0,
+      width: rect.width,
+      x: rect.left,
+      y: 0,
+      toJSON: () => ({}),
+    }) as DOMRect;
+  return Object.assign(view, {
     renderer,
     getPageInfo: () => ({ sectionIndex: 0, pageIndex: 0, pageCount: 1 }),
   }) as unknown as FoliateViewElement;

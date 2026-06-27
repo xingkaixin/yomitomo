@@ -403,6 +403,7 @@ export function EbookBookcase({
     userProfile,
     onFoliateClick: handleFoliateClick,
     onFoliatePointerDown: handleFoliatePointerDown,
+    onFoliatePageTurnClick: turnPageFromKeyboard,
     onFoliatePageTurnKey: turnPageFromKeyboard,
     onFoliateSelection: handleFoliateSelection,
     onFoliateSelectionShortcut: handleFoliateSelectionShortcut,
@@ -674,13 +675,16 @@ export function EbookBookcase({
 
   function handleFoliateClick(event: MouseEvent, doc: Document) {
     const docSelection = doc.getSelection();
-    if (docSelection && docSelection.rangeCount > 0 && !docSelection.isCollapsed) return;
+    if (docSelection && docSelection.rangeCount > 0 && !docSelection.isCollapsed) return false;
 
     const frame = doc.defaultView?.frameElement;
-    if (!(frame instanceof HTMLIFrameElement)) return;
+    if (!(frame instanceof HTMLIFrameElement)) return false;
 
     const frameRect = frame.getBoundingClientRect();
-    openHighlightAtClientPoint(frameRect.left + event.clientX, frameRect.top + event.clientY);
+    return openHighlightAtClientPoint(
+      frameRect.left + event.clientX,
+      frameRect.top + event.clientY,
+    );
   }
 
   function openHighlightAtClientPoint(
