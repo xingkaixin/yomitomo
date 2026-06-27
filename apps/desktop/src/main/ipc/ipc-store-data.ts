@@ -2,7 +2,7 @@ import { performance } from 'node:perf_hooks';
 import type { DesktopStoreGetResult } from '../../app-store-errors';
 import { DesktopIpcError } from '../../ipc-errors';
 import type { DesktopMainIpcContext } from './ipc';
-import { assertAppLockSettingsUnlocked, handleDesktopIpc } from './ipc';
+import { assertAppLockSettingsUnlocked, handleDesktopIpc, isAppLockSettingsLocked } from './ipc';
 import {
   clearAgentRuntimeTraces,
   getAgentRuntimeTracePath,
@@ -33,6 +33,7 @@ export function registerStoreDataIpc(context: DesktopMainIpcContext) {
           durationMs: context.elapsedMs(lockStartedAt),
         });
       }
+      context.setSensitiveRendererEventsLocked(isAppLockSettingsLocked(store.settings));
       assertAppLockSettingsUnlocked(store.settings);
       const readDurationMs = context.elapsedMs(readStartedAt);
       context.scheduleLogPrune(store.settings.logRetentionDays);

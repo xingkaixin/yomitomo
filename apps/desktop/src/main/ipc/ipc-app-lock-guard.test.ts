@@ -74,6 +74,7 @@ describe('app lock IPC guard', () => {
     await expectAppLockRequired('article:get', 'article_1');
     await expectAppLockRequired('library-collection:create', { name: '合集' });
 
+    expect(ipcContext.setSensitiveRendererEventsLocked).toHaveBeenCalledWith(true);
     expect(storeModule.readStoredProviderApiKey).not.toHaveBeenCalled();
     expect(storeModule.readStoredWeReadApiKey).not.toHaveBeenCalled();
     expect(storeModule.readArticle).not.toHaveBeenCalled();
@@ -124,6 +125,30 @@ describe('app lock IPC guard', () => {
     });
     expect(storeModule.saveSettings).not.toHaveBeenCalled();
     expect(ipcContext.sendFullStoreUpdated).not.toHaveBeenCalled();
+  });
+
+  it('returns only the locked renderer store when locking from an unlocked app', async () => {
+    const storeModule = createStoreModule(unlockedStoreWithArticle());
+    const ipcContext = context(storeModule);
+    configureDesktopIpcAppLockGuardContext(ipcContext);
+    registerAppLockIpc(ipcContext);
+
+    const envelope = await invokeRegisteredHandler('appLock:setLocked', { locked: true });
+
+    expect(storeModule.saveSettings).toHaveBeenCalledWith({ appLockLocked: true });
+    expect(ipcContext.sendFullStoreUpdated).toHaveBeenCalledWith(
+      expect.objectContaining({
+        articles: [],
+        settings: expect.objectContaining({ appLockEnabled: true, appLockLocked: true }),
+      }),
+    );
+    expect(envelope).toMatchObject({
+      ok: true,
+      value: {
+        articles: [],
+        settings: { appLockEnabled: true, appLockLocked: true },
+      },
+    });
   });
 
   it('allows lock status reads while locked without returning the store', async () => {
@@ -178,6 +203,7 @@ function context(storeModule: ReturnType<typeof createStoreModule>): DesktopMain
     recordPerformanceTiming: vi.fn(),
     recordStartupTiming: vi.fn(),
     scheduleLogPrune: vi.fn(),
+    setSensitiveRendererEventsLocked: vi.fn(),
     sendArticlePatched: vi.fn(),
     sendFullStoreUpdated: vi.fn(),
     storeLoadErrorInfo: vi.fn(),
@@ -224,5 +250,37 @@ function lockedStore(): DesktopStore {
       appLockShortcut: 'CommandOrControl+L',
     },
     user: {},
+  } as unknown as DesktopStore;
+}
+
+function unlockedStoreWithArticle(): DesktopStore {
+  return {
+    ...lockedStore(),
+    articles: [
+      {
+        id: 'article_secret',
+        title: '敏感文章',
+        url: '',
+        canonicalUrl: '',
+        excerpt: '敏感摘要',
+        byline: '',
+        siteName: '',
+        contentHash: 'hash',
+        sourceType: 'web',
+        annotations: [],
+        annotationCount: 0,
+        commentCount: 0,
+        aiCommentCount: 0,
+        distillationCount: 0,
+        createdAt: '2026-06-27T00:00:00.000Z',
+        updatedAt: '2026-06-27T00:00:00.000Z',
+      },
+    ],
+    settings: {
+      appLockEnabled: true,
+      appLockLocked: false,
+      appLockShortcut: 'CommandOrControl+L',
+      onboardingCompletedAt: '2026-06-27T00:00:00.000Z',
+    },
   } as unknown as DesktopStore;
 }

@@ -8,6 +8,7 @@ import {
 } from '../app-lock/app-lock-secrets';
 import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
+import { rendererStoreForAppLockState } from './app-lock-renderer-store';
 
 export function registerAppLockIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('appLock:getStatus', async () => readAppLockStatus(context));
@@ -45,7 +46,9 @@ export function registerAppLockIpc(context: DesktopMainIpcContext) {
     if (input.locked && !(await hasAppLockPin())) {
       throw new DesktopIpcError('APP_LOCK_PIN_REQUIRED');
     }
-    const nextStore = await settingsPersistence.saveSettings({ appLockLocked: input.locked });
+    const nextStore = rendererStoreForAppLockState(
+      await settingsPersistence.saveSettings({ appLockLocked: input.locked }),
+    );
     context.sendFullStoreUpdated(nextStore);
     return nextStore;
   });
