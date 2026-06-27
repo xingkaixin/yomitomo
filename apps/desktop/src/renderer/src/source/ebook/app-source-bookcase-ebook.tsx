@@ -275,21 +275,41 @@ export function EbookBookcase({
   const [spreadLayout, setSpreadLayout] = useState(() =>
     ebookSpreadLayout({ canvasWidth: 0, contentWidth: readerSettings.contentWidth }),
   );
+  const spreadLayoutTraceRef = useRef('');
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const layoutElement = surfaceRef.current ?? canvasRef.current;
+    if (!layoutElement) return;
     const update = () => {
-      const rect = canvas.getBoundingClientRect();
+      const rect = layoutElement.getBoundingClientRect();
       if (rect.width <= 0) return;
-      setSpreadLayout(
-        ebookSpreadLayout({ canvasWidth: rect.width, contentWidth: readerSettings.contentWidth }),
-      );
+      const nextSpreadLayout = ebookSpreadLayout({
+        canvasWidth: rect.width,
+        contentWidth: readerSettings.contentWidth,
+      });
+      const traceKey = [
+        readerSettings.contentWidth,
+        nextSpreadLayout.columns,
+        nextSpreadLayout.railLayout.mode,
+        nextSpreadLayout.railLayout.articleWidth,
+      ].join(':');
+      if (spreadLayoutTraceRef.current !== traceKey) {
+        spreadLayoutTraceRef.current = traceKey;
+        recordRendererPerformanceTiming('ebook_spread_layout', {
+          articleId: article.id,
+          columns: nextSpreadLayout.columns,
+          contentWidth: readerSettings.contentWidth,
+          layoutSource: layoutElement === surfaceRef.current ? 'surface' : 'canvas',
+          layoutWidth: Math.round(rect.width),
+          railLayout: nextSpreadLayout.railLayout,
+        });
+      }
+      setSpreadLayout(nextSpreadLayout);
     };
     update();
     const observer = new ResizeObserver(update);
-    observer.observe(canvas);
+    observer.observe(layoutElement);
     return () => observer.disconnect();
-  }, [canvasRef, readerSettings.contentWidth]);
+  }, [canvasRef, readerSettings.contentWidth, surfaceRef]);
   const {
     viewHostRef,
     measureHostRef,

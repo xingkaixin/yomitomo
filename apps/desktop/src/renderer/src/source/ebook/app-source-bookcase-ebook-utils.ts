@@ -105,7 +105,7 @@ export const sourceEbookReaderStyles = `
   }
 }
 .source-ebook-reader-shell .reader-app.is-annotation-right .reader-article{
-  width:min(var(--reader-layout-article-width,var(--reader-content-width)),var(--reader-content-width),100%);
+  width:min(var(--reader-layout-article-width,var(--reader-content-width)),100%);
   margin:0;
 }
 .source-ebook-reader-shell .reader-app.is-annotation-right .ebook-reader-content{
