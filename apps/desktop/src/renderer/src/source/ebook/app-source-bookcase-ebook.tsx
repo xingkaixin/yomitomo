@@ -55,7 +55,11 @@ import {
 } from '../../shell/use-reader-page-turn-keys';
 import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
 import { useRecentAnnotationFeedback } from '../bookcase/use-recent-annotation-feedback';
-import { ebookAnnotationNavigationState } from './app-source-bookcase-ebook-utils';
+import {
+  ebookAnnotationNavigationState,
+  ebookSpreadAvailableWidth,
+  ebookSpreadLayout,
+} from './app-source-bookcase-ebook-utils';
 import { ArticleBook } from '../../shell/app-article-book';
 import { articleDisplayTitle } from '../../reading-library/app-reading-library-utils';
 import { useSourceReaderSession } from '../bookcase/use-source-reader-session';
@@ -64,6 +68,11 @@ import { useSourceReaderWorkspace } from '../bookcase/use-source-reader-workspac
 import { buildSourceReaderAppActions } from '../bookcase/source-reader-app-actions';
 import { buildSourceReaderAppViewProps } from '../bookcase/source-reader-app-view-props';
 import { useReaderSearchMatches } from '../bookcase/use-reader-search-matches';
+
+function cssPixelValue(value: string) {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 
 export function EbookBookcase({
   agents,
@@ -269,6 +278,51 @@ export function EbookBookcase({
     onFocusedAnnotationRef.current = onFocusedAnnotation;
   }, [onFocusedAnnotation]);
   latestArticleAnnotationsRef.current = articleAnnotations;
+  const [spreadLayout, setSpreadLayout] = useState(() =>
+    ebookSpreadLayout({ canvasWidth: 0, contentWidth: readerSettings.contentWidth }),
+  );
+  const spreadLayoutTraceRef = useRef('');
+  useEffect(() => {
+    const layoutElement = surfaceRef.current ?? canvasRef.current;
+    if (!layoutElement) return;
+    const update = () => {
+      const rect = layoutElement.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const style = window.getComputedStyle(layoutElement);
+      const layoutWidth = ebookSpreadAvailableWidth({
+        layoutWidth: rect.width,
+        paddingLeft: cssPixelValue(style.paddingLeft),
+        paddingRight: cssPixelValue(style.paddingRight),
+      });
+      const nextSpreadLayout = ebookSpreadLayout({
+        canvasWidth: layoutWidth,
+        contentWidth: readerSettings.contentWidth,
+      });
+      const traceKey = [
+        readerSettings.contentWidth,
+        nextSpreadLayout.columns,
+        nextSpreadLayout.railLayout.mode,
+        nextSpreadLayout.railLayout.articleWidth,
+      ].join(':');
+      if (spreadLayoutTraceRef.current !== traceKey) {
+        spreadLayoutTraceRef.current = traceKey;
+        recordRendererPerformanceTiming('ebook_spread_layout', {
+          articleId: article.id,
+          columns: nextSpreadLayout.columns,
+          contentWidth: readerSettings.contentWidth,
+          layoutSource: layoutElement === surfaceRef.current ? 'surface' : 'canvas',
+          layoutWidth: Math.round(layoutWidth),
+          measuredWidth: Math.round(rect.width),
+          railLayout: nextSpreadLayout.railLayout,
+        });
+      }
+      setSpreadLayout(nextSpreadLayout);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(layoutElement);
+    return () => observer.disconnect();
+  }, [canvasRef, readerSettings.contentWidth, surfaceRef]);
   const {
     viewHostRef,
     measureHostRef,
@@ -289,6 +343,7 @@ export function EbookBookcase({
     goToTocItem,
   } = useEbookFoliateView({
     article,
+    maxColumnCount: spreadLayout.columns,
     readerTheme,
     readerSettings,
     onSaveArticleReadingProgress,
@@ -990,6 +1045,7 @@ export function EbookBookcase({
       distillationAnimation,
       filteredAnnotations: annotations,
       newAnnotationIds,
+      railLayoutOverride: spreadLayout.columns === 2 ? spreadLayout.railLayout : undefined,
       searchBoxes,
       showEmptyNotes: annotations.length === 0,
       temporaryBoxes,
@@ -1113,6 +1169,7 @@ export function EbookBookcase({
 
   return (
     <EbookReaderShell
+      isSpread={spreadLayout.columns === 2}
       measureHostRef={measureHostRef}
       readerApp={readerAppViewProps}
       readerState={readerState}

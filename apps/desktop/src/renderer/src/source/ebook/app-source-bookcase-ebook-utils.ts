@@ -4,6 +4,8 @@ import {
   annotationNavigationForInsertionIndex,
   annotationNavigationForReferenceIndex,
 } from '@yomitomo/reader-ui/reader-navigation';
+import { annotationRailLayoutForWidth } from '@yomitomo/reader-ui/reader-shell-state';
+import type { AnnotationRailLayout } from '@yomitomo/reader-ui/reader-annotations';
 import {
   ebookChapterForFoliateSection,
   type FoliatePageInfo,
@@ -103,7 +105,7 @@ export const sourceEbookReaderStyles = `
   }
 }
 .source-ebook-reader-shell .reader-app.is-annotation-right .reader-article{
-  width:min(var(--reader-layout-article-width,var(--reader-content-width)),var(--reader-content-width),100%);
+  width:min(var(--reader-layout-article-width,var(--reader-content-width)),100%);
   margin:0;
 }
 .source-ebook-reader-shell .reader-app.is-annotation-right .ebook-reader-content{
@@ -115,6 +117,9 @@ export const sourceEbookReaderStyles = `
     width:100%;
     margin:0;
   }
+}
+.source-ebook-reader-shell.is-ebook-spread .reader-article{
+  width:min(100%,calc(var(--reader-content-width) * 2));
 }
 `;
 
@@ -206,4 +211,57 @@ function ebookPageTextRange(
     start: chapter.textStart + Math.floor(chapter.textLength * startRatio),
     end: chapter.textStart + Math.ceil(chapter.textLength * endRatio),
   };
+}
+
+export type EbookSpreadLayout = {
+  columns: 1 | 2;
+  railLayout: AnnotationRailLayout;
+};
+
+const EBOOK_ANNOTATION_RAIL_STACK_OVERFLOW_RESERVE = 56;
+
+export function ebookSpreadAvailableWidth({
+  layoutWidth,
+  paddingLeft = 0,
+  paddingRight = 0,
+}: {
+  layoutWidth: number;
+  paddingLeft?: number;
+  paddingRight?: number;
+}) {
+  return Math.max(
+    0,
+    layoutWidth - paddingLeft - paddingRight - EBOOK_ANNOTATION_RAIL_STACK_OVERFLOW_RESERVE,
+  );
+}
+
+export function ebookSpreadLayout({
+  canvasWidth,
+  contentWidth,
+}: {
+  canvasWidth: number;
+  contentWidth: number;
+}): EbookSpreadLayout {
+  if (canvasWidth <= 0 || contentWidth <= 0) {
+    return {
+      columns: 1,
+      railLayout: annotationRailLayoutForWidth({ canvasWidth, targetArticleWidth: contentWidth }),
+    };
+  }
+
+  const singlePageLayout = annotationRailLayoutForWidth({
+    canvasWidth,
+    targetArticleWidth: contentWidth,
+  });
+  const spreadWidth = contentWidth * 2;
+  const spreadLayout = annotationRailLayoutForWidth({
+    canvasWidth,
+    targetArticleWidth: spreadWidth,
+  });
+
+  const spreadFits = spreadLayout.mode !== 'stacked' && spreadLayout.articleWidth === spreadWidth;
+
+  return spreadFits
+    ? { columns: 2, railLayout: spreadLayout }
+    : { columns: 1, railLayout: singlePageLayout };
 }

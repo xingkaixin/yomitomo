@@ -118,6 +118,7 @@ export function configureFoliateView(
   view: FoliateViewElement | null,
   settings: ReaderSettings,
   theme: ReaderTheme,
+  maxColumnCount: number = 1,
 ) {
   if (!view?.renderer) return;
   view.renderer.removeAttribute('animated');
@@ -126,7 +127,7 @@ export function configureFoliateView(
   view.renderer.setAttribute('margin', '44px');
   view.renderer.setAttribute('max-inline-size', `${settings.contentWidth}px`);
   view.renderer.setAttribute('max-block-size', '1200px');
-  view.renderer.setAttribute('max-column-count', '1');
+  view.renderer.setAttribute('max-column-count', `${maxColumnCount}`);
   view.renderer.setStyles?.(foliateReaderCss(settings, theme));
 }
 

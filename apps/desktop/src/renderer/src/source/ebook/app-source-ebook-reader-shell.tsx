@@ -9,6 +9,7 @@ type EbookReaderShellProps = {
     status: 'loading' | 'ready' | 'error';
     message: string;
   };
+  isSpread: boolean;
   viewHostRef: React.RefObject<HTMLDivElement | null>;
   measureHostRef: React.RefObject<HTMLDivElement | null>;
   onReaderKeyDown: React.KeyboardEventHandler<HTMLDivElement>;
@@ -17,6 +18,7 @@ type EbookReaderShellProps = {
 export function EbookReaderShell({
   readerApp,
   readerState,
+  isSpread,
   viewHostRef,
   measureHostRef,
   onReaderKeyDown,
@@ -24,7 +26,11 @@ export function EbookReaderShell({
   const readerSettings = readerApp.settings.readerSettings;
 
   return (
-    <section className="source-bookcase source-ebook-reader-shell ebook-reader-shell">
+    <section
+      className={`source-bookcase source-ebook-reader-shell ebook-reader-shell${
+        isSpread ? ' is-ebook-spread' : ''
+      }`}
+    >
       <style>{`${readerDesktopEmbeddedBundleStyles}\n${sourceEbookReaderStyles}`}</style>
       <ReaderAppView
         {...readerApp}
@@ -35,7 +41,7 @@ export function EbookReaderShell({
               className="ebook-reader-content"
               style={
                 {
-                  '--ebook-content-width': `${readerSettings.contentWidth}px`,
+                  '--ebook-content-width': `${readerSettings.contentWidth * (isSpread ? 2 : 1)}px`,
                 } as React.CSSProperties
               }
             >
@@ -46,7 +52,7 @@ export function EbookReaderShell({
                 style={
                   {
                     '--ebook-font-size': `${readerSettings.fontSize}px`,
-                    '--ebook-content-width': `${readerSettings.contentWidth}px`,
+                    '--ebook-content-width': `${readerSettings.contentWidth * (isSpread ? 2 : 1)}px`,
                   } as React.CSSProperties
                 }
               >
