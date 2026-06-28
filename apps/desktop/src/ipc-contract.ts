@@ -373,6 +373,7 @@ export type TextImportPreparedItem =
       suggestedTitle: string;
       suggestedAuthor?: string;
       body: string;
+      frontMatter?: Record<string, string>;
     }
   | { ok: false; fileName?: string; reason: 'binary' | 'undecodable' | 'empty' };
 
@@ -385,6 +386,7 @@ export type TextImportCommitItem = {
   author?: string;
   format: TextSourceFormat;
   body: string;
+  frontMatter?: Record<string, string>;
 };
 
 export type TextImportCommitInput = {

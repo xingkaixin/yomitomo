@@ -155,15 +155,27 @@ function escapeHtml(value: string) {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-// plain 转义后分段、md 经 renderMarkdown，两者都过 DOMPurify 净化防注入。
+// plain 转义后分段、md 经 renderMarkdown；front matter 渲染为正文顶部元数据块。
+// 三者都过 DOMPurify 净化防注入（class 与 dl/dt/dd 在默认白名单内）。
 export function renderTextBodyHtml(
   body: string,
   format: TextSourceFormat,
   articleDocument: Document,
   baseUrl: string,
+  frontMatter?: FrontMatter,
 ) {
-  const rawHtml = format === 'markdown' ? renderMarkdown(body) : plainTextToHtml(body);
+  const bodyHtml = format === 'markdown' ? renderMarkdown(body) : plainTextToHtml(body);
+  const rawHtml = `${frontMatterBlockHtml(frontMatter)}${bodyHtml}`;
   return sanitizeArticleContent(articleDocument, rawHtml, baseUrl).html;
+}
+
+function frontMatterBlockHtml(frontMatter: FrontMatter | undefined) {
+  if (!frontMatter) return '';
+  const rows = Object.entries(frontMatter)
+    .filter(([key, value]) => key && value)
+    .map(([key, value]) => `<dt>${escapeHtml(key)}</dt><dd>${escapeHtml(value)}</dd>`)
+    .join('');
+  return rows ? `<dl class="text-frontmatter">${rows}</dl>` : '';
 }
 
 export function textContentHash(format: TextSourceFormat, body: string) {
@@ -180,6 +192,7 @@ export type PreparedTextSource = {
   suggestedTitle: string;
   suggestedAuthor?: string;
   body: string;
+  frontMatter?: FrontMatter;
 };
 
 // 解码后的文本 → 拆 front matter（仅 md）、推断标题/作者，供导入确认表单预填。
@@ -203,5 +216,6 @@ export function prepareTextSource(input: {
     }),
     suggestedAuthor: inferTextAuthor(frontMatter),
     body,
+    frontMatter: Object.keys(frontMatter).length > 0 ? frontMatter : undefined,
   };
 }

@@ -14,6 +14,7 @@ type ConfirmRow = {
   format: TextFormat;
   body: string;
   fileName?: string;
+  frontMatter?: Record<string, string>;
 };
 
 const TEXT_IMPORT_ACCEPT = '.txt,.md,.markdown,text/plain,text/markdown';
@@ -44,6 +45,7 @@ export function TextImportDialog({ onClose }: { onClose: () => void }) {
           format: item.format,
           body: item.body,
           fileName: item.fileName,
+          frontMatter: item.frontMatter,
         });
       } else {
         failures.push(reasonLabel(item));
@@ -90,6 +92,7 @@ export function TextImportDialog({ onClose }: { onClose: () => void }) {
         author: row.author.trim() || undefined,
         format: row.format,
         body: row.body,
+        frontMatter: row.frontMatter,
       }));
       await window.yomitomoDesktop.commitTextImport({ items });
       onClose();

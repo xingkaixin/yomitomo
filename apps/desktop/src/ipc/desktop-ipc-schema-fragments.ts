@@ -38,6 +38,7 @@ const textCommitInputSchema = z.object({
         author: z.string().max(1000).optional(),
         format: textFormatSchema,
         body: textBodySchema,
+        frontMatter: z.record(z.string().max(200), z.string().max(2000)).optional(),
       }),
     )
     .min(1)

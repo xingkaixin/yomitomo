@@ -107,4 +107,14 @@ describe('rendering', () => {
     expect(html).not.toContain('<script>');
     expect(html).toContain('标题');
   });
+
+  it('prepends a front matter metadata block', () => {
+    const html = renderTextBodyHtml('正文', 'markdown', document, 'text://local', {
+      title: '札记',
+      author: '周明',
+    });
+    expect(html).toContain('class="text-frontmatter"');
+    expect(html).toContain('<dt>title</dt><dd>札记</dd>');
+    expect(html).toContain('<dt>author</dt><dd>周明</dd>');
+  });
 });

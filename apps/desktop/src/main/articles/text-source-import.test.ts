@@ -17,6 +17,7 @@ describe('prepareTextSourceItems', () => {
         suggestedTitle: '札记',
         suggestedAuthor: '周明',
         body: '# 忽略的标题\n正文',
+        frontMatter: { title: '札记', author: '周明' },
       },
     ]);
   });

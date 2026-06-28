@@ -81,7 +81,7 @@ export function buildTextArticleRecord(
     byline: item.author?.trim() || undefined,
     contentHash: textContentHash(item.format, item.body),
     text: { format: item.format },
-    contentHtml: renderTextBodyHtml(item.body, item.format, articleDocument, url),
+    contentHtml: renderTextBodyHtml(item.body, item.format, articleDocument, url, item.frontMatter),
     annotations: [],
     createdAt: now,
     updatedAt: now,

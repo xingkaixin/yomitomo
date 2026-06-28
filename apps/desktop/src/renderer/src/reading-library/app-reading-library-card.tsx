@@ -140,11 +140,9 @@ export function ArticleLibraryCard({
         <LibraryCardCoverProgress progress={article.readingProgress?.progress ?? 0} />
       </div>
       <div className={isEbook || isPdf ? 'library-ebook-list-copy' : 'library-article-list-copy'}>
-        {authorLabel ? (
-          <p className="library-card-author">
-            <span>{authorLabel}</span>
-          </p>
-        ) : null}
+        <p className="library-card-author" aria-hidden={authorLabel ? undefined : true}>
+          <span>{authorLabel || ' '}</span>
+        </p>
         <div className={isEbook || isPdf ? 'library-ebook-list-main' : 'library-web-item-main'}>
           <h3 title={title}>{title}</h3>
         </div>

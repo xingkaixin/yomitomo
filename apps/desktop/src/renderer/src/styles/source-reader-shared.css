@@ -1610,3 +1610,25 @@
   background: var(--reader-content-bg, var(--app-reader-paper));
   box-shadow: none;
 }
+
+/* 文本/Markdown 的 front matter 元数据块：正文最前、小字号、属性信息样式 */
+.reader-article-body .text-frontmatter {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin: 0 0 1.6em;
+  padding: 0 0 0.9em;
+  border-bottom: 1px solid var(--app-reader-line);
+  font-size: 0.82em;
+  line-height: 1.6;
+  opacity: 0.72;
+}
+
+.reader-article-body .text-frontmatter dt {
+  font-weight: 650;
+}
+
+.reader-article-body .text-frontmatter dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
