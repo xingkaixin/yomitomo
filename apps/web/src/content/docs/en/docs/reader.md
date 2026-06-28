@@ -31,8 +31,9 @@ Theme and reader paper are switched from the theme entry on the **home** page (l
 ## Create a Highlight
 
 1. Select text in the Reader.
-2. Press the default `A` shortcut, or use the selection action button.
-3. Write a thought, question, or note.
+2. Draggable handles appear at both ends of the selection — drag them to extend or shrink the range without reselecting (supported in web articles, ebooks, and PDFs).
+3. Press the default `A` shortcut, or use the selection action button.
+4. Write a thought, question, or note.
 
 The highlight is shown in your personal color and anchored to the source text. Highlight creation, copying a selection, and similar actions can be paired with sound feedback (toggle sound and volume in Settings > General).
 

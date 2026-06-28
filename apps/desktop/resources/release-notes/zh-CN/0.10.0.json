@@ -1,0 +1,35 @@
+{
+  "version": "0.10.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "文本和 Markdown 也能读了",
+      "description": "手头有一段文字或一个 .txt / .md 文件，现在可以直接粘贴或拖进来。Yomitomo 会帮你认编码、起标题，Markdown 的页眉信息也会显示在开头，文本和电子书一样进阅读库。",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "选区可以拖着改了",
+      "description": "划到一半发现多选或少选了？现在选好文字后两端会出现手柄，拖一下就能增减范围，不用重新框选。网页、电子书和 PDF 都支持。",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "上传的书会不会被传走，说清楚了",
+      "description": "担心导入的私人 PDF 或电子书被上传？导入弹窗会明确告诉你文件只存在本机；只有当你使用配置好的 AI 模型时，相应内容才会发送到你设置的端点。",
+      "audience": "settings"
+    },
+    {
+      "type": "changed",
+      "title": "电子书和 PDF 翻得更顺",
+      "description": "电子书新增点击两侧翻页、自适应跨页排版，目录跳转更顺滑；PDF 打开时会按窗口宽度自动定一个合适的缩放，并给右侧批注留好位置。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "翻页不再误选，封面不再变形",
+      "description": "翻页时的点击不会再误触发整段选中；较宽的封面刷新后也不会被压扁，比例恢复正常。",
+      "audience": "reader"
+    }
+  ]
+}
