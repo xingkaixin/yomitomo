@@ -5,9 +5,7 @@ import type {
   Annotation,
   AnnotationDistillationProposal,
   AnnotationDistillationReviewMessage,
-  AnnotationDistillationReviewSession,
   ArticleRecord,
-  Comment,
   PublicAgent,
   UiLanguage,
   UserProfile,
@@ -42,6 +40,10 @@ import {
   OrganizeDiscussionConfirmDialog,
   type OrganizeDiscussionState,
 } from './app-annotation-sedimentation-organize-card';
+import {
+  distillationReviewPayloadFields,
+  requestAgentReviewRound,
+} from './app-annotation-sedimentation-review-request';
 import { SedimentationReviewTimeline } from './app-annotation-sedimentation-review-timeline';
 import {
   planDistillationProposalDraftAnchor,
@@ -71,7 +73,6 @@ import {
   reviewMessageWithProposalSource,
   unpublishedDistillationArticle,
   updateArticleAnnotation,
-  updateSessionMessage,
   type DraftPreviewDecision,
   type DraftPreviewDecisions,
 } from './app-annotation-sedimentation-state';
@@ -371,9 +372,11 @@ function SedimentationShell({
       for (const agent of activeAgents) {
         const result = await requestAgentReviewRound({
           agent,
-          article: workingArticle,
+          articlePrompt: promptArticle(workingArticle, articlePlainText(workingArticle)),
           annotation: workingAnnotation,
           draft,
+          requestReviewStream: (payload, onEvent) =>
+            window.yomitomoDesktop.requestAgentDistillationReviewStream(payload, onEvent),
           reviewDraft: effectiveReviewDraft,
           reviewMode: input?.reviewMode || 'review',
           sessions: workingAnnotation.distillation?.reviewSessions || sessions,
@@ -1014,153 +1017,6 @@ function SedimentationShell({
   );
 }
 
-async function requestAgentReviewRound({
-  agent,
-  article,
-  annotation,
-  draft,
-  reviewDraft,
-  reviewMode,
-  sessions,
-  uiLanguage,
-  userMessage,
-  onOptimisticSession,
-}: {
-  agent: PublicAgent;
-  article: ArticleRecord;
-  annotation: Annotation;
-  draft: string;
-  reviewDraft: string;
-  reviewMode: 'review' | 'organize_discussion';
-  sessions: AnnotationDistillationReviewSession[];
-  uiLanguage?: UiLanguage;
-  userMessage?: AnnotationDistillationReviewMessage;
-  onOptimisticSession: (session: AnnotationDistillationReviewSession) => void;
-}) {
-  const now = new Date().toISOString();
-  const session = existingSessionForAgent(sessions, agent) || createReviewSession(agent, now);
-  const assistantMessage: AnnotationDistillationReviewMessage = {
-    id: makeId('distillation_review_message'),
-    author: 'ai',
-    content: '',
-    createdAt: now,
-    status: 'pending',
-    agentId: agent.id,
-    agentUsername: agent.username,
-    agentNickname: agent.nickname,
-    agentAvatar: agent.avatar,
-  };
-  const proposalSource = distillationProposalSource({
-    draft,
-    sessionId: session.id,
-    messageId: assistantMessage.id,
-    agentId: agent.id,
-  });
-  let workingSession = {
-    ...session,
-    messages: [...session.messages, ...(userMessage ? [userMessage] : []), assistantMessage],
-    updatedAt: now,
-  };
-  onOptimisticSession(workingSession);
-
-  const finalMessage = await window.yomitomoDesktop
-    .requestAgentDistillationReviewStream(
-      {
-        agentId: agent.id,
-        agentUsername: agent.username,
-        uiLanguage,
-        reviewMessageId: assistantMessage.id,
-        distillationReviewMode: reviewMode,
-        ...distillationReviewPayloadFields(draft, reviewDraft, session),
-        article: promptArticle(article, articlePlainText(article)),
-        annotation,
-        userComment: reviewRequestComment(userMessage, now),
-      },
-      (event) => {
-        if (event.type === 'start') return;
-        if (event.type === 'progress') {
-          workingSession = updateSessionMessage(
-            workingSession,
-            assistantMessage.id,
-            (message) =>
-              Object.assign({}, message, {
-                assistantProgress: applyAssistantRuntimeProgress(
-                  message.assistantProgress,
-                  event.progress,
-                ),
-              }),
-            new Date().toISOString(),
-          );
-          onOptimisticSession(workingSession);
-          return;
-        }
-        if (event.type === 'item') {
-          const item = reviewItemWithProposalSource(event.item, proposalSource);
-          workingSession = updateSessionMessage(
-            workingSession,
-            assistantMessage.id,
-            (message) => appendReviewItemToMessage(message, item),
-            new Date().toISOString(),
-          );
-          onOptimisticSession(workingSession);
-          return;
-        }
-        if (event.type !== 'delta') return;
-        workingSession = updateSessionMessage(
-          workingSession,
-          assistantMessage.id,
-          (message) => Object.assign({}, message, { content: `${message.content}${event.delta}` }),
-          new Date().toISOString(),
-        );
-        onOptimisticSession(workingSession);
-      },
-    )
-    .catch((error: unknown) => {
-      const errorMessage = assistantRuntimeErrorMessage(error, 'sedimentation.reviewFailed');
-      workingSession = updateSessionMessage(
-        workingSession,
-        assistantMessage.id,
-        (message) =>
-          Object.assign({}, message, {
-            errorMessage,
-            status: 'failed' as const,
-          }),
-        new Date().toISOString(),
-      );
-      onOptimisticSession(workingSession);
-      throw error;
-    });
-  const sourcedFinalMessage = reviewMessageWithProposalSource(finalMessage, proposalSource);
-  workingSession = updateSessionMessage(
-    workingSession,
-    assistantMessage.id,
-    (message) =>
-      Object.assign({}, message, {
-        content:
-          sourcedFinalMessage.content ||
-          workingSession.messages.find((item) => item.id === assistantMessage.id)?.content ||
-          '',
-        errorMessage: undefined,
-        items: sourcedFinalMessage.items || message.items || [],
-        proposals: sourcedFinalMessage.proposals || message.proposals || [],
-        status: 'done' as const,
-      }),
-    new Date().toISOString(),
-  );
-  const completedMessage =
-    workingSession.messages.find((message) => message.id === assistantMessage.id) ||
-    assistantMessage;
-
-  return {
-    annotation: annotationWithReviewSession({
-      annotation,
-      session: workingSession,
-      now: new Date().toISOString(),
-    }),
-    message: completedMessage,
-  };
-}
-
 function SedimentationActionTooltipContent({
   description,
   label,
@@ -1220,46 +1076,6 @@ async function saveAndRefresh(
     uiLanguage,
   });
   return nextAnnotation;
-}
-
-function reviewRequestComment(
-  message: AnnotationDistillationReviewMessage | undefined,
-  createdAt: string,
-): Comment {
-  return {
-    id: message?.id || makeId('distillation_review_request'),
-    author: 'user',
-    content: message?.content || i18next.t('sedimentation.reviewPrompt.defaultRequest'),
-    createdAt: message?.createdAt || createdAt,
-  };
-}
-
-function distillationReviewPayloadFields(
-  draft: string,
-  reviewDraft: string,
-  session: AnnotationDistillationReviewSession,
-) {
-  return {
-    instruction: draft,
-    distillationDraft: draft,
-    distillationReviewRequest:
-      reviewDraft.trim() || i18next.t('sedimentation.reviewPrompt.defaultReviewRequest'),
-    distillationReviewTranscript: distillationReviewTranscript(session),
-  };
-}
-
-function distillationReviewTranscript(session: AnnotationDistillationReviewSession) {
-  return session.messages
-    .map((message) =>
-      i18next.t('sedimentation.reviewPrompt.transcriptLine', {
-        role:
-          message.author === 'user'
-            ? i18next.t('sedimentation.reviewPrompt.userRole')
-            : i18next.t('sedimentation.reviewPrompt.assistantRole'),
-        content: message.content,
-      }),
-    )
-    .join('\n');
 }
 
 function initialDistillationDraft(articleId: string, annotation: Annotation) {
