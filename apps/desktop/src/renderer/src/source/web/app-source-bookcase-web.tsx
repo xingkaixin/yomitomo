@@ -50,6 +50,7 @@ import {
   usesOverlayToc,
   type WebSourceBookcaseProps,
 } from '../bookcase/app-source-bookcase-shared';
+import { isContinuousTextSelectionMouseEvent } from '../bookcase/source-reader-selection-events';
 import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
 import { useRecentAnnotationFeedback } from '../bookcase/use-recent-annotation-feedback';
 import { sourceTocOptions, useWebReaderBoxes } from './use-web-reader-boxes';
@@ -199,6 +200,7 @@ export function WebSourceBookcase({
   const articleSelectionGestureActiveRef = useRef(false);
   const articleSelectionGestureRef = useRef<WebSelectionGesturePoint | null>(null);
   const articleSelectionGestureDragPointRef = useRef<WebSelectionGestureClientPoint | null>(null);
+  const suppressArticleSelectionMouseUpRef = useRef(false);
   const deferredArticleTranslationRef = useRef<ArticleTranslation | null>(null);
   const restoredWebProgressArticleRef = useRef<string | null>(null);
   const noteRefs = useRef(new Map<string, HTMLElement>());
@@ -484,6 +486,7 @@ export function WebSourceBookcase({
     articleSelectionGestureActiveRef.current = false;
     articleSelectionGestureRef.current = null;
     articleSelectionGestureDragPointRef.current = null;
+    suppressArticleSelectionMouseUpRef.current = false;
     clearTranslationSuccessFeedback();
     translationSegmentStatusRef.current.clear();
     setReadingProgress(normalizeSavedWebProgress(article.readingProgress) ?? 0);
@@ -1331,6 +1334,16 @@ export function WebSourceBookcase({
     const selectionGesture = articleSelectionGestureRef.current;
     articleSelectionGestureRef.current = null;
     articleSelectionGestureDragPointRef.current = null;
+    if (suppressArticleSelectionMouseUpRef.current) {
+      suppressArticleSelectionMouseUpRef.current = false;
+      articleSelection?.removeAllRanges();
+      clearSelection();
+      logReaderSelectionDebug('mouseup:continuous-click-selection-suppressed', {
+        ...selectionDebugContext(),
+        selection: describeReaderSelection(articleSelection, articleElement),
+      });
+      return;
+    }
     const gestureRange = event
       ? webSelectionGestureRangeFromClientPoint(
           articleElement,
@@ -1474,10 +1487,35 @@ export function WebSourceBookcase({
   }
 
   function handleArticleMouseDown(event: React.MouseEvent<HTMLElement>) {
+    const suppressedContinuousClick = suppressArticleContinuousTextSelection(event);
     if (!translationSelectionDisabled || event.button !== 0) return;
     const target = event.target instanceof Element ? event.target : null;
     if (target?.closest(translationSelectionToastIgnoredSelector)) return;
     showTranslationSelectionDisabledToast();
+    if (suppressedContinuousClick) return;
+  }
+
+  function suppressArticleContinuousTextSelection(event: React.MouseEvent<HTMLElement>) {
+    if (!isContinuousTextSelectionMouseEvent(event)) {
+      suppressArticleSelectionMouseUpRef.current = false;
+      return false;
+    }
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest(translationSelectionToastIgnoredSelector)) return false;
+    event.preventDefault();
+    suppressArticleSelectionMouseUpRef.current = true;
+    articleSelectionGestureRef.current = null;
+    articleSelectionGestureDragPointRef.current = null;
+    clearArticleSelectionGesturePreview();
+
+    const articleElement = articleRef.current;
+    if (!articleElement) return true;
+    getArticleSelection(articleElement)?.removeAllRanges();
+    clearSelection();
+    logCurrentSelectionDebug('mousedown:continuous-click-selection-suppressed', {
+      clickDetail: event.detail,
+    });
+    return true;
   }
 
   function handleArticleClick(event: React.MouseEvent<HTMLElement>) {
