@@ -1,0 +1,335 @@
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { rm } from 'node:fs/promises';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import type { WeReadBook, WeReadBookDetail, WeReadReadingStatsSnapshot } from '@yomitomo/shared';
+
+const testPaths = vi.hoisted(() => ({
+  userData: '',
+}));
+
+vi.mock('electron', () => ({
+  app: {
+    getPath: () => testPaths.userData,
+  },
+}));
+
+vi.mock('../native/sqlite', async () => {
+  const { default: SQLiteDatabase } = await import('better-sqlite3');
+  return {
+    loadSQLiteDatabase: () => SQLiteDatabase,
+  };
+});
+
+vi.mock('../providers/provider-secrets', () => ({
+  deleteWeReadApiKey: vi.fn(),
+  readWeReadApiKey: vi.fn(async () => ''),
+  saveWeReadApiKey: vi.fn(async () => 'weread:default:apiKey'),
+}));
+
+import * as schema from '../db/schema';
+import { closeDatabase, getDatabase } from '../store/store-db';
+import {
+  readWeReadBookDetail,
+  readWeReadBooks,
+  readWeReadReadingStatsState,
+  saveWeReadBookDetail,
+  saveWeReadBookDetails,
+  saveWeReadReadingStatsSnapshot,
+} from './weread-repository';
+
+beforeEach(async () => {
+  closeDatabase();
+  testPaths.userData = await import('node:fs/promises').then((fs) =>
+    fs.mkdtemp(join(tmpdir(), 'yomitomo-weread-repository-test-')),
+  );
+});
+
+afterEach(async () => {
+  closeDatabase();
+  await rm(testPaths.userData, { recursive: true, force: true });
+  testPaths.userData = '';
+});
+
+describe('WeRead repository book details', () => {
+  it('persists book detail rows and reads them back', async () => {
+    const saved = await saveWeReadBookDetails([detail('book_1')]);
+
+    expect(saved.settings.status).toBe('connected');
+    expect(saved.books.map((item) => item.bookId)).toEqual(['book_1']);
+    expect(readWeReadBookDetail('book_1')).toEqual({
+      book: expect.objectContaining({
+        bookId: 'book_1',
+        title: 'Title book_1',
+        author: 'Author book_1',
+      }),
+      chapters: [
+        {
+          bookId: 'book_1',
+          chapterUid: 1,
+          chapterIdx: 1,
+          title: 'Chapter 1',
+          level: 1,
+          wordCount: 1200,
+        },
+      ],
+      highlights: [
+        {
+          bookmarkId: 'highlight_book_1',
+          bookId: 'book_1',
+          chapterUid: 1,
+          chapterIdx: 1,
+          range: '1-4',
+          markText: 'highlight text',
+          colorStyle: 2,
+          createTime: 101,
+        },
+      ],
+      thoughts: [
+        {
+          reviewId: 'thought_book_1',
+          bookId: 'book_1',
+          userVid: 123,
+          author: {
+            userVid: 123,
+            name: 'Reader',
+            avatar: 'https://example.test/avatar.png',
+          },
+          chapterUid: 1,
+          chapterIdx: 1,
+          chapterName: 'Chapter 1',
+          range: '1-4',
+          abstract: 'highlight text',
+          content: 'thought content',
+          createTime: 102,
+        },
+      ],
+    });
+  });
+
+  it('replaces child rows when the same book detail is saved again', async () => {
+    await saveWeReadBookDetails([detail('book_1')]);
+    await saveWeReadBookDetails([
+      {
+        ...detail('book_1', { updatedAt: '2026-06-28T01:00:00.000Z' }),
+        chapters: [
+          { bookId: 'book_1', chapterUid: 2, chapterIdx: 2, title: 'Chapter 2', level: 1 },
+        ],
+        highlights: [],
+        thoughts: [
+          {
+            reviewId: 'thought_book_1_replacement',
+            bookId: 'book_1',
+            content: 'replacement thought',
+            chapterUid: 2,
+            chapterIdx: 2,
+            createTime: 201,
+          },
+        ],
+      },
+    ]);
+
+    const saved = readWeReadBookDetail('book_1');
+    expect(saved?.chapters.map((chapter) => chapter.chapterUid)).toEqual([2]);
+    expect(saved?.highlights).toEqual([]);
+    expect(saved?.thoughts.map((thought) => thought.reviewId)).toEqual([
+      'thought_book_1_replacement',
+    ]);
+  });
+
+  it('removes stale books and their library references during full detail sync', async () => {
+    await saveWeReadBookDetails([detail('book_keep'), detail('book_stale')]);
+    insertLibraryReferences('book_stale');
+
+    await saveWeReadBookDetails([detail('book_keep', { updatedAt: '2026-06-28T02:00:00.000Z' })]);
+
+    expect(readWeReadBooks().map((savedBook) => savedBook.bookId)).toEqual(['book_keep']);
+    expect(readWeReadBookDetail('book_stale')).toBeNull();
+    expect(tableRows(schema.collectionMembers)).toEqual([]);
+    expect(tableRows(schema.libraryPins)).toEqual([]);
+  });
+
+  it('removes a single book when its detail no longer has notes', async () => {
+    await saveWeReadBookDetails([detail('book_empty_after_sync')]);
+
+    const saved = await saveWeReadBookDetail({
+      ...detail('book_empty_after_sync'),
+      highlights: [],
+      thoughts: [],
+    });
+
+    expect(saved).toBeNull();
+    expect(readWeReadBookDetail('book_empty_after_sync')).toBeNull();
+  });
+});
+
+describe('WeRead repository reading stats', () => {
+  it('upserts reading stats snapshots and reads normalized data back', () => {
+    saveWeReadReadingStatsSnapshot(statsSnapshot({ totalReadTime: 10 }));
+    const state = saveWeReadReadingStatsSnapshot(statsSnapshot({ totalReadTime: 20 }));
+
+    expect(state.snapshots).toHaveLength(1);
+    expect(readWeReadReadingStatsState().snapshots).toEqual([
+      expect.objectContaining({
+        id: 'overall:0',
+        mode: 'overall',
+        periodStart: 0,
+        sourceBaseTime: 123,
+        fetchedAt: '2026-06-28T00:00:00.000Z',
+        data: expect.objectContaining({
+          mode: 'overall',
+          totalReadTime: 20,
+          readDays: 3,
+          readTimes: { morning: 2 },
+          readLongest: [
+            expect.objectContaining({
+              bookId: 'book_1',
+              title: 'Longest Book',
+              readTime: 60,
+            }),
+          ],
+        }),
+      }),
+    ]);
+  });
+});
+
+function insertLibraryReferences(bookId: string) {
+  const database = getDatabase();
+  database
+    .insert(schema.collections)
+    .values({
+      id: 'collection_1',
+      name: 'Collection',
+      desc: null,
+      createdAt: '2026-06-28T00:00:00.000Z',
+      updatedAt: '2026-06-28T00:00:00.000Z',
+    })
+    .run();
+  database
+    .insert(schema.collectionMembers)
+    .values({
+      collectionId: 'collection_1',
+      memberKind: 'weread',
+      memberId: bookId,
+      addedAt: '2026-06-28T00:00:00.000Z',
+    })
+    .run();
+  database
+    .insert(schema.libraryPins)
+    .values({
+      targetKind: 'weread',
+      targetId: bookId,
+      pinnedAt: '2026-06-28T00:00:00.000Z',
+    })
+    .run();
+}
+
+function tableRows<T extends typeof schema.collectionMembers | typeof schema.libraryPins>(
+  table: T,
+) {
+  return getDatabase().select().from(table).all();
+}
+
+function detail(
+  bookId: string,
+  options: {
+    updatedAt?: string;
+  } = {},
+): WeReadBookDetail {
+  return {
+    book: book(bookId, options.updatedAt),
+    chapters: [
+      {
+        bookId,
+        chapterUid: 1,
+        chapterIdx: 1,
+        title: 'Chapter 1',
+        level: 1,
+        wordCount: 1200,
+      },
+    ],
+    highlights: [
+      {
+        bookmarkId: `highlight_${bookId}`,
+        bookId,
+        chapterUid: 1,
+        chapterIdx: 1,
+        range: '1-4',
+        markText: 'highlight text',
+        colorStyle: 2,
+        createTime: 101,
+      },
+    ],
+    thoughts: [
+      {
+        reviewId: `thought_${bookId}`,
+        bookId,
+        userVid: 123,
+        author: {
+          userVid: 123,
+          name: 'Reader',
+          avatar: 'https://example.test/avatar.png',
+        },
+        chapterUid: 1,
+        chapterIdx: 1,
+        chapterName: 'Chapter 1',
+        range: '1-4',
+        abstract: 'highlight text',
+        content: 'thought content',
+        createTime: 102,
+      },
+    ],
+  };
+}
+
+function book(bookId: string, updatedAt = '2026-06-28T00:00:00.000Z'): WeReadBook {
+  return {
+    bookId,
+    title: `Title ${bookId}`,
+    author: `Author ${bookId}`,
+    cover: `https://example.test/${bookId}.jpg`,
+    intro: 'intro',
+    reviewCount: 1,
+    noteCount: 1,
+    bookmarkCount: 1,
+    readingProgress: 42,
+    markedStatus: 1,
+    sort: 100,
+    currentChapterUid: 1,
+    currentChapterOffset: 12,
+    readingTime: 300,
+    recordReadingTime: 600,
+    lastReadAt: 200,
+    syncedAt: '2026-06-28T00:00:00.000Z',
+    updatedAt,
+  };
+}
+
+function statsSnapshot(data: { totalReadTime: number }): WeReadReadingStatsSnapshot {
+  return {
+    id: 'overall:0',
+    mode: 'overall',
+    periodStart: 0,
+    sourceBaseTime: 123,
+    fetchedAt: '2026-06-28T00:00:00.000Z',
+    data: {
+      mode: 'overall',
+      totalReadTime: data.totalReadTime,
+      readDays: 3,
+      dayAverageReadTime: 7,
+      readStat: [],
+      readTimes: { morning: 2 },
+      readLongest: [
+        {
+          bookId: 'book_1',
+          title: 'Longest Book',
+          author: 'Author',
+          readTime: 60,
+        },
+      ],
+      preferCategory: [],
+      preferTime: [1, 2],
+    },
+  };
+}
