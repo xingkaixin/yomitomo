@@ -261,4 +261,42 @@ describe('useReaderShellInteractions', () => {
 
     expect(onClearSelection).not.toHaveBeenCalled();
   });
+
+  it('keeps selection action when pressing a selection handle', () => {
+    const onClearSelection = vi.fn();
+
+    function Probe() {
+      const shell = useReaderShellInteractions({
+        activeId: null,
+        composer: null,
+        highlightChoice,
+        selectionAction,
+        selectionActionShortcuts: { copy: 'x', annotate: 'b' },
+        settingsOpen: false,
+        visibleAnnotationIds: new Set(),
+        onCancelComposer: vi.fn(),
+        onClearActiveAnnotation: vi.fn(),
+        onClearSelection,
+        onCloseFloatingPanels: vi.fn(),
+        onCloseHighlightChoice: vi.fn(),
+        onCopySelection: vi.fn(),
+        onOpenComposer: vi.fn(),
+        onToggleSettings: vi.fn(),
+      });
+
+      return (
+        <div onPointerDownCapture={shell.handleReaderPointerDownCapture}>
+          <button className="reader-selection-handle" type="button">
+            handle
+          </button>
+        </div>
+      );
+    }
+
+    render(<Probe />);
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'handle' }));
+
+    expect(onClearSelection).not.toHaveBeenCalled();
+  });
 });

@@ -12,7 +12,7 @@ import { ReaderFloatingToolbar, ReaderToolbar } from './reader-toolbar';
 import { ReaderSettingsToolbarControls } from './reader-toolbar-controls';
 import { ReaderSurfaceView } from './reader-surface-view';
 import { ReaderTocPanel } from './reader-toc-panel';
-import { defaultReaderUiLabels } from './reader-app-view-types';
+import { defaultReaderUiLabels, type SelectionAdjustmentPointer } from './reader-app-view-types';
 import { AvatarBadge } from '../shared/reader-component-primitives';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
@@ -315,6 +315,8 @@ describe('ReaderSurfaceView empty notes', () => {
   function surfaceView({
     composer = null,
     highlights = {},
+    selectionAction = null,
+    selectionHandlers,
     showEmptyNotes,
   }: {
     composer?: { x: number; y: number; anchor: Annotation['anchor'] } | null;
@@ -322,6 +324,18 @@ describe('ReaderSurfaceView empty notes', () => {
       annotations?: Annotation[];
       boxes?: HighlightBox[];
       newAnnotationIds?: Set<string>;
+      temporaryBoxes?: HighlightBox[];
+    };
+    selectionAction?: {
+      x: number;
+      y: number;
+      anchor: Annotation['anchor'];
+      adjustable?: boolean;
+    } | null;
+    selectionHandlers?: {
+      onDrag: (point: SelectionAdjustmentPointer) => void;
+      onDragEnd: (point: SelectionAdjustmentPointer) => void;
+      onDragStart: (point: SelectionAdjustmentPointer) => void;
     };
     showEmptyNotes?: boolean;
   }) {
@@ -354,11 +368,11 @@ describe('ReaderSurfaceView empty notes', () => {
         newAnnotationIds={highlights.newAnnotationIds}
         noteRefForAnnotation={() => vi.fn()}
         notesRef={React.createRef<HTMLElement>()}
-        selectionAction={null}
+        selectionAction={selectionAction}
         shortcutModifier="⌘"
         showEmptyNotes={showEmptyNotes}
         surfaceRef={React.createRef<HTMLDivElement>()}
-        temporaryBoxes={[]}
+        temporaryBoxes={highlights.temporaryBoxes ?? []}
         userProfile={userProfile}
         visibleAnnotationIds={new Set(annotations.map((item) => item.id))}
         visibleAnnotations={annotations}
@@ -373,6 +387,9 @@ describe('ReaderSurfaceView empty notes', () => {
         onFocusAnnotation={vi.fn()}
         onHighlightClick={vi.fn()}
         onMouseUp={vi.fn()}
+        onSelectionHandleDrag={selectionHandlers?.onDrag}
+        onSelectionHandleDragEnd={selectionHandlers?.onDragEnd}
+        onSelectionHandleDragStart={selectionHandlers?.onDragStart}
         onOpenComposer={vi.fn()}
         onPrimaryCommentExpandedChange={vi.fn()}
         onScrollToHighlight={vi.fn()}
@@ -425,6 +442,113 @@ describe('ReaderSurfaceView empty notes', () => {
 
     expect(highlight?.classList.contains('is-new')).toBe(true);
     expect(highlight?.style.getPropertyValue('--highlight-grow-delay')).toBe('0ms');
+  });
+
+  it('renders selection adjustment handles from temporary highlight boxes', () => {
+    const onDrag = vi.fn();
+    const onDragEnd = vi.fn();
+    const onDragStart = vi.fn();
+    const { container } = render(
+      surfaceView({
+        selectionAction: {
+          x: 10,
+          y: 20,
+          anchor: {
+            exact: '选区',
+            prefix: '',
+            suffix: '',
+            start: 0,
+            end: 2,
+          },
+        },
+        selectionHandlers: { onDrag, onDragEnd, onDragStart },
+        highlights: {
+          temporaryBoxes: [
+            {
+              id: 'selection-1',
+              annotationId: '__selection__',
+              color: userProfile.annotationColor,
+              left: 24,
+              top: 16,
+              width: 80,
+              height: 20,
+            },
+            {
+              id: 'selection-2',
+              annotationId: '__selection__',
+              color: userProfile.annotationColor,
+              left: 18,
+              top: 48,
+              width: 60,
+              height: 20,
+            },
+          ],
+        },
+        showEmptyNotes: false,
+      }),
+    );
+
+    const startHandle = screen.getByRole('button', {
+      name: defaultReaderUiLabels.adjustSelectionStart,
+    });
+    const endHandle = screen.getByRole('button', {
+      name: defaultReaderUiLabels.adjustSelectionEnd,
+    });
+
+    expect(startHandle.style.left).toBe('24px');
+    expect(startHandle.style.top).toBe('16px');
+    expect(startHandle.style.getPropertyValue('--reader-selection-handle-height')).toBe('20px');
+    expect(endHandle.style.left).toBe('78px');
+    expect(endHandle.style.top).toBe('48px');
+    expect(container.querySelectorAll('.reader-selection-handle')).toHaveLength(2);
+
+    fireEvent.pointerDown(startHandle, { button: 0, clientX: 24, clientY: 16, pointerId: 1 });
+    fireEvent.pointerMove(startHandle, { clientX: 30, clientY: 18, pointerId: 1 });
+    fireEvent.pointerUp(startHandle, { clientX: 32, clientY: 18, pointerId: 1 });
+
+    expect(onDragStart).toHaveBeenCalledWith({ handle: 'start', clientX: 24, clientY: 16 });
+    expect(onDrag).toHaveBeenLastCalledWith({ handle: 'start', clientX: 32, clientY: 18 });
+    expect(onDragEnd).toHaveBeenCalledWith({ handle: 'start', clientX: 32, clientY: 18 });
+  });
+
+  it('does not render selection handles for non-adjustable actions', () => {
+    const { container } = render(
+      surfaceView({
+        selectionAction: {
+          x: 10,
+          y: 20,
+          adjustable: false,
+          anchor: {
+            exact: '译文',
+            prefix: '',
+            suffix: '',
+            start: 0,
+            end: 2,
+          },
+        },
+        selectionHandlers: {
+          onDrag: vi.fn(),
+          onDragEnd: vi.fn(),
+          onDragStart: vi.fn(),
+        },
+        highlights: {
+          temporaryBoxes: [
+            {
+              id: 'selection-1',
+              annotationId: '__selection__',
+              color: userProfile.annotationColor,
+              left: 24,
+              top: 16,
+              width: 80,
+              height: 20,
+            },
+          ],
+        },
+        showEmptyNotes: false,
+      }),
+    );
+
+    expect(container.querySelector('.reader-selection-handle')).toBeNull();
   });
 
   it('keeps the composer mounted through the close transition', () => {

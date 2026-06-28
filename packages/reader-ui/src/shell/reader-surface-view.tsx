@@ -13,12 +13,14 @@ import { Composer, type ComposerPopupPhase } from './reader-composer';
 import { EmptyNotes } from './reader-empty-notes';
 import { HighlightChoiceMenu } from './reader-highlight-choice-menu';
 import { SelectionMenu } from './reader-selection-menu';
+import { SelectionHandles } from './reader-selection-handles';
 import type {
   ReaderChatModel,
   HighlightChoice,
   PendingComposer,
   ReaderArticle,
   ReaderUiLabels,
+  SelectionAdjustmentPointer,
   SelectionAction,
 } from './reader-app-view-types';
 import { defaultReaderUiLabels } from './reader-app-view-types';
@@ -102,6 +104,9 @@ export type ReaderSurfaceViewProps = {
   ) => void;
   onMouseUp: (event: React.MouseEvent<HTMLElement>) => void;
   onAskSelection?: (action: SelectionAction) => void;
+  onSelectionHandleDrag?: (point: SelectionAdjustmentPointer) => void;
+  onSelectionHandleDragEnd?: (point: SelectionAdjustmentPointer) => void;
+  onSelectionHandleDragStart?: (point: SelectionAdjustmentPointer) => void;
   onOpenComposer: (action: SelectionAction) => void;
   onPrimaryCommentExpandedChange: (annotationId: string, expanded: boolean) => void;
   onScrollToHighlight: (annotationId: string) => void;
@@ -290,6 +295,9 @@ export function ReaderSurfaceView({
   onHighlightClick,
   onMouseUp,
   onAskSelection,
+  onSelectionHandleDrag,
+  onSelectionHandleDragEnd,
+  onSelectionHandleDragStart,
   onOpenComposer,
   onPrimaryCommentExpandedChange,
   onScrollToHighlight,
@@ -411,6 +419,21 @@ export function ReaderSurfaceView({
                 style={highlightSegmentStyle(segment, true) as React.CSSProperties}
               />
             ))}
+            {selectionAction &&
+            selectionAction.adjustable !== false &&
+            !composer &&
+            onSelectionHandleDrag &&
+            onSelectionHandleDragEnd &&
+            onSelectionHandleDragStart ? (
+              <SelectionHandles
+                boxes={temporaryBoxes}
+                draggingHandle={selectionAction.draggingHandle}
+                labels={labels}
+                onDrag={onSelectionHandleDrag}
+                onDragEnd={onSelectionHandleDragEnd}
+                onDragStart={onSelectionHandleDragStart}
+              />
+            ) : null}
           </div>
           <aside
             className="reader-annotation-rail"
