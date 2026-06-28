@@ -50,8 +50,31 @@ const siteIconCache = new Map<string, string | null>();
 
 export function ArticleBook({ article }: { article: ArticleSummaryRecord }) {
   if (article.sourceType === 'pdf') return <PdfCover article={article} />;
+  if (article.sourceType === 'text') return <TextCover article={article} />;
   if (article.sourceType !== 'ebook') return <WebCover article={article} />;
   return <EbookBook article={article} />;
+}
+
+// 文本封面：稿纸（装订色条 + 标题 + 横线 + 作者），后层叠纸 hover 扇出；类型仅由色条区分。
+function TextCover({ article }: { article: ArticleSummaryRecord }) {
+  const isMarkdown = article.text?.format === 'markdown';
+  const title = normalizeLabel(articleDisplayTitle(article));
+  const author = normalizeLabel(article.byline || '');
+  const classes = ['article-book', 'is-flat-cover', 'is-text-cover'];
+  classes.push(isMarkdown ? 'is-md' : 'is-txt');
+
+  return (
+    <span aria-hidden="true" className={classes.join(' ')}>
+      <span className="text-cover-sheet s3" />
+      <span className="text-cover-sheet s2" />
+      <span className="article-cover-card text-cover-card">
+        <span className="text-cover-spine" />
+        <strong className="text-cover-title">{title}</strong>
+        <span className="text-cover-ruled" />
+        {author ? <span className="text-cover-author">{author}</span> : null}
+      </span>
+    </span>
+  );
 }
 
 function EbookBook({ article }: { article: ArticleSummaryRecord }) {

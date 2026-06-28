@@ -153,6 +153,17 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
       logError: context.logError,
     });
   });
+  handleDesktopIpc('text:import-prepare', async (_event, input) => {
+    const { prepareTextSourceItems } = await import('../articles/text-source-import');
+    return prepareTextSourceItems(input);
+  });
+  handleDesktopIpc('text:import-commit', async (_event, input) => {
+    const { articlePersistence } = await context.getPersistenceModule();
+    const { commitTextSources } = await import('../articles/text-source-import');
+    const result = await commitTextSources(input, articleImportRepository(articlePersistence));
+    for (const patch of result.patches) context.sendArticlePatched(patch);
+    return result;
+  });
   handleDesktopIpc('pdf:get-thumbnail', async (_event, articleId) => {
     const { readPdfThumbnailDataUrl, savePdfThumbnail } =
       await import('../pdf/pdf-thumbnail-storage');

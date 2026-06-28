@@ -377,6 +377,96 @@
   box-shadow: inset 0 0 0 1px hsl(var(--border) / 0.5);
 }
 
+/* ===== 文本（稿纸）封面：装订色条 + 标题 + 横线 + 作者，后层叠纸 hover 扇出 ===== */
+.article-book.is-text-cover {
+  --book-cover-ratio: 0.7;
+  --text-tone: 28 52% 50%;
+}
+
+.article-book.is-text-cover.is-md {
+  --text-tone: 211 45% 46%;
+}
+
+.text-cover-sheet {
+  position: absolute;
+  inset-block-start: 6px;
+  inset-inline: 0;
+  width: var(--book-cover-width);
+  height: var(--book-cover-height);
+  margin-inline: auto;
+  border-radius: 6px;
+  background: hsl(0 0% 99.5%);
+  box-shadow:
+    0 2px 6px hsl(31 34% 24% / 0.1),
+    inset 0 0 0 1px hsl(var(--border) / 0.55);
+  transform-origin: 50% 120%;
+  transition: transform 280ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.text-cover-sheet.s2 {
+  z-index: 2;
+  transform: translate(2px, 1px);
+}
+
+.text-cover-sheet.s3 {
+  z-index: 1;
+  transform: translate(4px, 3px);
+}
+
+.text-cover-card {
+  z-index: 3;
+}
+
+.text-cover-spine {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  z-index: 5;
+  width: 6%;
+  background: hsl(var(--text-tone) / 0.9);
+}
+
+.text-cover-title {
+  position: absolute;
+  inset-block-start: 9%;
+  inset-inline: 14% 8%;
+  z-index: 4;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: hsl(var(--card-foreground));
+  font-size: max(8px, calc(var(--book-cover-width) * 0.13));
+  font-weight: 760;
+  line-height: 1.26;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.text-cover-ruled {
+  position: absolute;
+  inset-inline: 14% 8%;
+  inset-block: 50% 20%;
+  z-index: 3;
+  background: repeating-linear-gradient(
+    hsl(var(--muted-foreground) / 0.22) 0 1px,
+    transparent 1px 6px
+  );
+}
+
+.text-cover-author {
+  position: absolute;
+  inset-inline: 14% 8%;
+  inset-block-end: 7%;
+  z-index: 4;
+  overflow: hidden;
+  color: hsl(var(--muted-foreground));
+  font-size: max(6px, calc(var(--book-cover-width) * 0.085));
+  font-weight: 680;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 /* 扁平封面 hover：卡片轻抬 + chrome 滑入，不做书本打开 */
 .library-card:hover .article-cover-card,
 .library-card:focus-within .article-cover-card,
@@ -403,11 +493,49 @@
   transform: translateY(0);
 }
 
+/* 文本稿纸 hover：后层叠纸向右下扇出 */
+.library-card:hover .is-text-cover .text-cover-sheet.s2,
+.library-card:focus-within .is-text-cover .text-cover-sheet.s2,
+.library-web-item:hover .is-text-cover .text-cover-sheet.s2,
+.library-web-item:focus-within .is-text-cover .text-cover-sheet.s2,
+.library-ebook-list-item:hover .is-text-cover .text-cover-sheet.s2,
+.library-ebook-list-item:focus-within .is-text-cover .text-cover-sheet.s2 {
+  transform: translate(6px, 2px) rotate(2.4deg);
+}
+
+.library-card:hover .is-text-cover .text-cover-sheet.s3,
+.library-card:focus-within .is-text-cover .text-cover-sheet.s3,
+.library-web-item:hover .is-text-cover .text-cover-sheet.s3,
+.library-web-item:focus-within .is-text-cover .text-cover-sheet.s3,
+.library-ebook-list-item:hover .is-text-cover .text-cover-sheet.s3,
+.library-ebook-list-item:focus-within .is-text-cover .text-cover-sheet.s3 {
+  transform: translate(11px, 5px) rotate(5deg);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .article-cover-card,
   .pdf-cover-bar,
-  .web-cover-chrome {
+  .web-cover-chrome,
+  .text-cover-sheet {
     transition-duration: 1ms;
+  }
+
+  .library-card:hover .is-text-cover .text-cover-sheet.s2,
+  .library-card:focus-within .is-text-cover .text-cover-sheet.s2,
+  .library-web-item:hover .is-text-cover .text-cover-sheet.s2,
+  .library-web-item:focus-within .is-text-cover .text-cover-sheet.s2,
+  .library-ebook-list-item:hover .is-text-cover .text-cover-sheet.s2,
+  .library-ebook-list-item:focus-within .is-text-cover .text-cover-sheet.s2 {
+    transform: translate(3px, 1px) rotate(1deg);
+  }
+
+  .library-card:hover .is-text-cover .text-cover-sheet.s3,
+  .library-card:focus-within .is-text-cover .text-cover-sheet.s3,
+  .library-web-item:hover .is-text-cover .text-cover-sheet.s3,
+  .library-web-item:focus-within .is-text-cover .text-cover-sheet.s3,
+  .library-ebook-list-item:hover .is-text-cover .text-cover-sheet.s3,
+  .library-ebook-list-item:focus-within .is-text-cover .text-cover-sheet.s3 {
+    transform: translate(5px, 2px) rotate(2deg);
   }
 }
 

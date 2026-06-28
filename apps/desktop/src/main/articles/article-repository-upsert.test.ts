@@ -499,6 +499,7 @@ function articleRow(id: string): ArticleRow {
     ebookChapters: null,
     ebookIndex: null,
     pdfMetadata: null,
+    textMetadata: null,
     readingProgress: null,
     readerChatState: null,
     focusCoReadingPlan: null,

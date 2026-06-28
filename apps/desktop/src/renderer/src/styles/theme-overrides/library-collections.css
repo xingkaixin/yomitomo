@@ -533,9 +533,11 @@ body.library-picker-dragging * {
 .library-collection-picker-cover .article-book-ground-shadow,
 .library-collection-picker-cover .article-book-pages,
 .library-collection-picker-cover .article-book-back,
+.library-collection-picker-cover .text-cover-sheet,
 .library-collection-picker-selected-cover .article-book-ground-shadow,
 .library-collection-picker-selected-cover .article-book-pages,
-.library-collection-picker-selected-cover .article-book-back {
+.library-collection-picker-selected-cover .article-book-back,
+.library-collection-picker-selected-cover .text-cover-sheet {
   display: none;
 }
 

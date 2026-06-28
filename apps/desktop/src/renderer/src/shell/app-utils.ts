@@ -82,6 +82,7 @@ export function articleExternalUrl(article: ArticleRecord) {
 }
 
 export function articleIdentityLine(article: ArticleRecord) {
+  if (article.sourceType === 'text') return article.byline || '';
   return [article.byline, formatDate(article.updatedAt)].filter(Boolean).join(' / ');
 }
 

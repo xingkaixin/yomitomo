@@ -47,6 +47,7 @@ export function ArticleLibraryCard({
   const statsLabel = t('library.stats.label', { annotations, distillations });
   const isEbook = article.sourceType === 'ebook';
   const isPdf = article.sourceType === 'pdf';
+  const isText = article.sourceType === 'text';
   const authorLabel = libraryArticleAuthorLabel(article);
   const title = articleDisplayTitle(article);
   const { dialog: deleteDialog, requestDelete } = useArticleDeleteConfirm(title, onDelete);
@@ -54,7 +55,9 @@ export function ArticleLibraryCard({
     ? t('library.sources.ebookShort')
     : isPdf
       ? t('library.sources.pdfShort')
-      : t('library.sources.webShort');
+      : isText
+        ? t('library.sources.textShort')
+        : t('library.sources.webShort');
   const itemClassName = isEbook || isPdf ? 'library-ebook-list-item' : 'library-web-item';
   const coverClassName = isEbook || isPdf ? 'library-ebook-cover-column' : 'library-web-item-cover';
   const openLabel =
@@ -140,11 +143,9 @@ export function ArticleLibraryCard({
         <LibraryCardCoverProgress progress={article.readingProgress?.progress ?? 0} />
       </div>
       <div className={isEbook || isPdf ? 'library-ebook-list-copy' : 'library-article-list-copy'}>
-        {authorLabel ? (
-          <p className="library-card-author">
-            <span>{authorLabel}</span>
-          </p>
-        ) : null}
+        <p className="library-card-author" aria-hidden={authorLabel ? undefined : true}>
+          <span>{authorLabel || ' '}</span>
+        </p>
         <div className={isEbook || isPdf ? 'library-ebook-list-main' : 'library-web-item-main'}>
           <h3 title={title}>{title}</h3>
         </div>
@@ -183,6 +184,7 @@ function libraryArticleAuthorLabel(article: ArticleSummaryRecord) {
     return formatPdfAuthors(article.pdf?.metadata.author || '', { maxAuthors: 3, maxLength: 42 });
   if (article.sourceType === 'ebook')
     return article.byline || article.ebook?.metadata.fileName || '';
+  if (article.sourceType === 'text') return article.byline || '';
   return (
     urlHost(article.canonicalUrl || article.url) ||
     article.siteName ||

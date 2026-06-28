@@ -78,6 +78,10 @@ import type {
   DatabaseRestoreResult,
   EbookImportFileInput,
   PdfImportFileInput,
+  TextImportPrepareInput,
+  TextImportPrepareResult,
+  TextImportCommitInput,
+  TextImportCommitResult,
   PerformanceTimingInput,
   ProviderTestResult,
   RemoveCollectionMemberInput,
@@ -301,6 +305,14 @@ export type ArticleIpcInvokeMap = {
   'pdf:get-thumbnail': {
     args: [articleId: string];
     result: string;
+  };
+  'text:import-prepare': {
+    args: [input: TextImportPrepareInput];
+    result: TextImportPrepareResult;
+  };
+  'text:import-commit': {
+    args: [input: TextImportCommitInput];
+    result: TextImportCommitResult;
   };
 };
 

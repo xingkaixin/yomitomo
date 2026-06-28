@@ -13,7 +13,7 @@ export type LibraryContentSourceOption = {
   description: string;
 };
 
-const libraryContentSourceIds: LibrarySource[] = ['web', 'ebook', 'pdf', 'weread'];
+const libraryContentSourceIds: LibrarySource[] = ['web', 'ebook', 'pdf', 'text', 'weread'];
 
 export function libraryContentSourceOption(id: LibrarySource): LibraryContentSourceOption {
   return {

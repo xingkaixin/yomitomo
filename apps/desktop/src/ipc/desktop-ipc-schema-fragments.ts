@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { MAX_EBOOK_IMPORT_BYTES, MAX_PDF_IMPORT_BYTES } from '../ipc-contract';
+import {
+  MAX_EBOOK_IMPORT_BYTES,
+  MAX_PDF_IMPORT_BYTES,
+  MAX_TEXT_IMPORT_BYTES,
+} from '../ipc-contract';
 import type { DesktopIpcInvokeChannel } from '../ipc-contract';
 import type { DesktopIpcSchemaMap } from './desktop-ipc-schema-types';
 
@@ -9,6 +13,37 @@ const fileNameSchema = z.string().min(1).max(512);
 const mimeTypeSchema = z.string().min(1).max(255).optional();
 const httpUrlSchema = z.string().min(1).max(4096).refine(isHttpUrl);
 const arrayBufferSchema = z.custom<ArrayBuffer>(isArrayBuffer);
+const textFormatSchema = z.enum(['plain', 'markdown']);
+const textBodySchema = z.string().max(20_000_000);
+const textPrepareInputSchema = z.union([
+  z.object({ kind: z.literal('paste'), content: textBodySchema, format: textFormatSchema }),
+  z.object({
+    kind: z.literal('files'),
+    files: z
+      .array(
+        z.object({
+          fileName: fileNameSchema,
+          data: arrayBufferSchema.refine((value) => value.byteLength <= MAX_TEXT_IMPORT_BYTES),
+        }),
+      )
+      .min(1)
+      .max(50),
+  }),
+]);
+const textCommitInputSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        title: z.string().trim().min(1).max(1000),
+        author: z.string().max(1000).optional(),
+        format: textFormatSchema,
+        body: textBodySchema,
+        frontMatter: z.record(z.string().max(200), z.string().max(2000)).optional(),
+      }),
+    )
+    .min(1)
+    .max(50),
+});
 const appLockPinSchema = z.string().regex(/^\d{4}$/);
 const appLockShortcutSchema = z.string().trim().min(1).max(80).nullable();
 const collectionNameSchema = z.string().trim().min(1).max(160);
@@ -91,6 +126,8 @@ export const articleIpcInvokeSchemas = {
     }),
   ]),
   'pdf:read-file': z.tuple([idSchema]),
+  'text:import-prepare': z.tuple([textPrepareInputSchema]),
+  'text:import-commit': z.tuple([textCommitInputSchema]),
 } satisfies DesktopIpcSchemaMap;
 
 export const dataIpcInvokeSchemas = {
@@ -169,6 +206,8 @@ export const highRiskDesktopIpcSchemaChannels = [
   'pdf:import-file',
   'pdf:read-file',
   'pdf:get-thumbnail',
+  'text:import-prepare',
+  'text:import-commit',
   'data:open-path',
   'appLock:setEnabled',
   'appLock:setPin',

@@ -5,7 +5,13 @@ import type { EbookRecord, EbookSummaryRecord } from './ebook-types';
 import type { PdfRecord } from './pdf-types';
 import type { ReadingMemory } from '../reading-memory/reading-memory-types';
 
-export type ArticleSourceType = 'web' | 'ebook' | 'pdf';
+export type ArticleSourceType = 'web' | 'ebook' | 'pdf' | 'text';
+
+export type TextSourceFormat = 'plain' | 'markdown';
+
+export type TextSourceMetadata = {
+  format: TextSourceFormat;
+};
 
 export type ArticleReadingProgress = {
   pageIndex: number;
@@ -139,6 +145,7 @@ export type ArticleRecord = {
   contentHash: string;
   ebook?: EbookRecord;
   pdf?: PdfRecord;
+  text?: TextSourceMetadata;
   readingProgress?: ArticleReadingProgress;
   annotations: Annotation[];
   annotationCount?: number;

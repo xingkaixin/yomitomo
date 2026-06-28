@@ -58,6 +58,8 @@ import type {
   DesktopIpcInvokeResult,
   EbookImportFileInput,
   PdfImportFileInput,
+  TextImportPrepareInput,
+  TextImportCommitInput,
   PerformanceTimingInput,
   RemoveCollectionMemberInput,
   RenameCollectionInput,
@@ -289,6 +291,10 @@ function createArticlePreloadApi() {
     readEbookFile: (articleId: string) => invokeDesktopIpc('ebook:read-file', articleId),
     importPdfFile: (input: PdfImportFileInput) => invokeDesktopIpc('pdf:import-file', input),
     readPdfFile: (articleId: string) => invokeDesktopIpc('pdf:read-file', articleId),
+    prepareTextImport: (input: TextImportPrepareInput) =>
+      invokeDesktopIpc('text:import-prepare', input),
+    commitTextImport: (input: TextImportCommitInput) =>
+      invokeDesktopIpc('text:import-commit', input),
     deleteArticle: (id: string) => invokeDesktopIpc('article:delete', id),
   };
 }
