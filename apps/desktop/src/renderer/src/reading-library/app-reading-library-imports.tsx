@@ -11,6 +11,7 @@ import {
   LoaderCircle,
   Plus,
   RefreshCw,
+  Type,
   Upload,
   X,
 } from 'lucide-react';
@@ -30,6 +31,7 @@ import type {
   PdfImportProgressCallback,
 } from '../shell/app-reading-types';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
+import { TextImportDialog } from './app-reading-library-text-import';
 import rabbitWalkSprite from '../assets/reading-library/rabbit-walk.webp';
 
 const MAX_EBOOK_IMPORT_BYTES = 80 * 1024 * 1024;
@@ -278,6 +280,7 @@ export type LibraryImportDialogs = {
   openArticleImport: () => void;
   openEbookImport: () => void;
   openPdfImport: () => void;
+  openTextImport: () => void;
   dialogs: React.ReactNode;
 };
 
@@ -305,21 +308,31 @@ export function useLibraryImportDialogs({
   const [articleImportOpen, setArticleImportOpen] = useState(false);
   const [ebookImportOpen, setEbookImportOpen] = useState(false);
   const [pdfImportOpen, setPdfImportOpen] = useState(false);
+  const [textImportOpen, setTextImportOpen] = useState(false);
 
   const openArticleImport = useCallback(() => {
     setEbookImportOpen(false);
     setPdfImportOpen(false);
+    setTextImportOpen(false);
     setArticleImportOpen(true);
   }, []);
   const openEbookImport = useCallback(() => {
     setArticleImportOpen(false);
     setPdfImportOpen(false);
+    setTextImportOpen(false);
     setEbookImportOpen(true);
   }, []);
   const openPdfImport = useCallback(() => {
     setArticleImportOpen(false);
     setEbookImportOpen(false);
+    setTextImportOpen(false);
     setPdfImportOpen(true);
+  }, []);
+  const openTextImport = useCallback(() => {
+    setArticleImportOpen(false);
+    setEbookImportOpen(false);
+    setPdfImportOpen(false);
+    setTextImportOpen(true);
   }, []);
 
   const dialogs = (
@@ -349,10 +362,13 @@ export function useLibraryImportDialogs({
           onOpenArticle={onOpenArticle}
         />
       ) : null}
+      {textImportOpen ? (
+        <TextImportDialog onClose={() => setTextImportOpen(false)} onOpenArticle={onOpenArticle} />
+      ) : null}
     </>
   );
 
-  return { openArticleImport, openEbookImport, openPdfImport, dialogs };
+  return { openArticleImport, openEbookImport, openPdfImport, openTextImport, dialogs };
 }
 
 export function LibraryImportControls({
@@ -360,6 +376,7 @@ export function LibraryImportControls({
   onAddWebArticle,
   onAddEbook,
   onAddPdf,
+  onAddText,
   onCreateCollection,
   onOpenCollectionPicker,
   onSyncWeRead,
@@ -371,6 +388,7 @@ export function LibraryImportControls({
   onAddWebArticle: () => void;
   onAddEbook: () => void;
   onAddPdf: () => void;
+  onAddText: () => void;
   onCreateCollection?: () => void;
   onOpenCollectionPicker?: () => void;
   onSyncWeRead?: () => void;
@@ -394,6 +412,11 @@ export function LibraryImportControls({
   function openPdfImportDialog() {
     setAddMenuOpen(false);
     onAddPdf();
+  }
+
+  function openTextImportDialog() {
+    setAddMenuOpen(false);
+    onAddText();
   }
 
   function syncWeRead() {
@@ -476,6 +499,12 @@ export function LibraryImportControls({
                 <button type="button" onClick={openPdfImportDialog}>
                   <FileText size={15} />
                   {t('library.import.pdfDocument')}
+                </button>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <button type="button" onClick={openTextImportDialog}>
+                  <Type size={15} />
+                  {t('library.import.text.menuEntry')}
                 </button>
               </DropdownMenuItem>
               {onOpenCollectionPicker ? (

@@ -616,6 +616,7 @@ export function LibraryHome({
               onAddWebArticle={importDialogs.openArticleImport}
               onAddEbook={importDialogs.openEbookImport}
               onAddPdf={importDialogs.openPdfImport}
+              onAddText={importDialogs.openTextImport}
               onCreateCollection={
                 activeCollection ? undefined : () => setCollectionNameDialog({ type: 'create' })
               }

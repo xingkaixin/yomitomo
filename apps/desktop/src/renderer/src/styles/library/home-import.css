@@ -936,3 +936,125 @@
 .library-import-dialog > footer button:active {
   transform: scale(0.96);
 }
+
+/* ===== 文本 / Markdown 导入 ===== */
+.library-text-import {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.library-text-import-modes {
+  display: flex;
+  gap: 8px;
+}
+
+.library-text-import-modes button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid hsl(var(--border) / 0.7);
+  border-radius: 7px;
+  background: hsl(var(--card));
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.library-text-import-modes button.is-active {
+  border-color: hsl(var(--primary) / 0.5);
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+.library-text-import-input {
+  display: grid;
+  gap: 12px;
+}
+
+.library-text-import-textarea {
+  width: 100%;
+  min-height: 200px;
+  resize: vertical;
+  padding: 12px 14px;
+  border: 1px solid hsl(var(--border) / 0.7);
+  border-radius: 8px;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.library-text-import-textarea:focus {
+  outline: none;
+  border-color: hsl(var(--primary) / 0.5);
+}
+
+.library-text-import-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+}
+
+.library-text-import-confirm {
+  display: grid;
+  gap: 14px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.library-text-import-row {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid hsl(var(--border) / 0.6);
+  border-radius: 8px;
+  background: hsl(var(--card));
+}
+
+.library-text-import-filename {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  word-break: break-all;
+}
+
+.library-text-import-field {
+  display: grid;
+  gap: 4px;
+}
+
+.library-text-import-field span {
+  font-size: 12px;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+
+.library-text-import-field input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid hsl(var(--border) / 0.7);
+  border-radius: 6px;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-size: 13px;
+}
+
+.library-text-import-field input:focus {
+  outline: none;
+  border-color: hsl(var(--primary) / 0.5);
+}
+
+.library-text-import-errors {
+  margin: 0;
+  padding-left: 18px;
+  color: hsl(5 54% 48%);
+  font-size: 12.5px;
+}
+
+.library-text-import-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
