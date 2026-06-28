@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.10.0 - 2026-06-28
+
+### Features
+
+- Added a Text content type to the Library. You can paste text directly or upload `.txt` / `.md` files (multiple at once). Import detects the encoding, infers a title and author for you to confirm, and renders Markdown YAML front matter as a metadata block at the top of the content. Text gets its own manuscript cover and can be filtered by type and added to collections. (#588)
+- Added privacy boundary notices to import and model routing. The import dialog states that files stay on this device and are not uploaded, while model routing settings state that, once configured and used, the relevant content is sent to the endpoint you set. (#587)
+- Added draggable endpoint handles to selections, so text selected in web articles, ebooks, and PDFs can be extended or shrunk from either end. (#584, #585, #586)
+- Added ebook click-to-page hot zones, with smoother table-of-contents hover and jump navigation. (#565, #558, #559)
+- Added an adaptive ebook spread layout, and the default PDF zoom now adapts to window width while reserving space for the annotation rail. (#556, #555)
+- Added a localized production application menu on desktop whose items follow the system language. (#563)
+
+### Performance
+
+- Reduced reader rendering hotspots for smoother scrolling and interaction. (#564)
+- Reduced repeated ebook pagination measurement work. (#557)
+
+### Fixes
+
+- Disabled double-click selection in article and PDF content, so page-turn taps no longer trigger word or paragraph selection. (#582, #583)
+- Fixed wider covers being squeezed after a refresh; the cover ratio is now restored correctly from cached images. (#581)
+- Hardened desktop security boundaries and locked the renderer store while the app is locked. (#567, #562)
+- Routed dark reader colors through theme tokens, preserved the WeRead synckey with zero thoughts, and aligned update-dialog progress and triggers. (#561, #560, #554)
+
+### Engineering
+
+- Split the desktop store modules, refactored several sedimentation-window and reader components by responsibility, added tests for critical reader paths, and updated workspace dependencies. (#580, #569–#579, #568, #566)
+
 ## 0.9.2 - 2026-06-26
 
 ### Fixes

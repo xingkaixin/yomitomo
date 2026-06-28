@@ -1,0 +1,35 @@
+{
+  "version": "0.10.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "Read text and Markdown too",
+      "description": "Got a snippet of text or a .txt / .md file? You can now paste it in or drop the file. Yomitomo detects the encoding, suggests a title, and shows Markdown front matter up top — text lands in your Library just like an ebook.",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "Drag to fix your selection",
+      "description": "Selected a little too much or too little? Handles now appear at both ends of a selection, so you can drag to extend or shrink it instead of starting over. Works in web articles, ebooks, and PDFs.",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "Clear on whether your books get uploaded",
+      "description": "Worried that an imported private PDF or ebook leaves your device? The import dialog now states plainly that files stay local; only when you use a configured AI model is the relevant content sent to the endpoint you set.",
+      "audience": "settings"
+    },
+    {
+      "type": "changed",
+      "title": "Smoother ebook and PDF paging",
+      "description": "Ebooks add tap-to-page hot zones, an adaptive spread layout, and smoother table-of-contents jumps; PDFs now open at a zoom that fits your window width and leave room for the annotation rail.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "No more stray selections or squished covers",
+      "description": "Page-turn taps no longer trigger a paragraph selection, and wider covers keep their proportions after a refresh instead of getting squeezed.",
+      "audience": "reader"
+    }
+  ]
+}

@@ -5,6 +5,17 @@ sidebar:
   hidden: true
 ---
 
+## 0.10.0
+
+Released: 2026-06-28
+
+- The Library adds a Text type: paste text or upload `.txt` / `.md`, with a manuscript cover, type filter, and collection support.
+- Selections gain draggable endpoint handles, and import and model routing show privacy boundary notices.
+- Ebook click-to-page hot zones and adaptive spread layout, with PDF default zoom adapting to window width.
+- Disabled double-click selection, fixed covers being squeezed after a refresh, and hardened desktop security boundaries.
+
+[View 0.10.0 release notes](/en/changelogs/v0-10-0/)
+
 ## 0.9.2
 
 Released: 2026-06-26

@@ -83,6 +83,16 @@ PDF import supports batches of up to 10 files, with a 120 MB limit per file. Aft
   <img src="/assets/en-import-pdf.webp" alt="Yomitomo import a PDF" loading="lazy" decoding="async" />
 </picture>
 
+## Import Text and Markdown
+
+1. Click the "+" in the top-right of the Library.
+2. Choose "Text file".
+3. Choose "Paste text" to paste directly, or "Upload files" to pick or drop `.txt` / `.md` files (multiple allowed).
+
+Unlike other imports, text import adds a confirmation step: before importing you fill in or confirm a title (required) and author (optional), and you confirm each file when uploading several. Yomitomo detects the encoding and infers a title where it can — Markdown prefers front matter or the first heading, while plain text prefers the file name or first line. A file named `.txt`/`.md` whose contents are not text is rejected.
+
+Markdown YAML front matter is rendered as a metadata block at the top of the content; content is sanitized, and remote images are not loaded automatically. Text gets its own manuscript cover and, like other content, can be filtered by the Text type and added to collections.
+
 ## Filter, Search, and Sort
 
 The Library can filter by reading status:
