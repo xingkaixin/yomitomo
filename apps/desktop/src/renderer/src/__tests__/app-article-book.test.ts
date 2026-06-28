@@ -1,6 +1,16 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { formatPdfAuthors, formatPdfHeaderAuthors } from '../shell/app-article-book';
+// @vitest-environment jsdom
+
+import React from 'react';
+import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ArticleSummaryRecord } from '@yomitomo/shared';
+import { ArticleBook, formatPdfAuthors, formatPdfHeaderAuthors } from '../shell/app-article-book';
 import { initializeAppI18n } from '../i18n/app-i18n';
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 describe('PDF display metadata', () => {
   beforeEach(() => {
@@ -54,3 +64,65 @@ describe('PDF display metadata', () => {
     expect(formatPdfHeaderAuthors('   ')).toBe('');
   });
 });
+
+describe('native ebook cover ratio', () => {
+  it('reads cached native cover dimensions without waiting for load', async () => {
+    mockImageDimensions({ complete: true, naturalHeight: 200, naturalWidth: 300 });
+
+    const { container } = render(React.createElement(ArticleBook, { article: ebookSummary() }));
+    const book = container.querySelector('.article-book') as HTMLElement;
+
+    await waitFor(() => expect(book.style.getPropertyValue('--book-cover-ratio')).toBe('1.5'));
+  });
+
+  it('updates native cover dimensions from the image load event', async () => {
+    mockImageDimensions({ complete: false, naturalHeight: 300, naturalWidth: 180 });
+
+    const { container } = render(React.createElement(ArticleBook, { article: ebookSummary() }));
+    const book = container.querySelector('.article-book') as HTMLElement;
+    const image = container.querySelector('.article-book-cover-image') as HTMLImageElement;
+
+    expect(book.style.getPropertyValue('--book-cover-ratio')).toBe('0.72');
+
+    fireEvent.load(image);
+
+    await waitFor(() => expect(book.style.getPropertyValue('--book-cover-ratio')).toBe('0.6'));
+  });
+});
+
+function mockImageDimensions({
+  complete,
+  naturalHeight,
+  naturalWidth,
+}: {
+  complete: boolean;
+  naturalHeight: number;
+  naturalWidth: number;
+}) {
+  vi.spyOn(HTMLImageElement.prototype, 'complete', 'get').mockReturnValue(complete);
+  vi.spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get').mockReturnValue(naturalWidth);
+  vi.spyOn(HTMLImageElement.prototype, 'naturalHeight', 'get').mockReturnValue(naturalHeight);
+}
+
+function ebookSummary(): ArticleSummaryRecord {
+  return {
+    id: 'ebook_wide_cover',
+    url: 'ebook://ebook_wide_cover',
+    canonicalUrl: 'ebook://ebook_wide_cover',
+    title: '宽封面电子书',
+    byline: '作者',
+    contentHash: 'ebook_hash',
+    createdAt: '2026-06-28T00:00:00.000Z',
+    updatedAt: '2026-06-28T00:00:00.000Z',
+    sourceType: 'ebook',
+    leadImageUrl: 'data:image/png;base64,cover',
+    annotations: [],
+    ebook: {
+      metadata: {
+        format: 'epub',
+        fileName: 'wide.epub',
+        fileSize: 1024,
+      },
+    },
+  };
+}

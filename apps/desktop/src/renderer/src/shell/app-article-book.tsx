@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import i18next from 'i18next';
 import type { ArticleSummaryRecord } from '@yomitomo/shared';
 import { articleDisplayTitle } from '../reading-library/app-reading-library-utils';
@@ -21,6 +21,7 @@ type BookCoverFrameProps = {
   imageUrl?: string;
   nativeCover?: boolean;
   className?: string;
+  imageRef?: React.Ref<HTMLImageElement>;
   style: BookCoverFrameStyle;
   onImageLoad?: (event: React.SyntheticEvent<HTMLImageElement>) => void;
   onImageError?: (event: React.SyntheticEvent<HTMLImageElement>) => void;
@@ -55,24 +56,16 @@ export function ArticleBook({ article }: { article: ArticleSummaryRecord }) {
 
 function EbookBook({ article }: { article: ArticleSummaryRecord }) {
   const coverUrl = useEbookCover(article);
-  const [coverRatio, setCoverRatio] = useState<number | null>(null);
+  const { imageRef, ratio: coverRatio, updateRatio } = useNativeCoverRatio(coverUrl);
   const visual = useMemo(
     () => ebookBookVisual(article, coverUrl, coverRatio),
     [article, coverRatio, coverUrl],
   );
 
-  useEffect(() => {
-    setCoverRatio(null);
-  }, [coverUrl]);
-
-  function updateCoverRatio(event: React.SyntheticEvent<HTMLImageElement>) {
-    const { naturalHeight, naturalWidth } = event.currentTarget;
-    if (naturalWidth > 0 && naturalHeight > 0) setCoverRatio(naturalWidth / naturalHeight);
-  }
-
   return (
     <BookCoverFrame
       className={visual.className}
+      imageRef={visual.nativeCover ? imageRef : undefined}
       imageUrl={visual.imageUrl}
       nativeCover={visual.nativeCover}
       style={visual.style}
@@ -81,13 +74,14 @@ function EbookBook({ article }: { article: ArticleSummaryRecord }) {
       onImageError={(event) => {
         event.currentTarget.hidden = true;
       }}
-      onImageLoad={visual.nativeCover ? updateCoverRatio : undefined}
+      onImageLoad={visual.nativeCover ? updateRatio : undefined}
     />
   );
 }
 
 export function BookCoverFrame({
   className,
+  imageRef,
   imageUrl,
   nativeCover,
   onImageError,
@@ -112,6 +106,7 @@ export function BookCoverFrame({
               alt=""
               className="article-book-cover-image"
               loading="lazy"
+              ref={imageRef}
               src={imageUrl}
               onError={onImageError}
               onLoad={onImageLoad}
@@ -267,20 +262,25 @@ export function useArticleSiteIcon(articleId: string, enabled = true) {
 
 export function useNativeCoverRatio(imageUrl: string | undefined) {
   const [ratio, setRatio] = useState<number | null>(null);
-  const lastImageUrlRef = useRef<string | undefined>(imageUrl);
+  const imageRef = useRef<HTMLImageElement | null>(null);
 
-  useEffect(() => {
-    if (lastImageUrlRef.current === imageUrl) return;
-    lastImageUrlRef.current = imageUrl;
-    setRatio(null);
-  }, [imageUrl]);
+  const updateRatioFromImage = useCallback((image: HTMLImageElement) => {
+    const { naturalHeight, naturalWidth } = image;
+    if (naturalWidth > 0 && naturalHeight > 0) setRatio(naturalWidth / naturalHeight);
+  }, []);
 
   function updateRatio(event: React.SyntheticEvent<HTMLImageElement>) {
-    const { naturalHeight, naturalWidth } = event.currentTarget;
-    if (naturalWidth > 0 && naturalHeight > 0) setRatio(naturalWidth / naturalHeight);
+    updateRatioFromImage(event.currentTarget);
   }
 
-  return { ratio, updateRatio };
+  useEffect(() => {
+    setRatio(null);
+    const image = imageRef.current;
+    if (!imageUrl || !image?.complete) return;
+    updateRatioFromImage(image);
+  }, [imageUrl, updateRatioFromImage]);
+
+  return { imageRef, ratio, updateRatio };
 }
 
 export function nativeBookCoverStyle(ratio: number | null): BookCoverFrameStyle {
