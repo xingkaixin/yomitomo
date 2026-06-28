@@ -2431,19 +2431,25 @@ describe('ReadingLibrary home', () => {
     fireEvent.change(screen.getByLabelText('网页地址'), {
       target: { value: 'https://example.com/slow' },
     });
+    vi.useFakeTimers();
     fireEvent.click(screen.getByRole('button', { name: '解析添加' }));
 
     expect(screen.queryByRole('button', { name: '取消解析' })).toBeNull();
-    fireEvent.click(await screen.findByRole('button', { name: '取消解析' }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(650);
+    });
+    fireEvent.click(screen.getByRole('button', { name: '取消解析' }));
     expect(onCancelArticleImport).toHaveBeenCalledWith('article-import-1');
     expect(screen.getAllByText('已取消解析').length).toBeGreaterThan(0);
 
-    deferred.resolve({ status: 'imported', article: imported });
-    await waitFor(() => {
-      expect(screen.queryByDisplayValue('晚到文章')).toBeNull();
+    await act(async () => {
+      deferred.resolve({ status: 'imported', article: imported });
+      await Promise.resolve();
     });
+    await flushMicrotasks();
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(screen.getByDisplayValue('https://example.com/slow')).toBeTruthy();
+    expect(screen.queryByDisplayValue('晚到文章')).toBeNull();
   });
 
   it('shows webpage import errors inside the dialog', async () => {
