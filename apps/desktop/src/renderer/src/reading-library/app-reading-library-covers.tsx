@@ -12,11 +12,12 @@ export function WeReadCover({
   book: WeReadBook;
   variant?: 'book' | 'cover';
 }) {
-  const { ratio, updateRatio } = useNativeCoverRatio(book.cover);
+  const { imageRef, ratio, updateRatio } = useNativeCoverRatio(book.cover);
 
   return (
     <BookCoverFrame
       className={variant === 'cover' ? 'weread-book-cover is-flat-cover' : 'weread-book-cover'}
+      imageRef={book.cover ? imageRef : undefined}
       imageUrl={book.cover}
       nativeCover={Boolean(book.cover)}
       style={nativeBookCoverStyle(ratio)}
