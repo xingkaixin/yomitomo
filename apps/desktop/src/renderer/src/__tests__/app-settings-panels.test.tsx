@@ -15,11 +15,19 @@ import {
   UserProfileSettingsDialog,
   WeReadSettingsPanel,
 } from '../settings/app-settings-panels';
-import { defaultUser, emptyProvider, emptyStore, type AgentDraft } from '../settings/app-settings';
+import {
+  defaultUser,
+  emptyProvider,
+  emptyStore,
+  type AgentDraft,
+  type ProviderDraft,
+  type ProviderTestState,
+} from '../settings/app-settings';
 import type { Agent, AppSettings, LlmProvider } from '@yomitomo/shared';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 import { appToast } from '../shell/app-toast';
+import type { SaveState } from '../shell/app-types';
 
 vi.mock('../sound/app-sound-effects', () => ({
   playAppSoundEffect: vi.fn(),
@@ -477,25 +485,15 @@ describe('ProviderSettings', () => {
 
     render(
       <ProviderSettings
-        draft={providers[0]}
-        settingsDraft={{
-          readingAssistantProviderId: 'provider_1',
-          reviewAssistantProviderId: 'provider_2',
-        }}
-        providers={providers}
-        testState={{ status: 'idle' }}
-        canSave={false}
-        canSaveRoutes={true}
-        onChange={vi.fn()}
-        onRouteChange={vi.fn()}
-        onCreate={vi.fn()}
-        onDelete={vi.fn()}
-        onSave={vi.fn()}
-        saveState="idle"
-        routeSaveState="idle"
-        onRouteSave={vi.fn()}
-        onSelect={vi.fn()}
-        onTest={vi.fn()}
+        {...makeProviderSettingsProps({
+          providerValue: providers[0],
+          routesValue: {
+            readingAssistantProviderId: 'provider_1',
+            reviewAssistantProviderId: 'provider_2',
+          },
+          providers,
+          canSaveRoutes: true,
+        })}
       />,
     );
 
@@ -514,22 +512,11 @@ describe('ProviderSettings', () => {
 
     render(
       <ProviderSettings
-        draft={provider}
-        settingsDraft={{}}
-        providers={[provider]}
-        testState={{ status: 'idle' }}
-        canSave={false}
-        canSaveRoutes={false}
-        onChange={vi.fn()}
-        onRouteChange={vi.fn()}
-        onCreate={vi.fn()}
-        onDelete={vi.fn()}
-        onSave={vi.fn()}
-        saveState="idle"
-        routeSaveState="idle"
-        onRouteSave={vi.fn()}
-        onSelect={onSelect}
-        onTest={vi.fn()}
+        {...makeProviderSettingsProps({
+          providerValue: provider,
+          providers: [provider],
+          onSelect,
+        })}
       />,
     );
 
@@ -546,22 +533,12 @@ describe('ProviderSettings', () => {
 
     render(
       <ProviderSettings
-        draft={provider}
-        settingsDraft={{}}
-        providers={[provider]}
-        testState={{ status: 'idle' }}
-        canSave
-        canSaveRoutes={false}
-        onChange={vi.fn()}
-        onRouteChange={vi.fn()}
-        onCreate={vi.fn()}
-        onDelete={vi.fn()}
-        onSave={onSave}
-        saveState="idle"
-        routeSaveState="idle"
-        onRouteSave={vi.fn()}
-        onSelect={vi.fn()}
-        onTest={vi.fn()}
+        {...makeProviderSettingsProps({
+          providerValue: provider,
+          providers: [provider],
+          canSave: true,
+          onSave,
+        })}
       />,
     );
 
@@ -585,31 +562,12 @@ describe('ProviderSettings', () => {
 
     render(
       <ProviderSettings
-        providerDraft={{
-          value: provider,
+        {...makeProviderSettingsProps({
+          providerValue: provider,
+          providers: [provider],
           canSave: true,
-          create: vi.fn(),
-          deleteProvider: vi.fn(),
-          reset: vi.fn(),
-          save,
-          saveError: '',
-          saveState: 'idle',
-          select: vi.fn(),
-          selectedProviderId: provider.id,
-          test: vi.fn(),
-          testState: { status: 'idle' },
-          update: vi.fn(),
-        }}
-        routesDraft={{
-          value: {},
-          canSave: false,
-          reset: vi.fn(),
-          save: vi.fn(),
-          saveError: '',
-          saveState: 'idle',
-          update: vi.fn(),
-        }}
-        providers={[provider]}
+          onSave: save,
+        })}
       />,
     );
 
@@ -627,22 +585,11 @@ describe('ProviderSettings', () => {
 
     render(
       <ProviderSettings
-        draft={provider}
-        settingsDraft={{}}
-        providers={[provider]}
-        testState={{ status: 'idle' }}
-        canSave={false}
-        canSaveRoutes={false}
-        onChange={vi.fn()}
-        onRouteChange={vi.fn()}
-        onCreate={vi.fn()}
-        onDelete={onDelete}
-        onSave={vi.fn()}
-        saveState="idle"
-        routeSaveState="idle"
-        onRouteSave={vi.fn()}
-        onSelect={vi.fn()}
-        onTest={vi.fn()}
+        {...makeProviderSettingsProps({
+          providerValue: provider,
+          providers: [provider],
+          onDelete,
+        })}
       />,
     );
 
@@ -694,6 +641,76 @@ describe('ProviderSettings', () => {
   });
 });
 
+type ProviderSettingsFixtureOptions = {
+  providerValue: ProviderDraft;
+  providers: LlmProvider[];
+  routesValue?: AppSettings;
+  testState?: ProviderTestState;
+  canSave?: boolean;
+  canSaveRoutes?: boolean;
+  saveState?: SaveState;
+  saveError?: string;
+  routeSaveState?: SaveState;
+  routeSaveError?: string;
+  onProviderChange?: (draft: ProviderDraft) => void;
+  onRoutesChange?: (draft: AppSettings) => void;
+  onCreate?: () => void;
+  onDelete?: (id: string) => Promise<void> | void;
+  onSave?: (draft?: ProviderDraft) => Promise<boolean | undefined> | boolean | undefined;
+  onRouteSave?: (draft?: AppSettings) => Promise<void> | void;
+  onSelect?: (provider: LlmProvider) => void;
+  onTest?: (draft: ProviderDraft) => Promise<void> | void;
+};
+
+function makeProviderSettingsProps({
+  providerValue,
+  providers,
+  routesValue = {},
+  testState = { status: 'idle' },
+  canSave = false,
+  canSaveRoutes = false,
+  saveState = 'idle',
+  saveError = '',
+  routeSaveState = 'idle',
+  routeSaveError = '',
+  onProviderChange = vi.fn(),
+  onRoutesChange = vi.fn(),
+  onCreate = vi.fn(),
+  onDelete = vi.fn(),
+  onSave = vi.fn(async () => true),
+  onRouteSave = vi.fn(),
+  onSelect = vi.fn(),
+  onTest = vi.fn(),
+}: ProviderSettingsFixtureOptions): React.ComponentProps<typeof ProviderSettings> {
+  return {
+    providerDraft: {
+      value: providerValue,
+      canSave,
+      create: onCreate,
+      deleteProvider: onDelete,
+      reset: vi.fn(),
+      save: async (override) => (override === undefined ? onSave() : onSave(override)),
+      saveError,
+      saveState,
+      select: onSelect,
+      selectedProviderId: providerValue.id || null,
+      test: onTest,
+      testState,
+      update: onProviderChange,
+    },
+    routesDraft: {
+      value: routesValue,
+      canSave: canSaveRoutes,
+      reset: vi.fn(),
+      save: async (override) => (override === undefined ? onRouteSave() : onRouteSave(override)),
+      saveError: routeSaveError,
+      saveState: routeSaveState,
+      update: onRoutesChange,
+    },
+    providers,
+  };
+}
+
 function StatefulProviderForm({ initialDraft }: { initialDraft: typeof emptyProvider }) {
   const [draft, setDraft] = React.useState(initialDraft);
   return <ProviderForm draft={draft} onChange={setDraft} />;
@@ -706,26 +723,17 @@ function StatefulEmptyProviderSettings({
   onCreate: () => void;
   onTest: (draft: typeof emptyProvider) => void;
 }) {
-  const [draft, setDraft] = React.useState(emptyProvider);
+  const [draft, setDraft] = React.useState<ProviderDraft>(emptyProvider);
 
   return (
     <ProviderSettings
-      draft={draft}
-      settingsDraft={{}}
-      providers={[]}
-      testState={{ status: 'idle' }}
-      canSave={false}
-      canSaveRoutes={false}
-      onChange={setDraft}
-      onRouteChange={vi.fn()}
-      onCreate={onCreate}
-      onDelete={vi.fn()}
-      onSave={vi.fn()}
-      saveState="idle"
-      routeSaveState="idle"
-      onRouteSave={vi.fn()}
-      onSelect={vi.fn()}
-      onTest={onTest}
+      {...makeProviderSettingsProps({
+        providerValue: draft,
+        providers: [],
+        onProviderChange: setDraft,
+        onCreate,
+        onTest,
+      })}
     />
   );
 }
