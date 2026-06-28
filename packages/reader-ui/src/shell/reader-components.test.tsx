@@ -1619,6 +1619,48 @@ describe('ReaderFloatingToolbar search mode', () => {
     expect(clearShell.querySelector('.t-clear-mirror')?.textContent).toBe('alpha\u00a0beta');
     expect(glow.style.background).toContain('radial-gradient');
   });
+
+  it('keeps production-minified clear durations in milliseconds', async () => {
+    vi.useFakeTimers();
+    stubReducedMotion(false);
+    let frameTime = 0;
+    const performanceNow = vi.spyOn(performance, 'now').mockImplementation(() => frameTime);
+    const frameTimes = [16, 1000, 1016];
+    const requestAnimationFrameMock = vi.fn((callback: FrameRequestCallback) =>
+      window.setTimeout(() => {
+        frameTime = frameTimes.shift() ?? frameTime + 16;
+        callback(frameTime);
+      }, 0),
+    );
+    const cancelAnimationFrameMock = vi.fn((handle: number) => window.clearTimeout(handle));
+    vi.stubGlobal('requestAnimationFrame', requestAnimationFrameMock);
+    vi.stubGlobal('cancelAnimationFrame', cancelAnimationFrameMock);
+    window.requestAnimationFrame = requestAnimationFrameMock;
+    window.cancelAnimationFrame = cancelAnimationFrameMock;
+    const { container } = renderSearchToolbar({ initialQuery: 'alpha beta' });
+    const clearShell = container.querySelector<HTMLElement>('.reader-search-input-shell');
+    if (!clearShell) throw new Error('Expected the search clear shell to render');
+    clearShell.style.setProperty('--clear-dur', '1s');
+    clearShell.style.setProperty('--clear-out-dur', '.4s');
+    clearShell.style.setProperty('--clear-in-dur', '.4s');
+    clearShell.style.setProperty('--glow-delay', '50ms');
+
+    fireEvent.click(screen.getByRole('button', { name: '清空搜索' }));
+
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+
+    expect(clearShell.classList.contains('is-clearing')).toBe(true);
+
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await vi.runOnlyPendingTimersAsync();
+    });
+
+    expect(clearShell.classList.contains('is-clearing')).toBe(false);
+    performanceNow.mockRestore();
+  });
 });
 
 describe('SelectionMenu', () => {

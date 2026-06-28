@@ -23,6 +23,7 @@
     "./reader-annotation-connection": "./src/annotations/reader-annotation-connection.tsx",
     "./reader-connection-path": "./src/reader-connection-path.ts",
     "./reader-types": "./src/reader-types.ts",
+    "./reader-search-clear-dissolve-core": "./src/shell/reader-search-clear-dissolve-core.ts",
     "./use-composition-submit": "./src/use-composition-submit.ts",
     "./use-agent-annotation-queue": "./src/agent/use-agent-annotation-queue.ts",
     "./use-agent-reading-dock": "./src/agent/use-agent-reading-dock.ts"
