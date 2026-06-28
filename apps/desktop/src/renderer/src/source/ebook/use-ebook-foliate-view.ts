@@ -27,6 +27,7 @@ import {
   recordRendererPerformanceTiming,
   type EbookBookcaseProps,
 } from '../bookcase/app-source-bookcase-shared';
+import { useSourceReadingProgressSaver } from '../bookcase/use-source-reading-progress-saver';
 
 type EbookReaderState = {
   status: 'loading' | 'ready' | 'error';
@@ -267,7 +268,6 @@ export function useEbookFoliateView({
   const readerThemeRef = useRef<ReaderTheme>(readerTheme);
   const maxColumnCountRef = useRef(1);
   const progressRef = useRef(article.readingProgress?.progress ?? 0);
-  const onSaveArticleReadingProgressRef = useRef(onSaveArticleReadingProgress);
   const onBeforePageTurnRef = useRef(onBeforePageTurn);
   const pageTurnQueueRef = useRef<PageTurnDirection[]>([]);
   const pageTurnRunningRef = useRef(false);
@@ -283,10 +283,11 @@ export function useEbookFoliateView({
     message: i18next.t('ebookReader.opening'),
   });
   const readerStateStatusRef = useRef<EbookReaderState['status']>(readerState.status);
-
-  useEffect(() => {
-    onSaveArticleReadingProgressRef.current = onSaveArticleReadingProgress;
-  }, [onSaveArticleReadingProgress]);
+  const { scheduleSave: scheduleEbookProgressSave } = useSourceReadingProgressSaver({
+    articleId: article.id,
+    initialProgress: article.readingProgress,
+    onSaveArticleReadingProgress,
+  });
 
   useEffect(() => {
     onBeforePageTurnRef.current = onBeforePageTurn;
@@ -412,7 +413,7 @@ export function useEbookFoliateView({
       }
       onAttachFoliateDocumentListeners(event.currentTarget as FoliateViewElement);
       onScheduleEbookBoxUpdate('relocate');
-      void onSaveArticleReadingProgressRef.current(article.id, {
+      scheduleEbookProgressSave({
         ...progressSnapshot,
         updatedAt: new Date().toISOString(),
       });
@@ -514,6 +515,7 @@ export function useEbookFoliateView({
     onCleanupFoliateDocumentListeners,
     onScheduleEbookBoxUpdate,
     pageTurnTraceRef,
+    scheduleEbookProgressSave,
   ]);
 
   useLayoutEffect(() => {

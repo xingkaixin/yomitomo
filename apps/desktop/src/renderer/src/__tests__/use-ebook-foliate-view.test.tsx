@@ -510,6 +510,112 @@ describe('useEbookFoliateView', () => {
     expect(mobiFile.type).toBe('application/x-mobipocket-ebook');
   });
 
+  it('debounces ebook relocate progress saves while preserving page anchors', async () => {
+    installMockFoliateEnvironment([3, 20, 5]);
+    const onBeforePageTurn = vi.fn();
+    const onScheduleEbookBoxUpdate = vi.fn((_reason: EbookBoxUpdateReason) => undefined);
+    render(
+      <MountedFoliateViewProbe
+        articleInput={ebookArticleWithId('ebook-relocate-save')}
+        onBeforePageTurn={onBeforePageTurn}
+        onScheduleEbookBoxUpdate={onScheduleEbookBoxUpdate}
+      />,
+    );
+    await runPendingEbookPaginationWork();
+    onSaveArticleReadingProgress.mockClear();
+
+    const visibleView = mockFoliateViews.find((view) => view.role === 'visible');
+    expect(visibleView).toBeDefined();
+    visibleView!.getPageInfo = () => ({ sectionIndex: 1, pageIndex: 13, pageCount: 20 });
+
+    act(() => {
+      visibleView!.dispatchEvent(
+        new CustomEvent('relocate', {
+          detail: {
+            fraction: 0.3,
+            location: { current: 30, total: 100 },
+            section: { current: 1 },
+          },
+        }),
+      );
+      visibleView!.dispatchEvent(
+        new CustomEvent('relocate', {
+          detail: {
+            fraction: 0.42,
+            location: { current: 42, total: 100 },
+            section: { current: 1 },
+          },
+        }),
+      );
+      vi.advanceTimersByTime(449);
+    });
+
+    expect(onSaveArticleReadingProgress).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+
+    expect(onSaveArticleReadingProgress).toHaveBeenCalledTimes(1);
+    expect(onSaveArticleReadingProgress).toHaveBeenCalledWith(
+      'ebook-relocate-save',
+      expect.objectContaining({
+        chapterIndex: 1,
+        chapterProgress: 13 / 19,
+        pageCount: 20,
+        pageIndex: 13,
+        progress: 0.42,
+        updatedAt: expect.any(String),
+      }),
+    );
+  });
+
+  it('flushes pending ebook relocate progress when the view unmounts', async () => {
+    installMockFoliateEnvironment([6]);
+    const onBeforePageTurn = vi.fn();
+    const onScheduleEbookBoxUpdate = vi.fn((_reason: EbookBoxUpdateReason) => undefined);
+    const { unmount } = render(
+      <MountedFoliateViewProbe
+        articleInput={ebookArticleWithId('ebook-relocate-flush')}
+        onBeforePageTurn={onBeforePageTurn}
+        onScheduleEbookBoxUpdate={onScheduleEbookBoxUpdate}
+      />,
+    );
+    await runPendingEbookPaginationWork();
+    onSaveArticleReadingProgress.mockClear();
+
+    const visibleView = mockFoliateViews.find((view) => view.role === 'visible');
+    expect(visibleView).toBeDefined();
+    visibleView!.getPageInfo = () => ({ sectionIndex: 0, pageIndex: 4, pageCount: 6 });
+
+    act(() => {
+      visibleView!.dispatchEvent(
+        new CustomEvent('relocate', {
+          detail: {
+            fraction: 0.8,
+            location: { current: 4, total: 6 },
+            section: { current: 0 },
+          },
+        }),
+      );
+    });
+
+    expect(onSaveArticleReadingProgress).not.toHaveBeenCalled();
+
+    unmount();
+
+    expect(onSaveArticleReadingProgress).toHaveBeenCalledWith(
+      'ebook-relocate-flush',
+      expect.objectContaining({
+        chapterIndex: 0,
+        chapterProgress: 4 / 5,
+        pageCount: 6,
+        pageIndex: 4,
+        progress: 0.8,
+      }),
+    );
+  });
+
   it('stores the visible ebook page anchor separately from read-through progress', () => {
     expect(ebookReadingProgressPageAnchor({ sectionIndex: 2, pageIndex: 13, pageCount: 20 })).toBe(
       13 / 19,
