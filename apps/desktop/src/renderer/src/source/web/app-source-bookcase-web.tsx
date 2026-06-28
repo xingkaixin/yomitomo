@@ -90,6 +90,7 @@ import { useSourceReaderWorkspace } from '../bookcase/use-source-reader-workspac
 import { buildSourceReaderAppActions } from '../bookcase/source-reader-app-actions';
 import { buildSourceReaderAppViewProps } from '../bookcase/source-reader-app-view-props';
 import { useReaderSearchMatches } from '../bookcase/use-reader-search-matches';
+import { useSourceReadingProgressSaver } from '../bookcase/use-source-reading-progress-saver';
 
 const WEB_SELECTION_DRAG_ANNOTATION_ID = '__selection_drag__';
 const WEB_HIGHLIGHT_HIT_PADDING = 8;
@@ -97,6 +98,8 @@ const WEB_ANNOTATION_RAIL_DEBUG_STORAGE_KEY = 'yomitomo:web-annotation-rail-debu
 const WEB_ANNOTATION_RAIL_DEBUG_INTERVAL_MS = 80;
 const WEB_ANNOTATION_RAIL_DEBUG_OVERSCAN = 96;
 const WEB_ANNOTATION_RAIL_DEBUG_SAMPLE_LIMIT = 12;
+const WEB_READING_PROGRESS_SAVE_DEBOUNCE_MS = 450;
+const WEB_READING_PROGRESS_SAVE_MIN_DELTA = 0.01;
 
 type ReaderRailViewport = {
   height: number;
@@ -197,7 +200,6 @@ export function WebSourceBookcase({
   const articleSelectionGestureRef = useRef<WebSelectionGesturePoint | null>(null);
   const articleSelectionGestureDragPointRef = useRef<WebSelectionGestureClientPoint | null>(null);
   const deferredArticleTranslationRef = useRef<ArticleTranslation | null>(null);
-  const lastSavedWebProgressRef = useRef<number | null>(null);
   const restoredWebProgressArticleRef = useRef<string | null>(null);
   const noteRefs = useRef(new Map<string, HTMLElement>());
   const { markAnnotationCreated, newAnnotationIds } = useRecentAnnotationFeedback(
@@ -208,6 +210,21 @@ export function WebSourceBookcase({
   const [readingProgress, setReadingProgress] = useState(
     () => normalizeSavedWebProgress(article.readingProgress) ?? 0,
   );
+  const shouldSaveWebProgress = useCallback(
+    (nextProgress: ArticleReadingProgress, lastSavedProgress: ArticleReadingProgress | null) =>
+      !lastSavedProgress ||
+      Math.abs(nextProgress.progress - lastSavedProgress.progress) >=
+        WEB_READING_PROGRESS_SAVE_MIN_DELTA,
+    [],
+  );
+  const { saveNow: saveWebProgressNow, scheduleSave: scheduleWebProgressSave } =
+    useSourceReadingProgressSaver({
+      articleId: article.id,
+      debounceMs: WEB_READING_PROGRESS_SAVE_DEBOUNCE_MS,
+      initialProgress: article.readingProgress,
+      onSaveArticleReadingProgress,
+      shouldSave: shouldSaveWebProgress,
+    });
   const [annotationRailViewport, setAnnotationRailViewport] = useState<ReaderRailViewport>({
     height: 0,
     top: 0,
@@ -469,8 +486,7 @@ export function WebSourceBookcase({
     articleSelectionGestureDragPointRef.current = null;
     clearTranslationSuccessFeedback();
     translationSegmentStatusRef.current.clear();
-    lastSavedWebProgressRef.current = normalizeSavedWebProgress(article.readingProgress);
-    setReadingProgress(lastSavedWebProgressRef.current ?? 0);
+    setReadingProgress(normalizeSavedWebProgress(article.readingProgress) ?? 0);
     restoredWebProgressArticleRef.current = null;
   }, [article?.id]);
 
@@ -623,41 +639,29 @@ export function WebSourceBookcase({
     const scrollElement = scrollRef.current;
     if (!scrollElement) return;
 
-    let saveTimer: number | undefined;
-    const saveProgress = () => {
-      const progress = webReaderProgress(scrollElement);
-      if (
-        lastSavedWebProgressRef.current !== null &&
-        Math.abs(progress - lastSavedWebProgressRef.current) < 0.01
-      ) {
-        return;
-      }
-
-      lastSavedWebProgressRef.current = progress;
-      void onSaveArticleReadingProgress(article.id, webReadingProgressSnapshot(progress));
-    };
+    const currentProgressSnapshot = () =>
+      webReadingProgressSnapshot(webReaderProgress(scrollElement));
     const updateProgress = () => {
       setReadingProgress(webReaderProgress(scrollElement));
     };
     const scheduleSave = () => {
       updateProgress();
-      if (saveTimer !== undefined) window.clearTimeout(saveTimer);
-      saveTimer = window.setTimeout(saveProgress, 450);
+      scheduleWebProgressSave(currentProgressSnapshot());
     };
 
     const initialFrame = window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         updateProgress();
-        if (webReaderMaxScrollTop(scrollElement) <= 0) saveProgress();
+        if (webReaderMaxScrollTop(scrollElement) <= 0)
+          saveWebProgressNow(currentProgressSnapshot());
       });
     });
     scrollElement.addEventListener('scroll', scheduleSave, { passive: true });
     return () => {
       scrollElement.removeEventListener('scroll', scheduleSave);
       window.cancelAnimationFrame(initialFrame);
-      if (saveTimer !== undefined) window.clearTimeout(saveTimer);
     };
-  }, [article.id, onSaveArticleReadingProgress]);
+  }, [article.id, saveWebProgressNow, scheduleWebProgressSave]);
 
   useLayoutEffect(() => {
     const scrollElement = scrollRef.current;
