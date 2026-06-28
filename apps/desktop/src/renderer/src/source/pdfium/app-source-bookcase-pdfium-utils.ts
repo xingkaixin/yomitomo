@@ -1,5 +1,6 @@
 import type { PdfBookmarkObject, PdfPageGeometry } from '@embedpdf/models';
 import i18next from 'i18next';
+import type { SelectionAdjustmentHandle } from '@yomitomo/reader-ui/reader-app-view';
 import {
   createPdfTextAnchor,
   createTextAnchor,
@@ -69,6 +70,21 @@ export type PdfAnnotationNavigationState = {
 export type PdfiumCanvasPoint = {
   x: number;
   y: number;
+};
+
+export type PdfiumSelectionAdjustment = {
+  endOffset: number;
+  handle: SelectionAdjustmentHandle;
+  startOffset: number;
+};
+
+export type PdfiumSelectionAdjustedOffsets = {
+  endOffset: number;
+  startOffset: number;
+};
+
+export type PdfiumSelectionPoint = {
+  sourceOffset: number;
 };
 
 export type PdfiumWheelDelta = {
@@ -442,6 +458,98 @@ export function pdfiumTemporaryBoxes(
     width: Math.max(1, rect.width * metric.width),
     height: Math.max(2, rect.height * metric.height),
   }));
+}
+
+export function pdfiumSelectionAdjustedOffsets({
+  endOffset,
+  handle,
+  sourceOffset,
+  startOffset,
+}: {
+  endOffset: number;
+  handle: SelectionAdjustmentHandle;
+  sourceOffset: number;
+  startOffset: number;
+}): PdfiumSelectionAdjustedOffsets | null {
+  const fixedOffset = handle === 'start' ? endOffset : startOffset;
+  const nextStartOffset = Math.min(fixedOffset, sourceOffset);
+  const nextEndOffset = Math.max(fixedOffset, sourceOffset);
+  if (nextStartOffset === nextEndOffset) return null;
+  return { startOffset: nextStartOffset, endOffset: nextEndOffset };
+}
+
+export function pdfiumSelectionDraggingHandle(
+  adjustment: PdfiumSelectionAdjustment,
+  sourceOffset: number,
+): SelectionAdjustmentHandle {
+  const fixedOffset = adjustment.handle === 'start' ? adjustment.endOffset : adjustment.startOffset;
+  return sourceOffset < fixedOffset ? 'start' : 'end';
+}
+
+export function pdfiumSelectionPointFromClientPoint({
+  canvasRect,
+  clientX,
+  clientY,
+  geometry,
+  metric,
+  pageHeight,
+  pageTextLength,
+  pageWidth,
+}: {
+  canvasRect: Pick<DOMRect, 'left' | 'top'>;
+  clientX: number;
+  clientY: number;
+  geometry: PdfPageGeometry;
+  metric: PageMetric;
+  pageHeight: number;
+  pageTextLength: number;
+  pageWidth: number;
+}): PdfiumSelectionPoint | null {
+  const canvasX = clientX - canvasRect.left;
+  const canvasY = clientY - canvasRect.top;
+  if (
+    canvasX < metric.left ||
+    canvasX > metric.left + metric.width ||
+    canvasY < metric.top ||
+    canvasY > metric.top + metric.height
+  ) {
+    return null;
+  }
+
+  const pageX = ((canvasX - metric.left) / metric.width) * pageWidth;
+  const pageY = ((canvasY - metric.top) / metric.height) * pageHeight;
+  const sourceOffset = pdfiumSelectionOffsetAtPagePoint(geometry, pageX, pageY, pageTextLength);
+  return sourceOffset === null ? null : { sourceOffset };
+}
+
+export function pdfiumSelectionAnchorForOffsets({
+  endOffset,
+  geometry,
+  pageHeight,
+  pageIndex,
+  pageText,
+  pageWidth,
+  startOffset,
+}: {
+  endOffset: number;
+  geometry: PdfPageGeometry;
+  pageHeight: number;
+  pageIndex: number;
+  pageText: string;
+  pageWidth: number;
+  startOffset: number;
+}) {
+  const rects = pdfiumRectsForTextRange(geometry, startOffset, endOffset, pageWidth, pageHeight);
+  if (rects.length === 0) return null;
+  return createPdfTextAnchor({
+    pageText,
+    pageIndex,
+    start: startOffset,
+    end: endOffset,
+    pageWidth,
+    pageHeight,
+    rects,
+  });
 }
 
 export function pageMetricIntersectsBox(
@@ -885,6 +993,52 @@ export function pdfiumRectsForTextRange(
     });
   }
   return rects;
+}
+
+function pdfiumSelectionOffsetAtPagePoint(
+  geometry: PdfPageGeometry,
+  pageX: number,
+  pageY: number,
+  pageTextLength: number,
+) {
+  let best: { offset: number; score: number } | null = null;
+
+  for (const run of geometry.runs) {
+    const runStart = run.charStart;
+    for (let index = 0; index < run.glyphs.length; index += 1) {
+      const glyph = run.glyphs[index];
+      if (!glyph || glyph.flags === 2) continue;
+
+      const charIndex = runStart + index;
+      if (charIndex < 0 || charIndex > pageTextLength) continue;
+
+      const centerX = glyph.x + glyph.width / 2;
+      const centerY = glyph.y + glyph.height / 2;
+      const offset = pageX <= centerX ? charIndex : charIndex + 1;
+      const score =
+        pdfiumSelectionPointRectDistance(pageX, pageY, glyph) * 1_000_000 +
+        Math.hypot(pageX - centerX, pageY - centerY);
+
+      if (!best || score < best.score) {
+        best = {
+          offset: Math.max(0, Math.min(offset, pageTextLength)),
+          score,
+        };
+      }
+    }
+  }
+
+  return best?.offset ?? null;
+}
+
+function pdfiumSelectionPointRectDistance(
+  x: number,
+  y: number,
+  rect: { height: number; width: number; x: number; y: number },
+) {
+  const dx = x < rect.x ? rect.x - x : x > rect.x + rect.width ? x - (rect.x + rect.width) : 0;
+  const dy = y < rect.y ? rect.y - y : y > rect.y + rect.height ? y - (rect.y + rect.height) : 0;
+  return dx * dx + dy * dy;
 }
 
 export function samePageMetrics(
