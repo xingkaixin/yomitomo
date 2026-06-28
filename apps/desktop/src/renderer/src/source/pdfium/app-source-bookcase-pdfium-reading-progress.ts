@@ -8,6 +8,7 @@ import {
   pdfReadingProgress,
 } from './app-source-bookcase-pdfium-utils';
 import { recordPdfOpenTiming, type PdfOpenTrace } from './app-source-bookcase-pdfium-open-trace';
+import { useSourceReadingProgressSaver } from '../bookcase/use-source-reading-progress-saver';
 
 type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']> };
 
@@ -27,7 +28,6 @@ export function usePdfiumReadingProgress({
   onSaveArticleReadingProgress: SourceBookcaseProps['onSaveArticleReadingProgress'];
 }) {
   const initialPageIndexRef = useRef(normalizeInitialPageIndex(article));
-  const lastSavedPageRef = useRef(initialPageIndexRef.current);
   const restoredInitialPageRef = useRef(false);
   const restoreOverlayHiddenLoggedRef = useRef(false);
   const restoringInitialPageRef = useRef(initialPageIndexRef.current > 0);
@@ -38,10 +38,15 @@ export function usePdfiumReadingProgress({
     () => initialPageIndexRef.current > 0,
   );
   const [currentPage, setCurrentPage] = useState(() => initialPageIndexRef.current + 1);
+  const { saveNow: savePdfProgressNow } = useSourceReadingProgressSaver({
+    articleId: article.id,
+    debounceMs: 0,
+    initialProgress: article.readingProgress,
+    onSaveArticleReadingProgress,
+  });
 
   useEffect(() => {
     initialPageIndexRef.current = normalizeInitialPageIndex(article);
-    lastSavedPageRef.current = initialPageIndexRef.current;
     restoredInitialPageRef.current = false;
     restoreOverlayHiddenLoggedRef.current = false;
     restoringInitialPageRef.current = initialPageIndexRef.current > 0;
@@ -95,16 +100,14 @@ export function usePdfiumReadingProgress({
         suppressPageSaveUntilRestoreRef.current = false;
       }
       setCurrentPage(pageIndex + 1);
-      if (lastSavedPageRef.current === pageIndex) return;
-      lastSavedPageRef.current = pageIndex;
-      void onSaveArticleReadingProgress(article.id, pdfReadingProgress(pageIndex, pageCount));
+      savePdfProgressNow(pdfReadingProgress(pageIndex, pageCount));
     };
 
     const unsubscribe = scroll.onScroll?.(saveCurrentPage);
     return () => {
       unsubscribe?.();
     };
-  }, [article.id, documentReady, onSaveArticleReadingProgress, openTrace, pageCount, scroll]);
+  }, [documentReady, pageCount, savePdfProgressNow, scroll]);
 
   const markInitialPageReady = useCallback(() => {
     restoringInitialPageRef.current = false;
