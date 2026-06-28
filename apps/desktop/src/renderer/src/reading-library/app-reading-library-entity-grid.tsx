@@ -33,38 +33,14 @@ import type {
 
 export function LibraryEntityGrid({
   activeCollectionId,
+  actions,
   draggedRef,
   entities,
-  onDeleteArticle,
-  onOpenCollection,
-  onOpenArticle,
-  onOpenWeReadBook,
-  onOpenWeReadExternal,
-  onRenameCollection,
-  onDeleteCollection,
-  onOpenCollectionPicker,
-  onAddCollectionMembers,
-  onRemoveCollectionMember,
-  onSetPinned,
-  onDragStart,
-  onDragEnd,
 }: {
   activeCollectionId: string | null;
+  actions: LibraryEntityActions;
   draggedRef: ContentRef | null;
   entities: LibraryEntity[];
-  onDeleteArticle: (article: ArticleSummaryRecord) => void;
-  onOpenCollection: (collection: Collection) => void;
-  onOpenArticle: (article: ArticleSummaryRecord) => void;
-  onOpenWeReadBook: (book: WeReadBook) => void;
-  onOpenWeReadExternal: (book: WeReadBook) => void;
-  onRenameCollection: (collection: Collection) => void;
-  onDeleteCollection: (collection: Collection) => void;
-  onOpenCollectionPicker: (collection: Collection) => void;
-  onAddCollectionMembers: (collectionId: string, members: ContentRef[]) => void;
-  onRemoveCollectionMember?: (entity: LibraryItemEntity) => void;
-  onSetPinned: (entity: LibraryEntity, pinned: boolean) => void;
-  onDragStart: (ref: ContentRef, event: React.DragEvent<HTMLElement>) => void;
-  onDragEnd: () => void;
 }) {
   return (
     <div className="library-entity-scroll">
@@ -72,22 +48,10 @@ export function LibraryEntityGrid({
         {entities.map((entity) => (
           <LibraryEntityCard
             activeCollectionId={activeCollectionId}
+            actions={actions}
             draggedRef={draggedRef}
             entity={entity}
             key={libraryEntityKey(entity)}
-            onDeleteArticle={onDeleteArticle}
-            onOpenCollection={onOpenCollection}
-            onOpenArticle={onOpenArticle}
-            onOpenWeReadBook={onOpenWeReadBook}
-            onOpenWeReadExternal={onOpenWeReadExternal}
-            onRenameCollection={onRenameCollection}
-            onDeleteCollection={onDeleteCollection}
-            onOpenCollectionPicker={onOpenCollectionPicker}
-            onAddCollectionMembers={onAddCollectionMembers}
-            onRemoveCollectionMember={onRemoveCollectionMember}
-            onSetPinned={(pinned) => onSetPinned(entity, pinned)}
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
           />
         ))}
       </div>
@@ -95,40 +59,32 @@ export function LibraryEntityGrid({
   );
 }
 
+type LibraryEntityActions = {
+  addCollectionMembers: (collectionId: string, members: ContentRef[]) => void;
+  deleteArticle: (article: ArticleSummaryRecord) => void;
+  deleteCollection: (collection: Collection) => void;
+  endDrag: () => void;
+  openArticle: (article: ArticleSummaryRecord) => void;
+  openCollection: (collection: Collection) => void;
+  openCollectionPicker: (collection: Collection) => void;
+  openWeReadBook: (book: WeReadBook) => void;
+  openWeReadExternal: (book: WeReadBook) => void;
+  removeCollectionMember?: (entity: LibraryItemEntity) => void;
+  renameCollection: (collection: Collection) => void;
+  setPinned: (entity: LibraryEntity, pinned: boolean) => void;
+  startDrag: (ref: ContentRef, event: React.DragEvent<HTMLElement>) => void;
+};
+
 function LibraryEntityCard({
   activeCollectionId,
+  actions,
   draggedRef,
   entity,
-  onDeleteArticle,
-  onOpenCollection,
-  onOpenArticle,
-  onOpenWeReadBook,
-  onOpenWeReadExternal,
-  onRenameCollection,
-  onDeleteCollection,
-  onOpenCollectionPicker,
-  onAddCollectionMembers,
-  onRemoveCollectionMember,
-  onSetPinned,
-  onDragStart,
-  onDragEnd,
 }: {
   activeCollectionId: string | null;
+  actions: LibraryEntityActions;
   draggedRef: ContentRef | null;
   entity: LibraryEntity;
-  onDeleteArticle: (article: ArticleSummaryRecord) => void;
-  onOpenCollection: (collection: Collection) => void;
-  onOpenArticle: (article: ArticleSummaryRecord) => void;
-  onOpenWeReadBook: (book: WeReadBook) => void;
-  onOpenWeReadExternal: (book: WeReadBook) => void;
-  onRenameCollection: (collection: Collection) => void;
-  onDeleteCollection: (collection: Collection) => void;
-  onOpenCollectionPicker: (collection: Collection) => void;
-  onAddCollectionMembers: (collectionId: string, members: ContentRef[]) => void;
-  onRemoveCollectionMember?: (entity: LibraryItemEntity) => void;
-  onSetPinned: (pinned: boolean) => void;
-  onDragStart: (ref: ContentRef, event: React.DragEvent<HTMLElement>) => void;
-  onDragEnd: () => void;
 }) {
   if (entity.kind === 'col') {
     return (
@@ -136,13 +92,13 @@ function LibraryEntityCard({
         draggedRef={draggedRef}
         entity={entity}
         pinned={entity.pinned}
-        onAddMembers={(members) => onAddCollectionMembers(entity.collection.id, members)}
-        onDelete={() => onDeleteCollection(entity.collection)}
-        onOpen={() => onOpenCollection(entity.collection)}
-        onOpenPicker={() => onOpenCollectionPicker(entity.collection)}
-        onRename={() => onRenameCollection(entity.collection)}
-        onSetPinned={onSetPinned}
-        onDragEnd={onDragEnd}
+        onAddMembers={(members) => actions.addCollectionMembers(entity.collection.id, members)}
+        onDelete={() => actions.deleteCollection(entity.collection)}
+        onOpen={() => actions.openCollection(entity.collection)}
+        onOpenPicker={() => actions.openCollectionPicker(entity.collection)}
+        onRename={() => actions.renameCollection(entity.collection)}
+        onSetPinned={(pinned) => actions.setPinned(entity, pinned)}
+        onDragEnd={actions.endDrag}
       />
     );
   }
@@ -152,14 +108,14 @@ function LibraryEntityCard({
       <ArticleLibraryCard
         article={entity.article}
         draggable={!activeCollectionId}
-        onDelete={() => onDeleteArticle(entity.article!)}
-        onDragEnd={onDragEnd}
-        onDragStart={(event) => onDragStart(entity.ref, event)}
-        onOpen={() => onOpenArticle(entity.article!)}
+        onDelete={() => actions.deleteArticle(entity.article!)}
+        onDragEnd={actions.endDrag}
+        onDragStart={(event) => actions.startDrag(entity.ref, event)}
+        onOpen={() => actions.openArticle(entity.article!)}
         onRemoveFromCollection={
-          activeCollectionId ? () => onRemoveCollectionMember?.(entity) : undefined
+          activeCollectionId ? () => actions.removeCollectionMember?.(entity) : undefined
         }
-        onSetPinned={onSetPinned}
+        onSetPinned={(pinned) => actions.setPinned(entity, pinned)}
         pinned={entity.pinned}
       />
     );
@@ -171,14 +127,14 @@ function LibraryEntityCard({
         book={entity.weread}
         draggable={!activeCollectionId}
         pinned={entity.pinned}
-        onDragEnd={onDragEnd}
-        onDragStart={(event) => onDragStart(entity.ref, event)}
-        onOpen={() => onOpenWeReadBook(entity.weread!)}
-        onOpenExternal={() => onOpenWeReadExternal(entity.weread!)}
+        onDragEnd={actions.endDrag}
+        onDragStart={(event) => actions.startDrag(entity.ref, event)}
+        onOpen={() => actions.openWeReadBook(entity.weread!)}
+        onOpenExternal={() => actions.openWeReadExternal(entity.weread!)}
         onRemoveFromCollection={
-          activeCollectionId ? () => onRemoveCollectionMember?.(entity) : undefined
+          activeCollectionId ? () => actions.removeCollectionMember?.(entity) : undefined
         }
-        onSetPinned={onSetPinned}
+        onSetPinned={(pinned) => actions.setPinned(entity, pinned)}
       />
     );
   }
