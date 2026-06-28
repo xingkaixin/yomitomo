@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { WeReadBook, WeReadBookDetail } from '@yomitomo/shared';
 import type { DesktopMainIpcContext } from './ipc';
 import { registerWeReadIpc } from './ipc-weread';
+import { testWeReadConnection } from '../weread/weread-client';
 import { fetchWeReadSyncDetails } from '../weread/weread-sync';
 
 const ipcMocks = vi.hoisted(() => ({
@@ -13,6 +14,14 @@ vi.mock('electron', () => ({
     handle: ipcMocks.ipcMainHandle,
   },
 }));
+
+vi.mock('../weread/weread-client', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../weread/weread-client')>();
+  return {
+    ...original,
+    testWeReadConnection: vi.fn(),
+  };
+});
 
 describe('weread IPC persistence boundary', () => {
   it('reads WeRead API keys through WeRead persistence only', async () => {
@@ -62,6 +71,35 @@ describe('weread IPC persistence boundary', () => {
     expect(result).toEqual({ ok: true, value: state });
     expect(saveWeReadSettings).toHaveBeenCalledWith({ syncMode: 'auto' });
     expect(configureWeReadAutoSync).toHaveBeenCalledWith('settings-saved');
+  });
+
+  it('does not return raw WeRead test errors to the renderer or persisted state', async () => {
+    ipcMocks.ipcMainHandle.mockClear();
+    vi.mocked(testWeReadConnection).mockReset();
+    vi.mocked(testWeReadConnection).mockRejectedValueOnce(
+      new Error('Authorization: Bearer weread-secret'),
+    );
+    const saveWeReadTestResult = vi.fn(async () => undefined);
+
+    registerWeReadIpc({
+      getPersistenceModule: async () => ({
+        weReadPersistence: { saveWeReadTestResult },
+      }),
+    } as unknown as DesktopMainIpcContext);
+
+    const handler = ipcMocks.ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === 'weread:test',
+    )?.[1];
+    expect(handler).toBeTypeOf('function');
+
+    const result = await handler({}, 'weread-secret');
+
+    expect(result).toEqual({
+      ok: true,
+      value: { ok: false, message: 'WEREAD_CONNECTION_FAILED' },
+    });
+    expect(saveWeReadTestResult).toHaveBeenCalledWith(false, 'WEREAD_CONNECTION_FAILED');
+    expect(JSON.stringify(result)).not.toContain('weread-secret');
   });
 });
 

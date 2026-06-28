@@ -8,6 +8,7 @@ import type {
 } from '@yomitomo/shared';
 import { getLogPath, logError, logInfo, pruneLogFile } from './app/logger';
 import { configureDesktopAppStorage } from './app/app-environment';
+import { normalizeExternalUrlForOpen } from './app/external-url';
 import { installAppMenu } from './app/app-menu';
 import {
   runPendingChromiumCacheCleanup,
@@ -556,11 +557,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 async function openExternalUrl(value: string) {
-  const url = new URL(value);
-  if (url.protocol !== 'http:' && url.protocol !== 'https:' && url.protocol !== 'weread:') {
-    throw new Error('Only HTTP, HTTPS, and WeRead links are supported');
-  }
-  await shell.openExternal(url.toString());
+  await shell.openExternal(normalizeExternalUrlForOpen(value));
 }
 
 function isSameAppNavigation(currentValue: string, nextValue: string) {
