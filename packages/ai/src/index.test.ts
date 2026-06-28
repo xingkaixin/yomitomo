@@ -24,6 +24,7 @@ import {
   parseAgentMentionInstructions,
   parseAgentMentionRoutePlan,
   runAgentAnnotate,
+  runAgentAnnotateStream,
   runAgentAnnotateWithMemory,
 } from './index';
 
@@ -33,6 +34,34 @@ afterEach(() => {
 
 function requestBodyText(value: unknown) {
   return typeof value === 'string' ? value : '';
+}
+
+function streamResponseFromDeltas(deltas: string[]) {
+  return new Response(
+    new ReadableStream({
+      start(controller) {
+        const encoder = new TextEncoder();
+        for (const delta of deltas) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(streamDelta(delta))}\n\n`));
+        }
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({
+              choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+            })}\n\n`,
+          ),
+        );
+        controller.close();
+      },
+    }),
+    { status: 200 },
+  );
+}
+
+function streamDelta(content: string) {
+  return {
+    choices: [{ index: 0, delta: { content }, finish_reason: null }],
+  };
 }
 
 describe('extractJsonObjects', () => {
@@ -1211,6 +1240,100 @@ describe('agent annotations', () => {
     });
 
     expect(annotations).toEqual([]);
+  });
+
+  it('streams reading-plan annotations from JSON chunks and skips existing thoughts', async () => {
+    const text = '开头。工具的本质是解决问题。后续还有新的判断。';
+    const duplicateExact = '工具的本质是解决问题';
+    const newExact = '后续还有新的判断';
+    const duplicateStart = text.indexOf(duplicateExact);
+    const duplicateComment =
+      '这是全文的方法论基石。作者用朴素表达定义工具价值，不是功能多，而是解决真实问题。';
+    const existingAnnotation: Annotation = {
+      id: 'annotation_existing',
+      author: 'ai',
+      color: agent.annotationColor,
+      agentId: agent.id,
+      agentUsername: agent.username,
+      agentNickname: agent.nickname,
+      anchor: {
+        start: duplicateStart,
+        end: duplicateStart + duplicateExact.length,
+        exact: duplicateExact,
+        prefix: '开头。',
+        suffix: '。后续还有新的判断。',
+      },
+      comments: [
+        {
+          id: 'comment_existing',
+          author: 'ai',
+          content: duplicateComment,
+          createdAt: '2026-05-26T00:00:00.000Z',
+          agentId: agent.id,
+          agentUsername: agent.username,
+          agentNickname: agent.nickname,
+        },
+      ],
+      createdAt: '2026-05-26T00:00:00.000Z',
+      updatedAt: '2026-05-26T00:00:00.000Z',
+    };
+    const duplicate = JSON.stringify({
+      exact: duplicateExact,
+      type: 'key_point',
+      readingIntent: 'explain',
+      comment: duplicateComment,
+    });
+    const next = JSON.stringify({
+      exact: newExact,
+      type: 'question',
+      readingIntent: 'question',
+      comment: '这里提出了新的判断，适合继续追问证据和适用边界。',
+    });
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        streamResponseFromDeltas([
+          duplicate.slice(0, 16),
+          duplicate.slice(16),
+          '\n',
+          next.slice(0, 12),
+          next.slice(12),
+          '{"exact":"未完成"',
+        ]),
+      );
+    const onAnnotation = vi.fn();
+
+    const result = await runAgentAnnotateStream(
+      provider,
+      { ...agent, annotationDensity: 'high' },
+      {
+        agentId: agent.id,
+        agentUsername: agent.username,
+        annotations: [existingAnnotation],
+        readingPlan: [
+          {
+            sectionId: 'article',
+            sectionTitle: '全文',
+            sectionStart: 0,
+            sectionEnd: text.length,
+          },
+        ],
+        article: {
+          title: '网页文章',
+          url: 'https://example.test/article',
+          text,
+        },
+      },
+      onAnnotation,
+    );
+
+    const requestBody = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]?.body)) as {
+      messages: Array<{ content: string }>;
+    };
+    expect(requestBody.messages[1]?.content).toContain('请用 NDJSON 返回批注');
+    expect(result.annotations.map((annotation) => annotation.anchor.exact)).toEqual([newExact]);
+    expect(onAnnotation).toHaveBeenCalledTimes(1);
+    expect(onAnnotation.mock.calls[0]?.[0].anchor.exact).toBe(newExact);
   });
 
   it('generates ebook reading plan annotations segment by segment', async () => {
