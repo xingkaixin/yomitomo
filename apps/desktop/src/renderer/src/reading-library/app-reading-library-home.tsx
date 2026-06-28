@@ -79,38 +79,14 @@ const TYPE_FILTER_ICONS: Record<LibraryTypeFilter, React.ReactNode> = {
   weread: <Smartphone size={15} />,
 };
 
-export function LibraryHome({
-  collectionMembers,
-  collections,
-  onDeleteArticle,
-  onImportEbookFile,
-  onImportPdfFile,
-  onImportArticleUrl,
-  onCancelArticleImport,
-  onOpenArticle,
-  onOpenWeReadBook,
-  onOpenWeReadExternal,
-  onCreateCollection,
-  onRenameCollection,
-  onDeleteCollection,
-  onAddCollectionMembers,
-  onRemoveCollectionMember,
-  onSaveSettings,
-  onOpenDataSources,
-  onSetLibraryPin,
-  onSyncWeRead,
-  menuRequest,
-  pins,
-  settings,
-  sortedArticles,
-  wereadBooks,
-  wereadOpenMessage,
-  wereadSettings,
-  wereadSyncing,
-}: {
+type LibraryHomeContent = {
   collectionMembers: CollectionMember[];
   collections: Collection[];
-  onDeleteArticle: (articleId: string) => Promise<void>;
+  pins: LibraryPin[];
+  sortedArticles: ArticleSummaryRecord[];
+};
+
+type LibraryHomeImports = {
   onImportEbookFile: (
     file: File,
     onProgress?: EbookImportProgressCallback,
@@ -121,28 +97,83 @@ export function LibraryHome({
   ) => Promise<ArticleImportResult>;
   onImportArticleUrl: (url: string, requestId?: string) => Promise<ArticleImportResult>;
   onCancelArticleImport?: (requestId: string) => Promise<boolean> | boolean;
+};
+
+type LibraryHomeItemActions = {
+  onDeleteArticle: (articleId: string) => Promise<void>;
   onOpenArticle: (article: ArticleSummaryRecord) => void;
   onOpenWeReadBook: (book: WeReadBook) => void;
   onOpenWeReadExternal: (book: WeReadBook) => void;
+  onSetLibraryPin: (input: SetLibraryPinInput) => Promise<void> | void;
+};
+
+type LibraryHomeCollectionActions = {
   onCreateCollection: (name: string) => Promise<Collection>;
   onRenameCollection: (collectionId: string, name: string) => Promise<void> | void;
   onDeleteCollection: (collectionId: string) => Promise<void> | void;
   onAddCollectionMembers: (collectionId: string, members: ContentRef[]) => Promise<void> | void;
   onRemoveCollectionMember: (collectionId: string, member: ContentRef) => Promise<void> | void;
-  onSaveSettings: (settings: AppSettings) => Promise<void> | void;
-  onOpenDataSources?: () => void;
-  onSetLibraryPin: (input: SetLibraryPinInput) => Promise<void> | void;
-  onSyncWeRead: () => void;
-  menuRequest?: AppMenuCommandRequest | null;
-  pins: LibraryPin[];
+};
+
+type LibraryHomeSettingsControl = {
   settings: AppSettings;
-  sortedArticles: ArticleSummaryRecord[];
-  wereadBooks: WeReadBook[];
-  wereadOpenMessage: string;
-  wereadSettings: WeReadSettings;
-  wereadSyncing: boolean;
-}) {
+  onSaveSettings: (settings: AppSettings) => Promise<void> | void;
+};
+
+type LibraryHomeWeReadControl = {
+  books: WeReadBook[];
+  openMessage: string;
+  settings: WeReadSettings;
+  syncing: boolean;
+  onOpenDataSources?: () => void;
+  onSync: () => void;
+};
+
+type LibraryHomeProps = {
+  collectionActions: LibraryHomeCollectionActions;
+  content: LibraryHomeContent;
+  imports: LibraryHomeImports;
+  itemActions: LibraryHomeItemActions;
+  menuRequest?: AppMenuCommandRequest | null;
+  settingsControl: LibraryHomeSettingsControl;
+  weRead: LibraryHomeWeReadControl;
+};
+
+export function LibraryHome({
+  collectionActions,
+  content,
+  imports,
+  itemActions,
+  menuRequest,
+  settingsControl,
+  weRead,
+}: LibraryHomeProps) {
   const { t } = useTranslation();
+  const { collectionMembers, collections, pins, sortedArticles } = content;
+  const {
+    onAddCollectionMembers,
+    onCreateCollection,
+    onDeleteCollection,
+    onRemoveCollectionMember,
+    onRenameCollection,
+  } = collectionActions;
+  const { onCancelArticleImport, onImportArticleUrl, onImportEbookFile, onImportPdfFile } = imports;
+  const {
+    onDeleteArticle,
+    onOpenArticle,
+    onOpenWeReadBook,
+    onOpenWeReadExternal,
+    onSetLibraryPin,
+  } = itemActions;
+  const { onSaveSettings, settings } = settingsControl;
+  const {
+    books: wereadBooks,
+    onOpenDataSources,
+    onSync: onSyncWeRead,
+    openMessage: wereadOpenMessage,
+    settings: wereadSettings,
+    syncing: wereadSyncing,
+  } = weRead;
   const [page, setPage] = useState(1);
   const [pageTransitionDirection, setPageTransitionDirection] =
     useState<LibraryTransitionDirection>('none');
@@ -609,31 +640,28 @@ export function LibraryHome({
             {activeItemsLength > 0 ? (
               <LibraryEntityGrid
                 activeCollectionId={activeCollection?.id || null}
+                actions={{
+                  addCollectionMembers: (collectionId, members) =>
+                    void addCollectionMembers(collectionId, members),
+                  deleteArticle: (article) => void deleteArticle(article.id),
+                  deleteCollection: (collection) => void deleteCollection(collection.id),
+                  endDrag: endLibraryDrag,
+                  openArticle: onOpenArticle,
+                  openCollection: (collection) => openCollection(collection.id),
+                  openCollectionPicker: (collection) => setPickerCollectionId(collection.id),
+                  openWeReadBook: onOpenWeReadBook,
+                  openWeReadExternal: onOpenWeReadExternal,
+                  removeCollectionMember: activeCollection
+                    ? (entity) => void removeCollectionMember(activeCollection.id, entity.ref)
+                    : undefined,
+                  renameCollection: (collection) =>
+                    setCollectionNameDialog({ type: 'rename', collection }),
+                  setPinned: (entity, pinned) =>
+                    void onSetLibraryPin({ target: libraryEntityPinTarget(entity), pinned }),
+                  startDrag: startLibraryDrag,
+                }}
                 draggedRef={draggedRef}
                 entities={pageEntities}
-                onDeleteArticle={(article) => void deleteArticle(article.id)}
-                onOpenCollection={(collection) => openCollection(collection.id)}
-                onOpenArticle={onOpenArticle}
-                onOpenWeReadBook={onOpenWeReadBook}
-                onOpenWeReadExternal={onOpenWeReadExternal}
-                onRenameCollection={(collection) =>
-                  setCollectionNameDialog({ type: 'rename', collection })
-                }
-                onDeleteCollection={(collection) => void deleteCollection(collection.id)}
-                onOpenCollectionPicker={(collection) => setPickerCollectionId(collection.id)}
-                onAddCollectionMembers={(collectionId, members) =>
-                  void addCollectionMembers(collectionId, members)
-                }
-                onRemoveCollectionMember={
-                  activeCollection
-                    ? (entity) => void removeCollectionMember(activeCollection.id, entity.ref)
-                    : undefined
-                }
-                onSetPinned={(entity, pinned) =>
-                  void onSetLibraryPin({ target: libraryEntityPinTarget(entity), pinned })
-                }
-                onDragStart={startLibraryDrag}
-                onDragEnd={endLibraryDrag}
               />
             ) : emptyReason.variant === 'first-use' ? (
               <LibraryFirstUseEmpty

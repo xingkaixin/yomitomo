@@ -798,35 +798,47 @@ export function ReadingLibrary({
   }
 
   const libraryHomeProps = {
-    collectionMembers,
-    collections,
-    pins,
-    sortedArticles,
-    onDeleteArticle: deleteLibraryArticle,
-    onImportEbookFile,
-    onImportPdfFile,
-    onImportArticleUrl,
-    onCancelArticleImport,
-    onOpenArticle: (article: ArticleSummaryRecord) => void openArticle(article),
-    onOpenWeReadBook: (book: WeReadBook) => void openWeReadBook(book),
-    onOpenWeReadExternal: (book: WeReadBook) => void openWeReadExternal(book),
-    onCreateCollection: createLibraryCollection,
-    onRenameCollection: renameLibraryCollection,
-    onDeleteCollection: deleteLibraryCollection,
-    onAddCollectionMembers: addLibraryCollectionMembers,
-    onRemoveCollectionMember: removeLibraryCollectionMember,
-    onSaveSettings: onSaveSettings || (() => undefined),
-    onOpenDataSources,
-    onSetLibraryPin: (input: SetLibraryPinInput) =>
-      void window.yomitomoDesktop?.setLibraryPin?.(input),
-    onSyncWeRead: () => void syncWeReadLibrary({ manual: true }),
+    collectionActions: {
+      onAddCollectionMembers: addLibraryCollectionMembers,
+      onCreateCollection: createLibraryCollection,
+      onDeleteCollection: deleteLibraryCollection,
+      onRemoveCollectionMember: removeLibraryCollectionMember,
+      onRenameCollection: renameLibraryCollection,
+    },
+    content: {
+      collectionMembers,
+      collections,
+      pins,
+      sortedArticles,
+    },
+    imports: {
+      onCancelArticleImport,
+      onImportArticleUrl,
+      onImportEbookFile,
+      onImportPdfFile,
+    },
+    itemActions: {
+      onDeleteArticle: deleteLibraryArticle,
+      onOpenArticle: (article: ArticleSummaryRecord) => void openArticle(article),
+      onOpenWeReadBook: (book: WeReadBook) => void openWeReadBook(book),
+      onOpenWeReadExternal: (book: WeReadBook) => void openWeReadExternal(book),
+      onSetLibraryPin: (input: SetLibraryPinInput) =>
+        void window.yomitomoDesktop?.setLibraryPin?.(input),
+    },
     menuRequest,
-    settings: settings || {},
-    wereadBooks,
-    wereadOpenMessage,
-    wereadSettings,
-    wereadSyncing,
-  };
+    settingsControl: {
+      settings: settings || {},
+      onSaveSettings: onSaveSettings || (() => undefined),
+    },
+    weRead: {
+      books: wereadBooks,
+      onOpenDataSources,
+      onSync: () => void syncWeReadLibrary({ manual: true }),
+      openMessage: wereadOpenMessage,
+      settings: wereadSettings,
+      syncing: wereadSyncing,
+    },
+  } satisfies React.ComponentProps<typeof LibraryHome>;
 
   if (!selectedArticle && !selectedWeReadBook) {
     return <LibraryHome {...libraryHomeProps} />;
