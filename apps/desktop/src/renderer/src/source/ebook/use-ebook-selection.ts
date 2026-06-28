@@ -1,21 +1,36 @@
-import { useCallback, type RefObject } from 'react';
+import { useCallback, useRef, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import i18next from 'i18next';
 import type { SelectionActionShortcuts, UserProfile } from '@yomitomo/shared';
-import { createEpubTextAnchorFromQuote, selectionActionPosition } from '@yomitomo/core';
+import {
+  createEpubTextAnchorFromQuote,
+  selectionActionPosition,
+  type HighlightBox,
+} from '@yomitomo/core';
+import type { SelectionAdjustmentPointer } from '@yomitomo/reader-ui/reader-app-view';
 import { selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
 import {
   currentFoliateContent,
+  currentFoliateContents,
   ebookChapterForFoliateSection,
   ebookHasStableSectionChapterMapping,
   foliateRangeHighlightBoxes,
   isRangeInsideDocumentBody,
   lastFoliateRangeViewportRect,
   normalizeRenderedText,
+  rangeForEbookAnchorInDocument,
   selectionContextForRange,
   selectionTextForRange,
   type FoliatePageInfo,
   type FoliateViewElement,
 } from './app-ebook-reader-utils';
+import {
+  ebookSelectionAdjustmentDraggingHandle,
+  ebookSelectionAdjustedOffsets,
+  ebookSelectionPointFromClientPoint,
+  ebookSelectionRangeFromOffsets,
+  ebookSelectionRangeOffsets,
+  type EbookSelectionAdjustment,
+} from './ebook-selection-adjustment';
 import type {
   EbookBookcaseProps,
   SourceSelectionAction,
@@ -39,6 +54,8 @@ type UseEbookSelectionInput = {
     action: SourceSelectionAction,
     boxes: ReturnType<typeof foliateRangeHighlightBoxes>,
   ) => void;
+  setSelectionAction: Dispatch<SetStateAction<SourceSelectionAction | null>>;
+  setTemporaryBoxes: Dispatch<SetStateAction<HighlightBox[]>>;
   setStatusMessage: (message: string) => void;
 };
 
@@ -57,8 +74,69 @@ export function useEbookSelection({
   requestSelectionCopy,
   openComposer,
   openSelectionAction,
+  setSelectionAction,
+  setTemporaryBoxes,
   setStatusMessage,
 }: UseEbookSelectionInput) {
+  const selectionAdjustmentRef = useRef<EbookSelectionAdjustment | null>(null);
+  const selectionBoxesForRange = useCallback(
+    (range: Range, canvasRect: DOMRect) =>
+      foliateRangeHighlightBoxes(range, canvasRect, 'source-selection').map((box) =>
+        Object.assign(box, {
+          annotationId: '__selection__',
+          contributorId: userProfile.id,
+          color: userProfile.annotationColor,
+        }),
+      ),
+    [userProfile.annotationColor, userProfile.id],
+  );
+  const createAnchorForFoliateRange = useCallback(
+    (doc: Document, range: Range, sectionIndex: number) => {
+      const view = viewRef.current;
+      const chapter = view ? ebookChapterForFoliateSection(article, view, sectionIndex) : null;
+      const context = selectionContextForRange(doc, range);
+      const quote = selectionTextForRange(range);
+      const constrainToChapter = ebookHasStableSectionChapterMapping(article) && Boolean(chapter);
+      const anchor =
+        article.ebook.index && (chapter || !constrainToChapter)
+          ? createEpubTextAnchorFromQuote(article.ebook.index, ebookText, quote, {
+              chapterId: constrainToChapter ? chapter?.id : undefined,
+              prefix: context.prefix,
+              suffix: context.suffix,
+            })
+          : null;
+
+      return { anchor, chapter, constrainToChapter, quote };
+    },
+    [article, ebookText, viewRef],
+  );
+  const selectionAdjustmentTargetForAnchor = useCallback(
+    (anchor: SourceSelectionAction['anchor']) => {
+      const view = viewRef.current;
+      if (!view) return null;
+
+      for (const content of currentFoliateContents(view)) {
+        const doc = content.doc;
+        if (!doc?.body) continue;
+
+        const range = rangeForEbookAnchorInDocument(doc, anchor);
+        if (!range || !isRangeInsideDocumentBody(doc, range)) continue;
+
+        const offsets = ebookSelectionRangeOffsets(doc.body, range);
+        if (!offsets) continue;
+
+        return {
+          doc,
+          sectionIndex: content.index ?? pageInfo?.sectionIndex ?? 0,
+          startOffset: offsets.startOffset,
+          endOffset: offsets.endOffset,
+        };
+      }
+
+      return null;
+    },
+    [pageInfo?.sectionIndex, viewRef],
+  );
   const handleFoliateSelection = useCallback(
     (doc: Document) => {
       const canvasElement = canvasRef.current;
@@ -78,20 +156,13 @@ export function useEbookSelection({
       const range = selection.getRangeAt(0);
       if (!isRangeInsideDocumentBody(doc, range)) return;
 
-      const content = currentFoliateContent(view);
+      const content = foliateContentForDocument(view, doc);
       const sectionIndex = content?.index ?? pageInfo?.sectionIndex ?? 0;
-      const chapter = ebookChapterForFoliateSection(article, view, sectionIndex);
-      const context = selectionContextForRange(doc, range);
-      const quote = selectionTextForRange(range);
-      const constrainToChapter = ebookHasStableSectionChapterMapping(article) && Boolean(chapter);
-      const anchor =
-        article.ebook.index && (chapter || !constrainToChapter)
-          ? createEpubTextAnchorFromQuote(article.ebook.index, ebookText, quote, {
-              chapterId: constrainToChapter ? chapter?.id : undefined,
-              prefix: context.prefix,
-              suffix: context.suffix,
-            })
-          : null;
+      const { anchor, chapter, constrainToChapter, quote } = createAnchorForFoliateRange(
+        doc,
+        range,
+        sectionIndex,
+      );
       if (!anchor?.exact.trim()) {
         recordEbookSelectionDebug('locate_failed', {
           articleId: article.id,
@@ -116,14 +187,8 @@ export function useEbookSelection({
 
       const position = selectionActionPosition(lastRect, canvasRect);
       openSelectionAction(
-        { x: position.x, y: position.y, anchor },
-        foliateRangeHighlightBoxes(range, canvasRect, 'source-selection').map((box) =>
-          Object.assign(box, {
-            annotationId: '__selection__',
-            contributorId: userProfile.id,
-            color: userProfile.annotationColor,
-          }),
-        ),
+        { x: position.x, y: position.y, anchor, adjustable: true },
+        selectionBoxesForRange(range, canvasRect),
       );
       selection.removeAllRanges();
     },
@@ -131,13 +196,152 @@ export function useEbookSelection({
       article,
       canvasRef,
       clearSelection,
+      createAnchorForFoliateRange,
       ebookText,
       openSelectionAction,
       pageInfo,
+      selectionBoxesForRange,
       setStatusMessage,
-      userProfile,
       viewRef,
     ],
+  );
+
+  const startEbookSelectionAdjustment = useCallback(
+    (point: SelectionAdjustmentPointer) => {
+      const anchor = selectionAction?.anchor;
+      if (!anchor || !canAdjustEbookSelectionAnchor(anchor)) {
+        selectionAdjustmentRef.current = null;
+        return;
+      }
+
+      const target = selectionAdjustmentTargetForAnchor(anchor);
+      if (!target) {
+        selectionAdjustmentRef.current = null;
+        recordEbookSelectionDebug('handle_target_missing', {
+          articleId: article.id,
+          anchorStart: anchor.start,
+          anchorEnd: anchor.end,
+          format: article.ebook.metadata.format,
+          pointer: describeSelectionAdjustmentPoint(point),
+        });
+        return;
+      }
+
+      selectionAdjustmentRef.current = {
+        ...target,
+        handle: point.handle,
+      };
+      recordEbookSelectionDebug('handle_start', {
+        articleId: article.id,
+        anchorStart: anchor.start,
+        anchorEnd: anchor.end,
+        format: article.ebook.metadata.format,
+        handle: point.handle,
+        sectionIndex: target.sectionIndex,
+        pointer: describeSelectionAdjustmentPoint(point),
+      });
+    },
+    [
+      article.id,
+      article.ebook.metadata.format,
+      selectionAction,
+      selectionAdjustmentTargetForAnchor,
+    ],
+  );
+
+  const commitEbookSelectionAdjustment = useCallback(
+    ({
+      canvasElement,
+      draggingHandle,
+      range,
+      sectionIndex,
+    }: {
+      canvasElement: HTMLElement;
+      draggingHandle: SourceSelectionAction['draggingHandle'];
+      range: Range;
+      sectionIndex: number;
+    }) => {
+      const doc = range.startContainer.ownerDocument;
+      if (!doc) return;
+
+      const { anchor } = createAnchorForFoliateRange(doc, range, sectionIndex);
+      if (!anchor?.exact.trim()) return;
+
+      const canvasRect = canvasElement.getBoundingClientRect();
+      const lastRect = lastFoliateRangeViewportRect(range, canvasRect);
+      if (!lastRect) return;
+
+      const position = selectionActionPosition(lastRect, canvasRect);
+      setSelectionAction({
+        x: position.x,
+        y: position.y,
+        anchor,
+        adjustable: true,
+        draggingHandle,
+      });
+      setTemporaryBoxes(selectionBoxesForRange(range, canvasRect));
+    },
+    [createAnchorForFoliateRange, selectionBoxesForRange, setSelectionAction, setTemporaryBoxes],
+  );
+
+  const updateEbookSelectionAdjustment = useCallback(
+    (point: SelectionAdjustmentPointer) => {
+      const adjustment = selectionAdjustmentRef.current;
+      const canvasElement = canvasRef.current;
+      if (!adjustment || adjustment.handle !== point.handle || !canvasElement) return;
+
+      const targetPoint = ebookSelectionPointFromClientPoint(
+        adjustment.doc,
+        point.clientX,
+        point.clientY,
+      );
+      if (!targetPoint || !adjustment.doc.body) return;
+
+      const nextOffsets = ebookSelectionAdjustedOffsets({
+        endOffset: adjustment.endOffset,
+        handle: adjustment.handle,
+        sourceOffset: targetPoint.sourceOffset,
+        startOffset: adjustment.startOffset,
+      });
+      if (!nextOffsets) return;
+
+      const range = ebookSelectionRangeFromOffsets(
+        adjustment.doc.body,
+        nextOffsets.startOffset,
+        nextOffsets.endOffset,
+      );
+      if (!range || range.collapsed || !isRangeInsideDocumentBody(adjustment.doc, range)) return;
+
+      commitEbookSelectionAdjustment({
+        canvasElement,
+        draggingHandle: ebookSelectionAdjustmentDraggingHandle(
+          adjustment,
+          targetPoint.sourceOffset,
+        ),
+        range,
+        sectionIndex: adjustment.sectionIndex,
+      });
+    },
+    [canvasRef, commitEbookSelectionAdjustment],
+  );
+
+  const finishEbookSelectionAdjustment = useCallback(
+    (point: SelectionAdjustmentPointer) => {
+      updateEbookSelectionAdjustment(point);
+      const adjustment = selectionAdjustmentRef.current;
+      selectionAdjustmentRef.current = null;
+      recordEbookSelectionDebug('handle_end', {
+        articleId: article.id,
+        adjusted: Boolean(adjustment),
+        format: article.ebook.metadata.format,
+        handle: point.handle,
+        pointer: describeSelectionAdjustmentPoint(point),
+      });
+      setSelectionAction((action) =>
+        action?.draggingHandle ? { ...action, draggingHandle: undefined } : action,
+      );
+    },
+    [article.id, article.ebook.metadata.format, setSelectionAction, updateEbookSelectionAdjustment],
   );
 
   const handleFoliateSelectionShortcut = useCallback(
@@ -173,9 +377,19 @@ export function useEbookSelection({
   );
 
   return {
+    finishEbookSelectionAdjustment,
     handleFoliateSelection,
     handleFoliateSelectionShortcut,
+    startEbookSelectionAdjustment,
+    updateEbookSelectionAdjustment,
   };
+}
+
+function foliateContentForDocument(view: FoliateViewElement, doc: Document) {
+  return (
+    currentFoliateContents(view).find((content) => content.doc === doc) ??
+    currentFoliateContent(view)
+  );
 }
 
 function recordEbookSelectionDebug(event: string, data: Record<string, unknown>) {
@@ -191,4 +405,21 @@ function isEditableKeyboardTarget(target: EventTarget | null) {
   return typeof closest === 'function'
     ? Boolean(closest.call(target, 'input,textarea,select,[contenteditable="true"]'))
     : false;
+}
+
+function canAdjustEbookSelectionAnchor(anchor: SourceSelectionAction['anchor']) {
+  if ('kind' in anchor && anchor.kind === 'pdf-text') return false;
+  return (
+    anchor.exact.trim().length > 0 &&
+    Number.isFinite(anchor.start) &&
+    Number.isFinite(anchor.end) &&
+    anchor.start !== anchor.end
+  );
+}
+
+function describeSelectionAdjustmentPoint(point: SelectionAdjustmentPointer) {
+  return {
+    clientX: Math.round(point.clientX),
+    clientY: Math.round(point.clientY),
+  };
 }
