@@ -588,11 +588,21 @@ function TaskProviderRoutes({
   const { t } = useTranslation();
   const hasProviders = providers.length > 0;
   const executionMode = settingsDraft.assistantExecutionMode || 'fast_response';
+  const routePrivacyNotice = t('settings.models.routePrivacyNotice');
+  const routeGroupNote = hasProviders ? (
+    routePrivacyNotice
+  ) : (
+    <>
+      {routePrivacyNotice}
+      <br />
+      {t('settings.models.noProvidersNote')}
+    </>
+  );
 
   return (
     <SettingsGroup
       label={t('settings.models.routeGroup')}
-      note={hasProviders ? undefined : t('settings.models.noProvidersNote')}
+      note={routeGroupNote}
       aside={
         <AutoSaveStatus
           error={saveError}

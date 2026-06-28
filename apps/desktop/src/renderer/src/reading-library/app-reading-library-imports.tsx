@@ -1194,6 +1194,7 @@ function FileImportDialog({
               <div>
                 <strong id={config.titleId}>{config.title}</strong>
                 <span>{importMessage || config.batchIdleMessage}</span>
+                {importState === 'idle' ? <span>{t('library.import.localOnlyNotice')}</span> : null}
               </div>
               <button type="button" aria-label={config.closeLabel} onClick={closeImportDialog}>
                 <X size={17} />

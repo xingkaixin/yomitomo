@@ -498,6 +498,7 @@ describe('ProviderSettings', () => {
     );
 
     expect(screen.getByText('为伴读任务分配默认模型，并管理模型服务商配置。')).toBeTruthy();
+    expect(screen.getByText(/双语翻译为整篇文章全文.*所配置的端点/)).toBeTruthy();
     expect(screen.getByLabelText('阅读理解助手供应商')).toBeTruthy();
     expect(screen.getByLabelText('深度审阅助手供应商')).toBeTruthy();
     expect(screen.getAllByText('已使用')).toHaveLength(2);
@@ -617,9 +618,8 @@ describe('ProviderSettings', () => {
 
     render(<StatefulEmptyProviderSettings onCreate={onCreate} onTest={onTest} />);
 
-    expect(
-      screen.getByText('当前还没有可选供应商。新增并保存供应商后，这里会开放选择。'),
-    ).toBeTruthy();
+    expect(screen.getByText(/当前还没有可选供应商.*这里会开放选择/)).toBeTruthy();
+    expect(screen.getByText(/双语翻译为整篇文章全文.*所配置的端点/)).toBeTruthy();
     expect(screen.getAllByText('先新增供应商')).toHaveLength(3);
     expect(screen.getByText('添加供应商')).toBeTruthy();
     expect(screen.getByText('配置模型服务商和 API Key')).toBeTruthy();

@@ -685,6 +685,7 @@ export const zhCNResources = {
         importing: '正在导入 {{current}}/{{total}}',
         canceled: '已取消',
         failed: '导入失败',
+        localOnlyNotice: '文件仅保存在本机，不会上传到任何服务器。',
         duplicateAndFailed: '{{duplicates}} 个已存在，{{failed}} 个失败',
         duplicateFiles: '{{count}} 个文件已在阅读库',
         importedAndFailed: '已导入 {{imported}} 个，{{failed}} 个失败',
@@ -1576,6 +1577,8 @@ export const zhCNResources = {
         description: '为伴读任务分配默认模型，并管理模型服务商配置。',
         providerGroup: '模型供应商',
         routeGroup: '任务路由',
+        routePrivacyNotice:
+          '使用这些路由时，相应内容（选区、上下文，双语翻译为整篇文章全文）会上传到你所配置的端点。',
         noProvidersNote: '当前还没有可选供应商。新增并保存供应商后，这里会开放选择。',
         executionModeTitle: '助手执行模式',
         executionModeDescription: '全局影响阅读批注、追问和共读任务。',

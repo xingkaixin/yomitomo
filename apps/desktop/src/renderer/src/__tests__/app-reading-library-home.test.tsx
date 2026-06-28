@@ -2482,6 +2482,7 @@ describe('ReadingLibrary home', () => {
     expect(
       within(dialog).getByText('可批量导入 · EPUB/AZW3/MOBI · 单本最高 80MB · 最多 10 本'),
     ).toBeTruthy();
+    expect(within(dialog).getByText('文件仅保存在本机，不会上传到任何服务器。')).toBeTruthy();
     expect(within(dialog).getByText('拖入电子书文件，或点击选择')).toBeTruthy();
   });
 
@@ -2490,6 +2491,7 @@ describe('ReadingLibrary home', () => {
 
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('添加 PDF 文档')).toBeTruthy();
+    expect(within(dialog).getByText('文件仅保存在本机，不会上传到任何服务器。')).toBeTruthy();
   });
 
   it('renders the first-use empty state with import entries', () => {
@@ -2509,6 +2511,7 @@ describe('ReadingLibrary home', () => {
 
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('添加网页文章')).toBeTruthy();
+    expect(within(dialog).queryByText('文件仅保存在本机，不会上传到任何服务器。')).toBeNull();
   });
 
   it('routes the unconfigured WeRead entry to data source settings', () => {
