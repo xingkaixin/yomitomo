@@ -251,6 +251,8 @@ export function EbookBookcase({
     clearSelection,
     clearAnnotationUiState,
     openSelectionAction,
+    setSelectionAction,
+    setTemporaryBoxes,
     cancelComposer,
     copySelection,
     requestSelectionCopy,
@@ -360,7 +362,13 @@ export function EbookBookcase({
     },
     [goLeft, goRight],
   );
-  const { handleFoliateSelection, handleFoliateSelectionShortcut } = useEbookSelection({
+  const {
+    finishEbookSelectionAdjustment,
+    handleFoliateSelection,
+    handleFoliateSelectionShortcut,
+    startEbookSelectionAdjustment,
+    updateEbookSelectionAdjustment,
+  } = useEbookSelection({
     article,
     canvasRef,
     viewRef,
@@ -375,6 +383,8 @@ export function EbookBookcase({
     requestSelectionCopy,
     openComposer,
     openSelectionAction,
+    setSelectionAction,
+    setTemporaryBoxes,
     setStatusMessage,
   });
   useReaderPageTurnKeys({
@@ -1013,6 +1023,9 @@ export function EbookBookcase({
       onMouseUp: () => undefined,
       onAskSelection: askSelection,
       onOpenComposer: openComposer,
+      onSelectionHandleDrag: updateEbookSelectionAdjustment,
+      onSelectionHandleDragEnd: finishEbookSelectionAdjustment,
+      onSelectionHandleDragStart: startEbookSelectionAdjustment,
     },
     shell: {
       onClose,
