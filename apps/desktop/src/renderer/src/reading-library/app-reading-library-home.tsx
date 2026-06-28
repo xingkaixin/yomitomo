@@ -13,6 +13,7 @@ import {
   ListFilter,
   Search,
   Smartphone,
+  Type,
   X,
 } from 'lucide-react';
 import type {
@@ -69,13 +70,14 @@ import { librarySession } from './app-reading-library-session';
 import type { LibraryItemType, LibraryTypeFilter } from './library-entity-types';
 
 const LIBRARY_PAGE_SIZE_OPTIONS = [6, 12, 18, 24] as const;
-const LOCAL_LIBRARY_TYPES: LibraryItemType[] = ['web', 'ebook', 'pdf'];
+const LOCAL_LIBRARY_TYPES: LibraryItemType[] = ['web', 'ebook', 'pdf', 'text'];
 
 const TYPE_FILTER_ICONS: Record<LibraryTypeFilter, React.ReactNode> = {
   collection: <LibraryBig size={15} />,
   web: <Globe2 size={15} />,
   ebook: <BookText size={15} />,
   pdf: <FileText size={15} />,
+  text: <Type size={15} />,
   weread: <Smartphone size={15} />,
 };
 

@@ -423,5 +423,6 @@ function libraryTypeLabel(type: LibraryItemType, t: ReturnType<typeof useTransla
   if (type === 'web') return t('library.sources.webShort');
   if (type === 'ebook') return t('library.sources.ebookShort');
   if (type === 'pdf') return t('library.sources.pdfShort');
+  if (type === 'text') return t('library.sources.textShort');
   return t('library.sources.wereadShort');
 }

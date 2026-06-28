@@ -7,7 +7,7 @@ import {
 
 describe('library content source preferences', () => {
   it('defaults to the current library source order', () => {
-    expect(enabledLibraryContentSources({})).toEqual(['web', 'ebook', 'pdf', 'weread']);
+    expect(enabledLibraryContentSources({})).toEqual(['web', 'ebook', 'pdf', 'text', 'weread']);
   });
 
   it('keeps at least one source enabled', () => {
@@ -15,6 +15,7 @@ describe('library content source preferences', () => {
       { id: 'web' as const, enabled: true },
       { id: 'ebook' as const, enabled: false },
       { id: 'pdf' as const, enabled: false },
+      { id: 'text' as const, enabled: false },
       { id: 'weread' as const, enabled: false },
     ];
 
@@ -26,6 +27,7 @@ describe('library content source preferences', () => {
       { id: 'web' as const, enabled: true },
       { id: 'ebook' as const, enabled: false },
       { id: 'pdf' as const, enabled: true },
+      { id: 'text' as const, enabled: false },
       { id: 'weread' as const, enabled: false },
     ];
 
@@ -33,6 +35,7 @@ describe('library content source preferences', () => {
       { id: 'web', enabled: true },
       { id: 'ebook', enabled: true },
       { id: 'pdf', enabled: true },
+      { id: 'text', enabled: false },
       { id: 'weread', enabled: false },
     ]);
   });
@@ -44,6 +47,7 @@ describe('library content source preferences', () => {
           { id: 'web', enabled: true },
           { id: 'ebook', enabled: false },
           { id: 'pdf', enabled: true },
+          { id: 'text', enabled: false },
           { id: 'weread', enabled: true },
         ],
         'ebook',
@@ -52,6 +56,7 @@ describe('library content source preferences', () => {
     ).toEqual([
       { id: 'web', enabled: true },
       { id: 'pdf', enabled: true },
+      { id: 'text', enabled: false },
       { id: 'ebook', enabled: false },
       { id: 'weread', enabled: true },
     ]);

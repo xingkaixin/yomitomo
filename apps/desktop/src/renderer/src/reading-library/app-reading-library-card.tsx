@@ -47,6 +47,7 @@ export function ArticleLibraryCard({
   const statsLabel = t('library.stats.label', { annotations, distillations });
   const isEbook = article.sourceType === 'ebook';
   const isPdf = article.sourceType === 'pdf';
+  const isText = article.sourceType === 'text';
   const authorLabel = libraryArticleAuthorLabel(article);
   const title = articleDisplayTitle(article);
   const { dialog: deleteDialog, requestDelete } = useArticleDeleteConfirm(title, onDelete);
@@ -54,7 +55,9 @@ export function ArticleLibraryCard({
     ? t('library.sources.ebookShort')
     : isPdf
       ? t('library.sources.pdfShort')
-      : t('library.sources.webShort');
+      : isText
+        ? t('library.sources.textShort')
+        : t('library.sources.webShort');
   const itemClassName = isEbook || isPdf ? 'library-ebook-list-item' : 'library-web-item';
   const coverClassName = isEbook || isPdf ? 'library-ebook-cover-column' : 'library-web-item-cover';
   const openLabel =

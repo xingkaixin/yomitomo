@@ -1,6 +1,6 @@
 import type { ArticleSummaryRecord, Collection, ContentRef, WeReadBook } from '@yomitomo/shared';
 
-export type LibraryItemType = 'web' | 'ebook' | 'pdf' | 'weread';
+export type LibraryItemType = 'web' | 'ebook' | 'pdf' | 'text' | 'weread';
 
 export type LibraryItemEntity = {
   kind: 'item';

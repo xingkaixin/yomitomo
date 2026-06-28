@@ -453,7 +453,7 @@ function readArticleLibrarySourceCounts(
   database: StoreDatabase,
   profile?: StoreReadProfileEntry[],
 ): ArticleLibrarySourceCounts {
-  const counts: ArticleLibrarySourceCounts = { web: 0, ebook: 0, pdf: 0 };
+  const counts: ArticleLibrarySourceCounts = { web: 0, ebook: 0, pdf: 0, text: 0 };
   const rows = measureStoreRead(profile, 'count_article_library_sources', () =>
     database
       .select({ sourceType: schema.articles.sourceType, count: count() })
@@ -499,7 +499,7 @@ function escapeSqlLikePattern(value: string) {
 }
 
 function normalizeArticleLibrarySource(value: unknown): ArticleLibrarySource {
-  if (value === 'ebook' || value === 'pdf') return value;
+  if (value === 'ebook' || value === 'pdf' || value === 'text') return value;
   return 'web';
 }
 

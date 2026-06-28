@@ -134,6 +134,7 @@ describe('desktop store settings', () => {
             { id: 'web', enabled: true },
             { id: 'ebook', enabled: false },
             { id: 'pdf', enabled: true },
+            { id: 'text', enabled: true },
             { id: 'weread', enabled: false },
           ],
           readingAssistantProviderId: 'provider_1',
@@ -160,6 +161,7 @@ describe('desktop store settings', () => {
         { id: 'web', enabled: true },
         { id: 'ebook', enabled: false },
         { id: 'pdf', enabled: true },
+        { id: 'text', enabled: true },
         { id: 'weread', enabled: false },
       ],
       readingAssistantProviderId: undefined,
@@ -205,6 +207,7 @@ describe('desktop store settings', () => {
         { id: 'web', enabled: true },
         { id: 'ebook', enabled: true },
         { id: 'pdf', enabled: true },
+        { id: 'text', enabled: true },
         { id: 'weread', enabled: true },
       ],
     });

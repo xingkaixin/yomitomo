@@ -19,7 +19,7 @@ export type SelectionActionShortcuts = {
   ask: string;
 };
 
-export type LibraryContentSourceId = 'web' | 'ebook' | 'pdf' | 'weread';
+export type LibraryContentSourceId = 'web' | 'ebook' | 'pdf' | 'text' | 'weread';
 
 export type LibraryContentSourcePreference = {
   id: LibraryContentSourceId;
@@ -30,6 +30,7 @@ export const defaultLibraryContentSourceOrder: LibraryContentSourceId[] = [
   'web',
   'ebook',
   'pdf',
+  'text',
   'weread',
 ];
 
@@ -103,7 +104,13 @@ export function normalizeLibraryContentSources(value: unknown): LibraryContentSo
 }
 
 function isLibraryContentSourceId(value: unknown): value is LibraryContentSourceId {
-  return value === 'web' || value === 'ebook' || value === 'pdf' || value === 'weread';
+  return (
+    value === 'web' ||
+    value === 'ebook' ||
+    value === 'pdf' ||
+    value === 'text' ||
+    value === 'weread'
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

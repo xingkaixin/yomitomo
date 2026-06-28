@@ -108,7 +108,7 @@ export type ArticleReaderChatStateSaveInput = {
   readerChatState?: ReaderChatState;
 };
 
-export type ArticleLibrarySource = 'web' | 'ebook' | 'pdf';
+export type ArticleLibrarySource = 'web' | 'ebook' | 'pdf' | 'text';
 
 export type ArticleLibrarySourceCounts = Record<ArticleLibrarySource, number>;
 
