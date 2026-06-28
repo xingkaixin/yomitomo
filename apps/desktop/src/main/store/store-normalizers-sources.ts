@@ -12,6 +12,8 @@ import type {
   EpubSegmentIndex,
   FocusCoReadingPlan,
   PdfMetadata,
+  TextSourceFormat,
+  TextSourceMetadata,
 } from '@yomitomo/shared';
 import { normalizeAnnotationDensity } from './store-normalizers-provider-agent';
 import * as schema from '../db/schema';
@@ -37,6 +39,7 @@ export type ArticleSummaryRow = Pick<
   | 'contentHash'
   | 'ebookMetadata'
   | 'pdfMetadata'
+  | 'textMetadata'
   | 'readingProgress'
   | 'createdAt'
   | 'updatedAt'
@@ -61,8 +64,29 @@ export function rowToEbookSummary(row: ArticleSummaryRow): ArticleSummaryRecord[
 }
 
 export function normalizeArticleSourceType(value: unknown): ArticleSourceType {
-  if (value === 'ebook' || value === 'pdf') return value;
+  if (value === 'ebook' || value === 'pdf' || value === 'text') return value;
   return 'web';
+}
+
+export function rowToText(row: ArticleRow): ArticleRecord['text'] {
+  return normalizeArticleSourceType(row.sourceType) === 'text'
+    ? normalizeTextMetadata(row.textMetadata)
+    : undefined;
+}
+
+export function rowToTextSummary(row: ArticleSummaryRow): ArticleSummaryRecord['text'] {
+  return normalizeArticleSourceType(row.sourceType) === 'text'
+    ? normalizeTextMetadata(row.textMetadata)
+    : undefined;
+}
+
+function normalizeTextMetadata(value: unknown): TextSourceMetadata | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  return { format: normalizeTextFormat(recordValue(value).format) };
+}
+
+function normalizeTextFormat(value: unknown): TextSourceFormat {
+  return value === 'markdown' ? 'markdown' : 'plain';
 }
 
 export function normalizeArticleReadingProgress(

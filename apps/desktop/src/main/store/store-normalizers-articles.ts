@@ -9,6 +9,8 @@ import {
   rowToEbookSummary,
   rowToPdf,
   rowToPdfSummary,
+  rowToText,
+  rowToTextSummary,
   type ArticleSummaryRow,
 } from './store-normalizers-sources';
 
@@ -30,6 +32,7 @@ export function rowToArticle(row: ArticleRow, annotations: Annotation[]): Articl
     contentHtml: row.contentHtml || undefined,
     ebook: rowToEbook(row),
     pdf: rowToPdf(row),
+    text: rowToText(row),
     focusCoReadingPlan: normalizeFocusCoReadingPlan(row.focusCoReadingPlan),
   };
 }
@@ -44,6 +47,7 @@ export function rowToArticleSummary(
     ...base,
     ebook: rowToEbookSummary(row),
     pdf: rowToPdfSummary(row),
+    text: rowToTextSummary(row),
   };
 }
 

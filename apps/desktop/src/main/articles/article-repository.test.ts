@@ -201,6 +201,7 @@ function sqliteRepositoryDatabase(): StoreDatabase {
       content_hash TEXT NOT NULL,
       ebook_metadata TEXT,
       pdf_metadata TEXT,
+      text_metadata TEXT,
       reading_progress TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
@@ -597,6 +598,7 @@ function articleRow(id: string, overrides: Partial<ArticleRow> = {}): ArticleRow
     contentHash: `hash-${id}`,
     ebookMetadata: null,
     pdfMetadata: null,
+    textMetadata: null,
     readingProgress: null,
     createdAt: '2026-06-04T00:00:00.000Z',
     updatedAt: '2026-06-04T00:00:00.000Z',

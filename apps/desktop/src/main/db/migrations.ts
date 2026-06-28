@@ -880,6 +880,12 @@ CREATE TABLE IF NOT EXISTS database_maintenance_state (
 );
 `,
   },
+  {
+    id: '0060_article_text_metadata',
+    sql: `
+ALTER TABLE articles ADD COLUMN text_metadata TEXT;
+`,
+  },
 ];
 
 type MigrationDatabase = {
