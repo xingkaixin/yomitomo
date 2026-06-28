@@ -47,56 +47,22 @@ type ProviderDraftController = SaveableDraft<ProviderDraft, boolean> & {
   testState: ProviderTestState;
 };
 
-type ProviderSettingsLegacyProps = {
-  draft: ProviderDraft;
-  settingsDraft: AppSettings;
+type ProviderSettingsProps = {
+  providerDraft: ProviderDraftController;
+  routesDraft: SaveableDraft<AppSettings>;
   providers: LlmProvider[];
-  testState: ProviderTestState;
-  canSave: boolean;
-  canSaveRoutes: boolean;
-  onChange: (draft: ProviderDraft) => void;
-  onRouteChange: (draft: AppSettings) => void;
-  onCreate: () => void;
-  onDelete: (id: string) => void;
-  onSave: () => Promise<boolean | void> | boolean | void;
-  saveState: SaveState;
-  saveError?: string;
-  routeSaveState: SaveState;
-  routeSaveError?: string;
-  onRouteSave: (draft?: AppSettings) => void;
-  onSelect: (provider: LlmProvider) => void;
-  onTest: (draft: ProviderDraft) => Promise<void> | void;
 };
 
-type ProviderSettingsProps =
-  | {
-      providerDraft: ProviderDraftController;
-      routesDraft: SaveableDraft<AppSettings>;
-      providers: LlmProvider[];
-    }
-  | ProviderSettingsLegacyProps;
-
-export function ProviderSettings(props: ProviderSettingsProps) {
-  const {
-    draft,
-    settingsDraft,
-    providers,
-    testState,
-    canSave,
-    canSaveRoutes,
-    onChange,
-    onRouteChange,
-    onCreate,
-    onDelete,
-    onSave,
-    saveState,
-    saveError,
-    routeSaveState,
-    routeSaveError,
-    onRouteSave,
-    onSelect,
-    onTest,
-  } = resolveProviderSettingsProps(props);
+export function ProviderSettings({ providerDraft, routesDraft, providers }: ProviderSettingsProps) {
+  const draft = providerDraft.value;
+  const settingsDraft = routesDraft.value;
+  const testState = providerDraft.testState;
+  const canSave = providerDraft.canSave;
+  const canSaveRoutes = routesDraft.canSave;
+  const saveState = providerDraft.saveState;
+  const saveError = providerDraft.saveError;
+  const routeSaveState = routesDraft.saveState;
+  const routeSaveError = routesDraft.saveError;
   const { t } = useTranslation();
   const saveLabel =
     saveState === 'saving'
@@ -118,7 +84,7 @@ export function ProviderSettings(props: ProviderSettingsProps) {
   );
 
   function selectProvider(provider: LlmProvider) {
-    onSelect(provider);
+    providerDraft.select(provider);
     setProviderEditorMode('edit');
     setProviderEditorStep(2);
     setProviderPresetPicked(true);
@@ -126,7 +92,7 @@ export function ProviderSettings(props: ProviderSettingsProps) {
   }
 
   function createProvider() {
-    onCreate();
+    providerDraft.create();
     setProviderEditorMode('create');
     setProviderEditorStep(1);
     setProviderPresetPicked(false);
@@ -134,12 +100,12 @@ export function ProviderSettings(props: ProviderSettingsProps) {
   }
 
   function deleteProvider(id: string) {
-    onDelete(id);
+    void providerDraft.deleteProvider(id);
     setProviderEditorOpen(false);
   }
 
-  function testProvider(providerDraft: ProviderDraft) {
-    void Promise.resolve(onTest(providerDraft)).catch(() => undefined);
+  function testProvider(nextDraft: ProviderDraft) {
+    void Promise.resolve(providerDraft.test(nextDraft)).catch(() => undefined);
   }
 
   function closeProviderEditor() {
@@ -148,11 +114,15 @@ export function ProviderSettings(props: ProviderSettingsProps) {
 
   async function saveProviderAndClose() {
     try {
-      const result = await onSave();
-      if (result !== false) setProviderEditorOpen(false);
+      const saved = Boolean(await providerDraft.save());
+      if (saved) setProviderEditorOpen(false);
     } catch {
       setProviderEditorOpen(true);
     }
+  }
+
+  function saveRoutes(nextDraft?: AppSettings) {
+    void routesDraft.save(nextDraft);
   }
 
   const editorDialog =
@@ -175,10 +145,10 @@ export function ProviderSettings(props: ProviderSettingsProps) {
                 editorMode={providerEditorMode}
                 editorStep={providerEditorStep}
                 providerPresetPicked={providerPresetPicked}
-                onChange={onChange}
+                onChange={providerDraft.update}
                 onCancel={closeProviderEditor}
                 onPickPreset={(preset) => {
-                  onChange(providerDraftFromPreset(draft, preset));
+                  providerDraft.update(providerDraftFromPreset(draft, preset));
                   setProviderPresetPicked(true);
                   setProviderEditorStep(2);
                 }}
@@ -204,8 +174,8 @@ export function ProviderSettings(props: ProviderSettingsProps) {
           saveError={routeSaveError}
           saveState={routeSaveState}
           settingsDraft={settingsDraft}
-          onChange={onRouteChange}
-          onSave={onRouteSave}
+          onChange={routesDraft.update}
+          onSave={saveRoutes}
         />
         <SettingsGroup label={t('settings.models.providerGroup')} flush>
           <ProviderList
@@ -220,34 +190,6 @@ export function ProviderSettings(props: ProviderSettingsProps) {
       {editorDialog}
     </>
   );
-}
-
-function resolveProviderSettingsProps(props: ProviderSettingsProps): ProviderSettingsLegacyProps {
-  if ('providerDraft' in props) {
-    return {
-      draft: props.providerDraft.value,
-      settingsDraft: props.routesDraft.value,
-      providers: props.providers,
-      testState: props.providerDraft.testState,
-      canSave: props.providerDraft.canSave,
-      canSaveRoutes: props.routesDraft.canSave,
-      onChange: props.providerDraft.update,
-      onRouteChange: props.routesDraft.update,
-      onCreate: props.providerDraft.create,
-      onDelete: props.providerDraft.deleteProvider,
-      onSave: async () => Boolean(await props.providerDraft.save()),
-      saveState: props.providerDraft.saveState,
-      saveError: props.providerDraft.saveError,
-      routeSaveState: props.routesDraft.saveState,
-      routeSaveError: props.routesDraft.saveError,
-      onRouteSave: (draft) => {
-        void props.routesDraft.save(draft);
-      },
-      onSelect: props.providerDraft.select,
-      onTest: props.providerDraft.test,
-    };
-  }
-  return props;
 }
 
 function ProviderEditorContent({
