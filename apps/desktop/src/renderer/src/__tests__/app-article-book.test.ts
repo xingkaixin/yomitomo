@@ -90,6 +90,53 @@ describe('native ebook cover ratio', () => {
   });
 });
 
+describe('text source cover', () => {
+  it('renders the 稿纸 cover with title and author', () => {
+    const { container } = render(
+      React.createElement(ArticleBook, { article: textSummary('plain') }),
+    );
+    const cover = container.querySelector('.is-text-cover') as HTMLElement;
+
+    expect(cover).not.toBeNull();
+    expect(cover.classList.contains('is-txt')).toBe(true);
+    expect(container.querySelector('.text-cover-title')?.textContent).toBe('深夜随笔');
+    expect(container.querySelector('.text-cover-author')?.textContent).toBe('陈知遥');
+    expect(container.querySelectorAll('.text-cover-sheet').length).toBe(2);
+  });
+
+  it('marks markdown text with the is-md tone', () => {
+    const { container } = render(
+      React.createElement(ArticleBook, { article: textSummary('markdown') }),
+    );
+    const cover = container.querySelector('.is-text-cover') as HTMLElement;
+
+    expect(cover.classList.contains('is-md')).toBe(true);
+  });
+
+  it('omits the author node when byline is empty', () => {
+    const article = { ...textSummary('plain'), byline: '' };
+    const { container } = render(React.createElement(ArticleBook, { article }));
+
+    expect(container.querySelector('.text-cover-author')).toBeNull();
+  });
+});
+
+function textSummary(format: 'plain' | 'markdown'): ArticleSummaryRecord {
+  return {
+    id: `text_${format}`,
+    url: `text://text_${format}`,
+    canonicalUrl: `text://text_${format}`,
+    title: '深夜随笔',
+    byline: '陈知遥',
+    contentHash: 'text_hash',
+    createdAt: '2026-06-28T00:00:00.000Z',
+    updatedAt: '2026-06-28T00:00:00.000Z',
+    sourceType: 'text',
+    text: { format },
+    annotations: [],
+  };
+}
+
 function mockImageDimensions({
   complete,
   naturalHeight,

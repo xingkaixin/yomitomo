@@ -173,6 +173,8 @@ export type {
   SpoilerPolicy,
   TextAnchor,
   TextRange,
+  TextSourceFormat,
+  TextSourceMetadata,
   TextSummary,
   TextSummaryScope,
   ThreadContext,
