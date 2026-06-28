@@ -703,6 +703,7 @@ export const enResources = {
         importing: 'Importing {{current}}/{{total}}',
         canceled: 'Canceled',
         failed: 'Import failed',
+        localOnlyNotice: 'Files are saved only on this device and are not uploaded to any server.',
         duplicateAndFailed: '{{duplicates}} already exist, {{failed}} failed',
         duplicateFiles: '{{count}} files are already in the library',
         importedAndFailed: 'Imported {{imported}}, {{failed}} failed',
@@ -1634,6 +1635,8 @@ export const enResources = {
         description: 'Assign default models for reading tasks and manage model providers.',
         providerGroup: 'Model providers',
         routeGroup: 'Task routing',
+        routePrivacyNotice:
+          'When these routes are used, the relevant content (selection, context, and the full article for bilingual translation) is uploaded to the endpoint you configured.',
         noProvidersNote:
           'No providers are available yet. Add and save a provider to enable routing.',
         executionModeTitle: 'Assistant execution mode',
