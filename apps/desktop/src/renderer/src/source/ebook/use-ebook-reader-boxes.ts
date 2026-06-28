@@ -24,6 +24,7 @@ import {
   recordRendererPerformanceTiming,
   type EbookBookcaseProps,
 } from '../bookcase/app-source-bookcase-shared';
+import { isContinuousTextSelectionMouseEvent } from '../bookcase/source-reader-selection-events';
 import {
   readerPageTurnDirectionFromKeyboardEvent,
   type ReaderPageTurnDirection,
@@ -129,6 +130,7 @@ export function useEbookReaderBoxes({
   });
   const observedFoliateViewsRef = useRef(new WeakSet<FoliateViewElement>());
   const observedFoliateDocsRef = useRef(new WeakSet<Document>());
+  const suppressedFoliateSelectionDocsRef = useRef(new WeakSet<Document>());
   const foliateDocCleanupsRef = useRef<Array<() => void>>([]);
   const handleFoliateSelectionRef = useRef(onFoliateSelection);
   const handleFoliateClickRef = useRef(onFoliateClick);
@@ -504,6 +506,7 @@ export function useEbookReaderBoxes({
     foliateDocCleanupsRef.current = [];
     observedFoliateViewsRef.current = new WeakSet<FoliateViewElement>();
     observedFoliateDocsRef.current = new WeakSet<Document>();
+    suppressedFoliateSelectionDocsRef.current = new WeakSet<Document>();
     const canvas = canvasRef.current;
     if (canvas) delete canvas.dataset.ebookClickPagingHover;
   }, [canvasRef]);
@@ -628,10 +631,24 @@ export function useEbookReaderBoxes({
 
         const handleSelection = () => {
           window.setTimeout(() => {
+            if (suppressedFoliateSelectionDocsRef.current.delete(doc)) {
+              doc.getSelection()?.removeAllRanges();
+              return;
+            }
             const selection = doc.getSelection();
             if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
             handleFoliateSelectionRef.current(doc);
           }, 0);
+        };
+        const handleMouseDown = (event: MouseEvent) => {
+          if (!isContinuousTextSelectionMouseEvent(event)) {
+            suppressedFoliateSelectionDocsRef.current.delete(doc);
+            return;
+          }
+          if (foliateClickTargetIsInteractive(event.target)) return;
+          event.preventDefault();
+          suppressedFoliateSelectionDocsRef.current.add(doc);
+          doc.getSelection()?.removeAllRanges();
         };
         const handleClick = (event: MouseEvent) => {
           if (event.button !== 0 || event.defaultPrevented) return;
@@ -660,6 +677,7 @@ export function useEbookReaderBoxes({
           handleFoliatePageTurnKeyRef.current(direction);
         };
 
+        doc.addEventListener('mousedown', handleMouseDown, true);
         doc.addEventListener('mouseup', handleSelection);
         doc.addEventListener('click', handleClick);
         doc.addEventListener('keyup', handleSelection);
@@ -668,6 +686,7 @@ export function useEbookReaderBoxes({
         doc.addEventListener('mouseleave', handleMouseLeave);
         doc.addEventListener('pointerdown', handlePointerDown, true);
         foliateDocCleanupsRef.current.push(() => {
+          doc.removeEventListener('mousedown', handleMouseDown, true);
           doc.removeEventListener('mouseup', handleSelection);
           doc.removeEventListener('click', handleClick);
           doc.removeEventListener('keyup', handleSelection);

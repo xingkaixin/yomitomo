@@ -233,6 +233,73 @@ describe('useEbookReaderBoxes', () => {
     expect(onFoliatePageTurnClick).not.toHaveBeenCalled();
   });
 
+  it('does not bridge foliate double-click selections to the reader menu', async () => {
+    const doc = foliateDocument('正文');
+    const removeAllRanges = vi.fn();
+    vi.spyOn(doc, 'getSelection').mockReturnValue({
+      isCollapsed: false,
+      rangeCount: 1,
+      removeAllRanges,
+    } as unknown as Selection);
+    render(<EbookBoxesProbe view={foliateView(doc)} />);
+
+    const mouseDown = foliateMouseEvent('mousedown', { clientX: 20, detail: 2 });
+    doc.body.dispatchEvent(mouseDown);
+    doc.body.dispatchEvent(foliateMouseEvent('mouseup', { clientX: 20 }));
+
+    await waitForFoliateSelection();
+
+    expect(onFoliateSelection).not.toHaveBeenCalled();
+    expect(mouseDown.defaultPrevented).toBe(true);
+    expect(removeAllRanges).toHaveBeenCalled();
+  });
+
+  it('keeps foliate drag selections bridged from normal mouseup', async () => {
+    const doc = foliateDocument('正文');
+    vi.spyOn(doc, 'getSelection').mockReturnValue({
+      isCollapsed: false,
+      rangeCount: 1,
+    } as Selection);
+    render(<EbookBoxesProbe view={foliateView(doc)} />);
+
+    doc.body.dispatchEvent(foliateMouseEvent('mouseup', { clientX: 20 }));
+
+    await waitForFoliateSelection();
+
+    expect(onFoliateSelection).toHaveBeenCalledWith(doc);
+  });
+
+  it('does not let stale foliate double-click suppression block the next selection', async () => {
+    const doc = foliateDocument('正文');
+    vi.spyOn(doc, 'getSelection').mockReturnValue({
+      isCollapsed: false,
+      rangeCount: 1,
+      removeAllRanges: vi.fn(),
+    } as unknown as Selection);
+    render(<EbookBoxesProbe view={foliateView(doc)} />);
+
+    doc.body.dispatchEvent(foliateMouseEvent('mousedown', { clientX: 20, detail: 2 }));
+    doc.body.dispatchEvent(foliateMouseEvent('mousedown', { clientX: 20, detail: 1 }));
+    doc.body.dispatchEvent(foliateMouseEvent('mouseup', { clientX: 20 }));
+
+    await waitForFoliateSelection();
+
+    expect(onFoliateSelection).toHaveBeenCalledWith(doc);
+  });
+
+  it('does not suppress foliate double clicks on interactive targets', () => {
+    const doc = foliateDocument('');
+    const button = doc.createElement('button');
+    button.textContent = 'Action';
+    doc.body.append(button);
+    render(<EbookBoxesProbe view={foliateView(doc)} />);
+
+    const mouseDown = foliateMouseEvent('mousedown', { clientX: 20, detail: 2 });
+    button.dispatchEvent(mouseDown);
+
+    expect(mouseDown.defaultPrevented).toBe(false);
+  });
+
   it('does not turn pages when a highlight click is handled first', () => {
     const doc = foliateDocument('正文');
     onFoliateClick.mockReturnValueOnce(true);
@@ -340,8 +407,22 @@ function foliateDocument(
   return doc;
 }
 
-function foliateMouseEvent(type: string, { clientX }: { clientX: number }) {
-  return new MouseEvent(type, { bubbles: true, button: 0, cancelable: true, clientX, clientY: 12 });
+function foliateMouseEvent(
+  type: string,
+  { clientX, detail = 1 }: { clientX: number; detail?: number },
+) {
+  return new MouseEvent(type, {
+    bubbles: true,
+    button: 0,
+    cancelable: true,
+    clientX,
+    clientY: 12,
+    detail,
+  });
+}
+
+function waitForFoliateSelection() {
+  return new Promise((resolve) => window.setTimeout(resolve, 0));
 }
 
 function foliateView(
