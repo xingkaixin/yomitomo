@@ -682,7 +682,7 @@ export const zhCNResources = {
         epubEbook: '电子书文件',
         pdfDocument: 'PDF 文档',
         text: {
-          menuEntry: '文本 / Markdown',
+          menuEntry: '文本文件',
           title: '导入文本',
           hint: '粘贴文本，或上传 .txt / .md 文件',
           confirmHint: '确认标题和作者后导入',

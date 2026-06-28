@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { ClipboardType, FileUp, LoaderCircle, Upload, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { ArticleRecord } from '@yomitomo/shared';
 import type { TextImportCommitItem, TextImportPreparedItem } from '../../../ipc-contract';
 import { Button } from '../components/ui/button';
 import { Dialog, DialogContent, DialogOverlay, DialogPortal } from '../components/ui/dialog';
@@ -19,13 +18,7 @@ type ConfirmRow = {
 
 const TEXT_IMPORT_ACCEPT = '.txt,.md,.markdown,text/plain,text/markdown';
 
-export function TextImportDialog({
-  onClose,
-  onOpenArticle,
-}: {
-  onClose: () => void;
-  onOpenArticle: (article: ArticleRecord) => void;
-}) {
+export function TextImportDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<TextImportMode>('paste');
   const [pasteContent, setPasteContent] = useState('');
@@ -98,8 +91,7 @@ export function TextImportDialog({
         format: row.format,
         body: row.body,
       }));
-      const result = await window.yomitomoDesktop.commitTextImport({ items });
-      if (result.articles.length === 1) onOpenArticle(result.articles[0]);
+      await window.yomitomoDesktop.commitTextImport({ items });
       onClose();
     } catch {
       setErrors([t('library.import.text.commitFailed')]);

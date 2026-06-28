@@ -183,6 +183,7 @@ function libraryArticleAuthorLabel(article: ArticleSummaryRecord) {
     return formatPdfAuthors(article.pdf?.metadata.author || '', { maxAuthors: 3, maxLength: 42 });
   if (article.sourceType === 'ebook')
     return article.byline || article.ebook?.metadata.fileName || '';
+  if (article.sourceType === 'text') return article.byline || '';
   return (
     urlHost(article.canonicalUrl || article.url) ||
     article.siteName ||

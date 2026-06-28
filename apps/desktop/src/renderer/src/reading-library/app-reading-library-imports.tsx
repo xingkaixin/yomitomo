@@ -362,9 +362,7 @@ export function useLibraryImportDialogs({
           onOpenArticle={onOpenArticle}
         />
       ) : null}
-      {textImportOpen ? (
-        <TextImportDialog onClose={() => setTextImportOpen(false)} onOpenArticle={onOpenArticle} />
-      ) : null}
+      {textImportOpen ? <TextImportDialog onClose={() => setTextImportOpen(false)} /> : null}
     </>
   );
 

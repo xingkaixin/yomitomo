@@ -700,7 +700,7 @@ export const enResources = {
         epubEbook: 'Ebook file',
         pdfDocument: 'PDF document',
         text: {
-          menuEntry: 'Text / Markdown',
+          menuEntry: 'Text file',
           title: 'Import text',
           hint: 'Paste text, or upload .txt / .md files',
           confirmHint: 'Confirm title and author before importing',
