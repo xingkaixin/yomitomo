@@ -20,6 +20,7 @@ import {
   offsetFromArticleStartIgnoringSelector,
   rangeHighlightBoxes,
   rangeForTranslationTextAnchor,
+  rangeFromOffsets,
   rangeFromOffsetsIgnoringSelector,
   selectionActionPosition,
   scrollReaderSurfaceToRect,
@@ -32,6 +33,8 @@ import {
 import {
   ReaderAppView,
   type AnnotationNavigationDirection,
+  type SelectionAdjustmentHandle,
+  type SelectionAdjustmentPointer,
 } from '@yomitomo/reader-ui/reader-app-view';
 import { ReaderSettingsToolbarControls } from '@yomitomo/reader-ui/reader-toolbar-controls';
 import { readerDesktopEmbeddedBundleStyles } from '@yomitomo/reader-ui/reader-styles';
@@ -80,8 +83,10 @@ import {
 import {
   shouldUseWebSelectionGesturePreview,
   shouldUseWebSelectionGestureRange,
+  webSelectionGestureAdjustedOffsets,
   webSelectionGesturePointFromClientPoint,
   webSelectionGestureRangeFromClientPoint,
+  webTranslationSelectionGesturePointFromClientPoint,
   type WebSelectionGestureRange,
   type WebSelectionGesturePoint,
 } from './web-reader-selection-gesture';
@@ -106,6 +111,21 @@ type ReaderRailViewport = {
   height: number;
   top: number;
 };
+
+type WebSelectionAdjustmentBase = {
+  endOffset: number;
+  handle: SelectionAdjustmentHandle;
+  startOffset: number;
+};
+
+type WebSelectionAdjustment =
+  | (WebSelectionAdjustmentBase & {
+      kind: 'source';
+    })
+  | (WebSelectionAdjustmentBase & {
+      kind: 'translation';
+      translationBlockId: string;
+    });
 
 type AnnotationRailDebugBoxGroup = {
   bottom: number;
@@ -138,6 +158,42 @@ function annotationRailDebugRect(rect: DOMRect | DOMRectReadOnly | undefined | n
     top: annotationRailDebugNumber(rect.top),
     width: annotationRailDebugNumber(rect.width),
   };
+}
+
+function describeSelectionAdjustmentPoint(point: SelectionAdjustmentPointer) {
+  return {
+    clientX: Math.round(point.clientX),
+    clientY: Math.round(point.clientY),
+  };
+}
+
+function canAdjustWebSelectionAnchor(anchor: Annotation['anchor']) {
+  if (!webSelectionAdjustmentKind(anchor)) return false;
+  return (
+    Number.isFinite(anchor.start) && Number.isFinite(anchor.end) && anchor.start !== anchor.end
+  );
+}
+
+function webSelectionAdjustmentKind(
+  anchor: Annotation['anchor'],
+): WebSelectionAdjustment['kind'] | null {
+  if ('kind' in anchor && anchor.kind === 'pdf-text') return null;
+  if (
+    anchor.segmentId &&
+    anchor.textStartInBook === undefined &&
+    anchor.textEndInBook === undefined
+  ) {
+    return 'translation';
+  }
+  return 'source';
+}
+
+function webSelectionAdjustmentDraggingHandle(
+  adjustment: WebSelectionAdjustment,
+  sourceOffset: number,
+): SelectionAdjustmentHandle {
+  const fixedOffset = adjustment.handle === 'start' ? adjustment.endOffset : adjustment.startOffset;
+  return sourceOffset < fixedOffset ? 'start' : 'end';
 }
 
 function annotationRailDebugStyleNumber(value: string) {
@@ -200,6 +256,7 @@ export function WebSourceBookcase({
   const articleSelectionGestureActiveRef = useRef(false);
   const articleSelectionGestureRef = useRef<WebSelectionGesturePoint | null>(null);
   const articleSelectionGestureDragPointRef = useRef<WebSelectionGestureClientPoint | null>(null);
+  const articleSelectionAdjustmentRef = useRef<WebSelectionAdjustment | null>(null);
   const suppressArticleSelectionMouseUpRef = useRef(false);
   const deferredArticleTranslationRef = useRef<ArticleTranslation | null>(null);
   const restoredWebProgressArticleRef = useRef<string | null>(null);
@@ -335,6 +392,7 @@ export function WebSourceBookcase({
     temporaryBoxes,
     setTemporaryBoxes,
     selectionAction,
+    setSelectionAction,
     setHighlightChoice,
     composer,
     clearSelection,
@@ -969,6 +1027,186 @@ export function WebSourceBookcase({
     return articleRef.current ? sourceTextContent(articleRef.current) : '';
   }
 
+  function startArticleSelectionAdjustment(point: SelectionAdjustmentPointer) {
+    const anchor = selectionAction?.anchor;
+    const kind = anchor ? webSelectionAdjustmentKind(anchor) : null;
+    if (!anchor || !kind || !canAdjustWebSelectionAnchor(anchor)) {
+      articleSelectionAdjustmentRef.current = null;
+      return;
+    }
+
+    articleSelectionAdjustmentRef.current =
+      kind === 'translation'
+        ? {
+            kind,
+            handle: point.handle,
+            startOffset: anchor.start,
+            endOffset: anchor.end,
+            translationBlockId: anchor.segmentId || '',
+          }
+        : {
+            kind,
+            handle: point.handle,
+            startOffset: anchor.start,
+            endOffset: anchor.end,
+          };
+    logReaderSelectionDebug('selection-handle:start', {
+      ...selectionDebugContext(),
+      kind,
+      handle: point.handle,
+      anchor: describeAnchorForDebug(anchor),
+      pointer: describeSelectionAdjustmentPoint(point),
+    });
+  }
+
+  function updateArticleSelectionAdjustment(point: SelectionAdjustmentPointer) {
+    const adjustment = articleSelectionAdjustmentRef.current;
+    const articleElement = articleRef.current;
+    const canvasElement = canvasRef.current;
+    if (!adjustment || adjustment.handle !== point.handle || !articleElement || !canvasElement) {
+      return;
+    }
+    if (adjustment.kind === 'translation') {
+      updateTranslationSelectionAdjustment(adjustment, point, canvasElement);
+      return;
+    }
+
+    const targetPoint = webSelectionGesturePointFromClientPoint(
+      articleElement,
+      point.clientX,
+      point.clientY,
+    );
+    if (!targetPoint || targetPoint.translationBlockId) return;
+
+    const nextOffsets = webSelectionGestureAdjustedOffsets({
+      endOffset: adjustment.endOffset,
+      handle: adjustment.handle,
+      sourceOffset: targetPoint.sourceOffset,
+      startOffset: adjustment.startOffset,
+    });
+    if (!nextOffsets) return;
+
+    const range = rangeFromOffsetsIgnoringSelector(
+      articleElement,
+      nextOffsets.startOffset,
+      nextOffsets.endOffset,
+      '[data-reader-translation]',
+    );
+    if (!range || range.collapsed) return;
+
+    const selectedArticleText = currentArticleText();
+    const anchor = article.ebook?.index
+      ? createEpubTextAnchor(
+          article.ebook.index,
+          selectedArticleText,
+          nextOffsets.startOffset,
+          nextOffsets.endOffset,
+        )
+      : createTextAnchor(selectedArticleText, nextOffsets.startOffset, nextOffsets.endOffset);
+    commitSelectionAdjustment({
+      anchor,
+      canvasElement,
+      draggingHandle: webSelectionAdjustmentDraggingHandle(adjustment, targetPoint.sourceOffset),
+      range,
+    });
+  }
+
+  function updateTranslationSelectionAdjustment(
+    adjustment: Extract<WebSelectionAdjustment, { kind: 'translation' }>,
+    point: SelectionAdjustmentPointer,
+    canvasElement: HTMLElement,
+  ) {
+    const articleElement = articleRef.current;
+    if (!articleElement) return;
+
+    const targetPoint = webTranslationSelectionGesturePointFromClientPoint(
+      articleElement,
+      adjustment.translationBlockId,
+      point.clientX,
+      point.clientY,
+    );
+    if (!targetPoint) return;
+
+    const nextOffsets = webSelectionGestureAdjustedOffsets({
+      endOffset: adjustment.endOffset,
+      handle: adjustment.handle,
+      sourceOffset: targetPoint.translationOffset,
+      startOffset: adjustment.startOffset,
+    });
+    if (!nextOffsets) return;
+
+    const range = rangeFromOffsets(
+      targetPoint.translationElement,
+      nextOffsets.startOffset,
+      nextOffsets.endOffset,
+    );
+    if (!range || range.collapsed) return;
+
+    const anchor = createTranslationTextAnchor(range, targetPoint.translationElement);
+    if (!anchor) return;
+
+    commitSelectionAdjustment({
+      anchor,
+      canvasElement,
+      draggingHandle: webSelectionAdjustmentDraggingHandle(
+        adjustment,
+        targetPoint.translationOffset,
+      ),
+      range,
+    });
+  }
+
+  function commitSelectionAdjustment({
+    anchor,
+    canvasElement,
+    draggingHandle,
+    range,
+  }: {
+    anchor: Annotation['anchor'];
+    canvasElement: HTMLElement;
+    draggingHandle: SelectionAdjustmentHandle;
+    range: Range;
+  }) {
+    if (!anchor.exact.trim()) return;
+
+    const rects = range.getClientRects();
+    const lastRect = rects[rects.length - 1];
+    if (!lastRect) return;
+
+    const canvasRect = canvasElement.getBoundingClientRect();
+    const position = selectionActionPosition(lastRect, canvasRect);
+    const highlightBoxes = rangeHighlightBoxes(range, canvasRect, 'source-selection').map((box) =>
+      Object.assign(box, {
+        annotationId: '__selection__',
+        contributorId: userProfile.id,
+        color: userProfile.annotationColor,
+      }),
+    );
+    setSelectionAction({
+      x: position.x,
+      y: position.y,
+      anchor,
+      adjustable: true,
+      draggingHandle,
+    });
+    setTemporaryBoxes(highlightBoxes);
+  }
+
+  function finishArticleSelectionAdjustment(point: SelectionAdjustmentPointer) {
+    updateArticleSelectionAdjustment(point);
+    const adjustment = articleSelectionAdjustmentRef.current;
+    articleSelectionAdjustmentRef.current = null;
+    logReaderSelectionDebug('selection-handle:end', {
+      ...selectionDebugContext(),
+      handle: point.handle,
+      pointer: describeSelectionAdjustmentPoint(point),
+      adjusted: Boolean(adjustment),
+    });
+    setSelectionAction((action) =>
+      action?.draggingHandle ? { ...action, draggingHandle: undefined } : action,
+    );
+  }
+
   function isCurrentArticle(articleId: string) {
     return latestArticleRef.current?.id === articleId;
   }
@@ -1473,7 +1711,15 @@ export function WebSourceBookcase({
         color: userProfile.annotationColor,
       }),
     );
-    openSelectionAction({ x: position.x, y: position.y, anchor }, highlightBoxes);
+    openSelectionAction(
+      {
+        x: position.x,
+        y: position.y,
+        anchor,
+        adjustable: canAdjustWebSelectionAnchor(anchor),
+      },
+      highlightBoxes,
+    );
     logReaderSelectionDebug('mouseup:selection-action-opened', {
       ...selectionDebugContext(),
       anchor: describeAnchorForDebug(anchor),
@@ -2033,6 +2279,9 @@ export function WebSourceBookcase({
       onCopySelection: copySelection,
       onMouseUp: handleArticleMouseUp,
       onAskSelection: askSelection,
+      onSelectionHandleDrag: updateArticleSelectionAdjustment,
+      onSelectionHandleDragEnd: finishArticleSelectionAdjustment,
+      onSelectionHandleDragStart: startArticleSelectionAdjustment,
       onOpenComposer: openComposerFromSelection,
     },
     shell: {

@@ -20,6 +20,7 @@ const activeAnnotationPreserveSelector = [
   '.reader-note',
   '.reader-highlight',
   '.reader-selection-menu',
+  '.reader-selection-handle',
   '.reader-composer',
   '.reader-highlight-choice-menu',
 ].join(',');
@@ -166,7 +167,7 @@ export function useReaderShellInteractions({
         onCloseHighlightChoice();
       }
 
-      if (selectionAction && !target.closest('.reader-selection-menu')) {
+      if (selectionAction && !target.closest('.reader-selection-menu,.reader-selection-handle')) {
         onClearSelection();
       }
 

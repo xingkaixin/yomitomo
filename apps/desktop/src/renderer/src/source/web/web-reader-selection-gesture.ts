@@ -1,5 +1,6 @@
 import {
   isRangeInsideArticle,
+  offsetFromArticleStart,
   offsetFromArticleStartIgnoringSelector,
   rangeFromOffsetsIgnoringSelector,
   translationElementForRange,
@@ -28,6 +29,14 @@ export type WebSelectionGesturePoint = {
   translationBlockId: string | null;
 };
 
+export type WebTranslationSelectionGesturePoint = {
+  clientX: number;
+  clientY: number;
+  translationBlockId: string;
+  translationElement: HTMLElement;
+  translationOffset: number;
+};
+
 export type WebSelectionGestureRange = {
   range: Range;
   startOffset: number;
@@ -35,6 +44,31 @@ export type WebSelectionGestureRange = {
   startPoint: WebSelectionGesturePoint;
   endPoint: WebSelectionGesturePoint;
 };
+
+export type WebSelectionGestureHandle = 'start' | 'end';
+
+export type WebSelectionGestureAdjustedOffsets = {
+  startOffset: number;
+  endOffset: number;
+};
+
+export function webSelectionGestureAdjustedOffsets({
+  endOffset,
+  handle,
+  sourceOffset,
+  startOffset,
+}: {
+  endOffset: number;
+  handle: WebSelectionGestureHandle;
+  sourceOffset: number;
+  startOffset: number;
+}): WebSelectionGestureAdjustedOffsets | null {
+  const fixedOffset = handle === 'start' ? endOffset : startOffset;
+  const nextStartOffset = Math.min(fixedOffset, sourceOffset);
+  const nextEndOffset = Math.max(fixedOffset, sourceOffset);
+  if (nextStartOffset === nextEndOffset) return null;
+  return { startOffset: nextStartOffset, endOffset: nextEndOffset };
+}
 
 export function webSelectionGesturePointFromClientPoint(
   articleElement: HTMLElement,
@@ -57,6 +91,35 @@ export function webSelectionGesturePointFromClientPoint(
     sourceOffset,
     translationBlockId:
       translationElementForRange(range)?.getAttribute('data-reader-translation-block-id') ?? null,
+  };
+}
+
+export function webTranslationSelectionGesturePointFromClientPoint(
+  articleElement: HTMLElement,
+  translationBlockId: string,
+  clientX: number,
+  clientY: number,
+): WebTranslationSelectionGesturePoint | null {
+  const range = caretRangeFromClientPoint(articleElement.ownerDocument, clientX, clientY);
+  if (!range || !articleElement.contains(range.startContainer)) return null;
+
+  const translationElement = translationElementForRange(range);
+  const blockId = translationElement?.getAttribute('data-reader-translation-block-id');
+  if (!translationElement || blockId !== translationBlockId) return null;
+
+  const translationOffset = offsetFromArticleStart(
+    translationElement,
+    range.startContainer,
+    range.startOffset,
+  );
+  if (!Number.isFinite(translationOffset)) return null;
+
+  return {
+    clientX,
+    clientY,
+    translationBlockId,
+    translationElement,
+    translationOffset,
   };
 }
 

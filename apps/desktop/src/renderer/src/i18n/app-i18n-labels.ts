@@ -9,6 +9,8 @@ export function readerUiLabels(): ReaderUiLabels {
     annotationNavigation: i18next.t('readerUi.annotationNavigation'),
     annotationProcessing: i18next.t('readerUi.annotationProcessing'),
     articleWidth: i18next.t('readerUi.articleWidth'),
+    adjustSelectionEnd: i18next.t('readerUi.adjustSelectionEnd'),
+    adjustSelectionStart: i18next.t('readerUi.adjustSelectionStart'),
     askSelection: i18next.t('readerUi.askSelection'),
     assistant: i18next.t('readerUi.assistant'),
     assistantAnswering: i18next.t('readerUi.assistantAnswering'),

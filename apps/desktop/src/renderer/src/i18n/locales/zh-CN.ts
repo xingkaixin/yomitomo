@@ -210,6 +210,8 @@ export const zhCNResources = {
       annotationNavigation: '划线快捷选择',
       annotationProcessing: '助手处理中',
       articleWidth: '文章宽度',
+      adjustSelectionEnd: '调整选区终点',
+      adjustSelectionStart: '调整选区起点',
       askSelection: '问一下',
       assistant: '助手',
       assistantAnswering: '正在回答...',

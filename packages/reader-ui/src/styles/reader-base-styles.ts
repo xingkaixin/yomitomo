@@ -632,6 +632,58 @@ export const readerBaseStyles = `
   pointer-events: none;
 }
 
+.reader-selection-handle {
+  position: absolute;
+  z-index: 4;
+  width: 28px;
+  height: calc(var(--reader-selection-handle-height) + 24px);
+  border: 0;
+  background: transparent;
+  cursor: ew-resize;
+  padding: 0;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transform: translate(-50%,-12px);
+}
+
+.reader-selection-handle::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 12px;
+  width: 2px;
+  height: var(--reader-selection-handle-height);
+  border-radius: 999px;
+  background: var(--reader-green);
+  box-shadow: 0 0 0 1px color-mix(in srgb,var(--reader-paper) 70%,transparent);
+  transform: translateX(-50%);
+}
+
+.reader-selection-handle::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--reader-paper);
+  border-radius: 999px;
+  background: var(--reader-green);
+  box-shadow: 0 1px 4px rgba(37,29,22,.24);
+  transform: translateX(-50%);
+}
+
+.reader-selection-handle:hover::after,
+.reader-selection-handle:focus-visible::after {
+  box-shadow: 0 0 0 3px color-mix(in srgb,var(--reader-green) 22%,transparent),0 1px 4px rgba(37,29,22,.24);
+}
+
+.reader-selection-handle:focus-visible {
+  outline: 0;
+}
+
 .reader-selection-menu {
   position: absolute;
   z-index: 5;

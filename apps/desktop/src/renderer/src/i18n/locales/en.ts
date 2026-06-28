@@ -215,6 +215,8 @@ export const enResources = {
       annotationNavigation: 'Highlight navigation',
       annotationProcessing: 'assistant processing',
       articleWidth: 'Article width',
+      adjustSelectionEnd: 'Adjust selection end',
+      adjustSelectionStart: 'Adjust selection start',
       askSelection: 'Ask',
       assistant: 'Assistant',
       assistantAnswering: 'Answering...',

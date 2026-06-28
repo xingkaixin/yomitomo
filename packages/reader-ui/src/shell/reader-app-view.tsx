@@ -29,6 +29,8 @@ export type {
   ReaderAppViewProps,
   ReaderArticle,
   ReaderUiLabels,
+  SelectionAdjustmentHandle,
+  SelectionAdjustmentPointer,
   SelectionAction,
 } from './reader-app-view-types';
 
@@ -276,6 +278,9 @@ export function ReaderAppView({
             onHighlightClick={annotationActions.onHighlightClick}
             onMouseUp={selectionActions.onMouseUp}
             onAskSelection={selectionActions.onAskSelection}
+            onSelectionHandleDrag={selectionActions.onSelectionHandleDrag}
+            onSelectionHandleDragEnd={selectionActions.onSelectionHandleDragEnd}
+            onSelectionHandleDragStart={selectionActions.onSelectionHandleDragStart}
             onOpenComposer={selectionActions.onOpenComposer}
             pendingAnnotationAgents={pendingAnnotationAgents}
             onPrimaryCommentExpandedChange={setPrimaryCommentExpanded}

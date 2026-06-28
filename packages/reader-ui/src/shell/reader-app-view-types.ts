@@ -27,6 +27,16 @@ export type SelectionAction = {
   x: number;
   y: number;
   anchor: Annotation['anchor'];
+  adjustable?: boolean;
+  draggingHandle?: SelectionAdjustmentHandle;
+};
+
+export type SelectionAdjustmentHandle = 'start' | 'end';
+
+export type SelectionAdjustmentPointer = {
+  handle: SelectionAdjustmentHandle;
+  clientX: number;
+  clientY: number;
 };
 
 export type PendingComposer = SelectionAction;
@@ -183,6 +193,8 @@ export type ReaderUiLabels = {
   annotationNavigation: string;
   annotationProcessing: string;
   articleWidth: string;
+  adjustSelectionEnd: string;
+  adjustSelectionStart: string;
   askSelection: string;
   assistant: string;
   assistantAnswering: string;
@@ -260,6 +272,8 @@ export const defaultReaderUiLabels: ReaderUiLabels = {
   annotationNavigation: '划线快捷选择',
   annotationProcessing: '助手处理中',
   articleWidth: '文章宽度',
+  adjustSelectionEnd: '调整选区终点',
+  adjustSelectionStart: '调整选区起点',
   askSelection: '问一下',
   assistant: '助手',
   assistantAnswering: '正在回答...',
@@ -368,6 +382,9 @@ export type ReaderSelectionActions = {
   onCopySelection: (action: SelectionAction) => void | Promise<void>;
   onMouseUp: (event: React.MouseEvent<HTMLElement>) => void;
   onAskSelection?: (action: SelectionAction) => void;
+  onSelectionHandleDrag?: (point: SelectionAdjustmentPointer) => void;
+  onSelectionHandleDragEnd?: (point: SelectionAdjustmentPointer) => void;
+  onSelectionHandleDragStart?: (point: SelectionAdjustmentPointer) => void;
   onOpenComposer: (action: SelectionAction) => void;
 };
 
