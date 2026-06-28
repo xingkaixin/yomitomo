@@ -28,8 +28,8 @@ export function registerWeReadIpc(context: DesktopMainIpcContext) {
       const result = await testWeReadConnection(key);
       await weReadPersistence.saveWeReadTestResult(true, result.message);
       return result;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'WEREAD_CONNECTION_FAILED';
+    } catch {
+      const message = 'WEREAD_CONNECTION_FAILED';
       await weReadPersistence.saveWeReadTestResult(false, message);
       return { ok: false, message };
     }

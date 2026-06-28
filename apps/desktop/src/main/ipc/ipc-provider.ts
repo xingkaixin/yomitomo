@@ -40,7 +40,7 @@ export function registerProviderIpc(context: DesktopMainIpcContext) {
       const provider = await providerPersistence.hydrateProviderInputApiKey(input);
       const apiKey = provider.apiKey?.trim() || '';
       if (!apiKey) return { ok: false, message: 'PROVIDER_API_KEY_REQUIRED' };
-      return testProvider({
+      return await testProvider({
         id: provider.id || 'provider_test',
         name: provider.name?.trim() || 'Temporary provider',
         type: provider.type || 'openai-chat',
@@ -56,10 +56,10 @@ export function registerProviderIpc(context: DesktopMainIpcContext) {
         createdAt: provider.createdAt || '',
         updatedAt: provider.updatedAt || '',
       });
-    } catch (error) {
+    } catch {
       return {
         ok: false,
-        message: error instanceof Error ? error.message : 'Provider test failed',
+        message: 'PROVIDER_TEST_FAILED',
       };
     }
   });
