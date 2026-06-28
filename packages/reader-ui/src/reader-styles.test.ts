@@ -8,6 +8,7 @@ import {
   readerStyles,
   readerStyleBundles,
 } from './reader-styles';
+import { readerConversationStylesSource } from './styles/reader-conversation-styles';
 
 describe('reader embedded styles', () => {
   it('keeps compatibility exports wired to explicit style bundles', () => {
@@ -102,6 +103,20 @@ describe('reader embedded styles', () => {
     expect(readerStyles).toContain('\n.reader-article {\n');
     expect(readerStyles).toContain('\n@media(max-width:940px) {\n');
     expect(longestLine).toBeLessThanOrEqual(220);
+  });
+
+  it('keeps conversation CSS source reviewable', () => {
+    const source = readerConversationStylesSource;
+    const reviewableLines = source
+      .split('\n')
+      .filter((line) => !line.includes('data:image/svg+xml'));
+    const longestReviewableLine = Math.max(...reviewableLines.map((line) => line.length));
+
+    expect(source).toContain('\n.reader-app {\n');
+    expect(source).toContain('\n.reader-toolbar {\n');
+    expect(source).toContain('\n.reader-chat-panel {\n');
+    expect(source).toContain('\n@keyframes reader-chat-fab-return {\n');
+    expect(longestReviewableLine).toBeLessThanOrEqual(220);
   });
 
   it('wires popup surfaces to the shared motion contract', () => {
