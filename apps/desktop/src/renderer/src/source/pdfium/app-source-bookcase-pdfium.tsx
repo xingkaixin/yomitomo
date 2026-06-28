@@ -87,6 +87,7 @@ import { useSourceReaderWorkspace } from '../bookcase/use-source-reader-workspac
 import { useReaderSearchMatches } from '../bookcase/use-reader-search-matches';
 import { usePdfiumDocumentSource } from './use-pdfium-document-source';
 import { usePdfiumPlugins } from './use-pdfium-plugins';
+import { suppressPdfiumContinuousTextSelectionEvent } from './app-source-bookcase-pdfium-selection-events';
 import {
   debugComputedStyle,
   debugPdfLayout,
@@ -981,6 +982,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   }
 
   function handlePdfiumCanvasClickCapture(event: React.MouseEvent<HTMLDivElement>) {
+    if (suppressPdfiumContinuousTextSelectionEvent(event)) return;
     if (event.button !== 0 || event.defaultPrevented) return;
     const target = event.target instanceof Element ? event.target : null;
     const handled = openPdfiumHighlightAtClientPoint(event.clientX, event.clientY, {
@@ -1362,7 +1364,12 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     },
     article: {
       content: (
-        <div className="pdfium-spike-canvas" onClickCapture={handlePdfiumCanvasClickCapture}>
+        <div
+          className="pdfium-spike-canvas"
+          onClickCapture={handlePdfiumCanvasClickCapture}
+          onDoubleClickCapture={suppressPdfiumContinuousTextSelectionEvent}
+          onMouseDownCapture={suppressPdfiumContinuousTextSelectionEvent}
+        >
           <GlobalPointerProvider documentId={documentId}>
             <Viewport className="pdfium-spike-viewport" documentId={documentId}>
               <Scroller
