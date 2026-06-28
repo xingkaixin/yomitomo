@@ -169,3 +169,39 @@ export function renderTextBodyHtml(
 export function textContentHash(format: TextSourceFormat, body: string) {
   return hashText(`text:${format}:${body.slice(0, 12000)}`);
 }
+
+export function textFormatFromFileName(fileName: string): TextSourceFormat {
+  return /\.(md|markdown)$/i.test(fileName) ? 'markdown' : 'plain';
+}
+
+export type PreparedTextSource = {
+  format: TextSourceFormat;
+  fileName?: string;
+  suggestedTitle: string;
+  suggestedAuthor?: string;
+  body: string;
+};
+
+// 解码后的文本 → 拆 front matter（仅 md）、推断标题/作者，供导入确认表单预填。
+export function prepareTextSource(input: {
+  content: string;
+  format: TextSourceFormat;
+  fileName?: string;
+}): PreparedTextSource {
+  const { frontMatter, body } =
+    input.format === 'markdown'
+      ? splitFrontMatter(input.content)
+      : { frontMatter: {} as FrontMatter, body: input.content };
+  return {
+    format: input.format,
+    fileName: input.fileName,
+    suggestedTitle: inferTextTitle({
+      format: input.format,
+      body,
+      frontMatter,
+      fileName: input.fileName,
+    }),
+    suggestedAuthor: inferTextAuthor(frontMatter),
+    body,
+  };
+}

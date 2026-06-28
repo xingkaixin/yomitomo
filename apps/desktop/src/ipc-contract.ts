@@ -10,6 +10,7 @@ import type {
   DesktopStore,
   LibraryPinTargetKind,
   ReaderChatState,
+  TextSourceFormat,
   WeReadBook,
   WeReadOpenMethod,
   WeReadSyncMode,
@@ -354,6 +355,48 @@ export type PdfImportFileInput = {
 };
 
 export const MAX_PDF_IMPORT_BYTES = 120 * 1024 * 1024;
+
+export type TextImportFileInput = {
+  fileName: string;
+  data: ArrayBuffer;
+};
+
+export type TextImportPrepareInput =
+  | { kind: 'paste'; content: string; format: TextSourceFormat }
+  | { kind: 'files'; files: TextImportFileInput[] };
+
+export type TextImportPreparedItem =
+  | {
+      ok: true;
+      format: TextSourceFormat;
+      fileName?: string;
+      suggestedTitle: string;
+      suggestedAuthor?: string;
+      body: string;
+    }
+  | { ok: false; fileName?: string; reason: 'binary' | 'undecodable' | 'empty' };
+
+export type TextImportPrepareResult = {
+  items: TextImportPreparedItem[];
+};
+
+export type TextImportCommitItem = {
+  title: string;
+  author?: string;
+  format: TextSourceFormat;
+  body: string;
+};
+
+export type TextImportCommitInput = {
+  items: TextImportCommitItem[];
+};
+
+export type TextImportCommitResult = {
+  articles: ArticleRecord[];
+  patches: ArticleUpsertPatch[];
+};
+
+export const MAX_TEXT_IMPORT_BYTES = 20 * 1024 * 1024;
 
 export type PerformanceTimingInput = {
   event: string;
