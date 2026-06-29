@@ -1,8 +1,66 @@
 import { describe, expect, it, vi } from 'vitest';
-import { buildTelemetryHeartbeatPayload, runDesktopTelemetryHeartbeat } from './desktop-telemetry';
+import {
+  buildTelemetryHeartbeatPayload,
+  createDesktopTelemetryControllerForEnvironment,
+  getDesktopTelemetryAutomationSuppression,
+  runDesktopTelemetryHeartbeat,
+} from './desktop-telemetry';
 import type { StoredTelemetryState } from './telemetry-repository';
 
 describe('desktop telemetry heartbeat', () => {
+  it.each([['YOMITOMO_ELECTRON_SMOKE'], ['YOMITOMO_E2E'], ['YOMITOMO_DISABLE_TELEMETRY']] as const)(
+    'suppresses telemetry controller creation when %s is enabled',
+    (envVar) => {
+      expect(getDesktopTelemetryAutomationSuppression({ [envVar]: '1' })).toEqual({ envVar });
+    },
+  );
+
+  it('does not suppress production telemetry without automation env flags', () => {
+    expect(
+      getDesktopTelemetryAutomationSuppression({
+        YOMITOMO_ELECTRON_SMOKE: '0',
+        YOMITOMO_E2E: 'true',
+        YOMITOMO_DISABLE_TELEMETRY: '',
+      }),
+    ).toBeNull();
+  });
+
+  it('does not create a telemetry controller in automation environments', () => {
+    const createController = vi.fn();
+    const logInfo = vi.fn();
+
+    expect(
+      createDesktopTelemetryControllerForEnvironment({
+        env: { YOMITOMO_E2E: '1' },
+        getAppVersion: () => '0.9.0',
+        logInfo,
+        createController,
+      }),
+    ).toBeNull();
+
+    expect(createController).not.toHaveBeenCalled();
+    expect(logInfo).toHaveBeenCalledWith('telemetry.disabled_for_automation', {
+      envVar: 'YOMITOMO_E2E',
+    });
+  });
+
+  it('creates a telemetry controller outside automation environments', () => {
+    const controller = {
+      check: vi.fn(),
+      dispose: vi.fn(),
+    };
+    const createController = vi.fn().mockReturnValue(controller);
+
+    expect(
+      createDesktopTelemetryControllerForEnvironment({
+        env: {},
+        getAppVersion: () => '0.9.0',
+        createController,
+      }),
+    ).toBe(controller);
+    expect(createController).toHaveBeenCalledOnce();
+  });
+
   it('sends one heartbeat and records the successful local day', async () => {
     const savedStates: StoredTelemetryState[] = [];
     const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
