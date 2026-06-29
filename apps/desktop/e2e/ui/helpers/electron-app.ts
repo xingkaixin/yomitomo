@@ -8,6 +8,7 @@ import {
   createE2eDesktopEnv,
   createE2eRunData,
   safeE2eName,
+  type E2eRunData,
 } from '../../helpers/e2e-data';
 
 const require = createRequire(import.meta.url);
@@ -29,7 +30,7 @@ type DesktopPreloadProbe = {
   rootHasContent: boolean;
 };
 
-type DesktopE2eApp = {
+export type DesktopE2eApp = {
   app: ElectronApplication;
   artifactsDir: string;
   captureFailure: (label: string) => Promise<void>;
@@ -38,6 +39,11 @@ type DesktopE2eApp = {
   page: Page;
   rootDir: string;
   userDataDir: string;
+};
+
+type DesktopE2eLaunchOptions = {
+  cleanupOnClose?: boolean;
+  runData?: E2eRunData;
 };
 
 export async function withDesktopE2eApp<T>(
@@ -78,11 +84,15 @@ export async function probeDesktopPreload(page: Page): Promise<DesktopPreloadPro
   }, rendererReadySelector);
 }
 
-async function launchDesktopE2eApp(testName: string): Promise<DesktopE2eApp> {
+export async function launchDesktopE2eApp(
+  testName: string,
+  options: DesktopE2eLaunchOptions = {},
+): Promise<DesktopE2eApp> {
   await assertDesktopBuildExists();
   const artifactsDir = process.env.YOMITOMO_E2E_ARTIFACTS_DIR || defaultArtifactsDir;
   await mkdir(artifactsDir, { recursive: true });
-  const runData = await createE2eRunData(testName);
+  const runData = options.runData ?? (await createE2eRunData(testName));
+  const cleanupOnClose = options.cleanupOnClose ?? true;
   const output: string[] = [];
   const safeName = safeE2eName(testName);
   let closed = false;
@@ -123,7 +133,7 @@ async function launchDesktopE2eApp(testName: string): Promise<DesktopE2eApp> {
       if (closed) return;
       closed = true;
       await app.close().catch(() => child.kill());
-      await cleanupE2eData(runData);
+      if (cleanupOnClose) await cleanupE2eData(runData);
     };
 
     return {
@@ -149,7 +159,7 @@ async function launchDesktopE2eApp(testName: string): Promise<DesktopE2eApp> {
       })
       .catch(() => undefined);
     await app.close().catch(() => child.kill());
-    await cleanupE2eData(runData);
+    if (cleanupOnClose) await cleanupE2eData(runData);
     throw error;
   }
 }
