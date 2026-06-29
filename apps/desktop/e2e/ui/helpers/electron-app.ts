@@ -41,6 +41,23 @@ export type DesktopE2eApp = {
   userDataDir: string;
 };
 
+export type DesktopContentSize = {
+  height: number;
+  width: number;
+};
+
+export type DesktopResizeOptions = {
+  settleMs?: number;
+  timeout?: number;
+  tolerance?: number;
+};
+
+export type DesktopResizeResult = {
+  contentSize: DesktopContentSize;
+  targetSize: DesktopContentSize;
+  viewportSize: DesktopContentSize;
+};
+
 type DesktopE2eLaunchOptions = {
   cleanupOnClose?: boolean;
   runData?: E2eRunData;
@@ -82,6 +99,46 @@ export async function probeDesktopPreload(page: Page): Promise<DesktopPreloadPro
       ),
     };
   }, rendererReadySelector);
+}
+
+export async function resizeDesktopContent(
+  desktopApp: Pick<DesktopE2eApp, 'app' | 'page'>,
+  size: DesktopContentSize,
+  options: DesktopResizeOptions = {},
+): Promise<DesktopResizeResult> {
+  const targetSize = normalizedDesktopContentSize(size);
+  const tolerance = options.tolerance ?? 2;
+  const settleMs = options.settleMs ?? 100;
+
+  await desktopApp.app.evaluate(({ BrowserWindow }, target) => {
+    const browserWindow = BrowserWindow.getAllWindows()[0];
+    if (!browserWindow) throw new Error('DESKTOP_E2E_WINDOW_UNAVAILABLE');
+    if (browserWindow.isMinimized()) browserWindow.restore();
+    browserWindow.show();
+    browserWindow.setContentSize(target.width, target.height);
+  }, targetSize);
+
+  await desktopApp.page.waitForFunction(
+    ({ allowedDelta, height, width }) =>
+      Math.abs(window.innerWidth - width) <= allowedDelta &&
+      Math.abs(window.innerHeight - height) <= allowedDelta,
+    { ...targetSize, allowedDelta: tolerance },
+    { timeout: options.timeout ?? 10_000 },
+  );
+
+  if (settleMs > 0) await desktopApp.page.waitForTimeout(settleMs);
+
+  const [contentSize, viewportSize] = await Promise.all([
+    desktopApp.app.evaluate(({ BrowserWindow }) => {
+      const browserWindow = BrowserWindow.getAllWindows()[0];
+      if (!browserWindow) throw new Error('DESKTOP_E2E_WINDOW_UNAVAILABLE');
+      const [width, height] = browserWindow.getContentSize();
+      return { height, width };
+    }),
+    desktopApp.page.evaluate(() => ({ height: window.innerHeight, width: window.innerWidth })),
+  ]);
+
+  return { contentSize, targetSize, viewportSize };
 }
 
 export async function launchDesktopE2eApp(
@@ -162,6 +219,15 @@ export async function launchDesktopE2eApp(
     if (cleanupOnClose) await cleanupE2eData(runData);
     throw error;
   }
+}
+
+function normalizedDesktopContentSize(size: DesktopContentSize) {
+  const width = Math.round(size.width);
+  const height = Math.round(size.height);
+  if (!Number.isFinite(width) || width <= 0 || !Number.isFinite(height) || height <= 0) {
+    throw new Error(`Invalid desktop content size: ${size.width}x${size.height}`);
+  }
+  return { height, width };
 }
 
 async function assertDesktopBuildExists() {
