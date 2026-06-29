@@ -1,14 +1,13 @@
-import type { Page } from 'playwright-core';
-import { describe, expect, it } from 'vitest';
+import { describe, it } from 'vitest';
 import { cleanupE2eData, createE2eRunData, createTextFixture } from '../../helpers/e2e-data';
 import { launchDesktopE2eApp, type DesktopE2eApp } from '../helpers/electron-app';
+import {
+  importTextFileThroughLibraryUi,
+  openLibraryHome,
+  waitForLibraryArticle,
+} from '../helpers/library';
 
 const importedTitle = 'RD-790 Local Import';
-
-type DesktopApiForE2e = {
-  getState: () => Promise<{ settings: Record<string, unknown> }>;
-  saveSettings: (settings: Record<string, unknown>) => Promise<unknown>;
-};
 
 describe('library local import', () => {
   it('imports a text fixture through the UI and persists it after restart', async () => {
@@ -35,7 +34,10 @@ This fixture verifies the local text import UI persists through restart.
         runData,
       });
       await openLibraryHome(firstApp.page);
-      await importTextFile(firstApp.page, fixture.path);
+      await importTextFileThroughLibraryUi(firstApp.page, fixture.path, {
+        author: 'Yomitomo E2E',
+        title: importedTitle,
+      });
       await waitForLibraryArticle(firstApp.page, importedTitle);
 
       await firstApp.close();
@@ -58,40 +60,3 @@ This fixture verifies the local text import UI persists through restart.
     }
   });
 });
-
-async function openLibraryHome(page: Page) {
-  await page.evaluate(async () => {
-    const desktop = (window as Window & { yomitomoDesktop?: DesktopApiForE2e }).yomitomoDesktop;
-    if (!desktop) throw new Error('YOMITOMO_DESKTOP_API_UNAVAILABLE');
-
-    const store = await desktop.getState();
-    await desktop.saveSettings({
-      ...store.settings,
-      onboardingCompletedAt: '2026-06-29T00:00:00.000Z',
-      uiLanguage: 'en',
-    });
-  });
-  await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.getByRole('button', { name: 'Add content' }).waitFor({ timeout: 15_000 });
-}
-
-async function importTextFile(page: Page, fixturePath: string) {
-  await page.getByRole('button', { name: 'Add content' }).click();
-  await page.locator('.library-add-menu-popover').waitFor({ timeout: 5_000 });
-  await page.getByText('Text file', { exact: true }).click();
-  await page.getByRole('tab', { name: 'Upload files' }).click();
-  await page.locator('#library-text-import-file').setInputFiles(fixturePath);
-  await page.getByRole('button', { name: 'Next' }).click();
-
-  const dialog = page.locator('.library-text-import');
-  await dialog.getByLabel('Title').fill(importedTitle);
-  await dialog.getByLabel('Author').fill('Yomitomo E2E');
-  await dialog.getByRole('button', { name: 'Import' }).click();
-  await dialog.waitFor({ state: 'detached', timeout: 15_000 });
-}
-
-async function waitForLibraryArticle(page: Page, title: string) {
-  const openArticleButton = page.getByRole('button', { name: `Open article: ${title}` });
-  await openArticleButton.waitFor({ timeout: 15_000 });
-  expect(await openArticleButton.count()).toBeGreaterThan(0);
-}
