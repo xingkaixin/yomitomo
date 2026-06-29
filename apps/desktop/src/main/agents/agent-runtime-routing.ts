@@ -24,11 +24,19 @@ export async function taskProvider(
   settings: AppSettings,
   task: ProviderTask,
 ): Promise<LlmProvider> {
-  const providerId = settings[providerTaskSettings[task]] || settings.defaultProviderId;
-  const provider = providers.find((item) => item.id === providerId);
+  const provider = taskProviderRoute(providers, settings, task);
   if (!provider) throw providerRouteRequiredError(task);
   const { providerPersistence } = await context.getPersistenceModule();
   return providerPersistence.hydrateProviderApiKey(provider);
+}
+
+export function taskProviderRoute(
+  providers: LlmProvider[],
+  settings: AppSettings,
+  task: ProviderTask,
+) {
+  const providerId = settings[providerTaskSettings[task]] || settings.defaultProviderId;
+  return providers.find((item) => item.id === providerId);
 }
 
 export function agentNotFoundError(username: string) {
