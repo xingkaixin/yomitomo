@@ -18,6 +18,7 @@ import {
   createAgentTextStream,
   runAgentStreamIpc,
   type AgentStreamErrorEvent,
+  type AgentStreamSender,
 } from './ipc-agent-stream';
 import {
   agentAnnotatePayloadWithReadingMemoryEntries,
@@ -42,6 +43,7 @@ import {
   reviewAgentNotFoundError,
   selectAgentRuntime,
   taskProvider,
+  taskProviderRoute,
 } from '../agents/agent-runtime-routing';
 import {
   distillationReviewMessagePayload,
@@ -52,6 +54,8 @@ import {
   logAgentMessageRuntime,
   recordAssistantExecutionRun,
 } from '../agents/agent-execution-recorder';
+
+const e2eFakeAgentProviderBaseUrl = 'https://e2e.invalid/yomitomo-ai';
 
 export function registerAgentIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('agent:mention-route', async (_event, payload) => {
@@ -232,7 +236,6 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     'agent:comment:stream',
     'AGENT_REPLY_FAILED',
     async (input, sender) => {
-      const ai = await context.getAiModule();
       const store = await readAgentRuntimeStore(context);
       const taskType = agentMessageRuntimeTaskType(input.payload);
       const agent = findCommentAgent(
@@ -242,6 +245,16 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
         input.payload.allowDisabledAgentForRule && taskType === 'thread_reply',
       );
       if (!agent) throw agentNotFoundError(input.payload.agentUsername);
+      const providerRoute = taskProviderRoute(
+        store.providers,
+        store.settings,
+        providerTaskForAgent(agent),
+      );
+      const comment = pendingAgentComment(agent, input.payload);
+      if (sendE2eFakeAgentCommentStream(input.payload, sender, providerRoute, comment)) {
+        return;
+      }
+      const ai = await context.getAiModule();
       const provider = await taskProvider(
         context,
         store.providers,
@@ -250,20 +263,6 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       );
       const requestedMode = normalizeAssistantExecutionMode(store.settings.assistantExecutionMode);
       const startedAt = performance.now();
-      const comment: Comment = {
-        id: makeId('comment'),
-        author: 'ai',
-        content: '',
-        createdAt: new Date().toISOString(),
-        agentId: agent.id,
-        agentUsername: agent.username,
-        agentNickname: agent.nickname,
-        agentAvatar: agent.avatar,
-        agentAnnotationColor: agent.annotationColor,
-        replyTo: agentMessageReplyTo(input.payload),
-        readingIntent: input.payload.readingIntent,
-        pending: true,
-      };
       sender.send({ type: 'start', comment });
       const payloadWithRoster = {
         ...input.payload,
@@ -592,6 +591,53 @@ type AgentStreamAnnotateEvent =
       readingMemory?: AgentAnnotateResult['readingMemory'];
     }
   | AgentStreamErrorEvent;
+
+function pendingAgentComment(agent: Agent, payload: AgentMessagePayload): Comment {
+  return {
+    id: makeId('comment'),
+    author: 'ai',
+    content: '',
+    createdAt: new Date().toISOString(),
+    agentId: agent.id,
+    agentUsername: agent.username,
+    agentNickname: agent.nickname,
+    agentAvatar: agent.avatar,
+    agentAnnotationColor: agent.annotationColor,
+    replyTo: agentMessageReplyTo(payload),
+    readingIntent: payload.readingIntent,
+    pending: true,
+  };
+}
+
+function sendE2eFakeAgentCommentStream(
+  payload: AgentMessagePayload,
+  sender: AgentStreamSender<AgentStreamCommentEvent>,
+  provider: LlmProvider | undefined,
+  comment: Comment,
+) {
+  if (process.env.YOMITOMO_E2E !== '1' || provider?.baseUrl !== e2eFakeAgentProviderBaseUrl) {
+    return false;
+  }
+
+  const content = e2eFakeAgentCommentContent(payload);
+  comment.content = content;
+  sender.send({ type: 'start', comment });
+  sender.send({ type: 'delta', delta: content });
+  sender.send({
+    type: 'done',
+    comment: {
+      ...comment,
+      pending: false,
+    },
+  });
+  return true;
+}
+
+function e2eFakeAgentCommentContent(payload: AgentMessagePayload) {
+  const quote = payload.annotation.anchor.exact.trim() || payload.article.title;
+  const question = payload.userComment.content.trim();
+  return `RD-795 fake AI response.\nQuote: ${quote}\nQuestion: ${question}`;
+}
 
 function appendDistillationReviewItem(
   message: AnnotationDistillationReviewMessage,
