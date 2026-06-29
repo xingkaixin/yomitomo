@@ -45,11 +45,33 @@ export async function importTextFileThroughLibraryUi(
   await dialog.waitFor({ state: 'detached', timeout: 15_000 });
 }
 
+export async function importEbookFileThroughLibraryUi(page: Page, fixturePath: string) {
+  await page.getByRole('button', { name: 'Add content' }).click();
+  await page.locator('.library-add-menu-popover').waitFor({ timeout: 5_000 });
+  await page.getByText('Ebook file', { exact: true }).click();
+
+  const dialog = page.locator('.library-import-dialog');
+  await dialog.getByText('Add ebook', { exact: true }).waitFor({ timeout: 5_000 });
+  await page.locator('#library-ebook-file').setInputFiles(fixturePath);
+  await dialog.getByText('Import complete', { exact: true }).waitFor({ timeout: 15_000 });
+  await dialog.getByRole('button', { name: 'Close ebook import' }).click();
+  await dialog.waitFor({ state: 'detached', timeout: 15_000 });
+}
+
 export async function waitForLibraryArticle(page: Page, title: string) {
   const openArticleButton = libraryArticleButton(page, title);
   await openArticleButton.waitFor({ timeout: 15_000 });
 }
 
+export async function waitForLibraryDocument(page: Page, title: string, type: string) {
+  const openDocumentButton = libraryDocumentButton(page, title, type);
+  await openDocumentButton.waitFor({ timeout: 15_000 });
+}
+
 export function libraryArticleButton(page: Page, title: string) {
   return page.getByRole('button', { name: `Open article: ${title}` });
+}
+
+export function libraryDocumentButton(page: Page, title: string, type: string) {
+  return page.getByRole('button', { name: `Open ${type}: ${title}` });
 }
