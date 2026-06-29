@@ -969,10 +969,11 @@ export const readerConversationStylesSource = `
   pointer-events:none
 }
 .reader-annotation-rail>.reader-note.is-stacked {
-  transform:translate(var(--stack-offset,0px),var(--stack-offset-y,0px)) scale(var(--stack-scale,1))
+  transform-origin:50% 50%;
+  transform:rotate(var(--stack-rotate,0deg)) translateX(var(--stack-offset,0px))
 }
 .reader-annotation-rail>.reader-note[data-rail-side="left"].is-stacked {
-  transform:translate(calc(var(--stack-offset,0px) * -1),var(--stack-offset-y,0px)) scale(var(--stack-scale,1))
+  transform:rotate(calc(var(--stack-rotate,0deg) * -1)) translateX(calc(var(--stack-offset,0px) * -1))
 }
 .reader-annotation-rail>.reader-note.is-stack-front {
   box-shadow:var(--reader-elevated-shadow)
@@ -983,6 +984,40 @@ export const readerConversationStylesSource = `
 }
 .reader-annotation-rail>.reader-note.is-stacked:not(.is-stack-front) .reader-note-toolbar {
   pointer-events:none
+}
+.reader-annotation-rail>.reader-note.is-shuffle-out {
+  z-index:70;
+  animation:reader-note-shuffle-out .5s cubic-bezier(.4,.1,.3,1)
+}
+.reader-annotation-rail>.reader-note[data-rail-side="left"].is-shuffle-out {
+  animation-name:reader-note-shuffle-out-left
+}
+@keyframes reader-note-shuffle-out {
+  0% {
+    transform:rotate(0deg) translate(0,0) scale(1)
+  }
+  38% {
+    transform:rotate(-7deg) translate(30px,-28px) scale(1.02)
+  }
+  100% {
+    transform:rotate(var(--stack-rotate,0deg)) translateX(var(--stack-offset,0px))
+  }
+}
+@keyframes reader-note-shuffle-out-left {
+  0% {
+    transform:rotate(0deg) translate(0,0) scale(1)
+  }
+  38% {
+    transform:rotate(7deg) translate(-30px,-28px) scale(1.02)
+  }
+  100% {
+    transform:rotate(calc(var(--stack-rotate,0deg) * -1)) translateX(calc(var(--stack-offset,0px) * -1))
+  }
+}
+@media (prefers-reduced-motion:reduce) {
+  .reader-annotation-rail>.reader-note.is-shuffle-out {
+    animation:none
+  }
 }
 .reader-notes {
   padding:0 16px 32px;

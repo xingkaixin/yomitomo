@@ -352,7 +352,6 @@ export function buildAnnotationRailItems(
     const stackCount = group.length;
     const groupTop = groupTops[groupIndex] || 0;
     const railSide = groupSides[groupIndex] || 'right';
-    const spacing = groupSpacings[groupIndex] ?? defaultRailSpacing;
     const activeIndex = group.findIndex((item) => item.annotation.id === activeId);
     const frontIndex = activeIndex >= 0 ? activeIndex : 0;
     return group.map((item, stackIndex) => {
@@ -363,9 +362,8 @@ export function buildAnnotationRailItems(
       const style: React.CSSProperties = {
         top: groupTop,
         zIndex: isActive ? 90 : isStackFront ? 40 : 10 + stackCount - stackDepth,
-        '--stack-offset': `${cappedDepth * spacing.stackXOffset}px`,
-        '--stack-offset-y': `${stackDepth * spacing.stackTopOffset}px`,
-        '--stack-scale': `${1 - cappedDepth * 0.03}`,
+        '--stack-rotate': `${cappedDepth * 9}deg`,
+        '--stack-offset': `${cappedDepth * 4}px`,
       } as React.CSSProperties;
       if (railLayout && railLayout.mode !== 'stacked') {
         style.left = railSide === 'left' ? railLayout.leftRailLeft : railLayout.rightRailLeft;
