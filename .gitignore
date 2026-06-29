@@ -14,6 +14,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 coverage
+test-results
+playwright-report
+apps/desktop/e2e/ui/artifacts
 .issues
 
 assets/*.mp4
