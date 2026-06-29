@@ -52,10 +52,53 @@ type DesktopTelemetryControllerDependencies = {
   logError?: (event: string, error: unknown, data?: Record<string, unknown>) => void;
 };
 
+type DesktopTelemetryControllerFactory = (
+  dependencies: DesktopTelemetryControllerDependencies,
+) => DesktopTelemetryController;
+
+type DesktopTelemetryStartupDependencies = DesktopTelemetryControllerDependencies & {
+  env?: NodeJS.ProcessEnv;
+  createController?: DesktopTelemetryControllerFactory;
+};
+
+const automationSuppressionEnvVars = [
+  'YOMITOMO_ELECTRON_SMOKE',
+  'YOMITOMO_E2E',
+  'YOMITOMO_DISABLE_TELEMETRY',
+] as const;
+
+export type DesktopTelemetryAutomationSuppression = {
+  envVar: (typeof automationSuppressionEnvVars)[number];
+};
+
 export type DesktopTelemetryController = {
   check: (reason: TelemetryReason) => void;
   dispose: () => void;
 };
+
+export function getDesktopTelemetryAutomationSuppression(
+  env: NodeJS.ProcessEnv = process.env,
+): DesktopTelemetryAutomationSuppression | null {
+  const envVar = automationSuppressionEnvVars.find((name) => env[name] === '1');
+  return envVar ? { envVar } : null;
+}
+
+export function createDesktopTelemetryControllerForEnvironment(
+  dependencies: DesktopTelemetryStartupDependencies,
+): DesktopTelemetryController | null {
+  const {
+    env = process.env,
+    createController = createDesktopTelemetryController,
+    ...controllerDependencies
+  } = dependencies;
+  const suppression = getDesktopTelemetryAutomationSuppression(env);
+  if (suppression) {
+    controllerDependencies.logInfo?.('telemetry.disabled_for_automation', suppression);
+    return null;
+  }
+
+  return createController(controllerDependencies);
+}
 
 export function createDesktopTelemetryController(
   dependencies: DesktopTelemetryControllerDependencies,

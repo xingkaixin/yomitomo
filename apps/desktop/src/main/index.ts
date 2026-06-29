@@ -37,7 +37,7 @@ import { registerStoreDataIpc } from './ipc/ipc-store-data';
 import { registerWeReadIpc } from './ipc/ipc-weread';
 import { modelPriceRefreshIntervalMs } from './providers/model-pricing-repository';
 import {
-  createDesktopTelemetryController,
+  createDesktopTelemetryControllerForEnvironment,
   type DesktopTelemetryController,
 } from './telemetry/desktop-telemetry';
 import { syncWeReadLibrary } from './weread/weread-sync';
@@ -364,7 +364,7 @@ void app.whenReady().then(async () => {
   scheduleModelPriceRefresh();
   scheduleAppUpdateCheck();
   configureWeReadAutoSync('startup');
-  desktopTelemetryController = createDesktopTelemetryController({
+  desktopTelemetryController = createDesktopTelemetryControllerForEnvironment({
     getAppVersion: () => app.getVersion(),
     logInfo,
     logError,
