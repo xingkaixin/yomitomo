@@ -37,6 +37,8 @@ type TextFixtureOptions = {
 
 type PdfFixtureOptions = {
   fileName?: string;
+  pageHeight?: number;
+  pageWidth?: number;
   title?: string;
 };
 
@@ -152,7 +154,13 @@ export async function createTinyPdfFixture(
   options: PdfFixtureOptions = {},
 ): Promise<E2eFixtureFile> {
   const fileName = options.fileName ?? 'tiny.pdf';
-  const data = Buffer.from(tinyPdfSource(options.title ?? 'Yomitomo E2E PDF'), 'utf8');
+  const data = Buffer.from(
+    tinyPdfSource(options.title ?? 'Yomitomo E2E PDF', {
+      pageHeight: options.pageHeight,
+      pageWidth: options.pageWidth,
+    }),
+    'utf8',
+  );
   const path = fixtureFilePath(fixtureDir, fileName);
   await writeFile(path, data);
   return { data, fileName, mimeType: 'application/pdf', path };
@@ -185,13 +193,18 @@ function fixtureFilePath(fixtureDir: string, fileName: string) {
   return join(fixtureDir, safeFileName);
 }
 
-function tinyPdfSource(title: string) {
+function tinyPdfSource(
+  title: string,
+  options: Pick<PdfFixtureOptions, 'pageHeight' | 'pageWidth'> = {},
+) {
   const safeTitle = title.replace(/[()\\]/g, '');
-  const stream = `BT /F1 12 Tf 20 120 Td (${safeTitle}) Tj ET`;
+  const pageWidth = pdfPageDimension(options.pageWidth ?? 200, 'width');
+  const pageHeight = pdfPageDimension(options.pageHeight ?? 200, 'height');
+  const stream = `BT /F1 12 Tf 20 ${Math.max(20, pageHeight - 80)} Td (${safeTitle}) Tj ET`;
   const objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',
     '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>`,
     `<< /Length ${Buffer.byteLength(stream, 'utf8')} >>\nstream\n${stream}\nendstream`,
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
   ];
@@ -214,4 +227,12 @@ startxref
 ${startxref}
 %%EOF
 `;
+}
+
+function pdfPageDimension(value: number, label: string) {
+  const dimension = Math.round(value);
+  if (!Number.isFinite(dimension) || dimension <= 0) {
+    throw new Error(`Invalid E2E PDF page ${label}: ${value}`);
+  }
+  return dimension;
 }

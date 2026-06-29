@@ -35,12 +35,17 @@ describe('desktop E2E data helpers', () => {
         fileName: 'book.epub',
         title: 'Fixture Book',
       });
-      const pdf = await createTinyPdfFixture(data.fixtureDir, { fileName: 'paper.pdf' });
+      const pdf = await createTinyPdfFixture(data.fixtureDir, {
+        fileName: 'paper.pdf',
+        pageHeight: 792,
+        pageWidth: 612,
+      });
 
       expect(text.path).toBe(join(data.fixtureDir, 'note.txt'));
       expect(await readFile(text.path, 'utf8')).toBe('fixture text');
       expect(epub.data.byteLength).toBeGreaterThan(0);
       expect(pdf.data.toString('utf8')).toContain('%PDF-1.4');
+      expect(pdf.data.toString('utf8')).toContain('/MediaBox [0 0 612 792]');
       await expect(createTextFixture(data.fixtureDir, { fileName: '../leak.txt' })).rejects.toThrow(
         'Invalid E2E fixture file name',
       );
