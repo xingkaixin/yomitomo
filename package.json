@@ -26,7 +26,8 @@
     "format": "turbo run format",
     "format:check": "turbo run format:check",
     "test": "turbo test",
-    "test:app:e2e": "pnpm --filter @yomitomo/desktop test:e2e"
+    "test:app:e2e": "pnpm --filter @yomitomo/desktop test:e2e",
+    "test:app:e2e:ui": "pnpm --filter @yomitomo/desktop test:e2e:ui"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.1",
