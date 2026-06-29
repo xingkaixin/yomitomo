@@ -1,9 +1,8 @@
 import { spawn } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { cleanupE2ePath, createE2eUserDataDir } from '../helpers/e2e-data';
 
 const require = createRequire(import.meta.url);
 const electronPath = require('electron') as string;
@@ -19,11 +18,11 @@ let userDataDir = '';
 
 describe('electron launch smoke', () => {
   beforeEach(async () => {
-    userDataDir = await mkdtemp(join(tmpdir(), 'yomitomo-electron-smoke-'));
+    userDataDir = await createE2eUserDataDir('electron-smoke');
   });
 
   afterEach(async () => {
-    await rm(userDataDir, { recursive: true, force: true });
+    await cleanupE2ePath(userDataDir);
   });
 
   it('starts the real Electron app with preload IPC and renderer mounted', async () => {

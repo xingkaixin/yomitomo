@@ -1,14 +1,20 @@
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { _electron as electron } from 'playwright-core';
 import type { ElectronApplication, Page } from 'playwright-core';
+import {
+  cleanupE2eData,
+  createE2eDesktopEnv,
+  createE2eRunData,
+  safeE2eName,
+} from '../../helpers/e2e-data';
 
 const require = createRequire(import.meta.url);
 const electronPath = require('electron') as string;
 const desktopRoot = resolve(import.meta.dirname, '../../..');
 const defaultArtifactsDir = resolve(desktopRoot, 'e2e/ui/artifacts');
+const rendererReadySelector = '.app-masthead-date, .onboarding-screen, .store-load-error-shell';
 const requiredBuildFiles = [
   'dist/main/index.js',
   'dist/preload/index.cjs',
@@ -18,6 +24,7 @@ const requiredBuildFiles = [
 type DesktopPreloadProbe = {
   appInfo: { desktopVersion?: string } | null;
   hasPreloadApi: boolean;
+  hasRendererSurface: boolean;
   hasShowMainWindow: boolean;
   rootHasContent: boolean;
 };
@@ -27,7 +34,9 @@ type DesktopE2eApp = {
   artifactsDir: string;
   captureFailure: (label: string) => Promise<void>;
   close: () => Promise<void>;
+  fixtureDir: string;
   page: Page;
+  rootDir: string;
   userDataDir: string;
 };
 
@@ -47,7 +56,7 @@ export async function withDesktopE2eApp<T>(
 }
 
 export async function probeDesktopPreload(page: Page): Promise<DesktopPreloadProbe> {
-  return page.evaluate(async () => {
+  return page.evaluate(async (surfaceSelector) => {
     const desktop = (
       window as typeof window & {
         yomitomoDesktop?: {
@@ -60,33 +69,28 @@ export async function probeDesktopPreload(page: Page): Promise<DesktopPreloadPro
     return {
       appInfo: typeof desktop?.getAppInfo === 'function' ? await desktop.getAppInfo() : null,
       hasPreloadApi: Boolean(desktop),
+      hasRendererSurface: Boolean(document.querySelector(surfaceSelector)),
       hasShowMainWindow: typeof desktop?.showMainWindow === 'function',
       rootHasContent: Boolean(
         root && (root.childElementCount > 0 || root.textContent?.trim().length),
       ),
     };
-  });
+  }, rendererReadySelector);
 }
 
 async function launchDesktopE2eApp(testName: string): Promise<DesktopE2eApp> {
   await assertDesktopBuildExists();
   const artifactsDir = process.env.YOMITOMO_E2E_ARTIFACTS_DIR || defaultArtifactsDir;
   await mkdir(artifactsDir, { recursive: true });
-  const userDataDir = await mkdtemp(join(tmpdir(), 'yomitomo-e2e-ui-'));
+  const runData = await createE2eRunData(testName);
   const output: string[] = [];
-  const safeName = safeArtifactName(testName);
+  const safeName = safeE2eName(testName);
   let closed = false;
 
   const app = await electron.launch({
     args: ['--no-sandbox', '.'],
     cwd: desktopRoot,
-    env: {
-      ...process.env,
-      ELECTRON_ENABLE_LOGGING: '1',
-      YOMITOMO_DISABLE_TELEMETRY: '1',
-      YOMITOMO_E2E: '1',
-      YOMITOMO_USER_DATA_DIR: userDataDir,
-    },
+    env: createE2eDesktopEnv(runData),
     executablePath: electronPath,
   });
   const child = app.process();
@@ -99,12 +103,16 @@ async function launchDesktopE2eApp(testName: string): Promise<DesktopE2eApp> {
     page.on('console', (message) => {
       output.push(`renderer:${message.type()} ${message.text()}\n`);
     });
-    await waitForRendererRoot(page);
+    await waitForRendererReady(page);
     const readyPage = page;
 
     const captureFailure = async (label: string) => {
       await mkdir(artifactsDir, { recursive: true });
-      await writeFile(join(artifactsDir, `${safeName}-${label}.log`), output.join(''), 'utf8');
+      await writeFile(
+        join(artifactsDir, `${safeName}-${label}.log`),
+        `${output.join('')}\n${await readPageDiagnostics(readyPage)}`,
+        'utf8',
+      );
       await readyPage.screenshot({
         fullPage: true,
         path: join(artifactsDir, `${safeName}-${label}.png`),
@@ -115,10 +123,19 @@ async function launchDesktopE2eApp(testName: string): Promise<DesktopE2eApp> {
       if (closed) return;
       closed = true;
       await app.close().catch(() => child.kill());
-      await cleanupUserData(userDataDir);
+      await cleanupE2eData(runData);
     };
 
-    return { app, artifactsDir, captureFailure, close, page: readyPage, userDataDir };
+    return {
+      app,
+      artifactsDir,
+      captureFailure,
+      close,
+      fixtureDir: runData.fixtureDir,
+      page: readyPage,
+      rootDir: runData.rootDir,
+      userDataDir: runData.userDataDir,
+    };
   } catch (error) {
     await writeFile(
       join(artifactsDir, `${safeName}-startup-failure.log`),
@@ -132,7 +149,7 @@ async function launchDesktopE2eApp(testName: string): Promise<DesktopE2eApp> {
       })
       .catch(() => undefined);
     await app.close().catch(() => child.kill());
-    await cleanupUserData(userDataDir);
+    await cleanupE2eData(runData);
     throw error;
   }
 }
@@ -149,31 +166,38 @@ async function assertDesktopBuildExists() {
   );
 }
 
-async function waitForRendererRoot(page: Page) {
+async function waitForRendererReady(page: Page) {
   await page.waitForFunction(
-    () => {
+    (surfaceSelector) => {
       const root = document.getElementById('root');
-      return Boolean(root && (root.childElementCount > 0 || root.textContent?.trim().length));
+      if (!root) return false;
+      return Boolean(document.querySelector(surfaceSelector));
     },
-    undefined,
+    rendererReadySelector,
     { timeout: 20_000 },
   );
 }
 
-function safeArtifactName(value: string) {
-  const safeName = value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 80);
-  return safeName || 'desktop-e2e';
-}
-
-async function cleanupUserData(userDataDir: string) {
-  if (process.env.YOMITOMO_E2E_KEEP_DATA === '1') {
-    console.info(`YOMITOMO_E2E_USER_DATA_DIR=${userDataDir}`);
-    return;
-  }
-  await rm(userDataDir, { recursive: true, force: true });
+async function readPageDiagnostics(page: Page) {
+  return page
+    .evaluate(() => {
+      const root = document.getElementById('root');
+      return {
+        bodyHtmlLength: document.body.innerHTML.length,
+        bodyText: document.body.innerText.slice(0, 500),
+        readyState: document.readyState,
+        rendererSurfaceCount: document.querySelectorAll(
+          '.app-masthead-date, .onboarding-screen, .store-load-error-shell',
+        ).length,
+        rootChildElementCount: root?.childElementCount ?? null,
+        rootHtmlLength: root?.innerHTML.length ?? null,
+        rootText: root?.textContent?.slice(0, 500) ?? null,
+        title: document.title,
+        url: window.location.href,
+      };
+    })
+    .then(
+      (diagnostics) => `\nYOMITOMO_E2E_PAGE_DIAGNOSTICS ${JSON.stringify(diagnostics, null, 2)}\n`,
+    )
+    .catch((error) => `\nYOMITOMO_E2E_PAGE_DIAGNOSTICS_FAILED ${String(error)}\n`);
 }
