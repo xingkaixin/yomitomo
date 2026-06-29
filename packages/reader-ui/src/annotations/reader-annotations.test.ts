@@ -438,50 +438,13 @@ describe('reader annotation filters', () => {
         item.annotation.id,
         item.stackCount,
         item.style.top,
-        (item.style as Record<string, string>)['--stack-offset-y'],
+        (item.style as Record<string, string>)['--stack-rotate'],
       ]),
     ).toEqual([
-      ['first', 3, 90, '0px'],
-      ['second', 3, 90, '42px'],
-      ['third', 3, 90, '84px'],
+      ['first', 3, 90, '0deg'],
+      ['second', 3, 90, '9deg'],
+      ['third', 3, 90, '18deg'],
     ]);
-  });
-
-  it('compresses stacked rail card offsets when one group is taller than the viewport', () => {
-    const annotations = [
-      annotation('first', { anchor: anchor('first', 0, 10) }),
-      annotation('second', { anchor: anchor('second', 5, 15) }),
-      annotation('third', { anchor: anchor('third', 10, 20) }),
-    ];
-    const items = buildAnnotationRailItems(
-      annotations,
-      [
-        box('first', { top: 100, left: 120 }),
-        box('second', { top: 104, left: 124 }),
-        box('third', { top: 108, left: 128 }),
-      ],
-      null,
-      { first: 140, second: 140, third: 140 },
-      {
-        articleCenterX: 500,
-        leftRailLeft: 24,
-        mode: 'right',
-        railWidth: 320,
-        rightRailLeft: 980,
-        viewportHeight: 210,
-      },
-    );
-    const byId = new Map(items.map((item) => [item.annotation.id, item]));
-    const secondStyle = byId.get('second')?.style as
-      | { '--stack-offset'?: string; '--stack-offset-y'?: string }
-      | undefined;
-    const secondOffset = parseFloat(String(secondStyle?.['--stack-offset']));
-    const secondOffsetY = parseFloat(String(secondStyle?.['--stack-offset-y']));
-
-    expect(secondOffsetY).toBeLessThan(42);
-    expect(secondOffsetY).toBeGreaterThanOrEqual(24);
-    expect(secondOffset).toBeLessThan(14);
-    expect(secondOffset).toBeGreaterThanOrEqual(8);
   });
 
   it('keeps visible scrolled rail cards inside the current viewport', () => {

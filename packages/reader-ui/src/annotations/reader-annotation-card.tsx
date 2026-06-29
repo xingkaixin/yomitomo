@@ -110,6 +110,14 @@ export function AnnotationCard({
     pendingAgents,
     labels,
   );
+  const [shuffling, setShuffling] = useState(false);
+  const prevStackFrontRef = useRef(isStackFront);
+
+  useLayoutEffect(() => {
+    const wasFront = prevStackFrontRef.current;
+    prevStackFrontRef.current = isStackFront;
+    if (!exiting && stackCount > 1 && wasFront && !isStackFront) setShuffling(true);
+  }, [exiting, isStackFront, stackCount]);
   const isDualMorph =
     distillationAnimation?.phase !== 'update' &&
     (distillationAnimation?.transition === 'publish' ||
@@ -143,6 +151,7 @@ export function AnnotationCard({
     exiting ? 'is-filtering-out' : '',
     stackCount > 1 ? 'is-stacked' : '',
     isStackFront ? 'is-stack-front' : '',
+    shuffling ? 'is-shuffle-out' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -315,8 +324,11 @@ export function AnnotationCard({
     'data-distillation-animation': distillationAnimation?.token,
     'data-distillation-transition': distillationAnimation?.transition,
     ref: setNoteElement,
-    style,
+    style: shuffling ? { ...style, zIndex: 70 } : style,
     onClick: handleCardClick,
+    onAnimationEnd: (event: React.AnimationEvent<HTMLElement>) => {
+      if (event.animationName.startsWith('reader-note-shuffle')) setShuffling(false);
+    },
   };
 
   if (isDualMorph) {
