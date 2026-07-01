@@ -131,6 +131,30 @@ export function formatDate(value: string) {
   });
 }
 
+export function elapsedMs(startedAt: number) {
+  return Number((performance.now() - startedAt).toFixed(2));
+}
+
+export function recordStartupTiming(event: string, data: Record<string, unknown> = {}) {
+  const desktop = window.yomitomoDesktop;
+  if (!desktop?.recordPerformanceTiming) return;
+  void desktop
+    .recordPerformanceTiming({
+      event: `startup.${event}`,
+      data: {
+        rendererElapsedMs: elapsedMs(0),
+        ...data,
+      },
+    })
+    .catch(() => undefined);
+}
+
+export function recordStatsTiming(event: string, data: Record<string, unknown>) {
+  const desktop = window.yomitomoDesktop;
+  if (!desktop?.recordPerformanceTiming) return;
+  void desktop.recordPerformanceTiming({ event: `stats.${event}`, data }).catch(() => undefined);
+}
+
 function validExternalUrl(value: string) {
   try {
     const url = new URL(value);

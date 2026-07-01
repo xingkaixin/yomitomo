@@ -11,6 +11,7 @@ import { AvatarImage } from './shell/app-ui';
 import { useAppAgentActions } from './shell/app-agent-actions';
 import { useAppArticleStoreActions } from './shell/app-article-store-actions';
 import { useDesktopStoreState } from './shell/app-desktop-store-state';
+import { elapsedMs, recordStartupTiming, recordStatsTiming } from './shell/app-utils';
 import { useSettingsDrafts } from './settings/app-settings-drafts';
 import { SettingsNavButton } from './settings/app-settings-nav-button';
 import { StoreLoadErrorScreen } from './shell/app-store-load-error';
@@ -894,28 +895,4 @@ function isLibraryMenuCommand(command: AppMenuCommand) {
     command === 'import-pdf' ||
     command === 'sync-weread'
   );
-}
-
-function recordStartupTiming(event: string, data: Record<string, unknown> = {}) {
-  const desktop = window.yomitomoDesktop;
-  if (!desktop?.recordPerformanceTiming) return;
-  void desktop
-    .recordPerformanceTiming({
-      event: `startup.${event}`,
-      data: {
-        rendererElapsedMs: elapsedMs(0),
-        ...data,
-      },
-    })
-    .catch(() => undefined);
-}
-
-function recordStatsTiming(event: string, data: Record<string, unknown>) {
-  const desktop = window.yomitomoDesktop;
-  if (!desktop?.recordPerformanceTiming) return;
-  void desktop.recordPerformanceTiming({ event: `stats.${event}`, data }).catch(() => undefined);
-}
-
-function elapsedMs(startedAt: number) {
-  return Number((performance.now() - startedAt).toFixed(2));
 }
