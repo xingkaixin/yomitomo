@@ -13,6 +13,7 @@ import { useAppArticleStoreActions } from './shell/app-article-store-actions';
 import { useDesktopStoreState } from './shell/app-desktop-store-state';
 import {
   cancelIdlePreload,
+  preloadedExport,
   preloadEntries,
   preloadIdleModules,
   scheduleIdlePreload,
@@ -389,27 +390,61 @@ function App() {
   ]
     .filter(Boolean)
     .join(' ');
-  const settingsPanelsModule = preloadEntries.settingsPanels.module;
-  const settingsProviderModule = preloadEntries.settingsProvider.module;
-  const settingsAboutModule = preloadEntries.settingsAbout.module;
-  const agentsModule = preloadEntries.agents.module;
-  const statsModule = preloadEntries.stats.module;
-  const profileDialogModule = preloadEntries.profileDialog.module;
-  const ActiveReadingStatsPanel = statsModule?.ReadingStatsPanel ?? ReadingStatsPanel;
-  const ActiveAgentSettings = agentsModule?.AgentSettings ?? AgentSettings;
-  const ActiveSettingsSectionShell =
-    settingsPanelsModule?.SettingsSectionShell ?? SettingsSectionShell;
-  const ActiveGeneralSettings = settingsPanelsModule?.GeneralSettings ?? GeneralSettings;
-  const ActiveShortcutSettings = settingsPanelsModule?.ShortcutSettings ?? ShortcutSettings;
-  const ActiveDataSourcesPanel = settingsPanelsModule?.DataSourcesPanel ?? DataSourcesPanel;
-  const ActiveDataManagementSettings =
-    settingsPanelsModule?.DataManagementSettings ?? DataManagementSettings;
-  const ActiveAiTraceSettingsPanel =
-    settingsPanelsModule?.AiTraceSettingsPanel ?? AiTraceSettingsPanel;
-  const ActiveProviderSettings = settingsProviderModule?.ProviderSettings ?? ProviderSettings;
-  const ActiveAboutSettings = settingsAboutModule?.AboutSettings ?? AboutSettings;
-  const ActiveUserProfileSettingsDialog =
-    profileDialogModule?.UserProfileSettingsDialog ?? UserProfileSettingsDialog;
+  const ActiveReadingStatsPanel = preloadedExport(
+    preloadEntries.stats,
+    'ReadingStatsPanel',
+    ReadingStatsPanel,
+  );
+  const ActiveAgentSettings = preloadedExport(
+    preloadEntries.agents,
+    'AgentSettings',
+    AgentSettings,
+  );
+  const ActiveSettingsSectionShell = preloadedExport(
+    preloadEntries.settingsPanels,
+    'SettingsSectionShell',
+    SettingsSectionShell,
+  );
+  const ActiveGeneralSettings = preloadedExport(
+    preloadEntries.settingsPanels,
+    'GeneralSettings',
+    GeneralSettings,
+  );
+  const ActiveShortcutSettings = preloadedExport(
+    preloadEntries.settingsPanels,
+    'ShortcutSettings',
+    ShortcutSettings,
+  );
+  const ActiveDataSourcesPanel = preloadedExport(
+    preloadEntries.settingsPanels,
+    'DataSourcesPanel',
+    DataSourcesPanel,
+  );
+  const ActiveDataManagementSettings = preloadedExport(
+    preloadEntries.settingsPanels,
+    'DataManagementSettings',
+    DataManagementSettings,
+  );
+  const ActiveAiTraceSettingsPanel = preloadedExport(
+    preloadEntries.settingsPanels,
+    'AiTraceSettingsPanel',
+    AiTraceSettingsPanel,
+  );
+  const ActiveProviderSettings = preloadedExport(
+    preloadEntries.settingsProvider,
+    'ProviderSettings',
+    ProviderSettings,
+  );
+  const ActiveAboutSettings = preloadedExport(
+    preloadEntries.settingsAbout,
+    'AboutSettings',
+    AboutSettings,
+  );
+  const ActiveUserProfileSettingsDialog = preloadedExport(
+    preloadEntries.profileDialog,
+    'UserProfileSettingsDialog',
+    UserProfileSettingsDialog,
+  );
 
   return (
     <AppLockGate enabled={appLockEnabled} locked={appLocked} onStoreUpdated={applyStore}>

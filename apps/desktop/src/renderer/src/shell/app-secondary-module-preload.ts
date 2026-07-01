@@ -115,6 +115,14 @@ export const preloadEntries = {
   ),
 };
 
+export function preloadedExport<TModule, TKey extends keyof TModule, TFallback>(
+  entry: { module?: TModule },
+  key: TKey,
+  fallback: TFallback,
+): TModule[TKey] | TFallback {
+  return entry.module?.[key] ?? fallback;
+}
+
 export function preloadIdleModules() {
   recordStartupTiming('secondary_modules.preload_scheduled');
   const tasks = [
