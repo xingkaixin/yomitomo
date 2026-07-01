@@ -18,7 +18,12 @@ import {
   scheduleIdlePreload,
   useSecondaryModulePreload,
 } from './shell/app-secondary-module-preload';
-import { elapsedMs, recordStartupTiming, recordStatsTiming } from './shell/app-utils';
+import {
+  applySavedSettings,
+  elapsedMs,
+  recordStartupTiming,
+  recordStatsTiming,
+} from './shell/app-utils';
 import { useSettingsDrafts } from './settings/app-settings-drafts';
 import { SettingsNavButton } from './settings/app-settings-nav-button';
 import { StoreLoadErrorScreen } from './shell/app-store-load-error';
@@ -212,20 +217,14 @@ function App() {
 
   async function saveOnboardingSettings(settings: AppSettings) {
     const nextStore = await window.yomitomoDesktop.saveSettings(settings);
-    const nextLanguage = normalizeUiLanguage(nextStore.settings.uiLanguage);
-    writeCachedUiLanguage(nextLanguage);
-    changeAppI18nLanguage(nextLanguage);
-    applyStore(nextStore);
+    applySavedSettings(nextStore, applyStore);
     if (settings.onboardingCompletedAt) setOnboardingForced(false);
     return nextStore;
   }
 
   async function saveLibrarySettings(settings: AppSettings) {
     const nextStore = await window.yomitomoDesktop.saveSettings(settings);
-    const nextLanguage = normalizeUiLanguage(nextStore.settings.uiLanguage);
-    writeCachedUiLanguage(nextLanguage);
-    changeAppI18nLanguage(nextLanguage);
-    applyStore(nextStore);
+    applySavedSettings(nextStore, applyStore);
   }
 
   function startOnboarding() {
@@ -614,10 +613,7 @@ function App() {
               openRequest={updateDialogRequest}
               onSaveSettings={async (settings) => {
                 const nextStore = await window.yomitomoDesktop.saveSettings(settings);
-                const nextLanguage = normalizeUiLanguage(nextStore.settings.uiLanguage);
-                writeCachedUiLanguage(nextLanguage);
-                changeAppI18nLanguage(nextLanguage);
-                applyStore(nextStore);
+                applySavedSettings(nextStore, applyStore);
                 return nextStore;
               }}
             />
