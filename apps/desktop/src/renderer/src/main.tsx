@@ -11,6 +11,20 @@ import { AvatarImage } from './shell/app-ui';
 import { useAppAgentActions } from './shell/app-agent-actions';
 import { useAppArticleStoreActions } from './shell/app-article-store-actions';
 import { useDesktopStoreState } from './shell/app-desktop-store-state';
+import {
+  cancelIdlePreload,
+  preloadedExport,
+  preloadEntries,
+  preloadIdleModules,
+  scheduleIdlePreload,
+  useSecondaryModulePreload,
+} from './shell/app-secondary-module-preload';
+import {
+  applySavedSettings,
+  elapsedMs,
+  recordStartupTiming,
+  recordStatsTiming,
+} from './shell/app-utils';
 import { useSettingsDrafts } from './settings/app-settings-drafts';
 import { SettingsNavButton } from './settings/app-settings-nav-button';
 import { StoreLoadErrorScreen } from './shell/app-store-load-error';
@@ -81,166 +95,6 @@ const SettingsSectionShell = lazy(loadSettingsSectionShell);
 const UserProfileSettingsDialog = lazy(loadUserProfileSettingsDialog);
 const AboutSettings = lazy(loadAboutSettings);
 
-type ReadingStatsModule = typeof import('./reading-stats/app-reading-stats');
-type AgentSettingsModule = typeof import('./settings/app-settings-agent-panel');
-type SettingsPanelsModule = typeof import('./settings/app-settings-panels');
-type SettingsProviderModule = typeof import('./settings/app-settings-provider-panel');
-type SettingsAboutModule = typeof import('./shell/app-log-viewer');
-type ProfileDialogModule = typeof import('./settings/app-settings-profile-dialog');
-
-type PreloadStatus = 'not-started' | 'scheduled' | 'loading' | 'ready' | 'failed';
-type PreloadKey =
-  | 'agents'
-  | 'stats'
-  | 'settings-panels'
-  | 'settings-provider'
-  | 'settings-about'
-  | 'profile-dialog';
-
-type PreloadEntry<TModule> = {
-  key: PreloadKey;
-  status: PreloadStatus;
-  module?: TModule;
-  promise?: Promise<TModule>;
-  markScheduled: () => void;
-  load: () => Promise<TModule>;
-};
-
-const preloadListeners = new Set<() => void>();
-
-function subscribePreloadModules(listener: () => void) {
-  preloadListeners.add(listener);
-  return () => {
-    preloadListeners.delete(listener);
-  };
-}
-
-function notifyPreloadModules() {
-  for (const listener of preloadListeners) listener();
-}
-
-function createPreloadEntry<TModule>(
-  key: PreloadKey,
-  importModule: () => Promise<TModule>,
-): PreloadEntry<TModule> {
-  const entry: PreloadEntry<TModule> = {
-    key,
-    status: 'not-started',
-    markScheduled: () => {
-      if (entry.status !== 'not-started') return;
-      entry.status = 'scheduled';
-      recordStartupTiming('secondary_modules.preload_module_scheduled', { key });
-      notifyPreloadModules();
-    },
-    load: () => {
-      if (entry.module) return Promise.resolve(entry.module);
-      if (entry.promise) return entry.promise;
-
-      const startedAt = performance.now();
-      entry.status = 'loading';
-      recordStartupTiming('secondary_modules.preload_module_start', { key });
-      notifyPreloadModules();
-      entry.promise = importModule()
-        .then((module) => {
-          entry.module = module;
-          entry.status = 'ready';
-          recordStartupTiming('secondary_modules.preload_module_success', {
-            key,
-            durationMs: elapsedMs(startedAt),
-          });
-          notifyPreloadModules();
-          return module;
-        })
-        .catch((error: unknown) => {
-          entry.status = 'failed';
-          entry.promise = undefined;
-          recordStartupTiming('secondary_modules.preload_module_failed', {
-            key,
-            durationMs: elapsedMs(startedAt),
-            message: error instanceof Error ? error.message : String(error),
-          });
-          notifyPreloadModules();
-          throw error;
-        });
-      return entry.promise;
-    },
-  };
-  return entry;
-}
-
-const preloadEntries = {
-  agents: createPreloadEntry<AgentSettingsModule>(
-    'agents',
-    () => import('./settings/app-settings-agent-panel'),
-  ),
-  stats: createPreloadEntry<ReadingStatsModule>(
-    'stats',
-    () => import('./reading-stats/app-reading-stats'),
-  ),
-  settingsPanels: createPreloadEntry<SettingsPanelsModule>(
-    'settings-panels',
-    () => import('./settings/app-settings-panels'),
-  ),
-  settingsProvider: createPreloadEntry<SettingsProviderModule>(
-    'settings-provider',
-    () => import('./settings/app-settings-provider-panel'),
-  ),
-  settingsAbout: createPreloadEntry<SettingsAboutModule>(
-    'settings-about',
-    () => import('./shell/app-log-viewer'),
-  ),
-  profileDialog: createPreloadEntry<ProfileDialogModule>(
-    'profile-dialog',
-    () => import('./settings/app-settings-profile-dialog'),
-  ),
-};
-
-function preloadIdleModules() {
-  recordStartupTiming('secondary_modules.preload_scheduled');
-  const tasks = [
-    () => preloadEntries.settingsPanels.load(),
-    () => preloadEntries.settingsProvider.load(),
-    () => preloadEntries.settingsAbout.load(),
-    () => preloadEntries.profileDialog.load(),
-    () => preloadEntries.agents.load(),
-    () => preloadEntries.stats.load().then((module) => module.preloadReadingStatsDeferredModules()),
-  ];
-  scheduleIdlePreloadQueue(tasks);
-}
-
-type IdlePreloadHandle =
-  | { kind: 'idle'; id: number }
-  | { kind: 'timeout'; id: ReturnType<typeof globalThis.setTimeout> };
-
-function scheduleIdlePreload(callback: () => void): IdlePreloadHandle {
-  if ('requestIdleCallback' in window) {
-    return { kind: 'idle', id: window.requestIdleCallback(callback, { timeout: 3000 }) };
-  }
-  return { kind: 'timeout', id: globalThis.setTimeout(callback, 800) };
-}
-
-function cancelIdlePreload(handle: IdlePreloadHandle) {
-  if (handle.kind === 'idle') window.cancelIdleCallback(handle.id);
-  else globalThis.clearTimeout(handle.id);
-}
-
-function scheduleIdlePreloadQueue(tasks: Array<() => Promise<unknown>>) {
-  let taskIndex = 0;
-  const runNextTask = () => {
-    const task = tasks[taskIndex];
-    taskIndex += 1;
-    if (!task) {
-      recordStartupTiming('secondary_modules.preload_complete');
-      return;
-    }
-    void task()
-      .catch(() => undefined)
-      .finally(() => scheduleIdlePreload(runNextTask));
-  };
-  for (const entry of Object.values(preloadEntries)) entry.markScheduled();
-  scheduleIdlePreload(runNextTask);
-}
-
 type SettingKey = 'library' | 'stats' | 'settings' | 'agents';
 
 function App() {
@@ -252,7 +106,6 @@ function App() {
   const updateReady =
     appUpdateState?.status === 'available' || appUpdateState?.status === 'downloaded';
   const [updateDialogRequest, setUpdateDialogRequest] = useState(0);
-  const [, setPreloadVersion] = useState(0);
   const [themeDialogOpen, setThemeDialogOpen] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [profileDialogSourceRect, setProfileDialogSourceRect] = useState<DialogSourceRect>();
@@ -273,7 +126,7 @@ function App() {
     requestMainWindow('app.mounted', { storeLoaded: false, storeLoadError: false });
   }, []);
 
-  useEffect(() => subscribePreloadModules(() => setPreloadVersion((version) => version + 1)), []);
+  useSecondaryModulePreload();
 
   const {
     store,
@@ -365,20 +218,14 @@ function App() {
 
   async function saveOnboardingSettings(settings: AppSettings) {
     const nextStore = await window.yomitomoDesktop.saveSettings(settings);
-    const nextLanguage = normalizeUiLanguage(nextStore.settings.uiLanguage);
-    writeCachedUiLanguage(nextLanguage);
-    changeAppI18nLanguage(nextLanguage);
-    applyStore(nextStore);
+    applySavedSettings(nextStore, applyStore);
     if (settings.onboardingCompletedAt) setOnboardingForced(false);
     return nextStore;
   }
 
   async function saveLibrarySettings(settings: AppSettings) {
     const nextStore = await window.yomitomoDesktop.saveSettings(settings);
-    const nextLanguage = normalizeUiLanguage(nextStore.settings.uiLanguage);
-    writeCachedUiLanguage(nextLanguage);
-    changeAppI18nLanguage(nextLanguage);
-    applyStore(nextStore);
+    applySavedSettings(nextStore, applyStore);
   }
 
   function startOnboarding() {
@@ -543,27 +390,61 @@ function App() {
   ]
     .filter(Boolean)
     .join(' ');
-  const settingsPanelsModule = preloadEntries.settingsPanels.module;
-  const settingsProviderModule = preloadEntries.settingsProvider.module;
-  const settingsAboutModule = preloadEntries.settingsAbout.module;
-  const agentsModule = preloadEntries.agents.module;
-  const statsModule = preloadEntries.stats.module;
-  const profileDialogModule = preloadEntries.profileDialog.module;
-  const ActiveReadingStatsPanel = statsModule?.ReadingStatsPanel ?? ReadingStatsPanel;
-  const ActiveAgentSettings = agentsModule?.AgentSettings ?? AgentSettings;
-  const ActiveSettingsSectionShell =
-    settingsPanelsModule?.SettingsSectionShell ?? SettingsSectionShell;
-  const ActiveGeneralSettings = settingsPanelsModule?.GeneralSettings ?? GeneralSettings;
-  const ActiveShortcutSettings = settingsPanelsModule?.ShortcutSettings ?? ShortcutSettings;
-  const ActiveDataSourcesPanel = settingsPanelsModule?.DataSourcesPanel ?? DataSourcesPanel;
-  const ActiveDataManagementSettings =
-    settingsPanelsModule?.DataManagementSettings ?? DataManagementSettings;
-  const ActiveAiTraceSettingsPanel =
-    settingsPanelsModule?.AiTraceSettingsPanel ?? AiTraceSettingsPanel;
-  const ActiveProviderSettings = settingsProviderModule?.ProviderSettings ?? ProviderSettings;
-  const ActiveAboutSettings = settingsAboutModule?.AboutSettings ?? AboutSettings;
-  const ActiveUserProfileSettingsDialog =
-    profileDialogModule?.UserProfileSettingsDialog ?? UserProfileSettingsDialog;
+  const ActiveReadingStatsPanel = preloadedExport(
+    preloadEntries.stats,
+    'ReadingStatsPanel',
+    ReadingStatsPanel,
+  );
+  const ActiveAgentSettings = preloadedExport(
+    preloadEntries.agents,
+    'AgentSettings',
+    AgentSettings,
+  );
+  const ActiveSettingsSectionShell = preloadedExport(
+    preloadEntries.settingsPanels,
+    'SettingsSectionShell',
+    SettingsSectionShell,
+  );
+  const ActiveGeneralSettings = preloadedExport(
+    preloadEntries.settingsPanels,
+    'GeneralSettings',
+    GeneralSettings,
+  );
+  const ActiveShortcutSettings = preloadedExport(
+    preloadEntries.settingsPanels,
+    'ShortcutSettings',
+    ShortcutSettings,
+  );
+  const ActiveDataSourcesPanel = preloadedExport(
+    preloadEntries.settingsPanels,
+    'DataSourcesPanel',
+    DataSourcesPanel,
+  );
+  const ActiveDataManagementSettings = preloadedExport(
+    preloadEntries.settingsPanels,
+    'DataManagementSettings',
+    DataManagementSettings,
+  );
+  const ActiveAiTraceSettingsPanel = preloadedExport(
+    preloadEntries.settingsPanels,
+    'AiTraceSettingsPanel',
+    AiTraceSettingsPanel,
+  );
+  const ActiveProviderSettings = preloadedExport(
+    preloadEntries.settingsProvider,
+    'ProviderSettings',
+    ProviderSettings,
+  );
+  const ActiveAboutSettings = preloadedExport(
+    preloadEntries.settingsAbout,
+    'AboutSettings',
+    AboutSettings,
+  );
+  const ActiveUserProfileSettingsDialog = preloadedExport(
+    preloadEntries.profileDialog,
+    'UserProfileSettingsDialog',
+    UserProfileSettingsDialog,
+  );
 
   return (
     <AppLockGate enabled={appLockEnabled} locked={appLocked} onStoreUpdated={applyStore}>
@@ -767,10 +648,7 @@ function App() {
               openRequest={updateDialogRequest}
               onSaveSettings={async (settings) => {
                 const nextStore = await window.yomitomoDesktop.saveSettings(settings);
-                const nextLanguage = normalizeUiLanguage(nextStore.settings.uiLanguage);
-                writeCachedUiLanguage(nextLanguage);
-                changeAppI18nLanguage(nextLanguage);
-                applyStore(nextStore);
+                applySavedSettings(nextStore, applyStore);
                 return nextStore;
               }}
             />
@@ -894,28 +772,4 @@ function isLibraryMenuCommand(command: AppMenuCommand) {
     command === 'import-pdf' ||
     command === 'sync-weread'
   );
-}
-
-function recordStartupTiming(event: string, data: Record<string, unknown> = {}) {
-  const desktop = window.yomitomoDesktop;
-  if (!desktop?.recordPerformanceTiming) return;
-  void desktop
-    .recordPerformanceTiming({
-      event: `startup.${event}`,
-      data: {
-        rendererElapsedMs: elapsedMs(0),
-        ...data,
-      },
-    })
-    .catch(() => undefined);
-}
-
-function recordStatsTiming(event: string, data: Record<string, unknown>) {
-  const desktop = window.yomitomoDesktop;
-  if (!desktop?.recordPerformanceTiming) return;
-  void desktop.recordPerformanceTiming({ event: `stats.${event}`, data }).catch(() => undefined);
-}
-
-function elapsedMs(startedAt: number) {
-  return Number((performance.now() - startedAt).toFixed(2));
 }

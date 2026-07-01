@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 
-import { beforeEach, describe, expect, it } from 'vitest';
-import type { Annotation, ArticleRecord, Comment } from '@yomitomo/shared';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Annotation, ArticleRecord, Comment, DesktopStore } from '@yomitomo/shared';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import {
   annotationAuthorProfile,
+  applySavedSettings,
   articleExternalUrl,
   articlePlainText,
   articleReadingStatsLine,
@@ -20,6 +21,10 @@ const now = '2026-05-04T00:00:00.000Z';
 
 beforeEach(() => {
   initializeAppI18n('zh-CN');
+});
+
+afterEach(() => {
+  window.localStorage.clear();
 });
 
 function article(overrides: Partial<ArticleRecord> = {}): ArticleRecord {
@@ -97,5 +102,15 @@ describe('app utils', () => {
   it('formats invalid hosts as the original value', () => {
     expect(urlHost('https://example.com/post')).toBe('example.com');
     expect(urlHost('not a url')).toBe('not a url');
+  });
+
+  it('caches the saved ui language and applies the saved store', () => {
+    const applyStore = vi.fn((nextStore: DesktopStore) => nextStore);
+    const nextStore = { settings: { uiLanguage: 'en' } } as DesktopStore;
+
+    applySavedSettings(nextStore, applyStore);
+
+    expect(window.localStorage.getItem('yomitomo.uiLanguage')).toBe('en');
+    expect(applyStore).toHaveBeenCalledWith(nextStore);
   });
 });

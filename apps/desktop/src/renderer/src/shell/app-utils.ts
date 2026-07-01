@@ -3,9 +3,13 @@ import type {
   ArticleRecord,
   ArticleSummaryRecord,
   Comment as AnnotationComment,
+  DesktopStore,
 } from '@yomitomo/shared';
-import { formatDateTimeValue } from '@yomitomo/shared';
+import { formatDateTimeValue, normalizeUiLanguage } from '@yomitomo/shared';
 import i18next from 'i18next';
+
+import { changeAppI18nLanguage } from '../i18n/app-i18n';
+import { writeCachedUiLanguage } from '../i18n/app-language-cache';
 
 export type LogEntry = {
   id: string;
@@ -129,6 +133,40 @@ export function formatDate(value: string) {
     month: '2-digit',
     day: '2-digit',
   });
+}
+
+export function elapsedMs(startedAt: number) {
+  return Number((performance.now() - startedAt).toFixed(2));
+}
+
+export function recordStartupTiming(event: string, data: Record<string, unknown> = {}) {
+  const desktop = window.yomitomoDesktop;
+  if (!desktop?.recordPerformanceTiming) return;
+  void desktop
+    .recordPerformanceTiming({
+      event: `startup.${event}`,
+      data: {
+        rendererElapsedMs: elapsedMs(0),
+        ...data,
+      },
+    })
+    .catch(() => undefined);
+}
+
+export function recordStatsTiming(event: string, data: Record<string, unknown>) {
+  const desktop = window.yomitomoDesktop;
+  if (!desktop?.recordPerformanceTiming) return;
+  void desktop.recordPerformanceTiming({ event: `stats.${event}`, data }).catch(() => undefined);
+}
+
+export function applySavedSettings(
+  nextStore: DesktopStore,
+  applyStore: (store: DesktopStore) => DesktopStore,
+) {
+  const nextLanguage = normalizeUiLanguage(nextStore.settings.uiLanguage);
+  writeCachedUiLanguage(nextLanguage);
+  changeAppI18nLanguage(nextLanguage);
+  applyStore(nextStore);
 }
 
 function validExternalUrl(value: string) {

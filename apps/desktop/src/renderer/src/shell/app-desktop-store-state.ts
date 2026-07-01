@@ -8,6 +8,7 @@ import {
 import { isDesktopIpcErrorLike } from '../../../ipc-errors';
 
 import { emptyStore } from '../settings/app-settings';
+import { elapsedMs, recordStartupTiming } from './app-utils';
 import { applyArticleStorePatch } from './app-article-store-actions';
 import {
   applyCollectionStorePatch,
@@ -174,22 +175,4 @@ export function lockedStoreFromSettings(settings: DesktopStore['settings']): Des
 
 function isStoreAppLocked(store: Pick<DesktopStore, 'settings'>) {
   return Boolean(store.settings.appLockEnabled && store.settings.appLockLocked);
-}
-
-function recordStartupTiming(event: string, data: Record<string, unknown> = {}) {
-  const desktop = window.yomitomoDesktop;
-  if (!desktop?.recordPerformanceTiming) return;
-  void desktop
-    .recordPerformanceTiming({
-      event: `startup.${event}`,
-      data: {
-        rendererElapsedMs: elapsedMs(0),
-        ...data,
-      },
-    })
-    .catch(() => undefined);
-}
-
-function elapsedMs(startedAt: number) {
-  return Number((performance.now() - startedAt).toFixed(2));
 }

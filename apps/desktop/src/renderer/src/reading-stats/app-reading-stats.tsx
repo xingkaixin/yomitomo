@@ -6,6 +6,7 @@ import { Button } from '../components/ui/button';
 import { SegmentedControl } from '../components/ui/segmented-control';
 import { PanelHeader } from '../shell/app-ui';
 import { AiUsagePanel } from '../shell/app-assistant-diagnostics';
+import { elapsedMs, recordStatsTiming } from '../shell/app-utils';
 import { WeReadReadingStatsPanel } from './app-reading-stats-weread';
 import {
   activityMapDescription,
@@ -349,12 +350,6 @@ function StatsChartSkeleton() {
   );
 }
 
-function recordStatsTiming(event: string, data: Record<string, unknown>) {
-  const desktop = window.yomitomoDesktop;
-  if (!desktop?.recordPerformanceTiming) return;
-  void desktop.recordPerformanceTiming({ event: `stats.${event}`, data }).catch(() => undefined);
-}
-
 function recordStatsLoadTiming(
   phase: (typeof statsLoadPhases)[keyof typeof statsLoadPhases],
   navigationStartedAt: number | undefined,
@@ -365,8 +360,4 @@ function recordStatsLoadTiming(
     phase,
     ...data,
   });
-}
-
-function elapsedMs(startedAt: number) {
-  return Number((performance.now() - startedAt).toFixed(2));
 }
