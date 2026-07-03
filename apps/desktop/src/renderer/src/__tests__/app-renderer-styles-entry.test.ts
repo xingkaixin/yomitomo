@@ -14,6 +14,9 @@ const themeOverridesStyles = readFileSync(
   'utf8',
 );
 
+const readImportPaths = (styles: string) =>
+  Array.from(styles.matchAll(/^@import ['"](.+)['"];$/gm), (match) => match[1]);
+
 describe('renderer styles entry', () => {
   it('keeps styles.css as the ordered global CSS entry', () => {
     expect(entryStyles.trim()).toBe(`@import 'tailwindcss';
@@ -71,21 +74,25 @@ describe('renderer styles entry', () => {
 @import './library/notebook.css';`);
   });
 
-  it('keeps theme override styles as ordered partial imports', () => {
-    expect(themeOverridesStyles.trim()).toBe(`@import './theme-overrides/foundation.css';
-@import './theme-overrides/legacy-shell.css';
-@import './theme-overrides/legacy-library.css';
-@import './theme-overrides/masthead-lock.css';
-@import './theme-overrides/theme-dialog.css';
-@import './theme-overrides/library-skeleton.css';
-@import './theme-overrides/library-layout.css';
-@import './theme-overrides/library-import.css';
-@import './theme-overrides/reader-open-library.css';
-@import './theme-overrides/library-collections.css';
-@import './theme-overrides/article-import-tweaks.css';
-@import './theme-overrides/settings-agent-stats.css';
-@import './theme-overrides/library-import-theme.css';
-@import './theme-overrides/responsive-overrides.css';`);
+  it('keeps theme override styles as ordered non-legacy partial imports', () => {
+    const imports = readImportPaths(themeOverridesStyles);
+
+    expect(imports).toEqual([
+      './theme-overrides/foundation.css',
+      './theme-overrides/masthead-lock.css',
+      './theme-overrides/theme-dialog.css',
+      './theme-overrides/library-skeleton.css',
+      './theme-overrides/library-layout.css',
+      './theme-overrides/library-import.css',
+      './theme-overrides/reader-open-library.css',
+      './theme-overrides/library-collections.css',
+      './theme-overrides/article-import-tweaks.css',
+      './theme-overrides/settings-agent-stats.css',
+      './theme-overrides/library-import-theme.css',
+      './theme-overrides/responsive-overrides.css',
+    ]);
+    expect(imports).not.toContain('./theme-overrides/legacy-shell.css');
+    expect(imports).not.toContain('./theme-overrides/legacy-library.css');
   });
 
   it('expands local CSS imports for style assertions', () => {

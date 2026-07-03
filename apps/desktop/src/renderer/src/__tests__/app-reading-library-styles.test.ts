@@ -112,7 +112,40 @@ describe('reading library styles', () => {
       'height: 38px;',
       'padding: 0;',
     ]);
+    expectRule('.library-home-actions .inline-flex', ['border-radius: 0;', 'box-shadow: none;']);
     expectRule('.library-search-combo .library-type-filter-trigger', ['width: 108px;']);
+    expect(styles).toMatch(
+      /\.library-filter-group,[\s\S]*\.library-ebook-layout-toggle \{[\s\S]*display: inline-flex;[\s\S]*border: 1px solid hsl\(var\(--border\) \/ 0\.82\);/,
+    );
+    expect(styles).toMatch(
+      /\.library-filter-group button,[\s\S]*\.library-ebook-layout-toggle button \{[\s\S]*min-height: 36px;[\s\S]*border-right: 1px solid hsl\(var\(--border\) \/ 0\.58\);/,
+    );
+    expect(styles).toMatch(
+      /\.library-filter-group button:last-child,[\s\S]*\.library-ebook-layout-toggle button:last-child \{[\s\S]*border-right: 0;/,
+    );
+    expect(styles).toMatch(
+      /\.library-filter-group button:hover,[\s\S]*\.library-ebook-layout-toggle button\.is-active \{[\s\S]*background: hsl\(var\(--foreground\)\);[\s\S]*color: hsl\(var\(--card\)\);[\s\S]*box-shadow: none;/,
+    );
+    expectRule('.library-collection-footer-label', [
+      'display: inline-flex;',
+      'min-width: 0;',
+      'gap: 10px;',
+    ]);
+    expectRule('.library-collection-footer-label strong', [
+      'max-width: min(280px, 38vw);',
+      'overflow: hidden;',
+      'text-overflow: ellipsis;',
+      'white-space: nowrap;',
+    ]);
+    expectRule('.library-collection-footer-label .library-count-stat', [
+      'color: hsl(var(--muted-foreground));',
+      'font-size: 12px;',
+      'font-weight: 760;',
+    ]);
+    expectRule('.library-collection-footer-label .library-count-stat svg', [
+      'width: 13px;',
+      'height: 13px;',
+    ]);
     expectRule('.library-list', ['grid-template-columns: repeat(3, minmax(0, 1fr));']);
     expectRule('.library-entity-grid', ['grid-auto-rows: minmax(156px, auto);']);
     expectRule('.library-web-item-cover', ['align-self: start;']);
@@ -275,7 +308,10 @@ describe('reading library styles', () => {
       /@media \(max-width: 1120px\) \{[\s\S]*\.library-list \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[\s\S]*\}/,
     );
     expect(styles).toMatch(
-      /@media \(max-width: 980px\) \{[\s\S]*\.library-web-item,\n  \.library-ebook-list-item \{[\s\S]*padding-right: 68px;[\s\S]*\.library-item-actions \{[\s\S]*position: absolute;[\s\S]*top: 10px;[\s\S]*right: 10px;[\s\S]*\}/,
+      /@media \(max-width: 980px\) \{[\s\S]*\.library-web-item \{[\s\S]*grid-template-columns: minmax\(0, 1fr\);[\s\S]*padding-right: 68px;[\s\S]*\.library-item-actions \{[\s\S]*position: absolute;[\s\S]*top: 10px;[\s\S]*right: 10px;[\s\S]*\}/,
+    );
+    expect(styles).toMatch(
+      /@media \(max-width: 980px\) \{[\s\S]*\.library-ebook-list-item \{[\s\S]*grid-template-columns: minmax\(0, 1fr\);[\s\S]*padding-right: 68px;/,
     );
     expect(styles).toMatch(
       /@media \(max-width: 760px\) \{[\s\S]*\.library-ebook-list-item \{[\s\S]*padding-right: 68px;[\s\S]*\}/,
@@ -293,11 +329,11 @@ describe('reading library styles', () => {
     expect(styles).not.toMatch(/\.library-ebook-list \{[^}]*grid-template-columns:/);
     expect(styles).not.toContain('repeat(auto-fit, minmax(min(100%, 480px), 1fr))');
     expect(styles).not.toContain('.library-item-actions {\n    position: static;');
-    expect(styles).not.toMatch(
-      /@media \(max-width: 980px\) \{[\s\S]*\.library-web-item,\n  \.library-ebook-list-item \{[\s\S]*padding-right: 0;[\s\S]*\}/,
+    expect(rulesFor('.library-web-item,\n  .library-ebook-list-item')).not.toContain(
+      expect.stringContaining('padding-right: 0;'),
     );
-    expect(styles).not.toMatch(
-      /@media \(max-width: 760px\) \{[\s\S]*\.library-ebook-list-item \{[\s\S]*padding-right: 0;[\s\S]*\}/,
+    expect(rulesFor('.library-ebook-list-item')).not.toContain(
+      expect.stringContaining('padding-right: 0;'),
     );
   });
 

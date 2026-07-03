@@ -54,26 +54,33 @@
 
 .library-empty {
   display: grid;
-  min-height: 220px;
+  min-height: 260px;
   place-items: center;
   align-content: center;
-  border: 1px dashed hsl(var(--border));
-  border-radius: 8px;
-  background: hsl(var(--background) / 0.38);
+  border: 1px solid hsl(var(--border) / 0.86);
+  border-radius: 0;
+  background: hsl(var(--card));
   color: hsl(var(--muted-foreground));
   text-align: center;
+}
+
+.library-empty svg {
+  color: var(--app-interactive-link);
 }
 
 .library-empty h3 {
   margin: 12px 0 0;
   color: hsl(var(--foreground));
-  font-size: 17px;
+  font-family: var(--font-reader-serif);
+  font-size: 22px;
   font-weight: 900;
 }
 
 .library-empty p {
+  max-width: 360px;
   margin: 6px 0 0;
   font-size: 13px;
+  line-height: 1.6;
 }
 
 .library-empty.is-first-use,
