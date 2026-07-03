@@ -108,6 +108,13 @@ import {
   WEB_ANNOTATION_RAIL_DEBUG_OVERSCAN,
   WEB_ANNOTATION_RAIL_DEBUG_SAMPLE_LIMIT,
 } from './web-annotation-rail-debug';
+import {
+  canAdjustWebSelectionAnchor,
+  describeSelectionAdjustmentPoint,
+  webSelectionAdjustmentDraggingHandle,
+  webSelectionAdjustmentKind,
+  type WebSelectionAdjustment,
+} from './web-selection-adjustment';
 
 const WEB_SELECTION_DRAG_ANNOTATION_ID = '__selection_drag__';
 const WEB_HIGHLIGHT_HIT_PADDING = 8;
@@ -118,57 +125,6 @@ type ReaderRailViewport = {
   height: number;
   top: number;
 };
-
-type WebSelectionAdjustmentBase = {
-  endOffset: number;
-  handle: SelectionAdjustmentHandle;
-  startOffset: number;
-};
-
-type WebSelectionAdjustment =
-  | (WebSelectionAdjustmentBase & {
-      kind: 'source';
-    })
-  | (WebSelectionAdjustmentBase & {
-      kind: 'translation';
-      translationBlockId: string;
-    });
-
-function describeSelectionAdjustmentPoint(point: SelectionAdjustmentPointer) {
-  return {
-    clientX: Math.round(point.clientX),
-    clientY: Math.round(point.clientY),
-  };
-}
-
-function canAdjustWebSelectionAnchor(anchor: Annotation['anchor']) {
-  if (!webSelectionAdjustmentKind(anchor)) return false;
-  return (
-    Number.isFinite(anchor.start) && Number.isFinite(anchor.end) && anchor.start !== anchor.end
-  );
-}
-
-function webSelectionAdjustmentKind(
-  anchor: Annotation['anchor'],
-): WebSelectionAdjustment['kind'] | null {
-  if ('kind' in anchor && anchor.kind === 'pdf-text') return null;
-  if (
-    anchor.segmentId &&
-    anchor.textStartInBook === undefined &&
-    anchor.textEndInBook === undefined
-  ) {
-    return 'translation';
-  }
-  return 'source';
-}
-
-function webSelectionAdjustmentDraggingHandle(
-  adjustment: WebSelectionAdjustment,
-  sourceOffset: number,
-): SelectionAdjustmentHandle {
-  const fixedOffset = adjustment.handle === 'start' ? adjustment.endOffset : adjustment.startOffset;
-  return sourceOffset < fixedOffset ? 'start' : 'end';
-}
 
 export function WebSourceBookcase({
   agents,
