@@ -63,6 +63,7 @@ import {
   sourceReaderTocStyles,
   webAnnotationNavigationState,
 } from './app-source-bookcase-web-utils';
+import { useWebTranslationProgressToast } from './use-web-translation-progress-toast';
 import {
   ReaderTranslationConfirmDialog,
   ReaderTranslationToolbarButton,
@@ -314,8 +315,6 @@ export function WebSourceBookcase({
   );
   const translationSuccessTimerRef = useRef(new Map<string, number>());
   const translationSelectionToastAtRef = useRef(0);
-  const translationToastIdRef = useRef<TranslationToastId | null>(null);
-  const translationToastDismissTimerRef = useRef<number | null>(null);
   const onFocusedAnnotationRef = useRef(onFocusedAnnotation);
   const webFocusBoxCountRef = useRef(0);
   const annotationRailDebugLastLogRef = useRef(0);
@@ -328,6 +327,10 @@ export function WebSourceBookcase({
     if (!translation) return 0;
     return translationAnnotationsForBlocks(annotations, currentTranslationBlockIds()).length;
   }, [annotations, translation]);
+  const translationProgressToast = useWebTranslationProgressToast({
+    onRevealFirstFailedTranslationSegment: revealFirstFailedTranslationSegment,
+    t,
+  });
 
   const sourceReaderWorkspace = useSourceReaderWorkspace({
     article,
@@ -546,9 +549,9 @@ export function WebSourceBookcase({
         articleHtmlRenderFlushTimerRef.current = null;
       }
       clearTranslationSuccessFeedback();
-      dismissTranslationProgressToast();
+      translationProgressToast.dismiss();
     };
-  }, []);
+  }, [translationProgressToast]);
 
   useEffect(() => {
     const previousStatuses = translationSegmentStatusRef.current;
@@ -1228,7 +1231,7 @@ export function WebSourceBookcase({
 
   function receiveArticleTranslationUpdate(nextTranslation: ArticleTranslation, reason: string) {
     if (nextTranslation.articleId !== article.id) return;
-    updateTranslationProgressToast(nextTranslation);
+    translationProgressToast.update(nextTranslation);
     if (shouldDeferArticleTranslationUpdate()) {
       deferredArticleTranslationRef.current = nextTranslation;
       logReaderSelectionDebug('translation-update:deferred', {
@@ -1834,148 +1837,6 @@ export function WebSourceBookcase({
     });
   }
 
-  function translationCompletionToastTitle(nextTranslation: ArticleTranslation) {
-    const stats = articleTranslationStats(nextTranslation);
-    if (stats.failed > 0) {
-      return t('source.translationCompleteWithFailuresToast', {
-        failed: stats.failed,
-      });
-    }
-    return t('source.translationCompleteToast');
-  }
-
-  function translationCompletionToastDescription(nextTranslation: ArticleTranslation) {
-    const stats = articleTranslationStats(nextTranslation);
-    if (stats.failed > 0) {
-      return t('source.translationCompleteWithFailuresDescription', {
-        failed: stats.failed,
-        ready: stats.ready,
-        total: stats.total,
-      });
-    }
-    return t('source.translationCompleteToastDescription', {
-      ready: stats.ready,
-      total: stats.total,
-    });
-  }
-
-  function translationProgressToastText(nextTranslation: ArticleTranslation) {
-    const stats = articleTranslationStats(nextTranslation);
-    if (stats.failed > 0) {
-      return t('source.translationProgressWithFailuresToastDescription', {
-        failed: stats.failed,
-        ready: stats.ready,
-        total: stats.total,
-      });
-    }
-    return t('source.translationProgressToastDescription', {
-      ready: stats.ready,
-      total: stats.total,
-    });
-  }
-
-  function translationProgressToastDescription(
-    nextTranslation: ArticleTranslation | null,
-  ): React.ReactNode {
-    const stats = nextTranslation ? articleTranslationStats(nextTranslation) : null;
-    const completed = stats ? stats.ready + stats.failed : 0;
-    const progress = stats && stats.total > 0 ? completed / stats.total : 0;
-    const width = `${Math.max(0, Math.min(100, Math.round(progress * 100)))}%`;
-
-    return (
-      <div
-        className={stats ? 'translation-toast-progress' : 'translation-toast-progress is-pending'}
-      >
-        <span>
-          {nextTranslation
-            ? translationProgressToastText(nextTranslation)
-            : t('source.translationInProgressToastDescription')}
-        </span>
-        <i aria-hidden="true" className="translation-toast-progress-track">
-          <b className="translation-toast-progress-fill" style={{ width }} />
-        </i>
-      </div>
-    );
-  }
-
-  function startTranslationProgressToast() {
-    dismissTranslationProgressToast();
-    translationToastIdRef.current = appToast.info(t('source.translatingArticle'), {
-      description: translationProgressToastDescription(null),
-      duration: Infinity,
-      timing: { displayDuration: translationToastExpandedDurationMs },
-    });
-  }
-
-  function updateTranslationProgressToast(nextTranslation: ArticleTranslation) {
-    const toastId = translationToastIdRef.current;
-    if (!toastId || nextTranslation.status !== 'translating') return;
-    appToast.update(toastId, {
-      description: translationProgressToastDescription(nextTranslation),
-      title: t('source.translatingArticle'),
-      type: 'info',
-    });
-  }
-
-  function finishTranslationProgressToast(nextTranslation: ArticleTranslation) {
-    const toastId = translationToastIdRef.current;
-    if (!toastId) return;
-    const stats = articleTranslationStats(nextTranslation);
-    appToast.update(toastId, {
-      action:
-        stats.failed > 0
-          ? {
-              label: t('source.translationFailedToastAction'),
-              onClick: () => revealFirstFailedTranslationSegment(nextTranslation),
-              successLabel: t('source.translationFailedToastActionDone'),
-            }
-          : undefined,
-      description: translationCompletionToastDescription(nextTranslation),
-      title: translationCompletionToastTitle(nextTranslation),
-      type: stats.failed > 0 ? 'warning' : 'success',
-    });
-    scheduleTranslationProgressToastDismiss(stats.failed > 0 ? 12_000 : 6_000);
-  }
-
-  function failTranslationProgressToast(error: unknown) {
-    const toastId = translationToastIdRef.current;
-    if (!toastId) {
-      appToast.error(assistantRuntimeErrorMessage(error, 'source.translationFailed'));
-      return;
-    }
-    appToast.update(toastId, {
-      title: assistantRuntimeErrorMessage(error, 'source.translationFailed'),
-      type: 'error',
-    });
-    scheduleTranslationProgressToastDismiss(8_000);
-  }
-
-  function scheduleTranslationProgressToastDismiss(delayMs: number) {
-    clearTranslationProgressToastDismissTimer();
-    const toastId = translationToastIdRef.current;
-    if (!toastId) return;
-    translationToastDismissTimerRef.current = window.setTimeout(() => {
-      translationToastDismissTimerRef.current = null;
-      if (translationToastIdRef.current !== toastId) return;
-      appToast.dismiss(toastId);
-      translationToastIdRef.current = null;
-    }, delayMs);
-  }
-
-  function dismissTranslationProgressToast() {
-    clearTranslationProgressToastDismissTimer();
-    const toastId = translationToastIdRef.current;
-    if (!toastId) return;
-    appToast.dismiss(toastId);
-    translationToastIdRef.current = null;
-  }
-
-  function clearTranslationProgressToastDismissTimer() {
-    if (!translationToastDismissTimerRef.current) return;
-    window.clearTimeout(translationToastDismissTimerRef.current);
-    translationToastDismissTimerRef.current = null;
-  }
-
   function revealFirstFailedTranslationSegment(nextTranslation: ArticleTranslation) {
     const blockId = nextTranslation.segments.find(
       (segment) => segment.status === 'failed',
@@ -2023,7 +1884,7 @@ export function WebSourceBookcase({
     }
     setTranslationVisible(true);
     setTranslationBusy(true);
-    startTranslationProgressToast();
+    translationProgressToast.start();
     const translationTask = (async () => {
       const retranslatedBlockIds = input.force
         ? currentTranslationBlockIds()
@@ -2041,9 +1902,9 @@ export function WebSourceBookcase({
       return nextTranslation;
     })();
     try {
-      finishTranslationProgressToast(await translationTask);
+      translationProgressToast.finish(await translationTask);
     } catch (error) {
-      failTranslationProgressToast(error);
+      translationProgressToast.fail(error);
     } finally {
       setTranslationBusy(false);
     }
@@ -2058,7 +1919,7 @@ export function WebSourceBookcase({
         targetLanguage: bilingualTranslationTargetLanguage,
       });
       deferredArticleTranslationRef.current = null;
-      dismissTranslationProgressToast();
+      translationProgressToast.dismiss();
       setTranslation(null);
       setTranslationVisible(false);
       setTranslationMenuOpen(false);
@@ -2391,26 +2252,10 @@ export function WebSourceBookcase({
   );
 }
 
-type TranslationToastId = string | number;
-
 function translationAnnotationsForBlocks(annotations: Annotation[], blockIds: Set<string>) {
   return annotations.filter(
     (annotation) => annotation.anchor.segmentId && blockIds.has(annotation.anchor.segmentId),
   );
-}
-
-function articleTranslationStats(translation: ArticleTranslation) {
-  let ready = 0;
-  let failed = 0;
-  for (const segment of translation.segments) {
-    if (segment.status === 'ready') ready += 1;
-    else if (segment.status === 'failed') failed += 1;
-  }
-  return {
-    failed,
-    ready,
-    total: translation.segments.length,
-  };
 }
 
 function normalizeSavedWebProgress(progress: ArticleReadingProgress | undefined) {
@@ -2481,7 +2326,6 @@ function rangeIntersectsIgnoredSelector(range: Range, selector: string) {
 const translationSelectionToastIgnoredSelector =
   '[data-reader-translation-action], a[href], button, input, textarea, select, [role="button"]';
 const translationSelectionToastThrottleMs = 2000;
-const translationToastExpandedDurationMs = 24 * 60 * 60 * 1000;
 const emptyTranslationSuccessBlockIds = new Set<string>();
 
 type ArticleHtmlRenderState = {

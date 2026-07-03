@@ -1,6 +1,7 @@
 import i18next from 'i18next';
-import type { Annotation, ArticleRecord } from '@yomitomo/shared';
+import type { Annotation, ArticleRecord, ArticleTranslation } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
+import type { TFunction } from 'i18next';
 import { sanitizeArticleContentHtml } from '@yomitomo/core/article-extraction';
 import {
   annotationNavigationForInsertionIndex,
@@ -189,6 +190,63 @@ export function articleLinkExternalUrl(article: ArticleRecord, href: string | nu
   if (!baseUrl) return '';
 
   return httpUrl(rawHref, baseUrl);
+}
+
+export function articleTranslationStats(translation: ArticleTranslation) {
+  let ready = 0;
+  let failed = 0;
+  for (const segment of translation.segments) {
+    if (segment.status === 'ready') ready += 1;
+    else if (segment.status === 'failed') failed += 1;
+  }
+  return {
+    failed,
+    ready,
+    total: translation.segments.length,
+  };
+}
+
+export function translationCompletionToastTitle(nextTranslation: ArticleTranslation, t: TFunction) {
+  const stats = articleTranslationStats(nextTranslation);
+  if (stats.failed > 0) {
+    return t('source.translationCompleteWithFailuresToast', {
+      failed: stats.failed,
+    });
+  }
+  return t('source.translationCompleteToast');
+}
+
+export function translationCompletionToastDescription(
+  nextTranslation: ArticleTranslation,
+  t: TFunction,
+) {
+  const stats = articleTranslationStats(nextTranslation);
+  if (stats.failed > 0) {
+    return t('source.translationCompleteWithFailuresDescription', {
+      failed: stats.failed,
+      ready: stats.ready,
+      total: stats.total,
+    });
+  }
+  return t('source.translationCompleteToastDescription', {
+    ready: stats.ready,
+    total: stats.total,
+  });
+}
+
+export function translationProgressToastText(nextTranslation: ArticleTranslation, t: TFunction) {
+  const stats = articleTranslationStats(nextTranslation);
+  if (stats.failed > 0) {
+    return t('source.translationProgressWithFailuresToastDescription', {
+      failed: stats.failed,
+      ready: stats.ready,
+      total: stats.total,
+    });
+  }
+  return t('source.translationProgressToastDescription', {
+    ready: stats.ready,
+    total: stats.total,
+  });
 }
 
 function httpUrl(value: string, base?: string) {
