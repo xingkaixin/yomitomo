@@ -129,6 +129,63 @@ export function pdfiumScrollSnapshotCanConsumeDelta(snapshot: PdfiumScrollSnapsh
     : snapshot.scrollOffset < maxScrollOffset - SCROLL_EDGE_EPSILON;
 }
 
+export function firstVisiblePdfPageWidth(
+  pageMetrics: Record<number, { top: number; width: number }>,
+) {
+  const firstPage = Object.values(pageMetrics).toSorted((left, right) => left.top - right.top)[0];
+  const width = firstPage?.width ?? 0;
+  return Number.isFinite(width) && width > 0 ? Math.round(width) : 0;
+}
+
+export function pdfiumPageIndexFromTarget(target: Element | null) {
+  const page = target?.closest<HTMLElement>('[data-pdfium-page-index]');
+  if (!page) return null;
+  const pageIndex = Number(page.dataset.pdfiumPageIndex);
+  return Number.isInteger(pageIndex) ? pageIndex : null;
+}
+
+function pdfiumOverflowAllowsScroll(overflow: string) {
+  return overflow === 'auto' || overflow === 'scroll' || overflow === 'overlay';
+}
+
+function pdfiumElementCanConsumeWheel(element: HTMLElement, delta: PdfiumWheelDelta) {
+  const style = window.getComputedStyle(element);
+  const canScrollY =
+    pdfiumOverflowAllowsScroll(style.overflowY) &&
+    pdfiumScrollSnapshotCanConsumeDelta(
+      {
+        clientSize: element.clientHeight,
+        scrollOffset: element.scrollTop,
+        scrollSize: element.scrollHeight,
+      },
+      delta.y,
+    );
+  const canScrollX =
+    pdfiumOverflowAllowsScroll(style.overflowX) &&
+    pdfiumScrollSnapshotCanConsumeDelta(
+      {
+        clientSize: element.clientWidth,
+        scrollOffset: element.scrollLeft,
+        scrollSize: element.scrollWidth,
+      },
+      delta.x,
+    );
+  return canScrollY || canScrollX;
+}
+
+export function pdfiumRailWheelHasLocalScrollTarget(
+  target: Element | null,
+  rail: HTMLElement,
+  delta: PdfiumWheelDelta,
+) {
+  let element = target instanceof HTMLElement ? target : (target?.parentElement ?? null);
+  while (element && element !== rail) {
+    if (pdfiumElementCanConsumeWheel(element, delta)) return true;
+    element = element.parentElement;
+  }
+  return false;
+}
+
 export function pdfiumHighlightHitAtClientPoint({
   boxes,
   canvasRect,

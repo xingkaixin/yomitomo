@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+// @vitest-environment jsdom
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PdfPageGeometry } from '@embedpdf/models';
 import { createPdfTextAnchor, createTextAnchor, type Annotation } from '@yomitomo/shared';
 import type { HighlightBox, TocItem } from '@yomitomo/core';
@@ -7,10 +8,13 @@ import {
   buildPdfTextDocument,
   clampPageIndex,
   computeAutoPdfZoom,
+  firstVisiblePdfPageWidth,
   pdfiumAgentAnnotationRequestOptions,
   pdfiumAnnotationRailLayout,
   pdfiumMapReadingPlanAgentAnnotation,
   pdfiumMapTargetAgentAnnotation,
+  pdfiumPageIndexFromTarget,
+  pdfiumRailWheelHasLocalScrollTarget,
   pdfPageProgressPercent,
   pdfReaderBookmarkRanges,
   pdfReaderReadingSections,
@@ -31,6 +35,10 @@ import {
 describe('app-source-bookcase-pdfium-utils', () => {
   beforeEach(() => {
     initializeAppI18n('zh-CN');
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('clamps PDF page indexes and derives slider progress percent', () => {
@@ -140,6 +148,78 @@ describe('app-source-bookcase-pdfium-utils', () => {
         24,
       ),
     ).toBe(false);
+  });
+
+  it('uses the top-most visible PDF page width', () => {
+    expect(
+      firstVisiblePdfPageWidth({
+        2: { top: 400, width: 612.4 },
+        0: { top: 120, width: 498.6 },
+        1: { top: -20, width: 300.2 },
+      }),
+    ).toBe(300);
+    expect(firstVisiblePdfPageWidth({})).toBe(0);
+    expect(firstVisiblePdfPageWidth({ 0: { top: 0, width: Number.NaN } })).toBe(0);
+    expect(firstVisiblePdfPageWidth({ 0: { top: 0, width: -1 } })).toBe(0);
+  });
+
+  it('reads the PDF page index from the target page ancestor', () => {
+    const page = document.createElement('div');
+    const child = document.createElement('button');
+    page.dataset.pdfiumPageIndex = '4';
+    page.append(child);
+
+    expect(pdfiumPageIndexFromTarget(child)).toBe(4);
+    page.dataset.pdfiumPageIndex = '4.5';
+    expect(pdfiumPageIndexFromTarget(child)).toBeNull();
+    expect(pdfiumPageIndexFromTarget(document.createElement('div'))).toBeNull();
+    expect(pdfiumPageIndexFromTarget(null)).toBeNull();
+  });
+
+  it('detects local rail wheel targets that can consume scroll', () => {
+    const rail = document.createElement('div');
+    const scroller = document.createElement('div');
+    const target = document.createElement('button');
+    scroller.style.overflowY = 'auto';
+    scroller.append(target);
+    rail.append(scroller);
+    document.body.append(rail);
+    setScrollMetrics(scroller, {
+      clientHeight: 100,
+      scrollHeight: 300,
+      scrollTop: 50,
+    });
+    vi.spyOn(window, 'getComputedStyle');
+
+    expect(pdfiumRailWheelHasLocalScrollTarget(target, rail, { x: 0, y: 24 })).toBe(true);
+    expect(window.getComputedStyle).toHaveBeenCalledWith(scroller);
+
+    scroller.scrollTop = 0;
+    expect(pdfiumRailWheelHasLocalScrollTarget(target, rail, { x: 0, y: -24 })).toBe(false);
+
+    rail.remove();
+  });
+
+  it('checks horizontal local rail wheel scrolling with computed overflow', () => {
+    const rail = document.createElement('div');
+    const scroller = document.createElement('div');
+    const target = document.createElement('span');
+    scroller.style.overflowX = 'scroll';
+    scroller.append(target);
+    rail.append(scroller);
+    document.body.append(rail);
+    setScrollMetrics(scroller, {
+      clientWidth: 100,
+      scrollLeft: 25,
+      scrollWidth: 300,
+    });
+
+    expect(pdfiumRailWheelHasLocalScrollTarget(target, rail, { x: -8, y: 0 })).toBe(true);
+
+    scroller.style.overflowX = 'hidden';
+    expect(pdfiumRailWheelHasLocalScrollTarget(target, rail, { x: -8, y: 0 })).toBe(false);
+
+    rail.remove();
   });
 
   it('places PDF annotation rail on the available page side', () => {
@@ -670,6 +750,24 @@ function textAnnotation(id: string, overrides: Partial<Annotation> = {}): Annota
     updatedAt: '2026-05-25T00:00:00.000Z',
     ...overrides,
   } as Annotation;
+}
+
+function setScrollMetrics(
+  element: HTMLElement,
+  metrics: Partial<
+    Pick<
+      HTMLElement,
+      'clientHeight' | 'clientWidth' | 'scrollHeight' | 'scrollLeft' | 'scrollTop' | 'scrollWidth'
+    >
+  >,
+) {
+  for (const [key, value] of Object.entries(metrics)) {
+    Object.defineProperty(element, key, {
+      configurable: true,
+      value,
+      writable: true,
+    });
+  }
 }
 
 describe('computeAutoPdfZoom', () => {
