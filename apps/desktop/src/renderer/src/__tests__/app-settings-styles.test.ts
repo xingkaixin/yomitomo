@@ -75,4 +75,13 @@ describe('settings styles', () => {
     expectRule('.license-dialog', ['-webkit-app-region: no-drag;']);
     expectRule('.license-dialog *', ['-webkit-app-region: no-drag;']);
   });
+
+  it('keeps app shell responsive rules outside legacy overrides', () => {
+    expect(styles).toMatch(
+      /@media \(max-width: 980px\) \{[\s\S]*\.app-layout \{[\s\S]*grid-template-columns: 128px minmax\(0, 1fr\);/,
+    );
+    expect(styles).toMatch(
+      /@media \(max-width: 760px\) \{[\s\S]*\.app-window-header \{[\s\S]*padding-left: 66px;[\s\S]*\.app-header-date \{[\s\S]*display: none;[\s\S]*\.app-layout \{[\s\S]*grid-template-columns: minmax\(0, 1fr\);[\s\S]*grid-template-rows: auto minmax\(0, 1fr\);[\s\S]*\.settings-sidebar \{[\s\S]*border-right: 0;[\s\S]*border-bottom: 1px solid hsl\(var\(--border\) \/ 0\.72\);[\s\S]*\.settings-nav \{[\s\S]*display: flex;[\s\S]*overflow-x: auto;[\s\S]*\.sidebar-note,[\s\S]*\.sidebar-profile-button \{[\s\S]*display: none;/,
+    );
+  });
 });
