@@ -92,7 +92,7 @@ import { usePdfiumDocumentText } from './app-source-bookcase-pdfium-document-tex
 import { usePdfiumReadingProgress } from './app-source-bookcase-pdfium-reading-progress';
 import { usePdfiumNavigation } from './app-source-bookcase-pdfium-navigation';
 import { useSourceReaderWorkspace } from '../bookcase/use-source-reader-workspace';
-import { useReaderSearchMatches } from '../bookcase/use-reader-search-matches';
+import { useReaderSearchNavigation } from '../bookcase/use-reader-search-navigation';
 import { usePdfiumDocumentSource } from './use-pdfium-document-source';
 import { usePdfiumPlugins } from './use-pdfium-plugins';
 import { suppressPdfiumContinuousTextSelectionEvent } from './app-source-bookcase-pdfium-selection-events';
@@ -411,10 +411,8 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   const [statusMessage, setStatusMessage] = useState('');
   const [agentTheaterBoxes, setAgentTheaterBoxes] = useState<HighlightBox[]>([]);
   const [layoutPageWidth, setLayoutPageWidth] = useState(0);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeSearchMatchIndex, setActiveSearchMatchIndex] = useState(0);
   const [searchBoxes, setSearchBoxes] = useState<HighlightBox[]>([]);
+  const clearSearchBoxes = useCallback(() => setSearchBoxes([]), []);
   const resetLayoutPageWidthOnNextMetricsRef = useRef(true);
   const {
     annotationRailViewportHeight,
@@ -563,13 +561,10 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     selection,
     updateReaderSettings: updatePdfReaderSettings,
   } = sourceReaderWorkspace;
-  const {
-    matchedQuery: matchedSearchQuery,
-    preparing: searchPreparing,
-    result: searchResult,
-  } = useReaderSearchMatches(pdfTextDocument?.text || '', searchQuery);
-  const activeSearchMatch =
-    searchResult.matches[Math.min(activeSearchMatchIndex, searchResult.matches.length - 1)] || null;
+  const searchNavigation = useReaderSearchNavigation(pdfTextDocument?.text || '', {
+    externalPreparing: pdfTextIndexPreparing,
+    onClose: clearSearchBoxes,
+  });
   const {
     temporaryBoxes,
     setHighlightChoice,
@@ -873,21 +868,14 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   }, [article.id, clearAnnotationUiState]);
 
   useEffect(() => {
-    setSearchOpen(false);
-    setSearchQuery('');
-    setActiveSearchMatchIndex(0);
-    setSearchBoxes([]);
-  }, [article.id]);
-
-  useEffect(() => {
-    setActiveSearchMatchIndex(0);
-  }, [matchedSearchQuery]);
+    searchNavigation.resetSearch();
+  }, [article.id, searchNavigation.resetSearch]);
 
   useEffect(() => {
     if (
-      searchPreparing ||
-      !searchOpen ||
-      !activeSearchMatch ||
+      searchNavigation.preparing ||
+      !searchNavigation.open ||
+      !searchNavigation.activeMatch ||
       !pdfTextDocument ||
       !loadedDocument
     ) {
@@ -896,20 +884,20 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     }
 
     let cancelled = false;
-    void revealPdfiumSearchMatch(activeSearchMatch).then((nextBoxes) => {
+    void revealPdfiumSearchMatch(searchNavigation.activeMatch).then((nextBoxes) => {
       if (!cancelled) setSearchBoxes(nextBoxes);
     });
     return () => {
       cancelled = true;
     };
   }, [
-    activeSearchMatch,
     currentPage,
     loadedDocument,
     pageMetrics,
     pdfTextDocument,
-    searchOpen,
-    searchPreparing,
+    searchNavigation.activeMatch,
+    searchNavigation.open,
+    searchNavigation.preparing,
     zoom,
   ]);
 
@@ -1290,19 +1278,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     });
   }
 
-  function closeSearch() {
-    setSearchOpen(false);
-    setSearchBoxes([]);
-  }
-
-  function navigateSearchMatch(direction: 'previous' | 'next') {
-    const total = searchResult.matches.length;
-    if (total === 0) return;
-    setActiveSearchMatchIndex((index) =>
-      direction === 'next' ? (index + 1) % total : (index - 1 + total) % total,
-    );
-  }
-
   function enqueuePdfiumAgentAnnotationPlayback(articleId: string, annotation: Annotation) {
     agentAnnotationPlaybackQueueRef.current = agentAnnotationPlaybackQueueRef.current
       .catch(() => undefined)
@@ -1666,19 +1641,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
         byline: pdfHeaderByline,
       },
       readingProgress: pageProgress(currentPage - 1, pageCount),
-      search: {
-        activeMatchIndex: activeSearchMatchIndex,
-        limited: searchResult.limited,
-        matches: searchResult.matches,
-        open: searchOpen,
-        preparing: Boolean(searchQuery.trim()) && (pdfTextIndexPreparing || searchPreparing),
-        query: searchQuery,
-        onClose: closeSearch,
-        onNextMatch: () => navigateSearchMatch('next'),
-        onOpen: () => setSearchOpen(true),
-        onPreviousMatch: () => navigateSearchMatch('previous'),
-        onQueryChange: setSearchQuery,
-      },
+      search: searchNavigation.search,
     },
     userProfile,
     workspace: sourceReaderWorkspace,

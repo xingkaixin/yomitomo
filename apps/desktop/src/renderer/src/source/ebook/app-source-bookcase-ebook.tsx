@@ -67,7 +67,7 @@ import { createEbookSourceReaderController } from './app-source-bookcase-ebook-c
 import { useSourceReaderWorkspace } from '../bookcase/use-source-reader-workspace';
 import { buildSourceReaderAppActions } from '../bookcase/source-reader-app-actions';
 import { buildSourceReaderAppViewProps } from '../bookcase/source-reader-app-view-props';
-import { useReaderSearchMatches } from '../bookcase/use-reader-search-matches';
+import { useReaderSearchNavigation } from '../bookcase/use-reader-search-navigation';
 
 function cssPixelValue(value: string) {
   const parsed = Number.parseFloat(value);
@@ -219,10 +219,8 @@ export function EbookBookcase({
   const [annotatingAgentIds, setAnnotatingAgentIds] = useState<string[]>([]);
   const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeSearchMatchIndex, setActiveSearchMatchIndex] = useState(0);
   const [searchBoxes, setSearchBoxes] = useState<HighlightBox[]>([]);
+  const clearSearchBoxes = useCallback(() => setSearchBoxes([]), []);
 
   const sourceReaderWorkspace = useSourceReaderWorkspace({
     article,
@@ -259,13 +257,9 @@ export function EbookBookcase({
     openComposer,
   } = selection;
   const ebookText = useMemo(() => ebookArticleText(article), [article]);
-  const {
-    matchedQuery: matchedSearchQuery,
-    preparing: searchPreparing,
-    result: searchResult,
-  } = useReaderSearchMatches(ebookText, searchQuery);
-  const activeSearchMatch =
-    searchResult.matches[Math.min(activeSearchMatchIndex, searchResult.matches.length - 1)] || null;
+  const searchNavigation = useReaderSearchNavigation(ebookText, {
+    onClose: clearSearchBoxes,
+  });
   const articleAnnotationSignature = useMemo(
     () => ebookHighlightAnnotationsSignature(articleAnnotations, userProfile, annotationAgents),
     [annotationAgents, articleAnnotations, userProfile],
@@ -487,10 +481,7 @@ export function EbookBookcase({
     setStatusMessage('');
     setSettingsOpen(false);
     setTocOpen(defaultTocOpen());
-    setSearchOpen(false);
-    setSearchQuery('');
-    setActiveSearchMatchIndex(0);
-    setSearchBoxes([]);
+    searchNavigation.resetSearch();
   }, [
     article.id,
     closeFloatingComments,
@@ -498,6 +489,7 @@ export function EbookBookcase({
     clearAnnotationUiState,
     replaceAnnotations,
     resetEbookBoxState,
+    searchNavigation.resetSearch,
   ]);
 
   useEffect(() => {
@@ -513,22 +505,18 @@ export function EbookBookcase({
   }, [article.id, articleAnnotationSignature, scheduleEbookBoxUpdate]);
 
   useEffect(() => {
-    setActiveSearchMatchIndex(0);
-  }, [matchedSearchQuery]);
-
-  useEffect(() => {
-    if (searchPreparing || !searchOpen || !activeSearchMatch) {
+    if (searchNavigation.preparing || !searchNavigation.open || !searchNavigation.activeMatch) {
       setSearchBoxes([]);
       return;
     }
     let cancelled = false;
-    void revealEbookSearchMatch(activeSearchMatch).then((nextBoxes) => {
+    void revealEbookSearchMatch(searchNavigation.activeMatch).then((nextBoxes) => {
       if (!cancelled) setSearchBoxes(nextBoxes);
     });
     return () => {
       cancelled = true;
     };
-  }, [activeSearchMatch, searchOpen, searchPreparing]);
+  }, [searchNavigation.activeMatch, searchNavigation.open, searchNavigation.preparing]);
 
   useEffect(
     () => () => {
@@ -900,19 +888,6 @@ export function EbookBookcase({
     void goToAnnotation(annotationId);
   }
 
-  function closeSearch() {
-    setSearchOpen(false);
-    setSearchBoxes([]);
-  }
-
-  function navigateSearchMatch(direction: 'previous' | 'next') {
-    const total = searchResult.matches.length;
-    if (total === 0) return;
-    setActiveSearchMatchIndex((index) =>
-      direction === 'next' ? (index + 1) % total : (index - 1 + total) % total,
-    );
-  }
-
   function focusPageAnnotation(annotationId: string) {
     openAnnotation(annotationId);
     if (boxes.some((box) => box.annotationId === annotationId)) return;
@@ -1166,19 +1141,7 @@ export function EbookBookcase({
         hasCover: true,
       },
       readingProgress: progress,
-      search: {
-        activeMatchIndex: activeSearchMatchIndex,
-        limited: searchResult.limited,
-        matches: searchResult.matches,
-        open: searchOpen,
-        preparing: searchPreparing,
-        query: searchQuery,
-        onClose: closeSearch,
-        onNextMatch: () => navigateSearchMatch('next'),
-        onOpen: () => setSearchOpen(true),
-        onPreviousMatch: () => navigateSearchMatch('previous'),
-        onQueryChange: setSearchQuery,
-      },
+      search: searchNavigation.search,
     },
     userProfile,
     workspace: sourceReaderWorkspace,
