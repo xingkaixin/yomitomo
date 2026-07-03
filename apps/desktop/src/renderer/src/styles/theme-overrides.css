@@ -1,6 +1,4 @@
 @import './theme-overrides/foundation.css';
-@import './theme-overrides/legacy-shell.css';
-@import './theme-overrides/legacy-library.css';
 @import './theme-overrides/masthead-lock.css';
 @import './theme-overrides/theme-dialog.css';
 @import './theme-overrides/library-skeleton.css';
