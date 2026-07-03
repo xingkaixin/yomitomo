@@ -25,6 +25,8 @@ subpath imports so each wrapper imports only the primitive it needs.
 - `apps/desktop/src/renderer/src/components/ui`: desktop renderer wrappers.
   These wrappers may use Tailwind classes, `cn`, `class-variance-authority`,
   desktop z-index variables, and AppTheme CSS variables.
+- Desktop renderer CSS ownership is documented in
+  [Desktop Renderer Style Ownership](./desktop-style-ownership.md).
 - `packages/reader-ui/src/components/ui`: reader-ui wrappers. These wrappers
   must not depend on desktop renderer modules, Tailwind config, Electron, or
   desktop-only theme helpers.
