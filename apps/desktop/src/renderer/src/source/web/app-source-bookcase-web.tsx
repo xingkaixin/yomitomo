@@ -96,7 +96,7 @@ import { createWebSourceReaderController } from './app-source-bookcase-web-contr
 import { useSourceReaderWorkspace } from '../bookcase/use-source-reader-workspace';
 import { buildSourceReaderAppActions } from '../bookcase/source-reader-app-actions';
 import { buildSourceReaderAppViewProps } from '../bookcase/source-reader-app-view-props';
-import { useReaderSearchMatches } from '../bookcase/use-reader-search-matches';
+import { useReaderSearchNavigation } from '../bookcase/use-reader-search-navigation';
 import { useSourceReadingProgressSaver } from '../bookcase/use-source-reading-progress-saver';
 import {
   annotationRailDebugBoxGroups,
@@ -250,11 +250,9 @@ export function WebSourceBookcase({
   } = sourceReaderSession;
   const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
   const [, setSettingsOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeSearchMatchIndex, setActiveSearchMatchIndex] = useState(0);
   const [articleSearchText, setArticleSearchText] = useState('');
   const [searchBoxes, setSearchBoxes] = useState<HighlightBox[]>([]);
+  const clearSearchBoxes = useCallback(() => setSearchBoxes([]), []);
   const [translation, setTranslation] = useState<ArticleTranslation | null>(null);
   const [translationVisible, setTranslationVisible] = useState(false);
   const [translationBusy, setTranslationBusy] = useState(false);
@@ -341,13 +339,9 @@ export function WebSourceBookcase({
     article.id,
     computedTranslatedContentHtml,
   );
-  const {
-    matchedQuery: matchedSearchQuery,
-    preparing: searchPreparing,
-    result: searchResult,
-  } = useReaderSearchMatches(articleSearchText, searchQuery);
-  const activeSearchMatch =
-    searchResult.matches[Math.min(activeSearchMatchIndex, searchResult.matches.length - 1)] || null;
+  const searchNavigation = useReaderSearchNavigation(articleSearchText, {
+    onClose: clearSearchBoxes,
+  });
   const { boxes, tocItems } = useWebReaderBoxes({
     annotationAgents,
     annotations,
@@ -443,11 +437,8 @@ export function WebSourceBookcase({
     setTocOpen(defaultTocOpen());
     setSettingsOpen(false);
     setStatusMessage('');
-    setSearchOpen(false);
-    setSearchQuery('');
+    searchNavigation.resetSearch();
     setArticleSearchText('');
-    setActiveSearchMatchIndex(0);
-    setSearchBoxes([]);
     setTranslation(null);
     setTranslationVisible(false);
     setTranslationMenuOpen(false);
@@ -461,7 +452,7 @@ export function WebSourceBookcase({
     translationSegmentStatusRef.current.clear();
     setReadingProgress(normalizeSavedWebProgress(article.readingProgress) ?? 0);
     restoredWebProgressArticleRef.current = null;
-  }, [article?.id]);
+  }, [article?.id, searchNavigation.resetSearch]);
 
   useEffect(() => {
     let cancelled = false;
@@ -532,7 +523,7 @@ export function WebSourceBookcase({
   }, [translation]);
 
   useEffect(() => {
-    if (!searchOpen) {
+    if (!searchNavigation.open) {
       setArticleSearchText('');
       return;
     }
@@ -541,14 +532,10 @@ export function WebSourceBookcase({
       setArticleSearchText(articleRef.current ? sourceTextContent(articleRef.current) : '');
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [article.id, searchOpen, translatedContentHtml]);
+  }, [article.id, searchNavigation.open, translatedContentHtml]);
 
   useEffect(() => {
-    setActiveSearchMatchIndex(0);
-  }, [matchedSearchQuery]);
-
-  useEffect(() => {
-    if (searchPreparing || !searchOpen || !activeSearchMatch) {
+    if (searchNavigation.preparing || !searchNavigation.open || !searchNavigation.activeMatch) {
       setSearchBoxes([]);
       return;
     }
@@ -559,8 +546,8 @@ export function WebSourceBookcase({
 
     const range = rangeFromOffsetsIgnoringSelector(
       articleElement,
-      activeSearchMatch.start,
-      activeSearchMatch.end,
+      searchNavigation.activeMatch.start,
+      searchNavigation.activeMatch.end,
       '[data-reader-translation]',
     );
     if (!range) {
@@ -572,7 +559,7 @@ export function WebSourceBookcase({
     if (rect) scrollReaderSurfaceToRect(scrollElement, rect, 82);
     const canvasRect = canvasElement.getBoundingClientRect();
     setSearchBoxes(
-      rangeHighlightBoxes(range, canvasRect, activeSearchMatch.id).map((box) =>
+      rangeHighlightBoxes(range, canvasRect, searchNavigation.activeMatch.id).map((box) =>
         Object.assign(box, {
           annotationId: '__search__',
           contributorId: '__search__',
@@ -580,7 +567,7 @@ export function WebSourceBookcase({
         }),
       ),
     );
-  }, [activeSearchMatch, searchOpen, searchPreparing]);
+  }, [searchNavigation.activeMatch, searchNavigation.open, searchNavigation.preparing]);
 
   useEffect(() => {
     const scrollElement = scrollRef.current;
@@ -1996,19 +1983,6 @@ export function WebSourceBookcase({
     });
   }
 
-  function closeSearch() {
-    setSearchOpen(false);
-    setSearchBoxes([]);
-  }
-
-  function navigateSearchMatch(direction: 'previous' | 'next') {
-    const total = searchResult.matches.length;
-    if (total === 0) return;
-    setActiveSearchMatchIndex((index) =>
-      direction === 'next' ? (index + 1) % total : (index - 1 + total) % total,
-    );
-  }
-
   if (!article) {
     return (
       <section className="source-bookcase is-empty">
@@ -2151,19 +2125,7 @@ export function WebSourceBookcase({
           />
         </>
       ),
-      search: {
-        activeMatchIndex: activeSearchMatchIndex,
-        limited: searchResult.limited,
-        matches: searchResult.matches,
-        open: searchOpen,
-        preparing: searchPreparing,
-        query: searchQuery,
-        onClose: closeSearch,
-        onNextMatch: () => navigateSearchMatch('next'),
-        onOpen: () => setSearchOpen(true),
-        onPreviousMatch: () => navigateSearchMatch('previous'),
-        onQueryChange: setSearchQuery,
-      },
+      search: searchNavigation.search,
       headerMeta: {
         title: article.title,
         byline: article.byline,
