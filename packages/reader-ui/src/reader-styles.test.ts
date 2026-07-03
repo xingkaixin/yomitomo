@@ -119,6 +119,12 @@ describe('reader embedded styles', () => {
     expect(longestReviewableLine).toBeLessThanOrEqual(220);
   });
 
+  it('compacts conversation CSS from the reviewable source text', () => {
+    expect(readerConversationStyles).toBe(
+      compactReaderCssLikeRuntime(readerConversationStylesSource),
+    );
+  });
+
   it('wires popup surfaces to the shared motion contract', () => {
     expect(readerConversationStyles).toContain('--dropdown-open-dur:190ms');
     expect(readerConversationStyles).toContain('--dropdown-close-dur:120ms');
@@ -566,6 +572,59 @@ function compactCss(source: string) {
     .replace(/\s*([{}:;,])\s*/g, '$1')
     .replace(/;}/g, '}')
     .trim();
+}
+
+function compactReaderCssLikeRuntime(source: string) {
+  const trimmed = source.trim();
+  let result = '';
+  let quote: string | null = null;
+  let escaped = false;
+
+  for (let index = 0; index < trimmed.length; index += 1) {
+    const char = trimmed[index];
+
+    if (quote) {
+      result += char;
+      if (escaped) {
+        escaped = false;
+      } else if (char === '\\') {
+        escaped = true;
+      } else if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      quote = char;
+      result += char;
+      continue;
+    }
+
+    if (char === '\n' || char === '\r') {
+      while (
+        index + 1 < trimmed.length &&
+        (trimmed[index + 1] === ' ' || trimmed[index + 1] === '\t')
+      ) {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (
+      (char === ' ' || char === '\t') &&
+      trimmed
+        .slice(index + 1)
+        .trimStart()
+        .startsWith('{')
+    ) {
+      continue;
+    }
+
+    result += char;
+  }
+
+  return result;
 }
 
 function countOccurrences(source: string, needle: string) {
