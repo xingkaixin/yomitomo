@@ -14,7 +14,7 @@ import { SelectionLayer } from '@embedpdf/plugin-selection/react';
 import { Viewport } from '@embedpdf/plugin-viewport/react';
 import { useZoom } from '@embedpdf/plugin-zoom/react';
 import { ChevronLeft, ChevronRight, LoaderCircle, ZoomIn } from 'lucide-react';
-import type { PdfEngine, PdfPageGeometry } from '@embedpdf/models';
+import type { PdfEngine } from '@embedpdf/models';
 import {
   createPdfTextAnchor,
   isPdfTextAnchor,
@@ -30,10 +30,7 @@ import {
   type HighlightBox,
   type TocItem,
 } from '@yomitomo/core';
-import {
-  ReaderAppView,
-  type SelectionAdjustmentPointer,
-} from '@yomitomo/reader-ui/reader-app-view';
+import { ReaderAppView } from '@yomitomo/reader-ui/reader-app-view';
 import { ReaderToolbarSliderPopover } from '@yomitomo/reader-ui/reader-toolbar-controls';
 import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
@@ -73,14 +70,9 @@ import {
   pdfiumTemporaryBoxes,
   pdfiumTocAnnotationStats,
   pdfiumScrollSnapshotCanConsumeDelta,
-  pdfiumSelectionAdjustedOffsets,
-  pdfiumSelectionAnchorForOffsets,
-  pdfiumSelectionDraggingHandle,
-  pdfiumSelectionPointFromClientPoint,
   pdfiumRectsForTextRange,
   pdfiumWheelDeltaPixels,
   type PdfTextDocument,
-  type PdfiumSelectionAdjustment,
 } from './app-source-bookcase-pdfium-utils';
 import { createPdfiumSourceReaderController } from './app-source-bookcase-pdfium-controller';
 import { EmbedPdfSelectionBridge } from './app-source-bookcase-pdfium-selection-bridge';
@@ -98,6 +90,7 @@ import { useSourceReaderWorkspace } from '../bookcase/use-source-reader-workspac
 import { useReaderSearchNavigation } from '../bookcase/use-reader-search-navigation';
 import { usePdfiumDocumentSource } from './use-pdfium-document-source';
 import { usePdfiumPlugins } from './use-pdfium-plugins';
+import { usePdfiumSelectionAdjustment } from './use-pdfium-selection-adjustment';
 import { suppressPdfiumContinuousTextSelectionEvent } from './app-source-bookcase-pdfium-selection-events';
 import {
   debugComputedStyle,
@@ -110,16 +103,6 @@ type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']>
 type PdfiumLoadedDocument = NonNullable<
   NonNullable<ReturnType<typeof useDocumentState>>['document']
 >;
-
-type PdfiumSelectionAdjustmentSource = {
-  geometry: PdfPageGeometry;
-  pageHeight: number;
-  pageIndex: number;
-  pageText: string;
-  pageWidth: number;
-};
-
-type PdfiumSelectionAdjustmentState = PdfiumSelectionAdjustment & PdfiumSelectionAdjustmentSource;
 
 function debugPoint(point: { x: number; y: number }) {
   return {
@@ -342,12 +325,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const notesRef = useRef<HTMLElement | null>(null);
   const noteRefs = useRef(new Map<string, HTMLElement>());
-  const pdfSelectionAdjustmentRef = useRef<PdfiumSelectionAdjustmentState | null>(null);
-  const pdfSelectionAdjustmentRequestRef = useRef(0);
-  const pdfSelectionAdjustmentSourceRef = useRef(
-    new Map<number, PdfiumSelectionAdjustmentSource>(),
-  );
-  const pdfSelectionGeometryRef = useRef(new Map<number, Promise<PdfPageGeometry | null>>());
   const { markAnnotationCreated, newAnnotationIds } = useRecentAnnotationFeedback(
     article.id,
     settings,
@@ -372,12 +349,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   } = usePdfiumPageMetrics({ canvasRef, pageCount });
   const zoom = documentState?.scale || 1;
   const loadedDocument = documentState?.document ?? undefined;
-  useEffect(() => {
-    pdfSelectionAdjustmentRef.current = null;
-    pdfSelectionAdjustmentRequestRef.current += 1;
-    pdfSelectionAdjustmentSourceRef.current = new Map();
-    pdfSelectionGeometryRef.current = new Map();
-  }, [article.id, loadedDocument]);
   const pdfBaseWidth = useMemo(() => {
     const pages = loadedDocument?.pages;
     if (!pages || pages.length === 0) return 0;
@@ -528,6 +499,23 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     requestSelectionCopy,
     openComposer,
   } = selection;
+  const {
+    preparePdfiumSelectionAdjustmentSource,
+    startPdfiumSelectionAdjustment,
+    updatePdfiumSelectionAdjustment,
+    finishPdfiumSelectionAdjustment,
+  } = usePdfiumSelectionAdjustment({
+    articleId: article.id,
+    canvasRef,
+    contributorId: userProfile.id,
+    document: loadedDocument,
+    engine,
+    extractPageText: extractPdfiumPageText,
+    pageMetricsRef,
+    selectionAction,
+    setSelectionAction,
+    setTemporaryBoxes,
+  });
   const boxes = useMemo(
     () => pdfiumAnnotationBoxes(annotations, pageMetrics, userProfile, annotationAgents),
     [annotationAgents, annotations, pageMetrics, userProfile],
@@ -908,146 +896,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       pdfiumTemporaryBoxes(anchor, metric, userProfile.id),
     );
     void preparePdfiumSelectionAdjustmentSource(anchor.pageIndex);
-  }
-
-  function ensurePdfiumSelectionGeometry(pageIndex: number) {
-    const cached = pdfSelectionGeometryRef.current.get(pageIndex);
-    if (cached) return cached;
-
-    const page = loadedDocument?.pages[pageIndex];
-    if (!loadedDocument || !page) return Promise.resolve(null);
-
-    const pending = engine
-      .getPageGeometry(loadedDocument, page)
-      .toPromise()
-      .catch(() => null);
-    pdfSelectionGeometryRef.current.set(pageIndex, pending);
-    return pending;
-  }
-
-  async function preparePdfiumSelectionAdjustmentSource(pageIndex: number) {
-    const cached = pdfSelectionAdjustmentSourceRef.current.get(pageIndex);
-    if (cached) return cached;
-
-    const page = loadedDocument?.pages[pageIndex];
-    if (!page) return null;
-
-    const [geometry, pageText] = await Promise.all([
-      ensurePdfiumSelectionGeometry(pageIndex),
-      extractPdfiumPageText(pageIndex),
-    ]);
-    if (!geometry || !pageText) return null;
-
-    const adjustmentSource = {
-      geometry,
-      pageHeight: page.size.height,
-      pageIndex,
-      pageText,
-      pageWidth: page.size.width,
-    };
-    pdfSelectionAdjustmentSourceRef.current.set(pageIndex, adjustmentSource);
-    return adjustmentSource;
-  }
-
-  function startPdfiumSelectionAdjustment(point: SelectionAdjustmentPointer) {
-    const anchor = selectionAction?.anchor;
-    if (
-      !anchor ||
-      !isPdfTextAnchor(anchor) ||
-      !anchor.exact.trim() ||
-      anchor.start === anchor.end
-    ) {
-      pdfSelectionAdjustmentRef.current = null;
-      return;
-    }
-
-    const requestId = pdfSelectionAdjustmentRequestRef.current + 1;
-    pdfSelectionAdjustmentRequestRef.current = requestId;
-    pdfSelectionAdjustmentRef.current = null;
-
-    const commitAdjustment = (adjustmentSource: PdfiumSelectionAdjustmentSource | null) => {
-      if (!adjustmentSource || requestId !== pdfSelectionAdjustmentRequestRef.current) return;
-      pdfSelectionAdjustmentRef.current = {
-        ...adjustmentSource,
-        endOffset: anchor.end,
-        handle: point.handle,
-        startOffset: anchor.start,
-      };
-    };
-
-    const cached = pdfSelectionAdjustmentSourceRef.current.get(anchor.pageIndex);
-    if (cached) {
-      commitAdjustment(cached);
-      return;
-    }
-
-    void preparePdfiumSelectionAdjustmentSource(anchor.pageIndex).then(commitAdjustment);
-  }
-
-  function updatePdfiumSelectionAdjustment(point: SelectionAdjustmentPointer) {
-    const adjustment = pdfSelectionAdjustmentRef.current;
-    const canvas = canvasRef.current;
-    if (!adjustment || adjustment.handle !== point.handle || !canvas) return;
-
-    const metric = pageMetricsRef.current[adjustment.pageIndex];
-    if (!metric) return;
-
-    const targetPoint = pdfiumSelectionPointFromClientPoint({
-      canvasRect: canvas.getBoundingClientRect(),
-      clientX: point.clientX,
-      clientY: point.clientY,
-      geometry: adjustment.geometry,
-      metric,
-      pageHeight: adjustment.pageHeight,
-      pageTextLength: adjustment.pageText.length,
-      pageWidth: adjustment.pageWidth,
-    });
-    if (!targetPoint) return;
-
-    const nextOffsets = pdfiumSelectionAdjustedOffsets({
-      endOffset: adjustment.endOffset,
-      handle: adjustment.handle,
-      sourceOffset: targetPoint.sourceOffset,
-      startOffset: adjustment.startOffset,
-    });
-    if (!nextOffsets) return;
-
-    const anchor = pdfiumSelectionAnchorForOffsets({
-      endOffset: nextOffsets.endOffset,
-      geometry: adjustment.geometry,
-      pageHeight: adjustment.pageHeight,
-      pageIndex: adjustment.pageIndex,
-      pageText: adjustment.pageText,
-      pageWidth: adjustment.pageWidth,
-      startOffset: nextOffsets.startOffset,
-    });
-    if (!anchor?.exact.trim()) return;
-
-    const lastRect = anchor.rects[anchor.rects.length - 1];
-    if (!lastRect) return;
-
-    const lastDomRect = new DOMRect(
-      metric.left + lastRect.x * metric.width,
-      metric.top + lastRect.y * metric.height,
-      Math.max(1, lastRect.width * metric.width),
-      Math.max(2, lastRect.height * metric.height),
-    );
-    setSelectionAction({
-      ...selectionActionPosition(lastDomRect, canvas.getBoundingClientRect()),
-      anchor,
-      adjustable: true,
-      draggingHandle: pdfiumSelectionDraggingHandle(adjustment, targetPoint.sourceOffset),
-    });
-    setTemporaryBoxes(pdfiumTemporaryBoxes(anchor, metric, userProfile.id));
-  }
-
-  function finishPdfiumSelectionAdjustment(point: SelectionAdjustmentPointer) {
-    updatePdfiumSelectionAdjustment(point);
-    pdfSelectionAdjustmentRef.current = null;
-    pdfSelectionAdjustmentRequestRef.current += 1;
-    setSelectionAction((action) =>
-      action?.draggingHandle ? { ...action, draggingHandle: undefined } : action,
-    );
   }
 
   function askSelection(action: { anchor: Annotation['anchor'] }) {
