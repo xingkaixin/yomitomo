@@ -97,13 +97,19 @@ import { buildSourceReaderAppActions } from '../bookcase/source-reader-app-actio
 import { buildSourceReaderAppViewProps } from '../bookcase/source-reader-app-view-props';
 import { useReaderSearchMatches } from '../bookcase/use-reader-search-matches';
 import { useSourceReadingProgressSaver } from '../bookcase/use-source-reading-progress-saver';
+import {
+  annotationRailDebugBoxGroups,
+  annotationRailDebugNumber,
+  annotationRailDebugRect,
+  annotationRailDebugStyleNumber,
+  webAnnotationRailDebugEnabled,
+  WEB_ANNOTATION_RAIL_DEBUG_INTERVAL_MS,
+  WEB_ANNOTATION_RAIL_DEBUG_OVERSCAN,
+  WEB_ANNOTATION_RAIL_DEBUG_SAMPLE_LIMIT,
+} from './web-annotation-rail-debug';
 
 const WEB_SELECTION_DRAG_ANNOTATION_ID = '__selection_drag__';
 const WEB_HIGHLIGHT_HIT_PADDING = 8;
-const WEB_ANNOTATION_RAIL_DEBUG_STORAGE_KEY = 'yomitomo:web-annotation-rail-debug';
-const WEB_ANNOTATION_RAIL_DEBUG_INTERVAL_MS = 80;
-const WEB_ANNOTATION_RAIL_DEBUG_OVERSCAN = 96;
-const WEB_ANNOTATION_RAIL_DEBUG_SAMPLE_LIMIT = 12;
 const WEB_READING_PROGRESS_SAVE_DEBOUNCE_MS = 450;
 const WEB_READING_PROGRESS_SAVE_MIN_DELTA = 0.01;
 
@@ -126,39 +132,6 @@ type WebSelectionAdjustment =
       kind: 'translation';
       translationBlockId: string;
     });
-
-type AnnotationRailDebugBoxGroup = {
-  bottom: number;
-  top: number;
-};
-
-function webAnnotationRailDebugEnabled() {
-  try {
-    return (
-      (window as unknown as { yomitomoWebAnnotationRailDebug?: boolean })
-        .yomitomoWebAnnotationRailDebug === true ||
-      window.localStorage.getItem(WEB_ANNOTATION_RAIL_DEBUG_STORAGE_KEY) === '1'
-    );
-  } catch {
-    return false;
-  }
-}
-
-function annotationRailDebugNumber(value: number | undefined | null) {
-  return typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : null;
-}
-
-function annotationRailDebugRect(rect: DOMRect | DOMRectReadOnly | undefined | null) {
-  if (!rect) return null;
-  return {
-    bottom: annotationRailDebugNumber(rect.bottom),
-    height: annotationRailDebugNumber(rect.height),
-    left: annotationRailDebugNumber(rect.left),
-    right: annotationRailDebugNumber(rect.right),
-    top: annotationRailDebugNumber(rect.top),
-    width: annotationRailDebugNumber(rect.width),
-  };
-}
 
 function describeSelectionAdjustmentPoint(point: SelectionAdjustmentPointer) {
   return {
@@ -194,26 +167,6 @@ function webSelectionAdjustmentDraggingHandle(
 ): SelectionAdjustmentHandle {
   const fixedOffset = adjustment.handle === 'start' ? adjustment.endOffset : adjustment.startOffset;
   return sourceOffset < fixedOffset ? 'start' : 'end';
-}
-
-function annotationRailDebugStyleNumber(value: string) {
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) ? Math.round(parsed) : null;
-}
-
-function annotationRailDebugBoxGroups(boxes: HighlightBox[]) {
-  const groups = new Map<string, AnnotationRailDebugBoxGroup>();
-  for (const box of boxes) {
-    const group = groups.get(box.annotationId);
-    const bottom = box.top + box.height;
-    if (group) {
-      group.top = Math.min(group.top, box.top);
-      group.bottom = Math.max(group.bottom, bottom);
-    } else {
-      groups.set(box.annotationId, { bottom, top: box.top });
-    }
-  }
-  return groups;
 }
 
 export function WebSourceBookcase({
