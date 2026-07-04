@@ -78,11 +78,6 @@ export type PdfiumSelectionAdjustment = {
   startOffset: number;
 };
 
-export type PdfiumSelectionAdjustedOffsets = {
-  endOffset: number;
-  startOffset: number;
-};
-
 export type PdfiumSelectionPoint = {
   sourceOffset: number;
 };
@@ -515,32 +510,6 @@ export function pdfiumTemporaryBoxes(
     width: Math.max(1, rect.width * metric.width),
     height: Math.max(2, rect.height * metric.height),
   }));
-}
-
-export function pdfiumSelectionAdjustedOffsets({
-  endOffset,
-  handle,
-  sourceOffset,
-  startOffset,
-}: {
-  endOffset: number;
-  handle: SelectionAdjustmentHandle;
-  sourceOffset: number;
-  startOffset: number;
-}): PdfiumSelectionAdjustedOffsets | null {
-  const fixedOffset = handle === 'start' ? endOffset : startOffset;
-  const nextStartOffset = Math.min(fixedOffset, sourceOffset);
-  const nextEndOffset = Math.max(fixedOffset, sourceOffset);
-  if (nextStartOffset === nextEndOffset) return null;
-  return { startOffset: nextStartOffset, endOffset: nextEndOffset };
-}
-
-export function pdfiumSelectionDraggingHandle(
-  adjustment: PdfiumSelectionAdjustment,
-  sourceOffset: number,
-): SelectionAdjustmentHandle {
-  const fixedOffset = adjustment.handle === 'start' ? adjustment.endOffset : adjustment.startOffset;
-  return sourceOffset < fixedOffset ? 'start' : 'end';
 }
 
 export function pdfiumSelectionPointFromClientPoint({

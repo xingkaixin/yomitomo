@@ -8,14 +8,16 @@ import type {
   SelectionAdjustmentPointer,
 } from '@yomitomo/reader-ui/reader-app-view';
 import {
-  pdfiumSelectionAdjustedOffsets,
   pdfiumSelectionAnchorForOffsets,
-  pdfiumSelectionDraggingHandle,
   pdfiumSelectionPointFromClientPoint,
   pdfiumTemporaryBoxes,
   type PageMetric,
   type PdfiumSelectionAdjustment,
 } from './app-source-bookcase-pdfium-utils';
+import {
+  selectionAdjustmentAdjustedOffsets,
+  selectionAdjustmentDraggingHandle,
+} from '../bookcase/selection-adjustment';
 
 type PdfiumLoadedDocument = Parameters<PdfEngine['getPageGeometry']>[0] & {
   pages: (Parameters<PdfEngine['getPageGeometry']>[1] & {
@@ -168,12 +170,7 @@ export function usePdfiumSelectionAdjustment({
     });
     if (!targetPoint) return;
 
-    const nextOffsets = pdfiumSelectionAdjustedOffsets({
-      endOffset: adjustment.endOffset,
-      handle: adjustment.handle,
-      sourceOffset: targetPoint.sourceOffset,
-      startOffset: adjustment.startOffset,
-    });
+    const nextOffsets = selectionAdjustmentAdjustedOffsets(adjustment, targetPoint.sourceOffset);
     if (!nextOffsets) return;
 
     const anchor = pdfiumSelectionAnchorForOffsets({
@@ -200,7 +197,7 @@ export function usePdfiumSelectionAdjustment({
       ...selectionActionPosition(lastDomRect, canvas.getBoundingClientRect()),
       anchor,
       adjustable: true,
-      draggingHandle: pdfiumSelectionDraggingHandle(adjustment, targetPoint.sourceOffset),
+      draggingHandle: selectionAdjustmentDraggingHandle(adjustment, targetPoint.sourceOffset),
     });
     setTemporaryBoxes(pdfiumTemporaryBoxes(anchor, metric, contributorId));
   }

@@ -22,37 +22,6 @@ export type EbookSelectionAdjustmentPoint = {
   sourceOffset: number;
 };
 
-export type EbookSelectionAdjustedOffsets = {
-  endOffset: number;
-  startOffset: number;
-};
-
-export function ebookSelectionAdjustedOffsets({
-  endOffset,
-  handle,
-  sourceOffset,
-  startOffset,
-}: {
-  endOffset: number;
-  handle: SelectionAdjustmentHandle;
-  sourceOffset: number;
-  startOffset: number;
-}): EbookSelectionAdjustedOffsets | null {
-  const fixedOffset = handle === 'start' ? endOffset : startOffset;
-  const nextStartOffset = Math.min(fixedOffset, sourceOffset);
-  const nextEndOffset = Math.max(fixedOffset, sourceOffset);
-  if (nextStartOffset === nextEndOffset) return null;
-  return { startOffset: nextStartOffset, endOffset: nextEndOffset };
-}
-
-export function ebookSelectionAdjustmentDraggingHandle(
-  adjustment: EbookSelectionAdjustment,
-  sourceOffset: number,
-): SelectionAdjustmentHandle {
-  const fixedOffset = adjustment.handle === 'start' ? adjustment.endOffset : adjustment.startOffset;
-  return sourceOffset < fixedOffset ? 'start' : 'end';
-}
-
 export function ebookSelectionPointFromClientPoint(
   doc: Document,
   clientX: number,
