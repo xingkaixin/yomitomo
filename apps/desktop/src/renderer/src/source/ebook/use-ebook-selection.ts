@@ -24,13 +24,17 @@ import {
   type FoliateViewElement,
 } from './app-ebook-reader-utils';
 import {
-  ebookSelectionAdjustmentDraggingHandle,
-  ebookSelectionAdjustedOffsets,
   ebookSelectionPointFromClientPoint,
   ebookSelectionRangeFromOffsets,
   ebookSelectionRangeOffsets,
   type EbookSelectionAdjustment,
 } from './ebook-selection-adjustment';
+import {
+  describeSelectionAdjustmentPoint,
+  isAdjustableSelectionOffsetRange,
+  selectionAdjustmentAdjustedOffsets,
+  selectionAdjustmentDraggingHandle,
+} from '../bookcase/selection-adjustment';
 import type {
   EbookBookcaseProps,
   SourceSelectionAction,
@@ -297,12 +301,7 @@ export function useEbookSelection({
       );
       if (!targetPoint || !adjustment.doc.body) return;
 
-      const nextOffsets = ebookSelectionAdjustedOffsets({
-        endOffset: adjustment.endOffset,
-        handle: adjustment.handle,
-        sourceOffset: targetPoint.sourceOffset,
-        startOffset: adjustment.startOffset,
-      });
+      const nextOffsets = selectionAdjustmentAdjustedOffsets(adjustment, targetPoint.sourceOffset);
       if (!nextOffsets) return;
 
       const range = ebookSelectionRangeFromOffsets(
@@ -314,10 +313,7 @@ export function useEbookSelection({
 
       commitEbookSelectionAdjustment({
         canvasElement,
-        draggingHandle: ebookSelectionAdjustmentDraggingHandle(
-          adjustment,
-          targetPoint.sourceOffset,
-        ),
+        draggingHandle: selectionAdjustmentDraggingHandle(adjustment, targetPoint.sourceOffset),
         range,
         sectionIndex: adjustment.sectionIndex,
       });
@@ -410,16 +406,6 @@ function isEditableKeyboardTarget(target: EventTarget | null) {
 function canAdjustEbookSelectionAnchor(anchor: SourceSelectionAction['anchor']) {
   if ('kind' in anchor && anchor.kind === 'pdf-text') return false;
   return (
-    anchor.exact.trim().length > 0 &&
-    Number.isFinite(anchor.start) &&
-    Number.isFinite(anchor.end) &&
-    anchor.start !== anchor.end
+    anchor.exact.trim().length > 0 && isAdjustableSelectionOffsetRange(anchor.start, anchor.end)
   );
-}
-
-function describeSelectionAdjustmentPoint(point: SelectionAdjustmentPointer) {
-  return {
-    clientX: Math.round(point.clientX),
-    clientY: Math.round(point.clientY),
-  };
 }

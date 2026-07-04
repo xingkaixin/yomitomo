@@ -2,12 +2,9 @@
 
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  ebookSelectionAdjustmentDraggingHandle,
-  ebookSelectionAdjustedOffsets,
   ebookSelectionPointFromDocumentPoint,
   ebookSelectionRangeFromOffsets,
   ebookSelectionRangeOffsets,
-  type EbookSelectionAdjustment,
 } from '../source/ebook/ebook-selection-adjustment';
 
 afterEach(() => {
@@ -15,61 +12,6 @@ afterEach(() => {
 });
 
 describe('ebook selection adjustment', () => {
-  it('adjusts the start handle while keeping the end fixed', () => {
-    expect(
-      ebookSelectionAdjustedOffsets({
-        startOffset: 10,
-        endOffset: 30,
-        handle: 'start',
-        sourceOffset: 18,
-      }),
-    ).toEqual({ startOffset: 18, endOffset: 30 });
-  });
-
-  it('normalizes offsets when a handle crosses the opposite edge', () => {
-    expect(
-      ebookSelectionAdjustedOffsets({
-        startOffset: 10,
-        endOffset: 30,
-        handle: 'start',
-        sourceOffset: 42,
-      }),
-    ).toEqual({ startOffset: 30, endOffset: 42 });
-
-    expect(
-      ebookSelectionAdjustedOffsets({
-        startOffset: 10,
-        endOffset: 30,
-        handle: 'end',
-        sourceOffset: 4,
-      }),
-    ).toEqual({ startOffset: 4, endOffset: 10 });
-  });
-
-  it('ignores collapsed handle adjustments', () => {
-    expect(
-      ebookSelectionAdjustedOffsets({
-        startOffset: 10,
-        endOffset: 30,
-        handle: 'start',
-        sourceOffset: 30,
-      }),
-    ).toBeNull();
-  });
-
-  it('switches the active handle after crossing the fixed edge', () => {
-    const adjustment: EbookSelectionAdjustment = {
-      doc: document,
-      startOffset: 10,
-      endOffset: 30,
-      handle: 'start',
-      sectionIndex: 0,
-    };
-
-    expect(ebookSelectionAdjustmentDraggingHandle(adjustment, 18)).toBe('start');
-    expect(ebookSelectionAdjustmentDraggingHandle(adjustment, 42)).toBe('end');
-  });
-
   it('rebuilds ranges inside the ebook document that owns the text nodes', () => {
     const ebookDoc = document.implementation.createHTMLDocument('ebook');
     ebookDoc.body.innerHTML = '<main>Alpha <strong>beta</strong> gamma</main>';

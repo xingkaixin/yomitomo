@@ -84,7 +84,6 @@ import {
 import {
   shouldUseWebSelectionGesturePreview,
   shouldUseWebSelectionGestureRange,
-  webSelectionGestureAdjustedOffsets,
   webSelectionGesturePointFromClientPoint,
   webSelectionGestureRangeFromClientPoint,
   webTranslationSelectionGesturePointFromClientPoint,
@@ -110,11 +109,14 @@ import {
 } from './web-annotation-rail-debug';
 import {
   canAdjustWebSelectionAnchor,
-  describeSelectionAdjustmentPoint,
-  webSelectionAdjustmentDraggingHandle,
   webSelectionAdjustmentKind,
   type WebSelectionAdjustment,
 } from './web-selection-adjustment';
+import {
+  describeSelectionAdjustmentPoint,
+  selectionAdjustmentAdjustedOffsets,
+  selectionAdjustmentDraggingHandle,
+} from '../bookcase/selection-adjustment';
 
 const WEB_SELECTION_DRAG_ANNOTATION_ID = '__selection_drag__';
 const WEB_HIGHLIGHT_HIT_PADDING = 8;
@@ -977,12 +979,7 @@ export function WebSourceBookcase({
     );
     if (!targetPoint || targetPoint.translationBlockId) return;
 
-    const nextOffsets = webSelectionGestureAdjustedOffsets({
-      endOffset: adjustment.endOffset,
-      handle: adjustment.handle,
-      sourceOffset: targetPoint.sourceOffset,
-      startOffset: adjustment.startOffset,
-    });
+    const nextOffsets = selectionAdjustmentAdjustedOffsets(adjustment, targetPoint.sourceOffset);
     if (!nextOffsets) return;
 
     const range = rangeFromOffsetsIgnoringSelector(
@@ -1005,7 +1002,7 @@ export function WebSourceBookcase({
     commitSelectionAdjustment({
       anchor,
       canvasElement,
-      draggingHandle: webSelectionAdjustmentDraggingHandle(adjustment, targetPoint.sourceOffset),
+      draggingHandle: selectionAdjustmentDraggingHandle(adjustment, targetPoint.sourceOffset),
       range,
     });
   }
@@ -1026,12 +1023,10 @@ export function WebSourceBookcase({
     );
     if (!targetPoint) return;
 
-    const nextOffsets = webSelectionGestureAdjustedOffsets({
-      endOffset: adjustment.endOffset,
-      handle: adjustment.handle,
-      sourceOffset: targetPoint.translationOffset,
-      startOffset: adjustment.startOffset,
-    });
+    const nextOffsets = selectionAdjustmentAdjustedOffsets(
+      adjustment,
+      targetPoint.translationOffset,
+    );
     if (!nextOffsets) return;
 
     const range = rangeFromOffsets(
@@ -1047,10 +1042,7 @@ export function WebSourceBookcase({
     commitSelectionAdjustment({
       anchor,
       canvasElement,
-      draggingHandle: webSelectionAdjustmentDraggingHandle(
-        adjustment,
-        targetPoint.translationOffset,
-      ),
+      draggingHandle: selectionAdjustmentDraggingHandle(adjustment, targetPoint.translationOffset),
       range,
     });
   }

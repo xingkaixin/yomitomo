@@ -21,9 +21,7 @@ import {
   pdfiumAnnotationNavigationState,
   pdfiumScrollSnapshotCanConsumeDelta,
   pdfiumRectsForTextRange,
-  pdfiumSelectionAdjustedOffsets,
   pdfiumSelectionAnchorForOffsets,
-  pdfiumSelectionDraggingHandle,
   pdfiumSelectionPointFromClientPoint,
   pdfiumVisibleAnnotations,
   pdfiumWheelDeltaPixels,
@@ -514,46 +512,6 @@ describe('app-source-bookcase-pdfium-utils', () => {
       { x: 0.15, y: 0.2, width: 0.05, height: 0.1 },
       { x: 0, y: 0.4, width: 0.1, height: 0.1 },
     ]);
-  });
-
-  it('adjusts PDF selection handle offsets inside a single page', () => {
-    expect(
-      pdfiumSelectionAdjustedOffsets({
-        startOffset: 10,
-        endOffset: 30,
-        handle: 'start',
-        sourceOffset: 18,
-      }),
-    ).toEqual({ startOffset: 18, endOffset: 30 });
-
-    expect(
-      pdfiumSelectionAdjustedOffsets({
-        startOffset: 10,
-        endOffset: 30,
-        handle: 'end',
-        sourceOffset: 4,
-      }),
-    ).toEqual({ startOffset: 4, endOffset: 10 });
-
-    expect(
-      pdfiumSelectionAdjustedOffsets({
-        startOffset: 10,
-        endOffset: 30,
-        handle: 'start',
-        sourceOffset: 30,
-      }),
-    ).toBeNull();
-  });
-
-  it('switches the PDF selection dragging handle after crossing the fixed edge', () => {
-    const adjustment = {
-      startOffset: 10,
-      endOffset: 30,
-      handle: 'start' as const,
-    };
-
-    expect(pdfiumSelectionDraggingHandle(adjustment, 18)).toBe('start');
-    expect(pdfiumSelectionDraggingHandle(adjustment, 42)).toBe('end');
   });
 
   it('maps PDF client points to nearest page glyph offsets', () => {
