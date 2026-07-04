@@ -45,31 +45,6 @@ export type WebSelectionGestureRange = {
   endPoint: WebSelectionGesturePoint;
 };
 
-export type WebSelectionGestureHandle = 'start' | 'end';
-
-export type WebSelectionGestureAdjustedOffsets = {
-  startOffset: number;
-  endOffset: number;
-};
-
-export function webSelectionGestureAdjustedOffsets({
-  endOffset,
-  handle,
-  sourceOffset,
-  startOffset,
-}: {
-  endOffset: number;
-  handle: WebSelectionGestureHandle;
-  sourceOffset: number;
-  startOffset: number;
-}): WebSelectionGestureAdjustedOffsets | null {
-  const fixedOffset = handle === 'start' ? endOffset : startOffset;
-  const nextStartOffset = Math.min(fixedOffset, sourceOffset);
-  const nextEndOffset = Math.max(fixedOffset, sourceOffset);
-  if (nextStartOffset === nextEndOffset) return null;
-  return { startOffset: nextStartOffset, endOffset: nextEndOffset };
-}
-
 export function webSelectionGesturePointFromClientPoint(
   articleElement: HTMLElement,
   clientX: number,

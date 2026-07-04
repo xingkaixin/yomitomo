@@ -1,8 +1,6 @@
 import type { Annotation } from '@yomitomo/shared';
-import type {
-  SelectionAdjustmentHandle,
-  SelectionAdjustmentPointer,
-} from '@yomitomo/reader-ui/reader-app-view';
+import type { SelectionAdjustmentHandle } from '@yomitomo/reader-ui/reader-app-view';
+import { isAdjustableSelectionOffsetRange } from '../bookcase/selection-adjustment';
 
 type WebSelectionAdjustmentBase = {
   endOffset: number;
@@ -19,18 +17,9 @@ export type WebSelectionAdjustment =
       translationBlockId: string;
     });
 
-export function describeSelectionAdjustmentPoint(point: SelectionAdjustmentPointer) {
-  return {
-    clientX: Math.round(point.clientX),
-    clientY: Math.round(point.clientY),
-  };
-}
-
 export function canAdjustWebSelectionAnchor(anchor: Annotation['anchor']) {
   if (!webSelectionAdjustmentKind(anchor)) return false;
-  return (
-    Number.isFinite(anchor.start) && Number.isFinite(anchor.end) && anchor.start !== anchor.end
-  );
+  return isAdjustableSelectionOffsetRange(anchor.start, anchor.end);
 }
 
 export function webSelectionAdjustmentKind(
@@ -45,12 +34,4 @@ export function webSelectionAdjustmentKind(
     return 'translation';
   }
   return 'source';
-}
-
-export function webSelectionAdjustmentDraggingHandle(
-  adjustment: WebSelectionAdjustment,
-  sourceOffset: number,
-): SelectionAdjustmentHandle {
-  const fixedOffset = adjustment.handle === 'start' ? adjustment.endOffset : adjustment.startOffset;
-  return sourceOffset < fixedOffset ? 'start' : 'end';
 }

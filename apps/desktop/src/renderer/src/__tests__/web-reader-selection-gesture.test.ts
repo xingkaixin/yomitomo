@@ -4,7 +4,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   shouldPreferWebSelectionGestureRange,
   shouldUseWebSelectionGesturePreview,
-  webSelectionGestureAdjustedOffsets,
   webTranslationSelectionGesturePointFromClientPoint,
 } from '../source/web/web-reader-selection-gesture';
 
@@ -86,59 +85,6 @@ describe('web reader selection gesture', () => {
         pointerEnd: 4966,
       }),
     ).toBe(false);
-  });
-
-  it('adjusts the start handle while keeping the end fixed', () => {
-    expect(
-      webSelectionGestureAdjustedOffsets({
-        startOffset: 10,
-        endOffset: 30,
-        handle: 'start',
-        sourceOffset: 18,
-      }),
-    ).toEqual({ startOffset: 18, endOffset: 30 });
-  });
-
-  it('adjusts the end handle while keeping the start fixed', () => {
-    expect(
-      webSelectionGestureAdjustedOffsets({
-        startOffset: 10,
-        endOffset: 30,
-        handle: 'end',
-        sourceOffset: 24,
-      }),
-    ).toEqual({ startOffset: 10, endOffset: 24 });
-  });
-
-  it('normalizes offsets when a handle crosses the opposite edge', () => {
-    expect(
-      webSelectionGestureAdjustedOffsets({
-        startOffset: 10,
-        endOffset: 30,
-        handle: 'start',
-        sourceOffset: 42,
-      }),
-    ).toEqual({ startOffset: 30, endOffset: 42 });
-
-    expect(
-      webSelectionGestureAdjustedOffsets({
-        startOffset: 10,
-        endOffset: 30,
-        handle: 'end',
-        sourceOffset: 4,
-      }),
-    ).toEqual({ startOffset: 4, endOffset: 10 });
-  });
-
-  it('ignores collapsed handle adjustments', () => {
-    expect(
-      webSelectionGestureAdjustedOffsets({
-        startOffset: 10,
-        endOffset: 30,
-        handle: 'start',
-        sourceOffset: 30,
-      }),
-    ).toBeNull();
   });
 
   it('maps translation handle points to translation-local offsets', () => {
