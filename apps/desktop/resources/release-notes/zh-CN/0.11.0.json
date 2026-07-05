@@ -1,0 +1,29 @@
+{
+  "version": "0.11.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "密集批注更好翻看",
+      "description": "同一段附近批注很多时，卡片现在会像扇面一样错开堆叠。需要看被压住的那张时，可以把它翻到前面，不必在侧栏里反复找。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "阅读器基础更稳",
+      "description": "阅读器导航、批注、进度、设置、AI、EPUB/PDF 导入和响应式布局都补了端到端覆盖，后续改阅读体验时更容易提前发现回归。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "选区和搜索逻辑更统一",
+      "description": "网页、电子书和 PDF 的选区调整规则，以及阅读器搜索导航，现在复用同一套边界。你不一定会看到新按钮，但跨内容类型的行为会更一致。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "自动化不再写入真实心跳",
+      "description": "本地和 CI 自动化测试期间不会发送桌面端遥测心跳，发布前验证不会混入真实使用数据。",
+      "audience": "settings"
+    }
+  ]
+}

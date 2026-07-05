@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.11.0 - 2026-07-05
+
+### Features
+
+- Added fan-stacked annotation cards with shuffle behavior, making dense annotation rails easier to scan while keeping overlapping notes reachable. (#590)
+
+### Fixes
+
+- Disabled telemetry heartbeats during automation so local and CI E2E runs do not send desktop heartbeat events. (#591)
+
+### Engineering
+
+- Added desktop UI harnesses, isolated E2E test data, and expanded E2E coverage for library import, reader navigation, annotations, progress, settings, AI, EPUB/PDF import, and responsive layouts. (#592–#605)
+- Split the desktop renderer App shell, web source helpers, PDFium document logic, reader search navigation, and selection adjustment rules into shared, test-covered boundaries. (#606, #607, #610, #611, #612)
+- Split reader conversation CSS, removed legacy style overrides, documented desktop style ownership, and decomposed article repository domains. (#608, #609, #613)
+
 ## 0.10.0 - 2026-06-28
 
 ### Features

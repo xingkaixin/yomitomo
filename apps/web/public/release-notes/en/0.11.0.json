@@ -1,0 +1,29 @@
+{
+  "version": "0.11.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "Dense annotations are easier to browse",
+      "description": "When many notes sit near the same passage, cards now fan out instead of hiding in a flat stack. Bring a covered note forward when you need it without hunting through the rail.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "The reader foundation is steadier",
+      "description": "Reader navigation, annotations, progress, settings, AI, EPUB/PDF import, and responsive layouts now have broader end-to-end coverage, making future reader changes easier to validate before release.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Selection and search behave more consistently",
+      "description": "Web articles, ebooks, and PDFs now share selection-adjustment rules, and reader search navigation uses one shared boundary. You may not see a new button, but behavior across source types should feel more even.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "Automation no longer writes real heartbeats",
+      "description": "Local and CI automation runs no longer send desktop telemetry heartbeats, so release validation does not mix test runs into real usage data.",
+      "audience": "settings"
+    }
+  ]
+}
