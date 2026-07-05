@@ -5,6 +5,17 @@ sidebar:
   hidden: true
 ---
 
+## 0.11.0
+
+Released: 2026-07-05
+
+- Annotation cards gain fan-stacked shuffle behavior so dense rails are easier to scan.
+- Automation runs no longer send real telemetry heartbeats.
+- Desktop E2E coverage now spans library import, reader navigation, annotations, progress, settings, AI, EPUB/PDF import, and responsive layouts.
+- Reader, PDFium, web source, style, and article repository boundaries were split to reduce future change risk.
+
+[View 0.11.0 release notes](/en/changelogs/v0-11-0/)
+
 ## 0.10.0
 
 Released: 2026-06-28
