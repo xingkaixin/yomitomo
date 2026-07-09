@@ -8,7 +8,7 @@
 - 包管理器：`pnpm@11`
 - Workspace：`pnpm-workspace.yaml`
 - 构建编排：Turbo
-- 语言：TypeScript，ESM
+- 语言：TypeScript 7（native `tsc`），ESM；`@yomitomo/web` 因 Astro / `@astrojs/check` 仍依赖 TypeScript 可编程 API，继续使用 TypeScript 6
 - 桌面端：Electron 41、electron-vite、React 19、Vite 8、Tailwind CSS
 - 官网：Astro 6、React 19、Vite 7、Tailwind CSS
 - 下载服务：Cloudflare Workers、Wrangler
@@ -95,6 +95,7 @@ pnpm --filter @yomitomo/reader-ui test
 - `@yomitomo/shared`、`@yomitomo/core`、`@yomitomo/ai` 和 `@yomitomo/reader-ui` 的 build 使用 `tsc -p tsconfig.json --noEmit` 做类型检查。
 - `@yomitomo/telemetry` 的 build 使用 `tsc -p tsconfig.json --noEmit` 做类型检查。
 - `@yomitomo/web` 的 build 使用 `astro check && astro build`。
+- TypeScript 版本策略：除 `@yomitomo/web` 外统一使用 TypeScript 7；`apps/web` 保持 TypeScript 6，供 Astro 与 `@astrojs/check` 使用。待这些工具支持 TypeScript 7 API 后再合并版本，不要在 `apps/web` 上强行升到 7。
 
 提交前优先运行：
 
