@@ -61,11 +61,6 @@
   background: hsl(var(--muted) / 0.26);
 }
 
-.library-collection-list-item.is-drop-target {
-  border-color: var(--app-action-primary-border);
-  background: color-mix(in srgb, var(--app-action-primary-bg) 8%, transparent);
-}
-
 .library-collection-list-item .library-item-actions {
   top: 10px;
   right: 10px;
@@ -458,40 +453,32 @@
 }
 
 .library-collection-picker-list > .library-collection-picker-item.is-dragging {
-  min-height: 0;
-  height: 0;
-  padding-block: 0;
-  border-width: 0;
-  overflow: hidden;
-  opacity: 0;
+  opacity: 0.36;
 }
 
-.library-collection-picker-ghost {
-  display: grid;
-  grid-template-columns: 24px 82px minmax(0, 1fr) 32px;
-  align-items: center;
-  gap: 12px;
-  min-height: 82px;
-  position: fixed;
-  top: 0;
-  left: 0;
+.library-drag-overlay {
   z-index: 9999;
+  max-width: 320px;
   border: 1px solid hsl(var(--border) / 0.58);
   border-radius: 8px;
   background: hsl(var(--popover) / 0.96);
   color: hsl(var(--popover-foreground));
-  padding: 8px 10px;
-  transform: translate(-50%, -50%) scale(0.96);
+  padding: 10px 12px;
   box-shadow:
     0 2px 6px hsl(var(--foreground) / 0.16),
     0 18px 40px hsl(var(--foreground) / 0.24);
-  opacity: 0.92;
-  pointer-events: none;
+  font-size: 13px;
+  font-weight: 760;
 }
 
-body.library-picker-dragging,
-body.library-picker-dragging * {
-  cursor: grabbing !important;
+.library-drag-overlay > span {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .library-collection-picker-drag-handle {
@@ -499,9 +486,12 @@ body.library-picker-dragging * {
   width: 24px;
   height: 40px;
   place-items: center;
+  border: 0;
+  background: transparent;
   color: hsl(var(--muted-foreground));
   opacity: 0.66;
   cursor: grab;
+  touch-action: none;
 }
 
 .library-collection-picker-drag-handle:active {

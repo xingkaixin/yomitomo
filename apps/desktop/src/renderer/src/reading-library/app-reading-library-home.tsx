@@ -196,7 +196,6 @@ export function LibraryHome({
   const [collectionNameDialog, setCollectionNameDialog] =
     useState<CollectionNameDialogState | null>(null);
   const [pickerCollectionId, setPickerCollectionId] = useState<string | null>(null);
-  const [draggedRef, setDraggedRef] = useState<ContentRef | null>(null);
   const wereadAvailable = wereadSettings.configured || wereadBooks.length > 0;
   const activeCollection = activeCollectionId
     ? collections.find((collection) => collection.id === activeCollectionId) || null
@@ -435,12 +434,6 @@ export function LibraryHome({
   const removeCollectionMember = async (collectionId: string, member: ContentRef) => {
     await onRemoveCollectionMember(collectionId, member);
   };
-  const startLibraryDrag = (ref: ContentRef, event: React.DragEvent<HTMLElement>) => {
-    setDraggedRef(ref);
-    event.dataTransfer.effectAllowed = 'copy';
-    event.dataTransfer.setData('application/x-yomitomo-ref', JSON.stringify(ref));
-  };
-  const endLibraryDrag = () => setDraggedRef(null);
   const resetListContentTransition = () => {
     setListTransitionDirection('none');
     setPageTransitionDirection('none');
@@ -644,11 +637,8 @@ export function LibraryHome({
               <LibraryEntityGrid
                 activeCollectionId={activeCollection?.id || null}
                 actions={{
-                  addCollectionMembers: (collectionId, members) =>
-                    void addCollectionMembers(collectionId, members),
                   deleteArticle: (article) => void deleteArticle(article.id),
                   deleteCollection: (collection) => void deleteCollection(collection.id),
-                  endDrag: endLibraryDrag,
                   openArticle: onOpenArticle,
                   openCollection: (collection) => openCollection(collection.id),
                   openCollectionPicker: (collection) => setPickerCollectionId(collection.id),
@@ -661,9 +651,7 @@ export function LibraryHome({
                     setCollectionNameDialog({ type: 'rename', collection }),
                   setPinned: (entity, pinned) =>
                     void onSetLibraryPin({ target: libraryEntityPinTarget(entity), pinned }),
-                  startDrag: startLibraryDrag,
                 }}
-                draggedRef={draggedRef}
                 entities={pageEntities}
               />
             ) : emptyReason.variant === 'first-use' ? (

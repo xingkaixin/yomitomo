@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type DragEvent } from 'react';
+import { useState, type CSSProperties } from 'react';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { Layers2, MoreHorizontal, PencilLine, Pin, PinOff } from 'lucide-react';
@@ -21,20 +21,14 @@ import {
 
 export function ArticleLibraryCard({
   article,
-  draggable = false,
   onDelete,
-  onDragEnd,
-  onDragStart,
   onOpen,
   onRemoveFromCollection,
   onSetPinned,
   pinned = false,
 }: {
   article: ArticleSummaryRecord;
-  draggable?: boolean;
   onDelete: () => void;
-  onDragEnd?: () => void;
-  onDragStart?: (event: DragEvent<HTMLElement>) => void;
   onOpen: () => void;
   onRemoveFromCollection?: () => Promise<void> | void;
   onSetPinned?: (pinned: boolean) => Promise<void> | void;
@@ -69,12 +63,7 @@ export function ArticleLibraryCard({
       : t('library.actions.openArticle', { title });
 
   return (
-    <article
-      className={`library-list-item library-article-list-item ${itemClassName}`}
-      draggable={draggable}
-      onDragEnd={onDragEnd}
-      onDragStart={onDragStart}
-    >
+    <article className={`library-list-item library-article-list-item ${itemClassName}`}>
       <button
         className="library-list-item-open"
         type="button"

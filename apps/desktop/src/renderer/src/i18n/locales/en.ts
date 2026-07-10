@@ -653,6 +653,13 @@ export const enResources = {
         pendingMembers: '{{count}} pending',
         dropHintTitle: 'Drop items here',
         dropHint: 'Press the plus button on the left, or drag items here.',
+        dragItem: 'Drag “{{title}}”',
+        dragInstructions:
+          'Press Space or Enter to start dragging. Use the arrow keys to move, press Space or Enter again to drop, or press Escape to cancel.',
+        dragStarted: 'Started dragging “{{title}}”.',
+        draggedOver: 'Currently over “{{target}}”.',
+        dragCompleted: 'Dropped “{{title}}” on “{{target}}”.',
+        dragCancelled: 'Cancelled dragging “{{title}}”.',
         addSelected: 'Add {{count}}',
         apiUnavailable: 'Collection service is unavailable',
         createdToast: 'Collection created',
