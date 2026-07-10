@@ -638,6 +638,13 @@ export const zhCNResources = {
         pendingMembers: '待加入 {{count}} 项',
         dropHintTitle: '把内容放到这里',
         dropHint: '点按左侧加号，或直接拖入这里。',
+        dragItem: '拖动「{{title}}」',
+        dragInstructions:
+          '按空格键或回车键开始拖动，使用方向键移动，再次按空格键或回车键放下，按 Escape 取消。',
+        dragStarted: '已开始拖动「{{title}}」。',
+        draggedOver: '当前位于「{{target}}」上方。',
+        dragCompleted: '已将「{{title}}」放到「{{target}}」。',
+        dragCancelled: '已取消拖动「{{title}}」。',
         addSelected: '加入 {{count}} 项',
         apiUnavailable: '合集服务不可用',
         createdToast: '合集已创建',

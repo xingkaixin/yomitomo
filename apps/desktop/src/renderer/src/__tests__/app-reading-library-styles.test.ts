@@ -248,9 +248,7 @@ describe('reading library styles', () => {
       'height: 54px;',
     ]);
     expectRule('.library-collection-picker-list > .library-collection-picker-item.is-dragging', [
-      'min-height: 0;',
-      'height: 0;',
-      'opacity: 0;',
+      'opacity: 0.36;',
     ]);
     expectRule(
       '.library-collection-picker-cover .article-book,\n.library-collection-picker-cover .weread-book-cover,\n.library-collection-picker-selected-cover .article-book,\n.library-collection-picker-selected-cover .weread-book-cover',

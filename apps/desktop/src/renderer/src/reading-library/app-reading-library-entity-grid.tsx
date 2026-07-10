@@ -11,7 +11,7 @@ import {
   Smartphone,
   Trash2,
 } from 'lucide-react';
-import type { ArticleSummaryRecord, Collection, ContentRef, WeReadBook } from '@yomitomo/shared';
+import type { ArticleSummaryRecord, Collection, WeReadBook } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
 import { SettingsConfirmDialog } from '../settings/app-settings-confirm-dialog';
 import { ArticleBook } from '../shell/app-article-book';
@@ -34,12 +34,10 @@ import type {
 export function LibraryEntityGrid({
   activeCollectionId,
   actions,
-  draggedRef,
   entities,
 }: {
   activeCollectionId: string | null;
   actions: LibraryEntityActions;
-  draggedRef: ContentRef | null;
   entities: LibraryEntity[];
 }) {
   return (
@@ -49,7 +47,6 @@ export function LibraryEntityGrid({
           <LibraryEntityCard
             activeCollectionId={activeCollectionId}
             actions={actions}
-            draggedRef={draggedRef}
             entity={entity}
             key={libraryEntityKey(entity)}
           />
@@ -60,10 +57,8 @@ export function LibraryEntityGrid({
 }
 
 type LibraryEntityActions = {
-  addCollectionMembers: (collectionId: string, members: ContentRef[]) => void;
   deleteArticle: (article: ArticleSummaryRecord) => void;
   deleteCollection: (collection: Collection) => void;
-  endDrag: () => void;
   openArticle: (article: ArticleSummaryRecord) => void;
   openCollection: (collection: Collection) => void;
   openCollectionPicker: (collection: Collection) => void;
@@ -72,33 +67,27 @@ type LibraryEntityActions = {
   removeCollectionMember?: (entity: LibraryItemEntity) => void;
   renameCollection: (collection: Collection) => void;
   setPinned: (entity: LibraryEntity, pinned: boolean) => void;
-  startDrag: (ref: ContentRef, event: React.DragEvent<HTMLElement>) => void;
 };
 
 function LibraryEntityCard({
   activeCollectionId,
   actions,
-  draggedRef,
   entity,
 }: {
   activeCollectionId: string | null;
   actions: LibraryEntityActions;
-  draggedRef: ContentRef | null;
   entity: LibraryEntity;
 }) {
   if (entity.kind === 'col') {
     return (
       <LibraryCollectionCard
-        draggedRef={draggedRef}
         entity={entity}
         pinned={entity.pinned}
-        onAddMembers={(members) => actions.addCollectionMembers(entity.collection.id, members)}
         onDelete={() => actions.deleteCollection(entity.collection)}
         onOpen={() => actions.openCollection(entity.collection)}
         onOpenPicker={() => actions.openCollectionPicker(entity.collection)}
         onRename={() => actions.renameCollection(entity.collection)}
         onSetPinned={(pinned) => actions.setPinned(entity, pinned)}
-        onDragEnd={actions.endDrag}
       />
     );
   }
@@ -107,10 +96,7 @@ function LibraryEntityCard({
     return (
       <ArticleLibraryCard
         article={entity.article}
-        draggable={!activeCollectionId}
         onDelete={() => actions.deleteArticle(entity.article!)}
-        onDragEnd={actions.endDrag}
-        onDragStart={(event) => actions.startDrag(entity.ref, event)}
         onOpen={() => actions.openArticle(entity.article!)}
         onRemoveFromCollection={
           activeCollectionId ? () => actions.removeCollectionMember?.(entity) : undefined
@@ -125,10 +111,7 @@ function LibraryEntityCard({
     return (
       <WeReadLibraryCard
         book={entity.weread}
-        draggable={!activeCollectionId}
         pinned={entity.pinned}
-        onDragEnd={actions.endDrag}
-        onDragStart={(event) => actions.startDrag(entity.ref, event)}
         onOpen={() => actions.openWeReadBook(entity.weread!)}
         onOpenExternal={() => actions.openWeReadExternal(entity.weread!)}
         onRemoveFromCollection={
@@ -144,9 +127,6 @@ function LibraryEntityCard({
 
 function WeReadLibraryCard({
   book,
-  draggable,
-  onDragEnd,
-  onDragStart,
   onOpen,
   onOpenExternal,
   onRemoveFromCollection,
@@ -154,9 +134,6 @@ function WeReadLibraryCard({
   pinned,
 }: {
   book: WeReadBook;
-  draggable: boolean;
-  onDragEnd: () => void;
-  onDragStart: (event: React.DragEvent<HTMLElement>) => void;
   onOpen: () => void;
   onOpenExternal: () => void;
   onRemoveFromCollection?: () => Promise<void> | void;
@@ -172,12 +149,7 @@ function WeReadLibraryCard({
   const libraryDate = weReadBookLibraryDate(book);
 
   return (
-    <article
-      className="library-list-item library-article-list-item library-ebook-list-item library-weread-list-item"
-      draggable={draggable}
-      onDragEnd={onDragEnd}
-      onDragStart={onDragStart}
-    >
+    <article className="library-list-item library-article-list-item library-ebook-list-item library-weread-list-item">
       <button
         className="library-list-item-open"
         type="button"
@@ -272,26 +244,20 @@ function WeReadLibraryCard({
 }
 
 function LibraryCollectionCard({
-  draggedRef,
   entity,
-  onAddMembers,
   onDelete,
   onOpen,
   onOpenPicker,
   onRename,
   onSetPinned,
-  onDragEnd,
   pinned,
 }: {
-  draggedRef: ContentRef | null;
   entity: LibraryCollectionEntity;
-  onAddMembers: (members: ContentRef[]) => void;
   onDelete: () => void;
   onOpen: () => void;
   onOpenPicker: () => void;
   onRename: () => void;
   onSetPinned: (pinned: boolean) => void;
-  onDragEnd: () => void;
   pinned: boolean;
 }) {
   const { t } = useTranslation();
@@ -299,28 +265,8 @@ function LibraryCollectionCard({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const title = entity.collection.name;
   const statsLabel = t('library.collection.memberCount', { count: entity.memberCount });
-  const canDrop =
-    draggedRef && !entity.memberRefs.some((member) => contentRefsEqual(member, draggedRef));
-  const className = canDrop
-    ? 'library-list-item library-collection-list-item is-drop-target'
-    : 'library-list-item library-collection-list-item';
-
   return (
-    <article
-      className={className}
-      aria-label={title}
-      onDragOver={(event) => {
-        if (!canDrop) return;
-        event.preventDefault();
-        event.dataTransfer.dropEffect = 'copy';
-      }}
-      onDrop={(event) => {
-        if (!canDrop || !draggedRef) return;
-        event.preventDefault();
-        onAddMembers([draggedRef]);
-        onDragEnd();
-      }}
-    >
+    <article className="library-list-item library-collection-list-item" aria-label={title}>
       <button
         className="library-list-item-open"
         type="button"
@@ -492,10 +438,6 @@ function LibraryCoverProgress({ progress }: { progress: number }) {
 function libraryEntityKey(entity: LibraryEntity) {
   if (entity.kind === 'col') return `collection:${entity.collection.id}`;
   return contentRefKey(entity.ref);
-}
-
-function contentRefsEqual(left: ContentRef, right: ContentRef) {
-  return contentRefKey(left) === contentRefKey(right);
 }
 
 function coverProgressStyle(value: number) {

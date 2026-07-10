@@ -1198,7 +1198,7 @@ describe('ReadingLibrary home', () => {
     );
   });
 
-  it('collapses a picker item while it is being dragged into the pending list', async () => {
+  it('exposes a keyboard-accessible drag handle in the collection picker', async () => {
     const collection: Collection = {
       id: 'collection_1',
       name: '研究合集',
@@ -1214,29 +1214,10 @@ describe('ReadingLibrary home', () => {
     fireEvent.click(await screen.findByRole('menuitem', { name: '添加已有文章' }));
     const picker = document.querySelector<HTMLElement>('.library-collection-picker-dialog');
     expect(picker).toBeTruthy();
-    const item = within(picker!)
-      .getAllByText('待拖入合集')[1]
-      .closest('.library-collection-picker-item') as HTMLElement;
-    expect(item).toBeTruthy();
-    const dragHandle = item.querySelector<HTMLElement>('.library-collection-picker-drag-handle')!;
-    expect(dragHandle).toBeTruthy();
-
-    fireEvent.pointerDown(dragHandle, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
-
-    await waitFor(() => expect(item.classList.contains('is-dragging')).toBe(true));
-
-    fireEvent.pointerUp(dragHandle, { pointerId: 1, clientX: 10, clientY: 10 });
-
-    await waitFor(() => expect(item.classList.contains('is-dragging')).toBe(false));
+    expect(within(picker!).getByRole('button', { name: '拖动「待拖入合集」' })).toBeTruthy();
   });
 
-  it('adds an article to a collection by dragging it onto the collection card', async () => {
-    const addCollectionMembers = vi.fn().mockResolvedValue({
-      type: 'collection-members',
-      collectionId: 'collection_1',
-      members: [],
-    });
-    vi.stubGlobal('yomitomoDesktop', { addCollectionMembers });
+  it('does not enable dragging from the reading library list', () => {
     const collection: Collection = {
       id: 'collection_1',
       name: '研究合集',
@@ -1246,30 +1227,12 @@ describe('ReadingLibrary home', () => {
     renderLibrary([article({ id: 'article_drag', title: '可拖文章' })], {
       collections: [collection],
     });
+
     const articleCard = screen
       .getByRole('button', { name: '打开文章：可拖文章' })
       .closest('article');
-    const collectionCard = screen
-      .getByRole('button', { name: '打开合集：研究合集' })
-      .closest('article');
-    const dragData = new Map<string, string>();
-    const dataTransfer = {
-      dropEffect: '',
-      effectAllowed: '',
-      getData: vi.fn((type: string) => dragData.get(type) || ''),
-      setData: vi.fn((type: string, value: string) => dragData.set(type, value)),
-    };
-
-    fireEvent.dragStart(articleCard!, { dataTransfer });
-    fireEvent.dragOver(collectionCard!, { dataTransfer });
-    fireEvent.drop(collectionCard!, { dataTransfer });
-
-    await waitFor(() =>
-      expect(addCollectionMembers).toHaveBeenCalledWith({
-        collectionId: collection.id,
-        members: [{ kind: 'article', id: 'article_drag' }],
-      }),
-    );
+    expect(screen.queryByRole('button', { name: '拖动「可拖文章」' })).toBeNull();
+    expect(articleCard?.hasAttribute('draggable')).toBe(false);
   });
 
   it('plays the shared delete sound after confirming a reading item delete', async () => {

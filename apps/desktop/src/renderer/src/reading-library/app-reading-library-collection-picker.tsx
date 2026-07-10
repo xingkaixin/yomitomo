@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ReaderTooltip,
   ReaderTooltipProvider,
@@ -39,19 +39,14 @@ import {
 } from './app-reading-library-entities';
 import { formatLibraryShortDate } from './app-reading-library-utils';
 import { WeReadCover } from './app-reading-library-covers';
+import {
+  LibraryDndProvider,
+  useLibraryDraggable,
+  useLibraryDroppable,
+} from './app-reading-library-dnd';
 import type { LibraryItemEntity, LibraryItemType, LibraryTypeScope } from './library-entity-types';
 
-export function CollectionPickerDialog({
-  articles,
-  availableTypes,
-  collection,
-  collectionMembers,
-  pins,
-  typeOptions,
-  wereadBooks,
-  onAddMembers,
-  onClose,
-}: {
+type CollectionPickerDialogProps = {
   articles: ArticleSummaryRecord[];
   availableTypes: LibraryItemType[];
   collection: Collection;
@@ -61,36 +56,33 @@ export function CollectionPickerDialog({
   wereadBooks: WeReadBook[];
   onAddMembers: (members: ContentRef[]) => Promise<void> | void;
   onClose: () => void;
-}) {
+};
+
+export function CollectionPickerDialog(props: CollectionPickerDialogProps) {
+  return (
+    <LibraryDndProvider>
+      <CollectionPickerDialogContent {...props} />
+    </LibraryDndProvider>
+  );
+}
+
+function CollectionPickerDialogContent({
+  articles,
+  availableTypes,
+  collection,
+  collectionMembers,
+  pins,
+  typeOptions,
+  wereadBooks,
+  onAddMembers,
+  onClose,
+}: CollectionPickerDialogProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [typeScope, setTypeScope] = useState<LibraryTypeScope>('all');
   const [selectedRefs, setSelectedRefs] = useState<Map<string, ContentRef>>(() => new Map());
-  const [draggedPickerKey, setDraggedPickerKey] = useState<string | null>(null);
-  const [selectionDragOver, setSelectionDragOver] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const dragStateRef = useRef<{
-    ref: ContentRef;
-    key: string;
-    ghost: HTMLElement;
-    pointerId: number;
-  } | null>(null);
-  const pickerSelectionRef = useRef<HTMLDivElement | null>(null);
-  const isOverPickerSelection = useCallback((x: number, y: number) => {
-    if (typeof document.elementFromPoint !== 'function') return false;
-    return Boolean(
-      document.elementFromPoint(x, y)?.closest('.library-collection-picker-selection'),
-    );
-  }, []);
-  const cleanupPickerDrag = useCallback(() => {
-    const state = dragStateRef.current;
-    if (state?.ghost.parentNode) state.ghost.parentNode.removeChild(state.ghost);
-    dragStateRef.current = null;
-    setDraggedPickerKey(null);
-    setSelectionDragOver(false);
-    document.body.classList.remove('library-picker-dragging');
-  }, []);
   const currentMemberKeys = useMemo(
     () =>
       new Set(
@@ -161,72 +153,11 @@ export function CollectionPickerDialog({
       return next;
     });
   }
-
-  const startPickerDrag = useCallback(
-    (item: LibraryItemEntity, event: React.PointerEvent<HTMLElement>) => {
-      if (event.button !== 0) return;
-      const card = event.currentTarget.parentElement;
-      if (!card) return;
-      const rect = card.getBoundingClientRect();
-      const ghost = card.cloneNode(true) as HTMLElement;
-      ghost.className = 'library-collection-picker-ghost';
-      ghost.style.width = `${rect.width}px`;
-      ghost.style.left = `${event.clientX}px`;
-      ghost.style.top = `${event.clientY}px`;
-      document.body.appendChild(ghost);
-      document.body.classList.add('library-picker-dragging');
-      dragStateRef.current = {
-        ref: item.ref,
-        key: contentRefKey(item.ref),
-        ghost,
-        pointerId: event.pointerId,
-      };
-      setDraggedPickerKey(contentRefKey(item.ref));
-      try {
-        event.currentTarget.setPointerCapture(event.pointerId);
-      } catch {
-        // pointer capture may fail in some test environments; safe to ignore
-      }
-    },
-    [],
-  );
-
-  const movePickerDrag = useCallback((event: React.PointerEvent<HTMLElement>) => {
-    const state = dragStateRef.current;
-    if (!state || state.pointerId !== event.pointerId) return;
-    state.ghost.style.left = `${event.clientX}px`;
-    state.ghost.style.top = `${event.clientY}px`;
-    const overSelection = isOverPickerSelection(event.clientX, event.clientY);
-    setSelectionDragOver((prev) => (prev === overSelection ? prev : overSelection));
-  }, []);
-
-  const endPickerDrag = useCallback(
-    (event: React.PointerEvent<HTMLElement>) => {
-      const state = dragStateRef.current;
-      if (!state || state.pointerId !== event.pointerId) return;
-      const overSelection = isOverPickerSelection(event.clientX, event.clientY);
-      if (overSelection) toggleItem(state.ref);
-      cleanupPickerDrag();
-    },
-    [cleanupPickerDrag],
-  );
-
-  useEffect(() => {
-    function handleGlobalPointerUp() {
-      if (dragStateRef.current) cleanupPickerDrag();
-    }
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape' && dragStateRef.current) cleanupPickerDrag();
-    }
-    window.addEventListener('pointerup', handleGlobalPointerUp);
-    window.addEventListener('pointercancel', handleGlobalPointerUp);
-    window.addEventListener('keydown', handleEscape);
-    return () => {
-      window.removeEventListener('pointerup', handleGlobalPointerUp);
-      window.removeEventListener('pointercancel', handleGlobalPointerUp);
-      window.removeEventListener('keydown', handleEscape);
-    };
-  }, [cleanupPickerDrag]);
+  const { isDropTarget: selectionDragOver, ref: selectionDropRef } = useLibraryDroppable({
+    id: `picker-selection:${collection.id}`,
+    label: t('library.collection.pendingMembers', { count: selectedItems.length }),
+    onDrop: toggleItem,
+  });
 
   async function confirm() {
     if (selectedItems.length === 0) return;
@@ -293,56 +224,19 @@ export function CollectionPickerDialog({
               <div className="library-collection-picker-body">
                 <div className="library-collection-picker-list">
                   {pickerItems.length > 0 ? (
-                    pickerItems.map((item) => {
-                      const key = contentRefKey(item.ref);
-                      return (
-                        <div
-                          className={`library-collection-picker-item${
-                            draggedPickerKey === key ? ' is-dragging' : ''
-                          }`}
-                          key={key}
-                        >
-                          <span
-                            className="library-collection-picker-drag-handle"
-                            aria-hidden="true"
-                            onPointerDown={(event) => startPickerDrag(item, event)}
-                            onPointerMove={movePickerDrag}
-                            onPointerUp={endPickerDrag}
-                          >
-                            <GripVertical size={15} />
-                          </span>
-                          <CollectionPickerCover
-                            item={item}
-                            className="library-collection-picker-cover"
-                          />
-                          <span className="library-collection-picker-copy">
-                            <strong>{libraryItemTitle(item)}</strong>
-                            <span className="library-collection-picker-meta">
-                              <span className="library-source-badge">
-                                {libraryTypeLabel(item.type, t)}
-                              </span>
-                              <time dateTime={item.sortTime}>
-                                {formatLibraryShortDate(item.sortTime)}
-                              </time>
-                            </span>
-                          </span>
-                          <button
-                            type="button"
-                            className="library-collection-picker-add"
-                            aria-label={`${t('library.collection.addMembers')}：${libraryItemTitle(item)}`}
-                            onClick={() => toggleItem(item.ref)}
-                          >
-                            <Plus size={15} />
-                          </button>
-                        </div>
-                      );
-                    })
+                    pickerItems.map((item) => (
+                      <CollectionPickerItem
+                        item={item}
+                        key={contentRefKey(item.ref)}
+                        onSelect={() => toggleItem(item.ref)}
+                      />
+                    ))
                   ) : (
                     <p>{t('library.collection.pickerNoItems')}</p>
                   )}
                 </div>
                 <div
-                  ref={pickerSelectionRef}
+                  ref={selectionDropRef}
                   className={
                     selectionDragOver
                       ? 'library-collection-picker-selection is-drag-over'
@@ -401,6 +295,50 @@ export function CollectionPickerDialog({
         </DialogPortal>
       </Dialog>
     </ReaderTooltipProvider>
+  );
+}
+
+function CollectionPickerItem({
+  item,
+  onSelect,
+}: {
+  item: LibraryItemEntity;
+  onSelect: () => void;
+}) {
+  const { t } = useTranslation();
+  const title = libraryItemTitle(item);
+  const { handleRef, isDragging, ref } = useLibraryDraggable({
+    ref: item.ref,
+    title,
+  });
+
+  return (
+    <div ref={ref} className={`library-collection-picker-item${isDragging ? ' is-dragging' : ''}`}>
+      <button
+        ref={handleRef}
+        className="library-collection-picker-drag-handle"
+        type="button"
+        aria-label={t('library.collection.dragItem', { title })}
+      >
+        <GripVertical size={15} aria-hidden="true" />
+      </button>
+      <CollectionPickerCover item={item} className="library-collection-picker-cover" />
+      <span className="library-collection-picker-copy">
+        <strong>{title}</strong>
+        <span className="library-collection-picker-meta">
+          <span className="library-source-badge">{libraryTypeLabel(item.type, t)}</span>
+          <time dateTime={item.sortTime}>{formatLibraryShortDate(item.sortTime)}</time>
+        </span>
+      </span>
+      <button
+        type="button"
+        className="library-collection-picker-add"
+        aria-label={`${t('library.collection.addMembers')}：${title}`}
+        onClick={onSelect}
+      >
+        <Plus size={15} />
+      </button>
+    </div>
   );
 }
 
