@@ -56,9 +56,11 @@ const avatarDir = isEnglish ? 'en' : 'zh-CN';
 
 <section class="section">
   <div class="lp-container">
-    <p class="sec-kicker">{copy.kicker}</p>
-    <h2 class="sec-title">{copy.title}</h2>
-    <p class="sec-lead">{copy.lead[0]}<br />{copy.lead[1]}</p>
+    <div class="section-copy">
+      <p class="sec-kicker">{copy.kicker}</p>
+      <h2 class="sec-title">{copy.title}</h2>
+      <p class="sec-lead">{copy.lead[0]}<br />{copy.lead[1]}</p>
+    </div>
     <div class="agents-row">
       {
         ids.map((id) => (

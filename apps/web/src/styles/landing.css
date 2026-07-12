@@ -1644,15 +1644,13 @@ body {
   }
 
   @media (prefers-reduced-motion: no-preference) {
-    .section .sec-kicker,
-    .section .sec-title,
-    .section .sec-lead,
-    .steps .step,
-    .agents-row .agent-card,
-    .feat-trio .feat,
+    .section-copy,
+    .steps,
+    .agents-row,
+    .feat-trio,
     .dl-copy,
-    .dl-cards .dl-card,
-    .faq-list .faq-item {
+    .dl-cards,
+    .faq-list {
       animation: sd-reveal-up linear both;
       animation-timeline: view();
       /* Reveal spans from just-entered to the lower-middle of the viewport
@@ -1663,40 +1661,12 @@ body {
         calc(38% + var(--sd-i, 0) * var(--sd-step, 6%));
     }
 
-    .section .sec-title {
+    .steps,
+    .agents-row,
+    .feat-trio,
+    .dl-cards,
+    .faq-list {
       --sd-i: 1;
-    }
-    .section .sec-lead {
-      --sd-i: 2;
-    }
-    .steps .step:nth-child(2),
-    .feat-trio .feat:nth-child(2),
-    .dl-cards .dl-card:nth-child(2) {
-      --sd-i: 1;
-    }
-    .steps .step:nth-child(3),
-    .feat-trio .feat:nth-child(3) {
-      --sd-i: 2;
-    }
-
-    /* Agents deal in like a hand of cards — tighter step, all six in turn. */
-    .agents-row .agent-card {
-      --sd-step: 4%;
-    }
-    .agents-row .agent-card:nth-child(2) {
-      --sd-i: 1;
-    }
-    .agents-row .agent-card:nth-child(3) {
-      --sd-i: 2;
-    }
-    .agents-row .agent-card:nth-child(4) {
-      --sd-i: 3;
-    }
-    .agents-row .agent-card:nth-child(5) {
-      --sd-i: 4;
-    }
-    .agents-row .agent-card:nth-child(6) {
-      --sd-i: 5;
     }
   }
 }

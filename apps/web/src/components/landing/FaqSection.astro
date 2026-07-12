@@ -16,8 +16,10 @@ const items = getFaqItems(lang);
 
 <section class="section">
   <div class="lp-container">
-    <p class="sec-kicker">{kicker}</p>
-    <h2 class="sec-title">{title}</h2>
+    <div class="section-copy">
+      <p class="sec-kicker">{kicker}</p>
+      <h2 class="sec-title">{title}</h2>
+    </div>
     <div class="faq-list">
       {
         items.map((item) => (
