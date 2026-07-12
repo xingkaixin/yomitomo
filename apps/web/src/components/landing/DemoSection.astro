@@ -11,16 +11,12 @@ const isEnglish = lang === 'en';
 const copy = isEnglish
   ? {
       kicker: 'See how it works',
-      titlePre: 'One article—',
-      titleAnchor: 'lines',
-      titlePost: ', notes and discussion all on the page itself.',
+      title: 'One article—lines, notes and discussion all on the page itself.',
       hint: 'Click a line in the text, or "Open discussion"',
     }
   : {
       kicker: '看看它怎么工作',
-      titlePre: '一篇文章，',
-      titleAnchor: '划线',
-      titlePost: '、批注、讨论都在原文现场。',
+      title: '一篇文章，划线、批注、讨论都在原文现场。',
       hint: '点击文中的划线，或「进入讨论区」',
     };
 ---
@@ -30,9 +26,7 @@ const copy = isEnglish
     <div class="demo-head">
       <div>
         <p class="sec-kicker">{copy.kicker}</p>
-        <h2 class="sec-title">{copy.titlePre}<span class="demo-line-anchor">{copy.titleAnchor}</span>{
-            copy.titlePost
-          }</h2>
+        <h2 class="sec-title">{copy.title}</h2>
       </div>
       <span class="hint"><span class="dot"></span>{copy.hint}</span>
     </div>

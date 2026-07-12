@@ -1756,67 +1756,6 @@ body {
   }
 }
 
-/* ------------------------------------------------------------
- * Hero → Demo "line" transition — a terracotta stroke that grows out of
- * the hero's hand-underline and draws down into the demo section, landing
- * on the word 「划线 / lines」. Decorative + progressive enhancement: the
- * overlay is hidden unless scroll-driven timelines are supported, and it is
- * off under reduced-motion and on the narrow layout where the demo section
- * itself is hidden.
- * ------------------------------------------------------------ */
-.line-stage {
-  position: relative;
-}
-.line-trail {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 3;
-  pointer-events: none;
-  overflow: visible;
-  opacity: 0;
-}
-.line-trail-path {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-dasharray: 1000;
-  stroke-dashoffset: 1000;
-  filter: drop-shadow(0 2px 4px hsl(3 50% 30% / 0.16));
-}
-@supports (animation-timeline: view()) {
-  @media (prefers-reduced-motion: no-preference) {
-    .demo-section {
-      view-timeline-name: --demo-in;
-      view-timeline-axis: block;
-    }
-    .line-stage {
-      timeline-scope: --demo-in;
-    }
-    .line-trail {
-      opacity: 1;
-    }
-    .line-trail-path {
-      animation: line-draw linear both;
-      animation-timeline: --demo-in;
-      animation-range: entry 12% cover 44%;
-    }
-  }
-}
-@keyframes line-draw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-@media (max-width: 800px) {
-  .line-trail {
-    display: none;
-  }
-}
-
 /* scrollbar */
 .lp-root ::-webkit-scrollbar {
   width: 9px;

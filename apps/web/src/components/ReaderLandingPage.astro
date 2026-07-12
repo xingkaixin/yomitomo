@@ -164,13 +164,8 @@ const jsonLd = {
   <body>
     <div class="lp-root">
       <LandingMasthead lang={lang} active="home" />
-      <div class="line-stage">
-        <svg class="line-trail" preserveAspectRatio="none" aria-hidden="true">
-          <path class="line-trail-path" d="" pathLength="1000"></path>
-        </svg>
-        <HeroSection lang={lang} version={downloads.version} />
-        <DemoSection lang={lang} />
-      </div>
+      <HeroSection lang={lang} version={downloads.version} />
+      <DemoSection lang={lang} />
       <div class="reveal"><StepsSection lang={lang} /></div>
       <div class="reveal"><AgentsSection lang={lang} /></div>
       <div class="reveal"><FeaturesSection lang={lang} /></div>
@@ -197,42 +192,6 @@ const jsonLd = {
       } else {
         for (const el of reveals) el.classList.add('in');
       }
-    </script>
-
-    <script is:inline>
-      // Hero → Demo line transition: trace a path from the hero's
-      // hand-underline to the word 「划线 / lines」 in the demo heading.
-      // The draw itself is CSS scroll-driven; this only computes geometry.
-      (function () {
-        const stage = document.querySelector('.line-stage');
-        const svg = stage && stage.querySelector('.line-trail');
-        const path = stage && stage.querySelector('.line-trail-path');
-        const start = document.querySelector('.hand-ul');
-        const end = document.querySelector('.demo-line-anchor');
-        if (!stage || !svg || !path || !start || !end) return;
-        function build() {
-          const s = stage.getBoundingClientRect();
-          const a = start.getBoundingClientRect();
-          const b = end.getBoundingClientRect();
-          const ax = a.right - s.left;
-          const ay = a.bottom - s.top + 4;
-          const bx0 = b.left - s.left;
-          const bx1 = b.right - s.left;
-          const by = b.bottom - s.top - 1;
-          const midY = ay + (by - ay) * 0.5;
-          svg.setAttribute('viewBox', '0 0 ' + s.width + ' ' + s.height);
-          path.setAttribute(
-            'd',
-            'M ' + ax + ' ' + ay + ' C ' + (ax + 160) + ' ' + (ay + 60) + ', ' +
-              (bx0 - 220) + ' ' + (midY - 30) + ', ' + (bx0 - 130) + ' ' + (by - 120) +
-              ' S ' + (bx0 - 24) + ' ' + (by - 8) + ', ' + bx0 + ' ' + by +
-              ' L ' + bx1 + ' ' + by,
-          );
-        }
-        build();
-        addEventListener('resize', build);
-        if (document.fonts && document.fonts.ready) document.fonts.ready.then(build);
-      })();
     </script>
   </body>
 </html>
