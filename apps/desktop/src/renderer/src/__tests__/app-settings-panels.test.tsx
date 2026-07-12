@@ -502,7 +502,9 @@ describe('ProviderSettings', () => {
     expect(screen.getByLabelText('阅读理解助手供应商')).toBeTruthy();
     expect(screen.getByLabelText('深度审阅助手供应商')).toBeTruthy();
     expect(screen.getByText('优先快速完成')).toBeTruthy();
-    expect(screen.getByRole('slider', { name: '助手执行模式' }).value).toBe('0');
+    expect(
+      screen.getByRole('slider', { name: '助手执行模式' }).getAttribute('aria-valuetext'),
+    ).toBe('快速回应');
     expect(screen.getAllByText('已使用')).toHaveLength(2);
     expect(screen.getAllByText('claude-sonnet-4-5').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Anthropic').length).toBeGreaterThan(0);
