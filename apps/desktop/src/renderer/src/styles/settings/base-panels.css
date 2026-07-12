@@ -79,6 +79,147 @@
   text-align: left;
 }
 
+.assistant-mode-control {
+  display: grid;
+  width: min(180px, 24vw);
+  gap: 7px;
+}
+
+.assistant-mode-current {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 6px;
+  padding: 0 2px;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.assistant-mode-current > svg {
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+.assistant-mode-current strong {
+  flex: 0 0 auto;
+  color: hsl(var(--foreground));
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.assistant-mode-control:has(.assistant-mode-slider[data-mode='deep']) .assistant-mode-current > svg,
+.assistant-mode-control:has(.assistant-mode-slider[data-mode='deep'])
+  .assistant-mode-current
+  strong {
+  color: var(--app-interactive-link);
+}
+
+.assistant-mode-current span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.assistant-mode-slider {
+  --assistant-mode-slider-inset: 3px;
+  position: relative;
+  width: 100%;
+  height: 28px;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border) / 0.78);
+  border-radius: 12px;
+  background: hsl(var(--muted) / 0.62);
+  isolation: isolate;
+  transition:
+    background 250ms ease,
+    border-color 250ms ease,
+    box-shadow 250ms ease;
+}
+
+.assistant-mode-slider[data-mode='deep'] {
+  border-color: color-mix(in srgb, var(--app-interactive-link) 42%, hsl(var(--border)));
+  background: color-mix(in srgb, var(--app-interactive-selected-bg) 80%, hsl(var(--card)));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-interactive-link) 8%, transparent);
+}
+
+.assistant-mode-slider-particles {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-color: var(--app-interactive-selected-fg);
+  color: var(--app-interactive-link);
+  opacity: var(--assistant-mode-progress);
+  transition: opacity 250ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.assistant-mode-slider-thumb {
+  position: absolute;
+  z-index: 1;
+  top: var(--assistant-mode-slider-inset);
+  bottom: var(--assistant-mode-slider-inset);
+  left: calc(
+    var(--assistant-mode-slider-inset) + var(--assistant-mode-progress) *
+      (100% - 18px - var(--assistant-mode-slider-inset) * 2)
+  );
+  width: 18px;
+  border: 1px solid var(--app-interactive-selected-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, hsl(var(--card)) 88%, var(--app-interactive-selected-bg));
+  box-shadow: var(--app-subtle-panel-shadow);
+  transition:
+    left 250ms cubic-bezier(0.22, 1, 0.36, 1),
+    background 250ms ease,
+    border-color 250ms ease;
+}
+
+.assistant-mode-slider[data-mode='deep'] .assistant-mode-slider-thumb {
+  border-color: color-mix(in srgb, var(--app-interactive-link) 54%, hsl(var(--border)));
+  background: color-mix(in srgb, var(--app-interactive-link) 16%, hsl(var(--card)));
+}
+
+.assistant-mode-slider[data-dragging='true'] .assistant-mode-slider-thumb {
+  transition-duration: 0ms;
+}
+
+.assistant-mode-slider[data-dragging='true'] .assistant-mode-slider-particles {
+  transition-duration: 0ms;
+}
+
+.assistant-mode-slider input {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: grab;
+}
+
+.assistant-mode-slider input:active {
+  cursor: grabbing;
+}
+
+.assistant-mode-slider:has(input:active) .assistant-mode-slider-thumb {
+  transform: scale(0.96);
+}
+
+.assistant-mode-slider:has(input:focus-visible) {
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-mode-slider-particles,
+  .assistant-mode-slider-thumb,
+  .assistant-mode-slider {
+    transition-duration: 0ms;
+  }
+}
+
 .config-list {
   display: flex;
   min-height: 0;

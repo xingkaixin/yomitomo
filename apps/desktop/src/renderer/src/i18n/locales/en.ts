@@ -1683,7 +1683,9 @@ export const enResources = {
           'Globally affects reader annotations, follow-up questions, and co-reading tasks.',
         executionModeAria: 'Assistant execution mode',
         fastResponse: 'Fast response',
+        fastResponseDescription: 'Prioritize a quick result',
         deepVerification: 'Deep verification',
+        deepVerificationDescription: 'Verify with tools',
         readingRouteTitle: 'Reading assistant',
         readingRouteDescription:
           'Used for reader annotations, follow-up questions, and comprehension conversations.',

@@ -501,10 +501,39 @@ describe('ProviderSettings', () => {
     expect(screen.getByText(/双语翻译为整篇文章全文.*所配置的端点/)).toBeTruthy();
     expect(screen.getByLabelText('阅读理解助手供应商')).toBeTruthy();
     expect(screen.getByLabelText('深度审阅助手供应商')).toBeTruthy();
+    expect(screen.getByText('优先快速完成')).toBeTruthy();
+    expect(screen.getByRole('slider', { name: '助手执行模式' }).value).toBe('0');
     expect(screen.getAllByText('已使用')).toHaveLength(2);
     expect(screen.getAllByText('claude-sonnet-4-5').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Anthropic').length).toBeGreaterThan(0);
     expect(screen.queryByText('设为默认')).toBeNull();
+  });
+
+  it('saves the selected assistant execution mode', () => {
+    const onRoutesChange = vi.fn();
+    const onRoutesSave = vi.fn();
+
+    render(
+      <ProviderSettings
+        {...makeProviderSettingsProps({
+          providerValue: emptyProvider,
+          providers: [],
+          routesValue: { assistantExecutionMode: 'fast_response' },
+          onRoutesChange,
+          onRouteSave: onRoutesSave,
+        })}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole('slider', { name: '助手执行模式' }), {
+      target: { value: '1' },
+    });
+    expect(screen.getByText('使用工具核验')).toBeTruthy();
+    fireEvent.pointerUp(screen.getByRole('slider', { name: '助手执行模式' }));
+
+    const nextDraft = { assistantExecutionMode: 'deep_verification' };
+    expect(onRoutesChange).toHaveBeenCalledWith(nextDraft);
+    expect(onRoutesSave).toHaveBeenCalledWith(nextDraft);
   });
 
   it('opens provider editing from the provider card menu', () => {
