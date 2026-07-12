@@ -1615,6 +1615,147 @@ body {
   }
 }
 
+/* ------------------------------------------------------------
+ * Scroll-driven reveal — progressive enhancement over the IO path.
+ * Chrome/Edge 115+ and Safari 26+ drive each element's reveal by its
+ * own view() progress, so it is scroll-linked and finer-grained than
+ * the one-shot block fade above. Engines without animation-timeline
+ * (Firefox stable, older browsers) skip this whole block and keep the
+ * IntersectionObserver fallback untouched.
+ * ------------------------------------------------------------ */
+@keyframes sd-reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@supports (animation-timeline: view()) {
+  /* Reveal is handed down to element level here, so the outer .reveal
+     wrapper must stop fading as a block or the two layers double up. */
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .section .sec-kicker,
+    .section .sec-title,
+    .section .sec-lead,
+    .steps .step,
+    .agents-row .agent-card,
+    .feat-trio .feat,
+    .dl-copy,
+    .dl-cards .dl-card,
+    .faq-list .faq-item {
+      animation: sd-reveal-up linear both;
+      animation-timeline: view();
+      /* Reveal spans from just-entered to the lower-middle of the viewport
+         (cover range), so the fade is actually visible while scrolling.
+         --sd-i slides each item's window later, so siblings in a row
+         assemble in sequence instead of snapping in all at once. */
+      animation-range: cover calc(5% + var(--sd-i, 0) * var(--sd-step, 6%)) cover
+        calc(38% + var(--sd-i, 0) * var(--sd-step, 6%));
+    }
+
+    .section .sec-title {
+      --sd-i: 1;
+    }
+    .section .sec-lead {
+      --sd-i: 2;
+    }
+    .steps .step:nth-child(2),
+    .feat-trio .feat:nth-child(2),
+    .dl-cards .dl-card:nth-child(2) {
+      --sd-i: 1;
+    }
+    .steps .step:nth-child(3),
+    .feat-trio .feat:nth-child(3) {
+      --sd-i: 2;
+    }
+
+    /* Agents deal in like a hand of cards — tighter step, all six in turn. */
+    .agents-row .agent-card {
+      --sd-step: 4%;
+    }
+    .agents-row .agent-card:nth-child(2) {
+      --sd-i: 1;
+    }
+    .agents-row .agent-card:nth-child(3) {
+      --sd-i: 2;
+    }
+    .agents-row .agent-card:nth-child(4) {
+      --sd-i: 3;
+    }
+    .agents-row .agent-card:nth-child(5) {
+      --sd-i: 4;
+    }
+    .agents-row .agent-card:nth-child(6) {
+      --sd-i: 5;
+    }
+  }
+}
+
+/* Reader demo drifts against the scroll — a restrained parallax that lifts the
+ * window off the paper. transform-only, so it stays on the compositor. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .demo-frame {
+      animation: demo-parallax linear both;
+      animation-timeline: view();
+      animation-range: cover;
+    }
+  }
+}
+@keyframes demo-parallax {
+  from {
+    transform: translateY(28px);
+  }
+  to {
+    transform: translateY(-28px);
+  }
+}
+
+/* Hero composes in on load — eyebrow, title, sub, CTA in sequence. The title
+ * rises without fading so it stays the LCP paint from the very first frame. */
+@media (prefers-reduced-motion: no-preference) {
+  .hero-c-eyebrow {
+    animation: hero-fade-in 0.7s var(--ease-out) both;
+  }
+  .hero-c-title {
+    animation: hero-rise-in 0.8s var(--ease-out) 0.06s both;
+  }
+  .hero-c-sub {
+    animation: hero-fade-in 0.7s var(--ease-out) 0.16s both;
+  }
+  .hero-c-cta {
+    animation: hero-fade-in 0.7s var(--ease-out) 0.26s both;
+  }
+}
+@keyframes hero-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes hero-rise-in {
+  from {
+    transform: translateY(14px);
+  }
+  to {
+    transform: none;
+  }
+}
+
 /* scrollbar */
 .lp-root ::-webkit-scrollbar {
   width: 9px;
