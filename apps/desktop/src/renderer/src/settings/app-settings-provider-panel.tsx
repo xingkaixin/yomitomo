@@ -13,7 +13,6 @@ import {
 import {
   providerPresets,
   type AppSettings,
-  type AssistantExecutionMode,
   type LlmProvider,
   type ProviderPreset,
 } from '@yomitomo/shared';
@@ -23,7 +22,7 @@ import { providerDraftFromPreset, ProviderForm } from './app-settings-provider-f
 import { ProviderList } from './app-settings-provider-list';
 import type { SaveState } from '../shell/app-types';
 import { AutoSaveStatus } from './app-settings-save-status';
-import { SettingsGroup, SettingsPage, SettingsRow, SettingsSegmented } from './app-settings-kit';
+import { SettingsGroup, SettingsPage, SettingsRow } from './app-settings-kit';
 import { Button } from '../components/ui/button';
 import { Dialog, DialogContent, DialogOverlay, DialogPortal } from '../components/ui/dialog';
 import {
@@ -37,6 +36,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { providerDisplayName, providerPresetDisplayName } from '../i18n/app-i18n-labels';
 import type { SaveableDraft } from './use-saveable-draft';
+import { AssistantExecutionModeSlider } from './app-settings-execution-mode-slider';
 
 type ProviderDraftController = SaveableDraft<ProviderDraft, boolean> & {
   create: () => void;
@@ -560,14 +560,6 @@ const taskRouteOptions: Array<{
   },
 ];
 
-const assistantExecutionModeOptions: Array<{
-  value: AssistantExecutionMode;
-  titleKey: string;
-}> = [
-  { value: 'fast_response', titleKey: 'settings.models.fastResponse' },
-  { value: 'deep_verification', titleKey: 'settings.models.deepVerification' },
-];
-
 function TaskProviderRoutes({
   providers,
   settingsDraft,
@@ -616,13 +608,8 @@ function TaskProviderRoutes({
         title={t('settings.models.executionModeTitle')}
         description={t('settings.models.executionModeDescription')}
       >
-        <SettingsSegmented
-          ariaLabel={t('settings.models.executionModeAria')}
+        <AssistantExecutionModeSlider
           value={executionMode}
-          options={assistantExecutionModeOptions.map((option) => ({
-            label: t(option.titleKey),
-            value: option.value,
-          }))}
           onChange={(value) => {
             const nextDraft = { ...settingsDraft, assistantExecutionMode: value };
             onChange(nextDraft);
