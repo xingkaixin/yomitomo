@@ -1,12 +1,12 @@
 .app-shell {
   --app-titlebar-left-padding: 82px;
-  --app-titlebar-right-padding: 34px;
+  --app-titlebar-right-padding: 24px;
   --app-titlebar-mobile-left-padding: 72px;
   --app-titlebar-mobile-right-padding: 18px;
   --reader-titlebar-back-left: 18px;
   --reader-titlebar-padding-right: 22px;
   --reader-titlebar-mobile-back-left: 12px;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: 64px minmax(0, 1fr);
   background: var(--app-shell-background);
 }
 
@@ -23,14 +23,14 @@
 
 .app-masthead {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(120px, 1fr) auto minmax(120px, 1fr);
-  align-items: start;
+  display: flex;
+  min-width: 0;
+  align-items: center;
   gap: 28px;
-  min-height: 148px;
+  min-height: 64px;
   border-bottom: 1px solid hsl(var(--foreground));
   background: hsl(var(--card));
-  padding: 22px var(--app-titlebar-right-padding) 18px var(--app-titlebar-left-padding);
+  padding: 0 var(--app-titlebar-right-padding) 0 var(--app-titlebar-left-padding);
   -webkit-app-region: drag;
 }
 
@@ -43,100 +43,97 @@
 }
 
 .app-masthead-title {
-  display: grid;
-  grid-column: 2;
-  justify-items: center;
-  gap: 6px;
-  padding-top: 2px;
-  text-align: center;
-}
-
-.app-masthead-title > span {
-  color: hsl(var(--muted-foreground));
-  font-size: 12px;
-  font-weight: 820;
-  letter-spacing: 0.18em;
-  text-transform: lowercase;
+  flex: 0 0 auto;
 }
 
 .app-masthead-title h1 {
   margin: 0;
-  cursor: default;
-  user-select: none;
+}
+
+.app-masthead-wordmark {
+  display: inline-flex;
+  height: 44px;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
   color: hsl(var(--foreground));
+  cursor: default;
   font-family: 'Fraunces', var(--font-reader-serif);
-  font-size: clamp(52px, 6.2vw, 92px);
+  font-size: 30px;
   font-variation-settings:
     'SOFT' 80,
     'WONK' 0,
-    'opsz' 72;
+    'opsz' 48;
   font-weight: 700;
   letter-spacing: 0;
-  line-height: 0.92;
-}
-
-.app-masthead-phonetic {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border: 0;
-  background: transparent;
-  color: hsl(var(--muted-foreground));
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  line-height: 1;
   padding: 0;
-  cursor: default;
-  transition: color 0.14s ease;
+  user-select: none;
   -webkit-app-region: no-drag;
 }
 
-.app-masthead-phonetic svg {
+.app-masthead-wordmark svg {
   opacity: 0;
-  transition: opacity 0.14s ease;
+  color: var(--app-interactive-link);
+  transition: opacity 140ms ease;
 }
 
-.app-masthead-phonetic:hover,
-.app-masthead-phonetic:focus-visible {
+.app-masthead-wordmark:hover,
+.app-masthead-wordmark:focus-visible {
   color: var(--app-interactive-link);
 }
 
-.app-masthead-phonetic:hover svg,
-.app-masthead-phonetic:focus-visible svg {
-  opacity: 1;
+.app-masthead-wordmark:focus-visible {
+  outline: 2px solid var(--app-interactive-link);
+  outline-offset: 3px;
 }
 
-.app-masthead-date {
-  grid-column: 3;
-  justify-self: end;
-  color: hsl(var(--muted-foreground));
-  font-size: 12px;
-  font-weight: 820;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.12em;
-  padding-top: 4px;
+.app-masthead-wordmark:hover svg,
+.app-masthead-wordmark:focus-visible svg {
+  opacity: 1;
 }
 
 .app-section-nav {
   display: flex;
+  min-width: 0;
+  height: 100%;
+  flex: 1;
   align-items: center;
-  gap: 32px;
-  min-height: 52px;
-  border-bottom: 4px double hsl(var(--foreground));
-  background: hsl(var(--card));
-  padding: 0 34px;
+  -webkit-app-region: drag;
+}
+
+.app-section-links,
+.app-section-actions {
+  display: flex;
+  align-items: center;
+}
+
+.app-section-links {
+  height: 100%;
+  gap: 24px;
+}
+
+.app-section-actions {
+  gap: 2px;
+  margin-left: auto;
+}
+
+.app-section-nav button,
+.app-section-nav [role='button'] {
   -webkit-app-region: no-drag;
 }
 
 .app-section-nav .settings-nav-item {
   width: auto;
-  height: 52px;
+  height: 100%;
   gap: 0;
   border-radius: 0;
   color: hsl(var(--foreground));
   font-family: var(--font-reader-serif);
-  font-size: 18px;
-  font-weight: 760;
+  font-size: 16px;
+  font-weight: 720;
   padding: 0;
 }
 
@@ -162,7 +159,6 @@
 }
 
 .app-nav-update-button {
-  margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -194,18 +190,13 @@
   transform: scale(0.97);
 }
 
-/* 药丸已占据右侧起始 margin，紧随其后的锁按钮无需再 margin-left:auto */
-.app-nav-update-button + .app-nav-lock-button {
-  margin-left: 0;
-}
-
 .app-nav-lock-button,
 .app-nav-theme-button,
 .app-nav-profile-button {
   position: relative;
   display: grid;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   place-items: center;
   border: 1px solid transparent;
   border-radius: 999px;
@@ -216,22 +207,6 @@
     background-color 150ms ease,
     box-shadow 150ms ease,
     transform 150ms ease;
-}
-
-.app-nav-theme-button {
-  margin-left: auto;
-}
-
-.app-nav-lock-button {
-  margin-left: auto;
-}
-
-.app-nav-lock-button + .app-nav-theme-button {
-  margin-left: -28px;
-}
-
-.app-nav-profile-button {
-  margin-left: -24px;
 }
 
 .app-nav-lock-button:hover,

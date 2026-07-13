@@ -702,30 +702,21 @@
 
 @media (max-width: 760px) {
   .app-masthead {
-    grid-template-columns: minmax(0, 1fr) auto;
-    min-height: 116px;
-    padding: 18px var(--app-titlebar-mobile-right-padding) 16px
-      var(--app-titlebar-mobile-left-padding);
+    gap: 18px;
+    min-height: 64px;
+    padding: 0 var(--app-titlebar-mobile-right-padding) 0 var(--app-titlebar-mobile-left-padding);
   }
 
-  .app-masthead-title {
-    grid-column: 1;
-    justify-items: start;
-    text-align: left;
-  }
-
-  .app-masthead-title h1 {
-    font-size: 42px;
-  }
-
-  .app-masthead-date {
-    display: none;
+  .app-masthead-wordmark {
+    font-size: 26px;
   }
 
   .app-section-nav {
-    gap: 22px;
-    overflow-x: auto;
-    padding: 0 18px;
+    overflow: visible;
+  }
+
+  .app-section-links {
+    gap: 16px;
   }
 
   .app-nav-profile-button {
