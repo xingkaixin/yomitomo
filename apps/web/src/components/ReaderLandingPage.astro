@@ -21,6 +21,7 @@ type Props = {
 
 const { lang = 'zh-CN' } = Astro.props;
 const isEnglish = lang === 'en';
+const skipLinkLabel = isEnglish ? 'Skip to main content' : '跳到主要内容';
 
 const releaseVersion = desktopPackage.version;
 const releaseBaseUrl = `https://download.yomitomo.app/releases/download/v${releaseVersion}`;
@@ -108,15 +109,18 @@ const jsonLd = buildLandingStructuredData({
   </head>
   <body>
     <div class="lp-root">
+      <a class="lp-skip-link" href="#main-content">{skipLinkLabel}</a>
       <LandingMasthead lang={lang} active="home" />
-      <HeroSection lang={lang} version={downloads.version} />
-      <MobileProductPreview lang={lang} />
-      <DemoSection lang={lang} />
-      <div class="reveal"><StepsSection lang={lang} /></div>
-      <div class="reveal"><AgentsSection lang={lang} /></div>
-      <div class="reveal"><FeaturesSection lang={lang} /></div>
-      <div class="reveal"><FaqSection lang={lang} /></div>
-      <div class="reveal"><DownloadSection lang={lang} downloads={downloads} /></div>
+      <main id="main-content" tabindex="-1">
+        <HeroSection lang={lang} version={downloads.version} />
+        <MobileProductPreview lang={lang} />
+        <DemoSection lang={lang} />
+        <div class="reveal"><StepsSection lang={lang} /></div>
+        <div class="reveal"><AgentsSection lang={lang} /></div>
+        <div class="reveal"><FeaturesSection lang={lang} /></div>
+        <div class="reveal"><FaqSection lang={lang} /></div>
+        <div class="reveal"><DownloadSection lang={lang} downloads={downloads} /></div>
+      </main>
       <LandingFooter lang={lang} />
     </div>
 
