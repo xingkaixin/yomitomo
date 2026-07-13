@@ -11,11 +11,13 @@
 }
 
 .app-shell.is-darwin {
+  /* Keep reader controls clear of the native macOS traffic lights. */
   --reader-titlebar-back-left: 78px;
   --reader-titlebar-mobile-back-left: 78px;
 }
 
 .app-shell.is-win32 {
+  /* Reserve the right edge for native Windows caption controls. */
   --app-titlebar-right-padding: 174px;
   --app-titlebar-mobile-right-padding: 158px;
   --reader-titlebar-padding-right: 158px;

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { readRendererStyles } from './css-test-utils';
 
@@ -13,6 +13,11 @@ const themeOverridesStyles = readFileSync(
   new URL('../styles/theme-overrides.css', import.meta.url),
   'utf8',
 );
+const themeOverridesDirectory = new URL('../styles/theme-overrides/', import.meta.url);
+const themeOverrideLayer = readdirSync(themeOverridesDirectory)
+  .filter((file) => file.endsWith('.css'))
+  .map((file) => readFileSync(new URL(file, themeOverridesDirectory), 'utf8'))
+  .join('\n');
 
 const readImportPaths = (styles: string) =>
   Array.from(styles.matchAll(/^@import ['"](.+)['"];$/gm), (match) => match[1]);
@@ -23,6 +28,7 @@ describe('renderer styles entry', () => {
 @import './styles/fonts.css';
 @import './styles/base.css';
 @import './styles/shell.css';
+@import './styles/shell/masthead-lock.css';
 @import './styles/settings.css';
 @import './styles/annotation-discussion.css';
 @import './styles/library.css';
@@ -71,7 +77,12 @@ describe('renderer styles entry', () => {
 @import './library/bookcase.css';
 @import './library/covers.css';
 @import './library/actions-empty.css';
-@import './library/notebook.css';`);
+@import './library/notebook.css';
+@import './library/skeleton.css';
+@import './library/layout.css';
+@import './library/reader-open.css';
+@import './library/collections.css';
+@import './library/responsive.css';`);
   });
 
   it('keeps theme override styles as ordered non-legacy partial imports', () => {
@@ -79,13 +90,8 @@ describe('renderer styles entry', () => {
 
     expect(imports).toEqual([
       './theme-overrides/foundation.css',
-      './theme-overrides/masthead-lock.css',
       './theme-overrides/theme-dialog.css',
-      './theme-overrides/library-skeleton.css',
-      './theme-overrides/library-layout.css',
       './theme-overrides/library-import.css',
-      './theme-overrides/reader-open-library.css',
-      './theme-overrides/library-collections.css',
       './theme-overrides/article-import-tweaks.css',
       './theme-overrides/settings-agent-stats.css',
       './theme-overrides/library-import-theme.css',
@@ -93,6 +99,12 @@ describe('renderer styles entry', () => {
     ]);
     expect(imports).not.toContain('./theme-overrides/legacy-shell.css');
     expect(imports).not.toContain('./theme-overrides/legacy-library.css');
+  });
+
+  it('keeps shell and library structure out of the theme override layer', () => {
+    expect(themeOverrideLayer).not.toMatch(
+      /\.library-(?:skeleton|entity-grid|collection-(?:openbar|list-item))\b|\.app-shell\.is-reader-open/,
+    );
   });
 
   it('expands local CSS imports for style assertions', () => {

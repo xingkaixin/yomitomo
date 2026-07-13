@@ -1,10 +1,3 @@
-.app-shell {
-  grid-template-rows: 36px minmax(0, 1fr);
-  background:
-    repeating-linear-gradient(0deg, rgb(0 0 0 / 0.012) 0 1px, transparent 1px 5px),
-    hsl(var(--background));
-}
-
 :root {
   --dropdown-open-dur: 190ms;
   --dropdown-close-dur: 120ms;
