@@ -6,6 +6,11 @@
   background-size: var(--app-paper-pattern-size) var(--app-paper-pattern-size);
 }
 
+.settings-content {
+  --library-entity-card-min-width: 400px;
+  --library-entity-card-max-width: 560px;
+}
+
 .library-home-header {
   gap: 0;
   padding: 20px 34px 12px;
@@ -148,13 +153,21 @@
 
 .library-entity-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, var(--library-entity-card-min-width)), 1fr)
+  );
   grid-auto-rows: minmax(156px, auto);
   align-content: start;
   gap: 0;
   overflow: visible;
   border-left: 1px solid hsl(var(--border) / 0.72);
   padding: 0;
+}
+
+.library-entity-grid > * {
+  width: 100%;
+  max-width: var(--library-entity-card-max-width);
 }
 
 .library-source-panel {

@@ -65,7 +65,10 @@
 
 .library-skeleton-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, var(--library-entity-card-min-width)), 1fr)
+  );
   align-content: start;
   min-height: 0;
   border-top: 1px solid hsl(var(--foreground));
@@ -74,6 +77,8 @@
 
 .library-skeleton-card {
   display: grid;
+  width: 100%;
+  max-width: var(--library-entity-card-max-width);
   min-height: 156px;
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 12px;
@@ -126,10 +131,6 @@
 }
 
 @media (max-width: 980px) {
-  .library-skeleton-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   .library-skeleton-toolbar {
     align-items: stretch;
     flex-direction: column;
