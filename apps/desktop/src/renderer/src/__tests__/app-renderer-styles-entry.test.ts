@@ -23,6 +23,7 @@ describe('renderer styles entry', () => {
 @import './styles/fonts.css';
 @import './styles/base.css';
 @import './styles/shell.css';
+@import './styles/shell/masthead-lock.css';
 @import './styles/settings.css';
 @import './styles/annotation-discussion.css';
 @import './styles/library.css';
@@ -79,7 +80,6 @@ describe('renderer styles entry', () => {
 
     expect(imports).toEqual([
       './theme-overrides/foundation.css',
-      './theme-overrides/masthead-lock.css',
       './theme-overrides/theme-dialog.css',
       './theme-overrides/library-skeleton.css',
       './theme-overrides/library-layout.css',

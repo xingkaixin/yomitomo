@@ -2,6 +2,7 @@
 @import './styles/fonts.css';
 @import './styles/base.css';
 @import './styles/shell.css';
+@import './styles/shell/masthead-lock.css';
 @import './styles/settings.css';
 @import './styles/annotation-discussion.css';
 @import './styles/library.css';
