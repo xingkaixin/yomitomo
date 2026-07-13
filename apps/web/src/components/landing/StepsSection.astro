@@ -42,14 +42,24 @@ const copy = isEnglish
         ['沉淀', '当讨论足够丰富，把它整理成一段可保留的沉淀。它带着出处，也带着你的角度。'],
       ],
     };
+
+const titleLines = isEnglish
+  ? null
+  : ['Yomitomo 把阅读的最小单位，', '从文章变成判断。'];
 ---
 
 <section class="section">
   <div class="lp-container concept-layout">
     <div class="section-copy">
       <p class="sec-kicker">{copy.kicker}</p>
-      <h2 class="sec-title">{copy.title}</h2>
-      <p class="sec-lead">{copy.lead[0]}<br />{copy.lead[1]}</p>
+      <h2 class="sec-title">
+        {
+          titleLines
+            ? titleLines.map((line) => <span class="concept-title-line">{line}</span>)
+            : copy.title
+        }
+      </h2>
+      <p class="sec-lead">{copy.lead[0]} {copy.lead[1]}</p>
     </div>
     <div class="steps">
       {

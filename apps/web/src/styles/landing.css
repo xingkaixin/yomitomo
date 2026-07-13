@@ -1248,9 +1248,16 @@ body {
 
 .concept-layout {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1.1fr);
-  gap: clamp(56px, 8vw, 112px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(48px, 6vw, 80px);
   align-items: start;
+}
+.concept-layout .sec-title {
+  font-size: clamp(25px, 3vw, 36px);
+  text-wrap: pretty;
+}
+.concept-title-line {
+  display: block;
 }
 .steps {
   position: relative;
@@ -1737,13 +1744,15 @@ body {
 }
 
 /* responsive */
+@media (max-width: 1180px) {
+  .concept-layout {
+    grid-template-columns: 1fr;
+    gap: 48px;
+  }
+}
 @media (max-width: 1080px) {
-  .concept-layout,
   .feat-trio {
     grid-template-columns: 1fr;
-  }
-  .concept-layout {
-    gap: 48px;
   }
   .feat:nth-child(3) {
     grid-column: 1;

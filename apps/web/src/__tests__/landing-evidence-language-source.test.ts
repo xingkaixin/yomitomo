@@ -35,6 +35,8 @@ describe('landing evidence visual language', () => {
 
   it('expresses the reading flow without numbered equal columns', () => {
     expect(stepsSource).toContain('class="lp-container concept-layout"');
+    expect(stepsSource).toContain('class="concept-title-line"');
+    expect(stepsSource).not.toContain('<br />');
     expect(stepsSource).not.toContain('step-no');
     expect(stepsSource).not.toContain("'01'");
     expect(landingStyles).toContain('grid-template-columns: 40px minmax(0, 1fr);');
