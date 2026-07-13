@@ -118,18 +118,17 @@
   min-width: 0;
   transition:
     opacity 180ms ease,
-    transform var(--resize-dur) var(--resize-ease),
-    filter 180ms ease;
+    transform var(--resize-dur) var(--resize-ease);
 }
 
 .library-bookcase-screen[data-route-transition='enter-source'] .library-shelf-content {
   animation: library-page-forward-enter var(--page-slide-dur) var(--page-slide-ease) both;
-  will-change: opacity, transform, filter;
+  will-change: opacity, transform;
 }
 
 .library-bookcase-screen[data-route-transition='enter-library'] .library-shelf-content {
   animation: library-page-backward-enter var(--page-slide-dur) var(--page-slide-ease) both;
-  will-change: opacity, transform, filter;
+  will-change: opacity, transform;
 }
 
 .library-shelf .annotation-notebook,
@@ -141,13 +140,11 @@
 @keyframes library-page-forward-enter {
   from {
     opacity: 0;
-    filter: blur(var(--page-blur));
     transform: translateX(var(--page-slide-distance));
   }
 
   to {
     opacity: 1;
-    filter: blur(0);
     transform: translateX(0);
   }
 }
@@ -155,13 +152,11 @@
 @keyframes library-page-backward-enter {
   from {
     opacity: 0;
-    filter: blur(var(--page-blur));
     transform: translateX(calc(var(--page-slide-distance) * -1));
   }
 
   to {
     opacity: 1;
-    filter: blur(0);
     transform: translateX(0);
   }
 }

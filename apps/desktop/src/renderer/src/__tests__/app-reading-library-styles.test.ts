@@ -358,24 +358,26 @@ describe('reading library styles', () => {
   });
 
   it('defines direction-aware reading library transitions with reduced motion support', () => {
-    expect(styles).toContain('--page-slide-dur: 250ms;');
+    expect(styles).toContain('--page-slide-dur: 150ms;');
     expect(styles).toContain('--page-fade-dur: 250ms;');
     expect(styles).toContain('--page-slide-distance: 8px;');
-    expect(styles).toContain('--page-blur: 3px;');
+    expect(styles).not.toContain('--page-blur:');
+    expect(styles).not.toContain('filter: blur(var(--page-blur));');
+    expect(rulesFor('.library-shelf-content').some((rule) => rule.includes('filter'))).toBe(false);
     expect(countOccurrences(styles, '@keyframes library-page-forward-enter')).toBe(1);
     expect(countOccurrences(styles, '@keyframes library-page-backward-enter')).toBe(1);
     expectRule(
       ".library-bookcase-screen[data-route-transition='enter-source'] .library-shelf-content",
       [
         'animation: library-page-forward-enter var(--page-slide-dur) var(--page-slide-ease) both;',
-        'will-change: opacity, transform, filter;',
+        'will-change: opacity, transform;',
       ],
     );
     expectRule(
       ".library-bookcase-screen[data-route-transition='enter-library'] .library-shelf-content",
       [
         'animation: library-page-backward-enter var(--page-slide-dur) var(--page-slide-ease) both;',
-        'will-change: opacity, transform, filter;',
+        'will-change: opacity, transform;',
       ],
     );
     expectRule(".library-home-body[data-list-transition='forward'] .library-source-panel", [

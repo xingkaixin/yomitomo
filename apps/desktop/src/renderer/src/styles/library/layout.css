@@ -185,22 +185,22 @@
 
 .library-home-body[data-list-transition='forward'] .library-source-panel {
   animation: library-page-forward-enter var(--page-slide-dur) var(--page-slide-ease) both;
-  will-change: opacity, transform, filter;
+  will-change: opacity, transform;
 }
 
 .library-home-body[data-list-transition='backward'] .library-source-panel {
   animation: library-page-backward-enter var(--page-slide-dur) var(--page-slide-ease) both;
-  will-change: opacity, transform, filter;
+  will-change: opacity, transform;
 }
 
 .library-source-panel[data-page-transition='forward'] .library-page-panel {
   animation: library-page-forward-enter var(--page-slide-dur) var(--page-slide-ease) both;
-  will-change: opacity, transform, filter;
+  will-change: opacity, transform;
 }
 
 .library-source-panel[data-page-transition='backward'] .library-page-panel {
   animation: library-page-backward-enter var(--page-slide-dur) var(--page-slide-ease) both;
-  will-change: opacity, transform, filter;
+  will-change: opacity, transform;
 }
 
 .library-list {
@@ -707,7 +707,6 @@
   .library-home-body[data-list-transition] .library-source-panel,
   .library-source-panel[data-page-transition] .library-page-panel {
     animation: none !important;
-    filter: none;
     transform: none;
     will-change: auto;
   }
