@@ -39,6 +39,9 @@ jobs:
       - name: UI primitive boundary check
         run: pnpm ui:check-primitives
 
+      - name: Documentation path check
+        run: pnpm docs:check-paths
+
       - name: Format check
         run: pnpm format:check
 

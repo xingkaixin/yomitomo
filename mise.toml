@@ -11,6 +11,9 @@ run = "pnpm format:check"
 [tasks."ui:check-primitives"]
 run = "pnpm ui:check-primitives"
 
+[tasks."docs:check-paths"]
+run = "pnpm docs:check-paths"
+
 [tasks."typecheck"]
 run = "pnpm typecheck"
 
@@ -34,6 +37,7 @@ run = [
 [tasks."check"]
 run = [
   { task = "lint" },
+  { task = "docs:check-paths" },
   { task = "ui:check-primitives" },
   { task = "format:check" },
   { task = "typecheck" },
