@@ -17,6 +17,9 @@ run = "pnpm typecheck"
 [tasks."test"]
 run = "pnpm test"
 
+[tasks."test:app:e2e"]
+run = "pnpm test:app:e2e"
+
 [tasks."build"]
 run = "pnpm build"
 
@@ -35,5 +38,6 @@ run = [
   { task = "format:check" },
   { task = "typecheck" },
   { task = "test" },
+  { task = "test:app:e2e" },
   { task = "build" },
 ]

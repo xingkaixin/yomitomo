@@ -190,7 +190,14 @@ pnpm ui:check-primitives
 pnpm format:check
 pnpm typecheck
 pnpm test
+pnpm test:app:e2e
 pnpm build
+```
+
+On headless Linux, run the full gate through Xvfb:
+
+```bash
+xvfb-run -a mise run check
 ```
 
 ## License
