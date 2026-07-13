@@ -68,6 +68,16 @@ describe('app theme contract', () => {
     expect(defaultThemeIdForTone('dark')).toBe(inkBlackThemeId);
   });
 
+  it('keeps the paper-white app and reader surfaces in one warm accent system', () => {
+    expect(defaultTheme.palette.background).toBe('40 33% 97%');
+    expect(defaultTheme.palette.card).toBe('42 50% 99%');
+    expect(defaultTheme.action.primary.background).toBe('hsl(28 21% 13%)');
+    expect(defaultTheme.reader.paper).toBe('#fffaf3');
+    expect(defaultTheme.reader.toolbar.progressFill).toBe(defaultTheme.reader.accentStrong);
+    expect(defaultTheme.reader.chat.sendBackground).toBe(defaultTheme.reader.accentStrong);
+    expect(defaultTheme.reader.note.distillationAccent).toBe('var(--app-reader-accent-strong)');
+  });
+
   it('exports app and reader css variables from each registered theme', () => {
     for (const theme of Object.values(themeRegistry)) {
       const variables = themeToCssVariables(theme);
