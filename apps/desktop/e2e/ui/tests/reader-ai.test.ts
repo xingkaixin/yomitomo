@@ -1,5 +1,5 @@
 import type { Page } from 'playwright-core';
-import { describe, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { createTextFixture } from '../../helpers/e2e-data';
 import { withDesktopE2eApp } from '../helpers/electron-app';
 import {
@@ -57,10 +57,20 @@ This second sentence keeps the reader surface stable for selection and chat.
         .locator('.reader-selection-menu')
         .getByRole('button', { name: /Ask/ })
         .waitFor({ timeout: 15_000 });
+      const keyboardOpenStartedAt = Date.now();
       await page.keyboard.press('q');
 
       const chatPanel = page.locator('.reader-chat-panel');
       await chatPanel.waitFor({ timeout: 15_000 });
+      await chatPanel.getByLabel('Reader Q&A content').waitFor({ state: 'visible' });
+      expect(Date.now() - keyboardOpenStartedAt).toBeLessThan(300);
+      expect(
+        await chatPanel.evaluate((panel) => ({
+          activationSource: panel.getAttribute('data-activation-source'),
+          state: panel.getAttribute('data-state'),
+          transitionDuration: getComputedStyle(panel).transitionDuration,
+        })),
+      ).toEqual({ activationSource: 'keyboard', state: 'open', transitionDuration: '0s' });
       await chatPanel.getByText(readerAiQuote, { exact: true }).waitFor({ timeout: 15_000 });
       await chatPanel.getByLabel('Reader Q&A content').fill(readerAiQuestion);
       await chatPanel.getByRole('button', { name: 'Send' }).click();
@@ -71,6 +81,19 @@ This second sentence keeps the reader surface stable for selection and chat.
       await assistantMessage.waitFor({ timeout: 15_000 });
       await assistantMessage.getByText(readerAiQuote).waitFor({ timeout: 15_000 });
       await assistantMessage.getByText(readerAiQuestion).waitFor({ timeout: 15_000 });
+
+      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+      await page.keyboard.press('q');
+      await chatPanel.waitFor({ state: 'detached' });
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.getByRole('button', { name: 'Open reader Q&A' }).click();
+      await chatPanel.waitFor({ state: 'visible' });
+      const reducedMotion = await chatPanel.evaluate((panel) => ({
+        activationSource: panel.getAttribute('data-activation-source'),
+        transitionDurationSeconds: Number.parseFloat(getComputedStyle(panel).transitionDuration),
+      }));
+      expect(reducedMotion.activationSource).toBe('pointer');
+      expect(reducedMotion.transitionDurationSeconds).toBeLessThanOrEqual(0.001);
     });
   });
 });

@@ -1,6 +1,11 @@
 import React from 'react';
 import type { SelectionActionShortcuts } from '@yomitomo/shared';
-import type { HighlightChoice, PendingComposer, SelectionAction } from './reader-app-view-types';
+import type {
+  HighlightChoice,
+  PendingComposer,
+  ReaderChatActivationSource,
+  SelectionAction,
+} from './reader-app-view-types';
 import { selectionActionShortcut } from '../reader-shortcuts';
 
 const activeAnnotationPreserveSelector = [
@@ -38,10 +43,10 @@ export type UseReaderShellInteractionsOptions = {
   onClearSelection: () => void;
   onCloseFloatingPanels: () => void;
   onCloseHighlightChoice: () => void;
-  onCloseReaderChat?: () => void;
-  onAskSelection?: (action: SelectionAction) => void;
+  onCloseReaderChat?: (source: ReaderChatActivationSource) => void;
+  onAskSelection?: (action: SelectionAction, source: ReaderChatActivationSource) => void;
   onCopySelection: (action: SelectionAction) => void | Promise<void>;
-  onOpenReaderChat?: () => void;
+  onOpenReaderChat?: (source: ReaderChatActivationSource) => void;
   onOpenComposer: (action: SelectionAction) => void;
   onToggleSettings: () => void;
   readerChatOpen?: boolean;
@@ -101,7 +106,7 @@ export function useReaderShellInteractions({
         return;
       }
       if (shortcut === 'ask' && onAskSelection) {
-        onAskSelection(activeSelectionAction);
+        onAskSelection(activeSelectionAction, 'keyboard');
         return;
       }
       onOpenComposer(activeSelectionAction);
@@ -132,10 +137,10 @@ export function useReaderShellInteractions({
       event.preventDefault();
       event.stopPropagation();
       if (readerChatOpen) {
-        closeReaderChat();
+        closeReaderChat('keyboard');
         return;
       }
-      openReaderChat();
+      openReaderChat('keyboard');
     }
 
     window.addEventListener('keydown', handleReaderChatShortcut);

@@ -20,6 +20,7 @@ import type {
   PendingComposer,
   ReaderArticle,
   ReaderUiLabels,
+  ReaderChatActivationSource,
   SelectionAdjustmentPointer,
   SelectionAction,
 } from './reader-app-view-types';
@@ -103,7 +104,7 @@ export type ReaderSurfaceViewProps = {
     annotationIds: string[],
   ) => void;
   onMouseUp: (event: React.MouseEvent<HTMLElement>) => void;
-  onAskSelection?: (action: SelectionAction) => void;
+  onAskSelection?: (action: SelectionAction, source: ReaderChatActivationSource) => void;
   onSelectionHandleDrag?: (point: SelectionAdjustmentPointer) => void;
   onSelectionHandleDragEnd?: (point: SelectionAdjustmentPointer) => void;
   onSelectionHandleDragStart?: (point: SelectionAdjustmentPointer) => void;
@@ -486,7 +487,7 @@ export function ReaderSurfaceView({
               shortcuts={selectionActionShortcuts}
               copyRequestKey={selectionCopyRequestKey}
               onAnnotate={() => onOpenComposer(selectionAction)}
-              onAsk={chat ? () => onAskSelection?.(selectionAction) : undefined}
+              onAsk={chat ? () => onAskSelection?.(selectionAction, 'pointer') : undefined}
               onCopy={() => onCopySelection(selectionAction)}
               onCopySettled={onClearSelection}
             />

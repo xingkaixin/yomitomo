@@ -7,7 +7,12 @@ import { ReaderSurfaceView } from './reader-surface-view';
 import { ReaderTocPanel } from './reader-toc-panel';
 import { ReaderFloatingToolbar, ReaderToolbar } from './reader-toolbar';
 import { VirtualCursor } from './reader-virtual-cursor';
-import type { ReaderAppViewProps, ReaderUiLabels } from './reader-app-view-types';
+import type {
+  ReaderAppViewProps,
+  ReaderChatActivationSource,
+  ReaderUiLabels,
+  SelectionAction,
+} from './reader-app-view-types';
 import { defaultReaderUiLabels } from './reader-app-view-types';
 import { readerBackgroundTone } from '../reader-settings';
 import { ReaderTooltipProvider } from '../shared/reader-component-primitives';
@@ -95,6 +100,29 @@ export function ReaderAppView({
   const { embedded = false } = options ?? {};
   const tocOpen = toc.open;
   const tocItems = toc.items;
+  const [chatActivationSource, setChatActivationSource] =
+    React.useState<ReaderChatActivationSource>('pointer');
+  const openReaderChat = React.useCallback(
+    (source: ReaderChatActivationSource) => {
+      setChatActivationSource(source);
+      chatActions?.onOpen();
+    },
+    [chatActions],
+  );
+  const closeReaderChat = React.useCallback(
+    (source: ReaderChatActivationSource) => {
+      setChatActivationSource(source);
+      chatActions?.onClose();
+    },
+    [chatActions],
+  );
+  const askSelection = React.useCallback(
+    (action: SelectionAction, source: ReaderChatActivationSource) => {
+      setChatActivationSource(source);
+      selectionActions.onAskSelection?.(action);
+    },
+    [selectionActions],
+  );
   const {
     annotationNavigation,
     annotationRail,
@@ -127,10 +155,10 @@ export function ReaderAppView({
     onClearSelection: selectionActions.onClearSelection,
     onCloseFloatingPanels: shell.onCloseFloatingPanels,
     onCloseHighlightChoice: selectionActions.onCloseHighlightChoice,
-    onCloseReaderChat: chatActions?.onClose,
-    onAskSelection: selectionActions.onAskSelection,
+    onCloseReaderChat: chatActions ? closeReaderChat : undefined,
+    onAskSelection: selectionActions.onAskSelection ? askSelection : undefined,
     onNavigateAnnotation: annotationActions.onNavigateAnnotation,
-    onOpenReaderChat: chatActions?.onOpen,
+    onOpenReaderChat: chatActions ? openReaderChat : undefined,
     onOpenComposer: selectionActions.onOpenComposer,
     onResolveAnnotationNavigation: annotationActions.onResolveAnnotationNavigation,
     onToggleSettings: shell.onToggleSettings,
@@ -277,7 +305,7 @@ export function ReaderAppView({
             onOpenAnnotationDiscussion={annotationActions.onOpenAnnotationDiscussion}
             onHighlightClick={annotationActions.onHighlightClick}
             onMouseUp={selectionActions.onMouseUp}
-            onAskSelection={selectionActions.onAskSelection}
+            onAskSelection={selectionActions.onAskSelection ? askSelection : undefined}
             onSelectionHandleDrag={selectionActions.onSelectionHandleDrag}
             onSelectionHandleDragEnd={selectionActions.onSelectionHandleDragEnd}
             onSelectionHandleDragStart={selectionActions.onSelectionHandleDragStart}
@@ -300,6 +328,7 @@ export function ReaderAppView({
 
         {chat && chatActions ? (
           <ReaderChatPanel
+            activationSource={chatActivationSource}
             agents={agents}
             draftContext={chat.draftContext}
             error={chat.error}
@@ -311,8 +340,8 @@ export function ReaderAppView({
             shortcutModifier={shortcutModifier}
             state={chat.state}
             onClearDraftContext={chatActions.onClearDraftContext}
-            onClose={chatActions.onClose}
-            onOpen={chatActions.onOpen}
+            onClose={closeReaderChat}
+            onOpen={openReaderChat}
             onRevealContext={chatActions.onRevealContext}
             onSelectAssistant={chatActions.onSelectAssistant}
             onSubmit={chatActions.onSubmit}
