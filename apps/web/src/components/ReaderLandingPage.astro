@@ -2,6 +2,7 @@
 import desktopPackage from '../../../desktop/package.json';
 import LandingMasthead from './landing/LandingMasthead.astro';
 import HeroSection from './landing/HeroSection.astro';
+import MobileProductPreview from './landing/MobileProductPreview.astro';
 import DemoSection from './landing/DemoSection.astro';
 import StepsSection from './landing/StepsSection.astro';
 import AgentsSection from './landing/AgentsSection.astro';
@@ -109,6 +110,7 @@ const jsonLd = buildLandingStructuredData({
     <div class="lp-root">
       <LandingMasthead lang={lang} active="home" />
       <HeroSection lang={lang} version={downloads.version} />
+      <MobileProductPreview lang={lang} />
       <DemoSection lang={lang} />
       <div class="reveal"><StepsSection lang={lang} /></div>
       <div class="reveal"><AgentsSection lang={lang} /></div>
