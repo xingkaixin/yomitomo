@@ -20,17 +20,7 @@ const zhLocaleUrl = `${isEnglish ? pathWithoutEnglishPrefix : currentPath}${curr
 const enLocalePath = isEnglish ? currentPath : currentPath === '/' ? '/en/' : `/en${currentPath}`;
 const enLocaleUrl = `${enLocalePath}${currentSearch}`;
 
-const kicker = isEnglish ? 'Local-first · AI reading companion' : '本地优先 · AI 伴读';
 const languageLabel = isEnglish ? 'EN' : '中';
-const now = new Date();
-const dateFormatOptions: Intl.DateTimeFormatOptions = {
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric',
-  weekday: 'long',
-};
-const mastheadDate = new Intl.DateTimeFormat(lang, dateFormatOptions).format(now);
-const mastheadDateTime = now.toISOString().slice(0, 10);
 
 const navLinks = [
   { key: 'home', label: isEnglish ? 'Home' : '首页', href: homeUrl },
@@ -47,7 +37,6 @@ const navLinks = [
 <header class="mh">
   <div class="lp-container">
     <div class="mh-bar">
-      <span class="mh-kicker">{kicker}</span>
       {
         active === 'home' ? (
           <a class="mh-wordmark" href={homeUrl}>
@@ -59,7 +48,6 @@ const navLinks = [
           </span>
         )
       }
-      <time class="mh-date" data-masthead-date datetime={mastheadDateTime}>{mastheadDate}</time>
     </div>
     <nav class="mh-nav" aria-label={isEnglish ? 'Main navigation' : '主导航'}>
       {
@@ -164,20 +152,7 @@ const navLinks = [
   )
 }
 
-<script is:inline define:vars={{ locale: lang }}>
-  const dateEl = document.querySelector('[data-masthead-date]');
-  if (dateEl) {
-    const currentDate = new Intl.DateTimeFormat(locale, {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      weekday: 'long',
-    }).format(new Date());
-    if (dateEl.textContent.trim() !== currentDate) {
-      dateEl.textContent = currentDate;
-    }
-  }
-
+<script is:inline>
   for (const root of document.querySelectorAll('[data-lang-switch]')) {
     const trigger = root.querySelector('[data-lang-trigger]');
     const menu = root.querySelector('[data-lang-menu]');

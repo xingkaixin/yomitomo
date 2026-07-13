@@ -16,17 +16,14 @@ const copy = isEnglish
       ],
       steps: [
         [
-          '01',
           'Line',
           "Draw a line where a paragraph makes you pause. It's not a highlight, it's an evidence anchor—precise to the sentence, always traceable back to the source.",
         ],
         [
-          '02',
           'Thought',
           'Write a judgment or question under the line, or invite an AI companion to join. One line can carry many thoughts, growing over time.',
         ],
         [
-          '03',
           'Distill',
           'When the discussion is rich enough, distill it into a conclusion worth keeping—carrying its source and your angle.',
         ],
@@ -40,15 +37,15 @@ const copy = isEnglish
         'Yomitomo 反过来：少存一点，但把读过的真正变成你的判断。',
       ],
       steps: [
-        ['01', '划线', '在让你停下来的段落划一条线。它不是高亮，是证据锚点——精确到句子，永远能回到原文。'],
-        ['02', '想法', '在划线下方写下判断、追问，或让 AI 伴读加入讨论。一条线可以挂多个想法，持续生长。'],
-        ['03', '沉淀', '当讨论足够丰富，把它整理成一段可保留的沉淀。它带着出处，也带着你的角度。'],
+        ['划线', '在让你停下来的段落划一条线。它不是高亮，是证据锚点——精确到句子，永远能回到原文。'],
+        ['想法', '在划线下方写下判断、追问，或让 AI 伴读加入讨论。一条线可以挂多个想法，持续生长。'],
+        ['沉淀', '当讨论足够丰富，把它整理成一段可保留的沉淀。它带着出处，也带着你的角度。'],
       ],
     };
 ---
 
 <section class="section">
-  <div class="lp-container">
+  <div class="lp-container concept-layout">
     <div class="section-copy">
       <p class="sec-kicker">{copy.kicker}</p>
       <h2 class="sec-title">{copy.title}</h2>
@@ -56,13 +53,14 @@ const copy = isEnglish
     </div>
     <div class="steps">
       {
-        copy.steps.map(([no, title, desc]) => (
-          <div class="step">
-            <div class="step-no">{no}</div>
-            <div class="step-rule" />
-            <h3>{title}</h3>
-            <p>{desc}</p>
-          </div>
+        copy.steps.map(([title, desc]) => (
+          <article class="step">
+            <span class="step-anchor" aria-hidden="true"></span>
+            <div class="step-copy">
+              <h3>{title}</h3>
+              <p>{desc}</p>
+            </div>
+          </article>
         ))
       }
     </div>
