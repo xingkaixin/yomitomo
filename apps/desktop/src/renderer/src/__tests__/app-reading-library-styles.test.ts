@@ -147,7 +147,29 @@ describe('reading library styles', () => {
       'height: 13px;',
     ]);
     expectRule('.library-list', ['grid-template-columns: repeat(3, minmax(0, 1fr));']);
-    expectRule('.library-entity-grid', ['grid-auto-rows: minmax(156px, auto);']);
+    expectRule('.settings-content', [
+      '--library-entity-card-min-width: 400px;',
+      '--library-entity-card-max-width: 560px;',
+    ]);
+    expect(rulesFor('.library-entity-grid').at(-1)).toEqual(expect.stringContaining('auto-fit,'));
+    expect(rulesFor('.library-entity-grid').at(-1)).toEqual(
+      expect.stringContaining('minmax(min(100%, var(--library-entity-card-min-width)), 1fr)'),
+    );
+    expect(rulesFor('.library-entity-grid').at(-1)).toEqual(
+      expect.stringContaining('grid-auto-rows: minmax(156px, auto);'),
+    );
+    expectRule('.library-entity-grid > *', [
+      'width: 100%;',
+      'max-width: var(--library-entity-card-max-width);',
+    ]);
+    expectRule('.library-skeleton-grid', [
+      'auto-fit,',
+      'minmax(min(100%, var(--library-entity-card-min-width)), 1fr)',
+    ]);
+    expectRule('.library-skeleton-card', [
+      'width: 100%;',
+      'max-width: var(--library-entity-card-max-width);',
+    ]);
     expectRule('.library-web-item-cover', ['align-self: start;']);
     expectRule('.library-web-item', ['grid-template-columns: 120px minmax(0, 1fr);']);
     expectRule('.library-web-item-source span', ['font-size: 10px;', 'line-height: 1;']);
