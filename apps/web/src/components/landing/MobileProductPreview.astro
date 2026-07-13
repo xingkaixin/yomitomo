@@ -8,18 +8,17 @@ const isEnglish = lang === 'en';
 
 const copy = isEnglish
   ? {
-      kicker: 'Desktop product preview',
-      title: 'Evidence stays connected to the discussion.',
-      detail: 'Discussion in context',
+      kicker: 'Desktop reading workspace',
+      title: 'Read the source. Mark the evidence. Discuss it in context.',
       caption:
-        'Yomitomo is a macOS and Windows desktop app. This is its actual reading workspace.',
+        'Yomitomo is a macOS and Windows desktop app. Articles, highlights, and discussions stay in one reading workspace.',
       alt: 'Yomitomo desktop reader with source highlights connected to a discussion card',
     }
   : {
-      kicker: '桌面端产品预览',
-      title: '原文证据，直接连到讨论。',
-      detail: '边栏讨论',
-      caption: 'Yomitomo 是 macOS 与 Windows 桌面应用。这里展示的是实际阅读工作台。',
+      kicker: '桌面端阅读工作台',
+      title: '读文章，画线，再讨论。',
+      caption:
+        'Yomitomo 是 macOS 与 Windows 桌面应用。文章、画线与讨论始终在同一阅读工作台中。',
       alt: 'Yomitomo 桌面阅读器，原文划线连接到边栏讨论卡片',
     };
 
@@ -47,10 +46,6 @@ const previewSrc = isEnglish ? '/assets/en-reader-1600.webp' : '/assets/cn-reade
           decoding="async"
           alt={copy.alt}
         />
-        <div class="mobile-preview-detail" aria-hidden="true">
-          <span>{copy.detail}</span>
-          <img src={previewSrc} width="1600" height="1032" loading="lazy" decoding="async" alt="" />
-        </div>
       </div>
       <figcaption>{copy.caption}</figcaption>
     </figure>

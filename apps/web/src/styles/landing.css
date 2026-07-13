@@ -1842,41 +1842,7 @@ body {
     position: absolute;
     top: 0;
     left: -46%;
-    width: 178%;
-    max-width: none;
-    height: auto;
-  }
-  .mobile-preview-detail {
-    position: absolute;
-    right: 12px;
-    bottom: 12px;
-    width: 48%;
-    aspect-ratio: 1.08;
-    overflow: hidden;
-    border: 1px solid var(--accent);
-    border-radius: 9px;
-    background: var(--surface);
-    box-shadow: 0 14px 30px hsl(31 32% 24% / 0.22);
-  }
-  .mobile-preview-detail > span {
-    position: absolute;
-    top: 8px;
-    left: 9px;
-    z-index: 2;
-    border-radius: 999px;
-    background: var(--accent);
-    color: var(--accent-fg);
-    font-family: var(--font-mono);
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    padding: 4px 7px;
-  }
-  .mobile-preview-detail img {
-    position: absolute;
-    right: -16%;
-    bottom: -4%;
-    width: 282%;
+    width: 165%;
     max-width: none;
     height: auto;
   }

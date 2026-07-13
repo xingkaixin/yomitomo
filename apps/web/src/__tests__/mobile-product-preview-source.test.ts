@@ -25,9 +25,9 @@ describe('mobile product preview source', () => {
   it('uses localized, dimensioned, lazy-loaded product screenshots', () => {
     expect(previewSource).toContain("'/assets/en-reader-1600.webp'");
     expect(previewSource).toContain("'/assets/cn-reader-1600.webp'");
-    expect(previewSource.match(/width="1600"/g)).toHaveLength(2);
-    expect(previewSource.match(/height="1032"/g)).toHaveLength(2);
-    expect(previewSource.match(/loading="lazy"/g)).toHaveLength(2);
+    expect(previewSource.match(/width="1600"/g)).toHaveLength(1);
+    expect(previewSource.match(/height="1032"/g)).toHaveLength(1);
+    expect(previewSource.match(/loading="lazy"/g)).toHaveLength(1);
     expect(previewSource).not.toContain('client:');
   });
 
