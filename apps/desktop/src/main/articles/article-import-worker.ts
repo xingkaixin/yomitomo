@@ -7,7 +7,7 @@ import {
 } from '@yomitomo/core/article-extraction';
 import { inlineArticleFavicon, inlineArticleImages } from '@yomitomo/core/article-images';
 import {
-  assertAllowedArticleImportUrl,
+  fetchArticleImportUrl,
   isArticleImportRedirectStatus,
   type ArticleImportNetworkPolicyOptions,
 } from './article-import-network-policy';
@@ -105,18 +105,22 @@ async function fetchArticleImageDataUrl(
       controller.signal,
       options,
     );
-    if (!response.ok) return null;
+    try {
+      if (!response.ok) return null;
 
-    const contentType = imageContentType(response.headers.get('content-type'));
-    if (!contentType) return null;
+      const contentType = imageContentType(response.headers.get('content-type'));
+      if (!contentType) return null;
 
-    const contentLength = Number(response.headers.get('content-length') || 0);
-    if (contentLength > MAX_ARTICLE_IMAGE_BYTES) return null;
+      const contentLength = Number(response.headers.get('content-length') || 0);
+      if (contentLength > MAX_ARTICLE_IMAGE_BYTES) return null;
 
-    const buffer = await response.arrayBuffer();
-    if (buffer.byteLength > MAX_ARTICLE_IMAGE_BYTES) return null;
+      const buffer = await response.arrayBuffer();
+      if (buffer.byteLength > MAX_ARTICLE_IMAGE_BYTES) return null;
 
-    return `data:${contentType};base64,${Buffer.from(buffer).toString('base64')}`;
+      return `data:${contentType};base64,${Buffer.from(buffer).toString('base64')}`;
+    } finally {
+      if (!response.bodyUsed) await response.body?.cancel().catch(() => undefined);
+    }
   } catch {
     return null;
   } finally {
@@ -134,12 +138,15 @@ async function fetchArticleImageResponse(
   let url = initialUrl;
 
   for (let redirectCount = 0; redirectCount <= MAX_ARTICLE_IMAGE_REDIRECTS; redirectCount += 1) {
-    await assertAllowedArticleImportUrl(url, options);
-    const response = await fetch(url, {
-      headers: imageHeaders(articleUrl, userAgent),
-      redirect: 'manual',
-      signal,
-    });
+    const response = await fetchArticleImportUrl(
+      url,
+      {
+        headers: imageHeaders(articleUrl, userAgent),
+        redirect: 'manual',
+        signal,
+      },
+      options,
+    );
 
     if (!isArticleImportRedirectStatus(response.status)) return { response, url };
     if (redirectCount === MAX_ARTICLE_IMAGE_REDIRECTS)
