@@ -162,6 +162,8 @@ export type ReaderChatModel = {
   state?: ReaderChatState;
 };
 
+export type ReaderChatActivationSource = 'keyboard' | 'pointer';
+
 export type ReaderSettingsModel = {
   messageSendShortcut: MessageSendShortcut;
   readerSettings: ReaderSettings;

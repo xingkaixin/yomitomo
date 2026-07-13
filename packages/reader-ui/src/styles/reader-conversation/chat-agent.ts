@@ -50,17 +50,11 @@ export const chatAgentStyles = `.reader-chat-fab {
   right:22px;
   bottom:22px;
   z-index:var(--reader-z-panel);
-  --reader-chat-morph-closed-size:46px;
-  --reader-chat-morph-closed-radius:14px;
-  --reader-chat-morph-open-radius:18px;
-  --reader-chat-morph-open-dur:350ms;
-  --reader-chat-morph-close-dur:250ms;
-  --reader-chat-morph-fade-dur:200ms;
-  --reader-chat-morph-ease:cubic-bezier(.34,1.25,.64,1);
-  --reader-chat-morph-close-ease:cubic-bezier(.22,1,.36,1);
-  --reader-chat-morph-slide:40px;
-  --reader-chat-morph-scale:.97;
-  --reader-chat-morph-blur:2px;
+  --reader-chat-open-dur:250ms;
+  --reader-chat-close-dur:150ms;
+  --reader-chat-motion-ease:cubic-bezier(.22,1,.36,1);
+  --reader-chat-motion-slide:16px;
+  --reader-chat-motion-scale:.98;
   display:grid;
   grid-template-rows:auto minmax(0,1fr) auto;
   width:var(--reader-chat-panel-width,min(410px,calc(100vw - 32px)));
@@ -69,57 +63,28 @@ export const chatAgentStyles = `.reader-chat-fab {
   max-height:calc(var(--app-viewport-height) - 112px);
   overflow:hidden;
   border:1px solid var(--app-reader-chat-panel-border);
-  border-radius:var(--reader-chat-morph-open-radius);
+  border-radius:18px;
   background:var(--app-reader-chat-panel-bg);
   box-shadow:var(--app-reader-chat-panel-shadow);
   font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);
   color:var(--reader-ink);
   opacity:1;
-  filter:blur(0);
-  transform:scale(var(--reader-chat-resize-scale-x,1),var(--reader-chat-resize-scale-y,1));
+  transform:translateX(0) scale(var(--reader-chat-resize-scale-x,1),var(--reader-chat-resize-scale-y,1));
   transform-origin:100% 100%;
-  transition:width var(--reader-chat-morph-open-dur) var(--reader-chat-morph-ease),
-    height var(--reader-chat-morph-open-dur) var(--reader-chat-morph-ease),
-    border-radius var(--reader-chat-morph-open-dur) var(--reader-chat-morph-ease),
-    transform 160ms var(--reader-chat-morph-close-ease),
-    box-shadow 160ms ease
+  transition:opacity var(--reader-chat-open-dur) var(--reader-chat-motion-ease),
+    transform var(--reader-chat-open-dur) var(--reader-chat-motion-ease)
 }
 .reader-chat-panel.is-opening,.reader-chat-panel.is-closing {
-  width:var(--reader-chat-morph-closed-size);
-  height:var(--reader-chat-morph-closed-size);
-  border-radius:var(--reader-chat-morph-closed-radius);
+  opacity:0;
+  transform:translateX(var(--reader-chat-motion-slide)) scale(var(--reader-chat-motion-scale));
   pointer-events:none
 }
 .reader-chat-panel.is-closing {
   z-index:calc(var(--reader-z-popover) - 1);
-  transition:width var(--reader-chat-morph-close-dur) var(--reader-chat-morph-close-ease),
-    height var(--reader-chat-morph-close-dur) var(--reader-chat-morph-close-ease),
-    border-radius var(--reader-chat-morph-close-dur) var(--reader-chat-morph-close-ease),
-    transform 120ms var(--reader-chat-morph-close-ease),
-    box-shadow 120ms ease
+  transition-duration:var(--reader-chat-close-dur),var(--reader-chat-close-dur)
 }
-.reader-chat-panel>.reader-chat-header,.reader-chat-panel>.reader-chat-messages,.reader-chat-panel>.reader-chat-composer {
-  opacity:1;
-  filter:blur(0);
-  transform:translateX(0) scale(1);
-  transition:opacity var(--reader-chat-morph-fade-dur) var(--reader-chat-morph-close-ease),
-    filter var(--reader-chat-morph-fade-dur) var(--reader-chat-morph-close-ease),
-    transform var(--reader-chat-morph-open-dur) var(--reader-chat-morph-close-ease)
-}
-.reader-chat-panel.is-opening>.reader-chat-header,
-.reader-chat-panel.is-opening>.reader-chat-messages,
-.reader-chat-panel.is-opening>.reader-chat-composer,
-.reader-chat-panel.is-closing>.reader-chat-header,
-.reader-chat-panel.is-closing>.reader-chat-messages,
-.reader-chat-panel.is-closing>.reader-chat-composer {
-  opacity:0;
-  filter:blur(var(--reader-chat-morph-blur));
-  transform:translateX(var(--reader-chat-morph-slide)) scale(var(--reader-chat-morph-scale));
-  pointer-events:none
-}
-.reader-chat-panel.is-opening>.reader-chat-resize-handle,.reader-chat-panel.is-closing>.reader-chat-resize-handle {
-  opacity:0;
-  pointer-events:none
+.reader-chat-panel[data-activation-source="keyboard"] {
+  transition:none
 }
 .reader-chat-panel.is-resizing {
   box-shadow:0 22px 58px color-mix(in srgb,var(--reader-ink) 18%,transparent),0 8px 18px color-mix(in srgb,var(--reader-ink) 8%,transparent);
@@ -144,8 +109,7 @@ export const chatAgentStyles = `.reader-chat-fab {
     animation:none!important;
     transform:none!important
   }
-  .reader-chat-panel,.reader-chat-panel>.reader-chat-header,.reader-chat-panel>.reader-chat-messages,.reader-chat-panel>.reader-chat-composer {
-    filter:none!important;
+  .reader-chat-panel {
     transform:none!important;
     transition:none!important
   }

@@ -124,7 +124,7 @@ describe('useReaderShellInteractions', () => {
 
     fireEvent.keyDown(window, { key: 'q' });
 
-    expect(onAskSelection).toHaveBeenCalledWith(selectionAction);
+    expect(onAskSelection).toHaveBeenCalledWith(selectionAction, 'keyboard');
     expect(onOpenReaderChat).not.toHaveBeenCalled();
   });
 
@@ -141,7 +141,7 @@ describe('useReaderShellInteractions', () => {
 
     fireEvent.keyDown(window, { key: 'q' });
 
-    expect(onOpenReaderChat).toHaveBeenCalledTimes(1);
+    expect(onOpenReaderChat).toHaveBeenCalledWith('keyboard');
     expect(onCloseReaderChat).not.toHaveBeenCalled();
 
     rerender(
@@ -155,7 +155,7 @@ describe('useReaderShellInteractions', () => {
 
     fireEvent.keyDown(window, { key: 'Q' });
 
-    expect(onCloseReaderChat).toHaveBeenCalledTimes(1);
+    expect(onCloseReaderChat).toHaveBeenCalledWith('keyboard');
   });
 
   it('does not toggle reader chat from editable keyboard targets', () => {

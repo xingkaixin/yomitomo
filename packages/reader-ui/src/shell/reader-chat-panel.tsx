@@ -18,13 +18,13 @@ import {
 import { FloatingComposer } from '../shared/floating-composer';
 import { formatRelativeTime, formatTime } from '../reader-date-utils';
 import { useCompositionSubmit } from '../use-composition-submit';
-import type { ReaderUiLabels } from './reader-app-view-types';
+import type { ReaderChatActivationSource, ReaderUiLabels } from './reader-app-view-types';
 import { defaultReaderUiLabels } from './reader-app-view-types';
 
 const CHAT_MAX_TEXTAREA_ROWS = 8;
 const CHAT_DEFAULT_SIZE = { width: 410, height: 640 };
 const CHAT_MIN_SIZE = { width: 320, height: 360 };
-const CHAT_PANEL_ANIMATION_MS = 250;
+const CHAT_PANEL_EXIT_MS = 150;
 const CHAT_VIEWPORT_GUTTER = { width: 32, height: 112 };
 
 type ReaderChatPanelMode = 'default' | 'custom';
@@ -57,6 +57,7 @@ type ReaderChatViewport = {
 };
 
 export type ReaderChatPanelProps = {
+  activationSource?: ReaderChatActivationSource;
   agents: PublicAgent[];
   draftContext?: ReaderQuestionContext;
   error?: string;
@@ -68,14 +69,15 @@ export type ReaderChatPanelProps = {
   shortcutModifier: string;
   state?: ReaderChatState;
   onClearDraftContext?: () => void;
-  onClose: () => void;
-  onOpen: () => void;
+  onClose: (source: ReaderChatActivationSource) => void;
+  onOpen: (source: ReaderChatActivationSource) => void;
   onRevealContext?: (context: ReaderQuestionContext) => void | Promise<void>;
   onSelectAssistant?: (assistantId: string) => void;
   onSubmit: (content: string) => void | Promise<void>;
 };
 
 export function ReaderChatPanel({
+  activationSource = 'pointer',
   agents,
   draftContext,
   error,
@@ -102,7 +104,7 @@ export function ReaderChatPanel({
     scaleX: 1,
     scaleY: 1,
   });
-  const renderPanel = open || panelVisible;
+  const renderPanel = open || (activationSource === 'pointer' && panelVisible);
   const viewport = useReaderChatViewport(renderPanel);
   const closeTimerRef = useRef<number | null>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
@@ -140,6 +142,11 @@ export function ReaderChatPanel({
     };
 
     clearAnimationWork();
+    if (activationSource === 'keyboard') {
+      setPanelVisible(open);
+      setPanelPhase(open ? 'open' : 'closing');
+      return clearAnimationWork;
+    }
     if (open) {
       setPanelVisible(true);
       setPanelPhase('opening');
@@ -154,9 +161,9 @@ export function ReaderChatPanel({
     closeTimerRef.current = window.setTimeout(() => {
       setPanelVisible(false);
       closeTimerRef.current = null;
-    }, CHAT_PANEL_ANIMATION_MS);
+    }, CHAT_PANEL_EXIT_MS);
     return clearAnimationWork;
-  }, [open, panelVisible]);
+  }, [activationSource, open, panelVisible]);
 
   useLayoutEffect(
     () => () => {
@@ -262,7 +269,8 @@ export function ReaderChatPanel({
     window.addEventListener('pointercancel', handlePointerUp);
   }
 
-  const returningToFab = !open && panelVisible && panelPhase === 'closing';
+  const returningToFab =
+    activationSource === 'pointer' && !open && panelVisible && panelPhase === 'closing';
   const minimizedButtonClassName = ['reader-chat-fab', returningToFab ? 'is-returning' : '']
     .filter(Boolean)
     .join(' ');
@@ -276,7 +284,7 @@ export function ReaderChatPanel({
         type="button"
         aria-label={labels.openReaderChat}
         aria-expanded={false}
-        onClick={onOpen}
+        onClick={() => onOpen('pointer')}
       >
         <MessageCircleQuestion size={20} strokeWidth={2.15} />
         <span className="reader-chat-fab-shortcut" aria-hidden="true">
@@ -294,7 +302,14 @@ export function ReaderChatPanel({
     '--reader-chat-resize-scale-y': resizeFeedback.scaleY.toFixed(4),
     '--reader-chat-panel-width': `${panelSize.width}px`,
   };
-  const effectivePanelPhase = open && panelPhase === 'closing' ? 'opening' : panelPhase;
+  const effectivePanelPhase =
+    activationSource === 'keyboard'
+      ? open
+        ? 'open'
+        : 'closing'
+      : open && panelPhase === 'closing'
+        ? 'opening'
+        : panelPhase;
   const panelClassName = [
     'reader-chat-panel',
     `is-${effectivePanelPhase}`,
@@ -310,6 +325,7 @@ export function ReaderChatPanel({
       <section
         className={panelClassName}
         data-open={open ? 'true' : 'false'}
+        data-activation-source={activationSource}
         data-state={effectivePanelPhase}
         style={panelStyle}
         aria-label={labels.readerChatAria}
@@ -338,7 +354,11 @@ export function ReaderChatPanel({
               content={<ShortcutTooltipContent keys={['Q']} label={labels.collapseReaderChat} />}
               side="left"
             >
-              <button type="button" aria-label={labels.collapseReaderChat} onClick={onClose}>
+              <button
+                type="button"
+                aria-label={labels.collapseReaderChat}
+                onClick={() => onClose('pointer')}
+              >
                 <Minus size={16} />
               </button>
             </ReaderTooltip>

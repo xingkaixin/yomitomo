@@ -756,10 +756,88 @@ describe('ReaderChatPanel', () => {
     expect(closingPanel?.getAttribute('data-state')).toBe('closing');
 
     act(() => {
-      vi.advanceTimersByTime(260);
+      vi.advanceTimersByTime(160);
     });
 
     expect(container.querySelector('.reader-chat-panel')).toBeNull();
+  });
+
+  it('opens reader chat with interruptible pointer motion', () => {
+    vi.useFakeTimers();
+    const props: React.ComponentProps<typeof ReaderChatPanel> = {
+      activationSource: 'pointer',
+      agents: [agent('agent_1', '林知微')],
+      messageSendShortcut: 'enter',
+      open: false,
+      selectedAssistantId: 'agent_1',
+      shortcutModifier: '⌘',
+      onClose: vi.fn(),
+      onOpen: vi.fn(),
+      onSubmit: vi.fn(),
+    };
+    const { container, rerender } = render(<ReaderChatPanel {...props} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '打开阅读问答' }));
+    expect(props.onOpen).toHaveBeenCalledWith('pointer');
+
+    rerender(<ReaderChatPanel {...props} open />);
+    expect(container.querySelector('.reader-chat-panel')?.getAttribute('data-state')).toBe(
+      'opening',
+    );
+
+    void act(() => vi.advanceTimersByTime(20));
+    expect(container.querySelector('.reader-chat-panel')?.getAttribute('data-state')).toBe('open');
+  });
+
+  it('opens and closes reader chat immediately for keyboard activation', () => {
+    const props: React.ComponentProps<typeof ReaderChatPanel> = {
+      activationSource: 'pointer',
+      agents: [agent('agent_1', '林知微')],
+      messageSendShortcut: 'enter',
+      open: false,
+      selectedAssistantId: 'agent_1',
+      shortcutModifier: '⌘',
+      onClose: vi.fn(),
+      onOpen: vi.fn(),
+      onSubmit: vi.fn(),
+    };
+    const { container, rerender } = render(<ReaderChatPanel {...props} />);
+
+    rerender(<ReaderChatPanel {...props} activationSource="keyboard" open />);
+
+    const panel = container.querySelector<HTMLElement>('.reader-chat-panel');
+    expect(panel?.getAttribute('data-state')).toBe('open');
+    expect(panel?.getAttribute('data-activation-source')).toBe('keyboard');
+    expect(screen.getByLabelText('阅读问答内容')).toBe(document.activeElement);
+
+    rerender(<ReaderChatPanel {...props} activationSource="keyboard" />);
+
+    expect(container.querySelector('.reader-chat-panel')).toBeNull();
+    expect(screen.getByRole('button', { name: '打开阅读问答' }).classList).not.toContain(
+      'is-returning',
+    );
+  });
+
+  it('keeps the panel open when pointer close is quickly reversed', () => {
+    vi.useFakeTimers();
+    const props: React.ComponentProps<typeof ReaderChatPanel> = {
+      activationSource: 'pointer',
+      agents: [agent('agent_1', '林知微')],
+      messageSendShortcut: 'enter',
+      open: true,
+      selectedAssistantId: 'agent_1',
+      shortcutModifier: '⌘',
+      onClose: vi.fn(),
+      onOpen: vi.fn(),
+      onSubmit: vi.fn(),
+    };
+    const { container, rerender } = render(<ReaderChatPanel {...props} />);
+
+    rerender(<ReaderChatPanel {...props} open={false} />);
+    rerender(<ReaderChatPanel {...props} />);
+    void act(() => vi.advanceTimersByTime(200));
+
+    expect(container.querySelector('.reader-chat-panel')?.getAttribute('data-state')).toBe('open');
   });
 
   it('uses avatar assistant selection and keeps quoted context inside the composer', () => {

@@ -9,6 +9,7 @@ import type {
   AnnotationNavigationState,
   HighlightChoice,
   PendingComposer,
+  ReaderChatActivationSource,
   SelectionAction,
 } from './reader-app-view-types';
 import { useReaderShellInteractions } from './use-reader-shell-interactions';
@@ -60,10 +61,10 @@ export type UseReaderShellStateOptions = {
   onClearSelection: () => void;
   onCloseFloatingPanels: () => void;
   onCloseHighlightChoice: () => void;
-  onCloseReaderChat?: () => void;
-  onAskSelection?: (action: SelectionAction) => void;
+  onCloseReaderChat?: (source: ReaderChatActivationSource) => void;
+  onAskSelection?: (action: SelectionAction, source: ReaderChatActivationSource) => void;
   onNavigateAnnotation?: (annotationId: string, direction: AnnotationNavigationDirection) => void;
-  onOpenReaderChat?: () => void;
+  onOpenReaderChat?: (source: ReaderChatActivationSource) => void;
   onOpenComposer: (action: SelectionAction) => void;
   onResolveAnnotationNavigation?: (
     request: AnnotationNavigationRequest,
