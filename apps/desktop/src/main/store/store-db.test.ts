@@ -19,6 +19,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   return {
     ...actual,
     copyFile: vi.fn(actual.copyFile),
+    rename: vi.fn(actual.rename),
     rm: vi.fn(actual.rm),
   };
 });
@@ -38,7 +39,7 @@ import {
   replaceDatabaseFile,
   runSqliteMaintenance,
 } from './store-db';
-import { copyFile, rm } from 'node:fs/promises';
+import { copyFile, rename, rm } from 'node:fs/promises';
 
 const actualFs = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises');
 
@@ -130,6 +131,7 @@ describe('store database backup and restore', () => {
     expect(safetyBackup).toContain(join(testPaths.userData, 'backups'));
     await expect(readFile(safetyBackup)).resolves.toBeInstanceOf(Buffer);
     expect(readMarker()).toBe('source');
+    expect(await restoreTemporaryFiles()).toEqual([]);
   });
 
   it('keeps the current database file when restore copy fails', async () => {
@@ -142,6 +144,101 @@ describe('store database backup and restore', () => {
     await expect(replaceDatabaseFile(source)).rejects.toThrow('copy failed');
 
     expect(readMarker()).toBe('current');
+  });
+
+  it('keeps the current database usable when restore copy writes partially before failing', async () => {
+    writeMarker('source');
+    const source = join(testPaths.userData, 'source.sqlite');
+    await backupDatabaseFile(source);
+    writeMarker('current');
+    vi.mocked(copyFile).mockImplementationOnce(async (_source, destination) => {
+      await actualFs.writeFile(destination, 'partial restore');
+      throw new Error('copy failed after partial write');
+    });
+
+    await expect(replaceDatabaseFile(source)).rejects.toThrow('copy failed after partial write');
+
+    expect(readMarker()).toBe('current');
+    expect(await restoreTemporaryFiles()).toEqual([]);
+  });
+
+  it('keeps the current database open when the copied restore file is invalid', async () => {
+    writeMarker('current');
+    const source = join(testPaths.userData, 'invalid.sqlite');
+    await writeFile(source, 'not sqlite');
+
+    await expect(replaceDatabaseFile(source)).rejects.toThrow(
+      'DATA_MANAGEMENT_INVALID_SQLITE_DATABASE',
+    );
+
+    expect(readMarker()).toBe('current');
+    expect(await restoreTemporaryFiles()).toEqual([]);
+  });
+
+  it('reopens the current database when creating the rollback snapshot fails', async () => {
+    writeMarker('source');
+    const source = join(testPaths.userData, 'source.sqlite');
+    await backupDatabaseFile(source);
+    writeMarker('current');
+    const databasePath = getDatabasePath();
+    vi.mocked(copyFile).mockImplementation(async (from, to) => {
+      if (String(from) === databasePath && String(to).includes('.rollback-')) {
+        await actualFs.writeFile(to, 'partial rollback');
+        throw new Error('rollback copy failed');
+      }
+      return actualFs.copyFile(from, to);
+    });
+
+    await expect(replaceDatabaseFile(source)).rejects.toThrow('rollback copy failed');
+
+    expect(readMarker()).toBe('current');
+    expect(await restoreTemporaryFiles()).toEqual([]);
+  });
+
+  it('rolls back when installing the copied database fails', async () => {
+    writeMarker('source');
+    const source = join(testPaths.userData, 'source.sqlite');
+    await backupDatabaseFile(source);
+    writeMarker('current');
+    const databasePath = getDatabasePath();
+    vi.mocked(rename).mockImplementation(async (from, to) => {
+      if (String(from).includes('.restore-') && String(to) === databasePath) {
+        throw new Error('install rename failed');
+      }
+      return actualFs.rename(from, to);
+    });
+
+    await expect(replaceDatabaseFile(source)).rejects.toThrow('install rename failed');
+
+    expect(readMarker()).toBe('current');
+    expect(await restoreTemporaryFiles()).toEqual([]);
+  });
+
+  it('rolls back when the replacement database cannot be reopened', async () => {
+    writeMarker('source');
+    const source = join(testPaths.userData, 'source.sqlite');
+    await backupDatabaseFile(source);
+    writeMarker('current');
+    const databasePath = getDatabasePath();
+    vi.mocked(rename).mockImplementation(async (from, to) => {
+      await actualFs.rename(from, to);
+      if (String(from).includes('.restore-') && String(to) === databasePath) {
+        await actualFs.writeFile(databasePath, 'invalid replacement');
+        await actualFs.writeFile(`${databasePath}-wal`, 'stale replacement wal');
+        await actualFs.writeFile(`${databasePath}-shm`, 'stale replacement shm');
+      }
+    });
+
+    await expect(replaceDatabaseFile(source)).rejects.toThrow();
+
+    expect(readMarker()).toBe('current');
+    await expect(readOptionalFile(`${databasePath}-wal`)).resolves.not.toContain(
+      'stale replacement',
+    );
+    await expect(readOptionalFile(`${databasePath}-shm`)).resolves.not.toContain(
+      'stale replacement',
+    );
+    expect(await restoreTemporaryFiles()).toEqual([]);
   });
 
   it('keeps the current database file when restore sidecar cleanup fails', async () => {
@@ -158,7 +255,7 @@ describe('store database backup and restore', () => {
     await expect(replaceDatabaseFile(source)).rejects.toThrow('sidecar cleanup failed');
 
     expect(readMarker()).toBe('current');
-    expect(vi.mocked(copyFile)).not.toHaveBeenCalled();
+    expect(await restoreTemporaryFiles()).toEqual([]);
   });
 });
 
@@ -237,6 +334,15 @@ async function backupTemporaryFiles(target: string) {
   const temporaryFilePrefix = `${basename(target)}.tmp-`;
   const files = await actualFs.readdir(dirname(target));
   return files.filter((file) => file.startsWith(temporaryFilePrefix)).toSorted();
+}
+
+async function restoreTemporaryFiles() {
+  const files = await actualFs.readdir(testPaths.userData);
+  return files.filter((file) => /\.(?:restore|rollback)-/.test(file)).toSorted();
+}
+
+async function readOptionalFile(filePath: string) {
+  return actualFs.readFile(filePath, 'utf8').catch(() => '');
 }
 
 function maintenanceDatabase() {

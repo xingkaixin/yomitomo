@@ -139,13 +139,44 @@ export async function replaceDatabaseFile(sourcePath: string) {
   if (source === target) throw new Error('DATA_MANAGEMENT_RESTORE_SOURCE_IS_CURRENT_DATABASE');
 
   const backupPath = await safetyBackupPath();
-  if (existsSync(target)) await backupDatabaseFile(backupPath);
+  const targetExists = existsSync(target);
+  if (targetExists) await backupDatabaseFile(backupPath);
 
-  closeDatabase();
+  const temporaryTarget = temporaryRestorePath(target);
+  const rollbackTarget = rollbackDatabasePath(target);
+  let databaseClosed = false;
+  let replacementInstalled = false;
   await mkdir(dirname(target), { recursive: true });
-  await removeSqliteSidecarFiles(target);
-  await copyFile(source, target);
-  return backupPath;
+  try {
+    await copyFile(source, temporaryTarget);
+    validateRestoreCandidate(temporaryTarget);
+    await removeSqliteSidecarFiles(temporaryTarget);
+
+    closeDatabase();
+    databaseClosed = true;
+    await removeSqliteSidecarFiles(target);
+    if (targetExists) {
+      await copyFile(target, rollbackTarget);
+    }
+    await rename(temporaryTarget, target);
+    replacementInstalled = true;
+    getDatabase();
+    databaseClosed = false;
+    await removeBackupTemporaryFiles(rollbackTarget);
+    return backupPath;
+  } catch (error) {
+    await removeBackupTemporaryFiles(temporaryTarget);
+    if (databaseClosed) {
+      await rollbackDatabaseReplacement({
+        target,
+        rollbackTarget,
+        targetExists,
+        replacementInstalled,
+        restoreError: error,
+      });
+    }
+    throw error;
+  }
 }
 
 export function purgeSqliteFiles() {
@@ -196,6 +227,78 @@ async function safetyBackupPath() {
 
 function temporaryBackupPath(target: string) {
   return join(dirname(target), `${basename(target)}.tmp-${randomUUID()}`);
+}
+
+function temporaryRestorePath(target: string) {
+  return join(dirname(target), `${basename(target)}.restore-${randomUUID()}`);
+}
+
+function rollbackDatabasePath(target: string) {
+  return join(dirname(target), `${basename(target)}.rollback-${randomUUID()}`);
+}
+
+function validateRestoreCandidate(filePath: string) {
+  const SQLiteDatabase = loadSQLiteDatabase();
+  let candidate: SQLiteDatabase.Database;
+  try {
+    candidate = new SQLiteDatabase(filePath, { readonly: true, fileMustExist: true });
+  } catch (error) {
+    throw new Error('DATA_MANAGEMENT_INVALID_SQLITE_DATABASE', { cause: error });
+  }
+
+  try {
+    let integrity: unknown;
+    try {
+      integrity = candidate.pragma('integrity_check', { simple: true });
+    } catch (error) {
+      throw new Error('DATA_MANAGEMENT_INVALID_SQLITE_DATABASE', { cause: error });
+    }
+    if (integrity !== 'ok') {
+      throw new Error('DATA_MANAGEMENT_DATABASE_INTEGRITY_FAILED');
+    }
+    try {
+      candidate.prepare('SELECT id FROM __yomitomo_migrations LIMIT 1').get();
+    } catch (error) {
+      throw new Error('DATA_MANAGEMENT_NOT_YOMITOMO_BACKUP', { cause: error });
+    }
+  } finally {
+    candidate.close();
+  }
+}
+
+async function rollbackDatabaseReplacement(input: {
+  target: string;
+  rollbackTarget: string;
+  targetExists: boolean;
+  replacementInstalled: boolean;
+  restoreError: unknown;
+}) {
+  closeDatabase();
+  const recoveryErrors: unknown[] = [];
+
+  if (input.targetExists && input.replacementInstalled) {
+    await removeSqliteSidecarFiles(input.target).catch((error) => recoveryErrors.push(error));
+    await rename(input.rollbackTarget, input.target).catch((error) => recoveryErrors.push(error));
+  } else if (!input.targetExists && input.replacementInstalled) {
+    await rm(input.target, { force: true }).catch((error) => recoveryErrors.push(error));
+  }
+
+  await removeBackupTemporaryFiles(input.rollbackTarget);
+
+  if (input.targetExists) {
+    try {
+      getDatabase();
+    } catch (error) {
+      recoveryErrors.push(error);
+    }
+  }
+
+  if (recoveryErrors.length > 0) {
+    throw new AggregateError(
+      [input.restoreError, ...recoveryErrors],
+      'DATA_MANAGEMENT_RESTORE_ROLLBACK_FAILED',
+    );
+  }
 }
 
 async function removeBackupTemporaryFiles(filePath: string) {
