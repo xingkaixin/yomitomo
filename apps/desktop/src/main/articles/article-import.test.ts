@@ -64,10 +64,9 @@ vi.mock('electron', () => ({
       ),
       session: {
         clearCache: vi.fn().mockResolvedValue(undefined),
+        closeAllConnections: vi.fn().mockResolvedValue(undefined),
         clearStorageData: vi.fn().mockResolvedValue(undefined),
-        webRequest: {
-          onBeforeRequest: vi.fn(),
-        },
+        setProxy: vi.fn().mockResolvedValue(undefined),
       },
     };
     readonly options: {
@@ -115,10 +114,9 @@ const browserWindowMocks = vi.hoisted(() => ({
     webContents: {
       session: {
         clearCache: ReturnType<typeof vi.fn>;
+        closeAllConnections: ReturnType<typeof vi.fn>;
         clearStorageData: ReturnType<typeof vi.fn>;
-        webRequest: {
-          onBeforeRequest: ReturnType<typeof vi.fn>;
-        };
+        setProxy: ReturnType<typeof vi.fn>;
       };
     };
   }>,
@@ -434,20 +432,13 @@ describe('article import', () => {
     expect(partition).toMatch(/^yomitomo-import-/);
     expect(partition?.startsWith('persist:')).toBe(false);
     expect(browserWindow.options.webPreferences?.sandbox).toBe(true);
-    const onBeforeRequest = browserWindow.webContents.session.webRequest.onBeforeRequest;
-    expect(onBeforeRequest).toHaveBeenNthCalledWith(
-      1,
-      { urls: ['http://*/*', 'https://*/*'] },
-      expect.any(Function),
+    expect(browserWindow.webContents.session.setProxy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        proxyBypassRules: '<-loopback>',
+        proxyRules: expect.stringMatching(/^http:\/\/127\.0\.0\.1:\d+$/),
+      }),
     );
-    const listener = onBeforeRequest.mock.calls[0][1] as (
-      details: { url: string },
-      callback: (response: { cancel?: boolean }) => void,
-    ) => void;
-    const callback = vi.fn();
-    listener({ url: 'http://127.0.0.1/private' }, callback);
-    await vi.waitFor(() => expect(callback).toHaveBeenCalledWith({ cancel: true }));
-    expect(onBeforeRequest).toHaveBeenLastCalledWith(null);
+    expect(browserWindow.webContents.session.closeAllConnections).toHaveBeenCalledOnce();
     expect(browserWindow.destroyed).toBe(true);
     expect(browserWindow.webContents.session.clearStorageData).toHaveBeenCalledOnce();
     expect(browserWindow.webContents.session.clearCache).toHaveBeenCalledOnce();
@@ -475,9 +466,7 @@ describe('article import', () => {
     ).resolves.toEqual(article);
 
     expect(browserWindowMocks.instances).toHaveLength(1);
-    expect(
-      browserWindowMocks.instances[0].webContents.session.webRequest.onBeforeRequest,
-    ).not.toHaveBeenCalled();
+    expect(browserWindowMocks.instances[0].webContents.session.setProxy).not.toHaveBeenCalled();
   });
 });
 

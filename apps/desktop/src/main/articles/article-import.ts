@@ -12,9 +12,11 @@ import type { ArticleRecord } from '@yomitomo/shared';
 import { Effect } from 'effect';
 import {
   assertAllowedArticleImportUrl,
+  fetchArticleImportUrl,
   isArticleImportRedirectStatus,
   type ArticleImportNetworkPolicyOptions,
 } from './article-import-network-policy';
+import { createArticleImportNetworkProxy } from './article-import-network-proxy';
 
 const IMPORT_TIMEOUT_MS = 15_000;
 export const MAX_ARTICLE_IMPORT_HTML_BYTES = 5_000_000;
@@ -127,6 +129,7 @@ function fetchArticleHtmlEffect(url: string, signal: AbortSignal, options: Artic
       const userAgent = importUserAgent(page.url);
 
       if (!response.ok) {
+        yield* Effect.promise(() => cancelResponseBody(response));
         if (shouldLoadWithBrowser(response)) {
           return yield* loadRenderedArticleHtmlEffect(page.url, userAgent, signal, options);
         }
@@ -134,7 +137,14 @@ function fetchArticleHtmlEffect(url: string, signal: AbortSignal, options: Artic
       }
 
       const html = yield* Effect.tryPromise({
-        try: () => readArticleImportResponseHtml(response, fetchSignal),
+        try: async () => {
+          try {
+            return await readArticleImportResponseHtml(response, fetchSignal);
+          } catch (error) {
+            await cancelResponseBody(response);
+            throw error;
+          }
+        },
         catch: (error) => articleFetchError(error, signal),
       });
       if (isChallengeHtml(html)) {
@@ -153,12 +163,15 @@ async function fetchArticleResponse(
   let url = initialUrl;
 
   for (let redirectCount = 0; redirectCount <= MAX_ARTICLE_IMPORT_REDIRECTS; redirectCount += 1) {
-    await assertAllowedArticleImportUrl(url, options);
-    const response = await fetch(url, {
-      headers: importHeaders(importUserAgent(url)),
-      redirect: 'manual',
-      signal,
-    });
+    const response = await fetchArticleImportUrl(
+      url,
+      {
+        headers: importHeaders(importUserAgent(url)),
+        redirect: 'manual',
+        signal,
+      },
+      options,
+    );
 
     if (!isArticleImportRedirect(response)) return { response, url };
     if (redirectCount === MAX_ARTICLE_IMPORT_REDIRECTS) {
@@ -215,6 +228,11 @@ function shouldLoadWithBrowser(response: Response) {
   );
 }
 
+async function cancelResponseBody(response: Response) {
+  if (!response.body || response.bodyUsed) return;
+  await response.body.cancel().catch(() => undefined);
+}
+
 function loadRenderedArticleHtmlEffect(
   url: string,
   userAgent: string | undefined,
@@ -243,7 +261,7 @@ async function loadRenderedArticleHtml(
     webPreferences,
   });
   const importSession = browserWindow.webContents.session;
-  const clearRequestPolicy = installArticleImportRequestPolicy(importSession, options);
+  const clearRequestPolicy = await installArticleImportRequestPolicy(importSession, options);
   logArticleImportSession(url, importId, webPreferences.partition);
 
   const deadline = Date.now() + RENDERED_IMPORT_TIMEOUT_MS;
@@ -272,24 +290,34 @@ async function loadRenderedArticleHtml(
   } finally {
     signal.removeEventListener('abort', abort);
     clearTimeout(timeout);
-    clearRequestPolicy();
+    await clearRequestPolicy();
     if (!browserWindow.isDestroyed()) browserWindow.destroy();
     await clearArticleImportSession(importSession, importId);
   }
 }
 
-function installArticleImportRequestPolicy(importSession: Session, options: ArticleImportOptions) {
-  if (options.allowLocalNetworkArticleImport) return () => undefined;
-  importSession.webRequest.onBeforeRequest(
-    { urls: ['http://*/*', 'https://*/*'] },
-    (details, callback) => {
-      void assertAllowedArticleImportUrl(details.url, options).then(
-        () => callback({}),
-        () => callback({ cancel: true }),
-      );
-    },
-  );
-  return () => importSession.webRequest.onBeforeRequest(null);
+async function installArticleImportRequestPolicy(
+  importSession: Session,
+  options: ArticleImportOptions,
+) {
+  if (options.allowLocalNetworkArticleImport) return async () => undefined;
+  const proxy = await createArticleImportNetworkProxy(options);
+  try {
+    await importSession.setProxy({
+      proxyBypassRules: '<-loopback>',
+      proxyRules: proxy.url,
+    });
+  } catch (error) {
+    await proxy.close();
+    throw error;
+  }
+  return async () => {
+    try {
+      await importSession.closeAllConnections();
+    } finally {
+      await proxy.close();
+    }
+  };
 }
 
 function createArticleImportId() {
