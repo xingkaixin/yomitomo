@@ -79,10 +79,10 @@ export function computeReadingActivityDays(
         const counts = articleSummaryCounts(article);
         day.annotations += counts.annotations;
         day.thoughts += counts.thoughts;
-        day.comments += counts.thoughts;
+        day.comments += counts.comments;
         day.aiComments += counts.aiComments;
         day.distillations += counts.distillations;
-        day.score += counts.annotations + counts.thoughts + counts.distillations;
+        day.score += counts.annotations + counts.comments + counts.distillations;
       });
       continue;
     }
@@ -146,7 +146,7 @@ function countReadingStats(
           articles: result.articles + (inPeriod(article.updatedAt) ? 1 : 0),
           annotations: result.annotations + (counts?.annotations || 0),
           thoughts: result.thoughts + (counts?.thoughts || 0),
-          comments: result.comments + (counts?.thoughts || 0),
+          comments: result.comments + (counts?.comments || 0),
           aiComments: result.aiComments + (counts?.aiComments || 0),
           distillations: result.distillations + (counts?.distillations || 0),
         };
@@ -191,10 +191,17 @@ function articleSummaryCounts(article: ArticleSummaryRecord) {
   return {
     annotations: article.annotationCount ?? article.annotations.length,
     thoughts:
+      article.thoughtCount ??
       article.commentCount ??
       article.annotations.reduce(
         (count, annotation) =>
           count + annotation.comments.filter((comment) => !comment.replyTo).length,
+        0,
+      ),
+    comments:
+      article.discussionCommentCount ??
+      article.annotations.reduce(
+        (count, annotation) => count + annotationThreadComments(annotation).length,
         0,
       ),
     aiComments:

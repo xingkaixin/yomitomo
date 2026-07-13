@@ -21,7 +21,8 @@ describe('article repository summaries', () => {
     expect(counts.size).toBe(1);
     expect(counts.get('article_a')).toEqual({
       annotationCount: 2,
-      commentCount: 1,
+      thoughtCount: 2,
+      discussionCommentCount: 3,
       aiCommentCount: 2,
       distillationCount: 1,
     });
@@ -38,13 +39,15 @@ describe('article repository summaries', () => {
 
     expect(counts.get('article_a')).toEqual({
       annotationCount: 2,
-      commentCount: 1,
+      thoughtCount: 2,
+      discussionCommentCount: 3,
       aiCommentCount: 2,
       distillationCount: 1,
     });
     expect(counts.get('article_b')).toEqual({
       annotationCount: 1,
-      commentCount: 1,
+      thoughtCount: 1,
+      discussionCommentCount: 1,
       aiCommentCount: 1,
       distillationCount: 1,
     });
@@ -56,7 +59,8 @@ describe('article repository summaries', () => {
     expect(article).toMatchObject({
       id: 'article_a',
       annotationCount: 2,
-      commentCount: 1,
+      thoughtCount: 2,
+      discussionCommentCount: 3,
       aiCommentCount: 2,
       distillationCount: 1,
     });
@@ -119,7 +123,8 @@ describe('article repository summaries', () => {
 
     expect(fullCounts.get('article_1')).toEqual({
       annotationCount: 50,
-      commentCount: 56,
+      thoughtCount: 56,
+      discussionCommentCount: 56,
       aiCommentCount: 72,
       distillationCount: 10,
     });
@@ -144,6 +149,8 @@ type ArticleRow = ArticleSummaryRow;
 type AnnotationRow = {
   id: string;
   articleId: string;
+  author: string;
+  createdAt: string;
   distillationStatus?: string;
   distillationReviewSessions?: Array<{ messages: Array<{ author: string }> }>;
 };
@@ -152,6 +159,7 @@ type CommentRow = {
   annotationId: string;
   author: string;
   replyTo?: string;
+  createdAt: string;
 };
 
 function repositoryDatabase(): StoreDatabase {
@@ -176,7 +184,9 @@ function repositoryDatabase(): StoreDatabase {
     ],
     comments: [
       commentRow('comment_a_1', 'annotation_a_1'),
+      commentRow('comment_a_2', 'annotation_a_1'),
       commentRow('reply_a_1', 'annotation_a_1', 'ai', 'comment_a_1'),
+      commentRow('reply_a_2', 'annotation_a_1', 'reply_a_1', undefined, '2026-06-04T00:02:00.000Z'),
       commentRow('comment_b_1', 'annotation_b_1', 'ai'),
     ],
   };
@@ -209,6 +219,8 @@ function sqliteRepositoryDatabase(): StoreDatabase {
     CREATE TABLE annotations (
       id TEXT PRIMARY KEY,
       article_id TEXT NOT NULL,
+      author TEXT NOT NULL,
+      created_at TEXT NOT NULL,
       distillation_status TEXT,
       distillation_review_sessions TEXT
     );
@@ -216,6 +228,7 @@ function sqliteRepositoryDatabase(): StoreDatabase {
       id TEXT PRIMARY KEY,
       annotation_id TEXT NOT NULL,
       author TEXT NOT NULL,
+      created_at TEXT NOT NULL,
       reply_to TEXT
     );
   `);
@@ -278,6 +291,8 @@ function summaryCountsSqliteDatabase(articleCount: number, annotationsPerArticle
     CREATE TABLE annotations (
       id TEXT PRIMARY KEY,
       article_id TEXT NOT NULL,
+      author TEXT NOT NULL,
+      created_at TEXT NOT NULL,
       distillation_status TEXT,
       distillation_review_sessions TEXT
     );
@@ -285,16 +300,17 @@ function summaryCountsSqliteDatabase(articleCount: number, annotationsPerArticle
       id TEXT PRIMARY KEY,
       annotation_id TEXT NOT NULL,
       author TEXT NOT NULL,
+      created_at TEXT NOT NULL,
       reply_to TEXT
     );
   `);
   const insertAnnotation = sqlite.prepare(
     `INSERT INTO annotations (
-      id, article_id, distillation_status, distillation_review_sessions
-    ) VALUES (?, ?, ?, ?)`,
+      id, article_id, author, created_at, distillation_status, distillation_review_sessions
+    ) VALUES (?, ?, ?, ?, ?, ?)`,
   );
   const insertComment = sqlite.prepare(
-    'INSERT INTO comments (id, annotation_id, author, reply_to) VALUES (?, ?, ?, ?)',
+    'INSERT INTO comments (id, annotation_id, author, created_at, reply_to) VALUES (?, ?, ?, ?, ?)',
   );
   sqlite.transaction(() => {
     for (let articleIndex = 0; articleIndex < articleCount; articleIndex += 1) {
@@ -310,18 +326,33 @@ function summaryCountsSqliteDatabase(articleCount: number, annotationsPerArticle
         insertAnnotation.run(
           annotationId,
           articleId,
+          'user',
+          '2026-06-04T00:00:00.000Z',
           annotationIndex % 5 === 0 ? 'published' : null,
           reviewSessions,
         );
-        insertComment.run(`${annotationId}_comment_user`, annotationId, 'user', null);
+        insertComment.run(
+          `${annotationId}_comment_user`,
+          annotationId,
+          'user',
+          '2026-06-04T00:00:00.000Z',
+          null,
+        );
         insertComment.run(
           `${annotationId}_comment_ai_reply`,
           annotationId,
           'ai',
+          '2026-06-04T00:01:00.000Z',
           `${annotationId}_comment_user`,
         );
         if (annotationIndex % 9 === 0) {
-          insertComment.run(`${annotationId}_comment_ai_top`, annotationId, 'ai', null);
+          insertComment.run(
+            `${annotationId}_comment_ai_top`,
+            annotationId,
+            'ai',
+            '2026-06-04T00:02:00.000Z',
+            null,
+          );
         }
       }
     }
@@ -403,7 +434,7 @@ class FakeSelect {
       return countAnnotations(this.rows.annotations, this.condition);
     }
     if (this.table === schema.comments) {
-      if (hasSelectionKey(this.selection, 'commentCount')) {
+      if (hasSelectionKey(this.selection, 'thoughtCount')) {
         return countCommentSummaries(this.rows.annotations, this.rows.comments, this.condition);
       }
       return countComments(this.rows.annotations, this.rows.comments, this.condition);
@@ -521,19 +552,42 @@ function countCommentSummaries(
   const articleByAnnotation = new Map(
     annotations.map((annotation) => [annotation.id, annotation.articleId]),
   );
-  const counts = new Map<string, { commentCount: number; aiCommentCount: number }>();
+  const counts = new Map<
+    string,
+    { thoughtCount: number; discussionCommentCount: number; aiCommentCount: number }
+  >();
+  const primaryAnnotationsByArticle = new Map<string, Set<string>>();
   for (const comment of comments) {
     const articleId = articleByAnnotation.get(comment.annotationId);
     if (!articleId) continue;
     if (scopedArticleIds.size > 0 && !scopedArticleIds.has(articleId)) continue;
-    const count = counts.get(articleId) || { commentCount: 0, aiCommentCount: 0 };
-    if (!comment.replyTo) count.commentCount += 1;
+    const annotation = annotations.find((item) => item.id === comment.annotationId);
+    const count = counts.get(articleId) || {
+      thoughtCount: 0,
+      discussionCommentCount: 0,
+      aiCommentCount: 0,
+    };
+    if (!comment.replyTo) count.thoughtCount += 1;
+    count.discussionCommentCount += 1;
+    if (
+      annotation &&
+      comment.author === annotation.author &&
+      comment.createdAt === annotation.createdAt
+    ) {
+      const primaryAnnotations = primaryAnnotationsByArticle.get(articleId) || new Set<string>();
+      primaryAnnotations.add(annotation.id);
+      primaryAnnotationsByArticle.set(articleId, primaryAnnotations);
+    }
     if (comment.author === 'ai') count.aiCommentCount += 1;
     counts.set(articleId, count);
   }
-  return Array.from(counts.entries()).map(([articleId, count]) =>
-    Object.assign({ articleId }, count),
-  );
+  return Array.from(counts.entries()).map(([articleId, count]) => ({
+    articleId,
+    thoughtCount: count.thoughtCount,
+    discussionCommentCount:
+      count.discussionCommentCount - (primaryAnnotationsByArticle.get(articleId)?.size || 0),
+    aiCommentCount: count.aiCommentCount,
+  }));
 }
 
 function groupRowsByArticle<T extends { articleId: string }>(rows: T[]) {
@@ -615,6 +669,8 @@ function annotationRow(
   return {
     id,
     articleId,
+    author: 'user',
+    createdAt: '2026-06-04T00:00:00.000Z',
     distillationStatus,
     distillationReviewSessions:
       aiReviewMessages > 0
@@ -628,6 +684,7 @@ function commentRow(
   annotationId: string,
   authorOrReplyTo?: string,
   replyTo?: string,
+  createdAt = '2026-06-04T00:00:00.000Z',
 ): CommentRow {
   const author = authorOrReplyTo === 'ai' ? 'ai' : 'user';
   return {
@@ -635,5 +692,6 @@ function commentRow(
     annotationId,
     author,
     replyTo: authorOrReplyTo === 'ai' ? replyTo : authorOrReplyTo,
+    createdAt,
   };
 }

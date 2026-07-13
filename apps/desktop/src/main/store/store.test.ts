@@ -638,14 +638,16 @@ describe('desktop store articles', () => {
   it('keeps aggregate counts on lightweight article summaries', () => {
     const article = rowToArticleSummary(storeSummaryRow(), [], {
       annotationCount: 2,
-      commentCount: 1,
+      thoughtCount: 1,
+      discussionCommentCount: 3,
       aiCommentCount: 1,
       distillationCount: 1,
     });
 
     expect(article.annotations).toEqual([]);
     expect(article.annotationCount).toBe(2);
-    expect(article.commentCount).toBe(1);
+    expect(article.thoughtCount).toBe(1);
+    expect(article.discussionCommentCount).toBe(3);
     expect(article.aiCommentCount).toBe(1);
     expect(article.distillationCount).toBe(1);
   });
