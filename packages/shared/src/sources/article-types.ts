@@ -150,6 +150,8 @@ export type ArticleRecord = {
   annotations: Annotation[];
   annotationCount?: number;
   commentCount?: number;
+  thoughtCount?: number;
+  discussionCommentCount?: number;
   aiCommentCount?: number;
   distillationCount?: number;
   focusCoReadingPlan?: FocusCoReadingPlan;

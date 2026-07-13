@@ -52,7 +52,8 @@ function readArticleSummaryCountsInternal(
       database
         .select({
           articleId: schema.annotations.articleId,
-          commentCount: sql<number>`coalesce(sum(case when ${schema.comments.replyTo} is null then 1 else 0 end), 0)`,
+          thoughtCount: sql<number>`coalesce(sum(case when ${schema.comments.replyTo} is null then 1 else 0 end), 0)`,
+          discussionCommentCount: sql<number>`count(*) - count(distinct case when ${schema.comments.author} = ${schema.annotations.author} and ${schema.comments.createdAt} = ${schema.annotations.createdAt} then ${schema.annotations.id} end)`,
           aiCommentCount: sql<number>`coalesce(sum(case when ${schema.comments.author} = ${'ai'} then 1 else 0 end), 0)`,
         })
         .from(schema.comments)
@@ -81,7 +82,8 @@ function readArticleSummaryCountsInternal(
   for (const row of annotationSummaryCounts) {
     countsByArticle.set(row.articleId, {
       annotationCount: row.annotationCount || 0,
-      commentCount: 0,
+      thoughtCount: 0,
+      discussionCommentCount: 0,
       aiCommentCount: 0,
       distillationCount: row.distillationCount || 0,
     });
@@ -90,12 +92,14 @@ function readArticleSummaryCountsInternal(
   for (const row of commentSummaryCounts) {
     const counts = countsByArticle.get(row.articleId);
     if (counts) {
-      counts.commentCount = row.commentCount || 0;
+      counts.thoughtCount = row.thoughtCount || 0;
+      counts.discussionCommentCount = row.discussionCommentCount || 0;
       counts.aiCommentCount = row.aiCommentCount || 0;
     } else
       countsByArticle.set(row.articleId, {
         annotationCount: 0,
-        commentCount: row.commentCount || 0,
+        thoughtCount: row.thoughtCount || 0,
+        discussionCommentCount: row.discussionCommentCount || 0,
         aiCommentCount: row.aiCommentCount || 0,
         distillationCount: 0,
       });
@@ -109,7 +113,8 @@ function readArticleSummaryCountsInternal(
     else
       countsByArticle.set(row.articleId, {
         annotationCount: 0,
-        commentCount: 0,
+        thoughtCount: 0,
+        discussionCommentCount: 0,
         aiCommentCount: aiReviewMessageCount,
         distillationCount: 0,
       });

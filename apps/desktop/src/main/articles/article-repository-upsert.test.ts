@@ -47,7 +47,8 @@ describe('article repository local child row writes', () => {
     expect(patch?.article).toMatchObject({
       id: 'article_1',
       annotationCount: 2,
-      commentCount: 2,
+      thoughtCount: 2,
+      discussionCommentCount: 2,
       updatedAt: '2026-06-04T02:00:00.000Z',
     });
     expect(patch?.article.annotations.map((item) => item.id).toSorted()).toEqual([
@@ -100,7 +101,8 @@ describe('article repository local child row writes', () => {
     )?.comments;
     expect(patch?.article).toMatchObject({
       annotationCount: 2,
-      commentCount: 3,
+      thoughtCount: 3,
+      discussionCommentCount: 3,
       updatedAt: '2026-06-04T03:00:00.000Z',
     });
     expect(patch?.article.annotations.find((item) => item.id === 'annotation_1')?.comments).toEqual(
@@ -274,7 +276,7 @@ class FakeSelect {
     }
     if (this.table === schema.comments) {
       const values = conditionValues(this.condition);
-      if (this.grouped && hasSelectionKey(this.selection, 'commentCount')) {
+      if (this.grouped && hasSelectionKey(this.selection, 'thoughtCount')) {
         return countCommentSummaries(this.rows, values);
       }
       if (this.grouped) return countRootComments(this.rows, values);
@@ -408,18 +410,42 @@ function countRootComments(rows: Rows, articleIds: Set<string>) {
 
 function countCommentSummaries(rows: Rows, articleIds: Set<string>) {
   const articleByAnnotation = new Map(rows.annotations.map((row) => [row.id, row.articleId]));
-  const counts = new Map<string, { commentCount: number; aiCommentCount: number }>();
+  const annotationById = new Map(rows.annotations.map((row) => [row.id, row]));
+  const counts = new Map<
+    string,
+    { thoughtCount: number; discussionCommentCount: number; aiCommentCount: number }
+  >();
+  const primaryAnnotationsByArticle = new Map<string, Set<string>>();
   for (const commentRow of rows.comments) {
     const articleId = articleByAnnotation.get(commentRow.annotationId);
     if (!articleId || (articleIds.size > 0 && !articleIds.has(articleId))) continue;
-    const count = counts.get(articleId) || { commentCount: 0, aiCommentCount: 0 };
-    if (!commentRow.replyTo) count.commentCount += 1;
+    const annotationRow = annotationById.get(commentRow.annotationId);
+    const count = counts.get(articleId) || {
+      thoughtCount: 0,
+      discussionCommentCount: 0,
+      aiCommentCount: 0,
+    };
+    if (!commentRow.replyTo) count.thoughtCount += 1;
+    count.discussionCommentCount += 1;
+    if (
+      annotationRow &&
+      commentRow.author === annotationRow.author &&
+      commentRow.createdAt === annotationRow.createdAt
+    ) {
+      const primaryAnnotations = primaryAnnotationsByArticle.get(articleId) || new Set<string>();
+      primaryAnnotations.add(annotationRow.id);
+      primaryAnnotationsByArticle.set(articleId, primaryAnnotations);
+    }
     if (commentRow.author === 'ai') count.aiCommentCount += 1;
     counts.set(articleId, count);
   }
-  return Array.from(counts.entries()).map(([articleId, count]) =>
-    Object.assign({ articleId }, count),
-  );
+  return Array.from(counts.entries()).map(([articleId, count]) => ({
+    articleId,
+    thoughtCount: count.thoughtCount,
+    discussionCommentCount:
+      count.discussionCommentCount - (primaryAnnotationsByArticle.get(articleId)?.size || 0),
+    aiCommentCount: count.aiCommentCount,
+  }));
 }
 
 function countAnnotations(rows: Rows, articleIds: Set<string>, condition: QueryCondition) {

@@ -250,7 +250,7 @@ describe('reading core', () => {
     });
   });
 
-  it('falls back to summary counts when annotation details are not loaded', () => {
+  it('uses legacy comment counts only as a thought fallback', () => {
     const summary: ArticleSummaryRecord = {
       id: 'summary',
       url: 'https://example.com/summary',
@@ -270,7 +270,7 @@ describe('reading core', () => {
       articles: 1,
       annotations: 9,
       thoughts: 6,
-      comments: 6,
+      comments: 0,
       aiComments: 2,
       distillations: 2,
     });
@@ -279,9 +279,62 @@ describe('reading core', () => {
     ).toMatchObject({
       annotations: 9,
       thoughts: 6,
-      comments: 6,
+      comments: 0,
       aiComments: 2,
       distillations: 2,
+    });
+  });
+
+  it('keeps summary and detailed thought and discussion counts consistent', () => {
+    const createdAt = '2026-05-03T08:00:00.000Z';
+    const comments = [
+      { id: 'body', author: 'user' as const, content: '批注正文', createdAt },
+      { id: 'thought-1', author: 'user' as const, content: '想法一', createdAt },
+      {
+        id: 'reply-1',
+        author: 'ai' as const,
+        content: '回复一',
+        createdAt,
+        replyTo: 'thought-1',
+      },
+      {
+        id: 'reply-2',
+        author: 'user' as const,
+        content: '回复二',
+        createdAt,
+        replyTo: 'reply-1',
+      },
+      { id: 'thought-2', author: 'user' as const, content: '想法二', createdAt },
+      {
+        id: 'reply-3',
+        author: 'ai' as const,
+        content: '回复三',
+        createdAt,
+        replyTo: 'thought-2',
+      },
+    ];
+    const detailed = article('detailed', createdAt, [
+      annotation('annotation', 0, createdAt, { comments }),
+    ]);
+    const summary: ArticleSummaryRecord = {
+      ...article('summary', createdAt),
+      annotationCount: 1,
+      thoughtCount: 3,
+      discussionCommentCount: 5,
+      aiCommentCount: 2,
+    };
+
+    const detailedStats = computeReadingStats([detailed], new Date(createdAt)).today;
+    const summaryStats = computeReadingStats([summary], new Date(createdAt)).today;
+    const detailedActivity = computeReadingActivityDays([detailed], 1, new Date(createdAt))[0];
+    const summaryActivity = computeReadingActivityDays([summary], 1, new Date(createdAt))[0];
+
+    expect(summaryStats.thoughts).toBe(detailedStats.thoughts);
+    expect(summaryStats.comments).toBe(detailedStats.comments);
+    expect(summaryActivity).toMatchObject({
+      thoughts: detailedActivity.thoughts,
+      comments: detailedActivity.comments,
+      score: detailedActivity.score,
     });
   });
 

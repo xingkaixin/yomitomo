@@ -1,4 +1,5 @@
 import type { Annotation, ArticleRecord, ArticleSummaryRecord } from '@yomitomo/shared';
+import { annotationThoughtComments, annotationThreadComments } from '@yomitomo/core';
 import * as schema from '../db/schema';
 import { normalizeReaderChatState } from './store-normalizers-reader-chat';
 import {
@@ -21,7 +22,8 @@ type ArticleBaseRow = ArticleSummaryRow &
 
 export type ArticleSummaryCounts = {
   annotationCount: number;
-  commentCount: number;
+  thoughtCount: number;
+  discussionCommentCount: number;
   aiCommentCount: number;
   distillationCount: number;
 };
@@ -73,7 +75,8 @@ function rowToArticleBase(
     readerChatState: normalizeReaderChatState(row.readerChatState, row.id),
     annotations,
     annotationCount: counts.annotationCount,
-    commentCount: counts.commentCount,
+    thoughtCount: counts.thoughtCount,
+    discussionCommentCount: counts.discussionCommentCount,
     aiCommentCount: counts.aiCommentCount,
     distillationCount: counts.distillationCount,
     createdAt: row.createdAt,
@@ -84,9 +87,12 @@ function rowToArticleBase(
 function articleCountsFromAnnotations(annotations: Annotation[]): ArticleSummaryCounts {
   return {
     annotationCount: annotations.length,
-    commentCount: annotations.reduce(
-      (count, annotation) =>
-        count + annotation.comments.filter((comment) => !comment.replyTo).length,
+    thoughtCount: annotations.reduce(
+      (count, annotation) => count + annotationThoughtComments(annotation).length,
+      0,
+    ),
+    discussionCommentCount: annotations.reduce(
+      (count, annotation) => count + annotationThreadComments(annotation).length,
       0,
     ),
     aiCommentCount: annotations.reduce((count, annotation) => {

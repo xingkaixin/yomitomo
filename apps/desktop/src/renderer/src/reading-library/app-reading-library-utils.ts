@@ -157,6 +157,7 @@ export function articleAnnotationCount(article: ArticleSummaryRecord) {
 
 export function articleThoughtCount(article: ArticleSummaryRecord) {
   return (
+    article.thoughtCount ??
     article.commentCount ??
     article.annotations.reduce(
       (count, annotation) =>

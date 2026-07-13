@@ -46,15 +46,16 @@ export function registerStoreDataIpc(context: DesktopMainIpcContext) {
           (count, article) => count + (article.annotationCount ?? article.annotations.length),
           0,
         ),
-        commentCount: store.articles.reduce((count, article) => {
-          const commentCount =
+        thoughtCount: store.articles.reduce((count, article) => {
+          const thoughtCount =
+            article.thoughtCount ??
             article.commentCount ??
             article.annotations.reduce(
               (annotationCount, annotation) =>
                 annotationCount + annotation.comments.filter((comment) => !comment.replyTo).length,
               0,
             );
-          return count + commentCount;
+          return count + thoughtCount;
         }, 0),
       });
       context.recordStartupTiming('store.get_profile', { steps: profile });
