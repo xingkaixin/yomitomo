@@ -1,0 +1,106 @@
+@media (max-width: 1120px) {
+  .library-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .library-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .library-ebook-list-item {
+    grid-template-columns: 120px minmax(0, 1fr);
+    padding-right: 68px;
+  }
+}
+
+@container app-content (max-width: 980px) {
+  .library-home .library-home-header-main {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .library-home .library-home-actions {
+    display: flex;
+    width: auto;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-inline: 0;
+  }
+
+  .library-home .library-search {
+    flex: 0 1 clamp(340px, 34vw, 480px);
+    width: clamp(340px, 34vw, 480px);
+    min-width: 0;
+  }
+
+  .library-home .library-add-control,
+  .library-home .library-add-trigger {
+    width: 54px;
+    min-width: 54px;
+    align-self: center;
+    justify-content: center;
+  }
+
+  .library-home .library-inline-error {
+    grid-column: 1 / -1;
+    text-align: center;
+  }
+}
+
+@media (max-width: 980px) {
+  .library-home .library-home-header-main {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .library-home .library-home-actions {
+    display: flex;
+    width: auto;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-inline: 0;
+  }
+
+  .library-home .library-search {
+    flex: 0 1 clamp(340px, 34vw, 480px);
+    width: clamp(340px, 34vw, 480px);
+    min-width: 0;
+  }
+
+  .library-home .library-add-control,
+  .library-home .library-add-trigger {
+    width: 54px;
+    min-width: 54px;
+    align-self: center;
+    justify-content: center;
+  }
+
+  .library-home .library-inline-error {
+    grid-column: 1 / -1;
+    text-align: center;
+  }
+}
+
+@media (max-width: 760px) {
+  .library-home .library-home-header-main {
+    gap: 10px;
+  }
+
+  .library-home .library-search {
+    flex: 0 1 clamp(320px, 55vw, 360px);
+    width: clamp(320px, 55vw, 360px);
+    max-width: 360px;
+  }
+
+  .library-search-combo .library-type-filter-trigger {
+    width: 104px;
+  }
+}
