@@ -5,7 +5,6 @@ import {
   pdfSourceArrayBufferForIpc,
   registerArticleIpc,
 } from './ipc-article';
-import type { DesktopMainIpcContext } from './ipc';
 
 const storageMocks = vi.hoisted(() => ({
   deleteEbookSourceFile: vi.fn<(articleId: string) => Promise<void>>(),
@@ -89,17 +88,19 @@ describe('article IPC patch broadcasts', () => {
     const saveArticle = vi.fn().mockResolvedValue(patch);
     const sendArticlePatched = vi.fn();
 
-    registerArticleIpc({
-      getMainWindow: () =>
-        ({
-          isDestroyed: () => false,
-          webContents: { id: 1 },
-        }) as never,
-      getPersistenceModule: async () => ({
-        articlePersistence: { saveArticle },
-      }),
-      sendArticlePatched,
-    } as unknown as DesktopMainIpcContext);
+    registerArticleIpc(
+      articleIpcContext(
+        { saveArticle },
+        {
+          getMainWindow: () =>
+            ({
+              isDestroyed: () => false,
+              webContents: { id: 1 },
+            }) as never,
+          sendArticlePatched,
+        },
+      ),
+    );
 
     const handler = storageMocks.ipcMainHandle.mock.calls.find(
       ([channel]) => channel === 'article:save',
@@ -130,17 +131,19 @@ describe('article IPC patch broadcasts', () => {
     const saveArticle = vi.fn().mockResolvedValue(patch);
     const sendArticlePatched = vi.fn();
 
-    registerArticleIpc({
-      getMainWindow: () =>
-        ({
-          isDestroyed: () => false,
-          webContents: { id: 1 },
-        }) as never,
-      getPersistenceModule: async () => ({
-        articlePersistence: { saveArticle },
-      }),
-      sendArticlePatched,
-    } as unknown as DesktopMainIpcContext);
+    registerArticleIpc(
+      articleIpcContext(
+        { saveArticle },
+        {
+          getMainWindow: () =>
+            ({
+              isDestroyed: () => false,
+              webContents: { id: 1 },
+            }) as never,
+          sendArticlePatched,
+        },
+      ),
+    );
 
     const handler = storageMocks.ipcMainHandle.mock.calls.find(
       ([channel]) => channel === 'article:save',
@@ -182,12 +185,7 @@ describe('article IPC patch broadcasts', () => {
     const saveArticleAnnotation = vi.fn().mockResolvedValue(patch);
     const sendArticlePatched = vi.fn();
 
-    registerArticleIpc({
-      getPersistenceModule: async () => ({
-        articlePersistence: { saveArticleAnnotation },
-      }),
-      sendArticlePatched,
-    } as unknown as DesktopMainIpcContext);
+    registerArticleIpc(articleIpcContext({ saveArticleAnnotation }, { sendArticlePatched }));
 
     const handler = storageMocks.ipcMainHandle.mock.calls.find(
       ([channel]) => channel === 'article:save-annotation',
@@ -222,12 +220,7 @@ describe('article IPC patch broadcasts', () => {
     const deleteArticleComment = vi.fn().mockResolvedValue(patch);
     const sendArticlePatched = vi.fn();
 
-    registerArticleIpc({
-      getPersistenceModule: async () => ({
-        articlePersistence: { deleteArticleComment },
-      }),
-      sendArticlePatched,
-    } as unknown as DesktopMainIpcContext);
+    registerArticleIpc(articleIpcContext({ deleteArticleComment }, { sendArticlePatched }));
 
     const handler = storageMocks.ipcMainHandle.mock.calls.find(
       ([channel]) => channel === 'article:delete-comment',
@@ -274,10 +267,7 @@ describe('article IPC PDF source reads', () => {
     storageMocks.readPdfSourceFile.mockResolvedValue(Buffer.from(source));
     const logInfo = vi.fn();
 
-    registerArticleIpc({
-      elapsedMs: () => 1.25,
-      logInfo,
-    } as unknown as DesktopMainIpcContext);
+    registerArticleIpc(articleIpcContext({}, { elapsedMs: () => 1.25, logInfo }));
 
     const handler = storageMocks.ipcMainHandle.mock.calls.find(
       ([channel]) => channel === 'pdf:read-file',
@@ -299,3 +289,51 @@ describe('article IPC PDF source reads', () => {
     });
   });
 });
+
+type ArticleIpcContext = Parameters<typeof registerArticleIpc>[0];
+type ArticlePersistence = Awaited<
+  ReturnType<ArticleIpcContext['getPersistenceModule']>
+>['articlePersistence'];
+
+function articleIpcContext(
+  persistenceOverrides: Partial<ArticlePersistence>,
+  contextOverrides: Partial<ArticleIpcContext>,
+): ArticleIpcContext {
+  return {
+    elapsedMs: () => 1,
+    getAiModule: async () => ({
+      bilingualTranslationPromptVersion: 1,
+      translateBilingualArticleBlocks: vi.fn(),
+    }),
+    getMainWindow: () => null,
+    getPersistenceModule: async () => ({
+      agentRuntimePersistence: { readAgentRuntimeContext: vi.fn() },
+      articlePersistence: {
+        deleteArticle: vi.fn(),
+        deleteArticleAnnotation: vi.fn(),
+        deleteArticleComment: vi.fn(),
+        deleteCurrentArticleTranslation: vi.fn(),
+        ensureArticleSiteIcon: vi.fn(),
+        findArticleByIdentity: vi.fn(),
+        listLibraryArticles: vi.fn(),
+        readArticle: vi.fn(),
+        readArticleCover: vi.fn(),
+        readArticleStatsSummaries: vi.fn(),
+        readCurrentArticleTranslation: vi.fn(),
+        readImportSettings: vi.fn(),
+        saveArticle: vi.fn(),
+        saveArticleAnnotation: vi.fn(),
+        saveArticleComment: vi.fn(),
+        saveArticleReaderChatState: vi.fn(),
+        saveArticleReadingProgress: vi.fn(),
+        saveArticleTranslation: vi.fn(),
+        ...persistenceOverrides,
+      },
+      providerPersistence: { hydrateProviderApiKey: vi.fn() },
+    }),
+    logError: vi.fn(),
+    logInfo: vi.fn(),
+    sendArticlePatched: vi.fn(),
+    ...contextOverrides,
+  };
+}

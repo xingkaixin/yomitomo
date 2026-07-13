@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { DesktopMainIpcContext } from './ipc';
 import { registerLibraryCollectionIpc } from './ipc-library-collection';
 
 const ipcMocks = vi.hoisted(() => ({
@@ -30,12 +29,9 @@ describe('library collection IPC', () => {
     });
     const sendCollectionPatched = vi.fn();
 
-    registerLibraryCollectionIpc({
-      getPersistenceModule: async () => ({
-        collectionPersistence: { createCollection },
-      }),
-      sendCollectionPatched,
-    } as unknown as DesktopMainIpcContext);
+    registerLibraryCollectionIpc(
+      libraryCollectionIpcContext({ createCollection }, { sendCollectionPatched }),
+    );
 
     const handler = ipcMocks.ipcMainHandle.mock.calls.find(
       ([channel]) => channel === 'library-collection:create',
@@ -63,12 +59,9 @@ describe('library collection IPC', () => {
     const setLibraryPin = vi.fn().mockResolvedValue(patch);
     const sendLibraryPinPatched = vi.fn();
 
-    registerLibraryCollectionIpc({
-      getPersistenceModule: async () => ({
-        collectionPersistence: { setLibraryPin },
-      }),
-      sendLibraryPinPatched,
-    } as unknown as DesktopMainIpcContext);
+    registerLibraryCollectionIpc(
+      libraryCollectionIpcContext({ setLibraryPin }, { sendLibraryPinPatched }),
+    );
 
     const handler = ipcMocks.ipcMainHandle.mock.calls.find(
       ([channel]) => channel === 'library-pin:set',
@@ -83,3 +76,32 @@ describe('library collection IPC', () => {
     expect(sendLibraryPinPatched).toHaveBeenCalledWith(patch);
   });
 });
+
+type LibraryCollectionIpcContext = Parameters<typeof registerLibraryCollectionIpc>[0];
+type CollectionPersistence = Awaited<
+  ReturnType<LibraryCollectionIpcContext['getPersistenceModule']>
+>['collectionPersistence'];
+
+function libraryCollectionIpcContext(
+  persistenceOverrides: Partial<CollectionPersistence>,
+  contextOverrides: Partial<LibraryCollectionIpcContext>,
+): LibraryCollectionIpcContext {
+  return {
+    getPersistenceModule: async () => ({
+      collectionPersistence: {
+        addCollectionMembers: vi.fn(),
+        createCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        listCollections: vi.fn(),
+        listLibraryPins: vi.fn(),
+        removeCollectionMember: vi.fn(),
+        renameCollection: vi.fn(),
+        setLibraryPin: vi.fn(),
+        ...persistenceOverrides,
+      },
+    }),
+    sendCollectionPatched: vi.fn(),
+    sendLibraryPinPatched: vi.fn(),
+    ...contextOverrides,
+  };
+}

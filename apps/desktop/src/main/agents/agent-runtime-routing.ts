@@ -8,9 +8,18 @@ import type {
 } from '@yomitomo/shared';
 import { resolveAgentPublicIdentity } from '@yomitomo/shared';
 import { DesktopIpcError, desktopIpcErrorCodes } from '../../ipc-errors';
-import type { DesktopMainIpcContext } from '../ipc/ipc';
+import type { DesktopPersistenceModule } from '../ipc/ipc';
 
 export type ProviderTask = 'readingAssistant' | 'reviewAssistant' | 'bilingualTranslation';
+
+type ProviderHydrationContext = {
+  getPersistenceModule: () => Promise<{
+    providerPersistence: Pick<
+      DesktopPersistenceModule['providerPersistence'],
+      'hydrateProviderApiKey'
+    >;
+  }>;
+};
 
 const providerTaskSettings: Record<ProviderTask, keyof AppSettings> = {
   readingAssistant: 'readingAssistantProviderId',
@@ -19,7 +28,7 @@ const providerTaskSettings: Record<ProviderTask, keyof AppSettings> = {
 };
 
 export async function taskProvider(
-  context: DesktopMainIpcContext,
+  context: ProviderHydrationContext,
   providers: LlmProvider[],
   settings: AppSettings,
   task: ProviderTask,

@@ -1,7 +1,16 @@
-import type { DesktopMainIpcContext } from './ipc';
+import type { DesktopMainIpcContext, DesktopPersistenceModule } from './ipc';
 import { handleDesktopIpc } from './ipc';
 
-export function registerLibraryCollectionIpc(context: DesktopMainIpcContext) {
+type LibraryCollectionIpcContext = Pick<
+  DesktopMainIpcContext,
+  'sendCollectionPatched' | 'sendLibraryPinPatched'
+> & {
+  getPersistenceModule: () => Promise<{
+    collectionPersistence: DesktopPersistenceModule['collectionPersistence'];
+  }>;
+};
+
+export function registerLibraryCollectionIpc(context: LibraryCollectionIpcContext) {
   handleDesktopIpc('library-collection:list', async () => {
     const { collectionPersistence } = await context.getPersistenceModule();
     return collectionPersistence.listCollections();

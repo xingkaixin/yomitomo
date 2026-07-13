@@ -1,11 +1,22 @@
 import type { DesktopStore } from '@yomitomo/shared';
-import type { DesktopMainIpcContext } from './ipc';
+import type { DesktopAiModule, DesktopMainIpcContext, DesktopPersistenceModule } from './ipc';
 import { handleDesktopIpc } from './ipc';
 import { hasAppLockPin } from '../app-lock/app-lock-secrets';
 import { DesktopIpcError } from '../../ipc-errors';
 import { pruneLogFile } from '../app/logger';
 
-export function registerProviderIpc(context: DesktopMainIpcContext) {
+type ProviderIpcContext = Pick<DesktopMainIpcContext, 'sendFullStoreUpdated'> & {
+  getAiModule: () => Promise<Pick<DesktopAiModule, 'listProviderModels' | 'testProvider'>>;
+  getPersistenceModule: () => Promise<{
+    providerPersistence: Pick<
+      DesktopPersistenceModule['providerPersistence'],
+      'deleteProvider' | 'hydrateProviderInputApiKey' | 'readStoredProviderApiKey' | 'saveProvider'
+    >;
+    settingsPersistence: DesktopPersistenceModule['settingsPersistence'];
+  }>;
+};
+
+export function registerProviderIpc(context: ProviderIpcContext) {
   handleDesktopIpc('user:save', async (_event, input) => {
     const { settingsPersistence } = await context.getPersistenceModule();
     return settingsPersistence.saveUser(input);

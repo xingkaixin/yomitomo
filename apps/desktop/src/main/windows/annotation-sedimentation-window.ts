@@ -3,8 +3,9 @@ import type {
   AnnotationSedimentationCommitInput,
   AnnotationSedimentationWindowOpenInput,
 } from '../../ipc-contract';
-import { handleDesktopIpc, type DesktopMainIpcContext } from '../ipc/ipc';
+import { handleDesktopIpc } from '../ipc/ipc';
 import {
+  type AnnotationWindowIpcContext,
   closeAnnotationDiscussionWindow,
   minimizeOtherAnnotationDiscussionWindows,
 } from './annotation-discussion-window';
@@ -25,7 +26,7 @@ type SedimentationWindowEntry = {
 
 const sedimentationWindows = new Map<string, SedimentationWindowEntry>();
 
-export function registerAnnotationSedimentationWindowIpc(context: DesktopMainIpcContext) {
+export function registerAnnotationSedimentationWindowIpc(context: AnnotationWindowIpcContext) {
   handleDesktopIpc('annotation-sedimentation:open', (event, input) =>
     openAnnotationSedimentationWindow(context, input, event),
   );
@@ -35,7 +36,7 @@ export function registerAnnotationSedimentationWindowIpc(context: DesktopMainIpc
 }
 
 function openAnnotationSedimentationWindow(
-  context: DesktopMainIpcContext,
+  context: AnnotationWindowIpcContext,
   input: AnnotationSedimentationWindowOpenInput,
   event: IpcMainInvokeEvent,
 ) {
@@ -111,7 +112,7 @@ function restoreAndFocus(window: BrowserWindow) {
 }
 
 function completeAnnotationSedimentation(
-  context: DesktopMainIpcContext,
+  context: AnnotationWindowIpcContext,
   input: AnnotationSedimentationCommitInput,
   sourceWindow: BrowserWindow | null,
 ) {
@@ -162,7 +163,7 @@ function minimizeOtherSedimentationWindows(input: AnnotationSedimentationWindowO
 }
 
 function notifyDistillationCommitted(
-  context: DesktopMainIpcContext,
+  context: AnnotationWindowIpcContext,
   input: AnnotationSedimentationCommitInput,
 ) {
   const mainWindow = context.getMainWindow();
@@ -170,7 +171,7 @@ function notifyDistillationCommitted(
   mainWindow.webContents.send('annotation-distillation:committed', input);
 }
 
-function restoreMainWindow(context: DesktopMainIpcContext) {
+function restoreMainWindow(context: AnnotationWindowIpcContext) {
   const mainWindow = context.getMainWindow();
   if (!mainWindow || mainWindow.isDestroyed()) return;
   if (mainWindow.isMinimized()) mainWindow.restore();

@@ -4,7 +4,12 @@ import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
 import { pdfiumWasmPath } from '../pdf/pdfium-resource';
 
-export function registerAppIpc(context: DesktopMainIpcContext) {
+type AppIpcContext = Pick<
+  DesktopMainIpcContext,
+  'getAppVersion' | 'openExternalUrl' | 'recordPerformanceTiming' | 'recordStartupTiming'
+>;
+
+export function registerAppIpc(context: AppIpcContext) {
   handleDesktopIpc('app:info', () => ({ desktopVersion: context.getAppVersion() }));
   ipcMain.on('app:pdfium-wasm-url', (event) => {
     event.returnValue = pathToFileURL(pdfiumWasmPath()).href;
