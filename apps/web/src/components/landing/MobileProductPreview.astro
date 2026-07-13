@@ -1,0 +1,53 @@
+---
+type Props = {
+  lang?: 'zh-CN' | 'en';
+};
+
+const { lang = 'zh-CN' } = Astro.props;
+const isEnglish = lang === 'en';
+
+const copy = isEnglish
+  ? {
+      kicker: 'Desktop reading workspace',
+      title: 'Read the source. Mark the evidence. Discuss it in context.',
+      caption:
+        'Yomitomo is a macOS and Windows desktop app. Articles, highlights, and discussions stay in one reading workspace.',
+      alt: 'Yomitomo desktop reader with source highlights connected to a discussion card',
+    }
+  : {
+      kicker: '桌面端阅读工作台',
+      title: '读文章，画线，再讨论。',
+      caption:
+        'Yomitomo 是 macOS 与 Windows 桌面应用。文章、画线与讨论始终在同一阅读工作台中。',
+      alt: 'Yomitomo 桌面阅读器，原文划线连接到边栏讨论卡片',
+    };
+
+const previewSrc = isEnglish ? '/assets/en-reader-1600.webp' : '/assets/cn-reader-1600.webp';
+---
+
+<section class="mobile-product-preview" aria-labelledby="mobile-preview-title">
+  <div class="lp-container">
+    <div class="mobile-preview-heading">
+      <p class="sec-kicker">{copy.kicker}</p>
+      <h2 id="mobile-preview-title">{copy.title}</h2>
+    </div>
+    <figure class="mobile-preview-window">
+      <div class="mobile-preview-titlebar" aria-hidden="true">
+        <span></span><span></span><span></span>
+        <b>Yomitomo</b>
+      </div>
+      <div class="mobile-preview-scene">
+        <img
+          class="mobile-preview-image"
+          src={previewSrc}
+          width="1600"
+          height="1032"
+          loading="lazy"
+          decoding="async"
+          alt={copy.alt}
+        />
+      </div>
+      <figcaption>{copy.caption}</figcaption>
+    </figure>
+  </div>
+</section>

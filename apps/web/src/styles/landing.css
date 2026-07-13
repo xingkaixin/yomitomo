@@ -631,6 +631,12 @@ body {
   color: var(--ink-3);
 }
 
+/* The mobile page explains the desktop product with a static, real interface
+ * crop. The full interactive demo remains the desktop presentation. */
+.mobile-product-preview {
+  display: none;
+}
+
 /* ============================================================
  * Reader demo section
  * ============================================================ */
@@ -1766,6 +1772,87 @@ body {
 @media (max-width: 800px) {
   .demo-section {
     display: none;
+  }
+  .mobile-product-preview {
+    display: block;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    background: rgb(255 255 255 / 0.5);
+    padding: 48px 0 56px;
+  }
+  .mobile-preview-heading {
+    margin-bottom: 24px;
+  }
+  .mobile-preview-heading .sec-kicker {
+    margin-bottom: 10px;
+  }
+  .mobile-preview-heading h2 {
+    max-width: 14em;
+    margin: 0;
+    color: var(--ink);
+    font-family: var(--font-serif);
+    font-size: clamp(25px, 7vw, 34px);
+    font-weight: 900;
+    line-height: 1.18;
+    text-wrap: balance;
+  }
+  .mobile-preview-window {
+    overflow: hidden;
+    margin: 0;
+    border: 1px solid hsl(0 0% 8% / 0.24);
+    border-radius: 14px;
+    background: var(--surface);
+    box-shadow: var(--shadow-3);
+  }
+  .mobile-preview-titlebar {
+    position: relative;
+    display: flex;
+    height: 34px;
+    align-items: center;
+    gap: 6px;
+    border-bottom: 1px solid var(--line);
+    padding: 0 12px;
+  }
+  .mobile-preview-titlebar span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--line);
+  }
+  .mobile-preview-titlebar span:first-child {
+    background: var(--accent);
+  }
+  .mobile-preview-titlebar b {
+    position: absolute;
+    inset-inline: 60px;
+    color: var(--ink-2);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-align: center;
+  }
+  .mobile-preview-scene {
+    position: relative;
+    aspect-ratio: 1.12;
+    overflow: hidden;
+    background: var(--paper);
+  }
+  .mobile-preview-image {
+    position: absolute;
+    top: 0;
+    left: -46%;
+    width: 165%;
+    max-width: none;
+    height: auto;
+  }
+  .mobile-preview-window figcaption {
+    border-top: 1px solid var(--line);
+    color: var(--ink-2);
+    font-family: var(--font-serif);
+    font-size: 14px;
+    line-height: 1.55;
+    padding: 14px 16px 16px;
   }
   .reader {
     grid-template-columns: 1fr;
