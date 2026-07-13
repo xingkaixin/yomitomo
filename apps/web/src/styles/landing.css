@@ -1,7 +1,6 @@
 /* ============================================================
- * Yomitomo landing — 方案 C「聚焦编辑式」
- * Ported from the design bundle (tokens.css + landing.css).
- * Single brand accent = terracotta; surface = warm cream paper.
+ * Yomitomo landing — focused reading workspace.
+ * Single brand accent = terracotta; surface = warm cream.
  * ============================================================ */
 
 /* ---------- Fonts ----------
@@ -62,6 +61,7 @@
 
 :root {
   /* ---------- Color: page + ink ---------- */
+  --page: #fcfbf7;
   --paper: hsl(45 38% 93%);
   --paper-deep: hsl(36 32% 88%);
   --surface: hsl(0 0% 100%);
@@ -128,12 +128,7 @@ html {
 
 body {
   margin: 0;
-  background-color: #fcfbf7;
-  background-image:
-    linear-gradient(rgba(90, 70, 45, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(90, 70, 45, 0.06) 1px, transparent 1px);
-  background-size: 30px 30px;
-  background-position: -1px -1px;
+  background-color: var(--page);
 }
 
 .lp-root {
@@ -142,13 +137,7 @@ body {
   font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* 方格白纸背景 */
-  background-color: #fcfbf7;
-  background-image:
-    linear-gradient(rgba(90, 70, 45, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(90, 70, 45, 0.06) 1px, transparent 1px);
-  background-size: 30px 30px;
-  background-position: -1px -1px;
+  background-color: var(--page);
 }
 
 .lp-root ::selection {
@@ -181,7 +170,7 @@ body {
 }
 
 /* ============================================================
- * Masthead / nav (editorial — newspaper rule)
+ * Masthead / nav
  * ============================================================ */
 .mh {
   position: relative;
@@ -193,28 +182,14 @@ body {
   background: transparent;
 }
 .mh-bar {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
   align-items: center;
-  gap: 24px;
   /* Fixed height so the masthead is a deterministic 84 + 50 = 134px regardless
      of font swap, keeping --sl-nav-height exact and avoiding nav-jump on docs. */
   height: 84px;
   padding: 0;
 }
-.mh-kicker {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink-2);
-  white-space: nowrap;
-}
 .mh-wordmark {
-  grid-column: 2;
-  justify-self: center;
   display: inline-flex;
   align-items: center;
   gap: 12px;
@@ -233,26 +208,12 @@ body {
   line-height: 1;
   color: var(--ink);
 }
-.mh-date {
-  grid-column: 3;
-  justify-self: end;
-  min-width: 13.5em;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0;
-  color: var(--ink-2);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-  white-space: nowrap;
-}
 .mh-nav {
   display: flex;
   align-items: center;
   gap: 30px;
   height: 50px;
-  border-top: 3px double var(--ink);
+  border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
 .mh-nav a.nav-item {
@@ -1285,49 +1246,68 @@ body {
   text-wrap: pretty;
 }
 
-.steps {
+.concept-layout {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 28px;
-  margin-top: 52px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(48px, 6vw, 80px);
+  align-items: start;
+}
+.concept-layout .sec-title {
+  font-size: clamp(25px, 3vw, 36px);
+  text-wrap: pretty;
+}
+.concept-title-line {
+  display: block;
+}
+.steps {
+  position: relative;
+  display: grid;
+  margin-top: 4px;
 }
 .step {
   position: relative;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 16px;
+  padding-bottom: 34px;
 }
-.step-no {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--accent);
-}
-.step-rule {
-  height: 1px;
-  background: var(--line);
-  margin: 14px 0 16px;
-  position: relative;
-}
-.step-rule::before {
+.step:not(:last-child)::before {
   content: '';
   position: absolute;
-  left: 0;
-  top: 0;
-  width: 34px;
-  height: 1px;
+  left: 7px;
+  top: 16px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--line);
+}
+.step:last-child {
+  padding-bottom: 0;
+}
+.step-anchor {
+  position: relative;
+  z-index: 1;
+  width: 15px;
+  height: 15px;
+  margin-top: 6px;
+  border: 3px solid var(--page);
+  border-radius: 50%;
   background: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
 }
 .step h3 {
+  display: inline;
   font-family: var(--font-serif);
   font-size: 22px;
   font-weight: 800;
-  margin: 0 0 9px;
+  margin: 0;
   color: var(--ink);
+  background: linear-gradient(transparent 66%, var(--accent-soft-2) 66%);
 }
 .step p {
   font-size: 15px;
   line-height: 1.74;
   color: var(--ink-2);
-  margin: 0;
+  margin: 10px 0 0;
 }
 
 /* agents row */
@@ -1368,13 +1348,20 @@ body {
 /* feature trio */
 .feat-trio {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 26px;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.9fr);
+  column-gap: clamp(48px, 7vw, 96px);
   margin-top: 48px;
 }
 .feat {
   border-top: 1px solid var(--ink);
-  padding-top: 18px;
+  padding: 22px 0 30px;
+}
+.feat:nth-child(3) {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  border-top-color: var(--accent);
+  border-left: 1px solid var(--line);
+  padding-left: clamp(28px, 4vw, 52px);
 }
 .feat h3 {
   font-family: var(--font-serif);
@@ -1757,10 +1744,21 @@ body {
 }
 
 /* responsive */
+@media (max-width: 1180px) {
+  .concept-layout {
+    grid-template-columns: 1fr;
+    gap: 48px;
+  }
+}
 @media (max-width: 1080px) {
-  .steps,
   .feat-trio {
     grid-template-columns: 1fr;
+  }
+  .feat:nth-child(3) {
+    grid-column: 1;
+    grid-row: auto;
+    border-left: 0;
+    padding-left: 0;
   }
   .agents-row {
     grid-template-columns: repeat(3, 1fr);
@@ -1882,17 +1880,7 @@ body {
   }
 
   .mh-bar {
-    grid-template-columns: 1fr;
     height: 72px;
-  }
-
-  .mh-kicker,
-  .mh-date {
-    display: none;
-  }
-
-  .mh-wordmark {
-    grid-column: 1;
   }
 
   .mh-wordmark .mh-title {
