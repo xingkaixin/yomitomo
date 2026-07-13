@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { AppSettings, ArticleSummaryRecord } from '@yomitomo/shared';
 import { normalizeUiLanguage } from '@yomitomo/shared';
@@ -98,7 +98,7 @@ const AboutSettings = lazy(loadAboutSettings);
 type SettingKey = 'library' | 'stats' | 'settings' | 'agents';
 
 function App() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [activeSetting, setActiveSetting] = useState<SettingKey>('library');
   const [activeSettingsSection, setActiveSettingsSection] =
     useState<SettingsSectionKey>('collection');
@@ -377,12 +377,6 @@ function App() {
     );
   }
 
-  const today = new Intl.DateTimeFormat(i18n.language, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long',
-  }).format(new Date());
   const appShellClassName = [
     'app-shell',
     `is-${desktopPlatform()}`,
@@ -450,88 +444,87 @@ function App() {
     <AppLockGate enabled={appLockEnabled} locked={appLocked} onStoreUpdated={applyStore}>
       {({ enabled: lockEnabled, locked: lockOverlayVisible, lockApp, shortcutLabel }) => (
         <main className={appShellClassName}>
-          <header className="app-masthead">
-            <BrandTitle settings={store.settings} />
-            <time className="app-masthead-date" dateTime={new Date().toISOString()}>
-              {today}
-            </time>
-          </header>
-
-          <nav className="app-section-nav" aria-label={t('nav.main')}>
-            <SettingsNavButton
-              active={activeSetting === 'library'}
-              label={t('nav.library')}
-              onClick={() => setActiveSetting('library')}
-            />
-            <SettingsNavButton
-              active={activeSetting === 'agents'}
-              label={t('nav.agents')}
-              onClick={openAgents}
-            />
-            <SettingsNavButton
-              active={activeSetting === 'stats'}
-              label={t('nav.stats')}
-              onClick={openStats}
-            />
-            <SettingsNavButton
-              active={activeSetting === 'settings'}
-              label={t('nav.settings')}
-              onClick={openSettings}
-            />
-            {updateReady ? (
-              <button
-                type="button"
-                className="app-nav-update-button"
-                aria-label={t('nav.updateAvailableTooltip')}
-                data-tooltip={t('nav.updateAvailableTooltip')}
-                onClick={() => {
-                  openSettings();
-                  changeSettingsSection('about');
-                  setUpdateDialogRequest((n) => n + 1);
-                }}
-              >
-                <PartyPopper aria-hidden="true" size={13} />
-                {t('nav.updateAvailable')}
-              </button>
-            ) : null}
-            {lockEnabled ? (
-              <button
-                aria-label={t('appLock.lockNow', { shortcut: shortcutLabel })}
-                className="app-nav-lock-button"
-                data-tooltip={t('appLock.lockNow', { shortcut: shortcutLabel })}
-                type="button"
-                onClick={() => void lockApp()}
-              >
-                <LockKeyhole aria-hidden="true" size={18} />
-              </button>
-            ) : null}
-            <ThemeSelector
-              activeThemeId={theme.activeThemeId}
-              open={themeDialogOpen}
-              readerBackgroundColor={theme.readerBackgroundColor}
-              soundSettings={store.settings}
-              readerBackgroundsByTone={theme.readerBackgroundsByTone}
-              themeIdsByTone={theme.themeIdsByTone}
-              onOpenChange={setThemeDialogOpen}
-              onSelectReaderBackground={theme.selectReaderBackground}
-              onSelectTheme={(themeId, backgroundColor) =>
-                void theme.selectTheme(themeId, backgroundColor)
-              }
-            />
-            <button
-              aria-label={t('nav.profile')}
-              className="app-nav-profile-button"
-              data-tooltip={t('nav.profile')}
-              type="button"
-              onClick={(event) => openProfileDialog(event.currentTarget)}
-            >
-              <AvatarImage
-                value={store.user.avatar || ''}
-                className="app-nav-profile-avatar"
-                fallback={store.user.nickname?.slice(0, 1) || t('common.me')}
-              />
-            </button>
-          </nav>
+          <AppMasthead settings={store.settings}>
+            <nav className="app-section-nav" aria-label={t('nav.main')}>
+              <div className="app-section-links">
+                <SettingsNavButton
+                  active={activeSetting === 'library'}
+                  label={t('nav.library')}
+                  onClick={() => setActiveSetting('library')}
+                />
+                <SettingsNavButton
+                  active={activeSetting === 'agents'}
+                  label={t('nav.agents')}
+                  onClick={openAgents}
+                />
+                <SettingsNavButton
+                  active={activeSetting === 'stats'}
+                  label={t('nav.stats')}
+                  onClick={openStats}
+                />
+                <SettingsNavButton
+                  active={activeSetting === 'settings'}
+                  label={t('nav.settings')}
+                  onClick={openSettings}
+                />
+              </div>
+              <div className="app-section-actions">
+                {updateReady ? (
+                  <button
+                    type="button"
+                    className="app-nav-update-button"
+                    aria-label={t('nav.updateAvailableTooltip')}
+                    data-tooltip={t('nav.updateAvailableTooltip')}
+                    onClick={() => {
+                      openSettings();
+                      changeSettingsSection('about');
+                      setUpdateDialogRequest((n) => n + 1);
+                    }}
+                  >
+                    <PartyPopper aria-hidden="true" size={13} />
+                    {t('nav.updateAvailable')}
+                  </button>
+                ) : null}
+                {lockEnabled ? (
+                  <button
+                    aria-label={t('appLock.lockNow', { shortcut: shortcutLabel })}
+                    className="app-nav-lock-button"
+                    data-tooltip={t('appLock.lockNow', { shortcut: shortcutLabel })}
+                    type="button"
+                    onClick={() => void lockApp()}
+                  >
+                    <LockKeyhole aria-hidden="true" size={18} />
+                  </button>
+                ) : null}
+                <ThemeSelector
+                  activeThemeId={theme.activeThemeId}
+                  open={themeDialogOpen}
+                  readerBackgroundColor={theme.readerBackgroundColor}
+                  soundSettings={store.settings}
+                  readerBackgroundsByTone={theme.readerBackgroundsByTone}
+                  themeIdsByTone={theme.themeIdsByTone}
+                  onOpenChange={setThemeDialogOpen}
+                  onSelectReaderBackground={theme.selectReaderBackground}
+                  onSelectTheme={(themeId, backgroundColor) =>
+                    void theme.selectTheme(themeId, backgroundColor)
+                  }
+                />
+                <button
+                  aria-label={t('nav.profile')}
+                  className="app-nav-profile-button"
+                  data-tooltip={t('nav.profile')}
+                  type="button"
+                  onClick={(event) => openProfileDialog(event.currentTarget)}
+                >
+                  <AvatarImage
+                    value={store.user.avatar || ''}
+                    className="app-nav-profile-avatar"
+                    fallback={store.user.nickname?.slice(0, 1) || t('common.me')}
+                  />
+                </button>
+              </div>
+            </nav>
+          </AppMasthead>
 
           <section className="settings-content">
             <Suspense fallback={<LibrarySkeleton />}>
@@ -663,8 +656,9 @@ function App() {
 function StartupShell() {
   return (
     <main className={`app-shell is-${desktopPlatform()}`}>
-      <AppMasthead />
-      <StartupNav />
+      <AppMasthead>
+        <StartupNav />
+      </AppMasthead>
       <section className="settings-content">
         <LibrarySkeleton />
       </section>
@@ -672,10 +666,11 @@ function StartupShell() {
   );
 }
 
-function AppMasthead() {
+function AppMasthead({ children, settings }: { children: ReactNode; settings?: AppSettings }) {
   return (
     <header className="app-masthead">
-      <BrandTitle />
+      <BrandTitle settings={settings} />
+      {children}
     </header>
   );
 }
@@ -687,16 +682,17 @@ function BrandTitle({ settings }: { settings?: AppSettings }) {
   };
   return (
     <div className="app-masthead-title">
-      <h1>Yomitomo</h1>
-      <button
-        aria-label={t('brandPronounce')}
-        className="app-masthead-phonetic"
-        type="button"
-        onClick={playPronunciation}
-      >
-        /joːmitomo/
-        <Volume2 aria-hidden="true" size={13} />
-      </button>
+      <h1>
+        <button
+          aria-label={`Yomitomo · ${t('brandPronounce')}`}
+          className="app-masthead-wordmark"
+          type="button"
+          onClick={playPronunciation}
+        >
+          <span>Yomitomo</span>
+          <Volume2 aria-hidden="true" size={14} />
+        </button>
+      </h1>
     </div>
   );
 }
@@ -705,18 +701,20 @@ function StartupNav() {
   const { t } = useTranslation();
   return (
     <nav className="app-section-nav" aria-label={t('nav.main')}>
-      <button className="settings-nav-item is-active" disabled type="button">
-        <span>{t('startup.library')}</span>
-      </button>
-      <button className="settings-nav-item" disabled type="button">
-        <span>{t('startup.agents')}</span>
-      </button>
-      <button className="settings-nav-item" disabled type="button">
-        <span>{t('startup.stats')}</span>
-      </button>
-      <button className="settings-nav-item" disabled type="button">
-        <span>{t('startup.settings')}</span>
-      </button>
+      <div className="app-section-links">
+        <button className="settings-nav-item is-active" disabled type="button">
+          <span>{t('startup.library')}</span>
+        </button>
+        <button className="settings-nav-item" disabled type="button">
+          <span>{t('startup.agents')}</span>
+        </button>
+        <button className="settings-nav-item" disabled type="button">
+          <span>{t('startup.stats')}</span>
+        </button>
+        <button className="settings-nav-item" disabled type="button">
+          <span>{t('startup.settings')}</span>
+        </button>
+      </div>
     </nav>
   );
 }
