@@ -67,7 +67,7 @@
   --surface: hsl(0 0% 100%);
   --ink: hsl(0 0% 8%);
   --ink-2: hsl(0 0% 42%);
-  --ink-3: hsl(0 0% 60%);
+  --ink-3: hsl(0 0% 44%);
   --line: hsl(0 0% 78%);
 
   /* ---------- Accent: terracotta red (single brand color) ---------- */
@@ -626,7 +626,7 @@ body {
 }
 .cta-alt .v {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.06em;
   color: var(--ink-3);
 }
@@ -751,7 +751,7 @@ body {
 }
 .reader-eyebrow {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -857,7 +857,7 @@ body {
 }
 .rail-head {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -1193,7 +1193,7 @@ body {
 }
 .dm-divider {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -1506,7 +1506,7 @@ body {
 }
 .dl-card .ext {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ink-3);
   margin-top: 6px;
 }
@@ -1598,7 +1598,7 @@ body {
 }
 .lp-footer .fine {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.06em;
   color: var(--ink-3);
   margin-top: 20px;
