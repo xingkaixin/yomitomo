@@ -104,8 +104,9 @@ mise run check
 ```
 
 `mise run check` 与 CI 门禁顺序一致：`pnpm lint`、`pnpm ui:check-primitives`、
-`pnpm format:check`、`pnpm typecheck`、`pnpm test`、`pnpm build`。需要更快的本地循环时，
-可以先运行 `mise run check:fast`，它只覆盖 lint、format check、typecheck 和 test。
+`pnpm format:check`、`pnpm typecheck`、`pnpm test`、`pnpm test:app:e2e`、`pnpm build`。
+需要更快的本地循环时，可以先运行 `mise run check:fast`，它只覆盖 lint、format check、
+typecheck 和 test。
 
 如果本机未安装 mise，可直接运行等价命令：
 
@@ -115,8 +116,12 @@ pnpm ui:check-primitives
 pnpm format:check
 pnpm typecheck
 pnpm test
+pnpm test:app:e2e
 pnpm build
 ```
+
+无图形环境的 Linux 需要通过 `xvfb-run -a mise run check` 运行完整门禁；macOS 和已有图形
+会话的 Linux 可直接运行 `mise run check`。
 
 推送 PR 分支前必须至少运行 `pnpm format:check`。如果本次改动会触发完整 CI，
 优先在推送前运行 `mise run check` 或上述等价命令，避免把可本地发现的问题推到 CI。
