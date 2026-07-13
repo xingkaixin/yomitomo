@@ -1,6 +1,7 @@
 import type { LlmProvider } from '@yomitomo/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { setAiLogger } from '../logger';
 import { callProviderText, listProviderModels, streamProviderText } from './provider-client';
 
 function requestBodyText(value: unknown) {
@@ -231,6 +232,72 @@ describe('callProviderText response schema', () => {
     );
   });
 });
+
+describe('provider generation logging', () => {
+  afterEach(() => {
+    setAiLogger({});
+    vi.restoreAllMocks();
+  });
+
+  it('does not expose API key-derived fields in generation logs', async () => {
+    const apiKey = 'rd819-sensitive-credential';
+    const startEvents = captureGenerationStarts();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ choices: [{ index: 0, message: { content: 'ok' } }] }),
+    );
+
+    await callProviderText({ ...provider(), apiKey }, payload());
+
+    expect(startEvents).toHaveLength(1);
+    expect(startEvents[0]).toMatchObject({
+      providerId: 'provider-1',
+      hasApiKey: true,
+    });
+    expectLogToExcludeCredential(startEvents[0], apiKey);
+  });
+
+  it('does not expose API key fragments when generation fails', async () => {
+    const apiKey = 'rd819-failing-credential';
+    const startEvents = captureGenerationStarts();
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'));
+
+    await expect(callProviderText({ ...provider(), apiKey }, payload())).rejects.toThrow();
+
+    expect(startEvents).toHaveLength(1);
+    expectLogToExcludeCredential(startEvents[0], apiKey);
+  });
+
+  it('records when an API key is not configured', async () => {
+    const startEvents = captureGenerationStarts();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ choices: [{ index: 0, message: { content: 'ok' } }] }),
+    );
+
+    await callProviderText({ ...provider(), apiKey: '' }, payload());
+
+    expect(startEvents[0]).toMatchObject({ hasApiKey: false });
+  });
+});
+
+function captureGenerationStarts() {
+  const events: Array<Record<string, unknown>> = [];
+  setAiLogger({
+    info(event, data) {
+      if (event === 'assistant.generation.start' && data) events.push(data);
+    },
+  });
+  return events;
+}
+
+function expectLogToExcludeCredential(
+  log: Record<string, unknown> | undefined,
+  credential: string,
+) {
+  const serializedLog = JSON.stringify(log);
+  expect(serializedLog).not.toContain(credential);
+  expect(serializedLog).not.toContain(credential.slice(0, 4));
+  expect(serializedLog).not.toContain(credential.slice(-4));
+}
 
 function provider(): LlmProvider {
   return {
