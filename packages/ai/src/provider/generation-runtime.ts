@@ -155,11 +155,12 @@ function logProviderRequest(provider: LlmProvider, payload: TextPayload, stream:
     stream,
     type: provider.type,
     model: provider.modelName,
+    providerId: provider.id,
     providerName: provider.name,
     maxTokens: payload.maxTokens,
     temperature: payload.temperature,
     reasoningEffort: provider.reasoningEffort || 'none',
-    apiKeyPreview: previewSecret(provider.apiKey),
+    hasApiKey: Boolean(provider.apiKey),
   });
 }
 
@@ -194,12 +195,6 @@ function logProviderResponse(provider: LlmProvider, textLength: number, usage: N
     textLength,
     ...usage,
   });
-}
-
-function previewSecret(value: string) {
-  if (!value) return '<empty>';
-  if (value.length <= 8) return '<too-short>';
-  return `${value.slice(0, 4)}...${value.slice(-4)}`;
 }
 
 function errorMessage(error: unknown) {
