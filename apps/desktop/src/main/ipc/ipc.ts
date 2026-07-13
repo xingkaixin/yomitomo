@@ -39,6 +39,23 @@ export interface DesktopMainIpcContext {
   openExternalUrl: (value: string) => Promise<void>;
 }
 
+export type DesktopPersistenceModule = Awaited<
+  ReturnType<DesktopMainIpcContext['getPersistenceModule']>
+>;
+export type DesktopAiModule = Awaited<ReturnType<DesktopMainIpcContext['getAiModule']>>;
+export type DesktopAppUpdaterModule = Awaited<
+  ReturnType<DesktopMainIpcContext['getAppUpdaterModule']>
+>;
+
+export type DesktopIpcAppLockGuardContext = {
+  getPersistenceModule: () => Promise<{
+    storeSnapshotPersistence: Pick<
+      DesktopPersistenceModule['storeSnapshotPersistence'],
+      'readStore'
+    >;
+  }>;
+};
+
 export type DesktopIpcHandler<Channel extends DesktopIpcInvokeChannel> = (
   event: IpcMainInvokeEvent,
   ...args: DesktopIpcInvokeArgs<Channel>
@@ -52,9 +69,11 @@ const appLockGuardBypassChannels = new Set<DesktopIpcInvokeChannel>([
   'store:get',
 ]);
 
-let appLockGuardContext: DesktopMainIpcContext | null = null;
+let appLockGuardContext: DesktopIpcAppLockGuardContext | null = null;
 
-export function configureDesktopIpcAppLockGuardContext(context: DesktopMainIpcContext | null) {
+export function configureDesktopIpcAppLockGuardContext(
+  context: DesktopIpcAppLockGuardContext | null,
+) {
   appLockGuardContext = context;
 }
 
@@ -73,7 +92,7 @@ export function handleDesktopIpc<Channel extends DesktopIpcInvokeChannel>(
   });
 }
 
-export async function assertDesktopIpcAppLockUnlocked(context: DesktopMainIpcContext) {
+export async function assertDesktopIpcAppLockUnlocked(context: DesktopIpcAppLockGuardContext) {
   const { storeSnapshotPersistence } = await context.getPersistenceModule();
   const store = await storeSnapshotPersistence.readStore();
   assertAppLockSettingsUnlocked(store.settings);

@@ -6,11 +6,20 @@ import {
   saveAppLockPin,
   verifyAppLockPin,
 } from '../app-lock/app-lock-secrets';
-import type { DesktopMainIpcContext } from './ipc';
+import type { DesktopMainIpcContext, DesktopPersistenceModule } from './ipc';
 import { handleDesktopIpc } from './ipc';
 import { rendererStoreForAppLockState } from './app-lock-renderer-store';
 
-export function registerAppLockIpc(context: DesktopMainIpcContext) {
+type AppLockIpcContext = Pick<DesktopMainIpcContext, 'sendFullStoreUpdated'> & {
+  getPersistenceModule: () => Promise<{
+    settingsPersistence: Pick<
+      DesktopPersistenceModule['settingsPersistence'],
+      'readStore' | 'saveSettings'
+    >;
+  }>;
+};
+
+export function registerAppLockIpc(context: AppLockIpcContext) {
   handleDesktopIpc('appLock:getStatus', async () => readAppLockStatus(context));
 
   handleDesktopIpc('appLock:setPin', async (_event, input) => {
@@ -76,7 +85,7 @@ export function registerAppLockIpc(context: DesktopMainIpcContext) {
   });
 }
 
-async function readAppLockStatus(context: DesktopMainIpcContext) {
+async function readAppLockStatus(context: AppLockIpcContext) {
   const { settingsPersistence } = await context.getPersistenceModule();
   const store = await settingsPersistence.readStore();
   return {

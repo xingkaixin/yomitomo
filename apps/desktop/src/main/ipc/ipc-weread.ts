@@ -1,10 +1,19 @@
 import { createHash } from 'node:crypto';
 import type { WeReadOpenMethod, WeReadReadingStatsMode } from '@yomitomo/shared';
-import type { DesktopMainIpcContext } from './ipc';
+import type { DesktopMainIpcContext, DesktopPersistenceModule } from './ipc';
 import { handleDesktopIpc } from './ipc';
 import { syncWeReadLibrary } from '../weread/weread-sync';
 
-export function registerWeReadIpc(context: DesktopMainIpcContext) {
+type WeReadIpcContext = Pick<
+  DesktopMainIpcContext,
+  'configureWeReadAutoSync' | 'elapsedMs' | 'logError' | 'logInfo' | 'openExternalUrl'
+> & {
+  getPersistenceModule: () => Promise<{
+    weReadPersistence: DesktopPersistenceModule['weReadPersistence'];
+  }>;
+};
+
+export function registerWeReadIpc(context: WeReadIpcContext) {
   handleDesktopIpc('weread:get-state', async () => {
     const { weReadPersistence } = await context.getPersistenceModule();
     return weReadPersistence.readWeReadState();

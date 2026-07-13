@@ -6,12 +6,21 @@ import type {
   ThreadReplyRuntimeResult,
 } from './agent-thread-runtime';
 import { appendAgentRuntimeTrace } from './agent-runtime-trace-log';
-import type { DesktopMainIpcContext } from '../ipc/ipc';
+import type { DesktopMainIpcContext, DesktopPersistenceModule } from '../ipc/ipc';
 import type { AgentRuntimeTaskType } from './agent-runtime-routing';
 import type { AssistantExecutionRunInput } from '../assistant/assistant-execution-repository';
 
+type AgentExecutionContext = Pick<DesktopMainIpcContext, 'logError' | 'logInfo'> & {
+  getPersistenceModule: () => Promise<{
+    assistantExecutionPersistence: Pick<
+      DesktopPersistenceModule['assistantExecutionPersistence'],
+      'recordAssistantExecutionRun'
+    >;
+  }>;
+};
+
 export function logAgentMessageRuntime(
-  context: DesktopMainIpcContext,
+  context: AgentExecutionContext,
   result: ThreadReplyRuntimeResult | DistillationReviewRuntimeResult,
   provider: LlmProvider,
   agent: Agent,
@@ -85,7 +94,7 @@ export function logAgentMessageRuntime(
 }
 
 export function recordAssistantExecutionRun(
-  context: DesktopMainIpcContext,
+  context: AgentExecutionContext,
   input: AssistantExecutionRunInput,
 ) {
   void context

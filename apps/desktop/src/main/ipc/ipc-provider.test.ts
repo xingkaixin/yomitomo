@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { DesktopMainIpcContext } from './ipc';
 import { registerProviderIpc } from './ipc-provider';
 
 const ipcMocks = vi.hoisted(() => ({
@@ -17,11 +16,7 @@ describe('provider IPC persistence boundary', () => {
     ipcMocks.ipcMainHandle.mockClear();
     const readStoredProviderApiKey = vi.fn(async () => 'provider-secret');
 
-    registerProviderIpc({
-      getPersistenceModule: async () => ({
-        providerPersistence: { readStoredProviderApiKey },
-      }),
-    } as unknown as DesktopMainIpcContext);
+    registerProviderIpc(providerIpcContext({ readStoredProviderApiKey }));
 
     const handler = ipcMocks.ipcMainHandle.mock.calls.find(
       ([channel]) => channel === 'provider:read-api-key',
@@ -39,7 +34,7 @@ describe('provider IPC persistence boundary', () => {
     const hydrateProviderInputApiKey = vi.fn(async () => ({
       id: 'provider_1',
       name: 'Provider',
-      type: 'openai-chat',
+      type: 'openai-chat' as const,
       baseUrl: 'https://api.example.com',
       apiKey: 'sk-secret',
       modelName: 'model',
@@ -48,12 +43,7 @@ describe('provider IPC persistence boundary', () => {
       throw new Error('Authorization: Bearer sk-secret');
     });
 
-    registerProviderIpc({
-      getPersistenceModule: async () => ({
-        providerPersistence: { hydrateProviderInputApiKey },
-      }),
-      getAiModule: async () => ({ testProvider }),
-    } as unknown as DesktopMainIpcContext);
+    registerProviderIpc(providerIpcContext({ hydrateProviderInputApiKey }, { testProvider }));
 
     const handler = ipcMocks.ipcMainHandle.mock.calls.find(
       ([channel]) => channel === 'provider:test',
@@ -69,3 +59,38 @@ describe('provider IPC persistence boundary', () => {
     expect(JSON.stringify(result)).not.toContain('sk-secret');
   });
 });
+
+type ProviderIpcContext = Parameters<typeof registerProviderIpc>[0];
+type ProviderPersistence = Awaited<
+  ReturnType<ProviderIpcContext['getPersistenceModule']>
+>['providerPersistence'];
+type ProviderAiModule = Awaited<ReturnType<ProviderIpcContext['getAiModule']>>;
+
+function providerIpcContext(
+  providerOverrides: Partial<ProviderPersistence>,
+  aiOverrides: Partial<ProviderAiModule> = {},
+): ProviderIpcContext {
+  return {
+    getAiModule: async () => ({
+      listProviderModels: vi.fn(),
+      testProvider: vi.fn(),
+      ...aiOverrides,
+    }),
+    getPersistenceModule: async () => ({
+      providerPersistence: {
+        deleteProvider: vi.fn(),
+        hydrateProviderInputApiKey: vi.fn(),
+        readStoredProviderApiKey: vi.fn(),
+        saveProvider: vi.fn(),
+        ...providerOverrides,
+      },
+      settingsPersistence: {
+        readStore: vi.fn(),
+        saveSettings: vi.fn(),
+        saveSettingsShell: vi.fn(),
+        saveUser: vi.fn(),
+      },
+    }),
+    sendFullStoreUpdated: vi.fn(),
+  };
+}

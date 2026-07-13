@@ -1,13 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DesktopStore } from '@yomitomo/shared';
 import { desktopIpcErrorCodes, type DesktopIpcInvokeEnvelope } from '../../ipc-errors';
-import { registerArticleIpc } from './ipc-article';
 import { registerAppLockIpc } from './ipc-app-lock';
-import { registerLibraryCollectionIpc } from './ipc-library-collection';
-import { registerProviderIpc } from './ipc-provider';
 import { registerStoreDataIpc } from './ipc-store-data';
-import { registerWeReadIpc } from './ipc-weread';
-import { configureDesktopIpcAppLockGuardContext, type DesktopMainIpcContext } from './ipc';
+import { configureDesktopIpcAppLockGuardContext, handleDesktopIpc } from './ipc';
 
 const ipcState = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
@@ -60,11 +56,14 @@ describe('app lock IPC guard', () => {
     const ipcContext = context(storeModule);
     configureDesktopIpcAppLockGuardContext(ipcContext);
 
-    registerArticleIpc(ipcContext);
-    registerLibraryCollectionIpc(ipcContext);
-    registerProviderIpc(ipcContext);
     registerStoreDataIpc(ipcContext);
-    registerWeReadIpc(ipcContext);
+    const protectedHandler = vi.fn();
+    handleDesktopIpc('provider:read-api-key', protectedHandler);
+    handleDesktopIpc('weread:read-api-key', protectedHandler);
+    handleDesktopIpc('log:read', protectedHandler);
+    handleDesktopIpc('data:paths', protectedHandler);
+    handleDesktopIpc('article:get', protectedHandler);
+    handleDesktopIpc('library-collection:create', protectedHandler);
 
     await expectAppLockRequired('store:get');
     await expectAppLockRequired('provider:read-api-key', 'openai');
@@ -75,9 +74,7 @@ describe('app lock IPC guard', () => {
     await expectAppLockRequired('library-collection:create', { name: '合集' });
 
     expect(ipcContext.setSensitiveRendererEventsLocked).toHaveBeenCalledWith(true);
-    expect(storeModule.readStoredProviderApiKey).not.toHaveBeenCalled();
-    expect(storeModule.readStoredWeReadApiKey).not.toHaveBeenCalled();
-    expect(storeModule.readArticle).not.toHaveBeenCalled();
+    expect(protectedHandler).not.toHaveBeenCalled();
   });
 
   it('does not let setLocked unlock the app from renderer-controlled input', async () => {
@@ -171,43 +168,40 @@ describe('app lock IPC guard', () => {
   });
 });
 
-function context(storeModule: ReturnType<typeof createStoreModule>): DesktopMainIpcContext {
+function context(storeModule: ReturnType<typeof createStoreModule>) {
   return {
     elapsedMs: () => 1,
-    getAiModule: vi.fn(),
-    getAppUpdaterModule: vi.fn(),
-    getAppVersion: () => '0.0.0-test',
+    getAppUpdaterModule: async () => ({
+      checkForAppUpdates: vi.fn(),
+      downloadAppUpdate: vi.fn(),
+      getAppUpdateState: vi.fn(),
+      installAppUpdate: vi.fn(),
+      simulateUpdateAvailable: vi.fn(),
+    }),
     getMainWindow: () => null,
     getPersistenceModule: async () => ({
-      articlePersistence: {
-        readArticle: storeModule.readArticle,
-      },
-      providerPersistence: {
-        readStoredProviderApiKey: storeModule.readStoredProviderApiKey,
+      assistantExecutionPersistence: {
+        queryAssistantExecutionRunDetail: vi.fn(),
+        queryAssistantExecutionRuns: vi.fn(),
+        queryAssistantExecutionSummary: vi.fn(),
       },
       settingsPersistence: {
         readStore: storeModule.readStore,
         saveSettings: storeModule.saveSettings,
+        saveSettingsShell: storeModule.saveSettings,
       },
       storeSnapshotPersistence: {
         readStore: storeModule.readStore,
         readStoreWithProfile: storeModule.readStoreWithProfile,
       },
-      weReadPersistence: {
-        readStoredWeReadApiKey: storeModule.readStoredWeReadApiKey,
-      },
     }),
     logError: vi.fn(),
-    logInfo: vi.fn(),
-    openExternalUrl: vi.fn(),
-    recordPerformanceTiming: vi.fn(),
     recordStartupTiming: vi.fn(),
     scheduleLogPrune: vi.fn(),
     setSensitiveRendererEventsLocked: vi.fn(),
-    sendArticlePatched: vi.fn(),
     sendFullStoreUpdated: vi.fn(),
     storeLoadErrorInfo: vi.fn(),
-  } as unknown as DesktopMainIpcContext;
+  };
 }
 
 async function expectAppLockRequired(channel: string, ...args: unknown[]) {

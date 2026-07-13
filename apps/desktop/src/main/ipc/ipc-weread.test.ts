@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { WeReadBook, WeReadBookDetail } from '@yomitomo/shared';
-import type { DesktopMainIpcContext } from './ipc';
 import { registerWeReadIpc } from './ipc-weread';
 import { testWeReadConnection } from '../weread/weread-client';
 import { fetchWeReadSyncDetails } from '../weread/weread-sync';
@@ -28,11 +27,7 @@ describe('weread IPC persistence boundary', () => {
     ipcMocks.ipcMainHandle.mockClear();
     const readStoredWeReadApiKey = vi.fn(async () => 'weread-secret');
 
-    registerWeReadIpc({
-      getPersistenceModule: async () => ({
-        weReadPersistence: { readStoredWeReadApiKey },
-      }),
-    } as unknown as DesktopMainIpcContext);
+    registerWeReadIpc(weReadIpcContext({ readStoredWeReadApiKey }));
 
     const handler = ipcMocks.ipcMainHandle.mock.calls.find(
       ([channel]) => channel === 'weread:read-api-key',
@@ -48,18 +43,17 @@ describe('weread IPC persistence boundary', () => {
   it('reconfigures auto sync after saving settings', async () => {
     ipcMocks.ipcMainHandle.mockClear();
     const state = {
-      settings: { configured: true, openMethod: 'deeplink', syncMode: 'auto' },
+      settings: {
+        configured: true,
+        openMethod: 'deeplink' as const,
+        syncMode: 'auto' as const,
+      },
       books: [],
     };
     const saveWeReadSettings = vi.fn(async () => state);
     const configureWeReadAutoSync = vi.fn();
 
-    registerWeReadIpc({
-      configureWeReadAutoSync,
-      getPersistenceModule: async () => ({
-        weReadPersistence: { saveWeReadSettings },
-      }),
-    } as unknown as DesktopMainIpcContext);
+    registerWeReadIpc(weReadIpcContext({ saveWeReadSettings }, { configureWeReadAutoSync }));
 
     const handler = ipcMocks.ipcMainHandle.mock.calls.find(
       ([channel]) => channel === 'weread:save-settings',
@@ -79,13 +73,12 @@ describe('weread IPC persistence boundary', () => {
     vi.mocked(testWeReadConnection).mockRejectedValueOnce(
       new Error('Authorization: Bearer weread-secret'),
     );
-    const saveWeReadTestResult = vi.fn(async () => undefined);
+    const saveWeReadTestResult = vi.fn(async () => ({
+      settings: { configured: false, openMethod: 'web' as const },
+      books: [],
+    }));
 
-    registerWeReadIpc({
-      getPersistenceModule: async () => ({
-        weReadPersistence: { saveWeReadTestResult },
-      }),
-    } as unknown as DesktopMainIpcContext);
+    registerWeReadIpc(weReadIpcContext({ saveWeReadTestResult }));
 
     const handler = ipcMocks.ipcMainHandle.mock.calls.find(
       ([channel]) => channel === 'weread:test',
@@ -102,6 +95,40 @@ describe('weread IPC persistence boundary', () => {
     expect(JSON.stringify(result)).not.toContain('weread-secret');
   });
 });
+
+type WeReadIpcContext = Parameters<typeof registerWeReadIpc>[0];
+type WeReadPersistence = Awaited<
+  ReturnType<WeReadIpcContext['getPersistenceModule']>
+>['weReadPersistence'];
+
+function weReadIpcContext(
+  persistenceOverrides: Partial<WeReadPersistence>,
+  contextOverrides: Partial<WeReadIpcContext> = {},
+): WeReadIpcContext {
+  return {
+    configureWeReadAutoSync: vi.fn(),
+    elapsedMs: () => 1,
+    getPersistenceModule: async () => ({
+      weReadPersistence: {
+        readStoredWeReadApiKey: vi.fn(),
+        readWeReadBookDetail: vi.fn(),
+        readWeReadReadingStatsState: vi.fn(),
+        readWeReadSettings: vi.fn(),
+        readWeReadState: vi.fn(),
+        saveWeReadBookDetail: vi.fn(),
+        saveWeReadBookDetails: vi.fn(),
+        saveWeReadReadingStatsSnapshot: vi.fn(),
+        saveWeReadSettings: vi.fn(),
+        saveWeReadTestResult: vi.fn(),
+        ...persistenceOverrides,
+      },
+    }),
+    logError: vi.fn(),
+    logInfo: vi.fn(),
+    openExternalUrl: vi.fn(),
+    ...contextOverrides,
+  };
+}
 
 describe('weread IPC sync detail loading', () => {
   it('limits full sync detail fetches to the configured concurrency', async () => {

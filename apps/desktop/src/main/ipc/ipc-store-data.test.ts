@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { DesktopStore } from '@yomitomo/shared';
 import type { AppUpdateState } from '../../app-update-types';
 import type { DesktopIpcInvokeEnvelope } from '../../ipc-errors';
-import type { DesktopMainIpcContext } from './ipc';
 import { registerStoreDataIpc } from './ipc-store-data';
 
 const ipcState = vi.hoisted(() => ({
@@ -35,7 +35,21 @@ beforeEach(() => {
 describe('store data update IPC', () => {
   it('loads the full store for the reading library even when shell store loading is available', async () => {
     const fullStore = desktopStore({
-      articles: [{ id: 'article_1', annotations: [], annotationCount: 0, commentCount: 0 }],
+      articles: [
+        {
+          id: 'article_1',
+          url: 'https://example.com',
+          canonicalUrl: 'https://example.com',
+          sourceType: 'web',
+          title: 'Article',
+          contentHash: 'hash',
+          annotations: [],
+          annotationCount: 0,
+          commentCount: 0,
+          createdAt: '2026-07-13T00:00:00.000Z',
+          updatedAt: '2026-07-13T00:00:00.000Z',
+        },
+      ],
     });
     const shellStore = desktopStore({ articles: [] });
     const readStoreWithProfile = vi.fn(async () => ({ store: fullStore, profile: [] }));
@@ -66,9 +80,7 @@ describe('store data update IPC', () => {
       simulateUpdateAvailable: vi.fn(() => updateState('available')),
     };
 
-    registerStoreDataIpc({
-      getAppUpdaterModule: async () => updaterModule,
-    } as unknown as DesktopMainIpcContext);
+    registerStoreDataIpc(storeContext({ readStoreWithProfile: vi.fn(), updaterModule }));
 
     await expectUpdateForward('updates:get-status', updaterModule.getAppUpdateState, 'idle');
     await expectUpdateForward('updates:check', updaterModule.checkForAppUpdates, 'available');
@@ -109,14 +121,33 @@ function updateState(status: AppUpdateState['status']): AppUpdateState {
   };
 }
 
+type StoreDataIpcContext = Parameters<typeof registerStoreDataIpc>[0];
+type StoreDataPersistenceModule = Awaited<ReturnType<StoreDataIpcContext['getPersistenceModule']>>;
+
 function storeContext(input: {
   readShellStoreWithProfile?: ReturnType<typeof vi.fn>;
-  readStoreWithProfile: ReturnType<typeof vi.fn>;
-}) {
+  readStoreWithProfile: StoreDataPersistenceModule['storeSnapshotPersistence']['readStoreWithProfile'];
+  updaterModule?: Awaited<ReturnType<StoreDataIpcContext['getAppUpdaterModule']>>;
+}): StoreDataIpcContext {
   return {
     elapsedMs: () => 1,
+    getAppUpdaterModule: async () =>
+      input.updaterModule || {
+        checkForAppUpdates: vi.fn(),
+        downloadAppUpdate: vi.fn(),
+        getAppUpdateState: vi.fn(),
+        installAppUpdate: vi.fn(),
+        simulateUpdateAvailable: vi.fn(),
+      },
+    getMainWindow: () => null,
     getPersistenceModule: async () => ({
+      assistantExecutionPersistence: {
+        queryAssistantExecutionRunDetail: vi.fn(),
+        queryAssistantExecutionRuns: vi.fn(),
+        queryAssistantExecutionSummary: vi.fn(),
+      },
       settingsPersistence: {
+        saveSettings: vi.fn(),
         saveSettingsShell: vi.fn(async (settings: Record<string, unknown>) => ({
           ...desktopStore({ articles: [] }),
           settings,
@@ -127,12 +158,15 @@ function storeContext(input: {
     logError: vi.fn(),
     recordStartupTiming: vi.fn(),
     scheduleLogPrune: vi.fn(),
+    sendFullStoreUpdated: vi.fn(),
     setSensitiveRendererEventsLocked: vi.fn(),
     storeLoadErrorInfo: vi.fn(),
-  } as unknown as DesktopMainIpcContext;
+  };
 }
 
-function desktopStore(overrides: Partial<Record<'articles' | 'settings', unknown>> = {}) {
+function desktopStore(
+  overrides: Partial<Pick<DesktopStore, 'articles' | 'settings'>> = {},
+): DesktopStore {
   return {
     agents: [],
     articles: [],
@@ -141,7 +175,14 @@ function desktopStore(overrides: Partial<Record<'articles' | 'settings', unknown
     pins: [],
     providers: [],
     settings: {},
-    user: {},
+    user: {
+      id: 'user_1',
+      nickname: 'Test User',
+      username: 'test-user',
+      avatar: '',
+      annotationColor: '#f4c95d',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+    },
     ...overrides,
   };
 }

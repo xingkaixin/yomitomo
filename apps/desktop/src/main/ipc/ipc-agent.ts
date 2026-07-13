@@ -12,7 +12,7 @@ import type {
   LlmProvider,
 } from '@yomitomo/shared';
 import { makeId, normalizeAssistantExecutionMode, normalizeUiLanguage } from '@yomitomo/shared';
-import type { DesktopMainIpcContext } from './ipc';
+import type { DesktopAiModule, DesktopMainIpcContext, DesktopPersistenceModule } from './ipc';
 import { assertDesktopIpcAppLockUnlocked, handleDesktopIpc } from './ipc';
 import {
   createAgentTextStream,
@@ -57,7 +57,41 @@ import {
 
 const e2eFakeAgentProviderBaseUrl = 'https://e2e.invalid/yomitomo-ai';
 
-export function registerAgentIpc(context: DesktopMainIpcContext) {
+type AgentIpcContext = Pick<DesktopMainIpcContext, 'elapsedMs' | 'logError' | 'logInfo'> & {
+  getAiModule: () => Promise<
+    Pick<
+      DesktopAiModule,
+      | 'buildAgentCreateThoughtRuntimePayload'
+      | 'buildAgentDistillationReviewRuntimePayload'
+      | 'buildAgentThreadReplyRuntimePayload'
+      | 'planAgentMentionRoute'
+      | 'runAgent'
+      | 'runAgentAnnotateStream'
+      | 'runAgentAnnotateWithMemory'
+      | 'runAgentDistillationReviewStructuredStream'
+      | 'runAgentReview'
+      | 'runAgentStream'
+      | 'runAssistantAiSdkToolRuntime'
+    >
+  >;
+  getPersistenceModule: () => Promise<{
+    agentRuntimePersistence: DesktopPersistenceModule['agentRuntimePersistence'];
+    assistantExecutionPersistence: Pick<
+      DesktopPersistenceModule['assistantExecutionPersistence'],
+      'recordAssistantExecutionRun'
+    >;
+    providerPersistence: Pick<
+      DesktopPersistenceModule['providerPersistence'],
+      'hydrateProviderApiKey'
+    >;
+    storeSnapshotPersistence: Pick<
+      DesktopPersistenceModule['storeSnapshotPersistence'],
+      'readStore'
+    >;
+  }>;
+};
+
+export function registerAgentIpc(context: AgentIpcContext) {
   handleDesktopIpc('agent:mention-route', async (_event, payload) => {
     const { planAgentMentionRoute } = await context.getAiModule();
     const store = await readAgentRuntimeStore(context);
@@ -650,7 +684,7 @@ function appendDistillationReviewItem(
 }
 
 async function structuredFastDistillationReview(
-  context: DesktopMainIpcContext,
+  context: AgentIpcContext,
   ai: Pick<typeof import('@yomitomo/ai'), 'runAgentDistillationReviewStructuredStream'>,
   provider: LlmProvider,
   agent: Agent,
@@ -667,7 +701,7 @@ async function structuredFastDistillationReview(
   );
 }
 
-async function readAgentRuntimeStore(context: DesktopMainIpcContext) {
+async function readAgentRuntimeStore(context: AgentIpcContext) {
   const { agentRuntimePersistence } = await context.getPersistenceModule();
   return agentRuntimePersistence.readAgentRuntimeContext();
 }
@@ -679,7 +713,7 @@ function agentMessageReplyTo(payload: AgentMessagePayload) {
 }
 
 function agentMessageFastInput(
-  context: DesktopMainIpcContext,
+  context: AgentIpcContext,
   payload: AgentMessagePayload,
   agentId: string,
 ) {
@@ -697,8 +731,8 @@ function agentMessageFastInput(
 }
 
 async function runFastAgent(
-  context: DesktopMainIpcContext,
-  ai: Pick<Awaited<ReturnType<DesktopMainIpcContext['getAiModule']>>, 'runAgent'>,
+  context: AgentIpcContext,
+  ai: Pick<Awaited<ReturnType<AgentIpcContext['getAiModule']>>, 'runAgent'>,
   provider: LlmProvider,
   agent: Agent,
   payload: AgentMessagePayload,
@@ -708,7 +742,7 @@ async function runFastAgent(
 }
 
 function safeAgentMessageReadingContextSnapshot(
-  context: DesktopMainIpcContext,
+  context: AgentIpcContext,
   payload: AgentMessagePayload,
   agentId: string,
 ) {

@@ -1,7 +1,11 @@
 import { performance } from 'node:perf_hooks';
 import type { DesktopStoreGetResult } from '../../app-store-errors';
 import { DesktopIpcError } from '../../ipc-errors';
-import type { DesktopMainIpcContext } from './ipc';
+import type {
+  DesktopAppUpdaterModule,
+  DesktopMainIpcContext,
+  DesktopPersistenceModule,
+} from './ipc';
 import { assertAppLockSettingsUnlocked, handleDesktopIpc, isAppLockSettingsLocked } from './ipc';
 import {
   clearAgentRuntimeTraces,
@@ -12,7 +16,46 @@ import { clearLogFile, getLogPath, readLogFile } from '../app/logger';
 
 let startupAppLockApplied = false;
 
-export function registerStoreDataIpc(context: DesktopMainIpcContext) {
+type StoreDataIpcContext = Pick<
+  DesktopMainIpcContext,
+  | 'elapsedMs'
+  | 'getMainWindow'
+  | 'logError'
+  | 'recordStartupTiming'
+  | 'scheduleLogPrune'
+  | 'sendFullStoreUpdated'
+  | 'setSensitiveRendererEventsLocked'
+  | 'storeLoadErrorInfo'
+> & {
+  getAppUpdaterModule: () => Promise<
+    Pick<
+      DesktopAppUpdaterModule,
+      | 'checkForAppUpdates'
+      | 'downloadAppUpdate'
+      | 'getAppUpdateState'
+      | 'installAppUpdate'
+      | 'simulateUpdateAvailable'
+    >
+  >;
+  getPersistenceModule: () => Promise<{
+    assistantExecutionPersistence: Pick<
+      DesktopPersistenceModule['assistantExecutionPersistence'],
+      | 'queryAssistantExecutionRunDetail'
+      | 'queryAssistantExecutionRuns'
+      | 'queryAssistantExecutionSummary'
+    >;
+    settingsPersistence: Pick<
+      DesktopPersistenceModule['settingsPersistence'],
+      'saveSettings' | 'saveSettingsShell'
+    >;
+    storeSnapshotPersistence: Pick<
+      DesktopPersistenceModule['storeSnapshotPersistence'],
+      'readStoreWithProfile'
+    >;
+  }>;
+};
+
+export function registerStoreDataIpc(context: StoreDataIpcContext) {
   handleDesktopIpc('store:get', async (): Promise<DesktopStoreGetResult> => {
     const startedAt = performance.now();
     context.recordStartupTiming('store.get_start');

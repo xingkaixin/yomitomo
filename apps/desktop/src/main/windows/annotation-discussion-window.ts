@@ -20,9 +20,14 @@ type DiscussionWindowEntry = {
   window: BrowserWindow;
 };
 
+export type AnnotationWindowIpcContext = Pick<
+  DesktopMainIpcContext,
+  'getMainWindow' | 'openExternalUrl'
+>;
+
 const discussionWindows = new Map<string, DiscussionWindowEntry>();
 
-export function registerAnnotationDiscussionWindowIpc(context: DesktopMainIpcContext) {
+export function registerAnnotationDiscussionWindowIpc(context: AnnotationWindowIpcContext) {
   handleDesktopIpc('annotation-discussion:open', (event, input) =>
     openAnnotationDiscussionWindow(context, input, event),
   );
@@ -32,7 +37,7 @@ export function registerAnnotationDiscussionWindowIpc(context: DesktopMainIpcCon
 }
 
 function openAnnotationDiscussionWindow(
-  context: DesktopMainIpcContext,
+  context: AnnotationWindowIpcContext,
   input: AnnotationDiscussionWindowOpenInput,
   event: IpcMainInvokeEvent,
 ) {
@@ -108,7 +113,7 @@ function openAnnotationDiscussionWindow(
 }
 
 function sendWindowState(
-  context: DesktopMainIpcContext,
+  context: AnnotationWindowIpcContext,
   input: AnnotationDiscussionWindowOpenInput,
   window: BrowserWindow,
   minimized: boolean,
@@ -125,7 +130,7 @@ function sendWindowState(
 }
 
 function sendWindowStateRemoved(
-  context: DesktopMainIpcContext,
+  context: AnnotationWindowIpcContext,
   input: AnnotationDiscussionWindowOpenInput,
   windowId: number,
 ) {
@@ -138,7 +143,7 @@ function sendWindowStateRemoved(
 }
 
 function sendStateEvent(
-  context: DesktopMainIpcContext,
+  context: AnnotationWindowIpcContext,
   event: AnnotationDiscussionWindowStateEvent,
 ) {
   const mainWindow = context.getMainWindow();
@@ -147,7 +152,7 @@ function sendStateEvent(
 }
 
 export function closeAnnotationDiscussionWindow(
-  context: DesktopMainIpcContext,
+  context: AnnotationWindowIpcContext,
   input: AnnotationDiscussionWindowOpenInput,
 ) {
   const key = discussionWindowKey(input.articleId, input.annotationId);
@@ -164,7 +169,7 @@ export function closeAnnotationDiscussionWindow(
 }
 
 export function minimizeOtherAnnotationDiscussionWindows(
-  context: DesktopMainIpcContext,
+  context: AnnotationWindowIpcContext,
   input: AnnotationDiscussionWindowOpenInput,
 ) {
   let minimized = 0;

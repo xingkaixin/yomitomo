@@ -5,7 +5,6 @@ import {
   desktopIpcErrorFromSerialized,
   type DesktopIpcInvokeEnvelope,
 } from '../../ipc-errors';
-import type { DesktopMainIpcContext } from './ipc';
 
 const ipcHandlers = vi.hoisted(() => new Map<string, (...args: unknown[]) => unknown>());
 const runtimeMocks = vi.hoisted(() => ({
@@ -122,7 +121,7 @@ describe('agent IPC comment handler', () => {
 
     expect(runtimeMocks.runAgentThreadReplyWithToolLoop).toHaveBeenCalledWith(
       expect.objectContaining({
-        ai,
+        ai: expect.objectContaining(ai),
         provider: expect.objectContaining({ id: 'provider_1' }),
         agent: expect.objectContaining({ id: 'agent_1' }),
         payload: expect.objectContaining({ agentUsername: 'agent' }),
@@ -168,7 +167,7 @@ describe('agent IPC comment handler', () => {
 
 function registerCommentHandler(
   store: ReturnType<typeof storeWith>,
-  ai: Record<string, unknown> = {},
+  ai: Partial<AgentAiModule> = {},
 ) {
   registerAgentIpc(ipcContext(store, ai));
   const handler = ipcHandlers.get('agent:comment');
@@ -180,36 +179,49 @@ function registerCommentHandler(
   };
 }
 
-function ipcContext(store: ReturnType<typeof storeWith>, ai: Record<string, unknown>) {
+type AgentIpcContext = Parameters<typeof registerAgentIpc>[0];
+type AgentAiModule = Awaited<ReturnType<AgentIpcContext['getAiModule']>>;
+
+function ipcContext(
+  store: ReturnType<typeof storeWith>,
+  aiOverrides: Partial<AgentAiModule>,
+): AgentIpcContext {
   const providerPersistence = {
     hydrateProviderApiKey: vi.fn(async (llmProvider: LlmProvider) => llmProvider),
   };
   const agentRuntimePersistence = {
+    deleteAgent: vi.fn(),
     readAgentRuntimeContext: vi.fn(async () => store),
+    saveAgent: vi.fn(),
   };
   const assistantExecutionPersistence = {
     recordAssistantExecutionRun: vi.fn(),
   };
   return {
     elapsedMs: () => 12,
-    getAiModule: async () => ai,
-    getAppUpdaterModule: async () => ({}),
-    getAppVersion: () => '0.0.0-test',
-    getMainWindow: () => null,
+    getAiModule: async () => ({
+      buildAgentCreateThoughtRuntimePayload: vi.fn(),
+      buildAgentDistillationReviewRuntimePayload: vi.fn(),
+      buildAgentThreadReplyRuntimePayload: vi.fn(),
+      planAgentMentionRoute: vi.fn(),
+      runAgent: vi.fn(),
+      runAgentAnnotateStream: vi.fn(),
+      runAgentAnnotateWithMemory: vi.fn(),
+      runAgentDistillationReviewStructuredStream: vi.fn(),
+      runAgentReview: vi.fn(),
+      runAgentStream: vi.fn(),
+      runAssistantAiSdkToolRuntime: vi.fn(),
+      ...aiOverrides,
+    }),
     getPersistenceModule: async () => ({
       agentRuntimePersistence,
       assistantExecutionPersistence,
       providerPersistence,
+      storeSnapshotPersistence: { readStore: vi.fn() },
     }),
     logError: vi.fn(),
     logInfo: vi.fn(),
-    openExternalUrl: vi.fn(),
-    recordPerformanceTiming: vi.fn(),
-    recordStartupTiming: vi.fn(),
-    scheduleLogPrune: vi.fn(),
-    sendFullStoreUpdated: vi.fn(),
-    storeLoadErrorInfo: vi.fn(),
-  } as unknown as DesktopMainIpcContext;
+  };
 }
 
 function storeWith(
@@ -218,7 +230,7 @@ function storeWith(
     providers?: LlmProvider[];
     settings?: Partial<AppSettings>;
   } = {},
-) {
+): { agents: Agent[]; providers: LlmProvider[]; settings: AppSettings } {
   return {
     agents: overrides.agents ?? [agent()],
     providers: overrides.providers ?? [providerRecord()],

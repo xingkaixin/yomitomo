@@ -10,13 +10,32 @@ import type {
 } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
 import { taskProvider } from '../agents/agent-runtime-routing';
-import type { DesktopMainIpcContext } from './ipc';
+import type { DesktopAiModule, DesktopMainIpcContext, DesktopPersistenceModule } from './ipc';
 import { handleDesktopIpc } from './ipc';
 
-type DesktopPersistenceModule = Awaited<ReturnType<DesktopMainIpcContext['getPersistenceModule']>>;
 type ArticlePersistence = DesktopPersistenceModule['articlePersistence'];
 
-export function registerArticleIpc(context: DesktopMainIpcContext) {
+type ArticleIpcContext = Pick<
+  DesktopMainIpcContext,
+  'elapsedMs' | 'getMainWindow' | 'logError' | 'logInfo' | 'sendArticlePatched'
+> & {
+  getAiModule: () => Promise<
+    Pick<DesktopAiModule, 'bilingualTranslationPromptVersion' | 'translateBilingualArticleBlocks'>
+  >;
+  getPersistenceModule: () => Promise<{
+    agentRuntimePersistence: Pick<
+      DesktopPersistenceModule['agentRuntimePersistence'],
+      'readAgentRuntimeContext'
+    >;
+    articlePersistence: ArticlePersistence;
+    providerPersistence: Pick<
+      DesktopPersistenceModule['providerPersistence'],
+      'hydrateProviderApiKey'
+    >;
+  }>;
+};
+
+export function registerArticleIpc(context: ArticleIpcContext) {
   handleDesktopIpc('article:get', async (_event, id) => {
     const { articlePersistence } = await context.getPersistenceModule();
     return articlePersistence.readArticle(id);
@@ -213,10 +232,7 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
   });
 }
 
-function shouldBroadcastArticleSavePatch(
-  context: DesktopMainIpcContext,
-  event: IpcMainInvokeEvent,
-) {
+function shouldBroadcastArticleSavePatch(context: ArticleIpcContext, event: IpcMainInvokeEvent) {
   const mainWindow = context.getMainWindow();
   if (!mainWindow || mainWindow.isDestroyed()) return true;
   return event.sender.id !== mainWindow.webContents.id;
@@ -242,7 +258,7 @@ function articleImportRepository(articlePersistence: ArticlePersistence) {
 }
 
 async function readCurrentArticleTranslation(
-  context: DesktopMainIpcContext,
+  context: ArticleIpcContext,
   input: ArticleTranslationRequest,
 ) {
   const { agentRuntimePersistence, articlePersistence } = await context.getPersistenceModule();
@@ -260,7 +276,7 @@ async function readCurrentArticleTranslation(
 }
 
 async function translateArticle(
-  context: DesktopMainIpcContext,
+  context: ArticleIpcContext,
   event: IpcMainInvokeEvent,
   input: ArticleTranslationRequest,
 ): Promise<ArticleTranslation> {
@@ -390,7 +406,7 @@ async function translateArticle(
 }
 
 async function deleteCurrentArticleTranslation(
-  context: DesktopMainIpcContext,
+  context: ArticleIpcContext,
   input: ArticleTranslationRequest,
 ) {
   const { agentRuntimePersistence, articlePersistence } = await context.getPersistenceModule();
