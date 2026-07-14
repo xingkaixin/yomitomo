@@ -9,6 +9,10 @@ const annotationDiscussionStyles = readFileSync(
   'utf8',
 );
 const libraryStyles = readFileSync(new URL('../styles/library.css', import.meta.url), 'utf8');
+const weReadBookcaseStyles = readFileSync(
+  new URL('../styles/settings/weread-bookcase.css', import.meta.url),
+  'utf8',
+);
 const themeOverridesStyles = readFileSync(
   new URL('../styles/theme-overrides.css', import.meta.url),
   'utf8',
@@ -105,6 +109,15 @@ describe('renderer styles entry', () => {
     expect(themeOverrideLayer).not.toMatch(
       /\.library-(?:skeleton|entity-grid|collection-(?:openbar|list-item))\b|\.app-shell\.is-reader-open/,
     );
+  });
+
+  it('keeps WeRead annotation cards on reader theme tokens', () => {
+    expect(weReadBookcaseStyles).toContain('background: var(--app-reader-note-annotation-mat);');
+    expect(weReadBookcaseStyles).toContain(
+      '--reader-note-surface: var(--app-reader-note-annotation-surface);',
+    );
+    expect(weReadBookcaseStyles).not.toContain('border-left-width: 4px;');
+    expect(weReadBookcaseStyles).not.toContain('border-radius: 18px 18px 18px 7px;');
   });
 
   it('expands local CSS imports for style assertions', () => {

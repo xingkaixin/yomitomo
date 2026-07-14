@@ -67,12 +67,12 @@
 }
 
 .weread-bookcase {
-  --reader-ink: hsl(var(--foreground));
-  --reader-muted: hsl(var(--muted-foreground));
-  --reader-green: hsl(var(--foreground));
-  --reader-red: var(--app-interactive-link);
-  --reader-yellow: hsl(var(--border));
-  --reader-yellow-strong: hsl(var(--foreground));
+  --reader-paper: var(--app-reader-paper);
+  --reader-ink: var(--app-reader-ink);
+  --reader-muted: var(--app-reader-muted);
+  --reader-green: var(--app-reader-primary);
+  --reader-red: var(--app-reader-danger);
+  --reader-paper-hover: color-mix(in srgb, var(--reader-ink) 6%, var(--reader-paper));
   display: grid;
   position: relative;
   height: 100%;
@@ -285,24 +285,64 @@
 }
 
 .weread-note-wall .reader-note.weread-note-card {
+  position: relative;
   display: inline-block;
   width: 100%;
   break-inside: avoid;
   margin: 0 0 14px;
-  overflow: hidden;
-  border-left-width: 4px;
-  border-radius: 18px 18px 18px 7px;
-  background: hsl(var(--card));
-  box-shadow:
-    0 14px 36px hsl(31 34% 24% / 0.12),
-    inset 0 0 0 1px hsl(var(--border) / 0.68);
+  overflow: visible;
+  padding: 11px;
+  border: 1px solid var(--app-reader-note-annotation-border);
+  border-radius: 14px 0;
+  background: var(--app-reader-note-annotation-mat);
+  box-shadow: var(--app-reader-note-shadow);
+  --reader-note-accent: var(--app-reader-note-annotation-accent);
+  --reader-note-border: var(--app-reader-note-annotation-border);
+  --reader-note-surface: var(--app-reader-note-annotation-surface);
+}
+
+.weread-note-card .reader-note-tab {
+  position: absolute;
+  top: -13px;
+  left: 20px;
+  z-index: 3;
+  display: inline-flex;
+  height: 26px;
+  align-items: center;
+  border: 1px solid var(--reader-note-border);
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  background: var(--reader-note-surface);
+  color: color-mix(in srgb, var(--reader-note-accent) 76%, var(--reader-ink));
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  padding: 0 13px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.weread-note-card .reader-note-tab::after {
+  position: absolute;
+  right: 11px;
+  bottom: -1px;
+  left: 11px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--reader-note-accent);
+  content: '';
 }
 
 .weread-note-card .reader-note-body {
   position: relative;
   min-width: 0;
-  padding: 16px 16px 0;
-  background: hsl(var(--card));
+  overflow: hidden;
+  border-radius: 10px 0;
+  background: var(--reader-note-surface);
+  box-shadow: 0 2px 5px color-mix(in srgb, var(--reader-ink) 7%, transparent);
+  padding: 18px 19px 12px;
 }
 
 .weread-note-wall .reader-note-card-header:empty {
@@ -310,56 +350,67 @@
 }
 
 .weread-note-card .reader-note-quote {
-  display: grid;
+  position: relative;
+  z-index: 1;
+  display: block;
   width: 100%;
-  gap: 5px;
+  min-width: 0;
+  padding: 0;
   border: 0;
   background: transparent;
-  color: hsl(var(--foreground));
+  color: var(--reader-ink);
   font-family: var(--font-reader-serif);
-  padding: 0;
   text-align: left;
-}
-
-.weread-note-card .reader-note-quote-mark {
-  display: block;
-  color: var(--reader-note-accent);
-  font-family: var(--font-reader-serif);
-  font-size: 28px;
-  font-weight: 900;
-  line-height: 0.78;
+  text-decoration: none;
 }
 
 .weread-note-card .reader-note-quote-text {
   display: block;
-  color: hsl(var(--foreground));
-  font-size: 13px;
-  font-style: italic;
-  font-weight: 760;
-  line-height: 1.62;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: var(--reader-ink);
+  font-size: 14.5px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1.72;
+  text-wrap: pretty;
+  word-break: break-word;
 }
 
 .weread-note-card .reader-note-meta {
-  display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) auto;
+  display: flex;
   min-width: 0;
   align-items: center;
-  gap: 9px;
-  margin-top: 14px;
-  color: hsl(var(--muted-foreground));
+  gap: 8px;
+  margin-top: 15px;
+  color: var(--reader-muted);
+  font-family: var(--font-ui);
 }
 
-.weread-note-card .reader-note-owner,
-.weread-note-card .reader-avatar-badge {
+.weread-note-card .reader-note-owner {
   display: grid;
-  width: 30px;
-  height: 30px;
+  width: 23px;
+  height: 23px;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.weread-note-card .reader-note-owner .reader-avatar-badge,
+.weread-note-card .reader-comment > .reader-avatar-badge {
+  display: grid;
+  width: 23px;
+  height: 23px;
   place-items: center;
   overflow: hidden;
   border-radius: 999px;
-  background: var(--reader-avatar-color, hsl(var(--foreground)));
-  color: hsl(var(--card));
-  font-size: 11px;
+  background: var(--reader-avatar-color, var(--reader-green));
+  color: var(--reader-paper);
+  font-family: var(--font-ui);
+  font-size: 10px;
   font-weight: 800;
 }
 
@@ -375,29 +426,27 @@
 }
 
 .weread-note-card .reader-note-meta-copy {
-  display: block;
+  display: flex;
+  flex: 1 1 auto;
   min-width: 0;
+  align-items: baseline;
+  gap: 7px;
 }
 
 .weread-note-card .reader-note-meta strong {
-  display: block;
   overflow: hidden;
-  color: hsl(var(--foreground));
-  font-size: 13px;
-  font-weight: 880;
+  color: var(--reader-ink);
+  font-size: 12px;
+  font-weight: 820;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.weread-note-card .reader-note-time-actions {
-  display: grid;
-  min-width: 88px;
-  justify-items: end;
-}
-
 .weread-note-card .reader-note-meta time,
 .weread-note-card .reader-comment-author time {
-  color: hsl(var(--muted-foreground));
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--reader-muted);
   font-size: 11px;
   font-weight: 760;
   font-variant-numeric: tabular-nums;
@@ -406,26 +455,22 @@
 
 .weread-note-card .reader-note-toolbar {
   display: flex;
-  align-items: stretch;
-  margin: 14px -16px 0;
-  border-top: 1px solid hsl(var(--border) / 0.72);
-  background: hsl(var(--muted) / 0.42);
-}
-
-.weread-note-card .reader-readonly-note-toolbar {
   align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
-.weread-note-card .reader-readonly-note-toolbar .reader-note-thread-toggle {
-  display: flex;
+.weread-note-card .reader-note-discussion-summary {
+  display: grid;
   flex: 1 1 auto;
-  min-height: 42px;
-  align-items: center;
-  justify-content: space-between;
-  cursor: default;
-  color: hsl(var(--muted-foreground));
-  padding: 0 14px 0 16px;
-  pointer-events: none;
+  min-width: 0;
+  min-height: 32px;
+  align-content: center;
+  color: var(--reader-muted);
+  font-family: var(--font-ui);
 }
 
 .weread-note-card .reader-comment-count {
@@ -440,32 +485,48 @@
   white-space: nowrap;
 }
 
-.weread-note-card .reader-readonly-note-toolbar > button {
-  display: inline-flex;
-  width: auto;
-  min-height: 42px;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border: 0;
-  border-left: 1px solid hsl(var(--border) / 0.72);
-  background: transparent;
-  color: hsl(var(--muted-foreground));
-  font-size: 12px;
-  font-weight: 820;
-  padding: 0 14px;
+.weread-note-card .reader-comment-count svg {
+  color: var(--reader-note-accent);
 }
 
-.weread-note-card .reader-readonly-note-toolbar > button:hover {
-  background: hsl(var(--muted) / 0.64);
-  color: hsl(var(--foreground));
+.weread-note-card .reader-note-discussion-entry {
+  position: relative;
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-left: auto;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--reader-green);
+  font: inherit;
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  font-weight: 820;
+  padding: 0 2px 0 8px;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.weread-note-card .reader-note-discussion-entry:hover {
+  background: var(--reader-paper-hover);
+  color: var(--reader-ink);
+}
+
+.weread-note-card .reader-note-discussion-entry:active {
+  transform: scale(0.96);
 }
 
 .weread-note-card .reader-note-comments-panel {
   display: block;
-  border-top: 1px solid hsl(var(--border) / 0.72);
-  background: hsl(var(--muted) / 0.42);
-  padding: 12px;
+  margin: 10px -19px -12px;
+  border-top: 1px solid var(--reader-note-border);
+  background: color-mix(in srgb, var(--reader-note-surface) 86%, var(--reader-note-accent));
+  padding: 12px 15px 14px;
 }
 
 .weread-note-card .reader-comments {
@@ -476,7 +537,7 @@
 
 .weread-note-card .reader-comment {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
+  grid-template-columns: 23px minmax(0, 1fr);
   gap: 10px;
   min-width: 0;
 }
@@ -496,18 +557,19 @@
 
 .weread-note-card .reader-comment-author strong {
   overflow: hidden;
-  color: hsl(var(--foreground));
+  color: var(--reader-ink);
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 820;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .weread-note-card .reader-markdown,
 .weread-note-card .reader-markdown p {
-  color: hsl(var(--foreground) / 0.86);
+  color: var(--app-reader-note-quote-text);
   font-size: 13px;
-  line-height: 1.66;
+  font-weight: 520;
+  line-height: 1.68;
   margin: 0;
   overflow-wrap: anywhere;
   word-break: break-word;

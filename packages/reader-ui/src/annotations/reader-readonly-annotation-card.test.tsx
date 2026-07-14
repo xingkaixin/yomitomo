@@ -30,8 +30,13 @@ describe('ReadonlyAnnotationCard', () => {
 
     expect(screen.getByText('这是一条划线')).toBeTruthy();
     expect(screen.getByText('我的想法')).toBeTruthy();
+    expect(screen.getByText('批注')).toBeTruthy();
     expect(screen.getByLabelText('1 条想法')).toBeTruthy();
     expect(screen.getByRole('button', { name: '定位到批注' })).toBeTruthy();
+    const card = screen.getByText('这是一条划线').closest('article');
+    expect(card?.classList.contains('has-discussion')).toBe(true);
+    expect(card?.style.borderColor).toBe('');
+    expect(card?.style.boxShadow).toBe('');
     expect(screen.queryByRole('button', { name: '添加想法' })).toBeNull();
     expect(screen.queryByRole('button', { name: '回复' })).toBeNull();
     expect(screen.queryByRole('button', { name: '邀请审阅' })).toBeNull();

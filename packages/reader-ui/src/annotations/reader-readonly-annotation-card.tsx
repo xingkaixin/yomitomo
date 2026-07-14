@@ -3,7 +3,6 @@ import { Lightbulb } from 'lucide-react';
 import { renderSafeMarkdown } from '@yomitomo/core/article-extraction';
 import { AvatarBadge } from '../shared/reader-component-primitives';
 import { formatTime } from '../reader-date-utils';
-import { noteStyle } from '../reader-style-utils';
 import type { ReaderUiLabels } from '../shell/reader-app-view-types';
 import { defaultReaderUiLabels } from '../shell/reader-app-view-types';
 
@@ -52,28 +51,25 @@ export function ReadonlyAnnotationCard({
   thoughts: ReadonlyAnnotationCardThought[];
   labels?: ReaderUiLabels;
 }) {
-  const annotationStyle = {
-    ...noteStyle(author.color, false),
-    '--reader-note-accent': author.color,
-    ...style,
-  } as React.CSSProperties;
-
   return (
     <article
-      className={['reader-note', 'reader-readonly-note', className || ''].filter(Boolean).join(' ')}
+      className={['reader-note', 'reader-readonly-note', 'has-discussion', className || '']
+        .filter(Boolean)
+        .join(' ')}
       data-annotation-id={id}
-      style={annotationStyle}
+      style={style}
     >
+      <span className="reader-note-tab">{labels.annotationCardTab}</span>
       <div className="reader-note-body">
         {quote ? (
           <header className="reader-note-card-header">
             {action ? (
               <button className="reader-note-quote" type="button" onClick={action.onClick}>
-                <QuoteContent quote={quote} />
+                <span className="reader-note-quote-text">{quote}</span>
               </button>
             ) : (
               <span className="reader-note-quote">
-                <QuoteContent quote={quote} />
+                <span className="reader-note-quote-text">{quote}</span>
               </span>
             )}
           </header>
@@ -88,13 +84,11 @@ export function ReadonlyAnnotationCard({
           </span>
           <span className="reader-note-meta-copy">
             <strong>{author.name}</strong>
-          </span>
-          <span className="reader-note-time-actions">
             <time dateTime={createdAt}>{formatTime(createdAt, labels)}</time>
           </span>
         </div>
-        <footer className="reader-note-toolbar reader-readonly-note-toolbar">
-          <span className="reader-note-thread-toggle">
+        <footer className="reader-note-toolbar reader-note-summary-toolbar reader-readonly-note-toolbar">
+          <span className="reader-note-discussion-summary">
             <span className="reader-note-thread-toggle-main">
               <span className="reader-comment-count" aria-label={`${thoughts.length} 条想法`}>
                 <span>{thoughts.length}</span>
@@ -103,36 +97,25 @@ export function ReadonlyAnnotationCard({
             </span>
           </span>
           {action ? (
-            <button type="button" onClick={action.onClick}>
+            <button className="reader-note-discussion-entry" type="button" onClick={action.onClick}>
               {action.icon}
               {action.label}
             </button>
           ) : null}
         </footer>
-      </div>
-      {thoughts.length > 0 ? (
-        <div className="reader-note-comments-region">
-          <div className="reader-note-comments-panel">
-            <div className="reader-comments">
-              {thoughts.map((thought) => (
-                <ReadonlyThoughtView key={thought.id} labels={labels} thought={thought} />
-              ))}
+        {thoughts.length > 0 ? (
+          <div className="reader-note-comments-region">
+            <div className="reader-note-comments-panel">
+              <div className="reader-comments">
+                {thoughts.map((thought) => (
+                  <ReadonlyThoughtView key={thought.id} labels={labels} thought={thought} />
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </article>
-  );
-}
-
-function QuoteContent({ quote }: { quote: string }) {
-  return (
-    <>
-      <span className="reader-note-quote-mark" aria-hidden="true">
-        “
-      </span>
-      <span className="reader-note-quote-text">{quote}</span>
-    </>
   );
 }
 
