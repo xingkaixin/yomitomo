@@ -40,10 +40,13 @@ Automatic mode does not collide with manual sync: if a sync is still running, th
 
 After configuring providers, assign models to different tasks:
 
-| Task               | Purpose                                              |
-| ------------------ | ---------------------------------------------------- |
-| Reading assistants | Highlight thought generation and `@` mention replies |
-| Review assistants  | Evidence, logic, and clarity review                  |
+| Task                  | Purpose                                                   |
+| --------------------- | --------------------------------------------------------- |
+| Reading assistants    | Reader annotations, `@` mention replies, and conversations |
+| Review assistants     | Evidence, logic, and clarity review                        |
+| Bilingual translation | Web-article paragraph translation and refresh              |
+
+Assistant execution mode applies globally to reader annotations, follow-up questions, and co-reading tasks. Choose Fast response to prioritize a quick result, or Deep verification to have the assistant verify with tools before answering.
 
 ## Language
 

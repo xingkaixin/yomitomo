@@ -1,0 +1,41 @@
+{
+  "version": "0.12.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "Choose how deeply the assistant responds",
+      "description": "Use Fast response when you want a quick result, or switch to Deep verification when the assistant should verify with tools. One setting covers annotations, follow-ups, and co-reading tasks.",
+      "audience": "settings"
+    },
+    {
+      "type": "changed",
+      "title": "Organize collections from the keyboard",
+      "description": "You can now drag items in the collection picker with the keyboard and hear announcements as their position changes. The existing button fallback remains available.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "The Library fits its window better",
+      "description": "From compact windows to wide screens, reading cards and loading skeletons now follow the space actually available, reducing crowding, empty gaps, and layout shifts.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "The default theme feels more like paper",
+      "description": "App surfaces, readers, annotations, distillations, discussions, and chat now share warm paper neutrals, warm ink, and a cinnabar accent for a more continuous reading experience.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "Failed restores can return to the original data",
+      "description": "A backup is now validated in a temporary copy before it replaces the current database. If switching fails, the app reopens the previous data from a rollback snapshot.",
+      "audience": "settings"
+    },
+    {
+      "type": "fixed",
+      "title": "Safer imports, logs, and statistics",
+      "description": "Web imports bind to validated network addresses, AI logs no longer include API key fragments, and thought and discussion totals stay accurate before annotation details load.",
+      "audience": "settings"
+    }
+  ]
+}

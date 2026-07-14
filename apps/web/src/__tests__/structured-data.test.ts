@@ -15,7 +15,7 @@ describe('structured data', () => {
       language: 'zh-CN',
       sameAs: ['https://github.com/xingkaixin/yomitomo'],
       title: 'Yomitomo - AI 伴读',
-      version: '0.11.0',
+      version: '0.12.0',
     });
 
     expect(data['@graph']).toEqual(

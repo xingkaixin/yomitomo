@@ -5,6 +5,17 @@ sidebar:
   hidden: true
 ---
 
+## 0.12.0
+
+Released: 2026-07-14
+
+- Assistant execution mode can switch between fast responses and deeper verification across annotations, follow-ups, and co-reading.
+- Collection organization gains keyboard drag and drop with announcements, and the Library grid adapts to available width.
+- Database restore is now atomic and recoverable, while web imports and API-key logging have tighter security boundaries.
+- The default theme aligns around warm paper and cinnabar; the website adds a mobile product preview, scroll motion, and accessibility improvements.
+
+[View 0.12.0 release notes](/en/changelogs/v0-12-0/)
+
 ## 0.11.0
 
 Released: 2026-07-05

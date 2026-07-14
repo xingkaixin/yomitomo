@@ -1,0 +1,41 @@
+{
+  "version": "0.12.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "按任务选择回应深度",
+      "description": "需要快速理解时选「快速回应」，需要助手调用工具核验时切到「深入查证」。一个设置会同时作用于阅读批注、追问和共读任务。",
+      "audience": "settings"
+    },
+    {
+      "type": "changed",
+      "title": "合集整理支持键盘操作",
+      "description": "整理资料所属合集时，现在可以用键盘拖放，并通过操作播报确认位置变化；原有按钮操作仍然保留。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "阅读库更适应窗口宽度",
+      "description": "从紧凑小窗到宽屏，阅读卡片和加载骨架会按实际可用空间排布，减少过挤、过空或加载前后跳动。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "默认主题回到暖纸阅读感",
+      "description": "应用表面、阅读器、批注、沉淀、讨论和聊天统一使用暖纸中性色、暖墨文字与朱砂强调色，长时间阅读更连贯。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "数据库恢复失败也能回到原状态",
+      "description": "备份会先在临时副本中通过校验再替换当前数据库；若切换失败，应用会使用回滚快照重新打开原有数据。",
+      "audience": "settings"
+    },
+    {
+      "type": "fixed",
+      "title": "导入、日志与统计边界更稳",
+      "description": "网页导入会绑定已校验的网络地址，AI 日志不再记录 API Key 片段；批注详情尚未加载时，想法与讨论统计也能保持准确。",
+      "audience": "settings"
+    }
+  ]
+}
