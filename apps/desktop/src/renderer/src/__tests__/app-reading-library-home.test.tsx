@@ -854,7 +854,9 @@ describe('ReadingLibrary home', () => {
     vi.stubGlobal('yomitomoDesktop', { setLibraryPin });
     renderLibrary([article({ title: '待置顶文章' })]);
 
-    fireEvent.click(screen.getByRole('button', { name: '更多操作：待置顶文章' }));
+    const moreButton = screen.getByRole('button', { name: '更多操作：待置顶文章' });
+    fireEvent.click(moreButton);
+    expect(moreButton.closest('.library-item-actions')?.classList.contains('is-active')).toBe(true);
     fireEvent.click(screen.getByRole('menuitem', { name: '置顶' }));
 
     await waitFor(() =>
@@ -863,6 +865,22 @@ describe('ReadingLibrary home', () => {
         pinned: true,
       }),
     );
+  });
+
+  it('marks collection card actions active while the menu is open', () => {
+    const collection: Collection = {
+      id: 'collection_menu',
+      name: '菜单状态合集',
+      createdAt: now,
+      updatedAt: now,
+    };
+    renderLibrary([], { collections: [collection] });
+
+    const moreButton = screen.getByRole('button', { name: '更多操作：菜单状态合集' });
+    fireEvent.click(moreButton);
+
+    expect(moreButton.closest('.library-item-actions')?.classList.contains('is-active')).toBe(true);
+    expect(screen.getByRole('menu')).toBeTruthy();
   });
 
   it('shows collections for collected members in all scope and flattens them in type scope', async () => {

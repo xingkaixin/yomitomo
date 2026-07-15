@@ -196,7 +196,7 @@ describe('reading library styles', () => {
       'opacity: 0;',
       'transform: none;',
     ]);
-    // 操作按钮默认隐藏，仅在 hover / 键盘 focus 时显现。
+    expectRule('.library-list-item .library-item-actions.is-active', ['opacity: 1;']);
     expect(styles).toMatch(
       /\.library-ebook-list-item:focus-within \.library-item-actions \{\s*opacity: 1;/,
     );
@@ -360,6 +360,7 @@ describe('reading library styles', () => {
     expect(styles).not.toMatch(/\.library-ebook-list \{[^}]*grid-template-columns:/);
     expect(styles).not.toContain('repeat(auto-fit, minmax(min(100%, 480px), 1fr))');
     expect(styles).not.toContain('.library-item-actions {\n    position: static;');
+    expect(styles).not.toContain('.library-collection-list-item .library-item-actions.is-active');
     expect(rulesFor('.library-web-item,\n  .library-ebook-list-item')).not.toContain(
       expect.stringContaining('padding-right: 0;'),
     );

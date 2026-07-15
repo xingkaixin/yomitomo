@@ -69,8 +69,7 @@
 }
 
 .library-collection-list-item:hover .library-item-actions,
-.library-collection-list-item:focus-within .library-item-actions,
-.library-collection-list-item .library-item-actions.is-active {
+.library-collection-list-item:focus-within .library-item-actions {
   opacity: 1;
 }
 

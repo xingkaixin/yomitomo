@@ -342,6 +342,10 @@
   opacity: 1;
 }
 
+.library-list-item .library-item-actions.is-active {
+  opacity: 1;
+}
+
 .library-card-more {
   width: 34px;
   height: 34px;
