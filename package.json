@@ -11,6 +11,7 @@
     "licenses:generate": "node scripts/generate-third-party-notices.mjs",
     "licenses:check": "node scripts/generate-third-party-notices.mjs --check",
     "docs:check-paths": "node scripts/check-doc-paths.mjs",
+    "effect:check": "node scripts/check-effect-v4.mjs",
     "ui:check-primitives": "node scripts/check-ui-primitives.mjs",
     "make": "pnpm run make:app:mac-arm",
     "make:app:mac-arm": "pnpm --filter @yomitomo/desktop make:mac-arm",

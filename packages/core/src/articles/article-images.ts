@@ -5,18 +5,19 @@ const MAX_INLINE_IMAGES = 40;
 const MAX_INLINE_IMAGE_DATA_CHARS = 10_000_000;
 const INLINE_IMAGE_CONCURRENCY = 4;
 
-export type ImageFetcher = (url: string) => Promise<string | null>;
+export type ImageFetcher = (url: string, signal?: AbortSignal) => Promise<string | null>;
 
 export type ArticleImageInlineOptions = {
   articleDocument: Document;
   fetcher: ImageFetcher;
+  signal?: AbortSignal;
 };
 
 export async function inlineArticleImages(
   article: ExtractedArticle,
   options: ArticleImageInlineOptions,
 ): Promise<ExtractedArticle> {
-  return Effect.runPromise(inlineArticleImagesEffect(article, options));
+  return Effect.runPromise(inlineArticleImagesEffect(article, options), { signal: options.signal });
 }
 
 // favicon 极小，导入期无条件下载内联成 data URI，保证展示离线可用、无第三方请求。
@@ -166,7 +167,7 @@ function imageInlinerEffect(baseUrl: string, fetcher: ImageFetcher) {
     function fetcherDataUrl(url: string) {
       return fetchSemaphore.withPermits(1)(
         Effect.tryPromise({
-          try: () => fetcher(url),
+          try: (signal) => fetcher(url, signal),
           catch: () => null,
         }).pipe(
           Effect.map((dataUrl) => (dataUrl?.startsWith('data:image/') ? dataUrl : null)),

@@ -17,6 +17,7 @@ import {
   type ArticleImportNetworkPolicyOptions,
 } from './article-import-network-policy';
 import { createArticleImportNetworkProxy } from './article-import-network-proxy';
+import { withTimeoutAbortSignalEffect } from '../effect-abort-signal';
 
 const IMPORT_TIMEOUT_MS = 15_000;
 export const MAX_ARTICLE_IMPORT_HTML_BYTES = 5_000_000;
@@ -122,7 +123,8 @@ function fetchArticleHtmlEffect(url: string, signal: AbortSignal, options: Artic
   return withTimeoutSignalEffect(IMPORT_TIMEOUT_MS, signal, (fetchSignal) =>
     Effect.gen(function* () {
       const page = yield* Effect.tryPromise({
-        try: () => fetchArticleResponse(url, fetchSignal, options),
+        try: (effectSignal) =>
+          fetchArticleResponse(url, AbortSignal.any([fetchSignal, effectSignal]), options),
         catch: (error) => articleFetchError(error, signal),
       });
       const response = page.response;
@@ -137,9 +139,12 @@ function fetchArticleHtmlEffect(url: string, signal: AbortSignal, options: Artic
       }
 
       const html = yield* Effect.tryPromise({
-        try: async () => {
+        try: async (effectSignal) => {
           try {
-            return await readArticleImportResponseHtml(response, fetchSignal);
+            return await readArticleImportResponseHtml(
+              response,
+              AbortSignal.any([fetchSignal, effectSignal]),
+            );
           } catch (error) {
             await cancelResponseBody(response);
             throw error;
@@ -240,7 +245,8 @@ function loadRenderedArticleHtmlEffect(
   options: ArticleImportOptions,
 ) {
   return Effect.tryPromise({
-    try: () => loadRenderedArticleHtml(url, userAgent, signal, options),
+    try: (effectSignal) =>
+      loadRenderedArticleHtml(url, userAgent, AbortSignal.any([signal, effectSignal]), options),
     catch: (error) => error,
   });
 }
@@ -657,32 +663,12 @@ function unregisterArticleImportTask(requestId: string | undefined, controller: 
   }
 }
 
-function withTimeoutSignal<T>(
-  timeoutMs: number,
-  parentSignal: AbortSignal,
-  run: (signal: AbortSignal) => Promise<T>,
-) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  const abort = () => controller.abort();
-  parentSignal.addEventListener('abort', abort, { once: true });
-
-  return run(controller.signal).finally(() => {
-    parentSignal.removeEventListener('abort', abort);
-    clearTimeout(timeout);
-  });
-}
-
 function withTimeoutSignalEffect<T>(
   timeoutMs: number,
   parentSignal: AbortSignal,
   run: (signal: AbortSignal) => Effect.Effect<T, unknown>,
 ) {
-  return Effect.tryPromise({
-    try: () =>
-      withTimeoutSignal(timeoutMs, parentSignal, (signal) => Effect.runPromise(run(signal))),
-    catch: (error) => error,
-  });
+  return withTimeoutAbortSignalEffect(timeoutMs, [parentSignal], run);
 }
 
 function throwIfArticleImportCanceled(signal: AbortSignal) {
@@ -739,3 +725,7 @@ function wait(ms: number, signal: AbortSignal) {
     signal.addEventListener('abort', abort, { once: true });
   });
 }
+
+export const articleImportTestApi = {
+  articleRecordFromUrlEffect,
+};

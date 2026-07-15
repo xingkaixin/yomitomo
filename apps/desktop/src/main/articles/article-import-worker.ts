@@ -54,10 +54,16 @@ async function extractArticleRecord(input: unknown) {
 
   try {
     let article = await extractArticleFromDocument(dom.window.document, data.url);
-    const fetcher = (imageUrl: string) =>
-      fetchArticleImageDataUrl(imageUrl, article.url, data.userAgent, {
-        allowLocalNetworkArticleImport: data.allowLocalNetworkArticleImport,
-      });
+    const fetcher = (imageUrl: string, signal?: AbortSignal) =>
+      fetchArticleImageDataUrl(
+        imageUrl,
+        article.url,
+        data.userAgent,
+        {
+          allowLocalNetworkArticleImport: data.allowLocalNetworkArticleImport,
+        },
+        signal,
+      );
     if (data.inlineImages) {
       article = await inlineArticleImages(article, {
         articleDocument: dom.window.document,
@@ -93,16 +99,20 @@ async function fetchArticleImageDataUrl(
   articleUrl: string,
   userAgent: string | undefined,
   options: ArticleImportNetworkPolicyOptions = {},
+  parentSignal?: AbortSignal,
 ) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), ARTICLE_IMAGE_TIMEOUT_MS);
+  const signal = parentSignal
+    ? AbortSignal.any([controller.signal, parentSignal])
+    : controller.signal;
 
   try {
     const { response } = await fetchArticleImageResponse(
       url,
       articleUrl,
       userAgent,
-      controller.signal,
+      signal,
       options,
     );
     try {
