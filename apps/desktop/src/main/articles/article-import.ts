@@ -564,7 +564,7 @@ function extractArticleRecordInWorkerEffect({
   url: string;
   userAgent?: string;
 }) {
-  return Effect.async<ArticleRecord, Error>((resume, effectSignal) => {
+  return Effect.callback<ArticleRecord, Error>((resume, effectSignal) => {
     if (signal.aborted) {
       resume(Effect.fail(new Error(ARTICLE_IMPORT_CANCELED_MESSAGE)));
       return;

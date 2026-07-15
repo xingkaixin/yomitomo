@@ -6,6 +6,7 @@ allowBuilds:
   electron: true
   electron-winstaller: true
   esbuild: true
+  msgpackr-extract: false
   sharp: true
   spawn-sync: true
   workerd: true
