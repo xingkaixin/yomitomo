@@ -51,10 +51,9 @@ export function readLibraryPinRows(database: StoreDatabase): LibraryPin[] {
 export function readCollectionsWithMembersRows(database: StoreDatabase): CollectionWithMembers[] {
   const membersByCollection = new Map<string, CollectionMember[]>();
   for (const member of readCollectionMemberRows(database)) {
-    membersByCollection.set(member.collectionId, [
-      ...(membersByCollection.get(member.collectionId) || []),
-      member,
-    ]);
+    const members = membersByCollection.get(member.collectionId);
+    if (members) members.push(member);
+    else membersByCollection.set(member.collectionId, [member]);
   }
 
   const collections: CollectionWithMembers[] = [];

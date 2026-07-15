@@ -74,6 +74,45 @@ describe('buildLibraryEntities type filter (multi-select union)', () => {
     expect(ids).not.toContain('web_collected');
   });
 
+  it('keeps stable member order across multiple and empty collections', () => {
+    const entities = buildLibraryEntities({
+      articles: [summary('first'), summary('second'), summary('third')],
+      collectionMembers: [
+        { collectionId: 'col-a', member: { kind: 'article', id: 'second' }, addedAt: now },
+        { collectionId: 'col-b', member: { kind: 'article', id: 'third' }, addedAt: now },
+        { collectionId: 'col-a', member: { kind: 'article', id: 'first' }, addedAt: now },
+      ],
+      collections: [
+        { id: 'col-a', name: 'A', createdAt: now, updatedAt: now },
+        { id: 'col-b', name: 'B', createdAt: now, updatedAt: now },
+        { id: 'col-empty', name: 'Empty', createdAt: now, updatedAt: now },
+      ],
+      enabledTypes,
+      pins: [],
+      query: '',
+      typeFilter: new Set(),
+      wereadBooks: [],
+    });
+    const collectionById = new Map(
+      entities
+        .filter((entity) => entity.kind === 'col')
+        .map((entity) => [entity.collection.id, entity]),
+    );
+
+    expect(collectionById.get('col-a')?.searchMembers?.map((item) => item.ref.id)).toEqual([
+      'second',
+      'first',
+    ]);
+    expect(collectionById.get('col-b')?.searchMembers?.map((item) => item.ref.id)).toEqual([
+      'third',
+    ]);
+    expect(collectionById.get('col-empty')).toMatchObject({
+      coverMembers: [],
+      searchMembers: [],
+      memberCount: 0,
+    });
+  });
+
   it('单选具体类型时不显示合集卡片，已入合集的散件正常出现', () => {
     const entities = build(new Set(['web']));
     expect(hasCollection(entities)).toBe(false);
