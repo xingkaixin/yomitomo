@@ -1,6 +1,6 @@
 import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm';
 import type { LlmProvider } from '@yomitomo/shared';
-import { Effect } from 'effect';
+import { Effect, Schema } from 'effect';
 import * as schema from '../db/schema';
 import { withTimeoutAbortSignalEffect } from '../effect-abort-signal';
 import type { StoreDatabase, StoreExecutor } from '../store/store-db';
@@ -9,6 +9,25 @@ const MODELS_DEV_URL = 'https://models.dev/api.json';
 const MODELS_DEV_TIMEOUT_MS = 15_000;
 const MODEL_PRICE_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const MODEL_PRICE_STALE_MS = 24 * 60 * 60 * 1000;
+
+const modelsDevCostSchema = Schema.Struct({
+  input: Schema.optionalKey(Schema.Number),
+  output: Schema.optionalKey(Schema.Number),
+  cache_read: Schema.optionalKey(Schema.Number),
+  cache_write: Schema.optionalKey(Schema.Number),
+});
+
+const modelsDevModelSchema = Schema.Struct({
+  id: Schema.optionalKey(Schema.String),
+  cost: Schema.optionalKey(modelsDevCostSchema),
+});
+
+const modelsDevProviderSchema = Schema.Struct({
+  id: Schema.optionalKey(Schema.String),
+  models: Schema.optionalKey(Schema.Record(Schema.String, modelsDevModelSchema)),
+});
+
+const modelsDevCatalogueSchema = Schema.Record(Schema.String, modelsDevProviderSchema);
 
 export type NormalizedAiUsage = {
   inputTokens?: number;
@@ -31,21 +50,6 @@ type ModelPriceRecord = {
   source: 'models.dev';
   fetchedAt: string;
   updatedAt: string;
-};
-
-type ModelsDevProvider = {
-  id?: unknown;
-  models?: Record<string, ModelsDevModel>;
-};
-
-type ModelsDevModel = {
-  id?: unknown;
-  cost?: {
-    input?: unknown;
-    output?: unknown;
-    cache_read?: unknown;
-    cache_write?: unknown;
-  };
 };
 
 export function estimateAssistantRunCostMicros(
@@ -117,9 +121,12 @@ function fetchModelsDevCatalogueEffect() {
         return yield* Effect.fail(new Error(`models.dev 返回 ${response.status}`));
       }
       return yield* Effect.tryPromise({
-        try: () => response.json() as Promise<Record<string, ModelsDevProvider>>,
-        catch: (error) => new Error(`models.dev 响应解析失败：${errorMessage(error)}`),
-      });
+        try: () => response.json(),
+        catch: (error) => error,
+      }).pipe(
+        Effect.flatMap(Schema.decodeUnknownEffect(modelsDevCatalogueSchema)),
+        Effect.mapError(modelsDevResponseDecodeError),
+      );
     }),
   );
 }
@@ -133,8 +140,12 @@ function modelsDevFetchError(error: unknown) {
   return new Error(`models.dev 请求失败：${errorMessage(error)}`, { cause: error });
 }
 
+function modelsDevResponseDecodeError(error: unknown) {
+  return new Error(`models.dev 响应解析失败：${errorMessage(error)}`, { cause: error });
+}
+
 function normalizeModelsDevPriceRecords(
-  catalogue: Record<string, ModelsDevProvider>,
+  catalogue: (typeof modelsDevCatalogueSchema)['Type'],
   fetchedAt: string,
 ): ModelPriceRecord[] {
   const records: ModelPriceRecord[] = [];

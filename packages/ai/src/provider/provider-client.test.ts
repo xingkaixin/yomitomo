@@ -88,6 +88,65 @@ describe('listProviderModels', () => {
     await expect(listProviderModels(provider())).rejects.toThrow('Provider response parse failed');
   });
 
+  it.each([
+    {
+      name: 'OpenAI-compatible object list',
+      target: provider(),
+      body: { data: {} },
+    },
+    {
+      name: 'Anthropic string list',
+      target: providerFor('anthropic', 'anthropic', 'https://api.anthropic.com'),
+      body: { data: 'invalid' },
+    },
+    {
+      name: 'Gemini null list',
+      target: providerFor('gemini', 'gemini', 'https://generativelanguage.googleapis.com'),
+      body: { models: null },
+    },
+  ])('rejects malformed $name payloads with a response decode error', async ({ target, body }) => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(body));
+
+    await expect(listProviderModels(target)).rejects.toThrow('Provider response parse failed');
+  });
+
+  it.each([
+    {
+      name: 'OpenAI-compatible missing list',
+      target: providerFor('openai-chat', 'openai', 'https://api.openai.com'),
+      body: {},
+    },
+    {
+      name: 'Anthropic empty list',
+      target: providerFor('anthropic', 'anthropic', 'https://api.anthropic.com'),
+      body: { data: [] },
+    },
+    {
+      name: 'Gemini empty list',
+      target: providerFor('gemini', 'gemini', 'https://generativelanguage.googleapis.com'),
+      body: { models: [] },
+    },
+  ])('uses the preset fallback for a valid $name response', async ({ target, body }) => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(body));
+
+    await expect(listProviderModels(target)).resolves.not.toHaveLength(0);
+  });
+
+  it('keeps malformed model payloads in the typed decode failure channel', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ data: [null] }));
+
+    const exit = await Effect.runPromiseExit(listProviderModelsEffect(provider()));
+
+    expect(Exit.isFailure(exit)).toBe(true);
+    if (Exit.isSuccess(exit)) return;
+
+    expect(Cause.hasFails(exit.cause)).toBe(true);
+    expect(Cause.hasDies(exit.cause)).toBe(false);
+    expect(Cause.squash(exit.cause)).toMatchObject({
+      _tag: 'ProviderResponseDecodeError',
+    });
+  });
+
   it('aborts the model-list request when its Effect fiber is interrupted', async () => {
     const started = pendingFetch();
     const fiber = Effect.runFork(listProviderModelsEffect(provider()));
@@ -379,6 +438,14 @@ function provider(): LlmProvider {
     createdAt: new Date(0).toISOString(),
     updatedAt: new Date(0).toISOString(),
   };
+}
+
+function providerFor(
+  type: LlmProvider['type'],
+  presetId: NonNullable<LlmProvider['presetId']>,
+  baseUrl: string,
+): LlmProvider {
+  return { ...provider(), type, presetId, baseUrl };
 }
 
 function payload() {
