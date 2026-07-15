@@ -1,7 +1,12 @@
+import { readFileSync } from 'node:fs';
 import { readRendererStyles } from './css-test-utils';
 import { describe, expect, it } from 'vitest';
 
 const styles = readRendererStyles();
+const importOverrides = readFileSync(
+  new URL('../styles/theme-overrides/library-import.css', import.meta.url),
+  'utf8',
+);
 
 function rulesFor(selector: string) {
   const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -14,6 +19,12 @@ function expectRule(selector: string, properties: string[]) {
   expect(
     rulesFor(selector).some((rule) => properties.every((property) => rule.includes(property))),
   ).toBe(true);
+}
+
+function expectFinalRule(selector: string, properties: string[]) {
+  const rule = rulesFor(selector).at(-1);
+  expect(rule).toBeDefined();
+  expect(properties.every((property) => rule?.includes(property))).toBe(true);
 }
 
 function countOccurrences(source: string, needle: string) {
@@ -456,5 +467,46 @@ describe('reading library styles', () => {
     expect(styles).toMatch(
       /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.library-article-import-box\.has-parsed-title \.library-article-import-input input,[\s\S]*\.library-import-success-icon path \{[\s\S]*animation: none !important;[\s\S]*stroke-dashoffset: 0 !important;[\s\S]*\}[\s\S]*\.library-ebook-import-cover-card \{[\s\S]*animation: none !important;[\s\S]*filter: none;[\s\S]*opacity: 1;[\s\S]*transform: translateX\(calc\(-50% \+ var\(--ebook-import-cover-x\)\)\)/,
     );
+  });
+
+  it('uses theme semantics for import overlays and status states', () => {
+    expectFinalRule('.library-import-modal-scrim', ['background: var(--app-overlay-scrim);']);
+    expectFinalRule('.library-import-dialog', [
+      'background: hsl(var(--card));',
+      'box-shadow: var(--app-shell-panel-shadow);',
+    ]);
+    expectFinalRule('.library-import-dialog.is-error', [
+      'var(--app-action-danger-bg)',
+      'hsl(var(--card))',
+    ]);
+    expectFinalRule('.library-import-dialog.is-duplicate', [
+      'var(--app-reader-accent-strong)',
+      'hsl(var(--card))',
+    ]);
+    expectFinalRule('.library-article-import-box.is-error,\n.library-ebook-dropzone.is-error', [
+      'var(--app-action-danger-bg)',
+      'hsl(var(--card))',
+    ]);
+    expectFinalRule('.library-article-import-box.is-duplicate', [
+      'var(--app-reader-accent-strong)',
+      'hsl(var(--card))',
+    ]);
+    expectFinalRule(
+      '.library-import-status-icon.is-error,\n.library-ebook-dropzone-icon.is-error',
+      ['var(--app-action-danger-bg)', 'hsl(var(--card))'],
+    );
+    expectFinalRule('.library-import-status-icon.is-duplicate', [
+      'var(--app-reader-accent-strong)',
+      'hsl(var(--card))',
+    ]);
+    expectFinalRule('.library-file-import-result.is-error', [
+      'var(--app-action-danger-bg)',
+      'hsl(var(--card))',
+    ]);
+    expectFinalRule('.library-article-duplicate-callout', [
+      'var(--app-reader-accent-strong)',
+      'hsl(var(--card))',
+    ]);
+    expect(importOverrides).not.toMatch(/(?:rgb|hsl)\(\d/);
   });
 });
