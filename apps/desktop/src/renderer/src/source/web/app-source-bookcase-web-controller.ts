@@ -86,7 +86,7 @@ export function createWebSourceReaderController({
     startVirtualReading(agent, readingPlan, playbackMode);
   }
 
-  function handleAgentAnnotationStreamItem(
+  async function handleAgentAnnotationStreamItem(
     articleId: string,
     annotation: Annotation,
     readingPlan: AgentReadingPlanItem[],
@@ -100,7 +100,7 @@ export function createWebSourceReaderController({
     );
     if (!constrainedAnnotation) return false;
     if (articleScopedWrite) {
-      void appendAgentAnnotationToArticle(articleId, constrainedAnnotation);
+      await appendAgentAnnotationToArticle(articleId, constrainedAnnotation);
       return true;
     }
     if (!isCurrentArticle(articleId)) return true;

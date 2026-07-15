@@ -49,6 +49,8 @@ type SourceAgentAnnotationRequester = Pick<
   'requestAgentAnnotationsStream'
 >;
 
+type AnnotationHandlingState = { status: 'accepting' } | { status: 'failed'; error: unknown };
+
 export function buildAgentAnnotationRequestInput(
   agent: PublicAgent,
   options: SourceAgentAnnotationRequestOptions,
@@ -161,14 +163,36 @@ export async function runSourceAgentAnnotationRequest({
 }: {
   desktop: SourceAgentAnnotationRequester;
   requestInput: SourceAgentAnnotationRequestInput;
-  onAnnotation: (annotation: Annotation) => boolean;
+  onAnnotation: (annotation: Annotation) => Promise<boolean> | boolean;
 }) {
   let annotationCount = 0;
-  const result = await desktop.requestAgentAnnotationsStream(requestInput.payload, (event) => {
-    if (event.type !== 'item') return;
-    if (onAnnotation(localizedAgentAnnotation(requestInput.agent, event.annotation)))
-      annotationCount += 1;
-  });
+  let annotationHandling = Promise.resolve<AnnotationHandlingState>({ status: 'accepting' });
+  let result: Awaited<ReturnType<SourceAgentAnnotationRequester['requestAgentAnnotationsStream']>>;
+  try {
+    result = await desktop.requestAgentAnnotationsStream(requestInput.payload, (event) => {
+      if (event.type !== 'item') return;
+      const annotation = localizedAgentAnnotation(requestInput.agent, event.annotation);
+      annotationHandling = annotationHandling.then(async (state) => {
+        if (state.status === 'failed') return state;
+        try {
+          if (await onAnnotation(annotation)) annotationCount += 1;
+          return state;
+        } catch (error) {
+          console.warn('[agent-annotation] stream item handling failed', {
+            agentId: requestInput.agent.id,
+            annotationId: annotation.id,
+            error,
+          });
+          return { status: 'failed', error };
+        }
+      });
+    });
+  } catch (error) {
+    await annotationHandling;
+    throw error;
+  }
+  const handlingState = await annotationHandling;
+  if (handlingState.status === 'failed') throw handlingState.error;
   return { result, annotationCount };
 }
 
