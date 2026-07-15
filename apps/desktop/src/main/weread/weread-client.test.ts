@@ -47,10 +47,15 @@ function reviewPage(
   };
 }
 
-function mockBookDetailFetch(reviewResponses: Record<string, unknown>[]) {
+function mockBookDetailFetch(
+  reviewResponses: Record<string, unknown>[],
+  overrides: Record<string, unknown> = {},
+) {
   let reviewIndex = 0;
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
     const body = requestBody([_input, init] as Parameters<typeof fetch>);
+    const override = overrides[String(body.api_name)];
+    if (override !== undefined) return response(override);
     if (body.api_name === '/review/list/mine') {
       return response(reviewResponses[reviewIndex++] || reviewResponses.at(-1) || {});
     }
@@ -108,6 +113,7 @@ describe('weread client', () => {
     await expect(fetchWeReadNotebooks('secret')).resolves.toMatchObject([
       { bookId: 'book_newer', title: '新书', sort: 30 },
       { bookId: 'book_older', title: '旧书', sort: 10 },
+      { bookId: 'book_empty', title: '空书', sort: 8 },
     ]);
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -121,6 +127,18 @@ describe('weread client', () => {
       count: 100,
       lastSort: 8,
     });
+  });
+
+  it.each([
+    ['missing books', { hasMore: 0 }],
+    ['wrong books type', { books: {}, hasMore: 0 }],
+    ['non-object gateway body', 'upstream unavailable'],
+    ['missing pagination state', { books: [] }],
+    ['non-object book item', { books: [null], hasMore: 0 }],
+  ])('rejects incomplete notebook authority: %s', async (_name, body) => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(response(body));
+
+    await expect(fetchWeReadNotebooks('secret')).rejects.toThrow('Failed to parse WeRead response');
   });
 
   it('rejects with the HTTP error message from the Effect boundary', async () => {
@@ -182,32 +200,37 @@ describe('weread client', () => {
     expect(reviewRequestBodies(fetchMock)).toHaveLength(1);
   });
 
-  it('stops thoughts pagination when hasMore lacks a next synckey', async () => {
-    const warnMock = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  it('rejects thoughts pagination when hasMore lacks a next synckey', async () => {
     const fetchMock = mockBookDetailFetch([reviewPage('review_1', { hasMore: 1 })]);
 
-    const detail = await fetchWeReadBookDetail('secret', 'book_1');
+    await expect(fetchWeReadBookDetail('secret', 'book_1')).rejects.toThrow('missing synckey');
 
-    expect(detail.thoughts.map((thought) => thought.reviewId)).toEqual(['review_1']);
     expect(reviewRequestBodies(fetchMock)).toHaveLength(1);
-    expect(warnMock).toHaveBeenCalledWith('[weread] thoughts pagination stopped without synckey', {
-      bookId: 'book_1',
-      page: 0,
-    });
   });
 
-  it('stops thoughts pagination when the next synckey repeats', async () => {
+  it('rejects thoughts pagination when the next synckey repeats', async () => {
     const fetchMock = mockBookDetailFetch([
       reviewPage('review_1', { hasMore: 1, synckey: 7 }),
       reviewPage('review_2', { hasMore: 1, synckey: 7 }),
     ]);
 
-    const detail = await fetchWeReadBookDetail('secret', 'book_1');
+    await expect(fetchWeReadBookDetail('secret', 'book_1')).rejects.toThrow('repeats synckey');
 
-    expect(detail.thoughts.map((thought) => thought.reviewId)).toEqual(['review_1', 'review_2']);
     expect(reviewRequestBodies(fetchMock)).toMatchObject([
       { api_name: '/review/list/mine', bookid: 'book_1', count: 100 },
       { api_name: '/review/list/mine', bookid: 'book_1', count: 100, synckey: 7 },
     ]);
+  });
+
+  it.each([
+    ['/book/chapterinfo', { chapters: {} }],
+    ['/book/bookmarklist', { updated: null }],
+    ['/review/list/mine', { reviews: {}, hasMore: 0 }],
+  ])('rejects an incomplete detail response from %s', async (apiName, body) => {
+    mockBookDetailFetch([reviewPage('review_1', { hasMore: 0 })], { [apiName]: body });
+
+    await expect(fetchWeReadBookDetail('secret', 'book_1')).rejects.toThrow(
+      'Failed to parse WeRead response',
+    );
   });
 });
