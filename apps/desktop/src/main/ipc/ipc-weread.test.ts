@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { WeReadBook, WeReadBookDetail } from '@yomitomo/shared';
 import { registerWeReadIpc } from './ipc-weread';
-import { testWeReadConnection } from '../weread/weread-client';
+import { fetchWeReadBookDetail, testWeReadConnection } from '../weread/weread-client';
 import { fetchWeReadSyncDetails } from '../weread/weread-sync';
 
 const ipcMocks = vi.hoisted(() => ({
@@ -18,6 +18,7 @@ vi.mock('../weread/weread-client', async (importOriginal) => {
   const original = await importOriginal<typeof import('../weread/weread-client')>();
   return {
     ...original,
+    fetchWeReadBookDetail: vi.fn(),
     testWeReadConnection: vi.fn(),
   };
 });
@@ -111,6 +112,29 @@ describe('weread IPC persistence boundary', () => {
     });
     expect(saveWeReadTestResult).toHaveBeenCalledWith(false, 'WEREAD_CONNECTION_FAILED');
     expect(JSON.stringify(result)).not.toContain('weread-secret');
+  });
+
+  it('passes the IPC logger to single-book detail persistence', async () => {
+    ipcMocks.ipcMainHandle.mockClear();
+    const bookDetail = detail('book_1');
+    vi.mocked(fetchWeReadBookDetail).mockResolvedValueOnce(bookDetail);
+    const readStoredWeReadApiKey = vi.fn(async () => 'weread-secret');
+    const saveWeReadBookDetail = vi.fn(async () => bookDetail);
+    const logInfo = vi.fn();
+
+    registerWeReadIpc(
+      weReadIpcContext({ readStoredWeReadApiKey, saveWeReadBookDetail }, { logInfo }),
+    );
+
+    const handler = ipcMocks.ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === 'weread:sync-book',
+    )?.[1];
+    expect(handler).toBeTypeOf('function');
+
+    await handler({}, 'book_1');
+
+    expect(fetchWeReadBookDetail).toHaveBeenCalledWith('weread-secret', 'book_1');
+    expect(saveWeReadBookDetail).toHaveBeenCalledWith(bookDetail, logInfo);
   });
 });
 
