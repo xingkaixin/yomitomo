@@ -116,7 +116,7 @@ function weReadIpcContext(
         readWeReadSettings: vi.fn(),
         readWeReadState: vi.fn(),
         saveWeReadBookDetail: vi.fn(),
-        saveWeReadBookDetails: vi.fn(),
+        saveWeReadLibrarySnapshot: vi.fn(),
         saveWeReadReadingStatsSnapshot: vi.fn(),
         saveWeReadSettings: vi.fn(),
         saveWeReadTestResult: vi.fn(),

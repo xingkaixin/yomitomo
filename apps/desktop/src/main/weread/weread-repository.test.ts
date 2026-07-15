@@ -34,7 +34,7 @@ import {
   readWeReadBooks,
   readWeReadReadingStatsState,
   saveWeReadBookDetail,
-  saveWeReadBookDetails,
+  saveWeReadLibrarySnapshot,
   saveWeReadReadingStatsSnapshot,
 } from './weread-repository';
 
@@ -53,7 +53,7 @@ afterEach(async () => {
 
 describe('WeRead repository book details', () => {
   it('persists book detail rows and reads them back', async () => {
-    const saved = await saveWeReadBookDetails([detail('book_1')]);
+    const saved = await saveDetailsSnapshot([detail('book_1')]);
 
     expect(saved.settings.status).toBe('connected');
     expect(saved.books.map((item) => item.bookId)).toEqual(['book_1']);
@@ -108,8 +108,8 @@ describe('WeRead repository book details', () => {
   });
 
   it('replaces child rows when the same book detail is saved again', async () => {
-    await saveWeReadBookDetails([detail('book_1')]);
-    await saveWeReadBookDetails([
+    await saveDetailsSnapshot([detail('book_1')]);
+    await saveDetailsSnapshot([
       {
         ...detail('book_1', { updatedAt: '2026-06-28T01:00:00.000Z' }),
         chapters: [
@@ -138,10 +138,10 @@ describe('WeRead repository book details', () => {
   });
 
   it('removes stale books and their library references during full detail sync', async () => {
-    await saveWeReadBookDetails([detail('book_keep'), detail('book_stale')]);
+    await saveDetailsSnapshot([detail('book_keep'), detail('book_stale')]);
     insertLibraryReferences('book_stale');
 
-    await saveWeReadBookDetails([detail('book_keep', { updatedAt: '2026-06-28T02:00:00.000Z' })]);
+    await saveDetailsSnapshot([detail('book_keep', { updatedAt: '2026-06-28T02:00:00.000Z' })]);
 
     expect(readWeReadBooks().map((savedBook) => savedBook.bookId)).toEqual(['book_keep']);
     expect(readWeReadBookDetail('book_stale')).toBeNull();
@@ -149,8 +149,44 @@ describe('WeRead repository book details', () => {
     expect(tableRows(schema.libraryPins)).toEqual([]);
   });
 
+  it('preserves a stored book while it remains in the authoritative notebook list', async () => {
+    await saveDetailsSnapshot([detail('book_without_current_notes')]);
+    insertLibraryReferences('book_without_current_notes');
+
+    await saveDetailsSnapshot([], ['book_without_current_notes']);
+
+    expect(readWeReadBookDetail('book_without_current_notes')).not.toBeNull();
+    expect(tableRows(schema.collectionMembers)).toHaveLength(1);
+    expect(tableRows(schema.libraryPins)).toHaveLength(1);
+  });
+
+  it('clears stored books and library references for an authoritative empty library', async () => {
+    await saveDetailsSnapshot([detail('book_removed')]);
+    insertLibraryReferences('book_removed');
+
+    await saveDetailsSnapshot([], []);
+
+    expect(readWeReadBookDetail('book_removed')).toBeNull();
+    expect(tableRows(schema.collectionMembers)).toEqual([]);
+    expect(tableRows(schema.libraryPins)).toEqual([]);
+  });
+
+  it('rejects inconsistent snapshots before writing any rows', async () => {
+    await saveDetailsSnapshot([detail('book_existing')]);
+
+    await expect(
+      saveWeReadLibrarySnapshot({
+        details: [detail('book_outside_authority')],
+        authoritativeBookIds: ['book_existing'],
+      }),
+    ).rejects.toThrow('WEREAD_SYNC_SNAPSHOT_INCONSISTENT_DETAILS');
+
+    expect(readWeReadBookDetail('book_existing')).not.toBeNull();
+    expect(readWeReadBookDetail('book_outside_authority')).toBeNull();
+  });
+
   it('removes a single book when its detail no longer has notes', async () => {
-    await saveWeReadBookDetails([detail('book_empty_after_sync')]);
+    await saveDetailsSnapshot([detail('book_empty_after_sync')]);
 
     const saved = await saveWeReadBookDetail({
       ...detail('book_empty_after_sync'),
@@ -229,6 +265,13 @@ function tableRows<T extends typeof schema.collectionMembers | typeof schema.lib
   table: T,
 ) {
   return getDatabase().select().from(table).all();
+}
+
+function saveDetailsSnapshot(
+  details: WeReadBookDetail[],
+  authoritativeBookIds = details.map((item) => item.book.bookId),
+) {
+  return saveWeReadLibrarySnapshot({ details, authoritativeBookIds });
 }
 
 function detail(
