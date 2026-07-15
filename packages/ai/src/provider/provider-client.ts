@@ -3,7 +3,7 @@ import { providerPresets } from '@yomitomo/shared';
 import { Effect } from 'effect';
 import { normalizeAnthropicError } from './budget';
 import { geminiBaseUrl, openAIBaseUrl } from './ai-sdk-provider-adapter';
-import { generateYomitomoText, streamYomitomoText } from './generation-runtime';
+import { generateYomitomoTextEffect, streamYomitomoTextEffect } from './generation-runtime';
 import type { GenerateOptions, TextPayload } from './provider-client-types';
 
 const defaultProviderPreset = providerPresets.find((preset) => preset.id === 'deepseek');
@@ -38,7 +38,7 @@ class ProviderResponseDecodeError extends Error {
 }
 
 export async function listProviderModels(provider: Partial<LlmProvider>): Promise<ProviderModel[]> {
-  return Effect.runPromise(listProviderModelsEffect(normalizeProvider(provider)));
+  return Effect.runPromise(listProviderModelsEffect(provider));
 }
 
 export async function callProviderText(
@@ -46,8 +46,7 @@ export async function callProviderText(
   payload: TextPayload,
   options: GenerateOptions = {},
 ) {
-  const result = await generateYomitomoText(provider, payload, options);
-  return result.text;
+  return Effect.runPromise(callProviderTextEffect(provider, payload, options));
 }
 
 export async function streamProviderText(
@@ -55,8 +54,19 @@ export async function streamProviderText(
   payload: TextPayload,
   onDelta: (delta: string) => void,
 ) {
-  return streamYomitomoText(provider, payload, onDelta);
+  return Effect.runPromise(streamProviderTextEffect(provider, payload, onDelta));
 }
+
+export const callProviderTextEffect = Effect.fn('Provider.callText')(function* (
+  provider: LlmProvider,
+  payload: TextPayload,
+  options: GenerateOptions = {},
+) {
+  const result = yield* generateYomitomoTextEffect(provider, payload, options);
+  return result.text;
+});
+
+export const streamProviderTextEffect = streamYomitomoTextEffect;
 
 function normalizeProvider(provider: Partial<LlmProvider>): LlmProvider {
   const preset =
@@ -77,11 +87,14 @@ function normalizeProvider(provider: Partial<LlmProvider>): LlmProvider {
   };
 }
 
-function listProviderModelsEffect(provider: LlmProvider) {
-  if (provider.type === 'gemini') return listGeminiModelsEffect(provider);
-  if (provider.type === 'anthropic') return listAnthropicModelsEffect(provider);
-  return listOpenAICompatibleModelsEffect(provider);
-}
+export const listProviderModelsEffect = Effect.fn('Provider.listModels')(function* (
+  input: Partial<LlmProvider>,
+) {
+  const provider = normalizeProvider(input);
+  if (provider.type === 'gemini') return yield* listGeminiModelsEffect(provider);
+  if (provider.type === 'anthropic') return yield* listAnthropicModelsEffect(provider);
+  return yield* listOpenAICompatibleModelsEffect(provider);
+});
 
 function listOpenAICompatibleModelsEffect(
   provider: LlmProvider,
@@ -184,7 +197,7 @@ function fetchProviderModels(
   init?: RequestInit,
 ): Effect.Effect<Response, ProviderNetworkError> {
   return Effect.tryPromise({
-    try: () => fetch(url, init),
+    try: (signal) => fetch(url, { ...init, signal }),
     catch: (error) => new ProviderNetworkError(error),
   });
 }

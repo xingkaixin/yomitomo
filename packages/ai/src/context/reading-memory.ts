@@ -13,7 +13,7 @@ import { createEpubTextAnchor, mergeReadingMemory } from '@yomitomo/core';
 import { Effect } from 'effect';
 import type { SegmentAnnotationTask } from './segment-annotation-context';
 import { logAiError } from '../logger';
-import { callProviderText } from '../provider/provider-client';
+import { callProviderTextEffect } from '../provider/provider-client';
 
 const MEMORY_SUMMARY_MAX_TOKENS = 1400;
 
@@ -29,35 +29,37 @@ export async function generateSegmentReadingMemoryUpdate(
   );
 }
 
-function generateSegmentReadingMemoryUpdateEffect(
-  provider: LlmProvider,
-  agent: Agent,
-  payload: AgentAnnotatePayload,
-  task: SegmentAnnotationTask,
-  annotations: Annotation[],
-) {
-  return Effect.gen(function* () {
-    const content = yield* callProviderTextEffect(provider, {
-      system:
-        '你是 Yomitomo 的内部阅读记忆压缩器。你的任务是把当前 segment 的原文摘要和阅读过程 trace 分开保存，供后续共读上下文压缩使用。只返回 JSON。',
-      user: buildSegmentReadingMemoryPrompt(agent, task, annotations),
-      maxTokens: MEMORY_SUMMARY_MAX_TOKENS,
-      temperature: 0,
-    });
-    return yield* Effect.try({
-      try: () => parseSegmentReadingMemoryUpdate(content, payload, task, agent, annotations),
-      catch: (error) => error,
-    });
-  }).pipe(
-    Effect.catch((error) => {
-      logAiError('agent.segment_memory.update_failed', error, {
-        agent: agent.username,
-        segmentId: task.segment.id,
+export const generateSegmentReadingMemoryUpdateEffect = Effect.fn('Segment.updateReadingMemory')(
+  function (
+    provider: LlmProvider,
+    agent: Agent,
+    payload: AgentAnnotatePayload,
+    task: SegmentAnnotationTask,
+    annotations: Annotation[],
+  ) {
+    return Effect.gen(function* () {
+      const content = yield* callProviderTextEffect(provider, {
+        system:
+          '你是 Yomitomo 的内部阅读记忆压缩器。你的任务是把当前 segment 的原文摘要和阅读过程 trace 分开保存，供后续共读上下文压缩使用。只返回 JSON。',
+        user: buildSegmentReadingMemoryPrompt(agent, task, annotations),
+        maxTokens: MEMORY_SUMMARY_MAX_TOKENS,
+        temperature: 0,
       });
-      return Effect.succeed(undefined);
-    }),
-  );
-}
+      return yield* Effect.try({
+        try: () => parseSegmentReadingMemoryUpdate(content, payload, task, agent, annotations),
+        catch: (error) => error,
+      });
+    }).pipe(
+      Effect.catch((error) => {
+        logAiError('agent.segment_memory.update_failed', error, {
+          agent: agent.username,
+          segmentId: task.segment.id,
+        });
+        return Effect.succeed(undefined);
+      }),
+    );
+  },
+);
 
 function buildSegmentReadingMemoryPrompt(
   agent: Agent,
@@ -301,16 +303,6 @@ function parseJsonObject(value: string): Record<string, unknown> {
     }
     throw new Error('READING_MEMORY_JSON_PARSE_FAILED');
   }
-}
-
-function callProviderTextEffect(
-  provider: LlmProvider,
-  payload: Parameters<typeof callProviderText>[1],
-) {
-  return Effect.tryPromise({
-    try: () => callProviderText(provider, payload),
-    catch: (error) => error,
-  });
 }
 
 function objectValue(value: unknown): Record<string, unknown> {

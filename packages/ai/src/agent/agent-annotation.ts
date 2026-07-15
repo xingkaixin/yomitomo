@@ -25,7 +25,7 @@ import {
 import { Effect } from 'effect';
 import { budgetArticleText, formatBudgetNotice } from '../provider/budget';
 import { logAiError, logAiInfo } from '../logger';
-import { callProviderText, streamProviderText } from '../provider/provider-client';
+import { callProviderTextEffect, streamProviderTextEffect } from '../provider/provider-client';
 import type { NormalizedAiUsage } from '../provider/usage';
 import {
   buildSelectionAnnotationContext,
@@ -35,9 +35,9 @@ import { buildSegmentAnnotationTasks } from '../context/segment-annotation-conte
 import { extractJsonObjects, hasIncompleteJson } from '../json';
 import { buildAgentRoleCard } from './agent-role-card';
 import {
-  runAgentSegmentAnnotate,
-  runAgentSegmentAnnotateStreamWithMemory,
-  runAgentSegmentAnnotateWithMemory,
+  runAgentSegmentAnnotateEffect,
+  runAgentSegmentAnnotateStreamWithMemoryEffect,
+  runAgentSegmentAnnotateWithMemoryEffect,
 } from '../context/segment-annotation-runner';
 import {
   instructionPromptLine,
@@ -57,7 +57,7 @@ export async function runAgentAnnotate(
   return Effect.runPromise(runAgentAnnotateEffect(provider, agent, payload));
 }
 
-function runAgentAnnotateEffect(
+export const runAgentAnnotateEffect = Effect.fn('Agent.annotate')(function (
   provider: LlmProvider,
   agent: Agent,
   payload: AgentAnnotatePayload,
@@ -66,7 +66,7 @@ function runAgentAnnotateEffect(
     const system = buildAgentAnnotateSystemPrompt(agent, payload);
     const segmentTasks = buildSegmentAnnotationTasks(payload, agent);
     if (segmentTasks.length > 0) {
-      return yield* runSegmentAnnotateEffect(provider, agent, payload, system, segmentTasks);
+      return yield* runAgentSegmentAnnotateEffect(provider, agent, payload, system, segmentTasks);
     }
     const context = buildAgentAnnotateContextBundle(payload);
     const content = yield* callProviderTextEffect(provider, {
@@ -110,7 +110,7 @@ function runAgentAnnotateEffect(
 
     return annotations;
   });
-}
+});
 
 export async function runAgentAnnotateWithMemory(
   provider: LlmProvider,
@@ -120,7 +120,7 @@ export async function runAgentAnnotateWithMemory(
   return Effect.runPromise(runAgentAnnotateWithMemoryEffect(provider, agent, payload));
 }
 
-function runAgentAnnotateWithMemoryEffect(
+export const runAgentAnnotateWithMemoryEffect = Effect.fn('Agent.annotateWithMemory')(function (
   provider: LlmProvider,
   agent: Agent,
   payload: AgentAnnotatePayload,
@@ -129,7 +129,7 @@ function runAgentAnnotateWithMemoryEffect(
     const system = buildAgentAnnotateSystemPrompt(agent, payload);
     const segmentTasks = buildSegmentAnnotationTasks(payload, agent);
     if (segmentTasks.length > 0) {
-      return yield* runSegmentAnnotateWithMemoryEffect(
+      return yield* runAgentSegmentAnnotateWithMemoryEffect(
         provider,
         agent,
         payload,
@@ -142,7 +142,7 @@ function runAgentAnnotateWithMemoryEffect(
       readingMemory: payload.readingMemory,
     };
   });
-}
+});
 
 export function buildAgentSelectionRuntimePayload(
   provider: LlmProvider,
@@ -203,7 +203,7 @@ export async function runAgentAnnotateStream(
   return Effect.runPromise(runAgentAnnotateStreamEffect(provider, agent, payload, onAnnotation));
 }
 
-function runAgentAnnotateStreamEffect(
+export const runAgentAnnotateStreamEffect = Effect.fn('Agent.annotateStream')(function (
   provider: LlmProvider,
   agent: Agent,
   payload: AgentAnnotatePayload,
@@ -213,7 +213,7 @@ function runAgentAnnotateStreamEffect(
     const system = buildAgentAnnotateSystemPrompt(agent, payload);
     const segmentTasks = buildSegmentAnnotationTasks(payload, agent);
     if (segmentTasks.length > 0) {
-      return yield* runSegmentAnnotateStreamWithMemoryEffect(
+      return yield* runAgentSegmentAnnotateStreamWithMemoryEffect(
         provider,
         agent,
         payload,
@@ -313,76 +313,7 @@ function runAgentAnnotateStreamEffect(
     }
     return { annotations, readingMemory: payload.readingMemory, usage: generation.usage };
   });
-}
-
-function callProviderTextEffect(
-  provider: LlmProvider,
-  payload: Parameters<typeof callProviderText>[1],
-) {
-  return Effect.tryPromise({
-    try: () => callProviderText(provider, payload),
-    catch: (error) => error,
-  });
-}
-
-function streamProviderTextEffect(
-  provider: LlmProvider,
-  payload: Parameters<typeof streamProviderText>[1],
-  onDelta: Parameters<typeof streamProviderText>[2],
-) {
-  return Effect.tryPromise({
-    try: () => streamProviderText(provider, payload, onDelta),
-    catch: (error) => error,
-  });
-}
-
-function runSegmentAnnotateEffect(
-  provider: LlmProvider,
-  agent: Agent,
-  payload: AgentAnnotatePayload,
-  system: string,
-  segmentTasks: Parameters<typeof runAgentSegmentAnnotate>[4],
-) {
-  return Effect.tryPromise({
-    try: () => runAgentSegmentAnnotate(provider, agent, payload, system, segmentTasks),
-    catch: (error) => error,
-  });
-}
-
-function runSegmentAnnotateWithMemoryEffect(
-  provider: LlmProvider,
-  agent: Agent,
-  payload: AgentAnnotatePayload,
-  system: string,
-  segmentTasks: Parameters<typeof runAgentSegmentAnnotateWithMemory>[4],
-) {
-  return Effect.tryPromise({
-    try: () => runAgentSegmentAnnotateWithMemory(provider, agent, payload, system, segmentTasks),
-    catch: (error) => error,
-  });
-}
-
-function runSegmentAnnotateStreamWithMemoryEffect(
-  provider: LlmProvider,
-  agent: Agent,
-  payload: AgentAnnotatePayload,
-  system: string,
-  segmentTasks: Parameters<typeof runAgentSegmentAnnotateStreamWithMemory>[4],
-  onAnnotation: Parameters<typeof runAgentSegmentAnnotateStreamWithMemory>[5],
-) {
-  return Effect.tryPromise({
-    try: () =>
-      runAgentSegmentAnnotateStreamWithMemory(
-        provider,
-        agent,
-        payload,
-        system,
-        segmentTasks,
-        onAnnotation,
-      ),
-    catch: (error) => error,
-  });
-}
+});
 
 function annotationTypePromptLine(payload: AgentAnnotatePayload) {
   return payload.annotationType ? `\n本轮批注类型：${payload.annotationType}` : '';

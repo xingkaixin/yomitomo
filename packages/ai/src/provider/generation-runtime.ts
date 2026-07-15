@@ -12,11 +12,6 @@ export type YomitomoTextGenerationResult = {
   finishReason?: string;
 };
 
-type GenerationRuntimeError =
-  | GenerationEmptyResponseError
-  | GenerationMaxTokensError
-  | GenerationProviderError;
-
 class GenerationProviderError extends Error {
   readonly _tag = 'GenerationProviderError';
 
@@ -57,16 +52,16 @@ export async function streamYomitomoText(
   return Effect.runPromise(streamYomitomoTextEffect(provider, payload, onDelta));
 }
 
-function generateYomitomoTextEffect(
+export const generateYomitomoTextEffect = Effect.fn('Provider.generateText')(function (
   provider: LlmProvider,
   payload: TextPayload,
   options: GenerateOptions,
-): Effect.Effect<YomitomoTextGenerationResult, GenerationRuntimeError> {
+) {
   return Effect.gen(function* () {
     const adapter = createYomitomoLanguageModel(provider);
     logProviderRequest(provider, payload, false);
     const result = yield* Effect.tryPromise({
-      try: () =>
+      try: (signal) =>
         generateText({
           model: adapter.model,
           system: payload.system,
@@ -74,6 +69,7 @@ function generateYomitomoTextEffect(
           maxOutputTokens: payload.maxTokens,
           temperature: payload.temperature,
           providerOptions: adapter.providerOptions,
+          abortSignal: signal,
           output:
             payload.responseSchema && adapter.supportsStructuredOutput
               ? Output.object({
@@ -96,59 +92,41 @@ function generateYomitomoTextEffect(
     logProviderResponse(provider, text.length, usage);
     return { text, usage, finishReason: result.finishReason };
   });
-}
+});
 
-function streamYomitomoTextEffect(
+export const streamYomitomoTextEffect = Effect.fn('Provider.streamText')(function (
   provider: LlmProvider,
   payload: TextPayload,
   onDelta: (delta: string) => void,
-): Effect.Effect<YomitomoTextGenerationResult, GenerationRuntimeError> {
+) {
   return Effect.gen(function* () {
     const adapter = createYomitomoLanguageModel(provider);
     logProviderRequest(provider, payload, true);
-    const result = yield* Effect.try({
-      try: () =>
-        streamText({
+    const generation = yield* Effect.tryPromise({
+      try: async (signal) => {
+        const result = streamText({
           model: adapter.model,
           system: payload.system,
           prompt: payload.user,
           maxOutputTokens: payload.maxTokens,
           temperature: payload.temperature,
           providerOptions: adapter.providerOptions,
-        }),
+          abortSignal: signal,
+        });
+        let text = '';
+        for await (const delta of result.textStream) {
+          text += delta;
+          onDelta(delta);
+        }
+        const [usage, finishReason] = await Promise.all([result.usage, result.finishReason]);
+        return { text, usage: normalizeAiUsage(usage), finishReason };
+      },
       catch: (error) => new GenerationProviderError(error),
     });
-    const text = yield* consumeTextStreamEffect(result.textStream, onDelta);
-    const usage = normalizeAiUsage(yield* promiseEffect(result.usage));
-    const finishReason = yield* promiseEffect(result.finishReason);
-    logProviderResponse(provider, text.length, usage);
-    return { text, usage, finishReason };
+    logProviderResponse(provider, generation.text.length, generation.usage);
+    return generation;
   });
-}
-
-function consumeTextStreamEffect(
-  textStream: AsyncIterable<string>,
-  onDelta: (delta: string) => void,
-) {
-  return Effect.tryPromise({
-    try: async () => {
-      let text = '';
-      for await (const delta of textStream) {
-        text += delta;
-        onDelta(delta);
-      }
-      return text;
-    },
-    catch: (error) => new GenerationProviderError(error),
-  });
-}
-
-function promiseEffect<T>(promise: PromiseLike<T>) {
-  return Effect.tryPromise({
-    try: () => Promise.resolve(promise),
-    catch: (error) => new GenerationProviderError(error),
-  });
-}
+});
 
 function logProviderRequest(provider: LlmProvider, payload: TextPayload, stream: boolean) {
   logAiInfo('assistant.generation.start', {

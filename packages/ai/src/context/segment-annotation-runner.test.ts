@@ -2,22 +2,23 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Agent, LlmProvider } from '@yomitomo/shared';
 import { readingPartnerSoul } from '@yomitomo/shared';
 import { buildEpubBookIndex, epubIndexText } from '@yomitomo/core';
+import { Effect } from 'effect';
 import { buildSegmentAnnotationTasks } from './segment-annotation-context';
 import { runAgentSegmentAnnotateStreamWithMemory } from './segment-annotation-runner';
 
 const providerMocks = vi.hoisted(() => ({
-  callProviderText: vi.fn(),
-  streamProviderText: vi.fn(),
+  callProviderTextEffect: vi.fn(),
+  streamProviderTextEffect: vi.fn(),
 }));
 
 vi.mock('../provider/provider-client', () => ({
-  callProviderText: providerMocks.callProviderText,
-  streamProviderText: providerMocks.streamProviderText,
+  callProviderTextEffect: providerMocks.callProviderTextEffect,
+  streamProviderTextEffect: providerMocks.streamProviderTextEffect,
 }));
 
 beforeEach(() => {
-  providerMocks.callProviderText.mockReset();
-  providerMocks.streamProviderText.mockReset();
+  providerMocks.callProviderTextEffect.mockReset();
+  providerMocks.streamProviderTextEffect.mockReset();
 });
 
 describe('runAgentSegmentAnnotateStreamWithMemory', () => {
@@ -64,36 +65,40 @@ describe('runAgentSegmentAnnotateStreamWithMemory', () => {
     const segmentTasks = buildSegmentAnnotationTasks(payload, agent);
     const streamPrompts: string[] = [];
     const memoryPrompts: string[] = [];
-    providerMocks.streamProviderText.mockImplementation(async (_provider, request, onDelta) => {
-      streamPrompts.push(request.user);
-      if (streamPrompts.length === 1) {
-        emitJson(onDelta, suggestion(secondExact, 'challenge_argument'));
-        emitJsonInChunks(onDelta, suggestion(firstExact, 'challenge_argument'));
-      } else if (streamPrompts.length === 2) {
-        emitJson(onDelta, suggestion(secondExact, 'ask_question'));
-        emitJson(onDelta, suggestion(duplicateMoveExact, 'ask_question'));
-      }
-      return { text: '' };
-    });
-    providerMocks.callProviderText.mockImplementation(async (_provider, request) => {
-      memoryPrompts.push(request.user);
-      const summary = memoryPrompts.length === 1 ? '第一段摘要。' : '第二段摘要。';
-      const traceItems =
-        memoryPrompts.length === 1
-          ? [
-              {
-                type: 'agent_observation',
-                content: '第一段有效点需要后续验证。',
-                evidenceExact: firstExact,
-                confidence: 'high',
-              },
-            ]
-          : [];
-      return JSON.stringify({
-        segmentSummary: { summary, keyTerms: [] },
-        segmentTrace: { items: traceItems },
-      });
-    });
+    providerMocks.streamProviderTextEffect.mockImplementation((_provider, request, onDelta) =>
+      Effect.sync(() => {
+        streamPrompts.push(request.user);
+        if (streamPrompts.length === 1) {
+          emitJson(onDelta, suggestion(secondExact, 'challenge_argument'));
+          emitJsonInChunks(onDelta, suggestion(firstExact, 'challenge_argument'));
+        } else if (streamPrompts.length === 2) {
+          emitJson(onDelta, suggestion(secondExact, 'ask_question'));
+          emitJson(onDelta, suggestion(duplicateMoveExact, 'ask_question'));
+        }
+        return { text: '' };
+      }),
+    );
+    providerMocks.callProviderTextEffect.mockImplementation((_provider, request) =>
+      Effect.sync(() => {
+        memoryPrompts.push(request.user);
+        const summary = memoryPrompts.length === 1 ? '第一段摘要。' : '第二段摘要。';
+        const traceItems =
+          memoryPrompts.length === 1
+            ? [
+                {
+                  type: 'agent_observation',
+                  content: '第一段有效点需要后续验证。',
+                  evidenceExact: firstExact,
+                  confidence: 'high',
+                },
+              ]
+            : [];
+        return JSON.stringify({
+          segmentSummary: { summary, keyTerms: [] },
+          segmentTrace: { items: traceItems },
+        });
+      }),
+    );
     const onAnnotation = vi.fn();
 
     const result = await runAgentSegmentAnnotateStreamWithMemory(
@@ -106,8 +111,8 @@ describe('runAgentSegmentAnnotateStreamWithMemory', () => {
     );
 
     expect(segmentTasks).toHaveLength(2);
-    expect(providerMocks.streamProviderText).toHaveBeenCalledTimes(2);
-    expect(providerMocks.callProviderText).toHaveBeenCalledTimes(2);
+    expect(providerMocks.streamProviderTextEffect).toHaveBeenCalledTimes(2);
+    expect(providerMocks.callProviderTextEffect).toHaveBeenCalledTimes(2);
     expect(streamPrompts[1]).toContain('第一段摘要。');
     expect(result.annotations.map((annotation) => annotation.anchor.exact)).toEqual([
       firstExact,
