@@ -18,9 +18,11 @@ import type {
 } from '@yomitomo/shared';
 import {
   locateEpubOffset,
-  locateEpubTextAnchor,
+  prepareEpubTextAnchorResolver,
   selectionAnnotationSpoilerPolicy,
   selectionThreadSpoilerPolicy,
+  type EpubIndexLocation,
+  type PreparedEpubTextAnchorResolver,
   type ReadingContextBundle,
   type ReadingContextTextRange,
 } from '@yomitomo/core';
@@ -46,7 +48,7 @@ const NEARBY_ANNOTATION_LIMIT = 4;
 const THREAD_CONTEXT_RECENT_LIMIT = 8;
 const THREAD_MESSAGE_MAX_LENGTH = 700;
 
-type SelectionLocation = NonNullable<ReturnType<typeof locateEpubTextAnchor>>;
+type SelectionLocation = EpubIndexLocation;
 
 export function buildSelectionAnnotationContext(
   payload: AgentAnnotatePayload,
@@ -57,7 +59,8 @@ export function buildSelectionAnnotationContext(
   const selection = payload.targetAnchor;
   if (!index || !selection) return null;
 
-  const location = selectionLocation(index, payload.article.text, selection);
+  const anchorResolver = prepareEpubTextAnchorResolver(index, payload.article.text);
+  const location = selectionLocation(index, payload.article.text, selection, anchorResolver);
   const textRange = selectionTextRange(payload.article.text, selection, location);
   const base = selectionBaseContext(payload, agent, index, location, textRange, readingContext);
   const localWindow = {
@@ -74,7 +77,7 @@ export function buildSelectionAnnotationContext(
     nearbyAnnotations: nearbyAnnotationSummaries(
       payload.annotations || [],
       index,
-      payload.article.text,
+      anchorResolver,
       location,
       textRange,
       readingContext,
@@ -116,7 +119,8 @@ export function buildSelectionThreadContext(
   const selection = payload.annotation.anchor;
   if (!index || !selection.exact.trim()) return null;
 
-  const location = selectionLocation(index, payload.article.text, selection);
+  const anchorResolver = prepareEpubTextAnchorResolver(index, payload.article.text);
+  const location = selectionLocation(index, payload.article.text, selection, anchorResolver);
   const textRange = selectionTextRange(payload.article.text, selection, location);
 
   return {
@@ -259,9 +263,14 @@ function threadBaseContext(
   };
 }
 
-function selectionLocation(index: EpubBookIndex, articleText: string, selection: TextAnchor) {
+function selectionLocation(
+  index: EpubBookIndex,
+  articleText: string,
+  selection: TextAnchor,
+  anchorResolver: PreparedEpubTextAnchorResolver,
+) {
   return (
-    locateEpubTextAnchor(index, articleText, selection, {
+    anchorResolver.locate(selection, {
       paragraphWindowSize: SELECTION_PARAGRAPH_WINDOW_SIZE,
     }) ||
     locateEpubOffset(index, anchorOffset(articleText, selection), {
@@ -381,7 +390,7 @@ function chapterMemory(
 function nearbyAnnotationSummaries(
   annotations: Annotation[],
   index: EpubBookIndex,
-  articleText: string,
+  anchorResolver: PreparedEpubTextAnchorResolver,
   targetLocation: SelectionLocation | null,
   targetRange: ReadingContextTextRange,
   readingContext: ReadingContextBundle | undefined,
@@ -393,7 +402,7 @@ function nearbyAnnotationSummaries(
 
   return annotations
     .flatMap((annotation) => {
-      const location = locateEpubTextAnchor(index, articleText, annotation.anchor);
+      const location = anchorResolver.locate(annotation.anchor);
       if (!location || location.chapter.id !== targetLocation.chapter.id) return [];
       if (
         !rangeAllowed({ textStart: location.textStart, textEnd: location.textEnd }, readingContext)
