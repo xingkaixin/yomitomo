@@ -59,7 +59,7 @@ export function createEbookSourceReaderController({
     return visibleArticle;
   }
 
-  function handleEbookStreamItem(
+  async function handleEbookStreamItem(
     articleId: string,
     annotation: Annotation,
     readingPlan: AgentReadingPlanItem[],
@@ -76,7 +76,7 @@ export function createEbookSourceReaderController({
       enqueueAgentAnnotationPlayback(articleId, constrainedAnnotation, { revealMissingRange });
       return true;
     }
-    void appendAgentAnnotationToArticle(articleId, constrainedAnnotation);
+    await appendAgentAnnotationToArticle(articleId, constrainedAnnotation);
     return true;
   }
 

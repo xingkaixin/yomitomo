@@ -131,7 +131,7 @@ export type SourceAgentAnnotationAdapter<TSource = any, TPlayback = any> = {
     options: SourceAgentAnnotationRequestOptions;
     playback: TPlayback | undefined;
     requestInput: SourceAgentAnnotationRequestInput;
-  }) => boolean;
+  }) => Promise<boolean> | boolean;
   onReadingMemory?: (args: {
     agent: PublicAgent;
     context: SourceAgentAnnotationContext<TSource>;

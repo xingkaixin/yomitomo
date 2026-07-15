@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   AgentReadingPlanItem,
   Annotation,
@@ -18,6 +18,22 @@ import type { PromptArticle } from '../shell/app-reading-types';
 beforeEach(() => {
   initializeAppI18n('zh-CN');
 });
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((promiseResolve) => {
+    resolve = promiseResolve;
+  });
+  return { promise, resolve };
+}
+
+async function flushMicrotasks(count = 4) {
+  for (let index = 0; index < count; index += 1) await Promise.resolve();
+}
 
 function agent(overrides: Partial<PublicAgent> = {}): PublicAgent {
   return {
@@ -185,6 +201,107 @@ describe('runSourceAgentAnnotationRequest', () => {
 
     expect(result.annotationCount).toBe(1);
     expect(result.result.readingMemory).toBe(readingMemory);
+  });
+
+  it('waits for async annotation handling in stream order', async () => {
+    const requestInput = buildAgentAnnotationRequestInput(
+      agent(),
+      {},
+      { article, annotations: [annotation] },
+    );
+    const secondAnnotation = { ...annotation, id: 'annotation_2' };
+    const firstHandling = createDeferred<boolean>();
+    const secondHandling = createDeferred<boolean>();
+    const handlingEvents: string[] = [];
+    const requestAgentAnnotationsStream = vi.fn(async (_payload, onEvent) => {
+      onEvent({ type: 'item', annotation });
+      onEvent({ type: 'item', annotation: secondAnnotation });
+      return { annotations: [annotation, secondAnnotation], readingMemory };
+    });
+
+    const request = runSourceAgentAnnotationRequest({
+      desktop: { requestAgentAnnotationsStream },
+      requestInput,
+      onAnnotation: async (streamAnnotation) => {
+        handlingEvents.push(`start:${streamAnnotation.id}`);
+        const accepted = await (streamAnnotation.id === annotation.id
+          ? firstHandling.promise
+          : secondHandling.promise);
+        handlingEvents.push(`finish:${streamAnnotation.id}`);
+        return accepted;
+      },
+    });
+    const requestCompleted = vi.fn();
+    void request.then(requestCompleted);
+
+    await flushMicrotasks();
+
+    expect(handlingEvents).toEqual([`start:${annotation.id}`]);
+    expect(requestCompleted).not.toHaveBeenCalled();
+
+    firstHandling.resolve(true);
+    await flushMicrotasks();
+
+    expect(handlingEvents).toEqual([
+      `start:${annotation.id}`,
+      `finish:${annotation.id}`,
+      `start:${secondAnnotation.id}`,
+    ]);
+    expect(requestCompleted).not.toHaveBeenCalled();
+
+    secondHandling.resolve(false);
+    const result = await request;
+
+    expect(result.annotationCount).toBe(1);
+    expect(handlingEvents).toEqual([
+      `start:${annotation.id}`,
+      `finish:${annotation.id}`,
+      `start:${secondAnnotation.id}`,
+      `finish:${secondAnnotation.id}`,
+    ]);
+  });
+
+  it('propagates annotation handling failures and skips later items', async () => {
+    const requestInput = buildAgentAnnotationRequestInput(
+      agent(),
+      {},
+      { article, annotations: [annotation] },
+    );
+    const failedAnnotation = { ...annotation, id: 'annotation_2' };
+    const skippedAnnotation = { ...annotation, id: 'annotation_3' };
+    const persistenceError = new Error('annotation persistence failed');
+    const onAnnotation = vi.fn(async (streamAnnotation: Annotation) => {
+      if (streamAnnotation.id === failedAnnotation.id) throw persistenceError;
+      return true;
+    });
+    const requestAgentAnnotationsStream = vi.fn(async (_payload, onEvent) => {
+      onEvent({ type: 'item', annotation });
+      onEvent({ type: 'item', annotation: failedAnnotation });
+      onEvent({ type: 'item', annotation: skippedAnnotation });
+      return { annotations: [annotation, failedAnnotation, skippedAnnotation], readingMemory };
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    await expect(
+      runSourceAgentAnnotationRequest({
+        desktop: { requestAgentAnnotationsStream },
+        requestInput,
+        onAnnotation,
+      }),
+    ).rejects.toBe(persistenceError);
+
+    expect(onAnnotation.mock.calls.map(([streamAnnotation]) => streamAnnotation.id)).toEqual([
+      annotation.id,
+      failedAnnotation.id,
+    ]);
+    expect(warn).toHaveBeenCalledWith(
+      '[agent-annotation] stream item handling failed',
+      expect.objectContaining({
+        agentId: requestInput.agent.id,
+        annotationId: failedAnnotation.id,
+        error: persistenceError,
+      }),
+    );
   });
 });
 
