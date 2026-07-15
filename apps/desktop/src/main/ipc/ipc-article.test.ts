@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { Annotation } from '@yomitomo/shared';
+import type { Annotation, ArticleRecord } from '@yomitomo/shared';
 import {
   cleanupDeletedArticleSourceAssets,
   pdfSourceArrayBufferForIpc,
@@ -12,6 +12,7 @@ const storageMocks = vi.hoisted(() => ({
   deletePdfThumbnail: vi.fn<(articleId: string) => Promise<void>>(),
   ipcMainHandle: vi.fn(),
   readPdfSourceFile: vi.fn<(articleId: string) => Promise<Buffer>>(),
+  taskProvider: vi.fn(),
 }));
 
 vi.mock('electron', () => ({
@@ -31,6 +32,10 @@ vi.mock('../pdf/pdf-storage', () => ({
 
 vi.mock('../pdf/pdf-thumbnail-storage', () => ({
   deletePdfThumbnail: storageMocks.deletePdfThumbnail,
+}));
+
+vi.mock('../agents/agent-runtime-routing', () => ({
+  taskProvider: storageMocks.taskProvider,
 }));
 
 describe('article IPC source asset cleanup', () => {
@@ -240,6 +245,88 @@ describe('article IPC patch broadcasts', () => {
   });
 });
 
+describe('article translation IPC', () => {
+  it('translates an EPUB chapter through the shared article translation pipeline', async () => {
+    storageMocks.ipcMainHandle.mockClear();
+    storageMocks.taskProvider.mockResolvedValue({
+      id: 'provider-1',
+      name: 'Provider',
+      modelName: 'model-1',
+      baseUrl: 'https://example.com',
+    });
+    const article = ebookArticle();
+    const saveArticleTranslation = vi.fn(
+      async (translation: Parameters<ArticlePersistence['saveArticleTranslation']>[0]) => ({
+        ...translation,
+        segments: translation.segments || [],
+      }),
+    );
+    const translateBilingualArticleBlocks = vi.fn(async (input) => ({
+      translations: input.blocks.map((block: { id: string; text: string }) => ({
+        id: block.id,
+        translation: `译文：${block.text}`,
+      })),
+      inputTokens: 12,
+      outputTokens: 8,
+    }));
+
+    registerArticleIpc(
+      articleIpcContext(
+        {
+          readArticle: vi.fn().mockResolvedValue(article),
+          readCurrentArticleTranslation: vi.fn().mockResolvedValue(null),
+          saveArticleTranslation,
+        },
+        {
+          getAiModule: async () => ({
+            bilingualTranslationPromptVersion: 1,
+            translateBilingualArticleBlocks,
+          }),
+        },
+      ),
+    );
+
+    const handler = storageMocks.ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === 'article-translation:translate',
+    )?.[1];
+    expect(handler).toBeTypeOf('function');
+    const result = await handler(
+      { sender: { send: vi.fn() } },
+      {
+        articleId: article.id,
+        sourceId: 'chapter-1',
+        sourceBlocks: [{ id: 'block-1', text: '  First   source paragraph.  ' }],
+      },
+    );
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        articleId: article.id,
+        sourceId: 'chapter-1',
+        status: 'ready',
+        segments: [
+          {
+            sourceBlockId: 'block-1',
+            sourceText: 'First source paragraph.',
+            translatedText: '译文：First source paragraph.',
+            status: 'ready',
+          },
+        ],
+      },
+    });
+    expect(translateBilingualArticleBlocks).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Test ebook — First chapter',
+        blocks: [expect.objectContaining({ id: 'block-1', text: 'First source paragraph.' })],
+      }),
+    );
+    expect(saveArticleTranslation.mock.calls[0]?.[0]).toMatchObject({
+      sourceId: 'chapter-1',
+      sourceContentHash: 'ebook-hash',
+    });
+  });
+});
+
 describe('article IPC PDF source reads', () => {
   it('reuses exact PDF source ArrayBuffers for IPC', () => {
     const source = new Uint8Array([1, 2, 3]).buffer;
@@ -307,7 +394,9 @@ function articleIpcContext(
     }),
     getMainWindow: () => null,
     getPersistenceModule: async () => ({
-      agentRuntimePersistence: { readAgentRuntimeContext: vi.fn() },
+      agentRuntimePersistence: {
+        readAgentRuntimeContext: vi.fn().mockResolvedValue({ providers: [], settings: {} }),
+      },
       articlePersistence: {
         deleteArticle: vi.fn(),
         deleteArticleAnnotation: vi.fn(),
@@ -335,5 +424,56 @@ function articleIpcContext(
     logInfo: vi.fn(),
     sendArticlePatched: vi.fn(),
     ...contextOverrides,
+  };
+}
+
+function ebookArticle(): ArticleRecord {
+  return {
+    id: 'ebook-1',
+    url: 'ebook:test',
+    canonicalUrl: 'ebook:test',
+    sourceType: 'ebook',
+    title: 'Test ebook',
+    contentHash: 'ebook-hash',
+    annotations: [],
+    ebook: {
+      metadata: {
+        format: 'epub',
+        fileName: 'test.epub',
+        fileSize: 1024,
+        description: 'A test ebook.',
+      },
+      chapters: [
+        {
+          id: 'chapter-1',
+          title: 'First chapter',
+          html: '<p>First source paragraph.</p>',
+          textLength: 23,
+        },
+      ],
+      index: {
+        version: 1,
+        articleId: 'ebook-1',
+        textLength: 23,
+        chapters: [
+          {
+            id: 'chapter-1',
+            title: 'First chapter',
+            indexInBook: 0,
+            textStart: 0,
+            textEnd: 23,
+            textLength: 23,
+            previewStart: 'First source paragraph.',
+            previewEnd: 'First source paragraph.',
+            segmentIds: [],
+            paragraphIds: [],
+          },
+        ],
+        segments: [],
+        paragraphs: [],
+      },
+    },
+    createdAt: '2026-07-15T00:00:00.000Z',
+    updatedAt: '2026-07-15T00:00:00.000Z',
   };
 }

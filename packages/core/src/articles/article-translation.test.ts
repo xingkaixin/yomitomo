@@ -22,6 +22,7 @@ function translationForBlock(
   return {
     id: 'translation_1',
     articleId: 'article_1',
+    sourceId: 'article',
     sourceContentHash: 'hash',
     targetLanguage: '简体中文',
     promptVersion: 1,

@@ -1079,6 +1079,24 @@ WHERE distillation_status = 'published'
   AND trim(coalesce(distillation_content, '')) <> '';
 `,
   },
+  {
+    id: '0065_ebook_translation_scope',
+    sql: `
+ALTER TABLE article_translations
+ADD COLUMN source_id TEXT NOT NULL DEFAULT 'article';
+
+DROP INDEX IF EXISTS article_translations_current_idx;
+
+CREATE UNIQUE INDEX article_translations_current_idx
+ON article_translations(
+  article_id,
+  source_id,
+  source_content_hash,
+  target_language,
+  prompt_version
+);
+`,
+  },
 ];
 
 type MigrationDatabase = {

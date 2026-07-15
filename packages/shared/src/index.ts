@@ -65,6 +65,7 @@ export type {
   ArticleTranslationDeleteRequest,
   ArticleTranslationRequest,
   ArticleTranslationSegment,
+  ArticleTranslationSourceBlockInput,
   ArticleTranslationStatus,
   ArticleUpsertPatch,
   BilingualTranslationStyle,

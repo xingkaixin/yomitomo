@@ -18,6 +18,7 @@ export function readCurrentArticleTranslationRows(
   database: StoreExecutor,
   input: {
     articleId: string;
+    sourceId: string;
     sourceContentHash: string;
     targetLanguage: string;
     promptVersion: number;
@@ -29,6 +30,7 @@ export function readCurrentArticleTranslationRows(
     .where(
       and(
         eq(schema.articleTranslations.articleId, input.articleId),
+        eq(schema.articleTranslations.sourceId, input.sourceId),
         eq(schema.articleTranslations.sourceContentHash, input.sourceContentHash),
         eq(schema.articleTranslations.targetLanguage, input.targetLanguage),
         eq(schema.articleTranslations.promptVersion, input.promptVersion),
@@ -110,6 +112,7 @@ function rowToArticleTranslation(
   return {
     id: row.id,
     articleId: row.articleId,
+    sourceId: row.sourceId,
     sourceContentHash: row.sourceContentHash,
     targetLanguage: row.targetLanguage,
     promptVersion: row.promptVersion,
@@ -146,6 +149,7 @@ function articleTranslationToRow(input: ArticleTranslationWriteInput) {
   return {
     id: input.id,
     articleId: input.articleId,
+    sourceId: input.sourceId,
     sourceContentHash: input.sourceContentHash,
     targetLanguage: input.targetLanguage,
     promptVersion: input.promptVersion,
