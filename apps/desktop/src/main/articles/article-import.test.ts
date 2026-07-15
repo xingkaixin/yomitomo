@@ -1,5 +1,6 @@
 import type { ArticleRecord } from '@yomitomo/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Effect, Fiber } from 'effect';
 
 const workerMocks = vi.hoisted(() => {
   type Handler = (...args: unknown[]) => void;
@@ -140,10 +141,13 @@ vi.mock('node:dns/promises', () => ({
 }));
 
 import {
+  articleImportTestApi,
   articleRecordFromUrl,
   cancelArticleImport,
   MAX_ARTICLE_IMPORT_HTML_BYTES,
 } from './article-import';
+
+function noop() {}
 
 describe('article import', () => {
   afterEach(() => {
@@ -416,6 +420,35 @@ describe('article import', () => {
     expect(cancelArticleImport('import-cancel')).toBe(false);
   });
 
+  it('aborts article fetch when its Effect is interrupted', async () => {
+    const request = hangingFetch();
+    vi.spyOn(globalThis, 'fetch').mockImplementation(request.run);
+    const fiber = Effect.runFork(
+      articleImportTestApi.articleRecordFromUrlEffect('https://example.com/post', {}),
+    );
+
+    await request.started.promise;
+    await Effect.runPromise(Fiber.interrupt(fiber));
+    const aborted = request.aborted();
+    request.release();
+
+    expect(aborted).toBe(true);
+    expect(workerMocks.instances).toHaveLength(0);
+  });
+
+  it('terminates the article worker when its Effect is interrupted', async () => {
+    workerMocks.MockWorker.delayMessage = true;
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('<html><body>正文</body></html>'));
+    const fiber = Effect.runFork(
+      articleImportTestApi.articleRecordFromUrlEffect('https://example.com/post', {}),
+    );
+    await vi.waitFor(() => expect(workerMocks.instances).toHaveLength(1));
+
+    await Effect.runPromise(Fiber.interrupt(fiber));
+
+    expect(workerMocks.instances[0].terminated).toBe(true);
+  });
+
   it('loads challenge pages in an isolated temporary browser session', async () => {
     const article = articleRecord();
     workerMocks.MockWorker.nextMessage = { ok: true, article };
@@ -469,6 +502,31 @@ describe('article import', () => {
     expect(browserWindowMocks.instances[0].webContents.session.setProxy).not.toHaveBeenCalled();
   });
 });
+
+function hangingFetch() {
+  const started = deferredPromise();
+  let signal: AbortSignal | undefined;
+  let rejectRequest: (reason?: unknown) => void = noop;
+  return {
+    started,
+    run: (_input: URL | RequestInfo, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        signal = init?.signal instanceof AbortSignal ? init.signal : undefined;
+        rejectRequest = reject;
+        started.resolve();
+      }),
+    aborted: () => signal?.aborted === true,
+    release: () => rejectRequest(new DOMException('Aborted', 'AbortError')),
+  };
+}
+
+function deferredPromise(): { promise: Promise<void>; resolve: () => void } {
+  let resolve = noop;
+  const promise = new Promise<void>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
 
 function articleRecord(): ArticleRecord {
   return {

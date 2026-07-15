@@ -11,6 +11,7 @@ import type {
   WeReadUser,
 } from '@yomitomo/shared';
 import { Effect } from 'effect';
+import { withTimeoutAbortSignalEffect } from '../effect-abort-signal';
 
 const WEREAD_GATEWAY_URL = 'https://i.weread.qq.com/api/agent/gateway';
 export const WEREAD_REQUEST_TIMEOUT_MS = 30_000;
@@ -263,59 +264,54 @@ function requestWeReadEffect(
   apiName: string,
   params: Record<string, unknown> = {},
 ): Effect.Effect<WeReadGatewayResponse, WeReadClientError> {
-  return Effect.gen(function* () {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), WEREAD_REQUEST_TIMEOUT_MS);
-    const response = yield* Effect.tryPromise({
-      try: async () => {
-        let responseReceived = false;
-        try {
-          const gatewayResponse = await fetch(WEREAD_GATEWAY_URL, {
+  return withTimeoutAbortSignalEffect(WEREAD_REQUEST_TIMEOUT_MS, [], (timeoutSignal) =>
+    Effect.gen(function* () {
+      const response = yield* Effect.tryPromise({
+        try: (effectSignal) =>
+          fetch(WEREAD_GATEWAY_URL, {
             method: 'POST',
             headers: {
               Authorization: `Bearer ${apiKey}`,
               'Content-Type': 'application/json',
             },
-            signal: controller.signal,
+            signal: AbortSignal.any([timeoutSignal, effectSignal]),
             body: JSON.stringify({
               api_name: apiName,
               skill_version: WEREAD_SKILL_VERSION,
               ...params,
             }),
-          });
-          responseReceived = true;
-          return gatewayResponse;
-        } finally {
-          if (!responseReceived) clearTimeout(timeout);
-        }
-      },
-      catch: (error) =>
-        isAbortError(error) ? new WeReadTimeoutError(apiName) : new WeReadNetworkError(error),
-    });
-    if (!response.ok) {
-      clearTimeout(timeout);
-      return yield* Effect.fail(new WeReadHttpError(response.status));
-    }
+          }),
+        catch: (error) =>
+          isAbortError(error) ? new WeReadTimeoutError(apiName) : new WeReadNetworkError(error),
+      });
+      if (!response.ok) {
+        return yield* Effect.fail(new WeReadHttpError(response.status));
+      }
 
-    const value = yield* Effect.tryPromise({
-      try: () => (response.json() as Promise<unknown>).finally(() => clearTimeout(timeout)),
-      catch: (error) =>
-        isAbortError(error) ? new WeReadTimeoutError(apiName) : new WeReadGatewayDecodeError(error),
-    });
-    const data = objectValue(value);
-    if (!data) {
-      return yield* Effect.fail(new WeReadGatewayDecodeError('gateway response must be an object'));
-    }
-    if (data.upgrade_info && typeof data.upgrade_info === 'object') {
-      const message = stringValue(objectValue(data.upgrade_info)?.message);
-      return yield* Effect.fail(new WeReadUpgradeError(message));
-    }
-    const errcode = numberValue(data.errcode);
-    if (errcode) {
-      return yield* Effect.fail(new WeReadApiError(errcode, stringValue(data.errmsg)));
-    }
-    return data;
-  });
+      const value = yield* Effect.tryPromise({
+        try: () => response.json() as Promise<unknown>,
+        catch: (error) =>
+          isAbortError(error)
+            ? new WeReadTimeoutError(apiName)
+            : new WeReadGatewayDecodeError(error),
+      });
+      const data = objectValue(value);
+      if (!data) {
+        return yield* Effect.fail(
+          new WeReadGatewayDecodeError('gateway response must be an object'),
+        );
+      }
+      if (data.upgrade_info && typeof data.upgrade_info === 'object') {
+        const message = stringValue(objectValue(data.upgrade_info)?.message);
+        return yield* Effect.fail(new WeReadUpgradeError(message));
+      }
+      const errcode = numberValue(data.errcode);
+      if (errcode) {
+        return yield* Effect.fail(new WeReadApiError(errcode, stringValue(data.errmsg)));
+      }
+      return data;
+    }),
+  );
 }
 
 function errorMessage(error: unknown) {
@@ -600,3 +596,7 @@ function optionalNumber(value: unknown) {
 function numberValue(value: unknown) {
   return optionalNumber(value) || 0;
 }
+
+export const weReadClientTestApi = {
+  requestWeReadEffect,
+};

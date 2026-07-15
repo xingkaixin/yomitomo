@@ -1,6 +1,8 @@
 import { Cause, Effect, Exit, Fiber } from 'effect';
 import { describe, expect, it } from 'vitest';
 
+function noop() {}
+
 describe('Effect v4 runtime semantics', () => {
   it('aborts callback work and runs its cleanup when interrupted', async () => {
     const registration = deferredPromise();
@@ -97,7 +99,7 @@ describe('Effect v4 runtime semantics', () => {
 });
 
 function deferredPromise(): { promise: Promise<void>; resolve: () => void } {
-  let resolve = () => {};
+  let resolve = noop;
   const promise = new Promise<void>((settle) => {
     resolve = settle;
   });

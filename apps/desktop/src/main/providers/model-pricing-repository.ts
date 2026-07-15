@@ -2,6 +2,7 @@ import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm';
 import type { LlmProvider } from '@yomitomo/shared';
 import { Effect } from 'effect';
 import * as schema from '../db/schema';
+import { withTimeoutAbortSignalEffect } from '../effect-abort-signal';
 import type { StoreDatabase, StoreExecutor } from '../store/store-db';
 
 const MODELS_DEV_URL = 'https://models.dev/api.json';
@@ -103,21 +104,24 @@ function shouldRefreshModelPrices(database: StoreExecutor) {
 }
 
 function fetchModelsDevCatalogueEffect() {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), MODELS_DEV_TIMEOUT_MS);
-  return Effect.gen(function* () {
-    const response = yield* Effect.tryPromise({
-      try: () => fetch(MODELS_DEV_URL, { signal: controller.signal }),
-      catch: (error) => modelsDevFetchError(error),
-    });
-    if (!response.ok) {
-      return yield* Effect.fail(new Error(`models.dev 返回 ${response.status}`));
-    }
-    return yield* Effect.tryPromise({
-      try: () => response.json() as Promise<Record<string, ModelsDevProvider>>,
-      catch: (error) => new Error(`models.dev 响应解析失败：${errorMessage(error)}`),
-    });
-  }).pipe(Effect.ensuring(Effect.sync(() => clearTimeout(timeout))));
+  return withTimeoutAbortSignalEffect(MODELS_DEV_TIMEOUT_MS, [], (timeoutSignal) =>
+    Effect.gen(function* () {
+      const response = yield* Effect.tryPromise({
+        try: (effectSignal) =>
+          fetch(MODELS_DEV_URL, {
+            signal: AbortSignal.any([timeoutSignal, effectSignal]),
+          }),
+        catch: (error) => modelsDevFetchError(error),
+      });
+      if (!response.ok) {
+        return yield* Effect.fail(new Error(`models.dev 返回 ${response.status}`));
+      }
+      return yield* Effect.tryPromise({
+        try: () => response.json() as Promise<Record<string, ModelsDevProvider>>,
+        catch: (error) => new Error(`models.dev 响应解析失败：${errorMessage(error)}`),
+      });
+    }),
+  );
 }
 
 function modelsDevFetchError(error: unknown) {
@@ -344,3 +348,7 @@ function stringField(value: unknown) {
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
+
+export const modelPricingRepositoryTestApi = {
+  refreshModelsDevPricesEffect,
+};

@@ -1,13 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Effect, Fiber } from 'effect';
 
 import {
   fetchWeReadBookDetail,
   fetchWeReadNotebooks,
   fetchWeReadReadingStats,
   testWeReadConnection,
+  weReadClientTestApi,
   WEREAD_REQUEST_TIMEOUT_MS,
   WEREAD_SKILL_VERSION,
 } from './weread-client';
+
+function noop() {}
 
 function response(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status });
@@ -165,6 +169,21 @@ describe('weread client', () => {
     await assertion;
   });
 
+  it('aborts a gateway request when its Effect is interrupted', async () => {
+    const request = hangingFetch();
+    vi.spyOn(globalThis, 'fetch').mockImplementation(request.run);
+    const fiber = Effect.runFork(
+      weReadClientTestApi.requestWeReadEffect('secret', '/user/notebooks'),
+    );
+
+    await request.started.promise;
+    await Effect.runPromise(Fiber.interrupt(fiber));
+    const aborted = request.aborted();
+    request.release();
+
+    expect(aborted).toBe(true);
+  });
+
   it('rejects with the gateway business error from the Effect boundary', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       response({
@@ -234,3 +253,28 @@ describe('weread client', () => {
     );
   });
 });
+
+function hangingFetch() {
+  const started = deferredPromise();
+  let signal: AbortSignal | undefined;
+  let rejectRequest: (reason?: unknown) => void = noop;
+  return {
+    started,
+    run: (_input: URL | RequestInfo, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        signal = init?.signal instanceof AbortSignal ? init.signal : undefined;
+        rejectRequest = reject;
+        started.resolve();
+      }),
+    aborted: () => signal?.aborted === true,
+    release: () => rejectRequest(new DOMException('Aborted', 'AbortError')),
+  };
+}
+
+function deferredPromise(): { promise: Promise<void>; resolve: () => void } {
+  let resolve = noop;
+  const promise = new Promise<void>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
