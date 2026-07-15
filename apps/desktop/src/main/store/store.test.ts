@@ -15,6 +15,7 @@ const testState = vi.hoisted(() => ({
   saveProviderApiKeyError: undefined as Error | undefined,
   providerApiKeyRef: (providerId: string) => `provider:${providerId}:apiKey`,
   backfillAnnotationMemoryEntries: vi.fn(),
+  fetchFaviconDataUrl: vi.fn(),
   logErrors: [] as Array<{ event: string; error: unknown; data?: Record<string, unknown> }>,
 }));
 
@@ -56,6 +57,10 @@ vi.mock('../articles/article-repository', async (importOriginal) => {
   };
 });
 
+vi.mock('../articles/article-favicon', () => ({
+  fetchFaviconDataUrl: testState.fetchFaviconDataUrl,
+}));
+
 vi.mock('../app/logger', () => ({
   logError: (event: string, error: unknown, data?: Record<string, unknown>) => {
     testState.logErrors.push({ event, error, data });
@@ -69,6 +74,7 @@ import {
   buildArticleUpsertPatch,
   findArticleInListByIdentity,
   readArticleRows,
+  readArticleSiteIconRawRows,
   writeArticleRows,
 } from '../articles/article-repository';
 import { buildAgentRecord } from '../agents/agent-repository';
@@ -81,6 +87,7 @@ import {
   addCollectionMembers,
   closeDatabase,
   createCollection,
+  ensureArticleSiteIcon,
   readShellStore,
   readStore,
   setLibraryPin,
@@ -94,6 +101,7 @@ import {
 } from './store-normalizers';
 import { normalizeWeReadReadingStats } from '../weread/weread-repository';
 import { getDatabase } from './store-db';
+import { upsertSettings } from './settings-repository';
 import * as schema from '../db/schema';
 
 beforeEach(async () => {
@@ -107,6 +115,7 @@ beforeEach(async () => {
     annotationCount: 0,
     entryCount: 0,
   });
+  testState.fetchFaviconDataUrl.mockReset();
   testState.logErrors = [];
 });
 
@@ -617,6 +626,44 @@ describe('desktop store reading progress', () => {
 });
 
 describe('desktop store articles', () => {
+  it('applies import network settings when localizing a site icon', async () => {
+    const database = getDatabase();
+    const remoteUrl = 'http://127.0.0.1/favicon.png';
+    const dataUrl = 'data:image/png;base64,AQI=';
+    writeArticleRows(database, {
+      ...articleRecord({ id: 'article-site-icon' }),
+      siteIconUrl: remoteUrl,
+    });
+    upsertSettings(database, { allowLocalNetworkArticleImport: true });
+    testState.fetchFaviconDataUrl.mockResolvedValue(dataUrl);
+
+    await expect(ensureArticleSiteIcon('article-site-icon')).resolves.toBe(dataUrl);
+
+    expect(testState.fetchFaviconDataUrl).toHaveBeenCalledWith(remoteUrl, {
+      allowLocalNetworkArticleImport: true,
+    });
+    expect(readArticleRows(database, 'article-site-icon')?.siteIconUrl).toBe(dataUrl);
+  });
+
+  it('clears a remote site icon after localization fails', async () => {
+    const database = getDatabase();
+    const remoteUrl = 'https://example.com/favicon.png';
+    writeArticleRows(database, {
+      ...articleRecord({ id: 'article-failed-site-icon' }),
+      siteIconUrl: remoteUrl,
+    });
+    testState.fetchFaviconDataUrl.mockResolvedValue('');
+
+    await expect(ensureArticleSiteIcon('article-failed-site-icon')).resolves.toBe('');
+    await expect(ensureArticleSiteIcon('article-failed-site-icon')).resolves.toBe('');
+
+    expect(testState.fetchFaviconDataUrl).toHaveBeenCalledOnce();
+    expect(testState.fetchFaviconDataUrl).toHaveBeenCalledWith(remoteUrl, {
+      allowLocalNetworkArticleImport: false,
+    });
+    expect(readArticleSiteIconRawRows(database, 'article-failed-site-icon')).toBe('');
+  });
+
   it('builds only the article upsert patch', () => {
     const article: ArticleSummaryRecord = {
       id: 'article-upsert',

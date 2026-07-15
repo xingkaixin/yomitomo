@@ -122,9 +122,9 @@ export async function ensureArticleSiteIcon(id: string): Promise<string> {
   if (raw.startsWith('data:image/')) return raw;
   if (!/^https?:\/\//i.test(raw)) return '';
 
+  const { allowLocalNetworkArticleImport } = readImportSettingsRows(database);
   const { fetchFaviconDataUrl } = await import('../articles/article-favicon');
-  const dataUrl = await fetchFaviconDataUrl(raw);
-  if (!dataUrl) return '';
+  const dataUrl = await fetchFaviconDataUrl(raw, { allowLocalNetworkArticleImport });
   updateArticleSiteIconRows(database, id, dataUrl);
   return dataUrl;
 }
