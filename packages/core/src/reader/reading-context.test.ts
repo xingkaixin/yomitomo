@@ -100,6 +100,48 @@ describe('buildReadingContextBundle', () => {
     expect(bundle.chapterSummaries.map((summary) => summary.chapterId)).toEqual(['chapter-1']);
   });
 
+  it('clips a passage to each allowed range without exposing unread text', () => {
+    const { index, text } = bookFixture();
+    const readUntilTextOffset = text.indexOf('第二章未读反转');
+    const bundle = buildReadingContextBundle({
+      articleText: text,
+      ebookIndex: index,
+      readerProgress: {
+        currentChapterId: 'chapter-2',
+        currentSegmentId: 'chapter-2-segment-1',
+        readChapterIds: ['chapter-1'],
+        readUntilTextOffset,
+      },
+      spoilerPolicy: {
+        allowedScope: 'read-so-far',
+        allowFutureChapterEvidence: false,
+        allowFuturePlotEvents: false,
+      },
+      relatedPassages: [
+        {
+          id: 'cross-chapter',
+          text: text.slice(index.chapters[0].textStart, index.chapters[1].textEnd),
+          textStart: index.chapters[0].textStart,
+          textEnd: index.chapters[1].textEnd,
+        },
+      ],
+    });
+
+    expect(bundle.relatedPassages).toEqual([
+      expect.objectContaining({
+        id: 'cross-chapter',
+        text: '第一章已经读完。\n\n第一章结论。',
+      }),
+      expect.objectContaining({
+        id: 'cross-chapter',
+        text: '第二章开头。\n\n第二章已读论证。',
+      }),
+    ]);
+    expect(bundle.relatedPassages.map((passage) => passage.text).join('\n')).not.toContain(
+      '第二章未读反转。',
+    );
+  });
+
   it('allows whole-book evidence when the user overrides spoiler limits', () => {
     const { index, text } = bookFixture();
     const bundle = buildReadingContextBundle({
