@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 import { existsSync, readFileSync } from 'node:fs';
 
-const defaultDocuments = ['docs/annotation-data-flow.md', 'docs/focus-co-reading-data-flow.md'];
+const defaultDocuments = [
+  'docs/annotation-data-flow.md',
+  'docs/effect-v4-runtime.md',
+  'docs/focus-co-reading-data-flow.md',
+];
 const repositoryPathPattern = /`((?:apps|docs|packages|scripts)\/[A-Za-z0-9._@/-]+)`/g;
 const documents = process.argv.slice(2).length > 0 ? process.argv.slice(2) : defaultDocuments;
 const violations = [];

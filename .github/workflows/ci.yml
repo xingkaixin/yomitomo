@@ -39,6 +39,9 @@ jobs:
       - name: UI primitive boundary check
         run: pnpm ui:check-primitives
 
+      - name: Effect v4 boundary check
+        run: pnpm effect:check
+
       - name: Documentation path check
         run: pnpm docs:check-paths
 

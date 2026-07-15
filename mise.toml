@@ -14,6 +14,9 @@ run = "pnpm ui:check-primitives"
 [tasks."docs:check-paths"]
 run = "pnpm docs:check-paths"
 
+[tasks."effect:check"]
+run = "pnpm effect:check"
+
 [tasks."typecheck"]
 run = "pnpm typecheck"
 
@@ -32,6 +35,7 @@ run = "pnpm build"
 [tasks."check:fast"]
 run = [
   { task = "lint" },
+  { task = "effect:check" },
   { task = "format:check" },
   { task = "typecheck" },
   { task = "test" },
@@ -40,6 +44,7 @@ run = [
 [tasks."check"]
 run = [
   { task = "lint" },
+  { task = "effect:check" },
   { task = "docs:check-paths" },
   { task = "ui:check-primitives" },
   { task = "format:check" },
