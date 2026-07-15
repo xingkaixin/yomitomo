@@ -307,7 +307,8 @@ describe('ebook reader utils', () => {
 
   it('serializes cross-paragraph selections with a searchable text boundary', () => {
     const doc = document.implementation.createHTMLDocument('');
-    doc.body.innerHTML = '<p>第一段目标。</p><p>第二段目标。</p>';
+    doc.body.innerHTML =
+      '<p>第一段目标。</p><div data-reader-translation>Translated text.</div><p>第二段目标。</p>';
     const first = doc.querySelectorAll('p')[0].firstChild!;
     const second = doc.querySelectorAll('p')[1].firstChild!;
     const range = doc.createRange();
@@ -319,7 +320,8 @@ describe('ebook reader utils', () => {
 
   it('resolves ebook anchors across foliate block boundaries', () => {
     const doc = document.implementation.createHTMLDocument('');
-    doc.body.innerHTML = '<p>第一段目标。</p><p>第二段目标。</p>';
+    doc.body.innerHTML =
+      '<p>第一段目标。</p><div data-reader-translation>Translated text.</div><p>第二段目标。</p>';
     const first = doc.querySelectorAll('p')[0].firstChild!;
     const second = doc.querySelectorAll('p')[1].firstChild!;
 

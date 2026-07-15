@@ -104,6 +104,7 @@ export type ArticleTranslationSegment = {
 export type ArticleTranslation = {
   id: string;
   articleId: string;
+  sourceId: string;
   sourceContentHash: string;
   targetLanguage: string;
   promptVersion: number;
@@ -117,8 +118,15 @@ export type ArticleTranslation = {
   updatedAt: string;
 };
 
+export type ArticleTranslationSourceBlockInput = {
+  id: string;
+  text: string;
+};
+
 export type ArticleTranslationRequest = {
   articleId: string;
+  sourceId?: string;
+  sourceBlocks?: ArticleTranslationSourceBlockInput[];
   sourceBlockIds?: string[];
   targetLanguage?: string;
   force?: boolean;
@@ -126,6 +134,7 @@ export type ArticleTranslationRequest = {
 
 export type ArticleTranslationDeleteRequest = {
   articleId: string;
+  sourceId?: string;
   targetLanguage?: string;
 };
 

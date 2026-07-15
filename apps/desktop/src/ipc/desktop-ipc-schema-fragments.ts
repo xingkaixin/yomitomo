@@ -54,6 +54,16 @@ const contentRefSchema = z.object({
 const articleTranslationRequestSchema = z.object({
   articleId: idSchema,
   force: z.boolean().optional(),
+  sourceId: idSchema.optional(),
+  sourceBlocks: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(160),
+        text: z.string().min(1).max(100_000),
+      }),
+    )
+    .max(500)
+    .optional(),
   sourceBlockIds: z.array(z.string().min(1).max(160)).optional(),
   targetLanguage: z.string().min(1).max(80).optional(),
 });
@@ -97,7 +107,7 @@ export const articleIpcInvokeSchemas = {
   'article-translation:get-current': z.tuple([articleTranslationRequestSchema]),
   'article-translation:translate': z.tuple([articleTranslationRequestSchema]),
   'article-translation:delete-current': z.tuple([
-    articleTranslationRequestSchema.pick({ articleId: true, targetLanguage: true }),
+    articleTranslationRequestSchema.pick({ articleId: true, sourceId: true, targetLanguage: true }),
   ]),
   'article:import-url': z.tuple([
     z.union([

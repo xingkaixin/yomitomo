@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readerBilingualTranslationStyles } from './reader-bilingual-translation-styles';
 import { readerBodyLineHeight } from './reader-settings';
 import {
   composeReaderStyles,
@@ -15,6 +16,7 @@ describe('reader embedded styles', () => {
     expect(readerStyleBundles.base).toBe(readerStyles);
     expect(readerStyleBundles.conversation).toBe(readerConversationStyles);
     expect(readerStyleBundles.desktopEmbedded).toBe(readerDesktopEmbeddedStyles);
+    expect(readerStyles).toContain(readerBilingualTranslationStyles);
   });
 
   it('composes desktop embedded styles in base, conversation, embedded order', () => {

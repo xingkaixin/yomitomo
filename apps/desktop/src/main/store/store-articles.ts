@@ -73,6 +73,7 @@ export async function readArticleStatsSummaries(): Promise<ArticleSummaryRecord[
 
 export async function readCurrentArticleTranslation(input: {
   articleId: string;
+  sourceId: string;
   sourceContentHash: string;
   targetLanguage: string;
   promptVersion: number;
@@ -90,6 +91,7 @@ export async function saveArticleTranslation(
 
 export async function deleteCurrentArticleTranslation(input: {
   articleId: string;
+  sourceId: string;
   sourceContentHash: string;
   targetLanguage: string;
   promptVersion: number;

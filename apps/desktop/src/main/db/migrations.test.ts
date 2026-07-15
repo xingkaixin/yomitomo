@@ -82,6 +82,46 @@ describe('reading memory migrations', () => {
     expect(indexNames(database)).toContain('articles_library_catalog_idx');
   });
 
+  it('scopes persisted translations by article or ebook chapter', () => {
+    const database = new DatabaseSync(':memory:');
+    for (const id of [
+      '0001_initial',
+      '0005_settings_reading_card',
+      '0051_article_translations',
+      '0065_ebook_translation_scope',
+    ]) {
+      const migration = migrations.find((item) => item.id === id);
+      if (!migration) throw new Error(`missing migration ${id}`);
+      database.exec(migration.sql);
+    }
+    insertArticle(database, 'article_translation');
+    database.exec(`
+INSERT INTO article_translations (
+  id, article_id, source_content_hash, target_language, prompt_version,
+  status, created_at, updated_at
+) VALUES (
+  'web', 'article_translation', 'hash', '简体中文', 1,
+  'ready', '2026-07-15T00:00:00.000Z', '2026-07-15T00:00:00.000Z'
+);
+
+INSERT INTO article_translations (
+  id, article_id, source_id, source_content_hash, target_language, prompt_version,
+  status, created_at, updated_at
+) VALUES (
+  'chapter', 'article_translation', 'chapter-1', 'hash', '简体中文', 1,
+  'ready', '2026-07-15T00:00:00.000Z', '2026-07-15T00:00:00.000Z'
+);
+`);
+
+    const rows = database
+      .prepare('SELECT id, source_id AS sourceId FROM article_translations ORDER BY id')
+      .all() as Array<{ id: string; sourceId: string }>;
+    expect(rows).toEqual([
+      { id: 'chapter', sourceId: 'chapter-1' },
+      { id: 'web', sourceId: 'article' },
+    ]);
+  });
+
   it('keeps the trigram catalog search index in sync', () => {
     const database = new DatabaseSync(':memory:');
     for (const id of [

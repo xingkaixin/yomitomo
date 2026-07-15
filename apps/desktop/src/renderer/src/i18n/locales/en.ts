@@ -872,6 +872,33 @@ export const enResources = {
       sourceMissing: 'The original ebook file is missing. Import it again.',
       selectionLocateFailed: 'Could not locate this selection. Shorten it or select again.',
       chapterLabel: 'Chapter {{chapter}}',
+      translateChapter: 'Translate current chapter',
+      confirmTranslateTitle: 'Translate this chapter?',
+      confirmTranslateDescription:
+        'This will call the bilingual translation model and save paragraph results for the current chapter.',
+      confirmTranslate: 'Start translation',
+      confirmRetranslateTitle: 'Translate this chapter again?',
+      confirmRetranslateDescription:
+        'This will replace the saved translation for this chapter and target language.',
+      confirmRetranslate: 'Translate again',
+      confirmDeleteTranslationTitle: 'Delete this chapter translation?',
+      confirmDeleteTranslationDescription:
+        'This deletes the translation cache for this chapter and target language. The original text is kept.',
+      confirmDeleteTranslation: 'Delete translation',
+      showTranslation: 'Show chapter translation',
+      hideTranslation: 'Hide chapter translation',
+      retranslateChapter: 'Translate chapter again',
+      deleteTranslation: 'Delete chapter translation',
+      retryTranslationSegment: 'Retry this paragraph',
+      translatingChapter: 'Translating current chapter',
+      translationReady: 'Chapter translation is ready',
+      translationCompleteWithFailures:
+        'Chapter translation finished with {{count}} failed paragraph',
+      translationCompleteWithFailures_other:
+        'Chapter translation finished with {{count}} failed paragraphs',
+      translationNoText: 'No translatable text was found in this chapter.',
+      translationFailed: 'Chapter translation failed. Try again later.',
+      deleteTranslationFailed: 'Could not delete the chapter translation. Try again later.',
     },
     pdfReader: {
       readFailed: 'Failed to read PDF',

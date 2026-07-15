@@ -34,9 +34,14 @@ export { inlineArticleFavicon, inlineArticleImages } from './articles/article-im
 export type { ArticleImageInlineOptions, ImageFetcher } from './articles/article-images';
 
 export {
+  applyBilingualTranslation,
   articleHtmlWithBilingualTranslation,
+  bilingualTranslationSelector,
+  clearBilingualTranslation,
   createTranslationTextAnchor,
+  extractBilingualTranslationBlocks,
   extractWebArticleTranslationBlocks,
+  rangeIntersectsBilingualTranslation,
   rangeForTranslationTextAnchor,
   sourceTextContent,
   textForTranslationAnchor,
@@ -44,6 +49,7 @@ export {
 } from './articles/article-translation';
 export type {
   ArticleBilingualTranslationRenderOptions,
+  BilingualTranslationSourceBlock,
   WebArticleTranslationBlock,
 } from './articles/article-translation';
 

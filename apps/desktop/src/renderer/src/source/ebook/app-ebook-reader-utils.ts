@@ -1,7 +1,8 @@
 import i18next from 'i18next';
 import type { Annotation, ArticleRecord, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { hashText } from '@yomitomo/shared';
-import { annotationColor, type TocItem } from '@yomitomo/core';
+import { annotationColor, bilingualTranslationSelector, type TocItem } from '@yomitomo/core';
+import { readerBilingualTranslationStyles } from '@yomitomo/reader-ui/reader-bilingual-translation-styles';
 import { readerBackgroundTone, readerBodyLineHeight } from '@yomitomo/reader-ui/reader-settings';
 import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
 import type { ReaderReadingSection, ReaderSettings } from '@yomitomo/reader-ui/reader-types';
@@ -242,6 +243,10 @@ function foliateReaderCss(settings: ReaderSettings, theme: ReaderTheme) {
     }
 
     html {
+      --reader-ink: ${theme.ink};
+      --reader-muted: ${theme.muted};
+      --reader-green: ${theme.primary};
+      --reader-red: ${theme.danger};
       background: ${settings.backgroundColor};
       color: ${theme.ink};
       color-scheme: ${colorScheme};
@@ -292,6 +297,13 @@ function foliateReaderCss(settings: ReaderSettings, theme: ReaderTheme) {
 
     figcaption, caption, small {
       color: ${theme.muted};
+    }
+
+    ${readerBilingualTranslationStyles}
+
+    [data-reader-translation],
+    .reader-bilingual-translation-indicator {
+      user-select: none;
     }
 
     aside[epub|type~="endnote"],
@@ -554,7 +566,8 @@ export type EbookBoxUpdateReason =
   | 'page_turn'
   | 'reader_settings'
   | 'relocate'
-  | 'resize_observer';
+  | 'resize_observer'
+  | 'translation';
 
 export type EbookBoxScheduleState = {
   count: number;
@@ -901,6 +914,7 @@ function buildNormalizedDomTextIndex(
     if (node.nodeType !== Node.ELEMENT_NODE) return;
 
     const element = node as Element;
+    if (element.matches(bilingualTranslationSelector)) return;
     if (element.localName === 'br') {
       pendingWhitespace = text.length > 0;
       return;
@@ -1054,6 +1068,7 @@ function renderedTextForNode(root: Node) {
       return;
 
     const element = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : null;
+    if (element?.matches(bilingualTranslationSelector)) return;
     if (element?.localName === 'br') {
       pendingWhitespace = text.length > 0;
       return;

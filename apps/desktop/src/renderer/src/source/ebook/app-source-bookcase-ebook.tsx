@@ -47,6 +47,7 @@ import {
 } from '../bookcase/app-source-bookcase-shared';
 import { useEbookAgentVirtualReading } from './use-ebook-agent-virtual-reading';
 import { useEbookFoliateView } from './use-ebook-foliate-view';
+import { useEbookBilingualTranslation } from './use-ebook-bilingual-translation';
 import { useEbookReaderBoxes } from './use-ebook-reader-boxes';
 import { useEbookSelection } from './use-ebook-selection';
 import {
@@ -118,6 +119,8 @@ export function EbookBookcase({
     () => {},
   );
   const cleanupFoliateDocumentListenersRef = useRef<() => void>(() => {});
+  const attachFoliateTranslationRef = useRef<(view: FoliateViewElement | null) => void>(() => {});
+  const cleanupFoliateTranslationRef = useRef<() => void>(() => {});
   const scheduleEbookBoxUpdate = useCallback((reason: EbookBoxUpdateReason) => {
     scheduleEbookBoxUpdateRef.current(reason);
   }, []);
@@ -126,9 +129,11 @@ export function EbookBookcase({
   }, []);
   const attachFoliateDocumentListenersBridge = useCallback((view: FoliateViewElement | null) => {
     attachFoliateDocumentListenersRef.current(view);
+    attachFoliateTranslationRef.current(view);
   }, []);
   const cleanupFoliateDocumentListenersBridge = useCallback(() => {
     cleanupFoliateDocumentListenersRef.current();
+    cleanupFoliateTranslationRef.current();
   }, []);
   const [statusMessage, setStatusMessage] = useState('');
   const sourceReaderSession = useSourceReaderSession({
@@ -349,6 +354,18 @@ export function EbookBookcase({
     onScheduleEbookBoxUpdate: scheduleEbookBoxUpdate,
     pageTurnTraceRef,
   });
+  const handleTranslationLayoutChange = useCallback(
+    () => scheduleEbookBoxUpdate('translation'),
+    [scheduleEbookBoxUpdate],
+  );
+  const ebookTranslation = useEbookBilingualTranslation({
+    article,
+    style: settings?.bilingualTranslationStyle || 'dashedLine',
+    targetLanguage: settings?.bilingualTranslationTargetLanguage,
+    onLayoutChange: handleTranslationLayoutChange,
+  });
+  attachFoliateTranslationRef.current = ebookTranslation.attachFoliateDocument;
+  cleanupFoliateTranslationRef.current = ebookTranslation.cleanupFoliateDocument;
   const turnPageFromKeyboard = useCallback(
     (direction: ReaderPageTurnDirection) => {
       if (direction === 'left') goLeft();
@@ -1128,6 +1145,7 @@ export function EbookBookcase({
               </datalist>
             ) : null}
           </div>
+          {ebookTranslation.toolbar}
           <ReaderSettingsToolbarControls
             labels={{ articleWidth: labels.articleWidth, fontSize: labels.fontSize }}
             settings={readerSettings}
@@ -1148,14 +1166,17 @@ export function EbookBookcase({
   });
 
   return (
-    <EbookReaderShell
-      isSpread={spreadLayout.columns === 2}
-      measureHostRef={measureHostRef}
-      readerApp={readerAppViewProps}
-      readerState={readerState}
-      viewHostRef={viewHostRef}
-      onReaderKeyDown={handleReaderKeyDown}
-    />
+    <>
+      <EbookReaderShell
+        isSpread={spreadLayout.columns === 2}
+        measureHostRef={measureHostRef}
+        readerApp={readerAppViewProps}
+        readerState={readerState}
+        viewHostRef={viewHostRef}
+        onReaderKeyDown={handleReaderKeyDown}
+      />
+      {ebookTranslation.dialog}
+    </>
   );
 }
 

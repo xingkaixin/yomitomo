@@ -15,9 +15,9 @@ export type TranslationConfirmAction = 'translate' | 'retranslate' | 'delete';
 type ReaderTranslationLabels = {
   deleteTranslation: string;
   hideTranslation: string;
-  retranslateArticle: string;
+  retranslate: string;
   showTranslation: string;
-  translateArticle: string;
+  translate: string;
 };
 
 export function ReaderTranslationToolbarButton({
@@ -41,9 +41,9 @@ export function ReaderTranslationToolbarButton({
 }) {
   if (!hasTranslation) {
     return (
-      <ReaderTooltip content={labels.translateArticle} side="bottom">
+      <ReaderTooltip content={labels.translate} side="bottom">
         <button
-          aria-label={labels.translateArticle}
+          aria-label={labels.translate}
           className={['reader-icon-button', busy ? 'is-busy' : ''].filter(Boolean).join(' ')}
           disabled={busy}
           type="button"
@@ -84,7 +84,7 @@ export function ReaderTranslationToolbarButton({
           <span>{buttonLabel}</span>
         </button>
         <button
-          aria-label={labels.retranslateArticle}
+          aria-label={labels.retranslate}
           disabled={busy}
           type="button"
           onClick={() => {
@@ -93,7 +93,7 @@ export function ReaderTranslationToolbarButton({
           }}
         >
           <RefreshCw size={15} />
-          <span>{labels.retranslateArticle}</span>
+          <span>{labels.retranslate}</span>
         </button>
         <button
           aria-label={labels.deleteTranslation}

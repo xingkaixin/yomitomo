@@ -396,6 +396,7 @@ export const articleTranslations = sqliteTable(
     articleId: text('article_id')
       .notNull()
       .references(() => articles.id, { onDelete: 'cascade' }),
+    sourceId: text('source_id').notNull(),
     sourceContentHash: text('source_content_hash').notNull(),
     targetLanguage: text('target_language').notNull(),
     promptVersion: integer('prompt_version').notNull(),
@@ -411,6 +412,7 @@ export const articleTranslations = sqliteTable(
     index('article_translations_article_idx').on(table.articleId, table.updatedAt),
     uniqueIndex('article_translations_current_idx').on(
       table.articleId,
+      table.sourceId,
       table.sourceContentHash,
       table.targetLanguage,
       table.promptVersion,

@@ -58,6 +58,7 @@ function translation(overrides: Partial<ArticleTranslation> = {}): ArticleTransl
   return {
     id: 'translation-1',
     articleId: 'article-1',
+    sourceId: 'article',
     sourceContentHash: 'hash-1',
     targetLanguage: 'zh-CN',
     promptVersion: 1,

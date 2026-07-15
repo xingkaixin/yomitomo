@@ -2,9 +2,13 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  applyBilingualTranslation,
   articleHtmlWithBilingualTranslation,
+  clearBilingualTranslation,
   createTranslationTextAnchor,
+  extractBilingualTranslationBlocks,
   extractWebArticleTranslationBlocks,
+  rangeIntersectsBilingualTranslation,
   rangeForTranslationTextAnchor,
   sourceTextContent,
   translationElementForRange,
@@ -18,6 +22,7 @@ function translationForBlock(
   return {
     id: 'translation_1',
     articleId: 'article_1',
+    sourceId: 'article',
     sourceContentHash: 'hash',
     targetLanguage: '简体中文',
     promptVersion: 1,
@@ -81,6 +86,47 @@ describe('article bilingual translation', () => {
     expect(sourceTextContent(container)).toBe(
       'Hello world, this paragraph should be translated.Short',
     );
+  });
+
+  it('updates a live document without duplicating injected translation nodes', () => {
+    const root = document.createElement('article');
+    root.innerHTML = '<p>Hello world, this paragraph should be translated.</p>';
+    const [block] = extractBilingualTranslationBlocks(root);
+    const translation = translationForBlock(block, {
+      status: 'ready',
+      translatedText: '你好世界，这一段应该被翻译。',
+    });
+
+    expect(applyBilingualTranslation(root, translation)).toBe(true);
+    expect(applyBilingualTranslation(root, translation)).toBe(true);
+    expect(root.querySelectorAll('[data-reader-translation]')).toHaveLength(1);
+    expect(sourceTextContent(root)).toBe('Hello world, this paragraph should be translated.');
+
+    expect(clearBilingualTranslation(root)).toBe(true);
+    expect(root.querySelector('[data-reader-translation]')).toBeNull();
+    expect(root.querySelector('[data-reader-source-block-id]')).toBeNull();
+  });
+
+  it('detects ranges that cross injected translations', () => {
+    const root = document.createElement('article');
+    root.innerHTML =
+      '<p>Hello world, this paragraph should be translated.</p><p>Another source paragraph.</p>';
+    const [block] = extractBilingualTranslationBlocks(root);
+    applyBilingualTranslation(
+      root,
+      translationForBlock(block, {
+        status: 'ready',
+        translatedText: '你好世界，这一段应该被翻译。',
+      }),
+    );
+    const source = root.querySelector('p')?.firstChild;
+    const translation = root.querySelector('[data-reader-translation]')?.firstChild;
+    if (!source || !translation) throw new Error('missing translation test nodes');
+    const range = document.createRange();
+    range.setStart(source, 0);
+    range.setEnd(translation, 2);
+
+    expect(rangeIntersectsBilingualTranslation(range)).toBe(true);
   });
 
   it('creates and resolves anchors inside translated paragraphs', () => {
