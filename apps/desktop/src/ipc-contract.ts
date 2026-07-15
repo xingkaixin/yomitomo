@@ -192,6 +192,33 @@ export type LibraryCatalogListResult = {
   unfilteredCount: number;
 };
 
+export type DistillationLibraryListInput = {
+  query?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export type DistillationLibraryItem = {
+  annotationId: string;
+  articleId: string;
+  articleTitle: string;
+  articleByline?: string;
+  sourceType: ArticleLibrarySource;
+  anchorText: string;
+  content: string;
+  publishedAt?: string;
+  updatedAt: string;
+};
+
+export type DistillationLibraryListResult = {
+  items: DistillationLibraryItem[];
+  page: number;
+  pageSize: number;
+  query: string;
+  totalCount: number;
+  unfilteredCount: number;
+};
+
 export type WindowAnimationSourceRect = {
   x: number;
   y: number;

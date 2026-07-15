@@ -38,6 +38,7 @@ import { useAppUpdateState } from './shell/use-app-update-state';
 import { changeAppI18nLanguage, initializeAppI18n } from './i18n/app-i18n';
 import { readCachedUiLanguage, writeCachedUiLanguage } from './i18n/app-language-cache';
 import { playAppSoundEffect } from './sound/app-sound-effects';
+import type { ReadingLibraryOpenTarget } from './shell/app-reading-types';
 import { AppToaster, useHeaderToastOffset } from './shell/app-toast';
 import type { AppMenuCommand, AppMenuCommandRequest } from '../../app-menu-types';
 import './styles.css';
@@ -52,6 +53,10 @@ const loadReadingLibrary = () =>
     default: module.ReadingLibrary,
   }));
 const loadReadingStatsModule = () => preloadEntries.stats.load();
+const loadDistillationLibrary = () =>
+  import('./distillations/app-distillation-library').then((module) => ({
+    default: module.DistillationLibrary,
+  }));
 const loadReadingStatsPanel = () =>
   loadReadingStatsModule().then((module) => ({ default: module.ReadingStatsPanel }));
 const loadOnboardingFlow = () =>
@@ -82,6 +87,7 @@ const loadAboutSettings = () =>
   preloadEntries.settingsAbout.load().then((module) => ({ default: module.AboutSettings }));
 
 const ReadingLibrary = lazy(loadReadingLibrary);
+const DistillationLibrary = lazy(loadDistillationLibrary);
 const ReadingStatsPanel = lazy(loadReadingStatsPanel);
 const OnboardingFlow = lazy(loadOnboardingFlow);
 const AgentSettings = lazy(loadAgentSettings);
@@ -95,7 +101,7 @@ const SettingsSectionShell = lazy(loadSettingsSectionShell);
 const UserProfileSettingsDialog = lazy(loadUserProfileSettingsDialog);
 const AboutSettings = lazy(loadAboutSettings);
 
-type SettingKey = 'library' | 'stats' | 'settings' | 'agents';
+type SettingKey = 'library' | 'distillations' | 'stats' | 'settings' | 'agents';
 
 function App() {
   const { t } = useTranslation();
@@ -110,7 +116,9 @@ function App() {
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [profileDialogSourceRect, setProfileDialogSourceRect] = useState<DialogSourceRect>();
   const [libraryReaderOpen, setLibraryReaderOpen] = useState(false);
-  const [pendingOpenArticleId, setPendingOpenArticleId] = useState<string | null>(null);
+  const [pendingOpenArticle, setPendingOpenArticle] = useState<ReadingLibraryOpenTarget | null>(
+    null,
+  );
   const [libraryMenuRequest, setLibraryMenuRequest] = useState<AppMenuCommandRequest | null>(null);
   const [onboardingForced, setOnboardingForced] = useState(false);
   const [onboardingFlowKey, setOnboardingFlowKey] = useState(0);
@@ -179,7 +187,7 @@ function App() {
   useEffect(() => {
     if (!appLocked) return;
     setLibraryReaderOpen(false);
-    setPendingOpenArticleId(null);
+    setPendingOpenArticle(null);
     setProfileDialogOpen(false);
     setProfileDialogSourceRect(undefined);
     setStatsArticles(null);
@@ -453,6 +461,11 @@ function App() {
                   onClick={() => setActiveSetting('library')}
                 />
                 <SettingsNavButton
+                  active={activeSetting === 'distillations'}
+                  label={t('nav.distillations')}
+                  onClick={() => setActiveSetting('distillations')}
+                />
+                <SettingsNavButton
                   active={activeSetting === 'agents'}
                   label={t('nav.agents')}
                   onClick={openAgents}
@@ -540,14 +553,14 @@ function App() {
                   settings={store.settings}
                   selectionActionShortcuts={store.settings.selectionActionShortcuts}
                   menuRequest={libraryMenuRequest}
-                  openArticleId={pendingOpenArticleId}
+                  openArticleTarget={pendingOpenArticle}
                   userProfile={store.user}
                   onDeleteArticle={deleteArticle}
                   onDeleteArticleAnnotation={deleteArticleAnnotation}
                   onDeleteArticleComment={deleteArticleComment}
                   onCloseArticleDiscussions={closeArticleDiscussions}
                   onOpenArticleDiscussion={openArticleDiscussion}
-                  onArticleOpened={() => setPendingOpenArticleId(null)}
+                  onArticleOpened={() => setPendingOpenArticle(null)}
                   onImportArticleUrl={importArticleUrl}
                   onCancelArticleImport={cancelArticleUrlImport}
                   onImportEbookFile={importEbookFile}
@@ -562,6 +575,14 @@ function App() {
                   onSaveSettings={saveLibrarySettings}
                   onOpenDataSources={openDataSources}
                   onUpdateArticle={updateArticle}
+                />
+              ) : null}
+              {activeSetting === 'distillations' ? (
+                <DistillationLibrary
+                  onOpenOriginal={(articleId, annotationId) => {
+                    setPendingOpenArticle({ articleId, annotationId });
+                    setActiveSetting('library');
+                  }}
                 />
               ) : null}
               {activeSetting === 'stats' ? (

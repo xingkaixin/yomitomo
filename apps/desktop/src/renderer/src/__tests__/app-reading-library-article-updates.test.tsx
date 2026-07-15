@@ -45,7 +45,7 @@ describe('ReadingLibrary article updates', () => {
 
     renderReadingLibrary({
       articles: [selectedArticle],
-      openArticleId: selectedArticle.id,
+      openArticleTarget: { articleId: selectedArticle.id },
       onReadArticle: vi.fn(async () => selectedArticle),
       onUpdateArticle,
     });
@@ -77,7 +77,7 @@ describe('ReadingLibrary article updates', () => {
     });
     const view = renderReadingLibrary({
       articles: [firstArticle, secondArticle],
-      openArticleId: firstArticle.id,
+      openArticleTarget: { articleId: firstArticle.id },
       onReadArticle,
       onUpdateArticle,
     });
@@ -92,7 +92,7 @@ describe('ReadingLibrary article updates', () => {
     view.rerender(
       readingLibrary({
         articles: [firstArticle, secondArticle],
-        openArticleId: secondArticle.id,
+        openArticleTarget: { articleId: secondArticle.id },
         onReadArticle,
         onUpdateArticle,
       }),
@@ -123,7 +123,7 @@ function renderReadingLibrary(options: ReadingLibraryTestOptions) {
 
 function readingLibrary({
   articles,
-  openArticleId,
+  openArticleTarget,
   onReadArticle,
   onUpdateArticle,
 }: ReadingLibraryTestOptions) {
@@ -131,7 +131,7 @@ function readingLibrary({
     <ReadingLibrary
       agents={[]}
       articles={articles.map(articleSummary)}
-      openArticleId={openArticleId}
+      openArticleTarget={openArticleTarget}
       readerTheme={defaultTheme.reader}
       userProfile={userProfile}
       onDeleteArticle={vi.fn()}
@@ -148,7 +148,7 @@ function readingLibrary({
 
 type ReadingLibraryTestOptions = {
   articles: ArticleRecord[];
-  openArticleId: string;
+  openArticleTarget: { articleId: string; annotationId?: string };
   onReadArticle: (articleId: string) => Promise<ArticleRecord | null>;
   onUpdateArticle: SourceBookcaseProps['onUpdateArticle'];
 };

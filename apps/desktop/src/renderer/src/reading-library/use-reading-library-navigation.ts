@@ -76,7 +76,7 @@ export function useReadingLibraryNavigation({
   }, [cancelArticleLoad, closeCurrentArticle, send]);
 
   const openArticle = useCallback(
-    async (article: ArticleSummaryRecord | string) => {
+    async (article: ArticleSummaryRecord | string, focusAnnotationId?: string) => {
       const articleId = typeof article === 'string' ? article : article.id;
       closeCurrentArticle(articleId);
       const token = articleLoadRef.current.token + 1;
@@ -96,7 +96,7 @@ export function useReadingLibraryNavigation({
       articleLoadRef.current = { status: 'idle', token };
       if (!fullArticle) return null;
       discussionArticleIdRef.current = fullArticle.id;
-      send({ type: 'show-article', article: fullArticle });
+      send({ type: 'show-article', article: fullArticle, focusAnnotationId });
       return fullArticle;
     },
     [closeCurrentArticle, onReadArticle, send],

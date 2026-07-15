@@ -116,6 +116,58 @@ describe('reading memory migrations', () => {
     expect(countRows(database, 'library_catalog_fts')).toBe(0);
   });
 
+  it('indexes only published distillations and keeps the index in sync', () => {
+    const database = new DatabaseSync(':memory:');
+    for (const id of [
+      '0001_initial',
+      '0043_annotation_distillation',
+      '0064_distillation_library_search',
+    ]) {
+      const migration = migrations.find((item) => item.id === id);
+      if (!migration) throw new Error(`missing migration ${id}`);
+      database.exec(migration.sql);
+    }
+    insertArticle(database, 'article_distillation');
+    database.exec(`
+INSERT INTO annotations (
+  id, article_id, anchor, author, color, distillation_status, distillation_content,
+  distillation_published_at, distillation_updated_at, created_at, updated_at
+) VALUES
+  (
+    'published', 'article_distillation', '{"exact":"quote"}', 'user', '#f59e0b',
+    'published', 'A searchable insight', '2026-07-15T00:00:00.000Z',
+    '2026-07-15T00:00:00.000Z', '2026-07-15T00:00:00.000Z', '2026-07-15T00:00:00.000Z'
+  ),
+  (
+    'draft', 'article_distillation', '{"exact":"quote"}', 'user', '#f59e0b',
+    'draft', 'A private draft', null, '2026-07-15T00:00:00.000Z',
+    '2026-07-15T00:00:00.000Z', '2026-07-15T00:00:00.000Z'
+  );
+`);
+
+    expect(countRows(database, 'distillation_library_fts')).toBe(1);
+    database.exec(`
+UPDATE annotations
+SET distillation_status = 'draft', distillation_content = 'Hidden again'
+WHERE id = 'published';
+UPDATE annotations
+SET distillation_status = 'published', distillation_content = 'Now searchable'
+WHERE id = 'draft';
+`);
+
+    const row = database
+      .prepare(`
+        SELECT annotation_id
+        FROM distillation_library_fts
+        WHERE distillation_library_fts MATCH '"searchable"'
+      `)
+      .get() as { annotation_id: string } | undefined;
+    expect(row?.annotation_id).toBe('draft');
+
+    database.exec("DELETE FROM articles WHERE id = 'article_distillation'");
+    expect(countRows(database, 'distillation_library_fts')).toBe(0);
+  });
+
   it('clears derived ebook content html without touching web articles', () => {
     const database = new DatabaseSync(':memory:');
     for (const id of ['0001_initial', '0004_article_content_html', '0022_article_ebook_source']) {

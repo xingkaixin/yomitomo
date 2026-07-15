@@ -269,6 +269,11 @@ export const annotations = sqliteTable(
   },
   (table) => [
     index('annotations_article_id_idx').on(table.articleId),
+    index('annotations_distillation_library_idx').on(
+      table.distillationStatus,
+      table.distillationUpdatedAt,
+      table.id,
+    ),
     index('annotations_updated_at_idx').on(table.updatedAt),
   ],
 );

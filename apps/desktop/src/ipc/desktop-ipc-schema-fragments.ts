@@ -135,6 +135,13 @@ export const dataIpcInvokeSchemas = {
 } satisfies DesktopIpcSchemaMap;
 
 export const libraryCollectionIpcInvokeSchemas = {
+  'distillation-library:list': z.tuple([
+    z.object({
+      page: z.number().int().positive().max(10_000).optional(),
+      pageSize: z.number().int().positive().max(100).optional(),
+      query: z.string().max(500).optional(),
+    }),
+  ]),
   'library-collection:add-members': z.tuple([
     z.object({
       collectionId: idSchema,

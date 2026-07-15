@@ -12,6 +12,29 @@ vi.mock('electron', () => ({
 }));
 
 describe('library collection IPC', () => {
+  it('routes distillation library reads through collection persistence', async () => {
+    ipcMocks.ipcMainHandle.mockClear();
+    const library = {
+      items: [],
+      page: 1,
+      pageSize: 12,
+      query: '',
+      totalCount: 0,
+      unfilteredCount: 0,
+    };
+    const listDistillationLibrary = vi.fn(async () => library);
+    registerLibraryCollectionIpc(libraryCollectionIpcContext({ listDistillationLibrary }, {}));
+    const handler = ipcMocks.ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === 'distillation-library:list',
+    )?.[1];
+    const input = { page: 1, pageSize: 12 };
+
+    const result = await handler({}, input);
+
+    expect(result).toEqual({ ok: true, value: library });
+    expect(listDistillationLibrary).toHaveBeenCalledWith(input);
+  });
+
   it('routes paged catalog reads through collection persistence', async () => {
     ipcMocks.ipcMainHandle.mockClear();
     const catalog = {
@@ -116,6 +139,7 @@ function libraryCollectionIpcContext(
         addCollectionMembers: vi.fn(),
         createCollection: vi.fn(),
         deleteCollection: vi.fn(),
+        listDistillationLibrary: vi.fn(),
         listLibraryCatalog: vi.fn(),
         listCollections: vi.fn(),
         listLibraryPins: vi.fn(),

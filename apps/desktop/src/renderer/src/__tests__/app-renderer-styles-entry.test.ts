@@ -36,6 +36,7 @@ describe('renderer styles entry', () => {
 @import './styles/settings.css';
 @import './styles/annotation-discussion.css';
 @import './styles/library.css';
+@import './styles/distillation-library.css';
 @import './styles/source-reader-shared.css';
 @import './styles/source-reader.css';
 @import './styles/source-ebook.css';
