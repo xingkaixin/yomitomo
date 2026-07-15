@@ -1,5 +1,5 @@
 import { jsonSchema, stepCountIs, streamText, type JSONSchema7 } from 'ai';
-import { Effect } from 'effect';
+import { Effect, Exit } from 'effect';
 import {
   createYomitomoLanguageModel,
   supportsProviderTools,
@@ -19,6 +19,7 @@ import {
 import {
   AssistantRuntimeFailure,
   AssistantRuntimeProviderFailure,
+  AssistantRuntimeToolFailure,
   assistantRuntimeFailureReason,
 } from './assistant-runtime-errors';
 import {
@@ -30,7 +31,7 @@ import {
   distillationReviewStructuredOutputPrompt,
   type GeneratedDistillationReviewItem,
 } from './distillation-review-structured-output';
-import { promiseEffect, toolExecutorEffect } from './assistant-runtime-effects';
+import { promiseEffect } from './assistant-runtime-effects';
 import {
   createAssistantRuntimeKernel,
   type AssistantRuntimeKernel,
@@ -53,113 +54,136 @@ export async function runAssistantAiSdkToolRuntime(
   return Effect.runPromise(runAssistantAiSdkToolRuntimeEffect(options));
 }
 
-function runAssistantAiSdkToolRuntimeEffect(
-  options: AssistantAiSdkRuntimeOptions,
-): Effect.Effect<AssistantRuntimeResult> {
-  const budget = { ...DEFAULT_ASSISTANT_RUNTIME_BUDGETS[options.taskType], ...options.budget };
-  const now = options.now || (() => new Date().toISOString());
-  const kernel = createAssistantRuntimeKernel({ ...options, budget, now });
-  let nextStepIndex = 0;
+export const runAssistantAiSdkToolRuntimeEffect = Effect.fn('Assistant.runAiSdkToolRuntime')(
+  function* (options: AssistantAiSdkRuntimeOptions) {
+    const budget = { ...DEFAULT_ASSISTANT_RUNTIME_BUDGETS[options.taskType], ...options.budget };
+    const now = options.now || (() => new Date().toISOString());
+    const kernel = createAssistantRuntimeKernel({ ...options, budget, now });
+    let nextStepIndex = 0;
 
-  if (!supportsProviderTools(options.provider)) {
-    return Effect.succeed(
-      emitFallback(options, kernel.finishWithFallback('provider_tools_unsupported')),
-    );
-  }
+    if (!supportsProviderTools(options.provider)) {
+      return emitFallback(options, kernel.finishWithFallback('provider_tools_unsupported'));
+    }
 
-  const adapter = createYomitomoLanguageModel(options.provider);
-  const useStructuredDistillationReview = options.taskType === 'distillation_review';
-  const distillationReviewUsesJsonlFallback =
-    useStructuredDistillationReview && !adapter.supportsStructuredOutput;
-  const aiSdkTools = Object.fromEntries(
-    options.tools.map((toolDefinition) => [
-      toolDefinition.name,
-      aiSdkTool(toolDefinition, {
-        kernel,
-        nextStepIndex: () => nextStepIndex,
-        incrementStepIndex: () => {
-          nextStepIndex += 1;
-        },
-        onEvent: options.onEvent,
-        toolExecutor: options.toolExecutor,
-      }),
-    ]),
-  ) as Record<string, AiSdkToolShape>;
-
-  return Effect.gen(function* () {
-    const result = yield* aiSdkStreamTextEffect({
-      model: adapter.model,
-      system: options.payload.system,
-      prompt: useStructuredDistillationReview
-        ? `${options.payload.user}\n\n${distillationReviewStructuredOutputPrompt({
-            jsonlFallback: distillationReviewUsesJsonlFallback,
-            mode: options.payload.distillationReviewMode,
-          })}`
-        : options.payload.user,
-      maxOutputTokens: options.payload.maxTokens,
-      temperature: options.payload.temperature,
-      providerOptions: adapter.providerOptions,
-      tools: aiSdkTools,
-      stopWhen: stepCountIs(
-        useStructuredDistillationReview ? budget.maxSteps + 1 : budget.maxSteps,
-      ),
-      output:
-        useStructuredDistillationReview && adapter.supportsStructuredOutput
-          ? distillationReviewStructuredOutput
-          : undefined,
-      prepareStep: ({ stepNumber }) =>
-        stepNumber === 0 && options.tools.length > 0
-          ? {
-              toolChoice: {
-                type: 'tool' as const,
-                toolName: firstRequiredRuntimeToolName(options.tools),
-              },
-            }
-          : undefined,
-    });
-    const action = useStructuredDistillationReview
-      ? yield* consumeDistillationReviewStructuredOutputEffect({
-          result,
-          annotationId: options.allowedAnnotationIds[0] || '',
+    const adapter = createYomitomoLanguageModel(options.provider);
+    const useStructuredDistillationReview = options.taskType === 'distillation_review';
+    const distillationReviewUsesJsonlFallback =
+      useStructuredDistillationReview && !adapter.supportsStructuredOutput;
+    const aiSdkTools = Object.fromEntries(
+      options.tools.map((toolDefinition) => [
+        toolDefinition.name,
+        aiSdkTool(toolDefinition, {
+          kernel,
+          nextStepIndex: () => nextStepIndex,
+          incrementStepIndex: () => {
+            nextStepIndex += 1;
+          },
           onEvent: options.onEvent,
-          now,
-          structuredOutput: adapter.supportsStructuredOutput,
-        })
-      : finalActionFromText(
-          options,
-          yield* consumeRuntimeTextStreamEffect(result.textStream, options.onEvent),
-        );
-    const finishReason = yield* promiseEffect(result.finishReason, AssistantRuntimeProviderFailure);
-    kernel.setUsage(
-      normalizeAiUsage(yield* promiseEffect(result.totalUsage, AssistantRuntimeProviderFailure)),
-    );
-    if (finishReason === 'length') {
-      return emitFallback(
-        options,
-        kernel.finishWithFallback(`model_output_reached_max_tokens:${options.payload.maxTokens}`),
-      );
-    }
+          toolExecutor: options.toolExecutor,
+        }),
+      ]),
+    ) as Record<string, AiSdkToolShape>;
 
-    const step = kernel.handleFinalAction(
-      nextStepIndex,
-      { type: 'final_action', action },
-      performance.now(),
-      { repairable: false },
-    );
-    if (step.type === 'fallback') return emitFallback(options, step.result);
-    if (step.type === 'final') {
-      options.onEvent?.({ type: 'done', usage: step.result.trace.usage, trace: step.result.trace });
-      return step.result;
-    }
-    return emitFallback(options, kernel.finishWithFallback(`unexpected_kernel_step:${step.type}`));
-  }).pipe(
-    Effect.catch((error) =>
-      Effect.succeed(
-        emitFallback(options, kernel.finishWithFallback(assistantRuntimeFailureReason(error))),
+    return yield* Effect.acquireUseRelease(
+      Effect.sync(() => new AbortController()),
+      (controller) =>
+        Effect.gen(function* () {
+          const result = yield* aiSdkStreamTextEffect(
+            {
+              model: adapter.model,
+              system: options.payload.system,
+              prompt: useStructuredDistillationReview
+                ? `${options.payload.user}\n\n${distillationReviewStructuredOutputPrompt({
+                    jsonlFallback: distillationReviewUsesJsonlFallback,
+                    mode: options.payload.distillationReviewMode,
+                  })}`
+                : options.payload.user,
+              maxOutputTokens: options.payload.maxTokens,
+              temperature: options.payload.temperature,
+              providerOptions: adapter.providerOptions,
+              tools: aiSdkTools,
+              stopWhen: stepCountIs(
+                useStructuredDistillationReview ? budget.maxSteps + 1 : budget.maxSteps,
+              ),
+              output:
+                useStructuredDistillationReview && adapter.supportsStructuredOutput
+                  ? distillationReviewStructuredOutput
+                  : undefined,
+              prepareStep: ({ stepNumber }) =>
+                stepNumber === 0 && options.tools.length > 0
+                  ? {
+                      toolChoice: {
+                        type: 'tool' as const,
+                        toolName: firstRequiredRuntimeToolName(options.tools),
+                      },
+                    }
+                  : undefined,
+            },
+            controller.signal,
+          );
+          const action = useStructuredDistillationReview
+            ? yield* consumeDistillationReviewStructuredOutputEffect({
+                result,
+                annotationId: options.allowedAnnotationIds[0] || '',
+                onEvent: options.onEvent,
+                now,
+                structuredOutput: adapter.supportsStructuredOutput,
+              })
+            : finalActionFromText(
+                options,
+                yield* consumeRuntimeTextStreamEffect(result.textStream, options.onEvent),
+              );
+          const finishReason = yield* promiseEffect(
+            result.finishReason,
+            AssistantRuntimeProviderFailure,
+          );
+          kernel.setUsage(
+            normalizeAiUsage(
+              yield* promiseEffect(result.totalUsage, AssistantRuntimeProviderFailure),
+            ),
+          );
+          if (finishReason === 'length') {
+            return emitFallback(
+              options,
+              kernel.finishWithFallback(
+                `model_output_reached_max_tokens:${options.payload.maxTokens}`,
+              ),
+            );
+          }
+
+          const step = kernel.handleFinalAction(
+            nextStepIndex,
+            { type: 'final_action', action },
+            performance.now(),
+            { repairable: false },
+          );
+          if (step.type === 'fallback') return emitFallback(options, step.result);
+          if (step.type === 'final') {
+            options.onEvent?.({
+              type: 'done',
+              usage: step.result.trace.usage,
+              trace: step.result.trace,
+            });
+            return step.result;
+          }
+          return emitFallback(
+            options,
+            kernel.finishWithFallback(`unexpected_kernel_step:${step.type}`),
+          );
+        }),
+      (controller, exit) =>
+        Effect.sync(() => {
+          if (Exit.isFailure(exit)) controller.abort();
+        }),
+    ).pipe(
+      Effect.catch((error) =>
+        Effect.succeed(
+          emitFallback(options, kernel.finishWithFallback(assistantRuntimeFailureReason(error))),
+        ),
       ),
-    ),
-  );
-}
+    );
+  },
+);
 
 function consumeDistillationReviewStructuredOutputEffect(input: {
   result: ReturnType<typeof streamText>;
@@ -196,7 +220,7 @@ function consumeDistillationReviewStructuredOutputEffect(input: {
         reason: 'AI SDK structured distillation review',
       };
     },
-    catch: (error) => new AssistantRuntimeProviderFailure(error),
+    catch: assistantRuntimeBoundaryFailure,
   });
 }
 
@@ -207,10 +231,10 @@ function firstRequiredRuntimeToolName(tools: AssistantToolDefinition[]) {
   return tools[0].name;
 }
 
-function aiSdkStreamTextEffect(input: Parameters<typeof streamText>[0]) {
+function aiSdkStreamTextEffect(input: Parameters<typeof streamText>[0], abortSignal: AbortSignal) {
   return Effect.try({
-    try: () => streamText(input),
-    catch: (error) => new AssistantRuntimeProviderFailure(error),
+    try: () => streamText({ ...input, abortSignal }),
+    catch: assistantRuntimeBoundaryFailure,
   });
 }
 
@@ -227,7 +251,7 @@ function consumeRuntimeTextStreamEffect(
       }
       return text;
     },
-    catch: (error) => new AssistantRuntimeProviderFailure(error),
+    catch: assistantRuntimeBoundaryFailure,
   });
 }
 
@@ -258,7 +282,7 @@ function aiSdkTool(
         stepIndex,
         { type: 'tool_call', toolCall },
         startedAt,
-        () => Effect.runPromise(toolExecutorEffect(context.toolExecutor, toolCall)),
+        () => executeAssistantTool(context.toolExecutor, toolCall),
         { repairable: false },
       );
       context.onEvent?.({
@@ -287,6 +311,24 @@ function aiSdkTool(
       };
     },
   };
+}
+
+async function executeAssistantTool(
+  toolExecutor: (toolCall: AssistantToolCall) => Promise<AssistantToolExecutionResult>,
+  toolCall: AssistantToolCall,
+) {
+  try {
+    return await toolExecutor(toolCall);
+  } catch (error) {
+    throw new AssistantRuntimeToolFailure(error);
+  }
+}
+
+function assistantRuntimeBoundaryFailure(error: unknown) {
+  if (error instanceof AssistantRuntimeFailure || error instanceof AssistantRuntimeToolFailure) {
+    return error;
+  }
+  return new AssistantRuntimeProviderFailure(error);
 }
 
 function finalActionFromText(

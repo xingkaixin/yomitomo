@@ -1,8 +1,15 @@
 import type { LlmProvider } from '@yomitomo/shared';
+import { Cause, Effect, Exit, Fiber } from 'effect';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { setAiLogger } from '../logger';
-import { callProviderText, listProviderModels, streamProviderText } from './provider-client';
+import {
+  callProviderText,
+  callProviderTextEffect,
+  listProviderModels,
+  listProviderModelsEffect,
+  streamProviderText,
+} from './provider-client';
 
 function requestBodyText(value: unknown) {
   return typeof value === 'string' ? value : '';
@@ -32,9 +39,13 @@ describe('listProviderModels', () => {
       { id: 'model-a', name: 'Model A' },
     ]);
 
-    expect(fetchMock).toHaveBeenCalledWith('https://example.com/v1/models', {
-      headers: { Authorization: 'Bearer key' },
-    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://example.com/v1/models',
+      expect.objectContaining({
+        headers: { Authorization: 'Bearer key' },
+        signal: expect.any(AbortSignal),
+      }),
+    );
   });
 
   it('rejects with a typed network error message', async () => {
@@ -75,6 +86,16 @@ describe('listProviderModels', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('not json', { status: 200 }));
 
     await expect(listProviderModels(provider())).rejects.toThrow('Provider response parse failed');
+  });
+
+  it('aborts the model-list request when its Effect fiber is interrupted', async () => {
+    const started = pendingFetch();
+    const fiber = Effect.runFork(listProviderModelsEffect(provider()));
+
+    const signal = await started;
+    await Effect.runPromise(Fiber.interrupt(fiber));
+
+    expect(signal.aborted).toBe(true);
   });
 });
 
@@ -231,7 +252,55 @@ describe('callProviderText response schema', () => {
       'Provider returned an empty response',
     );
   });
+
+  it('preserves generation errors through provider Effect composition', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ choices: [{ index: 0, message: { content: '' } }] }),
+    );
+
+    const exit = await Effect.runPromiseExit(callProviderTextEffect(provider(), payload()));
+
+    expect(Exit.isFailure(exit)).toBe(true);
+    if (Exit.isSuccess(exit)) return;
+
+    expect(Cause.hasFails(exit.cause)).toBe(true);
+    expect(Cause.hasDies(exit.cause)).toBe(false);
+    expect(Cause.squash(exit.cause)).toMatchObject({
+      _tag: 'GenerationEmptyResponseError',
+    });
+  });
+
+  it('aborts generation when its Effect fiber is interrupted', async () => {
+    const started = pendingFetch();
+    const fiber = Effect.runFork(callProviderTextEffect(provider(), payload()));
+
+    const signal = await started;
+    await Effect.runPromise(Fiber.interrupt(fiber));
+
+    expect(signal.aborted).toBe(true);
+  });
 });
+
+function pendingFetch() {
+  const started = createDeferred<AbortSignal>();
+  vi.spyOn(globalThis, 'fetch').mockImplementation((_input, init) => {
+    const signal = init?.signal;
+    if (!signal) throw new Error('Expected fetch AbortSignal');
+    started.resolve(signal);
+    return new Promise<Response>((_resolve, reject) => {
+      signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+    });
+  });
+  return started.promise;
+}
+
+function createDeferred<T>() {
+  let resolvePromise: ((value: T) => void) | undefined;
+  const promise = new Promise<T>((resolve) => {
+    resolvePromise = resolve;
+  });
+  return { promise, resolve: (value: T) => resolvePromise?.(value) };
+}
 
 describe('provider generation logging', () => {
   afterEach(() => {

@@ -1,9 +1,6 @@
 import { Effect } from 'effect';
-import type { AssistantRuntimeOptions, AssistantToolCall } from './assistant-runtime-types';
-import {
-  AssistantRuntimeProviderFailure,
-  AssistantRuntimeToolFailure,
-} from './assistant-runtime-errors';
+import type { AssistantRuntimeOptions } from './assistant-runtime-types';
+import { AssistantRuntimeProviderFailure } from './assistant-runtime-errors';
 
 export function promiseEffect<T, E extends Error>(
   promise: PromiseLike<T>,
@@ -22,15 +19,5 @@ export function modelAdapterEffect(
   return Effect.tryPromise({
     try: () => modelAdapter(turn),
     catch: (error) => new AssistantRuntimeProviderFailure(error),
-  });
-}
-
-export function toolExecutorEffect(
-  toolExecutor: AssistantRuntimeOptions['toolExecutor'],
-  toolCall: AssistantToolCall,
-) {
-  return Effect.tryPromise({
-    try: () => toolExecutor(toolCall),
-    catch: (error) => new AssistantRuntimeToolFailure(error),
   });
 }

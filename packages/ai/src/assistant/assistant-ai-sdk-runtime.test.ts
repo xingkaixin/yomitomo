@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LlmProvider } from '@yomitomo/shared';
+import { Effect, Fiber } from 'effect';
+import { AssistantRuntimeToolFailure } from './assistant-runtime-errors';
 
 type StreamTextOptions = {
+  abortSignal?: AbortSignal;
   tools: Record<
     string,
     {
@@ -185,9 +188,15 @@ describe('assistant AI SDK tool runtime', () => {
   });
 
   it('falls back when a tool executor throws during streaming', async () => {
+    let toolError: unknown;
     streamTextImpl = (options) => ({
       textStream: (async function* () {
-        await options.tools.get_current_thread.execute({}, { toolCallId: 'call_thread' });
+        try {
+          await options.tools.get_current_thread.execute({}, { toolCallId: 'call_thread' });
+        } catch (error) {
+          toolError = error;
+          throw error;
+        }
         yield '不会到达这里';
       })(),
       finishReason: Promise.resolve('stop'),
@@ -212,6 +221,47 @@ describe('assistant AI SDK tool runtime', () => {
       status: 'fallback',
       failureReason: 'tool database unavailable',
     });
+    expect(toolError).toBeInstanceOf(AssistantRuntimeToolFailure);
+  });
+
+  it('aborts the AI SDK stream when its Effect fiber is interrupted', async () => {
+    const started = createDeferred<AbortSignal>();
+    streamTextImpl = (options) => {
+      if (!options.abortSignal) throw new Error('Expected AI SDK AbortSignal');
+      started.resolve(options.abortSignal);
+      return {
+        textStream: (async function* () {
+          await new Promise<void>((_resolve, reject) => {
+            options.abortSignal?.addEventListener(
+              'abort',
+              () => reject(options.abortSignal?.reason),
+              { once: true },
+            );
+          });
+          yield '不会到达这里';
+        })(),
+        finishReason: Promise.resolve('stop'),
+        totalUsage: Promise.resolve({}),
+      };
+    };
+    const { runAssistantAiSdkToolRuntimeEffect } = await import('./assistant-ai-sdk-runtime');
+    const fiber = Effect.runFork(
+      runAssistantAiSdkToolRuntimeEffect({
+        taskType: 'thread_reply',
+        articleId: 'article_1',
+        agentId: 'agent_1',
+        provider: provider(),
+        payload: { system: 'system', user: 'user', maxTokens: 1200 },
+        allowedAnnotationIds: ['annotation_1'],
+        tools: [],
+        toolExecutor: vi.fn(),
+      }),
+    );
+
+    const signal = await started.promise;
+    await Effect.runPromise(Fiber.interrupt(fiber));
+
+    expect(signal.aborted).toBe(true);
   });
 });
 
@@ -226,4 +276,12 @@ function provider(): LlmProvider {
     createdAt: '2026-05-26T00:00:00.000Z',
     updatedAt: '2026-05-26T00:00:00.000Z',
   };
+}
+
+function createDeferred<T>() {
+  let resolvePromise: ((value: T) => void) | undefined;
+  const promise = new Promise<T>((resolve) => {
+    resolvePromise = resolve;
+  });
+  return { promise, resolve: (value: T) => resolvePromise?.(value) };
 }
