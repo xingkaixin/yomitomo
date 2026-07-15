@@ -10,6 +10,14 @@ import type {
   TextAnchor,
 } from '@yomitomo/shared';
 import { locateEpubOffset, locateEpubTextAnchor } from '../epub/ebook-index';
+import {
+  createMergedReadingContextRangeLookup,
+  mergeReadingContextTextRanges,
+  type ReadingContextRangeLookup,
+  type ReadingContextTextRange,
+} from './reading-context-ranges';
+
+export type { ReadingContextTextRange } from './reading-context-ranges';
 
 export const selectionAnnotationSpoilerPolicy: SpoilerPolicy = {
   allowedScope: 'current-chapter-so-far',
@@ -34,11 +42,6 @@ export const wholeBookSpoilerPolicy: SpoilerPolicy = {
   allowFutureChapterEvidence: true,
   allowFuturePlotEvents: true,
   userOverride: true,
-};
-
-export type ReadingContextTextRange = {
-  textStart: number;
-  textEnd: number;
 };
 
 export type ReadingContextPassageInput = RelatedPassageInput;
@@ -97,9 +100,10 @@ export function buildReadingContextBundle(
   const targetRange = resolveTargetRange(input.ebookIndex, input.articleText, input.targetAnchor);
   const progress =
     input.readerProgress || inferReaderProgress(input.ebookIndex, input.articleText, input);
-  const ranges = mergeTextRanges(
+  const ranges = mergeReadingContextTextRanges(
     scopeTextRanges(input.ebookIndex, lookup, progress, targetRange, policy),
   );
+  const rangeLookup = createMergedReadingContextRangeLookup(ranges);
 
   return {
     articleText: readingContextText(input.articleText, ranges),
@@ -109,10 +113,10 @@ export function buildReadingContextBundle(
     relatedPassages: filterRelatedPassages(
       lookup,
       input.articleText,
-      ranges,
+      rangeLookup,
       input.relatedPassages || [],
     ),
-    chapterSummaries: filterChapterSummaries(lookup, ranges, input.chapterSummaries || []),
+    chapterSummaries: filterChapterSummaries(lookup, rangeLookup, input.chapterSummaries || []),
   };
 }
 
@@ -289,16 +293,22 @@ function filterFutureChapterRanges(index: EpubBookIndex, ranges: ReadingContextT
 function filterRelatedPassages(
   lookup: EpubContextLookup,
   articleText: string,
-  allowedRanges: ReadingContextTextRange[],
+  allowedRanges: ReadingContextRangeLookup,
   passages: ReadingContextPassageInput[],
 ): ReadingContextPassageInput[] {
   return passages.flatMap((passage) => {
     const range = passageRange(lookup, passage);
-    if (!range) return passageAllowedByIds(lookup, allowedRanges, passage) ? [passage] : [];
+    if (!range) return [];
 
-    const intersections = intersectTextRanges(allowedRanges, range);
+    const intersections = allowedRanges.intersections(range);
     if (intersections.length === 0) return [];
-    if (rangeFullyCovered(range, allowedRanges)) return [passage];
+    if (
+      intersections.length === 1 &&
+      intersections[0]?.textStart === range.textStart &&
+      intersections[0].textEnd === range.textEnd
+    ) {
+      return [passage];
+    }
 
     return intersections.flatMap((item) => {
       const text = articleText.slice(item.textStart, item.textEnd).trim();
@@ -309,13 +319,13 @@ function filterRelatedPassages(
 
 function filterChapterSummaries(
   lookup: EpubContextLookup,
-  allowedRanges: ReadingContextTextRange[],
+  allowedRanges: ReadingContextRangeLookup,
   summaries: ReadingContextChapterSummaryInput[],
 ) {
   return summaries.filter((summary) => {
     if (summary.scope === 'descriptor') return true;
     const chapter = lookup.chapterById.get(summary.chapterId);
-    return chapter ? rangeFullyCovered(chapter, allowedRanges) : false;
+    return chapter ? allowedRanges.fullyCovers(chapter) : false;
   });
 }
 
@@ -340,26 +350,6 @@ function passageRange(
     if (chapter) return { textStart: chapter.textStart, textEnd: chapter.textEnd };
   }
   return null;
-}
-
-function passageAllowedByIds(
-  lookup: EpubContextLookup,
-  allowedRanges: ReadingContextTextRange[],
-  passage: ReadingContextPassageInput,
-) {
-  if (passage.paragraphId) {
-    const paragraph = lookup.paragraphById.get(passage.paragraphId);
-    return paragraph ? rangeFullyCovered(paragraph, allowedRanges) : false;
-  }
-  if (passage.segmentId) {
-    const segment = lookup.segmentById.get(passage.segmentId);
-    return segment ? rangeFullyCovered(segment, allowedRanges) : false;
-  }
-  if (passage.chapterId) {
-    const chapter = lookup.chapterById.get(passage.chapterId);
-    return chapter ? rangeFullyCovered(chapter, allowedRanges) : false;
-  }
-  return false;
 }
 
 function buildEpubContextLookup(index: EpubBookIndex): EpubContextLookup {
@@ -391,46 +381,12 @@ function readingContextText(articleText: string, ranges: ReadingContextTextRange
     .join('\n\n');
 }
 
-function mergeTextRanges(ranges: ReadingContextTextRange[]) {
-  const ordered: ReadingContextTextRange[] = [];
-  for (const range of ranges) {
-    if (range.textEnd <= range.textStart) continue;
-    const insertAt = ordered.findIndex((item) => range.textStart < item.textStart);
-    if (insertAt < 0) {
-      ordered.push(range);
-    } else {
-      ordered.splice(insertAt, 0, range);
-    }
-  }
-  const merged: ReadingContextTextRange[] = [];
-
-  for (const range of ordered) {
-    const previous = merged[merged.length - 1];
-    if (!previous || range.textStart > previous.textEnd) {
-      merged.push({ ...range });
-      continue;
-    }
-    previous.textEnd = Math.max(previous.textEnd, range.textEnd);
-  }
-
-  return merged;
-}
-
 function intersectTextRanges(ranges: ReadingContextTextRange[], target: ReadingContextTextRange) {
   return ranges.flatMap((range) => {
     const textStart = Math.max(range.textStart, target.textStart);
     const textEnd = Math.min(range.textEnd, target.textEnd);
     return textEnd > textStart ? [{ textStart, textEnd }] : [];
   });
-}
-
-function rangeFullyCovered(
-  target: ReadingContextTextRange,
-  allowedRanges: ReadingContextTextRange[],
-) {
-  return allowedRanges.some(
-    (range) => range.textStart <= target.textStart && range.textEnd >= target.textEnd,
-  );
 }
 
 function integerValue(value: number | undefined): number | null {
