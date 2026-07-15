@@ -12,6 +12,30 @@ vi.mock('electron', () => ({
 }));
 
 describe('library collection IPC', () => {
+  it('routes paged catalog reads through collection persistence', async () => {
+    ipcMocks.ipcMainHandle.mockClear();
+    const catalog = {
+      entities: [],
+      itemCounts: { web: 0, ebook: 0, pdf: 0, text: 0, weread: 0 },
+      page: 1,
+      pageSize: 12,
+      query: '',
+      totalCount: 0,
+      unfilteredCount: 0,
+    };
+    const listLibraryCatalog = vi.fn(async () => catalog);
+    registerLibraryCollectionIpc(libraryCollectionIpcContext({ listLibraryCatalog }, {}));
+    const handler = ipcMocks.ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === 'library-catalog:list',
+    )?.[1];
+    const input = { scope: { kind: 'library' as const }, page: 1, pageSize: 12 };
+
+    const result = await handler({}, input);
+
+    expect(result).toEqual({ ok: true, value: catalog });
+    expect(listLibraryCatalog).toHaveBeenCalledWith(input);
+  });
+
   it('broadcasts collection patches after creating a collection', async () => {
     ipcMocks.ipcMainHandle.mockClear();
     const patch = {
@@ -92,6 +116,7 @@ function libraryCollectionIpcContext(
         addCollectionMembers: vi.fn(),
         createCollection: vi.fn(),
         deleteCollection: vi.fn(),
+        listLibraryCatalog: vi.fn(),
         listCollections: vi.fn(),
         listLibraryPins: vi.fn(),
         removeCollectionMember: vi.fn(),

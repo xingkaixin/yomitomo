@@ -50,7 +50,11 @@ import type {
   EbookImportProgressCallback,
   PdfImportProgressCallback,
 } from '../shell/app-reading-types';
-import type { SetLibraryPinInput } from '../../../ipc-contract';
+import type {
+  LibraryCatalogItemCounts,
+  LibraryCatalogListInput,
+  SetLibraryPinInput,
+} from '../../../ipc-contract';
 import type { AppMenuCommandRequest } from '../../../app-menu-types';
 import { libraryContentSourceBaseOptions } from './app-library-content-sources';
 import { CollectionPickerDialog } from './app-reading-library-collection-picker';
@@ -68,6 +72,7 @@ import {
 import { useLibrarySearchClearDissolve } from './app-reading-library-search-clear-dissolve';
 import { librarySession } from './app-reading-library-session';
 import type { LibraryItemType, LibraryTypeFilter } from './library-entity-types';
+import { useLibraryCatalog } from './use-library-catalog';
 
 const LIBRARY_PAGE_SIZE_OPTIONS = [6, 12, 18, 24] as const;
 const LOCAL_LIBRARY_TYPES: LibraryItemType[] = ['web', 'ebook', 'pdf', 'text'];
@@ -196,13 +201,39 @@ export function LibraryHome({
   const [collectionNameDialog, setCollectionNameDialog] =
     useState<CollectionNameDialogState | null>(null);
   const [pickerCollectionId, setPickerCollectionId] = useState<string | null>(null);
-  const wereadAvailable = wereadSettings.configured || wereadBooks.length > 0;
   const activeCollection = activeCollectionId
     ? collections.find((collection) => collection.id === activeCollectionId) || null
     : null;
   const pickerCollection = pickerCollectionId
     ? collections.find((collection) => collection.id === pickerCollectionId) || null
     : null;
+  const selectedTypesKey = useMemo(() => [...selectedTypes].toSorted().join(','), [selectedTypes]);
+  const catalogInput = useMemo<LibraryCatalogListInput>(
+    () => ({
+      scope: activeCollectionId
+        ? { kind: 'collection', collectionId: activeCollectionId }
+        : { kind: 'library' },
+      types:
+        selectedTypes.size > 0
+          ? ([...selectedTypes] as LibraryCatalogListInput['types'])
+          : undefined,
+      query: searchQuery,
+      page,
+      pageSize,
+    }),
+    [activeCollectionId, page, pageSize, searchQuery, selectedTypesKey],
+  );
+  const remoteCatalog = useLibraryCatalog(catalogInput, {
+    articles: sortedArticles,
+    collectionMembers,
+    collections,
+    pins,
+    wereadBooks,
+  });
+  const wereadAvailable =
+    wereadSettings.configured ||
+    wereadBooks.length > 0 ||
+    Boolean(remoteCatalog?.itemCounts.weread);
   const availableTypes = useMemo<LibraryItemType[]>(
     () => (wereadAvailable ? [...LOCAL_LIBRARY_TYPES, 'weread'] : LOCAL_LIBRARY_TYPES),
     [wereadAvailable],
@@ -228,7 +259,6 @@ export function LibraryHome({
     () => [{ value: 'all' as const, label: t('library.typeFilter.all') }, ...itemTypeOptions],
     [itemTypeOptions, t],
   );
-  const selectedTypesKey = useMemo(() => [...selectedTypes].toSorted().join(','), [selectedTypes]);
   const selectedTypeChips = useMemo(
     () => typeOptions.filter((option) => selectedTypes.has(option.value)),
     [typeOptions, selectedTypes],
@@ -303,9 +333,22 @@ export function LibraryHome({
     selectedTypes,
     wereadBooks,
   ]);
-  const activeItemsLength = filteredEntities.length;
+  const fallbackItemCounts = useMemo(
+    () => localLibraryItemCounts(sortedArticles, wereadBooks),
+    [sortedArticles, wereadBooks],
+  );
+  const catalog = remoteCatalog || {
+    entities: filteredEntities.slice((page - 1) * pageSize, page * pageSize),
+    itemCounts: fallbackItemCounts,
+    page,
+    pageSize,
+    query: searchQuery,
+    totalCount: filteredEntities.length,
+    unfilteredCount: unfilteredEntities.length,
+  };
+  const activeItemsLength = catalog.totalCount;
   const pageCount = Math.max(1, Math.ceil(activeItemsLength / pageSize));
-  const pageEntities = filteredEntities.slice((page - 1) * pageSize, page * pageSize);
+  const pageEntities = catalog.entities;
   const pageNumbers = useMemo(() => {
     const visibleCount = Math.min(5, pageCount);
     const start = Math.min(
@@ -319,7 +362,7 @@ export function LibraryHome({
     : singleSelectedType
       ? t(`library.total.${singleSelectedType}`, { count: activeItemsLength })
       : t('library.total.all', { count: activeItemsLength });
-  const libraryHasItems = sortedArticles.length > 0 || wereadBooks.length > 0;
+  const libraryHasItems = Object.values(catalog.itemCounts).some((count) => count > 0);
   const emptyReason = activeCollection
     ? emptyCollectionReason({
         filteredLength: activeItemsLength,
@@ -329,7 +372,7 @@ export function LibraryHome({
       })
     : emptyLibraryReason({
         filteredLength: activeItemsLength,
-        itemsLength: unfilteredEntities.length,
+        itemsLength: catalog.unfilteredCount,
         searchQuery,
         t,
         selectedType: singleSelectedType,
@@ -1031,6 +1074,26 @@ function normalizeLibraryPageSize(value: unknown) {
   return LIBRARY_PAGE_SIZE_OPTIONS.includes(value as (typeof LIBRARY_PAGE_SIZE_OPTIONS)[number])
     ? (value as (typeof LIBRARY_PAGE_SIZE_OPTIONS)[number])
     : 12;
+}
+
+function localLibraryItemCounts(
+  articles: ArticleSummaryRecord[],
+  wereadBooks: WeReadBook[],
+): LibraryCatalogItemCounts {
+  const counts: LibraryCatalogItemCounts = {
+    web: 0,
+    ebook: 0,
+    pdf: 0,
+    text: 0,
+    weread: wereadBooks.length,
+  };
+  for (const article of articles) {
+    const source = LOCAL_LIBRARY_TYPES.includes(article.sourceType as LibraryItemType)
+      ? (article.sourceType as Exclude<LibraryItemType, 'weread'>)
+      : 'web';
+    counts[source] += 1;
+  }
+  return counts;
 }
 
 type LibraryEmptyReason =

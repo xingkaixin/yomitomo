@@ -66,6 +66,56 @@ describe('reading memory migrations', () => {
     expect(tableNames(database)).toContain('secret_deletion_tasks');
   });
 
+  it('adds the article catalog pagination index', () => {
+    const database = new DatabaseSync(':memory:');
+    const initial = migrations.find((item) => item.id === '0001_initial');
+    const articleSource = migrations.find((item) => item.id === '0022_article_ebook_source');
+    const migration = migrations.find((item) => item.id === '0062_library_catalog_index');
+    if (!initial || !articleSource || !migration) {
+      throw new Error('missing library catalog migration');
+    }
+
+    database.exec(initial.sql);
+    database.exec(articleSource.sql);
+    database.exec(migration.sql);
+
+    expect(indexNames(database)).toContain('articles_library_catalog_idx');
+  });
+
+  it('keeps the trigram catalog search index in sync', () => {
+    const database = new DatabaseSync(':memory:');
+    for (const id of [
+      '0001_initial',
+      '0014_article_cover_metadata',
+      '0022_article_ebook_source',
+      '0023_article_reading_progress',
+      '0032_article_pdf_metadata',
+      '0033_weread_sync',
+      '0054_library_collections_pins',
+      '0060_article_text_metadata',
+      '0063_library_catalog_search',
+    ]) {
+      const migration = migrations.find((item) => item.id === id);
+      if (!migration) throw new Error(`missing migration ${id}`);
+      database.exec(migration.sql);
+    }
+    insertArticle(database, 'article_search');
+    database.exec("UPDATE articles SET title = 'Catalog needle' WHERE id = 'article_search'");
+
+    const row = database
+      .prepare(`
+        SELECT id
+        FROM library_catalog_fts
+        WHERE kind = 'article' AND library_catalog_fts MATCH '"needle"'
+      `)
+      .get() as { id: string } | undefined;
+
+    expect(row?.id).toBe('article_search');
+
+    database.exec("DELETE FROM articles WHERE id = 'article_search'");
+    expect(countRows(database, 'library_catalog_fts')).toBe(0);
+  });
+
   it('clears derived ebook content html without touching web articles', () => {
     const database = new DatabaseSync(':memory:');
     for (const id of ['0001_initial', '0004_article_content_html', '0022_article_ebook_source']) {

@@ -449,7 +449,7 @@ function insertWeReadThought(database: StoreExecutor, thought: WeReadThought) {
     .run();
 }
 
-function rowToWeReadBook(row: typeof schema.wereadBooks.$inferSelect): WeReadBook {
+export function rowToWeReadBook(row: typeof schema.wereadBooks.$inferSelect): WeReadBook {
   return {
     bookId: row.bookId,
     title: row.title,

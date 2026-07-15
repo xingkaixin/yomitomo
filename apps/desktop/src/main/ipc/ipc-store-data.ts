@@ -50,7 +50,7 @@ type StoreDataIpcContext = Pick<
     >;
     storeSnapshotPersistence: Pick<
       DesktopPersistenceModule['storeSnapshotPersistence'],
-      'readStoreWithProfile'
+      'readShellStoreWithProfile'
     >;
   }>;
 };
@@ -65,7 +65,7 @@ export function registerStoreDataIpc(context: StoreDataIpcContext) {
         await context.getPersistenceModule();
       const importDurationMs = context.elapsedMs(importStartedAt);
       const readStartedAt = performance.now();
-      let { store, profile } = await storeSnapshotPersistence.readStoreWithProfile();
+      let { store, profile } = await storeSnapshotPersistence.readShellStoreWithProfile();
       if (shouldApplyStartupAppLock(store.settings)) {
         const lockStartedAt = performance.now();
         const saveSettings =

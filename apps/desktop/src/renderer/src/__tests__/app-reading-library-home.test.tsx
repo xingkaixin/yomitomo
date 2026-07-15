@@ -24,6 +24,7 @@ import {
   nextDistillationAnimationArticleUpdatedAt,
 } from '../reading-library/app-reading-library';
 import type { AppMenuCommandRequest } from '../../../app-menu-types';
+import type { LibraryCatalogListInput, LibraryCatalogListResult } from '../../../ipc-contract';
 import { librarySession } from '../reading-library/app-reading-library-session';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { defaultTheme } from '../theme/app-theme';
@@ -503,6 +504,59 @@ describe('articleWithDistillationAnimationStart', () => {
 });
 
 describe('ReadingLibrary home', () => {
+  it('uses the paged catalog as the mixed library fact source', async () => {
+    const listLibraryCatalog = vi.fn(
+      async (input: LibraryCatalogListInput): Promise<LibraryCatalogListResult> => {
+        const remoteArticle = articleSummary(
+          article({
+            id: `remote_${input.page}`,
+            title: `远程目录第 ${input.page} 页`,
+          }),
+        );
+        return {
+          entities: [
+            {
+              kind: 'item',
+              ref: { kind: 'article', id: remoteArticle.id },
+              type: 'web',
+              sortTime: remoteArticle.createdAt,
+              pinned: false,
+              article: remoteArticle,
+            },
+          ],
+          itemCounts: { web: 13, ebook: 0, pdf: 0, text: 0, weread: 0 },
+          page: input.page || 1,
+          pageSize: input.pageSize || 12,
+          query: input.query || '',
+          totalCount: 13,
+          unfilteredCount: 13,
+        };
+      },
+    );
+    vi.stubGlobal('yomitomoDesktop', {
+      getWeReadSettings: vi.fn(async () => ({ configured: false, openMethod: 'deeplink' })),
+      listLibraryCatalog,
+    });
+
+    renderLibrary([]);
+
+    await screen.findByRole('heading', { name: '远程目录第 1 页' });
+    expect(listLibraryCatalog).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        scope: { kind: 'library' },
+        page: 1,
+        pageSize: 12,
+      }),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '下一页' }));
+
+    await screen.findByRole('heading', { name: '远程目录第 2 页' });
+    expect(listLibraryCatalog).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 2, pageSize: 12 }),
+    );
+  });
+
   it('renders a single mixed grid sorted by added time', () => {
     renderLibrary([
       article({

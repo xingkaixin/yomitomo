@@ -14,6 +14,10 @@ type WeReadIpcContext = Pick<
 };
 
 export function registerWeReadIpc(context: WeReadIpcContext) {
+  handleDesktopIpc('weread:get-settings', async () => {
+    const { weReadPersistence } = await context.getPersistenceModule();
+    return weReadPersistence.readWeReadSettings();
+  });
   handleDesktopIpc('weread:get-state', async () => {
     const { weReadPersistence } = await context.getPersistenceModule();
     return weReadPersistence.readWeReadState();

@@ -3,7 +3,7 @@ import {
   ReaderTooltip,
   ReaderTooltipProvider,
 } from '@yomitomo/reader-ui/reader-component-primitives';
-import { GripVertical, LibraryBig, Plus, Search, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripVertical, LibraryBig, Plus, Search, X } from 'lucide-react';
 import type {
   ArticleSummaryRecord,
   Collection,
@@ -22,6 +22,7 @@ import {
   SelectTrigger,
 } from '../components/ui/select';
 import { Button } from '../components/ui/button';
+import type { LibraryCatalogListInput } from '../../../ipc-contract';
 import {
   Dialog,
   DialogContent,
@@ -45,6 +46,9 @@ import {
   useLibraryDroppable,
 } from './app-reading-library-dnd';
 import type { LibraryItemEntity, LibraryItemType, LibraryTypeScope } from './library-entity-types';
+import { useLibraryCatalog } from './use-library-catalog';
+
+const PICKER_PAGE_SIZE = 30;
 
 type CollectionPickerDialogProps = {
   articles: ArticleSummaryRecord[];
@@ -80,7 +84,8 @@ function CollectionPickerDialogContent({
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [typeScope, setTypeScope] = useState<LibraryTypeScope>('all');
-  const [selectedRefs, setSelectedRefs] = useState<Map<string, ContentRef>>(() => new Map());
+  const [page, setPage] = useState(1);
+  const [selectedRefs, setSelectedRefs] = useState<Map<string, LibraryItemEntity>>(() => new Map());
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const currentMemberKeys = useMemo(
@@ -92,23 +97,7 @@ function CollectionPickerDialogContent({
       ),
     [collection.id, collectionMembers],
   );
-  const allAvailablePickerItems = useMemo(
-    () =>
-      buildLibraryEntities({
-        articles,
-        collectionMembers: [],
-        collections: [],
-        enabledTypes: availableTypes,
-        pins,
-        query: '',
-        typeFilter: libraryTypeFilterFromScope('all'),
-        wereadBooks,
-      })
-        .filter((entity): entity is LibraryItemEntity => entity.kind === 'item')
-        .filter((entity) => !currentMemberKeys.has(contentRefKey(entity.ref))),
-    [articles, availableTypes, currentMemberKeys, pins, wereadBooks],
-  );
-  const visiblePickerItems = useMemo(
+  const localPickerItems = useMemo(
     () =>
       buildLibraryEntities({
         articles,
@@ -124,39 +113,56 @@ function CollectionPickerDialogContent({
         .filter((entity) => !currentMemberKeys.has(contentRefKey(entity.ref))),
     [articles, availableTypes, currentMemberKeys, pins, query, typeScope, wereadBooks],
   );
+  const catalogInput = useMemo<LibraryCatalogListInput>(
+    () => ({
+      scope: { kind: 'picker', collectionId: collection.id },
+      types: typeScope === 'all' ? undefined : [typeScope],
+      query,
+      page,
+      pageSize: PICKER_PAGE_SIZE,
+    }),
+    [collection.id, page, query, typeScope],
+  );
+  const remoteCatalog = useLibraryCatalog(catalogInput, {
+    articles,
+    collectionMembers,
+    collections: collection,
+    pins,
+    wereadBooks,
+  });
   const selectedItems = useMemo(() => Array.from(selectedRefs.values()), [selectedRefs]);
   const selectedKeys = useMemo(() => new Set(selectedRefs.keys()), [selectedRefs]);
+  const visiblePickerItems = remoteCatalog
+    ? remoteCatalog.entities.filter((entity): entity is LibraryItemEntity => entity.kind === 'item')
+    : localPickerItems.slice((page - 1) * PICKER_PAGE_SIZE, page * PICKER_PAGE_SIZE);
   const pickerItems = useMemo(
     () => visiblePickerItems.filter((item) => !selectedKeys.has(contentRefKey(item.ref))),
     [visiblePickerItems, selectedKeys],
   );
-  const itemByRef = useMemo(
-    () => new Map(allAvailablePickerItems.map((item) => [contentRefKey(item.ref), item])),
-    [allAvailablePickerItems],
-  );
-  const selectedEntities = useMemo(
-    () =>
-      selectedItems
-        .map((ref) => itemByRef.get(contentRefKey(ref)))
-        .filter((item): item is LibraryItemEntity => Boolean(item)),
-    [itemByRef, selectedItems],
-  );
+  const totalCount = remoteCatalog?.totalCount ?? localPickerItems.length;
+  const pageCount = Math.max(1, Math.ceil(totalCount / PICKER_PAGE_SIZE));
   const activeTypeLabel =
     typeOptions.find((option) => option.value === typeScope)?.label || t('library.typeFilter.all');
 
-  function toggleItem(ref: ContentRef) {
+  function toggleItem(item: LibraryItemEntity) {
     setSelectedRefs((current) => {
       const next = new Map(current);
-      const key = contentRefKey(ref);
+      const key = contentRefKey(item.ref);
       if (next.has(key)) next.delete(key);
-      else next.set(key, ref);
+      else next.set(key, item);
       return next;
     });
+  }
+  function toggleItemRef(ref: ContentRef) {
+    const key = contentRefKey(ref);
+    const item =
+      selectedRefs.get(key) || visiblePickerItems.find((entry) => contentRefKey(entry.ref) === key);
+    if (item) toggleItem(item);
   }
   const { isDropTarget: selectionDragOver, ref: selectionDropRef } = useLibraryDroppable({
     id: `picker-selection:${collection.id}`,
     label: t('library.collection.pendingMembers', { count: selectedItems.length }),
-    onDrop: toggleItem,
+    onDrop: toggleItemRef,
   });
 
   async function confirm() {
@@ -164,7 +170,7 @@ function CollectionPickerDialogContent({
     setSubmitting(true);
     setError('');
     try {
-      await onAddMembers(selectedItems);
+      await onAddMembers(selectedItems.map((item) => item.ref));
       onClose();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('library.collection.saveFailed'));
@@ -197,11 +203,17 @@ function CollectionPickerDialogContent({
                     value={query}
                     placeholder={t('library.collection.pickerSearchPlaceholder')}
                     aria-label={t('library.collection.pickerSearchLabel')}
-                    onChange={(event) => setQuery(event.target.value)}
+                    onChange={(event) => {
+                      setPage(1);
+                      setQuery(event.target.value);
+                    }}
                   />
                   <Select
                     value={typeScope}
-                    onValueChange={(value) => setTypeScope(value as LibraryTypeScope)}
+                    onValueChange={(value) => {
+                      setPage(1);
+                      setTypeScope(value as LibraryTypeScope);
+                    }}
                   >
                     <SelectTrigger
                       className="library-type-filter-trigger"
@@ -228,12 +240,33 @@ function CollectionPickerDialogContent({
                       <CollectionPickerItem
                         item={item}
                         key={contentRefKey(item.ref)}
-                        onSelect={() => toggleItem(item.ref)}
+                        onSelect={() => toggleItem(item)}
                       />
                     ))
                   ) : (
                     <p>{t('library.collection.pickerNoItems')}</p>
                   )}
+                  {pageCount > 1 ? (
+                    <div className="library-pagination" aria-label={t('library.pagination.label')}>
+                      <button
+                        type="button"
+                        aria-label={t('library.pagination.previous')}
+                        disabled={page === 1}
+                        onClick={() => setPage((current) => Math.max(1, current - 1))}
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+                      <span>{`${page} / ${pageCount}`}</span>
+                      <button
+                        type="button"
+                        aria-label={t('library.pagination.next')}
+                        disabled={page === pageCount}
+                        onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
                 <div
                   ref={selectionDropRef}
@@ -244,9 +277,9 @@ function CollectionPickerDialogContent({
                   }
                 >
                   <h3>{t('library.collection.pendingMembers', { count: selectedItems.length })}</h3>
-                  {selectedEntities.length > 0 ? (
+                  {selectedItems.length > 0 ? (
                     <div className="library-collection-picker-selected-grid">
-                      {selectedEntities.map((item) => {
+                      {selectedItems.map((item) => {
                         const title = libraryItemTitle(item);
                         return (
                           <ReaderTooltip content={title} key={contentRefKey(item.ref)}>
@@ -254,7 +287,7 @@ function CollectionPickerDialogContent({
                               className="library-collection-picker-selected-item"
                               type="button"
                               aria-label={`${t('library.collection.removeMember')}：${title}`}
-                              onClick={() => toggleItem(item.ref)}
+                              onClick={() => toggleItem(item)}
                             >
                               <CollectionPickerCover
                                 item={item}

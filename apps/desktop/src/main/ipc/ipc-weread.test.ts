@@ -23,6 +23,24 @@ vi.mock('../weread/weread-client', async (importOriginal) => {
 });
 
 describe('weread IPC persistence boundary', () => {
+  it('reads startup settings without loading the full book catalog', async () => {
+    ipcMocks.ipcMainHandle.mockClear();
+    const settings = { configured: false, openMethod: 'deeplink' as const };
+    const readWeReadSettings = vi.fn(async () => settings);
+    const readWeReadState = vi.fn();
+
+    registerWeReadIpc(weReadIpcContext({ readWeReadSettings, readWeReadState }));
+    const handler = ipcMocks.ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === 'weread:get-settings',
+    )?.[1];
+
+    const result = await handler({});
+
+    expect(result).toEqual({ ok: true, value: settings });
+    expect(readWeReadSettings).toHaveBeenCalledOnce();
+    expect(readWeReadState).not.toHaveBeenCalled();
+  });
+
   it('reads WeRead API keys through WeRead persistence only', async () => {
     ipcMocks.ipcMainHandle.mockClear();
     const readStoredWeReadApiKey = vi.fn(async () => 'weread-secret');

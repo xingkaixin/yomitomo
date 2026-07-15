@@ -1,26 +1,15 @@
-import type { ArticleSummaryRecord, Collection, ContentRef, WeReadBook } from '@yomitomo/shared';
+import type {
+  LibraryCatalogCollection,
+  LibraryCatalogItem,
+  LibraryCatalogItemType,
+} from '../../../ipc-contract';
 
-export type LibraryItemType = 'web' | 'ebook' | 'pdf' | 'text' | 'weread';
+export type LibraryItemType = LibraryCatalogItemType;
 
-export type LibraryItemEntity = {
-  kind: 'item';
-  ref: ContentRef;
-  type: LibraryItemType;
-  sortTime: string;
-  pinned: boolean;
-  article?: ArticleSummaryRecord;
-  weread?: WeReadBook;
-};
+export type LibraryItemEntity = LibraryCatalogItem;
 
-export type LibraryCollectionEntity = {
-  kind: 'col';
-  collection: Collection;
-  memberRefs: ContentRef[];
-  coverMembers: LibraryItemEntity[];
-  searchMembers: LibraryItemEntity[];
-  memberCount: number;
-  sortTime: string;
-  pinned: boolean;
+export type LibraryCollectionEntity = LibraryCatalogCollection & {
+  searchMembers?: LibraryItemEntity[];
 };
 
 export type LibraryEntity = LibraryItemEntity | LibraryCollectionEntity;

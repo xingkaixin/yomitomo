@@ -354,12 +354,17 @@ export function ReadingLibrary({
 
   useEffect(() => {
     let cancelled = false;
-    void window.yomitomoDesktop
-      ?.getWeReadState?.()
-      .then((state) => {
+    const desktop = window.yomitomoDesktop;
+    const loadSettings = desktop?.getWeReadSettings
+      ? desktop.getWeReadSettings().then((loadedSettings) => ({ settings: loadedSettings }))
+      : desktop?.getWeReadState?.();
+    void loadSettings
+      ?.then((state) => {
         if (cancelled) return;
         setWeReadSettings(state.settings);
-        setWeReadBooks(state.books);
+        if ('books' in state && Array.isArray(state.books)) {
+          setWeReadBooks(state.books as WeReadBook[]);
+        }
       })
       .catch(() => undefined);
     return () => {

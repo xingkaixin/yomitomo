@@ -11,6 +11,10 @@ type LibraryCollectionIpcContext = Pick<
 };
 
 export function registerLibraryCollectionIpc(context: LibraryCollectionIpcContext) {
+  handleDesktopIpc('library-catalog:list', async (_event, input) => {
+    const { collectionPersistence } = await context.getPersistenceModule();
+    return collectionPersistence.listLibraryCatalog(input);
+  });
   handleDesktopIpc('library-collection:list', async () => {
     const { collectionPersistence } = await context.getPersistenceModule();
     return collectionPersistence.listCollections();

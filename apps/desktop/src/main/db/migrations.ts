@@ -895,6 +895,146 @@ CREATE TABLE IF NOT EXISTS secret_deletion_tasks (
 );
 `,
   },
+  {
+    id: '0062_library_catalog_index',
+    sql: `
+CREATE INDEX IF NOT EXISTS articles_library_catalog_idx
+ON articles(source_type, created_at DESC, title, id);
+`,
+  },
+  {
+    id: '0063_library_catalog_search',
+    sql: `
+CREATE VIRTUAL TABLE IF NOT EXISTS library_catalog_fts USING fts5(
+  kind UNINDEXED,
+  id UNINDEXED,
+  search_text,
+  tokenize='trigram'
+);
+
+CREATE TRIGGER IF NOT EXISTS library_catalog_articles_insert
+AFTER INSERT ON articles BEGIN
+  INSERT INTO library_catalog_fts (kind, id, search_text)
+  VALUES (
+    'article',
+    new.id,
+    coalesce(new.title, '') || ' ' ||
+    coalesce(new.byline, '') || ' ' ||
+    coalesce(new.site_name, '') || ' ' ||
+    coalesce(new.excerpt, '') || ' ' ||
+    coalesce(new.url, '') || ' ' ||
+    coalesce(new.canonical_url, '') || ' ' ||
+    coalesce(new.ebook_metadata, '') || ' ' ||
+    coalesce(new.pdf_metadata, '') || ' ' ||
+    coalesce(new.text_metadata, '')
+  );
+END;
+
+CREATE TRIGGER IF NOT EXISTS library_catalog_articles_update
+AFTER UPDATE OF
+  title,
+  byline,
+  site_name,
+  excerpt,
+  url,
+  canonical_url,
+  ebook_metadata,
+  pdf_metadata,
+  text_metadata
+ON articles BEGIN
+  DELETE FROM library_catalog_fts WHERE kind = 'article' AND id = old.id;
+  INSERT INTO library_catalog_fts (kind, id, search_text)
+  VALUES (
+    'article',
+    new.id,
+    coalesce(new.title, '') || ' ' ||
+    coalesce(new.byline, '') || ' ' ||
+    coalesce(new.site_name, '') || ' ' ||
+    coalesce(new.excerpt, '') || ' ' ||
+    coalesce(new.url, '') || ' ' ||
+    coalesce(new.canonical_url, '') || ' ' ||
+    coalesce(new.ebook_metadata, '') || ' ' ||
+    coalesce(new.pdf_metadata, '') || ' ' ||
+    coalesce(new.text_metadata, '')
+  );
+END;
+
+CREATE TRIGGER IF NOT EXISTS library_catalog_articles_delete
+AFTER DELETE ON articles BEGIN
+  DELETE FROM library_catalog_fts WHERE kind = 'article' AND id = old.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS library_catalog_weread_insert
+AFTER INSERT ON weread_books BEGIN
+  INSERT INTO library_catalog_fts (kind, id, search_text)
+  VALUES (
+    'weread',
+    new.book_id,
+    coalesce(new.title, '') || ' ' || coalesce(new.author, '') || ' ' || coalesce(new.intro, '')
+  );
+END;
+
+CREATE TRIGGER IF NOT EXISTS library_catalog_weread_update
+AFTER UPDATE OF title, author, intro ON weread_books BEGIN
+  DELETE FROM library_catalog_fts WHERE kind = 'weread' AND id = old.book_id;
+  INSERT INTO library_catalog_fts (kind, id, search_text)
+  VALUES (
+    'weread',
+    new.book_id,
+    coalesce(new.title, '') || ' ' || coalesce(new.author, '') || ' ' || coalesce(new.intro, '')
+  );
+END;
+
+CREATE TRIGGER IF NOT EXISTS library_catalog_weread_delete
+AFTER DELETE ON weread_books BEGIN
+  DELETE FROM library_catalog_fts WHERE kind = 'weread' AND id = old.book_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS library_catalog_collections_insert
+AFTER INSERT ON collections BEGIN
+  INSERT INTO library_catalog_fts (kind, id, search_text)
+  VALUES ('collection', new.id, coalesce(new.name, '') || ' ' || coalesce(new.desc, ''));
+END;
+
+CREATE TRIGGER IF NOT EXISTS library_catalog_collections_update
+AFTER UPDATE OF name, desc ON collections BEGIN
+  DELETE FROM library_catalog_fts WHERE kind = 'collection' AND id = old.id;
+  INSERT INTO library_catalog_fts (kind, id, search_text)
+  VALUES ('collection', new.id, coalesce(new.name, '') || ' ' || coalesce(new.desc, ''));
+END;
+
+CREATE TRIGGER IF NOT EXISTS library_catalog_collections_delete
+AFTER DELETE ON collections BEGIN
+  DELETE FROM library_catalog_fts WHERE kind = 'collection' AND id = old.id;
+END;
+
+INSERT INTO library_catalog_fts (kind, id, search_text)
+SELECT
+  'article',
+  id,
+  coalesce(title, '') || ' ' ||
+  coalesce(byline, '') || ' ' ||
+  coalesce(site_name, '') || ' ' ||
+  coalesce(excerpt, '') || ' ' ||
+  coalesce(url, '') || ' ' ||
+  coalesce(canonical_url, '') || ' ' ||
+  coalesce(ebook_metadata, '') || ' ' ||
+  coalesce(pdf_metadata, '') || ' ' ||
+  coalesce(text_metadata, '')
+FROM articles;
+
+INSERT INTO library_catalog_fts (kind, id, search_text)
+SELECT
+  'weread',
+  book_id,
+  coalesce(title, '') || ' ' || coalesce(author, '') || ' ' || coalesce(intro, '')
+FROM weread_books;
+
+INSERT INTO library_catalog_fts (kind, id, search_text)
+SELECT 'collection', id, coalesce(name, '') || ' ' || coalesce(desc, '')
+FROM collections;
+`,
+  },
 ];
 
 type MigrationDatabase = {
