@@ -613,15 +613,20 @@ export function WebSourceBookcase({
       scheduleWebProgressSave(webReadingProgressSnapshot(progress));
     };
 
-    const initialFrame = window.requestAnimationFrame(() => {
-      const progress = scheduleProgressUpdate();
-      if (webReaderMaxScrollTop(scrollElement) <= 0)
-        void saveWebProgressNow(webReadingProgressSnapshot(progress));
+    let initialFrame: number | null = null;
+    initialFrame = window.requestAnimationFrame(() => {
+      initialFrame = window.requestAnimationFrame(() => {
+        initialFrame = null;
+        const progress = webReaderProgress(scrollElement);
+        setReadingProgress(progress);
+        if (webReaderMaxScrollTop(scrollElement) <= 0)
+          void saveWebProgressNow(webReadingProgressSnapshot(progress));
+      });
     });
     scrollElement.addEventListener('scroll', scheduleSave, { passive: true });
     return () => {
       scrollElement.removeEventListener('scroll', scheduleSave);
-      window.cancelAnimationFrame(initialFrame);
+      if (initialFrame !== null) window.cancelAnimationFrame(initialFrame);
       progressFrame.cancel();
     };
   }, [article.id, saveWebProgressNow, scheduleWebProgressSave]);
