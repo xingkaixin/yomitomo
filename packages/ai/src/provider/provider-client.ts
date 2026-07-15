@@ -1,12 +1,45 @@
 import type { LlmProvider, ProviderModel } from '@yomitomo/shared';
 import { providerPresets } from '@yomitomo/shared';
-import { Effect } from 'effect';
+import { Effect, Schema } from 'effect';
 import { normalizeAnthropicError } from './budget';
 import { geminiBaseUrl, openAIBaseUrl } from './ai-sdk-provider-adapter';
 import { generateYomitomoTextEffect, streamYomitomoTextEffect } from './generation-runtime';
 import type { GenerateOptions, TextPayload } from './provider-client-types';
 
 const defaultProviderPreset = providerPresets.find((preset) => preset.id === 'deepseek');
+
+const openAIModelListResponseSchema = Schema.Struct({
+  data: Schema.optionalKey(
+    Schema.Array(
+      Schema.Struct({
+        id: Schema.optionalKey(Schema.String),
+        name: Schema.optionalKey(Schema.String),
+      }),
+    ),
+  ),
+});
+
+const anthropicModelListResponseSchema = Schema.Struct({
+  data: Schema.optionalKey(
+    Schema.Array(
+      Schema.Struct({
+        id: Schema.optionalKey(Schema.String),
+        display_name: Schema.optionalKey(Schema.String),
+      }),
+    ),
+  ),
+});
+
+const geminiModelListResponseSchema = Schema.Struct({
+  models: Schema.optionalKey(
+    Schema.Array(
+      Schema.Struct({
+        name: Schema.optionalKey(Schema.String),
+        displayName: Schema.optionalKey(Schema.String),
+      }),
+    ),
+  ),
+});
 
 export type {
   GenerateOptions,
@@ -107,9 +140,7 @@ function listOpenAICompatibleModelsEffect(
       const message = yield* modelListErrorEffect(response);
       return yield* Effect.fail(new ProviderHttpError(message));
     }
-    const data = yield* responseJsonEffect<{
-      data?: Array<{ id?: string; name?: string }>;
-    }>(response);
+    const data = yield* responseJsonEffect(response, openAIModelListResponseSchema);
     return modelList(
       data.data?.map((model) => ({
         id: model.id || '',
@@ -136,9 +167,7 @@ function listAnthropicModelsEffect(
         new ProviderHttpError(normalizeAnthropicError(response.status, text)),
       );
     }
-    const data = yield* responseJsonEffect<{
-      data?: Array<{ id?: string; display_name?: string }>;
-    }>(response);
+    const data = yield* responseJsonEffect(response, anthropicModelListResponseSchema);
     return modelList(
       data.data?.map((model) => ({
         id: model.id || '',
@@ -159,9 +188,7 @@ function listGeminiModelsEffect(
       const message = yield* modelListErrorEffect(response);
       return yield* Effect.fail(new ProviderHttpError(message));
     }
-    const data = yield* responseJsonEffect<{
-      models?: Array<{ name?: string; displayName?: string }>;
-    }>(response);
+    const data = yield* responseJsonEffect(response, geminiModelListResponseSchema);
     return modelList(
       data.models?.map((model) => {
         const id = (model.name || '').replace(/^models\//, '');
@@ -202,11 +229,14 @@ function fetchProviderModels(
   });
 }
 
-function responseJsonEffect<T>(response: Response): Effect.Effect<T, ProviderResponseDecodeError> {
+function responseJsonEffect<S extends Schema.Constraint>(response: Response, schema: S) {
   return Effect.tryPromise({
-    try: () => response.json() as Promise<T>,
-    catch: (error) => new ProviderResponseDecodeError(error),
-  });
+    try: () => response.json(),
+    catch: (error) => error,
+  }).pipe(
+    Effect.flatMap(Schema.decodeUnknownEffect(schema)),
+    Effect.mapError((error) => new ProviderResponseDecodeError(error)),
+  );
 }
 
 function responseTextEffect(response: Response) {
