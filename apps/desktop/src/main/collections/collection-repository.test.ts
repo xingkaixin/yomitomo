@@ -67,6 +67,49 @@ describe('collection repository', () => {
     ]);
   });
 
+  it('preserves database member order across multiple and empty collections', () => {
+    const database = repositoryDatabase();
+    const first = createCollectionRows(database, { name: 'First' }).collection;
+    const second = createCollectionRows(database, { name: 'Second' }).collection;
+    const empty = createCollectionRows(database, { name: 'Empty' }).collection;
+    database
+      .insert(schema.collectionMembers)
+      .values([
+        {
+          collectionId: first.id,
+          memberKind: 'article',
+          memberId: 'first-newer',
+          addedAt: '2026-07-15T03:00:00.000Z',
+        },
+        {
+          collectionId: second.id,
+          memberKind: 'article',
+          memberId: 'second-only',
+          addedAt: '2026-07-15T02:00:00.000Z',
+        },
+        {
+          collectionId: first.id,
+          memberKind: 'article',
+          memberId: 'first-older',
+          addedAt: '2026-07-15T01:00:00.000Z',
+        },
+      ])
+      .run();
+
+    const collectionById = new Map(
+      readCollectionsWithMembersRows(database).map((collection) => [collection.id, collection]),
+    );
+
+    expect(collectionById.get(first.id)?.members.map((member) => member.member.id)).toEqual([
+      'first-newer',
+      'first-older',
+    ]);
+    expect(collectionById.get(second.id)?.members.map((member) => member.member.id)).toEqual([
+      'second-only',
+    ]);
+    expect(collectionById.get(empty.id)?.members).toEqual([]);
+  });
+
   it('removes one member without deleting sibling members', () => {
     const database = repositoryDatabase();
     const { collection } = createCollectionRows(database, { name: '合集' });

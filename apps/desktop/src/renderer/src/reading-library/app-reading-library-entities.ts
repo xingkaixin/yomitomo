@@ -177,10 +177,9 @@ function buildCollectionEntities({
 }): LibraryCollectionEntity[] {
   const membersByCollection = new Map<string, CollectionMember[]>();
   for (const member of collectionMembers) {
-    membersByCollection.set(member.collectionId, [
-      ...(membersByCollection.get(member.collectionId) || []),
-      member,
-    ]);
+    const members = membersByCollection.get(member.collectionId);
+    if (members) members.push(member);
+    else membersByCollection.set(member.collectionId, [member]);
   }
 
   return collections.map((collection) => {
