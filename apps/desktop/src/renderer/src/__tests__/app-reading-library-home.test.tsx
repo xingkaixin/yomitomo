@@ -15,14 +15,13 @@ import type {
   UserProfile,
   WeReadBook,
 } from '@yomitomo/shared';
+import { ReadingLibrary, groupLibraryArticles } from '../reading-library/app-reading-library';
 import {
-  ReadingLibrary,
   articleDistillationStateChanged,
   articleWithCommittedDistillation,
   articleWithDistillationAnimationStart,
-  groupLibraryArticles,
   nextDistillationAnimationArticleUpdatedAt,
-} from '../reading-library/app-reading-library';
+} from '../reading-library/app-reading-library-distillation';
 import type { AppMenuCommandRequest } from '../../../app-menu-types';
 import type { LibraryCatalogListInput, LibraryCatalogListResult } from '../../../ipc-contract';
 import { librarySession } from '../reading-library/app-reading-library-session';

@@ -185,6 +185,8 @@ export function useReadingLibraryNavigation({
   return { actions, model };
 }
 
+export type ReadingLibraryNavigation = ReturnType<typeof useReadingLibraryNavigation>;
+
 function readingLibraryRoute(
   route: ReadingLibraryRoute,
   event: ReadingLibraryNavigationEvent,
