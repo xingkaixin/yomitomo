@@ -1,41 +1,27 @@
-import { ipcMain, type IpcMainEvent } from 'electron';
+import type { IpcMainEvent } from 'electron';
 import type {
   AssistantRuntimeProgressEvent,
   AssistantRuntimeProgressSummary,
 } from '@yomitomo/shared';
 import type { AssistantRuntimeStreamEvent, AssistantToolName } from '@yomitomo/ai';
-import {
-  desktopIpcErrorCodes,
-  serializeDesktopIpcError,
-  type SerializedDesktopIpcError,
-} from '../../ipc-errors';
+import type {
+  DesktopIpcStreamChannel,
+  DesktopIpcStreamErrorEvent,
+  DesktopIpcStreamEvent,
+  DesktopIpcStreamRequest,
+  DesktopIpcStreamResponseChannel,
+} from '../../ipc-contract';
+import { desktopIpcErrorCodes, serializeDesktopIpcError } from '../../ipc-errors';
+import { desktopIpcStreamResponseChannel } from '../../ipc-stream-channel';
+import { onDesktopIpcStreamRequest, sendDesktopIpcStreamEvent } from './ipc-events';
 
-export type AgentStreamRequest<TPayload> = {
-  requestId: string;
-  payload: TPayload;
+export type AgentStreamSender<Channel extends DesktopIpcStreamChannel> = {
+  channel: DesktopIpcStreamResponseChannel<Channel>;
+  send: (message: DesktopIpcStreamEvent<Channel>) => void;
 };
 
-export type AgentStreamErrorEvent = {
-  type: 'error';
-  message: string;
-  error: SerializedDesktopIpcError;
-};
-
-export type AgentStreamEvent =
-  | { type: 'start'; [key: string]: unknown }
-  | { type: 'delta'; delta: string }
-  | { type: 'progress'; progress: AssistantRuntimeProgressEvent }
-  | { type: 'item'; [key: string]: unknown }
-  | { type: 'done'; [key: string]: unknown }
-  | AgentStreamErrorEvent;
-
-export type AgentStreamSender<TEvent extends AgentStreamEvent> = {
-  channel: string;
-  send: (message: TEvent) => void;
-};
-
-export type AgentStreamGuard<TPayload> = (
-  input: AgentStreamRequest<TPayload>,
+export type AgentStreamGuard<Channel extends DesktopIpcStreamChannel> = (
+  input: DesktopIpcStreamRequest<Channel>,
   event: IpcMainEvent,
 ) => Promise<void>;
 
@@ -47,26 +33,26 @@ type AgentTextStreamSender = {
   send: (message: AgentTextStreamEvent) => void;
 };
 
-export function runAgentStreamIpc<TPayload, TEvent extends AgentStreamEvent>(
-  requestChannel: string,
+export function runAgentStreamIpc<Channel extends DesktopIpcStreamChannel>(
+  requestChannel: Channel,
   fallbackMessage: string,
   handler: (
-    input: AgentStreamRequest<TPayload>,
-    sender: AgentStreamSender<TEvent>,
+    input: DesktopIpcStreamRequest<Channel>,
+    sender: AgentStreamSender<Channel>,
     event: IpcMainEvent,
   ) => Promise<void>,
-  guard?: AgentStreamGuard<TPayload>,
+  guard?: AgentStreamGuard<Channel>,
 ) {
-  ipcMain.on(requestChannel, async (event, input: AgentStreamRequest<TPayload>) => {
-    const sender = createAgentStreamSender<TEvent>(
+  onDesktopIpcStreamRequest(requestChannel, async (event, input) => {
+    const sender = createAgentStreamSender(
       event,
-      streamResponseChannel(requestChannel, input),
+      desktopIpcStreamResponseChannel(requestChannel, input.requestId),
     );
     try {
       await guard?.(input, event);
       await handler(input, sender, event);
     } catch (error) {
-      sender.send(agentStreamError(error, fallbackMessage) as TEvent);
+      sender.send(agentStreamError(error, fallbackMessage));
     }
   });
 }
@@ -93,21 +79,17 @@ export function createAgentTextStream(
   };
 }
 
-function createAgentStreamSender<TEvent extends AgentStreamEvent>(
+function createAgentStreamSender<Channel extends DesktopIpcStreamChannel>(
   event: IpcMainEvent,
-  channel: string,
-): AgentStreamSender<TEvent> {
+  channel: DesktopIpcStreamResponseChannel<Channel>,
+): AgentStreamSender<Channel> {
   return {
     channel,
-    send: (message) => event.sender.send(channel, message),
+    send: (message) => sendDesktopIpcStreamEvent(event.sender, channel, message),
   };
 }
 
-function streamResponseChannel(requestChannel: string, input: { requestId: string }) {
-  return `${requestChannel}:${input.requestId}`;
-}
-
-function agentStreamError(error: unknown, fallbackMessage: string): AgentStreamErrorEvent {
+function agentStreamError(error: unknown, fallbackMessage: string): DesktopIpcStreamErrorEvent {
   const serialized = serializeDesktopIpcError(error);
   return {
     type: 'error',

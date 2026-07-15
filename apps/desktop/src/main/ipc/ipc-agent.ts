@@ -1,12 +1,8 @@
 import type {
   Agent,
-  AgentAnnotatePayload,
-  AgentAnnotateResult,
-  AgentDistillationReviewPayload,
   AgentMessagePayload,
   AnnotationDistillationReviewMessage,
   AnnotationDistillationReviewItem,
-  AssistantRuntimeProgressEvent,
   ArticleRecord,
   Comment,
   LlmProvider,
@@ -17,7 +13,6 @@ import { assertDesktopIpcAppLockUnlocked, handleDesktopIpc } from './ipc';
 import {
   createAgentTextStream,
   runAgentStreamIpc,
-  type AgentStreamErrorEvent,
   type AgentStreamSender,
 } from './ipc-agent-stream';
 import {
@@ -266,7 +261,7 @@ export function registerAgentIpc(context: AgentIpcContext) {
     }
     return messageWithReviewId(message, payload.reviewMessageId);
   });
-  runAgentStreamIpc<AgentMessagePayload, AgentStreamCommentEvent>(
+  runAgentStreamIpc(
     'agent:comment:stream',
     'AGENT_REPLY_FAILED',
     async (input, sender) => {
@@ -375,7 +370,7 @@ export function registerAgentIpc(context: AgentIpcContext) {
     },
     () => assertDesktopIpcAppLockUnlocked(context),
   );
-  runAgentStreamIpc<AgentDistillationReviewPayload, AgentStreamDistillationReviewEvent>(
+  runAgentStreamIpc(
     'agent:distillation-review:stream',
     'AGENT_DISTILLATION_REVIEW_FAILED',
     async (input, sender) => {
@@ -524,7 +519,7 @@ export function registerAgentIpc(context: AgentIpcContext) {
     });
     return result;
   });
-  runAgentStreamIpc<AgentAnnotatePayload, AgentStreamAnnotateEvent>(
+  runAgentStreamIpc(
     'agent:annotate:stream',
     'AGENT_ANNOTATION_FAILED',
     async (input, sender) => {
@@ -601,31 +596,6 @@ export function registerAgentIpc(context: AgentIpcContext) {
   });
 }
 
-type AgentStreamCommentEvent =
-  | { type: 'start'; comment: Comment }
-  | { type: 'delta'; delta: string }
-  | { type: 'progress'; progress: AssistantRuntimeProgressEvent }
-  | { type: 'done'; comment: Comment }
-  | AgentStreamErrorEvent;
-
-type AgentStreamDistillationReviewEvent =
-  | { type: 'start'; message: AnnotationDistillationReviewMessage }
-  | { type: 'delta'; delta: string }
-  | { type: 'item'; item: AnnotationDistillationReviewItem }
-  | { type: 'progress'; progress: AssistantRuntimeProgressEvent }
-  | { type: 'done'; message: AnnotationDistillationReviewMessage }
-  | AgentStreamErrorEvent;
-
-type AgentStreamAnnotateEvent =
-  | { type: 'start' }
-  | { type: 'item'; annotation: ArticleRecord['annotations'][number] }
-  | {
-      type: 'done';
-      annotations: ArticleRecord['annotations'];
-      readingMemory?: AgentAnnotateResult['readingMemory'];
-    }
-  | AgentStreamErrorEvent;
-
 function pendingAgentComment(agent: Agent, payload: AgentMessagePayload): Comment {
   return {
     id: makeId('comment'),
@@ -645,7 +615,7 @@ function pendingAgentComment(agent: Agent, payload: AgentMessagePayload): Commen
 
 function sendE2eFakeAgentCommentStream(
   payload: AgentMessagePayload,
-  sender: AgentStreamSender<AgentStreamCommentEvent>,
+  sender: AgentStreamSender<'agent:comment:stream'>,
   provider: LlmProvider | undefined,
   comment: Comment,
 ) {

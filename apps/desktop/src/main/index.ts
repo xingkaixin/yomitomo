@@ -18,7 +18,11 @@ import { installDevProcessLifecycle } from './app/dev-process-lifecycle';
 import { installElectronSmokeProbe } from './app/electron-smoke-probe';
 import type { AppUpdateState } from '../app-update-types';
 import type { DesktopStoreLoadErrorInfo } from '../app-store-errors';
-import type { WeReadState } from '../ipc-contract';
+import type {
+  DesktopIpcToRendererEventArgs,
+  DesktopIpcToRendererEventChannel,
+  WeReadState,
+} from '../ipc-contract';
 import { DatabaseTooNewError } from './db/errors';
 import { registerAnnotationDiscussionWindowIpc } from './windows/annotation-discussion-window';
 import { registerAnnotationSedimentationWindowIpc } from './windows/annotation-sedimentation-window';
@@ -31,6 +35,7 @@ import {
 import { registerAppIpc } from './ipc/ipc-app';
 import { registerArticleIpc } from './ipc/ipc-article';
 import { configureDesktopIpcAppLockGuardContext } from './ipc/ipc';
+import { sendDesktopIpcRendererEvent } from './ipc/ipc-events';
 import { registerLibraryCollectionIpc } from './ipc/ipc-library-collection';
 import { registerProviderIpc } from './ipc/ipc-provider';
 import { registerStoreDataIpc } from './ipc/ipc-store-data';
@@ -495,7 +500,7 @@ function sendAppMenuCommand(command: AppMenuCommand) {
     logInfo('app.menu.command_skipped', { command, reason: 'main_window_unavailable' });
     return;
   }
-  mainWindow.webContents.send('app-menu:command', command);
+  sendDesktopIpcRendererEvent(mainWindow.webContents, 'app-menu:command', command);
 }
 
 async function storeLoadErrorInfo(error: unknown): Promise<DesktopStoreLoadErrorInfo> {
@@ -520,15 +525,12 @@ function sendUpdateStatusUpdated(state: AppUpdateState) {
   sendToRenderer('updates:status', state);
 }
 
-function sendToRenderer(channel: 'store:updated', payload: DesktopStore): void;
-function sendToRenderer(channel: 'updates:status', payload: AppUpdateState): void;
-function sendToRenderer(channel: 'article:patched', payload: ArticleStorePatch): void;
-function sendToRenderer(channel: 'collection:patched', payload: CollectionStorePatch): void;
-function sendToRenderer(channel: 'library-pin:patched', payload: LibraryPinPatch): void;
-function sendToRenderer(channel: 'weread:state-updated', payload: WeReadState): void;
-function sendToRenderer(channel: string, payload: unknown) {
+function sendToRenderer<Channel extends DesktopIpcToRendererEventChannel>(
+  channel: Channel,
+  ...args: DesktopIpcToRendererEventArgs<Channel>
+) {
   if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) return;
-  mainWindow.webContents.send(channel, payload);
+  sendDesktopIpcRendererEvent(mainWindow.webContents, channel, ...args);
 }
 
 function recordPerformanceTiming(input: unknown) {

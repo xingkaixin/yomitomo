@@ -12,6 +12,7 @@ import { makeId } from '@yomitomo/shared';
 import { taskProvider } from '../agents/agent-runtime-routing';
 import type { DesktopAiModule, DesktopMainIpcContext, DesktopPersistenceModule } from './ipc';
 import { handleDesktopIpc } from './ipc';
+import { sendDesktopIpcRendererEvent } from './ipc-events';
 
 type ArticlePersistence = DesktopPersistenceModule['articlePersistence'];
 
@@ -496,7 +497,7 @@ async function runWithConcurrency<T>(
 }
 
 function sendArticleTranslationUpdated(event: IpcMainInvokeEvent, translation: ArticleTranslation) {
-  event.sender.send('article-translation:updated', translation);
+  sendDesktopIpcRendererEvent(event.sender, 'article-translation:updated', translation);
 }
 
 function translationBlockContext(

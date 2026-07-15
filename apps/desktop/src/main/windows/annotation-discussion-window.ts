@@ -5,6 +5,7 @@ import type {
   AnnotationDiscussionWindowsCloseArticleInput,
 } from '../../ipc-contract';
 import { handleDesktopIpc, type DesktopMainIpcContext } from '../ipc/ipc';
+import { sendDesktopIpcRendererEvent } from '../ipc/ipc-events';
 import { mainPath } from '../app/main-paths';
 import { secureRendererWebPreferences } from './renderer-window-security';
 import {
@@ -148,7 +149,7 @@ function sendStateEvent(
 ) {
   const mainWindow = context.getMainWindow();
   if (!mainWindow || mainWindow.isDestroyed()) return;
-  mainWindow.webContents.send('annotation-discussion:window-state', event);
+  sendDesktopIpcRendererEvent(mainWindow.webContents, 'annotation-discussion:window-state', event);
 }
 
 export function closeAnnotationDiscussionWindow(

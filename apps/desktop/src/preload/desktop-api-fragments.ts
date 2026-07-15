@@ -1,15 +1,12 @@
-import { ipcRenderer, type IpcRendererEvent } from 'electron';
+import { ipcRenderer } from 'electron';
 import type {
   Agent,
   AgentAnnotatePayload,
-  AgentAnnotateResult,
   AgentDistillationReviewPayload,
   AgentMentionInstructionPayload,
   AgentMessagePayload,
   AgentReviewPayload,
   Annotation,
-  AnnotationDistillationReviewItem,
-  AnnotationDistillationReviewMessage,
   AppSettings,
   ArticleReadingProgress,
   ArticleRecord,
@@ -17,7 +14,6 @@ import type {
   ArticleTranslation,
   ArticleTranslationDeleteRequest,
   ArticleTranslationRequest,
-  AssistantRuntimeProgressEvent,
   Comment,
   CollectionStorePatch,
   DesktopStore,
@@ -29,11 +25,7 @@ import type {
 import type { AppUpdateState, AppUpdateTrigger } from '../app-update-types';
 import type { AppMenuCommand } from '../app-menu-types';
 import { DesktopStoreLoadError } from '../app-store-errors';
-import {
-  desktopIpcErrorFromSerialized,
-  type DesktopIpcInvokeEnvelope,
-  type SerializedDesktopIpcError,
-} from '../ipc-errors';
+import { desktopIpcErrorFromSerialized, type DesktopIpcInvokeEnvelope } from '../ipc-errors';
 import type {
   AgentRuntimeTraceListInput,
   AnnotationDiscussionWindowOpenInput,
@@ -56,6 +48,7 @@ import type {
   DesktopIpcInvokeArgs,
   DesktopIpcInvokeChannel,
   DesktopIpcInvokeResult,
+  DesktopIpcStreamProgressEvent,
   EbookImportFileInput,
   LibraryCatalogListInput,
   PdfImportFileInput,
@@ -70,6 +63,14 @@ import type {
   WeReadSaveSettingsInput,
   WeReadState,
 } from '../ipc-contract';
+import {
+  electronDesktopIpcStreamTransport,
+  onDesktopIpcRendererEvent,
+  sendDesktopIpcMainEvent,
+} from './ipc-events';
+import { createDesktopIpcStreamClient } from './ipc-stream-client';
+
+const desktopIpcStreamClient = createDesktopIpcStreamClient(electronDesktopIpcStreamTransport);
 
 export type DesktopPreloadApiInput = {
   platform: NodeJS.Platform;
@@ -107,10 +108,10 @@ function readPdfiumWasmUrl() {
 function createAppPreloadApi() {
   return {
     getAppInfo: () => invokeDesktopIpc('app:info'),
-    showMainWindow: () => ipcRenderer.send('app:renderer-ready'),
+    showMainWindow: () => sendDesktopIpcMainEvent('app:renderer-ready'),
     openUrl: (url: string) => invokeDesktopIpc('url:open', url),
     onAppMenuCommand: (callback: (command: AppMenuCommand) => void) =>
-      onIpcEvent('app-menu:command', (command) => {
+      onDesktopIpcRendererEvent('app-menu:command', (command) => {
         if (isAppMenuCommand(command)) callback(command);
       }),
   };
@@ -125,7 +126,7 @@ function createStorePreloadApi() {
       throw new DesktopStoreLoadError(result.error);
     },
     onStoreUpdated: (callback: (store: DesktopStore) => void) =>
-      onIpcEvent('store:updated', (store) => callback(store as DesktopStore)),
+      onDesktopIpcRendererEvent('store:updated', callback),
     saveUser: (user: Partial<UserProfile>) => invokeDesktopIpc('user:save', user),
     saveSettings: (settings: AppSettings) => invokeDesktopIpc('settings:save', settings),
   };
@@ -172,23 +173,12 @@ function createAnnotationWindowPreloadApi() {
       invokeDesktopIpc('annotation-discussion:close-article', { articleId }),
     onAnnotationDiscussionWindowState: (
       callback: (event: AnnotationDiscussionWindowStateEvent) => void,
-    ) =>
-      onIpcEvent('annotation-discussion:window-state', (event) =>
-        callback(event as AnnotationDiscussionWindowStateEvent),
-      ),
+    ) => onDesktopIpcRendererEvent('annotation-discussion:window-state', callback),
     onAnnotationDistillationCommitted: (
       callback: (event: AnnotationDistillationCommittedEvent) => void,
-    ) =>
-      onIpcEvent('annotation-distillation:committed', (event) =>
-        callback(event as AnnotationDistillationCommittedEvent),
-      ),
-    onAnnotationWindowClosing: (callback: () => void) => {
-      const listener = () => callback();
-      ipcRenderer.on('annotation-window:closing', listener);
-      return () => {
-        ipcRenderer.removeListener('annotation-window:closing', listener);
-      };
-    },
+    ) => onDesktopIpcRendererEvent('annotation-distillation:committed', callback),
+    onAnnotationWindowClosing: (callback: () => void) =>
+      onDesktopIpcRendererEvent('annotation-window:closing', callback),
   };
 }
 
@@ -236,14 +226,14 @@ function createUpdatePreloadApi() {
       language?: AppSettings['uiLanguage'],
     ) => invokeDesktopIpc('release-notes:get', { version, source, language }),
     onUpdateStatus: (callback: (state: AppUpdateState) => void) =>
-      onIpcEvent('updates:status', (state) => callback(state as AppUpdateState)),
+      onDesktopIpcRendererEvent('updates:status', callback),
   };
 }
 
 function createArticlePreloadApi() {
   return {
     onArticlePatched: (callback: (patch: ArticleStorePatch) => void) =>
-      onIpcEvent('article:patched', (patch) => callback(patch as ArticleStorePatch)),
+      onDesktopIpcRendererEvent('article:patched', callback),
     getArticle: (id: string) => invokeDesktopIpc('article:get', id),
     getArticleCover: (id: string) => invokeDesktopIpc('article:get-cover', id),
     getArticleSiteIcon: (id: string) => invokeDesktopIpc('article:get-site-icon', id),
@@ -281,9 +271,7 @@ function createArticlePreloadApi() {
     deleteCurrentArticleTranslation: (input: ArticleTranslationDeleteRequest) =>
       invokeDesktopIpc('article-translation:delete-current', input),
     onArticleTranslationUpdated: (callback: (translation: ArticleTranslation) => void) =>
-      onIpcEvent('article-translation:updated', (translation) =>
-        callback(translation as ArticleTranslation),
-      ),
+      onDesktopIpcRendererEvent('article-translation:updated', callback),
     importArticleUrl: (url: string, requestId?: string) =>
       invokeDesktopIpc('article:import-url', articleImportUrlInput(url, requestId)),
     cancelArticleUrlImport: (requestId: string) =>
@@ -305,9 +293,9 @@ function createLibraryCollectionPreloadApi() {
     listLibraryCatalog: (input: LibraryCatalogListInput) =>
       invokeDesktopIpc('library-catalog:list', input),
     onCollectionPatched: (callback: (patch: CollectionStorePatch) => void) =>
-      onIpcEvent('collection:patched', (patch) => callback(patch as CollectionStorePatch)),
+      onDesktopIpcRendererEvent('collection:patched', callback),
     onLibraryPinPatched: (callback: (patch: LibraryPinPatch) => void) =>
-      onIpcEvent('library-pin:patched', (patch) => callback(patch as LibraryPinPatch)),
+      onDesktopIpcRendererEvent('library-pin:patched', callback),
     listCollections: () => invokeDesktopIpc('library-collection:list'),
     createCollection: (input: CreateCollectionInput) =>
       invokeDesktopIpc('library-collection:create', input),
@@ -340,7 +328,7 @@ function createWeReadPreloadApi() {
     queryWeReadReadingStats: (input: WeReadReadingStatsQueryInput) =>
       invokeDesktopIpc('weread:query-reading-stats', input),
     onWeReadStateUpdated: (callback: (state: WeReadState) => void) =>
-      onIpcEvent('weread:state-updated', (state) => callback(state as WeReadState)),
+      onDesktopIpcRendererEvent('weread:state-updated', callback),
   };
 }
 
@@ -355,140 +343,36 @@ function createAgentPreloadApi() {
       invokeDesktopIpc('agent:distillation-review', payload),
     requestAgentDistillationReviewStream: (
       payload: AgentDistillationReviewPayload,
-      onEvent: (
-        event:
-          | { type: 'start'; message: AnnotationDistillationReviewMessage }
-          | { type: 'delta'; delta: string }
-          | { type: 'item'; item: AnnotationDistillationReviewItem }
-          | { type: 'progress'; progress: AssistantRuntimeProgressEvent },
-      ) => void,
-    ) => {
-      const requestId = makeRequestId();
-      const channel = `agent:distillation-review:stream:${requestId}`;
-      return new Promise<AnnotationDistillationReviewMessage>((resolve, reject) => {
-        const listener = (
-          _event: IpcRendererEvent,
-          message:
-            | { type: 'start'; message: AnnotationDistillationReviewMessage }
-            | { type: 'delta'; delta: string }
-            | { type: 'item'; item: AnnotationDistillationReviewItem }
-            | { type: 'progress'; progress: AssistantRuntimeProgressEvent }
-            | { type: 'done'; message: AnnotationDistillationReviewMessage }
-            | { type: 'error'; message: string; error?: SerializedDesktopIpcError },
-        ) => {
-          if (
-            message.type === 'start' ||
-            message.type === 'delta' ||
-            message.type === 'item' ||
-            message.type === 'progress'
-          ) {
-            onEvent(message);
-            return;
-          }
-          ipcRenderer.removeListener(channel, listener);
-          if (message.type === 'done') resolve(message.message);
-          else
-            reject(
-              message.error
-                ? desktopIpcErrorFromSerialized(message.error)
-                : new Error(message.message),
-            );
-        };
-        ipcRenderer.on(channel, listener);
-        ipcRenderer.send('agent:distillation-review:stream', { requestId, payload });
-      });
-    },
+      onEvent: (event: DesktopIpcStreamProgressEvent<'agent:distillation-review:stream'>) => void,
+    ) =>
+      desktopIpcStreamClient.request(
+        'agent:distillation-review:stream',
+        payload,
+        onEvent,
+        (event) => event.message,
+      ),
     requestAgentCommentStream: (
       payload: AgentMessagePayload,
-      onEvent: (
-        event:
-          | { type: 'start'; comment: Comment }
-          | { type: 'delta'; delta: string }
-          | { type: 'progress'; progress: AssistantRuntimeProgressEvent },
-      ) => void,
-    ) => {
-      const requestId = makeRequestId();
-      const channel = `agent:comment:stream:${requestId}`;
-      return new Promise<Comment>((resolve, reject) => {
-        const listener = (
-          _event: IpcRendererEvent,
-          message:
-            | { type: 'start'; comment: Comment }
-            | { type: 'delta'; delta: string }
-            | { type: 'progress'; progress: AssistantRuntimeProgressEvent }
-            | { type: 'done'; comment: Comment }
-            | { type: 'error'; message: string; error?: SerializedDesktopIpcError },
-        ) => {
-          if (message.type === 'start' || message.type === 'delta' || message.type === 'progress') {
-            onEvent(message);
-            return;
-          }
-          ipcRenderer.removeListener(channel, listener);
-          if (message.type === 'done') resolve(message.comment);
-          else
-            reject(
-              message.error
-                ? desktopIpcErrorFromSerialized(message.error)
-                : new Error(message.message),
-            );
-        };
-        ipcRenderer.on(channel, listener);
-        ipcRenderer.send('agent:comment:stream', { requestId, payload });
-      });
-    },
+      onEvent: (event: DesktopIpcStreamProgressEvent<'agent:comment:stream'>) => void,
+    ) =>
+      desktopIpcStreamClient.request(
+        'agent:comment:stream',
+        payload,
+        onEvent,
+        (event) => event.comment,
+      ),
     requestAgentAnnotations: (payload: AgentAnnotatePayload) =>
       invokeDesktopIpc('agent:annotate', payload),
     requestAgentAnnotationsStream: (
       payload: AgentAnnotatePayload,
-      onEvent: (
-        event:
-          | { type: 'start' }
-          | { type: 'item'; annotation: ArticleRecord['annotations'][number] },
-      ) => void,
-    ) => {
-      const requestId = makeRequestId();
-      const channel = `agent:annotate:stream:${requestId}`;
-      return new Promise<AgentAnnotateResult>((resolve, reject) => {
-        const listener = (
-          _event: IpcRendererEvent,
-          message:
-            | { type: 'start' }
-            | { type: 'item'; annotation: ArticleRecord['annotations'][number] }
-            | {
-                type: 'done';
-                annotations: ArticleRecord['annotations'];
-                readingMemory?: AgentAnnotateResult['readingMemory'];
-              }
-            | { type: 'error'; message: string; error?: SerializedDesktopIpcError },
-        ) => {
-          if (message.type === 'start' || message.type === 'item') {
-            onEvent(message);
-            return;
-          }
-          ipcRenderer.removeListener(channel, listener);
-          if (message.type === 'done')
-            resolve({ annotations: message.annotations, readingMemory: message.readingMemory });
-          else
-            reject(
-              message.error
-                ? desktopIpcErrorFromSerialized(message.error)
-                : new Error(message.message),
-            );
-        };
-        ipcRenderer.on(channel, listener);
-        ipcRenderer.send('agent:annotate:stream', { requestId, payload });
-      });
-    },
+      onEvent: (event: DesktopIpcStreamProgressEvent<'agent:annotate:stream'>) => void,
+    ) =>
+      desktopIpcStreamClient.request('agent:annotate:stream', payload, onEvent, (event) => ({
+        annotations: event.annotations,
+        readingMemory: event.readingMemory,
+      })),
     saveAgent: (agent: Partial<Agent>) => invokeDesktopIpc('agent:save', agent),
     deleteAgent: (id: string) => invokeDesktopIpc('agent:delete', id),
-  };
-}
-
-function onIpcEvent(channel: string, callback: (payload: unknown) => void) {
-  const listener = (_event: IpcRendererEvent, payload: unknown) => callback(payload);
-  ipcRenderer.on(channel, listener);
-  return () => {
-    ipcRenderer.removeListener(channel, listener);
   };
 }
 
@@ -525,8 +409,4 @@ function invokeDesktopIpc<Channel extends DesktopIpcInvokeChannel>(
     }
     return result as DesktopIpcInvokeResult<Channel>;
   });
-}
-
-function makeRequestId() {
-  return `request_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
 }
