@@ -68,7 +68,7 @@ import {
   ReaderTranslationConfirmDialog,
   ReaderTranslationToolbarButton,
   type TranslationConfirmAction,
-} from './web-reader-translation-controls';
+} from '../bookcase/reader-translation-controls';
 import {
   describeAnchorForDebug,
   describeArticleTranslationDom,
@@ -2100,9 +2100,9 @@ export function WebSourceBookcase({
             labels={{
               deleteTranslation: t('source.deleteTranslation'),
               hideTranslation: t('source.hideTranslation'),
-              retranslateArticle: t('source.retranslateArticle'),
+              retranslate: t('source.retranslateArticle'),
               showTranslation: t('source.showTranslation'),
-              translateArticle: t('source.translateArticle'),
+              translate: t('source.translateArticle'),
             }}
             menuOpen={translationMenuOpen}
             visible={translationVisible}

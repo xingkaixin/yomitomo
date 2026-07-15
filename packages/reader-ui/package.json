@@ -10,6 +10,7 @@
     "./reader-annotations": "./src/annotations/reader-annotations.ts",
     "./reader-readonly-annotation-card": "./src/annotations/reader-readonly-annotation-card.tsx",
     "./reader-animation": "./src/reader-animation.ts",
+    "./reader-bilingual-translation-styles": "./src/reader-bilingual-translation-styles.ts",
     "./reader-navigation": "./src/reader-navigation.ts",
     "./reader-component-primitives": "./src/shared/reader-component-primitives.tsx",
     "./floating-composer": "./src/shared/floating-composer.tsx",

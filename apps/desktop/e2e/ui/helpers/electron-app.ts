@@ -15,7 +15,8 @@ const require = createRequire(import.meta.url);
 const electronPath = require('electron') as string;
 const desktopRoot = resolve(import.meta.dirname, '../../..');
 const defaultArtifactsDir = resolve(desktopRoot, 'e2e/ui/artifacts');
-const rendererReadySelector = '.app-masthead-date, .onboarding-screen, .store-load-error-shell';
+const rendererReadySelector =
+  '.app-masthead-date, .library-home, .onboarding-screen, .store-load-error-shell';
 const requiredBuildFiles = [
   'dist/main/index.js',
   'dist/preload/index.cjs',
@@ -263,7 +264,7 @@ async function readPageDiagnostics(page: Page) {
         bodyText: document.body.innerText.slice(0, 500),
         readyState: document.readyState,
         rendererSurfaceCount: document.querySelectorAll(
-          '.app-masthead-date, .onboarding-screen, .store-load-error-shell',
+          '.app-masthead-date, .library-home, .onboarding-screen, .store-load-error-shell',
         ).length,
         rootChildElementCount: root?.childElementCount ?? null,
         rootHtmlLength: root?.innerHTML.length ?? null,
