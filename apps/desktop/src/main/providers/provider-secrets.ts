@@ -46,17 +46,8 @@ export async function readWeReadApiKey(apiKeyRef?: string | null, accountId = 'd
   }
 }
 
-export async function deleteProviderApiKey(providerId: string, apiKeyRef?: string | null) {
-  const entry = await createEntry(apiKeyRef || providerApiKeyRef(providerId));
-  try {
-    entry.deletePassword();
-  } catch (error) {
-    if (!isNoEntryError(error)) throw error;
-  }
-}
-
-export async function deleteWeReadApiKey(apiKeyRef?: string | null, accountId = 'default') {
-  const entry = await createEntry(apiKeyRef || wereadApiKeyRef(accountId));
+export async function deleteStoredSecret(secretRef: string) {
+  const entry = await createEntry(secretRef);
   try {
     entry.deletePassword();
   } catch (error) {

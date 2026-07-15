@@ -22,9 +22,10 @@ vi.mock('../native/sqlite', async () => {
 });
 
 vi.mock('../providers/provider-secrets', () => ({
-  deleteWeReadApiKey: vi.fn(),
+  deleteStoredSecret: vi.fn(),
   readWeReadApiKey: vi.fn(async () => ''),
   saveWeReadApiKey: vi.fn(async () => 'weread:default:apiKey'),
+  wereadApiKeyRef: () => 'weread:default:apiKey',
 }));
 
 import * as schema from '../db/schema';
