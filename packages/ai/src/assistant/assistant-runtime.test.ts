@@ -1,4 +1,7 @@
+import { Cause, Effect, Exit } from 'effect';
 import { describe, expect, it, vi } from 'vitest';
+import { AssistantRuntimeToolFailure } from './assistant-runtime-errors';
+import { runAssistantToolRuntimeEffect } from './assistant-tool-runtime';
 import {
   runAssistantToolRuntime,
   validateAssistantFinalAction,
@@ -8,6 +11,33 @@ import {
 } from './assistant-runtime';
 
 describe('assistant tool runtime', () => {
+  it('keeps tool executor rejections in the typed failure channel', async () => {
+    const exit = await Effect.runPromiseExit(
+      runAssistantToolRuntimeEffect({
+        taskType: 'thread_reply',
+        articleId: 'article_1',
+        agentId: 'agent_1',
+        tools: [tool('get_current_thread')],
+        modelAdapter: vi.fn(
+          async (): Promise<AssistantProviderEvent> => ({
+            type: 'tool_call',
+            toolCall: { name: 'get_current_thread', input: {} },
+          }),
+        ),
+        toolExecutor: vi.fn(async () => {
+          throw new Error('tool database unavailable');
+        }),
+      }),
+    );
+
+    expect(Exit.isFailure(exit)).toBe(true);
+    if (Exit.isSuccess(exit)) return;
+
+    expect(Cause.hasFails(exit.cause)).toBe(true);
+    expect(Cause.hasDies(exit.cause)).toBe(false);
+    expect(Cause.squash(exit.cause)).toBeInstanceOf(AssistantRuntimeToolFailure);
+  });
+
   it('runs a bounded tool loop and validates a final thread reply', async () => {
     const modelEvents: AssistantProviderEvent[] = [
       {
