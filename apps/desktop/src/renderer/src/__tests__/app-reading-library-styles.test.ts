@@ -402,6 +402,26 @@ describe('reading library styles', () => {
     );
   });
 
+  it('reveals only the first-use empty state with restrained motion', () => {
+    expectRule(
+      '.library-empty.is-first-use > .library-empty-marks,\n.library-empty.is-first-use > h3,\n.library-empty.is-first-use > p,\n.library-empty.is-first-use > .library-empty-entries',
+      [
+        '--library-first-use-final-opacity: 1;',
+        'animation: library-first-use-enter 240ms cubic-bezier(0.23, 1, 0.32, 1) both;',
+      ],
+    );
+    expectRule('.library-empty.is-first-use > .library-empty-marks', [
+      '--library-first-use-final-opacity: 0.5;',
+    ]);
+    expectRule('.library-empty.is-first-use > h3', ['animation-delay: 50ms;']);
+    expectRule('.library-empty.is-first-use > p', ['animation-delay: 100ms;']);
+    expectRule('.library-empty.is-first-use > .library-empty-entries', ['animation-delay: 150ms;']);
+    expect(styles).not.toContain('.library-empty.is-collection > .library-empty-entries');
+    expect(styles).toMatch(
+      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.library-empty\.is-first-use > \.library-empty-marks,[\s\S]*animation: library-first-use-fade 160ms cubic-bezier\(0\.23, 1, 0\.32, 1\) both;/,
+    );
+  });
+
   it('aligns import completion motion to success and reveal tokens', () => {
     expectRule('.library-import-dialog', [
       '--library-import-success-dur: 500ms;',
