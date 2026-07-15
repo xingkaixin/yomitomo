@@ -64,6 +64,7 @@ const coreRuntimeExports = [
   'parseAnnotationSuggestions',
   'performanceElapsedMs',
   'performanceStart',
+  'prepareEpubTextAnchorResolver',
   'rangeFromOffsets',
   'rangeFromOffsetsIgnoringSelector',
   'rangeForTranslationTextAnchor',

@@ -54,6 +54,7 @@ export {
   epubIndexText,
   locateEpubOffset,
   locateEpubTextAnchor,
+  prepareEpubTextAnchorResolver,
   resolveEpubTextAnchor,
 } from './epub/ebook-index';
 export type {
@@ -62,6 +63,7 @@ export type {
   EpubBookIndexChapterInput,
   EpubIndexLocation,
   LocateEpubIndexOptions,
+  PreparedEpubTextAnchorResolver,
 } from './epub/ebook-index';
 
 export {
