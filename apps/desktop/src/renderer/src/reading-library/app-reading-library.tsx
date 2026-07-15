@@ -20,7 +20,6 @@ import type {
   SelectionActionShortcuts,
   UserProfile,
   WeReadBook,
-  WeReadBookDetail,
   WeReadSettings,
 } from '@yomitomo/shared';
 import { normalizeUiLanguage } from '@yomitomo/shared';
@@ -55,6 +54,7 @@ import type {
   SetLibraryPinInput,
 } from '../../../ipc-contract';
 import type { AppMenuCommandRequest } from '../../../app-menu-types';
+import { useReadingLibraryNavigation } from './use-reading-library-navigation';
 
 export { groupLibraryArticles };
 export type { LibrarySort };
@@ -161,20 +161,24 @@ export function ReadingLibrary({
   onUpdateArticle: (articleId: string, update: ArticleUpdater) => Promise<void> | void;
 }) {
   const { t } = useTranslation();
-  const [activeShelf, setActiveShelf] = useState<'library' | 'source'>('library');
-  const [routeTransition, setRouteTransition] = useState<'enter-library' | 'enter-source' | 'none'>(
-    'none',
-  );
-  const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
-  const [selectedArticle, setSelectedArticle] = useState<ArticleRecord | null>(null);
-  const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
-  const [sourceFocusAnnotationId, setSourceFocusAnnotationId] = useState<string | null>(null);
+  const navigation = useReadingLibraryNavigation({
+    onCloseArticleDiscussions,
+    onReadArticle,
+  });
+  const {
+    activeShelf,
+    article: selectedArticle,
+    focusAnnotationId: sourceFocusAnnotationId,
+    routeTransition,
+    selectedAnnotationId,
+    wereadBook: selectedWeReadBook,
+  } = navigation.model;
+  const selectedArticleId = selectedArticle?.id || null;
   const [wereadBooks, setWeReadBooks] = useState<WeReadBook[]>([]);
   const [wereadSettings, setWeReadSettings] = useState<WeReadSettings>({
     configured: false,
     openMethod: 'deeplink',
   });
-  const [selectedWeReadBook, setSelectedWeReadBook] = useState<WeReadBookDetail | null>(null);
   const [wereadSyncing, setWeReadSyncing] = useState(false);
   const [wereadBookSyncing, setWeReadBookSyncing] = useState(false);
   const [wereadOpenMessage, setWeReadOpenMessage] = useState('');
@@ -192,8 +196,6 @@ export function ReadingLibrary({
     };
     token: number;
   } | null>(null);
-  const articleLoadRef = useRef(0);
-  const selectedArticleIdRef = useRef<string | null>(null);
   const pendingDistillationAnimationRef = useRef<AnnotationDistillationCommittedEvent | null>(null);
   const distillationAnimationTimerRef = useRef<number | null>(null);
   const pendingArticleSyncTimerRef = useRef<number | null>(null);
@@ -212,18 +214,6 @@ export function ReadingLibrary({
   const currentMinimizedDiscussionWindows = selectedArticle
     ? minimizedDiscussionWindows.filter((item) => item.articleId === selectedArticle.id)
     : [];
-  useEffect(() => {
-    selectedArticleIdRef.current = selectedArticleId;
-  }, [selectedArticleId]);
-
-  useEffect(
-    () => () => {
-      const articleId = selectedArticleIdRef.current;
-      if (articleId) void onCloseArticleDiscussions?.(articleId);
-    },
-    [onCloseArticleDiscussions],
-  );
-
   useEffect(() => {
     const desktop = window.yomitomoDesktop;
     if (!desktop?.onAnnotationDiscussionWindowState) return;
@@ -270,48 +260,30 @@ export function ReadingLibrary({
   );
 
   useEffect(() => {
-    if (!selectedArticle) {
-      setSelectedAnnotationId(null);
-      return;
-    }
-    if (sourceFocusAnnotationId) return;
-    setSelectedAnnotationId(null);
-  }, [selectedArticle?.id]);
-
-  useEffect(() => {
     if (!hasLocalArticleCatalog) return;
     if (selectedArticleId && !sortedArticles.some((article) => article.id === selectedArticleId)) {
-      void onCloseArticleDiscussions?.(selectedArticleId);
-      setSelectedArticleId(null);
-      setSelectedArticle(null);
+      navigation.actions.resetLibrary();
     }
-  }, [hasLocalArticleCatalog, onCloseArticleDiscussions, selectedArticleId, sortedArticles]);
+  }, [hasLocalArticleCatalog, navigation.actions, selectedArticleId, sortedArticles]);
 
   useEffect(() => {
     if (!openArticleId) return;
-    const article = sortedArticles.find((item) => item.id === openArticleId);
-    if (article) {
-      void openArticle(article);
-      onArticleOpened?.(article.id);
-      return;
-    }
-    void onReadArticle(openArticleId).then((fullArticle) => {
-      if (!fullArticle) return;
-      void openArticle(fullArticle);
-      onArticleOpened?.(fullArticle.id);
+    const article = sortedArticles.find((item) => item.id === openArticleId) || openArticleId;
+    void navigation.actions.openArticle(article).then((openedArticle) => {
+      if (openedArticle) onArticleOpened?.(openedArticle.id);
     });
-  }, [onReadArticle, openArticleId, onArticleOpened, sortedArticles]);
+  }, [navigation.actions, openArticleId, onArticleOpened, sortedArticles]);
 
   useEffect(() => {
     if (!selectedArticle || selectedArticle.sourceType !== 'pdf') return;
     let cancelled = false;
     void onReadArticle(selectedArticle.id).then((fullArticle) => {
-      if (!cancelled && fullArticle) setSelectedArticle(fullArticle);
+      if (!cancelled && fullArticle) navigation.actions.replaceArticle(fullArticle);
     });
     return () => {
       cancelled = true;
     };
-  }, [onReadArticle, selectedArticle?.id, selectedArticle?.sourceType]);
+  }, [navigation.actions, onReadArticle, selectedArticle?.id, selectedArticle?.sourceType]);
 
   useEffect(() => {
     if (!selectedArticleId || !selectedArticle) return;
@@ -320,7 +292,7 @@ export function ReadingLibrary({
     if (!articleSummaryChanged(summary, selectedArticle)) return;
     let cancelled = false;
     void onReadArticle(summary.id).then((fullArticle) => {
-      if (cancelled || !fullArticle || selectedArticleIdRef.current !== summary.id) return;
+      if (cancelled || !fullArticle || !navigation.actions.isCurrentArticle(summary.id)) return;
       if (distillationSyncBlocked(summary.id)) {
         deferredArticleSyncRef.current = { article: fullArticle, articleId: summary.id };
         return;
@@ -329,21 +301,21 @@ export function ReadingLibrary({
         clearPendingArticleSync();
         pendingArticleSyncTimerRef.current = window.setTimeout(() => {
           pendingArticleSyncTimerRef.current = null;
-          if (cancelled || selectedArticleIdRef.current !== summary.id) return;
+          if (cancelled || !navigation.actions.isCurrentArticle(summary.id)) return;
           if (distillationSyncBlocked(summary.id)) {
             deferredArticleSyncRef.current = { article: fullArticle, articleId: summary.id };
             return;
           }
-          setSelectedArticle(fullArticle);
+          navigation.actions.replaceArticle(fullArticle);
         }, DISTILLATION_SYNC_EVENT_GRACE_MS);
         return;
       }
-      setSelectedArticle(fullArticle);
+      navigation.actions.replaceArticle(fullArticle);
     });
     return () => {
       cancelled = true;
     };
-  }, [onReadArticle, selectedArticle, selectedArticleId, sortedArticles]);
+  }, [navigation.actions, onReadArticle, selectedArticle, selectedArticleId, sortedArticles]);
 
   useEffect(() => {
     onReadingModeChange?.(
@@ -388,40 +360,15 @@ export function ReadingLibrary({
       return;
     }
     if (!isImportMenuCommand(menuRequest.command)) return;
-    if (selectedArticleId) void onCloseArticleDiscussions?.(selectedArticleId);
-    setSelectedArticleId(null);
-    setSelectedArticle(null);
-    setSelectedWeReadBook(null);
-    setSelectedAnnotationId(null);
-    setSourceFocusAnnotationId(null);
-    setRouteTransition('enter-library');
-    setActiveShelf('library');
-  }, [menuRequest?.command, menuRequest?.id]);
+    navigation.actions.resetLibrary();
+  }, [menuRequest?.command, menuRequest?.id, navigation.actions]);
 
   async function deleteLibraryArticle(articleId: string) {
     await onDeleteArticle(articleId);
     playAppSoundEffect('library.delete_item', settings || {});
     if (selectedArticleId === articleId) {
-      setSelectedArticle(null);
-      openLibraryShelf();
+      navigation.actions.resetLibrary();
     }
-  }
-
-  async function openArticle(article: ArticleSummaryRecord) {
-    if (selectedArticleId && selectedArticleId !== article.id) {
-      void onCloseArticleDiscussions?.(selectedArticleId);
-    }
-    const loadId = articleLoadRef.current + 1;
-    articleLoadRef.current = loadId;
-    setSelectedArticleId(article.id);
-    setSelectedAnnotationId(null);
-    setSourceFocusAnnotationId(null);
-    setSelectedWeReadBook(null);
-    const fullArticle = articleHasReadableBody(article) ? article : await onReadArticle(article.id);
-    if (articleLoadRef.current !== loadId || !fullArticle) return;
-    setSelectedArticle(fullArticle);
-    setRouteTransition('enter-source');
-    setActiveShelf('source');
   }
 
   async function focusCommittedDistillation(event: AnnotationDistillationCommittedEvent) {
@@ -440,19 +387,14 @@ export function ReadingLibrary({
       });
       return;
     }
-    setSelectedArticleId(fullArticle.id);
-    setSelectedArticle(
+    navigation.actions.focusArticle(
       articleWithDistillationAnimationStart(
         fullArticle,
         event,
         reserveDistillationAnimationUpdatedAt(fullArticle, event),
       ),
+      event.annotationId,
     );
-    setSelectedWeReadBook(null);
-    setRouteTransition('enter-source');
-    setActiveShelf('source');
-    setSelectedAnnotationId(event.annotationId);
-    setSourceFocusAnnotationId(event.annotationId);
     pendingDistillationAnimationRef.current = event;
     recordRendererPerformanceTiming('reader_focus', {
       source: 'library',
@@ -502,8 +444,8 @@ export function ReadingLibrary({
     const deferredSync = deferredArticleSyncRef.current;
     if (!deferredSync || deferredSync.articleId !== block.articleId) return;
     deferredArticleSyncRef.current = null;
-    if (selectedArticleIdRef.current === deferredSync.articleId) {
-      setSelectedArticle(deferredSync.article);
+    if (navigation.actions.isCurrentArticle(deferredSync.articleId)) {
+      navigation.actions.replaceArticle(deferredSync.article);
     }
   }
 
@@ -532,14 +474,12 @@ export function ReadingLibrary({
     }
 
     if (event.transition === 'update') {
-      setSelectedArticle((current) =>
-        current
-          ? articleWithCommittedDistillation(
-              current,
-              event,
-              reserveDistillationAnimationUpdatedAt(current, event),
-            )
-          : current,
+      navigation.actions.updateArticle(event.articleId, (current) =>
+        articleWithCommittedDistillation(
+          current,
+          event,
+          reserveDistillationAnimationUpdatedAt(current, event),
+        ),
       );
       setDistillationAnimation({
         annotationId: event.annotationId,
@@ -566,14 +506,12 @@ export function ReadingLibrary({
         token,
       });
       distillationAnimationTimerRef.current = window.setTimeout(() => {
-        setSelectedArticle((current) =>
-          current
-            ? articleWithCommittedDistillation(
-                current,
-                event,
-                reserveDistillationAnimationUpdatedAt(current, event),
-              )
-            : current,
+        navigation.actions.updateArticle(event.articleId, (current) =>
+          articleWithCommittedDistillation(
+            current,
+            event,
+            reserveDistillationAnimationUpdatedAt(current, event),
+          ),
         );
         setDistillationAnimation({
           annotationId: event.annotationId,
@@ -623,16 +561,12 @@ export function ReadingLibrary({
       pendingTransition: pendingAnimation?.transition || null,
     });
     pendingDistillationAnimationRef.current = null;
-    setSourceFocusAnnotationId(null);
+    navigation.actions.consumeArticleFocus();
     if (pendingAnimation) playDistillationMorph(pendingAnimation);
   }
 
   async function openWeReadBook(book: WeReadBook) {
-    if (selectedArticleId) void onCloseArticleDiscussions?.(selectedArticleId);
-    setSelectedArticle(null);
-    setSelectedArticleId(null);
-    setSelectedAnnotationId(null);
-    setSourceFocusAnnotationId(null);
+    navigation.actions.resetLibrary();
     const cached = await window.yomitomoDesktop?.getWeReadBook?.(book.bookId);
     const detail =
       cached &&
@@ -640,17 +574,11 @@ export function ReadingLibrary({
         ? cached
         : await syncWeReadBook(book.bookId);
     if (!detail) return;
-    setSelectedWeReadBook(detail);
-    setRouteTransition('enter-source');
-    setActiveShelf('source');
+    navigation.actions.showWeReadBook(detail);
   }
 
   function openLibraryShelf() {
-    if (selectedArticleId) void onCloseArticleDiscussions?.(selectedArticleId);
-    setSelectedAnnotationId(null);
-    setSourceFocusAnnotationId(null);
-    setRouteTransition('enter-library');
-    setActiveShelf('library');
+    navigation.actions.returnToLibrary();
   }
 
   async function syncWeReadLibrary(options: { manual?: boolean } = {}) {
@@ -695,12 +623,11 @@ export function ReadingLibrary({
     try {
       const detail = await window.yomitomoDesktop.syncWeReadBook(bookId);
       if (!detail) {
-        setSelectedWeReadBook(null);
         setWeReadBooks((books) => books.filter((book) => book.bookId !== bookId));
-        setActiveShelf('library');
+        navigation.actions.resetLibrary();
         return null;
       }
-      setSelectedWeReadBook(detail);
+      navigation.actions.showWeReadBook(detail);
       setWeReadBooks((books) =>
         books.map((book) => (book.bookId === detail.book.bookId ? detail.book : book)),
       );
@@ -711,7 +638,7 @@ export function ReadingLibrary({
   }
 
   async function saveSelectedArticle(article: ArticleRecord) {
-    setSelectedArticle(article);
+    navigation.actions.replaceArticle(article);
     await onSaveArticle(article);
   }
 
@@ -719,11 +646,13 @@ export function ReadingLibrary({
     articleId: string,
     progress: ArticleReadingProgress,
   ) {
-    setSelectedArticle((current) =>
-      current?.id === articleId
-        ? { ...current, readingProgress: progress, updatedAt: progress.updatedAt }
-        : current,
-    );
+    if (navigation.actions.isCurrentArticle(articleId)) {
+      navigation.actions.updateArticle(articleId, (current) => ({
+        ...current,
+        readingProgress: progress,
+        updatedAt: progress.updatedAt,
+      }));
+    }
     await onSaveArticleReadingProgress(articleId, progress);
   }
 
@@ -731,23 +660,21 @@ export function ReadingLibrary({
     articleId: string,
     readerChatState?: ReaderChatState,
   ) {
-    setSelectedArticle((current) =>
-      current?.id === articleId
-        ? {
-            ...current,
-            readerChatState,
-            updatedAt: readerChatState?.updatedAt || current.updatedAt,
-          }
-        : current,
-    );
+    if (navigation.actions.isCurrentArticle(articleId)) {
+      navigation.actions.updateArticle(articleId, (current) => ({
+        ...current,
+        readerChatState,
+        updatedAt: readerChatState?.updatedAt || current.updatedAt,
+      }));
+    }
     await onSaveArticleReaderChatState?.(articleId, readerChatState);
   }
 
   async function updateSelectedArticle(articleId: string, update: ArticleUpdater) {
     await onUpdateArticle(articleId, (article) => {
       const nextArticle = update(article);
-      if (nextArticle) {
-        setSelectedArticle((current) => (current?.id === articleId ? nextArticle : current));
+      if (nextArticle && navigation.actions.isCurrentArticle(articleId)) {
+        navigation.actions.replaceArticle(nextArticle);
       }
       return nextArticle;
     });
@@ -756,14 +683,11 @@ export function ReadingLibrary({
   async function deleteSelectedArticleAnnotation(articleId: string, annotationId: string) {
     if (!onDeleteArticleAnnotation) return;
     await onDeleteArticleAnnotation(articleId, annotationId);
-    setSelectedArticle((current) =>
-      current?.id === articleId
-        ? {
-            ...current,
-            annotations: current.annotations.filter((annotation) => annotation.id !== annotationId),
-          }
-        : current,
-    );
+    if (!navigation.actions.isCurrentArticle(articleId)) return;
+    navigation.actions.updateArticle(articleId, (current) => ({
+      ...current,
+      annotations: current.annotations.filter((annotation) => annotation.id !== annotationId),
+    }));
   }
 
   async function createLibraryCollection(name: string) {
@@ -826,7 +750,8 @@ export function ReadingLibrary({
     },
     itemActions: {
       onDeleteArticle: deleteLibraryArticle,
-      onOpenArticle: (article: ArticleSummaryRecord) => void openArticle(article),
+      onOpenArticle: (article: ArticleSummaryRecord) =>
+        void navigation.actions.openArticle(article),
       onOpenWeReadBook: (book: WeReadBook) => void openWeReadBook(book),
       onOpenWeReadExternal: (book: WeReadBook) => void openWeReadExternal(book),
       onSetLibraryPin: (input: SetLibraryPinInput) =>
@@ -897,7 +822,7 @@ export function ReadingLibrary({
                 }
                 onDeleteArticleComment={onDeleteArticleComment}
                 onOpenAnnotationDiscussion={onOpenArticleDiscussion}
-                onOpenAnnotation={setSelectedAnnotationId}
+                onOpenAnnotation={navigation.actions.selectAnnotation}
                 onSaveArticle={saveSelectedArticle}
                 onSaveArticleAnnotation={onSaveArticleAnnotation}
                 onSaveArticleComment={onSaveArticleComment}
@@ -1212,16 +1137,6 @@ function distillationOverlayForAnimation(
     publishedAt: distillation?.publishedAt,
     updatedAt: distillation?.updatedAt,
   };
-}
-
-function articleHasReadableBody(
-  article: ArticleRecord | ArticleSummaryRecord,
-): article is ArticleRecord {
-  if ((article.annotationCount ?? 0) > article.annotations.length) return false;
-  if (article.sourceType === 'ebook')
-    return Boolean(article.ebook && 'chapters' in article.ebook && article.ebook.chapters.length);
-  if (article.sourceType === 'pdf') return false;
-  return Boolean('contentHtml' in article && article.contentHtml);
 }
 
 function articleSummaryChanged(summary: ArticleSummaryRecord, article: ArticleRecord) {
