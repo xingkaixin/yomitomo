@@ -2,6 +2,7 @@ import { ipcMain, type IpcMainEvent, type WebContents } from 'electron';
 import type {
   DesktopIpcStreamChannel,
   DesktopIpcStreamEvent,
+  DesktopIpcStreamRequest,
   DesktopIpcStreamResponseChannel,
   DesktopIpcToMainEventArgs,
   DesktopIpcToMainEventChannel,
@@ -29,6 +30,18 @@ export function sendDesktopIpcRendererEvent<Channel extends DesktopIpcToRenderer
   ...args: DesktopIpcToRendererEventArgs<Channel>
 ) {
   webContents.send(channel, ...args);
+}
+
+export function onDesktopIpcStreamRequest<Channel extends DesktopIpcStreamChannel>(
+  channel: Channel,
+  listener: (
+    event: IpcMainEvent,
+    request: DesktopIpcStreamRequest<Channel>,
+  ) => void | Promise<void>,
+) {
+  ipcMain.on(channel, (event, request: unknown) => {
+    return listener(event, request as DesktopIpcStreamRequest<Channel>);
+  });
 }
 
 export function sendDesktopIpcStreamEvent<Channel extends DesktopIpcStreamChannel>(

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { AgentMessagePayload, Comment } from '@yomitomo/shared';
 import { DesktopIpcError, desktopIpcErrorCodes } from '../../ipc-errors';
-import type { AgentStreamErrorEvent } from './ipc-agent-stream';
 
 const ipcHandlers = vi.hoisted(() => new Map<string, (...args: unknown[]) => unknown>());
 
@@ -20,37 +20,32 @@ beforeEach(() => {
 
 describe('runAgentStreamIpc', () => {
   it('sends handler events to the request-scoped response channel', async () => {
-    runAgentStreamIpc<{ value: string }, { type: 'done'; value: string }>(
-      'agent:test:stream',
-      'STREAM_FAILED',
-      async (input, sender) => {
-        sender.send({ type: 'done', value: input.payload.value });
-      },
-    );
+    runAgentStreamIpc('agent:comment:stream', 'STREAM_FAILED', async (input, sender) => {
+      sender.send({
+        type: 'done',
+        comment: { ...finalComment, agentUsername: input.payload.agentUsername },
+      });
+    });
     const sender = { send: vi.fn() };
 
-    await ipcHandler('agent:test:stream')({ sender }, request('req_1', { value: 'ok' }));
+    await ipcHandler('agent:comment:stream')({ sender }, request('req_1', agentMessagePayload));
 
-    expect(sender.send).toHaveBeenCalledWith('agent:test:stream:req_1', {
+    expect(sender.send).toHaveBeenCalledWith('agent:comment:stream:req_1', {
       type: 'done',
-      value: 'ok',
+      comment: { ...finalComment, agentUsername: 'agent' },
     });
   });
 
   it('serializes stream errors with the fallback message for generic failures', async () => {
-    runAgentStreamIpc<{ value: string }, AgentStreamErrorEvent>(
-      'agent:test:error-stream',
-      'STREAM_FAILED',
-      async () => {
-        throw new Error('low level error');
-      },
-    );
+    runAgentStreamIpc('agent:comment:stream', 'STREAM_FAILED', async () => {
+      throw new Error('low level error');
+    });
     const sender = { send: vi.fn() };
 
-    await ipcHandler('agent:test:error-stream')({ sender }, request('req_2', { value: 'fail' }));
+    await ipcHandler('agent:comment:stream')({ sender }, request('req_2', agentMessagePayload));
 
     expect(sender.send).toHaveBeenCalledWith(
-      'agent:test:error-stream:req_2',
+      'agent:comment:stream:req_2',
       expect.objectContaining({
         type: 'error',
         message: 'STREAM_FAILED',
@@ -60,25 +55,18 @@ describe('runAgentStreamIpc', () => {
   });
 
   it('keeps known desktop IPC error messages', async () => {
-    runAgentStreamIpc<{ value: string }, AgentStreamErrorEvent>(
-      'agent:test:known-error-stream',
-      'STREAM_FAILED',
-      async () => {
-        throw new DesktopIpcError(
-          desktopIpcErrorCodes.agentNotFound,
-          desktopIpcErrorCodes.agentNotFound,
-        );
-      },
-    );
+    runAgentStreamIpc('agent:comment:stream', 'STREAM_FAILED', async () => {
+      throw new DesktopIpcError(
+        desktopIpcErrorCodes.agentNotFound,
+        desktopIpcErrorCodes.agentNotFound,
+      );
+    });
     const sender = { send: vi.fn() };
 
-    await ipcHandler('agent:test:known-error-stream')(
-      { sender },
-      request('req_3', { value: 'fail' }),
-    );
+    await ipcHandler('agent:comment:stream')({ sender }, request('req_3', agentMessagePayload));
 
     expect(sender.send).toHaveBeenCalledWith(
-      'agent:test:known-error-stream:req_3',
+      'agent:comment:stream:req_3',
       expect.objectContaining({
         type: 'error',
         message: desktopIpcErrorCodes.agentNotFound,
@@ -89,24 +77,16 @@ describe('runAgentStreamIpc', () => {
 
   it('runs the guard before the stream handler', async () => {
     const handler = vi.fn();
-    runAgentStreamIpc<{ value: string }, AgentStreamErrorEvent>(
-      'agent:test:guarded-stream',
-      'STREAM_FAILED',
-      handler,
-      async () => {
-        throw new DesktopIpcError(desktopIpcErrorCodes.appLockRequired);
-      },
-    );
+    runAgentStreamIpc('agent:comment:stream', 'STREAM_FAILED', handler, async () => {
+      throw new DesktopIpcError(desktopIpcErrorCodes.appLockRequired);
+    });
     const sender = { send: vi.fn() };
 
-    await ipcHandler('agent:test:guarded-stream')(
-      { sender },
-      request('req_4', { value: 'blocked' }),
-    );
+    await ipcHandler('agent:comment:stream')({ sender }, request('req_4', agentMessagePayload));
 
     expect(handler).not.toHaveBeenCalled();
     expect(sender.send).toHaveBeenCalledWith(
-      'agent:test:guarded-stream:req_4',
+      'agent:comment:stream:req_4',
       expect.objectContaining({
         type: 'error',
         message: desktopIpcErrorCodes.appLockRequired,
@@ -175,3 +155,14 @@ function ipcHandler(channel: string) {
 function request<TPayload>(requestId: string, payload: TPayload) {
   return { requestId, payload };
 }
+
+const agentMessagePayload = {
+  agentUsername: 'agent',
+} as AgentMessagePayload;
+
+const finalComment: Comment = {
+  id: 'comment_1',
+  author: 'ai',
+  content: 'done',
+  createdAt: '2026-07-15T00:00:00.000Z',
+};

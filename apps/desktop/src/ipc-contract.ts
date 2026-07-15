@@ -624,11 +624,12 @@ export type DesktopIpcStreamRequest<Channel extends DesktopIpcStreamChannel> = {
 export type DesktopIpcStreamResponseChannel<Channel extends DesktopIpcStreamChannel> =
   `${Channel}:${string}`;
 
-export type DesktopIpcToMainEventMap = {
+type DesktopIpcStreamRequestMap = {
+  [Channel in DesktopIpcStreamChannel]: DesktopIpcStreamRequest<Channel>;
+};
+
+export type DesktopIpcToMainEventMap = DesktopIpcStreamRequestMap & {
   'app:renderer-ready': undefined;
-  'agent:comment:stream': DesktopIpcStreamRequest<'agent:comment:stream'>;
-  'agent:distillation-review:stream': DesktopIpcStreamRequest<'agent:distillation-review:stream'>;
-  'agent:annotate:stream': DesktopIpcStreamRequest<'agent:annotate:stream'>;
 };
 
 export type DesktopIpcToRendererEventMap = {

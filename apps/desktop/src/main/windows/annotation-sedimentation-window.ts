@@ -4,6 +4,7 @@ import type {
   AnnotationSedimentationWindowOpenInput,
 } from '../../ipc-contract';
 import { handleDesktopIpc } from '../ipc/ipc';
+import { sendDesktopIpcRendererEvent } from '../ipc/ipc-events';
 import {
   type AnnotationWindowIpcContext,
   closeAnnotationDiscussionWindow,
@@ -168,7 +169,7 @@ function notifyDistillationCommitted(
 ) {
   const mainWindow = context.getMainWindow();
   if (!mainWindow || mainWindow.isDestroyed()) return;
-  mainWindow.webContents.send('annotation-distillation:committed', input);
+  sendDesktopIpcRendererEvent(mainWindow.webContents, 'annotation-distillation:committed', input);
 }
 
 function restoreMainWindow(context: AnnotationWindowIpcContext) {

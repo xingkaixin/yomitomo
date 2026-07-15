@@ -1,5 +1,6 @@
 import { BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import type { WindowAnimationSourceRect } from '../../ipc-contract';
+import { sendDesktopIpcRendererEvent } from '../ipc/ipc-events';
 
 const WINDOW_CLOSE_ANIMATION_MS = 150;
 
@@ -12,7 +13,7 @@ export function installWindowCloseAnimation(window: BrowserWindow) {
     event.preventDefault();
     if (closing) return;
     closing = true;
-    window.webContents.send('annotation-window:closing');
+    sendDesktopIpcRendererEvent(window.webContents, 'annotation-window:closing');
     setTimeout(() => {
       if (window.isDestroyed()) return;
       forceClose = true;

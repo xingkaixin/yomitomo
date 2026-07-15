@@ -94,6 +94,32 @@ describe('desktop IPC stream client', () => {
     await expect(second).resolves.toEqual(finalComment);
     expect(transport.listenerCount('agent:comment:stream:request_2')).toBe(0);
   });
+
+  it('cleans up duplicate listeners attached to the same response channel', async () => {
+    const transport = new MemoryDesktopIpcStreamTransport();
+    const client = createDesktopIpcStreamClient(transport, () => 'shared_request');
+    const first = client.request(
+      'agent:comment:stream',
+      agentMessagePayload,
+      () => undefined,
+      (event) => event.comment,
+    );
+    const second = client.request(
+      'agent:comment:stream',
+      agentMessagePayload,
+      () => undefined,
+      (event) => event.comment,
+    );
+
+    expect(transport.listenerCount('agent:comment:stream:shared_request')).toBe(2);
+    transport.emit('agent:comment:stream:shared_request', {
+      type: 'done',
+      comment: finalComment,
+    });
+
+    await expect(Promise.all([first, second])).resolves.toEqual([finalComment, finalComment]);
+    expect(transport.listenerCount('agent:comment:stream:shared_request')).toBe(0);
+  });
 });
 
 class MemoryDesktopIpcStreamTransport implements DesktopIpcStreamTransport {
