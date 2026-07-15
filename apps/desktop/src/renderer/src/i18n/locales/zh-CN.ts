@@ -465,6 +465,7 @@ export const zhCNResources = {
       pinLabel: '应用锁 PIN',
       pinPlaceholder: 'PIN',
       invalidPin: 'PIN 不正确。',
+      retryAfter: '错误次数过多，请在 {{seconds}} 秒后重试。',
       verifyFailed: 'PIN 校验失败，请重试。',
       verifying: '校验中',
       unlock: '解锁',
@@ -1390,6 +1391,7 @@ export const zhCNResources = {
         appLockStartupDescription:
           '开启后，每次应用启动或更新重启都会先进入锁定状态。更新说明会在解锁后再显示。',
         appLockSaveError: '应用锁设置保存失败。',
+        appLockRetryAfter: '错误次数过多，请在 {{seconds}} 秒后重试。',
         collectionGroup: '采集',
         saveImagesTitle: '采集文章时保存正文图片',
         saveImagesDescription:

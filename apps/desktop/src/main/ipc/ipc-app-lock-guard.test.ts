@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DesktopStore } from '@yomitomo/shared';
 import { desktopIpcErrorCodes, type DesktopIpcInvokeEnvelope } from '../../ipc-errors';
+import { resetAppLockPinAttempts } from '../app-lock/app-lock-attempt-policy';
 import { registerAppLockIpc } from './ipc-app-lock';
 import { registerStoreDataIpc } from './ipc-store-data';
 import { configureDesktopIpcAppLockGuardContext, handleDesktopIpc } from './ipc';
@@ -40,9 +41,11 @@ vi.mock('../app/logger', () => ({
 }));
 
 beforeEach(() => {
+  vi.clearAllMocks();
   ipcState.handlers.clear();
   ipcState.hasAppLockPin.mockResolvedValue(true);
   ipcState.verifyAppLockPin.mockResolvedValue(false);
+  resetAppLockPinAttempts();
   configureDesktopIpcAppLockGuardContext(null);
 });
 
@@ -122,6 +125,31 @@ describe('app lock IPC guard', () => {
     });
     expect(storeModule.saveSettings).not.toHaveBeenCalled();
     expect(ipcContext.sendFullStoreUpdated).not.toHaveBeenCalled();
+  });
+
+  it('shares cooldown state across PIN verification entry points', async () => {
+    const storeModule = createStoreModule(lockedStore());
+    const ipcContext = context(storeModule);
+    registerAppLockIpc(ipcContext);
+
+    let lastVerification: DesktopIpcInvokeEnvelope<unknown> | undefined;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      lastVerification = await invokeRegisteredHandler('appLock:verifyPin', { pin: '0000' });
+    }
+    const envelope = await invokeRegisteredHandler('appLock:unlock', { pin: '0000' });
+
+    expect(ipcState.verifyAppLockPin).toHaveBeenCalledTimes(3);
+    expect(lastVerification).toEqual({
+      ok: true,
+      value: { ok: false, retryAfterMs: 1_000, status: 'invalid' },
+    });
+    expect(envelope).toMatchObject({
+      ok: false,
+      error: {
+        code: desktopIpcErrorCodes.appLockRateLimited,
+        detail: { retryAfterMs: expect.any(Number) },
+      },
+    });
   });
 
   it('returns only the locked renderer store when locking from an unlocked app', async () => {

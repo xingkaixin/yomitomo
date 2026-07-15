@@ -3,7 +3,7 @@ import { LockKeyhole } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { DesktopStore } from '@yomitomo/shared';
 import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
-import { isDesktopIpcErrorLike } from '../../../ipc-errors';
+import { desktopIpcErrorRetryAfterMs, isDesktopIpcErrorLike } from '../../../ipc-errors';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '../components/ui/input-otp';
 import { ShimmeringText } from '../components/ui/shimmering-text';
 import {
@@ -136,11 +136,16 @@ export function useAppLockController({
       setStep('slide');
       setPin('');
     } catch (unlockError) {
-      setError(
-        isDesktopIpcErrorLike(unlockError) && unlockError.code === 'APP_LOCK_PIN_INVALID'
-          ? t('appLock.invalidPin')
-          : t('appLock.verifyFailed'),
-      );
+      const retryAfterMs = desktopIpcErrorRetryAfterMs(unlockError);
+      if (retryAfterMs) {
+        setError(t('appLock.retryAfter', { seconds: Math.ceil(retryAfterMs / 1_000) }));
+      } else {
+        setError(
+          isDesktopIpcErrorLike(unlockError) && unlockError.code === 'APP_LOCK_PIN_INVALID'
+            ? t('appLock.invalidPin')
+            : t('appLock.verifyFailed'),
+        );
+      }
       setPin('');
       setInputKey((key) => key + 1);
     } finally {
