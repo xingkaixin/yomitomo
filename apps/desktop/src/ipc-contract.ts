@@ -51,9 +51,9 @@ export type AppLockVerifyPinInput = {
   pin: string;
 };
 
-export type AppLockVerifyPinResult = {
-  ok: boolean;
-};
+export type AppLockVerifyPinResult =
+  | { ok: true; retryAfterMs: 0; status: 'verified' }
+  | { ok: false; retryAfterMs: number; status: 'blocked' | 'invalid' };
 
 export type AppLockUnlockInput = {
   pin: string;

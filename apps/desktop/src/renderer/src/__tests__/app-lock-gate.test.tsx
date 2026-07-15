@@ -93,6 +93,30 @@ describe('useAppLockController', () => {
     expect(window.yomitomoDesktop.unlockAppLock).toHaveBeenLastCalledWith({ pin: '1234' });
     expect(onStoreUpdated).toHaveBeenCalledWith(unlockedStore);
   });
+
+  it('shows the retry delay returned by the main process', async () => {
+    const latest: { current?: ReturnType<typeof useAppLockController> } = {};
+
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: {
+        platform: 'darwin',
+        unlockAppLock: vi.fn().mockRejectedValue({
+          code: 'APP_LOCK_RATE_LIMITED',
+          detail: { retryAfterMs: 2_001 },
+          message: 'APP_LOCK_RATE_LIMITED',
+        }),
+      },
+    });
+
+    render(<Harness latest={latest} locked onStoreUpdated={vi.fn()} />);
+
+    await act(async () => {
+      await latest.current?.unlockApp('1234');
+    });
+
+    expect(screen.getByTestId('error').textContent).toBe('错误次数过多，请在 3 秒后重试。');
+  });
 });
 
 describe('AppLockGate', () => {

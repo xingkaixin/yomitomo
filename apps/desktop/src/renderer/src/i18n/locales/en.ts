@@ -477,6 +477,7 @@ export const enResources = {
       pinLabel: 'App lock PIN',
       pinPlaceholder: 'PIN',
       invalidPin: 'Incorrect PIN.',
+      retryAfter: 'Too many incorrect attempts. Try again in {{seconds}} seconds.',
       verifyFailed: 'PIN verification failed. Try again.',
       verifying: 'Verifying',
       unlock: 'Unlock',
@@ -1440,6 +1441,7 @@ export const enResources = {
         appLockStartupDescription:
           'When enabled, every app launch or update restart starts locked. Release notes appear only after unlocking.',
         appLockSaveError: 'Failed to save app lock settings.',
+        appLockRetryAfter: 'Too many incorrect attempts. Try again in {{seconds}} seconds.',
         collectionGroup: 'Capture',
         saveImagesTitle: 'Save article images while capturing',
         saveImagesDescription:

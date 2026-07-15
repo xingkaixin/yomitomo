@@ -1,6 +1,8 @@
 export const desktopIpcErrorCodes = {
   agentNotFound: 'AGENT_NOT_FOUND',
   annotationAgentNotFound: 'ANNOTATION_AGENT_NOT_FOUND',
+  appLockPinInvalid: 'APP_LOCK_PIN_INVALID',
+  appLockRateLimited: 'APP_LOCK_RATE_LIMITED',
   appLockRequired: 'APP_LOCK_REQUIRED',
   handlerFailed: 'IPC_HANDLER_FAILED',
   invalidArgs: 'IPC_INVALID_ARGS',
@@ -67,6 +69,15 @@ export function isDesktopIpcErrorLike(error: unknown): error is SerializedDeskto
     'message' in error &&
     typeof error.message === 'string'
   );
+}
+
+export function desktopIpcErrorRetryAfterMs(error: unknown) {
+  if (!isDesktopIpcErrorLike(error)) return undefined;
+  const retryAfterMs = error.detail?.retryAfterMs;
+  if (typeof retryAfterMs !== 'number' || !Number.isFinite(retryAfterMs) || retryAfterMs <= 0) {
+    return undefined;
+  }
+  return Math.ceil(retryAfterMs);
 }
 
 function unknownErrorMessage(error: unknown) {

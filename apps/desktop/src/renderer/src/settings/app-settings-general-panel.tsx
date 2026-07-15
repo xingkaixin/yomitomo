@@ -18,6 +18,7 @@ import {
 } from '@yomitomo/shared';
 import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
 import { useTranslation } from 'react-i18next';
+import { desktopIpcErrorRetryAfterMs } from '../../../ipc-errors';
 import { AutoSaveStatus } from './app-settings-save-status';
 import { SettingsConfirmDialog } from './app-settings-confirm-dialog';
 import { SettingsElasticSlider } from './app-settings-elastic-slider';
@@ -238,7 +239,11 @@ export function GeneralSettings(props: GeneralSettingsProps) {
       setAppLockSaveState('saved');
       window.setTimeout(() => setAppLockSaveState('idle'), 1200);
     } catch (error) {
-      setAppLockError(appLockErrorMessage(error, t('settings.general.appLockSaveError')));
+      setAppLockError(
+        appLockErrorMessage(error, t('settings.general.appLockSaveError'), (seconds) =>
+          t('settings.general.appLockRetryAfter', { seconds }),
+        ),
+      );
       setAppLockSaveState('error');
     }
   }
@@ -280,7 +285,11 @@ export function GeneralSettings(props: GeneralSettingsProps) {
       setAppLockSaveState('saved');
       window.setTimeout(() => setAppLockSaveState('idle'), 1200);
     } catch (error) {
-      setAppLockError(appLockErrorMessage(error, t('settings.general.appLockSaveError')));
+      setAppLockError(
+        appLockErrorMessage(error, t('settings.general.appLockSaveError'), (seconds) =>
+          t('settings.general.appLockRetryAfter', { seconds }),
+        ),
+      );
       setAppLockSaveState('error');
     }
   }
@@ -889,7 +898,13 @@ function validPin(value: string) {
   return /^\d{4}$/.test(value);
 }
 
-function appLockErrorMessage(error: unknown, fallback: string) {
+function appLockErrorMessage(
+  error: unknown,
+  fallback: string,
+  retryAfterMessage: (seconds: number) => string,
+) {
+  const retryAfterMs = desktopIpcErrorRetryAfterMs(error);
+  if (retryAfterMs) return retryAfterMessage(Math.ceil(retryAfterMs / 1_000));
   if (error && typeof error === 'object' && 'message' in error) {
     const rawMessage = (error as { message?: unknown }).message;
     const message = typeof rawMessage === 'string' ? rawMessage : '';
