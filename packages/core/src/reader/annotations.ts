@@ -13,7 +13,15 @@ import type {
   TextAnchor,
   UserProfile,
 } from '@yomitomo/shared';
-import { createTextAnchor, makeId } from '@yomitomo/shared';
+import {
+  createTextAnchor,
+  makeId,
+  normalizeAgentReadingIntent,
+  normalizeAnnotationConfidence,
+  normalizeAnnotationEvidenceSource,
+  normalizeAnnotationMove,
+  normalizeAnnotationType,
+} from '@yomitomo/shared';
 import { createEpubTextAnchor } from '../epub/ebook-index';
 import {
   performanceElapsedMs,
@@ -103,16 +111,6 @@ export const annotationTypeLabels: Record<AnnotationType, string> = {
 
 export function annotationTypeLabel(type: AnnotationType) {
   return annotationTypeLabels[type];
-}
-
-export function normalizeAnnotationType(value: unknown): AnnotationType | null {
-  return value === 'key_point' ||
-    value === 'assumption' ||
-    value === 'concept' ||
-    value === 'question' ||
-    value === 'quote'
-    ? value
-    : null;
 }
 
 export function createUserComment(
@@ -893,50 +891,12 @@ function findUserIdentity(userId: string | undefined, userProfile: UserProfile) 
   return !userId || userId === userProfile.id ? userProfile : null;
 }
 
-function normalizeAgentReadingIntent(value: unknown): AgentReadingIntent | null {
-  return value === 'explain' ||
-    value === 'decompose' ||
-    value === 'challenge' ||
-    value === 'question' ||
-    value === 'connect'
-    ? value
-    : null;
-}
-
-function normalizeAnnotationMove(value: unknown): AnnotationMove | null {
-  return value === 'explain_concept' ||
-    value === 'surface_assumption' ||
-    value === 'ask_question' ||
-    value === 'connect_previous' ||
-    value === 'challenge_argument' ||
-    value === 'reader_application' ||
-    value === 'style_observation' ||
-    value === 'structure_marker' ||
-    value === 'definition_watch' ||
-    value === 'foreshadowing_watch'
-    ? value
-    : null;
-}
-
 function normalizeAnnotationEvidenceUsed(value: unknown): AnnotationEvidenceSource[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const sources = value
     .map((item) => normalizeAnnotationEvidenceSource(item))
     .filter((item): item is AnnotationEvidenceSource => Boolean(item));
   return sources.length > 0 ? Array.from(new Set(sources)) : undefined;
-}
-
-function normalizeAnnotationEvidenceSource(value: unknown): AnnotationEvidenceSource | null {
-  return value === 'localText' ||
-    value === 'chapterSummary' ||
-    value === 'trace' ||
-    value === 'relatedPassage'
-    ? value
-    : null;
-}
-
-function normalizeAnnotationConfidence(value: unknown): AnnotationConfidence | null {
-  return value === 'low' || value === 'medium' || value === 'high' ? value : null;
 }
 
 function findAll(text: string, exact: string): number[] {

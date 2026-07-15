@@ -1,5 +1,4 @@
 import type {
-  AgentReadingIntent,
   Annotation,
   AnnotationAuthor,
   AnnotationDistillation,
@@ -14,7 +13,6 @@ import type {
   AnnotationDistillationReviewSession,
   AnnotationDistillationStatus,
   AnnotationEvidenceSource,
-  AnnotationType,
   AssistantRuntimeProgressStepStatus,
   AssistantRuntimeProgressSummary,
   Comment,
@@ -23,9 +21,11 @@ import type {
   TextAnchor,
 } from '@yomitomo/shared';
 import {
+  normalizeAgentReadingIntent,
   normalizeAnnotationConfidence,
   normalizeAnnotationEvidenceSource,
   normalizeAnnotationMove,
+  normalizeAnnotationType,
   normalizeReviewOpinionLabel,
 } from '@yomitomo/shared';
 import * as schema from '../db/schema';
@@ -423,30 +423,10 @@ function normalizePdfRects(value: unknown): PdfRect[] {
   });
 }
 
-function normalizeAnnotationType(value: unknown): AnnotationType | null {
-  return value === 'key_point' ||
-    value === 'assumption' ||
-    value === 'concept' ||
-    value === 'question' ||
-    value === 'quote'
-    ? value
-    : null;
-}
-
 function normalizeAnnotationEvidenceUsed(value: unknown): AnnotationEvidenceSource[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const sources = value
     .map((item) => normalizeAnnotationEvidenceSource(item))
     .filter((item): item is AnnotationEvidenceSource => Boolean(item));
   return sources.length > 0 ? Array.from(new Set(sources)) : undefined;
-}
-
-function normalizeAgentReadingIntent(value: unknown): AgentReadingIntent | null {
-  return value === 'explain' ||
-    value === 'decompose' ||
-    value === 'challenge' ||
-    value === 'question' ||
-    value === 'connect'
-    ? value
-    : null;
 }
