@@ -55,6 +55,108 @@ function normalizeInitialProgress(progress: ArticleReadingProgress | undefined) 
   return progress ? normalizeSourceReadingProgress(progress) : null;
 }
 
+type SourceReadingProgressSaveRuntime = {
+  onSave: SourceBookcaseProps['onSaveArticleReadingProgress'];
+  shouldSave: SourceReadingProgressSavePredicate;
+};
+
+type SourceReadingProgressSaveState = {
+  articleId: string;
+  lastPersistedProgress: ArticleReadingProgress | null;
+  pendingProgress: ArticleReadingProgress | null;
+  saveTimer: number | undefined;
+  drainPromise: Promise<void> | null;
+  retryBlocked: boolean;
+  runtime: SourceReadingProgressSaveRuntime;
+};
+
+function createSourceReadingProgressSaveState(
+  articleId: string,
+  initialProgress: ArticleReadingProgress | undefined,
+  runtime: SourceReadingProgressSaveRuntime,
+): SourceReadingProgressSaveState {
+  return {
+    articleId,
+    lastPersistedProgress: normalizeInitialProgress(initialProgress),
+    pendingProgress: null,
+    saveTimer: undefined,
+    drainPromise: null,
+    retryBlocked: false,
+    runtime,
+  };
+}
+
+function clearSourceReadingProgressSaveTimer(state: SourceReadingProgressSaveState) {
+  if (state.saveTimer === undefined) return;
+  window.clearTimeout(state.saveTimer);
+  state.saveTimer = undefined;
+}
+
+function queueSourceReadingProgress(
+  state: SourceReadingProgressSaveState,
+  progress: ArticleReadingProgress,
+) {
+  if (!state.runtime.shouldSave(progress, state.lastPersistedProgress)) {
+    state.pendingProgress = null;
+    return false;
+  }
+  state.pendingProgress = progress;
+  return true;
+}
+
+function sameSourceReadingProgress(left: ArticleReadingProgress, right: ArticleReadingProgress) {
+  return sourceReadingProgressSaveKey(left) === sourceReadingProgressSaveKey(right);
+}
+
+async function drainSourceReadingProgress(state: SourceReadingProgressSaveState) {
+  while (state.pendingProgress && state.saveTimer === undefined) {
+    const progress = state.pendingProgress;
+    if (!state.runtime.shouldSave(progress, state.lastPersistedProgress)) {
+      state.pendingProgress = null;
+      continue;
+    }
+
+    state.pendingProgress = null;
+    try {
+      await state.runtime.onSave(state.articleId, progress);
+      state.lastPersistedProgress = progress;
+    } catch (error) {
+      console.warn('[reading-progress] save failed', {
+        articleId: state.articleId,
+        error,
+        progress: sourceReadingProgressSaveKey(progress),
+      });
+      if (!state.pendingProgress || sameSourceReadingProgress(state.pendingProgress, progress)) {
+        state.pendingProgress ||= progress;
+        state.retryBlocked = true;
+      }
+    }
+
+    if (state.retryBlocked || state.saveTimer !== undefined) return;
+  }
+}
+
+function requestSourceReadingProgressDrain(state: SourceReadingProgressSaveState) {
+  state.retryBlocked = false;
+  if (state.drainPromise) return state.drainPromise;
+
+  const drainPromise = drainSourceReadingProgress(state).finally(() => {
+    if (state.drainPromise !== drainPromise) return;
+    state.drainPromise = null;
+    if (state.pendingProgress && state.saveTimer === undefined && !state.retryBlocked) {
+      void requestSourceReadingProgressDrain(state);
+    }
+  });
+  state.drainPromise = drainPromise;
+  return drainPromise;
+}
+
+function flushSourceReadingProgress(state: SourceReadingProgressSaveState) {
+  clearSourceReadingProgressSaveTimer(state);
+  if (!state.pendingProgress) return state.drainPromise || Promise.resolve();
+  return requestSourceReadingProgressDrain(state);
+}
+
 export function useSourceReadingProgressSaver({
   articleId,
   debounceMs = 450,
@@ -68,96 +170,58 @@ export function useSourceReadingProgressSaver({
   onSaveArticleReadingProgress: SourceBookcaseProps['onSaveArticleReadingProgress'];
   shouldSave?: SourceReadingProgressSavePredicate;
 }) {
-  const onSaveRef = useRef(onSaveArticleReadingProgress);
-  const shouldSaveRef = useRef(shouldSave);
-  const stateRef = useRef<{
-    articleId: string;
-    lastSavedProgress: ArticleReadingProgress | null;
-    pendingProgress: ArticleReadingProgress | null;
-    saveTimer: number | undefined;
-  }>({
-    articleId,
-    lastSavedProgress: normalizeInitialProgress(initialProgress),
-    pendingProgress: null,
-    saveTimer: undefined,
+  const runtimeRef = useRef<SourceReadingProgressSaveRuntime>({
+    onSave: onSaveArticleReadingProgress,
+    shouldSave,
   });
-
-  const clearSaveTimer = useCallback(() => {
-    const state = stateRef.current;
-    if (state.saveTimer === undefined) return;
-    window.clearTimeout(state.saveTimer);
-    state.saveTimer = undefined;
-  }, []);
-
-  const saveProgress = useCallback((progress: ArticleReadingProgress) => {
-    const state = stateRef.current;
-    if (!shouldSaveRef.current(progress, state.lastSavedProgress)) {
-      state.pendingProgress = null;
-      return false;
-    }
-
-    state.lastSavedProgress = progress;
-    state.pendingProgress = null;
-    void onSaveRef.current(state.articleId, progress);
-    return true;
-  }, []);
-
-  const flushPendingSave = useCallback(() => {
-    const state = stateRef.current;
-    const pendingProgress = state.pendingProgress;
-    clearSaveTimer();
-    if (!pendingProgress) return false;
-    return saveProgress(pendingProgress);
-  }, [clearSaveTimer, saveProgress]);
-
-  useEffect(() => {
-    onSaveRef.current = onSaveArticleReadingProgress;
-  }, [onSaveArticleReadingProgress]);
-
-  useEffect(() => {
-    shouldSaveRef.current = shouldSave;
-  }, [shouldSave]);
-
-  useEffect(() => {
-    const state = stateRef.current;
-    state.articleId = articleId;
-    state.lastSavedProgress = normalizeInitialProgress(initialProgress);
-    state.pendingProgress = null;
-    clearSaveTimer();
-    return () => {
-      flushPendingSave();
-    };
-  }, [articleId, clearSaveTimer, flushPendingSave, initialProgress]);
-
-  const saveNow = useCallback(
-    (progress: ArticleReadingProgress) => {
-      clearSaveTimer();
-      saveProgress(normalizeSourceReadingProgress(progress));
-    },
-    [clearSaveTimer, saveProgress],
+  runtimeRef.current.onSave = onSaveArticleReadingProgress;
+  runtimeRef.current.shouldSave = shouldSave;
+  const initialProgressRef = useRef(initialProgress);
+  initialProgressRef.current = initialProgress;
+  const stateRef = useRef(
+    createSourceReadingProgressSaveState(articleId, initialProgress, runtimeRef.current),
   );
+
+  useEffect(() => {
+    let state = stateRef.current;
+    if (state.articleId !== articleId) {
+      state = createSourceReadingProgressSaveState(
+        articleId,
+        initialProgressRef.current,
+        runtimeRef.current,
+      );
+      stateRef.current = state;
+    }
+    return () => {
+      void flushSourceReadingProgress(state);
+    };
+  }, [articleId]);
+
+  const saveNow = useCallback((progress: ArticleReadingProgress) => {
+    const state = stateRef.current;
+    clearSourceReadingProgressSaveTimer(state);
+    if (!queueSourceReadingProgress(state, normalizeSourceReadingProgress(progress))) {
+      return state.drainPromise || Promise.resolve();
+    }
+    return requestSourceReadingProgressDrain(state);
+  }, []);
 
   const scheduleSave = useCallback(
     (progress: ArticleReadingProgress) => {
       const normalizedProgress = normalizeSourceReadingProgress(progress);
       const state = stateRef.current;
-      if (!shouldSaveRef.current(normalizedProgress, state.lastSavedProgress)) {
-        state.pendingProgress = null;
-        clearSaveTimer();
-        return;
-      }
-
-      state.pendingProgress = normalizedProgress;
-      clearSaveTimer();
+      clearSourceReadingProgressSaveTimer(state);
+      if (!queueSourceReadingProgress(state, normalizedProgress)) return;
       if (debounceMs <= 0) {
-        saveProgress(normalizedProgress);
+        void requestSourceReadingProgressDrain(state);
         return;
       }
       state.saveTimer = window.setTimeout(() => {
-        flushPendingSave();
+        state.saveTimer = undefined;
+        void requestSourceReadingProgressDrain(state);
       }, debounceMs);
     },
-    [clearSaveTimer, debounceMs, flushPendingSave, saveProgress],
+    [debounceMs],
   );
 
   return { saveNow, scheduleSave };

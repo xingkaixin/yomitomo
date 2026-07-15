@@ -615,7 +615,7 @@ export function WebSourceBookcase({
       window.requestAnimationFrame(() => {
         updateProgress();
         if (webReaderMaxScrollTop(scrollElement) <= 0)
-          saveWebProgressNow(currentProgressSnapshot());
+          void saveWebProgressNow(currentProgressSnapshot());
       });
     });
     scrollElement.addEventListener('scroll', scheduleSave, { passive: true });

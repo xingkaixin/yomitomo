@@ -38,6 +38,16 @@ function saver() {
   return latestSaver;
 }
 
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, reject, resolve };
+}
+
 function Probe({
   articleId = 'article-1',
   debounceMs,
@@ -48,7 +58,7 @@ function Probe({
   articleId?: string;
   debounceMs?: number;
   initialProgress?: ArticleReadingProgress;
-  onSave: (articleId: string, progress: ArticleReadingProgress) => void;
+  onSave: (articleId: string, progress: ArticleReadingProgress) => Promise<void> | void;
   shouldSave?: SourceReadingProgressSavePredicate;
 }) {
   latestSaver = useSourceReadingProgressSaver({
@@ -174,8 +184,126 @@ describe('useSourceReadingProgressSaver', () => {
 
     act(() => {
       saver().scheduleSave(progress({ progress: 0.2 }));
-      saver().saveNow(progress({ progress: 0.4 }));
+      void saver().saveNow(progress({ progress: 0.4 }));
       vi.advanceTimersByTime(450);
+    });
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave).toHaveBeenCalledWith('article-1', expect.objectContaining({ progress: 0.4 }));
+  });
+
+  it('retries the same progress after persistence fails', async () => {
+    const error = new Error('database unavailable');
+    const firstSave = deferred<void>();
+    const onSave = vi
+      .fn()
+      .mockImplementationOnce(() => firstSave.promise)
+      .mockResolvedValue(undefined);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { rerender } = render(
+      <Probe debounceMs={0} initialProgress={progress({ progress: 0.1 })} onSave={onSave} />,
+    );
+
+    let failedDrain!: Promise<void>;
+    act(() => {
+      failedDrain = saver().saveNow(progress({ progress: 0.2 }));
+    });
+    rerender(
+      <Probe debounceMs={0} initialProgress={progress({ progress: 0.2 })} onSave={onSave} />,
+    );
+    await act(async () => {
+      firstSave.reject(error);
+      await failedDrain;
+    });
+    await act(async () => {
+      await saver().saveNow(progress({ progress: 0.2 }));
+    });
+
+    expect(onSave).toHaveBeenCalledTimes(2);
+    expect(warn).toHaveBeenCalledWith('[reading-progress] save failed', {
+      articleId: 'article-1',
+      error,
+      progress: '1:10:::0.2',
+    });
+  });
+
+  it('serializes progress saves and persists the latest pending value', async () => {
+    const firstSave = deferred<void>();
+    const onSave = vi
+      .fn()
+      .mockImplementationOnce(() => firstSave.promise)
+      .mockResolvedValue(undefined);
+    render(<Probe debounceMs={0} onSave={onSave} />);
+
+    let drain!: Promise<void>;
+    act(() => {
+      void saver().saveNow(progress({ progress: 0.2 }));
+      drain = saver().saveNow(progress({ progress: 0.4 }));
+    });
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave).toHaveBeenLastCalledWith(
+      'article-1',
+      expect.objectContaining({ progress: 0.2 }),
+    );
+
+    await act(async () => {
+      firstSave.resolve(undefined);
+      await drain;
+    });
+
+    expect(onSave).toHaveBeenCalledTimes(2);
+    expect(onSave).toHaveBeenLastCalledWith(
+      'article-1',
+      expect.objectContaining({ progress: 0.4 }),
+    );
+  });
+
+  it('keeps an older article save isolated after switching articles', async () => {
+    const oldArticleSave = deferred<void>();
+    const onSave = vi
+      .fn()
+      .mockImplementationOnce(() => oldArticleSave.promise)
+      .mockResolvedValue(undefined);
+    const { rerender } = render(
+      <Probe articleId="article-a" initialProgress={progress({ progress: 0.1 })} onSave={onSave} />,
+    );
+
+    act(() => {
+      void saver().saveNow(progress({ progress: 0.2 }));
+    });
+    rerender(
+      <Probe articleId="article-b" initialProgress={progress({ progress: 0.8 })} onSave={onSave} />,
+    );
+
+    await act(async () => {
+      oldArticleSave.resolve(undefined);
+      await oldArticleSave.promise;
+    });
+    await act(async () => {
+      await saver().saveNow(progress({ progress: 0.8 }));
+    });
+    expect(onSave).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await saver().saveNow(progress({ progress: 0.9 }));
+    });
+    expect(onSave).toHaveBeenCalledTimes(2);
+    expect(onSave).toHaveBeenLastCalledWith(
+      'article-b',
+      expect.objectContaining({ progress: 0.9 }),
+    );
+  });
+
+  it('flushes only the latest debounced progress on unmount', () => {
+    vi.useFakeTimers();
+    const onSave = vi.fn();
+    const { unmount } = render(<Probe debounceMs={450} onSave={onSave} />);
+
+    act(() => {
+      saver().scheduleSave(progress({ progress: 0.2 }));
+      saver().scheduleSave(progress({ progress: 0.4 }));
+      unmount();
     });
 
     expect(onSave).toHaveBeenCalledTimes(1);

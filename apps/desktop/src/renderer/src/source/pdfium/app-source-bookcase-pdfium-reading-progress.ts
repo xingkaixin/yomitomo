@@ -100,7 +100,7 @@ export function usePdfiumReadingProgress({
         suppressPageSaveUntilRestoreRef.current = false;
       }
       setCurrentPage(pageIndex + 1);
-      savePdfProgressNow(pdfReadingProgress(pageIndex, pageCount));
+      void savePdfProgressNow(pdfReadingProgress(pageIndex, pageCount));
     };
 
     const unsubscribe = scroll.onScroll?.(saveCurrentPage);
