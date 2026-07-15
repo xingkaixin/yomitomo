@@ -85,6 +85,27 @@ describe('inlineArticleImages', () => {
     expect(article.content).toContain('src="data:image/png;base64,inline-4"');
   });
 
+  it('releases image permits after fetch failures', async () => {
+    const fetcher = vi.fn(async (url: string) => {
+      if (!url.endsWith('/inline-4.jpg')) {
+        throw new Error('network failed');
+      }
+      return 'data:image/png;base64,recovered';
+    });
+    const content = Array.from(
+      { length: 5 },
+      (_, index) => `<img src="/images/inline-${index}.jpg">`,
+    ).join('');
+
+    const article = await inlineArticleImages(
+      articleRecord({ content, leadImageUrl: undefined, siteIconUrl: undefined }),
+      { articleDocument: document, fetcher },
+    );
+
+    expect(fetcher).toHaveBeenCalledTimes(5);
+    expect(article.content).toContain('src="data:image/png;base64,recovered"');
+  });
+
   it('dedupes repeated image requests', async () => {
     const fetcher = vi.fn(async () => 'data:image/png;base64,shared');
 
