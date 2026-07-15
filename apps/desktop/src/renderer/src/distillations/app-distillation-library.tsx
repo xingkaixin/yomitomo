@@ -1,5 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, LibraryBig, Search, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import {
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  Feather,
+  LibraryBig,
+  Search,
+  X,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { DistillationLibraryItem, DistillationLibraryListResult } from '../../../ipc-contract';
 
@@ -67,6 +75,7 @@ export function DistillationLibrary({
 
   const result = loadState.result;
   const totalPages = result ? Math.max(1, Math.ceil(result.totalCount / result.pageSize)) : 1;
+  const isResolving = loadState.status === 'loading' && Boolean(result);
 
   function changePage(nextPage: number) {
     setPage(nextPage);
@@ -82,14 +91,17 @@ export function DistillationLibrary({
     >
       <div className="distillation-library-inner">
         <header className="distillation-library-header">
-          <div>
+          <div className="distillation-library-heading">
             <h1 id="distillation-library-title">{t('distillationLibrary.title')}</h1>
             <p>{t('distillationLibrary.description')}</p>
           </div>
           {result?.unfilteredCount ? (
-            <span className="distillation-library-total">
-              {t('distillationLibrary.totalCount', { count: result.unfilteredCount })}
-            </span>
+            <p className="distillation-library-total">
+              <span className="distillation-library-total-number">{result.unfilteredCount}</span>
+              <span className="distillation-library-total-label">
+                {t('distillationLibrary.totalLabel')}
+              </span>
+            </p>
           ) : null}
         </header>
 
@@ -116,6 +128,7 @@ export function DistillationLibrary({
               <X aria-hidden="true" size={16} />
             </button>
           ) : null}
+          <span className="distillation-library-search-underline" aria-hidden="true" />
         </div>
 
         <div className="sr-only" aria-live="polite">
@@ -126,6 +139,7 @@ export function DistillationLibrary({
 
         {loadState.status === 'error' && !result ? (
           <DistillationLibraryMessage
+            icon={<LibraryBig aria-hidden="true" size={26} strokeWidth={1.6} />}
             title={t('distillationLibrary.loadFailed')}
             description={t('distillationLibrary.loadFailedDescription')}
             actionLabel={t('distillationLibrary.retry')}
@@ -137,6 +151,7 @@ export function DistillationLibrary({
 
         {result && result.totalCount === 0 ? (
           <DistillationLibraryMessage
+            icon={<Feather aria-hidden="true" size={26} strokeWidth={1.6} />}
             title={
               result.unfilteredCount === 0
                 ? t('distillationLibrary.emptyTitle')
@@ -161,11 +176,13 @@ export function DistillationLibrary({
               </div>
             ) : null}
             <div
-              className={`distillation-library-list${loadState.status === 'loading' ? ' is-refreshing' : ''}`}
+              key={`${result.query}|${result.page}`}
+              className={`distillation-library-list${isResolving ? ' is-resolving' : ''}`}
             >
-              {result.items.map((item) => (
+              {result.items.map((item, index) => (
                 <DistillationCard
                   key={item.annotationId}
+                  index={index}
                   item={item}
                   formattedDate={dateFormatter.format(new Date(item.updatedAt))}
                   sourceLabel={t(`library.sources.${item.sourceType}Short`)}
@@ -180,18 +197,20 @@ export function DistillationLibrary({
               >
                 <button
                   type="button"
+                  aria-label={t('distillationLibrary.previousPage')}
                   disabled={page <= 1 || loadState.status === 'loading'}
                   onClick={() => changePage(page - 1)}
                 >
-                  {t('distillationLibrary.previousPage')}
+                  <ChevronLeft aria-hidden="true" size={17} />
                 </button>
                 <span>{t('distillationLibrary.pageCount', { page, total: totalPages })}</span>
                 <button
                   type="button"
+                  aria-label={t('distillationLibrary.nextPage')}
                   disabled={page >= totalPages || loadState.status === 'loading'}
                   onClick={() => changePage(page + 1)}
                 >
-                  {t('distillationLibrary.nextPage')}
+                  <ChevronRight aria-hidden="true" size={17} />
                 </button>
               </nav>
             ) : null}
@@ -203,11 +222,13 @@ export function DistillationLibrary({
 }
 
 function DistillationCard({
+  index,
   item,
   formattedDate,
   sourceLabel,
   onOpenOriginal,
 }: {
+  index: number;
   item: DistillationLibraryItem;
   formattedDate: string;
   sourceLabel: string;
@@ -215,20 +236,20 @@ function DistillationCard({
 }) {
   const { t } = useTranslation();
   return (
-    <article className="distillation-library-card">
-      <div className="distillation-library-card-meta">
-        <span>{sourceLabel}</span>
-        <time dateTime={item.updatedAt}>{formattedDate}</time>
-      </div>
+    <article className="distillation-library-card" style={{ '--i': index } as CSSProperties}>
       <p className="distillation-library-card-content">{item.content}</p>
       {item.anchorText ? (
-        <blockquote>
+        <blockquote className="distillation-library-anchor">
           <span>{t('distillationLibrary.originalText')}</span>
           <p>{item.anchorText}</p>
         </blockquote>
       ) : null}
       <footer>
         <div className="distillation-library-source">
+          <div className="distillation-library-card-meta">
+            <span className="distillation-library-source-badge">{sourceLabel}</span>
+            <time dateTime={item.updatedAt}>{formattedDate}</time>
+          </div>
           <strong>{item.articleTitle}</strong>
           {item.articleByline ? <span>{item.articleByline}</span> : null}
         </div>
@@ -242,11 +263,13 @@ function DistillationCard({
 }
 
 function DistillationLibraryMessage({
+  icon,
   title,
   description,
   actionLabel,
   onAction,
 }: {
+  icon: ReactNode;
   title: string;
   description: string;
   actionLabel?: string;
@@ -254,7 +277,7 @@ function DistillationLibraryMessage({
 }) {
   return (
     <div className="distillation-library-message">
-      <LibraryBig aria-hidden="true" size={25} strokeWidth={1.6} />
+      {icon}
       <h2>{title}</h2>
       <p>{description}</p>
       {actionLabel && onAction ? (
@@ -270,7 +293,14 @@ function DistillationLibrarySkeleton() {
   return (
     <div className="distillation-library-skeleton" aria-hidden="true">
       {Array.from({ length: 3 }, (_, index) => (
-        <span key={index} />
+        <div key={index} className="distillation-library-skeleton-card">
+          <span className="distillation-library-skeleton-line" />
+          <span className="distillation-library-skeleton-line" />
+          <span className="distillation-library-skeleton-line" />
+          <span className="distillation-library-skeleton-line" />
+          <span className="distillation-library-skeleton-line" />
+          <span className="distillation-library-skeleton-line distillation-library-skeleton-meta" />
+        </div>
       ))}
     </div>
   );

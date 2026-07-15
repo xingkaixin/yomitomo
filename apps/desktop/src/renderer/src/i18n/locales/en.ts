@@ -473,7 +473,7 @@ export const enResources = {
     distillationLibrary: {
       title: 'Distillations',
       description: 'Revisit your published thinking across books and articles.',
-      totalCount: '{{count}} distillations',
+      totalLabel: 'distilled',
       searchLabel: 'Search distillations',
       searchPlaceholder: 'Search your thinking…',
       clearSearch: 'Clear search',
