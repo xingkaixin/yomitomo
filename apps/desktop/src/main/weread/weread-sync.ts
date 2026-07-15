@@ -11,7 +11,10 @@ type WeReadSyncLogger = {
 
 type WeReadSyncPersistence = {
   readStoredWeReadApiKey: () => Promise<string>;
-  saveWeReadBookDetails: (details: WeReadBookDetail[]) => Promise<WeReadSyncResult>;
+  saveWeReadLibrarySnapshot: (input: {
+    details: WeReadBookDetail[];
+    authoritativeBookIds: string[];
+  }) => Promise<WeReadSyncResult>;
 };
 
 export async function syncWeReadLibrary(
@@ -48,7 +51,10 @@ export async function syncWeReadLibrary(
       mergeNotebookBook: mergeWeReadNotebookBook,
       elapsedMs: input.elapsedMs,
     });
-    const result = await input.persistence.saveWeReadBookDetails(details);
+    const result = await input.persistence.saveWeReadLibrarySnapshot({
+      details,
+      authoritativeBookIds: books.map((book) => book.bookId),
+    });
     input.logInfo('weread.sync.complete', {
       reason: input.reason,
       bookCount: books.length,

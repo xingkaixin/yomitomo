@@ -114,14 +114,15 @@ export async function saveWeReadBooks(books: WeReadBook[]) {
   return readWeReadState();
 }
 
-export async function saveWeReadBookDetails(details: WeReadBookDetail[]) {
+export async function saveWeReadLibrarySnapshot(input: {
+  details: WeReadBookDetail[];
+  authoritativeBookIds: string[];
+}) {
+  validateWeReadSyncSnapshot(input);
   const database = getDatabase();
   database.transaction((tx) => {
-    for (const detail of details) upsertWeReadBookDetail(tx, detail);
-    removeStaleWeReadBooks(
-      tx,
-      details.map((detail) => detail.book.bookId),
-    );
+    for (const detail of input.details) upsertWeReadBookDetail(tx, detail);
+    removeStaleWeReadBooks(tx, input.authoritativeBookIds);
     const existing = tx
       .select()
       .from(schema.wereadAccounts)
@@ -138,6 +139,27 @@ export async function saveWeReadBookDetails(details: WeReadBookDetail[]) {
     });
   });
   return readWeReadState();
+}
+
+function validateWeReadSyncSnapshot(input: {
+  details: WeReadBookDetail[];
+  authoritativeBookIds: string[];
+}) {
+  const authoritativeBookIds = new Set(input.authoritativeBookIds);
+  if (
+    authoritativeBookIds.size !== input.authoritativeBookIds.length ||
+    input.authoritativeBookIds.some((bookId) => !bookId)
+  ) {
+    throw new Error('WEREAD_SYNC_SNAPSHOT_INVALID_AUTHORITY');
+  }
+
+  const detailBookIds = input.details.map((detail) => detail.book.bookId);
+  if (
+    new Set(detailBookIds).size !== detailBookIds.length ||
+    detailBookIds.some((bookId) => !authoritativeBookIds.has(bookId))
+  ) {
+    throw new Error('WEREAD_SYNC_SNAPSHOT_INCONSISTENT_DETAILS');
+  }
 }
 
 export async function saveWeReadBookDetail(detail: WeReadBookDetail) {

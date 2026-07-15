@@ -77,7 +77,10 @@ class WeReadApiError extends Error {
 }
 
 export async function testWeReadConnection(apiKey: string) {
-  await Effect.runPromise(requestWeReadEffect(apiKey, '/user/notebooks', { count: 1 }));
+  const response = await Effect.runPromise(
+    requestWeReadEffect(apiKey, '/user/notebooks', { count: 1 }),
+  );
+  await Effect.runPromise(decodeNotebookPageEffect(response));
   return { ok: true, message: 'OK' };
 }
 
@@ -125,24 +128,37 @@ export function hasValidWeReadBookDetailContent(detail: WeReadBookDetail) {
 function fetchWeReadNotebooksEffect(apiKey: string) {
   return Effect.gen(function* () {
     const books: WeReadBook[] = [];
+    const bookIds = new Set<string>();
     let lastSort: number | undefined;
 
     for (let page = 0; page < 50; page += 1) {
       const response = yield* requestWeReadEffect(apiKey, '/user/notebooks', {
         count: 100,
-        ...(lastSort ? { lastSort } : {}),
+        ...(lastSort === undefined ? {} : { lastSort }),
       });
-      const pageBooks = arrayValue(response.books).map((item) => notebookBookFromResponse(item));
-      books.push(...pageBooks.filter(hasWeReadNotebookContent));
-      if (response.hasMore !== 1 || pageBooks.length === 0) break;
-      lastSort = pageBooks.at(-1)?.sort;
-      if (!lastSort) break;
+      const notebookPage = yield* decodeNotebookPageEffect(response);
+      for (const book of notebookPage.books) {
+        if (bookIds.has(book.bookId)) {
+          return yield* Effect.fail(
+            new WeReadGatewayDecodeError(`duplicate notebook book: ${book.bookId}`),
+          );
+        }
+        bookIds.add(book.bookId);
+        books.push(book);
+      }
+      if (!notebookPage.hasMore) return sortWeReadNotebooks(books);
+
+      const nextLastSort = notebookPage.books.at(-1)?.sort;
+      if (nextLastSort === undefined || nextLastSort === lastSort) {
+        return yield* Effect.fail(
+          new WeReadGatewayDecodeError('incomplete notebooks pagination cursor'),
+        );
+      }
+      lastSort = nextLastSort;
     }
 
-    return books.toSorted(
-      (left, right) =>
-        (right.lastReadAt || right.sort || 0) - (left.lastReadAt || left.sort || 0) ||
-        right.updatedAt.localeCompare(left.updatedAt),
+    return yield* Effect.fail(
+      new WeReadGatewayDecodeError('notebooks pagination exceeds 50 pages'),
     );
   });
 }
@@ -161,13 +177,21 @@ function fetchWeReadBookDetailEffect(apiKey: string, bookId: string) {
         { concurrency: 'unbounded' },
       );
 
-    const chapters = arrayValue(chaptersResponse.chapters).map((item) =>
-      chapterFromResponse(bookId, item),
+    const chapterItems = yield* requiredObjectArrayEffect(
+      chaptersResponse,
+      '/book/chapterinfo',
+      'chapters',
     );
+    const bookmarkItems = yield* requiredObjectArrayEffect(
+      bookmarksResponse,
+      '/book/bookmarklist',
+      'updated',
+    );
+    const chapters = chapterItems.map((item) => chapterFromResponse(bookId, item));
     const chapterIndexByUid = new Map(
       chapters.map((chapter) => [chapter.chapterUid, chapter.chapterIdx]),
     );
-    const highlights = arrayValue(bookmarksResponse.updated)
+    const highlights = bookmarkItems
       .map((item) => highlightFromResponse(bookId, item, chapterIndexByUid))
       .filter(isValidWeReadHighlight);
     const thoughts = thoughtsResponse
@@ -208,18 +232,29 @@ function fetchWeReadThoughtsEffect(apiKey: string, bookId: string) {
         count: 100,
         ...(synckey === undefined ? {} : { synckey }),
       });
-      thoughts.push(...arrayValue(response.reviews));
-      if (response.hasMore !== 1) break;
+      const reviewPage = yield* decodeCollectionPageEffect(
+        response,
+        '/review/list/mine',
+        'reviews',
+      );
+      thoughts.push(...reviewPage.items);
+      if (!reviewPage.hasMore) return thoughts;
+
       const nextSynckey = optionalNumber(response.synckey);
       if (nextSynckey === undefined) {
-        console.warn('[weread] thoughts pagination stopped without synckey', { bookId, page });
-        break;
+        return yield* Effect.fail(
+          new WeReadGatewayDecodeError(`thoughts page ${page} is missing synckey`),
+        );
       }
-      if (synckey !== undefined && nextSynckey === synckey) break;
+      if (synckey !== undefined && nextSynckey === synckey) {
+        return yield* Effect.fail(
+          new WeReadGatewayDecodeError(`thoughts page ${page} repeats synckey`),
+        );
+      }
       synckey = nextSynckey;
     }
 
-    return thoughts;
+    return yield* Effect.fail(new WeReadGatewayDecodeError('thoughts pagination exceeds 50 pages'));
   });
 }
 
@@ -267,7 +302,10 @@ function requestWeReadEffect(
       catch: (error) =>
         isAbortError(error) ? new WeReadTimeoutError(apiName) : new WeReadGatewayDecodeError(error),
     });
-    const data = gatewayResponseValue(value);
+    const data = objectValue(value);
+    if (!data) {
+      return yield* Effect.fail(new WeReadGatewayDecodeError('gateway response must be an object'));
+    }
     if (data.upgrade_info && typeof data.upgrade_info === 'object') {
       const message = stringValue(objectValue(data.upgrade_info)?.message);
       return yield* Effect.fail(new WeReadUpgradeError(message));
@@ -306,10 +344,6 @@ function notebookBookFromResponse(item: Record<string, unknown>): WeReadBook {
     syncedAt: now,
     updatedAt: now,
   };
-}
-
-function hasWeReadNotebookContent(book: WeReadBook) {
-  return book.reviewCount + book.noteCount + book.bookmarkCount > 0;
 }
 
 function mergeBookInfo(book: WeReadBook, progressResponse: Record<string, unknown>): WeReadBook {
@@ -481,10 +515,6 @@ function objectValue(value: unknown) {
   return isRecord(value) ? value : undefined;
 }
 
-function gatewayResponseValue(value: unknown): WeReadGatewayResponse {
-  return objectValue(value) || {};
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -496,6 +526,66 @@ function arrayValue(value: unknown): Record<string, unknown>[] {
     if (object) items.push(object);
     return items;
   }, []);
+}
+
+function decodeNotebookPageEffect(response: WeReadGatewayResponse) {
+  return Effect.try({
+    try: () => {
+      const page = decodeCollectionPage(response, '/user/notebooks', 'books');
+      const books = page.items.map(notebookBookFromResponse);
+      if (books.some((book) => !book.bookId)) {
+        throw new Error('/user/notebooks.books contains a book without bookId');
+      }
+      return { books, hasMore: page.hasMore };
+    },
+    catch: (error) => new WeReadGatewayDecodeError(error),
+  });
+}
+
+function decodeCollectionPageEffect(
+  response: WeReadGatewayResponse,
+  apiName: string,
+  field: string,
+) {
+  return Effect.try({
+    try: () => decodeCollectionPage(response, apiName, field),
+    catch: (error) => new WeReadGatewayDecodeError(error),
+  });
+}
+
+function decodeCollectionPage(response: WeReadGatewayResponse, apiName: string, field: string) {
+  const items = requiredObjectArray(response, apiName, field);
+  if (response.hasMore !== 0 && response.hasMore !== 1) {
+    throw new Error(`${apiName}.hasMore must be 0 or 1`);
+  }
+  return { items, hasMore: response.hasMore === 1 };
+}
+
+function requiredObjectArrayEffect(
+  response: WeReadGatewayResponse,
+  apiName: string,
+  field: string,
+) {
+  return Effect.try({
+    try: () => requiredObjectArray(response, apiName, field),
+    catch: (error) => new WeReadGatewayDecodeError(error),
+  });
+}
+
+function requiredObjectArray(response: WeReadGatewayResponse, apiName: string, field: string) {
+  const value = response[field];
+  if (!Array.isArray(value) || !value.every(isRecord)) {
+    throw new Error(`${apiName}.${field} must be an array of objects`);
+  }
+  return value;
+}
+
+function sortWeReadNotebooks(books: WeReadBook[]) {
+  return books.toSorted(
+    (left, right) =>
+      (right.lastReadAt || right.sort || 0) - (left.lastReadAt || left.sort || 0) ||
+      right.updatedAt.localeCompare(left.updatedAt),
+  );
 }
 
 function stringValue(value: unknown) {

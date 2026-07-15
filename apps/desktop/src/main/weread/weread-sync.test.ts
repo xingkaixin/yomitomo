@@ -30,7 +30,7 @@ describe('syncWeReadLibrary', () => {
   it('rejects before loading notebooks when the API key is missing', async () => {
     const persistence = {
       readStoredWeReadApiKey: vi.fn(async () => ''),
-      saveWeReadBookDetails: vi.fn(),
+      saveWeReadLibrarySnapshot: vi.fn(),
     };
     const logger = testLogger();
 
@@ -43,7 +43,7 @@ describe('syncWeReadLibrary', () => {
     ).rejects.toThrow('WEREAD_API_KEY_REQUIRED');
 
     expect(fetchWeReadNotebooks).not.toHaveBeenCalled();
-    expect(persistence.saveWeReadBookDetails).not.toHaveBeenCalled();
+    expect(persistence.saveWeReadLibrarySnapshot).not.toHaveBeenCalled();
     expect(logger.logInfo).not.toHaveBeenCalled();
     expect(logger.logError).not.toHaveBeenCalled();
   });
@@ -53,7 +53,7 @@ describe('syncWeReadLibrary', () => {
     const result = syncResult();
     const persistence = {
       readStoredWeReadApiKey: vi.fn(async () => 'weread-key'),
-      saveWeReadBookDetails: vi.fn(async () => result),
+      saveWeReadLibrarySnapshot: vi.fn(async () => result),
     };
     const logger = testLogger();
 
@@ -67,7 +67,10 @@ describe('syncWeReadLibrary', () => {
 
     expect(fetchWeReadNotebooks).toHaveBeenCalledWith('weread-key');
     expect(fetchWeReadBookDetail).not.toHaveBeenCalled();
-    expect(persistence.saveWeReadBookDetails).toHaveBeenCalledWith([]);
+    expect(persistence.saveWeReadLibrarySnapshot).toHaveBeenCalledWith({
+      details: [],
+      authoritativeBookIds: [],
+    });
     expect(logger.logInfo).toHaveBeenCalledWith('weread.sync.complete', {
       reason: 'startup',
       bookCount: 0,
@@ -90,7 +93,7 @@ describe('syncWeReadLibrary', () => {
     const result = syncResult();
     const persistence = {
       readStoredWeReadApiKey: vi.fn(async () => 'weread-key'),
-      saveWeReadBookDetails: vi.fn(async () => result),
+      saveWeReadLibrarySnapshot: vi.fn(async () => result),
     };
 
     await expect(
@@ -103,14 +106,17 @@ describe('syncWeReadLibrary', () => {
 
     expect(fetchWeReadBookDetail).toHaveBeenCalledWith('weread-key', 'book_1');
     expect(fetchWeReadBookDetail).toHaveBeenCalledWith('weread-key', 'book_empty');
-    expect(persistence.saveWeReadBookDetails).toHaveBeenCalledWith([
-      expect.objectContaining({
-        book: expect.objectContaining({
-          bookId: 'book_1',
-          title: 'Notebook Title',
+    expect(persistence.saveWeReadLibrarySnapshot).toHaveBeenCalledWith({
+      details: [
+        expect.objectContaining({
+          book: expect.objectContaining({
+            bookId: 'book_1',
+            title: 'Notebook Title',
+          }),
         }),
-      }),
-    ]);
+      ],
+      authoritativeBookIds: ['book_1', 'book_empty'],
+    });
   });
 
   it('logs sync failure and does not persist partial details when a detail fetch fails', async () => {
@@ -119,7 +125,7 @@ describe('syncWeReadLibrary', () => {
     vi.mocked(fetchWeReadBookDetail).mockRejectedValueOnce(error);
     const persistence = {
       readStoredWeReadApiKey: vi.fn(async () => 'weread-key'),
-      saveWeReadBookDetails: vi.fn(),
+      saveWeReadLibrarySnapshot: vi.fn(),
     };
     const logger = testLogger();
 
@@ -131,7 +137,7 @@ describe('syncWeReadLibrary', () => {
       }),
     ).rejects.toThrow(error);
 
-    expect(persistence.saveWeReadBookDetails).not.toHaveBeenCalled();
+    expect(persistence.saveWeReadLibrarySnapshot).not.toHaveBeenCalled();
     expect(logger.logError).toHaveBeenCalledWith(
       'weread.sync.book_detail_failed',
       error,
