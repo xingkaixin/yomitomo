@@ -1035,6 +1035,50 @@ SELECT 'collection', id, coalesce(name, '') || ' ' || coalesce(desc, '')
 FROM collections;
 `,
   },
+  {
+    id: '0064_distillation_library_search',
+    sql: `
+CREATE INDEX IF NOT EXISTS annotations_distillation_library_idx
+ON annotations(distillation_status, distillation_updated_at DESC, id);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS distillation_library_fts USING fts5(
+  annotation_id UNINDEXED,
+  article_id UNINDEXED,
+  search_text,
+  tokenize='trigram'
+);
+
+CREATE TRIGGER IF NOT EXISTS distillation_library_insert
+AFTER INSERT ON annotations
+WHEN new.distillation_status = 'published'
+  AND trim(coalesce(new.distillation_content, '')) <> ''
+BEGIN
+  INSERT INTO distillation_library_fts (annotation_id, article_id, search_text)
+  VALUES (new.id, new.article_id, new.distillation_content);
+END;
+
+CREATE TRIGGER IF NOT EXISTS distillation_library_update
+AFTER UPDATE OF article_id, distillation_status, distillation_content ON annotations
+BEGIN
+  DELETE FROM distillation_library_fts WHERE annotation_id = old.id;
+  INSERT INTO distillation_library_fts (annotation_id, article_id, search_text)
+  SELECT new.id, new.article_id, new.distillation_content
+  WHERE new.distillation_status = 'published'
+    AND trim(coalesce(new.distillation_content, '')) <> '';
+END;
+
+CREATE TRIGGER IF NOT EXISTS distillation_library_delete
+AFTER DELETE ON annotations BEGIN
+  DELETE FROM distillation_library_fts WHERE annotation_id = old.id;
+END;
+
+INSERT INTO distillation_library_fts (annotation_id, article_id, search_text)
+SELECT id, article_id, distillation_content
+FROM annotations
+WHERE distillation_status = 'published'
+  AND trim(coalesce(distillation_content, '')) <> '';
+`,
+  },
 ];
 
 type MigrationDatabase = {

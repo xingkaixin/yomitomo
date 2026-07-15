@@ -35,6 +35,7 @@ export {
   addCollectionMembers,
   createCollection,
   deleteCollection,
+  listDistillationLibrary,
   listCollections,
   listLibraryCatalog,
   listLibraryPins,

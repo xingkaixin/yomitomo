@@ -56,6 +56,7 @@ export const collectionPersistence = {
   addCollectionMembers: store.addCollectionMembers,
   createCollection: store.createCollection,
   deleteCollection: store.deleteCollection,
+  listDistillationLibrary: store.listDistillationLibrary,
   listCollections: store.listCollections,
   listLibraryCatalog: store.listLibraryCatalog,
   listLibraryPins: store.listLibraryPins,

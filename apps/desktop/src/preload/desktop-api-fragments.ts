@@ -49,6 +49,7 @@ import type {
   DesktopIpcInvokeChannel,
   DesktopIpcInvokeResult,
   DesktopIpcStreamProgressEvent,
+  DistillationLibraryListInput,
   EbookImportFileInput,
   LibraryCatalogListInput,
   PdfImportFileInput,
@@ -290,6 +291,8 @@ function createArticlePreloadApi() {
 
 function createLibraryCollectionPreloadApi() {
   return {
+    listDistillationLibrary: (input: DistillationLibraryListInput) =>
+      invokeDesktopIpc('distillation-library:list', input),
     listLibraryCatalog: (input: LibraryCatalogListInput) =>
       invokeDesktopIpc('library-catalog:list', input),
     onCollectionPatched: (callback: (patch: CollectionStorePatch) => void) =>

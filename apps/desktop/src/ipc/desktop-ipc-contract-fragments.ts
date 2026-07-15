@@ -77,6 +77,8 @@ import type {
   DataManagementPaths,
   DatabaseBackupResult,
   DatabaseRestoreResult,
+  DistillationLibraryListInput,
+  DistillationLibraryListResult,
   EbookImportFileInput,
   PdfImportFileInput,
   TextImportPrepareInput,
@@ -351,6 +353,10 @@ export type DataIpcInvokeMap = {
 };
 
 export type LibraryCollectionIpcInvokeMap = {
+  'distillation-library:list': {
+    args: [input: DistillationLibraryListInput];
+    result: DistillationLibraryListResult;
+  };
   'library-catalog:list': {
     args: [input: LibraryCatalogListInput];
     result: LibraryCatalogListResult;

@@ -12,6 +12,13 @@ import {
 } from '../collections/collection-repository';
 import { getDatabase } from './store-db';
 import { readLibraryCatalogRows } from '../library/library-catalog-repository';
+import { readDistillationLibraryRows } from '../distillations/distillation-library-repository';
+
+export async function listDistillationLibrary(
+  input: Parameters<typeof readDistillationLibraryRows>[1],
+) {
+  return readDistillationLibraryRows(getDatabase(), input);
+}
 
 export async function listLibraryCatalog(input: LibraryCatalogListInput) {
   return readLibraryCatalogRows(getDatabase(), input);
