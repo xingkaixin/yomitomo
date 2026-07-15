@@ -17,11 +17,11 @@ export {
   deleteAnnotationComment,
   findMentionedAgents,
   getMentionQuery,
-  normalizeAnnotationType,
   parseAnnotationSuggestions,
   replaceMentionQuery,
   updateAnnotationComment,
 } from './reader/annotations';
+export { normalizeAnnotationType } from '@yomitomo/shared';
 export type {
   AnnotationPersona,
   AnnotationSuggestion,
