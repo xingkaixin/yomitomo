@@ -156,6 +156,11 @@
   color: var(--app-interactive-link);
 }
 
+.app-section-nav .settings-nav-item:focus-visible {
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 3px;
+}
+
 .app-section-nav .settings-nav-item.is-active::before {
   transform: scaleX(1);
 }

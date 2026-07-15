@@ -31,6 +31,7 @@ import type {
   ArticleUpdater,
   EbookImportProgressCallback,
   PdfImportProgressCallback,
+  ReadingLibraryOpenTarget,
 } from '../shell/app-reading-types';
 import { LibraryHome } from './app-reading-library-home';
 import { WeReadBookcase } from '../shell/app-weread-bookcase';
@@ -67,7 +68,7 @@ export function ReadingLibrary({
   readerTheme,
   settings,
   selectionActionShortcuts,
-  openArticleId,
+  openArticleTarget,
   userProfile,
   onArticleOpened,
   onCloseArticleDiscussions,
@@ -100,7 +101,7 @@ export function ReadingLibrary({
   readerTheme: ReaderTheme;
   settings?: AppSettings;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
-  openArticleId?: string | null;
+  openArticleTarget?: ReadingLibraryOpenTarget | null;
   userProfile: UserProfile;
   onArticleOpened?: (articleId: string) => void;
   onCloseArticleDiscussions?: (articleId: string) => Promise<void> | void;
@@ -227,12 +228,16 @@ export function ReadingLibrary({
   }, [hasLocalArticleCatalog, navigation.actions, selectedArticleId, sortedArticles]);
 
   useEffect(() => {
-    if (!openArticleId) return;
-    const article = sortedArticles.find((item) => item.id === openArticleId) || openArticleId;
-    void navigation.actions.openArticle(article).then((openedArticle) => {
-      if (openedArticle) onArticleOpened?.(openedArticle.id);
-    });
-  }, [navigation.actions, openArticleId, onArticleOpened, sortedArticles]);
+    if (!openArticleTarget) return;
+    const article =
+      sortedArticles.find((item) => item.id === openArticleTarget.articleId) ||
+      openArticleTarget.articleId;
+    void navigation.actions
+      .openArticle(article, openArticleTarget.annotationId)
+      .then((openedArticle) => {
+        if (openedArticle) onArticleOpened?.(openedArticle.id);
+      });
+  }, [navigation.actions, onArticleOpened, openArticleTarget, sortedArticles]);
 
   useEffect(() => {
     if (!selectedArticle || selectedArticle.sourceType !== 'pdf') return;

@@ -79,6 +79,22 @@ describe('useReadingLibraryNavigation', () => {
     expect(result.current.model.article?.id).toBe('article_2');
   });
 
+  it('opens an article focused on a requested annotation', async () => {
+    const { result } = renderHook(() =>
+      useReadingLibraryNavigation({ onReadArticle: async () => null }),
+    );
+
+    await act(async () => {
+      await result.current.actions.openArticle(article(), 'annotation_1');
+    });
+
+    expect(result.current.model).toMatchObject({
+      article: { id: 'article_1' },
+      focusAnnotationId: 'annotation_1',
+      selectedAnnotationId: 'annotation_1',
+    });
+  });
+
   it('cancels pending loads and closes the active article on unmount', async () => {
     const pending = createDeferred<ArticleRecord | null>();
     const onCloseArticleDiscussions = vi.fn();

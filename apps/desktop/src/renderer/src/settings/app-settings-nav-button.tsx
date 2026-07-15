@@ -13,6 +13,7 @@ export function SettingsNavButton({
 }) {
   return (
     <button
+      aria-current={active ? 'page' : undefined}
       className={active ? 'settings-nav-item is-active' : 'settings-nav-item'}
       type="button"
       onClick={onClick}

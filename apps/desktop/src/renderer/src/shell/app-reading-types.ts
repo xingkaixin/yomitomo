@@ -6,6 +6,11 @@ export type EbookImportProgressCallback = (progress: number) => void;
 
 export type PdfImportProgressCallback = (progress: number) => void;
 
+export type ReadingLibraryOpenTarget = {
+  articleId: string;
+  annotationId?: string;
+};
+
 export type PromptArticle = {
   id?: string;
   title: string;
