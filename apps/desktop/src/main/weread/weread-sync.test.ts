@@ -67,10 +67,13 @@ describe('syncWeReadLibrary', () => {
 
     expect(fetchWeReadNotebooks).toHaveBeenCalledWith('weread-key');
     expect(fetchWeReadBookDetail).not.toHaveBeenCalled();
-    expect(persistence.saveWeReadLibrarySnapshot).toHaveBeenCalledWith({
-      details: [],
-      authoritativeBookIds: [],
-    });
+    expect(persistence.saveWeReadLibrarySnapshot).toHaveBeenCalledWith(
+      {
+        details: [],
+        authoritativeBookIds: [],
+      },
+      logger.logInfo,
+    );
     expect(logger.logInfo).toHaveBeenCalledWith('weread.sync.complete', {
       reason: 'startup',
       bookCount: 0,
@@ -95,28 +98,32 @@ describe('syncWeReadLibrary', () => {
       readStoredWeReadApiKey: vi.fn(async () => 'weread-key'),
       saveWeReadLibrarySnapshot: vi.fn(async () => result),
     };
+    const logger = testLogger();
 
     await expect(
       syncWeReadLibrary({
         persistence,
         reason: 'manual',
-        ...testLogger(),
+        ...logger,
       }),
     ).resolves.toBe(result);
 
     expect(fetchWeReadBookDetail).toHaveBeenCalledWith('weread-key', 'book_1');
     expect(fetchWeReadBookDetail).toHaveBeenCalledWith('weread-key', 'book_empty');
-    expect(persistence.saveWeReadLibrarySnapshot).toHaveBeenCalledWith({
-      details: [
-        expect.objectContaining({
-          book: expect.objectContaining({
-            bookId: 'book_1',
-            title: 'Notebook Title',
+    expect(persistence.saveWeReadLibrarySnapshot).toHaveBeenCalledWith(
+      {
+        details: [
+          expect.objectContaining({
+            book: expect.objectContaining({
+              bookId: 'book_1',
+              title: 'Notebook Title',
+            }),
           }),
-        }),
-      ],
-      authoritativeBookIds: ['book_1', 'book_empty'],
-    });
+        ],
+        authoritativeBookIds: ['book_1', 'book_empty'],
+      },
+      logger.logInfo,
+    );
   });
 
   it('logs sync failure and does not persist partial details when a detail fetch fails', async () => {

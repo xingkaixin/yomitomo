@@ -7,7 +7,9 @@ import type { WeReadBook, WeReadBookDetail, WeReadReadingStatsSnapshot } from '@
 const testPaths = vi.hoisted(() => ({
   userData: '',
   secrets: new Map<string, string>(),
+  sqlStatements: [] as string[],
 }));
+const repositoryLogger = { logInfo: vi.fn() };
 
 vi.mock('electron', () => ({
   app: {
@@ -18,7 +20,12 @@ vi.mock('electron', () => ({
 vi.mock('../native/sqlite', async () => {
   const { default: SQLiteDatabase } = await import('better-sqlite3');
   return {
-    loadSQLiteDatabase: () => SQLiteDatabase,
+    loadSQLiteDatabase: () =>
+      class extends SQLiteDatabase {
+        constructor(path: string) {
+          super(path, { verbose: (sql) => testPaths.sqlStatements.push(String(sql)) });
+        }
+      },
   };
 });
 
@@ -55,6 +62,8 @@ beforeEach(async () => {
     fs.mkdtemp(join(tmpdir(), 'yomitomo-weread-repository-test-')),
   );
   testPaths.secrets.clear();
+  testPaths.sqlStatements = [];
+  repositoryLogger.logInfo.mockClear();
 });
 
 afterEach(async () => {
@@ -147,6 +156,95 @@ describe('WeRead repository book details', () => {
     expect(saved?.thoughts.map((thought) => thought.reviewId)).toEqual([
       'thought_book_1_replacement',
     ]);
+  });
+
+  it('batches child inserts across books', async () => {
+    await saveDetailsSnapshot(Array.from({ length: 100 }, (_, index) => detail(`book_${index}`)));
+
+    expect(childInsertStatements()).toHaveLength(4);
+    expect(repositoryLogger.logInfo).toHaveBeenCalledWith('weread.repository.detail_rows_saved', {
+      scope: 'library_snapshot',
+      bookCount: 100,
+      chapterRowCount: 100,
+      highlightRowCount: 100,
+      thoughtRowCount: 100,
+      childInsertStatementCount: 4,
+      transactionDurationMs: expect.any(Number),
+    });
+  });
+
+  it('chunks dense child rows below the conservative SQLite parameter limit', async () => {
+    await saveDetailsSnapshot([denseDetail('book_dense', 1_000)]);
+
+    expect(childInsertStatements()).toHaveLength(28);
+    expect(repositoryLogger.logInfo).toHaveBeenCalledWith(
+      'weread.repository.detail_rows_saved',
+      expect.objectContaining({
+        chapterRowCount: 1_000,
+        highlightRowCount: 1_000,
+        thoughtRowCount: 1_000,
+        childInsertStatementCount: 28,
+      }),
+    );
+  });
+
+  it('skips child inserts for an empty detail snapshot', async () => {
+    await saveDetailsSnapshot([], []);
+
+    expect(childInsertStatements()).toEqual([]);
+    expect(repositoryLogger.logInfo).toHaveBeenCalledWith('weread.repository.detail_rows_saved', {
+      scope: 'library_snapshot',
+      bookCount: 0,
+      chapterRowCount: 0,
+      highlightRowCount: 0,
+      thoughtRowCount: 0,
+      childInsertStatementCount: 0,
+      transactionDurationMs: expect.any(Number),
+    });
+  });
+
+  it('rolls back replaced child rows when a batch insert fails', async () => {
+    await saveDetailsSnapshot([detail('book_rollback')]);
+    getDatabase().run(`
+      CREATE TRIGGER fail_weread_highlight_insert
+      BEFORE INSERT ON weread_highlights
+      WHEN NEW.bookmark_id = 'highlight_fail'
+      BEGIN
+        SELECT RAISE(ABORT, 'injected WeRead child insert failure');
+      END
+    `);
+    const replacement = detail('book_rollback');
+    replacement.chapters = [
+      {
+        bookId: 'book_rollback',
+        chapterUid: 2,
+        chapterIdx: 2,
+        title: 'Replacement chapter',
+        level: 1,
+      },
+    ];
+    replacement.highlights = [
+      {
+        bookmarkId: 'highlight_fail',
+        bookId: 'book_rollback',
+        chapterUid: 2,
+        markText: 'failure',
+        createTime: 200,
+      },
+    ];
+
+    await expect(saveDetailsSnapshot([replacement])).rejects.toThrow(
+      'injected WeRead child insert failure',
+    );
+
+    expect(repositoryLogger.logInfo).toHaveBeenCalledTimes(1);
+    expect(readWeReadBookDetail('book_rollback')).toEqual(
+      expect.objectContaining({
+        chapters: [expect.objectContaining({ chapterUid: 1 })],
+        highlights: [expect.objectContaining({ bookmarkId: 'highlight_book_rollback' })],
+        thoughts: [expect.objectContaining({ reviewId: 'thought_book_rollback' })],
+      }),
+    );
   });
 
   it('removes stale books and their library references during full detail sync', async () => {
@@ -342,7 +440,38 @@ function saveDetailsSnapshot(
   details: WeReadBookDetail[],
   authoritativeBookIds = details.map((item) => item.book.bookId),
 ) {
-  return saveWeReadLibrarySnapshot({ details, authoritativeBookIds });
+  return saveWeReadLibrarySnapshot({ details, authoritativeBookIds }, repositoryLogger.logInfo);
+}
+
+function childInsertStatements() {
+  return testPaths.sqlStatements.filter((sql) =>
+    /insert into "weread_(chapters|highlights|thoughts)"/i.test(sql),
+  );
+}
+
+function denseDetail(bookId: string, rowCount: number) {
+  const value = detail(bookId);
+  value.chapters = Array.from({ length: rowCount }, (_, index) => ({
+    bookId,
+    chapterUid: index,
+    chapterIdx: index,
+    title: `Chapter ${index}`,
+    level: 1,
+  }));
+  value.highlights = Array.from({ length: rowCount }, (_, index) => ({
+    bookmarkId: `highlight_${index}`,
+    bookId,
+    chapterUid: index,
+    markText: `Highlight ${index}`,
+    createTime: index,
+  }));
+  value.thoughts = Array.from({ length: rowCount }, (_, index) => ({
+    reviewId: `thought_${index}`,
+    bookId,
+    content: `Thought ${index}`,
+    createTime: index,
+  }));
+  return value;
 }
 
 function detail(

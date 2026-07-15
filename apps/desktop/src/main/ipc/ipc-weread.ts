@@ -63,7 +63,7 @@ export function registerWeReadIpc(context: WeReadIpcContext) {
     if (!apiKey) throw new Error('WEREAD_API_KEY_REQUIRED');
     const { fetchWeReadBookDetail } = await import('../weread/weread-client');
     const detail = await fetchWeReadBookDetail(apiKey, bookId);
-    return weReadPersistence.saveWeReadBookDetail(detail);
+    return weReadPersistence.saveWeReadBookDetail(detail, context.logInfo);
   });
   handleDesktopIpc('weread:get-book', async (_event, bookId) => {
     const { weReadPersistence } = await context.getPersistenceModule();

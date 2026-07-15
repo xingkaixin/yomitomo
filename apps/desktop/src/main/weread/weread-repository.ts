@@ -1,3 +1,4 @@
+import { performance } from 'node:perf_hooks';
 import { and, desc, eq, inArray, notInArray } from 'drizzle-orm';
 import type {
   WeReadBook,
@@ -21,9 +22,16 @@ import {
   queueSecretDeletion,
 } from '../providers/secret-deletion-repository';
 import { getDatabase, type StoreExecutor } from '../store/store-db';
+import {
+  buildWeReadDetailRows,
+  insertWeReadDetailRows,
+  type WeReadDetailRows,
+} from './weread-detail-row-writes';
 
 const WEREAD_ACCOUNT_ID = 'default';
 const WEREAD_SKILL_VERSION = '1.0.3';
+
+type WeReadRepositoryLogInfo = (event: string, data?: Record<string, unknown>) => void;
 
 export async function readStoredWeReadApiKey() {
   const account = readWeReadAccountRow();
@@ -123,14 +131,20 @@ export async function saveWeReadBooks(books: WeReadBook[]) {
   return readWeReadState();
 }
 
-export async function saveWeReadLibrarySnapshot(input: {
-  details: WeReadBookDetail[];
-  authoritativeBookIds: string[];
-}) {
+export async function saveWeReadLibrarySnapshot(
+  input: {
+    details: WeReadBookDetail[];
+    authoritativeBookIds: string[];
+  },
+  logInfo?: WeReadRepositoryLogInfo,
+) {
   validateWeReadSyncSnapshot(input);
+  const detailRows = buildWeReadDetailRows(input.details);
   const database = getDatabase();
+  const startedAt = performance.now();
+  let childInsertStatementCount = 0;
   database.transaction((tx) => {
-    for (const detail of input.details) upsertWeReadBookDetail(tx, detail);
+    childInsertStatementCount = replaceWeReadBookDetails(tx, input.details, detailRows);
     removeStaleWeReadBooks(tx, input.authoritativeBookIds);
     const existing = tx
       .select()
@@ -146,6 +160,10 @@ export async function saveWeReadLibrarySnapshot(input: {
       lastSyncAt: new Date().toISOString(),
       lastTestAt: existing?.lastTestAt,
     });
+  });
+  logWeReadDetailWrite(logInfo, 'library_snapshot', input.details.length, detailRows, {
+    childInsertStatementCount,
+    startedAt,
   });
   return readWeReadState();
 }
@@ -171,12 +189,24 @@ function validateWeReadSyncSnapshot(input: {
   }
 }
 
-export async function saveWeReadBookDetail(detail: WeReadBookDetail) {
+export async function saveWeReadBookDetail(
+  detail: WeReadBookDetail,
+  logInfo?: WeReadRepositoryLogInfo,
+) {
+  const hasNotes = detail.highlights.length + detail.thoughts.length > 0;
+  const detailRows = hasNotes
+    ? buildWeReadDetailRows([detail])
+    : { chapters: [], highlights: [], thoughts: [] };
   const database = getDatabase();
+  const startedAt = performance.now();
+  let childInsertStatementCount = 0;
   database.transaction((tx) => {
-    if (detail.highlights.length + detail.thoughts.length === 0)
-      removeWeReadBookRows(tx, [detail.book.bookId]);
-    else upsertWeReadBookDetail(tx, detail);
+    if (!hasNotes) removeWeReadBookRows(tx, [detail.book.bookId]);
+    else childInsertStatementCount = replaceWeReadBookDetails(tx, [detail], detailRows);
+  });
+  logWeReadDetailWrite(logInfo, 'book_detail', 1, detailRows, {
+    childInsertStatementCount,
+    startedAt,
   });
   const saved = readWeReadBookDetail(detail.book.bookId);
   return saved;
@@ -332,23 +362,22 @@ function upsertWeReadBook(database: StoreExecutor, book: WeReadBook) {
     .run();
 }
 
-function upsertWeReadBookDetail(database: StoreExecutor, detail: WeReadBookDetail) {
-  upsertWeReadBook(database, detail.book);
-  database
-    .delete(schema.wereadChapters)
-    .where(eq(schema.wereadChapters.bookId, detail.book.bookId))
-    .run();
-  database
-    .delete(schema.wereadHighlights)
-    .where(eq(schema.wereadHighlights.bookId, detail.book.bookId))
-    .run();
-  database
-    .delete(schema.wereadThoughts)
-    .where(eq(schema.wereadThoughts.bookId, detail.book.bookId))
-    .run();
-  for (const chapter of detail.chapters) insertWeReadChapter(database, chapter);
-  for (const highlight of detail.highlights) insertWeReadHighlight(database, highlight);
-  for (const thought of detail.thoughts) insertWeReadThought(database, thought);
+function replaceWeReadBookDetails(
+  database: StoreExecutor,
+  details: WeReadBookDetail[],
+  rows: WeReadDetailRows,
+) {
+  for (const detail of details) {
+    upsertWeReadBook(database, detail.book);
+    deleteWeReadBookDetailRows(database, detail.book.bookId);
+  }
+  return insertWeReadDetailRows(database, rows);
+}
+
+function deleteWeReadBookDetailRows(database: StoreExecutor, bookId: string) {
+  database.delete(schema.wereadChapters).where(eq(schema.wereadChapters.bookId, bookId)).run();
+  database.delete(schema.wereadHighlights).where(eq(schema.wereadHighlights.bookId, bookId)).run();
+  database.delete(schema.wereadThoughts).where(eq(schema.wereadThoughts.bookId, bookId)).run();
 }
 
 function removeStaleWeReadBooks(database: StoreExecutor, bookIds: string[]) {
@@ -400,53 +429,22 @@ function removeWeReadBookRows(database: StoreExecutor, staleBookIds: string[]) {
   database.delete(schema.wereadBooks).where(inArray(schema.wereadBooks.bookId, staleBookIds)).run();
 }
 
-function insertWeReadChapter(database: StoreExecutor, chapter: WeReadChapter) {
-  database
-    .insert(schema.wereadChapters)
-    .values({
-      bookId: chapter.bookId,
-      chapterUid: chapter.chapterUid,
-      chapterIdx: chapter.chapterIdx,
-      title: chapter.title,
-      level: chapter.level,
-      wordCount: chapter.wordCount ?? null,
-    })
-    .run();
-}
-
-function insertWeReadHighlight(database: StoreExecutor, highlight: WeReadHighlight) {
-  database
-    .insert(schema.wereadHighlights)
-    .values({
-      bookmarkId: highlight.bookmarkId,
-      bookId: highlight.bookId,
-      chapterUid: highlight.chapterUid,
-      chapterIdx: highlight.chapterIdx ?? null,
-      range: highlight.range || null,
-      markText: highlight.markText,
-      colorStyle: highlight.colorStyle ?? null,
-      createTime: highlight.createTime,
-    })
-    .run();
-}
-
-function insertWeReadThought(database: StoreExecutor, thought: WeReadThought) {
-  database
-    .insert(schema.wereadThoughts)
-    .values({
-      reviewId: thought.reviewId,
-      bookId: thought.bookId,
-      userVid: thought.userVid ?? null,
-      author: thought.author || null,
-      chapterUid: thought.chapterUid ?? null,
-      chapterIdx: thought.chapterIdx ?? null,
-      chapterName: thought.chapterName || null,
-      range: thought.range || null,
-      abstract: thought.abstract || null,
-      content: thought.content,
-      createTime: thought.createTime,
-    })
-    .run();
+function logWeReadDetailWrite(
+  logInfo: WeReadRepositoryLogInfo | undefined,
+  scope: 'book_detail' | 'library_snapshot',
+  bookCount: number,
+  rows: WeReadDetailRows,
+  input: { childInsertStatementCount: number; startedAt: number },
+) {
+  logInfo?.('weread.repository.detail_rows_saved', {
+    scope,
+    bookCount,
+    chapterRowCount: rows.chapters.length,
+    highlightRowCount: rows.highlights.length,
+    thoughtRowCount: rows.thoughts.length,
+    childInsertStatementCount: input.childInsertStatementCount,
+    transactionDurationMs: Number((performance.now() - input.startedAt).toFixed(2)),
+  });
 }
 
 export function rowToWeReadBook(row: typeof schema.wereadBooks.$inferSelect): WeReadBook {
