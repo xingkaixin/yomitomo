@@ -14,7 +14,9 @@
     "ui:check-primitives": "node scripts/check-ui-primitives.mjs",
     "make": "pnpm run make:app:mac-arm",
     "make:app:mac-arm": "pnpm --filter @yomitomo/desktop make:mac-arm",
+    "make:app:mac-arm:from-dist": "pnpm --filter @yomitomo/desktop make:mac-arm:from-dist",
     "make:app:win-x64": "pnpm --filter @yomitomo/desktop make:win-x64",
+    "make:app:win-x64:from-dist": "pnpm --filter @yomitomo/desktop make:win-x64:from-dist",
     "deploy:cf": "pnpm --filter @yomitomo/web deploy:cf",
     "deploy:download": "pnpm --filter @yomitomo/download deploy:cf",
     "deploy:telemetry": "pnpm --filter @yomitomo/telemetry deploy:cf",
@@ -28,6 +30,7 @@
     "format:check": "turbo run format:check",
     "test": "turbo test",
     "test:app:e2e": "pnpm --filter @yomitomo/desktop test:e2e",
+    "test:app:e2e:from-dist": "pnpm --filter @yomitomo/desktop test:e2e:from-dist",
     "test:app:e2e:ui": "pnpm --filter @yomitomo/desktop test:e2e:ui"
   },
   "devDependencies": {

@@ -51,8 +51,8 @@ jobs:
       - name: Test
         run: pnpm test
 
-      - name: Desktop e2e smoke
-        run: xvfb-run -a pnpm test:app:e2e
-
       - name: Build
         run: pnpm build
+
+      - name: Desktop e2e smoke
+        run: xvfb-run -a pnpm test:app:e2e:from-dist

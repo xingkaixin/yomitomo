@@ -23,6 +23,9 @@ run = "pnpm test"
 [tasks."test:app:e2e"]
 run = "pnpm test:app:e2e"
 
+[tasks."test:app:e2e:from-dist"]
+run = "pnpm test:app:e2e:from-dist"
+
 [tasks."build"]
 run = "pnpm build"
 
@@ -42,6 +45,6 @@ run = [
   { task = "format:check" },
   { task = "typecheck" },
   { task = "test" },
-  { task = "test:app:e2e" },
   { task = "build" },
+  { task = "test:app:e2e:from-dist" },
 ]

@@ -41,6 +41,7 @@ module.exports = {
     buildResources: 'resources',
     output: '../../dist/app',
   },
+  npmRebuild: false,
   files: [
     'dist/main/**',
     'dist/preload/**',
