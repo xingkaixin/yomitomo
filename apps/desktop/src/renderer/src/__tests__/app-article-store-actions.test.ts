@@ -69,6 +69,126 @@ describe('useAppArticleStoreActions', () => {
     });
   });
 
+  it('runs queued updates against the latest persisted article snapshot', async () => {
+    const initialArticle = makeArticle('article-1');
+    const readerChatState = {
+      articleId: initialArticle.id,
+      messages: [],
+      updatedAt: '2026-05-17T08:30:00.000Z',
+    };
+    let persistedArticle = initialArticle;
+    const firstSave = createDeferred<{
+      type: 'article-upsert';
+      article: ArticleSummaryRecord;
+    }>();
+    const getArticle = vi.fn(async () => persistedArticle);
+    const saveArticle = vi
+      .fn()
+      .mockImplementationOnce(() => firstSave.promise)
+      .mockImplementation(async (nextArticle: ArticleRecord) => {
+        persistedArticle = nextArticle;
+        return { type: 'article-upsert', article: articleSummary(nextArticle) } as const;
+      });
+    const storeRef: { current: DesktopStore } = {
+      current: { ...emptyStore, articles: [initialArticle] },
+    };
+    const applyStore = vi.fn((store: DesktopStore) => {
+      storeRef.current = store;
+      return store;
+    });
+    let actions!: ReturnType<typeof useAppArticleStoreActions>;
+
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: { getArticle, saveArticle },
+    });
+    render(
+      createElement(function Harness() {
+        actions = useAppArticleStoreActions({ storeRef, applyStore });
+        return null;
+      }),
+    );
+
+    const firstUpdate = actions.updateArticle(initialArticle.id, (current) => ({
+      ...current,
+      title: 'First update',
+    }));
+    const secondUpdate = actions.updateArticle(initialArticle.id, (current) => ({
+      ...current,
+      byline: 'Second update',
+    }));
+    await vi.waitFor(() => expect(saveArticle).toHaveBeenCalledTimes(1));
+
+    persistedArticle = {
+      ...saveArticle.mock.calls[0][0],
+      readerChatState,
+      updatedAt: readerChatState.updatedAt,
+    };
+    firstSave.resolve({ type: 'article-upsert', article: articleSummary(persistedArticle) });
+
+    await act(async () => {
+      await firstUpdate;
+      await secondUpdate;
+    });
+
+    expect(saveArticle).toHaveBeenCalledTimes(2);
+    expect(saveArticle.mock.calls[1][0]).toMatchObject({
+      title: 'First update',
+      byline: 'Second update',
+      readerChatState,
+    });
+  });
+
+  it('does not use a rejected save as the next update baseline', async () => {
+    const initialArticle = makeArticle('article-1');
+    const saveError = new Error('save failed');
+    const successfulArticle = { ...initialArticle, byline: 'Successful update' };
+    const getArticle = vi.fn(async () => initialArticle);
+    const saveArticle = vi
+      .fn()
+      .mockRejectedValueOnce(saveError)
+      .mockResolvedValueOnce({
+        type: 'article-upsert',
+        article: articleSummary(successfulArticle),
+      });
+    const storeRef: { current: DesktopStore } = {
+      current: { ...emptyStore, articles: [initialArticle] },
+    };
+    const applyStore = vi.fn((store: DesktopStore) => {
+      storeRef.current = store;
+      return store;
+    });
+    let actions!: ReturnType<typeof useAppArticleStoreActions>;
+
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: { getArticle, saveArticle },
+    });
+    render(
+      createElement(function Harness() {
+        actions = useAppArticleStoreActions({ storeRef, applyStore });
+        return null;
+      }),
+    );
+
+    const failedUpdate = actions.updateArticle(initialArticle.id, (current) => ({
+      ...current,
+      title: 'Rejected update',
+    }));
+    const successfulUpdate = actions.updateArticle(initialArticle.id, (current) => ({
+      ...current,
+      byline: successfulArticle.byline,
+    }));
+
+    await act(async () => {
+      await expect(failedUpdate).rejects.toBe(saveError);
+      await successfulUpdate;
+    });
+
+    expect(getArticle).toHaveBeenCalledTimes(2);
+    expect(saveArticle.mock.calls[1][0]).toEqual(successfulArticle);
+  });
+
   it('applies the imported article patch without a full store result', async () => {
     const firstArticle = makeArticle('article-1');
     const importedArticle = makeArticle('article-imported');
@@ -622,4 +742,12 @@ function articleSummary(article: ArticleRecord): ArticleSummaryRecord {
     };
   }
   return summary;
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((promiseResolve) => {
+    resolve = promiseResolve;
+  });
+  return { promise, resolve };
 }
