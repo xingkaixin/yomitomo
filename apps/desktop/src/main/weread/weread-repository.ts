@@ -14,11 +14,12 @@ import type {
   WeReadUser,
 } from '@yomitomo/shared';
 import * as schema from '../db/schema';
+import { readWeReadApiKey, saveWeReadApiKey, wereadApiKeyRef } from '../providers/provider-secrets';
 import {
-  deleteWeReadApiKey,
-  readWeReadApiKey,
-  saveWeReadApiKey,
-} from '../providers/provider-secrets';
+  cancelSecretDeletion,
+  completeSecretDeletion,
+  queueSecretDeletion,
+} from '../providers/secret-deletion-repository';
 import { getDatabase, type StoreExecutor } from '../store/store-db';
 
 const WEREAD_ACCOUNT_ID = 'default';
@@ -57,12 +58,13 @@ export async function saveWeReadSettings(input: {
 }) {
   const existing = readWeReadAccountRow();
   let apiKeyRef = existing?.apiKeyRef || null;
+  let secretRefToDelete: string | undefined;
   if (input.apiKey?.trim()) apiKeyRef = await saveWeReadApiKey(input.apiKey.trim());
   else if (input.removeApiKey) {
-    await deleteWeReadApiKey(apiKeyRef);
+    secretRefToDelete = apiKeyRef || wereadApiKeyRef();
     apiKeyRef = null;
   }
-  upsertWeReadAccount({
+  const account = {
     apiKeyRef,
     openMethod: normalizeWeReadOpenMethod(input.openMethod ?? existing?.openMethod),
     syncMode: normalizeWeReadSyncMode(input.syncMode ?? existing?.syncMode),
@@ -70,7 +72,14 @@ export async function saveWeReadSettings(input: {
     message: apiKeyRef ? existing?.message : null,
     lastSyncAt: existing?.lastSyncAt,
     lastTestAt: existing?.lastTestAt,
+  };
+  const database = getDatabase();
+  database.transaction((tx) => {
+    upsertWeReadAccountRow(tx, account);
+    if (secretRefToDelete) queueSecretDeletion(tx, secretRefToDelete);
+    else if (apiKeyRef) cancelSecretDeletion(tx, apiKeyRef);
   });
+  if (secretRefToDelete) await completeSecretDeletion(secretRefToDelete);
   return readWeReadState();
 }
 

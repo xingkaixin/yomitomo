@@ -4,12 +4,17 @@ import { makeId } from '@yomitomo/shared';
 import * as schema from '../db/schema';
 import {
   buildProviderRecord,
-  deleteProviderSecret,
   readProviderSecretStorageRow,
   resolveProviderApiKeyStorage,
   upsertProvider,
   type SaveProviderInput,
 } from '../providers/provider-repository';
+import { providerApiKeyRef } from '../providers/provider-secrets';
+import {
+  cancelSecretDeletion,
+  completeSecretDeletion,
+  queueSecretDeletion,
+} from '../providers/secret-deletion-repository';
 import { getDatabase } from './store-db';
 import { readStore } from './store-snapshot';
 import { upsertSettings } from './settings-repository';
@@ -22,7 +27,11 @@ export async function saveProvider(input: SaveProviderInput): Promise<DesktopSto
     : undefined;
   const id = existing?.id || makeId('provider');
   const existingRow = input.id ? readProviderSecretStorageRow(input.id) : undefined;
-  const { apiKeyRef, storedApiKey } = await resolveProviderApiKeyStorage(id, input, existingRow);
+  const { apiKeyRef, secretRefToDelete, storedApiKey } = await resolveProviderApiKeyStorage(
+    id,
+    input,
+    existingRow,
+  );
   const provider = buildProviderRecord(input, {
     id,
     now,
@@ -31,13 +40,19 @@ export async function saveProvider(input: SaveProviderInput): Promise<DesktopSto
     storedApiKey,
   });
 
-  upsertProvider(getDatabase(), provider, apiKeyRef, storedApiKey);
+  const database = getDatabase();
+  database.transaction((tx) => {
+    upsertProvider(tx, provider, apiKeyRef, storedApiKey);
+    if (secretRefToDelete) queueSecretDeletion(tx, secretRefToDelete);
+    else if (apiKeyRef) cancelSecretDeletion(tx, apiKeyRef);
+  });
+  if (secretRefToDelete) await completeSecretDeletion(secretRefToDelete);
   return readStore();
 }
 
 export async function deleteProvider(id: string): Promise<DesktopStore> {
-  await deleteProviderSecret(id);
   const database = getDatabase();
+  const secretRef = readProviderSecretStorageRow(id)?.apiKeyRef || providerApiKeyRef(id);
   database.transaction((tx) => {
     const settings = tx.select().from(schema.appSettings).limit(1).get();
     if (
@@ -64,7 +79,9 @@ export async function deleteProvider(id: string): Promise<DesktopStore> {
         saveArticleImages: settings.saveArticleImages,
       });
     }
+    queueSecretDeletion(tx, secretRef);
     tx.delete(schema.providers).where(eq(schema.providers.id, id)).run();
   });
+  await completeSecretDeletion(secretRef);
   return readStore();
 }

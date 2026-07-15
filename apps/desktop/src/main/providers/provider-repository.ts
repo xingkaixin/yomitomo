@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import type { LlmProvider } from '@yomitomo/shared';
 import { makeId, providerPresets } from '@yomitomo/shared';
 import * as schema from '../db/schema';
-import { deleteProviderApiKey, readProviderApiKey, saveProviderApiKey } from './provider-secrets';
+import { providerApiKeyRef, readProviderApiKey, saveProviderApiKey } from './provider-secrets';
 import { getDatabase, type StoreExecutor } from '../store/store-db';
 import {
   normalizeModelNames,
@@ -19,6 +19,7 @@ export type SaveProviderInput = Partial<LlmProvider> & {
 
 export type ProviderApiKeyStorage = {
   apiKeyRef?: string;
+  secretRefToDelete?: string;
   storedApiKey: string;
 };
 
@@ -62,9 +63,7 @@ export async function resolveProviderApiKeyStorage(
 
   if (input.removeApiKey) {
     return {
-      apiKeyRef: existingApiKeyRef
-        ? await removeProviderApiKey(providerId, existingApiKeyRef)
-        : undefined,
+      secretRefToDelete: existingApiKeyRef || providerApiKeyRef(providerId),
       storedApiKey: '',
     };
   }
@@ -138,10 +137,6 @@ export function readProviderSecretStorageRow(providerId: string) {
     .get();
 }
 
-export async function deleteProviderSecret(providerId: string) {
-  await deleteProviderApiKey(providerId);
-}
-
 export function upsertProvider(
   database: StoreExecutor,
   provider: LlmProvider,
@@ -184,9 +179,4 @@ export function upsertProvider(
       },
     })
     .run();
-}
-
-async function removeProviderApiKey(providerId: string, apiKeyRef?: string) {
-  await deleteProviderApiKey(providerId, apiKeyRef);
-  return undefined;
 }

@@ -80,12 +80,12 @@ describe('provider secrets keyring', () => {
     await expect(secrets.readWeReadApiKey(null, 'weread_1')).resolves.toBe('');
   });
 
-  it('ignores missing provider and WeRead deletes when keyring returns noentry', async () => {
+  it('ignores missing secret deletes when keyring returns noentry', async () => {
     const secrets = await loadProviderSecrets();
     state.deletePasswordError = new Error('keyring noentry');
 
-    await expect(secrets.deleteProviderApiKey('openai')).resolves.toBeUndefined();
-    await expect(secrets.deleteWeReadApiKey(null, 'weread_1')).resolves.toBeUndefined();
+    await expect(secrets.deleteStoredSecret('provider:openai:apiKey')).resolves.toBeUndefined();
+    await expect(secrets.deleteStoredSecret('weread:weread_1:apiKey')).resolves.toBeUndefined();
   });
 
   it('propagates non-noentry keyring errors', async () => {
@@ -99,7 +99,7 @@ describe('provider secrets keyring', () => {
     state.getPasswordError = undefined;
     state.deletePasswordError = deleteError;
 
-    await expect(secrets.deleteWeReadApiKey()).rejects.toThrow(deleteError);
+    await expect(secrets.deleteStoredSecret('weread:default:apiKey')).rejects.toThrow(deleteError);
   });
 
   it('loads the keyring module only once per provider-secrets module instance', async () => {
@@ -107,7 +107,7 @@ describe('provider secrets keyring', () => {
 
     await secrets.saveProviderApiKey('openai', 'provider-secret');
     await secrets.readProviderApiKey('openai');
-    await secrets.deleteProviderApiKey('openai');
+    await secrets.deleteStoredSecret('provider:openai:apiKey');
 
     expect(state.moduleLoads).toBe(1);
   });

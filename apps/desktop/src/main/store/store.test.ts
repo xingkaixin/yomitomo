@@ -13,6 +13,7 @@ import {
 const testState = vi.hoisted(() => ({
   secrets: new Map<string, string>(),
   saveProviderApiKeyError: undefined as Error | undefined,
+  deleteStoredSecretError: undefined as Error | undefined,
   providerApiKeyRef: (providerId: string) => `provider:${providerId}:apiKey`,
   backfillAnnotationMemoryEntries: vi.fn(),
   fetchFaviconDataUrl: vi.fn(),
@@ -43,8 +44,9 @@ vi.mock('../providers/provider-secrets', () => {
     },
     readProviderApiKey: async (providerId: string, apiKeyRef?: string | null) =>
       testState.secrets.get(apiKeyRef || testState.providerApiKeyRef(providerId)) || '',
-    deleteProviderApiKey: async (providerId: string, apiKeyRef?: string | null) => {
-      testState.secrets.delete(apiKeyRef || testState.providerApiKeyRef(providerId));
+    deleteStoredSecret: async (secretRef: string) => {
+      if (testState.deleteStoredSecretError) throw testState.deleteStoredSecretError;
+      testState.secrets.delete(secretRef);
     },
   };
 });
@@ -87,9 +89,11 @@ import {
   addCollectionMembers,
   closeDatabase,
   createCollection,
+  deleteProvider,
   ensureArticleSiteIcon,
   readShellStore,
   readStore,
+  saveProvider,
   setLibraryPin,
 } from './store';
 import {
@@ -109,6 +113,7 @@ beforeEach(async () => {
   await rm('/tmp/yomitomo-store-test', { recursive: true, force: true });
   testState.secrets.clear();
   testState.saveProviderApiKeyError = undefined;
+  testState.deleteStoredSecretError = undefined;
   testState.backfillAnnotationMemoryEntries.mockReset();
   testState.backfillAnnotationMemoryEntries.mockReturnValue({
     articleCount: 0,
@@ -291,6 +296,97 @@ describe('desktop store settings', () => {
 });
 
 describe('desktop store providers', () => {
+  it('preserves credentials when provider deletion cannot commit', async () => {
+    insertProviderRow({ id: 'provider_1', apiKeyRef: 'provider:provider_1:apiKey' });
+    testState.secrets.set('provider:provider_1:apiKey', 'sk-stored');
+    getDatabase().run(`
+      CREATE TRIGGER fail_provider_delete
+      BEFORE DELETE ON providers
+      BEGIN
+        SELECT RAISE(ABORT, 'injected provider delete failure');
+      END
+    `);
+
+    await expect(deleteProvider('provider_1')).rejects.toThrow('injected provider delete failure');
+
+    expect(readProviderRow('provider_1')).toBeDefined();
+    expect(testState.secrets.get('provider:provider_1:apiKey')).toBe('sk-stored');
+    expect(readSecretDeletionTasks()).toEqual([]);
+  });
+
+  it('preserves credentials when provider api key removal cannot commit', async () => {
+    insertProviderRow({ id: 'provider_1', apiKeyRef: 'provider:provider_1:apiKey' });
+    testState.secrets.set('provider:provider_1:apiKey', 'sk-stored');
+    getDatabase().run(`
+      CREATE TRIGGER fail_provider_update
+      BEFORE UPDATE ON providers
+      BEGIN
+        SELECT RAISE(ABORT, 'injected provider update failure');
+      END
+    `);
+
+    await expect(saveProvider({ id: 'provider_1', removeApiKey: true })).rejects.toThrow(
+      'injected provider update failure',
+    );
+
+    expect(readProviderRow('provider_1')?.apiKeyRef).toBe('provider:provider_1:apiKey');
+    expect(testState.secrets.get('provider:provider_1:apiKey')).toBe('sk-stored');
+    expect(readSecretDeletionTasks()).toEqual([]);
+  });
+
+  it('recovers a pending provider secret deletion after restart', async () => {
+    const deleteError = new Error('keyring locked');
+    insertProviderRow({ id: 'provider_1', apiKeyRef: 'provider:provider_1:apiKey' });
+    testState.secrets.set('provider:provider_1:apiKey', 'sk-stored');
+    testState.deleteStoredSecretError = deleteError;
+
+    await expect(deleteProvider('provider_1')).rejects.toThrow(deleteError);
+
+    expect(readProviderRow('provider_1')).toBeUndefined();
+    expect(testState.secrets.get('provider:provider_1:apiKey')).toBe('sk-stored');
+    expect(readSecretDeletionTasks()).toEqual([
+      expect.objectContaining({ secretRef: 'provider:provider_1:apiKey' }),
+    ]);
+
+    closeDatabase();
+    await readStore();
+    expect(readSecretDeletionTasks()).toEqual([
+      expect.objectContaining({ secretRef: 'provider:provider_1:apiKey' }),
+    ]);
+    expect(testState.logErrors).toContainEqual({
+      event: 'secret_deletion.recovery_failed',
+      error: deleteError,
+      data: { secretRef: 'provider:provider_1:apiKey' },
+    });
+
+    testState.deleteStoredSecretError = undefined;
+    closeDatabase();
+    await readStore();
+    await readStore();
+
+    expect(testState.secrets.has('provider:provider_1:apiKey')).toBe(false);
+    expect(readSecretDeletionTasks()).toEqual([]);
+  });
+
+  it('cancels pending cleanup when a provider api key is saved again', async () => {
+    insertProviderRow({ id: 'provider_1', apiKeyRef: 'provider:provider_1:apiKey' });
+    testState.secrets.set('provider:provider_1:apiKey', 'sk-old');
+    testState.deleteStoredSecretError = new Error('keyring locked');
+
+    await expect(saveProvider({ id: 'provider_1', removeApiKey: true })).rejects.toThrow(
+      'keyring locked',
+    );
+
+    testState.deleteStoredSecretError = undefined;
+    await saveProvider({ id: 'provider_1', apiKey: 'sk-new' });
+    closeDatabase();
+    await readStore();
+
+    expect(testState.secrets.get('provider:provider_1:apiKey')).toBe('sk-new');
+    expect(readProviderRow('provider_1')?.apiKeyRef).toBe('provider:provider_1:apiKey');
+    expect(readSecretDeletionTasks()).toEqual([]);
+  });
+
   it('resolves new provider api keys into keyring refs', async () => {
     testState.secrets.clear();
 
@@ -1425,6 +1521,10 @@ function readProviderRow(providerId: string) {
     .from(schema.providers)
     .all()
     .find((provider) => provider.id === providerId);
+}
+
+function readSecretDeletionTasks() {
+  return getDatabase().select().from(schema.secretDeletionTasks).all();
 }
 
 function readAnnotationMemoryBackfillVersion() {

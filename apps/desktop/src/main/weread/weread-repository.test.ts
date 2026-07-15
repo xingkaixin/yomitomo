@@ -6,6 +6,7 @@ import type { WeReadBook, WeReadBookDetail, WeReadReadingStatsSnapshot } from '@
 
 const testPaths = vi.hoisted(() => ({
   userData: '',
+  secrets: new Map<string, string>(),
 }));
 
 vi.mock('electron', () => ({
@@ -22,9 +23,18 @@ vi.mock('../native/sqlite', async () => {
 });
 
 vi.mock('../providers/provider-secrets', () => ({
-  deleteWeReadApiKey: vi.fn(),
-  readWeReadApiKey: vi.fn(async () => ''),
-  saveWeReadApiKey: vi.fn(async () => 'weread:default:apiKey'),
+  deleteStoredSecret: vi.fn(async (secretRef: string) => {
+    testPaths.secrets.delete(secretRef);
+  }),
+  readWeReadApiKey: vi.fn(
+    async (secretRef?: string | null) =>
+      testPaths.secrets.get(secretRef || 'weread:default:apiKey') || '',
+  ),
+  saveWeReadApiKey: vi.fn(async (apiKey: string) => {
+    testPaths.secrets.set('weread:default:apiKey', apiKey);
+    return 'weread:default:apiKey';
+  }),
+  wereadApiKeyRef: () => 'weread:default:apiKey',
 }));
 
 import * as schema from '../db/schema';
@@ -36,6 +46,7 @@ import {
   saveWeReadBookDetail,
   saveWeReadLibrarySnapshot,
   saveWeReadReadingStatsSnapshot,
+  saveWeReadSettings,
 } from './weread-repository';
 
 beforeEach(async () => {
@@ -43,6 +54,7 @@ beforeEach(async () => {
   testPaths.userData = await import('node:fs/promises').then((fs) =>
     fs.mkdtemp(join(tmpdir(), 'yomitomo-weread-repository-test-')),
   );
+  testPaths.secrets.clear();
 });
 
 afterEach(async () => {
@@ -199,6 +211,39 @@ describe('WeRead repository book details', () => {
   });
 });
 
+describe('WeRead repository credentials', () => {
+  it('preserves the credential when api key removal cannot commit', async () => {
+    insertWeReadAccount('weread:default:apiKey');
+    testPaths.secrets.set('weread:default:apiKey', 'weread-secret');
+    getDatabase().run(`
+      CREATE TRIGGER fail_weread_account_update
+      BEFORE UPDATE ON weread_accounts
+      BEGIN
+        SELECT RAISE(ABORT, 'injected WeRead update failure');
+      END
+    `);
+
+    await expect(saveWeReadSettings({ removeApiKey: true })).rejects.toThrow(
+      'injected WeRead update failure',
+    );
+
+    expect(readWeReadAccount()?.apiKeyRef).toBe('weread:default:apiKey');
+    expect(testPaths.secrets.get('weread:default:apiKey')).toBe('weread-secret');
+    expect(getDatabase().select().from(schema.secretDeletionTasks).all()).toEqual([]);
+  });
+
+  it('removes the credential only after the account update commits', async () => {
+    insertWeReadAccount('weread:default:apiKey');
+    testPaths.secrets.set('weread:default:apiKey', 'weread-secret');
+
+    await saveWeReadSettings({ removeApiKey: true });
+
+    expect(readWeReadAccount()?.apiKeyRef).toBeNull();
+    expect(testPaths.secrets.has('weread:default:apiKey')).toBe(false);
+    expect(getDatabase().select().from(schema.secretDeletionTasks).all()).toEqual([]);
+  });
+});
+
 describe('WeRead repository reading stats', () => {
   it('upserts reading stats snapshots and reads normalized data back', () => {
     saveWeReadReadingStatsSnapshot(statsSnapshot({ totalReadTime: 10 }));
@@ -259,6 +304,32 @@ function insertLibraryReferences(bookId: string) {
       pinnedAt: '2026-06-28T00:00:00.000Z',
     })
     .run();
+}
+
+function insertWeReadAccount(apiKeyRef: string) {
+  getDatabase()
+    .insert(schema.wereadAccounts)
+    .values({
+      id: 'default',
+      apiKeyRef,
+      openMethod: 'deeplink',
+      syncMode: 'manual',
+      skillVersion: '1.0.3',
+      status: 'connected',
+      message: null,
+      lastSyncAt: null,
+      lastTestAt: null,
+      updatedAt: '2026-07-15T00:00:00.000Z',
+    })
+    .run();
+}
+
+function readWeReadAccount() {
+  return getDatabase()
+    .select()
+    .from(schema.wereadAccounts)
+    .all()
+    .find((account) => account.id === 'default');
 }
 
 function tableRows<T extends typeof schema.collectionMembers | typeof schema.libraryPins>(

@@ -886,6 +886,15 @@ CREATE TABLE IF NOT EXISTS database_maintenance_state (
 ALTER TABLE articles ADD COLUMN text_metadata TEXT;
 `,
   },
+  {
+    id: '0061_secret_deletion_tasks',
+    sql: `
+CREATE TABLE IF NOT EXISTS secret_deletion_tasks (
+  secret_ref TEXT PRIMARY KEY NOT NULL,
+  created_at TEXT NOT NULL
+);
+`,
+  },
 ];
 
 type MigrationDatabase = {

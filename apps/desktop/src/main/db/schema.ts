@@ -152,6 +152,11 @@ export const providers = sqliteTable('providers', {
   updatedAt: text('updated_at').notNull(),
 });
 
+export const secretDeletionTasks = sqliteTable('secret_deletion_tasks', {
+  secretRef: text('secret_ref').primaryKey(),
+  createdAt: text('created_at').notNull(),
+});
+
 export const agents = sqliteTable('agents', {
   id: text('id').primaryKey(),
   kind: text('kind').notNull(),

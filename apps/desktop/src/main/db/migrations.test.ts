@@ -56,6 +56,16 @@ describe('reading memory migrations', () => {
     expect(tableNames(database)).toContain('telemetry_state');
   });
 
+  it('adds durable secret deletion tasks', () => {
+    const database = new DatabaseSync(':memory:');
+    const migration = migrations.find((item) => item.id === '0061_secret_deletion_tasks');
+    if (!migration) throw new Error('missing migration 0061_secret_deletion_tasks');
+
+    database.exec(migration.sql);
+
+    expect(tableNames(database)).toContain('secret_deletion_tasks');
+  });
+
   it('clears derived ebook content html without touching web articles', () => {
     const database = new DatabaseSync(':memory:');
     for (const id of ['0001_initial', '0004_article_content_html', '0022_article_ebook_source']) {

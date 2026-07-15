@@ -24,6 +24,7 @@ import {
   type StoreReadProfileEntry,
 } from './store-db';
 import { migrateProviderApiKeys } from './store-provider-key-migration';
+import { recoverPendingSecretDeletions } from '../providers/secret-deletion-repository';
 import { backfillAnnotationMemoryOnce } from './store-reading-memory-lifecycle';
 import { measureStoreRead, measureStoreReadAsync } from './store-read-profile';
 import { upsertSettings, upsertUser } from './settings-repository';
@@ -87,6 +88,7 @@ async function readStoreInternal(
   options: { includeArticles?: boolean } = {},
 ): Promise<DesktopStore> {
   const database = measureStoreRead(profile, 'get_database', getDatabase);
+  await measureStoreReadAsync(profile, 'recover_secret_deletions', recoverPendingSecretDeletions);
   await measureStoreReadAsync(profile, 'migrate_provider_api_keys', () =>
     migrateProviderApiKeys(database),
   );
