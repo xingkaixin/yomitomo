@@ -45,6 +45,14 @@ export type EpubIndexLocation = {
   paragraphWindow: EpubParagraphIndex[];
 };
 
+export type PreparedEpubTextAnchorResolver = {
+  locate(anchor: TextAnchor, options?: LocateEpubIndexOptions): EpubIndexLocation | null;
+  resolve(
+    anchor: TextAnchor,
+    options?: LocateEpubIndexOptions,
+  ): { start: number; end: number } | null;
+};
+
 export type CreateEpubTextAnchorFromQuoteOptions = {
   chapterId?: string;
   segmentId?: string;
@@ -171,13 +179,40 @@ export function locateEpubTextAnchor(
   anchor: TextAnchor,
   options: LocateEpubIndexOptions = {},
 ): EpubIndexLocation | null {
-  const position = resolveEpubTextAnchor(index, text, anchor, options);
-  if (!position) return null;
-  const location = locateEpubOffset(index, position.start, options);
-  if (!location) return null;
+  return prepareEpubTextAnchorResolver(index, text).locate(anchor, options);
+}
 
-  const resolvedLocation = { ...location, textStart: position.start, textEnd: position.end };
-  return epubLocationAllowed(index, resolvedLocation, options) ? resolvedLocation : null;
+export function prepareEpubTextAnchorResolver(
+  index: EpubBookIndex,
+  text: string,
+): PreparedEpubTextAnchorResolver {
+  const chapters = prepareEpubRangeLookup(index.chapters);
+  const segments = prepareEpubRangeLookup(index.segments);
+  const paragraphs = prepareEpubRangeLookup(index.paragraphs);
+  const paragraphsById = firstEpubRangeById(index.paragraphs);
+  const lookups = { chapters, segments, paragraphs };
+
+  const locate = (
+    anchor: TextAnchor,
+    options: LocateEpubIndexOptions = {},
+  ): EpubIndexLocation | null => {
+    const structural = resolveEpubStructuralTextAnchor(paragraphsById, text, anchor);
+    if (structural) {
+      const location = locateAllowedEpubPosition(index, lookups, structural, options);
+      if (location) return location;
+    }
+
+    const fallback = resolveTextAnchor(text, anchor);
+    return fallback ? locateAllowedEpubPosition(index, lookups, fallback, options) : null;
+  };
+
+  return {
+    locate,
+    resolve(anchor, options) {
+      const location = locate(anchor, options);
+      return location ? { start: location.textStart, end: location.textEnd } : null;
+    },
+  };
 }
 
 export function createEpubTextAnchor(
@@ -251,21 +286,15 @@ export function resolveEpubTextAnchor(
   anchor: TextAnchor,
   options: LocateEpubIndexOptions = {},
 ): { start: number; end: number } | null {
-  const structural = resolveEpubStructuralTextAnchor(index, text, anchor);
-  if (structural && epubPositionAllowed(index, structural, options)) return structural;
-
-  const fallback = resolveTextAnchor(text, anchor);
-  return fallback && epubPositionAllowed(index, fallback, options) ? fallback : null;
+  return prepareEpubTextAnchorResolver(index, text).resolve(anchor, options);
 }
 
 function resolveEpubStructuralTextAnchor(
-  index: EpubBookIndex,
+  paragraphsById: ReadonlyMap<string, EpubParagraphIndex>,
   text: string,
   anchor: TextAnchor,
 ): { start: number; end: number } | null {
-  const paragraph = anchor.paragraphId
-    ? index.paragraphs.find((item) => item.id === anchor.paragraphId)
-    : null;
+  const paragraph = anchor.paragraphId ? paragraphsById.get(anchor.paragraphId) : null;
   if (paragraph && paragraphMatchesAnchor(paragraph, anchor)) {
     const paragraphOffset = numberValue(anchor.textStartInParagraph);
     if (paragraphOffset !== null) {
@@ -377,22 +406,36 @@ function anchorMatchScore(
   return commonSuffixLength(before, prefix) + commonPrefixLength(after, suffix);
 }
 
-function epubPositionAllowed(
+type EpubRange = {
+  id: string;
+  textStart: number;
+  textEnd: number;
+};
+
+type PreparedEpubRangeLookup<T extends EpubRange> = {
+  overlapping(location: Pick<EpubIndexLocation, 'textStart' | 'textEnd'>): T[];
+};
+
+type PreparedEpubRangeLookups = {
+  chapters: PreparedEpubRangeLookup<EpubChapterIndex>;
+  segments: PreparedEpubRangeLookup<EpubSegmentIndex>;
+  paragraphs: PreparedEpubRangeLookup<EpubParagraphIndex>;
+};
+
+function locateAllowedEpubPosition(
   index: EpubBookIndex,
+  lookups: PreparedEpubRangeLookups,
   position: { start: number; end: number },
   options: LocateEpubIndexOptions,
-) {
+): EpubIndexLocation | null {
   const location = locateEpubOffset(index, position.start, options);
-  if (!location) return false;
-  return epubLocationAllowed(
-    index,
-    { ...location, textStart: position.start, textEnd: position.end },
-    options,
-  );
+  if (!location) return null;
+  const resolvedLocation = { ...location, textStart: position.start, textEnd: position.end };
+  return epubLocationAllowed(lookups, resolvedLocation, options) ? resolvedLocation : null;
 }
 
 function epubLocationAllowed(
-  index: EpubBookIndex,
+  lookups: PreparedEpubRangeLookups,
   location: EpubIndexLocation,
   options: LocateEpubIndexOptions,
 ) {
@@ -407,13 +450,64 @@ function epubLocationAllowed(
   }
 
   return (
-    rangesAllowed(overlappingRanges(index.chapters, location), options.allowedChapterIds) &&
-    rangesAllowed(overlappingRanges(index.segments, location), options.allowedSegmentIds) &&
-    rangesAllowed(overlappingRanges(index.paragraphs, location), options.allowedParagraphIds)
+    rangeLookupAllowed(lookups.chapters, location, options.allowedChapterIds) &&
+    rangeLookupAllowed(lookups.segments, location, options.allowedSegmentIds) &&
+    rangeLookupAllowed(lookups.paragraphs, location, options.allowedParagraphIds)
   );
 }
 
-function overlappingRanges<T extends { textStart: number; textEnd: number }>(
+function prepareEpubRangeLookup<T extends EpubRange>(ranges: T[]): PreparedEpubRangeLookup<T> {
+  let ordered = true;
+
+  ranges.forEach((range, index) => {
+    const previous = ranges[index - 1];
+    if (previous && (range.textStart < previous.textStart || range.textEnd < previous.textEnd)) {
+      ordered = false;
+    }
+  });
+
+  return {
+    overlapping(location) {
+      if (!ordered) return overlappingRanges(ranges, location);
+
+      const overlapping: T[] = [];
+      let index = firstRangeStartingAtOrAfter(ranges, location.textEnd) - 1;
+      while (index >= 0) {
+        const range = ranges[index];
+        if (range.textEnd <= location.textStart) break;
+        overlapping.push(range);
+        index -= 1;
+      }
+      return overlapping.toReversed();
+    },
+  };
+}
+
+function firstEpubRangeById<T extends EpubRange>(ranges: T[]) {
+  const byId = new Map<string, T>();
+  for (const range of ranges) {
+    if (!byId.has(range.id)) byId.set(range.id, range);
+  }
+  return byId;
+}
+
+function firstRangeStartingAtOrAfter(ranges: EpubRange[], offset: number) {
+  let low = 0;
+  let high = ranges.length;
+
+  while (low < high) {
+    const index = Math.floor((low + high) / 2);
+    if (ranges[index].textStart < offset) {
+      low = index + 1;
+    } else {
+      high = index;
+    }
+  }
+
+  return low;
+}
+
+function overlappingRanges<T extends EpubRange>(
   ranges: T[],
   location: Pick<EpubIndexLocation, 'textStart' | 'textEnd'>,
 ) {
@@ -422,9 +516,14 @@ function overlappingRanges<T extends { textStart: number; textEnd: number }>(
   );
 }
 
-function rangesAllowed(ranges: Array<{ id: string }>, allowedIds: string[] | undefined) {
+function rangeLookupAllowed<T extends EpubRange>(
+  lookup: PreparedEpubRangeLookup<T>,
+  location: Pick<EpubIndexLocation, 'textStart' | 'textEnd'>,
+  allowedIds: string[] | undefined,
+) {
   if (!allowedIds?.length) return true;
   const allowed = new Set(allowedIds);
+  const ranges = lookup.overlapping(location);
   return ranges.length > 0 && ranges.every((item) => allowed.has(item.id));
 }
 

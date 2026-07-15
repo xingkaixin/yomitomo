@@ -7,6 +7,7 @@ import {
   epubIndexText,
   locateEpubOffset,
   locateEpubTextAnchor,
+  prepareEpubTextAnchorResolver,
   resolveEpubTextAnchor,
 } from './ebook-index';
 
@@ -298,5 +299,51 @@ describe('locateEpubOffset', () => {
         allowedTextEnd: second.textEnd,
       })?.paragraph?.id,
     ).toBe('chapter-1-paragraph-2');
+  });
+
+  it('preserves first-match IDs in a prepared resolver', () => {
+    const chapters = [
+      { id: 'chapter-1', title: '第一章', paragraphs: ['重复目标。', '重复目标。'] },
+    ];
+    const text = epubIndexText(chapters);
+    const index = buildEpubBookIndex({ articleId: 'article-1', chapters });
+    const first = index.paragraphs[0];
+    const second = index.paragraphs[1];
+    const secondAnchor = createEpubTextAnchor(index, text, second.textStart, second.textEnd);
+    second.id = first.id;
+    const resolver = prepareEpubTextAnchorResolver(index, text);
+    const duplicateIdLocation = resolver.locate({
+      ...secondAnchor,
+      paragraphId: first.id,
+      start: second.textStart,
+      end: second.textEnd,
+      textStartInBook: second.textStart,
+      textEndInBook: second.textEnd,
+    });
+
+    expect(duplicateIdLocation?.textStart).toBe(first.textStart);
+  });
+
+  it('checks every crossed range in a prepared resolver', () => {
+    const chapters = [
+      { id: 'chapter-1', title: '第一章', paragraphs: ['第一段目标。', '第二段目标。'] },
+    ];
+    const text = epubIndexText(chapters);
+    const index = buildEpubBookIndex({ articleId: 'article-1', chapters });
+    const first = index.paragraphs[0];
+    const second = index.paragraphs[1];
+    const resolver = prepareEpubTextAnchorResolver(index, text);
+    const crossParagraphAnchor = createEpubTextAnchor(index, text, first.textStart, second.textEnd);
+
+    expect(
+      resolver.locate(crossParagraphAnchor, {
+        allowedParagraphIds: [first.id],
+      }),
+    ).toBeNull();
+    expect(
+      resolver.locate(crossParagraphAnchor, {
+        allowedParagraphIds: [first.id, second.id],
+      })?.textEnd,
+    ).toBe(second.textEnd);
   });
 });
