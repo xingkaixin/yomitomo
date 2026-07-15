@@ -232,6 +232,16 @@ describe('reader embedded styles', () => {
     );
   });
 
+  it('renders reading progress on the compositor without transition lag', () => {
+    expect(readerConversationStyles).toContain(
+      '.reader-toolbar-progress span{display:block;width:100%;height:100%;',
+    );
+    expect(readerConversationStyles).toContain(
+      'transform-origin:left center;will-change:transform',
+    );
+    expect(readerConversationStyles).not.toContain('transition:width .18s ease');
+  });
+
   it('keeps article blockquotes on reader theme tokens', () => {
     expectCssToContain(
       readerStyles,

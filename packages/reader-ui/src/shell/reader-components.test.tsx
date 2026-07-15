@@ -1639,7 +1639,7 @@ describe('ReaderToolbar', () => {
       screen.getByRole('progressbar', { name: '阅读进度' }).getAttribute('aria-valuenow'),
     ).toBe('100');
     expect(container.querySelector('.reader-toolbar-progress span')?.getAttribute('style')).toBe(
-      'width: 100%;',
+      'transform: scaleX(1);',
     );
   });
 

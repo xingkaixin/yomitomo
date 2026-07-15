@@ -150,10 +150,12 @@ export const toolbarStyles = `.reader-main {
 }
 .reader-toolbar-progress span {
   display:block;
+  width:100%;
   height:100%;
   border-radius:0 999px 999px 0;
   background:var(--app-reader-toolbar-progress-fill);
-  transition:width .18s ease
+  transform-origin:left center;
+  will-change:transform
 }
 .reader-floating-toolbar {
   position:fixed;
