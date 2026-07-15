@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Effect, Fiber } from 'effect';
+import { Cause, Effect, Exit, Fiber } from 'effect';
 import * as schema from '../db/schema';
 import { modelPricingRepositoryTestApi, refreshModelsDevPrices } from './model-pricing-repository';
 import type { StoreDatabase } from '../store/store-db';
@@ -121,6 +121,63 @@ describe('model pricing repository', () => {
 
     await expect(refreshModelsDevPrices(database.store)).rejects.toThrow('models.dev 响应解析失败');
     expect(database.rows.modelPrices).toEqual([]);
+  });
+
+  it.each([
+    { name: 'array root', body: [{}] },
+    { name: 'array models record', body: { openai: { models: [] } } },
+    {
+      name: 'non-numeric cost',
+      body: { openai: { models: { model: { cost: { input: '2' } } } } },
+    },
+  ])('rejects a malformed models.dev $name without writing prices', async ({ body }) => {
+    const database = pricingDatabase();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(body));
+
+    await expect(refreshModelsDevPrices(database.store)).rejects.toThrow('models.dev 响应解析失败');
+    expect(database.rows.modelPrices).toEqual([]);
+    expect(database.rows.assistantRuns).toEqual([]);
+  });
+
+  it('keeps malformed catalogue payloads in the typed parse failure channel', async () => {
+    const database = pricingDatabase();
+    database.rows.providers.push(providerRow({ id: 'provider_1', presetId: 'openai' }));
+    database.rows.modelPrices.push(
+      modelPriceRow({
+        id: 'openai:gpt-5-mini',
+        providerId: 'openai',
+        modelId: 'gpt-5-mini',
+        fetchedAt: new Date(0).toISOString(),
+        inputCostPerMillion: 1,
+        outputCostPerMillion: 2,
+      }),
+    );
+    database.rows.assistantRuns.push(
+      assistantRunRow({
+        id: 'run_1',
+        providerId: 'provider_1',
+        providerName: 'OpenAI',
+        modelName: 'gpt-5-mini',
+        inputTokens: 1_000,
+        outputTokens: 500,
+      }),
+    );
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ openai: null }));
+
+    const exit = await Effect.runPromiseExit(
+      modelPricingRepositoryTestApi.refreshModelsDevPricesEffect(database.store),
+    );
+
+    expect(Exit.isFailure(exit)).toBe(true);
+    if (Exit.isSuccess(exit)) return;
+
+    expect(Cause.hasFails(exit.cause)).toBe(true);
+    expect(Cause.hasDies(exit.cause)).toBe(false);
+    expect(Cause.squash(exit.cause)).toMatchObject({
+      message: expect.stringContaining('models.dev 响应解析失败'),
+    });
+    expect(database.rows.modelPrices).toHaveLength(1);
+    expect(database.rows.assistantRuns[0]?.estimatedCostMicros).toBeNull();
   });
 
   it('aborts models.dev fetch when its Effect is interrupted', async () => {

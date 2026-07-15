@@ -11,7 +11,8 @@ Production API inventory: `Deferred.Deferred,Deferred.await,Deferred.complete,De
 The production inventory covers Effect imports under `apps/desktop/src`, `packages/ai/src`, and
 `packages/core/src`. It describes APIs the repository actually uses; it is not a checklist of every
 Effect v4 breaking change. AI runtime operations use direct Effect composition and named boundaries;
-Schema decoding for provider and models.dev responses remains owned by RD-861.
+provider and models.dev HTTP boundaries decode unknown JSON with `Schema.decodeUnknownEffect` before
+domain mapping.
 
 ## Runtime Semantics
 
@@ -28,6 +29,7 @@ Schema decoding for provider and models.dev responses remains owned by RD-861.
 | `Effect.acquireUseRelease`, `Effect.ensuring` | Release remains guaranteed across success, failure, and interruption. | Timeout controllers, AI SDK streams, timers, response work, commit turns, and workers have one finalization path. | Adapter, assistant stream, and callback cleanup tests cover release behavior. |
 | `Effect.fn` | Named operations add stable stack and trace boundaries. | Public and non-trivial AI workflows use domain-first operation names without introducing service layers. | AI runtime tests execute the named operations through their Effect-native exports. |
 | `Effect.promise` | Rejection remains a defect rather than a typed failure. | It is limited to promises whose implementations absorb rejection; other Promise boundaries use `tryPromise`. | Article response cancellation absorbs errors; assistant tool rejection is asserted as a typed failure. |
+| `Schema.decodeUnknownEffect` | Decoding reports `SchemaError` through the typed error channel. | HTTP JSON remains `unknown` until endpoint schemas validate consumed fields; schema failures map to domain response errors before business mapping or writes. | Provider model and models.dev tests cover malformed valid JSON and distinguish failures from defects. |
 | `Effect.all`, `Effect.gen`, `Effect.try`, `Effect.catch`, `Effect.fail`, `Effect.succeed`, `Effect.sync`, `Effect.map`, `Effect.flatMap`, `Effect.mapError` | `Effect.catch` replaces `Effect.catchAll`; the remaining primitives have no repository-relevant v4 semantic change. | Keep explicit concurrency, composition, and typed error mapping at the call site. | Existing domain tests cover their behavior. |
 
 The test-only inventory additionally uses `Cause.hasDies`, `Cause.hasFails`, `Cause.hasInterrupts`,
