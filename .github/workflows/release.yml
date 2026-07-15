@@ -18,7 +18,7 @@ jobs:
         include:
           - name: macOS arm64
             os: macos-26
-            command: pnpm make:app:mac-arm
+            command: pnpm make:app:mac-arm:from-dist
             artifact: yomitomo-macos-arm64
             updateMetadata: dist/app/mac-arm64/latest-mac.yml
             artifactPath: |
@@ -28,7 +28,7 @@ jobs:
               dist/app/mac-arm64/latest*.yml
           - name: Windows x64
             os: windows-latest
-            command: pnpm make:app:win-x64
+            command: pnpm make:app:win-x64:from-dist
             artifact: yomitomo-windows-x64
             updateMetadata: dist/app/win-x64/latest.yml
             artifactPath: |
