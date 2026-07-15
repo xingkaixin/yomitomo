@@ -2470,7 +2470,9 @@ describe('ReadingLibrary home', () => {
   });
 
   it('shows webpage import errors inside the dialog', async () => {
-    const onImportArticleUrl = vi.fn().mockRejectedValue(new Error('fetch failed'));
+    const onImportArticleUrl = vi
+      .fn()
+      .mockRejectedValue(new Error('ARTICLE_IMPORT_REQUEST_FAILED'));
     renderLibrary([], { onImportArticleUrl });
 
     await selectLibraryType(/网页文章/);
@@ -2481,9 +2483,8 @@ describe('ReadingLibrary home', () => {
     fireEvent.click(screen.getByRole('button', { name: '解析添加' }));
 
     expect(await screen.findByText('解析失败')).toBeTruthy();
-    expect(screen.getByText('Error')).toBeTruthy();
-    expect(screen.queryByText('无法访问这个网页，请确认链接可打开后再试')).toBeNull();
-    expect(screen.queryByText(/fetch failed/)).toBeNull();
+    expect(screen.getByText('网页请求失败')).toBeTruthy();
+    expect(screen.queryByText('Error')).toBeNull();
     expect(screen.getByRole('dialog')).toBeTruthy();
   });
 
