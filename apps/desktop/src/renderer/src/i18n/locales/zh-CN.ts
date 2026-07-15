@@ -461,7 +461,7 @@ export const zhCNResources = {
     distillationLibrary: {
       title: '沉淀',
       description: '把已发布的思考放在一起，跨越书籍与文章重新发现它们。',
-      totalCount: '{{count}} 条沉淀',
+      totalLabel: '已沉淀',
       searchLabel: '搜索沉淀',
       searchPlaceholder: '搜索你的思考…',
       clearSearch: '清除搜索',
