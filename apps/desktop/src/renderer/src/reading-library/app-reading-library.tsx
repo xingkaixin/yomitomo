@@ -740,8 +740,10 @@ export function ReadingLibrary({
 
   async function updateSelectedArticle(articleId: string, update: ArticleUpdater) {
     await onUpdateArticle(articleId, (article) => {
-      const nextArticle = update(selectedArticle?.id === articleId ? selectedArticle : article);
-      if (nextArticle) setSelectedArticle(nextArticle);
+      const nextArticle = update(article);
+      if (nextArticle) {
+        setSelectedArticle((current) => (current?.id === articleId ? nextArticle : current));
+      }
       return nextArticle;
     });
   }
