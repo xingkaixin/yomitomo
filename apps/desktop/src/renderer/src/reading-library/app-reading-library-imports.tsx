@@ -695,8 +695,7 @@ function ArticleImportDialog({
     importState === 'error'
       ? t('library.import.article.errorTitle')
       : importMessage || t('library.import.article.idleHeader');
-  const importFooterMessage =
-    importState === 'error' ? 'Error' : importMessage || t('library.import.article.idleFooter');
+  const importFooterMessage = importMessage || t('library.import.article.idleFooter');
 
   return (
     <Dialog open onOpenChange={(nextOpen) => !nextOpen && closeImportDialog()}>

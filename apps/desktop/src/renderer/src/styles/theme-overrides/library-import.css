@@ -1,5 +1,5 @@
 .library-import-modal-scrim {
-  background: rgb(0 0 0 / 0.34);
+  background: var(--app-overlay-scrim);
   backdrop-filter: blur(3px);
 }
 
@@ -7,14 +7,19 @@
   border: 1px solid hsl(var(--border) / 0.92);
   border-radius: 0;
   background: hsl(var(--card));
-  box-shadow: 0 24px 70px rgb(0 0 0 / 0.22);
+  box-shadow: var(--app-shell-panel-shadow);
   color: hsl(var(--foreground));
   padding: 22px;
 }
 
-.library-import-dialog.is-error,
+.library-import-dialog.is-error {
+  border-color: color-mix(in srgb, var(--app-action-danger-bg) 56%, hsl(var(--border)));
+  background: color-mix(in srgb, var(--app-action-danger-bg) 4%, hsl(var(--card)));
+}
+
 .library-import-dialog.is-duplicate {
-  border-color: hsl(3 62% 39% / 0.68);
+  border-color: color-mix(in srgb, var(--app-reader-accent-strong) 56%, hsl(var(--border)));
+  background: color-mix(in srgb, var(--app-reader-accent-strong) 4%, hsl(var(--card)));
 }
 
 .library-import-dialog.is-imported {
@@ -78,18 +83,23 @@
   background: hsl(var(--card));
 }
 
-.library-article-import-box.is-duplicate,
 .library-article-import-box.is-error,
 .library-ebook-dropzone.is-error {
-  border-color: hsl(3 62% 39% / 0.68);
-  background: hsl(4 68% 96% / 0.44);
+  border-color: color-mix(in srgb, var(--app-action-danger-bg) 56%, hsl(var(--border)));
+  background: color-mix(in srgb, var(--app-action-danger-bg) 8%, hsl(var(--card)));
+  box-shadow: none;
+}
+
+.library-article-import-box.is-duplicate {
+  border-color: color-mix(in srgb, var(--app-reader-accent-strong) 56%, hsl(var(--border)));
+  background: color-mix(in srgb, var(--app-reader-accent-strong) 8%, hsl(var(--card)));
   box-shadow: none;
 }
 
 .library-ebook-dropzone:hover,
 .library-ebook-dropzone.is-dragging {
   border-color: hsl(var(--foreground));
-  background: hsl(0 0% 0% / 0.025);
+  background: var(--app-interactive-hover-bg);
   box-shadow: none;
 }
 
@@ -108,7 +118,7 @@
 .library-article-import-input input:focus {
   border-color: hsl(var(--foreground));
   background: hsl(var(--card));
-  box-shadow: 0 0 0 2px hsl(3 62% 39% / 0.12);
+  box-shadow: 0 0 0 2px var(--app-interactive-focus-ring);
 }
 
 .library-import-status-icon,
@@ -127,12 +137,17 @@
   color: hsl(var(--card));
 }
 
-.library-import-status-icon.is-duplicate,
 .library-import-status-icon.is-error,
 .library-ebook-dropzone-icon.is-error {
-  border-color: hsl(3 62% 39% / 0.68);
-  background: hsl(var(--card));
-  color: var(--app-interactive-link);
+  border-color: color-mix(in srgb, var(--app-action-danger-bg) 48%, hsl(var(--border)));
+  background: color-mix(in srgb, var(--app-action-danger-bg) 8%, hsl(var(--card)));
+  color: var(--app-action-danger-bg);
+}
+
+.library-import-status-icon.is-duplicate {
+  border-color: color-mix(in srgb, var(--app-reader-accent-strong) 48%, hsl(var(--border)));
+  background: color-mix(in srgb, var(--app-reader-accent-strong) 8%, hsl(var(--card)));
+  color: var(--app-reader-accent-strong);
 }
 
 .library-article-import-submit,
@@ -165,9 +180,12 @@
   background: hsl(var(--foreground));
 }
 
-.library-import-dialog.is-duplicate .library-import-progress-track span,
 .library-import-dialog.is-error .library-import-progress-track span {
-  background: var(--app-interactive-link);
+  background: var(--app-action-danger-bg);
+}
+
+.library-import-dialog.is-duplicate .library-import-progress-track span {
+  background: var(--app-reader-accent-strong);
 }
 
 .library-file-import-result {
@@ -178,14 +196,14 @@
 }
 
 .library-file-import-result.is-error {
-  border-color: hsl(3 62% 39% / 0.48);
-  background: hsl(4 68% 96% / 0.34);
+  border-color: color-mix(in srgb, var(--app-action-danger-bg) 48%, hsl(var(--border)));
+  background: color-mix(in srgb, var(--app-action-danger-bg) 8%, hsl(var(--card)));
 }
 
 .library-file-import-cover {
   border-color: hsl(var(--border) / 0.82);
   border-radius: 0;
-  background: hsl(0 0% 0% / 0.025);
+  background: var(--app-interactive-hover-bg);
   color: hsl(var(--foreground));
 }
 
@@ -199,15 +217,15 @@
 }
 
 .library-article-duplicate-callout {
-  border-color: hsl(3 62% 39% / 0.38);
+  border-color: color-mix(in srgb, var(--app-reader-accent-strong) 48%, hsl(var(--border)));
   border-radius: 0;
-  background: hsl(var(--card));
+  background: color-mix(in srgb, var(--app-reader-accent-strong) 8%, hsl(var(--card)));
   color: hsl(var(--foreground));
   box-shadow: none;
 }
 
 .library-article-duplicate-callout > svg {
-  color: var(--app-interactive-link);
+  color: var(--app-reader-accent-strong);
 }
 
 .library-article-duplicate-callout strong {

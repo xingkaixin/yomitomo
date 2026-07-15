@@ -273,7 +273,7 @@ function LibraryCollectionCard({
         aria-label={t('library.collection.open', { name: title })}
         onClick={onOpen}
       />
-      <div className="library-item-actions">
+      <div className={menuOpen ? 'library-item-actions is-active' : 'library-item-actions'}>
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
           <div className="library-card-menu">
             <DropdownMenuTrigger asChild>
