@@ -49,7 +49,7 @@ function generateSegmentReadingMemoryUpdateEffect(
       catch: (error) => error,
     });
   }).pipe(
-    Effect.catchAll((error) => {
+    Effect.catch((error) => {
       logAiError('agent.segment_memory.update_failed', error, {
         agent: agent.username,
         segmentId: task.segment.id,

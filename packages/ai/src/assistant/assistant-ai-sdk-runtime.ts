@@ -153,7 +153,7 @@ function runAssistantAiSdkToolRuntimeEffect(
     }
     return emitFallback(options, kernel.finishWithFallback(`unexpected_kernel_step:${step.type}`));
   }).pipe(
-    Effect.catchAll((error) =>
+    Effect.catch((error) =>
       Effect.succeed(
         emitFallback(options, kernel.finishWithFallback(assistantRuntimeFailureReason(error))),
       ),

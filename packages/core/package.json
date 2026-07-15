@@ -22,7 +22,7 @@
     "@yomitomo/shared": "workspace:*",
     "defuddle": "^0.18.1",
     "dompurify": "^3.4.11",
-    "effect": "^3.21.4"
+    "effect": "4.0.0-beta.98"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

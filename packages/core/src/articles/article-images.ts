@@ -1,5 +1,5 @@
 import type { ExtractedArticle } from './article-extraction';
-import { Deferred, Effect, Fiber } from 'effect';
+import { Deferred, Effect, Fiber, Semaphore } from 'effect';
 
 const MAX_INLINE_IMAGES = 40;
 const MAX_INLINE_IMAGE_DATA_CHARS = 10_000_000;
@@ -79,14 +79,14 @@ function inlineHtmlImagesEffect(html: string, articleDocument: Document, inliner
   });
 }
 
-type EffectInliner = Effect.Effect.Success<ReturnType<typeof imageInlinerEffect>>;
+type EffectInliner = Effect.Success<ReturnType<typeof imageInlinerEffect>>;
 type FetchEntry = Deferred.Deferred<string | null>;
 
 function imageInlinerEffect(baseUrl: string, fetcher: ImageFetcher) {
   return Effect.gen(function* () {
-    const fetchSemaphore = yield* Effect.makeSemaphore(INLINE_IMAGE_CONCURRENCY);
-    const fetchMapMutex = yield* Effect.makeSemaphore(1);
-    const commitTurnMutex = yield* Effect.makeSemaphore(1);
+    const fetchSemaphore = yield* Semaphore.make(INLINE_IMAGE_CONCURRENCY);
+    const fetchMapMutex = yield* Semaphore.make(1);
+    const commitTurnMutex = yield* Semaphore.make(1);
     const fetchedByUrl = new Map<string, FetchEntry>();
     const committedByUrl = new Map<string, string | null>();
     let imageCount = 0;
@@ -102,7 +102,9 @@ function imageInlinerEffect(baseUrl: string, fetcher: ImageFetcher) {
         if (committedByUrl.has(url)) return committedByUrl.get(url) || null;
         if (imageCount >= MAX_INLINE_IMAGES) return null;
 
-        const dataUrlFiber = yield* Effect.fork(fetchDataUrl(url));
+        const dataUrlFiber = yield* Effect.forkChild(fetchDataUrl(url), {
+          startImmediately: true,
+        });
         const turn = yield* reserveCommitTurn();
         return yield* Effect.gen(function* () {
           yield* Deferred.await(turn.previous);
@@ -168,7 +170,7 @@ function imageInlinerEffect(baseUrl: string, fetcher: ImageFetcher) {
           catch: () => null,
         }).pipe(
           Effect.map((dataUrl) => (dataUrl?.startsWith('data:image/') ? dataUrl : null)),
-          Effect.catchAll(() => Effect.succeed(null)),
+          Effect.catch(() => Effect.succeed(null)),
         ),
       );
     }
