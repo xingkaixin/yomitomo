@@ -1,7 +1,7 @@
 import i18next from 'i18next';
 import type { Annotation, ArticleRecord, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { hashText } from '@yomitomo/shared';
-import { annotationColor, type TocItem } from '@yomitomo/core';
+import { annotationColor, bilingualTranslationSelector, type TocItem } from '@yomitomo/core';
 import { readerBackgroundTone, readerBodyLineHeight } from '@yomitomo/reader-ui/reader-settings';
 import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
 import type { ReaderReadingSection, ReaderSettings } from '@yomitomo/reader-ui/reader-types';
@@ -901,6 +901,7 @@ function buildNormalizedDomTextIndex(
     if (node.nodeType !== Node.ELEMENT_NODE) return;
 
     const element = node as Element;
+    if (element.matches(bilingualTranslationSelector)) return;
     if (element.localName === 'br') {
       pendingWhitespace = text.length > 0;
       return;
@@ -1054,6 +1055,7 @@ function renderedTextForNode(root: Node) {
       return;
 
     const element = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : null;
+    if (element?.matches(bilingualTranslationSelector)) return;
     if (element?.localName === 'br') {
       pendingWhitespace = text.length > 0;
       return;

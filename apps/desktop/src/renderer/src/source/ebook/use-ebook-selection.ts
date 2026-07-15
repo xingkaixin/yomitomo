@@ -3,6 +3,7 @@ import i18next from 'i18next';
 import type { SelectionActionShortcuts, UserProfile } from '@yomitomo/shared';
 import {
   createEpubTextAnchorFromQuote,
+  rangeIntersectsBilingualTranslation,
   selectionActionPosition,
   type HighlightBox,
 } from '@yomitomo/core';
@@ -159,6 +160,11 @@ export function useEbookSelection({
 
       const range = selection.getRangeAt(0);
       if (!isRangeInsideDocumentBody(doc, range)) return;
+      if (rangeIntersectsBilingualTranslation(range)) {
+        selection.removeAllRanges();
+        clearSelection();
+        return;
+      }
 
       const content = foliateContentForDocument(view, doc);
       const sectionIndex = content?.index ?? pageInfo?.sectionIndex ?? 0;

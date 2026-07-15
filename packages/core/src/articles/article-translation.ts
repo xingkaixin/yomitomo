@@ -3,12 +3,14 @@ import type { TextAnchor } from '@yomitomo/shared';
 import { createTextAnchor, hashText, resolveTextAnchor } from '@yomitomo/shared';
 import { offsetFromArticleStart, rangeFromOffsets } from '../reader/reader-dom';
 
-export type WebArticleTranslationBlock = {
+export type BilingualTranslationSourceBlock = {
   id: string;
   order: number;
   text: string;
   textHash: string;
 };
+
+export type WebArticleTranslationBlock = BilingualTranslationSourceBlock;
 
 export type ArticleBilingualTranslationRenderOptions = {
   retryLabel?: string;
@@ -18,6 +20,7 @@ export type ArticleBilingualTranslationRenderOptions = {
 
 const translatableBlockSelector = 'p, li, blockquote, h1, h2, h3, h4, h5, h6';
 const codeBlockSelector = 'pre, code, kbd, samp';
+export const bilingualTranslationSelector = '[data-reader-translation]';
 
 export function extractWebArticleTranslationBlocks(
   articleDocument: Document,
@@ -25,21 +28,13 @@ export function extractWebArticleTranslationBlocks(
 ): WebArticleTranslationBlock[] {
   const container = articleDocument.createElement('div');
   container.innerHTML = html;
-  return Array.from(container.querySelectorAll<HTMLElement>(translatableBlockSelector))
-    .filter(isTopLevelTranslationBlock)
-    .flatMap((element, index) => {
-      const text = normalizeTranslationBlockText(element.textContent || '');
-      if (!shouldTranslateBlock(element, text)) return [];
-      const textHash = hashText(text);
-      return [
-        {
-          id: `block_${index + 1}_${textHash.slice(0, 10)}`,
-          order: index,
-          text,
-          textHash,
-        },
-      ];
-    });
+  return extractBilingualTranslationBlocks(container);
+}
+
+export function extractBilingualTranslationBlocks(
+  root: ParentNode,
+): BilingualTranslationSourceBlock[] {
+  return translationBlockEntries(root).map(({ block }) => block);
 }
 
 export function articleHtmlWithBilingualTranslation(
@@ -52,45 +47,67 @@ export function articleHtmlWithBilingualTranslation(
 
   const container = articleDocument.createElement('div');
   container.innerHTML = html;
+  const changed = applyBilingualTranslation(container, translation, options);
+  return changed ? container.innerHTML : html;
+}
+
+export function applyBilingualTranslation(
+  root: HTMLElement,
+  translation: ArticleTranslation | null,
+  options: ArticleBilingualTranslationRenderOptions = {},
+) {
+  let changed = clearBilingualTranslation(root);
+  if (!translation) return changed;
+
   const segmentsByBlockId = new Map(
     translation.segments.map((segment) => [segment.sourceBlockId, segment]),
   );
-  let changed = false;
+  const articleDocument = root.ownerDocument;
 
-  Array.from(container.querySelectorAll<HTMLElement>(translatableBlockSelector))
-    .filter(isTopLevelTranslationBlock)
-    .forEach((element, index) => {
-      const text = normalizeTranslationBlockText(element.textContent || '');
-      if (!shouldTranslateBlock(element, text)) return;
-      const textHash = hashText(text);
-      const blockId = `block_${index + 1}_${textHash.slice(0, 10)}`;
-      const segment = segmentsByBlockId.get(blockId);
-      if (!segment) return;
-      const indicator = createTranslationIndicator(articleDocument, segment, {
-        retryLabel: options.retryLabel,
-        status:
-          segment.status === 'ready' && options.successBlockIds?.has(blockId)
-            ? 'success'
-            : segment.status,
-      });
-      const translationElement = createTranslationElement(
-        articleDocument,
-        segment,
-        options.style || 'dashedLine',
-      );
-      if (!indicator && !translationElement) return;
-      element.setAttribute('data-reader-source-block-id', blockId);
-      if (indicator) element.append(indicator);
-      if (translationElement) element.insertAdjacentElement('afterend', translationElement);
-      changed = true;
+  translationBlockEntries(root).forEach(({ block, element }) => {
+    const segment = segmentsByBlockId.get(block.id);
+    if (!segment) return;
+    const indicator = createTranslationIndicator(articleDocument, segment, {
+      retryLabel: options.retryLabel,
+      status:
+        segment.status === 'ready' && options.successBlockIds?.has(block.id)
+          ? 'success'
+          : segment.status,
     });
+    const translationElement = createTranslationElement(
+      articleDocument,
+      segment,
+      options.style || 'dashedLine',
+    );
+    if (!indicator && !translationElement) return;
+    element.setAttribute('data-reader-source-block-id', block.id);
+    if (indicator) element.append(indicator);
+    if (translationElement) element.insertAdjacentElement('afterend', translationElement);
+    changed = true;
+  });
 
-  return changed ? container.innerHTML : html;
+  return changed;
+}
+
+export function clearBilingualTranslation(root: ParentNode) {
+  const translationElements = Array.from(
+    root.querySelectorAll<HTMLElement>(bilingualTranslationSelector),
+  );
+  const indicators = Array.from(
+    root.querySelectorAll<HTMLElement>('.reader-bilingual-translation-indicator'),
+  );
+  const sourceElements = Array.from(
+    root.querySelectorAll<HTMLElement>('[data-reader-source-block-id]'),
+  );
+  translationElements.forEach((element) => element.remove());
+  indicators.forEach((element) => element.remove());
+  sourceElements.forEach((element) => element.removeAttribute('data-reader-source-block-id'));
+  return translationElements.length > 0 || indicators.length > 0 || sourceElements.length > 0;
 }
 
 export function sourceTextContent(
   root: HTMLElement,
-  ignoredSelector = '[data-reader-translation]',
+  ignoredSelector = bilingualTranslationSelector,
 ) {
   const clone = root.cloneNode(true);
   if (!(clone instanceof HTMLElement)) return root.textContent || '';
@@ -106,9 +123,43 @@ export function translationElementForRange(range: Range) {
 
 export function translationElementForAnchor(root: HTMLElement, anchor: TextAnchor) {
   if (!anchor.segmentId) return null;
-  return Array.from(root.querySelectorAll<HTMLElement>('[data-reader-translation]')).find(
+  return Array.from(root.querySelectorAll<HTMLElement>(bilingualTranslationSelector)).find(
     (element) => element.getAttribute('data-reader-translation-block-id') === anchor.segmentId,
   );
+}
+
+export function rangeIntersectsBilingualTranslation(range: Range) {
+  const nodes = [range.startContainer, range.endContainer];
+  if (nodes.some((node) => Boolean(elementForNode(node)?.closest(bilingualTranslationSelector)))) {
+    return true;
+  }
+
+  const articleDocument = range.commonAncestorContainer.ownerDocument;
+  if (!articleDocument) return false;
+  const container = articleDocument.createElement('div');
+  container.append(range.cloneContents());
+  return Boolean(container.querySelector(bilingualTranslationSelector));
+}
+
+function translationBlockEntries(root: ParentNode) {
+  return Array.from(root.querySelectorAll<HTMLElement>(translatableBlockSelector))
+    .filter(isTopLevelTranslationBlock)
+    .flatMap((element, index) => {
+      const text = normalizeTranslationBlockText(element.textContent || '');
+      if (!shouldTranslateBlock(element, text)) return [];
+      const textHash = hashText(text);
+      return [
+        {
+          block: {
+            id: `block_${index + 1}_${textHash.slice(0, 10)}`,
+            order: index,
+            text,
+            textHash,
+          },
+          element,
+        },
+      ];
+    });
 }
 
 export function createTranslationTextAnchor(range: Range, element: HTMLElement) {
@@ -154,8 +205,11 @@ function normalizeTranslationBlockText(value: string) {
 }
 
 function translationElementForNode(node: Node) {
-  const element = node instanceof Element ? node : node.parentElement;
-  return element?.closest<HTMLElement>('[data-reader-translation]') || null;
+  return elementForNode(node)?.closest<HTMLElement>(bilingualTranslationSelector) || null;
+}
+
+function elementForNode(node: Node) {
+  return node.nodeType === 1 ? (node as Element) : node.parentElement;
 }
 
 function createTranslationElement(

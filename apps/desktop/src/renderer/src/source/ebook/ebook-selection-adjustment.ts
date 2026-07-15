@@ -1,4 +1,5 @@
 import type { SelectionAdjustmentHandle } from '@yomitomo/reader-ui/reader-app-view';
+import { bilingualTranslationSelector, rangeIntersectsBilingualTranslation } from '@yomitomo/core';
 
 type CaretPositionLike = {
   offset: number;
@@ -46,6 +47,7 @@ export function ebookSelectionPointFromDocumentPoint(
   const body = doc.body;
   const range = caretRangeFromDocumentPoint(doc, x, y);
   if (!body || !range || !rootContainsNode(body, range.startContainer)) return null;
+  if (elementForNode(range.startContainer)?.closest(bilingualTranslationSelector)) return null;
 
   const sourceOffset = ebookOffsetFromDocumentStart(body, range.startContainer, range.startOffset);
   return Number.isFinite(sourceOffset) ? { sourceOffset } : null;
@@ -54,7 +56,8 @@ export function ebookSelectionPointFromDocumentPoint(
 export function ebookSelectionRangeOffsets(root: HTMLElement, range: Range) {
   if (
     !rootContainsNode(root, range.startContainer) ||
-    !rootContainsNode(root, range.endContainer)
+    !rootContainsNode(root, range.endContainer) ||
+    rangeIntersectsBilingualTranslation(range)
   ) {
     return null;
   }
@@ -88,6 +91,7 @@ export function ebookSelectionRangeFromOffsets(
   while (walker.nextNode()) {
     const node = walker.currentNode;
     if (!isTextNode(node)) continue;
+    if (node.parentElement?.closest(bilingualTranslationSelector)) continue;
 
     const nextOffset = currentOffset + node.data.length;
     if (!startNode && startOffset >= currentOffset && startOffset < nextOffset) {
@@ -114,7 +118,12 @@ function ebookOffsetFromDocumentStart(root: HTMLElement, node: Node, offset: num
   const range = root.ownerDocument.createRange();
   range.selectNodeContents(root);
   range.setEnd(node, offset);
-  return range.toString().length;
+  const container = root.ownerDocument.createElement('div');
+  container.append(range.cloneContents());
+  container
+    .querySelectorAll<HTMLElement>(bilingualTranslationSelector)
+    .forEach((element) => element.remove());
+  return container.textContent?.length ?? 0;
 }
 
 function caretRangeFromDocumentPoint(doc: Document, x: number, y: number) {
@@ -135,6 +144,10 @@ function rootContainsNode(root: HTMLElement, node: Node) {
   if (node === root) return true;
   const element = node.nodeType === Node.ELEMENT_NODE ? node : node.parentNode;
   return Boolean(element && root.contains(element));
+}
+
+function elementForNode(node: Node) {
+  return node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
 }
 
 function isTextNode(node: Node): node is Text {
