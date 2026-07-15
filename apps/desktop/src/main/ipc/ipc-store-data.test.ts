@@ -33,7 +33,7 @@ beforeEach(() => {
 });
 
 describe('store data update IPC', () => {
-  it('loads the full store for the reading library even when shell store loading is available', async () => {
+  it('loads the shell store without the full article catalog', async () => {
     const fullStore = desktopStore({
       articles: [
         {
@@ -65,10 +65,10 @@ describe('store data update IPC', () => {
 
     expect(envelope).toEqual({
       ok: true,
-      value: { ok: true, store: fullStore },
+      value: { ok: true, store: shellStore },
     });
-    expect(readStoreWithProfile).toHaveBeenCalledTimes(1);
-    expect(readShellStoreWithProfile).not.toHaveBeenCalled();
+    expect(readShellStoreWithProfile).toHaveBeenCalledTimes(1);
+    expect(readStoreWithProfile).not.toHaveBeenCalled();
   });
 
   it('forwards update channels to the app updater module', async () => {
@@ -125,8 +125,8 @@ type StoreDataIpcContext = Parameters<typeof registerStoreDataIpc>[0];
 type StoreDataPersistenceModule = Awaited<ReturnType<StoreDataIpcContext['getPersistenceModule']>>;
 
 function storeContext(input: {
-  readShellStoreWithProfile?: ReturnType<typeof vi.fn>;
-  readStoreWithProfile: StoreDataPersistenceModule['storeSnapshotPersistence']['readStoreWithProfile'];
+  readShellStoreWithProfile?: StoreDataPersistenceModule['storeSnapshotPersistence']['readShellStoreWithProfile'];
+  readStoreWithProfile?: ReturnType<typeof vi.fn>;
   updaterModule?: Awaited<ReturnType<StoreDataIpcContext['getAppUpdaterModule']>>;
 }): StoreDataIpcContext {
   return {
@@ -153,7 +153,11 @@ function storeContext(input: {
           settings,
         })),
       },
-      storeSnapshotPersistence: input,
+      storeSnapshotPersistence: {
+        readShellStoreWithProfile:
+          input.readShellStoreWithProfile ||
+          vi.fn(async () => ({ store: desktopStore({ articles: [] }), profile: [] })),
+      },
     }),
     logError: vi.fn(),
     recordStartupTiming: vi.fn(),

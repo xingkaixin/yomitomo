@@ -1,4 +1,5 @@
 import type { CollectionMember } from '@yomitomo/shared';
+import type { LibraryCatalogListInput } from '../../ipc-contract';
 import {
   addCollectionMembersRows,
   createCollectionRows,
@@ -10,6 +11,11 @@ import {
   readCollectionsWithMembersRows,
 } from '../collections/collection-repository';
 import { getDatabase } from './store-db';
+import { readLibraryCatalogRows } from '../library/library-catalog-repository';
+
+export async function listLibraryCatalog(input: LibraryCatalogListInput) {
+  return readLibraryCatalogRows(getDatabase(), input);
+}
 
 export async function listCollections() {
   return readCollectionsWithMembersRows(getDatabase());

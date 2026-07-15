@@ -32,6 +32,7 @@ import type {
   UserProfile,
   WeReadBookDetail,
   WeReadReadingStatsState,
+  WeReadSettings,
   WeReadSyncResult,
 } from '@yomitomo/shared';
 import type { DesktopStoreGetResult } from '../app-store-errors';
@@ -83,6 +84,8 @@ import type {
   TextImportCommitInput,
   TextImportCommitResult,
   PerformanceTimingInput,
+  LibraryCatalogListInput,
+  LibraryCatalogListResult,
   ProviderTestResult,
   RemoveCollectionMemberInput,
   RenameCollectionInput,
@@ -348,6 +351,10 @@ export type DataIpcInvokeMap = {
 };
 
 export type LibraryCollectionIpcInvokeMap = {
+  'library-catalog:list': {
+    args: [input: LibraryCatalogListInput];
+    result: LibraryCatalogListResult;
+  };
   'library-collection:list': {
     args: [];
     result: CollectionWithMembers[];
@@ -448,6 +455,10 @@ export type UpdateIpcInvokeMap = {
 };
 
 export type WeReadIpcInvokeMap = {
+  'weread:get-settings': {
+    args: [];
+    result: WeReadSettings;
+  };
   'weread:get-state': {
     args: [];
     result: WeReadState;

@@ -129,6 +129,56 @@ export type ArticleLibraryListResult = {
   totalCount: number;
 };
 
+export type LibraryCatalogItemType = ArticleLibrarySource | 'weread';
+
+export type LibraryCatalogType = LibraryCatalogItemType | 'collection';
+
+export type LibraryCatalogScope =
+  | { kind: 'library' }
+  | { kind: 'collection'; collectionId: string }
+  | { kind: 'picker'; collectionId: string };
+
+export type LibraryCatalogItem = {
+  kind: 'item';
+  ref: ContentRef;
+  type: LibraryCatalogItemType;
+  sortTime: string;
+  pinned: boolean;
+  article?: ArticleSummaryRecord;
+  weread?: WeReadBook;
+};
+
+export type LibraryCatalogCollection = {
+  kind: 'col';
+  collection: Collection;
+  coverMembers: LibraryCatalogItem[];
+  memberCount: number;
+  sortTime: string;
+  pinned: boolean;
+};
+
+export type LibraryCatalogEntity = LibraryCatalogItem | LibraryCatalogCollection;
+
+export type LibraryCatalogItemCounts = Record<LibraryCatalogItemType, number>;
+
+export type LibraryCatalogListInput = {
+  scope: LibraryCatalogScope;
+  types?: LibraryCatalogType[];
+  query?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export type LibraryCatalogListResult = {
+  entities: LibraryCatalogEntity[];
+  itemCounts: LibraryCatalogItemCounts;
+  page: number;
+  pageSize: number;
+  query: string;
+  totalCount: number;
+  unfilteredCount: number;
+};
+
 export type WindowAnimationSourceRect = {
   x: number;
   y: number;

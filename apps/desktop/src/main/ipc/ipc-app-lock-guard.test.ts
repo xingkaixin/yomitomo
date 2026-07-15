@@ -220,6 +220,7 @@ function context(storeModule: ReturnType<typeof createStoreModule>) {
       },
       storeSnapshotPersistence: {
         readStore: storeModule.readStore,
+        readShellStoreWithProfile: storeModule.readShellStoreWithProfile,
         readStoreWithProfile: storeModule.readStoreWithProfile,
       },
     }),
@@ -251,6 +252,7 @@ function createStoreModule(initialStore: DesktopStore) {
   return {
     readArticle: vi.fn(async () => ({ id: 'article_1' })),
     readStore: vi.fn(async () => store),
+    readShellStoreWithProfile: vi.fn(async () => ({ store, profile: [] })),
     readStoreWithProfile: vi.fn(async () => ({ store, profile: [] })),
     readStoredProviderApiKey: vi.fn(async () => 'provider-secret'),
     readStoredWeReadApiKey: vi.fn(async () => 'weread-secret'),

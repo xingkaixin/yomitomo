@@ -36,6 +36,7 @@ export {
   createCollection,
   deleteCollection,
   listCollections,
+  listLibraryCatalog,
   listLibraryPins,
   removeCollectionMember,
   renameCollection,

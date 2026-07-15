@@ -193,7 +193,6 @@ function buildCollectionEntities({
     return {
       kind: 'col',
       collection,
-      memberRefs: members.map((member) => member.member),
       coverMembers: searchableMembers.slice(0, COLLECTION_COVER_PREVIEW_LIMIT),
       searchMembers: searchableMembers,
       memberCount: members.length,
@@ -210,7 +209,9 @@ function libraryEntityMatchesSearch(entity: LibraryEntity, query: string): boole
   if (entity.kind === 'col') {
     return (
       collectionMatchesSearch(entity.collection, normalizedQuery) ||
-      entity.searchMembers.some((item) => libraryEntityMatchesSearch(item, normalizedQuery))
+      Boolean(
+        entity.searchMembers?.some((item) => libraryEntityMatchesSearch(item, normalizedQuery)),
+      )
     );
   }
 

@@ -151,7 +151,6 @@ export const mockPins: LibraryPin[] = [
 const techCollection: LibraryCollectionEntity = {
   kind: 'col',
   collection: mockCollections[0],
-  memberRefs: [{ kind: 'article', id: 'article-col-1' }],
   coverMembers: [collectionCoverItem],
   searchMembers: [collectionCoverItem],
   memberCount: 1,
@@ -162,7 +161,6 @@ const techCollection: LibraryCollectionEntity = {
 const emptyCollection: LibraryCollectionEntity = {
   kind: 'col',
   collection: mockCollections[1],
-  memberRefs: [],
   coverMembers: [],
   searchMembers: [],
   memberCount: 0,

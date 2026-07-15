@@ -57,6 +57,7 @@ import type {
   DesktopIpcInvokeChannel,
   DesktopIpcInvokeResult,
   EbookImportFileInput,
+  LibraryCatalogListInput,
   PdfImportFileInput,
   TextImportPrepareInput,
   TextImportCommitInput,
@@ -301,6 +302,8 @@ function createArticlePreloadApi() {
 
 function createLibraryCollectionPreloadApi() {
   return {
+    listLibraryCatalog: (input: LibraryCatalogListInput) =>
+      invokeDesktopIpc('library-catalog:list', input),
     onCollectionPatched: (callback: (patch: CollectionStorePatch) => void) =>
       onIpcEvent('collection:patched', (patch) => callback(patch as CollectionStorePatch)),
     onLibraryPinPatched: (callback: (patch: LibraryPinPatch) => void) =>
@@ -323,6 +326,7 @@ function createLibraryCollectionPreloadApi() {
 
 function createWeReadPreloadApi() {
   return {
+    getWeReadSettings: () => invokeDesktopIpc('weread:get-settings'),
     getWeReadState: () => invokeDesktopIpc('weread:get-state'),
     readWeReadApiKey: () => invokeDesktopIpc('weread:read-api-key'),
     saveWeReadSettings: (input: WeReadSaveSettingsInput) =>
