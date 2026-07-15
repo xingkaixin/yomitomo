@@ -102,7 +102,7 @@ export function ReaderToolbar({
         aria-valuemax={100}
         aria-valuenow={progressNow}
       >
-        <span style={{ width: `${progressNow}%` }} />
+        <span style={{ transform: `scaleX(${progress})` }} />
       </div>
     </header>
   );

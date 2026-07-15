@@ -32,7 +32,6 @@
 .save-action.is-saved {
   background: hsl(83 24% 35%);
   color: hsl(var(--primary-foreground));
-  animation: save-confirm 520ms ease;
 }
 
 .save-action.is-saved:disabled {
@@ -63,7 +62,6 @@
 
 .auto-save-status.is-saved {
   color: hsl(141 41% 36%);
-  animation: save-confirm 520ms ease;
 }
 
 .auto-save-status.is-error {
@@ -149,30 +147,17 @@
   }
 }
 
-@keyframes save-confirm {
-  0% {
-    transform: scale(0.96);
-  }
-
-  45% {
-    transform: scale(1.04);
-  }
-
-  100% {
-    transform: scale(1);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .agent-list-line-bubble,
-  .provider-test-status,
-  .save-action.is-saved,
-  .auto-save-status.is-saved,
   .activity-stamp.status-today,
   .onboarding-screen::after,
   .onboarding-background,
   .onboarding-enter-button {
     animation: none;
+  }
+
+  .provider-test-status {
+    animation: provider-test-status-fade 160ms cubic-bezier(0.23, 1, 0.32, 1) both;
   }
 
   .settings-toggle-switch::after {

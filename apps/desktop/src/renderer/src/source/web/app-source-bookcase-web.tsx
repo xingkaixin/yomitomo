@@ -112,6 +112,7 @@ import {
   webSelectionAdjustmentKind,
   type WebSelectionAdjustment,
 } from './web-selection-adjustment';
+import { createWebReadingProgressFrame } from './web-reading-progress-frame';
 import {
   describeSelectionAdjustmentPoint,
   selectionAdjustmentAdjustedOffsets,
@@ -601,27 +602,32 @@ export function WebSourceBookcase({
     const scrollElement = scrollRef.current;
     if (!scrollElement) return;
 
-    const currentProgressSnapshot = () =>
-      webReadingProgressSnapshot(webReaderProgress(scrollElement));
-    const updateProgress = () => {
-      setReadingProgress(webReaderProgress(scrollElement));
+    const progressFrame = createWebReadingProgressFrame(setReadingProgress);
+    const scheduleProgressUpdate = () => {
+      const progress = webReaderProgress(scrollElement);
+      progressFrame.schedule(progress);
+      return progress;
     };
     const scheduleSave = () => {
-      updateProgress();
-      scheduleWebProgressSave(currentProgressSnapshot());
+      const progress = scheduleProgressUpdate();
+      scheduleWebProgressSave(webReadingProgressSnapshot(progress));
     };
 
-    const initialFrame = window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        updateProgress();
+    let initialFrame: number | null = null;
+    initialFrame = window.requestAnimationFrame(() => {
+      initialFrame = window.requestAnimationFrame(() => {
+        initialFrame = null;
+        const progress = webReaderProgress(scrollElement);
+        setReadingProgress(progress);
         if (webReaderMaxScrollTop(scrollElement) <= 0)
-          void saveWebProgressNow(currentProgressSnapshot());
+          void saveWebProgressNow(webReadingProgressSnapshot(progress));
       });
     });
     scrollElement.addEventListener('scroll', scheduleSave, { passive: true });
     return () => {
       scrollElement.removeEventListener('scroll', scheduleSave);
-      window.cancelAnimationFrame(initialFrame);
+      if (initialFrame !== null) window.cancelAnimationFrame(initialFrame);
+      progressFrame.cancel();
     };
   }, [article.id, saveWebProgressNow, scheduleWebProgressSave]);
 

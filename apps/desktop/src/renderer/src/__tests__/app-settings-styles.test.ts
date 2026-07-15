@@ -1,7 +1,16 @@
+import { readFileSync } from 'node:fs';
 import { readRendererStyles } from './css-test-utils';
 import { describe, expect, it } from 'vitest';
 
 const styles = readRendererStyles();
+const providerEditorStyles = readFileSync(
+  new URL('../styles/settings/provider-editor.css', import.meta.url),
+  'utf8',
+);
+const formsActionsStyles = readFileSync(
+  new URL('../styles/settings/forms-actions.css', import.meta.url),
+  'utf8',
+);
 
 function rulesFor(selector: string) {
   return Array.from(styles.matchAll(/(?<selectors>[^{}]+) \{(?<body>[^}]+)\}/g))
@@ -68,6 +77,20 @@ describe('settings styles', () => {
   it('does not default stagger high-frequency popup menu items', () => {
     expect(styles).not.toContain('menu-item-stagger-in');
     expect(styles).not.toContain('animation: menu-item-stagger-in');
+  });
+
+  it('keeps settings result feedback short and physically restrained', () => {
+    expectRule('.provider-test-status', [
+      'animation: provider-test-status-pop 180ms cubic-bezier(0.23, 1, 0.32, 1) both;',
+    ]);
+    expect(providerEditorStyles).toContain('transform: translateY(2px) scale(0.95);');
+    expect(providerEditorStyles).not.toContain('scale(0.62)');
+    expect(providerEditorStyles).not.toContain('scale(1.08)');
+    expect(formsActionsStyles).not.toContain('@keyframes save-confirm');
+    expect(formsActionsStyles).not.toContain('animation: save-confirm');
+    expect(formsActionsStyles).toMatch(
+      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.provider-test-status \{[\s\S]*animation: provider-test-status-fade 160ms cubic-bezier\(0\.23, 1, 0\.32, 1\) both;/,
+    );
   });
 
   it('keeps the license dialog clickable over draggable window chrome', () => {
