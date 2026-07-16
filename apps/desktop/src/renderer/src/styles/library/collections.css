@@ -53,7 +53,9 @@
   min-height: 156px;
   align-items: stretch;
   border-right: 1px solid hsl(var(--border) / 0.72);
-  padding: 14px 68px 14px 8px;
+  border-bottom: 1px solid hsl(var(--border) / 0.72);
+  background: transparent;
+  padding: 0;
 }
 
 .library-collection-list-item:hover,
@@ -73,19 +75,6 @@
   opacity: 1;
 }
 
-.library-collection-list-item .library-card-pin-indicator {
-  width: 18px;
-  height: 18px;
-  border-color: color-mix(in srgb, var(--app-interactive-link) 42%, hsl(var(--border)));
-  background: color-mix(in srgb, var(--app-interactive-link) 12%, hsl(var(--card)));
-  color: var(--app-interactive-link);
-}
-
-.library-collection-list-item .library-card-pin-indicator svg {
-  width: 10px;
-  height: 10px;
-}
-
 .library-collection-list-item .library-card-more {
   background: hsl(var(--card) / 0.9);
 }
@@ -97,178 +86,190 @@
   color: var(--app-action-primary-fg);
 }
 
-.library-collection-card-body {
-  display: grid;
+/* 1a — the collection blends into the grid like the article cells (no card
+   chrome). The recent covers sit stacked like a hand on the right, fanning open
+   and squaring up on hover/focus. */
+.library-collection-fan {
+  position: relative;
   height: 100%;
+  min-height: 156px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.library-collection-fan-copy {
+  position: absolute;
+  inset: 16px auto 14px 20px;
+  z-index: 11;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  max-width: 40%;
+  pointer-events: none;
+}
+
+.library-collection-fan-head {
+  display: grid;
+  gap: 8px;
   min-width: 0;
 }
 
-.library-collection-list-item .library-collection-cover-stack {
-  position: relative;
-  display: grid;
-  min-height: 100px;
-  height: 100%;
-  align-content: center;
-  justify-items: center;
-  overflow: visible;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+.library-collection-fan-foot {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.library-collection-list-item .library-collection-cover-item {
-  --cover-rel: calc(var(--cover-index, 0) - (var(--cover-count, 1) - 1) / 2);
+.library-collection-fan-kicker {
+  color: var(--app-interactive-link);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.library-collection-fan h3 {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: hsl(var(--foreground));
+  font-family: var(--font-reader-serif);
+  font-size: clamp(19px, 1.5vw, 25px);
+  font-weight: 800;
+  line-height: 1.16;
+}
+
+.library-collection-fan h3 > span {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.library-collection-fan-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.library-collection-fan-count svg {
+  width: 13px;
+  height: 13px;
+}
+
+.library-collection-fan-deck {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 42%;
+}
+
+.library-collection-fan-card {
+  --fan-rel: calc(var(--fan-index, 0) - (var(--fan-count, 1) - 1) / 2);
   position: absolute;
   top: 50%;
-  left: calc(50% + 30px);
-  width: auto;
-  z-index: calc(12 - var(--cover-index, 0));
+  left: 50%;
+  z-index: calc(10 - var(--fan-index, 0));
   transform-origin: center center;
-  transform: translate(-50%, -50%)
-    translate(calc(var(--cover-rel) * 18px), calc(var(--cover-rel) * var(--cover-rel) * -0.6px))
-    rotate(calc(var(--cover-rel) * 2deg));
-  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translate(-50%, -50%) translateX(calc(var(--fan-rel) * 13px))
+    translateY(calc(var(--fan-rel) * var(--fan-rel) * 3px)) rotate(calc(var(--fan-rel) * 7deg));
+  transition: transform 440ms var(--ease-out);
 }
 
-.library-collection-list-item:hover .library-collection-cover-item {
-  transform: translate(-50%, -50%)
-    translate(
-      calc(var(--cover-rel) * 34px),
-      calc(var(--cover-rel) * var(--cover-rel) * -0.6px - 6px)
-    )
-    scale(1.02) rotate(calc(var(--cover-rel) * 3deg));
+.library-collection-list-item:hover .library-collection-fan-card,
+.library-collection-list-item:focus-within .library-collection-fan-card {
+  transform: translate(-50%, -50%) translateX(calc(var(--fan-rel) * 46px)) translateY(-6px)
+    rotate(0deg);
 }
 
-.library-collection-list-item .library-collection-cover-item .article-book,
-.library-collection-list-item .library-collection-cover-item .weread-book-cover {
-  --book-cover-height: 54px;
+/* Inner covers reuse the shared book cover, flattened to a thumbnail. */
+.library-collection-fan-card .article-book,
+.library-collection-fan-card .weread-book-cover {
+  --book-cover-height: 92px;
   --book-depth: 0px;
   width: var(--book-cover-width);
   height: var(--book-cover-height);
-  filter: drop-shadow(0 8px 12px hsl(var(--foreground) / 0.14));
+  filter: drop-shadow(0 10px 16px hsl(var(--foreground) / 0.2));
 }
 
-.library-collection-list-item .library-collection-cover-item .article-book-ground-shadow,
-.library-collection-list-item .library-collection-cover-item .article-book-pages,
-.library-collection-list-item .library-collection-cover-item .article-book-back {
+.library-collection-fan-card .article-book-ground-shadow,
+.library-collection-fan-card .article-book-pages,
+.library-collection-fan-card .article-book-back {
   display: none;
 }
 
-.library-collection-list-item .library-collection-cover-item .article-book-scene {
+.library-collection-fan-card .article-book-scene {
   top: 0;
   left: 0;
   transform: none;
 }
 
-.library-collection-list-item .library-collection-cover-item .article-book-front {
+.library-collection-fan-card .article-book-front {
   box-shadow:
     0 1px 1px hsl(var(--foreground) / 0.05),
     0 8px 18px -10px hsl(var(--foreground) / 0.28);
   transform: none;
 }
 
-.library-collection-list-item .library-collection-cover-item .article-cover-card {
+.library-collection-fan-card .article-cover-card {
   inset-block-start: 0;
   inset-inline: 0;
   margin-inline: 0;
 }
 
-.library-collection-list-item
-  .library-collection-cover-item
-  .article-book.is-pdf-cover
-  .article-cover-card {
+.library-collection-fan-card .article-book.is-pdf-cover .article-cover-card {
   inset-inline-start: 0;
 }
 
-.library-collection-list-item .library-collection-cover-item .pdf-cover-bar,
-.library-collection-list-item .library-collection-cover-item .web-cover-chrome {
+.library-collection-fan-card .pdf-cover-bar,
+.library-collection-fan-card .web-cover-chrome {
   display: none;
 }
 
-.library-collection-list-item .library-collection-cover-placeholder {
+.library-collection-fan-placeholder {
   display: block;
-  width: 38px;
-  height: 54px;
+  width: 64px;
+  height: 92px;
   border: 1.5px dashed hsl(var(--border) / 0.85);
   border-radius: 3px;
   background: hsl(var(--card));
-  box-shadow:
-    0 1px 1px hsl(var(--foreground) / 0.05),
-    0 8px 18px -10px hsl(var(--foreground) / 0.28);
 }
 
-.library-collection-cover-copy {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 20;
-  display: flex;
-  min-width: 0;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  pointer-events: none;
-}
-
-.library-collection-cover-copy h3 {
-  display: inline-flex;
-  min-width: 0;
-  max-width: min(72%, 300px);
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  overflow: visible;
-  color: hsl(var(--foreground));
-  font-family: var(--font-reader-serif);
-  font-size: clamp(19px, 1.45vw, 25px);
-  font-weight: 760;
-  line-height: 1.16;
-  white-space: nowrap;
-}
-
-.library-collection-cover-copy h3 > span {
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.library-collection-cover-copy .library-card-pin-indicator {
+.library-collection-fan .library-card-pin-indicator {
   align-self: center;
   flex: 0 0 auto;
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 18px;
   height: 18px;
+  align-items: center;
+  justify-content: center;
+  border-color: color-mix(in srgb, var(--app-interactive-link) 42%, hsl(var(--border)));
+  background: color-mix(in srgb, var(--app-interactive-link) 12%, hsl(var(--card)));
   color: var(--app-interactive-link);
   transform: none;
 }
 
-.library-collection-cover-copy .library-card-pin-indicator svg {
+.library-collection-fan .library-card-pin-indicator svg {
   width: 10px;
   height: 10px;
   flex: 0 0 auto;
 }
 
-.library-collection-cover-copy .library-collection-member-stats {
-  flex: none;
-  color: hsl(var(--foreground));
-  font-size: 14px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 820;
-  line-height: 1;
-  margin-right: -58px;
-}
-
-.library-collection-cover-copy .library-collection-member-stats .library-count-stat {
-  gap: 4px;
-}
-
-.library-collection-cover-copy .library-collection-member-stats svg {
-  width: 14px;
-  height: 14px;
+@media (prefers-reduced-motion: reduce) {
+  .library-collection-fan-card {
+    transition: none;
+  }
 }
 
 .library-empty-copy {

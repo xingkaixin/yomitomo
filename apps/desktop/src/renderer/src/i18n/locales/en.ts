@@ -642,6 +642,7 @@ export const enResources = {
       collection: {
         memberCount: '{{count}} items',
         total: '{{count}} items',
+        coverKicker: 'Collection',
         create: 'New collection',
         createDescription: 'Name this group of reading items. The new collection opens empty.',
         rename: 'Edit collection name',

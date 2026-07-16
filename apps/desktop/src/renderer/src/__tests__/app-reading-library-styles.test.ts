@@ -209,77 +209,59 @@ describe('reading library styles', () => {
     );
     expectRule('.library-entity-grid .library-collection-list-item', [
       'min-height: 156px;',
-      'padding: 14px 68px 14px 8px;',
+      'border-right: 1px solid hsl(var(--border) / 0.72);',
+      'padding: 0;',
     ]);
-    expectRule('.library-collection-list-item .library-card-pin-indicator', [
-      'width: 18px;',
-      'height: 18px;',
-      'background: color-mix(in srgb, var(--app-interactive-link) 12%, hsl(var(--card)));',
+    // The collection blends into the grid: no floating-card chrome on the fan.
+    expectRule('.library-collection-fan', ['overflow: hidden;']);
+    expect(rulesFor('.library-collection-fan').some((rule) => rule.includes('box-shadow'))).toBe(
+      false,
+    );
+    expect(rulesFor('.library-collection-fan').some((rule) => rule.includes('border-radius'))).toBe(
+      false,
+    );
+    expectRule('.library-collection-fan-copy', ['justify-content: space-between;']);
+    expectRule('.library-collection-fan-foot', ['align-items: center;']);
+    expectRule('.library-collection-fan-kicker', ['color: var(--app-interactive-link);']);
+    expectRule('.library-collection-fan h3', ['color: hsl(var(--foreground));']);
+    expectRule('.library-collection-fan-card', [
+      '--fan-rel: calc(var(--fan-index, 0) - (var(--fan-count, 1) - 1) / 2);',
+      'z-index: calc(10 - var(--fan-index, 0));',
     ]);
-    expectRule('.library-collection-cover-copy .library-card-pin-indicator', [
+    expect(
+      rulesFor(
+        '.library-collection-list-item:hover .library-collection-fan-card,\n.library-collection-list-item:focus-within .library-collection-fan-card',
+      ).some((rule) => rule.includes('rotate(0deg)')),
+    ).toBe(true);
+    expectRule('.library-collection-fan .library-card-pin-indicator', [
       'align-self: center;',
       'width: 18px;',
       'height: 18px;',
       'color: var(--app-interactive-link);',
       'transform: none;',
     ]);
-    expectRule('.library-collection-list-item .library-collection-cover-item', [
-      'left: calc(50% + 30px);',
-    ]);
-    expectRule('.library-collection-list-item .library-collection-cover-item', [
-      '--cover-rel: calc(var(--cover-index, 0) - (var(--cover-count, 1) - 1) / 2);',
-      'z-index: calc(12 - var(--cover-index, 0));',
-    ]);
-    expect(styles).toContain(
-      '.library-collection-list-item:hover .library-collection-cover-item {',
-    );
-    expect(styles).toContain('scale(1.02)');
     expectRule(
-      '.library-collection-list-item .library-collection-cover-item .article-book,\n.library-collection-list-item .library-collection-cover-item .weread-book-cover',
+      '.library-collection-fan-card .article-book,\n.library-collection-fan-card .weread-book-cover',
       [
-        '--book-cover-height: 54px;',
+        '--book-cover-height: 92px;',
         '--book-depth: 0px;',
         'width: var(--book-cover-width);',
         'height: var(--book-cover-height);',
       ],
     );
-    expectRule('.library-collection-list-item .library-collection-cover-item .article-book-scene', [
+    expectRule('.library-collection-fan-card .article-book-scene', [
       'top: 0;',
       'left: 0;',
       'transform: none;',
     ]);
-    expect(
-      rulesFor('.library-collection-cover-copy .library-card-pin-indicator').some((rule) =>
-        rule.includes('border: 0;'),
-      ),
-    ).toBe(false);
-    expect(
-      rulesFor('.library-collection-cover-copy .library-card-pin-indicator').some((rule) =>
-        rule.includes('background: transparent;'),
-      ),
-    ).toBe(false);
-    expect(
-      rulesFor('.library-collection-list-item .library-collection-cover-item:nth-child(1)').some(
-        (rule) => rule.includes('rotate(-5deg);'),
-      ),
-    ).toBe(false);
-    expect(
-      rulesFor(
-        '.library-collection-list-item:hover .library-collection-cover-item:nth-child(5)',
-      ).some((rule) => rule.includes('translate(24px, -14px)')),
-    ).toBe(false);
-    expect(styles).not.toMatch(
-      /\.library-collection-list-item:focus-within \.library-collection-cover-item:nth-child\(1\)/,
+    expectRule('.library-collection-fan-placeholder', ['width: 64px;', 'height: 92px;']);
+    expect(styles).not.toContain('.library-collection-cover-stack');
+    expect(styles).not.toContain('.library-collection-cover-item');
+    expect(styles).not.toContain('.library-collection-front');
+    expect(styles).not.toContain('--app-collection-cover-');
+    expect(styles).toMatch(
+      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.library-collection-fan-card \{[\s\S]*transition: none;/,
     );
-    expect(styles).not.toMatch(
-      /\.library-collection-list-item:focus-within \.library-collection-cover-item:nth-child\(10\)/,
-    );
-    expectRule('.library-collection-cover-copy h3', ['overflow: visible;']);
-    expectRule('.library-collection-cover-placeholder', ['width: 64px;']);
-    expectRule('.library-collection-list-item .library-collection-cover-placeholder', [
-      'width: 38px;',
-      'height: 54px;',
-    ]);
     expectRule('.library-collection-picker-list > .library-collection-picker-item.is-dragging', [
       'opacity: 0.36;',
     ]);
