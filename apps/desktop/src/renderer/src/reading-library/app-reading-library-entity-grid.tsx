@@ -264,7 +264,9 @@ function LibraryCollectionCard({
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const title = entity.collection.name;
-  const statsLabel = t('library.collection.memberCount', { count: entity.memberCount });
+  const memberCount = entity.memberCount;
+  const statsLabel = t('library.collection.memberCount', { count: memberCount });
+  const previewMembers = entity.coverMembers.slice(0, 3);
   return (
     <article className="library-list-item library-collection-list-item" aria-label={title}>
       <button
@@ -338,18 +340,35 @@ function LibraryCollectionCard({
           </div>
         </DropdownMenu>
       </div>
-      <div className="library-collection-card-body">
+      <div className="library-collection-fan">
+        <div className="library-collection-fan-copy">
+          <div className="library-collection-fan-head">
+            <span className="library-collection-fan-kicker">
+              {t('library.collection.coverKicker')}
+            </span>
+            <h3 title={title}>
+              <span>{title}</span>
+            </h3>
+          </div>
+          <div className="library-collection-fan-foot">
+            <span className="library-collection-fan-count" aria-label={statsLabel}>
+              <LibraryBig size={13} />
+              <span className="library-count-value">{memberCount}</span>
+            </span>
+            <PinnedIndicator pinned={pinned} />
+          </div>
+        </div>
         <div
-          className="library-collection-cover-stack"
+          className="library-collection-fan-deck"
           aria-hidden="true"
-          style={{ '--cover-count': entity.coverMembers.length || 3 } as React.CSSProperties}
+          style={{ '--fan-count': previewMembers.length || 3 } as React.CSSProperties}
         >
-          {entity.coverMembers.length > 0
-            ? entity.coverMembers.map((item, index) => (
+          {previewMembers.length > 0
+            ? previewMembers.map((item, index) => (
                 <div
-                  className="library-collection-cover-item"
+                  className="library-collection-fan-card"
                   key={contentRefKey(item.ref)}
-                  style={{ '--cover-index': index } as React.CSSProperties}
+                  style={{ '--fan-index': index } as React.CSSProperties}
                 >
                   {item.article ? <ArticleBook article={item.article} /> : null}
                   {item.weread ? <WeReadCover book={item.weread} variant="cover" /> : null}
@@ -357,29 +376,13 @@ function LibraryCollectionCard({
               ))
             : [0, 1, 2].map((index) => (
                 <div
-                  className="library-collection-cover-item is-placeholder"
+                  className="library-collection-fan-card"
                   key={index}
-                  style={{ '--cover-index': index } as React.CSSProperties}
+                  style={{ '--fan-index': index } as React.CSSProperties}
                 >
-                  <span className="library-collection-cover-placeholder" />
+                  <span className="library-collection-fan-placeholder" />
                 </div>
               ))}
-          <div className="library-collection-cover-copy">
-            <h3 title={title}>
-              <span>{title}</span>
-              <PinnedIndicator pinned={pinned} />
-            </h3>
-            <div
-              className="library-count-stats library-collection-member-stats"
-              aria-label={statsLabel}
-              data-tooltip={statsLabel}
-            >
-              <span className="library-count-stat">
-                <LibraryBig size={13} />
-                <span className="library-count-value">{entity.memberCount}</span>
-              </span>
-            </div>
-          </div>
         </div>
       </div>
       <SettingsConfirmDialog

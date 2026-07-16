@@ -629,6 +629,7 @@ export const zhCNResources = {
       collection: {
         memberCount: '{{count}} 项内容',
         total: '共 {{count}} 项内容',
+        coverKicker: '合集',
         create: '新建合集',
         createDescription: '给这组阅读材料起一个名称，创建后会进入空合集。',
         rename: '编辑合集名称',
