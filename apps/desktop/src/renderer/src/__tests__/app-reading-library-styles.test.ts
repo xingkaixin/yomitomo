@@ -101,7 +101,12 @@ describe('reading library styles', () => {
   });
 
   it('keeps library card action buttons anchored in narrow card layouts', () => {
-    expectRule('.library-home-header-main', ['justify-content: center;', 'gap: 14px;']);
+    expectRule('.library-home-header-main', [
+      'position: relative;',
+      'justify-content: center;',
+      'gap: 14px;',
+    ]);
+    expectRule('.library-collection-inline-back', ['position: absolute;', 'top: 2px;', 'left: 0;']);
     expectRule('.library-search-combo', [
       'flex: 0 1 clamp(340px, 34vw, 480px);',
       'width: clamp(340px, 34vw, 480px);',

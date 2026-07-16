@@ -17,6 +17,7 @@
 }
 
 .library-home-header-main {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -28,6 +29,9 @@
 }
 
 .library-collection-inline-back {
+  position: absolute;
+  top: 2px;
+  left: 0;
   display: inline-flex;
   height: 38px;
   flex: 0 0 auto;

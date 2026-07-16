@@ -11,6 +11,11 @@ export type LibraryCatalogRevision = {
   wereadBooks: unknown;
 };
 
+type ResolvedCatalog = {
+  scopeKey: string;
+  result: LibraryCatalogListResult | null;
+};
+
 export function useLibraryCatalog(
   input: LibraryCatalogListInput,
   revision: LibraryCatalogRevision,
@@ -24,7 +29,8 @@ export function useLibraryCatalog(
   }, [input.query, query]);
   const request = useMemo(() => ({ ...input, query }), [input, query]);
   const requestKey = useMemo(() => JSON.stringify(request), [request]);
-  const [result, setResult] = useState<LibraryCatalogListResult | null>(null);
+  const scopeKey = useMemo(() => JSON.stringify(request.scope), [request.scope]);
+  const [resolvedCatalog, setResolvedCatalog] = useState<ResolvedCatalog | null>(null);
 
   useEffect(() => {
     const listCatalog = window.yomitomoDesktop?.listLibraryCatalog;
@@ -32,10 +38,10 @@ export function useLibraryCatalog(
     let cancelled = false;
     void listCatalog(request)
       .then((value) => {
-        if (!cancelled) setResult(value);
+        if (!cancelled) setResolvedCatalog({ scopeKey, result: value });
       })
       .catch(() => {
-        if (!cancelled) setResult(null);
+        if (!cancelled) setResolvedCatalog({ scopeKey, result: null });
       });
     return () => {
       cancelled = true;
@@ -47,7 +53,8 @@ export function useLibraryCatalog(
     revision.collections,
     revision.pins,
     revision.wereadBooks,
+    scopeKey,
   ]);
 
-  return result;
+  return resolvedCatalog?.scopeKey === scopeKey ? resolvedCatalog.result : null;
 }
