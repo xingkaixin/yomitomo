@@ -17,7 +17,6 @@ export {
   replaceMentionQuery,
   updateAnnotationComment,
 } from './reader/annotations';
-export { normalizeAnnotationType } from '@yomitomo/shared';
 export type {
   AnnotationPersona,
   CreateUserAnnotationOptions,
