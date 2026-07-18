@@ -207,7 +207,7 @@ export function useWebBilingualTranslation({
       progressToast.update(nextTranslation);
       if (shouldDeferTranslationUpdate()) {
         deferredTranslationRef.current = nextTranslation;
-        logReaderSelectionDebug('translation-update:deferred', {
+        logReaderSelectionDebug('translation-update:deferred', () => ({
           ...debugContextRef.current,
           reason,
           latestUpdatedAt: nextTranslation.updatedAt,
@@ -215,7 +215,7 @@ export function useWebBilingualTranslation({
           latestReadySegmentCount: nextTranslation.segments.filter(
             (segment) => segment.status === 'ready',
           ).length,
-        });
+        }));
         return;
       }
 
@@ -231,7 +231,7 @@ export function useWebBilingualTranslation({
     deferredTranslationRef.current = null;
     if (!pendingTranslation) return;
 
-    logReaderSelectionDebug('translation-update:flushed', {
+    logReaderSelectionDebug('translation-update:flushed', () => ({
       ...debugContextRef.current,
       reason,
       latestUpdatedAt: pendingTranslation.updatedAt,
@@ -239,7 +239,7 @@ export function useWebBilingualTranslation({
       latestReadySegmentCount: pendingTranslation.segments.filter(
         (segment) => segment.status === 'ready',
       ).length,
-    });
+    }));
     setTranslation(pendingTranslation);
     setVisible(true);
   }, []);
@@ -252,11 +252,11 @@ export function useWebBilingualTranslation({
     if (!pendingHtml || pendingHtml === renderState.html) return;
 
     renderState.html = pendingHtml;
-    logReaderSelectionDebug('article-html:flush', {
+    logReaderSelectionDebug('article-html:flush', () => ({
       ...debugContextRef.current,
       reason,
       htmlChars: pendingHtml.length,
-    });
+    }));
     forceHtmlRender((version) => version + 1);
   }, []);
 
@@ -283,11 +283,11 @@ export function useWebBilingualTranslation({
       window.clearTimeout(htmlRenderFlushTimerRef.current);
       htmlRenderFlushTimerRef.current = null;
     }
-    logReaderSelectionDebug('article-html:freeze', {
+    logReaderSelectionDebug('article-html:freeze', () => ({
       ...debugContextRef.current,
       reason,
       htmlChars: renderState.html.length,
-    });
+    }));
   }, []);
 
   const deleteTranslationAnnotations = useCallback(
@@ -424,13 +424,13 @@ export function useWebBilingualTranslation({
   useEffect(() => {
     const articleElement = articleRef.current;
     if (!articleElement) return;
-    logReaderSelectionDebug('article-dom:rendered', {
+    logReaderSelectionDebug('article-dom:rendered', () => ({
       ...debugContextRef.current,
       contentHtmlChars: renderedHtml.length,
       renderedTranslationStatus: renderedTranslation?.status ?? null,
       renderedTranslationSegmentCount: renderedTranslation?.segments.length ?? 0,
       dom: describeArticleTranslationDom(articleElement),
-    });
+    }));
   }, [articleRef, renderedHtml, renderedTranslation]);
 
   useEffect(
@@ -519,7 +519,9 @@ export function useWebBilingualTranslation({
   }, []);
 
   return {
-    debugContext,
+    diagnostics: {
+      context: debugContext,
+    },
     dialog,
     renderedHtml,
     retryBlock,

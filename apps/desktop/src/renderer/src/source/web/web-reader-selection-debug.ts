@@ -7,22 +7,25 @@ import {
   type HighlightBox,
 } from '@yomitomo/core';
 
-const readerSelectionDebugStorageKey = 'yomitomo:reader-selection-debug';
+export const READER_SELECTION_DEBUG_STORAGE_KEY = 'yomitomo:reader-selection-debug';
+
+export type ReaderSelectionDebugDetails = () => Record<string, unknown>;
 
 export function readerSelectionDebugEnabled() {
   if (import.meta.env.VITE_YOMITOMO_READER_SELECTION_DEBUG === '1') return true;
-  if (import.meta.env.DEV) return true;
   if (typeof window === 'undefined') return false;
   try {
-    return window.localStorage.getItem(readerSelectionDebugStorageKey) === '1';
+    return window.localStorage.getItem(READER_SELECTION_DEBUG_STORAGE_KEY) === '1';
   } catch {
     return false;
   }
 }
 
-export function logReaderSelectionDebug(event: string, details: Record<string, unknown>) {
+export function logReaderSelectionDebug(event: string, readDetails: ReaderSelectionDebugDetails) {
   if (!readerSelectionDebugEnabled()) return;
+  const details = readDetails();
   console.debug('[reader-selection]', event, details);
+  if (typeof window === 'undefined') return;
   const recordTiming = window.yomitomoDesktop?.recordPerformanceTiming;
   if (!recordTiming) return;
   void recordTiming({

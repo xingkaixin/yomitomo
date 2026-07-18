@@ -170,7 +170,9 @@ function renderSelectionHook(
         temporaryBoxes,
       },
       translation: {
-        debugContext: () => ({}),
+        diagnostics: {
+          context: () => ({}),
+        },
         selection: {
           finish: translationFinish,
           isDisabled: false,

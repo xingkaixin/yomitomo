@@ -40,7 +40,6 @@ import {
   sourceReaderTocStyles,
   webAnnotationNavigationState,
 } from './app-source-bookcase-web-utils';
-import { describeAnchorForDebug } from './web-reader-selection-debug';
 import { useSourceReaderSession } from '../bookcase/use-source-reader-session';
 import { createWebSourceReaderController } from './app-source-bookcase-web-controller';
 import { useSourceReaderWorkspace } from '../bookcase/use-source-reader-workspace';
@@ -694,10 +693,13 @@ export function WebSourceBookcase({
   async function createAnnotation(note: string) {
     if (!composer) return;
     const currentComposer = composer;
-    webReaderSelection.debug.logCurrent('composer:create-annotation', {
-      anchor: describeAnchorForDebug(currentComposer.anchor),
-      noteLength: note.length,
-    });
+    webReaderSelection.diagnostics.logAnchor(
+      'composer:create-annotation',
+      currentComposer.anchor,
+      () => ({
+        noteLength: note.length,
+      }),
+    );
     cancelComposer();
     const annotation = createUserAnnotation(currentComposer.anchor, userProfile, note);
     await saveAnnotation(annotation);
@@ -706,20 +708,18 @@ export function WebSourceBookcase({
   }
 
   function askSelection(action: { anchor: Annotation['anchor'] }) {
-    webReaderSelection.debug.logCurrent('selection:ask', {
-      anchor: describeAnchorForDebug(action.anchor),
-    });
+    webReaderSelection.diagnostics.logAnchor('selection:ask', action.anchor);
     readerChat.askSelection(readerQuestionContext(action.anchor));
     clearSelection();
   }
 
   function clearSelectionFromShell() {
-    webReaderSelection.debug.logCurrent('selection:clear-ui');
+    webReaderSelection.diagnostics.logCurrent('selection:clear-ui');
     clearSelection();
   }
 
   function cancelComposerFromShell() {
-    webReaderSelection.debug.logCurrent('composer:cancel');
+    webReaderSelection.diagnostics.logCurrent('composer:cancel');
     cancelComposer();
   }
 
@@ -728,10 +728,9 @@ export function WebSourceBookcase({
     x: number;
     y: number;
   }) {
-    webReaderSelection.debug.logCurrent('selection:open-composer', {
-      anchor: describeAnchorForDebug(action.anchor),
+    webReaderSelection.diagnostics.logAnchor('selection:open-composer', action.anchor, () => ({
       position: { x: action.x, y: action.y },
-    });
+    }));
     openComposer(action);
   }
 
