@@ -26,6 +26,28 @@ describe('llm input budget', () => {
     expect(formatBudgetNotice([result.report])).toContain('articleText');
   });
 
+  it('uses exact preset model factors instead of model name matching', () => {
+    const configuredHaiku = budgetArticleText(
+      provider('claude-haiku-4-5', 'anthropic'),
+      'agent-message',
+      'x'.repeat(40_000),
+    );
+    const configuredSonnet = budgetArticleText(
+      provider('claude-sonnet-4-5', 'anthropic'),
+      'agent-message',
+      'x'.repeat(40_000),
+    );
+    const unregisteredHaiku = budgetArticleText(
+      provider('claude-future-haiku', 'anthropic'),
+      'agent-message',
+      'x'.repeat(40_000),
+    );
+
+    expect(configuredHaiku.report.includedChars).toBe(18_000);
+    expect(configuredSonnet.report.includedChars).toBe(30_000);
+    expect(unregisteredHaiku.report.includedChars).toBe(22_500);
+  });
+
   it('normalizes context overflow errors', () => {
     expect(normalizeAnthropicError(400, 'input context length exceeds maximum tokens')).toBe(
       'Model context limit exceeded. Use a larger-context model, narrow the article scope, or reduce annotation evidence and try again.',
@@ -33,11 +55,12 @@ describe('llm input budget', () => {
   });
 });
 
-function provider(modelName: string): LlmProvider {
+function provider(modelName: string, presetId?: LlmProvider['presetId']): LlmProvider {
   return {
     id: 'provider-1',
     name: 'Anthropic',
     type: 'anthropic',
+    presetId,
     baseUrl: 'https://api.anthropic.com',
     apiKey: 'sk-ant-test',
     modelName,

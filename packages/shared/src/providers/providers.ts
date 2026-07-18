@@ -1,4 +1,20 @@
-import type { ProviderPreset } from '../types';
+import type { ArticleTextBudgetProfile, ProviderPreset } from '../types';
+
+const DEFAULT_ARTICLE_TEXT_BUDGET = {
+  defaultFactor: 0.75,
+} satisfies ArticleTextBudgetProfile;
+
+const ANTHROPIC_ARTICLE_TEXT_BUDGET = {
+  defaultFactor: 0.75,
+  modelFactors: {
+    'claude-3-haiku': 0.6,
+    'claude-haiku-4-5': 0.6,
+    'claude-opus-4-5': 1,
+    'claude-opus-4-6': 1,
+    'claude-sonnet-4-5': 1,
+    'claude-sonnet-4-6': 1,
+  },
+} satisfies ArticleTextBudgetProfile;
 
 export const providerPresets: ProviderPreset[] = [
   {
@@ -8,6 +24,7 @@ export const providerPresets: ProviderPreset[] = [
     baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     modelName: 'qwen3.5-plus',
     logo: 'bailian.png',
+    articleTextBudget: DEFAULT_ARTICLE_TEXT_BUDGET,
     modelNames: [
       'qwen3.5-plus',
       'qwen3.5-flash',
@@ -24,6 +41,7 @@ export const providerPresets: ProviderPreset[] = [
     baseUrl: 'https://api.deepseek.com',
     modelName: 'deepseek-chat',
     logo: 'deepseek.png',
+    articleTextBudget: DEFAULT_ARTICLE_TEXT_BUDGET,
     modelNames: ['deepseek-chat', 'deepseek-reasoner'],
   },
   {
@@ -33,6 +51,7 @@ export const providerPresets: ProviderPreset[] = [
     baseUrl: 'https://api.moonshot.cn',
     modelName: 'moonshot-v1-auto',
     logo: 'moonshot.webp',
+    articleTextBudget: DEFAULT_ARTICLE_TEXT_BUDGET,
     modelNames: [
       'moonshot-v1-auto',
       'kimi-k2.5',
@@ -48,6 +67,7 @@ export const providerPresets: ProviderPreset[] = [
     baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
     modelName: 'glm-5',
     logo: 'zhipu.png',
+    articleTextBudget: DEFAULT_ARTICLE_TEXT_BUDGET,
     modelNames: ['glm-5', 'glm-4.7', 'glm-4.6', 'glm-4.5', 'glm-4.5-flash'],
   },
   {
@@ -57,6 +77,7 @@ export const providerPresets: ProviderPreset[] = [
     baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
     modelName: 'doubao-seed-1-8-251228',
     logo: 'volcengine.png',
+    articleTextBudget: DEFAULT_ARTICLE_TEXT_BUDGET,
     modelNames: [
       'doubao-seed-1-8-251228',
       'doubao-seed-2-0-pro-260215',
@@ -72,6 +93,7 @@ export const providerPresets: ProviderPreset[] = [
     baseUrl: 'https://api.xiaomimimo.com',
     modelName: 'mimo-v2.5',
     logo: 'mimo.svg',
+    articleTextBudget: DEFAULT_ARTICLE_TEXT_BUDGET,
     modelNames: ['mimo-v2.5', 'mimo-v2.5-pro', 'mimo-v2-flash', 'mimo-v2-omni'],
   },
   {
@@ -81,6 +103,7 @@ export const providerPresets: ProviderPreset[] = [
     baseUrl: 'https://api.openai.com',
     modelName: 'gpt-5.2',
     logo: 'openai.png',
+    articleTextBudget: DEFAULT_ARTICLE_TEXT_BUDGET,
     modelNames: ['gpt-5.4', 'gpt-5.4-pro', 'gpt-5.2', 'gpt-5.2-pro', 'gpt-5.1', 'gpt-5'],
   },
   {
@@ -90,6 +113,7 @@ export const providerPresets: ProviderPreset[] = [
     baseUrl: 'https://api.anthropic.com',
     modelName: 'claude-sonnet-4-5',
     logo: 'anthropic.png',
+    articleTextBudget: ANTHROPIC_ARTICLE_TEXT_BUDGET,
     modelNames: [
       'claude-opus-4-6',
       'claude-sonnet-4-6',
@@ -105,6 +129,7 @@ export const providerPresets: ProviderPreset[] = [
     baseUrl: 'https://generativelanguage.googleapis.com',
     modelName: 'gemini-2.5-flash',
     logo: 'google.png',
+    articleTextBudget: DEFAULT_ARTICLE_TEXT_BUDGET,
     modelNames: [
       'gemini-2.5-flash',
       'gemini-2.5-pro',

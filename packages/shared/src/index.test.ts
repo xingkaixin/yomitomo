@@ -243,6 +243,22 @@ describe('provider presets', () => {
         .every((preset) => preset.type === 'openai-chat'),
     ).toBe(true);
   });
+
+  it('defines article text budgets as provider data', () => {
+    expect(
+      providerPresets.every(
+        (preset) =>
+          preset.articleTextBudget.defaultFactor > 0 && preset.articleTextBudget.defaultFactor <= 1,
+      ),
+    ).toBe(true);
+    expect(
+      providerPresets.find((preset) => preset.id === 'anthropic')?.articleTextBudget.modelFactors,
+    ).toMatchObject({
+      'claude-3-haiku': 0.6,
+      'claude-haiku-4-5': 0.6,
+      'claude-sonnet-4-5': 1,
+    });
+  });
 });
 
 describe('selection action shortcuts', () => {

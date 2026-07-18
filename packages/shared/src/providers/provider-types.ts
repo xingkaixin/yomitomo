@@ -21,6 +21,11 @@ export type ReasoningEffort =
   | 'xhigh'
   | 'auto';
 
+export type ArticleTextBudgetProfile = {
+  defaultFactor: number;
+  modelFactors?: Record<string, number>;
+};
+
 export type ProviderPreset = {
   id: ProviderPresetId;
   name: string;
@@ -29,6 +34,7 @@ export type ProviderPreset = {
   modelName: string;
   logo: string;
   modelNames: string[];
+  articleTextBudget: ArticleTextBudgetProfile;
 };
 
 export type ProviderModel = {

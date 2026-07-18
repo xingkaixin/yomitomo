@@ -1,4 +1,4 @@
-import type { LlmProvider } from '@yomitomo/shared';
+import { providerPresets, type LlmProvider, type ProviderPreset } from '@yomitomo/shared';
 
 export type ModelInputTask = 'agent-message' | 'agent-annotate';
 
@@ -24,7 +24,7 @@ export function budgetArticleText(
     task,
     'articleText',
     text,
-    TASK_ARTICLE_BUDGETS[task] * modelBudgetFactor(provider),
+    TASK_ARTICLE_BUDGETS[task] * articleTextBudgetFactor(provider),
   );
 }
 
@@ -89,9 +89,16 @@ function budgetText(
   };
 }
 
-function modelBudgetFactor(provider: LlmProvider) {
-  const model = provider.modelName.toLowerCase();
-  if (model.includes('haiku')) return 0.6;
-  if (model.includes('opus') || model.includes('sonnet')) return 1;
-  return 0.75;
+function articleTextBudgetFactor(provider: LlmProvider) {
+  const preset = resolveBudgetPreset(provider);
+  const modelFactor = preset?.articleTextBudget.modelFactors?.[provider.modelName.toLowerCase()];
+  return modelFactor ?? preset?.articleTextBudget.defaultFactor ?? 0.75;
+}
+
+function resolveBudgetPreset(provider: LlmProvider): ProviderPreset | undefined {
+  const configuredPreset = providerPresets.find((preset) => preset.id === provider.presetId);
+  if (configuredPreset) return configuredPreset;
+
+  const protocolPresets = providerPresets.filter((preset) => preset.type === provider.type);
+  return protocolPresets.length === 1 ? protocolPresets[0] : undefined;
 }

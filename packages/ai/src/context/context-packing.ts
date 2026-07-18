@@ -1,8 +1,8 @@
 import type {
   BaseReadingContext,
-  BudgetPolicy,
   ContextSourceLabel,
   ContextSourceType,
+  ReadingContextBudgetPolicy,
   ReadingTaskContext,
   SourceLabeledContextBlock,
   TextAnchor,
@@ -45,7 +45,7 @@ export function packReadingContext(
 
 export function packReadingContextBlocks(
   blocks: SourceLabeledContextBlock[],
-  budget: BudgetPolicy,
+  budget: ReadingContextBudgetPolicy,
   options: PackReadingContextOptions = {},
 ): PackedReadingContext {
   const estimateTokens = options.estimateTokens || defaultTokenEstimator;
@@ -248,7 +248,7 @@ function availableTokensForType(
   type: ContextSourceType,
   futureTypes: ContextSourceType[],
   remaining: number,
-  budget: BudgetPolicy,
+  budget: ReadingContextBudgetPolicy,
 ) {
   if (remaining <= 0) return 0;
   const reserved = tokenReserve(budget, type);
@@ -340,7 +340,7 @@ function sourceLabel(context: BaseReadingContext, source: ContextSourceLabel): C
   };
 }
 
-function tokenReserve(budget: BudgetPolicy, type: ContextSourceType) {
+function tokenReserve(budget: ReadingContextBudgetPolicy, type: ContextSourceType) {
   const value = budget.reserveTokensByType?.[type];
   return value === undefined ? null : normalizeTokenBudget(value);
 }
