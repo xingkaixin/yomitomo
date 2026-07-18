@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Annotation, ArticleReadingProgress, ReaderQuestionContext } from '@yomitomo/shared';
 import { resolveTextAnchor } from '@yomitomo/shared';
@@ -48,28 +48,14 @@ import { buildSourceReaderAppActions } from '../bookcase/source-reader-app-actio
 import { buildSourceReaderAppViewProps } from '../bookcase/source-reader-app-view-props';
 import { useReaderSearchNavigation } from '../bookcase/use-reader-search-navigation';
 import { useSourceReadingProgressSaver } from '../bookcase/use-source-reading-progress-saver';
-import {
-  annotationRailDebugBoxGroups,
-  annotationRailDebugNumber,
-  annotationRailDebugRect,
-  annotationRailDebugStyleNumber,
-  webAnnotationRailDebugEnabled,
-  WEB_ANNOTATION_RAIL_DEBUG_INTERVAL_MS,
-  WEB_ANNOTATION_RAIL_DEBUG_OVERSCAN,
-  WEB_ANNOTATION_RAIL_DEBUG_SAMPLE_LIMIT,
-} from './web-annotation-rail-debug';
 import { createWebReadingProgressFrame } from './web-reading-progress-frame';
+import { useWebAnnotationRailDiagnostics } from './use-web-annotation-rail-diagnostics';
 import { useWebBilingualTranslation } from './use-web-bilingual-translation';
 import { useWebReaderSelection } from './use-web-reader-selection';
 
 const WEB_HIGHLIGHT_HIT_PADDING = 8;
 const WEB_READING_PROGRESS_SAVE_DEBOUNCE_MS = 450;
 const WEB_READING_PROGRESS_SAVE_MIN_DELTA = 0.01;
-
-type ReaderRailViewport = {
-  height: number;
-  top: number;
-};
 
 export function WebSourceBookcase({
   agents,
@@ -126,10 +112,6 @@ export function WebSourceBookcase({
       onSaveArticleReadingProgress,
       shouldSave: shouldSaveWebProgress,
     });
-  const [annotationRailViewport, setAnnotationRailViewport] = useState<ReaderRailViewport>({
-    height: 0,
-    top: 0,
-  });
   const [activeTocIndex, setActiveTocIndex] = useState<number | null>(null);
   const sourceReaderSession = useSourceReaderSession({
     agents,
@@ -167,7 +149,6 @@ export function WebSourceBookcase({
   const clearSearchBoxes = useCallback(() => setSearchBoxes([]), []);
   const onFocusedAnnotationRef = useRef(onFocusedAnnotation);
   const webFocusBoxCountRef = useRef(0);
-  const annotationRailDebugLastLogRef = useRef(0);
   const scrollToAnnotationRef = useRef<(annotationId: string) => boolean>(() => false);
   const contentHtml = useMemo(() => (article ? sourceArticleBodyHtml(article) : ''), [article]);
   const bilingualTranslation = useWebBilingualTranslation({
@@ -193,6 +174,14 @@ export function WebSourceBookcase({
     canvasRef,
     contentHtml: translatedContentHtml,
     userProfile,
+  });
+  useWebAnnotationRailDiagnostics({
+    articleId: article.id,
+    boxes,
+    canvasRef,
+    railRef,
+    scrollRef,
+    selectedAnnotationId,
   });
   useEffect(() => {
     onFocusedAnnotationRef.current = onFocusedAnnotation;
@@ -446,127 +435,6 @@ export function WebSourceBookcase({
       progressFrame.cancel();
     };
   }, [article.id, saveWebProgressNow, scheduleWebProgressSave]);
-
-  useLayoutEffect(() => {
-    const scrollElement = scrollRef.current;
-    const canvasElement = canvasRef.current;
-    if (!scrollElement || !canvasElement) {
-      setAnnotationRailViewport((current) =>
-        current.height === 0 && current.top === 0 ? current : { height: 0, top: 0 },
-      );
-      return;
-    }
-
-    let frame = 0;
-    const updateViewport = () => {
-      frame = 0;
-      const top = Math.max(0, Math.round(scrollElement.scrollTop - canvasElement.offsetTop));
-      const height = Math.max(0, Math.round(scrollElement.clientHeight));
-      setAnnotationRailViewport((current) =>
-        current.height === height && current.top === top ? current : { height, top },
-      );
-    };
-    const scheduleUpdate = () => {
-      if (frame) window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(updateViewport);
-    };
-    const resizeObserver =
-      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleUpdate);
-
-    updateViewport();
-    scrollElement.addEventListener('scroll', scheduleUpdate, { passive: true });
-    window.addEventListener('resize', scheduleUpdate);
-    resizeObserver?.observe(scrollElement);
-    resizeObserver?.observe(canvasElement);
-    return () => {
-      if (frame) window.cancelAnimationFrame(frame);
-      scrollElement.removeEventListener('scroll', scheduleUpdate);
-      window.removeEventListener('resize', scheduleUpdate);
-      resizeObserver?.disconnect();
-    };
-  }, [article.id]);
-
-  useLayoutEffect(() => {
-    if (!webAnnotationRailDebugEnabled()) return;
-    const now = performance.now();
-    if (now - annotationRailDebugLastLogRef.current < WEB_ANNOTATION_RAIL_DEBUG_INTERVAL_MS) return;
-
-    const frame = window.requestAnimationFrame(() => {
-      const scrollElement = scrollRef.current;
-      const canvasElement = canvasRef.current;
-      const railElement = railRef.current;
-      if (!scrollElement || !canvasElement || !railElement) return;
-
-      annotationRailDebugLastLogRef.current = performance.now();
-      const canvasRect = canvasElement.getBoundingClientRect();
-      const scrollRect = scrollElement.getBoundingClientRect();
-      const railRect = railElement.getBoundingClientRect();
-      const viewportTop = annotationRailViewport.top;
-      const viewportBottom = viewportTop + annotationRailViewport.height;
-      const boxGroups = annotationRailDebugBoxGroups(boxes);
-      const noteElements = Array.from(
-        railElement.querySelectorAll<HTMLElement>('.reader-note[data-annotation-id]'),
-      );
-      const notes = noteElements
-        .map((note) => {
-          const annotationId = note.dataset.annotationId || '';
-          const rect = note.getBoundingClientRect();
-          const computed = window.getComputedStyle(note);
-          const inlineTop = annotationRailDebugStyleNumber(note.style.top || computed.top);
-          const actualTop = rect.top - canvasRect.top;
-          const actualBottom = rect.bottom - canvasRect.top;
-          const anchor = boxGroups.get(annotationId) ?? null;
-          return {
-            actualBottom: annotationRailDebugNumber(actualBottom),
-            actualTop: annotationRailDebugNumber(actualTop),
-            actualViewportTop: annotationRailDebugNumber(rect.top - scrollRect.top),
-            anchorBottom: annotationRailDebugNumber(anchor?.bottom),
-            anchorNearViewport: anchor
-              ? anchor.top <= viewportBottom + WEB_ANNOTATION_RAIL_DEBUG_OVERSCAN &&
-                anchor.bottom >= viewportTop - WEB_ANNOTATION_RAIL_DEBUG_OVERSCAN
-              : null,
-            anchorTop: annotationRailDebugNumber(anchor?.top),
-            anchorVisible: anchor
-              ? anchor.top <= viewportBottom && anchor.bottom >= viewportTop
-              : null,
-            classes: note.className,
-            id: annotationId,
-            inlineTop,
-            railSide: note.dataset.railSide ?? null,
-            stackCount: note.dataset.stackCount ?? null,
-            stackIndex: note.dataset.stackIndex ?? null,
-            transform: computed.transform === 'none' ? 'none' : computed.transform,
-          };
-        })
-        .toSorted((left, right) => (left.actualTop ?? 0) - (right.actualTop ?? 0))
-        .slice(0, WEB_ANNOTATION_RAIL_DEBUG_SAMPLE_LIMIT);
-
-      recordRendererPerformanceTiming('reader_annotation_rail_layout', {
-        articleId: article.id,
-        canvasOffsetTop: annotationRailDebugNumber(canvasElement.offsetTop),
-        canvasRect: annotationRailDebugRect(canvasRect),
-        noteCount: noteElements.length,
-        railRect: annotationRailDebugRect(railRect),
-        scroll: {
-          clientHeight: annotationRailDebugNumber(scrollElement.clientHeight),
-          scrollHeight: annotationRailDebugNumber(scrollElement.scrollHeight),
-          scrollTop: annotationRailDebugNumber(scrollElement.scrollTop),
-        },
-        selectedAnnotationId,
-        viewport: {
-          bottom: annotationRailDebugNumber(viewportBottom),
-          height: annotationRailDebugNumber(annotationRailViewport.height),
-          top: annotationRailDebugNumber(viewportTop),
-        },
-        visibleAnchorCount: Array.from(boxGroups.values()).filter(
-          (group) => group.top <= viewportBottom && group.bottom >= viewportTop,
-        ).length,
-        notes,
-      });
-    });
-
-    return () => window.cancelAnimationFrame(frame);
-  }, [annotationRailViewport, article.id, boxes, selectedAnnotationId]);
 
   const scrollToAnnotation = useCallback(
     (annotationId: string) => {
