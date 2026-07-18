@@ -190,6 +190,12 @@ export function useSourceReaderSession({
   uiLanguage,
   userProfile,
 }: UseSourceReaderSessionOptions) {
+  const agentAnnotationAdapterRef = useRef<SourceAgentAnnotationAdapter | null>(
+    agentAnnotationAdapter ?? null,
+  );
+  useEffect(() => {
+    if (agentAnnotationAdapter) agentAnnotationAdapterRef.current = agentAnnotationAdapter;
+  }, [agentAnnotationAdapter]);
   const annotationAgents = useMemo(
     () => publicAnnotationAgents(agents, uiLanguage),
     [agents, uiLanguage],
@@ -207,6 +213,9 @@ export function useSourceReaderSession({
     ) => Promise<void>
   >(async () => undefined);
   const canRunAgentActions = Boolean(getArticleText && setStatusMessage);
+  const registerAgentAnnotationAdapter = useCallback((adapter: SourceAgentAnnotationAdapter) => {
+    agentAnnotationAdapterRef.current = adapter;
+  }, []);
 
   const sourceAnnotations = useSourceAnnotations({
     annotationAgents,
@@ -339,14 +348,21 @@ export function useSourceReaderSession({
     async (agent: PublicAgent, options: SourceAgentAnnotationRequestOptions = {}) => {
       const desktop = window.yomitomoDesktop;
       const currentArticle = { ...article, annotations: sourceAnnotations.annotationsRef.current };
-      if (!desktop || !agentAnnotationAdapter) {
+      if (!desktop) {
         if (options.pendingAnnotationId) {
           pendingAgents.removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
         }
         return;
       }
+      const adapter = agentAnnotationAdapterRef.current;
+      if (!adapter) {
+        if (options.pendingAnnotationId) {
+          pendingAgents.removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
+        }
+        throw new Error('Source agent annotation adapter is not registered');
+      }
 
-      const context = await agentAnnotationAdapter.getContext({
+      const context = await adapter.getContext({
         agent,
         currentArticle,
         options,
@@ -357,14 +373,13 @@ export function useSourceReaderSession({
         }
         return;
       }
-      if (agentAnnotationAdapter.isBusy?.({ agent, context, options })) {
+      if (adapter.isBusy?.({ agent, context, options })) {
         if (options.pendingAnnotationId) {
           pendingAgents.removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
         }
         return;
       }
-      const requestOptions =
-        agentAnnotationAdapter.resolveOptions?.({ agent, context, options }) ?? options;
+      const requestOptions = adapter.resolveOptions?.({ agent, context, options }) ?? options;
 
       const requestInput = await prepareSourceAgentAnnotationRequestInput({
         desktop,
@@ -378,7 +393,7 @@ export function useSourceReaderSession({
           uiLanguage,
         },
       });
-      const playback = await agentAnnotationAdapter.start?.({
+      const playback = await adapter.start?.({
         agent,
         context,
         options: requestOptions,
@@ -390,7 +405,7 @@ export function useSourceReaderSession({
         sourceAnnotations.applyAnnotations(
           withoutAnnotationId(sourceAnnotations.annotationsRef.current, pendingAnnotation.id),
         );
-        agentAnnotationAdapter.onPendingAnnotationRemoved?.({
+        adapter.onPendingAnnotationRemoved?.({
           agent,
           context,
           options: requestOptions,
@@ -416,7 +431,7 @@ export function useSourceReaderSession({
           pendingAnnotation,
         ]);
         onOpenAnnotation?.(pendingAnnotation.id);
-        agentAnnotationAdapter.onPendingAnnotationCreated?.({
+        adapter.onPendingAnnotationCreated?.({
           agent,
           context,
           options: requestOptions,
@@ -432,7 +447,7 @@ export function useSourceReaderSession({
           requestInput,
           onAnnotation: (annotation) => {
             removePendingAnnotation();
-            return agentAnnotationAdapter.onAnnotation({
+            return adapter.onAnnotation({
               agent,
               annotation,
               context,
@@ -443,7 +458,7 @@ export function useSourceReaderSession({
           },
         });
         if (requestInput.shouldSaveReadingMemory) {
-          await agentAnnotationAdapter.onReadingMemory?.({
+          await adapter.onReadingMemory?.({
             agent,
             context,
             options: requestOptions,
@@ -451,7 +466,7 @@ export function useSourceReaderSession({
           });
         }
         if (annotationCount === 0) {
-          await agentAnnotationAdapter.onEmpty?.({
+          await adapter.onEmpty?.({
             agent,
             context,
             options: requestOptions,
@@ -461,7 +476,7 @@ export function useSourceReaderSession({
           requestFailed = false;
           return;
         }
-        await agentAnnotationAdapter.onSuccess?.({
+        await adapter.onSuccess?.({
           agent,
           annotationCount,
           context,
@@ -472,7 +487,7 @@ export function useSourceReaderSession({
         requestFailed = false;
       } finally {
         removePendingAnnotation();
-        await agentAnnotationAdapter.finish?.({
+        await adapter.finish?.({
           agent,
           context,
           options: requestOptions,
@@ -486,7 +501,6 @@ export function useSourceReaderSession({
       }
     },
     [
-      agentAnnotationAdapter,
       annotationAgents,
       article,
       onOpenAnnotation,
@@ -499,6 +513,7 @@ export function useSourceReaderSession({
 
   return {
     annotationAgents,
+    registerAgentAnnotationAdapter,
     reviewAgents,
     requestAgentComment,
     requestAgentAnnotations,
