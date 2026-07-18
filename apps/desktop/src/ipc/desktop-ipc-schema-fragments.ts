@@ -3,9 +3,7 @@ import {
   MAX_EBOOK_IMPORT_BYTES,
   MAX_PDF_IMPORT_BYTES,
   MAX_TEXT_IMPORT_BYTES,
-} from '../ipc-contract';
-import type { DesktopIpcInvokeChannel } from '../ipc-contract';
-import type { DesktopIpcSchemaMap } from './desktop-ipc-schema-types';
+} from './article-import-boundary';
 
 const idSchema = z.string().min(1).max(256);
 const requestIdSchema = z.string().min(1).max(128);
@@ -101,7 +99,7 @@ export const appLockIpcInvokeSchemas = {
       pin: appLockPinSchema,
     }),
   ]),
-} satisfies DesktopIpcSchemaMap;
+};
 
 export const articleIpcInvokeSchemas = {
   'article-translation:get-current': z.tuple([articleTranslationRequestSchema]),
@@ -110,13 +108,10 @@ export const articleIpcInvokeSchemas = {
     articleTranslationRequestSchema.pick({ articleId: true, sourceId: true, targetLanguage: true }),
   ]),
   'article:import-url': z.tuple([
-    z.union([
-      httpUrlSchema,
-      z.object({
-        requestId: requestIdSchema.optional(),
-        url: httpUrlSchema,
-      }),
-    ]),
+    z.object({
+      requestId: requestIdSchema.optional(),
+      url: httpUrlSchema,
+    }),
   ]),
   'article:import-url-cancel': z.tuple([requestIdSchema]),
   'ebook:import-file': z.tuple([
@@ -138,11 +133,11 @@ export const articleIpcInvokeSchemas = {
   'pdf:read-file': z.tuple([idSchema]),
   'text:import-prepare': z.tuple([textPrepareInputSchema]),
   'text:import-commit': z.tuple([textCommitInputSchema]),
-} satisfies DesktopIpcSchemaMap;
+};
 
 export const dataIpcInvokeSchemas = {
   'data:open-path': z.tuple([z.enum(['dataDir', 'logFile', 'databaseFile'])]),
-} satisfies DesktopIpcSchemaMap;
+};
 
 export const libraryCollectionIpcInvokeSchemas = {
   'distillation-library:list': z.tuple([
@@ -185,7 +180,7 @@ export const libraryCollectionIpcInvokeSchemas = {
       }),
     }),
   ]),
-} satisfies DesktopIpcSchemaMap;
+};
 
 export const wereadIpcInvokeSchemas = {
   'weread:get-book': z.tuple([idSchema]),
@@ -213,36 +208,21 @@ export const wereadIpcInvokeSchemas = {
   ]),
   'weread:sync-book': z.tuple([idSchema]),
   'weread:test': z.tuple([z.string().max(4096).optional()]),
-} satisfies DesktopIpcSchemaMap;
+};
 
-export const highRiskDesktopIpcSchemaChannels = [
-  'article:import-url',
-  'article:import-url-cancel',
-  'ebook:import-file',
-  'ebook:read-file',
-  'pdf:import-file',
-  'pdf:read-file',
-  'pdf:get-thumbnail',
-  'text:import-prepare',
-  'text:import-commit',
-  'data:open-path',
-  'appLock:setEnabled',
-  'appLock:setPin',
-  'appLock:verifyPin',
-  'appLock:unlock',
-  'weread:save-settings',
-  'weread:test',
-  'weread:sync-book',
-  'weread:get-book',
-  'weread:open',
-  'weread:query-reading-stats',
-  'library-collection:add-members',
-  'library-collection:create',
-  'library-collection:delete',
-  'library-collection:remove-member',
-  'library-collection:rename',
-  'library-pin:set',
-] satisfies DesktopIpcInvokeChannel[];
+export const desktopIpcRawInvokeSchemas = {
+  ...appLockIpcInvokeSchemas,
+  ...articleIpcInvokeSchemas,
+  ...dataIpcInvokeSchemas,
+  ...libraryCollectionIpcInvokeSchemas,
+  ...wereadIpcInvokeSchemas,
+};
+
+export type DesktopIpcSchemaChannel = keyof typeof desktopIpcRawInvokeSchemas;
+
+export type DesktopIpcSchemaArgs<Channel extends DesktopIpcSchemaChannel> = z.output<
+  (typeof desktopIpcRawInvokeSchemas)[Channel]
+>;
 
 function isHttpUrl(value: string) {
   try {

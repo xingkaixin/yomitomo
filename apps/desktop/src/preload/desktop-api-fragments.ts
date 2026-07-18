@@ -41,7 +41,6 @@ import type {
   AppLockUnlockInput,
   AppLockVerifyPinInput,
   AddCollectionMembersInput,
-  ArticleImportUrlInput,
   ArticleLibraryListInput,
   AssistantExecutionQueryInput,
   CreateCollectionInput,
@@ -278,7 +277,7 @@ function createArticlePreloadApi() {
     onArticleTranslationUpdated: (callback: (translation: ArticleTranslation) => void) =>
       onDesktopIpcRendererEvent('article-translation:updated', callback),
     importArticleUrl: (url: string, requestId?: string) =>
-      invokeDesktopIpc('article:import-url', articleImportUrlInput(url, requestId)),
+      invokeDesktopIpc('article:import-url', { url, requestId }),
     cancelArticleUrlImport: (requestId: string) =>
       invokeDesktopIpc('article:import-url-cancel', requestId),
     importEbookFile: (input: EbookImportFileInput) => invokeDesktopIpc('ebook:import-file', input),
@@ -375,10 +374,6 @@ function createAgentPreloadApi() {
     saveAgent: (agent: Partial<Agent>) => invokeDesktopIpc('agent:save', agent),
     deleteAgent: (id: string) => invokeDesktopIpc('agent:delete', id),
   };
-}
-
-function articleImportUrlInput(url: string, requestId?: string): ArticleImportUrlInput {
-  return requestId ? { url, requestId } : url;
 }
 
 function isAppMenuCommand(value: unknown): value is AppMenuCommand {

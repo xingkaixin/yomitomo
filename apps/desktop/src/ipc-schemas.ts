@@ -1,24 +1,13 @@
 import { type DesktopIpcInvokeArgs, type DesktopIpcInvokeChannel } from './ipc-contract';
 import { DesktopIpcError, desktopIpcErrorCodes } from './ipc-errors';
+import { desktopIpcRawInvokeSchemas } from './ipc/desktop-ipc-schema-fragments';
 import {
-  appLockIpcInvokeSchemas,
-  articleIpcInvokeSchemas,
-  dataIpcInvokeSchemas,
-  highRiskDesktopIpcSchemaChannels,
-  libraryCollectionIpcInvokeSchemas,
-  wereadIpcInvokeSchemas,
-} from './ipc/desktop-ipc-schema-fragments';
-import type { DesktopIpcSchemaMap } from './ipc/desktop-ipc-schema-types';
+  defineDesktopIpcSchemas,
+  type DesktopIpcSchemaLookup,
+} from './ipc/desktop-ipc-schema-types';
 
-export { highRiskDesktopIpcSchemaChannels };
-
-export const desktopIpcInvokeSchemas: DesktopIpcSchemaMap = {
-  ...appLockIpcInvokeSchemas,
-  ...articleIpcInvokeSchemas,
-  ...dataIpcInvokeSchemas,
-  ...libraryCollectionIpcInvokeSchemas,
-  ...wereadIpcInvokeSchemas,
-};
+export const desktopIpcInvokeSchemas = defineDesktopIpcSchemas(desktopIpcRawInvokeSchemas);
+const desktopIpcInvokeSchemaLookup: DesktopIpcSchemaLookup = desktopIpcInvokeSchemas;
 
 export const desktopIpcInvokeSchemaChannels = Object.keys(
   desktopIpcInvokeSchemas,
@@ -28,7 +17,7 @@ export function validateDesktopIpcInvokeArgs<Channel extends DesktopIpcInvokeCha
   channel: Channel,
   args: DesktopIpcInvokeArgs<Channel>,
 ): DesktopIpcInvokeArgs<Channel> {
-  const schema = desktopIpcInvokeSchemas[channel];
+  const schema = desktopIpcInvokeSchemaLookup[channel];
   if (!schema) return args;
   const result = schema.safeParse(args);
   if (result.success) return result.data;

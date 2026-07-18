@@ -17,14 +17,10 @@ import type {
   Comment,
   ContentRef,
   DesktopStore,
-  LibraryPinTargetKind,
   LibraryPinPatch,
   ReaderChatState,
   TextSourceFormat,
   WeReadBook,
-  WeReadOpenMethod,
-  WeReadSyncMode,
-  WeReadReadingStatsMode,
   WeReadSettings,
 } from '@yomitomo/shared';
 import type { AppMenuCommand } from './app-menu-types';
@@ -43,6 +39,14 @@ import type {
   UpdateIpcInvokeMap,
   WeReadIpcInvokeMap,
 } from './ipc/desktop-ipc-contract-fragments';
+import type { DesktopIpcSchemaArgs } from './ipc/desktop-ipc-schema-fragments';
+
+export {
+  MAX_EBOOK_IMPORT_BYTES,
+  MAX_PDF_IMPORT_BYTES,
+  MAX_TEXT_IMPORT_BYTES,
+} from './ipc/article-import-boundary';
+export type { ArticleImportResult } from './ipc/article-import-boundary';
 
 export type AppInfo = {
   desktopVersion: string;
@@ -55,42 +59,23 @@ export type AppLockStatus = {
   shortcut?: string;
 };
 
-export type AppLockSetPinInput = {
-  confirmPin: string;
-  pin: string;
-};
+export type AppLockSetPinInput = DesktopIpcSchemaArgs<'appLock:setPin'>[0];
 
-export type AppLockVerifyPinInput = {
-  pin: string;
-};
+export type AppLockVerifyPinInput = DesktopIpcSchemaArgs<'appLock:verifyPin'>[0];
 
 export type AppLockVerifyPinResult =
   | { ok: true; retryAfterMs: 0; status: 'verified' }
   | { ok: false; retryAfterMs: number; status: 'blocked' | 'invalid' };
 
-export type AppLockUnlockInput = {
-  pin: string;
-};
+export type AppLockUnlockInput = DesktopIpcSchemaArgs<'appLock:unlock'>[0];
 
-export type AppLockSetEnabledInput = {
-  enabled: boolean;
-  pin?: string;
-};
+export type AppLockSetEnabledInput = DesktopIpcSchemaArgs<'appLock:setEnabled'>[0];
 
-export type AppLockSetLockedInput = {
-  locked: boolean;
-};
+export type AppLockSetLockedInput = DesktopIpcSchemaArgs<'appLock:setLocked'>[0];
 
-export type AppLockSetShortcutInput = {
-  shortcut: string | null;
-};
+export type AppLockSetShortcutInput = DesktopIpcSchemaArgs<'appLock:setShortcut'>[0];
 
-export type ArticleImportResult =
-  | { status: 'canceled' }
-  | { status: 'duplicate'; article: ArticleRecord }
-  | { status: 'imported'; article: ArticleRecord; patch: ArticleUpsertPatch };
-
-export type ArticleImportUrlInput = string | { url: string; requestId?: string };
+export type ArticleImportUrlInput = DesktopIpcSchemaArgs<'article:import-url'>[0];
 
 export type ArticleAnnotationDeleteInput = {
   articleId: string;
@@ -209,11 +194,7 @@ export type LibraryCatalogListResult = {
   unfilteredCount: number;
 };
 
-export type DistillationLibraryListInput = {
-  query?: string;
-  page?: number;
-  pageSize?: number;
-};
+export type DistillationLibraryListInput = DesktopIpcSchemaArgs<'distillation-library:list'>[0];
 
 export type DistillationLibraryItem = {
   annotationId: string;
@@ -300,7 +281,7 @@ export type AnnotationDiscussionWindowsCloseArticleResult = {
   closed: number;
 };
 
-export type DataManagementPathKind = 'dataDir' | 'logFile' | 'databaseFile';
+export type DataManagementPathKind = DesktopIpcSchemaArgs<'data:open-path'>[0];
 
 export type DataManagementPaths = {
   dataDir: string;
@@ -447,30 +428,16 @@ export type DatabaseRestoreResult =
   | { canceled: true }
   | { canceled: false; backupPath: string; store: DesktopStore };
 
-export type EbookImportFileInput = {
-  fileName: string;
-  mimeType?: string;
-  data: ArrayBuffer;
-};
+export type EbookImportFileInput = DesktopIpcSchemaArgs<'ebook:import-file'>[0];
 
-export const MAX_EBOOK_IMPORT_BYTES = 80 * 1024 * 1024;
+export type PdfImportFileInput = DesktopIpcSchemaArgs<'pdf:import-file'>[0];
 
-export type PdfImportFileInput = {
-  fileName: string;
-  mimeType?: string;
-  data: ArrayBuffer;
-};
+export type TextImportPrepareInput = DesktopIpcSchemaArgs<'text:import-prepare'>[0];
 
-export const MAX_PDF_IMPORT_BYTES = 120 * 1024 * 1024;
-
-export type TextImportFileInput = {
-  fileName: string;
-  data: ArrayBuffer;
-};
-
-export type TextImportPrepareInput =
-  | { kind: 'paste'; content: string; format: TextSourceFormat }
-  | { kind: 'files'; files: TextImportFileInput[] };
+export type TextImportFileInput = Extract<
+  TextImportPrepareInput,
+  { kind: 'files' }
+>['files'][number];
 
 export type TextImportPreparedItem =
   | {
@@ -488,24 +455,14 @@ export type TextImportPrepareResult = {
   items: TextImportPreparedItem[];
 };
 
-export type TextImportCommitItem = {
-  title: string;
-  author?: string;
-  format: TextSourceFormat;
-  body: string;
-  frontMatter?: Record<string, string>;
-};
+export type TextImportCommitInput = DesktopIpcSchemaArgs<'text:import-commit'>[0];
 
-export type TextImportCommitInput = {
-  items: TextImportCommitItem[];
-};
+export type TextImportCommitItem = TextImportCommitInput['items'][number];
 
 export type TextImportCommitResult = {
   articles: ArticleRecord[];
   patches: ArticleUpsertPatch[];
 };
-
-export const MAX_TEXT_IMPORT_BYTES = 20 * 1024 * 1024;
 
 export type PerformanceTimingInput = {
   event: string;
@@ -517,60 +474,48 @@ export type ProviderTestResult = {
   message: string;
 };
 
-export type WeReadSaveSettingsInput = {
-  apiKey?: string;
-  removeApiKey?: boolean;
-  openMethod?: WeReadOpenMethod;
-  syncMode?: WeReadSyncMode;
-};
+export type WeReadSaveSettingsInput = DesktopIpcSchemaArgs<'weread:save-settings'>[0];
 
-export type WeReadOpenTarget = {
-  bookId: string;
-  chapterUid?: number;
-  range?: string;
-  userVid?: number;
-};
+export type WeReadOpenTarget = DesktopIpcSchemaArgs<'weread:open'>[0];
 
 export type WeReadState = {
   settings: WeReadSettings;
   books: WeReadBook[];
 };
 
-export type WeReadReadingStatsQueryInput = {
-  mode: WeReadReadingStatsMode;
-  baseTime?: number;
-};
+export type WeReadReadingStatsQueryInput = DesktopIpcSchemaArgs<'weread:query-reading-stats'>[0];
 
-export type CreateCollectionInput = {
-  name: string;
-};
+export type CreateCollectionInput = DesktopIpcSchemaArgs<'library-collection:create'>[0];
 
 export type CreateCollectionResult = {
   collection: Collection;
   patch: CollectionStorePatch;
 };
 
-export type RenameCollectionInput = {
-  collectionId: string;
-  name: string;
+export type RenameCollectionInput = DesktopIpcSchemaArgs<'library-collection:rename'>[0];
+
+export type AddCollectionMembersInput = DesktopIpcSchemaArgs<'library-collection:add-members'>[0];
+
+export type RemoveCollectionMemberInput =
+  DesktopIpcSchemaArgs<'library-collection:remove-member'>[0];
+
+export type SetLibraryPinInput = DesktopIpcSchemaArgs<'library-pin:set'>[0];
+
+export type DesktopIpcValidationExemption = 'domain-payload' | 'handler-owned' | 'no-args';
+
+export type DesktopIpcValidationPolicy = 'schema' | { exempt: DesktopIpcValidationExemption };
+
+type DesktopIpcInvokeEntry = {
+  args: unknown[];
+  result: unknown;
+  validation: DesktopIpcValidationPolicy;
 };
 
-export type AddCollectionMembersInput = {
-  collectionId: string;
-  members: ContentRef[];
-};
+type ValidateDesktopIpcInvokeMap<
+  InvokeMap extends { [Channel in keyof InvokeMap]: DesktopIpcInvokeEntry },
+> = InvokeMap;
 
-export type RemoveCollectionMemberInput = {
-  collectionId: string;
-  member: ContentRef;
-};
-
-export type SetLibraryPinInput = {
-  target: { kind: LibraryPinTargetKind; id: string };
-  pinned: boolean;
-};
-
-export type DesktopIpcInvokeMap = AgentIpcInvokeMap &
+type DesktopIpcRawInvokeMap = AgentIpcInvokeMap &
   AnnotationWindowIpcInvokeMap &
   AppIpcInvokeMap &
   AppLockIpcInvokeMap &
@@ -582,6 +527,8 @@ export type DesktopIpcInvokeMap = AgentIpcInvokeMap &
   UpdateIpcInvokeMap &
   WeReadIpcInvokeMap;
 
+export type DesktopIpcInvokeMap = ValidateDesktopIpcInvokeMap<DesktopIpcRawInvokeMap>;
+
 export type DesktopIpcInvokeChannel = keyof DesktopIpcInvokeMap;
 
 export type DesktopIpcInvokeArgs<Channel extends DesktopIpcInvokeChannel> =
@@ -589,6 +536,12 @@ export type DesktopIpcInvokeArgs<Channel extends DesktopIpcInvokeChannel> =
 
 export type DesktopIpcInvokeResult<Channel extends DesktopIpcInvokeChannel> =
   DesktopIpcInvokeMap[Channel]['result'];
+
+export type DesktopIpcDeclaredSchemaChannel = {
+  [Channel in DesktopIpcInvokeChannel]: DesktopIpcInvokeMap[Channel]['validation'] extends 'schema'
+    ? Channel
+    : never;
+}[DesktopIpcInvokeChannel];
 
 export type DesktopIpcStreamErrorEvent = {
   type: 'error';

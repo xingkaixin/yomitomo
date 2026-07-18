@@ -23,7 +23,11 @@ import {
   nextDistillationAnimationArticleUpdatedAt,
 } from '../reading-library/app-reading-library-distillation';
 import type { AppMenuCommandRequest } from '../../../app-menu-types';
-import type { LibraryCatalogListInput, LibraryCatalogListResult } from '../../../ipc-contract';
+import type {
+  ArticleImportResult,
+  LibraryCatalogListInput,
+  LibraryCatalogListResult,
+} from '../../../ipc-contract';
 import { librarySession } from '../reading-library/app-reading-library-session';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { defaultTheme } from '../theme/app-theme';
@@ -155,21 +159,16 @@ function completedArticle(): ArticleRecord {
 function renderLibrary(
   articles: ArticleSummaryRecord[],
   options: {
-    onImportArticleUrl?: (
-      url: string,
-      requestId?: string,
-    ) => Promise<
-      { status: 'canceled' } | { status: 'imported' | 'duplicate'; article: ArticleRecord }
-    >;
+    onImportArticleUrl?: (url: string, requestId?: string) => Promise<ArticleImportResult>;
     onCancelArticleImport?: (requestId: string) => Promise<boolean> | boolean;
     onImportEbookFile?: (
       file: File,
       onProgress?: (progress: number) => void,
-    ) => Promise<{ status: 'imported' | 'duplicate'; article: ArticleRecord }>;
+    ) => Promise<ArticleImportResult>;
     onImportPdfFile?: (
       file: File,
       onProgress?: (progress: number) => void,
-    ) => Promise<{ status: 'imported' | 'duplicate'; article: ArticleRecord }>;
+    ) => Promise<ArticleImportResult>;
     onReadArticle?: (articleId: string) => Promise<ArticleRecord | null>;
     onDeleteArticle?: (articleId: string) => Promise<void> | void;
     onSaveArticleReadingProgress?: (
@@ -232,11 +231,19 @@ function selectImportFiles(container: HTMLElement, inputId: string, files: File[
 }
 
 function deferredImportResult() {
-  let resolve!: (value: { status: 'imported'; article: ArticleRecord }) => void;
-  const promise = new Promise<{ status: 'imported'; article: ArticleRecord }>((nextResolve) => {
+  let resolve!: (value: ArticleImportResult) => void;
+  const promise = new Promise<ArticleImportResult>((nextResolve) => {
     resolve = nextResolve;
   });
   return { promise, resolve };
+}
+
+function successfulArticleImport(record: ArticleRecord): ArticleImportResult {
+  return {
+    status: 'imported',
+    article: record,
+    patch: { type: 'article-upsert', article: articleSummary(record) },
+  };
 }
 
 function hasScheduledDelay(setTimeoutSpy: { mock: { calls: Array<unknown[]> } }, delayMs: number) {
@@ -2405,10 +2412,7 @@ describe('ReadingLibrary home', () => {
   it('auto closes the webpage import dialog after a successful import', async () => {
     const setTimeoutSpy = vi.spyOn(window, 'setTimeout');
     const imported = article({ id: 'article_imported', title: '新导入文章' });
-    const onImportArticleUrl = vi.fn().mockResolvedValue({
-      status: 'imported',
-      article: imported,
-    });
+    const onImportArticleUrl = vi.fn().mockResolvedValue(successfulArticleImport(imported));
     renderLibrary([], {
       onImportArticleUrl,
       settings: {
@@ -2470,7 +2474,7 @@ describe('ReadingLibrary home', () => {
     expect(screen.getAllByText('已取消解析').length).toBeGreaterThan(0);
 
     await act(async () => {
-      deferred.resolve({ status: 'imported', article: imported });
+      deferred.resolve(successfulArticleImport(imported));
       await Promise.resolve();
     });
     await flushMicrotasks();
@@ -2571,7 +2575,7 @@ describe('ReadingLibrary home', () => {
     });
     const onImportEbookFile = vi.fn(async (file: File, onProgress?: (progress: number) => void) => {
       onProgress?.(42);
-      return { status: 'imported' as const, article: imported };
+      return successfulArticleImport(imported);
     });
     const { container } = renderLibrary([], {
       onImportEbookFile,
@@ -2616,10 +2620,7 @@ describe('ReadingLibrary home', () => {
         chapters: [],
       },
     });
-    const onImportEbookFile = vi.fn().mockResolvedValue({
-      status: 'imported' as const,
-      article: imported,
-    });
+    const onImportEbookFile = vi.fn().mockResolvedValue(successfulArticleImport(imported));
     const { container } = renderLibrary([], { onImportEbookFile });
 
     await selectLibraryType(/电子书/);
@@ -2666,10 +2667,7 @@ describe('ReadingLibrary home', () => {
     const onImportEbookFile = vi.fn(async (file: File, onProgress?: (progress: number) => void) => {
       calls.push(file.name);
       onProgress?.(100);
-      return {
-        status: 'imported' as const,
-        article: file.name === 'one.epub' ? importedOne : importedTwo,
-      };
+      return successfulArticleImport(file.name === 'one.epub' ? importedOne : importedTwo);
     });
     const { container } = renderLibrary([], {
       onImportEbookFile,
@@ -2781,7 +2779,7 @@ describe('ReadingLibrary home', () => {
     });
     const onImportPdfFile = vi.fn(async (file: File, onProgress?: (progress: number) => void) => {
       onProgress?.(64);
-      return { status: 'imported' as const, article: imported };
+      return successfulArticleImport(imported);
     });
     const { container } = renderLibrary([], { onImportPdfFile });
 
@@ -2817,10 +2815,7 @@ describe('ReadingLibrary home', () => {
         },
       },
     });
-    const onImportPdfFile = vi.fn().mockResolvedValue({
-      status: 'imported' as const,
-      article: imported,
-    });
+    const onImportPdfFile = vi.fn().mockResolvedValue(successfulArticleImport(imported));
     const { container } = renderLibrary([], { onImportPdfFile });
 
     await selectLibraryType(/PDF/);

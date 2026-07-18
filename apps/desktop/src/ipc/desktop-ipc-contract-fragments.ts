@@ -11,8 +11,6 @@ import type {
   ArticleRecord,
   ArticleSummaryRecord,
   ArticleTranslation,
-  ArticleTranslationDeleteRequest,
-  ArticleTranslationRequest,
   ArticleUpsertPatch,
   CollectionStorePatch,
   CollectionWithMembers,
@@ -32,6 +30,7 @@ import type {
 } from '@yomitomo/shared';
 import type { DesktopStoreGetResult } from '../app-store-errors';
 import type { AppUpdateState, AppUpdateTrigger } from '../app-update-types';
+import type { DesktopIpcSchemaArgs } from './desktop-ipc-schema-fragments';
 import type {
   AgentRuntimeTraceEntry,
   AgentRuntimeTraceListInput,
@@ -44,13 +43,7 @@ import type {
   AnnotationSedimentationWindowOpenInput,
   AnnotationSedimentationWindowOpenResult,
   AppInfo,
-  AppLockSetEnabledInput,
-  AppLockSetLockedInput,
-  AppLockSetPinInput,
-  AppLockSetShortcutInput,
   AppLockStatus,
-  AppLockUnlockInput,
-  AppLockVerifyPinInput,
   AppLockVerifyPinResult,
   ArticleAnnotationDeleteInput,
   ArticleAnnotationDistillationSaveInput,
@@ -60,39 +53,24 @@ import type {
   ArticleCommentDeleteInput,
   ArticleCommentUpsertInput,
   ArticleImportResult,
-  ArticleImportUrlInput,
   ArticleLibraryListInput,
   ArticleLibraryListResult,
   ArticleReaderChatStateSaveInput,
-  AddCollectionMembersInput,
   AssistantExecutionQueryInput,
   AssistantExecutionRunDetail,
   AssistantExecutionRunListItem,
   AssistantExecutionSummary,
-  CreateCollectionInput,
   CreateCollectionResult,
-  DataManagementPathKind,
   DataManagementPaths,
   DatabaseBackupResult,
   DatabaseRestoreResult,
-  DistillationLibraryListInput,
   DistillationLibraryListResult,
-  EbookImportFileInput,
-  PdfImportFileInput,
-  TextImportPrepareInput,
   TextImportPrepareResult,
-  TextImportCommitInput,
   TextImportCommitResult,
   PerformanceTimingInput,
   LibraryCatalogListInput,
   LibraryCatalogListResult,
   ProviderTestResult,
-  RemoveCollectionMemberInput,
-  RenameCollectionInput,
-  SetLibraryPinInput,
-  WeReadOpenTarget,
-  WeReadReadingStatsQueryInput,
-  WeReadSaveSettingsInput,
   WeReadState,
 } from '../ipc-contract';
 
@@ -100,42 +78,52 @@ export type AgentIpcInvokeMap = {
   'agent:delete': {
     args: [id: string];
     result: DesktopStore;
+    validation: { exempt: 'handler-owned' };
   };
   'agent:mention-route': {
     args: [payload: AgentMentionInstructionPayload];
     result: AgentMentionRoutePlan;
+    validation: { exempt: 'domain-payload' };
   };
   'agent:review': {
     args: [payload: AgentReviewPayload];
     result: Comment[];
+    validation: { exempt: 'domain-payload' };
   };
   'agent:save': {
     args: [agent: Partial<Agent>];
     result: DesktopStore;
+    validation: { exempt: 'domain-payload' };
   };
   'agent-trace:clear': {
     args: [];
     result: void;
+    validation: { exempt: 'no-args' };
   };
   'agent-trace:list': {
     args: [input?: AgentRuntimeTraceListInput];
     result: AgentRuntimeTraceEntry[];
+    validation: { exempt: 'domain-payload' };
   };
   'agent-trace:path': {
     args: [];
     result: string;
+    validation: { exempt: 'no-args' };
   };
   'assistant-executions:list': {
     args: [input: AssistantExecutionQueryInput];
     result: AssistantExecutionRunListItem[];
+    validation: { exempt: 'domain-payload' };
   };
   'assistant-executions:detail': {
     args: [id: string];
     result: AssistantExecutionRunDetail | null;
+    validation: { exempt: 'handler-owned' };
   };
   'assistant-executions:summary': {
     args: [input: AssistantExecutionQueryInput];
     result: AssistantExecutionSummary;
+    validation: { exempt: 'domain-payload' };
   };
 };
 
@@ -143,18 +131,22 @@ export type AnnotationWindowIpcInvokeMap = {
   'annotation-discussion:open': {
     args: [input: AnnotationDiscussionWindowOpenInput];
     result: AnnotationDiscussionWindowOpenResult;
+    validation: { exempt: 'domain-payload' };
   };
   'annotation-discussion:close-article': {
     args: [input: AnnotationDiscussionWindowsCloseArticleInput];
     result: AnnotationDiscussionWindowsCloseArticleResult;
+    validation: { exempt: 'domain-payload' };
   };
   'annotation-sedimentation:open': {
     args: [input: AnnotationSedimentationWindowOpenInput];
     result: AnnotationSedimentationWindowOpenResult;
+    validation: { exempt: 'domain-payload' };
   };
   'annotation-sedimentation:commit': {
     args: [input: AnnotationSedimentationCommitInput];
     result: AnnotationSedimentationCommitResult;
+    validation: { exempt: 'domain-payload' };
   };
 };
 
@@ -162,14 +154,17 @@ export type AppIpcInvokeMap = {
   'app:info': {
     args: [];
     result: AppInfo;
+    validation: { exempt: 'no-args' };
   };
   'performance:timing': {
     args: [input: PerformanceTimingInput];
     result: void;
+    validation: { exempt: 'domain-payload' };
   };
   'url:open': {
     args: [url: string];
     result: void;
+    validation: { exempt: 'handler-owned' };
   };
 };
 
@@ -177,30 +172,37 @@ export type AppLockIpcInvokeMap = {
   'appLock:getStatus': {
     args: [];
     result: AppLockStatus;
+    validation: { exempt: 'no-args' };
   };
   'appLock:setEnabled': {
-    args: [input: AppLockSetEnabledInput];
+    args: DesktopIpcSchemaArgs<'appLock:setEnabled'>;
     result: DesktopStore;
+    validation: 'schema';
   };
   'appLock:setLocked': {
-    args: [input: AppLockSetLockedInput];
+    args: DesktopIpcSchemaArgs<'appLock:setLocked'>;
     result: DesktopStore;
+    validation: 'schema';
   };
   'appLock:setPin': {
-    args: [input: AppLockSetPinInput];
+    args: DesktopIpcSchemaArgs<'appLock:setPin'>;
     result: AppLockStatus;
+    validation: 'schema';
   };
   'appLock:setShortcut': {
-    args: [input: AppLockSetShortcutInput];
+    args: DesktopIpcSchemaArgs<'appLock:setShortcut'>;
     result: DesktopStore;
+    validation: 'schema';
   };
   'appLock:verifyPin': {
-    args: [input: AppLockVerifyPinInput];
+    args: DesktopIpcSchemaArgs<'appLock:verifyPin'>;
     result: AppLockVerifyPinResult;
+    validation: 'schema';
   };
   'appLock:unlock': {
-    args: [input: AppLockUnlockInput];
+    args: DesktopIpcSchemaArgs<'appLock:unlock'>;
     result: DesktopStore;
+    validation: 'schema';
   };
 };
 
@@ -208,106 +210,132 @@ export type ArticleIpcInvokeMap = {
   'article:delete': {
     args: [id: string];
     result: ArticleDeletePatch;
+    validation: { exempt: 'handler-owned' };
   };
   'article:delete-annotation': {
     args: [input: ArticleAnnotationDeleteInput];
     result: ArticleUpsertPatch | null;
+    validation: { exempt: 'domain-payload' };
   };
   'article:delete-comment': {
     args: [input: ArticleCommentDeleteInput];
     result: ArticleUpsertPatch | null;
+    validation: { exempt: 'domain-payload' };
   };
   'article:merge-agent-annotation': {
     args: [input: ArticleAgentAnnotationMergeInput];
     result: ArticleAgentAnnotationMergeResult | null;
+    validation: { exempt: 'domain-payload' };
   };
   'article:save-annotation': {
     args: [input: ArticleAnnotationUpsertInput];
     result: ArticleUpsertPatch | null;
+    validation: { exempt: 'domain-payload' };
   };
   'article:save-annotation-distillation': {
     args: [input: ArticleAnnotationDistillationSaveInput];
     result: ArticleUpsertPatch | null;
+    validation: { exempt: 'domain-payload' };
   };
   'article:save-comment': {
     args: [input: ArticleCommentUpsertInput];
     result: ArticleUpsertPatch | null;
+    validation: { exempt: 'domain-payload' };
   };
   'article:get': {
     args: [id: string];
     result: ArticleRecord | null;
+    validation: { exempt: 'handler-owned' };
   };
   'article:get-cover': {
     args: [id: string];
     result: string;
+    validation: { exempt: 'handler-owned' };
   };
   'article:get-site-icon': {
     args: [id: string];
     result: string;
+    validation: { exempt: 'handler-owned' };
   };
   'article:import-url': {
-    args: [input: ArticleImportUrlInput];
+    args: DesktopIpcSchemaArgs<'article:import-url'>;
     result: ArticleImportResult;
+    validation: 'schema';
   };
   'article:import-url-cancel': {
-    args: [requestId: string];
+    args: DesktopIpcSchemaArgs<'article:import-url-cancel'>;
     result: boolean;
+    validation: 'schema';
   };
   'article:list-library': {
     args: [input: ArticleLibraryListInput];
     result: ArticleLibraryListResult;
+    validation: { exempt: 'domain-payload' };
   };
   'article:stats-summaries': {
     args: [];
     result: ArticleSummaryRecord[];
+    validation: { exempt: 'no-args' };
   };
   'article:reading-progress': {
     args: [input: { articleId: string; progress: ArticleReadingProgress }];
     result: ArticleReadingProgressPatch;
+    validation: { exempt: 'domain-payload' };
   };
   'article:reader-chat-state': {
     args: [input: ArticleReaderChatStateSaveInput];
     result: ArticleReaderChatStatePatch;
+    validation: { exempt: 'domain-payload' };
   };
   'article-translation:get-current': {
-    args: [input: ArticleTranslationRequest];
+    args: DesktopIpcSchemaArgs<'article-translation:get-current'>;
     result: ArticleTranslation | null;
+    validation: 'schema';
   };
   'article-translation:translate': {
-    args: [input: ArticleTranslationRequest];
+    args: DesktopIpcSchemaArgs<'article-translation:translate'>;
     result: ArticleTranslation;
+    validation: 'schema';
   };
   'article-translation:delete-current': {
-    args: [input: ArticleTranslationDeleteRequest];
+    args: DesktopIpcSchemaArgs<'article-translation:delete-current'>;
     result: ArticleTranslation | null;
+    validation: 'schema';
   };
   'ebook:import-file': {
-    args: [input: EbookImportFileInput];
+    args: DesktopIpcSchemaArgs<'ebook:import-file'>;
     result: ArticleImportResult;
+    validation: 'schema';
   };
   'ebook:read-file': {
-    args: [articleId: string];
+    args: DesktopIpcSchemaArgs<'ebook:read-file'>;
     result: ArrayBuffer;
+    validation: 'schema';
   };
   'pdf:import-file': {
-    args: [input: PdfImportFileInput];
+    args: DesktopIpcSchemaArgs<'pdf:import-file'>;
     result: ArticleImportResult;
+    validation: 'schema';
   };
   'pdf:read-file': {
-    args: [articleId: string];
+    args: DesktopIpcSchemaArgs<'pdf:read-file'>;
     result: ArrayBuffer;
+    validation: 'schema';
   };
   'pdf:get-thumbnail': {
-    args: [articleId: string];
+    args: DesktopIpcSchemaArgs<'pdf:get-thumbnail'>;
     result: string;
+    validation: 'schema';
   };
   'text:import-prepare': {
-    args: [input: TextImportPrepareInput];
+    args: DesktopIpcSchemaArgs<'text:import-prepare'>;
     result: TextImportPrepareResult;
+    validation: 'schema';
   };
   'text:import-commit': {
-    args: [input: TextImportCommitInput];
+    args: DesktopIpcSchemaArgs<'text:import-commit'>;
     result: TextImportCommitResult;
+    validation: 'schema';
   };
 };
 
@@ -315,73 +343,90 @@ export type DataIpcInvokeMap = {
   'data:database-backup': {
     args: [];
     result: DatabaseBackupResult;
+    validation: { exempt: 'no-args' };
   };
   'data:database-restore': {
     args: [];
     result: DatabaseRestoreResult;
+    validation: { exempt: 'no-args' };
   };
   'data:open-path': {
-    args: [kind: DataManagementPathKind];
+    args: DesktopIpcSchemaArgs<'data:open-path'>;
     result: void;
+    validation: 'schema';
   };
   'data:paths': {
     args: [];
     result: DataManagementPaths;
+    validation: { exempt: 'no-args' };
   };
   'log:clear': {
     args: [];
     result: void;
+    validation: { exempt: 'no-args' };
   };
   'log:path': {
     args: [];
     result: string;
+    validation: { exempt: 'no-args' };
   };
   'log:read': {
     args: [];
     result: string;
+    validation: { exempt: 'no-args' };
   };
 };
 
 export type LibraryCollectionIpcInvokeMap = {
   'distillation-library:list': {
-    args: [input: DistillationLibraryListInput];
+    args: DesktopIpcSchemaArgs<'distillation-library:list'>;
     result: DistillationLibraryListResult;
+    validation: 'schema';
   };
   'library-catalog:list': {
     args: [input: LibraryCatalogListInput];
     result: LibraryCatalogListResult;
+    validation: { exempt: 'domain-payload' };
   };
   'library-collection:list': {
     args: [];
     result: CollectionWithMembers[];
+    validation: { exempt: 'no-args' };
   };
   'library-collection:create': {
-    args: [input: CreateCollectionInput];
+    args: DesktopIpcSchemaArgs<'library-collection:create'>;
     result: CreateCollectionResult;
+    validation: 'schema';
   };
   'library-collection:rename': {
-    args: [input: RenameCollectionInput];
+    args: DesktopIpcSchemaArgs<'library-collection:rename'>;
     result: CollectionStorePatch;
+    validation: 'schema';
   };
   'library-collection:delete': {
-    args: [collectionId: string];
+    args: DesktopIpcSchemaArgs<'library-collection:delete'>;
     result: CollectionStorePatch;
+    validation: 'schema';
   };
   'library-collection:add-members': {
-    args: [input: AddCollectionMembersInput];
+    args: DesktopIpcSchemaArgs<'library-collection:add-members'>;
     result: CollectionStorePatch;
+    validation: 'schema';
   };
   'library-collection:remove-member': {
-    args: [input: RemoveCollectionMemberInput];
+    args: DesktopIpcSchemaArgs<'library-collection:remove-member'>;
     result: CollectionStorePatch;
+    validation: 'schema';
   };
   'library-pin:list': {
     args: [];
     result: LibraryPin[];
+    validation: { exempt: 'no-args' };
   };
   'library-pin:set': {
-    args: [input: SetLibraryPinInput];
+    args: DesktopIpcSchemaArgs<'library-pin:set'>;
     result: LibraryPinPatch;
+    validation: 'schema';
   };
 };
 
@@ -389,30 +434,37 @@ export type ProviderIpcInvokeMap = {
   'provider:delete': {
     args: [id: string];
     result: DesktopStore;
+    validation: { exempt: 'handler-owned' };
   };
   'provider:list-models': {
     args: [provider: Partial<LlmProvider>];
     result: ProviderModel[];
+    validation: { exempt: 'domain-payload' };
   };
   'provider:read-api-key': {
     args: [providerId: string];
     result: string;
+    validation: { exempt: 'handler-owned' };
   };
   'provider:save': {
     args: [provider: Partial<LlmProvider> & { removeApiKey?: boolean }];
     result: DesktopStore;
+    validation: { exempt: 'domain-payload' };
   };
   'provider:test': {
     args: [provider: Partial<LlmProvider>];
     result: ProviderTestResult;
+    validation: { exempt: 'domain-payload' };
   };
   'settings:save': {
     args: [settings: AppSettings];
     result: DesktopStore;
+    validation: { exempt: 'domain-payload' };
   };
   'user:save': {
     args: [user: Partial<UserProfile>];
     result: DesktopStore;
+    validation: { exempt: 'domain-payload' };
   };
 };
 
@@ -420,6 +472,7 @@ export type StoreIpcInvokeMap = {
   'store:get': {
     args: [];
     result: DesktopStoreGetResult;
+    validation: { exempt: 'no-args' };
   };
 };
 
@@ -427,26 +480,32 @@ export type UpdateIpcInvokeMap = {
   'updates:check': {
     args: [];
     result: AppUpdateState;
+    validation: { exempt: 'no-args' };
   };
   'updates:download': {
     args: [];
     result: AppUpdateState;
+    validation: { exempt: 'no-args' };
   };
   'updates:get-status': {
     args: [];
     result: AppUpdateState;
+    validation: { exempt: 'no-args' };
   };
   'updates:install': {
     args: [];
     result: AppUpdateState;
+    validation: { exempt: 'no-args' };
   };
   'updates:simulate-available': {
     args: [trigger?: AppUpdateTrigger];
     result: AppUpdateState;
+    validation: { exempt: 'handler-owned' };
   };
   'release-notes:get': {
     args: [input: { version: string; source: 'local' | 'remote'; language?: UiLanguage }];
     result: UserFacingReleaseNote | null;
+    validation: { exempt: 'domain-payload' };
   };
 };
 
@@ -454,45 +513,56 @@ export type WeReadIpcInvokeMap = {
   'weread:get-settings': {
     args: [];
     result: WeReadSettings;
+    validation: { exempt: 'no-args' };
   };
   'weread:get-state': {
     args: [];
     result: WeReadState;
+    validation: { exempt: 'no-args' };
   };
   'weread:read-api-key': {
     args: [];
     result: string;
+    validation: { exempt: 'no-args' };
   };
   'weread:save-settings': {
-    args: [input: WeReadSaveSettingsInput];
+    args: DesktopIpcSchemaArgs<'weread:save-settings'>;
     result: WeReadState;
+    validation: 'schema';
   };
   'weread:test': {
-    args: [apiKey?: string];
+    args: DesktopIpcSchemaArgs<'weread:test'>;
     result: ProviderTestResult;
+    validation: 'schema';
   };
   'weread:sync': {
     args: [];
     result: WeReadSyncResult;
+    validation: { exempt: 'no-args' };
   };
   'weread:sync-book': {
-    args: [bookId: string];
+    args: DesktopIpcSchemaArgs<'weread:sync-book'>;
     result: WeReadBookDetail | null;
+    validation: 'schema';
   };
   'weread:get-book': {
-    args: [bookId: string];
+    args: DesktopIpcSchemaArgs<'weread:get-book'>;
     result: WeReadBookDetail | null;
+    validation: 'schema';
   };
   'weread:open': {
-    args: [target: WeReadOpenTarget];
+    args: DesktopIpcSchemaArgs<'weread:open'>;
     result: void;
+    validation: 'schema';
   };
   'weread:get-reading-stats': {
     args: [];
     result: WeReadReadingStatsState;
+    validation: { exempt: 'no-args' };
   };
   'weread:query-reading-stats': {
-    args: [input: WeReadReadingStatsQueryInput];
+    args: DesktopIpcSchemaArgs<'weread:query-reading-stats'>;
     result: WeReadReadingStatsState;
+    validation: 'schema';
   };
 };
