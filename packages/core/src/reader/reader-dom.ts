@@ -1,3 +1,5 @@
+import { alphaColor, defaultUserAnnotationColor } from '@yomitomo/shared';
+
 export type HighlightBox = {
   id: string;
   annotationId: string;
@@ -264,7 +266,7 @@ export function rangeHighlightBoxes(
     .map((rect, index) => ({
       id: `${idPrefix}_${index}`,
       annotationId: '',
-      color: '#f4c95d',
+      color: defaultUserAnnotationColor,
       top: rect.top - canvasRect.top,
       left: rect.left - canvasRect.left,
       width: rect.width,
@@ -340,7 +342,11 @@ export function isPrimaryTocItem(item: TocItem) {
   return item.depth <= 1;
 }
 
-export function highlightStyle(box: HighlightBox, active: boolean, fallbackColor = '#f4c95d') {
+export function highlightStyle(
+  box: HighlightBox,
+  active: boolean,
+  fallbackColor = defaultUserAnnotationColor,
+) {
   const color = box.color || fallbackColor;
   return {
     top: box.top,
@@ -391,7 +397,9 @@ function buildLineHighlightSegments(line: HighlightBox[], lineIndex: number): Hi
 
     const contributors = active.map((item) => item.box);
     const annotationIds = uniqueStrings(contributors.map((box) => box.annotationId));
-    const colors = uniqueContributors(contributors).map((box) => box.color || '#f4c95d');
+    const colors = uniqueContributors(contributors).map(
+      (box) => box.color || defaultUserAnnotationColor,
+    );
     const previous = segments.at(-1);
     if (
       previous &&
@@ -458,15 +466,6 @@ export function annotationIdsAtHighlightPoint(
   }
 
   return ids;
-}
-
-export function alphaColor(color: string, alpha: number) {
-  const hex = color.trim();
-  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return `rgba(244,201,93,${alpha})`;
-  const red = Number.parseInt(hex.slice(1, 3), 16);
-  const green = Number.parseInt(hex.slice(3, 5), 16);
-  const blue = Number.parseInt(hex.slice(5, 7), 16);
-  return `rgba(${red},${green},${blue},${alpha})`;
 }
 
 function groupHighlightBoxesByLine(boxes: HighlightBox[]) {
@@ -564,7 +563,7 @@ function sameStrings(left: string[], right: string[]) {
 }
 
 function highlightLinePaint(colors: string[]) {
-  const safeColors = colors.length > 0 ? colors : ['#f4c95d'];
+  const safeColors = colors.length > 0 ? colors : [defaultUserAnnotationColor];
   if (safeColors.length === 1) return safeColors[0];
   const step = 100 / Math.max(1, safeColors.length - 1);
   return `linear-gradient(90deg, ${safeColors

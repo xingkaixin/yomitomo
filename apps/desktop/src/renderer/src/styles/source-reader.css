@@ -893,7 +893,7 @@
   z-index: 1;
   height: var(--highlight-thickness, 4px);
   border-radius: 999px;
-  background: var(--highlight-line, #f4c95d);
+  background: var(--highlight-line);
   content: '';
   filter: drop-shadow(0 1px 0 hsl(48 100% 99% / 0.72));
   opacity: var(--highlight-opacity, 0.78);

@@ -326,7 +326,7 @@ export const composerTooltipHighlightResponsiveStyles = `.reader-note-comments-p
   bottom:var(--highlight-offset,-2px);
   height:var(--highlight-thickness,4px);
   border-radius:999px;
-  background:var(--highlight-line,#f4c95d);
+  background:var(--highlight-line);
   opacity:var(--highlight-opacity,.78);
   -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 6' preserveAspectRatio='none'%3E%3Cpath d='M0 3 C4 0 8 6 12 3 S20 0 24 3' stroke='black' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
   mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 6' preserveAspectRatio='none'%3E%3Cpath d='M0 3 C4 0 8 6 12 3 S20 0 24 3' stroke='black' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");

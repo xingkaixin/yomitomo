@@ -1,26 +1,11 @@
 import type { UserProfile } from '@yomitomo/shared';
+import { defaultUserProfile, normalizeUserProfile } from '@yomitomo/shared';
 import * as schema from '../db/schema';
 
-export const defaultUser: UserProfile = {
-  id: 'user_local',
-  nickname: '我',
-  username: 'me',
-  avatar: '',
-  annotationColor: '#f4c95d',
-  updatedAt: new Date(0).toISOString(),
-};
-
-export function normalizeUser(user: Partial<UserProfile> | undefined): UserProfile {
-  return {
-    ...defaultUser,
-    ...user,
-    id: user?.id || defaultUser.id,
-    annotationColor: user?.annotationColor || defaultUser.annotationColor,
-  };
-}
+export { defaultUserProfile as defaultUser, normalizeUserProfile as normalizeUser };
 
 export function rowToUser(row: typeof schema.userProfiles.$inferSelect | undefined): UserProfile {
-  if (!row) return defaultUser;
+  if (!row) return defaultUserProfile;
   return {
     id: row.id,
     nickname: row.nickname,

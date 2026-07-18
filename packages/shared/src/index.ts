@@ -203,6 +203,10 @@ export type {
   WeReadUser,
 } from './types';
 
+export { alphaColor, defaultUserAnnotationColor } from './color';
+
+export { defaultUserProfile, normalizeUserProfile } from './user-profile';
+
 export {
   defaultMessageSendShortcut,
   defaultSelectionActionShortcuts,
