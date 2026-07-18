@@ -58,7 +58,6 @@ export function ProviderSettings({ providerDraft, routesDraft, providers }: Prov
   const settingsDraft = routesDraft.value;
   const testState = providerDraft.testState;
   const canSave = providerDraft.canSave;
-  const canSaveRoutes = routesDraft.canSave;
   const saveState = providerDraft.saveState;
   const saveError = providerDraft.saveError;
   const routeSaveState = routesDraft.saveState;
@@ -169,7 +168,6 @@ export function ProviderSettings({ providerDraft, routesDraft, providers }: Prov
         description={t('settings.models.description')}
       >
         <TaskProviderRoutes
-          canSave={canSaveRoutes}
           providers={providers}
           saveError={routeSaveError}
           saveState={routeSaveState}
@@ -563,7 +561,6 @@ const taskRouteOptions: Array<{
 function TaskProviderRoutes({
   providers,
   settingsDraft,
-  canSave,
   saveState,
   saveError,
   onChange,
@@ -571,7 +568,6 @@ function TaskProviderRoutes({
 }: {
   providers: LlmProvider[];
   settingsDraft: AppSettings;
-  canSave: boolean;
   saveState: SaveState;
   saveError?: string;
   onChange: (draft: AppSettings) => void;
@@ -595,13 +591,7 @@ function TaskProviderRoutes({
     <SettingsGroup
       label={t('settings.models.routeGroup')}
       note={routeGroupNote}
-      aside={
-        <AutoSaveStatus
-          error={saveError}
-          state={saveState}
-          onRetry={canSave ? () => onSave() : undefined}
-        />
-      }
+      aside={<AutoSaveStatus error={saveError} state={saveState} onRetry={() => onSave()} />}
     >
       <SettingsRow
         leading={<Zap size={18} />}

@@ -1075,6 +1075,35 @@ describe('GeneralSettings', () => {
     expect(onSave).toHaveBeenCalledWith({ telemetryEnabled: false });
   });
 
+  it('retries telemetry saving even when the current draft is not saveable', () => {
+    const onSettingsChange = vi.fn();
+    const onSave = vi.fn();
+    const view = render(
+      <GeneralSettings
+        settingsDraft={{ telemetryEnabled: true }}
+        canSave={false}
+        onSettingsChange={onSettingsChange}
+        onSave={onSave}
+        saveState="idle"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /发送匿名版本与系统指标/ }));
+    view.rerender(
+      <GeneralSettings
+        settingsDraft={{ telemetryEnabled: false }}
+        canSave={false}
+        onSettingsChange={onSettingsChange}
+        onSave={onSave}
+        saveError="save failed"
+        saveState="error"
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: '重试' }));
+
+    expect(onSave).toHaveBeenLastCalledWith();
+  });
+
   it('saves the selected interface language', () => {
     const onSettingsChange = vi.fn();
     const onSave = vi.fn();

@@ -30,6 +30,25 @@ describe('provider defaults', () => {
   it('treats api key removal as a provider change', () => {
     expect(providerDraftHasChanges({ ...provider(), removeApiKey: true }, provider())).toBe(true);
   });
+
+  it('ignores provider persistence metadata', () => {
+    expect(
+      providerDraftHasChanges(
+        {
+          ...provider(),
+          hasApiKey: false,
+          updatedAt: '2026-07-18T00:00:00.000Z',
+        },
+        provider(),
+      ),
+    ).toBe(false);
+  });
+
+  it('detects provider model list changes', () => {
+    expect(
+      providerDraftHasChanges({ ...provider(), modelNames: ['model', 'model-next'] }, provider()),
+    ).toBe(true);
+  });
 });
 
 function provider(): LlmProvider {

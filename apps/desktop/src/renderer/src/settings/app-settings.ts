@@ -170,20 +170,8 @@ export function userDraftHasChanges(draft: UserDraft, user: UserProfile) {
 
 export function providerDraftHasChanges(draft: ProviderDraft, provider: LlmProvider | null) {
   if (!provider) return true;
-
-  const fieldChanged = [
-    textField(draft.name).trim() !== provider.name,
-    textField(draft.type, 'anthropic') !== provider.type,
-    textField(draft.presetId) !== textField(provider.presetId),
-    textField(draft.logo) !== textField(provider.logo),
-    textField(draft.baseUrl).trim() !== provider.baseUrl,
-    textField(draft.modelName).trim() !== provider.modelName,
-    modelNamesChanged(draft.modelNames, provider.modelNames),
-    textField(draft.modelInputMode, 'list') !== textField(provider.modelInputMode, 'list'),
-    textField(draft.reasoningEffort, 'none') !== textField(provider.reasoningEffort, 'none'),
-  ].some(Boolean);
-
-  return fieldChanged || Boolean(textField(draft.apiKey).trim()) || Boolean(draft.removeApiKey);
+  if (textField(draft.apiKey).trim() || draft.removeApiKey) return true;
+  return !recordsEqual(normalizeProviderDraft(draft), normalizeProviderDraft(provider));
 }
 
 export function agentDraftHasChanges(draft: AgentDraft, agent: Agent | null) {
@@ -215,13 +203,35 @@ export function isValidUsername(value: string) {
   return /^[\p{L}\p{N}_-]+$/u.test(value.trim());
 }
 
-function modelNamesChanged(left: string[] | undefined, right: string[] | undefined) {
-  const leftNames = left || [];
-  const rightNames = right || [];
-  return (
-    leftNames.length !== rightNames.length ||
-    leftNames.some((item, index) => item !== rightNames[index])
-  );
+function normalizeProviderDraft(draft: ProviderDraft) {
+  const normalized: Record<string, unknown> = {
+    ...draft,
+    name: textField(draft.name).trim(),
+    type: textField(draft.type, 'anthropic'),
+    presetId: textField(draft.presetId),
+    logo: textField(draft.logo),
+    baseUrl: textField(draft.baseUrl).trim(),
+    modelName: textField(draft.modelName).trim(),
+    modelNames: draft.modelNames || [],
+    modelInputMode: textField(draft.modelInputMode, 'list'),
+    reasoningEffort: textField(draft.reasoningEffort, 'none'),
+  };
+  for (const field of providerDraftMetadataFields) delete normalized[field];
+  return normalized;
+}
+
+const providerDraftMetadataFields = [
+  'id',
+  'apiKey',
+  'hasApiKey',
+  'createdAt',
+  'updatedAt',
+  'removeApiKey',
+] as const satisfies ReadonlyArray<keyof ProviderDraft>;
+
+function recordsEqual(left: Record<string, unknown>, right: Record<string, unknown>) {
+  const fields = new Set([...Object.keys(left), ...Object.keys(right)]);
+  return [...fields].every((field) => JSON.stringify(left[field]) === JSON.stringify(right[field]));
 }
 
 function textField(value: string | undefined, fallback = '') {

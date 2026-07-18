@@ -32,6 +32,7 @@ export function useSaveableDraft<TValue, TResult = unknown>({
 }: UseSaveableDraftOptions<TValue, TResult>): SaveableDraft<TValue, TResult> {
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [saveError, setSaveError] = useState('');
+  const failedValueRef = useRef<{ value: TValue } | undefined>(undefined);
   const idleTimerRef = useRef<number | undefined>(undefined);
 
   const saveable = saveState !== 'saving' && canSave(value);
@@ -45,6 +46,7 @@ export function useSaveableDraft<TValue, TResult = unknown>({
   const update = useCallback(
     (nextValue: TValue) => {
       clearIdleTimer();
+      failedValueRef.current = undefined;
       onChange(nextValue);
       setSaveState('idle');
       setSaveError('');
@@ -55,6 +57,7 @@ export function useSaveableDraft<TValue, TResult = unknown>({
   const reset = useCallback(
     (nextValue: TValue) => {
       clearIdleTimer();
+      failedValueRef.current = undefined;
       onChange(nextValue);
       setSaveState('idle');
       setSaveError('');
@@ -64,13 +67,15 @@ export function useSaveableDraft<TValue, TResult = unknown>({
 
   const save = useCallback(
     async (override?: TValue) => {
-      const nextValue = override ?? value;
-      if (override === undefined && !saveable) return undefined;
+      const failedValue = failedValueRef.current;
+      if (override === undefined && !failedValue && !saveable) return undefined;
+      const nextValue = override ?? failedValue?.value ?? value;
       clearIdleTimer();
       setSaveState('saving');
       setSaveError('');
       try {
         const result = await persist(nextValue);
+        failedValueRef.current = undefined;
         const shouldMarkSaved = onSaved?.(result, nextValue) !== false;
         if (!shouldMarkSaved) {
           setSaveState('idle');
@@ -83,6 +88,7 @@ export function useSaveableDraft<TValue, TResult = unknown>({
         }, resetDelayMs);
         return result;
       } catch (error) {
+        failedValueRef.current = { value: nextValue };
         setSaveError(errorMessage(error));
         setSaveState('error');
         return undefined;

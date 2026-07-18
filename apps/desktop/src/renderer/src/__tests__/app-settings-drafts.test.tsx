@@ -14,6 +14,31 @@ afterEach(() => {
 });
 
 describe('useSettingsDrafts', () => {
+  it.each([
+    ['telemetryEnabled', { telemetryEnabled: false }],
+    ['allowLocalNetworkArticleImport', { allowLocalNetworkArticleImport: true }],
+  ] as const)('detects %s-only general settings changes', async (_field, settings) => {
+    const latest: { current?: ReturnType<typeof useSettingsDrafts> } = {};
+
+    function Harness() {
+      latest.current = useSettingsDrafts({
+        store: emptyStore,
+        storeSyncSnapshot: emptyStore,
+        applyStore,
+      });
+      return null;
+    }
+
+    render(<Harness />);
+    await waitFor(() => expect(latest.current?.general.value).toEqual({}));
+
+    act(() => {
+      latest.current?.general.update(settings);
+    });
+
+    expect(latest.current?.general.canSave).toBe(true);
+  });
+
   it('does not reset edited settings drafts for store updates outside draft sync', async () => {
     const initialStore = makeStore({ settings: { saveArticleImages: false } });
     const articleStore = makeStore({ settings: { saveArticleImages: false } });
