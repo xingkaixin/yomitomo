@@ -45,6 +45,7 @@ import {
 } from './telemetry/desktop-telemetry';
 import { syncWeReadLibrary } from './weread/weread-sync';
 import { secureRendererWebPreferences } from './windows/renderer-window-security';
+import { installRendererNavigationGuard } from './windows/renderer-navigation';
 import { windowChromeOptions } from './windows/window-chrome';
 import { mainPath } from './app/main-paths';
 import type { AppMenuCommand } from '../app-menu-types';
@@ -381,15 +382,7 @@ async function createWindow() {
   }
   recordStartupTiming('renderer.load_complete');
 
-  browserWindow.webContents.setWindowOpenHandler(({ url }) => {
-    void openExternalUrl(url).catch(() => undefined);
-    return { action: 'deny' };
-  });
-  browserWindow.webContents.on('will-navigate', (event, url) => {
-    if (isSameAppNavigation(browserWindow.webContents.getURL(), url)) return;
-    event.preventDefault();
-    void openExternalUrl(url).catch(() => undefined);
-  });
+  installRendererNavigationGuard(browserWindow.webContents, openExternalUrl);
 }
 
 void app.whenReady().then(async () => {
@@ -600,17 +593,4 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 async function openExternalUrl(value: string) {
   await shell.openExternal(normalizeExternalUrlForOpen(value));
-}
-
-function isSameAppNavigation(currentValue: string, nextValue: string) {
-  try {
-    const current = new URL(currentValue);
-    const next = new URL(nextValue);
-    if (current.protocol === 'file:' || next.protocol === 'file:') {
-      return current.protocol === next.protocol && current.pathname === next.pathname;
-    }
-    return current.origin === next.origin;
-  } catch {
-    return false;
-  }
 }
