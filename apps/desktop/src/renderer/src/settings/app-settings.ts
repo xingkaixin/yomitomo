@@ -26,14 +26,6 @@ import {
   reviewAgentPersonalities,
 } from '@yomitomo/shared';
 export type { AgentPersonality } from '@yomitomo/shared';
-export {
-  agentPersonalities,
-  annotationAgentPersonalities,
-  customPersonality,
-  customPersonalityId,
-  defaultAgentSoul,
-  reviewAgentPersonalities,
-} from '@yomitomo/shared';
 
 export type ProviderDraft = Partial<LlmProvider> & { removeApiKey?: boolean };
 export type ProviderTestState = { status: 'idle' | 'testing' | 'success' | 'error' };
