@@ -1,13 +1,8 @@
 import type {
   Agent,
-  AgentAnnotatePayload,
-  AgentAnnotateResult,
-  AgentDistillationReviewPayload,
-  AgentMessagePayload,
   AgentMentionInstructionPayload,
   AgentMentionRoutePlan,
   AgentReviewPayload,
-  AnnotationDistillationReviewMessage,
   AppSettings,
   ArticleDeletePatch,
   ArticleReaderChatStatePatch,
@@ -102,21 +97,9 @@ import type {
 } from '../ipc-contract';
 
 export type AgentIpcInvokeMap = {
-  'agent:annotate': {
-    args: [payload: AgentAnnotatePayload];
-    result: AgentAnnotateResult;
-  };
-  'agent:comment': {
-    args: [payload: AgentMessagePayload];
-    result: Comment;
-  };
   'agent:delete': {
     args: [id: string];
     result: DesktopStore;
-  };
-  'agent:distillation-review': {
-    args: [payload: AgentDistillationReviewPayload];
-    result: AnnotationDistillationReviewMessage;
   };
   'agent:mention-route': {
     args: [payload: AgentMentionInstructionPayload];
