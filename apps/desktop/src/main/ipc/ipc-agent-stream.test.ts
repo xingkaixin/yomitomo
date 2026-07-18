@@ -12,7 +12,7 @@ vi.mock('electron', () => ({
   },
 }));
 
-import { createAgentTextStream, runAgentStreamIpc } from './ipc-agent-stream';
+import { runAgentStreamIpc } from './ipc-agent-stream';
 
 beforeEach(() => {
   ipcHandlers.clear();
@@ -93,56 +93,6 @@ describe('runAgentStreamIpc', () => {
         error: expect.objectContaining({ code: desktopIpcErrorCodes.appLockRequired }),
       }),
     );
-  });
-});
-
-describe('createAgentTextStream', () => {
-  it('updates target content and forwards runtime progress events', () => {
-    const events: unknown[] = [];
-    const target = { content: '' };
-    const textStream = createAgentTextStream({ send: (event) => events.push(event) }, target);
-
-    textStream.runtimeEvent({ type: 'text_delta', delta: 'hello' });
-    textStream.runtimeEvent({ type: 'tool_call', toolName: 'get_anchor_context', stepIndex: 0 });
-    textStream.runtimeEvent({
-      type: 'tool_result',
-      toolName: 'get_anchor_context',
-      stepIndex: 0,
-      ok: true,
-    });
-    textStream.runtimeEvent({ type: 'fallback', reason: 'runtime_not_applicable' });
-
-    expect(target.content).toBe('hello');
-    expect(events).toEqual([
-      { type: 'delta', delta: 'hello' },
-      {
-        type: 'progress',
-        progress: {
-          type: 'step',
-          step: { id: 'get_anchor_context', label: 'get_anchor_context', status: 'active' },
-        },
-      },
-      {
-        type: 'progress',
-        progress: {
-          type: 'step',
-          step: { id: 'get_anchor_context', label: 'get_anchor_context', status: 'done' },
-        },
-      },
-      {
-        type: 'progress',
-        progress: {
-          type: 'fallback',
-          message: 'ASSISTANT_RUNTIME_FALLBACK_FAST_RESPONSE',
-        },
-      },
-    ]);
-    expect(target).toMatchObject({
-      assistantProgress: {
-        fallbackMessage: 'ASSISTANT_RUNTIME_FALLBACK_FAST_RESPONSE',
-        steps: [{ id: 'get_anchor_context', label: 'get_anchor_context', status: 'done' }],
-      },
-    });
   });
 });
 
