@@ -8,7 +8,7 @@ import type {
 } from '@yomitomo/shared';
 import { agentReadingIntentOptions, normalizeAgentReadingIntent } from '@yomitomo/shared';
 import { booleanValue, parseJsonArray, parseJsonObject, stringArray, stringValue } from '../json';
-import { callProviderText } from '../provider/provider-client';
+import { generateYomitomoText } from '../provider/generation-runtime';
 
 export async function planAgentMentionInstructions(
   provider: LlmProvider,
@@ -21,14 +21,14 @@ export async function planAgentMentionRoute(
   provider: LlmProvider,
   payload: AgentMentionInstructionPayload,
 ): Promise<AgentMentionRoutePlan> {
-  const content = await callProviderText(provider, {
+  const { text } = await generateYomitomoText(provider, {
     system:
       '你是 Yomitomo 阅读器的 @ 助手语义路由器。根据用户文本判断是否应保存用户想法，并把每个被 @ 的助手应该执行的阅读动作拆开。只返回 JSON。',
     user: buildAgentMentionInstructionPrompt(payload),
     maxTokens: 900,
     temperature: 0,
   });
-  return parseAgentMentionRoutePlan(content, payload.agents, payload.allowedActions);
+  return parseAgentMentionRoutePlan(text, payload.agents, payload.allowedActions);
 }
 
 function buildAgentMentionInstructionPrompt(payload: AgentMentionInstructionPayload) {

@@ -1,13 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Comment } from '@yomitomo/shared';
 import type { ReadingContextBundle } from '@yomitomo/core';
-import {
-  clippedThreadContextComments,
-  clipText,
-  intersectTextRanges,
-  rangeAllowed,
-  rangeDistance,
-} from './selection-context-utils';
+import { clippedThreadContextComments, clipText, rangeAllowed } from './selection-context-utils';
 
 describe('selection context pure utilities', () => {
   it('clips thread comments while preserving the root comment', () => {
@@ -26,24 +20,14 @@ describe('selection context pure utilities', () => {
     ]);
   });
 
-  it('returns intersected ranges and tests range allowance', () => {
+  it('tests range allowance', () => {
     const ranges = [
       { textStart: 0, textEnd: 10 },
       { textStart: 20, textEnd: 30 },
     ];
 
-    expect(intersectTextRanges(ranges, { textStart: 5, textEnd: 24 })).toEqual([
-      { textStart: 5, textEnd: 10 },
-      { textStart: 20, textEnd: 24 },
-    ]);
     expect(rangeAllowed({ textStart: 8, textEnd: 12 }, readingContext(ranges))).toBe(true);
     expect(rangeAllowed({ textStart: 12, textEnd: 18 }, readingContext(ranges))).toBe(false);
-  });
-
-  it('measures gap distance between ranges', () => {
-    expect(rangeDistance({ textStart: 10, textEnd: 20 }, { textStart: 15, textEnd: 25 })).toBe(0);
-    expect(rangeDistance({ textStart: 10, textEnd: 20 }, { textStart: 30, textEnd: 40 })).toBe(10);
-    expect(rangeDistance({ textStart: 30, textEnd: 40 }, { textStart: 10, textEnd: 20 })).toBe(10);
   });
 
   it('normalizes whitespace before clipping text', () => {

@@ -6,7 +6,6 @@ import type {
   ReaderProgress,
   SpoilerPolicy,
   TextAnchor,
-  TextRange,
 } from '@yomitomo/shared';
 import { createEpubTextAnchor, locateEpubOffset, locateEpubTextAnchor } from '../epub/ebook-index';
 import {
@@ -14,6 +13,7 @@ import {
   type ReadingContextPassageInput,
   type ReadingContextTextRange,
 } from './reading-context';
+import { intersectTextRanges } from './reading-context-ranges';
 import {
   performanceElapsedMs,
   performanceStart,
@@ -434,17 +434,6 @@ function buildParagraphWindowLookup(paragraphs: EpubParagraphIndex[]): Paragraph
 
 function paragraphWindowLookupKey(paragraph: Pick<EpubParagraphIndex, 'chapterId' | 'id'>) {
   return `${paragraph.chapterId}\u0000${paragraph.id}`;
-}
-
-function intersectTextRanges(
-  ranges: ReadingContextTextRange[],
-  target: TextRange,
-): ReadingContextTextRange[] {
-  return ranges.flatMap((range) => {
-    const textStart = Math.max(range.textStart, target.textStart);
-    const textEnd = Math.min(range.textEnd, target.textEnd);
-    return textEnd > textStart ? [{ textStart, textEnd }] : [];
-  });
 }
 
 function textForRanges(articleText: string, ranges: ReadingContextTextRange[]) {

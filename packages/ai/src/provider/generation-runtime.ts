@@ -3,7 +3,7 @@ import type { LlmProvider } from '@yomitomo/shared';
 import { Effect } from 'effect';
 import { createYomitomoLanguageModel } from './ai-sdk-provider-adapter';
 import { logAiInfo } from '../logger';
-import type { GenerateOptions, TextPayload } from './provider-client-types';
+import type { GenerateOptions, TextPayload } from './generation-runtime-types';
 import { normalizeAiUsage, type NormalizedAiUsage } from './usage';
 
 export type YomitomoTextGenerationResult = {
@@ -55,7 +55,7 @@ export async function streamYomitomoText(
 export const generateYomitomoTextEffect = Effect.fn('Provider.generateText')(function (
   provider: LlmProvider,
   payload: TextPayload,
-  options: GenerateOptions,
+  options: GenerateOptions = {},
 ) {
   return Effect.gen(function* () {
     const adapter = createYomitomoLanguageModel(provider);

@@ -55,7 +55,10 @@ export function hasIncompleteJson(input: string) {
     .startsWith('{');
 }
 
-export function parseJsonObject(value: string): Record<string, unknown> {
+export function parseJsonObject(
+  value: string,
+  parseFailureMessage = 'AI_JSON_OBJECT_PARSE_FAILED',
+): Record<string, unknown> {
   const cleaned = cleanJsonFence(value);
   try {
     const parsed = JSON.parse(cleaned);
@@ -67,7 +70,7 @@ export function parseJsonObject(value: string): Record<string, unknown> {
       const parsed = JSON.parse(cleaned.slice(start, end + 1));
       return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
     }
-    throw new Error('AI_JSON_OBJECT_PARSE_FAILED');
+    throw new Error(parseFailureMessage);
   }
 }
 
@@ -99,11 +102,11 @@ export function booleanValue(value: unknown) {
   return typeof value === 'boolean' ? value : undefined;
 }
 
-export function stringArray(value: unknown) {
+export function stringArray(value: unknown, maxItemLength = 500) {
   return Array.isArray(value)
     ? value.flatMap((item) => {
         const text = stringValue(item);
-        return text ? [text.slice(0, 500)] : [];
+        return text ? [text.slice(0, maxItemLength)] : [];
       })
     : [];
 }

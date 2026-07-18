@@ -6,7 +6,7 @@ import type {
   LlmProvider,
   ReadingMemory,
 } from '@yomitomo/shared';
-import { mergeReadingMemory } from '@yomitomo/core';
+import { mergeReadingMemory, rangeDistance } from '@yomitomo/core';
 import {
   annotationDensityInstruction,
   annotationDensityMax,
@@ -17,7 +17,10 @@ import {
 import { Effect } from 'effect';
 import { extractJsonObjects, hasIncompleteJson } from '../json';
 import { logAiError, logAiInfo } from '../logger';
-import { callProviderTextEffect, streamProviderTextEffect } from '../provider/provider-client';
+import {
+  generateYomitomoTextEffect,
+  streamYomitomoTextEffect,
+} from '../provider/generation-runtime';
 import { generateSegmentReadingMemoryUpdateEffect } from './reading-memory';
 import {
   buildSegmentAnnotationTask,
@@ -51,7 +54,7 @@ export const runAgentSegmentAnnotateEffect = Effect.fn('Segment.annotate')(funct
     const now = new Date().toISOString();
 
     for (const task of segmentTasks) {
-      const content = yield* callProviderTextEffect(provider, {
+      const { text } = yield* generateYomitomoTextEffect(provider, {
         system,
         user: buildAgentSegmentAnnotatePrompt(payload, agent, task),
         maxTokens: 3000,
@@ -60,7 +63,7 @@ export const runAgentSegmentAnnotateEffect = Effect.fn('Segment.annotate')(funct
       const maxAnnotations = segmentAnnotationOutputLimit(agent, task);
       let annotationCount = 0;
 
-      for (const suggestion of parseAnnotationSuggestions(content)) {
+      for (const suggestion of parseAnnotationSuggestions(text)) {
         if (annotationCount >= maxAnnotations) break;
         const annotation = createSegmentAnnotation(agent, payload, task, suggestion, now);
         if (!annotation) {
@@ -119,7 +122,7 @@ export const runAgentSegmentAnnotateWithMemoryEffect = Effect.fn('Segment.annota
           annotations,
           readingMemory,
         );
-        const content = yield* callProviderTextEffect(provider, {
+        const { text } = yield* generateYomitomoTextEffect(provider, {
           system,
           user: buildAgentSegmentAnnotatePrompt(payload, agent, task),
           maxTokens: 3000,
@@ -129,7 +132,7 @@ export const runAgentSegmentAnnotateWithMemoryEffect = Effect.fn('Segment.annota
         let annotationCount = 0;
         const segmentAnnotations: Annotation[] = [];
 
-        for (const suggestion of parseAnnotationSuggestions(content)) {
+        for (const suggestion of parseAnnotationSuggestions(text)) {
           if (annotationCount >= maxAnnotations) break;
           const annotation = createSegmentAnnotation(agent, payload, task, suggestion, now);
           if (!annotation) {
@@ -243,7 +246,7 @@ export const runAgentSegmentAnnotateStreamWithMemoryEffect = Effect.fn(
         for (const json of result.objects) flushJson(json);
       };
 
-      yield* streamProviderTextEffect(
+      yield* streamYomitomoTextEffect(
         provider,
         {
           system,
@@ -402,7 +405,7 @@ function segmentDedupItem(articleText: string, annotation: Annotation): SegmentD
 function segmentDedupItemsMatch(left: SegmentDedupItem, right: SegmentDedupItem) {
   const sameSegment = left.segmentId && right.segmentId && left.segmentId === right.segmentId;
   const sameChapter = left.chapterId && right.chapterId && left.chapterId === right.chapterId;
-  const distance = textRangeDistance(left, right);
+  const distance = rangeDistance(left, right);
   if (
     left.exactKey &&
     left.exactKey === right.exactKey &&
@@ -418,15 +421,6 @@ function segmentDedupItemsMatch(left: SegmentDedupItem, right: SegmentDedupItem)
 
 function normalizeDedupText(text: string) {
   return text.replace(/\s+/g, ' ').trim().toLowerCase();
-}
-
-function textRangeDistance(
-  left: Pick<SegmentDedupItem, 'textStart' | 'textEnd'>,
-  right: Pick<SegmentDedupItem, 'textStart' | 'textEnd'>,
-) {
-  if (left.textStart < right.textEnd && right.textStart < left.textEnd) return 0;
-  if (left.textEnd <= right.textStart) return right.textStart - left.textEnd;
-  return left.textStart - right.textEnd;
 }
 
 function integerValue(value: number | undefined): number | null {

@@ -12,8 +12,9 @@ import { normalizeAnnotationConfidence, normalizeTraceItemType } from '@yomitomo
 import { createEpubTextAnchor, mergeReadingMemory } from '@yomitomo/core';
 import { Effect } from 'effect';
 import type { SegmentAnnotationTask } from './segment-annotation-context';
+import { parseJsonObject, stringArray, stringValue } from '../json';
 import { logAiError } from '../logger';
-import { callProviderTextEffect } from '../provider/provider-client';
+import { generateYomitomoTextEffect } from '../provider/generation-runtime';
 
 const MEMORY_SUMMARY_MAX_TOKENS = 1400;
 
@@ -38,7 +39,7 @@ export const generateSegmentReadingMemoryUpdateEffect = Effect.fn('Segment.updat
     annotations: Annotation[],
   ) {
     return Effect.gen(function* () {
-      const content = yield* callProviderTextEffect(provider, {
+      const { text } = yield* generateYomitomoTextEffect(provider, {
         system:
           '你是 Yomitomo 的内部阅读记忆压缩器。你的任务是把当前 segment 的原文摘要和阅读过程 trace 分开保存，供后续共读上下文压缩使用。只返回 JSON。',
         user: buildSegmentReadingMemoryPrompt(agent, task, annotations),
@@ -46,7 +47,7 @@ export const generateSegmentReadingMemoryUpdateEffect = Effect.fn('Segment.updat
         temperature: 0,
       });
       return yield* Effect.try({
-        try: () => parseSegmentReadingMemoryUpdate(content, payload, task, agent, annotations),
+        try: () => parseSegmentReadingMemoryUpdate(text, payload, task, agent, annotations),
         catch: (error) => error,
       });
     }).pipe(
@@ -154,11 +155,14 @@ function parseSegmentReadingMemoryUpdate(
   agent: Agent,
   annotations: Annotation[],
 ) {
-  const parsed = parseJsonObject(content);
+  const parsed = parseJsonObject(content, 'READING_MEMORY_JSON_PARSE_FAILED');
   const now = new Date().toISOString();
   const segmentSummary = objectValue(parsed.segmentSummary);
   const summaryText = stringValue(segmentSummary.summary || parsed.summary).slice(0, 700);
-  const keyTerms = stringArray(segmentSummary.keyTerms || parsed.keyTerms).slice(0, 8);
+  const keyTerms = stringArray(
+    segmentSummary.keyTerms || parsed.keyTerms,
+    Number.POSITIVE_INFINITY,
+  ).slice(0, 8);
   const sourceRange = task.context.currentSegment.textRange || {
     textStart: task.segment.textStart,
     textEnd: task.segment.textEnd,
@@ -255,7 +259,7 @@ function evidenceAnchors(
   task: SegmentAnnotationTask,
   annotations: Annotation[],
 ): TextAnchor[] {
-  const anchors = stringArray(item.evidenceExacts)
+  const anchors = stringArray(item.evidenceExacts, Number.POSITIVE_INFINITY)
     .concat(stringValue(item.evidenceExact))
     .flatMap((exact) => evidenceAnchorFromExact(exact, payload, task));
   if (anchors.length > 0) return anchors.slice(0, 3);
@@ -285,26 +289,6 @@ function evidenceAnchorFromExact(
   ];
 }
 
-function parseJsonObject(value: string): Record<string, unknown> {
-  const cleaned = value
-    .trim()
-    .replace(/^```(?:json)?/i, '')
-    .replace(/```$/, '')
-    .trim();
-  try {
-    const parsed = JSON.parse(cleaned);
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    const start = cleaned.indexOf('{');
-    const end = cleaned.lastIndexOf('}');
-    if (start >= 0 && end > start) {
-      const parsed = JSON.parse(cleaned.slice(start, end + 1));
-      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-    }
-    throw new Error('READING_MEMORY_JSON_PARSE_FAILED');
-  }
-}
-
 function objectValue(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -313,17 +297,4 @@ function objectValue(value: unknown): Record<string, unknown> {
 
 function objectArray(value: unknown): Array<Record<string, unknown>> {
   return Array.isArray(value) ? value.flatMap((item) => [objectValue(item)]) : [];
-}
-
-function stringValue(value: unknown) {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function stringArray(value: unknown) {
-  return Array.isArray(value)
-    ? value.flatMap((item) => {
-        const text = stringValue(item);
-        return text ? [text] : [];
-      })
-    : [];
 }

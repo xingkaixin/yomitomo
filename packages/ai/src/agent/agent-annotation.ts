@@ -14,6 +14,7 @@ import {
   buildCurrentChapterLexicalRelatedPassages,
   buildReadingContextBundle,
   normalizeAnnotationType,
+  rangeDistance,
   readingContextTextForRange,
   wholeBookSpoilerPolicy,
   type ReadingContextBundle,
@@ -21,7 +22,10 @@ import {
 import { Effect } from 'effect';
 import { budgetArticleText, formatBudgetNotice } from '../provider/budget';
 import { logAiError, logAiInfo } from '../logger';
-import { callProviderTextEffect, streamProviderTextEffect } from '../provider/provider-client';
+import {
+  generateYomitomoTextEffect,
+  streamYomitomoTextEffect,
+} from '../provider/generation-runtime';
 import type { NormalizedAiUsage } from '../provider/usage';
 import {
   buildSelectionAnnotationContext,
@@ -71,13 +75,13 @@ export const runAgentAnnotateEffect = Effect.fn('Agent.annotate')(function (
       return yield* runAgentSegmentAnnotateEffect(provider, agent, payload, system, segmentTasks);
     }
     const context = buildAgentAnnotateContextBundle(payload);
-    const content = yield* callProviderTextEffect(provider, {
+    const { text } = yield* generateYomitomoTextEffect(provider, {
       system,
       user: buildAgentAnnotationPrompt('json', { provider, payload, agent, context }),
       maxTokens: 4000,
       temperature: agent.temperature,
     });
-    const suggestions = parseAnnotationSuggestions(content);
+    const suggestions = parseAnnotationSuggestions(text);
     const now = new Date().toISOString();
     const maxAnnotations = agentAnnotationOutputLimit(agent, payload, context);
     const annotations: Annotation[] = [];
@@ -292,7 +296,7 @@ export const runAgentAnnotateStreamEffect = Effect.fn('Agent.annotateStream')(fu
       for (const json of result.objects) flushJson(json);
     };
 
-    const generation = yield* streamProviderTextEffect(
+    const generation = yield* streamYomitomoTextEffect(
       provider,
       {
         system,
@@ -463,7 +467,7 @@ function sameAnnotationAnchor(
   right: Pick<AnnotationThoughtDedupItem, 'exactKey' | 'textStart' | 'textEnd'>,
 ) {
   if (left.exactKey && left.exactKey === right.exactKey) return true;
-  return textRangeDistance(left, right) <= 16;
+  return rangeDistance(left, right) <= 16;
 }
 
 function thoughtTextsSimilar(left: string, right: string) {
@@ -495,15 +499,6 @@ function diceCoefficient(left: Set<string>, right: Set<string>) {
 
 function normalizeThoughtText(text: string) {
   return text.replace(/[\s"'“”‘’`，。！？、；：,.!?;:—\-（）()[\]{}]/g, '').toLowerCase();
-}
-
-function textRangeDistance(
-  left: Pick<AnnotationThoughtDedupItem, 'textStart' | 'textEnd'>,
-  right: Pick<AnnotationThoughtDedupItem, 'textStart' | 'textEnd'>,
-) {
-  if (left.textStart < right.textEnd && right.textStart < left.textEnd) return 0;
-  if (left.textEnd <= right.textStart) return right.textStart - left.textEnd;
-  return left.textStart - right.textEnd;
 }
 
 function integerValue(value: number | undefined): number | null {

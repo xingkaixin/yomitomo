@@ -19,7 +19,7 @@ import { resolvePromptAgentIdentity } from '@yomitomo/shared';
 import { createYomitomoLanguageModel } from '../provider/ai-sdk-provider-adapter';
 import { budgetArticleText, formatBudgetNotice } from '../provider/budget';
 import { logAiInfo } from '../logger';
-import { callProviderText, streamProviderText } from '../provider/provider-client';
+import { generateYomitomoText, streamYomitomoText } from '../provider/generation-runtime';
 import {
   collectDistillationReviewItemsFromElementStream,
   collectDistillationReviewItemsFromJsonTextStream,
@@ -59,7 +59,7 @@ export async function runAgentStream(
 ): Promise<void> {
   const system = buildAgentMessageSystemPrompt(agent, payload);
   const user = buildAgentPrompt(provider, payload, agent, options);
-  await streamProviderText(
+  await streamYomitomoText(
     provider,
     { system, user, maxTokens: agentMessageMaxTokens(payload), temperature: agent.temperature },
     onDelta,
@@ -137,7 +137,7 @@ export async function runAgent(
 ): Promise<Comment> {
   const system = buildAgentMessageSystemPrompt(agent, payload);
   const user = buildAgentPrompt(provider, payload, agent, options);
-  const content = await callProviderText(provider, {
+  const { text } = await generateYomitomoText(provider, {
     system,
     user,
     maxTokens: agentMessageMaxTokens(payload),
@@ -147,7 +147,7 @@ export async function runAgent(
   return {
     id: '',
     author: 'ai',
-    content,
+    content: text,
     createdAt: new Date().toISOString(),
     agentId: agent.id,
     agentUsername: agent.username,

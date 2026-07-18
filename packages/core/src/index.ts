@@ -100,6 +100,7 @@ export {
   selectionThreadSpoilerPolicy,
   wholeBookSpoilerPolicy,
 } from './reader/reading-context';
+export { intersectTextRanges, rangeDistance } from './reader/reading-context-ranges';
 export type {
   BuildReadingContextBundleInput,
   ReadingContextBundle,

@@ -19,6 +19,8 @@ import type {
 import {
   locateEpubOffset,
   prepareEpubTextAnchorResolver,
+  intersectTextRanges,
+  rangeDistance,
   selectionAnnotationSpoilerPolicy,
   selectionThreadSpoilerPolicy,
   type EpubIndexLocation,
@@ -35,10 +37,8 @@ import {
   clippedThreadContextComments as clippedThreadContextCommentsByLimit,
   clipText,
   commentAuthorLabel,
-  intersectTextRanges,
   numberValue,
   rangeAllowed,
-  rangeDistance,
 } from './selection-context-utils';
 
 const SELECTION_PARAGRAPH_WINDOW_SIZE = 2;

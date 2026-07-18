@@ -3,13 +3,12 @@ import { Cause, Effect, Exit, Fiber } from 'effect';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { setAiLogger } from '../logger';
+import { listProviderModels, listProviderModelsEffect } from './provider-client';
 import {
-  callProviderText,
-  callProviderTextEffect,
-  listProviderModels,
-  listProviderModelsEffect,
-  streamProviderText,
-} from './provider-client';
+  generateYomitomoText,
+  generateYomitomoTextEffect,
+  streamYomitomoText,
+} from './generation-runtime';
 
 function requestBodyText(value: unknown) {
   return typeof value === 'string' ? value : '';
@@ -158,7 +157,7 @@ describe('listProviderModels', () => {
   });
 });
 
-describe('streamProviderText', () => {
+describe('streamYomitomoText', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -186,7 +185,7 @@ describe('streamProviderText', () => {
     );
 
     let text = '';
-    await streamProviderText(provider(), payload(), (delta) => {
+    await streamYomitomoText(provider(), payload(), (delta) => {
       text += delta;
     });
 
@@ -194,7 +193,7 @@ describe('streamProviderText', () => {
   });
 });
 
-describe('callProviderText response schema', () => {
+describe('generateYomitomoText response schema', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -206,7 +205,7 @@ describe('callProviderText response schema', () => {
         jsonResponse({ choices: [{ index: 0, message: { content: '{"ok":true}' } }] }),
       );
 
-    await callProviderText(
+    await generateYomitomoText(
       {
         ...provider(),
         presetId: 'openai',
@@ -252,7 +251,7 @@ describe('callProviderText response schema', () => {
       }),
     );
 
-    await callProviderText(
+    await generateYomitomoText(
       {
         ...provider(),
         type: 'openai-responses',
@@ -282,7 +281,7 @@ describe('callProviderText response schema', () => {
       }),
     );
 
-    await callProviderText(
+    await generateYomitomoText(
       {
         ...provider(),
         type: 'gemini',
@@ -307,7 +306,7 @@ describe('callProviderText response schema', () => {
       jsonResponse({ choices: [{ index: 0, message: { content: '' } }] }),
     );
 
-    await expect(callProviderText(provider(), payload())).rejects.toThrow(
+    await expect(generateYomitomoText(provider(), payload())).rejects.toThrow(
       'Provider returned an empty response',
     );
   });
@@ -317,7 +316,7 @@ describe('callProviderText response schema', () => {
       jsonResponse({ choices: [{ index: 0, message: { content: '' } }] }),
     );
 
-    const exit = await Effect.runPromiseExit(callProviderTextEffect(provider(), payload()));
+    const exit = await Effect.runPromiseExit(generateYomitomoTextEffect(provider(), payload()));
 
     expect(Exit.isFailure(exit)).toBe(true);
     if (Exit.isSuccess(exit)) return;
@@ -331,7 +330,7 @@ describe('callProviderText response schema', () => {
 
   it('aborts generation when its Effect fiber is interrupted', async () => {
     const started = pendingFetch();
-    const fiber = Effect.runFork(callProviderTextEffect(provider(), payload()));
+    const fiber = Effect.runFork(generateYomitomoTextEffect(provider(), payload()));
 
     const signal = await started;
     await Effect.runPromise(Fiber.interrupt(fiber));
@@ -374,7 +373,7 @@ describe('provider generation logging', () => {
       jsonResponse({ choices: [{ index: 0, message: { content: 'ok' } }] }),
     );
 
-    await callProviderText({ ...provider(), apiKey }, payload());
+    await generateYomitomoText({ ...provider(), apiKey }, payload());
 
     expect(startEvents).toHaveLength(1);
     expect(startEvents[0]).toMatchObject({
@@ -389,7 +388,7 @@ describe('provider generation logging', () => {
     const startEvents = captureGenerationStarts();
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'));
 
-    await expect(callProviderText({ ...provider(), apiKey }, payload())).rejects.toThrow();
+    await expect(generateYomitomoText({ ...provider(), apiKey }, payload())).rejects.toThrow();
 
     expect(startEvents).toHaveLength(1);
     expectLogToExcludeCredential(startEvents[0], apiKey);
@@ -401,7 +400,7 @@ describe('provider generation logging', () => {
       jsonResponse({ choices: [{ index: 0, message: { content: 'ok' } }] }),
     );
 
-    await callProviderText({ ...provider(), apiKey: '' }, payload());
+    await generateYomitomoText({ ...provider(), apiKey: '' }, payload());
 
     expect(startEvents[0]).toMatchObject({ hasApiKey: false });
   });
