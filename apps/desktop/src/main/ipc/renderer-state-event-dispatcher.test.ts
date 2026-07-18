@@ -1,6 +1,11 @@
 import type { WebContents } from 'electron';
 import { describe, expect, it, vi } from 'vitest';
-import type { ArticleStorePatch, CollectionStorePatch, DesktopStore } from '@yomitomo/shared';
+import type {
+  ArticleStorePatch,
+  CollectionStorePatch,
+  DesktopStore,
+  LibraryPinPatch,
+} from '@yomitomo/shared';
 import { createRendererStateEventDispatcher } from './renderer-state-event-dispatcher';
 
 vi.mock('electron', () => ({
@@ -38,18 +43,43 @@ describe('renderer state event dispatcher', () => {
     expect(annotation.send).not.toHaveBeenCalled();
   });
 
-  it('keeps collection patch echo centralized until renderer actions own their results', () => {
+  it('sends collection patches to other main windows except the sender', () => {
     const dispatcher = createRendererStateEventDispatcher();
-    const main = rendererTarget(1);
-    dispatcher.registerTarget('main', main.webContents);
+    const sourceMain = rendererTarget(1);
+    const otherMain = rendererTarget(2);
+    dispatcher.registerTarget('main', sourceMain.webContents);
+    dispatcher.registerTarget('main', otherMain.webContents);
     const patch: CollectionStorePatch = {
       type: 'collection-delete',
       collectionId: 'collection_1',
     };
 
-    dispatcher.dispatch(main.webContents, 'collection:patched', patch);
+    dispatcher.dispatch(sourceMain.webContents, 'collection:patched', patch);
 
-    expect(main.send).toHaveBeenCalledWith('collection:patched', patch);
+    expect(sourceMain.send).not.toHaveBeenCalled();
+    expect(otherMain.send).toHaveBeenCalledWith('collection:patched', patch);
+  });
+
+  it('sends library pin patches to other main windows except the sender', () => {
+    const dispatcher = createRendererStateEventDispatcher();
+    const sourceMain = rendererTarget(1);
+    const otherMain = rendererTarget(2);
+    dispatcher.registerTarget('main', sourceMain.webContents);
+    dispatcher.registerTarget('main', otherMain.webContents);
+    const patch: LibraryPinPatch = {
+      type: 'library-pin',
+      pinned: true,
+      pin: {
+        targetKind: 'article',
+        targetId: 'article_1',
+        pinnedAt: '2026-07-18T00:00:00.000Z',
+      },
+    };
+
+    dispatcher.dispatch(sourceMain.webContents, 'library-pin:patched', patch);
+
+    expect(sourceMain.send).not.toHaveBeenCalled();
+    expect(otherMain.send).toHaveBeenCalledWith('library-pin:patched', patch);
   });
 
   it('removes closed and explicitly unregistered targets', () => {
