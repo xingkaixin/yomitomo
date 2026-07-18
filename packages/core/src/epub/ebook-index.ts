@@ -1,5 +1,6 @@
 import {
   createTextAnchor,
+  normalizeTextWithMap,
   resolveTextAnchor,
   textAnchorQuoteHash,
   type EpubBookIndex,
@@ -259,7 +260,10 @@ export function createEpubTextAnchorFromQuote(
   let bestScore = Number.NEGATIVE_INFINITY;
 
   for (const range of ranges) {
-    const normalizedRange = normalizeTextWithMap(text.slice(range.start, range.end));
+    const normalizedRange = normalizeTextWithMap(
+      text.slice(range.start, range.end),
+      'collapse-to-next-character',
+    );
     let indexInRange = normalizedRange.text.indexOf(normalizedQuote);
 
     while (indexInRange >= 0) {
@@ -606,29 +610,6 @@ function toParagraphIndex(paragraph: ParagraphBuildState): EpubParagraphIndex {
 
 function normalizeText(value: string) {
   return value.replace(/\s+/g, ' ').trim();
-}
-
-function normalizeTextWithMap(value: string) {
-  let text = '';
-  const map: number[] = [];
-  let pendingWhitespace = false;
-
-  for (let index = 0; index < value.length; index += 1) {
-    const char = value[index];
-    if (/\s/.test(char)) {
-      pendingWhitespace = text.length > 0;
-      continue;
-    }
-    if (pendingWhitespace && !text.endsWith(' ')) {
-      text += ' ';
-      map.push(index);
-    }
-    pendingWhitespace = false;
-    text += char;
-    map.push(index);
-  }
-
-  return { text, map };
 }
 
 function commonPrefixLength(left: string, right: string) {
