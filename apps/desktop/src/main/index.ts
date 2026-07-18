@@ -6,7 +6,7 @@ import type {
   DesktopStore,
   LibraryPinPatch,
 } from '@yomitomo/shared';
-import { getLogPath, logError, logInfo, pruneLogFile } from './app/logger';
+import { getLogPath, logError, logInfo } from './app/logger';
 import { configureDesktopAppStorage } from './app/app-environment';
 import { normalizeExternalUrlForOpen } from './app/external-url';
 import { installAppMenu } from './app/app-menu';
@@ -16,6 +16,7 @@ import {
 } from './app/chromium-cache-maintenance';
 import { installDevProcessLifecycle } from './app/dev-process-lifecycle';
 import { installElectronSmokeProbe } from './app/electron-smoke-probe';
+import { initializeStartupStore, type StartupStoreInitializationResult } from './app/startup-store';
 import type { AppUpdateState } from '../app-update-types';
 import { isAppLockSettingsLocked, rendererStoreForAppLockState } from '../app-store';
 import type { DesktopStoreLoadErrorInfo } from '../app-store-errors';
@@ -169,19 +170,6 @@ function preloadStoreModule(reason: string) {
         reason,
         durationMs: elapsedMs(startedAt),
       });
-    });
-}
-
-function scheduleLogPrune(retentionDays: number | undefined) {
-  const startedAt = performance.now();
-  recordStartupTiming('log.prune_start');
-  void pruneLogFile(retentionDays)
-    .then(() => {
-      recordStartupTiming('log.prune_success', { durationMs: elapsedMs(startedAt) });
-    })
-    .catch((error) => {
-      logError('log.prune_failed', error);
-      recordStartupTiming('log.prune_error', { durationMs: elapsedMs(startedAt) });
     });
 }
 
@@ -397,7 +385,12 @@ void app.whenReady().then(async () => {
     platform: process.platform,
     logInfo,
   });
-  registerIpc();
+  const startupStoreInitialization = await initializeStartupStore({
+    getPersistenceModules,
+    recordStartupTiming,
+    setSensitiveRendererEventsLocked,
+  });
+  registerIpc(startupStoreInitialization);
   scheduleModelPriceRefresh();
   scheduleAppUpdateCheck();
   configureWeReadAutoSync('startup');
@@ -428,8 +421,9 @@ app.on('activate', () => {
   }
 });
 
-function registerIpc() {
+function registerIpc(startupStoreInitialization: StartupStoreInitializationResult) {
   const context = {
+    startupStoreInitialization,
     getMainWindow: () => mainWindow,
     getPersistenceModules,
     getAiModule,
@@ -443,7 +437,6 @@ function registerIpc() {
     setSensitiveRendererEventsLocked,
     recordStartupTiming,
     recordPerformanceTiming,
-    scheduleLogPrune,
     configureWeReadAutoSync,
     storeLoadErrorInfo,
     elapsedMs,

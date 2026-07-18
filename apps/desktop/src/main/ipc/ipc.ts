@@ -42,10 +42,8 @@ export interface DesktopMainIpcContext {
   sendCollectionPatched: (event: IpcMainInvokeEvent, patch: CollectionStorePatch) => void;
   sendLibraryPinPatched: (event: IpcMainInvokeEvent, patch: LibraryPinPatch) => void;
   registerRendererStateEventTarget: RendererStateEventDispatcher['registerTarget'];
-  setSensitiveRendererEventsLocked: (locked: boolean) => void;
   recordStartupTiming: (event: string, data?: Record<string, unknown>) => void;
   recordPerformanceTiming: (input: unknown) => void;
-  scheduleLogPrune: (retentionDays: number | undefined) => void;
   configureWeReadAutoSync: (reason: string) => void;
   storeLoadErrorInfo: (error: unknown) => Promise<DesktopStoreLoadErrorInfo>;
   elapsedMs: (startedAt: number) => number;

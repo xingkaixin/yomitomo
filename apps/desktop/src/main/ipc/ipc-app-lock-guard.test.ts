@@ -76,7 +76,6 @@ describe('app lock IPC guard', () => {
     await expectAppLockRequired('article:get', 'article_1');
     await expectAppLockRequired('library-collection:create', { name: '合集' });
 
-    expect(ipcContext.setSensitiveRendererEventsLocked).toHaveBeenCalledWith(true);
     expect(protectedHandler).not.toHaveBeenCalled();
   });
 
@@ -200,6 +199,7 @@ describe('app lock IPC guard', () => {
 
 function context(storeModule: ReturnType<typeof createStoreModule>) {
   return {
+    startupStoreInitialization: { ok: true as const },
     elapsedMs: () => 1,
     getAppUpdaterModule: async () => ({
       checkForAppUpdates: vi.fn(),
@@ -221,14 +221,12 @@ function context(storeModule: ReturnType<typeof createStoreModule>) {
       },
       storeSnapshot: {
         readStore: storeModule.readStore,
+        readShellStore: storeModule.readStore,
         readShellStoreWithProfile: storeModule.readShellStoreWithProfile,
         readStoreWithProfile: storeModule.readStoreWithProfile,
       },
     }),
     logError: vi.fn(),
-    recordStartupTiming: vi.fn(),
-    scheduleLogPrune: vi.fn(),
-    setSensitiveRendererEventsLocked: vi.fn(),
     sendFullStoreUpdated: vi.fn(),
     storeLoadErrorInfo: vi.fn(),
   };
