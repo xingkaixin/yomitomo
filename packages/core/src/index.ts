@@ -140,7 +140,6 @@ export {
 export type { ReadingMemoryViewRequest } from './reading-memory/reading-memory-view-assembly';
 
 export {
-  alphaColor,
   activeTocIndexForOffset,
   annotationIdsAtHighlightPoint,
   articleTitleTocItems,

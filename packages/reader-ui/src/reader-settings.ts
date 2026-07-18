@@ -1,4 +1,4 @@
-import type { ArticleRecord, UserProfile } from '@yomitomo/shared';
+import type { ArticleRecord } from '@yomitomo/shared';
 import { timestamp } from '@yomitomo/core';
 import type { ReaderSettings } from './reader-types';
 
@@ -27,29 +27,11 @@ export function defaultReaderBackgroundForTone(tone: ReaderBackgroundTone): stri
   );
 }
 
-export const defaultUserProfile: UserProfile = {
-  id: 'user_local',
-  nickname: '我',
-  username: 'me',
-  avatar: '',
-  annotationColor: '#f4c95d',
-  updatedAt: '',
-};
-
 export const defaultReaderSettings: ReaderSettings = {
   fontSize: 20,
   contentWidth: 860,
   backgroundColor: defaultReaderBackgroundColor,
 };
-
-export function normalizeUserProfile(user: Partial<UserProfile> | undefined): UserProfile {
-  return {
-    ...defaultUserProfile,
-    ...user,
-    id: user?.id || defaultUserProfile.id,
-    annotationColor: user?.annotationColor || defaultUserProfile.annotationColor,
-  };
-}
 
 export function toCachedArticleRecord(record: ArticleRecord): ArticleRecord {
   return {

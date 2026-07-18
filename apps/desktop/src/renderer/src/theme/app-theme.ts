@@ -75,7 +75,6 @@ export type AppTheme = {
     chart1: string;
     chart2: string;
     chart3: string;
-    userAnnotationDefault: string;
     readerAgentFallback: string;
   };
   reader: ReaderTheme;
@@ -320,7 +319,6 @@ export const defaultTheme: AppTheme = {
     chart1: 'hsl(83 24% 35%)',
     chart2: 'hsl(8 45% 46%)',
     chart3: 'hsl(205 30% 38%)',
-    userAnnotationDefault: '#f4c95d',
     readerAgentFallback: '#2f2720',
   },
   reader: defaultReaderTheme,
@@ -506,7 +504,6 @@ export const beigePaperTheme: AppTheme = {
     chart1: 'hsl(94 25% 34%)',
     chart2: 'hsl(11 45% 45%)',
     chart3: 'hsl(207 27% 36%)',
-    userAnnotationDefault: '#e1c27d',
     readerAgentFallback: '#4a321b',
   },
   reader: beigePaperReaderTheme,
@@ -693,7 +690,6 @@ export const inkBlackTheme: AppTheme = {
     chart1: 'hsl(140 30% 52%)',
     chart2: 'hsl(8 56% 60%)',
     chart3: 'hsl(205 46% 60%)',
-    userAnnotationDefault: '#e0844f',
     readerAgentFallback: '#e0d9cc',
   },
   reader: inkBlackReaderTheme,
@@ -880,7 +876,6 @@ export const duskIndigoTheme: AppTheme = {
     chart1: 'hsl(190 40% 56%)',
     chart2: 'hsl(10 58% 62%)',
     chart3: 'hsl(225 50% 66%)',
-    userAnnotationDefault: '#f5aa5c',
     readerAgentFallback: '#dbe2eb',
   },
   reader: duskIndigoReaderTheme,
@@ -1065,7 +1060,6 @@ export const inkPaperTheme: AppTheme = {
     chart1: 'hsl(215 32% 34%)',
     chart2: 'hsl(0 48% 44%)',
     chart3: 'hsl(92 18% 36%)',
-    userAnnotationDefault: '#d6e1ee',
     readerAgentFallback: '#1b365d',
   },
   reader: inkPaperReaderTheme,
@@ -1182,7 +1176,6 @@ export function themeToCssVariables(theme: AppTheme): CssVariableMap {
     '--chart-1': theme.dataColor.chart1,
     '--chart-2': theme.dataColor.chart2,
     '--chart-3': theme.dataColor.chart3,
-    '--app-user-annotation-default': theme.dataColor.userAnnotationDefault,
     '--app-reader-agent-fallback': theme.dataColor.readerAgentFallback,
     ...readerThemeToCssVariables(theme.reader),
   };

@@ -4,7 +4,6 @@ import * as corePublicApi from './index';
 const coreRuntimeExports = [
   'activeReadingMemoryEntries',
   'activeTocIndexForOffset',
-  'alphaColor',
   'annotationColor',
   'annotationDensityInstruction',
   'annotationDensityMax',

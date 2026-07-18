@@ -1,4 +1,4 @@
-import type { Annotation } from '@yomitomo/shared';
+import { defaultUserAnnotationColor, type Annotation } from '@yomitomo/shared';
 import type { TocItem } from './reader-dom';
 
 export type TocAnnotationStats = {
@@ -42,6 +42,6 @@ export function annotationStoredColor(annotation: Annotation) {
     annotation.agentAnnotationColor ||
     annotation.userAnnotationColor ||
     annotation.color ||
-    '#f4c95d'
+    defaultUserAnnotationColor
   );
 }

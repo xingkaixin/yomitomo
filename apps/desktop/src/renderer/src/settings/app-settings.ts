@@ -16,6 +16,8 @@ import {
   customPersonality,
   customPersonalityId,
   defaultAgentSoul,
+  defaultUserAnnotationColor,
+  defaultUserProfile,
   localizedAgentPersonalitiesForKind,
   localizedAgentPersonality,
   providerPresets,
@@ -40,7 +42,7 @@ export type AgentDraft = Partial<Agent> & { personalityId?: string };
 export type UserDraft = Partial<UserProfile>;
 
 export const annotationColors = [
-  '#f4c95d',
+  defaultUserAnnotationColor,
   '#efa927',
   '#8ab6d6',
   '#6fa48f',
@@ -52,7 +54,7 @@ export const annotationColors = [
   '#c8b88a',
 ];
 
-export const userAnnotationColors = ['#f4c95d', '#efa927'];
+export const userAnnotationColors = [annotationColors[0], annotationColors[1]];
 
 export const agentKindOptions: Array<{
   value: AgentKind;
@@ -66,14 +68,7 @@ export const messageSendShortcutOptions: Array<{
   value: MessageSendShortcut;
 }> = [{ value: 'enter' }, { value: 'mod-enter' }];
 
-export const defaultUser: UserProfile = {
-  id: 'user_local',
-  nickname: '我',
-  username: 'me',
-  avatar: '',
-  annotationColor: userAnnotationColors[0],
-  updatedAt: '',
-};
+export { defaultUserProfile as defaultUser };
 
 const defaultProviderPreset = providerPresets.find((preset) => preset.id === 'deepseek');
 
@@ -91,7 +86,7 @@ export const emptyProvider: ProviderDraft = {
 };
 
 export const emptyStore: DesktopStore = {
-  user: defaultUser,
+  user: defaultUserProfile,
   settings: {},
   providers: [],
   agents: [],

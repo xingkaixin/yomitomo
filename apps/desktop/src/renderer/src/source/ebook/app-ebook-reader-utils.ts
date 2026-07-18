@@ -1,6 +1,6 @@
 import i18next from 'i18next';
 import type { Annotation, ArticleRecord, PublicAgent, UserProfile } from '@yomitomo/shared';
-import { hashText } from '@yomitomo/shared';
+import { defaultUserAnnotationColor, hashText } from '@yomitomo/shared';
 import { annotationColor, bilingualTranslationSelector, type TocItem } from '@yomitomo/core';
 import { readerBilingualTranslationStyles } from '@yomitomo/reader-ui/reader-bilingual-translation-styles';
 import { readerBackgroundTone, readerBodyLineHeight } from '@yomitomo/reader-ui/reader-settings';
@@ -987,7 +987,7 @@ export function foliateRangeHighlightBoxes(range: Range, canvasRect: DOMRect, id
   return mappedFoliateRangeRects(range, canvasRect).map((rect, index) => ({
     id: `${idPrefix}_${index}`,
     annotationId: '',
-    color: '#f4c95d',
+    color: defaultUserAnnotationColor,
     top: rect.top - canvasRect.top,
     left: rect.left - canvasRect.left,
     width: rect.width,
