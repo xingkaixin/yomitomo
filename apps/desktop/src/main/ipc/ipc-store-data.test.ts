@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DesktopStore } from '@yomitomo/shared';
 import type { AppUpdateState } from '../../app-update-types';
 import type { DesktopIpcInvokeEnvelope } from '../../ipc-errors';
+import type { StartupStoreInitializationResult } from '../app/startup-store';
 import { registerStoreDataIpc } from './ipc-store-data';
 
 const ipcState = vi.hoisted(() => ({
@@ -40,30 +41,9 @@ beforeEach(() => {
 
 describe('store data update IPC', () => {
   it('loads the shell store without the full article catalog', async () => {
-    const fullStore = desktopStore({
-      articles: [
-        {
-          id: 'article_1',
-          url: 'https://example.com',
-          canonicalUrl: 'https://example.com',
-          sourceType: 'web',
-          title: 'Article',
-          contentHash: 'hash',
-          annotations: [],
-          annotationCount: 0,
-          commentCount: 0,
-          createdAt: '2026-07-13T00:00:00.000Z',
-          updatedAt: '2026-07-13T00:00:00.000Z',
-        },
-      ],
-    });
     const shellStore = desktopStore({ articles: [] });
-    const readStoreWithProfile = vi.fn(async () => ({ store: fullStore, profile: [] }));
-    const readShellStoreWithProfile = vi.fn(async () => ({ store: shellStore, profile: [] }));
-    const context = storeContext({
-      readShellStoreWithProfile,
-      readStoreWithProfile,
-    });
+    const readShellStore = vi.fn(async () => shellStore);
+    const context = storeContext({ readShellStore });
 
     registerStoreDataIpc(context);
 
@@ -73,8 +53,29 @@ describe('store data update IPC', () => {
       ok: true,
       value: { ok: true, store: shellStore },
     });
-    expect(readShellStoreWithProfile).toHaveBeenCalledTimes(1);
-    expect(readStoreWithProfile).not.toHaveBeenCalled();
+    expect(readShellStore).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns the startup failure without reading an unlocked store', async () => {
+    const startupError = new Error('startup lock failed');
+    const loadError = { code: 'DATABASE_UNAVAILABLE' as const };
+    const readShellStore = vi.fn(async () => desktopStore({ articles: [] }));
+    const context = storeContext({
+      readShellStore,
+      startupStoreInitialization: { ok: false, error: startupError },
+    });
+    context.storeLoadErrorInfo = vi.fn(async () => loadError);
+
+    registerStoreDataIpc(context);
+
+    const envelope = await invokeRegisteredHandler('store:get');
+
+    expect(envelope).toEqual({
+      ok: true,
+      value: { ok: false, error: loadError },
+    });
+    expect(context.storeLoadErrorInfo).toHaveBeenCalledWith(startupError);
+    expect(readShellStore).not.toHaveBeenCalled();
   });
 
   it('forwards update channels to the app updater module', async () => {
@@ -86,7 +87,7 @@ describe('store data update IPC', () => {
       simulateUpdateAvailable: vi.fn(() => updateState('available')),
     };
 
-    registerStoreDataIpc(storeContext({ readStoreWithProfile: vi.fn(), updaterModule }));
+    registerStoreDataIpc(storeContext({ updaterModule }));
 
     await expectUpdateForward('updates:get-status', updaterModule.getAppUpdateState, 'idle');
     await expectUpdateForward('updates:check', updaterModule.checkForAppUpdates, 'available');
@@ -147,12 +148,12 @@ type StoreDataPersistenceModules = Awaited<
 >;
 
 function storeContext(input: {
-  readShellStoreWithProfile?: StoreDataPersistenceModules['storeSnapshot']['readShellStoreWithProfile'];
-  readStoreWithProfile?: ReturnType<typeof vi.fn>;
+  readShellStore?: StoreDataPersistenceModules['storeSnapshot']['readShellStore'];
+  startupStoreInitialization?: StartupStoreInitializationResult;
   updaterModule?: Awaited<ReturnType<StoreDataIpcContext['getAppUpdaterModule']>>;
 }): StoreDataIpcContext {
   return {
-    elapsedMs: () => 1,
+    startupStoreInitialization: input.startupStoreInitialization || { ok: true },
     getAppUpdaterModule: async () =>
       input.updaterModule || {
         checkForAppUpdates: vi.fn(),
@@ -168,24 +169,12 @@ function storeContext(input: {
         queryAssistantExecutionRuns: vi.fn(),
         queryAssistantExecutionSummary: vi.fn(),
       },
-      storeSettings: {
-        saveSettings: vi.fn(),
-        saveSettingsShell: vi.fn(async (settings: Record<string, unknown>) => ({
-          ...desktopStore({ articles: [] }),
-          settings,
-        })),
-      },
       storeSnapshot: {
-        readShellStoreWithProfile:
-          input.readShellStoreWithProfile ||
-          vi.fn(async () => ({ store: desktopStore({ articles: [] }), profile: [] })),
+        readShellStore: input.readShellStore || vi.fn(async () => desktopStore({ articles: [] })),
       },
     }),
     logError: vi.fn(),
-    recordStartupTiming: vi.fn(),
-    scheduleLogPrune: vi.fn(),
     sendFullStoreUpdated: vi.fn(),
-    setSensitiveRendererEventsLocked: vi.fn(),
     storeLoadErrorInfo: vi.fn(),
   };
 }

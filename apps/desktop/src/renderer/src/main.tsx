@@ -145,6 +145,7 @@ function App() {
     storeRef,
     refreshStore,
     applyStore,
+    applySettingsPatch,
   } = useDesktopStoreState();
   const appLockEnabled = Boolean(store.settings.appLockEnabled);
   const appLocked = Boolean(appLockEnabled && store.settings.appLockLocked);
@@ -188,8 +189,15 @@ function App() {
     renameCollection,
     setLibraryPin,
   } = useAppCollectionStoreActions({ storeRef, applyStore });
-  const settingsDrafts = useSettingsDrafts({ store, storeSyncSnapshot, applyStore });
-  const { agentSaveError, agentSaveState, toggleAgent } = useAppAgentActions({ applyStore });
+  const settingsDrafts = useSettingsDrafts({
+    store,
+    storeSyncSnapshot,
+    applyStore,
+    applySettingsPatch,
+  });
+  const { agentSaveError, agentSaveState, toggleAgent } = useAppAgentActions({
+    applySettingsPatch,
+  });
   const showOnboarding = !appLocked && (onboardingForced || !store.settings.onboardingCompletedAt);
 
   useEffect(() => {

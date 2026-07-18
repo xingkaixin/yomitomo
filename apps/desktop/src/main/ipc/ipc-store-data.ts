@@ -1,8 +1,8 @@
-import { performance } from 'node:perf_hooks';
 import type { DesktopStoreGetResult } from '../../app-store-errors';
 import { DesktopIpcError } from '../../ipc-errors';
+import type { StartupStoreInitializationResult } from '../app/startup-store';
 import type { DesktopAppUpdaterModule, DesktopMainIpcContext } from './ipc';
-import { assertAppLockSettingsUnlocked, handleDesktopIpc, isAppLockSettingsLocked } from './ipc';
+import { assertAppLockSettingsUnlocked, handleDesktopIpc } from './ipc';
 import {
   clearAgentRuntimeTraces,
   getAgentRuntimeTracePath,
@@ -10,19 +10,11 @@ import {
 } from '../agents/agent-runtime-trace-log';
 import { clearLogFile, getLogPath, readLogFile } from '../app/logger';
 
-let startupAppLockApplied = false;
-
 type StoreDataIpcContext = Pick<
   DesktopMainIpcContext,
-  | 'elapsedMs'
-  | 'getMainWindow'
-  | 'logError'
-  | 'recordStartupTiming'
-  | 'scheduleLogPrune'
-  | 'sendFullStoreUpdated'
-  | 'setSensitiveRendererEventsLocked'
-  | 'storeLoadErrorInfo'
+  'getMainWindow' | 'logError' | 'sendFullStoreUpdated' | 'storeLoadErrorInfo'
 > & {
+  startupStoreInitialization: StartupStoreInitializationResult;
   getAppUpdaterModule: () => Promise<
     Pick<
       DesktopAppUpdaterModule,
@@ -40,64 +32,23 @@ type StoreDataIpcContext = Pick<
       | 'queryAssistantExecutionRuns'
       | 'queryAssistantExecutionSummary'
     >;
-    storeSettings: Pick<
-      typeof import('../store/store-settings'),
-      'saveSettings' | 'saveSettingsShell'
-    >;
-    storeSnapshot: Pick<typeof import('../store/store-snapshot'), 'readShellStoreWithProfile'>;
+    storeSnapshot: Pick<typeof import('../store/store-snapshot'), 'readShellStore'>;
   }>;
 };
 
 export function registerStoreDataIpc(context: StoreDataIpcContext) {
   handleDesktopIpc('store:get', async (): Promise<DesktopStoreGetResult> => {
-    const startedAt = performance.now();
-    context.recordStartupTiming('store.get_start');
     try {
-      const importStartedAt = performance.now();
-      const { storeSettings, storeSnapshot } = await context.getPersistenceModules();
-      const importDurationMs = context.elapsedMs(importStartedAt);
-      const readStartedAt = performance.now();
-      let { store, profile } = await storeSnapshot.readShellStoreWithProfile();
-      if (shouldApplyStartupAppLock(store.settings)) {
-        const lockStartedAt = performance.now();
-        const saveSettings = storeSettings.saveSettingsShell || storeSettings.saveSettings;
-        store = await saveSettings({ appLockLocked: true });
-        startupAppLockApplied = true;
-        context.recordStartupTiming('app_lock.startup_lock_applied', {
-          durationMs: context.elapsedMs(lockStartedAt),
-        });
+      if (!context.startupStoreInitialization.ok) {
+        throw context.startupStoreInitialization.error;
       }
-      context.setSensitiveRendererEventsLocked(isAppLockSettingsLocked(store.settings));
+      const { storeSnapshot } = await context.getPersistenceModules();
+      const store = await storeSnapshot.readShellStore();
       assertAppLockSettingsUnlocked(store.settings);
-      const readDurationMs = context.elapsedMs(readStartedAt);
-      context.scheduleLogPrune(store.settings.logRetentionDays);
-      context.recordStartupTiming('store.get_success', {
-        durationMs: context.elapsedMs(startedAt),
-        importDurationMs,
-        readDurationMs,
-        articleCount: store.articles.length,
-        annotationCount: store.articles.reduce(
-          (count, article) => count + (article.annotationCount ?? article.annotations.length),
-          0,
-        ),
-        thoughtCount: store.articles.reduce((count, article) => {
-          const thoughtCount =
-            article.thoughtCount ??
-            article.commentCount ??
-            article.annotations.reduce(
-              (annotationCount, annotation) =>
-                annotationCount + annotation.comments.filter((comment) => !comment.replyTo).length,
-              0,
-            );
-          return count + thoughtCount;
-        }, 0),
-      });
-      context.recordStartupTiming('store.get_profile', { steps: profile });
       return { ok: true, store };
     } catch (error) {
       if (error instanceof DesktopIpcError) throw error;
       context.logError('store.get_failed', error);
-      context.recordStartupTiming('store.get_error', { durationMs: context.elapsedMs(startedAt) });
       return { ok: false, error: await context.storeLoadErrorInfo(error) };
     }
   });
@@ -161,16 +112,4 @@ export function registerStoreDataIpc(context: StoreDataIpcContext) {
     const { getReleaseNote } = await import('../app/release-notes');
     return getReleaseNote(input.version, input.source, input.language);
   });
-}
-
-function shouldApplyStartupAppLock(settings: {
-  appLockEnabled?: boolean;
-  appLockLocked?: boolean;
-  appLockLockOnStartup?: boolean;
-}) {
-  if (startupAppLockApplied) return false;
-  startupAppLockApplied = true;
-  return Boolean(
-    settings.appLockEnabled && settings.appLockLockOnStartup && !settings.appLockLocked,
-  );
 }

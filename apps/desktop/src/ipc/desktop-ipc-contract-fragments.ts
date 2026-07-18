@@ -34,6 +34,7 @@ import type { DesktopIpcSchemaArgs } from './desktop-ipc-schema-fragments';
 import type {
   AgentRuntimeTraceEntry,
   AgentRuntimeTraceListInput,
+  AgentStorePatch,
   AnnotationDiscussionWindowOpenInput,
   AnnotationDiscussionWindowOpenResult,
   AnnotationDiscussionWindowsCloseArticleInput,
@@ -71,13 +72,15 @@ import type {
   LibraryCatalogListInput,
   LibraryCatalogListResult,
   ProviderTestResult,
+  ProviderStorePatch,
+  UserStorePatch,
   WeReadState,
 } from '../ipc-contract';
 
 export type AgentIpcInvokeMap = {
   'agent:delete': {
     args: [id: string];
-    result: DesktopStore;
+    result: AgentStorePatch;
     validation: { exempt: 'handler-owned' };
   };
   'agent:mention-route': {
@@ -92,7 +95,7 @@ export type AgentIpcInvokeMap = {
   };
   'agent:save': {
     args: [agent: Partial<Agent>];
-    result: DesktopStore;
+    result: AgentStorePatch;
     validation: { exempt: 'domain-payload' };
   };
   'agent-trace:clear': {
@@ -433,7 +436,7 @@ export type LibraryCollectionIpcInvokeMap = {
 export type ProviderIpcInvokeMap = {
   'provider:delete': {
     args: [id: string];
-    result: DesktopStore;
+    result: ProviderStorePatch;
     validation: { exempt: 'handler-owned' };
   };
   'provider:list-models': {
@@ -448,7 +451,7 @@ export type ProviderIpcInvokeMap = {
   };
   'provider:save': {
     args: [provider: Partial<LlmProvider> & { removeApiKey?: boolean }];
-    result: DesktopStore;
+    result: ProviderStorePatch;
     validation: { exempt: 'domain-payload' };
   };
   'provider:test': {
@@ -463,7 +466,7 @@ export type ProviderIpcInvokeMap = {
   };
   'user:save': {
     args: [user: Partial<UserProfile>];
-    result: DesktopStore;
+    result: UserStorePatch;
     validation: { exempt: 'domain-payload' };
   };
 };

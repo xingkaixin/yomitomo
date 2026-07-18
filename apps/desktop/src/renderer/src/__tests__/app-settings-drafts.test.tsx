@@ -3,6 +3,7 @@
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DesktopStore } from '@yomitomo/shared';
+import type { SettingsStorePatch } from '../../../ipc-contract';
 
 import { emptyStore } from '../settings/app-settings';
 import { useSettingsDrafts } from '../settings/app-settings-drafts';
@@ -25,6 +26,7 @@ describe('useSettingsDrafts', () => {
         store: emptyStore,
         storeSyncSnapshot: emptyStore,
         applyStore,
+        applySettingsPatch,
       });
       return null;
     }
@@ -52,7 +54,12 @@ describe('useSettingsDrafts', () => {
       store: DesktopStore;
       storeSyncSnapshot: DesktopStore | null;
     }) {
-      latest.current = useSettingsDrafts({ store, storeSyncSnapshot, applyStore });
+      latest.current = useSettingsDrafts({
+        store,
+        storeSyncSnapshot,
+        applyStore,
+        applySettingsPatch,
+      });
       return null;
     }
 
@@ -72,13 +79,11 @@ describe('useSettingsDrafts', () => {
 
   it('returns true after saving profile changes', async () => {
     const latest: { current?: ReturnType<typeof useSettingsDrafts> } = {};
-    const nextStore = makeStore({
-      user: { ...emptyStore.user, nickname: '行开心' },
-    });
+    const userPatch = { user: { ...emptyStore.user, nickname: '行开心' } };
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
-        saveUser: vi.fn().mockResolvedValue(nextStore),
+        saveUser: vi.fn().mockResolvedValue(userPatch),
       },
     });
 
@@ -87,6 +92,7 @@ describe('useSettingsDrafts', () => {
         store: emptyStore,
         storeSyncSnapshot: emptyStore,
         applyStore,
+        applySettingsPatch,
       });
       return null;
     }
@@ -123,6 +129,7 @@ describe('useSettingsDrafts', () => {
         store: emptyStore,
         storeSyncSnapshot: emptyStore,
         applyStore,
+        applySettingsPatch,
       });
       return null;
     }
@@ -155,4 +162,8 @@ function makeStore(
 
 function applyStore(nextStore: DesktopStore) {
   return nextStore;
+}
+
+function applySettingsPatch(patch: SettingsStorePatch) {
+  return { ...emptyStore, ...patch };
 }

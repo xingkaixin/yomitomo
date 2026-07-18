@@ -52,6 +52,14 @@ export type AppInfo = {
   desktopVersion: string;
 };
 
+export type UserStorePatch = Pick<DesktopStore, 'user'>;
+
+export type ProviderStorePatch = Pick<DesktopStore, 'agents' | 'providers' | 'settings'>;
+
+export type AgentStorePatch = Pick<DesktopStore, 'agents'>;
+
+export type SettingsStorePatch = UserStorePatch | ProviderStorePatch | AgentStorePatch;
+
 export type AppLockStatus = {
   configured: boolean;
   enabled: boolean;

@@ -147,7 +147,7 @@ pnpm build
 - `apps/desktop/src/ipc-contract.ts` 是桌面端内部边界协议；不要把 Electron IPC contract 放进 `packages/shared`。`packages/shared` 只承载跨包业务类型，desktop contract 可以通过 type import 复用这些类型。
 - 事件型 IPC（`ipcMain.on`、`ipcRenderer.send`、`webContents.send`）暂不混入 `DesktopIpcInvokeMap`；如需收敛事件协议，单独建立 event map，避免和 request/response 型 invoke contract 混用。
 - 桌面端高频文章写入路径优先返回局部 article patch；不要为了更新单篇文章、批注、评论或阅读进度而返回或广播完整 `DesktopStore`。
-- `store:get`、数据库恢复、设置保存等全量快照或全量替换场景可以使用完整 `DesktopStore`；阅读中的文章保存、导入、删除和阅读进度更新应走局部 patch。
+- `store:get`、数据库恢复和 `settings:save` 等全量快照或全量替换场景可以使用完整 `DesktopStore`；`provider:save/delete`、`agent:save/delete`、`user:save` 返回对应设置切片 patch，阅读中的文章保存、导入、删除和阅读进度更新应走局部 patch。
 - renderer 应通过统一的 article patch apply 入口更新 `store.articles` 中受影响的 article，避免无关 store 数据替换打断设置草稿、阅读状态或其他 UI 状态。
 - `store:updated` 事件只用于完整 store 替换场景；文章级更新不要通过 `store:updated` 广播完整 store。如需跨窗口同步文章更新，应单独设计 article patch event。
 - 官网页面、产品图、SEO、下载链接放在 `apps/web/src` 和 `apps/web/public`。下载链接从 `apps/desktop/package.json` 的版本号生成。

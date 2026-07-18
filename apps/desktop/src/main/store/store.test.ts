@@ -87,9 +87,11 @@ import {
   resolveProviderApiKeyStorage,
 } from '../providers/provider-repository';
 import { addCollectionMembers, createCollection, setLibraryPin } from './store-collections';
+import { deleteAgent, saveAgent } from './store-agents';
 import { getDatabase } from './store-db';
 import { closeDatabase } from './store-lifecycle';
 import { deleteProvider, saveProvider } from './store-providers';
+import { saveUser } from './store-settings';
 import { ensureArticleSiteIcon } from './store-articles';
 import { readShellStore, readStore } from './store-snapshot';
 import {
@@ -125,6 +127,13 @@ afterEach(async () => {
 });
 
 describe('desktop store settings', () => {
+  it('returns only the saved user slice', async () => {
+    const patch = await saveUser({ nickname: 'Updated User' });
+
+    expect(Object.keys(patch)).toEqual(['user']);
+    expect(patch.user.nickname).toBe('Updated User');
+  });
+
   it('preserves missing settings fields during partial upserts', () => {
     expect(
       mergeSettingsForUpsert(
@@ -291,6 +300,20 @@ describe('desktop store settings', () => {
 });
 
 describe('desktop store providers', () => {
+  it('returns only provider and settings slices', async () => {
+    const saved = await saveProvider({ name: 'Provider' });
+    const providerId = saved.providers[0]?.id;
+
+    expect(Object.keys(saved).toSorted()).toEqual(['agents', 'providers', 'settings']);
+    expect(providerId).toBeTruthy();
+    expect(saved.agents.length).toBeGreaterThan(0);
+
+    const deleted = await deleteProvider(providerId || '');
+
+    expect(Object.keys(deleted).toSorted()).toEqual(['agents', 'providers', 'settings']);
+    expect(deleted.providers).toEqual([]);
+  });
+
   it('preserves credentials when provider deletion cannot commit', async () => {
     insertProviderRow({ id: 'provider_1', apiKeyRef: 'provider:provider_1:apiKey' });
     testState.secrets.set('provider:provider_1:apiKey', 'sk-stored');
@@ -615,6 +638,23 @@ describe('desktop store weread reading stats', () => {
 });
 
 describe('desktop store agents', () => {
+  it('returns only the agent slice after saves and deletes', async () => {
+    const provider = await saveProvider({ name: 'Provider' });
+    const saved = await saveAgent({
+      nickname: 'Custom Agent',
+      providerId: provider.providers[0]?.id,
+    });
+    const agentId = saved.agents.find((agent) => agent.nickname === 'Custom Agent')?.id;
+
+    expect(Object.keys(saved)).toEqual(['agents']);
+    expect(agentId).toBeTruthy();
+
+    const deleted = await deleteAgent(agentId || '');
+
+    expect(Object.keys(deleted)).toEqual(['agents']);
+    expect(deleted.agents.some((agent) => agent.id === agentId)).toBe(false);
+  });
+
   it('normalizes new agent records against the selected provider', () => {
     const agent = buildAgentRecord(
       {
