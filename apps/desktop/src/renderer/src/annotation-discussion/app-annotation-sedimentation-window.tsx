@@ -1064,7 +1064,15 @@ async function saveAndRefresh(
   uiLanguage: UiLanguage,
   onStatusChange: (status: SedimentationWindowStatus) => void,
 ): Promise<Annotation | null> {
-  const patch = await window.yomitomoDesktop.saveArticle(nextArticle);
+  const annotation = nextArticle.annotations.find((item) => item.id === annotationId);
+  if (!annotation) return null;
+  const patch = await window.yomitomoDesktop.saveArticleAnnotationDistillation({
+    articleId: nextArticle.id,
+    annotationId,
+    distillation: annotation.distillation,
+    updatedAt: annotation.updatedAt,
+  });
+  if (!patch) return null;
   const nextFullArticle = await window.yomitomoDesktop.getArticle(patch.article.id);
   const nextAnnotation = nextFullArticle?.annotations.find((item) => item.id === annotationId);
   if (!nextFullArticle || !nextAnnotation) return null;

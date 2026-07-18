@@ -4,6 +4,7 @@ import { buildAgentAnnotationRequestInput } from '../source/bookcase/app-source-
 import { createEbookSourceReaderController } from '../source/ebook/app-source-bookcase-ebook-controller';
 import { createWebSourceReaderController } from '../source/web/app-source-bookcase-web-controller';
 import type { PromptArticle } from '../shell/app-reading-types';
+import type { ArticleAgentAnnotationMergeResult } from '../../../ipc-contract';
 
 function createDeferred<T>() {
   let resolve!: (value: T) => void;
@@ -57,8 +58,8 @@ const requestInput = buildAgentAnnotationRequestInput(agent, {}, { article, anno
 
 describe('source agent annotation controllers', () => {
   it('waits for article-scoped Web annotation persistence', async () => {
-    const persistence = createDeferred<void>();
-    const onUpdateArticle = vi.fn(() => persistence.promise);
+    const persistence = createDeferred<ArticleAgentAnnotationMergeResult | null>();
+    const onMergeArticleAgentAnnotation = vi.fn(() => persistence.promise);
     const controller = createWebSourceReaderController({
       applyAnnotations: vi.fn(),
       currentArticleText: () => article.text,
@@ -71,7 +72,7 @@ describe('source agent annotation controllers', () => {
       markAgentAnnotating: vi.fn(),
       markVirtualReadingDone: vi.fn(),
       onOpenAnnotation: vi.fn(),
-      onUpdateArticle,
+      onMergeArticleAgentAnnotation,
       processAgentAnnotationQueue: vi.fn(),
       setStatusMessage: vi.fn(),
       startVirtualReading: vi.fn(),
@@ -98,10 +99,10 @@ describe('source agent annotation controllers', () => {
 
     await flushMicrotasks();
 
-    expect(onUpdateArticle).toHaveBeenCalledOnce();
+    expect(onMergeArticleAgentAnnotation).toHaveBeenCalledWith('article_background', annotation);
     expect(completed).not.toHaveBeenCalled();
 
-    persistence.resolve();
+    persistence.resolve(null);
 
     await expect(handling).resolves.toBe(true);
   });

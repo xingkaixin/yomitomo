@@ -29,6 +29,10 @@ export type {
   CreateUserAnnotationOptions,
   MentionQuery,
 } from './reader/annotations';
+export {
+  mergeAgentAnnotationAsThought,
+  type MergedAgentAnnotationResult,
+} from './reader/agent-annotations';
 
 export { inlineArticleFavicon, inlineArticleImages } from './articles/article-images';
 export type { ArticleImageInlineOptions, ImageFetcher } from './articles/article-images';

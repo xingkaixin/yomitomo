@@ -27,7 +27,7 @@ type RunSourceAgentThoughtRequestInput = {
   articleText: string;
   annotationsRef: RefObject<Annotation[]>;
   applyAnnotations: (annotations: Annotation[]) => ArticleRecord | null;
-  saveAnnotations: (annotations: Annotation[]) => Promise<void>;
+  saveComment: (annotationId: string, comment: Comment, updatedAt?: string) => Promise<void>;
   setStatusMessage: (message: string) => void;
   onThoughtStart: (commentId: string) => void;
   lifecycle?: RunSourceAgentThoughtLifecycle;
@@ -44,7 +44,7 @@ export async function runSourceAgentThoughtRequest({
   articleText,
   annotationsRef,
   applyAnnotations,
-  saveAnnotations,
+  saveComment,
   setStatusMessage,
   onThoughtStart,
   lifecycle,
@@ -180,7 +180,9 @@ export async function runSourceAgentThoughtRequest({
       () => completedComment,
       completedComment.createdAt,
     );
-    if (nextAnnotations) await saveAnnotations(nextAnnotations);
+    if (nextAnnotations) {
+      await saveComment(annotation.id, completedComment, completedComment.createdAt);
+    }
     lifecycle?.onComplete?.();
   } catch (error) {
     if (pendingFrame) {

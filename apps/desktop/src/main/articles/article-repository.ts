@@ -27,7 +27,12 @@ export {
   syncArticleAnnotationMemoryEntries,
   type AnnotationMemoryBackfillResult,
 } from './article-annotation-memory';
-export { upsertAnnotationRows, upsertCommentRows } from './article-annotation-upsert';
+export {
+  mergeAgentAnnotationRows,
+  saveAnnotationDistillationRows,
+  upsertAnnotationRows,
+  upsertCommentRows,
+} from './article-annotation-upsert';
 export {
   buildArticleReaderChatStatePatch,
   buildArticleReadingProgressPatch,

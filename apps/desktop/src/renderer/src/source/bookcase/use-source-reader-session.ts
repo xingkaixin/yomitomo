@@ -57,7 +57,6 @@ type UseSourceReaderSessionOptions = {
     commentId: string,
   ) => Promise<void> | void;
   onOpenAnnotation?: (annotationId: string) => void;
-  onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
   onSaveArticleAnnotation?: (
     articleId: string,
     annotation: Annotation,
@@ -185,7 +184,6 @@ export function useSourceReaderSession({
   onDeleteArticleAnnotation,
   onDeleteArticleComment,
   onOpenAnnotation,
-  onSaveArticle,
   onSaveArticleAnnotation,
   onSaveArticleComment,
   setStatusMessage,
@@ -232,7 +230,6 @@ export function useSourceReaderSession({
     onOpenAnnotation,
     onDeleteArticleAnnotation,
     onDeleteArticleComment,
-    onSaveArticle,
     onSaveArticleAnnotation,
     onSaveArticleComment,
     onAnnotationsApplied,

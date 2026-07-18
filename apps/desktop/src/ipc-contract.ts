@@ -103,6 +103,23 @@ export type ArticleAnnotationUpsertInput = {
   updatedAt?: string;
 };
 
+export type ArticleAnnotationDistillationSaveInput = {
+  articleId: string;
+  annotationId: string;
+  distillation: Annotation['distillation'];
+  updatedAt?: string;
+};
+
+export type ArticleAgentAnnotationMergeInput = {
+  articleId: string;
+  annotation: Annotation;
+};
+
+export type ArticleAgentAnnotationMergeResult = {
+  activeId: string;
+  patch: ArticleUpsertPatch;
+};
+
 export type ArticleCommentDeleteInput = {
   articleId: string;
   annotationId: string;

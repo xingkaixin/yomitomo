@@ -102,7 +102,6 @@ function renderSession({
   article?: ArticleRecord;
 }) {
   let session: SourceSession | null = null;
-  const onSaveArticle = vi.fn();
 
   function Harness() {
     const nextSession = useSourceReaderSession({
@@ -110,7 +109,6 @@ function renderSession({
       agentAnnotationAdapter: adapter,
       annotations: article.annotations,
       article,
-      onSaveArticle,
       userProfile,
     });
     useEffect(() => {
@@ -121,7 +119,6 @@ function renderSession({
 
   render(React.createElement(Harness));
   return {
-    onSaveArticle,
     session: () => {
       if (!session) throw new Error('session not ready');
       return session;

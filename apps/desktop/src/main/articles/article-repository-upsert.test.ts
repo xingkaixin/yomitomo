@@ -17,7 +17,13 @@ vi.mock('../reading-memory/reading-memory-store', async (importOriginal) => {
   };
 });
 
-import { readArticleRows, upsertAnnotationRows, upsertCommentRows } from './article-repository';
+import {
+  mergeAgentAnnotationRows,
+  readArticleRows,
+  saveAnnotationDistillationRows,
+  upsertAnnotationRows,
+  upsertCommentRows,
+} from './article-repository';
 
 describe('article repository local child row writes', () => {
   it('upserts one annotation without replacing sibling annotations', () => {
@@ -116,6 +122,83 @@ describe('article repository local child row writes', () => {
       expect.objectContaining({ id: 'comment_2', content: 'updated comment memory' }),
     ]);
     expect(memoryState.entries.map((entry) => entry.id)).toContain('comment_memory_comment_2');
+  });
+
+  it('updates only distillation fields without replacing concurrent comments', () => {
+    const database = repositoryDatabase();
+    const target = annotation({
+      id: 'annotation_1',
+      comments: [comment({ id: 'comment_1', content: 'existing comment' })],
+    });
+    upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, fakeExecutor());
+    upsertCommentRows(
+      database,
+      {
+        articleId: 'article_1',
+        annotationId: target.id,
+        comment: comment({ id: 'comment_2', content: 'concurrent comment' }),
+      },
+      fakeExecutor(),
+    );
+
+    const patch = saveAnnotationDistillationRows(database, {
+      articleId: 'article_1',
+      annotationId: target.id,
+      distillation: {
+        status: 'published',
+        content: '沉淀内容',
+        updatedAt: '2026-06-04T04:00:00.000Z',
+      },
+      updatedAt: '2026-06-04T04:00:00.000Z',
+    });
+
+    const saved = readArticleRows(database, 'article_1')?.annotations.find(
+      (item) => item.id === target.id,
+    );
+    expect(patch?.article.updatedAt).toBe('2026-06-04T04:00:00.000Z');
+    expect(saved?.distillation).toMatchObject({ status: 'published', content: '沉淀内容' });
+    expect(saved?.comments.map((item) => item.id)).toEqual(['comment_1', 'comment_2']);
+  });
+
+  it('merges agent thoughts against the persisted annotation', () => {
+    const database = repositoryDatabase();
+    const targetAnchor = { start: 20, end: 24, exact: '另一目标句子', prefix: '', suffix: '' };
+    const target = annotation({
+      id: 'annotation_1',
+      anchor: targetAnchor,
+      comments: [comment({ id: 'comment_1', content: 'existing comment' })],
+      distillation: { status: 'published', content: 'keep distillation' },
+    });
+    upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, fakeExecutor());
+    const agentComment = comment({
+      id: 'comment_2',
+      author: 'ai',
+      content: 'agent thought',
+      createdAt: '2026-06-04T05:00:00.000Z',
+    });
+
+    const result = mergeAgentAnnotationRows(
+      database,
+      {
+        articleId: 'article_1',
+        annotation: annotation({
+          id: 'agent_annotation',
+          anchor: targetAnchor,
+          author: 'ai',
+          comments: [agentComment],
+          updatedAt: agentComment.createdAt,
+        }),
+      },
+      fakeExecutor(),
+    );
+
+    const saved = readArticleRows(database, 'article_1')?.annotations.find(
+      (item) => item.id === target.id,
+    );
+    expect(result?.activeId).toBe(target.id);
+    expect(saved?.distillation?.content).toBe('keep distillation');
+    expect(saved?.comments.map((item) => item.id)).toEqual(['comment_1', 'comment_2']);
+    expect(readArticleRows(database, 'article_1')?.annotations).toHaveLength(2);
   });
 
   it('does not move child rows across articles when ids are mismatched', () => {
@@ -346,14 +429,14 @@ class FakeInsert {
 }
 
 class FakeUpdate {
-  private patch: Partial<ArticleRow> = {};
+  private patch: Partial<ArticleRow & AnnotationRow> = {};
 
   constructor(
     private readonly rows: Rows,
     private readonly table: unknown,
   ) {}
 
-  set(patch: Partial<ArticleRow>) {
+  set(patch: Partial<ArticleRow & AnnotationRow>) {
     this.patch = patch;
     return this;
   }
@@ -362,6 +445,11 @@ class FakeUpdate {
     const ids = conditionValues(condition);
     if (this.table === schema.articles) {
       for (const row of this.rows.articles) {
+        if (ids.has(row.id)) Object.assign(row, this.patch);
+      }
+    }
+    if (this.table === schema.annotations) {
+      for (const row of this.rows.annotations) {
         if (ids.has(row.id)) Object.assign(row, this.patch);
       }
     }

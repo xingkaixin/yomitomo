@@ -1,7 +1,11 @@
 import type React from 'react';
 import type { Annotation } from '@yomitomo/shared';
 import { resolveTextAnchor } from '@yomitomo/shared';
-import { annotationToPublicAgent as annotationToAgent } from '@yomitomo/core';
+import {
+  annotationToPublicAgent as annotationToAgent,
+  mergeAgentAnnotationAsThought,
+  type MergedAgentAnnotationResult,
+} from '@yomitomo/core';
 import { rangeFromOffsets, rangeHighlightBoxes, type HighlightBox } from '@yomitomo/core';
 import type { VirtualCursorState } from '../reader-types';
 import { animateTheaterHighlight, sleep } from '../reader-animation';
@@ -34,53 +38,7 @@ type PlaybackRects = {
   lastRect: DOMRect;
 };
 
-export type MergedAgentAnnotationResult = {
-  activeId: string;
-  annotations: Annotation[];
-};
-
-export function mergeAgentAnnotationAsThought(
-  annotations: Annotation[],
-  annotation: Annotation,
-): MergedAgentAnnotationResult {
-  const sameAnnotation = annotations.find((item) => item.id === annotation.id);
-  if (sameAnnotation) {
-    return { activeId: sameAnnotation.id, annotations };
-  }
-
-  const exactKey = annotationExactKey(annotation);
-  const existing = exactKey
-    ? annotations.find((item) => item.id !== annotation.id && annotationExactKey(item) === exactKey)
-    : null;
-
-  if (!existing) {
-    return { activeId: annotation.id, annotations: [...annotations, annotation] };
-  }
-
-  const existingCommentIds = new Set(existing.comments.map((comment) => comment.id));
-  const commentsToAppend: Annotation['comments'] = [];
-  for (const comment of annotation.comments) {
-    if (!comment.content.trim() || existingCommentIds.has(comment.id)) continue;
-    commentsToAppend.push(Object.assign({}, comment, { replyTo: undefined }));
-  }
-
-  if (commentsToAppend.length === 0) {
-    return { activeId: existing.id, annotations };
-  }
-
-  const nextAnnotations = annotations.map((item) =>
-    item.id === existing.id
-      ? {
-          ...item,
-          comments: [...item.comments, ...commentsToAppend],
-          updatedAt:
-            annotation.updatedAt || commentsToAppend.at(-1)?.createdAt || new Date().toISOString(),
-        }
-      : item,
-  );
-
-  return { activeId: existing.id, annotations: nextAnnotations };
-}
+export { mergeAgentAnnotationAsThought, type MergedAgentAnnotationResult };
 
 export async function saveAgentAnnotationAsThought({
   annotation,
@@ -213,10 +171,6 @@ function playbackRects(range: Range): PlaybackRects | null {
 
 function isRectVisibleInSurface(rect: DOMRect, surfaceRect: DOMRect) {
   return rect.bottom >= surfaceRect.top && rect.top <= surfaceRect.bottom;
-}
-
-function annotationExactKey(annotation: Annotation) {
-  return annotation.anchor.exact.trim().replace(/\s+/g, ' ');
 }
 
 async function playOffscreenAnnotation({

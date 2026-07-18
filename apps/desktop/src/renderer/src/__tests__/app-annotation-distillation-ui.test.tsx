@@ -14,6 +14,7 @@ import {
   planDistillationProposalChangeSet,
 } from '../annotation-discussion/app-annotation-sedimentation-proposals';
 import { initializeAppI18n } from '../i18n/app-i18n';
+import type { ArticleAnnotationDistillationSaveInput } from '../../../ipc-contract';
 
 const now = '2026-05-31T06:00:00.000Z';
 
@@ -1529,13 +1530,30 @@ describe('annotation distillation proposals', () => {
 
 function installDesktopApi(sourceArticle: ArticleRecord) {
   let currentArticle = sourceArticle;
+  const saveArticle = vi.fn();
   const desktop = {
     getArticle: vi.fn().mockImplementation(async () => currentArticle),
     getState: vi.fn().mockResolvedValue({ agents: agents() }),
-    saveArticle: vi.fn().mockImplementation(async (nextArticle: ArticleRecord) => {
-      currentArticle = nextArticle;
-      return { article: { id: nextArticle.id } };
-    }),
+    saveArticle,
+    saveArticleAnnotationDistillation: vi
+      .fn()
+      .mockImplementation(async (input: ArticleAnnotationDistillationSaveInput) => {
+        currentArticle = {
+          ...currentArticle,
+          annotations: currentArticle.annotations.map((item) =>
+            item.id === input.annotationId
+              ? {
+                  ...item,
+                  distillation: input.distillation,
+                  updatedAt: input.updatedAt || item.updatedAt,
+                }
+              : item,
+          ),
+          updatedAt: input.updatedAt || currentArticle.updatedAt,
+        };
+        saveArticle(currentArticle);
+        return { type: 'article-upsert', article: currentArticle };
+      }),
     commitAnnotationSedimentation: vi.fn().mockResolvedValue(undefined),
     requestAgentDistillationReviewStream: vi.fn(),
   };

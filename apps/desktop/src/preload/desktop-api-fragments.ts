@@ -9,7 +9,6 @@ import type {
   Annotation,
   AppSettings,
   ArticleReadingProgress,
-  ArticleRecord,
   ArticleStorePatch,
   ArticleTranslation,
   ArticleTranslationDeleteRequest,
@@ -33,6 +32,8 @@ import type {
   AnnotationDistillationCommittedEvent,
   AnnotationSedimentationCommitInput,
   AnnotationSedimentationWindowOpenInput,
+  ArticleAgentAnnotationMergeInput,
+  ArticleAnnotationDistillationSaveInput,
   AppLockSetEnabledInput,
   AppLockSetLockedInput,
   AppLockSetPinInput,
@@ -242,9 +243,12 @@ function createArticlePreloadApi() {
       invokeDesktopIpc('article:list-library', input),
     readArticleStatsSummaries: () => invokeDesktopIpc('article:stats-summaries'),
     getPdfThumbnail: (id: string) => invokeDesktopIpc('pdf:get-thumbnail', id),
-    saveArticle: (article: ArticleRecord) => invokeDesktopIpc('article:save', article),
+    mergeArticleAgentAnnotation: (input: ArticleAgentAnnotationMergeInput) =>
+      invokeDesktopIpc('article:merge-agent-annotation', input),
     saveArticleAnnotation: (articleId: string, annotation: Annotation, updatedAt?: string) =>
       invokeDesktopIpc('article:save-annotation', { articleId, annotation, updatedAt }),
+    saveArticleAnnotationDistillation: (input: ArticleAnnotationDistillationSaveInput) =>
+      invokeDesktopIpc('article:save-annotation-distillation', input),
     saveArticleComment: (
       articleId: string,
       annotationId: string,

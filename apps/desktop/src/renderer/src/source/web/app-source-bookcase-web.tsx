@@ -147,12 +147,11 @@ export function WebSourceBookcase({
   onDeleteArticleComment,
   onOpenAnnotationDiscussion,
   onOpenAnnotation,
-  onSaveArticle,
+  onMergeArticleAgentAnnotation,
   onSaveArticleAnnotation,
   onSaveArticleComment,
   onSaveArticleReadingProgress,
   onSaveArticleReaderChatState,
-  onUpdateArticle,
 }: WebSourceBookcaseProps) {
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -205,7 +204,8 @@ export function WebSourceBookcase({
   const sourceReaderSession = useSourceReaderSession({
     agents,
     agentAnnotationAdapter: createWebSourceReaderController({
-      applyAnnotations: (nextAnnotations) => sourceReaderSession.applyAnnotations(nextAnnotations),
+      applyAnnotations: (nextAnnotations, updatedAt) =>
+        sourceReaderSession.applyAnnotations(nextAnnotations, updatedAt),
       currentArticleText,
       enqueueAgentAnnotation: (annotation) => enqueueAgentAnnotation(annotation),
       finishVirtualReading: (agentId, message) => finishVirtualReading(agentId, message),
@@ -216,7 +216,7 @@ export function WebSourceBookcase({
       markAgentAnnotating: (agentId, annotating) => markAgentAnnotating(agentId, annotating),
       markVirtualReadingDone: (agentId) => markVirtualReadingDone(agentId),
       onOpenAnnotation: openAnnotation,
-      onUpdateArticle,
+      onMergeArticleAgentAnnotation,
       processAgentAnnotationQueue: () => processAgentAnnotationQueue(),
       setStatusMessage,
       startVirtualReading: (agent, readingPlan, playbackMode) =>
@@ -235,7 +235,6 @@ export function WebSourceBookcase({
     onOpenAnnotation: openAnnotation,
     onDeleteArticleAnnotation,
     onDeleteArticleComment,
-    onSaveArticle,
     onSaveArticleAnnotation,
     onSaveArticleComment,
     setStatusMessage,

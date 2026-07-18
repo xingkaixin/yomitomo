@@ -2,7 +2,12 @@
 
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ArticleRecord, ArticleSummaryRecord, UserProfile } from '@yomitomo/shared';
+import type {
+  Annotation,
+  ArticleRecord,
+  ArticleSummaryRecord,
+  UserProfile,
+} from '@yomitomo/shared';
 import type { SourceBookcaseProps } from '../source/bookcase/app-source-bookcase-shared';
 import { ReadingLibrary } from '../reading-library/app-reading-library';
 import { initializeAppI18n } from '../i18n/app-i18n';
@@ -27,84 +32,24 @@ afterEach(() => {
 });
 
 describe('ReadingLibrary article updates', () => {
-  it('applies updates to the latest persisted article snapshot', async () => {
+  it('forwards granular agent annotation merges to the source reader', async () => {
     const selectedArticle = article();
-    const freshArticle = {
-      ...selectedArticle,
-      readerChatState: {
-        articleId: selectedArticle.id,
-        messages: [],
-        updatedAt: '2026-07-15T04:30:00.000Z',
-      },
-      updatedAt: '2026-07-15T04:30:00.000Z',
-    };
-    let savedArticle: ArticleRecord | null = null;
-    const onUpdateArticle = vi.fn(async (_articleId, update) => {
-      savedArticle = update(freshArticle);
-    });
+    const annotation = annotationRecord();
+    const onMergeArticleAgentAnnotation = vi.fn().mockResolvedValue(null);
 
     renderReadingLibrary({
       articles: [selectedArticle],
       openArticleTarget: { articleId: selectedArticle.id },
       onReadArticle: vi.fn(async () => selectedArticle),
-      onUpdateArticle,
+      onMergeArticleAgentAnnotation,
     });
 
     await waitFor(() => expect(sourceBookcase.props?.article?.id).toBe(selectedArticle.id));
     await act(async () => {
-      await sourceBookcase.props!.onUpdateArticle(selectedArticle.id, (current) => ({
-        ...current,
-        title: 'stream update',
-      }));
+      await sourceBookcase.props!.onMergeArticleAgentAnnotation?.(selectedArticle.id, annotation);
     });
 
-    expect(savedArticle).toMatchObject({
-      title: 'stream update',
-      readerChatState: freshArticle.readerChatState,
-    });
-  });
-
-  it('does not replace the current selection when an older update finishes', async () => {
-    const firstArticle = article({ id: 'article_1', title: 'First article' });
-    const secondArticle = article({ id: 'article_2', title: 'Second article' });
-    const persistence = createDeferred<void>();
-    const onReadArticle = vi.fn(async (articleId: string) =>
-      articleId === firstArticle.id ? firstArticle : secondArticle,
-    );
-    const onUpdateArticle = vi.fn(async (_articleId, update) => {
-      await persistence.promise;
-      update(firstArticle);
-    });
-    const view = renderReadingLibrary({
-      articles: [firstArticle, secondArticle],
-      openArticleTarget: { articleId: firstArticle.id },
-      onReadArticle,
-      onUpdateArticle,
-    });
-
-    await waitFor(() => expect(sourceBookcase.props?.article?.id).toBe(firstArticle.id));
-    const updateFirstArticle = sourceBookcase.props!.onUpdateArticle(
-      firstArticle.id,
-      (current) => ({ ...current, title: 'Updated first article' }),
-    );
-    await waitFor(() => expect(onUpdateArticle).toHaveBeenCalledOnce());
-
-    view.rerender(
-      readingLibrary({
-        articles: [firstArticle, secondArticle],
-        openArticleTarget: { articleId: secondArticle.id },
-        onReadArticle,
-        onUpdateArticle,
-      }),
-    );
-    await waitFor(() => expect(sourceBookcase.props?.article?.id).toBe(secondArticle.id));
-
-    persistence.resolve();
-    await act(async () => {
-      await updateFirstArticle;
-    });
-
-    expect(sourceBookcase.props?.article?.id).toBe(secondArticle.id);
+    expect(onMergeArticleAgentAnnotation).toHaveBeenCalledWith(selectedArticle.id, annotation);
   });
 });
 
@@ -125,7 +70,7 @@ function readingLibrary({
   articles,
   openArticleTarget,
   onReadArticle,
-  onUpdateArticle,
+  onMergeArticleAgentAnnotation,
 }: ReadingLibraryTestOptions) {
   return (
     <ReadingLibrary
@@ -138,10 +83,9 @@ function readingLibrary({
       onImportEbookFile={vi.fn()}
       onImportPdfFile={vi.fn()}
       onImportArticleUrl={vi.fn()}
+      onMergeArticleAgentAnnotation={onMergeArticleAgentAnnotation}
       onReadArticle={onReadArticle}
-      onSaveArticle={vi.fn()}
       onSaveArticleReadingProgress={vi.fn()}
-      onUpdateArticle={onUpdateArticle}
     />
   );
 }
@@ -150,7 +94,7 @@ type ReadingLibraryTestOptions = {
   articles: ArticleRecord[];
   openArticleTarget: { articleId: string; annotationId?: string };
   onReadArticle: (articleId: string) => Promise<ArticleRecord | null>;
-  onUpdateArticle: SourceBookcaseProps['onUpdateArticle'];
+  onMergeArticleAgentAnnotation: SourceBookcaseProps['onMergeArticleAgentAnnotation'];
 };
 
 function article(overrides: Partial<ArticleRecord> = {}): ArticleRecord {
@@ -176,10 +120,14 @@ function articleSummary(record: ArticleRecord): ArticleSummaryRecord {
   return summary;
 }
 
-function createDeferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((promiseResolve) => {
-    resolve = promiseResolve;
-  });
-  return { promise, resolve };
+function annotationRecord(): Annotation {
+  return {
+    id: 'annotation_1',
+    anchor: { exact: 'quote', prefix: '', suffix: '', start: 0, end: 5 },
+    author: 'ai',
+    color: '#8a8f4f',
+    comments: [],
+    createdAt: '2026-07-15T04:30:00.000Z',
+    updatedAt: '2026-07-15T04:30:00.000Z',
+  };
 }

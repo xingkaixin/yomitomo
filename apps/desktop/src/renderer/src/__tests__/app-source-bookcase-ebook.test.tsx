@@ -232,9 +232,7 @@ function renderEbookBookcase(sourceArticle: EbookArticleRecord, annotations: Ann
       onClose={vi.fn()}
       onFocusedAnnotation={vi.fn()}
       onOpenAnnotation={vi.fn()}
-      onSaveArticle={vi.fn()}
       onSaveArticleReadingProgress={vi.fn()}
-      onUpdateArticle={vi.fn()}
     />,
   );
 }
@@ -271,9 +269,7 @@ describe('EbookBookcase', () => {
         onClose={vi.fn()}
         onFocusedAnnotation={vi.fn()}
         onOpenAnnotation={vi.fn()}
-        onSaveArticle={vi.fn()}
         onSaveArticleReadingProgress={vi.fn()}
-        onUpdateArticle={vi.fn()}
       />,
     );
 
@@ -361,9 +357,7 @@ describe('EbookBookcase', () => {
         onClose={vi.fn()}
         onFocusedAnnotation={vi.fn()}
         onOpenAnnotation={onOpenAnnotation}
-        onSaveArticle={vi.fn()}
         onSaveArticleReadingProgress={vi.fn()}
-        onUpdateArticle={vi.fn()}
       />,
     );
 
@@ -412,9 +406,7 @@ describe('EbookBookcase', () => {
         onClose={vi.fn()}
         onFocusedAnnotation={firstFocused}
         onOpenAnnotation={vi.fn()}
-        onSaveArticle={vi.fn()}
         onSaveArticleReadingProgress={vi.fn()}
-        onUpdateArticle={vi.fn()}
       />,
     );
 
@@ -433,9 +425,7 @@ describe('EbookBookcase', () => {
         onClose={vi.fn()}
         onFocusedAnnotation={latestFocused}
         onOpenAnnotation={vi.fn()}
-        onSaveArticle={vi.fn()}
         onSaveArticleReadingProgress={vi.fn()}
-        onUpdateArticle={vi.fn()}
       />,
     );
     expect(scrollToAnchor).toHaveBeenCalledTimes(1);

@@ -58,7 +58,10 @@ import type {
   AppLockVerifyPinInput,
   AppLockVerifyPinResult,
   ArticleAnnotationDeleteInput,
+  ArticleAnnotationDistillationSaveInput,
   ArticleAnnotationUpsertInput,
+  ArticleAgentAnnotationMergeInput,
+  ArticleAgentAnnotationMergeResult,
   ArticleCommentDeleteInput,
   ArticleCommentUpsertInput,
   ArticleImportResult,
@@ -231,8 +234,16 @@ export type ArticleIpcInvokeMap = {
     args: [input: ArticleCommentDeleteInput];
     result: ArticleUpsertPatch | null;
   };
+  'article:merge-agent-annotation': {
+    args: [input: ArticleAgentAnnotationMergeInput];
+    result: ArticleAgentAnnotationMergeResult | null;
+  };
   'article:save-annotation': {
     args: [input: ArticleAnnotationUpsertInput];
+    result: ArticleUpsertPatch | null;
+  };
+  'article:save-annotation-distillation': {
+    args: [input: ArticleAnnotationDistillationSaveInput];
     result: ArticleUpsertPatch | null;
   };
   'article:save-comment': {
@@ -274,10 +285,6 @@ export type ArticleIpcInvokeMap = {
   'article:reader-chat-state': {
     args: [input: ArticleReaderChatStateSaveInput];
     result: ArticleReaderChatStatePatch;
-  };
-  'article:save': {
-    args: [article: ArticleRecord];
-    result: ArticleUpsertPatch;
   };
   'article-translation:get-current': {
     args: [input: ArticleTranslationRequest];
