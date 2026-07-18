@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BookOpen, Bot, Eye, EyeOff, Settings2, ShieldCheck, X } from 'lucide-react';
 import type { Agent, AgentKind, AppSettings, LlmProvider, UiLanguage } from '@yomitomo/shared';
-import { normalizeUiLanguage } from '@yomitomo/shared';
+import { agentPersonalities, normalizeUiLanguage } from '@yomitomo/shared';
 import {
   elementDialogSourceRect,
   useSourceAwareDialogTransition,
@@ -9,7 +9,6 @@ import {
 } from '../shell/app-dialog-transition';
 import { useTranslation } from 'react-i18next';
 import {
-  agentPersonalities,
   agentPersonalityName,
   annotationColors,
   annotationDensityOptions,

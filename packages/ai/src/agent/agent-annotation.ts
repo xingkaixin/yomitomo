@@ -8,12 +8,12 @@ import type {
 import {
   agentReadingIntentOptions,
   normalizeAgentReadingIntent,
+  normalizeAnnotationType,
   resolvePromptAgentIdentity,
 } from '@yomitomo/shared';
 import {
   buildCurrentChapterLexicalRelatedPassages,
   buildReadingContextBundle,
-  normalizeAnnotationType,
   rangeDistance,
   readingContextTextForRange,
   wholeBookSpoilerPolicy,

@@ -153,12 +153,12 @@ function LibraryImportSuccessCheck({ className, size }: { className: string; siz
 
 type AppT = ReturnType<typeof useTranslation>['t'];
 
-function articleImportErrorMessage(error: unknown, t: AppT) {
+export function articleImportErrorMessage(error: unknown, t: AppT) {
   const key = articleImportErrorKey(error instanceof Error ? error.message.trim() : '');
   return t(key || 'library.import.article.errorTitle');
 }
 
-function articleImportErrorKey(code: string) {
+export function articleImportErrorKey(code: string) {
   if (code === 'ARTICLE_IMPORT_REQUEST_FAILED') return 'library.import.article.requestFailed';
   if (code === 'ARTICLE_IMPORT_UNSUPPORTED_CONTENT_TYPE')
     return 'library.import.article.unsupportedContentType';
@@ -183,14 +183,14 @@ function fileImportItemId(file: File, index: number) {
   return `${file.name}-${file.size}-${file.lastModified || 0}-${index}`;
 }
 
-function fileImportErrorMessage(error: unknown, fallback: string, t: AppT) {
+export function fileImportErrorMessage(error: unknown, fallback: string, t: AppT) {
   const message = error instanceof Error ? error.message.trim() : '';
   if (!message) return fallback;
   const key = fileImportErrorKey(message);
   return key ? t(key) : message;
 }
 
-function fileImportErrorKey(code: string) {
+export function fileImportErrorKey(code: string) {
   if (code === 'EBOOK_IMPORT_INVALID_FILE') return 'library.import.ebook.invalidFile';
   if (code === 'EBOOK_IMPORT_FILE_TOO_LARGE') return 'library.import.ebook.oversize';
   if (code === 'EBOOK_IMPORT_ENTRY_TOO_LARGE') return 'library.import.ebook.entryTooLarge';
@@ -269,13 +269,6 @@ function playImportSuccessSound(importedCount: number, settings: AppSettings) {
     settings,
   );
 }
-
-export const readingLibraryImportTestApi = {
-  articleImportErrorKey,
-  articleImportErrorMessage,
-  fileImportErrorKey,
-  fileImportErrorMessage,
-};
 
 export type LibraryImportDialogs = {
   openArticleImport: () => void;

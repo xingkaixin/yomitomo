@@ -13,7 +13,6 @@ import {
   normalizeSelectionActionShortcuts,
   normalizeTextWithMap,
   providerPresets,
-  renderMarkdown,
   resolveTextAnchor,
   isPdfTextAnchor,
   selectionActionShortcutsConflict,
@@ -75,7 +74,6 @@ const sharedRuntimeExports = [
   'providerPresets',
   'readingPartnerSoul',
   'relativeTimeParts',
-  'renderMarkdown',
   'resolveAgentPersonalityPresentation',
   'resolveAgentPresetId',
   'resolveAgentPublicIdentity',
@@ -156,23 +154,6 @@ describe('shared text anchors', () => {
       pageHeight: 800,
     });
     expect(anchor.rects).toHaveLength(1);
-  });
-});
-
-describe('shared markdown rendering', () => {
-  it('escapes inline html while rendering simple markdown', () => {
-    const html = renderMarkdown('Hello **world** <script>alert(1)</script>');
-
-    expect(html).toContain('<strong>world</strong>');
-    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
-  });
-
-  it('keeps unsafe markdown links as escaped text', () => {
-    const html = renderMarkdown('[click](javascript:alert(1)) [mail](mailto:test@example.com)');
-
-    expect(html).toContain('click');
-    expect(html).not.toContain('javascript:alert');
-    expect(html).toContain('href="mailto:test@example.com"');
   });
 });
 

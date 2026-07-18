@@ -1,5 +1,5 @@
-import { hashText, renderMarkdown, type TextSourceFormat } from '@yomitomo/shared';
-import { sanitizeArticleContent } from '@yomitomo/core/article-extraction';
+import { renderMarkdown, sanitizeArticleContent } from '@yomitomo/core/article-extraction';
+import { hashText, type TextSourceFormat } from '@yomitomo/shared';
 
 export type TextDecodeResult =
   | { ok: true; text: string; encoding: 'utf-8' | 'utf-16le' | 'utf-16be' | 'gb18030' }

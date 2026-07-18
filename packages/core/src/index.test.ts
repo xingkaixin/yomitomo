@@ -59,7 +59,6 @@ const coreRuntimeExports = [
   'locateEpubTextAnchor',
   'mergeAgentAnnotationAsThought',
   'mergeReadingMemory',
-  'normalizeAnnotationType',
   'normalizeReadingMemoryEntry',
   'offsetFromArticleStart',
   'offsetFromArticleStartIgnoringSelector',

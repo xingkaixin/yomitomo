@@ -253,8 +253,6 @@ export {
 } from './text-anchor';
 export type { TextWhitespaceMapMode } from './text-anchor';
 
-export { renderMarkdown } from './markdown';
-
 export { formatDateTimeValue, relativeTimeParts } from './date-time';
 export type { RelativeTimeParts, RelativeTimeUnit } from './date-time';
 

@@ -13,6 +13,12 @@ import {
   readAppliedDatabaseMigrationIds,
   readDatabaseReaderLevelIfPresent,
 } from './db/compatibility';
+import type {
+  DataManagementPathKind,
+  DataManagementPaths,
+  DatabaseBackupResult,
+  DatabaseRestoreResult,
+} from '../ipc-contract';
 import { readStore } from './store/store-snapshot';
 import {
   backupDatabaseFile,
@@ -22,24 +28,6 @@ import {
 } from './store/store-db';
 import { getLogPath } from './app/logger';
 import { loadSQLiteDatabase } from './native/sqlite';
-
-export type DataManagementPathKind = 'dataDir' | 'logFile' | 'databaseFile';
-
-export type DataManagementPaths = {
-  dataDir: string;
-  logFile: string;
-  databaseFile: string;
-};
-
-export type DatabaseBackupResult = { canceled: true } | { canceled: false; filePath: string };
-
-export type DatabaseRestoreResult =
-  | { canceled: true }
-  | {
-      canceled: false;
-      backupPath: string;
-      store: Awaited<ReturnType<typeof readStore>>;
-    };
 
 export function getDataManagementPaths(): DataManagementPaths {
   return {
