@@ -114,6 +114,7 @@ function renderSourceBookcase(sourceArticle: ArticleRecord | null) {
       selectedAnnotationId={null}
       uiLanguage="zh-CN"
       userProfile={userProfile}
+      onArticleChange={vi.fn()}
       onClose={vi.fn()}
       onFocusedAnnotation={vi.fn()}
       onOpenAnnotation={vi.fn()}

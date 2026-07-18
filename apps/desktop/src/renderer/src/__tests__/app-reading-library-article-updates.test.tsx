@@ -51,6 +51,106 @@ describe('ReadingLibrary article updates', () => {
 
     expect(onMergeArticleAgentAnnotation).toHaveBeenCalledWith(selectedArticle.id, annotation);
   });
+
+  it('uses the route article as the reader change owner', async () => {
+    const selectedArticle = article();
+    const changedArticle = article({
+      title: 'Changed by reader',
+      updatedAt: '2026-07-15T04:01:00.000Z',
+    });
+
+    renderReadingLibrary({
+      articles: [selectedArticle],
+      openArticleTarget: { articleId: selectedArticle.id },
+      onReadArticle: vi.fn(async () => selectedArticle),
+      onMergeArticleAgentAnnotation: vi.fn(),
+    });
+    await waitFor(() => expect(sourceBookcase.props?.article?.id).toBe(selectedArticle.id));
+
+    act(() => sourceBookcase.props?.onArticleChange(changedArticle));
+
+    expect(sourceBookcase.props?.article).toEqual(changedArticle);
+  });
+
+  it('loads a PDF route only once', async () => {
+    const selectedArticle = article({
+      sourceType: 'pdf',
+      pdf: {
+        metadata: {
+          format: 'pdf',
+          fileName: 'article.pdf',
+          fileSize: 1024,
+          pageCount: 1,
+        },
+      },
+    });
+    const onReadArticle = vi.fn(async () => selectedArticle);
+
+    renderReadingLibrary({
+      articles: [selectedArticle],
+      openArticleTarget: { articleId: selectedArticle.id },
+      onReadArticle,
+      onMergeArticleAgentAnnotation: vi.fn(),
+    });
+    await waitFor(() => expect(sourceBookcase.props?.article?.id).toBe(selectedArticle.id));
+    await act(async () => undefined);
+
+    expect(onReadArticle).toHaveBeenCalledTimes(1);
+  });
+
+  it('rehydrates a newer store summary into the current route article', async () => {
+    const selectedArticle = article();
+    const externalArticle = article({
+      title: 'Changed externally',
+      updatedAt: '2026-07-15T04:02:00.000Z',
+    });
+    const openArticleTarget = { articleId: selectedArticle.id };
+    let readResult = selectedArticle;
+    const onReadArticle = vi.fn(async () => readResult);
+    const options = {
+      articles: [selectedArticle],
+      openArticleTarget,
+      onReadArticle,
+      onMergeArticleAgentAnnotation: vi.fn(),
+    };
+    const view = renderReadingLibrary(options);
+    await waitFor(() => expect(sourceBookcase.props?.article?.id).toBe(selectedArticle.id));
+
+    readResult = externalArticle;
+    view.rerender(readingLibrary({ ...options, articles: [externalArticle] }));
+
+    await waitFor(() => expect(sourceBookcase.props?.article?.title).toBe('Changed externally'));
+    expect(onReadArticle).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not rehydrate a store summary older than a local route change', async () => {
+    const selectedArticle = article();
+    const localArticle = article({
+      title: 'Changed locally',
+      updatedAt: '2026-07-15T04:03:00.000Z',
+    });
+    const staleExternalArticle = article({
+      title: 'Stale external change',
+      updatedAt: '2026-07-15T04:02:00.000Z',
+    });
+    const openArticleTarget = { articleId: selectedArticle.id };
+    const onReadArticle = vi.fn(async () => selectedArticle);
+    const options = {
+      articles: [selectedArticle],
+      openArticleTarget,
+      onReadArticle,
+      onMergeArticleAgentAnnotation: vi.fn(),
+    };
+    const view = renderReadingLibrary(options);
+    await waitFor(() => expect(sourceBookcase.props?.article?.id).toBe(selectedArticle.id));
+
+    act(() => sourceBookcase.props?.onArticleChange(localArticle));
+    view.rerender(readingLibrary({ ...options, articles: [staleExternalArticle] }));
+
+    await act(async () => undefined);
+    expect(sourceBookcase.props?.article?.title).toBe('Changed locally');
+    expect(onReadArticle).toHaveBeenCalledTimes(1);
+  });
 });
 
 const userProfile: UserProfile = {

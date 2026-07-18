@@ -87,6 +87,7 @@ export function EbookBookcase({
   selectedAnnotationId,
   uiLanguage,
   userProfile,
+  onArticleChange,
   onFocusedAnnotation,
   onClose,
   onDeleteArticleAnnotation,
@@ -160,9 +161,9 @@ export function EbookBookcase({
     }),
     annotations: articleAnnotations,
     article,
+    onArticleChange,
     clearPendingOnArticleChange: true,
     clearPendingOnDeleteAnnotation: true,
-    ignoreStaleArticleUpdates: true,
     uiLanguage,
     onBeforeDeleteAnnotation: (annotationId) => {
       noteRefs.current.delete(annotationId);
@@ -214,8 +215,6 @@ export function EbookBookcase({
     applyAnnotations,
     deleteAnnotation,
     deleteComment,
-    latestArticleRef,
-    replaceAnnotations,
     saveAnnotation,
   } = sourceReaderSession;
   const [annotatingAgentIds, setAnnotatingAgentIds] = useState<string[]>([]);
@@ -266,7 +265,6 @@ export function EbookBookcase({
     () => ebookHighlightAnnotationsSignature(articleAnnotations, userProfile, annotationAgents),
     [annotationAgents, articleAnnotations, userProfile],
   );
-  const latestArticleAnnotationsRef = useRef(articleAnnotations);
   const ebookBoxesRef = useRef<HighlightBox[]>([]);
   const articleAnnotationSignatureRef = useRef({
     articleId: article.id,
@@ -275,7 +273,6 @@ export function EbookBookcase({
   useEffect(() => {
     onFocusedAnnotationRef.current = onFocusedAnnotation;
   }, [onFocusedAnnotation]);
-  latestArticleAnnotationsRef.current = articleAnnotations;
   const [spreadLayout, setSpreadLayout] = useState(() =>
     ebookSpreadLayout({ canvasWidth: 0, contentWidth: readerSettings.contentWidth }),
   );
@@ -486,7 +483,6 @@ export function EbookBookcase({
 
   useLayoutEffect(() => {
     noteRefs.current.clear();
-    replaceAnnotations(latestArticleAnnotationsRef.current);
     resetEbookBoxState();
     clearAnnotationUiState();
     setAnnotatingAgentIds([]);
@@ -501,7 +497,6 @@ export function EbookBookcase({
     closeFloatingComments,
     cleanupEbookAgentTheater,
     clearAnnotationUiState,
-    replaceAnnotations,
     resetEbookBoxState,
     searchNavigation.resetSearch,
   ]);
@@ -613,7 +608,7 @@ export function EbookBookcase({
   }
 
   function isCurrentArticle(articleId: string) {
-    return latestArticleRef.current?.id === articleId;
+    return article.id === articleId;
   }
 
   function openAnnotation(annotationId: string) {
@@ -624,7 +619,6 @@ export function EbookBookcase({
   async function createAnnotation(note: string) {
     if (!composer) return;
     const currentComposer = composer;
-    if (!latestArticleRef.current) return;
     cancelComposer();
     const annotation = createUserAnnotation(currentComposer.anchor, userProfile, note);
     await saveAnnotation(annotation);

@@ -23,7 +23,7 @@ describe('useReadingLibraryDistillationSync', () => {
     const { result } = renderDistillationSession(async () => initialArticle);
     await openArticle(result, initialArticle);
 
-    act(() => result.current.sync.synchronizeArticle(initialArticle, publishedArticle));
+    act(() => result.current.sync.acceptExternalArticle(publishedArticle));
     expect(currentDistillationStatus(result)).toBe('unpublished');
 
     await act(async () => vi.advanceTimersByTimeAsync(319));
@@ -32,7 +32,7 @@ describe('useReadingLibraryDistillationSync', () => {
     expect(currentDistillationStatus(result)).toBe('published');
   });
 
-  it('applies the latest deferred article after the morph completes', async () => {
+  it('applies the committed article after the morph completes', async () => {
     vi.useFakeTimers();
     const initialArticle = article();
     const publishedArticle = article({ annotation: publishedAnnotation });
@@ -40,7 +40,6 @@ describe('useReadingLibraryDistillationSync', () => {
     await openArticle(result, initialArticle);
 
     await act(async () => result.current.sync.onCommitted(publishEvent));
-    act(() => result.current.sync.synchronizeArticle(initialArticle, publishedArticle));
     act(() => result.current.sync.onFocusedAnnotation());
 
     expect(result.current.sync.animation?.phase).toBe('morph-out');
@@ -51,6 +50,50 @@ describe('useReadingLibraryDistillationSync', () => {
     expect(result.current.sync.animation).toBeNull();
     expect(currentDistillationStatus(result)).toBe('published');
     expect(result.current.navigation.model.article?.updatedAt).toBe(publishedArticle.updatedAt);
+  });
+
+  it('keeps the newest external article queued during the morph', async () => {
+    vi.useFakeTimers();
+    const initialArticle = article();
+    const publishedArticle = article({ annotation: publishedAnnotation });
+    const latestArticle = article({
+      annotation: publishedAnnotation,
+      title: 'latest',
+      updatedAt: '2026-07-15T00:03:00.000Z',
+    });
+    const olderArticle = article({
+      annotation: publishedAnnotation,
+      title: 'older',
+      updatedAt: '2026-07-15T00:02:00.000Z',
+    });
+    const { result } = renderDistillationSession(async () => publishedArticle);
+    await openArticle(result, initialArticle);
+
+    await act(async () => result.current.sync.onCommitted(publishEvent));
+    act(() => {
+      result.current.sync.acceptExternalArticle(latestArticle);
+      result.current.sync.acceptExternalArticle(olderArticle);
+      result.current.sync.onFocusedAnnotation();
+    });
+    await act(async () => vi.advanceTimersByTimeAsync(636));
+
+    expect(result.current.navigation.model.article?.title).toBe('latest');
+    expect(result.current.navigation.model.article?.updatedAt).toBe(latestArticle.updatedAt);
+  });
+
+  it('rejects external articles older than the current owner', async () => {
+    const initialArticle = article();
+    const staleArticle = article({
+      title: 'stale',
+      updatedAt: '2026-07-14T23:59:00.000Z',
+    });
+    const { result } = renderDistillationSession(async () => initialArticle);
+    await openArticle(result, initialArticle);
+
+    act(() => result.current.sync.acceptExternalArticle(staleArticle));
+
+    expect(result.current.navigation.model.article?.title).toBe(initialArticle.title);
+    expect(result.current.navigation.model.article?.updatedAt).toBe(initialArticle.updatedAt);
   });
 
   it('ignores a committed article response superseded by a newer event', async () => {
@@ -108,7 +151,7 @@ describe('useReadingLibraryDistillationSync', () => {
     const publishedArticle = article({ annotation: publishedAnnotation });
     const { result, unmount } = renderDistillationSession(async () => initialArticle);
     await openArticle(result, initialArticle);
-    act(() => result.current.sync.synchronizeArticle(initialArticle, publishedArticle));
+    act(() => result.current.sync.acceptExternalArticle(publishedArticle));
 
     expect(vi.getTimerCount()).toBe(1);
     unmount();
@@ -142,15 +185,19 @@ function currentDistillationStatus(result: ReturnType<typeof renderDistillationS
 function article({
   annotation = unpublishedAnnotation,
   id = 'article_1',
+  title = id,
+  updatedAt,
 }: {
   annotation?: Annotation;
   id?: string;
+  title?: string;
+  updatedAt?: string;
 } = {}): ArticleRecord {
   return {
     id,
     url: `https://example.com/${id}`,
     canonicalUrl: `https://example.com/${id}`,
-    title: id,
+    title,
     byline: '',
     siteName: 'Example',
     contentHtml: '<p>正文</p>',
@@ -160,9 +207,10 @@ function article({
     distillationCount: annotation.distillation?.status === 'published' ? 1 : 0,
     createdAt: '2026-07-15T00:00:00.000Z',
     updatedAt:
-      annotation.distillation?.status === 'published'
+      updatedAt ??
+      (annotation.distillation?.status === 'published'
         ? '2026-07-15T00:01:00.000Z'
-        : '2026-07-15T00:00:00.000Z',
+        : '2026-07-15T00:00:00.000Z'),
   };
 }
 

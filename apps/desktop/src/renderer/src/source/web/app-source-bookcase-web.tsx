@@ -141,6 +141,7 @@ export function WebSourceBookcase({
   selectedAnnotationId,
   uiLanguage,
   userProfile,
+  onArticleChange,
   onFocusedAnnotation,
   onClose,
   onDeleteArticleAnnotation,
@@ -224,9 +225,9 @@ export function WebSourceBookcase({
     }),
     annotations: articleAnnotations,
     article,
+    onArticleChange,
     clearPendingOnArticleChange: true,
     clearPendingOnDeleteAnnotation: true,
-    ignoreStaleArticleUpdates: true,
     uiLanguage,
     onBeforeDeleteAnnotation: (annotationId) => {
       noteRefs.current.delete(annotationId);
@@ -247,7 +248,6 @@ export function WebSourceBookcase({
     annotationAgents,
     deleteAnnotation,
     deleteComment,
-    latestArticleRef,
     saveAnnotation,
   } = sourceReaderSession;
   const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
@@ -1104,7 +1104,7 @@ export function WebSourceBookcase({
   }
 
   function isCurrentArticle(articleId: string) {
-    return latestArticleRef.current?.id === articleId;
+    return article.id === articleId;
   }
 
   function selectionDebugContext() {
@@ -1871,7 +1871,6 @@ export function WebSourceBookcase({
   async function createAnnotation(note: string) {
     if (!composer) return;
     const currentComposer = composer;
-    if (!latestArticleRef.current) return;
     logCurrentSelectionDebug('composer:create-annotation', {
       anchor: describeAnchorForDebug(currentComposer.anchor),
       noteLength: note.length,
