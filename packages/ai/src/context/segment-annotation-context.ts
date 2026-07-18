@@ -23,10 +23,10 @@ import {
   performanceElapsedMs,
   performanceStart,
   segmentAnnotationSpoilerPolicy,
-  type CreateAgentAnnotationOptions,
   type LexicalRelatedPassageCache,
   type ReadingContextPassageInput,
 } from '@yomitomo/core';
+import type { CreateAgentAnnotationOptions } from '../agent/annotation-generation';
 import { packReadingContext } from './context-packing';
 import { logAiInfo } from '../logger';
 import { memoryViewContextBlocks } from './reading-view-assembler';

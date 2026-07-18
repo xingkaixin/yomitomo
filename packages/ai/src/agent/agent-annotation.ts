@@ -11,13 +11,9 @@ import {
   resolvePromptAgentIdentity,
 } from '@yomitomo/shared';
 import {
-  annotationDensityInstruction,
-  annotationDensityMax,
   buildCurrentChapterLexicalRelatedPassages,
   buildReadingContextBundle,
-  createAgentAnnotation,
   normalizeAnnotationType,
-  parseAnnotationSuggestions,
   readingContextTextForRange,
   wholeBookSpoilerPolicy,
   type ReadingContextBundle,
@@ -48,6 +44,12 @@ import {
 } from './agent-runtime-prompts';
 import { memoryViewContextBlocks } from '../context/reading-view-assembler';
 import { responseLanguageSystemPrompt } from './agent-language';
+import {
+  annotationDensityInstruction,
+  annotationDensityMax,
+  createAgentAnnotation,
+  parseAnnotationSuggestions,
+} from './annotation-generation';
 
 export async function runAgentAnnotate(
   provider: LlmProvider,

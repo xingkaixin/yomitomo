@@ -129,6 +129,14 @@ export {
   runAgentAnnotateStream,
   runAgentAnnotateWithMemory,
 } from './agent/agent-annotation';
+export {
+  annotationDensityInstruction,
+  annotationDensityMax,
+  createAgentAnnotation,
+  parseAnnotationSuggestions,
+  type AnnotationSuggestion,
+  type CreateAgentAnnotationOptions,
+} from './agent/annotation-generation';
 export { runAgentReview } from './agent/agent-review';
 
 export async function testProvider(

@@ -6,14 +6,14 @@ import type {
   LlmProvider,
   ReadingMemory,
 } from '@yomitomo/shared';
+import { mergeReadingMemory } from '@yomitomo/core';
 import {
   annotationDensityInstruction,
   annotationDensityMax,
   createAgentAnnotation,
-  mergeReadingMemory,
   parseAnnotationSuggestions,
   type AnnotationSuggestion,
-} from '@yomitomo/core';
+} from '../agent/annotation-generation';
 import { Effect } from 'effect';
 import { extractJsonObjects, hasIncompleteJson } from '../json';
 import { logAiError, logAiInfo } from '../logger';
