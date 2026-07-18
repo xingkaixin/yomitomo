@@ -98,7 +98,7 @@ function renderSession({
   adapter,
   article = articleRecord(),
 }: {
-  adapter: SourceAgentAnnotationAdapter;
+  adapter?: SourceAgentAnnotationAdapter;
   article?: ArticleRecord;
 }) {
   let session: SourceSession | null = null;
@@ -192,6 +192,43 @@ describe('constrainSourceAgentPlanAnnotation', () => {
 });
 
 describe('useSourceReaderSession agent annotations', () => {
+  it('rejects requests before an adapter is registered and clears pending state', async () => {
+    const requestAgentAnnotationsStream = vi.fn();
+    stubAnnotationStream(requestAgentAnnotationsStream);
+    const { session } = renderSession({});
+
+    await act(async () => session().addPendingAnnotationAgent('annotation_1', agent));
+    await waitFor(() => expect(session().pendingAnnotationAgents.annotation_1).toHaveLength(1));
+
+    await act(async () => {
+      await expect(
+        session().requestAgentAnnotations(agent, { pendingAnnotationId: 'annotation_1' }),
+      ).rejects.toThrow('Source agent annotation adapter is not registered');
+    });
+
+    await waitFor(() => expect(session().pendingAnnotationAgents.annotation_1).toBeUndefined());
+    expect(requestAgentAnnotationsStream).not.toHaveBeenCalled();
+  });
+
+  it('runs requests after an adapter is registered', async () => {
+    stubAnnotationStream(vi.fn(async () => ({ annotations: [], readingMemory: undefined })));
+    const onEmpty = vi.fn();
+    const { session } = renderSession({});
+
+    act(() => {
+      session().registerAgentAnnotationAdapter({
+        getContext: sourceContext,
+        onAnnotation: () => true,
+        onEmpty,
+      });
+    });
+    await act(async () => {
+      await session().requestAgentAnnotations(agent);
+    });
+
+    expect(onEmpty).toHaveBeenCalledOnce();
+  });
+
   it('removes the pending agent marker when the source cannot build context', async () => {
     const { session } = renderSession({
       adapter: {

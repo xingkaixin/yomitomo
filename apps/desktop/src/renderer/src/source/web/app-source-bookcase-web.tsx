@@ -200,25 +200,6 @@ export function WebSourceBookcase({
   const [activeTocIndex, setActiveTocIndex] = useState<number | null>(null);
   const sourceReaderSession = useSourceReaderSession({
     agents,
-    agentAnnotationAdapter: createWebSourceReaderController({
-      applyAnnotations: (nextAnnotations, updatedAt) =>
-        sourceReaderSession.applyAnnotations(nextAnnotations, updatedAt),
-      currentArticleText,
-      enqueueAgentAnnotation: (annotation) => enqueueAgentAnnotation(annotation),
-      finishVirtualReading: (agentId, message) => finishVirtualReading(agentId, message),
-      finishVirtualReadingIfIdle: (agentId) => finishVirtualReadingIfIdle(agentId),
-      getAnnotations: () => sourceReaderSession.annotationsRef.current,
-      isAgentAnnotating: (agentId) => annotatingAgentIds.includes(agentId),
-      isCurrentArticle,
-      markAgentAnnotating: (agentId, annotating) => markAgentAnnotating(agentId, annotating),
-      markVirtualReadingDone: (agentId) => markVirtualReadingDone(agentId),
-      onOpenAnnotation: openAnnotation,
-      onMergeArticleAgentAnnotation,
-      processAgentAnnotationQueue: () => processAgentAnnotationQueue(),
-      setStatusMessage,
-      startVirtualReading: (agent, readingPlan, playbackMode) =>
-        startVirtualReading(agent, readingPlan, playbackMode),
-    }),
     annotations: articleAnnotations,
     article,
     onArticleChange,
@@ -283,34 +264,6 @@ export function WebSourceBookcase({
     onRevealFirstFailedTranslationSegment: revealFirstFailedTranslationSegment,
     t,
   });
-
-  const sourceReaderWorkspace = useSourceReaderWorkspace({
-    article,
-    canvasRef,
-    getArticleText: currentArticleText,
-    messageSendShortcut,
-    selectionActionShortcuts,
-    session: sourceReaderSession,
-    uiLanguage,
-    onSaveArticleReaderChatState,
-  });
-  const { labels, readerChat, readerSettings, selection, updateReaderSettings } =
-    sourceReaderWorkspace;
-  const {
-    temporaryBoxes,
-    setTemporaryBoxes,
-    selectionAction,
-    setSelectionAction,
-    setHighlightChoice,
-    composer,
-    clearSelection,
-    clearAnnotationUiState,
-    openSelectionAction,
-    cancelComposer,
-    copySelection,
-    openComposer,
-  } = selection;
-  const selectionDebugContextRef = useRef<Record<string, unknown>>({});
   const renderedArticleTranslation = translation?.articleId === article.id ? translation : null;
   const renderedTranslationSuccessBlockIds =
     translation?.status === 'translating'
@@ -426,6 +379,56 @@ export function WebSourceBookcase({
     readerLog: () => {},
   });
   useEffect(() => cleanupVirtualReadingSessions, []);
+
+  const sourceReaderWorkspace = useSourceReaderWorkspace({
+    article,
+    canvasRef,
+    getArticleText: currentArticleText,
+    messageSendShortcut,
+    selectionActionShortcuts,
+    session: sourceReaderSession,
+    uiLanguage,
+    onSaveArticleReaderChatState,
+  });
+  const { labels, readerChat, readerSettings, selection, updateReaderSettings } =
+    sourceReaderWorkspace;
+  const {
+    temporaryBoxes,
+    setTemporaryBoxes,
+    selectionAction,
+    setSelectionAction,
+    setHighlightChoice,
+    composer,
+    clearSelection,
+    clearAnnotationUiState,
+    openSelectionAction,
+    cancelComposer,
+    copySelection,
+    openComposer,
+  } = selection;
+  const selectionDebugContextRef = useRef<Record<string, unknown>>({});
+
+  useEffect(() => {
+    sourceReaderSession.registerAgentAnnotationAdapter(
+      createWebSourceReaderController({
+        applyAnnotations: sourceReaderSession.applyAnnotations,
+        currentArticleText,
+        enqueueAgentAnnotation,
+        finishVirtualReading,
+        finishVirtualReadingIfIdle,
+        getAnnotations: () => sourceReaderSession.annotationsRef.current,
+        isAgentAnnotating: (agentId) => annotatingAgentIds.includes(agentId),
+        isCurrentArticle,
+        markAgentAnnotating,
+        markVirtualReadingDone,
+        onOpenAnnotation: openAnnotation,
+        onMergeArticleAgentAnnotation,
+        processAgentAnnotationQueue,
+        setStatusMessage,
+        startVirtualReading,
+      }),
+    );
+  });
 
   useEffect(() => {
     clearAnnotationUiState();
