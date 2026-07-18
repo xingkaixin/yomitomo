@@ -33,9 +33,12 @@ import type {
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 import { TextImportDialog } from './app-reading-library-text-import';
 import rabbitWalkSprite from '../assets/reading-library/rabbit-walk.webp';
+import {
+  MAX_EBOOK_IMPORT_BYTES,
+  MAX_PDF_IMPORT_BYTES,
+  type ArticleImportResult,
+} from '../../../ipc-contract';
 
-const MAX_EBOOK_IMPORT_BYTES = 80 * 1024 * 1024;
-const MAX_PDF_IMPORT_BYTES = 120 * 1024 * 1024;
 const MAX_BATCH_IMPORT_FILES = 10;
 const ARTICLE_IMPORT_CANCEL_DELAY_MS = 650;
 const ARTICLE_IMPORT_CLOSE_DELAY_MS = 900;
@@ -43,9 +46,7 @@ const FILE_IMPORT_CLOSE_DELAY_MS = 900;
 const EBOOK_IMPORT_CELEBRATION_CLOSE_DELAY_MS = 900;
 const EBOOK_IMPORT_CELEBRATION_MAX_VISIBLE = 7;
 type ArticleImportState = 'idle' | 'submitting' | 'imported' | 'duplicate' | 'error';
-export type ArticleImportResult =
-  | { status: 'canceled' }
-  | { status: 'imported' | 'duplicate'; article: ArticleRecord };
+export type { ArticleImportResult } from '../../../ipc-contract';
 
 type FileImportProgressCallback = (progress: number) => void;
 type FileImportItemStatus = 'pending' | 'importing' | 'imported' | 'duplicate' | 'error';
