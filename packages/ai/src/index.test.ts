@@ -20,13 +20,17 @@ import {
   buildAgentMessageSystemPrompt,
   buildAgentPrompt,
   buildAgentThreadReplyRuntimePayload,
-  extractJsonObjects,
+} from './agent/agent-message';
+import {
   parseAgentMentionInstructions,
   parseAgentMentionRoutePlan,
+} from './agent/annotation-metadata';
+import {
   runAgentAnnotate,
   runAgentAnnotateStream,
   runAgentAnnotateWithMemory,
-} from './index';
+} from './agent/agent-annotation';
+import { extractJsonObjects } from './json';
 
 afterEach(() => {
   vi.restoreAllMocks();
