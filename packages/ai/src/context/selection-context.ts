@@ -30,7 +30,7 @@ import {
 } from '@yomitomo/core';
 import { packReadingContext } from './context-packing';
 import { relatedPassagesFromReadingContext } from './related-passages';
-import { memoryViewContextBlocks } from './reading-view-assembler';
+import { readingMemoryViewContextBlocks } from './reading-memory-view-context-blocks';
 import {
   annotationAuthorLabel,
   clampInteger,
@@ -73,7 +73,7 @@ export function buildSelectionAnnotationContext(
     task: 'selection_annotation',
     selection,
     localWindow,
-    memoryViewBlocks: memoryViewContextBlocks(payload.readingMemoryView),
+    memoryViewBlocks: readingMemoryViewContextBlocks(payload.readingMemoryView),
     nearbyAnnotations: nearbyAnnotationSummaries(
       payload.annotations || [],
       index,
@@ -135,7 +135,7 @@ export function buildSelectionThreadContext(
       annotationId: payload.annotation.id,
       messages: threadMessages(payload, index, location),
     },
-    memoryViewBlocks: memoryViewContextBlocks(payload.readingMemoryView),
+    memoryViewBlocks: readingMemoryViewContextBlocks(payload.readingMemoryView),
     retrievedEvidence: relatedPassagesFromReadingContext(index, readingContext),
   };
 }

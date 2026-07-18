@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { ReadingMemoryView } from '@yomitomo/shared';
-import { memoryViewContextBlocks } from './reading-view-assembler';
+import { readingMemoryViewContextBlocks } from './reading-memory-view-context-blocks';
 
 describe('reading view assembler', () => {
   it('turns memory view entries into source labeled context blocks', () => {
-    const blocks = memoryViewContextBlocks({
+    const blocks = readingMemoryViewContextBlocks({
       articleId: 'article_1',
       viewType: 'segment',
       viewKey: 'segment:chapter_1:segment_1:0:100',
@@ -67,7 +67,7 @@ describe('reading view assembler', () => {
   });
 
   it('keeps annotation and comment memory payloads available as context', () => {
-    const blocks = memoryViewContextBlocks({
+    const blocks = readingMemoryViewContextBlocks({
       articleId: 'article_1',
       viewType: 'selection',
       viewKey: 'selection:::10:14',

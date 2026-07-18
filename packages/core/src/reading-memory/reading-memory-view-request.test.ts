@@ -3,7 +3,7 @@ import type { AgentAnnotatePayload, AgentMessagePayload, EpubBookIndex } from '@
 import {
   readingMemoryViewRequestForAnnotatePayload,
   readingMemoryViewRequestForMessagePayload,
-} from './reading-memory-view-assembly';
+} from './reading-memory-view-request';
 
 describe('reading memory view assembly', () => {
   it('builds EPUB segment requests from the first reading plan item', () => {
