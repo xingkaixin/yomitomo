@@ -365,8 +365,8 @@ function articlePatch(annotation?: Annotation) {
 
 type ArticleIpcContext = Parameters<typeof registerArticleIpc>[0];
 type ArticlePersistence = Awaited<
-  ReturnType<ArticleIpcContext['getPersistenceModule']>
->['articlePersistence'];
+  ReturnType<ArticleIpcContext['getPersistenceModules']>
+>['storeArticles'];
 
 function articleIpcContext(
   persistenceOverrides: Partial<ArticlePersistence>,
@@ -379,11 +379,11 @@ function articleIpcContext(
       translateBilingualArticleBlocks: vi.fn(),
     }),
     getMainWindow: () => null,
-    getPersistenceModule: async () => ({
-      agentRuntimePersistence: {
+    getPersistenceModules: async () => ({
+      storeAgents: {
         readAgentRuntimeContext: vi.fn().mockResolvedValue({ providers: [], settings: {} }),
       },
-      articlePersistence: {
+      storeArticles: {
         deleteArticle: vi.fn(),
         deleteArticleAnnotation: vi.fn(),
         deleteArticleComment: vi.fn(),
@@ -406,7 +406,7 @@ function articleIpcContext(
         saveArticleTranslation: vi.fn(),
         ...persistenceOverrides,
       },
-      providerPersistence: { hydrateProviderApiKey: vi.fn() },
+      providerRepository: { hydrateProviderApiKey: vi.fn() },
     }),
     logError: vi.fn(),
     logInfo: vi.fn(),

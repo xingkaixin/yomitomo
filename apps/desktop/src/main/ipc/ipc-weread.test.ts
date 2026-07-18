@@ -140,8 +140,8 @@ describe('weread IPC persistence boundary', () => {
 
 type WeReadIpcContext = Parameters<typeof registerWeReadIpc>[0];
 type WeReadPersistence = Awaited<
-  ReturnType<WeReadIpcContext['getPersistenceModule']>
->['weReadPersistence'];
+  ReturnType<WeReadIpcContext['getPersistenceModules']>
+>['weReadRepository'];
 
 function weReadIpcContext(
   persistenceOverrides: Partial<WeReadPersistence>,
@@ -150,8 +150,8 @@ function weReadIpcContext(
   return {
     configureWeReadAutoSync: vi.fn(),
     elapsedMs: () => 1,
-    getPersistenceModule: async () => ({
-      weReadPersistence: {
+    getPersistenceModules: async () => ({
+      weReadRepository: {
         readStoredWeReadApiKey: vi.fn(),
         readWeReadBookDetail: vi.fn(),
         readWeReadReadingStatsState: vi.fn(),

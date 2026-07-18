@@ -1,6 +1,6 @@
 import type { ArticleImportResult } from '../../ipc-contract';
 import type { ArticleRecord, ArticleUpsertPatch } from '@yomitomo/shared';
-import type { ArticleIdentity } from './article-repository';
+import type { ArticleIdentity } from './article-repository-columns';
 
 export type ArticleSourceImportRepository = {
   findArticleByIdentity: (identity: ArticleIdentity) => ArticleIdentity | null;

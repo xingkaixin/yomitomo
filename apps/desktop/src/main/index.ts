@@ -31,7 +31,7 @@ import { registerAgentIpc } from './ipc/ipc-agent';
 import { registerAppLockIpc } from './ipc/ipc-app-lock';
 import { registerAppIpc } from './ipc/ipc-app';
 import { registerArticleIpc } from './ipc/ipc-article';
-import { configureDesktopIpcAppLockGuardContext } from './ipc/ipc';
+import { configureDesktopIpcAppLockGuardContext, type DesktopPersistenceModules } from './ipc/ipc';
 import { sendDesktopIpcRendererEvent } from './ipc/ipc-events';
 import { registerLibraryCollectionIpc } from './ipc/ipc-library-collection';
 import { registerProviderIpc } from './ipc/ipc-provider';
@@ -53,7 +53,7 @@ const appIconPath = mainPath('../../resources/icon.png');
 let aiModulePromise: Promise<typeof import('@yomitomo/ai')> | null = null;
 let aiLoggerConfigured = false;
 let appUpdaterModulePromise: Promise<typeof import('./app/app-updater')> | null = null;
-let persistenceModulePromise: Promise<typeof import('./store/desktop-persistence')> | null = null;
+let persistenceModulesPromise: Promise<DesktopPersistenceModules> | null = null;
 let modelPriceRefreshTimer: NodeJS.Timeout | null = null;
 let appUpdateCheckTimer: NodeJS.Timeout | null = null;
 let weReadAutoSyncStartupTimer: NodeJS.Timeout | null = null;
@@ -102,23 +102,58 @@ async function getAppUpdaterModule() {
   return module;
 }
 
-function getPersistenceModule() {
-  persistenceModulePromise ||= import('./store/desktop-persistence');
-  return persistenceModulePromise;
+function getPersistenceModules() {
+  persistenceModulesPromise ||= Promise.all([
+    import('./providers/provider-repository'),
+    import('./store/store-agents'),
+    import('./store/store-articles'),
+    import('./store/store-assistant-executions'),
+    import('./store/store-collections'),
+    import('./store/store-model-pricing'),
+    import('./store/store-providers'),
+    import('./store/store-settings'),
+    import('./store/store-snapshot'),
+    import('./weread/weread-repository'),
+  ]).then(
+    ([
+      providerRepository,
+      storeAgents,
+      storeArticles,
+      storeAssistantExecutions,
+      storeCollections,
+      storeModelPricing,
+      storeProviders,
+      storeSettings,
+      storeSnapshot,
+      weReadRepository,
+    ]) => ({
+      providerRepository,
+      storeAgents,
+      storeArticles,
+      storeAssistantExecutions,
+      storeCollections,
+      storeModelPricing,
+      storeProviders,
+      storeSettings,
+      storeSnapshot,
+      weReadRepository,
+    }),
+  );
+  return persistenceModulesPromise;
 }
 
 function preloadStoreModule(reason: string) {
-  if (persistenceModulePromise) return;
+  if (persistenceModulesPromise) return;
   const startedAt = performance.now();
   recordStartupTiming('store.module_preload_start', { reason });
-  void getPersistenceModule()
-    .then((module) => {
+  void getPersistenceModules()
+    .then((modules) => {
       recordStartupTiming('store.module_preload_success', {
         reason,
         durationMs: elapsedMs(startedAt),
       });
       const warmStartedAt = performance.now();
-      const profile = module.storeSnapshotPersistence.warmStoreDatabaseWithProfile();
+      const profile = modules.storeSnapshot.warmStoreDatabaseWithProfile();
       recordStartupTiming('store.database_warm_success', {
         reason,
         durationMs: elapsedMs(warmStartedAt),
@@ -171,8 +206,8 @@ async function runStartupChromiumCacheCleanup() {
 function scheduleModelPriceRefresh() {
   const refresh = (reason: string) => {
     const startedAt = performance.now();
-    void getPersistenceModule()
-      .then((module) => module.modelPricingPersistence.refreshModelPrices())
+    void getPersistenceModules()
+      .then((modules) => modules.storeModelPricing.refreshModelPrices())
       .then((result) => {
         logInfo('model_pricing.refresh', {
           reason,
@@ -210,9 +245,9 @@ function scheduleAppUpdateCheck() {
 function configureWeReadAutoSync(reason: string) {
   const token = ++weReadAutoSyncConfigureToken;
   clearWeReadAutoSyncTimers();
-  void getPersistenceModule()
-    .then(async (module) => {
-      const settings = await module.weReadPersistence.readWeReadSettings();
+  void getPersistenceModules()
+    .then(async (modules) => {
+      const settings = await modules.weReadRepository.readWeReadSettings();
       if (token !== weReadAutoSyncConfigureToken) return;
       if (!settings.configured || settings.syncMode !== 'auto') {
         logInfo('weread.auto_sync.disabled', {
@@ -264,8 +299,8 @@ async function runWeReadAutoSync(reason: string) {
   const startedAt = performance.now();
   weReadAutoSyncRunning = true;
   try {
-    const module = await getPersistenceModule();
-    const settings = await module.weReadPersistence.readWeReadSettings();
+    const modules = await getPersistenceModules();
+    const settings = await modules.weReadRepository.readWeReadSettings();
     if (!settings.configured || settings.syncMode !== 'auto') {
       logInfo('weread.auto_sync.skipped', {
         reason,
@@ -277,7 +312,7 @@ async function runWeReadAutoSync(reason: string) {
     }
 
     const result = await syncWeReadLibrary({
-      persistence: module.weReadPersistence,
+      persistence: modules.weReadRepository,
       reason: `auto:${reason}`,
       logInfo,
       logError,
@@ -396,7 +431,7 @@ app.on('activate', () => {
 function registerIpc() {
   const context = {
     getMainWindow: () => mainWindow,
-    getPersistenceModule,
+    getPersistenceModules,
     getAiModule,
     getAppUpdaterModule,
     getAppVersion: () => app.getVersion(),

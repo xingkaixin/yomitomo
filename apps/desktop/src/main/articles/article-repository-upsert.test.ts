@@ -19,11 +19,11 @@ vi.mock('../reading-memory/reading-memory-store', async (importOriginal) => {
 
 import {
   mergeAgentAnnotationRows,
-  readArticleRows,
   saveAnnotationDistillationRows,
   upsertAnnotationRows,
   upsertCommentRows,
-} from './article-repository';
+} from './article-annotation-upsert';
+import { readArticleRows } from './article-row-queries';
 
 describe('article repository local child row writes', () => {
   it('upserts one annotation without replacing sibling annotations', () => {

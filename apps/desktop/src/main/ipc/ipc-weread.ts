@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { WeReadOpenMethod, WeReadReadingStatsMode } from '@yomitomo/shared';
-import type { DesktopMainIpcContext, DesktopPersistenceModule } from './ipc';
+import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
 import { syncWeReadLibrary } from '../weread/weread-sync';
 
@@ -8,32 +8,44 @@ type WeReadIpcContext = Pick<
   DesktopMainIpcContext,
   'configureWeReadAutoSync' | 'elapsedMs' | 'logError' | 'logInfo' | 'openExternalUrl'
 > & {
-  getPersistenceModule: () => Promise<{
-    weReadPersistence: DesktopPersistenceModule['weReadPersistence'];
+  getPersistenceModules: () => Promise<{
+    weReadRepository: Pick<
+      typeof import('../weread/weread-repository'),
+      | 'readStoredWeReadApiKey'
+      | 'readWeReadBookDetail'
+      | 'readWeReadReadingStatsState'
+      | 'readWeReadSettings'
+      | 'readWeReadState'
+      | 'saveWeReadBookDetail'
+      | 'saveWeReadLibrarySnapshot'
+      | 'saveWeReadReadingStatsSnapshot'
+      | 'saveWeReadSettings'
+      | 'saveWeReadTestResult'
+    >;
   }>;
 };
 
 export function registerWeReadIpc(context: WeReadIpcContext) {
   handleDesktopIpc('weread:get-settings', async () => {
-    const { weReadPersistence } = await context.getPersistenceModule();
+    const { weReadRepository: weReadPersistence } = await context.getPersistenceModules();
     return weReadPersistence.readWeReadSettings();
   });
   handleDesktopIpc('weread:get-state', async () => {
-    const { weReadPersistence } = await context.getPersistenceModule();
+    const { weReadRepository: weReadPersistence } = await context.getPersistenceModules();
     return weReadPersistence.readWeReadState();
   });
   handleDesktopIpc('weread:read-api-key', async () => {
-    const { weReadPersistence } = await context.getPersistenceModule();
+    const { weReadRepository: weReadPersistence } = await context.getPersistenceModules();
     return weReadPersistence.readStoredWeReadApiKey();
   });
   handleDesktopIpc('weread:save-settings', async (_event, input) => {
-    const { weReadPersistence } = await context.getPersistenceModule();
+    const { weReadRepository: weReadPersistence } = await context.getPersistenceModules();
     const state = await weReadPersistence.saveWeReadSettings(input);
     context.configureWeReadAutoSync('settings-saved');
     return state;
   });
   handleDesktopIpc('weread:test', async (_event, apiKey) => {
-    const { weReadPersistence } = await context.getPersistenceModule();
+    const { weReadRepository: weReadPersistence } = await context.getPersistenceModules();
     const key = apiKey?.trim() || (await weReadPersistence.readStoredWeReadApiKey());
     if (!key) return { ok: false, message: 'WEREAD_API_KEY_REQUIRED' };
     try {
@@ -48,7 +60,7 @@ export function registerWeReadIpc(context: WeReadIpcContext) {
     }
   });
   handleDesktopIpc('weread:sync', async () => {
-    const { weReadPersistence } = await context.getPersistenceModule();
+    const { weReadRepository: weReadPersistence } = await context.getPersistenceModules();
     return syncWeReadLibrary({
       persistence: weReadPersistence,
       reason: 'manual',
@@ -58,7 +70,7 @@ export function registerWeReadIpc(context: WeReadIpcContext) {
     });
   });
   handleDesktopIpc('weread:sync-book', async (_event, bookId) => {
-    const { weReadPersistence } = await context.getPersistenceModule();
+    const { weReadRepository: weReadPersistence } = await context.getPersistenceModules();
     const apiKey = await weReadPersistence.readStoredWeReadApiKey();
     if (!apiKey) throw new Error('WEREAD_API_KEY_REQUIRED');
     const { fetchWeReadBookDetail } = await import('../weread/weread-client');
@@ -66,20 +78,20 @@ export function registerWeReadIpc(context: WeReadIpcContext) {
     return weReadPersistence.saveWeReadBookDetail(detail, context.logInfo);
   });
   handleDesktopIpc('weread:get-book', async (_event, bookId) => {
-    const { weReadPersistence } = await context.getPersistenceModule();
+    const { weReadRepository: weReadPersistence } = await context.getPersistenceModules();
     return weReadPersistence.readWeReadBookDetail(bookId);
   });
   handleDesktopIpc('weread:open', async (_event, target) => {
-    const { weReadPersistence } = await context.getPersistenceModule();
+    const { weReadRepository: weReadPersistence } = await context.getPersistenceModules();
     const settings = await weReadPersistence.readWeReadSettings();
     return context.openExternalUrl(buildWeReadOpenUrl(target, settings.openMethod));
   });
   handleDesktopIpc('weread:get-reading-stats', async () => {
-    const { weReadPersistence } = await context.getPersistenceModule();
+    const { weReadRepository: weReadPersistence } = await context.getPersistenceModules();
     return weReadPersistence.readWeReadReadingStatsState();
   });
   handleDesktopIpc('weread:query-reading-stats', async (_event, input) => {
-    const { weReadPersistence } = await context.getPersistenceModule();
+    const { weReadRepository: weReadPersistence } = await context.getPersistenceModules();
     const apiKey = await weReadPersistence.readStoredWeReadApiKey();
     if (!apiKey) throw new Error('WEREAD_API_KEY_REQUIRED');
     const { fetchWeReadReadingStats } = await import('../weread/weread-client');

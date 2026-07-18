@@ -1,11 +1,7 @@
 import { performance } from 'node:perf_hooks';
 import type { DesktopStoreGetResult } from '../../app-store-errors';
 import { DesktopIpcError } from '../../ipc-errors';
-import type {
-  DesktopAppUpdaterModule,
-  DesktopMainIpcContext,
-  DesktopPersistenceModule,
-} from './ipc';
+import type { DesktopAppUpdaterModule, DesktopMainIpcContext } from './ipc';
 import { assertAppLockSettingsUnlocked, handleDesktopIpc, isAppLockSettingsLocked } from './ipc';
 import {
   clearAgentRuntimeTraces,
@@ -37,21 +33,18 @@ type StoreDataIpcContext = Pick<
       | 'simulateUpdateAvailable'
     >
   >;
-  getPersistenceModule: () => Promise<{
-    assistantExecutionPersistence: Pick<
-      DesktopPersistenceModule['assistantExecutionPersistence'],
+  getPersistenceModules: () => Promise<{
+    storeAssistantExecutions: Pick<
+      typeof import('../store/store-assistant-executions'),
       | 'queryAssistantExecutionRunDetail'
       | 'queryAssistantExecutionRuns'
       | 'queryAssistantExecutionSummary'
     >;
-    settingsPersistence: Pick<
-      DesktopPersistenceModule['settingsPersistence'],
+    storeSettings: Pick<
+      typeof import('../store/store-settings'),
       'saveSettings' | 'saveSettingsShell'
     >;
-    storeSnapshotPersistence: Pick<
-      DesktopPersistenceModule['storeSnapshotPersistence'],
-      'readShellStoreWithProfile'
-    >;
+    storeSnapshot: Pick<typeof import('../store/store-snapshot'), 'readShellStoreWithProfile'>;
   }>;
 };
 
@@ -61,15 +54,13 @@ export function registerStoreDataIpc(context: StoreDataIpcContext) {
     context.recordStartupTiming('store.get_start');
     try {
       const importStartedAt = performance.now();
-      const { settingsPersistence, storeSnapshotPersistence } =
-        await context.getPersistenceModule();
+      const { storeSettings, storeSnapshot } = await context.getPersistenceModules();
       const importDurationMs = context.elapsedMs(importStartedAt);
       const readStartedAt = performance.now();
-      let { store, profile } = await storeSnapshotPersistence.readShellStoreWithProfile();
+      let { store, profile } = await storeSnapshot.readShellStoreWithProfile();
       if (shouldApplyStartupAppLock(store.settings)) {
         const lockStartedAt = performance.now();
-        const saveSettings =
-          settingsPersistence.saveSettingsShell || settingsPersistence.saveSettings;
+        const saveSettings = storeSettings.saveSettingsShell || storeSettings.saveSettings;
         store = await saveSettings({ appLockLocked: true });
         startupAppLockApplied = true;
         context.recordStartupTiming('app_lock.startup_lock_applied', {
@@ -135,16 +126,16 @@ export function registerStoreDataIpc(context: StoreDataIpcContext) {
   handleDesktopIpc('agent-trace:list', (_event, input) => readAgentRuntimeTraces(input));
   handleDesktopIpc('agent-trace:clear', () => clearAgentRuntimeTraces());
   handleDesktopIpc('assistant-executions:list', async (_event, input) => {
-    const { assistantExecutionPersistence } = await context.getPersistenceModule();
-    return assistantExecutionPersistence.queryAssistantExecutionRuns(input);
+    const { storeAssistantExecutions } = await context.getPersistenceModules();
+    return storeAssistantExecutions.queryAssistantExecutionRuns(input);
   });
   handleDesktopIpc('assistant-executions:detail', async (_event, id) => {
-    const { assistantExecutionPersistence } = await context.getPersistenceModule();
-    return assistantExecutionPersistence.queryAssistantExecutionRunDetail(id);
+    const { storeAssistantExecutions } = await context.getPersistenceModules();
+    return storeAssistantExecutions.queryAssistantExecutionRunDetail(id);
   });
   handleDesktopIpc('assistant-executions:summary', async (_event, input) => {
-    const { assistantExecutionPersistence } = await context.getPersistenceModule();
-    return assistantExecutionPersistence.queryAssistantExecutionSummary(input);
+    const { storeAssistantExecutions } = await context.getPersistenceModules();
+    return storeAssistantExecutions.queryAssistantExecutionSummary(input);
   });
   handleDesktopIpc('updates:get-status', async () => {
     const { getAppUpdateState } = await context.getAppUpdaterModule();

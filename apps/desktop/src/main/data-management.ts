@@ -13,7 +13,7 @@ import {
   readAppliedDatabaseMigrationIds,
   readDatabaseReaderLevelIfPresent,
 } from './db/compatibility';
-import { readStore } from './store/store';
+import { readStore } from './store/store-snapshot';
 import {
   backupDatabaseFile,
   getDataDirectoryPath,

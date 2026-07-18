@@ -207,18 +207,17 @@ function context(storeModule: ReturnType<typeof createStoreModule>) {
       simulateUpdateAvailable: vi.fn(),
     }),
     getMainWindow: () => null,
-    getPersistenceModule: async () => ({
-      assistantExecutionPersistence: {
+    getPersistenceModules: async () => ({
+      storeAssistantExecutions: {
         queryAssistantExecutionRunDetail: vi.fn(),
         queryAssistantExecutionRuns: vi.fn(),
         queryAssistantExecutionSummary: vi.fn(),
       },
-      settingsPersistence: {
-        readStore: storeModule.readStore,
+      storeSettings: {
         saveSettings: storeModule.saveSettings,
         saveSettingsShell: storeModule.saveSettings,
       },
-      storeSnapshotPersistence: {
+      storeSnapshot: {
         readStore: storeModule.readStore,
         readShellStoreWithProfile: storeModule.readShellStoreWithProfile,
         readStoreWithProfile: storeModule.readStoreWithProfile,

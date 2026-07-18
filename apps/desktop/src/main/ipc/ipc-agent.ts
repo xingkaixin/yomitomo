@@ -11,7 +11,7 @@ import {
   reviewAgentNotFoundError,
   taskProvider,
 } from '../agents/agent-runtime-routing';
-import type { DesktopAiModule, DesktopMainIpcContext, DesktopPersistenceModule } from './ipc';
+import type { DesktopAiModule, DesktopMainIpcContext } from './ipc';
 import { assertDesktopIpcAppLockUnlocked, handleDesktopIpc } from './ipc';
 import { runAgentStreamIpc } from './ipc-agent-stream';
 
@@ -20,20 +20,17 @@ type AgentIpcContext = Pick<DesktopMainIpcContext, 'elapsedMs' | 'logError' | 'l
     Awaited<ReturnType<AgentTaskExecutionContext['getAiModule']>> &
       Pick<DesktopAiModule, 'planAgentMentionRoute' | 'runAgentReview'>
   >;
-  getPersistenceModule: () => Promise<{
-    agentRuntimePersistence: DesktopPersistenceModule['agentRuntimePersistence'];
-    assistantExecutionPersistence: Pick<
-      DesktopPersistenceModule['assistantExecutionPersistence'],
-      'recordAssistantExecutionRun'
-    >;
-    providerPersistence: Pick<
-      DesktopPersistenceModule['providerPersistence'],
+  getPersistenceModules: () => Promise<{
+    providerRepository: Pick<
+      typeof import('../providers/provider-repository'),
       'hydrateProviderApiKey'
     >;
-    storeSnapshotPersistence: Pick<
-      DesktopPersistenceModule['storeSnapshotPersistence'],
-      'readStore'
+    storeAgents: typeof import('../store/store-agents');
+    storeAssistantExecutions: Pick<
+      typeof import('../store/store-assistant-executions'),
+      'recordAssistantExecutionRun'
     >;
+    storeSnapshot: Pick<typeof import('../store/store-snapshot'), 'readStore'>;
   }>;
 };
 
@@ -105,16 +102,16 @@ export function registerAgentIpc(context: AgentIpcContext) {
     () => assertDesktopIpcAppLockUnlocked(context),
   );
   handleDesktopIpc('agent:save', async (_event, input) => {
-    const { agentRuntimePersistence } = await context.getPersistenceModule();
-    return agentRuntimePersistence.saveAgent(input);
+    const { storeAgents } = await context.getPersistenceModules();
+    return storeAgents.saveAgent(input);
   });
   handleDesktopIpc('agent:delete', async (_event, id) => {
-    const { agentRuntimePersistence } = await context.getPersistenceModule();
-    return agentRuntimePersistence.deleteAgent(id);
+    const { storeAgents } = await context.getPersistenceModules();
+    return storeAgents.deleteAgent(id);
   });
 }
 
 async function readAgentRuntimeStore(context: AgentIpcContext) {
-  const { agentRuntimePersistence } = await context.getPersistenceModule();
-  return agentRuntimePersistence.readAgentRuntimeContext();
+  const { storeAgents } = await context.getPersistenceModules();
+  return storeAgents.readAgentRuntimeContext();
 }

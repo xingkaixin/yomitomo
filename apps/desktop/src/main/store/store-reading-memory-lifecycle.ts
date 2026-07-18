@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import type { ArticleRecord } from '@yomitomo/shared';
-import { backfillStoredArticleAnnotationMemoryEntries } from '../articles/article-repository';
+import { backfillStoredArticleAnnotationMemoryEntries } from '../articles/article-annotation-memory';
 import { logError } from '../app/logger';
 import * as schema from '../db/schema';
 import type { ReadingMemorySqliteExecutor } from '../reading-memory/reading-memory-store';

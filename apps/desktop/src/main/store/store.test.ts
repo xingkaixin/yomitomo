@@ -51,8 +51,8 @@ vi.mock('../providers/provider-secrets', () => {
   };
 });
 
-vi.mock('../articles/article-repository', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../articles/article-repository')>();
+vi.mock('../articles/article-annotation-memory', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../articles/article-annotation-memory')>();
   return {
     ...actual,
     backfillStoredArticleAnnotationMemoryEntries: testState.backfillAnnotationMemoryEntries,
@@ -69,33 +69,29 @@ vi.mock('../app/logger', () => ({
   },
 }));
 
+import { buildArticleChildRows } from '../articles/article-repository-child-rows';
 import {
-  buildArticleChildRows,
   buildArticleReaderChatStatePatch,
   buildArticleReadingProgressPatch,
-  buildArticleUpsertPatch,
+} from '../articles/article-reading-state';
+import { buildArticleUpsertPatch, writeArticleRows } from '../articles/article-row-writes';
+import {
   findArticleInListByIdentity,
   readArticleRows,
   readArticleSiteIconRawRows,
-  writeArticleRows,
-} from '../articles/article-repository';
+} from '../articles/article-row-queries';
 import { buildAgentRecord } from '../agents/agent-repository';
 import {
   buildProviderRecord,
   readStoredProviderApiKey,
   resolveProviderApiKeyStorage,
 } from '../providers/provider-repository';
-import {
-  addCollectionMembers,
-  closeDatabase,
-  createCollection,
-  deleteProvider,
-  ensureArticleSiteIcon,
-  readShellStore,
-  readStore,
-  saveProvider,
-  setLibraryPin,
-} from './store';
+import { addCollectionMembers, createCollection, setLibraryPin } from './store-collections';
+import { getDatabase } from './store-db';
+import { closeDatabase } from './store-lifecycle';
+import { deleteProvider, saveProvider } from './store-providers';
+import { ensureArticleSiteIcon } from './store-articles';
+import { readShellStore, readStore } from './store-snapshot';
 import {
   mergeSettingsForUpsert,
   rowToAnnotation,
@@ -104,7 +100,6 @@ import {
   type ArticleSummaryRow,
 } from './store-normalizers';
 import { normalizeWeReadReadingStats } from '../weread/weread-repository';
-import { getDatabase } from './store-db';
 import { upsertSettings } from './settings-repository';
 import * as schema from '../db/schema';
 

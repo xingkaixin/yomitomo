@@ -126,16 +126,16 @@ describe('library collection IPC', () => {
 
 type LibraryCollectionIpcContext = Parameters<typeof registerLibraryCollectionIpc>[0];
 type CollectionPersistence = Awaited<
-  ReturnType<LibraryCollectionIpcContext['getPersistenceModule']>
->['collectionPersistence'];
+  ReturnType<LibraryCollectionIpcContext['getPersistenceModules']>
+>['storeCollections'];
 
 function libraryCollectionIpcContext(
   persistenceOverrides: Partial<CollectionPersistence>,
   contextOverrides: Partial<LibraryCollectionIpcContext>,
 ): LibraryCollectionIpcContext {
   return {
-    getPersistenceModule: async () => ({
-      collectionPersistence: {
+    getPersistenceModules: async () => ({
+      storeCollections: {
         addCollectionMembers: vi.fn(),
         createCollection: vi.fn(),
         deleteCollection: vi.fn(),

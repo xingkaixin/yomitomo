@@ -254,12 +254,12 @@ function taskFixture(
   const context: AgentTaskExecutionContext = {
     elapsedMs: () => 12,
     getAiModule: vi.fn(async () => ai as unknown as TaskAiModule),
-    getPersistenceModule: vi.fn(async () => ({
-      agentRuntimePersistence: {
+    getPersistenceModules: vi.fn(async () => ({
+      storeAgents: {
         readAgentRuntimeContext: vi.fn(async () => store),
       },
-      assistantExecutionPersistence,
-      providerPersistence: {
+      storeAssistantExecutions: assistantExecutionPersistence,
+      providerRepository: {
         hydrateProviderApiKey: vi.fn(async (provider: LlmProvider) => provider),
       },
     })),

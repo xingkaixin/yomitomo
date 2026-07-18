@@ -10,28 +10,36 @@ import type {
 } from '@yomitomo/shared';
 import type { ArticleLibraryListInput, ArticleLibraryListResult } from '../../ipc-contract';
 import {
-  buildArticleUpsertPatch,
   deleteAnnotationRowsWithMemoryLifecycle,
   deleteArticleRowsWithMemoryLifecycle,
   deleteCommentRowsWithMemoryLifecycle,
+} from '../articles/article-repository-lifecycle';
+import type { ArticleIdentity } from '../articles/article-repository-columns';
+import {
   findArticleByIdentityRows,
-  mergeAgentAnnotationRows,
   readArticleCoverRows,
-  readArticleLibraryListRows,
   readArticleRows,
   readArticleSiteIconRawRows,
-  readArticleStatsSummaryRows,
   readArticleSummaryRows,
-  saveArticleReaderChatStateRows,
-  saveAnnotationDistillationRows,
-  saveArticleReadingProgressRows,
-  saveArticleRows,
-  touchArticleRows,
   updateArticleSiteIconRows,
+} from '../articles/article-row-queries';
+import {
+  mergeAgentAnnotationRows,
+  saveAnnotationDistillationRows,
   upsertAnnotationRows,
   upsertCommentRows,
-  type ArticleIdentity,
-} from '../articles/article-repository';
+} from '../articles/article-annotation-upsert';
+import { readArticleLibraryListRows } from '../articles/article-library-queries';
+import { readArticleStatsSummaryRows } from '../articles/article-stats';
+import {
+  saveArticleReaderChatStateRows,
+  saveArticleReadingProgressRows,
+} from '../articles/article-reading-state';
+import {
+  buildArticleUpsertPatch,
+  saveArticleRows,
+  touchArticleRows,
+} from '../articles/article-row-writes';
 import {
   deleteArticleTranslationRows,
   readCurrentArticleTranslationRows,
