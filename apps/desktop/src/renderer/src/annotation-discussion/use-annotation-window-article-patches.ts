@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { Annotation, ArticleRecord, ArticleStorePatch } from '@yomitomo/shared';
+import { annotationWindowActions } from './app-annotation-window-actions';
 
 type AnnotationArticleUpdate = {
   annotation: Annotation;
@@ -15,16 +16,15 @@ export function useAnnotationWindowArticlePatches(
   onUpdateRef.current = onUpdate;
 
   useEffect(() => {
-    const desktop = window.yomitomoDesktop;
-    if (!articleId || !annotationId || !desktop?.onArticlePatched) return;
+    if (!articleId || !annotationId) return;
     let active = true;
     let refreshVersion = 0;
 
-    const unsubscribe = desktop.onArticlePatched((patch) => {
+    const unsubscribe = annotationWindowActions.subscribeToArticlePatches((patch) => {
       if (articleIdFromPatch(patch) !== articleId) return;
       const version = ++refreshVersion;
-      void desktop
-        .getArticle(articleId)
+      void annotationWindowActions
+        .loadArticle(articleId)
         .then((article) => {
           if (!active || version !== refreshVersion) return;
           const annotation = article?.annotations.find((item) => item.id === annotationId);
