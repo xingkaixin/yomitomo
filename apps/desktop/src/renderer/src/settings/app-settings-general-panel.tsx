@@ -43,6 +43,7 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 import type { SaveableDraft } from './use-saveable-draft';
+import { appSettingsActions } from './app-settings-actions';
 
 const appLockShortcutKeys = [getShortcutModifier(), 'L'];
 
@@ -229,8 +230,7 @@ export function GeneralSettings(props: GeneralSettingsProps) {
     setAppLockSaveState('saving');
     setAppLockError('');
     try {
-      await window.yomitomoDesktop.setAppLockPin({ pin, confirmPin });
-      const nextStore = await window.yomitomoDesktop.setAppLockEnabled({ enabled: true });
+      const nextStore = await appSettingsActions.enableAppLock(pin, confirmPin);
       setAppLockPin('');
       setAppLockConfirmPin('');
       setAppLockSetupStep('pin');
@@ -275,10 +275,7 @@ export function GeneralSettings(props: GeneralSettingsProps) {
     setAppLockSaveState('saving');
     setAppLockError('');
     try {
-      const nextStore = await window.yomitomoDesktop.setAppLockEnabled({
-        enabled: false,
-        pin,
-      });
+      const nextStore = await appSettingsActions.disableAppLock(pin);
       setAppLockDisablePin('');
       setAppLockDialogMode(null);
       onSettingsChange(nextStore.settings);

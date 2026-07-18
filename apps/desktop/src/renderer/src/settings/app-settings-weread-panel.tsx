@@ -30,6 +30,7 @@ import {
 import { SettingsConfirmDialog } from './app-settings-confirm-dialog';
 import { useSaveStatus } from './use-save-status';
 import { useTranslation } from 'react-i18next';
+import { appSettingsActions } from './app-settings-actions';
 
 const WEREAD_API_KEY_HELP_URLS = {
   'zh-CN': 'https://yomitomo.app/docs/weread-api-key/',
@@ -74,8 +75,8 @@ export function WeReadSettingsPanel() {
 
   useEffect(() => {
     let cancelled = false;
-    void window.yomitomoDesktop
-      ?.getWeReadState?.()
+    void appSettingsActions
+      .getWeReadState()
       .then((state) => {
         if (cancelled) return;
         setSettings(state.settings);
@@ -101,12 +102,11 @@ export function WeReadSettingsPanel() {
   }
 
   async function saveSettings() {
-    if (!window.yomitomoDesktop) return;
     if (!apiKey.trim()) return;
     setApiKeyMessage('');
     await credentialSave.run(
       () =>
-        window.yomitomoDesktop.saveWeReadSettings({
+        appSettingsActions.saveWeReadSettings({
           apiKey,
           openMethod: settings.openMethod,
         }),
@@ -122,12 +122,12 @@ export function WeReadSettingsPanel() {
   }
 
   async function removeStoredApiKey() {
-    if (!window.yomitomoDesktop || !settings.configured) return;
+    if (!settings.configured) return;
     setRemoveConfirmOpen(false);
     setApiKeyMessage('');
     await credentialSave.run(
       () =>
-        window.yomitomoDesktop.saveWeReadSettings({
+        appSettingsActions.saveWeReadSettings({
           removeApiKey: true,
           openMethod: settings.openMethod,
         }),
@@ -145,17 +145,15 @@ export function WeReadSettingsPanel() {
   }
 
   async function testConnection() {
-    if (!window.yomitomoDesktop) return;
     clearTestResetTimer();
     setTestState('testing');
     setTestMessage('');
     try {
-      const result = await window.yomitomoDesktop.testWeRead(apiKey);
+      const { result, state } = await appSettingsActions.testWeReadAndRefresh(apiKey);
       setTestState(result.ok ? 'success' : 'error');
       setTestMessage(
         result.ok ? t('settings.weread.testSuccess') : wereadResultMessage(result.message, t),
       );
-      const state = await window.yomitomoDesktop.getWeReadState();
       setSettings(state.settings);
     } catch (error) {
       setTestState('error');
@@ -184,7 +182,7 @@ export function WeReadSettingsPanel() {
     setApiKeyMessage('');
     const requestId = ++revealRequestRef.current;
     try {
-      const storedApiKey = (await window.yomitomoDesktop?.readWeReadApiKey?.()) || '';
+      const storedApiKey = (await appSettingsActions.readWeReadApiKey()) || '';
       if (requestId !== revealRequestRef.current) return;
       setRevealedStoredApiKey(storedApiKey);
       setApiKeyVisible(true);
@@ -198,20 +196,18 @@ export function WeReadSettingsPanel() {
   }
 
   async function saveOpenMethod(openMethod: WeReadOpenMethod) {
-    if (!window.yomitomoDesktop) return;
     const previous = settings.openMethod;
     setSettings((current) => ({ ...current, openMethod }));
-    await openMethodSave.run(() => window.yomitomoDesktop.saveWeReadSettings({ openMethod }), {
+    await openMethodSave.run(() => appSettingsActions.saveWeReadSettings({ openMethod }), {
       onError: () => setSettings((current) => ({ ...current, openMethod: previous })),
       onSaved: (state) => setSettings(state.settings),
     });
   }
 
   async function saveSyncMode(syncMode: WeReadSyncMode) {
-    if (!window.yomitomoDesktop) return;
     const previous = settings.syncMode ?? 'manual';
     setSettings((current) => ({ ...current, syncMode }));
-    await syncModeSave.run(() => window.yomitomoDesktop.saveWeReadSettings({ syncMode }), {
+    await syncModeSave.run(() => appSettingsActions.saveWeReadSettings({ syncMode }), {
       onError: () => setSettings((current) => ({ ...current, syncMode: previous })),
       onSaved: (state) => setSettings(state.settings),
     });
@@ -219,14 +215,8 @@ export function WeReadSettingsPanel() {
 
   async function openWeReadApiKeyHelp() {
     const helpUrl = WEREAD_API_KEY_HELP_URLS[normalizeUiLanguage(i18n.language)];
-    const openUrl = window.yomitomoDesktop?.openUrl;
-    if (!openUrl) {
-      window.open(helpUrl, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
     try {
-      await openUrl(helpUrl);
+      await appSettingsActions.openExternalUrl(helpUrl);
     } catch {
       window.open(helpUrl, '_blank', 'noopener,noreferrer');
     }
