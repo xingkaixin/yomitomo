@@ -48,6 +48,7 @@ import {
   SettingsSegmented,
 } from './app-settings-kit';
 import type { SaveableDraft } from './use-saveable-draft';
+import { useSaveStatus } from './use-save-status';
 
 export { GeneralSettings } from './app-settings-general-panel';
 export { DataSourcesPanel, WeReadSettingsPanel } from './app-settings-weread-panel';
@@ -473,10 +474,11 @@ export function DataManagementSettings({
   const [paths, setPaths] = useState<DataManagementPaths | null>(null);
   const [busyAction, setBusyAction] = useState('');
   const [status, setStatus] = useState('');
-  const [retentionSaveState, setRetentionSaveState] = useState<SaveState>('idle');
-  const [retentionSaveError, setRetentionSaveError] = useState('');
   const [lastRetentionDays, setLastRetentionDays] = useState(90);
   const [confirmAction, setConfirmAction] = useState<'clear-log' | 'restore-db' | null>(null);
+  const retentionSave = useSaveStatus({
+    errorMessage: (error) => dataManagementErrorMessage(error, t),
+  });
 
   useEffect(() => {
     let mounted = true;
@@ -501,16 +503,21 @@ export function DataManagementSettings({
 
   async function saveLogRetention(days: number) {
     setLastRetentionDays(days);
-    setRetentionSaveState('saving');
-    setRetentionSaveError('');
     await runDataAction(`retention:${days}`, async () => {
-      const input: AppSettings = { ...settings };
-      Object.assign(input, { logRetentionDays: days });
-      const nextStore = await window.yomitomoDesktop.saveSettings(input);
-      onStoreUpdated(nextStore);
-      setRetentionSaveState('saved');
-      setStatus(t('settings.data.retentionSavedDays', { count: days }));
-      window.setTimeout(() => setRetentionSaveState('idle'), 1200);
+      await retentionSave.run(
+        async () => {
+          const input: AppSettings = { ...settings };
+          Object.assign(input, { logRetentionDays: days });
+          return window.yomitomoDesktop.saveSettings(input);
+        },
+        {
+          onError: (_error, message) => setStatus(message),
+          onSaved: (nextStore) => {
+            onStoreUpdated(nextStore);
+            setStatus(t('settings.data.retentionSavedDays', { count: days }));
+          },
+        },
+      );
     });
   }
 
@@ -564,11 +571,7 @@ export function DataManagementSettings({
       await task();
     } catch (error) {
       const message = dataManagementErrorMessage(error, t);
-      if (action.startsWith('retention:')) {
-        setStatus(message);
-        setRetentionSaveError(message);
-        setRetentionSaveState('error');
-      } else if (isToastDataAction(action)) {
+      if (isToastDataAction(action)) {
         appToast.error(t(dataActionErrorToastTitleKey(action)), { description: message });
       } else {
         setStatus(message);
@@ -625,8 +628,8 @@ export function DataManagementSettings({
         padded
         aside={
           <AutoSaveStatus
-            error={retentionSaveError}
-            state={retentionSaveState}
+            error={retentionSave.saveError}
+            state={retentionSave.saveState}
             onRetry={() => void saveLogRetention(lastRetentionDays)}
           />
         }
