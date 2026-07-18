@@ -1,7 +1,5 @@
 export {
   annotationColor,
-  annotationDensityInstruction,
-  annotationDensityMax,
   annotationPersona,
   annotationPrimaryComment,
   annotationThoughtComments,
@@ -11,21 +9,17 @@ export {
   annotationTypeLabels,
   appendAnnotationComment,
   commentPersona,
-  createAgentAnnotation,
   createUserAnnotation,
   createUserComment,
   deleteAnnotationComment,
   findMentionedAgents,
   getMentionQuery,
-  parseAnnotationSuggestions,
   replaceMentionQuery,
   updateAnnotationComment,
 } from './reader/annotations';
 export { normalizeAnnotationType } from '@yomitomo/shared';
 export type {
   AnnotationPersona,
-  AnnotationSuggestion,
-  CreateAgentAnnotationOptions,
   CreateUserAnnotationOptions,
   MentionQuery,
 } from './reader/annotations';
