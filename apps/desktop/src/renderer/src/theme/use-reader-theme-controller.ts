@@ -21,6 +21,7 @@ import {
   type AppThemeTone,
   type AppThemeId,
 } from './app-theme';
+import { appSettingsActions } from '../settings/app-settings-actions';
 
 const startupThemeId = readCachedThemeId();
 const startupThemeIdsByTone = readCachedThemeIdsByTone();
@@ -123,7 +124,7 @@ export function useReaderThemeController({
       writeDesktopReaderSettings(nextSettings);
     }
     try {
-      const nextStore = await window.yomitomoDesktop.saveSettings({ themeId });
+      const nextStore = await appSettingsActions.saveSettings({ themeId });
       applyStore(nextStore);
     } catch {
       // Keep the immediate visual choice; a later settings sync can reconcile persistence.

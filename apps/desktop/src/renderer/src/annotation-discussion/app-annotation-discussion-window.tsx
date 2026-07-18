@@ -64,6 +64,7 @@ import {
 } from './app-annotation-discussion-agent-thought';
 import { useElementWidthBelow } from './app-annotation-discussion-hooks';
 import { useAnnotationWindowArticlePatches } from './use-annotation-window-article-patches';
+import { annotationWindowActions } from './app-annotation-window-actions';
 
 export { insertMentionAtSelection } from './app-annotation-discussion-utils';
 
@@ -133,11 +134,9 @@ export function AnnotationDiscussionWindowApp() {
       return;
     }
 
-    void Promise.all([
-      window.yomitomoDesktop.getArticle(articleId),
-      window.yomitomoDesktop.getState(),
-    ])
-      .then(([article, store]) => {
+    void annotationWindowActions
+      .loadWindow(articleId)
+      .then(({ article, store }) => {
         if (cancelled) return;
         const pendingUpdate = pendingArticleUpdateRef.current;
         const currentArticle = pendingUpdate?.article || article;
@@ -315,12 +314,11 @@ function AnnotationDiscussionShell({
     if (deletingCommentId) return;
     setDeletingCommentId(commentId);
     try {
-      await window.yomitomoDesktop.deleteArticleComment(
+      const nextArticle = await annotationWindowActions.deleteCommentAndReload(
         article.id,
         currentAnnotation.id,
         commentId,
       );
-      const nextArticle = await window.yomitomoDesktop.getArticle(article.id);
       const nextAnnotation = nextArticle?.annotations.find(
         (item) => item.id === currentAnnotation.id,
       );
@@ -374,7 +372,7 @@ function AnnotationDiscussionShell({
     if (!nextAnnotations) return;
     const nextArticle = applyAnnotations(nextAnnotations);
     if (!nextArticle) return;
-    await window.yomitomoDesktop.saveArticleComment(
+    await annotationWindowActions.saveComment(
       nextArticle.id,
       annotationId,
       comment,
@@ -607,7 +605,7 @@ function AnnotationDiscussionShell({
   async function planAssistantThoughtRoute(note: string, selectedAgents: PublicAgent[]) {
     const routeNote = assistantThoughtRouteNote(note, selectedAgents);
     try {
-      return await window.yomitomoDesktop.planAgentMentionRoute({
+      return await annotationWindowActions.planAgentMentionRoute({
         note: routeNote,
         targetAnchor: currentAnnotation.anchor,
         agents: selectedAgents,
@@ -643,7 +641,7 @@ function AnnotationDiscussionShell({
       userComment,
       instruction,
       allowDisabledAgentForRule: options.allowDisabledAgentForRule,
-      desktop: window.yomitomoDesktop,
+      desktop: annotationWindowActions,
       currentArticle: currentArticleRef.current,
       articleText: discussionArticleText(currentArticleRef.current),
       uiLanguage,
@@ -667,7 +665,7 @@ function AnnotationDiscussionShell({
       instruction,
       readingIntent,
       uiLanguage,
-      desktop: window.yomitomoDesktop,
+      desktop: annotationWindowActions,
       currentArticle: currentArticleRef.current,
       articleText: discussionArticleText(currentArticleRef.current),
       annotationsRef,
@@ -708,7 +706,7 @@ function AnnotationDiscussionShell({
   }
 
   function openSedimentationWindow(sourceElement: Element) {
-    void window.yomitomoDesktop.openAnnotationSedimentation({
+    void annotationWindowActions.openSedimentation({
       articleId: currentArticle.id,
       annotationId: currentAnnotation.id,
       sourceRect: elementWindowSourceRect(sourceElement),
@@ -902,7 +900,7 @@ function AnnotationDiscussionShell({
 }
 
 function annotationDiscussionWindowClassName() {
-  return ['annotation-discussion-window', `is-${window.yomitomoDesktop.platform ?? 'unknown'}`]
+  return ['annotation-discussion-window', `is-${annotationWindowActions.platform() ?? 'unknown'}`]
     .filter(Boolean)
     .join(' ');
 }

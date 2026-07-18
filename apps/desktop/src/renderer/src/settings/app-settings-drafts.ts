@@ -22,12 +22,14 @@ import {
 } from './app-settings';
 import { useSaveableDraft } from './use-saveable-draft';
 import { settingsDraftSectionHasChanges } from './app-settings-change-detection';
+import { appSettingsActions, type AppSettingsActions } from './app-settings-actions';
 
 type UseSettingsDraftsInput = {
   store: DesktopStore;
   storeSyncSnapshot: DesktopStore | null;
   applyStore: (nextStore: DesktopStore) => DesktopStore;
   applySettingsPatch: (patch: SettingsStorePatch) => DesktopStore;
+  actions?: AppSettingsActions;
 };
 
 export function useSettingsDrafts({
@@ -35,6 +37,7 @@ export function useSettingsDrafts({
   storeSyncSnapshot,
   applyStore,
   applySettingsPatch,
+  actions = appSettingsActions,
 }: UseSettingsDraftsInput) {
   const [userDraft, setUserDraft] = useState<UserDraft>(defaultUser);
   const [settingsDraft, setSettingsDraft] = useState<AppSettings>({});
@@ -88,10 +91,12 @@ export function useSettingsDrafts({
     setTestState({ status: 'idle' });
   }, []);
 
-  const saveUserDraft = useCallback(async (draft: UserDraft) => {
-    if (!window.yomitomoDesktop) return null;
-    return window.yomitomoDesktop.saveUser(draft);
-  }, []);
+  const saveUserDraft = useCallback(
+    async (draft: UserDraft) => {
+      return actions.saveUser(draft);
+    },
+    [actions],
+  );
 
   const applySavedUserStore = useCallback(
     (patch: UserStorePatch | null) => {
@@ -103,10 +108,12 @@ export function useSettingsDrafts({
     [applySettingsPatch],
   );
 
-  const saveSettingsDraft = useCallback(async (draft: AppSettings) => {
-    if (!window.yomitomoDesktop) return null;
-    return window.yomitomoDesktop.saveSettings(draft);
-  }, []);
+  const saveSettingsDraft = useCallback(
+    async (draft: AppSettings) => {
+      return actions.saveSettings(draft);
+    },
+    [actions],
+  );
 
   const applySavedSettingsStore = useCallback(
     (nextStore: DesktopStore | null) => {
@@ -121,8 +128,7 @@ export function useSettingsDrafts({
 
   const saveProviderDraftValue = useCallback(
     async (draft: ProviderDraft) => {
-      if (!window.yomitomoDesktop) return false;
-      const patch = await window.yomitomoDesktop.saveProvider(draft);
+      const patch = await actions.saveProvider(draft);
       const nextStore = applySettingsPatch(patch);
       const savedProvider = draft.id
         ? nextStore.providers.find((provider) => provider.id === draft.id)
@@ -133,7 +139,7 @@ export function useSettingsDrafts({
       setProviderDraft(savedProvider);
       return true;
     },
-    [applySettingsPatch],
+    [actions, applySettingsPatch],
   );
 
   const profile = useSaveableDraft<UserDraft, UserStorePatch | null>({
@@ -214,8 +220,7 @@ export function useSettingsDrafts({
 
   const deleteProvider = useCallback(
     async (id: string) => {
-      if (!window.yomitomoDesktop) return;
-      const patch = await window.yomitomoDesktop.deleteProvider(id);
+      const patch = await actions.deleteProvider(id);
       const nextStore = applySettingsPatch(patch);
       setSettingsDraft(nextStore.settings);
       const nextProvider = nextStore.providers[0];
@@ -226,19 +231,21 @@ export function useSettingsDrafts({
         setProviderEditorActive(false);
       }
     },
-    [applySettingsPatch, resetProviderDraft, selectProvider],
+    [actions, applySettingsPatch, resetProviderDraft, selectProvider],
   );
 
-  const testProvider = useCallback(async (provider: ProviderDraft) => {
-    if (!window.yomitomoDesktop) return;
-    setTestState({ status: 'testing' });
-    try {
-      const result = await window.yomitomoDesktop.testProvider(provider);
-      setTestState({ status: result.ok ? 'success' : 'error' });
-    } catch {
-      setTestState({ status: 'error' });
-    }
-  }, []);
+  const testProvider = useCallback(
+    async (provider: ProviderDraft) => {
+      setTestState({ status: 'testing' });
+      try {
+        const result = await actions.testProvider(provider);
+        setTestState({ status: result.ok ? 'success' : 'error' });
+      } catch {
+        setTestState({ status: 'error' });
+      }
+    },
+    [actions],
+  );
 
   const provider = useMemo(
     () => ({

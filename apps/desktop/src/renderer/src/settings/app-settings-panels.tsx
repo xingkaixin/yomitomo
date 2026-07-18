@@ -49,6 +49,7 @@ import {
 } from './app-settings-kit';
 import type { SaveableDraft } from './use-saveable-draft';
 import { useSaveStatus } from './use-save-status';
+import { dataManagementActions } from './app-data-management-actions';
 
 export { GeneralSettings } from './app-settings-general-panel';
 export { DataSourcesPanel, WeReadSettingsPanel } from './app-settings-weread-panel';
@@ -482,8 +483,8 @@ export function DataManagementSettings({
 
   useEffect(() => {
     let mounted = true;
-    window.yomitomoDesktop
-      .getDataManagementPaths()
+    dataManagementActions
+      .getPaths()
       .then((nextPaths) => {
         if (mounted) setPaths(nextPaths);
       })
@@ -497,34 +498,27 @@ export function DataManagementSettings({
 
   async function openPath(kind: DataManagementPathKind) {
     await runDataAction(`open:${kind}`, async () => {
-      await window.yomitomoDesktop.openDataManagementPath(kind);
+      await dataManagementActions.openPath(kind);
     });
   }
 
   async function saveLogRetention(days: number) {
     setLastRetentionDays(days);
     await runDataAction(`retention:${days}`, async () => {
-      await retentionSave.run(
-        async () => {
-          const input: AppSettings = { ...settings };
-          Object.assign(input, { logRetentionDays: days });
-          return window.yomitomoDesktop.saveSettings(input);
+      await retentionSave.run(() => dataManagementActions.saveLogRetention(settings, days), {
+        onError: (_error, message) => setStatus(message),
+        onSaved: (nextStore) => {
+          onStoreUpdated(nextStore);
+          setStatus(t('settings.data.retentionSavedDays', { count: days }));
         },
-        {
-          onError: (_error, message) => setStatus(message),
-          onSaved: (nextStore) => {
-            onStoreUpdated(nextStore);
-            setStatus(t('settings.data.retentionSavedDays', { count: days }));
-          },
-        },
-      );
+      });
     });
   }
 
   async function clearLog() {
     setConfirmAction(null);
     await runDataAction('clear-log', async () => {
-      await window.yomitomoDesktop.clearLog();
+      await dataManagementActions.clearLog();
       appToast.success(t('settings.data.toast.logClearedTitle'), {
         description: t('settings.data.toast.logClearedDescription'),
       });
@@ -533,7 +527,7 @@ export function DataManagementSettings({
 
   async function backupDatabase() {
     await runDataAction('backup-db', async () => {
-      const result = await window.yomitomoDesktop.backupDatabase();
+      const result = await dataManagementActions.backupDatabase();
       if (result.canceled) {
         appToast.warning(t('settings.data.toast.backupCanceledTitle'), {
           description: t('settings.data.toast.backupCanceledDescription'),
@@ -549,7 +543,7 @@ export function DataManagementSettings({
   async function restoreDatabase() {
     setConfirmAction(null);
     await runDataAction('restore-db', async () => {
-      const result = await window.yomitomoDesktop.restoreDatabase();
+      const result = await dataManagementActions.restoreDatabase();
       if (result.canceled) {
         appToast.warning(t('settings.data.toast.restoreCanceledTitle'), {
           description: t('settings.data.toast.restoreCanceledDescription'),

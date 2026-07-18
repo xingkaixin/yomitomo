@@ -27,6 +27,8 @@ import {
   recordStatsTiming,
 } from './shell/app-utils';
 import { useSettingsDrafts } from './settings/app-settings-drafts';
+import { appSettingsActions } from './settings/app-settings-actions';
+import { dataManagementActions } from './settings/app-data-management-actions';
 import { SettingsNavButton } from './settings/app-settings-nav-button';
 import { StoreLoadErrorScreen } from './shell/app-store-load-error';
 import { AnnotationDiscussionWindowApp } from './annotation-discussion/app-annotation-discussion-window';
@@ -241,14 +243,14 @@ function App() {
   }, [activeSettingsSection, store.settings.developerModeEnabled]);
 
   async function saveOnboardingSettings(settings: AppSettings) {
-    const nextStore = await window.yomitomoDesktop.saveSettings(settings);
+    const nextStore = await appSettingsActions.saveSettings(settings);
     applySavedSettings(nextStore, applyStore);
     if (settings.onboardingCompletedAt) setOnboardingForced(false);
     return nextStore;
   }
 
   async function saveLibrarySettings(settings: AppSettings) {
-    const nextStore = await window.yomitomoDesktop.saveSettings(settings);
+    const nextStore = await appSettingsActions.saveSettings(settings);
     applySavedSettings(nextStore, applyStore);
   }
 
@@ -361,11 +363,11 @@ function App() {
       return;
     }
     if (command === 'backup-database') {
-      void window.yomitomoDesktop.backupDatabase().catch(() => undefined);
+      void dataManagementActions.backupDatabase().catch(() => undefined);
       return;
     }
     if (command === 'restore-database') {
-      void window.yomitomoDesktop
+      void dataManagementActions
         .restoreDatabase()
         .then((result) => {
           if (!result.canceled) applyStore(result.store);
@@ -682,7 +684,7 @@ function App() {
               updateState={appUpdateState}
               openRequest={updateDialogRequest}
               onSaveSettings={async (settings) => {
-                const nextStore = await window.yomitomoDesktop.saveSettings(settings);
+                const nextStore = await appSettingsActions.saveSettings(settings);
                 applySavedSettings(nextStore, applyStore);
                 return nextStore;
               }}

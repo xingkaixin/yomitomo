@@ -9,6 +9,7 @@ import {
 } from '@yomitomo/core';
 import { promptArticle } from '../source/bookcase/source-prompt-article';
 import { applyAssistantRuntimeProgress } from '../shell/app-assistant-runtime-progress';
+import type { AnnotationWindowActions } from './app-annotation-window-actions';
 
 export type RunSourceAgentThoughtLifecycle = {
   onComplete?: () => void;
@@ -22,7 +23,7 @@ type RunSourceAgentThoughtRequestInput = {
   instruction: string;
   readingIntent?: Comment['readingIntent'];
   uiLanguage?: UiLanguage;
-  desktop: Pick<typeof window.yomitomoDesktop, 'requestAgentCommentStream'>;
+  desktop: Pick<AnnotationWindowActions, 'requestAgentCommentStream'>;
   currentArticle: ArticleRecord;
   articleText: string;
   annotationsRef: RefObject<Annotation[]>;

@@ -78,6 +78,7 @@ import {
   type DraftPreviewDecisions,
 } from './app-annotation-sedimentation-state';
 import { useAnnotationWindowArticlePatches } from './use-annotation-window-article-patches';
+import { annotationWindowActions } from './app-annotation-window-actions';
 
 type SedimentationWindowStatus =
   | { type: 'loading' }
@@ -158,11 +159,9 @@ export function AnnotationSedimentationWindowApp() {
       return;
     }
 
-    void Promise.all([
-      window.yomitomoDesktop.getArticle(articleId),
-      window.yomitomoDesktop.getState(),
-    ])
-      .then(([article, store]) => {
+    void annotationWindowActions
+      .loadWindow(articleId)
+      .then(({ article, store }) => {
         if (cancelled) return;
         const pendingUpdate = pendingArticleUpdateRef.current;
         const currentArticle = pendingUpdate?.article || article;
@@ -312,7 +311,7 @@ function SedimentationShell({
         nextAnnotation?.distillation ||
         nextArticle.annotations.find((item) => item.id === annotation.id)?.distillation;
       window.localStorage.removeItem(draftKey);
-      await window.yomitomoDesktop.commitAnnotationSedimentation({
+      await annotationWindowActions.commitSedimentation({
         articleId: article.id,
         annotationId: annotation.id,
         distillation: nextDistillation,
@@ -343,7 +342,7 @@ function SedimentationShell({
       const nextDistillation =
         nextAnnotation?.distillation ||
         nextArticle.annotations.find((item) => item.id === annotation.id)?.distillation;
-      await window.yomitomoDesktop.commitAnnotationSedimentation({
+      await annotationWindowActions.commitSedimentation({
         articleId: article.id,
         annotationId: annotation.id,
         distillation: nextDistillation,
@@ -394,7 +393,7 @@ function SedimentationShell({
           annotation: workingAnnotation,
           draft,
           requestReviewStream: (payload, onEvent) =>
-            window.yomitomoDesktop.requestAgentDistillationReviewStream(payload, onEvent),
+            annotationWindowActions.requestAgentDistillationReviewStream(payload, onEvent),
           reviewDraft: effectiveReviewDraft,
           reviewMode: input?.reviewMode || 'review',
           sessions: workingAnnotation.distillation?.reviewSessions || sessions,
@@ -513,7 +512,7 @@ function SedimentationShell({
     setOrganizeState({ type: 'running', agent, message: workingMessage });
 
     try {
-      const finalMessage = await window.yomitomoDesktop.requestAgentDistillationReviewStream(
+      const finalMessage = await annotationWindowActions.requestAgentDistillationReviewStream(
         {
           agentId: agent.id,
           agentUsername: agent.username,
@@ -1084,14 +1083,12 @@ async function saveAndRefresh(
 ): Promise<Annotation | null> {
   const annotation = nextArticle.annotations.find((item) => item.id === annotationId);
   if (!annotation) return null;
-  const patch = await window.yomitomoDesktop.saveArticleAnnotationDistillation({
+  const nextFullArticle = await annotationWindowActions.saveDistillationAndReload({
     articleId: nextArticle.id,
     annotationId,
     distillation: annotation.distillation,
     updatedAt: annotation.updatedAt,
   });
-  if (!patch) return null;
-  const nextFullArticle = await window.yomitomoDesktop.getArticle(patch.article.id);
   const nextAnnotation = nextFullArticle?.annotations.find((item) => item.id === annotationId);
   if (!nextFullArticle || !nextAnnotation) return null;
   onStatusChange({
@@ -1114,7 +1111,10 @@ function distillationDraftKey(articleId: string, annotationId: string) {
 }
 
 function sedimentationWindowClassName() {
-  return ['annotation-sedimentation-window', `is-${window.yomitomoDesktop.platform ?? 'unknown'}`]
+  return [
+    'annotation-sedimentation-window',
+    `is-${annotationWindowActions.platform() ?? 'unknown'}`,
+  ]
     .filter(Boolean)
     .join(' ');
 }
