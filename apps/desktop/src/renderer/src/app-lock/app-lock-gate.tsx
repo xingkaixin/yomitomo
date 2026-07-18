@@ -3,6 +3,7 @@ import { LockKeyhole } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { DesktopStore } from '@yomitomo/shared';
 import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
+import { rendererStoreForAppLockState } from '../../../app-store';
 import { desktopIpcErrorRetryAfterMs, isDesktopIpcErrorLike } from '../../../ipc-errors';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '../components/ui/input-otp';
 import { ShimmeringText } from '../components/ui/shimmering-text';
@@ -13,7 +14,6 @@ import {
   SlideToUnlockTrack,
 } from '../components/ui/slide-to-unlock';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
-import { rendererStoreForAppLockState } from '../shell/app-desktop-store-state';
 
 type AppLockStep = 'slide' | 'pin';
 
