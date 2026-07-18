@@ -16,7 +16,7 @@ import { budgetArticleText, formatBudgetNotice } from '../provider/budget';
 import { logAiInfo } from '../logger';
 import { buildAgentRoleCard } from './agent-role-card';
 import { parseJsonArray, stringValue } from '../json';
-import { callProviderText } from '../provider/provider-client';
+import { generateYomitomoText } from '../provider/generation-runtime';
 import { readingAssistantPrinciplesPrompt, spoilerScopePrompt } from './agent-runtime-prompts';
 import { responseLanguageSystemPrompt } from './agent-language';
 
@@ -38,13 +38,13 @@ export async function runAgentReview(
   payload: AgentReviewPayload,
 ): Promise<Comment[]> {
   const context = buildAgentReviewContextBundle(payload);
-  const content = await callProviderText(provider, {
+  const { text } = await generateYomitomoText(provider, {
     system: buildAgentReviewSystemPrompt(agent, payload),
     user: buildAgentReviewPrompt(provider, payload, agent, context),
     maxTokens: 2400,
     temperature: agent.temperature,
   });
-  const opinions = parseReviewOpinions(content, reviewableThoughtIds(payload, agent));
+  const opinions = parseReviewOpinions(text, reviewableThoughtIds(payload, agent));
   const now = new Date().toISOString();
 
   return opinions.map((opinion) => ({

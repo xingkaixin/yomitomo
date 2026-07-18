@@ -22,6 +22,7 @@ import {
   createLexicalRelatedPassageCache,
   performanceElapsedMs,
   performanceStart,
+  rangeDistance,
   segmentAnnotationSpoilerPolicy,
   type LexicalRelatedPassageCache,
   type ReadingContextPassageInput,
@@ -630,12 +631,6 @@ function rangesOverlap(
   planItem: Pick<AgentReadingPlanItem, 'sectionStart' | 'sectionEnd'>,
 ) {
   return segment.textStart < planItem.sectionEnd && segment.textEnd > planItem.sectionStart;
-}
-
-function rangeDistance(left: TextRange, right: TextRange) {
-  if (left.textStart < right.textEnd && right.textStart < left.textEnd) return 0;
-  if (left.textEnd <= right.textStart) return right.textStart - left.textEnd;
-  return left.textStart - right.textEnd;
 }
 
 function integerValue(value: number | undefined): number | null {

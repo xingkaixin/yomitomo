@@ -8,6 +8,23 @@ export type ReadingContextRangeLookup = {
   fullyCovers(target: ReadingContextTextRange): boolean;
 };
 
+export function intersectTextRanges(
+  ranges: ReadingContextTextRange[],
+  target: ReadingContextTextRange,
+) {
+  return ranges.flatMap((range) => {
+    const textStart = Math.max(range.textStart, target.textStart);
+    const textEnd = Math.min(range.textEnd, target.textEnd);
+    return textEnd > textStart ? [{ textStart, textEnd }] : [];
+  });
+}
+
+export function rangeDistance(left: ReadingContextTextRange, right: ReadingContextTextRange) {
+  if (left.textStart < right.textEnd && right.textStart < left.textEnd) return 0;
+  if (left.textEnd <= right.textStart) return right.textStart - left.textEnd;
+  return left.textStart - right.textEnd;
+}
+
 export function mergeReadingContextTextRanges(
   ranges: ReadingContextTextRange[],
 ): ReadingContextTextRange[] {

@@ -3,8 +3,6 @@ import { providerPresets } from '@yomitomo/shared';
 import { Effect, Schema } from 'effect';
 import { normalizeAnthropicError } from './budget';
 import { geminiBaseUrl, openAIBaseUrl } from './ai-sdk-provider-adapter';
-import { generateYomitomoTextEffect, streamYomitomoTextEffect } from './generation-runtime';
-import type { GenerateOptions, TextPayload } from './provider-client-types';
 
 const defaultProviderPreset = providerPresets.find((preset) => preset.id === 'deepseek');
 
@@ -41,13 +39,6 @@ const geminiModelListResponseSchema = Schema.Struct({
   ),
 });
 
-export type {
-  GenerateOptions,
-  JsonSchema,
-  ResponseSchema,
-  TextPayload,
-} from './provider-client-types';
-
 type ProviderClientError = ProviderHttpError | ProviderNetworkError | ProviderResponseDecodeError;
 
 class ProviderNetworkError extends Error {
@@ -73,33 +64,6 @@ class ProviderResponseDecodeError extends Error {
 export async function listProviderModels(provider: Partial<LlmProvider>): Promise<ProviderModel[]> {
   return Effect.runPromise(listProviderModelsEffect(provider));
 }
-
-export async function callProviderText(
-  provider: LlmProvider,
-  payload: TextPayload,
-  options: GenerateOptions = {},
-) {
-  return Effect.runPromise(callProviderTextEffect(provider, payload, options));
-}
-
-export async function streamProviderText(
-  provider: LlmProvider,
-  payload: TextPayload,
-  onDelta: (delta: string) => void,
-) {
-  return Effect.runPromise(streamProviderTextEffect(provider, payload, onDelta));
-}
-
-export const callProviderTextEffect = Effect.fn('Provider.callText')(function* (
-  provider: LlmProvider,
-  payload: TextPayload,
-  options: GenerateOptions = {},
-) {
-  const result = yield* generateYomitomoTextEffect(provider, payload, options);
-  return result.text;
-});
-
-export const streamProviderTextEffect = streamYomitomoTextEffect;
 
 function normalizeProvider(provider: Partial<LlmProvider>): LlmProvider {
   const preset =

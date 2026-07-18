@@ -1,9 +1,34 @@
 import { describe, expect, it } from 'vitest';
 import {
   createMergedReadingContextRangeLookup,
+  intersectTextRanges,
   mergeReadingContextTextRanges,
+  rangeDistance,
   type ReadingContextTextRange,
 } from './reading-context-ranges';
+
+describe('reading context range arithmetic', () => {
+  it('returns intersections in source order', () => {
+    expect(
+      intersectTextRanges(
+        [
+          { textStart: 0, textEnd: 10 },
+          { textStart: 20, textEnd: 30 },
+        ],
+        { textStart: 5, textEnd: 24 },
+      ),
+    ).toEqual([
+      { textStart: 5, textEnd: 10 },
+      { textStart: 20, textEnd: 24 },
+    ]);
+  });
+
+  it('measures the gap between ranges', () => {
+    expect(rangeDistance({ textStart: 10, textEnd: 20 }, { textStart: 15, textEnd: 25 })).toBe(0);
+    expect(rangeDistance({ textStart: 10, textEnd: 20 }, { textStart: 30, textEnd: 40 })).toBe(10);
+    expect(rangeDistance({ textStart: 30, textEnd: 40 }, { textStart: 10, textEnd: 20 })).toBe(10);
+  });
+});
 
 describe('mergeReadingContextTextRanges', () => {
   it.each([

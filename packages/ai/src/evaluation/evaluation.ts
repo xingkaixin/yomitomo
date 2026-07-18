@@ -4,7 +4,7 @@ import type {
   Annotation,
   TextRange,
 } from '@yomitomo/shared';
-import { locateEpubTextAnchor } from '@yomitomo/core';
+import { locateEpubTextAnchor, rangeDistance } from '@yomitomo/core';
 
 export const epubEvaluationBookTypes = [
   'fiction',
@@ -483,7 +483,7 @@ function annotationsDuplicate(
   const leftRange = annotationTextRange(evaluationCase, left);
   const rightRange = annotationTextRange(evaluationCase, right);
   const distance =
-    leftRange && rightRange ? textRangeDistance(leftRange, rightRange) : Number.POSITIVE_INFINITY;
+    leftRange && rightRange ? rangeDistance(leftRange, rightRange) : Number.POSITIVE_INFINITY;
 
   if (sameExact && (sameSegment || sameChapter || distance <= 2400)) return true;
   return Boolean(left.moveType && left.moveType === right.moveType && distance <= 240);
@@ -584,12 +584,6 @@ function metricTextLength(evaluationCase: EpubEvaluationCase) {
 
 function caseArticle(evaluationCase: EpubEvaluationCase) {
   return evaluationCase.input.payload.article;
-}
-
-function textRangeDistance(left: TextRange, right: TextRange) {
-  if (left.textStart < right.textEnd && right.textStart < left.textEnd) return 0;
-  if (left.textEnd <= right.textStart) return right.textStart - left.textEnd;
-  return left.textStart - right.textEnd;
 }
 
 function normalizeText(text: string) {

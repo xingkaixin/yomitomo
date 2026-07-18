@@ -12,6 +12,7 @@ import type {
 import { locateEpubOffset, locateEpubTextAnchor } from '../epub/ebook-index';
 import {
   createMergedReadingContextRangeLookup,
+  intersectTextRanges,
   mergeReadingContextTextRanges,
   type ReadingContextRangeLookup,
   type ReadingContextTextRange,
@@ -379,14 +380,6 @@ function readingContextText(articleText: string, ranges: ReadingContextTextRange
     .map((range) => articleText.slice(range.textStart, range.textEnd).trim())
     .filter(Boolean)
     .join('\n\n');
-}
-
-function intersectTextRanges(ranges: ReadingContextTextRange[], target: ReadingContextTextRange) {
-  return ranges.flatMap((range) => {
-    const textStart = Math.max(range.textStart, target.textStart);
-    const textEnd = Math.min(range.textEnd, target.textEnd);
-    return textEnd > textStart ? [{ textStart, textEnd }] : [];
-  });
 }
 
 function integerValue(value: number | undefined): number | null {
