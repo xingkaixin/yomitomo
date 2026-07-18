@@ -473,6 +473,7 @@ export type SourceBookcaseProps = {
   selectedAnnotationId: string | null;
   uiLanguage: UiLanguage;
   userProfile: UserProfile;
+  onArticleChange: (article: ArticleRecord) => void;
   onFocusedAnnotation: () => void;
   onClose: () => void;
   onDeleteArticleAnnotation?: (articleId: string, annotationId: string) => Promise<void> | void;

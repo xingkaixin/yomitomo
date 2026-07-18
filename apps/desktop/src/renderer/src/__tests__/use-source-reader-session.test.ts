@@ -109,6 +109,7 @@ function renderSession({
       agentAnnotationAdapter: adapter,
       annotations: article.annotations,
       article,
+      onArticleChange: vi.fn(),
       userProfile,
     });
     useEffect(() => {

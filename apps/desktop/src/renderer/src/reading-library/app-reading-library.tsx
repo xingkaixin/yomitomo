@@ -562,6 +562,9 @@ export function ReadingLibrary({
                 selectedAnnotationId={selectedAnnotation?.id || null}
                 uiLanguage={normalizeUiLanguage(settings?.uiLanguage)}
                 userProfile={userProfile}
+                onArticleChange={(article) =>
+                  navigation.actions.updateArticle(article.id, () => article)
+                }
                 onFocusedAnnotation={distillationSync.onFocusedAnnotation}
                 onClose={openLibraryShelf}
                 onDeleteArticleAnnotation={

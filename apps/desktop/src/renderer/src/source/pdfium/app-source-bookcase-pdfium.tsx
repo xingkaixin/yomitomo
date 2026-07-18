@@ -111,6 +111,7 @@ export function PdfiumBookcase({
   selectedAnnotationId,
   uiLanguage,
   userProfile,
+  onArticleChange,
   onFocusedAnnotation,
   onClose,
   onDeleteArticleAnnotation,
@@ -158,6 +159,7 @@ export function PdfiumBookcase({
                       <PdfiumDocument
                         actions={{
                           onClose,
+                          onArticleChange,
                           onDeleteArticleAnnotation,
                           onDeleteArticleComment,
                           onFocusedAnnotation,
@@ -221,6 +223,7 @@ export function PdfiumBookcase({
 type PdfiumDocumentProps = {
   actions: {
     onClose: SourceBookcaseProps['onClose'];
+    onArticleChange: SourceBookcaseProps['onArticleChange'];
     onDeleteArticleAnnotation: SourceBookcaseProps['onDeleteArticleAnnotation'];
     onDeleteArticleComment: SourceBookcaseProps['onDeleteArticleComment'];
     onFocusedAnnotation: SourceBookcaseProps['onFocusedAnnotation'];
@@ -277,6 +280,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   const { documentId, engine, openTrace, pageCount } = document;
   const {
     onClose,
+    onArticleChange,
     onDeleteArticleAnnotation,
     onDeleteArticleComment,
     onFocusedAnnotation,
@@ -395,7 +399,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     }),
     annotations: articleAnnotations,
     article,
-    ignoreStaleArticleUpdates: true,
+    onArticleChange,
     uiLanguage,
     getArticleText: currentArticleText,
     onOpenAnnotation,
@@ -414,7 +418,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     applyAnnotations,
     deleteAnnotation,
     deleteComment,
-    latestArticleRef,
     saveAnnotation,
   } = sourceReaderSession;
   const {
@@ -920,7 +923,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   }
 
   function isCurrentArticle(articleId: string) {
-    return latestArticleRef.current?.id === articleId;
+    return article.id === articleId;
   }
 
   function showStatusMessage(message: string) {
@@ -979,7 +982,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   }
 
   async function playPdfiumAgentAnnotation(articleId: string, annotation: Annotation) {
-    if (latestArticleRef.current?.id !== articleId || !isPdfTextAnchor(annotation.anchor)) {
+    if (article.id !== articleId || !isPdfTextAnchor(annotation.anchor)) {
       await appendAgentAnnotationToArticle(articleId, annotation);
       return;
     }
@@ -1078,7 +1081,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   async function createAnnotationFromComposer(note: string) {
     if (!composer) return;
     const currentComposer = composer;
-    if (!latestArticleRef.current) return;
     cancelComposer();
     const annotation = createUserAnnotation(currentComposer.anchor, userProfile, note);
     await saveAnnotation(annotation);
@@ -1088,7 +1090,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
 
   async function appendAgentAnnotationToArticle(articleId: string, annotation: Annotation) {
     let activeId = annotation.id;
-    if (latestArticleRef.current?.id === articleId) {
+    if (article.id === articleId) {
       const result = mergeAgentAnnotationAsThought(annotationsRef.current, annotation);
       activeId = result.activeId;
       applyAnnotations(result.annotations);
@@ -1100,7 +1102,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     }
     const persisted = await onMergeArticleAgentAnnotation?.(articleId, annotation);
     if (persisted) activeId = persisted.activeId;
-    if (persisted && latestArticleRef.current?.id === articleId) {
+    if (persisted && article.id === articleId) {
       applyAnnotations(persisted.patch.article.annotations, persisted.patch.article.updatedAt);
       onOpenAnnotation(
         pdfiumAnnotationIsVisible(

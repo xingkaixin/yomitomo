@@ -40,8 +40,8 @@ type UseSourceReaderSessionOptions = {
   article: ArticleRecord;
   clearPendingOnArticleChange?: boolean;
   clearPendingOnDeleteAnnotation?: boolean;
-  ignoreStaleArticleUpdates?: boolean;
   getArticleText?: () => Promise<string> | string;
+  onArticleChange: (article: ArticleRecord) => void;
   onAgentCommentMentioned?: (
     agent: PublicAgent,
     annotation: Annotation,
@@ -175,8 +175,8 @@ export function useSourceReaderSession({
   article,
   clearPendingOnArticleChange = false,
   clearPendingOnDeleteAnnotation = false,
-  ignoreStaleArticleUpdates = false,
   getArticleText,
+  onArticleChange,
   onAgentCommentMentioned,
   onAnnotationsApplied,
   onAnnotationsSaved,
@@ -212,7 +212,7 @@ export function useSourceReaderSession({
     annotationAgents,
     annotations: articleAnnotations,
     article,
-    ignoreStaleArticleUpdates,
+    onArticleChange,
     onBeforeDeleteAnnotation: (annotationId) => {
       onBeforeDeleteAnnotation?.(annotationId);
       if (clearPendingOnDeleteAnnotation) clearPendingAnnotationAgents(annotationId);
@@ -250,8 +250,8 @@ export function useSourceReaderSession({
       options: RequestAgentCommentOptions = {},
     ) => {
       const desktop = window.yomitomoDesktop;
-      const currentArticle = sourceAnnotations.latestArticleRef.current;
-      if (!desktop || !currentArticle || !getArticleText || !setStatusMessage) {
+      const currentArticle = { ...article, annotations: sourceAnnotations.annotationsRef.current };
+      if (!desktop || !getArticleText || !setStatusMessage) {
         if (options.pendingAnnotationId) {
           pendingAgents.removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
         }
@@ -285,9 +285,9 @@ export function useSourceReaderSession({
       getArticleText,
       pendingAgents,
       setStatusMessage,
+      article,
       sourceAnnotations.annotationsRef,
       sourceAnnotations.applyAnnotations,
-      sourceAnnotations.latestArticleRef,
       sourceAnnotations.saveComment,
       uiLanguage,
     ],
@@ -297,13 +297,12 @@ export function useSourceReaderSession({
   const requestAnnotationReview = useCallback(
     async (annotationId: string, selectedAgents: PublicAgent[]) => {
       const desktop = window.yomitomoDesktop;
-      const currentArticle = sourceAnnotations.latestArticleRef.current;
+      const currentArticle = { ...article, annotations: sourceAnnotations.annotationsRef.current };
       const currentAnnotation = sourceAnnotations.annotationsRef.current.find(
         (annotation) => annotation.id === annotationId,
       );
       if (
         !desktop ||
-        !currentArticle ||
         !currentAnnotation ||
         selectedAgents.length === 0 ||
         !getArticleText ||
@@ -328,9 +327,9 @@ export function useSourceReaderSession({
     [
       getArticleText,
       setStatusMessage,
+      article,
       sourceAnnotations.annotationsRef,
       sourceAnnotations.applyAnnotations,
-      sourceAnnotations.latestArticleRef,
       sourceAnnotations.saveComment,
       uiLanguage,
     ],
@@ -339,8 +338,8 @@ export function useSourceReaderSession({
   const requestAgentAnnotations = useCallback(
     async (agent: PublicAgent, options: SourceAgentAnnotationRequestOptions = {}) => {
       const desktop = window.yomitomoDesktop;
-      const currentArticle = sourceAnnotations.latestArticleRef.current;
-      if (!desktop || !currentArticle || !agentAnnotationAdapter) {
+      const currentArticle = { ...article, annotations: sourceAnnotations.annotationsRef.current };
+      if (!desktop || !agentAnnotationAdapter) {
         if (options.pendingAnnotationId) {
           pendingAgents.removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
         }
@@ -489,11 +488,11 @@ export function useSourceReaderSession({
     [
       agentAnnotationAdapter,
       annotationAgents,
+      article,
       onOpenAnnotation,
       pendingAgents,
       sourceAnnotations.annotationsRef,
       sourceAnnotations.applyAnnotations,
-      sourceAnnotations.latestArticleRef,
       uiLanguage,
     ],
   );
