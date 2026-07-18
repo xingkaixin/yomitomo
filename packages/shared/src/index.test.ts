@@ -11,6 +11,7 @@ import {
   resolvePromptAgentIdentity,
   normalizeSelectionActionShortcutDraft,
   normalizeSelectionActionShortcuts,
+  normalizeTextWithMap,
   providerPresets,
   renderMarkdown,
   resolveTextAnchor,
@@ -67,6 +68,7 @@ const sharedRuntimeExports = [
   'normalizeSelectionActionShortcutKey',
   'normalizeSelectionActionShortcuts',
   'normalizeSoundEffectsVolume',
+  'normalizeTextWithMap',
   'normalizeTraceItemType',
   'normalizeUiLanguage',
   'normalizeUserProfile',
@@ -99,6 +101,18 @@ describe('shared public surface', () => {
 });
 
 describe('shared text anchors', () => {
+  it('uses the text-anchor whitespace mapping by default', () => {
+    expect(normalizeTextWithMap(' a \t b ')).toEqual({ text: 'a b', map: [1, 4, 5] });
+  });
+
+  it.each([
+    ['collapse-to-last-whitespace', 'a b', [1, 4, 5]],
+    ['collapse-to-next-character', 'a b', [1, 5, 5]],
+    ['remove', 'ab', [1, 5]],
+  ] as const)('normalizes whitespace with %s mapping', (mode, text, map) => {
+    expect(normalizeTextWithMap(' a \t b ', mode)).toEqual({ text, map });
+  });
+
   it('resolves repeated exact text with prefix and suffix context', () => {
     const text = 'alpha target omega. beta target gamma.';
     const anchor = createTextAnchor(text, 25, 31);

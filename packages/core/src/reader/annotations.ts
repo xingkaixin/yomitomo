@@ -21,6 +21,7 @@ import {
   normalizeAnnotationEvidenceSource,
   normalizeAnnotationMove,
   normalizeAnnotationType,
+  normalizeTextWithMap,
 } from '@yomitomo/shared';
 import { createEpubTextAnchor } from '../epub/ebook-index';
 import {
@@ -361,7 +362,7 @@ function createAgentAnnotationMatcherContext(
   return {
     searchScope,
     whitespaceInsensitiveText: normalizeTextWithMap(searchScope.text),
-    whitespaceAgnosticText: normalizeTextWithMap(searchScope.text, false),
+    whitespaceAgnosticText: normalizeTextWithMap(searchScope.text, 'remove'),
     allowedSegmentIds: agentAnnotationAllowedIdSet(options.allowedSegmentIds),
     allowedParagraphIds: agentAnnotationAllowedIdSet(options.allowedParagraphIds),
   };
@@ -572,30 +573,6 @@ function findWhitespaceAgnosticMatches(
     index = normalizedText.text.indexOf(normalizedQuery, index + normalizedQuery.length);
   }
   return matches;
-}
-
-function normalizeTextWithMap(text: string, keepWhitespace = true) {
-  let normalized = '';
-  const map: number[] = [];
-  let pendingSpaceIndex = -1;
-
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index];
-    if (/\s/.test(char)) {
-      if (keepWhitespace && normalized.length > 0) pendingSpaceIndex = index;
-      continue;
-    }
-
-    if (pendingSpaceIndex >= 0) {
-      normalized += ' ';
-      map.push(pendingSpaceIndex);
-      pendingSpaceIndex = -1;
-    }
-    normalized += char;
-    map.push(index);
-  }
-
-  return { text: normalized.trim(), map };
 }
 
 function suggestionContext(exact: string, suggestion: AnnotationSuggestion) {

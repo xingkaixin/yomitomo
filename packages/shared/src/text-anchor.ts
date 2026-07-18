@@ -2,6 +2,11 @@ import type { PdfRect, PdfTextAnchor, TextAnchor } from './types';
 
 import { hashText } from './ids';
 
+export type TextWhitespaceMapMode =
+  | 'collapse-to-last-whitespace'
+  | 'collapse-to-next-character'
+  | 'remove';
+
 export function textAnchorQuoteHash(text: string): string {
   return hashText(normalizeAnchorQuote(text));
 }
@@ -128,28 +133,33 @@ function findWhitespaceNormalizedMatches(text: string, exact: string) {
   return matches;
 }
 
-function normalizeTextWithMap(text: string) {
+export function normalizeTextWithMap(
+  text: string,
+  whitespaceMode: TextWhitespaceMapMode = 'collapse-to-last-whitespace',
+) {
   let normalized = '';
   const map: number[] = [];
-  let pendingSpaceIndex = -1;
+  let pendingWhitespaceIndex = -1;
 
   for (let index = 0; index < text.length; index += 1) {
     const char = text[index];
     if (/\s/.test(char)) {
-      if (normalized.length > 0) pendingSpaceIndex = index;
+      if (whitespaceMode !== 'remove' && normalized.length > 0) {
+        pendingWhitespaceIndex = index;
+      }
       continue;
     }
 
-    if (pendingSpaceIndex >= 0) {
+    if (pendingWhitespaceIndex >= 0) {
       normalized += ' ';
-      map.push(pendingSpaceIndex);
-      pendingSpaceIndex = -1;
+      map.push(whitespaceMode === 'collapse-to-next-character' ? index : pendingWhitespaceIndex);
+      pendingWhitespaceIndex = -1;
     }
     normalized += char;
     map.push(index);
   }
 
-  return { text: normalized.trim(), map };
+  return { text: normalized, map };
 }
 
 function textAnchorQuoteMatches(anchor: TextAnchor, text: string) {

@@ -247,9 +247,11 @@ export {
   createPdfTextAnchor,
   createTextAnchor,
   isPdfTextAnchor,
+  normalizeTextWithMap,
   resolveTextAnchor,
   textAnchorQuoteHash,
 } from './text-anchor';
+export type { TextWhitespaceMapMode } from './text-anchor';
 
 export { renderMarkdown } from './markdown';
 
