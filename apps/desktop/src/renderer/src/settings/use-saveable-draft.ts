@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import type { SaveState } from '../shell/app-types';
+import { useSaveStatus } from './use-save-status';
 
 type UseSaveableDraftOptions<TValue, TResult> = {
   canSave: (value: TValue) => boolean;
@@ -30,39 +31,27 @@ export function useSaveableDraft<TValue, TResult = unknown>({
   resetDelayMs = 1200,
   value,
 }: UseSaveableDraftOptions<TValue, TResult>): SaveableDraft<TValue, TResult> {
-  const [saveState, setSaveState] = useState<SaveState>('idle');
-  const [saveError, setSaveError] = useState('');
   const failedValueRef = useRef<{ value: TValue } | undefined>(undefined);
-  const idleTimerRef = useRef<number | undefined>(undefined);
+  const saveStatus = useSaveStatus({ errorMessage, resetDelayMs });
 
-  const saveable = saveState !== 'saving' && canSave(value);
-
-  const clearIdleTimer = useCallback(() => {
-    if (idleTimerRef.current === undefined) return;
-    window.clearTimeout(idleTimerRef.current);
-    idleTimerRef.current = undefined;
-  }, []);
+  const saveable = saveStatus.saveState !== 'saving' && canSave(value);
 
   const update = useCallback(
     (nextValue: TValue) => {
-      clearIdleTimer();
       failedValueRef.current = undefined;
       onChange(nextValue);
-      setSaveState('idle');
-      setSaveError('');
+      saveStatus.reset();
     },
-    [clearIdleTimer, onChange],
+    [onChange, saveStatus],
   );
 
   const reset = useCallback(
     (nextValue: TValue) => {
-      clearIdleTimer();
       failedValueRef.current = undefined;
       onChange(nextValue);
-      setSaveState('idle');
-      setSaveError('');
+      saveStatus.reset();
     },
-    [clearIdleTimer, onChange],
+    [onChange, saveStatus],
   );
 
   const save = useCallback(
@@ -70,45 +59,29 @@ export function useSaveableDraft<TValue, TResult = unknown>({
       const failedValue = failedValueRef.current;
       if (override === undefined && !failedValue && !saveable) return undefined;
       const nextValue = override ?? failedValue?.value ?? value;
-      clearIdleTimer();
-      setSaveState('saving');
-      setSaveError('');
-      try {
-        const result = await persist(nextValue);
-        failedValueRef.current = undefined;
-        const shouldMarkSaved = onSaved?.(result, nextValue) !== false;
-        if (!shouldMarkSaved) {
-          setSaveState('idle');
-          return result;
-        }
-        setSaveState('saved');
-        idleTimerRef.current = window.setTimeout(() => {
-          setSaveState('idle');
-          idleTimerRef.current = undefined;
-        }, resetDelayMs);
-        return result;
-      } catch (error) {
-        failedValueRef.current = { value: nextValue };
-        setSaveError(errorMessage(error));
-        setSaveState('error');
-        return undefined;
-      }
+      return saveStatus.run(() => persist(nextValue), {
+        onError: () => {
+          failedValueRef.current = { value: nextValue };
+        },
+        onSaved: (result) => {
+          failedValueRef.current = undefined;
+          return onSaved?.(result, nextValue);
+        },
+      });
     },
-    [clearIdleTimer, errorMessage, onSaved, persist, resetDelayMs, saveable, value],
+    [onSaved, persist, saveStatus, saveable, value],
   );
-
-  useEffect(() => () => clearIdleTimer(), [clearIdleTimer]);
 
   return useMemo(
     () => ({
       canSave: saveable,
       reset,
       save,
-      saveError,
-      saveState,
+      saveError: saveStatus.saveError,
+      saveState: saveStatus.saveState,
       update,
       value,
     }),
-    [reset, save, saveError, saveState, saveable, update, value],
+    [reset, save, saveStatus.saveError, saveStatus.saveState, saveable, update, value],
   );
 }

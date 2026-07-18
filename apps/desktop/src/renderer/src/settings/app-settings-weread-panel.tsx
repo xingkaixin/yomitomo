@@ -18,7 +18,6 @@ import {
   type WeReadSyncMode,
 } from '@yomitomo/shared';
 import { AutoSaveStatus } from './app-settings-save-status';
-import type { SaveState } from '../shell/app-types';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import {
@@ -29,14 +28,13 @@ import {
   SettingsRowDescriptionTooltip,
 } from './app-settings-kit';
 import { SettingsConfirmDialog } from './app-settings-confirm-dialog';
+import { useSaveStatus } from './use-save-status';
 import { useTranslation } from 'react-i18next';
 
 const WEREAD_API_KEY_HELP_URLS = {
   'zh-CN': 'https://yomitomo.app/docs/weread-api-key/',
   en: 'https://yomitomo.app/en/docs/weread-api-key/',
 } as const;
-
-type WeReadResetTimerKey = 'openMethod' | 'save' | 'syncMode' | 'test';
 
 export function WeReadSettingsPanel() {
   const { i18n, t } = useTranslation();
@@ -50,24 +48,27 @@ export function WeReadSettingsPanel() {
   const [revealedStoredApiKey, setRevealedStoredApiKey] = useState('');
   const [revealLoading, setRevealLoading] = useState(false);
   const [apiKeyMessage, setApiKeyMessage] = useState('');
-  const [openMethodSaveError, setOpenMethodSaveError] = useState('');
-  const [syncModeSaveError, setSyncModeSaveError] = useState('');
-  const [saveState, setSaveState] = useState<SaveState>('idle');
-  const [openMethodSaveState, setOpenMethodSaveState] = useState<SaveState>('idle');
-  const [syncModeSaveState, setSyncModeSaveState] = useState<SaveState>('idle');
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
   const [testState, setTestState] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [testMessage, setTestMessage] = useState('');
   const revealRequestRef = useRef(0);
-  const resetTimersRef = useRef<Partial<Record<WeReadResetTimerKey, number>>>({});
+  const testResetTimerRef = useRef<number | undefined>(undefined);
+  const credentialSave = useSaveStatus({
+    errorMessage: (error) => settingsSaveErrorMessage(error, t),
+  });
+  const openMethodSave = useSaveStatus({
+    errorMessage: (error) => settingsSaveErrorMessage(error, t),
+  });
+  const syncModeSave = useSaveStatus({
+    errorMessage: (error) => settingsSaveErrorMessage(error, t),
+  });
   const displayedApiKey = apiKey || (apiKeyVisible ? revealedStoredApiKey : '');
 
   useEffect(() => {
     return () => {
-      for (const timerId of Object.values(resetTimersRef.current)) {
-        if (timerId !== undefined) window.clearTimeout(timerId);
+      if (testResetTimerRef.current !== undefined) {
+        window.clearTimeout(testResetTimerRef.current);
       }
-      resetTimersRef.current = {};
     };
   }, []);
 
@@ -85,73 +86,67 @@ export function WeReadSettingsPanel() {
     };
   }, []);
 
-  function clearResetTimer(key: WeReadResetTimerKey) {
-    const timerId = resetTimersRef.current[key];
-    if (timerId === undefined) return;
-    window.clearTimeout(timerId);
-    delete resetTimersRef.current[key];
+  function clearTestResetTimer() {
+    if (testResetTimerRef.current === undefined) return;
+    window.clearTimeout(testResetTimerRef.current);
+    testResetTimerRef.current = undefined;
   }
 
-  function scheduleResetTimer(key: WeReadResetTimerKey, delay: number, callback: () => void) {
-    clearResetTimer(key);
-    const timerId = window.setTimeout(() => {
-      delete resetTimersRef.current[key];
-      callback();
-    }, delay);
-    resetTimersRef.current[key] = timerId;
+  function scheduleTestReset() {
+    clearTestResetTimer();
+    testResetTimerRef.current = window.setTimeout(() => {
+      testResetTimerRef.current = undefined;
+      setTestState('idle');
+    }, 1400);
   }
 
   async function saveSettings() {
     if (!window.yomitomoDesktop) return;
     if (!apiKey.trim()) return;
-    clearResetTimer('save');
-    setSaveState('saving');
     setApiKeyMessage('');
-    try {
-      const state = await window.yomitomoDesktop.saveWeReadSettings({
-        apiKey,
-        openMethod: settings.openMethod,
-      });
-      setSettings(state.settings);
-      setApiKey('');
-      setApiKeyVisible(false);
-      setRevealedStoredApiKey('');
-      setSaveState('saved');
-      scheduleResetTimer('save', 1200, () => setSaveState('idle'));
-    } catch (error) {
-      setApiKeyMessage(settingsSaveErrorMessage(error, t));
-      setSaveState('error');
-    }
+    await credentialSave.run(
+      () =>
+        window.yomitomoDesktop.saveWeReadSettings({
+          apiKey,
+          openMethod: settings.openMethod,
+        }),
+      {
+        onSaved: (state) => {
+          setSettings(state.settings);
+          setApiKey('');
+          setApiKeyVisible(false);
+          setRevealedStoredApiKey('');
+        },
+      },
+    );
   }
 
   async function removeStoredApiKey() {
     if (!window.yomitomoDesktop || !settings.configured) return;
     setRemoveConfirmOpen(false);
-    clearResetTimer('save');
-    setSaveState('saving');
     setApiKeyMessage('');
-    try {
-      const state = await window.yomitomoDesktop.saveWeReadSettings({
-        removeApiKey: true,
-        openMethod: settings.openMethod,
-      });
-      setSettings(state.settings);
-      setApiKey('');
-      setApiKeyVisible(false);
-      setRevealedStoredApiKey('');
-      setTestState('idle');
-      setTestMessage('');
-      setSaveState('saved');
-      scheduleResetTimer('save', 1200, () => setSaveState('idle'));
-    } catch (error) {
-      setApiKeyMessage(settingsSaveErrorMessage(error, t));
-      setSaveState('error');
-    }
+    await credentialSave.run(
+      () =>
+        window.yomitomoDesktop.saveWeReadSettings({
+          removeApiKey: true,
+          openMethod: settings.openMethod,
+        }),
+      {
+        onSaved: (state) => {
+          setSettings(state.settings);
+          setApiKey('');
+          setApiKeyVisible(false);
+          setRevealedStoredApiKey('');
+          setTestState('idle');
+          setTestMessage('');
+        },
+      },
+    );
   }
 
   async function testConnection() {
     if (!window.yomitomoDesktop) return;
-    clearResetTimer('test');
+    clearTestResetTimer();
     setTestState('testing');
     setTestMessage('');
     try {
@@ -166,7 +161,7 @@ export function WeReadSettingsPanel() {
       setTestState('error');
       setTestMessage(wereadErrorMessage(error, t));
     } finally {
-      scheduleResetTimer('test', 1400, () => setTestState('idle'));
+      scheduleTestReset();
     }
   }
 
@@ -206,38 +201,20 @@ export function WeReadSettingsPanel() {
     if (!window.yomitomoDesktop) return;
     const previous = settings.openMethod;
     setSettings((current) => ({ ...current, openMethod }));
-    clearResetTimer('openMethod');
-    setOpenMethodSaveState('saving');
-    setOpenMethodSaveError('');
-    try {
-      const state = await window.yomitomoDesktop.saveWeReadSettings({ openMethod });
-      setSettings(state.settings);
-      setOpenMethodSaveState('saved');
-      scheduleResetTimer('openMethod', 1200, () => setOpenMethodSaveState('idle'));
-    } catch (error) {
-      setSettings((current) => ({ ...current, openMethod: previous }));
-      setOpenMethodSaveError(settingsSaveErrorMessage(error, t));
-      setOpenMethodSaveState('error');
-    }
+    await openMethodSave.run(() => window.yomitomoDesktop.saveWeReadSettings({ openMethod }), {
+      onError: () => setSettings((current) => ({ ...current, openMethod: previous })),
+      onSaved: (state) => setSettings(state.settings),
+    });
   }
 
   async function saveSyncMode(syncMode: WeReadSyncMode) {
     if (!window.yomitomoDesktop) return;
     const previous = settings.syncMode ?? 'manual';
     setSettings((current) => ({ ...current, syncMode }));
-    clearResetTimer('syncMode');
-    setSyncModeSaveState('saving');
-    setSyncModeSaveError('');
-    try {
-      const state = await window.yomitomoDesktop.saveWeReadSettings({ syncMode });
-      setSettings(state.settings);
-      setSyncModeSaveState('saved');
-      scheduleResetTimer('syncMode', 1200, () => setSyncModeSaveState('idle'));
-    } catch (error) {
-      setSettings((current) => ({ ...current, syncMode: previous }));
-      setSyncModeSaveError(settingsSaveErrorMessage(error, t));
-      setSyncModeSaveState('error');
-    }
+    await syncModeSave.run(() => window.yomitomoDesktop.saveWeReadSettings({ syncMode }), {
+      onError: () => setSettings((current) => ({ ...current, syncMode: previous })),
+      onSaved: (state) => setSettings(state.settings),
+    });
   }
 
   async function openWeReadApiKeyHelp() {
@@ -255,13 +232,13 @@ export function WeReadSettingsPanel() {
     }
   }
 
-  const canSave = saveState !== 'saving' && Boolean(apiKey.trim());
+  const canSave = credentialSave.saveState !== 'saving' && Boolean(apiKey.trim());
   const canTest = testState !== 'testing' && (Boolean(apiKey.trim()) || settings.configured);
-  const canRemove = saveState !== 'saving' && settings.configured;
+  const canRemove = credentialSave.saveState !== 'saving' && settings.configured;
   const saveLabel =
-    saveState === 'saving'
+    credentialSave.saveState === 'saving'
       ? t('settings.weread.saving')
-      : saveState === 'saved'
+      : credentialSave.saveState === 'saved'
         ? t('settings.weread.saved')
         : t('settings.weread.save');
   const testLabel =
@@ -314,8 +291,7 @@ export function WeReadSettingsPanel() {
               onChange={(event) => {
                 setApiKey(event.target.value);
                 setRevealedStoredApiKey('');
-                clearResetTimer('save');
-                setSaveState('idle');
+                credentialSave.reset();
                 setApiKeyMessage('');
               }}
             />
@@ -335,7 +311,7 @@ export function WeReadSettingsPanel() {
         <div className="settings-card-actions weread-api-key-actions">
           <Button
             className={
-              saveState === 'saved'
+              credentialSave.saveState === 'saved'
                 ? 'action-button save-action is-saved'
                 : 'action-button save-action'
             }
@@ -343,7 +319,7 @@ export function WeReadSettingsPanel() {
             type="button"
             onClick={saveSettings}
           >
-            {saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
+            {credentialSave.saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
             {saveLabel}
           </Button>
           <Button
@@ -386,8 +362,10 @@ export function WeReadSettingsPanel() {
             <ExternalLink size={13} />
           </button>
         </div>
-        {saveState === 'error' || apiKeyMessage ? (
-          <p className="settings-error-text">{apiKeyMessage || t('settings.weread.saveFailed')}</p>
+        {credentialSave.saveState === 'error' || apiKeyMessage ? (
+          <p className="settings-error-text">
+            {apiKeyMessage || credentialSave.saveError || t('settings.weread.saveFailed')}
+          </p>
         ) : testState === 'error' && testMessage ? (
           <p className="settings-error-text">{testMessage}</p>
         ) : null}
@@ -406,8 +384,8 @@ export function WeReadSettingsPanel() {
         label={t('settings.weread.openMethodGroup')}
         aside={
           <AutoSaveStatus
-            error={openMethodSaveError}
-            state={openMethodSaveState}
+            error={openMethodSave.saveError}
+            state={openMethodSave.saveState}
             onRetry={() => void saveOpenMethod(settings.openMethod)}
           />
         }
@@ -444,8 +422,8 @@ export function WeReadSettingsPanel() {
         label={t('settings.weread.syncModeGroup')}
         aside={
           <AutoSaveStatus
-            error={syncModeSaveError}
-            state={syncModeSaveState}
+            error={syncModeSave.saveError}
+            state={syncModeSave.saveState}
             onRetry={() => void saveSyncMode(settings.syncMode ?? 'manual')}
           />
         }

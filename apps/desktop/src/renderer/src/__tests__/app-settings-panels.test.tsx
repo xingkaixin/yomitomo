@@ -1343,6 +1343,28 @@ describe('WeReadSettingsPanel', () => {
         syncMode: 'auto',
       }),
     );
+    expect(await screen.findByText('已保存')).toBeTruthy();
+  });
+
+  it('rolls back failed WeRead sync mode saves and shows the shared error state', async () => {
+    const saveWeReadSettings = vi.fn().mockRejectedValue(new Error('sync write failed'));
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: {
+        getWeReadState: vi.fn().mockResolvedValue({
+          settings: { configured: true, openMethod: 'deeplink', syncMode: 'manual' },
+          books: [],
+        }),
+        saveWeReadSettings,
+      },
+    });
+
+    render(<WeReadSettingsPanel />);
+
+    fireEvent.click(await screen.findByRole('radio', { name: /自动/ }));
+
+    expect(await screen.findByText('保存失败：sync write failed')).toBeTruthy();
+    expect(screen.getByRole('radio', { name: /手动/ }).getAttribute('aria-checked')).toBe('true');
   });
 
   it('clears pending WeRead save-state timers on unmount', async () => {
@@ -1615,6 +1637,28 @@ describe('DataManagementSettings', () => {
       expect.objectContaining({ settings: expect.objectContaining({ logRetentionDays: 15 }) }),
     );
     expect(screen.queryByRole('textbox', { name: /日志/ })).toBeNull();
+  });
+
+  it('retries failed log retention saves through the shared save state', async () => {
+    const desktop = installDesktopDataApi();
+    desktop.saveSettings
+      .mockRejectedValueOnce(new Error('retention write failed'))
+      .mockResolvedValueOnce({ ...emptyStore, settings: { logRetentionDays: 15 } });
+    const onStoreUpdated = vi.fn();
+
+    render(<DataManagementSettings settings={{}} onStoreUpdated={onStoreUpdated} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '15 天' }));
+
+    const retentionAlert = await screen.findByRole('alert', { name: '保存状态' });
+    expect(within(retentionAlert).getByText('retention write failed')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '重试' }));
+
+    await waitFor(() => expect(desktop.saveSettings).toHaveBeenCalledTimes(2));
+    expect(onStoreUpdated).toHaveBeenCalledWith(
+      expect.objectContaining({ settings: expect.objectContaining({ logRetentionDays: 15 }) }),
+    );
+    expect(await screen.findByText('已保存')).toBeTruthy();
   });
 
   it('backs up and restores the database through desktop actions', async () => {
