@@ -1,10 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { desktopIpcErrorCodes, type DesktopIpcInvokeEnvelope } from '../../ipc-errors';
 import { MAX_PDF_IMPORT_BYTES, type ArticleImportUrlInput } from '../../ipc-contract';
-import {
-  desktopIpcInvokeSchemaChannels,
-  highRiskDesktopIpcSchemaChannels,
-} from '../../ipc-schemas';
+import { desktopIpcInvokeSchemaChannels } from '../../ipc-schemas';
 import { handleDesktopIpc } from './ipc';
 
 const ipcHandlers = vi.hoisted(() => new Map<string, (...args: unknown[]) => unknown>());
@@ -28,20 +25,20 @@ describe('handleDesktopIpc', () => {
     }));
     handleDesktopIpc('article:import-url', handler);
 
-    const envelope = await invokeRegisteredHandler('article:import-url', 'https://example.com');
+    const input = { url: 'https://example.com' };
+    const envelope = await invokeRegisteredHandler('article:import-url', input);
 
     expect(envelope).toEqual({ ok: true, value: { status: 'canceled' } });
-    expect(handler).toHaveBeenCalledWith({}, 'https://example.com');
+    expect(handler).toHaveBeenCalledWith({}, input);
   });
 
   it('rejects malformed URL imports before invoking the handler', async () => {
     const handler = vi.fn();
     handleDesktopIpc('article:import-url', handler);
 
-    const envelope = await invokeRegisteredHandler(
-      'article:import-url',
-      'file:///tmp/article.html',
-    );
+    const envelope = await invokeRegisteredHandler('article:import-url', {
+      url: 'file:///tmp/article.html',
+    });
 
     expect(envelope).toMatchObject({
       ok: false,
@@ -92,12 +89,19 @@ describe('handleDesktopIpc', () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
-  it('keeps high-risk channels covered by invoke arg schemas', () => {
-    const schemaChannels = new Set(desktopIpcInvokeSchemaChannels);
+  it('keeps explicitly exempt args unchanged', async () => {
+    const handler = vi.fn(async () => undefined);
+    handleDesktopIpc('url:open', handler);
 
-    expect(
-      highRiskDesktopIpcSchemaChannels.filter((channel) => !schemaChannels.has(channel)),
-    ).toEqual([]);
+    const envelope = await invokeRegisteredHandler('url:open', 'custom-scheme:value');
+
+    expect(envelope).toEqual({ ok: true, value: undefined });
+    expect(handler).toHaveBeenCalledWith({}, 'custom-scheme:value');
+  });
+
+  it('derives schema channels from the invoke schema registry', () => {
+    expect(desktopIpcInvokeSchemaChannels).toContain('article:import-url');
+    expect(desktopIpcInvokeSchemaChannels).not.toContain('settings:save');
   });
 });
 

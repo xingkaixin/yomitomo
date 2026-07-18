@@ -136,13 +136,12 @@ export function registerArticleIpc(context: ArticleIpcContext) {
       await import('../articles/article-source-import');
     const { articleRecordFromUrl, isArticleImportCanceledError, isArticleImportChallengeRecord } =
       await import('../articles/article-import');
-    const importInput = articleImportUrlInput(input);
     const importSettings = articlePersistence.readImportSettings();
     const record = await canceledArticleSourceImport(
-      articleRecordFromUrl(importInput.url, {
+      articleRecordFromUrl(input.url, {
         allowLocalNetworkArticleImport: importSettings.allowLocalNetworkArticleImport,
         inlineImages: importSettings.saveArticleImages,
-        requestId: importInput.requestId,
+        requestId: input.requestId,
       }),
       isArticleImportCanceledError,
     );
@@ -283,10 +282,6 @@ function articleImportRepository(articlePersistence: ArticlePersistence) {
     readArticle: articlePersistence.readArticle,
     saveArticle: articlePersistence.saveArticle,
   };
-}
-
-function articleImportUrlInput(input: string | { url: string; requestId?: string }) {
-  return typeof input === 'string' ? { url: input, requestId: undefined } : input;
 }
 
 export async function cleanupDeletedArticleSourceAssets(input: {
