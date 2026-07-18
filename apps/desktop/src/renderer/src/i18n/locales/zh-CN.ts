@@ -679,6 +679,7 @@ export const zhCNResources = {
         deletedToast: '合集已删除',
         membersAddedToast: '已加入 {{count}} 项',
         memberRemovedToast: '已从合集中移除',
+        pinSaveFailed: '置顶状态保存失败',
       },
       fallback: {
         ebook: '电子书',

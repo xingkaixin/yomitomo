@@ -176,6 +176,7 @@ function readingLibrary({
     <ReadingLibrary
       agents={[]}
       articles={articles.map(articleSummary)}
+      {...collectionActionStubs()}
       openArticleTarget={openArticleTarget}
       readerTheme={defaultTheme.reader}
       userProfile={userProfile}
@@ -188,6 +189,17 @@ function readingLibrary({
       onSaveArticleReadingProgress={vi.fn()}
     />
   );
+}
+
+function collectionActionStubs() {
+  return {
+    onAddCollectionMembers: vi.fn(),
+    onCreateCollection: vi.fn(),
+    onDeleteCollection: vi.fn(),
+    onRemoveCollectionMember: vi.fn(),
+    onRenameCollection: vi.fn(),
+    onSetLibraryPin: vi.fn(),
+  };
 }
 
 type ReadingLibraryTestOptions = {

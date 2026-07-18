@@ -694,6 +694,7 @@ export const enResources = {
         deletedToast: 'Collection deleted',
         membersAddedToast: 'Added {{count}} items',
         memberRemovedToast: 'Removed from collection',
+        pinSaveFailed: 'Failed to save pin state',
       },
       fallback: {
         ebook: 'Ebook',

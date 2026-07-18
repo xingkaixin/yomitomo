@@ -10,6 +10,7 @@ import { AppLockGate } from './app-lock/app-lock-gate';
 import { AvatarImage } from './shell/app-ui';
 import { useAppAgentActions } from './shell/app-agent-actions';
 import { useAppArticleStoreActions } from './shell/app-article-store-actions';
+import { useAppCollectionStoreActions } from './shell/app-library-collection-store-actions';
 import { useDesktopStoreState } from './shell/app-desktop-store-state';
 import {
   cancelIdlePreload,
@@ -179,6 +180,14 @@ function App() {
     importEbookFile,
     importPdfFile,
   } = useAppArticleStoreActions({ storeRef, applyStore });
+  const {
+    addCollectionMembers,
+    createCollection,
+    deleteCollection,
+    removeCollectionMember,
+    renameCollection,
+    setLibraryPin,
+  } = useAppCollectionStoreActions({ storeRef, applyStore });
   const settingsDrafts = useSettingsDrafts({ store, storeSyncSnapshot, applyStore });
   const { agentSaveError, agentSaveState, toggleAgent } = useAppAgentActions({ applyStore });
   const showOnboarding = !appLocked && (onboardingForced || !store.settings.onboardingCompletedAt);
@@ -554,9 +563,12 @@ function App() {
                   menuRequest={libraryMenuRequest}
                   openArticleTarget={pendingOpenArticle}
                   userProfile={store.user}
+                  onAddCollectionMembers={addCollectionMembers}
                   onDeleteArticle={deleteArticle}
                   onDeleteArticleAnnotation={deleteArticleAnnotation}
                   onDeleteArticleComment={deleteArticleComment}
+                  onCreateCollection={createCollection}
+                  onDeleteCollection={deleteCollection}
                   onCloseArticleDiscussions={closeArticleDiscussions}
                   onOpenArticleDiscussion={openArticleDiscussion}
                   onArticleOpened={() => setPendingOpenArticle(null)}
@@ -566,12 +578,15 @@ function App() {
                   onImportPdfFile={importPdfFile}
                   onReadingModeChange={setLibraryReaderOpen}
                   onReadArticle={readArticle}
+                  onRemoveCollectionMember={removeCollectionMember}
+                  onRenameCollection={renameCollection}
                   onMergeArticleAgentAnnotation={mergeArticleAgentAnnotation}
                   onSaveArticleAnnotation={saveArticleAnnotation}
                   onSaveArticleComment={saveArticleComment}
                   onSaveArticleReadingProgress={saveArticleReadingProgress}
                   onSaveArticleReaderChatState={saveArticleReaderChatState}
                   onSaveSettings={saveLibrarySettings}
+                  onSetLibraryPin={setLibraryPin}
                   onOpenDataSources={openDataSources}
                 />
               ) : null}
