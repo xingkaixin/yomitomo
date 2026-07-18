@@ -2,33 +2,23 @@ import type React from 'react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Annotation, ArticleReadingProgress, ReaderQuestionContext } from '@yomitomo/shared';
-import { createTextAnchor, resolveTextAnchor } from '@yomitomo/shared';
+import { resolveTextAnchor } from '@yomitomo/shared';
 import {
   annotationIdsAtHighlightPoint,
-  createTranslationTextAnchor,
-  createEpubTextAnchor,
   findCurrentTocTarget,
-  getArticleSelection,
   type HighlightBox,
-  isRangeInsideArticle,
-  offsetFromArticleStartIgnoringSelector,
   rangeHighlightBoxes,
   rangeForTranslationTextAnchor,
-  rangeFromOffsets,
   rangeFromOffsetsIgnoringSelector,
-  selectionActionPosition,
   scrollReaderSurfaceToRect,
   createUserAnnotation,
   sourceTextContent,
   textForTranslationAnchor,
-  translationElementForRange,
   type TocItem,
 } from '@yomitomo/core';
 import {
   ReaderAppView,
   type AnnotationNavigationDirection,
-  type SelectionAdjustmentHandle,
-  type SelectionAdjustmentPointer,
 } from '@yomitomo/reader-ui/reader-app-view';
 import { ReaderSettingsToolbarControls } from '@yomitomo/reader-ui/reader-toolbar-controls';
 import { readerDesktopEmbeddedBundleStyles } from '@yomitomo/reader-ui/reader-styles';
@@ -39,10 +29,8 @@ import {
 import { useAgentAnnotationQueue } from '@yomitomo/reader-ui/use-agent-annotation-queue';
 import { OpenArticleButton } from '../../shell/app-ui';
 import { articleIdentityLine } from '../../shell/app-utils';
-import { appToast } from '../../shell/app-toast';
 import { recordRendererPerformanceTiming } from '../../shell/app-renderer-performance';
 import type { WebSourceBookcaseProps } from '../bookcase/app-source-bookcase';
-import { isContinuousTextSelectionMouseEvent } from '../bookcase/source-reader-selection-events';
 import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
 import { useRecentAnnotationFeedback } from '../bookcase/use-recent-annotation-feedback';
 import { sourceTocOptions, useWebReaderBoxes } from './use-web-reader-boxes';
@@ -52,26 +40,7 @@ import {
   sourceReaderTocStyles,
   webAnnotationNavigationState,
 } from './app-source-bookcase-web-utils';
-import {
-  describeAnchorForDebug,
-  describeHighlightBoxesForDebug,
-  describePointerForDebug,
-  describeRangeForDebug,
-  describeReaderSelection,
-  describeSelectionNode,
-  logReaderSelectionDebug,
-  readerSelectionDebugEnabled,
-  shouldLogSelectionDebug,
-} from './web-reader-selection-debug';
-import {
-  shouldUseWebSelectionGesturePreview,
-  shouldUseWebSelectionGestureRange,
-  webSelectionGesturePointFromClientPoint,
-  webSelectionGestureRangeFromClientPoint,
-  webTranslationSelectionGesturePointFromClientPoint,
-  type WebSelectionGestureRange,
-  type WebSelectionGesturePoint,
-} from './web-reader-selection-gesture';
+import { describeAnchorForDebug } from './web-reader-selection-debug';
 import { useSourceReaderSession } from '../bookcase/use-source-reader-session';
 import { createWebSourceReaderController } from './app-source-bookcase-web-controller';
 import { useSourceReaderWorkspace } from '../bookcase/use-source-reader-workspace';
@@ -89,20 +58,10 @@ import {
   WEB_ANNOTATION_RAIL_DEBUG_OVERSCAN,
   WEB_ANNOTATION_RAIL_DEBUG_SAMPLE_LIMIT,
 } from './web-annotation-rail-debug';
-import {
-  canAdjustWebSelectionAnchor,
-  webSelectionAdjustmentKind,
-  type WebSelectionAdjustment,
-} from './web-selection-adjustment';
 import { createWebReadingProgressFrame } from './web-reading-progress-frame';
-import {
-  describeSelectionAdjustmentPoint,
-  selectionAdjustmentAdjustedOffsets,
-  selectionAdjustmentDraggingHandle,
-} from '../bookcase/selection-adjustment';
 import { useWebBilingualTranslation } from './use-web-bilingual-translation';
+import { useWebReaderSelection } from './use-web-reader-selection';
 
-const WEB_SELECTION_DRAG_ANNOTATION_ID = '__selection_drag__';
 const WEB_HIGHLIGHT_HIT_PADDING = 8;
 const WEB_READING_PROGRESS_SAVE_DEBOUNCE_MS = 450;
 const WEB_READING_PROGRESS_SAVE_MIN_DELTA = 0.01;
@@ -142,10 +101,6 @@ export function WebSourceBookcase({
   const articleRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const railRef = useRef<HTMLElement | null>(null);
-  const articleSelectionGestureRef = useRef<WebSelectionGesturePoint | null>(null);
-  const articleSelectionGestureDragPointRef = useRef<WebSelectionGestureClientPoint | null>(null);
-  const articleSelectionAdjustmentRef = useRef<WebSelectionAdjustment | null>(null);
-  const suppressArticleSelectionMouseUpRef = useRef(false);
   const restoredWebProgressArticleRef = useRef<string | null>(null);
   const noteRefs = useRef(new Map<string, HTMLElement>());
   const { markAnnotationCreated, newAnnotationIds } = useRecentAnnotationFeedback(
@@ -331,19 +286,24 @@ export function WebSourceBookcase({
     sourceReaderWorkspace;
   const {
     temporaryBoxes,
-    setTemporaryBoxes,
-    selectionAction,
-    setSelectionAction,
     setHighlightChoice,
     composer,
     clearSelection,
     clearAnnotationUiState,
-    openSelectionAction,
     cancelComposer,
     copySelection,
     openComposer,
   } = selection;
-  const selectionDebugContextRef = useRef<Record<string, unknown>>({});
+  const webReaderSelection = useWebReaderSelection({
+    article,
+    articleRef,
+    canvasRef,
+    getArticleText: currentArticleText,
+    scrollRef,
+    selection,
+    translation: bilingualTranslation,
+    userProfile,
+  });
 
   useEffect(() => {
     sourceReaderSession.registerAgentAnnotationAdapter(
@@ -377,9 +337,6 @@ export function WebSourceBookcase({
     setStatusMessage('');
     searchNavigation.resetSearch();
     setArticleSearchText('');
-    articleSelectionGestureRef.current = null;
-    articleSelectionGestureDragPointRef.current = null;
-    suppressArticleSelectionMouseUpRef.current = false;
     setReadingProgress(normalizeSavedWebProgress(article.readingProgress) ?? 0);
     restoredWebProgressArticleRef.current = null;
   }, [article?.id, searchNavigation.resetSearch]);
@@ -793,619 +750,8 @@ export function WebSourceBookcase({
     return articleRef.current ? sourceTextContent(articleRef.current) : '';
   }
 
-  function startArticleSelectionAdjustment(point: SelectionAdjustmentPointer) {
-    const anchor = selectionAction?.anchor;
-    const kind = anchor ? webSelectionAdjustmentKind(anchor) : null;
-    if (!anchor || !kind || !canAdjustWebSelectionAnchor(anchor)) {
-      articleSelectionAdjustmentRef.current = null;
-      return;
-    }
-
-    articleSelectionAdjustmentRef.current =
-      kind === 'translation'
-        ? {
-            kind,
-            handle: point.handle,
-            startOffset: anchor.start,
-            endOffset: anchor.end,
-            translationBlockId: anchor.segmentId || '',
-          }
-        : {
-            kind,
-            handle: point.handle,
-            startOffset: anchor.start,
-            endOffset: anchor.end,
-          };
-    logReaderSelectionDebug('selection-handle:start', {
-      ...selectionDebugContext(),
-      kind,
-      handle: point.handle,
-      anchor: describeAnchorForDebug(anchor),
-      pointer: describeSelectionAdjustmentPoint(point),
-    });
-  }
-
-  function updateArticleSelectionAdjustment(point: SelectionAdjustmentPointer) {
-    const adjustment = articleSelectionAdjustmentRef.current;
-    const articleElement = articleRef.current;
-    const canvasElement = canvasRef.current;
-    if (!adjustment || adjustment.handle !== point.handle || !articleElement || !canvasElement) {
-      return;
-    }
-    if (adjustment.kind === 'translation') {
-      updateTranslationSelectionAdjustment(adjustment, point, canvasElement);
-      return;
-    }
-
-    const targetPoint = webSelectionGesturePointFromClientPoint(
-      articleElement,
-      point.clientX,
-      point.clientY,
-    );
-    if (!targetPoint || targetPoint.translationBlockId) return;
-
-    const nextOffsets = selectionAdjustmentAdjustedOffsets(adjustment, targetPoint.sourceOffset);
-    if (!nextOffsets) return;
-
-    const range = rangeFromOffsetsIgnoringSelector(
-      articleElement,
-      nextOffsets.startOffset,
-      nextOffsets.endOffset,
-      '[data-reader-translation]',
-    );
-    if (!range || range.collapsed) return;
-
-    const selectedArticleText = currentArticleText();
-    const anchor = article.ebook?.index
-      ? createEpubTextAnchor(
-          article.ebook.index,
-          selectedArticleText,
-          nextOffsets.startOffset,
-          nextOffsets.endOffset,
-        )
-      : createTextAnchor(selectedArticleText, nextOffsets.startOffset, nextOffsets.endOffset);
-    commitSelectionAdjustment({
-      anchor,
-      canvasElement,
-      draggingHandle: selectionAdjustmentDraggingHandle(adjustment, targetPoint.sourceOffset),
-      range,
-    });
-  }
-
-  function updateTranslationSelectionAdjustment(
-    adjustment: Extract<WebSelectionAdjustment, { kind: 'translation' }>,
-    point: SelectionAdjustmentPointer,
-    canvasElement: HTMLElement,
-  ) {
-    const articleElement = articleRef.current;
-    if (!articleElement) return;
-
-    const targetPoint = webTranslationSelectionGesturePointFromClientPoint(
-      articleElement,
-      adjustment.translationBlockId,
-      point.clientX,
-      point.clientY,
-    );
-    if (!targetPoint) return;
-
-    const nextOffsets = selectionAdjustmentAdjustedOffsets(
-      adjustment,
-      targetPoint.translationOffset,
-    );
-    if (!nextOffsets) return;
-
-    const range = rangeFromOffsets(
-      targetPoint.translationElement,
-      nextOffsets.startOffset,
-      nextOffsets.endOffset,
-    );
-    if (!range || range.collapsed) return;
-
-    const anchor = createTranslationTextAnchor(range, targetPoint.translationElement);
-    if (!anchor) return;
-
-    commitSelectionAdjustment({
-      anchor,
-      canvasElement,
-      draggingHandle: selectionAdjustmentDraggingHandle(adjustment, targetPoint.translationOffset),
-      range,
-    });
-  }
-
-  function commitSelectionAdjustment({
-    anchor,
-    canvasElement,
-    draggingHandle,
-    range,
-  }: {
-    anchor: Annotation['anchor'];
-    canvasElement: HTMLElement;
-    draggingHandle: SelectionAdjustmentHandle;
-    range: Range;
-  }) {
-    if (!anchor.exact.trim()) return;
-
-    const rects = range.getClientRects();
-    const lastRect = rects[rects.length - 1];
-    if (!lastRect) return;
-
-    const canvasRect = canvasElement.getBoundingClientRect();
-    const position = selectionActionPosition(lastRect, canvasRect);
-    const highlightBoxes = rangeHighlightBoxes(range, canvasRect, 'source-selection').map((box) =>
-      Object.assign(box, {
-        annotationId: '__selection__',
-        contributorId: userProfile.id,
-        color: userProfile.annotationColor,
-      }),
-    );
-    setSelectionAction({
-      x: position.x,
-      y: position.y,
-      anchor,
-      adjustable: true,
-      draggingHandle,
-    });
-    setTemporaryBoxes(highlightBoxes);
-  }
-
-  function finishArticleSelectionAdjustment(point: SelectionAdjustmentPointer) {
-    updateArticleSelectionAdjustment(point);
-    const adjustment = articleSelectionAdjustmentRef.current;
-    articleSelectionAdjustmentRef.current = null;
-    logReaderSelectionDebug('selection-handle:end', {
-      ...selectionDebugContext(),
-      handle: point.handle,
-      pointer: describeSelectionAdjustmentPoint(point),
-      adjusted: Boolean(adjustment),
-    });
-    setSelectionAction((action) =>
-      action?.draggingHandle ? { ...action, draggingHandle: undefined } : action,
-    );
-  }
-
   function isCurrentArticle(articleId: string) {
     return article.id === articleId;
-  }
-
-  function selectionDebugContext() {
-    return {
-      articleId: article.id,
-      sourceType: article.sourceType || 'web',
-      ...bilingualTranslation.debugContext(),
-      composerOpen: Boolean(composer),
-      selectionActionOpen: Boolean(selectionAction),
-      temporaryBoxCount: temporaryBoxes.length,
-    };
-  }
-
-  selectionDebugContextRef.current = selectionDebugContext();
-
-  function logCurrentSelectionDebug(event: string, details: Record<string, unknown> = {}) {
-    const articleElement = articleRef.current;
-    logReaderSelectionDebug(event, {
-      ...selectionDebugContext(),
-      selection: articleElement
-        ? describeReaderSelection(getArticleSelection(articleElement), articleElement)
-        : { present: false, articleMounted: false },
-      ...details,
-    });
-  }
-
-  function setArticleSelectionGestureVisible(visible: boolean) {
-    const articleElement = articleRef.current;
-    articleElement?.classList.toggle('is-web-selection-gesture', visible);
-  }
-
-  function removeArticleSelectionGesturePreviewBoxes() {
-    setTemporaryBoxes((currentBoxes) => {
-      if (!currentBoxes.some((box) => box.annotationId === WEB_SELECTION_DRAG_ANNOTATION_ID)) {
-        return currentBoxes;
-      }
-      return currentBoxes.filter((box) => box.annotationId !== WEB_SELECTION_DRAG_ANNOTATION_ID);
-    });
-  }
-
-  function clearArticleSelectionGesturePreview() {
-    setArticleSelectionGestureVisible(false);
-    removeArticleSelectionGesturePreviewBoxes();
-  }
-
-  function previewArticleSelectionGesture() {
-    const articleElement = articleRef.current;
-    const canvasElement = canvasRef.current;
-    const selectionGesture = articleSelectionGestureRef.current;
-    const dragPoint = articleSelectionGestureDragPointRef.current;
-    if (!articleElement || !canvasElement || !selectionGesture || !dragPoint) return;
-
-    const gestureRange = webSelectionGestureRangeFromClientPoint(
-      articleElement,
-      selectionGesture,
-      dragPoint.clientX,
-      dragPoint.clientY,
-    );
-    if (!gestureRange) {
-      removeArticleSelectionGesturePreviewBoxes();
-      return;
-    }
-
-    const canvasRect = canvasElement.getBoundingClientRect();
-    const previewBoxes = rangeHighlightBoxes(
-      gestureRange.range,
-      canvasRect,
-      'source-selection-drag',
-    ).map((box) =>
-      Object.assign(box, {
-        annotationId: WEB_SELECTION_DRAG_ANNOTATION_ID,
-        contributorId: userProfile.id,
-        color: userProfile.annotationColor,
-      }),
-    );
-    setTemporaryBoxes(previewBoxes);
-  }
-
-  useEffect(() => {
-    const ownerDocument = articleRef.current?.ownerDocument || document;
-    let frame = 0;
-    let previewFrame = 0;
-
-    const debugArticle = { articleId: article.id, sourceType: article.sourceType || 'web' };
-    const currentContext = () => selectionDebugContextRef.current;
-    const currentOpenState = () => {
-      const context = currentContext();
-      return {
-        composerOpen: context.composerOpen === true,
-        selectionActionOpen: context.selectionActionOpen === true,
-      };
-    };
-
-    const logSelectionState = (event: string, details: Record<string, unknown> = {}) => {
-      if (!readerSelectionDebugEnabled()) return;
-      const articleElement = articleRef.current;
-      if (!articleElement) return;
-      const nativeSelection = getArticleSelection(articleElement);
-      logReaderSelectionDebug(event, {
-        ...currentContext(),
-        selection: describeReaderSelection(nativeSelection, articleElement),
-        ...details,
-      });
-    };
-
-    const handleSelectionChange = () => {
-      if (!readerSelectionDebugEnabled() || frame) return;
-      frame = window.requestAnimationFrame(() => {
-        frame = 0;
-        const articleElement = articleRef.current;
-        if (!articleElement) return;
-        const nativeSelection = getArticleSelection(articleElement);
-        if (!shouldLogSelectionDebug(nativeSelection, articleElement, currentOpenState())) {
-          return;
-        }
-        logReaderSelectionDebug('selectionchange', {
-          ...currentContext(),
-          selection: describeReaderSelection(nativeSelection, articleElement),
-        });
-      });
-    };
-
-    const handlePointerEvent = (event: PointerEvent) => {
-      const articleElement = articleRef.current;
-      const surfaceElement = scrollRef.current;
-      if (!articleElement) return;
-      const targetNode = event.target instanceof Node ? event.target : null;
-      const nativeSelection = getArticleSelection(articleElement);
-      const insideReader = Boolean(
-        targetNode && (articleElement.contains(targetNode) || surfaceElement?.contains(targetNode)),
-      );
-      const shouldFlush = event.type === 'pointerup' || event.type === 'pointercancel';
-      if (targetNode && articleElement.contains(targetNode)) {
-        if (event.type === 'pointerdown') {
-          bilingualTranslation.selection.start('pointerdown');
-          articleSelectionGestureRef.current = webSelectionGesturePointFromClientPoint(
-            articleElement,
-            event.clientX,
-            event.clientY,
-          );
-          articleSelectionGestureDragPointRef.current = {
-            clientX: event.clientX,
-            clientY: event.clientY,
-          };
-          setArticleSelectionGestureVisible(
-            shouldUseWebSelectionGesturePreview(articleSelectionGestureRef.current),
-          );
-        }
-        if (
-          event.type === 'pointermove' &&
-          articleSelectionGestureRef.current &&
-          shouldUseWebSelectionGesturePreview(articleSelectionGestureRef.current) &&
-          event.buttons === 1
-        ) {
-          articleSelectionGestureDragPointRef.current = {
-            clientX: event.clientX,
-            clientY: event.clientY,
-          };
-          if (!previewFrame) {
-            previewFrame = window.requestAnimationFrame(() => {
-              previewFrame = 0;
-              previewArticleSelectionGesture();
-            });
-          }
-        }
-        if (event.type === 'pointerup') {
-          articleSelectionGestureDragPointRef.current = {
-            clientX: event.clientX,
-            clientY: event.clientY,
-          };
-        }
-        if (event.type === 'pointercancel') {
-          articleSelectionGestureRef.current = null;
-          articleSelectionGestureDragPointRef.current = null;
-          clearArticleSelectionGesturePreview();
-        }
-        if (shouldFlush) bilingualTranslation.selection.finish(event.type);
-      } else if (shouldFlush) {
-        bilingualTranslation.selection.finish(`${event.type}-outside-article`);
-        clearArticleSelectionGesturePreview();
-      } else if (event.type === 'pointerdown') {
-        articleSelectionGestureRef.current = null;
-        articleSelectionGestureDragPointRef.current = null;
-        clearArticleSelectionGesturePreview();
-      }
-      if (event.type === 'pointermove') return;
-      if (!readerSelectionDebugEnabled()) return;
-      if (
-        !insideReader &&
-        !shouldLogSelectionDebug(nativeSelection, articleElement, currentOpenState())
-      ) {
-        return;
-      }
-
-      logReaderSelectionDebug(event.type, {
-        ...currentContext(),
-        button: event.button,
-        buttons: event.buttons,
-        pointer: describePointerForDebug(event, articleElement, surfaceElement),
-        target: describeSelectionNode(targetNode, articleElement),
-        selection: describeReaderSelection(nativeSelection, articleElement),
-      });
-    };
-
-    const handleWindowBlur = () => bilingualTranslation.selection.finish('window-blur');
-
-    logSelectionState('reader-mounted');
-    ownerDocument.addEventListener('selectionchange', handleSelectionChange);
-    window.addEventListener('pointerdown', handlePointerEvent, true);
-    window.addEventListener('pointermove', handlePointerEvent, true);
-    window.addEventListener('pointerup', handlePointerEvent, true);
-    window.addEventListener('pointercancel', handlePointerEvent, true);
-    window.addEventListener('blur', handleWindowBlur);
-    return () => {
-      ownerDocument.removeEventListener('selectionchange', handleSelectionChange);
-      window.removeEventListener('pointerdown', handlePointerEvent, true);
-      window.removeEventListener('pointermove', handlePointerEvent, true);
-      window.removeEventListener('pointerup', handlePointerEvent, true);
-      window.removeEventListener('pointercancel', handlePointerEvent, true);
-      window.removeEventListener('blur', handleWindowBlur);
-      if (frame) window.cancelAnimationFrame(frame);
-      if (previewFrame) window.cancelAnimationFrame(previewFrame);
-      setArticleSelectionGestureVisible(false);
-      logReaderSelectionDebug('reader-unmounted', debugArticle);
-    };
-  }, [article.id, article.sourceType]);
-
-  function handleArticleMouseUp(event?: React.MouseEvent<HTMLElement>) {
-    clearArticleSelectionGesturePreview();
-    const articleElement = articleRef.current;
-    const canvasElement = canvasRef.current;
-    if (!articleElement || !canvasElement) {
-      logCurrentSelectionDebug('mouseup:missing-elements', {
-        hasArticle: Boolean(articleElement),
-        hasCanvas: Boolean(canvasElement),
-      });
-      return;
-    }
-
-    const articleSelection = getArticleSelection(articleElement);
-    logReaderSelectionDebug('mouseup:start', {
-      ...selectionDebugContext(),
-      target: describeSelectionNode(
-        event?.target instanceof Node ? event.target : null,
-        articleElement,
-      ),
-      selection: describeReaderSelection(articleSelection, articleElement),
-    });
-    const selectionGesture = articleSelectionGestureRef.current;
-    articleSelectionGestureRef.current = null;
-    articleSelectionGestureDragPointRef.current = null;
-    if (suppressArticleSelectionMouseUpRef.current) {
-      suppressArticleSelectionMouseUpRef.current = false;
-      articleSelection?.removeAllRanges();
-      clearSelection();
-      logReaderSelectionDebug('mouseup:continuous-click-selection-suppressed', {
-        ...selectionDebugContext(),
-        selection: describeReaderSelection(articleSelection, articleElement),
-      });
-      return;
-    }
-    const gestureRange = event
-      ? webSelectionGestureRangeFromClientPoint(
-          articleElement,
-          selectionGesture,
-          event.clientX,
-          event.clientY,
-        )
-      : null;
-    const nativeRange =
-      articleSelection && articleSelection.rangeCount > 0 && !articleSelection.isCollapsed
-        ? articleSelection.getRangeAt(0)
-        : null;
-    const shouldUseGestureRange =
-      nativeRange && selectionGesture && gestureRange
-        ? shouldUseWebSelectionGestureRange(
-            nativeRange,
-            articleElement,
-            selectionGesture,
-            gestureRange,
-          )
-        : !nativeRange && Boolean(gestureRange);
-    const range = shouldUseGestureRange ? gestureRange?.range || null : nativeRange;
-
-    if (shouldUseGestureRange && gestureRange) {
-      logReaderSelectionDebug('mouseup:gesture-range-used', {
-        ...selectionDebugContext(),
-        reason: nativeRange ? 'native-anchor-mismatch' : 'native-empty',
-        nativeRange: nativeRange ? describeRangeForDebug(nativeRange, articleElement) : null,
-        gestureRange: describeWebSelectionGestureRangeForDebug(gestureRange),
-      });
-    }
-
-    if (!range) {
-      // Clicks inside the composer bubble up with an empty native selection;
-      // while the composer owns the highlight, blank-click clearing is handled
-      // by the reader shell pointer capture instead.
-      logReaderSelectionDebug('mouseup:empty-selection', {
-        ...selectionDebugContext(),
-        clearedUiSelection: !composer,
-        selection: describeReaderSelection(articleSelection, articleElement),
-      });
-      if (!composer) clearSelection();
-      return;
-    }
-    if (translationSelectionDisabled) {
-      logReaderSelectionDebug('mouseup:translation-selection-disabled', {
-        ...selectionDebugContext(),
-        selection: describeReaderSelection(articleSelection, articleElement),
-      });
-      articleSelection?.removeAllRanges();
-      clearSelection();
-      bilingualTranslation.selection.showDisabledToast();
-      return;
-    }
-
-    if (!isRangeInsideArticle(range, articleElement)) {
-      logReaderSelectionDebug('mouseup:range-outside-article', {
-        ...selectionDebugContext(),
-        range: describeRangeForDebug(range, articleElement),
-      });
-      return;
-    }
-    const translationElement = translationElementForRange(range);
-    if (!translationElement && rangeIntersectsIgnoredSelector(range, '[data-reader-translation]')) {
-      logReaderSelectionDebug('mouseup:mixed-source-translation', {
-        ...selectionDebugContext(),
-        range: describeRangeForDebug(range, articleElement),
-      });
-      articleSelection?.removeAllRanges();
-      clearSelection();
-      appToast.warning(t('source.mixedSelectionToast'));
-      return;
-    }
-    const anchor = translationElement
-      ? createTranslationTextAnchor(range, translationElement)
-      : (() => {
-          const selectedArticleText = currentArticleText();
-          const start = offsetFromArticleStartIgnoringSelector(
-            articleElement,
-            range.startContainer,
-            range.startOffset,
-            '[data-reader-translation]',
-          );
-          const end = offsetFromArticleStartIgnoringSelector(
-            articleElement,
-            range.endContainer,
-            range.endOffset,
-            '[data-reader-translation]',
-          );
-          return article.ebook?.index
-            ? createEpubTextAnchor(article.ebook.index, selectedArticleText, start, end)
-            : createTextAnchor(selectedArticleText, start, end);
-        })();
-    if (!anchor) {
-      logReaderSelectionDebug('mouseup:anchor-missing', {
-        ...selectionDebugContext(),
-        range: describeRangeForDebug(range, articleElement),
-      });
-      return;
-    }
-    if (!anchor.exact.trim()) {
-      logReaderSelectionDebug('mouseup:blank-anchor', {
-        ...selectionDebugContext(),
-        anchor: describeAnchorForDebug(anchor),
-        range: describeRangeForDebug(range, articleElement),
-      });
-      return;
-    }
-
-    const rects = range.getClientRects();
-    const lastRect = rects[rects.length - 1];
-    if (!lastRect) {
-      logReaderSelectionDebug('mouseup:missing-rect', {
-        ...selectionDebugContext(),
-        anchor: describeAnchorForDebug(anchor),
-        range: describeRangeForDebug(range, articleElement),
-      });
-      return;
-    }
-
-    const canvasRect = canvasElement.getBoundingClientRect();
-    const position = selectionActionPosition(lastRect, canvasRect);
-    const highlightBoxes = rangeHighlightBoxes(range, canvasRect, 'source-selection').map((box) =>
-      Object.assign(box, {
-        annotationId: '__selection__',
-        contributorId: userProfile.id,
-        color: userProfile.annotationColor,
-      }),
-    );
-    openSelectionAction(
-      {
-        x: position.x,
-        y: position.y,
-        anchor,
-        adjustable: canAdjustWebSelectionAnchor(anchor),
-      },
-      highlightBoxes,
-    );
-    logReaderSelectionDebug('mouseup:selection-action-opened', {
-      ...selectionDebugContext(),
-      anchor: describeAnchorForDebug(anchor),
-      range: describeRangeForDebug(range, articleElement),
-      boxes: describeHighlightBoxesForDebug(highlightBoxes),
-      position,
-      rectCount: rects.length,
-    });
-    articleSelection?.removeAllRanges();
-    logCurrentSelectionDebug('mouseup:native-selection-cleared');
-  }
-
-  function handleArticleMouseDown(event: React.MouseEvent<HTMLElement>) {
-    const suppressedContinuousClick = suppressArticleContinuousTextSelection(event);
-    if (!translationSelectionDisabled || event.button !== 0) return;
-    const target = event.target instanceof Element ? event.target : null;
-    if (target?.closest(translationSelectionToastIgnoredSelector)) return;
-    bilingualTranslation.selection.showDisabledToast();
-    if (suppressedContinuousClick) return;
-  }
-
-  function suppressArticleContinuousTextSelection(event: React.MouseEvent<HTMLElement>) {
-    if (!isContinuousTextSelectionMouseEvent(event)) {
-      suppressArticleSelectionMouseUpRef.current = false;
-      return false;
-    }
-    const target = event.target instanceof Element ? event.target : null;
-    if (target?.closest(translationSelectionToastIgnoredSelector)) return false;
-    event.preventDefault();
-    suppressArticleSelectionMouseUpRef.current = true;
-    articleSelectionGestureRef.current = null;
-    articleSelectionGestureDragPointRef.current = null;
-    clearArticleSelectionGesturePreview();
-
-    const articleElement = articleRef.current;
-    if (!articleElement) return true;
-    getArticleSelection(articleElement)?.removeAllRanges();
-    clearSelection();
-    logCurrentSelectionDebug('mousedown:continuous-click-selection-suppressed', {
-      clickDetail: event.detail,
-    });
-    return true;
   }
 
   function handleArticleClick(event: React.MouseEvent<HTMLElement>) {
@@ -1480,7 +826,7 @@ export function WebSourceBookcase({
   async function createAnnotation(note: string) {
     if (!composer) return;
     const currentComposer = composer;
-    logCurrentSelectionDebug('composer:create-annotation', {
+    webReaderSelection.debug.logCurrent('composer:create-annotation', {
       anchor: describeAnchorForDebug(currentComposer.anchor),
       noteLength: note.length,
     });
@@ -1492,7 +838,7 @@ export function WebSourceBookcase({
   }
 
   function askSelection(action: { anchor: Annotation['anchor'] }) {
-    logCurrentSelectionDebug('selection:ask', {
+    webReaderSelection.debug.logCurrent('selection:ask', {
       anchor: describeAnchorForDebug(action.anchor),
     });
     readerChat.askSelection(readerQuestionContext(action.anchor));
@@ -1500,12 +846,12 @@ export function WebSourceBookcase({
   }
 
   function clearSelectionFromShell() {
-    logCurrentSelectionDebug('selection:clear-ui');
+    webReaderSelection.debug.logCurrent('selection:clear-ui');
     clearSelection();
   }
 
   function cancelComposerFromShell() {
-    logCurrentSelectionDebug('composer:cancel');
+    webReaderSelection.debug.logCurrent('composer:cancel');
     cancelComposer();
   }
 
@@ -1514,7 +860,7 @@ export function WebSourceBookcase({
     x: number;
     y: number;
   }) {
-    logCurrentSelectionDebug('selection:open-composer', {
+    webReaderSelection.debug.logCurrent('selection:open-composer', {
       anchor: describeAnchorForDebug(action.anchor),
       position: { x: action.x, y: action.y },
     });
@@ -1626,11 +972,11 @@ export function WebSourceBookcase({
       onClearSelection: clearSelectionFromShell,
       onCloseHighlightChoice: () => setHighlightChoice(null),
       onCopySelection: copySelection,
-      onMouseUp: handleArticleMouseUp,
+      onMouseUp: webReaderSelection.actions.onMouseUp,
       onAskSelection: askSelection,
-      onSelectionHandleDrag: updateArticleSelectionAdjustment,
-      onSelectionHandleDragEnd: finishArticleSelectionAdjustment,
-      onSelectionHandleDragStart: startArticleSelectionAdjustment,
+      onSelectionHandleDrag: webReaderSelection.actions.onSelectionHandleDrag,
+      onSelectionHandleDragEnd: webReaderSelection.actions.onSelectionHandleDragEnd,
+      onSelectionHandleDragStart: webReaderSelection.actions.onSelectionHandleDragStart,
       onOpenComposer: openComposerFromSelection,
     },
     shell: {
@@ -1683,7 +1029,7 @@ export function WebSourceBookcase({
             .join(' ')}
           dangerouslySetInnerHTML={{ __html: translatedContentHtml }}
           onClick={handleArticleClick}
-          onMouseDown={handleArticleMouseDown}
+          onMouseDown={webReaderSelection.actions.onMouseDown}
         />
       ),
       extracted: readerArticle,
@@ -1781,47 +1127,5 @@ function webReadingProgressSnapshot(progress: number): ArticleReadingProgress {
     pageCount: 1000,
     progress,
     updatedAt: new Date().toISOString(),
-  };
-}
-
-function rangeIntersectsIgnoredSelector(range: Range, selector: string) {
-  const nodes = [range.startContainer, range.endContainer];
-  if (
-    nodes.some((node) => {
-      const element = node instanceof Element ? node : node.parentElement;
-      return Boolean(element?.closest(selector));
-    })
-  ) {
-    return true;
-  }
-
-  const container = document.createElement('div');
-  container.append(range.cloneContents());
-  return Boolean(container.querySelector(selector));
-}
-
-const translationSelectionToastIgnoredSelector =
-  '[data-reader-translation-action], a[href], button, input, textarea, select, [role="button"]';
-
-type WebSelectionGestureClientPoint = {
-  clientX: number;
-  clientY: number;
-};
-
-function describeWebSelectionGestureRangeForDebug(gestureRange: WebSelectionGestureRange) {
-  return {
-    startOffset: gestureRange.startOffset,
-    endOffset: gestureRange.endOffset,
-    startPoint: describeWebSelectionGesturePointForDebug(gestureRange.startPoint),
-    endPoint: describeWebSelectionGesturePointForDebug(gestureRange.endPoint),
-  };
-}
-
-function describeWebSelectionGesturePointForDebug(point: WebSelectionGesturePoint) {
-  return {
-    clientX: Math.round(point.clientX),
-    clientY: Math.round(point.clientY),
-    sourceOffset: point.sourceOffset,
-    translationBlockId: point.translationBlockId,
   };
 }
