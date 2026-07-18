@@ -42,6 +42,7 @@ export function saveUserProfile(database: StoreExecutor, input: Partial<UserProf
   };
 
   upsertUser(database, user);
+  return user;
 }
 
 export function upsertUser(database: StoreExecutor, user: UserProfile) {

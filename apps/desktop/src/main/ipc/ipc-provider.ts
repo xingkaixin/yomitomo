@@ -36,13 +36,11 @@ export function registerProviderIpc(context: ProviderIpcContext) {
   });
   handleDesktopIpc('provider:save', async (_event, input) => {
     const { storeProviders } = await context.getPersistenceModules();
-    const store = await storeProviders.saveProvider(input);
-    return store;
+    return storeProviders.saveProvider(input);
   });
   handleDesktopIpc('provider:delete', async (_event, id) => {
     const { storeProviders } = await context.getPersistenceModules();
-    const store = await storeProviders.deleteProvider(id);
-    return store;
+    return storeProviders.deleteProvider(id);
   });
   handleDesktopIpc('provider:read-api-key', async (_event, providerId) => {
     if (!providerId) return '';

@@ -1,12 +1,13 @@
 import { useCallback, useState } from 'react';
 import type { Agent, DesktopStore } from '@yomitomo/shared';
+import type { AgentStorePatch } from '../../../ipc-contract';
 import i18next from 'i18next';
 
 type UseAppAgentActionsInput = {
-  applyStore: (nextStore: DesktopStore) => DesktopStore;
+  applySettingsPatch: (patch: AgentStorePatch) => DesktopStore;
 };
 
-export function useAppAgentActions({ applyStore }: UseAppAgentActionsInput) {
+export function useAppAgentActions({ applySettingsPatch }: UseAppAgentActionsInput) {
   const [agentSaveError, setAgentSaveError] = useState('');
   const [agentSaveState, setAgentSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
 
@@ -17,7 +18,7 @@ export function useAppAgentActions({ applyStore }: UseAppAgentActionsInput) {
 
       setAgentSaveState('saving');
       try {
-        applyStore(
+        applySettingsPatch(
           await desktop.saveAgent({
             ...agent,
             enabled: !agent.enabled,
@@ -31,7 +32,7 @@ export function useAppAgentActions({ applyStore }: UseAppAgentActionsInput) {
         setAgentSaveState('idle');
       }
     },
-    [applyStore],
+    [applySettingsPatch],
   );
 
   return { agentSaveError, agentSaveState, toggleAgent };

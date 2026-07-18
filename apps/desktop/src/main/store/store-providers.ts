@@ -1,10 +1,10 @@
 import { eq } from 'drizzle-orm';
-import type { DesktopStore } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
+import type { ProviderStorePatch } from '../../ipc-contract';
+import { ensurePresetAgents } from '../agents/agent-repository';
 import * as schema from '../db/schema';
 import {
   buildProviderRecord,
-  readProviderSecretStorageRow,
   resolveProviderApiKeyStorage,
   upsertProvider,
   type SaveProviderInput,
@@ -15,18 +15,20 @@ import {
   completeSecretDeletion,
   queueSecretDeletion,
 } from '../providers/secret-deletion-repository';
-import { getDatabase } from './store-db';
-import { readStore } from './store-snapshot';
+import { getDatabase, type StoreDatabase } from './store-db';
+import { migrateProviderApiKeys } from './store-provider-key-migration';
+import { rowToAgent, rowToProvider, rowToSettings } from './store-normalizers';
 import { upsertSettings } from './settings-repository';
 
-export async function saveProvider(input: SaveProviderInput): Promise<DesktopStore> {
-  const store = await readStore();
+export async function saveProvider(input: SaveProviderInput): Promise<ProviderStorePatch> {
+  const database = getDatabase();
+  await migrateProviderApiKeys(database);
   const now = new Date().toISOString();
-  const existing = input.id
-    ? store.providers.find((provider) => provider.id === input.id)
+  const existingRow = input.id
+    ? database.select().from(schema.providers).where(eq(schema.providers.id, input.id)).get()
     : undefined;
+  const existing = existingRow ? rowToProvider(existingRow) : undefined;
   const id = existing?.id || makeId('provider');
-  const existingRow = input.id ? readProviderSecretStorageRow(input.id) : undefined;
   const { apiKeyRef, secretRefToDelete, storedApiKey } = await resolveProviderApiKeyStorage(
     id,
     input,
@@ -40,19 +42,23 @@ export async function saveProvider(input: SaveProviderInput): Promise<DesktopSto
     storedApiKey,
   });
 
-  const database = getDatabase();
   database.transaction((tx) => {
     upsertProvider(tx, provider, apiKeyRef, storedApiKey);
     if (secretRefToDelete) queueSecretDeletion(tx, secretRefToDelete);
     else if (apiKeyRef) cancelSecretDeletion(tx, apiKeyRef);
   });
   if (secretRefToDelete) await completeSecretDeletion(secretRefToDelete);
-  return readStore();
+  return readProviderStorePatch(database);
 }
 
-export async function deleteProvider(id: string): Promise<DesktopStore> {
+export async function deleteProvider(id: string): Promise<ProviderStorePatch> {
   const database = getDatabase();
-  const secretRef = readProviderSecretStorageRow(id)?.apiKeyRef || providerApiKeyRef(id);
+  const provider = database
+    .select({ apiKeyRef: schema.providers.apiKeyRef })
+    .from(schema.providers)
+    .where(eq(schema.providers.id, id))
+    .get();
+  const secretRef = provider?.apiKeyRef || providerApiKeyRef(id);
   database.transaction((tx) => {
     const settings = tx.select().from(schema.appSettings).limit(1).get();
     if (
@@ -83,5 +89,16 @@ export async function deleteProvider(id: string): Promise<DesktopStore> {
     tx.delete(schema.providers).where(eq(schema.providers.id, id)).run();
   });
   await completeSecretDeletion(secretRef);
-  return readStore();
+  return readProviderStorePatch(database);
+}
+
+function readProviderStorePatch(database: StoreDatabase): ProviderStorePatch {
+  const settings = database.select().from(schema.appSettings).limit(1).get();
+  const providers = database.select().from(schema.providers).all();
+  const agents = ensurePresetAgents(database, providers, settings);
+  return {
+    agents: agents.map(rowToAgent),
+    providers: providers.map(rowToProvider),
+    settings: rowToSettings(settings),
+  };
 }

@@ -41,23 +41,6 @@ beforeEach(() => {
 
 describe('store data update IPC', () => {
   it('loads the shell store without the full article catalog', async () => {
-    const fullStore = desktopStore({
-      articles: [
-        {
-          id: 'article_1',
-          url: 'https://example.com',
-          canonicalUrl: 'https://example.com',
-          sourceType: 'web',
-          title: 'Article',
-          contentHash: 'hash',
-          annotations: [],
-          annotationCount: 0,
-          commentCount: 0,
-          createdAt: '2026-07-13T00:00:00.000Z',
-          updatedAt: '2026-07-13T00:00:00.000Z',
-        },
-      ],
-    });
     const shellStore = desktopStore({ articles: [] });
     const readShellStore = vi.fn(async () => shellStore);
     const context = storeContext({ readShellStore });

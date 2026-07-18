@@ -88,6 +88,15 @@ describe('useDesktopStoreState', () => {
     expect(latest.current?.store.articles).toEqual([patchedArticle]);
     expect(latest.current?.storeRef.current.articles).toEqual([patchedArticle]);
 
+    const patchedUser = { ...updatedStore.user, nickname: '局部更新' };
+    act(() => {
+      latest.current?.applySettingsPatch({ user: patchedUser });
+    });
+
+    expect(latest.current?.store.user).toEqual(patchedUser);
+    expect(latest.current?.store.articles).toEqual([patchedArticle]);
+    expect(latest.current?.storeRef.current.articles).toEqual([patchedArticle]);
+
     act(() => {
       emitCollectionPatched({
         type: 'collection-upsert',

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import i18next from 'i18next';
 import type { AppSettings, DesktopStore, LlmProvider } from '@yomitomo/shared';
+import type { SettingsStorePatch, UserStorePatch } from '../../../ipc-contract';
 import {
   normalizeUiLanguage,
   normalizeSelectionActionShortcutDraft,
@@ -26,12 +27,14 @@ type UseSettingsDraftsInput = {
   store: DesktopStore;
   storeSyncSnapshot: DesktopStore | null;
   applyStore: (nextStore: DesktopStore) => DesktopStore;
+  applySettingsPatch: (patch: SettingsStorePatch) => DesktopStore;
 };
 
 export function useSettingsDrafts({
   store,
   storeSyncSnapshot,
   applyStore,
+  applySettingsPatch,
 }: UseSettingsDraftsInput) {
   const [userDraft, setUserDraft] = useState<UserDraft>(defaultUser);
   const [settingsDraft, setSettingsDraft] = useState<AppSettings>({});
@@ -91,13 +94,13 @@ export function useSettingsDrafts({
   }, []);
 
   const applySavedUserStore = useCallback(
-    (nextStore: DesktopStore | null) => {
-      if (!nextStore) return false;
-      applyStore(nextStore);
+    (patch: UserStorePatch | null) => {
+      if (!patch) return false;
+      const nextStore = applySettingsPatch(patch);
       setUserDraft(nextStore.user);
       return true;
     },
-    [applyStore],
+    [applySettingsPatch],
   );
 
   const saveSettingsDraft = useCallback(async (draft: AppSettings) => {
@@ -119,21 +122,21 @@ export function useSettingsDrafts({
   const saveProviderDraftValue = useCallback(
     async (draft: ProviderDraft) => {
       if (!window.yomitomoDesktop) return false;
-      const nextStore = await window.yomitomoDesktop.saveProvider(draft);
+      const patch = await window.yomitomoDesktop.saveProvider(draft);
+      const nextStore = applySettingsPatch(patch);
       const savedProvider = draft.id
         ? nextStore.providers.find((provider) => provider.id === draft.id)
         : nextStore.providers.at(-1);
-      applyStore(nextStore);
       setTestState({ status: 'idle' });
       if (!savedProvider) return false;
       setSelectedProviderId(savedProvider.id);
       setProviderDraft(savedProvider);
       return true;
     },
-    [applyStore],
+    [applySettingsPatch],
   );
 
-  const profile = useSaveableDraft<UserDraft, DesktopStore | null>({
+  const profile = useSaveableDraft<UserDraft, UserStorePatch | null>({
     value: userDraft,
     canSave: () => userHasChanges,
     errorMessage: settingsSaveErrorMessage,
@@ -212,8 +215,8 @@ export function useSettingsDrafts({
   const deleteProvider = useCallback(
     async (id: string) => {
       if (!window.yomitomoDesktop) return;
-      const nextStore = await window.yomitomoDesktop.deleteProvider(id);
-      applyStore(nextStore);
+      const patch = await window.yomitomoDesktop.deleteProvider(id);
+      const nextStore = applySettingsPatch(patch);
       setSettingsDraft(nextStore.settings);
       const nextProvider = nextStore.providers[0];
       if (nextProvider) selectProvider(nextProvider);
@@ -223,7 +226,7 @@ export function useSettingsDrafts({
         setProviderEditorActive(false);
       }
     },
-    [applyStore, resetProviderDraft, selectProvider],
+    [applySettingsPatch, resetProviderDraft, selectProvider],
   );
 
   const testProvider = useCallback(async (provider: ProviderDraft) => {

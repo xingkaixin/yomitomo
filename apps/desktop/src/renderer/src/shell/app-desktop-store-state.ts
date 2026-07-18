@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DesktopStore } from '@yomitomo/shared';
+import type { SettingsStorePatch } from '../../../ipc-contract';
 import {
   emptyDesktopStore,
   isAppLockSettingsLocked,
@@ -32,6 +33,11 @@ export function useDesktopStoreState() {
     setStore(rendererStore);
     return rendererStore;
   }, []);
+
+  const applySettingsPatch = useCallback(
+    (patch: SettingsStorePatch) => applyStore(applySettingsStorePatch(storeRef.current, patch)),
+    [applyStore],
+  );
 
   const refreshStore = useCallback(async () => {
     const desktop = window.yomitomoDesktop;
@@ -139,5 +145,13 @@ export function useDesktopStoreState() {
     storeRef,
     refreshStore,
     applyStore,
+    applySettingsPatch,
   };
+}
+
+export function applySettingsStorePatch(
+  store: DesktopStore,
+  patch: SettingsStorePatch,
+): DesktopStore {
+  return { ...store, ...patch };
 }
