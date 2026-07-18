@@ -2,10 +2,8 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useBookmarkCapability } from '@embedpdf/plugin-bookmark/react';
 import { isPdfTextAnchor, type Annotation } from '@yomitomo/shared';
 import type { TocItem } from '@yomitomo/core';
-import {
-  recordRendererPerformanceTiming,
-  type SourceBookcaseProps,
-} from '../bookcase/app-source-bookcase-shared';
+import { recordRendererPerformanceTiming } from '../../shell/app-renderer-performance';
+import type { SourceBookcaseProps } from '../bookcase/app-source-bookcase';
 import { pdfiumBookmarkTocItems } from './app-source-bookcase-pdfium-utils';
 
 type PdfiumScroll = {

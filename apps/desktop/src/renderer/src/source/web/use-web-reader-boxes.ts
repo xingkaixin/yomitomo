@@ -16,7 +16,7 @@ import {
 import {
   recordRendererPerformanceTiming,
   rendererPerformanceElapsedMs,
-} from '../bookcase/app-source-bookcase-shared';
+} from '../../shell/app-renderer-performance';
 
 export const sourceTocOptions: ExtractTocOptions = {
   headingSelector:

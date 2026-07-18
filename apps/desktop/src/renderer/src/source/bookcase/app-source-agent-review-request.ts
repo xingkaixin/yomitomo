@@ -2,7 +2,7 @@ import i18next from 'i18next';
 import type { Annotation, ArticleRecord, Comment, PublicAgent, UiLanguage } from '@yomitomo/shared';
 import type { RefObject } from 'react';
 import { appendAnnotationComment } from '@yomitomo/core';
-import { promptArticle } from './app-source-bookcase-shared';
+import { promptArticle } from './source-prompt-article';
 
 type RunSourceAgentReviewRequestInput = {
   agents: PublicAgent[];

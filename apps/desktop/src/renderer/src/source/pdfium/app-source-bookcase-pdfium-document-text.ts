@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PdfEngine } from '@embedpdf/models';
 import type { useDocumentState } from '@embedpdf/core/react';
-import { rendererPerformanceElapsedMs } from '../bookcase/app-source-bookcase-shared';
+import { rendererPerformanceElapsedMs } from '../../shell/app-renderer-performance';
 import { buildPdfTextDocument, type PdfTextDocument } from './app-source-bookcase-pdfium-utils';
 import { recordPdfOpenTiming, type PdfOpenTrace } from './app-source-bookcase-pdfium-open-trace';
 

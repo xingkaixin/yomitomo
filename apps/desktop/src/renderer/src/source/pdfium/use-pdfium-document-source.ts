@@ -3,7 +3,7 @@ import { usePdfiumEngine } from '@embedpdf/engines/react';
 import devPdfiumWasmUrl from '@embedpdf/pdfium/pdfium.wasm?url';
 import type { ArticleRecord } from '@yomitomo/shared';
 import i18next from 'i18next';
-import { rendererPerformanceElapsedMs } from '../bookcase/app-source-bookcase-shared';
+import { rendererPerformanceElapsedMs } from '../../shell/app-renderer-performance';
 import {
   pdfiumFontFallback,
   pdfOpenTrace,

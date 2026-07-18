@@ -1,7 +1,6 @@
 import { useCallback, useState, type RefObject } from 'react';
 import type { HighlightBox } from '@yomitomo/core';
-import type { HighlightChoice } from '@yomitomo/reader-ui/reader-app-view';
-import type { SourceSelectionAction } from './app-source-bookcase-shared';
+import type { HighlightChoice, SelectionAction } from '@yomitomo/reader-ui/reader-app-view';
 
 type UseSourceSelectionComposerInput = {
   canvasRef: RefObject<HTMLElement | null>;
@@ -14,9 +13,9 @@ export function useSourceSelectionComposer({
 }: UseSourceSelectionComposerInput) {
   const [temporaryBoxes, setTemporaryBoxes] = useState<HighlightBox[]>([]);
   const [highlightChoice, setHighlightChoice] = useState<HighlightChoice | null>(null);
-  const [selectionAction, setSelectionAction] = useState<SourceSelectionAction | null>(null);
+  const [selectionAction, setSelectionAction] = useState<SelectionAction | null>(null);
   const [copyRequestKey, setCopyRequestKey] = useState(0);
-  const [composer, setComposer] = useState<SourceSelectionAction | null>(null);
+  const [composer, setComposer] = useState<SelectionAction | null>(null);
 
   const clearSelection = useCallback(() => {
     setSelectionAction((action) => (action ? null : action));
@@ -30,14 +29,11 @@ export function useSourceSelectionComposer({
     setTemporaryBoxes((boxes) => (boxes.length > 0 ? [] : boxes));
   }, []);
 
-  const openSelectionAction = useCallback(
-    (action: SourceSelectionAction, boxes: HighlightBox[]) => {
-      setSelectionAction(action);
-      setComposer(null);
-      setTemporaryBoxes(boxes);
-    },
-    [],
-  );
+  const openSelectionAction = useCallback((action: SelectionAction, boxes: HighlightBox[]) => {
+    setSelectionAction(action);
+    setComposer(null);
+    setTemporaryBoxes(boxes);
+  }, []);
 
   const cancelComposer = useCallback(() => {
     setComposer((draft) => (draft ? null : draft));
@@ -45,7 +41,7 @@ export function useSourceSelectionComposer({
     setTemporaryBoxes((boxes) => (boxes.length > 0 ? [] : boxes));
   }, []);
 
-  const copySelection = useCallback(async (action: SourceSelectionAction) => {
+  const copySelection = useCallback(async (action: SelectionAction) => {
     await navigator.clipboard.writeText(action.anchor.exact);
   }, []);
 
@@ -54,7 +50,7 @@ export function useSourceSelectionComposer({
   }, []);
 
   const openComposer = useCallback(
-    (action: SourceSelectionAction) => {
+    (action: SelectionAction) => {
       const canvasWidth = canvasRef.current?.clientWidth || 360;
       onOpenComposer?.();
       setComposer({

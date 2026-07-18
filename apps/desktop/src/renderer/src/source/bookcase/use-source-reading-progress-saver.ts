@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { ArticleReadingProgress } from '@yomitomo/shared';
-import type { SourceBookcaseProps } from './app-source-bookcase-shared';
+import type { SourceBookcaseProps } from './app-source-bookcase';
 
 export type SourceReadingProgressSavePredicate = (
   nextProgress: ArticleReadingProgress,

@@ -14,7 +14,7 @@ import {
 import {
   annotationViewportPositions,
   navigationForActiveAnnotation,
-} from '../bookcase/app-source-bookcase-shared';
+} from '../bookcase/source-annotation-navigation';
 
 export type EbookClickPagingDirection = 'left' | 'right';
 

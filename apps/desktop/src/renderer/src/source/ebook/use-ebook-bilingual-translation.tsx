@@ -7,7 +7,7 @@ import {
 } from '@yomitomo/core';
 import { assistantRuntimeErrorMessage } from '../../shell/app-assistant-runtime-progress';
 import { appToast } from '../../shell/app-toast';
-import type { EbookArticleRecord } from '../bookcase/app-source-bookcase-shared';
+import type { EbookArticleRecord } from '../bookcase/app-source-bookcase';
 import {
   ReaderTranslationConfirmDialog,
   ReaderTranslationToolbarButton,

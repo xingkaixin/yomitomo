@@ -12,7 +12,7 @@ import type {
 } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
 import i18next from 'i18next';
-import { promptArticle } from './app-source-bookcase-shared';
+import { promptArticle } from './source-prompt-article';
 import { assistantRuntimeErrorMessage } from '../../shell/app-assistant-runtime-progress';
 
 type UseReaderChatSessionInput = {

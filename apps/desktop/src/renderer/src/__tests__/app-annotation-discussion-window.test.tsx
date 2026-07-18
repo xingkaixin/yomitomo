@@ -14,7 +14,7 @@ import {
   replyTargetAgents,
 } from '../annotation-discussion/app-annotation-discussion-utils';
 import { initializeAppI18n } from '../i18n/app-i18n';
-import { publicAnnotationAgents } from '../source/bookcase/app-source-bookcase-shared';
+import { publicAnnotationAgents } from '../source/bookcase/source-public-agents';
 
 vi.mock('../sound/app-sound-effects', () => ({
   playAppSoundEffect: vi.fn(),

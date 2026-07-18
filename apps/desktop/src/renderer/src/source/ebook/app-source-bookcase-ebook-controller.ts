@@ -2,7 +2,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import i18next from 'i18next';
 import type { AgentReadingPlanItem, Annotation, PublicAgent } from '@yomitomo/shared';
 import type { SourceAgentAnnotationPlaybackMode } from '../bookcase/app-source-agent-request';
-import { promptArticle } from '../bookcase/app-source-bookcase-shared';
+import { promptArticle } from '../bookcase/source-prompt-article';
 import {
   constrainSourceAgentPlanAnnotation,
   type SourceAgentAnnotationAdapter,

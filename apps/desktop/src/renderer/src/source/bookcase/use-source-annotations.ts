@@ -17,7 +17,7 @@ import {
   annotationsWithSavedAnnotation,
   annotationsWithSavedComment,
   articleWithAnnotations,
-} from './app-source-bookcase-shared';
+} from './source-annotation-updates';
 
 type SourceAnnotationsChange = {
   previousAnnotations: Annotation[];

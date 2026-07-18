@@ -12,7 +12,7 @@ import type {
 } from '@yomitomo/shared';
 import { resolveTextAnchor } from '@yomitomo/shared';
 import type { PromptArticle } from '../../shell/app-reading-types';
-import { publicAnnotationAgents, publicReviewAgents } from './app-source-bookcase-shared';
+import { publicAnnotationAgents, publicReviewAgents } from './source-public-agents';
 import {
   createPendingAgentAnnotation,
   prepareSourceAgentAnnotationRequestInput,

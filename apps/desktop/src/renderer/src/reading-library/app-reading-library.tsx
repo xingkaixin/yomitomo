@@ -26,7 +26,7 @@ import { normalizeUiLanguage } from '@yomitomo/shared';
 import { sortAnnotations, sortArticles } from '@yomitomo/core';
 import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
 import { SourceBookcase } from '../source/bookcase/app-source-bookcase';
-import { publicAnnotationAgents } from '../source/bookcase/app-source-bookcase-shared';
+import { publicAnnotationAgents } from '../source/bookcase/source-public-agents';
 import type {
   EbookImportProgressCallback,
   PdfImportProgressCallback,

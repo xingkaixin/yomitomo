@@ -5,7 +5,7 @@ import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { useEbookReaderBoxes } from '../source/ebook/use-ebook-reader-boxes';
-import type { EbookArticleRecord } from '../source/bookcase/app-source-bookcase-shared';
+import type { EbookArticleRecord } from '../source/bookcase/app-source-bookcase';
 import type { FoliateViewElement } from '../source/ebook/app-ebook-reader-utils';
 
 const now = '2026-05-16T08:00:00.000Z';

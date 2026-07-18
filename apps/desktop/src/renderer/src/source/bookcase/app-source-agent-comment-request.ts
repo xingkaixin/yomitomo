@@ -10,7 +10,7 @@ import i18next from 'i18next';
 import { makeId } from '@yomitomo/shared';
 import type { RefObject } from 'react';
 import { appendAnnotationComment, updateAnnotationComment } from '@yomitomo/core';
-import { promptArticle } from './app-source-bookcase-shared';
+import { promptArticle } from './source-prompt-article';
 import {
   applyAssistantRuntimeProgress,
   assistantRuntimeErrorMessage,

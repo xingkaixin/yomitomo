@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AppSettings, ArticleRecord } from '@yomitomo/shared';
 import type { AnnotationDistillationCommittedEvent } from '../../../ipc-contract';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
-import { recordRendererPerformanceTiming } from '../source/bookcase/app-source-bookcase-shared';
+import { recordRendererPerformanceTiming } from '../shell/app-renderer-performance';
 import {
   articleDistillationStateChanged,
   articleWithCommittedDistillation,

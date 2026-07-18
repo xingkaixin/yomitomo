@@ -47,12 +47,8 @@ import { OpenArticleButton } from '../../shell/app-ui';
 import { articleIdentityLine } from '../../shell/app-utils';
 import { appToast } from '../../shell/app-toast';
 import { assistantRuntimeErrorMessage } from '../../shell/app-assistant-runtime-progress';
-import {
-  defaultTocOpen,
-  recordRendererPerformanceTiming,
-  usesOverlayToc,
-  type WebSourceBookcaseProps,
-} from '../bookcase/app-source-bookcase-shared';
+import { recordRendererPerformanceTiming } from '../../shell/app-renderer-performance';
+import type { WebSourceBookcaseProps } from '../bookcase/app-source-bookcase';
 import { isContinuousTextSelectionMouseEvent } from '../bookcase/source-reader-selection-events';
 import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
 import { useRecentAnnotationFeedback } from '../bookcase/use-recent-annotation-feedback';
@@ -250,7 +246,7 @@ export function WebSourceBookcase({
     deleteComment,
     saveAnnotation,
   } = sourceReaderSession;
-  const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
+  const [tocOpen, setTocOpen] = useState(false);
   const [, setSettingsOpen] = useState(false);
   const [articleSearchText, setArticleSearchText] = useState('');
   const [searchBoxes, setSearchBoxes] = useState<HighlightBox[]>([]);
@@ -436,7 +432,7 @@ export function WebSourceBookcase({
   }, [article?.id, annotations, clearAnnotationUiState]);
 
   useEffect(() => {
-    setTocOpen(defaultTocOpen());
+    setTocOpen(false);
     setSettingsOpen(false);
     setStatusMessage('');
     searchNavigation.resetSearch();
@@ -1961,7 +1957,7 @@ export function WebSourceBookcase({
   }
 
   function scrollToTocItem(item: TocItem) {
-    if (usesOverlayToc()) setTocOpen(false);
+    setTocOpen(false);
     const articleElement = articleRef.current;
     const scrollElement = scrollRef.current;
     if (!articleElement || !scrollElement) return;

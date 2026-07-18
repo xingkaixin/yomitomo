@@ -26,11 +26,11 @@ import {
 import { applyAppTheme, readCachedThemeId, themeRegistry } from '../theme/app-theme';
 import {
   agentInstructionFromNote,
-  annotationsWithSavedComment,
   mentionDirectivesForAgent,
-  promptArticle,
-  publicAnnotationAgents,
-} from '../source/bookcase/app-source-bookcase-shared';
+} from '../source/bookcase/app-source-agent-mention-request';
+import { annotationsWithSavedComment } from '../source/bookcase/source-annotation-updates';
+import { promptArticle } from '../source/bookcase/source-prompt-article';
+import { publicAnnotationAgents } from '../source/bookcase/source-public-agents';
 import { runSourceAgentCommentRequest } from '../source/bookcase/app-source-agent-comment-request';
 import { playAppSoundEffect, stopAppSoundEffect } from '../sound/app-sound-effects';
 import {
