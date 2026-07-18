@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { DesktopStore } from '@yomitomo/shared';
 import { registerProviderIpc } from './ipc-provider';
 
 const ipcMocks = vi.hoisted(() => ({
   ipcMainHandle: vi.fn(),
+  pruneLogFile: vi.fn(),
 }));
 
 vi.mock('electron', () => ({
@@ -11,7 +13,31 @@ vi.mock('electron', () => ({
   },
 }));
 
+vi.mock('../app/logger', () => ({
+  pruneLogFile: ipcMocks.pruneLogFile,
+}));
+
 describe('provider IPC persistence boundary', () => {
+  it('forwards saved settings with their source event', async () => {
+    ipcMocks.ipcMainHandle.mockClear();
+    const store = desktopStore();
+    const saveSettings = vi.fn(async (_input: DesktopStore['settings']) => store);
+    const readStore = vi.fn(async () => store);
+    const sendFullStoreUpdated = vi.fn();
+    registerProviderIpc(
+      providerIpcContext({}, {}, { readStore, saveSettings }, { sendFullStoreUpdated }),
+    );
+    const handler = ipcMocks.ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === 'settings:save',
+    )?.[1];
+    const event = { sender: { id: 17 } };
+
+    const result = await handler(event, { uiLanguage: 'en' });
+
+    expect(result).toEqual({ ok: true, value: store });
+    expect(sendFullStoreUpdated).toHaveBeenCalledWith(event, store);
+  });
+
   it('reads provider API keys through provider persistence only', async () => {
     ipcMocks.ipcMainHandle.mockClear();
     const readStoredProviderApiKey = vi.fn(async () => 'provider-secret');
@@ -65,10 +91,16 @@ type ProviderRepository = Awaited<
   ReturnType<ProviderIpcContext['getPersistenceModules']>
 >['providerRepository'];
 type ProviderAiModule = Awaited<ReturnType<ProviderIpcContext['getAiModule']>>;
+type ProviderPersistenceModules = Awaited<ReturnType<ProviderIpcContext['getPersistenceModules']>>;
 
 function providerIpcContext(
   providerOverrides: Partial<ProviderRepository>,
   aiOverrides: Partial<ProviderAiModule> = {},
+  persistenceOverrides: {
+    readStore?: ProviderPersistenceModules['storeSnapshot']['readStore'];
+    saveSettings?: ProviderPersistenceModules['storeSettings']['saveSettings'];
+  } = {},
+  contextOverrides: Partial<ProviderIpcContext> = {},
 ): ProviderIpcContext {
   return {
     getAiModule: async () => ({
@@ -87,12 +119,39 @@ function providerIpcContext(
         saveProvider: vi.fn(),
       },
       storeSettings: {
-        saveSettings: vi.fn(),
+        saveSettings:
+          persistenceOverrides.saveSettings ||
+          vi.fn<ProviderPersistenceModules['storeSettings']['saveSettings']>(),
         saveSettingsShell: vi.fn(),
         saveUser: vi.fn(),
       },
-      storeSnapshot: { readStore: vi.fn() },
+      storeSnapshot: {
+        readStore:
+          persistenceOverrides.readStore ||
+          vi.fn<ProviderPersistenceModules['storeSnapshot']['readStore']>(),
+      },
     }),
     sendFullStoreUpdated: vi.fn(),
+    ...contextOverrides,
+  };
+}
+
+function desktopStore(): DesktopStore {
+  return {
+    agents: [],
+    articles: [],
+    collectionMembers: [],
+    collections: [],
+    pins: [],
+    providers: [],
+    settings: {},
+    user: {
+      id: 'user_1',
+      nickname: 'User',
+      username: 'user',
+      avatar: '',
+      annotationColor: '#000000',
+      updatedAt: '2026-07-18T00:00:00.000Z',
+    },
   };
 }

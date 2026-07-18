@@ -63,6 +63,7 @@ import {
   type RunSourceAgentThoughtLifecycle,
 } from './app-annotation-discussion-agent-thought';
 import { useElementWidthBelow } from './app-annotation-discussion-hooks';
+import { useAnnotationWindowArticlePatches } from './use-annotation-window-article-patches';
 
 export { insertMentionAtSelection } from './app-annotation-discussion-utils';
 
@@ -94,9 +95,21 @@ export function AnnotationDiscussionWindowApp() {
   const articleId = params.get('articleId') || '';
   const annotationId = params.get('annotationId') || '';
   const [status, setStatus] = useState<DiscussionWindowStatus>({ type: 'loading' });
+  const pendingArticleUpdateRef = useRef<
+    { annotation: Annotation; article: ArticleRecord } | null | undefined
+  >(undefined);
   const className = annotationDiscussionWindowClassName();
   const windowTransition = useSourceAwareWindowTransition(params);
   const windowClassName = [className, windowTransition.className].filter(Boolean).join(' ');
+
+  useAnnotationWindowArticlePatches(articleId, annotationId, (update) => {
+    pendingArticleUpdateRef.current = update;
+    setStatus((current) => {
+      if (!update) return { type: 'missing' };
+      if (current.type !== 'ready') return current;
+      return { ...current, ...update };
+    });
+  });
 
   useEffect(() => {
     const syncTheme = () => applyAppTheme(themeRegistry[readCachedThemeId()]);
@@ -126,13 +139,17 @@ export function AnnotationDiscussionWindowApp() {
     ])
       .then(([article, store]) => {
         if (cancelled) return;
-        const annotation = article?.annotations.find((item) => item.id === annotationId);
+        const pendingUpdate = pendingArticleUpdateRef.current;
+        const currentArticle = pendingUpdate?.article || article;
+        const annotation =
+          pendingUpdate?.annotation ||
+          currentArticle?.annotations.find((item) => item.id === annotationId);
         setStatus(
-          article && annotation
+          pendingUpdate !== null && currentArticle && annotation
             ? {
                 type: 'ready',
                 agents: store.agents,
-                article,
+                article: currentArticle,
                 annotation,
                 settings: store.settings || {},
                 uiLanguage: normalizeUiLanguage(store.settings?.uiLanguage),

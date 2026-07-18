@@ -96,11 +96,12 @@ describe('article IPC patch broadcasts', () => {
       distillation: { status: 'published', content: '沉淀内容' } as const,
     };
 
-    const result = await handler({}, input);
+    const event = { sender: { id: 17 } };
+    const result = await handler(event, input);
 
     expect(saveArticleAnnotationDistillation).toHaveBeenCalledWith(input);
     expect(result).toEqual({ ok: true, value: patch });
-    expect(sendArticlePatched).toHaveBeenCalledWith(patch);
+    expect(sendArticlePatched).toHaveBeenCalledWith(event, patch);
   });
 
   it('broadcasts article patches after merging agent annotations', async () => {
@@ -123,7 +124,7 @@ describe('article IPC patch broadcasts', () => {
 
     expect(mergeArticleAgentAnnotation).toHaveBeenCalledWith(input);
     expect(result).toEqual({ ok: true, value: mergeResult });
-    expect(sendArticlePatched).toHaveBeenCalledWith(patch);
+    expect(sendArticlePatched).toHaveBeenCalledWith(expect.anything(), patch);
   });
 
   it('broadcasts article patches after saving annotations', async () => {
@@ -157,7 +158,7 @@ describe('article IPC patch broadcasts', () => {
     const result = await handler({}, { articleId: 'article_1', annotation });
 
     expect(result).toEqual({ ok: true, value: patch });
-    expect(sendArticlePatched).toHaveBeenCalledWith(patch);
+    expect(sendArticlePatched).toHaveBeenCalledWith(expect.anything(), patch);
   });
 
   it('broadcasts article patches after deleting comments', async () => {
@@ -198,7 +199,57 @@ describe('article IPC patch broadcasts', () => {
 
     expect(deleteArticleComment).toHaveBeenCalledWith(input);
     expect(result).toEqual({ ok: true, value: patch });
-    expect(sendArticlePatched).toHaveBeenCalledWith(patch);
+    expect(sendArticlePatched).toHaveBeenCalledWith(expect.anything(), patch);
+  });
+
+  it('broadcasts reading progress in the article patch envelope', async () => {
+    storageMocks.ipcMainHandle.mockClear();
+    const readingProgress = {
+      pageIndex: 2,
+      pageCount: 10,
+      progress: 0.2,
+      updatedAt: '2026-07-18T00:01:00.000Z',
+    };
+    const patch = {
+      articleId: 'article_1',
+      readingProgress,
+      updatedAt: readingProgress.updatedAt,
+    };
+    const saveArticleReadingProgress = vi.fn().mockResolvedValue(patch);
+    const sendArticlePatched = vi.fn();
+    registerArticleIpc(articleIpcContext({ saveArticleReadingProgress }, { sendArticlePatched }));
+    const handler = storageMocks.ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === 'article:reading-progress',
+    )?.[1];
+    const event = { sender: { id: 17 } };
+
+    const result = await handler(event, { articleId: 'article_1', progress: readingProgress });
+
+    expect(result).toEqual({ ok: true, value: patch });
+    expect(sendArticlePatched).toHaveBeenCalledWith(event, {
+      type: 'article-reading-progress',
+      ...patch,
+    });
+  });
+
+  it('broadcasts article deletion after source cleanup completes', async () => {
+    storageMocks.ipcMainHandle.mockClear();
+    const readArticle = vi.fn().mockResolvedValue(articlePatch().article);
+    const deleteArticle = vi.fn().mockResolvedValue({ articleId: 'article_1' });
+    const sendArticlePatched = vi.fn();
+    registerArticleIpc(articleIpcContext({ deleteArticle, readArticle }, { sendArticlePatched }));
+    const handler = storageMocks.ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === 'article:delete',
+    )?.[1];
+    const event = { sender: { id: 17 } };
+
+    const result = await handler(event, 'article_1');
+
+    expect(result).toEqual({ ok: true, value: { articleId: 'article_1' } });
+    expect(sendArticlePatched).toHaveBeenCalledWith(event, {
+      type: 'article-delete',
+      articleId: 'article_1',
+    });
   });
 });
 
@@ -378,7 +429,6 @@ function articleIpcContext(
       bilingualTranslationPromptVersion: 1,
       translateBilingualArticleBlocks: vi.fn(),
     }),
-    getMainWindow: () => null,
     getPersistenceModules: async () => ({
       storeAgents: {
         readAgentRuntimeContext: vi.fn().mockResolvedValue({ providers: [], settings: {} }),

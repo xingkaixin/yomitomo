@@ -76,6 +76,7 @@ import {
   type DraftPreviewDecision,
   type DraftPreviewDecisions,
 } from './app-annotation-sedimentation-state';
+import { useAnnotationWindowArticlePatches } from './use-annotation-window-article-patches';
 
 type SedimentationWindowStatus =
   | { type: 'loading' }
@@ -118,7 +119,19 @@ export function AnnotationSedimentationWindowApp() {
   const articleId = params.get('articleId') || '';
   const annotationId = params.get('annotationId') || '';
   const [status, setStatus] = useState<SedimentationWindowStatus>({ type: 'loading' });
+  const pendingArticleUpdateRef = useRef<
+    { annotation: Annotation; article: ArticleRecord } | null | undefined
+  >(undefined);
   const windowTransition = useSourceAwareWindowTransition(params);
+
+  useAnnotationWindowArticlePatches(articleId, annotationId, (update) => {
+    pendingArticleUpdateRef.current = update;
+    setStatus((current) => {
+      if (!update) return { type: 'missing' };
+      if (current.type !== 'ready') return current;
+      return { ...current, ...update };
+    });
+  });
 
   useEffect(() => {
     const syncTheme = () => applyAppTheme(themeRegistry[readCachedThemeId()]);
@@ -150,13 +163,17 @@ export function AnnotationSedimentationWindowApp() {
     ])
       .then(([article, store]) => {
         if (cancelled) return;
-        const annotation = article?.annotations.find((item) => item.id === annotationId);
+        const pendingUpdate = pendingArticleUpdateRef.current;
+        const currentArticle = pendingUpdate?.article || article;
+        const annotation =
+          pendingUpdate?.annotation ||
+          currentArticle?.annotations.find((item) => item.id === annotationId);
         setStatus(
-          article && annotation
+          pendingUpdate !== null && currentArticle && annotation
             ? {
                 type: 'ready',
                 agents: store.agents,
-                article,
+                article: currentArticle,
                 annotation,
                 uiLanguage: normalizeUiLanguage(store.settings?.uiLanguage),
               }

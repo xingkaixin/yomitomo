@@ -35,7 +35,7 @@ export function registerAppLockIpc(context: AppLockIpcContext) {
     appLockVerifyPinResult(await verifyAppLockPinAttempt(input.pin)),
   );
 
-  handleDesktopIpc('appLock:unlock', async (_event, input) => {
+  handleDesktopIpc('appLock:unlock', async (event, input) => {
     const { storeSettings, storeSnapshot } = await context.getPersistenceModules();
     const store = await storeSnapshot.readStore();
     if (!store.settings.appLockEnabled) throw new DesktopIpcError('APP_LOCK_DISABLED');
@@ -45,11 +45,11 @@ export function registerAppLockIpc(context: AppLockIpcContext) {
     if (!store.settings.appLockLocked) return store;
 
     const nextStore = await storeSettings.saveSettings({ appLockLocked: false });
-    context.sendFullStoreUpdated(nextStore);
+    context.sendFullStoreUpdated(event, nextStore);
     return nextStore;
   });
 
-  handleDesktopIpc('appLock:setLocked', async (_event, input) => {
+  handleDesktopIpc('appLock:setLocked', async (event, input) => {
     if (!input.locked) throw new DesktopIpcError('APP_LOCK_UNLOCK_REQUIRED');
     const { storeSettings, storeSnapshot } = await context.getPersistenceModules();
     const store = await storeSnapshot.readStore();
@@ -62,11 +62,11 @@ export function registerAppLockIpc(context: AppLockIpcContext) {
     const nextStore = rendererStoreForAppLockState(
       await storeSettings.saveSettings({ appLockLocked: input.locked }),
     );
-    context.sendFullStoreUpdated(nextStore);
+    context.sendFullStoreUpdated(event, nextStore);
     return nextStore;
   });
 
-  handleDesktopIpc('appLock:setEnabled', async (_event, input) => {
+  handleDesktopIpc('appLock:setEnabled', async (event, input) => {
     await assertCanSetAppLockEnabled(input);
     const { storeSettings } = await context.getPersistenceModules();
     const store = await storeSettings.saveSettings({
@@ -78,16 +78,16 @@ export function registerAppLockIpc(context: AppLockIpcContext) {
       await deleteAppLockPin();
       resetAppLockPinAttempts();
     }
-    context.sendFullStoreUpdated(store);
+    context.sendFullStoreUpdated(event, store);
     return store;
   });
 
-  handleDesktopIpc('appLock:setShortcut', async (_event, input) => {
+  handleDesktopIpc('appLock:setShortcut', async (event, input) => {
     const { storeSettings } = await context.getPersistenceModules();
     const store = await storeSettings.saveSettings({
       appLockShortcut: normalizeShortcutInput(input),
     });
-    context.sendFullStoreUpdated(store);
+    context.sendFullStoreUpdated(event, store);
     return store;
   });
 }

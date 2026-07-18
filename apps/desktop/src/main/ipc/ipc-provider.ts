@@ -26,12 +26,12 @@ export function registerProviderIpc(context: ProviderIpcContext) {
     const { storeSettings } = await context.getPersistenceModules();
     return storeSettings.saveUser(input);
   });
-  handleDesktopIpc('settings:save', async (_event, input) => {
+  handleDesktopIpc('settings:save', async (event, input) => {
     const { storeSettings, storeSnapshot } = await context.getPersistenceModules();
     await assertSettingsAppLockChangeAllowed(input, await storeSnapshot.readStore());
     const store = await storeSettings.saveSettings(input);
     await pruneLogFile(store.settings.logRetentionDays);
-    context.sendFullStoreUpdated(store);
+    context.sendFullStoreUpdated(event, store);
     return store;
   });
   handleDesktopIpc('provider:save', async (_event, input) => {

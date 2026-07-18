@@ -89,7 +89,7 @@ describe('library collection IPC', () => {
 
     expect(result).toEqual({ ok: true, value: { collection: patch.collection, patch } });
     expect(createCollection).toHaveBeenCalledWith({ name: '合集' });
-    expect(sendCollectionPatched).toHaveBeenCalledWith(patch);
+    expect(sendCollectionPatched).toHaveBeenCalledWith(expect.anything(), patch);
   });
 
   it('broadcasts library pin patches after setting a pin', async () => {
@@ -120,7 +120,7 @@ describe('library collection IPC', () => {
 
     expect(result).toEqual({ ok: true, value: patch });
     expect(setLibraryPin).toHaveBeenCalledWith(input);
-    expect(sendLibraryPinPatched).toHaveBeenCalledWith(patch);
+    expect(sendLibraryPinPatched).toHaveBeenCalledWith(expect.anything(), patch);
   });
 });
 

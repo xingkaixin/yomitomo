@@ -14,6 +14,7 @@ import type {
 } from '../../ipc-contract';
 import { DesktopIpcError, desktopIpcErrorCodes, serializeDesktopIpcError } from '../../ipc-errors';
 import { validateDesktopIpcInvokeArgs } from '../../ipc-schemas';
+import type { RendererStateEventDispatcher } from './renderer-state-event-dispatcher';
 
 export { isAppLockSettingsLocked } from '../../app-store';
 
@@ -36,10 +37,11 @@ export interface DesktopMainIpcContext {
   getAiModule: () => Promise<typeof import('@yomitomo/ai')>;
   getAppUpdaterModule: () => Promise<typeof import('../app/app-updater')>;
   getAppVersion: () => string;
-  sendFullStoreUpdated: (store: DesktopStore) => void;
-  sendArticlePatched: (patch: ArticleStorePatch) => void;
-  sendCollectionPatched: (patch: CollectionStorePatch) => void;
-  sendLibraryPinPatched: (patch: LibraryPinPatch) => void;
+  sendFullStoreUpdated: (event: IpcMainInvokeEvent, store: DesktopStore) => void;
+  sendArticlePatched: (event: IpcMainInvokeEvent, patch: ArticleStorePatch) => void;
+  sendCollectionPatched: (event: IpcMainInvokeEvent, patch: CollectionStorePatch) => void;
+  sendLibraryPinPatched: (event: IpcMainInvokeEvent, patch: LibraryPinPatch) => void;
+  registerRendererStateEventTarget: RendererStateEventDispatcher['registerTarget'];
   setSensitiveRendererEventsLocked: (locked: boolean) => void;
   recordStartupTiming: (event: string, data?: Record<string, unknown>) => void;
   recordPerformanceTiming: (input: unknown) => void;

@@ -1,5 +1,5 @@
 import { performance } from 'node:perf_hooks';
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, shell, type IpcMainInvokeEvent } from 'electron';
 import type {
   ArticleStorePatch,
   CollectionStorePatch,
@@ -37,6 +37,7 @@ import { registerLibraryCollectionIpc } from './ipc/ipc-library-collection';
 import { registerProviderIpc } from './ipc/ipc-provider';
 import { registerStoreDataIpc } from './ipc/ipc-store-data';
 import { registerWeReadIpc } from './ipc/ipc-weread';
+import { createRendererStateEventDispatcher } from './ipc/renderer-state-event-dispatcher';
 import { modelPriceRefreshIntervalMs } from './providers/model-pricing-repository';
 import {
   createDesktopTelemetryControllerForEnvironment,
@@ -62,6 +63,7 @@ let weReadAutoSyncConfigureToken = 0;
 let weReadAutoSyncRunning = false;
 let desktopTelemetryController: DesktopTelemetryController | null = null;
 let sensitiveRendererEventsLocked = false;
+const rendererStateEventDispatcher = createRendererStateEventDispatcher();
 
 const WEREAD_AUTO_SYNC_STARTUP_DELAY_MS = 5_000;
 const WEREAD_AUTO_SYNC_INTERVAL_MS = 30 * 60 * 1000;
@@ -346,9 +348,14 @@ async function createWindow() {
     webPreferences: secureRendererWebPreferences(),
   });
   mainWindow = browserWindow;
+  const unregisterRendererStateTarget = rendererStateEventDispatcher.registerTarget(
+    'main',
+    browserWindow.webContents,
+  );
   recordStartupTiming('window.created');
 
   browserWindow.on('closed', () => {
+    unregisterRendererStateTarget();
     if (mainWindow === browserWindow) mainWindow = null;
   });
   browserWindow.on('focus', () => desktopTelemetryController?.check('focus'));
@@ -439,6 +446,7 @@ function registerIpc() {
     sendArticlePatched,
     sendCollectionPatched,
     sendLibraryPinPatched,
+    registerRendererStateEventTarget: rendererStateEventDispatcher.registerTarget,
     setSensitiveRendererEventsLocked,
     recordStartupTiming,
     recordPerformanceTiming,
@@ -464,25 +472,25 @@ function registerIpc() {
   registerAnnotationSedimentationWindowIpc(context);
 }
 
-function sendFullStoreUpdated(store: DesktopStore) {
+function sendFullStoreUpdated(event: IpcMainInvokeEvent, store: DesktopStore) {
   const rendererStore = rendererStoreForAppLockState(store);
   setSensitiveRendererEventsLocked(isAppLockSettingsLocked(rendererStore.settings));
-  sendToRenderer('store:updated', rendererStore);
+  rendererStateEventDispatcher.dispatch(event.sender, 'store:updated', rendererStore);
 }
 
-function sendArticlePatched(patch: ArticleStorePatch) {
+function sendArticlePatched(event: IpcMainInvokeEvent, patch: ArticleStorePatch) {
   if (sensitiveRendererEventsLocked) return;
-  sendToRenderer('article:patched', patch);
+  rendererStateEventDispatcher.dispatch(event.sender, 'article:patched', patch);
 }
 
-function sendCollectionPatched(patch: CollectionStorePatch) {
+function sendCollectionPatched(event: IpcMainInvokeEvent, patch: CollectionStorePatch) {
   if (sensitiveRendererEventsLocked) return;
-  sendToRenderer('collection:patched', patch);
+  rendererStateEventDispatcher.dispatch(event.sender, 'collection:patched', patch);
 }
 
-function sendLibraryPinPatched(patch: LibraryPinPatch) {
+function sendLibraryPinPatched(event: IpcMainInvokeEvent, patch: LibraryPinPatch) {
   if (sensitiveRendererEventsLocked) return;
-  sendToRenderer('library-pin:patched', patch);
+  rendererStateEventDispatcher.dispatch(event.sender, 'library-pin:patched', patch);
 }
 
 function sendWeReadStateUpdated(state: WeReadState) {

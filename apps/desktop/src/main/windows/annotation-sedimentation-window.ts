@@ -73,6 +73,10 @@ function openAnnotationSedimentationWindow(
     annotationId: input.annotationId,
     window,
   });
+  const unregisterRendererStateTarget = context.registerRendererStateEventTarget(
+    'annotation',
+    window.webContents,
+  );
   installWindowCloseAnimation(window);
 
   window.once('ready-to-show', () => {
@@ -81,6 +85,7 @@ function openAnnotationSedimentationWindow(
     window.focus();
   });
   window.on('closed', () => {
+    unregisterRendererStateTarget();
     const current = sedimentationWindows.get(key);
     if (current?.window === window) sedimentationWindows.delete(key);
   });

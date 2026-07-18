@@ -38,7 +38,7 @@ type ArticleTranslationPersistenceModules = Awaited<
 
 type ArticleIpcContext = Pick<
   DesktopMainIpcContext,
-  'elapsedMs' | 'getMainWindow' | 'logError' | 'logInfo' | 'sendArticlePatched'
+  'elapsedMs' | 'logError' | 'logInfo' | 'sendArticlePatched'
 > &
   Pick<ArticleTranslationRuntimeContext, 'getAiModule'> & {
     getPersistenceModules: () => Promise<{
@@ -81,51 +81,56 @@ export function registerArticleIpc(context: ArticleIpcContext) {
   handleDesktopIpc('article-translation:delete-current', async (_event, input) => {
     return translationRuntime.deleteCurrent(input);
   });
-  handleDesktopIpc('article:save-annotation', async (_event, input) => {
+  handleDesktopIpc('article:save-annotation', async (event, input) => {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();
     const patch = await articlePersistence.saveArticleAnnotation(input);
-    if (patch) context.sendArticlePatched(patch);
+    if (patch) context.sendArticlePatched(event, patch);
     return patch;
   });
-  handleDesktopIpc('article:save-annotation-distillation', async (_event, input) => {
+  handleDesktopIpc('article:save-annotation-distillation', async (event, input) => {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();
     const patch = await articlePersistence.saveArticleAnnotationDistillation(input);
-    if (patch) context.sendArticlePatched(patch);
+    if (patch) context.sendArticlePatched(event, patch);
     return patch;
   });
-  handleDesktopIpc('article:merge-agent-annotation', async (_event, input) => {
+  handleDesktopIpc('article:merge-agent-annotation', async (event, input) => {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();
     const result = await articlePersistence.mergeArticleAgentAnnotation(input);
-    if (result) context.sendArticlePatched(result.patch);
+    if (result) context.sendArticlePatched(event, result.patch);
     return result;
   });
-  handleDesktopIpc('article:save-comment', async (_event, input) => {
+  handleDesktopIpc('article:save-comment', async (event, input) => {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();
     const patch = await articlePersistence.saveArticleComment(input);
-    if (patch) context.sendArticlePatched(patch);
+    if (patch) context.sendArticlePatched(event, patch);
     return patch;
   });
-  handleDesktopIpc('article:delete-annotation', async (_event, input) => {
+  handleDesktopIpc('article:delete-annotation', async (event, input) => {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();
     const patch = await articlePersistence.deleteArticleAnnotation(input);
-    if (patch) context.sendArticlePatched(patch);
+    if (patch) context.sendArticlePatched(event, patch);
     return patch;
   });
-  handleDesktopIpc('article:delete-comment', async (_event, input) => {
+  handleDesktopIpc('article:delete-comment', async (event, input) => {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();
     const patch = await articlePersistence.deleteArticleComment(input);
-    if (patch) context.sendArticlePatched(patch);
+    if (patch) context.sendArticlePatched(event, patch);
     return patch;
   });
-  handleDesktopIpc('article:reading-progress', async (_event, input) => {
+  handleDesktopIpc('article:reading-progress', async (event, input) => {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();
-    return articlePersistence.saveArticleReadingProgress(input.articleId, input.progress);
+    const patch = await articlePersistence.saveArticleReadingProgress(
+      input.articleId,
+      input.progress,
+    );
+    context.sendArticlePatched(event, { type: 'article-reading-progress', ...patch });
+    return patch;
   });
   handleDesktopIpc('article:reader-chat-state', async (_event, input) => {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();
     return articlePersistence.saveArticleReaderChatState(input.articleId, input.readerChatState);
   });
-  handleDesktopIpc('article:import-url', async (_event, input) => {
+  handleDesktopIpc('article:import-url', async (event, input) => {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();
     const { canceledArticleSourceImport, importArticleSource } =
       await import('../articles/article-source-import');
@@ -143,7 +148,7 @@ export function registerArticleIpc(context: ArticleIpcContext) {
     );
     if (!record) return { status: 'canceled' };
 
-    return importArticleSource({
+    const result = await importArticleSource({
       record,
       repository: articleImportRepository(articlePersistence),
       isDuplicate: (article) => Boolean(article && !isArticleImportChallengeRecord(article)),
@@ -152,18 +157,20 @@ export function registerArticleIpc(context: ArticleIpcContext) {
         createdAt: existing.createdAt,
       }),
     });
+    if (result.status === 'imported') context.sendArticlePatched(event, result.patch);
+    return result;
   });
   handleDesktopIpc('article:import-url-cancel', async (_event, requestId) => {
     const { cancelArticleImport } = await import('../articles/article-import');
     return cancelArticleImport(requestId);
   });
-  handleDesktopIpc('ebook:import-file', async (_event, input: EbookImportFileInput) => {
+  handleDesktopIpc('ebook:import-file', async (event, input: EbookImportFileInput) => {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();
     const { importArticleSource } = await import('../articles/article-source-import');
     const { articleRecordFromEbookFile } = await import('../ebooks/ebook-import');
     const { deleteEbookSourceFile, saveEbookSourceFile } = await import('../ebooks/ebook-storage');
     const record = await articleRecordFromEbookFile(input, { performanceLogger: context.logInfo });
-    return importArticleSource({
+    const result = await importArticleSource({
       record,
       repository: articleImportRepository(articlePersistence),
       saveSourceFile: (articleId) =>
@@ -171,20 +178,22 @@ export function registerArticleIpc(context: ArticleIpcContext) {
       cleanupSourceFile: deleteEbookSourceFile,
       logError: context.logError,
     });
+    if (result.status === 'imported') context.sendArticlePatched(event, result.patch);
+    return result;
   });
   handleDesktopIpc('ebook:read-file', async (_event, articleId) => {
     const { readEbookSourceFile } = await import('../ebooks/ebook-storage');
     const file = await readEbookSourceFile(articleId);
     return file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength);
   });
-  handleDesktopIpc('pdf:import-file', async (_event, input: PdfImportFileInput) => {
+  handleDesktopIpc('pdf:import-file', async (event, input: PdfImportFileInput) => {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();
     const { importArticleSource } = await import('../articles/article-source-import');
     const { articleRecordFromPdfFile } = await import('../pdf/pdf-import');
     const { deletePdfSourceFile, savePdfSourceFile } = await import('../pdf/pdf-storage');
     const { deletePdfThumbnail, savePdfThumbnail } = await import('../pdf/pdf-thumbnail-storage');
     const { article: record, thumbnail } = await articleRecordFromPdfFile(input);
-    return importArticleSource({
+    const result = await importArticleSource({
       record,
       repository: articleImportRepository(articlePersistence),
       saveSourceFile: (articleId) => savePdfSourceFile(articleId, input.data),
@@ -193,16 +202,18 @@ export function registerArticleIpc(context: ArticleIpcContext) {
       cleanupThumbnail: thumbnail ? deletePdfThumbnail : undefined,
       logError: context.logError,
     });
+    if (result.status === 'imported') context.sendArticlePatched(event, result.patch);
+    return result;
   });
   handleDesktopIpc('text:import-prepare', async (_event, input) => {
     const { prepareTextSourceItems } = await import('../articles/text-source-import');
     return prepareTextSourceItems(input);
   });
-  handleDesktopIpc('text:import-commit', async (_event, input) => {
+  handleDesktopIpc('text:import-commit', async (event, input) => {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();
     const { commitTextSources } = await import('../articles/text-source-import');
     const result = await commitTextSources(input, articleImportRepository(articlePersistence));
-    for (const patch of result.patches) context.sendArticlePatched(patch);
+    for (const patch of result.patches) context.sendArticlePatched(event, patch);
     return result;
   });
   handleDesktopIpc('pdf:get-thumbnail', async (_event, articleId) => {
@@ -241,7 +252,7 @@ export function registerArticleIpc(context: ArticleIpcContext) {
     });
     return data;
   });
-  handleDesktopIpc('article:delete', async (_event, id) => {
+  handleDesktopIpc('article:delete', async (event, id) => {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();
     const article = await articlePersistence.readArticle(id);
     const patch = await articlePersistence.deleteArticle(id);
@@ -250,6 +261,7 @@ export function registerArticleIpc(context: ArticleIpcContext) {
       sourceType: article?.sourceType,
       logError: context.logError,
     });
+    context.sendArticlePatched(event, { type: 'article-delete', ...patch });
     return patch;
   });
 }

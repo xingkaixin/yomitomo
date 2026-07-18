@@ -23,7 +23,7 @@ type DiscussionWindowEntry = {
 
 export type AnnotationWindowIpcContext = Pick<
   DesktopMainIpcContext,
-  'getMainWindow' | 'openExternalUrl'
+  'getMainWindow' | 'openExternalUrl' | 'registerRendererStateEventTarget'
 >;
 
 const discussionWindows = new Map<string, DiscussionWindowEntry>();
@@ -74,6 +74,10 @@ function openAnnotationDiscussionWindow(
     annotationId: input.annotationId,
     window,
   });
+  const unregisterRendererStateTarget = context.registerRendererStateEventTarget(
+    'annotation',
+    window.webContents,
+  );
   installWindowCloseAnimation(window);
 
   window.once('ready-to-show', () => {
@@ -87,6 +91,7 @@ function openAnnotationDiscussionWindow(
   window.on('show', () => sendWindowState(context, input, window, false));
   window.on('focus', () => sendWindowState(context, input, window, false));
   window.on('closed', () => {
+    unregisterRendererStateTarget();
     const current = discussionWindows.get(key);
     if (current?.window === window) discussionWindows.delete(key);
     sendWindowStateRemoved(context, input, window.id);

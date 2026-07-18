@@ -103,6 +103,7 @@ describe('app lock IPC guard', () => {
     expect(ipcState.verifyAppLockPin).toHaveBeenCalledWith('1234');
     expect(storeModule.saveSettings).toHaveBeenCalledWith({ appLockLocked: false });
     expect(ipcContext.sendFullStoreUpdated).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({ settings: expect.objectContaining({ appLockLocked: false }) }),
     );
     expect(envelope).toMatchObject({
@@ -162,6 +163,7 @@ describe('app lock IPC guard', () => {
 
     expect(storeModule.saveSettings).toHaveBeenCalledWith({ appLockLocked: true });
     expect(ipcContext.sendFullStoreUpdated).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({
         articles: [],
         settings: expect.objectContaining({ appLockEnabled: true, appLockLocked: true }),
