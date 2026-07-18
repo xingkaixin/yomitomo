@@ -37,7 +37,7 @@ import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { readerDesktopEmbeddedBundleStyles } from '@yomitomo/reader-ui/reader-styles';
 import { animateTheaterHighlight, sleep } from '@yomitomo/reader-ui/reader-animation';
 import { selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
-import type { SourceBookcaseProps } from '../bookcase/app-source-bookcase-shared';
+import type { SourceBookcaseProps } from '../bookcase/app-source-bookcase';
 import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
 import { useRecentAnnotationFeedback } from '../bookcase/use-recent-annotation-feedback';
 import { buildSourceReaderAppActions } from '../bookcase/source-reader-app-actions';

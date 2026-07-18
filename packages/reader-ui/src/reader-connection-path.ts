@@ -1,11 +1,3 @@
-/**
- * Build a hand-drawn style annotation connection SVG path.
- * The path weaves between start and end points with sinusoidal perturbation,
- * then passes through Catmull-Rom–style smoothing.
- *
- * Ported from apps/desktop/src/renderer/src/source/bookcase/app-source-bookcase-shared.ts
- */
-
 function formatPathNumber(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }

@@ -3,8 +3,8 @@ import type { ArticleRecord } from '@yomitomo/shared';
 import {
   recordRendererPerformanceTiming,
   rendererPerformanceElapsedMs,
-  type SourceBookcaseProps,
-} from '../bookcase/app-source-bookcase-shared';
+} from '../../shell/app-renderer-performance';
+import type { SourceBookcaseProps } from '../bookcase/app-source-bookcase';
 
 const PdfiumBookcase = lazy(() => {
   const startedAt = performance.now();

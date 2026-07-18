@@ -15,7 +15,8 @@ import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { applyAppTheme, readCachedThemeId, themeRegistry } from '../theme/app-theme';
 import { FloatingComposer } from '@yomitomo/reader-ui/floating-composer';
-import { promptArticle, publicReviewAgents } from '../source/bookcase/app-source-bookcase-shared';
+import { promptArticle } from '../source/bookcase/source-prompt-article';
+import { publicReviewAgents } from '../source/bookcase/source-public-agents';
 import { articlePlainText } from '../shell/app-utils';
 import {
   AgentAvatarStack,

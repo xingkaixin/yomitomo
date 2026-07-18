@@ -4,7 +4,7 @@ import type { AgentReadingPlanItem, Annotation, PublicAgent } from '@yomitomo/sh
 import { mergeAgentAnnotationAsThought } from '@yomitomo/core';
 import type { ArticleAgentAnnotationMergeResult } from '../../../../ipc-contract';
 import type { SourceAgentAnnotationPlaybackMode } from '../bookcase/app-source-agent-request';
-import { promptArticle } from '../bookcase/app-source-bookcase-shared';
+import { promptArticle } from '../bookcase/source-prompt-article';
 import {
   constrainSourceAgentPlanAnnotation,
   type SourceAgentAnnotationAdapter,

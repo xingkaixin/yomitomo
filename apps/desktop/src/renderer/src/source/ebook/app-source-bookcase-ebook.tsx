@@ -38,12 +38,8 @@ import {
 } from './app-ebook-reader-utils';
 import { EbookReaderShell } from './app-source-ebook-reader-shell';
 import { playEbookAgentAnnotationPlayback } from './app-source-ebook-agent-playback';
-import {
-  defaultTocOpen,
-  recordRendererPerformanceTiming,
-  usesOverlayToc,
-  type EbookBookcaseProps,
-} from '../bookcase/app-source-bookcase-shared';
+import { recordRendererPerformanceTiming } from '../../shell/app-renderer-performance';
+import type { EbookBookcaseProps } from '../bookcase/app-source-bookcase';
 import { useEbookAgentVirtualReading } from './use-ebook-agent-virtual-reading';
 import { useEbookFoliateView } from './use-ebook-foliate-view';
 import { useEbookBilingualTranslation } from './use-ebook-bilingual-translation';
@@ -218,7 +214,7 @@ export function EbookBookcase({
     saveAnnotation,
   } = sourceReaderSession;
   const [annotatingAgentIds, setAnnotatingAgentIds] = useState<string[]>([]);
-  const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
+  const [tocOpen, setTocOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchBoxes, setSearchBoxes] = useState<HighlightBox[]>([]);
   const clearSearchBoxes = useCallback(() => setSearchBoxes([]), []);
@@ -490,7 +486,7 @@ export function EbookBookcase({
     closeFloatingComments();
     setStatusMessage('');
     setSettingsOpen(false);
-    setTocOpen(defaultTocOpen());
+    setTocOpen(false);
     searchNavigation.resetSearch();
   }, [
     article.id,
@@ -537,7 +533,7 @@ export function EbookBookcase({
   function goToReaderTocItem(item: TocItem) {
     const tocItem = tocItems[item.index];
     if (!tocItem) return;
-    if (usesOverlayToc()) setTocOpen(false);
+    setTocOpen(false);
     goToTocItem(tocItem);
   }
 

@@ -7,7 +7,10 @@ import {
   selectionActionPosition,
   type HighlightBox,
 } from '@yomitomo/core';
-import type { SelectionAdjustmentPointer } from '@yomitomo/reader-ui/reader-app-view';
+import type {
+  SelectionAction,
+  SelectionAdjustmentPointer,
+} from '@yomitomo/reader-ui/reader-app-view';
 import { selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
 import {
   currentFoliateContent,
@@ -36,10 +39,7 @@ import {
   selectionAdjustmentAdjustedOffsets,
   selectionAdjustmentDraggingHandle,
 } from '../bookcase/selection-adjustment';
-import type {
-  EbookBookcaseProps,
-  SourceSelectionAction,
-} from '../bookcase/app-source-bookcase-shared';
+import type { EbookBookcaseProps } from '../bookcase/app-source-bookcase';
 
 type UseEbookSelectionInput = {
   article: EbookBookcaseProps['article'];
@@ -49,17 +49,17 @@ type UseEbookSelectionInput = {
   ebookText: string;
   userProfile: UserProfile;
   actionShortcuts: SelectionActionShortcuts;
-  selectionAction: SourceSelectionAction | null;
-  composer: SourceSelectionAction | null;
+  selectionAction: SelectionAction | null;
+  composer: SelectionAction | null;
   clearSelection: () => void;
-  askSelection: (action: SourceSelectionAction) => void;
+  askSelection: (action: SelectionAction) => void;
   requestSelectionCopy: () => void;
-  openComposer: (action: SourceSelectionAction) => void;
+  openComposer: (action: SelectionAction) => void;
   openSelectionAction: (
-    action: SourceSelectionAction,
+    action: SelectionAction,
     boxes: ReturnType<typeof foliateRangeHighlightBoxes>,
   ) => void;
-  setSelectionAction: Dispatch<SetStateAction<SourceSelectionAction | null>>;
+  setSelectionAction: Dispatch<SetStateAction<SelectionAction | null>>;
   setTemporaryBoxes: Dispatch<SetStateAction<HighlightBox[]>>;
   setStatusMessage: (message: string) => void;
 };
@@ -116,7 +116,7 @@ export function useEbookSelection({
     [article, ebookText, viewRef],
   );
   const selectionAdjustmentTargetForAnchor = useCallback(
-    (anchor: SourceSelectionAction['anchor']) => {
+    (anchor: SelectionAction['anchor']) => {
       const view = viewRef.current;
       if (!view) return null;
 
@@ -267,7 +267,7 @@ export function useEbookSelection({
       sectionIndex,
     }: {
       canvasElement: HTMLElement;
-      draggingHandle: SourceSelectionAction['draggingHandle'];
+      draggingHandle: SelectionAction['draggingHandle'];
       range: Range;
       sectionIndex: number;
     }) => {
@@ -409,7 +409,7 @@ function isEditableKeyboardTarget(target: EventTarget | null) {
     : false;
 }
 
-function canAdjustEbookSelectionAnchor(anchor: SourceSelectionAction['anchor']) {
+function canAdjustEbookSelectionAnchor(anchor: SelectionAction['anchor']) {
   if ('kind' in anchor && anchor.kind === 'pdf-text') return false;
   return (
     anchor.exact.trim().length > 0 && isAdjustableSelectionOffsetRange(anchor.start, anchor.end)

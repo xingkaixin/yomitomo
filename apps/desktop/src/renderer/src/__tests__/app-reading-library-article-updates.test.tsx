@@ -8,7 +8,7 @@ import type {
   ArticleSummaryRecord,
   UserProfile,
 } from '@yomitomo/shared';
-import type { SourceBookcaseProps } from '../source/bookcase/app-source-bookcase-shared';
+import type { SourceBookcaseProps } from '../source/bookcase/app-source-bookcase';
 import { ReadingLibrary } from '../reading-library/app-reading-library';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { defaultTheme } from '../theme/app-theme';

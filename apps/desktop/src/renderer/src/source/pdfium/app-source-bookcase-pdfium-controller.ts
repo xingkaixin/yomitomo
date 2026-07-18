@@ -3,7 +3,7 @@ import i18next from 'i18next';
 import type { AgentReadingPlanItem, Annotation, PublicAgent } from '@yomitomo/shared';
 import { isPdfTextAnchor } from '@yomitomo/shared';
 import type { PdfPageGeometry } from '@embedpdf/models';
-import { promptArticle } from '../bookcase/app-source-bookcase-shared';
+import { promptArticle } from '../bookcase/source-prompt-article';
 import {
   type SourceAgentAnnotationAdapter,
   type SourceAgentAnnotationContext,

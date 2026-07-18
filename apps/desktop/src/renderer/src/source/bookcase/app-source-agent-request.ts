@@ -14,7 +14,7 @@ import i18next from 'i18next';
 import {
   routeFocusReadingPlanMessages,
   targetAnchorReadingPlan,
-} from './app-source-bookcase-shared';
+} from './app-source-agent-mention-request';
 
 export type SourceAgentAnnotationRequestOptions = {
   annotationType?: AnnotationType;

@@ -25,7 +25,7 @@ import {
 import type { AnnotationRailLayout } from '@yomitomo/reader-ui/reader-annotations';
 import type { PromptArticle } from '../../shell/app-reading-types';
 import type { SourceAgentAnnotationRequestOptions } from '../bookcase/app-source-agent-request';
-import { promptArticle } from '../bookcase/app-source-bookcase-shared';
+import { promptArticle } from '../bookcase/source-prompt-article';
 
 type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']> };
 

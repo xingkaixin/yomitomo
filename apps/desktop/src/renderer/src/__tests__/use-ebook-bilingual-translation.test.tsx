@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ArticleTranslation, ArticleTranslationRequest } from '@yomitomo/shared';
 import { extractBilingualTranslationBlocks } from '@yomitomo/core';
 import { initializeAppI18n } from '../i18n/app-i18n';
-import type { EbookArticleRecord } from '../source/bookcase/app-source-bookcase-shared';
+import type { EbookArticleRecord } from '../source/bookcase/app-source-bookcase';
 import type { FoliateViewElement } from '../source/ebook/app-ebook-reader-utils';
 import {
   runWhenEbookSelectionSettles,

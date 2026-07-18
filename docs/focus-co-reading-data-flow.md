@@ -37,7 +37,7 @@
 2. `apps/desktop/src/renderer/src/source/bookcase/app-source-agent-request.ts` 的
    `buildAgentAnnotationRequestInput()` 将 `readingPlan` 放入 `AgentAnnotatePayload`。
 3. `prepareSourceAgentAnnotationRequestInput()` 调用
-   `apps/desktop/src/renderer/src/source/bookcase/app-source-bookcase-shared.ts` 的
+   `apps/desktop/src/renderer/src/source/bookcase/app-source-agent-mention-request.ts` 的
    `routeFocusReadingPlanMessages()`，只处理 section 留言中的 `@助手` 路由。
 4. `runSourceAgentAnnotationRequest()` 消费流式 `item`，把每条结果交给 source adapter。
 5. adapter 完成范围约束、坐标转换、播放与保存，session 在 finally 中清理 pending 状态。

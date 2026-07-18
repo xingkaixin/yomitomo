@@ -25,8 +25,8 @@ import {
 import {
   rendererPerformanceElapsedMs,
   recordRendererPerformanceTiming,
-  type EbookBookcaseProps,
-} from '../bookcase/app-source-bookcase-shared';
+} from '../../shell/app-renderer-performance';
+import type { EbookBookcaseProps } from '../bookcase/app-source-bookcase';
 import { useSourceReadingProgressSaver } from '../bookcase/use-source-reading-progress-saver';
 
 type EbookReaderState = {

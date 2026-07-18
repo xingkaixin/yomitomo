@@ -15,7 +15,7 @@ import {
   ebookSourceFile,
   useEbookFoliateView,
 } from '../source/ebook/use-ebook-foliate-view';
-import type { EbookArticleRecord } from '../source/bookcase/app-source-bookcase-shared';
+import type { EbookArticleRecord } from '../source/bookcase/app-source-bookcase';
 import type {
   EbookBoxUpdateReason,
   EbookPageTurnTrace,

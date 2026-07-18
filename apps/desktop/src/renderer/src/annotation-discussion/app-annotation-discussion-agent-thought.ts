@@ -7,7 +7,7 @@ import {
   deleteAnnotationComment,
   updateAnnotationComment,
 } from '@yomitomo/core';
-import { promptArticle } from '../source/bookcase/app-source-bookcase-shared';
+import { promptArticle } from '../source/bookcase/source-prompt-article';
 import { applyAssistantRuntimeProgress } from '../shell/app-assistant-runtime-progress';
 
 export type RunSourceAgentThoughtLifecycle = {

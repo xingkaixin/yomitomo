@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useScroll, useScrollCapability } from '@embedpdf/plugin-scroll/react';
 import type { ArticleRecord } from '@yomitomo/shared';
-import type { SourceBookcaseProps } from '../bookcase/app-source-bookcase-shared';
+import type { SourceBookcaseProps } from '../bookcase/app-source-bookcase';
 import {
   clampPageIndex,
   normalizeInitialPageIndex,
