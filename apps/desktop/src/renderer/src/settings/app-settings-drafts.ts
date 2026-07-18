@@ -3,10 +3,7 @@ import i18next from 'i18next';
 import type { AppSettings, DesktopStore, LlmProvider } from '@yomitomo/shared';
 import {
   normalizeUiLanguage,
-  normalizeLibraryContentSources,
   normalizeSelectionActionShortcutDraft,
-  normalizeSelectionActionShortcuts,
-  normalizeSoundEffectsVolume,
   selectionActionShortcutsConflict,
 } from '@yomitomo/shared';
 import { changeAppI18nLanguage } from '../i18n/app-i18n';
@@ -23,6 +20,7 @@ import {
   type UserDraft,
 } from './app-settings';
 import { useSaveableDraft } from './use-saveable-draft';
+import { settingsDraftSectionHasChanges } from './app-settings-change-detection';
 
 type UseSettingsDraftsInput = {
   store: DesktopStore;
@@ -54,97 +52,24 @@ export function useSettingsDrafts({
     [store.user, userDraft],
   );
   const settingsHasChanges = useMemo(
-    () =>
-      normalizeUiLanguage(settingsDraft.uiLanguage) !==
-        normalizeUiLanguage(store.settings.uiLanguage) ||
-      (settingsDraft.soundEffectsEnabled ?? true) !==
-        (store.settings.soundEffectsEnabled ?? true) ||
-      normalizeSoundEffectsVolume(settingsDraft.soundEffectsVolume) !==
-        normalizeSoundEffectsVolume(store.settings.soundEffectsVolume) ||
-      (settingsDraft.bilingualTranslationTargetLanguage || 'zh-CN') !==
-        (store.settings.bilingualTranslationTargetLanguage || 'zh-CN') ||
-      (settingsDraft.bilingualTranslationStyle || 'dashedLine') !==
-        (store.settings.bilingualTranslationStyle || 'dashedLine') ||
-      Boolean(settingsDraft.bilingualTranslationAiContextAware) !==
-        Boolean(store.settings.bilingualTranslationAiContextAware) ||
-      Boolean(settingsDraft.saveArticleImages) !== Boolean(store.settings.saveArticleImages) ||
-      Boolean(settingsDraft.appLockLockOnStartup) !==
-        Boolean(store.settings.appLockLockOnStartup) ||
-      libraryContentSourcesChanged(
-        settingsDraft.libraryContentSources,
-        store.settings.libraryContentSources,
-      ),
-    [
-      settingsDraft.libraryContentSources,
-      settingsDraft.bilingualTranslationAiContextAware,
-      settingsDraft.bilingualTranslationStyle,
-      settingsDraft.bilingualTranslationTargetLanguage,
-      settingsDraft.appLockLockOnStartup,
-      settingsDraft.saveArticleImages,
-      settingsDraft.soundEffectsEnabled,
-      settingsDraft.soundEffectsVolume,
-      settingsDraft.uiLanguage,
-      store.settings.libraryContentSources,
-      store.settings.bilingualTranslationAiContextAware,
-      store.settings.bilingualTranslationStyle,
-      store.settings.bilingualTranslationTargetLanguage,
-      store.settings.appLockLockOnStartup,
-      store.settings.saveArticleImages,
-      store.settings.soundEffectsEnabled,
-      store.settings.soundEffectsVolume,
-      store.settings.uiLanguage,
-    ],
+    () => settingsDraftSectionHasChanges('general', settingsDraft, store.settings),
+    [settingsDraft, store.settings],
   );
   const draftSelectionActionShortcuts = useMemo(
     () => normalizeSelectionActionShortcutDraft(settingsDraft.selectionActionShortcuts),
     [settingsDraft.selectionActionShortcuts],
-  );
-  const savedSelectionActionShortcuts = useMemo(
-    () => normalizeSelectionActionShortcuts(store.settings.selectionActionShortcuts),
-    [store.settings.selectionActionShortcuts],
   );
   const shortcutSettingsHaveConflict = useMemo(
     () => selectionActionShortcutsConflict(draftSelectionActionShortcuts),
     [draftSelectionActionShortcuts],
   );
   const shortcutSettingsHaveChanges = useMemo(
-    () =>
-      (settingsDraft.messageSendShortcut || 'enter') !==
-        (store.settings.messageSendShortcut || 'enter') ||
-      draftSelectionActionShortcuts.copy !== savedSelectionActionShortcuts.copy ||
-      draftSelectionActionShortcuts.annotate !== savedSelectionActionShortcuts.annotate ||
-      draftSelectionActionShortcuts.ask !== savedSelectionActionShortcuts.ask,
-    [
-      draftSelectionActionShortcuts.annotate,
-      draftSelectionActionShortcuts.ask,
-      draftSelectionActionShortcuts.copy,
-      savedSelectionActionShortcuts.annotate,
-      savedSelectionActionShortcuts.ask,
-      savedSelectionActionShortcuts.copy,
-      settingsDraft.messageSendShortcut,
-      store.settings.messageSendShortcut,
-    ],
+    () => settingsDraftSectionHasChanges('shortcuts', settingsDraft, store.settings),
+    [settingsDraft, store.settings],
   );
   const providerRoutesHaveChanges = useMemo(
-    () =>
-      (settingsDraft.readingAssistantProviderId || '') !==
-        (store.settings.readingAssistantProviderId || '') ||
-      (settingsDraft.reviewAssistantProviderId || '') !==
-        (store.settings.reviewAssistantProviderId || '') ||
-      (settingsDraft.bilingualTranslationProviderId || '') !==
-        (store.settings.bilingualTranslationProviderId || '') ||
-      (settingsDraft.assistantExecutionMode || 'fast_response') !==
-        (store.settings.assistantExecutionMode || 'fast_response'),
-    [
-      settingsDraft.assistantExecutionMode,
-      settingsDraft.bilingualTranslationProviderId,
-      settingsDraft.readingAssistantProviderId,
-      settingsDraft.reviewAssistantProviderId,
-      store.settings.assistantExecutionMode,
-      store.settings.bilingualTranslationProviderId,
-      store.settings.readingAssistantProviderId,
-      store.settings.reviewAssistantProviderId,
-    ],
+    () => settingsDraftSectionHasChanges('routes', settingsDraft, store.settings),
+    [settingsDraft, store.settings],
   );
   const selectedProvider = useMemo(
     () => store.providers.find((provider) => provider.id === selectedProviderId) || null,
@@ -342,13 +267,6 @@ function localizedEmptyProvider(): ProviderDraft {
     ...emptyProvider,
     name: providerPresetDisplayName(emptyProvider.presetId, emptyProvider.name || 'Provider'),
   };
-}
-
-function libraryContentSourcesChanged(left: unknown, right: unknown) {
-  return (
-    JSON.stringify(normalizeLibraryContentSources(left)) !==
-    JSON.stringify(normalizeLibraryContentSources(right))
-  );
 }
 
 function syncUiLanguageCache(settings: AppSettings) {
