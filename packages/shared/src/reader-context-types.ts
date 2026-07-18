@@ -85,7 +85,7 @@ export type SourceLabeledContextBlock = {
   source: ContextSourceLabel;
 };
 
-export type BudgetPolicy = {
+export type ReadingContextBudgetPolicy = {
   maxTokens: number;
   blockTypeOrder?: ContextSourceType[];
   reserveTokensByType?: Partial<Record<ContextSourceType, number>>;
@@ -124,7 +124,7 @@ export type BaseReadingContext = {
   book: BookContext;
   location: LocationContext;
   agent?: AgentContext;
-  budget: BudgetPolicy;
+  budget: ReadingContextBudgetPolicy;
   evidencePolicy: EvidencePolicy;
 };
 
