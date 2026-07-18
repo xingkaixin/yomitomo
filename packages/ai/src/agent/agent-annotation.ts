@@ -46,7 +46,7 @@ import {
   readingIntentSystemPrompt,
   spoilerScopePrompt,
 } from './agent-runtime-prompts';
-import { memoryViewContextBlocks } from '../context/reading-view-assembler';
+import { readingMemoryViewContextBlocks } from '../context/reading-memory-view-context-blocks';
 import { responseLanguageSystemPrompt } from './agent-language';
 import {
   annotationDensityInstruction,
@@ -545,7 +545,7 @@ function selectionAnnotationPromptBlock(
 
 function selectionMemoryViewPromptBlock(payload: AgentAnnotatePayload) {
   if (payload.article.ebookIndex) return '';
-  const blocks = memoryViewContextBlocks(payload.readingMemoryView);
+  const blocks = readingMemoryViewContextBlocks(payload.readingMemoryView);
   if (blocks.length === 0) return '';
   return `\n\nselection memory_view：\n${JSON.stringify(
     blocks.map((block) => ({
@@ -560,7 +560,7 @@ function selectionMemoryViewPromptBlock(payload: AgentAnnotatePayload) {
 
 function articleSectionMemoryViewPromptBlock(payload: AgentAnnotatePayload) {
   if (payload.article.ebookIndex) return '';
-  const blocks = memoryViewContextBlocks(payload.readingMemoryView);
+  const blocks = readingMemoryViewContextBlocks(payload.readingMemoryView);
   if (blocks.length === 0) return '';
   return `\n\narticle-section memory_view：\n${JSON.stringify(
     blocks.map((block) => ({

@@ -30,7 +30,7 @@ import {
 import type { CreateAgentAnnotationOptions } from '../agent/annotation-generation';
 import { packReadingContext } from './context-packing';
 import { logAiInfo } from '../logger';
-import { memoryViewContextBlocks } from './reading-view-assembler';
+import { readingMemoryViewContextBlocks } from './reading-memory-view-context-blocks';
 import { relatedPassagesFromReadingContext } from './related-passages';
 
 const SEGMENT_CONTEXT_TOKEN_BUDGET = 9000;
@@ -308,7 +308,7 @@ function timedMemoryViewBlocks(
   data: Record<string, unknown>,
 ) {
   const startedAt = performanceStart();
-  const blocks = memoryViewContextBlocks(view);
+  const blocks = readingMemoryViewContextBlocks(view);
   logAiInfo('performance.reading_memory.context_assembly', {
     ...data,
     viewType: view?.viewType,

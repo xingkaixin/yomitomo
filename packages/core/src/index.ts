@@ -117,7 +117,7 @@ export {
 } from './reader/reader-annotations';
 export type { TocAnnotationStats } from './reader/reader-annotations';
 
-export { mergeReadingMemory } from './reading-memory/reading-memory';
+export { mergeReadingMemory } from './reading-memory/reading-memory-merge';
 
 export {
   activeReadingMemoryEntries,
@@ -135,8 +135,8 @@ export {
 export {
   readingMemoryViewRequestForAnnotatePayload,
   readingMemoryViewRequestForMessagePayload,
-} from './reading-memory/reading-memory-view-assembly';
-export type { ReadingMemoryViewRequest } from './reading-memory/reading-memory-view-assembly';
+} from './reading-memory/reading-memory-view-request';
+export type { ReadingMemoryViewRequest } from './reading-memory/reading-memory-view-request';
 
 export {
   activeTocIndexForOffset,

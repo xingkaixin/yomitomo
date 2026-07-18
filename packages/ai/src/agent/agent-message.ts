@@ -42,7 +42,7 @@ import {
   reviewAssistantPrinciplesPrompt,
   spoilerScopePrompt,
 } from './agent-runtime-prompts';
-import { memoryViewContextBlocks } from '../context/reading-view-assembler';
+import { readingMemoryViewContextBlocks } from '../context/reading-memory-view-context-blocks';
 import { finalResponseLanguageReminder, responseLanguageSystemPrompt } from './agent-language';
 
 export type {
@@ -528,7 +528,7 @@ function threadMemoryViewPromptBlock(
       source: evidence.provenance.sourceType,
       text: evidence.text || evidence.summary,
     })) ||
-    memoryViewContextBlocks(payload.readingMemoryView).map((block) => ({
+    readingMemoryViewContextBlocks(payload.readingMemoryView).map((block) => ({
       id: block.id,
       source: block.source,
       text: block.text,

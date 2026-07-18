@@ -21,7 +21,7 @@ import {
   generateYomitomoTextEffect,
   streamYomitomoTextEffect,
 } from '../provider/generation-runtime';
-import { generateSegmentReadingMemoryUpdateEffect } from './reading-memory';
+import { generateSegmentReadingMemoryUpdateEffect } from './segment-reading-memory-update';
 import {
   buildSegmentAnnotationTask,
   segmentAnnotationContextPrompt,

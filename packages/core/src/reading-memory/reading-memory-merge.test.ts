@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ReadingMemory, TraceItem } from '@yomitomo/shared';
-import { mergeReadingMemory } from './reading-memory';
+import { mergeReadingMemory } from './reading-memory-merge';
 
 describe('reading memory', () => {
   it('overwrites segment summaries for the same source range', () => {

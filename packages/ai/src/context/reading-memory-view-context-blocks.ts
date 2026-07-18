@@ -9,7 +9,7 @@ import type {
   TraceItem,
 } from '@yomitomo/shared';
 
-export function memoryViewContextBlocks(
+export function readingMemoryViewContextBlocks(
   view: ReadingMemoryView | undefined,
 ): SourceLabeledContextBlock[] {
   if (!view) return [];
