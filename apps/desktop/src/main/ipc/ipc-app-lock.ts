@@ -3,6 +3,7 @@ import type {
   AppLockSetShortcutInput,
   AppLockVerifyPinResult,
 } from '../../ipc-contract';
+import { rendererStoreForAppLockState } from '../../app-store';
 import { DesktopIpcError, desktopIpcErrorCodes } from '../../ipc-errors';
 import {
   resetAppLockPinAttempts,
@@ -12,7 +13,6 @@ import {
 import { deleteAppLockPin, hasAppLockPin, saveAppLockPin } from '../app-lock/app-lock-secrets';
 import type { DesktopMainIpcContext, DesktopPersistenceModule } from './ipc';
 import { handleDesktopIpc } from './ipc';
-import { rendererStoreForAppLockState } from './app-lock-renderer-store';
 
 type AppLockIpcContext = Pick<DesktopMainIpcContext, 'sendFullStoreUpdated'> & {
   getPersistenceModule: () => Promise<{

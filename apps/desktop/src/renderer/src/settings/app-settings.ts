@@ -2,7 +2,6 @@ import type {
   Agent,
   AgentAnnotationDensity,
   AgentKind,
-  DesktopStore,
   LlmProvider,
   MessageSendShortcut,
   PublicAgent,
@@ -85,16 +84,7 @@ export const emptyProvider: ProviderDraft = {
   reasoningEffort: 'none',
 };
 
-export const emptyStore: DesktopStore = {
-  user: defaultUserProfile,
-  settings: {},
-  providers: [],
-  agents: [],
-  articles: [],
-  collections: [],
-  collectionMembers: [],
-  pins: [],
-};
+export { emptyDesktopStore as emptyStore } from '../../../app-store';
 
 export function createEmptyAgent(
   defaultAvatar: string,

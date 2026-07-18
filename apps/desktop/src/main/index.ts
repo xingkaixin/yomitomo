@@ -17,6 +17,7 @@ import {
 import { installDevProcessLifecycle } from './app/dev-process-lifecycle';
 import { installElectronSmokeProbe } from './app/electron-smoke-probe';
 import type { AppUpdateState } from '../app-update-types';
+import { isAppLockSettingsLocked, rendererStoreForAppLockState } from '../app-store';
 import type { DesktopStoreLoadErrorInfo } from '../app-store-errors';
 import type {
   DesktopIpcToRendererEventArgs,
@@ -28,10 +29,6 @@ import { registerAnnotationDiscussionWindowIpc } from './windows/annotation-disc
 import { registerAnnotationSedimentationWindowIpc } from './windows/annotation-sedimentation-window';
 import { registerAgentIpc } from './ipc/ipc-agent';
 import { registerAppLockIpc } from './ipc/ipc-app-lock';
-import {
-  isAppLockSettingsLocked,
-  rendererStoreForAppLockState,
-} from './ipc/app-lock-renderer-store';
 import { registerAppIpc } from './ipc/ipc-app';
 import { registerArticleIpc } from './ipc/ipc-article';
 import { configureDesktopIpcAppLockGuardContext } from './ipc/ipc';

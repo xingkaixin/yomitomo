@@ -1,6 +1,6 @@
 import type { DesktopStore } from '@yomitomo/shared';
 import { providerPresets } from '@yomitomo/shared';
-import { defaultUser, normalizeUser } from './store-normalizers-user';
+import { normalizeUser } from './store-normalizers-user';
 import {
   normalizeAgentKind,
   normalizeAnnotationDensity,
@@ -71,17 +71,7 @@ export {
 export { normalizeReaderChatState } from './store-normalizers-reader-chat';
 export { mergeSettingsForUpsert, rowToSettings } from './store-normalizers-settings';
 export { sortByCreatedAt } from './store-normalizers-common';
-
-export const defaultStore: DesktopStore = {
-  user: defaultUser,
-  settings: {},
-  providers: [],
-  agents: [],
-  articles: [],
-  collections: [],
-  collectionMembers: [],
-  pins: [],
-};
+export { emptyDesktopStore as defaultStore } from '../../app-store';
 
 export function normalizeStore(store: DesktopStore): DesktopStore {
   return {

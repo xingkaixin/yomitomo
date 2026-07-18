@@ -5,6 +5,7 @@ import type {
   DesktopStore,
   LibraryPinPatch,
 } from '@yomitomo/shared';
+import { isAppLockSettingsLocked } from '../../app-store';
 import type { DesktopStoreLoadErrorInfo } from '../../app-store-errors';
 import type {
   DesktopIpcInvokeArgs,
@@ -13,9 +14,8 @@ import type {
 } from '../../ipc-contract';
 import { DesktopIpcError, desktopIpcErrorCodes, serializeDesktopIpcError } from '../../ipc-errors';
 import { validateDesktopIpcInvokeArgs } from '../../ipc-schemas';
-import { isAppLockSettingsLocked } from './app-lock-renderer-store';
 
-export { isAppLockSettingsLocked } from './app-lock-renderer-store';
+export { isAppLockSettingsLocked } from '../../app-store';
 
 export interface DesktopMainIpcContext {
   getMainWindow: () => BrowserWindow | null;
