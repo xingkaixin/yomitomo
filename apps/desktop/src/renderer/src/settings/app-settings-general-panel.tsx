@@ -81,7 +81,7 @@ type GeneralSettingsLegacyProps = {
 type GeneralSettingsProps = { draft: SaveableDraft<AppSettings> } | GeneralSettingsLegacyProps;
 
 export function GeneralSettings(props: GeneralSettingsProps) {
-  const { settingsDraft, canSave, onSettingsChange, onSave, saveError, saveState } =
+  const { settingsDraft, onSettingsChange, onSave, saveError, saveState } =
     resolveGeneralSettingsProps(props);
   const { t } = useTranslation();
   const uiLanguage = normalizeUiLanguage(settingsDraft.uiLanguage);
@@ -328,7 +328,7 @@ export function GeneralSettings(props: GeneralSettingsProps) {
           <AutoSaveStatus
             error={saveError}
             state={saveSection === 'language' ? saveState : 'idle'}
-            onRetry={canSave ? () => retrySave('language') : undefined}
+            onRetry={() => retrySave('language')}
           />
         }
       >
@@ -356,7 +356,7 @@ export function GeneralSettings(props: GeneralSettingsProps) {
           <AutoSaveStatus
             error={saveError}
             state={saveSection === 'translation' ? saveState : 'idle'}
-            onRetry={canSave ? () => retrySave('translation') : undefined}
+            onRetry={() => retrySave('translation')}
           />
         }
       >
@@ -515,7 +515,7 @@ export function GeneralSettings(props: GeneralSettingsProps) {
           <AutoSaveStatus
             error={saveError}
             state={saveSection === 'sound' ? saveState : 'idle'}
-            onRetry={canSave ? () => retrySave('sound') : undefined}
+            onRetry={() => retrySave('sound')}
           />
         }
       >
@@ -619,7 +619,7 @@ export function GeneralSettings(props: GeneralSettingsProps) {
           <AutoSaveStatus
             error={saveError}
             state={saveSection === 'collection' ? saveState : 'idle'}
-            onRetry={canSave ? () => retrySave('collection') : undefined}
+            onRetry={() => retrySave('collection')}
           />
         }
       >
@@ -657,7 +657,7 @@ export function GeneralSettings(props: GeneralSettingsProps) {
           <AutoSaveStatus
             error={saveError}
             state={saveSection === 'telemetry' ? saveState : 'idle'}
-            onRetry={canSave ? () => retrySave('telemetry') : undefined}
+            onRetry={() => retrySave('telemetry')}
           />
         }
       >

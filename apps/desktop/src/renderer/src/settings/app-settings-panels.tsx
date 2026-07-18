@@ -219,7 +219,7 @@ type ShortcutSettingsLegacyProps = {
 type ShortcutSettingsProps = { draft: SaveableDraft<AppSettings> } | ShortcutSettingsLegacyProps;
 
 export function ShortcutSettings(props: ShortcutSettingsProps) {
-  const { settingsDraft, canSave, onSettingsChange, onSave, saveError, saveState } =
+  const { settingsDraft, onSettingsChange, onSave, saveError, saveState } =
     resolveShortcutSettingsProps(props);
   const { t } = useTranslation();
   const [recordingAction, setRecordingAction] = useState<SelectionShortcutAction | null>(null);
@@ -314,7 +314,7 @@ export function ShortcutSettings(props: ShortcutSettingsProps) {
             <AutoSaveStatus
               error={saveError}
               state={saveSection === 'message' ? saveState : 'idle'}
-              onRetry={canSave ? () => retrySave('message') : undefined}
+              onRetry={() => retrySave('message')}
             />
           </>
         }
@@ -368,7 +368,7 @@ export function ShortcutSettings(props: ShortcutSettingsProps) {
             <AutoSaveStatus
               error={saveError}
               state={saveSection === 'selection' ? saveState : 'idle'}
-              onRetry={canSave ? () => retrySave('selection') : undefined}
+              onRetry={() => retrySave('selection')}
             />
           </>
         }

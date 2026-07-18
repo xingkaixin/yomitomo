@@ -22,10 +22,12 @@ export function AutoSaveStatus({
     return (
       <div className="auto-save-status is-error" role="alert" aria-label={statusLabel}>
         {error ? <span>{error}</span> : null}
-        <button type="button" onClick={onRetry}>
-          <RotateCcw size={14} />
-          {t('settings.saveStatus.retry')}
-        </button>
+        {onRetry ? (
+          <button type="button" onClick={onRetry}>
+            <RotateCcw size={14} />
+            {t('settings.saveStatus.retry')}
+          </button>
+        ) : null}
       </div>
     );
   }

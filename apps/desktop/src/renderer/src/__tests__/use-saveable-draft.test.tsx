@@ -84,12 +84,35 @@ describe('useSaveableDraft', () => {
 
     expect(persist).toHaveBeenCalledWith('forced');
   });
+
+  it('retries the last failed override without consulting the change predicate', async () => {
+    const persist = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('network failed'))
+      .mockResolvedValueOnce('saved-result');
+    const latest = renderDraft({ canSave: () => false, persist });
+
+    await act(async () => {
+      await latest.current?.save('changed');
+    });
+    expect(latest.current?.saveState).toBe('error');
+
+    await act(async () => {
+      await latest.current?.save();
+    });
+
+    expect(persist).toHaveBeenNthCalledWith(1, 'changed');
+    expect(persist).toHaveBeenNthCalledWith(2, 'changed');
+    expect(latest.current?.saveState).toBe('saved');
+  });
 });
 
 function renderDraft({
+  canSave = (value) => value !== 'saved',
   persist,
   onSaved,
 }: {
+  canSave?: (value: string) => boolean;
   persist: (value: string) => Promise<string>;
   onSaved?: (result: string, value: string) => boolean | void;
 }) {
@@ -99,7 +122,7 @@ function renderDraft({
     const [value, setValue] = React.useState('saved');
     latest.current = useSaveableDraft({
       value,
-      canSave: (nextValue) => nextValue !== 'saved',
+      canSave,
       errorMessage: (error) => (error instanceof Error ? error.message : 'save failed'),
       onChange: setValue,
       onSaved,
