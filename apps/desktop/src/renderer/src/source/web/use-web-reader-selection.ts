@@ -45,6 +45,7 @@ import {
   logReaderSelectionDebug,
   readerSelectionDebugEnabled,
   shouldLogSelectionDebug,
+  type ReaderSelectionDebugDetails,
 } from './web-reader-selection-debug';
 import {
   shouldUseWebSelectionGesturePreview,
@@ -65,6 +66,7 @@ const selectionDragAnnotationId = '__selection_drag__';
 const translationSelector = '[data-reader-translation]';
 const translationSelectionToastIgnoredSelector =
   '[data-reader-translation-action], a[href], button, input, textarea, select, [role="button"]';
+const emptyDebugDetails: ReaderSelectionDebugDetails = () => ({});
 
 type SelectionGestureClientPoint = {
   clientX: number;
@@ -82,7 +84,9 @@ type WebReaderSelectionController = {
 };
 
 type WebReaderTranslationSelection = {
-  debugContext: () => Record<string, unknown>;
+  diagnostics: {
+    context: () => Record<string, unknown>;
+  };
   selection: {
     finish: (reason: string) => void;
     isDisabled: boolean;
@@ -125,7 +129,7 @@ export function useWebReaderSelection({
     return {
       articleId: current.article.id,
       sourceType: current.article.sourceType || 'web',
-      ...current.translation.debugContext(),
+      ...current.translation.diagnostics.context(),
       composerOpen: Boolean(current.selection.composer),
       selectionActionOpen: Boolean(current.selection.selectionAction),
       temporaryBoxCount: current.selection.temporaryBoxes.length,
@@ -133,17 +137,33 @@ export function useWebReaderSelection({
   }, []);
 
   const logCurrentDebug = useCallback(
-    (event: string, details: Record<string, unknown> = {}) => {
-      const articleElement = articleRef.current;
-      logReaderSelectionDebug(event, {
-        ...debugContext(),
-        selection: articleElement
-          ? describeReaderSelection(getArticleSelection(articleElement), articleElement)
-          : { present: false, articleMounted: false },
-        ...details,
+    (event: string, readDetails: ReaderSelectionDebugDetails = emptyDebugDetails) => {
+      logReaderSelectionDebug(event, () => {
+        const articleElement = articleRef.current;
+        return {
+          ...debugContext(),
+          selection: articleElement
+            ? describeReaderSelection(getArticleSelection(articleElement), articleElement)
+            : { present: false, articleMounted: false },
+          ...readDetails(),
+        };
       });
     },
     [articleRef, debugContext],
+  );
+
+  const logAnchorDebug = useCallback(
+    (
+      event: string,
+      anchor: Annotation['anchor'],
+      readDetails: ReaderSelectionDebugDetails = emptyDebugDetails,
+    ) => {
+      logCurrentDebug(event, () => ({
+        ...readDetails(),
+        anchor: describeAnchorForDebug(anchor),
+      }));
+    },
+    [logCurrentDebug],
   );
 
   const setSelectionGestureVisible = useCallback(
@@ -219,15 +239,18 @@ export function useWebReaderSelection({
       };
     };
 
-    const logSelectionState = (event: string, details: Record<string, unknown> = {}) => {
+    const logSelectionState = (
+      event: string,
+      readDetails: ReaderSelectionDebugDetails = emptyDebugDetails,
+    ) => {
       if (!readerSelectionDebugEnabled()) return;
       const articleElement = articleRef.current;
       if (!articleElement) return;
-      logReaderSelectionDebug(event, {
+      logReaderSelectionDebug(event, () => ({
         ...debugContext(),
         selection: describeReaderSelection(getArticleSelection(articleElement), articleElement),
-        ...details,
-      });
+        ...readDetails(),
+      }));
     };
 
     const handleSelectionChange = () => {
@@ -238,10 +261,10 @@ export function useWebReaderSelection({
         if (!articleElement) return;
         const nativeSelection = getArticleSelection(articleElement);
         if (!shouldLogSelectionDebug(nativeSelection, articleElement, currentOpenState())) return;
-        logReaderSelectionDebug('selectionchange', {
+        logReaderSelectionDebug('selectionchange', () => ({
           ...debugContext(),
           selection: describeReaderSelection(nativeSelection, articleElement),
-        });
+        }));
       });
     };
 
@@ -319,14 +342,14 @@ export function useWebReaderSelection({
       ) {
         return;
       }
-      logReaderSelectionDebug(event.type, {
+      logReaderSelectionDebug(event.type, () => ({
         ...debugContext(),
         button: event.button,
         buttons: event.buttons,
         pointer: describePointerForDebug(event, articleElement, surfaceElement),
         target: describeSelectionNode(targetNode, articleElement),
         selection: describeReaderSelection(nativeSelection, articleElement),
-      });
+      }));
     };
 
     const handleWindowBlur = () => inputRef.current.translation.selection.finish('window-blur');
@@ -348,7 +371,7 @@ export function useWebReaderSelection({
       if (debugFrame) window.cancelAnimationFrame(debugFrame);
       if (previewFrame) window.cancelAnimationFrame(previewFrame);
       setSelectionGestureVisible(false);
-      logReaderSelectionDebug('reader-unmounted', debugArticle);
+      logReaderSelectionDebug('reader-unmounted', () => debugArticle);
     };
   }, [
     article.id,
@@ -367,23 +390,23 @@ export function useWebReaderSelection({
       const articleElement = articleRef.current;
       const canvasElement = canvasRef.current;
       if (!articleElement || !canvasElement) {
-        logCurrentDebug('mouseup:missing-elements', {
+        logCurrentDebug('mouseup:missing-elements', () => ({
           hasArticle: Boolean(articleElement),
           hasCanvas: Boolean(canvasElement),
-        });
+        }));
         return;
       }
 
       const current = inputRef.current;
       const articleSelection = getArticleSelection(articleElement);
-      logReaderSelectionDebug('mouseup:start', {
+      logReaderSelectionDebug('mouseup:start', () => ({
         ...debugContext(),
         target: describeSelectionNode(
           event?.target instanceof Node ? event.target : null,
           articleElement,
         ),
         selection: describeReaderSelection(articleSelection, articleElement),
-      });
+      }));
       const selectionGesture = selectionGestureRef.current;
       selectionGestureRef.current = null;
       selectionGestureDragPointRef.current = null;
@@ -391,10 +414,10 @@ export function useWebReaderSelection({
         suppressMouseUpRef.current = false;
         articleSelection?.removeAllRanges();
         current.selection.clearSelection();
-        logReaderSelectionDebug('mouseup:continuous-click-selection-suppressed', {
+        logReaderSelectionDebug('mouseup:continuous-click-selection-suppressed', () => ({
           ...debugContext(),
           selection: describeReaderSelection(articleSelection, articleElement),
-        });
+        }));
         return;
       }
 
@@ -422,48 +445,48 @@ export function useWebReaderSelection({
       const range = shouldUseGestureRange ? gestureRange?.range || null : nativeRange;
 
       if (shouldUseGestureRange && gestureRange) {
-        logReaderSelectionDebug('mouseup:gesture-range-used', {
+        logReaderSelectionDebug('mouseup:gesture-range-used', () => ({
           ...debugContext(),
           reason: nativeRange ? 'native-anchor-mismatch' : 'native-empty',
           nativeRange: nativeRange ? describeRangeForDebug(nativeRange, articleElement) : null,
           gestureRange: describeWebSelectionGestureRangeForDebug(gestureRange),
-        });
+        }));
       }
 
       if (!range) {
         // The composer owns its highlight until the shell handles the blank click.
-        logReaderSelectionDebug('mouseup:empty-selection', {
+        logReaderSelectionDebug('mouseup:empty-selection', () => ({
           ...debugContext(),
           clearedUiSelection: !current.selection.composer,
           selection: describeReaderSelection(articleSelection, articleElement),
-        });
+        }));
         if (!current.selection.composer) current.selection.clearSelection();
         return;
       }
       if (current.translation.selection.isDisabled) {
-        logReaderSelectionDebug('mouseup:translation-selection-disabled', {
+        logReaderSelectionDebug('mouseup:translation-selection-disabled', () => ({
           ...debugContext(),
           selection: describeReaderSelection(articleSelection, articleElement),
-        });
+        }));
         articleSelection?.removeAllRanges();
         current.selection.clearSelection();
         current.translation.selection.showDisabledToast();
         return;
       }
       if (!isRangeInsideArticle(range, articleElement)) {
-        logReaderSelectionDebug('mouseup:range-outside-article', {
+        logReaderSelectionDebug('mouseup:range-outside-article', () => ({
           ...debugContext(),
           range: describeRangeForDebug(range, articleElement),
-        });
+        }));
         return;
       }
 
       const translationElement = translationElementForRange(range);
       if (!translationElement && rangeIntersectsSelector(range, translationSelector)) {
-        logReaderSelectionDebug('mouseup:mixed-source-translation', {
+        logReaderSelectionDebug('mouseup:mixed-source-translation', () => ({
           ...debugContext(),
           range: describeRangeForDebug(range, articleElement),
-        });
+        }));
         articleSelection?.removeAllRanges();
         current.selection.clearSelection();
         appToast.warning(current.t('source.mixedSelectionToast'));
@@ -474,29 +497,29 @@ export function useWebReaderSelection({
         ? createTranslationTextAnchor(range, translationElement)
         : sourceAnchorForRange(current.article, current.getArticleText(), articleElement, range);
       if (!anchor) {
-        logReaderSelectionDebug('mouseup:anchor-missing', {
+        logReaderSelectionDebug('mouseup:anchor-missing', () => ({
           ...debugContext(),
           range: describeRangeForDebug(range, articleElement),
-        });
+        }));
         return;
       }
       if (!anchor.exact.trim()) {
-        logReaderSelectionDebug('mouseup:blank-anchor', {
+        logReaderSelectionDebug('mouseup:blank-anchor', () => ({
           ...debugContext(),
           anchor: describeAnchorForDebug(anchor),
           range: describeRangeForDebug(range, articleElement),
-        });
+        }));
         return;
       }
 
       const rects = range.getClientRects();
       const lastRect = rects[rects.length - 1];
       if (!lastRect) {
-        logReaderSelectionDebug('mouseup:missing-rect', {
+        logReaderSelectionDebug('mouseup:missing-rect', () => ({
           ...debugContext(),
           anchor: describeAnchorForDebug(anchor),
           range: describeRangeForDebug(range, articleElement),
-        });
+        }));
         return;
       }
 
@@ -517,14 +540,14 @@ export function useWebReaderSelection({
         },
         highlightBoxes,
       );
-      logReaderSelectionDebug('mouseup:selection-action-opened', {
+      logReaderSelectionDebug('mouseup:selection-action-opened', () => ({
         ...debugContext(),
         anchor: describeAnchorForDebug(anchor),
         range: describeRangeForDebug(range, articleElement),
         boxes: describeHighlightBoxesForDebug(highlightBoxes),
         position,
         rectCount: rects.length,
-      });
+      }));
       articleSelection?.removeAllRanges();
       logCurrentDebug('mouseup:native-selection-cleared');
     },
@@ -550,9 +573,9 @@ export function useWebReaderSelection({
       if (!articleElement) return;
       getArticleSelection(articleElement)?.removeAllRanges();
       inputRef.current.selection.clearSelection();
-      logCurrentDebug('mousedown:continuous-click-selection-suppressed', {
+      logCurrentDebug('mousedown:continuous-click-selection-suppressed', () => ({
         clickDetail: event.detail,
-      });
+      }));
     },
     [articleRef, clearSelectionGesturePreview, logCurrentDebug],
   );
@@ -697,13 +720,13 @@ export function useWebReaderSelection({
               startOffset: anchor.start,
               endOffset: anchor.end,
             };
-      logReaderSelectionDebug('selection-handle:start', {
+      logReaderSelectionDebug('selection-handle:start', () => ({
         ...debugContext(),
         kind,
         handle: point.handle,
         anchor: describeAnchorForDebug(anchor),
         pointer: describeSelectionAdjustmentPoint(point),
-      });
+      }));
     },
     [debugContext],
   );
@@ -713,12 +736,12 @@ export function useWebReaderSelection({
       updateSelectionAdjustment(point);
       const adjustment = selectionAdjustmentRef.current;
       selectionAdjustmentRef.current = null;
-      logReaderSelectionDebug('selection-handle:end', {
+      logReaderSelectionDebug('selection-handle:end', () => ({
         ...debugContext(),
         handle: point.handle,
         pointer: describeSelectionAdjustmentPoint(point),
         adjusted: Boolean(adjustment),
-      });
+      }));
       inputRef.current.selection.setSelectionAction((action) =>
         action?.draggingHandle ? { ...action, draggingHandle: undefined } : action,
       );
@@ -734,8 +757,9 @@ export function useWebReaderSelection({
       onSelectionHandleDragEnd,
       onSelectionHandleDragStart,
     },
-    debug: {
+    diagnostics: {
       context: debugContext,
+      logAnchor: logAnchorDebug,
       logCurrent: logCurrentDebug,
     },
   };
