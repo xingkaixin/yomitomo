@@ -276,19 +276,6 @@ export type AssistantRuntimeStreamEvent =
       trace: AssistantRuntimeTrace;
     };
 
-export type AssistantRuntimeOptions = {
-  taskType: AssistantRuntimeTaskType;
-  articleId: string;
-  agentId: string;
-  tools: AssistantToolDefinition[];
-  allowedAnnotationIds?: string[];
-  addAnnotationAnchor?: TextAnchor;
-  budget?: Partial<AssistantRuntimeBudget>;
-  now?: () => string;
-  modelAdapter: (turn: AssistantRuntimeTurn) => Promise<AssistantProviderEvent>;
-  toolExecutor: (toolCall: AssistantToolCall) => Promise<AssistantToolExecutionResult>;
-};
-
 export type AssistantAiSdkRuntimeOptions = {
   taskType: 'thread_reply' | 'create_thought' | 'distillation_review';
   articleId: string;

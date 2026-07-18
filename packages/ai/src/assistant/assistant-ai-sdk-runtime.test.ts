@@ -5,6 +5,7 @@ import { AssistantRuntimeToolFailure } from './assistant-runtime-errors';
 
 type StreamTextOptions = {
   abortSignal?: AbortSignal;
+  stopWhen?: unknown;
   tools: Record<
     string,
     {
@@ -92,6 +93,53 @@ describe('assistant AI SDK tool runtime', () => {
         { type: 'text_delta', delta: '给出回复。' },
       ]),
     );
+  });
+
+  it('applies the runtime step budget across repeated tool calls', async () => {
+    let stopWhen: unknown;
+    streamTextImpl = (options) => {
+      stopWhen = options.stopWhen;
+      return {
+        textStream: (async function* () {
+          await options.tools.get_current_thread.execute({}, { toolCallId: 'call_thread_1' });
+          await options.tools.get_current_thread.execute({}, { toolCallId: 'call_thread_2' });
+          yield '连续读取后回复。';
+        })(),
+        finishReason: Promise.resolve('stop'),
+        totalUsage: Promise.resolve({}),
+      };
+    };
+    const { runAssistantAiSdkToolRuntime } = await import('./assistant-runtime');
+    const toolExecutor = vi.fn(async () => ({
+      ok: true as const,
+      evidence: [
+        {
+          summary: '当前 thread evidence',
+          provenance: { articleId: 'article_1', sourceType: 'annotation' },
+        },
+      ],
+    }));
+
+    const result = await runAssistantAiSdkToolRuntime({
+      taskType: 'thread_reply',
+      articleId: 'article_1',
+      agentId: 'agent_1',
+      provider: provider(),
+      payload: { system: 'system', user: 'user', maxTokens: 1200 },
+      allowedAnnotationIds: ['annotation_1'],
+      budget: { maxSteps: 3 },
+      tools: [{ name: 'get_current_thread' }],
+      toolExecutor,
+    });
+
+    expect(stopWhen).toEqual({ count: 3 });
+    expect(toolExecutor).toHaveBeenCalledTimes(2);
+    expect(result.evidence.map((item) => item.id)).toEqual(['evidence_0_0', 'evidence_1_0']);
+    expect(result.trace.steps.map((step) => step.eventType)).toEqual([
+      'tool_call',
+      'tool_call',
+      'final_action',
+    ]);
   });
 
   it('forces the first runtime step to collect thread evidence', async () => {
