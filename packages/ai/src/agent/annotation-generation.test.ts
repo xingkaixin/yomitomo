@@ -6,7 +6,7 @@ import {
   annotationDensityMax,
   createAgentAnnotation,
   parseAnnotationSuggestions,
-} from '../index';
+} from './annotation-generation';
 
 const agent: Agent = {
   id: 'agent-1',
