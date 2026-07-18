@@ -343,11 +343,7 @@ function createAgentPreloadApi() {
   return {
     planAgentMentionRoute: (payload: AgentMentionInstructionPayload) =>
       invokeDesktopIpc('agent:mention-route', payload),
-    requestAgentComment: (payload: AgentMessagePayload) =>
-      invokeDesktopIpc('agent:comment', payload),
     requestAgentReview: (payload: AgentReviewPayload) => invokeDesktopIpc('agent:review', payload),
-    requestAgentDistillationReview: (payload: AgentDistillationReviewPayload) =>
-      invokeDesktopIpc('agent:distillation-review', payload),
     requestAgentDistillationReviewStream: (
       payload: AgentDistillationReviewPayload,
       onEvent: (event: DesktopIpcStreamProgressEvent<'agent:distillation-review:stream'>) => void,
@@ -368,8 +364,6 @@ function createAgentPreloadApi() {
         onEvent,
         (event) => event.comment,
       ),
-    requestAgentAnnotations: (payload: AgentAnnotatePayload) =>
-      invokeDesktopIpc('agent:annotate', payload),
     requestAgentAnnotationsStream: (
       payload: AgentAnnotatePayload,
       onEvent: (event: DesktopIpcStreamProgressEvent<'agent:annotate:stream'>) => void,

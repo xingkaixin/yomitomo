@@ -40,10 +40,7 @@ import {
   taskProvider,
   taskProviderRoute,
 } from '../agents/agent-runtime-routing';
-import {
-  distillationReviewMessagePayload,
-  messageWithReviewId,
-} from '../agents/agent-distillation-proposals';
+import { distillationReviewMessagePayload } from '../agents/agent-distillation-proposals';
 import {
   annotateResultUsage,
   logAgentMessageRuntime,
@@ -60,9 +57,7 @@ type AgentIpcContext = Pick<DesktopMainIpcContext, 'elapsedMs' | 'logError' | 'l
       | 'buildAgentDistillationReviewRuntimePayload'
       | 'buildAgentThreadReplyRuntimePayload'
       | 'planAgentMentionRoute'
-      | 'runAgent'
       | 'runAgentAnnotateStream'
-      | 'runAgentAnnotateWithMemory'
       | 'runAgentDistillationReviewStructuredStream'
       | 'runAgentReview'
       | 'runAgentStream'
@@ -98,86 +93,6 @@ export function registerAgentIpc(context: AgentIpcContext) {
     );
     return planAgentMentionRoute(provider, payload);
   });
-  handleDesktopIpc('agent:comment', async (_event, payload) => {
-    const ai = await context.getAiModule();
-    const store = await readAgentRuntimeStore(context);
-    const taskType = agentMessageRuntimeTaskType(payload);
-    const agent = findCommentAgent(
-      store.agents,
-      payload.agentId,
-      payload.agentUsername,
-      payload.allowDisabledAgentForRule && taskType === 'thread_reply',
-    );
-    if (!agent) throw agentNotFoundError(payload.agentUsername);
-    const provider = await taskProvider(
-      context,
-      store.providers,
-      store.settings,
-      providerTaskForAgent(agent),
-    );
-    const requestedMode = normalizeAssistantExecutionMode(store.settings.assistantExecutionMode);
-    const startedAt = performance.now();
-    const payloadWithRoster = {
-      ...payload,
-      uiLanguage: normalizeUiLanguage(store.settings.uiLanguage),
-      agentRoster: publicCommentAgents(
-        store.agents,
-        normalizeUiLanguage(store.settings.uiLanguage),
-      ),
-    };
-    const selectedRuntime = selectAgentRuntime({
-      requestedMode,
-      taskType,
-      supportedTaskTypes: ['thread_reply', 'create_thought'],
-    });
-    const runtime =
-      selectedRuntime === 'thread_reply'
-        ? await runAgentThreadReplyWithToolLoop({
-            ai,
-            provider,
-            agent,
-            payload: payloadWithRoster,
-          })
-        : selectedRuntime === 'create_thought'
-          ? await runAgentCreateThoughtWithToolLoop({
-              ai,
-              provider,
-              agent,
-              payload: payloadWithRoster,
-            })
-          : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
-    logAgentMessageRuntime(
-      context,
-      runtime,
-      provider,
-      agent,
-      requestedMode,
-      taskType,
-      context.elapsedMs(startedAt),
-    );
-    const comment =
-      runtime.status === 'comment'
-        ? runtime.comment
-        : await runFastAgent(context, ai, provider, agent, payloadWithRoster);
-    if (runtime.status !== 'comment') {
-      recordAssistantExecutionRun(context, {
-        agent,
-        provider,
-        taskType,
-        requestedMode,
-        effectiveMode: 'fast_response',
-        status: 'success',
-        fallbackReason: requestedMode === 'deep_verification' ? runtime.failureReason : undefined,
-        durationMs: context.elapsedMs(startedAt),
-      });
-    }
-    return {
-      ...comment,
-      id: makeId('comment'),
-      replyTo: agentMessageReplyTo(payload),
-      readingIntent: payload.readingIntent || comment.readingIntent,
-    } satisfies Comment;
-  });
   handleDesktopIpc('agent:review', async (_event, payload) => {
     const { runAgentReview } = await context.getAiModule();
     const store = await readAgentRuntimeStore(context);
@@ -201,65 +116,6 @@ export function registerAgentIpc(context: AgentIpcContext) {
       comment.id = makeId('comment');
     }
     return comments;
-  });
-  handleDesktopIpc('agent:distillation-review', async (_event, payload) => {
-    const ai = await context.getAiModule();
-    const store = await readAgentRuntimeStore(context);
-    const agent = findReviewAgent(store.agents, payload.agentId, payload.agentUsername);
-    if (!agent) throw reviewAgentNotFoundError(payload.agentUsername);
-    const provider = await taskProvider(
-      context,
-      store.providers,
-      store.settings,
-      'reviewAssistant',
-    );
-    const requestedMode = normalizeAssistantExecutionMode(store.settings.assistantExecutionMode);
-    const startedAt = performance.now();
-    const payloadWithRoster = distillationReviewMessagePayload(
-      payload,
-      store.agents,
-      store.settings,
-    );
-    const selectedRuntime = selectAgentRuntime({
-      requestedMode,
-      taskType: 'distillation_review',
-      supportedTaskTypes: ['distillation_review'],
-    });
-    const runtime =
-      selectedRuntime === 'distillation_review'
-        ? await runAgentDistillationReviewWithToolLoop({
-            ai,
-            provider,
-            agent,
-            payload: payloadWithRoster,
-          })
-        : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
-    logAgentMessageRuntime(
-      context,
-      runtime,
-      provider,
-      agent,
-      requestedMode,
-      'distillation_review',
-      context.elapsedMs(startedAt),
-    );
-    const message =
-      runtime.status === 'message'
-        ? runtime.message
-        : await structuredFastDistillationReview(context, ai, provider, agent, payloadWithRoster);
-    if (runtime.status !== 'message') {
-      recordAssistantExecutionRun(context, {
-        agent,
-        provider,
-        taskType: 'distillation_review',
-        requestedMode,
-        effectiveMode: 'fast_response',
-        status: 'success',
-        fallbackReason: requestedMode === 'deep_verification' ? runtime.failureReason : undefined,
-        durationMs: context.elapsedMs(startedAt),
-      });
-    }
-    return messageWithReviewId(message, payload.reviewMessageId);
   });
   runAgentStreamIpc(
     'agent:comment:stream',
@@ -478,47 +334,6 @@ export function registerAgentIpc(context: AgentIpcContext) {
     },
     () => assertDesktopIpcAppLockUnlocked(context),
   );
-  handleDesktopIpc('agent:annotate', async (_event, payload) => {
-    const ai = await context.getAiModule();
-    const store = await readAgentRuntimeStore(context);
-    const agent = findAnnotationAgent(store.agents, payload.agentId, payload.agentUsername);
-    if (!agent) throw annotationAgentNotFoundError(payload.agentUsername);
-    const provider = await taskProvider(
-      context,
-      store.providers,
-      store.settings,
-      'readingAssistant',
-    );
-    const startedAt = performance.now();
-    const payloadWithMemory = agentAnnotatePayloadWithReadingMemoryEntries({
-      payload: {
-        ...payload,
-        uiLanguage: normalizeUiLanguage(store.settings.uiLanguage),
-      },
-      logInfo: context.logInfo,
-      logError: context.logError,
-    });
-    const requestedMode = normalizeAssistantExecutionMode(store.settings.assistantExecutionMode);
-    const result = await ai.runAgentAnnotateWithMemory(provider, agent, payloadWithMemory);
-    saveAgentAnnotateReadingMemoryEntries({
-      agent,
-      payload: payloadWithMemory,
-      result,
-      logError: context.logError,
-    });
-    recordAssistantExecutionRun(context, {
-      agent,
-      provider,
-      taskType: 'annotation',
-      requestedMode,
-      effectiveMode: requestedMode === 'deep_verification' ? 'fast_response' : requestedMode,
-      status: 'success',
-      fallbackReason:
-        requestedMode === 'deep_verification' ? 'annotation_runtime_not_applicable' : undefined,
-      durationMs: context.elapsedMs(startedAt),
-    });
-    return result;
-  });
   runAgentStreamIpc(
     'agent:annotate:stream',
     'AGENT_ANNOTATION_FAILED',
@@ -698,17 +513,6 @@ function agentMessageFastInput(
       readingContext: safeAgentMessageReadingContextSnapshot(context, payload, agentId),
     },
   };
-}
-
-async function runFastAgent(
-  context: AgentIpcContext,
-  ai: Pick<Awaited<ReturnType<AgentIpcContext['getAiModule']>>, 'runAgent'>,
-  provider: LlmProvider,
-  agent: Agent,
-  payload: AgentMessagePayload,
-) {
-  const fastInput = agentMessageFastInput(context, payload, agent.id);
-  return ai.runAgent(provider, agent, fastInput.payload, fastInput.options);
 }
 
 function safeAgentMessageReadingContextSnapshot(
