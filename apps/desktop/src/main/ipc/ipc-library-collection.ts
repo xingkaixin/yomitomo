@@ -23,44 +23,44 @@ export function registerLibraryCollectionIpc(context: LibraryCollectionIpcContex
     const { storeCollections: collectionPersistence } = await context.getPersistenceModules();
     return collectionPersistence.listCollections();
   });
-  handleDesktopIpc('library-collection:create', async (_event, input) => {
+  handleDesktopIpc('library-collection:create', async (event, input) => {
     const { storeCollections: collectionPersistence } = await context.getPersistenceModules();
     const result = await collectionPersistence.createCollection(input);
-    context.sendCollectionPatched(result.patch);
+    context.sendCollectionPatched(event, result.patch);
     return result;
   });
-  handleDesktopIpc('library-collection:rename', async (_event, input) => {
+  handleDesktopIpc('library-collection:rename', async (event, input) => {
     const { storeCollections: collectionPersistence } = await context.getPersistenceModules();
     const patch = await collectionPersistence.renameCollection(input);
-    context.sendCollectionPatched(patch);
+    context.sendCollectionPatched(event, patch);
     return patch;
   });
-  handleDesktopIpc('library-collection:delete', async (_event, collectionId) => {
+  handleDesktopIpc('library-collection:delete', async (event, collectionId) => {
     const { storeCollections: collectionPersistence } = await context.getPersistenceModules();
     const patch = await collectionPersistence.deleteCollection(collectionId);
-    context.sendCollectionPatched(patch);
+    context.sendCollectionPatched(event, patch);
     return patch;
   });
-  handleDesktopIpc('library-collection:add-members', async (_event, input) => {
+  handleDesktopIpc('library-collection:add-members', async (event, input) => {
     const { storeCollections: collectionPersistence } = await context.getPersistenceModules();
     const patch = await collectionPersistence.addCollectionMembers(input);
-    context.sendCollectionPatched(patch);
+    context.sendCollectionPatched(event, patch);
     return patch;
   });
-  handleDesktopIpc('library-collection:remove-member', async (_event, input) => {
+  handleDesktopIpc('library-collection:remove-member', async (event, input) => {
     const { storeCollections: collectionPersistence } = await context.getPersistenceModules();
     const patch = await collectionPersistence.removeCollectionMember(input);
-    context.sendCollectionPatched(patch);
+    context.sendCollectionPatched(event, patch);
     return patch;
   });
   handleDesktopIpc('library-pin:list', async () => {
     const { storeCollections: collectionPersistence } = await context.getPersistenceModules();
     return collectionPersistence.listLibraryPins();
   });
-  handleDesktopIpc('library-pin:set', async (_event, input) => {
+  handleDesktopIpc('library-pin:set', async (event, input) => {
     const { storeCollections: collectionPersistence } = await context.getPersistenceModules();
     const patch = await collectionPersistence.setLibraryPin(input);
-    context.sendLibraryPinPatched(patch);
+    context.sendLibraryPinPatched(event, patch);
     return patch;
   });
 }

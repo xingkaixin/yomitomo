@@ -6,6 +6,7 @@ import { registerStoreDataIpc } from './ipc-store-data';
 
 const ipcState = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
+  restoreDatabaseWithDialog: vi.fn(),
 }));
 
 vi.mock('electron', () => ({
@@ -28,8 +29,13 @@ vi.mock('../app/logger', () => ({
   readLogFile: vi.fn(() => 'log'),
 }));
 
+vi.mock('../data-management', () => ({
+  restoreDatabaseWithDialog: ipcState.restoreDatabaseWithDialog,
+}));
+
 beforeEach(() => {
   ipcState.handlers.clear();
+  ipcState.restoreDatabaseWithDialog.mockReset();
 });
 
 describe('store data update IPC', () => {
@@ -91,6 +97,20 @@ describe('store data update IPC', () => {
       updaterModule.simulateUpdateAvailable,
       'available',
     );
+  });
+
+  it('forwards restored stores with their source event', async () => {
+    const store = desktopStore();
+    ipcState.restoreDatabaseWithDialog.mockResolvedValue({ canceled: false, store });
+    const context = storeContext({});
+    registerStoreDataIpc(context);
+    const handler = ipcState.handlers.get('data:database-restore');
+    const event = { sender: { id: 17 } };
+
+    const result = await handler?.(event);
+
+    expect(result).toEqual({ ok: true, value: { canceled: false, store } });
+    expect(context.sendFullStoreUpdated).toHaveBeenCalledWith(event, store);
   });
 });
 
