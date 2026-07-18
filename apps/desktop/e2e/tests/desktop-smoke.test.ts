@@ -23,7 +23,7 @@ describe('desktop smoke', () => {
   });
 
   afterEach(async () => {
-    const { closeDatabase } = await import('../../src/main/store/store');
+    const { closeDatabase } = await import('../../src/main/store/store-lifecycle');
     closeDatabase();
     await cleanupE2ePath(userDataDir);
   });
@@ -35,7 +35,8 @@ describe('desktop smoke', () => {
       title: 'E2E Smoke Book',
     });
 
-    const { closeDatabase, readArticle } = await import('../../src/main/store/store');
+    const { closeDatabase } = await import('../../src/main/store/store-lifecycle');
+    const { readArticle } = await import('../../src/main/store/store-articles');
     closeDatabase();
     const persisted = await readArticle(imported.id);
 
@@ -53,7 +54,7 @@ async function importSmokeEpub(): Promise<ArticleRecord> {
     await import('../../src/main/ebooks/ebook-storage');
   const { importArticleSource } = await import('../../src/main/articles/article-source-import');
   const { findArticleByIdentity, readArticle, saveArticle } =
-    await import('../../src/main/store/store');
+    await import('../../src/main/store/store-articles');
   const data = await createTinyEpubData();
   const record = await articleRecordFromEpubFile({
     data,

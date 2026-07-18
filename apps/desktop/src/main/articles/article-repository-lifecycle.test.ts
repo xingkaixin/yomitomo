@@ -25,12 +25,14 @@ vi.mock('../store/store-db', () => ({
 
 import {
   backfillArticleAnnotationMemoryEntries,
+  syncArticleAnnotationMemoryEntries,
+} from './article-annotation-memory';
+import {
   deleteAnnotationRowsWithMemoryLifecycle,
   deleteArticleRowsWithMemoryLifecycle,
   deleteCommentRowsWithMemoryLifecycle,
-  saveArticleRows,
-  syncArticleAnnotationMemoryEntries,
-} from './article-repository';
+} from './article-repository-lifecycle';
+import { saveArticleRows } from './article-row-writes';
 import {
   appendReadingMemoryEntries,
   readReadingMemoryEntries,

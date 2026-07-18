@@ -1,10 +1,8 @@
 import type { ArticleRecord, DesktopStore } from '@yomitomo/shared';
 import { ensurePresetAgents, upsertAgent } from '../agents/agent-repository';
-import {
-  readArticleSummaryCounts,
-  readArticleSummaryRowsForStore,
-  writeArticleRows,
-} from '../articles/article-repository';
+import { readArticleSummaryCounts } from '../articles/article-summary-counts';
+import { readArticleSummaryRowsForStore } from '../articles/article-summary-queries';
+import { writeArticleRows } from '../articles/article-row-writes';
 import {
   readCollectionMemberRows,
   readCollectionRows,

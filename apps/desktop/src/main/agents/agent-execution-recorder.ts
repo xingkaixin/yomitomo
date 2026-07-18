@@ -6,14 +6,14 @@ import type {
   ThreadReplyRuntimeResult,
 } from './agent-thread-runtime';
 import { appendAgentRuntimeTrace } from './agent-runtime-trace-log';
-import type { DesktopMainIpcContext, DesktopPersistenceModule } from '../ipc/ipc';
+import type { DesktopMainIpcContext } from '../ipc/ipc';
 import type { AgentRuntimeTaskType } from './agent-runtime-routing';
 import type { AssistantExecutionRunInput } from '../assistant/assistant-execution-repository';
 
 type AgentExecutionContext = Pick<DesktopMainIpcContext, 'logError' | 'logInfo'> & {
-  getPersistenceModule: () => Promise<{
-    assistantExecutionPersistence: Pick<
-      DesktopPersistenceModule['assistantExecutionPersistence'],
+  getPersistenceModules: () => Promise<{
+    storeAssistantExecutions: Pick<
+      typeof import('../store/store-assistant-executions'),
       'recordAssistantExecutionRun'
     >;
   }>;
@@ -98,9 +98,9 @@ export function recordAssistantExecutionRun(
   input: AssistantExecutionRunInput,
 ) {
   void context
-    .getPersistenceModule()
-    .then(({ assistantExecutionPersistence }) =>
-      assistantExecutionPersistence.recordAssistantExecutionRun(input),
+    .getPersistenceModules()
+    .then(({ storeAssistantExecutions }) =>
+      storeAssistantExecutions.recordAssistantExecutionRun(input),
     )
     .catch((error) => context.logError('assistant.execution_run_write_failed', error));
 }

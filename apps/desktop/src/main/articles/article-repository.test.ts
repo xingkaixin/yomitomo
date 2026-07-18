@@ -4,12 +4,12 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from '../db/schema';
 import type { StoreDatabase, StoreReadProfileEntry } from '../store/store-db';
 import type { ArticleSummaryRow } from '../store/store-normalizers';
+import { readArticleLibraryListRows } from './article-library-queries';
 import {
-  readArticleLibraryListRows,
   readArticleSummaryCounts,
   readArticleSummaryCountsForArticles,
-  readArticleSummaryRows,
-} from './article-repository';
+} from './article-summary-counts';
+import { readArticleSummaryRows } from './article-row-queries';
 
 describe('article repository summaries', () => {
   it('reads scoped summary counts for selected articles only', () => {

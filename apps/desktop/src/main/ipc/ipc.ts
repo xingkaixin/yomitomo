@@ -17,9 +17,22 @@ import { validateDesktopIpcInvokeArgs } from '../../ipc-schemas';
 
 export { isAppLockSettingsLocked } from '../../app-store';
 
+export type DesktopPersistenceModules = {
+  providerRepository: typeof import('../providers/provider-repository');
+  storeAgents: typeof import('../store/store-agents');
+  storeArticles: typeof import('../store/store-articles');
+  storeAssistantExecutions: typeof import('../store/store-assistant-executions');
+  storeCollections: typeof import('../store/store-collections');
+  storeModelPricing: typeof import('../store/store-model-pricing');
+  storeProviders: typeof import('../store/store-providers');
+  storeSettings: typeof import('../store/store-settings');
+  storeSnapshot: typeof import('../store/store-snapshot');
+  weReadRepository: typeof import('../weread/weread-repository');
+};
+
 export interface DesktopMainIpcContext {
   getMainWindow: () => BrowserWindow | null;
-  getPersistenceModule: () => Promise<typeof import('../store/desktop-persistence')>;
+  getPersistenceModules: () => Promise<DesktopPersistenceModules>;
   getAiModule: () => Promise<typeof import('@yomitomo/ai')>;
   getAppUpdaterModule: () => Promise<typeof import('../app/app-updater')>;
   getAppVersion: () => string;
@@ -39,20 +52,14 @@ export interface DesktopMainIpcContext {
   openExternalUrl: (value: string) => Promise<void>;
 }
 
-export type DesktopPersistenceModule = Awaited<
-  ReturnType<DesktopMainIpcContext['getPersistenceModule']>
->;
 export type DesktopAiModule = Awaited<ReturnType<DesktopMainIpcContext['getAiModule']>>;
 export type DesktopAppUpdaterModule = Awaited<
   ReturnType<DesktopMainIpcContext['getAppUpdaterModule']>
 >;
 
 export type DesktopIpcAppLockGuardContext = {
-  getPersistenceModule: () => Promise<{
-    storeSnapshotPersistence: Pick<
-      DesktopPersistenceModule['storeSnapshotPersistence'],
-      'readStore'
-    >;
+  getPersistenceModules: () => Promise<{
+    storeSnapshot: Pick<typeof import('../store/store-snapshot'), 'readStore'>;
   }>;
 };
 
@@ -93,8 +100,8 @@ export function handleDesktopIpc<Channel extends DesktopIpcInvokeChannel>(
 }
 
 export async function assertDesktopIpcAppLockUnlocked(context: DesktopIpcAppLockGuardContext) {
-  const { storeSnapshotPersistence } = await context.getPersistenceModule();
-  const store = await storeSnapshotPersistence.readStore();
+  const { storeSnapshot } = await context.getPersistenceModules();
+  const store = await storeSnapshot.readStore();
   assertAppLockSettingsUnlocked(store.settings);
 }
 

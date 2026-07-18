@@ -8,14 +8,13 @@ import type {
 } from '@yomitomo/shared';
 import { resolveAgentPublicIdentity } from '@yomitomo/shared';
 import { DesktopIpcError, desktopIpcErrorCodes } from '../../ipc-errors';
-import type { DesktopPersistenceModule } from '../ipc/ipc';
 
 export type ProviderTask = 'readingAssistant' | 'reviewAssistant' | 'bilingualTranslation';
 
 type ProviderHydrationContext = {
-  getPersistenceModule: () => Promise<{
-    providerPersistence: Pick<
-      DesktopPersistenceModule['providerPersistence'],
+  getPersistenceModules: () => Promise<{
+    providerRepository: Pick<
+      typeof import('../providers/provider-repository'),
       'hydrateProviderApiKey'
     >;
   }>;
@@ -35,8 +34,8 @@ export async function taskProvider(
 ): Promise<LlmProvider> {
   const provider = taskProviderRoute(providers, settings, task);
   if (!provider) throw providerRouteRequiredError(task);
-  const { providerPersistence } = await context.getPersistenceModule();
-  return providerPersistence.hydrateProviderApiKey(provider);
+  const { providerRepository } = await context.getPersistenceModules();
+  return providerRepository.hydrateProviderApiKey(provider);
 }
 
 export function taskProviderRoute(

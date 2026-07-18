@@ -122,10 +122,12 @@ function updateState(status: AppUpdateState['status']): AppUpdateState {
 }
 
 type StoreDataIpcContext = Parameters<typeof registerStoreDataIpc>[0];
-type StoreDataPersistenceModule = Awaited<ReturnType<StoreDataIpcContext['getPersistenceModule']>>;
+type StoreDataPersistenceModules = Awaited<
+  ReturnType<StoreDataIpcContext['getPersistenceModules']>
+>;
 
 function storeContext(input: {
-  readShellStoreWithProfile?: StoreDataPersistenceModule['storeSnapshotPersistence']['readShellStoreWithProfile'];
+  readShellStoreWithProfile?: StoreDataPersistenceModules['storeSnapshot']['readShellStoreWithProfile'];
   readStoreWithProfile?: ReturnType<typeof vi.fn>;
   updaterModule?: Awaited<ReturnType<StoreDataIpcContext['getAppUpdaterModule']>>;
 }): StoreDataIpcContext {
@@ -140,20 +142,20 @@ function storeContext(input: {
         simulateUpdateAvailable: vi.fn(),
       },
     getMainWindow: () => null,
-    getPersistenceModule: async () => ({
-      assistantExecutionPersistence: {
+    getPersistenceModules: async () => ({
+      storeAssistantExecutions: {
         queryAssistantExecutionRunDetail: vi.fn(),
         queryAssistantExecutionRuns: vi.fn(),
         queryAssistantExecutionSummary: vi.fn(),
       },
-      settingsPersistence: {
+      storeSettings: {
         saveSettings: vi.fn(),
         saveSettingsShell: vi.fn(async (settings: Record<string, unknown>) => ({
           ...desktopStore({ articles: [] }),
           settings,
         })),
       },
-      storeSnapshotPersistence: {
+      storeSnapshot: {
         readShellStoreWithProfile:
           input.readShellStoreWithProfile ||
           vi.fn(async () => ({ store: desktopStore({ articles: [] }), profile: [] })),

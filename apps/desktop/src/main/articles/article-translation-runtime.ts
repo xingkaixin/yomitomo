@@ -8,25 +8,28 @@ import type {
 } from '@yomitomo/shared';
 import { hashText, makeId } from '@yomitomo/shared';
 import { taskProvider } from '../agents/agent-runtime-routing';
-import type { DesktopAiModule, DesktopPersistenceModule } from '../ipc/ipc';
+import type { DesktopAiModule } from '../ipc/ipc';
 
-type ArticlePersistence = DesktopPersistenceModule['articlePersistence'];
+type ArticlePersistence = Pick<
+  typeof import('../store/store-articles'),
+  | 'deleteCurrentArticleTranslation'
+  | 'readArticle'
+  | 'readCurrentArticleTranslation'
+  | 'saveArticleTranslation'
+>;
 type ArticleTranslationBlock = ReturnType<typeof extractWebArticleTranslationBlocks>[number];
 
 export type ArticleTranslationRuntimeContext = {
   getAiModule: () => Promise<
     Pick<DesktopAiModule, 'bilingualTranslationPromptVersion' | 'translateBilingualArticleBlocks'>
   >;
-  getPersistenceModule: () => Promise<{
-    agentRuntimePersistence: Pick<
-      DesktopPersistenceModule['agentRuntimePersistence'],
-      'readAgentRuntimeContext'
-    >;
-    articlePersistence: ArticlePersistence;
-    providerPersistence: Pick<
-      DesktopPersistenceModule['providerPersistence'],
+  getPersistenceModules: () => Promise<{
+    providerRepository: Pick<
+      typeof import('../providers/provider-repository'),
       'hydrateProviderApiKey'
     >;
+    storeAgents: Pick<typeof import('../store/store-agents'), 'readAgentRuntimeContext'>;
+    storeArticles: ArticlePersistence;
   }>;
 };
 
@@ -51,7 +54,8 @@ async function readCurrentArticleTranslation(
   context: ArticleTranslationRuntimeContext,
   input: ArticleTranslationRequest,
 ) {
-  const { agentRuntimePersistence, articlePersistence } = await context.getPersistenceModule();
+  const { storeAgents: agentRuntimePersistence, storeArticles: articlePersistence } =
+    await context.getPersistenceModules();
   const aiModule = await context.getAiModule();
   const article = await articlePersistence.readArticle(input.articleId);
   if (!article) return null;
@@ -72,7 +76,8 @@ async function translateArticle(
   input: ArticleTranslationRequest,
   onUpdate: (translation: ArticleTranslation) => void,
 ): Promise<ArticleTranslation> {
-  const { agentRuntimePersistence, articlePersistence } = await context.getPersistenceModule();
+  const { storeAgents: agentRuntimePersistence, storeArticles: articlePersistence } =
+    await context.getPersistenceModules();
   const aiModule = await context.getAiModule();
   const article = await articlePersistence.readArticle(input.articleId);
   if (!article) throw new Error('ARTICLE_NOT_FOUND');
@@ -204,7 +209,8 @@ async function deleteCurrentArticleTranslation(
   context: ArticleTranslationRuntimeContext,
   input: ArticleTranslationDeleteRequest,
 ) {
-  const { agentRuntimePersistence, articlePersistence } = await context.getPersistenceModule();
+  const { storeAgents: agentRuntimePersistence, storeArticles: articlePersistence } =
+    await context.getPersistenceModules();
   const aiModule = await context.getAiModule();
   const article = await articlePersistence.readArticle(input.articleId);
   if (!article) return null;

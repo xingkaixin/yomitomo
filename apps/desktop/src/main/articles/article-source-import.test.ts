@@ -5,7 +5,7 @@ import {
   importArticleSource,
   type ArticleSourceImportRepository,
 } from './article-source-import';
-import type { ArticleIdentity } from './article-repository';
+import type { ArticleIdentity } from './article-repository-columns';
 
 describe('article source import lifecycle', () => {
   it('imports a new article and returns the saved patch', async () => {

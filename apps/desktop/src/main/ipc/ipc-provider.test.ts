@@ -61,13 +61,13 @@ describe('provider IPC persistence boundary', () => {
 });
 
 type ProviderIpcContext = Parameters<typeof registerProviderIpc>[0];
-type ProviderPersistence = Awaited<
-  ReturnType<ProviderIpcContext['getPersistenceModule']>
->['providerPersistence'];
+type ProviderRepository = Awaited<
+  ReturnType<ProviderIpcContext['getPersistenceModules']>
+>['providerRepository'];
 type ProviderAiModule = Awaited<ReturnType<ProviderIpcContext['getAiModule']>>;
 
 function providerIpcContext(
-  providerOverrides: Partial<ProviderPersistence>,
+  providerOverrides: Partial<ProviderRepository>,
   aiOverrides: Partial<ProviderAiModule> = {},
 ): ProviderIpcContext {
   return {
@@ -76,20 +76,22 @@ function providerIpcContext(
       testProvider: vi.fn(),
       ...aiOverrides,
     }),
-    getPersistenceModule: async () => ({
-      providerPersistence: {
-        deleteProvider: vi.fn(),
+    getPersistenceModules: async () => ({
+      providerRepository: {
         hydrateProviderInputApiKey: vi.fn(),
         readStoredProviderApiKey: vi.fn(),
-        saveProvider: vi.fn(),
         ...providerOverrides,
       },
-      settingsPersistence: {
-        readStore: vi.fn(),
+      storeProviders: {
+        deleteProvider: vi.fn(),
+        saveProvider: vi.fn(),
+      },
+      storeSettings: {
         saveSettings: vi.fn(),
         saveSettingsShell: vi.fn(),
         saveUser: vi.fn(),
       },
+      storeSnapshot: { readStore: vi.fn() },
     }),
     sendFullStoreUpdated: vi.fn(),
   };

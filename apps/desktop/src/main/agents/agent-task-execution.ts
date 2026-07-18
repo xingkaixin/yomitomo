@@ -14,7 +14,7 @@ import type {
   LlmProvider,
 } from '@yomitomo/shared';
 import { makeId, normalizeAssistantExecutionMode, normalizeUiLanguage } from '@yomitomo/shared';
-import type { DesktopAiModule, DesktopMainIpcContext, DesktopPersistenceModule } from '../ipc/ipc';
+import type { DesktopAiModule, DesktopMainIpcContext } from '../ipc/ipc';
 import { createAgentMessageReadingContextSnapshot } from '../assistant/assistant-reading-tools';
 import { distillationReviewMessagePayload } from './agent-distillation-proposals';
 import {
@@ -67,18 +67,15 @@ export type AgentTaskExecutionContext = Pick<
   'elapsedMs' | 'logError' | 'logInfo'
 > & {
   getAiModule: () => Promise<AgentTaskAiModule>;
-  getPersistenceModule: () => Promise<{
-    agentRuntimePersistence: Pick<
-      DesktopPersistenceModule['agentRuntimePersistence'],
-      'readAgentRuntimeContext'
-    >;
-    assistantExecutionPersistence: Pick<
-      DesktopPersistenceModule['assistantExecutionPersistence'],
-      'recordAssistantExecutionRun'
-    >;
-    providerPersistence: Pick<
-      DesktopPersistenceModule['providerPersistence'],
+  getPersistenceModules: () => Promise<{
+    providerRepository: Pick<
+      typeof import('../providers/provider-repository'),
       'hydrateProviderApiKey'
+    >;
+    storeAgents: Pick<typeof import('../store/store-agents'), 'readAgentRuntimeContext'>;
+    storeAssistantExecutions: Pick<
+      typeof import('../store/store-assistant-executions'),
+      'recordAssistantExecutionRun'
     >;
   }>;
 };
@@ -498,8 +495,8 @@ async function structuredFastDistillationReview(
 }
 
 async function readAgentRuntimeStore(context: AgentTaskExecutionContext) {
-  const { agentRuntimePersistence } = await context.getPersistenceModule();
-  return agentRuntimePersistence.readAgentRuntimeContext();
+  const { storeAgents } = await context.getPersistenceModules();
+  return storeAgents.readAgentRuntimeContext();
 }
 
 function agentMessageReplyTo(payload: AgentMessagePayload) {

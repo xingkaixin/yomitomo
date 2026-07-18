@@ -37,7 +37,7 @@ vi.mock('electron', () => ({
   shell: testState.shell,
 }));
 
-vi.mock('./store/store', () => ({
+vi.mock('./store/store-snapshot', () => ({
   readStore: testState.store.readStore,
 }));
 
