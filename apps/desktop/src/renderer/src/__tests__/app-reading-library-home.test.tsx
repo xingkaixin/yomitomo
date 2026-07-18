@@ -11,6 +11,7 @@ import type {
   AppSettings,
   Collection,
   CollectionMember,
+  ContentRef,
   LibraryPin,
   UserProfile,
   WeReadBook,
@@ -27,14 +28,20 @@ import type {
   ArticleImportResult,
   LibraryCatalogListInput,
   LibraryCatalogListResult,
+  SetLibraryPinInput,
 } from '../../../ipc-contract';
 import { librarySession } from '../reading-library/app-reading-library-session';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { defaultTheme } from '../theme/app-theme';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
+import { appToast } from '../shell/app-toast';
 
 vi.mock('../sound/app-sound-effects', () => ({
   playAppSoundEffect: vi.fn(),
+}));
+
+vi.mock('../shell/app-toast', () => ({
+  appToast: { error: vi.fn(), success: vi.fn() },
 }));
 
 const now = '2026-05-09T12:00:00.000Z';
@@ -159,8 +166,11 @@ function completedArticle(): ArticleRecord {
 function renderLibrary(
   articles: ArticleSummaryRecord[],
   options: {
+    onAddCollectionMembers?: (collectionId: string, members: ContentRef[]) => Promise<void>;
     onImportArticleUrl?: (url: string, requestId?: string) => Promise<ArticleImportResult>;
     onCancelArticleImport?: (requestId: string) => Promise<boolean> | boolean;
+    onCreateCollection?: (name: string) => Promise<Collection>;
+    onDeleteCollection?: (collectionId: string) => Promise<void>;
     onImportEbookFile?: (
       file: File,
       onProgress?: (progress: number) => void,
@@ -170,12 +180,15 @@ function renderLibrary(
       onProgress?: (progress: number) => void,
     ) => Promise<ArticleImportResult>;
     onReadArticle?: (articleId: string) => Promise<ArticleRecord | null>;
+    onRemoveCollectionMember?: (collectionId: string, member: ContentRef) => Promise<void>;
+    onRenameCollection?: (collectionId: string, name: string) => Promise<void>;
     onDeleteArticle?: (articleId: string) => Promise<void> | void;
     onSaveArticleReadingProgress?: (
       articleId: string,
       progress: ArticleReadingProgress,
     ) => Promise<void> | void;
     onSaveSettings?: (settings: AppSettings) => Promise<void> | void;
+    onSetLibraryPin?: (input: SetLibraryPinInput) => Promise<void>;
     onOpenDataSources?: () => void;
     collections?: Collection[];
     collectionMembers?: CollectionMember[];
@@ -195,7 +208,10 @@ function renderLibrary(
       readerTheme={defaultTheme.reader}
       settings={options.settings}
       userProfile={userProfile}
+      onAddCollectionMembers={options.onAddCollectionMembers || vi.fn()}
+      onCreateCollection={options.onCreateCollection || vi.fn()}
       onDeleteArticle={options.onDeleteArticle || vi.fn()}
+      onDeleteCollection={options.onDeleteCollection || vi.fn()}
       onImportEbookFile={options.onImportEbookFile || vi.fn()}
       onImportPdfFile={options.onImportPdfFile || vi.fn()}
       onImportArticleUrl={options.onImportArticleUrl || vi.fn()}
@@ -205,11 +221,25 @@ function renderLibrary(
         (async (articleId) =>
           (articles.find((item) => item.id === articleId) as ArticleRecord | undefined) || null)
       }
+      onRemoveCollectionMember={options.onRemoveCollectionMember || vi.fn()}
+      onRenameCollection={options.onRenameCollection || vi.fn()}
       onSaveArticleReadingProgress={options.onSaveArticleReadingProgress || vi.fn()}
       onSaveSettings={options.onSaveSettings}
+      onSetLibraryPin={options.onSetLibraryPin || vi.fn()}
       onOpenDataSources={options.onOpenDataSources}
     />,
   );
+}
+
+function collectionActionStubs() {
+  return {
+    onAddCollectionMembers: vi.fn(),
+    onCreateCollection: vi.fn(),
+    onDeleteCollection: vi.fn(),
+    onRemoveCollectionMember: vi.fn(),
+    onRenameCollection: vi.fn(),
+    onSetLibraryPin: vi.fn(),
+  };
 }
 
 function fileWithSize(name: string, size: number): File {
@@ -856,8 +886,7 @@ describe('ReadingLibrary home', () => {
       },
       pinned: true,
     });
-    vi.stubGlobal('yomitomoDesktop', { setLibraryPin });
-    renderLibrary([article({ title: '待置顶文章' })]);
+    renderLibrary([article({ title: '待置顶文章' })], { onSetLibraryPin: setLibraryPin });
 
     const moreButton = screen.getByRole('button', { name: '更多操作：待置顶文章' });
     fireEvent.click(moreButton);
@@ -868,6 +897,20 @@ describe('ReadingLibrary home', () => {
       expect(setLibraryPin).toHaveBeenCalledWith({
         target: { kind: 'article', id: 'article_1' },
         pinned: true,
+      }),
+    );
+  });
+
+  it('shows pin errors from the collection action surface', async () => {
+    const onSetLibraryPin = vi.fn().mockRejectedValue(new Error('pin write failed'));
+    renderLibrary([article({ title: '置顶失败文章' })], { onSetLibraryPin });
+
+    fireEvent.click(screen.getByRole('button', { name: '更多操作：置顶失败文章' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '置顶' }));
+
+    await waitFor(() =>
+      expect(appToast.error).toHaveBeenCalledWith('置顶状态保存失败', {
+        description: 'pin write failed',
       }),
     );
   });
@@ -1135,7 +1178,6 @@ describe('ReadingLibrary home', () => {
       collectionId: 'collection_1',
       members: [],
     });
-    vi.stubGlobal('yomitomoDesktop', { removeCollectionMember });
     const collectedArticle = article({
       id: 'article_collected',
       title: '合集内文章',
@@ -1157,6 +1199,7 @@ describe('ReadingLibrary home', () => {
           addedAt: '2026-05-10T12:00:00.000Z',
         },
       ],
+      onRemoveCollectionMember: removeCollectionMember,
     });
 
     fireEvent.click(screen.getByRole('button', { name: '打开合集：研究合集' }));
@@ -1165,9 +1208,9 @@ describe('ReadingLibrary home', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: '从合集中移除' }));
 
     await waitFor(() =>
-      expect(removeCollectionMember).toHaveBeenCalledWith({
-        collectionId: collection.id,
-        member: { kind: 'article', id: collectedArticle.id },
+      expect(removeCollectionMember).toHaveBeenCalledWith(collection.id, {
+        kind: 'article',
+        id: collectedArticle.id,
       }),
     );
   });
@@ -1244,7 +1287,6 @@ describe('ReadingLibrary home', () => {
       ],
     };
     vi.stubGlobal('yomitomoDesktop', {
-      addCollectionMembers,
       getWeReadState: vi.fn().mockResolvedValue(state),
       syncWeRead: vi.fn().mockResolvedValue(state),
     });
@@ -1255,7 +1297,7 @@ describe('ReadingLibrary home', () => {
       updatedAt: '2026-05-10T12:00:00.000Z',
     };
 
-    renderLibrary([], { collections: [collection] });
+    renderLibrary([], { collections: [collection], onAddCollectionMembers: addCollectionMembers });
 
     fireEvent.click(screen.getByRole('button', { name: '打开合集：研究合集' }));
     fireEvent.click(screen.getByRole('button', { name: '添加内容' }));
@@ -1267,10 +1309,9 @@ describe('ReadingLibrary home', () => {
     fireEvent.click(within(picker!).getByRole('button', { name: '加入 1 项' }));
 
     await waitFor(() =>
-      expect(addCollectionMembers).toHaveBeenCalledWith({
-        collectionId: collection.id,
-        members: [{ kind: 'weread', id: 'weread_1' }],
-      }),
+      expect(addCollectionMembers).toHaveBeenCalledWith(collection.id, [
+        { kind: 'weread', id: 'weread_1' },
+      ]),
     );
   });
 
@@ -1903,6 +1944,7 @@ describe('ReadingLibrary home', () => {
         <ReadingLibrary
           agents={[]}
           articles={articles}
+          {...collectionActionStubs()}
           readerTheme={defaultTheme.reader}
           userProfile={userProfile}
           onDeleteArticle={vi.fn()}
@@ -1984,6 +2026,7 @@ describe('ReadingLibrary home', () => {
         <ReadingLibrary
           agents={[]}
           articles={articles}
+          {...collectionActionStubs()}
           readerTheme={defaultTheme.reader}
           userProfile={userProfile}
           onDeleteArticle={vi.fn()}
@@ -2234,6 +2277,7 @@ describe('ReadingLibrary home', () => {
         <ReadingLibrary
           agents={[]}
           articles={articles}
+          {...collectionActionStubs()}
           readerTheme={defaultTheme.reader}
           userProfile={userProfile}
           onDeleteArticle={vi.fn()}

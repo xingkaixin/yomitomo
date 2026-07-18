@@ -1,10 +1,81 @@
-import { describe, expect, it } from 'vitest';
+// @vitest-environment jsdom
+
+import { createElement } from 'react';
+import { act, cleanup, render } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DesktopStore } from '@yomitomo/shared';
+import { initializeAppI18n } from '../i18n/app-i18n';
 import { emptyStore } from '../settings/app-settings';
+import { appToast } from '../shell/app-toast';
 import {
   applyCollectionStorePatch,
   applyLibraryPinPatch,
+  useAppCollectionStoreActions,
 } from '../shell/app-library-collection-store-actions';
+
+vi.mock('../shell/app-toast', () => ({
+  appToast: { success: vi.fn() },
+}));
+
+beforeEach(() => {
+  initializeAppI18n('zh-CN');
+});
+
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+  Reflect.deleteProperty(window, 'yomitomoDesktop');
+});
+
+describe('useAppCollectionStoreActions', () => {
+  it('applies returned collection patches before resolving', async () => {
+    const collection = {
+      id: 'collection_1',
+      name: '合集',
+      createdAt: '2026-06-21T00:00:00.000Z',
+      updatedAt: '2026-06-21T00:00:00.000Z',
+    };
+    const patch = { type: 'collection-upsert' as const, collection };
+    const createCollection = vi.fn().mockResolvedValue({ collection, patch });
+    const { actions, applyStore, storeRef } = renderActions({ createCollection });
+
+    let result!: Awaited<ReturnType<typeof actions.current.createCollection>>;
+    await act(async () => {
+      result = await actions.current.createCollection(collection.name);
+    });
+
+    expect(result).toEqual(collection);
+    expect(createCollection).toHaveBeenCalledWith({ name: collection.name });
+    expect(storeRef.current.collections).toEqual([collection]);
+    expect(applyStore).toHaveBeenCalledWith(storeRef.current);
+    expect(appToast.success).toHaveBeenCalledWith('合集已创建', {
+      description: collection.name,
+    });
+  });
+
+  it('applies returned pin patches locally', async () => {
+    const patch = {
+      type: 'library-pin' as const,
+      pinned: true,
+      pin: {
+        targetKind: 'article' as const,
+        targetId: 'article_1',
+        pinnedAt: '2026-06-21T00:00:00.000Z',
+      },
+    };
+    const setLibraryPin = vi.fn().mockResolvedValue(patch);
+    const { actions, applyStore, storeRef } = renderActions({ setLibraryPin });
+    const input = { target: { kind: 'article' as const, id: 'article_1' }, pinned: true };
+
+    await act(async () => {
+      await actions.current.setLibraryPin(input);
+    });
+
+    expect(setLibraryPin).toHaveBeenCalledWith(input);
+    expect(storeRef.current.pins).toEqual([patch.pin]);
+    expect(applyStore).toHaveBeenCalledWith(storeRef.current);
+  });
+});
 
 describe('library collection store patch actions', () => {
   it('replaces members for the patched collection only', () => {
@@ -108,3 +179,25 @@ describe('library collection store patch actions', () => {
     expect(unpinnedStore.pins).toEqual([]);
   });
 });
+
+function renderActions(desktop: Record<string, unknown>) {
+  const storeRef: { current: DesktopStore } = { current: emptyStore };
+  const applyStore = vi.fn((store: DesktopStore) => {
+    storeRef.current = store;
+    return store;
+  });
+  const actions: { current: ReturnType<typeof useAppCollectionStoreActions> } = {
+    current: undefined as never,
+  };
+  Object.defineProperty(window, 'yomitomoDesktop', {
+    configurable: true,
+    value: desktop,
+  });
+  render(
+    createElement(function Harness() {
+      actions.current = useAppCollectionStoreActions({ storeRef, applyStore });
+      return null;
+    }),
+  );
+  return { actions, applyStore, storeRef };
+}

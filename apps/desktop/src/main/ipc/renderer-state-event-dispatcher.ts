@@ -25,11 +25,11 @@ const eventPolicies: Record<RendererStateEventChannel, RendererStateEventPolicy>
     targetRoles: ['main', 'annotation'],
   },
   'collection:patched': {
-    senderDelivery: 'include',
+    senderDelivery: 'exclude',
     targetRoles: ['main'],
   },
   'library-pin:patched': {
-    senderDelivery: 'include',
+    senderDelivery: 'exclude',
     targetRoles: ['main'],
   },
   'store:updated': {

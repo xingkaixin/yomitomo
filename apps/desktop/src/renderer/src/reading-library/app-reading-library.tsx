@@ -68,10 +68,13 @@ export function ReadingLibrary({
   openArticleTarget,
   userProfile,
   onArticleOpened,
+  onAddCollectionMembers,
   onCloseArticleDiscussions,
+  onCreateCollection,
   onDeleteArticle,
   onDeleteArticleAnnotation,
   onDeleteArticleComment,
+  onDeleteCollection,
   onOpenArticleDiscussion,
   onImportEbookFile,
   onImportPdfFile,
@@ -79,12 +82,15 @@ export function ReadingLibrary({
   onCancelArticleImport,
   onReadingModeChange,
   onReadArticle,
+  onRemoveCollectionMember,
+  onRenameCollection,
   onMergeArticleAgentAnnotation,
   onSaveArticleAnnotation,
   onSaveArticleComment,
   onSaveArticleReadingProgress,
   onSaveArticleReaderChatState,
   onSaveSettings,
+  onSetLibraryPin,
   onOpenDataSources,
 }: {
   agents: Agent[];
@@ -100,7 +106,9 @@ export function ReadingLibrary({
   openArticleTarget?: ReadingLibraryOpenTarget | null;
   userProfile: UserProfile;
   onArticleOpened?: (articleId: string) => void;
+  onAddCollectionMembers: (collectionId: string, members: ContentRef[]) => Promise<void>;
   onCloseArticleDiscussions?: (articleId: string) => Promise<void> | void;
+  onCreateCollection: (name: string) => Promise<Collection>;
   onDeleteArticle: (articleId: string) => Promise<void> | void;
   onDeleteArticleAnnotation?: (articleId: string, annotationId: string) => Promise<void> | void;
   onDeleteArticleComment?: (
@@ -108,6 +116,7 @@ export function ReadingLibrary({
     annotationId: string,
     commentId: string,
   ) => Promise<void> | void;
+  onDeleteCollection: (collectionId: string) => Promise<void>;
   onOpenArticleDiscussion?: (
     articleId: string,
     annotationId: string,
@@ -125,6 +134,8 @@ export function ReadingLibrary({
   onCancelArticleImport?: (requestId: string) => Promise<boolean> | boolean;
   onReadingModeChange?: (open: boolean) => void;
   onReadArticle: (articleId: string) => Promise<ArticleRecord | null>;
+  onRemoveCollectionMember: (collectionId: string, member: ContentRef) => Promise<void>;
+  onRenameCollection: (collectionId: string, name: string) => Promise<void>;
   onMergeArticleAgentAnnotation?: (
     articleId: string,
     annotation: Annotation,
@@ -146,6 +157,7 @@ export function ReadingLibrary({
   ) => Promise<void> | void;
   onSaveArticleReaderChatState?: (articleId: string, readerChatState?: ReaderChatState) => unknown;
   onSaveSettings?: (settings: AppSettings) => Promise<void> | void;
+  onSetLibraryPin: (input: SetLibraryPinInput) => Promise<void>;
   onOpenDataSources?: () => void;
 }) {
   const { t } = useTranslation();
@@ -422,51 +434,22 @@ export function ReadingLibrary({
     }));
   }
 
-  async function createLibraryCollection(name: string) {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop?.createCollection) throw new Error(t('library.collection.apiUnavailable'));
-    const result = await desktop.createCollection({ name });
-    appToast.success(t('library.collection.createdToast'), {
-      description: result.collection.name,
-    });
-    return result.collection;
-  }
-
-  async function renameLibraryCollection(collectionId: string, name: string) {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop?.renameCollection) throw new Error(t('library.collection.apiUnavailable'));
-    await desktop.renameCollection({ collectionId, name });
-    appToast.success(t('library.collection.renamedToast'), { description: name });
-  }
-
-  async function deleteLibraryCollection(collectionId: string) {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop?.deleteCollection) throw new Error(t('library.collection.apiUnavailable'));
-    await desktop.deleteCollection(collectionId);
-    appToast.success(t('library.collection.deletedToast'));
-  }
-
-  async function addLibraryCollectionMembers(collectionId: string, members: ContentRef[]) {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop?.addCollectionMembers) throw new Error(t('library.collection.apiUnavailable'));
-    await desktop.addCollectionMembers({ collectionId, members });
-    appToast.success(t('library.collection.membersAddedToast', { count: members.length }));
-  }
-
-  async function removeLibraryCollectionMember(collectionId: string, member: ContentRef) {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop?.removeCollectionMember) throw new Error(t('library.collection.apiUnavailable'));
-    await desktop.removeCollectionMember({ collectionId, member });
-    appToast.success(t('library.collection.memberRemovedToast'));
+  async function setLibraryPin(input: SetLibraryPinInput) {
+    try {
+      await onSetLibraryPin(input);
+    } catch (error) {
+      const fallback = t('library.collection.pinSaveFailed');
+      appToast.error(fallback, { description: errorMessage(error, fallback) });
+    }
   }
 
   const libraryHomeProps = {
     collectionActions: {
-      onAddCollectionMembers: addLibraryCollectionMembers,
-      onCreateCollection: createLibraryCollection,
-      onDeleteCollection: deleteLibraryCollection,
-      onRemoveCollectionMember: removeLibraryCollectionMember,
-      onRenameCollection: renameLibraryCollection,
+      onAddCollectionMembers,
+      onCreateCollection,
+      onDeleteCollection,
+      onRemoveCollectionMember,
+      onRenameCollection,
     },
     content: {
       collectionMembers,
@@ -486,8 +469,7 @@ export function ReadingLibrary({
         void navigation.actions.openArticle(article),
       onOpenWeReadBook: (book: WeReadBook) => void openWeReadBook(book),
       onOpenWeReadExternal: (book: WeReadBook) => void openWeReadExternal(book),
-      onSetLibraryPin: (input: SetLibraryPinInput) =>
-        void window.yomitomoDesktop?.setLibraryPin?.(input),
+      onSetLibraryPin: setLibraryPin,
     },
     menuRequest,
     settingsControl: {
