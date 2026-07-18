@@ -8,6 +8,7 @@ import {
   annotationIdsAtHighlightPoint,
   createEpubTextAnchor,
   createUserAnnotation,
+  mergeAgentAnnotationAsThought,
   type HighlightBox,
   type TocItem,
 } from '@yomitomo/core';
@@ -35,11 +36,9 @@ import {
   type EbookPageTurnTrace,
   type FoliateViewElement,
 } from './app-ebook-reader-utils';
-import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
 import { EbookReaderShell } from './app-source-ebook-reader-shell';
 import { playEbookAgentAnnotationPlayback } from './app-source-ebook-agent-playback';
 import {
-  articleWithMergedAgentAnnotation,
   defaultTocOpen,
   recordRendererPerformanceTiming,
   usesOverlayToc,
@@ -94,12 +93,11 @@ export function EbookBookcase({
   onDeleteArticleComment,
   onOpenAnnotationDiscussion,
   onOpenAnnotation,
-  onSaveArticle,
+  onMergeArticleAgentAnnotation,
   onSaveArticleAnnotation,
   onSaveArticleComment,
   onSaveArticleReadingProgress,
   onSaveArticleReaderChatState,
-  onUpdateArticle,
 }: EbookBookcaseProps) {
   const { t } = useTranslation();
   const articleRef = useRef<HTMLElement | null>(null);
@@ -203,7 +201,6 @@ export function EbookBookcase({
     onOpenAnnotation: openAnnotation,
     onDeleteArticleAnnotation,
     onDeleteArticleComment,
-    onSaveArticle,
     onSaveArticleAnnotation,
     onSaveArticleComment,
     setStatusMessage,
@@ -664,19 +661,18 @@ export function EbookBookcase({
 
   async function appendAgentAnnotationToArticle(articleId: string, annotation: Annotation) {
     let activeId = annotation.id;
-    let currentMerge: ReturnType<typeof mergeAgentAnnotationAsThought> | null = null;
     if (isCurrentArticle(articleId)) {
       const result = mergeAgentAnnotationAsThought(annotationsRef.current, annotation);
       activeId = result.activeId;
-      currentMerge = result;
       applyAnnotations(result.annotations);
       openAnnotation(result.activeId);
     }
-    await onUpdateArticle(articleId, (targetArticle) => {
-      const result = articleWithMergedAgentAnnotation(targetArticle, annotation, currentMerge);
-      activeId = result.activeId;
-      return result.article;
-    });
+    const persisted = await onMergeArticleAgentAnnotation?.(articleId, annotation);
+    if (persisted) activeId = persisted.activeId;
+    if (persisted && isCurrentArticle(articleId)) {
+      applyAnnotations(persisted.patch.article.annotations, persisted.patch.article.updatedAt);
+      openAnnotation(persisted.activeId);
+    }
     return activeId;
   }
 

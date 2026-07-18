@@ -1,5 +1,4 @@
 import { performance } from 'node:perf_hooks';
-import type { IpcMainInvokeEvent } from 'electron';
 import type { EbookImportFileInput, PdfImportFileInput } from '../../ipc-contract';
 import type { ArticleRecord } from '@yomitomo/shared';
 import {
@@ -40,12 +39,6 @@ export function registerArticleIpc(context: ArticleIpcContext) {
     const { articlePersistence } = await context.getPersistenceModule();
     return articlePersistence.readArticleStatsSummaries();
   });
-  handleDesktopIpc('article:save', async (_event, input) => {
-    const { articlePersistence } = await context.getPersistenceModule();
-    const patch = await articlePersistence.saveArticle(input);
-    if (shouldBroadcastArticleSavePatch(context, _event)) context.sendArticlePatched(patch);
-    return patch;
-  });
   handleDesktopIpc('article-translation:get-current', async (_event, input) => {
     return translationRuntime.readCurrent(input);
   });
@@ -62,6 +55,18 @@ export function registerArticleIpc(context: ArticleIpcContext) {
     const patch = await articlePersistence.saveArticleAnnotation(input);
     if (patch) context.sendArticlePatched(patch);
     return patch;
+  });
+  handleDesktopIpc('article:save-annotation-distillation', async (_event, input) => {
+    const { articlePersistence } = await context.getPersistenceModule();
+    const patch = await articlePersistence.saveArticleAnnotationDistillation(input);
+    if (patch) context.sendArticlePatched(patch);
+    return patch;
+  });
+  handleDesktopIpc('article:merge-agent-annotation', async (_event, input) => {
+    const { articlePersistence } = await context.getPersistenceModule();
+    const result = await articlePersistence.mergeArticleAgentAnnotation(input);
+    if (result) context.sendArticlePatched(result.patch);
+    return result;
   });
   handleDesktopIpc('article:save-comment', async (_event, input) => {
     const { articlePersistence } = await context.getPersistenceModule();
@@ -216,12 +221,6 @@ export function registerArticleIpc(context: ArticleIpcContext) {
     });
     return patch;
   });
-}
-
-function shouldBroadcastArticleSavePatch(context: ArticleIpcContext, event: IpcMainInvokeEvent) {
-  const mainWindow = context.getMainWindow();
-  if (!mainWindow || mainWindow.isDestroyed()) return true;
-  return event.sender.id !== mainWindow.webContents.id;
 }
 
 export function pdfSourceArrayBufferForIpc(file: Buffer) {

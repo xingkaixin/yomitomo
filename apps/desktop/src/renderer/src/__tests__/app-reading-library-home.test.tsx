@@ -206,11 +206,9 @@ function renderLibrary(
         (async (articleId) =>
           (articles.find((item) => item.id === articleId) as ArticleRecord | undefined) || null)
       }
-      onSaveArticle={vi.fn()}
       onSaveArticleReadingProgress={options.onSaveArticleReadingProgress || vi.fn()}
       onSaveSettings={options.onSaveSettings}
       onOpenDataSources={options.onOpenDataSources}
-      onUpdateArticle={vi.fn()}
     />,
   );
 }
@@ -1905,9 +1903,7 @@ describe('ReadingLibrary home', () => {
           onImportPdfFile={vi.fn()}
           onImportArticleUrl={vi.fn()}
           onReadArticle={(articleId) => onReadArticle(articleId)}
-          onSaveArticle={vi.fn()}
           onSaveArticleReadingProgress={vi.fn()}
-          onUpdateArticle={vi.fn()}
         />
       );
     }
@@ -1988,9 +1984,7 @@ describe('ReadingLibrary home', () => {
           onImportPdfFile={vi.fn()}
           onImportArticleUrl={vi.fn()}
           onReadArticle={(articleId) => onReadArticle(articleId)}
-          onSaveArticle={vi.fn()}
           onSaveArticleReadingProgress={vi.fn()}
-          onUpdateArticle={vi.fn()}
         />
       );
     }
@@ -2240,9 +2234,7 @@ describe('ReadingLibrary home', () => {
           onImportPdfFile={vi.fn()}
           onImportArticleUrl={vi.fn()}
           onReadArticle={(articleId) => onReadArticle(articleId)}
-          onSaveArticle={vi.fn()}
           onSaveArticleReadingProgress={vi.fn()}
-          onUpdateArticle={vi.fn()}
         />
       );
     }

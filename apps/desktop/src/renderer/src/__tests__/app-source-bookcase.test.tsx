@@ -117,9 +117,7 @@ function renderSourceBookcase(sourceArticle: ArticleRecord | null) {
       onClose={vi.fn()}
       onFocusedAnnotation={vi.fn()}
       onOpenAnnotation={vi.fn()}
-      onSaveArticle={vi.fn()}
       onSaveArticleReadingProgress={vi.fn()}
-      onUpdateArticle={vi.fn()}
     />,
   );
 }

@@ -167,12 +167,11 @@ function App() {
     deleteArticleAnnotation,
     deleteArticleComment,
     closeArticleDiscussions,
+    mergeArticleAgentAnnotation,
     openArticleDiscussion,
     readArticle,
-    saveArticle,
     saveArticleAnnotation,
     saveArticleComment,
-    updateArticle,
     saveArticleReadingProgress,
     saveArticleReaderChatState,
     importArticleUrl,
@@ -567,14 +566,13 @@ function App() {
                   onImportPdfFile={importPdfFile}
                   onReadingModeChange={setLibraryReaderOpen}
                   onReadArticle={readArticle}
-                  onSaveArticle={saveArticle}
+                  onMergeArticleAgentAnnotation={mergeArticleAgentAnnotation}
                   onSaveArticleAnnotation={saveArticleAnnotation}
                   onSaveArticleComment={saveArticleComment}
                   onSaveArticleReadingProgress={saveArticleReadingProgress}
                   onSaveArticleReaderChatState={saveArticleReaderChatState}
                   onSaveSettings={saveLibrarySettings}
                   onOpenDataSources={openDataSources}
-                  onUpdateArticle={updateArticle}
                 />
               ) : null}
               {activeSetting === 'distillations' ? (

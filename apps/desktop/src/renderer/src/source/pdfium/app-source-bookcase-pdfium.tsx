@@ -26,6 +26,7 @@ import {
 import {
   activeTocIndexForOffset,
   createUserAnnotation,
+  mergeAgentAnnotationAsThought,
   selectionActionPosition,
   type HighlightBox,
   type TocItem,
@@ -33,14 +34,10 @@ import {
 import { ReaderAppView } from '@yomitomo/reader-ui/reader-app-view';
 import { ReaderToolbarSliderPopover } from '@yomitomo/reader-ui/reader-toolbar-controls';
 import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
-import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
 import { readerDesktopEmbeddedBundleStyles } from '@yomitomo/reader-ui/reader-styles';
 import { animateTheaterHighlight, sleep } from '@yomitomo/reader-ui/reader-animation';
 import { selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
-import {
-  articleWithMergedAgentAnnotation,
-  type SourceBookcaseProps,
-} from '../bookcase/app-source-bookcase-shared';
+import type { SourceBookcaseProps } from '../bookcase/app-source-bookcase-shared';
 import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
 import { useRecentAnnotationFeedback } from '../bookcase/use-recent-annotation-feedback';
 import { buildSourceReaderAppActions } from '../bookcase/source-reader-app-actions';
@@ -120,12 +117,11 @@ export function PdfiumBookcase({
   onDeleteArticleComment,
   onOpenAnnotationDiscussion,
   onOpenAnnotation,
-  onSaveArticle,
+  onMergeArticleAgentAnnotation,
   onSaveArticleAnnotation,
   onSaveArticleComment,
   onSaveArticleReadingProgress,
   onSaveArticleReaderChatState,
-  onUpdateArticle,
 }: SourceBookcaseProps & { article: PdfArticleRecord }) {
   const { t } = useTranslation();
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
@@ -167,12 +163,11 @@ export function PdfiumBookcase({
                           onFocusedAnnotation,
                           onOpenAnnotationDiscussion,
                           onOpenAnnotation,
-                          onSaveArticle,
+                          onMergeArticleAgentAnnotation,
                           onSaveArticleAnnotation,
                           onSaveArticleComment,
                           onSaveArticleReadingProgress,
                           onSaveArticleReaderChatState,
-                          onUpdateArticle,
                         }}
                         document={{
                           documentId: activeDocumentId,
@@ -231,12 +226,11 @@ type PdfiumDocumentProps = {
     onFocusedAnnotation: SourceBookcaseProps['onFocusedAnnotation'];
     onOpenAnnotationDiscussion: SourceBookcaseProps['onOpenAnnotationDiscussion'];
     onOpenAnnotation: SourceBookcaseProps['onOpenAnnotation'];
-    onSaveArticle: SourceBookcaseProps['onSaveArticle'];
+    onMergeArticleAgentAnnotation: SourceBookcaseProps['onMergeArticleAgentAnnotation'];
     onSaveArticleAnnotation: SourceBookcaseProps['onSaveArticleAnnotation'];
     onSaveArticleComment: SourceBookcaseProps['onSaveArticleComment'];
     onSaveArticleReadingProgress: SourceBookcaseProps['onSaveArticleReadingProgress'];
     onSaveArticleReaderChatState: SourceBookcaseProps['onSaveArticleReaderChatState'];
-    onUpdateArticle: SourceBookcaseProps['onUpdateArticle'];
   };
   document: {
     documentId: string;
@@ -288,12 +282,11 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     onFocusedAnnotation,
     onOpenAnnotationDiscussion,
     onOpenAnnotation,
-    onSaveArticle,
+    onMergeArticleAgentAnnotation,
     onSaveArticleAnnotation,
     onSaveArticleComment,
     onSaveArticleReadingProgress,
     onSaveArticleReaderChatState,
-    onUpdateArticle,
   } = actions;
   const {
     items: tocItems,
@@ -408,7 +401,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     onOpenAnnotation,
     onDeleteArticleAnnotation,
     onDeleteArticleComment,
-    onSaveArticle,
     onSaveArticleAnnotation,
     onSaveArticleComment,
     setStatusMessage,
@@ -1095,10 +1087,10 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   }
 
   async function appendAgentAnnotationToArticle(articleId: string, annotation: Annotation) {
-    let currentMerge: ReturnType<typeof mergeAgentAnnotationAsThought> | null = null;
+    let activeId = annotation.id;
     if (latestArticleRef.current?.id === articleId) {
       const result = mergeAgentAnnotationAsThought(annotationsRef.current, annotation);
-      currentMerge = result;
+      activeId = result.activeId;
       applyAnnotations(result.annotations);
       onOpenAnnotation(
         pdfiumAnnotationIsVisible(result.activeId, result.annotations, pageMetricsRef.current)
@@ -1106,10 +1098,21 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
           : null,
       );
     }
-    await onUpdateArticle(articleId, (targetArticle) => {
-      const result = articleWithMergedAgentAnnotation(targetArticle, annotation, currentMerge);
-      return result.article;
-    });
+    const persisted = await onMergeArticleAgentAnnotation?.(articleId, annotation);
+    if (persisted) activeId = persisted.activeId;
+    if (persisted && latestArticleRef.current?.id === articleId) {
+      applyAnnotations(persisted.patch.article.annotations, persisted.patch.article.updatedAt);
+      onOpenAnnotation(
+        pdfiumAnnotationIsVisible(
+          persisted.activeId,
+          persisted.patch.article.annotations,
+          pageMetricsRef.current,
+        )
+          ? persisted.activeId
+          : null,
+      );
+    }
+    return activeId;
   }
 
   async function pdfiumPageGeometriesForReadingPlan(

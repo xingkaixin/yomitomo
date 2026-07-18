@@ -17,13 +17,15 @@ import type {
 } from '@yomitomo/shared';
 import { resolveAgentPresetId, resolveAgentPublicIdentity } from '@yomitomo/shared';
 import { findMentionedAgents, sortAnnotations, type HighlightBox } from '@yomitomo/core';
-import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
 import type { SelectionAction } from '@yomitomo/reader-ui/reader-app-view';
 import { annotationNavigationForReferenceIndex } from '@yomitomo/reader-ui/reader-navigation';
 import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
 import i18next from 'i18next';
-import type { ArticleUpdater, PromptArticle } from '../../shell/app-reading-types';
-import type { WindowAnimationSourceRect } from '../../../../ipc-contract';
+import type { PromptArticle } from '../../shell/app-reading-types';
+import type {
+  ArticleAgentAnnotationMergeResult,
+  WindowAnimationSourceRect,
+} from '../../../../ipc-contract';
 import { resolveAgentPersonaAssets } from '../../settings/agent-persona-assets';
 export {
   normalizeDesktopReaderSettings,
@@ -147,18 +149,6 @@ export function annotationsWithSavedComment(
     };
   });
   return foundAnnotation ? nextAnnotations : null;
-}
-
-export function articleWithMergedAgentAnnotation(
-  article: ArticleRecord,
-  annotation: Annotation,
-  currentMerge?: ReturnType<typeof mergeAgentAnnotationAsThought> | null,
-) {
-  const result = currentMerge || mergeAgentAnnotationAsThought(article.annotations, annotation);
-  return {
-    activeId: result.activeId,
-    article: articleWithAnnotations(article, result.annotations),
-  };
 }
 
 export function navigationForActiveAnnotation(annotations: Annotation[], activeId: string | null) {
@@ -497,7 +487,10 @@ export type SourceBookcaseProps = {
     sourceRect?: WindowAnimationSourceRect,
   ) => Promise<void> | void;
   onOpenAnnotation: (annotationId: string | null) => void;
-  onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
+  onMergeArticleAgentAnnotation?: (
+    articleId: string,
+    annotation: Annotation,
+  ) => Promise<ArticleAgentAnnotationMergeResult | null> | ArticleAgentAnnotationMergeResult | null;
   onSaveArticleAnnotation?: (
     articleId: string,
     annotation: Annotation,
@@ -517,7 +510,6 @@ export type SourceBookcaseProps = {
     articleId: string,
     readerChatState?: ArticleRecord['readerChatState'],
   ) => unknown;
-  onUpdateArticle: (articleId: string, update: ArticleUpdater) => Promise<void> | void;
 };
 
 export type WebSourceBookcaseProps = Omit<SourceBookcaseProps, 'article'> & {

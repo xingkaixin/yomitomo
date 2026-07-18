@@ -4,7 +4,6 @@ import type {
   ArticleDeletePatch,
   ArticleReadingProgress,
   ArticleReadingProgressPatch,
-  ArticleRecord,
   ArticleStorePatch,
   ArticleSummaryRecord,
   ArticleUpsertPatch,
@@ -28,8 +27,7 @@ export function useAppArticleStoreActions({
   storeRef,
   applyStore,
 }: UseAppArticleStoreActionsInput) {
-  const articleUpdateQueueRef = useRef(Promise.resolve());
-
+  const readingProgressSaveQueueRef = useRef(Promise.resolve());
   const deleteArticle = useCallback(
     async (articleId: string) => {
       const desktop = window.yomitomoDesktop;
@@ -53,37 +51,17 @@ export function useAppArticleStoreActions({
     return desktop.getArticle(articleId);
   }, []);
 
-  const saveArticle = useCallback(
-    async (article: ArticleRecord) => {
+  const mergeArticleAgentAnnotation = useCallback(
+    async (articleId: string, annotation: Annotation) => {
       const desktop = window.yomitomoDesktop;
-      if (!desktop) return;
+      if (!desktop) return null;
 
-      const patch = await desktop.saveArticle(article);
-      const nextStore = applyArticleStorePatch(storeRef.current, patch);
+      const result = await desktop.mergeArticleAgentAnnotation({ articleId, annotation });
+      if (!result) return null;
+      const nextStore = applyArticleStorePatch(storeRef.current, result.patch);
       storeRef.current = nextStore;
       applyStore(nextStore);
-    },
-    [applyStore, storeRef],
-  );
-
-  const updateArticle = useCallback(
-    async (articleId: string, update: (article: ArticleRecord) => ArticleRecord | null) => {
-      const desktop = window.yomitomoDesktop;
-      if (!desktop) return;
-
-      const run = async () => {
-        const article = await desktop.getArticle(articleId);
-        if (!article) return;
-        const nextArticle = update(article);
-        if (!nextArticle) return;
-        const patch = await desktop.saveArticle(nextArticle);
-        const nextStore = applyArticleStorePatch(storeRef.current, patch);
-        storeRef.current = nextStore;
-        applyStore(nextStore);
-      };
-      const nextUpdate = articleUpdateQueueRef.current.then(run, run);
-      articleUpdateQueueRef.current = nextUpdate.catch(() => undefined);
-      await nextUpdate;
+      return result;
     },
     [applyStore, storeRef],
   );
@@ -186,8 +164,8 @@ export function useAppArticleStoreActions({
         storeRef.current = nextStore;
         applyStore(nextStore);
       };
-      const nextUpdate = articleUpdateQueueRef.current.then(run, run);
-      articleUpdateQueueRef.current = nextUpdate.catch(() => undefined);
+      const nextUpdate = readingProgressSaveQueueRef.current.then(run, run);
+      readingProgressSaveQueueRef.current = nextUpdate.catch(() => undefined);
       await nextUpdate;
     },
     [applyStore, storeRef],
@@ -283,10 +261,9 @@ export function useAppArticleStoreActions({
     closeArticleDiscussions,
     openArticleDiscussion,
     readArticle,
-    saveArticle,
+    mergeArticleAgentAnnotation,
     saveArticleAnnotation,
     saveArticleComment,
-    updateArticle,
     saveArticleReadingProgress,
     saveArticleReaderChatState,
     importArticleUrl,

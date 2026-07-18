@@ -343,18 +343,6 @@ function AnnotationDiscussionShell({
     return nextArticle;
   }
 
-  async function saveAnnotations(annotations: Annotation[]) {
-    const nextArticle = applyAnnotations(annotations);
-    if (!nextArticle) return;
-    const nextAnnotation = nextArticle.annotations.find((item) => item.id === currentAnnotation.id);
-    if (!nextAnnotation) return;
-    await window.yomitomoDesktop.saveArticleAnnotation(
-      nextArticle.id,
-      nextAnnotation,
-      nextArticle.updatedAt,
-    );
-  }
-
   async function saveComment(
     annotationId: string,
     comment: Comment,
@@ -366,7 +354,15 @@ function AnnotationDiscussionShell({
       comment,
       updatedAt,
     );
-    if (nextAnnotations) await saveAnnotations(nextAnnotations);
+    if (!nextAnnotations) return;
+    const nextArticle = applyAnnotations(nextAnnotations);
+    if (!nextArticle) return;
+    await window.yomitomoDesktop.saveArticleComment(
+      nextArticle.id,
+      annotationId,
+      comment,
+      nextArticle.updatedAt,
+    );
   }
 
   async function submitReply() {
@@ -388,7 +384,7 @@ function AnnotationDiscussionShell({
       const nextAnnotation = nextAnnotations?.find((item) => item.id === currentAnnotation.id);
       if (!nextAnnotations || !nextAnnotation) return;
 
-      await saveAnnotations(nextAnnotations);
+      await saveComment(currentAnnotation.id, userComment, userComment.createdAt);
       const mentionedAgents = findMentionedAgents(trimmed, annotationAgents);
       const targetAgents =
         mentionedAgents.length > 0
@@ -444,7 +440,7 @@ function AnnotationDiscussionShell({
         const nextAnnotation = nextAnnotations?.find((item) => item.id === currentAnnotation.id);
         if (!nextAnnotations || !nextAnnotation) return;
 
-        await saveAnnotations(nextAnnotations);
+        await saveComment(currentAnnotation.id, userComment, userComment.createdAt);
         setSelectedThoughtId(userComment.id);
 
         const mentionedAgents = findMentionedAgents(trimmed, annotationAgents);
@@ -659,7 +655,7 @@ function AnnotationDiscussionShell({
       articleText: discussionArticleText(currentArticleRef.current),
       annotationsRef,
       applyAnnotations,
-      saveAnnotations,
+      saveComment,
       setStatusMessage,
       onThoughtStart: setSelectedThoughtId,
       lifecycle,

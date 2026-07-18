@@ -262,7 +262,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: '回复' }));
 
-    await waitFor(() => expect(desktop.saveArticleAnnotation).toHaveBeenCalledOnce());
+    await waitFor(() => expect(desktop.saveArticleComment).toHaveBeenCalledOnce());
     expect(desktop.saveArticle).not.toHaveBeenCalled();
     await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 1000, behavior: 'auto' }));
     await waitFor(() => expect(document.activeElement).toBe(replyInput));
@@ -303,7 +303,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: '回复' }));
 
-    await waitFor(() => expect(desktop.saveArticleAnnotation).toHaveBeenCalledOnce());
+    await waitFor(() => expect(desktop.saveArticleComment).toHaveBeenCalledOnce());
     expect(desktop.saveArticle).not.toHaveBeenCalled();
     expect(scrollTo).not.toHaveBeenCalled();
   });
@@ -492,8 +492,8 @@ describe('AnnotationDiscussionWindowApp', () => {
     expect(screen.queryByRole('region', { name: '助手回复队列' })).toBeNull();
     expect(screen.queryByText('助手回复中')).toBeNull();
     expect(screen.queryByText('回复发送失败')).toBeNull();
-    expect(desktop.saveArticleAnnotation).toHaveBeenCalledTimes(2);
-    expect(desktop.saveArticleAnnotation.mock.calls[1]?.[1].comments).toContainEqual(
+    expect(desktop.saveArticleComment).toHaveBeenCalledTimes(2);
+    expect(desktop.saveArticleComment.mock.calls[1]?.[2]).toEqual(
       expect.objectContaining({
         author: 'ai',
         content: '请先为供应商配置 API Key。',
@@ -556,7 +556,7 @@ describe('AnnotationDiscussionWindowApp', () => {
 
     await openAssistantThoughtDialog('@zhou 补一条独立想法');
 
-    await waitFor(() => expect(desktop.saveArticleAnnotation).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(desktop.saveArticleComment).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.queryByRole('dialog', { name: '添加想法' })).toBeNull(), {
       timeout: 1800,
     });
@@ -627,7 +627,7 @@ describe('AnnotationDiscussionWindowApp', () => {
 
     expect(await screen.findByText('1 位助手已完成，1 位助手失败')).toBeTruthy();
     expect(screen.getByText('模型暂时不可用')).toBeTruthy();
-    expect(desktop.saveArticleAnnotation).toHaveBeenCalledTimes(1);
+    expect(desktop.saveArticleComment).toHaveBeenCalledTimes(1);
     expect(desktop.saveArticle).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: '重试' }));
@@ -723,7 +723,7 @@ function installDesktopApi(
         }),
       ),
     saveArticle: vi.fn().mockResolvedValue(undefined),
-    saveArticleAnnotation: vi.fn().mockResolvedValue(undefined),
+    saveArticleComment: vi.fn().mockResolvedValue(undefined),
     openAnnotationSedimentation: vi.fn().mockResolvedValue(undefined),
   };
   Object.defineProperty(window, 'yomitomoDesktop', {

@@ -1,25 +1,17 @@
 import type { Dispatch, SetStateAction } from 'react';
 import i18next from 'i18next';
-import type {
-  AgentReadingPlanItem,
-  Annotation,
-  ArticleRecord,
-  PublicAgent,
-} from '@yomitomo/shared';
-import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
+import type { AgentReadingPlanItem, Annotation, PublicAgent } from '@yomitomo/shared';
+import { mergeAgentAnnotationAsThought } from '@yomitomo/core';
+import type { ArticleAgentAnnotationMergeResult } from '../../../../ipc-contract';
 import type { SourceAgentAnnotationPlaybackMode } from '../bookcase/app-source-agent-request';
-import {
-  articleWithMergedAgentAnnotation,
-  promptArticle,
-} from '../bookcase/app-source-bookcase-shared';
+import { promptArticle } from '../bookcase/app-source-bookcase-shared';
 import {
   constrainSourceAgentPlanAnnotation,
   type SourceAgentAnnotationAdapter,
 } from '../bookcase/use-source-reader-session';
-import type { ArticleUpdater } from '../../shell/app-reading-types';
 
 type WebSourceReaderControllerOptions = {
-  applyAnnotations: (annotations: Annotation[]) => void;
+  applyAnnotations: (annotations: Annotation[], updatedAt?: string) => void;
   currentArticleText: () => string;
   enqueueAgentAnnotation: (annotation: Annotation) => void;
   finishVirtualReading: (agentId: string, message: string) => void;
@@ -30,7 +22,10 @@ type WebSourceReaderControllerOptions = {
   markAgentAnnotating: (agentId: string, annotating: boolean) => void;
   markVirtualReadingDone: (agentId: string) => void;
   onOpenAnnotation: (annotationId: string) => void;
-  onUpdateArticle: (articleId: string, update: ArticleUpdater) => Promise<void> | void;
+  onMergeArticleAgentAnnotation?: (
+    articleId: string,
+    annotation: Annotation,
+  ) => Promise<ArticleAgentAnnotationMergeResult | null> | ArticleAgentAnnotationMergeResult | null;
   processAgentAnnotationQueue: () => Promise<void> | void;
   setStatusMessage: Dispatch<SetStateAction<string>>;
   startVirtualReading: (
@@ -52,26 +47,25 @@ export function createWebSourceReaderController({
   markAgentAnnotating,
   markVirtualReadingDone,
   onOpenAnnotation,
-  onUpdateArticle,
+  onMergeArticleAgentAnnotation,
   processAgentAnnotationQueue,
   setStatusMessage,
   startVirtualReading,
 }: WebSourceReaderControllerOptions): SourceAgentAnnotationAdapter {
   async function appendAgentAnnotationToArticle(articleId: string, annotation: Annotation) {
     let activeId = annotation.id;
-    let currentMerge: ReturnType<typeof mergeAgentAnnotationAsThought> | null = null;
     if (isCurrentArticle(articleId)) {
       const result = mergeAgentAnnotationAsThought(getAnnotations(), annotation);
       activeId = result.activeId;
-      currentMerge = result;
       applyAnnotations(result.annotations);
       onOpenAnnotation(result.activeId);
     }
-    await onUpdateArticle(articleId, (targetArticle: ArticleRecord) => {
-      const result = articleWithMergedAgentAnnotation(targetArticle, annotation, currentMerge);
-      activeId = result.activeId;
-      return result.article;
-    });
+    const persisted = await onMergeArticleAgentAnnotation?.(articleId, annotation);
+    if (persisted) activeId = persisted.activeId;
+    if (persisted && isCurrentArticle(articleId)) {
+      applyAnnotations(persisted.patch.article.annotations, persisted.patch.article.updatedAt);
+      onOpenAnnotation(persisted.activeId);
+    }
     return activeId;
   }
 

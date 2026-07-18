@@ -28,7 +28,6 @@ import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
 import { SourceBookcase } from '../source/bookcase/app-source-bookcase';
 import { publicAnnotationAgents } from '../source/bookcase/app-source-bookcase-shared';
 import type {
-  ArticleUpdater,
   EbookImportProgressCallback,
   PdfImportProgressCallback,
   ReadingLibraryOpenTarget,
@@ -47,6 +46,7 @@ import {
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 import type {
   AnnotationDiscussionWindowState,
+  ArticleAgentAnnotationMergeResult,
   WindowAnimationSourceRect,
   SetLibraryPinInput,
 } from '../../../ipc-contract';
@@ -82,14 +82,13 @@ export function ReadingLibrary({
   onCancelArticleImport,
   onReadingModeChange,
   onReadArticle,
-  onSaveArticle,
+  onMergeArticleAgentAnnotation,
   onSaveArticleAnnotation,
   onSaveArticleComment,
   onSaveArticleReadingProgress,
   onSaveArticleReaderChatState,
   onSaveSettings,
   onOpenDataSources,
-  onUpdateArticle,
 }: {
   agents: Agent[];
   articles: ArticleSummaryRecord[];
@@ -129,7 +128,10 @@ export function ReadingLibrary({
   onCancelArticleImport?: (requestId: string) => Promise<boolean> | boolean;
   onReadingModeChange?: (open: boolean) => void;
   onReadArticle: (articleId: string) => Promise<ArticleRecord | null>;
-  onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
+  onMergeArticleAgentAnnotation?: (
+    articleId: string,
+    annotation: Annotation,
+  ) => Promise<ArticleAgentAnnotationMergeResult | null> | ArticleAgentAnnotationMergeResult | null;
   onSaveArticleAnnotation?: (
     articleId: string,
     annotation: Annotation,
@@ -148,7 +150,6 @@ export function ReadingLibrary({
   onSaveArticleReaderChatState?: (articleId: string, readerChatState?: ReaderChatState) => unknown;
   onSaveSettings?: (settings: AppSettings) => Promise<void> | void;
   onOpenDataSources?: () => void;
-  onUpdateArticle: (articleId: string, update: ArticleUpdater) => Promise<void> | void;
 }) {
   const { t } = useTranslation();
   const navigation = useReadingLibraryNavigation({
@@ -398,11 +399,6 @@ export function ReadingLibrary({
     }
   }
 
-  async function saveSelectedArticle(article: ArticleRecord) {
-    navigation.actions.replaceArticle(article);
-    await onSaveArticle(article);
-  }
-
   async function saveSelectedArticleReadingProgress(
     articleId: string,
     progress: ArticleReadingProgress,
@@ -429,16 +425,6 @@ export function ReadingLibrary({
       }));
     }
     await onSaveArticleReaderChatState?.(articleId, readerChatState);
-  }
-
-  async function updateSelectedArticle(articleId: string, update: ArticleUpdater) {
-    await onUpdateArticle(articleId, (article) => {
-      const nextArticle = update(article);
-      if (nextArticle && navigation.actions.isCurrentArticle(articleId)) {
-        navigation.actions.replaceArticle(nextArticle);
-      }
-      return nextArticle;
-    });
   }
 
   async function deleteSelectedArticleAnnotation(articleId: string, annotationId: string) {
@@ -584,12 +570,11 @@ export function ReadingLibrary({
                 onDeleteArticleComment={onDeleteArticleComment}
                 onOpenAnnotationDiscussion={onOpenArticleDiscussion}
                 onOpenAnnotation={navigation.actions.selectAnnotation}
-                onSaveArticle={saveSelectedArticle}
+                onMergeArticleAgentAnnotation={onMergeArticleAgentAnnotation}
                 onSaveArticleAnnotation={onSaveArticleAnnotation}
                 onSaveArticleComment={onSaveArticleComment}
                 onSaveArticleReadingProgress={saveSelectedArticleReadingProgress}
                 onSaveArticleReaderChatState={saveSelectedArticleReaderChatState}
-                onUpdateArticle={updateSelectedArticle}
               />
             ) : null}
           </div>

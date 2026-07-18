@@ -111,7 +111,6 @@ function HookProbe({
   onOpenAnnotation,
   onSaveArticleAnnotation,
   onSaveArticleComment,
-  onSaveArticle = vi.fn(),
   onAnnotationsApplied,
   onAnnotationsSaved,
 }: {
@@ -132,7 +131,6 @@ function HookProbe({
   onOpenAnnotation?: (annotationId: string) => void;
   onSaveArticleAnnotation?: Parameters<typeof useSourceAnnotations>[0]['onSaveArticleAnnotation'];
   onSaveArticleComment?: Parameters<typeof useSourceAnnotations>[0]['onSaveArticleComment'];
-  onSaveArticle?: (article: ArticleRecord) => Promise<void> | void;
   onAnnotationsApplied?: Parameters<typeof useSourceAnnotations>[0]['onAnnotationsApplied'];
   onAnnotationsSaved?: Parameters<typeof useSourceAnnotations>[0]['onAnnotationsSaved'];
 }) {
@@ -148,7 +146,6 @@ function HookProbe({
     onOpenAnnotation,
     onSaveArticleAnnotation,
     onSaveArticleComment,
-    onSaveArticle,
     onAnnotationsApplied,
     onAnnotationsSaved,
     userProfile,
@@ -169,12 +166,12 @@ function HookProbe({
 }
 
 describe('useSourceAnnotations', () => {
-  it('saves and applies sorted annotations through the shared refs', async () => {
+  it('saves and applies sorted annotations through the granular path', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-05-16T12:00:00.000Z'));
 
     let api: SourceAnnotationsApi | null = null;
-    const onSaveArticle = vi.fn();
+    const onSaveArticleAnnotation = vi.fn();
     const onAnnotationsApplied = vi.fn();
     const onAnnotationsSaved = vi.fn();
     const later = annotation('later', {
@@ -190,22 +187,21 @@ describe('useSourceAnnotations', () => {
         onApi={(nextApi) => {
           api = nextApi;
         }}
-        onSaveArticle={onSaveArticle}
+        onSaveArticleAnnotation={onSaveArticleAnnotation}
         onAnnotationsApplied={onAnnotationsApplied}
         onAnnotationsSaved={onAnnotationsSaved}
       />,
     );
 
     await act(async () => {
-      await api?.saveAnnotations([later, earlier]);
+      await api?.saveAnnotation(later);
+      await api?.saveAnnotation(earlier);
     });
 
     expect(screen.getByTestId('annotations').textContent).toBe('earlier,later');
-    expect(onSaveArticle).toHaveBeenCalledWith(
-      expect.objectContaining({ annotations: [earlier, later] }),
-    );
+    expect(onSaveArticleAnnotation).toHaveBeenCalledTimes(2);
     expect(onAnnotationsSaved).toHaveBeenCalledWith(
-      expect.objectContaining({ previousAnnotations: [], nextAnnotations: [earlier, later] }),
+      expect.objectContaining({ previousAnnotations: [later], nextAnnotations: [earlier, later] }),
     );
 
     act(() => {
@@ -213,7 +209,7 @@ describe('useSourceAnnotations', () => {
     });
 
     expect(screen.getByTestId('annotations').textContent).toBe('later');
-    expect(onSaveArticle).toHaveBeenCalledTimes(1);
+    expect(onSaveArticleAnnotation).toHaveBeenCalledTimes(2);
     expect(onAnnotationsApplied).toHaveBeenCalledWith(
       expect.objectContaining({ previousAnnotations: [earlier, later], nextAnnotations: [later] }),
     );
@@ -223,7 +219,7 @@ describe('useSourceAnnotations', () => {
     let api: SourceAnnotationsApi | null = null;
     const onCommentSaved = vi.fn();
     const onOpenAnnotation = vi.fn();
-    const onSaveArticle = vi.fn();
+    const onSaveArticleComment = vi.fn();
     const question = annotation('question_1', {
       annotationType: 'question',
       comments: [comment()],
@@ -238,7 +234,7 @@ describe('useSourceAnnotations', () => {
         }}
         onCommentSaved={onCommentSaved}
         onOpenAnnotation={onOpenAnnotation}
-        onSaveArticle={onSaveArticle}
+        onSaveArticleComment={onSaveArticleComment}
       />,
     );
 
@@ -246,9 +242,12 @@ describe('useSourceAnnotations', () => {
       await api?.addComment('question_1', '回答 @lin');
     });
 
-    const savedArticle = onSaveArticle.mock.calls[0][0] as ArticleRecord;
-    const savedAnnotation = savedArticle.annotations[0];
-    expect(savedAnnotation.comments.at(-1)?.content).toBe('回答 @lin');
+    expect(onSaveArticleComment).toHaveBeenCalledWith(
+      'article_1',
+      'question_1',
+      expect.objectContaining({ content: '回答 @lin' }),
+      expect.any(String),
+    );
     expect(onOpenAnnotation).toHaveBeenCalledWith('question_1');
     expect(onCommentSaved).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -261,7 +260,6 @@ describe('useSourceAnnotations', () => {
 
   it('saves one changed annotation through the single annotation path', async () => {
     let api: SourceAnnotationsApi | null = null;
-    const onSaveArticle = vi.fn();
     const onSaveArticleAnnotation = vi.fn();
     const target = annotation('question_1');
 
@@ -271,7 +269,6 @@ describe('useSourceAnnotations', () => {
         onApi={(nextApi) => {
           api = nextApi;
         }}
-        onSaveArticle={onSaveArticle}
         onSaveArticleAnnotation={onSaveArticleAnnotation}
       />,
     );
@@ -285,15 +282,11 @@ describe('useSourceAnnotations', () => {
       expect.objectContaining({ id: 'question_1' }),
       expect.any(String),
     );
-    expect(onSaveArticle).not.toHaveBeenCalled();
     expect(screen.getByTestId('annotations').textContent).toBe('question_1');
   });
 
-  it('keeps full annotation replacement explicit', async () => {
+  it('does not expose a full annotation replacement save path', () => {
     let api: SourceAnnotationsApi | null = null;
-    const onSaveArticle = vi.fn();
-    const onSaveArticleAnnotation = vi.fn();
-    const target = annotation('question_1');
 
     render(
       <HookProbe
@@ -301,23 +294,14 @@ describe('useSourceAnnotations', () => {
         onApi={(nextApi) => {
           api = nextApi;
         }}
-        onSaveArticle={onSaveArticle}
-        onSaveArticleAnnotation={onSaveArticleAnnotation}
       />,
     );
 
-    await act(async () => {
-      await api?.saveAnnotations([target]);
-    });
-
-    expect(onSaveArticle).toHaveBeenCalledWith(expect.objectContaining({ annotations: [target] }));
-    expect(onSaveArticleAnnotation).not.toHaveBeenCalled();
-    expect(screen.getByTestId('annotations').textContent).toBe('question_1');
+    expect(api).not.toHaveProperty('saveAnnotations');
   });
 
   it('saves newly added comments through the single comment path', async () => {
     let api: SourceAnnotationsApi | null = null;
-    const onSaveArticle = vi.fn();
     const onSaveArticleComment = vi.fn();
     const question = annotation('question_1');
 
@@ -327,7 +311,6 @@ describe('useSourceAnnotations', () => {
         onApi={(nextApi) => {
           api = nextApi;
         }}
-        onSaveArticle={onSaveArticle}
         onSaveArticleComment={onSaveArticleComment}
       />,
     );
@@ -342,7 +325,6 @@ describe('useSourceAnnotations', () => {
       expect.objectContaining({ content: '单条评论' }),
       expect.any(String),
     );
-    expect(onSaveArticle).not.toHaveBeenCalled();
     expect(screen.getByTestId('comment-count').textContent).toBe('1');
   });
 
@@ -350,7 +332,6 @@ describe('useSourceAnnotations', () => {
     let api: SourceAnnotationsApi | null = null;
     const onBeforeDeleteAnnotation = vi.fn();
     const onDeleteArticleAnnotation = vi.fn();
-    const onSaveArticle = vi.fn();
     const target = annotation('question_1', {
       comments: [comment({ id: 'comment_1' })],
     });
@@ -363,7 +344,6 @@ describe('useSourceAnnotations', () => {
         }}
         onBeforeDeleteAnnotation={onBeforeDeleteAnnotation}
         onDeleteArticleAnnotation={onDeleteArticleAnnotation}
-        onSaveArticle={onSaveArticle}
       />,
     );
 
@@ -373,7 +353,6 @@ describe('useSourceAnnotations', () => {
 
     expect(onBeforeDeleteAnnotation).toHaveBeenCalledWith('question_1');
     expect(onDeleteArticleAnnotation).toHaveBeenCalledWith('article_1', 'question_1');
-    expect(onSaveArticle).not.toHaveBeenCalled();
     expect(screen.getByTestId('annotations').textContent).toBe('');
   });
 
@@ -381,7 +360,6 @@ describe('useSourceAnnotations', () => {
     let api: SourceAnnotationsApi | null = null;
     const onDeleteArticleComment = vi.fn();
     const onOpenAnnotation = vi.fn();
-    const onSaveArticle = vi.fn();
     const target = annotation('question_1', {
       comments: [
         comment({ id: 'thought_1', content: '第一条想法' }),
@@ -398,7 +376,6 @@ describe('useSourceAnnotations', () => {
         }}
         onDeleteArticleComment={onDeleteArticleComment}
         onOpenAnnotation={onOpenAnnotation}
-        onSaveArticle={onSaveArticle}
       />,
     );
 
@@ -407,7 +384,6 @@ describe('useSourceAnnotations', () => {
     });
 
     expect(onDeleteArticleComment).toHaveBeenCalledWith('article_1', 'question_1', 'thought_1');
-    expect(onSaveArticle).not.toHaveBeenCalled();
     expect(screen.getByTestId('annotations').textContent).toBe('question_1');
     expect(onOpenAnnotation).toHaveBeenCalledWith('question_1');
   });

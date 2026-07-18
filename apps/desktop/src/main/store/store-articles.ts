@@ -15,6 +15,7 @@ import {
   deleteArticleRowsWithMemoryLifecycle,
   deleteCommentRowsWithMemoryLifecycle,
   findArticleByIdentityRows,
+  mergeAgentAnnotationRows,
   readArticleCoverRows,
   readArticleLibraryListRows,
   readArticleRows,
@@ -22,6 +23,7 @@ import {
   readArticleStatsSummaryRows,
   readArticleSummaryRows,
   saveArticleReaderChatStateRows,
+  saveAnnotationDistillationRows,
   saveArticleReadingProgressRows,
   saveArticleRows,
   touchArticleRows,
@@ -141,6 +143,22 @@ export async function saveArticleAnnotation(input: {
   updatedAt?: string;
 }) {
   return upsertAnnotationRows(getDatabase(), input, getReadingMemorySqliteExecutor());
+}
+
+export async function saveArticleAnnotationDistillation(input: {
+  articleId: string;
+  annotationId: string;
+  distillation: Annotation['distillation'];
+  updatedAt?: string;
+}) {
+  return saveAnnotationDistillationRows(getDatabase(), input);
+}
+
+export async function mergeArticleAgentAnnotation(input: {
+  articleId: string;
+  annotation: Annotation;
+}) {
+  return mergeAgentAnnotationRows(getDatabase(), input, getReadingMemorySqliteExecutor());
 }
 
 export async function saveArticleComment(input: {

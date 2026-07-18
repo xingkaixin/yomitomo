@@ -1,6 +1,9 @@
 import { eq } from 'drizzle-orm';
 import type { Annotation, ArticleUpsertPatch, Comment } from '@yomitomo/shared';
-import { readingMemoryEntriesFromAnnotationThread } from '@yomitomo/core';
+import {
+  mergeAgentAnnotationAsThought,
+  readingMemoryEntriesFromAnnotationThread,
+} from '@yomitomo/core';
 import * as schema from '../db/schema';
 import { getSqliteExecutor, type StoreDatabase, type StoreExecutor } from '../store/store-db';
 import {
@@ -55,6 +58,58 @@ export function upsertCommentRows(
   syncStoredAnnotationMemoryEntries(database, input.articleId, input.annotationId, executor);
   const article = readArticleSummaryRows(database, input.articleId);
   return article ? buildArticleUpsertPatch(article) : null;
+}
+
+export function saveAnnotationDistillationRows(
+  database: StoreDatabase,
+  input: {
+    articleId: string;
+    annotationId: string;
+    distillation: Annotation['distillation'];
+    updatedAt?: string;
+  },
+): ArticleUpsertPatch | null {
+  if (readAnnotationArticleId(database, input.annotationId) !== input.articleId) return null;
+
+  const updatedAt = input.updatedAt || input.distillation?.updatedAt || new Date().toISOString();
+  database.transaction((tx) => {
+    tx.update(schema.annotations)
+      .set({
+        distillationStatus: input.distillation?.status ?? null,
+        distillationContent: input.distillation?.content ?? null,
+        distillationPublishedAt: input.distillation?.publishedAt ?? null,
+        distillationUpdatedAt: input.distillation?.updatedAt ?? null,
+        distillationReviewSessions: input.distillation?.reviewSessions ?? null,
+        updatedAt,
+      })
+      .where(eq(schema.annotations.id, input.annotationId))
+      .run();
+    touchArticleRows(tx, input.articleId, updatedAt);
+  });
+  const article = readArticleSummaryRows(database, input.articleId);
+  return article ? buildArticleUpsertPatch(article) : null;
+}
+
+export function mergeAgentAnnotationRows(
+  database: StoreDatabase,
+  input: { articleId: string; annotation: Annotation },
+  executor?: ReadingMemorySqliteExecutor,
+) {
+  const annotations = readArticleAnnotations(database, input.articleId);
+  const result = mergeAgentAnnotationAsThought(annotations, input.annotation);
+  if (result.annotations === annotations) {
+    const article = readArticleSummaryRows(database, input.articleId);
+    return article ? { activeId: result.activeId, patch: buildArticleUpsertPatch(article) } : null;
+  }
+
+  const annotation = result.annotations.find((item) => item.id === result.activeId);
+  if (!annotation) return null;
+  const patch = upsertAnnotationRows(
+    database,
+    { articleId: input.articleId, annotation, updatedAt: annotation.updatedAt },
+    executor,
+  );
+  return patch ? { activeId: result.activeId, patch } : null;
 }
 
 function upsertAnnotationRow(database: StoreExecutor, articleId: string, annotation: Annotation) {
