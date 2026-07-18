@@ -21,11 +21,15 @@ vi.mock('@yomitomo/shared', async (importOriginal) => {
   };
 });
 
-vi.mock('@yomitomo/core', () => ({
-  annotationToPublicAgent: mocks.annotationToPublicAgent,
-  rangeFromOffsets: mocks.rangeFromOffsets,
-  rangeHighlightBoxes: mocks.rangeHighlightBoxes,
-}));
+vi.mock('@yomitomo/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@yomitomo/core')>();
+  return {
+    ...actual,
+    annotationToPublicAgent: mocks.annotationToPublicAgent,
+    rangeFromOffsets: mocks.rangeFromOffsets,
+    rangeHighlightBoxes: mocks.rangeHighlightBoxes,
+  };
+});
 
 vi.mock('../reader-animation', () => ({
   animateTheaterHighlight: mocks.animateTheaterHighlight,
