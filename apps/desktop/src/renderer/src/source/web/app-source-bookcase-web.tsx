@@ -1,16 +1,10 @@
 import type React from 'react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type {
-  Annotation,
-  ArticleReadingProgress,
-  ArticleTranslation,
-  ReaderQuestionContext,
-} from '@yomitomo/shared';
+import type { Annotation, ArticleReadingProgress, ReaderQuestionContext } from '@yomitomo/shared';
 import { createTextAnchor, resolveTextAnchor } from '@yomitomo/shared';
 import {
   annotationIdsAtHighlightPoint,
-  articleHtmlWithBilingualTranslation,
   createTranslationTextAnchor,
   createEpubTextAnchor,
   findCurrentTocTarget,
@@ -46,7 +40,6 @@ import { useAgentAnnotationQueue } from '@yomitomo/reader-ui/use-agent-annotatio
 import { OpenArticleButton } from '../../shell/app-ui';
 import { articleIdentityLine } from '../../shell/app-utils';
 import { appToast } from '../../shell/app-toast';
-import { assistantRuntimeErrorMessage } from '../../shell/app-assistant-runtime-progress';
 import { recordRendererPerformanceTiming } from '../../shell/app-renderer-performance';
 import type { WebSourceBookcaseProps } from '../bookcase/app-source-bookcase';
 import { isContinuousTextSelectionMouseEvent } from '../bookcase/source-reader-selection-events';
@@ -59,15 +52,8 @@ import {
   sourceReaderTocStyles,
   webAnnotationNavigationState,
 } from './app-source-bookcase-web-utils';
-import { useWebTranslationProgressToast } from './use-web-translation-progress-toast';
-import {
-  ReaderTranslationConfirmDialog,
-  ReaderTranslationToolbarButton,
-  type TranslationConfirmAction,
-} from '../bookcase/reader-translation-controls';
 import {
   describeAnchorForDebug,
-  describeArticleTranslationDom,
   describeHighlightBoxesForDebug,
   describePointerForDebug,
   describeRangeForDebug,
@@ -114,6 +100,7 @@ import {
   selectionAdjustmentAdjustedOffsets,
   selectionAdjustmentDraggingHandle,
 } from '../bookcase/selection-adjustment';
+import { useWebBilingualTranslation } from './use-web-bilingual-translation';
 
 const WEB_SELECTION_DRAG_ANNOTATION_ID = '__selection_drag__';
 const WEB_HIGHLIGHT_HIT_PADDING = 8;
@@ -155,19 +142,10 @@ export function WebSourceBookcase({
   const articleRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const railRef = useRef<HTMLElement | null>(null);
-  const articleHtmlRenderRef = useRef<ArticleHtmlRenderState>({
-    articleId: '',
-    frozen: false,
-    html: '',
-    pendingHtml: null,
-  });
-  const articleHtmlRenderFlushTimerRef = useRef<number | null>(null);
-  const articleSelectionGestureActiveRef = useRef(false);
   const articleSelectionGestureRef = useRef<WebSelectionGesturePoint | null>(null);
   const articleSelectionGestureDragPointRef = useRef<WebSelectionGestureClientPoint | null>(null);
   const articleSelectionAdjustmentRef = useRef<WebSelectionAdjustment | null>(null);
   const suppressArticleSelectionMouseUpRef = useRef(false);
-  const deferredArticleTranslationRef = useRef<ArticleTranslation | null>(null);
   const restoredWebProgressArticleRef = useRef<string | null>(null);
   const noteRefs = useRef(new Map<string, HTMLElement>());
   const { markAnnotationCreated, newAnnotationIds } = useRecentAnnotationFeedback(
@@ -232,64 +210,23 @@ export function WebSourceBookcase({
   const [articleSearchText, setArticleSearchText] = useState('');
   const [searchBoxes, setSearchBoxes] = useState<HighlightBox[]>([]);
   const clearSearchBoxes = useCallback(() => setSearchBoxes([]), []);
-  const [translation, setTranslation] = useState<ArticleTranslation | null>(null);
-  const [translationVisible, setTranslationVisible] = useState(false);
-  const [translationBusy, setTranslationBusy] = useState(false);
-  const [translationMenuOpen, setTranslationMenuOpen] = useState(false);
-  const [translationConfirm, setTranslationConfirm] = useState<TranslationConfirmAction | null>(
-    null,
-  );
-  const [, forceArticleHtmlRender] = useState(0);
-  const [translationSuccessBlockIds, setTranslationSuccessBlockIds] = useState<Set<string>>(
-    () => new Set(),
-  );
-  const translationSegmentStatusRef = useRef(
-    new Map<string, ArticleTranslation['segments'][number]['status']>(),
-  );
-  const translationSuccessTimerRef = useRef(new Map<string, number>());
-  const translationSelectionToastAtRef = useRef(0);
   const onFocusedAnnotationRef = useRef(onFocusedAnnotation);
   const webFocusBoxCountRef = useRef(0);
   const annotationRailDebugLastLogRef = useRef(0);
   const scrollToAnnotationRef = useRef<(annotationId: string) => boolean>(() => false);
-  const bilingualTranslationTargetLanguage = settings?.bilingualTranslationTargetLanguage;
-  const bilingualTranslationStyle = settings?.bilingualTranslationStyle || 'dashedLine';
-  const translationInProgress = translationBusy || translation?.status === 'translating';
-  const translationSelectionDisabled = translationVisible && translationInProgress;
-  const translationAnnotationCount = useMemo(() => {
-    if (!translation) return 0;
-    return translationAnnotationsForBlocks(annotations, currentTranslationBlockIds()).length;
-  }, [annotations, translation]);
-  const translationProgressToast = useWebTranslationProgressToast({
-    onRevealFirstFailedTranslationSegment: revealFirstFailedTranslationSegment,
-    t,
-  });
-  const renderedArticleTranslation = translation?.articleId === article.id ? translation : null;
-  const renderedTranslationSuccessBlockIds =
-    translation?.status === 'translating'
-      ? emptyTranslationSuccessBlockIds
-      : translationSuccessBlockIds;
   const contentHtml = useMemo(() => (article ? sourceArticleBodyHtml(article) : ''), [article]);
-  const computedTranslatedContentHtml = useMemo(() => {
-    if (!translationVisible || !renderedArticleTranslation) return contentHtml;
-    return articleHtmlWithBilingualTranslation(document, contentHtml, renderedArticleTranslation, {
-      retryLabel: t('source.retryTranslationSegment'),
-      style: bilingualTranslationStyle,
-      successBlockIds: renderedTranslationSuccessBlockIds,
-    });
-  }, [
-    bilingualTranslationStyle,
+  const bilingualTranslation = useWebBilingualTranslation({
+    annotations,
+    article,
+    articleRef,
     contentHtml,
-    renderedArticleTranslation,
-    renderedTranslationSuccessBlockIds,
-    t,
-    translationVisible,
-  ]);
-  const translatedContentHtml = articleHtmlForRender(
-    articleHtmlRenderRef.current,
-    article.id,
-    computedTranslatedContentHtml,
-  );
+    deleteAnnotation,
+    scrollRef,
+    style: settings?.bilingualTranslationStyle || 'dashedLine',
+    targetLanguage: settings?.bilingualTranslationTargetLanguage,
+  });
+  const translatedContentHtml = bilingualTranslation.renderedHtml;
+  const translationSelectionDisabled = bilingualTranslation.selection.isDisabled;
   const searchNavigation = useReaderSearchNavigation(articleSearchText, {
     onClose: clearSearchBoxes,
   });
@@ -440,88 +377,12 @@ export function WebSourceBookcase({
     setStatusMessage('');
     searchNavigation.resetSearch();
     setArticleSearchText('');
-    setTranslation(null);
-    setTranslationVisible(false);
-    setTranslationMenuOpen(false);
-    setTranslationConfirm(null);
-    deferredArticleTranslationRef.current = null;
-    articleSelectionGestureActiveRef.current = false;
     articleSelectionGestureRef.current = null;
     articleSelectionGestureDragPointRef.current = null;
     suppressArticleSelectionMouseUpRef.current = false;
-    clearTranslationSuccessFeedback();
-    translationSegmentStatusRef.current.clear();
     setReadingProgress(normalizeSavedWebProgress(article.readingProgress) ?? 0);
     restoredWebProgressArticleRef.current = null;
   }, [article?.id, searchNavigation.resetSearch]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (article.sourceType !== 'web') return;
-    void window.yomitomoDesktop
-      .getCurrentArticleTranslation({
-        articleId: article.id,
-        targetLanguage: bilingualTranslationTargetLanguage,
-      })
-      .then((current) => {
-        if (cancelled) return;
-        if (current) {
-          receiveArticleTranslationUpdate(current, 'initial-load');
-        } else {
-          setTranslation(null);
-          setTranslationVisible(false);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setTranslation(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [article.id, article.sourceType, bilingualTranslationTargetLanguage]);
-
-  useEffect(() => {
-    const subscribe = (window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop>)
-      .onArticleTranslationUpdated;
-    if (!subscribe) return;
-    return subscribe((nextTranslation) => {
-      if (nextTranslation.articleId !== article.id) return;
-      receiveArticleTranslationUpdate(nextTranslation, 'subscription');
-    });
-  }, [article.id]);
-
-  useEffect(() => {
-    return () => {
-      if (articleHtmlRenderFlushTimerRef.current) {
-        window.clearTimeout(articleHtmlRenderFlushTimerRef.current);
-        articleHtmlRenderFlushTimerRef.current = null;
-      }
-      clearTranslationSuccessFeedback();
-      translationProgressToast.dismiss();
-    };
-  }, [translationProgressToast]);
-
-  useEffect(() => {
-    const previousStatuses = translationSegmentStatusRef.current;
-    const nextStatuses = new Map<string, ArticleTranslation['segments'][number]['status']>();
-
-    for (const segment of translation?.segments || []) {
-      nextStatuses.set(segment.sourceBlockId, segment.status);
-      const previousStatus = previousStatuses.get(segment.sourceBlockId);
-      if (previousStatus === 'translating' && segment.status === 'ready') {
-        showTranslationSuccessFeedback(segment.sourceBlockId);
-      }
-      if (segment.status !== 'ready') {
-        clearTranslationSuccessFeedback(segment.sourceBlockId);
-      }
-    }
-
-    for (const blockId of previousStatuses.keys()) {
-      if (!nextStatuses.has(blockId)) clearTranslationSuccessFeedback(blockId);
-    }
-
-    translationSegmentStatusRef.current = nextStatuses;
-  }, [translation]);
 
   useEffect(() => {
     if (!searchNavigation.open) {
@@ -1110,126 +971,14 @@ export function WebSourceBookcase({
     return {
       articleId: article.id,
       sourceType: article.sourceType || 'web',
-      translationVisible,
-      hasTranslation: Boolean(translation),
-      translationStatus: translation?.status ?? null,
-      translationSegmentCount: translation?.segments.length ?? 0,
+      ...bilingualTranslation.debugContext(),
       composerOpen: Boolean(composer),
       selectionActionOpen: Boolean(selectionAction),
       temporaryBoxCount: temporaryBoxes.length,
-      articleHtmlFrozen: articleHtmlRenderRef.current.frozen,
-      pendingArticleHtml: Boolean(articleHtmlRenderRef.current.pendingHtml),
-      translationSelectionDisabled,
     };
   }
 
   selectionDebugContextRef.current = selectionDebugContext();
-
-  function freezeArticleHtmlRendering(reason: string) {
-    const renderState = articleHtmlRenderRef.current;
-    articleSelectionGestureActiveRef.current = true;
-    if (renderState.frozen) return;
-    renderState.frozen = true;
-    if (articleHtmlRenderFlushTimerRef.current) {
-      window.clearTimeout(articleHtmlRenderFlushTimerRef.current);
-      articleHtmlRenderFlushTimerRef.current = null;
-    }
-    logReaderSelectionDebug('article-html:freeze', {
-      ...selectionDebugContextRef.current,
-      reason,
-      htmlChars: renderState.html.length,
-    });
-  }
-
-  function scheduleArticleHtmlRenderFlush(reason: string) {
-    if (articleHtmlRenderFlushTimerRef.current) {
-      window.clearTimeout(articleHtmlRenderFlushTimerRef.current);
-    }
-    articleHtmlRenderFlushTimerRef.current = window.setTimeout(() => {
-      articleHtmlRenderFlushTimerRef.current = null;
-      flushArticleHtmlRendering(reason);
-      flushDeferredArticleTranslation(reason);
-    }, 0);
-  }
-
-  function flushArticleHtmlRendering(reason: string) {
-    const renderState = articleHtmlRenderRef.current;
-    const pendingHtml = renderState.pendingHtml;
-    renderState.frozen = false;
-    renderState.pendingHtml = null;
-    if (!pendingHtml || pendingHtml === renderState.html) return;
-
-    renderState.html = pendingHtml;
-    logReaderSelectionDebug('article-html:flush', {
-      ...selectionDebugContextRef.current,
-      reason,
-      htmlChars: pendingHtml.length,
-    });
-    forceArticleHtmlRender((version) => version + 1);
-  }
-
-  function receiveArticleTranslationUpdate(nextTranslation: ArticleTranslation, reason: string) {
-    if (nextTranslation.articleId !== article.id) return;
-    translationProgressToast.update(nextTranslation);
-    if (shouldDeferArticleTranslationUpdate()) {
-      deferredArticleTranslationRef.current = nextTranslation;
-      logReaderSelectionDebug('translation-update:deferred', {
-        ...selectionDebugContextRef.current,
-        reason,
-        latestUpdatedAt: nextTranslation.updatedAt,
-        latestStatus: nextTranslation.status,
-        latestReadySegmentCount: nextTranslation.segments.filter(
-          (segment) => segment.status === 'ready',
-        ).length,
-      });
-      return;
-    }
-
-    setTranslation(nextTranslation);
-    setTranslationVisible(true);
-  }
-
-  function flushDeferredArticleTranslation(reason: string) {
-    articleSelectionGestureActiveRef.current = false;
-    const pendingTranslation = deferredArticleTranslationRef.current;
-    deferredArticleTranslationRef.current = null;
-    if (!pendingTranslation) return;
-
-    logReaderSelectionDebug('translation-update:flushed', {
-      ...selectionDebugContextRef.current,
-      reason,
-      latestUpdatedAt: pendingTranslation.updatedAt,
-      latestStatus: pendingTranslation.status,
-      latestReadySegmentCount: pendingTranslation.segments.filter(
-        (segment) => segment.status === 'ready',
-      ).length,
-    });
-    setTranslation(pendingTranslation);
-    setTranslationVisible(true);
-  }
-
-  function shouldDeferArticleTranslationUpdate() {
-    if (articleSelectionGestureActiveRef.current) return true;
-    const articleElement = articleRef.current;
-    if (!articleElement) return false;
-    const nativeSelection = getArticleSelection(articleElement);
-    if (!nativeSelection || nativeSelection.rangeCount === 0 || nativeSelection.isCollapsed) {
-      return false;
-    }
-    return isRangeInsideArticle(nativeSelection.getRangeAt(0), articleElement);
-  }
-
-  useEffect(() => {
-    const articleElement = articleRef.current;
-    if (!articleElement) return;
-    logReaderSelectionDebug('article-dom:rendered', {
-      ...selectionDebugContextRef.current,
-      contentHtmlChars: translatedContentHtml.length,
-      renderedTranslationStatus: renderedArticleTranslation?.status ?? null,
-      renderedTranslationSegmentCount: renderedArticleTranslation?.segments.length ?? 0,
-      dom: describeArticleTranslationDom(articleElement),
-    });
-  }, [renderedArticleTranslation, translatedContentHtml]);
 
   function logCurrentSelectionDebug(event: string, details: Record<string, unknown> = {}) {
     const articleElement = articleRef.current;
@@ -1350,7 +1099,7 @@ export function WebSourceBookcase({
       const shouldFlush = event.type === 'pointerup' || event.type === 'pointercancel';
       if (targetNode && articleElement.contains(targetNode)) {
         if (event.type === 'pointerdown') {
-          freezeArticleHtmlRendering('pointerdown');
+          bilingualTranslation.selection.start('pointerdown');
           articleSelectionGestureRef.current = webSelectionGesturePointFromClientPoint(
             articleElement,
             event.clientX,
@@ -1392,9 +1141,9 @@ export function WebSourceBookcase({
           articleSelectionGestureDragPointRef.current = null;
           clearArticleSelectionGesturePreview();
         }
-        if (shouldFlush) scheduleArticleHtmlRenderFlush(event.type);
+        if (shouldFlush) bilingualTranslation.selection.finish(event.type);
       } else if (shouldFlush) {
-        scheduleArticleHtmlRenderFlush(`${event.type}-outside-article`);
+        bilingualTranslation.selection.finish(`${event.type}-outside-article`);
         clearArticleSelectionGesturePreview();
       } else if (event.type === 'pointerdown') {
         articleSelectionGestureRef.current = null;
@@ -1420,7 +1169,7 @@ export function WebSourceBookcase({
       });
     };
 
-    const handleWindowBlur = () => scheduleArticleHtmlRenderFlush('window-blur');
+    const handleWindowBlur = () => bilingualTranslation.selection.finish('window-blur');
 
     logSelectionState('reader-mounted');
     ownerDocument.addEventListener('selectionchange', handleSelectionChange);
@@ -1528,7 +1277,7 @@ export function WebSourceBookcase({
       });
       articleSelection?.removeAllRanges();
       clearSelection();
-      showTranslationSelectionDisabledToast();
+      bilingualTranslation.selection.showDisabledToast();
       return;
     }
 
@@ -1632,7 +1381,7 @@ export function WebSourceBookcase({
     if (!translationSelectionDisabled || event.button !== 0) return;
     const target = event.target instanceof Element ? event.target : null;
     if (target?.closest(translationSelectionToastIgnoredSelector)) return;
-    showTranslationSelectionDisabledToast();
+    bilingualTranslation.selection.showDisabledToast();
     if (suppressedContinuousClick) return;
   }
 
@@ -1665,7 +1414,7 @@ export function WebSourceBookcase({
     if (translationAction) {
       event.preventDefault();
       const blockId = translationAction.getAttribute('data-reader-translation-block-id');
-      if (blockId) void requestBilingualTranslation({ sourceBlockIds: [blockId] });
+      if (blockId) bilingualTranslation.retryBlock(blockId);
       return;
     }
 
@@ -1726,145 +1475,6 @@ export function WebSourceBookcase({
       annotationIds,
     });
     return true;
-  }
-
-  function showTranslationSuccessFeedback(blockId: string) {
-    const previousTimer = translationSuccessTimerRef.current.get(blockId);
-    if (previousTimer) window.clearTimeout(previousTimer);
-    setTranslationSuccessBlockIds((current) => new Set(current).add(blockId));
-    const nextTimer = window.setTimeout(() => {
-      translationSuccessTimerRef.current.delete(blockId);
-      setTranslationSuccessBlockIds((current) => {
-        if (!current.has(blockId)) return current;
-        const next = new Set(current);
-        next.delete(blockId);
-        return next;
-      });
-    }, 2000);
-    translationSuccessTimerRef.current.set(blockId, nextTimer);
-  }
-
-  function clearTranslationSuccessFeedback(blockId?: string) {
-    if (blockId) {
-      const timer = translationSuccessTimerRef.current.get(blockId);
-      if (timer) window.clearTimeout(timer);
-      translationSuccessTimerRef.current.delete(blockId);
-      setTranslationSuccessBlockIds((current) => {
-        if (!current.has(blockId)) return current;
-        const next = new Set(current);
-        next.delete(blockId);
-        return next;
-      });
-      return;
-    }
-
-    for (const timer of translationSuccessTimerRef.current.values()) window.clearTimeout(timer);
-    translationSuccessTimerRef.current.clear();
-    setTranslationSuccessBlockIds((current) => (current.size === 0 ? current : new Set()));
-  }
-
-  function currentTranslationBlockIds() {
-    return new Set((translation?.segments || []).map((segment) => segment.sourceBlockId));
-  }
-
-  function showTranslationSelectionDisabledToast() {
-    const now = Date.now();
-    if (now - translationSelectionToastAtRef.current < translationSelectionToastThrottleMs) return;
-    translationSelectionToastAtRef.current = now;
-    appToast.warning(t('source.translationSelectionDisabledToast'), {
-      description: t('source.translationSelectionDisabledToastDescription'),
-    });
-  }
-
-  function revealFirstFailedTranslationSegment(nextTranslation: ArticleTranslation) {
-    const blockId = nextTranslation.segments.find(
-      (segment) => segment.status === 'failed',
-    )?.sourceBlockId;
-    if (!blockId) return;
-    setTranslationVisible(true);
-    window.requestAnimationFrame(() => scrollTranslationBlockIntoView(blockId));
-  }
-
-  function scrollTranslationBlockIntoView(blockId: string) {
-    const articleElement = articleRef.current;
-    const scrollElement = scrollRef.current;
-    if (!articleElement || !scrollElement) return;
-    const target = Array.from(
-      articleElement.querySelectorAll<HTMLElement>('[data-reader-translation-block-id]'),
-    ).find((element) => element.getAttribute('data-reader-translation-block-id') === blockId);
-    const source = Array.from(
-      articleElement.querySelectorAll<HTMLElement>('[data-reader-source-block-id]'),
-    ).find((element) => element.getAttribute('data-reader-source-block-id') === blockId);
-    const element = target || source;
-    if (!element) return;
-    scrollReaderSurfaceToRect(scrollElement, element.getBoundingClientRect(), 82);
-    if (target instanceof HTMLButtonElement) target.focus();
-  }
-
-  // 译文锚定在生成文本上，删除/重翻会让旧划线失效，连带删除受影响段的译文批注，
-  // 复用单条删除生命周期（讨论、已沉淀卡片、store patch 一并清理）。
-  async function deleteTranslationAnnotations(blockIds: Set<string>) {
-    const affected = translationAnnotationsForBlocks(annotationsRef.current, blockIds);
-    for (const annotation of affected) {
-      await deleteAnnotation(annotation.id);
-    }
-  }
-
-  async function requestBilingualTranslation(
-    input: {
-      force?: boolean;
-      sourceBlockIds?: string[];
-    } = {},
-  ) {
-    if (translationBusy) return;
-    if (!input.force && !input.sourceBlockIds?.length && translation && !translationVisible) {
-      setTranslationVisible(true);
-      return;
-    }
-    setTranslationVisible(true);
-    setTranslationBusy(true);
-    translationProgressToast.start();
-    const translationTask = (async () => {
-      const retranslatedBlockIds = input.force
-        ? currentTranslationBlockIds()
-        : input.sourceBlockIds?.length
-          ? new Set(input.sourceBlockIds)
-          : null;
-      if (retranslatedBlockIds) await deleteTranslationAnnotations(retranslatedBlockIds);
-      const nextTranslation = await window.yomitomoDesktop.translateArticle({
-        articleId: article.id,
-        force: input.force,
-        sourceBlockIds: input.sourceBlockIds,
-        targetLanguage: bilingualTranslationTargetLanguage,
-      });
-      receiveArticleTranslationUpdate(nextTranslation, 'request');
-      return nextTranslation;
-    })();
-    try {
-      translationProgressToast.finish(await translationTask);
-    } catch (error) {
-      translationProgressToast.fail(error);
-    } finally {
-      setTranslationBusy(false);
-    }
-  }
-
-  async function deleteBilingualTranslation() {
-    if (translationBusy) return;
-    try {
-      await deleteTranslationAnnotations(currentTranslationBlockIds());
-      await window.yomitomoDesktop.deleteCurrentArticleTranslation({
-        articleId: article.id,
-        targetLanguage: bilingualTranslationTargetLanguage,
-      });
-      deferredArticleTranslationRef.current = null;
-      translationProgressToast.dismiss();
-      setTranslation(null);
-      setTranslationVisible(false);
-      setTranslationMenuOpen(false);
-    } catch (error) {
-      appToast.error(assistantRuntimeErrorMessage(error, 'source.deleteTranslationFailed'));
-    }
   }
 
   async function createAnnotation(note: string) {
@@ -2097,22 +1707,7 @@ export function WebSourceBookcase({
       articleAction: <OpenArticleButton article={article} iconOnly />,
       controls: (
         <>
-          <ReaderTranslationToolbarButton
-            busy={translationInProgress}
-            hasTranslation={Boolean(translation)}
-            labels={{
-              deleteTranslation: t('source.deleteTranslation'),
-              hideTranslation: t('source.hideTranslation'),
-              retranslate: t('source.retranslateArticle'),
-              showTranslation: t('source.showTranslation'),
-              translate: t('source.translateArticle'),
-            }}
-            menuOpen={translationMenuOpen}
-            visible={translationVisible}
-            onConfirm={(action) => setTranslationConfirm(action)}
-            onMenuOpenChange={setTranslationMenuOpen}
-            onSetVisible={setTranslationVisible}
-          />
+          {bilingualTranslation.toolbar}
           <ReaderSettingsToolbarControls
             labels={{ articleWidth: labels.articleWidth, fontSize: labels.fontSize }}
             settings={readerSettings}
@@ -2135,39 +1730,8 @@ export function WebSourceBookcase({
     <section className="source-bookcase source-reader-shell">
       <style>{`${readerDesktopEmbeddedBundleStyles}\n${sourceReaderTocStyles}`}</style>
       <ReaderAppView {...readerAppViewProps} />
-      <ReaderTranslationConfirmDialog
-        action={translationConfirm}
-        annotationNotice={
-          translationConfirm && translationConfirm !== 'translate' && translationAnnotationCount > 0
-            ? t('source.translationAnnotationsRemovalNotice', { count: translationAnnotationCount })
-            : ''
-        }
-        labels={{
-          cancel: t('common.cancel'),
-          confirmDeleteTranslation: t('source.confirmDeleteTranslation'),
-          confirmDeleteTranslationDescription: t('source.confirmDeleteTranslationDescription'),
-          confirmDeleteTranslationTitle: t('source.confirmDeleteTranslationTitle'),
-          confirmRetranslate: t('source.confirmRetranslate'),
-          confirmRetranslateDescription: t('source.confirmRetranslateDescription'),
-          confirmRetranslateTitle: t('source.confirmRetranslateTitle'),
-          confirmTranslate: t('source.confirmTranslate'),
-          confirmTranslateDescription: t('source.confirmTranslateDescription'),
-          confirmTranslateTitle: t('source.confirmTranslateTitle'),
-        }}
-        onClose={() => setTranslationConfirm(null)}
-        onConfirm={async (action) => {
-          setTranslationConfirm(null);
-          if (action === 'delete') await deleteBilingualTranslation();
-          else await requestBilingualTranslation({ force: action === 'retranslate' });
-        }}
-      />
+      {bilingualTranslation.dialog}
     </section>
-  );
-}
-
-function translationAnnotationsForBlocks(annotations: Annotation[], blockIds: Set<string>) {
-  return annotations.filter(
-    (annotation) => annotation.anchor.segmentId && blockIds.has(annotation.anchor.segmentId),
   );
 }
 
@@ -2238,39 +1802,11 @@ function rangeIntersectsIgnoredSelector(range: Range, selector: string) {
 
 const translationSelectionToastIgnoredSelector =
   '[data-reader-translation-action], a[href], button, input, textarea, select, [role="button"]';
-const translationSelectionToastThrottleMs = 2000;
-const emptyTranslationSuccessBlockIds = new Set<string>();
-
-type ArticleHtmlRenderState = {
-  articleId: string;
-  frozen: boolean;
-  html: string;
-  pendingHtml: string | null;
-};
 
 type WebSelectionGestureClientPoint = {
   clientX: number;
   clientY: number;
 };
-
-function articleHtmlForRender(state: ArticleHtmlRenderState, articleId: string, nextHtml: string) {
-  if (state.articleId !== articleId) {
-    state.articleId = articleId;
-    state.frozen = false;
-    state.html = nextHtml;
-    state.pendingHtml = null;
-    return state.html;
-  }
-
-  if (state.frozen) {
-    if (state.html !== nextHtml) state.pendingHtml = nextHtml;
-    return state.html;
-  }
-
-  state.html = nextHtml;
-  state.pendingHtml = null;
-  return state.html;
-}
 
 function describeWebSelectionGestureRangeForDebug(gestureRange: WebSelectionGestureRange) {
   return {
