@@ -36,13 +36,7 @@ import { LibraryHome } from './app-reading-library-home';
 import { WeReadBookcase } from '../shell/app-weread-bookcase';
 import { appToast } from '../shell/app-toast';
 import type { ArticleImportResult } from './app-reading-library-imports';
-import {
-  articleAnnotationCount,
-  articleDistillationCount,
-  articleThoughtCount,
-  groupLibraryArticles,
-  type LibrarySort,
-} from './app-reading-library-utils';
+import { groupLibraryArticles, type LibrarySort } from './app-reading-library-utils';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 import type {
   AnnotationDiscussionWindowState,
@@ -52,7 +46,10 @@ import type {
 } from '../../../ipc-contract';
 import type { AppMenuCommandRequest } from '../../../app-menu-types';
 import { useReadingLibraryDistillationSync } from './use-reading-library-distillation-sync';
-import { useReadingLibraryNavigation } from './use-reading-library-navigation';
+import {
+  articleUpdateCanReplace,
+  useReadingLibraryNavigation,
+} from './use-reading-library-navigation';
 
 export { groupLibraryArticles };
 export type { LibrarySort };
@@ -170,6 +167,8 @@ export function ReadingLibrary({
     wereadBook: selectedWeReadBook,
   } = navigation.model;
   const selectedArticleId = selectedArticle?.id || null;
+  const openArticleTargetId = openArticleTarget?.articleId;
+  const openArticleTargetAnnotationId = openArticleTarget?.annotationId;
   const [wereadBooks, setWeReadBooks] = useState<WeReadBook[]>([]);
   const [wereadSettings, setWeReadSettings] = useState<WeReadSettings>({
     configured: false,
@@ -229,43 +228,29 @@ export function ReadingLibrary({
   }, [hasLocalArticleCatalog, navigation.actions, selectedArticleId, sortedArticles]);
 
   useEffect(() => {
-    if (!openArticleTarget) return;
-    const article =
-      sortedArticles.find((item) => item.id === openArticleTarget.articleId) ||
-      openArticleTarget.articleId;
+    if (!openArticleTargetId) return;
     void navigation.actions
-      .openArticle(article, openArticleTarget.annotationId)
+      .openArticle(openArticleTargetId, openArticleTargetAnnotationId)
       .then((openedArticle) => {
         if (openedArticle) onArticleOpened?.(openedArticle.id);
       });
-  }, [navigation.actions, onArticleOpened, openArticleTarget, sortedArticles]);
-
-  useEffect(() => {
-    if (!selectedArticle || selectedArticle.sourceType !== 'pdf') return;
-    let cancelled = false;
-    void onReadArticle(selectedArticle.id).then((fullArticle) => {
-      if (!cancelled && fullArticle) navigation.actions.replaceArticle(fullArticle);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [navigation.actions, onReadArticle, selectedArticle?.id, selectedArticle?.sourceType]);
+  }, [navigation.actions, onArticleOpened, openArticleTargetAnnotationId, openArticleTargetId]);
 
   useEffect(() => {
     if (!selectedArticleId || !selectedArticle) return;
     const summary = sortedArticles.find((article) => article.id === selectedArticleId);
     if (!summary) return;
-    if (!articleSummaryChanged(summary, selectedArticle)) return;
+    if (!articleUpdateCanReplace(selectedArticle, summary)) return;
     let cancelled = false;
     void onReadArticle(summary.id).then((fullArticle) => {
       if (cancelled || !fullArticle || !navigation.actions.isCurrentArticle(summary.id)) return;
-      distillationSync.synchronizeArticle(selectedArticle, fullArticle);
+      distillationSync.acceptExternalArticle(fullArticle);
     });
     return () => {
       cancelled = true;
     };
   }, [
-    distillationSync.synchronizeArticle,
+    distillationSync.acceptExternalArticle,
     navigation.actions,
     onReadArticle,
     selectedArticle,
@@ -783,41 +768,8 @@ export function AnnotationDiscussionCapsules({
   );
 }
 
-function articleSummaryChanged(summary: ArticleSummaryRecord, article: ArticleRecord) {
-  return (
-    summary.updatedAt !== article.updatedAt ||
-    articleAnnotationCount(summary) !== articleAnnotationCount(article) ||
-    articleThoughtCount(summary) !== articleThoughtCount(article) ||
-    articleAiCommentCount(summary) !== articleAiCommentCount(article) ||
-    articleDistillationCount(summary) !== articleDistillationCount(article)
-  );
-}
-
 function isImportMenuCommand(command: AppMenuCommandRequest['command']) {
   return command === 'import-web' || command === 'import-ebook' || command === 'import-pdf';
-}
-
-function articleAiCommentCount(article: ArticleSummaryRecord) {
-  return (
-    article.aiCommentCount ??
-    article.annotations.reduce(
-      (count, annotation) =>
-        count +
-        annotation.comments.filter((comment) => comment.author === 'ai').length +
-        annotationDistillationReviewAiMessageCount(annotation),
-      0,
-    )
-  );
-}
-
-function annotationDistillationReviewAiMessageCount(annotation: Annotation) {
-  return (
-    annotation.distillation?.reviewSessions?.reduce(
-      (count, session) =>
-        count + session.messages.filter((message) => message.author === 'ai').length,
-      0,
-    ) ?? 0
-  );
 }
 
 function weReadOpenErrorMessage(error: unknown) {

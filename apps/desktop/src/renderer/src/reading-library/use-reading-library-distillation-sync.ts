@@ -11,17 +11,15 @@ import {
   nextDistillationAnimationArticleUpdatedAt,
   type ReadingLibraryDistillationAnimation,
 } from './app-reading-library-distillation';
-import type { ReadingLibraryNavigation } from './use-reading-library-navigation';
+import {
+  articleUpdateCanReplace,
+  type ReadingLibraryNavigation,
+} from './use-reading-library-navigation';
 
 const DISTILLATION_SYNC_EVENT_GRACE_MS = 320;
 const DISTILLATION_MORPH_PREPARE_MS = 16;
 const DISTILLATION_MORPH_MS = 620;
 const DISTILLATION_UPDATE_MS = 850;
-
-type DeferredArticleSync = {
-  articleId: string;
-  article: ArticleRecord;
-};
 
 type DistillationSyncLifecycle =
   | { status: 'idle'; token: number }
@@ -30,13 +28,13 @@ type DistillationSyncLifecycle =
       token: number;
       event: AnnotationDistillationCommittedEvent;
       originArticleId: string | null;
-      deferredArticle: DeferredArticleSync | null;
+      pendingArticle: ArticleRecord | null;
     }
   | {
       status: 'waiting-for-focus';
       token: number;
       event: AnnotationDistillationCommittedEvent;
-      deferredArticle: DeferredArticleSync | null;
+      pendingArticle: ArticleRecord;
     }
   | {
       status: 'waiting-for-commit-event';
@@ -49,7 +47,7 @@ type DistillationSyncLifecycle =
       status: 'animating';
       token: number;
       event: AnnotationDistillationCommittedEvent;
-      deferredArticle: DeferredArticleSync | null;
+      pendingArticle: ArticleRecord;
       timer: number;
     };
 
@@ -74,11 +72,11 @@ export function useReadingLibraryDistillationSync(
     clearLifecycleTimer(lifecycle);
     lifecycleRef.current = { status: 'idle', token };
     setAnimation(null);
-    const deferredArticle = deferredArticleSync(lifecycle);
-    if (!deferredArticle) return;
+    const pendingArticle = pendingLifecycleArticle(lifecycle);
+    if (!pendingArticle) return;
     const { navigation } = contextRef.current;
-    if (navigation.actions.isCurrentArticle(deferredArticle.articleId)) {
-      navigation.actions.replaceArticle(deferredArticle.article);
+    if (navigation.actions.isCurrentArticle(pendingArticle.id)) {
+      navigation.actions.replaceArticle(pendingArticle);
     }
   }, []);
 
@@ -101,7 +99,7 @@ export function useReadingLibraryDistillationSync(
         token,
         event,
         originArticleId: navigation.model.article?.id || null,
-        deferredArticle: null,
+        pendingArticle: null,
       };
       setAnimation(null);
       recordRendererPerformanceTiming('reader_focus', {
@@ -133,25 +131,30 @@ export function useReadingLibraryDistillationSync(
         return;
       }
 
+      const pendingArticle = newerArticle(fullArticle, loadingLifecycle.pendingArticle);
       lifecycleRef.current = {
         status: 'waiting-for-focus',
         token,
         event,
-        deferredArticle: loadingLifecycle.deferredArticle,
+        pendingArticle,
       };
-      const updatedAt = reserveAnimationUpdatedAt(reservedUpdatedAtRef.current, fullArticle, event);
+      const updatedAt = reserveAnimationUpdatedAt(
+        reservedUpdatedAtRef.current,
+        pendingArticle,
+        event,
+      );
       contextRef.current.navigation.actions.focusArticle(
-        articleWithDistillationAnimationStart(fullArticle, event, updatedAt),
+        articleWithDistillationAnimationStart(pendingArticle, event, updatedAt),
         event.annotationId,
       );
       recordRendererPerformanceTiming('reader_focus', {
         source: 'library',
         phase: 'focus_set',
-        articleId: fullArticle.id,
+        articleId: pendingArticle.id,
         annotationId: event.annotationId,
         transition: event.transition,
-        articleSourceType: fullArticle.sourceType || 'web',
-        annotationExists: fullArticle.annotations.some(
+        articleSourceType: pendingArticle.sourceType || 'web',
+        annotationExists: pendingArticle.annotations.some(
           (annotation) => annotation.id === event.annotationId,
         ),
         elapsedMs: Number((performance.now() - startedAt).toFixed(2)),
@@ -238,47 +241,47 @@ export function useReadingLibraryDistillationSync(
     lifecycleRef.current = { ...lifecycle, status: 'animating', timer };
   }, [completeLifecycle]);
 
-  const synchronizeArticle = useCallback(
-    (previousArticle: ArticleRecord, nextArticle: ArticleRecord) => {
-      const { navigation } = contextRef.current;
-      if (!navigation.actions.isCurrentArticle(nextArticle.id)) return;
-      const lifecycle = lifecycleRef.current;
-      const blockedLifecycle = distillationSyncBlock(lifecycle, nextArticle.id);
-      if (blockedLifecycle) {
-        lifecycleRef.current = {
-          ...blockedLifecycle,
-          deferredArticle: { articleId: nextArticle.id, article: nextArticle },
-        };
-        return;
-      }
-
-      clearLifecycleTimer(lifecycle);
-      if (!articleDistillationStateChanged(previousArticle, nextArticle)) {
-        lifecycleRef.current = { status: 'idle', token: lifecycle.token + 1 };
-        navigation.actions.replaceArticle(nextArticle);
-        return;
-      }
-
-      const token = lifecycle.token + 1;
-      const timer = window.setTimeout(() => {
-        const current = lifecycleRef.current;
-        if (current.status !== 'waiting-for-commit-event' || current.token !== token) return;
-        lifecycleRef.current = { status: 'idle', token };
-        const currentNavigation = contextRef.current.navigation;
-        if (currentNavigation.actions.isCurrentArticle(nextArticle.id)) {
-          currentNavigation.actions.replaceArticle(nextArticle);
-        }
-      }, DISTILLATION_SYNC_EVENT_GRACE_MS);
+  const acceptExternalArticle = useCallback((nextArticle: ArticleRecord) => {
+    const { navigation } = contextRef.current;
+    const currentArticle = navigation.actions.getCurrentArticle();
+    if (!currentArticle || currentArticle.id !== nextArticle.id) return;
+    const lifecycle = lifecycleRef.current;
+    const baselineArticle = pendingLifecycleArticle(lifecycle) ?? currentArticle;
+    if (!articleUpdateCanReplace(baselineArticle, nextArticle)) return;
+    const blockedLifecycle = distillationSyncBlock(lifecycle, nextArticle.id);
+    if (blockedLifecycle) {
       lifecycleRef.current = {
-        status: 'waiting-for-commit-event',
-        token,
-        articleId: nextArticle.id,
-        article: nextArticle,
-        timer,
+        ...blockedLifecycle,
+        pendingArticle: nextArticle,
       };
-    },
-    [],
-  );
+      return;
+    }
+
+    clearLifecycleTimer(lifecycle);
+    if (!articleDistillationStateChanged(currentArticle, nextArticle)) {
+      lifecycleRef.current = { status: 'idle', token: lifecycle.token + 1 };
+      navigation.actions.replaceArticle(nextArticle);
+      return;
+    }
+
+    const token = lifecycle.token + 1;
+    const timer = window.setTimeout(() => {
+      const current = lifecycleRef.current;
+      if (current.status !== 'waiting-for-commit-event' || current.token !== token) return;
+      lifecycleRef.current = { status: 'idle', token };
+      const currentNavigation = contextRef.current.navigation;
+      if (currentNavigation.actions.isCurrentArticle(current.article.id)) {
+        currentNavigation.actions.replaceArticle(current.article);
+      }
+    }, DISTILLATION_SYNC_EVENT_GRACE_MS);
+    lifecycleRef.current = {
+      status: 'waiting-for-commit-event',
+      token,
+      articleId: nextArticle.id,
+      article: nextArticle,
+      timer,
+    };
+  }, []);
 
   useEffect(() => {
     const currentArticleId = options.navigation.model.article?.id || null;
@@ -298,8 +301,8 @@ export function useReadingLibraryDistillationSync(
   );
 
   return useMemo(
-    () => ({ animation, onCommitted, onFocusedAnnotation, synchronizeArticle }),
-    [animation, onCommitted, onFocusedAnnotation, synchronizeArticle],
+    () => ({ acceptExternalArticle, animation, onCommitted, onFocusedAnnotation }),
+    [acceptExternalArticle, animation, onCommitted, onFocusedAnnotation],
   );
 }
 
@@ -309,15 +312,22 @@ function clearLifecycleTimer(lifecycle: DistillationSyncLifecycle) {
   }
 }
 
-function deferredArticleSync(lifecycle: DistillationSyncLifecycle) {
+function pendingLifecycleArticle(lifecycle: DistillationSyncLifecycle) {
   if (
     lifecycle.status === 'loading-committed-article' ||
     lifecycle.status === 'waiting-for-focus' ||
-    lifecycle.status === 'animating'
+    lifecycle.status === 'animating' ||
+    lifecycle.status === 'waiting-for-commit-event'
   ) {
-    return lifecycle.deferredArticle;
+    return lifecycle.status === 'waiting-for-commit-event'
+      ? lifecycle.article
+      : lifecycle.pendingArticle;
   }
   return null;
+}
+
+function newerArticle(article: ArticleRecord, candidate: ArticleRecord | null) {
+  return candidate && articleUpdateCanReplace(article, candidate) ? candidate : article;
 }
 
 type BlockingDistillationSyncLifecycle = Extract<

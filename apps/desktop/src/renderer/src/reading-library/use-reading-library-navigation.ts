@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import type { ArticleRecord, ArticleSummaryRecord, WeReadBookDetail } from '@yomitomo/shared';
+import {
+  articleAnnotationCount,
+  articleDistillationCount,
+  articleThoughtCount,
+} from './app-reading-library-utils';
 
 type ReadingLibraryRoute =
   | { type: 'library' }
@@ -144,6 +149,11 @@ export function useReadingLibraryNavigation({
     return current.type === 'article' && current.article.id === articleId;
   }, []);
 
+  const getCurrentArticle = useCallback(() => {
+    const current = routeRef.current;
+    return current.type === 'article' ? current.article : null;
+  }, []);
+
   useEffect(
     () => () => {
       cancelArticleLoad();
@@ -159,6 +169,7 @@ export function useReadingLibraryNavigation({
     () => ({
       consumeArticleFocus,
       focusArticle,
+      getCurrentArticle,
       isCurrentArticle,
       openArticle,
       replaceArticle,
@@ -171,6 +182,7 @@ export function useReadingLibraryNavigation({
     [
       consumeArticleFocus,
       focusArticle,
+      getCurrentArticle,
       isCurrentArticle,
       openArticle,
       replaceArticle,
@@ -186,6 +198,49 @@ export function useReadingLibraryNavigation({
 }
 
 export type ReadingLibraryNavigation = ReturnType<typeof useReadingLibraryNavigation>;
+
+export function articleUpdateCanReplace(
+  current: ArticleSummaryRecord,
+  candidate: ArticleSummaryRecord,
+) {
+  const currentTimestamp = articleTimestamp(current.updatedAt);
+  const candidateTimestamp = articleTimestamp(candidate.updatedAt);
+  if (candidateTimestamp !== currentTimestamp) return candidateTimestamp > currentTimestamp;
+  return articleRevision(candidate) !== articleRevision(current);
+}
+
+function articleTimestamp(value: string | number | undefined) {
+  if (typeof value === 'number') return value;
+  if (!value) return 0;
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function articleRevision(article: ArticleSummaryRecord) {
+  return [
+    articleAnnotationCount(article),
+    articleThoughtCount(article),
+    articleAiCommentCount(article),
+    articleDistillationCount(article),
+  ].join(':');
+}
+
+function articleAiCommentCount(article: ArticleSummaryRecord) {
+  return (
+    article.aiCommentCount ??
+    article.annotations.reduce(
+      (count, annotation) =>
+        count +
+        annotation.comments.filter((comment) => comment.author === 'ai').length +
+        (annotation.distillation?.reviewSessions?.reduce(
+          (reviewCount, session) =>
+            reviewCount + session.messages.filter((message) => message.author === 'ai').length,
+          0,
+        ) ?? 0),
+      0,
+    )
+  );
+}
 
 function readingLibraryRoute(
   route: ReadingLibraryRoute,
