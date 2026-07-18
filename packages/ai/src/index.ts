@@ -29,7 +29,6 @@ export { memoryViewContextBlocks } from './context/reading-view-assembler';
 export {
   DEFAULT_ASSISTANT_RUNTIME_BUDGETS,
   runAssistantAiSdkToolRuntime,
-  runAssistantToolRuntime,
   validateAssistantFinalAction,
   type AssistantAiSdkRuntimeOptions,
   type AssistantEvidence,
@@ -41,7 +40,6 @@ export {
   type AssistantProviderInvalidResponseEvent,
   type AssistantProviderToolCallEvent,
   type AssistantRuntimeBudget,
-  type AssistantRuntimeOptions,
   type AssistantRuntimeResult,
   type AssistantRuntimeStreamEvent,
   type AssistantRuntimeTaskType,

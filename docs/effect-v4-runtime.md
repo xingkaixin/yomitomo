@@ -2,7 +2,7 @@
 
 Pinned Effect version: `4.0.0-beta.98`
 
-Production Effect modules: `13`
+Production Effect modules: `12`
 
 Production API inventory: `Deferred.Deferred,Deferred.await,Deferred.complete,Deferred.make,Deferred.succeed,Effect.Effect,Effect.Success,Effect.acquireUseRelease,Effect.all,Effect.callback,Effect.catch,Effect.ensuring,Effect.fail,Effect.flatMap,Effect.fn,Effect.forkChild,Effect.gen,Effect.map,Effect.mapError,Effect.promise,Effect.runPromise,Effect.succeed,Effect.sync,Effect.try,Effect.tryPromise,Exit.isFailure,Fiber.join,Semaphore.make`
 

@@ -1,3 +1,4 @@
+import type { TextAnchor } from '@yomitomo/shared';
 import type { NormalizedAiUsage } from '../provider/usage';
 import type {
   AssistantEvidence,
@@ -6,11 +7,12 @@ import type {
   AssistantProviderInvalidResponseEvent,
   AssistantProviderToolCallEvent,
   AssistantRuntimeBudget,
-  AssistantRuntimeOptions,
   AssistantRuntimeResult,
+  AssistantRuntimeTaskType,
   AssistantRuntimeTrace,
   AssistantRuntimeTraceStep,
   AssistantRuntimeTurn,
+  AssistantToolDefinition,
   AssistantToolExecutionResult,
   AssistantToolResultMessage,
 } from './assistant-runtime-types';
@@ -25,20 +27,16 @@ import {
 
 export type AssistantRuntimeKernel = ReturnType<typeof createAssistantRuntimeKernel>;
 
-export function createAssistantRuntimeKernel(
-  options: Pick<
-    AssistantRuntimeOptions,
-    | 'taskType'
-    | 'articleId'
-    | 'agentId'
-    | 'tools'
-    | 'allowedAnnotationIds'
-    | 'addAnnotationAnchor'
-    | 'now'
-  > & {
-    budget: AssistantRuntimeBudget;
-  },
-) {
+export function createAssistantRuntimeKernel(options: {
+  taskType: AssistantRuntimeTaskType;
+  articleId: string;
+  agentId: string;
+  tools: AssistantToolDefinition[];
+  allowedAnnotationIds?: string[];
+  addAnnotationAnchor?: TextAnchor;
+  now?: () => string;
+  budget: AssistantRuntimeBudget;
+}) {
   const now = options.now || (() => new Date().toISOString());
   const trace: AssistantRuntimeTrace = {
     taskType: options.taskType,
