@@ -45,12 +45,7 @@ function verifyElectronRoot() {
     throw new Error(`Electron better-sqlite3 native addon is missing: ${addonPath}`);
   }
 
-  const electron = join(
-    desktopRoot,
-    'node_modules',
-    '.bin',
-    process.platform === 'win32' ? 'electron.cmd' : 'electron',
-  );
+  const electron = requireFromDesktop('electron');
 
   execFileSync(
     electron,
