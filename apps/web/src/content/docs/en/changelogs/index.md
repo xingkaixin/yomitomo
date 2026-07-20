@@ -5,6 +5,17 @@ sidebar:
   hidden: true
 ---
 
+## 0.13.0
+
+Released: 2026-07-20
+
+- A new Distillation library gathers every published distillation into one searchable list, with full-text search and a jump back to the source annotation.
+- The EPUB reader adds chapter-level bilingual reading alongside the original text, restoring automatically after a restart.
+- Collection cards become fan-out covers that spread open on hover or focus, and app feedback animations feel smoother and more restrained.
+- A paged catalog keeps large libraries responsive at startup, plus fixes for collection navigation, import feedback, progress saving, and PIN throttling.
+
+[View 0.13.0 release notes](/en/changelogs/v0-13-0/)
+
 ## 0.12.0
 
 Released: 2026-07-14
