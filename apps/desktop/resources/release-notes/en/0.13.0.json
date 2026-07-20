@@ -1,0 +1,41 @@
+{
+  "version": "0.13.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "Your distillations finally have one home",
+      "description": "Every passage you distilled across your books now lives in one searchable Distillation library. Can't remember which book a line was from? Search it and jump straight back to the original annotation.",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "Read foreign books with the translation right beside the text",
+      "description": "The EPUB reader adds chapter-level bilingual reading, showing the translation next to the original per chapter. Translations are cached and restore after a restart, so you can read a whole chapter without switching back and forth.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Collection covers fan open",
+      "description": "Recent covers in a collection stack like a hand of cards and spread out when you hover or focus, so you can tell what's inside without opening it.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Smoother scrolling, calmer feedback",
+      "description": "Reading progress now renders on the compositor for smoother scrolling of long texts, settings save feedback is a restrained entrance instead of an oversized bounce, and first-run empty pages guide you in with a gentle reveal.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "A big library opens without lag",
+      "description": "Startup no longer loads your entire library at once; a paged catalog with full-text search keeps things responsive, and the more books you have, the more you'll notice.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "Steadier progress, sync, and settings",
+      "description": "Reading progress is kept for retry after a failed save so it isn't lost, WeRead sync rejects incomplete data instead of overwriting your local notes, and newer settings save correctly.",
+      "audience": "settings"
+    }
+  ]
+}
