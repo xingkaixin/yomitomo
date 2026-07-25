@@ -497,6 +497,13 @@ export const zhCNResources = {
     },
     library: {
       title: '阅读库',
+      catalog: {
+        loading: '正在读取阅读库',
+        loadingDescription: '正在从本地数据库整理这一页内容。',
+        loadFailed: '暂时无法读取阅读库',
+        loadFailedDescription: '本地资料没有丢失，请稍后重试。',
+        loadFailedStale: '阅读库刷新失败，当前仍显示上一次成功读取的结果。',
+      },
       sources: {
         web: '网页文章',
         ebook: '电子书',

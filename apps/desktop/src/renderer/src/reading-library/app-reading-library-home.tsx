@@ -50,11 +50,7 @@ import type {
   EbookImportProgressCallback,
   PdfImportProgressCallback,
 } from '../shell/app-reading-types';
-import type {
-  LibraryCatalogItemCounts,
-  LibraryCatalogListInput,
-  SetLibraryPinInput,
-} from '../../../ipc-contract';
+import type { LibraryCatalogListInput, SetLibraryPinInput } from '../../../ipc-contract';
 import type { AppMenuCommandRequest } from '../../../app-menu-types';
 import { libraryContentSourceBaseOptions } from './app-library-content-sources';
 import { CollectionPickerDialog } from './app-reading-library-collection-picker';
@@ -64,11 +60,7 @@ import {
   useLibraryImportDialogs,
   type ArticleImportResult,
 } from './app-reading-library-imports';
-import {
-  buildCollectionMemberEntities,
-  buildLibraryEntities,
-  libraryEntityPinTarget,
-} from './app-reading-library-entities';
+import { libraryEntityPinTarget } from './app-reading-library-entities';
 import { useLibrarySearchClearDissolve } from './app-reading-library-search-clear-dissolve';
 import { librarySession } from './app-reading-library-session';
 import type { LibraryItemType, LibraryTypeFilter } from './library-entity-types';
@@ -223,13 +215,14 @@ export function LibraryHome({
     }),
     [activeCollectionId, page, pageSize, searchQuery, selectedTypesKey],
   );
-  const remoteCatalog = useLibraryCatalog(catalogInput, {
+  const catalogState = useLibraryCatalog(catalogInput, {
     articles: sortedArticles,
     collectionMembers,
     collections,
     pins,
     wereadBooks,
   });
+  const remoteCatalog = catalogState.result;
   const wereadAvailable =
     wereadSettings.configured ||
     wereadBooks.length > 0 ||
@@ -264,87 +257,14 @@ export function LibraryHome({
     [typeOptions, selectedTypes],
   );
   const singleSelectedType = selectedTypes.size === 1 ? [...selectedTypes][0] : null;
-  const unfilteredEntities = useMemo(() => {
-    if (activeCollection) {
-      return buildCollectionMemberEntities({
-        articles: sortedArticles,
-        collectionId: activeCollection.id,
-        collectionMembers,
-        enabledTypes: availableTypes,
-        pins,
-        query: '',
-        typeFilter: selectedTypes,
-        wereadBooks,
-      });
-    }
-
-    return buildLibraryEntities({
-      articles: sortedArticles,
-      collectionMembers,
-      collections,
-      enabledTypes: availableTypes,
-      pins,
-      query: '',
-      typeFilter: selectedTypes,
-      wereadBooks,
-    });
-  }, [
-    activeCollection,
-    availableTypes,
-    collectionMembers,
-    collections,
-    pins,
-    sortedArticles,
-    selectedTypes,
-    wereadBooks,
-  ]);
-  const filteredEntities = useMemo(() => {
-    if (activeCollection) {
-      return buildCollectionMemberEntities({
-        articles: sortedArticles,
-        collectionId: activeCollection.id,
-        collectionMembers,
-        enabledTypes: availableTypes,
-        pins,
-        query: searchQuery,
-        typeFilter: selectedTypes,
-        wereadBooks,
-      });
-    }
-
-    return buildLibraryEntities({
-      articles: sortedArticles,
-      collectionMembers,
-      collections,
-      enabledTypes: availableTypes,
-      pins,
-      query: searchQuery,
-      typeFilter: selectedTypes,
-      wereadBooks,
-    });
-  }, [
-    activeCollection,
-    collectionMembers,
-    collections,
-    availableTypes,
-    pins,
-    searchQuery,
-    sortedArticles,
-    selectedTypes,
-    wereadBooks,
-  ]);
-  const fallbackItemCounts = useMemo(
-    () => localLibraryItemCounts(sortedArticles, wereadBooks),
-    [sortedArticles, wereadBooks],
-  );
   const catalog = remoteCatalog || {
-    entities: filteredEntities.slice((page - 1) * pageSize, page * pageSize),
-    itemCounts: fallbackItemCounts,
+    entities: [],
+    itemCounts: { web: 0, ebook: 0, pdf: 0, text: 0, weread: 0 },
     page,
     pageSize,
     query: searchQuery,
-    totalCount: filteredEntities.length,
-    unfilteredCount: unfilteredEntities.length,
+    totalCount: 0,
+    unfilteredCount: 0,
   };
   const activeItemsLength = catalog.totalCount;
   const pageCount = Math.max(1, Math.ceil(activeItemsLength / pageSize));
@@ -676,7 +596,21 @@ export function LibraryHome({
           data-page-transition={pageTransitionDirection}
         >
           <div className="library-page-panel" key={`${selectedTypesKey}-${page}`}>
-            {activeItemsLength > 0 ? (
+            {catalogState.status === 'loading' && !remoteCatalog ? (
+              <LibraryEmptyState
+                icon={<LibraryBig size={30} />}
+                title={t('library.catalog.loading')}
+              >
+                {t('library.catalog.loadingDescription')}
+              </LibraryEmptyState>
+            ) : catalogState.status === 'error' && !remoteCatalog ? (
+              <LibraryEmptyState
+                icon={<LibraryBig size={30} />}
+                title={t('library.catalog.loadFailed')}
+              >
+                {t('library.catalog.loadFailedDescription')}
+              </LibraryEmptyState>
+            ) : activeItemsLength > 0 ? (
               <LibraryEntityGrid
                 activeCollectionId={activeCollection?.id || null}
                 actions={{
@@ -729,6 +663,11 @@ export function LibraryHome({
           </div>
         </div>
       </div>
+      {catalogState.status === 'error' && remoteCatalog ? (
+        <p className="library-inline-error" role="status">
+          {t('library.catalog.loadFailedStale')}
+        </p>
+      ) : null}
       {activeItemsLength > 0 ? (
         <footer
           className={pageCount > 1 ? 'library-home-footer' : 'library-home-footer is-compact'}
@@ -817,7 +756,6 @@ export function LibraryHome({
       {pickerCollection ? (
         <CollectionPickerDialog
           articles={sortedArticles}
-          availableTypes={availableTypes}
           collection={pickerCollection}
           collectionMembers={collectionMembers}
           pins={pins}
@@ -1074,26 +1012,6 @@ function normalizeLibraryPageSize(value: unknown) {
   return LIBRARY_PAGE_SIZE_OPTIONS.includes(value as (typeof LIBRARY_PAGE_SIZE_OPTIONS)[number])
     ? (value as (typeof LIBRARY_PAGE_SIZE_OPTIONS)[number])
     : 12;
-}
-
-function localLibraryItemCounts(
-  articles: ArticleSummaryRecord[],
-  wereadBooks: WeReadBook[],
-): LibraryCatalogItemCounts {
-  const counts: LibraryCatalogItemCounts = {
-    web: 0,
-    ebook: 0,
-    pdf: 0,
-    text: 0,
-    weread: wereadBooks.length,
-  };
-  for (const article of articles) {
-    const source = LOCAL_LIBRARY_TYPES.includes(article.sourceType as LibraryItemType)
-      ? (article.sourceType as Exclude<LibraryItemType, 'weread'>)
-      : 'web';
-    counts[source] += 1;
-  }
-  return counts;
 }
 
 type LibraryEmptyReason =

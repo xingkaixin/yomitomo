@@ -14,7 +14,11 @@ export type LibraryCatalogRevision = {
 type ResolvedCatalog = {
   scopeKey: string;
   result: LibraryCatalogListResult | null;
+  status: 'loading' | 'ready' | 'error';
+  error: Error | null;
 };
+
+export type LibraryCatalogState = Pick<ResolvedCatalog, 'result' | 'status' | 'error'>;
 
 export function useLibraryCatalog(
   input: LibraryCatalogListInput,
@@ -34,14 +38,36 @@ export function useLibraryCatalog(
 
   useEffect(() => {
     const listCatalog = window.yomitomoDesktop?.listLibraryCatalog;
-    if (!listCatalog) return;
+    if (!listCatalog) {
+      setResolvedCatalog({
+        scopeKey,
+        result: null,
+        status: 'error',
+        error: new Error('LIBRARY_CATALOG_API_UNAVAILABLE'),
+      });
+      return;
+    }
     let cancelled = false;
+    setResolvedCatalog((current) => ({
+      scopeKey,
+      result: current?.scopeKey === scopeKey ? current.result : null,
+      status: 'loading',
+      error: null,
+    }));
     void listCatalog(request)
       .then((value) => {
-        if (!cancelled) setResolvedCatalog({ scopeKey, result: value });
+        if (!cancelled) {
+          setResolvedCatalog({ scopeKey, result: value, status: 'ready', error: null });
+        }
       })
-      .catch(() => {
-        if (!cancelled) setResolvedCatalog({ scopeKey, result: null });
+      .catch((cause: unknown) => {
+        if (cancelled) return;
+        setResolvedCatalog((current) => ({
+          scopeKey,
+          result: current?.scopeKey === scopeKey ? current.result : null,
+          status: 'error',
+          error: cause instanceof Error ? cause : new Error('LIBRARY_CATALOG_LOAD_FAILED'),
+        }));
       });
     return () => {
       cancelled = true;
@@ -56,5 +82,6 @@ export function useLibraryCatalog(
     scopeKey,
   ]);
 
-  return resolvedCatalog?.scopeKey === scopeKey ? resolvedCatalog.result : null;
+  if (resolvedCatalog?.scopeKey === scopeKey) return resolvedCatalog;
+  return { result: null, status: 'loading', error: null } satisfies LibraryCatalogState;
 }

@@ -85,6 +85,31 @@ describe('library catalog repository', () => {
     expect(search.entities.map(entityKey)).toEqual(['collection_1']);
     expect(search.unfilteredCount).toBe(4);
   });
+
+  it('matches the mixed-source oracle on a deep page while returning one page', () => {
+    const { database, oracle } = largeCatalogDatabase();
+    const page = 8;
+    const pageSize = 17;
+
+    const result = readLibraryCatalogRows(database, {
+      scope: { kind: 'library' },
+      page,
+      pageSize,
+    });
+
+    expect(result.totalCount).toBe(oracle.length);
+    expect(result.entities).toHaveLength(pageSize);
+    expect(result.entities.map(entityKey)).toEqual(
+      oracle.slice((page - 1) * pageSize, page * pageSize).map((candidate) => candidate.key),
+    );
+    expect(result.itemCounts).toEqual({
+      web: 40,
+      ebook: 40,
+      pdf: 40,
+      text: 40,
+      weread: 20,
+    });
+  });
 });
 
 function entityKey(entity: ReturnType<typeof readLibraryCatalogRows>['entities'][number]) {
@@ -148,4 +173,122 @@ function createCatalogDatabase() {
     values ('weread_1', 'WeRead', '2026-07-02T00:00:00.000Z');
   `);
   return { database, sqlite };
+}
+
+function largeCatalogDatabase() {
+  const sqlite = new SQLiteDatabase(':memory:');
+  for (const migration of migrations) sqlite.exec(migration.sql);
+  const database = drizzle(sqlite, { schema });
+  const candidates: Array<{
+    key: string;
+    id: string;
+    title: string;
+    sortTime: string;
+    pinned: boolean;
+  }> = [];
+  const collectedArticleIds = new Set<string>();
+  const collectedWeReadIds = new Set<string>();
+  const articleSources = ['web', 'ebook', 'pdf', 'text'] as const;
+  const insertArticle = sqlite.prepare(`
+    insert into articles (
+      id, url, canonical_url, source_type, title, excerpt, content_hash, created_at, updated_at
+    ) values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const insertWeRead = sqlite.prepare(`
+    insert into weread_books (book_id, title, updated_at)
+    values (?, ?, ?)
+  `);
+  const insertCollection = sqlite.prepare(`
+    insert into collections (id, name, created_at, updated_at)
+    values (?, ?, ?, ?)
+  `);
+  const insertMember = sqlite.prepare(`
+    insert into collection_members (collection_id, member_kind, member_id, added_at)
+    values (?, ?, ?, ?)
+  `);
+  const insertPin = sqlite.prepare(`
+    insert into library_pins (target_kind, target_id, pinned_at)
+    values (?, ?, ?)
+  `);
+
+  sqlite.transaction(() => {
+    for (let index = 0; index < 10; index += 1) {
+      const id = `collection_${String(index).padStart(3, '0')}`;
+      const title = `Collection ${String(index).padStart(3, '0')}`;
+      const sortTime = catalogTimestamp(500 + index);
+      insertCollection.run(id, title, sortTime, sortTime);
+      candidates.push({
+        key: id,
+        id,
+        title,
+        sortTime,
+        pinned: id === 'collection_003',
+      });
+    }
+    for (let index = 0; index < 160; index += 1) {
+      const id = `article_${String(index).padStart(3, '0')}`;
+      const title = `Article ${String(index).padStart(3, '0')}`;
+      const sortTime = catalogTimestamp(index);
+      const source = articleSources[index % articleSources.length];
+      insertArticle.run(
+        id,
+        `https://example.com/${id}`,
+        `https://example.com/${id}`,
+        source,
+        title,
+        `${title} excerpt`,
+        `hash_${id}`,
+        sortTime,
+        sortTime,
+      );
+      if (index % 10 === 0) {
+        collectedArticleIds.add(id);
+        insertMember.run('collection_000', 'article', id, catalogTimestamp(1_000 + index));
+      } else {
+        candidates.push({
+          key: `article:${id}`,
+          id,
+          title,
+          sortTime,
+          pinned: id === 'article_003',
+        });
+      }
+    }
+    for (let index = 0; index < 20; index += 1) {
+      const id = `weread_${String(index).padStart(3, '0')}`;
+      const title = `WeRead ${String(index).padStart(3, '0')}`;
+      const sortTime = catalogTimestamp(300 + index);
+      insertWeRead.run(id, title, sortTime);
+      if (index % 5 === 0) {
+        collectedWeReadIds.add(id);
+        insertMember.run('collection_000', 'weread', id, catalogTimestamp(1_200 + index));
+      } else {
+        candidates.push({
+          key: `weread:${id}`,
+          id,
+          title,
+          sortTime,
+          pinned: id === 'weread_003',
+        });
+      }
+    }
+    insertPin.run('article', 'article_003', catalogTimestamp(2_001));
+    insertPin.run('weread', 'weread_003', catalogTimestamp(2_002));
+    insertPin.run('collection', 'collection_003', catalogTimestamp(2_003));
+  })();
+
+  expect(collectedArticleIds.size).toBe(16);
+  expect(collectedWeReadIds.size).toBe(4);
+  const oracle = candidates.toSorted(
+    (left, right) =>
+      Number(right.pinned) - Number(left.pinned) ||
+      right.sortTime.localeCompare(left.sortTime) ||
+      left.title.localeCompare(right.title) ||
+      left.id.localeCompare(right.id),
+  );
+  return { database, oracle };
+}
+
+function catalogTimestamp(index: number) {
+  return new Date(Date.UTC(2026, 0, 1, 0, index)).toISOString();
 }

@@ -37,14 +37,31 @@ it('does not expose the previous catalog while a new scope is loading', async ()
     .mockReturnValueOnce(collectionResult.promise);
   vi.stubGlobal('yomitomoDesktop', { listLibraryCatalog });
   const view = render(<ResultHarness scope={{ kind: 'library' }} />);
-  await screen.findByText('library');
+  await screen.findByText('library:ready');
 
   view.rerender(<ResultHarness scope={{ kind: 'collection', collectionId: 'collection_1' }} />);
 
-  expect(screen.getByTestId('catalog-result').textContent).toBe('pending');
+  expect(screen.getByTestId('catalog-result').textContent).toBe('none:loading');
 
   await act(async () => collectionResult.resolve(catalogResult('collection')));
-  await screen.findByText('collection');
+  await screen.findByText('collection:ready');
+});
+
+it('keeps the last good result and exposes an explicit refresh error', async () => {
+  const refresh = deferred<LibraryCatalogListResult>();
+  const listLibraryCatalog = vi
+    .fn()
+    .mockResolvedValueOnce(catalogResult('first'))
+    .mockReturnValueOnce(refresh.promise);
+  vi.stubGlobal('yomitomoDesktop', { listLibraryCatalog });
+  const view = render(<ResultHarness scope={{ kind: 'library' }} query="first" />);
+  await screen.findByText('first:ready');
+
+  view.rerender(<ResultHarness scope={{ kind: 'library' }} query="second" />);
+  await screen.findByText('first:loading');
+
+  await act(async () => refresh.reject(new Error('database busy')));
+  await screen.findByText('first:error:database busy');
 });
 
 function Harness({ articles }: { articles: unknown }) {
@@ -61,9 +78,9 @@ function Harness({ articles }: { articles: unknown }) {
   return null;
 }
 
-function ResultHarness({ scope }: { scope: LibraryCatalogScope }) {
+function ResultHarness({ scope, query }: { scope: LibraryCatalogScope; query?: string }) {
   const result = useLibraryCatalog(
-    { scope, page: 1, pageSize: 12 },
+    { scope, query, page: 1, pageSize: 12 },
     {
       articles: null,
       collectionMembers: null,
@@ -72,7 +89,11 @@ function ResultHarness({ scope }: { scope: LibraryCatalogScope }) {
       wereadBooks: null,
     },
   );
-  return <span data-testid="catalog-result">{result?.query || 'pending'}</span>;
+  return (
+    <span data-testid="catalog-result">
+      {`${result.result?.query || 'none'}:${result.status}${result.error ? `:${result.error.message}` : ''}`}
+    </span>
+  );
 }
 
 function catalogResult(query: string): LibraryCatalogListResult {
@@ -89,8 +110,10 @@ function catalogResult(query: string): LibraryCatalogListResult {
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((nextResolve) => {
+  let reject!: (cause: unknown) => void;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
     resolve = nextResolve;
+    reject = nextReject;
   });
-  return { promise, resolve };
+  return { promise, reject, resolve };
 }
