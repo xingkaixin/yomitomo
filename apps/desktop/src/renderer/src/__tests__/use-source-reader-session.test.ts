@@ -16,6 +16,7 @@ import type { PromptArticle } from '../shell/app-reading-types';
 import {
   constrainSourceAgentPlanAnnotation,
   type SourceAgentAnnotationAdapter,
+  type SourceAgentAnnotationPlayback,
   useSourceReaderSession,
 } from '../source/bookcase/use-source-reader-session';
 
@@ -146,6 +147,22 @@ function sourceContext() {
   };
 }
 
+function sourceAdapter({
+  accept = () => true,
+  finish = () => undefined,
+}: {
+  accept?: SourceAgentAnnotationPlayback['accept'];
+  finish?: SourceAgentAnnotationPlayback['finish'];
+} = {}): SourceAgentAnnotationAdapter {
+  return {
+    prepare: ({ options }) => ({
+      context: sourceContext(),
+      options,
+      start: () => ({ accept, finish }),
+    }),
+  };
+}
+
 describe('constrainSourceAgentPlanAnnotation', () => {
   it('keeps annotations inside their reading plan section and applies section intent', () => {
     const articleText = '第一段内容。第二段内容。';
@@ -216,11 +233,7 @@ describe('useSourceReaderSession agent annotations', () => {
     const { session } = renderSession({});
 
     act(() => {
-      session().registerAgentAnnotationAdapter({
-        getContext: sourceContext,
-        onAnnotation: () => true,
-        onEmpty,
-      });
+      session().registerAgentAnnotationAdapter(sourceAdapter({ finish: onEmpty }));
     });
     await act(async () => {
       await session().requestAgentAnnotations(agent);
@@ -232,8 +245,7 @@ describe('useSourceReaderSession agent annotations', () => {
   it('removes the pending agent marker when the source cannot build context', async () => {
     const { session } = renderSession({
       adapter: {
-        getContext: () => null,
-        onAnnotation: () => true,
+        prepare: () => null,
       },
     });
 
@@ -253,12 +265,8 @@ describe('useSourceReaderSession agent annotations', () => {
         throw new Error('stream failed');
       }),
     );
-    const { session } = renderSession({
-      adapter: {
-        getContext: sourceContext,
-        onAnnotation: () => true,
-      },
-    });
+    const finish = vi.fn();
+    const { session } = renderSession({ adapter: sourceAdapter({ finish }) });
 
     await expect(
       act(async () => {
@@ -276,22 +284,28 @@ describe('useSourceReaderSession agent annotations', () => {
         ),
       ).toBe(false);
     });
+    expect(finish).toHaveBeenCalledWith({ status: 'failure' });
   });
 
-  it('saves reading memory only when the request input requires it', async () => {
+  it('includes reading memory only when the request input requires it', async () => {
     const readingMemory = {
       textSummaries: [],
       readingTraces: [],
       updatedAt: now,
     };
-    stubAnnotationStream(vi.fn(async () => ({ annotations: [], readingMemory })));
-    const onReadingMemory = vi.fn();
+    const requestAgentAnnotationsStream = vi.fn(
+      async (
+        ..._args: Parameters<
+          NonNullable<typeof window.yomitomoDesktop>['requestAgentAnnotationsStream']
+        >
+      ) => ({
+        annotations: [],
+        readingMemory,
+      }),
+    );
+    stubAnnotationStream(requestAgentAnnotationsStream);
     const { session } = renderSession({
-      adapter: {
-        getContext: sourceContext,
-        onAnnotation: () => true,
-        onReadingMemory,
-      },
+      adapter: sourceAdapter(),
     });
 
     await act(async () => {
@@ -308,31 +322,22 @@ describe('useSourceReaderSession agent annotations', () => {
       });
     });
 
-    expect(onReadingMemory).toHaveBeenCalledTimes(1);
-    expect(onReadingMemory.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ readingMemory }));
+    expect(requestAgentAnnotationsStream.mock.calls[0]?.[0].readingMemory).toBeUndefined();
+    expect(requestAgentAnnotationsStream.mock.calls[1]?.[0].readingMemory).toEqual(readingMemory);
   });
 
   it('notifies the source adapter when the stream returns no accepted annotations', async () => {
     stubAnnotationStream(vi.fn(async () => ({ annotations: [], readingMemory: undefined })));
     const onEmpty = vi.fn();
     const { session } = renderSession({
-      adapter: {
-        getContext: sourceContext,
-        onAnnotation: () => true,
-        onEmpty,
-      },
+      adapter: sourceAdapter({ finish: onEmpty }),
     });
 
     await act(async () => {
       await session().requestAgentAnnotations(agent);
     });
 
-    expect(onEmpty).toHaveBeenCalledWith(
-      expect.objectContaining({
-        agent,
-        context: expect.objectContaining({ articleId: 'article_1' }),
-      }),
-    );
+    expect(onEmpty).toHaveBeenCalledWith({ status: 'empty' });
   });
 });
 
