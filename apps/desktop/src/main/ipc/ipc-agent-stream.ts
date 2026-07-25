@@ -30,18 +30,27 @@ export function runAgentStreamIpc<Channel extends DesktopIpcStreamChannel>(
   ) => Promise<void>,
   guard?: AgentStreamGuard<Channel>,
 ) {
-  onDesktopIpcStreamRequest(requestChannel, async (event, input) => {
-    const sender = createAgentStreamSender(
-      event,
-      desktopIpcStreamResponseChannel(requestChannel, input.requestId),
-    );
-    try {
-      await guard?.(input, event);
-      await handler(input, sender, event);
-    } catch (error) {
-      sender.send(agentStreamError(error, fallbackMessage));
-    }
-  });
+  onDesktopIpcStreamRequest(
+    requestChannel,
+    async (event, input) => {
+      const sender = createAgentStreamSender(
+        event,
+        desktopIpcStreamResponseChannel(requestChannel, input.requestId),
+      );
+      try {
+        await guard?.(input, event);
+        await handler(input, sender, event);
+      } catch (error) {
+        sender.send(agentStreamError(error, fallbackMessage));
+      }
+    },
+    (event, requestId, error) => {
+      createAgentStreamSender(
+        event,
+        desktopIpcStreamResponseChannel(requestChannel, requestId),
+      ).send(agentStreamError(error, fallbackMessage));
+    },
+  );
 }
 
 function createAgentStreamSender<Channel extends DesktopIpcStreamChannel>(
