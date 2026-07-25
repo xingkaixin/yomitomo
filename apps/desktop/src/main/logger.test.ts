@@ -14,7 +14,7 @@ vi.mock('electron', () => ({
   },
 }));
 
-import { getLogPath, pruneLogFile } from './app/logger';
+import { getLogPath, logInfo, pruneLogFile } from './app/logger';
 
 describe('desktop logger retention', () => {
   beforeEach(async () => {
@@ -53,3 +53,43 @@ describe('desktop logger retention', () => {
     await rm(testPaths.userData, { recursive: true, force: true });
   });
 });
+
+describe('desktop logger write failures', () => {
+  beforeEach(async () => {
+    const root = await mkdtemp(join(tmpdir(), 'yomitomo-logger-failure-test-'));
+    testPaths.appData = join(root, 'app-data');
+    testPaths.userData = join(root, 'user-data');
+  });
+
+  afterEach(async () => {
+    await rm(testPaths.appData, { recursive: true, force: true });
+    await rm(testPaths.userData, { recursive: true, force: true });
+  });
+
+  it('exposes circular payload serialization as an unhandled rejection', async () => {
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    const rejection = nextUnhandledRejection();
+
+    logInfo('logger.circular_payload', circular);
+
+    await expect(rejection).resolves.toBeInstanceOf(TypeError);
+  });
+
+  it('exposes filesystem failures as an unhandled rejection', async () => {
+    await mkdir(testPaths.userData, { recursive: true });
+    testPaths.userData = join(testPaths.userData, 'not-a-directory');
+    await writeFile(testPaths.userData, 'file', 'utf8');
+    const rejection = nextUnhandledRejection();
+
+    logInfo('logger.filesystem_failure');
+
+    await expect(rejection).resolves.toMatchObject({ code: 'EEXIST' });
+  });
+});
+
+function nextUnhandledRejection() {
+  return new Promise<unknown>((resolve) => {
+    process.once('unhandledRejection', resolve);
+  });
+}
