@@ -72,6 +72,14 @@ describe('provider secrets keyring', () => {
     expect(state.passwords.get('weread:weread_1:apiKey')).toBe('weread-secret');
   });
 
+  it('stores a secret under an explicit versioned ref', async () => {
+    const secrets = await loadProviderSecrets();
+
+    await secrets.saveStoredSecret('provider:openai:apiKey:version:1', 'versioned-secret');
+
+    expect(state.passwords.get('provider:openai:apiKey:version:1')).toBe('versioned-secret');
+  });
+
   it('reads missing provider and WeRead entries as empty strings when keyring returns noentry', async () => {
     const secrets = await loadProviderSecrets();
     state.getPasswordError = new Error('NoEntry');

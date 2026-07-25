@@ -42,6 +42,10 @@ vi.mock('../providers/provider-secrets', () => {
       testState.secrets.set(ref, apiKey);
       return ref;
     },
+    saveStoredSecret: async (ref: string, secret: string) => {
+      if (testState.saveProviderApiKeyError) throw testState.saveProviderApiKeyError;
+      testState.secrets.set(ref, secret);
+    },
     readProviderApiKey: async (providerId: string, apiKeyRef?: string | null) =>
       testState.secrets.get(apiKeyRef || testState.providerApiKeyRef(providerId)) || '',
     deleteStoredSecret: async (secretRef: string) => {
@@ -352,6 +356,104 @@ describe('desktop store providers', () => {
     expect(readSecretDeletionTasks()).toEqual([]);
   });
 
+  it('records the credential state when provider api key replacement cannot commit', async () => {
+    insertProviderRow({ id: 'provider_1', apiKeyRef: 'provider:provider_1:apiKey' });
+    testState.secrets.set('provider:provider_1:apiKey', 'sk-old');
+    getDatabase().run(`
+      CREATE TRIGGER fail_provider_key_replacement
+      BEFORE UPDATE ON providers
+      BEGIN
+        SELECT RAISE(ABORT, 'injected provider replacement failure');
+      END
+    `);
+
+    await expect(saveProvider({ id: 'provider_1', apiKey: 'sk-new' })).rejects.toThrow(
+      'injected provider replacement failure',
+    );
+
+    expect(testState.secrets.get('provider:provider_1:apiKey')).toBe('sk-old');
+    expect([...testState.secrets.keys()]).toEqual(['provider:provider_1:apiKey']);
+    expect(testState.logErrors).toContainEqual(
+      expect.objectContaining({
+        event: 'credential_swap.transaction_failed',
+        error: expect.objectContaining({ message: 'injected provider replacement failure' }),
+        data: {
+          owner: 'provider',
+          ownerId: 'provider_1',
+          apiKeyRef: expect.stringMatching(/^provider:provider_1:apiKey:version:/),
+        },
+      }),
+    );
+  });
+
+  it('removes a prepared credential when a new provider cannot commit', async () => {
+    getDatabase().run(`
+      CREATE TRIGGER fail_provider_insert
+      BEFORE INSERT ON providers
+      BEGIN
+        SELECT RAISE(ABORT, 'injected provider insert failure');
+      END
+    `);
+
+    await expect(saveProvider({ name: 'Provider', apiKey: 'sk-new' })).rejects.toThrow(
+      'injected provider insert failure',
+    );
+
+    expect(testState.secrets.size).toBe(0);
+    expect(getDatabase().select().from(schema.providers).all()).toEqual([]);
+    expect(readSecretDeletionTasks()).toEqual([]);
+  });
+
+  it('recovers prepared credential cleanup after replacement rollback', async () => {
+    insertProviderRow({ id: 'provider_1', apiKeyRef: 'provider:provider_1:apiKey' });
+    testState.secrets.set('provider:provider_1:apiKey', 'sk-old');
+    testState.deleteStoredSecretError = new Error('keyring locked');
+    getDatabase().run(`
+      CREATE TRIGGER fail_provider_key_replacement
+      BEFORE UPDATE ON providers
+      BEGIN
+        SELECT RAISE(ABORT, 'injected provider replacement failure');
+      END
+    `);
+
+    await expect(saveProvider({ id: 'provider_1', apiKey: 'sk-new' })).rejects.toThrow(
+      'injected provider replacement failure',
+    );
+
+    const preparedRef = [...testState.secrets.keys()].find((ref) => ref.includes(':version:'));
+    expect(preparedRef).toBeDefined();
+    expect(readSecretDeletionTasks()).toEqual([
+      expect.objectContaining({ secretRef: preparedRef }),
+    ]);
+    expect(testState.logErrors).toContainEqual({
+      event: 'credential_swap.abort_cleanup_deferred',
+      error: testState.deleteStoredSecretError,
+      data: { secretRef: preparedRef },
+    });
+
+    testState.deleteStoredSecretError = undefined;
+    closeDatabase();
+    await readStore();
+
+    expect(testState.secrets.get('provider:provider_1:apiKey')).toBe('sk-old');
+    expect(testState.secrets.has(preparedRef || '')).toBe(false);
+    expect(readSecretDeletionTasks()).toEqual([]);
+  });
+
+  it('switches provider rows before retiring replaced credentials', async () => {
+    insertProviderRow({ id: 'provider_1', apiKeyRef: 'provider:provider_1:apiKey' });
+    testState.secrets.set('provider:provider_1:apiKey', 'sk-old');
+
+    await saveProvider({ id: 'provider_1', apiKey: 'sk-new' });
+
+    const replacementRef = readProviderRow('provider_1')?.apiKeyRef;
+    expect(replacementRef).toMatch(/^provider:provider_1:apiKey:version:/);
+    expect(testState.secrets.has('provider:provider_1:apiKey')).toBe(false);
+    expect(testState.secrets.get(replacementRef || '')).toBe('sk-new');
+    await expect(readStoredProviderApiKey('provider_1')).resolves.toBe('sk-new');
+    expect(readSecretDeletionTasks()).toEqual([]);
+  });
+
   it('recovers a pending provider secret deletion after restart', async () => {
     const deleteError = new Error('keyring locked');
     insertProviderRow({ id: 'provider_1', apiKeyRef: 'provider:provider_1:apiKey' });
@@ -400,8 +502,9 @@ describe('desktop store providers', () => {
     closeDatabase();
     await readStore();
 
-    expect(testState.secrets.get('provider:provider_1:apiKey')).toBe('sk-new');
-    expect(readProviderRow('provider_1')?.apiKeyRef).toBe('provider:provider_1:apiKey');
+    const replacementRef = readProviderRow('provider_1')?.apiKeyRef;
+    expect(replacementRef).toMatch(/^provider:provider_1:apiKey:version:/);
+    expect(testState.secrets.get(replacementRef || '')).toBe('sk-new');
     expect(readSecretDeletionTasks()).toEqual([]);
   });
 
@@ -411,16 +514,19 @@ describe('desktop store providers', () => {
     await expect(
       resolveProviderApiKeyStorage('provider_1', { apiKey: ' sk-test ' }, undefined),
     ).resolves.toEqual({
-      apiKeyRef: 'provider:provider_1:apiKey',
+      credentialChange: {
+        apiKeyRef: expect.stringMatching(/^provider:provider_1:apiKey:version:/),
+        preparedSecretRef: expect.stringMatching(/^provider:provider_1:apiKey:version:/),
+      },
       storedApiKey: '',
     });
-    expect(testState.secrets.get('provider:provider_1:apiKey')).toBe('sk-test');
+    expect([...testState.secrets.values()]).toEqual(['sk-test']);
   });
 
   it('does not preserve existing legacy api keys as SQLite fallback', async () => {
     await expect(
       resolveProviderApiKeyStorage('provider_1', {}, { apiKey: 'legacy-key', apiKeyRef: null }),
-    ).resolves.toEqual({ storedApiKey: '' });
+    ).resolves.toEqual({ credentialChange: {}, storedApiKey: '' });
   });
 
   it('builds provider records without leaking api keys into the public store', () => {

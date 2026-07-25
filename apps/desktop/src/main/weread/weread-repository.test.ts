@@ -9,6 +9,7 @@ const testPaths = vi.hoisted(() => ({
   secrets: new Map<string, string>(),
   sqlStatements: [] as string[],
 }));
+const credentialLogger = vi.hoisted(() => ({ logError: vi.fn() }));
 const repositoryLogger = { logInfo: vi.fn() };
 
 vi.mock('electron', () => ({
@@ -41,7 +42,14 @@ vi.mock('../providers/provider-secrets', () => ({
     testPaths.secrets.set('weread:default:apiKey', apiKey);
     return 'weread:default:apiKey';
   }),
+  saveStoredSecret: vi.fn(async (ref: string, secret: string) => {
+    testPaths.secrets.set(ref, secret);
+  }),
   wereadApiKeyRef: () => 'weread:default:apiKey',
+}));
+
+vi.mock('../app/logger', () => ({
+  logError: credentialLogger.logError,
 }));
 
 import * as schema from '../db/schema';
@@ -64,6 +72,7 @@ beforeEach(async () => {
   testPaths.secrets.clear();
   testPaths.sqlStatements = [];
   repositoryLogger.logInfo.mockClear();
+  credentialLogger.logError.mockClear();
 });
 
 afterEach(async () => {
@@ -310,6 +319,34 @@ describe('WeRead repository book details', () => {
 });
 
 describe('WeRead repository credentials', () => {
+  it('records the credential state when api key replacement cannot commit', async () => {
+    insertWeReadAccount('weread:default:apiKey');
+    testPaths.secrets.set('weread:default:apiKey', 'weread-old');
+    getDatabase().run(`
+      CREATE TRIGGER fail_weread_key_replacement
+      BEFORE UPDATE ON weread_accounts
+      BEGIN
+        SELECT RAISE(ABORT, 'injected WeRead replacement failure');
+      END
+    `);
+
+    await expect(saveWeReadSettings({ apiKey: 'weread-new' })).rejects.toThrow(
+      'injected WeRead replacement failure',
+    );
+
+    expect(testPaths.secrets.get('weread:default:apiKey')).toBe('weread-old');
+    expect([...testPaths.secrets.keys()]).toEqual(['weread:default:apiKey']);
+    expect(credentialLogger.logError).toHaveBeenCalledWith(
+      'credential_swap.transaction_failed',
+      expect.objectContaining({ message: 'injected WeRead replacement failure' }),
+      {
+        owner: 'weread',
+        ownerId: 'default',
+        apiKeyRef: expect.stringMatching(/^weread:default:apiKey:version:/),
+      },
+    );
+  });
+
   it('preserves the credential when api key removal cannot commit', async () => {
     insertWeReadAccount('weread:default:apiKey');
     testPaths.secrets.set('weread:default:apiKey', 'weread-secret');
@@ -327,6 +364,19 @@ describe('WeRead repository credentials', () => {
 
     expect(readWeReadAccount()?.apiKeyRef).toBe('weread:default:apiKey');
     expect(testPaths.secrets.get('weread:default:apiKey')).toBe('weread-secret');
+    expect(getDatabase().select().from(schema.secretDeletionTasks).all()).toEqual([]);
+  });
+
+  it('switches the account ref before retiring a replaced credential', async () => {
+    insertWeReadAccount('weread:default:apiKey');
+    testPaths.secrets.set('weread:default:apiKey', 'weread-old');
+
+    await saveWeReadSettings({ apiKey: 'weread-new' });
+
+    const replacementRef = readWeReadAccount()?.apiKeyRef;
+    expect(replacementRef).toMatch(/^weread:default:apiKey:version:/);
+    expect(testPaths.secrets.has('weread:default:apiKey')).toBe(false);
+    expect(testPaths.secrets.get(replacementRef || '')).toBe('weread-new');
     expect(getDatabase().select().from(schema.secretDeletionTasks).all()).toEqual([]);
   });
 

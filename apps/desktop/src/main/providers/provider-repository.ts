@@ -2,7 +2,8 @@ import { eq } from 'drizzle-orm';
 import type { LlmProvider } from '@yomitomo/shared';
 import { makeId, providerPresets } from '@yomitomo/shared';
 import * as schema from '../db/schema';
-import { providerApiKeyRef, readProviderApiKey, saveProviderApiKey } from './provider-secrets';
+import { prepareCredentialChange, type PreparedCredentialChange } from './credential-swap';
+import { providerApiKeyRef, readProviderApiKey } from './provider-secrets';
 import { getDatabase, type StoreExecutor } from '../store/store-db';
 import {
   normalizeModelNames,
@@ -18,8 +19,7 @@ export type SaveProviderInput = Partial<LlmProvider> & {
 };
 
 export type ProviderApiKeyStorage = {
-  apiKeyRef?: string;
-  secretRefToDelete?: string;
+  credentialChange: PreparedCredentialChange;
   storedApiKey: string;
 };
 
@@ -29,7 +29,9 @@ type ProviderApiKeyStorageRow = {
 };
 
 export async function hydrateProviderApiKey(provider: LlmProvider): Promise<LlmProvider> {
-  const apiKey = provider.apiKey?.trim() || (await readProviderApiKey(provider.id));
+  const apiKey =
+    provider.apiKey?.trim() ||
+    (await readProviderApiKey(provider.id, readProviderSecretStorageRow(provider.id)?.apiKeyRef));
   if (!apiKey) throw new Error('PROVIDER_API_KEY_REQUIRED');
   return { ...provider, apiKey };
 }
@@ -38,12 +40,15 @@ export async function hydrateProviderInputApiKey(
   provider: Partial<LlmProvider>,
 ): Promise<Partial<LlmProvider>> {
   const apiKey =
-    provider.apiKey?.trim() || (provider.id ? await readProviderApiKey(provider.id) : '');
+    provider.apiKey?.trim() ||
+    (provider.id
+      ? await readProviderApiKey(provider.id, readProviderSecretStorageRow(provider.id)?.apiKeyRef)
+      : '');
   return { ...provider, apiKey };
 }
 
 export async function readStoredProviderApiKey(providerId: string) {
-  return readProviderApiKey(providerId);
+  return readProviderApiKey(providerId, readProviderSecretStorageRow(providerId)?.apiKeyRef);
 }
 
 export async function resolveProviderApiKeyStorage(
@@ -52,27 +57,13 @@ export async function resolveProviderApiKeyStorage(
   existingRow: ProviderApiKeyStorageRow | undefined,
 ): Promise<ProviderApiKeyStorage> {
   const existingApiKeyRef = existingRow?.apiKeyRef || undefined;
-  const inputApiKey = input.apiKey?.trim();
-
-  if (inputApiKey) {
-    return {
-      apiKeyRef: await saveProviderApiKey(providerId, inputApiKey),
-      storedApiKey: '',
-    };
-  }
-
-  if (input.removeApiKey) {
-    return {
-      secretRefToDelete: existingApiKeyRef || providerApiKeyRef(providerId),
-      storedApiKey: '',
-    };
-  }
-
-  if (existingApiKeyRef) {
-    return { apiKeyRef: existingApiKeyRef, storedApiKey: '' };
-  }
-
-  return { storedApiKey: '' };
+  const credentialChange = await prepareCredentialChange({
+    currentRef: existingApiKeyRef,
+    defaultRef: providerApiKeyRef(providerId),
+    remove: input.removeApiKey,
+    secret: input.apiKey,
+  });
+  return { credentialChange, storedApiKey: '' };
 }
 
 export function buildProviderRecord(

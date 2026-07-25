@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import { makeId } from '@yomitomo/shared';
 import type { ProviderStorePatch } from '../../ipc-contract';
 import { ensurePresetAgents } from '../agents/agent-repository';
+import { logError } from '../app/logger';
 import * as schema from '../db/schema';
 import {
   buildProviderRecord,
@@ -9,9 +10,13 @@ import {
   upsertProvider,
   type SaveProviderInput,
 } from '../providers/provider-repository';
+import {
+  abortCredentialChange,
+  commitCredentialChange,
+  completeCredentialChange,
+} from '../providers/credential-swap';
 import { providerApiKeyRef } from '../providers/provider-secrets';
 import {
-  cancelSecretDeletion,
   completeSecretDeletion,
   queueSecretDeletion,
 } from '../providers/secret-deletion-repository';
@@ -29,11 +34,12 @@ export async function saveProvider(input: SaveProviderInput): Promise<ProviderSt
     : undefined;
   const existing = existingRow ? rowToProvider(existingRow) : undefined;
   const id = existing?.id || makeId('provider');
-  const { apiKeyRef, secretRefToDelete, storedApiKey } = await resolveProviderApiKeyStorage(
+  const { credentialChange, storedApiKey } = await resolveProviderApiKeyStorage(
     id,
     input,
     existingRow,
   );
+  const { apiKeyRef } = credentialChange;
   const provider = buildProviderRecord(input, {
     id,
     now,
@@ -42,12 +48,21 @@ export async function saveProvider(input: SaveProviderInput): Promise<ProviderSt
     storedApiKey,
   });
 
-  database.transaction((tx) => {
-    upsertProvider(tx, provider, apiKeyRef, storedApiKey);
-    if (secretRefToDelete) queueSecretDeletion(tx, secretRefToDelete);
-    else if (apiKeyRef) cancelSecretDeletion(tx, apiKeyRef);
-  });
-  if (secretRefToDelete) await completeSecretDeletion(secretRefToDelete);
+  try {
+    database.transaction((tx) => {
+      upsertProvider(tx, provider, apiKeyRef, storedApiKey);
+      commitCredentialChange(tx, credentialChange);
+    });
+  } catch (error) {
+    logError('credential_swap.transaction_failed', error, {
+      owner: 'provider',
+      ownerId: id,
+      apiKeyRef,
+    });
+    await abortCredentialChange(credentialChange);
+    throw error;
+  }
+  await completeCredentialChange(credentialChange);
   return readProviderStorePatch(database);
 }
 

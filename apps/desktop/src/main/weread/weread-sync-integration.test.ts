@@ -25,6 +25,7 @@ vi.mock('../providers/provider-secrets', () => ({
   deleteStoredSecret: vi.fn(),
   readWeReadApiKey: vi.fn(async () => ''),
   saveWeReadApiKey: vi.fn(async () => 'weread:default:apiKey'),
+  saveStoredSecret: vi.fn(),
   wereadApiKeyRef: () => 'weread:default:apiKey',
 }));
 
