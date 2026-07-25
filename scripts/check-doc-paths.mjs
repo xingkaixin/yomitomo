@@ -2,6 +2,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 
 const defaultDocuments = [
+  'README.md',
+  'README_zh.md',
   'docs/annotation-data-flow.md',
   'docs/effect-v4-runtime.md',
   'docs/focus-co-reading-data-flow.md',

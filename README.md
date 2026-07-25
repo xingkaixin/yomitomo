@@ -165,7 +165,7 @@ pnpm build
 - `packages/ai` contains provider calls, model input budgeting, AI annotations, and EPUB/PDF reading context.
 - `packages/reader-ui` contains the desktop reader React UI, styles, utilities, and hooks.
 - `apps/desktop/src/main` contains the Electron main process, SQLite store, LLM calls, article/ebook/PDF import, WeRead sync, and logging.
-- `apps/desktop/src/renderer/src/app-*` contains desktop reading library, statistics, settings, and log UI.
+- `apps/desktop/src/renderer/src/reading-library`, `apps/desktop/src/renderer/src/reading-stats`, `apps/desktop/src/renderer/src/settings`, `apps/desktop/src/renderer/src/shell`, and `apps/desktop/src/renderer/src/source` contain the desktop library, statistics, settings, application shell/log UI, and Web/EPUB/PDF reader surfaces.
 - `apps/web/src` contains Astro website pages, product carousel, and global styles. Download links are generated from the version in `apps/desktop/package.json`.
 - `apps/download/src` contains the Cloudflare Worker that proxies GitHub Release installers, update manifests, and blockmap files for `download.yomitomo.app`.
 
