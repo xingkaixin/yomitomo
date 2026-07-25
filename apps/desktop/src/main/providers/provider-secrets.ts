@@ -14,16 +14,19 @@ export function wereadApiKeyRef(accountId = 'default') {
 
 export async function saveProviderApiKey(providerId: string, apiKey: string) {
   const ref = providerApiKeyRef(providerId);
-  const entry = await createEntry(ref);
-  entry.setPassword(apiKey);
+  await saveStoredSecret(ref, apiKey);
   return ref;
 }
 
 export async function saveWeReadApiKey(apiKey: string, accountId = 'default') {
   const ref = wereadApiKeyRef(accountId);
-  const entry = await createEntry(ref);
-  entry.setPassword(apiKey);
+  await saveStoredSecret(ref, apiKey);
   return ref;
+}
+
+export async function saveStoredSecret(ref: string, secret: string) {
+  const entry = await createEntry(ref);
+  entry.setPassword(secret);
 }
 
 export async function readProviderApiKey(providerId: string, apiKeyRef?: string | null) {

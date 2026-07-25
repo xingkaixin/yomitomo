@@ -16,12 +16,13 @@ import type {
 } from '@yomitomo/shared';
 import { logError } from '../app/logger';
 import * as schema from '../db/schema';
-import { readWeReadApiKey, saveWeReadApiKey, wereadApiKeyRef } from '../providers/provider-secrets';
 import {
-  cancelSecretDeletion,
-  completeSecretDeletion,
-  queueSecretDeletion,
-} from '../providers/secret-deletion-repository';
+  abortCredentialChange,
+  commitCredentialChange,
+  completeCredentialChange,
+  prepareCredentialChange,
+} from '../providers/credential-swap';
+import { readWeReadApiKey, wereadApiKeyRef } from '../providers/provider-secrets';
 import { getDatabase, type StoreExecutor } from '../store/store-db';
 import {
   buildWeReadDetailRows,
@@ -66,13 +67,13 @@ export async function saveWeReadSettings(input: {
   syncMode?: WeReadSyncMode;
 }) {
   const existing = readWeReadAccountRow();
-  let apiKeyRef = existing?.apiKeyRef || null;
-  let secretRefToDelete: string | undefined;
-  if (input.apiKey?.trim()) apiKeyRef = await saveWeReadApiKey(input.apiKey.trim());
-  else if (input.removeApiKey) {
-    secretRefToDelete = apiKeyRef || wereadApiKeyRef();
-    apiKeyRef = null;
-  }
+  const credentialChange = await prepareCredentialChange({
+    currentRef: existing?.apiKeyRef || undefined,
+    defaultRef: wereadApiKeyRef(),
+    remove: input.removeApiKey,
+    secret: input.apiKey,
+  });
+  const apiKeyRef = credentialChange.apiKeyRef || null;
   const account = {
     apiKeyRef,
     openMethod: normalizeWeReadOpenMethod(input.openMethod ?? existing?.openMethod),
@@ -86,8 +87,7 @@ export async function saveWeReadSettings(input: {
   try {
     database.transaction((tx) => {
       upsertWeReadAccountRow(tx, account);
-      if (secretRefToDelete) queueSecretDeletion(tx, secretRefToDelete);
-      else if (apiKeyRef) cancelSecretDeletion(tx, apiKeyRef);
+      commitCredentialChange(tx, credentialChange);
     });
   } catch (error) {
     logError('credential_swap.transaction_failed', error, {
@@ -95,9 +95,10 @@ export async function saveWeReadSettings(input: {
       ownerId: WEREAD_ACCOUNT_ID,
       apiKeyRef,
     });
+    await abortCredentialChange(credentialChange);
     throw error;
   }
-  if (secretRefToDelete) await completeSecretDeletion(secretRefToDelete);
+  await completeCredentialChange(credentialChange);
   return readWeReadState();
 }
 

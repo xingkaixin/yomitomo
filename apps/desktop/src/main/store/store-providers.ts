@@ -10,9 +10,13 @@ import {
   upsertProvider,
   type SaveProviderInput,
 } from '../providers/provider-repository';
+import {
+  abortCredentialChange,
+  commitCredentialChange,
+  completeCredentialChange,
+} from '../providers/credential-swap';
 import { providerApiKeyRef } from '../providers/provider-secrets';
 import {
-  cancelSecretDeletion,
   completeSecretDeletion,
   queueSecretDeletion,
 } from '../providers/secret-deletion-repository';
@@ -30,11 +34,12 @@ export async function saveProvider(input: SaveProviderInput): Promise<ProviderSt
     : undefined;
   const existing = existingRow ? rowToProvider(existingRow) : undefined;
   const id = existing?.id || makeId('provider');
-  const { apiKeyRef, secretRefToDelete, storedApiKey } = await resolveProviderApiKeyStorage(
+  const { credentialChange, storedApiKey } = await resolveProviderApiKeyStorage(
     id,
     input,
     existingRow,
   );
+  const { apiKeyRef } = credentialChange;
   const provider = buildProviderRecord(input, {
     id,
     now,
@@ -46,8 +51,7 @@ export async function saveProvider(input: SaveProviderInput): Promise<ProviderSt
   try {
     database.transaction((tx) => {
       upsertProvider(tx, provider, apiKeyRef, storedApiKey);
-      if (secretRefToDelete) queueSecretDeletion(tx, secretRefToDelete);
-      else if (apiKeyRef) cancelSecretDeletion(tx, apiKeyRef);
+      commitCredentialChange(tx, credentialChange);
     });
   } catch (error) {
     logError('credential_swap.transaction_failed', error, {
@@ -55,9 +59,10 @@ export async function saveProvider(input: SaveProviderInput): Promise<ProviderSt
       ownerId: id,
       apiKeyRef,
     });
+    await abortCredentialChange(credentialChange);
     throw error;
   }
-  if (secretRefToDelete) await completeSecretDeletion(secretRefToDelete);
+  await completeCredentialChange(credentialChange);
   return readProviderStorePatch(database);
 }
 
