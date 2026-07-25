@@ -3,7 +3,6 @@ import { Check, Save, Upload, User } from 'lucide-react';
 import { sanitizeUsernameInput, userAnnotationColors, type UserDraft } from './app-settings';
 import { readFileAsDataUrl } from '../shell/app-utils';
 import { AvatarImage } from '../shell/app-ui';
-import type { SaveState } from '../shell/app-types';
 import { ColorPicker } from './app-settings-color-picker';
 import { Button } from '../components/ui/button';
 import { Field } from '../components/ui/field';
@@ -23,29 +22,23 @@ import {
 } from '../components/ui/dialog';
 import type { SaveableDraft } from './use-saveable-draft';
 
-type UserProfileSettingsLegacyProps = {
-  draft: UserDraft;
-  canSave: boolean;
-  onChange: (draft: UserDraft) => void;
+type UserProfileSettingsProps = {
+  profileDraft: SaveableDraft<UserDraft>;
   onClose: () => void;
-  onSave: () => Promise<unknown> | void;
-  saveError?: string;
-  saveState: SaveState;
+  onSaved?: () => void;
   sourceRect?: DialogSourceRect;
 };
 
-type UserProfileSettingsProps =
-  | {
-      profileDraft: SaveableDraft<UserDraft>;
-      onClose: () => void;
-      onSaved?: () => void;
-      sourceRect?: DialogSourceRect;
-    }
-  | UserProfileSettingsLegacyProps;
-
-export function UserProfileSettingsDialog(props: UserProfileSettingsProps) {
-  const { draft, canSave, onChange, onClose, onSave, saveError, saveState, sourceRect } =
-    resolveUserProfileSettingsProps(props);
+export function UserProfileSettingsDialog({
+  profileDraft,
+  onClose,
+  onSaved,
+  sourceRect,
+}: UserProfileSettingsProps) {
+  const { value: draft, canSave, update: onChange, saveError, saveState } = profileDraft;
+  const onSave = async () => {
+    if (await profileDraft.save()) onSaved?.();
+  };
   const { t } = useTranslation();
   const dialogStyle = useSourceAwareDialogTransition(sourceRect);
   const saveLabel =
@@ -162,26 +155,6 @@ export function UserProfileSettingsDialog(props: UserProfileSettingsProps) {
       </DialogPortal>
     </Dialog>
   );
-}
-
-function resolveUserProfileSettingsProps(
-  props: UserProfileSettingsProps,
-): UserProfileSettingsLegacyProps {
-  if ('profileDraft' in props) {
-    return {
-      draft: props.profileDraft.value,
-      canSave: props.profileDraft.canSave,
-      onChange: props.profileDraft.update,
-      onClose: props.onClose,
-      onSave: async () => {
-        if (await props.profileDraft.save()) props.onSaved?.();
-      },
-      saveError: props.profileDraft.saveError,
-      saveState: props.profileDraft.saveState,
-      sourceRect: props.sourceRect,
-    };
-  }
-  return props;
 }
 
 function AnnotationColorPreview({

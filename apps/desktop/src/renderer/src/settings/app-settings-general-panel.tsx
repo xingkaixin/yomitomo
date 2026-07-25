@@ -70,20 +70,11 @@ type GeneralSaveSection =
 type AppLockDialogMode = 'enable' | 'disable';
 type AppLockSetupStep = 'pin' | 'confirm';
 
-type GeneralSettingsLegacyProps = {
-  settingsDraft: AppSettings;
-  canSave: boolean;
-  onSettingsChange: (draft: AppSettings) => void;
-  onSave: (draft?: AppSettings) => void;
-  saveError?: string;
-  saveState: SaveState;
-};
-
-type GeneralSettingsProps = { draft: SaveableDraft<AppSettings> } | GeneralSettingsLegacyProps;
-
-export function GeneralSettings(props: GeneralSettingsProps) {
-  const { settingsDraft, onSettingsChange, onSave, saveError, saveState } =
-    resolveGeneralSettingsProps(props);
+export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }) {
+  const { value: settingsDraft, update: onSettingsChange, saveError, saveState } = draft;
+  const onSave = (override?: AppSettings) => {
+    void draft.save(override);
+  };
   const { t } = useTranslation();
   const uiLanguage = normalizeUiLanguage(settingsDraft.uiLanguage);
   const savedSoundVolumePercent = Math.round(
@@ -700,22 +691,6 @@ export function GeneralSettings(props: GeneralSettingsProps) {
       />
     </SettingsPage>
   );
-}
-
-function resolveGeneralSettingsProps(props: GeneralSettingsProps): GeneralSettingsLegacyProps {
-  if ('draft' in props) {
-    return {
-      settingsDraft: props.draft.value,
-      canSave: props.draft.canSave,
-      onSettingsChange: props.draft.update,
-      onSave: (draft) => {
-        void props.draft.save(draft);
-      },
-      saveError: props.draft.saveError,
-      saveState: props.draft.saveState,
-    };
-  }
-  return props;
 }
 
 function AppLockSettingsDialog({
