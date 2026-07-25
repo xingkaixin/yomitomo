@@ -9,7 +9,9 @@ import type {
 } from '@yomitomo/shared';
 import { createEpubTextAnchor, locateEpubOffset, locateEpubTextAnchor } from '../epub/ebook-index';
 import {
-  buildReadingContextBundle,
+  buildEpubReadingContextScope,
+  prepareEpubReadingContext,
+  type PreparedEpubReadingContext,
   type ReadingContextPassageInput,
   type ReadingContextTextRange,
 } from './reading-context';
@@ -76,12 +78,18 @@ type LexicalCacheStats = {
   missCount: number;
 };
 
-export type LexicalRelatedPassageCache = {
+type PreparedLexicalRelatedPassageIndex = {
+  paragraphLookup: ParagraphWindowLookup;
   paragraphDocuments: Map<string, CachedParagraphLexicalDocument>;
+  readingContext: PreparedEpubReadingContext;
+};
+
+export type LexicalRelatedPassageCache = {
+  indexes: WeakMap<EpubBookIndex, PreparedLexicalRelatedPassageIndex>;
 };
 
 export function createLexicalRelatedPassageCache(): LexicalRelatedPassageCache {
-  return { paragraphDocuments: new Map() };
+  return { indexes: new WeakMap() };
 }
 
 export function buildCurrentChapterLexicalRelatedPassages(
@@ -98,15 +106,15 @@ export function buildCurrentChapterLexicalRelatedPassages(
     return [];
   }
 
-  const chapter = currentChapter(input);
+  const prepared = preparedLexicalRelatedPassageIndex(input);
+  const chapter = currentChapter(input, prepared);
   if (!chapter) {
     logTiming({ result: 'missing_chapter' });
     return [];
   }
 
-  const allowedRanges = buildReadingContextBundle({
+  const allowedRanges = buildEpubReadingContextScope(prepared.readingContext, {
     articleText: input.articleText,
-    ebookIndex: input.ebookIndex,
     targetAnchor: input.targetAnchor,
     readingPlan: input.readingPlan,
     readerProgress: input.readerProgress,
@@ -119,14 +127,15 @@ export function buildCurrentChapterLexicalRelatedPassages(
 
   const chapterIds = candidateChapterIds(input, chapter);
   const excluded = new Set(input.excludeParagraphIds || []);
-  const paragraphLookup = buildParagraphWindowLookup(input.ebookIndex.paragraphs);
   const cacheStats: LexicalCacheStats = { hitCount: 0, missCount: 0 };
-  const documents = input.ebookIndex.paragraphs.flatMap((paragraph) => {
-    if (!chapterIds.has(paragraph.chapterId) || excluded.has(paragraph.id)) return [];
-    const ranges = intersectTextRanges(allowedRanges, paragraph);
-    const document = paragraphLexicalDocument(input, paragraph, ranges, cacheStats);
-    return document ? [{ paragraph, ranges, ...document }] : [];
-  });
+  const documents = Array.from(chapterIds).flatMap((chapterId) =>
+    (prepared.paragraphLookup.paragraphsByChapterId.get(chapterId) || []).flatMap((paragraph) => {
+      if (excluded.has(paragraph.id)) return [];
+      const ranges = intersectTextRanges(allowedRanges, paragraph);
+      const document = paragraphLexicalDocument(input, prepared, paragraph, ranges, cacheStats);
+      return document ? [{ paragraph, ranges, ...document }] : [];
+    }),
+  );
   if (documents.length === 0) {
     logTiming({
       result: 'empty_documents',
@@ -142,12 +151,8 @@ export function buildCurrentChapterLexicalRelatedPassages(
   const scored = scoreDocuments(documents, queryTerms, queries).filter(
     (document) => document.score >= MIN_RELATED_PASSAGE_SCORE,
   );
-  scored.sort((left, right) => {
-    if (right.score !== left.score) return right.score - left.score;
-    return left.paragraph.textStart - right.paragraph.textStart;
-  });
 
-  const passages = buildPassages(input, scored, allowedRanges, excluded, paragraphLookup);
+  const passages = buildPassages(input, scored, allowedRanges, excluded, prepared.paragraphLookup);
   logTiming({
     result: 'ok',
     chapterId: chapter.id,
@@ -164,6 +169,7 @@ export function buildCurrentChapterLexicalRelatedPassages(
 
 function paragraphLexicalDocument(
   input: BuildCurrentChapterLexicalRelatedPassagesInput,
+  prepared: PreparedLexicalRelatedPassageIndex,
   paragraph: EpubParagraphIndex,
   ranges: ReadingContextTextRange[],
   cacheStats: LexicalCacheStats,
@@ -171,7 +177,7 @@ function paragraphLexicalDocument(
   const text = textForRanges(input.articleText, ranges);
   if (!text) return null;
   const cacheKey = paragraphLexicalDocumentCacheKey(input.ebookIndex.articleId, paragraph, ranges);
-  const cached = input.lexicalCache?.paragraphDocuments.get(cacheKey);
+  const cached = prepared.paragraphDocuments.get(cacheKey);
   if (cached) {
     cacheStats.hitCount += 1;
     return cached;
@@ -180,7 +186,7 @@ function paragraphLexicalDocument(
   const terms = termCounts(tokenizeLexicalText(text));
   if (terms.size === 0) return null;
   const document = { text, terms, length: tokenLength(terms) };
-  input.lexicalCache?.paragraphDocuments.set(cacheKey, document);
+  prepared.paragraphDocuments.set(cacheKey, document);
   if (input.lexicalCache) cacheStats.missCount += 1;
   return document;
 }
@@ -225,27 +231,30 @@ function queryTexts(query: string | string[]) {
 
 function currentChapter(
   input: BuildCurrentChapterLexicalRelatedPassagesInput,
+  prepared: PreparedLexicalRelatedPassageIndex,
 ): EpubChapterIndex | null {
   if (input.chapterId) {
-    return input.ebookIndex.chapters.find((chapter) => chapter.id === input.chapterId) || null;
+    return prepared.readingContext.lookup.chapterById.get(input.chapterId) || null;
   }
   if (input.readerProgress?.currentChapterId) {
     return (
-      input.ebookIndex.chapters.find(
-        (chapter) => chapter.id === input.readerProgress?.currentChapterId,
-      ) || null
+      prepared.readingContext.lookup.chapterById.get(input.readerProgress.currentChapterId) || null
     );
   }
   if (input.paragraphId) {
-    const paragraph = input.ebookIndex.paragraphs.find((item) => item.id === input.paragraphId);
-    return paragraph ? chapterById(input.ebookIndex, paragraph.chapterId) : null;
+    const paragraph = prepared.readingContext.lookup.paragraphById(input.paragraphId);
+    return paragraph
+      ? prepared.readingContext.lookup.chapterById.get(paragraph.chapterId) || null
+      : null;
   }
   if (input.segmentId) {
-    const segment = input.ebookIndex.segments.find((item) => item.id === input.segmentId);
-    return segment ? chapterById(input.ebookIndex, segment.chapterId) : null;
+    const segment = prepared.readingContext.lookup.segmentById.get(input.segmentId);
+    return segment
+      ? prepared.readingContext.lookup.chapterById.get(segment.chapterId) || null
+      : null;
   }
   if (input.targetAnchor?.chapterId) {
-    return chapterById(input.ebookIndex, input.targetAnchor.chapterId);
+    return prepared.readingContext.lookup.chapterById.get(input.targetAnchor.chapterId) || null;
   }
   if (input.targetAnchor) {
     return (
@@ -257,10 +266,6 @@ function currentChapter(
     return locateEpubOffset(input.ebookIndex, firstPlanItem.sectionStart)?.chapter || null;
   }
   return locateEpubOffset(input.ebookIndex, 0)?.chapter || null;
-}
-
-function chapterById(index: EpubBookIndex, chapterId: string) {
-  return index.chapters.find((chapter) => chapter.id === chapterId) || null;
 }
 
 function candidateChapterIds(
@@ -341,9 +346,12 @@ function buildPassages(
   );
   const usedParagraphIds = new Set<string>();
   const passages: ReadingContextPassageInput[] = [];
+  const scoredHeap = createScoredParagraphHeap(scored);
 
-  for (const document of scored) {
-    if (passages.length >= maxPassages || usedParagraphIds.has(document.paragraph.id)) continue;
+  while (passages.length < maxPassages) {
+    const document = popBestScoredParagraph(scoredHeap);
+    if (!document) break;
+    if (usedParagraphIds.has(document.paragraph.id)) continue;
     const blocks = paragraphWindow(paragraphLookup, document.paragraph, neighborParagraphs)
       .filter((paragraph) => !excluded.has(paragraph.id))
       .flatMap((paragraph) => {
@@ -383,6 +391,44 @@ function buildPassages(
   }
 
   return passages;
+}
+
+function createScoredParagraphHeap(scored: ScoredParagraph[]) {
+  const heap = [...scored];
+  for (let index = Math.floor(heap.length / 2) - 1; index >= 0; index -= 1) {
+    siftDownScoredParagraph(heap, index);
+  }
+  return heap;
+}
+
+function popBestScoredParagraph(heap: ScoredParagraph[]) {
+  const best = heap[0];
+  const last = heap.pop();
+  if (!best || !last) return best;
+  if (heap.length > 0) {
+    heap[0] = last;
+    siftDownScoredParagraph(heap, 0);
+  }
+  return best;
+}
+
+function siftDownScoredParagraph(heap: ScoredParagraph[], start: number) {
+  let parent = start;
+  while (true) {
+    const left = parent * 2 + 1;
+    const right = left + 1;
+    let best = parent;
+    if (left < heap.length && scoredParagraphPrecedes(heap[left], heap[best])) best = left;
+    if (right < heap.length && scoredParagraphPrecedes(heap[right], heap[best])) best = right;
+    if (best === parent) return;
+    [heap[parent], heap[best]] = [heap[best], heap[parent]];
+    parent = best;
+  }
+}
+
+function scoredParagraphPrecedes(left: ScoredParagraph, right: ScoredParagraph) {
+  if (left.score !== right.score) return left.score > right.score;
+  return left.paragraph.textStart < right.paragraph.textStart;
 }
 
 function createRelatedPassageAnchor(
@@ -430,6 +476,19 @@ function buildParagraphWindowLookup(paragraphs: EpubParagraphIndex[]): Paragraph
   }
 
   return { paragraphsByChapterId, paragraphIndexByChapterAndId };
+}
+
+function preparedLexicalRelatedPassageIndex(input: BuildCurrentChapterLexicalRelatedPassagesInput) {
+  const cached = input.lexicalCache?.indexes.get(input.ebookIndex);
+  if (cached) return cached;
+
+  const prepared = {
+    paragraphLookup: buildParagraphWindowLookup(input.ebookIndex.paragraphs),
+    paragraphDocuments: new Map<string, CachedParagraphLexicalDocument>(),
+    readingContext: prepareEpubReadingContext(input.ebookIndex),
+  };
+  input.lexicalCache?.indexes.set(input.ebookIndex, prepared);
+  return prepared;
 }
 
 function paragraphWindowLookupKey(paragraph: Pick<EpubParagraphIndex, 'chapterId' | 'id'>) {
