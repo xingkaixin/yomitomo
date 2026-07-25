@@ -74,11 +74,18 @@ export type ReadingContextBundle = {
   chapterSummaries: ReadingContextChapterSummaryInput[];
 };
 
+export type ReadingContextScope = Omit<ReadingContextBundle, 'articleText'>;
+
 type EpubContextLookup = {
-  chapterById: Map<string, EpubChapterIndex>;
-  segmentById: Map<string, EpubSegmentIndex>;
-  paragraphById: Map<string, EpubParagraphIndex>;
-  firstSegmentByChapterId: Map<string, EpubSegmentIndex>;
+  chapterById: ReadonlyMap<string, EpubChapterIndex>;
+  segmentById: ReadonlyMap<string, EpubSegmentIndex>;
+  paragraphById(id: string): EpubParagraphIndex | undefined;
+  firstSegmentByChapterId: ReadonlyMap<string, EpubSegmentIndex>;
+};
+
+export type PreparedEpubReadingContext = {
+  readonly ebookIndex: EpubBookIndex;
+  readonly lookup: EpubContextLookup;
 };
 
 export function buildReadingContextBundle(
@@ -97,17 +104,37 @@ export function buildReadingContextBundle(
     };
   }
 
-  const lookup = buildEpubContextLookup(input.ebookIndex);
-  const targetRange = resolveTargetRange(input.ebookIndex, input.articleText, input.targetAnchor);
+  const prepared = prepareEpubReadingContext(input.ebookIndex);
+  const scope = buildEpubReadingContextScope(prepared, input);
+
+  return {
+    articleText: readingContextText(input.articleText, scope.textRanges),
+    ...scope,
+  };
+}
+
+export function prepareEpubReadingContext(ebookIndex: EpubBookIndex): PreparedEpubReadingContext {
+  return {
+    ebookIndex,
+    lookup: buildEpubContextLookup(ebookIndex),
+  };
+}
+
+export function buildEpubReadingContextScope(
+  prepared: PreparedEpubReadingContext,
+  input: Omit<BuildReadingContextBundleInput, 'ebookIndex'>,
+): ReadingContextScope {
+  const { ebookIndex, lookup } = prepared;
+  const policy = input.spoilerPolicy || defaultSpoilerPolicy(input);
+  const targetRange = resolveTargetRange(ebookIndex, input.articleText, input.targetAnchor);
   const progress =
-    input.readerProgress || inferReaderProgress(input.ebookIndex, input.articleText, input);
+    input.readerProgress || inferReaderProgress(ebookIndex, input.articleText, input);
   const ranges = mergeReadingContextTextRanges(
-    scopeTextRanges(input.ebookIndex, lookup, progress, targetRange, policy),
+    scopeTextRanges(ebookIndex, lookup, progress, targetRange, policy),
   );
   const rangeLookup = createMergedReadingContextRangeLookup(ranges);
 
   return {
-    articleText: readingContextText(input.articleText, ranges),
     textRanges: ranges,
     readerProgress: progress,
     spoilerPolicy: policy,
@@ -339,7 +366,7 @@ function passageRange(
   if (textStart !== null && textEnd !== null && textEnd > textStart) return { textStart, textEnd };
 
   if (passage.paragraphId) {
-    const paragraph = lookup.paragraphById.get(passage.paragraphId);
+    const paragraph = lookup.paragraphById(passage.paragraphId);
     if (paragraph) return { textStart: paragraph.textStart, textEnd: paragraph.textEnd };
   }
   if (passage.segmentId) {
@@ -356,8 +383,8 @@ function passageRange(
 function buildEpubContextLookup(index: EpubBookIndex): EpubContextLookup {
   const chapterById = new Map<string, EpubChapterIndex>();
   const segmentById = new Map<string, EpubSegmentIndex>();
-  const paragraphById = new Map<string, EpubParagraphIndex>();
   const firstSegmentByChapterId = new Map<string, EpubSegmentIndex>();
+  let paragraphById: Map<string, EpubParagraphIndex> | undefined;
 
   for (const chapter of index.chapters) {
     if (!chapterById.has(chapter.id)) chapterById.set(chapter.id, chapter);
@@ -368,11 +395,20 @@ function buildEpubContextLookup(index: EpubBookIndex): EpubContextLookup {
       firstSegmentByChapterId.set(segment.chapterId, segment);
     }
   }
-  for (const paragraph of index.paragraphs) {
-    if (!paragraphById.has(paragraph.id)) paragraphById.set(paragraph.id, paragraph);
-  }
-
-  return { chapterById, segmentById, paragraphById, firstSegmentByChapterId };
+  return {
+    chapterById,
+    segmentById,
+    paragraphById: (id) => {
+      if (!paragraphById) {
+        paragraphById = new Map();
+        for (const paragraph of index.paragraphs) {
+          if (!paragraphById.has(paragraph.id)) paragraphById.set(paragraph.id, paragraph);
+        }
+      }
+      return paragraphById.get(id);
+    },
+    firstSegmentByChapterId,
+  };
 }
 
 function readingContextText(articleText: string, ranges: ReadingContextTextRange[]) {
