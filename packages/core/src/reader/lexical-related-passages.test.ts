@@ -101,6 +101,60 @@ describe('buildCurrentChapterLexicalRelatedPassages', () => {
     expect(passages[0]?.text).toContain('制度惯性继续影响决策。');
   });
 
+  it('preserves passage IDs, BM25 scores, and stable ranking order', () => {
+    const chapters: EpubBookIndexChapterInput[] = [
+      {
+        id: 'chapter-1',
+        title: '第一章',
+        paragraphs: [
+          '制度惯性第一次出现。',
+          '制度惯性继续影响决策。',
+          '这里再次讨论制度惯性。',
+          '完全无关内容。',
+        ],
+      },
+    ];
+    const index = buildEpubBookIndex({ articleId: 'book-1', chapters });
+    const text = epubIndexText(chapters);
+    const passages = buildCurrentChapterLexicalRelatedPassages({
+      articleText: text,
+      ebookIndex: index,
+      query: '制度惯性 影响',
+      chapterId: 'chapter-1',
+      excludeParagraphIds: ['chapter-1-paragraph-4'],
+      maxPassages: 3,
+      neighborParagraphs: 0,
+    });
+
+    expect(
+      passages.map(({ id, paragraphId, score, text: passageText }) => ({
+        id,
+        paragraphId,
+        score,
+        text: passageText,
+      })),
+    ).toEqual([
+      {
+        id: 'book-1:current-chapter-lexical:chapter-1-paragraph-2',
+        paragraphId: 'chapter-1-paragraph-2',
+        score: 2.0035,
+        text: '制度惯性继续影响决策。',
+      },
+      {
+        id: 'book-1:current-chapter-lexical:chapter-1-paragraph-1',
+        paragraphId: 'chapter-1-paragraph-1',
+        score: 0.6852,
+        text: '制度惯性第一次出现。',
+      },
+      {
+        id: 'book-1:current-chapter-lexical:chapter-1-paragraph-3',
+        paragraphId: 'chapter-1-paragraph-3',
+        score: 0.6677,
+        text: '这里再次讨论制度惯性。',
+      },
+    ]);
+  });
+
   it('ignores queries without searchable lexical terms', () => {
     const { index, text } = bookFixture();
     const passages = buildCurrentChapterLexicalRelatedPassages({
@@ -142,6 +196,37 @@ describe('buildCurrentChapterLexicalRelatedPassages', () => {
       lexicalCacheHitCount: 3,
       lexicalCacheMissCount: 0,
     });
+  });
+
+  it('prepares the full-book paragraph lookup once per cached EPUB index', () => {
+    const { index, text } = bookFixture();
+    const paragraphs = index.paragraphs;
+    let fullIterations = 0;
+    index.paragraphs = new Proxy(paragraphs, {
+      get(target, property, receiver) {
+        if (property !== Symbol.iterator) return Reflect.get(target, property, receiver);
+        return function* () {
+          fullIterations += 1;
+          yield* target;
+        };
+      },
+    });
+    const lexicalCache = createLexicalRelatedPassageCache();
+    const input = {
+      articleText: text,
+      ebookIndex: index,
+      query: '人口红利',
+      chapterId: 'chapter-2',
+      lexicalCache,
+    };
+
+    buildCurrentChapterLexicalRelatedPassages(input);
+    const iterationsAfterFirstQuery = fullIterations;
+    buildCurrentChapterLexicalRelatedPassages(input);
+
+    expect(iterationsAfterFirstQuery).toBe(1);
+    expect(fullIterations).toBe(iterationsAfterFirstQuery);
+    expect(lexicalCache.indexes.has(index)).toBe(true);
   });
 
   it('keeps excluded paragraphs out of the current result without poisoning the cache', () => {
