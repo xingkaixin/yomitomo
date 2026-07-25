@@ -37,7 +37,6 @@ import { CopyIconButton } from '../shell/app-ui';
 import { appToast } from '../shell/app-toast';
 import { AutoSaveStatus } from './app-settings-save-status';
 import { SettingsConfirmDialog } from './app-settings-confirm-dialog';
-import type { SaveState } from '../shell/app-types';
 import { Button } from '../components/ui/button';
 import { Kbd } from '../components/ui/kbd';
 import {
@@ -209,20 +208,11 @@ export function SettingsSectionShell({
   );
 }
 
-type ShortcutSettingsLegacyProps = {
-  settingsDraft: AppSettings;
-  canSave: boolean;
-  onSettingsChange: (draft: AppSettings) => void;
-  onSave: (draft?: AppSettings) => void;
-  saveError?: string;
-  saveState: SaveState;
-};
-
-type ShortcutSettingsProps = { draft: SaveableDraft<AppSettings> } | ShortcutSettingsLegacyProps;
-
-export function ShortcutSettings(props: ShortcutSettingsProps) {
-  const { settingsDraft, onSettingsChange, onSave, saveError, saveState } =
-    resolveShortcutSettingsProps(props);
+export function ShortcutSettings({ draft }: { draft: SaveableDraft<AppSettings> }) {
+  const { value: settingsDraft, update: onSettingsChange, saveError, saveState } = draft;
+  const onSave = (override?: AppSettings) => {
+    void draft.save(override);
+  };
   const { t } = useTranslation();
   const [recordingAction, setRecordingAction] = useState<SelectionShortcutAction | null>(null);
   const [saveSection, setSaveSection] = useState<ShortcutSaveSection | null>(null);
@@ -446,22 +436,6 @@ export function ShortcutSettings(props: ShortcutSettingsProps) {
       </SettingsGroup>
     </SettingsPage>
   );
-}
-
-function resolveShortcutSettingsProps(props: ShortcutSettingsProps): ShortcutSettingsLegacyProps {
-  if ('draft' in props) {
-    return {
-      settingsDraft: props.draft.value,
-      canSave: props.draft.canSave,
-      onSettingsChange: props.draft.update,
-      onSave: (draft) => {
-        void props.draft.save(draft);
-      },
-      saveError: props.draft.saveError,
-      saveState: props.draft.saveState,
-    };
-  }
-  return props;
 }
 
 export function DataManagementSettings({

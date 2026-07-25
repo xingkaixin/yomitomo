@@ -7,12 +7,12 @@ import {
   AgentForm,
   AgentSettings,
   DataManagementSettings,
-  GeneralSettings,
+  GeneralSettings as GeneralSettingsComponent,
   ProviderForm,
   ProviderSettings,
-  ShortcutSettings,
+  ShortcutSettings as ShortcutSettingsComponent,
   SettingsSectionShell,
-  UserProfileSettingsDialog,
+  UserProfileSettingsDialog as UserProfileSettingsDialogComponent,
   WeReadSettingsPanel,
 } from '../settings/app-settings-panels';
 import {
@@ -22,12 +22,14 @@ import {
   type AgentDraft,
   type ProviderDraft,
   type ProviderTestState,
+  type UserDraft,
 } from '../settings/app-settings';
 import type { Agent, AppSettings, LlmProvider } from '@yomitomo/shared';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 import { appToast } from '../shell/app-toast';
 import type { SaveState } from '../shell/app-types';
+import type { SaveableDraft } from '../settings/use-saveable-draft';
 
 vi.mock('../sound/app-sound-effects', () => ({
   playAppSoundEffect: vi.fn(),
@@ -68,6 +70,114 @@ afterEach(() => {
 beforeEach(() => {
   initializeAppI18n('zh-CN');
 });
+
+type DraftFixtureProps<TValue> = {
+  canSave: boolean;
+  onChange: (draft: TValue) => void;
+  onSave: (draft?: TValue) => unknown;
+  saveError?: string;
+  saveState: SaveState;
+  value: TValue;
+};
+
+function fixtureDraft<TValue>({
+  canSave,
+  onChange,
+  onSave,
+  saveError = '',
+  saveState,
+  value,
+}: DraftFixtureProps<TValue>): SaveableDraft<TValue> {
+  return {
+    canSave,
+    reset: vi.fn(),
+    save: async (override) => (override === undefined ? onSave() : onSave(override)),
+    saveError,
+    saveState,
+    update: onChange,
+    value,
+  };
+}
+
+function GeneralSettings({
+  settingsDraft,
+  canSave,
+  onSettingsChange,
+  onSave,
+  saveError,
+  saveState,
+}: Omit<DraftFixtureProps<AppSettings>, 'onChange' | 'value'> & {
+  onSettingsChange: (draft: AppSettings) => void;
+  settingsDraft: AppSettings;
+}) {
+  return (
+    <GeneralSettingsComponent
+      draft={fixtureDraft({
+        value: settingsDraft,
+        canSave,
+        onChange: onSettingsChange,
+        onSave,
+        saveError,
+        saveState,
+      })}
+    />
+  );
+}
+
+function ShortcutSettings({
+  settingsDraft,
+  canSave,
+  onSettingsChange,
+  onSave,
+  saveError,
+  saveState,
+}: Omit<DraftFixtureProps<AppSettings>, 'onChange' | 'value'> & {
+  onSettingsChange: (draft: AppSettings) => void;
+  settingsDraft: AppSettings;
+}) {
+  return (
+    <ShortcutSettingsComponent
+      draft={fixtureDraft({
+        value: settingsDraft,
+        canSave,
+        onChange: onSettingsChange,
+        onSave,
+        saveError,
+        saveState,
+      })}
+    />
+  );
+}
+
+function UserProfileSettingsDialog({
+  draft,
+  canSave,
+  onChange,
+  onClose,
+  onSave,
+  saveError,
+  saveState,
+  sourceRect,
+}: Omit<DraftFixtureProps<UserDraft>, 'value'> & {
+  draft: UserDraft;
+  onClose: () => void;
+  sourceRect?: React.ComponentProps<typeof UserProfileSettingsDialogComponent>['sourceRect'];
+}) {
+  return (
+    <UserProfileSettingsDialogComponent
+      profileDraft={fixtureDraft({
+        value: draft,
+        canSave,
+        onChange,
+        onSave,
+        saveError,
+        saveState,
+      })}
+      sourceRect={sourceRect}
+      onClose={onClose}
+    />
+  );
+}
 
 describe('SettingsSectionShell', () => {
   it('keeps section navigation labels concise', () => {
