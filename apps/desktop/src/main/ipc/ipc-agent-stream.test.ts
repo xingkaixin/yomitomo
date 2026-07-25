@@ -1,8 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AgentMessagePayload, Comment } from '@yomitomo/shared';
+import type {
+  AgentAnnotatePayload,
+  AgentMessagePayload,
+  Annotation,
+  Comment,
+  PublicAgent,
+} from '@yomitomo/shared';
 import { DesktopIpcError, desktopIpcErrorCodes } from '../../ipc-errors';
 
 const ipcHandlers = vi.hoisted(() => new Map<string, (...args: unknown[]) => unknown>());
+const logError = vi.hoisted(() => vi.fn());
 
 vi.mock('electron', () => ({
   ipcMain: {
@@ -11,6 +18,8 @@ vi.mock('electron', () => ({
     }),
   },
 }));
+
+vi.mock('../app/logger', () => ({ logError }));
 
 import { runAgentStreamIpc } from './ipc-agent-stream';
 
@@ -94,6 +103,108 @@ describe('runAgentStreamIpc', () => {
       }),
     );
   });
+
+  it.each([
+    ['missing request', undefined],
+    ['non-string request id', request(42, agentMessagePayload)],
+    ['overlong request id', request('r'.repeat(129), agentMessagePayload)],
+  ])('drops a %s before guard and handler execution', async (_label, malformedRequest) => {
+    const guard = vi.fn();
+    const handler = vi.fn();
+    runAgentStreamIpc('agent:comment:stream', 'STREAM_FAILED', handler, guard);
+    const sender = { send: vi.fn() };
+
+    expect(() => ipcHandler('agent:comment:stream')({ sender }, malformedRequest)).not.toThrow();
+
+    expect(guard).not.toHaveBeenCalled();
+    expect(handler).not.toHaveBeenCalled();
+    expect(sender.send).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['overlong article text', { ...agentMessagePayload, article: article('x'.repeat(20_000_001)) }],
+    [
+      'oversized agent roster',
+      {
+        ...agentMessagePayload,
+        agentRoster: Array.from({ length: 101 }, () => publicAgent),
+      },
+    ],
+    [
+      'invalid nested reader progress',
+      { ...agentMessagePayload, readerProgress: { currentChapterId: 1, readChapterIds: [] } },
+    ],
+  ])('rejects %s before guard and handler execution', async (_label, payload) => {
+    const guard = vi.fn();
+    const handler = vi.fn();
+    runAgentStreamIpc('agent:comment:stream', 'STREAM_FAILED', handler, guard);
+    const sender = { send: vi.fn() };
+
+    expect(() =>
+      ipcHandler('agent:comment:stream')({ sender }, request('req_invalid', payload)),
+    ).not.toThrow();
+
+    expect(guard).not.toHaveBeenCalled();
+    expect(handler).not.toHaveBeenCalled();
+    expect(sender.send).toHaveBeenCalledWith(
+      'agent:comment:stream:req_invalid',
+      expect.objectContaining({
+        type: 'error',
+        message: desktopIpcErrorCodes.invalidArgs,
+        error: expect.objectContaining({ code: desktopIpcErrorCodes.invalidArgs }),
+      }),
+    );
+  });
+
+  it('rejects an oversized annotation array on annotate streams', () => {
+    const guard = vi.fn();
+    const handler = vi.fn();
+    runAgentStreamIpc('agent:annotate:stream', 'STREAM_FAILED', handler, guard);
+    const sender = { send: vi.fn() };
+    const payload: AgentAnnotatePayload = {
+      agentUsername: 'agent',
+      article: article('article text'),
+      annotations: Array.from({ length: 501 }, () => annotation),
+    };
+
+    expect(() =>
+      ipcHandler('agent:annotate:stream')({ sender }, request('req_annotate', payload)),
+    ).not.toThrow();
+
+    expect(guard).not.toHaveBeenCalled();
+    expect(handler).not.toHaveBeenCalled();
+    expect(sender.send).toHaveBeenCalledWith(
+      'agent:annotate:stream:req_annotate',
+      expect.objectContaining({
+        type: 'error',
+        error: expect.objectContaining({ code: desktopIpcErrorCodes.invalidArgs }),
+      }),
+    );
+  });
+
+  it('does not surface send failures while rejecting malformed requests', () => {
+    const handler = vi.fn();
+    runAgentStreamIpc('agent:comment:stream', 'STREAM_FAILED', handler);
+    const sender = {
+      send: vi.fn(() => {
+        throw new Error('sender destroyed');
+      }),
+    };
+
+    expect(() =>
+      ipcHandler('agent:comment:stream')(
+        { sender },
+        request('req_destroyed', { ...agentMessagePayload, readerProgress: null }),
+      ),
+    ).not.toThrow();
+
+    expect(handler).not.toHaveBeenCalled();
+    expect(logError).toHaveBeenCalledWith(
+      'ipc.invalid_response_failed',
+      expect.any(Error),
+      expect.objectContaining({ channel: 'agent:comment:stream' }),
+    );
+  });
 });
 
 function ipcHandler(channel: string) {
@@ -102,12 +213,57 @@ function ipcHandler(channel: string) {
   return handler;
 }
 
-function request<TPayload>(requestId: string, payload: TPayload) {
+function request<TPayload>(requestId: unknown, payload: TPayload) {
   return { requestId, payload };
 }
 
+function article(text: string) {
+  return {
+    title: 'Article',
+    url: 'https://example.com/article',
+    text,
+  };
+}
+
+const annotation: Annotation = {
+  id: 'annotation_1',
+  anchor: {
+    exact: 'article',
+    prefix: '',
+    suffix: ' text',
+    start: 0,
+    end: 7,
+  },
+  author: 'user',
+  color: '#fff',
+  comments: [],
+  createdAt: '2026-07-15T00:00:00.000Z',
+  updatedAt: '2026-07-15T00:00:00.000Z',
+};
+
+const publicAgent: PublicAgent = {
+  id: 'agent_1',
+  kind: 'annotation',
+  enabled: true,
+  nickname: 'Agent',
+  username: 'agent',
+  avatar: '',
+  annotationColor: '#fff',
+  annotationDensity: 'medium',
+  temperature: 0.5,
+  personalityName: 'Agent',
+};
+
 const agentMessagePayload = {
   agentUsername: 'agent',
+  article: article('article text'),
+  annotation,
+  userComment: {
+    id: 'comment_user',
+    author: 'user',
+    content: 'question',
+    createdAt: '2026-07-15T00:00:00.000Z',
+  },
 } as AgentMessagePayload;
 
 const finalComment: Comment = {

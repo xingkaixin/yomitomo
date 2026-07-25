@@ -6,6 +6,8 @@ import {
   type DesktopIpcSchemaLookup,
 } from './ipc/desktop-ipc-schema-types';
 
+const MAX_DESKTOP_IPC_VALIDATION_ISSUES = 20;
+
 export const desktopIpcInvokeSchemas = defineDesktopIpcSchemas(desktopIpcRawInvokeSchemas);
 const desktopIpcInvokeSchemaLookup: DesktopIpcSchemaLookup = desktopIpcInvokeSchemas;
 
@@ -21,11 +23,20 @@ export function validateDesktopIpcInvokeArgs<Channel extends DesktopIpcInvokeCha
   if (!schema) return args;
   const result = schema.safeParse(args);
   if (result.success) return result.data;
-  throw new DesktopIpcError(desktopIpcErrorCodes.invalidArgs, desktopIpcErrorCodes.invalidArgs, {
-    cause: result.error,
+  throw desktopIpcInvalidArgsError(channel, result.error);
+}
+
+export function desktopIpcInvalidArgsError(
+  channel: string,
+  error: {
+    issues: Array<{ code: string; message: string; path: PropertyKey[] }>;
+  },
+) {
+  return new DesktopIpcError(desktopIpcErrorCodes.invalidArgs, desktopIpcErrorCodes.invalidArgs, {
+    cause: error,
     detail: {
       channel,
-      issues: result.error.issues.map((issue) => ({
+      issues: error.issues.slice(0, MAX_DESKTOP_IPC_VALIDATION_ISSUES).map((issue) => ({
         code: issue.code,
         message: issue.message,
         path: issue.path,
