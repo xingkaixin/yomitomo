@@ -509,6 +509,13 @@ export const enResources = {
     },
     library: {
       title: 'Library',
+      catalog: {
+        loading: 'Loading library',
+        loadingDescription: 'Preparing this page from the local database.',
+        loadFailed: 'Library could not be loaded',
+        loadFailedDescription: 'Your local data is safe. Please try again.',
+        loadFailedStale: 'Library refresh failed. The last successful result is still shown.',
+      },
       sources: {
         web: 'Web articles',
         ebook: 'Ebooks',

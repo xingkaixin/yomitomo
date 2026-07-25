@@ -32,12 +32,7 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 import { ArticleBook } from '../shell/app-article-book';
-import {
-  buildLibraryEntities,
-  contentRefKey,
-  libraryItemTitle,
-  libraryTypeFilterFromScope,
-} from './app-reading-library-entities';
+import { contentRefKey, libraryItemTitle } from './app-reading-library-entities';
 import { formatLibraryShortDate } from './app-reading-library-utils';
 import { WeReadCover } from './app-reading-library-covers';
 import {
@@ -52,7 +47,6 @@ const PICKER_PAGE_SIZE = 30;
 
 type CollectionPickerDialogProps = {
   articles: ArticleSummaryRecord[];
-  availableTypes: LibraryItemType[];
   collection: Collection;
   collectionMembers: CollectionMember[];
   pins: LibraryPin[];
@@ -72,7 +66,6 @@ export function CollectionPickerDialog(props: CollectionPickerDialogProps) {
 
 function CollectionPickerDialogContent({
   articles,
-  availableTypes,
   collection,
   collectionMembers,
   pins,
@@ -88,31 +81,6 @@ function CollectionPickerDialogContent({
   const [selectedRefs, setSelectedRefs] = useState<Map<string, LibraryItemEntity>>(() => new Map());
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const currentMemberKeys = useMemo(
-    () =>
-      new Set(
-        collectionMembers
-          .filter((member) => member.collectionId === collection.id)
-          .map((member) => contentRefKey(member.member)),
-      ),
-    [collection.id, collectionMembers],
-  );
-  const localPickerItems = useMemo(
-    () =>
-      buildLibraryEntities({
-        articles,
-        collectionMembers: [],
-        collections: [],
-        enabledTypes: availableTypes,
-        pins,
-        query,
-        typeFilter: libraryTypeFilterFromScope(typeScope),
-        wereadBooks,
-      })
-        .filter((entity): entity is LibraryItemEntity => entity.kind === 'item')
-        .filter((entity) => !currentMemberKeys.has(contentRefKey(entity.ref))),
-    [articles, availableTypes, currentMemberKeys, pins, query, typeScope, wereadBooks],
-  );
   const catalogInput = useMemo<LibraryCatalogListInput>(
     () => ({
       scope: { kind: 'picker', collectionId: collection.id },
@@ -123,23 +91,25 @@ function CollectionPickerDialogContent({
     }),
     [collection.id, page, query, typeScope],
   );
-  const remoteCatalog = useLibraryCatalog(catalogInput, {
+  const catalogState = useLibraryCatalog(catalogInput, {
     articles,
     collectionMembers,
     collections: collection,
     pins,
     wereadBooks,
   });
+  const remoteCatalog = catalogState.result;
   const selectedItems = useMemo(() => Array.from(selectedRefs.values()), [selectedRefs]);
   const selectedKeys = useMemo(() => new Set(selectedRefs.keys()), [selectedRefs]);
-  const visiblePickerItems = remoteCatalog
-    ? remoteCatalog.entities.filter((entity): entity is LibraryItemEntity => entity.kind === 'item')
-    : localPickerItems.slice((page - 1) * PICKER_PAGE_SIZE, page * PICKER_PAGE_SIZE);
+  const visiblePickerItems =
+    remoteCatalog?.entities.filter(
+      (entity): entity is LibraryItemEntity => entity.kind === 'item',
+    ) || [];
   const pickerItems = useMemo(
     () => visiblePickerItems.filter((item) => !selectedKeys.has(contentRefKey(item.ref))),
     [visiblePickerItems, selectedKeys],
   );
-  const totalCount = remoteCatalog?.totalCount ?? localPickerItems.length;
+  const totalCount = remoteCatalog?.totalCount || 0;
   const pageCount = Math.max(1, Math.ceil(totalCount / PICKER_PAGE_SIZE));
   const activeTypeLabel =
     typeOptions.find((option) => option.value === typeScope)?.label || t('library.typeFilter.all');
@@ -244,7 +214,13 @@ function CollectionPickerDialogContent({
                       />
                     ))
                   ) : (
-                    <p>{t('library.collection.pickerNoItems')}</p>
+                    <p>
+                      {catalogState.status === 'loading'
+                        ? t('library.catalog.loading')
+                        : catalogState.status === 'error'
+                          ? t('library.catalog.loadFailed')
+                          : t('library.collection.pickerNoItems')}
+                    </p>
                   )}
                   {pageCount > 1 ? (
                     <div className="library-pagination" aria-label={t('library.pagination.label')}>
@@ -310,7 +286,11 @@ function CollectionPickerDialogContent({
                   )}
                 </div>
               </div>
-              {error ? <p className="library-collection-dialog-error">{error}</p> : null}
+              {error || catalogState.status === 'error' ? (
+                <p className="library-collection-dialog-error">
+                  {error || t('library.catalog.loadFailedStale')}
+                </p>
+              ) : null}
               <footer>
                 <Button type="button" variant="secondary" onClick={onClose}>
                   {t('common.cancel')}

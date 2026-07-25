@@ -18,6 +18,10 @@ import type {
 } from '@yomitomo/shared';
 import { ReadingLibrary, groupLibraryArticles } from '../reading-library/app-reading-library';
 import {
+  buildCollectionMemberEntities,
+  buildLibraryEntities,
+} from '../reading-library/app-reading-library-entities';
+import {
   articleDistillationStateChanged,
   articleWithCommittedDistillation,
   articleWithDistillationAnimationStart,
@@ -35,6 +39,11 @@ import { initializeAppI18n } from '../i18n/app-i18n';
 import { defaultTheme } from '../theme/app-theme';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 import { appToast } from '../shell/app-toast';
+import type {
+  LibraryEntity,
+  LibraryItemType,
+  LibraryTypeFilter,
+} from '../reading-library/library-entity-types';
 
 vi.mock('../sound/app-sound-effects', () => ({
   playAppSoundEffect: vi.fn(),
@@ -163,6 +172,152 @@ function completedArticle(): ArticleRecord {
   });
 }
 
+function immediateCatalogResult(
+  value: LibraryCatalogListResult,
+): Promise<LibraryCatalogListResult> {
+  return {
+    // oxlint-disable-next-line unicorn/no-thenable
+    then(onFulfilled) {
+      onFulfilled?.(value);
+      return { catch: () => undefined } as unknown as Promise<LibraryCatalogListResult>;
+    },
+  } as Promise<LibraryCatalogListResult>;
+}
+
+function defaultCatalogResult(
+  input: LibraryCatalogListInput,
+  {
+    articles,
+    collectionMembers,
+    collections,
+    pins,
+    wereadBooks = [],
+  }: {
+    articles: ArticleSummaryRecord[];
+    collectionMembers: CollectionMember[];
+    collections: Collection[];
+    pins: LibraryPin[];
+    wereadBooks?: WeReadBook[];
+  },
+): LibraryCatalogListResult {
+  const enabledTypes: LibraryItemType[] = ['web', 'ebook', 'pdf', 'text', 'weread'];
+  const requestedTypes = new Set<LibraryTypeFilter>(
+    input.types || ['web', 'ebook', 'pdf', 'text', 'weread', 'collection'],
+  );
+  const buildEntities = (query: string): LibraryEntity[] => {
+    if (input.scope.kind === 'collection') {
+      return buildCollectionMemberEntities({
+        articles,
+        collectionId: input.scope.collectionId,
+        collectionMembers,
+        enabledTypes,
+        pins,
+        query,
+        typeFilter: requestedTypes,
+        wereadBooks,
+      });
+    }
+    const entities = buildLibraryEntities({
+      articles,
+      collectionMembers: input.scope.kind === 'library' ? collectionMembers : [],
+      collections: input.scope.kind === 'library' ? collections : [],
+      enabledTypes,
+      pins,
+      query,
+      typeFilter: requestedTypes,
+      wereadBooks,
+    });
+    if (input.scope.kind === 'library') return entities;
+    const collectionId = input.scope.collectionId;
+    const memberKeys = new Set(
+      collectionMembers
+        .filter((member) => member.collectionId === collectionId)
+        .map((member) => `${member.member.kind}:${member.member.id}`),
+    );
+    return entities.filter(
+      (entity) => entity.kind === 'item' && !memberKeys.has(`${entity.ref.kind}:${entity.ref.id}`),
+    );
+  };
+  const query = input.query || '';
+  const entities = buildEntities(query);
+  const page = input.page || 1;
+  const pageSize = input.pageSize || 12;
+  const start = (page - 1) * pageSize;
+  const itemCounts = Object.fromEntries(
+    enabledTypes.map((type) => [
+      type,
+      buildLibraryEntities({
+        articles,
+        collectionMembers: [],
+        collections: [],
+        enabledTypes,
+        pins,
+        query: '',
+        typeFilter: new Set([type]),
+        wereadBooks,
+      }).length,
+    ]),
+  ) as LibraryCatalogListResult['itemCounts'];
+  return {
+    entities: entities.slice(start, start + pageSize),
+    itemCounts,
+    page,
+    pageSize,
+    query,
+    totalCount: entities.length,
+    unfilteredCount: buildEntities('').length,
+  };
+}
+
+function installDefaultCatalog(
+  articles: ArticleSummaryRecord[],
+  options: {
+    collectionMembers?: CollectionMember[];
+    collections?: Collection[];
+    pins?: LibraryPin[];
+  } = {},
+) {
+  type DesktopApi = NonNullable<typeof window.yomitomoDesktop>;
+  const desktopApi = window.yomitomoDesktop as Partial<DesktopApi> | undefined;
+  if (desktopApi?.listLibraryCatalog) return;
+  const catalogFixtures = {
+    articles,
+    collectionMembers: options.collectionMembers || [],
+    collections: options.collections || [],
+    pins: options.pins || [],
+  };
+  let wereadBooks: WeReadBook[] = [];
+  const readWeReadState = desktopApi?.getWeReadState;
+  const getWeReadState = readWeReadState
+    ? async () => {
+        const state = await readWeReadState();
+        wereadBooks = state.books;
+        return state;
+      }
+    : undefined;
+  const subscribeToWeReadState = desktopApi?.onWeReadStateUpdated;
+  const onWeReadStateUpdated = subscribeToWeReadState
+    ? (listener: Parameters<NonNullable<typeof desktopApi.onWeReadStateUpdated>>[0]) =>
+        subscribeToWeReadState((state) => {
+          wereadBooks = state.books;
+          listener(state);
+        })
+    : undefined;
+  vi.stubGlobal('yomitomoDesktop', {
+    ...desktopApi,
+    getArticleCover: desktopApi?.getArticleCover || vi.fn(async () => null),
+    getWeReadState,
+    listLibraryCatalog: (input: LibraryCatalogListInput) =>
+      immediateCatalogResult(
+        defaultCatalogResult(input, {
+          ...catalogFixtures,
+          wereadBooks,
+        }),
+      ),
+    onWeReadStateUpdated,
+  });
+}
+
 function renderLibrary(
   articles: ArticleSummaryRecord[],
   options: {
@@ -197,6 +352,7 @@ function renderLibrary(
     settings?: AppSettings;
   } = {},
 ) {
+  installDefaultCatalog(articles, options);
   return render(
     <ReadingLibrary
       agents={[]}
@@ -1033,6 +1189,9 @@ describe('ReadingLibrary home', () => {
     const input = screen.getByLabelText('搜索文章、合集、作者或来源') as HTMLInputElement;
     input.focus();
     fireEvent.change(input, { target: { value: 'Beta' } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(180);
+    });
 
     expect(screen.queryByRole('button', { name: '打开文章：Alpha 阅读' })).toBeNull();
     expect(screen.getByRole('button', { name: '打开文章：Beta 阅读' })).toBeTruthy();
@@ -1044,6 +1203,9 @@ describe('ReadingLibrary home', () => {
     expect(clearShell?.classList.contains('is-clearing')).toBe(true);
     expect(clearShell?.getAttribute('data-clear-tone')).toBe('dark');
     expect(clearShell?.querySelector('.t-clear-mirror')?.textContent).toBe('Beta');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(180);
+    });
     expect(screen.getByRole('button', { name: '打开文章：Alpha 阅读' })).toBeTruthy();
 
     await act(async () => {
@@ -1104,7 +1266,7 @@ describe('ReadingLibrary home', () => {
     performanceNow.mockRestore();
   });
 
-  it('clears collection list search immediately when reduced motion is requested', () => {
+  it('clears collection list search immediately when reduced motion is requested', async () => {
     stubReducedMotion(true);
     const firstArticle = article({
       id: 'collection_first',
@@ -1144,8 +1306,10 @@ describe('ReadingLibrary home', () => {
     input.focus();
     fireEvent.change(input, { target: { value: '文章一' } });
 
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: '打开文章：合集文章二' })).toBeNull(),
+    );
     expect(screen.getByRole('button', { name: '打开文章：合集文章一' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '打开文章：合集文章二' })).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: '清空搜索' }));
 
@@ -1153,7 +1317,7 @@ describe('ReadingLibrary home', () => {
     expect(document.querySelector('.library-search-input-clear.is-clearing')).toBeNull();
     expect(document.activeElement).toBe(input);
     expect(screen.getByRole('button', { name: '打开文章：合集文章一' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '打开文章：合集文章二' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: '打开文章：合集文章二' })).toBeTruthy();
   });
 
   it('filters the main library list to collections only', async () => {
@@ -1435,7 +1599,7 @@ describe('ReadingLibrary home', () => {
     ).toBe('none');
   });
 
-  it('searches source metadata without reading status filters', () => {
+  it('searches source metadata without reading status filters', async () => {
     renderLibrary([
       article({ id: 'article_new', title: '新文章', siteName: 'Acme Daily' }),
       article({
@@ -1450,8 +1614,8 @@ describe('ReadingLibrary home', () => {
     fireEvent.change(screen.getByLabelText('搜索文章、合集、作者或来源'), {
       target: { value: 'acme' },
     });
+    await waitFor(() => expect(screen.queryByText('批注文章')).toBeNull());
     expect(screen.getAllByText('新文章').length).toBeGreaterThan(0);
-    expect(screen.queryByText('批注文章')).toBeNull();
   });
 
   it('renders the article domain without site icons', () => {
@@ -1510,9 +1674,9 @@ describe('ReadingLibrary home', () => {
     });
     const { container } = renderLibrary([
       article({
-        id: 'ebook_1',
-        url: 'ebook://ebook_1',
-        canonicalUrl: 'ebook://ebook_1',
+        id: 'ebook_cover_progress',
+        url: 'ebook://ebook_cover_progress',
+        canonicalUrl: 'ebook://ebook_cover_progress',
         sourceType: 'ebook',
         title: '电子书标题',
         byline: '作者名',
@@ -1549,7 +1713,7 @@ describe('ReadingLibrary home', () => {
       Array.from(stats.querySelectorAll('.library-count-stat')).map((item) => item.textContent),
     ).toEqual(['1', '1']);
     expect(container.querySelector('.library-ebook-progress')).toBeTruthy();
-    await waitFor(() => expect(getArticleCover).toHaveBeenCalledWith('ebook_1'));
+    await waitFor(() => expect(getArticleCover).toHaveBeenCalledWith('ebook_cover_progress'));
     expect(container.querySelector('.article-book-cover-image')?.getAttribute('src')).toBe(
       coverUrl,
     );
@@ -1957,6 +2121,7 @@ describe('ReadingLibrary home', () => {
       );
     }
 
+    installDefaultCatalog([articleSummary(initialArticle)]);
     render(<Harness />);
 
     fireEvent.click(screen.getAllByRole('button', { name: '打开文章：同步文章' })[0]);
@@ -2039,6 +2204,7 @@ describe('ReadingLibrary home', () => {
       );
     }
 
+    installDefaultCatalog([articleSummary(initialArticle)]);
     render(<Harness />);
 
     fireEvent.click(screen.getAllByRole('button', { name: '打开文章：删除同步文章' })[0]);
@@ -2290,6 +2456,7 @@ describe('ReadingLibrary home', () => {
       );
     }
 
+    installDefaultCatalog([articleSummary(initialArticle)]);
     render(<Harness />);
 
     fireEvent.click(screen.getAllByRole('button', { name: '打开文章：同步沉淀文章' })[0]);
