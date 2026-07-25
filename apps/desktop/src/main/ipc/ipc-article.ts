@@ -1,7 +1,5 @@
-import { randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import type { EbookImportFileInput, PdfImportFileInput } from '../../ipc-contract';
-import type { ArticleRecord } from '@yomitomo/shared';
 import {
   createArticleTranslationRuntime,
   type ArticleTranslationRuntimeContext,
@@ -168,14 +166,13 @@ export function registerArticleIpc(context: ArticleIpcContext) {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();
     const { importArticleSource } = await import('../articles/article-source-import');
     const { articleRecordFromEbookFile } = await import('../ebooks/ebook-import');
-    const { deleteEbookSourceFile, saveEbookSourceFile } = await import('../ebooks/ebook-storage');
+    const { stageEbookSourceFile } = await import('../ebooks/ebook-storage');
     const record = await articleRecordFromEbookFile(input, { performanceLogger: context.logInfo });
     const result = await importArticleSource({
       record,
       repository: articleImportRepository(articlePersistence),
-      saveSourceFile: (articleId) =>
-        saveEbookSourceFile(articleId, input.data, record.ebook?.metadata.format),
-      cleanupSourceFile: deleteEbookSourceFile,
+      stageSourceAssets: (articleId) =>
+        stageEbookSourceFile(articleId, input.data, record.ebook?.metadata.format),
       logError: context.logError,
     });
     if (result.status === 'imported') context.sendArticlePatched(event, result.patch);
@@ -190,16 +187,12 @@ export function registerArticleIpc(context: ArticleIpcContext) {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();
     const { importArticleSource } = await import('../articles/article-source-import');
     const { articleRecordFromPdfFile } = await import('../pdf/pdf-import');
-    const { deletePdfSourceFile, savePdfSourceFile } = await import('../pdf/pdf-storage');
-    const { deletePdfThumbnail, savePdfThumbnail } = await import('../pdf/pdf-thumbnail-storage');
+    const { stagePdfSourceAssets } = await import('../pdf/pdf-source-assets');
     const { article: record, thumbnail } = await articleRecordFromPdfFile(input);
     const result = await importArticleSource({
       record,
       repository: articleImportRepository(articlePersistence),
-      saveSourceFile: (articleId) => savePdfSourceFile(articleId, input.data),
-      saveThumbnail: thumbnail ? (articleId) => savePdfThumbnail(articleId, thumbnail) : undefined,
-      cleanupSourceFile: deletePdfSourceFile,
-      cleanupThumbnail: thumbnail ? deletePdfThumbnail : undefined,
+      stageSourceAssets: (articleId) => stagePdfSourceAssets(articleId, input.data, thumbnail),
       logError: context.logError,
     });
     if (result.status === 'imported') context.sendArticlePatched(event, result.patch);
@@ -254,14 +247,10 @@ export function registerArticleIpc(context: ArticleIpcContext) {
   });
   handleDesktopIpc('article:delete', async (event, id) => {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();
-    const article = await articlePersistence.readArticle(id);
     const patch = await articlePersistence.deleteArticle(id);
-    await cleanupDeletedArticleSourceAssets({
-      articleId: id,
-      sourceType: article?.sourceType,
-      logError: context.logError,
-    });
     context.sendArticlePatched(event, { type: 'article-delete', ...patch });
+    const { completeArticleSourceCleanup } = await import('../articles/article-source-cleanup');
+    void completeArticleSourceCleanup(id);
     return patch;
   });
 }
@@ -283,34 +272,4 @@ function articleImportRepository(articlePersistence: ArticlePersistence) {
     readArticle: articlePersistence.readArticle,
     saveArticle: articlePersistence.saveArticle,
   };
-}
-
-export async function cleanupDeletedArticleSourceAssets(input: {
-  articleId: string;
-  sourceType: ArticleRecord['sourceType'] | undefined;
-  logError: DesktopMainIpcContext['logError'];
-}) {
-  const operationId = randomUUID();
-  try {
-    if (input.sourceType === 'pdf') {
-      const { deletePdfSourceFile } = await import('../pdf/pdf-storage');
-      const { deletePdfThumbnail } = await import('../pdf/pdf-thumbnail-storage');
-      await deletePdfSourceFile(input.articleId);
-      await deletePdfThumbnail(input.articleId);
-      return;
-    }
-
-    if (input.sourceType === 'ebook') {
-      const { deleteEbookSourceFile } = await import('../ebooks/ebook-storage');
-      await deleteEbookSourceFile(input.articleId);
-    }
-  } catch (error) {
-    input.logError('article_source.cleanup_failed', error, {
-      articleId: input.articleId,
-      operationId,
-      phase: 'post_database_delete',
-      sourceType: input.sourceType,
-    });
-    throw new Error('ARTICLE_SOURCE_CLEANUP_FAILED', { cause: error });
-  }
 }

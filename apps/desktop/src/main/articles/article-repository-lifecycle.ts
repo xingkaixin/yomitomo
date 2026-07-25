@@ -4,12 +4,21 @@ import {
   withReadingMemoryTransaction,
   type ReadingMemorySqliteExecutor,
 } from '../reading-memory/reading-memory-store';
+import { queueArticleSourceCleanup } from './article-source-cleanup';
 
 export function deleteArticleRowsWithMemoryLifecycle(
   executor: ReadingMemorySqliteExecutor,
   articleId: string,
 ) {
   withReadingMemoryTransaction(executor, () => {
+    const article = executor
+      .prepare('SELECT source_type AS sourceType FROM articles WHERE id = ?')
+      .get(articleId);
+    queueArticleSourceCleanup(
+      executor,
+      articleId,
+      stringField(recordField(article, 'sourceType')) || undefined,
+    );
     deleteReadingMemoryForArticle(articleId, executor, { useTransaction: false });
     deleteArticleLibraryReferences(executor, articleId);
     executor.prepare('DELETE FROM articles WHERE id = ?').run(articleId);

@@ -83,6 +83,15 @@ describe('article memory lifecycle', () => {
     expect(countRows(database, 'library_pins')).toBe(0);
   });
 
+  it('queues source cleanup in the article deletion transaction', () => {
+    const database = lifecycleDatabase();
+    database.prepare("UPDATE articles SET source_type = 'pdf' WHERE id = ?").run('article_1');
+
+    deleteArticleRowsWithMemoryLifecycle(database, 'article_1');
+
+    expect(countRows(database, 'article_source_cleanup_tasks')).toBe(1);
+  });
+
   it('soft-deletes annotation source memory without touching original summaries', () => {
     const database = lifecycleDatabase();
     insertAnnotation(database, 'annotation_1');
@@ -463,10 +472,20 @@ function lifecycleDatabase(): ReadingMemorySqliteExecutor {
   const collections = migrations.find(
     (migration) => migration.id === '0054_library_collections_pins',
   );
-  if (!initial || !readingMemory || !collections) throw new Error('missing migrations for test');
+  const articleSource = migrations.find(
+    (migration) => migration.id === '0022_article_ebook_source',
+  );
+  const sourceCleanup = migrations.find(
+    (migration) => migration.id === '0066_article_source_cleanup_tasks',
+  );
+  if (!initial || !readingMemory || !collections || !articleSource || !sourceCleanup) {
+    throw new Error('missing migrations for test');
+  }
   database.exec(initial.sql);
+  database.exec(articleSource.sql);
   database.exec(readingMemory.sql);
   database.exec(collections.sql);
+  database.exec(sourceCleanup.sql);
   const executor = memoryExecutor(database);
   insertArticle(executor, 'article_1');
   return executor;

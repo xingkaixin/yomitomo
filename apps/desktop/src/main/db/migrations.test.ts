@@ -66,6 +66,16 @@ describe('reading memory migrations', () => {
     expect(tableNames(database)).toContain('secret_deletion_tasks');
   });
 
+  it('adds durable article source cleanup tasks', () => {
+    const database = new DatabaseSync(':memory:');
+    const migration = migrations.find((item) => item.id === '0066_article_source_cleanup_tasks');
+    if (!migration) throw new Error('missing migration 0066_article_source_cleanup_tasks');
+
+    database.exec(migration.sql);
+
+    expect(tableNames(database)).toContain('article_source_cleanup_tasks');
+  });
+
   it('adds the article catalog pagination index', () => {
     const database = new DatabaseSync(':memory:');
     const initial = migrations.find((item) => item.id === '0001_initial');

@@ -1,15 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Annotation, ArticleRecord } from '@yomitomo/shared';
-import {
-  cleanupDeletedArticleSourceAssets,
-  pdfSourceArrayBufferForIpc,
-  registerArticleIpc,
-} from './ipc-article';
+import { pdfSourceArrayBufferForIpc, registerArticleIpc } from './ipc-article';
 
 const storageMocks = vi.hoisted(() => ({
   deleteEbookSourceFile: vi.fn<(articleId: string) => Promise<void>>(),
   deletePdfSourceFile: vi.fn<(articleId: string) => Promise<void>>(),
   deletePdfThumbnail: vi.fn<(articleId: string) => Promise<void>>(),
+  completeArticleSourceCleanup: vi.fn<(articleId: string) => Promise<void>>(),
   ipcMainHandle: vi.fn(),
   readPdfSourceFile: vi.fn<(articleId: string) => Promise<Buffer>>(),
   taskProvider: vi.fn(),
@@ -34,48 +31,13 @@ vi.mock('../pdf/pdf-thumbnail-storage', () => ({
   deletePdfThumbnail: storageMocks.deletePdfThumbnail,
 }));
 
+vi.mock('../articles/article-source-cleanup', () => ({
+  completeArticleSourceCleanup: storageMocks.completeArticleSourceCleanup,
+}));
+
 vi.mock('../agents/agent-runtime-routing', () => ({
   taskProvider: storageMocks.taskProvider,
 }));
-
-describe('article IPC source asset cleanup', () => {
-  it('deletes EPUB source assets', async () => {
-    storageMocks.deleteEbookSourceFile.mockResolvedValue();
-    const logError = vi.fn();
-
-    await cleanupDeletedArticleSourceAssets({
-      articleId: 'epub-article',
-      sourceType: 'ebook',
-      logError,
-    });
-
-    expect(storageMocks.deleteEbookSourceFile).toHaveBeenCalledWith('epub-article');
-    expect(storageMocks.deletePdfSourceFile).not.toHaveBeenCalled();
-    expect(storageMocks.deletePdfThumbnail).not.toHaveBeenCalled();
-    expect(logError).not.toHaveBeenCalled();
-  });
-
-  it('logs and reports cleanup failures', async () => {
-    const error = new Error('delete failed');
-    storageMocks.deleteEbookSourceFile.mockRejectedValue(error);
-    const logError = vi.fn();
-
-    await expect(
-      cleanupDeletedArticleSourceAssets({
-        articleId: 'epub-article',
-        sourceType: 'ebook',
-        logError,
-      }),
-    ).rejects.toThrow('ARTICLE_SOURCE_CLEANUP_FAILED');
-
-    expect(logError).toHaveBeenCalledWith('article_source.cleanup_failed', error, {
-      articleId: 'epub-article',
-      operationId: expect.any(String),
-      phase: 'post_database_delete',
-      sourceType: 'ebook',
-    });
-  });
-});
 
 describe('article IPC patch broadcasts', () => {
   it('broadcasts article patches after saving annotation distillation', async () => {
@@ -236,6 +198,7 @@ describe('article IPC patch broadcasts', () => {
 
   it('broadcasts article deletion after source cleanup completes', async () => {
     storageMocks.ipcMainHandle.mockClear();
+    storageMocks.completeArticleSourceCleanup.mockResolvedValue();
     const readArticle = vi.fn().mockResolvedValue(articlePatch().article);
     const deleteArticle = vi.fn().mockResolvedValue({ articleId: 'article_1' });
     const sendArticlePatched = vi.fn();
@@ -252,22 +215,19 @@ describe('article IPC patch broadcasts', () => {
       type: 'article-delete',
       articleId: 'article_1',
     });
+    expect(storageMocks.completeArticleSourceCleanup).toHaveBeenCalledWith('article_1');
   });
 
-  it('reports deletion as failed after database commit when source cleanup fails', async () => {
+  it('returns the delete patch without waiting for source cleanup', async () => {
     storageMocks.ipcMainHandle.mockClear();
-    const cleanupError = new Error('injected source cleanup failure');
-    storageMocks.deleteEbookSourceFile.mockRejectedValue(cleanupError);
+    storageMocks.completeArticleSourceCleanup.mockImplementation(() => new Promise(() => {}));
     const readArticle = vi.fn().mockResolvedValue({
       ...articlePatch().article,
-      sourceType: 'ebook',
+      sourceType: 'pdf',
     });
     const deleteArticle = vi.fn().mockResolvedValue({ articleId: 'article_1' });
     const sendArticlePatched = vi.fn();
-    const logError = vi.fn();
-    registerArticleIpc(
-      articleIpcContext({ deleteArticle, readArticle }, { logError, sendArticlePatched }),
-    );
+    registerArticleIpc(articleIpcContext({ deleteArticle, readArticle }, { sendArticlePatched }));
     const handler = storageMocks.ipcMainHandle.mock.calls.find(
       ([channel]) => channel === 'article:delete',
     )?.[1];
@@ -275,22 +235,11 @@ describe('article IPC patch broadcasts', () => {
     const result = await handler({ sender: { id: 17 } }, 'article_1');
 
     expect(deleteArticle).toHaveBeenCalledWith('article_1');
-    expect(result).toEqual({
-      ok: false,
-      error: expect.objectContaining({ message: 'ARTICLE_SOURCE_CLEANUP_FAILED' }),
+    expect(result).toEqual({ ok: true, value: { articleId: 'article_1' } });
+    expect(sendArticlePatched).toHaveBeenCalledWith(expect.anything(), {
+      type: 'article-delete',
+      articleId: 'article_1',
     });
-    expect(sendArticlePatched).not.toHaveBeenCalled();
-    expect(logError).toHaveBeenCalledWith(
-      'article_source.cleanup_failed',
-      cleanupError,
-      expect.objectContaining({
-        articleId: 'article_1',
-        operationId: expect.any(String),
-        phase: 'post_database_delete',
-        sourceType: 'ebook',
-      }),
-    );
-    storageMocks.deleteEbookSourceFile.mockResolvedValue();
   });
 });
 

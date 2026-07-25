@@ -3,6 +3,7 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { app } from 'electron';
 import type { EbookFormat } from '@yomitomo/shared';
+import { stageSourceAssets } from '../articles/source-asset-staging';
 
 const EBOOK_SOURCE_EXTENSIONS: EbookFormat[] = ['epub', 'azw3', 'mobi'];
 
@@ -23,6 +24,16 @@ export async function saveEbookSourceFile(
 ) {
   await mkdir(ebookDirectory(), { recursive: true });
   await writeFile(ebookFilePath(articleId, format), Buffer.from(data));
+}
+
+export function stageEbookSourceFile(
+  articleId: string,
+  data: ArrayBuffer,
+  format: EbookFormat = 'epub',
+) {
+  return stageSourceAssets([
+    { data: Buffer.from(data), targetPath: ebookFilePath(articleId, format) },
+  ]);
 }
 
 export async function readEbookSourceFile(articleId: string) {

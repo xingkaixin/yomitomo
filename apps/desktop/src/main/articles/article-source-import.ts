@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { ArticleImportResult } from '../../ipc-contract';
 import type { ArticleRecord, ArticleUpsertPatch } from '@yomitomo/shared';
 import type { ArticleIdentity } from './article-repository-columns';
+import type { StagedSourceAssets } from './source-asset-staging';
 
 export type ArticleSourceImportRepository = {
   findArticleByIdentity: (identity: ArticleIdentity) => ArticleIdentity | null;
@@ -14,10 +15,7 @@ export type ArticleSourceImportLifecycleInput = {
   repository: ArticleSourceImportRepository;
   isDuplicate?: (existingArticle: ArticleRecord | null) => boolean;
   mergeExistingArticle?: (record: ArticleRecord, existingArticle: ArticleRecord) => ArticleRecord;
-  saveSourceFile?: (articleId: string) => Promise<void>;
-  saveThumbnail?: (articleId: string) => Promise<void>;
-  cleanupSourceFile?: (articleId: string) => Promise<void>;
-  cleanupThumbnail?: (articleId: string) => Promise<void>;
+  stageSourceAssets?: (articleId: string) => Promise<StagedSourceAssets>;
   logError?: (event: string, error: unknown, data?: Record<string, unknown>) => void;
 };
 
@@ -30,7 +28,8 @@ export async function importArticleSource(
     : null;
 
   if (existingIdentity && shouldReturnDuplicate(input, existingArticle)) {
-    await persistSourceAssets(input, existingIdentity.id);
+    const assets = await persistSourceAssets(input, existingIdentity.id);
+    await finalizeSourceAssets(input, existingIdentity.id, assets);
     return {
       status: 'duplicate',
       article: existingArticle || input.record,
@@ -41,14 +40,15 @@ export async function importArticleSource(
     existingArticle && input.mergeExistingArticle
       ? input.mergeExistingArticle(input.record, existingArticle)
       : input.record;
-  const cleanupSourceAssets = await persistSourceAssets(input, article.id);
+  const assets = await persistSourceAssets(input, article.id);
   let patch: ArticleUpsertPatch;
   try {
     patch = await input.repository.saveArticle(article);
   } catch (error) {
-    await cleanupSourceAssets();
+    await abortSourceAssets(input, article.id, assets);
     throw error;
   }
+  await finalizeSourceAssets(input, article.id, assets);
   return { status: 'imported', article, patch };
 }
 
@@ -71,49 +71,61 @@ function shouldReturnDuplicate(
 
 async function persistSourceAssets(input: ArticleSourceImportLifecycleInput, articleId: string) {
   const operationId = randomUUID();
-  let sourceFileSaved = false;
-  let thumbnailSaved = false;
-  let phase = 'source_file';
+  let assets: StagedSourceAssets | undefined;
+  let phase = 'stage';
 
   try {
-    await input.saveSourceFile?.(articleId);
-    sourceFileSaved = Boolean(input.saveSourceFile);
-    phase = 'thumbnail';
-    await input.saveThumbnail?.(articleId);
-    thumbnailSaved = Boolean(input.saveThumbnail);
+    assets = await input.stageSourceAssets?.(articleId);
+    phase = 'commit';
+    await assets?.commit();
   } catch (error) {
     input.logError?.('article_source_import.persist_failed', error, {
       articleId,
       operationId,
       phase,
     });
-    await cleanupPersistedSourceAssets(input, articleId, {
-      sourceFileSaved,
-      thumbnailSaved,
-    });
+    if (assets) await abortSourceAssets(input, articleId, assets, operationId);
     throw error;
   }
 
-  return () =>
-    cleanupPersistedSourceAssets(input, articleId, {
-      sourceFileSaved,
-      thumbnailSaved,
-    });
+  return assets || emptyStagedSourceAssets;
 }
 
-async function cleanupPersistedSourceAssets(
+const emptyStagedSourceAssets: StagedSourceAssets = {
+  abort: async () => undefined,
+  commit: async () => undefined,
+  finalize: async () => undefined,
+};
+
+async function abortSourceAssets(
   input: ArticleSourceImportLifecycleInput,
   articleId: string,
-  saved: { sourceFileSaved: boolean; thumbnailSaved: boolean },
+  assets: StagedSourceAssets,
+  operationId = randomUUID(),
 ) {
   try {
-    if (saved.thumbnailSaved) await input.cleanupThumbnail?.(articleId);
-    if (saved.sourceFileSaved) await input.cleanupSourceFile?.(articleId);
+    await assets.abort();
   } catch (error) {
     input.logError?.('article_source_import.cleanup_failed', error, {
       articleId,
-      sourceFileSaved: saved.sourceFileSaved,
-      thumbnailSaved: saved.thumbnailSaved,
+      operationId,
+      phase: 'rollback',
+    });
+  }
+}
+
+async function finalizeSourceAssets(
+  input: ArticleSourceImportLifecycleInput,
+  articleId: string,
+  assets: StagedSourceAssets,
+) {
+  try {
+    await assets.finalize();
+  } catch (error) {
+    input.logError?.('article_source_import.cleanup_failed', error, {
+      articleId,
+      operationId: randomUUID(),
+      phase: 'finalize',
     });
   }
 }

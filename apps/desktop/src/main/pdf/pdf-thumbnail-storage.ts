@@ -7,7 +7,7 @@ function thumbnailDirectory() {
   return join(app.getPath('userData'), 'assets', 'pdf-thumbs');
 }
 
-function thumbnailFilePath(articleId: string) {
+export function pdfThumbnailFilePath(articleId: string) {
   const safeId = articleId.replace(/[^a-z0-9_-]/gi, '');
   if (!safeId) throw new Error('PDF_THUMBNAIL_INVALID_ID');
   return join(thumbnailDirectory(), `${safeId}.jpg`);
@@ -15,13 +15,13 @@ function thumbnailFilePath(articleId: string) {
 
 export async function savePdfThumbnail(articleId: string, data: Buffer) {
   await mkdir(thumbnailDirectory(), { recursive: true });
-  await writeFile(thumbnailFilePath(articleId), data);
+  await writeFile(pdfThumbnailFilePath(articleId), data);
 }
 
 // 展示侧读图：命中返回 data URI，未生成则返回空串（由调用方决定懒生成或兜底）。
 export async function readPdfThumbnailDataUrl(articleId: string): Promise<string> {
   try {
-    const data = await readFile(thumbnailFilePath(articleId));
+    const data = await readFile(pdfThumbnailFilePath(articleId));
     return `data:image/jpeg;base64,${data.toString('base64')}`;
   } catch (error) {
     if (errorCode(error) === 'ENOENT') return '';
@@ -30,7 +30,7 @@ export async function readPdfThumbnailDataUrl(articleId: string): Promise<string
 }
 
 export async function deletePdfThumbnail(articleId: string) {
-  await rm(thumbnailFilePath(articleId), { force: true });
+  await rm(pdfThumbnailFilePath(articleId), { force: true });
 }
 
 function errorCode(error: unknown) {
