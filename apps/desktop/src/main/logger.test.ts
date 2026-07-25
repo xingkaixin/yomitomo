@@ -66,30 +66,72 @@ describe('desktop logger write failures', () => {
     await rm(testPaths.userData, { recursive: true, force: true });
   });
 
-  it('exposes circular payload serialization as an unhandled rejection', async () => {
+  it('serializes circular, bigint, and deeply nested payloads without rejection', async () => {
     const circular: Record<string, unknown> = {};
     circular.self = circular;
-    const rejection = nextUnhandledRejection();
+    const deep: Record<string, unknown> = {};
+    let cursor = deep;
+    for (let depth = 0; depth < 12; depth += 1) {
+      const next: Record<string, unknown> = {};
+      cursor.next = next;
+      cursor = next;
+    }
 
-    logInfo('logger.circular_payload', circular);
+    const rejections = await observeUnhandledRejections(
+      () => logInfo('logger.complex_payload', { circular, deep, value: 42n }),
+      async () => {
+        await vi.waitFor(async () => {
+          const log = await readFile(getLogPath(), 'utf8');
+          expect(log).toContain('[Circular]');
+          expect(log).toContain('[MaxDepth]');
+          expect(log).toContain('42n');
+        });
+      },
+    );
 
-    await expect(rejection).resolves.toBeInstanceOf(TypeError);
+    expect(rejections).toEqual([]);
   });
 
-  it('exposes filesystem failures as an unhandled rejection', async () => {
+  it('falls back to minimal console output when filesystem writes fail', async () => {
     await mkdir(testPaths.userData, { recursive: true });
     testPaths.userData = join(testPaths.userData, 'not-a-directory');
     await writeFile(testPaths.userData, 'file', 'utf8');
-    const rejection = nextUnhandledRejection();
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
-    logInfo('logger.filesystem_failure');
+    const rejections = await observeUnhandledRejections(
+      () => logInfo('logger.filesystem_failure', { apiKey: 'must-not-reach-fallback' }),
+      async () => {
+        await vi.waitFor(() => {
+          expect(consoleError).toHaveBeenCalledWith(
+            '[Yomitomo] logger.write_failed',
+            expect.objectContaining({
+              event: 'logger.filesystem_failure',
+              level: 'info',
+            }),
+          );
+        });
+      },
+    );
 
-    await expect(rejection).resolves.toMatchObject({ code: 'EEXIST' });
+    expect(rejections).toEqual([]);
+    expect(JSON.stringify(consoleError.mock.calls)).not.toContain('must-not-reach-fallback');
+    consoleError.mockRestore();
   });
 });
 
-function nextUnhandledRejection() {
-  return new Promise<unknown>((resolve) => {
-    process.once('unhandledRejection', resolve);
-  });
+async function observeUnhandledRejections(
+  action: () => void,
+  waitForCompletion: () => Promise<void>,
+) {
+  const rejections: unknown[] = [];
+  const listener = (error: unknown) => rejections.push(error);
+  process.on('unhandledRejection', listener);
+  try {
+    action();
+    await waitForCompletion();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    return rejections;
+  } finally {
+    process.off('unhandledRejection', listener);
+  }
 }
