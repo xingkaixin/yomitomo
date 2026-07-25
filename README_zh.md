@@ -166,7 +166,7 @@ pnpm build
 - `packages/ai` 放 provider 调用、模型输入预算、AI 批注和 EPUB/PDF 阅读上下文。
 - `packages/reader-ui` 放桌面阅读器 React UI、样式、工具和 hooks。
 - `apps/desktop/src/main` 放 Electron 主进程、SQLite store、LLM 调用、文章/电子书/PDF 导入、微信读书同步和日志。
-- `apps/desktop/src/renderer/src/app-*` 放桌面端阅读库、统计、设置和日志 UI。
+- `apps/desktop/src/renderer/src/reading-library`、`apps/desktop/src/renderer/src/reading-stats`、`apps/desktop/src/renderer/src/settings`、`apps/desktop/src/renderer/src/shell` 和 `apps/desktop/src/renderer/src/source` 分别放桌面端阅读库、统计、设置、应用外壳/日志 UI，以及 Web/EPUB/PDF 阅读器界面。
 - `apps/web/src` 放 Astro 官网页面、产品轮播和全局样式，下载链接从 `apps/desktop/package.json` 的版本号生成。
 - `apps/download/src` 放 Cloudflare Worker，代理 GitHub Release 安装包、更新 manifest 和 blockmap 文件到 `download.yomitomo.app`。
 
