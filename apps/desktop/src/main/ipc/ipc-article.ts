@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import type { EbookImportFileInput, PdfImportFileInput } from '../../ipc-contract';
 import type { ArticleRecord } from '@yomitomo/shared';
@@ -289,6 +290,7 @@ export async function cleanupDeletedArticleSourceAssets(input: {
   sourceType: ArticleRecord['sourceType'] | undefined;
   logError: DesktopMainIpcContext['logError'];
 }) {
+  const operationId = randomUUID();
   try {
     if (input.sourceType === 'pdf') {
       const { deletePdfSourceFile } = await import('../pdf/pdf-storage');
@@ -305,6 +307,8 @@ export async function cleanupDeletedArticleSourceAssets(input: {
   } catch (error) {
     input.logError('article_source.cleanup_failed', error, {
       articleId: input.articleId,
+      operationId,
+      phase: 'post_database_delete',
       sourceType: input.sourceType,
     });
     throw new Error('ARTICLE_SOURCE_CLEANUP_FAILED', { cause: error });

@@ -52,6 +52,39 @@ describe('article source import lifecycle', () => {
     expect(saveThumbnail).toHaveBeenCalledWith(existing.id);
   });
 
+  it('records that duplicate import cleanup loses an overwritten source asset', async () => {
+    const record = articleRecord('pdf-next');
+    const existing = articleRecord('pdf-existing');
+    const repository = repositoryStub({ existingIdentity: existing, existingArticle: existing });
+    const files = new Map([['source', 'old-source']]);
+    const thumbnailError = new Error('injected thumbnail write failure');
+    const logError = vi.fn();
+
+    await expect(
+      importArticleSource({
+        record,
+        repository,
+        saveSourceFile: async () => {
+          files.set('source', 'new-source');
+        },
+        saveThumbnail: async () => {
+          throw thumbnailError;
+        },
+        cleanupSourceFile: async () => {
+          files.delete('source');
+        },
+        logError,
+      }),
+    ).rejects.toBe(thumbnailError);
+
+    expect(files.get('source')).toBeUndefined();
+    expect(logError).toHaveBeenCalledWith('article_source_import.persist_failed', thumbnailError, {
+      articleId: existing.id,
+      operationId: expect.any(String),
+      phase: 'thumbnail',
+    });
+  });
+
   it('cleans persisted source assets when saving a new article fails', async () => {
     const record = articleRecord('pdf-new', { sourceType: 'pdf' });
     const error = new Error('save failed');

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { ArticleImportResult } from '../../ipc-contract';
 import type { ArticleRecord, ArticleUpsertPatch } from '@yomitomo/shared';
 import type { ArticleIdentity } from './article-repository-columns';
@@ -69,15 +70,23 @@ function shouldReturnDuplicate(
 }
 
 async function persistSourceAssets(input: ArticleSourceImportLifecycleInput, articleId: string) {
+  const operationId = randomUUID();
   let sourceFileSaved = false;
   let thumbnailSaved = false;
+  let phase = 'source_file';
 
   try {
     await input.saveSourceFile?.(articleId);
     sourceFileSaved = Boolean(input.saveSourceFile);
+    phase = 'thumbnail';
     await input.saveThumbnail?.(articleId);
     thumbnailSaved = Boolean(input.saveThumbnail);
   } catch (error) {
+    input.logError?.('article_source_import.persist_failed', error, {
+      articleId,
+      operationId,
+      phase,
+    });
     await cleanupPersistedSourceAssets(input, articleId, {
       sourceFileSaved,
       thumbnailSaved,
