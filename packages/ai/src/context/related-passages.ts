@@ -1,9 +1,9 @@
 import type { ContextSourceLabel, EpubBookIndex, RelatedPassage } from '@yomitomo/shared';
-import type { ReadingContextBundle, ReadingContextPassageInput } from '@yomitomo/core';
+import type { ReadingContextPassageInput } from '@yomitomo/core';
 
 export function relatedPassagesFromReadingContext(
   index: EpubBookIndex,
-  readingContext: ReadingContextBundle | undefined,
+  readingContext: { relatedPassages: ReadingContextPassageInput[] } | undefined,
 ): RelatedPassage[] {
   return relatedPassagesFromInputs(index, readingContext?.relatedPassages || []);
 }

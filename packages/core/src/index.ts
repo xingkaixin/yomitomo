@@ -92,7 +92,9 @@ export {
 export type { ReadingActivityDay, ReadingStats, ReadingStatsPeriod } from './reader/reading';
 
 export {
+  buildEpubReadingContextScope,
   buildReadingContextBundle,
+  prepareEpubReadingContext,
   readingContextTextForRange,
   segmentAnnotationSpoilerPolicy,
   selectionAnnotationSpoilerPolicy,
@@ -102,9 +104,11 @@ export {
 export { intersectTextRanges, rangeDistance } from './reader/reading-context-ranges';
 export type {
   BuildReadingContextBundleInput,
+  PreparedEpubReadingContext,
   ReadingContextBundle,
   ReadingContextChapterSummaryInput,
   ReadingContextPassageInput,
+  ReadingContextScope,
   ReadingContextTextRange,
 } from './reader/reading-context';
 

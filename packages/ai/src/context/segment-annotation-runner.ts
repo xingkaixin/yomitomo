@@ -23,9 +23,10 @@ import {
 } from '../provider/generation-runtime';
 import { generateSegmentReadingMemoryUpdateEffect } from './segment-reading-memory-update';
 import {
-  buildSegmentAnnotationTask,
+  createSegmentAnnotationTaskRebuilder,
   segmentAnnotationContextPrompt,
   type SegmentAnnotationTask,
+  type SegmentAnnotationTaskRebuilder,
 } from './segment-annotation-context';
 import { instructionPromptLine, readingIntentPromptLine } from '../agent/agent-runtime-prompts';
 
@@ -113,6 +114,7 @@ export const runAgentSegmentAnnotateWithMemoryEffect = Effect.fn('Segment.annota
       );
       const now = new Date().toISOString();
       let readingMemory = payload.readingMemory;
+      const rebuildTask = createSegmentAnnotationTaskRebuilder(payload);
 
       for (const baseTask of segmentTasks) {
         const task = refreshedSegmentAnnotationTask(
@@ -121,6 +123,7 @@ export const runAgentSegmentAnnotateWithMemoryEffect = Effect.fn('Segment.annota
           baseTask,
           annotations,
           readingMemory,
+          rebuildTask,
         );
         const { text } = yield* generateYomitomoTextEffect(provider, {
           system,
@@ -199,6 +202,7 @@ export const runAgentSegmentAnnotateStreamWithMemoryEffect = Effect.fn(
     const annotations: Annotation[] = [];
     const deduper = createSegmentAnnotationDeduper(payload.article.text, payload.annotations || []);
     let readingMemory = payload.readingMemory;
+    const rebuildTask = createSegmentAnnotationTaskRebuilder(payload);
 
     for (const baseTask of segmentTasks) {
       const task = refreshedSegmentAnnotationTask(
@@ -207,6 +211,7 @@ export const runAgentSegmentAnnotateStreamWithMemoryEffect = Effect.fn(
         baseTask,
         annotations,
         readingMemory,
+        rebuildTask,
       );
       const segmentAnnotations: Annotation[] = [];
       const maxAnnotations = segmentAnnotationOutputLimit(agent, task);
@@ -289,18 +294,17 @@ function refreshedSegmentAnnotationTask(
   task: SegmentAnnotationTask,
   acceptedAnnotations: Annotation[],
   readingMemory: ReadingMemory | undefined,
+  rebuildTask: SegmentAnnotationTaskRebuilder,
 ) {
   return (
-    buildSegmentAnnotationTask(
+    rebuildTask(
       {
         ...payload,
         annotations: [...(payload.annotations || []), ...acceptedAnnotations],
         readingMemory,
       },
       agent,
-      task.planItem,
-      task.segment,
-      task.context.allowedAnchorRange,
+      task,
     ) || task
   );
 }

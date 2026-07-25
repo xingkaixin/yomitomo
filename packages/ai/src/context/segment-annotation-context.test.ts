@@ -7,6 +7,98 @@ import {
 } from './segment-annotation-context';
 
 describe('segment annotation context', () => {
+  it('preserves plan order, clipped ranges, and spoiler exclusions', () => {
+    const chapters = [
+      {
+        id: 'chapter-1',
+        title: '第一章',
+        paragraphs: ['第一章开头。', '第一章结论。'],
+      },
+      {
+        id: 'chapter-2',
+        title: '第二章',
+        paragraphs: ['第二章开头。', '第二章反转。'],
+      },
+    ];
+    const ebookIndex = buildEpubBookIndex({
+      articleId: 'book-1',
+      chapters,
+      maxSegmentTextLength: 1,
+      minSegmentTextLength: 1,
+    });
+    const text = epubIndexText(chapters);
+    const firstChapter = ebookIndex.chapters[0];
+    const secondChapter = ebookIndex.chapters[1];
+    const clippedStart = text.indexOf('第一章结论');
+    const tasks = buildSegmentAnnotationTasks(
+      {
+        agentId: agent.id,
+        agentUsername: agent.username,
+        readingPlan: [
+          {
+            sectionId: secondChapter.id,
+            sectionTitle: secondChapter.title,
+            sectionStart: secondChapter.textStart,
+            sectionEnd: secondChapter.textEnd,
+          },
+          {
+            sectionId: firstChapter.id,
+            sectionTitle: firstChapter.title,
+            sectionStart: clippedStart,
+            sectionEnd: firstChapter.textEnd,
+          },
+        ],
+        article: {
+          title: '长书',
+          url: 'ebook://book-1',
+          text,
+          ebookIndex,
+        },
+      },
+      agent,
+    );
+
+    expect(
+      tasks.map((task) => ({
+        sectionId: task.planItem.sectionId,
+        segmentId: task.segment.id,
+        range: task.context.allowedAnchorRange,
+        evidence: task.context.retrievedEvidence.map((passage) => passage.text),
+      })),
+    ).toEqual([
+      {
+        sectionId: 'chapter-2',
+        segmentId: 'chapter-2-segment-1',
+        range: {
+          textStart: secondChapter.textStart,
+          textEnd: ebookIndex.segments[2].textEnd,
+        },
+        evidence: [],
+      },
+      {
+        sectionId: 'chapter-2',
+        segmentId: 'chapter-2-segment-2',
+        range: {
+          textStart: ebookIndex.segments[3].textStart,
+          textEnd: secondChapter.textEnd,
+        },
+        evidence: ['第二章开头。'],
+      },
+      {
+        sectionId: 'chapter-1',
+        segmentId: 'chapter-1-segment-2',
+        range: {
+          textStart: clippedStart,
+          textEnd: firstChapter.textEnd,
+        },
+        evidence: ['第一章开头。'],
+      },
+    ]);
+    expect(
+      tasks.flatMap((task) => task.context.retrievedEvidence.map((passage) => passage.text)),
+    ).not.toContain('第二章反转。');
+  });
+
   it('injects current-chapter lexical passages as retrieved evidence', () => {
     const chapters = [
       {

@@ -5,7 +5,9 @@ import {
   type EpubBookIndexChapterInput,
 } from '../epub/ebook-index';
 import {
+  buildEpubReadingContextScope,
   buildReadingContextBundle,
+  prepareEpubReadingContext,
   selectionAnnotationSpoilerPolicy,
   wholeBookSpoilerPolicy,
 } from './reading-context';
@@ -34,6 +36,44 @@ function bookFixture() {
 }
 
 describe('buildReadingContextBundle', () => {
+  it('reuses a prepared EPUB lookup without materializing article text', () => {
+    const { index, text } = bookFixture();
+    const input = {
+      articleText: text,
+      readerProgress: {
+        currentChapterId: 'chapter-2',
+        currentSegmentId: 'chapter-2-segment-1',
+        readChapterIds: ['chapter-1'],
+        readUntilTextOffset: text.indexOf('第二章未读反转'),
+      },
+      spoilerPolicy: selectionAnnotationSpoilerPolicy,
+      relatedPassages: [
+        {
+          id: 'read',
+          chapterId: 'chapter-1',
+          text: '第一章已经读完。',
+        },
+        {
+          id: 'future',
+          chapterId: 'chapter-3',
+          text: '第三章未来剧情。',
+        },
+      ],
+    };
+
+    const scope = buildEpubReadingContextScope(prepareEpubReadingContext(index), input);
+    const bundle = buildReadingContextBundle({ ...input, ebookIndex: index });
+
+    expect(scope).toEqual({
+      textRanges: bundle.textRanges,
+      readerProgress: bundle.readerProgress,
+      spoilerPolicy: bundle.spoilerPolicy,
+      relatedPassages: bundle.relatedPassages,
+      chapterSummaries: bundle.chapterSummaries,
+    });
+    expect(scope).not.toHaveProperty('articleText');
+  });
+
   it('limits current chapter context to the read offset', () => {
     const { index, text } = bookFixture();
     const readUntilTextOffset = text.indexOf('第二章未读反转');
