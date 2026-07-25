@@ -14,7 +14,7 @@ vi.mock('electron', () => ({
   },
 }));
 
-import { getLogPath, pruneLogFile } from './app/logger';
+import { getLogPath, logInfo, pruneLogFile } from './app/logger';
 
 describe('desktop logger retention', () => {
   beforeEach(async () => {
@@ -53,3 +53,85 @@ describe('desktop logger retention', () => {
     await rm(testPaths.userData, { recursive: true, force: true });
   });
 });
+
+describe('desktop logger write failures', () => {
+  beforeEach(async () => {
+    const root = await mkdtemp(join(tmpdir(), 'yomitomo-logger-failure-test-'));
+    testPaths.appData = join(root, 'app-data');
+    testPaths.userData = join(root, 'user-data');
+  });
+
+  afterEach(async () => {
+    await rm(testPaths.appData, { recursive: true, force: true });
+    await rm(testPaths.userData, { recursive: true, force: true });
+  });
+
+  it('serializes circular, bigint, and deeply nested payloads without rejection', async () => {
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    const deep: Record<string, unknown> = {};
+    let cursor = deep;
+    for (let depth = 0; depth < 12; depth += 1) {
+      const next: Record<string, unknown> = {};
+      cursor.next = next;
+      cursor = next;
+    }
+
+    const rejections = await observeUnhandledRejections(
+      () => logInfo('logger.complex_payload', { circular, deep, value: 42n }),
+      async () => {
+        await vi.waitFor(async () => {
+          const log = await readFile(getLogPath(), 'utf8');
+          expect(log).toContain('[Circular]');
+          expect(log).toContain('[MaxDepth]');
+          expect(log).toContain('42n');
+        });
+      },
+    );
+
+    expect(rejections).toEqual([]);
+  });
+
+  it('falls back to minimal console output when filesystem writes fail', async () => {
+    await mkdir(testPaths.userData, { recursive: true });
+    testPaths.userData = join(testPaths.userData, 'not-a-directory');
+    await writeFile(testPaths.userData, 'file', 'utf8');
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const rejections = await observeUnhandledRejections(
+      () => logInfo('logger.filesystem_failure', { apiKey: 'must-not-reach-fallback' }),
+      async () => {
+        await vi.waitFor(() => {
+          expect(consoleError).toHaveBeenCalledWith(
+            '[Yomitomo] logger.write_failed',
+            expect.objectContaining({
+              event: 'logger.filesystem_failure',
+              level: 'info',
+            }),
+          );
+        });
+      },
+    );
+
+    expect(rejections).toEqual([]);
+    expect(JSON.stringify(consoleError.mock.calls)).not.toContain('must-not-reach-fallback');
+    consoleError.mockRestore();
+  });
+});
+
+async function observeUnhandledRejections(
+  action: () => void,
+  waitForCompletion: () => Promise<void>,
+) {
+  const rejections: unknown[] = [];
+  const listener = (error: unknown) => rejections.push(error);
+  process.on('unhandledRejection', listener);
+  try {
+    action();
+    await waitForCompletion();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    return rejections;
+  } finally {
+    process.off('unhandledRejection', listener);
+  }
+}
