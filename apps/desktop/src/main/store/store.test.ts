@@ -352,6 +352,33 @@ describe('desktop store providers', () => {
     expect(readSecretDeletionTasks()).toEqual([]);
   });
 
+  it('records the credential state when provider api key replacement cannot commit', async () => {
+    insertProviderRow({ id: 'provider_1', apiKeyRef: 'provider:provider_1:apiKey' });
+    testState.secrets.set('provider:provider_1:apiKey', 'sk-old');
+    getDatabase().run(`
+      CREATE TRIGGER fail_provider_key_replacement
+      BEFORE UPDATE ON providers
+      BEGIN
+        SELECT RAISE(ABORT, 'injected provider replacement failure');
+      END
+    `);
+
+    await expect(saveProvider({ id: 'provider_1', apiKey: 'sk-new' })).rejects.toThrow(
+      'injected provider replacement failure',
+    );
+
+    expect(testState.secrets.get('provider:provider_1:apiKey')).toBe('sk-new');
+    expect(testState.logErrors).toContainEqual({
+      event: 'credential_swap.transaction_failed',
+      error: expect.objectContaining({ message: 'injected provider replacement failure' }),
+      data: {
+        owner: 'provider',
+        ownerId: 'provider_1',
+        apiKeyRef: 'provider:provider_1:apiKey',
+      },
+    });
+  });
+
   it('recovers a pending provider secret deletion after restart', async () => {
     const deleteError = new Error('keyring locked');
     insertProviderRow({ id: 'provider_1', apiKeyRef: 'provider:provider_1:apiKey' });

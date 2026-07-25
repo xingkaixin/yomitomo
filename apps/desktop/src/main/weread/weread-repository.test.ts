@@ -9,6 +9,7 @@ const testPaths = vi.hoisted(() => ({
   secrets: new Map<string, string>(),
   sqlStatements: [] as string[],
 }));
+const credentialLogger = vi.hoisted(() => ({ logError: vi.fn() }));
 const repositoryLogger = { logInfo: vi.fn() };
 
 vi.mock('electron', () => ({
@@ -44,6 +45,10 @@ vi.mock('../providers/provider-secrets', () => ({
   wereadApiKeyRef: () => 'weread:default:apiKey',
 }));
 
+vi.mock('../app/logger', () => ({
+  logError: credentialLogger.logError,
+}));
+
 import * as schema from '../db/schema';
 import { closeDatabase, getDatabase } from '../store/store-db';
 import {
@@ -64,6 +69,7 @@ beforeEach(async () => {
   testPaths.secrets.clear();
   testPaths.sqlStatements = [];
   repositoryLogger.logInfo.mockClear();
+  credentialLogger.logError.mockClear();
 });
 
 afterEach(async () => {
@@ -310,6 +316,33 @@ describe('WeRead repository book details', () => {
 });
 
 describe('WeRead repository credentials', () => {
+  it('records the credential state when api key replacement cannot commit', async () => {
+    insertWeReadAccount('weread:default:apiKey');
+    testPaths.secrets.set('weread:default:apiKey', 'weread-old');
+    getDatabase().run(`
+      CREATE TRIGGER fail_weread_key_replacement
+      BEFORE UPDATE ON weread_accounts
+      BEGIN
+        SELECT RAISE(ABORT, 'injected WeRead replacement failure');
+      END
+    `);
+
+    await expect(saveWeReadSettings({ apiKey: 'weread-new' })).rejects.toThrow(
+      'injected WeRead replacement failure',
+    );
+
+    expect(testPaths.secrets.get('weread:default:apiKey')).toBe('weread-new');
+    expect(credentialLogger.logError).toHaveBeenCalledWith(
+      'credential_swap.transaction_failed',
+      expect.objectContaining({ message: 'injected WeRead replacement failure' }),
+      {
+        owner: 'weread',
+        ownerId: 'default',
+        apiKeyRef: 'weread:default:apiKey',
+      },
+    );
+  });
+
   it('preserves the credential when api key removal cannot commit', async () => {
     insertWeReadAccount('weread:default:apiKey');
     testPaths.secrets.set('weread:default:apiKey', 'weread-secret');

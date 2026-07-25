@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import { makeId } from '@yomitomo/shared';
 import type { ProviderStorePatch } from '../../ipc-contract';
 import { ensurePresetAgents } from '../agents/agent-repository';
+import { logError } from '../app/logger';
 import * as schema from '../db/schema';
 import {
   buildProviderRecord,
@@ -42,11 +43,20 @@ export async function saveProvider(input: SaveProviderInput): Promise<ProviderSt
     storedApiKey,
   });
 
-  database.transaction((tx) => {
-    upsertProvider(tx, provider, apiKeyRef, storedApiKey);
-    if (secretRefToDelete) queueSecretDeletion(tx, secretRefToDelete);
-    else if (apiKeyRef) cancelSecretDeletion(tx, apiKeyRef);
-  });
+  try {
+    database.transaction((tx) => {
+      upsertProvider(tx, provider, apiKeyRef, storedApiKey);
+      if (secretRefToDelete) queueSecretDeletion(tx, secretRefToDelete);
+      else if (apiKeyRef) cancelSecretDeletion(tx, apiKeyRef);
+    });
+  } catch (error) {
+    logError('credential_swap.transaction_failed', error, {
+      owner: 'provider',
+      ownerId: id,
+      apiKeyRef,
+    });
+    throw error;
+  }
   if (secretRefToDelete) await completeSecretDeletion(secretRefToDelete);
   return readProviderStorePatch(database);
 }

@@ -14,6 +14,7 @@ import type {
   WeReadThought,
   WeReadUser,
 } from '@yomitomo/shared';
+import { logError } from '../app/logger';
 import * as schema from '../db/schema';
 import { readWeReadApiKey, saveWeReadApiKey, wereadApiKeyRef } from '../providers/provider-secrets';
 import {
@@ -82,11 +83,20 @@ export async function saveWeReadSettings(input: {
     lastTestAt: existing?.lastTestAt,
   };
   const database = getDatabase();
-  database.transaction((tx) => {
-    upsertWeReadAccountRow(tx, account);
-    if (secretRefToDelete) queueSecretDeletion(tx, secretRefToDelete);
-    else if (apiKeyRef) cancelSecretDeletion(tx, apiKeyRef);
-  });
+  try {
+    database.transaction((tx) => {
+      upsertWeReadAccountRow(tx, account);
+      if (secretRefToDelete) queueSecretDeletion(tx, secretRefToDelete);
+      else if (apiKeyRef) cancelSecretDeletion(tx, apiKeyRef);
+    });
+  } catch (error) {
+    logError('credential_swap.transaction_failed', error, {
+      owner: 'weread',
+      ownerId: WEREAD_ACCOUNT_ID,
+      apiKeyRef,
+    });
+    throw error;
+  }
   if (secretRefToDelete) await completeSecretDeletion(secretRefToDelete);
   return readWeReadState();
 }
