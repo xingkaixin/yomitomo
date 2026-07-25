@@ -1,6 +1,7 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowLeft01Icon, LinkSquare01Icon, Refresh01Icon } from '@hugeicons/core-free-icons';
 import React, { useMemo, useState } from 'react';
 import i18next from 'i18next';
-import { ChevronLeft, ExternalLink, RefreshCw } from 'lucide-react';
 import type {
   UserProfile,
   WeReadBookDetail,
@@ -89,7 +90,7 @@ export function WeReadBookcase({
           aria-label={t('common.backToLibrary')}
           onClick={onClose}
         >
-          <ChevronLeft size={18} />
+          <HugeiconsIcon icon={ArrowLeft01Icon} size={18} />
           <span>{t('readerUi.readerLibrary')}</span>
         </button>
         <div className="weread-bookcase-title">
@@ -113,10 +114,10 @@ export function WeReadBookcase({
             title={t('wereadBook.openWeRead')}
             onClick={() => onOpenExternal({})}
           >
-            <ExternalLink size={15} />
+            <HugeiconsIcon icon={LinkSquare01Icon} size={15} />
           </button>
           <button type="button" disabled={syncing} onClick={onSync}>
-            <RefreshCw size={15} />
+            <HugeiconsIcon icon={Refresh01Icon} size={15} />
             {syncing ? t('wereadBook.syncing') : t('wereadBook.syncBook')}
           </button>
         </div>
@@ -207,7 +208,7 @@ function WeReadNoteCard({
   return (
     <ReadonlyAnnotationCard
       action={{
-        icon: <ExternalLink size={13} />,
+        icon: <HugeiconsIcon icon={LinkSquare01Icon} size={13} />,
         label: t('wereadBook.locateAnnotation'),
         onClick: onOpenExternal,
       }}

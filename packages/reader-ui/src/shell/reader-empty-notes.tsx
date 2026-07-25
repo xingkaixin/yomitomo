@@ -1,4 +1,5 @@
-import { Highlighter } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { HighlighterIcon } from '@hugeicons/core-free-icons';
 import type { ReaderUiLabels } from './reader-app-view-types';
 
 type EmptyNotesLabels = Pick<
@@ -17,7 +18,7 @@ export function EmptyNotes({ labels = fallbackEmptyNotesLabels }: { labels?: Emp
   return (
     <div className="reader-empty">
       <div className="reader-empty-icon" aria-hidden="true">
-        <Highlighter size={28} strokeWidth={2.1} />
+        <HugeiconsIcon icon={HighlighterIcon} size={28} strokeWidth={2.1} />
       </div>
       <strong>{labels.emptyNotesTitle}</strong>
       <p>{labels.emptyNotesDescription}</p>

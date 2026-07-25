@@ -1,16 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
 import {
-  Check,
-  CircleCheck,
-  ExternalLink,
-  Eye,
-  EyeOff,
-  Info,
-  RefreshCw,
-  Save,
-  Trash2,
-  X,
-} from 'lucide-react';
+  Cancel01Icon,
+  CheckmarkCircle01Icon,
+  Delete02Icon,
+  FloppyDiskIcon,
+  InformationCircleIcon,
+  LinkSquare01Icon,
+  Refresh01Icon,
+  Tick01Icon,
+  ViewIcon,
+  ViewOffIcon,
+} from '@hugeicons/core-free-icons';
+import { useEffect, useRef, useState } from 'react';
 import {
   normalizeUiLanguage,
   type WeReadOpenMethod,
@@ -255,7 +256,7 @@ export function WeReadSettingsPanel() {
         aside={
           settings.configured ? (
             <span className="settings-status-ok">
-              <CircleCheck size={14} />
+              <HugeiconsIcon icon={CheckmarkCircle01Icon} size={14} />
               {t('settings.weread.savedToKeychain')}
             </span>
           ) : null
@@ -294,7 +295,11 @@ export function WeReadSettingsPanel() {
               type="button"
               onClick={toggleApiKeyVisible}
             >
-              {apiKeyVisible ? <EyeOff size={17} /> : <Eye size={17} />}
+              {apiKeyVisible ? (
+                <HugeiconsIcon icon={ViewOffIcon} size={17} />
+              ) : (
+                <HugeiconsIcon icon={ViewIcon} size={17} />
+              )}
             </button>
           </div>
         </div>
@@ -309,7 +314,11 @@ export function WeReadSettingsPanel() {
             type="button"
             onClick={saveSettings}
           >
-            {credentialSave.saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
+            {credentialSave.saveState === 'saved' ? (
+              <HugeiconsIcon icon={Tick01Icon} size={16} />
+            ) : (
+              <HugeiconsIcon icon={FloppyDiskIcon} size={16} />
+            )}
             {saveLabel}
           </Button>
           <Button
@@ -328,11 +337,11 @@ export function WeReadSettingsPanel() {
             onClick={testConnection}
           >
             {testState === 'success' ? (
-              <Check size={15} />
+              <HugeiconsIcon icon={Tick01Icon} size={15} />
             ) : testState === 'error' ? (
-              <X size={15} />
+              <HugeiconsIcon icon={Cancel01Icon} size={15} />
             ) : (
-              <RefreshCw size={15} />
+              <HugeiconsIcon icon={Refresh01Icon} size={15} />
             )}
             {testLabel}
           </Button>
@@ -343,13 +352,13 @@ export function WeReadSettingsPanel() {
             variant="secondary"
             onClick={() => setRemoveConfirmOpen(true)}
           >
-            <Trash2 size={15} />
+            <HugeiconsIcon icon={Delete02Icon} size={15} />
             {t('settings.weread.remove')}
           </Button>
           <button className="weread-help-link" type="button" onClick={openWeReadApiKeyHelp}>
-            <Info size={15} />
+            <HugeiconsIcon icon={InformationCircleIcon} size={15} />
             {t('settings.weread.help')}
-            <ExternalLink size={13} />
+            <HugeiconsIcon icon={LinkSquare01Icon} size={13} />
           </button>
         </div>
         {credentialSave.saveState === 'error' || apiKeyMessage ? (

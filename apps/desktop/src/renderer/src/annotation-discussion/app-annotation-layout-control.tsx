@@ -1,4 +1,5 @@
-import { AlignLeft, GitPullRequestDraft } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { GitPullRequestDraftIcon, TextAlignLeftIcon } from '@hugeicons/core-free-icons';
 import { useTranslation } from 'react-i18next';
 
 export type AnnotationMessageLayoutMode = 'split' | 'left';
@@ -19,7 +20,7 @@ export function AnnotationLayoutControl({
         aria-pressed={value === 'split'}
         onClick={() => onChange('split')}
       >
-        <GitPullRequestDraft size={13} />
+        <HugeiconsIcon icon={GitPullRequestDraftIcon} size={13} />
         {t('discussion.layout.split')}
       </button>
       <button
@@ -28,7 +29,7 @@ export function AnnotationLayoutControl({
         aria-pressed={value === 'left'}
         onClick={() => onChange('left')}
       >
-        <AlignLeft size={13} />
+        <HugeiconsIcon icon={TextAlignLeftIcon} size={13} />
         {t('discussion.layout.left')}
       </button>
     </div>

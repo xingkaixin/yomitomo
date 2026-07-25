@@ -1,17 +1,18 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import {
+  Add01Icon,
+  ArrowDown01Icon,
+  Delete02Icon,
+  KeyboardIcon,
+  PencilIcon,
+  Refresh01Icon,
+  Search01Icon,
+  Tick01Icon,
+  ViewIcon,
+  ViewOffIcon,
+} from '@hugeicons/core-free-icons';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  Check,
-  ChevronDown,
-  Eye,
-  EyeOff,
-  Keyboard,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Search,
-  Trash2,
-} from 'lucide-react';
 import type { ProviderDraft } from './app-settings';
 import { Button } from '../components/ui/button';
 import { Field } from '../components/ui/field';
@@ -259,7 +260,7 @@ function ProviderModelPicker({
             style={menuStyle}
           >
             <label className="provider-model-search">
-              <Search size={14} />
+              <HugeiconsIcon icon={Search01Icon} size={14} />
               <input
                 ref={searchRef}
                 type="text"
@@ -291,7 +292,7 @@ function ProviderModelPicker({
                       }}
                     >
                       <span className="provider-model-radio">
-                        {selected ? <Check size={12} /> : null}
+                        {selected ? <HugeiconsIcon icon={Tick01Icon} size={12} /> : null}
                       </span>
                       <span className="provider-model-option-name">{model}</span>
                       <span className="provider-model-option-tag">
@@ -308,7 +309,7 @@ function ProviderModelPicker({
                         aria-label={t('settings.models.hidePresetModel', { model })}
                         onClick={() => onHidePresetModel(model)}
                       >
-                        <EyeOff size={14} />
+                        <HugeiconsIcon icon={ViewOffIcon} size={14} />
                       </button>
                     ) : (
                       <>
@@ -318,7 +319,7 @@ function ProviderModelPicker({
                           aria-label={t('settings.models.editCustomModel', { model })}
                           onClick={() => editCustomModel(model)}
                         >
-                          <Pencil size={14} />
+                          <HugeiconsIcon icon={PencilIcon} size={14} />
                         </button>
                         <button
                           className="provider-model-row-action"
@@ -327,7 +328,7 @@ function ProviderModelPicker({
                           aria-label={t('settings.models.deleteCustomModel', { model })}
                           onClick={() => onDeleteCustomModel(model)}
                         >
-                          <Trash2 size={14} />
+                          <HugeiconsIcon icon={Delete02Icon} size={14} />
                         </button>
                       </>
                     )}
@@ -344,7 +345,7 @@ function ProviderModelPicker({
             </div>
             <div className="provider-model-menu-footer">
               <label className="provider-model-custom-input">
-                <Keyboard size={15} />
+                <HugeiconsIcon icon={KeyboardIcon} size={15} />
                 <Input
                   aria-label={t('settings.models.customModelName')}
                   autoComplete="off"
@@ -365,7 +366,11 @@ function ProviderModelPicker({
                 variant="secondary"
                 onClick={submitCustomModel}
               >
-                {editingModel ? <Pencil size={14} /> : <Plus size={14} />}
+                {editingModel ? (
+                  <HugeiconsIcon icon={PencilIcon} size={14} />
+                ) : (
+                  <HugeiconsIcon icon={Add01Icon} size={14} />
+                )}
                 {editingModel
                   ? t('settings.models.updateCustomModel')
                   : t('settings.models.useCustomModel')}
@@ -389,7 +394,7 @@ function ProviderModelPicker({
                 variant="secondary"
                 onClick={onFetchModels}
               >
-                <RefreshCw size={14} />
+                <HugeiconsIcon icon={Refresh01Icon} size={14} />
                 {modelLoading
                   ? t('settings.models.fetchingModel')
                   : t('settings.models.fetchModel')}
@@ -400,7 +405,7 @@ function ProviderModelPicker({
                   <div>
                     {hiddenPresetModels.map((model) => (
                       <button key={model} type="button" onClick={() => onShowPresetModel(model)}>
-                        <Eye size={13} />
+                        <HugeiconsIcon icon={ViewIcon} size={13} />
                         {model}
                       </button>
                     ))}
@@ -430,7 +435,7 @@ function ProviderModelPicker({
         ) : (
           <span className="provider-model-placeholder">{t('settings.models.chooseModel')}</span>
         )}
-        <ChevronDown className="provider-model-trigger-icon" size={16} />
+        <HugeiconsIcon icon={ArrowDown01Icon} className="provider-model-trigger-icon" size={16} />
       </button>
       {menu}
     </div>

@@ -1,6 +1,7 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowDown01Icon, BubbleChatIcon, SentIcon } from '@hugeicons/core-free-icons';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, MessageCircle, Send } from 'lucide-react';
 import type { PublicAgent, UserProfile } from '@yomitomo/shared';
 import { getMentionQuery } from '@yomitomo/core';
 import { FloatingComposer } from '@yomitomo/reader-ui/floating-composer';
@@ -324,7 +325,7 @@ export function DiscussionThreadView({
             </div>
           ) : (
             <div className="annotation-discussion-reply-empty">
-              <MessageCircle size={24} />
+              <HugeiconsIcon icon={BubbleChatIcon} size={24} />
               <strong>{t('discussion.threadView.noDiscussionTitle')}</strong>
               <p>{t('discussion.threadView.noDiscussionDescription')}</p>
             </div>
@@ -338,7 +339,7 @@ export function DiscussionThreadView({
               aria-label={t('discussion.threadView.scrollBottom')}
               onClick={() => scrollDiscussionToBottom('smooth')}
             >
-              <ChevronDown size={16} />
+              <HugeiconsIcon icon={ArrowDown01Icon} size={16} />
             </button>
           ) : null}
           {activeReplyAgents && activeReplyAgents.length > 0 ? (
@@ -388,7 +389,7 @@ export function DiscussionThreadView({
             mentionAgents={annotationAgents}
             status={composerStatus || undefined}
             submitDisabled={!replyDraft.trim() || sendingReply}
-            submitIcon={<Send size={14} />}
+            submitIcon={<HugeiconsIcon icon={SentIcon} size={14} />}
             submitLabel={t('discussion.threadView.reply')}
             submitTooltip={
               <SubmitShortcutTooltipContent

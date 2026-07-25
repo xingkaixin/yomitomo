@@ -1,5 +1,6 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Delete02Icon } from '@hugeicons/core-free-icons';
 import { useMemo, useState } from 'react';
-import { Trash2 } from 'lucide-react';
 import type { Comment, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { commentPersona } from '@yomitomo/core';
 import { useTranslation } from 'react-i18next';
@@ -56,7 +57,7 @@ export function DiscussionMessage({
             aria-label={t('discussion.deleteReplyAria')}
             onClick={() => setConfirmOpen(true)}
           >
-            <Trash2 size={13} />
+            <HugeiconsIcon icon={Delete02Icon} size={13} />
           </button>
         </header>
         <AssistantRuntimeProgressList progress={message.assistantProgress} />

@@ -1,4 +1,5 @@
-import { AlertTriangle } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Alert01Icon } from '@hugeicons/core-free-icons';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/button';
 import {
@@ -38,7 +39,7 @@ export function SettingsConfirmDialog({
           <DialogContent className="settings-confirm-dialog">
             <header>
               <span className="settings-confirm-dialog-icon" aria-hidden="true">
-                <AlertTriangle size={20} />
+                <HugeiconsIcon icon={Alert01Icon} size={20} />
               </span>
               <div>
                 <DialogTitle id="settings-confirm-dialog-title">{title}</DialogTitle>

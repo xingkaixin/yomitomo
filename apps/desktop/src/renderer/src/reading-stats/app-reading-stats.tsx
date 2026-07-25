@@ -1,6 +1,7 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { BarChartIcon, Refresh01Icon } from '@hugeicons/core-free-icons';
 import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BarChart3, RefreshCcw } from 'lucide-react';
 import type { Agent, AppSettings, ArticleSummaryRecord } from '@yomitomo/shared';
 import { Button } from '../components/ui/button';
 import { SegmentedControl } from '../components/ui/segmented-control';
@@ -135,7 +136,7 @@ export function ReadingStatsPanel({
   return (
     <div className="settings-panel">
       <PanelHeader
-        icon={<BarChart3 size={20} />}
+        icon={<HugeiconsIcon icon={BarChartIcon} size={20} />}
         title={t('readingStats.title')}
         description={
           view === 'usage'
@@ -147,7 +148,7 @@ export function ReadingStatsPanel({
         action={
           view === 'reading' && source === 'local' ? (
             <Button type="button" variant="secondary" onClick={onRefresh}>
-              <RefreshCcw size={16} />
+              <HugeiconsIcon icon={Refresh01Icon} size={16} />
               {t('readingStats.refresh')}
             </Button>
           ) : null

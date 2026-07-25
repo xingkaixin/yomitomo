@@ -1,4 +1,10 @@
-import { Check, Copy, MessageCircleQuestion, MessageSquarePlus } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import {
+  Copy01Icon,
+  MessageAdd01Icon,
+  MessageQuestionIcon,
+  Tick01Icon,
+} from '@hugeicons/core-free-icons';
 import { useEffect, useRef, useState } from 'react';
 import type { SelectionActionShortcuts } from '@yomitomo/shared';
 import { normalizeSelectionActionShortcuts } from '@yomitomo/shared';
@@ -77,23 +83,23 @@ export function SelectionMenu({
           data-state={copied ? 'b' : 'a'}
         >
           <span className="t-icon" data-icon="a">
-            <Copy size={15} strokeWidth={2.2} />
+            <HugeiconsIcon icon={Copy01Icon} size={15} strokeWidth={2.2} />
           </span>
           <span className="t-icon" data-icon="b">
-            <Check size={15} strokeWidth={2.4} />
+            <HugeiconsIcon icon={Tick01Icon} size={15} strokeWidth={2.4} />
           </span>
         </span>
         <span>{labels.copySelection}</span>
         <Kbd className="reader-kbd">{shortcutKeys.copy}</Kbd>
       </button>
       <button className="reader-selection-primary" type="button" onClick={onAnnotate}>
-        <MessageSquarePlus size={15} strokeWidth={2.2} />
+        <HugeiconsIcon icon={MessageAdd01Icon} size={15} strokeWidth={2.2} />
         {labels.recordThought}
         <Kbd className="reader-kbd">{shortcutKeys.annotate}</Kbd>
       </button>
       {onAsk ? (
         <button className="reader-selection-primary" type="button" onClick={onAsk}>
-          <MessageCircleQuestion size={15} strokeWidth={2.2} />
+          <HugeiconsIcon icon={MessageQuestionIcon} size={15} strokeWidth={2.2} />
           {labels.askSelection}
           <Kbd className="reader-kbd">{shortcutKeys.ask}</Kbd>
         </button>

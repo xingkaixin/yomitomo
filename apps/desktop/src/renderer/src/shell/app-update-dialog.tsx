@@ -1,5 +1,13 @@
+import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
+import {
+  CircleArrowUp01Icon,
+  CircleOffIcon,
+  Edit01Icon,
+  Refresh01Icon,
+  SparklesIcon,
+  Wrench01Icon,
+} from '@hugeicons/core-free-icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Sparkles, RefreshCw, ArrowUpCircle, CircleSlash, Wrench, PenLine } from 'lucide-react';
 import './app-update-dialog.css';
 import type {
   AppSettings,
@@ -25,11 +33,11 @@ type ActiveReleaseDialog = {
   highlights: ReleaseNoteHighlight[];
 };
 
-const TYPE_ICON: Record<ReleaseNoteHighlightType, typeof Sparkles> = {
-  new: Sparkles,
-  changed: RefreshCw,
-  deprecated: CircleSlash,
-  fixed: Wrench,
+const TYPE_ICON: Record<ReleaseNoteHighlightType, IconSvgElement> = {
+  new: SparklesIcon,
+  changed: Refresh01Icon,
+  deprecated: CircleOffIcon,
+  fixed: Wrench01Icon,
 };
 
 // 容器：负责 A/B 触发时机与文案数据获取，渲染纯展示的 View。
@@ -209,11 +217,11 @@ export function UpdateReleaseDialogView({
               {hasHighlights ? (
                 <ul className="update-dialog-list">
                   {highlights.map((highlight, index) => {
-                    const Icon = TYPE_ICON[highlight.type];
+                    const icon = TYPE_ICON[highlight.type];
                     return (
                       <li className="update-dialog-item" key={`${highlight.type}-${index}`}>
                         <span className={`update-dialog-tag is-${highlight.type}`}>
-                          <Icon size={13} aria-hidden />
+                          <HugeiconsIcon icon={icon} size={13} aria-hidden />
                           {t(`updateDialog.type.${highlight.type}`)}
                         </span>
                         <span className="update-dialog-text">
@@ -235,7 +243,7 @@ export function UpdateReleaseDialogView({
                   type="button"
                   onClick={onPrimary}
                 >
-                  <PenLine size={16} aria-hidden />
+                  <HugeiconsIcon icon={Edit01Icon} size={16} aria-hidden />
                   {t('updateDialog.start')}
                 </button>
               ) : (
@@ -253,12 +261,12 @@ export function UpdateReleaseDialogView({
                       type="button"
                       onClick={onPrimary}
                     >
-                      <RefreshCw size={16} aria-hidden />
+                      <HugeiconsIcon icon={Refresh01Icon} size={16} aria-hidden />
                       {t('updateDialog.install')}
                     </button>
                   ) : downloadStatus === 'downloading' ? (
                     <button className="update-dialog-button is-primary" type="button" disabled>
-                      <ArrowUpCircle size={16} aria-hidden />
+                      <HugeiconsIcon icon={CircleArrowUp01Icon} size={16} aria-hidden />
                       {`${Math.round(downloadPercent)}%`}
                     </button>
                   ) : (
@@ -267,7 +275,7 @@ export function UpdateReleaseDialogView({
                       type="button"
                       onClick={onPrimary}
                     >
-                      <ArrowUpCircle size={16} aria-hidden />
+                      <HugeiconsIcon icon={CircleArrowUp01Icon} size={16} aria-hidden />
                       {t('updateDialog.updateNow')}
                     </button>
                   )}

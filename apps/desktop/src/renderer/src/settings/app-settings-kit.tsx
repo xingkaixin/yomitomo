@@ -1,9 +1,10 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowRight01Icon, InformationCircleIcon } from '@hugeicons/core-free-icons';
 import React from 'react';
 import {
   ReaderTooltip,
   ReaderTooltipProvider,
 } from '@yomitomo/reader-ui/reader-component-primitives';
-import { ChevronRight, Info } from 'lucide-react';
 import './app-settings-kit.css';
 
 /**
@@ -33,7 +34,8 @@ export function SettingsPage({
               {trail.map((item, index) => (
                 <React.Fragment key={item}>
                   {index > 0 ? (
-                    <ChevronRight
+                    <HugeiconsIcon
+                      icon={ArrowRight01Icon}
                       aria-hidden="true"
                       className="settings-breadcrumb-sep"
                       size={13}
@@ -231,7 +233,7 @@ export function SettingsInfoIndicator({
       }
       tabIndex={interactive ? 0 : undefined}
     >
-      <Info size={13} strokeWidth={2.2} />
+      <HugeiconsIcon icon={InformationCircleIcon} size={13} strokeWidth={2.2} />
     </span>
   );
 

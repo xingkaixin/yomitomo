@@ -1,5 +1,6 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { FloppyDiskIcon, Tick01Icon, Upload01Icon, UserIcon } from '@hugeicons/core-free-icons';
 import React from 'react';
-import { Check, Save, Upload, User } from 'lucide-react';
 import { sanitizeUsernameInput, userAnnotationColors, type UserDraft } from './app-settings';
 import { readFileAsDataUrl } from '../shell/app-utils';
 import { AvatarImage } from '../shell/app-ui';
@@ -64,7 +65,7 @@ export function UserProfileSettingsDialog({
             <header>
               <div className="user-profile-dialog-heading">
                 <span>
-                  <User size={19} />
+                  <HugeiconsIcon icon={UserIcon} size={19} />
                 </span>
                 <div>
                   <DialogTitle id="user-profile-dialog-title">
@@ -146,7 +147,11 @@ export function UserProfileSettingsDialog({
                 type="button"
                 onClick={onSave}
               >
-                {saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
+                {saveState === 'saved' ? (
+                  <HugeiconsIcon icon={Tick01Icon} size={16} />
+                ) : (
+                  <HugeiconsIcon icon={FloppyDiskIcon} size={16} />
+                )}
                 {saveLabel}
               </Button>
             </footer>
@@ -205,7 +210,7 @@ function ProfileAvatarEditor({ onChange }: { onChange: (avatar: string) => void 
   return (
     <div className="grid gap-3">
       <label className="upload-button">
-        <Upload size={16} />
+        <HugeiconsIcon icon={Upload01Icon} size={16} />
         {t('settings.profile.uploadAvatar')}
         <input
           accept="image/*"

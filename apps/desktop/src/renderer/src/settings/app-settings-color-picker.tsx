@@ -1,4 +1,5 @@
-import { Check } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Tick01Icon } from '@hugeicons/core-free-icons';
 import { useTranslation } from 'react-i18next';
 
 export function ColorPicker({
@@ -23,7 +24,7 @@ export function ColorPicker({
           aria-label={t('settings.profile.chooseColor', { color })}
           onClick={() => onChange(color)}
         >
-          {value === color ? <Check size={15} /> : null}
+          {value === color ? <HugeiconsIcon icon={Tick01Icon} size={15} /> : null}
         </button>
       ))}
     </div>

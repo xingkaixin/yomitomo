@@ -1,7 +1,13 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import {
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
+  Refresh01Icon,
+  Search01Icon,
+} from '@hugeicons/core-free-icons';
 import React, { useEffect, useMemo, useState } from 'react';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, RefreshCw, Search } from 'lucide-react';
 import type {
   WeReadReadingStatsMode,
   WeReadReadingStatsSnapshot,
@@ -103,7 +109,7 @@ export function WeReadReadingStatsPanel() {
               aria-label={t('readingStats.weread.previousPeriod')}
               onClick={() => setPeriodStart(shiftPeriod(mode, activePeriodStart, -1))}
             >
-              <ChevronLeft size={15} />
+              <HugeiconsIcon icon={ArrowLeft01Icon} size={15} />
             </button>
           )}
           <span>{periodLabel(mode, activePeriodStart)}</span>
@@ -114,12 +120,16 @@ export function WeReadReadingStatsPanel() {
               disabled={activePeriodStart >= getPeriodStart(mode)}
               onClick={() => setPeriodStart(shiftPeriod(mode, activePeriodStart, 1))}
             >
-              <ChevronRight size={15} />
+              <HugeiconsIcon icon={ArrowRight01Icon} size={15} />
             </button>
           )}
         </div>
         <Button type="button" variant="secondary" disabled={loading} onClick={queryStats}>
-          {loading ? <RefreshCw size={16} className="is-spinning" /> : <Search size={16} />}
+          {loading ? (
+            <HugeiconsIcon icon={Refresh01Icon} size={16} className="is-spinning" />
+          ) : (
+            <HugeiconsIcon icon={Search01Icon} size={16} />
+          )}
           {snapshot ? t('readingStats.weread.queryAgain') : queryButtonLabel(mode)}
         </Button>
       </div>

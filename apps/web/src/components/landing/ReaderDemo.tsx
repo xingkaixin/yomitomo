@@ -1,6 +1,7 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { BubbleChatIcon, Cancel01Icon } from '@hugeicons/core-free-icons';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { MessageCircle, X } from 'lucide-react';
 import {
   getLandingContent,
   type Agent,
@@ -156,7 +157,7 @@ function DiscussionModal({
             onClick={requestClose}
             aria-label="关闭"
           >
-            <X size={16} />
+            <HugeiconsIcon icon={Cancel01Icon} size={16} />
           </button>
         </div>
         <div className="dm-body">
@@ -292,7 +293,7 @@ function Note({
           type="button"
           onClick={(event) => onOpen(annotation, event.currentTarget)}
         >
-          <MessageCircle />
+          <HugeiconsIcon icon={BubbleChatIcon} />
           {labels.enter}
         </button>
       </div>

@@ -1,5 +1,6 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ClipboardIcon, LinkSquare01Icon, Tick01Icon } from '@hugeicons/core-free-icons';
 import React, { useState } from 'react';
-import { Check, Clipboard, ExternalLink } from 'lucide-react';
 import type { ArticleRecord } from '@yomitomo/shared';
 import { articleExternalUrl, isImageAvatar, isSvgAvatar } from './app-utils';
 import { IconButton } from '../components/ui/icon-button';
@@ -22,7 +23,11 @@ export function CopyIconButton({ label, value }: { label: string; value: string 
       data-tooltip={copied ? t('common.copied') : label}
       onClick={copy}
     >
-      {copied ? <Check size={15} /> : <Clipboard size={14} />}
+      {copied ? (
+        <HugeiconsIcon icon={Tick01Icon} size={15} />
+      ) : (
+        <HugeiconsIcon icon={ClipboardIcon} size={14} />
+      )}
     </IconButton>
   );
 }
@@ -62,7 +67,7 @@ export function OpenArticleButton({
         title={url ? t('common.openOriginalLink') : t('common.originalLinkUnavailable')}
         onClick={open}
       >
-        <ExternalLink size={16} />
+        <HugeiconsIcon icon={LinkSquare01Icon} size={16} />
       </IconButton>
     );
   }
@@ -76,7 +81,7 @@ export function OpenArticleButton({
       title={url ? t('common.openOriginalLink') : t('common.originalLinkUnavailable')}
       onClick={open}
     >
-      <ExternalLink size={16} />
+      <HugeiconsIcon icon={LinkSquare01Icon} size={16} />
       <span>{t('common.openOriginalLink')}</span>
     </button>
   );

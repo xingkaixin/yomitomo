@@ -1,15 +1,16 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
 import {
-  Globe,
-  Image as ImageIcon,
-  Check,
-  ChevronDown,
-  Languages,
-  LockKeyhole,
-  RadioTower,
-  ShieldAlert,
-  Volume2,
-} from 'lucide-react';
+  ArrowDown01Icon,
+  GlobeIcon,
+  Image01Icon,
+  InternetAntenna01Icon,
+  LanguageCircleIcon,
+  LockKeyIcon,
+  SecurityWarningIcon,
+  Tick01Icon,
+  VolumeHighIcon,
+} from '@hugeicons/core-free-icons';
+import React, { useEffect, useRef, useState } from 'react';
 import type { AppSettings } from '@yomitomo/shared';
 import {
   normalizeSoundEffectsVolume,
@@ -219,7 +220,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
       >
         <SettingsRow
           align="start"
-          leading={<Globe size={20} />}
+          leading={<HugeiconsIcon icon={GlobeIcon} size={20} />}
           title={t('settings.general.languageTitle')}
           description={t('settings.general.languageDescription')}
         >
@@ -247,7 +248,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
       >
         <SettingsRow
           align="start"
-          leading={<Languages size={20} />}
+          leading={<HugeiconsIcon icon={LanguageCircleIcon} size={20} />}
           title={t('settings.general.translationTargetTitle')}
           description={t('settings.general.translationTargetDescription')}
         >
@@ -269,7 +270,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
                     )?.labelKey || 'settings.general.translationLanguageZh',
                   )}
                 </span>
-                <ChevronDown size={15} />
+                <HugeiconsIcon icon={ArrowDown01Icon} size={15} />
               </button>
             </PopoverTrigger>
             <PopoverContent align="end" className="settings-combobox-popover" sideOffset={8}>
@@ -296,7 +297,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
                       }}
                     >
                       <span>{t(option.labelKey)}</span>
-                      {selected ? <Check size={14} /> : null}
+                      {selected ? <HugeiconsIcon icon={Tick01Icon} size={14} /> : null}
                     </button>
                   );
                 })}
@@ -307,7 +308,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
         <SettingsRow
           align="start"
           className="settings-translation-style-row"
-          leading={<Languages size={20} />}
+          leading={<HugeiconsIcon icon={LanguageCircleIcon} size={20} />}
           title={t('settings.general.translationStyleTitle')}
           description={t('settings.general.translationStyleDescription')}
         >
@@ -331,7 +332,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
                         )?.labelKey || 'settings.general.translationStyleDashedLine',
                       )}
                     </span>
-                    <ChevronDown size={15} />
+                    <HugeiconsIcon icon={ArrowDown01Icon} size={15} />
                   </button>
                 </PopoverTrigger>
                 <PopoverContent align="end" className="settings-combobox-popover" sideOffset={8}>
@@ -358,7 +359,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
                           }}
                         >
                           <span>{t(option.labelKey)}</span>
-                          {selected ? <Check size={14} /> : null}
+                          {selected ? <HugeiconsIcon icon={Tick01Icon} size={14} /> : null}
                         </button>
                       );
                     })}
@@ -379,7 +380,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
         </SettingsRow>
         <SettingsRow
           align="start"
-          leading={<Languages size={20} />}
+          leading={<HugeiconsIcon icon={LanguageCircleIcon} size={20} />}
           title={t('settings.general.translationAiContextTitle')}
           description={t('settings.general.translationAiContextDescription')}
         >
@@ -406,7 +407,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
       >
         <SettingsRow
           align="start"
-          leading={<Volume2 size={20} />}
+          leading={<HugeiconsIcon icon={VolumeHighIcon} size={20} />}
           title={t('settings.general.soundEffectsTitle')}
           description={t('settings.general.soundEffectsDescription')}
         >
@@ -419,7 +420,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
         </SettingsRow>
         <SettingsRow
           align="start"
-          leading={<Volume2 size={20} />}
+          leading={<HugeiconsIcon icon={VolumeHighIcon} size={20} />}
           title={t('settings.general.soundVolumeTitle')}
           description={t('settings.general.soundVolumeDescription')}
         >
@@ -456,7 +457,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
       >
         <SettingsRow
           align="start"
-          leading={<LockKeyhole size={20} />}
+          leading={<HugeiconsIcon icon={LockKeyIcon} size={20} />}
           title={t('settings.general.appLockEnabledTitle')}
           description={t('settings.general.appLockEnabledDescription')}
         >
@@ -470,7 +471,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
         </SettingsRow>
         <SettingsRow
           align="start"
-          leading={<LockKeyhole size={20} />}
+          leading={<HugeiconsIcon icon={LockKeyIcon} size={20} />}
           title={t('settings.general.appLockShortcutTitle')}
           description={t('settings.general.appLockShortcutDescription')}
         >
@@ -490,7 +491,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
         </SettingsRow>
         <SettingsRow
           align="start"
-          leading={<LockKeyhole size={20} />}
+          leading={<HugeiconsIcon icon={LockKeyIcon} size={20} />}
           title={t('settings.general.appLockStartupTitle')}
           description={t('settings.general.appLockStartupDescription')}
         >
@@ -516,7 +517,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
       >
         <SettingsRow
           align="start"
-          leading={<ImageIcon size={20} />}
+          leading={<HugeiconsIcon icon={Image01Icon} size={20} />}
           title={t('settings.general.saveImagesTitle')}
           description={t('settings.general.saveImagesDescription')}
         >
@@ -529,7 +530,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
         </SettingsRow>
         <SettingsRow
           align="start"
-          leading={<ShieldAlert size={20} />}
+          leading={<HugeiconsIcon icon={SecurityWarningIcon} size={20} />}
           title={t('settings.general.localNetworkImportTitle')}
           description={t('settings.general.localNetworkImportDescription')}
         >
@@ -554,7 +555,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
       >
         <SettingsRow
           align="start"
-          leading={<RadioTower size={20} />}
+          leading={<HugeiconsIcon icon={InternetAntenna01Icon} size={20} />}
           title={t('settings.general.telemetryTitle')}
           description={t('settings.general.telemetryDescription')}
         >
@@ -617,7 +618,7 @@ function AppLockSettingsDialog({
             >
               <header>
                 <span className="app-lock-settings-dialog-icon" aria-hidden="true">
-                  <LockKeyhole size={20} />
+                  <HugeiconsIcon icon={LockKeyIcon} size={20} />
                 </span>
                 <div>
                   <DialogTitle id="app-lock-settings-dialog-title">

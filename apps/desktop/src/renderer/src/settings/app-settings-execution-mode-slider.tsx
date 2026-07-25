@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
-import { ShieldCheck, Zap } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { FlashIcon, SecurityCheckIcon } from '@hugeicons/core-free-icons';
 import type { AssistantExecutionMode } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
 
@@ -49,7 +50,7 @@ export function AssistantExecutionModeSlider({
   return (
     <div className="assistant-mode-control">
       <div className="assistant-mode-current" aria-live="polite">
-        {deep ? <ShieldCheck size={14} aria-hidden="true" /> : <Zap size={14} aria-hidden="true" />}
+        <HugeiconsIcon icon={deep ? SecurityCheckIcon : FlashIcon} size={14} aria-hidden="true" />
         <strong>
           {deep ? t('settings.models.deepVerification') : t('settings.models.fastResponse')}
         </strong>

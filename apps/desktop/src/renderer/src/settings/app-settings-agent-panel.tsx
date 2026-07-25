@@ -1,5 +1,14 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import {
+  BookOpen01Icon,
+  BotIcon,
+  Cancel01Icon,
+  SecurityCheckIcon,
+  Settings02Icon,
+  ViewIcon,
+  ViewOffIcon,
+} from '@hugeicons/core-free-icons';
 import React, { useEffect, useState } from 'react';
-import { BookOpen, Bot, Eye, EyeOff, Settings2, ShieldCheck, X } from 'lucide-react';
 import type { Agent, AgentKind, AppSettings, LlmProvider, UiLanguage } from '@yomitomo/shared';
 import { agentPersonalities, normalizeUiLanguage } from '@yomitomo/shared';
 import {
@@ -311,7 +320,7 @@ export function AgentSettings({
         {routeNotice ? (
           <div className="agent-route-notice">
             <span>
-              <Settings2 size={18} />
+              <HugeiconsIcon icon={Settings02Icon} size={18} />
             </span>
             <div>
               <strong>{routeNotice.title}</strong>
@@ -323,7 +332,7 @@ export function AgentSettings({
               type="button"
               onClick={onConfigureRoutes}
             >
-              <Settings2 size={15} />
+              <HugeiconsIcon icon={Settings02Icon} size={15} />
               {t('settings.agents.configureRoutes')}
             </Button>
           </div>
@@ -331,7 +340,7 @@ export function AgentSettings({
         <div className="agent-card-list">
           {visibleAgents.length === 0 ? (
             <div className="agent-list-empty">
-              <Bot size={22} />
+              <HugeiconsIcon icon={BotIcon} size={22} />
               <strong>{t('settings.agents.emptyTitle', { kind: emptyKindLabel })}</strong>
               <p>{t('settings.agents.emptyDescription')}</p>
             </div>
@@ -464,7 +473,7 @@ function AgentProfileListCard({
             aria-label={t('settings.agents.detail.open', { name: displayName })}
             onClick={(event) => onOpenDetail(agent, elementDialogSourceRect(event.currentTarget))}
           >
-            <BookOpen size={14} />
+            <HugeiconsIcon icon={BookOpen01Icon} size={14} />
             {t('settings.agents.detail.introLabel')}
           </button>
           <label className={canToggle ? 'agent-card-toggle' : 'agent-card-toggle is-disabled'}>
@@ -525,7 +534,7 @@ function AgentProfileDetailDialog({
               aria-label={t('settings.agents.detail.close')}
               onClick={onClose}
             >
-              <X size={18} />
+              <HugeiconsIcon icon={Cancel01Icon} size={18} />
             </IconButton>
             <div className="agent-detail-photo">
               {cover ? (
@@ -571,14 +580,14 @@ function AgentFilterTabs({
   const options = agentFilterOptions.map((option) => {
     const count = agents.filter((agent) => (agent.kind || 'annotation') === option.value).length;
     const visibleCount = count || personalitiesForKind(option.value).length;
-    const Icon = option.value === 'annotation' ? BookOpen : ShieldCheck;
+    const icon = option.value === 'annotation' ? BookOpen01Icon : SecurityCheckIcon;
 
     return {
       value: option.value,
       ariaLabel: t(`settings.agents.modes.${option.value}`),
       label: (
         <>
-          <Icon size={18} />
+          <HugeiconsIcon icon={icon} size={18} />
           <span>{t(`settings.agents.modes.${option.value}`)}</span>
           <strong>{visibleCount}</strong>
         </>
@@ -690,7 +699,11 @@ export function AgentForm({
           type="button"
           onClick={() => onChange({ ...draft, enabled: !draft.enabled })}
         >
-          {draft.enabled ? <Eye size={16} /> : <EyeOff size={16} />}
+          {draft.enabled ? (
+            <HugeiconsIcon icon={ViewIcon} size={16} />
+          ) : (
+            <HugeiconsIcon icon={ViewOffIcon} size={16} />
+          )}
           <span>
             {draft.enabled
               ? t('settings.agents.form.enabledOn')

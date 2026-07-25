@@ -1,9 +1,18 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import {
+  Add01Icon,
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
+  Cancel01Icon,
+  DragDropVerticalIcon,
+  LibraryIcon,
+  Search01Icon,
+} from '@hugeicons/core-free-icons';
 import React, { useMemo, useState } from 'react';
 import {
   ReaderTooltip,
   ReaderTooltipProvider,
 } from '@yomitomo/reader-ui/reader-component-primitives';
-import { ChevronLeft, ChevronRight, GripVertical, LibraryBig, Plus, Search, X } from 'lucide-react';
 import type {
   ArticleSummaryRecord,
   Collection,
@@ -167,7 +176,7 @@ function CollectionPickerDialogContent({
               </header>
               <div className="library-collection-picker-toolbar">
                 <div className="library-search library-search-combo">
-                  <Search size={16} />
+                  <HugeiconsIcon icon={Search01Icon} size={16} />
                   <Input
                     type="search"
                     value={query}
@@ -230,7 +239,7 @@ function CollectionPickerDialogContent({
                         disabled={page === 1}
                         onClick={() => setPage((current) => Math.max(1, current - 1))}
                       >
-                        <ChevronLeft size={16} />
+                        <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
                       </button>
                       <span>{`${page} / ${pageCount}`}</span>
                       <button
@@ -239,7 +248,7 @@ function CollectionPickerDialogContent({
                         disabled={page === pageCount}
                         onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
                       >
-                        <ChevronRight size={16} />
+                        <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
                       </button>
                     </div>
                   ) : null}
@@ -270,7 +279,7 @@ function CollectionPickerDialogContent({
                                 className="library-collection-picker-selected-cover"
                               />
                               <span className="library-collection-picker-selected-remove">
-                                <X size={12} />
+                                <HugeiconsIcon icon={Cancel01Icon} size={12} />
                               </span>
                             </button>
                           </ReaderTooltip>
@@ -279,7 +288,7 @@ function CollectionPickerDialogContent({
                     </div>
                   ) : (
                     <div className="library-collection-picker-empty-drop">
-                      <LibraryBig size={26} />
+                      <HugeiconsIcon icon={LibraryIcon} size={26} />
                       <strong>{t('library.collection.dropHintTitle')}</strong>
                       <span>{t('library.collection.dropHint')}</span>
                     </div>
@@ -333,7 +342,7 @@ function CollectionPickerItem({
         type="button"
         aria-label={t('library.collection.dragItem', { title })}
       >
-        <GripVertical size={15} aria-hidden="true" />
+        <HugeiconsIcon icon={DragDropVerticalIcon} size={15} aria-hidden="true" />
       </button>
       <CollectionPickerCover item={item} className="library-collection-picker-cover" />
       <span className="library-collection-picker-copy">
@@ -349,7 +358,7 @@ function CollectionPickerItem({
         aria-label={`${t('library.collection.addMembers')}：${title}`}
         onClick={onSelect}
       >
-        <Plus size={15} />
+        <HugeiconsIcon icon={Add01Icon} size={15} />
       </button>
     </div>
   );

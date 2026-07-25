@@ -1,5 +1,6 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Tick01Icon } from '@hugeicons/core-free-icons';
 import type { CSSProperties } from 'react';
-import { Check } from 'lucide-react';
 import type { Comment, PublicAgent, UiLanguage } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
 import { AvatarBadge } from '@yomitomo/reader-ui/reader-component-primitives';
@@ -88,7 +89,7 @@ export function AddThoughtAssistantRunPanel({
               />
               {run.status === 'done' ? (
                 <span className="annotation-discussion-add-run-check">
-                  <Check size={11} strokeWidth={3} />
+                  <HugeiconsIcon icon={Tick01Icon} size={11} strokeWidth={3} />
                 </span>
               ) : null}
             </div>

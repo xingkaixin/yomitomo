@@ -1,5 +1,11 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import {
+  Add01Icon,
+  ArrowHorizontalIcon,
+  CaseSensitiveIcon,
+  MinusSignIcon,
+} from '@hugeicons/core-free-icons';
 import type React from 'react';
-import { CaseSensitive, Minus, MoveHorizontal, Plus } from 'lucide-react';
 import { useId, useState } from 'react';
 import type { ReaderSettings } from '../reader-types';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
@@ -17,7 +23,7 @@ export function ReaderSettingsToolbarControls({
   return (
     <>
       <ReaderToolbarSliderPopover
-        icon={<CaseSensitive size={17} />}
+        icon={<HugeiconsIcon icon={CaseSensitiveIcon} size={17} />}
         label={labels.fontSize}
         max={28}
         min={16}
@@ -27,7 +33,7 @@ export function ReaderSettingsToolbarControls({
         onChange={(fontSize) => onChange({ ...settings, fontSize })}
       />
       <ReaderToolbarSliderPopover
-        icon={<MoveHorizontal size={16} />}
+        icon={<HugeiconsIcon icon={ArrowHorizontalIcon} size={16} />}
         label={labels.articleWidth}
         max={1080}
         min={600}
@@ -87,7 +93,7 @@ export function ReaderToolbarSliderPopover({
             type="button"
             onClick={() => onChange(Math.max(min, value - step))}
           >
-            <Minus size={16} />
+            <HugeiconsIcon icon={MinusSignIcon} size={16} />
           </button>
           <input
             aria-label={label}
@@ -106,7 +112,7 @@ export function ReaderToolbarSliderPopover({
             type="button"
             onClick={() => onChange(Math.min(max, value + step))}
           >
-            <Plus size={16} />
+            <HugeiconsIcon icon={Add01Icon} size={16} />
           </button>
           <strong>{formattedValue}</strong>
         </div>

@@ -152,7 +152,8 @@ pnpm build
 - `store:updated` 事件只用于完整 store 替换场景；文章级更新不要通过 `store:updated` 广播完整 store。如需跨窗口同步文章更新，应单独设计 article patch event。
 - 官网页面、产品图、SEO、下载链接放在 `apps/web/src` 和 `apps/web/public`。下载链接从 `apps/desktop/package.json` 的版本号生成。
 - `pnpm dev` 通过 workspace 源码消费 `@yomitomo/shared`、`@yomitomo/core`、`@yomitomo/ai` 和 `@yomitomo/reader-ui`；改动这些包后，桌面端 Vite watch 链路会重新构建相关代码。
-- UI 图标优先使用 `lucide-react`。
+- UI 图标优先使用 `@hugeicons/react` 与 `@hugeicons/core-free-icons`，按需导入 icon data，
+  不使用 wildcard import；品牌标志和产品自定义 SVG 保持独立。
 - 样式优先沿用现有 Tailwind、组件和 CSS 变量。
 - 桌面端新增 UI 必须接入主题变量：核心 surface、文字、边框、阴影、遮罩、强调色和阅读器相关颜色应来自 `AppTheme` 输出的 CSS variables，优先复用现有语义 token；确需新增视觉语义时，先扩展主题契约和默认主题，不要在组件或 CSS 中 ad-hoc 写固定核心色，避免主题切换时出现割裂。
 - 桌面端应用内反馈音效必须通过 `apps/desktop/src/renderer/src/sound/app-sound-effects.ts` 统一注册和播放；不要在组件里直接 `new Audio(...)`。新增音效应注册 effect id、音频资源和基准响度，并传入当前 `AppSettings`，统一遵守设置/通用中的音效开关和响度。音效只在业务动作成功后播放，取消或失败不播放。

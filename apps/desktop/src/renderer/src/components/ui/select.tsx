@@ -1,5 +1,6 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowDown01Icon, Tick01Icon } from '@hugeicons/core-free-icons';
 import { Select as SelectPrimitive } from '@base-ui/react/select';
-import { Check, ChevronDown } from 'lucide-react';
 import * as React from 'react';
 import { cn } from '../../lib/utils';
 import { composePopupClassName } from './popup-class-name';
@@ -41,7 +42,7 @@ const SelectTrigger = React.forwardRef<
   >
     {children}
     <SelectPrimitive.Icon>
-      <ChevronDown className="size-4 opacity-60" />
+      <HugeiconsIcon icon={ArrowDown01Icon} className="size-4 opacity-60" />
     </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
 ));
@@ -108,7 +109,7 @@ const SelectItem = React.forwardRef<
   >
     <span className="absolute right-2 flex size-4 items-center justify-center">
       <SelectPrimitive.ItemIndicator>
-        <Check className="size-4" />
+        <HugeiconsIcon icon={Tick01Icon} className="size-4" />
       </SelectPrimitive.ItemIndicator>
     </span>
     <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>

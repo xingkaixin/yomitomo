@@ -1,5 +1,6 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowRight01Icon } from '@hugeicons/core-free-icons';
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight } from 'lucide-react';
 import type { AppSettings, DesktopStore } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/button';
@@ -120,7 +121,7 @@ export function OnboardingFlow({
                 onClick={completeOnboarding}
               >
                 {busy ? t('onboarding.entering') : t('onboarding.enter')}
-                <ArrowRight size={18} />
+                <HugeiconsIcon icon={ArrowRight01Icon} size={18} />
               </Button>
             ) : null}
           </div>

@@ -1,16 +1,16 @@
+import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
 import {
-  CornerDownRight,
-  FileText,
-  Layers2,
-  Lightbulb,
-  MessageCircle,
-  Puzzle,
-  ShieldAlert,
-  Sparkles,
-  Sprout,
-  TriangleAlert,
-  type LucideIcon,
-} from 'lucide-react';
+  Alert01Icon,
+  ArrowTurnDownIcon,
+  BulbIcon,
+  FileLinkIcon,
+  Layers02Icon,
+  BubbleChatIcon,
+  Plant01Icon,
+  PuzzleIcon,
+  SecurityWarningIcon,
+  SparklesIcon,
+} from '@hugeicons/core-free-icons';
 import {
   useRef,
   useState,
@@ -33,19 +33,19 @@ import { Kbd } from '../components/ui/kbd';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../components/ui/tooltip';
 import { messageSendShortcutKeys } from '../reader-shortcuts';
 
-const readingIntentIcons: Record<AgentReadingIntent, LucideIcon> = {
-  explain: MessageCircle,
-  decompose: Layers2,
-  challenge: ShieldAlert,
-  question: CornerDownRight,
-  connect: FileText,
+const readingIntentIcons: Record<AgentReadingIntent, IconSvgElement> = {
+  explain: BubbleChatIcon,
+  decompose: Layers02Icon,
+  challenge: SecurityWarningIcon,
+  question: ArrowTurnDownIcon,
+  connect: FileLinkIcon,
 };
-const annotationTypeIcons: Record<AnnotationType, LucideIcon> = {
-  key_point: Lightbulb,
-  assumption: TriangleAlert,
-  concept: Puzzle,
-  question: Sprout,
-  quote: Sparkles,
+const annotationTypeIcons: Record<AnnotationType, IconSvgElement> = {
+  key_point: BulbIcon,
+  assumption: Alert01Icon,
+  concept: PuzzleIcon,
+  question: Plant01Icon,
+  quote: SparklesIcon,
 };
 const readerTooltipDelayDuration = 360;
 const readerTooltipSkipDelayDuration = 80;
@@ -57,9 +57,10 @@ export function ReadingIntentIcon({
   intent: AgentReadingIntent;
   size?: number;
 }) {
-  const Icon = readingIntentIcons[intent];
+  const icon = readingIntentIcons[intent];
   return (
-    <Icon
+    <HugeiconsIcon
+      icon={icon}
       aria-hidden="true"
       className="reader-reading-intent-icon"
       focusable="false"
@@ -89,10 +90,11 @@ export function ReadingIntentLabelContent({
 }
 
 export function AnnotationTypeLabelContent({ type }: { type: AnnotationType }) {
-  const Icon = annotationTypeIcons[type];
+  const icon = annotationTypeIcons[type];
   return (
     <>
-      <Icon
+      <HugeiconsIcon
+        icon={icon}
         aria-hidden="true"
         className="reader-annotation-type-icon"
         focusable="false"
@@ -105,9 +107,10 @@ export function AnnotationTypeLabelContent({ type }: { type: AnnotationType }) {
 }
 
 export function AnnotationTypeIcon({ type }: { type: AnnotationType }) {
-  const Icon = annotationTypeIcons[type];
+  const icon = annotationTypeIcons[type];
   return (
-    <Icon
+    <HugeiconsIcon
+      icon={icon}
       aria-hidden="true"
       className="reader-annotation-type-icon"
       focusable="false"

@@ -1,6 +1,6 @@
 /**
- * Inline GitHub mark. lucide-react's `Github` brand icon is deprecated and
- * will be removed upstream, so we ship the official mark as an inline SVG.
+ * Inline GitHub mark. Hugeicons Free does not ship brand marks, so the
+ * official mark remains an inline SVG.
  */
 export default function GithubMark({ size = 18 }: { size?: number }) {
   return (

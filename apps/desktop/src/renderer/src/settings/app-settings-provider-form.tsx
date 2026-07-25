@@ -1,5 +1,6 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Delete02Icon, ViewIcon, ViewOffIcon } from '@hugeicons/core-free-icons';
 import { useEffect, useRef, useState } from 'react';
-import { Eye, EyeOff, Trash2 } from 'lucide-react';
 import { providerPresets } from '@yomitomo/shared';
 import type { ProviderDraft } from './app-settings';
 import { providerLogoMap } from './app-settings-provider-assets';
@@ -257,13 +258,17 @@ function SecretInput({
           aria-label={visible ? t('settings.models.hideApiKey') : t('settings.models.showApiKey')}
           onClick={toggleVisible}
         >
-          {visible ? <EyeOff size={17} /> : <Eye size={17} />}
+          {visible ? (
+            <HugeiconsIcon icon={ViewOffIcon} size={17} />
+          ) : (
+            <HugeiconsIcon icon={ViewIcon} size={17} />
+          )}
         </button>
       </div>
       {revealError ? <p className="secret-input-error">{revealError}</p> : null}
       {hasStoredValue && !value ? (
         <Button className="secret-remove" type="button" variant="secondary" onClick={onRemove}>
-          <Trash2 size={14} />
+          <HugeiconsIcon icon={Delete02Icon} size={14} />
           {t('settings.models.removeStoredKey')}
         </Button>
       ) : null}

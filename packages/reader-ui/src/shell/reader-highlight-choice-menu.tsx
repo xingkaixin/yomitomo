@@ -1,4 +1,5 @@
-import { X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Cancel01Icon } from '@hugeicons/core-free-icons';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { annotationPersona as annotationAuthor } from '@yomitomo/core';
 import type { HighlightChoiceAction } from '../reader-types';
@@ -28,7 +29,7 @@ export function HighlightChoiceMenu({
       <header>
         <strong>{labels.highlightChoice}</strong>
         <button type="button" onClick={onCancel} aria-label={labels.closeHighlightChoice}>
-          <X size={14} />
+          <HugeiconsIcon icon={Cancel01Icon} size={14} />
         </button>
       </header>
       {annotations.map((annotation) => {

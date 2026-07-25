@@ -1,5 +1,6 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { MessageQuestionIcon, MinusSignIcon, SentIcon } from '@hugeicons/core-free-icons';
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { MessageCircleQuestion, Minus, Send } from 'lucide-react';
 import { renderSafeMarkdown } from '@yomitomo/core/article-extraction';
 import type {
   MessageSendShortcut,
@@ -286,7 +287,7 @@ export function ReaderChatPanel({
         aria-expanded={false}
         onClick={() => onOpen('pointer')}
       >
-        <MessageCircleQuestion size={20} strokeWidth={2.15} />
+        <HugeiconsIcon icon={MessageQuestionIcon} size={20} strokeWidth={2.15} />
         <span className="reader-chat-fab-shortcut" aria-hidden="true">
           Q
         </span>
@@ -359,7 +360,7 @@ export function ReaderChatPanel({
                 aria-label={labels.collapseReaderChat}
                 onClick={() => onClose('pointer')}
               >
-                <Minus size={16} />
+                <HugeiconsIcon icon={MinusSignIcon} size={16} />
               </button>
             </ReaderTooltip>
           </div>
@@ -420,7 +421,7 @@ export function ReaderChatPanel({
             ) : null
           }
           submitDisabled={!draft.trim() || sending || !selectedAssistant}
-          submitIcon={<Send size={15} />}
+          submitIcon={<HugeiconsIcon icon={SentIcon} size={15} />}
           submitLabel={sending ? labels.sending : labels.send}
           submitTooltip={
             <SubmitShortcutTooltipContent

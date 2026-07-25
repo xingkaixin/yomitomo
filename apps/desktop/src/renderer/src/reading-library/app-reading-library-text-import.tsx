@@ -1,5 +1,12 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import {
+  Cancel01Icon,
+  ClipboardTypeIcon,
+  FileUploadIcon,
+  Loading03Icon,
+  Upload01Icon,
+} from '@hugeicons/core-free-icons';
 import { useState } from 'react';
-import { ClipboardType, FileUp, LoaderCircle, Upload, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TextImportCommitItem, TextImportPreparedItem } from '../../../ipc-contract';
 import { Button } from '../components/ui/button';
@@ -145,7 +152,7 @@ export function TextImportDialog({ onClose }: { onClose: () => void }) {
                 <span>{t('library.import.localOnlyNotice')}</span>
               </div>
               <button type="button" aria-label={t('library.import.text.close')} onClick={onClose}>
-                <X size={17} />
+                <HugeiconsIcon icon={Cancel01Icon} size={17} />
               </button>
             </header>
 
@@ -187,7 +194,7 @@ export function TextImportDialog({ onClose }: { onClose: () => void }) {
                     className={mode === 'paste' ? 'is-active' : ''}
                     onClick={() => setMode('paste')}
                   >
-                    <ClipboardType size={15} />
+                    <HugeiconsIcon icon={ClipboardTypeIcon} size={15} />
                     {t('library.import.text.modePaste')}
                   </button>
                   <button
@@ -197,7 +204,7 @@ export function TextImportDialog({ onClose }: { onClose: () => void }) {
                     className={mode === 'upload' ? 'is-active' : ''}
                     onClick={() => setMode('upload')}
                   >
-                    <Upload size={15} />
+                    <HugeiconsIcon icon={Upload01Icon} size={15} />
                     {t('library.import.text.modeUpload')}
                   </button>
                 </div>
@@ -247,7 +254,11 @@ export function TextImportDialog({ onClose }: { onClose: () => void }) {
                       onChange={(event) => selectFiles(event.target.files)}
                     />
                     <span className="library-ebook-dropzone-icon">
-                      {dragging ? <FileUp size={24} /> : <Upload size={24} />}
+                      {dragging ? (
+                        <HugeiconsIcon icon={FileUploadIcon} size={24} />
+                      ) : (
+                        <HugeiconsIcon icon={Upload01Icon} size={24} />
+                      )}
                     </span>
                     <span className="library-ebook-dropzone-copy">
                       <strong>
@@ -282,12 +293,16 @@ export function TextImportDialog({ onClose }: { onClose: () => void }) {
               )}
               {inConfirm ? (
                 <Button type="button" disabled={!canCommit || busy} onClick={handleCommit}>
-                  {busy ? <LoaderCircle className="is-spinning" size={16} /> : null}
+                  {busy ? (
+                    <HugeiconsIcon icon={Loading03Icon} className="is-spinning" size={16} />
+                  ) : null}
                   {t('library.import.text.import')}
                 </Button>
               ) : (
                 <Button type="button" disabled={!canPrepare || busy} onClick={handlePrepare}>
-                  {busy ? <LoaderCircle className="is-spinning" size={16} /> : null}
+                  {busy ? (
+                    <HugeiconsIcon icon={Loading03Icon} className="is-spinning" size={16} />
+                  ) : null}
                   {t('library.import.text.next')}
                 </Button>
               )}

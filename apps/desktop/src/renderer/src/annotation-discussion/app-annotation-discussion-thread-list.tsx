@@ -1,5 +1,6 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Delete02Icon, MoreHorizontalIcon, PinIcon, PinOffIcon } from '@hugeicons/core-free-icons';
 import { useState } from 'react';
-import { MoreHorizontal, Pin, PinOff, Trash2 } from 'lucide-react';
 import type { PublicAgent, UserProfile } from '@yomitomo/shared';
 import { commentPersona } from '@yomitomo/core';
 import { useTranslation } from 'react-i18next';
@@ -70,7 +71,7 @@ export function ThoughtListItem({
               aria-label={t('discussion.moreThoughtActions')}
               onClick={(event) => event.stopPropagation()}
             >
-              <MoreHorizontal size={14} />
+              <HugeiconsIcon icon={MoreHorizontalIcon} size={14} />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="annotation-discussion-idea-menu">
@@ -83,7 +84,11 @@ export function ThoughtListItem({
                   setMenuOpen(false);
                 }}
               >
-                {thread.isPinned ? <PinOff size={13} /> : <Pin size={13} />}
+                {thread.isPinned ? (
+                  <HugeiconsIcon icon={PinOffIcon} size={13} />
+                ) : (
+                  <HugeiconsIcon icon={PinIcon} size={13} />
+                )}
                 <span>
                   {thread.isPinned ? t('discussion.unpinThought') : t('discussion.pinThought')}
                 </span>
@@ -101,7 +106,7 @@ export function ThoughtListItem({
                   setConfirmOpen(true);
                 }}
               >
-                <Trash2 size={13} />
+                <HugeiconsIcon icon={Delete02Icon} size={13} />
                 <span>{t('discussion.deleteThought')}</span>
               </button>
             </DropdownMenuItem>
@@ -110,7 +115,7 @@ export function ThoughtListItem({
       </DropdownMenu>
       {thread.isPinned ? (
         <span className="annotation-discussion-idea-pin-badge" aria-label={t('discussion.pinned')}>
-          <Pin size={10} />
+          <HugeiconsIcon icon={PinIcon} size={10} />
         </span>
       ) : null}
       <SettingsConfirmDialog

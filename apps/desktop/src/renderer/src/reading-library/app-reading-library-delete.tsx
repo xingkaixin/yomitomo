@@ -1,5 +1,6 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Delete02Icon } from '@hugeicons/core-free-icons';
 import { useState } from 'react';
-import { Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SettingsConfirmDialog } from '../settings/app-settings-confirm-dialog';
 import { DropdownMenuItem } from '../components/ui/dropdown-menu';
@@ -47,7 +48,7 @@ export function ArticleDeleteMenuItem({
           onSelect();
         }}
       >
-        <Trash2 size={14} />
+        <HugeiconsIcon icon={Delete02Icon} size={14} />
         <span>{t('library.actions.deleteArticle')}</span>
       </button>
     </DropdownMenuItem>

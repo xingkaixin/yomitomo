@@ -1,21 +1,22 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
 import {
-  ArrowLeft,
-  BookText,
-  Check,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  FileText,
-  FolderOpen,
-  Globe2,
-  LibraryBig,
-  ListFilter,
-  Search,
-  Smartphone,
-  Type,
-  X,
-} from 'lucide-react';
+  ArrowDown01Icon,
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
+  Book02Icon,
+  Cancel01Icon,
+  File01Icon,
+  FilterIcon,
+  FolderOpenIcon,
+  Globe02Icon,
+  LibraryIcon,
+  Pdf01Icon,
+  Search01Icon,
+  SmartPhone01Icon,
+  TextIcon,
+  Tick01Icon,
+} from '@hugeicons/core-free-icons';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   AppSettings,
   ArticleSummaryRecord,
@@ -70,12 +71,12 @@ const LIBRARY_PAGE_SIZE_OPTIONS = [6, 12, 18, 24] as const;
 const LOCAL_LIBRARY_TYPES: LibraryItemType[] = ['web', 'ebook', 'pdf', 'text'];
 
 const TYPE_FILTER_ICONS: Record<LibraryTypeFilter, React.ReactNode> = {
-  collection: <LibraryBig size={15} />,
-  web: <Globe2 size={15} />,
-  ebook: <BookText size={15} />,
-  pdf: <FileText size={15} />,
-  text: <Type size={15} />,
-  weread: <Smartphone size={15} />,
+  collection: <HugeiconsIcon icon={LibraryIcon} size={15} />,
+  web: <HugeiconsIcon icon={Globe02Icon} size={15} />,
+  ebook: <HugeiconsIcon icon={Book02Icon} size={15} />,
+  pdf: <HugeiconsIcon icon={Pdf01Icon} size={15} />,
+  text: <HugeiconsIcon icon={TextIcon} size={15} />,
+  weread: <HugeiconsIcon icon={SmartPhone01Icon} size={15} />,
 };
 
 type LibraryHomeContent = {
@@ -449,12 +450,12 @@ export function LibraryHome({
               aria-label={t('library.collection.back')}
               onClick={closeCollection}
             >
-              <ArrowLeft size={16} />
+              <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
               <span>{t('library.title')}</span>
             </button>
           ) : null}
           <div className="library-search-typed">
-            <Search size={16} />
+            <HugeiconsIcon icon={Search01Icon} size={16} />
             <Popover open={typeMenuOpen} onOpenChange={setTypeMenuOpen}>
               <PopoverTrigger asChild>
                 <button
@@ -465,9 +466,9 @@ export function LibraryHome({
                   {selectedTypes.size === 0 ? (
                     <span>{t('library.typeFilter.allShort')}</span>
                   ) : (
-                    <ListFilter size={15} aria-hidden="true" />
+                    <HugeiconsIcon icon={FilterIcon} size={15} aria-hidden="true" />
                   )}
-                  <ChevronDown size={14} aria-hidden="true" />
+                  <HugeiconsIcon icon={ArrowDown01Icon} size={14} aria-hidden="true" />
                 </button>
               </PopoverTrigger>
               <PopoverContent align="start" className="library-type-filter-menu" sideOffset={10}>
@@ -493,7 +494,7 @@ export function LibraryHome({
                       onClick={() => toggleType(option.value)}
                     >
                       <span className="library-type-filter-check">
-                        {checked ? <Check size={13} /> : null}
+                        {checked ? <HugeiconsIcon icon={Tick01Icon} size={13} /> : null}
                       </span>
                       <span className="library-type-filter-option-icon" aria-hidden="true">
                         {TYPE_FILTER_ICONS[option.value]}
@@ -516,7 +517,7 @@ export function LibraryHome({
                         aria-label={t('library.typeFilter.remove', { type: chip.label })}
                         onClick={() => toggleType(chip.value)}
                       >
-                        <X size={12} />
+                        <HugeiconsIcon icon={Cancel01Icon} size={12} />
                       </button>
                     </span>
                   ))}
@@ -560,7 +561,7 @@ export function LibraryHome({
                     onMouseDown={searchClear.preserveFocus}
                     onPointerDown={searchClear.preserveFocus}
                   >
-                    <X size={15} />
+                    <HugeiconsIcon icon={Cancel01Icon} size={15} />
                   </button>
                 ) : null}
               </div>
@@ -598,14 +599,14 @@ export function LibraryHome({
           <div className="library-page-panel" key={`${selectedTypesKey}-${page}`}>
             {catalogState.status === 'loading' && !remoteCatalog ? (
               <LibraryEmptyState
-                icon={<LibraryBig size={30} />}
+                icon={<HugeiconsIcon icon={LibraryIcon} size={30} />}
                 title={t('library.catalog.loading')}
               >
                 {t('library.catalog.loadingDescription')}
               </LibraryEmptyState>
             ) : catalogState.status === 'error' && !remoteCatalog ? (
               <LibraryEmptyState
-                icon={<LibraryBig size={30} />}
+                icon={<HugeiconsIcon icon={LibraryIcon} size={30} />}
                 title={t('library.catalog.loadFailed')}
               >
                 {t('library.catalog.loadFailedDescription')}
@@ -676,7 +677,7 @@ export function LibraryHome({
             <span className="library-collection-footer-label">
               <strong>{activeCollection.name}</strong>
               <span className="library-count-stat">
-                <LibraryBig size={13} />
+                <HugeiconsIcon icon={LibraryIcon} size={13} />
                 <span className="library-count-value">{activeCollectionMemberCount}</span>
               </span>
             </span>
@@ -691,7 +692,7 @@ export function LibraryHome({
                 disabled={page === 1}
                 onClick={() => changePage(Math.max(1, page - 1))}
               >
-                <ChevronLeft size={16} />
+                <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
               </button>
               {pageNumbers.map((pageNumber) => (
                 <button
@@ -710,7 +711,7 @@ export function LibraryHome({
                 disabled={page === pageCount}
                 onClick={() => changePage(Math.min(pageCount, page + 1))}
               >
-                <ChevronRight size={16} />
+                <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
               </button>
             </div>
           ) : null}
@@ -906,7 +907,7 @@ function LibraryImportEntryGrid({
     <div className="library-empty-entries">
       <button className="library-empty-entry" type="button" onClick={onAddWebArticle}>
         <span className="library-empty-entry-icon">
-          <Globe2 size={18} />
+          <HugeiconsIcon icon={Globe02Icon} size={18} />
         </span>
         <span className="library-empty-entry-copy">
           <strong>{t('library.empty.entry.webTitle')}</strong>
@@ -915,7 +916,7 @@ function LibraryImportEntryGrid({
       </button>
       <button className="library-empty-entry" type="button" onClick={onAddEbook}>
         <span className="library-empty-entry-icon">
-          <BookText size={18} />
+          <HugeiconsIcon icon={Book02Icon} size={18} />
         </span>
         <span className="library-empty-entry-copy">
           <strong>{t('library.empty.entry.ebookTitle')}</strong>
@@ -924,7 +925,7 @@ function LibraryImportEntryGrid({
       </button>
       <button className="library-empty-entry" type="button" onClick={onAddPdf}>
         <span className="library-empty-entry-icon">
-          <FileText size={18} />
+          <HugeiconsIcon icon={Pdf01Icon} size={18} />
         </span>
         <span className="library-empty-entry-copy">
           <strong>{t('library.empty.entry.pdfTitle')}</strong>
@@ -938,7 +939,7 @@ function LibraryImportEntryGrid({
         onClick={weReadConfigured ? onSyncWeRead : onConnectWeRead}
       >
         <span className="library-empty-entry-icon">
-          <Smartphone size={18} />
+          <HugeiconsIcon icon={SmartPhone01Icon} size={18} />
         </span>
         <span className="library-empty-entry-copy">
           <strong>{t('library.empty.entry.wereadTitle')}</strong>
@@ -992,7 +993,7 @@ function LibraryCollectionEmpty({
           {onAddExisting ? (
             <div className="library-empty-actions">
               <Button type="button" variant="secondary" onClick={onAddExisting}>
-                <FolderOpen size={15} />
+                <HugeiconsIcon icon={FolderOpenIcon} size={15} />
                 {t('library.collection.addExisting')}
               </Button>
             </div>
@@ -1038,7 +1039,7 @@ function emptyLibraryReason({
     return {
       variant: 'message',
       description: t('library.weReadSetupDescription'),
-      icon: <Smartphone size={32} />,
+      icon: <HugeiconsIcon icon={SmartPhone01Icon} size={32} />,
       title: t('library.weReadSetupTitle'),
     };
   }
@@ -1051,7 +1052,7 @@ function emptyLibraryReason({
     return {
       variant: 'message',
       description: t('library.empty.noMatchDescription'),
-      icon: <Search size={32} />,
+      icon: <HugeiconsIcon icon={Search01Icon} size={32} />,
       title: t('library.empty.noMatchTitle'),
     };
   }
@@ -1060,7 +1061,7 @@ function emptyLibraryReason({
     return {
       variant: 'message',
       description: t('library.empty.webDescription'),
-      icon: <FileText size={32} />,
+      icon: <HugeiconsIcon icon={File01Icon} size={32} />,
       title: t('library.empty.webTitle'),
     };
   }
@@ -1069,7 +1070,7 @@ function emptyLibraryReason({
     return {
       variant: 'message',
       description: t('library.empty.pdfDescription'),
-      icon: <FileText size={32} />,
+      icon: <HugeiconsIcon icon={Pdf01Icon} size={32} />,
       title: t('library.empty.pdfTitle'),
     };
   }
@@ -1078,7 +1079,7 @@ function emptyLibraryReason({
     return {
       variant: 'message',
       description: t('library.empty.wereadDescription'),
-      icon: <Smartphone size={32} />,
+      icon: <HugeiconsIcon icon={SmartPhone01Icon} size={32} />,
       title: t('library.empty.wereadTitle'),
     };
   }
@@ -1087,7 +1088,7 @@ function emptyLibraryReason({
     return {
       variant: 'message',
       description: t('library.empty.ebookDescription'),
-      icon: <BookText size={32} />,
+      icon: <HugeiconsIcon icon={Book02Icon} size={32} />,
       title: t('library.empty.ebookTitle'),
     };
   }
@@ -1095,7 +1096,7 @@ function emptyLibraryReason({
   return {
     variant: 'message',
     description: t('library.empty.noMatchDescription'),
-    icon: <Search size={32} />,
+    icon: <HugeiconsIcon icon={Search01Icon} size={32} />,
     title: t('library.empty.noMatchTitle'),
   };
 }
@@ -1115,7 +1116,7 @@ function emptyCollectionReason({
     return {
       variant: 'message',
       description: t('library.empty.noMatchDescription'),
-      icon: <Search size={32} />,
+      icon: <HugeiconsIcon icon={Search01Icon} size={32} />,
       title: t('library.empty.noMatchTitle'),
     };
   }

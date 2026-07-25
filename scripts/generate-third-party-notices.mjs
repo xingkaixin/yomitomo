@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const noticesPath = join(repoRoot, 'THIRD_PARTY_NOTICES.md');
 const pnpmLicenseFilter = '@yomitomo/desktop...';
+const desktopPackagePath = 'apps/desktop/package.json';
 const ignoredWorkspacePackagePaths = ['apps/download/package.json', 'apps/web/package.json'];
 const vendorRoots = ['apps/desktop/src/renderer/src/vendor'];
 const fontNoticePaths = ['apps/desktop/resources/licenses/fonts/THIRD_PARTY_FONT_NOTICES.md'];
@@ -54,9 +55,9 @@ function licenseEntries(licensesByType) {
 }
 
 function ignoredWorkspacePackageNames() {
-  return ignoredWorkspacePackagePaths.reduce((names, packagePath) => {
+  const names = ignoredWorkspacePackagePaths.reduce((ignoredNames, packagePath) => {
     const absolutePath = join(repoRoot, packagePath);
-    if (!existsSync(absolutePath)) return names;
+    if (!existsSync(absolutePath)) return ignoredNames;
 
     const manifest = JSON.parse(readFileSync(absolutePath, 'utf8'));
     for (const key of [
@@ -65,10 +66,14 @@ function ignoredWorkspacePackageNames() {
       'optionalDependencies',
       'peerDependencies',
     ]) {
-      for (const name of Object.keys(manifest[key] || {})) names.add(name);
+      for (const name of Object.keys(manifest[key] || {})) ignoredNames.add(name);
     }
-    return names;
+    return ignoredNames;
   }, new Set());
+
+  const desktopManifest = JSON.parse(readFileSync(join(repoRoot, desktopPackagePath), 'utf8'));
+  for (const name of Object.keys(desktopManifest.dependencies || {})) names.delete(name);
+  return names;
 }
 
 function vendorEntries() {

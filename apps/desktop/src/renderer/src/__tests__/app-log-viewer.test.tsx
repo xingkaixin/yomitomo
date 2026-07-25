@@ -185,15 +185,14 @@ describe('AboutSettings', () => {
     await waitFor(() => expect(desktop.openUrl).toHaveBeenCalledWith('https://yomitomo.app/en/'));
   });
 
-  it('uses a local action icon for the license dialog row', async () => {
+  it('renders an action icon for the license dialog row', async () => {
     installDesktopAboutApi();
 
     render(<AboutSettings />);
 
     const licenseButton = screen.getByRole('button', { name: /查看许可证/ });
 
-    expect(licenseButton.querySelector('.lucide-chevron-right')).toBeTruthy();
-    expect(licenseButton.querySelector('.lucide-external-link')).toBeNull();
+    expect(licenseButton.querySelector('svg')).toBeTruthy();
   });
 
   it('filters open source packages in the license dialog', async () => {

@@ -1,16 +1,17 @@
-import React, { useState } from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
 import {
-  FolderOpen,
-  Highlighter,
-  Layers2,
-  LibraryBig,
-  MoreHorizontal,
-  PencilLine,
-  Pin,
-  PinOff,
-  Smartphone,
-  Trash2,
-} from 'lucide-react';
+  Delete02Icon,
+  FolderOpenIcon,
+  HighlighterIcon,
+  Layers02Icon,
+  LibraryIcon,
+  MoreHorizontalIcon,
+  PencilEdit01Icon,
+  PinIcon,
+  PinOffIcon,
+  SmartPhone01Icon,
+} from '@hugeicons/core-free-icons';
+import React, { useState } from 'react';
 import type { ArticleSummaryRecord, Collection, WeReadBook } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
 import { SettingsConfirmDialog } from '../settings/app-settings-confirm-dialog';
@@ -166,7 +167,7 @@ function WeReadLibraryCard({
                 aria-label={t('library.actions.more', { title: book.title })}
                 onClick={(event) => event.stopPropagation()}
               >
-                <MoreHorizontal size={17} />
+                <HugeiconsIcon icon={MoreHorizontalIcon} size={17} />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -188,7 +189,7 @@ function WeReadLibraryCard({
                     onOpenExternal();
                   }}
                 >
-                  <Smartphone size={14} />
+                  <HugeiconsIcon icon={SmartPhone01Icon} size={14} />
                   <span>{t('library.actions.openWeReadExternal')}</span>
                 </button>
               </DropdownMenuItem>
@@ -201,7 +202,7 @@ function WeReadLibraryCard({
                       void onRemoveFromCollection();
                     }}
                   >
-                    <Layers2 size={14} />
+                    <HugeiconsIcon icon={Layers02Icon} size={14} />
                     <span>{t('library.collection.removeMember')}</span>
                   </button>
                 </DropdownMenuItem>
@@ -229,11 +230,11 @@ function WeReadLibraryCard({
           </span>
           <div className="library-count-stats" aria-label={statsLabel} data-tooltip={statsLabel}>
             <span className="library-count-stat">
-              <Highlighter size={13} />
+              <HugeiconsIcon icon={HighlighterIcon} size={13} />
               <span className="library-count-value">{book.noteCount}</span>
             </span>
             <span className="library-count-stat">
-              <Layers2 size={13} />
+              <HugeiconsIcon icon={Layers02Icon} size={13} />
               <span className="library-count-value">0</span>
             </span>
           </div>
@@ -285,7 +286,7 @@ function LibraryCollectionCard({
                 aria-label={t('library.actions.more', { title })}
                 onClick={(event) => event.stopPropagation()}
               >
-                <MoreHorizontal size={17} />
+                <HugeiconsIcon icon={MoreHorizontalIcon} size={17} />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -307,7 +308,7 @@ function LibraryCollectionCard({
                     onRename();
                   }}
                 >
-                  <PencilLine size={14} />
+                  <HugeiconsIcon icon={PencilEdit01Icon} size={14} />
                   <span>{t('library.collection.rename')}</span>
                 </button>
               </DropdownMenuItem>
@@ -319,7 +320,7 @@ function LibraryCollectionCard({
                     onOpenPicker();
                   }}
                 >
-                  <FolderOpen size={14} />
+                  <HugeiconsIcon icon={FolderOpenIcon} size={14} />
                   <span>{t('library.collection.addMembers')}</span>
                 </button>
               </DropdownMenuItem>
@@ -332,7 +333,7 @@ function LibraryCollectionCard({
                     setDeleteConfirmOpen(true);
                   }}
                 >
-                  <Trash2 size={14} />
+                  <HugeiconsIcon icon={Delete02Icon} size={14} />
                   <span>{t('library.collection.delete')}</span>
                 </button>
               </DropdownMenuItem>
@@ -352,7 +353,7 @@ function LibraryCollectionCard({
           </div>
           <div className="library-collection-fan-foot">
             <span className="library-collection-fan-count" aria-label={statsLabel}>
-              <LibraryBig size={13} />
+              <HugeiconsIcon icon={LibraryIcon} size={13} />
               <span className="library-count-value">{memberCount}</span>
             </span>
             <PinnedIndicator pinned={pinned} />
@@ -406,7 +407,11 @@ function LibraryPinMenuItem({ pinned, onSelect }: { pinned: boolean; onSelect: (
   return (
     <DropdownMenuItem asChild>
       <button type="button" onClick={onSelect}>
-        {pinned ? <PinOff size={14} /> : <Pin size={14} />}
+        {pinned ? (
+          <HugeiconsIcon icon={PinOffIcon} size={14} />
+        ) : (
+          <HugeiconsIcon icon={PinIcon} size={14} />
+        )}
         <span>{pinned ? t('library.actions.unpin') : t('library.actions.pin')}</span>
       </button>
     </DropdownMenuItem>
@@ -422,7 +427,7 @@ function PinnedIndicator({ pinned }: { pinned: boolean }) {
       aria-label={t('library.actions.pinned')}
       data-tooltip={t('library.actions.pinned')}
     >
-      <Pin size={15} />
+      <HugeiconsIcon icon={PinIcon} size={15} />
     </span>
   );
 }

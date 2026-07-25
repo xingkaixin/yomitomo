@@ -1,20 +1,21 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
 import {
-  BookOpen,
-  Bug,
-  ChevronDown,
-  ChevronRight,
-  Download,
-  ExternalLink,
-  FileText,
-  MessageSquare,
-  Package,
-  Play,
-  RefreshCw,
-  Search,
-  Tag,
-  X,
-} from 'lucide-react';
+  ArrowDown01Icon,
+  ArrowRight01Icon,
+  BookOpen01Icon,
+  Bug01Icon,
+  Cancel01Icon,
+  Download01Icon,
+  File01Icon,
+  LinkSquare01Icon,
+  Message01Icon,
+  PackageIcon,
+  PlayIcon,
+  Refresh01Icon,
+  Search01Icon,
+  Tag01Icon,
+} from '@hugeicons/core-free-icons';
+import React, { useEffect, useMemo, useState } from 'react';
 import thirdPartyNoticesRaw from '../../../../../../THIRD_PARTY_NOTICES.md?raw';
 import { Button } from '../components/ui/button';
 import {
@@ -163,51 +164,51 @@ export function AboutSettings({
     onAction: () => void;
   }> = [
     {
-      icon: <FileText size={18} />,
+      icon: <HugeiconsIcon icon={File01Icon} size={18} />,
       title: t('about.releaseNotes.title'),
       description: t('about.releaseNotes.description'),
       label: t('about.releaseNotes.label'),
-      actionIcon: <ExternalLink size={16} />,
+      actionIcon: <HugeiconsIcon icon={LinkSquare01Icon} size={16} />,
       onAction: () => openExternal(resourceUrls.releaseNotes),
     },
     {
-      icon: <BookOpen size={18} />,
+      icon: <HugeiconsIcon icon={BookOpen01Icon} size={18} />,
       title: t('about.docs.title'),
       description: t('about.docs.description'),
       label: t('about.docs.label'),
-      actionIcon: <ExternalLink size={16} />,
+      actionIcon: <HugeiconsIcon icon={LinkSquare01Icon} size={16} />,
       onAction: () => openExternal(resourceUrls.docs),
     },
     {
-      icon: <ExternalLink size={18} />,
+      icon: <HugeiconsIcon icon={LinkSquare01Icon} size={18} />,
       title: t('about.github.title'),
       description: t('about.github.description'),
       label: t('about.github.label'),
-      actionIcon: <ExternalLink size={16} />,
+      actionIcon: <HugeiconsIcon icon={LinkSquare01Icon} size={16} />,
       onAction: () => openExternal(githubUrl),
     },
     {
-      icon: <ExternalLink size={18} />,
+      icon: <HugeiconsIcon icon={LinkSquare01Icon} size={18} />,
       title: t('about.website.title'),
       description: t('about.website.description'),
       label: t('about.website.label'),
-      actionIcon: <ExternalLink size={16} />,
+      actionIcon: <HugeiconsIcon icon={LinkSquare01Icon} size={16} />,
       onAction: () => openExternal(resourceUrls.homepage),
     },
     {
-      icon: <MessageSquare size={18} />,
+      icon: <HugeiconsIcon icon={Message01Icon} size={18} />,
       title: t('about.feedback.title'),
       description: t('about.feedback.description'),
       label: t('about.feedback.label'),
-      actionIcon: <ExternalLink size={16} />,
+      actionIcon: <HugeiconsIcon icon={LinkSquare01Icon} size={16} />,
       onAction: () => openExternal(feedbackUrl),
     },
     {
-      icon: <Package size={18} />,
+      icon: <HugeiconsIcon icon={PackageIcon} size={18} />,
       title: t('about.licenses.title'),
       description: t('about.licenses.description', { count: thirdPartyPackages.length }),
       label: t('about.licenses.label'),
-      actionIcon: <ChevronRight size={16} />,
+      actionIcon: <HugeiconsIcon icon={ArrowRight01Icon} size={16} />,
       onAction: () => setLicensesOpen(true),
     },
   ];
@@ -219,7 +220,7 @@ export function AboutSettings({
     >
       <SettingsGroup label={t('about.versionGroup')}>
         <SettingsRow
-          leading={<Tag size={18} />}
+          leading={<HugeiconsIcon icon={Tag01Icon} size={18} />}
           title={
             <>
               {t('about.desktop')}{' '}
@@ -285,7 +286,7 @@ export function AboutSettings({
 
       <SettingsGroup label={t('about.advancedGroup')}>
         <SettingsRow
-          leading={<Play size={18} />}
+          leading={<HugeiconsIcon icon={PlayIcon} size={18} />}
           title={t('about.onboarding.title')}
           description={t('about.onboarding.description')}
         >
@@ -295,11 +296,11 @@ export function AboutSettings({
             onClick={onStartOnboarding}
           >
             {t('about.onboarding.action')}
-            <Play size={15} />
+            <HugeiconsIcon icon={PlayIcon} size={15} />
           </Button>
         </SettingsRow>
         <SettingsRow
-          leading={<Bug size={18} />}
+          leading={<HugeiconsIcon icon={Bug01Icon} size={18} />}
           title={t('about.developerMode.title')}
           description={t('about.developerMode.description')}
         >
@@ -348,12 +349,12 @@ function OpenSourceLicensesDialog({ onClose }: { onClose: () => void }) {
                 className="license-dialog-close"
                 onClick={onClose}
               >
-                <X size={20} />
+                <HugeiconsIcon icon={Cancel01Icon} size={20} />
               </IconButton>
             </header>
 
             <label className="license-search">
-              <Search size={17} />
+              <HugeiconsIcon icon={Search01Icon} size={17} />
               <Input
                 placeholder={t('about.licenses.searchPlaceholder')}
                 value={query}
@@ -364,7 +365,7 @@ function OpenSourceLicensesDialog({ onClose }: { onClose: () => void }) {
             <div className="license-list" role="list">
               <article className="license-package is-source" role="listitem">
                 <div className="license-package-row">
-                  <Package size={16} />
+                  <HugeiconsIcon icon={PackageIcon} size={16} />
                   <strong>Yomitomo</strong>
                   <em>{t('about.licenses.source')}</em>
                   <span>MIT</span>
@@ -381,7 +382,11 @@ function OpenSourceLicensesDialog({ onClose }: { onClose: () => void }) {
                       type="button"
                       onClick={() => setExpandedPackage(expanded ? '' : packageKey)}
                     >
-                      {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                      {expanded ? (
+                        <HugeiconsIcon icon={ArrowDown01Icon} size={16} />
+                      ) : (
+                        <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
+                      )}
                       <strong>{item.name}</strong>
                       <em>{item.versions}</em>
                       <span>{item.license}</span>
@@ -410,7 +415,7 @@ function OpenSourceLicensesDialog({ onClose }: { onClose: () => void }) {
                             onClick={() => openExternal(item.homepage)}
                           >
                             Homepage
-                            <ExternalLink size={15} />
+                            <HugeiconsIcon icon={LinkSquare01Icon} size={15} />
                           </Button>
                         ) : null}
                       </div>
@@ -457,7 +462,7 @@ function updateAction(
       method: 'checkForUpdates',
       disabled: true,
       busy: false,
-      icon: <RefreshCw size={15} />,
+      icon: <HugeiconsIcon icon={Refresh01Icon} size={15} />,
     };
   }
 
@@ -467,7 +472,7 @@ function updateAction(
       method: 'downloadUpdate',
       disabled: false,
       busy: false,
-      icon: <Download size={15} />,
+      icon: <HugeiconsIcon icon={Download01Icon} size={15} />,
     };
   }
 
@@ -477,7 +482,7 @@ function updateAction(
       method: 'installUpdate',
       disabled: false,
       busy: false,
-      icon: <RefreshCw size={15} />,
+      icon: <HugeiconsIcon icon={Refresh01Icon} size={15} />,
     };
   }
 
@@ -490,7 +495,7 @@ function updateAction(
     method: 'checkForUpdates',
     disabled: busy || state.status === 'unsupported',
     busy,
-    icon: <RefreshCw size={15} />,
+    icon: <HugeiconsIcon icon={Refresh01Icon} size={15} />,
   };
 }
 
