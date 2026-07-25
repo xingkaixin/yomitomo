@@ -157,6 +157,12 @@ export const secretDeletionTasks = sqliteTable('secret_deletion_tasks', {
   createdAt: text('created_at').notNull(),
 });
 
+export const articleSourceCleanupTasks = sqliteTable('article_source_cleanup_tasks', {
+  articleId: text('article_id').primaryKey(),
+  sourceType: text('source_type').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
 export const agents = sqliteTable('agents', {
   id: text('id').primaryKey(),
   kind: text('kind').notNull(),

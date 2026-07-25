@@ -1097,6 +1097,16 @@ ON article_translations(
 );
 `,
   },
+  {
+    id: '0066_article_source_cleanup_tasks',
+    sql: `
+CREATE TABLE IF NOT EXISTS article_source_cleanup_tasks (
+  article_id TEXT PRIMARY KEY NOT NULL,
+  source_type TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+`,
+  },
 ];
 
 type MigrationDatabase = {

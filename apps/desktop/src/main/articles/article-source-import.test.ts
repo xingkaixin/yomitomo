@@ -6,21 +6,25 @@ import {
   type ArticleSourceImportRepository,
 } from './article-source-import';
 import type { ArticleIdentity } from './article-repository-columns';
+import type { StagedSourceAssets } from './source-asset-staging';
 
 describe('article source import lifecycle', () => {
   it('imports a new article and returns the saved patch', async () => {
     const record = articleRecord('article-new');
     const patch = articlePatch(record.id);
     const repository = repositoryStub({ patch });
-    const saveSourceFile = vi.fn<(articleId: string) => Promise<void>>().mockResolvedValue();
+    const assets = stagedAssets();
+    const stageSourceAssets = vi.fn(async () => assets);
 
-    await expect(importArticleSource({ record, repository, saveSourceFile })).resolves.toEqual({
+    await expect(importArticleSource({ record, repository, stageSourceAssets })).resolves.toEqual({
       status: 'imported',
       article: record,
       patch,
     });
 
-    expect(saveSourceFile).toHaveBeenCalledWith(record.id);
+    expect(stageSourceAssets).toHaveBeenCalledWith(record.id);
+    expect(assets.commit).toHaveBeenCalled();
+    expect(assets.finalize).toHaveBeenCalled();
     expect(repository.saveArticle).toHaveBeenCalledWith(record);
   });
 
@@ -28,14 +32,15 @@ describe('article source import lifecycle', () => {
     const record = articleRecord('article-next');
     const existing = articleRecord('article-existing');
     const repository = repositoryStub({ existingIdentity: existing, existingArticle: existing });
-    const saveSourceFile = vi.fn<(articleId: string) => Promise<void>>().mockResolvedValue();
+    const assets = stagedAssets();
+    const stageSourceAssets = vi.fn(async () => assets);
 
-    await expect(importArticleSource({ record, repository, saveSourceFile })).resolves.toEqual({
+    await expect(importArticleSource({ record, repository, stageSourceAssets })).resolves.toEqual({
       status: 'duplicate',
       article: existing,
     });
 
-    expect(saveSourceFile).toHaveBeenCalledWith(existing.id);
+    expect(stageSourceAssets).toHaveBeenCalledWith(existing.id);
     expect(repository.saveArticle).not.toHaveBeenCalled();
   });
 
@@ -43,37 +48,60 @@ describe('article source import lifecycle', () => {
     const record = articleRecord('pdf-next');
     const existing = articleRecord('pdf-existing');
     const repository = repositoryStub({ existingIdentity: existing, existingArticle: existing });
-    const saveSourceFile = vi.fn<(articleId: string) => Promise<void>>().mockResolvedValue();
-    const saveThumbnail = vi.fn<(articleId: string) => Promise<void>>().mockResolvedValue();
+    const assets = stagedAssets();
+    const stageSourceAssets = vi.fn(async () => assets);
 
-    await importArticleSource({ record, repository, saveSourceFile, saveThumbnail });
+    await importArticleSource({ record, repository, stageSourceAssets });
 
-    expect(saveSourceFile).toHaveBeenCalledWith(existing.id);
-    expect(saveThumbnail).toHaveBeenCalledWith(existing.id);
+    expect(stageSourceAssets).toHaveBeenCalledWith(existing.id);
+    expect(assets.commit).toHaveBeenCalled();
+    expect(assets.finalize).toHaveBeenCalled();
+  });
+
+  it('preserves the existing source asset when duplicate commit fails', async () => {
+    const record = articleRecord('pdf-next');
+    const existing = articleRecord('pdf-existing');
+    const repository = repositoryStub({ existingIdentity: existing, existingArticle: existing });
+    const commitError = new Error('injected asset rename failure');
+    const logError = vi.fn();
+    const assets = stagedAssets({
+      commit: vi.fn(async () => {
+        throw commitError;
+      }),
+    });
+
+    await expect(
+      importArticleSource({
+        record,
+        repository,
+        stageSourceAssets: async () => assets,
+        logError,
+      }),
+    ).rejects.toBe(commitError);
+
+    expect(assets.abort).toHaveBeenCalled();
+    expect(logError).toHaveBeenCalledWith('article_source_import.persist_failed', commitError, {
+      articleId: existing.id,
+      operationId: expect.any(String),
+      phase: 'commit',
+    });
   });
 
   it('cleans persisted source assets when saving a new article fails', async () => {
     const record = articleRecord('pdf-new', { sourceType: 'pdf' });
     const error = new Error('save failed');
     const repository = repositoryStub({ saveError: error });
-    const saveSourceFile = vi.fn<(articleId: string) => Promise<void>>().mockResolvedValue();
-    const saveThumbnail = vi.fn<(articleId: string) => Promise<void>>().mockResolvedValue();
-    const cleanupSourceFile = vi.fn<(articleId: string) => Promise<void>>().mockResolvedValue();
-    const cleanupThumbnail = vi.fn<(articleId: string) => Promise<void>>().mockResolvedValue();
+    const assets = stagedAssets();
 
     await expect(
       importArticleSource({
         record,
         repository,
-        saveSourceFile,
-        saveThumbnail,
-        cleanupSourceFile,
-        cleanupThumbnail,
+        stageSourceAssets: async () => assets,
       }),
     ).rejects.toBe(error);
 
-    expect(cleanupThumbnail).toHaveBeenCalledWith(record.id);
-    expect(cleanupSourceFile).toHaveBeenCalledWith(record.id);
+    expect(assets.abort).toHaveBeenCalled();
   });
 
   it('logs cleanup failures without hiding the original save failure', async () => {
@@ -82,23 +110,56 @@ describe('article source import lifecycle', () => {
     const cleanupError = new Error('cleanup failed');
     const repository = repositoryStub({ saveError });
     const logError = vi.fn();
+    const assets = stagedAssets({
+      abort: vi.fn(async () => {
+        throw cleanupError;
+      }),
+    });
 
     await expect(
       importArticleSource({
         record,
         repository,
-        saveSourceFile: vi.fn<(articleId: string) => Promise<void>>().mockResolvedValue(),
-        cleanupSourceFile: vi
-          .fn<(articleId: string) => Promise<void>>()
-          .mockRejectedValue(cleanupError),
+        stageSourceAssets: async () => assets,
         logError,
       }),
     ).rejects.toBe(saveError);
 
     expect(logError).toHaveBeenCalledWith('article_source_import.cleanup_failed', cleanupError, {
       articleId: record.id,
-      sourceFileSaved: true,
-      thumbnailSaved: false,
+      operationId: expect.any(String),
+      phase: 'rollback',
+    });
+  });
+
+  it('does not report a committed import as failed when backup cleanup fails', async () => {
+    const record = articleRecord('pdf-finalize-fails', { sourceType: 'pdf' });
+    const cleanupError = new Error('backup cleanup failed');
+    const repository = repositoryStub({});
+    const logError = vi.fn();
+    const assets = stagedAssets({
+      finalize: vi.fn(async () => {
+        throw cleanupError;
+      }),
+    });
+
+    await expect(
+      importArticleSource({
+        record,
+        repository,
+        stageSourceAssets: async () => assets,
+        logError,
+      }),
+    ).resolves.toEqual({
+      status: 'imported',
+      article: record,
+      patch: articlePatch(record.id),
+    });
+
+    expect(logError).toHaveBeenCalledWith('article_source_import.cleanup_failed', cleanupError, {
+      articleId: record.id,
+      operationId: expect.any(String),
+      phase: 'finalize',
     });
   });
 
@@ -160,6 +221,15 @@ function repositoryStub(input: {
       if (input.saveError) throw input.saveError;
       return input.patch || articlePatch(article.id);
     }),
+  };
+}
+
+function stagedAssets(overrides: Partial<StagedSourceAssets> = {}): StagedSourceAssets {
+  return {
+    abort: vi.fn(async () => undefined),
+    commit: vi.fn(async () => undefined),
+    finalize: vi.fn(async () => undefined),
+    ...overrides,
   };
 }
 
