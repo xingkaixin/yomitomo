@@ -18,11 +18,9 @@ import {
 } from '@yomitomo/shared';
 import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
 import { useTranslation } from 'react-i18next';
-import { desktopIpcErrorRetryAfterMs } from '../../../ipc-errors';
 import { AutoSaveStatus } from './app-settings-save-status';
 import { SettingsConfirmDialog } from './app-settings-confirm-dialog';
 import { SettingsElasticSlider } from './app-settings-elastic-slider';
-import type { SaveState } from '../shell/app-types';
 import {
   SettingsGroup,
   SettingsInfoIndicator,
@@ -43,7 +41,7 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 import type { SaveableDraft } from './use-saveable-draft';
-import { appSettingsActions } from './app-settings-actions';
+import { useAppLockSettingsWorkflow } from './use-app-lock-settings-workflow';
 
 const appLockShortcutKeys = [getShortcutModifier(), 'L'];
 
@@ -67,9 +65,6 @@ type GeneralSaveSection =
   | 'appLock'
   | 'collection'
   | 'telemetry';
-type AppLockDialogMode = 'enable' | 'disable';
-type AppLockSetupStep = 'pin' | 'confirm';
-
 export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }) {
   const { value: settingsDraft, update: onSettingsChange, saveError, saveState } = draft;
   const onSave = (override?: AppSettings) => {
@@ -84,30 +79,23 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
   const [translationLanguageOpen, setTranslationLanguageOpen] = useState(false);
   const [translationStyleOpen, setTranslationStyleOpen] = useState(false);
   const [saveSection, setSaveSection] = useState<GeneralSaveSection | null>(null);
-  const [appLockDialogMode, setAppLockDialogMode] = useState<AppLockDialogMode | null>(null);
-  const [appLockSetupStep, setAppLockSetupStep] = useState<AppLockSetupStep>('pin');
-  const [appLockPin, setAppLockPin] = useState('');
-  const [appLockConfirmPin, setAppLockConfirmPin] = useState('');
-  const [appLockDisablePin, setAppLockDisablePin] = useState('');
-  const [appLockSaveState, setAppLockSaveState] = useState<SaveState>('idle');
-  const [appLockError, setAppLockError] = useState('');
   const [localNetworkConfirmOpen, setLocalNetworkConfirmOpen] = useState(false);
   const committedSoundVolumePercentRef = useRef(savedSoundVolumePercent);
+  const appLockWorkflow = useAppLockSettingsWorkflow({
+    messages: {
+      confirmPinMismatch: t('settings.general.appLockPinMismatch'),
+      disablePinRequired: t('settings.general.appLockDisablePinRequired'),
+      pinRequired: t('settings.general.appLockPinRequired'),
+      retryAfter: (seconds) => t('settings.general.appLockRetryAfter', { seconds }),
+      saveFailed: t('settings.general.appLockSaveError'),
+    },
+    onSettingsChange,
+  });
 
   useEffect(() => {
     setSoundVolumePercent(savedSoundVolumePercent);
     committedSoundVolumePercentRef.current = savedSoundVolumePercent;
   }, [savedSoundVolumePercent]);
-
-  function closeAppLockDialog() {
-    setAppLockDialogMode(null);
-    setAppLockSetupStep('pin');
-    setAppLockPin('');
-    setAppLockConfirmPin('');
-    setAppLockDisablePin('');
-    setAppLockError('');
-    if (appLockSaveState !== 'saving') setAppLockSaveState('idle');
-  }
 
   function saveUiLanguage(language: UiLanguage) {
     const nextDraft = {
@@ -189,97 +177,6 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
   function confirmLocalNetworkArticleImport() {
     setLocalNetworkConfirmOpen(false);
     saveCollectionSettings({ allowLocalNetworkArticleImport: true });
-  }
-
-  async function submitAppLockSetup(completedValue?: string) {
-    const pin =
-      appLockSetupStep === 'pin' ? (completedValue ?? appLockPin).trim() : appLockPin.trim();
-    const confirmPin =
-      appLockSetupStep === 'confirm'
-        ? (completedValue ?? appLockConfirmPin).trim()
-        : appLockConfirmPin.trim();
-    if (appLockSetupStep === 'pin') {
-      if (!validPin(pin)) {
-        setAppLockError(t('settings.general.appLockPinRequired'));
-        setAppLockSaveState('error');
-        return;
-      }
-      setAppLockPin(pin);
-      setAppLockConfirmPin('');
-      setAppLockError('');
-      setAppLockSaveState('idle');
-      setAppLockSetupStep('confirm');
-      return;
-    }
-    if (!validPin(pin) || pin !== confirmPin) {
-      setAppLockError(t('settings.general.appLockPinMismatch'));
-      setAppLockConfirmPin('');
-      setAppLockSaveState('error');
-      return;
-    }
-    setSaveSection('appLock');
-    setAppLockSaveState('saving');
-    setAppLockError('');
-    try {
-      const nextStore = await appSettingsActions.enableAppLock(pin, confirmPin);
-      setAppLockPin('');
-      setAppLockConfirmPin('');
-      setAppLockSetupStep('pin');
-      setAppLockDialogMode(null);
-      onSettingsChange(nextStore.settings);
-      setAppLockSaveState('saved');
-      window.setTimeout(() => setAppLockSaveState('idle'), 1200);
-    } catch (error) {
-      setAppLockError(
-        appLockErrorMessage(error, t('settings.general.appLockSaveError'), (seconds) =>
-          t('settings.general.appLockRetryAfter', { seconds }),
-        ),
-      );
-      setAppLockSaveState('error');
-    }
-  }
-
-  function saveAppLockPin(event: React.FormEvent) {
-    event.preventDefault();
-    void submitAppLockSetup();
-  }
-
-  async function toggleAppLock(checked: boolean) {
-    setAppLockError('');
-    if (checked) {
-      setAppLockSetupStep('pin');
-      setAppLockDialogMode('enable');
-      return;
-    }
-    setAppLockDialogMode('disable');
-  }
-
-  async function disableAppLock(event: React.FormEvent) {
-    event.preventDefault();
-    const pin = appLockDisablePin.trim();
-    if (!validPin(pin)) {
-      setAppLockError(t('settings.general.appLockDisablePinRequired'));
-      setAppLockSaveState('error');
-      return;
-    }
-    setSaveSection('appLock');
-    setAppLockSaveState('saving');
-    setAppLockError('');
-    try {
-      const nextStore = await appSettingsActions.disableAppLock(pin);
-      setAppLockDisablePin('');
-      setAppLockDialogMode(null);
-      onSettingsChange(nextStore.settings);
-      setAppLockSaveState('saved');
-      window.setTimeout(() => setAppLockSaveState('idle'), 1200);
-    } catch (error) {
-      setAppLockError(
-        appLockErrorMessage(error, t('settings.general.appLockSaveError'), (seconds) =>
-          t('settings.general.appLockRetryAfter', { seconds }),
-        ),
-      );
-      setAppLockSaveState('error');
-    }
   }
 
   function toggleAppLockOnStartup(checked: boolean) {
@@ -545,8 +442,14 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
         label={t('settings.general.appLockGroup')}
         aside={
           <AutoSaveStatus
-            error={appLockError || saveError}
-            state={saveSection === 'appLock' ? appLockSaveState : 'idle'}
+            error={appLockWorkflow.error || saveError}
+            state={
+              appLockWorkflow.saveState === 'idle'
+                ? saveSection === 'appLock'
+                  ? saveState
+                  : 'idle'
+                : appLockWorkflow.saveState
+            }
             onRetry={undefined}
           />
         }
@@ -560,9 +463,9 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
           <SettingsToggle
             id="general-app-lock-enabled"
             checked={Boolean(settingsDraft.appLockEnabled)}
-            disabled={appLockSaveState === 'saving'}
+            disabled={appLockWorkflow.saveState === 'saving'}
             label={t('settings.general.appLockEnabledTitle')}
-            onChange={toggleAppLock}
+            onChange={appLockWorkflow.open}
           />
         </SettingsRow>
         <SettingsRow
@@ -594,7 +497,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
           <SettingsToggle
             id="general-app-lock-startup"
             checked={Boolean(settingsDraft.appLockLockOnStartup)}
-            disabled={!settingsDraft.appLockEnabled || appLockSaveState === 'saving'}
+            disabled={!settingsDraft.appLockEnabled || appLockWorkflow.saveState === 'saving'}
             label={t('settings.general.appLockStartupTitle')}
             onChange={toggleAppLockOnStartup}
           />
@@ -664,22 +567,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
         </SettingsRow>
       </SettingsGroup>
 
-      <AppLockSettingsDialog
-        confirmPin={appLockConfirmPin}
-        disablePin={appLockDisablePin}
-        error={appLockError}
-        mode={appLockDialogMode}
-        pin={appLockPin}
-        saving={appLockSaveState === 'saving'}
-        setupStep={appLockSetupStep}
-        onClose={closeAppLockDialog}
-        onConfirmPinChange={(value) => setAppLockConfirmPin(digitsOnly(value))}
-        onDisablePinChange={(value) => setAppLockDisablePin(digitsOnly(value))}
-        onDisableSubmit={disableAppLock}
-        onPinChange={(value) => setAppLockPin(digitsOnly(value))}
-        onSetupComplete={(value) => void submitAppLockSetup(value)}
-        onSetupSubmit={saveAppLockPin}
-      />
+      <AppLockSettingsDialog workflow={appLockWorkflow} />
       <SettingsConfirmDialog
         cancelLabel={t('settings.confirm.cancel')}
         confirmLabel={t('settings.general.localNetworkImportConfirm')}
@@ -694,37 +582,13 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
 }
 
 function AppLockSettingsDialog({
-  confirmPin,
-  disablePin,
-  error,
-  mode,
-  pin,
-  saving,
-  setupStep,
-  onClose,
-  onConfirmPinChange,
-  onDisablePinChange,
-  onDisableSubmit,
-  onPinChange,
-  onSetupComplete,
-  onSetupSubmit,
+  workflow,
 }: {
-  confirmPin: string;
-  disablePin: string;
-  error: string;
-  mode: AppLockDialogMode | null;
-  pin: string;
-  saving: boolean;
-  setupStep: AppLockSetupStep;
-  onClose: () => void;
-  onConfirmPinChange: (value: string) => void;
-  onDisablePinChange: (value: string) => void;
-  onDisableSubmit: (event: React.FormEvent) => void;
-  onPinChange: (value: string) => void;
-  onSetupComplete: (value: string) => void;
-  onSetupSubmit: (event: React.FormEvent) => void;
+  workflow: ReturnType<typeof useAppLockSettingsWorkflow>;
 }) {
   const { t } = useTranslation();
+  const { canSubmit, confirmPin, disablePin, error, mode, pin, saving, setupStep } =
+    workflow.dialog;
   if (!mode) return null;
 
   const setupMode = mode === 'enable';
@@ -739,16 +603,18 @@ function AppLockSettingsDialog({
       ? 'settings.general.appLockConfirmDialogDescription'
       : 'settings.general.appLockEnableDialogDescription'
     : 'settings.general.appLockDisableDialogDescription';
-  const formValid = setupMode
-    ? validPin(setupConfirmStep ? confirmPin : pin)
-    : validPin(disablePin);
 
   return (
-    <Dialog open onOpenChange={(nextOpen) => !nextOpen && onClose()}>
+    <Dialog open onOpenChange={(nextOpen) => !nextOpen && workflow.close()}>
       <DialogPortal>
         <DialogOverlay className="app-lock-settings-dialog-overlay">
           <DialogContent className="app-lock-settings-dialog">
-            <form onSubmit={setupMode ? onSetupSubmit : onDisableSubmit}>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void workflow.submit();
+              }}
+            >
               <header>
                 <span className="app-lock-settings-dialog-icon" aria-hidden="true">
                   <LockKeyhole size={20} />
@@ -774,8 +640,8 @@ function AppLockSettingsDialog({
                     autoFocus
                     disabled={saving}
                     value={setupConfirmStep ? confirmPin : pin}
-                    onChange={setupConfirmStep ? onConfirmPinChange : onPinChange}
-                    onComplete={onSetupComplete}
+                    onChange={workflow.updatePin}
+                    onComplete={(value) => void workflow.submit(value)}
                   />
                 ) : (
                   <PinOtpInput
@@ -783,7 +649,7 @@ function AppLockSettingsDialog({
                     autoFocus
                     disabled={saving}
                     value={disablePin}
-                    onChange={onDisablePinChange}
+                    onChange={workflow.updatePin}
                   />
                 )}
               </div>
@@ -797,13 +663,13 @@ function AppLockSettingsDialog({
                   className="settings-action-button is-secondary"
                   disabled={saving}
                   type="button"
-                  onClick={onClose}
+                  onClick={workflow.close}
                 >
                   {t('settings.general.appLockDialogCancel')}
                 </button>
                 <button
                   className="settings-action-button"
-                  disabled={!formValid || saving}
+                  disabled={!canSubmit || saving}
                   type="submit"
                 >
                   {t(
@@ -845,9 +711,9 @@ function PinOtpInput({
       disabled={disabled}
       maxLength={4}
       value={value}
-      onChange={(nextValue) => onChange(digitsOnly(nextValue))}
+      onChange={onChange}
       onComplete={(nextValue) => {
-        const pin = digitsOnly(String(nextValue));
+        const pin = String(nextValue);
         onChange(pin);
         window.setTimeout(() => onComplete?.(pin), 0);
       }}
@@ -860,30 +726,4 @@ function PinOtpInput({
       </InputOTPGroup>
     </InputOTP>
   );
-}
-
-function digitsOnly(value: string) {
-  return value.replace(/\D/g, '').slice(0, 4);
-}
-
-function validPin(value: string) {
-  return /^\d{4}$/.test(value);
-}
-
-function appLockErrorMessage(
-  error: unknown,
-  fallback: string,
-  retryAfterMessage: (seconds: number) => string,
-) {
-  const retryAfterMs = desktopIpcErrorRetryAfterMs(error);
-  if (retryAfterMs) return retryAfterMessage(Math.ceil(retryAfterMs / 1_000));
-  if (error && typeof error === 'object' && 'message' in error) {
-    const rawMessage = (error as { message?: unknown }).message;
-    const message = typeof rawMessage === 'string' ? rawMessage : '';
-    if (message === 'APP_LOCK_PIN_INVALID') return fallback;
-    if (message === 'APP_LOCK_PIN_REQUIRED') return fallback;
-    if (message === 'APP_LOCK_PIN_MISMATCH') return fallback;
-    if (message) return message;
-  }
-  return fallback;
 }
