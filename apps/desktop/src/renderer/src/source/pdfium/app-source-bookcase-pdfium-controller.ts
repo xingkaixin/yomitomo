@@ -46,22 +46,6 @@ type PdfiumTargetSource = {
 
 type PdfiumSource = PdfiumReadingPlanSource | PdfiumTargetSource;
 
-type PdfiumReadingPlanPlayback = {
-  acceptedAnnotation: boolean;
-  kind: 'reading-plan';
-  pageGeometryByIndex: Map<number, PdfPageGeometryEntry>;
-  playbackPromise: Promise<void>;
-};
-
-type PdfiumTargetPlayback = {
-  acceptedAnnotation: boolean;
-  geometry: PdfPageGeometry | null;
-  kind: 'target';
-  playbackPromise: Promise<void>;
-};
-
-type PdfiumPlayback = PdfiumReadingPlanPlayback | PdfiumTargetPlayback;
-
 type PdfiumSourceReaderControllerOptions = {
   enqueueAgentAnnotationPlayback: (articleId: string, annotation: Annotation) => Promise<void>;
   extractPageText: (pageIndex: number) => Promise<string>;
@@ -103,136 +87,139 @@ export function createPdfiumSourceReaderController({
   setStatusMessage,
   startAgentDock,
   startVirtualReading,
-}: PdfiumSourceReaderControllerOptions): SourceAgentAnnotationAdapter<
-  PdfiumSource,
-  PdfiumPlayback
-> {
+}: PdfiumSourceReaderControllerOptions): SourceAgentAnnotationAdapter<PdfiumSource> {
   return {
-    resolveOptions: ({ options }) => pdfiumAgentAnnotationRequestOptions(options),
-    getContext: async ({ currentArticle, options }) => {
+    prepare: async ({ agent, currentArticle, options }) => {
+      const requestOptions = pdfiumAgentAnnotationRequestOptions(options);
       const document = getDocument();
-      const articleId = options.articleId || currentArticle.id;
+      const articleId = requestOptions.articleId || currentArticle.id;
       if (!document || !articleId) return null;
 
-      if (options.readingPlan?.length && !options.targetAnchor) {
+      if (requestOptions.readingPlan?.length && !requestOptions.targetAnchor) {
         const textDocument = getPdfTextDocument();
         if (!textDocument) return null;
-        return {
+        const context: SourceAgentAnnotationContext<PdfiumReadingPlanSource> = {
           article: promptArticle(currentArticle, textDocument.text),
           articleId,
           articleText: textDocument.text,
           readingMemory: currentArticle.focusCoReadingPlan?.readingMemory,
-          source: { document, kind: 'reading-plan' as const, textDocument },
+          source: { document, kind: 'reading-plan', textDocument },
           visibleArticle: isCurrentArticle(articleId),
+        };
+        return {
+          context,
+          options: requestOptions,
+          start: async (requestInput) => {
+            const visibleArticle = context.visibleArticle !== false;
+            if (visibleArticle) startAgentDock(agent);
+            const pageGeometryByIndex = await pageGeometriesForReadingPlan(
+              document,
+              textDocument,
+              requestInput.readingPlan,
+            );
+            if (visibleArticle) {
+              startVirtualReading(
+                agent,
+                pdfiumAnchorForReadingPlanStart(
+                  requestInput.readingPlan,
+                  textDocument,
+                  pageGeometryByIndex,
+                ),
+              );
+            }
+            let acceptedAnnotation = false;
+            let playbackPromise = Promise.resolve();
+            return {
+              accept: (annotation) => {
+                const pdfAnnotation = pdfiumMapReadingPlanAgentAnnotation(
+                  annotation,
+                  requestInput.readingPlan,
+                  textDocument,
+                  pageGeometryByIndex,
+                );
+                if (!pdfAnnotation) return false;
+                acceptedAnnotation = true;
+                playbackPromise = enqueueAgentAnnotationPlayback(articleId, pdfAnnotation);
+                return true;
+              },
+              finish: async (outcome) => {
+                if (outcome.status === 'empty' && visibleArticle) {
+                  const message = i18next.t('source.agentStatus.noNewThought');
+                  finishVirtualReading(agent.id, message);
+                  setStatusMessage(
+                    i18next.t('source.agentStatus.noNewThoughtWithName', {
+                      name: agent.nickname,
+                    }),
+                  );
+                  window.setTimeout(() => setStatusMessage(''), 1400);
+                }
+                if (outcome.status === 'success' && acceptedAnnotation) await playbackPromise;
+                if (!shouldShowProgress(context)) return;
+                if (outcome.status === 'failure') {
+                  finishVirtualReading(agent.id, i18next.t('source.agentStatus.addThoughtFailed'));
+                }
+                finishAgentDock(agent.id, outcome.status !== 'failure');
+              },
+            };
+          },
         };
       }
 
-      const targetAnchor = options.targetAnchor;
+      const targetAnchor = requestOptions.targetAnchor;
       const pageIndex = targetAnchor && isPdfTextAnchor(targetAnchor) ? targetAnchor.pageIndex : 0;
       const page = document.pages[pageIndex];
       if (!page) return null;
       const pageText = await extractPageText(pageIndex);
-      return {
-        article: options.article || pdfiumPromptArticle(currentArticle, targetAnchor, pageText),
+      const context: SourceAgentAnnotationContext<PdfiumTargetSource> = {
+        article:
+          requestOptions.article || pdfiumPromptArticle(currentArticle, targetAnchor, pageText),
         articleId,
         articleText: pageText,
         showProgress: isCurrentArticle(articleId),
-        source: { document, kind: 'target' as const, page, pageIndex, pageText, targetAnchor },
+        source: { document, kind: 'target', page, pageIndex, pageText, targetAnchor },
         visibleArticle: isCurrentArticle(articleId),
       };
-    },
-    start: async ({ agent, context, requestInput }) => {
-      if (context.source?.kind === 'reading-plan') {
-        const visibleArticle = context.visibleArticle !== false;
-        if (visibleArticle) startAgentDock(agent);
-        const pageGeometryByIndex = await pageGeometriesForReadingPlan(
-          context.source.document,
-          context.source.textDocument,
-          requestInput.readingPlan,
-        );
-        if (visibleArticle) {
-          startVirtualReading(
-            agent,
-            pdfiumAnchorForReadingPlanStart(
-              requestInput.readingPlan,
-              context.source.textDocument,
-              pageGeometryByIndex,
-            ),
-          );
-        }
-        return {
-          acceptedAnnotation: false,
-          kind: 'reading-plan' as const,
-          pageGeometryByIndex,
-          playbackPromise: Promise.resolve(),
-        };
-      }
-
-      if (context.showProgress !== false) {
-        startAgentDock(agent);
-        startVirtualReading(agent, context.source?.targetAnchor);
-      }
-      const geometry =
-        context.source?.kind === 'target'
-          ? await getPageGeometry(context.source.document, context.source.page)
-          : null;
       return {
-        acceptedAnnotation: false,
-        geometry,
-        kind: 'target' as const,
-        playbackPromise: Promise.resolve(),
+        context,
+        options: requestOptions,
+        start: async () => {
+          if (context.showProgress !== false) {
+            startAgentDock(agent);
+            startVirtualReading(agent, targetAnchor);
+          }
+          const geometry = await getPageGeometry(document, page);
+          let acceptedAnnotation = false;
+          let playbackPromise = Promise.resolve();
+          return {
+            accept: (annotation) => {
+              if (!geometry) return false;
+              const pdfAnnotation = pdfiumMapTargetAgentAnnotation({
+                annotation,
+                geometry,
+                pageHeight: page.size.height,
+                pageIndex,
+                pageText,
+                pageWidth: page.size.width,
+              });
+              if (!pdfAnnotation) return false;
+              acceptedAnnotation = true;
+              playbackPromise = enqueueAgentAnnotationPlayback(articleId, pdfAnnotation);
+              return true;
+            },
+            finish: async (outcome) => {
+              if (outcome.status === 'empty' && context.showProgress !== false) {
+                finishVirtualReading(agent.id, i18next.t('source.agentStatus.noNewThought'));
+              }
+              if (outcome.status === 'success' && acceptedAnnotation) await playbackPromise;
+              if (!shouldShowProgress(context)) return;
+              if (outcome.status === 'failure') {
+                finishVirtualReading(agent.id, i18next.t('source.agentStatus.addThoughtFailed'));
+              }
+              finishAgentDock(agent.id, outcome.status !== 'failure');
+            },
+          };
+        },
       };
-    },
-    onAnnotation: ({ annotation, context, playback, requestInput }) => {
-      if (context.source?.kind === 'reading-plan' && playback?.kind === 'reading-plan') {
-        const pdfAnnotation = pdfiumMapReadingPlanAgentAnnotation(
-          annotation,
-          requestInput.readingPlan,
-          context.source.textDocument,
-          playback.pageGeometryByIndex,
-        );
-        if (!pdfAnnotation) return false;
-        playback.acceptedAnnotation = true;
-        playback.playbackPromise = enqueueAgentAnnotationPlayback(context.articleId, pdfAnnotation);
-        return true;
-      }
-
-      if (context.source?.kind !== 'target' || playback?.kind !== 'target' || !playback.geometry) {
-        return false;
-      }
-      const pdfAnnotation = pdfiumMapTargetAgentAnnotation({
-        annotation,
-        geometry: playback.geometry,
-        pageHeight: context.source.page.size.height,
-        pageIndex: context.source.pageIndex,
-        pageText: context.source.pageText,
-        pageWidth: context.source.page.size.width,
-      });
-      if (!pdfAnnotation) return false;
-      playback.acceptedAnnotation = true;
-      playback.playbackPromise = enqueueAgentAnnotationPlayback(context.articleId, pdfAnnotation);
-      return true;
-    },
-    onEmpty: ({ agent, context }) => {
-      const message = i18next.t('source.agentStatus.noNewThought');
-      if (context.source?.kind === 'reading-plan' && context.visibleArticle !== false) {
-        finishVirtualReading(agent.id, message);
-        setStatusMessage(
-          i18next.t('source.agentStatus.noNewThoughtWithName', { name: agent.nickname }),
-        );
-        window.setTimeout(() => setStatusMessage(''), 1400);
-        return;
-      }
-      if (context.showProgress !== false) finishVirtualReading(agent.id, message);
-    },
-    onSuccess: async ({ playback }) => {
-      if (playback?.acceptedAnnotation) await playback.playbackPromise;
-    },
-    finish: ({ agent, context, requestFailed }) => {
-      if (!shouldShowProgress(context)) return;
-      if (requestFailed)
-        finishVirtualReading(agent.id, i18next.t('source.agentStatus.addThoughtFailed'));
-      finishAgentDock(agent.id, !requestFailed);
     },
   };
 }

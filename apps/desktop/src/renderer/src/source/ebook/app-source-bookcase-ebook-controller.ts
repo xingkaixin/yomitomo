@@ -115,39 +115,53 @@ export function createEbookSourceReaderController({
   }
 
   return {
-    getContext: ({ currentArticle, options }) => {
+    prepare: ({ agent, currentArticle, options }) => {
       const articleId = options.articleId || currentArticle.id;
       const articleContext = options.article || promptArticle(currentArticle, currentArticleText());
-      return {
+      const context = {
         article: articleContext,
         articleId,
         articleText: articleContext.text,
         visibleArticle: isCurrentArticle(articleId),
       };
-    },
-    isBusy: ({ agent, options }) => !options.articleId && isAgentAnnotating(agent.id),
-    start: ({ agent, context, options, requestInput }) =>
-      startEbookPlayback(agent, context.articleId, options.targetAnchor, requestInput.playbackMode),
-    onAnnotation: ({ annotation, context, options, requestInput }) =>
-      handleEbookStreamItem(
-        context.articleId,
-        annotation,
-        requestInput.readingPlan,
-        context.articleText,
-        Boolean(options.targetAnchor),
-      ),
-    onEmpty: async ({ agent, context, options, playback }) => {
-      if (isCurrentArticle(context.articleId)) {
-        finishEmptyEbookPlayback(agent, options.targetAnchor);
-      }
-      await finishEbookPlayback(agent.id, Boolean(playback));
-    },
-    onSuccess: ({ agent, playback }) => finishEbookPlayback(agent.id, Boolean(playback)),
-    finish: ({ agent, context, options, playback, requestFailed }) => {
-      finishEbookRequest(agent, context.articleId, options.targetAnchor, {
-        requestFailed,
-        visibleArticle: Boolean(playback),
-      });
+      if (!options.articleId && isAgentAnnotating(agent.id)) return null;
+      return {
+        context,
+        options,
+        start: (requestInput) => {
+          const visibleArticle = startEbookPlayback(
+            agent,
+            context.articleId,
+            options.targetAnchor,
+            requestInput.playbackMode,
+          );
+          return {
+            accept: (annotation) =>
+              handleEbookStreamItem(
+                context.articleId,
+                annotation,
+                requestInput.readingPlan,
+                context.articleText,
+                Boolean(options.targetAnchor),
+              ),
+            finish: async (outcome) => {
+              if (outcome.status === 'empty') {
+                if (isCurrentArticle(context.articleId)) {
+                  finishEmptyEbookPlayback(agent, options.targetAnchor);
+                }
+                await finishEbookPlayback(agent.id, visibleArticle);
+              }
+              if (outcome.status === 'success') {
+                await finishEbookPlayback(agent.id, visibleArticle);
+              }
+              finishEbookRequest(agent, context.articleId, options.targetAnchor, {
+                requestFailed: outcome.status === 'failure',
+                visibleArticle,
+              });
+            },
+          };
+        },
+      };
     },
   };
 }

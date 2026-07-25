@@ -294,19 +294,16 @@ export function WebSourceBookcase({
   });
 
   useEffect(() => {
-    sourceReaderSession.registerAgentAnnotationAdapter(
+    return sourceReaderSession.registerAgentAnnotationAdapter(
       createWebSourceReaderController({
-        applyAnnotations: sourceReaderSession.applyAnnotations,
         currentArticleText,
         enqueueAgentAnnotation,
         finishVirtualReading,
         finishVirtualReadingIfIdle,
-        getAnnotations: () => sourceReaderSession.annotationsRef.current,
         isAgentAnnotating: (agentId) => annotatingAgentIds.includes(agentId),
         isCurrentArticle,
         markAgentAnnotating,
         markVirtualReadingDone,
-        onOpenAnnotation: openAnnotation,
         onMergeArticleAgentAnnotation,
         processAgentAnnotationQueue,
         setStatusMessage,

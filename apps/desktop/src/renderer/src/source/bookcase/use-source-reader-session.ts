@@ -6,25 +6,28 @@ import type {
   ArticleRecord,
   Comment as AnnotationComment,
   PublicAgent,
-  ReadingMemory,
   UiLanguage,
   UserProfile,
 } from '@yomitomo/shared';
 import { resolveTextAnchor } from '@yomitomo/shared';
-import type { PromptArticle } from '../../shell/app-reading-types';
 import { publicAnnotationAgents, publicReviewAgents } from './source-public-agents';
-import {
-  createPendingAgentAnnotation,
-  prepareSourceAgentAnnotationRequestInput,
-  runSourceAgentAnnotationRequest,
-  type SourceAgentAnnotationRequestInput,
-  type SourceAgentAnnotationRequestOptions,
-  withoutAnnotationId,
-} from './app-source-agent-request';
+import type { SourceAgentAnnotationRequestOptions } from './app-source-agent-request';
 import { runSourceAgentCommentRequest } from './app-source-agent-comment-request';
 import { runSourceAgentReviewRequest } from './app-source-agent-review-request';
 import { usePendingAnnotationAgents } from '../../shell/use-pending-annotation-agents';
 import { useSourceAnnotations } from './use-source-annotations';
+import {
+  runSourceAgentAnnotationSession,
+  type SourceAgentAnnotationAdapter,
+} from './source-agent-annotation-session';
+
+export type {
+  SourceAgentAnnotationAdapter,
+  SourceAgentAnnotationContext,
+  SourceAgentAnnotationOutcome,
+  SourceAgentAnnotationPlayback,
+  SourceAgentAnnotationRun,
+} from './source-agent-annotation-session';
 
 type SourceAnnotationsChange = {
   previousAnnotations: Annotation[];
@@ -73,95 +76,6 @@ type UseSourceReaderSessionOptions = {
   userProfile: UserProfile;
 };
 
-export type SourceAgentAnnotationContext<TSource = any> = {
-  article: PromptArticle;
-  articleId: string;
-  articleScopedWrite?: boolean;
-  articleText: string;
-  readingMemory?: ReadingMemory;
-  showProgress?: boolean;
-  source?: TSource;
-  visibleArticle?: boolean;
-};
-
-export type SourceAgentAnnotationAdapter<TSource = any, TPlayback = any> = {
-  getContext: (args: {
-    agent: PublicAgent;
-    currentArticle: ArticleRecord;
-    options: SourceAgentAnnotationRequestOptions;
-  }) =>
-    | Promise<SourceAgentAnnotationContext<TSource> | null>
-    | SourceAgentAnnotationContext<TSource>
-    | null;
-  resolveOptions?: (args: {
-    agent: PublicAgent;
-    context: SourceAgentAnnotationContext<TSource>;
-    options: SourceAgentAnnotationRequestOptions;
-  }) => SourceAgentAnnotationRequestOptions;
-  isBusy?: (args: {
-    agent: PublicAgent;
-    context: SourceAgentAnnotationContext<TSource>;
-    options: SourceAgentAnnotationRequestOptions;
-  }) => boolean;
-  start?: (args: {
-    agent: PublicAgent;
-    context: SourceAgentAnnotationContext<TSource>;
-    options: SourceAgentAnnotationRequestOptions;
-    requestInput: SourceAgentAnnotationRequestInput;
-  }) => Promise<TPlayback> | TPlayback;
-  onPendingAnnotationCreated?: (args: {
-    agent: PublicAgent;
-    context: SourceAgentAnnotationContext<TSource>;
-    options: SourceAgentAnnotationRequestOptions;
-    pendingAnnotation: Annotation;
-    playback: TPlayback | undefined;
-  }) => void;
-  onPendingAnnotationRemoved?: (args: {
-    agent: PublicAgent;
-    context: SourceAgentAnnotationContext<TSource>;
-    options: SourceAgentAnnotationRequestOptions;
-    pendingAnnotation: Annotation;
-    playback: TPlayback | undefined;
-  }) => void;
-  onAnnotation: (args: {
-    agent: PublicAgent;
-    annotation: Annotation;
-    context: SourceAgentAnnotationContext<TSource>;
-    options: SourceAgentAnnotationRequestOptions;
-    playback: TPlayback | undefined;
-    requestInput: SourceAgentAnnotationRequestInput;
-  }) => Promise<boolean> | boolean;
-  onReadingMemory?: (args: {
-    agent: PublicAgent;
-    context: SourceAgentAnnotationContext<TSource>;
-    options: SourceAgentAnnotationRequestOptions;
-    readingMemory: ReadingMemory | undefined;
-  }) => Promise<void> | void;
-  onEmpty?: (args: {
-    agent: PublicAgent;
-    context: SourceAgentAnnotationContext<TSource>;
-    options: SourceAgentAnnotationRequestOptions;
-    playback: TPlayback | undefined;
-    requestInput: SourceAgentAnnotationRequestInput;
-  }) => Promise<void> | void;
-  onSuccess?: (args: {
-    agent: PublicAgent;
-    annotationCount: number;
-    context: SourceAgentAnnotationContext<TSource>;
-    options: SourceAgentAnnotationRequestOptions;
-    playback: TPlayback | undefined;
-    requestInput: SourceAgentAnnotationRequestInput;
-  }) => Promise<void> | void;
-  finish?: (args: {
-    agent: PublicAgent;
-    context: SourceAgentAnnotationContext<TSource>;
-    options: SourceAgentAnnotationRequestOptions;
-    playback: TPlayback | undefined;
-    requestFailed: boolean;
-    requestInput?: SourceAgentAnnotationRequestInput;
-  }) => Promise<void> | void;
-};
-
 type RequestAgentCommentOptions = {
   instruction?: string;
   readingIntent?: Annotation['readingIntent'];
@@ -194,7 +108,13 @@ export function useSourceReaderSession({
     agentAnnotationAdapter ?? null,
   );
   useEffect(() => {
-    if (agentAnnotationAdapter) agentAnnotationAdapterRef.current = agentAnnotationAdapter;
+    if (!agentAnnotationAdapter) return;
+    agentAnnotationAdapterRef.current = agentAnnotationAdapter;
+    return () => {
+      if (agentAnnotationAdapterRef.current === agentAnnotationAdapter) {
+        agentAnnotationAdapterRef.current = null;
+      }
+    };
   }, [agentAnnotationAdapter]);
   const annotationAgents = useMemo(
     () => publicAnnotationAgents(agents, uiLanguage),
@@ -215,6 +135,9 @@ export function useSourceReaderSession({
   const canRunAgentActions = Boolean(getArticleText && setStatusMessage);
   const registerAgentAnnotationAdapter = useCallback((adapter: SourceAgentAnnotationAdapter) => {
     agentAnnotationAdapterRef.current = adapter;
+    return () => {
+      if (agentAnnotationAdapterRef.current === adapter) agentAnnotationAdapterRef.current = null;
+    };
   }, []);
 
   const sourceAnnotations = useSourceAnnotations({
@@ -361,144 +284,23 @@ export function useSourceReaderSession({
         }
         throw new Error('Source agent annotation adapter is not registered');
       }
-
-      const context = await adapter.getContext({
+      await runSourceAgentAnnotationSession({
+        adapter,
         agent,
+        annotationAgents,
         currentArticle,
-        options,
-      });
-      if (!context) {
-        if (options.pendingAnnotationId) {
-          pendingAgents.removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
-        }
-        return;
-      }
-      if (adapter.isBusy?.({ agent, context, options })) {
-        if (options.pendingAnnotationId) {
-          pendingAgents.removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
-        }
-        return;
-      }
-      const requestOptions = adapter.resolveOptions?.({ agent, context, options }) ?? options;
-
-      const requestInput = await prepareSourceAgentAnnotationRequestInput({
         desktop,
-        agent,
-        agents: annotationAgents,
-        options: requestOptions,
-        context: {
-          article: context.article,
-          annotations: sourceAnnotations.annotationsRef.current,
-          readingMemory: context.readingMemory ?? currentArticle.focusCoReadingPlan?.readingMemory,
-          uiLanguage,
+        onSettled: options.pendingAnnotationId
+          ? () => pendingAgents.removePendingAnnotationAgent(options.pendingAnnotationId!, agent.id)
+          : undefined,
+        options,
+        surface: {
+          annotations: () => sourceAnnotations.annotationsRef.current,
+          applyAnnotations: sourceAnnotations.applyAnnotations,
+          openAnnotation: onOpenAnnotation,
         },
+        uiLanguage,
       });
-      const playback = await adapter.start?.({
-        agent,
-        context,
-        options: requestOptions,
-        requestInput,
-      });
-      let pendingAnnotation: Annotation | null = null;
-      const removePendingAnnotation = () => {
-        if (!pendingAnnotation) return;
-        sourceAnnotations.applyAnnotations(
-          withoutAnnotationId(sourceAnnotations.annotationsRef.current, pendingAnnotation.id),
-        );
-        adapter.onPendingAnnotationRemoved?.({
-          agent,
-          context,
-          options: requestOptions,
-          pendingAnnotation,
-          playback,
-        });
-        pendingAnnotation = null;
-      };
-
-      if (
-        context.showProgress !== false &&
-        context.visibleArticle !== false &&
-        requestOptions.targetAnchor &&
-        !requestOptions.pendingAnnotationId
-      ) {
-        pendingAnnotation = createPendingAgentAnnotation(
-          agent,
-          requestOptions.targetAnchor,
-          requestOptions.readingIntent,
-        );
-        sourceAnnotations.applyAnnotations([
-          ...sourceAnnotations.annotationsRef.current,
-          pendingAnnotation,
-        ]);
-        onOpenAnnotation?.(pendingAnnotation.id);
-        adapter.onPendingAnnotationCreated?.({
-          agent,
-          context,
-          options: requestOptions,
-          pendingAnnotation,
-          playback,
-        });
-      }
-
-      let requestFailed = true;
-      try {
-        const { result, annotationCount } = await runSourceAgentAnnotationRequest({
-          desktop,
-          requestInput,
-          onAnnotation: (annotation) => {
-            removePendingAnnotation();
-            return adapter.onAnnotation({
-              agent,
-              annotation,
-              context,
-              options: requestOptions,
-              playback,
-              requestInput,
-            });
-          },
-        });
-        if (requestInput.shouldSaveReadingMemory) {
-          await adapter.onReadingMemory?.({
-            agent,
-            context,
-            options: requestOptions,
-            readingMemory: result.readingMemory,
-          });
-        }
-        if (annotationCount === 0) {
-          await adapter.onEmpty?.({
-            agent,
-            context,
-            options: requestOptions,
-            playback,
-            requestInput,
-          });
-          requestFailed = false;
-          return;
-        }
-        await adapter.onSuccess?.({
-          agent,
-          annotationCount,
-          context,
-          options: requestOptions,
-          playback,
-          requestInput,
-        });
-        requestFailed = false;
-      } finally {
-        removePendingAnnotation();
-        await adapter.finish?.({
-          agent,
-          context,
-          options: requestOptions,
-          playback,
-          requestFailed,
-          requestInput,
-        });
-        if (options.pendingAnnotationId) {
-          pendingAgents.removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
-        }
-      }
     },
     [
       annotationAgents,

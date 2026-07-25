@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { Annotation, PublicAgent } from '@yomitomo/shared';
+import type { Annotation, ArticleRecord, PublicAgent } from '@yomitomo/shared';
 import { buildAgentAnnotationRequestInput } from '../source/bookcase/app-source-agent-request';
 import { createEbookSourceReaderController } from '../source/ebook/app-source-bookcase-ebook-controller';
+import { createPdfiumSourceReaderController } from '../source/pdfium/app-source-bookcase-pdfium-controller';
 import { createWebSourceReaderController } from '../source/web/app-source-bookcase-web-controller';
 import type { PromptArticle } from '../shell/app-reading-types';
 import type { ArticleAgentAnnotationMergeResult } from '../../../ipc-contract';
@@ -55,45 +56,44 @@ const annotation: Annotation = {
 };
 
 const requestInput = buildAgentAnnotationRequestInput(agent, {}, { article, annotations: [] });
+const currentArticle = {
+  id: 'article_current',
+  focusCoReadingPlan: undefined,
+} as ArticleRecord;
+const surface = {
+  annotations: () => [],
+  applyAnnotations: vi.fn(),
+  openAnnotation: vi.fn(),
+};
 
 describe('source agent annotation controllers', () => {
   it('waits for article-scoped Web annotation persistence', async () => {
     const persistence = createDeferred<ArticleAgentAnnotationMergeResult | null>();
     const onMergeArticleAgentAnnotation = vi.fn(() => persistence.promise);
     const controller = createWebSourceReaderController({
-      applyAnnotations: vi.fn(),
       currentArticleText: () => article.text,
       enqueueAgentAnnotation: vi.fn(),
       finishVirtualReading: vi.fn(),
       finishVirtualReadingIfIdle: vi.fn(),
-      getAnnotations: () => [],
       isAgentAnnotating: () => false,
       isCurrentArticle: () => false,
       markAgentAnnotating: vi.fn(),
       markVirtualReadingDone: vi.fn(),
-      onOpenAnnotation: vi.fn(),
       onMergeArticleAgentAnnotation,
       processAgentAnnotationQueue: vi.fn(),
       setStatusMessage: vi.fn(),
       startVirtualReading: vi.fn(),
     });
 
-    const handling = Promise.resolve(
-      controller.onAnnotation({
-        agent,
-        annotation,
-        context: {
-          article,
-          articleId: 'article_background',
-          articleScopedWrite: true,
-          articleText: article.text,
-          visibleArticle: false,
-        },
-        options: { articleId: 'article_background' },
-        playback: undefined,
-        requestInput,
-      }),
-    );
+    const run = await controller.prepare({
+      agent,
+      currentArticle,
+      options: { article, articleId: 'article_background' },
+      surface,
+    });
+    if (!run) throw new Error('expected Web annotation run');
+    const playback = await run.start(requestInput);
+    const handling = Promise.resolve(playback.accept(annotation, requestInput));
     const completed = vi.fn();
     void handling.then(completed);
 
@@ -125,21 +125,15 @@ describe('source agent annotation controllers', () => {
       waitForPlaybackCompletion: vi.fn(async () => undefined),
     });
 
-    const handling = Promise.resolve(
-      controller.onAnnotation({
-        agent,
-        annotation,
-        context: {
-          article,
-          articleId: 'article_background',
-          articleText: article.text,
-          visibleArticle: false,
-        },
-        options: { articleId: 'article_background' },
-        playback: undefined,
-        requestInput,
-      }),
-    );
+    const run = await controller.prepare({
+      agent,
+      currentArticle,
+      options: { article, articleId: 'article_background' },
+      surface,
+    });
+    if (!run) throw new Error('expected EPUB annotation run');
+    const playback = await run.start(requestInput);
+    const handling = Promise.resolve(playback.accept(annotation, requestInput));
     const completed = vi.fn();
     void handling.then(completed);
 
@@ -151,5 +145,37 @@ describe('source agent annotation controllers', () => {
     persistence.resolve(annotation.id);
 
     await expect(handling).resolves.toBe(true);
+  });
+
+  it('finishes an empty visible PDF playback as a successful dock session', async () => {
+    const finishAgentDock = vi.fn();
+    const finishVirtualReading = vi.fn();
+    const controller = createPdfiumSourceReaderController({
+      enqueueAgentAnnotationPlayback: vi.fn(async () => undefined),
+      extractPageText: vi.fn(async () => article.text),
+      finishAgentDock,
+      finishVirtualReading,
+      getDocument: () => ({ pages: [{ size: { height: 800, width: 600 } }] }),
+      getPageGeometry: vi.fn(async () => null),
+      getPdfTextDocument: () => null,
+      isCurrentArticle: () => true,
+      pageGeometriesForReadingPlan: vi.fn(async () => new Map()),
+      setStatusMessage: vi.fn(),
+      startAgentDock: vi.fn(),
+      startVirtualReading: vi.fn(),
+    });
+    const run = await controller.prepare({
+      agent,
+      currentArticle,
+      options: { article },
+      surface,
+    });
+    if (!run) throw new Error('expected PDF annotation run');
+
+    const playback = await run.start(requestInput);
+    await playback.finish({ status: 'empty' });
+
+    expect(finishVirtualReading).toHaveBeenCalledOnce();
+    expect(finishAgentDock).toHaveBeenCalledWith(agent.id, true);
   });
 });
