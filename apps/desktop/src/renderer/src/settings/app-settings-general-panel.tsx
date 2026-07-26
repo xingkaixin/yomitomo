@@ -219,7 +219,6 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
         }
       >
         <SettingsRow
-          align="start"
           leading={<HugeiconsIcon icon={GlobeIcon} size={20} />}
           title={t('settings.general.languageTitle')}
           description={t('settings.general.languageDescription')}
@@ -247,7 +246,6 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
         }
       >
         <SettingsRow
-          align="start"
           leading={<HugeiconsIcon icon={LanguageCircleIcon} size={20} />}
           title={t('settings.general.translationTargetTitle')}
           description={t('settings.general.translationTargetDescription')}
@@ -379,7 +377,6 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
           </>
         </SettingsRow>
         <SettingsRow
-          align="start"
           leading={<HugeiconsIcon icon={LanguageCircleIcon} size={20} />}
           title={t('settings.general.translationAiContextTitle')}
           description={t('settings.general.translationAiContextDescription')}
@@ -406,7 +403,6 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
         }
       >
         <SettingsRow
-          align="start"
           leading={<HugeiconsIcon icon={VolumeHighIcon} size={20} />}
           title={t('settings.general.soundEffectsTitle')}
           description={t('settings.general.soundEffectsDescription')}
@@ -419,7 +415,6 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
           />
         </SettingsRow>
         <SettingsRow
-          align="start"
           leading={<HugeiconsIcon icon={VolumeHighIcon} size={20} />}
           title={t('settings.general.soundVolumeTitle')}
           description={t('settings.general.soundVolumeDescription')}
@@ -456,7 +451,6 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
         }
       >
         <SettingsRow
-          align="start"
           leading={<HugeiconsIcon icon={LockKeyIcon} size={20} />}
           title={t('settings.general.appLockEnabledTitle')}
           description={t('settings.general.appLockEnabledDescription')}
@@ -470,7 +464,6 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
           />
         </SettingsRow>
         <SettingsRow
-          align="start"
           leading={<HugeiconsIcon icon={LockKeyIcon} size={20} />}
           title={t('settings.general.appLockShortcutTitle')}
           description={t('settings.general.appLockShortcutDescription')}
@@ -490,7 +483,6 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
           </span>
         </SettingsRow>
         <SettingsRow
-          align="start"
           leading={<HugeiconsIcon icon={LockKeyIcon} size={20} />}
           title={t('settings.general.appLockStartupTitle')}
           description={t('settings.general.appLockStartupDescription')}
@@ -516,7 +508,6 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
         }
       >
         <SettingsRow
-          align="start"
           leading={<HugeiconsIcon icon={Image01Icon} size={20} />}
           title={t('settings.general.saveImagesTitle')}
           description={t('settings.general.saveImagesDescription')}
@@ -529,7 +520,6 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
           />
         </SettingsRow>
         <SettingsRow
-          align="start"
           leading={<HugeiconsIcon icon={SecurityWarningIcon} size={20} />}
           title={t('settings.general.localNetworkImportTitle')}
           description={t('settings.general.localNetworkImportDescription')}
@@ -554,7 +544,6 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
         }
       >
         <SettingsRow
-          align="start"
           leading={<HugeiconsIcon icon={InternetAntenna01Icon} size={20} />}
           title={t('settings.general.telemetryTitle')}
           description={t('settings.general.telemetryDescription')}
