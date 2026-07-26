@@ -40,11 +40,8 @@ import {
   sourceReaderTocStyles,
   webAnnotationNavigationState,
 } from './app-source-bookcase-web-utils';
-import { useSourceReaderSession } from '../bookcase/use-source-reader-session';
 import { createWebSourceReaderController } from './app-source-bookcase-web-controller';
-import { useSourceReaderWorkspace } from '../bookcase/use-source-reader-workspace';
-import { buildSourceReaderAppActions } from '../bookcase/source-reader-app-actions';
-import { buildSourceReaderAppViewProps } from '../bookcase/source-reader-app-view-props';
+import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
 import { useReaderSearchNavigation } from '../bookcase/use-reader-search-navigation';
 import { useSourceReadingProgressSaver } from '../bookcase/use-source-reading-progress-saver';
 import { createWebReadingProgressFrame } from './web-reading-progress-frame';
@@ -92,7 +89,6 @@ export function WebSourceBookcase({
     article.id,
     settings,
   );
-  const [statusMessage, setStatusMessage] = useState('');
   const [readingProgress, setReadingProgress] = useState(
     () => normalizeSavedWebProgress(article.readingProgress) ?? 0,
   );
@@ -112,26 +108,37 @@ export function WebSourceBookcase({
       shouldSave: shouldSaveWebProgress,
     });
   const [activeTocIndex, setActiveTocIndex] = useState<number | null>(null);
-  const sourceReaderSession = useSourceReaderSession({
-    agents,
-    annotations: articleAnnotations,
-    article,
-    onArticleChange,
-    clearPendingOnArticleChange: true,
-    clearPendingOnDeleteAnnotation: true,
-    uiLanguage,
-    onBeforeDeleteAnnotation: (annotationId) => {
-      noteRefs.current.delete(annotationId);
-    },
+  const sourceReaderApp = useSourceReaderApp({
+    canvasRef,
     getArticleText: currentArticleText,
-    onOpenAnnotation: openAnnotation,
-    onDeleteArticleAnnotation,
-    onDeleteArticleComment,
-    onSaveArticleAnnotation,
-    onSaveArticleComment,
-    setStatusMessage,
-    userProfile,
+    messageSendShortcut,
+    selectionActionShortcuts,
+    session: {
+      agents,
+      annotations: articleAnnotations,
+      article,
+      onArticleChange,
+      clearPendingOnArticleChange: true,
+      clearPendingOnDeleteAnnotation: true,
+      uiLanguage,
+      onBeforeDeleteAnnotation: (annotationId) => {
+        noteRefs.current.delete(annotationId);
+      },
+      onOpenAnnotation: openAnnotation,
+      onDeleteArticleAnnotation,
+      onDeleteArticleComment,
+      onSaveArticleAnnotation,
+      onSaveArticleComment,
+      userProfile,
+    },
+    onSaveArticleReaderChatState,
   });
+  const {
+    session: sourceReaderSession,
+    setStatusMessage,
+    statusMessage,
+    workspace: sourceReaderWorkspace,
+  } = sourceReaderApp;
   const {
     addComment,
     annotations,
@@ -260,16 +267,6 @@ export function WebSourceBookcase({
   });
   useEffect(() => cleanupVirtualReadingSessions, []);
 
-  const sourceReaderWorkspace = useSourceReaderWorkspace({
-    article,
-    canvasRef,
-    getArticleText: currentArticleText,
-    messageSendShortcut,
-    selectionActionShortcuts,
-    session: sourceReaderSession,
-    uiLanguage,
-    onSaveArticleReaderChatState,
-  });
   const { labels, readerChat, readerSettings, selection, updateReaderSettings } =
     sourceReaderWorkspace;
   const {
@@ -812,57 +809,54 @@ export function WebSourceBookcase({
     excerpt: statusMessage,
     content: contentHtml,
   };
-  const readerActions = buildSourceReaderAppActions({
-    articleId: article.id,
-    annotation: {
-      onAddComment: addComment,
-      onAnnotationLayoutChange: recalculateActiveConnection,
-      onClearActiveAnnotation: () => onOpenAnnotation(null),
-      onCreateAnnotation: createAnnotation,
-      onDeleteAnnotation: deleteAnnotation,
-      onDeleteComment: deleteComment,
-      onFocusAnnotation: openAnnotation,
-      onHighlightClick: handleHighlightClick,
-      onNavigateAnnotation: navigateAnnotation,
-      onResolveAnnotationNavigation: resolveAnnotationNavigation,
-      onScrollToHighlight: (annotationId) => {
-        openAnnotation(annotationId);
-        scrollToAnnotation(annotationId);
+  const readerAppViewProps = sourceReaderApp.viewProps({
+    actions: {
+      annotation: {
+        onAddComment: addComment,
+        onAnnotationLayoutChange: recalculateActiveConnection,
+        onClearActiveAnnotation: () => onOpenAnnotation(null),
+        onCreateAnnotation: createAnnotation,
+        onDeleteAnnotation: deleteAnnotation,
+        onDeleteComment: deleteComment,
+        onFocusAnnotation: openAnnotation,
+        onHighlightClick: handleHighlightClick,
+        onNavigateAnnotation: navigateAnnotation,
+        onResolveAnnotationNavigation: resolveAnnotationNavigation,
+        onScrollToHighlight: (annotationId) => {
+          openAnnotation(annotationId);
+          scrollToAnnotation(annotationId);
+        },
       },
-    },
-    chat: readerChat.actions,
-    selection: {
-      onCancelComposer: cancelComposerFromShell,
-      onClearSelection: clearSelectionFromShell,
-      onCloseHighlightChoice: () => setHighlightChoice(null),
-      onCopySelection: copySelection,
-      onMouseUp: webReaderSelection.actions.onMouseUp,
-      onAskSelection: askSelection,
-      onSelectionHandleDrag: webReaderSelection.actions.onSelectionHandleDrag,
-      onSelectionHandleDragEnd: webReaderSelection.actions.onSelectionHandleDragEnd,
-      onSelectionHandleDragStart: webReaderSelection.actions.onSelectionHandleDragStart,
-      onOpenComposer: openComposerFromSelection,
-    },
-    shell: {
-      onClose,
-      onCloseFloatingPanels: () => {
-        setSettingsOpen(false);
+      selection: {
+        onCancelComposer: cancelComposerFromShell,
+        onClearSelection: clearSelectionFromShell,
+        onCloseHighlightChoice: () => setHighlightChoice(null),
+        onCopySelection: copySelection,
+        onMouseUp: webReaderSelection.actions.onMouseUp,
+        onAskSelection: askSelection,
+        onSelectionHandleDrag: webReaderSelection.actions.onSelectionHandleDrag,
+        onSelectionHandleDragEnd: webReaderSelection.actions.onSelectionHandleDragEnd,
+        onSelectionHandleDragStart: webReaderSelection.actions.onSelectionHandleDragStart,
+        onOpenComposer: openComposerFromSelection,
       },
-      onCloseResponsivePanels: () => {
-        setTocOpen(false);
+      shell: {
+        onClose,
+        onCloseFloatingPanels: () => {
+          setSettingsOpen(false);
+        },
+        onCloseResponsivePanels: () => {
+          setTocOpen(false);
+        },
+        onToggleSettings: () => setSettingsOpen((open) => !open),
+        onUpdateReaderSettings: updateReaderSettings,
       },
-      onToggleSettings: () => setSettingsOpen((open) => !open),
-      onUpdateReaderSettings: updateReaderSettings,
+      toc: {
+        onScrollToHeading: scrollToTocItem,
+        onToggleToc: () => setTocOpen((open) => !open),
+      },
+      onOpenAnnotationDiscussion,
+      onRevealReaderChatContext: revealReaderChatContext,
     },
-    toc: {
-      onScrollToHeading: scrollToTocItem,
-      onToggleToc: () => setTocOpen((open) => !open),
-    },
-    onOpenAnnotationDiscussion,
-    onRevealReaderChatContext: revealReaderChatContext,
-  });
-  const readerAppViewProps = buildSourceReaderAppViewProps({
-    actions: readerActions,
     agentPlayback: {
       completionBurstKey,
       dockCompleting: agentDockCompleting,
@@ -906,7 +900,6 @@ export function WebSourceBookcase({
       notesRef: railRef,
       surfaceRef: scrollRef,
     },
-    session: sourceReaderSession,
     toc: {
       activeIndex: activeTocIndex,
       annotationStats: tocStats,
@@ -934,7 +927,6 @@ export function WebSourceBookcase({
       readingProgress,
     },
     userProfile,
-    workspace: sourceReaderWorkspace,
   });
   return (
     <section className="source-bookcase source-reader-shell">
