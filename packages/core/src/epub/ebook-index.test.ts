@@ -7,11 +7,75 @@ import {
   epubIndexText,
   locateEpubOffset,
   locateEpubTextAnchor,
+  prepareEpubBookIndex,
   prepareEpubTextAnchorResolver,
   resolveEpubTextAnchor,
 } from './ebook-index';
 
 describe('buildEpubBookIndex', () => {
+  it('diagnoses prepared index construction and reuse', () => {
+    const index = buildEpubBookIndex({
+      articleId: 'article-1',
+      chapters: [{ id: 'chapter-1', title: '第一章', paragraphs: ['正文。'] }],
+    });
+    const events: Array<{ event: string; data?: Record<string, unknown> }> = [];
+    const logger = (event: string, data?: Record<string, unknown>) => {
+      events.push({ event, data });
+    };
+
+    prepareEpubBookIndex(index, logger);
+    prepareEpubBookIndex(index, logger);
+
+    expect(events).toEqual([
+      {
+        event: 'performance.epub_book_index_prepare',
+        data: expect.objectContaining({ result: 'built', articleId: 'article-1' }),
+      },
+      {
+        event: 'performance.epub_book_index_prepare',
+        data: expect.objectContaining({ result: 'reused', articleId: 'article-1' }),
+      },
+    ]);
+  });
+
+  it('answers structural queries without exposing lookup state', () => {
+    const index = buildEpubBookIndex({
+      articleId: 'article-1',
+      maxSegmentTextLength: 1,
+      minSegmentTextLength: 1,
+      chapters: [
+        { id: 'chapter-1', title: '第一章', paragraphs: ['第一段。', '第二段。'] },
+        { id: 'chapter-2', title: '第二章', paragraphs: ['第三段。'] },
+      ],
+    });
+    const prepared = prepareEpubBookIndex(index);
+    const firstSegment = index.segments[0];
+    const secondSegment = index.segments[1];
+    const secondParagraph = index.paragraphs[1];
+    const secondChapter = index.chapters[1];
+    if (!firstSegment || !secondSegment || !secondParagraph || !secondChapter) {
+      throw new Error('expected prepared EPUB fixtures');
+    }
+
+    expect(prepared.chapter('chapter-2')?.title).toBe('第二章');
+    expect(prepared.segment(secondSegment.id)).toBe(secondSegment);
+    expect(prepared.paragraph(secondParagraph.id)).toBe(secondParagraph);
+    expect(prepared.firstSegmentInChapter('chapter-1')).toBe(firstSegment);
+    expect(prepared.nextSegment(firstSegment)).toBe(secondSegment);
+    expect(prepared.previousSegment(secondSegment)).toBe(firstSegment);
+    expect(prepared.segmentsOverlapping(secondParagraph).map((item) => item.id)).toEqual([
+      secondSegment.id,
+    ]);
+    expect(prepared.paragraphsOverlapping(secondSegment).map((item) => item.id)).toEqual([
+      secondParagraph.id,
+    ]);
+    expect(prepared.paragraphWindow(secondParagraph, 1).map((item) => item.id)).toEqual([
+      'chapter-1-paragraph-1',
+      'chapter-1-paragraph-2',
+    ]);
+    expect(prepared.chaptersBefore(secondChapter)).toEqual(['chapter-1']);
+  });
+
   it('builds chapter, segment and paragraph ranges over book text', () => {
     const chapters = [
       {

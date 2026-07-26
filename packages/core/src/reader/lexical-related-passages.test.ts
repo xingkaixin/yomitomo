@@ -180,8 +180,8 @@ describe('buildCurrentChapterLexicalRelatedPassages', () => {
       maxPassages: 2,
       neighborParagraphs: 0,
       lexicalCache,
-      performanceLogger: (_name: string, data?: Record<string, unknown>) => {
-        if (data) timings.push(data);
+      performanceLogger: (event: string, data?: Record<string, unknown>) => {
+        if (event === 'performance.lexical_related_passages' && data) timings.push(data);
       },
     };
 
@@ -198,35 +198,34 @@ describe('buildCurrentChapterLexicalRelatedPassages', () => {
     });
   });
 
-  it('prepares the full-book paragraph lookup once per cached EPUB index', () => {
+  it('reuses EPUB structure and lexical documents across repeated queries', () => {
     const { index, text } = bookFixture();
-    const paragraphs = index.paragraphs;
-    let fullIterations = 0;
-    index.paragraphs = new Proxy(paragraphs, {
-      get(target, property, receiver) {
-        if (property !== Symbol.iterator) return Reflect.get(target, property, receiver);
-        return function* () {
-          fullIterations += 1;
-          yield* target;
-        };
-      },
-    });
     const lexicalCache = createLexicalRelatedPassageCache();
+    const events: Array<{ event: string; data?: Record<string, unknown> }> = [];
     const input = {
       articleText: text,
       ebookIndex: index,
       query: '人口红利',
       chapterId: 'chapter-2',
       lexicalCache,
+      performanceLogger: (event: string, data?: Record<string, unknown>) =>
+        events.push({ event, data }),
     };
 
-    buildCurrentChapterLexicalRelatedPassages(input);
-    const iterationsAfterFirstQuery = fullIterations;
-    buildCurrentChapterLexicalRelatedPassages(input);
+    const first = buildCurrentChapterLexicalRelatedPassages(input);
+    const second = buildCurrentChapterLexicalRelatedPassages(input);
 
-    expect(iterationsAfterFirstQuery).toBe(1);
-    expect(fullIterations).toBe(iterationsAfterFirstQuery);
-    expect(lexicalCache.indexes.has(index)).toBe(true);
+    expect(second).toEqual(first);
+    expect(
+      events
+        .filter((item) => item.event === 'performance.epub_book_index_prepare')
+        .map((item) => item.data?.result),
+    ).toEqual(['built', 'reused']);
+    expect(
+      events
+        .filter((item) => item.event === 'performance.lexical_related_passages')
+        .map((item) => item.data?.lexicalCacheHitCount),
+    ).toEqual([0, 4]);
   });
 
   it('keeps excluded paragraphs out of the current result without poisoning the cache', () => {
@@ -275,8 +274,8 @@ describe('buildCurrentChapterLexicalRelatedPassages', () => {
       excludeParagraphIds: ['chapter-1-paragraph-3'],
       maxPassages: 2,
       neighborParagraphs: 0,
-      performanceLogger: (_name: string, data?: Record<string, unknown>) => {
-        if (data) timings.push(data);
+      performanceLogger: (event: string, data?: Record<string, unknown>) => {
+        if (event === 'performance.lexical_related_passages' && data) timings.push(data);
       },
     });
 
