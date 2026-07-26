@@ -16,11 +16,8 @@ import type {
   UserProfile,
   WeReadBook,
 } from '@yomitomo/shared';
+import { createLibraryCatalogTestAdapter } from '../../../main/library/library-catalog-test-adapter';
 import { ReadingLibrary, groupLibraryArticles } from '../reading-library/app-reading-library';
-import {
-  buildCollectionMemberEntities,
-  buildLibraryEntities,
-} from '../reading-library/app-reading-library-entities';
 import {
   articleDistillationStateChanged,
   articleWithCommittedDistillation,
@@ -39,11 +36,6 @@ import { initializeAppI18n } from '../i18n/app-i18n';
 import { defaultTheme } from '../theme/app-theme';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 import { appToast } from '../shell/app-toast';
-import type {
-  LibraryEntity,
-  LibraryItemType,
-  LibraryTypeFilter,
-} from '../reading-library/library-entity-types';
 
 vi.mock('../sound/app-sound-effects', () => ({
   playAppSoundEffect: vi.fn(),
@@ -54,6 +46,7 @@ vi.mock('../shell/app-toast', () => ({
 }));
 
 const now = '2026-05-09T12:00:00.000Z';
+let closeDefaultCatalog: (() => void) | undefined;
 
 const userProfile: UserProfile = {
   id: 'user_1',
@@ -84,6 +77,8 @@ if (typeof Range !== 'undefined' && !Range.prototype.getClientRects) {
 }
 
 afterEach(() => {
+  closeDefaultCatalog?.();
+  closeDefaultCatalog = undefined;
   vi.useRealTimers();
   cleanup();
   delete document.documentElement.dataset.themeTone;
@@ -184,91 +179,6 @@ function immediateCatalogResult(
   } as Promise<LibraryCatalogListResult>;
 }
 
-function defaultCatalogResult(
-  input: LibraryCatalogListInput,
-  {
-    articles,
-    collectionMembers,
-    collections,
-    pins,
-    wereadBooks = [],
-  }: {
-    articles: ArticleSummaryRecord[];
-    collectionMembers: CollectionMember[];
-    collections: Collection[];
-    pins: LibraryPin[];
-    wereadBooks?: WeReadBook[];
-  },
-): LibraryCatalogListResult {
-  const enabledTypes: LibraryItemType[] = ['web', 'ebook', 'pdf', 'text', 'weread'];
-  const requestedTypes = new Set<LibraryTypeFilter>(
-    input.types || ['web', 'ebook', 'pdf', 'text', 'weread', 'collection'],
-  );
-  const buildEntities = (query: string): LibraryEntity[] => {
-    if (input.scope.kind === 'collection') {
-      return buildCollectionMemberEntities({
-        articles,
-        collectionId: input.scope.collectionId,
-        collectionMembers,
-        enabledTypes,
-        pins,
-        query,
-        typeFilter: requestedTypes,
-        wereadBooks,
-      });
-    }
-    const entities = buildLibraryEntities({
-      articles,
-      collectionMembers: input.scope.kind === 'library' ? collectionMembers : [],
-      collections: input.scope.kind === 'library' ? collections : [],
-      enabledTypes,
-      pins,
-      query,
-      typeFilter: requestedTypes,
-      wereadBooks,
-    });
-    if (input.scope.kind === 'library') return entities;
-    const collectionId = input.scope.collectionId;
-    const memberKeys = new Set(
-      collectionMembers
-        .filter((member) => member.collectionId === collectionId)
-        .map((member) => `${member.member.kind}:${member.member.id}`),
-    );
-    return entities.filter(
-      (entity) => entity.kind === 'item' && !memberKeys.has(`${entity.ref.kind}:${entity.ref.id}`),
-    );
-  };
-  const query = input.query || '';
-  const entities = buildEntities(query);
-  const page = input.page || 1;
-  const pageSize = input.pageSize || 12;
-  const start = (page - 1) * pageSize;
-  const itemCounts = Object.fromEntries(
-    enabledTypes.map((type) => [
-      type,
-      buildLibraryEntities({
-        articles,
-        collectionMembers: [],
-        collections: [],
-        enabledTypes,
-        pins,
-        query: '',
-        typeFilter: new Set([type]),
-        wereadBooks,
-      }).length,
-    ]),
-  ) as LibraryCatalogListResult['itemCounts'];
-  return {
-    entities: entities.slice(start, start + pageSize),
-    itemCounts,
-    page,
-    pageSize,
-    query,
-    totalCount: entities.length,
-    unfilteredCount: buildEntities('').length,
-  };
-}
-
 function installDefaultCatalog(
   articles: ArticleSummaryRecord[],
   options: {
@@ -280,18 +190,18 @@ function installDefaultCatalog(
   type DesktopApi = NonNullable<typeof window.yomitomoDesktop>;
   const desktopApi = window.yomitomoDesktop as Partial<DesktopApi> | undefined;
   if (desktopApi?.listLibraryCatalog) return;
-  const catalogFixtures = {
+  const catalog = createLibraryCatalogTestAdapter({
     articles,
     collectionMembers: options.collectionMembers || [],
     collections: options.collections || [],
     pins: options.pins || [],
-  };
-  let wereadBooks: WeReadBook[] = [];
+  });
+  closeDefaultCatalog = () => catalog.close();
   const readWeReadState = desktopApi?.getWeReadState;
   const getWeReadState = readWeReadState
     ? async () => {
         const state = await readWeReadState();
-        wereadBooks = state.books;
+        catalog.replaceWeReadBooks(state.books);
         return state;
       }
     : undefined;
@@ -299,7 +209,7 @@ function installDefaultCatalog(
   const onWeReadStateUpdated = subscribeToWeReadState
     ? (listener: Parameters<NonNullable<typeof desktopApi.onWeReadStateUpdated>>[0]) =>
         subscribeToWeReadState((state) => {
-          wereadBooks = state.books;
+          catalog.replaceWeReadBooks(state.books);
           listener(state);
         })
     : undefined;
@@ -308,12 +218,7 @@ function installDefaultCatalog(
     getArticleCover: desktopApi?.getArticleCover || vi.fn(async () => null),
     getWeReadState,
     listLibraryCatalog: (input: LibraryCatalogListInput) =>
-      immediateCatalogResult(
-        defaultCatalogResult(input, {
-          ...catalogFixtures,
-          wereadBooks,
-        }),
-      ),
+      immediateCatalogResult(catalog.list(input)),
     onWeReadStateUpdated,
   });
 }
