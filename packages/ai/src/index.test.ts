@@ -1291,6 +1291,11 @@ describe('agent annotations', () => {
       exact: newExact,
       type: 'question',
       readingIntent: 'question',
+      moveType: 'challenge_argument',
+      whyHere: '这里提出了一个需要证据支撑的新判断。',
+      evidenceUsed: ['localText', 'trace'],
+      confidence: 'high',
+      shouldShow: true,
       comment: '这里提出了新的判断，适合继续追问证据和适用边界。',
     });
     const fetchMock = vi
@@ -1337,7 +1342,16 @@ describe('agent annotations', () => {
     expect(requestBody.messages[1]?.content).toContain('请用 NDJSON 返回批注');
     expect(result.annotations.map((annotation) => annotation.anchor.exact)).toEqual([newExact]);
     expect(onAnnotation).toHaveBeenCalledTimes(1);
-    expect(onAnnotation.mock.calls[0]?.[0].anchor.exact).toBe(newExact);
+    expect(onAnnotation.mock.calls[0]?.[0]).toMatchObject({
+      anchor: { exact: newExact },
+      annotationType: 'question',
+      readingIntent: 'question',
+      moveType: 'challenge_argument',
+      whyHere: '这里提出了一个需要证据支撑的新判断。',
+      evidenceUsed: ['localText', 'trace'],
+      confidence: 'high',
+      shouldShow: true,
+    });
   });
 
   it('generates ebook reading plan annotations segment by segment', async () => {

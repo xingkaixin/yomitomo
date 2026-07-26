@@ -5,16 +5,10 @@ import type {
   Annotation,
   LlmProvider,
 } from '@yomitomo/shared';
-import {
-  agentReadingIntentOptions,
-  normalizeAgentReadingIntent,
-  normalizeAnnotationType,
-  resolvePromptAgentIdentity,
-} from '@yomitomo/shared';
+import { agentReadingIntentOptions, resolvePromptAgentIdentity } from '@yomitomo/shared';
 import {
   buildCurrentChapterLexicalRelatedPassages,
   buildReadingContextBundle,
-  rangeDistance,
   readingContextTextForRange,
   wholeBookSpoilerPolicy,
   type ReadingContextBundle,
@@ -51,8 +45,8 @@ import { responseLanguageSystemPrompt } from './agent-language';
 import {
   annotationDensityInstruction,
   annotationDensityMax,
-  createAgentAnnotation,
-  parseAnnotationSuggestions,
+  createAnnotationSuggestionAcceptance,
+  parseAnnotationSuggestionInputs,
 } from './annotation-generation';
 
 export async function runAgentAnnotate(
@@ -81,37 +75,24 @@ export const runAgentAnnotateEffect = Effect.fn('Agent.annotate')(function (
       maxTokens: 4000,
       temperature: agent.temperature,
     });
-    const suggestions = parseAnnotationSuggestions(text);
     const now = new Date().toISOString();
     const maxAnnotations = agentAnnotationOutputLimit(agent, payload, context);
     const annotations: Annotation[] = [];
-    const deduper = createAnnotationThoughtDeduper(payload);
+    const acceptance = createArticleAnnotationSuggestionAcceptance(agent, payload, 'article_json');
 
-    for (const suggestion of suggestions) {
-      if (annotations.length >= maxAnnotations) break;
-      if (suggestion.shouldShow === false) continue;
-      const annotation = createAgentAnnotation(
-        agent,
-        payload.article.text,
-        {
-          ...suggestion,
-          ...targetAnchorSuggestion(payload),
-          annotationType: payload.annotationType || suggestion.annotationType,
-          readingIntent: payload.readingIntent || suggestion.readingIntent,
+    for (const input of parseAnnotationSuggestionInputs(text)) {
+      const result = acceptance.accept(input, {
+        maxAnnotations,
+        annotationType: payload.annotationType,
+        readingIntent: payload.readingIntent,
+        targetAnchor: payload.targetAnchor,
+        createOptions: {
+          ebookIndex: payload.article.ebookIndex,
+          performanceLogger: logAiInfo,
         },
         now,
-        { ebookIndex: payload.article.ebookIndex, performanceLogger: logAiInfo },
-      );
-      if (!annotation) continue;
-      if (!deduper.accept(annotation)) {
-        logAiInfo('agent.annotate.skip', {
-          agent: agent.username,
-          reason: 'duplicate_existing_thought',
-          exactPreview: annotation.anchor.exact.slice(0, 120),
-        });
-        continue;
-      }
-      annotations.push(annotation);
+      });
+      if (result.status === 'accepted') annotations.push(result.annotation);
     }
 
     return annotations;
@@ -231,57 +212,26 @@ export const runAgentAnnotateStreamEffect = Effect.fn('Agent.annotateStream')(fu
     const context = buildAgentAnnotateContextBundle(payload);
     const maxAnnotations = agentAnnotationOutputLimit(agent, payload, context);
     const annotations: Annotation[] = [];
-    const deduper = createAnnotationThoughtDeduper(payload);
-    let annotationCount = 0;
+    const acceptance = createArticleAnnotationSuggestionAcceptance(
+      agent,
+      payload,
+      'article_ndjson',
+    );
     const flushJson = (json: string) => {
-      if (annotationCount >= maxAnnotations) return;
       try {
-        const parsed = JSON.parse(json) as {
-          exact?: unknown;
-          prefix?: unknown;
-          suffix?: unknown;
-          context?: unknown;
-          comment?: unknown;
-          type?: unknown;
-          readingIntent?: unknown;
-        };
-        const exact = typeof parsed.exact === 'string' ? parsed.exact : '';
-        const annotation = createAgentAnnotation(
-          agent,
-          payload.article.text,
-          {
-            exact,
-            prefix: typeof parsed.prefix === 'string' ? parsed.prefix : undefined,
-            suffix: typeof parsed.suffix === 'string' ? parsed.suffix : undefined,
-            context: typeof parsed.context === 'string' ? parsed.context : undefined,
-            comment: typeof parsed.comment === 'string' ? parsed.comment : '',
-            annotationType: payload.annotationType || normalizeAnnotationType(parsed.type),
-            readingIntent:
-              payload.readingIntent || normalizeAgentReadingIntent(parsed.readingIntent),
-            ...targetAnchorSuggestion(payload),
+        const result = acceptance.accept(JSON.parse(json), {
+          maxAnnotations,
+          annotationType: payload.annotationType,
+          readingIntent: payload.readingIntent,
+          targetAnchor: payload.targetAnchor,
+          createOptions: {
+            ebookIndex: payload.article.ebookIndex,
+            performanceLogger: logAiInfo,
           },
-          new Date().toISOString(),
-          { ebookIndex: payload.article.ebookIndex, performanceLogger: logAiInfo },
-        );
-        if (!annotation) {
-          logAiInfo('agent.annotate.skip', {
-            agent: agent.username,
-            reason: 'exact_not_found',
-            exactPreview: exact.slice(0, 120),
-          });
-          return;
-        }
-        if (!deduper.accept(annotation)) {
-          logAiInfo('agent.annotate.skip', {
-            agent: agent.username,
-            reason: 'duplicate_existing_thought',
-            exactPreview: exact.slice(0, 120),
-          });
-          return;
-        }
-        annotationCount += 1;
-        annotations.push(annotation);
-        onAnnotation(annotation);
+        });
+        if (result.status === 'rejected') return;
+        annotations.push(result.annotation);
+        onAnnotation(result.annotation);
       } catch (error) {
         logAiError('agent.annotate.ndjson_parse_error', error, {
           agent: agent.username,
@@ -334,15 +284,19 @@ function buildAgentAnnotateSystemPrompt(agent: Agent, payload: AgentAnnotatePayl
   return `${buildAgentRoleCard(agent, payload.uiLanguage)}\n\n${scope}${readingAssistantPrinciplesPrompt(payload.uiLanguage)}${readingIntentSystemPrompt(payload)}${responseLanguageSystemPrompt(payload.uiLanguage)}`;
 }
 
-function targetAnchorSuggestion(payload: AgentAnnotatePayload) {
-  const anchor = payload.targetAnchor;
-  return anchor
-    ? {
-        exact: anchor.exact,
-        prefix: anchor.prefix,
-        suffix: anchor.suffix,
-      }
-    : {};
+function createArticleAnnotationSuggestionAcceptance(
+  agent: Agent,
+  payload: AgentAnnotatePayload,
+  path: 'article_json' | 'article_ndjson',
+) {
+  return createAnnotationSuggestionAcceptance({
+    agent,
+    articleText: payload.article.text,
+    path,
+    dedupe: payload.targetAnchor || !payload.readingPlan?.length ? 'none' : 'thought',
+    existingAnnotations: payload.annotations,
+    logger: logAiInfo,
+  });
 }
 
 function buildAgentAnnotateContextBundle(payload: AgentAnnotatePayload) {
@@ -396,113 +350,6 @@ function annotationBudgetText(payload: AgentAnnotatePayload, context?: ReadingCo
         : payload.article.text.slice(item.sectionStart, item.sectionEnd),
     )
     .join('\n');
-}
-
-function createAnnotationThoughtDeduper(payload: AgentAnnotatePayload) {
-  if (payload.targetAnchor || !payload.readingPlan?.length) {
-    return { accept: () => true };
-  }
-
-  const accepted = (payload.annotations || []).flatMap((annotation) => {
-    const item = annotationThoughtDedupItem(payload.article.text, annotation);
-    return item ? [item] : [];
-  });
-
-  return {
-    accept(annotation: Annotation) {
-      const item = annotationThoughtDedupItem(payload.article.text, annotation);
-      if (!item) return true;
-      if (accepted.some((existing) => annotationThoughtsDuplicate(existing, item))) return false;
-      accepted.push(item);
-      return true;
-    },
-  };
-}
-
-type AnnotationThoughtDedupItem = {
-  exactKey: string;
-  textStart: number;
-  textEnd: number;
-  comments: string[];
-};
-
-function annotationThoughtDedupItem(
-  articleText: string,
-  annotation: Annotation,
-): AnnotationThoughtDedupItem | null {
-  const textStart =
-    integerValue(annotation.anchor.textStartInBook) ?? integerValue(annotation.anchor.start);
-  const textEnd =
-    integerValue(annotation.anchor.textEndInBook) ?? integerValue(annotation.anchor.end);
-  if (textStart === null || textEnd === null || textEnd <= textStart) return null;
-
-  const comments = annotation.comments
-    .map((comment) => normalizeThoughtText(comment.content))
-    .filter((comment) => comment.length >= 12);
-  return {
-    exactKey: normalizeThoughtText(
-      annotation.anchor.exact || articleText.slice(textStart, textEnd),
-    ),
-    textStart,
-    textEnd,
-    comments,
-  };
-}
-
-function annotationThoughtsDuplicate(
-  left: AnnotationThoughtDedupItem,
-  right: AnnotationThoughtDedupItem,
-) {
-  if (!sameAnnotationAnchor(left, right)) return false;
-  if (left.comments.length === 0 || right.comments.length === 0)
-    return left.exactKey === right.exactKey;
-
-  return left.comments.some((leftComment) =>
-    right.comments.some((rightComment) => thoughtTextsSimilar(leftComment, rightComment)),
-  );
-}
-
-function sameAnnotationAnchor(
-  left: Pick<AnnotationThoughtDedupItem, 'exactKey' | 'textStart' | 'textEnd'>,
-  right: Pick<AnnotationThoughtDedupItem, 'exactKey' | 'textStart' | 'textEnd'>,
-) {
-  if (left.exactKey && left.exactKey === right.exactKey) return true;
-  return rangeDistance(left, right) <= 16;
-}
-
-function thoughtTextsSimilar(left: string, right: string) {
-  if (!left || !right) return false;
-  if (left === right) return true;
-  const shorter = left.length < right.length ? left : right;
-  const longer = left.length < right.length ? right : left;
-  if (shorter.length >= 24 && longer.includes(shorter)) return true;
-  return diceCoefficient(characterBigrams(left), characterBigrams(right)) >= 0.58;
-}
-
-function characterBigrams(text: string) {
-  if (text.length <= 1) return new Set(text ? [text] : []);
-  const grams = new Set<string>();
-  for (let index = 0; index < text.length - 1; index += 1) {
-    grams.add(text.slice(index, index + 2));
-  }
-  return grams;
-}
-
-function diceCoefficient(left: Set<string>, right: Set<string>) {
-  if (left.size === 0 || right.size === 0) return 0;
-  let overlap = 0;
-  for (const item of left) {
-    if (right.has(item)) overlap += 1;
-  }
-  return (2 * overlap) / (left.size + right.size);
-}
-
-function normalizeThoughtText(text: string) {
-  return text.replace(/[\s"'“”‘’`，。！？、；：,.!?;:—\-（）()[\]{}]/g, '').toLowerCase();
-}
-
-function integerValue(value: number | undefined): number | null {
-  return Number.isInteger(value) && value !== undefined ? value : null;
 }
 
 function readingPlanPrompt(payload: AgentAnnotatePayload, context: ReadingContextBundle) {
