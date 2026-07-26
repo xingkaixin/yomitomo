@@ -36,7 +36,7 @@ type SourceAnnotationsChange = {
   nextArticle: ArticleRecord;
 };
 
-type UseSourceReaderSessionOptions = {
+export type UseSourceReaderSessionOptions = {
   agents: Agent[];
   agentAnnotationAdapter?: SourceAgentAnnotationAdapter;
   annotations: Annotation[];

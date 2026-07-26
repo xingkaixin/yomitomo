@@ -59,11 +59,8 @@ import {
 } from './app-source-bookcase-ebook-utils';
 import { ArticleBook } from '../../shell/app-article-book';
 import { articleDisplayTitle } from '../../reading-library/app-reading-library-utils';
-import { useSourceReaderSession } from '../bookcase/use-source-reader-session';
 import { createEbookSourceReaderController } from './app-source-bookcase-ebook-controller';
-import { useSourceReaderWorkspace } from '../bookcase/use-source-reader-workspace';
-import { buildSourceReaderAppActions } from '../bookcase/source-reader-app-actions';
-import { buildSourceReaderAppViewProps } from '../bookcase/source-reader-app-view-props';
+import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
 import { useReaderSearchNavigation } from '../bookcase/use-reader-search-navigation';
 
 function cssPixelValue(value: string) {
@@ -131,79 +128,90 @@ export function EbookBookcase({
     cleanupFoliateDocumentListenersRef.current();
     cleanupFoliateTranslationRef.current();
   }, []);
-  const [statusMessage, setStatusMessage] = useState('');
-  const sourceReaderSession = useSourceReaderSession({
-    agents,
-    agentAnnotationAdapter: createEbookSourceReaderController({
-      appendAgentAnnotationToArticle,
-      currentArticleText,
-      enqueueAgentAnnotationPlayback: (articleId, annotation, options) =>
-        enqueueEbookAgentAnnotationPlayback(articleId, annotation, options),
-      finishAgentDock: (agentId, completed) => finishEbookAgentDock(agentId, completed),
-      finishVirtualReading: (agentId, message) => finishEbookVirtualReading(agentId, message),
-      isAgentAnnotating: (agentId) => annotatingAgentIds.includes(agentId),
-      isCurrentArticle,
-      setAgentAnnotating: (agentId, annotating) =>
-        setAnnotatingAgentIds((ids) => {
-          if (annotating) return ids.includes(agentId) ? ids : [...ids, agentId];
-          return ids.filter((id) => id !== agentId);
-        }),
-      setStatusMessage,
-      startAgentDock: (agent) => startEbookAgentDock(agent),
-      startVirtualReading: (agent, targetAnchor) => startEbookVirtualReading(agent, targetAnchor),
-      waitForPlaybackCompletion: async () => {
-        await ebookAgentAnimationQueueRef.current;
-        await sleep(900);
-      },
-    }),
-    annotations: articleAnnotations,
-    article,
-    onArticleChange,
-    clearPendingOnArticleChange: true,
-    clearPendingOnDeleteAnnotation: true,
-    uiLanguage,
-    onBeforeDeleteAnnotation: (annotationId) => {
-      noteRefs.current.delete(annotationId);
-    },
+  const sourceReaderApp = useSourceReaderApp({
+    canvasRef,
+    createAgentAnnotationAdapter: ({ setStatusMessage }) =>
+      createEbookSourceReaderController({
+        appendAgentAnnotationToArticle,
+        currentArticleText,
+        enqueueAgentAnnotationPlayback: (articleId, annotation, options) =>
+          enqueueEbookAgentAnnotationPlayback(articleId, annotation, options),
+        finishAgentDock: (agentId, completed) => finishEbookAgentDock(agentId, completed),
+        finishVirtualReading: (agentId, message) => finishEbookVirtualReading(agentId, message),
+        isAgentAnnotating: (agentId) => annotatingAgentIds.includes(agentId),
+        isCurrentArticle,
+        setAgentAnnotating: (agentId, annotating) =>
+          setAnnotatingAgentIds((ids) => {
+            if (annotating) return ids.includes(agentId) ? ids : [...ids, agentId];
+            return ids.filter((id) => id !== agentId);
+          }),
+        setStatusMessage,
+        startAgentDock: (agent) => startEbookAgentDock(agent),
+        startVirtualReading: (agent, targetAnchor) => startEbookVirtualReading(agent, targetAnchor),
+        waitForPlaybackCompletion: async () => {
+          await ebookAgentAnimationQueueRef.current;
+          await sleep(900);
+        },
+      }),
     getArticleText: currentArticleText,
-    onAnnotationsApplied: ({ previousAnnotations, nextAnnotations }) => {
-      const previousHighlightSignature = ebookHighlightAnnotationsSignature(
-        previousAnnotations,
-        userProfile,
-        sourceReaderSession.annotationAgents,
-      );
-      const nextHighlightSignature = ebookHighlightAnnotationsSignature(
-        nextAnnotations,
-        userProfile,
-        sourceReaderSession.annotationAgents,
-      );
-      if (nextHighlightSignature !== previousHighlightSignature) {
-        scheduleEbookBoxUpdate('annotations_applied');
-      }
+    messageSendShortcut,
+    selectionActionShortcuts,
+    session: {
+      agents,
+      annotations: articleAnnotations,
+      article,
+      onArticleChange,
+      clearPendingOnArticleChange: true,
+      clearPendingOnDeleteAnnotation: true,
+      uiLanguage,
+      onBeforeDeleteAnnotation: (annotationId) => {
+        noteRefs.current.delete(annotationId);
+      },
+      onAnnotationsApplied: ({ previousAnnotations, nextAnnotations }) => {
+        const previousHighlightSignature = ebookHighlightAnnotationsSignature(
+          previousAnnotations,
+          userProfile,
+          sourceReaderSession.annotationAgents,
+        );
+        const nextHighlightSignature = ebookHighlightAnnotationsSignature(
+          nextAnnotations,
+          userProfile,
+          sourceReaderSession.annotationAgents,
+        );
+        if (nextHighlightSignature !== previousHighlightSignature) {
+          scheduleEbookBoxUpdate('annotations_applied');
+        }
+      },
+      onAnnotationsSaved: ({ previousAnnotations, nextAnnotations }) => {
+        const previousHighlightSignature = ebookHighlightAnnotationsSignature(
+          previousAnnotations,
+          userProfile,
+          sourceReaderSession.annotationAgents,
+        );
+        const nextHighlightSignature = ebookHighlightAnnotationsSignature(
+          nextAnnotations,
+          userProfile,
+          sourceReaderSession.annotationAgents,
+        );
+        if (nextHighlightSignature !== previousHighlightSignature) {
+          scheduleEbookBoxUpdate('annotations_saved');
+        }
+      },
+      onOpenAnnotation: openAnnotation,
+      onDeleteArticleAnnotation,
+      onDeleteArticleComment,
+      onSaveArticleAnnotation,
+      onSaveArticleComment,
+      userProfile,
     },
-    onAnnotationsSaved: ({ previousAnnotations, nextAnnotations }) => {
-      const previousHighlightSignature = ebookHighlightAnnotationsSignature(
-        previousAnnotations,
-        userProfile,
-        sourceReaderSession.annotationAgents,
-      );
-      const nextHighlightSignature = ebookHighlightAnnotationsSignature(
-        nextAnnotations,
-        userProfile,
-        sourceReaderSession.annotationAgents,
-      );
-      if (nextHighlightSignature !== previousHighlightSignature) {
-        scheduleEbookBoxUpdate('annotations_saved');
-      }
-    },
-    onOpenAnnotation: openAnnotation,
-    onDeleteArticleAnnotation,
-    onDeleteArticleComment,
-    onSaveArticleAnnotation,
-    onSaveArticleComment,
-    setStatusMessage,
-    userProfile,
+    onSaveArticleReaderChatState,
   });
+  const {
+    session: sourceReaderSession,
+    setStatusMessage,
+    statusMessage,
+    workspace: sourceReaderWorkspace,
+  } = sourceReaderApp;
   const {
     addComment,
     annotations,
@@ -220,16 +228,6 @@ export function EbookBookcase({
   const [searchBoxes, setSearchBoxes] = useState<HighlightBox[]>([]);
   const clearSearchBoxes = useCallback(() => setSearchBoxes([]), []);
 
-  const sourceReaderWorkspace = useSourceReaderWorkspace({
-    article,
-    canvasRef,
-    getArticleText: currentArticleText,
-    messageSendShortcut,
-    selectionActionShortcuts,
-    session: sourceReaderSession,
-    uiLanguage,
-    onSaveArticleReaderChatState,
-  });
   const {
     actionShortcuts,
     closeFloatingComments,
@@ -976,56 +974,53 @@ export function EbookBookcase({
     return annotations.filter((annotation) => visibleIds.has(annotation.id));
   }, [annotations, boxes]);
   const supportsAnnotationNavigation = ebookHasStableSectionChapterMapping(article);
-  const readerActions = buildSourceReaderAppActions({
-    articleId: article.id,
-    annotation: {
-      onAddComment: addComment,
-      onAnnotationLayoutChange: recalculateActiveConnection,
-      onClearActiveAnnotation: () => onOpenAnnotation(null),
-      onCreateAnnotation: createAnnotation,
-      onDeleteAnnotation: deleteAnnotation,
-      onDeleteComment: deleteComment,
-      onFocusAnnotation: openAnnotation,
-      onHighlightClick: handleHighlightClick,
-      onNavigateAnnotation: supportsAnnotationNavigation ? navigateAnnotation : undefined,
-      onResolveAnnotationNavigation: supportsAnnotationNavigation
-        ? resolveAnnotationNavigation
-        : undefined,
-      onScrollToHighlight: focusPageAnnotation,
-    },
-    chat: readerChat.actions,
-    selection: {
-      onCancelComposer: cancelComposer,
-      onClearSelection: clearSelection,
-      onCloseHighlightChoice: () => setHighlightChoice(null),
-      onCopySelection: copySelection,
-      onMouseUp: () => undefined,
-      onAskSelection: askSelection,
-      onOpenComposer: openComposer,
-      onSelectionHandleDrag: updateEbookSelectionAdjustment,
-      onSelectionHandleDragEnd: finishEbookSelectionAdjustment,
-      onSelectionHandleDragStart: startEbookSelectionAdjustment,
-    },
-    shell: {
-      onClose,
-      onCloseFloatingPanels: () => {
-        setSettingsOpen(false);
+  const readerAppViewProps = sourceReaderApp.viewProps({
+    actions: {
+      annotation: {
+        onAddComment: addComment,
+        onAnnotationLayoutChange: recalculateActiveConnection,
+        onClearActiveAnnotation: () => onOpenAnnotation(null),
+        onCreateAnnotation: createAnnotation,
+        onDeleteAnnotation: deleteAnnotation,
+        onDeleteComment: deleteComment,
+        onFocusAnnotation: openAnnotation,
+        onHighlightClick: handleHighlightClick,
+        onNavigateAnnotation: supportsAnnotationNavigation ? navigateAnnotation : undefined,
+        onResolveAnnotationNavigation: supportsAnnotationNavigation
+          ? resolveAnnotationNavigation
+          : undefined,
+        onScrollToHighlight: focusPageAnnotation,
       },
-      onCloseResponsivePanels: () => {
-        setTocOpen(false);
+      selection: {
+        onCancelComposer: cancelComposer,
+        onClearSelection: clearSelection,
+        onCloseHighlightChoice: () => setHighlightChoice(null),
+        onCopySelection: copySelection,
+        onMouseUp: () => undefined,
+        onAskSelection: askSelection,
+        onOpenComposer: openComposer,
+        onSelectionHandleDrag: updateEbookSelectionAdjustment,
+        onSelectionHandleDragEnd: finishEbookSelectionAdjustment,
+        onSelectionHandleDragStart: startEbookSelectionAdjustment,
       },
-      onToggleSettings: () => setSettingsOpen((open) => !open),
-      onUpdateReaderSettings: updateEbookReaderSettings,
+      shell: {
+        onClose,
+        onCloseFloatingPanels: () => {
+          setSettingsOpen(false);
+        },
+        onCloseResponsivePanels: () => {
+          setTocOpen(false);
+        },
+        onToggleSettings: () => setSettingsOpen((open) => !open),
+        onUpdateReaderSettings: updateEbookReaderSettings,
+      },
+      toc: {
+        onScrollToHeading: goToReaderTocItem,
+        onToggleToc: () => setTocOpen((open) => !open),
+      },
+      onOpenAnnotationDiscussion,
+      onRevealReaderChatContext: revealReaderChatContext,
     },
-    toc: {
-      onScrollToHeading: goToReaderTocItem,
-      onToggleToc: () => setTocOpen((open) => !open),
-    },
-    onOpenAnnotationDiscussion,
-    onRevealReaderChatContext: revealReaderChatContext,
-  });
-  const readerAppViewProps = buildSourceReaderAppViewProps({
-    actions: readerActions,
     agentPlayback: {
       completionBurstKey: ebookCompletionBurstKey,
       dockCompleting: ebookAgentDockCompleting,
@@ -1057,7 +1052,6 @@ export function EbookBookcase({
       notesRef: railRef,
       surfaceRef,
     },
-    session: sourceReaderSession,
     toc: {
       activeIndex: activeTocIndex,
       annotationStats: tocStats,
@@ -1149,7 +1143,6 @@ export function EbookBookcase({
       search: searchNavigation.search,
     },
     userProfile,
-    workspace: sourceReaderWorkspace,
   });
 
   return (
