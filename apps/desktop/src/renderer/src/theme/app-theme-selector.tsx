@@ -1,5 +1,6 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Cancel01Icon, ColorPickerIcon } from '@hugeicons/core-free-icons';
 import { useState, type CSSProperties } from 'react';
-import { Palette, X } from 'lucide-react';
 import {
   defaultReaderBackgroundForTone,
   readerBackgroundOptions,
@@ -107,7 +108,7 @@ export function ThemeSelector({
           onOpenChange(true);
         }}
       >
-        <Palette aria-hidden="true" size={18} strokeWidth={2.2} />
+        <HugeiconsIcon icon={ColorPickerIcon} aria-hidden="true" size={18} strokeWidth={2.2} />
       </IconButton>
       {open ? (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -117,7 +118,12 @@ export function ThemeSelector({
                 <header className="theme-dialog-header">
                   <div>
                     <span className="theme-dialog-icon">
-                      <Palette aria-hidden="true" size={18} strokeWidth={2.2} />
+                      <HugeiconsIcon
+                        icon={ColorPickerIcon}
+                        aria-hidden="true"
+                        size={18}
+                        strokeWidth={2.2}
+                      />
                     </span>
                     <div>
                       <DialogTitle id="theme-dialog-title">{t('theme.title')}</DialogTitle>
@@ -129,7 +135,7 @@ export function ThemeSelector({
                     className="theme-dialog-close"
                     onClick={() => onOpenChange(false)}
                   >
-                    <X aria-hidden="true" size={18} />
+                    <HugeiconsIcon icon={Cancel01Icon} aria-hidden="true" size={18} />
                   </IconButton>
                 </header>
                 <div className="theme-tone-switch" role="group" aria-label={t('theme.category')}>

@@ -1,5 +1,6 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Cancel01Icon, RotateLeft01Icon, SparklesIcon, ViewIcon } from '@hugeicons/core-free-icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Eye, RotateCcw, Sparkles, X } from 'lucide-react';
 import type {
   AnnotationDistillationProposal,
   AnnotationDistillationReviewMessage,
@@ -59,7 +60,7 @@ export function OrganizeDiscussionConfirmDialog({
           >
             <header>
               <span className="annotation-sedimentation-confirm-icon" aria-hidden="true">
-                <Sparkles size={18} />
+                <HugeiconsIcon icon={SparklesIcon} size={18} />
               </span>
               <div>
                 <DialogTitle id="annotation-sedimentation-organize-confirm-title">
@@ -171,7 +172,7 @@ export function OrganizeDiscussionCard({
         <header>
           <div className="annotation-sedimentation-organize-title">
             <span className="annotation-sedimentation-organize-icon">
-              <Sparkles size={15} />
+              <HugeiconsIcon icon={SparklesIcon} size={15} />
             </span>
             <div>
               <strong>{t('sedimentation.organizeCardTitle')}</strong>
@@ -192,7 +193,7 @@ export function OrganizeDiscussionCard({
       <header>
         <div className="annotation-sedimentation-organize-title">
           <span className="annotation-sedimentation-organize-icon">
-            <Sparkles size={15} />
+            <HugeiconsIcon icon={SparklesIcon} size={15} />
           </span>
           <div>
             <strong>{t('sedimentation.organizeCardTitle')}</strong>
@@ -204,7 +205,7 @@ export function OrganizeDiscussionCard({
           <span>{agent.nickname}</span>
           {isFailed ? (
             <button type="button" onClick={onRetry}>
-              <RotateCcw size={14} />
+              <HugeiconsIcon icon={RotateLeft01Icon} size={14} />
               <span>{t('sedimentation.organizeCardRetry')}</span>
             </button>
           ) : null}
@@ -215,7 +216,7 @@ export function OrganizeDiscussionCard({
               aria-label={t('sedimentation.organizeCardClose')}
               onClick={onClose}
             >
-              <X size={14} />
+              <HugeiconsIcon icon={Cancel01Icon} size={14} />
             </button>
           ) : null}
         </div>
@@ -336,7 +337,7 @@ function OrganizeProposalList({
                 </span>
               ) : (
                 <button type="button" onClick={() => onPreviewProposals(pendingProposals)}>
-                  <Eye size={14} />
+                  <HugeiconsIcon icon={ViewIcon} size={14} />
                   <span>{t('sedimentation.previewProposal')}</span>
                 </button>
               )}

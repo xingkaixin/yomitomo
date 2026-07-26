@@ -1,5 +1,11 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import {
+  Add01Icon,
+  CaseSensitiveIcon,
+  Maximize02Icon,
+  MinusSignIcon,
+} from '@hugeicons/core-free-icons';
 import type React from 'react';
-import { CaseSensitive, Maximize2, Minus, Plus } from 'lucide-react';
 import type { ReaderSettings } from '../reader-types';
 
 export function ReaderSettingsPanel({
@@ -16,14 +22,14 @@ export function ReaderSettingsPanel({
   return (
     <div className="reader-settings-panel" {...panelProps}>
       <SettingStepper
-        icon={<CaseSensitive size={17} />}
+        icon={<HugeiconsIcon icon={CaseSensitiveIcon} size={17} />}
         label={labels.fontSize}
         value={`${settings.fontSize}px`}
         onDecrease={() => onChange({ ...settings, fontSize: Math.max(16, settings.fontSize - 1) })}
         onIncrease={() => onChange({ ...settings, fontSize: Math.min(28, settings.fontSize + 1) })}
       />
       <SettingStepper
-        icon={<Maximize2 size={16} />}
+        icon={<HugeiconsIcon icon={Maximize02Icon} size={16} />}
         label={labels.articleWidth}
         value={`${settings.contentWidth}px`}
         onDecrease={() =>
@@ -58,11 +64,11 @@ function SettingStepper({
       </div>
       <div className="reader-stepper">
         <button type="button" onClick={onDecrease} aria-label={`减少${label}`}>
-          <Minus size={14} />
+          <HugeiconsIcon icon={MinusSignIcon} size={14} />
         </button>
         <strong>{value}</strong>
         <button type="button" onClick={onIncrease} aria-label={`增加${label}`}>
-          <Plus size={14} />
+          <HugeiconsIcon icon={Add01Icon} size={14} />
         </button>
       </div>
     </div>

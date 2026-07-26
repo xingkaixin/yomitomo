@@ -19,9 +19,10 @@
     "@astrojs/react": "^5.0.7",
     "@astrojs/starlight": "^0.40.0",
     "@base-ui/react": "^1.6.0",
+    "@hugeicons/core-free-icons": "^4.2.3",
+    "@hugeicons/react": "^1.1.9",
     "@yomitomo/reader-ui": "workspace:*",
     "astro": "^6.4.8",
-    "lucide-react": "^1.21.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },

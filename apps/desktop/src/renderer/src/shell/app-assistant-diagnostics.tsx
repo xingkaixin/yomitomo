@@ -1,7 +1,14 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import {
+  Activity01Icon,
+  ArrowDown01Icon,
+  Calendar01Icon,
+  Refresh01Icon,
+  Route01Icon,
+} from '@hugeicons/core-free-icons';
 import React, { useEffect, useMemo, useState } from 'react';
 import { addDays, format } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
-import { Activity, CalendarIcon, ChevronDown, RefreshCw, Route } from 'lucide-react';
 import type { Agent, LlmProvider } from '@yomitomo/shared';
 import type {
   AssistantExecutionQueryInput,
@@ -108,7 +115,7 @@ export function AiTraceSettingsPanel({ agents, providers }: DiagnosticsProps) {
   return (
     <div className="settings-panel diagnostics-panel">
       <PanelHeader
-        icon={<Route size={20} />}
+        icon={<HugeiconsIcon icon={Route01Icon} size={20} />}
         title={t('diagnostics.traceTitle')}
         description={t('diagnostics.traceDescription')}
       />
@@ -147,7 +154,7 @@ export function AiTraceSettingsPanel({ agents, providers }: DiagnosticsProps) {
               <span>
                 {formatCost(run.estimatedCostMicros, run.currency, t('diagnostics.missingCost'))}
               </span>
-              <ChevronDown size={16} />
+              <HugeiconsIcon icon={ArrowDown01Icon} size={16} />
             </button>
             {expandedId === run.id ? (
               <TraceRunDetails
@@ -208,7 +215,7 @@ export function AiUsagePanel({ agents }: { agents: Agent[] }) {
           variant="secondary"
           onClick={refresh}
         >
-          <RefreshCw size={15} />
+          <HugeiconsIcon icon={Refresh01Icon} size={15} />
           {t('diagnostics.refresh')}
         </Button>
       </div>
@@ -354,7 +361,7 @@ function DiagnosticsToolbar({
           type="button"
           onClick={onRefresh}
         >
-          <RefreshCw size={15} />
+          <HugeiconsIcon icon={Refresh01Icon} size={15} />
           {t('diagnostics.query')}
         </Button>
       </div>
@@ -376,7 +383,7 @@ function DateRangePicker({
       <Popover>
         <PopoverTrigger asChild>
           <Button className="diagnostics-date-trigger" variant="outline" type="button">
-            <CalendarIcon size={15} />
+            <HugeiconsIcon icon={Calendar01Icon} size={15} />
             {dateRangeLabel(value, t)}
           </Button>
         </PopoverTrigger>
@@ -546,7 +553,7 @@ function DiagnosticsStatus({
   const { t } = useTranslation();
   return (
     <div className={status === 'error' ? 'diagnostics-status is-error' : 'diagnostics-status'}>
-      <Activity size={16} />
+      <HugeiconsIcon icon={Activity01Icon} size={16} />
       <span>{message}</span>
       {onRetry ? (
         <Button size="sm" variant="outline" type="button" onClick={onRetry}>

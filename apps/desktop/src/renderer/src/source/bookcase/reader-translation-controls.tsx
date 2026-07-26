@@ -1,4 +1,11 @@
-import { Eye, EyeOff, Languages, RefreshCw, Trash2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import {
+  Delete02Icon,
+  LanguageCircleIcon,
+  Refresh01Icon,
+  ViewIcon,
+  ViewOffIcon,
+} from '@hugeicons/core-free-icons';
 import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import {
   Dialog,
@@ -49,7 +56,11 @@ export function ReaderTranslationToolbarButton({
           type="button"
           onClick={() => onConfirm('translate')}
         >
-          {busy ? <RefreshCw size={18} /> : <Languages size={18} />}
+          {busy ? (
+            <HugeiconsIcon icon={Refresh01Icon} size={18} />
+          ) : (
+            <HugeiconsIcon icon={LanguageCircleIcon} size={18} />
+          )}
         </button>
       </ReaderTooltip>
     );
@@ -67,7 +78,13 @@ export function ReaderTranslationToolbarButton({
               .join(' ')}
             type="button"
           >
-            {busy ? <RefreshCw size={18} /> : visible ? <EyeOff size={18} /> : <Eye size={18} />}
+            {busy ? (
+              <HugeiconsIcon icon={Refresh01Icon} size={18} />
+            ) : visible ? (
+              <HugeiconsIcon icon={ViewOffIcon} size={18} />
+            ) : (
+              <HugeiconsIcon icon={ViewIcon} size={18} />
+            )}
           </button>
         </PopoverTrigger>
       </ReaderTooltip>
@@ -80,7 +97,11 @@ export function ReaderTranslationToolbarButton({
             onMenuOpenChange(false);
           }}
         >
-          {visible ? <EyeOff size={15} /> : <Eye size={15} />}
+          {visible ? (
+            <HugeiconsIcon icon={ViewOffIcon} size={15} />
+          ) : (
+            <HugeiconsIcon icon={ViewIcon} size={15} />
+          )}
           <span>{buttonLabel}</span>
         </button>
         <button
@@ -92,7 +113,7 @@ export function ReaderTranslationToolbarButton({
             onConfirm('retranslate');
           }}
         >
-          <RefreshCw size={15} />
+          <HugeiconsIcon icon={Refresh01Icon} size={15} />
           <span>{labels.retranslate}</span>
         </button>
         <button
@@ -105,7 +126,7 @@ export function ReaderTranslationToolbarButton({
             onConfirm('delete');
           }}
         >
-          <Trash2 size={15} />
+          <HugeiconsIcon icon={Delete02Icon} size={15} />
           <span>{labels.deleteTranslation}</span>
         </button>
       </PopoverContent>

@@ -1,5 +1,6 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LockKeyIcon } from '@hugeicons/core-free-icons';
 import { useEffect, useState, type ReactNode } from 'react';
-import { LockKeyhole } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { DesktopStore } from '@yomitomo/shared';
 import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
@@ -199,7 +200,7 @@ function AppLockOverlay({
     >
       <div className="app-lock-panel" data-step={step}>
         <span className="app-lock-icon" aria-hidden="true">
-          <LockKeyhole size={24} />
+          <HugeiconsIcon icon={LockKeyIcon} size={24} />
         </span>
         <h2 id="app-lock-title">{t('appLock.title')}</h2>
         {step === 'pin' ? <p>{t('appLock.pinDescription')}</p> : null}

@@ -1,7 +1,8 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowLeft01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons';
 import type React from 'react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Annotation, ReaderQuestionContext } from '@yomitomo/shared';
 import {
   activeTocIndexForOffset,
@@ -1086,7 +1087,7 @@ export function EbookBookcase({
                 disabled={readerState.status !== 'ready' || !pageNavigationReady}
                 onClick={goLeft}
               >
-                <ChevronLeft size={17} />
+                <HugeiconsIcon icon={ArrowLeft01Icon} size={17} />
               </button>
             </ReaderTooltip>
             <span
@@ -1120,7 +1121,7 @@ export function EbookBookcase({
                 disabled={readerState.status !== 'ready' || !pageNavigationReady}
                 onClick={goRight}
               >
-                <ChevronRight size={17} />
+                <HugeiconsIcon icon={ArrowRight01Icon} size={17} />
               </button>
             </ReaderTooltip>
             {sectionFractions.length > 0 ? (

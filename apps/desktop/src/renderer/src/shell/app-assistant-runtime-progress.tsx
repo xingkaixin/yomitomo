@@ -1,4 +1,5 @@
-import { Check, Circle, LoaderCircle, X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Cancel01Icon, CircleIcon, Loading03Icon, Tick01Icon } from '@hugeicons/core-free-icons';
 import type {
   AssistantRuntimeProgressEvent,
   AssistantRuntimeProgressSummary,
@@ -32,11 +33,11 @@ export function AssistantRuntimeProgressList({
           {progress.steps.map((step) => (
             <li className={`is-${step.status}`} key={step.id}>
               {step.status === 'done' ? (
-                <Check size={12} />
+                <HugeiconsIcon icon={Tick01Icon} size={12} />
               ) : step.status === 'failed' ? (
-                <X size={12} />
+                <HugeiconsIcon icon={Cancel01Icon} size={12} />
               ) : (
-                <LoaderCircle size={12} />
+                <HugeiconsIcon icon={Loading03Icon} size={12} />
               )}
               <span>{assistantRuntimeStepLabel(step.id, step.label, t)}</span>
             </li>
@@ -45,7 +46,7 @@ export function AssistantRuntimeProgressList({
       ) : null}
       {progress.fallbackMessage ? (
         <p>
-          <Circle size={10} />
+          <HugeiconsIcon icon={CircleIcon} size={10} />
           <span>{assistantRuntimeFallbackMessage(progress.fallbackMessage, t)}</span>
         </p>
       ) : null}

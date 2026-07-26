@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
 import {
-  GitPullRequestDraft,
-  MessageCircle,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Plus,
-} from 'lucide-react';
+  Add01Icon,
+  GitPullRequestDraftIcon,
+  BubbleChatIcon,
+  PanelLeftCloseIcon,
+  PanelLeftOpenIcon,
+} from '@hugeicons/core-free-icons';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type {
   Agent,
   Annotation,
@@ -193,7 +194,7 @@ export function AnnotationDiscussionWindowApp() {
   return (
     <main className={windowClassName} style={windowTransition.style}>
       <section className="annotation-discussion-empty" aria-busy={status.type === 'loading'}>
-        <MessageCircle size={24} />
+        <HugeiconsIcon icon={BubbleChatIcon} size={24} />
         <strong>{message}</strong>
       </section>
     </main>
@@ -748,7 +749,7 @@ function AnnotationDiscussionShell({
     return (
       <main className={className} style={style}>
         <section className="annotation-discussion-empty">
-          <MessageCircle size={24} />
+          <HugeiconsIcon icon={BubbleChatIcon} size={24} />
           <strong>{t('discussion.deleted')}</strong>
         </section>
       </main>
@@ -783,7 +784,11 @@ function AnnotationDiscussionShell({
               aria-expanded={!ideasContentCollapsed}
               onClick={toggleIdeasSidebar}
             >
-              {ideasContentCollapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
+              {ideasContentCollapsed ? (
+                <HugeiconsIcon icon={PanelLeftOpenIcon} size={15} />
+              ) : (
+                <HugeiconsIcon icon={PanelLeftCloseIcon} size={15} />
+              )}
             </button>
             <strong>{t('discussion.thoughts')}</strong>
             <span className="annotation-discussion-ideas-count">{threads.length}</span>
@@ -793,7 +798,7 @@ function AnnotationDiscussionShell({
               aria-label={t('discussion.addThought.title')}
               onClick={openNewThoughtDialog}
             >
-              <Plus size={14} />
+              <HugeiconsIcon icon={Add01Icon} size={14} />
             </button>
           </header>
           {threads.length > 0 ? (
@@ -826,7 +831,7 @@ function AnnotationDiscussionShell({
               }
               onClick={(event) => openSedimentationWindow(event.currentTarget)}
             >
-              <GitPullRequestDraft size={14} />
+              <HugeiconsIcon icon={GitPullRequestDraftIcon} size={14} />
               <span>
                 {annotation.distillation?.status === 'published'
                   ? t('discussion.viewDistillation')
@@ -864,7 +869,7 @@ function AnnotationDiscussionShell({
             />
           ) : (
             <div className="annotation-discussion-thread-placeholder">
-              <MessageCircle size={22} />
+              <HugeiconsIcon icon={BubbleChatIcon} size={22} />
               <strong>{t('discussion.selectThoughtTitle')}</strong>
               <p>{t('discussion.selectThoughtDescription')}</p>
             </div>

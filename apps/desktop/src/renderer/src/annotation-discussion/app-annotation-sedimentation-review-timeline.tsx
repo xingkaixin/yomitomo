@@ -1,5 +1,11 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import {
+  Cancel01Icon,
+  MessageQuestionIcon,
+  RotateLeft01Icon,
+  ViewIcon,
+} from '@hugeicons/core-free-icons';
 import { useEffect, useMemo, useRef } from 'react';
-import { Eye, MessageCircleQuestion, RotateCcw, X } from 'lucide-react';
 import type {
   AnnotationDistillationProposal,
   AnnotationDistillationReviewItem,
@@ -68,7 +74,7 @@ export function SedimentationReviewTimeline({
   if (sessions.length === 0) {
     return (
       <section className="annotation-sedimentation-review-empty">
-        <MessageCircleQuestion size={22} />
+        <HugeiconsIcon icon={MessageQuestionIcon} size={22} />
         <strong>{t('sedimentation.noReviewTitle')}</strong>
         <p>{t('sedimentation.noReviewDescription')}</p>
       </section>
@@ -309,7 +315,7 @@ function ReviewProposalList({
                       type="button"
                       onClick={() => void onPreview(messageId, pendingProposals)}
                     >
-                      <Eye size={14} />
+                      <HugeiconsIcon icon={ViewIcon} size={14} />
                       <span>{t('sedimentation.previewProposal')}</span>
                     </button>
                     <button
@@ -317,7 +323,7 @@ function ReviewProposalList({
                       type="button"
                       onClick={() => void onIgnore(messageId, proposal.id)}
                     >
-                      <X size={14} />
+                      <HugeiconsIcon icon={Cancel01Icon} size={14} />
                       <span>{t('sedimentation.ignoreProposal')}</span>
                     </button>
                   </>
@@ -329,7 +335,7 @@ function ReviewProposalList({
                   type="button"
                   onClick={() => void onRestore(messageId, proposal.id)}
                 >
-                  <RotateCcw size={14} />
+                  <HugeiconsIcon icon={RotateLeft01Icon} size={14} />
                   <span>{t('sedimentation.restoreProposal')}</span>
                 </button>
               ) : null}

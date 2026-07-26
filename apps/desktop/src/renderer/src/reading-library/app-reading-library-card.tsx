@@ -1,7 +1,14 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import {
+  Layers02Icon,
+  MoreHorizontalIcon,
+  PencilEdit01Icon,
+  PinIcon,
+  PinOffIcon,
+} from '@hugeicons/core-free-icons';
 import { useState, type CSSProperties } from 'react';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { Layers2, MoreHorizontal, PencilLine, Pin, PinOff } from 'lucide-react';
 import type { ArticleSummaryRecord } from '@yomitomo/shared';
 import { urlHost } from '../shell/app-utils';
 import { ArticleBook, formatPdfAuthors } from '../shell/app-article-book';
@@ -80,7 +87,7 @@ export function ArticleLibraryCard({
                 aria-label={t('library.actions.more', { title })}
                 onClick={(event) => event.stopPropagation()}
               >
-                <MoreHorizontal size={17} />
+                <HugeiconsIcon icon={MoreHorizontalIcon} size={17} />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -96,7 +103,11 @@ export function ArticleLibraryCard({
                       void onSetPinned(!pinned);
                     }}
                   >
-                    {pinned ? <PinOff size={14} /> : <Pin size={14} />}
+                    {pinned ? (
+                      <HugeiconsIcon icon={PinOffIcon} size={14} />
+                    ) : (
+                      <HugeiconsIcon icon={PinIcon} size={14} />
+                    )}
                     <span>{pinned ? t('library.actions.unpin') : t('library.actions.pin')}</span>
                   </button>
                 </DropdownMenuItem>
@@ -110,7 +121,7 @@ export function ArticleLibraryCard({
                       void onRemoveFromCollection();
                     }}
                   >
-                    <Layers2 size={14} />
+                    <HugeiconsIcon icon={Layers02Icon} size={14} />
                     <span>{t('library.collection.removeMember')}</span>
                   </button>
                 </DropdownMenuItem>
@@ -148,17 +159,17 @@ export function ArticleLibraryCard({
                 aria-label={t('library.actions.pinned')}
                 data-tooltip={t('library.actions.pinned')}
               >
-                <Pin size={15} />
+                <HugeiconsIcon icon={PinIcon} size={15} />
               </span>
             ) : null}
           </span>
           <div className="library-count-stats" aria-label={statsLabel} data-tooltip={statsLabel}>
             <span className="library-count-stat">
-              <PencilLine size={13} />
+              <HugeiconsIcon icon={PencilEdit01Icon} size={13} />
               <span className="library-count-value">{annotations}</span>
             </span>
             <span className="library-count-stat">
-              <Layers2 size={13} />
+              <HugeiconsIcon icon={Layers02Icon} size={13} />
               <span className="library-count-value">{distillations}</span>
             </span>
           </div>

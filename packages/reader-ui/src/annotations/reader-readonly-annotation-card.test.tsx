@@ -2,7 +2,8 @@
 
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ExternalLink } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LinkSquare01Icon } from '@hugeicons/core-free-icons';
 import { ReadonlyAnnotationCard } from './reader-readonly-annotation-card';
 
 describe('ReadonlyAnnotationCard', () => {
@@ -12,7 +13,11 @@ describe('ReadonlyAnnotationCard', () => {
     const onOpen = vi.fn();
     render(
       <ReadonlyAnnotationCard
-        action={{ icon: <ExternalLink size={13} />, label: '定位到批注', onClick: onOpen }}
+        action={{
+          icon: <HugeiconsIcon icon={LinkSquare01Icon} size={13} />,
+          label: '定位到批注',
+          onClick: onOpen,
+        }}
         author={{ color: '#8a8f4f', fallback: '我', name: 'Kevin' }}
         createdAt="2026-05-20T00:00:00.000Z"
         id="note_1"

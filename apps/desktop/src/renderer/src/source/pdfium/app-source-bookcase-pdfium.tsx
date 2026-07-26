@@ -1,3 +1,10 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import {
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
+  Loading03Icon,
+  SearchAddIcon,
+} from '@hugeicons/core-free-icons';
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import i18next from 'i18next';
@@ -13,7 +20,6 @@ import { Scroller } from '@embedpdf/plugin-scroll/react';
 import { SelectionLayer } from '@embedpdf/plugin-selection/react';
 import { Viewport } from '@embedpdf/plugin-viewport/react';
 import { useZoom } from '@embedpdf/plugin-zoom/react';
-import { ChevronLeft, ChevronRight, LoaderCircle, ZoomIn } from 'lucide-react';
 import type { PdfEngine } from '@embedpdf/models';
 import {
   createPdfTextAnchor,
@@ -145,7 +151,9 @@ export function PdfiumBookcase({
             className={`pdf-reader-status${loadError || engineError ? ' is-error' : ''}`}
             role="status"
           >
-            {!loadError && !engineError ? <LoaderCircle className="is-spinning" size={18} /> : null}
+            {!loadError && !engineError ? (
+              <HugeiconsIcon icon={Loading03Icon} className="is-spinning" size={18} />
+            ) : null}
             <span>{status}</span>
           </div>
         ) : null}
@@ -208,7 +216,7 @@ export function PdfiumBookcase({
                 </DocumentContent>
               ) : (
                 <div className="pdf-reader-status" role="status">
-                  <LoaderCircle className="is-spinning" size={18} />
+                  <HugeiconsIcon icon={Loading03Icon} className="is-spinning" size={18} />
                   <span>{t('pdfReader.loadingEmbedDocument')}</span>
                 </div>
               )
@@ -1294,7 +1302,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
                 type="button"
                 onClick={() => scroll?.scrollToPreviousPage('smooth')}
               >
-                <ChevronLeft size={16} />
+                <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
               </button>
             </ReaderTooltip>
             <span className="reader-floating-value is-wide">
@@ -1323,12 +1331,12 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
                 type="button"
                 onClick={() => scroll?.scrollToNextPage('smooth')}
               >
-                <ChevronRight size={16} />
+                <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
               </button>
             </ReaderTooltip>
           </div>
           <ReaderToolbarSliderPopover
-            icon={<ZoomIn size={16} />}
+            icon={<HugeiconsIcon icon={SearchAddIcon} size={16} />}
             label={t('readerControls.pdfZoom')}
             max={200}
             min={50}
@@ -1372,7 +1380,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       />
       {restoringInitialPage ? (
         <div className="pdf-reader-status" role="status">
-          <LoaderCircle className="is-spinning" size={18} />
+          <HugeiconsIcon icon={Loading03Icon} className="is-spinning" size={18} />
           <span>{t('pdfReader.restoringPage', { page: initialPageNumber })}</span>
         </div>
       ) : null}

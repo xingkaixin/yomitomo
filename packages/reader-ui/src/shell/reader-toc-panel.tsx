@@ -1,6 +1,7 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { HighlighterIcon, Layers02Icon } from '@hugeicons/core-free-icons';
 import React from 'react';
 import type { TocItem } from '@yomitomo/core';
-import { Highlighter, Layers2 } from 'lucide-react';
 import type { buildTocAnnotationStats } from '../annotations/reader-annotations';
 import { TooltipProvider } from '../components/ui/tooltip';
 import { ReaderTooltip } from '../shared/reader-component-primitives';
@@ -165,14 +166,14 @@ export function ReaderTocPanel({
       >
         <span className="reader-toc-summary-stat" title={labels.annotations}>
           <span className="reader-toc-summary-value">{annotationTotals.annotations}</span>
-          <Highlighter size={14} aria-hidden="true" />
+          <HugeiconsIcon icon={HighlighterIcon} size={14} aria-hidden="true" />
         </span>
         <span className="reader-toc-summary-separator" aria-hidden="true">
           ·
         </span>
         <span className="reader-toc-summary-stat" title={labels.distillations}>
           <span className="reader-toc-summary-value">{annotationTotals.distillations}</span>
-          <Layers2 size={14} aria-hidden="true" />
+          <HugeiconsIcon icon={Layers02Icon} size={14} aria-hidden="true" />
         </span>
       </div>
     </aside>

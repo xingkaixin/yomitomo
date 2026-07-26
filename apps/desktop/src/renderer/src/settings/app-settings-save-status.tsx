@@ -1,4 +1,5 @@
-import { Check, RefreshCw, RotateCcw } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Refresh01Icon, RotateLeft01Icon, Tick01Icon } from '@hugeicons/core-free-icons';
 import type { SaveState } from '../shell/app-types';
 import { useTranslation } from 'react-i18next';
 
@@ -24,7 +25,7 @@ export function AutoSaveStatus({
         {error ? <span>{error}</span> : null}
         {onRetry ? (
           <button type="button" onClick={onRetry}>
-            <RotateCcw size={14} />
+            <HugeiconsIcon icon={RotateLeft01Icon} size={14} />
             {t('settings.saveStatus.retry')}
           </button>
         ) : null}
@@ -38,7 +39,11 @@ export function AutoSaveStatus({
       className={state === 'saving' ? 'auto-save-status is-saving' : 'auto-save-status is-saved'}
       role="status"
     >
-      {state === 'saving' ? <RefreshCw size={14} /> : <Check size={14} />}
+      {state === 'saving' ? (
+        <HugeiconsIcon icon={Refresh01Icon} size={14} />
+      ) : (
+        <HugeiconsIcon icon={Tick01Icon} size={14} />
+      )}
       <span>
         {state === 'saving' ? t('settings.saveStatus.saving') : t('settings.saveStatus.saved')}
       </span>

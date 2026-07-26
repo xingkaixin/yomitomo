@@ -1,4 +1,5 @@
-import { Check, X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Cancel01Icon, Tick01Icon } from '@hugeicons/core-free-icons';
 import i18next from 'i18next';
 import {
   normalizeDistillationProposalDraftChangeSetEntries,
@@ -118,7 +119,7 @@ function DraftChangePreviewChange({
           contentEditable={false}
         >
           <button type="button" onClick={() => onDecision(change.proposalId, 'accepted')}>
-            <Check size={13} />
+            <HugeiconsIcon icon={Tick01Icon} size={13} />
             <span>{i18next.t('sedimentation.keepProposalChange')}</span>
           </button>
           <button
@@ -126,7 +127,7 @@ function DraftChangePreviewChange({
             type="button"
             onClick={() => onDecision(change.proposalId, 'rejected')}
           >
-            <X size={13} />
+            <HugeiconsIcon icon={Cancel01Icon} size={13} />
             <span>{i18next.t('sedimentation.discardProposalChange')}</span>
           </button>
         </span>
@@ -135,7 +136,7 @@ function DraftChangePreviewChange({
           className="annotation-sedimentation-draft-preview-change-state"
           contentEditable={false}
         >
-          <Check size={12} />
+          <HugeiconsIcon icon={Tick01Icon} size={12} />
           <span>{i18next.t('sedimentation.keptProposalChange')}</span>
         </span>
       )}

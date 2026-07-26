@@ -1,21 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
 import {
-  Blocks,
-  Book,
-  Database,
-  Download,
-  FileText,
-  FolderOpen,
-  HardDrive,
-  Info,
-  Keyboard,
-  KeyRound,
-  RefreshCw,
-  Settings,
-  Route,
-  Trash2,
-  Upload,
-} from 'lucide-react';
+  BlocksIcon,
+  Book01Icon,
+  DatabaseIcon,
+  Delete02Icon,
+  Download01Icon,
+  File01Icon,
+  FolderOpenIcon,
+  HardDriveIcon,
+  InformationCircleIcon,
+  Key02Icon,
+  KeyboardIcon,
+  Refresh01Icon,
+  Route01Icon,
+  Settings01Icon,
+  Upload01Icon,
+} from '@hugeicons/core-free-icons';
+import React, { useEffect, useState } from 'react';
 import type {
   AppSettings,
   DesktopStore,
@@ -121,37 +122,37 @@ const settingsSections: Array<{
     key: 'collection',
     titleKey: 'settings.sections.collection',
     descriptionKey: 'settings.descriptions.collection',
-    icon: <Settings size={17} />,
+    icon: <HugeiconsIcon icon={Settings01Icon} size={17} />,
   },
   {
     key: 'models',
     titleKey: 'settings.sections.models',
     descriptionKey: 'settings.descriptions.models',
-    icon: <KeyRound size={17} />,
+    icon: <HugeiconsIcon icon={Key02Icon} size={17} />,
   },
   {
     key: 'dataSources',
     titleKey: 'settings.sections.dataSources',
     descriptionKey: 'settings.descriptions.dataSources',
-    icon: <Blocks size={17} />,
+    icon: <HugeiconsIcon icon={BlocksIcon} size={17} />,
   },
   {
     key: 'shortcuts',
     titleKey: 'settings.sections.shortcuts',
     descriptionKey: 'settings.descriptions.shortcuts',
-    icon: <Keyboard size={17} />,
+    icon: <HugeiconsIcon icon={KeyboardIcon} size={17} />,
   },
   {
     key: 'data',
     titleKey: 'settings.sections.data',
     descriptionKey: 'settings.descriptions.data',
-    icon: <Database size={17} />,
+    icon: <HugeiconsIcon icon={DatabaseIcon} size={17} />,
   },
   {
     key: 'about',
     titleKey: 'settings.sections.about',
     descriptionKey: 'settings.descriptions.about',
-    icon: <Info size={17} />,
+    icon: <HugeiconsIcon icon={InformationCircleIcon} size={17} />,
   },
 ];
 
@@ -174,7 +175,7 @@ export function SettingsSectionShell({
           key: 'aiTrace' as const,
           titleKey: 'settings.sections.aiTrace',
           descriptionKey: 'settings.descriptions.aiTrace',
-          icon: <Route size={17} />,
+          icon: <HugeiconsIcon icon={Route01Icon} size={17} />,
         },
         settingsSections[settingsSections.length - 1],
       ]
@@ -413,7 +414,7 @@ export function ShortcutSettings({ draft }: { draft: SaveableDraft<AppSettings> 
                   })}
                   onClick={() => resetSelectionShortcut(row.action)}
                 >
-                  <RefreshCw size={13} />
+                  <HugeiconsIcon icon={Refresh01Icon} size={13} />
                   {t('settings.shortcuts.reset')}
                 </button>
               ) : null}
@@ -424,7 +425,7 @@ export function ShortcutSettings({ draft }: { draft: SaveableDraft<AppSettings> 
 
       <SettingsGroup label={t('settings.shortcuts.pageGroup')}>
         <SettingsRow
-          leading={<Book size={18} />}
+          leading={<HugeiconsIcon icon={Book01Icon} size={18} />}
           title={t('settings.shortcuts.pageTitle')}
           description={t('settings.shortcuts.pageDescription')}
         >
@@ -572,19 +573,19 @@ export function DataManagementSettings({
     >
       <SettingsGroup label={t('settings.data.localGroup')}>
         <DataPathRow
-          icon={<HardDrive size={18} />}
+          icon={<HugeiconsIcon icon={HardDriveIcon} size={18} />}
           label={t('settings.data.dataDir')}
           path={paths?.dataDir || ''}
           onOpen={() => openPath('dataDir')}
         />
         <DataPathRow
-          icon={<FileText size={18} />}
+          icon={<HugeiconsIcon icon={File01Icon} size={18} />}
           label={t('settings.data.logFile')}
           path={paths?.logFile || ''}
           onOpen={() => openPath('logFile')}
         />
         <DataPathRow
-          icon={<Database size={18} />}
+          icon={<HugeiconsIcon icon={DatabaseIcon} size={18} />}
           label={t('settings.data.databaseFile')}
           path={paths?.databaseFile || ''}
           onOpen={() => openPath('databaseFile')}
@@ -625,7 +626,7 @@ export function DataManagementSettings({
             variant="secondary"
             onClick={() => setConfirmAction('clear-log')}
           >
-            <Trash2 size={15} />
+            <HugeiconsIcon icon={Delete02Icon} size={15} />
             {t('settings.data.clearLog')}
           </Button>
         </div>
@@ -633,7 +634,7 @@ export function DataManagementSettings({
 
       <SettingsGroup label={t('settings.data.databaseGroup')} padded>
         <div className="settings-callout">
-          <Info size={16} />
+          <HugeiconsIcon icon={InformationCircleIcon} size={16} />
           <span>{t('settings.data.backupNote')}</span>
         </div>
         <div className="settings-card-actions">
@@ -647,7 +648,7 @@ export function DataManagementSettings({
             type="button"
             onClick={() => void backupDatabase()}
           >
-            <Download size={15} />
+            <HugeiconsIcon icon={Download01Icon} size={15} />
             {t('settings.data.backupDatabase')}
           </Button>
           <Button
@@ -661,7 +662,7 @@ export function DataManagementSettings({
             variant="secondary"
             onClick={() => setConfirmAction('restore-db')}
           >
-            <Upload size={15} />
+            <HugeiconsIcon icon={Upload01Icon} size={15} />
             {t('settings.data.restoreDatabase')}
           </Button>
         </div>
@@ -713,7 +714,7 @@ function DataPathRow({
         type="button"
         onClick={onOpen}
       >
-        <FolderOpen size={16} />
+        <HugeiconsIcon icon={FolderOpenIcon} size={16} />
       </button>
     </SettingsRow>
   );

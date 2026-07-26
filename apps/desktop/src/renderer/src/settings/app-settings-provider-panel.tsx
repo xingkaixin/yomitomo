@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
 import {
-  BookOpen,
-  Check,
-  ChevronRight,
-  Languages,
-  Save,
-  Search,
-  ShieldCheck,
-  Zap,
-  X,
-} from 'lucide-react';
+  ArrowRight01Icon,
+  BookOpen01Icon,
+  Cancel01Icon,
+  FlashIcon,
+  FloppyDiskIcon,
+  LanguageCircleIcon,
+  Search01Icon,
+  SecurityCheckIcon,
+  Tick01Icon,
+} from '@hugeicons/core-free-icons';
+import React, { useState } from 'react';
 import {
   providerPresets,
   type AppSettings,
@@ -249,7 +250,7 @@ function ProviderEditorContent({
           aria-label={t('settings.models.closeProviderEditor')}
           onClick={onCancel}
         >
-          <X size={17} />
+          <HugeiconsIcon icon={Cancel01Icon} size={17} />
         </button>
       </header>
       {isCreate ? (
@@ -315,7 +316,7 @@ function ProviderEditorSteps({
         onClick={() => onStepChange(1)}
       >
         <span className="provider-editor-step-number">
-          {step === 1 ? '1' : <Check size={11} />}
+          {step === 1 ? '1' : <HugeiconsIcon icon={Tick01Icon} size={11} />}
         </span>
         {t('settings.models.chooseProviderStep')}
         {step === 2 && canOpenConnection ? (
@@ -367,7 +368,7 @@ function ProviderPresetPicker({
   return (
     <div className="provider-editor-pick-body">
       <label className="provider-editor-search">
-        <Search size={15} />
+        <HugeiconsIcon icon={Search01Icon} size={15} />
         <input
           type="text"
           value={query}
@@ -397,7 +398,11 @@ function ProviderPresetPicker({
                 </span>
               </span>
               <span className="provider-editor-pick-arrow">
-                {active ? <Check size={16} /> : <ChevronRight size={16} />}
+                {active ? (
+                  <HugeiconsIcon icon={Tick01Icon} size={16} />
+                ) : (
+                  <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
+                )}
               </span>
             </button>
           );
@@ -458,7 +463,7 @@ function ProviderEditorFooter({
           type="button"
           onClick={() => onTest(draft)}
         >
-          <Zap size={15} />
+          <HugeiconsIcon icon={FlashIcon} size={15} />
           {testStatus === 'testing' ? t('settings.models.testing') : t('settings.models.test')}
         </Button>
         <Button className="action-button" type="button" variant="secondary" onClick={onCancel}>
@@ -474,7 +479,11 @@ function ProviderEditorFooter({
           type="button"
           onClick={onSave}
         >
-          {saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
+          {saveState === 'saved' ? (
+            <HugeiconsIcon icon={Tick01Icon} size={16} />
+          ) : (
+            <HugeiconsIcon icon={FloppyDiskIcon} size={16} />
+          )}
           {saveLabel}
         </Button>
       </div>
@@ -485,7 +494,11 @@ function ProviderEditorFooter({
 function ProviderConnectionStatus({ status }: { status: ProviderTestState['status'] }) {
   const { t } = useTranslation();
   const icon =
-    status === 'success' ? <Check size={14} /> : status === 'error' ? <X size={14} /> : null;
+    status === 'success' ? (
+      <HugeiconsIcon icon={Tick01Icon} size={14} />
+    ) : status === 'error' ? (
+      <HugeiconsIcon icon={Cancel01Icon} size={14} />
+    ) : null;
 
   return (
     <span className={`provider-editor-status is-${status}`} role="status">
@@ -542,19 +555,19 @@ const taskRouteOptions: Array<{
     key: 'readingAssistantProviderId',
     titleKey: 'settings.models.readingRouteTitle',
     descriptionKey: 'settings.models.readingRouteDescription',
-    icon: <BookOpen size={18} />,
+    icon: <HugeiconsIcon icon={BookOpen01Icon} size={18} />,
   },
   {
     key: 'reviewAssistantProviderId',
     titleKey: 'settings.models.reviewRouteTitle',
     descriptionKey: 'settings.models.reviewRouteDescription',
-    icon: <ShieldCheck size={18} />,
+    icon: <HugeiconsIcon icon={SecurityCheckIcon} size={18} />,
   },
   {
     key: 'bilingualTranslationProviderId',
     titleKey: 'settings.models.translationRouteTitle',
     descriptionKey: 'settings.models.translationRouteDescription',
-    icon: <Languages size={18} />,
+    icon: <HugeiconsIcon icon={LanguageCircleIcon} size={18} />,
   },
 ];
 
@@ -594,7 +607,7 @@ function TaskProviderRoutes({
       aside={<AutoSaveStatus error={saveError} state={saveState} onRetry={() => onSave()} />}
     >
       <SettingsRow
-        leading={<Zap size={18} />}
+        leading={<HugeiconsIcon icon={FlashIcon} size={18} />}
         title={t('settings.models.executionModeTitle')}
         description={t('settings.models.executionModeDescription')}
       >

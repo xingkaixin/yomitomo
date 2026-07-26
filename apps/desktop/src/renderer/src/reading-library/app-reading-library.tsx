@@ -1,7 +1,8 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowDown01Icon, BubbleChatIcon } from '@hugeicons/core-free-icons';
 import React, { useEffect, useMemo, useState } from 'react';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, MessageCircle } from 'lucide-react';
 import type {
   Agent,
   Annotation,
@@ -669,7 +670,7 @@ export function AnnotationDiscussionCapsules({
           aria-expanded="false"
           onClick={() => setExpandedByUser(true)}
         >
-          <MessageCircle aria-hidden="true" size={16} strokeWidth={1.8} />
+          <HugeiconsIcon icon={BubbleChatIcon} aria-hidden="true" size={16} strokeWidth={1.8} />
           <span>{t('discussion.capsules.collapsed')}</span>
           <strong>{items.length}</strong>
         </button>
@@ -693,7 +694,7 @@ export function AnnotationDiscussionCapsules({
             aria-expanded="true"
             onClick={() => setExpandedByUser(false)}
           >
-            <ChevronDown aria-hidden="true" size={16} strokeWidth={1.8} />
+            <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden="true" size={16} strokeWidth={1.8} />
           </button>
         ) : null}
       </div>

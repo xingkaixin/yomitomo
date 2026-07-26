@@ -1,5 +1,11 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import {
+  CloudUploadIcon,
+  RotateLeft01Icon,
+  SentIcon,
+  SparklesIcon,
+} from '@hugeicons/core-free-icons';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { RotateCcw, Send, Sparkles, UploadCloud } from 'lucide-react';
 import type {
   Agent,
   Annotation,
@@ -855,7 +861,7 @@ function SedimentationShell({
                       disabled={!canUnpublish}
                       onClick={() => void unpublishDistillation()}
                     >
-                      <RotateCcw size={15} />
+                      <HugeiconsIcon icon={RotateLeft01Icon} size={15} />
                       <span>{t('sedimentation.unpublish')}</span>
                     </button>
                   </ReaderTooltip>
@@ -874,7 +880,7 @@ function SedimentationShell({
                     disabled={!canOrganize}
                     onClick={organizeDiscussion}
                   >
-                    <Sparkles size={15} />
+                    <HugeiconsIcon icon={SparklesIcon} size={15} />
                     <span>{t('sedimentation.organizeDiscussion')}</span>
                   </button>
                 </ReaderTooltip>
@@ -892,7 +898,7 @@ function SedimentationShell({
                     disabled={!canPublish}
                     onClick={() => void publishDistillation()}
                   >
-                    <UploadCloud size={15} />
+                    <HugeiconsIcon icon={CloudUploadIcon} size={15} />
                     <span>{publishLabel}</span>
                   </button>
                 </ReaderTooltip>
@@ -1002,7 +1008,7 @@ function SedimentationShell({
                   </div>
                 }
                 submitDisabled={!canReview}
-                submitIcon={<Send size={14} />}
+                submitIcon={<HugeiconsIcon icon={SentIcon} size={14} />}
                 submitLabel={t('sedimentation.send')}
                 submitTooltip={
                   <SubmitShortcutTooltipContent

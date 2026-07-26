@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
 import {
-  ArrowRight,
-  ChevronLeft,
-  ChevronRight,
-  Feather,
-  LibraryBig,
-  Search,
-  X,
-} from 'lucide-react';
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
+  Cancel01Icon,
+  FeatherIcon,
+  LibraryIcon,
+  Search01Icon,
+} from '@hugeicons/core-free-icons';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DistillationLibraryItem, DistillationLibraryListResult } from '../../../ipc-contract';
 
@@ -106,7 +106,7 @@ export function DistillationLibrary({
         </header>
 
         <div className="distillation-library-search">
-          <Search aria-hidden="true" size={18} />
+          <HugeiconsIcon icon={Search01Icon} aria-hidden="true" size={18} />
           <label className="sr-only" htmlFor="distillation-library-query">
             {t('distillationLibrary.searchLabel')}
           </label>
@@ -125,7 +125,7 @@ export function DistillationLibrary({
               aria-label={t('distillationLibrary.clearSearch')}
               onClick={() => setQuery('')}
             >
-              <X aria-hidden="true" size={16} />
+              <HugeiconsIcon icon={Cancel01Icon} aria-hidden="true" size={16} />
             </button>
           ) : null}
           <span className="distillation-library-search-underline" aria-hidden="true" />
@@ -139,7 +139,9 @@ export function DistillationLibrary({
 
         {loadState.status === 'error' && !result ? (
           <DistillationLibraryMessage
-            icon={<LibraryBig aria-hidden="true" size={26} strokeWidth={1.6} />}
+            icon={
+              <HugeiconsIcon icon={LibraryIcon} aria-hidden="true" size={26} strokeWidth={1.6} />
+            }
             title={t('distillationLibrary.loadFailed')}
             description={t('distillationLibrary.loadFailedDescription')}
             actionLabel={t('distillationLibrary.retry')}
@@ -151,7 +153,9 @@ export function DistillationLibrary({
 
         {result && result.totalCount === 0 ? (
           <DistillationLibraryMessage
-            icon={<Feather aria-hidden="true" size={26} strokeWidth={1.6} />}
+            icon={
+              <HugeiconsIcon icon={FeatherIcon} aria-hidden="true" size={26} strokeWidth={1.6} />
+            }
             title={
               result.unfilteredCount === 0
                 ? t('distillationLibrary.emptyTitle')
@@ -201,7 +205,7 @@ export function DistillationLibrary({
                   disabled={page <= 1 || loadState.status === 'loading'}
                   onClick={() => changePage(page - 1)}
                 >
-                  <ChevronLeft aria-hidden="true" size={17} />
+                  <HugeiconsIcon icon={ArrowLeft01Icon} aria-hidden="true" size={17} />
                 </button>
                 <span>{t('distillationLibrary.pageCount', { page, total: totalPages })}</span>
                 <button
@@ -210,7 +214,7 @@ export function DistillationLibrary({
                   disabled={page >= totalPages || loadState.status === 'loading'}
                   onClick={() => changePage(page + 1)}
                 >
-                  <ChevronRight aria-hidden="true" size={17} />
+                  <HugeiconsIcon icon={ArrowRight01Icon} aria-hidden="true" size={17} />
                 </button>
               </nav>
             ) : null}
@@ -255,7 +259,7 @@ function DistillationCard({
         </div>
         <button type="button" onClick={() => onOpenOriginal(item.articleId, item.annotationId)}>
           {t('distillationLibrary.openOriginal')}
-          <ArrowRight aria-hidden="true" size={15} />
+          <HugeiconsIcon icon={ArrowRight01Icon} aria-hidden="true" size={15} />
         </button>
       </footer>
     </article>

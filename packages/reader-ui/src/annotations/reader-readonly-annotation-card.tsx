@@ -1,5 +1,6 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { BulbIcon } from '@hugeicons/core-free-icons';
 import React from 'react';
-import { Lightbulb } from 'lucide-react';
 import { renderSafeMarkdown } from '@yomitomo/core/article-extraction';
 import { AvatarBadge } from '../shared/reader-component-primitives';
 import { formatTime } from '../reader-date-utils';
@@ -92,7 +93,7 @@ export function ReadonlyAnnotationCard({
             <span className="reader-note-thread-toggle-main">
               <span className="reader-comment-count" aria-label={`${thoughts.length} 条想法`}>
                 <span>{thoughts.length}</span>
-                <Lightbulb size={14} />
+                <HugeiconsIcon icon={BulbIcon} size={14} />
               </span>
             </span>
           </span>

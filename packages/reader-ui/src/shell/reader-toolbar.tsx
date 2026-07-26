@@ -1,5 +1,13 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import {
+  ArrowDown01Icon,
+  ArrowLeft01Icon,
+  ArrowUp01Icon,
+  Cancel01Icon,
+  PencilEdit01Icon,
+  Search01Icon,
+} from '@hugeicons/core-free-icons';
 import React from 'react';
-import { ChevronDown, ChevronLeft, ChevronUp, PencilLine, Search, X } from 'lucide-react';
 import type {
   AnnotationNavigationDirection,
   AnnotationNavigationState,
@@ -63,7 +71,7 @@ export function ReaderToolbar({
         onClick={onClose}
         aria-label={labels.backToLibrary}
       >
-        <ChevronLeft size={18} />
+        <HugeiconsIcon icon={ArrowLeft01Icon} size={18} />
         <span>{labels.readerLibrary}</span>
       </button>
       <div
@@ -155,7 +163,12 @@ export function ReaderFloatingToolbar({
       </div>
       {showAnnotationNavigation ? (
         <div className="reader-annotation-nav" aria-label={labels.annotationNavigation}>
-          <PencilLine className="reader-annotation-nav-icon" size={16} aria-hidden="true" />
+          <HugeiconsIcon
+            icon={PencilEdit01Icon}
+            className="reader-annotation-nav-icon"
+            size={16}
+            aria-hidden="true"
+          />
           <ReaderTooltip
             content={labels.previousHighlight}
             disabled={!annotationNavigation.previousId}
@@ -168,7 +181,7 @@ export function ReaderFloatingToolbar({
               type="button"
               onClick={() => onNavigateAnnotation('previous')}
             >
-              <ChevronUp size={17} />
+              <HugeiconsIcon icon={ArrowUp01Icon} size={17} />
             </button>
           </ReaderTooltip>
           <span className="reader-floating-value is-annotation-progress">{annotationProgress}</span>
@@ -184,7 +197,7 @@ export function ReaderFloatingToolbar({
               type="button"
               onClick={() => onNavigateAnnotation('next')}
             >
-              <ChevronDown size={17} />
+              <HugeiconsIcon icon={ArrowDown01Icon} size={17} />
             </button>
           </ReaderTooltip>
         </div>
@@ -198,7 +211,7 @@ export function ReaderFloatingToolbar({
               onClick={search.onOpen}
               aria-label={labels.searchBody}
             >
-              <Search size={17} />
+              <HugeiconsIcon icon={Search01Icon} size={17} />
             </button>
           </ReaderTooltip>
         </div>
@@ -291,7 +304,7 @@ function ReaderFloatingSearchToolbar({
       onKeyDown={handleKeyDown}
     >
       <div className="reader-search-box">
-        <Search size={16} aria-hidden="true" />
+        <HugeiconsIcon icon={Search01Icon} size={16} aria-hidden="true" />
         <div
           ref={clear.wrapRef}
           className={[
@@ -327,7 +340,7 @@ function ReaderFloatingSearchToolbar({
               onMouseDown={clear.preserveFocus}
               onPointerDown={clear.preserveFocus}
             >
-              <X size={13} />
+              <HugeiconsIcon icon={Cancel01Icon} size={13} />
             </button>
           </ReaderTooltip>
         </div>
@@ -347,7 +360,7 @@ function ReaderFloatingSearchToolbar({
           type="button"
           onClick={search.onPreviousMatch}
         >
-          <ChevronUp size={17} />
+          <HugeiconsIcon icon={ArrowUp01Icon} size={17} />
         </button>
       </ReaderTooltip>
       <ReaderTooltip content={labels.nextSearchResult} disabled={!hasMatches} side="bottom">
@@ -358,7 +371,7 @@ function ReaderFloatingSearchToolbar({
           type="button"
           onClick={search.onNextMatch}
         >
-          <ChevronDown size={17} />
+          <HugeiconsIcon icon={ArrowDown01Icon} size={17} />
         </button>
       </ReaderTooltip>
       <ReaderTooltip content={labels.closeSearch} side="bottom">
@@ -368,7 +381,7 @@ function ReaderFloatingSearchToolbar({
           type="button"
           onClick={search.onClose}
         >
-          <X size={17} />
+          <HugeiconsIcon icon={Cancel01Icon} size={17} />
         </button>
       </ReaderTooltip>
     </div>

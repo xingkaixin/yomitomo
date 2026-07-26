@@ -1,12 +1,13 @@
-import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
 import {
-  AlertTriangle,
-  Layers2,
-  Lightbulb,
-  MessageCircle,
-  MoreHorizontal,
-  Trash2,
-} from 'lucide-react';
+  Alert01Icon,
+  BulbIcon,
+  Delete02Icon,
+  Layers02Icon,
+  BubbleChatIcon,
+  MoreHorizontalIcon,
+} from '@hugeicons/core-free-icons';
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Annotation, MessageSendShortcut, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { annotationPersona as annotationAuthor, commentPersona } from '@yomitomo/core';
 import { AvatarBadge, ReaderTooltip } from '../shared/reader-component-primitives';
@@ -253,7 +254,7 @@ export function AnnotationCard({
                   aria-label={labels.thoughtSummary(visibleThoughtCount, pendingAgents.length > 0)}
                 >
                   <span>{visibleThoughtCount}</span>
-                  <Lightbulb size={14} />
+                  <HugeiconsIcon icon={BulbIcon} size={14} />
                 </span>
                 <ThoughtAuthorStack authors={assistantParticipants} />
                 <PendingAgentStack agents={pendingAgents} labels={labels} />
@@ -266,7 +267,7 @@ export function AnnotationCard({
               aria-describedby={thoughtSummaryId}
               onClick={(event) => openDiscussion(event.currentTarget)}
             >
-              <MessageCircle size={14} />
+              <HugeiconsIcon icon={BubbleChatIcon} size={14} />
               <span>{labels.enterDiscussion}</span>
             </button>
           </footer>
@@ -279,7 +280,7 @@ export function AnnotationCard({
     return (
       <>
         <span className="reader-note-tab">
-          <Layers2 size={13} strokeWidth={2} />
+          <HugeiconsIcon icon={Layers02Icon} size={13} strokeWidth={2} />
           <span>{labels.distillations}</span>
         </span>
         <div className="reader-note-body">
@@ -534,7 +535,7 @@ function DeleteActionMenu({
       >
         <DropdownMenuTrigger asChild>
           <button className="reader-action-menu-button" type="button" aria-label={ariaLabel}>
-            <MoreHorizontal size={16} />
+            <HugeiconsIcon icon={MoreHorizontalIcon} size={16} />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="reader-action-menu-panel" side="bottom" sideOffset={7}>
@@ -546,7 +547,7 @@ function DeleteActionMenu({
                 aria-label={discussionAriaLabel}
                 onClick={(event) => openDiscussionAndClose(event.currentTarget)}
               >
-                <MessageCircle size={13} />
+                <HugeiconsIcon icon={BubbleChatIcon} size={13} />
                 <span>{labels.enterDiscussion}</span>
               </button>
             </DropdownMenuItem>
@@ -561,7 +562,7 @@ function DeleteActionMenu({
                 setConfirmOpen(true);
               }}
             >
-              <Trash2 size={13} />
+              <HugeiconsIcon icon={Delete02Icon} size={13} />
               <span>{labels.deleteAnnotation}</span>
             </button>
           </DropdownMenuItem>
@@ -609,7 +610,7 @@ function ReaderConfirmDialog({
         <DialogContent className="reader-confirm-dialog">
           <header>
             <span className="reader-confirm-icon" aria-hidden="true">
-              <AlertTriangle size={20} />
+              <HugeiconsIcon icon={Alert01Icon} size={20} />
             </span>
             <div>
               <DialogTitle>{title}</DialogTitle>

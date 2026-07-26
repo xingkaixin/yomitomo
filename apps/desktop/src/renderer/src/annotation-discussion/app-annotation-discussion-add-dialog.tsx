@@ -1,5 +1,6 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Add01Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
 import { useEffect, useRef, useState } from 'react';
-import { Plus, X } from 'lucide-react';
 import type { PublicAgent } from '@yomitomo/shared';
 import { findMentionedAgents, getMentionQuery } from '@yomitomo/core';
 import { useTranslation } from 'react-i18next';
@@ -145,7 +146,7 @@ export function AddThoughtDialog({
               aria-labelledby="annotation-discussion-add-title"
             >
               <header>
-                <Plus size={19} />
+                <HugeiconsIcon icon={Add01Icon} size={19} />
                 <h2 id="annotation-discussion-add-title">{t('discussion.addThought.title')}</h2>
                 <ReaderTooltip
                   content={<ShortcutTooltipContent keys={['Esc']} label={t('discussion.close')} />}
@@ -157,7 +158,7 @@ export function AddThoughtDialog({
                     disabled={!canCancel}
                     onClick={onCancel}
                   >
-                    <X size={15} />
+                    <HugeiconsIcon icon={Cancel01Icon} size={15} />
                   </button>
                 </ReaderTooltip>
               </header>
@@ -239,7 +240,7 @@ export function AddThoughtDialog({
                   }
                   mentionAgents={mode === 'assistant' ? agents : []}
                   submitDisabled={!canSubmit}
-                  submitIcon={<Plus size={14} />}
+                  submitIcon={<HugeiconsIcon icon={Add01Icon} size={14} />}
                   submitLabel={
                     submitting ? t('discussion.addThought.adding') : t('discussion.addThought.add')
                   }

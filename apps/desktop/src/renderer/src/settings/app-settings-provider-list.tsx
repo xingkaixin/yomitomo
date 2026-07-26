@@ -1,5 +1,6 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Add01Icon, Delete02Icon, PencilIcon, Settings02Icon } from '@hugeicons/core-free-icons';
 import { useState, type KeyboardEvent } from 'react';
-import { Pencil, Plus, Settings2, Trash2 } from 'lucide-react';
 import type { LlmProvider } from '@yomitomo/shared';
 import { providerLogoMap } from './app-settings-provider-assets';
 import { useTranslation } from 'react-i18next';
@@ -65,7 +66,7 @@ function CreateProviderCard({ onCreate }: { onCreate: () => void }) {
       <header className="provider-card-header">
         <div className="provider-card-identity">
           <span className="provider-create-logo">
-            <Plus size={18} />
+            <HugeiconsIcon icon={Add01Icon} size={18} />
           </span>
           <h4>{t('settings.models.addProvider')}</h4>
         </div>
@@ -124,13 +125,13 @@ function ProviderCard({
                 className="provider-card-menu-button"
                 aria-label={t('settings.models.openProviderMenu', { name: displayName })}
               >
-                <Settings2 size={16} />
+                <HugeiconsIcon icon={Settings02Icon} size={16} />
               </IconButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="provider-card-menu">
               <DropdownMenuItem asChild>
                 <button type="button" onClick={editProvider}>
-                  <Pencil size={14} />
+                  <HugeiconsIcon icon={PencilIcon} size={14} />
                   {t('settings.models.edit')}
                 </button>
               </DropdownMenuItem>
@@ -144,7 +145,7 @@ function ProviderCard({
                     setConfirmOpen(true);
                   }}
                 >
-                  <Trash2 size={14} />
+                  <HugeiconsIcon icon={Delete02Icon} size={14} />
                   {t('settings.models.deleteProvider')}
                 </button>
               </DropdownMenuItem>

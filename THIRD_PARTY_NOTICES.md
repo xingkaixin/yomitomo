@@ -42,7 +42,7 @@ Bundled font notices are discovered from:
 | BSD-3-Clause | 3 |
 | CC0-1.0 | 1 |
 | ISC | 13 |
-| MIT | 156 |
+| MIT | 158 |
 | MIT-0 | 2 |
 | OFL-1.1 | 11 |
 | Python-2.0 | 1 |
@@ -91,6 +91,8 @@ Bundled font notices are discovered from:
 | @floating-ui/dom | 1.7.6 | MIT | [link](https://floating-ui.com) |
 | @floating-ui/react-dom | 2.1.8 | MIT | [link](https://floating-ui.com/docs/react-dom) |
 | @floating-ui/utils | 0.2.11 | MIT | [link](https://floating-ui.com) |
+| @hugeicons/core-free-icons | 4.2.3 | MIT |  |
+| @hugeicons/react | 1.1.9 | MIT | [link](https://hugeicons.com) |
 | @jridgewell/gen-mapping | 0.3.13 | MIT | [link](https://github.com/jridgewell/sourcemaps/tree/main/packages/gen-mapping) |
 | @jridgewell/remapping | 2.3.5 | MIT | [link](https://github.com/jridgewell/sourcemaps/tree/main/packages/remapping) |
 | @jridgewell/resolve-uri | 3.1.2 | MIT | [link](https://github.com/jridgewell/resolve-uri#readme) |
@@ -198,7 +200,7 @@ Bundled font notices are discovered from:
 | locate-character | 3.0.0 | MIT | [link](https://gitlab.com/Rich-Harris/locate-character#README) |
 | lodash.escaperegexp | 4.1.2 | MIT | [link](https://lodash.com/) |
 | lodash.isequal | 4.5.0 | MIT | [link](https://lodash.com/) |
-| lru-cache | 11.3.5 | BlueOak-1.0.0 | [link](https://github.com/isaacs/node-lru-cache#readme) |
+| lru-cache | 11.5.1 | BlueOak-1.0.0 | [link](https://github.com/isaacs/node-lru-cache#readme) |
 | magic-string | 0.30.21 | MIT | [link](https://github.com/Rich-Harris/magic-string#readme) |
 | mathml-to-latex | 1.5.0 | MIT | [link](https://github.com/asnunes/mathml-to-latex#readme) |
 | mdn-data | 2.27.1 | CC0-1.0 | [link](https://developer.mozilla.org) |

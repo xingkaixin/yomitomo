@@ -1,4 +1,5 @@
-import { Database, ExternalLink, RefreshCw } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { DatabaseIcon, LinkSquare01Icon, Refresh01Icon } from '@hugeicons/core-free-icons';
 import type { DesktopStoreLoadErrorInfo } from '../../../app-store-errors';
 
 import { CopyIconButton } from './app-ui';
@@ -27,7 +28,7 @@ export function StoreLoadErrorScreen({
     <main className="store-load-error-shell" role="alert" aria-labelledby="store-load-error-title">
       <section className="store-load-error-panel">
         <div className="store-load-error-icon">
-          <Database size={28} />
+          <HugeiconsIcon icon={DatabaseIcon} size={28} />
         </div>
         <p className="store-load-error-kicker">
           {databaseTooNew
@@ -64,11 +65,11 @@ export function StoreLoadErrorScreen({
 
         <div className="store-load-error-actions">
           <button className="action-button" type="button" onClick={() => void onRetry()}>
-            <RefreshCw size={16} />
+            <HugeiconsIcon icon={Refresh01Icon} size={16} />
             {t('storeLoadError.retry')}
           </button>
           <button className="action-button is-primary" type="button" onClick={openLatestRelease}>
-            <ExternalLink size={16} />
+            <HugeiconsIcon icon={LinkSquare01Icon} size={16} />
             {t('storeLoadError.openLatest')}
           </button>
         </div>

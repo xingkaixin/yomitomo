@@ -1,20 +1,21 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
 import {
-  BookText,
-  CircleAlert,
-  ExternalLink,
-  FileText,
-  FileUp,
-  FolderOpen,
-  FolderPlus,
-  Globe2,
-  LoaderCircle,
-  Plus,
-  RefreshCw,
-  Type,
-  Upload,
-  X,
-} from 'lucide-react';
+  Add01Icon,
+  AlertCircleIcon,
+  Book02Icon,
+  Cancel01Icon,
+  FileUploadIcon,
+  FolderAddIcon,
+  FolderOpenIcon,
+  Globe02Icon,
+  LinkSquare01Icon,
+  Loading03Icon,
+  Pdf01Icon,
+  Refresh01Icon,
+  TextIcon,
+  Upload01Icon,
+} from '@hugeicons/core-free-icons';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { AppSettings, ArticleRecord } from '@yomitomo/shared';
 import { clampNumber } from '@yomitomo/reader-ui/reader-settings';
 import { useTranslation } from 'react-i18next';
@@ -453,7 +454,7 @@ export function LibraryImportControls({
               openPdfImportDialog();
             }}
           >
-            <Plus size={16} />
+            <HugeiconsIcon icon={Add01Icon} size={16} />
             {defaultImportType === 'web' ? (
               <span>{t('library.import.addWebArticle')}</span>
             ) : defaultImportType === 'ebook' ? (
@@ -471,38 +472,38 @@ export function LibraryImportControls({
                 type="button"
                 variant="secondary"
               >
-                <Plus size={16} />
+                <HugeiconsIcon icon={Add01Icon} size={16} />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="library-add-menu-popover">
               <DropdownMenuItem asChild>
                 <button type="button" onClick={openArticleImportDialog}>
-                  <Globe2 size={15} />
+                  <HugeiconsIcon icon={Globe02Icon} size={15} />
                   {t('library.import.addWebArticle')}
                 </button>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <button type="button" onClick={openEbookImportDialog}>
-                  <BookText size={15} />
+                  <HugeiconsIcon icon={Book02Icon} size={15} />
                   {t('library.import.epubEbook')}
                 </button>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <button type="button" onClick={openPdfImportDialog}>
-                  <FileText size={15} />
+                  <HugeiconsIcon icon={Pdf01Icon} size={15} />
                   {t('library.import.pdfDocument')}
                 </button>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <button type="button" onClick={openTextImportDialog}>
-                  <Type size={15} />
+                  <HugeiconsIcon icon={TextIcon} size={15} />
                   {t('library.import.text.menuEntry')}
                 </button>
               </DropdownMenuItem>
               {onOpenCollectionPicker ? (
                 <DropdownMenuItem asChild>
                   <button type="button" onClick={openCollectionPicker}>
-                    <FolderOpen size={15} />
+                    <HugeiconsIcon icon={FolderOpenIcon} size={15} />
                     {t('library.collection.addExisting')}
                   </button>
                 </DropdownMenuItem>
@@ -510,7 +511,7 @@ export function LibraryImportControls({
               {onCreateCollection ? (
                 <DropdownMenuItem asChild>
                   <button type="button" onClick={createCollection}>
-                    <FolderPlus size={15} />
+                    <HugeiconsIcon icon={FolderAddIcon} size={15} />
                     {t('library.collection.create')}
                   </button>
                 </DropdownMenuItem>
@@ -518,7 +519,7 @@ export function LibraryImportControls({
               {weReadSyncVisible ? (
                 <DropdownMenuItem asChild>
                   <button type="button" disabled={weReadSyncDisabled} onClick={syncWeRead}>
-                    <RefreshCw size={15} />
+                    <HugeiconsIcon icon={Refresh01Icon} size={15} />
                     {weReadSyncing ? t('library.syncing') : t('library.sync')}
                   </button>
                 </DropdownMenuItem>
@@ -723,7 +724,7 @@ function ArticleImportDialog({
                 aria-label={t('library.import.article.close')}
                 onClick={closeImportDialog}
               >
-                <X size={17} />
+                <HugeiconsIcon icon={Cancel01Icon} size={17} />
               </button>
             </header>
             <div
@@ -749,7 +750,7 @@ function ArticleImportDialog({
                       />
                     </span>
                   ) : (
-                    <Globe2 size={16} />
+                    <HugeiconsIcon icon={Globe02Icon} size={16} />
                   )}
                   <input
                     aria-label={t('library.import.article.urlLabel')}
@@ -783,9 +784,9 @@ function ArticleImportDialog({
                   type="submit"
                 >
                   {importState === 'submitting' ? (
-                    <LoaderCircle className="is-spinning" size={16} />
+                    <HugeiconsIcon icon={Loading03Icon} className="is-spinning" size={16} />
                   ) : (
-                    <Globe2 size={16} />
+                    <HugeiconsIcon icon={Globe02Icon} size={16} />
                   )}
                   {importState === 'submitting'
                     ? t('library.import.article.parsingButton')
@@ -798,7 +799,7 @@ function ArticleImportDialog({
                     variant="secondary"
                     onClick={cancelImport}
                   >
-                    <X size={16} />
+                    <HugeiconsIcon icon={Cancel01Icon} size={16} />
                     {t('library.import.article.cancel')}
                   </Button>
                 ) : null}
@@ -811,7 +812,7 @@ function ArticleImportDialog({
               )}
               {importState === 'duplicate' ? (
                 <span className="library-article-duplicate-callout" role="status">
-                  <CircleAlert size={16} />
+                  <HugeiconsIcon icon={AlertCircleIcon} size={16} />
                   <span>
                     <strong>{t('library.import.article.duplicateTitle')}</strong>
                     <em>{t('library.import.article.duplicateDescription')}</em>
@@ -830,7 +831,7 @@ function ArticleImportDialog({
                     onOpenArticle(importArticle);
                   }}
                 >
-                  <ExternalLink size={14} />
+                  <HugeiconsIcon icon={LinkSquare01Icon} size={14} />
                   {importState === 'duplicate'
                     ? t('library.import.article.openDuplicate')
                     : t('library.import.article.openArticle')}
@@ -1217,7 +1218,7 @@ function FileImportDialog({
                 {importState === 'idle' ? <span>{t('library.import.localOnlyNotice')}</span> : null}
               </div>
               <button type="button" aria-label={config.closeLabel} onClick={closeImportDialog}>
-                <X size={17} />
+                <HugeiconsIcon icon={Cancel01Icon} size={17} />
               </button>
             </header>
             <label
@@ -1265,15 +1266,15 @@ function FileImportDialog({
                   .join(' ')}
               >
                 {importState === 'submitting' ? (
-                  <LoaderCircle className="is-spinning" size={22} />
+                  <HugeiconsIcon icon={Loading03Icon} className="is-spinning" size={22} />
                 ) : importState === 'imported' ? (
                   <LibraryImportSuccessCheck className="library-import-success-icon" size={24} />
                 ) : importState === 'error' ? (
-                  <X size={24} />
+                  <HugeiconsIcon icon={Cancel01Icon} size={24} />
                 ) : dragging ? (
-                  <FileUp size={24} />
+                  <HugeiconsIcon icon={FileUploadIcon} size={24} />
                 ) : (
-                  <Upload size={24} />
+                  <HugeiconsIcon icon={Upload01Icon} size={24} />
                 )}
               </span>
               <span className="library-ebook-dropzone-copy">
@@ -1346,13 +1347,13 @@ function FileImportDialog({
                       {item.article?.leadImageUrl ? (
                         <img alt="" src={item.article.leadImageUrl} />
                       ) : item.status === 'importing' ? (
-                        <LoaderCircle className="is-spinning" size={18} />
+                        <HugeiconsIcon icon={Loading03Icon} className="is-spinning" size={18} />
                       ) : item.status === 'error' ? (
-                        <X size={18} />
+                        <HugeiconsIcon icon={Cancel01Icon} size={18} />
                       ) : config.kind === 'pdf' ? (
-                        <FileText size={18} />
+                        <HugeiconsIcon icon={Pdf01Icon} size={18} />
                       ) : (
-                        <BookText size={18} />
+                        <HugeiconsIcon icon={Book02Icon} size={18} />
                       )}
                     </span>
                     <span className="library-file-import-result-copy">
@@ -1377,7 +1378,7 @@ function FileImportDialog({
                     onOpenArticle(duplicateArticle);
                   }}
                 >
-                  <ExternalLink size={14} />
+                  <HugeiconsIcon icon={LinkSquare01Icon} size={14} />
                   {config.openDuplicateLabel}
                 </button>
               ) : importState === 'error' ? (

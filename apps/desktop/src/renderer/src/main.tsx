@@ -1,9 +1,10 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LockKeyIcon, PartyIcon, VolumeHighIcon } from '@hugeicons/core-free-icons';
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { AppSettings, ArticleSummaryRecord } from '@yomitomo/shared';
 import { normalizeUiLanguage } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
-import { LockKeyhole, PartyPopper, Volume2 } from 'lucide-react';
 
 import type { SettingsSectionKey } from './settings/app-settings-panels';
 import { AppLockGate } from './app-lock/app-lock-gate';
@@ -512,7 +513,7 @@ function App() {
                       setUpdateDialogRequest((n) => n + 1);
                     }}
                   >
-                    <PartyPopper aria-hidden="true" size={13} />
+                    <HugeiconsIcon icon={PartyIcon} aria-hidden="true" size={13} />
                     {t('nav.updateAvailable')}
                   </button>
                 ) : null}
@@ -524,7 +525,7 @@ function App() {
                     type="button"
                     onClick={() => void lockApp()}
                   >
-                    <LockKeyhole aria-hidden="true" size={18} />
+                    <HugeiconsIcon icon={LockKeyIcon} aria-hidden="true" size={18} />
                   </button>
                 ) : null}
                 <ThemeSelector
@@ -734,7 +735,7 @@ function BrandTitle({ settings }: { settings?: AppSettings }) {
           onClick={playPronunciation}
         >
           <span>Yomitomo</span>
-          <Volume2 aria-hidden="true" size={14} />
+          <HugeiconsIcon icon={VolumeHighIcon} aria-hidden="true" size={14} />
         </button>
       </h1>
     </div>

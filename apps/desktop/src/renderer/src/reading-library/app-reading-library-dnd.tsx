@@ -1,3 +1,5 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { DragDropVerticalIcon } from '@hugeicons/core-free-icons';
 import { useState, type ReactNode } from 'react';
 import { Accessibility, PointerActivationConstraints, PointerSensor } from '@dnd-kit/dom';
 import {
@@ -10,7 +12,6 @@ import {
   useDroppable,
 } from '@dnd-kit/react';
 import type { ContentRef } from '@yomitomo/shared';
-import { GripVertical } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { contentRefKey } from './app-reading-library-entities';
 
@@ -85,7 +86,7 @@ export function LibraryDndProvider({ children }: { children: ReactNode }) {
       <DragOverlay className="library-drag-overlay" dropAnimation={null}>
         {activeDrag ? (
           <span>
-            <GripVertical size={15} aria-hidden="true" />
+            <HugeiconsIcon icon={DragDropVerticalIcon} size={15} aria-hidden="true" />
             {activeDrag.title}
           </span>
         ) : null}
