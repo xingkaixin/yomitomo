@@ -79,6 +79,20 @@ describe('app lock IPC guard', () => {
     expect(protectedHandler).not.toHaveBeenCalled();
   });
 
+  it('checks protected IPC without reading a store snapshot', async () => {
+    const storeModule = createStoreModule(lockedStore());
+    const ipcContext = context(storeModule);
+    configureDesktopIpcAppLockGuardContext(ipcContext);
+    const protectedHandler = vi.fn();
+    handleDesktopIpc('article:get', protectedHandler);
+
+    await expectAppLockRequired('article:get', 'article_1');
+
+    expect(storeModule.readAppLockSettings).toHaveBeenCalledOnce();
+    expect(storeModule.readStore).not.toHaveBeenCalled();
+    expect(protectedHandler).not.toHaveBeenCalled();
+  });
+
   it('does not let setLocked unlock the app from renderer-controlled input', async () => {
     const storeModule = createStoreModule(lockedStore());
     const ipcContext = context(storeModule);
@@ -216,6 +230,7 @@ function context(storeModule: ReturnType<typeof createStoreModule>) {
         queryAssistantExecutionSummary: vi.fn(),
       },
       storeSettings: {
+        readAppLockSettings: storeModule.readAppLockSettings,
         saveSettings: storeModule.saveSettings,
         saveSettingsShell: storeModule.saveSettings,
       },
@@ -250,6 +265,11 @@ function createStoreModule(initialStore: DesktopStore) {
   let store = initialStore;
   return {
     readArticle: vi.fn(async () => ({ id: 'article_1' })),
+    readAppLockSettings: vi.fn(() => ({
+      appLockEnabled: Boolean(store.settings.appLockEnabled),
+      appLockLocked: Boolean(store.settings.appLockEnabled && store.settings.appLockLocked),
+      appLockShortcut: store.settings.appLockShortcut,
+    })),
     readStore: vi.fn(async () => store),
     readShellStoreWithProfile: vi.fn(async () => ({ store, profile: [] })),
     readStoreWithProfile: vi.fn(async () => ({ store, profile: [] })),

@@ -16,7 +16,7 @@ type ProviderIpcContext = Pick<DesktopMainIpcContext, 'sendFullStoreUpdated'> & 
       typeof import('../store/store-providers'),
       'deleteProvider' | 'saveProvider'
     >;
-    storeSettings: typeof import('../store/store-settings');
+    storeSettings: Pick<typeof import('../store/store-settings'), 'saveSettings' | 'saveUser'>;
     storeSnapshot: Pick<typeof import('../store/store-snapshot'), 'readStore'>;
   }>;
 };

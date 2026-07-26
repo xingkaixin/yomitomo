@@ -30,6 +30,7 @@ type AgentIpcContext = Pick<DesktopMainIpcContext, 'elapsedMs' | 'logError' | 'l
       typeof import('../store/store-assistant-executions'),
       'recordAssistantExecutionRun'
     >;
+    storeSettings: Pick<typeof import('../store/store-settings'), 'readAppLockSettings'>;
     storeSnapshot: Pick<typeof import('../store/store-snapshot'), 'readStore'>;
   }>;
 };

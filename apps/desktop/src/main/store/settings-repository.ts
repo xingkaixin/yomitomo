@@ -18,6 +18,21 @@ import {
   userToRow,
 } from './store-normalizers';
 
+export type AppLockSettings = {
+  appLockEnabled: boolean;
+  appLockLocked: boolean;
+  appLockShortcut?: string;
+};
+
+export function readAppLockSettings(database: StoreExecutor): AppLockSettings {
+  const settings = rowToSettings(database.select().from(schema.appSettings).limit(1).get());
+  return {
+    appLockEnabled: Boolean(settings.appLockEnabled),
+    appLockLocked: Boolean(settings.appLockEnabled && settings.appLockLocked),
+    appLockShortcut: settings.appLockShortcut,
+  };
+}
+
 export function readImportSettings(
   database: StoreExecutor,
 ): Pick<AppSettings, 'saveArticleImages' | 'allowLocalNetworkArticleImport'> {
