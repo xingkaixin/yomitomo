@@ -6,13 +6,14 @@ import type {
   LlmProvider,
   ReadingMemory,
 } from '@yomitomo/shared';
-import { mergeReadingMemory, rangeDistance } from '@yomitomo/core';
+import { mergeReadingMemory } from '@yomitomo/core';
 import {
   annotationDensityInstruction,
   annotationDensityMax,
-  createAgentAnnotation,
-  parseAnnotationSuggestions,
-  type AnnotationSuggestion,
+  createAnnotationSuggestionAcceptance,
+  parseAnnotationSuggestionInputs,
+  type AnnotationSuggestionAcceptance,
+  type AnnotationSuggestionPath,
 } from '../agent/annotation-generation';
 import { Effect } from 'effect';
 import { extractJsonObjects, hasIncompleteJson } from '../json';
@@ -51,7 +52,7 @@ export const runAgentSegmentAnnotateEffect = Effect.fn('Segment.annotate')(funct
 ) {
   return Effect.gen(function* () {
     const annotations: Annotation[] = [];
-    const deduper = createSegmentAnnotationDeduper(payload.article.text, payload.annotations || []);
+    const acceptance = createSegmentAnnotationSuggestionAcceptance(agent, payload, 'segment_json');
     const now = new Date().toISOString();
 
     for (const task of segmentTasks) {
@@ -61,24 +62,16 @@ export const runAgentSegmentAnnotateEffect = Effect.fn('Segment.annotate')(funct
         maxTokens: 3000,
         temperature: agent.temperature,
       });
-      const maxAnnotations = segmentAnnotationOutputLimit(agent, task);
-      let annotationCount = 0;
-
-      for (const suggestion of parseAnnotationSuggestions(text)) {
-        if (annotationCount >= maxAnnotations) break;
-        const annotation = createSegmentAnnotation(agent, payload, task, suggestion, now);
-        if (!annotation) {
-          logAiInfo('agent.segment_annotate.skip', {
-            agent: agent.username,
-            segmentId: task.segment.id,
-            reason: 'exact_not_in_allowed_segment',
-            exactPreview: suggestion.exact.slice(0, 120),
-          });
-          continue;
-        }
-        if (!deduper.accept(annotation)) continue;
-        annotations.push(annotation);
-        annotationCount += 1;
+      for (const input of parseAnnotationSuggestionInputs(text)) {
+        const result = acceptSegmentAnnotationSuggestion(
+          acceptance,
+          agent,
+          payload,
+          task,
+          input,
+          now,
+        );
+        if (result.status === 'accepted') annotations.push(result.annotation);
       }
     }
 
@@ -108,9 +101,10 @@ export const runAgentSegmentAnnotateWithMemoryEffect = Effect.fn('Segment.annota
   ) {
     return Effect.gen(function* () {
       const annotations: Annotation[] = [];
-      const deduper = createSegmentAnnotationDeduper(
-        payload.article.text,
-        payload.annotations || [],
+      const acceptance = createSegmentAnnotationSuggestionAcceptance(
+        agent,
+        payload,
+        'segment_json',
       );
       const now = new Date().toISOString();
       let readingMemory = payload.readingMemory;
@@ -131,26 +125,20 @@ export const runAgentSegmentAnnotateWithMemoryEffect = Effect.fn('Segment.annota
           maxTokens: 3000,
           temperature: agent.temperature,
         });
-        const maxAnnotations = segmentAnnotationOutputLimit(agent, task);
-        let annotationCount = 0;
         const segmentAnnotations: Annotation[] = [];
 
-        for (const suggestion of parseAnnotationSuggestions(text)) {
-          if (annotationCount >= maxAnnotations) break;
-          const annotation = createSegmentAnnotation(agent, payload, task, suggestion, now);
-          if (!annotation) {
-            logAiInfo('agent.segment_annotate.skip', {
-              agent: agent.username,
-              segmentId: task.segment.id,
-              reason: 'exact_not_in_allowed_segment',
-              exactPreview: suggestion.exact.slice(0, 120),
-            });
-            continue;
-          }
-          if (!deduper.accept(annotation)) continue;
-          annotations.push(annotation);
-          segmentAnnotations.push(annotation);
-          annotationCount += 1;
+        for (const input of parseAnnotationSuggestionInputs(text)) {
+          const result = acceptSegmentAnnotationSuggestion(
+            acceptance,
+            agent,
+            payload,
+            task,
+            input,
+            now,
+          );
+          if (result.status === 'rejected') continue;
+          annotations.push(result.annotation);
+          segmentAnnotations.push(result.annotation);
         }
 
         const update = yield* generateSegmentReadingMemoryUpdateEffect(
@@ -200,7 +188,11 @@ export const runAgentSegmentAnnotateStreamWithMemoryEffect = Effect.fn(
 ) {
   return Effect.gen(function* () {
     const annotations: Annotation[] = [];
-    const deduper = createSegmentAnnotationDeduper(payload.article.text, payload.annotations || []);
+    const acceptance = createSegmentAnnotationSuggestionAcceptance(
+      agent,
+      payload,
+      'segment_ndjson',
+    );
     let readingMemory = payload.readingMemory;
     const rebuildTask = createSegmentAnnotationTaskRebuilder(payload);
 
@@ -214,28 +206,19 @@ export const runAgentSegmentAnnotateStreamWithMemoryEffect = Effect.fn(
         rebuildTask,
       );
       const segmentAnnotations: Annotation[] = [];
-      const maxAnnotations = segmentAnnotationOutputLimit(agent, task);
-      let annotationCount = 0;
       const flushJson = (json: string) => {
-        if (annotationCount >= maxAnnotations) return;
         try {
-          const suggestion = parseAnnotationSuggestions(`[${json}]`)[0];
-          if (!suggestion) return;
-          const annotation = createSegmentAnnotation(agent, payload, task, suggestion);
-          if (!annotation) {
-            logAiInfo('agent.segment_annotate.skip', {
-              agent: agent.username,
-              segmentId: task.segment.id,
-              reason: 'exact_not_in_allowed_segment',
-              exactPreview: suggestion.exact.slice(0, 120),
-            });
-            return;
-          }
-          if (!deduper.accept(annotation)) return;
-          annotations.push(annotation);
-          segmentAnnotations.push(annotation);
-          annotationCount += 1;
-          onAnnotation(annotation);
+          const result = acceptSegmentAnnotationSuggestion(
+            acceptance,
+            agent,
+            payload,
+            task,
+            JSON.parse(json),
+          );
+          if (result.status === 'rejected') return;
+          annotations.push(result.annotation);
+          segmentAnnotations.push(result.annotation);
+          onAnnotation(result.annotation);
         } catch (error) {
           logAiError('agent.segment_annotate.ndjson_parse_error', error, {
             agent: agent.username,
@@ -309,26 +292,42 @@ function refreshedSegmentAnnotationTask(
   );
 }
 
-function createSegmentAnnotation(
+function createSegmentAnnotationSuggestionAcceptance(
+  agent: Agent,
+  payload: AgentAnnotatePayload,
+  path: Extract<AnnotationSuggestionPath, 'segment_json' | 'segment_ndjson'>,
+) {
+  return createAnnotationSuggestionAcceptance({
+    agent,
+    articleText: payload.article.text,
+    path,
+    dedupe: 'segment',
+    existingAnnotations: payload.annotations,
+    logger: logAiInfo,
+  });
+}
+
+function acceptSegmentAnnotationSuggestion(
+  acceptance: AnnotationSuggestionAcceptance,
   agent: Agent,
   payload: AgentAnnotatePayload,
   task: SegmentAnnotationTask,
-  suggestion: AnnotationSuggestion,
-  now = new Date().toISOString(),
+  input: unknown,
+  now?: string,
 ) {
-  if (suggestion.shouldShow === false) return null;
-  return createAgentAnnotation(
-    agent,
-    payload.article.text,
-    {
-      ...suggestion,
-      annotationType: payload.annotationType || suggestion.annotationType,
-      readingIntent:
-        task.planItem.readingIntent || payload.readingIntent || suggestion.readingIntent,
-    },
+  return acceptance.accept(input, {
+    maxAnnotations: segmentAnnotationOutputLimit(agent, task),
+    densityScope: [
+      task.segment.id,
+      task.createOptions.allowedTextStart,
+      task.createOptions.allowedTextEnd,
+    ].join(':'),
+    annotationType: payload.annotationType,
+    readingIntent: task.planItem.readingIntent || payload.readingIntent,
+    createOptions: { ...task.createOptions, performanceLogger: logAiInfo },
     now,
-    { ...task.createOptions, performanceLogger: logAiInfo },
-  );
+    diagnosticContext: { segmentId: task.segment.id },
+  });
 }
 
 function buildAgentSegmentAnnotatePrompt(
@@ -362,71 +361,4 @@ function segmentAnnotationOutputLimit(agent: Agent, task: SegmentAnnotationTask)
     task.targetDensity || agent.annotationDensity,
     task.context.currentSegment.text,
   );
-}
-
-function createSegmentAnnotationDeduper(articleText: string, existingAnnotations: Annotation[]) {
-  const accepted = existingAnnotations.flatMap((annotation) => {
-    const item = segmentDedupItem(articleText, annotation);
-    return item ? [item] : [];
-  });
-
-  return {
-    accept(annotation: Annotation) {
-      const item = segmentDedupItem(articleText, annotation);
-      if (!item) return true;
-      if (accepted.some((existing) => segmentDedupItemsMatch(existing, item))) return false;
-      accepted.push(item);
-      return true;
-    },
-  };
-}
-
-type SegmentDedupItem = {
-  exactKey: string;
-  textStart: number;
-  textEnd: number;
-  chapterId?: string;
-  segmentId?: string;
-  moveType?: string;
-};
-
-function segmentDedupItem(articleText: string, annotation: Annotation): SegmentDedupItem | null {
-  const textStart =
-    integerValue(annotation.anchor.textStartInBook) ?? integerValue(annotation.anchor.start);
-  const textEnd =
-    integerValue(annotation.anchor.textEndInBook) ?? integerValue(annotation.anchor.end);
-  if (textStart === null || textEnd === null || textEnd <= textStart) return null;
-  return {
-    exactKey: normalizeDedupText(annotation.anchor.exact || articleText.slice(textStart, textEnd)),
-    textStart,
-    textEnd,
-    chapterId: annotation.anchor.chapterId,
-    segmentId: annotation.anchor.segmentId,
-    moveType: annotation.moveType,
-  };
-}
-
-function segmentDedupItemsMatch(left: SegmentDedupItem, right: SegmentDedupItem) {
-  const sameSegment = left.segmentId && right.segmentId && left.segmentId === right.segmentId;
-  const sameChapter = left.chapterId && right.chapterId && left.chapterId === right.chapterId;
-  const distance = rangeDistance(left, right);
-  if (
-    left.exactKey &&
-    left.exactKey === right.exactKey &&
-    (sameSegment || sameChapter || distance <= 2400)
-  ) {
-    return true;
-  }
-  if (left.moveType && right.moveType && left.moveType === right.moveType) {
-    return Boolean(sameSegment) || distance <= 240;
-  }
-  return false;
-}
-
-function normalizeDedupText(text: string) {
-  return text.replace(/\s+/g, ' ').trim().toLowerCase();
-}
-
-function integerValue(value: number | undefined): number | null {
-  return Number.isInteger(value) && value !== undefined ? value : null;
 }

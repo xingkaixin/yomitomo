@@ -4,8 +4,10 @@ import { buildEpubBookIndex, epubIndexText } from '@yomitomo/core';
 import {
   annotationDensityInstruction,
   annotationDensityMax,
+  createAnnotationSuggestionAcceptance,
   createAgentAnnotation,
   parseAnnotationSuggestions,
+  type AnnotationSuggestionPath,
 } from './annotation-generation';
 
 const agent: Agent = {
@@ -285,6 +287,122 @@ describe('agent annotation generation', () => {
         shouldShow: true,
       },
     ]);
+  });
+
+  it.each<AnnotationSuggestionPath>([
+    'article_json',
+    'article_ndjson',
+    'segment_json',
+    'segment_ndjson',
+  ])('accepts normalized metadata consistently for %s', (path) => {
+    const events: Array<{ event: string; data?: Record<string, unknown> }> = [];
+    const acceptance = createAnnotationSuggestionAcceptance({
+      agent,
+      articleText: 'before target after',
+      path,
+      dedupe: 'none',
+      logger: (event, data) => events.push({ event, data }),
+    });
+
+    const result = acceptance.accept(
+      {
+        exact: 'target',
+        type: 'quote',
+        readingIntent: 'question',
+        moveType: 'challenge_argument',
+        whyHere: '关键推理跳跃。',
+        evidenceUsed: ['localText', 'trace', 'unknown'],
+        confidence: 'high',
+        shouldShow: true,
+        comment: '需要检验这个判断。',
+      },
+      {
+        maxAnnotations: 2,
+        annotationType: 'concept',
+        readingIntent: 'connect',
+      },
+    );
+
+    expect(result.status).toBe('accepted');
+    if (result.status === 'rejected') return;
+    expect(result.annotation).toMatchObject({
+      annotationType: 'concept',
+      readingIntent: 'connect',
+      moveType: 'challenge_argument',
+      whyHere: '关键推理跳跃。',
+      evidenceUsed: ['localText', 'trace'],
+      confidence: 'high',
+      shouldShow: true,
+    });
+    expect(events).toEqual([
+      {
+        event: 'agent.annotation_suggestion.decision',
+        data: expect.objectContaining({
+          path,
+          status: 'accepted',
+          annotationType: 'concept',
+          readingIntent: 'connect',
+          moveType: 'challenge_argument',
+        }),
+      },
+    ]);
+  });
+
+  it('returns structured rejection reasons for every acceptance gate', () => {
+    const acceptance = createAnnotationSuggestionAcceptance({
+      agent,
+      articleText: 'first target second duplicate',
+      path: 'segment_ndjson',
+      dedupe: 'segment',
+    });
+
+    expect(acceptance.accept({}, { maxAnnotations: 3 })).toMatchObject({
+      status: 'rejected',
+      reason: 'invalid_suggestion',
+    });
+    expect(
+      acceptance.accept(
+        { exact: 'target', shouldShow: false, comment: 'hidden' },
+        { maxAnnotations: 3 },
+      ),
+    ).toMatchObject({ status: 'rejected', reason: 'should_not_show' });
+    expect(
+      acceptance.accept(
+        { exact: 'second', comment: 'outside' },
+        { maxAnnotations: 3, createOptions: { allowedTextStart: 0, allowedTextEnd: 12 } },
+      ),
+    ).toMatchObject({ status: 'rejected', reason: 'anchor_not_found' });
+
+    const accepted = acceptance.accept(
+      { exact: 'target', moveType: 'ask_question', comment: 'first thought' },
+      { maxAnnotations: 1 },
+    );
+    expect(accepted.status).toBe('accepted');
+    expect(
+      acceptance.accept(
+        { exact: 'duplicate', moveType: 'challenge_argument', comment: 'second thought' },
+        { maxAnnotations: 1 },
+      ),
+    ).toMatchObject({ status: 'rejected', reason: 'density_limit' });
+
+    const duplicateAcceptance = createAnnotationSuggestionAcceptance({
+      agent,
+      articleText: 'first target second duplicate',
+      path: 'segment_json',
+      dedupe: 'segment',
+    });
+    expect(
+      duplicateAcceptance.accept(
+        { exact: 'target', moveType: 'ask_question', comment: 'first thought' },
+        { maxAnnotations: 3 },
+      ).status,
+    ).toBe('accepted');
+    expect(
+      duplicateAcceptance.accept(
+        { exact: 'duplicate', moveType: 'ask_question', comment: 'duplicate move' },
+        { maxAnnotations: 3 },
+      ),
+    ).toMatchObject({ status: 'rejected', reason: 'duplicate' });
   });
 
   it('normalizes annotation density instructions', () => {

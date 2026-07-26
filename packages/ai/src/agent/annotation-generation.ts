@@ -8,6 +8,7 @@ import type {
   AnnotationMove,
   AnnotationType,
   EpubBookIndex,
+  TextAnchor,
 } from '@yomitomo/shared';
 import {
   createTextAnchor,
@@ -23,6 +24,7 @@ import {
   createEpubTextAnchor,
   performanceElapsedMs,
   performanceStart,
+  rangeDistance,
   type PerformanceTimingLogger,
 } from '@yomitomo/core';
 
@@ -49,6 +51,193 @@ export type CreateAgentAnnotationOptions = {
   allowedParagraphIds?: string[];
   performanceLogger?: PerformanceTimingLogger;
 };
+
+export type AnnotationSuggestionPath =
+  | 'article_json'
+  | 'article_ndjson'
+  | 'segment_json'
+  | 'segment_ndjson';
+
+export type AnnotationSuggestionRejectionReason =
+  | 'invalid_suggestion'
+  | 'density_limit'
+  | 'should_not_show'
+  | 'anchor_not_found'
+  | 'duplicate';
+
+export type AnnotationSuggestionDedupeMode = 'none' | 'thought' | 'segment';
+
+export type AnnotationSuggestionAcceptance = {
+  accept(
+    input: unknown,
+    options: {
+      maxAnnotations: number;
+      densityScope?: string;
+      annotationType?: AnnotationType;
+      readingIntent?: AgentReadingIntent;
+      targetAnchor?: Pick<TextAnchor, 'exact' | 'prefix' | 'suffix'>;
+      createOptions?: CreateAgentAnnotationOptions;
+      now?: string;
+      diagnosticContext?: Record<string, unknown>;
+    },
+  ):
+    | { status: 'accepted'; annotation: Annotation; suggestion: AnnotationSuggestion }
+    | {
+        status: 'rejected';
+        reason: AnnotationSuggestionRejectionReason;
+        suggestion?: AnnotationSuggestion;
+      };
+};
+
+export function createAnnotationSuggestionAcceptance(options: {
+  agent: Agent;
+  articleText: string;
+  path: AnnotationSuggestionPath;
+  dedupe: AnnotationSuggestionDedupeMode;
+  existingAnnotations?: Annotation[];
+  logger?: PerformanceTimingLogger;
+}): AnnotationSuggestionAcceptance {
+  const acceptedByScope = new Map<string, number>();
+  const deduper = createAnnotationSuggestionDeduper(
+    options.dedupe,
+    options.articleText,
+    options.existingAnnotations || [],
+  );
+
+  return {
+    accept(input, acceptanceOptions) {
+      const suggestion = normalizeAnnotationSuggestion(input);
+      if (!suggestion) {
+        logAnnotationSuggestionDecision(
+          options.logger,
+          options.path,
+          options.agent,
+          undefined,
+          { status: 'rejected', reason: 'invalid_suggestion' },
+          acceptanceOptions.diagnosticContext,
+        );
+        return { status: 'rejected', reason: 'invalid_suggestion' };
+      }
+
+      const resolvedSuggestion = resolveAnnotationSuggestionMetadata(suggestion, acceptanceOptions);
+      const densityScope = acceptanceOptions.densityScope || 'default';
+      if ((acceptedByScope.get(densityScope) || 0) >= acceptanceOptions.maxAnnotations) {
+        return rejectAnnotationSuggestion(
+          options,
+          resolvedSuggestion,
+          'density_limit',
+          acceptanceOptions.diagnosticContext,
+        );
+      }
+      if (resolvedSuggestion.shouldShow === false) {
+        return rejectAnnotationSuggestion(
+          options,
+          resolvedSuggestion,
+          'should_not_show',
+          acceptanceOptions.diagnosticContext,
+        );
+      }
+
+      const annotation = createAgentAnnotation(
+        options.agent,
+        options.articleText,
+        resolvedSuggestion,
+        acceptanceOptions.now,
+        acceptanceOptions.createOptions,
+      );
+      if (!annotation) {
+        return rejectAnnotationSuggestion(
+          options,
+          resolvedSuggestion,
+          'anchor_not_found',
+          acceptanceOptions.diagnosticContext,
+        );
+      }
+      if (!deduper.accept(annotation)) {
+        return rejectAnnotationSuggestion(
+          options,
+          resolvedSuggestion,
+          'duplicate',
+          acceptanceOptions.diagnosticContext,
+        );
+      }
+
+      acceptedByScope.set(densityScope, (acceptedByScope.get(densityScope) || 0) + 1);
+      logAnnotationSuggestionDecision(
+        options.logger,
+        options.path,
+        options.agent,
+        resolvedSuggestion,
+        { status: 'accepted' },
+        acceptanceOptions.diagnosticContext,
+      );
+      return { status: 'accepted', annotation, suggestion: resolvedSuggestion };
+    },
+  };
+}
+
+function rejectAnnotationSuggestion(
+  options: {
+    agent: Agent;
+    path: AnnotationSuggestionPath;
+    logger?: PerformanceTimingLogger;
+  },
+  suggestion: AnnotationSuggestion,
+  reason: AnnotationSuggestionRejectionReason,
+  diagnosticContext?: Record<string, unknown>,
+) {
+  logAnnotationSuggestionDecision(
+    options.logger,
+    options.path,
+    options.agent,
+    suggestion,
+    { status: 'rejected', reason },
+    diagnosticContext,
+  );
+  return { status: 'rejected' as const, reason, suggestion };
+}
+
+function resolveAnnotationSuggestionMetadata(
+  suggestion: AnnotationSuggestion,
+  options: {
+    annotationType?: AnnotationType;
+    readingIntent?: AgentReadingIntent;
+    targetAnchor?: Pick<TextAnchor, 'exact' | 'prefix' | 'suffix'>;
+  },
+) {
+  return {
+    ...suggestion,
+    ...options.targetAnchor,
+    annotationType: options.annotationType || suggestion.annotationType,
+    readingIntent: options.readingIntent || suggestion.readingIntent,
+  };
+}
+
+function logAnnotationSuggestionDecision(
+  logger: PerformanceTimingLogger | undefined,
+  path: AnnotationSuggestionPath,
+  agent: Agent,
+  suggestion: AnnotationSuggestion | undefined,
+  decision:
+    | { status: 'accepted' }
+    | { status: 'rejected'; reason: AnnotationSuggestionRejectionReason },
+  context: Record<string, unknown> = {},
+) {
+  logger?.('agent.annotation_suggestion.decision', {
+    path,
+    agent: agent.username,
+    status: decision.status,
+    reason: decision.status === 'rejected' ? decision.reason : undefined,
+    exactPreview: suggestion?.exact.slice(0, 120),
+    annotationType: suggestion?.annotationType,
+    readingIntent: suggestion?.readingIntent,
+    moveType: suggestion?.moveType,
+    evidenceUsed: suggestion?.evidenceUsed,
+    confidence: suggestion?.confidence,
+    shouldShow: suggestion?.shouldShow,
+    ...context,
+  });
+}
 
 type AgentAnnotationMatchStrategy = 'exact' | 'whitespace_insensitive' | 'whitespace_agnostic';
 
@@ -489,32 +678,40 @@ function suggestionContext(exact: string, suggestion: AnnotationSuggestion) {
 }
 
 export function parseAnnotationSuggestions(content: string): AnnotationSuggestion[] {
+  return parseAnnotationSuggestionInputs(content)
+    .map(normalizeAnnotationSuggestion)
+    .filter((item): item is AnnotationSuggestion => item !== null);
+}
+
+export function parseAnnotationSuggestionInputs(content: string): unknown[] {
   const json = content.match(/\[[\s\S]*\]/)?.[0] || content;
   const parsed: unknown = JSON.parse(json);
-  if (!Array.isArray(parsed)) return [];
-  return parsed
-    .filter(isAnnotationSuggestionInput)
-    .map((item) => {
-      const suggestion: AnnotationSuggestion = {
-        exact: typeof item.exact === 'string' ? item.exact : '',
-        prefix: typeof item.prefix === 'string' ? item.prefix : undefined,
-        suffix: typeof item.suffix === 'string' ? item.suffix : undefined,
-        context: typeof item.context === 'string' ? item.context : undefined,
-        comment: typeof item.comment === 'string' ? item.comment : '',
-        annotationType: normalizeAnnotationType(item.type),
-        readingIntent: normalizeAgentReadingIntent(item.readingIntent),
-      };
-      const moveType = normalizeAnnotationMove(item.moveType);
-      const evidenceUsed = normalizeAnnotationEvidenceUsed(item.evidenceUsed);
-      const confidence = normalizeAnnotationConfidence(item.confidence);
-      if (moveType) suggestion.moveType = moveType;
-      if (typeof item.whyHere === 'string') suggestion.whyHere = item.whyHere;
-      if (evidenceUsed) suggestion.evidenceUsed = evidenceUsed;
-      if (confidence) suggestion.confidence = confidence;
-      if (typeof item.shouldShow === 'boolean') suggestion.shouldShow = item.shouldShow;
-      return suggestion;
-    })
-    .filter((item) => item.exact.trim().length > 0);
+  return Array.isArray(parsed) ? parsed : [];
+}
+
+export function normalizeAnnotationSuggestion(input: unknown): AnnotationSuggestion | null {
+  if (!isAnnotationSuggestionInput(input)) return null;
+  const exact = typeof input.exact === 'string' ? input.exact : '';
+  if (!exact.trim()) return null;
+
+  const suggestion: AnnotationSuggestion = {
+    exact,
+    prefix: typeof input.prefix === 'string' ? input.prefix : undefined,
+    suffix: typeof input.suffix === 'string' ? input.suffix : undefined,
+    context: typeof input.context === 'string' ? input.context : undefined,
+    comment: typeof input.comment === 'string' ? input.comment : '',
+    annotationType: normalizeAnnotationType(input.type),
+    readingIntent: normalizeAgentReadingIntent(input.readingIntent),
+  };
+  const moveType = normalizeAnnotationMove(input.moveType);
+  const evidenceUsed = normalizeAnnotationEvidenceUsed(input.evidenceUsed);
+  const confidence = normalizeAnnotationConfidence(input.confidence);
+  if (moveType) suggestion.moveType = moveType;
+  if (typeof input.whyHere === 'string') suggestion.whyHere = input.whyHere;
+  if (evidenceUsed) suggestion.evidenceUsed = evidenceUsed;
+  if (confidence) suggestion.confidence = confidence;
+  if (typeof input.shouldShow === 'boolean') suggestion.shouldShow = input.shouldShow;
+  return suggestion;
 }
 
 function isAnnotationSuggestionInput(value: unknown): value is {
@@ -532,6 +729,198 @@ function isAnnotationSuggestionInput(value: unknown): value is {
   shouldShow?: unknown;
 } {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function createAnnotationSuggestionDeduper(
+  mode: AnnotationSuggestionDedupeMode,
+  articleText: string,
+  existingAnnotations: Annotation[],
+) {
+  if (mode === 'none') return { accept: () => true };
+  if (mode === 'thought') return createThoughtAnnotationDeduper(articleText, existingAnnotations);
+  return createSegmentAnnotationDeduper(articleText, existingAnnotations);
+}
+
+function createThoughtAnnotationDeduper(articleText: string, existingAnnotations: Annotation[]) {
+  const accepted = existingAnnotations.flatMap((annotation) => {
+    const item = thoughtAnnotationDedupItem(articleText, annotation);
+    return item ? [item] : [];
+  });
+
+  return {
+    accept(annotation: Annotation) {
+      const item = thoughtAnnotationDedupItem(articleText, annotation);
+      if (!item) return true;
+      if (accepted.some((existing) => thoughtAnnotationDedupItemsMatch(existing, item))) {
+        return false;
+      }
+      accepted.push(item);
+      return true;
+    },
+  };
+}
+
+type ThoughtAnnotationDedupItem = {
+  exactKey: string;
+  textStart: number;
+  textEnd: number;
+  comments: string[];
+};
+
+function thoughtAnnotationDedupItem(
+  articleText: string,
+  annotation: Annotation,
+): ThoughtAnnotationDedupItem | null {
+  const textStart =
+    integerAnnotationValue(annotation.anchor.textStartInBook) ??
+    integerAnnotationValue(annotation.anchor.start);
+  const textEnd =
+    integerAnnotationValue(annotation.anchor.textEndInBook) ??
+    integerAnnotationValue(annotation.anchor.end);
+  if (textStart === null || textEnd === null || textEnd <= textStart) return null;
+
+  const comments = annotation.comments
+    .map((comment) => normalizeThoughtText(comment.content))
+    .filter((comment) => comment.length >= 12);
+  return {
+    exactKey: normalizeThoughtText(
+      annotation.anchor.exact || articleText.slice(textStart, textEnd),
+    ),
+    textStart,
+    textEnd,
+    comments,
+  };
+}
+
+function thoughtAnnotationDedupItemsMatch(
+  left: ThoughtAnnotationDedupItem,
+  right: ThoughtAnnotationDedupItem,
+) {
+  if (!sameThoughtAnnotationAnchor(left, right)) return false;
+  if (left.comments.length === 0 || right.comments.length === 0) {
+    return left.exactKey === right.exactKey;
+  }
+  return left.comments.some((leftComment) =>
+    right.comments.some((rightComment) => thoughtTextsSimilar(leftComment, rightComment)),
+  );
+}
+
+function sameThoughtAnnotationAnchor(
+  left: Pick<ThoughtAnnotationDedupItem, 'exactKey' | 'textStart' | 'textEnd'>,
+  right: Pick<ThoughtAnnotationDedupItem, 'exactKey' | 'textStart' | 'textEnd'>,
+) {
+  if (left.exactKey && left.exactKey === right.exactKey) return true;
+  return rangeDistance(left, right) <= 16;
+}
+
+function thoughtTextsSimilar(left: string, right: string) {
+  if (!left || !right) return false;
+  if (left === right) return true;
+  const shorter = left.length < right.length ? left : right;
+  const longer = left.length < right.length ? right : left;
+  if (shorter.length >= 24 && longer.includes(shorter)) return true;
+  return diceCoefficient(characterBigrams(left), characterBigrams(right)) >= 0.58;
+}
+
+function characterBigrams(text: string) {
+  if (text.length <= 1) return new Set(text ? [text] : []);
+  const grams = new Set<string>();
+  for (let index = 0; index < text.length - 1; index += 1) {
+    grams.add(text.slice(index, index + 2));
+  }
+  return grams;
+}
+
+function diceCoefficient(left: Set<string>, right: Set<string>) {
+  if (left.size === 0 || right.size === 0) return 0;
+  let overlap = 0;
+  for (const item of left) {
+    if (right.has(item)) overlap += 1;
+  }
+  return (2 * overlap) / (left.size + right.size);
+}
+
+function normalizeThoughtText(text: string) {
+  return text.replace(/[\s"'“”‘’`，。！？、；：,.!?;:—\-（）()[\]{}]/g, '').toLowerCase();
+}
+
+function createSegmentAnnotationDeduper(articleText: string, existingAnnotations: Annotation[]) {
+  const accepted = existingAnnotations.flatMap((annotation) => {
+    const item = segmentAnnotationDedupItem(articleText, annotation);
+    return item ? [item] : [];
+  });
+
+  return {
+    accept(annotation: Annotation) {
+      const item = segmentAnnotationDedupItem(articleText, annotation);
+      if (!item) return true;
+      if (accepted.some((existing) => segmentAnnotationDedupItemsMatch(existing, item))) {
+        return false;
+      }
+      accepted.push(item);
+      return true;
+    },
+  };
+}
+
+type SegmentAnnotationDedupItem = {
+  exactKey: string;
+  textStart: number;
+  textEnd: number;
+  chapterId?: string;
+  segmentId?: string;
+  moveType?: string;
+};
+
+function segmentAnnotationDedupItem(
+  articleText: string,
+  annotation: Annotation,
+): SegmentAnnotationDedupItem | null {
+  const textStart =
+    integerAnnotationValue(annotation.anchor.textStartInBook) ??
+    integerAnnotationValue(annotation.anchor.start);
+  const textEnd =
+    integerAnnotationValue(annotation.anchor.textEndInBook) ??
+    integerAnnotationValue(annotation.anchor.end);
+  if (textStart === null || textEnd === null || textEnd <= textStart) return null;
+  return {
+    exactKey: normalizeSegmentDedupText(
+      annotation.anchor.exact || articleText.slice(textStart, textEnd),
+    ),
+    textStart,
+    textEnd,
+    chapterId: annotation.anchor.chapterId,
+    segmentId: annotation.anchor.segmentId,
+    moveType: annotation.moveType,
+  };
+}
+
+function segmentAnnotationDedupItemsMatch(
+  left: SegmentAnnotationDedupItem,
+  right: SegmentAnnotationDedupItem,
+) {
+  const sameSegment = left.segmentId && right.segmentId && left.segmentId === right.segmentId;
+  const sameChapter = left.chapterId && right.chapterId && left.chapterId === right.chapterId;
+  const distance = rangeDistance(left, right);
+  if (
+    left.exactKey &&
+    left.exactKey === right.exactKey &&
+    (sameSegment || sameChapter || distance <= 2400)
+  ) {
+    return true;
+  }
+  if (left.moveType && right.moveType && left.moveType === right.moveType) {
+    return Boolean(sameSegment) || distance <= 240;
+  }
+  return false;
+}
+
+function normalizeSegmentDedupText(text: string) {
+  return text.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function integerAnnotationValue(value: number | undefined): number | null {
+  return Number.isInteger(value) && value !== undefined ? value : null;
 }
 
 export function annotationDensityInstruction(density: AgentAnnotationDensity, sourceText = '') {
