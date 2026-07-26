@@ -59,7 +59,7 @@ export type DesktopAppUpdaterModule = Awaited<
 
 export type DesktopIpcAppLockGuardContext = {
   getPersistenceModules: () => Promise<{
-    storeSnapshot: Pick<typeof import('../store/store-snapshot'), 'readStore'>;
+    storeSettings: Pick<typeof import('../store/store-settings'), 'readAppLockSettings'>;
   }>;
 };
 
@@ -100,9 +100,8 @@ export function handleDesktopIpc<Channel extends DesktopIpcInvokeChannel>(
 }
 
 export async function assertDesktopIpcAppLockUnlocked(context: DesktopIpcAppLockGuardContext) {
-  const { storeSnapshot } = await context.getPersistenceModules();
-  const store = await storeSnapshot.readStore();
-  assertAppLockSettingsUnlocked(store.settings);
+  const { storeSettings } = await context.getPersistenceModules();
+  assertAppLockSettingsUnlocked(storeSettings.readAppLockSettings());
 }
 
 export function assertAppLockSettingsUnlocked(settings: DesktopStore['settings']) {

@@ -16,7 +16,10 @@ import { handleDesktopIpc } from './ipc';
 
 type AppLockIpcContext = Pick<DesktopMainIpcContext, 'sendFullStoreUpdated'> & {
   getPersistenceModules: () => Promise<{
-    storeSettings: Pick<typeof import('../store/store-settings'), 'saveSettings'>;
+    storeSettings: Pick<
+      typeof import('../store/store-settings'),
+      'readAppLockSettings' | 'saveSettings'
+    >;
     storeSnapshot: Pick<typeof import('../store/store-snapshot'), 'readStore'>;
   }>;
 };
@@ -37,12 +40,12 @@ export function registerAppLockIpc(context: AppLockIpcContext) {
 
   handleDesktopIpc('appLock:unlock', async (event, input) => {
     const { storeSettings, storeSnapshot } = await context.getPersistenceModules();
-    const store = await storeSnapshot.readStore();
-    if (!store.settings.appLockEnabled) throw new DesktopIpcError('APP_LOCK_DISABLED');
+    const settings = storeSettings.readAppLockSettings();
+    if (!settings.appLockEnabled) throw new DesktopIpcError('APP_LOCK_DISABLED');
     if (!(await hasAppLockPin())) throw new DesktopIpcError('APP_LOCK_PIN_REQUIRED');
     const verification = await verifyAppLockPinAttempt(input.pin);
     if (verification.status !== 'verified') throw appLockPinAttemptError(verification);
-    if (!store.settings.appLockLocked) return store;
+    if (!settings.appLockLocked) return storeSnapshot.readStore();
 
     const nextStore = await storeSettings.saveSettings({ appLockLocked: false });
     context.sendFullStoreUpdated(event, nextStore);
@@ -51,9 +54,9 @@ export function registerAppLockIpc(context: AppLockIpcContext) {
 
   handleDesktopIpc('appLock:setLocked', async (event, input) => {
     if (!input.locked) throw new DesktopIpcError('APP_LOCK_UNLOCK_REQUIRED');
-    const { storeSettings, storeSnapshot } = await context.getPersistenceModules();
-    const store = await storeSnapshot.readStore();
-    if (input.locked && !store.settings.appLockEnabled) {
+    const { storeSettings } = await context.getPersistenceModules();
+    const settings = storeSettings.readAppLockSettings();
+    if (input.locked && !settings.appLockEnabled) {
       throw new DesktopIpcError('APP_LOCK_DISABLED');
     }
     if (input.locked && !(await hasAppLockPin())) {
@@ -93,13 +96,13 @@ export function registerAppLockIpc(context: AppLockIpcContext) {
 }
 
 async function readAppLockStatus(context: AppLockIpcContext) {
-  const { storeSnapshot } = await context.getPersistenceModules();
-  const store = await storeSnapshot.readStore();
+  const { storeSettings } = await context.getPersistenceModules();
+  const settings = storeSettings.readAppLockSettings();
   return {
     configured: await hasAppLockPin(),
-    enabled: Boolean(store.settings.appLockEnabled),
-    locked: Boolean(store.settings.appLockEnabled && store.settings.appLockLocked),
-    shortcut: store.settings.appLockShortcut,
+    enabled: settings.appLockEnabled,
+    locked: settings.appLockLocked,
+    shortcut: settings.appLockShortcut,
   };
 }
 
