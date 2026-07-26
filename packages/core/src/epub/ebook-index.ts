@@ -54,6 +54,36 @@ export type PreparedEpubTextAnchorResolver = {
   ): { start: number; end: number } | null;
 };
 
+export type EpubBookIndexPreparationLogger = (
+  event: string,
+  data?: Record<string, unknown>,
+) => void;
+
+export type PreparedEpubBookIndex = {
+  readonly textLength: number;
+  chapters(): readonly EpubChapterIndex[];
+  locateOffset(offset: number, options?: LocateEpubIndexOptions): EpubIndexLocation | null;
+  locateAnchor(
+    text: string,
+    anchor: TextAnchor,
+    options?: LocateEpubIndexOptions,
+  ): EpubIndexLocation | null;
+  chapter(id: string): EpubChapterIndex | undefined;
+  segment(id: string): EpubSegmentIndex | undefined;
+  paragraph(id: string): EpubParagraphIndex | undefined;
+  firstSegmentInChapter(chapterId: string): EpubSegmentIndex | undefined;
+  previousSegment(segment: EpubSegmentIndex): EpubSegmentIndex | undefined;
+  nextSegment(segment: EpubSegmentIndex): EpubSegmentIndex | undefined;
+  segmentsOverlapping(range: { textStart: number; textEnd: number }): EpubSegmentIndex[];
+  paragraphsOverlapping(range: { textStart: number; textEnd: number }): EpubParagraphIndex[];
+  paragraphsInChapter(chapterId: string): EpubParagraphIndex[];
+  paragraphWindow(paragraph: EpubParagraphIndex, windowSize: number): EpubParagraphIndex[];
+  segmentEndingAt(textEnd: number): EpubSegmentIndex | undefined;
+  chaptersBefore(chapter: EpubChapterIndex): string[];
+};
+
+const preparedEpubBookIndexes = new WeakMap<EpubBookIndex, PreparedEpubBookIndex>();
+
 export type CreateEpubTextAnchorFromQuoteOptions = {
   chapterId?: string;
   segmentId?: string;
@@ -156,6 +186,14 @@ export function locateEpubOffset(
   offset: number,
   options: LocateEpubIndexOptions = {},
 ): EpubIndexLocation | null {
+  return prepareEpubBookIndex(index).locateOffset(offset, options);
+}
+
+function locateEpubOffsetInIndex(
+  index: EpubBookIndex,
+  offset: number,
+  options: LocateEpubIndexOptions,
+): EpubIndexLocation | null {
   if (index.textLength <= 0) return null;
   const cursor = clampInteger(offset, 0, index.textLength - 1);
   const chapter = findRange(index.chapters, cursor)?.item || null;
@@ -187,25 +225,9 @@ export function prepareEpubTextAnchorResolver(
   index: EpubBookIndex,
   text: string,
 ): PreparedEpubTextAnchorResolver {
-  const chapters = prepareEpubRangeLookup(index.chapters);
-  const segments = prepareEpubRangeLookup(index.segments);
-  const paragraphs = prepareEpubRangeLookup(index.paragraphs);
-  const paragraphsById = firstEpubRangeById(index.paragraphs);
-  const lookups = { chapters, segments, paragraphs };
-
-  const locate = (
-    anchor: TextAnchor,
-    options: LocateEpubIndexOptions = {},
-  ): EpubIndexLocation | null => {
-    const structural = resolveEpubStructuralTextAnchor(paragraphsById, text, anchor);
-    if (structural) {
-      const location = locateAllowedEpubPosition(index, lookups, structural, options);
-      if (location) return location;
-    }
-
-    const fallback = resolveTextAnchor(text, anchor);
-    return fallback ? locateAllowedEpubPosition(index, lookups, fallback, options) : null;
-  };
+  const prepared = prepareEpubBookIndex(index);
+  const locate = (anchor: TextAnchor, options?: LocateEpubIndexOptions) =>
+    prepared.locateAnchor(text, anchor, options);
 
   return {
     locate,
@@ -214,6 +236,117 @@ export function prepareEpubTextAnchorResolver(
       return location ? { start: location.textStart, end: location.textEnd } : null;
     },
   };
+}
+
+export function prepareEpubBookIndex(
+  index: EpubBookIndex,
+  logger?: EpubBookIndexPreparationLogger,
+): PreparedEpubBookIndex {
+  return prepareEpubBookIndexState(index, logger);
+}
+
+function prepareEpubBookIndexState(
+  index: EpubBookIndex,
+  logger?: EpubBookIndexPreparationLogger,
+): PreparedEpubBookIndex {
+  const cached = preparedEpubBookIndexes.get(index);
+  if (cached) {
+    logEpubBookIndexPreparation(logger, index, 'reused');
+    return cached;
+  }
+
+  const chapterById = firstEpubRangeById(index.chapters);
+  const segmentById = firstEpubRangeById(index.segments);
+  const paragraphsById = firstEpubRangeById(index.paragraphs);
+  const firstSegmentByChapterId = new Map<string, EpubSegmentIndex>();
+  const segmentByChapterPosition = new Map<string, EpubSegmentIndex>();
+  const paragraphsByChapterId = new Map<string, EpubParagraphIndex[]>();
+  const paragraphPositions = new Map<EpubParagraphIndex, number>();
+  const chaptersBeforeCache = new Map<string, string[]>();
+
+  for (const segment of index.segments) {
+    if (!firstSegmentByChapterId.has(segment.chapterId)) {
+      firstSegmentByChapterId.set(segment.chapterId, segment);
+    }
+    segmentByChapterPosition.set(epubSegmentPositionKey(segment), segment);
+  }
+  for (const paragraph of index.paragraphs) {
+    const siblings = paragraphsByChapterId.get(paragraph.chapterId) || [];
+    if (siblings.length === 0) paragraphsByChapterId.set(paragraph.chapterId, siblings);
+    paragraphPositions.set(paragraph, siblings.length);
+    siblings.push(paragraph);
+  }
+
+  const rangeLookups = {
+    chapters: prepareEpubRangeLookup(index.chapters),
+    segments: prepareEpubRangeLookup(index.segments),
+    paragraphs: prepareEpubRangeLookup(index.paragraphs),
+  };
+  const prepared: PreparedEpubBookIndex = {
+    textLength: index.textLength,
+    chapters: () => index.chapters,
+    locateOffset: (offset, options = {}) => locateEpubOffsetInIndex(index, offset, options),
+    locateAnchor(text, anchor, options = {}) {
+      const structural = resolveEpubStructuralTextAnchor(paragraphsById, text, anchor);
+      if (structural) {
+        const location = locateAllowedEpubPosition(index, rangeLookups, structural, options);
+        if (location) return location;
+      }
+      const fallback = resolveTextAnchor(text, anchor);
+      return fallback ? locateAllowedEpubPosition(index, rangeLookups, fallback, options) : null;
+    },
+    chapter: (id) => chapterById.get(id),
+    segment: (id) => segmentById.get(id),
+    paragraph: (id) => paragraphsById.get(id),
+    firstSegmentInChapter: (chapterId) => firstSegmentByChapterId.get(chapterId),
+    previousSegment: (segment) => segmentByChapterPosition.get(epubSegmentPositionKey(segment, -1)),
+    nextSegment: (segment) => segmentByChapterPosition.get(epubSegmentPositionKey(segment, 1)),
+    segmentsOverlapping: (range) => rangeLookups.segments.overlapping(range),
+    paragraphsOverlapping: (range) => rangeLookups.paragraphs.overlapping(range),
+    paragraphsInChapter: (chapterId) => paragraphsByChapterId.get(chapterId) || [],
+    paragraphWindow(paragraph, windowSize) {
+      const siblings = paragraphsByChapterId.get(paragraph.chapterId) || [];
+      const position = paragraphPositions.get(paragraph);
+      if (position === undefined) return [];
+      return siblings.slice(
+        Math.max(0, position - windowSize),
+        position + Math.max(0, windowSize) + 1,
+      );
+    },
+    segmentEndingAt: (textEnd) =>
+      rangeLookups.segments.overlapping({ textStart: textEnd - 1, textEnd })[0],
+    chaptersBefore(chapter) {
+      const cachedChapterIds = chaptersBeforeCache.get(chapter.id);
+      if (cachedChapterIds) return cachedChapterIds;
+      const chapterIds = index.chapters
+        .filter((item) => item.indexInBook < chapter.indexInBook)
+        .map((item) => item.id);
+      chaptersBeforeCache.set(chapter.id, chapterIds);
+      return chapterIds;
+    },
+  };
+
+  preparedEpubBookIndexes.set(index, prepared);
+  logEpubBookIndexPreparation(logger, index, 'built');
+  return prepared;
+}
+
+function epubSegmentPositionKey(segment: EpubSegmentIndex, offset = 0) {
+  return `${segment.chapterId}\0${segment.indexInChapter + offset}`;
+}
+
+function logEpubBookIndexPreparation(
+  logger: EpubBookIndexPreparationLogger | undefined,
+  index: EpubBookIndex,
+  result: 'built' | 'reused',
+) {
+  logger?.('performance.epub_book_index_prepare', {
+    result,
+    articleId: index.articleId,
+    chapterCount: index.chapters.length,
+    segmentCount: index.segments.length,
+    paragraphCount: index.paragraphs.length,
+  });
 }
 
 export function createEpubTextAnchor(

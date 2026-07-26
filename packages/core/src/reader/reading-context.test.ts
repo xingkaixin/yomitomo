@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   buildEpubBookIndex,
   epubIndexText,
+  prepareEpubBookIndex,
   type EpubBookIndexChapterInput,
 } from '../epub/ebook-index';
 import {
   buildEpubReadingContextScope,
   buildReadingContextBundle,
-  prepareEpubReadingContext,
   selectionAnnotationSpoilerPolicy,
   wholeBookSpoilerPolicy,
 } from './reading-context';
@@ -61,7 +61,7 @@ describe('buildReadingContextBundle', () => {
       ],
     };
 
-    const scope = buildEpubReadingContextScope(prepareEpubReadingContext(index), input);
+    const scope = buildEpubReadingContextScope(prepareEpubBookIndex(index), input);
     const bundle = buildReadingContextBundle({ ...input, ebookIndex: index });
 
     expect(scope).toEqual({

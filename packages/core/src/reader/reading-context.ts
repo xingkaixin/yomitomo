@@ -2,14 +2,13 @@ import type {
   AgentReadingPlanItem,
   EpubBookIndex,
   EpubChapterIndex,
-  EpubParagraphIndex,
   EpubSegmentIndex,
   ReaderProgress,
   RelatedPassageInput,
   SpoilerPolicy,
   TextAnchor,
 } from '@yomitomo/shared';
-import { locateEpubOffset, locateEpubTextAnchor } from '../epub/ebook-index';
+import { prepareEpubBookIndex, type PreparedEpubBookIndex } from '../epub/ebook-index';
 import {
   createMergedReadingContextRangeLookup,
   intersectTextRanges,
@@ -76,18 +75,6 @@ export type ReadingContextBundle = {
 
 export type ReadingContextScope = Omit<ReadingContextBundle, 'articleText'>;
 
-type EpubContextLookup = {
-  chapterById: ReadonlyMap<string, EpubChapterIndex>;
-  segmentById: ReadonlyMap<string, EpubSegmentIndex>;
-  paragraphById(id: string): EpubParagraphIndex | undefined;
-  firstSegmentByChapterId: ReadonlyMap<string, EpubSegmentIndex>;
-};
-
-export type PreparedEpubReadingContext = {
-  readonly ebookIndex: EpubBookIndex;
-  readonly lookup: EpubContextLookup;
-};
-
 export function buildReadingContextBundle(
   input: BuildReadingContextBundleInput,
 ): ReadingContextBundle {
@@ -104,7 +91,7 @@ export function buildReadingContextBundle(
     };
   }
 
-  const prepared = prepareEpubReadingContext(input.ebookIndex);
+  const prepared = prepareEpubBookIndex(input.ebookIndex);
   const scope = buildEpubReadingContextScope(prepared, input);
 
   return {
@@ -113,24 +100,15 @@ export function buildReadingContextBundle(
   };
 }
 
-export function prepareEpubReadingContext(ebookIndex: EpubBookIndex): PreparedEpubReadingContext {
-  return {
-    ebookIndex,
-    lookup: buildEpubContextLookup(ebookIndex),
-  };
-}
-
 export function buildEpubReadingContextScope(
-  prepared: PreparedEpubReadingContext,
+  prepared: PreparedEpubBookIndex,
   input: Omit<BuildReadingContextBundleInput, 'ebookIndex'>,
 ): ReadingContextScope {
-  const { ebookIndex, lookup } = prepared;
   const policy = input.spoilerPolicy || defaultSpoilerPolicy(input);
-  const targetRange = resolveTargetRange(ebookIndex, input.articleText, input.targetAnchor);
-  const progress =
-    input.readerProgress || inferReaderProgress(ebookIndex, input.articleText, input);
+  const targetRange = resolveTargetRange(prepared, input.articleText, input.targetAnchor);
+  const progress = input.readerProgress || inferReaderProgress(prepared, input.articleText, input);
   const ranges = mergeReadingContextTextRanges(
-    scopeTextRanges(ebookIndex, lookup, progress, targetRange, policy),
+    scopeTextRanges(prepared, progress, targetRange, policy),
   );
   const rangeLookup = createMergedReadingContextRangeLookup(ranges);
 
@@ -139,12 +117,12 @@ export function buildEpubReadingContextScope(
     readerProgress: progress,
     spoilerPolicy: policy,
     relatedPassages: filterRelatedPassages(
-      lookup,
+      prepared,
       input.articleText,
       rangeLookup,
       input.relatedPassages || [],
     ),
-    chapterSummaries: filterChapterSummaries(lookup, rangeLookup, input.chapterSummaries || []),
+    chapterSummaries: filterChapterSummaries(prepared, rangeLookup, input.chapterSummaries || []),
   };
 }
 
@@ -164,12 +142,12 @@ function defaultSpoilerPolicy(input: BuildReadingContextBundleInput): SpoilerPol
 }
 
 function resolveTargetRange(
-  index: EpubBookIndex,
+  prepared: PreparedEpubBookIndex,
   articleText: string,
   anchor: TextAnchor | undefined,
 ): ReadingContextTextRange | null {
   if (!anchor) return null;
-  const position = locateEpubTextAnchor(index, articleText, anchor);
+  const position = prepared.locateAnchor(articleText, anchor);
   if (position) return { textStart: position.textStart, textEnd: position.textEnd };
   if (Number.isInteger(anchor.start) && Number.isInteger(anchor.end)) {
     return {
@@ -181,30 +159,28 @@ function resolveTargetRange(
 }
 
 function inferReaderProgress(
-  index: EpubBookIndex,
+  prepared: PreparedEpubBookIndex,
   articleText: string,
   input: BuildReadingContextBundleInput,
 ): ReaderProgress | undefined {
-  const target = input.targetAnchor
-    ? locateEpubTextAnchor(index, articleText, input.targetAnchor)
-    : null;
+  const target = input.targetAnchor ? prepared.locateAnchor(articleText, input.targetAnchor) : null;
   if (target) {
-    const location = locateEpubOffset(index, target.textStart);
+    const location = prepared.locateOffset(target.textStart);
     return location
-      ? progressFromLocation(index, location.chapter, location.segment, target.textEnd)
+      ? progressFromLocation(prepared, location.chapter, location.segment, target.textEnd)
       : undefined;
   }
 
   const firstPlanItem = input.readingPlan?.[0];
   if (!firstPlanItem) return undefined;
-  const location = locateEpubOffset(index, firstPlanItem.sectionStart);
+  const location = prepared.locateOffset(firstPlanItem.sectionStart);
   return location
-    ? progressFromLocation(index, location.chapter, location.segment, firstPlanItem.sectionEnd)
+    ? progressFromLocation(prepared, location.chapter, location.segment, firstPlanItem.sectionEnd)
     : undefined;
 }
 
 function progressFromLocation(
-  index: EpubBookIndex,
+  prepared: PreparedEpubBookIndex,
   chapter: EpubChapterIndex,
   segment: EpubSegmentIndex,
   readUntilTextOffset: number,
@@ -212,32 +188,35 @@ function progressFromLocation(
   return {
     currentChapterId: chapter.id,
     currentSegmentId: segment.id,
-    readChapterIds: index.chapters
-      .filter((item) => item.indexInBook < chapter.indexInBook)
-      .map((item) => item.id),
+    readChapterIds: prepared.chaptersBefore(chapter),
     readUntilTextOffset,
   };
 }
 
 function scopeTextRanges(
-  index: EpubBookIndex,
-  lookup: EpubContextLookup,
+  prepared: PreparedEpubBookIndex,
   progress: ReaderProgress | undefined,
   targetRange: ReadingContextTextRange | null,
   policy: SpoilerPolicy,
 ): ReadingContextTextRange[] {
-  if (wholeBookAllowed(policy)) return [{ textStart: 0, textEnd: index.textLength }];
+  if (wholeBookAllowed(policy)) return [{ textStart: 0, textEnd: prepared.textLength }];
   if (policy.allowedScope === 'current-selection') return targetRange ? [targetRange] : [];
   if (!progress) return targetRange ? [targetRange] : [];
 
-  const currentChapter = lookup.chapterById.get(progress.currentChapterId);
+  const currentChapter = prepared.chapter(progress.currentChapterId);
   if (!currentChapter) return targetRange ? [targetRange] : [];
   const currentSegment =
-    (progress.currentSegmentId ? lookup.segmentById.get(progress.currentSegmentId) : undefined) ||
+    (progress.currentSegmentId ? prepared.segment(progress.currentSegmentId) : undefined) ||
     (targetRange
-      ? locateEpubOffset(index, targetRange.textStart)?.segment
-      : lookup.firstSegmentByChapterId.get(currentChapter.id));
-  const readUntil = progressReadUntil(index, progress, currentChapter, currentSegment, targetRange);
+      ? prepared.locateOffset(targetRange.textStart)?.segment
+      : prepared.firstSegmentInChapter(currentChapter.id));
+  const readUntil = progressReadUntil(
+    prepared.textLength,
+    progress,
+    currentChapter,
+    currentSegment,
+    targetRange,
+  );
 
   if (policy.allowedScope === 'current-segment') {
     return currentSegment
@@ -256,7 +235,7 @@ function scopeTextRanges(
 
   if (policy.allowedScope === 'read-so-far') {
     const readChapters = new Set(progress.readChapterIds);
-    const ranges = index.chapters.flatMap((chapter) => {
+    const ranges = prepared.chapters().flatMap((chapter) => {
       if (chapter.id === currentChapter.id) {
         return [clipRange(chapter, chapter.textStart, readUntil)];
       }
@@ -265,7 +244,7 @@ function scopeTextRanges(
       }
       return [];
     });
-    return policy.allowFutureChapterEvidence ? ranges : filterFutureChapterRanges(index, ranges);
+    return policy.allowFutureChapterEvidence ? ranges : filterFutureChapterRanges(prepared, ranges);
   }
 
   return targetRange ? [targetRange] : [];
@@ -279,7 +258,7 @@ function wholeBookAllowed(policy: SpoilerPolicy) {
 }
 
 function progressReadUntil(
-  index: EpubBookIndex,
+  textLength: number,
   progress: ReaderProgress,
   chapter: EpubChapterIndex,
   segment: EpubSegmentIndex | undefined,
@@ -290,7 +269,7 @@ function progressReadUntil(
     targetRange?.textEnd ??
     segment?.textEnd ??
     chapter.textEnd;
-  return Math.max(chapter.textStart, Math.min(raw, index.textLength));
+  return Math.max(chapter.textStart, Math.min(raw, textLength));
 }
 
 function plotSafeEnd(policy: SpoilerPolicy, readUntil: number) {
@@ -308,24 +287,27 @@ function clipRange(
   };
 }
 
-function filterFutureChapterRanges(index: EpubBookIndex, ranges: ReadingContextTextRange[]) {
+function filterFutureChapterRanges(
+  prepared: PreparedEpubBookIndex,
+  ranges: ReadingContextTextRange[],
+) {
   const maxEnd = ranges.reduce((value, range) => Math.max(value, range.textEnd), 0);
-  const current = locateEpubOffset(index, Math.max(0, maxEnd - 1))?.chapter;
+  const current = prepared.locateOffset(Math.max(0, maxEnd - 1))?.chapter;
   if (!current) return ranges;
   return ranges.filter((range) => {
-    const chapter = locateEpubOffset(index, range.textStart)?.chapter;
+    const chapter = prepared.locateOffset(range.textStart)?.chapter;
     return !chapter || chapter.indexInBook <= current.indexInBook;
   });
 }
 
 function filterRelatedPassages(
-  lookup: EpubContextLookup,
+  prepared: PreparedEpubBookIndex,
   articleText: string,
   allowedRanges: ReadingContextRangeLookup,
   passages: ReadingContextPassageInput[],
 ): ReadingContextPassageInput[] {
   return passages.flatMap((passage) => {
-    const range = passageRange(lookup, passage);
+    const range = passageRange(prepared, passage);
     if (!range) return [];
 
     const intersections = allowedRanges.intersections(range);
@@ -346,19 +328,19 @@ function filterRelatedPassages(
 }
 
 function filterChapterSummaries(
-  lookup: EpubContextLookup,
+  prepared: PreparedEpubBookIndex,
   allowedRanges: ReadingContextRangeLookup,
   summaries: ReadingContextChapterSummaryInput[],
 ) {
   return summaries.filter((summary) => {
     if (summary.scope === 'descriptor') return true;
-    const chapter = lookup.chapterById.get(summary.chapterId);
+    const chapter = prepared.chapter(summary.chapterId);
     return chapter ? allowedRanges.fullyCovers(chapter) : false;
   });
 }
 
 function passageRange(
-  lookup: EpubContextLookup,
+  prepared: PreparedEpubBookIndex,
   passage: ReadingContextPassageInput,
 ): ReadingContextTextRange | null {
   const textStart = integerValue(passage.textStart);
@@ -366,49 +348,18 @@ function passageRange(
   if (textStart !== null && textEnd !== null && textEnd > textStart) return { textStart, textEnd };
 
   if (passage.paragraphId) {
-    const paragraph = lookup.paragraphById(passage.paragraphId);
+    const paragraph = prepared.paragraph(passage.paragraphId);
     if (paragraph) return { textStart: paragraph.textStart, textEnd: paragraph.textEnd };
   }
   if (passage.segmentId) {
-    const segment = lookup.segmentById.get(passage.segmentId);
+    const segment = prepared.segment(passage.segmentId);
     if (segment) return { textStart: segment.textStart, textEnd: segment.textEnd };
   }
   if (passage.chapterId) {
-    const chapter = lookup.chapterById.get(passage.chapterId);
+    const chapter = prepared.chapter(passage.chapterId);
     if (chapter) return { textStart: chapter.textStart, textEnd: chapter.textEnd };
   }
   return null;
-}
-
-function buildEpubContextLookup(index: EpubBookIndex): EpubContextLookup {
-  const chapterById = new Map<string, EpubChapterIndex>();
-  const segmentById = new Map<string, EpubSegmentIndex>();
-  const firstSegmentByChapterId = new Map<string, EpubSegmentIndex>();
-  let paragraphById: Map<string, EpubParagraphIndex> | undefined;
-
-  for (const chapter of index.chapters) {
-    if (!chapterById.has(chapter.id)) chapterById.set(chapter.id, chapter);
-  }
-  for (const segment of index.segments) {
-    if (!segmentById.has(segment.id)) segmentById.set(segment.id, segment);
-    if (!firstSegmentByChapterId.has(segment.chapterId)) {
-      firstSegmentByChapterId.set(segment.chapterId, segment);
-    }
-  }
-  return {
-    chapterById,
-    segmentById,
-    paragraphById: (id) => {
-      if (!paragraphById) {
-        paragraphById = new Map();
-        for (const paragraph of index.paragraphs) {
-          if (!paragraphById.has(paragraph.id)) paragraphById.set(paragraph.id, paragraph);
-        }
-      }
-      return paragraphById.get(id);
-    },
-    firstSegmentByChapterId,
-  };
 }
 
 function readingContextText(articleText: string, ranges: ReadingContextTextRange[]) {

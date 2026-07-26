@@ -7,11 +7,14 @@ import type {
   SpoilerPolicy,
   TextAnchor,
 } from '@yomitomo/shared';
-import { createEpubTextAnchor, locateEpubOffset, locateEpubTextAnchor } from '../epub/ebook-index';
+import {
+  createEpubTextAnchor,
+  locateEpubTextAnchor,
+  prepareEpubBookIndex,
+  type PreparedEpubBookIndex,
+} from '../epub/ebook-index';
 import {
   buildEpubReadingContextScope,
-  prepareEpubReadingContext,
-  type PreparedEpubReadingContext,
   type ReadingContextPassageInput,
   type ReadingContextTextRange,
 } from './reading-context';
@@ -68,28 +71,29 @@ type ScoredParagraph = ParagraphDocument & {
   matchedTerms: string[];
 };
 
-type ParagraphWindowLookup = {
-  paragraphsByChapterId: Map<string, EpubParagraphIndex[]>;
-  paragraphIndexByChapterAndId: Map<string, number>;
-};
-
 type LexicalCacheStats = {
   hitCount: number;
   missCount: number;
 };
 
 type PreparedLexicalRelatedPassageIndex = {
-  paragraphLookup: ParagraphWindowLookup;
+  epub: PreparedEpubBookIndex;
   paragraphDocuments: Map<string, CachedParagraphLexicalDocument>;
-  readingContext: PreparedEpubReadingContext;
 };
 
 export type LexicalRelatedPassageCache = {
-  indexes: WeakMap<EpubBookIndex, PreparedLexicalRelatedPassageIndex>;
+  readonly kind: 'lexical-related-passage-cache';
 };
 
+const lexicalRelatedPassageCacheStates = new WeakMap<
+  LexicalRelatedPassageCache,
+  WeakMap<EpubBookIndex, Map<string, CachedParagraphLexicalDocument>>
+>();
+
 export function createLexicalRelatedPassageCache(): LexicalRelatedPassageCache {
-  return { indexes: new WeakMap() };
+  const cache = { kind: 'lexical-related-passage-cache' as const };
+  lexicalRelatedPassageCacheStates.set(cache, new WeakMap());
+  return cache;
 }
 
 export function buildCurrentChapterLexicalRelatedPassages(
@@ -113,7 +117,7 @@ export function buildCurrentChapterLexicalRelatedPassages(
     return [];
   }
 
-  const allowedRanges = buildEpubReadingContextScope(prepared.readingContext, {
+  const allowedRanges = buildEpubReadingContextScope(prepared.epub, {
     articleText: input.articleText,
     targetAnchor: input.targetAnchor,
     readingPlan: input.readingPlan,
@@ -129,7 +133,7 @@ export function buildCurrentChapterLexicalRelatedPassages(
   const excluded = new Set(input.excludeParagraphIds || []);
   const cacheStats: LexicalCacheStats = { hitCount: 0, missCount: 0 };
   const documents = Array.from(chapterIds).flatMap((chapterId) =>
-    (prepared.paragraphLookup.paragraphsByChapterId.get(chapterId) || []).flatMap((paragraph) => {
+    prepared.epub.paragraphsInChapter(chapterId).flatMap((paragraph) => {
       if (excluded.has(paragraph.id)) return [];
       const ranges = intersectTextRanges(allowedRanges, paragraph);
       const document = paragraphLexicalDocument(input, prepared, paragraph, ranges, cacheStats);
@@ -152,7 +156,7 @@ export function buildCurrentChapterLexicalRelatedPassages(
     (document) => document.score >= MIN_RELATED_PASSAGE_SCORE,
   );
 
-  const passages = buildPassages(input, scored, allowedRanges, excluded, prepared.paragraphLookup);
+  const passages = buildPassages(input, scored, allowedRanges, excluded, prepared.epub);
   logTiming({
     result: 'ok',
     chapterId: chapter.id,
@@ -234,27 +238,21 @@ function currentChapter(
   prepared: PreparedLexicalRelatedPassageIndex,
 ): EpubChapterIndex | null {
   if (input.chapterId) {
-    return prepared.readingContext.lookup.chapterById.get(input.chapterId) || null;
+    return prepared.epub.chapter(input.chapterId) || null;
   }
   if (input.readerProgress?.currentChapterId) {
-    return (
-      prepared.readingContext.lookup.chapterById.get(input.readerProgress.currentChapterId) || null
-    );
+    return prepared.epub.chapter(input.readerProgress.currentChapterId) || null;
   }
   if (input.paragraphId) {
-    const paragraph = prepared.readingContext.lookup.paragraphById(input.paragraphId);
-    return paragraph
-      ? prepared.readingContext.lookup.chapterById.get(paragraph.chapterId) || null
-      : null;
+    const paragraph = prepared.epub.paragraph(input.paragraphId);
+    return paragraph ? prepared.epub.chapter(paragraph.chapterId) || null : null;
   }
   if (input.segmentId) {
-    const segment = prepared.readingContext.lookup.segmentById.get(input.segmentId);
-    return segment
-      ? prepared.readingContext.lookup.chapterById.get(segment.chapterId) || null
-      : null;
+    const segment = prepared.epub.segment(input.segmentId);
+    return segment ? prepared.epub.chapter(segment.chapterId) || null : null;
   }
   if (input.targetAnchor?.chapterId) {
-    return prepared.readingContext.lookup.chapterById.get(input.targetAnchor.chapterId) || null;
+    return prepared.epub.chapter(input.targetAnchor.chapterId) || null;
   }
   if (input.targetAnchor) {
     return (
@@ -263,9 +261,9 @@ function currentChapter(
   }
   const firstPlanItem = input.readingPlan?.[0];
   if (firstPlanItem) {
-    return locateEpubOffset(input.ebookIndex, firstPlanItem.sectionStart)?.chapter || null;
+    return prepared.epub.locateOffset(firstPlanItem.sectionStart)?.chapter || null;
   }
-  return locateEpubOffset(input.ebookIndex, 0)?.chapter || null;
+  return prepared.epub.locateOffset(0)?.chapter || null;
 }
 
 function candidateChapterIds(
@@ -337,7 +335,7 @@ function buildPassages(
   scored: ScoredParagraph[],
   allowedRanges: ReadingContextTextRange[],
   excluded: Set<string>,
-  paragraphLookup: ParagraphWindowLookup,
+  epub: PreparedEpubBookIndex,
 ): ReadingContextPassageInput[] {
   const maxPassages = positiveInteger(input.maxPassages, DEFAULT_RELATED_PASSAGE_LIMIT);
   const neighborParagraphs = nonNegativeInteger(
@@ -352,7 +350,8 @@ function buildPassages(
     const document = popBestScoredParagraph(scoredHeap);
     if (!document) break;
     if (usedParagraphIds.has(document.paragraph.id)) continue;
-    const blocks = paragraphWindow(paragraphLookup, document.paragraph, neighborParagraphs)
+    const blocks = epub
+      .paragraphWindow(document.paragraph, neighborParagraphs)
       .filter((paragraph) => !excluded.has(paragraph.id))
       .flatMap((paragraph) => {
         const ranges = intersectTextRanges(allowedRanges, paragraph);
@@ -445,54 +444,17 @@ function createRelatedPassageAnchor(
   };
 }
 
-function paragraphWindow(
-  lookup: ParagraphWindowLookup,
-  paragraph: EpubParagraphIndex,
-  neighborParagraphs: number,
-) {
-  const siblings = lookup.paragraphsByChapterId.get(paragraph.chapterId) || [];
-  const indexInChapter = lookup.paragraphIndexByChapterAndId.get(
-    paragraphWindowLookupKey(paragraph),
-  );
-  if (indexInChapter === undefined) return [];
-  return siblings.slice(
-    Math.max(0, indexInChapter - neighborParagraphs),
-    indexInChapter + neighborParagraphs + 1,
-  );
-}
-
-function buildParagraphWindowLookup(paragraphs: EpubParagraphIndex[]): ParagraphWindowLookup {
-  const paragraphsByChapterId = new Map<string, EpubParagraphIndex[]>();
-  const paragraphIndexByChapterAndId = new Map<string, number>();
-
-  for (const paragraph of paragraphs) {
-    const siblings = paragraphsByChapterId.get(paragraph.chapterId) || [];
-    if (siblings.length === 0) paragraphsByChapterId.set(paragraph.chapterId, siblings);
-    const key = paragraphWindowLookupKey(paragraph);
-    if (!paragraphIndexByChapterAndId.has(key)) {
-      paragraphIndexByChapterAndId.set(key, siblings.length);
-    }
-    siblings.push(paragraph);
-  }
-
-  return { paragraphsByChapterId, paragraphIndexByChapterAndId };
-}
-
 function preparedLexicalRelatedPassageIndex(input: BuildCurrentChapterLexicalRelatedPassagesInput) {
-  const cached = input.lexicalCache?.indexes.get(input.ebookIndex);
-  if (cached) return cached;
+  const epub = prepareEpubBookIndex(input.ebookIndex, input.performanceLogger);
+  const cacheState = input.lexicalCache
+    ? lexicalRelatedPassageCacheStates.get(input.lexicalCache)
+    : undefined;
+  const cachedDocuments = cacheState?.get(input.ebookIndex);
+  if (cachedDocuments) return { epub, paragraphDocuments: cachedDocuments };
 
-  const prepared = {
-    paragraphLookup: buildParagraphWindowLookup(input.ebookIndex.paragraphs),
-    paragraphDocuments: new Map<string, CachedParagraphLexicalDocument>(),
-    readingContext: prepareEpubReadingContext(input.ebookIndex),
-  };
-  input.lexicalCache?.indexes.set(input.ebookIndex, prepared);
-  return prepared;
-}
-
-function paragraphWindowLookupKey(paragraph: Pick<EpubParagraphIndex, 'chapterId' | 'id'>) {
-  return `${paragraph.chapterId}\u0000${paragraph.id}`;
+  const paragraphDocuments = new Map<string, CachedParagraphLexicalDocument>();
+  cacheState?.set(input.ebookIndex, paragraphDocuments);
+  return { epub, paragraphDocuments };
 }
 
 function textForRanges(articleText: string, ranges: ReadingContextTextRange[]) {

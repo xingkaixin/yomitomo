@@ -57,15 +57,18 @@ export {
   epubIndexText,
   locateEpubOffset,
   locateEpubTextAnchor,
+  prepareEpubBookIndex,
   prepareEpubTextAnchorResolver,
   resolveEpubTextAnchor,
 } from './epub/ebook-index';
 export type {
   BuildEpubBookIndexInput,
   CreateEpubTextAnchorFromQuoteOptions,
+  EpubBookIndexPreparationLogger,
   EpubBookIndexChapterInput,
   EpubIndexLocation,
   LocateEpubIndexOptions,
+  PreparedEpubBookIndex,
   PreparedEpubTextAnchorResolver,
 } from './epub/ebook-index';
 
@@ -94,7 +97,6 @@ export type { ReadingActivityDay, ReadingStats, ReadingStatsPeriod } from './rea
 export {
   buildEpubReadingContextScope,
   buildReadingContextBundle,
-  prepareEpubReadingContext,
   readingContextTextForRange,
   segmentAnnotationSpoilerPolicy,
   selectionAnnotationSpoilerPolicy,
@@ -104,7 +106,6 @@ export {
 export { intersectTextRanges, rangeDistance } from './reader/reading-context-ranges';
 export type {
   BuildReadingContextBundleInput,
-  PreparedEpubReadingContext,
   ReadingContextBundle,
   ReadingContextChapterSummaryInput,
   ReadingContextPassageInput,

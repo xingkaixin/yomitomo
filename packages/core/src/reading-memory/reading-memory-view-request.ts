@@ -1,13 +1,11 @@
 import type {
   AgentAnnotatePayload,
   AgentMessagePayload,
-  EpubBookIndex,
-  EpubChapterIndex,
-  EpubSegmentIndex,
   MemoryViewType,
   ReaderProgress,
   TextRange,
 } from '@yomitomo/shared';
+import { prepareEpubBookIndex, type PreparedEpubBookIndex } from '../epub/ebook-index';
 
 export type ReadingMemoryViewRequest = {
   articleId: string;
@@ -34,13 +32,13 @@ export function readingMemoryViewRequestForAnnotatePayload(
   if (!firstPlanItem) return undefined;
   if (!index) return articleSectionMemoryViewRequest(payload, articleId);
 
-  const lookup = createEbookIndexLookup(index);
-  const segment = lookup.findSegmentForRange({
+  const prepared = prepareEpubBookIndex(index);
+  const segment = prepared.segmentsOverlapping({
     textStart: firstPlanItem.sectionStart,
     textEnd: firstPlanItem.sectionEnd,
-  });
+  })[0];
   if (!segment) return undefined;
-  const chapter = lookup.chapterForSegment(segment);
+  const chapter = prepared.chapter(segment.chapterId);
   if (!chapter) return undefined;
   const textRange = {
     textStart: Math.max(segment.textStart, firstPlanItem.sectionStart),
@@ -64,7 +62,7 @@ export function readingMemoryViewRequestForAnnotatePayload(
     readerProgress: payload.readerProgress || {
       currentChapterId: chapter.id,
       currentSegmentId: segment.id,
-      readChapterIds: lookup.readChapterIdsBefore(chapter),
+      readChapterIds: prepared.chaptersBefore(chapter),
       readUntilTextOffset: textRange.textEnd,
     },
   };
@@ -77,10 +75,10 @@ export function readingMemoryViewRequestForMessagePayload(
   if (!articleId) return undefined;
 
   const textRange = anchorTextRange(payload.annotation.anchor);
-  const lookup = payload.article.ebookIndex
-    ? createEbookIndexLookup(payload.article.ebookIndex)
+  const prepared = payload.article.ebookIndex
+    ? prepareEpubBookIndex(payload.article.ebookIndex)
     : undefined;
-  const location = textRange && lookup ? ebookLocationForRange(lookup, textRange) : undefined;
+  const location = textRange && prepared ? ebookLocationForRange(prepared, textRange) : undefined;
   return {
     articleId,
     viewType: 'selection_thread',
@@ -142,10 +140,10 @@ function selectionAnnotateMemoryViewRequest(
   articleId: string,
 ): ReadingMemoryViewRequest {
   const textRange = anchorTextRange(payload.targetAnchor);
-  const lookup = payload.article.ebookIndex
-    ? createEbookIndexLookup(payload.article.ebookIndex)
+  const prepared = payload.article.ebookIndex
+    ? prepareEpubBookIndex(payload.article.ebookIndex)
     : undefined;
-  const location = textRange && lookup ? ebookLocationForRange(lookup, textRange) : undefined;
+  const location = textRange && prepared ? ebookLocationForRange(prepared, textRange) : undefined;
   return {
     articleId,
     viewType: 'selection',
@@ -171,48 +169,15 @@ function selectionAnnotateMemoryViewRequest(
   };
 }
 
-function ebookLocationForRange(lookup: EbookIndexLookup, textRange: { textEnd: number }) {
-  const segment = lookup.findSegmentEndingAt(textRange.textEnd);
+function ebookLocationForRange(prepared: PreparedEpubBookIndex, textRange: { textEnd: number }) {
+  const segment = prepared.segmentEndingAt(textRange.textEnd);
   if (!segment) return undefined;
-  const chapter = lookup.chapterForSegment(segment);
+  const chapter = prepared.chapter(segment.chapterId);
   if (!chapter) return undefined;
   return {
     chapterId: chapter.id,
     segmentId: segment.id,
-    readChapterIds: lookup.readChapterIdsBefore(chapter),
-  };
-}
-
-type EbookIndexLookup = ReturnType<typeof createEbookIndexLookup>;
-
-function createEbookIndexLookup(index: EpubBookIndex) {
-  const chapterById = new Map(index.chapters.map((chapter) => [chapter.id, chapter]));
-  const readChapterIdsBeforeCache = new Map<string, string[]>();
-
-  return {
-    findSegmentForRange(textRange: TextRange) {
-      return index.segments.find(
-        (segment) => segment.textStart < textRange.textEnd && segment.textEnd > textRange.textStart,
-      );
-    },
-    findSegmentEndingAt(textEnd: number) {
-      return index.segments.find(
-        (segment) => segment.textStart < textEnd && segment.textEnd >= textEnd,
-      );
-    },
-    chapterForSegment(segment: EpubSegmentIndex) {
-      return chapterById.get(segment.chapterId);
-    },
-    readChapterIdsBefore(chapter: EpubChapterIndex) {
-      const cached = readChapterIdsBeforeCache.get(chapter.id);
-      if (cached) return cached;
-
-      const chapterIds = index.chapters
-        .filter((item) => item.indexInBook < chapter.indexInBook)
-        .map((item) => item.id);
-      readChapterIdsBeforeCache.set(chapter.id, chapterIds);
-      return chapterIds;
-    },
+    readChapterIds: prepared.chaptersBefore(chapter),
   };
 }
 
