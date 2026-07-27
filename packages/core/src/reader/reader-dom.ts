@@ -80,30 +80,45 @@ export function isRangeInsideArticle(range: Range, article: HTMLElement) {
 }
 
 export function extractTocItems(article: HTMLElement, options: ExtractTocOptions = {}) {
-  const entries = getTocEntries(article, options)
+  const tocEntries = getTocEntries(article, options);
+  const { offsetsByTarget, textLength } = measureTocOffsets(article, tocEntries);
+  const entries = tocEntries
     .map((entry) => ({
       index: entry.index,
-      target: entry.target,
       text: entry.text,
       depth: entry.depth,
-      start: offsetFromArticleStart(article, entry.target, 0),
+      start: offsetsByTarget.get(entry.target) ?? 0,
     }))
     .toSorted((left, right) => left.start - right.start);
-  const textLength = article.textContent?.length || 0;
 
-  return entries.map((entry, index) => {
-    const isRootIntro = index === 0 && entries[1] && entry.depth < entries[1].depth;
-    const nextEntry = entries
-      .slice(index + 1)
-      .find((item) => (isRootIntro ? true : item.depth <= entry.depth));
-    return {
-      index: entry.index,
-      text: entry.text,
-      depth: entry.depth,
-      start: entry.start,
-      end: nextEntry?.start || textLength,
-    };
-  });
+  const ends = entries.map(() => textLength);
+  const nextCandidates: typeof entries = [];
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index];
+    if (!entry) continue;
+    if (Number.isNaN(entry.depth)) continue;
+    let nextCandidate = nextCandidates.at(-1);
+    while (nextCandidate && nextCandidate.depth > entry.depth) {
+      nextCandidates.pop();
+      nextCandidate = nextCandidates.at(-1);
+    }
+    ends[index] = nextCandidate?.start || textLength;
+    nextCandidates.push(entry);
+  }
+
+  const firstEntry = entries[0];
+  const secondEntry = entries[1];
+  if (firstEntry && secondEntry && firstEntry.depth < secondEntry.depth) {
+    ends[0] = secondEntry.start || textLength;
+  }
+
+  return entries.map((entry, index) => ({
+    index: entry.index,
+    text: entry.text,
+    depth: entry.depth,
+    start: entry.start,
+    end: ends[index] ?? textLength,
+  }));
 }
 
 export function articleTitleTocItems(article: HTMLElement, title: string): TocItem[] {
@@ -599,6 +614,27 @@ function getTocEntries(article: HTMLElement, options: ExtractTocOptions): TocEnt
     .slice(0, options.maxInferredHeadings ?? 24);
 
   return collectTocCandidates(inferredHeadings, () => 1);
+}
+
+function measureTocOffsets(article: HTMLElement, entries: TocEntry[]) {
+  const targets = new Set(entries.map((entry) => entry.target));
+  const offsetsByTarget = new Map<HTMLElement, number>();
+  const walker = article.ownerDocument.createTreeWalker(
+    article,
+    NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
+  );
+  let textLength = 0;
+
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      textLength += node.nodeValue?.length || 0;
+      continue;
+    }
+    const element = node as HTMLElement;
+    if (targets.has(element)) offsetsByTarget.set(element, textLength);
+  }
+
+  return { offsetsByTarget, textLength };
 }
 
 function collectTocCandidates(
