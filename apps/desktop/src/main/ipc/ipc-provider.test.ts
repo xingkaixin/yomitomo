@@ -22,10 +22,13 @@ describe('provider IPC persistence boundary', () => {
     ipcMocks.ipcMainHandle.mockClear();
     const store = desktopStore();
     const saveSettings = vi.fn(async (_input: DesktopStore['settings']) => store);
-    const readStore = vi.fn(async () => store);
+    const readAppLockSettings = vi.fn(() => ({
+      appLockEnabled: false,
+      appLockLocked: false,
+    }));
     const sendFullStoreUpdated = vi.fn();
     registerProviderIpc(
-      providerIpcContext({}, {}, { readStore, saveSettings }, { sendFullStoreUpdated }),
+      providerIpcContext({}, {}, { readAppLockSettings, saveSettings }, { sendFullStoreUpdated }),
     );
     const handler = ipcMocks.ipcMainHandle.mock.calls.find(
       ([channel]) => channel === 'settings:save',
@@ -35,7 +38,30 @@ describe('provider IPC persistence boundary', () => {
     const result = await handler(event, { uiLanguage: 'en' });
 
     expect(result).toEqual({ ok: true, value: store });
+    expect(readAppLockSettings).toHaveBeenCalledOnce();
     expect(sendFullStoreUpdated).toHaveBeenCalledWith(event, store);
+  });
+
+  it('rejects renderer-controlled app lock state changes through settings', async () => {
+    ipcMocks.ipcMainHandle.mockClear();
+    const saveSettings = vi.fn();
+    const readAppLockSettings = vi.fn(() => ({
+      appLockEnabled: true,
+      appLockLocked: true,
+    }));
+    registerProviderIpc(providerIpcContext({}, {}, { readAppLockSettings, saveSettings }));
+    const handler = ipcMocks.ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === 'settings:save',
+    )?.[1];
+
+    const result = await handler({}, { appLockLocked: false });
+
+    expect(result).toMatchObject({
+      error: { code: 'APP_LOCK_LOCKED_STATE_RESTRICTED' },
+      ok: false,
+    });
+    expect(readAppLockSettings).toHaveBeenCalledOnce();
+    expect(saveSettings).not.toHaveBeenCalled();
   });
 
   it('reads provider API keys through provider persistence only', async () => {
@@ -97,7 +123,7 @@ function providerIpcContext(
   providerOverrides: Partial<ProviderRepository>,
   aiOverrides: Partial<ProviderAiModule> = {},
   persistenceOverrides: {
-    readStore?: ProviderPersistenceModules['storeSnapshot']['readStore'];
+    readAppLockSettings?: ProviderPersistenceModules['storeSettings']['readAppLockSettings'];
     saveSettings?: ProviderPersistenceModules['storeSettings']['saveSettings'];
   } = {},
   contextOverrides: Partial<ProviderIpcContext> = {},
@@ -119,16 +145,17 @@ function providerIpcContext(
         saveProvider: vi.fn(),
       },
       storeSettings: {
+        readAppLockSettings:
+          persistenceOverrides.readAppLockSettings ||
+          vi.fn<ProviderPersistenceModules['storeSettings']['readAppLockSettings']>(() => ({
+            appLockEnabled: false,
+            appLockLocked: false,
+          })),
         saveSettings:
           persistenceOverrides.saveSettings ||
           vi.fn<ProviderPersistenceModules['storeSettings']['saveSettings']>(),
         saveSettingsShell: vi.fn(),
         saveUser: vi.fn(),
-      },
-      storeSnapshot: {
-        readStore:
-          persistenceOverrides.readStore ||
-          vi.fn<ProviderPersistenceModules['storeSnapshot']['readStore']>(),
       },
     }),
     sendFullStoreUpdated: vi.fn(),
