@@ -24,18 +24,24 @@ export function hydrateCatalogCandidates(
   database: StoreDatabase,
   candidates: CatalogCandidate[],
 ): LibraryCatalogEntity[] {
+  const itemCandidates = candidates.filter(
+    (candidate): candidate is Extract<CatalogCandidate, { kind: 'item' }> =>
+      candidate.kind === 'item',
+  );
   const collectionIds = candidates
     .filter((candidate) => candidate.kind === 'collection')
     .map((candidate) => candidate.id);
   const coverRefs = readCollectionCoverRefs(database, collectionIds);
   const articleIds = uniqueIds(
-    candidates
-      .filter((candidate) => candidate.type !== 'collection' && candidate.type !== 'weread')
+    itemCandidates
+      .filter((candidate) => candidate.type !== 'weread')
       .map((candidate) => candidate.id),
     coverRefs.filter((ref) => ref.kind === 'article').map((ref) => ref.id),
   );
   const weReadIds = uniqueIds(
-    candidates.filter((candidate) => candidate.type === 'weread').map((candidate) => candidate.id),
+    itemCandidates
+      .filter((candidate) => candidate.type === 'weread')
+      .map((candidate) => candidate.id),
     coverRefs.filter((ref) => ref.kind === 'weread').map((ref) => ref.id),
   );
   const articleMap = readArticlesById(database, articleIds);
@@ -52,7 +58,7 @@ export function hydrateCatalogCandidates(
           kind: 'col',
           collection,
           coverMembers: coverMembers.get(candidate.id) || [],
-          memberCount: candidate.memberCount || 0,
+          memberCount: candidate.memberCount,
           sortTime: candidate.sortTime,
           pinned: candidate.pinned,
         } satisfies LibraryCatalogCollection;
@@ -143,7 +149,7 @@ function groupCoverMembers(
 }
 
 function itemFromCandidate(
-  candidate: CatalogCandidate,
+  candidate: Extract<CatalogCandidate, { kind: 'item' }>,
   articleMap: ReturnType<typeof readArticlesById>,
   weReadMap: ReturnType<typeof readWeReadBooksById>,
 ) {
@@ -161,8 +167,7 @@ function articleItem(
   if (!article) return null;
   return {
     kind: 'item',
-    ref: { kind: 'article', id: article.id },
-    type: article.sourceType,
+    source: 'article',
     sortTime,
     pinned,
     article,
@@ -177,8 +182,7 @@ function weReadItem(
   if (!weread) return null;
   return {
     kind: 'item',
-    ref: { kind: 'weread', id: weread.bookId },
-    type: 'weread',
+    source: 'weread',
     sortTime,
     pinned,
     weread,

@@ -1,21 +1,21 @@
 import type { ContentRef, LibraryPinTargetKind } from '@yomitomo/shared';
+import {
+  libraryCatalogItemRef,
+  type LibraryCatalogEntity,
+  type LibraryCatalogItem,
+} from '../../../ipc-contract';
 import { articleDisplayTitle } from './app-reading-library-utils';
-import type { LibraryEntity, LibraryItemEntity } from './library-entity-types';
 
-export function libraryEntityPinTarget(entity: LibraryEntity): {
+export function libraryEntityPinTarget(entity: LibraryCatalogEntity): {
   kind: LibraryPinTargetKind;
   id: string;
 } {
   if (entity.kind === 'col') return { kind: 'collection', id: entity.collection.id };
-  return {
-    kind: entity.ref.kind,
-    id: entity.ref.id,
-  };
+  return libraryCatalogItemRef(entity);
 }
 
-export function libraryItemTitle(item: LibraryItemEntity) {
-  if (item.article) return articleDisplayTitle(item.article);
-  return item.weread?.title || '';
+export function libraryItemTitle(item: LibraryCatalogItem) {
+  return item.source === 'article' ? articleDisplayTitle(item.article) : item.weread.title;
 }
 
 export function contentRefKey(ref: ContentRef) {
