@@ -1,29 +1,16 @@
 import type { AppSettings } from '@yomitomo/shared';
 import type { YomitomoDesktopApi } from '../../../preload';
+import { getDesktopApi } from '../shell/app-desktop-api';
 
-type DataManagementDesktopApi = Pick<
-  YomitomoDesktopApi,
-  | 'backupDatabase'
-  | 'clearLog'
-  | 'getDataManagementPaths'
-  | 'openDataManagementPath'
-  | 'restoreDatabase'
-  | 'saveSettings'
->;
+type DataManagementDesktopApi = Pick<YomitomoDesktopApi, 'store'>;
 
 export function createDataManagementActions(getDesktop: () => DataManagementDesktopApi) {
   return {
-    backupDatabase: () => getDesktop().backupDatabase(),
-    clearLog: () => getDesktop().clearLog(),
-    getPaths: () => getDesktop().getDataManagementPaths(),
-    openPath: (kind: Parameters<DataManagementDesktopApi['openDataManagementPath']>[0]) =>
-      getDesktop().openDataManagementPath(kind),
-    restoreDatabase: () => getDesktop().restoreDatabase(),
     saveLogRetention: (settings: AppSettings, days: number) =>
-      getDesktop().saveSettings({ ...settings, logRetentionDays: days }),
+      getDesktop().store.saveSettings({ ...settings, logRetentionDays: days }),
   };
 }
 
 export type DataManagementActions = ReturnType<typeof createDataManagementActions>;
 
-export const dataManagementActions = createDataManagementActions(() => window.yomitomoDesktop);
+export const dataManagementActions = createDataManagementActions(getDesktopApi);

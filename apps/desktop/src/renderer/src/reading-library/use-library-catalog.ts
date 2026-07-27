@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { LibraryCatalogListInput, LibraryCatalogListResult } from '../../../ipc-contract';
+import { getOptionalDesktopApi } from '../shell/app-desktop-api';
 
 const CATALOG_SEARCH_DEBOUNCE_MS = 180;
 
@@ -37,7 +38,7 @@ export function useLibraryCatalog(
   const [resolvedCatalog, setResolvedCatalog] = useState<ResolvedCatalog | null>(null);
 
   useEffect(() => {
-    const listCatalog = window.yomitomoDesktop?.listLibraryCatalog;
+    const listCatalog = getOptionalDesktopApi()?.library?.catalog?.list;
     if (!listCatalog) {
       setResolvedCatalog({
         scopeKey,

@@ -1,52 +1,20 @@
 import type { YomitomoDesktopApi } from '../../../preload';
+import { getDesktopApi } from '../shell/app-desktop-api';
 
-type SettingsDesktopApi = Pick<
-  YomitomoDesktopApi,
-  | 'deleteProvider'
-  | 'getWeReadState'
-  | 'listProviderModels'
-  | 'openUrl'
-  | 'readProviderApiKey'
-  | 'readWeReadApiKey'
-  | 'saveProvider'
-  | 'saveSettings'
-  | 'saveUser'
-  | 'saveWeReadSettings'
-  | 'setAppLockEnabled'
-  | 'setAppLockPin'
-  | 'testProvider'
-  | 'testWeRead'
->;
+type SettingsDesktopApi = Pick<YomitomoDesktopApi, 'appLock' | 'weRead'>;
 
 export function createAppSettingsActions(getDesktop: () => SettingsDesktopApi) {
   return {
-    deleteProvider: (id: Parameters<SettingsDesktopApi['deleteProvider']>[0]) =>
-      getDesktop().deleteProvider(id),
-    disableAppLock: (pin: string) => getDesktop().setAppLockEnabled({ enabled: false, pin }),
+    disableAppLock: (pin: string) => getDesktop().appLock.setEnabled({ enabled: false, pin }),
     enableAppLock: async (pin: string, confirmPin: string) => {
       const desktop = getDesktop();
-      await desktop.setAppLockPin({ pin, confirmPin });
-      return desktop.setAppLockEnabled({ enabled: true });
+      await desktop.appLock.setPin({ pin, confirmPin });
+      return desktop.appLock.setEnabled({ enabled: true });
     },
-    getWeReadState: () => getDesktop().getWeReadState(),
-    listProviderModels: (provider: Parameters<SettingsDesktopApi['listProviderModels']>[0]) =>
-      getDesktop().listProviderModels(provider),
-    openExternalUrl: (url: string) => getDesktop().openUrl(url),
-    readProviderApiKey: (providerId: string) => getDesktop().readProviderApiKey(providerId),
-    readWeReadApiKey: () => getDesktop().readWeReadApiKey(),
-    saveProvider: (provider: Parameters<SettingsDesktopApi['saveProvider']>[0]) =>
-      getDesktop().saveProvider(provider),
-    saveSettings: (settings: Parameters<SettingsDesktopApi['saveSettings']>[0]) =>
-      getDesktop().saveSettings(settings),
-    saveUser: (user: Parameters<SettingsDesktopApi['saveUser']>[0]) => getDesktop().saveUser(user),
-    saveWeReadSettings: (input: Parameters<SettingsDesktopApi['saveWeReadSettings']>[0]) =>
-      getDesktop().saveWeReadSettings(input),
-    testProvider: (provider: Parameters<SettingsDesktopApi['testProvider']>[0]) =>
-      getDesktop().testProvider(provider),
     testWeReadAndRefresh: async (apiKey?: string) => {
       const desktop = getDesktop();
-      const result = await desktop.testWeRead(apiKey);
-      const state = await desktop.getWeReadState();
+      const result = await desktop.weRead.test(apiKey);
+      const state = await desktop.weRead.getState();
       return { result, state };
     },
   };
@@ -54,4 +22,4 @@ export function createAppSettingsActions(getDesktop: () => SettingsDesktopApi) {
 
 export type AppSettingsActions = ReturnType<typeof createAppSettingsActions>;
 
-export const appSettingsActions = createAppSettingsActions(() => window.yomitomoDesktop);
+export const appSettingsActions = createAppSettingsActions(getDesktopApi);

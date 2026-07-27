@@ -83,7 +83,9 @@ describe('useSettingsDrafts', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
-        saveUser: vi.fn().mockResolvedValue(userPatch),
+        store: {
+          saveUser: vi.fn().mockResolvedValue(userPatch),
+        },
       },
     });
 
@@ -110,7 +112,7 @@ describe('useSettingsDrafts', () => {
     });
 
     expect(result).toBe(true);
-    expect(window.yomitomoDesktop.saveUser).toHaveBeenCalledWith(
+    expect(window.yomitomoDesktop.store.saveUser).toHaveBeenCalledWith(
       expect.objectContaining({ nickname: '行开心' }),
     );
   });
@@ -120,7 +122,9 @@ describe('useSettingsDrafts', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
-        saveUser: vi.fn().mockRejectedValue(new Error('save failed')),
+        store: {
+          saveUser: vi.fn().mockRejectedValue(new Error('save failed')),
+        },
       },
     });
 

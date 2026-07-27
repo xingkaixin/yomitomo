@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import i18next from 'i18next';
 import type { ArticleRecord, ArticleSummaryRecord } from '@yomitomo/shared';
 import { articleDisplayTitle } from '../reading-library/app-reading-library-utils';
+import { getOptionalDesktopApi } from './app-desktop-api';
 
 type BookCoverFrameStyle = React.CSSProperties & {
   '--book-color': string;
@@ -227,7 +228,7 @@ function usePdfThumbnail(articleId: string) {
       return;
     }
 
-    const request = window.yomitomoDesktop?.getPdfThumbnail?.(articleId);
+    const request = getOptionalDesktopApi()?.article?.pdf?.getThumbnail(articleId);
     if (!request) return;
 
     let cancelled = false;
@@ -263,7 +264,7 @@ export function useArticleSiteIcon(articleId: string, enabled = true) {
       return;
     }
 
-    const request = window.yomitomoDesktop?.getArticleSiteIcon?.(articleId);
+    const request = getOptionalDesktopApi()?.article?.getSiteIcon?.(articleId);
     if (!request) return;
 
     let cancelled = false;
@@ -333,9 +334,10 @@ function useEbookCover(article: ArticleBookRecord) {
       return;
     }
 
+    const request = getOptionalDesktopApi()?.article?.getCover?.(article.id);
+    if (!request) return;
     let cancelled = false;
-    void window.yomitomoDesktop
-      ?.getArticleCover(article.id)
+    void request
       .then((value) => {
         const loadedUrl = safeHttpUrl(value) || null;
         articleCoverCache.set(article.id, loadedUrl);

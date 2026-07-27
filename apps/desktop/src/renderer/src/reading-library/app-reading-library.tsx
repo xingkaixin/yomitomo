@@ -46,6 +46,7 @@ import {
   articleUpdateCanReplace,
   useReadingLibraryNavigation,
 } from './use-reading-library-navigation';
+import { getDesktopApi, getOptionalDesktopApi } from '../shell/app-desktop-api';
 
 export { groupLibraryArticles };
 export type { LibrarySort };
@@ -157,9 +158,9 @@ export function ReadingLibrary({
     ? minimizedDiscussionWindows.filter((item) => item.articleId === selectedArticle.id)
     : [];
   useEffect(() => {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop?.onAnnotationDiscussionWindowState) return;
-    return desktop.onAnnotationDiscussionWindowState((event) => {
+    const subscribe = getOptionalDesktopApi()?.annotations?.onDiscussionWindowState;
+    if (!subscribe) return;
+    return subscribe((event) => {
       setMinimizedDiscussionWindows((current) => {
         if (event.type === 'remove') {
           return current.filter(
@@ -177,9 +178,9 @@ export function ReadingLibrary({
   }, []);
 
   useEffect(() => {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop?.onAnnotationDistillationCommitted) return;
-    return desktop.onAnnotationDistillationCommitted((event) => {
+    const subscribe = getOptionalDesktopApi()?.annotations?.onDistillationCommitted;
+    if (!subscribe) return;
+    return subscribe((event) => {
       void distillationSync.onCommitted(event);
     });
   }, [distillationSync.onCommitted]);
@@ -231,17 +232,13 @@ export function ReadingLibrary({
 
   useEffect(() => {
     let cancelled = false;
-    const desktop = window.yomitomoDesktop;
-    const loadSettings = desktop?.getWeReadSettings
-      ? desktop.getWeReadSettings().then((loadedSettings) => ({ settings: loadedSettings }))
-      : desktop?.getWeReadState?.();
-    void loadSettings
-      ?.then((state) => {
+    const getState = getOptionalDesktopApi()?.weRead?.getState;
+    if (!getState) return;
+    void getState()
+      .then((state) => {
         if (cancelled) return;
         setWeReadSettings(state.settings);
-        if ('books' in state && Array.isArray(state.books)) {
-          setWeReadBooks(state.books as WeReadBook[]);
-        }
+        setWeReadBooks(state.books);
       })
       .catch(() => undefined);
     return () => {
@@ -250,9 +247,9 @@ export function ReadingLibrary({
   }, []);
 
   useEffect(() => {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop?.onWeReadStateUpdated) return;
-    return desktop.onWeReadStateUpdated((state) => {
+    const subscribe = getOptionalDesktopApi()?.weRead?.onStateUpdated;
+    if (!subscribe) return;
+    return subscribe((state) => {
       setWeReadSettings(state.settings);
       setWeReadBooks(state.books);
     });
@@ -278,7 +275,7 @@ export function ReadingLibrary({
 
   async function openWeReadBook(book: WeReadBook) {
     navigation.actions.resetLibrary();
-    const cached = await window.yomitomoDesktop?.getWeReadBook?.(book.bookId);
+    const cached = await getDesktopApi().weRead.getBook(book.bookId);
     const detail =
       cached &&
       (cached.chapters.length > 0 || cached.highlights.length > 0 || cached.thoughts.length > 0)
@@ -293,10 +290,9 @@ export function ReadingLibrary({
   }
 
   async function syncWeReadLibrary(options: { manual?: boolean } = {}) {
-    if (!window.yomitomoDesktop) return;
     setWeReadSyncing(true);
     try {
-      const result = await window.yomitomoDesktop.syncWeRead();
+      const result = await getDesktopApi().weRead.sync();
       setWeReadSettings(result.settings);
       setWeReadBooks(result.books);
       if (options.manual) {
@@ -322,17 +318,16 @@ export function ReadingLibrary({
   ) {
     setWeReadOpenMessage('');
     try {
-      await window.yomitomoDesktop?.openWeRead?.({ bookId: book.bookId, ...target });
+      await getDesktopApi().weRead.open({ bookId: book.bookId, ...target });
     } catch (error) {
       setWeReadOpenMessage(weReadOpenErrorMessage(error));
     }
   }
 
   async function syncWeReadBook(bookId: string) {
-    if (!window.yomitomoDesktop) return null;
     setWeReadBookSyncing(true);
     try {
-      const detail = await window.yomitomoDesktop.syncWeReadBook(bookId);
+      const detail = await getDesktopApi().weRead.syncBook(bookId);
       if (!detail) {
         setWeReadBooks((books) => books.filter((book) => book.bookId !== bookId));
         navigation.actions.resetLibrary();

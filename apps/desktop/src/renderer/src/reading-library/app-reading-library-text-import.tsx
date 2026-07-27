@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import type { TextImportCommitItem, TextImportPreparedItem } from '../../../ipc-contract';
 import { Button } from '../components/ui/button';
 import { Dialog, DialogContent, DialogOverlay, DialogPortal } from '../components/ui/dialog';
+import { getDesktopApi } from '../shell/app-desktop-api';
 
 type TextImportMode = 'paste' | 'upload';
 type TextFormat = 'plain' | 'markdown';
@@ -67,7 +68,7 @@ export function TextImportDialog({ onClose }: { onClose: () => void }) {
     setErrors([]);
     try {
       if (mode === 'paste') {
-        const result = await window.yomitomoDesktop.prepareTextImport({
+        const result = await getDesktopApi().article.text.prepareImport({
           kind: 'paste',
           content: pasteContent,
           format: pasteAsMarkdown ? 'markdown' : 'plain',
@@ -77,7 +78,7 @@ export function TextImportDialog({ onClose }: { onClose: () => void }) {
         const payload = await Promise.all(
           files.map(async (file) => ({ fileName: file.name, data: await file.arrayBuffer() })),
         );
-        const result = await window.yomitomoDesktop.prepareTextImport({
+        const result = await getDesktopApi().article.text.prepareImport({
           kind: 'files',
           files: payload,
         });
@@ -101,7 +102,7 @@ export function TextImportDialog({ onClose }: { onClose: () => void }) {
         body: row.body,
         frontMatter: row.frontMatter,
       }));
-      await window.yomitomoDesktop.commitTextImport({ items });
+      await getDesktopApi().article.text.commitImport({ items });
       onClose();
     } catch {
       setErrors([t('library.import.text.commitFailed')]);

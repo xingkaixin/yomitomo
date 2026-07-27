@@ -226,7 +226,7 @@ function installDefaultCatalog(
 ) {
   type DesktopApi = NonNullable<typeof window.yomitomoDesktop>;
   const desktopApi = window.yomitomoDesktop as Partial<DesktopApi> | undefined;
-  if (desktopApi?.listLibraryCatalog) return;
+  if (desktopApi?.library?.catalog?.list) return;
   const catalog = createLibraryCatalogTestAdapter({
     articles,
     collectionMembers: options.collectionMembers || [],
@@ -234,7 +234,7 @@ function installDefaultCatalog(
     pins: options.pins || [],
   });
   closeDefaultCatalog = () => catalog.close();
-  const readWeReadState = desktopApi?.getWeReadState;
+  const readWeReadState = desktopApi?.weRead?.getState;
   const getWeReadState = readWeReadState
     ? async () => {
         const state = await readWeReadState();
@@ -242,9 +242,9 @@ function installDefaultCatalog(
         return state;
       }
     : undefined;
-  const subscribeToWeReadState = desktopApi?.onWeReadStateUpdated;
+  const subscribeToWeReadState = desktopApi?.weRead?.onStateUpdated;
   const onWeReadStateUpdated = subscribeToWeReadState
-    ? (listener: Parameters<NonNullable<typeof desktopApi.onWeReadStateUpdated>>[0]) =>
+    ? (listener: Parameters<NonNullable<typeof subscribeToWeReadState>>[0]) =>
         subscribeToWeReadState((state) => {
           catalog.replaceWeReadBooks(state.books);
           listener(state);
@@ -252,13 +252,33 @@ function installDefaultCatalog(
     : undefined;
   vi.stubGlobal('yomitomoDesktop', {
     ...desktopApi,
-    getArticleCover: desktopApi?.getArticleCover || vi.fn(async () => null),
-    getCurrentArticleTranslation:
-      desktopApi?.getCurrentArticleTranslation || vi.fn(async () => null),
-    getWeReadState,
-    listLibraryCatalog: (input: LibraryCatalogListInput) =>
-      immediateCatalogResult(catalog.list(input)),
-    onWeReadStateUpdated,
+    annotations: {
+      ...desktopApi?.annotations,
+      onDiscussionWindowState:
+        desktopApi?.annotations?.onDiscussionWindowState || vi.fn(() => vi.fn()),
+      onDistillationCommitted:
+        desktopApi?.annotations?.onDistillationCommitted || vi.fn(() => vi.fn()),
+    },
+    article: {
+      ...desktopApi?.article,
+      getCover: desktopApi?.article?.getCover || vi.fn(async () => null),
+      translation: {
+        ...desktopApi?.article?.translation,
+        getCurrent: desktopApi?.article?.translation?.getCurrent || vi.fn(async () => null),
+      },
+    },
+    library: {
+      ...desktopApi?.library,
+      catalog: {
+        ...desktopApi?.library?.catalog,
+        list: (input: LibraryCatalogListInput) => immediateCatalogResult(catalog.list(input)),
+      },
+    },
+    weRead: {
+      ...desktopApi?.weRead,
+      getState: getWeReadState,
+      onStateUpdated: onWeReadStateUpdated,
+    },
   });
 }
 
@@ -678,8 +698,13 @@ describe('ReadingLibrary home', () => {
       },
     );
     vi.stubGlobal('yomitomoDesktop', {
-      getWeReadSettings: vi.fn(async () => ({ configured: false, openMethod: 'deeplink' })),
-      listLibraryCatalog,
+      library: { catalog: { list: listLibraryCatalog } },
+      weRead: {
+        getState: vi.fn(async () => ({
+          settings: { configured: false, openMethod: 'deeplink' },
+          books: [],
+        })),
+      },
     });
 
     renderLibrary([]);
@@ -823,8 +848,10 @@ describe('ReadingLibrary home', () => {
       ],
     };
     vi.stubGlobal('yomitomoDesktop', {
-      getWeReadState: vi.fn().mockResolvedValue(state),
-      syncWeRead: vi.fn().mockResolvedValue(state),
+      weRead: {
+        getState: vi.fn().mockResolvedValue(state),
+        sync: vi.fn().mockResolvedValue(state),
+      },
     });
 
     renderLibrary(
@@ -1435,8 +1462,10 @@ describe('ReadingLibrary home', () => {
       ],
     };
     vi.stubGlobal('yomitomoDesktop', {
-      getWeReadState: vi.fn().mockResolvedValue(state),
-      syncWeRead: vi.fn().mockResolvedValue(state),
+      weRead: {
+        getState: vi.fn().mockResolvedValue(state),
+        sync: vi.fn().mockResolvedValue(state),
+      },
     });
     const collection: Collection = {
       id: 'collection_1',
@@ -1653,7 +1682,7 @@ describe('ReadingLibrary home', () => {
     const getArticleCover = vi.fn().mockResolvedValue(coverUrl);
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
-      value: { getArticleCover },
+      value: { article: { getCover: getArticleCover } },
     });
     const { container } = renderLibrary([
       article({
@@ -1830,8 +1859,10 @@ describe('ReadingLibrary home', () => {
       books: [book],
     };
     vi.stubGlobal('yomitomoDesktop', {
-      getWeReadState: vi.fn().mockResolvedValue(state),
-      syncWeRead: vi.fn().mockResolvedValue(state),
+      weRead: {
+        getState: vi.fn().mockResolvedValue(state),
+        sync: vi.fn().mockResolvedValue(state),
+      },
     });
 
     renderLibrary([]);
@@ -1885,8 +1916,10 @@ describe('ReadingLibrary home', () => {
       ],
     };
     vi.stubGlobal('yomitomoDesktop', {
-      getWeReadState: vi.fn().mockResolvedValue(state),
-      syncWeRead: vi.fn().mockResolvedValue(state),
+      weRead: {
+        getState: vi.fn().mockResolvedValue(state),
+        sync: vi.fn().mockResolvedValue(state),
+      },
     });
 
     renderLibrary([]);
@@ -1905,8 +1938,10 @@ describe('ReadingLibrary home', () => {
     };
     const syncWeRead = vi.fn().mockResolvedValue(state);
     vi.stubGlobal('yomitomoDesktop', {
-      getWeReadState: vi.fn().mockResolvedValue(state),
-      syncWeRead,
+      weRead: {
+        getState: vi.fn().mockResolvedValue(state),
+        sync: syncWeRead,
+      },
     });
 
     renderLibrary([], {
@@ -1951,12 +1986,14 @@ describe('ReadingLibrary home', () => {
     const syncWeRead = vi.fn().mockResolvedValue(nextState);
     let emitWeReadState: ((state: typeof nextState) => void) | null = null;
     vi.stubGlobal('yomitomoDesktop', {
-      getWeReadState: vi.fn().mockResolvedValue(initialState),
-      onWeReadStateUpdated: vi.fn((callback) => {
-        emitWeReadState = callback;
-        return vi.fn();
-      }),
-      syncWeRead,
+      weRead: {
+        getState: vi.fn().mockResolvedValue(initialState),
+        onStateUpdated: vi.fn((callback) => {
+          emitWeReadState = callback;
+          return vi.fn();
+        }),
+        sync: syncWeRead,
+      },
     });
 
     renderLibrary([]);
@@ -2204,10 +2241,12 @@ describe('ReadingLibrary home', () => {
         }) => void)
       | null = null;
     vi.stubGlobal('yomitomoDesktop', {
-      onAnnotationDistillationCommitted: vi.fn((listener) => {
-        onCommitted = listener;
-        return vi.fn();
-      }),
+      annotations: {
+        onDistillationCommitted: vi.fn((listener) => {
+          onCommitted = listener;
+          return vi.fn();
+        }),
+      },
     });
     const fullArticle = article({
       id: 'distillation_article',
@@ -2342,10 +2381,12 @@ describe('ReadingLibrary home', () => {
         }) => void)
       | null = null;
     vi.stubGlobal('yomitomoDesktop', {
-      onAnnotationDistillationCommitted: vi.fn((listener) => {
-        onCommitted = listener;
-        return vi.fn();
-      }),
+      annotations: {
+        onDistillationCommitted: vi.fn((listener) => {
+          onCommitted = listener;
+          return vi.fn();
+        }),
+      },
     });
     const initialAnnotation = {
       ...annotation('note_1'),

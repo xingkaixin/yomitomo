@@ -14,6 +14,7 @@ import { makeId } from '@yomitomo/shared';
 import i18next from 'i18next';
 import { promptArticle } from './source-prompt-article';
 import { assistantRuntimeErrorMessage } from '../../shell/app-assistant-runtime-progress';
+import { getDesktopApi } from '../../shell/app-desktop-api';
 
 type UseReaderChatSessionInput = {
   agents: PublicAgent[];
@@ -149,7 +150,7 @@ export function useReaderChatSession({
     replaceState(pendingState, true);
 
     try {
-      const finalComment = await window.yomitomoDesktop.requestAgentCommentStream(
+      const finalComment = await getDesktopApi().agent.requestCommentStream(
         readerChatPayload({
           agent: assistant,
           article,

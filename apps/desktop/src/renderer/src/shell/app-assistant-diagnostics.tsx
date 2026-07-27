@@ -32,6 +32,7 @@ import { Calendar } from '../components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '../components/ui/select';
 import { useTranslation } from 'react-i18next';
+import { getDesktopApi } from './app-desktop-api';
 
 type DiagnosticsProps = {
   agents: Agent[];
@@ -76,8 +77,8 @@ export function AiTraceSettingsPanel({ agents, providers }: DiagnosticsProps) {
     setError('');
     try {
       const [nextRuns, nextSummary] = await Promise.all([
-        window.yomitomoDesktop.listAssistantExecutions(query),
-        window.yomitomoDesktop.summarizeAssistantExecutions(query),
+        getDesktopApi().diagnostics.assistantExecutions.list(query),
+        getDesktopApi().diagnostics.assistantExecutions.summarize(query),
       ]);
       setRuns(nextRuns);
       setRunDetails((current) => filterRunDetails(current, nextRuns));
@@ -97,7 +98,7 @@ export function AiTraceSettingsPanel({ agents, providers }: DiagnosticsProps) {
     setDetailLoadingId(runId);
     setDetailErrors((current) => ({ ...current, [runId]: '' }));
     try {
-      const detail = await window.yomitomoDesktop.getAssistantExecutionDetail(runId);
+      const detail = await getDesktopApi().diagnostics.assistantExecutions.getDetail(runId);
       if (!detail) throw new Error(t('diagnostics.traceReadFailed'));
       setRunDetails((current) => ({ ...current, [runId]: detail }));
     } catch (nextError) {
@@ -198,7 +199,7 @@ export function AiUsagePanel({ agents }: { agents: Agent[] }) {
     setError('');
     try {
       const summary =
-        await window.yomitomoDesktop.summarizeAssistantExecutions(recentWindowQuery());
+        await getDesktopApi().diagnostics.assistantExecutions.summarize(recentWindowQuery());
       setOverview(summary.totals);
       setByAgent(summary.byAgent);
     } catch (nextError) {

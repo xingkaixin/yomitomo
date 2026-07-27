@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import i18next from 'i18next';
 import type { AppSettings, DesktopStore, LlmProvider } from '@yomitomo/shared';
 import type { SettingsStorePatch, UserStorePatch } from '../../../ipc-contract';
+import type { YomitomoDesktopApi } from '../../../preload';
 import {
   normalizeUiLanguage,
   normalizeSelectionActionShortcutDraft,
@@ -22,14 +23,16 @@ import {
 } from './app-settings';
 import { useSaveableDraft } from './use-saveable-draft';
 import { settingsDraftSectionHasChanges } from './app-settings-change-detection';
-import { appSettingsActions, type AppSettingsActions } from './app-settings-actions';
+import { getDesktopApi } from '../shell/app-desktop-api';
+
+type SettingsDraftDesktopApi = Pick<YomitomoDesktopApi, 'provider' | 'store'>;
 
 type UseSettingsDraftsInput = {
   store: DesktopStore;
   storeSyncSnapshot: DesktopStore | null;
   applyStore: (nextStore: DesktopStore) => DesktopStore;
   applySettingsPatch: (patch: SettingsStorePatch) => DesktopStore;
-  actions?: AppSettingsActions;
+  desktop?: SettingsDraftDesktopApi;
 };
 
 export function useSettingsDrafts({
@@ -37,8 +40,9 @@ export function useSettingsDrafts({
   storeSyncSnapshot,
   applyStore,
   applySettingsPatch,
-  actions = appSettingsActions,
+  desktop,
 }: UseSettingsDraftsInput) {
+  const resolveDesktop = useCallback(() => desktop ?? getDesktopApi(), [desktop]);
   const [userDraft, setUserDraft] = useState<UserDraft>(defaultUser);
   const [settingsDraft, setSettingsDraft] = useState<AppSettings>({});
   const [providerDraft, setProviderDraft] = useState<ProviderDraft>(() => localizedEmptyProvider());
@@ -93,9 +97,9 @@ export function useSettingsDrafts({
 
   const saveUserDraft = useCallback(
     async (draft: UserDraft) => {
-      return actions.saveUser(draft);
+      return resolveDesktop().store.saveUser(draft);
     },
-    [actions],
+    [resolveDesktop],
   );
 
   const applySavedUserStore = useCallback(
@@ -110,9 +114,9 @@ export function useSettingsDrafts({
 
   const saveSettingsDraft = useCallback(
     async (draft: AppSettings) => {
-      return actions.saveSettings(draft);
+      return resolveDesktop().store.saveSettings(draft);
     },
-    [actions],
+    [resolveDesktop],
   );
 
   const applySavedSettingsStore = useCallback(
@@ -128,7 +132,7 @@ export function useSettingsDrafts({
 
   const saveProviderDraftValue = useCallback(
     async (draft: ProviderDraft) => {
-      const patch = await actions.saveProvider(draft);
+      const patch = await resolveDesktop().provider.save(draft);
       const nextStore = applySettingsPatch(patch);
       const savedProvider = draft.id
         ? nextStore.providers.find((provider) => provider.id === draft.id)
@@ -139,7 +143,7 @@ export function useSettingsDrafts({
       setProviderDraft(savedProvider);
       return true;
     },
-    [actions, applySettingsPatch],
+    [applySettingsPatch, resolveDesktop],
   );
 
   const profile = useSaveableDraft<UserDraft, UserStorePatch | null>({
@@ -220,7 +224,7 @@ export function useSettingsDrafts({
 
   const deleteProvider = useCallback(
     async (id: string) => {
-      const patch = await actions.deleteProvider(id);
+      const patch = await resolveDesktop().provider.delete(id);
       const nextStore = applySettingsPatch(patch);
       setSettingsDraft(nextStore.settings);
       const nextProvider = nextStore.providers[0];
@@ -231,20 +235,20 @@ export function useSettingsDrafts({
         setProviderEditorActive(false);
       }
     },
-    [actions, applySettingsPatch, resetProviderDraft, selectProvider],
+    [applySettingsPatch, resetProviderDraft, resolveDesktop, selectProvider],
   );
 
   const testProvider = useCallback(
     async (provider: ProviderDraft) => {
       setTestState({ status: 'testing' });
       try {
-        const result = await actions.testProvider(provider);
+        const result = await resolveDesktop().provider.test(provider);
         setTestState({ status: result.ok ? 'success' : 'error' });
       } catch {
         setTestState({ status: 'error' });
       }
     },
-    [actions],
+    [resolveDesktop],
   );
 
   const provider = useMemo(

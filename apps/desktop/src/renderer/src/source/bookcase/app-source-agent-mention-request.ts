@@ -9,6 +9,7 @@ import type {
 import { findMentionedAgents } from '@yomitomo/core';
 import i18next from 'i18next';
 import type { PromptArticle } from '../../shell/app-reading-types';
+import type { YomitomoDesktopApi } from '../../../../preload';
 
 export function targetAnchorReadingPlan(
   anchor: Annotation['anchor'] | undefined,
@@ -40,7 +41,7 @@ export function agentInstructionFromNote(note: string, mentionedAgents: PublicAg
   return instruction.replace(/\s+/g, ' ').trim();
 }
 
-type MentionRouteRequester = Pick<typeof window.yomitomoDesktop, 'planAgentMentionRoute'>;
+type MentionRouteRequester = Pick<YomitomoDesktopApi['agent'], 'planMentionRoute'>;
 
 export async function planSelectionMentionRoute({
   desktop,
@@ -59,7 +60,7 @@ export async function planSelectionMentionRoute({
   if (!desktop) return fallbackMentionRoute(note, agents, 'comment');
   try {
     const route = normalizeMentionRoute(
-      await desktop.planAgentMentionRoute({
+      await desktop.planMentionRoute({
         note,
         targetAnchor,
         agents,
@@ -175,7 +176,7 @@ async function routeFocusMessagesForAgent({
       if (!mentionedAgents.some((item) => item.id === agent.id)) return [];
       try {
         const route = normalizeMentionRoute(
-          await desktop.planAgentMentionRoute({
+          await desktop.planMentionRoute({
             note: message.content,
             targetSection: {
               sectionId: planItem.sectionId,

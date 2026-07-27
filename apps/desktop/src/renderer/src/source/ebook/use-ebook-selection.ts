@@ -26,6 +26,7 @@ import {
   type FoliatePageInfo,
   type FoliateViewElement,
 } from './ebook-foliate-view';
+import { getOptionalDesktopApi } from '../../shell/app-desktop-api';
 import {
   isRangeInsideDocumentBody,
   normalizeRenderedText,
@@ -401,7 +402,7 @@ function foliateContentForDocument(view: FoliateViewElement, doc: Document) {
 }
 
 function recordEbookSelectionDebug(event: string, data: Record<string, unknown>) {
-  void window.yomitomoDesktop?.recordPerformanceTiming?.({
+  void getOptionalDesktopApi()?.diagnostics?.recordPerformanceTiming?.({
     event: `ebook_selection_debug.${event}`,
     data,
   });

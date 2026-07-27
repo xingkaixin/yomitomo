@@ -189,7 +189,7 @@ function mockDesktop({
 }) {
   Object.defineProperty(window, 'yomitomoDesktop', {
     configurable: true,
-    value: { requestAgentCommentStream },
+    value: { agent: { requestCommentStream: requestAgentCommentStream } },
   });
 }
 

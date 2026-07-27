@@ -4,6 +4,7 @@ import type { DesktopStoreLoadErrorInfo } from '../../../app-store-errors';
 
 import { CopyIconButton } from './app-ui';
 import { useTranslation } from 'react-i18next';
+import { getDesktopApi } from './app-desktop-api';
 
 const LATEST_RELEASE_URL = 'https://github.com/xingkaixin/yomitomo/releases/latest';
 
@@ -21,7 +22,9 @@ export function StoreLoadErrorScreen({
     : t('storeLoadError.loadFailedMessage');
 
   function openLatestRelease() {
-    void window.yomitomoDesktop.openUrl(LATEST_RELEASE_URL).catch(() => undefined);
+    void getDesktopApi()
+      .app.openUrl(LATEST_RELEASE_URL)
+      .catch(() => undefined);
   }
 
   return (

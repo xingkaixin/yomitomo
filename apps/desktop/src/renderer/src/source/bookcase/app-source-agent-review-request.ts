@@ -3,11 +3,12 @@ import type { Annotation, ArticleRecord, Comment, PublicAgent, UiLanguage } from
 import type { RefObject } from 'react';
 import { appendAnnotationComment } from '@yomitomo/core';
 import { promptArticle } from './source-prompt-article';
+import type { YomitomoDesktopApi } from '../../../../preload';
 
 type RunSourceAgentReviewRequestInput = {
   agents: PublicAgent[];
   annotation: Annotation;
-  desktop: Pick<typeof window.yomitomoDesktop, 'requestAgentReview'>;
+  desktop: Pick<YomitomoDesktopApi['agent'], 'review'>;
   currentArticle: ArticleRecord;
   articleText: string;
   uiLanguage?: UiLanguage;
@@ -39,7 +40,7 @@ export async function runSourceAgentReviewRequest({
 
   try {
     for (const agent of agents) {
-      const comments = await desktop.requestAgentReview({
+      const comments = await desktop.review({
         agentId: agent.id,
         agentUsername: agent.username,
         uiLanguage,

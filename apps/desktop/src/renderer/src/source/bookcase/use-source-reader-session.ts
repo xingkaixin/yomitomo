@@ -20,6 +20,7 @@ import {
   runSourceAgentAnnotationSession,
   type SourceAgentAnnotationAdapter,
 } from './source-agent-annotation-session';
+import { getDesktopApi } from '../../shell/app-desktop-api';
 
 export type {
   SourceAgentAnnotationAdapter,
@@ -181,9 +182,8 @@ export function useSourceReaderSession({
       reviewTargetCommentId?: string,
       options: RequestAgentCommentOptions = {},
     ) => {
-      const desktop = window.yomitomoDesktop;
       const currentArticle = { ...article, annotations: sourceAnnotations.annotationsRef.current };
-      if (!desktop || !getArticleText || !setStatusMessage) {
+      if (!getArticleText || !setStatusMessage) {
         if (options.pendingAnnotationId) {
           pendingAgents.removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
         }
@@ -197,7 +197,7 @@ export function useSourceReaderSession({
           userComment,
           instruction: options.instruction,
           readingIntent: options.readingIntent,
-          desktop,
+          desktop: getDesktopApi().agent,
           currentArticle,
           articleText: await getArticleText(),
           reviewTargetCommentId,
@@ -228,13 +228,11 @@ export function useSourceReaderSession({
 
   const requestAnnotationReview = useCallback(
     async (annotationId: string, selectedAgents: PublicAgent[]) => {
-      const desktop = window.yomitomoDesktop;
       const currentArticle = { ...article, annotations: sourceAnnotations.annotationsRef.current };
       const currentAnnotation = sourceAnnotations.annotationsRef.current.find(
         (annotation) => annotation.id === annotationId,
       );
       if (
-        !desktop ||
         !currentAnnotation ||
         selectedAgents.length === 0 ||
         !getArticleText ||
@@ -246,7 +244,7 @@ export function useSourceReaderSession({
       await runSourceAgentReviewRequest({
         agents: selectedAgents,
         annotation: currentAnnotation,
-        desktop,
+        desktop: getDesktopApi().agent,
         currentArticle,
         articleText: await getArticleText(),
         uiLanguage,
@@ -269,14 +267,7 @@ export function useSourceReaderSession({
 
   const requestAgentAnnotations = useCallback(
     async (agent: PublicAgent, options: SourceAgentAnnotationRequestOptions = {}) => {
-      const desktop = window.yomitomoDesktop;
       const currentArticle = { ...article, annotations: sourceAnnotations.annotationsRef.current };
-      if (!desktop) {
-        if (options.pendingAnnotationId) {
-          pendingAgents.removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
-        }
-        return;
-      }
       const adapter = agentAnnotationAdapterRef.current;
       if (!adapter) {
         if (options.pendingAnnotationId) {
@@ -289,7 +280,7 @@ export function useSourceReaderSession({
         agent,
         annotationAgents,
         currentArticle,
-        desktop,
+        desktop: getDesktopApi().agent,
         onSettled: options.pendingAnnotationId
           ? () => pendingAgents.removePendingAnnotationAgent(options.pendingAnnotationId!, agent.id)
           : undefined,

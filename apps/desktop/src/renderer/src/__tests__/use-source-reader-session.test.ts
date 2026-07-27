@@ -139,13 +139,13 @@ function renderSession({
 }
 
 function stubAnnotationStream(
-  requestAgentAnnotationsStream: NonNullable<
+  requestAnnotationsStream: NonNullable<
     typeof window.yomitomoDesktop
-  >['requestAgentAnnotationsStream'],
+  >['agent']['requestAnnotationsStream'],
 ) {
   window.yomitomoDesktop = {
-    requestAgentAnnotationsStream,
-  } as NonNullable<typeof window.yomitomoDesktop>;
+    agent: { requestAnnotationsStream },
+  } as unknown as NonNullable<typeof window.yomitomoDesktop>;
 }
 
 function sourceContext() {
@@ -241,8 +241,8 @@ describe('useSourceReaderSession agent annotations', () => {
   });
 
   it('rejects requests before an adapter is registered and clears pending state', async () => {
-    const requestAgentAnnotationsStream = vi.fn();
-    stubAnnotationStream(requestAgentAnnotationsStream);
+    const requestAnnotationsStream = vi.fn();
+    stubAnnotationStream(requestAnnotationsStream);
     const { session } = renderSession({});
 
     await act(async () => session().addPendingAnnotationAgent('annotation_1', agent));
@@ -255,7 +255,7 @@ describe('useSourceReaderSession agent annotations', () => {
     });
 
     await waitFor(() => expect(session().pendingAnnotationAgents.annotation_1).toBeUndefined());
-    expect(requestAgentAnnotationsStream).not.toHaveBeenCalled();
+    expect(requestAnnotationsStream).not.toHaveBeenCalled();
   });
 
   it('runs requests after an adapter is registered', async () => {
@@ -324,17 +324,17 @@ describe('useSourceReaderSession agent annotations', () => {
       readingTraces: [],
       updatedAt: now,
     };
-    const requestAgentAnnotationsStream = vi.fn(
+    const requestAnnotationsStream = vi.fn(
       async (
         ..._args: Parameters<
-          NonNullable<typeof window.yomitomoDesktop>['requestAgentAnnotationsStream']
+          NonNullable<typeof window.yomitomoDesktop>['agent']['requestAnnotationsStream']
         >
       ) => ({
         annotations: [],
         readingMemory,
       }),
     );
-    stubAnnotationStream(requestAgentAnnotationsStream);
+    stubAnnotationStream(requestAnnotationsStream);
     const { session } = renderSession({
       adapter: sourceAdapter(),
     });
@@ -353,8 +353,8 @@ describe('useSourceReaderSession agent annotations', () => {
       });
     });
 
-    expect(requestAgentAnnotationsStream.mock.calls[0]?.[0].readingMemory).toBeUndefined();
-    expect(requestAgentAnnotationsStream.mock.calls[1]?.[0].readingMemory).toEqual(readingMemory);
+    expect(requestAnnotationsStream.mock.calls[0]?.[0].readingMemory).toBeUndefined();
+    expect(requestAnnotationsStream.mock.calls[1]?.[0].readingMemory).toEqual(readingMemory);
   });
 
   it('notifies the source adapter when the stream returns no accepted annotations', async () => {

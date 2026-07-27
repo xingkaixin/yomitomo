@@ -41,6 +41,7 @@ import { normalizeUiLanguage, type AppSettings, type DesktopStore } from '@yomit
 import type { AppInfo } from '../../../preload';
 import type { AppUpdateState } from '../../../app-update-types';
 import { useTranslation } from 'react-i18next';
+import { getDesktopApi } from './app-desktop-api';
 
 type LicensePackage = {
   name: string;
@@ -58,15 +59,11 @@ type AppT = ReturnType<typeof useTranslation>['t'];
 // 开发用：注入「发现新版本」状态，无需重启。
 // manual 走更新前弹窗（A 场景）；auto 只点亮常驻入口、不弹窗（自动检查场景）。
 async function handleSimulatePreUpdate() {
-  const desktop = window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined;
-  if (typeof desktop?.simulateUpdateAvailable !== 'function') return;
-  await desktop.simulateUpdateAvailable('manual');
+  await getDesktopApi().updates.simulateAvailable('manual');
 }
 
 async function handleSimulateAutoUpdate() {
-  const desktop = window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined;
-  if (typeof desktop?.simulateUpdateAvailable !== 'function') return;
-  await desktop.simulateUpdateAvailable('auto');
+  await getDesktopApi().updates.simulateAvailable('auto');
 }
 
 export function AboutSettings({
@@ -86,39 +83,30 @@ export function AboutSettings({
   const [developerModeSaving, setDeveloperModeSaving] = useState(false);
 
   useEffect(() => {
-    const desktop = window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined;
-    if (typeof desktop?.getAppInfo !== 'function') return;
+    const desktop = getDesktopApi();
 
     let mounted = true;
-    void desktop.getAppInfo().then((nextInfo) => {
+    void desktop.app.getInfo().then((nextInfo) => {
       if (mounted) setAppInfo(nextInfo);
     });
-    if (typeof desktop.getUpdateStatus === 'function') {
-      void desktop.getUpdateStatus().then((nextState) => {
-        if (mounted) setUpdateState(nextState);
-      });
-    }
-    const unsubscribe =
-      typeof desktop.onUpdateStatus === 'function'
-        ? desktop.onUpdateStatus((nextState) => {
-            if (mounted) setUpdateState(nextState);
-          })
-        : undefined;
+    void desktop.updates.getStatus().then((nextState) => {
+      if (mounted) setUpdateState(nextState);
+    });
+    const unsubscribe = desktop.updates.onStatus((nextState) => {
+      if (mounted) setUpdateState(nextState);
+    });
 
     return () => {
       mounted = false;
-      unsubscribe?.();
+      unsubscribe();
     };
   }, []);
 
   async function handleUpdateAction() {
-    const desktop = window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined;
     const action = updateAction(updateState, t);
-    const method = desktop?.[action.method];
-    if (typeof method !== 'function') return;
-    const nextState = await method();
+    const nextState = await getDesktopApi().updates[action.method]();
     setUpdateState(nextState);
-    if (action.method === 'checkForUpdates' && nextState.status === 'not-available') {
+    if (action.method === 'check' && nextState.status === 'not-available') {
       appToast.success(t('about.updateToast.notAvailableTitle'), {
         description: t('about.updateToast.notAvailableDescription'),
       });
@@ -126,11 +114,9 @@ export function AboutSettings({
   }
 
   async function toggleDeveloperMode() {
-    const desktop = window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined;
-    if (typeof desktop?.saveSettings !== 'function') return;
     setDeveloperModeSaving(true);
     try {
-      const nextStore = await desktop.saveSettings({
+      const nextStore = await getDesktopApi().store.saveSettings({
         ...settings,
         developerModeEnabled: !settings.developerModeEnabled,
       });
@@ -143,9 +129,10 @@ export function AboutSettings({
   // 开发用：开发环境没有真实更新链路，把 lastSeenVersion 重置为旧值，
   // 重启后即可命中「更新后弹窗」判定，预览 B 场景效果。
   async function handleSimulateUpdate() {
-    const desktop = window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined;
-    if (typeof desktop?.saveSettings !== 'function') return;
-    const nextStore = await desktop.saveSettings({ ...settings, lastSeenVersion: '0.0.0' });
+    const nextStore = await getDesktopApi().store.saveSettings({
+      ...settings,
+      lastSeenVersion: '0.0.0',
+    });
     onStoreUpdated(nextStore);
     setDevResetDone(true);
   }
@@ -451,7 +438,7 @@ function updateAction(
   t: AppT,
 ): {
   label: string;
-  method: 'checkForUpdates' | 'downloadUpdate' | 'installUpdate';
+  method: 'check' | 'download' | 'install';
   disabled: boolean;
   busy: boolean;
   icon: React.ReactNode;
@@ -459,7 +446,7 @@ function updateAction(
   if (!state) {
     return {
       label: t('about.updateAction.check'),
-      method: 'checkForUpdates',
+      method: 'check',
       disabled: true,
       busy: false,
       icon: <HugeiconsIcon icon={Refresh01Icon} size={15} />,
@@ -469,7 +456,7 @@ function updateAction(
   if (state.status === 'available') {
     return {
       label: t('about.updateAction.download'),
-      method: 'downloadUpdate',
+      method: 'download',
       disabled: false,
       busy: false,
       icon: <HugeiconsIcon icon={Download01Icon} size={15} />,
@@ -479,7 +466,7 @@ function updateAction(
   if (state.status === 'downloaded') {
     return {
       label: t('about.updateAction.install'),
-      method: 'installUpdate',
+      method: 'install',
       disabled: false,
       busy: false,
       icon: <HugeiconsIcon icon={Refresh01Icon} size={15} />,
@@ -492,7 +479,7 @@ function updateAction(
       state.status === 'downloading'
         ? `${Math.round(state.progress?.percent || 0)}%`
         : t('about.updateAction.check'),
-    method: 'checkForUpdates',
+    method: 'check',
     disabled: busy || state.status === 'unsupported',
     busy,
     icon: <HugeiconsIcon icon={Refresh01Icon} size={15} />,
@@ -542,12 +529,7 @@ function licensePackageKey(item: LicensePackage) {
 }
 
 function openExternal(url: string) {
-  const desktop = window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined;
-  if (typeof desktop?.openUrl === 'function') {
-    void desktop.openUrl(url);
-    return;
-  }
-  window.open(url, '_blank', 'noopener,noreferrer');
+  void getDesktopApi().app.openUrl(url);
 }
 
 function parseThirdPartyNotices(raw: string): LicensePackage[] {

@@ -28,9 +28,8 @@ import {
   recordStatsTiming,
 } from './shell/app-utils';
 import { useSettingsDrafts } from './settings/app-settings-drafts';
-import { appSettingsActions } from './settings/app-settings-actions';
-import { dataManagementActions } from './settings/app-data-management-actions';
 import { SettingsNavButton } from './settings/app-settings-nav-button';
+import { getDesktopApi } from './shell/app-desktop-api';
 import { StoreLoadErrorScreen } from './shell/app-store-load-error';
 import { AnnotationDiscussionWindowApp } from './annotation-discussion/app-annotation-discussion-window';
 import { AnnotationSedimentationWindowApp } from './annotation-discussion/app-annotation-sedimentation-window';
@@ -228,14 +227,14 @@ function App() {
   }, [activeSettingsSection, store.settings.developerModeEnabled]);
 
   async function saveOnboardingSettings(settings: AppSettings) {
-    const nextStore = await appSettingsActions.saveSettings(settings);
+    const nextStore = await getDesktopApi().store.saveSettings(settings);
     applySavedSettings(nextStore, applyStore);
     if (settings.onboardingCompletedAt) setOnboardingForced(false);
     return nextStore;
   }
 
   async function saveLibrarySettings(settings: AppSettings) {
-    const nextStore = await appSettingsActions.saveSettings(settings);
+    const nextStore = await getDesktopApi().store.saveSettings(settings);
     applySavedSettings(nextStore, applyStore);
   }
 
@@ -273,9 +272,7 @@ function App() {
   }
 
   useEffect(() => {
-    const desktop = window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined;
-    if (typeof desktop?.onAppMenuCommand !== 'function') return;
-    return desktop.onAppMenuCommand((command) => {
+    return getDesktopApi().app.onMenuCommand((command) => {
       if (appLocked) return;
       handleAppMenuCommand(command);
     });
@@ -303,13 +300,8 @@ function App() {
   }
 
   async function refreshStatsArticles() {
-    const desktop = window.yomitomoDesktop;
-    if (typeof desktop?.readArticleStatsSummaries !== 'function') {
-      setStatsArticles(storeRef.current.articles);
-      return;
-    }
     try {
-      const articles = await desktop.readArticleStatsSummaries();
+      const articles = await getDesktopApi().article.readStatsSummaries();
       setStatsArticles(articles);
     } catch {
       setStatsArticles(storeRef.current.articles);
@@ -334,7 +326,7 @@ function App() {
     if (windowShowRequestedRef.current) return;
     windowShowRequestedRef.current = true;
     recordStartupTiming('window.show_requested', { reason, ...data });
-    window.yomitomoDesktop.showMainWindow();
+    getDesktopApi().app.showMainWindow();
   }
 
   function handleAppMenuCommand(command: AppMenuCommand) {
@@ -348,12 +340,14 @@ function App() {
       return;
     }
     if (command === 'backup-database') {
-      void dataManagementActions.backupDatabase().catch(() => undefined);
+      void getDesktopApi()
+        .data.backupDatabase()
+        .catch(() => undefined);
       return;
     }
     if (command === 'restore-database') {
-      void dataManagementActions
-        .restoreDatabase()
+      void getDesktopApi()
+        .data.restoreDatabase()
         .then((result) => {
           if (!result.canceled) applyStore(result.store);
         })
@@ -361,7 +355,9 @@ function App() {
       return;
     }
     if (command === 'check-updates') {
-      void window.yomitomoDesktop.checkForUpdates().catch(() => undefined);
+      void getDesktopApi()
+        .updates.check()
+        .catch(() => undefined);
       return;
     }
     if (isLibraryMenuCommand(command)) {
@@ -655,7 +651,7 @@ function App() {
               updateState={appUpdateState}
               openRequest={updateDialogRequest}
               onSaveSettings={async (settings) => {
-                const nextStore = await appSettingsActions.saveSettings(settings);
+                const nextStore = await getDesktopApi().store.saveSettings(settings);
                 applySavedSettings(nextStore, applyStore);
                 return nextStore;
               }}
@@ -759,7 +755,7 @@ function LibrarySkeleton() {
 }
 
 recordStartupTiming('renderer.module_loaded', {
-  preloadLoadedAt: window.yomitomoDesktop?.startupTiming?.preloadLoadedAt,
+  preloadLoadedAt: getDesktopApi().startupTiming.preloadLoadedAt,
   rendererModuleLoadedAt,
 });
 
@@ -775,7 +771,7 @@ createRoot(document.getElementById('root')!).render(<RootApp />);
 recordStartupTiming('react.render_scheduled');
 
 function desktopPlatform() {
-  return window.yomitomoDesktop?.platform ?? 'unknown';
+  return getDesktopApi().platform;
 }
 
 function isLibraryMenuCommand(command: AppMenuCommand) {

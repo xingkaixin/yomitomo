@@ -6,6 +6,7 @@ import {
   translationElementForRange,
   type HighlightBox,
 } from '@yomitomo/core';
+import { getOptionalDesktopApi } from '../../shell/app-desktop-api';
 
 export const READER_SELECTION_DEBUG_STORAGE_KEY = 'yomitomo:reader-selection-debug';
 
@@ -26,12 +27,12 @@ export function logReaderSelectionDebug(event: string, readDetails: ReaderSelect
   const details = readDetails();
   console.debug('[reader-selection]', event, details);
   if (typeof window === 'undefined') return;
-  const recordTiming = window.yomitomoDesktop?.recordPerformanceTiming;
-  if (!recordTiming) return;
-  void recordTiming({
-    event: `reader_selection.${selectionDebugEventName(event)}`,
-    data: details,
-  }).catch(() => undefined);
+  void getOptionalDesktopApi()
+    ?.diagnostics?.recordPerformanceTiming?.({
+      event: `reader_selection.${selectionDebugEventName(event)}`,
+      data: details,
+    })
+    .catch(() => undefined);
 }
 
 export function shouldLogSelectionDebug(

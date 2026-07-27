@@ -148,7 +148,7 @@ function installDesktopPerformanceRecorder() {
   const recordPerformanceTiming = vi.fn().mockResolvedValue(undefined);
   Object.defineProperty(window, 'yomitomoDesktop', {
     configurable: true,
-    value: { recordPerformanceTiming },
+    value: { diagnostics: { recordPerformanceTiming } },
   });
   return recordPerformanceTiming;
 }

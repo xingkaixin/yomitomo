@@ -21,7 +21,7 @@ import {
   type AppThemeTone,
   type AppThemeId,
 } from './app-theme';
-import { appSettingsActions } from '../settings/app-settings-actions';
+import { getDesktopApi } from '../shell/app-desktop-api';
 
 const startupThemeId = readCachedThemeId();
 const startupThemeIdsByTone = readCachedThemeIdsByTone();
@@ -124,7 +124,7 @@ export function useReaderThemeController({
       writeDesktopReaderSettings(nextSettings);
     }
     try {
-      const nextStore = await appSettingsActions.saveSettings({ themeId });
+      const nextStore = await getDesktopApi().store.saveSettings({ themeId });
       applyStore(nextStore);
     } catch {
       // Keep the immediate visual choice; a later settings sync can reconcile persistence.

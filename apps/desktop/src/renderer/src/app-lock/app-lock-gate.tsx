@@ -15,6 +15,7 @@ import {
   SlideToUnlockTrack,
 } from '../components/ui/slide-to-unlock';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
+import { getDesktopApi } from '../shell/app-desktop-api';
 
 type AppLockStep = 'slide' | 'pin';
 
@@ -105,7 +106,7 @@ export function useAppLockController({
     setInputKey((key) => key + 1);
     setError('');
     try {
-      const nextStore = await window.yomitomoDesktop.setAppLockLocked({ locked: true });
+      const nextStore = await getDesktopApi().appLock.setLocked({ locked: true });
       onStoreUpdated(rendererStoreForAppLockState(nextStore));
       playAppSoundEffect('app_lock.locked', nextStore.settings);
     } catch {
@@ -131,7 +132,7 @@ export function useAppLockController({
     setVerifying(true);
     setError('');
     try {
-      const nextStore = await window.yomitomoDesktop.unlockAppLock({ pin: pinToVerify });
+      const nextStore = await getDesktopApi().appLock.unlock({ pin: pinToVerify });
       onStoreUpdated(nextStore);
       playAppSoundEffect('app_lock.unlocked', nextStore.settings);
       setStep('slide');
@@ -299,7 +300,7 @@ function isAppLockShortcutEvent(event: KeyboardEvent) {
 }
 
 function desktopPlatform() {
-  return window.yomitomoDesktop?.platform ?? 'unknown';
+  return getDesktopApi().platform;
 }
 
 function digitsOnly(value: string) {

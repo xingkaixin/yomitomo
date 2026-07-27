@@ -9,6 +9,7 @@ import sourceSerif4BoldUrl from '../../assets/fonts/SourceSerif4-Bold.woff2?url'
 import sourceSerif4ItalicUrl from '../../assets/fonts/SourceSerif4-Italic.woff2?url';
 import sourceSerif4RegularUrl from '../../assets/fonts/SourceSerif4-Regular.woff2?url';
 import { rendererPerformanceElapsedMs } from '../../shell/app-renderer-performance';
+import { getOptionalDesktopApi } from '../../shell/app-desktop-api';
 
 export type FoliateTocSourceItem = {
   label?: unknown;
@@ -146,7 +147,7 @@ export function recordEbookPageTurnTrace(
   data: Record<string, unknown> = {},
 ) {
   if (!trace) return;
-  void window.yomitomoDesktop?.recordPerformanceTiming?.({
+  void getOptionalDesktopApi()?.diagnostics?.recordPerformanceTiming?.({
     event: 'ebook_page_turn',
     data: {
       articleId: trace.articleId,

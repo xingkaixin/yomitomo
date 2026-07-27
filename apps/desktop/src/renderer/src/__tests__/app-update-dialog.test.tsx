@@ -141,10 +141,14 @@ describe('UpdateReleaseDialogView', () => {
 
 const stubDesktop = () => {
   vi.stubGlobal('yomitomoDesktop', {
-    getAppInfo: vi.fn().mockResolvedValue({ desktopVersion: '0.8.0' }),
-    getReleaseNote: vi.fn().mockResolvedValue(null),
-    downloadUpdate: vi.fn().mockResolvedValue(undefined),
-    installUpdate: vi.fn().mockResolvedValue(undefined),
+    app: {
+      getInfo: vi.fn().mockResolvedValue({ desktopVersion: '0.8.0' }),
+    },
+    updates: {
+      getReleaseNote: vi.fn().mockResolvedValue(null),
+      download: vi.fn().mockResolvedValue(undefined),
+      install: vi.fn().mockResolvedValue(undefined),
+    },
   });
 };
 

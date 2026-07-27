@@ -21,6 +21,7 @@ import {
   type AnnotationNavigationDirection,
 } from '@yomitomo/reader-ui/reader-app-view';
 import { ReaderSettingsToolbarControls } from '@yomitomo/reader-ui/reader-toolbar-controls';
+import { getDesktopApi } from '../../shell/app-desktop-api';
 import { readerDesktopEmbeddedBundleStyles } from '@yomitomo/reader-ui/reader-styles';
 import {
   buildTocAnnotationStats,
@@ -623,7 +624,7 @@ export function WebSourceBookcase({
     if (!url) return;
 
     event.preventDefault();
-    void window.yomitomoDesktop.openUrl(url);
+    void getDesktopApi().app.openUrl(url);
   }
 
   function openHighlightAtClientPoint(

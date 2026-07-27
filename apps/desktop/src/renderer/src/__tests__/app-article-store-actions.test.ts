@@ -54,7 +54,7 @@ describe('useAppArticleStoreActions', () => {
 
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
-      value: { mergeArticleAgentAnnotation },
+      value: { article: { mergeAgentAnnotation: mergeArticleAgentAnnotation } },
     });
     render(
       createElement(function Harness() {
@@ -103,7 +103,7 @@ describe('useAppArticleStoreActions', () => {
 
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
-      value: { importArticleUrl },
+      value: { article: { importUrl: importArticleUrl } },
     });
     render(
       createElement(function Harness() {
@@ -118,7 +118,10 @@ describe('useAppArticleStoreActions', () => {
     });
 
     expect(result).toMatchObject({ status: 'imported', article: importedArticle });
-    expect(importArticleUrl).toHaveBeenCalledWith('https://example.com/imported');
+    expect(importArticleUrl).toHaveBeenCalledWith({
+      url: 'https://example.com/imported',
+      requestId: undefined,
+    });
     expect(applyStore).toHaveBeenCalledWith({
       ...emptyStore,
       articles: [importedSummary, firstArticle],
@@ -151,7 +154,7 @@ describe('useAppArticleStoreActions', () => {
 
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
-      value: { saveArticleAnnotation },
+      value: { article: { saveAnnotation: saveArticleAnnotation } },
     });
     render(
       createElement(function Harness() {
@@ -168,11 +171,11 @@ describe('useAppArticleStoreActions', () => {
       );
     });
 
-    expect(saveArticleAnnotation).toHaveBeenCalledWith(
-      'article-1',
-      savedArticle.annotations[0],
-      savedArticle.updatedAt,
-    );
+    expect(saveArticleAnnotation).toHaveBeenCalledWith({
+      articleId: 'article-1',
+      annotation: savedArticle.annotations[0],
+      updatedAt: savedArticle.updatedAt,
+    });
     expect(applyStore).toHaveBeenCalledWith({
       ...emptyStore,
       articles: [savedSummary],
@@ -207,7 +210,7 @@ describe('useAppArticleStoreActions', () => {
 
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
-      value: { saveArticleComment },
+      value: { article: { saveComment: saveArticleComment } },
     });
     render(
       createElement(function Harness() {
@@ -220,12 +223,12 @@ describe('useAppArticleStoreActions', () => {
       await actions.saveArticleComment('article-1', annotation.id, comment, savedArticle.updatedAt);
     });
 
-    expect(saveArticleComment).toHaveBeenCalledWith(
-      'article-1',
-      annotation.id,
+    expect(saveArticleComment).toHaveBeenCalledWith({
+      articleId: 'article-1',
+      annotationId: annotation.id,
       comment,
-      savedArticle.updatedAt,
-    );
+      updatedAt: savedArticle.updatedAt,
+    });
     expect(applyStore).toHaveBeenCalledWith({
       ...emptyStore,
       articles: [savedSummary],
@@ -252,7 +255,7 @@ describe('useAppArticleStoreActions', () => {
 
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
-      value: { importArticleUrl },
+      value: { article: { importUrl: importArticleUrl } },
     });
     render(
       createElement(function Harness() {
@@ -277,7 +280,7 @@ describe('useAppArticleStoreActions', () => {
 
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
-      value: { openAnnotationDiscussion },
+      value: { annotations: { discussion: { open: openAnnotationDiscussion } } },
     });
     render(
       createElement(function Harness() {
@@ -305,7 +308,9 @@ describe('useAppArticleStoreActions', () => {
 
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
-      value: { closeArticleAnnotationDiscussions },
+      value: {
+        annotations: { discussion: { closeArticle: closeArticleAnnotationDiscussions } },
+      },
     });
     render(
       createElement(function Harness() {
@@ -318,7 +323,7 @@ describe('useAppArticleStoreActions', () => {
       await actions.closeArticleDiscussions('article-1');
     });
 
-    expect(closeArticleAnnotationDiscussions).toHaveBeenCalledWith('article-1');
+    expect(closeArticleAnnotationDiscussions).toHaveBeenCalledWith({ articleId: 'article-1' });
     expect(applyStore).not.toHaveBeenCalled();
   });
 
@@ -348,7 +353,7 @@ describe('useAppArticleStoreActions', () => {
 
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
-      value: { importEbookFile },
+      value: { article: { ebook: { importFile: importEbookFile } } },
     });
     render(
       createElement(function Harness() {

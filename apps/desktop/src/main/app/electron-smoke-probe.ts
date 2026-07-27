@@ -64,9 +64,11 @@ async function runElectronSmokeProbe(browserWindow: BrowserWindow) {
       await waitForRendererRoot();
       const api = window.yomitomoDesktop;
       if (!api) throw new Error('preload api missing');
-      if (typeof api.getAppInfo !== 'function') throw new Error('getAppInfo missing');
-      if (typeof api.showMainWindow !== 'function') throw new Error('showMainWindow missing');
-      const appInfo = await api.getAppInfo();
+      if (typeof api.app?.getInfo !== 'function') throw new Error('app.getInfo missing');
+      if (typeof api.app?.showMainWindow !== 'function') {
+        throw new Error('app.showMainWindow missing');
+      }
+      const appInfo = await api.app.getInfo();
       return {
         desktopVersion: appInfo?.desktopVersion ?? null,
         hasPreloadApi: true,

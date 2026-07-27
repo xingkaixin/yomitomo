@@ -20,7 +20,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { providerPresetDisplayName } from '../i18n/app-i18n-labels';
 import type { ProviderPreset } from '@yomitomo/shared';
-import { appSettingsActions } from './app-settings-actions';
+import { getDesktopApi } from '../shell/app-desktop-api';
 
 export function providerDraftFromPreset(
   draft: ProviderDraft,
@@ -156,7 +156,7 @@ export function ProviderForm({
           value={draft.apiKey || ''}
           onChange={(apiKey) => onChange({ ...draft, apiKey, removeApiKey: false })}
           onRevealStoredValue={() =>
-            draft.id ? appSettingsActions.readProviderApiKey(draft.id) : Promise.resolve('')
+            draft.id ? getDesktopApi().provider.readApiKey(draft.id) : Promise.resolve('')
           }
           onRemove={() => onChange({ ...draft, apiKey: '', hasApiKey: false, removeApiKey: true })}
         />

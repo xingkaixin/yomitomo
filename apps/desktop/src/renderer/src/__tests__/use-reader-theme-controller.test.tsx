@@ -31,7 +31,9 @@ describe('useReaderThemeController', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
-        saveSettings: vi.fn().mockResolvedValue(nextStore),
+        store: {
+          saveSettings: vi.fn().mockResolvedValue(nextStore),
+        },
       },
     });
 
@@ -49,7 +51,7 @@ describe('useReaderThemeController', () => {
     });
 
     await waitFor(() =>
-      expect(window.yomitomoDesktop.saveSettings).toHaveBeenCalledWith({
+      expect(window.yomitomoDesktop.store.saveSettings).toHaveBeenCalledWith({
         themeId: inkBlackThemeId,
       }),
     );
