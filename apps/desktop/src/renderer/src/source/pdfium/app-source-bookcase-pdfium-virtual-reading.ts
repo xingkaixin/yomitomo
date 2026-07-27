@@ -3,7 +3,8 @@ import i18next from 'i18next';
 import { isPdfTextAnchor, type Annotation, type PublicAgent } from '@yomitomo/shared';
 import type { VirtualCursorState } from '@yomitomo/reader-ui/reader-types';
 import { useAgentReadingDock } from '@yomitomo/reader-ui/use-agent-reading-dock';
-import { pdfiumAnchorReadingPosition, type PageMetric } from './app-source-bookcase-pdfium-utils';
+import { pdfiumAnchorReadingPosition } from './pdfium-annotation-layout';
+import type { PageMetric } from './pdfium-geometry';
 
 export function usePdfiumVirtualReading({
   annotationAgents,

@@ -4,7 +4,7 @@ import { useDocumentState } from '@embedpdf/core/react';
 import { useSelectionCapability } from '@embedpdf/plugin-selection/react';
 import type { PdfEngine } from '@embedpdf/models';
 import { createPdfTextAnchor } from '@yomitomo/shared';
-import { rectToPdfRect } from './app-source-bookcase-pdfium-utils';
+import { rectToPdfRect } from './pdfium-geometry';
 
 export function EmbedPdfSelectionBridge({
   documentId,

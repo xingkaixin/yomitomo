@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PdfEngine } from '@embedpdf/models';
 import type { useDocumentState } from '@embedpdf/core/react';
 import { rendererPerformanceElapsedMs } from '../../shell/app-renderer-performance';
-import { buildPdfTextDocument, type PdfTextDocument } from './app-source-bookcase-pdfium-utils';
+import { buildPdfTextDocument, type PdfTextDocument } from './pdfium-text-document';
 import { recordPdfOpenTiming, type PdfOpenTrace } from './app-source-bookcase-pdfium-open-trace';
 
 type PdfiumLoadedDocument = NonNullable<

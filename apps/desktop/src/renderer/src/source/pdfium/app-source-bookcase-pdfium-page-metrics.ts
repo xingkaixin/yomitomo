@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
-import { samePageMetrics, type PageMetric } from './app-source-bookcase-pdfium-utils';
+import { samePageMetrics, type PageMetric } from './pdfium-geometry';
 
 function pdfPageMetricsDebugEnabled() {
   try {

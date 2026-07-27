@@ -10,7 +10,7 @@ import type {
   SelectionAdjustmentPointer,
 } from '@yomitomo/reader-ui/reader-app-view';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { PageMetric } from '../source/pdfium/app-source-bookcase-pdfium-utils';
+import type { PageMetric } from '../source/pdfium/pdfium-geometry';
 import { usePdfiumSelectionAdjustment } from '../source/pdfium/use-pdfium-selection-adjustment';
 
 type HookState = ReturnType<typeof usePdfiumSelectionAdjustment>;
