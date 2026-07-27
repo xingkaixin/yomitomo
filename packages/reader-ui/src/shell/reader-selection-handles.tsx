@@ -18,10 +18,12 @@ type SelectionHandleStyle = React.CSSProperties & {
   '--reader-selection-handle-height': string;
 };
 
+type SelectionHandlesLabels = Pick<ReaderUiLabels, 'adjustSelectionEnd' | 'adjustSelectionStart'>;
+
 export type SelectionHandlesProps = {
   boxes: HighlightBox[];
   draggingHandle?: SelectionAdjustmentHandle;
-  labels: ReaderUiLabels;
+  labels: SelectionHandlesLabels;
   onDrag: (point: SelectionAdjustmentPointer) => void;
   onDragEnd: (point: SelectionAdjustmentPointer) => void;
   onDragStart: (point: SelectionAdjustmentPointer) => void;

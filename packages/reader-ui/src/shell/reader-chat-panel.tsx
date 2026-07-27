@@ -57,12 +57,35 @@ type ReaderChatViewport = {
   height: number;
 };
 
+type ReaderChatMessageLabels = Pick<
+  ReaderUiLabels,
+  'assistant' | 'assistantAnswering' | 'dateLocale' | 'me' | 'relativeTimeLabel'
+>;
+
+type ReaderChatPanelLabels = ReaderChatMessageLabels &
+  Pick<
+    ReaderUiLabels,
+    | 'collapseReaderChat'
+    | 'currentSelection'
+    | 'openReaderChat'
+    | 'readerChat'
+    | 'readerChatAria'
+    | 'readerChatAssistantPicker'
+    | 'readerChatClearQuote'
+    | 'readerChatContent'
+    | 'readerChatEmpty'
+    | 'readerChatPlaceholder'
+    | 'readerChatSelectionPlaceholder'
+    | 'send'
+    | 'sending'
+  >;
+
 export type ReaderChatPanelProps = {
   activationSource?: ReaderChatActivationSource;
   agents: PublicAgent[];
   draftContext?: ReaderQuestionContext;
   error?: string;
-  labels?: ReaderUiLabels;
+  labels?: ReaderChatPanelLabels;
   messageSendShortcut: MessageSendShortcut;
   open: boolean;
   selectedAssistantId?: string;
@@ -455,7 +478,7 @@ function ReaderChatMessageView({
   onRevealContext,
 }: {
   agents: PublicAgent[];
-  labels?: ReaderUiLabels;
+  labels?: ReaderChatMessageLabels;
   message: ReaderChatMessage;
   streaming?: boolean;
   onRevealContext?: (context: ReaderQuestionContext) => void | Promise<void>;

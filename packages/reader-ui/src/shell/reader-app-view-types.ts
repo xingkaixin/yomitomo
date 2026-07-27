@@ -305,10 +305,9 @@ export const defaultReaderUiLabels: ReaderUiLabels = {
     '会删除这条划线，以及它的想法和评论。此操作无法从应用内恢复。',
   deleteAnnotationConfirmAction: '删除划线',
   distillations: '沉淀',
-  emptyNotesDescription:
-    'Select text in the reader to highlight it, save a thought, or start a discussion.',
-  emptyNotesGestureLabel: 'Select text in the article to create a saved highlight or thought.',
-  emptyNotesTitle: 'Highlights and thoughts stay here',
+  emptyNotesDescription: '在正文里选中文字，即可高亮、写想法或发起讨论。',
+  emptyNotesGestureLabel: '在正文里选中文字后，生成一条保存在右侧的划线或想法',
+  emptyNotesTitle: '划线、想法就留在这里',
   enterDiscussion: '进入讨论区',
   fontSize: '字号',
   highlightActions: '打开划线操作',

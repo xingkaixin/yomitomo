@@ -34,6 +34,39 @@ type AvatarColorStyle = React.CSSProperties & {
   '--reader-avatar-color': string;
 };
 
+type AnnotationCardLabels = Pick<
+  ReaderUiLabels,
+  | 'annotationCardTab'
+  | 'annotationProcessing'
+  | 'assistantParticipationSummary'
+  | 'cancel'
+  | 'dateLocale'
+  | 'deleteAnnotation'
+  | 'deleteAnnotationConfirmAction'
+  | 'deleteAnnotationConfirmDescription'
+  | 'deleteAnnotationConfirmTitle'
+  | 'deleteHighlight'
+  | 'distillations'
+  | 'enterDiscussion'
+  | 'openDistillationActions'
+  | 'openHighlightActions'
+  | 'relativeTimeLabel'
+  | 'thoughtSummary'
+>;
+
+type PendingAgentStackLabels = Pick<ReaderUiLabels, 'annotationProcessing'>;
+type AssistantParticipationLabels = Pick<ReaderUiLabels, 'assistantParticipationSummary'>;
+type ReaderRelativeTimeLabels = Pick<ReaderUiLabels, 'dateLocale' | 'relativeTimeLabel'>;
+type DeleteActionMenuLabels = Pick<
+  ReaderUiLabels,
+  | 'cancel'
+  | 'deleteAnnotation'
+  | 'deleteAnnotationConfirmAction'
+  | 'deleteAnnotationConfirmDescription'
+  | 'deleteAnnotationConfirmTitle'
+  | 'enterDiscussion'
+>;
+
 export type ReaderWindowSourceRect = {
   x: number;
   y: number;
@@ -77,7 +110,7 @@ export function AnnotationCard({
   } | null;
   exiting?: boolean;
   isStackFront?: boolean;
-  labels?: ReaderUiLabels;
+  labels?: AnnotationCardLabels;
   noteRef: (element: HTMLElement | null) => void;
   railSide?: AnnotationRailSide;
   reviewAgents?: PublicAgent[];
@@ -397,7 +430,7 @@ function PendingAgentStack({
   labels = defaultReaderUiLabels,
 }: {
   agents: PublicAgent[];
-  labels?: ReaderUiLabels;
+  labels?: PendingAgentStackLabels;
 }) {
   if (agents.length === 0) return null;
 
@@ -445,7 +478,7 @@ function uniqueAssistantParticipants(
 function assistantParticipationSummary(
   participants: ThoughtAuthor[],
   pendingAgents: PublicAgent[],
-  labels: ReaderUiLabels,
+  labels: AssistantParticipationLabels,
 ) {
   const names: string[] = [];
   const seenKeys = new Set<string>();
@@ -482,7 +515,7 @@ function ReaderRelativeTime({
   value,
 }: {
   className?: string;
-  labels: ReaderUiLabels;
+  labels: ReaderRelativeTimeLabels;
   value: string;
 }) {
   return (
@@ -507,7 +540,7 @@ function DeleteActionMenu({
   className: string;
   deleteAriaLabel: string;
   discussionAriaLabel?: string;
-  labels?: ReaderUiLabels;
+  labels?: DeleteActionMenuLabels;
   onDelete: () => void;
   onOpenDiscussion?: (sourceElement: Element) => void;
 }) {

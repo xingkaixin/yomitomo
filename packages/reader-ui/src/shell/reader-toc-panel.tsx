@@ -8,6 +8,11 @@ import { ReaderTooltip } from '../shared/reader-component-primitives';
 import type { ReaderUiLabels } from './reader-app-view-types';
 import { defaultReaderUiLabels } from './reader-app-view-types';
 
+type ReaderTocPanelLabels = Pick<
+  ReaderUiLabels,
+  'annotations' | 'distillations' | 'toc' | 'tocSummary'
+>;
+
 function readTocNumber(root: HTMLElement, name: string, fallback: number) {
   const value = parseFloat(getComputedStyle(root).getPropertyValue(name));
   return Number.isFinite(value) ? value : fallback;
@@ -21,7 +26,7 @@ export type ReaderTocPanelProps = {
   activeTocIndex?: number | null;
   annotationTotals: { annotations: number; distillations: number };
   hasToc: boolean;
-  labels?: ReaderUiLabels;
+  labels?: ReaderTocPanelLabels;
   tocAnnotationStats: ReturnType<typeof buildTocAnnotationStats>;
   tocItems: TocItem[];
   tocOpen: boolean;

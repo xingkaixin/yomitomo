@@ -11,6 +11,9 @@ type AvatarColorStyle = React.CSSProperties & {
   '--reader-avatar-color': string;
 };
 
+type ReadonlyAnnotationCardLabels = Pick<ReaderUiLabels, 'annotationCardTab' | 'dateLocale'>;
+type ReadonlyThoughtLabels = Pick<ReaderUiLabels, 'dateLocale'>;
+
 export type ReadonlyAnnotationCardAuthor = {
   avatar?: string;
   color: string;
@@ -50,7 +53,7 @@ export function ReadonlyAnnotationCard({
   quote?: string;
   style?: React.CSSProperties;
   thoughts: ReadonlyAnnotationCardThought[];
-  labels?: ReaderUiLabels;
+  labels?: ReadonlyAnnotationCardLabels;
 }) {
   return (
     <article
@@ -124,7 +127,7 @@ function ReadonlyThoughtView({
   labels,
   thought,
 }: {
-  labels: ReaderUiLabels;
+  labels: ReadonlyThoughtLabels;
   thought: ReadonlyAnnotationCardThought;
 }) {
   const html = React.useMemo(() => renderSafeMarkdown(thought.content), [thought.content]);

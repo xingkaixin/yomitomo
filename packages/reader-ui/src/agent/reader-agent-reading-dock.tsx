@@ -5,6 +5,11 @@ import type { AgentDockItem } from '../reader-types';
 import type { ReaderUiLabels } from '../shell/reader-app-view-types';
 import { defaultReaderUiLabels } from '../shell/reader-app-view-types';
 
+type AgentReadingDockLabels = Pick<
+  ReaderUiLabels,
+  'assistantCompleted' | 'assistantReadingActive' | 'assistantReadingStatus'
+>;
+
 type ReaderCompletionParticleStyle = React.CSSProperties & {
   '--reader-confetti-color': string;
   '--reader-confetti-delay': string;
@@ -64,7 +69,7 @@ export function AgentReadingDock({
 }: {
   completing: boolean;
   items: AgentDockItem[];
-  labels?: ReaderUiLabels;
+  labels?: AgentReadingDockLabels;
 }) {
   if (items.length === 0) return null;
 

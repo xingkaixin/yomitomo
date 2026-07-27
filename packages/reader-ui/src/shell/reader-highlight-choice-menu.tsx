@@ -7,6 +7,8 @@ import { AvatarBadge } from '../shared/reader-component-primitives';
 import type { ReaderUiLabels } from './reader-app-view-types';
 import { defaultReaderUiLabels } from './reader-app-view-types';
 
+type HighlightChoiceMenuLabels = Pick<ReaderUiLabels, 'closeHighlightChoice' | 'highlightChoice'>;
+
 export function HighlightChoiceMenu({
   action,
   agents,
@@ -19,7 +21,7 @@ export function HighlightChoiceMenu({
   action: HighlightChoiceAction;
   agents: PublicAgent[];
   annotations: Annotation[];
-  labels?: ReaderUiLabels;
+  labels?: HighlightChoiceMenuLabels;
   userProfile: UserProfile;
   onCancel: () => void;
   onSelect: (annotationId: string) => void;
