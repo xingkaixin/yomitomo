@@ -35,10 +35,7 @@ type SourceReaderAgentPlayback = Omit<
   ReaderAppViewProps['agents'],
   'agents' | 'pendingAnnotationAgents' | 'reviewAgents'
 >;
-type SourceReaderAnnotationSurface = Omit<
-  ReaderAppViewProps['annotations'],
-  'annotationTotals' | 'commentsCloseKey'
->;
+type SourceReaderAnnotationSurface = Omit<ReaderAppViewProps['annotations'], 'annotationTotals'>;
 
 export type SourceReaderAppSurface = {
   actions: SourceReaderActionAdapters;
@@ -137,7 +134,6 @@ export function useSourceReaderApp({
       },
       annotations: {
         annotationTotals: workspace.annotationTotals,
-        commentsCloseKey: workspace.commentsCloseKey,
         ...annotations,
       },
       article,

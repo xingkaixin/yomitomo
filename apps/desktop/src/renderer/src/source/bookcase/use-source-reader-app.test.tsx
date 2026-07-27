@@ -169,11 +169,9 @@ function surface({
   return {
     actions: {
       annotation: {
-        onAddComment: vi.fn(),
         onClearActiveAnnotation: vi.fn(),
         onCreateAnnotation: vi.fn(),
         onDeleteAnnotation: vi.fn(),
-        onDeleteComment: vi.fn(),
         onFocusAnnotation: vi.fn(),
         onHighlightClick: vi.fn(),
         onScrollToHighlight: vi.fn(),

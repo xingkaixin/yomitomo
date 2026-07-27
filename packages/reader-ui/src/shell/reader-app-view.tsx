@@ -66,27 +66,11 @@ export function ReaderAppView({
     activeId,
     annotationTotals,
     annotations,
-    autoExpandNewAnnotations,
     boxes,
-    commentsCloseKey,
-    distillationAnimation,
     filteredAnnotations,
-    newAnnotationIds,
     railLayoutOverride,
-    searchBoxes,
-    showEmptyNotes,
-    temporaryBoxes,
   } = annotationModel;
-  const {
-    agents,
-    completionBurstKey,
-    dockCompleting,
-    dockItems,
-    pendingAnnotationAgents = {},
-    reviewAgents = [],
-    theaterBoxes,
-    virtualCursors,
-  } = agentModel;
+  const { agents, completionBurstKey, dockCompleting, dockItems, virtualCursors } = agentModel;
   const {
     messageSendShortcut,
     readerSettings,
@@ -96,7 +80,7 @@ export function ReaderAppView({
     showSettings = true,
   } = settings;
   const { composer, copyRequestKey = 0, highlightChoice, selectionAction } = selection;
-  const { articleRef, canvasRef, noteRefs, notesRef, surfaceRef } = refs;
+  const { articleRef, canvasRef, noteRefs, surfaceRef } = refs;
   const { embedded = false } = options ?? {};
   const tocOpen = toc.open;
   const tocItems = toc.items;
@@ -136,10 +120,8 @@ export function ReaderAppView({
     annotations,
     articleId: article.id,
     articleRef,
-    autoExpandNewAnnotations,
     boxes,
     canvasRef,
-    commentsCloseKey,
     composer,
     filteredAnnotations,
     highlightChoice,
@@ -164,15 +146,23 @@ export function ReaderAppView({
     onToggleSettings: shell.onToggleSettings,
     readerChatOpen: chat?.open,
   });
-  const {
-    annotationRailItems,
-    exitingAnnotationIds,
-    expandedPrimaryCommentIds,
-    noteRefForAnnotation,
-    setPrimaryCommentExpanded,
-    visibleAnnotationIds,
-    visibleAnnotations,
-  } = annotationRail;
+  const surfaceActions = React.useMemo(
+    () => ({
+      annotation: annotationActions,
+      selection: {
+        ...selectionActions,
+        onAskSelection: (action: SelectionAction) => askSelection(action, 'pointer'),
+      },
+    }),
+    [annotationActions, askSelection, selectionActions],
+  );
+  const surfaceSelection = React.useMemo(
+    () => ({
+      ...selection,
+      copyRequestKey: shellSelectionCopyRequestKey + copyRequestKey,
+    }),
+    [copyRequestKey, selection, shellSelectionCopyRequestKey],
+  );
   const hasToc = tocItems.length > 0;
 
   const style: ReaderAppStyle = {
@@ -259,61 +249,18 @@ export function ReaderAppView({
           />
 
           <ReaderSurfaceView
-            activeId={activeId}
-            agentTheaterBoxes={theaterBoxes}
+            actions={surfaceActions}
+            agents={agentModel}
+            annotationRail={annotationRail}
             annotationRailLayout={annotationRailLayout}
-            agents={agents}
-            annotationRailItems={annotationRailItems}
-            annotations={annotations}
-            articleContent={article.content}
-            articleRef={articleRef}
-            boxes={boxes}
-            canvasRef={canvasRef}
-            commentsCloseKey={commentsCloseKey}
-            chat={chat}
-            composer={composer}
-            distillationAnimation={distillationAnimation}
-            exitingAnnotationIds={exitingAnnotationIds}
-            expandedPrimaryCommentIds={expandedPrimaryCommentIds}
-            extracted={article.extracted}
-            highlightChoice={highlightChoice}
+            annotations={annotationModel}
+            article={article}
+            chatAvailable={Boolean(chat)}
             labels={labels}
-            messageSendShortcut={messageSendShortcut}
-            newAnnotationIds={newAnnotationIds}
-            noteRefForAnnotation={noteRefForAnnotation}
-            notesRef={notesRef}
-            selectionAction={selectionAction}
-            selectionActionShortcuts={selectionActionShortcuts}
-            selectionCopyRequestKey={shellSelectionCopyRequestKey + copyRequestKey}
-            shortcutModifier={shortcutModifier}
-            searchBoxes={searchBoxes}
-            showEmptyNotes={showEmptyNotes}
-            surfaceRef={surfaceRef}
-            temporaryBoxes={temporaryBoxes}
+            refs={refs}
+            selection={surfaceSelection}
+            settings={settings}
             userProfile={userProfile}
-            visibleAnnotationIds={visibleAnnotationIds}
-            visibleAnnotations={visibleAnnotations}
-            onAddComment={annotationActions.onAddComment}
-            onCancelComposer={selectionActions.onCancelComposer}
-            onClearSelection={selectionActions.onClearSelection}
-            onCloseHighlightChoice={selectionActions.onCloseHighlightChoice}
-            onCopySelection={selectionActions.onCopySelection}
-            onCreateAnnotation={annotationActions.onCreateAnnotation}
-            onDeleteAnnotation={annotationActions.onDeleteAnnotation}
-            onDeleteComment={annotationActions.onDeleteComment}
-            onFocusAnnotation={annotationActions.onFocusAnnotation}
-            onOpenAnnotationDiscussion={annotationActions.onOpenAnnotationDiscussion}
-            onHighlightClick={annotationActions.onHighlightClick}
-            onMouseUp={selectionActions.onMouseUp}
-            onAskSelection={selectionActions.onAskSelection ? askSelection : undefined}
-            onSelectionHandleDrag={selectionActions.onSelectionHandleDrag}
-            onSelectionHandleDragEnd={selectionActions.onSelectionHandleDragEnd}
-            onSelectionHandleDragStart={selectionActions.onSelectionHandleDragStart}
-            onOpenComposer={selectionActions.onOpenComposer}
-            pendingAnnotationAgents={pendingAnnotationAgents}
-            onPrimaryCommentExpandedChange={setPrimaryCommentExpanded}
-            reviewAgents={reviewAgents}
-            onScrollToHighlight={annotationActions.onScrollToHighlight}
           />
         </main>
 

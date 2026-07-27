@@ -42,10 +42,8 @@ export type UseReaderShellStateOptions = {
   annotations: Annotation[];
   articleId: string;
   articleRef: React.RefObject<HTMLElement | null>;
-  autoExpandNewAnnotations?: boolean;
   boxes: HighlightBox[];
   canvasRef: React.RefObject<HTMLDivElement | null>;
-  commentsCloseKey: number;
   composer: PendingComposer | null;
   filteredAnnotations: Annotation[];
   highlightChoice: HighlightChoice | null;
@@ -81,10 +79,8 @@ export function useReaderShellState({
   annotations,
   articleId,
   articleRef,
-  autoExpandNewAnnotations,
   boxes,
   canvasRef,
-  commentsCloseKey,
   composer,
   filteredAnnotations,
   highlightChoice,
@@ -120,10 +116,7 @@ export function useReaderShellState({
     activeId,
     annotationRailLayout,
     annotations,
-    articleId,
-    autoExpandNewAnnotations,
     boxes,
-    commentsCloseKey,
     filteredAnnotations,
     noteRefs,
     onAnnotationLayoutChange,
