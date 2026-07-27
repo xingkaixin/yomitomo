@@ -100,12 +100,15 @@ export type ReaderArticleModel = {
   id: string;
 };
 
-export type ReaderShellRefs = {
-  articleRef: React.RefObject<HTMLElement | null>;
-  canvasRef: React.RefObject<HTMLDivElement | null>;
-  noteRefs: React.MutableRefObject<Map<string, HTMLElement>>;
-  notesRef: React.RefObject<HTMLElement | null>;
-  surfaceRef: React.RefObject<HTMLDivElement | null>;
+export type ReaderSurfaceHandle = {
+  getArticleElement: () => HTMLElement | null;
+  getCanvasElement: () => HTMLDivElement | null;
+  getNoteElement: (annotationId: string) => HTMLElement | null;
+  getNoteElements: () => HTMLElement[];
+  getRailElement: () => HTMLElement | null;
+  getRootElement: () => HTMLDivElement | null;
+  getViewportElement: () => HTMLDivElement | null;
+  requestSelectionCopy: () => void;
 };
 
 export type ReaderAnnotationModel = {
@@ -135,7 +138,6 @@ export type ReaderAnnotationModel = {
 
 export type ReaderAgentModel = {
   agents: PublicAgent[];
-  completionBurstKey: number;
   dockCompleting: boolean;
   dockItems: AgentDockItem[];
   pendingAnnotationAgents?: Record<string, PublicAgent[]>;
@@ -146,7 +148,6 @@ export type ReaderAgentModel = {
 
 export type ReaderSelectionModel = {
   composer: PendingComposer | null;
-  copyRequestKey?: number;
   highlightChoice: HighlightChoice | null;
   selectionAction: SelectionAction | null;
 };
@@ -424,7 +425,6 @@ export type ReaderAppViewProps = {
   chat?: ReaderChatModel;
   labels?: ReaderUiLabels;
   options?: ReaderShellOptions;
-  refs: ReaderShellRefs;
   selection: ReaderSelectionModel;
   settings: ReaderSettingsModel;
   toc: ReaderTocModel;

@@ -226,6 +226,7 @@ export function useReaderShellState({
     annotationRailLayout,
     handleReaderPointerDownCapture: interactions.handleReaderPointerDownCapture,
     navigateAnnotation,
+    requestSelectionCopy,
     selectionCopyRequestKey,
     toggleSettings: interactions.toggleSettings,
   };

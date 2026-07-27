@@ -10,6 +10,7 @@ import { VirtualCursor } from './reader-virtual-cursor';
 import type {
   ReaderAppViewProps,
   ReaderChatActivationSource,
+  ReaderSurfaceHandle,
   ReaderUiLabels,
   SelectionAction,
 } from './reader-app-view-types';
@@ -33,27 +34,30 @@ export type {
   PendingComposer,
   ReaderAppViewProps,
   ReaderArticle,
+  ReaderSurfaceHandle,
   ReaderUiLabels,
   SelectionAdjustmentHandle,
   SelectionAdjustmentPointer,
   SelectionAction,
 } from './reader-app-view-types';
 
-export function ReaderAppView({
-  actions,
-  agents: agentModel,
-  annotations: annotationModel,
-  article,
-  chat,
-  labels = defaultReaderUiLabels,
-  options,
-  refs,
-  selection,
-  settings,
-  toc,
-  toolbar,
-  userProfile,
-}: ReaderAppViewProps) {
+function ReaderAppViewComponent(
+  {
+    actions,
+    agents: agentModel,
+    annotations: annotationModel,
+    article,
+    chat,
+    labels = defaultReaderUiLabels,
+    options,
+    selection,
+    settings,
+    toc,
+    toolbar,
+    userProfile,
+  }: ReaderAppViewProps,
+  surfaceHandleRef: React.ForwardedRef<ReaderSurfaceHandle>,
+) {
   const {
     annotation: annotationActions,
     chat: chatActions,
@@ -70,7 +74,7 @@ export function ReaderAppView({
     filteredAnnotations,
     railLayoutOverride,
   } = annotationModel;
-  const { agents, completionBurstKey, dockCompleting, dockItems, virtualCursors } = agentModel;
+  const { agents, dockCompleting, dockItems, virtualCursors } = agentModel;
   const {
     messageSendShortcut,
     readerSettings,
@@ -79,8 +83,14 @@ export function ReaderAppView({
     shortcutModifier,
     showSettings = true,
   } = settings;
-  const { composer, copyRequestKey = 0, highlightChoice, selectionAction } = selection;
-  const { articleRef, canvasRef, noteRefs, surfaceRef } = refs;
+  const { composer, highlightChoice, selectionAction } = selection;
+  const articleRef = React.useRef<HTMLElement | null>(null);
+  const canvasRef = React.useRef<HTMLDivElement | null>(null);
+  const noteRefs = React.useRef(new Map<string, HTMLElement>());
+  const notesRef = React.useRef<HTMLElement | null>(null);
+  const rootRef = React.useRef<HTMLDivElement | null>(null);
+  const surfaceRef = React.useRef<HTMLDivElement | null>(null);
+  const surfaceRefs = React.useMemo(() => ({ articleRef, canvasRef, notesRef, surfaceRef }), []);
   const { embedded = false } = options ?? {};
   const tocOpen = toc.open;
   const tocItems = toc.items;
@@ -113,6 +123,7 @@ export function ReaderAppView({
     annotationRailLayout,
     handleReaderPointerDownCapture,
     navigateAnnotation,
+    requestSelectionCopy,
     selectionCopyRequestKey: shellSelectionCopyRequestKey,
   } = useReaderShellState({
     activeId,
@@ -146,6 +157,20 @@ export function ReaderAppView({
     onToggleSettings: shell.onToggleSettings,
     readerChatOpen: chat?.open,
   });
+  React.useImperativeHandle(
+    surfaceHandleRef,
+    () => ({
+      getArticleElement: () => articleRef.current,
+      getCanvasElement: () => canvasRef.current,
+      getNoteElement: (annotationId) => noteRefs.current.get(annotationId) ?? null,
+      getNoteElements: () => Array.from(noteRefs.current.values()),
+      getRailElement: () => notesRef.current,
+      getRootElement: () => rootRef.current,
+      getViewportElement: () => surfaceRef.current,
+      requestSelectionCopy,
+    }),
+    [requestSelectionCopy],
+  );
   const surfaceActions = React.useMemo(
     () => ({
       annotation: annotationActions,
@@ -159,9 +184,9 @@ export function ReaderAppView({
   const surfaceSelection = React.useMemo(
     () => ({
       ...selection,
-      copyRequestKey: shellSelectionCopyRequestKey + copyRequestKey,
+      copyRequestKey: shellSelectionCopyRequestKey,
     }),
-    [copyRequestKey, selection, shellSelectionCopyRequestKey],
+    [selection, shellSelectionCopyRequestKey],
   );
   const hasToc = tocItems.length > 0;
 
@@ -177,6 +202,7 @@ export function ReaderAppView({
   return (
     <ReaderTooltipProvider>
       <div
+        ref={rootRef}
         className={[
           'reader-app',
           embedded ? 'is-embedded' : '',
@@ -257,7 +283,7 @@ export function ReaderAppView({
             article={article}
             chatAvailable={Boolean(chat)}
             labels={labels}
-            refs={refs}
+            refs={surfaceRefs}
             selection={surfaceSelection}
             settings={settings}
             userProfile={userProfile}
@@ -266,12 +292,7 @@ export function ReaderAppView({
 
         {activeConnection ? <AnnotationConnection connection={activeConnection} /> : null}
 
-        <AgentReadingDock
-          completionBurstKey={completionBurstKey}
-          completing={dockCompleting}
-          items={dockItems}
-          labels={labels}
-        />
+        <AgentReadingDock completing={dockCompleting} items={dockItems} labels={labels} />
 
         {chat && chatActions ? (
           <ReaderChatPanel
@@ -302,6 +323,9 @@ export function ReaderAppView({
     </ReaderTooltipProvider>
   );
 }
+
+export const ReaderAppView = React.forwardRef(ReaderAppViewComponent);
+ReaderAppView.displayName = 'ReaderAppView';
 
 function readerSettingsLabels(labels: ReaderUiLabels) {
   return {

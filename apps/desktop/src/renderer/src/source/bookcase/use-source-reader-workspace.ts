@@ -29,6 +29,7 @@ type UseSourceReaderWorkspaceInput = {
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   session: SourceReaderWorkspaceSession;
   uiLanguage?: UiLanguage;
+  onRequestSelectionCopy: () => void;
   onSaveArticleReaderChatState?: (articleId: string, readerChatState?: ReaderChatState) => unknown;
 };
 
@@ -40,10 +41,12 @@ export function useSourceReaderWorkspace({
   selectionActionShortcuts,
   session,
   uiLanguage,
+  onRequestSelectionCopy,
   onSaveArticleReaderChatState,
 }: UseSourceReaderWorkspaceInput) {
   const selection = useSourceSelectionComposer({
     canvasRef,
+    onRequestSelectionCopy,
   });
   const [readerSettings, updateReaderSettings] = useDesktopReaderSettings();
   const readerChat = useReaderChatSession({

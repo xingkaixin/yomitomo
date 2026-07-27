@@ -30,7 +30,6 @@ export function usePdfiumVirtualReading({
   const {
     agentDockCompleting,
     agentDockItems,
-    completionBurstKey,
     activateAgentDock,
     markAgentDockDone,
     completeAgentDock,
@@ -273,7 +272,6 @@ export function usePdfiumVirtualReading({
     agentDockCompleting,
     agentDockItems,
     clearAgentAnnotationPlayback,
-    completionBurstKey,
     finishPdfiumAgentDock,
     finishPdfiumVirtualCursor,
     finishPdfiumVirtualReading,

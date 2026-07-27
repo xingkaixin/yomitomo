@@ -42,7 +42,6 @@ export type SourceReaderAppSurface = {
   agentPlayback: SourceReaderAgentPlayback;
   annotations: SourceReaderAnnotationSurface;
   article: ReaderAppViewProps['article'];
-  refs: ReaderAppViewProps['refs'];
   toc: ReaderAppViewProps['toc'];
   userProfile: ReaderAppViewProps['userProfile'];
   toolbar?: ReaderAppViewProps['toolbar'];
@@ -56,6 +55,7 @@ export type UseSourceReaderAppInput = {
   }) => SourceAgentAnnotationAdapter;
   getArticleText: () => string | Promise<string>;
   messageSendShortcut?: MessageSendShortcut;
+  onRequestSelectionCopy: () => void;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   session: SourceReaderSessionInput;
 };
@@ -66,6 +66,7 @@ export function useSourceReaderApp({
   createAgentAnnotationAdapter,
   getArticleText,
   messageSendShortcut,
+  onRequestSelectionCopy,
   selectionActionShortcuts,
   session: sessionInput,
 }: UseSourceReaderAppInput) {
@@ -85,6 +86,7 @@ export function useSourceReaderApp({
     canvasRef,
     getArticleText,
     messageSendShortcut,
+    onRequestSelectionCopy,
     selectionActionShortcuts,
     session,
     uiLanguage: sessionInput.uiLanguage,
@@ -98,7 +100,6 @@ export function useSourceReaderApp({
     agentPlayback,
     annotations,
     article,
-    refs,
     toc,
     toolbar,
     userProfile,
@@ -140,10 +141,8 @@ export function useSourceReaderApp({
       chat: workspace.readerChat.model,
       labels: workspace.labels,
       options: { embedded: true },
-      refs,
       selection: {
         composer: workspace.selection.composer,
-        copyRequestKey: workspace.selection.copyRequestKey,
         highlightChoice: workspace.selection.highlightChoice,
         selectionAction: workspace.selection.selectionAction,
       },

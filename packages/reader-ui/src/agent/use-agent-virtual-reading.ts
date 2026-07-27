@@ -39,7 +39,6 @@ export function useAgentVirtualReading({
   const {
     agentDockCompleting,
     agentDockItems,
-    completionBurstKey,
     activateAgentDock,
     markAgentDockDone,
     completeAgentDock,
@@ -256,7 +255,6 @@ export function useAgentVirtualReading({
   return {
     agentDockCompleting,
     agentDockItems,
-    completionBurstKey,
     virtualCursors,
     cleanupVirtualReadingSessions,
     finishVirtualReading,

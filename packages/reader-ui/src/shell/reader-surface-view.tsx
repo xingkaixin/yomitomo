@@ -15,7 +15,6 @@ import type {
   ReaderArticleModel,
   ReaderSelectionModel,
   ReaderSettingsModel,
-  ReaderShellRefs,
   ReaderUiLabels,
 } from './reader-app-view-types';
 import { defaultReaderUiLabels } from './reader-app-view-types';
@@ -36,6 +35,17 @@ import {
 
 type ReaderSurfaceActions = Pick<ReaderAppViewActions, 'annotation' | 'selection'>;
 
+type ReaderSurfaceRefs = {
+  articleRef: React.RefObject<HTMLElement | null>;
+  canvasRef: React.RefObject<HTMLDivElement | null>;
+  notesRef: React.RefObject<HTMLElement | null>;
+  surfaceRef: React.RefObject<HTMLDivElement | null>;
+};
+
+type ReaderSurfaceSelectionModel = ReaderSelectionModel & {
+  copyRequestKey: number;
+};
+
 export type ReaderSurfaceViewProps = {
   actions: ReaderSurfaceActions;
   agents: ReaderAgentModel;
@@ -45,8 +55,8 @@ export type ReaderSurfaceViewProps = {
   article: ReaderArticleModel;
   chatAvailable: boolean;
   labels?: ReaderUiLabels;
-  refs: ReaderShellRefs;
-  selection: ReaderSelectionModel;
+  refs: ReaderSurfaceRefs;
+  selection: ReaderSurfaceSelectionModel;
   settings: ReaderSettingsModel;
   userProfile: UserProfile;
 };
