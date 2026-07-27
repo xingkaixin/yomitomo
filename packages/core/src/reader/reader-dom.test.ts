@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   activeTocIndexForOffset,
   annotationIdsAtHighlightPoint,
@@ -10,9 +10,14 @@ import {
   findCurrentTocTarget,
   highlightSegmentStyle,
   offsetFromArticleStartIgnoringSelector,
+  prepareTextOffsetRangeResolver,
   rangeFromOffsetsIgnoringSelector,
   type HighlightBox,
 } from './reader-dom';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function box(input: Partial<HighlightBox> & Pick<HighlightBox, 'annotationId'>): HighlightBox {
   return {
@@ -264,4 +269,94 @@ describe('reader DOM translated text boundaries', () => {
 
     expect(range?.toString()).toBe('Beta');
   });
+
+  it('keeps source range boundaries stable across ignored translation nodes', () => {
+    const article = document.createElement('article');
+    article.innerHTML =
+      '<p data-node="alpha">Alpha <strong data-node="alpha-strong">source</strong></p>' +
+      '<div data-reader-translation="true"><span>阿尔法译文</span></div>' +
+      '<p data-node="beta">Beta <em data-node="beta-em">source</em></p>';
+    article.insertBefore(document.createTextNode(''), article.firstChild);
+
+    const offsets: Array<[number, number]> = [
+      [0, 5],
+      [6, 12],
+      [12, 16],
+      [17, 23],
+      [4, 19],
+      [23, 23],
+    ];
+    const legacySnapshots = offsets.map(([start, end]) =>
+      rangeSnapshot(
+        rangeFromOffsetsIgnoringSelector(article, start, end, '[data-reader-translation]'),
+      ),
+    );
+    const resolver = prepareTextOffsetRangeResolver(article, '[data-reader-translation]');
+    const indexedSnapshots = offsets.map(([start, end]) =>
+      rangeSnapshot(resolver.range(start, end)),
+    );
+    const coordinates = [
+      -1,
+      ...Array.from({ length: resolver.text.length + 2 }, (_, index) => index),
+      0.5,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+    ];
+    const allOffsets: Array<[number, number]> = coordinates.flatMap((start) =>
+      coordinates.map((end): [number, number] => [start, end]),
+    );
+
+    expect(resolver.text).toBe('Alpha sourceBeta source');
+    expect(allOffsets.map(([start, end]) => rangeSnapshot(resolver.range(start, end)))).toEqual(
+      allOffsets.map(([start, end]) =>
+        rangeSnapshot(
+          rangeFromOffsetsIgnoringSelector(article, start, end, '[data-reader-translation]'),
+        ),
+      ),
+    );
+    expect(indexedSnapshots).toEqual(legacySnapshots);
+    expect(indexedSnapshots).toEqual([
+      { start: ['alpha', 0], end: ['alpha', 5], text: 'Alpha' },
+      { start: ['alpha-strong', 0], end: ['alpha-strong', 6], text: 'source' },
+      { start: ['beta', 0], end: ['beta', 4], text: 'Beta' },
+      { start: ['beta-em', 0], end: ['beta-em', 6], text: 'source' },
+      {
+        start: ['alpha', 4],
+        end: ['beta-em', 2],
+        text: 'a source阿尔法译文Beta so',
+      },
+      null,
+    ]);
+  });
+
+  it('reuses one text walk and one ignored lookup per parent across ranges', () => {
+    const article = document.createElement('article');
+    const source = document.createElement('p');
+    source.append('Alpha', document.createComment('split'), 'Beta');
+    const translation = document.createElement('div');
+    translation.setAttribute('data-reader-translation', 'true');
+    translation.append('译文', document.createComment('split'), '更多');
+    article.append(source, translation);
+    const createTreeWalker = vi.spyOn(article.ownerDocument, 'createTreeWalker');
+    const closest = vi.spyOn(Element.prototype, 'closest');
+
+    const resolver = prepareTextOffsetRangeResolver(article, '[data-reader-translation]');
+
+    expect(resolver.text).toBe('AlphaBeta');
+    expect(createTreeWalker).toHaveBeenCalledTimes(1);
+    expect(closest).toHaveBeenCalledTimes(2);
+    expect(resolver.range(0, 5)?.toString()).toBe('Alpha');
+    expect(resolver.range(5, 9)?.toString()).toBe('Beta');
+    expect(createTreeWalker).toHaveBeenCalledTimes(1);
+    expect(closest).toHaveBeenCalledTimes(2);
+  });
 });
+
+function rangeSnapshot(range: Range | null) {
+  if (!range) return null;
+  return {
+    start: [range.startContainer.parentElement?.getAttribute('data-node'), range.startOffset],
+    end: [range.endContainer.parentElement?.getAttribute('data-node'), range.endOffset],
+    text: range.toString(),
+  };
+}

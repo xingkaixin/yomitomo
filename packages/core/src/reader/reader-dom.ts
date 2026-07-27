@@ -42,8 +42,25 @@ export type ExtractTocOptions = {
   getHeadingDepth?: (element: HTMLElement) => number;
 };
 
+export type PreparedTextOffsetRangeResolver = {
+  readonly text: string;
+  range(start: number, end: number): Range | null;
+};
+
 type TocEntry = Omit<TocItem, 'start' | 'end'> & {
   target: HTMLElement;
+};
+
+type TextOffsetEntry = {
+  node: Text;
+  textStart: number;
+  textEnd: number;
+};
+
+type TextOffsetPoint = {
+  entryIndex: number;
+  node: Text;
+  nodeOffset: number;
 };
 
 type HighlightLineGroup = {
@@ -307,6 +324,40 @@ export function rangeFromOffsetsIgnoringSelector(
   );
 }
 
+export function prepareTextOffsetRangeResolver(
+  rootElement: HTMLElement,
+  ignoredSelector?: string,
+): PreparedTextOffsetRangeResolver {
+  const entries: TextOffsetEntry[] = [];
+  const textParts: string[] = [];
+  const ignoredByParent = new WeakMap<Element, boolean>();
+  const walker = rootElement.ownerDocument.createTreeWalker(rootElement, NodeFilter.SHOW_TEXT);
+  let textEnd = 0;
+
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    if (!isTextNode(node)) continue;
+    if (ignoredSelector && textNodeIgnored(node, ignoredSelector, ignoredByParent)) continue;
+    const textStart = textEnd;
+    textEnd += node.data.length;
+    entries.push({ node, textStart, textEnd });
+    textParts.push(node.data);
+  }
+
+  return {
+    text: textParts.join(''),
+    range(start, end) {
+      const startPoint = textOffsetPoint(entries, start, 'start');
+      const endPoint = textOffsetPoint(entries, end, 'end');
+      if (!startPoint || !endPoint || endPoint.entryIndex < startPoint.entryIndex) return null;
+      const range = rootElement.ownerDocument.createRange();
+      range.setStart(startPoint.node, startPoint.nodeOffset);
+      range.setEnd(endPoint.node, endPoint.nodeOffset);
+      return range;
+    },
+  };
+}
+
 function rangeFromOffsetsWithFilter(
   rootElement: HTMLElement,
   start: number,
@@ -344,9 +395,47 @@ function rangeFromOffsetsWithFilter(
   return range;
 }
 
-function textNodeIgnored(node: Node, ignoredSelector: string) {
+function textOffsetPoint(
+  entries: TextOffsetEntry[],
+  offset: number,
+  boundary: 'start' | 'end',
+): TextOffsetPoint | null {
+  if (!Number.isFinite(offset) || offset < 0) return null;
+  let lower = 0;
+  let upper = entries.length;
+
+  while (lower < upper) {
+    const middle = lower + Math.floor((upper - lower) / 2);
+    const entry = entries[middle];
+    if (!entry) return null;
+    const precedesOffset = boundary === 'start' ? entry.textEnd <= offset : entry.textEnd < offset;
+    if (precedesOffset) lower = middle + 1;
+    else upper = middle;
+  }
+
+  const entry = entries[lower];
+  if (!entry) return null;
+  const nodeOffset = offset - entry.textStart;
+  const outsideNode =
+    nodeOffset < 0 ||
+    (boundary === 'start'
+      ? nodeOffset >= entry.node.data.length
+      : nodeOffset > entry.node.data.length);
+  return outsideNode ? null : { entryIndex: lower, node: entry.node, nodeOffset };
+}
+
+function textNodeIgnored(
+  node: Node,
+  ignoredSelector: string,
+  ignoredByParent?: WeakMap<Element, boolean>,
+) {
   const parent = node.parentElement;
-  return Boolean(parent?.closest(ignoredSelector));
+  if (!parent) return false;
+  const cached = ignoredByParent?.get(parent);
+  if (cached !== undefined) return cached;
+  const ignored = Boolean(parent.closest(ignoredSelector));
+  ignoredByParent?.set(parent, ignored);
+  return ignored;
 }
 
 function isTextNode(node: Node): node is Text {

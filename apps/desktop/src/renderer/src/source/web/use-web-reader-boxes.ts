@@ -5,10 +5,9 @@ import {
   annotationColor,
   articleTitleTocItems,
   extractTocItems,
-  rangeFromOffsetsIgnoringSelector,
+  prepareTextOffsetRangeResolver,
   rangeForTranslationTextAnchor,
   rangeHighlightBoxes,
-  sourceTextContent,
   type ExtractTocOptions,
   type HighlightBox,
   type TocItem,
@@ -78,7 +77,11 @@ export function useWebReaderBoxes({
         frame = 0;
         const currentInput = inputRef.current;
         const startedAt = performance.now();
-        const text = sourceTextContent(articleElement);
+        const sourceRangeResolver = prepareTextOffsetRangeResolver(
+          articleElement,
+          '[data-reader-translation]',
+        );
+        const text = sourceRangeResolver.text;
         const canvasRect = canvasElement.getBoundingClientRect();
         const extractedTocItems = extractTocItems(articleElement, sourceTocOptions);
         const nextTocItems =
@@ -93,12 +96,7 @@ export function useWebReaderBoxes({
             : (() => {
                 const position = resolveTextAnchor(text, annotation.anchor);
                 if (!position) return null;
-                return rangeFromOffsetsIgnoringSelector(
-                  articleElement,
-                  position.start,
-                  position.end,
-                  '[data-reader-translation]',
-                );
+                return sourceRangeResolver.range(position.start, position.end);
               })();
           if (!range) return [];
           resolvedAnchorCount += 1;
