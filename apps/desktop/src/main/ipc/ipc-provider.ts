@@ -1,4 +1,4 @@
-import type { DesktopStore } from '@yomitomo/shared';
+import type { AppSettings } from '@yomitomo/shared';
 import type { DesktopAiModule, DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
 import { hasAppLockPin } from '../app-lock/app-lock-secrets';
@@ -16,8 +16,10 @@ type ProviderIpcContext = Pick<DesktopMainIpcContext, 'sendFullStoreUpdated'> & 
       typeof import('../store/store-providers'),
       'deleteProvider' | 'saveProvider'
     >;
-    storeSettings: Pick<typeof import('../store/store-settings'), 'saveSettings' | 'saveUser'>;
-    storeSnapshot: Pick<typeof import('../store/store-snapshot'), 'readStore'>;
+    storeSettings: Pick<
+      typeof import('../store/store-settings'),
+      'readAppLockSettings' | 'saveSettings' | 'saveUser'
+    >;
   }>;
 };
 
@@ -27,8 +29,8 @@ export function registerProviderIpc(context: ProviderIpcContext) {
     return storeSettings.saveUser(input);
   });
   handleDesktopIpc('settings:save', async (event, input) => {
-    const { storeSettings, storeSnapshot } = await context.getPersistenceModules();
-    await assertSettingsAppLockChangeAllowed(input, await storeSnapshot.readStore());
+    const { storeSettings } = await context.getPersistenceModules();
+    await assertSettingsAppLockChangeAllowed(input, storeSettings.readAppLockSettings());
     const store = await storeSettings.saveSettings(input);
     await pruneLogFile(store.settings.logRetentionDays);
     context.sendFullStoreUpdated(event, store);
@@ -86,17 +88,17 @@ export function registerProviderIpc(context: ProviderIpcContext) {
 
 async function assertSettingsAppLockChangeAllowed(
   input: { appLockEnabled?: boolean; appLockLocked?: boolean },
-  store: DesktopStore,
+  settings: Pick<AppSettings, 'appLockEnabled' | 'appLockLocked'>,
 ) {
   if (
     Object.prototype.hasOwnProperty.call(input, 'appLockLocked') &&
-    Boolean(input.appLockLocked) !== Boolean(store.settings.appLockLocked)
+    Boolean(input.appLockLocked) !== Boolean(settings.appLockLocked)
   ) {
     throw new DesktopIpcError('APP_LOCK_LOCKED_STATE_RESTRICTED');
   }
   if (!Object.prototype.hasOwnProperty.call(input, 'appLockEnabled')) return;
   const nextEnabled = Boolean(input.appLockEnabled);
-  const currentEnabled = Boolean(store.settings.appLockEnabled);
+  const currentEnabled = Boolean(settings.appLockEnabled);
   if (nextEnabled && !(await hasAppLockPin())) throw new DesktopIpcError('APP_LOCK_PIN_REQUIRED');
   if (!nextEnabled && currentEnabled) throw new DesktopIpcError('APP_LOCK_PIN_REQUIRED');
 }
