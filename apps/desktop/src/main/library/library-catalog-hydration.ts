@@ -1,9 +1,9 @@
 import { inArray, sql } from 'drizzle-orm';
+import { normalizeArticleSourceType } from '@yomitomo/shared';
 import type {
   LibraryCatalogCollection,
   LibraryCatalogEntity,
   LibraryCatalogItem,
-  LibraryCatalogItemType,
 } from '../../ipc-contract';
 import { articleSummaryColumns } from '../articles/article-repository-columns';
 import { readArticleSummaryCountsForArticles } from '../articles/article-summary-counts';
@@ -11,7 +11,7 @@ import * as schema from '../db/schema';
 import type { StoreDatabase } from '../store/store-db';
 import { rowToArticleSummary, rowToCollection } from '../store/store-normalizers';
 import { rowToWeReadBook } from '../weread/weread-repository';
-import { ARTICLE_CATALOG_TYPES, type CatalogCandidate } from './library-catalog-model';
+import type { CatalogCandidate } from './library-catalog-model';
 
 const COLLECTION_COVER_LIMIT = 9;
 
@@ -160,11 +160,7 @@ function articleItem(
   sortTime = article?.createdAt || article?.updatedAt || '',
 ): LibraryCatalogItem | null {
   if (!article) return null;
-  const type = ARTICLE_CATALOG_TYPES.includes(
-    article.sourceType as Exclude<LibraryCatalogItemType, 'weread'>,
-  )
-    ? (article.sourceType as Exclude<LibraryCatalogItemType, 'weread'>)
-    : 'web';
+  const type = normalizeArticleSourceType(article.sourceType);
   return {
     kind: 'item',
     ref: { kind: 'article', id: article.id },

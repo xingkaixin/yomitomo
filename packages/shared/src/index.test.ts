@@ -19,6 +19,7 @@ import {
 } from './index';
 
 const sharedRuntimeExports = [
+  'ARTICLE_SOURCE_TYPES',
   'EPUB_TITLE_CLEANUP_VERSION',
   'agentPersonalities',
   'agentPersonalitiesForKind',
@@ -59,6 +60,7 @@ const sharedRuntimeExports = [
   'normalizeAnnotationEvidenceSource',
   'normalizeAnnotationMove',
   'normalizeAnnotationType',
+  'normalizeArticleSourceType',
   'normalizeAssistantExecutionMode',
   'normalizeLibraryContentSources',
   'normalizeMessageSendShortcut',

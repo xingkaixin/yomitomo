@@ -1,6 +1,6 @@
 import { and, count, desc, eq, isNotNull, sql, type SQL } from 'drizzle-orm';
+import { normalizeArticleSourceType } from '@yomitomo/shared';
 import type {
-  ArticleLibrarySource,
   DistillationLibraryItem,
   DistillationLibraryListInput,
   DistillationLibraryListResult,
@@ -129,17 +129,12 @@ function toLibraryItem(row: {
     articleId: row.articleId,
     articleTitle: row.articleTitle,
     ...(row.articleByline ? { articleByline: row.articleByline } : {}),
-    sourceType: normalizeArticleSource(row.sourceType),
+    sourceType: normalizeArticleSourceType(row.sourceType),
     anchorText: anchorExactText(row.anchor),
     content: row.content || '',
     ...(row.publishedAt ? { publishedAt: row.publishedAt } : {}),
     updatedAt: row.updatedAt || row.annotationUpdatedAt,
   };
-}
-
-function normalizeArticleSource(value: string): ArticleLibrarySource {
-  if (value === 'ebook' || value === 'pdf' || value === 'text') return value;
-  return 'web';
 }
 
 function anchorExactText(anchor: unknown) {

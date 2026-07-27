@@ -8,6 +8,7 @@ export {
   normalizeSoundEffectsVolume,
   normalizeUiLanguage,
 } from './types';
+export { ARTICLE_SOURCE_TYPES, normalizeArticleSourceType } from './sources/article-types';
 export type {
   Agent,
   AgentAnnotatePayload,

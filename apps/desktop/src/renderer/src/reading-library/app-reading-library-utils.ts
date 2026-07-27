@@ -2,14 +2,16 @@ import i18next from 'i18next';
 import { articlePublishedDistillationCount } from '@yomitomo/core';
 import {
   cleanEpubDisplayTitle,
+  normalizeArticleSourceType,
   type ArticleSummaryRecord,
+  type LibraryContentSourceId,
   type WeReadBook,
 } from '@yomitomo/shared';
 import { articlePlainText, formatDate, urlHost } from '../shell/app-utils';
 
 export type LibraryFilter = 'all' | 'new' | 'progress' | 'done';
 
-export type LibrarySource = 'web' | 'ebook' | 'pdf' | 'text' | 'weread';
+export type LibrarySource = LibraryContentSourceId;
 
 export type LibrarySort = 'recentReading' | 'recentAdded' | 'annotations' | 'discussions';
 
@@ -55,13 +57,7 @@ export function articleMatchesLibrarySearch(article: ArticleSummaryRecord, query
 }
 
 export function librarySourceForArticle(article: ArticleSummaryRecord): LibrarySource {
-  if (
-    article.sourceType === 'ebook' ||
-    article.sourceType === 'pdf' ||
-    article.sourceType === 'text'
-  )
-    return article.sourceType;
-  return 'web';
+  return normalizeArticleSourceType(article.sourceType);
 }
 
 export function articleDisplayTitle(article: ArticleSummaryRecord) {

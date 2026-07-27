@@ -5,7 +5,13 @@ import type { EbookRecord, EbookSummaryRecord } from './ebook-types';
 import type { PdfRecord } from './pdf-types';
 import type { ReadingMemory } from '../reading-memory/reading-memory-types';
 
-export type ArticleSourceType = 'web' | 'ebook' | 'pdf' | 'text';
+export const ARTICLE_SOURCE_TYPES = ['web', 'ebook', 'pdf', 'text'] as const;
+
+export type ArticleSourceType = (typeof ARTICLE_SOURCE_TYPES)[number];
+
+export function normalizeArticleSourceType(value: unknown): ArticleSourceType {
+  return ARTICLE_SOURCE_TYPES.find((sourceType) => sourceType === value) ?? 'web';
+}
 
 export type TextSourceFormat = 'plain' | 'markdown';
 

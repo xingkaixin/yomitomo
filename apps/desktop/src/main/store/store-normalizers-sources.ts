@@ -1,7 +1,6 @@
 import type {
   ArticleReadingProgress,
   ArticleRecord,
-  ArticleSourceType,
   ArticleSummaryRecord,
   EbookChapterRecord,
   EbookFormat,
@@ -15,6 +14,8 @@ import type {
   TextSourceFormat,
   TextSourceMetadata,
 } from '@yomitomo/shared';
+import { normalizeArticleSourceType } from '@yomitomo/shared';
+export { normalizeArticleSourceType } from '@yomitomo/shared';
 import { normalizeAnnotationDensity } from './store-normalizers-provider-agent';
 import * as schema from '../db/schema';
 import {
@@ -61,11 +62,6 @@ export function rowToEbookSummary(row: ArticleSummaryRow): ArticleSummaryRecord[
 
   const metadata = normalizeEbookMetadata(row.ebookMetadata);
   return metadata ? { metadata } : undefined;
-}
-
-export function normalizeArticleSourceType(value: unknown): ArticleSourceType {
-  if (value === 'ebook' || value === 'pdf' || value === 'text') return value;
-  return 'web';
 }
 
 export function rowToText(row: ArticleRow): ArticleRecord['text'] {

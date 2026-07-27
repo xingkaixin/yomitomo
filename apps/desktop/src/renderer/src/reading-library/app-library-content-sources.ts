@@ -13,8 +13,6 @@ export type LibraryContentSourceOption = {
   description: string;
 };
 
-const libraryContentSourceIds: LibrarySource[] = ['web', 'ebook', 'pdf', 'text', 'weread'];
-
 export function libraryContentSourceOption(id: LibrarySource): LibraryContentSourceOption {
   return {
     value: id,
@@ -24,7 +22,7 @@ export function libraryContentSourceOption(id: LibrarySource): LibraryContentSou
 }
 
 export function libraryContentSourceBaseOptions(): LibraryContentSourceOption[] {
-  return libraryContentSourceIds.map(libraryContentSourceOption);
+  return defaultLibraryContentSourceOrder.map(libraryContentSourceOption);
 }
 
 export function libraryContentSourcePreferences(
@@ -45,7 +43,7 @@ export function libraryContentSourceOptions(
   settings: Pick<AppSettings, 'libraryContentSources'> | undefined,
 ): LibraryContentSourceOption[] {
   return enabledLibraryContentSources(settings)
-    .filter((id): id is LibrarySource => libraryContentSourceIds.includes(id))
+    .filter((id): id is LibrarySource => defaultLibraryContentSourceOrder.includes(id))
     .map(libraryContentSourceOption);
 }
 
@@ -60,7 +58,7 @@ export function allLibraryContentSourceOptions(
 
   return orderedIds
     .map((id) => {
-      if (!libraryContentSourceIds.includes(id)) return null;
+      if (!defaultLibraryContentSourceOrder.includes(id)) return null;
       const option = libraryContentSourceOption(id);
       return Object.assign({}, option, {
         enabled: normalized.find((preference) => preference.id === id)?.enabled ?? true,
