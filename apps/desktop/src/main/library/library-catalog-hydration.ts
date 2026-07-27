@@ -1,5 +1,4 @@
 import { inArray, sql } from 'drizzle-orm';
-import { normalizeArticleSourceType } from '@yomitomo/shared';
 import type {
   LibraryCatalogCollection,
   LibraryCatalogEntity,
@@ -160,11 +159,10 @@ function articleItem(
   sortTime = article?.createdAt || article?.updatedAt || '',
 ): LibraryCatalogItem | null {
   if (!article) return null;
-  const type = normalizeArticleSourceType(article.sourceType);
   return {
     kind: 'item',
     ref: { kind: 'article', id: article.id },
-    type,
+    type: article.sourceType,
     sortTime,
     pinned,
     article,

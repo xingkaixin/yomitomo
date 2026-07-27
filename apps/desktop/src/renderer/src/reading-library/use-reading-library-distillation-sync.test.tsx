@@ -197,6 +197,7 @@ function article({
     id,
     url: `https://example.com/${id}`,
     canonicalUrl: `https://example.com/${id}`,
+    sourceType: 'web',
     title,
     byline: '',
     siteName: 'Example',

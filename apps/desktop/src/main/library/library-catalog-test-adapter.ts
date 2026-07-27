@@ -85,7 +85,7 @@ function seedArticles(sqlite: SQLiteDatabase.Database, articles: ArticleSummaryR
       article.id,
       article.url,
       article.canonicalUrl,
-      article.sourceType || 'web',
+      article.sourceType,
       article.title,
       article.byline ?? null,
       article.excerpt ?? null,

@@ -44,7 +44,9 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-function article(overrides: Partial<ArticleRecord> = {}): ArticleRecord {
+type WebArticleRecord = Extract<ArticleRecord, { sourceType: 'web' }>;
+
+function article(overrides: Partial<WebArticleRecord> = {}): WebArticleRecord {
   return {
     id: 'article_1',
     url: 'https://example.com/post',

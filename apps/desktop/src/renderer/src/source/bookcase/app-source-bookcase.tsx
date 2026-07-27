@@ -87,7 +87,8 @@ export type WebSourceBookcaseProps = Omit<SourceBookcaseProps, 'article'> & {
   article: ArticleRecord;
 };
 
-export type EbookArticleRecord = ArticleRecord & { ebook: NonNullable<ArticleRecord['ebook']> };
+export type EbookArticleRecord = Extract<ArticleRecord, { sourceType: 'ebook' }>;
+type PdfArticleRecord = Extract<ArticleRecord, { sourceType: 'pdf' }>;
 
 export type EbookBookcaseProps = Omit<SourceBookcaseProps, 'article'> & {
   article: EbookArticleRecord;
@@ -115,11 +116,9 @@ export function SourceBookcase(props: SourceBookcaseProps) {
 }
 
 export function isEbookArticle(article: ArticleRecord | null): article is EbookArticleRecord {
-  return article?.sourceType === 'ebook' && Boolean(article.ebook?.chapters.length);
+  return article?.sourceType === 'ebook' && Boolean(article.ebook.chapters.length);
 }
 
-export function isPdfArticle(article: ArticleRecord | null): article is ArticleRecord & {
-  pdf: NonNullable<ArticleRecord['pdf']>;
-} {
+export function isPdfArticle(article: ArticleRecord | null): article is PdfArticleRecord {
   return article?.sourceType === 'pdf' && Boolean(article.pdf);
 }

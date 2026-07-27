@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import type { DesktopStore } from '@yomitomo/shared';
+import type { ArticleRecord, DesktopStore } from '@yomitomo/shared';
 import {
   defaultUser,
   mergeSettingsForUpsert,
   normalizeAgentKind,
   normalizeAnnotationDensity,
   normalizeArticleReadingProgress,
+  normalizeArticleRecord,
+  normalizeArticleSummaryRecord,
   normalizeArticleSourceType,
   normalizeModelNames,
   normalizeProviderModelInputMode,
@@ -360,6 +362,55 @@ describe('store normalizers articles', () => {
         title: 'PDF',
       },
     });
+  });
+
+  it('keeps normalized source discriminants aligned with their payloads', () => {
+    const articleBase = {
+      id: 'article_1',
+      url: 'https://example.com',
+      canonicalUrl: 'https://example.com',
+      title: 'Article',
+      contentHash: 'hash',
+      annotations: [],
+      createdAt: '2026-06-11T00:00:00.000Z',
+      updatedAt: '2026-06-11T00:00:00.000Z',
+    };
+    const ebook = {
+      metadata: { format: 'epub' as const, fileName: 'book.epub', fileSize: 100 },
+      chapters: [{ id: 'chapter_1', title: 'Chapter', html: '<p>Text</p>', textLength: 4 }],
+    };
+
+    const normalizedMismatch = normalizeArticleRecord({
+      ...articleBase,
+      sourceType: 'pdf',
+      ebook,
+    } as unknown as ArticleRecord);
+    expect(normalizedMismatch).toMatchObject({ ...articleBase, sourceType: 'web' });
+    expect('ebook' in normalizedMismatch).toBe(false);
+    expect(
+      normalizeArticleSummaryRecord({
+        ...articleBase,
+        sourceType: 'ebook',
+        ebook: { metadata: ebook.metadata },
+      }),
+    ).toMatchObject({
+      sourceType: 'ebook',
+      ebook: { metadata: ebook.metadata },
+    });
+  });
+
+  it('downgrades persisted source rows whose required payload is missing', () => {
+    expect(
+      rowToArticle(
+        {
+          ...articleRowBase(),
+          sourceType: 'ebook',
+          ebookMetadata: null,
+          ebookChapters: null,
+        },
+        [],
+      ),
+    ).toMatchObject({ sourceType: 'web' });
   });
 
   it('normalizes store collections with provider, agent, and article fallbacks', () => {
@@ -755,6 +806,7 @@ function articleRowBase() {
     ebookChapters: null,
     ebookIndex: null,
     pdfMetadata: null,
+    textMetadata: null,
     readingProgress: null,
     readerChatState: null,
     focusCoReadingPlan: null,

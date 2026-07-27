@@ -37,12 +37,15 @@ afterEach(() => {
   Reflect.deleteProperty(window, 'yomitomoDesktop');
 });
 
-function article(overrides: Partial<ArticleRecord> = {}): ArticleRecord {
+type WebArticleRecord = Extract<ArticleRecord, { sourceType: 'web' }>;
+
+function article(overrides: Partial<WebArticleRecord> = {}): WebArticleRecord {
   const now = new Date().toISOString();
   return {
     id: 'article_1',
     url: 'https://example.com/post',
     canonicalUrl: 'https://example.com/post',
+    sourceType: 'web',
     title: '文章',
     contentHtml: '<p>正文</p>',
     contentHash: 'hash_1',

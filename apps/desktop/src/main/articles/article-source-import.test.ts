@@ -88,7 +88,7 @@ describe('article source import lifecycle', () => {
   });
 
   it('cleans persisted source assets when saving a new article fails', async () => {
-    const record = articleRecord('pdf-new', { sourceType: 'pdf' });
+    const record = pdfArticleRecord('pdf-new');
     const error = new Error('save failed');
     const repository = repositoryStub({ saveError: error });
     const assets = stagedAssets();
@@ -105,7 +105,7 @@ describe('article source import lifecycle', () => {
   });
 
   it('logs cleanup failures without hiding the original save failure', async () => {
-    const record = articleRecord('pdf-cleanup-fails', { sourceType: 'pdf' });
+    const record = pdfArticleRecord('pdf-cleanup-fails');
     const saveError = new Error('save failed');
     const cleanupError = new Error('cleanup failed');
     const repository = repositoryStub({ saveError });
@@ -133,7 +133,7 @@ describe('article source import lifecycle', () => {
   });
 
   it('does not report a committed import as failed when backup cleanup fails', async () => {
-    const record = articleRecord('pdf-finalize-fails', { sourceType: 'pdf' });
+    const record = pdfArticleRecord('pdf-finalize-fails');
     const cleanupError = new Error('backup cleanup failed');
     const repository = repositoryStub({});
     const logError = vi.fn();
@@ -254,11 +254,15 @@ function articlePatch(articleId: string): ArticleUpsertPatch {
   };
 }
 
-function articleRecord(id: string, overrides: Partial<ArticleRecord> = {}): ArticleRecord {
+type WebArticleRecord = Extract<ArticleRecord, { sourceType: 'web' }>;
+type PdfArticleRecord = Extract<ArticleRecord, { sourceType: 'pdf' }>;
+
+function articleRecord(id: string, overrides: Partial<WebArticleRecord> = {}): WebArticleRecord {
   return {
     id,
     url: `https://example.com/${id}`,
     canonicalUrl: `https://example.com/${id}`,
+    sourceType: 'web',
     title: id,
     contentHtml: '<p>正文</p>',
     contentHash: `hash-${id}`,
@@ -266,5 +270,20 @@ function articleRecord(id: string, overrides: Partial<ArticleRecord> = {}): Arti
     createdAt: '2026-06-04T00:00:00.000Z',
     updatedAt: '2026-06-04T00:00:00.000Z',
     ...overrides,
+  };
+}
+
+function pdfArticleRecord(id: string): PdfArticleRecord {
+  return {
+    ...articleRecord(id),
+    sourceType: 'pdf',
+    pdf: {
+      metadata: {
+        format: 'pdf',
+        fileName: `${id}.pdf`,
+        fileSize: 1,
+        pageCount: 1,
+      },
+    },
   };
 }

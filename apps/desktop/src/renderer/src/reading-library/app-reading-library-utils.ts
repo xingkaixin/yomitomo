@@ -2,7 +2,6 @@ import i18next from 'i18next';
 import { articlePublishedDistillationCount } from '@yomitomo/core';
 import {
   cleanEpubDisplayTitle,
-  normalizeArticleSourceType,
   type ArticleSummaryRecord,
   type LibraryContentSourceId,
   type WeReadBook,
@@ -57,16 +56,16 @@ export function articleMatchesLibrarySearch(article: ArticleSummaryRecord, query
 }
 
 export function librarySourceForArticle(article: ArticleSummaryRecord): LibrarySource {
-  return normalizeArticleSourceType(article.sourceType);
+  return article.sourceType;
 }
 
 export function articleDisplayTitle(article: ArticleSummaryRecord) {
   if (article.sourceType !== 'ebook') return article.title;
-  const metadata = article.ebook?.metadata;
+  const metadata = article.ebook.metadata;
   return (
     cleanEpubDisplayTitle({
-      metadataTitle: metadata?.originalTitle || article.title || metadata?.displayTitle,
-      fileName: metadata?.fileName,
+      metadataTitle: metadata.originalTitle || article.title || metadata.displayTitle,
+      fileName: metadata.fileName,
       creator: article.byline,
     }) || article.title
   );

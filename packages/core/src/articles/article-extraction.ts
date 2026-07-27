@@ -161,6 +161,7 @@ export function articleRecordFromExtractedArticle(
     id: article.id,
     url: article.url,
     canonicalUrl: article.canonicalUrl,
+    sourceType: 'web',
     title: article.title,
     byline: article.byline,
     excerpt: article.excerpt,

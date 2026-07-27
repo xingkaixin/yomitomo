@@ -121,11 +121,14 @@ describe('useReadingLibraryNavigation', () => {
   });
 });
 
-function article(overrides: Partial<ArticleRecord> = {}): ArticleRecord {
+type WebArticleRecord = Extract<ArticleRecord, { sourceType: 'web' }>;
+
+function article(overrides: Partial<WebArticleRecord> = {}): WebArticleRecord {
   return {
     id: 'article_1',
     url: 'https://example.com/article',
     canonicalUrl: 'https://example.com/article',
+    sourceType: 'web',
     title: 'Article',
     byline: '',
     siteName: 'Example',
@@ -143,6 +146,7 @@ function articleSummary(id: string): ArticleSummaryRecord {
     id,
     url: `https://example.com/${id}`,
     canonicalUrl: `https://example.com/${id}`,
+    sourceType: 'web',
     title: id,
     byline: '',
     siteName: 'Example',

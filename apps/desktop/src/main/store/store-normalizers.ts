@@ -11,12 +11,7 @@ import {
   normalizeTemperature,
 } from './store-normalizers-provider-agent';
 import { normalizeSettings } from './store-normalizers-settings';
-import {
-  normalizeArticleReadingProgress,
-  normalizeArticleSourceType,
-  normalizeEbookRecord,
-  normalizePdfRecord,
-} from './store-normalizers-sources';
+import { normalizeArticleSummaryRecord } from './store-normalizers-sources';
 
 export {
   defaultUser,
@@ -60,8 +55,11 @@ export {
 } from './store-normalizers-collections';
 export {
   normalizeArticleReadingProgress,
+  normalizeArticleRecord,
+  normalizeArticleSummaryRecord,
   normalizeArticleSourceType,
   normalizeEbookRecord,
+  normalizeEbookSummaryRecord,
   normalizePdfRecord,
   rowToEbook,
   rowToEbookSummary,
@@ -100,14 +98,7 @@ export function normalizeStore(store: DesktopStore): DesktopStore {
         temperature: normalizeTemperature(agent.temperature),
       }),
     ),
-    articles: (store.articles || []).map((article) =>
-      Object.assign({}, article, {
-        sourceType: normalizeArticleSourceType(article.sourceType),
-        ebook: normalizeEbookRecord(article.ebook),
-        pdf: normalizePdfRecord(article.pdf),
-        readingProgress: normalizeArticleReadingProgress(article.readingProgress),
-      }),
-    ),
+    articles: (store.articles || []).map(normalizeArticleSummaryRecord),
     collections: store.collections || [],
     collectionMembers: store.collectionMembers || [],
     pins: store.pins || [],

@@ -144,11 +144,10 @@ export type ArticleTranslationDeleteRequest = {
   targetLanguage?: string;
 };
 
-export type ArticleRecord = {
+type ArticleRecordBase = {
   id: string;
   url: string;
   canonicalUrl: string;
-  sourceType?: ArticleSourceType;
   title: string;
   byline?: string;
   excerpt?: string;
@@ -158,9 +157,6 @@ export type ArticleRecord = {
   themeColor?: string;
   contentHtml?: string;
   contentHash: string;
-  ebook?: EbookRecord;
-  pdf?: PdfRecord;
-  text?: TextSourceMetadata;
   readingProgress?: ArticleReadingProgress;
   annotations: Annotation[];
   annotationCount?: number;
@@ -175,12 +171,26 @@ export type ArticleRecord = {
   updatedAt: string;
 };
 
-export type ArticleSummaryRecord = Omit<
-  ArticleRecord,
-  'contentHtml' | 'ebook' | 'focusCoReadingPlan' | 'readerChatState'
-> & {
-  ebook?: EbookSummaryRecord;
-};
+type ArticleSourceRecord =
+  | { sourceType: 'web'; ebook?: never; pdf?: never; text?: never }
+  | { sourceType: 'ebook'; ebook: EbookRecord; pdf?: never; text?: never }
+  | { sourceType: 'pdf'; ebook?: never; pdf: PdfRecord; text?: never }
+  | { sourceType: 'text'; ebook?: never; pdf?: never; text: TextSourceMetadata };
+
+export type ArticleRecord = ArticleRecordBase & ArticleSourceRecord;
+
+type ArticleSummaryRecordBase = Omit<
+  ArticleRecordBase,
+  'contentHtml' | 'focusCoReadingPlan' | 'readerChatState'
+>;
+
+type ArticleSummarySourceRecord =
+  | { sourceType: 'web'; ebook?: never; pdf?: never; text?: never }
+  | { sourceType: 'ebook'; ebook: EbookSummaryRecord; pdf?: never; text?: never }
+  | { sourceType: 'pdf'; ebook?: never; pdf: PdfRecord; text?: never }
+  | { sourceType: 'text'; ebook?: never; pdf?: never; text: TextSourceMetadata };
+
+export type ArticleSummaryRecord = ArticleSummaryRecordBase & ArticleSummarySourceRecord;
 
 export type FocusCoReadingMessage = {
   id: string;

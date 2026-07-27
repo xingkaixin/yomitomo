@@ -46,7 +46,9 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-function article(overrides: Partial<ArticleRecord> = {}): ArticleRecord {
+type WebArticleRecord = Extract<ArticleRecord, { sourceType: 'web' }>;
+
+function article(overrides: Partial<WebArticleRecord> = {}): WebArticleRecord {
   return {
     id: 'article_1',
     url: 'https://example.com/post',
@@ -65,10 +67,9 @@ function article(overrides: Partial<ArticleRecord> = {}): ArticleRecord {
 }
 
 function ebookArticle(): ArticleRecord {
-  return article({
-    id: 'ebook_1',
+  return {
+    ...article({ id: 'ebook_1', title: '电子书' }),
     sourceType: 'ebook',
-    title: '电子书',
     ebook: {
       metadata: {
         format: 'epub',
@@ -84,14 +85,13 @@ function ebookArticle(): ArticleRecord {
         },
       ],
     },
-  });
+  };
 }
 
 function pdfArticle(): ArticleRecord {
-  return article({
-    id: 'pdf_1',
+  return {
+    ...article({ id: 'pdf_1', title: 'PDF 文档' }),
     sourceType: 'pdf',
-    title: 'PDF 文档',
     pdf: {
       metadata: {
         format: 'pdf',
@@ -100,7 +100,7 @@ function pdfArticle(): ArticleRecord {
         pageCount: 3,
       },
     },
-  });
+  };
 }
 
 function renderSourceBookcase(sourceArticle: ArticleRecord | null) {

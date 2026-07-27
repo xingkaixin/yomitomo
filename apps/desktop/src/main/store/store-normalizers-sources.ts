@@ -46,6 +46,74 @@ export type ArticleSummaryRow = Pick<
   | 'updatedAt'
 >;
 
+type ArticleRecordWithoutSource = Omit<ArticleRecord, 'sourceType' | 'ebook' | 'pdf' | 'text'>;
+type ArticleSummaryRecordWithoutSource = Omit<
+  ArticleSummaryRecord,
+  'sourceType' | 'ebook' | 'pdf' | 'text'
+>;
+
+export function normalizeArticleRecord(article: ArticleRecord): ArticleRecord {
+  const { sourceType, ebook, pdf, text, ...base } = article;
+  const normalizedBase: ArticleRecordWithoutSource = {
+    ...base,
+    readingProgress: normalizeArticleReadingProgress(base.readingProgress),
+  };
+
+  switch (normalizeArticleSourceType(sourceType)) {
+    case 'web':
+      return { ...normalizedBase, sourceType: 'web' };
+    case 'ebook': {
+      const normalizedEbook = normalizeEbookRecord(ebook);
+      return normalizedEbook
+        ? { ...normalizedBase, sourceType: 'ebook', ebook: normalizedEbook }
+        : { ...normalizedBase, sourceType: 'web' };
+    }
+    case 'pdf': {
+      const normalizedPdf = normalizePdfRecord(pdf);
+      return normalizedPdf
+        ? { ...normalizedBase, sourceType: 'pdf', pdf: normalizedPdf }
+        : { ...normalizedBase, sourceType: 'web' };
+    }
+    case 'text': {
+      const normalizedText = normalizeTextMetadata(text);
+      return normalizedText
+        ? { ...normalizedBase, sourceType: 'text', text: normalizedText }
+        : { ...normalizedBase, sourceType: 'web' };
+    }
+  }
+}
+
+export function normalizeArticleSummaryRecord(article: ArticleSummaryRecord): ArticleSummaryRecord {
+  const { sourceType, ebook, pdf, text, ...base } = article;
+  const normalizedBase: ArticleSummaryRecordWithoutSource = {
+    ...base,
+    readingProgress: normalizeArticleReadingProgress(base.readingProgress),
+  };
+
+  switch (normalizeArticleSourceType(sourceType)) {
+    case 'web':
+      return { ...normalizedBase, sourceType: 'web' };
+    case 'ebook': {
+      const normalizedEbook = normalizeEbookSummaryRecord(ebook);
+      return normalizedEbook
+        ? { ...normalizedBase, sourceType: 'ebook', ebook: normalizedEbook }
+        : { ...normalizedBase, sourceType: 'web' };
+    }
+    case 'pdf': {
+      const normalizedPdf = normalizePdfRecord(pdf);
+      return normalizedPdf
+        ? { ...normalizedBase, sourceType: 'pdf', pdf: normalizedPdf }
+        : { ...normalizedBase, sourceType: 'web' };
+    }
+    case 'text': {
+      const normalizedText = normalizeTextMetadata(text);
+      return normalizedText
+        ? { ...normalizedBase, sourceType: 'text', text: normalizedText }
+        : { ...normalizedBase, sourceType: 'web' };
+    }
+  }
+}
+
 export function rowToEbook(row: ArticleRow): ArticleRecord['ebook'] {
   const sourceType = normalizeArticleSourceType(row.sourceType);
   if (sourceType !== 'ebook') return undefined;
@@ -116,6 +184,13 @@ export function normalizeEbookRecord(
   );
   const index = normalizeEpubBookIndex(value && 'index' in value ? value.index : undefined);
   return metadata && chapters.length > 0 ? { metadata, chapters, index } : undefined;
+}
+
+export function normalizeEbookSummaryRecord(
+  value: ArticleRecord['ebook'] | ArticleSummaryRecord['ebook'] | undefined,
+): ArticleSummaryRecord['ebook'] {
+  const metadata = normalizeEbookMetadata(value?.metadata);
+  return metadata ? { metadata } : undefined;
 }
 
 export function rowToPdf(row: ArticleRow): ArticleRecord['pdf'] {

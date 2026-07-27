@@ -73,7 +73,8 @@ describe('ReadingLibrary article updates', () => {
   });
 
   it('loads a PDF route only once', async () => {
-    const selectedArticle = article({
+    const selectedArticle: ArticleRecord = {
+      ...article(),
       sourceType: 'pdf',
       pdf: {
         metadata: {
@@ -83,7 +84,7 @@ describe('ReadingLibrary article updates', () => {
           pageCount: 1,
         },
       },
-    });
+    };
     const onReadArticle = vi.fn(async () => selectedArticle);
 
     renderReadingLibrary({
@@ -209,11 +210,14 @@ type ReadingLibraryTestOptions = {
   onMergeArticleAgentAnnotation: SourceBookcaseProps['onMergeArticleAgentAnnotation'];
 };
 
-function article(overrides: Partial<ArticleRecord> = {}): ArticleRecord {
+type WebArticleRecord = Extract<ArticleRecord, { sourceType: 'web' }>;
+
+function article(overrides: Partial<WebArticleRecord> = {}): WebArticleRecord {
   return {
     id: 'article_1',
     url: 'https://example.com/article',
     canonicalUrl: 'https://example.com/article',
+    sourceType: 'web',
     title: 'Article',
     byline: '',
     siteName: 'Example',

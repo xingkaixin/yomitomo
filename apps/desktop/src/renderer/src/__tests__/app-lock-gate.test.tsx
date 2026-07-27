@@ -173,9 +173,9 @@ function makeStore(input: {
   };
 }
 
-function articleSummary(
-  input: Partial<DesktopStore['articles'][number]>,
-): DesktopStore['articles'][number] {
+type WebArticleSummaryRecord = Extract<DesktopStore['articles'][number], { sourceType: 'web' }>;
+
+function articleSummary(input: Partial<WebArticleSummaryRecord>): WebArticleSummaryRecord {
   return {
     id: input.id || 'article_1',
     title: input.title || '文章',
@@ -185,7 +185,7 @@ function articleSummary(
     byline: input.byline || '',
     siteName: input.siteName || '',
     contentHash: input.contentHash || 'hash',
-    sourceType: input.sourceType || 'web',
+    sourceType: 'web',
     readingProgress: input.readingProgress,
     annotations: input.annotations || [],
     annotationCount: input.annotationCount || 0,

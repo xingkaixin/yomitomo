@@ -533,6 +533,7 @@ function articleRecord(): ArticleRecord {
     id: 'article-1',
     url: 'https://example.com/post',
     canonicalUrl: 'https://example.com/post',
+    sourceType: 'web',
     title: 'Article',
     contentHtml: '<p>正文</p>',
     contentHash: 'hash-1',

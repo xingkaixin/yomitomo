@@ -734,7 +734,7 @@ export function WebSourceBookcase({
         ? textForTranslationAnchor(articleRef.current, anchor)
         : currentArticleText();
     return {
-      sourceType: article.sourceType || 'web',
+      sourceType: article.sourceType,
       quote: anchor.exact,
       title: article.title,
       anchor,
