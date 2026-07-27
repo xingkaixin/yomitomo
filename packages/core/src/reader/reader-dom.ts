@@ -211,14 +211,6 @@ export function selectionActionPosition(lastRect: DOMRect, canvasRect: DOMRect) 
   };
 }
 
-export function scrollReaderSurfaceToElement(
-  surface: HTMLElement,
-  element: HTMLElement,
-  offset: number,
-) {
-  scrollReaderSurfaceToRect(surface, element.getBoundingClientRect(), offset);
-}
-
 export function scrollReaderSurfaceToRect(surface: HTMLElement, rect: DOMRect, offset: number) {
   const surfaceRect = surface.getBoundingClientRect();
   surface.scrollTo({

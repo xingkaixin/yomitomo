@@ -417,15 +417,6 @@ export function createEpubTextAnchorFromQuote(
   return bestMatch ? createEpubTextAnchor(index, text, bestMatch.start, bestMatch.end) : null;
 }
 
-export function resolveEpubTextAnchor(
-  index: EpubBookIndex,
-  text: string,
-  anchor: TextAnchor,
-  options: LocateEpubIndexOptions = {},
-): { start: number; end: number } | null {
-  return prepareEpubTextAnchorResolver(index, text).resolve(anchor, options);
-}
-
 function resolveEpubStructuralTextAnchor(
   paragraphsById: ReadonlyMap<string, EpubParagraphIndex>,
   text: string,

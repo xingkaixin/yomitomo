@@ -748,14 +748,14 @@ body {
 <div class="section" id="sec-sections">
   <div class="section-label">02 · Reading Sections</div>
   <h2>阅读章节来源</h2>
-  <p class="section-desc">聚焦共读基于 ReaderReadingSection[] 编排。网页和 EPUB 各自有不同的章节生成方式。</p>
+  <p class="section-desc">执行链路消费 AgentReadingPlanItem[] 中稳定的章节字符范围；各阅读器只负责把范围映射到自己的正文坐标。</p>
   <div class="compare-grid">
     <div class="flow-container">
       <div class="flow-title"><span>🌐</span> 网页文章</div>
       <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
-        <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--bg-code);padding:1px 5px;border-radius:3px;color:var(--accent-teal);">buildReaderReadingSections(articleRef, tocItems, title)</code>
+        <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--bg-code);padding:1px 5px;border-radius:3px;color:var(--accent-teal);">normalizedReadingSections(readingPlan)</code>
         <br><br>
-        从文章 DOM 和 TOC 推导章节。有正文前引文时生成 intro 章节；无可用 TOC 时退化为单个 body 章节。
+        直接规范化计划中的 sectionStart/End，驱动虚拟阅读与批注范围约束；没有章节范围时从正文起点连续阅读。
       </div>
     </div>
     <div class="flow-container">
