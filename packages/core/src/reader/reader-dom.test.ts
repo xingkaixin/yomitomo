@@ -264,4 +264,53 @@ describe('reader DOM translated text boundaries', () => {
 
     expect(range?.toString()).toBe('Beta');
   });
+
+  it('keeps source range boundaries stable across ignored translation nodes', () => {
+    const article = document.createElement('article');
+    article.innerHTML =
+      '<p data-node="alpha">Alpha <strong data-node="alpha-strong">source</strong></p>' +
+      '<div data-reader-translation="true"><span>阿尔法译文</span></div>' +
+      '<p data-node="beta">Beta <em data-node="beta-em">source</em></p>';
+
+    const offsets: Array<[number, number]> = [
+      [0, 5],
+      [6, 12],
+      [12, 16],
+      [17, 23],
+      [4, 19],
+      [23, 23],
+    ];
+    const snapshots = offsets.map(([start, end]) =>
+      rangeSnapshot(
+        rangeFromOffsetsIgnoringSelector(
+          article,
+          start,
+          end,
+          '[data-reader-translation]',
+        ),
+      ),
+    );
+
+    expect(snapshots).toEqual([
+      { start: ['alpha', 0], end: ['alpha', 5], text: 'Alpha' },
+      { start: ['alpha-strong', 0], end: ['alpha-strong', 6], text: 'source' },
+      { start: ['beta', 0], end: ['beta', 4], text: 'Beta' },
+      { start: ['beta-em', 0], end: ['beta-em', 6], text: 'source' },
+      {
+        start: ['alpha', 4],
+        end: ['beta-em', 2],
+        text: 'a source阿尔法译文Beta so',
+      },
+      null,
+    ]);
+  });
 });
+
+function rangeSnapshot(range: Range | null) {
+  if (!range) return null;
+  return {
+    start: [range.startContainer.parentElement?.getAttribute('data-node'), range.startOffset],
+    end: [range.endContainer.parentElement?.getAttribute('data-node'), range.endOffset],
+    text: range.toString(),
+  };
+}
