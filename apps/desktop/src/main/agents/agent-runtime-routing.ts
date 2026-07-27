@@ -120,13 +120,13 @@ export function agentMessageRuntimeTaskType(payload: AgentMessagePayload) {
 
 export type AgentRuntimeTaskType = ReturnType<typeof agentMessageRuntimeTaskType>;
 
-export function selectAgentRuntime(input: {
+export function selectAgentRuntime<TaskType extends AgentRuntimeTaskType>(input: {
   requestedMode: AssistantExecutionMode;
   taskType: AgentRuntimeTaskType;
-  supportedTaskTypes: AgentRuntimeTaskType[];
+  supportedTaskTypes: readonly TaskType[];
 }) {
   if (input.requestedMode !== 'deep_verification') return null;
-  return input.supportedTaskTypes.includes(input.taskType) ? input.taskType : null;
+  return input.supportedTaskTypes.find((taskType) => taskType === input.taskType) || null;
 }
 
 export function publicCommentAgents(agents: Agent[], uiLanguage: UiLanguage) {

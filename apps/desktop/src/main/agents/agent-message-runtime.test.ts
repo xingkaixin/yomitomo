@@ -1,27 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { AssistantAiSdkRuntimeOptions, AssistantRuntimeResult } from '@yomitomo/ai';
+import type { AssistantRuntimeResult, AssistantRuntimeStreamEvent } from '@yomitomo/ai';
 import type { Agent, AgentMessagePayload, LlmProvider } from '@yomitomo/shared';
 import { createTextAnchor } from '@yomitomo/shared';
-import {
-  runAgentCreateThoughtWithToolLoop,
-  runAgentDistillationReviewWithToolLoop,
-  runAgentThreadReplyWithToolLoop,
-} from './agent-thread-runtime';
+import { runAgentMessageWithToolLoop } from './agent-message-runtime';
 
-describe('agent thread reply tool loop', () => {
+describe('agent message tool loop', () => {
   it('returns a thread reply comment from the runtime final action', async () => {
-    const runtime = vi.fn(async (): Promise<AssistantRuntimeResult> => threadReplyRuntime());
+    const task = vi.fn(async () => taskSuccess(threadReplyRuntime()));
 
-    const result = await runAgentThreadReplyWithToolLoop({
-      ai: {
-        buildAgentThreadReplyRuntimePayload: vi.fn(() => ({
-          system: 'system',
-          user: 'user',
-          maxTokens: 1200,
-          temperature: 0.4,
-        })),
-        runAssistantAiSdkToolRuntime: runtime,
-      },
+    const result = await runAgentMessageWithToolLoop({
+      ai: aiModule(task),
+      taskType: 'thread_reply',
       provider: provider(),
       agent: agent(),
       payload: payload(),
@@ -36,28 +25,27 @@ describe('agent thread reply tool loop', () => {
       },
       content: '我先按当前 thread 的问题回应。',
     });
-    expect(runtime).toHaveBeenCalledTimes(1);
+    expect(task).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskType: 'thread_reply',
+        provider: expect.objectContaining({ id: 'provider_1' }),
+        agent: expect.objectContaining({ id: 'agent_1' }),
+      }),
+    );
   });
 
   it('passes runtime stream events through for thread replies', async () => {
     const onRuntimeEvent = vi.fn();
-    const runtime = vi.fn(
-      async (options: AssistantAiSdkRuntimeOptions): Promise<AssistantRuntimeResult> => {
+    const task = vi.fn(
+      async (options: { onEvent?: (event: AssistantRuntimeStreamEvent) => void }) => {
         options.onEvent?.({ type: 'text_delta', delta: '流式片段' });
-        return threadReplyRuntime();
+        return taskSuccess(threadReplyRuntime());
       },
     );
 
-    await runAgentThreadReplyWithToolLoop({
-      ai: {
-        buildAgentThreadReplyRuntimePayload: vi.fn(() => ({
-          system: 'system',
-          user: 'user',
-          maxTokens: 1200,
-          temperature: 0.4,
-        })),
-        runAssistantAiSdkToolRuntime: runtime,
-      },
+    await runAgentMessageWithToolLoop({
+      ai: aiModule(task),
+      taskType: 'thread_reply',
       provider: provider(),
       agent: agent(),
       payload: payload(),
@@ -68,11 +56,10 @@ describe('agent thread reply tool loop', () => {
   });
 
   it('falls back when the article id is missing', async () => {
-    const result = await runAgentThreadReplyWithToolLoop({
-      ai: {
-        buildAgentThreadReplyRuntimePayload: vi.fn(),
-        runAssistantAiSdkToolRuntime: vi.fn(),
-      },
+    const task = vi.fn();
+    const result = await runAgentMessageWithToolLoop({
+      ai: aiModule(task),
+      taskType: 'thread_reply',
       provider: provider(),
       agent: agent(),
       payload: {
@@ -85,21 +72,15 @@ describe('agent thread reply tool loop', () => {
       status: 'fallback',
       failureReason: 'missing_article_id',
     });
+    expect(task).not.toHaveBeenCalled();
   });
 
   it('returns a top-level thought from the create_thought runtime final action', async () => {
-    const runtime = vi.fn(async (): Promise<AssistantRuntimeResult> => createThoughtRuntime());
+    const task = vi.fn(async () => taskSuccess(createThoughtRuntime()));
 
-    const result = await runAgentCreateThoughtWithToolLoop({
-      ai: {
-        buildAgentCreateThoughtRuntimePayload: vi.fn(() => ({
-          system: 'system',
-          user: 'user',
-          maxTokens: 1200,
-          temperature: 0.4,
-        })),
-        runAssistantAiSdkToolRuntime: runtime,
-      },
+    const result = await runAgentMessageWithToolLoop({
+      ai: aiModule(task),
+      taskType: 'create_thought',
       provider: provider(),
       agent: agent(),
       payload: { ...payload(), responseMode: 'create_thought' },
@@ -117,19 +98,11 @@ describe('agent thread reply tool loop', () => {
   });
 
   it('returns a review message from the distillation runtime final action', async () => {
-    const runtime = vi.fn(async (): Promise<AssistantRuntimeResult> => reviewRuntime());
+    const task = vi.fn(async () => taskSuccess(reviewRuntime()));
 
-    const result = await runAgentDistillationReviewWithToolLoop({
-      ai: {
-        buildAgentDistillationReviewRuntimePayload: vi.fn(() => ({
-          system: 'system',
-          user: 'user',
-          maxTokens: 1200,
-          temperature: 0.4,
-          distillationReviewMode: 'review' as const,
-        })),
-        runAssistantAiSdkToolRuntime: runtime,
-      },
+    const result = await runAgentMessageWithToolLoop({
+      ai: aiModule(task),
+      taskType: 'distillation_review',
       provider: provider(),
       agent: { ...agent(), kind: 'review' },
       payload: { ...payload(), responseMode: 'distillation_review' },
@@ -151,7 +124,21 @@ describe('agent thread reply tool loop', () => {
   });
 });
 
-function threadReplyRuntime(): AssistantRuntimeResult {
+type AiModule = Pick<typeof import('@yomitomo/ai'), 'runAgentToolLoopTask'>;
+
+function aiModule(runAgentToolLoopTask: ReturnType<typeof vi.fn>): AiModule {
+  return { runAgentToolLoopTask } as unknown as AiModule;
+}
+
+function taskSuccess(runtime: Extract<AssistantRuntimeResult, { status: 'final' }>) {
+  return {
+    status: 'final' as const,
+    action: runtime.action,
+    runtime,
+  };
+}
+
+function threadReplyRuntime(): Extract<AssistantRuntimeResult, { status: 'final' }> {
   return {
     status: 'final',
     action: {
@@ -168,7 +155,7 @@ function threadReplyRuntime(): AssistantRuntimeResult {
   };
 }
 
-function createThoughtRuntime(): AssistantRuntimeResult {
+function createThoughtRuntime(): Extract<AssistantRuntimeResult, { status: 'final' }> {
   return {
     status: 'final',
     action: {
@@ -185,7 +172,7 @@ function createThoughtRuntime(): AssistantRuntimeResult {
   };
 }
 
-function reviewRuntime(): AssistantRuntimeResult {
+function reviewRuntime(): Extract<AssistantRuntimeResult, { status: 'final' }> {
   return {
     status: 'final',
     action: {

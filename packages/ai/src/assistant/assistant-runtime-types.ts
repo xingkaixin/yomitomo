@@ -1,12 +1,18 @@
 import type {
   AnnotationDistillationProposal,
   AnnotationDistillationReviewItem,
+  AgentMessagePayload,
   AssistantRuntimeTaskType,
   LlmProvider,
   ReadingMemorySourceType,
   TextAnchor,
 } from '@yomitomo/shared';
 import type { NormalizedAiUsage } from '../provider/usage';
+
+export type AgentToolLoopTaskType = Extract<
+  AssistantRuntimeTaskType,
+  NonNullable<AgentMessagePayload['responseMode']>
+>;
 
 export type AssistantToolName =
   | 'get_current_thread'
@@ -272,7 +278,7 @@ export type AssistantRuntimeStreamEvent =
     };
 
 export type AssistantAiSdkRuntimeOptions = {
-  taskType: 'thread_reply' | 'create_thought' | 'distillation_review';
+  taskType: AgentToolLoopTaskType;
   articleId: string;
   agentId: string;
   provider: LlmProvider;

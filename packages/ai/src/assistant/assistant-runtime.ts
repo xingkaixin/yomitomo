@@ -7,6 +7,7 @@ export type {
   AssistantEvidence,
   AssistantEvidenceProvenance,
   AssistantFinalAction,
+  AgentToolLoopTaskType,
   AssistantProviderEvent,
   AssistantProviderFailureEvent,
   AssistantProviderFinalActionEvent,

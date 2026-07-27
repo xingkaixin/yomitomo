@@ -162,6 +162,7 @@ export function buildAgentThreadReplyRuntimePayload(
 ) {
   const runtimePayload = {
     ...payload,
+    responseMode: 'thread_reply' as const,
     readingMemoryView: undefined,
   };
   return {

@@ -43,24 +43,19 @@ import {
   taskProviderRoute,
 } from './agent-runtime-routing';
 import {
-  runAgentCreateThoughtWithToolLoop,
-  runAgentDistillationReviewWithToolLoop,
-  runAgentThreadReplyWithToolLoop,
+  runAgentMessageWithToolLoop,
   type DistillationReviewRuntimeResult,
   type ThreadReplyRuntimeResult,
-} from './agent-thread-runtime';
+} from './agent-message-runtime';
 
 const e2eFakeAgentProviderBaseUrl = 'https://e2e.invalid/yomitomo-ai';
 
 type AgentTaskAiModule = Pick<
   DesktopAiModule,
-  | 'buildAgentCreateThoughtRuntimePayload'
-  | 'buildAgentDistillationReviewRuntimePayload'
-  | 'buildAgentThreadReplyRuntimePayload'
   | 'runAgentAnnotateStream'
   | 'runAgentDistillationReviewStructuredStream'
   | 'runAgentStream'
-  | 'runAssistantAiSdkToolRuntime'
+  | 'runAgentToolLoopTask'
 >;
 
 export type AgentTaskExecutionContext = Pick<
@@ -318,12 +313,7 @@ async function runCommentRuntime(input: {
     taskType: input.taskType,
     supportedTaskTypes: ['thread_reply', 'create_thought'],
   });
-  if (selectedRuntime === 'thread_reply') {
-    return runAgentThreadReplyWithToolLoop(input);
-  }
-  if (selectedRuntime === 'create_thought') {
-    return runAgentCreateThoughtWithToolLoop(input);
-  }
+  if (selectedRuntime) return runAgentMessageWithToolLoop({ ...input, taskType: selectedRuntime });
   return { status: 'fallback', failureReason: 'runtime_not_applicable' };
 }
 
@@ -340,9 +330,7 @@ async function runDistillationReviewRuntime(input: {
     taskType: 'distillation_review',
     supportedTaskTypes: ['distillation_review'],
   });
-  if (selectedRuntime === 'distillation_review') {
-    return runAgentDistillationReviewWithToolLoop(input);
-  }
+  if (selectedRuntime) return runAgentMessageWithToolLoop({ ...input, taskType: selectedRuntime });
   return { status: 'fallback', failureReason: 'runtime_not_applicable' };
 }
 
