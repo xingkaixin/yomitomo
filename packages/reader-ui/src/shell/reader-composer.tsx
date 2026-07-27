@@ -20,6 +20,16 @@ const COMPOSER_MAX_TEXTAREA_ROWS = 8;
 type ComposerPlacement = 'below' | 'above';
 export type ComposerPopupPhase = 'opening' | 'open' | 'closing';
 
+type ComposerLabels = Pick<
+  ReaderUiLabels,
+  | 'cancel'
+  | 'recordThought'
+  | 'submitHighlight'
+  | 'submitThought'
+  | 'thoughtContent'
+  | 'thoughtPlaceholder'
+>;
+
 type ComposerPosition = {
   left: number;
   top: number;
@@ -37,7 +47,7 @@ export function Composer({
 }: {
   agents: PublicAgent[];
   composer: PendingComposer;
-  labels?: ReaderUiLabels;
+  labels?: ComposerLabels;
   messageSendShortcut: MessageSendShortcut;
   phase?: ComposerPopupPhase;
   shortcutModifier: string;

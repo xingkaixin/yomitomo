@@ -13,6 +13,8 @@ import type { SelectionMenuAction } from '../reader-types';
 import type { ReaderUiLabels } from './reader-app-view-types';
 import { defaultReaderUiLabels } from './reader-app-view-types';
 
+type SelectionMenuLabels = Pick<ReaderUiLabels, 'askSelection' | 'copySelection' | 'recordThought'>;
+
 export function SelectionMenu({
   action,
   labels = defaultReaderUiLabels,
@@ -24,7 +26,7 @@ export function SelectionMenu({
   copyRequestKey = 0,
 }: {
   action: SelectionMenuAction;
-  labels?: ReaderUiLabels;
+  labels?: SelectionMenuLabels;
   shortcuts?: Partial<SelectionActionShortcuts>;
   copyRequestKey?: number;
   onAnnotate: () => void;

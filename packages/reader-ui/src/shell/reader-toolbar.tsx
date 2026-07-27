@@ -20,11 +20,39 @@ import { defaultReaderUiLabels } from './reader-app-view-types';
 import { useSearchClearDissolve } from './reader-search-clear-dissolve';
 import { ReaderTooltip } from '../shared/reader-component-primitives';
 
+type ReaderToolbarLabels = Pick<
+  ReaderUiLabels,
+  'backToLibrary' | 'readerLibrary' | 'readingProgress'
+>;
+
+type ReaderFloatingSearchToolbarLabels = Pick<
+  ReaderUiLabels,
+  | 'clearSearch'
+  | 'closeSearch'
+  | 'nextSearchResult'
+  | 'previousSearchResult'
+  | 'searchBody'
+  | 'searchBodyPlaceholder'
+  | 'searchPreparing'
+  | 'searchToolbar'
+>;
+
+type ReaderFloatingToolbarLabels = ReaderFloatingSearchToolbarLabels &
+  Pick<
+    ReaderUiLabels,
+    | 'annotationNavigation'
+    | 'nextHighlight'
+    | 'previousHighlight'
+    | 'readerControls'
+    | 'toc'
+    | 'toggleToc'
+  >;
+
 export type ReaderToolbarProps = {
   extracted: ReaderArticle;
   articleLeadingVisual?: React.ReactNode;
   headerMeta?: ReaderHeaderArticleMeta;
-  labels?: ReaderUiLabels;
+  labels?: ReaderToolbarLabels;
   readingProgress?: number;
   toolbarArticleAction?: React.ReactNode;
   onClose: () => void;
@@ -35,7 +63,7 @@ export type ReaderFloatingToolbarProps = {
   controls?: React.ReactNode;
   hasToc: boolean;
   search?: ReaderSearchToolbarState;
-  labels?: ReaderUiLabels;
+  labels?: ReaderFloatingToolbarLabels;
   showAnnotationNavigation: boolean;
   tocOpen: boolean;
   onNavigateAnnotation: (direction: AnnotationNavigationDirection) => void;
@@ -256,7 +284,7 @@ function ReaderFloatingSearchToolbar({
   labels = defaultReaderUiLabels,
   search,
 }: {
-  labels?: ReaderUiLabels;
+  labels?: ReaderFloatingSearchToolbarLabels;
   search: ReaderSearchToolbarState;
 }) {
   const inputRef = React.useRef<HTMLInputElement | null>(null);

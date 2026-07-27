@@ -46,6 +46,50 @@ type ReaderSurfaceSelectionModel = ReaderSelectionModel & {
   copyRequestKey: number;
 };
 
+type AnimatedComposerLabels = Pick<
+  ReaderUiLabels,
+  | 'cancel'
+  | 'recordThought'
+  | 'submitHighlight'
+  | 'submitThought'
+  | 'thoughtContent'
+  | 'thoughtPlaceholder'
+>;
+
+type ReaderSurfaceViewLabels = Pick<
+  ReaderUiLabels,
+  | 'adjustSelectionEnd'
+  | 'adjustSelectionStart'
+  | 'annotationCardTab'
+  | 'annotationProcessing'
+  | 'askSelection'
+  | 'assistantParticipationSummary'
+  | 'cancel'
+  | 'closeHighlightChoice'
+  | 'copySelection'
+  | 'dateLocale'
+  | 'deleteAnnotation'
+  | 'deleteAnnotationConfirmAction'
+  | 'deleteAnnotationConfirmDescription'
+  | 'deleteAnnotationConfirmTitle'
+  | 'deleteHighlight'
+  | 'distillations'
+  | 'emptyNotesDescription'
+  | 'emptyNotesGestureLabel'
+  | 'emptyNotesTitle'
+  | 'enterDiscussion'
+  | 'highlightChoice'
+  | 'openDistillationActions'
+  | 'openHighlightActions'
+  | 'recordThought'
+  | 'relativeTimeLabel'
+  | 'submitHighlight'
+  | 'submitThought'
+  | 'thoughtContent'
+  | 'thoughtPlaceholder'
+  | 'thoughtSummary'
+>;
+
 export type ReaderSurfaceViewProps = {
   actions: ReaderSurfaceActions;
   agents: ReaderAgentModel;
@@ -54,7 +98,7 @@ export type ReaderSurfaceViewProps = {
   annotations: ReaderAnnotationModel;
   article: ReaderArticleModel;
   chatAvailable: boolean;
-  labels?: ReaderUiLabels;
+  labels?: ReaderSurfaceViewLabels;
   refs: ReaderSurfaceRefs;
   selection: ReaderSurfaceSelectionModel;
   settings: ReaderSettingsModel;
@@ -107,7 +151,7 @@ function AnimatedComposer({
   agents: PublicAgent[];
   canvasRef: React.RefObject<HTMLDivElement | null>;
   composer: PendingComposer | null;
-  labels: ReaderUiLabels;
+  labels: AnimatedComposerLabels;
   messageSendShortcut: MessageSendShortcut;
   shortcutModifier: string;
   onCancel: () => void;
