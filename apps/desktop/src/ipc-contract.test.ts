@@ -2,6 +2,8 @@ import { describe, expectTypeOf, it } from 'vitest';
 import type { AgentMessagePayload, ArticleStorePatch, Comment } from '@yomitomo/shared';
 import type {
   DesktopIpcEventChannel,
+  DesktopIpcInvokeArgs,
+  DesktopIpcInvokeResult,
   DesktopIpcStreamDoneEvent,
   DesktopIpcStreamPayload,
   DesktopIpcStreamProgressEvent,
@@ -10,6 +12,11 @@ import type {
 } from './ipc-contract';
 
 describe('desktop IPC event contract', () => {
+  it('derives the PDFium wasm invoke contract', () => {
+    expectTypeOf<DesktopIpcInvokeArgs<'app:pdfium-wasm-url'>>().toEqualTypeOf<[]>();
+    expectTypeOf<DesktopIpcInvokeResult<'app:pdfium-wasm-url'>>().toEqualTypeOf<string>();
+  });
+
   it('derives static event channels and payload tuples', () => {
     expectTypeOf<DesktopIpcToRendererEventArgs<'article:patched'>>().toEqualTypeOf<
       [payload: ArticleStorePatch]

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { use, useEffect, useRef, useState } from 'react';
 import { usePdfiumEngine } from '@embedpdf/engines/react';
 import devPdfiumWasmUrl from '@embedpdf/pdfium/pdfium.wasm?url';
 import type { ArticleRecord } from '@yomitomo/shared';
@@ -14,6 +14,9 @@ import {
 type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']> };
 
 export function usePdfiumDocumentSource(article: PdfArticleRecord) {
+  const wasmUrl = import.meta.env.DEV
+    ? devPdfiumWasmUrl
+    : use(window.yomitomoDesktop.readPdfiumWasmUrl());
   const openTraceRef = useRef(pdfOpenTrace(article.id));
   const recordedOpenPhasesRef = useRef(new Set<string>());
   const [buffer, setBuffer] = useState<ArrayBuffer | null>(null);
@@ -28,7 +31,7 @@ export function usePdfiumDocumentSource(article: PdfArticleRecord) {
     error: engineError,
     isLoading,
   } = usePdfiumEngine({
-    wasmUrl: pdfiumEngineWasmUrl(),
+    wasmUrl,
     worker: false,
     fontFallback: pdfiumFontFallback,
   });
@@ -99,10 +102,6 @@ export function usePdfiumDocumentSource(article: PdfArticleRecord) {
     loadError,
     openTrace,
   };
-}
-
-function pdfiumEngineWasmUrl() {
-  return import.meta.env.DEV ? devPdfiumWasmUrl : window.yomitomoDesktop.pdfiumWasmUrl;
 }
 
 function pdfReadErrorMessage(error: unknown) {

@@ -159,6 +159,11 @@ export type AppIpcInvokeMap = {
     result: AppInfo;
     validation: { exempt: 'no-args' };
   };
+  'app:pdfium-wasm-url': {
+    args: [];
+    result: string;
+    validation: { exempt: 'no-args' };
+  };
   'performance:timing': {
     args: [input: PerformanceTimingInput];
     result: void;

@@ -49,7 +49,7 @@ describe('usePdfiumDocumentSource', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
-        pdfiumWasmUrl: 'file:///packaged/pdfium.wasm',
+        readPdfiumWasmUrl: vi.fn().mockResolvedValue('file:///packaged/pdfium.wasm'),
         readPdfFile,
         recordPerformanceTiming,
       },
@@ -83,7 +83,7 @@ describe('usePdfiumDocumentSource', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
-        pdfiumWasmUrl: 'file:///blocked/pdfium.wasm',
+        readPdfiumWasmUrl: vi.fn().mockResolvedValue('file:///blocked/pdfium.wasm'),
         readPdfFile: vi.fn().mockResolvedValue(new ArrayBuffer(0)),
         recordPerformanceTiming: vi.fn().mockResolvedValue(undefined),
       },
