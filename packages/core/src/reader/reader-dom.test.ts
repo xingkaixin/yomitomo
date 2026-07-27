@@ -175,29 +175,19 @@ describe('activeTocIndexForOffset', () => {
 describe('reader DOM toc', () => {
   it('extracts semantic headings with section ranges from article text offsets', () => {
     const article = document.createElement('article');
-    article.innerHTML = `
-      <h1>Intro</h1>
-      <p>Opening</p>
-      <h2>Chapter One</h2>
-      <p>First body</p>
-      <h3>Deep Point</h3>
-      <p>Nested body</p>
-      <h2>Chapter Two</h2>
-      <p>Second body</p>
-    `;
+    article.innerHTML =
+      '<p>Lead</p><h1>Intro <em>one</em></h1><p>Opening</p>' +
+      '<h2>Chapter One</h2><p>First body</p><h3>Deep <span>Point</span></h3>' +
+      '<p>Nested body</p><h2>Chapter Two</h2><p>Second body</p>';
 
     const items = extractTocItems(article);
 
-    expect(items.map((item) => [item.text, item.depth])).toEqual([
-      ['Intro', 0],
-      ['Chapter One', 1],
-      ['Deep Point', 2],
-      ['Chapter Two', 1],
+    expect(items).toEqual([
+      { index: 0, text: 'Intro one', depth: 0, start: 4, end: 20 },
+      { index: 1, text: 'Chapter One', depth: 1, start: 20, end: 62 },
+      { index: 2, text: 'Deep Point', depth: 2, start: 41, end: 62 },
+      { index: 3, text: 'Chapter Two', depth: 1, start: 62, end: 84 },
     ]);
-    expect(items[0]?.end).toBe(items[1]?.start);
-    expect(items[1]?.end).toBe(items[3]?.start);
-    expect(items[2]?.end).toBe(items[3]?.start);
-    expect(items[3]?.end).toBe(article.textContent?.length);
     expect(findCurrentTocTarget(article, items[1])).toBe(article.querySelector('h2'));
   });
 
@@ -213,6 +203,18 @@ describe('reader DOM toc', () => {
     expect(extractTocItems(article).map((item) => item.text)).toEqual([
       '一、开场判断',
       '2. Follow up',
+    ]);
+  });
+
+  it('keeps custom headings with non-numeric depths open to the article end', () => {
+    const article = document.createElement('article');
+    article.innerHTML = '<div data-toc>First</div><p>Body</p><div data-toc>Second</div>';
+
+    const items = extractTocItems(article, { headingSelector: '[data-toc]' });
+
+    expect(items.map((item) => [item.start, item.end])).toEqual([
+      [0, 15],
+      [9, 15],
     ]);
   });
 
