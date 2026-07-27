@@ -63,6 +63,7 @@ describe('segment annotation context', () => {
         sectionId: task.planItem.sectionId,
         segmentId: task.segment.id,
         range: task.context.allowedAnchorRange,
+        readChapterIds: task.context.location.readerProgress?.readChapterIds,
         evidence: task.context.retrievedEvidence.map((passage) => passage.text),
       })),
     ).toEqual([
@@ -73,6 +74,7 @@ describe('segment annotation context', () => {
           textStart: secondChapter.textStart,
           textEnd: ebookIndex.segments[2].textEnd,
         },
+        readChapterIds: ['chapter-1'],
         evidence: [],
       },
       {
@@ -82,6 +84,7 @@ describe('segment annotation context', () => {
           textStart: ebookIndex.segments[3].textStart,
           textEnd: secondChapter.textEnd,
         },
+        readChapterIds: ['chapter-1'],
         evidence: ['第二章开头。'],
       },
       {
@@ -91,6 +94,7 @@ describe('segment annotation context', () => {
           textStart: clippedStart,
           textEnd: firstChapter.textEnd,
         },
+        readChapterIds: [],
         evidence: ['第一章开头。'],
       },
     ]);
