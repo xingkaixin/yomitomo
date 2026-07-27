@@ -47,6 +47,10 @@ beforeEach(() => {
     'cancelAnimationFrame',
     vi.fn((handle: number) => window.clearTimeout(handle)),
   );
+  Object.defineProperty(Range.prototype, 'getClientRects', {
+    configurable: true,
+    value: () => [rect({ left: 20, top: 30, width: 80, height: 18 })],
+  });
   MockResizeObserver.instances = [];
   vi.stubGlobal('ResizeObserver', MockResizeObserver);
 });
@@ -54,6 +58,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  vi.restoreAllMocks();
   vi.clearAllMocks();
   vi.unstubAllGlobals();
 });
@@ -177,6 +182,39 @@ describe('useWebReaderBoxes', () => {
     expect(MockResizeObserver.instances).toHaveLength(1);
     expect(recordPerformanceTiming).toHaveBeenCalledTimes(1);
   });
+
+  it('builds one shared source index for multiple annotations', async () => {
+    const recordPerformanceTiming = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: { recordPerformanceTiming },
+    });
+    const createTreeWalker = vi.spyOn(document, 'createTreeWalker');
+
+    const { container } = render(
+      <WebReaderBoxesProbe
+        annotations={[
+          annotation('annotation_1', 'Alpha', 0, 5),
+          annotation('annotation_2', 'Beta', 5, 9),
+        ]}
+        contentHtml={'<p>Alpha</p><div data-reader-translation="true">译文</div><p>Beta</p>'}
+      />,
+    );
+    const articleElement = container.querySelector('article');
+
+    await act(async () => {
+      vi.runOnlyPendingTimers();
+    });
+
+    expect(articleElement).toBeTruthy();
+    expect(
+      createTreeWalker.mock.calls.filter(
+        ([rootElement, whatToShow]) =>
+          rootElement === articleElement && whatToShow === NodeFilter.SHOW_TEXT,
+      ),
+    ).toHaveLength(1);
+    expect(recordPerformanceTiming).toHaveBeenCalledTimes(1);
+  });
 });
 
 function WebReaderBoxesProbe({
@@ -219,11 +257,22 @@ function WebReaderBoxesProbe({
           articleRef.current = element;
           if (element && rects) mockRect(element, () => rects.article);
         }}
-      >
-        <p>正文</p>
-      </article>
+        dangerouslySetInnerHTML={{ __html: contentHtml }}
+      />
     </div>
   );
+}
+
+function annotation(id: string, exact: string, start: number, end: number): Annotation {
+  return {
+    id,
+    anchor: { exact, prefix: '', suffix: '', start, end },
+    author: 'user',
+    color: '#f4c95d',
+    comments: [],
+    createdAt: now,
+    updatedAt: now,
+  };
 }
 
 function rect(values: Partial<DOMRect> = {}): DOMRect {

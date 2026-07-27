@@ -67,6 +67,7 @@ const coreRuntimeExports = [
   'performanceStart',
   'prepareEpubBookIndex',
   'prepareEpubTextAnchorResolver',
+  'prepareTextOffsetRangeResolver',
   'rangeFromOffsets',
   'rangeFromOffsetsIgnoringSelector',
   'rangeDistance',

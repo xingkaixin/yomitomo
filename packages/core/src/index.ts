@@ -157,6 +157,7 @@ export {
   isRangeInsideArticle,
   offsetFromArticleStart,
   offsetFromArticleStartIgnoringSelector,
+  prepareTextOffsetRangeResolver,
   rangeFromOffsets,
   rangeFromOffsetsIgnoringSelector,
   rangeHighlightBoxes,
@@ -169,6 +170,7 @@ export type {
   HighlightBox,
   HighlightPoint,
   HighlightSegment,
+  PreparedTextOffsetRangeResolver,
   TocItem,
 } from './reader/reader-dom';
 
