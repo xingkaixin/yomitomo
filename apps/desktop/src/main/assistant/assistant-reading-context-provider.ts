@@ -9,6 +9,8 @@ import type {
 import { createTextAnchor } from '@yomitomo/shared';
 import {
   buildCurrentChapterLexicalRelatedPassages,
+  createLexicalRelatedPassageCache,
+  type LexicalRelatedPassageCache,
   readingMemoryEntrySearchText,
   selectionThreadSpoilerPolicy,
 } from '@yomitomo/core';
@@ -42,6 +44,7 @@ export type AssistantReadingContextProvider = ReturnType<
 >;
 
 export function createAssistantReadingContextProvider(input: AssistantReadingContextProviderInput) {
+  const lexicalCache = input.article.ebook?.index ? createLexicalRelatedPassageCache() : undefined;
   return {
     currentThread(raw: unknown) {
       return currentThreadEvidence(input, raw);
@@ -50,7 +53,7 @@ export function createAssistantReadingContextProvider(input: AssistantReadingCon
       return anchorContextEvidence(input, raw);
     },
     searchArticlePassages(raw: unknown) {
-      return searchArticlePassageEvidence(input, raw);
+      return searchArticlePassageEvidence(input, raw, lexicalCache);
     },
     searchArticleMemory(raw: unknown) {
       return searchMemoryEvidence(input, raw);
@@ -134,6 +137,7 @@ function anchorContextEvidence(
 function searchArticlePassageEvidence(
   input: AssistantReadingContextProviderInput,
   raw: unknown,
+  lexicalCache?: LexicalRelatedPassageCache,
 ): AssistantToolEvidenceInput[] {
   const query = queryField(raw);
   if (!query) return [];
@@ -148,6 +152,7 @@ function searchArticlePassageEvidence(
       readerProgress: input.readerProgress,
       spoilerPolicy: selectionThreadSpoilerPolicy,
       maxPassages: limit,
+      lexicalCache,
     }).map((passage) => ({
       summary: passage.reason || `原文 passage：${passage.text.slice(0, 80)}`,
       text: passage.text,
