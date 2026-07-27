@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import SQLiteDatabase from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 import {
   assistantExecutionRunDetailDto,
   assistantExecutionRunDto,
@@ -80,6 +82,22 @@ describe('assistant execution query repository', () => {
       ],
     });
     expect(JSON.stringify(run)).not.toContain('hidden from dto');
+  });
+
+  it('normalizes historical task and mode values at the read boundary', () => {
+    const run = assistantExecutionRunDto(
+      runRow('run_legacy', {
+        taskType: 'manual',
+        requestedMode: 'legacy',
+        effectiveMode: 'fast',
+      }),
+    );
+
+    expect(run).toMatchObject({
+      taskType: 'unknown',
+      requestedMode: 'unknown',
+      effectiveMode: 'unknown',
+    });
   });
 
   it('loads safe trace steps by run id', () => {
@@ -196,8 +214,66 @@ describe('assistant execution query repository', () => {
       label: 'OpenAI Renamed / gpt-4.1',
       runCount: 2,
     });
+    expect(summary.byTaskType.map((group) => group.key)).toEqual(['unknown', 'selection_first']);
+    expect(summary.byMode.map((group) => group.key)).toEqual(['unknown', 'deep_verification']);
+  });
+
+  it('collapses unknown task and mode groups in SQLite', () => {
+    const summary = summarizeAssistantExecutions(realSummaryDatabase(), {
+      from: '2026-05-28T00:00:00.000Z',
+      to: '2026-05-29T00:00:00.000Z',
+    });
+
+    expect(summary.byTaskType.map((group) => group.key)).toEqual(['unknown', 'selection_first']);
+    expect(summary.byMode.map((group) => group.key)).toEqual(['unknown', 'deep_verification']);
   });
 });
+
+function realSummaryDatabase() {
+  const sqlite = new SQLiteDatabase(':memory:');
+  sqlite.exec(`
+CREATE TABLE assistant_execution_runs (
+  id TEXT PRIMARY KEY NOT NULL,
+  created_at TEXT NOT NULL,
+  agent_id TEXT NOT NULL,
+  agent_username TEXT,
+  agent_nickname TEXT,
+  task_type TEXT NOT NULL,
+  requested_mode TEXT NOT NULL,
+  effective_mode TEXT NOT NULL,
+  provider_id TEXT NOT NULL,
+  provider_name TEXT NOT NULL,
+  model_name TEXT NOT NULL,
+  status TEXT NOT NULL,
+  fallback_reason TEXT,
+  input_tokens INTEGER,
+  output_tokens INTEGER,
+  reasoning_tokens INTEGER,
+  cached_input_tokens INTEGER,
+  cache_write_tokens INTEGER,
+  total_tokens INTEGER,
+  estimated_cost_micros INTEGER,
+  currency TEXT,
+  duration_ms INTEGER,
+  step_count INTEGER NOT NULL DEFAULT 0,
+  trace_json TEXT
+);
+INSERT INTO assistant_execution_runs (
+  id, created_at, agent_id, task_type, requested_mode, effective_mode, provider_id,
+  provider_name, model_name, status, estimated_cost_micros
+) VALUES
+  (
+    'run_known', '2026-05-28T01:00:00.000Z', 'agent_1', 'selection_first',
+    'deep_verification', 'deep_verification', 'provider_1', 'OpenAI', 'gpt-4.1',
+    'success', 250
+  ),
+  (
+    'run_legacy', '2026-05-28T02:00:00.000Z', 'agent_2', 'manual',
+    'legacy', 'fast', 'provider_2', 'Anthropic', 'claude-sonnet', 'fallback', 600
+  );
+`);
+  return drizzle(sqlite, { schema });
+}
 
 function fakeSummaryDatabase(): StoreExecutor {
   const groupRows = [
@@ -247,7 +323,7 @@ function fakeSummaryDatabase(): StoreExecutor {
         estimatedCostMicros: 250,
         missingCostCount: 1,
       }),
-      aggregateGroupRow('manual', 'manual', {
+      aggregateGroupRow('unknown', 'unknown', {
         runCount: 1,
         fallbackCount: 1,
         estimatedCostMicros: 600,
@@ -261,7 +337,7 @@ function fakeSummaryDatabase(): StoreExecutor {
         estimatedCostMicros: 250,
         missingCostCount: 1,
       }),
-      aggregateGroupRow('fast', 'fast', {
+      aggregateGroupRow('unknown', 'unknown', {
         runCount: 1,
         fallbackCount: 1,
         estimatedCostMicros: 600,

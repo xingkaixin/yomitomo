@@ -1,17 +1,12 @@
 import type {
   AnnotationDistillationProposal,
   AnnotationDistillationReviewItem,
+  AssistantRuntimeTaskType,
   LlmProvider,
+  ReadingMemorySourceType,
   TextAnchor,
 } from '@yomitomo/shared';
 import type { NormalizedAiUsage } from '../provider/usage';
-
-export type AssistantRuntimeTaskType =
-  | 'thread_reply'
-  | 'create_thought'
-  | 'distillation_review'
-  | 'selection_first'
-  | 'co_reading_section';
 
 export type AssistantToolName =
   | 'get_current_thread'
@@ -73,7 +68,7 @@ export type AssistantToolCall = {
 
 export type AssistantEvidenceProvenance = {
   articleId: string;
-  sourceType: string;
+  sourceType: ReadingMemorySourceType;
   sourceAnnotationId?: string;
   sourceCommentId?: string;
   agentId?: string;

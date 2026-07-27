@@ -70,7 +70,7 @@ describe('assistant AI SDK tool runtime', () => {
         evidence: [
           {
             summary: '当前 thread evidence',
-            provenance: { articleId: 'article_1', sourceType: 'annotation' },
+            provenance: { articleId: 'article_1', sourceType: 'annotation' as const },
           },
         ],
       })),
@@ -115,7 +115,7 @@ describe('assistant AI SDK tool runtime', () => {
       evidence: [
         {
           summary: '当前 thread evidence',
-          provenance: { articleId: 'article_1', sourceType: 'annotation' },
+          provenance: { articleId: 'article_1', sourceType: 'annotation' as const },
         },
       ],
     }));
@@ -200,7 +200,7 @@ describe('assistant AI SDK tool runtime', () => {
         evidence: [
           {
             summary: 'wrong article',
-            provenance: { articleId: 'article_2', sourceType: 'annotation' },
+            provenance: { articleId: 'article_2', sourceType: 'annotation' as const },
           },
         ],
       })),

@@ -21,6 +21,10 @@ import {
 const sharedRuntimeExports = [
   'ARTICLE_SOURCE_TYPES',
   'EPUB_TITLE_CLEANUP_VERSION',
+  'assistantExecutionModes',
+  'assistantExecutionStatuses',
+  'assistantExecutionTaskTypes',
+  'assistantRuntimeTaskTypes',
   'agentPersonalities',
   'agentPersonalitiesForKind',
   'agentPersonalityCore',

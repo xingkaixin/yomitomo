@@ -1,8 +1,13 @@
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { app } from 'electron';
-import { makeId } from '@yomitomo/shared';
-import type { AgentRuntimeTraceEntry, AgentRuntimeTraceListInput } from '../../ipc-contract';
+import { assistantRuntimeTaskTypes, makeId } from '@yomitomo/shared';
+import type {
+  AgentRuntimeTraceDecision,
+  AgentRuntimeTraceEntry,
+  AgentRuntimeTraceListInput,
+  AssistantRuntimeResultStatus,
+} from '../../ipc-contract';
 
 const TRACE_FILE_NAME = 'yomitomo-agent-trace.jsonl';
 const DEFAULT_TRACE_LIMIT = 100;
@@ -51,38 +56,95 @@ function parseTraceLine(line: string): AgentRuntimeTraceEntry[] {
   if (!line.trim()) return [];
   try {
     const parsed = JSON.parse(line) as unknown;
-    return isAgentRuntimeTraceEntry(parsed) ? [parsed] : [];
+    const entry = normalizeAgentRuntimeTraceEntry(parsed);
+    return entry ? [entry] : [];
   } catch {
     return [];
   }
 }
 
-function isAgentRuntimeTraceEntry(value: unknown): value is AgentRuntimeTraceEntry {
-  if (!value || typeof value !== 'object') return false;
-  const entry = recordValue(value);
-  return (
-    typeof entry.id === 'string' &&
-    typeof entry.at === 'string' &&
-    isTraceTaskType(entry.taskType) &&
-    typeof entry.agentId === 'string' &&
-    typeof entry.articleId === 'string' &&
-    typeof entry.status === 'string' &&
-    typeof entry.stepCount === 'number'
-  );
+function normalizeAgentRuntimeTraceEntry(value: unknown): AgentRuntimeTraceEntry | null {
+  if (!isRecord(value) || !isTraceTaskType(value.taskType)) return null;
+  const runtimeStatus = normalizeRuntimeStatus(value.runtimeStatus ?? value.status);
+  if (
+    !runtimeStatus ||
+    typeof value.id !== 'string' ||
+    typeof value.at !== 'string' ||
+    typeof value.agentId !== 'string' ||
+    typeof value.articleId !== 'string' ||
+    !isFiniteNumber(value.stepCount)
+  ) {
+    return null;
+  }
+
+  const entry: AgentRuntimeTraceEntry = {
+    id: value.id,
+    at: value.at,
+    taskType: value.taskType,
+    agentId: value.agentId,
+    articleId: value.articleId,
+    runtimeStatus,
+    stepCount: value.stepCount,
+  };
+  if (typeof value.finalActionType === 'string') entry.finalActionType = value.finalActionType;
+  if (typeof value.failureReason === 'string') entry.failureReason = value.failureReason;
+  if (typeof value.repairUsed === 'boolean') entry.repairUsed = value.repairUsed;
+  if (isFiniteNumber(value.annotationCount)) entry.annotationCount = value.annotationCount;
+  if (isFiniteNumber(value.decisionCount)) entry.decisionCount = value.decisionCount;
+  if (isFiniteNumber(value.filteredCount)) entry.filteredCount = value.filteredCount;
+  if (isFiniteNumber(value.fallbackCount)) entry.fallbackCount = value.fallbackCount;
+  if ('trace' in value) entry.trace = value.trace;
+  if (Array.isArray(value.decisions)) {
+    entry.decisions = value.decisions.flatMap((decision) => {
+      const normalized = normalizeTraceDecision(decision);
+      return normalized ? [normalized] : [];
+    });
+  }
+  return entry;
 }
 
-function recordValue(value: object): Record<string, unknown> {
-  return value as Record<string, unknown>;
+function normalizeTraceDecision(value: unknown): AgentRuntimeTraceDecision | null {
+  if (!isRecord(value) || typeof value.annotationId !== 'string') return null;
+  const runtimeStatus = normalizeRuntimeStatus(value.runtimeStatus ?? value.status);
+  const retention = normalizeRetention(value, runtimeStatus);
+  if (!retention) return null;
+
+  const decision: AgentRuntimeTraceDecision = {
+    annotationId: value.annotationId,
+    retention,
+  };
+  if (runtimeStatus) decision.runtimeStatus = runtimeStatus;
+  if (typeof value.actionType === 'string') decision.actionType = value.actionType;
+  if (typeof value.failureReason === 'string') decision.failureReason = value.failureReason;
+  return decision;
 }
 
-function isTraceTaskType(value: unknown) {
-  return (
-    value === 'thread_reply' ||
-    value === 'create_thought' ||
-    value === 'distillation_review' ||
-    value === 'selection_first' ||
-    value === 'co_reading_section'
-  );
+function normalizeRuntimeStatus(value: unknown): AssistantRuntimeResultStatus | undefined {
+  if (value === 'fallback') return 'fallback';
+  if (value === 'final' || value === 'comment' || value === 'result') return 'final';
+  return undefined;
+}
+
+function normalizeRetention(
+  value: Record<string, unknown>,
+  runtimeStatus: AssistantRuntimeResultStatus | undefined,
+): AgentRuntimeTraceDecision['retention'] | undefined {
+  if (value.retention === 'kept' || value.retention === 'filtered') return value.retention;
+  if (value.status === 'kept_without_runtime' || runtimeStatus === 'fallback') return 'kept';
+  if (runtimeStatus === 'final') return value.actionType === 'no_action' ? 'filtered' : 'kept';
+  return undefined;
+}
+
+function isTraceTaskType(value: unknown): value is AgentRuntimeTraceEntry['taskType'] {
+  return assistantRuntimeTaskTypes.some((taskType) => taskType === value);
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function traceMatchesFilters(entry: AgentRuntimeTraceEntry, input: AgentRuntimeTraceListInput) {

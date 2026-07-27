@@ -1,10 +1,14 @@
-import type { Agent, AssistantExecutionMode, LlmProvider } from '@yomitomo/shared';
+import type {
+  Agent,
+  AssistantExecutionMode,
+  AssistantExecutionStatus,
+  AssistantExecutionTaskType,
+  LlmProvider,
+} from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
 import * as schema from '../db/schema';
 import type { StoreExecutor } from '../store/store-db';
 import { estimateAssistantRunCostMicros } from '../providers/model-pricing-repository';
-
-export type AssistantExecutionRunStatus = 'success' | 'fallback' | 'error';
 
 type NormalizedAiUsage = {
   inputTokens?: number;
@@ -18,10 +22,10 @@ type NormalizedAiUsage = {
 export type AssistantExecutionRunInput = {
   agent: Agent;
   provider: LlmProvider;
-  taskType: string;
+  taskType: AssistantExecutionTaskType;
   requestedMode: AssistantExecutionMode;
   effectiveMode: AssistantExecutionMode;
-  status: AssistantExecutionRunStatus;
+  status: AssistantExecutionStatus;
   fallbackReason?: string;
   usage?: NormalizedAiUsage;
   durationMs?: number;

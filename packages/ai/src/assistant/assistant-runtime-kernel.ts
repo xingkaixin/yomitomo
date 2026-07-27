@@ -1,4 +1,4 @@
-import type { TextAnchor } from '@yomitomo/shared';
+import type { AssistantRuntimeTaskType, TextAnchor } from '@yomitomo/shared';
 import type { NormalizedAiUsage } from '../provider/usage';
 import type {
   AssistantEvidence,
@@ -8,7 +8,6 @@ import type {
   AssistantProviderToolCallEvent,
   AssistantRuntimeBudget,
   AssistantRuntimeResult,
-  AssistantRuntimeTaskType,
   AssistantRuntimeTrace,
   AssistantRuntimeTraceStep,
   AssistantRuntimeTurn,

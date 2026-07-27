@@ -1,6 +1,7 @@
 export { runAssistantAiSdkToolRuntime } from './assistant-ai-sdk-runtime';
 export { validateAssistantFinalAction } from './assistant-runtime-validation';
 export { DEFAULT_ASSISTANT_RUNTIME_BUDGETS } from './assistant-runtime-types';
+export type { AssistantRuntimeTaskType } from '@yomitomo/shared';
 export type {
   AssistantAiSdkRuntimeOptions,
   AssistantEvidence,
@@ -14,7 +15,6 @@ export type {
   AssistantRuntimeBudget,
   AssistantRuntimeResult,
   AssistantRuntimeStreamEvent,
-  AssistantRuntimeTaskType,
   AssistantRuntimeTrace,
   AssistantRuntimeTraceStep,
   AssistantRuntimeTurn,

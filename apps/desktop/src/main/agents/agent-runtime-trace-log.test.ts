@@ -31,7 +31,7 @@ describe('agent runtime trace log', () => {
       taskType: 'thread_reply',
       agentId: 'agent_1',
       articleId: 'article_1',
-      status: 'comment',
+      runtimeStatus: 'final',
       stepCount: 1,
     });
     await appendAgentRuntimeTrace({
@@ -40,7 +40,7 @@ describe('agent runtime trace log', () => {
       taskType: 'selection_first',
       agentId: 'agent_2',
       articleId: 'article_2',
-      status: 'fallback',
+      runtimeStatus: 'fallback',
       failureReason: 'tool_failed',
       stepCount: 2,
     });
@@ -54,13 +54,31 @@ describe('agent runtime trace log', () => {
         articleId: 'article_3',
         status: 'result',
         stepCount: 3,
+        decisions: [
+          { annotationId: 'a1', status: 'final', actionType: 'add_annotation' },
+          { annotationId: 'a2', status: 'final', actionType: 'no_action' },
+          { annotationId: 'a3', status: 'fallback', failureReason: 'provider_failed' },
+          { annotationId: 'a4', status: 'kept_without_runtime' },
+        ],
       })}\n`,
       { encoding: 'utf8', flag: 'a' },
     );
 
     await expect(
       readAgentRuntimeTraces({ taskType: 'selection_first', limit: 2 }),
-    ).resolves.toMatchObject([{ id: 'trace_newer' }, { id: 'trace_new' }]);
+    ).resolves.toMatchObject([
+      {
+        id: 'trace_newer',
+        runtimeStatus: 'final',
+        decisions: [
+          { annotationId: 'a1', runtimeStatus: 'final', retention: 'kept' },
+          { annotationId: 'a2', runtimeStatus: 'final', retention: 'filtered' },
+          { annotationId: 'a3', runtimeStatus: 'fallback', retention: 'kept' },
+          { annotationId: 'a4', retention: 'kept' },
+        ],
+      },
+      { id: 'trace_new', runtimeStatus: 'fallback' },
+    ]);
     await expect(readAgentRuntimeTraces({ failureOnly: true })).resolves.toMatchObject([
       { id: 'trace_new' },
     ]);

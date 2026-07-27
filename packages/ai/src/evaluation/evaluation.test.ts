@@ -61,9 +61,9 @@ describe('epub evaluation metrics', () => {
           segmentId: segmentIds[1],
           annotations: [valid, duplicate],
           toolLoopDecisions: [
-            { status: 'final', actionType: 'add_annotation' },
-            { status: 'final', actionType: 'no_action' },
-            { status: 'fallback', failureReason: 'provider_failed' },
+            { runtimeStatus: 'final', retention: 'kept', actionType: 'add_annotation' },
+            { runtimeStatus: 'final', retention: 'filtered', actionType: 'no_action' },
+            { runtimeStatus: 'fallback', retention: 'kept', failureReason: 'provider_failed' },
           ],
         },
         { segmentId: segmentIds[2], annotations: [invalid] },
@@ -128,8 +128,8 @@ describe('epub evaluation metrics', () => {
               annotationFromExact(segmentCase, '第二个可批注点指出', 'a-4', 'ask_question'),
             ],
             toolLoopDecisions: [
-              { status: 'final', actionType: 'add_annotation' },
-              { status: 'final', actionType: 'no_action' },
+              { runtimeStatus: 'final', retention: 'kept', actionType: 'add_annotation' },
+              { runtimeStatus: 'final', retention: 'filtered', actionType: 'no_action' },
             ],
           },
           { segmentId: segmentIds[2], annotations: [] },

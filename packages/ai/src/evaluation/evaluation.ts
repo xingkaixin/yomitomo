@@ -2,6 +2,8 @@ import type {
   AgentAnnotatePayload,
   AgentMessagePayload,
   Annotation,
+  AnnotationRetentionDecision,
+  AssistantRuntimeResultStatus,
   TextRange,
 } from '@yomitomo/shared';
 import { locateEpubTextAnchor, rangeDistance } from '@yomitomo/core';
@@ -94,7 +96,8 @@ export type EpubEvaluationUsage = Partial<{
 }>;
 
 export type EpubEvaluationToolLoopDecision = {
-  status: 'final' | 'fallback' | 'kept_without_runtime';
+  runtimeStatus?: AssistantRuntimeResultStatus;
+  retention: AnnotationRetentionDecision;
   actionType?: string;
   failureReason?: string;
 };
@@ -212,12 +215,12 @@ export function evaluateEpubRun(
     toolLoopDecisionCount: toolLoopDecisions.length,
     toolLoopFilteredRate:
       toolLoopDecisions.length > 0
-        ? toolLoopDecisions.filter((decision) => decision.actionType === 'no_action').length /
+        ? toolLoopDecisions.filter((decision) => decision.retention === 'filtered').length /
           toolLoopDecisions.length
         : null,
     toolLoopFallbackRate:
       toolLoopDecisions.length > 0
-        ? toolLoopDecisions.filter((decision) => decision.status === 'fallback').length /
+        ? toolLoopDecisions.filter((decision) => decision.runtimeStatus === 'fallback').length /
           toolLoopDecisions.length
         : null,
   };
