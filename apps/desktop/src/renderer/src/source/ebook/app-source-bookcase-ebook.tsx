@@ -18,25 +18,31 @@ import { buildTocAnnotationStats } from '@yomitomo/reader-ui/reader-annotations'
 import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { ReaderSettingsToolbarControls } from '@yomitomo/reader-ui/reader-toolbar-controls';
 import {
-  currentFoliateContent,
-  ebookArticleText,
-  ebookHasStableSectionChapterMapping,
   ebookHighlightAnnotationsSignature,
+  foliateRangeHighlightBoxes,
+  type EbookBoxUpdateReason,
+} from './ebook-annotation-layout';
+import {
+  ebookHasStableSectionChapterMapping,
   ebookSectionIndexForChapter,
   ebookTocItemsForReader,
-  foliateRangeHighlightBoxes,
+} from './ebook-content';
+import {
+  currentFoliateContent,
   formatEbookPageLabel,
   isEbookPageNavigationReady,
   isEbookPaginationReady,
-  normalizeRenderedText,
-  rangeForEbookAnchorInDocument,
   recordEbookPageTurnTrace,
   waitForAnimationFrame,
   waitForFoliateIdle,
-  type EbookBoxUpdateReason,
   type EbookPageTurnTrace,
   type FoliateViewElement,
-} from './app-ebook-reader-utils';
+} from './ebook-foliate-view';
+import {
+  ebookArticleText,
+  normalizeRenderedText,
+  rangeForEbookAnchorInDocument,
+} from './ebook-text-anchor';
 import { EbookReaderShell } from './app-source-ebook-reader-shell';
 import { playEbookAgentAnnotationPlayback } from './app-source-ebook-agent-playback';
 import { recordRendererPerformanceTiming } from '../../shell/app-renderer-performance';

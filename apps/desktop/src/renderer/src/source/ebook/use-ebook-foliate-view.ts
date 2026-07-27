@@ -15,14 +15,14 @@ import {
   waitForAnimationFrame,
   waitForFoliateIdle,
   waitForFoliatePageInfo,
-  type EbookBoxUpdateReason,
   type EbookPageTurnTrace,
   type FoliatePageInfo,
   type FoliatePageInfoWaitTiming,
   type FoliateRelocateDetail,
   type FoliateSectionSource,
   type FoliateViewElement,
-} from './app-ebook-reader-utils';
+} from './ebook-foliate-view';
+import type { EbookBoxUpdateReason } from './ebook-annotation-layout';
 import {
   rendererPerformanceElapsedMs,
   recordRendererPerformanceTiming,

@@ -14,9 +14,9 @@ import {
   pdfiumMapReadingPlanAgentAnnotation,
   pdfiumMapTargetAgentAnnotation,
   pdfiumPromptArticle,
-  type PdfPageGeometryEntry,
-  type PdfTextDocument,
-} from './app-source-bookcase-pdfium-utils';
+} from './pdfium-agent-plan';
+import type { PdfPageGeometryEntry } from './pdfium-geometry';
+import type { PdfTextDocument } from './pdfium-text-document';
 
 type PdfiumControllerPage = {
   size: {

@@ -13,20 +13,26 @@ import type {
 } from '@yomitomo/reader-ui/reader-app-view';
 import { selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
 import {
-  currentFoliateContent,
-  currentFoliateContents,
+  foliateRangeHighlightBoxes,
+  lastFoliateRangeViewportRect,
+} from './ebook-annotation-layout';
+import {
   ebookChapterForFoliateSection,
   ebookHasStableSectionChapterMapping,
-  foliateRangeHighlightBoxes,
+} from './ebook-content';
+import {
+  currentFoliateContent,
+  currentFoliateContents,
+  type FoliatePageInfo,
+  type FoliateViewElement,
+} from './ebook-foliate-view';
+import {
   isRangeInsideDocumentBody,
-  lastFoliateRangeViewportRect,
   normalizeRenderedText,
   rangeForEbookAnchorInDocument,
   selectionContextForRange,
   selectionTextForRange,
-  type FoliatePageInfo,
-  type FoliateViewElement,
-} from './app-ebook-reader-utils';
+} from './ebook-text-anchor';
 import {
   ebookSelectionPointFromClientPoint,
   ebookSelectionRangeFromOffsets,

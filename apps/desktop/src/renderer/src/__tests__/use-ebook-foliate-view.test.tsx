@@ -16,13 +16,13 @@ import {
   useEbookFoliateView,
 } from '../source/ebook/use-ebook-foliate-view';
 import type { EbookArticleRecord } from '../source/bookcase/app-source-bookcase';
+import type { EbookBoxUpdateReason } from '../source/ebook/ebook-annotation-layout';
 import type {
-  EbookBoxUpdateReason,
   EbookPageTurnTrace,
   FoliatePageInfo,
   FoliateViewElement,
   FoliateSectionSource,
-} from '../source/ebook/app-ebook-reader-utils';
+} from '../source/ebook/ebook-foliate-view';
 import { defaultTheme } from '../theme/app-theme';
 
 vi.mock('../vendor/foliate-js/view.js', () => ({}));

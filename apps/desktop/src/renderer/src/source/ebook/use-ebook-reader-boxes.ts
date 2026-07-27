@@ -4,21 +4,24 @@ import { hashText } from '@yomitomo/shared';
 import { annotationColor, type HighlightBox } from '@yomitomo/core';
 import type { ReaderSettings } from '@yomitomo/reader-ui/reader-types';
 import {
-  currentFoliateContent,
-  currentFoliateContents,
-  createEbookAnchorResolver,
-  ebookChapterForFoliateSection,
-  ebookHasStableSectionChapterMapping,
   ebookHighlightAnnotationsSignature,
   foliateRangeHighlightBoxes,
-  recordEbookPageTurnTrace,
-  type DomTextIndexTiming,
   type EbookBoxScheduleSnapshot,
   type EbookBoxScheduleState,
   type EbookBoxUpdateReason,
+} from './ebook-annotation-layout';
+import {
+  ebookChapterForFoliateSection,
+  ebookHasStableSectionChapterMapping,
+} from './ebook-content';
+import {
+  currentFoliateContent,
+  currentFoliateContents,
+  recordEbookPageTurnTrace,
   type EbookPageTurnTrace,
   type FoliateViewElement,
-} from './app-ebook-reader-utils';
+} from './ebook-foliate-view';
+import { createEbookAnchorResolver, type DomTextIndexTiming } from './ebook-text-anchor';
 import {
   rendererPerformanceElapsedMs,
   recordRendererPerformanceTiming,

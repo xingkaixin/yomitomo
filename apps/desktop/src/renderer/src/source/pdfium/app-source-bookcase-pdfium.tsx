@@ -61,17 +61,20 @@ import {
   pdfiumAnnotationAgentName,
   pdfiumAnnotationRailLayout,
   computeAutoPdfZoom,
-  firstVisiblePdfPageWidth,
-  pageProgress,
-  pdfiumRailWheelHasLocalScrollTarget,
-  pdfPageProgressPercent,
   pdfiumTemporaryBoxes,
-  pdfiumTocAnnotationStats,
+} from './pdfium-annotation-layout';
+import {
+  firstVisiblePdfPageWidth,
+  pdfiumRailWheelHasLocalScrollTarget,
   pdfiumScrollSnapshotCanConsumeDelta,
   pdfiumRectsForTextRange,
   pdfiumWheelDeltaPixels,
-  type PdfTextDocument,
-} from './app-source-bookcase-pdfium-utils';
+} from './pdfium-geometry';
+import {
+  pageProgress,
+  pdfPageProgressPercent,
+} from './app-source-bookcase-pdfium-reading-progress';
+import { pdfiumTocAnnotationStats, type PdfTextDocument } from './pdfium-text-document';
 import { createPdfiumSourceReaderController } from './app-source-bookcase-pdfium-controller';
 import { EmbedPdfSelectionBridge } from './app-source-bookcase-pdfium-selection-bridge';
 import {

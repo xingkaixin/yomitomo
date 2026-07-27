@@ -10,10 +10,10 @@ import type {
 import {
   pdfiumSelectionAnchorForOffsets,
   pdfiumSelectionPointFromClientPoint,
-  pdfiumTemporaryBoxes,
   type PageMetric,
   type PdfiumSelectionAdjustment,
-} from './app-source-bookcase-pdfium-utils';
+} from './pdfium-geometry';
+import { pdfiumTemporaryBoxes } from './pdfium-annotation-layout';
 import {
   selectionAdjustmentAdjustedOffsets,
   selectionAdjustmentDraggingHandle,

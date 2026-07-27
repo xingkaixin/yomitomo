@@ -1,16 +1,42 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useScroll, useScrollCapability } from '@embedpdf/plugin-scroll/react';
-import type { ArticleRecord } from '@yomitomo/shared';
+import type { ArticleReadingProgress, ArticleRecord } from '@yomitomo/shared';
 import type { SourceBookcaseProps } from '../bookcase/app-source-bookcase';
-import {
-  clampPageIndex,
-  normalizeInitialPageIndex,
-  pdfReadingProgress,
-} from './app-source-bookcase-pdfium-utils';
 import { recordPdfOpenTiming, type PdfOpenTrace } from './app-source-bookcase-pdfium-open-trace';
 import { useSourceReadingProgressSaver } from '../bookcase/use-source-reading-progress-saver';
 
 type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']> };
+
+export function normalizeInitialPageIndex(article: PdfArticleRecord) {
+  const pageIndex =
+    article.readingProgress?.kind === 'page' ? article.readingProgress.pageIndex : 0;
+  return clampPageIndex(pageIndex, article.pdf.metadata.pageCount);
+}
+
+export function clampPageIndex(pageIndex: number, pageCount: number) {
+  if (!Number.isFinite(pageIndex)) return 0;
+  return Math.max(0, Math.min(Math.max(0, pageCount - 1), Math.trunc(pageIndex)));
+}
+
+export function pageProgress(pageIndex: number, pageCount: number) {
+  if (pageCount <= 1) return 1;
+  return pageIndex / (pageCount - 1);
+}
+
+export function pdfPageProgressPercent(pageNumber: number, pageCount: number) {
+  return Number(
+    (pageProgress(clampPageIndex(pageNumber - 1, pageCount), pageCount) * 100).toFixed(2),
+  );
+}
+
+export function pdfReadingProgress(pageIndex: number, pageCount: number): ArticleReadingProgress {
+  return {
+    kind: 'page',
+    pageIndex,
+    pageCount,
+    updatedAt: new Date().toISOString(),
+  };
+}
 
 export function usePdfiumReadingProgress({
   article,

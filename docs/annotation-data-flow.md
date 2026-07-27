@@ -45,8 +45,11 @@
 ### PDF
 
 `apps/desktop/src/renderer/src/source/pdfium/app-source-bookcase-pdfium-selection-bridge.tsx`
-接收 PDFium 选区事件；`apps/desktop/src/renderer/src/source/pdfium/app-source-bookcase-pdfium-utils.ts`
-负责页内文字范围、PDF rect 与全局文本坐标之间的转换。
+接收 PDFium 选区事件；
+`apps/desktop/src/renderer/src/source/pdfium/pdfium-geometry.ts`
+负责页内文字范围与 PDF rect 的转换，
+`apps/desktop/src/renderer/src/source/pdfium/pdfium-agent-plan.ts`
+负责页内锚点与全局文本坐标之间的映射。
 
 所有阅读器最终都必须提供：原文 `exact`、可恢复位置，以及能从锚点重建的正文高亮 box。
 

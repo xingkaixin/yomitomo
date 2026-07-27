@@ -5,7 +5,7 @@ import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, UserProfile } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
-import type { EbookPageTurnTrace } from '../source/ebook/app-ebook-reader-utils';
+import type { EbookPageTurnTrace } from '../source/ebook/ebook-foliate-view';
 import { EbookBookcase } from '../source/ebook/app-source-bookcase-ebook';
 import type { EbookArticleRecord } from '../source/bookcase/app-source-bookcase';
 import { defaultTheme } from '../theme/app-theme';

@@ -4,7 +4,7 @@ import { isPdfTextAnchor, type Annotation } from '@yomitomo/shared';
 import type { TocItem } from '@yomitomo/core';
 import { recordRendererPerformanceTiming } from '../../shell/app-renderer-performance';
 import type { SourceBookcaseProps } from '../bookcase/app-source-bookcase';
-import { pdfiumBookmarkTocItems } from './app-source-bookcase-pdfium-utils';
+import { pdfiumBookmarkTocItems } from './pdfium-text-document';
 
 type PdfiumScroll = {
   scrollToPage: (options: { pageNumber: number; behavior: 'instant' | 'smooth' }) => void;

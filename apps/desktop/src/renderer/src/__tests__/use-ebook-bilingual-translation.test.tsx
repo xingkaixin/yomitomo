@@ -7,7 +7,7 @@ import type { ArticleTranslation, ArticleTranslationRequest } from '@yomitomo/sh
 import { extractBilingualTranslationBlocks } from '@yomitomo/core';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import type { EbookArticleRecord } from '../source/bookcase/app-source-bookcase';
-import type { FoliateViewElement } from '../source/ebook/app-ebook-reader-utils';
+import type { FoliateViewElement } from '../source/ebook/ebook-foliate-view';
 import {
   runWhenEbookSelectionSettles,
   useEbookBilingualTranslation,

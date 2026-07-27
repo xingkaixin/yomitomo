@@ -6,11 +6,8 @@ import {
 } from '@yomitomo/reader-ui/reader-navigation';
 import { annotationRailLayoutForWidth } from '@yomitomo/reader-ui/reader-shell-state';
 import type { AnnotationRailLayout } from '@yomitomo/reader-ui/reader-annotations';
-import {
-  ebookChapterForFoliateSection,
-  type FoliatePageInfo,
-  type FoliateViewElement,
-} from './app-ebook-reader-utils';
+import { ebookChapterForFoliateSection } from './ebook-content';
+import type { FoliatePageInfo, FoliateViewElement } from './ebook-foliate-view';
 import {
   annotationViewportPositions,
   navigationForActiveAnnotation,

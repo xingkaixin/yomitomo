@@ -80,7 +80,7 @@ section，并把结果送入 Foliate 播放队列。具体可见性、跳页和 
 
 `apps/desktop/src/renderer/src/source/pdfium/app-source-bookcase-pdfium-controller.ts` 要求完整 PDF
 文本索引，将全局计划范围映射回页内 anchor。转换规则位于
-`apps/desktop/src/renderer/src/source/pdfium/app-source-bookcase-pdfium-utils.ts`；无法映射到有效页面
+`apps/desktop/src/renderer/src/source/pdfium/pdfium-agent-plan.ts`；无法映射到有效页面
 几何的结果不会保存。
 
 三种 adapter 最终都必须保证：模型锚点属于某个计划 section、阅读动作与 section 一致，并且

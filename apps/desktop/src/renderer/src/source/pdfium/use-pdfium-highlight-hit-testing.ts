@@ -10,7 +10,7 @@ import {
   pdfiumHighlightChoicePosition,
   pdfiumHighlightHitAtClientPoint,
   pdfiumPageIndexFromTarget,
-} from './app-source-bookcase-pdfium-utils';
+} from './pdfium-geometry';
 import { suppressPdfiumContinuousTextSelectionEvent } from './app-source-bookcase-pdfium-selection-events';
 import { debugPdfLayout, debugRect } from './pdfium-layout-debug';
 
