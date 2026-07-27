@@ -8,7 +8,11 @@ describe('annotation window actions', () => {
     const getArticle = vi.fn().mockResolvedValue(article);
     const getState = vi.fn().mockResolvedValue(store);
     const actions = createAnnotationWindowActions(
-      () => ({ getArticle, getState }) as unknown as AnnotationWindowDesktopApi,
+      () =>
+        ({
+          article: { get: getArticle },
+          store: { getState },
+        }) as unknown as AnnotationWindowDesktopApi,
     );
 
     await expect(actions.loadWindow('article-1')).resolves.toEqual({ article, store });
@@ -20,12 +24,22 @@ describe('annotation window actions', () => {
     const deleteArticleComment = vi.fn().mockResolvedValue(undefined);
     const getArticle = vi.fn().mockResolvedValue({ id: 'article-1', annotations: [] });
     const actions = createAnnotationWindowActions(
-      () => ({ deleteArticleComment, getArticle }) as unknown as AnnotationWindowDesktopApi,
+      () =>
+        ({
+          article: {
+            deleteComment: deleteArticleComment,
+            get: getArticle,
+          },
+        }) as unknown as AnnotationWindowDesktopApi,
     );
 
     await actions.deleteCommentAndReload('article-1', 'annotation-1', 'comment-1');
 
-    expect(deleteArticleComment).toHaveBeenCalledWith('article-1', 'annotation-1', 'comment-1');
+    expect(deleteArticleComment).toHaveBeenCalledWith({
+      articleId: 'article-1',
+      annotationId: 'annotation-1',
+      commentId: 'comment-1',
+    });
     expect(deleteArticleComment.mock.invocationCallOrder[0]).toBeLessThan(
       getArticle.mock.invocationCallOrder[0],
     );
@@ -40,8 +54,10 @@ describe('annotation window actions', () => {
     const actions = createAnnotationWindowActions(
       () =>
         ({
-          saveArticleAnnotationDistillation,
-          getArticle,
+          article: {
+            saveAnnotationDistillation: saveArticleAnnotationDistillation,
+            get: getArticle,
+          },
         }) as unknown as AnnotationWindowDesktopApi,
     );
     const input = {
@@ -58,7 +74,7 @@ describe('annotation window actions', () => {
 
   it('returns a no-op subscription when patch events are unavailable', () => {
     const actions = createAnnotationWindowActions(
-      () => ({ onArticlePatched: false }) as unknown as AnnotationWindowDesktopApi,
+      () => ({ article: { onPatched: false } }) as unknown as AnnotationWindowDesktopApi,
     );
 
     expect(() => actions.subscribeToArticlePatches(vi.fn())()).not.toThrow();

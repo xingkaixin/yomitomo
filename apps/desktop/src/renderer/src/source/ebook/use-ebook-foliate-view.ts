@@ -23,6 +23,7 @@ import {
   type FoliateViewElement,
 } from './ebook-foliate-view';
 import type { EbookBoxUpdateReason } from './ebook-annotation-layout';
+import { getDesktopApi } from '../../shell/app-desktop-api';
 import {
   rendererPerformanceElapsedMs,
   recordRendererPerformanceTiming,
@@ -405,7 +406,7 @@ export function useEbookFoliateView({
       const href = customEvent.detail['href_'] || customEvent.detail.href;
       if (!href) return;
       event.preventDefault();
-      void window.yomitomoDesktop.openUrl(href);
+      void getDesktopApi().app.openUrl(href);
     };
 
     const handleLoad = (event: Event) => {
@@ -429,7 +430,7 @@ export function useEbookFoliateView({
     async function openEbook() {
       try {
         await import('../../vendor/foliate-js/view.js');
-        const data = await window.yomitomoDesktop.readEbookFile(article.id);
+        const data = await getDesktopApi().article.ebook.readFile(article.id);
         if (cancelled) return;
 
         const file = ebookSourceFile(article, data);

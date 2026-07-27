@@ -50,6 +50,7 @@ import {
 import type { SaveableDraft } from './use-saveable-draft';
 import { useSaveStatus } from './use-save-status';
 import { dataManagementActions } from './app-data-management-actions';
+import { getDesktopApi } from '../shell/app-desktop-api';
 
 export { GeneralSettings } from './app-settings-general-panel';
 export { DataSourcesPanel, WeReadSettingsPanel } from './app-settings-weread-panel';
@@ -458,8 +459,8 @@ export function DataManagementSettings({
 
   useEffect(() => {
     let mounted = true;
-    dataManagementActions
-      .getPaths()
+    getDesktopApi()
+      .data.getPaths()
       .then((nextPaths) => {
         if (mounted) setPaths(nextPaths);
       })
@@ -473,7 +474,7 @@ export function DataManagementSettings({
 
   async function openPath(kind: DataManagementPathKind) {
     await runDataAction(`open:${kind}`, async () => {
-      await dataManagementActions.openPath(kind);
+      await getDesktopApi().data.openPath(kind);
     });
   }
 
@@ -493,7 +494,7 @@ export function DataManagementSettings({
   async function clearLog() {
     setConfirmAction(null);
     await runDataAction('clear-log', async () => {
-      await dataManagementActions.clearLog();
+      await getDesktopApi().diagnostics.log.clear();
       appToast.success(t('settings.data.toast.logClearedTitle'), {
         description: t('settings.data.toast.logClearedDescription'),
       });
@@ -502,7 +503,7 @@ export function DataManagementSettings({
 
   async function backupDatabase() {
     await runDataAction('backup-db', async () => {
-      const result = await dataManagementActions.backupDatabase();
+      const result = await getDesktopApi().data.backupDatabase();
       if (result.canceled) {
         appToast.warning(t('settings.data.toast.backupCanceledTitle'), {
           description: t('settings.data.toast.backupCanceledDescription'),
@@ -518,7 +519,7 @@ export function DataManagementSettings({
   async function restoreDatabase() {
     setConfirmAction(null);
     await runDataAction('restore-db', async () => {
-      const result = await dataManagementActions.restoreDatabase();
+      const result = await getDesktopApi().data.restoreDatabase();
       if (result.canceled) {
         appToast.warning(t('settings.data.toast.restoreCanceledTitle'), {
           description: t('settings.data.toast.restoreCanceledDescription'),

@@ -150,7 +150,7 @@ describe('useEbookReaderBoxes', () => {
     const recordPerformanceTiming = vi.fn();
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
-      value: { recordPerformanceTiming },
+      value: { diagnostics: { recordPerformanceTiming } },
     });
     const doc = foliateDocument('Alpha quote. Beta quote.');
 

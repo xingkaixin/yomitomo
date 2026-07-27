@@ -137,14 +137,18 @@ function installDesktopApi(current: ArticleTranslation | null) {
   Object.defineProperty(window, 'yomitomoDesktop', {
     configurable: true,
     value: {
-      deleteCurrentArticleTranslation: vi.fn(async () => null),
-      getCurrentArticleTranslation,
-      onArticleTranslationUpdated: (callback: (translation: ArticleTranslation) => void) => {
-        callbacks.push(callback);
-        return () => callbacks.splice(callbacks.indexOf(callback), 1);
+      article: {
+        translation: {
+          deleteCurrent: vi.fn(async () => null),
+          getCurrent: getCurrentArticleTranslation,
+          onUpdated: (callback: (translation: ArticleTranslation) => void) => {
+            callbacks.push(callback);
+            return () => callbacks.splice(callbacks.indexOf(callback), 1);
+          },
+          translate: translateArticle,
+        },
       },
-      translateArticle,
-    } as Partial<typeof window.yomitomoDesktop>,
+    },
   });
   return { getCurrentArticleTranslation, translateArticle };
 }

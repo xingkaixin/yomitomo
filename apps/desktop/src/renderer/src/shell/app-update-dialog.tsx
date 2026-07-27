@@ -22,6 +22,7 @@ import coverLighterImage from '../assets/update/updater-cover-lighter.webp';
 import coverDarkerImage from '../assets/update/updater-cover-darker.webp';
 import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogOverlay, DialogPortal } from '../components/ui/dialog';
+import { getDesktopApi } from './app-desktop-api';
 
 type ReleaseDialogScene = 'before-update' | 'after-update';
 
@@ -68,13 +69,19 @@ export function UpdateReleaseDialog({
   languageRef.current = i18n.language;
 
   useEffect(() => {
-    void window.yomitomoDesktop.getAppInfo().then((info) => setVersion(info.desktopVersion));
+    void getDesktopApi()
+      .app.getInfo()
+      .then((info) => setVersion(info.desktopVersion));
   }, []);
 
   // 远程拉目标版本文案后弹更新前弹窗；拉取失败仍弹纯版本号提示，不阻塞下载决策。
   const openBeforeUpdate = useCallback((targetVersion: string) => {
-    void window.yomitomoDesktop
-      .getReleaseNote(targetVersion, 'remote', normalizeUiLanguage(languageRef.current))
+    void getDesktopApi()
+      .updates.getReleaseNote({
+        version: targetVersion,
+        source: 'remote',
+        language: normalizeUiLanguage(languageRef.current),
+      })
       .then((note) => {
         setDialog({
           scene: 'before-update',
@@ -94,8 +101,12 @@ export function UpdateReleaseDialog({
       void onSaveSettings({ ...settingsRef.current, lastSeenVersion: version });
     }
     if (!show) return;
-    void window.yomitomoDesktop
-      .getReleaseNote(version, 'local', normalizeUiLanguage(i18n.language))
+    void getDesktopApi()
+      .updates.getReleaseNote({
+        version,
+        source: 'local',
+        language: normalizeUiLanguage(i18n.language),
+      })
       .then((note) => {
         setDialog({
           scene: 'after-update',
@@ -140,10 +151,10 @@ export function UpdateReleaseDialog({
     }
     // 下载完成停留在「重启安装」态；点击触发安装。其余情况触发下载，下载进度在弹窗内推进，不关闭弹窗。
     if (downloadStatus === 'downloaded') {
-      void window.yomitomoDesktop.installUpdate();
+      void getDesktopApi().updates.install();
       return;
     }
-    void window.yomitomoDesktop.downloadUpdate();
+    void getDesktopApi().updates.download();
   };
 
   const tone = themeRegistry[resolveAppThemeId(document.documentElement.dataset.theme)].meta.tone;

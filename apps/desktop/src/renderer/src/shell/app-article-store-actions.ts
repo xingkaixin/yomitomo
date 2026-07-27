@@ -13,6 +13,7 @@ import type {
   ReaderChatState,
 } from '@yomitomo/shared';
 import type { WindowAnimationSourceRect } from '../../../ipc-contract';
+import { getDesktopApi } from './app-desktop-api';
 
 type DesktopStoreRef = { current: DesktopStore };
 type ApplyStore = (nextStore: DesktopStore) => DesktopStore;
@@ -30,33 +31,27 @@ export function useAppArticleStoreActions({
   const readingProgressSaveQueueRef = useRef(Promise.resolve());
   const deleteArticle = useCallback(
     async (articleId: string) => {
-      const desktop = window.yomitomoDesktop;
-      if (!desktop) return;
-
       const nextStore = applyArticleStorePatch(storeRef.current, {
         type: 'article-delete',
         articleId,
       });
       storeRef.current = nextStore;
       applyStore(nextStore);
-      await desktop.deleteArticle(articleId);
+      await getDesktopApi().article.delete(articleId);
     },
     [applyStore, storeRef],
   );
 
   const readArticle = useCallback(async (articleId: string) => {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop) return null;
-
-    return desktop.getArticle(articleId);
+    return getDesktopApi().article.get(articleId);
   }, []);
 
   const mergeArticleAgentAnnotation = useCallback(
     async (articleId: string, annotation: Annotation) => {
-      const desktop = window.yomitomoDesktop;
-      if (!desktop) return null;
-
-      const result = await desktop.mergeArticleAgentAnnotation({ articleId, annotation });
+      const result = await getDesktopApi().article.mergeAgentAnnotation({
+        articleId,
+        annotation,
+      });
       if (!result) return null;
       const nextStore = applyArticleStorePatch(storeRef.current, result.patch);
       storeRef.current = nextStore;
@@ -68,10 +63,10 @@ export function useAppArticleStoreActions({
 
   const deleteArticleAnnotation = useCallback(
     async (articleId: string, annotationId: string) => {
-      const desktop = window.yomitomoDesktop;
-      if (!desktop) return;
-
-      const patch = await desktop.deleteArticleAnnotation(articleId, annotationId);
+      const patch = await getDesktopApi().article.deleteAnnotation({
+        articleId,
+        annotationId,
+      });
       if (!patch) return;
       const nextStore = applyArticleStorePatch(storeRef.current, patch);
       storeRef.current = nextStore;
@@ -82,10 +77,11 @@ export function useAppArticleStoreActions({
 
   const deleteArticleComment = useCallback(
     async (articleId: string, annotationId: string, commentId: string) => {
-      const desktop = window.yomitomoDesktop;
-      if (!desktop) return;
-
-      const patch = await desktop.deleteArticleComment(articleId, annotationId, commentId);
+      const patch = await getDesktopApi().article.deleteComment({
+        articleId,
+        annotationId,
+        commentId,
+      });
       if (!patch) return;
       const nextStore = applyArticleStorePatch(storeRef.current, patch);
       storeRef.current = nextStore;
@@ -96,10 +92,11 @@ export function useAppArticleStoreActions({
 
   const saveArticleAnnotation = useCallback(
     async (articleId: string, annotation: Annotation, updatedAt?: string) => {
-      const desktop = window.yomitomoDesktop;
-      if (!desktop) return;
-
-      const patch = await desktop.saveArticleAnnotation(articleId, annotation, updatedAt);
+      const patch = await getDesktopApi().article.saveAnnotation({
+        articleId,
+        annotation,
+        updatedAt,
+      });
       if (!patch) return;
       const nextStore = applyArticleStorePatch(storeRef.current, patch);
       storeRef.current = nextStore;
@@ -110,10 +107,12 @@ export function useAppArticleStoreActions({
 
   const saveArticleComment = useCallback(
     async (articleId: string, annotationId: string, comment: Comment, updatedAt?: string) => {
-      const desktop = window.yomitomoDesktop;
-      if (!desktop) return;
-
-      const patch = await desktop.saveArticleComment(articleId, annotationId, comment, updatedAt);
+      const patch = await getDesktopApi().article.saveComment({
+        articleId,
+        annotationId,
+        comment,
+        updatedAt,
+      });
       if (!patch) return;
       const nextStore = applyArticleStorePatch(storeRef.current, patch);
       storeRef.current = nextStore;
@@ -124,10 +123,7 @@ export function useAppArticleStoreActions({
 
   const openArticleDiscussion = useCallback(
     async (articleId: string, annotationId: string, sourceRect?: WindowAnimationSourceRect) => {
-      const desktop = window.yomitomoDesktop;
-      if (!desktop) return;
-
-      await desktop.openAnnotationDiscussion({
+      await getDesktopApi().annotations.discussion.open({
         articleId,
         annotationId,
         ...(sourceRect ? { sourceRect } : {}),
@@ -137,17 +133,11 @@ export function useAppArticleStoreActions({
   );
 
   const closeArticleDiscussions = useCallback(async (articleId: string) => {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop) return;
-
-    await desktop.closeArticleAnnotationDiscussions(articleId);
+    await getDesktopApi().annotations.discussion.closeArticle({ articleId });
   }, []);
 
   const saveArticleReadingProgress = useCallback(
     async (articleId: string, progress: ArticleReadingProgress) => {
-      const desktop = window.yomitomoDesktop;
-      if (!desktop) return;
-
       const run = async () => {
         const optimisticStore = applyArticleReadingProgressPatch(storeRef.current, {
           articleId,
@@ -156,7 +146,10 @@ export function useAppArticleStoreActions({
         });
         storeRef.current = optimisticStore;
         applyStore(optimisticStore);
-        const patch = await desktop.saveArticleReadingProgress(articleId, progress);
+        const patch = await getDesktopApi().article.saveReadingProgress({
+          articleId,
+          progress,
+        });
         const nextStore = applyArticleStorePatch(storeRef.current, {
           type: 'article-reading-progress',
           ...patch,
@@ -173,19 +166,14 @@ export function useAppArticleStoreActions({
 
   const saveArticleReaderChatState = useCallback(
     async (articleId: string, readerChatState?: ReaderChatState) => {
-      const desktop = window.yomitomoDesktop;
-      if (!desktop) return;
-
-      return desktop.saveArticleReaderChatState(articleId, readerChatState);
+      return getDesktopApi().article.saveReaderChatState({ articleId, readerChatState });
     },
     [],
   );
 
   const importArticleUrl = useCallback(
     async (url: string, requestId?: string) => {
-      const result = requestId
-        ? await window.yomitomoDesktop.importArticleUrl(url, requestId)
-        : await window.yomitomoDesktop.importArticleUrl(url);
+      const result = await getDesktopApi().article.importUrl({ url, requestId });
       if (result.status === 'imported') {
         const nextStore = applyArticleStorePatch(storeRef.current, result.patch);
         storeRef.current = nextStore;
@@ -197,7 +185,7 @@ export function useAppArticleStoreActions({
   );
 
   const cancelArticleUrlImport = useCallback((requestId: string) => {
-    return window.yomitomoDesktop.cancelArticleUrlImport(requestId);
+    return getDesktopApi().article.cancelUrlImport(requestId);
   }, []);
 
   const importEbookFile = useCallback(
@@ -211,7 +199,7 @@ export function useAppArticleStoreActions({
         i18next.t('library.import.ebook.readFailed'),
       );
       onProgress?.(82);
-      const result = await window.yomitomoDesktop.importEbookFile({
+      const result = await getDesktopApi().article.ebook.importFile({
         fileName: file.name,
         mimeType: file.type,
         data,
@@ -238,7 +226,7 @@ export function useAppArticleStoreActions({
         i18next.t('library.import.pdf.readFailed'),
       );
       onProgress?.(82);
-      const result = await window.yomitomoDesktop.importPdfFile({
+      const result = await getDesktopApi().article.pdf.importFile({
         fileName: file.name,
         mimeType: file.type,
         data,

@@ -66,6 +66,7 @@ import {
 import { useElementWidthBelow } from './app-annotation-discussion-hooks';
 import { useAnnotationWindowArticlePatches } from './use-annotation-window-article-patches';
 import { annotationWindowActions } from './app-annotation-window-actions';
+import { getDesktopApi } from '../shell/app-desktop-api';
 
 export { insertMentionAtSelection } from './app-annotation-discussion-utils';
 
@@ -642,7 +643,7 @@ function AnnotationDiscussionShell({
       userComment,
       instruction,
       allowDisabledAgentForRule: options.allowDisabledAgentForRule,
-      desktop: annotationWindowActions,
+      desktop: getDesktopApi().agent,
       currentArticle: currentArticleRef.current,
       articleText: discussionArticleText(currentArticleRef.current),
       uiLanguage,

@@ -32,6 +32,7 @@ import { SettingsConfirmDialog } from './app-settings-confirm-dialog';
 import { useSaveStatus } from './use-save-status';
 import { useTranslation } from 'react-i18next';
 import { appSettingsActions } from './app-settings-actions';
+import { getDesktopApi } from '../shell/app-desktop-api';
 
 const WEREAD_API_KEY_HELP_URLS = {
   'zh-CN': 'https://yomitomo.app/docs/weread-api-key/',
@@ -76,8 +77,8 @@ export function WeReadSettingsPanel() {
 
   useEffect(() => {
     let cancelled = false;
-    void appSettingsActions
-      .getWeReadState()
+    void getDesktopApi()
+      .weRead.getState()
       .then((state) => {
         if (cancelled) return;
         setSettings(state.settings);
@@ -107,7 +108,7 @@ export function WeReadSettingsPanel() {
     setApiKeyMessage('');
     await credentialSave.run(
       () =>
-        appSettingsActions.saveWeReadSettings({
+        getDesktopApi().weRead.saveSettings({
           apiKey,
           openMethod: settings.openMethod,
         }),
@@ -128,7 +129,7 @@ export function WeReadSettingsPanel() {
     setApiKeyMessage('');
     await credentialSave.run(
       () =>
-        appSettingsActions.saveWeReadSettings({
+        getDesktopApi().weRead.saveSettings({
           removeApiKey: true,
           openMethod: settings.openMethod,
         }),
@@ -183,7 +184,7 @@ export function WeReadSettingsPanel() {
     setApiKeyMessage('');
     const requestId = ++revealRequestRef.current;
     try {
-      const storedApiKey = (await appSettingsActions.readWeReadApiKey()) || '';
+      const storedApiKey = (await getDesktopApi().weRead.readApiKey()) || '';
       if (requestId !== revealRequestRef.current) return;
       setRevealedStoredApiKey(storedApiKey);
       setApiKeyVisible(true);
@@ -199,7 +200,7 @@ export function WeReadSettingsPanel() {
   async function saveOpenMethod(openMethod: WeReadOpenMethod) {
     const previous = settings.openMethod;
     setSettings((current) => ({ ...current, openMethod }));
-    await openMethodSave.run(() => appSettingsActions.saveWeReadSettings({ openMethod }), {
+    await openMethodSave.run(() => getDesktopApi().weRead.saveSettings({ openMethod }), {
       onError: () => setSettings((current) => ({ ...current, openMethod: previous })),
       onSaved: (state) => setSettings(state.settings),
     });
@@ -208,7 +209,7 @@ export function WeReadSettingsPanel() {
   async function saveSyncMode(syncMode: WeReadSyncMode) {
     const previous = settings.syncMode ?? 'manual';
     setSettings((current) => ({ ...current, syncMode }));
-    await syncModeSave.run(() => appSettingsActions.saveWeReadSettings({ syncMode }), {
+    await syncModeSave.run(() => getDesktopApi().weRead.saveSettings({ syncMode }), {
       onError: () => setSettings((current) => ({ ...current, syncMode: previous })),
       onSaved: (state) => setSettings(state.settings),
     });
@@ -217,7 +218,7 @@ export function WeReadSettingsPanel() {
   async function openWeReadApiKeyHelp() {
     const helpUrl = WEREAD_API_KEY_HELP_URLS[normalizeUiLanguage(i18n.language)];
     try {
-      await appSettingsActions.openExternalUrl(helpUrl);
+      await getDesktopApi().app.openUrl(helpUrl);
     } catch {
       window.open(helpUrl, '_blank', 'noopener,noreferrer');
     }

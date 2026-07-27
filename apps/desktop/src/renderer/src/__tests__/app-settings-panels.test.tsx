@@ -239,7 +239,22 @@ function installDesktopDataApi() {
 
   Object.defineProperty(window, 'yomitomoDesktop', {
     configurable: true,
-    value: desktop,
+    value: {
+      data: {
+        backupDatabase: desktop.backupDatabase,
+        getPaths: desktop.getDataManagementPaths,
+        openPath: desktop.openDataManagementPath,
+        restoreDatabase: desktop.restoreDatabase,
+      },
+      diagnostics: {
+        log: {
+          clear: desktop.clearLog,
+        },
+      },
+      store: {
+        saveSettings: desktop.saveSettings,
+      },
+    },
   });
 
   return desktop;
@@ -265,7 +280,7 @@ describe('ProviderForm', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
-        listProviderModels,
+        provider: { listModels: listProviderModels },
       },
     });
 
@@ -303,7 +318,7 @@ describe('ProviderForm', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
-        listProviderModels,
+        provider: { listModels: listProviderModels },
       },
     });
 
@@ -418,7 +433,7 @@ describe('ProviderForm', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
-        listProviderModels,
+        provider: { listModels: listProviderModels },
       },
     });
 
@@ -451,7 +466,7 @@ describe('ProviderForm', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
-        readProviderApiKey,
+        provider: { readApiKey: readProviderApiKey },
       },
     });
 
@@ -482,7 +497,7 @@ describe('ProviderForm', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
-        readProviderApiKey,
+        provider: { readApiKey: readProviderApiKey },
       },
     });
 
@@ -512,7 +527,7 @@ describe('ProviderForm', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
-        listProviderModels,
+        provider: { listModels: listProviderModels },
       },
     });
 
@@ -541,7 +556,7 @@ describe('ProviderForm', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
-        listProviderModels,
+        provider: { listModels: listProviderModels },
       },
     });
 
@@ -1366,11 +1381,13 @@ describe('WeReadSettingsPanel', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
-        getWeReadState: vi.fn().mockResolvedValue({
-          settings: { configured: true, openMethod: 'deeplink' },
-          books: [],
-        }),
-        readWeReadApiKey,
+        weRead: {
+          getState: vi.fn().mockResolvedValue({
+            settings: { configured: true, openMethod: 'deeplink' },
+            books: [],
+          }),
+          readApiKey: readWeReadApiKey,
+        },
       },
     });
 
@@ -1394,11 +1411,13 @@ describe('WeReadSettingsPanel', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
-        getWeReadState: vi.fn().mockResolvedValue({
-          settings: { configured: true, openMethod: 'deeplink' },
-          books: [],
-        }),
-        saveWeReadSettings,
+        weRead: {
+          getState: vi.fn().mockResolvedValue({
+            settings: { configured: true, openMethod: 'deeplink' },
+            books: [],
+          }),
+          saveSettings: saveWeReadSettings,
+        },
       },
     });
 
@@ -1436,11 +1455,13 @@ describe('WeReadSettingsPanel', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
-        getWeReadState: vi.fn().mockResolvedValue({
-          settings: { configured: true, openMethod: 'deeplink', syncMode: 'manual' },
-          books: [],
-        }),
-        saveWeReadSettings,
+        weRead: {
+          getState: vi.fn().mockResolvedValue({
+            settings: { configured: true, openMethod: 'deeplink', syncMode: 'manual' },
+            books: [],
+          }),
+          saveSettings: saveWeReadSettings,
+        },
       },
     });
 
@@ -1461,11 +1482,13 @@ describe('WeReadSettingsPanel', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
-        getWeReadState: vi.fn().mockResolvedValue({
-          settings: { configured: true, openMethod: 'deeplink', syncMode: 'manual' },
-          books: [],
-        }),
-        saveWeReadSettings,
+        weRead: {
+          getState: vi.fn().mockResolvedValue({
+            settings: { configured: true, openMethod: 'deeplink', syncMode: 'manual' },
+            books: [],
+          }),
+          saveSettings: saveWeReadSettings,
+        },
       },
     });
 
@@ -1489,11 +1512,13 @@ describe('WeReadSettingsPanel', () => {
       Object.defineProperty(window, 'yomitomoDesktop', {
         configurable: true,
         value: {
-          getWeReadState: vi.fn().mockResolvedValue({
-            settings: { configured: true, openMethod: 'deeplink', syncMode: 'manual' },
-            books: [],
-          }),
-          saveWeReadSettings,
+          weRead: {
+            getState: vi.fn().mockResolvedValue({
+              settings: { configured: true, openMethod: 'deeplink', syncMode: 'manual' },
+              books: [],
+            }),
+            saveSettings: saveWeReadSettings,
+          },
         },
       });
 

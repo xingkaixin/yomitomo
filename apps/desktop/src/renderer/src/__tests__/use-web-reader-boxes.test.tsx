@@ -68,7 +68,7 @@ describe('useWebReaderBoxes', () => {
     const recordPerformanceTiming = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
-      value: { recordPerformanceTiming },
+      value: { diagnostics: { recordPerformanceTiming } },
     });
 
     render(<WebReaderBoxesProbe />);
@@ -94,7 +94,7 @@ describe('useWebReaderBoxes', () => {
     const recordPerformanceTiming = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
-      value: { recordPerformanceTiming },
+      value: { diagnostics: { recordPerformanceTiming } },
     });
     const rects = {
       article: rect({ width: 680, height: 1200 }),
@@ -121,7 +121,7 @@ describe('useWebReaderBoxes', () => {
     const recordPerformanceTiming = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
-      value: { recordPerformanceTiming },
+      value: { diagnostics: { recordPerformanceTiming } },
     });
     const rects = {
       article: rect({ width: 680, height: 1200 }),
@@ -148,7 +148,7 @@ describe('useWebReaderBoxes', () => {
     const recordPerformanceTiming = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
-      value: { recordPerformanceTiming },
+      value: { diagnostics: { recordPerformanceTiming } },
     });
     const originalArticle = article();
 
@@ -187,7 +187,7 @@ describe('useWebReaderBoxes', () => {
     const recordPerformanceTiming = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
-      value: { recordPerformanceTiming },
+      value: { diagnostics: { recordPerformanceTiming } },
     });
     const createTreeWalker = vi.spyOn(document, 'createTreeWalker');
 

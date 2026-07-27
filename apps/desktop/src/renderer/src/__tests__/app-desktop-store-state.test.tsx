@@ -40,23 +40,33 @@ describe('useDesktopStoreState', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
-        getStateResult: vi.fn().mockResolvedValue({ ok: true, store: initialStore }),
-        onStoreUpdated: vi.fn((callback: (store: DesktopStore) => void) => {
-          emitStoreUpdated = callback;
-          return offStoreUpdated;
-        }),
-        onArticlePatched: vi.fn((callback: (patch: ArticleStorePatch) => void) => {
-          emitArticlePatched = callback;
-          return offArticlePatched;
-        }),
-        onCollectionPatched: vi.fn((callback: (patch: CollectionStorePatch) => void) => {
-          emitCollectionPatched = callback;
-          return offCollectionPatched;
-        }),
-        onLibraryPinPatched: vi.fn((callback: (patch: LibraryPinPatch) => void) => {
-          emitLibraryPinPatched = callback;
-          return offLibraryPinPatched;
-        }),
+        store: {
+          getStateResult: vi.fn().mockResolvedValue({ ok: true, store: initialStore }),
+          onUpdated: vi.fn((callback: (store: DesktopStore) => void) => {
+            emitStoreUpdated = callback;
+            return offStoreUpdated;
+          }),
+        },
+        article: {
+          onPatched: vi.fn((callback: (patch: ArticleStorePatch) => void) => {
+            emitArticlePatched = callback;
+            return offArticlePatched;
+          }),
+        },
+        library: {
+          collections: {
+            onPatched: vi.fn((callback: (patch: CollectionStorePatch) => void) => {
+              emitCollectionPatched = callback;
+              return offCollectionPatched;
+            }),
+          },
+          pins: {
+            onPatched: vi.fn((callback: (patch: LibraryPinPatch) => void) => {
+              emitLibraryPinPatched = callback;
+              return offLibraryPinPatched;
+            }),
+          },
+        },
       },
     });
 
@@ -157,17 +167,19 @@ describe('useDesktopStoreState', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
-        getStateResult: vi.fn().mockResolvedValue({
-          ok: false,
-          error: {
-            code: 'DATABASE_TOO_NEW',
-            message: '请安装最新版继续使用。',
-            requiredReaderLevel: 2,
-            supportedReaderLevel: 1,
-            logPath: '/tmp/yomitomo-agent.log',
-          },
-        }),
-        onStoreUpdated: vi.fn(() => vi.fn()),
+        store: {
+          getStateResult: vi.fn().mockResolvedValue({
+            ok: false,
+            error: {
+              code: 'DATABASE_TOO_NEW',
+              message: '请安装最新版继续使用。',
+              requiredReaderLevel: 2,
+              supportedReaderLevel: 1,
+              logPath: '/tmp/yomitomo-agent.log',
+            },
+          }),
+          onUpdated: vi.fn(() => vi.fn()),
+        },
       },
     });
 
@@ -194,18 +206,24 @@ describe('useDesktopStoreState', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
-        getAppLockStatus: vi.fn().mockResolvedValue({
-          configured: true,
-          enabled: true,
-          locked: true,
-          shortcut: 'CommandOrControl+L',
-        }),
-        getStateResult: vi.fn().mockRejectedValue({
-          code: 'APP_LOCK_REQUIRED',
-          message: 'APP_LOCK_REQUIRED',
-        }),
-        onArticlePatched: vi.fn(() => vi.fn()),
-        onStoreUpdated: vi.fn(() => vi.fn()),
+        appLock: {
+          getStatus: vi.fn().mockResolvedValue({
+            configured: true,
+            enabled: true,
+            locked: true,
+            shortcut: 'CommandOrControl+L',
+          }),
+        },
+        store: {
+          getStateResult: vi.fn().mockRejectedValue({
+            code: 'APP_LOCK_REQUIRED',
+            message: 'APP_LOCK_REQUIRED',
+          }),
+          onUpdated: vi.fn(() => vi.fn()),
+        },
+        article: {
+          onPatched: vi.fn(() => vi.fn()),
+        },
       },
     });
 
@@ -249,15 +267,19 @@ describe('useDesktopStoreState', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
-        getStateResult: vi.fn().mockResolvedValue({ ok: true, store: initialStore }),
-        onArticlePatched: vi.fn((callback: (patch: ArticleStorePatch) => void) => {
-          emitArticlePatched = callback;
-          return vi.fn();
-        }),
-        onStoreUpdated: vi.fn((callback: (store: DesktopStore) => void) => {
-          emitStoreUpdated = callback;
-          return vi.fn();
-        }),
+        store: {
+          getStateResult: vi.fn().mockResolvedValue({ ok: true, store: initialStore }),
+          onUpdated: vi.fn((callback: (store: DesktopStore) => void) => {
+            emitStoreUpdated = callback;
+            return vi.fn();
+          }),
+        },
+        article: {
+          onPatched: vi.fn((callback: (patch: ArticleStorePatch) => void) => {
+            emitArticlePatched = callback;
+            return vi.fn();
+          }),
+        },
       },
     });
 

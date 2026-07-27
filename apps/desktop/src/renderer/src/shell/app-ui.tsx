@@ -5,6 +5,7 @@ import type { ArticleRecord } from '@yomitomo/shared';
 import { articleExternalUrl, isImageAvatar, isSvgAvatar } from './app-utils';
 import { IconButton } from '../components/ui/icon-button';
 import { useTranslation } from 'react-i18next';
+import { getOptionalDesktopApi } from './app-desktop-api';
 
 export function CopyIconButton({ label, value }: { label: string; value: string }) {
   const { t } = useTranslation();
@@ -44,18 +45,17 @@ export function OpenArticleButton({
 
   async function open() {
     if (!url) return;
-    const desktop = window.yomitomoDesktop as typeof window.yomitomoDesktop & {
-      openUrl?: (url: string) => Promise<void>;
-    };
-    if (typeof desktop?.openUrl === 'function') {
-      try {
-        await desktop.openUrl(url);
-        return;
-      } catch {
-        window.open(url, '_blank', 'noopener,noreferrer');
-      }
+    const openUrl = getOptionalDesktopApi()?.app?.openUrl;
+    if (!openUrl) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return;
     }
-    window.open(url, '_blank', 'noopener,noreferrer');
+    try {
+      await openUrl(url);
+      return;
+    } catch {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
   }
 
   if (iconOnly) {

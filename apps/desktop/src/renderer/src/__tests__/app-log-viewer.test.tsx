@@ -91,7 +91,29 @@ function installDesktopAboutApi() {
 
   Object.defineProperty(window, 'yomitomoDesktop', {
     configurable: true,
-    value: desktop,
+    value: {
+      app: {
+        getInfo: desktop.getAppInfo,
+        openUrl: desktop.openUrl,
+      },
+      diagnostics: {
+        agentTraces: {
+          clear: desktop.clearAgentRuntimeTraces,
+          getPath: desktop.getAgentRuntimeTracePath,
+          list: desktop.listAgentRuntimeTraces,
+        },
+      },
+      store: {
+        saveSettings: desktop.saveSettings,
+      },
+      updates: {
+        check: desktop.checkForUpdates,
+        download: desktop.downloadUpdate,
+        getStatus: desktop.getUpdateStatus,
+        install: desktop.installUpdate,
+        onStatus: desktop.onUpdateStatus,
+      },
+    },
   });
 
   return desktop;

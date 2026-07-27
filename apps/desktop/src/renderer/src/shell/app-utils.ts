@@ -10,6 +10,7 @@ import { annotationAuthorName } from '@yomitomo/core';
 import i18next from 'i18next';
 
 import { changeAppI18nLanguage } from '../i18n/app-i18n';
+import { getOptionalDesktopApi } from './app-desktop-api';
 import { writeCachedUiLanguage } from '../i18n/app-language-cache';
 
 export type LogEntry = {
@@ -129,10 +130,8 @@ export function elapsedMs(startedAt: number) {
 }
 
 export function recordStartupTiming(event: string, data: Record<string, unknown> = {}) {
-  const desktop = window.yomitomoDesktop;
-  if (!desktop?.recordPerformanceTiming) return;
-  void desktop
-    .recordPerformanceTiming({
+  void getOptionalDesktopApi()
+    ?.diagnostics?.recordPerformanceTiming?.({
       event: `startup.${event}`,
       data: {
         rendererElapsedMs: elapsedMs(0),
@@ -143,9 +142,9 @@ export function recordStartupTiming(event: string, data: Record<string, unknown>
 }
 
 export function recordStatsTiming(event: string, data: Record<string, unknown>) {
-  const desktop = window.yomitomoDesktop;
-  if (!desktop?.recordPerformanceTiming) return;
-  void desktop.recordPerformanceTiming({ event: `stats.${event}`, data }).catch(() => undefined);
+  void getOptionalDesktopApi()
+    ?.diagnostics?.recordPerformanceTiming?.({ event: `stats.${event}`, data })
+    .catch(() => undefined);
 }
 
 export function applySavedSettings(

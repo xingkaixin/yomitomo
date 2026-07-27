@@ -84,17 +84,19 @@ export async function probeDesktopPreload(page: Page): Promise<DesktopPreloadPro
     const desktop = (
       window as typeof window & {
         yomitomoDesktop?: {
-          getAppInfo?: () => Promise<{ desktopVersion?: string }>;
-          showMainWindow?: () => void;
+          app?: {
+            getInfo?: () => Promise<{ desktopVersion?: string }>;
+            showMainWindow?: () => void;
+          };
         };
       }
     ).yomitomoDesktop;
     const root = document.getElementById('root');
     return {
-      appInfo: typeof desktop?.getAppInfo === 'function' ? await desktop.getAppInfo() : null,
+      appInfo: typeof desktop?.app?.getInfo === 'function' ? await desktop.app.getInfo() : null,
       hasPreloadApi: Boolean(desktop),
       hasRendererSurface: Boolean(document.querySelector(surfaceSelector)),
-      hasShowMainWindow: typeof desktop?.showMainWindow === 'function',
+      hasShowMainWindow: typeof desktop?.app?.showMainWindow === 'function',
       rootHasContent: Boolean(
         root && (root.childElementCount > 0 || root.textContent?.trim().length),
       ),

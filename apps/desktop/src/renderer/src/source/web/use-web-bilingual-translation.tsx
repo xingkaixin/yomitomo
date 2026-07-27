@@ -8,6 +8,7 @@ import {
   scrollReaderSurfaceToRect,
 } from '@yomitomo/core';
 import { assistantRuntimeErrorMessage } from '../../shell/app-assistant-runtime-progress';
+import { getDesktopApi, getOptionalDesktopApi } from '../../shell/app-desktop-api';
 import { appToast } from '../../shell/app-toast';
 import {
   ReaderTranslationConfirmDialog,
@@ -317,7 +318,7 @@ export function useWebBilingualTranslation({
             ? new Set(options.sourceBlockIds)
             : null;
         if (retranslatedBlockIds) await deleteTranslationAnnotations(retranslatedBlockIds);
-        const nextTranslation = await window.yomitomoDesktop.translateArticle({
+        const nextTranslation = await getDesktopApi().article.translation.translate({
           articleId: article.id,
           force: options.force,
           sourceBlockIds: options.sourceBlockIds,
@@ -352,7 +353,7 @@ export function useWebBilingualTranslation({
     loadTokenRef.current += 1;
     try {
       await deleteTranslationAnnotations(currentTranslationBlockIds(translation));
-      await window.yomitomoDesktop.deleteCurrentArticleTranslation({
+      await getDesktopApi().article.translation.deleteCurrent({
         articleId: article.id,
         targetLanguage,
       });
@@ -380,8 +381,8 @@ export function useWebBilingualTranslation({
   useEffect(() => {
     if (article.sourceType !== 'web') return;
     const token = ++loadTokenRef.current;
-    void window.yomitomoDesktop
-      .getCurrentArticleTranslation({ articleId: article.id, targetLanguage })
+    void getDesktopApi()
+      .article.translation.getCurrent({ articleId: article.id, targetLanguage })
       .then((current) => {
         if (token !== loadTokenRef.current) return;
         if (current) receiveTranslation(current, 'initial-load');
@@ -396,8 +397,7 @@ export function useWebBilingualTranslation({
   }, [article.id, article.sourceType, receiveTranslation, targetLanguage]);
 
   useEffect(() => {
-    const subscribe = (window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop>)
-      .onArticleTranslationUpdated;
+    const subscribe = getOptionalDesktopApi()?.article?.translation?.onUpdated;
     if (!subscribe) return;
     return subscribe((nextTranslation) => receiveTranslation(nextTranslation, 'subscription'));
   }, [receiveTranslation]);

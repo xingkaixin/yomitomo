@@ -19,6 +19,7 @@ import {
   applyAssistantRuntimeProgress,
   assistantRuntimeErrorMessage,
 } from '../../shell/app-assistant-runtime-progress';
+import type { YomitomoDesktopApi } from '../../../../preload';
 
 type RunSourceAgentCommentRequestInput = {
   agent: PublicAgent;
@@ -29,7 +30,7 @@ type RunSourceAgentCommentRequestInput = {
   reviewTargetCommentId?: string;
   allowDisabledAgentForRule?: boolean;
   uiLanguage?: UiLanguage;
-  desktop: Pick<typeof window.yomitomoDesktop, 'requestAgentCommentStream'>;
+  desktop: Pick<YomitomoDesktopApi['agent'], 'requestCommentStream'>;
   currentArticle: ArticleRecord;
   articleText: string;
   annotationsRef: RefObject<Annotation[]>;
@@ -169,7 +170,7 @@ export async function runSourceAgentCommentRequest({
 
     let finalComment: AnnotationComment;
     try {
-      finalComment = await desktop.requestAgentCommentStream(
+      finalComment = await desktop.requestCommentStream(
         {
           agentId: agent.id,
           agentUsername: agent.username,

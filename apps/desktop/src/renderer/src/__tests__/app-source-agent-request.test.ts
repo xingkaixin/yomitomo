@@ -186,7 +186,7 @@ describe('runSourceAgentAnnotationRequest', () => {
       { article, annotations: [annotation] },
     );
     const secondAnnotation = { ...annotation, id: 'annotation_2' };
-    const requestAgentAnnotationsStream = vi.fn(async (_payload, onEvent) => {
+    const requestAnnotationsStream = vi.fn(async (_payload, onEvent) => {
       onEvent({ type: 'start' });
       onEvent({ type: 'item', annotation });
       onEvent({ type: 'item', annotation: secondAnnotation });
@@ -194,7 +194,7 @@ describe('runSourceAgentAnnotationRequest', () => {
     });
 
     const result = await runSourceAgentAnnotationRequest({
-      desktop: { requestAgentAnnotationsStream },
+      desktop: { requestAnnotationsStream },
       requestInput,
       onAnnotation: (streamAnnotation) => streamAnnotation.id === annotation.id,
     });
@@ -213,14 +213,14 @@ describe('runSourceAgentAnnotationRequest', () => {
     const firstHandling = createDeferred<boolean>();
     const secondHandling = createDeferred<boolean>();
     const handlingEvents: string[] = [];
-    const requestAgentAnnotationsStream = vi.fn(async (_payload, onEvent) => {
+    const requestAnnotationsStream = vi.fn(async (_payload, onEvent) => {
       onEvent({ type: 'item', annotation });
       onEvent({ type: 'item', annotation: secondAnnotation });
       return { annotations: [annotation, secondAnnotation], readingMemory };
     });
 
     const request = runSourceAgentAnnotationRequest({
-      desktop: { requestAgentAnnotationsStream },
+      desktop: { requestAnnotationsStream },
       requestInput,
       onAnnotation: async (streamAnnotation) => {
         handlingEvents.push(`start:${streamAnnotation.id}`);
@@ -274,7 +274,7 @@ describe('runSourceAgentAnnotationRequest', () => {
       if (streamAnnotation.id === failedAnnotation.id) throw persistenceError;
       return true;
     });
-    const requestAgentAnnotationsStream = vi.fn(async (_payload, onEvent) => {
+    const requestAnnotationsStream = vi.fn(async (_payload, onEvent) => {
       onEvent({ type: 'item', annotation });
       onEvent({ type: 'item', annotation: failedAnnotation });
       onEvent({ type: 'item', annotation: skippedAnnotation });
@@ -284,7 +284,7 @@ describe('runSourceAgentAnnotationRequest', () => {
 
     await expect(
       runSourceAgentAnnotationRequest({
-        desktop: { requestAgentAnnotationsStream },
+        desktop: { requestAnnotationsStream },
         requestInput,
         onAnnotation,
       }),
@@ -320,7 +320,7 @@ describe('prepareSourceAgentAnnotationRequestInput', () => {
         ],
       },
     ];
-    const planAgentMentionRoute = vi.fn().mockResolvedValue({
+    const planMentionRoute = vi.fn().mockResolvedValue({
       createUserThought: false,
       directives: [
         {
@@ -332,7 +332,7 @@ describe('prepareSourceAgentAnnotationRequestInput', () => {
     });
 
     const input = await prepareSourceAgentAnnotationRequestInput({
-      desktop: { planAgentMentionRoute },
+      desktop: { planMentionRoute },
       agent: agent(),
       agents: [agent()],
       options: { readingPlan },

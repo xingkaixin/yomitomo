@@ -30,7 +30,9 @@ describe('useAppLockController', () => {
       configurable: true,
       value: {
         platform: 'darwin',
-        setAppLockLocked: vi.fn().mockResolvedValue(lockedStore),
+        appLock: {
+          setLocked: vi.fn().mockResolvedValue(lockedStore),
+        },
       },
     });
 
@@ -40,7 +42,7 @@ describe('useAppLockController', () => {
       await latest.current?.lockApp();
     });
 
-    expect(window.yomitomoDesktop.setAppLockLocked).toHaveBeenCalledWith({ locked: true });
+    expect(window.yomitomoDesktop.appLock.setLocked).toHaveBeenCalledWith({ locked: true });
     expect(onStoreUpdated).toHaveBeenCalledWith(
       expect.objectContaining({
         articles: [],
@@ -58,10 +60,12 @@ describe('useAppLockController', () => {
       configurable: true,
       value: {
         platform: 'darwin',
-        unlockAppLock: vi
-          .fn()
-          .mockRejectedValueOnce({ code: 'APP_LOCK_PIN_INVALID', message: 'bad pin' })
-          .mockResolvedValueOnce(unlockedStore),
+        appLock: {
+          unlock: vi
+            .fn()
+            .mockRejectedValueOnce({ code: 'APP_LOCK_PIN_INVALID', message: 'bad pin' })
+            .mockResolvedValueOnce(unlockedStore),
+        },
       },
     });
 
@@ -90,7 +94,7 @@ describe('useAppLockController', () => {
       await latest.current?.unlockApp('1234');
     });
 
-    expect(window.yomitomoDesktop.unlockAppLock).toHaveBeenLastCalledWith({ pin: '1234' });
+    expect(window.yomitomoDesktop.appLock.unlock).toHaveBeenLastCalledWith({ pin: '1234' });
     expect(onStoreUpdated).toHaveBeenCalledWith(unlockedStore);
   });
 
@@ -101,11 +105,13 @@ describe('useAppLockController', () => {
       configurable: true,
       value: {
         platform: 'darwin',
-        unlockAppLock: vi.fn().mockRejectedValue({
-          code: 'APP_LOCK_RATE_LIMITED',
-          detail: { retryAfterMs: 2_001 },
-          message: 'APP_LOCK_RATE_LIMITED',
-        }),
+        appLock: {
+          unlock: vi.fn().mockRejectedValue({
+            code: 'APP_LOCK_RATE_LIMITED',
+            detail: { retryAfterMs: 2_001 },
+            message: 'APP_LOCK_RATE_LIMITED',
+          }),
+        },
       },
     });
 

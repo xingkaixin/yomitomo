@@ -207,9 +207,17 @@ function installMockFoliateEnvironment(pageCounts: number[], visibleViewCount = 
   Object.defineProperty(window, 'yomitomoDesktop', {
     configurable: true,
     value: {
-      openUrl: vi.fn(),
-      readEbookFile: vi.fn().mockResolvedValue(new ArrayBuffer(1)),
-      recordPerformanceTiming: vi.fn().mockResolvedValue(undefined),
+      app: {
+        openUrl: vi.fn(),
+      },
+      article: {
+        ebook: {
+          readFile: vi.fn().mockResolvedValue(new ArrayBuffer(1)),
+        },
+      },
+      diagnostics: {
+        recordPerformanceTiming: vi.fn().mockResolvedValue(undefined),
+      },
     },
   });
   originalCreateElement = document.createElement.bind(document);
@@ -724,7 +732,7 @@ describe('useEbookFoliateView', () => {
     const recordPerformanceTiming = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
-      value: { recordPerformanceTiming },
+      value: { diagnostics: { recordPerformanceTiming } },
     });
     const rendererGoTo = vi.fn().mockResolvedValue(undefined);
 
@@ -779,7 +787,7 @@ describe('useEbookFoliateView', () => {
     const recordPerformanceTiming = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
-      value: { recordPerformanceTiming },
+      value: { diagnostics: { recordPerformanceTiming } },
     });
     const rendererGoTo = vi.fn().mockResolvedValue(undefined);
     const stablePageInfo: FoliatePageInfo = { sectionIndex: 2, pageIndex: 4, pageCount: 9 };

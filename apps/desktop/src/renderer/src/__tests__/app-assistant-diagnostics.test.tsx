@@ -136,7 +136,15 @@ function installDiagnosticsApi() {
 
   Object.defineProperty(window, 'yomitomoDesktop', {
     configurable: true,
-    value: desktop,
+    value: {
+      diagnostics: {
+        assistantExecutions: {
+          getDetail: desktop.getAssistantExecutionDetail,
+          list: desktop.listAssistantExecutions,
+          summarize: desktop.summarizeAssistantExecutions,
+        },
+      },
+    },
   });
 
   return desktop;

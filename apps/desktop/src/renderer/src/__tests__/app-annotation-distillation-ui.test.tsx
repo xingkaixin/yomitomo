@@ -1559,7 +1559,24 @@ function installDesktopApi(sourceArticle: ArticleRecord) {
   };
   Object.defineProperty(window, 'yomitomoDesktop', {
     configurable: true,
-    value: desktop,
+    value: {
+      platform: 'darwin',
+      agent: {
+        requestDistillationReviewStream: desktop.requestAgentDistillationReviewStream,
+      },
+      annotations: {
+        sedimentation: {
+          commit: desktop.commitAnnotationSedimentation,
+        },
+      },
+      article: {
+        get: desktop.getArticle,
+        saveAnnotationDistillation: desktop.saveArticleAnnotationDistillation,
+      },
+      store: {
+        getState: desktop.getState,
+      },
+    },
   });
   return desktop;
 }

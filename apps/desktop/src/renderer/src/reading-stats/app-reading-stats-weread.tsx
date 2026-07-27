@@ -17,6 +17,7 @@ import { errorMessageOrFallback, formatDateTimeValue } from '@yomitomo/shared';
 import { Button } from '../components/ui/button';
 import { SegmentedControl } from '../components/ui/segmented-control';
 import { appToast } from '../shell/app-toast';
+import { getDesktopApi } from '../shell/app-desktop-api';
 
 const MODES: WeReadReadingStatsMode[] = ['weekly', 'monthly', 'annually', 'overall'];
 
@@ -37,8 +38,8 @@ export function WeReadReadingStatsPanel() {
 
   useEffect(() => {
     let canceled = false;
-    void window.yomitomoDesktop
-      .getWeReadReadingStats()
+    void getDesktopApi()
+      .weRead.getReadingStats()
       .then((nextState) => {
         if (!canceled) setState(nextState);
       })
@@ -61,7 +62,7 @@ export function WeReadReadingStatsPanel() {
     setLoading(true);
     setMessage('');
     try {
-      const nextState = await window.yomitomoDesktop.queryWeReadReadingStats({
+      const nextState = await getDesktopApi().weRead.queryReadingStats({
         mode,
         ...(mode === 'overall' ? {} : { baseTime: activePeriodStart * 1000 }),
       });

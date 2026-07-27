@@ -4,6 +4,7 @@ import devPdfiumWasmUrl from '@embedpdf/pdfium/pdfium.wasm?url';
 import type { ArticleRecord } from '@yomitomo/shared';
 import i18next from 'i18next';
 import { rendererPerformanceElapsedMs } from '../../shell/app-renderer-performance';
+import { getDesktopApi } from '../../shell/app-desktop-api';
 import {
   pdfiumFontFallback,
   pdfOpenTrace,
@@ -16,7 +17,7 @@ type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']>
 export function usePdfiumDocumentSource(article: PdfArticleRecord) {
   const wasmUrl = import.meta.env.DEV
     ? devPdfiumWasmUrl
-    : use(window.yomitomoDesktop.readPdfiumWasmUrl());
+    : use(getDesktopApi().app.readPdfiumWasmUrl());
   const openTraceRef = useRef(pdfOpenTrace(article.id));
   const recordedOpenPhasesRef = useRef(new Set<string>());
   const [buffer, setBuffer] = useState<ArrayBuffer | null>(null);
@@ -64,8 +65,8 @@ export function usePdfiumDocumentSource(article: PdfArticleRecord) {
       fileSize: article.pdf.metadata.fileSize,
     });
 
-    void window.yomitomoDesktop
-      .readPdfFile(article.id)
+    void getDesktopApi()
+      .article.pdf.readFile(article.id)
       .then((data) => {
         if (!cancelled) {
           setBuffer(data);

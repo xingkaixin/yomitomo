@@ -10,6 +10,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DistillationLibraryItem, DistillationLibraryListResult } from '../../../ipc-contract';
+import { getDesktopApi } from '../shell/app-desktop-api';
 
 const PAGE_SIZE = 12;
 const SEARCH_DEBOUNCE_MS = 180;
@@ -51,9 +52,7 @@ export function DistillationLibrary({
   }, [query]);
 
   useEffect(() => {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop?.onAnnotationDistillationCommitted) return;
-    return desktop.onAnnotationDistillationCommitted(() => {
+    return getDesktopApi().annotations.onDistillationCommitted(() => {
       setRefreshVersion((version) => version + 1);
     });
   }, []);
@@ -61,8 +60,8 @@ export function DistillationLibrary({
   useEffect(() => {
     const requestId = ++requestIdRef.current;
     setLoadState((current) => ({ status: 'loading', result: current.result }));
-    void window.yomitomoDesktop
-      .listDistillationLibrary({ page, pageSize: PAGE_SIZE, query: searchQuery })
+    void getDesktopApi()
+      .library.distillations.list({ page, pageSize: PAGE_SIZE, query: searchQuery })
       .then((result) => {
         if (requestId !== requestIdRef.current) return;
         setLoadState({ status: 'ready', result });

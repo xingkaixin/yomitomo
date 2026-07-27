@@ -91,7 +91,12 @@ function installDesktopApi(desktop: {
 }) {
   Object.defineProperty(window, 'yomitomoDesktop', {
     configurable: true,
-    value: desktop,
+    value: {
+      article: {
+        get: desktop.getArticle,
+        onPatched: desktop.onArticlePatched,
+      },
+    },
   });
 }
 

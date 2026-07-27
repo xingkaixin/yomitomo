@@ -88,7 +88,7 @@ describe('planSelectionMentionRoute', () => {
   };
 
   it('does not call the gate without mentioned agents', async () => {
-    const desktop = { planAgentMentionRoute: vi.fn() };
+    const desktop = { planMentionRoute: vi.fn() };
     const route = await planSelectionMentionRoute({
       desktop,
       note: '我的想法',
@@ -98,7 +98,7 @@ describe('planSelectionMentionRoute', () => {
     });
 
     expect(route).toEqual({ createUserThought: true, directives: [] });
-    expect(desktop.planAgentMentionRoute).not.toHaveBeenCalled();
+    expect(desktop.planMentionRoute).not.toHaveBeenCalled();
   });
 
   it('does not create a user thought for pure mentions when the gate is unavailable', async () => {
@@ -147,7 +147,7 @@ describe('routeFocusReadingPlanMessages', () => {
         },
       ],
     };
-    const desktop = { planAgentMentionRoute: vi.fn(async () => route) };
+    const desktop = { planMentionRoute: vi.fn(async () => route) };
 
     const readingPlan = await routeFocusReadingPlanMessages({
       desktop,
@@ -170,7 +170,7 @@ describe('routeFocusReadingPlanMessages', () => {
     });
 
     expect(readingPlan[0]?.messages?.map((message) => message.content)).toEqual(['提出反方想法']);
-    expect(desktop.planAgentMentionRoute).toHaveBeenCalledWith(
+    expect(desktop.planMentionRoute).toHaveBeenCalledWith(
       expect.objectContaining({
         allowedActions: ['create_thought'],
         agents: [lin, zhou],

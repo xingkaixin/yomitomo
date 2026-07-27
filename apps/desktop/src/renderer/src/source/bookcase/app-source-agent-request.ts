@@ -16,6 +16,7 @@ import {
   routeFocusReadingPlanMessages,
   targetAnchorReadingPlan,
 } from './app-source-agent-mention-request';
+import type { YomitomoDesktopApi } from '../../../../preload';
 
 export type SourceAgentAnnotationRequestOptions = {
   annotationType?: AnnotationType;
@@ -45,10 +46,7 @@ export type SourceAgentAnnotationRequestInput = {
   shouldSaveReadingMemory: boolean;
 };
 
-type SourceAgentAnnotationRequester = Pick<
-  typeof window.yomitomoDesktop,
-  'requestAgentAnnotationsStream'
->;
+type SourceAgentAnnotationRequester = Pick<YomitomoDesktopApi['agent'], 'requestAnnotationsStream'>;
 
 type AnnotationHandlingState = { status: 'accepting' } | { status: 'failed'; error: unknown };
 
@@ -159,9 +157,9 @@ export async function runSourceAgentAnnotationRequest({
 }) {
   let annotationCount = 0;
   let annotationHandling = Promise.resolve<AnnotationHandlingState>({ status: 'accepting' });
-  let result: Awaited<ReturnType<SourceAgentAnnotationRequester['requestAgentAnnotationsStream']>>;
+  let result: Awaited<ReturnType<SourceAgentAnnotationRequester['requestAnnotationsStream']>>;
   try {
-    result = await desktop.requestAgentAnnotationsStream(requestInput.payload, (event) => {
+    result = await desktop.requestAnnotationsStream(requestInput.payload, (event) => {
       if (event.type !== 'item') return;
       const annotation = localizedAgentAnnotation(requestInput.agent, event.annotation);
       annotationHandling = annotationHandling.then(async (state) => {

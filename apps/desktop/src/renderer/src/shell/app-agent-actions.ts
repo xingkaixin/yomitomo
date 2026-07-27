@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import type { Agent, DesktopStore } from '@yomitomo/shared';
 import type { AgentStorePatch } from '../../../ipc-contract';
 import i18next from 'i18next';
+import { getDesktopApi } from './app-desktop-api';
 
 type UseAppAgentActionsInput = {
   applySettingsPatch: (patch: AgentStorePatch) => DesktopStore;
@@ -13,13 +14,10 @@ export function useAppAgentActions({ applySettingsPatch }: UseAppAgentActionsInp
 
   const toggleAgent = useCallback(
     async (agent: Agent) => {
-      const desktop = window.yomitomoDesktop;
-      if (!desktop) return;
-
       setAgentSaveState('saving');
       try {
         applySettingsPatch(
-          await desktop.saveAgent({
+          await getDesktopApi().agent.save({
             ...agent,
             enabled: !agent.enabled,
           }),

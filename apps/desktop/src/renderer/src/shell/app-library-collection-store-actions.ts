@@ -8,6 +8,7 @@ import type {
 } from '@yomitomo/shared';
 import type { SetLibraryPinInput } from '../../../ipc-contract';
 import { appToast } from './app-toast';
+import { getDesktopApi } from './app-desktop-api';
 
 type DesktopStoreRef = { current: DesktopStore };
 type ApplyStore = (nextStore: DesktopStore) => DesktopStore;
@@ -40,9 +41,7 @@ export function useAppCollectionStoreActions({
 
   const createCollection = useCallback(
     async (name: string) => {
-      const desktop = window.yomitomoDesktop;
-      if (!desktop?.createCollection) throw collectionApiUnavailableError();
-      const result = await desktop.createCollection({ name });
+      const result = await getDesktopApi().library.collections.create({ name });
       applyCollectionPatch(result.patch);
       appToast.success(i18next.t('library.collection.createdToast'), {
         description: result.collection.name,
@@ -54,9 +53,9 @@ export function useAppCollectionStoreActions({
 
   const renameCollection = useCallback(
     async (collectionId: string, name: string) => {
-      const desktop = window.yomitomoDesktop;
-      if (!desktop?.renameCollection) throw collectionApiUnavailableError();
-      applyCollectionPatch(await desktop.renameCollection({ collectionId, name }));
+      applyCollectionPatch(
+        await getDesktopApi().library.collections.rename({ collectionId, name }),
+      );
       appToast.success(i18next.t('library.collection.renamedToast'), { description: name });
     },
     [applyCollectionPatch],
@@ -64,9 +63,7 @@ export function useAppCollectionStoreActions({
 
   const deleteCollection = useCallback(
     async (collectionId: string) => {
-      const desktop = window.yomitomoDesktop;
-      if (!desktop?.deleteCollection) throw collectionApiUnavailableError();
-      applyCollectionPatch(await desktop.deleteCollection(collectionId));
+      applyCollectionPatch(await getDesktopApi().library.collections.delete(collectionId));
       appToast.success(i18next.t('library.collection.deletedToast'));
     },
     [applyCollectionPatch],
@@ -74,9 +71,9 @@ export function useAppCollectionStoreActions({
 
   const addCollectionMembers = useCallback(
     async (collectionId: string, members: ContentRef[]) => {
-      const desktop = window.yomitomoDesktop;
-      if (!desktop?.addCollectionMembers) throw collectionApiUnavailableError();
-      applyCollectionPatch(await desktop.addCollectionMembers({ collectionId, members }));
+      applyCollectionPatch(
+        await getDesktopApi().library.collections.addMembers({ collectionId, members }),
+      );
       appToast.success(
         i18next.t('library.collection.membersAddedToast', { count: members.length }),
       );
@@ -86,9 +83,9 @@ export function useAppCollectionStoreActions({
 
   const removeCollectionMember = useCallback(
     async (collectionId: string, member: ContentRef) => {
-      const desktop = window.yomitomoDesktop;
-      if (!desktop?.removeCollectionMember) throw collectionApiUnavailableError();
-      applyCollectionPatch(await desktop.removeCollectionMember({ collectionId, member }));
+      applyCollectionPatch(
+        await getDesktopApi().library.collections.removeMember({ collectionId, member }),
+      );
       appToast.success(i18next.t('library.collection.memberRemovedToast'));
     },
     [applyCollectionPatch],
@@ -96,9 +93,7 @@ export function useAppCollectionStoreActions({
 
   const setLibraryPin = useCallback(
     async (input: SetLibraryPinInput) => {
-      const desktop = window.yomitomoDesktop;
-      if (!desktop?.setLibraryPin) throw collectionApiUnavailableError();
-      applyPinPatch(await desktop.setLibraryPin(input));
+      applyPinPatch(await getDesktopApi().library.pins.set(input));
     },
     [applyPinPatch],
   );
@@ -175,8 +170,4 @@ function applyCollectionMembersPatch(
       ...store.collectionMembers.filter((member) => member.collectionId !== collectionId),
     ],
   };
-}
-
-function collectionApiUnavailableError() {
-  return new Error(i18next.t('library.collection.apiUnavailable'));
 }

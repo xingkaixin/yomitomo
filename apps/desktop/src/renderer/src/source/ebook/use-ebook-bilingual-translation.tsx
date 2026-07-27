@@ -6,6 +6,7 @@ import {
   extractBilingualTranslationBlocks,
 } from '@yomitomo/core';
 import { assistantRuntimeErrorMessage } from '../../shell/app-assistant-runtime-progress';
+import { getDesktopApi, getOptionalDesktopApi } from '../../shell/app-desktop-api';
 import { appToast } from '../../shell/app-toast';
 import type { EbookArticleRecord } from '../bookcase/app-source-bookcase';
 import {
@@ -120,7 +121,7 @@ export function useEbookBilingualTranslation({
       });
 
       try {
-        const nextTranslation = await window.yomitomoDesktop.translateArticle({
+        const nextTranslation = await getDesktopApi().article.translation.translate({
           articleId: article.id,
           force: options.force,
           sourceBlockIds: options.sourceBlockIds,
@@ -157,7 +158,7 @@ export function useEbookBilingualTranslation({
     async (activeSource: ActiveEbookTranslationSource) => {
       const token = ++loadTokenRef.current;
       try {
-        const current = await window.yomitomoDesktop.getCurrentArticleTranslation({
+        const current = await getDesktopApi().article.translation.getCurrent({
           articleId: article.id,
           sourceId: activeSource.sourceId,
           targetLanguage,
@@ -238,8 +239,7 @@ export function useEbookBilingualTranslation({
   }, [article.id]);
 
   useEffect(() => {
-    const subscribe = (window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined)
-      ?.onArticleTranslationUpdated;
+    const subscribe = getOptionalDesktopApi()?.article?.translation?.onUpdated;
     if (!subscribe) return;
     return subscribe((nextTranslation) => {
       if (nextTranslation.articleId !== article.id) return;
@@ -276,7 +276,7 @@ export function useEbookBilingualTranslation({
     if (!sourceId || busy) return;
     setBusy(true);
     try {
-      await window.yomitomoDesktop.deleteCurrentArticleTranslation({
+      await getDesktopApi().article.translation.deleteCurrent({
         articleId: article.id,
         sourceId,
         targetLanguage,

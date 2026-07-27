@@ -113,7 +113,7 @@ describe('runSourceAgentCommentRequest', () => {
     });
     const saveComment = saveCommentMock(annotationsRef);
     const desktop = {
-      requestAgentCommentStream: vi.fn(async () => {
+      requestCommentStream: vi.fn(async () => {
         throw new Error('network failed');
       }),
     };
@@ -169,7 +169,7 @@ describe('runSourceAgentCommentRequest', () => {
       pending: true,
     };
     const desktop = {
-      requestAgentCommentStream: vi.fn(async (_payload, onEvent) => {
+      requestCommentStream: vi.fn(async (_payload, onEvent) => {
         onEvent({ type: 'start', comment: pendingAgentComment });
         onEvent({
           type: 'progress',
@@ -218,7 +218,7 @@ describe('runSourceAgentCommentRequest', () => {
     });
     const saveComment = saveCommentMock(annotationsRef);
     const desktop = {
-      requestAgentCommentStream: vi.fn(async (_payload, onEvent) => {
+      requestCommentStream: vi.fn(async (_payload, onEvent) => {
         const pendingReply = annotationsRef.current[0]?.comments.find(
           (item) => item.author.kind === 'agent',
         );
@@ -263,7 +263,7 @@ describe('runSourceAgentCommentRequest', () => {
     });
 
     expect(applyAnnotations.mock.invocationCallOrder[0]).toBeLessThan(
-      desktop.requestAgentCommentStream.mock.invocationCallOrder[0],
+      desktop.requestCommentStream.mock.invocationCallOrder[0],
     );
     expect(annotationsRef.current[0]?.comments).toContainEqual(
       expect.objectContaining({
@@ -303,7 +303,7 @@ describe('runSourceAgentCommentRequest', () => {
       pending: false,
     };
     const desktop = {
-      requestAgentCommentStream: vi.fn(async (_payload, onEvent) => {
+      requestCommentStream: vi.fn(async (_payload, onEvent) => {
         onEvent({ type: 'start', comment: pendingAgentComment });
         annotationsRef.current = [targetAnnotation];
         onEvent({ type: 'delta', delta: '我会先看' });
@@ -354,7 +354,7 @@ describe('runSourceAgentCommentRequest', () => {
       pending: true,
     };
     const desktop = {
-      requestAgentCommentStream: vi.fn(async (_payload, onEvent) => {
+      requestCommentStream: vi.fn(async (_payload, onEvent) => {
         onEvent({ type: 'start', comment: pendingAgentComment });
         onEvent({
           type: 'progress',
@@ -425,7 +425,7 @@ describe('runSourceAgentCommentRequest', () => {
       pending: true,
     };
     const desktop = {
-      requestAgentCommentStream: vi.fn(async (_payload, onEvent) => {
+      requestCommentStream: vi.fn(async (_payload, onEvent) => {
         onEvent({ type: 'start', comment: pendingAgentComment });
         annotationsRef.current = [{ ...targetAnnotation, comments: [] }];
         onEvent({ type: 'delta', delta: '不应该恢复' });
@@ -471,7 +471,7 @@ describe('runSourceAgentCommentRequest', () => {
       pending: true,
     };
     const desktop = {
-      requestAgentCommentStream: vi.fn(async (_payload, onEvent) => {
+      requestCommentStream: vi.fn(async (_payload, onEvent) => {
         onEvent({ type: 'start', comment: pendingAgentComment });
         return {
           ...pendingAgentComment,
@@ -495,7 +495,7 @@ describe('runSourceAgentCommentRequest', () => {
       setStatusMessage: vi.fn(),
     });
 
-    expect(desktop.requestAgentCommentStream.mock.calls[0]?.[0]).toEqual(
+    expect(desktop.requestCommentStream.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({ reviewTargetCommentId: rootComment.id }),
     );
     expect(annotationsRef.current[0]?.comments).toContainEqual(

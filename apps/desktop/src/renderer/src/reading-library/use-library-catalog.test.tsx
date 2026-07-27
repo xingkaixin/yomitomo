@@ -20,7 +20,7 @@ it('invalidates the current catalog page when an article patch changes the shell
     totalCount: 0,
     unfilteredCount: 0,
   }));
-  vi.stubGlobal('yomitomoDesktop', { listLibraryCatalog });
+  vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listLibraryCatalog } } });
   const view = render(<Harness articles={[]} />);
   await waitFor(() => expect(listLibraryCatalog).toHaveBeenCalledOnce());
 
@@ -35,7 +35,7 @@ it('does not expose the previous catalog while a new scope is loading', async ()
     .fn()
     .mockResolvedValueOnce(catalogResult('library'))
     .mockReturnValueOnce(collectionResult.promise);
-  vi.stubGlobal('yomitomoDesktop', { listLibraryCatalog });
+  vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listLibraryCatalog } } });
   const view = render(<ResultHarness scope={{ kind: 'library' }} />);
   await screen.findByText('library:ready');
 
@@ -53,7 +53,7 @@ it('keeps the last good result and exposes an explicit refresh error', async () 
     .fn()
     .mockResolvedValueOnce(catalogResult('first'))
     .mockReturnValueOnce(refresh.promise);
-  vi.stubGlobal('yomitomoDesktop', { listLibraryCatalog });
+  vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listLibraryCatalog } } });
   const view = render(<ResultHarness scope={{ kind: 'library' }} query="first" />);
   await screen.findByText('first:ready');
 

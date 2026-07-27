@@ -14,8 +14,14 @@ beforeEach(() => {
   Object.defineProperty(window, 'yomitomoDesktop', {
     configurable: true,
     value: {
-      listDistillationLibrary,
-      onAnnotationDistillationCommitted: vi.fn(),
+      annotations: {
+        onDistillationCommitted: vi.fn(),
+      },
+      library: {
+        distillations: {
+          list: listDistillationLibrary,
+        },
+      },
     },
   });
 });

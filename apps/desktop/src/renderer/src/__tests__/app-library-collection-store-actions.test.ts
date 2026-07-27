@@ -37,7 +37,9 @@ describe('useAppCollectionStoreActions', () => {
     };
     const patch = { type: 'collection-upsert' as const, collection };
     const createCollection = vi.fn().mockResolvedValue({ collection, patch });
-    const { actions, applyStore, storeRef } = renderActions({ createCollection });
+    const { actions, applyStore, storeRef } = renderActions({
+      library: { collections: { create: createCollection } },
+    });
 
     let result!: Awaited<ReturnType<typeof actions.current.createCollection>>;
     await act(async () => {
@@ -64,7 +66,9 @@ describe('useAppCollectionStoreActions', () => {
       },
     };
     const setLibraryPin = vi.fn().mockResolvedValue(patch);
-    const { actions, applyStore, storeRef } = renderActions({ setLibraryPin });
+    const { actions, applyStore, storeRef } = renderActions({
+      library: { pins: { set: setLibraryPin } },
+    });
     const input = { target: { kind: 'article' as const, id: 'article_1' }, pinned: true };
 
     await act(async () => {

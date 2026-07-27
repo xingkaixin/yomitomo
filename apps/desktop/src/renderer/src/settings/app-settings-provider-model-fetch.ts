@@ -3,7 +3,7 @@ import { providerPresets } from '@yomitomo/shared';
 import type { ProviderDraft } from './app-settings';
 import { appToast } from '../shell/app-toast';
 import { useTranslation } from 'react-i18next';
-import { appSettingsActions } from './app-settings-actions';
+import { getDesktopApi } from '../shell/app-desktop-api';
 
 export function useProviderModelFetch(
   draft: ProviderDraft,
@@ -54,7 +54,7 @@ export function useProviderModelFetch(
     setModelError('');
     setModelNotice('');
     try {
-      const models = await appSettingsActions.listProviderModels(draft);
+      const models = await getDesktopApi().provider.listModels(draft);
       const names = models.map((model) => model.id).filter(Boolean);
       setModelOptions(names);
       setModelNotice(

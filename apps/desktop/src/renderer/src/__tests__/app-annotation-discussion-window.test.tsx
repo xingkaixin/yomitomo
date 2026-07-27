@@ -493,7 +493,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     expect(screen.queryByText('助手回复中')).toBeNull();
     expect(screen.queryByText('回复发送失败')).toBeNull();
     expect(desktop.saveArticleComment).toHaveBeenCalledTimes(2);
-    expect(desktop.saveArticleComment.mock.calls[1]?.[2]).toEqual(
+    expect(desktop.saveArticleComment.mock.calls[1]?.[0].comment).toEqual(
       expect.objectContaining({
         author: expect.objectContaining({ kind: 'agent' }),
         content: '请先为供应商配置 API Key。',
@@ -728,7 +728,25 @@ function installDesktopApi(
   };
   Object.defineProperty(window, 'yomitomoDesktop', {
     configurable: true,
-    value: desktop,
+    value: {
+      platform: 'darwin',
+      agent: {
+        planMentionRoute: desktop.planAgentMentionRoute,
+        requestCommentStream: desktop.requestAgentCommentStream,
+      },
+      annotations: {
+        sedimentation: {
+          open: desktop.openAnnotationSedimentation,
+        },
+      },
+      article: {
+        get: desktop.getArticle,
+        saveComment: desktop.saveArticleComment,
+      },
+      store: {
+        getState: desktop.getState,
+      },
+    },
   });
   return desktop;
 }

@@ -19,6 +19,7 @@ import {
   applyCollectionStorePatch,
   applyLibraryPinPatch,
 } from './app-library-collection-store-actions';
+import { getDesktopApi, getOptionalDesktopApi } from './app-desktop-api';
 
 export function useDesktopStoreState() {
   const [store, setStore] = useState<DesktopStore>(emptyDesktopStore);
@@ -40,13 +41,12 @@ export function useDesktopStoreState() {
   );
 
   const refreshStore = useCallback(async () => {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop) return null;
+    const desktop = getDesktopApi();
     const startedAt = performance.now();
     recordStartupTiming('store.refresh_start');
 
     try {
-      const result = await desktop.getStateResult();
+      const result = await desktop.store.getStateResult();
       if (!result.ok) {
         recordStartupTiming('store.refresh_error', {
           durationMs: elapsedMs(startedAt),
@@ -71,7 +71,7 @@ export function useDesktopStoreState() {
       let refreshError = error;
       if (isDesktopIpcErrorLike(error) && error.code === 'APP_LOCK_REQUIRED') {
         try {
-          const nextStore = lockedRendererStoreFromStatus(await desktop.getAppLockStatus());
+          const nextStore = lockedRendererStoreFromStatus(await desktop.appLock.getStatus());
           const rendererStore = applyStore(nextStore);
           setStoreSyncSnapshot(rendererStore);
           setStoreLoadError(null);
@@ -95,18 +95,18 @@ export function useDesktopStoreState() {
   }, [applyStore]);
 
   useEffect(() => {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop) return;
+    const desktop = getDesktopApi();
 
     void refreshStore();
-    const offStoreUpdated = desktop.onStoreUpdated((nextStore) => {
+    const offStoreUpdated = desktop.store.onUpdated((nextStore) => {
       const rendererStore = applyStore(nextStore);
       setStoreSyncSnapshot(rendererStore);
       setStoreLoadError(null);
       setStoreLoaded(true);
     });
+    const optionalDesktop = getOptionalDesktopApi();
     const offArticlePatched =
-      desktop.onArticlePatched?.((patch) => {
+      optionalDesktop?.article?.onPatched?.((patch) => {
         if (isAppLockSettingsLocked(storeRef.current.settings)) return;
         const nextStore = applyArticleStorePatch(storeRef.current, patch);
         applyStore(nextStore);
@@ -114,7 +114,7 @@ export function useDesktopStoreState() {
         setStoreLoaded(true);
       }) || (() => undefined);
     const offCollectionPatched =
-      desktop.onCollectionPatched?.((patch) => {
+      optionalDesktop?.library?.collections?.onPatched?.((patch) => {
         if (isAppLockSettingsLocked(storeRef.current.settings)) return;
         const nextStore = applyCollectionStorePatch(storeRef.current, patch);
         applyStore(nextStore);
@@ -122,7 +122,7 @@ export function useDesktopStoreState() {
         setStoreLoaded(true);
       }) || (() => undefined);
     const offLibraryPinPatched =
-      desktop.onLibraryPinPatched?.((patch) => {
+      optionalDesktop?.library?.pins?.onPatched?.((patch) => {
         if (isAppLockSettingsLocked(storeRef.current.settings)) return;
         const nextStore = applyLibraryPinPatch(storeRef.current, patch);
         applyStore(nextStore);

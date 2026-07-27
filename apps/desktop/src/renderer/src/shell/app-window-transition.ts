@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import type { WindowAnimationSourceRect } from '../../../ipc-contract';
+import { getOptionalDesktopApi } from './app-desktop-api';
 
 type SourceAwareWindowStyle = CSSProperties & {
   '--annotation-window-origin-x': string;
@@ -13,7 +14,7 @@ export function useSourceAwareWindowTransition(params: URLSearchParams) {
   const [closing, setClosing] = useState(false);
 
   useEffect(() => {
-    return window.yomitomoDesktop.onAnnotationWindowClosing?.(() => setClosing(true));
+    return getOptionalDesktopApi()?.annotations?.onWindowClosing?.(() => setClosing(true));
   }, []);
 
   return {
