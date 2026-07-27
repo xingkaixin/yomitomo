@@ -9,7 +9,11 @@ import type {
 import i18next from 'i18next';
 import { makeId } from '@yomitomo/shared';
 import type { RefObject } from 'react';
-import { appendAnnotationComment, updateAnnotationComment } from '@yomitomo/core';
+import {
+  annotationAgentAuthorRef,
+  appendAnnotationComment,
+  updateAnnotationComment,
+} from '@yomitomo/core';
 import { promptArticle } from './source-prompt-article';
 import {
   applyAssistantRuntimeProgress,
@@ -122,7 +126,7 @@ export async function runSourceAgentCommentRequest({
     const failedComment = localizedAgentComment(agent, {
       ...(baseComment || {
         id: pendingCommentId || makeId('comment'),
-        author: 'ai' as const,
+        author: annotationAgentAuthorRef(agent),
         content: '',
         createdAt: new Date().toISOString(),
       }),
@@ -146,15 +150,10 @@ export async function runSourceAgentCommentRequest({
   try {
     const placeholderComment: AnnotationComment = {
       id: makeId('comment'),
-      author: 'ai',
+      author: annotationAgentAuthorRef(agent),
       content: '',
       createdAt: new Date().toISOString(),
       replyTo: replyTargetId,
-      agentId: agent.id,
-      agentUsername: agent.username,
-      agentNickname: agent.nickname,
-      agentAvatar: agent.avatar,
-      agentAnnotationColor: agent.annotationColor,
       readingIntent: readingIntent || annotation.readingIntent || userComment.readingIntent,
       pending: true,
     };
@@ -274,11 +273,7 @@ export async function runSourceAgentCommentRequest({
 function localizedAgentComment(agent: PublicAgent, comment: AnnotationComment): AnnotationComment {
   return {
     ...comment,
-    agentId: agent.id,
-    agentUsername: agent.username,
-    agentNickname: agent.nickname,
-    agentAvatar: agent.avatar,
-    agentAnnotationColor: agent.annotationColor,
+    author: annotationAgentAuthorRef(agent),
   };
 }
 

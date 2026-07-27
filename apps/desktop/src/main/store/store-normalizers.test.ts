@@ -514,7 +514,10 @@ describe('store normalizers annotation and chat records', () => {
       updatedAt: '2026-06-11T00:00:00.000Z',
     } as Parameters<typeof rowToComment>[0]);
     expect(comment).toMatchObject({
-      author: 'user',
+      author: {
+        kind: 'user',
+        username: 'reader',
+      },
       readingIntent: undefined,
       reviewLabel: undefined,
       assistantProgress: undefined,
@@ -594,7 +597,11 @@ describe('store normalizers annotation and chat records', () => {
     );
 
     expect(annotation).toMatchObject({
-      author: 'ai',
+      author: {
+        kind: 'agent',
+        agentId: 'legacy-agent:annotation_1',
+        username: 'assistant',
+      },
       annotationType: undefined,
       readingIntent: 'connect',
       moveType: undefined,

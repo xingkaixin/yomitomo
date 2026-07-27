@@ -1039,23 +1039,39 @@ describe('desktop store articles', () => {
           ...annotationRecord('annotation_user_avatar', [
             {
               ...commentRecord('comment_user_avatar', '用户评论'),
-              userAvatar: 'stale-user-avatar',
+              author: {
+                kind: 'user',
+                userId: 'user-test',
+                username: 'reader',
+                avatar: 'stale-user-avatar',
+              },
             },
           ]),
-          userAvatar: 'stale-user-avatar',
+          author: {
+            kind: 'user',
+            userId: 'user-test',
+            username: 'reader',
+            avatar: 'stale-user-avatar',
+          },
         },
         {
           ...annotationRecord('annotation_agent_avatar', [
             {
               ...commentRecord('comment_agent_avatar', '助手评论'),
-              author: 'ai',
-              agentId: 'agent_avatar',
-              agentAvatar: 'stale-agent-avatar',
+              author: {
+                kind: 'agent',
+                agentId: 'agent_avatar',
+                username: 'assistant',
+                avatar: 'stale-agent-avatar',
+              },
             },
           ]),
-          author: 'ai',
-          agentId: 'agent_avatar',
-          agentAvatar: 'stale-agent-avatar',
+          author: {
+            kind: 'agent',
+            agentId: 'agent_avatar',
+            username: 'assistant',
+            avatar: 'stale-agent-avatar',
+          },
         },
       ],
     });
@@ -1082,21 +1098,21 @@ describe('desktop store articles', () => {
       expect.arrayContaining([
         expect.objectContaining({
           id: 'annotation_user_avatar',
-          userAvatar: 'current-user-avatar',
+          author: expect.objectContaining({ avatar: 'current-user-avatar' }),
           comments: [
             expect.objectContaining({
               id: 'comment_user_avatar',
-              userAvatar: 'current-user-avatar',
+              author: expect.objectContaining({ avatar: 'current-user-avatar' }),
             }),
           ],
         }),
         expect.objectContaining({
           id: 'annotation_agent_avatar',
-          agentAvatar: 'current-agent-avatar',
+          author: expect.objectContaining({ avatar: 'current-agent-avatar' }),
           comments: [
             expect.objectContaining({
               id: 'comment_agent_avatar',
-              agentAvatar: 'current-agent-avatar',
+              author: expect.objectContaining({ avatar: 'current-agent-avatar' }),
             }),
           ],
         }),
@@ -1573,9 +1589,8 @@ function annotationRecord(id: string, comments: Comment[]): Annotation {
       start: 0,
       end: 2,
     },
-    author: 'user',
+    author: { kind: 'user', userId: 'user-test', username: 'reader' },
     color: '#f59e0b',
-    userId: 'user-test',
     comments,
     createdAt: '2026-05-17T00:00:00.000Z',
     updatedAt: '2026-05-17T00:00:00.000Z',
@@ -1585,10 +1600,9 @@ function annotationRecord(id: string, comments: Comment[]): Annotation {
 function commentRecord(id: string, content: string): Comment {
   return {
     id,
-    author: 'user',
+    author: { kind: 'user', userId: 'user-test', username: 'reader' },
     content,
     createdAt: '2026-05-17T00:00:00.000Z',
-    userId: 'user-test',
   };
 }
 

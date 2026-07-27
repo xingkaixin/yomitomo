@@ -59,12 +59,12 @@ function article(overrides: Partial<WebArticleRecord> = {}): WebArticleRecord {
           start: 0,
           end: 2,
         },
-        author: 'user',
+        author: { kind: 'user', username: 'reader' },
         color: '#f4c95d',
         comments: [
           {
             id: 'comment_1',
-            author: 'ai',
+            author: { kind: 'agent', agentId: 'agent_1', username: 'assistant' },
             content: 'AI 评论',
             createdAt: now,
           },

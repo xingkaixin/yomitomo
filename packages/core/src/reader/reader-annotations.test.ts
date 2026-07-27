@@ -23,7 +23,7 @@ function annotation(id: string, start: number, patch: Partial<Annotation> = {}):
       start,
       end: start + id.length,
     },
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     color: '#f4c95d',
     comments: [],
     createdAt: '2026-05-04T00:00:00.000Z',
@@ -43,7 +43,14 @@ describe('reader annotation stats', () => {
           distillation: { status: 'published', content: '沉淀' },
         }),
         annotation('c', 20, { color: '#222222' }),
-        annotation('d', 39, { agentAnnotationColor: '#333333' }),
+        annotation('d', 39, {
+          author: {
+            kind: 'agent',
+            agentId: 'agent',
+            username: 'assistant',
+            annotationColor: '#333333',
+          },
+        }),
       ],
     );
 
@@ -68,19 +75,27 @@ describe('reader annotation stats', () => {
     expect(stats.get(0)).toEqual({ count: 1, colors: ['#f4c95d'], distillationCount: 0 });
   });
 
-  it('prefers agent and user stored colors before the base annotation color', () => {
+  it('prefers the author stored color before the base annotation color', () => {
     expect(
       annotationStoredColor(
         annotation('agent', 0, {
-          agentAnnotationColor: '#8ab6d6',
-          userAnnotationColor: '#f4c95d',
+          author: {
+            kind: 'agent',
+            agentId: 'agent',
+            username: 'assistant',
+            annotationColor: '#8ab6d6',
+          },
           color: '#111111',
         }),
       ),
     ).toBe('#8ab6d6');
-    expect(annotationStoredColor(annotation('user', 0, { userAnnotationColor: '#f4c95d' }))).toBe(
-      '#f4c95d',
-    );
+    expect(
+      annotationStoredColor(
+        annotation('user', 0, {
+          author: { kind: 'user', username: 'reader', annotationColor: '#f4c95d' },
+        }),
+      ),
+    ).toBe('#f4c95d');
     expect(annotationStoredColor(annotation('fallback', 0, { color: '' }))).toBe('#f4c95d');
   });
 });

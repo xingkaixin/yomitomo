@@ -6,6 +6,8 @@ import {
   type ReviewOpinionLabel,
 } from '@yomitomo/shared';
 import {
+  annotationAgentAuthorRef,
+  annotationAuthorName,
   buildCurrentChapterLexicalRelatedPassages,
   buildReadingContextBundle,
   selectionThreadSpoilerPolicy,
@@ -49,15 +51,10 @@ export async function runAgentReview(
 
   return opinions.map((opinion) => ({
     id: '',
-    author: 'ai',
+    author: annotationAgentAuthorRef(agent),
     content: opinion.content,
     createdAt: now,
     replyTo: opinion.thoughtId,
-    agentId: agent.id,
-    agentUsername: agent.username,
-    agentNickname: agent.nickname,
-    agentAvatar: agent.avatar,
-    agentAnnotationColor: agent.annotationColor,
     reviewLabel: opinion.label,
   }));
 }
@@ -132,10 +129,7 @@ function reviewThoughts(payload: AgentReviewPayload): ReviewThought[] {
   const roots = payload.annotation.comments.filter((comment) => !comment.replyTo);
   return roots.map((comment) => ({
     id: comment.id,
-    author:
-      comment.author === 'ai'
-        ? comment.agentNickname || comment.agentUsername || 'AI'
-        : comment.userNickname || '读者',
+    author: annotationAuthorName(comment.author),
     content: comment.content,
   }));
 }
@@ -149,7 +143,12 @@ function reviewableThoughtIds(payload: AgentReviewPayload, agent: Agent) {
 
 function reviewedThoughtIds(payload: AgentReviewPayload, agent: Agent) {
   return payload.annotation.comments.flatMap((comment) =>
-    comment.replyTo && comment.reviewLabel && comment.agentId === agent.id ? [comment.replyTo] : [],
+    comment.replyTo &&
+    comment.reviewLabel &&
+    comment.author.kind === 'agent' &&
+    comment.author.agentId === agent.id
+      ? [comment.replyTo]
+      : [],
   );
 }
 

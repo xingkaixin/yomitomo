@@ -38,7 +38,7 @@ describe('selection context pure utilities', () => {
 function comment(id: string, content: string, replyTo?: string): Comment {
   return {
     id,
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     content,
     createdAt: '2026-05-29T00:00:00.000Z',
     replyTo,

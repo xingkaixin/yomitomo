@@ -4,6 +4,8 @@ import * as corePublicApi from './index';
 const coreRuntimeExports = [
   'activeReadingMemoryEntries',
   'activeTocIndexForOffset',
+  'annotationAgentAuthorRef',
+  'annotationAuthorName',
   'annotationColor',
   'annotationHasPublishedDistillation',
   'annotationIdsAtHighlightPoint',
@@ -13,6 +15,7 @@ const coreRuntimeExports = [
   'annotationThoughtComments',
   'annotationThreadComments',
   'annotationToPublicAgent',
+  'annotationUserAuthorRef',
   'articleCounts',
   'articleHtmlWithBilingualTranslation',
   'annotationTypeLabel',

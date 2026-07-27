@@ -250,7 +250,7 @@ function annotationRecord(): Annotation {
   return {
     id: 'annotation_1',
     anchor: { exact: 'quote', prefix: '', suffix: '', start: 0, end: 5 },
-    author: 'ai',
+    author: { kind: 'agent', agentId: 'agent_1', username: 'assistant' },
     color: '#8a8f4f',
     comments: [],
     createdAt: '2026-07-15T04:30:00.000Z',

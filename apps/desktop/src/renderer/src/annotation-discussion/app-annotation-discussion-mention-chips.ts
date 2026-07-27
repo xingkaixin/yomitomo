@@ -68,7 +68,7 @@ function shouldUseAssistantNameFallback(
   agents: PublicAgent[],
   author: Comment['author'],
 ) {
-  return author === 'ai' && !hasMatchedAgentMention(content, agents);
+  return author.kind === 'agent' && !hasMatchedAgentMention(content, agents);
 }
 
 function mentionTextNodes(articleDocument: Document, root: DocumentFragment) {

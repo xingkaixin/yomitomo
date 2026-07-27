@@ -82,7 +82,7 @@ export function useAgentAnnotationQueue({
             agent: item.key,
             remaining: agentAnnotationQueueRef.current.count(),
           });
-          virtualReading.pauseVirtualReading(item.annotation.agentId);
+          virtualReading.pauseVirtualReading(item.key);
           await playAgentAnnotationPlayback({
             annotation: item.annotation,
             articleRef,
@@ -109,7 +109,7 @@ export function useAgentAnnotationQueue({
             saveAnnotation,
           });
         } finally {
-          virtualReading.resumeVirtualReading(item.annotation.agentId);
+          virtualReading.resumeVirtualReading(item.key);
           agentAnnotationQueueRef.current.cleanup(
             item.key,
             virtualReading.hasVirtualReadingSession(item.key),

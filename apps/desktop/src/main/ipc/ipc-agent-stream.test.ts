@@ -32,7 +32,14 @@ describe('runAgentStreamIpc', () => {
     runAgentStreamIpc('agent:comment:stream', 'STREAM_FAILED', async (input, sender) => {
       sender.send({
         type: 'done',
-        comment: { ...finalComment, agentUsername: input.payload.agentUsername },
+        comment: {
+          ...finalComment,
+          author: {
+            kind: 'agent',
+            agentId: 'agent_1',
+            username: input.payload.agentUsername,
+          },
+        },
       });
     });
     const sender = { send: vi.fn() };
@@ -41,7 +48,10 @@ describe('runAgentStreamIpc', () => {
 
     expect(sender.send).toHaveBeenCalledWith('agent:comment:stream:req_1', {
       type: 'done',
-      comment: { ...finalComment, agentUsername: 'agent' },
+      comment: {
+        ...finalComment,
+        author: { kind: 'agent', agentId: 'agent_1', username: 'agent' },
+      },
     });
   });
 
@@ -133,6 +143,16 @@ describe('runAgentStreamIpc', () => {
     [
       'invalid nested reader progress',
       { ...agentMessagePayload, readerProgress: { currentChapterId: 1, readChapterIds: [] } },
+    ],
+    [
+      'invalid annotation author identity',
+      {
+        ...agentMessagePayload,
+        annotation: {
+          ...annotation,
+          author: { kind: 'agent', username: 'agent' },
+        },
+      },
     ],
   ])('rejects %s before guard and handler execution', async (_label, payload) => {
     const guard = vi.fn();
@@ -234,7 +254,7 @@ const annotation: Annotation = {
     start: 0,
     end: 7,
   },
-  author: 'user',
+  author: { kind: 'user', username: 'reader' },
   color: '#fff',
   comments: [],
   createdAt: '2026-07-15T00:00:00.000Z',
@@ -260,7 +280,7 @@ const agentMessagePayload = {
   annotation,
   userComment: {
     id: 'comment_user',
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     content: 'question',
     createdAt: '2026-07-15T00:00:00.000Z',
   },
@@ -268,7 +288,7 @@ const agentMessagePayload = {
 
 const finalComment: Comment = {
   id: 'comment_1',
-  author: 'ai',
+  author: { kind: 'agent', agentId: 'agent_1', username: 'agent' },
   content: 'done',
   createdAt: '2026-07-15T00:00:00.000Z',
 };

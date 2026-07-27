@@ -1,7 +1,24 @@
 import type { AgentReadingIntent } from './agents/agent-types';
 import type { TextAnchor } from './anchor-types';
 
-export type AnnotationAuthor = 'user' | 'ai';
+export type AnnotationAuthorKind = 'user' | 'ai';
+
+type AnnotationAuthorIdentity = {
+  username: string;
+  nickname?: string;
+  avatar?: string;
+  annotationColor?: string;
+};
+
+export type AnnotationAuthorRef =
+  | (AnnotationAuthorIdentity & {
+      kind: 'agent';
+      agentId: string;
+    })
+  | (AnnotationAuthorIdentity & {
+      kind: 'user';
+      userId?: string;
+    });
 
 export type AnnotationType = 'key_point' | 'assumption' | 'concept' | 'question' | 'quote';
 
@@ -106,7 +123,7 @@ export type AssistantRuntimeProgressEvent =
 
 export type AnnotationDistillationReviewMessage = {
   id: string;
-  author: AnnotationAuthor;
+  author: AnnotationAuthorKind;
   content: string;
   createdAt: string;
   status?: 'pending' | 'done' | 'failed';
@@ -152,20 +169,10 @@ export type AnnotationLightweightDraft = {
 
 export type Comment = {
   id: string;
-  author: AnnotationAuthor;
+  author: AnnotationAuthorRef;
   content: string;
   createdAt: string;
   replyTo?: string;
-  agentId?: string;
-  agentUsername?: string;
-  agentNickname?: string;
-  agentAvatar?: string;
-  agentAnnotationColor?: string;
-  userId?: string;
-  userUsername?: string;
-  userNickname?: string;
-  userAvatar?: string;
-  userAnnotationColor?: string;
   readingIntent?: AgentReadingIntent;
   reviewLabel?: ReviewOpinionLabel;
   pending?: boolean;
@@ -175,7 +182,7 @@ export type Comment = {
 export type Annotation = {
   id: string;
   anchor: TextAnchor;
-  author: AnnotationAuthor;
+  author: AnnotationAuthorRef;
   annotationType?: AnnotationType;
   moveType?: AnnotationMove;
   whyHere?: string;
@@ -183,16 +190,6 @@ export type Annotation = {
   confidence?: AnnotationConfidence;
   shouldShow?: boolean;
   color: string;
-  agentId?: string;
-  agentUsername?: string;
-  agentNickname?: string;
-  agentAvatar?: string;
-  agentAnnotationColor?: string;
-  userId?: string;
-  userUsername?: string;
-  userNickname?: string;
-  userAvatar?: string;
-  userAnnotationColor?: string;
   readingIntent?: AgentReadingIntent;
   comments: Comment[];
   distillation?: AnnotationDistillation;

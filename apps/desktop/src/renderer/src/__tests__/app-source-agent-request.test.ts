@@ -70,7 +70,7 @@ const anchor: Annotation['anchor'] = {
 
 const annotation: Annotation = {
   id: 'annotation_1',
-  author: 'user',
+  author: { kind: 'user', username: 'reader' },
   color: '#8a8f4f',
   anchor,
   comments: [],
@@ -356,8 +356,11 @@ describe('pending agent annotation', () => {
     expect(pending).toEqual(
       expect.objectContaining({
         anchor,
-        author: 'ai',
-        agentId: 'agent_lin',
+        author: expect.objectContaining({
+          kind: 'agent',
+          agentId: 'agent_lin',
+          username: 'lin',
+        }),
         readingIntent: 'explain',
         createdAt: now,
         updatedAt: now,
@@ -365,9 +368,12 @@ describe('pending agent annotation', () => {
     );
     expect(pending.comments).toEqual([
       expect.objectContaining({
-        author: 'ai',
+        author: expect.objectContaining({
+          kind: 'agent',
+          agentId: 'agent_lin',
+          username: 'lin',
+        }),
         content: 'lin 正在思考',
-        agentId: 'agent_lin',
         readingIntent: 'explain',
         pending: true,
       }),

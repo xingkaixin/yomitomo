@@ -32,7 +32,7 @@ export function DiscussionMessage({
   );
   const className = [
     'annotation-discussion-message',
-    message.author === 'user' ? 'is-user' : 'is-assistant',
+    message.author.kind === 'user' ? 'is-user' : 'is-assistant',
     message.pending ? 'is-pending' : '',
   ]
     .filter(Boolean)

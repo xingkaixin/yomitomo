@@ -1,5 +1,5 @@
 import type { AgentReadingIntent } from './agents/agent-types';
-import type { AnnotationAuthor } from './annotation-types';
+import type { AnnotationAuthorKind } from './annotation-types';
 import type { ArticleSourceType } from './sources/article-types';
 import type { TextAnchor } from './anchor-types';
 import type { EpubBookIndex } from './sources/ebook-types';
@@ -142,7 +142,7 @@ export type AnnotationSummary = {
 
 export type ThreadMessageContext = {
   commentId: string;
-  author: AnnotationAuthor;
+  author: AnnotationAuthorKind;
   text: string;
   source: ContextSourceLabel;
 };

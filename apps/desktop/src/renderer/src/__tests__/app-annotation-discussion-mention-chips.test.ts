@@ -30,7 +30,10 @@ function renderHtml(html: string) {
 describe('discussion mention chips', () => {
   it('renders user message mentions as agent chips', () => {
     const container = renderHtml(
-      renderDiscussionMessageMarkdown('问 @linzhiwei 和 @unknown', [agent()], 'user'),
+      renderDiscussionMessageMarkdown('问 @linzhiwei 和 @unknown', [agent()], {
+        kind: 'user',
+        username: 'reader',
+      }),
     );
 
     const chips = container.querySelectorAll<HTMLElement>('.annotation-discussion-mention-chip');
@@ -50,7 +53,11 @@ describe('discussion mention chips', () => {
       annotationColor: '#8ab4f8',
     });
     const container = renderHtml(
-      renderDiscussionMessageMarkdown('林知微提到了周砚', [agent(), zhou], 'ai'),
+      renderDiscussionMessageMarkdown('林知微提到了周砚', [agent(), zhou], {
+        kind: 'agent',
+        agentId: 'agent_1',
+        username: 'linzhiwei',
+      }),
     );
 
     const chips = Array.from(
@@ -67,7 +74,11 @@ describe('discussion mention chips', () => {
       username: 'zhouyan',
     });
     const container = renderHtml(
-      renderDiscussionMessageMarkdown('林知微提到了 @zhouyan', [agent(), zhou], 'ai'),
+      renderDiscussionMessageMarkdown('林知微提到了 @zhouyan', [agent(), zhou], {
+        kind: 'agent',
+        agentId: 'agent_1',
+        username: 'linzhiwei',
+      }),
     );
 
     const chips = Array.from(
@@ -81,7 +92,7 @@ describe('discussion mention chips', () => {
       renderDiscussionMessageMarkdown(
         '`@linzhiwei` [@linzhiwei](https://example.com) @linzhiwei',
         [agent()],
-        'user',
+        { kind: 'user', username: 'reader' },
       ),
     );
 

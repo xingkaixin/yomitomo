@@ -73,24 +73,35 @@ describe('app utils', () => {
 
   it('derives author profiles and avatar kinds', () => {
     const aiAnnotation = {
-      author: 'ai',
-      agentNickname: '阅读伙伴',
-      agentUsername: 'reader',
-      agentAvatar: 'AI',
+      author: {
+        kind: 'agent',
+        agentId: 'agent_1',
+        nickname: '阅读伙伴',
+        username: 'reader',
+        avatar: 'AI',
+      },
     } as Annotation;
     const userComment = {
-      author: 'user',
-      userNickname: 'Kevin',
-      userUsername: 'kevin',
-      userAvatar: '/avatar.png',
+      author: {
+        kind: 'user',
+        nickname: 'Kevin',
+        username: 'kevin',
+        avatar: '/avatar.png',
+      },
     } as Comment;
 
     expect(annotationAuthorProfile(aiAnnotation)).toEqual({ avatar: 'AI', name: '阅读伙伴' });
     expect(commentAuthorProfile(userComment)).toEqual({ avatar: '/avatar.png', name: 'Kevin' });
-    expect(annotationAuthorProfile({ author: 'ai', agentAvatar: '' } as Annotation).name).toBe(
-      '助手',
-    );
-    expect(commentAuthorProfile({ author: 'user', userAvatar: '' } as Comment).name).toBe('我');
+    expect(
+      annotationAuthorProfile({
+        author: { kind: 'agent', agentId: 'agent_1', username: 'assistant' },
+      } as Annotation).name,
+    ).toBe('assistant');
+    expect(
+      commentAuthorProfile({
+        author: { kind: 'user', username: 'reader' },
+      } as Comment).name,
+    ).toBe('reader');
     expect(isImageAvatar('/avatar.png')).toBe(true);
     expect(isImageAvatar('file:///Applications/Yomitomo.app/avatar.webp')).toBe(true);
     expect(isSvgAvatar('data:image/svg+xml,<svg />')).toBe(true);

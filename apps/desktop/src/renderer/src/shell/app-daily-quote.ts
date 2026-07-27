@@ -1,5 +1,5 @@
 import type { Agent, AgentKind, Annotation, ArticleRecord } from '@yomitomo/shared';
-import { annotationPrimaryComment } from '@yomitomo/core';
+import { annotationAuthorName, annotationPrimaryComment } from '@yomitomo/core';
 import i18next from 'i18next';
 
 type DailyQuoteSource = 'builtin' | 'user' | 'ai';
@@ -166,14 +166,10 @@ function dailyQuoteCandidate(annotation: Annotation): DailyQuoteCandidate[] {
     {
       id: `annotation:${annotation.id}`,
       text,
-      source: annotation.author,
+      source: annotation.author.kind === 'agent' ? 'ai' : 'user',
       createdAt: annotation.createdAt,
       agentName:
-        annotation.author === 'ai'
-          ? annotation.agentNickname ||
-            annotation.agentUsername ||
-            i18next.t('common.assistant', { defaultValue: 'Assistant' })
-          : undefined,
+        annotation.author.kind === 'agent' ? annotationAuthorName(annotation.author) : undefined,
     },
   ];
 }

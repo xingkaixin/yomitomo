@@ -3,6 +3,7 @@ import i18next from 'i18next';
 import type { Annotation, ArticleRecord, Comment, PublicAgent, UiLanguage } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
 import {
+  annotationAgentAuthorRef,
   appendAnnotationComment,
   deleteAnnotationComment,
   updateAnnotationComment,
@@ -54,14 +55,9 @@ export async function runSourceAgentThoughtRequest({
   const createdAt = new Date().toISOString();
   const placeholderComment: Comment = {
     id: makeId('comment'),
-    author: 'ai',
+    author: annotationAgentAuthorRef(agent),
     content: '',
     createdAt,
-    agentId: agent.id,
-    agentUsername: agent.username,
-    agentNickname: agent.nickname,
-    agentAvatar: agent.avatar,
-    agentAnnotationColor: agent.annotationColor,
     readingIntent: readingIntent || annotation.readingIntent,
     pending: true,
   };
@@ -77,7 +73,7 @@ export async function runSourceAgentThoughtRequest({
 
   const instructionComment: Comment = {
     id: makeId('comment'),
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     content: instruction,
     createdAt,
     readingIntent,
@@ -207,10 +203,6 @@ export async function runSourceAgentThoughtRequest({
 function localizedAgentComment(agent: PublicAgent, comment: Comment): Comment {
   return {
     ...comment,
-    agentId: agent.id,
-    agentUsername: agent.username,
-    agentNickname: agent.nickname,
-    agentAvatar: agent.avatar,
-    agentAnnotationColor: agent.annotationColor,
+    author: annotationAgentAuthorRef(agent),
   };
 }

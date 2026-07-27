@@ -1,6 +1,7 @@
 import type {
   Annotation,
-  AnnotationAuthor,
+  AnnotationAuthorKind,
+  AnnotationAuthorRef,
   AnnotationDistillation,
   AnnotationDistillationProposal,
   AnnotationDistillationProposalKind,
@@ -40,23 +41,13 @@ import {
 export function rowToComment(row: typeof schema.comments.$inferSelect): Comment {
   return {
     id: row.id,
-    author: normalizeAnnotationAuthor(row.author),
+    author: rowToAnnotationAuthorRef(row),
     content: row.content,
     createdAt: row.createdAt,
     replyTo: row.replyTo || undefined,
-    agentId: row.agentId || undefined,
-    agentUsername: row.agentUsername || undefined,
-    agentNickname: row.agentNickname || undefined,
-    agentAvatar: row.agentAvatar || undefined,
-    agentAnnotationColor: row.agentAnnotationColor || undefined,
     readingIntent: normalizeAgentReadingIntent(row.readingIntent) || undefined,
     reviewLabel: normalizeReviewOpinionLabel(row.reviewLabel) || undefined,
     assistantProgress: normalizeAssistantRuntimeProgress(row.assistantProgress),
-    userId: row.userId || undefined,
-    userUsername: row.userUsername || undefined,
-    userNickname: row.userNickname || undefined,
-    userAvatar: row.userAvatar || undefined,
-    userAnnotationColor: row.userAnnotationColor || undefined,
     pending: row.pending || undefined,
   };
 }
@@ -68,7 +59,7 @@ export function rowToAnnotation(
   return {
     id: row.id,
     anchor: normalizeTextAnchor(row.anchor),
-    author: normalizeAnnotationAuthor(row.author),
+    author: rowToAnnotationAuthorRef(row),
     annotationType: normalizeAnnotationType(row.annotationType) || undefined,
     readingIntent: normalizeAgentReadingIntent(row.readingIntent) || undefined,
     moveType: normalizeAnnotationMove(row.moveType) || undefined,
@@ -77,16 +68,6 @@ export function rowToAnnotation(
     confidence: normalizeAnnotationConfidence(row.confidence) || undefined,
     shouldShow: row.shouldShow ?? undefined,
     color: row.color,
-    agentId: row.agentId || undefined,
-    agentUsername: row.agentUsername || undefined,
-    agentNickname: row.agentNickname || undefined,
-    agentAvatar: row.agentAvatar || undefined,
-    agentAnnotationColor: row.agentAnnotationColor || undefined,
-    userId: row.userId || undefined,
-    userUsername: row.userUsername || undefined,
-    userNickname: row.userNickname || undefined,
-    userAvatar: row.userAvatar || undefined,
-    userAnnotationColor: row.userAnnotationColor || undefined,
     comments,
     distillation: normalizeAnnotationDistillation(row),
     createdAt: row.createdAt,
@@ -94,8 +75,45 @@ export function rowToAnnotation(
   };
 }
 
-function normalizeAnnotationAuthor(value: unknown): AnnotationAuthor {
+function normalizeAnnotationAuthorKind(value: unknown): AnnotationAuthorKind {
   return value === 'ai' ? 'ai' : 'user';
+}
+
+type AnnotationAuthorRow = Pick<
+  typeof schema.annotations.$inferSelect,
+  | 'id'
+  | 'author'
+  | 'agentId'
+  | 'agentUsername'
+  | 'agentNickname'
+  | 'agentAvatar'
+  | 'agentAnnotationColor'
+  | 'userId'
+  | 'userUsername'
+  | 'userNickname'
+  | 'userAvatar'
+  | 'userAnnotationColor'
+>;
+
+function rowToAnnotationAuthorRef(row: AnnotationAuthorRow): AnnotationAuthorRef {
+  if (normalizeAnnotationAuthorKind(row.author) === 'ai') {
+    return {
+      kind: 'agent',
+      agentId: row.agentId || `legacy-agent:${row.id}`,
+      username: row.agentUsername || 'assistant',
+      nickname: row.agentNickname || undefined,
+      avatar: row.agentAvatar || undefined,
+      annotationColor: row.agentAnnotationColor || undefined,
+    };
+  }
+  return {
+    kind: 'user',
+    userId: row.userId || undefined,
+    username: row.userUsername || 'reader',
+    nickname: row.userNickname || undefined,
+    avatar: row.userAvatar || undefined,
+    annotationColor: row.userAnnotationColor || undefined,
+  };
 }
 
 function normalizeAnnotationDistillation(
@@ -157,7 +175,7 @@ function normalizeAnnotationDistillationReviewMessages(value: unknown) {
     return [
       {
         id,
-        author: normalizeAnnotationAuthor(message.author),
+        author: normalizeAnnotationAuthorKind(message.author),
         content,
         createdAt: stringValue(message.createdAt),
         status: normalizeAnnotationDistillationReviewMessageStatus(message.status) || undefined,

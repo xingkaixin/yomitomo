@@ -17,6 +17,7 @@ import {
 } from '@yomitomo/shared';
 import {
   annotationColor,
+  annotationAuthorName,
   annotationIdsAtHighlightPoint,
   annotationHasPublishedDistillation,
   type HighlightBox,
@@ -215,7 +216,7 @@ export function pdfiumHighlightChoicePosition(canvasWidth: number, point: Pdfium
 }
 
 export function pdfiumAnnotationAgentName(annotation: Annotation) {
-  return annotation.agentNickname || annotation.agentUsername || i18next.t('common.assistant');
+  return annotationAuthorName(annotation.author);
 }
 
 const PDF_ANNOTATION_RAIL_GAP = 20;
@@ -358,7 +359,10 @@ export function pdfiumAnnotationBoxes(
       const box = {
         id: `${annotation.id}-${index}`,
         annotationId: annotation.id,
-        contributorId: annotation.agentId || annotation.userId || userProfile.id,
+        contributorId:
+          annotation.author.kind === 'agent'
+            ? annotation.author.agentId
+            : annotation.author.userId || userProfile.id,
         color: annotationColor(annotation, userProfile, agents),
         top: metric.top + rect.y * metric.height,
         left: metric.left + rect.x * metric.width,
@@ -381,7 +385,10 @@ export function pdfiumAnnotationTheaterBoxes(
     const box = {
       id: `theater-${annotation.id}-${index}`,
       annotationId: annotation.id,
-      contributorId: annotation.agentId || annotation.userId || annotation.id,
+      contributorId:
+        annotation.author.kind === 'agent'
+          ? annotation.author.agentId
+          : annotation.author.userId || annotation.id,
       color: annotation.color,
       top: metric.top + rect.y * metric.height,
       left: metric.left + rect.x * metric.width,

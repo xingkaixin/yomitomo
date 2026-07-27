@@ -38,7 +38,7 @@ function quoteAnnotation(overrides: Partial<Annotation> = {}): Annotation {
 
   return {
     id: overrides.id || 'annotation_1',
-    author: overrides.author || 'user',
+    author: overrides.author || { kind: 'user', username: 'reader' },
     annotationType: 'quote',
     anchor: {
       exact: '把判断写下来，时间会帮你校准它。',
@@ -169,7 +169,7 @@ describe('daily quote', () => {
       comments: [
         {
           id: 'comment_1',
-          author: 'user',
+          author: { kind: 'user', username: 'reader' },
           content: 'review 的价值在于把盲区往外推。',
           createdAt: '2026-05-03T12:00:00.000+08:00',
         },
@@ -192,13 +192,22 @@ describe('daily quote', () => {
 
   it('labels agent quotes with the agent name', () => {
     const quote = quoteAnnotation({
-      author: 'ai',
-      agentNickname: '知微',
+      author: {
+        kind: 'agent',
+        agentId: 'agent_1',
+        username: 'lin_zhiwei',
+        nickname: '知微',
+      },
       createdAt: '2025-12-31T23:30:00.000+08:00',
       comments: [
         {
           id: 'comment_1',
-          author: 'ai',
+          author: {
+            kind: 'agent',
+            agentId: 'agent_1',
+            username: 'lin_zhiwei',
+            nickname: '知微',
+          },
           content: '把判断留下来，未来才有机会校准。',
           createdAt: '2025-12-31T23:30:00.000+08:00',
         },

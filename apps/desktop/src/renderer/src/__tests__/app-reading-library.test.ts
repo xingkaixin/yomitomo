@@ -28,7 +28,7 @@ function annotation(id: string, start: number, end: number): Annotation {
       start,
       end,
     },
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     color: '#f4c95d',
     comments: [],
     createdAt: '2026-05-04T00:00:00.000Z',

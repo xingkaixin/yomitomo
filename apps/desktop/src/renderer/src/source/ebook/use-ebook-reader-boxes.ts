@@ -350,11 +350,9 @@ export function useEbookReaderBoxes({
           Object.assign(box, {
             annotationId: annotation.id,
             contributorId:
-              annotation.agentId ||
-              annotation.agentUsername ||
-              annotation.userId ||
-              annotation.userUsername ||
-              annotation.author,
+              annotation.author.kind === 'agent'
+                ? annotation.author.agentId
+                : annotation.author.userId || annotation.author.username,
             color: annotationColor(annotation, userProfile, annotationAgents),
           }),
         );

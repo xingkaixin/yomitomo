@@ -438,7 +438,7 @@ function uniqueAssistantParticipants(
   const seenKeys = new Set<string>();
 
   for (const comment of comments) {
-    if (comment.author !== 'ai') continue;
+    if (comment.author.kind !== 'agent') continue;
     const persona = commentPersona(comment, userProfile, agents);
     const key = commentAuthorKey(comment, persona.username);
     if (seenKeys.has(key)) continue;
@@ -473,9 +473,9 @@ function assistantParticipationSummary(
 }
 
 function commentAuthorKey(comment: Annotation['comments'][number], username: string) {
-  return comment.author === 'ai'
-    ? `ai:${comment.agentId || comment.agentUsername || username}`
-    : `user:${comment.userId || comment.userUsername || username}`;
+  return comment.author.kind === 'agent'
+    ? `ai:${comment.author.agentId}`
+    : `user:${comment.author.userId || username}`;
 }
 
 function avatarColorStyle(color: string): React.CSSProperties {

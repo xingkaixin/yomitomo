@@ -222,14 +222,13 @@ describe('article memory lifecycle', () => {
         annotations: [
           annotation({
             id: 'annotation_1',
-            author: 'user',
+            author: { kind: 'user', username: 'reader' },
             comments: [
               {
                 id: 'comment_1',
-                author: 'ai',
+                author: { kind: 'agent', agentId: 'agent_1', username: 'assistant' },
                 content: 'assistant thread memory',
                 createdAt: '2026-05-26T00:10:00.000Z',
-                agentId: 'agent_1',
               },
             ],
           }),
@@ -412,7 +411,7 @@ describe('article memory lifecycle', () => {
             comments: [
               {
                 id: 'web_comment',
-                author: 'user',
+                author: { kind: 'user', username: 'reader' },
                 content: 'web comment memory',
                 createdAt: '2026-05-26T00:10:00.000Z',
               },
@@ -429,7 +428,7 @@ describe('article memory lifecycle', () => {
             comments: [
               {
                 id: 'pdf_comment',
-                author: 'user',
+                author: { kind: 'user', username: 'reader' },
                 content: 'pdf comment memory',
                 createdAt: '2026-05-26T00:10:00.000Z',
               },
@@ -681,7 +680,7 @@ function annotation(overrides: Partial<Annotation> = {}): Annotation {
       prefix: '前文',
       suffix: '后文',
     },
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     color: '#f4c95d',
     comments: [],
     createdAt: '2026-05-26T00:00:00.000Z',
@@ -693,7 +692,7 @@ function annotation(overrides: Partial<Annotation> = {}): Annotation {
 function annotationComment(overrides: Partial<Comment> = {}): Comment {
   return {
     id: 'comment_1',
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     content: 'comment memory',
     createdAt: '2026-05-26T00:10:00.000Z',
     ...overrides,

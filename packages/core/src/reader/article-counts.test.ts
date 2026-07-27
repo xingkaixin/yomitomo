@@ -9,18 +9,18 @@ describe('articleCounts', () => {
       {
         id: 'annotation_1',
         anchor: { exact: 'text', prefix: '', suffix: '', start: 0, end: 4 },
-        author: 'user',
+        author: { kind: 'user', username: 'reader' },
         color: '#f4c95d',
         comments: [
           {
             id: 'thought_1',
-            author: 'user',
+            author: { kind: 'user', username: 'reader' },
             content: '想法',
             createdAt,
           },
           {
             id: 'reply_1',
-            author: 'ai',
+            author: { kind: 'agent', agentId: 'agent_1', username: 'assistant' },
             content: '回复',
             createdAt,
             replyTo: 'thought_1',

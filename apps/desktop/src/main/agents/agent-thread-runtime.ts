@@ -7,6 +7,7 @@ import type {
   Comment,
   LlmProvider,
 } from '@yomitomo/shared';
+import { annotationAgentAuthorRef } from '@yomitomo/core';
 import { createAssistantReadingTools } from '../assistant/assistant-reading-tools';
 
 type AiModule = typeof import('@yomitomo/ai');
@@ -72,14 +73,9 @@ export async function runAgentThreadReplyWithToolLoop(input: {
     runtime,
     comment: {
       id: '',
-      author: 'ai',
+      author: annotationAgentAuthorRef(input.agent),
       content: runtime.action.content,
       createdAt: new Date().toISOString(),
-      agentId: input.agent.id,
-      agentUsername: input.agent.username,
-      agentNickname: input.agent.nickname,
-      agentAvatar: input.agent.avatar,
-      agentAnnotationColor: input.agent.annotationColor,
       readingIntent: input.payload.readingIntent,
     },
   };
@@ -133,14 +129,9 @@ export async function runAgentCreateThoughtWithToolLoop(input: {
     runtime,
     comment: {
       id: '',
-      author: 'ai',
+      author: annotationAgentAuthorRef(input.agent),
       content: runtime.action.thought,
       createdAt: new Date().toISOString(),
-      agentId: input.agent.id,
-      agentUsername: input.agent.username,
-      agentNickname: input.agent.nickname,
-      agentAvatar: input.agent.avatar,
-      agentAnnotationColor: input.agent.annotationColor,
       readingIntent: input.payload.readingIntent,
     },
   };

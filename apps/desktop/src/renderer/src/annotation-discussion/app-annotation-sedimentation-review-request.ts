@@ -200,7 +200,7 @@ function reviewRequestComment(
 ): Comment {
   return {
     id: message?.id || createRequestCommentId(),
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     content: message?.content || i18next.t('sedimentation.reviewPrompt.defaultRequest'),
     createdAt: message?.createdAt || createdAt,
   };

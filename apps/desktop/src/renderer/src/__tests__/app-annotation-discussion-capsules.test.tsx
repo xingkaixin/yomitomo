@@ -25,7 +25,7 @@ afterEach(() => {
 function comment(overrides: Partial<Comment>): Comment {
   return {
     id: overrides.id || 'comment_1',
-    author: overrides.author || 'user',
+    author: overrides.author || { kind: 'user', username: 'reader' },
     content: overrides.content || '内容',
     createdAt: now,
     ...overrides,
@@ -42,7 +42,7 @@ function annotation(id: string, exact: string, comments: Comment[] = []): Annota
       start: 0,
       end: exact.length,
     },
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     color: '#f4c95d',
     comments,
     createdAt: now,
@@ -81,15 +81,30 @@ describe('annotationDiscussionCapsuleItems', () => {
     const items = annotationDiscussionCapsuleItems(
       article([
         annotation('annotation_1', '划线 1', [
-          comment({ id: 'idea_1', author: 'ai', agentId: 'agent_1', agentNickname: '行开心' }),
+          comment({
+            id: 'idea_1',
+            author: {
+              kind: 'agent',
+              agentId: 'agent_1',
+              username: 'assistant',
+              nickname: '行开心',
+            },
+          }),
           comment({
             id: 'reply_1',
-            author: 'ai',
+            author: {
+              kind: 'agent',
+              agentId: 'agent_1',
+              username: 'assistant',
+              nickname: '行开心',
+            },
             replyTo: 'idea_1',
-            agentId: 'agent_1',
-            agentNickname: '行开心',
           }),
-          comment({ id: 'reply_2', author: 'user', replyTo: 'idea_1', userNickname: 'Kevin' }),
+          comment({
+            id: 'reply_2',
+            author: { kind: 'user', username: 'reader', nickname: 'Kevin' },
+            replyTo: 'idea_1',
+          }),
         ]),
       ]),
       [windowState('annotation_1')],
@@ -116,10 +131,13 @@ describe('AnnotationDiscussionCapsules', () => {
           annotation('annotation_2', '第二条划线', [
             comment({
               id: 'idea_2',
-              author: 'ai',
-              agentId: 'agent_1',
-              agentAvatar: '   ',
-              agentNickname: '行开心',
+              author: {
+                kind: 'agent',
+                agentId: 'agent_1',
+                username: 'assistant',
+                nickname: '行开心',
+                avatar: '   ',
+              },
             }),
           ]),
         ])}

@@ -241,14 +241,14 @@ function readerChatPayload({
   };
   const userComment: Comment = {
     id: userMessageId,
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     content: question,
     createdAt: new Date().toISOString(),
   };
   const annotation: Annotation = {
     id: makeId('reader_chat_anchor'),
     anchor,
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     color: '#d7b35a',
     comments: [userComment],
     createdAt: userComment.createdAt,

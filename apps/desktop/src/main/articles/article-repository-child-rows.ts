@@ -1,4 +1,4 @@
-import type { Annotation, ArticleRecord, Comment } from '@yomitomo/shared';
+import type { Annotation, AnnotationAuthorRef, ArticleRecord, Comment } from '@yomitomo/shared';
 
 export function buildArticleChildRows(article: Pick<ArticleRecord, 'id' | 'annotations'>) {
   const annotationRows = article.annotations.map((annotation) =>
@@ -13,7 +13,7 @@ export function annotationToRow(articleId: string, annotation: Annotation) {
     id: annotation.id,
     articleId,
     anchor: annotation.anchor,
-    author: annotation.author,
+    ...annotationAuthorToRow(annotation.author),
     annotationType: annotation.annotationType,
     readingIntent: annotation.readingIntent,
     moveType: annotation.moveType,
@@ -22,16 +22,6 @@ export function annotationToRow(articleId: string, annotation: Annotation) {
     confidence: annotation.confidence,
     shouldShow: annotation.shouldShow,
     color: annotation.color,
-    agentId: annotation.agentId,
-    agentUsername: annotation.agentUsername,
-    agentNickname: annotation.agentNickname,
-    agentAvatar: null,
-    agentAnnotationColor: annotation.agentAnnotationColor,
-    userId: annotation.userId,
-    userUsername: annotation.userUsername,
-    userNickname: annotation.userNickname,
-    userAvatar: null,
-    userAnnotationColor: annotation.userAnnotationColor,
     distillationStatus: annotation.distillation?.status,
     distillationContent: annotation.distillation?.content,
     distillationPublishedAt: annotation.distillation?.publishedAt,
@@ -50,23 +40,44 @@ export function commentToRow(annotationId: string, comment: Comment) {
   return {
     id: comment.id,
     annotationId,
-    author: comment.author,
+    ...annotationAuthorToRow(comment.author),
     content: comment.content,
     createdAt: comment.createdAt,
     replyTo: comment.replyTo,
-    agentId: comment.agentId,
-    agentUsername: comment.agentUsername,
-    agentNickname: comment.agentNickname,
-    agentAvatar: null,
-    agentAnnotationColor: comment.agentAnnotationColor,
     readingIntent: comment.readingIntent,
     reviewLabel: comment.reviewLabel,
     assistantProgress: comment.assistantProgress,
-    userId: comment.userId,
-    userUsername: comment.userUsername,
-    userNickname: comment.userNickname,
-    userAvatar: null,
-    userAnnotationColor: comment.userAnnotationColor,
     pending: comment.pending,
+  };
+}
+
+function annotationAuthorToRow(author: AnnotationAuthorRef) {
+  if (author.kind === 'agent') {
+    return {
+      author: 'ai',
+      agentId: author.agentId,
+      agentUsername: author.username,
+      agentNickname: author.nickname,
+      agentAvatar: null,
+      agentAnnotationColor: author.annotationColor,
+      userId: null,
+      userUsername: null,
+      userNickname: null,
+      userAvatar: null,
+      userAnnotationColor: null,
+    };
+  }
+  return {
+    author: 'user',
+    agentId: null,
+    agentUsername: null,
+    agentNickname: null,
+    agentAvatar: null,
+    agentAnnotationColor: null,
+    userId: author.userId,
+    userUsername: author.username,
+    userNickname: author.nickname,
+    userAvatar: null,
+    userAnnotationColor: author.annotationColor,
   };
 }

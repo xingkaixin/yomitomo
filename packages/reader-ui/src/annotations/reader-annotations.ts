@@ -111,7 +111,7 @@ const minRailSpacing: AnnotationRailSpacing = {
 const railViewportOverscan = 96;
 
 export function agentQueueKey(annotation: Annotation) {
-  return annotation.agentId || annotation.agentUsername || '__agent__';
+  return annotation.author.kind === 'agent' ? annotation.author.agentId : '__agent__';
 }
 
 export function applyAgentCommentDelta(
@@ -403,10 +403,10 @@ export function readerAnnotationScrollTop({
 export { buildHighlightSegments, highlightSegmentStyle, highlightStyle, isPrimaryTocItem };
 
 function annotationPersonFilterId(annotation: Annotation) {
-  if (annotation.author === 'ai') {
-    return `agent:${annotation.agentId || annotation.agentUsername || annotation.id}`;
+  if (annotation.author.kind === 'agent') {
+    return `agent:${annotation.author.agentId}`;
   }
-  return `user:${annotation.userId || annotation.userUsername || annotation.author}`;
+  return `user:${annotation.author.userId || annotation.author.username}`;
 }
 
 function annotationMatchesFilter(

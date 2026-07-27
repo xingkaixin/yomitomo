@@ -67,7 +67,7 @@ describe('assistant runtime reading tools', () => {
     const text = result.ok ? result.evidence?.[0]?.text || '' : '';
     expect(text).toContain('original_thought_author: 林知微 (@lin)');
     expect(text).toContain('original_thought: 目标观点值得展开。');
-    expect(text).toContain('latest_user_comment: user: 读者追问目标观点。');
+    expect(text).toContain('latest_user_comment: reader: 读者追问目标观点。');
   });
 
   it('focuses current thread evidence on the replied root thought', async () => {
@@ -92,7 +92,7 @@ describe('assistant runtime reading tools', () => {
     const text = result.ok ? result.evidence?.[0]?.text || '' : '';
     expect(text).toContain('original_thought_author: 顾行简 (@guxingjian)');
     expect(text).toContain('original_thought: 顾行简的想法。');
-    expect(text).toContain('latest_user_comment: user: @林知微 你怎么看？');
+    expect(text).toContain('latest_user_comment: reader: @林知微 你怎么看？');
     expect(text).not.toContain('划线助手的另一条想法。');
   });
 
@@ -199,25 +199,29 @@ function articleRecord(): Pick<ArticleRecord, 'id' | 'title' | 'annotations' | '
 function annotation(): Annotation {
   return {
     id: 'annotation_1',
-    author: 'ai',
-    agentId: 'agent_1',
-    agentNickname: '林知微',
-    agentUsername: 'lin',
+    author: {
+      kind: 'agent',
+      agentId: 'agent_1',
+      nickname: '林知微',
+      username: 'lin',
+    },
     color: '#6fa48f',
     anchor: anchor(),
     comments: [
       {
         id: 'comment_1',
-        author: 'ai',
-        agentId: 'agent_1',
-        agentNickname: '林知微',
-        agentUsername: 'lin',
+        author: {
+          kind: 'agent',
+          agentId: 'agent_1',
+          nickname: '林知微',
+          username: 'lin',
+        },
         content: '目标观点值得展开。',
         createdAt: '2026-05-26T00:00:30.000Z',
       },
       {
         id: 'comment_2',
-        author: 'user',
+        author: { kind: 'user', username: 'reader' },
         content: '读者追问目标观点。',
         replyTo: 'comment_1',
         createdAt: '2026-05-26T00:01:00.000Z',
@@ -234,25 +238,29 @@ function annotationWithSiblingThoughts(): Annotation {
     comments: [
       {
         id: 'other_thought',
-        author: 'ai',
-        agentId: 'agent_2',
-        agentNickname: '划线助手',
-        agentUsername: 'highlighter',
+        author: {
+          kind: 'agent',
+          agentId: 'agent_2',
+          nickname: '划线助手',
+          username: 'highlighter',
+        },
         content: '划线助手的另一条想法。',
         createdAt: '2026-05-26T00:00:10.000Z',
       },
       {
         id: 'gu_thought',
-        author: 'ai',
-        agentId: 'agent_gu',
-        agentNickname: '顾行简',
-        agentUsername: 'guxingjian',
+        author: {
+          kind: 'agent',
+          agentId: 'agent_gu',
+          nickname: '顾行简',
+          username: 'guxingjian',
+        },
         content: '顾行简的想法。',
         createdAt: '2026-05-26T00:00:20.000Z',
       },
       {
         id: 'reader_reply',
-        author: 'user',
+        author: { kind: 'user', username: 'reader' },
         content: '@林知微 你怎么看？',
         replyTo: 'gu_thought',
         createdAt: '2026-05-26T00:01:00.000Z',

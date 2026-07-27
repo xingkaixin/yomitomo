@@ -606,11 +606,9 @@ export function ebookHighlightAnnotationsSignature(
           hashText(normalizeRenderedText(anchor.exact)),
           hashText(normalizeRenderedText(anchor.prefix || '')),
           hashText(normalizeRenderedText(anchor.suffix || '')),
-          annotation.agentId ||
-            annotation.agentUsername ||
-            annotation.userId ||
-            annotation.userUsername ||
-            annotation.author,
+          annotation.author.kind === 'agent'
+            ? annotation.author.agentId
+            : annotation.author.userId || annotation.author.username,
           annotationColor(annotation, userProfile, agents),
         ].join(':');
       })

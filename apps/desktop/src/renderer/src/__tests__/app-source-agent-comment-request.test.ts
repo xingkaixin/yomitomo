@@ -28,6 +28,18 @@ const agent: PublicAgent = {
   personalityName: '林知微',
   temperature: 0.4,
 };
+const agentAuthor = {
+  kind: 'agent',
+  agentId: agent.id,
+  username: agent.username,
+  nickname: agent.nickname,
+} as const;
+const userAuthor = {
+  kind: 'user',
+  userId: 'user_1',
+  username: 'kevin',
+  nickname: 'Kevin',
+} as const;
 
 function article(targetAnnotation: Annotation): ArticleRecord {
   return {
@@ -49,12 +61,9 @@ function article(targetAnnotation: Annotation): ArticleRecord {
 function comment(overrides: Partial<AnnotationComment> = {}): AnnotationComment {
   return {
     id: 'comment_root',
-    author: 'user',
+    author: userAuthor,
     content: '根想法',
     createdAt: now,
-    userId: 'user_1',
-    userUsername: 'kevin',
-    userNickname: 'Kevin',
     ...overrides,
   };
 }
@@ -69,14 +78,11 @@ function annotation(comments: AnnotationComment[]): Annotation {
       start: 0,
       end: 2,
     },
-    author: 'user',
+    author: userAuthor,
     color: '#f4c95d',
     comments,
     createdAt: now,
     updatedAt: now,
-    userId: 'user_1',
-    userUsername: 'kevin',
-    userNickname: 'Kevin',
   };
 }
 
@@ -137,7 +143,7 @@ describe('runSourceAgentCommentRequest', () => {
     expect(saveComment).toHaveBeenCalled();
     expect(annotationsRef.current[0]?.comments).toContainEqual(
       expect.objectContaining({
-        author: 'ai',
+        author: expect.objectContaining({ kind: 'agent' }),
         content: 'network failed',
         pending: false,
         replyTo: rootComment.id,
@@ -157,12 +163,9 @@ describe('runSourceAgentCommentRequest', () => {
     const saveComment = saveCommentMock(annotationsRef);
     const pendingAgentComment = {
       id: 'comment_agent',
-      author: 'ai' as const,
+      author: agentAuthor,
       content: '',
       createdAt: now,
-      agentId: agent.id,
-      agentUsername: agent.username,
-      agentNickname: agent.nickname,
       pending: true,
     };
     const desktop = {
@@ -217,11 +220,11 @@ describe('runSourceAgentCommentRequest', () => {
     const desktop = {
       requestAgentCommentStream: vi.fn(async (_payload, onEvent) => {
         const pendingReply = annotationsRef.current[0]?.comments.find(
-          (item) => item.author === 'ai',
+          (item) => item.author.kind === 'agent',
         );
         expect(pendingReply).toEqual(
           expect.objectContaining({
-            agentId: agent.id,
+            author: expect.objectContaining({ agentId: agent.id }),
             pending: true,
             replyTo: rootComment.id,
           }),
@@ -230,23 +233,17 @@ describe('runSourceAgentCommentRequest', () => {
           type: 'start',
           comment: {
             id: 'comment_agent',
-            author: 'ai',
+            author: agentAuthor,
             content: '',
             createdAt: now,
-            agentId: agent.id,
-            agentUsername: agent.username,
-            agentNickname: agent.nickname,
             pending: true,
           },
         });
         return {
           id: 'comment_agent',
-          author: 'ai' as const,
+          author: agentAuthor,
           content: '我先回应这条想法。',
           createdAt: now,
-          agentId: agent.id,
-          agentUsername: agent.username,
-          agentNickname: agent.nickname,
           pending: false,
         };
       }),
@@ -294,12 +291,9 @@ describe('runSourceAgentCommentRequest', () => {
     const saveComment = saveCommentMock(annotationsRef);
     const pendingAgentComment = {
       id: 'comment_agent',
-      author: 'ai' as const,
+      author: agentAuthor,
       content: '',
       createdAt: now,
-      agentId: agent.id,
-      agentUsername: agent.username,
-      agentNickname: agent.nickname,
       pending: true,
     };
     const finalAgentComment = {
@@ -354,12 +348,9 @@ describe('runSourceAgentCommentRequest', () => {
     const saveComment = saveCommentMock(annotationsRef);
     const pendingAgentComment = {
       id: 'comment_agent',
-      author: 'ai' as const,
+      author: agentAuthor,
       content: '',
       createdAt: now,
-      agentId: agent.id,
-      agentUsername: agent.username,
-      agentNickname: agent.nickname,
       pending: true,
     };
     const desktop = {
@@ -428,12 +419,9 @@ describe('runSourceAgentCommentRequest', () => {
     const saveComment = saveCommentMock(annotationsRef);
     const pendingAgentComment = {
       id: 'comment_agent',
-      author: 'ai' as const,
+      author: agentAuthor,
       content: '',
       createdAt: now,
-      agentId: agent.id,
-      agentUsername: agent.username,
-      agentNickname: agent.nickname,
       pending: true,
     };
     const desktop = {
@@ -477,12 +465,9 @@ describe('runSourceAgentCommentRequest', () => {
     const saveComment = saveCommentMock(annotationsRef);
     const pendingAgentComment = {
       id: 'comment_review',
-      author: 'ai' as const,
+      author: agentAuthor,
       content: '',
       createdAt: now,
-      agentId: agent.id,
-      agentUsername: agent.username,
-      agentNickname: agent.nickname,
       pending: true,
     };
     const desktop = {

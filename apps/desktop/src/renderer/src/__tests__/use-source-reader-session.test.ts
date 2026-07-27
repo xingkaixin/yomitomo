@@ -350,12 +350,12 @@ function annotationFor(
   return {
     id: 'annotation-1',
     anchor: createTextAnchor(articleText, start, end),
-    author: 'ai',
+    author: { kind: 'agent', agentId: 'agent_1', username: 'assistant' },
     color: 'yellow',
     comments: [
       {
         id: 'comment-1',
-        author: 'ai',
+        author: { kind: 'agent', agentId: 'agent_1', username: 'assistant' },
         content: 'comment',
         createdAt: '2026-05-25T00:00:00.000Z',
       },

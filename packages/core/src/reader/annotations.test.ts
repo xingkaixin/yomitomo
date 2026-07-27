@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Agent, Annotation, Comment, PublicAgent, UserProfile } from '@yomitomo/shared';
 import {
+  annotationAgentAuthorRef,
+  annotationAuthorName,
   annotationColor,
   annotationPersona,
   annotationPrimaryComment,
@@ -8,6 +10,7 @@ import {
   annotationThreadComments,
   annotationToPublicAgent,
   annotationTypeLabel,
+  annotationUserAuthorRef,
   appendAnnotationComment,
   commentPersona,
   createUserAnnotation,
@@ -53,13 +56,8 @@ function annotation(): Annotation {
       start: 0,
       end: 16,
     },
-    author: 'user',
+    author: annotationUserAuthorRef(user),
     color: user.annotationColor,
-    userId: user.id,
-    userUsername: user.username,
-    userNickname: user.nickname,
-    userAvatar: user.avatar,
-    userAnnotationColor: user.annotationColor,
     comments: [],
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
@@ -69,7 +67,7 @@ function annotation(): Annotation {
 function comment(id = 'comment-1'): Comment {
   return {
     id,
-    author: 'user',
+    author: annotationUserAuthorRef(user),
     content: 'note',
     createdAt: '2026-01-01T00:00:00.000Z',
   };
@@ -107,10 +105,16 @@ describe('annotation core', () => {
         readingIntent: 'challenge',
       }),
     ).toMatchObject({
-      author: 'user',
+      author: { kind: 'user', userId: user.id, username: user.username },
       annotationType: 'concept',
       readingIntent: 'challenge',
-      comments: [{ content: '这里重要', readingIntent: 'challenge', userId: user.id }],
+      comments: [
+        {
+          author: { kind: 'user', userId: user.id, username: user.username },
+          content: '这里重要',
+          readingIntent: 'challenge',
+        },
+      ],
     });
     expect(createUserAnnotation(anchor, user, '   ').comments).toEqual([]);
   });
@@ -138,6 +142,14 @@ describe('annotation core', () => {
     expect(annotationPrimaryComment(withReply)?.content).toBe('批注正文');
     expect(annotationThreadComments(withReply)).toEqual([reply]);
     expect(annotationThreadComments({ ...base, comments: [reply] })).toEqual([reply]);
+
+    const otherAuthorComment = {
+      ...base.comments[0],
+      author: { kind: 'user' as const, userId: 'user-2', username: 'other' },
+    };
+    const withOtherAuthor = { ...base, comments: [otherAuthorComment] };
+    expect(annotationPrimaryComment(withOtherAuthor)).toBeNull();
+    expect(annotationThreadComments(withOtherAuthor)).toEqual([otherAuthorComment]);
   });
 
   it('counts only top-level thoughts separately from replies', () => {
@@ -241,19 +253,11 @@ describe('annotation core', () => {
   it('builds public personas and colors from annotation identity fields', () => {
     const aiAnnotation = {
       ...annotation(),
-      author: 'ai' as const,
-      agentId: agent.id,
-      agentUsername: agent.username,
-      agentNickname: agent.nickname,
-      agentAvatar: agent.avatar,
-      agentAnnotationColor: agent.annotationColor,
+      author: annotationAgentAuthorRef(agent),
     };
     const aiComment = {
       ...comment(),
-      author: 'ai' as const,
-      agentUsername: agent.username,
-      agentNickname: agent.nickname,
-      agentAvatar: agent.avatar,
+      author: annotationAgentAuthorRef(agent),
     };
     const publicAgent: PublicAgent = {
       id: agent.id,
@@ -290,6 +294,11 @@ describe('annotation core', () => {
         username: agent.username,
       }),
     );
+  });
+
+  it('resolves one display name for both author kinds', () => {
+    expect(annotationAuthorName(annotationAgentAuthorRef(agent))).toBe(agent.nickname);
+    expect(annotationAuthorName({ kind: 'user', username: 'reader' })).toBe('reader');
   });
 
   it('normalizes public labels', () => {

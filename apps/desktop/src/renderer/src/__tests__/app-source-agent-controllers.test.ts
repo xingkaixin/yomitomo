@@ -41,7 +41,7 @@ const article: PromptArticle = {
 
 const annotation: Annotation = {
   id: 'annotation_1',
-  author: 'ai',
+  author: { kind: 'agent', agentId: agent.id, username: agent.username },
   color: '#8a8f4f',
   anchor: {
     exact: '三四',

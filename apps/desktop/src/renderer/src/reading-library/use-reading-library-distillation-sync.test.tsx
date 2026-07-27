@@ -216,7 +216,7 @@ function article({
 const unpublishedAnnotation: Annotation = {
   id: 'annotation_1',
   anchor: { exact: '正文', prefix: '', suffix: '', start: 0, end: 2 },
-  author: 'user',
+  author: { kind: 'user', username: 'reader' },
   color: '#f4c95d',
   comments: [],
   distillation: {

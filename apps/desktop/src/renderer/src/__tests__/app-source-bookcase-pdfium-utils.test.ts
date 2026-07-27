@@ -608,7 +608,7 @@ describe('app-source-bookcase-pdfium-utils', () => {
       comments: [
         {
           id: 'comment_1',
-          author: 'ai',
+          author: { kind: 'agent', agentId: 'agent_1', username: 'assistant' },
           content: 'comment',
           createdAt: '2026-05-25T00:00:00.000Z',
         },
@@ -688,7 +688,7 @@ function pdfAnnotation(
       pageHeight: 100,
       rects: [{ x: 0.1, y: 0.1, width: 0.1, height: 0.1 }],
     }),
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     comments: [],
     color: 'yellow',
     createdAt,
@@ -701,7 +701,7 @@ function textAnnotation(id: string, overrides: Partial<Annotation> = {}): Annota
     id,
     articleId: 'article',
     anchor: createTextAnchor('plain article text', 0, 5),
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     comments: [],
     color: 'yellow',
     createdAt: '2026-05-25T00:00:00.000Z',

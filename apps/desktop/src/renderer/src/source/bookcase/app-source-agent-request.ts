@@ -9,6 +9,7 @@ import type {
   UiLanguage,
 } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
+import { annotationAgentAuthorRef } from '@yomitomo/core';
 import type { PromptArticle } from '../../shell/app-reading-types';
 import i18next from 'i18next';
 import {
@@ -121,28 +122,19 @@ export function createPendingAgentAnnotation(
   readingIntent?: AgentReadingIntent,
   now = new Date().toISOString(),
 ): Annotation {
+  const author = annotationAgentAuthorRef(agent);
   return {
     id: makeId('annotation'),
     anchor: targetAnchor,
-    author: 'ai',
+    author,
     color: agent.annotationColor,
-    agentId: agent.id,
-    agentUsername: agent.username,
-    agentNickname: agent.nickname,
-    agentAvatar: agent.avatar,
-    agentAnnotationColor: agent.annotationColor,
     readingIntent,
     comments: [
       {
         id: makeId('comment'),
-        author: 'ai',
+        author,
         content: i18next.t('source.agentThinking', { name: agent.nickname }),
         createdAt: now,
-        agentId: agent.id,
-        agentUsername: agent.username,
-        agentNickname: agent.nickname,
-        agentAvatar: agent.avatar,
-        agentAnnotationColor: agent.annotationColor,
         readingIntent,
         pending: true,
       },
@@ -197,22 +189,15 @@ export async function runSourceAgentAnnotationRequest({
 }
 
 function localizedAgentAnnotation(agent: PublicAgent, annotation: Annotation): Annotation {
+  const author = annotationAgentAuthorRef(agent);
   return {
     ...annotation,
-    agentId: agent.id,
-    agentUsername: agent.username,
-    agentNickname: agent.nickname,
-    agentAvatar: agent.avatar,
-    agentAnnotationColor: agent.annotationColor,
+    author,
     comments: annotation.comments.map((comment) =>
-      comment.author === 'ai'
+      comment.author.kind === 'agent'
         ? {
             ...comment,
-            agentId: agent.id,
-            agentUsername: agent.username,
-            agentNickname: agent.nickname,
-            agentAvatar: agent.avatar,
-            agentAnnotationColor: agent.annotationColor,
+            author,
           }
         : comment,
     ),

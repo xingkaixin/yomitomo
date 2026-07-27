@@ -993,11 +993,14 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       return;
     }
 
-    const cursorAgent = annotationAgents.find(
-      (agent) => agent.id === annotation.agentId || agent.username === annotation.agentUsername,
-    );
-    const cursorId =
-      cursorAgent?.id || annotation.agentId || annotation.agentUsername || annotation.id;
+    const author = annotation.author;
+    const cursorAgent =
+      author.kind === 'agent'
+        ? annotationAgents.find(
+            (agent) => agent.id === author.agentId || agent.username === author.username,
+          )
+        : undefined;
+    const cursorId = cursorAgent?.id || (author.kind === 'agent' ? author.agentId : annotation.id);
     updatePageMetrics();
     let theaterBoxes = pdfiumAnnotationTheaterBoxes(annotation, pageMetricsRef.current);
     const firstBox = theaterBoxes[0];

@@ -29,10 +29,12 @@ describe('agent thread reply tool loop', () => {
 
     expect(result.status).toBe('comment');
     expect(result.status === 'comment' && result.comment).toMatchObject({
-      author: 'ai',
+      author: {
+        kind: 'agent',
+        agentId: 'agent_1',
+        username: 'lin',
+      },
       content: '我先按当前 thread 的问题回应。',
-      agentId: 'agent_1',
-      agentUsername: 'lin',
     });
     expect(runtime).toHaveBeenCalledTimes(1);
   });
@@ -105,7 +107,11 @@ describe('agent thread reply tool loop', () => {
 
     expect(result.status).toBe('comment');
     expect(result.status === 'comment' && result.comment).toMatchObject({
-      author: 'ai',
+      author: {
+        kind: 'agent',
+        agentId: 'agent_1',
+        username: 'lin',
+      },
       content: '这条想法会作为顶层助手想法保存。',
     });
   });
@@ -267,13 +273,13 @@ function payload(): AgentMessagePayload {
     },
     annotation: {
       id: 'annotation_1',
-      author: 'user',
+      author: { kind: 'user', username: 'reader' },
       color: '#f5c542',
       anchor,
       comments: [
         {
           id: 'comment_1',
-          author: 'user',
+          author: { kind: 'user', username: 'reader' },
           content: '这里是什么意思？',
           createdAt: '2026-05-26T00:01:00.000Z',
         },
@@ -283,7 +289,7 @@ function payload(): AgentMessagePayload {
     },
     userComment: {
       id: 'comment_1',
-      author: 'user',
+      author: { kind: 'user', username: 'reader' },
       content: '这里是什么意思？',
       createdAt: '2026-05-26T00:01:00.000Z',
     },

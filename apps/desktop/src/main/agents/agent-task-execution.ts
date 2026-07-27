@@ -14,6 +14,7 @@ import type {
   LlmProvider,
 } from '@yomitomo/shared';
 import { makeId, normalizeAssistantExecutionMode, normalizeUiLanguage } from '@yomitomo/shared';
+import { annotationAgentAuthorRef } from '@yomitomo/core';
 import type { DesktopAiModule, DesktopMainIpcContext } from '../ipc/ipc';
 import { createAgentMessageReadingContextSnapshot } from '../assistant/assistant-reading-tools';
 import { distillationReviewMessagePayload } from './agent-distillation-proposals';
@@ -348,14 +349,9 @@ async function runDistillationReviewRuntime(input: {
 function pendingAgentComment(agent: Agent, payload: AgentMessagePayload): Comment {
   return {
     id: makeId('comment'),
-    author: 'ai',
+    author: annotationAgentAuthorRef(agent),
     content: '',
     createdAt: new Date().toISOString(),
-    agentId: agent.id,
-    agentUsername: agent.username,
-    agentNickname: agent.nickname,
-    agentAvatar: agent.avatar,
-    agentAnnotationColor: agent.annotationColor,
     replyTo: agentMessageReplyTo(payload),
     readingIntent: payload.readingIntent,
     pending: true,

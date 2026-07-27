@@ -1,5 +1,5 @@
 import { inArray } from 'drizzle-orm';
-import type { Annotation, Comment } from '@yomitomo/shared';
+import type { Annotation, AnnotationAuthorRef, Comment } from '@yomitomo/shared';
 import * as schema from '../db/schema';
 import type { StoreDatabase } from '../store/store-db';
 import { rowToAnnotation, rowToComment, sortByCreatedAt } from '../store/store-normalizers';
@@ -111,29 +111,30 @@ function hydrateAnnotationAvatar(
   annotation: Annotation,
   actorAvatars: AnnotationActorAvatars,
 ): Annotation {
-  const agentAvatar = annotation.agentId
-    ? (actorAvatars.agentAvatars.get(annotation.agentId) ?? annotation.agentAvatar)
-    : annotation.agentAvatar;
-  const userAvatar =
-    annotation.author === 'user'
-      ? ((annotation.userId && actorAvatars.userAvatars.get(annotation.userId)) ??
-        annotation.userAvatar ??
-        actorAvatars.defaultUserAvatar)
-      : annotation.userAvatar;
-  return { ...annotation, agentAvatar, userAvatar };
+  return { ...annotation, author: hydrateAuthorAvatar(annotation.author, actorAvatars) };
 }
 
 function hydrateCommentAvatar(comment: Comment, actorAvatars: AnnotationActorAvatars): Comment {
-  const agentAvatar = comment.agentId
-    ? (actorAvatars.agentAvatars.get(comment.agentId) ?? comment.agentAvatar)
-    : comment.agentAvatar;
-  const userAvatar =
-    comment.author === 'user'
-      ? ((comment.userId && actorAvatars.userAvatars.get(comment.userId)) ??
-        comment.userAvatar ??
-        actorAvatars.defaultUserAvatar)
-      : comment.userAvatar;
-  return { ...comment, agentAvatar, userAvatar };
+  return { ...comment, author: hydrateAuthorAvatar(comment.author, actorAvatars) };
+}
+
+function hydrateAuthorAvatar(
+  author: AnnotationAuthorRef,
+  actorAvatars: AnnotationActorAvatars,
+): AnnotationAuthorRef {
+  if (author.kind === 'agent') {
+    return {
+      ...author,
+      avatar: actorAvatars.agentAvatars.get(author.agentId) ?? author.avatar,
+    };
+  }
+  return {
+    ...author,
+    avatar:
+      (author.userId && actorAvatars.userAvatars.get(author.userId)) ??
+      author.avatar ??
+      actorAvatars.defaultUserAvatar,
+  };
 }
 
 function uniqueStrings(values: Array<string | null | undefined>) {

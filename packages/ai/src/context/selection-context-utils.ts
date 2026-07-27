@@ -1,22 +1,17 @@
 import type { Annotation, Comment } from '@yomitomo/shared';
 import {
+  annotationAuthorName,
   intersectTextRanges,
   type ReadingContextBundle,
   type ReadingContextTextRange,
 } from '@yomitomo/core';
 
 export function annotationAuthorLabel(annotation: Annotation) {
-  if (annotation.author === 'ai') {
-    return annotation.agentNickname || annotation.agentUsername || 'AI';
-  }
-  return annotation.userNickname || annotation.userUsername || '读者';
+  return annotationAuthorName(annotation.author);
 }
 
 export function commentAuthorLabel(comment: Comment) {
-  if (comment.author === 'ai') {
-    return comment.agentNickname || comment.agentUsername || 'AI';
-  }
-  return comment.userNickname || comment.userUsername || '读者';
+  return annotationAuthorName(comment.author);
 }
 
 export function clippedThreadContextComments(comments: Comment[], recentLimit: number): Comment[] {

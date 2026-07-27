@@ -34,6 +34,24 @@ const requestIdSchema = z
   .max(MAX_DESKTOP_IPC_STREAM_REQUEST_ID_LENGTH)
   .regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/);
 const readingIntentSchema = z.enum(['explain', 'decompose', 'challenge', 'question', 'connect']);
+const annotationAuthorIdentitySchema = {
+  username: idSchema,
+  nickname: optionalShortTextSchema,
+  avatar: z.string().max(4096).optional(),
+  annotationColor: z.string().max(128).optional(),
+};
+const annotationAuthorSchema = z.discriminatedUnion('kind', [
+  z.looseObject({
+    ...annotationAuthorIdentitySchema,
+    kind: z.literal('agent'),
+    agentId: idSchema,
+  }),
+  z.looseObject({
+    ...annotationAuthorIdentitySchema,
+    kind: z.literal('user'),
+    userId: optionalIdSchema,
+  }),
+]);
 
 const textAnchorSchema = z.looseObject({
   exact: shortTextSchema,
@@ -53,14 +71,10 @@ const textAnchorSchema = z.looseObject({
 
 const commentSchema = z.looseObject({
   id: idSchema,
-  author: z.enum(['user', 'ai']),
+  author: annotationAuthorSchema,
   content: articleTextSchema,
   createdAt: timestampSchema,
   replyTo: optionalIdSchema,
-  agentId: optionalIdSchema,
-  agentUsername: optionalIdSchema,
-  userId: optionalIdSchema,
-  userUsername: optionalIdSchema,
   readingIntent: readingIntentSchema.optional(),
   pending: z.boolean().optional(),
 });
@@ -68,13 +82,9 @@ const commentSchema = z.looseObject({
 const annotationSchema = z.looseObject({
   id: idSchema,
   anchor: textAnchorSchema,
-  author: z.enum(['user', 'ai']),
+  author: annotationAuthorSchema,
   annotationType: z.enum(['key_point', 'assumption', 'concept', 'question', 'quote']).optional(),
   color: z.string().max(128),
-  agentId: optionalIdSchema,
-  agentUsername: optionalIdSchema,
-  userId: optionalIdSchema,
-  userUsername: optionalIdSchema,
   readingIntent: readingIntentSchema.optional(),
   comments: z.array(commentSchema).max(MAX_LIST_LENGTH),
   createdAt: timestampSchema,

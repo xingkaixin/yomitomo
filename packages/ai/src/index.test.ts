@@ -9,6 +9,7 @@ import type {
 } from '@yomitomo/shared';
 import { readingPartnerSoul } from '@yomitomo/shared';
 import {
+  annotationAgentAuthorRef,
   buildEpubBookIndex,
   createEpubTextAnchor,
   epubIndexText,
@@ -148,10 +149,7 @@ describe('agent message prompts', () => {
     },
     annotation: {
       id: 'annotation_1',
-      author: 'ai',
-      agentId: lin.id,
-      agentUsername: lin.username,
-      agentNickname: lin.nickname,
+      author: annotationAgentAuthorRef(lin),
       color: '#6fa48f',
       anchor: {
         exact: '代码审查是迭代过程',
@@ -163,10 +161,7 @@ describe('agent message prompts', () => {
       comments: [
         {
           id: 'comment_1',
-          author: 'ai',
-          agentId: lin.id,
-          agentUsername: lin.username,
-          agentNickname: lin.nickname,
+          author: annotationAgentAuthorRef(lin),
           content: '这里的关键在于迭代。',
           createdAt: '2026-05-07T00:00:00.000Z',
         },
@@ -176,9 +171,7 @@ describe('agent message prompts', () => {
     },
     userComment: {
       id: 'comment_2',
-      author: 'user',
-      userUsername: 'xingkaixin',
-      userNickname: '行开心',
+      author: { kind: 'user', username: 'xingkaixin', nickname: '行开心' },
       content: '@周砚 你同意 @林知微 的看法么？',
       createdAt: '2026-05-07T00:01:00.000Z',
     },
@@ -401,9 +394,7 @@ describe('agent message prompts', () => {
     };
     const otherThought = {
       id: 'thought_other',
-      author: 'user' as const,
-      userUsername: 'xingkaixin',
-      userNickname: '行开心',
+      author: { kind: 'user', username: 'xingkaixin', nickname: '行开心' } as const,
       content: '我更关心这个判断能不能落到行动。',
       createdAt: '2026-05-07T00:02:00.000Z',
     };
@@ -458,9 +449,7 @@ describe('agent message prompts', () => {
     const anchor = createEpubTextAnchor(ebookIndex, text, start, start + '目标观点'.length);
     const userComment = {
       id: 'comment_latest',
-      author: 'user' as const,
-      userUsername: 'xingkaixin',
-      userNickname: '行开心',
+      author: { kind: 'user', username: 'xingkaixin', nickname: '行开心' } as const,
       content: '@林知微 这和前文矛盾吗？',
       createdAt: '2026-05-13T00:02:00.000Z',
     };
@@ -480,10 +469,7 @@ describe('agent message prompts', () => {
           comments: [
             {
               id: 'comment_original',
-              author: 'ai',
-              agentId: lin.id,
-              agentUsername: lin.username,
-              agentNickname: lin.nickname,
+              author: annotationAgentAuthorRef(lin),
               content: '原批注：这句话是本段关键。',
               createdAt: '2026-05-13T00:00:00.000Z',
             },
@@ -627,27 +613,20 @@ describe('agent message prompts', () => {
     const anchor = createEpubTextAnchor(ebookIndex, text, 0, '目标观点'.length);
     const userComment = {
       id: 'comment_latest',
-      author: 'user' as const,
-      userUsername: 'xingkaixin',
-      userNickname: '行开心',
+      author: { kind: 'user', username: 'xingkaixin', nickname: '行开心' } as const,
       content: '@林知微 最晚追问',
       createdAt: '2026-05-13T00:20:00.000Z',
     };
     const comments = [
       {
         id: 'comment_original',
-        author: 'ai' as const,
-        agentId: lin.id,
-        agentUsername: lin.username,
-        agentNickname: lin.nickname,
+        author: annotationAgentAuthorRef(lin),
         content: '原始批注需要保留',
         createdAt: '2026-05-13T00:00:00.000Z',
       },
       ...Array.from({ length: 12 }, (_, index) => ({
         id: `comment_history_${index + 1}`,
-        author: 'user' as const,
-        userUsername: 'xingkaixin',
-        userNickname: '行开心',
+        author: { kind: 'user', username: 'xingkaixin', nickname: '行开心' } as const,
         content: `历史评论 ${index + 1}`,
         createdAt: `2026-05-13T00:${String(index + 1).padStart(2, '0')}:00.000Z`,
       })),
@@ -679,9 +658,7 @@ describe('agent message prompts', () => {
     const ebookIndex = buildEpubBookIndex({ articleId: 'book-1', chapters: [] });
     const userComment = {
       id: 'comment_latest',
-      author: 'user' as const,
-      userUsername: 'xingkaixin',
-      userNickname: '行开心',
+      author: { kind: 'user', username: 'xingkaixin', nickname: '行开心' } as const,
       content: '@林知微 继续解释一下',
       createdAt: '2026-05-13T00:02:00.000Z',
     };
@@ -1183,11 +1160,8 @@ describe('agent annotations', () => {
     const start = text.indexOf(exact);
     const existingAnnotation: Annotation = {
       id: 'annotation_existing',
-      author: 'ai',
+      author: annotationAgentAuthorRef(agent),
       color: agent.annotationColor,
-      agentId: agent.id,
-      agentUsername: agent.username,
-      agentNickname: agent.nickname,
       anchor: {
         start,
         end: start + exact.length,
@@ -1198,13 +1172,10 @@ describe('agent annotations', () => {
       comments: [
         {
           id: 'comment_existing',
-          author: 'ai',
+          author: annotationAgentAuthorRef(agent),
           content:
             '这句话是全文的方法论基石。作者用最朴素的表述定义了工具的价值标准，不是功能多，而是能解决真实问题。',
           createdAt: '2026-05-26T00:00:00.000Z',
-          agentId: agent.id,
-          agentUsername: agent.username,
-          agentNickname: agent.nickname,
         },
       ],
       createdAt: '2026-05-26T00:00:00.000Z',
@@ -1255,11 +1226,8 @@ describe('agent annotations', () => {
       '这是全文的方法论基石。作者用朴素表达定义工具价值，不是功能多，而是解决真实问题。';
     const existingAnnotation: Annotation = {
       id: 'annotation_existing',
-      author: 'ai',
+      author: annotationAgentAuthorRef(agent),
       color: agent.annotationColor,
-      agentId: agent.id,
-      agentUsername: agent.username,
-      agentNickname: agent.nickname,
       anchor: {
         start: duplicateStart,
         end: duplicateStart + duplicateExact.length,
@@ -1270,12 +1238,9 @@ describe('agent annotations', () => {
       comments: [
         {
           id: 'comment_existing',
-          author: 'ai',
+          author: annotationAgentAuthorRef(agent),
           content: duplicateComment,
           createdAt: '2026-05-26T00:00:00.000Z',
-          agentId: agent.id,
-          agentUsername: agent.username,
-          agentNickname: agent.nickname,
         },
       ],
       createdAt: '2026-05-26T00:00:00.000Z',

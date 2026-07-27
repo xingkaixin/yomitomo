@@ -202,7 +202,10 @@ describe('executeAgentDistillationReviewTask', () => {
 describe('executeAgentAnnotationTask', () => {
   it('owns memory preparation, item streaming, and usage recording', async () => {
     const fixture = taskFixture();
-    const generatedAnnotation = annotation({ id: 'annotation_generated', author: 'ai' });
+    const generatedAnnotation = annotation({
+      id: 'annotation_generated',
+      author: { kind: 'agent', agentId: 'agent_1', username: 'agent' },
+    });
     fixture.ai.runAgentAnnotateStream.mockImplementation(
       async (_provider, _agent, _payload, onAnnotation) => {
         onAnnotation(generatedAnnotation);
@@ -345,10 +348,9 @@ function messagePayload(): AgentMessagePayload {
     annotation: annotation(),
     userComment: {
       id: 'comment_user',
-      author: 'user',
+      author: { kind: 'user', userId: 'user_1', username: 'reader' },
       content: 'question',
       createdAt: '2026-07-18T00:00:00.000Z',
-      userId: 'user_1',
     },
   };
 }
@@ -370,12 +372,11 @@ function annotation(overrides: Partial<Annotation> = {}): Annotation {
   return {
     id: 'annotation_1',
     anchor: { exact: 'quote', prefix: '', suffix: '', start: 0, end: 5 },
-    author: 'user',
+    author: { kind: 'user', userId: 'user_1', username: 'reader' },
     color: '#f59e0b',
     comments: [],
     createdAt: '2026-07-18T00:00:00.000Z',
     updatedAt: '2026-07-18T00:00:00.000Z',
-    userId: 'user_1',
     ...overrides,
   };
 }

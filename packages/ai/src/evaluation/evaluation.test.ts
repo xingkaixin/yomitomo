@@ -185,7 +185,7 @@ function annotationFromAnchor(
 ): Annotation {
   return {
     id,
-    author: 'ai',
+    author: { kind: 'agent', agentId: 'agent_1', username: 'assistant' },
     anchor,
     annotationType: 'key_point',
     moveType,

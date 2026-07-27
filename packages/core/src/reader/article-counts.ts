@@ -37,7 +37,7 @@ export function annotationAiContributionDates(annotation: Annotation) {
     ...annotationThreadComments(annotation),
     ...annotationThoughtComments(annotation),
   ]) {
-    if (comment.author !== 'ai' || seenCommentIds.has(comment.id)) continue;
+    if (comment.author.kind !== 'agent' || seenCommentIds.has(comment.id)) continue;
     seenCommentIds.add(comment.id);
     dates.push(comment.createdAt);
   }
