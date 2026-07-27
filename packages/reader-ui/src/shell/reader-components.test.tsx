@@ -346,10 +346,43 @@ describe('ReaderSurfaceView empty notes', () => {
     const annotations = highlights.annotations ?? [];
     return (
       <ReaderSurfaceView
-        activeId={null}
-        agentTheaterBoxes={[]}
-        agents={[]}
-        annotationRailItems={[]}
+        actions={{
+          annotation: {
+            onClearActiveAnnotation: vi.fn(),
+            onCreateAnnotation: vi.fn(),
+            onDeleteAnnotation: vi.fn(),
+            onFocusAnnotation: vi.fn(),
+            onHighlightClick: vi.fn(),
+            onScrollToHighlight: vi.fn(),
+          },
+          selection: {
+            onCancelComposer: vi.fn(),
+            onClearSelection: vi.fn(),
+            onCloseHighlightChoice: vi.fn(),
+            onCopySelection: vi.fn(),
+            onMouseUp: vi.fn(),
+            onOpenComposer: vi.fn(),
+            onSelectionHandleDrag: selectionHandlers?.onDrag,
+            onSelectionHandleDragEnd: selectionHandlers?.onDragEnd,
+            onSelectionHandleDragStart: selectionHandlers?.onDragStart,
+          },
+        }}
+        agents={{
+          agents: [],
+          completionBurstKey: 0,
+          dockCompleting: false,
+          dockItems: [],
+          theaterBoxes: [],
+          virtualCursors: [],
+        }}
+        annotationRail={{
+          annotationRailItems: [],
+          exitingAnnotationIds: new Set(),
+          noteRefForAnnotation: () => vi.fn(),
+          visibleAnnotationIds: new Set(annotations.map((item) => item.id)),
+          visibleAnnotations: annotations,
+          visibleRailAnnotations: annotations,
+        }}
         annotationRailLayout={{
           articleCenterX: 360,
           leftRailLeft: 0,
@@ -358,45 +391,45 @@ describe('ReaderSurfaceView empty notes', () => {
           rightRailLeft: 740,
           viewportHeight: 640,
         }}
-        annotations={annotations}
-        articleRef={React.createRef<HTMLElement>()}
-        boxes={highlights.boxes ?? []}
-        canvasRef={React.createRef<HTMLDivElement>()}
-        commentsCloseKey={0}
-        composer={composer}
-        exitingAnnotationIds={new Set()}
-        expandedPrimaryCommentIds={new Set()}
-        extracted={{ title: '文章', content: '<p>正文</p>' }}
-        highlightChoice={null}
-        messageSendShortcut="mod-enter"
-        newAnnotationIds={highlights.newAnnotationIds}
-        noteRefForAnnotation={() => vi.fn()}
-        notesRef={React.createRef<HTMLElement>()}
-        selectionAction={selectionAction}
-        shortcutModifier="⌘"
-        showEmptyNotes={showEmptyNotes}
-        surfaceRef={React.createRef<HTMLDivElement>()}
-        temporaryBoxes={highlights.temporaryBoxes ?? []}
+        annotations={{
+          activeConnection: null,
+          activeId: null,
+          annotationTotals: { annotations: annotations.length, distillations: 0 },
+          annotations,
+          boxes: highlights.boxes ?? [],
+          filteredAnnotations: annotations,
+          newAnnotationIds: highlights.newAnnotationIds,
+          showEmptyNotes,
+          temporaryBoxes: highlights.temporaryBoxes ?? [],
+        }}
+        article={{
+          id: 'article-1',
+          extracted: { title: '文章', content: '<p>正文</p>' },
+        }}
+        chatAvailable={false}
+        refs={{
+          articleRef: React.createRef<HTMLElement>(),
+          canvasRef: React.createRef<HTMLDivElement>(),
+          noteRefs: { current: new Map() },
+          notesRef: React.createRef<HTMLElement>(),
+          surfaceRef: React.createRef<HTMLDivElement>(),
+        }}
+        selection={{
+          composer,
+          highlightChoice: null,
+          selectionAction,
+        }}
+        settings={{
+          messageSendShortcut: 'mod-enter',
+          readerSettings: {
+            backgroundColor: '#ffffff',
+            contentWidth: 680,
+            fontSize: 18,
+          },
+          settingsOpen: false,
+          shortcutModifier: '⌘',
+        }}
         userProfile={userProfile}
-        visibleAnnotationIds={new Set(annotations.map((item) => item.id))}
-        visibleAnnotations={annotations}
-        onAddComment={vi.fn()}
-        onCancelComposer={vi.fn()}
-        onClearSelection={vi.fn()}
-        onCloseHighlightChoice={vi.fn()}
-        onCopySelection={vi.fn()}
-        onCreateAnnotation={vi.fn()}
-        onDeleteAnnotation={vi.fn()}
-        onDeleteComment={vi.fn()}
-        onFocusAnnotation={vi.fn()}
-        onHighlightClick={vi.fn()}
-        onMouseUp={vi.fn()}
-        onSelectionHandleDrag={selectionHandlers?.onDrag}
-        onSelectionHandleDragEnd={selectionHandlers?.onDragEnd}
-        onSelectionHandleDragStart={selectionHandlers?.onDragStart}
-        onOpenComposer={vi.fn()}
-        onPrimaryCommentExpandedChange={vi.fn()}
-        onScrollToHighlight={vi.fn()}
       />
     );
   }
@@ -1069,16 +1102,10 @@ describe('AnnotationCard', () => {
         active
         agents={[]}
         annotation={annotation()}
-        commentsCloseKey={0}
-        messageSendShortcut="enter"
         noteRef={vi.fn()}
-        primaryCommentExpanded={false}
-        shortcutModifier="⌘"
         userProfile={userProfile}
-        onAddComment={vi.fn()}
         onDelete={vi.fn()}
         onFocus={vi.fn()}
-        onPrimaryCommentExpandedChange={vi.fn()}
       />,
     );
 
@@ -1105,17 +1132,11 @@ describe('AnnotationCard', () => {
         active={false}
         agents={[]}
         annotation={annotation()}
-        commentsCloseKey={0}
-        messageSendShortcut="enter"
         noteRef={vi.fn()}
-        primaryCommentExpanded={false}
-        shortcutModifier="⌘"
         userProfile={userProfile}
-        onAddComment={vi.fn()}
         onDelete={vi.fn()}
         onFocus={onFocus}
         onOpenDiscussion={onOpenDiscussion}
-        onPrimaryCommentExpandedChange={vi.fn()}
       />,
     );
 
@@ -1168,17 +1189,11 @@ describe('AnnotationCard', () => {
             },
           ],
         })}
-        commentsCloseKey={0}
-        messageSendShortcut="enter"
         noteRef={vi.fn()}
         pendingAgents={[agent('agent-3', '沈白')]}
-        primaryCommentExpanded
-        shortcutModifier="⌘"
         userProfile={userProfile}
-        onAddComment={vi.fn()}
         onDelete={vi.fn()}
         onFocus={vi.fn()}
-        onPrimaryCommentExpandedChange={vi.fn()}
       />,
     );
 
@@ -1198,17 +1213,11 @@ describe('AnnotationCard', () => {
         active
         agents={[]}
         annotation={annotation()}
-        commentsCloseKey={0}
-        messageSendShortcut="enter"
         noteRef={vi.fn()}
-        primaryCommentExpanded={false}
         reviewAgents={[reviewAgent, secondReviewAgent]}
-        shortcutModifier="⌘"
         userProfile={userProfile}
-        onAddComment={vi.fn()}
         onDelete={vi.fn()}
         onFocus={vi.fn()}
-        onPrimaryCommentExpandedChange={vi.fn()}
       />,
     );
 
@@ -1229,16 +1238,10 @@ describe('AnnotationCard', () => {
             updatedAt: now,
           },
         })}
-        commentsCloseKey={0}
-        messageSendShortcut="enter"
         noteRef={vi.fn()}
-        primaryCommentExpanded={false}
-        shortcutModifier="⌘"
         userProfile={userProfile}
-        onAddComment={vi.fn()}
         onDelete={vi.fn()}
         onFocus={vi.fn()}
-        onPrimaryCommentExpandedChange={vi.fn()}
       />,
     );
 
@@ -1263,7 +1266,6 @@ describe('AnnotationCard', () => {
             updatedAt: now,
           },
         })}
-        commentsCloseKey={0}
         distillationAnimation={{
           annotationId: 'annotation-1',
           transition: 'unpublish',
@@ -1275,15 +1277,10 @@ describe('AnnotationCard', () => {
           },
           token: 1,
         }}
-        messageSendShortcut="enter"
         noteRef={vi.fn()}
-        primaryCommentExpanded={false}
-        shortcutModifier="⌘"
         userProfile={userProfile}
-        onAddComment={vi.fn()}
         onDelete={vi.fn()}
         onFocus={vi.fn()}
-        onPrimaryCommentExpandedChange={vi.fn()}
       />,
     );
 
@@ -1312,7 +1309,6 @@ describe('AnnotationCard', () => {
             updatedAt: now,
           },
         })}
-        commentsCloseKey={0}
         distillationAnimation={{
           annotationId: 'annotation-1',
           transition: 'publish',
@@ -1324,15 +1320,10 @@ describe('AnnotationCard', () => {
           },
           token: 1,
         }}
-        messageSendShortcut="enter"
         noteRef={vi.fn()}
-        primaryCommentExpanded={false}
-        shortcutModifier="⌘"
         userProfile={userProfile}
-        onAddComment={vi.fn()}
         onDelete={vi.fn()}
         onFocus={vi.fn()}
-        onPrimaryCommentExpandedChange={vi.fn()}
       />,
     );
 
@@ -1359,7 +1350,6 @@ describe('AnnotationCard', () => {
             updatedAt: now,
           },
         })}
-        commentsCloseKey={0}
         distillationAnimation={{
           annotationId: 'annotation-1',
           transition: 'publish',
@@ -1371,15 +1361,10 @@ describe('AnnotationCard', () => {
           },
           token: 1,
         }}
-        messageSendShortcut="enter"
         noteRef={vi.fn()}
-        primaryCommentExpanded={false}
-        shortcutModifier="⌘"
         userProfile={userProfile}
-        onAddComment={vi.fn()}
         onDelete={vi.fn()}
         onFocus={vi.fn()}
-        onPrimaryCommentExpandedChange={vi.fn()}
       />,
     );
 
@@ -1389,24 +1374,16 @@ describe('AnnotationCard', () => {
 
   it('deletes the annotation only after confirming in the dialog', () => {
     const onDelete = vi.fn();
-    const onDeleteComment = vi.fn();
 
     render(
       <AnnotationCard
         active
         agents={[]}
         annotation={annotation()}
-        commentsCloseKey={0}
-        messageSendShortcut="enter"
         noteRef={vi.fn()}
-        primaryCommentExpanded
-        shortcutModifier="⌘"
         userProfile={userProfile}
-        onAddComment={vi.fn()}
         onDelete={onDelete}
-        onDeleteComment={onDeleteComment}
         onFocus={vi.fn()}
-        onPrimaryCommentExpandedChange={vi.fn()}
       />,
     );
 
@@ -1434,7 +1411,6 @@ describe('AnnotationCard', () => {
     fireEvent.click(screen.getByRole('dialog').querySelector('.reader-confirm-delete')!);
 
     expect(onDelete).toHaveBeenCalledWith('annotation-1');
-    expect(onDeleteComment).not.toHaveBeenCalled();
   });
 });
 

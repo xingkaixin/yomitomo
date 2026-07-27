@@ -114,9 +114,7 @@ export type ReaderAnnotationModel = {
   railLayoutOverride?: AnnotationRailLayout;
   annotationTotals: { annotations: number; distillations: number };
   annotations: Annotation[];
-  autoExpandNewAnnotations?: boolean;
   boxes: HighlightBox[];
-  commentsCloseKey: number;
   distillationAnimation?: {
     annotationId: string;
     transition: 'publish' | 'update' | 'unpublish';
@@ -357,12 +355,10 @@ export type ReaderShellOptions = {
 };
 
 export type ReaderAnnotationActions = {
-  onAddComment: (annotationId: string, content: string, replyTo?: string) => void | Promise<void>;
   onAnnotationLayoutChange?: () => void;
   onClearActiveAnnotation: () => void;
   onCreateAnnotation: (note: string) => void | Promise<void>;
   onDeleteAnnotation: (annotationId: string) => void | Promise<void>;
-  onDeleteComment: (annotationId: string, commentId: string) => void | Promise<void>;
   onFocusAnnotation: (annotationId: string) => void;
   onHighlightClick: (
     annotationId: string,

@@ -400,13 +400,11 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     workspace: sourceReaderWorkspace,
   } = sourceReaderApp;
   const {
-    addComment,
     annotations,
     annotationsRef,
     annotationAgents,
     applyAnnotations,
     deleteAnnotation,
-    deleteComment,
     saveAnnotation,
   } = sourceReaderSession;
   const {
@@ -1139,12 +1137,10 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   const readerAppViewProps = sourceReaderApp.viewProps({
     actions: {
       annotation: {
-        onAddComment: addComment,
         onAnnotationLayoutChange: handleAnnotationLayoutChange,
         onClearActiveAnnotation: () => onOpenAnnotation(null),
         onCreateAnnotation: createAnnotationFromComposer,
         onDeleteAnnotation: deleteAnnotation,
-        onDeleteComment: deleteComment,
         onFocusAnnotation: onOpenAnnotation,
         onHighlightClick: handleHighlightClick,
         onNavigateAnnotation: (annotationId) => scrollToAnnotation(annotationId),

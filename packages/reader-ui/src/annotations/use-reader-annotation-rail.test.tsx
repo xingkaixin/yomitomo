@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, UserProfile } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
@@ -107,18 +107,14 @@ function createNoteRefs(): React.MutableRefObject<Map<string, HTMLElement>> {
 function HookProbe({
   annotations,
   annotationRailLayout,
-  articleId = 'article-1',
   boxes = [],
-  commentsCloseKey = 0,
   filteredAnnotations = annotations,
   noteRefs,
   onAnnotationLayoutChange,
 }: {
   annotations: Annotation[];
   annotationRailLayout?: AnnotationRailLayout;
-  articleId?: string;
   boxes?: HighlightBox[];
-  commentsCloseKey?: number;
   filteredAnnotations?: Annotation[];
   noteRefs: React.MutableRefObject<Map<string, HTMLElement>>;
   onAnnotationLayoutChange?: () => void;
@@ -127,9 +123,7 @@ function HookProbe({
     activeId: null,
     annotationRailLayout,
     annotations,
-    articleId,
     boxes,
-    commentsCloseKey,
     filteredAnnotations,
     noteRefs,
     onAnnotationLayoutChange,
@@ -149,7 +143,6 @@ function HookProbe({
           .join('|')}
       </output>
       <output data-testid="exiting">{Array.from(rail.exitingAnnotationIds).join(',')}</output>
-      <output data-testid="expanded">{Array.from(rail.expandedPrimaryCommentIds).join(',')}</output>
       {rail.annotationRailItems.map((item) => (
         <div
           data-annotation-id={item.annotation.id}
@@ -378,93 +371,6 @@ describe('useReaderAnnotationRail', () => {
     );
 
     expect(screen.getByTestId('rail-layout').textContent).toBe(initialLayout);
-  });
-
-  it('expands new annotations and clears expansion on article switch', async () => {
-    const firstNote = annotation('user-note');
-    const addedNote = annotation('agent-note', {
-      author: { kind: 'agent', agentId: 'agent-a', username: 'agent_a' },
-    });
-    const nextArticleNote = annotation('next-note');
-    const noteRefs = createNoteRefs();
-
-    const { rerender } = render(<HookProbe annotations={[firstNote]} noteRefs={noteRefs} />);
-
-    rerender(<HookProbe annotations={[firstNote, addedNote]} noteRefs={noteRefs} />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('expanded').textContent).toBe('agent-note');
-    });
-
-    rerender(
-      <HookProbe articleId="article-2" annotations={[nextArticleNote]} noteRefs={noteRefs} />,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId('expanded').textContent).toBe('');
-    });
-  });
-
-  it('does not expand annotations that only enter the current rail subset', async () => {
-    const firstNote = annotation('user-note');
-    const pageNote = annotation('page-note');
-    const noteRefs = createNoteRefs();
-
-    const { rerender } = render(
-      <HookProbe
-        annotations={[firstNote]}
-        filteredAnnotations={[firstNote, pageNote]}
-        noteRefs={noteRefs}
-      />,
-    );
-
-    rerender(
-      <HookProbe
-        annotations={[pageNote]}
-        filteredAnnotations={[firstNote, pageNote]}
-        noteRefs={noteRefs}
-      />,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId('expanded').textContent).toBe('');
-    });
-  });
-
-  it('expands a new annotation when it enters the current rail subset later', async () => {
-    const firstNote = annotation('user-note');
-    const addedNote = annotation('agent-note', {
-      author: { kind: 'agent', agentId: 'agent-a', username: 'agent_a' },
-    });
-    const noteRefs = createNoteRefs();
-
-    const { rerender } = render(
-      <HookProbe annotations={[firstNote]} filteredAnnotations={[firstNote]} noteRefs={noteRefs} />,
-    );
-
-    rerender(
-      <HookProbe
-        annotations={[firstNote]}
-        filteredAnnotations={[firstNote, addedNote]}
-        noteRefs={noteRefs}
-      />,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId('expanded').textContent).toBe('');
-    });
-
-    rerender(
-      <HookProbe
-        annotations={[firstNote, addedNote]}
-        filteredAnnotations={[firstNote, addedNote]}
-        noteRefs={noteRefs}
-      />,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId('expanded').textContent).toBe('agent-note');
-    });
   });
 });
 

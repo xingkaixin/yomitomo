@@ -204,13 +204,11 @@ export function EbookBookcase({
     workspace: sourceReaderWorkspace,
   } = sourceReaderApp;
   const {
-    addComment,
     annotations,
     annotationsRef,
     annotationAgents,
     applyAnnotations,
     deleteAnnotation,
-    deleteComment,
     saveAnnotation,
   } = sourceReaderSession;
   const [annotatingAgentIds, setAnnotatingAgentIds] = useState<string[]>([]);
@@ -221,7 +219,6 @@ export function EbookBookcase({
 
   const {
     actionShortcuts,
-    closeFloatingComments,
     labels,
     readerChat,
     readerSettings,
@@ -473,14 +470,12 @@ export function EbookBookcase({
     clearAnnotationUiState();
     setAnnotatingAgentIds([]);
     cleanupEbookAgentTheater();
-    closeFloatingComments();
     setStatusMessage('');
     setSettingsOpen(false);
     setTocOpen(false);
     searchNavigation.resetSearch();
   }, [
     article.id,
-    closeFloatingComments,
     cleanupEbookAgentTheater,
     clearAnnotationUiState,
     resetEbookBoxState,
@@ -968,12 +963,10 @@ export function EbookBookcase({
   const readerAppViewProps = sourceReaderApp.viewProps({
     actions: {
       annotation: {
-        onAddComment: addComment,
         onAnnotationLayoutChange: recalculateActiveConnection,
         onClearActiveAnnotation: () => onOpenAnnotation(null),
         onCreateAnnotation: createAnnotation,
         onDeleteAnnotation: deleteAnnotation,
-        onDeleteComment: deleteComment,
         onFocusAnnotation: openAnnotation,
         onHighlightClick: handleHighlightClick,
         onNavigateAnnotation: supportsAnnotationNavigation ? navigateAnnotation : undefined,

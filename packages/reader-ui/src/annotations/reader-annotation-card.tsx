@@ -8,7 +8,7 @@ import {
   MoreHorizontalIcon,
 } from '@hugeicons/core-free-icons';
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { Annotation, MessageSendShortcut, PublicAgent, UserProfile } from '@yomitomo/shared';
+import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { annotationPersona as annotationAuthor, commentPersona } from '@yomitomo/core';
 import { AvatarBadge, ReaderTooltip } from '../shared/reader-component-primitives';
 import { formatRelativeTime, formatTime } from '../reader-date-utils';
@@ -78,23 +78,16 @@ export function AnnotationCard({
   exiting?: boolean;
   isStackFront?: boolean;
   labels?: ReaderUiLabels;
-  messageSendShortcut: MessageSendShortcut;
   noteRef: (element: HTMLElement | null) => void;
-  primaryCommentExpanded: boolean;
   railSide?: AnnotationRailSide;
   reviewAgents?: PublicAgent[];
-  shortcutModifier: string;
   stackCount?: number;
   stackIndex?: number;
-  commentsCloseKey: number;
   style?: React.CSSProperties;
   userProfile: UserProfile;
-  onAddComment: (annotationId: string, content: string, replyTo?: string) => void;
   onDelete: (annotationId: string) => void;
-  onDeleteComment?: (annotationId: string, commentId: string) => void;
   onFocus: (annotationId: string) => void;
   onOpenDiscussion?: (annotationId: string, sourceRect?: ReaderWindowSourceRect) => void;
-  onPrimaryCommentExpandedChange: (annotationId: string, expanded: boolean) => void;
   pendingAgents?: PublicAgent[];
 }) {
   const personaAgents = useMemo(() => [...agents, ...reviewAgents], [agents, reviewAgents]);

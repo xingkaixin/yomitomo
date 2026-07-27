@@ -126,15 +126,8 @@ export function WebSourceBookcase({
     statusMessage,
     workspace: sourceReaderWorkspace,
   } = sourceReaderApp;
-  const {
-    addComment,
-    annotations,
-    annotationsRef,
-    annotationAgents,
-    deleteAnnotation,
-    deleteComment,
-    saveAnnotation,
-  } = sourceReaderSession;
+  const { annotations, annotationsRef, annotationAgents, deleteAnnotation, saveAnnotation } =
+    sourceReaderSession;
   const [tocOpen, setTocOpen] = useState(false);
   const [, setSettingsOpen] = useState(false);
   const [articleSearchText, setArticleSearchText] = useState('');
@@ -799,12 +792,10 @@ export function WebSourceBookcase({
   const readerAppViewProps = sourceReaderApp.viewProps({
     actions: {
       annotation: {
-        onAddComment: addComment,
         onAnnotationLayoutChange: recalculateActiveConnection,
         onClearActiveAnnotation: () => onOpenAnnotation(null),
         onCreateAnnotation: createAnnotation,
         onDeleteAnnotation: deleteAnnotation,
-        onDeleteComment: deleteComment,
         onFocusAnnotation: openAnnotation,
         onHighlightClick: handleHighlightClick,
         onNavigateAnnotation: navigateAnnotation,

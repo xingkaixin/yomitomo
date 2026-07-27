@@ -1,28 +1,22 @@
 import React from 'react';
-import type { HighlightBox } from '@yomitomo/core';
-import type {
-  Annotation,
-  MessageSendShortcut,
-  PublicAgent,
-  SelectionActionShortcuts,
-  UserProfile,
-} from '@yomitomo/shared';
+import type { Annotation, MessageSendShortcut, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { AnnotationCard } from '../annotations/reader-annotation-card';
-import type { ReaderWindowSourceRect } from '../annotations/reader-annotation-card';
+import type { ReaderAnnotationRailState } from '../annotations/use-reader-annotation-rail';
 import { Composer, type ComposerPopupPhase } from './reader-composer';
 import { EmptyNotes } from './reader-empty-notes';
 import { HighlightChoiceMenu } from './reader-highlight-choice-menu';
 import { SelectionMenu } from './reader-selection-menu';
 import { SelectionHandles } from './reader-selection-handles';
 import type {
-  ReaderChatModel,
-  HighlightChoice,
   PendingComposer,
-  ReaderArticle,
+  ReaderAgentModel,
+  ReaderAnnotationModel,
+  ReaderAppViewActions,
+  ReaderArticleModel,
+  ReaderSelectionModel,
+  ReaderSettingsModel,
+  ReaderShellRefs,
   ReaderUiLabels,
-  ReaderChatActivationSource,
-  SelectionAdjustmentPointer,
-  SelectionAction,
 } from './reader-app-view-types';
 import { defaultReaderUiLabels } from './reader-app-view-types';
 
@@ -35,82 +29,26 @@ type HighlightGrowStyle = React.CSSProperties & {
   '--highlight-grow-delay'?: string;
 };
 import {
-  buildAnnotationRailItems,
   buildHighlightSegments,
   highlightSegmentStyle,
   type AnnotationRailLayout,
 } from '../annotations/reader-annotations';
 
+type ReaderSurfaceActions = Pick<ReaderAppViewActions, 'annotation' | 'selection'>;
+
 export type ReaderSurfaceViewProps = {
-  activeId: string | null;
-  agentTheaterBoxes: HighlightBox[];
-  agents: PublicAgent[];
-  annotationRailItems: ReturnType<typeof buildAnnotationRailItems>;
+  actions: ReaderSurfaceActions;
+  agents: ReaderAgentModel;
+  annotationRail: ReaderAnnotationRailState;
   annotationRailLayout: AnnotationRailLayout;
-  annotations: Annotation[];
-  articleContent?: React.ReactNode;
-  articleRef: React.RefObject<HTMLElement | null>;
-  boxes: HighlightBox[];
-  canvasRef: React.RefObject<HTMLDivElement | null>;
-  commentsCloseKey: number;
-  composer: PendingComposer | null;
-  chat?: ReaderChatModel;
-  distillationAnimation?: {
-    annotationId: string;
-    transition: 'publish' | 'update' | 'unpublish';
-    phase: 'morph-out' | 'morph-in' | 'update';
-    overlayDistillation?: {
-      content: string;
-      publishedAt?: string;
-      updatedAt?: string;
-    };
-    token: number;
-  } | null;
-  exitingAnnotationIds: Set<string>;
-  expandedPrimaryCommentIds: Set<string>;
-  extracted: ReaderArticle;
-  highlightChoice: HighlightChoice | null;
+  annotations: ReaderAnnotationModel;
+  article: ReaderArticleModel;
+  chatAvailable: boolean;
   labels?: ReaderUiLabels;
-  messageSendShortcut: MessageSendShortcut;
-  newAnnotationIds?: Set<string>;
-  pendingAnnotationAgents?: Record<string, PublicAgent[]>;
-  noteRefForAnnotation: (annotationId: string) => (element: HTMLElement | null) => void;
-  notesRef: React.RefObject<HTMLElement | null>;
-  selectionAction: SelectionAction | null;
-  selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
-  selectionCopyRequestKey?: number;
-  shortcutModifier: string;
-  surfaceRef: React.RefObject<HTMLDivElement | null>;
-  temporaryBoxes: HighlightBox[];
-  reviewAgents?: PublicAgent[];
-  searchBoxes?: HighlightBox[];
-  showEmptyNotes?: boolean;
+  refs: ReaderShellRefs;
+  selection: ReaderSelectionModel;
+  settings: ReaderSettingsModel;
   userProfile: UserProfile;
-  visibleAnnotationIds: Set<string>;
-  visibleAnnotations: Annotation[];
-  onAddComment: (annotationId: string, content: string, replyTo?: string) => void | Promise<void>;
-  onCancelComposer: () => void;
-  onClearSelection: () => void;
-  onCloseHighlightChoice: () => void;
-  onCopySelection: (action: SelectionAction) => void | Promise<void>;
-  onCreateAnnotation: (note: string) => void | Promise<void>;
-  onDeleteAnnotation: (annotationId: string) => void | Promise<void>;
-  onDeleteComment: (annotationId: string, commentId: string) => void | Promise<void>;
-  onFocusAnnotation: (annotationId: string) => void;
-  onOpenAnnotationDiscussion?: (annotationId: string, sourceRect?: ReaderWindowSourceRect) => void;
-  onHighlightClick: (
-    annotationId: string,
-    event: React.MouseEvent<HTMLButtonElement>,
-    annotationIds: string[],
-  ) => void;
-  onMouseUp: (event: React.MouseEvent<HTMLElement>) => void;
-  onAskSelection?: (action: SelectionAction, source: ReaderChatActivationSource) => void;
-  onSelectionHandleDrag?: (point: SelectionAdjustmentPointer) => void;
-  onSelectionHandleDragEnd?: (point: SelectionAdjustmentPointer) => void;
-  onSelectionHandleDragStart?: (point: SelectionAdjustmentPointer) => void;
-  onOpenComposer: (action: SelectionAction) => void;
-  onPrimaryCommentExpandedChange: (annotationId: string, expanded: boolean) => void;
-  onScrollToHighlight: (annotationId: string) => void;
 };
 
 const emptyNewAnnotationIds = new Set<string>();
@@ -247,61 +185,43 @@ function getCssDurationMs(element: Element, variableName: string, fallback: numb
 }
 
 export function ReaderSurfaceView({
-  activeId,
-  agentTheaterBoxes,
-  agents,
-  annotationRailItems,
+  actions: { annotation: annotationActions, selection: selectionActions },
+  agents: {
+    agents,
+    pendingAnnotationAgents = {},
+    reviewAgents = [],
+    theaterBoxes: agentTheaterBoxes,
+  },
+  annotationRail: {
+    annotationRailItems,
+    exitingAnnotationIds,
+    noteRefForAnnotation,
+    visibleAnnotationIds,
+    visibleAnnotations,
+  },
   annotationRailLayout,
-  annotations,
-  articleContent,
-  articleRef,
-  boxes,
-  canvasRef,
-  commentsCloseKey,
-  composer,
-  chat,
-  distillationAnimation,
-  exitingAnnotationIds,
-  expandedPrimaryCommentIds,
-  extracted,
-  highlightChoice,
+  annotations: {
+    activeId,
+    annotations,
+    boxes,
+    distillationAnimation,
+    newAnnotationIds = emptyNewAnnotationIds,
+    searchBoxes = [],
+    showEmptyNotes,
+    temporaryBoxes,
+  },
+  article: { content: articleContent, extracted },
+  chatAvailable,
   labels = defaultReaderUiLabels,
-  messageSendShortcut,
-  newAnnotationIds = emptyNewAnnotationIds,
-  pendingAnnotationAgents = {},
-  noteRefForAnnotation,
-  notesRef,
-  selectionAction,
-  selectionActionShortcuts,
-  selectionCopyRequestKey,
-  shortcutModifier,
-  surfaceRef,
-  temporaryBoxes,
-  reviewAgents = [],
-  searchBoxes = [],
-  showEmptyNotes,
+  refs: { articleRef, canvasRef, notesRef, surfaceRef },
+  selection: {
+    composer,
+    copyRequestKey: selectionCopyRequestKey,
+    highlightChoice,
+    selectionAction,
+  },
+  settings: { messageSendShortcut, selectionActionShortcuts, shortcutModifier },
   userProfile,
-  visibleAnnotationIds,
-  visibleAnnotations,
-  onAddComment,
-  onCancelComposer,
-  onClearSelection,
-  onCloseHighlightChoice,
-  onCopySelection,
-  onCreateAnnotation,
-  onDeleteAnnotation,
-  onDeleteComment,
-  onFocusAnnotation,
-  onOpenAnnotationDiscussion,
-  onHighlightClick,
-  onMouseUp,
-  onAskSelection,
-  onSelectionHandleDrag,
-  onSelectionHandleDragEnd,
-  onSelectionHandleDragStart,
-  onOpenComposer,
-  onPrimaryCommentExpandedChange,
-  onScrollToHighlight,
 }: ReaderSurfaceViewProps) {
   const highlightSegments = React.useMemo(() => buildHighlightSegments(boxes), [boxes]);
   const temporarySegments = React.useMemo(
@@ -357,7 +277,7 @@ export function ReaderSurfaceView({
 
   return (
     <div className="reader-surface-frame">
-      <section className="reader-surface" ref={surfaceRef} onMouseUp={onMouseUp}>
+      <section className="reader-surface" ref={surfaceRef} onMouseUp={selectionActions.onMouseUp}>
         <div className="reader-canvas" ref={canvasRef}>
           <article className="reader-article" ref={articleRef}>
             {articleContent ?? (
@@ -389,7 +309,9 @@ export function ReaderSurfaceView({
                   key={`highlight-${segment.id}`}
                   style={segmentStyle}
                   type="button"
-                  onClick={(event) => onHighlightClick(annotationId, event, clickableAnnotationIds)}
+                  onClick={(event) =>
+                    annotationActions.onHighlightClick(annotationId, event, clickableAnnotationIds)
+                  }
                 >
                   <HighlightDots colors={segment.colors} />
                 </button>
@@ -423,16 +345,16 @@ export function ReaderSurfaceView({
             {selectionAction &&
             selectionAction.adjustable !== false &&
             !composer &&
-            onSelectionHandleDrag &&
-            onSelectionHandleDragEnd &&
-            onSelectionHandleDragStart ? (
+            selectionActions.onSelectionHandleDrag &&
+            selectionActions.onSelectionHandleDragEnd &&
+            selectionActions.onSelectionHandleDragStart ? (
               <SelectionHandles
                 boxes={temporaryBoxes}
                 draggingHandle={selectionAction.draggingHandle}
                 labels={labels}
-                onDrag={onSelectionHandleDrag}
-                onDragEnd={onSelectionHandleDragEnd}
-                onDragStart={onSelectionHandleDragStart}
+                onDrag={selectionActions.onSelectionHandleDrag}
+                onDragEnd={selectionActions.onSelectionHandleDragEnd}
+                onDragStart={selectionActions.onSelectionHandleDragStart}
               />
             ) : null}
           </div>
@@ -456,25 +378,18 @@ export function ReaderSurfaceView({
                   }
                   exiting={exitingAnnotationIds.has(annotation.id)}
                   isStackFront={isStackFront}
-                  messageSendShortcut={messageSendShortcut}
                   key={annotation.id}
                   labels={labels}
                   noteRef={noteRefForAnnotation(annotation.id)}
                   pendingAgents={pendingAnnotationAgents[annotation.id] || []}
-                  primaryCommentExpanded={expandedPrimaryCommentIds.has(annotation.id)}
-                  shortcutModifier={shortcutModifier}
                   stackCount={stackCount}
                   stackIndex={stackIndex}
-                  commentsCloseKey={commentsCloseKey}
                   railSide={railSide}
                   style={style}
                   userProfile={userProfile}
-                  onAddComment={onAddComment}
-                  onDelete={onDeleteAnnotation}
-                  onDeleteComment={onDeleteComment}
-                  onFocus={onScrollToHighlight}
-                  onOpenDiscussion={onOpenAnnotationDiscussion}
-                  onPrimaryCommentExpandedChange={onPrimaryCommentExpandedChange}
+                  onDelete={annotationActions.onDeleteAnnotation}
+                  onFocus={annotationActions.onScrollToHighlight}
+                  onOpenDiscussion={annotationActions.onOpenAnnotationDiscussion}
                   reviewAgents={reviewAgents}
                 />
               ),
@@ -486,10 +401,12 @@ export function ReaderSurfaceView({
               labels={labels}
               shortcuts={selectionActionShortcuts}
               copyRequestKey={selectionCopyRequestKey}
-              onAnnotate={() => onOpenComposer(selectionAction)}
-              onAsk={chat ? () => onAskSelection?.(selectionAction, 'pointer') : undefined}
-              onCopy={() => onCopySelection(selectionAction)}
-              onCopySettled={onClearSelection}
+              onAnnotate={() => selectionActions.onOpenComposer(selectionAction)}
+              onAsk={
+                chatAvailable ? () => selectionActions.onAskSelection?.(selectionAction) : undefined
+              }
+              onCopy={() => selectionActions.onCopySelection(selectionAction)}
+              onCopySettled={selectionActions.onClearSelection}
             />
           ) : null}
           {highlightChoice && highlightChoiceAnnotations.length > 1 ? (
@@ -499,8 +416,8 @@ export function ReaderSurfaceView({
               annotations={highlightChoiceAnnotations}
               labels={labels}
               userProfile={userProfile}
-              onCancel={onCloseHighlightChoice}
-              onSelect={onFocusAnnotation}
+              onCancel={selectionActions.onCloseHighlightChoice}
+              onSelect={annotationActions.onFocusAnnotation}
             />
           ) : null}
           <AnimatedComposer
@@ -510,8 +427,8 @@ export function ReaderSurfaceView({
             labels={labels}
             messageSendShortcut={messageSendShortcut}
             shortcutModifier={shortcutModifier}
-            onCancel={onCancelComposer}
-            onSave={onCreateAnnotation}
+            onCancel={selectionActions.onCancelComposer}
+            onSave={annotationActions.onCreateAnnotation}
           />
         </div>
       </section>

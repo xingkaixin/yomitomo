@@ -21,10 +21,7 @@ export type UseReaderAnnotationRailOptions = {
   activeId: string | null;
   annotationRailLayout?: AnnotationRailLayout;
   annotations: Annotation[];
-  articleId: string;
-  autoExpandNewAnnotations?: boolean;
   boxes: HighlightBox[];
-  commentsCloseKey: number;
   filteredAnnotations: Annotation[];
   noteRefs: React.MutableRefObject<Map<string, HTMLElement>>;
   onAnnotationLayoutChange?: () => void;
@@ -33,9 +30,7 @@ export type UseReaderAnnotationRailOptions = {
 export type ReaderAnnotationRailState = {
   annotationRailItems: ReturnType<typeof buildAnnotationRailItems>;
   exitingAnnotationIds: Set<string>;
-  expandedPrimaryCommentIds: Set<string>;
   noteRefForAnnotation: (annotationId: string) => (element: HTMLElement | null) => void;
-  setPrimaryCommentExpanded: (annotationId: string, expanded: boolean) => void;
   visibleAnnotationIds: Set<string>;
   visibleAnnotations: Annotation[];
   visibleRailAnnotations: Annotation[];
@@ -45,10 +40,7 @@ export function useReaderAnnotationRail({
   activeId,
   annotationRailLayout,
   annotations,
-  articleId,
-  autoExpandNewAnnotations = true,
   boxes,
-  commentsCloseKey,
   filteredAnnotations,
   noteRefs,
   onAnnotationLayoutChange,
@@ -58,18 +50,10 @@ export function useReaderAnnotationRail({
     exitingIds: new Set<string>(),
   }));
   const [noteHeights, setNoteHeights] = React.useState<Record<string, number>>({});
-  const [expandedPrimaryCommentIds, setExpandedPrimaryCommentIds] = React.useState<Set<string>>(
-    () => new Set(),
-  );
   const noteElementsRef = React.useRef(new Map<string, HTMLElement>());
   const noteRefCallbacksRef = React.useRef(
     new Map<string, (element: HTMLElement | null) => void>(),
   );
-  const pendingAutoExpandAnnotationIdsRef = React.useRef(new Set<string>());
-  const sourceAnnotationIdsSnapshotRef = React.useRef({
-    articleId,
-    ids: new Set(filteredAnnotations.map((annotation) => annotation.id)),
-  });
   const noteResizeObserverRef = React.useRef<ResizeObserver | null>(null);
   const pendingNoteHeightsRef = React.useRef(new Map<string, number>());
   const noteHeightFrameRef = React.useRef(0);
@@ -165,16 +149,6 @@ export function useReaderAnnotationRail({
     );
   }, []);
 
-  const setPrimaryCommentExpanded = React.useCallback((annotationId: string, expanded: boolean) => {
-    setExpandedPrimaryCommentIds((current) => {
-      if (current.has(annotationId) === expanded) return current;
-      const next = new Set(current);
-      if (expanded) next.add(annotationId);
-      else next.delete(annotationId);
-      return next;
-    });
-  }, []);
-
   const registerNoteElement = React.useCallback(
     (annotationId: string, element: HTMLElement | null) => {
       const existing = noteElementsRef.current.get(annotationId);
@@ -226,66 +200,6 @@ export function useReaderAnnotationRail({
     noteRefCallbacksRef.current.set(annotationId, callback);
     return callback;
   }, []);
-
-  React.useLayoutEffect(() => {
-    const sourceAnnotationIds = filteredAnnotations.map((annotation) => annotation.id);
-    const sourceAnnotationIdSet = new Set(sourceAnnotationIds);
-    const renderedAnnotationIdSet = new Set(annotations.map((annotation) => annotation.id));
-    const previous = sourceAnnotationIdsSnapshotRef.current;
-
-    const sameArticleSourceAnnotationIds =
-      previous.articleId === articleId &&
-      previous.ids.size === sourceAnnotationIdSet.size &&
-      sourceAnnotationIds.every((id) => previous.ids.has(id));
-
-    if (previous.articleId !== articleId) {
-      pendingAutoExpandAnnotationIdsRef.current.clear();
-      sourceAnnotationIdsSnapshotRef.current = { articleId, ids: sourceAnnotationIdSet };
-      setExpandedPrimaryCommentIds((current) => (current.size === 0 ? current : new Set()));
-      return;
-    }
-
-    const addedIds = sameArticleSourceAnnotationIds
-      ? []
-      : sourceAnnotationIds.filter((id) => !previous.ids.has(id));
-    if (!sameArticleSourceAnnotationIds) {
-      sourceAnnotationIdsSnapshotRef.current = { articleId, ids: sourceAnnotationIdSet };
-      for (const id of addedIds) pendingAutoExpandAnnotationIdsRef.current.add(id);
-    }
-
-    for (const id of pendingAutoExpandAnnotationIdsRef.current) {
-      if (!sourceAnnotationIdSet.has(id)) pendingAutoExpandAnnotationIdsRef.current.delete(id);
-    }
-
-    const autoExpandIds = Array.from(pendingAutoExpandAnnotationIdsRef.current).filter((id) =>
-      renderedAnnotationIdSet.has(id),
-    );
-    for (const id of autoExpandIds) pendingAutoExpandAnnotationIdsRef.current.delete(id);
-
-    setExpandedPrimaryCommentIds((current) => {
-      let changed = false;
-      const next = new Set<string>();
-
-      for (const id of current) {
-        if (renderedAnnotationIdSet.has(id)) next.add(id);
-        else changed = true;
-      }
-
-      if (autoExpandNewAnnotations) {
-        for (const id of autoExpandIds) {
-          if (next.has(id)) continue;
-          next.add(id);
-          changed = true;
-        }
-      }
-
-      return changed ? next : current;
-    });
-  }, [annotations, articleId, autoExpandNewAnnotations, filteredAnnotations]);
-
-  React.useEffect(() => {
-    setExpandedPrimaryCommentIds((current) => (current.size === 0 ? current : new Set()));
-  }, [commentsCloseKey]);
 
   React.useEffect(() => {
     const sourceIds = annotations.map((annotation) => annotation.id);
@@ -355,9 +269,7 @@ export function useReaderAnnotationRail({
   return {
     annotationRailItems,
     exitingAnnotationIds: railAnimation.exitingIds,
-    expandedPrimaryCommentIds,
     noteRefForAnnotation,
-    setPrimaryCommentExpanded,
     visibleAnnotationIds,
     visibleAnnotations,
     visibleRailAnnotations,

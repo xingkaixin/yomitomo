@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type RefObject } from 'react';
+import { useMemo, type RefObject } from 'react';
 import type {
   Annotation,
   ArticleRecord,
@@ -42,11 +42,8 @@ export function useSourceReaderWorkspace({
   uiLanguage,
   onSaveArticleReaderChatState,
 }: UseSourceReaderWorkspaceInput) {
-  const [commentsCloseKey, setCommentsCloseKey] = useState(0);
-  const closeFloatingComments = useCallback(() => setCommentsCloseKey((key) => key + 1), []);
   const selection = useSourceSelectionComposer({
     canvasRef,
-    onOpenComposer: closeFloatingComments,
   });
   const [readerSettings, updateReaderSettings] = useDesktopReaderSettings();
   const readerChat = useReaderChatSession({
@@ -71,8 +68,6 @@ export function useSourceReaderWorkspace({
   return {
     actionShortcuts,
     annotationTotals,
-    closeFloatingComments,
-    commentsCloseKey,
     labels: readerUiLabels(),
     readerChat,
     readerSettings,
