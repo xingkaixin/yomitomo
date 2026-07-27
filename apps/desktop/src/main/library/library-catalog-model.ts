@@ -1,11 +1,4 @@
-import type { LibraryCatalogItemType, LibraryCatalogType } from '../../ipc-contract';
-
-export const ARTICLE_CATALOG_TYPES: Array<Exclude<LibraryCatalogItemType, 'weread'>> = [
-  'web',
-  'ebook',
-  'pdf',
-  'text',
-];
+import type { LibraryCatalogType } from '../../ipc-contract';
 
 export type CatalogCandidate = {
   kind: 'collection' | 'item';

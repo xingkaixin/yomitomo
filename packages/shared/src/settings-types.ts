@@ -1,3 +1,5 @@
+import { ARTICLE_SOURCE_TYPES } from './sources/article-types';
+
 export type MessageSendShortcut = 'enter' | 'mod-enter';
 
 export type AssistantExecutionMode = 'fast_response' | 'deep_verification';
@@ -19,20 +21,14 @@ export type SelectionActionShortcuts = {
   ask: string;
 };
 
-export type LibraryContentSourceId = 'web' | 'ebook' | 'pdf' | 'text' | 'weread';
+export const defaultLibraryContentSourceOrder = [...ARTICLE_SOURCE_TYPES, 'weread'] as const;
+
+export type LibraryContentSourceId = (typeof defaultLibraryContentSourceOrder)[number];
 
 export type LibraryContentSourcePreference = {
   id: LibraryContentSourceId;
   enabled: boolean;
 };
-
-export const defaultLibraryContentSourceOrder: LibraryContentSourceId[] = [
-  'web',
-  'ebook',
-  'pdf',
-  'text',
-  'weread',
-];
 
 export type AppSettings = {
   uiLanguage?: UiLanguage;
@@ -104,13 +100,7 @@ export function normalizeLibraryContentSources(value: unknown): LibraryContentSo
 }
 
 function isLibraryContentSourceId(value: unknown): value is LibraryContentSourceId {
-  return (
-    value === 'web' ||
-    value === 'ebook' ||
-    value === 'pdf' ||
-    value === 'text' ||
-    value === 'weread'
-  );
+  return defaultLibraryContentSourceOrder.some((sourceId) => sourceId === value);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

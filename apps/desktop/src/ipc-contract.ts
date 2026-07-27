@@ -7,6 +7,7 @@ import type {
   AnnotationDistillationReviewItem,
   AnnotationDistillationReviewMessage,
   ArticleRecord,
+  ArticleSourceType,
   ArticleStorePatch,
   ArticleSummaryRecord,
   ArticleTranslation,
@@ -131,7 +132,7 @@ export type ArticleReaderChatStateSaveInput = {
   readerChatState?: ReaderChatState;
 };
 
-export type ArticleLibrarySource = 'web' | 'ebook' | 'pdf' | 'text';
+export type ArticleLibrarySource = ArticleSourceType;
 
 export type ArticleLibrarySourceCounts = Record<ArticleLibrarySource, number>;
 

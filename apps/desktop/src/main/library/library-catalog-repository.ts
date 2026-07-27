@@ -1,5 +1,6 @@
 import { and, count, eq, exists, notExists, or, sql, type AnyColumn, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
+import { ARTICLE_SOURCE_TYPES, normalizeArticleSourceType } from '@yomitomo/shared';
 import type {
   LibraryCatalogItemCounts,
   LibraryCatalogItemType,
@@ -11,13 +12,13 @@ import type {
 import * as schema from '../db/schema';
 import type { StoreDatabase } from '../store/store-db';
 import { hydrateCatalogCandidates } from './library-catalog-hydration';
-import { ARTICLE_CATALOG_TYPES, type CatalogCandidate } from './library-catalog-model';
+import type { CatalogCandidate } from './library-catalog-model';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 12;
 const MAX_PAGE = 10_000;
 const MAX_PAGE_SIZE = 100;
-const ALL_TYPES: LibraryCatalogType[] = ['collection', 'web', 'ebook', 'pdf', 'text', 'weread'];
+const ALL_TYPES: LibraryCatalogType[] = ['collection', ...ARTICLE_SOURCE_TYPES, 'weread'];
 const memberArticle = alias(schema.articles, 'member_article');
 const memberWeReadBook = alias(schema.wereadBooks, 'member_weread_book');
 
@@ -87,7 +88,7 @@ function readCatalogCandidates(
   limit: number,
 ) {
   const selects: SQL[] = [];
-  for (const source of ARTICLE_CATALOG_TYPES) {
+  for (const source of ARTICLE_SOURCE_TYPES) {
     if (!input.types.has(source)) continue;
     selects.push(articleCandidateSelect(database, input, source));
   }
@@ -279,7 +280,7 @@ function requiredCondition(condition: SQL | undefined) {
 
 function countCatalogCandidates(database: StoreDatabase, input: NormalizedInput) {
   let total = 0;
-  for (const source of ARTICLE_CATALOG_TYPES) {
+  for (const source of ARTICLE_SOURCE_TYPES) {
     if (!input.types.has(source)) continue;
     total += countArticleCandidates(database, input, source);
   }
@@ -585,11 +586,7 @@ function readItemCounts(database: StoreDatabase): LibraryCatalogItemCounts {
     .groupBy(schema.articles.sourceType)
     .all();
   for (const row of articleCounts) {
-    const source = ARTICLE_CATALOG_TYPES.includes(
-      row.source as Exclude<LibraryCatalogItemType, 'weread'>,
-    )
-      ? (row.source as Exclude<LibraryCatalogItemType, 'weread'>)
-      : 'web';
+    const source = normalizeArticleSourceType(row.source);
     counts[source] += row.count || 0;
   }
   counts.weread = database.select({ count: count() }).from(schema.wereadBooks).get()?.count || 0;

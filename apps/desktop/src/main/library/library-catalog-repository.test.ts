@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import SQLiteDatabase from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { ARTICLE_SOURCE_TYPES } from '@yomitomo/shared';
 import * as schema from '../db/schema';
 import { migrations } from '../db/migrations';
 import { readLibraryCatalogRows } from './library-catalog-repository';
@@ -188,7 +189,7 @@ function largeCatalogDatabase() {
   }> = [];
   const collectedArticleIds = new Set<string>();
   const collectedWeReadIds = new Set<string>();
-  const articleSources = ['web', 'ebook', 'pdf', 'text'] as const;
+  const articleSources = ARTICLE_SOURCE_TYPES;
   const insertArticle = sqlite.prepare(`
     insert into articles (
       id, url, canonical_url, source_type, title, excerpt, content_hash, created_at, updated_at

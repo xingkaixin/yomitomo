@@ -17,15 +17,16 @@ import {
   Tick01Icon,
 } from '@hugeicons/core-free-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type {
-  AppSettings,
-  ArticleSummaryRecord,
-  Collection,
-  CollectionMember,
-  ContentRef,
-  LibraryPin,
-  WeReadBook,
-  WeReadSettings,
+import {
+  ARTICLE_SOURCE_TYPES,
+  type AppSettings,
+  type ArticleSummaryRecord,
+  type Collection,
+  type CollectionMember,
+  type ContentRef,
+  type LibraryPin,
+  type WeReadBook,
+  type WeReadSettings,
 } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
 import { Input } from '../components/ui/input';
@@ -68,8 +69,6 @@ import type { LibraryItemType, LibraryTypeFilter } from './library-entity-types'
 import { useLibraryCatalog } from './use-library-catalog';
 
 const LIBRARY_PAGE_SIZE_OPTIONS = [6, 12, 18, 24] as const;
-const LOCAL_LIBRARY_TYPES: LibraryItemType[] = ['web', 'ebook', 'pdf', 'text'];
-
 const TYPE_FILTER_ICONS: Record<LibraryTypeFilter, React.ReactNode> = {
   collection: <HugeiconsIcon icon={LibraryIcon} size={15} />,
   web: <HugeiconsIcon icon={Globe02Icon} size={15} />,
@@ -229,7 +228,7 @@ export function LibraryHome({
     wereadBooks.length > 0 ||
     Boolean(remoteCatalog?.itemCounts.weread);
   const availableTypes = useMemo<LibraryItemType[]>(
-    () => (wereadAvailable ? [...LOCAL_LIBRARY_TYPES, 'weread'] : LOCAL_LIBRARY_TYPES),
+    () => (wereadAvailable ? [...ARTICLE_SOURCE_TYPES, 'weread'] : [...ARTICLE_SOURCE_TYPES]),
     [wereadAvailable],
   );
   const activeCollectionMemberCount = activeCollection

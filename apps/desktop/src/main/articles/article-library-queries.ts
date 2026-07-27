@@ -1,4 +1,5 @@
 import { and, asc, count, desc, eq, or, sql, type AnyColumn, type SQL } from 'drizzle-orm';
+import { normalizeArticleSourceType } from '@yomitomo/shared';
 import type {
   ArticleLibraryListInput,
   ArticleLibraryListResult,
@@ -21,7 +22,7 @@ export function readArticleLibraryListRows(
   input: ArticleLibraryListInput,
   profile?: StoreReadProfileEntry[],
 ): ArticleLibraryListResult {
-  const source = normalizeArticleLibrarySource(input.source);
+  const source = normalizeArticleSourceType(input.source);
   const pageSize = normalizeArticleLibraryPageSize(input.pageSize);
   const page = normalizeArticleLibraryPage(input.page);
   const query = input.query?.trim() || '';
@@ -81,7 +82,7 @@ function readArticleLibrarySourceCounts(
       .all(),
   );
   for (const row of rows) {
-    counts[normalizeArticleLibrarySource(row.sourceType)] += row.count || 0;
+    counts[normalizeArticleSourceType(row.sourceType)] += row.count || 0;
   }
   return counts;
 }
@@ -115,11 +116,6 @@ function articleTextLike(column: AnyColumn, pattern: string) {
 
 function escapeSqlLikePattern(value: string) {
   return value.replace(/[\\%_]/g, (char) => `\\${char}`);
-}
-
-function normalizeArticleLibrarySource(value: unknown): ArticleLibrarySource {
-  if (value === 'ebook' || value === 'pdf' || value === 'text') return value;
-  return 'web';
 }
 
 function normalizeArticleLibraryPage(value: unknown) {
