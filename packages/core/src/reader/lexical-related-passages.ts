@@ -55,6 +55,7 @@ export type BuildCurrentChapterLexicalRelatedPassagesInput = {
 type ParagraphDocument = {
   paragraph: EpubParagraphIndex;
   text: string;
+  normalizedText: string;
   ranges: ReadingContextTextRange[];
   terms: Map<string, number>;
   length: number;
@@ -62,6 +63,7 @@ type ParagraphDocument = {
 
 type CachedParagraphLexicalDocument = {
   text: string;
+  normalizedText: string;
   terms: Map<string, number>;
   length: number;
 };
@@ -187,9 +189,10 @@ function paragraphLexicalDocument(
     return cached;
   }
 
-  const terms = termCounts(tokenizeLexicalText(text));
+  const normalizedText = normalizeLexicalText(text);
+  const terms = termCounts(tokenizeNormalizedLexicalText(normalizedText));
   if (terms.size === 0) return null;
-  const document = { text, terms, length: tokenLength(terms) };
+  const document = { text, normalizedText, terms, length: tokenLength(terms) };
   prepared.paragraphDocuments.set(cacheKey, document);
   if (input.lexicalCache) cacheStats.missCount += 1;
   return document;
@@ -282,6 +285,9 @@ function scoreDocuments(
   const avgLength =
     documents.reduce((total, document) => total + document.length, 0) / documents.length || 1;
   const documentFrequency = documentFrequencyForQueryTerms(documents, queryTerms);
+  const normalizedQueryPhrases = queryPhrases
+    .map(normalizeLexicalText)
+    .filter((phrase) => phrase.length >= 2 && phrase.length <= 40);
 
   return documents.flatMap((document) => {
     let score = 0;
@@ -298,8 +304,8 @@ function scoreDocuments(
       score += idf * normalized * Math.sqrt(queryCount);
     }
 
-    const phraseBonus = queryPhrases.reduce(
-      (total, phrase) => total + phraseMatchBonus(document.text, phrase),
+    const phraseBonus = normalizedQueryPhrases.reduce(
+      (total, phrase) => total + phraseMatchBonus(document.normalizedText, phrase),
       0,
     );
     const finalScore = score + phraseBonus;
@@ -478,13 +484,15 @@ function relatedPassageReason(terms: string[]) {
   return unique.length > 0 ? `同章 lexical 命中：${unique.join('、')}` : '同章 lexical 命中';
 }
 
-function phraseMatchBonus(text: string, phrase: string) {
-  const normalizedPhrase = normalizeLexicalText(phrase);
-  if (normalizedPhrase.length < 2 || normalizedPhrase.length > 40) return 0;
-  return normalizeLexicalText(text).includes(normalizedPhrase) ? 1.2 : 0;
+function phraseMatchBonus(normalizedText: string, normalizedPhrase: string) {
+  return normalizedText.includes(normalizedPhrase) ? 1.2 : 0;
 }
 
 function tokenizeLexicalText(text: string) {
+  return tokenizeNormalizedLexicalText(normalizeLexicalText(text));
+}
+
+function tokenizeNormalizedLexicalText(normalizedText: string) {
   const tokens: string[] = [];
   let ascii = '';
   let cjk = '';
@@ -497,7 +505,7 @@ function tokenizeLexicalText(text: string) {
     cjk = '';
   };
 
-  for (const rawChar of normalizeLexicalText(text)) {
+  for (const rawChar of normalizedText) {
     if (isAsciiWordChar(rawChar)) {
       flushCjk();
       ascii += rawChar;
