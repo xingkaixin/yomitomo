@@ -138,9 +138,9 @@ describe('articleRecordFromPdfFile', () => {
         },
       },
       readingProgress: {
+        kind: 'page',
         pageIndex: 0,
         pageCount: 7,
-        progress: 0,
       },
       annotations: [],
     });

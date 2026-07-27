@@ -89,6 +89,7 @@ export { performanceElapsedMs, performanceStart } from './performance';
 export type { PerformanceTimingLogger } from './performance';
 
 export { articleCounts } from './reader/article-counts';
+export { readingProgressRatio } from './reader/reading-progress';
 
 export {
   computeReadingActivityDays,

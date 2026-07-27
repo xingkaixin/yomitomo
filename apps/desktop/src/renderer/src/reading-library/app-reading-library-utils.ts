@@ -1,5 +1,5 @@
 import i18next from 'i18next';
-import { articleCounts } from '@yomitomo/core';
+import { articleCounts, readingProgressRatio } from '@yomitomo/core';
 import {
   cleanEpubDisplayTitle,
   type ArticleRecord,
@@ -148,7 +148,7 @@ function formatLibraryCountGroup(count: number, unit: 'annotations' | 'distillat
 export function libraryArticleStatus(article: ArticleSummaryRecord) {
   if (articleAnnotationCount(article) === 0)
     return { label: i18next.t('library.status.new'), tone: 'new' };
-  if ((article.readingProgress?.progress ?? 0) >= 0.98)
+  if (readingProgressRatio(article.readingProgress) >= 0.98)
     return { label: i18next.t('library.status.done'), tone: 'done' };
   return { label: i18next.t('library.status.progress'), tone: 'progress' };
 }

@@ -96,7 +96,10 @@ function rowToArticleBase(
     leadImageUrl: row.leadImageUrl || undefined,
     themeColor: row.themeColor || undefined,
     contentHash: row.contentHash,
-    readingProgress: normalizeArticleReadingProgress(row.readingProgress),
+    readingProgress: normalizeArticleReadingProgress(
+      row.readingProgress,
+      normalizeArticleSourceType(row.sourceType),
+    ),
     readerChatState: normalizeReaderChatState(row.readerChatState, row.id),
     annotations,
     createdAt: row.createdAt,

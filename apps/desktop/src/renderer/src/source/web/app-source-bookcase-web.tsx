@@ -94,9 +94,10 @@ export function WebSourceBookcase({
   );
   const shouldSaveWebProgress = useCallback(
     (nextProgress: ArticleReadingProgress, lastSavedProgress: ArticleReadingProgress | null) =>
-      !lastSavedProgress ||
-      Math.abs(nextProgress.progress - lastSavedProgress.progress) >=
-        WEB_READING_PROGRESS_SAVE_MIN_DELTA,
+      nextProgress.kind === 'scroll' &&
+      (lastSavedProgress?.kind !== 'scroll' ||
+        Math.abs(nextProgress.progress - lastSavedProgress.progress) >=
+          WEB_READING_PROGRESS_SAVE_MIN_DELTA),
     [],
   );
   const { saveNow: saveWebProgressNow, scheduleSave: scheduleWebProgressSave } =
@@ -938,7 +939,7 @@ export function WebSourceBookcase({
 }
 
 function normalizeSavedWebProgress(progress: ArticleReadingProgress | undefined) {
-  if (!progress) return null;
+  if (progress?.kind !== 'scroll') return null;
   if (!Number.isFinite(progress.progress)) return null;
   return Math.min(1, Math.max(0, progress.progress));
 }
@@ -979,8 +980,7 @@ function webActiveTocIndex(
 
 function webReadingProgressSnapshot(progress: number): ArticleReadingProgress {
   return {
-    pageIndex: Math.min(999, Math.floor(progress * 1000)),
-    pageCount: 1000,
+    kind: 'scroll',
     progress,
     updatedAt: new Date().toISOString(),
   };

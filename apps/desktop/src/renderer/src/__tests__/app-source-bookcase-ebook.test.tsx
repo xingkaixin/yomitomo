@@ -251,9 +251,10 @@ describe('EbookBookcase', () => {
     const progressArticle = ebookArticle({
       annotations: [...annotations],
       readingProgress: {
-        pageIndex: 2,
-        pageCount: 10,
-        progress: 0.2,
+        kind: 'chapter',
+        chapterIndex: 1,
+        chapterProgress: 0.2,
+        bookProgress: 0.2,
         updatedAt: now,
       },
       updatedAt: '2026-05-16T08:00:01.000Z',

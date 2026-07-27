@@ -1,6 +1,7 @@
 import type {
   ArticleReadingProgress,
   ArticleRecord,
+  ArticleSourceType,
   ArticleSummaryRecord,
   EbookChapterRecord,
   EbookFormat,
@@ -55,12 +56,13 @@ type ArticleSummaryRecordWithoutSource = Omit<
 
 export function normalizeArticleRecord(article: ArticleRecord): ArticleRecord {
   const { sourceType, ebook, pdf, text, ...base } = article;
+  const normalizedSourceType = normalizeArticleSourceType(sourceType);
   const normalizedBase: ArticleRecordWithoutSource = {
     ...base,
-    readingProgress: normalizeArticleReadingProgress(base.readingProgress),
+    readingProgress: normalizeArticleReadingProgress(base.readingProgress, normalizedSourceType),
   };
 
-  switch (normalizeArticleSourceType(sourceType)) {
+  switch (normalizedSourceType) {
     case 'web':
       return { ...normalizedBase, sourceType: 'web' };
     case 'ebook': {
@@ -86,14 +88,15 @@ export function normalizeArticleRecord(article: ArticleRecord): ArticleRecord {
 
 export function normalizeArticleSummaryRecord(article: ArticleSummaryRecord): ArticleSummaryRecord {
   const { sourceType, ebook, pdf, text, ...base } = article;
+  const normalizedSourceType = normalizeArticleSourceType(sourceType);
   const normalizedBase: ArticleSummaryRecordWithoutSource = {
     ...base,
     annotations: [],
     counts: articleCounts(article),
-    readingProgress: normalizeArticleReadingProgress(base.readingProgress),
+    readingProgress: normalizeArticleReadingProgress(base.readingProgress, normalizedSourceType),
   };
 
-  switch (normalizeArticleSourceType(sourceType)) {
+  switch (normalizedSourceType) {
     case 'web':
       return { ...normalizedBase, sourceType: 'web' };
     case 'ebook': {
@@ -158,24 +161,119 @@ function normalizeTextFormat(value: unknown): TextSourceFormat {
 
 export function normalizeArticleReadingProgress(
   value: unknown,
+  sourceType?: ArticleSourceType,
 ): ArticleReadingProgress | undefined {
   if (!value || typeof value !== 'object') return undefined;
   const progress = recordValue(value);
+  const updatedAt = stringValue(progress.updatedAt) || new Date().toISOString();
+
+  switch (progress.kind) {
+    case 'scroll':
+      return {
+        kind: 'scroll',
+        progress: normalizeReadingProgressRatio(progress.progress),
+        updatedAt,
+      };
+    case 'page':
+      return {
+        kind: 'page',
+        pageIndex: normalizeReadingProgressIndex(progress.pageIndex),
+        pageCount: normalizeReadingProgressCount(progress.pageCount),
+        updatedAt,
+      };
+    case 'chapter':
+      return {
+        kind: 'chapter',
+        chapterIndex: normalizeReadingProgressIndex(progress.chapterIndex),
+        chapterProgress: normalizeReadingProgressRatio(progress.chapterProgress),
+        bookProgress: normalizeReadingProgressRatio(progress.bookProgress ?? progress.progress),
+        updatedAt,
+      };
+  }
+
   const pageIndex = Number(progress.pageIndex);
   const pageCount = Number(progress.pageCount);
   const chapterIndex = Number(progress.chapterIndex);
   const chapterProgress = Number(progress.chapterProgress);
   const progressValue = Number(progress.progress);
+  const hasChapterAnchor =
+    Number.isInteger(chapterIndex) && chapterIndex >= 0 && Number.isFinite(chapterProgress);
+
+  if (sourceType === 'ebook' && hasChapterAnchor) {
+    return {
+      kind: 'chapter',
+      chapterIndex,
+      chapterProgress: normalizeReadingProgressRatio(chapterProgress),
+      bookProgress: normalizeReadingProgressRatio(progressValue),
+      updatedAt,
+    };
+  }
+  if (sourceType === 'ebook') {
+    return {
+      kind: 'scroll',
+      progress: normalizeReadingProgressRatio(progressValue),
+      updatedAt,
+    };
+  }
+  if (sourceType === 'pdf') {
+    return {
+      kind: 'page',
+      pageIndex: normalizeReadingProgressIndex(pageIndex),
+      pageCount: normalizeReadingProgressCount(pageCount),
+      updatedAt,
+    };
+  }
+  if (sourceType === 'web' || sourceType === 'text') {
+    return {
+      kind: 'scroll',
+      progress: normalizeReadingProgressRatio(progressValue),
+      updatedAt,
+    };
+  }
+  if (hasChapterAnchor) {
+    return {
+      kind: 'chapter',
+      chapterIndex,
+      chapterProgress: normalizeReadingProgressRatio(chapterProgress),
+      bookProgress: normalizeReadingProgressRatio(progressValue),
+      updatedAt,
+    };
+  }
+  if (pageCount === 1000 && Number.isFinite(progressValue)) {
+    return {
+      kind: 'scroll',
+      progress: normalizeReadingProgressRatio(progressValue),
+      updatedAt,
+    };
+  }
+  if (Number.isInteger(pageCount) && pageCount > 0) {
+    return {
+      kind: 'page',
+      pageIndex: normalizeReadingProgressIndex(pageIndex),
+      pageCount,
+      updatedAt,
+    };
+  }
   return {
-    pageIndex: Number.isInteger(pageIndex) && pageIndex >= 0 ? pageIndex : 0,
-    pageCount: Number.isInteger(pageCount) && pageCount > 0 ? pageCount : 1,
-    chapterIndex: Number.isInteger(chapterIndex) && chapterIndex >= 0 ? chapterIndex : undefined,
-    chapterProgress: Number.isFinite(chapterProgress)
-      ? Math.max(0, Math.min(1, chapterProgress))
-      : undefined,
-    progress: Number.isFinite(progressValue) ? Math.max(0, Math.min(1, progressValue)) : 0,
-    updatedAt: stringValue(progress.updatedAt) || new Date().toISOString(),
+    kind: 'scroll',
+    progress: normalizeReadingProgressRatio(progressValue),
+    updatedAt,
   };
+}
+
+function normalizeReadingProgressIndex(value: unknown) {
+  const index = Number(value);
+  return Number.isInteger(index) && index >= 0 ? index : 0;
+}
+
+function normalizeReadingProgressCount(value: unknown) {
+  const count = Number(value);
+  return Number.isInteger(count) && count > 0 ? count : 1;
+}
+
+function normalizeReadingProgressRatio(value: unknown) {
+  const ratio = Number(value);
+  return Number.isFinite(ratio) ? Math.max(0, Math.min(1, ratio)) : 0;
 }
 
 export function normalizeEbookRecord(

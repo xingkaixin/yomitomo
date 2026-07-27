@@ -80,9 +80,9 @@ export async function articleRecordFromPdfFile(
           },
         },
         readingProgress: {
+          kind: 'page',
           pageIndex: 0,
           pageCount: document.pageCount,
-          progress: 0,
           updatedAt: now,
         },
         annotations: [],

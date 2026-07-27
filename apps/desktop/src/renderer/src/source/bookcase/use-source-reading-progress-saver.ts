@@ -8,37 +8,55 @@ export type SourceReadingProgressSavePredicate = (
 ) => boolean;
 
 export function sourceReadingProgressSaveKey(progress: ArticleReadingProgress) {
-  return [
-    progress.pageIndex,
-    progress.pageCount,
-    progress.chapterIndex ?? '',
-    progress.chapterProgress ?? '',
-    progress.progress,
-  ].join(':');
+  switch (progress.kind) {
+    case 'scroll':
+      return `scroll:${progress.progress}`;
+    case 'page':
+      return `page:${progress.pageIndex}:${progress.pageCount}`;
+    case 'chapter':
+      return `chapter:${progress.chapterIndex}:${progress.chapterProgress}:${progress.bookProgress}`;
+  }
 }
 
 export function normalizeSourceReadingProgress(
   progress: ArticleReadingProgress,
 ): ArticleReadingProgress {
-  const pageIndex = progress.pageIndex;
-  const pageCount = progress.pageCount;
-  const chapterIndex = progress.chapterIndex;
-  const chapterProgress = progress.chapterProgress;
-  const progressValue = progress.progress;
-  return {
-    pageIndex: Number.isInteger(pageIndex) && pageIndex >= 0 ? pageIndex : 0,
-    pageCount: Number.isInteger(pageCount) && pageCount > 0 ? pageCount : 1,
-    chapterIndex:
-      typeof chapterIndex === 'number' && Number.isInteger(chapterIndex) && chapterIndex >= 0
-        ? chapterIndex
-        : undefined,
-    chapterProgress:
-      typeof chapterProgress === 'number' && Number.isFinite(chapterProgress)
-        ? Math.max(0, Math.min(1, chapterProgress))
-        : undefined,
-    progress: Number.isFinite(progressValue) ? Math.max(0, Math.min(1, progressValue)) : 0,
-    updatedAt: progress.updatedAt || new Date().toISOString(),
-  };
+  const updatedAt = progress.updatedAt || new Date().toISOString();
+  switch (progress.kind) {
+    case 'scroll':
+      return {
+        kind: 'scroll',
+        progress: normalizeRatio(progress.progress),
+        updatedAt,
+      };
+    case 'page':
+      return {
+        kind: 'page',
+        pageIndex: normalizeIndex(progress.pageIndex),
+        pageCount: normalizeCount(progress.pageCount),
+        updatedAt,
+      };
+    case 'chapter':
+      return {
+        kind: 'chapter',
+        chapterIndex: normalizeIndex(progress.chapterIndex),
+        chapterProgress: normalizeRatio(progress.chapterProgress),
+        bookProgress: normalizeRatio(progress.bookProgress),
+        updatedAt,
+      };
+  }
+}
+
+function normalizeIndex(value: number) {
+  return Number.isInteger(value) && value >= 0 ? value : 0;
+}
+
+function normalizeCount(value: number) {
+  return Number.isInteger(value) && value > 0 ? value : 1;
+}
+
+function normalizeRatio(value: number) {
+  return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
 }
 
 function shouldSaveSourceReadingProgress(

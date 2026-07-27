@@ -19,14 +19,26 @@ export type TextSourceMetadata = {
   format: TextSourceFormat;
 };
 
-export type ArticleReadingProgress = {
-  pageIndex: number;
-  pageCount: number;
-  chapterIndex?: number;
-  chapterProgress?: number;
-  progress: number;
+type ArticleReadingProgressBase = {
   updatedAt: string;
 };
+
+export type ArticleReadingProgress =
+  | (ArticleReadingProgressBase & {
+      kind: 'scroll';
+      progress: number;
+    })
+  | (ArticleReadingProgressBase & {
+      kind: 'page';
+      pageIndex: number;
+      pageCount: number;
+    })
+  | (ArticleReadingProgressBase & {
+      kind: 'chapter';
+      chapterIndex: number;
+      chapterProgress: number;
+      bookProgress: number;
+    });
 
 export type ArticleReadingProgressPatch = {
   articleId: string;

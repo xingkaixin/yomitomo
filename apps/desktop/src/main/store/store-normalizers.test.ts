@@ -240,25 +240,70 @@ describe('store normalizers settings', () => {
 });
 
 describe('store normalizers articles', () => {
-  it('normalizes article source types and reading progress bounds', () => {
+  it('normalizes current reading progress variants', () => {
     expect(normalizeArticleSourceType('pdf')).toBe('pdf');
     expect(normalizeArticleSourceType('unknown')).toBe('web');
     expect(normalizeArticleReadingProgress(undefined)).toBeUndefined();
     expect(
       normalizeArticleReadingProgress({
+        kind: 'page',
         pageIndex: -1,
         pageCount: 0,
-        chapterIndex: -1,
-        chapterProgress: 2,
-        progress: -2,
         updatedAt: 42,
       }),
-    ).toMatchObject({
+    ).toEqual({
+      kind: 'page',
       pageIndex: 0,
       pageCount: 1,
-      chapterIndex: undefined,
-      chapterProgress: 1,
-      progress: 0,
+      updatedAt: expect.any(String),
+    });
+  });
+
+  it('upgrades legacy source progress without synthetic or redundant fields', () => {
+    const updatedAt = '2026-07-27T00:00:00.000Z';
+    const legacyProgress = {
+      pageIndex: 420,
+      pageCount: 1000,
+      progress: 0.42,
+      updatedAt,
+    };
+
+    expect(normalizeArticleReadingProgress(legacyProgress, 'web')).toEqual({
+      kind: 'scroll',
+      progress: 0.42,
+      updatedAt,
+    });
+    expect(normalizeArticleReadingProgress(legacyProgress)).toEqual({
+      kind: 'scroll',
+      progress: 0.42,
+      updatedAt,
+    });
+    expect(normalizeArticleReadingProgress(legacyProgress, 'pdf')).toEqual({
+      kind: 'page',
+      pageIndex: 420,
+      pageCount: 1000,
+      updatedAt,
+    });
+    expect(
+      normalizeArticleReadingProgress(
+        {
+          ...legacyProgress,
+          chapterIndex: 2,
+          chapterProgress: 0.6,
+        },
+        'ebook',
+      ),
+    ).toEqual({
+      kind: 'chapter',
+      chapterIndex: 2,
+      chapterProgress: 0.6,
+      bookProgress: 0.42,
+      updatedAt,
+    });
+    expect(normalizeArticleReadingProgress(legacyProgress, 'ebook')).toEqual({
+      kind: 'scroll',
+      progress: 0.42,
+      updatedAt,
     });
   });
 

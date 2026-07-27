@@ -156,10 +156,10 @@ export function BookCoverFrame({
 // PDF 封面：第一页缩略图，hover 滑入阅读器工具栏（当前阅读进度页码 / 缩放）。
 function PdfCover({ article }: { article: ArticleBookRecord }) {
   const thumbnail = usePdfThumbnail(article.id);
-  const pageCount = article.pdf?.metadata.pageCount ?? article.readingProgress?.pageCount ?? 0;
-  const currentPage = pageCount
-    ? Math.min((article.readingProgress?.pageIndex ?? 0) + 1, pageCount)
-    : 0;
+  const readingProgress =
+    article.readingProgress?.kind === 'page' ? article.readingProgress : undefined;
+  const pageCount = article.pdf?.metadata.pageCount ?? readingProgress?.pageCount ?? 0;
+  const currentPage = pageCount ? Math.min((readingProgress?.pageIndex ?? 0) + 1, pageCount) : 0;
 
   return (
     <span aria-hidden="true" className="article-book is-flat-cover is-pdf-cover">

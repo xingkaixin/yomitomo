@@ -79,9 +79,9 @@ function pdfArticle(): PdfArticleRecord {
       },
     },
     readingProgress: {
+      kind: 'page',
       pageCount: 10,
       pageIndex: 9,
-      progress: 1,
       updatedAt: '2026-06-25T00:00:00.000Z',
     },
     sourceType: 'pdf',
@@ -165,9 +165,9 @@ describe('usePdfiumReadingProgress', () => {
     expect(onSave).toHaveBeenCalledWith(
       'pdf-article',
       expect.objectContaining({
+        kind: 'page',
         pageCount: 10,
         pageIndex: 7,
-        progress: 7 / 9,
       }),
     );
   });

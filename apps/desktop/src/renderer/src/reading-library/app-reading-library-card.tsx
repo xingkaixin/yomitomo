@@ -9,6 +9,7 @@ import {
 import { useState, type CSSProperties } from 'react';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
+import { readingProgressRatio } from '@yomitomo/core';
 import type { ArticleSummaryRecord } from '@yomitomo/shared';
 import { urlHost } from '../shell/app-utils';
 import { ArticleBook, formatPdfAuthors } from '../shell/app-article-book';
@@ -140,7 +141,7 @@ export function ArticleLibraryCard({
       {deleteDialog}
       <div className={coverClassName} aria-hidden="true">
         <ArticleBook article={article} />
-        <LibraryCardCoverProgress progress={article.readingProgress?.progress ?? 0} />
+        <LibraryCardCoverProgress progress={readingProgressRatio(article.readingProgress)} />
       </div>
       <div className={isEbook || isPdf ? 'library-ebook-list-copy' : 'library-article-list-copy'}>
         <p className="library-card-author" aria-hidden={authorLabel ? undefined : true}>

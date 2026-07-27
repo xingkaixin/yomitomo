@@ -4,15 +4,19 @@ import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ArticleReadingProgress } from '@yomitomo/shared';
 import {
+  normalizeSourceReadingProgress,
+  sourceReadingProgressSaveKey,
   useSourceReadingProgressSaver,
   type SourceReadingProgressSavePredicate,
 } from '../source/bookcase/use-source-reading-progress-saver';
 
 type SourceReadingProgressSaver = ReturnType<typeof useSourceReadingProgressSaver>;
+type ScrollReadingProgress = Extract<ArticleReadingProgress, { kind: 'scroll' }>;
 
 const now = '2026-06-28T00:00:00.000Z';
 const webProgressThresholdPredicate: SourceReadingProgressSavePredicate = (next, last) =>
-  !last || Math.abs(next.progress - last.progress) >= 0.01;
+  next.kind === 'scroll' &&
+  (last?.kind !== 'scroll' || Math.abs(next.progress - last.progress) >= 0.01);
 
 let latestSaver: SourceReadingProgressSaver | null = null;
 
@@ -23,10 +27,9 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-function progress(overrides: Partial<ArticleReadingProgress> = {}): ArticleReadingProgress {
+function progress(overrides: Partial<ScrollReadingProgress> = {}): ScrollReadingProgress {
   return {
-    pageIndex: 1,
-    pageCount: 10,
+    kind: 'scroll',
     progress: 0.1,
     updatedAt: now,
     ...overrides,
@@ -72,6 +75,31 @@ function Probe({
 }
 
 describe('useSourceReadingProgressSaver', () => {
+  it('normalizes and keys only the active variant fields', () => {
+    expect(
+      normalizeSourceReadingProgress({
+        kind: 'page',
+        pageIndex: -4,
+        pageCount: 0,
+        updatedAt: now,
+      }),
+    ).toEqual({
+      kind: 'page',
+      pageIndex: 0,
+      pageCount: 1,
+      updatedAt: now,
+    });
+    expect(
+      sourceReadingProgressSaveKey({
+        kind: 'chapter',
+        chapterIndex: 2,
+        chapterProgress: 0.4,
+        bookProgress: 0.3,
+        updatedAt: now,
+      }),
+    ).toBe('chapter:2:0.4:0.3');
+  });
+
   it('debounces and normalizes scheduled saves', () => {
     vi.useFakeTimers();
     const onSave = vi.fn();
@@ -80,9 +108,6 @@ describe('useSourceReadingProgressSaver', () => {
     act(() => {
       saver().scheduleSave(
         progress({
-          chapterProgress: -1,
-          pageCount: 0,
-          pageIndex: -4,
           progress: 2,
         }),
       );
@@ -96,10 +121,7 @@ describe('useSourceReadingProgressSaver', () => {
     });
 
     expect(onSave).toHaveBeenCalledWith('article-1', {
-      pageIndex: 0,
-      pageCount: 1,
-      chapterIndex: undefined,
-      chapterProgress: 0,
+      kind: 'scroll',
       progress: 1,
       updatedAt: now,
     });
@@ -223,7 +245,7 @@ describe('useSourceReadingProgressSaver', () => {
     expect(warn).toHaveBeenCalledWith('[reading-progress] save failed', {
       articleId: 'article-1',
       error,
-      progress: '1:10:::0.2',
+      progress: 'scroll:0.2',
     });
   });
 

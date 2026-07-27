@@ -196,8 +196,7 @@ function completedArticle(): ArticleRecord {
     title: '完成阅读',
     annotations: [annotation('annotation_done')],
     readingProgress: {
-      pageIndex: 10,
-      pageCount: 10,
+      kind: 'scroll',
       progress: 1,
       updatedAt: '2026-05-09T12:03:00.000Z',
     },
@@ -1592,8 +1591,7 @@ describe('ReadingLibrary home', () => {
         siteName: '站点名称不显示',
         title: '域名文章',
         readingProgress: {
-          pageIndex: 4,
-          pageCount: 10,
+          kind: 'scroll',
           progress: 0.4,
           updatedAt: now,
         },
@@ -1654,9 +1652,10 @@ describe('ReadingLibrary home', () => {
         },
         annotations: [annotationWithPublishedDistillation('ebook_note')],
         readingProgress: {
-          pageIndex: 4,
-          pageCount: 10,
-          progress: 0.4,
+          kind: 'chapter',
+          chapterIndex: 2,
+          chapterProgress: 0.4,
+          bookProgress: 0.4,
           updatedAt: now,
         },
       }),
@@ -2467,8 +2466,7 @@ describe('ReadingLibrary home', () => {
     expect(onSaveArticleReadingProgress).toHaveBeenLastCalledWith(
       'web_progress',
       expect.objectContaining({
-        pageCount: 1000,
-        pageIndex: 300,
+        kind: 'scroll',
         progress: 0.3,
       }),
     );
