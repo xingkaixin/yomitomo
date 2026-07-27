@@ -23,7 +23,7 @@ import type {
   WeReadBook,
   WeReadSettings,
 } from '@yomitomo/shared';
-import { normalizeUiLanguage } from '@yomitomo/shared';
+import { errorMessageOrFallback, normalizeUiLanguage } from '@yomitomo/shared';
 import { annotationAuthorName, sortAnnotations, sortArticles } from '@yomitomo/core';
 import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
 import { SourceBookcase } from '../source/bookcase/app-source-bookcase';
@@ -357,7 +357,7 @@ export function ReadingLibrary({
     } catch (error) {
       if (options.manual) {
         appToast.error(t('library.weReadSyncFailed'), {
-          description: errorMessage(error, t('library.weReadSyncFailed')),
+          description: errorMessageOrFallback(error, t('library.weReadSyncFailed')),
         });
       }
     } finally {
@@ -440,7 +440,7 @@ export function ReadingLibrary({
       await onSetLibraryPin(input);
     } catch (error) {
       const fallback = t('library.collection.pinSaveFailed');
-      appToast.error(fallback, { description: errorMessage(error, fallback) });
+      appToast.error(fallback, { description: errorMessageOrFallback(error, fallback) });
     }
   }
 
@@ -765,8 +765,4 @@ function weReadLibrarySyncSummary(books: WeReadBook[]) {
     }),
     { books: 0, bookmarks: 0, reviews: 0 },
   );
-}
-
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
 }

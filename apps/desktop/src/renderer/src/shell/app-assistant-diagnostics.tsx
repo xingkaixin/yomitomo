@@ -13,6 +13,7 @@ import {
   assistantExecutionModes,
   assistantExecutionStatuses,
   assistantExecutionTaskTypes,
+  errorMessageOrFallback,
   type Agent,
   type LlmProvider,
 } from '@yomitomo/shared';
@@ -85,7 +86,7 @@ export function AiTraceSettingsPanel({ agents, providers }: DiagnosticsProps) {
       setSummary(nextSummary);
       if (expandedId && !nextRuns.some((run) => run.id === expandedId)) setExpandedId('');
     } catch (nextError) {
-      setError(errorMessage(nextError, t('diagnostics.traceReadFailed')));
+      setError(errorMessageOrFallback(nextError, t('diagnostics.traceReadFailed')));
     } finally {
       setBusy(false);
     }
@@ -102,7 +103,7 @@ export function AiTraceSettingsPanel({ agents, providers }: DiagnosticsProps) {
     } catch (nextError) {
       setDetailErrors((current) => ({
         ...current,
-        [runId]: errorMessage(nextError, t('diagnostics.traceReadFailed')),
+        [runId]: errorMessageOrFallback(nextError, t('diagnostics.traceReadFailed')),
       }));
     } finally {
       setDetailLoadingId((current) => (current === runId ? '' : current));
@@ -201,7 +202,7 @@ export function AiUsagePanel({ agents }: { agents: Agent[] }) {
       setOverview(summary.totals);
       setByAgent(summary.byAgent);
     } catch (nextError) {
-      setError(errorMessage(nextError, t('diagnostics.usageReadFailed')));
+      setError(errorMessageOrFallback(nextError, t('diagnostics.usageReadFailed')));
     } finally {
       setBusy(false);
     }
@@ -836,8 +837,4 @@ function formatDuration(value: number | undefined) {
   if (value === undefined) return '-';
   if (value >= 1000) return `${(value / 1000).toFixed(1)}s`;
   return `${value}ms`;
-}
-
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
 }
