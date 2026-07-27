@@ -10,9 +10,7 @@ import type {
 import { desktopIpcErrorCodes } from '../../ipc-errors';
 
 const runtimeMocks = vi.hoisted(() => ({
-  runAgentCreateThoughtWithToolLoop: vi.fn(),
-  runAgentDistillationReviewWithToolLoop: vi.fn(),
-  runAgentThreadReplyWithToolLoop: vi.fn(),
+  runAgentMessageWithToolLoop: vi.fn(),
 }));
 const memoryMocks = vi.hoisted(() => ({
   agentAnnotatePayloadWithReadingMemoryEntries: vi.fn(
@@ -25,7 +23,7 @@ const traceMocks = vi.hoisted(() => ({
   appendAgentRuntimeTrace: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('./agent-thread-runtime', () => runtimeMocks);
+vi.mock('./agent-message-runtime', () => runtimeMocks);
 vi.mock('./agent-reading-memory', () => memoryMocks);
 vi.mock('./agent-runtime-trace-log', () => traceMocks);
 
@@ -70,7 +68,7 @@ describe('executeAgentCommentTask', () => {
       { type: 'delta', delta: 'fast ' },
       { type: 'delta', delta: 'reply' },
     ]);
-    expect(runtimeMocks.runAgentThreadReplyWithToolLoop).not.toHaveBeenCalled();
+    expect(runtimeMocks.runAgentMessageWithToolLoop).not.toHaveBeenCalled();
     await expectExecutionRecorded(fixture, {
       taskType: 'thread_reply',
       requestedMode: 'fast_response',
@@ -80,7 +78,7 @@ describe('executeAgentCommentTask', () => {
 
   it('streams deep runtime text and progress through the task interface', async () => {
     const fixture = taskFixture({ settings: { assistantExecutionMode: 'deep_verification' } });
-    runtimeMocks.runAgentThreadReplyWithToolLoop.mockImplementation(async (input) => {
+    runtimeMocks.runAgentMessageWithToolLoop.mockImplementation(async (input) => {
       input.onRuntimeEvent({
         type: 'tool_call',
         toolName: 'get_anchor_context',
@@ -137,7 +135,7 @@ describe('executeAgentCommentTask', () => {
 
   it('records the reason when deep execution falls back to fast response', async () => {
     const fixture = taskFixture({ settings: { assistantExecutionMode: 'deep_verification' } });
-    runtimeMocks.runAgentThreadReplyWithToolLoop.mockResolvedValue({
+    runtimeMocks.runAgentMessageWithToolLoop.mockResolvedValue({
       status: 'fallback',
       failureReason: 'tool_loop_failed',
     });
@@ -243,13 +241,10 @@ function taskFixture(
 ) {
   const store = storeWith(overrides);
   const ai = {
-    buildAgentCreateThoughtRuntimePayload: vi.fn(),
-    buildAgentDistillationReviewRuntimePayload: vi.fn(),
-    buildAgentThreadReplyRuntimePayload: vi.fn(),
     runAgentAnnotateStream: vi.fn(),
     runAgentDistillationReviewStructuredStream: vi.fn(),
     runAgentStream: vi.fn(),
-    runAssistantAiSdkToolRuntime: vi.fn(),
+    runAgentToolLoopTask: vi.fn(),
   } as unknown as { [Key in keyof TaskAiModule]: ReturnType<typeof vi.fn> };
   const assistantExecutionPersistence = {
     recordAssistantExecutionRun: vi.fn().mockResolvedValue(undefined),

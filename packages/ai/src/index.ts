@@ -3,24 +3,25 @@ export { testProvider } from './provider/provider-test';
 export { setAiLogger } from './logger';
 export { type NormalizedAiUsage } from './provider/usage';
 export {
-  runAssistantAiSdkToolRuntime,
-  type AssistantAiSdkRuntimeOptions,
   type AssistantRuntimeResult,
   type AssistantRuntimeStreamEvent,
   type AssistantToolCall,
   type AssistantToolDefinition,
   type AssistantToolEvidenceInput,
   type AssistantToolExecutionResult,
+  type AgentToolLoopTaskType,
 } from './assistant/assistant-runtime';
+export {
+  runAgentToolLoopTask,
+  type AgentToolLoopTaskInput,
+  type AgentToolLoopTaskResult,
+} from './agent/agent-tool-loop-task';
 export {
   bilingualTranslationPromptVersion,
   translateBilingualArticleBlocks,
 } from './translation/bilingual-translation';
 export { planAgentMentionRoute } from './agent/annotation-metadata';
 export {
-  buildAgentCreateThoughtRuntimePayload,
-  buildAgentDistillationReviewRuntimePayload,
-  buildAgentThreadReplyRuntimePayload,
   runAgentDistillationReviewStructuredStream,
   runAgentStream,
   type AgentMessageReadingContextSnapshot,

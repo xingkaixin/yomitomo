@@ -4,7 +4,7 @@ import type { NormalizedAiUsage } from '@yomitomo/ai';
 import type {
   DistillationReviewRuntimeResult,
   ThreadReplyRuntimeResult,
-} from './agent-thread-runtime';
+} from './agent-message-runtime';
 import { appendAgentRuntimeTrace } from './agent-runtime-trace-log';
 import type { DesktopMainIpcContext } from '../ipc/ipc';
 import type { AgentRuntimeTaskType } from './agent-runtime-routing';
