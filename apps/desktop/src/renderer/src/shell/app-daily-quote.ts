@@ -1,4 +1,4 @@
-import type { Agent, AgentKind, Annotation, ArticleSummaryRecord } from '@yomitomo/shared';
+import type { Agent, AgentKind, Annotation, ArticleRecord } from '@yomitomo/shared';
 import { annotationPrimaryComment } from '@yomitomo/core';
 import i18next from 'i18next';
 
@@ -65,7 +65,7 @@ export function builtinDailyQuotes(): DailyQuoteCandidate[] {
 }
 
 export function selectDailyQuote(
-  articles: ArticleSummaryRecord[],
+  articles: ArticleRecord[],
   options: SelectDailyQuoteOptions = {},
 ): DailyQuote {
   const now = options.now || new Date();
@@ -122,9 +122,7 @@ export function selectDailyQuote(
   return toDailyQuote(selected, now, assistant);
 }
 
-export function collectDailyQuoteCandidates(
-  articles: ArticleSummaryRecord[],
-): DailyQuoteCandidate[] {
+export function collectDailyQuoteCandidates(articles: ArticleRecord[]): DailyQuoteCandidate[] {
   return articles.flatMap((article) =>
     article.annotations.flatMap((annotation) => dailyQuoteCandidate(annotation)),
   );

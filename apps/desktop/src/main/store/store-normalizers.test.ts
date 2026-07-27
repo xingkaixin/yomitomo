@@ -392,6 +392,14 @@ describe('store normalizers articles', () => {
         ...articleBase,
         sourceType: 'ebook',
         ebook: { metadata: ebook.metadata },
+        annotations: [],
+        counts: {
+          annotationCount: 0,
+          thoughtCount: 0,
+          discussionCommentCount: 0,
+          aiCommentCount: 0,
+          distillationCount: 0,
+        },
       }),
     ).toMatchObject({
       sourceType: 'ebook',

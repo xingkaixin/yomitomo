@@ -204,8 +204,6 @@ function article({
     contentHtml: '<p>正文</p>',
     contentHash: `hash_${id}`,
     annotations: [annotation],
-    annotationCount: 1,
-    distillationCount: annotation.distillation?.status === 'published' ? 1 : 0,
     createdAt: '2026-07-15T00:00:00.000Z',
     updatedAt:
       updatedAt ??

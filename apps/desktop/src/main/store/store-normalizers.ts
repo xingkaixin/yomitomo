@@ -42,7 +42,6 @@ export {
 export {
   rowToArticle,
   rowToArticleSummary,
-  type ArticleSummaryCounts,
   type ArticleSummaryRow,
 } from './store-normalizers-articles';
 export {

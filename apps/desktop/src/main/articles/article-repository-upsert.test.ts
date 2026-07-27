@@ -52,18 +52,14 @@ describe('article repository local child row writes', () => {
     const article = readArticleRows(database, 'article_1');
     expect(patch?.article).toMatchObject({
       id: 'article_1',
-      annotationCount: 2,
-      thoughtCount: 2,
-      discussionCommentCount: 2,
+      annotations: [],
+      counts: {
+        annotationCount: 2,
+        thoughtCount: 2,
+        discussionCommentCount: 2,
+      },
       updatedAt: '2026-06-04T02:00:00.000Z',
     });
-    expect(patch?.article.annotations.map((item) => item.id).toSorted()).toEqual([
-      'annotation_1',
-      'sibling_annotation',
-    ]);
-    expect(patch?.article.annotations.find((item) => item.id === 'annotation_1')?.comments).toEqual(
-      [expect.objectContaining({ id: 'comment_1', content: 'updated local memory' })],
-    );
     expect(article?.annotations.map((item) => item.id).toSorted()).toEqual([
       'annotation_1',
       'sibling_annotation',
@@ -106,17 +102,14 @@ describe('article repository local child row writes', () => {
       (item) => item.id === 'annotation_1',
     )?.comments;
     expect(patch?.article).toMatchObject({
-      annotationCount: 2,
-      thoughtCount: 3,
-      discussionCommentCount: 3,
+      annotations: [],
+      counts: {
+        annotationCount: 2,
+        thoughtCount: 3,
+        discussionCommentCount: 3,
+      },
       updatedAt: '2026-06-04T03:00:00.000Z',
     });
-    expect(patch?.article.annotations.find((item) => item.id === 'annotation_1')?.comments).toEqual(
-      [
-        expect.objectContaining({ id: 'comment_1', content: 'keep this comment' }),
-        expect.objectContaining({ id: 'comment_2', content: 'updated comment memory' }),
-      ],
-    );
     expect(comments).toEqual([
       expect.objectContaining({ id: 'comment_1', content: 'keep this comment' }),
       expect.objectContaining({ id: 'comment_2', content: 'updated comment memory' }),

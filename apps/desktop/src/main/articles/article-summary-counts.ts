@@ -1,5 +1,5 @@
 import { and, count, eq, inArray, isNotNull, sql, type SQL } from 'drizzle-orm';
-import type { ArticleSummaryCounts } from '../store/store-normalizers';
+import type { ArticleCounts } from '@yomitomo/shared';
 import * as schema from '../db/schema';
 import type { StoreDatabase, StoreReadProfileEntry } from '../store/store-db';
 import { measureStoreRead } from '../store/store-read-profile';
@@ -16,7 +16,7 @@ export function readArticleSummaryCountsForArticles(
   articleIds: string[],
   profile?: StoreReadProfileEntry[],
 ) {
-  if (articleIds.length === 0) return new Map<string, ArticleSummaryCounts>();
+  if (articleIds.length === 0) return new Map<string, ArticleCounts>();
   return readArticleSummaryCountsInternal(database, profile, {
     articleIds: Array.from(new Set(articleIds)),
     profileNameSuffix: '_scoped',
@@ -77,7 +77,7 @@ function readArticleSummaryCountsInternal(
         )
         .all(),
   );
-  const countsByArticle = new Map<string, ArticleSummaryCounts>();
+  const countsByArticle = new Map<string, ArticleCounts>();
 
   for (const row of annotationSummaryCounts) {
     countsByArticle.set(row.articleId, {

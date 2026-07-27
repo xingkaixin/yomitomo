@@ -58,11 +58,14 @@ describe('article repository summaries', () => {
 
     expect(article).toMatchObject({
       id: 'article_a',
-      annotationCount: 2,
-      thoughtCount: 2,
-      discussionCommentCount: 3,
-      aiCommentCount: 2,
-      distillationCount: 1,
+      annotations: [],
+      counts: {
+        annotationCount: 2,
+        thoughtCount: 2,
+        discussionCommentCount: 3,
+        aiCommentCount: 2,
+        distillationCount: 1,
+      },
     });
   });
 
@@ -91,7 +94,7 @@ describe('article repository summaries', () => {
       totalCount: 2,
     });
     expect(result.articles.map((article) => article.id)).toEqual(['article_c']);
-    expect(result.articles[0].annotationCount).toBe(0);
+    expect(result.articles[0].counts.annotationCount).toBe(0);
     expect(profile.map((entry) => entry.name)).toContain(
       'count_annotation_summary_by_article_scoped',
     );

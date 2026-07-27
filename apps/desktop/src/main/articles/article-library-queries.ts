@@ -59,7 +59,7 @@ export function readArticleLibraryListRows(
   );
 
   return {
-    articles: rows.map((row) => rowToArticleSummary(row, [], articleCounts.get(row.id))),
+    articles: rows.map((row) => rowToArticleSummary(row, articleCounts.get(row.id))),
     page,
     pageSize,
     query,

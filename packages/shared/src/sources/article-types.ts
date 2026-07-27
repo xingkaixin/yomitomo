@@ -144,6 +144,14 @@ export type ArticleTranslationDeleteRequest = {
   targetLanguage?: string;
 };
 
+export type ArticleCounts = {
+  annotationCount: number;
+  thoughtCount: number;
+  discussionCommentCount: number;
+  aiCommentCount: number;
+  distillationCount: number;
+};
+
 type ArticleRecordBase = {
   id: string;
   url: string;
@@ -159,12 +167,6 @@ type ArticleRecordBase = {
   contentHash: string;
   readingProgress?: ArticleReadingProgress;
   annotations: Annotation[];
-  annotationCount?: number;
-  commentCount?: number;
-  thoughtCount?: number;
-  discussionCommentCount?: number;
-  aiCommentCount?: number;
-  distillationCount?: number;
   focusCoReadingPlan?: FocusCoReadingPlan;
   readerChatState?: ReaderChatState;
   createdAt: string;
@@ -181,8 +183,11 @@ export type ArticleRecord = ArticleRecordBase & ArticleSourceRecord;
 
 type ArticleSummaryRecordBase = Omit<
   ArticleRecordBase,
-  'contentHtml' | 'focusCoReadingPlan' | 'readerChatState'
->;
+  'annotations' | 'contentHtml' | 'focusCoReadingPlan' | 'readerChatState'
+> & {
+  annotations: [];
+  counts: ArticleCounts;
+};
 
 type ArticleSummarySourceRecord =
   | { sourceType: 'web'; ebook?: never; pdf?: never; text?: never }

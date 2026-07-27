@@ -2,7 +2,13 @@
 
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Annotation, ArticleRecord, ArticleStorePatch } from '@yomitomo/shared';
+import { articleCounts } from '@yomitomo/core';
+import type {
+  Annotation,
+  ArticleRecord,
+  ArticleStorePatch,
+  ArticleSummaryRecord,
+} from '@yomitomo/shared';
 import { useAnnotationWindowArticlePatches } from '../annotation-discussion/use-annotation-window-article-patches';
 
 afterEach(() => {
@@ -36,7 +42,7 @@ describe('annotation window article patch sync', () => {
     act(() =>
       emitPatch({
         type: 'article-upsert',
-        article: updatedArticle,
+        article: articleSummary(updatedArticle),
       }),
     );
 
@@ -67,6 +73,17 @@ describe('annotation window article patch sync', () => {
     await waitFor(() => expect(onUpdate).toHaveBeenCalledWith(null));
   });
 });
+
+function articleSummary(record: ArticleRecord): ArticleSummaryRecord {
+  const {
+    annotations: _annotations,
+    contentHtml: _contentHtml,
+    focusCoReadingPlan: _focusCoReadingPlan,
+    readerChatState: _readerChatState,
+    ...summary
+  } = record;
+  return { ...summary, annotations: [], counts: articleCounts(record) };
+}
 
 function installDesktopApi(desktop: {
   getArticle: ReturnType<typeof vi.fn>;

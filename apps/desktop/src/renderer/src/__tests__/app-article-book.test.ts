@@ -134,6 +134,7 @@ function textSummary(format: 'plain' | 'markdown'): ArticleSummaryRecord {
     sourceType: 'text',
     text: { format },
     annotations: [],
+    counts: emptyCounts,
   };
 }
 
@@ -164,6 +165,7 @@ function ebookSummary(): ArticleSummaryRecord {
     sourceType: 'ebook',
     leadImageUrl: 'data:image/png;base64,cover',
     annotations: [],
+    counts: emptyCounts,
     ebook: {
       metadata: {
         format: 'epub',
@@ -173,3 +175,11 @@ function ebookSummary(): ArticleSummaryRecord {
     },
   };
 }
+
+const emptyCounts = {
+  annotationCount: 0,
+  thoughtCount: 0,
+  discussionCommentCount: 0,
+  aiCommentCount: 0,
+  distillationCount: 0,
+};

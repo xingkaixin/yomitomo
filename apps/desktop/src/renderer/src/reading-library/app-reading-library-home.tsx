@@ -20,6 +20,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ARTICLE_SOURCE_TYPES,
   type AppSettings,
+  type ArticleRecord,
   type ArticleSummaryRecord,
   type Collection,
   type CollectionMember,
@@ -100,7 +101,7 @@ type LibraryHomeImports = {
 
 type LibraryHomeItemActions = {
   onDeleteArticle: (articleId: string) => Promise<void>;
-  onOpenArticle: (article: ArticleSummaryRecord) => void;
+  onOpenArticle: (article: ArticleRecord | ArticleSummaryRecord) => void;
   onOpenWeReadBook: (book: WeReadBook) => void;
   onOpenWeReadExternal: (book: WeReadBook) => void;
   onSetLibraryPin: (input: SetLibraryPinInput) => Promise<void> | void;

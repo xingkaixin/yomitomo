@@ -466,7 +466,7 @@ export function ReadingLibrary({
     },
     itemActions: {
       onDeleteArticle: deleteLibraryArticle,
-      onOpenArticle: (article: ArticleSummaryRecord) =>
+      onOpenArticle: (article: ArticleRecord | ArticleSummaryRecord) =>
         void navigation.actions.openArticle(article),
       onOpenWeReadBook: (book: WeReadBook) => void openWeReadBook(book),
       onOpenWeReadExternal: (book: WeReadBook) => void openWeReadExternal(book),

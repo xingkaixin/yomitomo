@@ -28,7 +28,14 @@ export function makeMockArticle(partial: MockArticleInput = {}): ArticleSummaryR
     canonicalUrl: partial.canonicalUrl ?? `https://example.com/${id}`,
     title: partial.title ?? 'Mock Article',
     contentHash: partial.contentHash ?? 'hash-mock',
-    annotations: partial.annotations ?? [],
+    annotations: [] as [],
+    counts: partial.counts ?? {
+      annotationCount: 0,
+      thoughtCount: 0,
+      discussionCommentCount: 0,
+      aiCommentCount: 0,
+      distillationCount: 0,
+    },
     createdAt: partial.createdAt ?? '2026-06-01T00:00:00.000Z',
     updatedAt: partial.updatedAt ?? '2026-06-01T00:00:00.000Z',
   };

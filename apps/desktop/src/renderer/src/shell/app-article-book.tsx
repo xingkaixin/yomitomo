@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import i18next from 'i18next';
-import type { ArticleSummaryRecord } from '@yomitomo/shared';
+import type { ArticleRecord, ArticleSummaryRecord } from '@yomitomo/shared';
 import { articleDisplayTitle } from '../reading-library/app-reading-library-utils';
 
 type BookCoverFrameStyle = React.CSSProperties & {
@@ -48,7 +48,9 @@ const articleCoverCache = new Map<string, string | null>();
 const pdfThumbnailCache = new Map<string, string | null>();
 const siteIconCache = new Map<string, string | null>();
 
-export function ArticleBook({ article }: { article: ArticleSummaryRecord }) {
+type ArticleBookRecord = ArticleRecord | ArticleSummaryRecord;
+
+export function ArticleBook({ article }: { article: ArticleBookRecord }) {
   if (article.sourceType === 'pdf') return <PdfCover article={article} />;
   if (article.sourceType === 'text') return <TextCover article={article} />;
   if (article.sourceType !== 'ebook') return <WebCover article={article} />;
@@ -56,7 +58,7 @@ export function ArticleBook({ article }: { article: ArticleSummaryRecord }) {
 }
 
 // 文本封面：稿纸（装订色条 + 标题 + 横线 + 作者），后层叠纸 hover 扇出；类型仅由色条区分。
-function TextCover({ article }: { article: ArticleSummaryRecord }) {
+function TextCover({ article }: { article: ArticleBookRecord }) {
   const isMarkdown = article.text?.format === 'markdown';
   const title = normalizeLabel(articleDisplayTitle(article));
   const author = normalizeLabel(article.byline || '');
@@ -77,7 +79,7 @@ function TextCover({ article }: { article: ArticleSummaryRecord }) {
   );
 }
 
-function EbookBook({ article }: { article: ArticleSummaryRecord }) {
+function EbookBook({ article }: { article: ArticleBookRecord }) {
   const coverUrl = useEbookCover(article);
   const { imageRef, ratio: coverRatio, updateRatio } = useNativeCoverRatio(coverUrl);
   const visual = useMemo(
@@ -152,7 +154,7 @@ export function BookCoverFrame({
 }
 
 // PDF 封面：第一页缩略图，hover 滑入阅读器工具栏（当前阅读进度页码 / 缩放）。
-function PdfCover({ article }: { article: ArticleSummaryRecord }) {
+function PdfCover({ article }: { article: ArticleBookRecord }) {
   const thumbnail = usePdfThumbnail(article.id);
   const pageCount = article.pdf?.metadata.pageCount ?? article.readingProgress?.pageCount ?? 0;
   const currentPage = pageCount
@@ -177,7 +179,7 @@ function PdfCover({ article }: { article: ArticleSummaryRecord }) {
 }
 
 // 网页封面：白底卡片，favicon + 域名 + 标题，hover 滑入浏览器栏。
-function WebCover({ article }: { article: ArticleSummaryRecord }) {
+function WebCover({ article }: { article: ArticleBookRecord }) {
   const [faviconFailed, setFaviconFailed] = useState(false);
   const faviconUrl = useArticleSiteIcon(article.id);
   const domain = articleDomain(article);
@@ -314,7 +316,7 @@ export function nativeBookCoverStyle(ratio: number | null): BookCoverFrameStyle 
   };
 }
 
-function useEbookCover(article: ArticleSummaryRecord) {
+function useEbookCover(article: ArticleBookRecord) {
   const directCoverUrl = safeHttpUrl(article.leadImageUrl);
   const [coverUrl, setCoverUrl] = useState<string | undefined>(directCoverUrl);
 
@@ -352,7 +354,7 @@ function useEbookCover(article: ArticleSummaryRecord) {
 }
 
 function ebookBookVisual(
-  article: ArticleSummaryRecord,
+  article: ArticleBookRecord,
   coverUrl: string | undefined,
   coverRatio: number | null,
 ) {
@@ -389,7 +391,7 @@ function ebookBookVisual(
   };
 }
 
-function pdfPalette(article: ArticleSummaryRecord) {
+function pdfPalette(article: ArticleBookRecord) {
   const seed = stableHash(
     [article.id, article.canonicalUrl, articleDisplayTitle(article), article.contentHash].join('|'),
   );
@@ -461,7 +463,7 @@ function normalizeLabel(value: string) {
     .trim();
 }
 
-function articleDomain(article: ArticleSummaryRecord) {
+function articleDomain(article: ArticleBookRecord) {
   return normalizeLabel(urlHostname(article.canonicalUrl) || urlHostname(article.url) || '');
 }
 

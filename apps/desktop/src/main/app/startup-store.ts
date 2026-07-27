@@ -1,5 +1,6 @@
 import { performance } from 'node:perf_hooks';
 import type { DesktopStore } from '@yomitomo/shared';
+import { articleCounts } from '@yomitomo/core';
 import { isAppLockSettingsLocked } from '../../app-store';
 import { logError, pruneLogFile } from './logger';
 import type { StoreReadProfileEntry } from '../store/store-db';
@@ -92,20 +93,13 @@ function recordStoreReadyTiming(
     ...timing,
     articleCount: store.articles.length,
     annotationCount: store.articles.reduce(
-      (count, article) => count + (article.annotationCount ?? article.annotations.length),
+      (count, article) => count + articleCounts(article).annotationCount,
       0,
     ),
-    thoughtCount: store.articles.reduce((count, article) => {
-      const thoughtCount =
-        article.thoughtCount ??
-        article.commentCount ??
-        article.annotations.reduce(
-          (annotationCount, annotation) =>
-            annotationCount + annotation.comments.filter((comment) => !comment.replyTo).length,
-          0,
-        );
-      return count + thoughtCount;
-    }, 0),
+    thoughtCount: store.articles.reduce(
+      (count, article) => count + articleCounts(article).thoughtCount,
+      0,
+    ),
   });
   context.recordStartupTiming('store.initialize_profile', { steps: profile });
 }

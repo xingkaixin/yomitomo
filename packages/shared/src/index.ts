@@ -55,6 +55,7 @@ export type {
   AnnotationType,
   AppSettings,
   ArticleDeletePatch,
+  ArticleCounts,
   ArticleReaderChatStatePatch,
   ArticleReadingProgress,
   ArticleReadingProgressPatch,

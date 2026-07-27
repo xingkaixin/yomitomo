@@ -85,6 +85,8 @@ export type {
 export { performanceElapsedMs, performanceStart } from './performance';
 export type { PerformanceTimingLogger } from './performance';
 
+export { articleCounts } from './reader/article-counts';
+
 export {
   computeReadingActivityDays,
   computeReadingStats,

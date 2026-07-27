@@ -3,6 +3,7 @@
 import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { articleCounts } from '@yomitomo/core';
 import type {
   Annotation,
   ArticleReadingProgress,
@@ -150,16 +151,32 @@ function article(overrides: ArticleInput = {}): ArticleRecord {
 }
 
 function articleSummary(record: ArticleRecord): ArticleSummaryRecord {
-  const summary = { ...record };
-  delete summary.contentHtml;
-  delete summary.focusCoReadingPlan;
-  if (summary.ebook) {
+  const {
+    annotations: _annotations,
+    contentHtml: _contentHtml,
+    ebook: _ebook,
+    focusCoReadingPlan: _focusCoReadingPlan,
+    pdf: _pdf,
+    readerChatState: _readerChatState,
+    sourceType: _sourceType,
+    text: _text,
+    ...summary
+  } = record;
+  const base = {
+    ...summary,
+    annotations: [] as [],
+    counts: articleCounts(record),
+  };
+  if (record.sourceType === 'ebook') {
     return {
-      ...summary,
-      ebook: { metadata: summary.ebook.metadata },
+      ...base,
+      sourceType: 'ebook',
+      ebook: { metadata: record.ebook.metadata },
     };
   }
-  return summary;
+  if (record.sourceType === 'pdf') return { ...base, sourceType: 'pdf', pdf: record.pdf };
+  if (record.sourceType === 'text') return { ...base, sourceType: 'text', text: record.text };
+  return { ...base, sourceType: 'web' };
 }
 
 function annotationWithPublishedDistillation(id: string): Annotation {
@@ -246,7 +263,7 @@ function installDefaultCatalog(
 }
 
 function renderLibrary(
-  articles: ArticleSummaryRecord[],
+  articles: Array<ArticleRecord | ArticleSummaryRecord>,
   options: {
     onAddCollectionMembers?: (collectionId: string, members: ContentRef[]) => Promise<void>;
     onImportArticleUrl?: (url: string, requestId?: string) => Promise<ArticleImportResult>;
@@ -279,11 +296,12 @@ function renderLibrary(
     settings?: AppSettings;
   } = {},
 ) {
-  installDefaultCatalog(articles, options);
+  const summaries = articles.map((item) => ('counts' in item ? item : articleSummary(item)));
+  installDefaultCatalog(summaries, options);
   return render(
     <ReadingLibrary
       agents={[]}
-      articles={articles}
+      articles={summaries}
       collectionMembers={options.collectionMembers}
       collections={options.collections}
       menuRequest={options.menuRequest}
@@ -2027,17 +2045,8 @@ describe('ReadingLibrary home', () => {
           updatedAt: '2026-05-09T12:03:00.000Z',
         },
       ],
-      annotationCount: 1,
-      commentCount: 1,
-      aiCommentCount: 1,
     });
-    const updatedSummary = {
-      ...articleSummary(updatedArticle),
-      annotations: [],
-      annotationCount: 1,
-      commentCount: 1,
-      aiCommentCount: 1,
-    };
+    const updatedSummary = articleSummary(updatedArticle);
     const onReadArticle = vi
       .fn<(articleId: string) => Promise<ArticleRecord | null>>()
       .mockResolvedValueOnce(initialArticle)
@@ -2103,24 +2112,12 @@ describe('ReadingLibrary home', () => {
           ],
         },
       ],
-      annotationCount: 1,
-      commentCount: 1,
-      aiCommentCount: 0,
     });
     const updatedArticle = article({
       title: '删除同步文章',
       annotations: [{ ...annotation('annotation_1'), comments: [] }],
-      annotationCount: 1,
-      commentCount: 0,
-      aiCommentCount: 0,
     });
-    const updatedSummary = {
-      ...articleSummary(updatedArticle),
-      annotations: [],
-      annotationCount: 1,
-      commentCount: 0,
-      aiCommentCount: 0,
-    };
+    const updatedSummary = articleSummary(updatedArticle);
     const onReadArticle = vi
       .fn<(articleId: string) => Promise<ArticleRecord | null>>()
       .mockResolvedValueOnce(initialArticle)
@@ -2285,13 +2282,7 @@ describe('ReadingLibrary home', () => {
       title: '评审沉淀文章',
       annotations: [reviewedAnnotation],
     });
-    const summary = {
-      ...articleSummary(fullArticle),
-      aiCommentCount: 1,
-      annotationCount: 1,
-      commentCount: 0,
-      distillationCount: 1,
-    };
+    const summary = articleSummary(fullArticle);
     const onReadArticle = vi.fn().mockResolvedValue(fullArticle);
     renderLibrary([summary], { onReadArticle });
 
@@ -2356,23 +2347,14 @@ describe('ReadingLibrary home', () => {
     const initialArticle = article({
       title: '同步沉淀文章',
       annotations: [initialAnnotation],
-      annotationCount: 1,
-      distillationCount: 0,
       updatedAt: '2026-05-09T12:00:00.000Z',
     });
     const publishedArticle = article({
       title: '同步沉淀文章',
       annotations: [publishedAnnotation],
-      annotationCount: 1,
-      distillationCount: 1,
       updatedAt: '2026-05-09T12:03:00.000Z',
     });
-    const publishedSummary = {
-      ...articleSummary(publishedArticle),
-      annotations: [],
-      annotationCount: 1,
-      distillationCount: 1,
-    };
+    const publishedSummary = articleSummary(publishedArticle);
     const onReadArticle = vi
       .fn<(articleId: string) => Promise<ArticleRecord | null>>()
       .mockResolvedValueOnce(initialArticle)
