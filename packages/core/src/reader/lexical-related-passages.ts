@@ -18,7 +18,10 @@ import {
   type ReadingContextPassageInput,
   type ReadingContextTextRange,
 } from './reading-context';
-import { intersectTextRanges } from './reading-context-ranges';
+import {
+  createMergedReadingContextRangeLookup,
+  type ReadingContextRangeLookup,
+} from './reading-context-ranges';
 import {
   performanceElapsedMs,
   performanceStart,
@@ -130,6 +133,7 @@ export function buildCurrentChapterLexicalRelatedPassages(
     logTiming({ result: 'empty_allowed_ranges', chapterId: chapter.id });
     return [];
   }
+  const allowedRangeLookup = createMergedReadingContextRangeLookup(allowedRanges);
 
   const chapterIds = candidateChapterIds(input, chapter);
   const excluded = new Set(input.excludeParagraphIds || []);
@@ -137,7 +141,7 @@ export function buildCurrentChapterLexicalRelatedPassages(
   const documents = Array.from(chapterIds).flatMap((chapterId) =>
     prepared.epub.paragraphsInChapter(chapterId).flatMap((paragraph) => {
       if (excluded.has(paragraph.id)) return [];
-      const ranges = intersectTextRanges(allowedRanges, paragraph);
+      const ranges = allowedRangeLookup.intersections(paragraph);
       const document = paragraphLexicalDocument(input, prepared, paragraph, ranges, cacheStats);
       return document ? [{ paragraph, ranges, ...document }] : [];
     }),
@@ -158,7 +162,7 @@ export function buildCurrentChapterLexicalRelatedPassages(
     (document) => document.score >= MIN_RELATED_PASSAGE_SCORE,
   );
 
-  const passages = buildPassages(input, scored, allowedRanges, excluded, prepared.epub);
+  const passages = buildPassages(input, scored, allowedRangeLookup, excluded, prepared.epub);
   logTiming({
     result: 'ok',
     chapterId: chapter.id,
@@ -339,7 +343,7 @@ function documentFrequencyForQueryTerms(
 function buildPassages(
   input: BuildCurrentChapterLexicalRelatedPassagesInput,
   scored: ScoredParagraph[],
-  allowedRanges: ReadingContextTextRange[],
+  allowedRangeLookup: ReadingContextRangeLookup,
   excluded: Set<string>,
   epub: PreparedEpubBookIndex,
 ): ReadingContextPassageInput[] {
@@ -360,7 +364,7 @@ function buildPassages(
       .paragraphWindow(document.paragraph, neighborParagraphs)
       .filter((paragraph) => !excluded.has(paragraph.id))
       .flatMap((paragraph) => {
-        const ranges = intersectTextRanges(allowedRanges, paragraph);
+        const ranges = allowedRangeLookup.intersections(paragraph);
         const text = textForRanges(input.articleText, ranges);
         return text ? [{ paragraph, ranges, text }] : [];
       });
