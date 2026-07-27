@@ -1,5 +1,6 @@
 import { and, count, desc, eq, gte, lte, sql, type SQL } from 'drizzle-orm';
 import type { AnySQLiteColumn } from 'drizzle-orm/sqlite-core';
+import { assistantExecutionModes, assistantExecutionTaskTypes } from '@yomitomo/shared';
 import type {
   AssistantExecutionQueryInput,
   AssistantExecutionRun,
@@ -74,6 +75,14 @@ export function summarizeAssistantExecutions(
   input: AssistantExecutionQueryInput,
 ): AssistantExecutionSummary {
   const where = assistantExecutionWhere(input);
+  const taskTypeGroup = knownValueGroup(
+    schema.assistantExecutionRuns.taskType,
+    assistantExecutionTaskTypes,
+  );
+  const modeGroup = knownValueGroup(
+    schema.assistantExecutionRuns.effectiveMode,
+    assistantExecutionModes,
+  );
   return {
     totals: aggregateAssistantExecutionTotals(database, where),
     byAgent: aggregateAssistantExecutionGroups(database, where, {
@@ -85,12 +94,12 @@ export function summarizeAssistantExecutions(
       label: sql<string>`${schema.assistantExecutionRuns.providerName} || ' / ' || ${schema.assistantExecutionRuns.modelName}`,
     }),
     byTaskType: aggregateAssistantExecutionGroups(database, where, {
-      key: sql<string>`${schema.assistantExecutionRuns.taskType}`,
-      label: sql<string>`${schema.assistantExecutionRuns.taskType}`,
+      key: taskTypeGroup,
+      label: taskTypeGroup,
     }),
     byMode: aggregateAssistantExecutionGroups(database, where, {
-      key: sql<string>`${schema.assistantExecutionRuns.effectiveMode}`,
-      label: sql<string>`${schema.assistantExecutionRuns.effectiveMode}`,
+      key: modeGroup,
+      label: modeGroup,
     }),
   };
 }
@@ -123,9 +132,9 @@ export function assistantExecutionRunListItemDto(
     agentId: row.agentId,
     agentUsername: row.agentUsername || undefined,
     agentNickname: row.agentNickname || undefined,
-    taskType: row.taskType,
-    requestedMode: row.requestedMode,
-    effectiveMode: row.effectiveMode,
+    taskType: normalizeTaskType(row.taskType),
+    requestedMode: normalizeMode(row.requestedMode),
+    effectiveMode: normalizeMode(row.effectiveMode),
     providerId: row.providerId,
     providerName: row.providerName,
     modelName: row.modelName,
@@ -246,6 +255,14 @@ function statusCount(status: AssistantExecutionStatus) {
 
 function sumColumn(column: AnySQLiteColumn) {
   return sql<number>`coalesce(sum(coalesce(${column}, 0)), 0)`;
+}
+
+function knownValueGroup(column: AnySQLiteColumn, knownValues: readonly string[]) {
+  const values = sql.join(
+    knownValues.map((value) => sql`${value}`),
+    sql`, `,
+  );
+  return sql<string>`case when ${column} in (${values}) then ${column} else ${'unknown'} end`;
 }
 
 function totalsFromAggregate(
@@ -391,6 +408,14 @@ function safeTraceStep(input: unknown): AssistantExecutionSafeStep | null {
 function normalizeStatus(value: string): AssistantExecutionStatus {
   if (value === 'fallback' || value === 'error') return value;
   return 'success';
+}
+
+function normalizeTaskType(value: string): AssistantExecutionRunListItem['taskType'] {
+  return assistantExecutionTaskTypes.find((taskType) => taskType === value) || 'unknown';
+}
+
+function normalizeMode(value: string): AssistantExecutionRunListItem['requestedMode'] {
+  return assistantExecutionModes.find((mode) => mode === value) || 'unknown';
 }
 
 function normalizeLimit(value: number | undefined) {

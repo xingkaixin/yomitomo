@@ -2,7 +2,9 @@ import { ARTICLE_SOURCE_TYPES } from './sources/article-types';
 
 export type MessageSendShortcut = 'enter' | 'mod-enter';
 
-export type AssistantExecutionMode = 'fast_response' | 'deep_verification';
+export const assistantExecutionModes = ['fast_response', 'deep_verification'] as const;
+
+export type AssistantExecutionMode = (typeof assistantExecutionModes)[number];
 
 export type UiLanguage = 'zh-CN' | 'en';
 

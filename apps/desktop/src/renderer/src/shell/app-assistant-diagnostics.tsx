@@ -9,7 +9,13 @@ import {
 import React, { useEffect, useMemo, useState } from 'react';
 import { addDays, format } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
-import type { Agent, LlmProvider } from '@yomitomo/shared';
+import {
+  assistantExecutionModes,
+  assistantExecutionStatuses,
+  assistantExecutionTaskTypes,
+  type Agent,
+  type LlmProvider,
+} from '@yomitomo/shared';
 import type {
   AssistantExecutionQueryInput,
   AssistantExecutionRunDetail,
@@ -332,9 +338,7 @@ function DiagnosticsToolbar({
           value={filters.status}
           options={[
             { value: allValue, label: t('diagnostics.allStatus') },
-            { value: 'success', label: 'success' },
-            { value: 'fallback', label: 'fallback' },
-            { value: 'error', label: 'error' },
+            ...assistantExecutionStatuses.map((status) => ({ value: status, label: status })),
           ]}
           onChange={(status) => onChange({ ...filters, status })}
         />
@@ -675,18 +679,14 @@ function useDiagnosticsOptions(
       providerModels: [{ value: allValue, label: t('diagnostics.allModels') }, ...providerModels],
       taskTypes: uniqueOptions([
         { value: allValue, label: t('diagnostics.allTasks') },
-        { value: 'annotation', label: 'annotation' },
-        { value: 'selection_first', label: 'selection_first' },
-        { value: 'co_reading_section', label: 'co_reading_section' },
-        { value: 'thread_reply', label: 'thread_reply' },
-        { value: 'create_thought', label: 'create_thought' },
-        { value: 'distillation_review', label: 'distillation_review' },
-        ...runs.map((run) => ({ value: run.taskType, label: run.taskType })),
+        ...assistantExecutionTaskTypes.map((taskType) => ({
+          value: taskType,
+          label: taskType,
+        })),
       ]),
       modes: [
         { value: allValue, label: t('diagnostics.allModes') },
-        { value: 'fast_response', label: 'fast_response' },
-        { value: 'deep_verification', label: 'deep_verification' },
+        ...assistantExecutionModes.map((mode) => ({ value: mode, label: mode })),
       ],
     };
   }, [agents, providers, runs, t]);
@@ -703,13 +703,13 @@ function queryInput(filters: DiagnosticsFilters): AssistantExecutionQueryInput {
     agentId: emptyIfAll(filters.agentId),
     providerId: providerId || undefined,
     modelName: modelName || undefined,
-    taskType: emptyIfAll(filters.taskType),
+    taskType: assistantExecutionTaskTypes.find((taskType) => taskType === filters.taskType),
     status:
       filters.status === allValue
         ? 'all'
-        : (filters.status as AssistantExecutionQueryInput['status']),
-    requestedMode: emptyIfAll(filters.requestedMode),
-    effectiveMode: emptyIfAll(filters.effectiveMode),
+        : assistantExecutionStatuses.find((status) => status === filters.status),
+    requestedMode: assistantExecutionModes.find((mode) => mode === filters.requestedMode),
+    effectiveMode: assistantExecutionModes.find((mode) => mode === filters.effectiveMode),
     limit: 200,
   };
 }

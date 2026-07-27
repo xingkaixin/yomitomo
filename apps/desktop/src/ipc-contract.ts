@@ -4,6 +4,7 @@ import type {
   AgentDistillationReviewPayload,
   AgentMessagePayload,
   Annotation,
+  AnnotationRetentionDecision as SharedAnnotationRetentionDecision,
   AnnotationDistillationReviewItem,
   AnnotationDistillationReviewMessage,
   ArticleRecord,
@@ -12,7 +13,12 @@ import type {
   ArticleSummaryRecord,
   ArticleTranslation,
   ArticleUpsertPatch,
+  AssistantExecutionMode,
+  AssistantExecutionStatus as SharedAssistantExecutionStatus,
+  AssistantExecutionTaskType as SharedAssistantExecutionTaskType,
+  AssistantRuntimeResultStatus as SharedAssistantRuntimeResultStatus,
   AssistantRuntimeProgressEvent,
+  AssistantRuntimeTaskType as SharedAssistantRuntimeTaskType,
   Collection,
   CollectionStorePatch,
   Comment,
@@ -314,22 +320,16 @@ export type DataManagementPaths = {
   databaseFile: string;
 };
 
-export type AgentRuntimeTraceTaskType =
-  | 'thread_reply'
-  | 'create_thought'
-  | 'distillation_review'
-  | 'selection_first'
-  | 'co_reading_section';
+export type AssistantRuntimeTaskType = SharedAssistantRuntimeTaskType;
 
-export type AgentRuntimeTraceStatus =
-  | 'comment'
-  | 'result'
-  | 'fallback'
-  | 'final'
-  | 'kept_without_runtime';
+export type AssistantExecutionTaskType = SharedAssistantExecutionTaskType;
+
+export type AssistantRuntimeResultStatus = SharedAssistantRuntimeResultStatus;
+
+export type AnnotationRetentionDecision = SharedAnnotationRetentionDecision;
 
 export type AgentRuntimeTraceListInput = {
-  taskType?: AgentRuntimeTraceTaskType | 'all';
+  taskType?: AssistantRuntimeTaskType | 'all';
   agentId?: string;
   articleId?: string;
   failureOnly?: boolean;
@@ -338,7 +338,8 @@ export type AgentRuntimeTraceListInput = {
 
 export type AgentRuntimeTraceDecision = {
   annotationId: string;
-  status: AgentRuntimeTraceStatus;
+  runtimeStatus?: AssistantRuntimeResultStatus;
+  retention: AnnotationRetentionDecision;
   actionType?: string;
   failureReason?: string;
 };
@@ -346,10 +347,10 @@ export type AgentRuntimeTraceDecision = {
 export type AgentRuntimeTraceEntry = {
   id: string;
   at: string;
-  taskType: AgentRuntimeTraceTaskType;
+  taskType: AssistantRuntimeTaskType;
   agentId: string;
   articleId: string;
-  status: AgentRuntimeTraceStatus;
+  runtimeStatus: AssistantRuntimeResultStatus;
   finalActionType?: string;
   failureReason?: string;
   stepCount: number;
@@ -362,7 +363,7 @@ export type AgentRuntimeTraceEntry = {
   decisions?: AgentRuntimeTraceDecision[];
 };
 
-export type AssistantExecutionStatus = 'success' | 'fallback' | 'error';
+export type AssistantExecutionStatus = SharedAssistantExecutionStatus;
 
 export type AssistantExecutionQueryInput = {
   from: string;
@@ -370,10 +371,10 @@ export type AssistantExecutionQueryInput = {
   agentId?: string;
   providerId?: string;
   modelName?: string;
-  taskType?: string;
+  taskType?: AssistantExecutionTaskType;
   status?: AssistantExecutionStatus | 'all';
-  requestedMode?: string;
-  effectiveMode?: string;
+  requestedMode?: AssistantExecutionMode;
+  effectiveMode?: AssistantExecutionMode;
   limit?: number;
 };
 
@@ -401,9 +402,9 @@ export type AssistantExecutionRunListItem = {
   agentId: string;
   agentUsername?: string;
   agentNickname?: string;
-  taskType: string;
-  requestedMode: string;
-  effectiveMode: string;
+  taskType: AssistantExecutionTaskType | 'unknown';
+  requestedMode: AssistantExecutionMode | 'unknown';
+  effectiveMode: AssistantExecutionMode | 'unknown';
   providerId: string;
   providerName: string;
   modelName: string;

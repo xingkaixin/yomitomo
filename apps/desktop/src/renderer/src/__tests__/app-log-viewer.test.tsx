@@ -75,7 +75,7 @@ function installDesktopAboutApi() {
         taskType: 'selection_first',
         agentId: 'agent_1',
         articleId: 'article_1',
-        status: 'result',
+        runtimeStatus: 'final',
         finalActionType: 'add_annotation',
         stepCount: 2,
         repairUsed: false,

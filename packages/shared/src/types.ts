@@ -1,6 +1,7 @@
 export * from './providers/provider-types';
 export * from './settings-types';
 export * from './agents/agent-types';
+export * from './agents/assistant-runtime-types';
 export * from './user-types';
 export * from './anchor-types';
 export * from './annotation-types';
