@@ -27,3 +27,8 @@ store scroll progress, PDFs store page position, and ebooks store a chapter anch
 independent whole-book progress reported by the reader. Presentation code derives a common ratio
 through `readingProgressRatio`.
 _Avoid_: one universal record padded with synthetic or redundant fields
+
+**Library Catalog Item**:
+An Article or WeRead Book hydrated for the mixed library catalog. Its source discriminant owns one
+required payload; content references and filter types are derived from that payload.
+_Avoid_: Library Item Entity; parallel ref, type, and optional payload discriminators

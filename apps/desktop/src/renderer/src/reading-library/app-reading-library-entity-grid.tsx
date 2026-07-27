@@ -13,6 +13,12 @@ import {
 } from '@hugeicons/core-free-icons';
 import React, { useState } from 'react';
 import type { ArticleSummaryRecord, Collection, WeReadBook } from '@yomitomo/shared';
+import {
+  libraryCatalogItemRef,
+  type LibraryCatalogCollection,
+  type LibraryCatalogEntity,
+  type LibraryCatalogItem,
+} from '../../../ipc-contract';
 import { useTranslation } from 'react-i18next';
 import { SettingsConfirmDialog } from '../settings/app-settings-confirm-dialog';
 import { ArticleBook } from '../shell/app-article-book';
@@ -26,12 +32,6 @@ import { ArticleLibraryCard } from './app-reading-library-card';
 import { WeReadCover } from './app-reading-library-covers';
 import { contentRefKey } from './app-reading-library-entities';
 import { formatLibraryShortDate, weReadBookLibraryDate } from './app-reading-library-utils';
-import type {
-  LibraryCollectionEntity,
-  LibraryEntity,
-  LibraryItemEntity,
-} from './library-entity-types';
-
 export function LibraryEntityGrid({
   activeCollectionId,
   actions,
@@ -39,7 +39,7 @@ export function LibraryEntityGrid({
 }: {
   activeCollectionId: string | null;
   actions: LibraryEntityActions;
-  entities: LibraryEntity[];
+  entities: LibraryCatalogEntity[];
 }) {
   return (
     <div className="library-entity-scroll">
@@ -65,9 +65,9 @@ type LibraryEntityActions = {
   openCollectionPicker: (collection: Collection) => void;
   openWeReadBook: (book: WeReadBook) => void;
   openWeReadExternal: (book: WeReadBook) => void;
-  removeCollectionMember?: (entity: LibraryItemEntity) => void;
+  removeCollectionMember?: (entity: LibraryCatalogItem) => void;
   renameCollection: (collection: Collection) => void;
-  setPinned: (entity: LibraryEntity, pinned: boolean) => void;
+  setPinned: (entity: LibraryCatalogEntity, pinned: boolean) => void;
 };
 
 function LibraryEntityCard({
@@ -77,7 +77,7 @@ function LibraryEntityCard({
 }: {
   activeCollectionId: string | null;
   actions: LibraryEntityActions;
-  entity: LibraryEntity;
+  entity: LibraryCatalogEntity;
 }) {
   if (entity.kind === 'col') {
     return (
@@ -93,12 +93,13 @@ function LibraryEntityCard({
     );
   }
 
-  if (entity.article) {
+  if (entity.source === 'article') {
+    const article = entity.article;
     return (
       <ArticleLibraryCard
-        article={entity.article}
-        onDelete={() => actions.deleteArticle(entity.article!)}
-        onOpen={() => actions.openArticle(entity.article!)}
+        article={article}
+        onDelete={() => actions.deleteArticle(article)}
+        onOpen={() => actions.openArticle(article)}
         onRemoveFromCollection={
           activeCollectionId ? () => actions.removeCollectionMember?.(entity) : undefined
         }
@@ -108,22 +109,19 @@ function LibraryEntityCard({
     );
   }
 
-  if (entity.weread) {
-    return (
-      <WeReadLibraryCard
-        book={entity.weread}
-        pinned={entity.pinned}
-        onOpen={() => actions.openWeReadBook(entity.weread!)}
-        onOpenExternal={() => actions.openWeReadExternal(entity.weread!)}
-        onRemoveFromCollection={
-          activeCollectionId ? () => actions.removeCollectionMember?.(entity) : undefined
-        }
-        onSetPinned={(pinned) => actions.setPinned(entity, pinned)}
-      />
-    );
-  }
-
-  return null;
+  const book = entity.weread;
+  return (
+    <WeReadLibraryCard
+      book={book}
+      pinned={entity.pinned}
+      onOpen={() => actions.openWeReadBook(book)}
+      onOpenExternal={() => actions.openWeReadExternal(book)}
+      onRemoveFromCollection={
+        activeCollectionId ? () => actions.removeCollectionMember?.(entity) : undefined
+      }
+      onSetPinned={(pinned) => actions.setPinned(entity, pinned)}
+    />
+  );
 }
 
 function WeReadLibraryCard({
@@ -253,7 +251,7 @@ function LibraryCollectionCard({
   onSetPinned,
   pinned,
 }: {
-  entity: LibraryCollectionEntity;
+  entity: LibraryCatalogCollection;
   onDelete: () => void;
   onOpen: () => void;
   onOpenPicker: () => void;
@@ -368,11 +366,13 @@ function LibraryCollectionCard({
             ? previewMembers.map((item, index) => (
                 <div
                   className="library-collection-fan-card"
-                  key={contentRefKey(item.ref)}
+                  key={contentRefKey(libraryCatalogItemRef(item))}
                   style={{ '--fan-index': index } as React.CSSProperties}
                 >
-                  {item.article ? <ArticleBook article={item.article} /> : null}
-                  {item.weread ? <WeReadCover book={item.weread} variant="cover" /> : null}
+                  {item.source === 'article' ? <ArticleBook article={item.article} /> : null}
+                  {item.source === 'weread' ? (
+                    <WeReadCover book={item.weread} variant="cover" />
+                  ) : null}
                 </div>
               ))
             : [0, 1, 2].map((index) => (
@@ -443,9 +443,9 @@ function LibraryCoverProgress({ progress }: { progress: number }) {
   );
 }
 
-function libraryEntityKey(entity: LibraryEntity) {
+function libraryEntityKey(entity: LibraryCatalogEntity) {
   if (entity.kind === 'col') return `collection:${entity.collection.id}`;
-  return contentRefKey(entity.ref);
+  return contentRefKey(libraryCatalogItemRef(entity));
 }
 
 function coverProgressStyle(value: number) {

@@ -1,16 +1,9 @@
+import type { ArticleSummaryRecord, Collection, LibraryPin, WeReadBook } from '@yomitomo/shared';
 import type {
-  ArticleSummaryRecord,
-  Collection,
-  ContentRef,
-  LibraryPin,
-  WeReadBook,
-} from '@yomitomo/shared';
-import type {
-  LibraryCollectionEntity,
-  LibraryEntity,
-  LibraryItemEntity,
-  LibraryItemType,
-} from '../library-entity-types';
+  LibraryCatalogCollection,
+  LibraryCatalogEntity,
+  LibraryCatalogItem,
+} from '../../../../ipc-contract';
 
 type WebArticleSummary = Extract<ArticleSummaryRecord, { sourceType: 'web' }>;
 type EbookArticleSummary = Extract<ArticleSummaryRecord, { sourceType: 'ebook' }>;
@@ -64,101 +57,83 @@ function makeMockWeReadBook(partial: Partial<WeReadBook> = {}): WeReadBook {
   };
 }
 
-function makeItem(
-  type: LibraryItemType,
-  ref: ContentRef,
+function makeArticleItem(
   sortTime: string,
   pinned: boolean,
-  source: { article?: ArticleSummaryRecord; weread?: WeReadBook },
-): LibraryItemEntity {
-  return { kind: 'item', ref, type, sortTime, pinned, ...source };
+  article: ArticleSummaryRecord,
+): LibraryCatalogItem {
+  return { kind: 'item', source: 'article', sortTime, pinned, article };
 }
 
-const webItem = makeItem(
-  'web',
-  { kind: 'article', id: 'article-web' },
+function makeWeReadItem(sortTime: string, pinned: boolean, weread: WeReadBook): LibraryCatalogItem {
+  return { kind: 'item', source: 'weread', sortTime, pinned, weread };
+}
+
+const webItem = makeArticleItem(
   '2026-06-10T08:00:00.000Z',
   false,
-  {
-    article: makeMockArticle({
-      id: 'article-web',
-      sourceType: 'web',
-      title: 'Web 文章示例',
-      siteName: 'Example Blog',
-      updatedAt: '2026-06-10T08:00:00.000Z',
-    }),
-  },
+  makeMockArticle({
+    id: 'article-web',
+    sourceType: 'web',
+    title: 'Web 文章示例',
+    siteName: 'Example Blog',
+    updatedAt: '2026-06-10T08:00:00.000Z',
+  }),
 );
 
-const ebookItem = makeItem(
-  'ebook',
-  { kind: 'article', id: 'article-ebook' },
+const ebookItem = makeArticleItem(
   '2026-06-09T08:00:00.000Z',
   false,
-  {
-    article: makeMockArticle({
-      id: 'article-ebook',
-      sourceType: 'ebook',
-      ebook: {
-        metadata: { format: 'epub', fileName: 'book.epub', fileSize: 1024 },
-      },
-      title: 'EPUB 书籍示例',
-      updatedAt: '2026-06-09T08:00:00.000Z',
-    }),
-  },
+  makeMockArticle({
+    id: 'article-ebook',
+    sourceType: 'ebook',
+    ebook: {
+      metadata: { format: 'epub', fileName: 'book.epub', fileSize: 1024 },
+    },
+    title: 'EPUB 书籍示例',
+    updatedAt: '2026-06-09T08:00:00.000Z',
+  }),
 );
 
-const pdfItem = makeItem(
-  'pdf',
-  { kind: 'article', id: 'article-pdf' },
+const pdfItem = makeArticleItem(
   '2026-06-08T08:00:00.000Z',
   true,
-  {
-    article: makeMockArticle({
-      id: 'article-pdf',
-      sourceType: 'pdf',
-      pdf: {
-        metadata: {
-          format: 'pdf',
-          fileName: 'document.pdf',
-          fileSize: 1024,
-          pageCount: 1,
-        },
+  makeMockArticle({
+    id: 'article-pdf',
+    sourceType: 'pdf',
+    pdf: {
+      metadata: {
+        format: 'pdf',
+        fileName: 'document.pdf',
+        fileSize: 1024,
+        pageCount: 1,
       },
-      title: 'PDF 文档示例',
-      updatedAt: '2026-06-08T08:00:00.000Z',
-    }),
-  },
+    },
+    title: 'PDF 文档示例',
+    updatedAt: '2026-06-08T08:00:00.000Z',
+  }),
 );
 
-const wereadItem = makeItem(
-  'weread',
-  { kind: 'weread', id: 'weread-book-1' },
+const wereadItem = makeWeReadItem(
   '2026-06-07T08:00:00.000Z',
   false,
-  {
-    weread: makeMockWeReadBook({
-      bookId: 'weread-book-1',
-      title: '微信读书示例',
-      author: '某作者',
-      updatedAt: '2026-06-07T08:00:00.000Z',
-    }),
-  },
+  makeMockWeReadBook({
+    bookId: 'weread-book-1',
+    title: '微信读书示例',
+    author: '某作者',
+    updatedAt: '2026-06-07T08:00:00.000Z',
+  }),
 );
 
-const collectionCoverItem = makeItem(
-  'web',
-  { kind: 'article', id: 'article-col-1' },
+const collectionCoverItem = makeArticleItem(
   '2026-06-06T08:00:00.000Z',
   false,
-  {
-    article: makeMockArticle({
-      id: 'article-col-1',
-      sourceType: 'web',
-      title: '合集成员文章',
-      updatedAt: '2026-06-06T08:00:00.000Z',
-    }),
-  },
+  makeMockArticle({
+    id: 'article-col-1',
+    sourceType: 'web',
+    title: '合集成员文章',
+    updatedAt: '2026-06-06T08:00:00.000Z',
+  }),
 );
 
 export const mockCollections: Collection[] = [
@@ -182,27 +157,25 @@ export const mockPins: LibraryPin[] = [
   { targetKind: 'collection', targetId: 'collection-tech', pinnedAt: '2026-06-06T09:00:00.000Z' },
 ];
 
-const techCollection: LibraryCollectionEntity = {
+const techCollection: LibraryCatalogCollection = {
   kind: 'col',
   collection: mockCollections[0],
   coverMembers: [collectionCoverItem],
-  searchMembers: [collectionCoverItem],
   memberCount: 1,
   sortTime: '2026-06-06T08:00:00.000Z',
   pinned: true,
 };
 
-const emptyCollection: LibraryCollectionEntity = {
+const emptyCollection: LibraryCatalogCollection = {
   kind: 'col',
   collection: mockCollections[1],
   coverMembers: [],
-  searchMembers: [],
   memberCount: 0,
   sortTime: '2026-05-20T00:00:00.000Z',
   pinned: false,
 };
 
-export const mockLibraryEntities: LibraryEntity[] = [
+export const mockLibraryEntities: LibraryCatalogEntity[] = [
   techCollection,
   pdfItem,
   webItem,

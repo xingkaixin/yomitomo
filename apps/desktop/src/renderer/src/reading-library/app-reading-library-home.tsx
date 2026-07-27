@@ -53,7 +53,12 @@ import type {
   EbookImportProgressCallback,
   PdfImportProgressCallback,
 } from '../shell/app-reading-types';
-import type { LibraryCatalogListInput, SetLibraryPinInput } from '../../../ipc-contract';
+import {
+  libraryCatalogItemRef,
+  type LibraryCatalogItemType,
+  type LibraryCatalogListInput,
+  type SetLibraryPinInput,
+} from '../../../ipc-contract';
 import type { AppMenuCommandRequest } from '../../../app-menu-types';
 import { libraryContentSourceBaseOptions } from './app-library-content-sources';
 import { CollectionPickerDialog } from './app-reading-library-collection-picker';
@@ -66,7 +71,7 @@ import {
 import { libraryEntityPinTarget } from './app-reading-library-entities';
 import { useLibrarySearchClearDissolve } from './app-reading-library-search-clear-dissolve';
 import { librarySession } from './app-reading-library-session';
-import type { LibraryItemType, LibraryTypeFilter } from './library-entity-types';
+import type { LibraryTypeFilter } from './library-filter-types';
 import { useLibraryCatalog } from './use-library-catalog';
 
 const LIBRARY_PAGE_SIZE_OPTIONS = [6, 12, 18, 24] as const;
@@ -228,7 +233,7 @@ export function LibraryHome({
     wereadSettings.configured ||
     wereadBooks.length > 0 ||
     Boolean(remoteCatalog?.itemCounts.weread);
-  const availableTypes = useMemo<LibraryItemType[]>(
+  const availableTypes = useMemo<LibraryCatalogItemType[]>(
     () => (wereadAvailable ? [...ARTICLE_SOURCE_TYPES, 'weread'] : [...ARTICLE_SOURCE_TYPES]),
     [wereadAvailable],
   );
@@ -623,7 +628,11 @@ export function LibraryHome({
                   openWeReadBook: onOpenWeReadBook,
                   openWeReadExternal: onOpenWeReadExternal,
                   removeCollectionMember: activeCollection
-                    ? (entity) => void removeCollectionMember(activeCollection.id, entity.ref)
+                    ? (entity) =>
+                        void removeCollectionMember(
+                          activeCollection.id,
+                          libraryCatalogItemRef(entity),
+                        )
                     : undefined,
                   renameCollection: (collection) =>
                     setCollectionNameDialog({ type: 'rename', collection }),

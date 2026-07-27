@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import SQLiteDatabase from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { ARTICLE_SOURCE_TYPES } from '@yomitomo/shared';
+import { libraryCatalogItemRef, libraryCatalogItemType } from '../../ipc-contract';
 import * as schema from '../db/schema';
 import { migrations } from '../db/migrations';
 import { readLibraryCatalogRows } from './library-catalog-repository';
@@ -48,8 +49,34 @@ describe('library catalog repository', () => {
     expect(result.entities[1]).toMatchObject({
       kind: 'col',
       memberCount: 1,
-      coverMembers: [{ kind: 'item', ref: { kind: 'article', id: 'article_member' } }],
+      coverMembers: [
+        {
+          kind: 'item',
+          source: 'article',
+          article: { id: 'article_member' },
+        },
+      ],
     });
+  });
+
+  it('hydrates catalog items from one required source payload', () => {
+    const result = readLibraryCatalogRows(catalogDatabase(), {
+      scope: { kind: 'library' },
+      pageSize: 10,
+    });
+    const items = result.entities.filter((entity) => entity.kind === 'item');
+
+    expect(
+      items.map((item) => ({
+        ref: libraryCatalogItemRef(item),
+        type: libraryCatalogItemType(item),
+      })),
+    ).toEqual([
+      { ref: { kind: 'article', id: 'article_pinned' }, type: 'web' },
+      { ref: { kind: 'article', id: 'article_loose' }, type: 'web' },
+      { ref: { kind: 'weread', id: 'weread_1' }, type: 'weread' },
+    ]);
+    expect(items.every((item) => !('ref' in item) && !('type' in item))).toBe(true);
   });
 
   it('keeps source, collection, picker, and member-search scopes consistent', () => {
@@ -114,7 +141,9 @@ describe('library catalog repository', () => {
 });
 
 function entityKey(entity: ReturnType<typeof readLibraryCatalogRows>['entities'][number]) {
-  return entity.kind === 'col' ? entity.collection.id : `${entity.ref.kind}:${entity.ref.id}`;
+  if (entity.kind === 'col') return entity.collection.id;
+  const ref = libraryCatalogItemRef(entity);
+  return `${ref.kind}:${ref.id}`;
 }
 
 function catalogDatabase() {

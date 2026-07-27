@@ -128,15 +128,27 @@ function readCatalogCandidates(
     });
     throw error;
   }
-  return rows.map((row) => ({
-    kind: row.kind,
-    id: row.id,
-    type: row.type,
-    sortTime: row.sortTime,
-    title: row.title,
-    pinned: Boolean(row.pinned),
-    memberCount: row.memberCount ?? undefined,
-  }));
+  return rows.map((row): CatalogCandidate => {
+    if (row.kind === 'collection') {
+      return {
+        kind: 'collection',
+        id: row.id,
+        sortTime: row.sortTime,
+        title: row.title,
+        pinned: Boolean(row.pinned),
+        memberCount: row.memberCount ?? 0,
+      };
+    }
+    if (row.type === 'collection') throw new Error('LIBRARY_CATALOG_INVALID_ITEM_TYPE');
+    return {
+      kind: 'item',
+      id: row.id,
+      type: row.type,
+      sortTime: row.sortTime,
+      title: row.title,
+      pinned: Boolean(row.pinned),
+    };
+  });
 }
 
 function articleCandidateSelect(

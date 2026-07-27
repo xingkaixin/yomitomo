@@ -31,7 +31,13 @@ import {
   SelectTrigger,
 } from '../components/ui/select';
 import { Button } from '../components/ui/button';
-import type { LibraryCatalogListInput } from '../../../ipc-contract';
+import {
+  libraryCatalogItemRef,
+  libraryCatalogItemType,
+  type LibraryCatalogItem,
+  type LibraryCatalogItemType,
+  type LibraryCatalogListInput,
+} from '../../../ipc-contract';
 import {
   Dialog,
   DialogContent,
@@ -49,7 +55,7 @@ import {
   useLibraryDraggable,
   useLibraryDroppable,
 } from './app-reading-library-dnd';
-import type { LibraryItemEntity, LibraryItemType, LibraryTypeScope } from './library-entity-types';
+import type { LibraryTypeScope } from './library-filter-types';
 import { useLibraryCatalog } from './use-library-catalog';
 
 const PICKER_PAGE_SIZE = 30;
@@ -87,7 +93,9 @@ function CollectionPickerDialogContent({
   const [query, setQuery] = useState('');
   const [typeScope, setTypeScope] = useState<LibraryTypeScope>('all');
   const [page, setPage] = useState(1);
-  const [selectedRefs, setSelectedRefs] = useState<Map<string, LibraryItemEntity>>(() => new Map());
+  const [selectedRefs, setSelectedRefs] = useState<Map<string, LibraryCatalogItem>>(
+    () => new Map(),
+  );
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const catalogInput = useMemo<LibraryCatalogListInput>(
@@ -112,10 +120,13 @@ function CollectionPickerDialogContent({
   const selectedKeys = useMemo(() => new Set(selectedRefs.keys()), [selectedRefs]);
   const visiblePickerItems =
     remoteCatalog?.entities.filter(
-      (entity): entity is LibraryItemEntity => entity.kind === 'item',
+      (entity): entity is LibraryCatalogItem => entity.kind === 'item',
     ) || [];
   const pickerItems = useMemo(
-    () => visiblePickerItems.filter((item) => !selectedKeys.has(contentRefKey(item.ref))),
+    () =>
+      visiblePickerItems.filter(
+        (item) => !selectedKeys.has(contentRefKey(libraryCatalogItemRef(item))),
+      ),
     [visiblePickerItems, selectedKeys],
   );
   const totalCount = remoteCatalog?.totalCount || 0;
@@ -123,10 +134,10 @@ function CollectionPickerDialogContent({
   const activeTypeLabel =
     typeOptions.find((option) => option.value === typeScope)?.label || t('library.typeFilter.all');
 
-  function toggleItem(item: LibraryItemEntity) {
+  function toggleItem(item: LibraryCatalogItem) {
     setSelectedRefs((current) => {
       const next = new Map(current);
-      const key = contentRefKey(item.ref);
+      const key = contentRefKey(libraryCatalogItemRef(item));
       if (next.has(key)) next.delete(key);
       else next.set(key, item);
       return next;
@@ -135,7 +146,8 @@ function CollectionPickerDialogContent({
   function toggleItemRef(ref: ContentRef) {
     const key = contentRefKey(ref);
     const item =
-      selectedRefs.get(key) || visiblePickerItems.find((entry) => contentRefKey(entry.ref) === key);
+      selectedRefs.get(key) ||
+      visiblePickerItems.find((entry) => contentRefKey(libraryCatalogItemRef(entry)) === key);
     if (item) toggleItem(item);
   }
   const { isDropTarget: selectionDragOver, ref: selectionDropRef } = useLibraryDroppable({
@@ -149,7 +161,7 @@ function CollectionPickerDialogContent({
     setSubmitting(true);
     setError('');
     try {
-      await onAddMembers(selectedItems.map((item) => item.ref));
+      await onAddMembers(selectedItems.map(libraryCatalogItemRef));
       onClose();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('library.collection.saveFailed'));
@@ -218,7 +230,7 @@ function CollectionPickerDialogContent({
                     pickerItems.map((item) => (
                       <CollectionPickerItem
                         item={item}
-                        key={contentRefKey(item.ref)}
+                        key={contentRefKey(libraryCatalogItemRef(item))}
                         onSelect={() => toggleItem(item)}
                       />
                     ))
@@ -267,7 +279,10 @@ function CollectionPickerDialogContent({
                       {selectedItems.map((item) => {
                         const title = libraryItemTitle(item);
                         return (
-                          <ReaderTooltip content={title} key={contentRefKey(item.ref)}>
+                          <ReaderTooltip
+                            content={title}
+                            key={contentRefKey(libraryCatalogItemRef(item))}
+                          >
                             <button
                               className="library-collection-picker-selected-item"
                               type="button"
@@ -324,13 +339,13 @@ function CollectionPickerItem({
   item,
   onSelect,
 }: {
-  item: LibraryItemEntity;
+  item: LibraryCatalogItem;
   onSelect: () => void;
 }) {
   const { t } = useTranslation();
   const title = libraryItemTitle(item);
   const { handleRef, isDragging, ref } = useLibraryDraggable({
-    ref: item.ref,
+    ref: libraryCatalogItemRef(item),
     title,
   });
 
@@ -348,7 +363,9 @@ function CollectionPickerItem({
       <span className="library-collection-picker-copy">
         <strong>{title}</strong>
         <span className="library-collection-picker-meta">
-          <span className="library-source-badge">{libraryTypeLabel(item.type, t)}</span>
+          <span className="library-source-badge">
+            {libraryTypeLabel(libraryCatalogItemType(item), t)}
+          </span>
           <time dateTime={item.sortTime}>{formatLibraryShortDate(item.sortTime)}</time>
         </span>
       </span>
@@ -369,17 +386,17 @@ function CollectionPickerCover({
   item,
 }: {
   className: string;
-  item: LibraryItemEntity;
+  item: LibraryCatalogItem;
 }) {
   return (
     <span className={className} aria-hidden="true">
-      {item.article ? <ArticleBook article={item.article} /> : null}
-      {item.weread ? <WeReadCover book={item.weread} variant="cover" /> : null}
+      {item.source === 'article' ? <ArticleBook article={item.article} /> : null}
+      {item.source === 'weread' ? <WeReadCover book={item.weread} variant="cover" /> : null}
     </span>
   );
 }
 
-function libraryTypeLabel(type: LibraryItemType, t: ReturnType<typeof useTranslation>['t']) {
+function libraryTypeLabel(type: LibraryCatalogItemType, t: ReturnType<typeof useTranslation>['t']) {
   if (type === 'web') return t('library.sources.webShort');
   if (type === 'ebook') return t('library.sources.ebookShort');
   if (type === 'pdf') return t('library.sources.pdfShort');

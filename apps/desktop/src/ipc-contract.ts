@@ -162,15 +162,31 @@ export type LibraryCatalogScope =
   | { kind: 'collection'; collectionId: string }
   | { kind: 'picker'; collectionId: string };
 
-export type LibraryCatalogItem = {
+type LibraryCatalogItemBase = {
   kind: 'item';
-  ref: ContentRef;
-  type: LibraryCatalogItemType;
   sortTime: string;
   pinned: boolean;
-  article?: ArticleSummaryRecord;
-  weread?: WeReadBook;
 };
+
+export type LibraryCatalogItem =
+  | (LibraryCatalogItemBase & {
+      source: 'article';
+      article: ArticleSummaryRecord;
+    })
+  | (LibraryCatalogItemBase & {
+      source: 'weread';
+      weread: WeReadBook;
+    });
+
+export function libraryCatalogItemRef(item: LibraryCatalogItem): ContentRef {
+  return item.source === 'article'
+    ? { kind: 'article', id: item.article.id }
+    : { kind: 'weread', id: item.weread.bookId };
+}
+
+export function libraryCatalogItemType(item: LibraryCatalogItem): LibraryCatalogItemType {
+  return item.source === 'article' ? item.article.sourceType : 'weread';
+}
 
 export type LibraryCatalogCollection = {
   kind: 'col';

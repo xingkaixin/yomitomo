@@ -1,4 +1,4 @@
-import type { LibraryTypeFilter } from './library-entity-types';
+import type { LibraryTypeFilter } from './library-filter-types';
 
 type LibrarySessionState = {
   searchQuery: string;

@@ -1,11 +1,18 @@
-import type { LibraryCatalogType } from '../../ipc-contract';
+import type { LibraryCatalogItemType } from '../../ipc-contract';
 
-export type CatalogCandidate = {
-  kind: 'collection' | 'item';
+type CatalogCandidateBase = {
   id: string;
-  type: LibraryCatalogType;
   sortTime: string;
   title: string;
   pinned: boolean;
-  memberCount?: number;
 };
+
+export type CatalogCandidate =
+  | (CatalogCandidateBase & {
+      kind: 'collection';
+      memberCount: number;
+    })
+  | (CatalogCandidateBase & {
+      kind: 'item';
+      type: LibraryCatalogItemType;
+    });

@@ -651,8 +651,7 @@ describe('ReadingLibrary home', () => {
           entities: [
             {
               kind: 'item',
-              ref: { kind: 'article', id: remoteArticle.id },
-              type: 'web',
+              source: 'article',
               sortTime: remoteArticle.createdAt,
               pinned: false,
               article: remoteArticle,
