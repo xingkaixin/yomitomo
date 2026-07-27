@@ -48,7 +48,7 @@ import {
 import type { EbookBookcaseProps } from '../bookcase/app-source-bookcase';
 
 type UseEbookSelectionInput = {
-  article: EbookBookcaseProps['article'];
+  article: EbookBookcaseProps['content']['article'];
   canvasRef: RefObject<HTMLDivElement | null>;
   viewRef: RefObject<FoliateViewElement | null>;
   pageInfo: FoliatePageInfo | null;

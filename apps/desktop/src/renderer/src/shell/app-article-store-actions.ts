@@ -273,6 +273,19 @@ export function useAppArticleStoreActions({
   };
 }
 
+export type ArticleActions = ReturnType<typeof useAppArticleStoreActions>;
+export type ReaderArticleActions = Pick<
+  ArticleActions,
+  | 'deleteArticleAnnotation'
+  | 'deleteArticleComment'
+  | 'mergeArticleAgentAnnotation'
+  | 'openArticleDiscussion'
+  | 'saveArticleAnnotation'
+  | 'saveArticleComment'
+  | 'saveArticleReadingProgress'
+  | 'saveArticleReaderChatState'
+>;
+
 export function applyArticleStorePatch(
   store: DesktopStore,
   patch: ArticleStorePatch,

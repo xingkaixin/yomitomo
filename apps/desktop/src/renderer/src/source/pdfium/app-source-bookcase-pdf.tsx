@@ -18,13 +18,10 @@ const PdfiumBookcase = lazy(() => {
 
 type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']> };
 
-export function PdfBookcase({
-  article,
-  ...props
-}: SourceBookcaseProps & { article: PdfArticleRecord }) {
+export function PdfBookcase({ ...props }: SourceBookcaseProps<PdfArticleRecord>) {
   return (
     <Suspense fallback={<section className="source-bookcase source-pdf-reader-shell" />}>
-      <PdfiumBookcase {...props} article={article} />
+      <PdfiumBookcase {...props} />
     </Suspense>
   );
 }

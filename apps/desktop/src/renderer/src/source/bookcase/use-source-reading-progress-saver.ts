@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { ArticleReadingProgress } from '@yomitomo/shared';
-import type { SourceBookcaseProps } from './app-source-bookcase';
 
 export type SourceReadingProgressSavePredicate = (
   nextProgress: ArticleReadingProgress,
   lastSavedProgress: ArticleReadingProgress | null,
 ) => boolean;
+
+export type SourceReadingProgressSave = (
+  articleId: string,
+  progress: ArticleReadingProgress,
+) => Promise<void> | void;
 
 export function sourceReadingProgressSaveKey(progress: ArticleReadingProgress) {
   switch (progress.kind) {
@@ -74,7 +78,7 @@ function normalizeInitialProgress(progress: ArticleReadingProgress | undefined) 
 }
 
 type SourceReadingProgressSaveRuntime = {
-  onSave: SourceBookcaseProps['onSaveArticleReadingProgress'];
+  onSave: SourceReadingProgressSave;
   shouldSave: SourceReadingProgressSavePredicate;
 };
 
@@ -185,7 +189,7 @@ export function useSourceReadingProgressSaver({
   articleId: string;
   debounceMs?: number;
   initialProgress: ArticleReadingProgress | undefined;
-  onSaveArticleReadingProgress: SourceBookcaseProps['onSaveArticleReadingProgress'];
+  onSaveArticleReadingProgress: SourceReadingProgressSave;
   shouldSave?: SourceReadingProgressSavePredicate;
 }) {
   const runtimeRef = useRef<SourceReadingProgressSaveRuntime>({

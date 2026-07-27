@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useScroll, useScrollCapability } from '@embedpdf/plugin-scroll/react';
 import type { ArticleReadingProgress, ArticleRecord } from '@yomitomo/shared';
-import type { SourceBookcaseProps } from '../bookcase/app-source-bookcase';
 import { recordPdfOpenTiming, type PdfOpenTrace } from './app-source-bookcase-pdfium-open-trace';
-import { useSourceReadingProgressSaver } from '../bookcase/use-source-reading-progress-saver';
+import {
+  useSourceReadingProgressSaver,
+  type SourceReadingProgressSave,
+} from '../bookcase/use-source-reading-progress-saver';
 
 type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']> };
 
@@ -51,7 +53,7 @@ export function usePdfiumReadingProgress({
   documentReady: boolean;
   openTrace: PdfOpenTrace;
   pageCount: number;
-  onSaveArticleReadingProgress: SourceBookcaseProps['onSaveArticleReadingProgress'];
+  onSaveArticleReadingProgress: SourceReadingProgressSave;
 }) {
   const initialPageIndexRef = useRef(normalizeInitialPageIndex(article));
   const restoredInitialPageRef = useRef(false);

@@ -54,30 +54,19 @@ const WEB_READING_PROGRESS_SAVE_DEBOUNCE_MS = 450;
 const WEB_READING_PROGRESS_SAVE_MIN_DELTA = 0.01;
 
 export function WebSourceBookcase({
-  agents,
-  annotations: articleAnnotations,
-  article,
-  distillationAnimation,
-  focusAnnotationId,
-  messageSendShortcut,
-  settings,
-  selectionActionShortcuts,
-  selectedAnnotationId,
-  uiLanguage,
-  userProfile,
-  onArticleChange,
-  onFocusedAnnotation,
-  onClose,
-  onDeleteArticleAnnotation,
-  onDeleteArticleComment,
-  onOpenAnnotationDiscussion,
-  onOpenAnnotation,
-  onMergeArticleAgentAnnotation,
-  onSaveArticleAnnotation,
-  onSaveArticleComment,
-  onSaveArticleReadingProgress,
-  onSaveArticleReaderChatState,
+  annotationActions: { onArticleChange, onFocusedAnnotation, onOpenAnnotation },
+  articleActions,
+  content: { agents, annotations: articleAnnotations, article, userProfile },
+  presentation: {
+    distillationAnimation,
+    messageSendShortcut,
+    settings,
+    selectionActionShortcuts,
+    uiLanguage,
+  },
+  readerControl: { focusAnnotationId, onClose, selectedAnnotationId },
 }: WebSourceBookcaseProps) {
+  const { mergeArticleAgentAnnotation, saveArticleReadingProgress } = articleActions;
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const articleRef = useRef<HTMLElement | null>(null);
@@ -105,11 +94,12 @@ export function WebSourceBookcase({
       articleId: article.id,
       debounceMs: WEB_READING_PROGRESS_SAVE_DEBOUNCE_MS,
       initialProgress: article.readingProgress,
-      onSaveArticleReadingProgress,
+      onSaveArticleReadingProgress: saveArticleReadingProgress,
       shouldSave: shouldSaveWebProgress,
     });
   const [activeTocIndex, setActiveTocIndex] = useState<number | null>(null);
   const sourceReaderApp = useSourceReaderApp({
+    articleActions,
     canvasRef,
     getArticleText: currentArticleText,
     messageSendShortcut,
@@ -126,13 +116,8 @@ export function WebSourceBookcase({
         noteRefs.current.delete(annotationId);
       },
       onOpenAnnotation: openAnnotation,
-      onDeleteArticleAnnotation,
-      onDeleteArticleComment,
-      onSaveArticleAnnotation,
-      onSaveArticleComment,
       userProfile,
     },
-    onSaveArticleReaderChatState,
   });
   const {
     session: sourceReaderSession,
@@ -302,7 +287,7 @@ export function WebSourceBookcase({
         isCurrentArticle,
         markAgentAnnotating,
         markVirtualReadingDone,
-        onMergeArticleAgentAnnotation,
+        onMergeArticleAgentAnnotation: mergeArticleAgentAnnotation,
         processAgentAnnotationQueue,
         setStatusMessage,
         startVirtualReading,
@@ -855,7 +840,6 @@ export function WebSourceBookcase({
         onScrollToHeading: scrollToTocItem,
         onToggleToc: () => setTocOpen((open) => !open),
       },
-      onOpenAnnotationDiscussion,
       onRevealReaderChatContext: revealReaderChatContext,
     },
     agentPlayback: {

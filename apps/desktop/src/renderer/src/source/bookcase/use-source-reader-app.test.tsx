@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, ArticleRecord, UserProfile } from '@yomitomo/shared';
 import type { SourceReaderAppSurface } from './use-source-reader-app';
 import { useSourceReaderApp } from './use-source-reader-app';
+import { articleActionStubs } from '../../__tests__/article-actions-test-utils';
 
 const now = '2026-07-26T00:00:00.000Z';
 const annotation: Annotation = {
@@ -41,16 +42,21 @@ describe('useSourceReaderApp', () => {
     'owns the shared %s reader session and workspace lifecycle',
     async (sourceType) => {
       const initialArticle = article(sourceType, `${sourceType}_1`);
+      const articleActions = articleActionStubs();
       const { result, rerender } = renderHook(
         ({ currentArticle }) =>
           useSourceReaderApp({
+            articleActions,
             canvasRef: { current: null },
             getArticleText: () => 'text',
             session: {
               agents: [],
               annotations: currentArticle.annotations,
               article: currentArticle,
+              clearPendingOnArticleChange: true,
+              clearPendingOnDeleteAnnotation: true,
               onArticleChange: vi.fn(),
+              onBeforeDeleteAnnotation: vi.fn(),
               userProfile,
             },
           }),
@@ -73,30 +79,32 @@ describe('useSourceReaderApp', () => {
 
   it('maps source adapters into the common ReaderAppView contract', () => {
     const currentArticle = article('web', 'article_1');
-    const onOpenAnnotationDiscussion = vi.fn();
+    const articleActions = articleActionStubs();
     const onRevealReaderChatContext = vi.fn();
     const { result } = renderHook(() =>
       useSourceReaderApp({
+        articleActions,
         canvasRef: { current: null },
         getArticleText: () => 'text',
         session: {
           agents: [],
           annotations: currentArticle.annotations,
           article: currentArticle,
+          clearPendingOnArticleChange: true,
+          clearPendingOnDeleteAnnotation: true,
           onArticleChange: vi.fn(),
+          onBeforeDeleteAnnotation: vi.fn(),
           userProfile,
         },
       }),
     );
 
-    const props = result.current.viewProps(
-      surface({ onOpenAnnotationDiscussion, onRevealReaderChatContext }),
-    );
+    const props = result.current.viewProps(surface({ onRevealReaderChatContext }));
     const sourceRect = { x: 1, y: 2, width: 3, height: 4 };
     props.actions.annotation.onOpenAnnotationDiscussion?.('annotation_1', sourceRect);
     void props.actions.chat?.onRevealContext?.({ sourceType: 'web', quote: 'quote' });
 
-    expect(onOpenAnnotationDiscussion).toHaveBeenCalledWith(
+    expect(articleActions.openArticleDiscussion).toHaveBeenCalledWith(
       'article_1',
       'annotation_1',
       sourceRect,
@@ -152,12 +160,8 @@ function article(sourceType: 'web' | 'ebook' | 'pdf', id: string): ArticleRecord
 }
 
 function surface({
-  onOpenAnnotationDiscussion,
   onRevealReaderChatContext,
 }: {
-  onOpenAnnotationDiscussion: NonNullable<
-    SourceReaderAppSurface['actions']['onOpenAnnotationDiscussion']
-  >;
   onRevealReaderChatContext: NonNullable<
     SourceReaderAppSurface['actions']['onRevealReaderChatContext']
   >;
@@ -193,7 +197,6 @@ function surface({
         onScrollToHeading: vi.fn(),
         onToggleToc: vi.fn(),
       },
-      onOpenAnnotationDiscussion,
       onRevealReaderChatContext,
     },
     agentPlayback: {

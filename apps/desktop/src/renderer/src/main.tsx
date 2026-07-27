@@ -167,23 +167,7 @@ function App() {
     changeAppI18nLanguage(storedUiLanguage);
   }, [appLocked, store.settings.uiLanguage, storeLoadError, storeLoaded]);
 
-  const {
-    deleteArticle,
-    deleteArticleAnnotation,
-    deleteArticleComment,
-    closeArticleDiscussions,
-    mergeArticleAgentAnnotation,
-    openArticleDiscussion,
-    readArticle,
-    saveArticleAnnotation,
-    saveArticleComment,
-    saveArticleReadingProgress,
-    saveArticleReaderChatState,
-    importArticleUrl,
-    cancelArticleUrlImport,
-    importEbookFile,
-    importPdfFile,
-  } = useAppArticleStoreActions({ storeRef, applyStore });
+  const articleActions = useAppArticleStoreActions({ storeRef, applyStore });
   const {
     addCollectionMembers,
     createCollection,
@@ -563,6 +547,7 @@ function App() {
               {activeSetting === 'library' ? (
                 <ReadingLibrary
                   agents={store.agents}
+                  articleActions={articleActions}
                   articles={store.articles}
                   collectionMembers={store.collectionMembers}
                   collections={store.collections}
@@ -575,27 +560,12 @@ function App() {
                   openArticleTarget={pendingOpenArticle}
                   userProfile={store.user}
                   onAddCollectionMembers={addCollectionMembers}
-                  onDeleteArticle={deleteArticle}
-                  onDeleteArticleAnnotation={deleteArticleAnnotation}
-                  onDeleteArticleComment={deleteArticleComment}
                   onCreateCollection={createCollection}
                   onDeleteCollection={deleteCollection}
-                  onCloseArticleDiscussions={closeArticleDiscussions}
-                  onOpenArticleDiscussion={openArticleDiscussion}
                   onArticleOpened={() => setPendingOpenArticle(null)}
-                  onImportArticleUrl={importArticleUrl}
-                  onCancelArticleImport={cancelArticleUrlImport}
-                  onImportEbookFile={importEbookFile}
-                  onImportPdfFile={importPdfFile}
                   onReadingModeChange={setLibraryReaderOpen}
-                  onReadArticle={readArticle}
                   onRemoveCollectionMember={removeCollectionMember}
                   onRenameCollection={renameCollection}
-                  onMergeArticleAgentAnnotation={mergeArticleAgentAnnotation}
-                  onSaveArticleAnnotation={saveArticleAnnotation}
-                  onSaveArticleComment={saveArticleComment}
-                  onSaveArticleReadingProgress={saveArticleReadingProgress}
-                  onSaveArticleReaderChatState={saveArticleReaderChatState}
                   onSaveSettings={saveLibrarySettings}
                   onSetLibraryPin={setLibraryPin}
                   onOpenDataSources={openDataSources}

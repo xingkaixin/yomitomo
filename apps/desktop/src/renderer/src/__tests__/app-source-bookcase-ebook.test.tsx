@@ -7,8 +7,12 @@ import type { Annotation, UserProfile } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
 import type { EbookPageTurnTrace } from '../source/ebook/ebook-foliate-view';
 import { EbookBookcase } from '../source/ebook/app-source-bookcase-ebook';
-import type { EbookArticleRecord } from '../source/bookcase/app-source-bookcase';
+import type {
+  EbookArticleRecord,
+  EbookBookcaseProps,
+} from '../source/bookcase/app-source-bookcase';
 import { defaultTheme } from '../theme/app-theme';
+import { articleActionStubs } from './article-actions-test-utils';
 
 const mocks = vi.hoisted(() => ({
   attachFoliateDocumentListeners: vi.fn(),
@@ -221,23 +225,7 @@ function ebookArticle(overrides: Partial<EbookArticleRecord> = {}): EbookArticle
 }
 
 function renderEbookBookcase(sourceArticle: EbookArticleRecord, annotations: Annotation[]) {
-  return render(
-    <EbookBookcase
-      agents={[]}
-      annotations={annotations}
-      article={sourceArticle}
-      focusAnnotationId={null}
-      readerTheme={defaultTheme.reader}
-      selectedAnnotationId={null}
-      uiLanguage="zh-CN"
-      userProfile={userProfile}
-      onArticleChange={vi.fn()}
-      onClose={vi.fn()}
-      onFocusedAnnotation={vi.fn()}
-      onOpenAnnotation={vi.fn()}
-      onSaveArticleReadingProgress={vi.fn()}
-    />,
-  );
+  return render(<EbookBookcase {...ebookBookcaseProps(sourceArticle, annotations)} />);
 }
 
 describe('EbookBookcase', () => {
@@ -261,21 +249,7 @@ describe('EbookBookcase', () => {
     });
 
     rerender(
-      <EbookBookcase
-        agents={[]}
-        annotations={progressArticle.annotations}
-        article={progressArticle}
-        focusAnnotationId={null}
-        readerTheme={defaultTheme.reader}
-        selectedAnnotationId={null}
-        uiLanguage="zh-CN"
-        userProfile={userProfile}
-        onArticleChange={vi.fn()}
-        onClose={vi.fn()}
-        onFocusedAnnotation={vi.fn()}
-        onOpenAnnotation={vi.fn()}
-        onSaveArticleReadingProgress={vi.fn()}
-      />,
+      <EbookBookcase {...ebookBookcaseProps(progressArticle, progressArticle.annotations)} />,
     );
 
     expect(mocks.resetEbookBoxState).toHaveBeenCalledTimes(1);
@@ -351,19 +325,9 @@ describe('EbookBookcase', () => {
 
     render(
       <EbookBookcase
-        agents={[]}
-        annotations={annotations}
-        article={ebookArticle({ annotations })}
-        focusAnnotationId={null}
-        readerTheme={defaultTheme.reader}
-        selectedAnnotationId={null}
-        uiLanguage="zh-CN"
-        userProfile={userProfile}
-        onArticleChange={vi.fn()}
-        onClose={vi.fn()}
-        onFocusedAnnotation={vi.fn()}
-        onOpenAnnotation={onOpenAnnotation}
-        onSaveArticleReadingProgress={vi.fn()}
+        {...ebookBookcaseProps(ebookArticle({ annotations }), annotations, {
+          onOpenAnnotation,
+        })}
       />,
     );
 
@@ -401,19 +365,10 @@ describe('EbookBookcase', () => {
     const latestFocused = vi.fn();
     const view = render(
       <EbookBookcase
-        agents={[]}
-        annotations={[note]}
-        article={ebookArticle({ annotations: [note] })}
-        focusAnnotationId="note-1"
-        readerTheme={defaultTheme.reader}
-        selectedAnnotationId={null}
-        uiLanguage="zh-CN"
-        userProfile={userProfile}
-        onArticleChange={vi.fn()}
-        onClose={vi.fn()}
-        onFocusedAnnotation={firstFocused}
-        onOpenAnnotation={vi.fn()}
-        onSaveArticleReadingProgress={vi.fn()}
+        {...ebookBookcaseProps(ebookArticle({ annotations: [note] }), [note], {
+          focusAnnotationId: 'note-1',
+          onFocusedAnnotation: firstFocused,
+        })}
       />,
     );
 
@@ -421,19 +376,10 @@ describe('EbookBookcase', () => {
 
     view.rerender(
       <EbookBookcase
-        agents={[]}
-        annotations={[note]}
-        article={ebookArticle({ annotations: [note] })}
-        focusAnnotationId="note-1"
-        readerTheme={defaultTheme.reader}
-        selectedAnnotationId={null}
-        uiLanguage="zh-CN"
-        userProfile={userProfile}
-        onArticleChange={vi.fn()}
-        onClose={vi.fn()}
-        onFocusedAnnotation={latestFocused}
-        onOpenAnnotation={vi.fn()}
-        onSaveArticleReadingProgress={vi.fn()}
+        {...ebookBookcaseProps(ebookArticle({ annotations: [note] }), [note], {
+          focusAnnotationId: 'note-1',
+          onFocusedAnnotation: latestFocused,
+        })}
       />,
     );
     expect(scrollToAnchor).toHaveBeenCalledTimes(1);
@@ -447,3 +393,37 @@ describe('EbookBookcase', () => {
     expect(firstFocused).not.toHaveBeenCalled();
   });
 });
+
+function ebookBookcaseProps(
+  sourceArticle: EbookArticleRecord,
+  annotations: Annotation[],
+  overrides: {
+    focusAnnotationId?: string | null;
+    onFocusedAnnotation?: () => void;
+    onOpenAnnotation?: (annotationId: string | null) => void;
+  } = {},
+): EbookBookcaseProps {
+  return {
+    annotationActions: {
+      onArticleChange: vi.fn(),
+      onFocusedAnnotation: overrides.onFocusedAnnotation || vi.fn(),
+      onOpenAnnotation: overrides.onOpenAnnotation || vi.fn(),
+    },
+    articleActions: articleActionStubs(),
+    content: {
+      agents: [],
+      annotations,
+      article: sourceArticle,
+      userProfile,
+    },
+    presentation: {
+      readerTheme: defaultTheme.reader,
+      uiLanguage: 'zh-CN',
+    },
+    readerControl: {
+      focusAnnotationId: overrides.focusAnnotationId ?? null,
+      onClose: vi.fn(),
+      selectedAnnotationId: null,
+    },
+  };
+}

@@ -28,24 +28,19 @@ import { annotationAuthorName, sortAnnotations, sortArticles } from '@yomitomo/c
 import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
 import { SourceBookcase } from '../source/bookcase/app-source-bookcase';
 import { publicAnnotationAgents } from '../source/bookcase/source-public-agents';
-import type {
-  EbookImportProgressCallback,
-  PdfImportProgressCallback,
-  ReadingLibraryOpenTarget,
-} from '../shell/app-reading-types';
+import type { ReadingLibraryOpenTarget } from '../shell/app-reading-types';
 import { LibraryHome } from './app-reading-library-home';
 import { WeReadBookcase } from '../shell/app-weread-bookcase';
 import { appToast } from '../shell/app-toast';
-import type { ArticleImportResult } from './app-reading-library-imports';
 import { groupLibraryArticles, type LibrarySort } from './app-reading-library-utils';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 import type {
   AnnotationDiscussionWindowState,
-  ArticleAgentAnnotationMergeResult,
-  WindowAnimationSourceRect,
   SetLibraryPinInput,
+  WindowAnimationSourceRect,
 } from '../../../ipc-contract';
 import type { AppMenuCommandRequest } from '../../../app-menu-types';
+import type { ArticleActions, ReaderArticleActions } from '../shell/app-article-store-actions';
 import { useReadingLibraryDistillationSync } from './use-reading-library-distillation-sync';
 import {
   articleUpdateCanReplace,
@@ -57,6 +52,7 @@ export type { LibrarySort };
 
 export function ReadingLibrary({
   agents,
+  articleActions,
   articles,
   collectionMembers = [],
   collections = [],
@@ -70,31 +66,17 @@ export function ReadingLibrary({
   userProfile,
   onArticleOpened,
   onAddCollectionMembers,
-  onCloseArticleDiscussions,
   onCreateCollection,
-  onDeleteArticle,
-  onDeleteArticleAnnotation,
-  onDeleteArticleComment,
   onDeleteCollection,
-  onOpenArticleDiscussion,
-  onImportEbookFile,
-  onImportPdfFile,
-  onImportArticleUrl,
-  onCancelArticleImport,
   onReadingModeChange,
-  onReadArticle,
   onRemoveCollectionMember,
   onRenameCollection,
-  onMergeArticleAgentAnnotation,
-  onSaveArticleAnnotation,
-  onSaveArticleComment,
-  onSaveArticleReadingProgress,
-  onSaveArticleReaderChatState,
   onSaveSettings,
   onSetLibraryPin,
   onOpenDataSources,
 }: {
   agents: Agent[];
+  articleActions: ArticleActions;
   articles: ArticleSummaryRecord[];
   collectionMembers?: CollectionMember[];
   collections?: Collection[];
@@ -108,67 +90,36 @@ export function ReadingLibrary({
   userProfile: UserProfile;
   onArticleOpened?: (articleId: string) => void;
   onAddCollectionMembers: (collectionId: string, members: ContentRef[]) => Promise<void>;
-  onCloseArticleDiscussions?: (articleId: string) => Promise<void> | void;
   onCreateCollection: (name: string) => Promise<Collection>;
-  onDeleteArticle: (articleId: string) => Promise<void> | void;
-  onDeleteArticleAnnotation?: (articleId: string, annotationId: string) => Promise<void> | void;
-  onDeleteArticleComment?: (
-    articleId: string,
-    annotationId: string,
-    commentId: string,
-  ) => Promise<void> | void;
   onDeleteCollection: (collectionId: string) => Promise<void>;
-  onOpenArticleDiscussion?: (
-    articleId: string,
-    annotationId: string,
-    sourceRect?: WindowAnimationSourceRect,
-  ) => Promise<void> | void;
-  onImportEbookFile: (
-    file: File,
-    onProgress?: EbookImportProgressCallback,
-  ) => Promise<ArticleImportResult>;
-  onImportPdfFile: (
-    file: File,
-    onProgress?: PdfImportProgressCallback,
-  ) => Promise<ArticleImportResult>;
-  onImportArticleUrl: (url: string, requestId?: string) => Promise<ArticleImportResult>;
-  onCancelArticleImport?: (requestId: string) => Promise<boolean> | boolean;
   onReadingModeChange?: (open: boolean) => void;
-  onReadArticle: (articleId: string) => Promise<ArticleRecord | null>;
   onRemoveCollectionMember: (collectionId: string, member: ContentRef) => Promise<void>;
   onRenameCollection: (collectionId: string, name: string) => Promise<void>;
-  onMergeArticleAgentAnnotation?: (
-    articleId: string,
-    annotation: Annotation,
-  ) => Promise<ArticleAgentAnnotationMergeResult | null> | ArticleAgentAnnotationMergeResult | null;
-  onSaveArticleAnnotation?: (
-    articleId: string,
-    annotation: Annotation,
-    updatedAt?: string,
-  ) => Promise<void> | void;
-  onSaveArticleComment?: (
-    articleId: string,
-    annotationId: string,
-    comment: Comment,
-    updatedAt?: string,
-  ) => Promise<void> | void;
-  onSaveArticleReadingProgress: (
-    articleId: string,
-    progress: ArticleReadingProgress,
-  ) => Promise<void> | void;
-  onSaveArticleReaderChatState?: (articleId: string, readerChatState?: ReaderChatState) => unknown;
   onSaveSettings?: (settings: AppSettings) => Promise<void> | void;
   onSetLibraryPin: (input: SetLibraryPinInput) => Promise<void>;
   onOpenDataSources?: () => void;
 }) {
+  const {
+    cancelArticleUrlImport,
+    closeArticleDiscussions,
+    deleteArticle,
+    deleteArticleAnnotation,
+    importArticleUrl,
+    importEbookFile,
+    importPdfFile,
+    openArticleDiscussion,
+    readArticle,
+    saveArticleReadingProgress,
+    saveArticleReaderChatState,
+  } = articleActions;
   const { t } = useTranslation();
   const navigation = useReadingLibraryNavigation({
-    onCloseArticleDiscussions,
-    onReadArticle,
+    onCloseArticleDiscussions: closeArticleDiscussions,
+    onReadArticle: readArticle,
   });
   const distillationSync = useReadingLibraryDistillationSync({
     navigation,
-    onReadArticle,
+    onReadArticle: readArticle,
     settings,
   });
   const {
@@ -255,7 +206,7 @@ export function ReadingLibrary({
     if (!summary) return;
     if (!articleUpdateCanReplace(selectedArticle, summary)) return;
     let cancelled = false;
-    void onReadArticle(summary.id).then((fullArticle) => {
+    void readArticle(summary.id).then((fullArticle) => {
       if (cancelled || !fullArticle || !navigation.actions.isCurrentArticle(summary.id)) return;
       distillationSync.acceptExternalArticle(fullArticle);
     });
@@ -265,7 +216,7 @@ export function ReadingLibrary({
   }, [
     distillationSync.acceptExternalArticle,
     navigation.actions,
-    onReadArticle,
+    readArticle,
     selectedArticle,
     selectedArticleId,
     sortedArticles,
@@ -318,7 +269,7 @@ export function ReadingLibrary({
   }, [menuRequest?.command, menuRequest?.id, navigation.actions]);
 
   async function deleteLibraryArticle(articleId: string) {
-    await onDeleteArticle(articleId);
+    await deleteArticle(articleId);
     playAppSoundEffect('library.delete_item', settings || {});
     if (selectedArticleId === articleId) {
       navigation.actions.resetLibrary();
@@ -408,7 +359,7 @@ export function ReadingLibrary({
         updatedAt: progress.updatedAt,
       }));
     }
-    await onSaveArticleReadingProgress(articleId, progress);
+    await saveArticleReadingProgress(articleId, progress);
   }
 
   async function saveSelectedArticleReaderChatState(
@@ -422,18 +373,24 @@ export function ReadingLibrary({
         updatedAt: readerChatState?.updatedAt || current.updatedAt,
       }));
     }
-    await onSaveArticleReaderChatState?.(articleId, readerChatState);
+    return saveArticleReaderChatState(articleId, readerChatState);
   }
 
   async function deleteSelectedArticleAnnotation(articleId: string, annotationId: string) {
-    if (!onDeleteArticleAnnotation) return;
-    await onDeleteArticleAnnotation(articleId, annotationId);
+    await deleteArticleAnnotation(articleId, annotationId);
     if (!navigation.actions.isCurrentArticle(articleId)) return;
     navigation.actions.updateArticle(articleId, (current) => ({
       ...current,
       annotations: current.annotations.filter((annotation) => annotation.id !== annotationId),
     }));
   }
+
+  const sourceArticleActions = {
+    ...articleActions,
+    deleteArticleAnnotation: deleteSelectedArticleAnnotation,
+    saveArticleReadingProgress: saveSelectedArticleReadingProgress,
+    saveArticleReaderChatState: saveSelectedArticleReaderChatState,
+  } satisfies ReaderArticleActions;
 
   async function setLibraryPin(input: SetLibraryPinInput) {
     try {
@@ -459,10 +416,10 @@ export function ReadingLibrary({
       sortedArticles,
     },
     imports: {
-      onCancelArticleImport,
-      onImportArticleUrl,
-      onImportEbookFile,
-      onImportPdfFile,
+      onCancelArticleImport: cancelArticleUrlImport,
+      onImportArticleUrl: importArticleUrl,
+      onImportEbookFile: importEbookFile,
+      onImportPdfFile: importPdfFile,
     },
     itemActions: {
       onDeleteArticle: deleteLibraryArticle,
@@ -518,34 +475,32 @@ export function ReadingLibrary({
               />
             ) : selectedArticle ? (
               <SourceBookcase
-                agents={agents}
-                annotations={annotations}
-                article={selectedArticle}
-                distillationAnimation={distillationAnimation}
-                focusAnnotationId={sourceFocusAnnotationId}
-                messageSendShortcut={messageSendShortcut}
-                readerTheme={readerTheme}
-                settings={settings}
-                selectionActionShortcuts={selectionActionShortcuts}
-                selectedAnnotationId={selectedAnnotation?.id || null}
-                uiLanguage={normalizeUiLanguage(settings?.uiLanguage)}
-                userProfile={userProfile}
-                onArticleChange={(article) =>
-                  navigation.actions.updateArticle(article.id, () => article)
-                }
-                onFocusedAnnotation={distillationSync.onFocusedAnnotation}
-                onClose={openLibraryShelf}
-                onDeleteArticleAnnotation={
-                  onDeleteArticleAnnotation ? deleteSelectedArticleAnnotation : undefined
-                }
-                onDeleteArticleComment={onDeleteArticleComment}
-                onOpenAnnotationDiscussion={onOpenArticleDiscussion}
-                onOpenAnnotation={navigation.actions.selectAnnotation}
-                onMergeArticleAgentAnnotation={onMergeArticleAgentAnnotation}
-                onSaveArticleAnnotation={onSaveArticleAnnotation}
-                onSaveArticleComment={onSaveArticleComment}
-                onSaveArticleReadingProgress={saveSelectedArticleReadingProgress}
-                onSaveArticleReaderChatState={saveSelectedArticleReaderChatState}
+                annotationActions={{
+                  onArticleChange: (article) =>
+                    navigation.actions.updateArticle(article.id, () => article),
+                  onFocusedAnnotation: distillationSync.onFocusedAnnotation,
+                  onOpenAnnotation: navigation.actions.selectAnnotation,
+                }}
+                articleActions={sourceArticleActions}
+                content={{
+                  agents,
+                  annotations,
+                  article: selectedArticle,
+                  userProfile,
+                }}
+                presentation={{
+                  distillationAnimation,
+                  messageSendShortcut,
+                  readerTheme,
+                  settings,
+                  selectionActionShortcuts,
+                  uiLanguage: normalizeUiLanguage(settings?.uiLanguage),
+                }}
+                readerControl={{
+                  focusAnnotationId: sourceFocusAnnotationId,
+                  onClose: openLibraryShelf,
+                  selectedAnnotationId: selectedAnnotation?.id || null,
+                }}
               />
             ) : null}
           </div>
@@ -556,7 +511,7 @@ export function ReadingLibrary({
           agents={publicAnnotationAgents(agents, normalizeUiLanguage(settings?.uiLanguage))}
           article={selectedArticle}
           windows={currentMinimizedDiscussionWindows}
-          onOpen={onOpenArticleDiscussion}
+          onOpen={openArticleDiscussion}
         />
       ) : null}
     </div>

@@ -98,19 +98,27 @@ type SourceSession = ReturnType<typeof useSourceReaderSession>;
 function renderSession({
   adapter,
   article = articleRecord(),
+  onBeforeDeleteAnnotation = vi.fn(),
+  onDeleteArticleAnnotation = vi.fn(),
 }: {
   adapter?: SourceAgentAnnotationAdapter;
   article?: ArticleRecord;
+  onBeforeDeleteAnnotation?: (annotationId: string) => void;
+  onDeleteArticleAnnotation?: (articleId: string, annotationId: string) => Promise<void> | void;
 }) {
   let session: SourceSession | null = null;
 
-  function Harness() {
+  function Harness({ currentArticle }: { currentArticle: ArticleRecord }) {
     const nextSession = useSourceReaderSession({
       agents: [storedAgent],
       agentAnnotationAdapter: adapter,
-      annotations: article.annotations,
-      article,
+      annotations: currentArticle.annotations,
+      article: currentArticle,
+      clearPendingOnArticleChange: true,
+      clearPendingOnDeleteAnnotation: true,
       onArticleChange: vi.fn(),
+      onBeforeDeleteAnnotation,
+      onDeleteArticleAnnotation,
       userProfile,
     });
     useEffect(() => {
@@ -119,8 +127,10 @@ function renderSession({
     return null;
   }
 
-  render(React.createElement(Harness));
+  const view = render(React.createElement(Harness, { currentArticle: article }));
   return {
+    rerenderArticle: (currentArticle: ArticleRecord) =>
+      view.rerender(React.createElement(Harness, { currentArticle })),
     session: () => {
       if (!session) throw new Error('session not ready');
       return session;
@@ -209,6 +219,27 @@ describe('constrainSourceAgentPlanAnnotation', () => {
 });
 
 describe('useSourceReaderSession agent annotations', () => {
+  it('applies each declared pending-state cleanup policy', async () => {
+    const onBeforeDeleteAnnotation = vi.fn();
+    const onDeleteArticleAnnotation = vi.fn();
+    const { rerenderArticle, session } = renderSession({
+      onBeforeDeleteAnnotation,
+      onDeleteArticleAnnotation,
+    });
+
+    await act(async () => session().addPendingAnnotationAgent('annotation-1', agent));
+    await act(async () => session().deleteAnnotation('annotation-1'));
+
+    await waitFor(() => expect(session().pendingAnnotationAgents['annotation-1']).toBeUndefined());
+    expect(onBeforeDeleteAnnotation).toHaveBeenCalledWith('annotation-1');
+    expect(onDeleteArticleAnnotation).toHaveBeenCalledWith('article_1', 'annotation-1');
+
+    await act(async () => session().addPendingAnnotationAgent('annotation-2', agent));
+    rerenderArticle({ ...articleRecord(), id: 'article_2' });
+
+    await waitFor(() => expect(session().pendingAnnotationAgents).toEqual({}));
+  });
+
   it('rejects requests before an adapter is registered and clears pending state', async () => {
     const requestAgentAnnotationsStream = vi.fn();
     stubAnnotationStream(requestAgentAnnotationsStream);
