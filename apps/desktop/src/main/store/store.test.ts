@@ -846,11 +846,10 @@ describe('desktop store agents', () => {
 describe('desktop store reading progress', () => {
   it('builds only the article progress patch', () => {
     const readingProgress = {
-      pageIndex: 3,
-      pageCount: 12,
+      kind: 'chapter' as const,
       chapterIndex: 1,
       chapterProgress: 0.25,
-      progress: 0.31,
+      bookProgress: 0.31,
       updatedAt: '2026-05-17T08:00:00.000Z',
     };
 

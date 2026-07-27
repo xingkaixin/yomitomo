@@ -317,7 +317,9 @@ export function pdfiumPromptArticle(
 }
 
 export function normalizeInitialPageIndex(article: PdfArticleRecord) {
-  return clampPageIndex(article.readingProgress?.pageIndex ?? 0, article.pdf.metadata.pageCount);
+  const pageIndex =
+    article.readingProgress?.kind === 'page' ? article.readingProgress.pageIndex : 0;
+  return clampPageIndex(pageIndex, article.pdf.metadata.pageCount);
 }
 
 export function clampPageIndex(pageIndex: number, pageCount: number) {
@@ -338,9 +340,9 @@ export function pdfPageProgressPercent(pageNumber: number, pageCount: number) {
 
 export function pdfReadingProgress(pageIndex: number, pageCount: number): ArticleReadingProgress {
   return {
+    kind: 'page',
     pageIndex,
     pageCount,
-    progress: pageProgress(pageIndex, pageCount),
     updatedAt: new Date().toISOString(),
   };
 }

@@ -560,11 +560,10 @@ describe('useEbookFoliateView', () => {
     expect(onSaveArticleReadingProgress).toHaveBeenCalledWith(
       'ebook-relocate-save',
       expect.objectContaining({
+        kind: 'chapter',
         chapterIndex: 1,
         chapterProgress: 13 / 19,
-        pageCount: 20,
-        pageIndex: 13,
-        progress: 0.42,
+        bookProgress: 0.42,
         updatedAt: expect.any(String),
       }),
     );
@@ -607,11 +606,10 @@ describe('useEbookFoliateView', () => {
     expect(onSaveArticleReadingProgress).toHaveBeenCalledWith(
       'ebook-relocate-flush',
       expect.objectContaining({
+        kind: 'chapter',
         chapterIndex: 0,
         chapterProgress: 4 / 5,
-        pageCount: 6,
-        pageIndex: 4,
-        progress: 0.8,
+        bookProgress: 0.8,
       }),
     );
   });
@@ -622,20 +620,15 @@ describe('useEbookFoliateView', () => {
     );
 
     expect(
-      ebookReadingProgressSnapshot(
-        {
-          fraction: 0.42,
-          location: { current: 41, total: 100 },
-          section: { current: 2 },
-        },
-        { sectionIndex: 2, pageIndex: 13, pageCount: 20 },
-        0.42,
-      ),
+      ebookReadingProgressSnapshot({ sectionIndex: 2, pageIndex: 13, pageCount: 20 }, 0.42),
     ).toEqual({
-      pageIndex: 13,
-      pageCount: 20,
+      kind: 'chapter',
       chapterIndex: 2,
       chapterProgress: 13 / 19,
+      bookProgress: 0.42,
+    });
+    expect(ebookReadingProgressSnapshot(null, 0.42)).toEqual({
+      kind: 'scroll',
       progress: 0.42,
     });
   });
@@ -643,11 +636,10 @@ describe('useEbookFoliateView', () => {
   it('restores new ebook progress from section page anchors', () => {
     expect(
       ebookReadingProgressRestoreTarget({
-        pageIndex: 13,
-        pageCount: 20,
+        kind: 'chapter',
         chapterIndex: 2,
         chapterProgress: 13 / 19,
-        progress: 0.42,
+        bookProgress: 0.42,
         updatedAt: now,
       }),
     ).toEqual({
@@ -657,32 +649,25 @@ describe('useEbookFoliateView', () => {
     });
   });
 
-  it('restores legacy ebook progress from the saved start location', () => {
+  it('restores fallback ebook progress from the saved whole-book fraction', () => {
     expect(
       ebookReadingProgressRestoreTarget({
-        pageIndex: 41,
-        pageCount: 100,
-        chapterIndex: 2,
+        kind: 'scroll',
         progress: 0.42,
         updatedAt: now,
       }),
     ).toEqual({
       kind: 'fraction',
-      fraction: 0.41,
+      fraction: 0.42,
     });
 
     expect(
       ebookReadingProgressRestoreTarget({
-        pageIndex: 0,
-        pageCount: 100,
-        chapterIndex: 0,
-        progress: 0.01,
+        kind: 'scroll',
+        progress: 0,
         updatedAt: now,
       }),
-    ).toEqual({
-      kind: 'fraction',
-      fraction: 0,
-    });
+    ).toBeNull();
   });
 
   it('queues rapid page turns instead of dropping clicks while foliate is busy', async () => {

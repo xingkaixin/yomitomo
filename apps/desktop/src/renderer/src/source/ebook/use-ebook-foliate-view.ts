@@ -2,6 +2,7 @@ import type React from 'react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import i18next from 'i18next';
 import type { ArticleReadingProgress, ArticleRecord } from '@yomitomo/shared';
+import { readingProgressRatio } from '@yomitomo/core';
 import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
 import type { ReaderSettings } from '@yomitomo/reader-ui/reader-types';
 import { clampNumber } from '@yomitomo/reader-ui/reader-settings';
@@ -193,19 +194,18 @@ export function ebookReadingProgressPageAnchor(pageInfo: FoliatePageInfo | null)
 }
 
 export function ebookReadingProgressSnapshot(
-  detail: FoliateRelocateDetail,
   pageInfo: FoliatePageInfo | null,
   progress: number,
-): Omit<ArticleReadingProgress, 'updatedAt'> {
+):
+  | Omit<Extract<ArticleReadingProgress, { kind: 'chapter' }>, 'updatedAt'>
+  | Omit<Extract<ArticleReadingProgress, { kind: 'scroll' }>, 'updatedAt'> {
+  if (!pageInfo) return { kind: 'scroll', progress };
+
   return {
-    pageIndex: Math.max(
-      0,
-      pageInfo?.pageIndex ?? detail.location?.current ?? Math.round(progress * 1000),
-    ),
-    pageCount: Math.max(1, pageInfo?.pageCount ?? detail.location?.total ?? 1000),
-    chapterIndex: pageInfo?.sectionIndex ?? detail.section?.current,
-    chapterProgress: ebookReadingProgressPageAnchor(pageInfo),
-    progress,
+    kind: 'chapter',
+    chapterIndex: Math.max(0, pageInfo.sectionIndex),
+    chapterProgress: ebookReadingProgressPageAnchor(pageInfo) ?? 0,
+    bookProgress: progress,
   };
 }
 
@@ -213,34 +213,16 @@ export function ebookReadingProgressRestoreTarget(
   progress: ArticleReadingProgress | undefined,
 ): EbookProgressRestoreTarget | null {
   if (!progress) return null;
-  const chapterIndex = progress.chapterIndex;
-  if (
-    typeof chapterIndex === 'number' &&
-    Number.isInteger(chapterIndex) &&
-    typeof progress.chapterProgress === 'number'
-  ) {
+  if (progress.kind === 'chapter') {
     return {
       kind: 'section-anchor',
-      sectionIndex: Math.max(0, chapterIndex),
+      sectionIndex: Math.max(0, progress.chapterIndex),
       anchor: clampNumber(progress.chapterProgress, 0, 1, 0),
     };
   }
 
-  if (progress.pageCount > 0 && (progress.pageIndex > 0 || progress.progress > 0)) {
-    return {
-      kind: 'fraction',
-      fraction: clampNumber(progress.pageIndex / progress.pageCount, 0, 1, progress.progress),
-    };
-  }
-
-  if (progress.progress > 0) {
-    return {
-      kind: 'fraction',
-      fraction: clampNumber(progress.progress, 0, 1, 0),
-    };
-  }
-
-  return null;
+  const fraction = readingProgressRatio(progress);
+  return fraction > 0 ? { kind: 'fraction', fraction } : null;
 }
 
 export function useEbookFoliateView({
@@ -267,7 +249,7 @@ export function useEbookFoliateView({
   const readerSettingsRef = useRef<ReaderSettings>(readerSettings);
   const readerThemeRef = useRef<ReaderTheme>(readerTheme);
   const maxColumnCountRef = useRef(1);
-  const progressRef = useRef(article.readingProgress?.progress ?? 0);
+  const progressRef = useRef(readingProgressRatio(article.readingProgress));
   const onBeforePageTurnRef = useRef(onBeforePageTurn);
   const pageTurnQueueRef = useRef<PageTurnDirection[]>([]);
   const pageTurnRunningRef = useRef(false);
@@ -277,7 +259,7 @@ export function useEbookFoliateView({
   const [pageInfo, setPageInfo] = useState<FoliatePageInfo | null>(null);
   const [sectionPageCounts, setSectionPageCounts] = useState<Array<number | null>>([]);
   const [paginationLayoutKey, setPaginationLayoutKey] = useState('');
-  const [progress, setProgress] = useState(() => article.readingProgress?.progress ?? 0);
+  const [progress, setProgress] = useState(() => readingProgressRatio(article.readingProgress));
   const [readerState, setReaderState] = useState<EbookReaderState>({
     status: 'loading',
     message: i18next.t('ebookReader.opening'),
@@ -308,8 +290,9 @@ export function useEbookFoliateView({
     committedPaginationLayoutKeyRef.current = '';
     paginationResizeObservedAtRef.current = 0;
     setPaginationLayoutKey('');
-    progressRef.current = article.readingProgress?.progress ?? 0;
-    setProgress(article.readingProgress?.progress ?? 0);
+    const savedProgress = readingProgressRatio(article.readingProgress);
+    progressRef.current = savedProgress;
+    setProgress(savedProgress);
     readerStateStatusRef.current = 'loading';
     setReaderState({ status: 'loading', message: i18next.t('ebookReader.opening') });
   }, [article.id, onCleanupFoliateDocumentListeners, pageTurnTraceRef]);
@@ -352,16 +335,14 @@ export function useEbookFoliateView({
       if (restorePageInfo) lastStablePageInfoRef.current = restorePageInfo;
       const restoreProgress = restorePageInfo
         ? {
+            kind: 'chapter' as const,
             chapterIndex: restorePageInfo.sectionIndex,
-            chapterProgress: ebookReadingProgressPageAnchor(restorePageInfo),
-            pageCount: restorePageInfo.pageCount,
-            pageIndex: restorePageInfo.pageIndex,
-            progress: progressRef.current,
+            chapterProgress: ebookReadingProgressPageAnchor(restorePageInfo) ?? 0,
+            bookProgress: progressRef.current,
             updatedAt: new Date().toISOString(),
           }
         : {
-            pageCount: 1000,
-            pageIndex: Math.round(clampNumber(progressRef.current, 0, 1, 0) * 1000),
+            kind: 'scroll' as const,
             progress: clampNumber(progressRef.current, 0, 1, 0),
             updatedAt: new Date().toISOString(),
           };
@@ -395,7 +376,7 @@ export function useEbookFoliateView({
       const nextProgress = clampNumber(detail.fraction, 0, 1, 0);
       const nextPageInfo =
         (event.currentTarget as FoliateViewElement | null)?.getPageInfo?.() ?? null;
-      const progressSnapshot = ebookReadingProgressSnapshot(detail, nextPageInfo, nextProgress);
+      const progressSnapshot = ebookReadingProgressSnapshot(nextPageInfo, nextProgress);
       recordEbookPageTurnTrace(pageTurnTraceRef.current, 'relocate', {
         pageIndex: nextPageInfo?.pageIndex,
         pageCount: nextPageInfo?.pageCount,

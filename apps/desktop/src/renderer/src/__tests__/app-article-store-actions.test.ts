@@ -380,11 +380,10 @@ describe('applyArticleReadingProgressPatch', () => {
       articles: [firstArticle, secondArticle],
     };
     const readingProgress = {
-      pageIndex: 4,
-      pageCount: 20,
+      kind: 'chapter' as const,
       chapterIndex: 1,
       chapterProgress: 0.3,
-      progress: 0.42,
+      bookProgress: 0.42,
       updatedAt: '2026-05-17T08:00:00.000Z',
     };
 
@@ -426,9 +425,9 @@ describe('applyArticleStorePatch', () => {
       articles: [firstArticle, secondArticle],
     };
     const readingProgress = {
+      kind: 'page' as const,
       pageIndex: 2,
       pageCount: 12,
-      progress: 0.25,
       updatedAt: '2026-05-17T08:00:00.000Z',
     };
 
