@@ -3,6 +3,7 @@
 import { createElement } from 'react';
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { articleCounts } from '@yomitomo/core';
 import type {
   Annotation,
   ArticleRecord,
@@ -575,7 +576,9 @@ describe('applyArticleDeletePatch', () => {
   });
 });
 
-function makeArticle(id: string): ArticleRecord {
+type WebArticleSummary = Extract<ArticleSummaryRecord, { sourceType: 'web' }>;
+
+function makeArticle(id: string): WebArticleSummary {
   return {
     id,
     url: `https://example.com/${id}`,
@@ -584,9 +587,15 @@ function makeArticle(id: string): ArticleRecord {
     title: id,
     byline: '',
     siteName: 'Example',
-    contentHtml: '<p>Hello</p>',
     contentHash: `hash_${id}`,
     annotations: [],
+    counts: {
+      annotationCount: 0,
+      thoughtCount: 0,
+      discussionCommentCount: 0,
+      aiCommentCount: 0,
+      distillationCount: 0,
+    },
     createdAt: '2026-05-17T07:00:00.000Z',
     updatedAt: '2026-05-17T07:00:00.000Z',
   };
@@ -619,15 +628,22 @@ function makeComment(id: string): Comment {
   };
 }
 
-function articleSummary(article: ArticleRecord): ArticleSummaryRecord {
-  const summary = { ...article };
-  delete summary.contentHtml;
-  delete summary.focusCoReadingPlan;
-  if (summary.ebook) {
-    return {
-      ...summary,
-      ebook: { metadata: summary.ebook.metadata },
-    };
-  }
-  return summary;
+type ArticleSummaryFixture = Omit<WebArticleSummary, 'annotations'> & {
+  annotations: Annotation[];
+  contentHtml?: string;
+  focusCoReadingPlan?: ArticleRecord['focusCoReadingPlan'];
+};
+
+function articleSummary(article: ArticleSummaryFixture): WebArticleSummary {
+  const {
+    annotations,
+    contentHtml: _contentHtml,
+    focusCoReadingPlan: _focusCoReadingPlan,
+    ...summary
+  } = article;
+  return {
+    ...summary,
+    annotations: [],
+    counts: annotations.length > 0 ? articleCounts({ annotations }) : article.counts,
+  };
 }

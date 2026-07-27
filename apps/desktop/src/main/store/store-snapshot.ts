@@ -163,7 +163,7 @@ function readStoreRows(
       settings: rowToSettings(settings),
       providers: providerRows.map(rowToProvider),
       agents: agentRows.map(rowToAgent),
-      articles: articleRows.map((row) => rowToArticleSummary(row, [], articleCounts.get(row.id))),
+      articles: articleRows.map((row) => rowToArticleSummary(row, articleCounts.get(row.id))),
       collections: collectionRows,
       collectionMembers: collectionMemberRows,
       pins: pinRows,

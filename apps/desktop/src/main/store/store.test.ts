@@ -910,6 +910,13 @@ describe('desktop store articles', () => {
       title: 'Upsert article',
       contentHash: 'hash-upsert',
       annotations: [],
+      counts: {
+        annotationCount: 0,
+        thoughtCount: 0,
+        discussionCommentCount: 0,
+        aiCommentCount: 0,
+        distillationCount: 0,
+      },
       createdAt: '2026-05-17T07:00:00.000Z',
       updatedAt: '2026-05-17T08:00:00.000Z',
     };
@@ -921,35 +928,29 @@ describe('desktop store articles', () => {
   });
 
   it('keeps aggregate counts on lightweight article summaries', () => {
-    const article = rowToArticleSummary(storeSummaryRow(), [], {
+    const counts = {
       annotationCount: 2,
       thoughtCount: 1,
       discussionCommentCount: 3,
       aiCommentCount: 1,
       distillationCount: 1,
-    });
+    };
+    const article = rowToArticleSummary(storeSummaryRow(), counts);
 
     expect(article.annotations).toEqual([]);
-    expect(article.annotationCount).toBe(2);
-    expect(article.thoughtCount).toBe(1);
-    expect(article.discussionCommentCount).toBe(3);
-    expect(article.aiCommentCount).toBe(1);
-    expect(article.distillationCount).toBe(1);
+    expect(article.counts).toEqual(counts);
   });
 
   it('keeps ebook summaries free of full chapter data', () => {
-    const article = rowToArticleSummary(
-      {
-        ...storeSummaryRow(),
-        sourceType: 'ebook',
-        ebookMetadata: {
-          format: 'epub',
-          fileName: 'book.epub',
-          fileSize: 1200,
-        },
+    const article = rowToArticleSummary({
+      ...storeSummaryRow(),
+      sourceType: 'ebook',
+      ebookMetadata: {
+        format: 'epub',
+        fileName: 'book.epub',
+        fileSize: 1200,
       },
-      [],
-    );
+    });
 
     expect(article.ebook).toEqual({
       metadata: {
@@ -961,25 +962,22 @@ describe('desktop store articles', () => {
   });
 
   it('preserves non-EPUB ebook formats in article summaries', () => {
-    const article = rowToArticleSummary(
-      {
-        ...storeSummaryRow(),
-        sourceType: 'ebook',
-        ebookMetadata: {
-          format: 'azw3',
-          fileName: 'book.azw3',
-          fileSize: 2400,
-        },
+    const article = rowToArticleSummary({
+      ...storeSummaryRow(),
+      sourceType: 'ebook',
+      ebookMetadata: {
+        format: 'azw3',
+        fileName: 'book.azw3',
+        fileSize: 2400,
       },
-      [],
-    );
+    });
 
     expect(article.ebook?.metadata.format).toBe('azw3');
     expect(article.ebook?.metadata.fileName).toBe('book.azw3');
   });
 
   it('keeps reader chat state out of article summaries', () => {
-    const article = rowToArticleSummary(storeSummaryRow(), []);
+    const article = rowToArticleSummary(storeSummaryRow());
 
     expect(Object.hasOwn(article, 'readerChatState')).toBe(false);
   });
@@ -1536,7 +1534,14 @@ function articleSummaryRecord(input: Partial<WebArticleSummaryRecord>): WebArtic
     sourceType: 'web',
     title: input.title || id,
     contentHash: input.contentHash || `hash-${id}`,
-    annotations: input.annotations || [],
+    annotations: [],
+    counts: input.counts || {
+      annotationCount: 0,
+      thoughtCount: 0,
+      discussionCommentCount: 0,
+      aiCommentCount: 0,
+      distillationCount: 0,
+    },
     createdAt: input.createdAt || '2026-05-17T07:00:00.000Z',
     updatedAt: input.updatedAt || '2026-05-17T08:00:00.000Z',
   };

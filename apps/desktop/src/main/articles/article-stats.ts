@@ -12,5 +12,5 @@ export function readArticleStatsSummaryRows(
   const articleCounts = measureStoreRead(profile, 'read_article_stats_summary_counts', () =>
     readArticleSummaryCounts(database, profile),
   );
-  return rows.map((row) => rowToArticleSummary(row, [], articleCounts.get(row.id)));
+  return rows.map((row) => rowToArticleSummary(row, articleCounts.get(row.id)));
 }

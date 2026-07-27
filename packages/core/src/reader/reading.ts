@@ -1,5 +1,6 @@
-import type { Annotation, ArticleSummaryRecord } from '@yomitomo/shared';
+import type { Annotation, ArticleRecord, ArticleSummaryRecord } from '@yomitomo/shared';
 import { annotationThoughtComments, annotationThreadComments } from './annotations';
+import { annotationAiContributionDates, articleCounts } from './article-counts';
 import { annotationHasPublishedDistillation } from './reader-annotations';
 
 export type ReadingStats = {
@@ -24,7 +25,9 @@ export type ReadingActivityDay = ReadingStatsPeriod & {
   level: number;
 };
 
-export function sortArticles(articles: ArticleSummaryRecord[]) {
+type ReadingStatsArticle = ArticleRecord | ArticleSummaryRecord;
+
+export function sortArticles<T extends ReadingStatsArticle>(articles: T[]) {
   return articles.toSorted((left, right) => timestamp(right.updatedAt) - timestamp(left.updatedAt));
 }
 
@@ -38,7 +41,7 @@ export function sortAnnotations(annotations: Annotation[]) {
 }
 
 export function computeReadingStats(
-  articles: ArticleSummaryRecord[],
+  articles: ReadingStatsArticle[],
   now = new Date(),
 ): ReadingStats {
   return {
@@ -49,7 +52,7 @@ export function computeReadingStats(
 }
 
 export function computeReadingActivityDays(
-  articles: ArticleSummaryRecord[],
+  articles: ReadingStatsArticle[],
   days = 70,
   now = new Date(),
 ): ReadingActivityDay[] {
@@ -74,15 +77,16 @@ export function computeReadingActivityDays(
       day.articles += 1;
       day.score += 1;
     });
-    if (!articleHasCompleteAnnotationDetails(article)) {
+    if ('counts' in article) {
       addToDay(article.updatedAt, (day) => {
-        const counts = articleSummaryCounts(article);
-        day.annotations += counts.annotations;
-        day.thoughts += counts.thoughts;
-        day.comments += counts.comments;
-        day.aiComments += counts.aiComments;
-        day.distillations += counts.distillations;
-        day.score += counts.annotations + counts.comments + counts.distillations;
+        const counts = articleCounts(article);
+        day.annotations += counts.annotationCount;
+        day.thoughts += counts.thoughtCount;
+        day.comments += counts.discussionCommentCount;
+        day.aiComments += counts.aiCommentCount;
+        day.distillations += counts.distillationCount;
+        day.score +=
+          counts.annotationCount + counts.discussionCommentCount + counts.distillationCount;
       });
       continue;
     }
@@ -102,7 +106,7 @@ export function computeReadingActivityDays(
           day.thoughts += 1;
         });
       }
-      for (const contribution of aiContributionDates(annotation)) {
+      for (const contribution of annotationAiContributionDates(annotation)) {
         addToDay(contribution, (day) => {
           day.aiComments += 1;
         });
@@ -129,7 +133,7 @@ export function timestamp(value: string) {
 }
 
 function countReadingStats(
-  articles: ArticleSummaryRecord[],
+  articles: ReadingStatsArticle[],
   since: Date | null,
 ): ReadingStatsPeriod {
   const inPeriod = (value: string) => {
@@ -140,15 +144,15 @@ function countReadingStats(
 
   return articles.reduce(
     (result, article) => {
-      if (!articleHasCompleteAnnotationDetails(article)) {
-        const counts = inPeriod(article.updatedAt) ? articleSummaryCounts(article) : null;
+      if ('counts' in article) {
+        const counts = inPeriod(article.updatedAt) ? articleCounts(article) : null;
         return {
           articles: result.articles + (inPeriod(article.updatedAt) ? 1 : 0),
-          annotations: result.annotations + (counts?.annotations || 0),
-          thoughts: result.thoughts + (counts?.thoughts || 0),
-          comments: result.comments + (counts?.comments || 0),
-          aiComments: result.aiComments + (counts?.aiComments || 0),
-          distillations: result.distillations + (counts?.distillations || 0),
+          annotations: result.annotations + (counts?.annotationCount || 0),
+          thoughts: result.thoughts + (counts?.thoughtCount || 0),
+          comments: result.comments + (counts?.discussionCommentCount || 0),
+          aiComments: result.aiComments + (counts?.aiCommentCount || 0),
+          distillations: result.distillations + (counts?.distillationCount || 0),
         };
       }
 
@@ -167,7 +171,7 @@ function countReadingStats(
           inPeriod(distillationActivityDate(annotation)),
       );
       const aiContributions = article.annotations.flatMap((annotation) =>
-        aiContributionDates(annotation).filter(inPeriod),
+        annotationAiContributionDates(annotation).filter(inPeriod),
       );
 
       return {
@@ -181,59 +185,6 @@ function countReadingStats(
     },
     { articles: 0, annotations: 0, thoughts: 0, comments: 0, aiComments: 0, distillations: 0 },
   );
-}
-
-function articleHasCompleteAnnotationDetails(article: ArticleSummaryRecord) {
-  return (article.annotationCount ?? article.annotations.length) <= article.annotations.length;
-}
-
-function articleSummaryCounts(article: ArticleSummaryRecord) {
-  return {
-    annotations: article.annotationCount ?? article.annotations.length,
-    thoughts:
-      article.thoughtCount ??
-      article.commentCount ??
-      article.annotations.reduce(
-        (count, annotation) =>
-          count + annotation.comments.filter((comment) => !comment.replyTo).length,
-        0,
-      ),
-    comments:
-      article.discussionCommentCount ??
-      article.annotations.reduce(
-        (count, annotation) => count + annotationThreadComments(annotation).length,
-        0,
-      ),
-    aiComments:
-      article.aiCommentCount ??
-      article.annotations.reduce(
-        (count, annotation) => count + aiContributionDates(annotation).length,
-        0,
-      ),
-    distillations:
-      article.distillationCount ??
-      article.annotations.filter(annotationHasPublishedDistillation).length,
-  };
-}
-
-function aiContributionDates(annotation: Annotation) {
-  const dates: string[] = [];
-  const seenCommentIds = new Set<string>();
-  for (const comment of [
-    ...annotationThreadComments(annotation),
-    ...annotationThoughtComments(annotation),
-  ]) {
-    if (comment.author !== 'ai') continue;
-    if (seenCommentIds.has(comment.id)) continue;
-    seenCommentIds.add(comment.id);
-    dates.push(comment.createdAt);
-  }
-  for (const session of annotation.distillation?.reviewSessions || []) {
-    for (const message of session.messages) {
-      if (message.author === 'ai') dates.push(message.createdAt);
-    }
-  }
-  return dates;
 }
 
 function startOfDay(date: Date) {

@@ -2,6 +2,7 @@
 
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { articleCounts } from '@yomitomo/core';
 import type {
   Annotation,
   ArticleRecord,
@@ -231,9 +232,18 @@ function article(overrides: Partial<WebArticleRecord> = {}): WebArticleRecord {
 }
 
 function articleSummary(record: ArticleRecord): ArticleSummaryRecord {
-  const summary = { ...record };
-  delete summary.contentHtml;
-  return summary;
+  const {
+    annotations: _annotations,
+    contentHtml: _contentHtml,
+    focusCoReadingPlan: _focusCoReadingPlan,
+    readerChatState: _readerChatState,
+    ...summary
+  } = record;
+  return {
+    ...summary,
+    annotations: [],
+    counts: articleCounts(record),
+  };
 }
 
 function annotationRecord(): Annotation {

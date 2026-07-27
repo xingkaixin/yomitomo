@@ -13,6 +13,7 @@ const coreRuntimeExports = [
   'annotationThoughtComments',
   'annotationThreadComments',
   'annotationToPublicAgent',
+  'articleCounts',
   'articleHtmlWithBilingualTranslation',
   'annotationTypeLabel',
   'annotationTypeLabels',

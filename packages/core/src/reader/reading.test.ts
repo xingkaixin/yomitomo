@@ -251,7 +251,7 @@ describe('reading core', () => {
     });
   });
 
-  it('uses legacy comment counts only as a thought fallback', () => {
+  it('uses aggregate counts from lightweight summaries', () => {
     const summary: ArticleSummaryRecord = {
       id: 'summary',
       url: 'https://example.com/summary',
@@ -260,10 +260,13 @@ describe('reading core', () => {
       title: 'Summary',
       contentHash: 'summary',
       annotations: [],
-      annotationCount: 9,
-      commentCount: 6,
-      aiCommentCount: 2,
-      distillationCount: 2,
+      counts: {
+        annotationCount: 9,
+        thoughtCount: 6,
+        discussionCommentCount: 0,
+        aiCommentCount: 2,
+        distillationCount: 2,
+      },
       createdAt: '2026-05-02T08:00:00.000Z',
       updatedAt: '2026-05-03T08:00:00.000Z',
     };
@@ -320,10 +323,14 @@ describe('reading core', () => {
     ]);
     const summary: ArticleSummaryRecord = {
       ...article('summary', createdAt),
-      annotationCount: 1,
-      thoughtCount: 3,
-      discussionCommentCount: 5,
-      aiCommentCount: 2,
+      annotations: [],
+      counts: {
+        annotationCount: 1,
+        thoughtCount: 3,
+        discussionCommentCount: 5,
+        aiCommentCount: 2,
+        distillationCount: 0,
+      },
     };
 
     const detailedStats = computeReadingStats([detailed], new Date(createdAt)).today;

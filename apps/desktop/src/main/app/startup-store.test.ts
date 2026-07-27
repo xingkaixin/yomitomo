@@ -45,6 +45,42 @@ describe('startup store initialization', () => {
     });
   });
 
+  it('records aggregate counts from lightweight article summaries', async () => {
+    const store = startupStore();
+    store.articles = [
+      {
+        id: 'article_1',
+        url: 'https://example.com/article',
+        canonicalUrl: 'https://example.com/article',
+        sourceType: 'web',
+        title: 'Article',
+        contentHash: 'hash_1',
+        annotations: [],
+        counts: {
+          annotationCount: 4,
+          thoughtCount: 3,
+          discussionCommentCount: 2,
+          aiCommentCount: 1,
+          distillationCount: 1,
+        },
+        createdAt: '2026-07-27T08:00:00.000Z',
+        updatedAt: '2026-07-27T08:00:00.000Z',
+      },
+    ];
+    const { context, recordStartupTiming } = startupContext(store);
+
+    await expect(initializeStartupStore(context)).resolves.toEqual({ ok: true });
+
+    expect(recordStartupTiming).toHaveBeenCalledWith(
+      'store.initialize_success',
+      expect.objectContaining({
+        articleCount: 1,
+        annotationCount: 4,
+        thoughtCount: 3,
+      }),
+    );
+  });
+
   it('logs store startup failures without preventing app readiness', async () => {
     const options = { readError: new Error('database unavailable') };
     const { context, setSensitiveRendererEventsLocked } = startupContext(startupStore(), options);

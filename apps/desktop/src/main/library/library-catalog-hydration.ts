@@ -70,7 +70,7 @@ function readArticlesById(database: StoreDatabase, ids: string[]) {
     .where(inArray(schema.articles.id, ids))
     .all();
   const counts = readArticleSummaryCountsForArticles(database, ids);
-  return new Map(rows.map((row) => [row.id, rowToArticleSummary(row, [], counts.get(row.id))]));
+  return new Map(rows.map((row) => [row.id, rowToArticleSummary(row, counts.get(row.id))]));
 }
 
 function readWeReadBooksById(database: StoreDatabase, ids: string[]) {

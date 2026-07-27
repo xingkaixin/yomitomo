@@ -1,5 +1,5 @@
 import i18next from 'i18next';
-import type { ArticleSummaryRecord } from '@yomitomo/shared';
+import type { ArticleRecord, ArticleSummaryRecord } from '@yomitomo/shared';
 import {
   computeReadingActivityDays,
   computeReadingStats,
@@ -37,11 +37,13 @@ export type ReadingStatsViewData = {
 };
 
 const statsViewDataCache = new WeakMap<
-  ArticleSummaryRecord[],
+  ReadingStatsArticle[],
   { language: string; data: ReadingStatsViewData }
 >();
 
-export function getReadingStatsViewData(articles: ArticleSummaryRecord[]): ReadingStatsViewData {
+type ReadingStatsArticle = ArticleRecord | ArticleSummaryRecord;
+
+export function getReadingStatsViewData(articles: ReadingStatsArticle[]): ReadingStatsViewData {
   const language = i18next.language || 'zh-CN';
   const cached = statsViewDataCache.get(articles);
   if (cached?.language === language) return cached.data;
@@ -81,7 +83,7 @@ export function getReadingStatsViewData(articles: ArticleSummaryRecord[]): Readi
   return data;
 }
 
-export function preloadReadingStatsFirstPaintData(articles: ArticleSummaryRecord[]) {
+export function preloadReadingStatsFirstPaintData(articles: ReadingStatsArticle[]) {
   getReadingStatsViewData(articles);
 }
 
@@ -248,7 +250,7 @@ function activityStampStatus(
   return 'empty';
 }
 
-function firstActivityDate(articles: ArticleSummaryRecord[]) {
+function firstActivityDate(articles: ReadingStatsArticle[]) {
   let first = '';
   const visit = (value: string | undefined) => {
     const date = localDateKey(value);
@@ -258,6 +260,7 @@ function firstActivityDate(articles: ArticleSummaryRecord[]) {
   for (const article of articles) {
     visit(article.createdAt);
     visit(article.updatedAt);
+    if ('counts' in article) continue;
     for (const annotation of article.annotations) {
       visit(annotation.createdAt);
       visit(annotation.distillation?.publishedAt || annotation.distillation?.updatedAt);

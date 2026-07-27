@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import { articleCounts } from '@yomitomo/core';
 import type { ArticleRecord, ArticleSummaryRecord, WeReadBookDetail } from '@yomitomo/shared';
-import {
-  articleAnnotationCount,
-  articleDistillationCount,
-  articleThoughtCount,
-} from './app-reading-library-utils';
 
 type ReadingLibraryRoute =
   | { type: 'library' }
@@ -81,7 +77,7 @@ export function useReadingLibraryNavigation({
   }, [cancelArticleLoad, closeCurrentArticle, send]);
 
   const openArticle = useCallback(
-    async (article: ArticleSummaryRecord | string, focusAnnotationId?: string) => {
+    async (article: ArticleRecord | ArticleSummaryRecord | string, focusAnnotationId?: string) => {
       const articleId = typeof article === 'string' ? article : article.id;
       closeCurrentArticle(articleId);
       const token = articleLoadRef.current.token + 1;
@@ -200,8 +196,8 @@ export function useReadingLibraryNavigation({
 export type ReadingLibraryNavigation = ReturnType<typeof useReadingLibraryNavigation>;
 
 export function articleUpdateCanReplace(
-  current: ArticleSummaryRecord,
-  candidate: ArticleSummaryRecord,
+  current: ArticleRecord | ArticleSummaryRecord,
+  candidate: ArticleRecord | ArticleSummaryRecord,
 ) {
   const currentTimestamp = articleTimestamp(current.updatedAt);
   const candidateTimestamp = articleTimestamp(candidate.updatedAt);
@@ -216,30 +212,14 @@ function articleTimestamp(value: string | number | undefined) {
   return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
-function articleRevision(article: ArticleSummaryRecord) {
+function articleRevision(article: ArticleRecord | ArticleSummaryRecord) {
+  const counts = articleCounts(article);
   return [
-    articleAnnotationCount(article),
-    articleThoughtCount(article),
-    articleAiCommentCount(article),
-    articleDistillationCount(article),
+    counts.annotationCount,
+    counts.thoughtCount,
+    counts.aiCommentCount,
+    counts.distillationCount,
   ].join(':');
-}
-
-function articleAiCommentCount(article: ArticleSummaryRecord) {
-  return (
-    article.aiCommentCount ??
-    article.annotations.reduce(
-      (count, annotation) =>
-        count +
-        annotation.comments.filter((comment) => comment.author === 'ai').length +
-        (annotation.distillation?.reviewSessions?.reduce(
-          (reviewCount, session) =>
-            reviewCount + session.messages.filter((message) => message.author === 'ai').length,
-          0,
-        ) ?? 0),
-      0,
-    )
-  );
 }
 
 function readingLibraryRoute(
@@ -308,7 +288,7 @@ function readingLibraryNavigationModel(route: ReadingLibraryRoute) {
 function articleHasReadableBody(
   article: ArticleRecord | ArticleSummaryRecord,
 ): article is ArticleRecord {
-  if ((article.annotationCount ?? 0) > article.annotations.length) return false;
+  if ('counts' in article) return false;
   if (article.sourceType === 'ebook') {
     return Boolean(article.ebook && 'chapters' in article.ebook && article.ebook.chapters.length);
   }

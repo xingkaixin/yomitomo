@@ -1,7 +1,8 @@
 import i18next from 'i18next';
-import { articlePublishedDistillationCount } from '@yomitomo/core';
+import { articleCounts } from '@yomitomo/core';
 import {
   cleanEpubDisplayTitle,
+  type ArticleRecord,
   type ArticleSummaryRecord,
   type LibraryContentSourceId,
   type WeReadBook,
@@ -59,7 +60,7 @@ export function librarySourceForArticle(article: ArticleSummaryRecord): LibraryS
   return article.sourceType;
 }
 
-export function articleDisplayTitle(article: ArticleSummaryRecord) {
+export function articleDisplayTitle(article: ArticleRecord | ArticleSummaryRecord) {
   if (article.sourceType !== 'ebook') return article.title;
   const metadata = article.ebook.metadata;
   return (
@@ -115,8 +116,11 @@ export function compareLibraryArticles(
   );
 }
 
-export function groupLibraryArticles(articles: ArticleSummaryRecord[], sort: LibrarySort) {
-  const groups = new Map<string, ArticleSummaryRecord[]>();
+export function groupLibraryArticles<T extends ArticleRecord | ArticleSummaryRecord>(
+  articles: T[],
+  sort: LibrarySort,
+) {
+  const groups = new Map<string, T[]>();
   for (const article of articles) {
     const label = libraryArticleGroupLabel(article, sort);
     groups.set(label, [...(groups.get(label) || []), article]);
@@ -124,7 +128,10 @@ export function groupLibraryArticles(articles: ArticleSummaryRecord[], sort: Lib
   return Array.from(groups, ([label, groupArticles]) => ({ label, articles: groupArticles }));
 }
 
-function libraryArticleGroupLabel(article: ArticleSummaryRecord, sort: LibrarySort) {
+function libraryArticleGroupLabel(
+  article: ArticleRecord | ArticleSummaryRecord,
+  sort: LibrarySort,
+) {
   if (sort === 'recentAdded') return formatLibraryDateGroup(article.createdAt);
   if (sort === 'annotations')
     return formatLibraryCountGroup(articleAnnotationCount(article), 'annotations');
@@ -146,24 +153,16 @@ export function libraryArticleStatus(article: ArticleSummaryRecord) {
   return { label: i18next.t('library.status.progress'), tone: 'progress' };
 }
 
-export function articleAnnotationCount(article: ArticleSummaryRecord) {
-  return article.annotationCount ?? article.annotations.length;
+export function articleAnnotationCount(article: ArticleRecord | ArticleSummaryRecord) {
+  return articleCounts(article).annotationCount;
 }
 
-export function articleThoughtCount(article: ArticleSummaryRecord) {
-  return (
-    article.thoughtCount ??
-    article.commentCount ??
-    article.annotations.reduce(
-      (count, annotation) =>
-        count + annotation.comments.filter((comment) => !comment.replyTo).length,
-      0,
-    )
-  );
+export function articleThoughtCount(article: ArticleRecord | ArticleSummaryRecord) {
+  return articleCounts(article).thoughtCount;
 }
 
-export function articleDistillationCount(article: ArticleSummaryRecord) {
-  return article.distillationCount ?? articlePublishedDistillationCount(article.annotations);
+export function articleDistillationCount(article: ArticleRecord | ArticleSummaryRecord) {
+  return articleCounts(article).distillationCount;
 }
 
 export function articleReadingMinutes(article: ArticleSummaryRecord) {

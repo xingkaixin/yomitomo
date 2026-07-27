@@ -15,6 +15,7 @@ import type {
   TextSourceMetadata,
 } from '@yomitomo/shared';
 import { normalizeArticleSourceType } from '@yomitomo/shared';
+import { articleCounts } from '@yomitomo/core';
 export { normalizeArticleSourceType } from '@yomitomo/shared';
 import { normalizeAnnotationDensity } from './store-normalizers-provider-agent';
 import * as schema from '../db/schema';
@@ -87,6 +88,8 @@ export function normalizeArticleSummaryRecord(article: ArticleSummaryRecord): Ar
   const { sourceType, ebook, pdf, text, ...base } = article;
   const normalizedBase: ArticleSummaryRecordWithoutSource = {
     ...base,
+    annotations: [],
+    counts: articleCounts(article),
     readingProgress: normalizeArticleReadingProgress(base.readingProgress),
   };
 

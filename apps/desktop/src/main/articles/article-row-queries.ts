@@ -29,11 +29,7 @@ export function readArticleSummaryRows(
     .get();
   if (!row) return null;
 
-  return rowToArticleSummary(
-    row,
-    readArticleAnnotations(database, id),
-    readArticleSummaryCountsForArticles(database, [id]).get(id),
-  );
+  return rowToArticleSummary(row, readArticleSummaryCountsForArticles(database, [id]).get(id));
 }
 
 export function findArticleByIdentityRows(

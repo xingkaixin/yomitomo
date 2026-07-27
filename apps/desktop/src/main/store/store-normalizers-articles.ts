@@ -1,5 +1,5 @@
 import type { Annotation, ArticleRecord, ArticleSummaryRecord } from '@yomitomo/shared';
-import { annotationThoughtComments, annotationThreadComments } from '@yomitomo/core';
+import { articleCounts } from '@yomitomo/core';
 import * as schema from '../db/schema';
 import { normalizeReaderChatState } from './store-normalizers-reader-chat';
 import {
@@ -23,14 +23,6 @@ type NormalizedArticleRowBase = Omit<
   ArticleRecord,
   'sourceType' | 'ebook' | 'pdf' | 'text' | 'contentHtml' | 'focusCoReadingPlan'
 >;
-
-export type ArticleSummaryCounts = {
-  annotationCount: number;
-  thoughtCount: number;
-  discussionCommentCount: number;
-  aiCommentCount: number;
-  distillationCount: number;
-};
 
 export function rowToArticle(row: ArticleRow, annotations: Annotation[]): ArticleRecord {
   const base = {
@@ -60,26 +52,30 @@ export function rowToArticle(row: ArticleRow, annotations: Annotation[]): Articl
 
 export function rowToArticleSummary(
   row: ArticleSummaryRow,
-  annotations: Annotation[],
-  counts?: ArticleSummaryCounts,
+  counts = articleCounts({ annotations: [] }),
 ): ArticleSummaryRecord {
-  const { readerChatState: _readerChatState, ...base } = rowToArticleBase(row, annotations, counts);
+  const {
+    annotations: _annotations,
+    readerChatState: _readerChatState,
+    ...base
+  } = rowToArticleBase(row, []);
   const sourceType = normalizeArticleSourceType(row.sourceType);
+  const summaryBase = { ...base, annotations: [] as [], counts };
 
   switch (sourceType) {
     case 'web':
-      return { ...base, sourceType };
+      return { ...summaryBase, sourceType };
     case 'ebook': {
       const ebook = rowToEbookSummary(row);
-      return ebook ? { ...base, sourceType, ebook } : { ...base, sourceType: 'web' };
+      return ebook ? { ...summaryBase, sourceType, ebook } : { ...summaryBase, sourceType: 'web' };
     }
     case 'pdf': {
       const pdf = rowToPdfSummary(row);
-      return pdf ? { ...base, sourceType, pdf } : { ...base, sourceType: 'web' };
+      return pdf ? { ...summaryBase, sourceType, pdf } : { ...summaryBase, sourceType: 'web' };
     }
     case 'text': {
       const text = rowToTextSummary(row);
-      return text ? { ...base, sourceType, text } : { ...base, sourceType: 'web' };
+      return text ? { ...summaryBase, sourceType, text } : { ...summaryBase, sourceType: 'web' };
     }
   }
 }
@@ -87,7 +83,6 @@ export function rowToArticleSummary(
 function rowToArticleBase(
   row: ArticleBaseRow,
   annotations: Annotation[],
-  counts = articleCountsFromAnnotations(annotations),
 ): NormalizedArticleRowBase {
   return {
     id: row.id,
@@ -104,42 +99,7 @@ function rowToArticleBase(
     readingProgress: normalizeArticleReadingProgress(row.readingProgress),
     readerChatState: normalizeReaderChatState(row.readerChatState, row.id),
     annotations,
-    annotationCount: counts.annotationCount,
-    thoughtCount: counts.thoughtCount,
-    discussionCommentCount: counts.discussionCommentCount,
-    aiCommentCount: counts.aiCommentCount,
-    distillationCount: counts.distillationCount,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-  };
-}
-
-function articleCountsFromAnnotations(annotations: Annotation[]): ArticleSummaryCounts {
-  return {
-    annotationCount: annotations.length,
-    thoughtCount: annotations.reduce(
-      (count, annotation) => count + annotationThoughtComments(annotation).length,
-      0,
-    ),
-    discussionCommentCount: annotations.reduce(
-      (count, annotation) => count + annotationThreadComments(annotation).length,
-      0,
-    ),
-    aiCommentCount: annotations.reduce((count, annotation) => {
-      const commentIds = new Set<string>();
-      let aiCount = 0;
-      for (const comment of annotation.comments) {
-        if (comment.author !== 'ai' || commentIds.has(comment.id)) continue;
-        commentIds.add(comment.id);
-        aiCount += 1;
-      }
-      for (const session of annotation.distillation?.reviewSessions || []) {
-        aiCount += session.messages.filter((message) => message.author === 'ai').length;
-      }
-      return count + aiCount;
-    }, 0),
-    distillationCount: annotations.filter(
-      (annotation) => annotation.distillation?.status === 'published',
-    ).length,
   };
 }

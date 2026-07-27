@@ -1,5 +1,6 @@
 import SQLiteDatabase from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { articleCounts } from '@yomitomo/core';
 import type {
   ArticleSummaryRecord,
   Collection,
@@ -100,11 +101,7 @@ function seedArticles(sqlite: SQLiteDatabase.Database, articles: ArticleSummaryR
       article.updatedAt,
     );
 
-    const annotationCount = article.annotationCount ?? article.annotations.length;
-    const distillationCount =
-      article.distillationCount ??
-      article.annotations.filter((annotation) => annotation.distillation?.status === 'published')
-        .length;
+    const { annotationCount, distillationCount } = articleCounts(article);
     for (let index = 0; index < Math.max(annotationCount, distillationCount); index += 1) {
       insertAnnotation.run(
         `catalog_fixture_${article.id}_${index}`,

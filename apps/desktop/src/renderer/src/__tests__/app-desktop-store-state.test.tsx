@@ -80,7 +80,16 @@ describe('useDesktopStoreState', () => {
     expect(latest.current?.store).toBe(updatedStore);
     expect(latest.current?.storeRef.current).toBe(updatedStore);
 
-    const patchedArticle = articleSummary({ id: 'article_1', commentCount: 1 });
+    const patchedArticle = articleSummary({
+      id: 'article_1',
+      counts: {
+        annotationCount: 1,
+        thoughtCount: 1,
+        discussionCommentCount: 0,
+        aiCommentCount: 0,
+        distillationCount: 0,
+      },
+    });
     act(() => {
       emitArticlePatched({ type: 'article-upsert', article: patchedArticle });
     });
@@ -335,11 +344,14 @@ function articleSummary(input: Partial<WebArticleSummaryRecord>): WebArticleSumm
     contentHash: input.contentHash || 'hash',
     sourceType: 'web',
     readingProgress: input.readingProgress,
-    annotations: input.annotations || [],
-    annotationCount: input.annotationCount || 0,
-    commentCount: input.commentCount || 0,
-    aiCommentCount: input.aiCommentCount || 0,
-    distillationCount: input.distillationCount || 0,
+    annotations: [],
+    counts: input.counts || {
+      annotationCount: 0,
+      thoughtCount: 0,
+      discussionCommentCount: 0,
+      aiCommentCount: 0,
+      distillationCount: 0,
+    },
     createdAt: input.createdAt || '2026-06-15T00:00:00.000Z',
     updatedAt: input.updatedAt || '2026-06-15T00:00:00.000Z',
   };
