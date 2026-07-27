@@ -4,12 +4,8 @@ export {
   annotationAuthorName,
   annotationPersona,
   annotationPrimaryComment,
-  annotationThoughtComments,
-  annotationThreadComments,
   annotationToPublicAgent,
   annotationTypeLabel,
-  annotationTypeLabels,
-  annotationUserAuthorRef,
   appendAnnotationComment,
   commentPersona,
   createUserAnnotation,
@@ -30,7 +26,6 @@ export {
   type MergedAgentAnnotationResult,
 } from './reader/agent-annotations';
 
-export { inlineArticleFavicon, inlineArticleImages } from './articles/article-images';
 export type { ArticleImageInlineOptions, ImageFetcher } from './articles/article-images';
 
 export {
@@ -62,7 +57,6 @@ export {
   locateEpubTextAnchor,
   prepareEpubBookIndex,
   prepareEpubTextAnchorResolver,
-  resolveEpubTextAnchor,
 } from './epub/ebook-index';
 export type {
   BuildEpubBookIndexInput,
@@ -121,7 +115,6 @@ export type {
 
 export {
   annotationHasPublishedDistillation,
-  annotationStoredColor,
   articlePublishedDistillationCount,
   buildTocAnnotationStats,
 } from './reader/reader-annotations';
@@ -130,14 +123,11 @@ export type { TocAnnotationStats } from './reader/reader-annotations';
 export { mergeReadingMemory } from './reading-memory/reading-memory-merge';
 
 export {
-  activeReadingMemoryEntries,
   applySupersededEntryFilter,
   normalizeReadingMemoryEntry,
   readingMemoryAnchorCheckpointEntries,
   readingMemoryEntriesFromAnnotationThread,
   readingMemoryEntriesFromMemoryDelta,
-  readingMemoryEntryFromAnnotation,
-  readingMemoryEntryFromComment,
   readingMemoryEntrySearchText,
   readingMemoryFromEntries,
 } from './reading-memory/reading-memory-entries';
@@ -167,7 +157,6 @@ export {
   rangeFromOffsets,
   rangeFromOffsetsIgnoringSelector,
   rangeHighlightBoxes,
-  scrollReaderSurfaceToElement,
   scrollReaderSurfaceToRect,
   selectionActionPosition,
 } from './reader/reader-dom';

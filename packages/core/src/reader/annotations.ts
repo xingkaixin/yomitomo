@@ -40,7 +40,7 @@ type AnnotationUserIdentity = Pick<
   'id' | 'username' | 'nickname' | 'avatar' | 'annotationColor'
 >;
 
-export const annotationTypeLabels: Record<AnnotationType, string> = {
+const annotationTypeLabels: Record<AnnotationType, string> = {
   key_point: '关键判断',
   assumption: '前提漏洞',
   concept: '概念解释',

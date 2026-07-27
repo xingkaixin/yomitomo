@@ -9,7 +9,6 @@ import {
   locateEpubTextAnchor,
   prepareEpubBookIndex,
   prepareEpubTextAnchorResolver,
-  resolveEpubTextAnchor,
 } from './ebook-index';
 
 describe('buildEpubBookIndex', () => {
@@ -239,7 +238,7 @@ describe('locateEpubOffset', () => {
     const index = buildEpubBookIndex({ articleId: 'article-1', chapters });
     const start = text.indexOf('目标');
     const anchor = createEpubTextAnchor(index, text, start, start + '目标句子'.length);
-    const position = resolveEpubTextAnchor(index, text, {
+    const position = prepareEpubTextAnchorResolver(index, text).resolve({
       ...anchor,
       textStartInParagraph: 0,
       textEndInParagraph: 4,
@@ -331,7 +330,10 @@ describe('locateEpubOffset', () => {
     const start = text.indexOf('target');
     const anchor = createEpubTextAnchor(index, text, start, start + 'target quote'.length);
     const rendered = text.replace('target quote', 'target\nquote');
-    const position = resolveEpubTextAnchor(index, rendered, { ...anchor, exact: 'stale quote' });
+    const position = prepareEpubTextAnchorResolver(index, rendered).resolve({
+      ...anchor,
+      exact: 'stale quote',
+    });
 
     expect(position).toEqual({ start, end: start + 'target quote'.length });
   });
