@@ -83,6 +83,7 @@ function translationFor(translatedText = '你好世界，这一段应该被翻�
 
 function installDesktopApi(current: ArticleTranslation | null) {
   const callbacks: Array<(translation: ArticleTranslation) => void> = [];
+  const deleteCurrentArticleTranslation = vi.fn(async () => null);
   const getCurrentArticleTranslation = vi.fn(async () => current);
   const translateArticle = vi.fn(async () => translationFor('请求生成的文章译文。'));
   Object.defineProperty(window, 'yomitomoDesktop', {
@@ -90,7 +91,7 @@ function installDesktopApi(current: ArticleTranslation | null) {
     value: {
       article: {
         translation: {
-          deleteCurrent: vi.fn(async () => null),
+          deleteCurrent: deleteCurrentArticleTranslation,
           getCurrent: getCurrentArticleTranslation,
           onUpdated: (callback: (translation: ArticleTranslation) => void) => {
             callbacks.push(callback);
@@ -101,7 +102,12 @@ function installDesktopApi(current: ArticleTranslation | null) {
       },
     },
   });
-  return { callbacks, getCurrentArticleTranslation, translateArticle };
+  return {
+    callbacks,
+    deleteCurrentArticleTranslation,
+    getCurrentArticleTranslation,
+    translateArticle,
+  };
 }
 
 function renderTranslationHook({
@@ -117,7 +123,7 @@ function renderTranslationHook({
   const articleRef = { current: articleElement };
   const scrollRef = { current: scrollElement };
   document.body.append(scrollElement, articleElement);
-  return renderHook(() =>
+  const hook = renderHook(() =>
     useWebBilingualTranslation({
       annotations,
       article: webArticle(),
@@ -129,6 +135,7 @@ function renderTranslationHook({
       targetLanguage: 'zh-CN',
     }),
   );
+  return { ...hook, articleElement };
 }
 
 function renderedTranslationText(html: string) {
@@ -175,6 +182,31 @@ describe('useWebBilingualTranslation', () => {
     );
   });
 
+  it('keeps subscription updates deferred while an article selection remains active', async () => {
+    vi.useFakeTimers();
+    const api = installDesktopApi(null);
+    const { articleElement, result } = renderTranslationHook();
+    await act(async () => Promise.resolve());
+    const text = articleElement.querySelector('p')?.firstChild;
+    if (!text) throw new Error('article text missing');
+    const range = document.createRange();
+    range.setStart(text, 0);
+    range.setEnd(text, 5);
+    document.getSelection()?.addRange(range);
+
+    act(() => api.callbacks[0]?.(translationFor()));
+    expect(renderedTranslationText(result.current.renderedHtml)).toBeUndefined();
+
+    act(() => {
+      document.getSelection()?.removeAllRanges();
+      result.current.selection.finish('selection-cleared');
+      vi.runOnlyPendingTimers();
+    });
+    expect(renderedTranslationText(result.current.renderedHtml)).toBe(
+      '你好世界，这一段应该被翻译。',
+    );
+  });
+
   it('requests translation through the confirmation interface', async () => {
     const api = installDesktopApi(null);
     const { result } = renderTranslationHook();
@@ -196,5 +228,26 @@ describe('useWebBilingualTranslation', () => {
       targetLanguage: 'zh-CN',
     });
     expect(renderedTranslationText(result.current.renderedHtml)).toBe('请求生成的文章译文。');
+  });
+
+  it('deletes the cached article translation through the confirmation interface', async () => {
+    const api = installDesktopApi(translationFor());
+    const { result } = renderTranslationHook();
+    await waitFor(() =>
+      expect(renderedTranslationText(result.current.renderedHtml)).toBe(
+        '你好世界，这一段应该被翻译。',
+      ),
+    );
+
+    const dialog = result.current.dialog as React.ReactElement<{
+      onConfirm: (action: 'delete') => Promise<void>;
+    }>;
+    await act(() => dialog.props.onConfirm('delete'));
+
+    expect(api.deleteCurrentArticleTranslation).toHaveBeenCalledWith({
+      articleId: 'article-1',
+      targetLanguage: 'zh-CN',
+    });
+    expect(renderedTranslationText(result.current.renderedHtml)).toBeUndefined();
   });
 });

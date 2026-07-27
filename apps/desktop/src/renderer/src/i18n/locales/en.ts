@@ -875,39 +875,85 @@ export const enResources = {
       jumpPdfPage: 'Jump to PDF page',
       pdfZoom: 'PDF zoom',
     },
+    readerTranslation: {
+      article: {
+        translate: 'Bilingual translation',
+        confirmTranslateTitle: 'Translate this article?',
+        confirmTranslateDescription:
+          'This will call the bilingual translation model and save paragraph results. Existing results are reused unless you translate again.',
+        confirmTranslate: 'Start translation',
+        confirmRetranslateTitle: 'Translate this article again?',
+        confirmRetranslateDescription:
+          'This will replace saved translations for the current target language.',
+        confirmRetranslate: 'Translate again',
+        confirmDeleteTranslationTitle: 'Delete this article translation?',
+        confirmDeleteTranslationDescription:
+          'This deletes the translation cache for the current target language. The original text is kept.',
+        confirmDeleteTranslation: 'Delete translation',
+        translationAnnotationsRemovalNotice:
+          'This also deletes {{count}} annotation on the translation, including its discussion and distilled card. This cannot be undone.',
+        translationAnnotationsRemovalNotice_other:
+          'This also deletes {{count}} annotations on the translation, including their discussions and distilled cards. This cannot be undone.',
+        showTranslation: 'Show translation',
+        hideTranslation: 'Hide translation',
+        retranslate: 'Translate again',
+        deleteTranslation: 'Delete translation',
+        translating: 'Generating bilingual translation',
+        translationInProgressToastDescription:
+          'Highlights are temporarily unavailable while translation is running. Paragraph placeholders and status stay visible.',
+        translationNoText: 'No translatable text was found in this article.',
+        translationFailed: 'Bilingual translation failed. Try again later.',
+        deleteTranslationFailed: 'Could not delete the translation. Try again later.',
+        translationSelectionDisabledToast:
+          'The article is being translated. Highlights are temporarily unavailable.',
+        translationSelectionDisabledToastDescription:
+          'You can select and highlight text again after translation finishes.',
+      },
+      chapter: {
+        translate: 'Translate current chapter',
+        confirmTranslateTitle: 'Translate this chapter?',
+        confirmTranslateDescription:
+          'This will call the bilingual translation model and save paragraph results for the current chapter.',
+        confirmTranslate: 'Start translation',
+        confirmRetranslateTitle: 'Translate this chapter again?',
+        confirmRetranslateDescription:
+          'This will replace the saved translation for this chapter and target language.',
+        confirmRetranslate: 'Translate again',
+        confirmDeleteTranslationTitle: 'Delete this chapter translation?',
+        confirmDeleteTranslationDescription:
+          'This deletes the translation cache for this chapter and target language. The original text is kept.',
+        confirmDeleteTranslation: 'Delete translation',
+        showTranslation: 'Show chapter translation',
+        hideTranslation: 'Hide chapter translation',
+        retranslate: 'Translate chapter again',
+        deleteTranslation: 'Delete chapter translation',
+        translating: 'Translating current chapter',
+        translationInProgressToastDescription:
+          'Paragraph placeholders and status stay visible while the chapter is being translated.',
+        translationNoText: 'No translatable text was found in this chapter.',
+        translationFailed: 'Chapter translation failed. Try again later.',
+        deleteTranslationFailed: 'Could not delete the chapter translation. Try again later.',
+      },
+      common: {
+        retryTranslationSegment: 'Retry this paragraph',
+        translationProgressToastDescription: 'Translated {{ready}}/{{total}} paragraphs.',
+        translationProgressWithFailuresToastDescription:
+          'Translated {{ready}}/{{total}} paragraphs, {{failed}} failed.',
+        translationCompleteToast: 'Bilingual translation is ready',
+        translationCompleteToastDescription: 'Translated {{ready}}/{{total}} paragraphs.',
+        translationCompleteWithFailuresToast: 'Bilingual translation finished with failures',
+        translationCompleteWithFailuresDescription:
+          'Translated {{ready}}/{{total}} paragraphs. Failed paragraphs can be retried in the reader.',
+        translationFailedToastAction: 'View failed paragraph',
+        translationFailedToastActionDone: 'Located',
+      },
+    },
     ebookReader: {
       opening: 'Opening ebook.',
       openFailed: 'Failed to open ebook',
       sourceMissing: 'The original ebook file is missing. Import it again.',
       selectionLocateFailed: 'Could not locate this selection. Shorten it or select again.',
       chapterLabel: 'Chapter {{chapter}}',
-      translateChapter: 'Translate current chapter',
-      confirmTranslateTitle: 'Translate this chapter?',
-      confirmTranslateDescription:
-        'This will call the bilingual translation model and save paragraph results for the current chapter.',
-      confirmTranslate: 'Start translation',
-      confirmRetranslateTitle: 'Translate this chapter again?',
-      confirmRetranslateDescription:
-        'This will replace the saved translation for this chapter and target language.',
-      confirmRetranslate: 'Translate again',
-      confirmDeleteTranslationTitle: 'Delete this chapter translation?',
-      confirmDeleteTranslationDescription:
-        'This deletes the translation cache for this chapter and target language. The original text is kept.',
-      confirmDeleteTranslation: 'Delete translation',
-      showTranslation: 'Show chapter translation',
-      hideTranslation: 'Hide chapter translation',
-      retranslateChapter: 'Translate chapter again',
-      deleteTranslation: 'Delete chapter translation',
-      retryTranslationSegment: 'Retry this paragraph',
-      translatingChapter: 'Translating current chapter',
-      translationReady: 'Chapter translation is ready',
-      translationCompleteWithFailures:
-        'Chapter translation finished with {{count}} failed paragraph',
-      translationCompleteWithFailures_other:
-        'Chapter translation finished with {{count}} failed paragraphs',
-      translationNoText: 'No translatable text was found in this chapter.',
-      translationFailed: 'Chapter translation failed. Try again later.',
-      deleteTranslationFailed: 'Could not delete the chapter translation. Try again later.',
     },
     pdfReader: {
       readFailed: 'Failed to read PDF',
@@ -950,49 +996,7 @@ export const enResources = {
         'This is the reader floating Q&A. Answer around the selected quote and the user question; do not write the reply as an annotation discussion.',
       readerChatArticleInstruction:
         'This is the reader floating Q&A. Answer around the current article and the user question; do not write the reply as an annotation discussion.',
-      translateArticle: 'Bilingual translation',
-      confirmTranslateTitle: 'Translate this article?',
-      confirmTranslateDescription:
-        'This will call the bilingual translation model and save paragraph results. Existing results are reused unless you translate again.',
-      confirmTranslate: 'Start translation',
-      confirmRetranslateTitle: 'Translate this article again?',
-      confirmRetranslateDescription:
-        'This will replace saved translations for the current target language.',
-      confirmRetranslate: 'Translate again',
-      confirmDeleteTranslationTitle: 'Delete this article translation?',
-      confirmDeleteTranslationDescription:
-        'This deletes the translation cache for the current target language. The original text is kept.',
-      confirmDeleteTranslation: 'Delete translation',
-      translationAnnotationsRemovalNotice:
-        'This also deletes {{count}} annotation on the translation, including its discussion and distilled card. This cannot be undone.',
-      translationAnnotationsRemovalNotice_other:
-        'This also deletes {{count}} annotations on the translation, including their discussions and distilled cards. This cannot be undone.',
-      showTranslation: 'Show translation',
-      hideTranslation: 'Hide translation',
-      retranslateArticle: 'Translate again',
-      deleteTranslation: 'Delete translation',
-      retryTranslationSegment: 'Retry this paragraph',
-      translatingArticle: 'Generating bilingual translation',
-      translationInProgressToastDescription:
-        'Highlights are temporarily unavailable while translation is running. Paragraph placeholders and status stay visible.',
-      translationProgressToastDescription: 'Translated {{ready}}/{{total}} paragraphs.',
-      translationProgressWithFailuresToastDescription:
-        'Translated {{ready}}/{{total}} paragraphs, {{failed}} failed.',
-      translationReady: 'Bilingual translation is ready',
-      translationCompleteToast: 'Bilingual translation is ready',
-      translationCompleteToastDescription: 'Translated {{ready}}/{{total}} paragraphs.',
-      translationCompleteWithFailuresToast: 'Bilingual translation finished with failures',
-      translationCompleteWithFailuresDescription:
-        'Translated {{ready}}/{{total}} paragraphs. Failed paragraphs can be retried in the article.',
-      translationFailedToastAction: 'View failed paragraph',
-      translationFailedToastActionDone: 'Located',
-      translationFailed: 'Bilingual translation failed. Try again later.',
-      deleteTranslationFailed: 'Could not delete the translation. Try again later.',
       mixedSelectionToast: 'Select only the original text or only the translation',
-      translationSelectionDisabledToast:
-        'The article is being translated. Highlights are temporarily unavailable.',
-      translationSelectionDisabledToastDescription:
-        'You can select and highlight text again after translation finishes.',
     },
     discussion: {
       title: 'Annotation discussion',
