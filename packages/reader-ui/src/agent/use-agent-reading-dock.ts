@@ -8,7 +8,6 @@ export function useAgentReadingDock(agents: PublicAgent[]) {
   const agentDockCompletingRef = useRef(false);
   const [agentDockCompleting, setAgentDockCompleting] = useState(false);
   const [agentDockItems, setAgentDockItems] = useState<AgentDockItem[]>([]);
-  const [completionBurstKey, setCompletionBurstKey] = useState(0);
 
   const clearAgentDockTimer = useCallback(() => {
     if (agentDockClearTimerRef.current === null) return;
@@ -66,7 +65,6 @@ export function useAgentReadingDock(agents: PublicAgent[]) {
       if (items.length === 0 || agentDockCompletingRef.current) return;
       agentDockCompletingRef.current = true;
       setAgentDockCompleting(celebrate);
-      if (celebrate) setCompletionBurstKey((key) => key + 1);
       clearAgentDockTimer();
       agentDockClearTimerRef.current = window.setTimeout(
         () => {
@@ -92,7 +90,6 @@ export function useAgentReadingDock(agents: PublicAgent[]) {
   return {
     agentDockCompleting,
     agentDockItems,
-    completionBurstKey,
     activateAgentDock,
     markAgentDockDone,
     completeAgentDock,

@@ -49,6 +49,7 @@ describe('useSourceReaderApp', () => {
             articleActions,
             canvasRef: { current: null },
             getArticleText: () => 'text',
+            onRequestSelectionCopy: vi.fn(),
             session: {
               agents: [],
               annotations: currentArticle.annotations,
@@ -86,6 +87,7 @@ describe('useSourceReaderApp', () => {
         articleActions,
         canvasRef: { current: null },
         getArticleText: () => 'text',
+        onRequestSelectionCopy: vi.fn(),
         session: {
           agents: [],
           annotations: currentArticle.annotations,
@@ -198,7 +200,6 @@ function surface({
       onRevealReaderChatContext,
     },
     agentPlayback: {
-      completionBurstKey: 0,
       dockCompleting: false,
       dockItems: [],
       theaterBoxes: [],
@@ -215,13 +216,6 @@ function surface({
     article: {
       extracted: { title: 'Article', content: 'text' },
       id: 'article_1',
-    },
-    refs: {
-      articleRef: { current: null },
-      canvasRef: { current: null },
-      noteRefs: { current: new Map() },
-      notesRef: { current: null },
-      surfaceRef: { current: null },
     },
     toc: {
       annotationStats: new Map(),

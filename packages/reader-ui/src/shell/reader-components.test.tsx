@@ -369,7 +369,6 @@ describe('ReaderSurfaceView empty notes', () => {
         }}
         agents={{
           agents: [],
-          completionBurstKey: 0,
           dockCompleting: false,
           dockItems: [],
           theaterBoxes: [],
@@ -410,12 +409,12 @@ describe('ReaderSurfaceView empty notes', () => {
         refs={{
           articleRef: React.createRef<HTMLElement>(),
           canvasRef: React.createRef<HTMLDivElement>(),
-          noteRefs: { current: new Map() },
           notesRef: React.createRef<HTMLElement>(),
           surfaceRef: React.createRef<HTMLDivElement>(),
         }}
         selection={{
           composer,
+          copyRequestKey: 0,
           highlightChoice: null,
           selectionAction,
         }}

@@ -78,8 +78,9 @@ function box(annotationId: string): HighlightBox {
 
 function HookProbe() {
   const canvasRef = React.useRef<HTMLDivElement | null>(null);
+  const readerRootRef = React.useRef<HTMLDivElement | null>(null);
   const surfaceRef = React.useRef<HTMLDivElement | null>(null);
-  const noteRefs = React.useRef(new Map<string, HTMLElement>());
+  const noteRef = React.useRef<HTMLElement | null>(null);
   const railRef = React.useRef<HTMLElement | null>(null);
   const annotations = React.useMemo(() => [annotation('note-1')], []);
   const boxes = React.useMemo(() => [box('note-1')], []);
@@ -88,7 +89,8 @@ function HookProbe() {
     annotations,
     boxes,
     canvasRef,
-    noteRefs,
+    getNoteElement: () => noteRef.current,
+    readerRootRef,
     selectedAnnotationId: 'note-1',
     surfaceRef,
     userProfile,
@@ -98,6 +100,7 @@ function HookProbe() {
     <div
       className="reader-app"
       ref={(element) => {
+        readerRootRef.current = element;
         if (element) mockRect(element, rect(10, 20, 900, 700));
       }}
     >
@@ -123,10 +126,8 @@ function HookProbe() {
               data-testid="note"
               style={{ top: '210px', transform: 'translateX(28px)' }}
               ref={(element) => {
-                if (!element) {
-                  noteRefs.current.delete('note-1');
-                  return;
-                }
+                noteRef.current = element;
+                if (!element) return;
                 mockRect(element, rect(418, 322, 320, 140));
                 Object.defineProperty(element, 'offsetParent', {
                   configurable: true,
@@ -136,7 +137,6 @@ function HookProbe() {
                   configurable: true,
                   get: () => 0,
                 });
-                noteRefs.current.set('note-1', element);
               }}
             />
           </aside>

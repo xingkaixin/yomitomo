@@ -67,6 +67,7 @@ import { ArticleBook } from '../../shell/app-article-book';
 import { articleDisplayTitle } from '../../reading-library/app-reading-library-utils';
 import { createEbookSourceReaderController } from './app-source-bookcase-ebook-controller';
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
+import { useSourceReaderSurface } from '../bookcase/use-source-reader-surface';
 import { useReaderSearchNavigation } from '../bookcase/use-reader-search-navigation';
 
 function cssPixelValue(value: string) {
@@ -90,11 +91,14 @@ export function EbookBookcase({
 }: EbookBookcaseProps) {
   const { mergeArticleAgentAnnotation, saveArticleReadingProgress } = articleActions;
   const { t } = useTranslation();
-  const articleRef = useRef<HTMLElement | null>(null);
-  const canvasRef = useRef<HTMLDivElement | null>(null);
-  const surfaceRef = useRef<HTMLDivElement | null>(null);
-  const railRef = useRef<HTMLElement | null>(null);
-  const noteRefs = useRef(new Map<string, HTMLElement>());
+  const {
+    canvasRef,
+    getNoteElement,
+    handleRef: readerSurfaceRef,
+    rootRef: readerRootRef,
+    requestSelectionCopy: dispatchSelectionCopy,
+    viewportRef: surfaceRef,
+  } = useSourceReaderSurface();
   const { markAnnotationCreated, newAnnotationIds } = useRecentAnnotationFeedback(
     article.id,
     settings,
@@ -126,6 +130,7 @@ export function EbookBookcase({
   const sourceReaderApp = useSourceReaderApp({
     articleActions,
     canvasRef,
+    onRequestSelectionCopy: dispatchSelectionCopy,
     createAgentAnnotationAdapter: ({ setStatusMessage }) =>
       createEbookSourceReaderController({
         appendAgentAnnotationToArticle,
@@ -160,9 +165,6 @@ export function EbookBookcase({
       clearPendingOnArticleChange: true,
       clearPendingOnDeleteAnnotation: true,
       uiLanguage,
-      onBeforeDeleteAnnotation: (annotationId) => {
-        noteRefs.current.delete(annotationId);
-      },
       onAnnotationsApplied: ({ previousAnnotations, nextAnnotations }) => {
         const previousHighlightSignature = ebookHighlightAnnotationsSignature(
           previousAnnotations,
@@ -415,7 +417,8 @@ export function EbookBookcase({
     annotations,
     boxes,
     canvasRef,
-    noteRefs,
+    getNoteElement,
+    readerRootRef,
     selectedAnnotationId,
     surfaceRef,
     userProfile,
@@ -437,7 +440,6 @@ export function EbookBookcase({
     agentDockCompleting: ebookAgentDockCompleting,
     agentDockItems: ebookAgentDockItems,
     agentTheaterBoxes,
-    completionBurstKey: ebookCompletionBurstKey,
     virtualCursors,
     agentAnimationQueueRef: ebookAgentAnimationQueueRef,
     cleanupAgentTheater: cleanupEbookAgentTheater,
@@ -465,7 +467,6 @@ export function EbookBookcase({
   };
 
   useLayoutEffect(() => {
-    noteRefs.current.clear();
     resetEbookBoxState();
     clearAnnotationUiState();
     setAnnotatingAgentIds([]);
@@ -1005,7 +1006,6 @@ export function EbookBookcase({
       onRevealReaderChatContext: revealReaderChatContext,
     },
     agentPlayback: {
-      completionBurstKey: ebookCompletionBurstKey,
       dockCompleting: ebookAgentDockCompleting,
       dockItems: ebookAgentDockItems,
       theaterBoxes: agentTheaterBoxes,
@@ -1027,13 +1027,6 @@ export function EbookBookcase({
     article: {
       extracted: readerArticle,
       id: article.id,
-    },
-    refs: {
-      articleRef,
-      canvasRef,
-      noteRefs,
-      notesRef: railRef,
-      surfaceRef,
     },
     toc: {
       activeIndex: activeTocIndex,
@@ -1134,6 +1127,7 @@ export function EbookBookcase({
         isSpread={spreadLayout.columns === 2}
         measureHostRef={measureHostRef}
         readerApp={readerAppViewProps}
+        readerSurfaceRef={readerSurfaceRef}
         readerState={readerState}
         viewHostRef={viewHostRef}
         onReaderKeyDown={handleReaderKeyDown}

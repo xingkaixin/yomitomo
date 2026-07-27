@@ -4,17 +4,18 @@ import type { HighlightChoice, SelectionAction } from '@yomitomo/reader-ui/reade
 
 type UseSourceSelectionComposerInput = {
   canvasRef: RefObject<HTMLElement | null>;
+  onRequestSelectionCopy: () => void;
   onOpenComposer?: () => void;
 };
 
 export function useSourceSelectionComposer({
   canvasRef,
+  onRequestSelectionCopy,
   onOpenComposer,
 }: UseSourceSelectionComposerInput) {
   const [temporaryBoxes, setTemporaryBoxes] = useState<HighlightBox[]>([]);
   const [highlightChoice, setHighlightChoice] = useState<HighlightChoice | null>(null);
   const [selectionAction, setSelectionAction] = useState<SelectionAction | null>(null);
-  const [copyRequestKey, setCopyRequestKey] = useState(0);
   const [composer, setComposer] = useState<SelectionAction | null>(null);
 
   const clearSelection = useCallback(() => {
@@ -45,10 +46,6 @@ export function useSourceSelectionComposer({
     await navigator.clipboard.writeText(action.anchor.exact);
   }, []);
 
-  const requestSelectionCopy = useCallback(() => {
-    setCopyRequestKey((key) => key + 1);
-  }, []);
-
   const openComposer = useCallback(
     (action: SelectionAction) => {
       const canvasWidth = canvasRef.current?.clientWidth || 360;
@@ -69,7 +66,6 @@ export function useSourceSelectionComposer({
     highlightChoice,
     setHighlightChoice,
     selectionAction,
-    copyRequestKey,
     setSelectionAction,
     composer,
     setComposer,
@@ -78,7 +74,7 @@ export function useSourceSelectionComposer({
     openSelectionAction,
     cancelComposer,
     copySelection,
-    requestSelectionCopy,
+    requestSelectionCopy: onRequestSelectionCopy,
     openComposer,
   };
 }

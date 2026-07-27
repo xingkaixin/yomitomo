@@ -1,12 +1,17 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowLeft01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons';
 import type React from 'react';
-import { ReaderAppView, type ReaderAppViewProps } from '@yomitomo/reader-ui/reader-app-view';
+import {
+  ReaderAppView,
+  type ReaderAppViewProps,
+  type ReaderSurfaceHandle,
+} from '@yomitomo/reader-ui/reader-app-view';
 import { readerDesktopEmbeddedBundleStyles } from '@yomitomo/reader-ui/reader-styles';
 import { sourceEbookReaderStyles } from './app-source-bookcase-ebook-utils';
 
 type EbookReaderShellProps = {
   readerApp: ReaderAppViewProps;
+  readerSurfaceRef: React.RefObject<ReaderSurfaceHandle | null>;
   readerState: {
     status: 'loading' | 'ready' | 'error';
     message: string;
@@ -19,6 +24,7 @@ type EbookReaderShellProps = {
 
 export function EbookReaderShell({
   readerApp,
+  readerSurfaceRef,
   readerState,
   isSpread,
   viewHostRef,
@@ -36,6 +42,7 @@ export function EbookReaderShell({
       <style>{`${readerDesktopEmbeddedBundleStyles}\n${sourceEbookReaderStyles}`}</style>
       <ReaderAppView
         {...readerApp}
+        ref={readerSurfaceRef}
         article={{
           ...readerApp.article,
           content: (

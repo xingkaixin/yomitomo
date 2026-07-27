@@ -105,7 +105,6 @@ vi.mock('../source/ebook/use-ebook-agent-virtual-reading', () => ({
     agentDockCompleting: false,
     agentDockItems: [],
     agentTheaterBoxes: [],
-    completionBurstKey: 0,
     virtualCursors: [],
     agentAnimationQueueRef: { current: Promise.resolve() },
     cleanupAgentTheater: mocks.cleanupAgentTheater,

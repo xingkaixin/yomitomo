@@ -33,7 +33,6 @@ export function useEbookAgentVirtualReading({
   const {
     agentDockCompleting,
     agentDockItems,
-    completionBurstKey,
     activateAgentDock,
     markAgentDockDone,
     completeAgentDock,
@@ -191,7 +190,6 @@ export function useEbookAgentVirtualReading({
     agentDockCompleting,
     agentDockItems,
     agentTheaterBoxes,
-    completionBurstKey,
     virtualCursors,
     agentAnimationQueueRef,
     cleanupAgentTheater,

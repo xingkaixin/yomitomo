@@ -58,12 +58,10 @@ export function ReadingCompletionBurst() {
 }
 
 export function AgentReadingDock({
-  completionBurstKey,
   completing,
   items,
   labels = defaultReaderUiLabels,
 }: {
-  completionBurstKey: number;
   completing: boolean;
   items: AgentDockItem[];
   labels?: ReaderUiLabels;
@@ -96,9 +94,7 @@ export function AgentReadingDock({
           );
         })}
       </div>
-      {completionBurstKey > 0 && completing ? (
-        <ReadingCompletionBurst key={completionBurstKey} />
-      ) : null}
+      {completing ? <ReadingCompletionBurst /> : null}
     </div>
   );
 }

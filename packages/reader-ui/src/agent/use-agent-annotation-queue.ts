@@ -136,7 +136,6 @@ export function useAgentAnnotationQueue({
     agentDockItems: virtualReading.agentDockItems,
     agentTheaterBoxes,
     annotatingAgents,
-    completionBurstKey: virtualReading.completionBurstKey,
     virtualCursors: virtualReading.virtualCursors,
     cleanupVirtualReadingSessions: virtualReading.cleanupVirtualReadingSessions,
     enqueueAgentAnnotation,

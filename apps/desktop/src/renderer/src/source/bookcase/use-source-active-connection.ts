@@ -9,7 +9,8 @@ type UseSourceActiveConnectionInput = {
   annotations: Annotation[];
   boxes: HighlightBox[];
   canvasRef: RefObject<HTMLDivElement | null>;
-  noteRefs: RefObject<Map<string, HTMLElement>>;
+  getNoteElement: (annotationId: string) => HTMLElement | null;
+  readerRootRef: RefObject<HTMLDivElement | null>;
   selectedAnnotationId: string | null;
   surfaceRef: RefObject<HTMLElement | null>;
   userProfile: UserProfile;
@@ -32,7 +33,8 @@ export function useSourceActiveConnection({
   annotations,
   boxes,
   canvasRef,
-  noteRefs,
+  getNoteElement,
+  readerRootRef,
   selectedAnnotationId,
   surfaceRef,
   userProfile,
@@ -47,10 +49,10 @@ export function useSourceActiveConnection({
 
     const canvasElement = canvasRef.current;
     const scrollElement = surfaceRef.current;
-    const noteElement = noteRefs.current.get(selectedAnnotationId);
+    const noteElement = getNoteElement(selectedAnnotationId);
     const annotation = annotations.find((item) => item.id === selectedAnnotationId);
     const activeBoxes = boxes.filter((box) => box.annotationId === selectedAnnotationId);
-    const readerElement = canvasElement?.closest('.reader-app');
+    const readerElement = readerRootRef.current;
     if (
       !canvasElement ||
       !scrollElement ||
@@ -106,7 +108,8 @@ export function useSourceActiveConnection({
     annotations,
     boxes,
     canvasRef,
-    noteRefs,
+    getNoteElement,
+    readerRootRef,
     selectedAnnotationId,
     surfaceRef,
     userProfile,

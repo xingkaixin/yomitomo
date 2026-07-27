@@ -47,6 +47,7 @@ import type { SourceBookcaseProps } from '../bookcase/app-source-bookcase';
 import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
 import { useRecentAnnotationFeedback } from '../bookcase/use-recent-annotation-feedback';
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
+import { useSourceReaderSurface } from '../bookcase/use-source-reader-surface';
 import {
   useReaderPageTurnKeys,
   type ReaderPageTurnDirection,
@@ -277,11 +278,16 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     onToggle: onToggleToc,
   } = toc;
   const { t } = useTranslation();
-  const articleRef = useRef<HTMLElement | null>(null);
-  const canvasRef = useRef<HTMLDivElement | null>(null);
-  const surfaceRef = useRef<HTMLDivElement | null>(null);
-  const notesRef = useRef<HTMLElement | null>(null);
-  const noteRefs = useRef(new Map<string, HTMLElement>());
+  const {
+    canvasRef,
+    getNoteElement,
+    getNoteElements,
+    handleRef: readerSurfaceRef,
+    railRef: notesRef,
+    rootRef: readerRootRef,
+    requestSelectionCopy: dispatchSelectionCopy,
+    viewportRef: surfaceRef,
+  } = useSourceReaderSurface();
   const { markAnnotationCreated, newAnnotationIds } = useRecentAnnotationFeedback(
     article.id,
     settings,
@@ -348,6 +354,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   const sourceReaderApp = useSourceReaderApp({
     articleActions,
     canvasRef,
+    onRequestSelectionCopy: dispatchSelectionCopy,
     createAgentAnnotationAdapter: ({ setStatusMessage }) =>
       createPdfiumSourceReaderController({
         enqueueAgentAnnotationPlayback: (articleId, annotation) =>
@@ -385,9 +392,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       clearPendingOnArticleChange: true,
       clearPendingOnDeleteAnnotation: true,
       onArticleChange,
-      onBeforeDeleteAnnotation: (annotationId) => {
-        noteRefs.current.delete(annotationId);
-      },
       uiLanguage,
       onOpenAnnotation,
       userProfile,
@@ -411,7 +415,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     agentDockCompleting,
     agentDockItems,
     clearAgentAnnotationPlayback,
-    completionBurstKey,
     finishPdfiumAgentDock,
     finishPdfiumVirtualCursor,
     finishPdfiumVirtualReading,
@@ -530,7 +533,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   useEffect(() => {
     if (!annotationRailLayout || !pdfLayoutDebugEnabled()) return;
     const pageWidth = firstVisiblePdfPageWidth(pageMetrics);
-    const noteWidths = Array.from(noteRefs.current.values())
+    const noteWidths = getNoteElements()
       .slice(0, 4)
       .map((note) => Math.round(note.getBoundingClientRect().width));
     debugPdfLayout('layout', {
@@ -547,7 +550,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     annotationRailLayout,
     annotationRailViewportWidth,
     layoutPageWidth,
-    noteRefs,
+    getNoteElements,
     pageMetrics,
     zoom,
   ]);
@@ -649,7 +652,8 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     annotations,
     boxes,
     canvasRef,
-    noteRefs,
+    getNoteElement,
+    readerRootRef,
     selectedAnnotationId,
     surfaceRef,
     userProfile,
@@ -1176,7 +1180,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       onRevealReaderChatContext: revealReaderChatContext,
     },
     agentPlayback: {
-      completionBurstKey,
       dockCompleting: agentDockCompleting,
       dockItems: agentDockItems,
       theaterBoxes: agentTheaterBoxes,
@@ -1241,13 +1244,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
         content: '',
       },
       id: article.id,
-    },
-    refs: {
-      articleRef,
-      canvasRef,
-      noteRefs,
-      notesRef,
-      surfaceRef,
     },
     toc: {
       activeIndex: activeTocIndex,
@@ -1353,7 +1349,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
           <span>{statusMessage}</span>
         </div>
       ) : null}
-      <ReaderAppView {...readerAppViewProps} />
+      <ReaderAppView {...readerAppViewProps} ref={readerSurfaceRef} />
     </section>
   );
 }

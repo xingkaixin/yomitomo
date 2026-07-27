@@ -43,6 +43,7 @@ import {
 } from './app-source-bookcase-web-utils';
 import { createWebSourceReaderController } from './app-source-bookcase-web-controller';
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
+import { useSourceReaderSurface } from '../bookcase/use-source-reader-surface';
 import { useReaderSearchNavigation } from '../bookcase/use-reader-search-navigation';
 import { useSourceReadingProgressSaver } from '../bookcase/use-source-reading-progress-saver';
 import { createWebReadingProgressFrame } from './web-reading-progress-frame';
@@ -69,12 +70,17 @@ export function WebSourceBookcase({
 }: WebSourceBookcaseProps) {
   const { mergeArticleAgentAnnotation, saveArticleReadingProgress } = articleActions;
   const { t } = useTranslation();
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const articleRef = useRef<HTMLElement | null>(null);
-  const canvasRef = useRef<HTMLDivElement | null>(null);
-  const railRef = useRef<HTMLElement | null>(null);
+  const {
+    articleRef,
+    canvasRef,
+    getNoteElement,
+    handleRef: readerSurfaceRef,
+    railRef,
+    rootRef: readerRootRef,
+    requestSelectionCopy: dispatchSelectionCopy,
+    viewportRef: scrollRef,
+  } = useSourceReaderSurface();
   const restoredWebProgressArticleRef = useRef<string | null>(null);
-  const noteRefs = useRef(new Map<string, HTMLElement>());
   const { markAnnotationCreated, newAnnotationIds } = useRecentAnnotationFeedback(
     article.id,
     settings,
@@ -104,6 +110,7 @@ export function WebSourceBookcase({
     canvasRef,
     getArticleText: currentArticleText,
     messageSendShortcut,
+    onRequestSelectionCopy: dispatchSelectionCopy,
     selectionActionShortcuts,
     session: {
       agents,
@@ -113,9 +120,6 @@ export function WebSourceBookcase({
       clearPendingOnArticleChange: true,
       clearPendingOnDeleteAnnotation: true,
       uiLanguage,
-      onBeforeDeleteAnnotation: (annotationId) => {
-        noteRefs.current.delete(annotationId);
-      },
       onOpenAnnotation: openAnnotation,
       userProfile,
     },
@@ -180,7 +184,8 @@ export function WebSourceBookcase({
     annotations,
     boxes,
     canvasRef,
-    noteRefs,
+    getNoteElement,
+    readerRootRef,
     selectedAnnotationId,
     surfaceRef: scrollRef,
     userProfile,
@@ -224,7 +229,6 @@ export function WebSourceBookcase({
     agentDockItems,
     agentTheaterBoxes,
     annotatingAgents: annotatingAgentIds,
-    completionBurstKey,
     virtualCursors,
     cleanupVirtualReadingSessions,
     enqueueAgentAnnotation,
@@ -835,7 +839,6 @@ export function WebSourceBookcase({
       onRevealReaderChatContext: revealReaderChatContext,
     },
     agentPlayback: {
-      completionBurstKey,
       dockCompleting: agentDockCompleting,
       dockItems: agentDockItems,
       theaterBoxes: agentTheaterBoxes,
@@ -870,13 +873,6 @@ export function WebSourceBookcase({
       extracted: readerArticle,
       id: article.id,
     },
-    refs: {
-      articleRef,
-      canvasRef,
-      noteRefs,
-      notesRef: railRef,
-      surfaceRef: scrollRef,
-    },
     toc: {
       activeIndex: activeTocIndex,
       annotationStats: tocStats,
@@ -908,7 +904,7 @@ export function WebSourceBookcase({
   return (
     <section className="source-bookcase source-reader-shell">
       <style>{`${readerDesktopEmbeddedBundleStyles}\n${sourceReaderTocStyles}`}</style>
-      <ReaderAppView {...readerAppViewProps} />
+      <ReaderAppView {...readerAppViewProps} ref={readerSurfaceRef} />
       {bilingualTranslation.dialog}
     </section>
   );
