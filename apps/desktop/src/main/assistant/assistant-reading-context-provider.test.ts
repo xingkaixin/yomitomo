@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, ArticleRecord, ReadingMemoryEntry } from '@yomitomo/shared';
 import { createTextAnchor } from '@yomitomo/shared';
 import { createAgentMessageReadingContextSnapshot } from './assistant-reading-tools';
@@ -9,6 +9,22 @@ import {
   appendReadingMemoryEntries,
   type ReadingMemorySqliteExecutor,
 } from '../reading-memory/reading-memory-store';
+
+const coreMocks = vi.hoisted(() => ({
+  buildCurrentChapterLexicalRelatedPassages: vi.fn(),
+  createLexicalRelatedPassageCache: vi.fn(),
+}));
+
+vi.mock('@yomitomo/core', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@yomitomo/core')>()),
+  buildCurrentChapterLexicalRelatedPassages: coreMocks.buildCurrentChapterLexicalRelatedPassages,
+  createLexicalRelatedPassageCache: coreMocks.createLexicalRelatedPassageCache,
+}));
+
+beforeEach(() => {
+  coreMocks.buildCurrentChapterLexicalRelatedPassages.mockReset();
+  coreMocks.createLexicalRelatedPassageCache.mockReset();
+});
 
 describe('assistant reading context provider', () => {
   it('returns current thread and fallback passage evidence', () => {
@@ -39,6 +55,34 @@ describe('assistant reading context provider', () => {
         sourceType: 'original_text',
       },
     });
+  });
+
+  it('reuses one lexical cache across repeated EPUB passage searches', () => {
+    const lexicalCache = { kind: 'lexical-related-passage-cache' as const };
+    const ebookIndex = {} as NonNullable<ArticleRecord['ebook']>['index'];
+    coreMocks.createLexicalRelatedPassageCache.mockReturnValue(lexicalCache);
+    coreMocks.buildCurrentChapterLexicalRelatedPassages.mockReturnValue([]);
+    const provider = createAssistantReadingContextProvider({
+      article: {
+        ...articleRecord(),
+        ebook: { index: ebookIndex } as ArticleRecord['ebook'],
+      },
+      articleText: articleText(),
+      agentId: 'agent_1',
+    });
+
+    provider.searchArticlePassages({ query: '选择压力' });
+    provider.searchArticlePassages({ query: '目标观点' });
+
+    expect(coreMocks.createLexicalRelatedPassageCache).toHaveBeenCalledOnce();
+    expect(coreMocks.buildCurrentChapterLexicalRelatedPassages).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ ebookIndex, lexicalCache, query: '选择压力' }),
+    );
+    expect(coreMocks.buildCurrentChapterLexicalRelatedPassages).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ ebookIndex, lexicalCache, query: '目标观点' }),
+    );
   });
 
   it('builds fast prompt memory evidence snapshots', () => {
