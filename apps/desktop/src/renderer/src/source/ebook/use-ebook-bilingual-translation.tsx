@@ -13,12 +13,12 @@ import {
   ReaderTranslationToolbarButton,
   type TranslationConfirmAction,
 } from '../bookcase/reader-translation-controls';
+import { ebookChapterForFoliateSection } from './ebook-content';
 import {
   currentFoliateContent,
   currentFoliateContents,
-  ebookChapterForFoliateSection,
   type FoliateViewElement,
-} from './app-ebook-reader-utils';
+} from './ebook-foliate-view';
 import { useTranslation } from 'react-i18next';
 
 type ActiveEbookTranslationSource = {

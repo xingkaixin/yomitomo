@@ -4,12 +4,9 @@ import type { Annotation, PublicAgent } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
 import type { VirtualCursorState } from '@yomitomo/reader-ui/reader-types';
 import { useAgentReadingDock } from '@yomitomo/reader-ui/use-agent-reading-dock';
-import {
-  currentFoliateContent,
-  lastFoliateRangeViewportRect,
-  rangeForEbookAnchorCursorInDocument,
-  type FoliateViewElement,
-} from './app-ebook-reader-utils';
+import { lastFoliateRangeViewportRect } from './ebook-annotation-layout';
+import { currentFoliateContent, type FoliateViewElement } from './ebook-foliate-view';
+import { rangeForEbookAnchorCursorInDocument } from './ebook-text-anchor';
 
 type UseEbookAgentVirtualReadingInput = {
   agents: PublicAgent[];

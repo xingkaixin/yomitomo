@@ -16,9 +16,12 @@ vi.mock('@yomitomo/reader-ui/reader-animation', () => ({
   sleep: mocks.sleep,
 }));
 
-vi.mock('../source/ebook/app-ebook-reader-utils', () => ({
+vi.mock('../source/ebook/ebook-annotation-layout', () => ({
   foliateRangeHighlightBoxes: mocks.foliateRangeHighlightBoxes,
   mappedFoliateRangeRects: mocks.mappedFoliateRangeRects,
+}));
+
+vi.mock('../source/ebook/ebook-text-anchor', () => ({
   rangeForEbookAnchorInDocument: mocks.rangeForEbookAnchorInDocument,
 }));
 

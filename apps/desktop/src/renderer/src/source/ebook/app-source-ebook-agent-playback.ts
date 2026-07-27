@@ -3,11 +3,8 @@ import type { Annotation, PublicAgent } from '@yomitomo/shared';
 import { annotationAuthorName, type HighlightBox } from '@yomitomo/core';
 import type { VirtualCursorState } from '@yomitomo/reader-ui/reader-types';
 import { animateTheaterHighlight, sleep } from '@yomitomo/reader-ui/reader-animation';
-import {
-  foliateRangeHighlightBoxes,
-  mappedFoliateRangeRects,
-  rangeForEbookAnchorInDocument,
-} from './app-ebook-reader-utils';
+import { foliateRangeHighlightBoxes, mappedFoliateRangeRects } from './ebook-annotation-layout';
+import { rangeForEbookAnchorInDocument } from './ebook-text-anchor';
 
 type PlayEbookAgentAnnotationPlaybackOptions = {
   articleId: string;
