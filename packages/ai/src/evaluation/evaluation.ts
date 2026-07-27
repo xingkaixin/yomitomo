@@ -6,6 +6,7 @@ import type {
   AssistantRuntimeResultStatus,
   TextRange,
 } from '@yomitomo/shared';
+import { uniqueNonEmptyStrings } from '@yomitomo/shared';
 import { locateEpubTextAnchor, rangeDistance } from '@yomitomo/core';
 
 export const epubEvaluationBookTypes = [
@@ -556,7 +557,7 @@ function evaluationSegmentIds(evaluationCase: EpubEvaluationCase) {
   const readingPlan = evaluationCase.input.payload.readingPlan || [];
   if (!index || readingPlan.length === 0) return [];
 
-  return uniqueStrings(
+  return uniqueNonEmptyStrings(
     readingPlan.flatMap((plan) =>
       index.segments
         .filter(
@@ -591,10 +592,6 @@ function caseArticle(evaluationCase: EpubEvaluationCase) {
 
 function normalizeText(text: string) {
   return text.replace(/\s+/g, ' ').trim().toLowerCase();
-}
-
-function uniqueStrings(values: string[]) {
-  return values.filter((value, index, list) => Boolean(value) && list.indexOf(value) === index);
 }
 
 function numericValue(value: unknown) {

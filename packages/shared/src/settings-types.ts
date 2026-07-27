@@ -1,4 +1,5 @@
 import { ARTICLE_SOURCE_TYPES } from './sources/article-types';
+import { isRecord } from './runtime-guards';
 
 export type MessageSendShortcut = 'enter' | 'mod-enter';
 
@@ -103,8 +104,4 @@ export function normalizeLibraryContentSources(value: unknown): LibraryContentSo
 
 function isLibraryContentSourceId(value: unknown): value is LibraryContentSourceId {
   return defaultLibraryContentSourceOrder.some((sourceId) => sourceId === value);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object';
 }

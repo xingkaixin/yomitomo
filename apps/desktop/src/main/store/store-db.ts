@@ -5,6 +5,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { app } from 'electron';
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type SQLiteDatabase from 'better-sqlite3';
+import { finiteNumberFieldOrZero, recordField, stringField } from '@yomitomo/shared';
 import {
   assertDatabaseReaderCompatible,
   databaseReaderCompatibility,
@@ -349,22 +350,6 @@ CREATE TABLE IF NOT EXISTS __yomitomo_migrations (
   writeDatabaseReaderLevel(database, compatibility.requiredReaderLevel);
 }
 
-function recordField(input: unknown, field: string): unknown {
-  return isRecord(input) ? input[field] : undefined;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function stringField(value: unknown) {
-  return typeof value === 'string' ? value : '';
-}
-
-function numberField(value: unknown) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
-}
-
 function ensureSqliteMaintenanceStateTable(database: SqliteMaintenanceDatabase) {
   database.exec(`
 CREATE TABLE IF NOT EXISTS database_maintenance_state (
@@ -376,7 +361,7 @@ CREATE TABLE IF NOT EXISTS database_maintenance_state (
 }
 
 function sqlitePragmaNumber(database: SqliteMaintenanceDatabase, name: string) {
-  return numberField(recordField(database.prepare(`PRAGMA ${name}`).get(), name));
+  return finiteNumberFieldOrZero(recordField(database.prepare(`PRAGMA ${name}`).get(), name));
 }
 
 function readSqliteMaintenanceLastVacuumAt(database: SqliteMaintenanceDatabase) {

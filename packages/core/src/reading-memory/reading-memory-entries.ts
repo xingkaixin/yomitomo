@@ -13,7 +13,7 @@ import type {
   TextSummary,
   TextRange,
 } from '@yomitomo/shared';
-import { createTextAnchor } from '@yomitomo/shared';
+import { createTextAnchor, isRecord, uniqueTrimmedStrings } from '@yomitomo/shared';
 import { createEpubTextAnchor } from '../epub/ebook-index';
 
 const ENTRY_KINDS = new Set<ReadingMemoryEntryKind>([
@@ -64,7 +64,7 @@ export function normalizeReadingMemoryEntry(entry: ReadingMemoryEntry): ReadingM
   return {
     ...entry,
     textRange: textRange || undefined,
-    sourceEntryIds: uniqueStrings(entry.sourceEntryIds || []),
+    sourceEntryIds: uniqueTrimmedStrings(entry.sourceEntryIds || []),
   };
 }
 
@@ -320,18 +320,6 @@ function normalizeTextRange(range: TextRange | undefined) {
   return range;
 }
 
-function uniqueStrings(values: string[]) {
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const value of values) {
-    const text = value.trim();
-    if (!text || seen.has(text)) continue;
-    seen.add(text);
-    result.push(text);
-  }
-  return result;
-}
-
 function collectSearchTextParts(value: unknown): string[] {
   if (typeof value === 'string') return [value];
   if (typeof value !== 'object' || value === null) return [];
@@ -487,10 +475,6 @@ function stringifyCorrectionReplacement(value: unknown) {
   } catch {
     return String(value);
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function latestUpdatedAt(entries: ReadingMemoryEntry[]) {

@@ -300,3 +300,18 @@ export {
 } from './agents/agent-presets';
 
 export { readingPartnerSoul as defaultAgentSoul } from './agents/agent-presets';
+
+export {
+  errorMessage,
+  errorMessageOrFallback,
+  finiteNumberField,
+  finiteNumberFieldOrZero,
+  isRecord,
+  numberField,
+  recordField,
+  stringField,
+  trimmedStringField,
+  uniqueNonEmptyStrings,
+  uniqueStrings,
+  uniqueTrimmedStrings,
+} from './runtime-guards';

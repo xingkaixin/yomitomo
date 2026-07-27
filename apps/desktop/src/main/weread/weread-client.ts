@@ -10,6 +10,7 @@ import type {
   WeReadThought,
   WeReadUser,
 } from '@yomitomo/shared';
+import { errorMessage, isRecord } from '@yomitomo/shared';
 import { Effect } from 'effect';
 import { withTimeoutAbortSignalEffect } from '../effect-abort-signal';
 
@@ -314,10 +315,6 @@ function requestWeReadEffect(
   );
 }
 
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
-}
-
 function isAbortError(error: unknown) {
   return error instanceof Error && error.name === 'AbortError';
 }
@@ -509,10 +506,6 @@ function numberArrayFromResponse(value: unknown) {
 
 function objectValue(value: unknown) {
   return isRecord(value) ? value : undefined;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function arrayValue(value: unknown): Record<string, unknown>[] {

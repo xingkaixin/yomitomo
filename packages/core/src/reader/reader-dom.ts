@@ -1,4 +1,4 @@
-import { alphaColor, defaultUserAnnotationColor } from '@yomitomo/shared';
+import { alphaColor, defaultUserAnnotationColor, uniqueStrings } from '@yomitomo/shared';
 
 export type HighlightBox = {
   id: string;
@@ -641,15 +641,6 @@ function insertActiveHighlightContributor(
 function removeActiveHighlightContributor(active: ActiveHighlightContributor[], box: HighlightBox) {
   const index = active.findIndex((item) => item.box === box);
   if (index >= 0) active.splice(index, 1);
-}
-
-function uniqueStrings(values: string[]) {
-  const seen = new Set<string>();
-  return values.filter((value) => {
-    if (seen.has(value)) return false;
-    seen.add(value);
-    return true;
-  });
 }
 
 function uniqueContributors(boxes: HighlightBox[]) {

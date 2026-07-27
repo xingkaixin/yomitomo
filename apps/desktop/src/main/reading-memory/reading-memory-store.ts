@@ -6,6 +6,7 @@ import type {
   ReadingMemoryView,
   TextRange,
 } from '@yomitomo/shared';
+import { recordField, uniqueNonEmptyStrings } from '@yomitomo/shared';
 import {
   applySupersededEntryFilter,
   normalizeReadingMemoryEntry,
@@ -318,7 +319,7 @@ function readReadingMemoryEntriesByIds(
     'articleId' | 'agentId' | 'excludeAgentId' | 'requireAgentId' | 'visibility' | 'executor'
   > & { ids: string[] },
 ) {
-  const ids = uniqueStrings(options.ids);
+  const ids = uniqueNonEmptyStrings(options.ids);
   if (ids.length === 0) return [];
   const executor = options.executor || defaultExecutor();
   const { where, values } = readingMemoryWhereClause({
@@ -642,7 +643,7 @@ function upsertFtsRow(
 }
 
 function deleteFtsRows(executor: ReadingMemorySqliteExecutor, entryIds: string[]) {
-  const ids = uniqueStrings(entryIds);
+  const ids = uniqueNonEmptyStrings(entryIds);
   if (ids.length === 0) return;
   for (const chunk of chunks(ids, 200)) {
     executor
@@ -743,7 +744,7 @@ function addProgressClause(
   progress: ReaderProgress | undefined,
 ) {
   if (!progress) return;
-  const readChapterIds = uniqueStrings(progress.readChapterIds);
+  const readChapterIds = uniqueNonEmptyStrings(progress.readChapterIds);
   const chapterClauses = ['chapter_id IS NULL', 'chapter_id = ?'];
   const chapterValues: SqliteValue[] = [progress.currentChapterId];
   if (readChapterIds.length > 0) {
@@ -910,14 +911,6 @@ function stringValue(value: unknown) {
   return typeof value === 'string' ? value : '';
 }
 
-function recordField(input: unknown, field: string): unknown {
-  return isRecord(input) ? input[field] : undefined;
-}
-
-function uniqueStrings(values: string[]) {
-  return Array.from(new Set(values.filter(Boolean)));
-}
-
 function chunks<T>(values: T[], size: number) {
   const result: T[][] = [];
   for (let index = 0; index < values.length; index += size) {
@@ -932,8 +925,4 @@ function questionMarks(count: number) {
 
 function escapeSqlLike(value: string) {
   return value.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_');
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

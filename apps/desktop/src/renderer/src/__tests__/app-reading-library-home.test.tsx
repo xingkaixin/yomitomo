@@ -1030,6 +1030,20 @@ describe('ReadingLibrary home', () => {
     );
   });
 
+  it('falls back to user-facing copy when a pin error has no message', async () => {
+    const onSetLibraryPin = vi.fn().mockRejectedValue(new Error(''));
+    renderLibrary([article({ title: '空错误文章' })], { onSetLibraryPin });
+
+    fireEvent.click(screen.getByRole('button', { name: '更多操作：空错误文章' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '置顶' }));
+
+    await waitFor(() =>
+      expect(appToast.error).toHaveBeenCalledWith('置顶状态保存失败', {
+        description: '置顶状态保存失败',
+      }),
+    );
+  });
+
   it('marks collection card actions active while the menu is open', () => {
     const collection: Collection = {
       id: 'collection_menu',

@@ -6,6 +6,7 @@ import type {
   DesktopStore,
   LibraryPinPatch,
 } from '@yomitomo/shared';
+import { isRecord } from '@yomitomo/shared';
 import { getLogPath, logError, logInfo } from './app/logger';
 import { configureDesktopAppStorage } from './app/app-environment';
 import { normalizeExternalUrlForOpen } from './app/external-url';
@@ -578,10 +579,6 @@ function recordStartupTiming(event: string, data: Record<string, unknown> = {}) 
 
 function elapsedMs(startedAt: number) {
   return Number((performance.now() - startedAt).toFixed(2));
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
 async function openExternalUrl(value: string) {

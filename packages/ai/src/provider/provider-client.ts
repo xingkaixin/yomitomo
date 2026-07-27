@@ -1,5 +1,5 @@
 import type { LlmProvider, ProviderModel } from '@yomitomo/shared';
-import { providerPresets } from '@yomitomo/shared';
+import { errorMessage, providerPresets } from '@yomitomo/shared';
 import { Effect, Schema } from 'effect';
 import { normalizeAnthropicError } from './budget';
 import { geminiBaseUrl, openAIBaseUrl } from './ai-sdk-provider-adapter';
@@ -215,10 +215,6 @@ function modelListErrorEffect(response: Response) {
     const text = yield* responseTextEffect(response);
     return `Provider request failed: ${response.status} ${text.slice(0, 400)}`;
   });
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
 }
 
 function trimSlash(value: string) {

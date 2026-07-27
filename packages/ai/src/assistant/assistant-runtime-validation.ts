@@ -7,6 +7,7 @@ import type {
   AnnotationDistillationReviewStance,
   TextAnchor,
 } from '@yomitomo/shared';
+import { finiteNumberField, isRecord, trimmedStringField } from '@yomitomo/shared';
 import type { AssistantFinalAction } from './assistant-runtime-types';
 
 export function validateAssistantFinalAction(
@@ -19,21 +20,21 @@ export function validateAssistantFinalAction(
   },
 ): { ok: true; action: AssistantFinalAction } | { ok: false; reason: string } {
   if (!isRecord(value)) return { ok: false, reason: 'final_action_not_object' };
-  const type = stringField(value.type);
+  const type = trimmedStringField(value.type);
   const evidenceIds = evidenceIdArray(value);
   if (!evidenceIds) return { ok: false, reason: 'invalid_evidence_ids' };
   const unknownEvidenceId = evidenceIds.find((id) => !context.evidenceIds.has(id));
   if (unknownEvidenceId) return { ok: false, reason: `unknown_evidence:${unknownEvidenceId}` };
-  const confidence = numberField(value.confidence);
+  const confidence = finiteNumberField(value.confidence);
   if (confidence === undefined || confidence < 0 || confidence > 1) {
     return { ok: false, reason: 'invalid_confidence' };
   }
-  const reason = stringField(value.reason);
+  const reason = trimmedStringField(value.reason);
   if (!reason) return { ok: false, reason: 'missing_reason' };
 
   if (type === 'reply_to_thread') {
-    const annotationId = stringField(value.annotationId);
-    const content = stringField(value.content);
+    const annotationId = trimmedStringField(value.annotationId);
+    const content = trimmedStringField(value.content);
     if (!annotationId) return { ok: false, reason: 'missing_annotation_id' };
     if (context.allowedAnnotationIds && !context.allowedAnnotationIds.includes(annotationId)) {
       return { ok: false, reason: 'annotation_not_allowed' };
@@ -48,7 +49,7 @@ export function validateAssistantFinalAction(
   if (type === 'add_annotation') {
     const anchor = isTextAnchor(value.anchor) ? value.anchor : context.addAnnotationAnchor;
     if (!anchor) return { ok: false, reason: 'invalid_anchor' };
-    const thought = stringField(value.thought);
+    const thought = trimmedStringField(value.thought);
     if (!thought) return { ok: false, reason: 'missing_thought' };
     return {
       ok: true,
@@ -57,8 +58,8 @@ export function validateAssistantFinalAction(
   }
 
   if (type === 'create_thread_thought') {
-    const annotationId = stringField(value.annotationId);
-    const thought = stringField(value.thought);
+    const annotationId = trimmedStringField(value.annotationId);
+    const thought = trimmedStringField(value.thought);
     if (!annotationId) return { ok: false, reason: 'missing_annotation_id' };
     if (context.allowedAnnotationIds && !context.allowedAnnotationIds.includes(annotationId)) {
       return { ok: false, reason: 'annotation_not_allowed' };
@@ -71,8 +72,8 @@ export function validateAssistantFinalAction(
   }
 
   if (type === 'review_distillation') {
-    const annotationId = stringField(value.annotationId);
-    const content = stringField(value.content);
+    const annotationId = trimmedStringField(value.annotationId);
+    const content = trimmedStringField(value.content);
     if (!annotationId) return { ok: false, reason: 'missing_annotation_id' };
     if (context.allowedAnnotationIds && !context.allowedAnnotationIds.includes(annotationId)) {
       return { ok: false, reason: 'annotation_not_allowed' };
@@ -113,8 +114,8 @@ export function validateAssistantFinalAction(
 
 function isTextAnchor(value: unknown): value is TextAnchor {
   if (!isRecord(value)) return false;
-  const start = numberField(value.start);
-  const end = numberField(value.end);
+  const start = finiteNumberField(value.start);
+  const end = finiteNumberField(value.end);
   return (
     typeof value.exact === 'string' &&
     typeof value.prefix === 'string' &&
@@ -123,14 +124,6 @@ function isTextAnchor(value: unknown): value is TextAnchor {
     end !== undefined &&
     start <= end
   );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function stringField(value: unknown) {
-  return typeof value === 'string' ? value.trim() : '';
 }
 
 function stringArray(value: unknown) {
@@ -144,26 +137,26 @@ function proposalArray(value: unknown): AnnotationDistillationProposal[] {
     if (!isRecord(item)) return [];
     const kind = proposalKind(item.kind);
     if (!kind) return [];
-    const content = stringField(item.content);
-    const targetText = stringField(item.targetText);
-    const replacementText = stringField(item.replacementText);
+    const content = trimmedStringField(item.content);
+    const targetText = trimmedStringField(item.targetText);
+    const replacementText = trimmedStringField(item.replacementText);
     if (!validProposalFields(kind, content, targetText, replacementText)) return [];
     return [
       {
-        id: stringField(item.id) || `${kind}_${index + 1}`,
+        id: trimmedStringField(item.id) || `${kind}_${index + 1}`,
         kind,
         status: 'pending',
-        title: stringField(item.title) || proposalTitle(kind, content, targetText),
-        rationale: stringField(item.rationale) || undefined,
-        insertAfterText: stringField(item.insertAfterText) || undefined,
+        title: trimmedStringField(item.title) || proposalTitle(kind, content, targetText),
+        rationale: trimmedStringField(item.rationale) || undefined,
+        insertAfterText: trimmedStringField(item.insertAfterText) || undefined,
         targetText: targetText || undefined,
         replacementText: kind === 'replace' ? replacementText : undefined,
         content: kind === 'insert' ? content : undefined,
-        sourceDraftHash: stringField(item.sourceDraftHash) || undefined,
-        sourceReviewSessionId: stringField(item.sourceReviewSessionId) || undefined,
-        sourceReviewMessageId: stringField(item.sourceReviewMessageId) || undefined,
-        sourceAgentId: stringField(item.sourceAgentId) || undefined,
-        updatedAt: stringField(item.updatedAt),
+        sourceDraftHash: trimmedStringField(item.sourceDraftHash) || undefined,
+        sourceReviewSessionId: trimmedStringField(item.sourceReviewSessionId) || undefined,
+        sourceReviewMessageId: trimmedStringField(item.sourceReviewMessageId) || undefined,
+        sourceAgentId: trimmedStringField(item.sourceAgentId) || undefined,
+        updatedAt: trimmedStringField(item.updatedAt),
       },
     ];
   });
@@ -178,10 +171,10 @@ function reviewItemArray(value: unknown): AnnotationDistillationReviewItem[] {
   return value.flatMap<AnnotationDistillationReviewItem>(
     (item): AnnotationDistillationReviewItem[] => {
       if (!isRecord(item)) return [];
-      const id = stringField(item.id);
+      const id = trimmedStringField(item.id);
       if (!id) return [];
       if (item.type === 'overview') {
-        const content = stringField(item.content);
+        const content = trimmedStringField(item.content);
         if (!content) return [];
         return [
           {
@@ -193,8 +186,8 @@ function reviewItemArray(value: unknown): AnnotationDistillationReviewItem[] {
         ];
       }
       if (item.type === 'finding') {
-        const title = stringField(item.title);
-        const content = stringField(item.content);
+        const title = trimmedStringField(item.title);
+        const content = trimmedStringField(item.content);
         if (!title || !content) return [];
         return [
           {
@@ -204,7 +197,7 @@ function reviewItemArray(value: unknown): AnnotationDistillationReviewItem[] {
             severity: reviewFindingSeverity(item.severity),
             title,
             content,
-            draftTargetText: stringField(item.draftTargetText) || undefined,
+            draftTargetText: trimmedStringField(item.draftTargetText) || undefined,
           },
         ];
       }
@@ -271,8 +264,4 @@ function hasWritableValue(value: unknown) {
   if (value === undefined || value === null) return false;
   if (typeof value === 'string') return value.trim().length > 0;
   return true;
-}
-
-function numberField(value: unknown) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }

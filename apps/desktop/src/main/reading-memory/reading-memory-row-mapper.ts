@@ -6,6 +6,7 @@ import type {
   ReadingMemoryVisibility,
   TextAnchor,
 } from '@yomitomo/shared';
+import { isRecord } from '@yomitomo/shared';
 import { normalizeReadingMemoryEntry } from '@yomitomo/core';
 
 export type SqliteValue = string | number | null;
@@ -145,10 +146,6 @@ function jsonTextAnchor(value: unknown): TextAnchor | undefined {
 
 function optionalNumber(value: unknown) {
   return typeof value === 'number' ? value : undefined;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function normalizeMemoryKind(value: unknown): ReadingMemoryEntryKind {

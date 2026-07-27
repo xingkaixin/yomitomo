@@ -4,6 +4,7 @@ import electronUpdater, {
   type UpdateDownloadedEvent,
   type UpdateInfo,
 } from 'electron-updater';
+import { errorMessageOrFallback } from '@yomitomo/shared';
 import type { AppUpdateState, AppUpdateTrigger } from '../../app-update-types';
 import { logError, logInfo } from './logger';
 
@@ -97,7 +98,7 @@ export async function checkForAppUpdates(trigger: AppUpdateTrigger = 'manual') {
       logError('updater.check-failed', error);
       return setUpdateState({
         status: 'error',
-        message: errorMessage(error, 'UPDATE_CHECK_FAILED'),
+        message: errorMessageOrFallback(error, 'UPDATE_CHECK_FAILED'),
       });
     })
     .finally(() => {
@@ -139,7 +140,7 @@ export async function downloadAppUpdate() {
       return setUpdateState({
         status: 'error',
         availableVersion: updateState.availableVersion,
-        message: errorMessage(error, 'UPDATE_DOWNLOAD_FAILED'),
+        message: errorMessageOrFallback(error, 'UPDATE_DOWNLOAD_FAILED'),
       });
     })
     .finally(() => {
@@ -229,10 +230,6 @@ function updateDownloadedState(event: UpdateDownloadedEvent): AppUpdateState {
     releaseDate: event.releaseDate,
     checkedAt: new Date().toISOString(),
   };
-}
-
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 function logMessage(message: unknown) {

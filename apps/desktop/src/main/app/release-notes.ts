@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { app } from 'electron';
 import {
+  isRecord,
   normalizeUiLanguage,
   type ReleaseNoteHighlight,
   type UiLanguage,
@@ -114,8 +115,4 @@ function isHighlight(value: unknown): value is ReleaseNoteHighlight {
     typeof value.type === 'string' &&
     HIGHLIGHT_TYPES.has(value.type as ReleaseNoteHighlight['type'])
   );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }

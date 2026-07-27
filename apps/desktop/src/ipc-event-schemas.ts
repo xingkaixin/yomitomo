@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isRecord } from '@yomitomo/shared';
 import type {
   DesktopIpcStreamChannel,
   DesktopIpcStreamRequest,
@@ -411,8 +412,4 @@ function payloadBoundaryIssue(root: unknown) {
 function safeRequestId(request: unknown) {
   if (!isRecord(request)) return undefined;
   return isDesktopIpcStreamRequestId(request.requestId) ? request.requestId : undefined;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

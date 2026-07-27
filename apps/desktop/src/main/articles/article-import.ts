@@ -9,6 +9,7 @@ import {
   type WebContents,
 } from 'electron';
 import type { ArticleRecord } from '@yomitomo/shared';
+import { isRecord, recordField, stringField } from '@yomitomo/shared';
 import { Effect } from 'effect';
 import {
   assertAllowedArticleImportUrl,
@@ -684,18 +685,6 @@ function throwIfArticleImportCanceledEffect(signal: AbortSignal) {
 
 function errorFromUnknown(error: unknown, fallback: string) {
   return error instanceof Error ? error : new Error(fallback);
-}
-
-function recordField(input: unknown, field: string): unknown {
-  return isRecord(input) ? input[field] : undefined;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function stringField(value: unknown) {
-  return typeof value === 'string' ? value : '';
 }
 
 function isChallengeHtml(html: string) {

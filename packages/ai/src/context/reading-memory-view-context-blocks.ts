@@ -8,6 +8,7 @@ import type {
   SourceLabeledContextBlock,
   TraceItem,
 } from '@yomitomo/shared';
+import { isRecord, trimmedStringField } from '@yomitomo/shared';
 
 export function readingMemoryViewContextBlocks(
   view: ReadingMemoryView | undefined,
@@ -63,21 +64,21 @@ function memoryEntryBlockText(entry: ReadingMemoryEntry) {
 function memorySourcePayloadText(entry: ReadingMemoryEntry) {
   if (!isRecord(entry.payload)) return '';
   const payload = entry.payload as Record<string, unknown>;
-  const source = stringField(payload.source);
-  const author = stringField(payload.author);
+  const source = trimmedStringField(payload.source);
+  const author = trimmedStringField(payload.author);
   const authorPrefix = author ? `${author} ` : '';
 
   if (source === 'comment') {
-    const content = stringField(payload.content);
+    const content = trimmedStringField(payload.content);
     if (!content) return '';
     return `${authorPrefix}comment: ${content}`;
   }
 
   if (source === 'annotation') {
-    const anchorExact = stringField(payload.anchorExact);
-    const annotationType = stringField(payload.annotationType);
-    const readingIntent = stringField(payload.readingIntent);
-    const whyHere = stringField(payload.whyHere);
+    const anchorExact = trimmedStringField(payload.anchorExact);
+    const annotationType = trimmedStringField(payload.annotationType);
+    const readingIntent = trimmedStringField(payload.readingIntent);
+    const whyHere = trimmedStringField(payload.whyHere);
     const parts = [
       anchorExact ? `selection: ${anchorExact}` : '',
       annotationType ? `type: ${annotationType}` : '',
@@ -131,10 +132,6 @@ function isCorrectionPayload(
   return typeof (payload as Record<string, unknown>).reason === 'string';
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 function stringifyValue(value: unknown) {
   if (typeof value === 'string') return value;
   try {
@@ -142,8 +139,4 @@ function stringifyValue(value: unknown) {
   } catch {
     return String(value);
   }
-}
-
-function stringField(value: unknown) {
-  return typeof value === 'string' ? value.trim() : '';
 }

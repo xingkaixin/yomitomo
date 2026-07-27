@@ -13,7 +13,7 @@ import type {
   WeReadReadingStatsSnapshot,
   WeReadReadingStatsState,
 } from '@yomitomo/shared';
-import { formatDateTimeValue } from '@yomitomo/shared';
+import { errorMessageOrFallback, formatDateTimeValue } from '@yomitomo/shared';
 import { Button } from '../components/ui/button';
 import { SegmentedControl } from '../components/ui/segmented-control';
 import { appToast } from '../shell/app-toast';
@@ -43,7 +43,8 @@ export function WeReadReadingStatsPanel() {
         if (!canceled) setState(nextState);
       })
       .catch((error: unknown) => {
-        if (!canceled) setMessage(errorMessage(error, t('readingStats.weread.cacheReadFailed')));
+        if (!canceled)
+          setMessage(errorMessageOrFallback(error, t('readingStats.weread.cacheReadFailed')));
       });
     return () => {
       canceled = true;
@@ -80,7 +81,7 @@ export function WeReadReadingStatsPanel() {
             }),
       });
     } catch (error) {
-      const failureMessage = errorMessage(error, t('readingStats.weread.queryFailed'));
+      const failureMessage = errorMessageOrFallback(error, t('readingStats.weread.queryFailed'));
       setMessage(failureMessage);
       appToast.error(t('readingStats.weread.queryFailed'), { description: failureMessage });
     } finally {
@@ -343,8 +344,4 @@ function formatDateTime(value: string) {
     hour: '2-digit',
     minute: '2-digit',
   });
-}
-
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
 }

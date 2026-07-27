@@ -4,6 +4,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import type { LanguageModel } from 'ai';
 import type { LlmProvider, ReasoningEffort } from '@yomitomo/shared';
+import { finiteNumberField } from '@yomitomo/shared';
 
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 type ProviderOptions = Record<string, { [key: string]: JsonValue | undefined }>;
@@ -69,7 +70,7 @@ export function createYomitomoLanguageModel(provider: LlmProvider): YomitomoLang
     supportsStructuredOutputs: supportsOpenAICompatibleStructuredOutput(provider),
     transformRequestBody: (body) => ({
       ...body,
-      ...openAICompatibleReasoningParams(provider, numberField(body.max_tokens) || 0),
+      ...openAICompatibleReasoningParams(provider, finiteNumberField(body.max_tokens) || 0),
     }),
   });
 
@@ -197,8 +198,4 @@ export function geminiBaseUrl(baseUrl: string) {
 
 function trimSlash(value: string) {
   return value.replace(/\/+$/, '');
-}
-
-function numberField(value: unknown) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }

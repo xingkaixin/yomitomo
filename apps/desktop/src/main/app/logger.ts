@@ -2,6 +2,7 @@ import { constants } from 'node:fs';
 import { appendFile, copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { app } from 'electron';
+import { isRecord, recordField } from '@yomitomo/shared';
 
 const LOG_FILE_NAME = 'yomitomo-agent.log';
 const LEGACY_LOG_FILE_NAME = 'reader-agent.log';
@@ -170,12 +171,4 @@ function logLineTime(line: string) {
   } catch {
     return null;
   }
-}
-
-function recordField(input: unknown, field: string): unknown {
-  return isRecord(input) ? input[field] : undefined;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

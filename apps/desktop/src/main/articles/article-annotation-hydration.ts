@@ -1,5 +1,6 @@
 import { inArray } from 'drizzle-orm';
 import type { Annotation, AnnotationAuthorRef, Comment } from '@yomitomo/shared';
+import { uniqueNonEmptyStrings } from '@yomitomo/shared';
 import * as schema from '../db/schema';
 import type { StoreDatabase } from '../store/store-db';
 import { rowToAnnotation, rowToComment, sortByCreatedAt } from '../store/store-normalizers';
@@ -75,10 +76,10 @@ export function readAnnotationActorAvatars(
     return { agentAvatars: new Map(), userAvatars: new Map() };
   }
 
-  const agentIds = uniqueStrings(
+  const agentIds = uniqueNonEmptyStrings(
     annotationRows.map((row) => row.agentId).concat(commentRows.map((row) => row.agentId)),
   );
-  const userIds = uniqueStrings(
+  const userIds = uniqueNonEmptyStrings(
     annotationRows.map((row) => row.userId).concat(commentRows.map((row) => row.userId)),
   );
   const agentRows =
@@ -135,8 +136,4 @@ function hydrateAuthorAvatar(
       author.avatar ??
       actorAvatars.defaultUserAvatar,
   };
-}
-
-function uniqueStrings(values: Array<string | null | undefined>) {
-  return Array.from(new Set(values.filter((value): value is string => Boolean(value))));
 }
