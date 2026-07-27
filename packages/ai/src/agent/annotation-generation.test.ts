@@ -35,7 +35,11 @@ describe('agent annotation generation', () => {
       '2026-01-02T00:00:00.000Z',
     );
 
-    expect(result?.author).toBe('ai');
+    expect(result?.author).toMatchObject({
+      kind: 'agent',
+      agentId: 'agent-1',
+      username: 'reader',
+    });
     expect(result?.annotationType).toBe('key_point');
     expect(result?.readingIntent).toBe('explain');
     expect(result?.anchor.start).toBe(2);

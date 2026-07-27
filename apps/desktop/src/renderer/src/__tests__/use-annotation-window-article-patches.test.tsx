@@ -99,7 +99,7 @@ function annotation(overrides: Partial<Annotation> = {}): Annotation {
   return {
     id: 'annotation_1',
     anchor: { exact: 'Quote', prefix: '', suffix: '', start: 0, end: 5 },
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     color: '#000000',
     comments: [],
     createdAt: '2026-07-18T00:00:00.000Z',

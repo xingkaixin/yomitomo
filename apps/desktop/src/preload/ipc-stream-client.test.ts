@@ -170,7 +170,7 @@ const agentMessagePayload = {} as AgentMessagePayload;
 
 const pendingComment: Comment = {
   id: 'comment_1',
-  author: 'ai',
+  author: { kind: 'agent', agentId: 'agent_1', username: 'agent' },
   content: '',
   createdAt: '2026-07-15T00:00:00.000Z',
   pending: true,

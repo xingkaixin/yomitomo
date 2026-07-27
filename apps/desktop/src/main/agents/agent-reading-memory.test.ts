@@ -462,7 +462,7 @@ function messagePayload(overrides: Partial<AgentMessagePayload> = {}): AgentMess
         prefix: '前文',
         suffix: '后文',
       },
-      author: 'user',
+      author: { kind: 'user', username: 'reader' },
       color: '#f4c95d',
       comments: [],
       createdAt: '2026-05-26T00:00:00.000Z',
@@ -470,7 +470,7 @@ function messagePayload(overrides: Partial<AgentMessagePayload> = {}): AgentMess
     },
     userComment: {
       id: 'comment_1',
-      author: 'user',
+      author: { kind: 'user', username: 'reader' },
       content: '用户追问',
       createdAt: '2026-05-26T00:01:00.000Z',
     },

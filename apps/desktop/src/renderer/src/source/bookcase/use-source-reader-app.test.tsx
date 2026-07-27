@@ -10,7 +10,7 @@ const now = '2026-07-26T00:00:00.000Z';
 const annotation: Annotation = {
   id: 'annotation_1',
   anchor: { exact: 'text', prefix: '', suffix: '', start: 0, end: 4 },
-  author: 'user',
+  author: { kind: 'user', username: 'reader' },
   color: '#f4c95d',
   comments: [],
   distillation: {

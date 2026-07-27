@@ -17,6 +17,7 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import { makeId, normalizeUiLanguage } from '@yomitomo/shared';
+import { annotationAuthorName } from '@yomitomo/core';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { applyAppTheme, readCachedThemeId, themeRegistry } from '../theme/app-theme';
@@ -530,7 +531,7 @@ function SedimentationShell({
           annotation,
           userComment: {
             id: makeId('distillation_review_request'),
-            author: 'user',
+            author: { kind: 'user', username: 'reader' },
             content: instruction,
             createdAt: now,
           },
@@ -1138,12 +1139,13 @@ function compactTitleText(value: string) {
 }
 
 function sedimentationUserProfile(annotation: Annotation, article: ArticleRecord): UserProfile {
+  const author = annotation.author.kind === 'user' ? annotation.author : undefined;
   return {
-    id: annotation.userId || 'user',
-    nickname: annotation.userNickname || i18next.t('common.me'),
-    username: annotation.userUsername || 'user',
-    avatar: annotation.userAvatar || '',
-    annotationColor: annotation.userAnnotationColor || annotation.color,
+    id: author?.userId || 'user',
+    nickname: author ? annotationAuthorName(author) : i18next.t('common.me'),
+    username: author?.username || 'user',
+    avatar: author?.avatar || '',
+    annotationColor: author?.annotationColor || annotation.color,
     updatedAt: article.updatedAt,
   };
 }

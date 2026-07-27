@@ -105,7 +105,7 @@ function annotation(id: string, createdAt = now): Annotation {
       start: 0,
       end: 2,
     },
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     color: '#f4c95d',
     comments: [],
     createdAt,
@@ -2035,10 +2035,13 @@ describe('ReadingLibrary home', () => {
           comments: [
             {
               id: 'comment_1',
-              author: 'ai',
+              author: {
+                kind: 'agent',
+                agentId: 'agent_1',
+                username: 'assistant',
+                nickname: '行开心',
+              },
               content: '助手想法',
-              agentId: 'agent_1',
-              agentNickname: '行开心',
               createdAt: '2026-05-09T12:03:00.000Z',
             },
           ],
@@ -2105,7 +2108,7 @@ describe('ReadingLibrary home', () => {
           comments: [
             {
               id: 'comment_1',
-              author: 'user',
+              author: { kind: 'user', username: 'reader' },
               content: '待删除想法',
               createdAt: '2026-05-09T12:01:00.000Z',
             },

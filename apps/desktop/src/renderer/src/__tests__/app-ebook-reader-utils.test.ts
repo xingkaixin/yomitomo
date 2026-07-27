@@ -107,7 +107,7 @@ function annotation(id: string, start: number): Annotation {
       textStartInBook: start,
       textEndInBook: start + id.length,
     },
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     color: '#f4c95d',
     comments: [],
     createdAt: now,

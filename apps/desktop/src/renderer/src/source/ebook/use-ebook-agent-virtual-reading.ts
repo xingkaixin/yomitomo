@@ -45,8 +45,10 @@ export function useEbookAgentVirtualReading({
 
   const cursorAgent = useCallback(
     (annotation: Annotation) => {
+      const author = annotation.author;
+      if (author.kind !== 'agent') return undefined;
       return agents.find(
-        (agent) => agent.id === annotation.agentId || agent.username === annotation.agentUsername,
+        (agent) => agent.id === author.agentId || agent.username === author.username,
       );
     },
     [agents],

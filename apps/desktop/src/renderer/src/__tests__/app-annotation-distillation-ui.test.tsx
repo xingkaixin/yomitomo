@@ -1605,7 +1605,7 @@ function annotation(overrides: Partial<Annotation> = {}): Annotation {
       start: 0,
       end: 8,
     },
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     color: '#f4c95d',
     comments: [],
     createdAt: now,

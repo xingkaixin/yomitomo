@@ -1,6 +1,6 @@
 import i18next from 'i18next';
 import type { Annotation, PublicAgent } from '@yomitomo/shared';
-import type { HighlightBox } from '@yomitomo/core';
+import { annotationAuthorName, type HighlightBox } from '@yomitomo/core';
 import type { VirtualCursorState } from '@yomitomo/reader-ui/reader-types';
 import { animateTheaterHighlight, sleep } from '@yomitomo/reader-ui/reader-animation';
 import {
@@ -276,9 +276,12 @@ function isRectVisibleInSurface(rect: DOMRect, surfaceRect: DOMRect) {
 }
 
 function ebookAnnotationCursorId(annotation: Annotation, cursorAgent: PublicAgent | undefined) {
-  return cursorAgent?.id || annotation.agentId || annotation.agentUsername || annotation.id;
+  return (
+    cursorAgent?.id ||
+    (annotation.author.kind === 'agent' ? annotation.author.agentId : annotation.id)
+  );
 }
 
 function ebookAnnotationAgentName(annotation: Annotation) {
-  return annotation.agentNickname || annotation.agentUsername || i18next.t('common.assistant');
+  return annotationAuthorName(annotation.author);
 }

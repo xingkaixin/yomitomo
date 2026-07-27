@@ -21,6 +21,7 @@ import {
   normalizeTextWithMap,
 } from '@yomitomo/shared';
 import {
+  annotationAgentAuthorRef,
   createEpubTextAnchor,
   performanceElapsedMs,
   performanceStart,
@@ -278,10 +279,11 @@ export function createAgentAnnotation(
   if (!match) return null;
 
   const comment = suggestion.comment.trim();
+  const author = annotationAgentAuthorRef(agent);
   return {
     id: makeId('annotation'),
     anchor: createAnnotationAnchor(articleText, match.start, match.end, options),
-    author: 'ai',
+    author,
     annotationType: suggestion.annotationType || 'key_point',
     readingIntent: suggestion.readingIntent || undefined,
     moveType: suggestion.moveType || undefined,
@@ -290,23 +292,13 @@ export function createAgentAnnotation(
     confidence: suggestion.confidence || undefined,
     shouldShow: typeof suggestion.shouldShow === 'boolean' ? suggestion.shouldShow : undefined,
     color: agent.annotationColor,
-    agentId: agent.id,
-    agentUsername: agent.username,
-    agentNickname: agent.nickname,
-    agentAvatar: agent.avatar,
-    agentAnnotationColor: agent.annotationColor,
     comments: comment
       ? [
           {
             id: makeId('comment'),
-            author: 'ai',
+            author,
             content: comment,
             createdAt: now,
-            agentId: agent.id,
-            agentUsername: agent.username,
-            agentNickname: agent.nickname,
-            agentAvatar: agent.avatar,
-            agentAnnotationColor: agent.annotationColor,
             readingIntent: suggestion.readingIntent || undefined,
           },
         ]

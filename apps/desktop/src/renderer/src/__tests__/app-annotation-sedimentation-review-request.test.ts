@@ -95,7 +95,10 @@ describe('requestAgentReviewRound', () => {
       uiLanguage: 'zh-CN',
       userComment: {
         id: 'user_message_1',
-        author: 'user',
+        author: {
+          kind: 'user',
+          username: 'reader',
+        },
         content: '请看证据边界',
         createdAt: now,
       },
@@ -169,7 +172,10 @@ describe('requestAgentReviewRound', () => {
     expect(createSessionId).not.toHaveBeenCalled();
     expect(capturedPayload?.userComment).toMatchObject({
       id: 'request_comment_1',
-      author: 'user',
+      author: {
+        kind: 'user',
+        username: 'reader',
+      },
       createdAt: now,
     });
     expect(capturedPayload?.distillationReviewRequest).toBeTruthy();
@@ -243,7 +249,7 @@ function annotation(): Annotation {
       start: 0,
       end: 2,
     },
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     color: '#f4c95d',
     comments: [],
     createdAt: now,

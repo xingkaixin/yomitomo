@@ -1,6 +1,7 @@
 import type {
   AgentReadingIntent,
   Annotation,
+  AnnotationAuthorRef,
   AnnotationType,
   Comment,
   PublicAgent,
@@ -29,6 +30,16 @@ export type AnnotationPersona = {
   color: string;
 };
 
+type AnnotationAgentIdentity = Pick<
+  PublicAgent,
+  'id' | 'username' | 'nickname' | 'avatar' | 'annotationColor'
+>;
+
+type AnnotationUserIdentity = Pick<
+  UserProfile,
+  'id' | 'username' | 'nickname' | 'avatar' | 'annotationColor'
+>;
+
 export const annotationTypeLabels: Record<AnnotationType, string> = {
   key_point: '关键判断',
   assumption: '前提漏洞',
@@ -50,16 +61,11 @@ export function createUserComment(
 
   return {
     id: makeId('comment'),
-    author: 'user',
+    author: annotationUserAuthorRef(user),
     content: content.trim(),
     createdAt: now,
     replyTo: options.replyTo,
     readingIntent: options.readingIntent,
-    userId: user.id,
-    userUsername: user.username,
-    userNickname: user.nickname,
-    userAvatar: user.avatar,
-    userAnnotationColor: user.annotationColor,
   };
 }
 
@@ -76,15 +82,10 @@ export function createUserAnnotation(
   return {
     id: makeId('annotation'),
     anchor,
-    author: 'user',
+    author: annotationUserAuthorRef(user),
     annotationType,
     readingIntent: options.readingIntent,
     color: user.annotationColor,
-    userId: user.id,
-    userUsername: user.username,
-    userNickname: user.nickname,
-    userAvatar: user.avatar,
-    userAnnotationColor: user.annotationColor,
     comments: trimmed ? [createUserComment(user, trimmed, { ...options, now })] : [],
     createdAt: now,
     updatedAt: now,
@@ -94,7 +95,7 @@ export function createUserAnnotation(
 export function annotationPrimaryComment(annotation: Annotation): Comment | null {
   const comment = annotation.comments[0];
   if (!comment) return null;
-  if (comment.author !== annotation.author) return null;
+  if (!annotationAuthorsMatch(comment.author, annotation.author)) return null;
   if (comment.createdAt !== annotation.createdAt) return null;
   return comment;
 }
@@ -225,29 +226,26 @@ export function annotationPersona(
   userProfile: UserProfile,
   agents: PublicAgent[],
 ): AnnotationPersona {
-  if (annotation.author === 'ai') {
-    const agent = findAgentIdentity(annotation.agentId, annotation.agentUsername, agents);
+  if (annotation.author.kind === 'agent') {
+    const agent = findAgentIdentity(annotation.author.agentId, annotation.author.username, agents);
     return {
-      avatar: agent?.avatar || annotation.agentAvatar,
+      avatar: agent?.avatar || annotation.author.avatar,
       fallback: 'AI',
-      nickname: agent?.nickname || annotation.agentNickname || annotation.agentUsername || 'Agent',
-      username: agent?.username || annotation.agentUsername || 'agent',
-      color: agent?.annotationColor || annotation.agentAnnotationColor || annotation.color,
+      nickname: agent?.nickname || annotationAuthorName(annotation.author),
+      username: agent?.username || annotation.author.username,
+      color: agent?.annotationColor || annotation.author.annotationColor || annotation.color,
     };
   }
 
-  const user = findUserIdentity(annotation.userId, userProfile);
+  const user = findUserIdentity(annotation.author.userId, userProfile);
   return {
-    avatar: user?.avatar || annotation.userAvatar || userProfile.avatar,
-    fallback: (user?.nickname || annotation.userNickname || userProfile.nickname || '我').slice(
-      0,
-      1,
-    ),
-    nickname: user?.nickname || annotation.userNickname || userProfile.nickname,
-    username: user?.username || annotation.userUsername || userProfile.username,
+    avatar: user?.avatar || annotation.author.avatar || userProfile.avatar,
+    fallback: (user?.nickname || annotationAuthorName(annotation.author) || '我').slice(0, 1),
+    nickname: user?.nickname || annotationAuthorName(annotation.author),
+    username: user?.username || annotation.author.username,
     color:
       user?.annotationColor ||
-      annotation.userAnnotationColor ||
+      annotation.author.annotationColor ||
       annotation.color ||
       userProfile.annotationColor,
   };
@@ -258,24 +256,25 @@ export function commentPersona(
   userProfile: UserProfile,
   agents: PublicAgent[],
 ): AnnotationPersona {
-  if (comment.author === 'ai') {
-    const agent = findAgentIdentity(comment.agentId, comment.agentUsername, agents);
+  if (comment.author.kind === 'agent') {
+    const agent = findAgentIdentity(comment.author.agentId, comment.author.username, agents);
     return {
-      avatar: agent?.avatar || comment.agentAvatar,
+      avatar: agent?.avatar || comment.author.avatar,
       fallback: 'AI',
-      nickname: agent?.nickname || comment.agentNickname || comment.agentUsername || 'Agent',
-      username: agent?.username || comment.agentUsername || 'agent',
-      color: agent?.annotationColor || comment.agentAnnotationColor || userProfile.annotationColor,
+      nickname: agent?.nickname || annotationAuthorName(comment.author),
+      username: agent?.username || comment.author.username,
+      color:
+        agent?.annotationColor || comment.author.annotationColor || userProfile.annotationColor,
     };
   }
 
-  const user = findUserIdentity(comment.userId, userProfile);
+  const user = findUserIdentity(comment.author.userId, userProfile);
   return {
-    avatar: user?.avatar || comment.userAvatar || userProfile.avatar,
-    fallback: (user?.nickname || comment.userNickname || userProfile.nickname || '我').slice(0, 1),
-    nickname: user?.nickname || comment.userNickname || userProfile.nickname,
-    username: user?.username || comment.userUsername || userProfile.username,
-    color: user?.annotationColor || comment.userAnnotationColor || userProfile.annotationColor,
+    avatar: user?.avatar || comment.author.avatar || userProfile.avatar,
+    fallback: (user?.nickname || annotationAuthorName(comment.author) || '我').slice(0, 1),
+    nickname: user?.nickname || annotationAuthorName(comment.author),
+    username: user?.username || comment.author.username,
+    color: user?.annotationColor || comment.author.annotationColor || userProfile.annotationColor,
   };
 }
 
@@ -288,19 +287,60 @@ export function annotationColor(
 }
 
 export function annotationToPublicAgent(annotation: Annotation): PublicAgent | undefined {
-  if (!annotation.agentId || !annotation.agentUsername) return undefined;
+  if (annotation.author.kind !== 'agent') return undefined;
   return {
-    id: annotation.agentId,
+    id: annotation.author.agentId,
     kind: 'annotation',
-    username: annotation.agentUsername,
-    nickname: annotation.agentNickname || annotation.agentUsername,
-    avatar: annotation.agentAvatar || 'AI',
-    annotationColor: annotation.agentAnnotationColor || annotation.color,
+    username: annotation.author.username,
+    nickname: annotationAuthorName(annotation.author),
+    avatar: annotation.author.avatar || 'AI',
+    annotationColor: annotation.author.annotationColor || annotation.color,
     annotationDensity: 'medium',
     enabled: true,
     personalityName: '自定义个性',
     temperature: 0.35,
   };
+}
+
+export function annotationAuthorName(author: AnnotationAuthorRef) {
+  return author.nickname || author.username;
+}
+
+export function annotationAgentAuthorRef(
+  agent: AnnotationAgentIdentity,
+): Extract<AnnotationAuthorRef, { kind: 'agent' }> {
+  return {
+    kind: 'agent',
+    agentId: agent.id,
+    username: agent.username,
+    nickname: agent.nickname,
+    avatar: agent.avatar,
+    annotationColor: agent.annotationColor,
+  };
+}
+
+export function annotationUserAuthorRef(
+  user: AnnotationUserIdentity,
+): Extract<AnnotationAuthorRef, { kind: 'user' }> {
+  return {
+    kind: 'user',
+    userId: user.id,
+    username: user.username,
+    nickname: user.nickname,
+    avatar: user.avatar,
+    annotationColor: user.annotationColor,
+  };
+}
+
+function annotationAuthorsMatch(left: AnnotationAuthorRef, right: AnnotationAuthorRef) {
+  if (left.kind === 'agent' && right.kind === 'agent') {
+    return left.agentId === right.agentId;
+  }
+  if (left.kind === 'user' && right.kind === 'user') {
+    if (left.userId && right.userId) return left.userId === right.userId;
+    return left.username === right.username;
+  }
+  return false;
 }
 
 function findAgentIdentity(

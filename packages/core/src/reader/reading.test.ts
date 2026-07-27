@@ -7,6 +7,13 @@ import {
   sortArticles,
 } from './reading';
 
+const userAuthor = { kind: 'user', username: 'reader' } as const;
+const agentAuthor = {
+  kind: 'agent',
+  agentId: 'agent_1',
+  username: 'assistant',
+} as const;
+
 function annotation(
   id: string,
   start: number,
@@ -22,16 +29,14 @@ function annotation(
       start,
       end: start + 6,
     },
-    author: input.author || 'user',
+    author: input.author || userAuthor,
     annotationType: input.annotationType,
     color: '#f4c95d',
-    agentNickname: input.agentNickname,
-    userNickname: input.userNickname,
     distillation: input.distillation,
     comments: input.comments || [
       {
         id: `comment-${id}`,
-        author: id === 'a2' ? 'ai' : 'user',
+        author: id === 'a2' ? agentAuthor : userAuthor,
         content: id === 'a3' ? '为什么？' : `comment ${id}`,
         createdAt: nextMinute(createdAt),
       },
@@ -122,7 +127,7 @@ describe('reading core', () => {
             comments: [
               {
                 id: 'today-comment',
-                author: 'ai',
+                author: agentAuthor,
                 content: 'today',
                 createdAt: '2026-05-03T08:00:00.000Z',
               },
@@ -150,7 +155,7 @@ describe('reading core', () => {
         comments: [
           {
             id: 'body',
-            author: 'user',
+            author: userAuthor,
             content: '批注正文',
             createdAt,
           },
@@ -195,17 +200,17 @@ describe('reading core', () => {
   it('counts ai contribution sources across thoughts, replies and distillation reviews', () => {
     const record = article('today', '2026-05-03T08:00:00.000Z', [
       annotation('a1', 0, '2026-05-03T08:00:00.000Z', {
-        author: 'ai',
+        author: agentAuthor,
         comments: [
           {
             id: 'agent-thought',
-            author: 'ai',
+            author: agentAuthor,
             content: '助手想法',
             createdAt: '2026-05-03T08:00:00.000Z',
           },
           {
             id: 'agent-reply',
-            author: 'ai',
+            author: agentAuthor,
             content: '助手回复',
             createdAt: '2026-05-03T08:10:00.000Z',
             replyTo: 'agent-thought',
@@ -293,26 +298,26 @@ describe('reading core', () => {
   it('keeps summary and detailed thought and discussion counts consistent', () => {
     const createdAt = '2026-05-03T08:00:00.000Z';
     const comments = [
-      { id: 'body', author: 'user' as const, content: '批注正文', createdAt },
-      { id: 'thought-1', author: 'user' as const, content: '想法一', createdAt },
+      { id: 'body', author: userAuthor, content: '批注正文', createdAt },
+      { id: 'thought-1', author: userAuthor, content: '想法一', createdAt },
       {
         id: 'reply-1',
-        author: 'ai' as const,
+        author: agentAuthor,
         content: '回复一',
         createdAt,
         replyTo: 'thought-1',
       },
       {
         id: 'reply-2',
-        author: 'user' as const,
+        author: userAuthor,
         content: '回复二',
         createdAt,
         replyTo: 'reply-1',
       },
-      { id: 'thought-2', author: 'user' as const, content: '想法二', createdAt },
+      { id: 'thought-2', author: userAuthor, content: '想法二', createdAt },
       {
         id: 'reply-3',
-        author: 'ai' as const,
+        author: agentAuthor,
         content: '回复三',
         createdAt,
         replyTo: 'thought-2',

@@ -45,10 +45,13 @@ function annotation(overrides: Partial<Annotation> = {}): Annotation {
   return {
     id: 'annotation_1',
     anchor: { exact: 'quote', prefix: '', suffix: '', start: 0, end: 5 },
-    author: 'ai',
+    author: {
+      kind: 'agent',
+      agentId: 'agent_1',
+      username: 'agent_1',
+      nickname: '林知微',
+    },
     color: '#54cda0',
-    agentId: 'agent_1',
-    agentNickname: '林知微',
     comments: [],
     createdAt: '2026-05-16T00:00:00.000Z',
     updatedAt: '2026-05-16T00:00:00.000Z',
@@ -132,7 +135,12 @@ describe('playAgentAnnotationPlayback', () => {
       comments: [
         {
           id: 'comment_existing',
-          author: 'ai',
+          author: {
+            kind: 'agent',
+            agentId: 'agent_1',
+            username: 'agent_1',
+            nickname: '林知微',
+          },
           content: 'first thought',
           createdAt: '2026-05-16T00:00:00.000Z',
         },
@@ -144,7 +152,12 @@ describe('playAgentAnnotationPlayback', () => {
       comments: [
         {
           id: 'comment_incoming',
-          author: 'ai',
+          author: {
+            kind: 'agent',
+            agentId: 'agent_1',
+            username: 'agent_1',
+            nickname: '林知微',
+          },
           content: 'second thought',
           createdAt: '2026-05-16T00:01:00.000Z',
           replyTo: 'stale-thread',
@@ -216,6 +229,6 @@ describe('playAgentAnnotationPlayback', () => {
     expect(options.saveAnnotation).toHaveBeenCalledWith(target);
     expect(options.setActiveId).toHaveBeenCalledWith(target.id);
     expect(options.setAgentTheaterBoxes).toHaveBeenLastCalledWith([]);
-    expect(options.finishVirtualReading).toHaveBeenCalledWith(target.agentId);
+    expect(options.finishVirtualReading).toHaveBeenCalledWith('agent_1');
   });
 });

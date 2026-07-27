@@ -6,9 +6,8 @@ function annotation(id: string, agentId: string): Annotation {
   return {
     id,
     anchor: { exact: id, prefix: '', suffix: '', start: 0, end: id.length },
-    author: 'ai',
+    author: { kind: 'agent', agentId, username: agentId },
     color: '#54cda0',
-    agentId,
     comments: [],
     createdAt: '2026-05-16T00:00:00.000Z',
     updatedAt: '2026-05-16T00:00:00.000Z',

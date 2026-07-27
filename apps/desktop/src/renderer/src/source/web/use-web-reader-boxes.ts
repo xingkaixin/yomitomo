@@ -218,11 +218,7 @@ function webReaderAnchorSignature(anchor: Annotation['anchor']) {
 }
 
 function webReaderAnnotationContributorId(annotation: Annotation) {
-  return (
-    annotation.agentId ||
-    annotation.agentUsername ||
-    annotation.userId ||
-    annotation.userUsername ||
-    annotation.author
-  );
+  return annotation.author.kind === 'agent'
+    ? annotation.author.agentId
+    : annotation.author.userId || annotation.author.username;
 }

@@ -142,9 +142,7 @@ describe('reading memory entries', () => {
     const memoryEntry = readingMemoryEntryFromAnnotation({
       articleId: 'article_1',
       annotation: annotation({
-        author: 'user',
-        userId: 'reader_1',
-        userUsername: 'kevin',
+        author: { kind: 'user', userId: 'reader_1', username: 'kevin' },
         annotationType: 'question',
         readingIntent: 'question',
       }),
@@ -174,16 +172,13 @@ describe('reading memory entries', () => {
 
   it('creates deterministic memory entries from assistant comments with raw content', () => {
     const source = annotation({
-      author: 'ai',
-      agentId: 'agent_1',
+      author: { kind: 'agent', agentId: 'agent_1', username: 'lin' },
       comments: [
         {
           id: 'comment_1',
-          author: 'ai',
+          author: { kind: 'agent', agentId: 'agent_1', username: 'lin' },
           content: '  这里保留助手原始回复  ',
           createdAt: '2026-05-26T00:10:00.000Z',
-          agentId: 'agent_1',
-          agentUsername: 'lin',
           readingIntent: 'explain',
         },
       ],
@@ -223,14 +218,13 @@ describe('reading memory entries', () => {
         comments: [
           {
             id: 'comment_1',
-            author: 'user',
+            author: { kind: 'user', userId: 'reader_1', username: 'reader' },
             content: '用户补充自己的想法',
             createdAt: '2026-05-26T00:10:00.000Z',
-            userId: 'reader_1',
           },
           {
             id: 'comment_blank',
-            author: 'user',
+            author: { kind: 'user', username: 'reader' },
             content: '  ',
             createdAt: '2026-05-26T00:11:00.000Z',
           },
@@ -460,7 +454,7 @@ function annotation(overrides: Partial<Annotation> = {}): Annotation {
       segmentId: 'segment_1',
       paragraphId: 'paragraph_1',
     },
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     color: '#f4c95d',
     comments: [],
     createdAt: '2026-05-26T00:00:00.000Z',

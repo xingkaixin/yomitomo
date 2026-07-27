@@ -228,20 +228,14 @@ function annotation(anchor: TextAnchor, comment: string): Annotation {
   return {
     id: 'annotation-nearby',
     anchor,
-    author: 'user',
+    author: { kind: 'user', userId: 'user-1', username: 'reader', nickname: '读者' },
     color: '#6fa48f',
-    userId: 'user-1',
-    userUsername: 'reader',
-    userNickname: '读者',
     comments: [
       {
         id: 'comment-nearby',
-        author: 'user',
+        author: { kind: 'user', userId: 'user-1', username: 'reader', nickname: '读者' },
         content: comment,
         createdAt: '2026-05-13T00:00:00.000Z',
-        userId: 'user-1',
-        userUsername: 'reader',
-        userNickname: '读者',
       },
     ],
     createdAt: '2026-05-13T00:00:00.000Z',

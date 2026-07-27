@@ -512,12 +512,14 @@ function chapterById(book: EpubEvaluationBookFixture, chapterId: string) {
 function annotation(id: string, anchor: TextAnchor, comments: Comment[]): Annotation {
   return {
     id,
-    author: 'ai',
+    author: {
+      kind: 'agent',
+      agentId: agent.id,
+      username: agent.username,
+      nickname: agent.nickname,
+    },
     anchor,
     color: '#6fa48f',
-    agentId: agent.id,
-    agentUsername: agent.username,
-    agentNickname: agent.nickname,
     comments,
     createdAt: now,
     updatedAt: now,
@@ -527,13 +529,16 @@ function annotation(id: string, anchor: TextAnchor, comments: Comment[]): Annota
 function comment(id: string, author: 'ai' | 'user', content: string): Comment {
   return {
     id,
-    author,
+    author:
+      author === 'ai'
+        ? {
+            kind: 'agent',
+            agentId: agent.id,
+            username: agent.username,
+            nickname: agent.nickname,
+          }
+        : { kind: 'user', username: 'xingkaixin', nickname: '行开心' },
     content,
-    agentId: author === 'ai' ? agent.id : undefined,
-    agentUsername: author === 'ai' ? agent.username : undefined,
-    agentNickname: author === 'ai' ? agent.nickname : undefined,
-    userUsername: author === 'user' ? 'xingkaixin' : undefined,
-    userNickname: author === 'user' ? '行开心' : undefined,
     createdAt: now,
   };
 }

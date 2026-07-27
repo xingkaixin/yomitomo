@@ -389,7 +389,7 @@ function annotationRecord(): Annotation {
   return {
     id: 'annotation_1',
     anchor: { exact: 'quote', prefix: '', suffix: '', start: 0, end: 5 },
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     color: '#f4c95d',
     comments: [],
     createdAt: '2026-06-15T00:00:00.000Z',

@@ -2,6 +2,7 @@ import type React from 'react';
 import type { Annotation } from '@yomitomo/shared';
 import { resolveTextAnchor } from '@yomitomo/shared';
 import {
+  annotationAuthorName,
   annotationToPublicAgent as annotationToAgent,
   mergeAgentAnnotationAsThought,
   type MergedAgentAnnotationResult,
@@ -326,9 +327,11 @@ async function playVisibleAnnotation({
 }
 
 function annotationCursorId(annotation: Annotation, agentId?: string) {
-  return agentId || annotation.agentId || annotation.agentUsername || annotation.id;
+  return (
+    agentId || (annotation.author.kind === 'agent' ? annotation.author.agentId : annotation.id)
+  );
 }
 
 function annotationAgentName(annotation: Annotation) {
-  return annotation.agentNickname || annotation.agentUsername || '助手';
+  return annotationAuthorName(annotation.author);
 }

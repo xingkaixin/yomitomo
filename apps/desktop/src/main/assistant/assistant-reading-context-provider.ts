@@ -8,6 +8,7 @@ import type {
 } from '@yomitomo/shared';
 import { createTextAnchor } from '@yomitomo/shared';
 import {
+  annotationAuthorName,
   buildCurrentChapterLexicalRelatedPassages,
   createLexicalRelatedPassageCache,
   type LexicalRelatedPassageCache,
@@ -83,7 +84,7 @@ function currentThreadEvidence(
   const threadComments = commentsForThread(annotation, rootComment?.id);
   const latestUserComment = threadComments
     .toReversed()
-    .find((comment) => comment.author === 'user');
+    .find((comment) => comment.author.kind === 'user');
   const comments = threadComments.map(formatThreadComment).join('\n');
   const text = [
     `selection: ${annotation.anchor.exact}`,
@@ -284,8 +285,8 @@ function annotationProvenance(articleId: string, annotation: Annotation) {
     articleId,
     sourceType: 'annotation',
     sourceAnnotationId: annotation.id,
-    agentId: annotation.agentId,
-    authorType: annotation.author,
+    agentId: annotation.author.kind === 'agent' ? annotation.author.agentId : undefined,
+    authorType: annotation.author.kind === 'agent' ? 'ai' : 'user',
     anchor: annotation.anchor,
     textStart: annotation.anchor.textStartInBook ?? annotation.anchor.start,
     textEnd: annotation.anchor.textEndInBook ?? annotation.anchor.end,
@@ -364,10 +365,7 @@ function commentsForThread(annotation: Annotation, rootCommentId: string | undef
 }
 
 function annotationAuthorLabel(annotation: Annotation) {
-  if (annotation.author === 'ai') {
-    return annotation.agentNickname || annotation.agentUsername || 'assistant';
-  }
-  return annotation.userNickname || annotation.userUsername || 'user';
+  return annotationAuthorName(annotation.author);
 }
 
 function formatThreadComment(comment: Annotation['comments'][number]) {
@@ -376,12 +374,9 @@ function formatThreadComment(comment: Annotation['comments'][number]) {
 }
 
 function formatCommentAuthor(comment: Annotation['comments'][number]) {
-  const author =
-    comment.author === 'ai'
-      ? comment.agentNickname || comment.agentUsername || 'assistant'
-      : comment.userNickname || comment.userUsername || 'user';
-  return comment.author === 'ai' && comment.agentUsername
-    ? `${author} (@${comment.agentUsername})`
+  const author = annotationAuthorName(comment.author);
+  return comment.author.kind === 'agent' && comment.author.nickname
+    ? `${author} (@${comment.author.username})`
     : author;
 }
 

@@ -6,7 +6,7 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import { formatDateTimeValue, relativeTimeParts } from '@yomitomo/shared';
-import { findMentionedAgents, type getMentionQuery } from '@yomitomo/core';
+import { annotationAuthorName, findMentionedAgents, type getMentionQuery } from '@yomitomo/core';
 import { mentionDraftWithAgent } from '@yomitomo/reader-ui/reader-mention-utils';
 import i18next from 'i18next';
 import { articlePlainText } from '../shell/app-utils';
@@ -143,12 +143,13 @@ export function discussionArticleText(article: ArticleRecord) {
 }
 
 export function annotationUserProfile(annotation: Annotation, article: ArticleRecord): UserProfile {
+  const author = annotation.author.kind === 'user' ? annotation.author : undefined;
   return {
-    id: annotation.userId || 'user',
-    nickname: annotation.userNickname || i18next.t('common.me'),
-    username: annotation.userUsername || 'user',
-    avatar: annotation.userAvatar || '',
-    annotationColor: annotation.userAnnotationColor || annotation.color,
+    id: author?.userId || 'user',
+    nickname: author ? annotationAuthorName(author) : i18next.t('common.me'),
+    username: author?.username || 'user',
+    avatar: author?.avatar || '',
+    annotationColor: author?.annotationColor || annotation.color,
     updatedAt: article.updatedAt,
   };
 }
@@ -158,12 +159,9 @@ function compactTitleText(value: string) {
 }
 
 function rootThoughtAgent(root: Comment, agents: PublicAgent[]) {
-  if (root.author !== 'ai') return undefined;
-  return agents.find(
-    (agent) =>
-      (root.agentId && agent.id === root.agentId) ||
-      (root.agentUsername && agent.username === root.agentUsername),
-  );
+  const author = root.author;
+  if (author.kind !== 'agent') return undefined;
+  return agents.find((agent) => agent.id === author.agentId || agent.username === author.username);
 }
 
 function compareThreads(a: DiscussionThread, b: DiscussionThread) {

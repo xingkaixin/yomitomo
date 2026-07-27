@@ -137,12 +137,14 @@ describe('reader annotation filters', () => {
         start: 0,
         end: 8,
       },
-      author: 'user',
+      author: {
+        kind: 'user',
+        userId: userProfile.id,
+        username: userProfile.username,
+        nickname: userProfile.nickname,
+      },
       annotationType: 'key_point',
       color: '#f4c95d',
-      userId: userProfile.id,
-      userUsername: userProfile.username,
-      userNickname: userProfile.nickname,
       comments: [],
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
@@ -151,7 +153,12 @@ describe('reader annotation filters', () => {
   }
 
   it('keeps all annotations for the default filter', () => {
-    const annotations = [annotation('a'), annotation('b', { author: 'ai' })];
+    const annotations = [
+      annotation('a'),
+      annotation('b', {
+        author: { kind: 'agent', agentId: 'agent-b', username: 'agent_b' },
+      }),
+    ];
     const filter = createEmptyAnnotationFilter();
 
     expect(isAnnotationFilterActive(filter)).toBe(false);
@@ -161,23 +168,17 @@ describe('reader annotation filters', () => {
   it('matches groups with and while values inside one group use or', () => {
     const userKeyPoint = annotation('user-key');
     const agentKeyPoint = annotation('agent-key', {
-      author: 'ai',
-      agentId: 'agent-a',
-      agentUsername: 'agent_a',
+      author: { kind: 'agent', agentId: 'agent-a', username: 'agent_a' },
       annotationType: 'key_point',
       readingIntent: 'explain',
     });
     const agentQuestion = annotation('agent-question', {
-      author: 'ai',
-      agentId: 'agent-a',
-      agentUsername: 'agent_a',
+      author: { kind: 'agent', agentId: 'agent-a', username: 'agent_a' },
       annotationType: 'question',
       readingIntent: 'challenge',
     });
     const otherQuestion = annotation('other-question', {
-      author: 'ai',
-      agentId: 'agent-b',
-      agentUsername: 'agent_b',
+      author: { kind: 'agent', agentId: 'agent-b', username: 'agent_b' },
       annotationType: 'question',
       readingIntent: 'challenge',
     });
@@ -197,23 +198,17 @@ describe('reader annotation filters', () => {
     const annotations = [
       annotation('user-key', { readingIntent: 'explain' }),
       annotation('agent-a-question', {
-        author: 'ai',
-        agentId: 'agent-a',
-        agentUsername: 'agent_a',
+        author: { kind: 'agent', agentId: 'agent-a', username: 'agent_a' },
         annotationType: 'question',
         readingIntent: 'challenge',
       }),
       annotation('agent-b-question', {
-        author: 'ai',
-        agentId: 'agent-b',
-        agentUsername: 'agent_b',
+        author: { kind: 'agent', agentId: 'agent-b', username: 'agent_b' },
         annotationType: 'question',
         readingIntent: 'explain',
       }),
       annotation('agent-b-quote', {
-        author: 'ai',
-        agentId: 'agent-b',
-        agentUsername: 'agent_b',
+        author: { kind: 'agent', agentId: 'agent-b', username: 'agent_b' },
         annotationType: 'quote',
         readingIntent: 'challenge',
       }),
@@ -236,7 +231,12 @@ describe('reader annotation filters', () => {
   });
 
   it('keeps every annotation available for rail positioning', () => {
-    const annotations = [annotation('user-note'), annotation('assistant-note', { author: 'ai' })];
+    const annotations = [
+      annotation('user-note'),
+      annotation('assistant-note', {
+        author: { kind: 'agent', agentId: 'assistant', username: 'assistant' },
+      }),
+    ];
 
     expect(
       buildAnnotationRailItems(annotations, [box('user-note')], null).map(

@@ -611,7 +611,7 @@ function makeAnnotation(id: string): Annotation {
       start: 0,
       end: 9,
     },
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     color: '#f4c95d',
     comments: [],
     createdAt: '2026-05-17T07:30:00.000Z',
@@ -622,7 +622,7 @@ function makeAnnotation(id: string): Annotation {
 function makeComment(id: string): Comment {
   return {
     id,
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     content: 'comment',
     createdAt: '2026-05-17T07:45:00.000Z',
   };

@@ -165,7 +165,7 @@ describe('article repository local child row writes', () => {
     upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, fakeExecutor());
     const agentComment = comment({
       id: 'comment_2',
-      author: 'ai',
+      author: { kind: 'agent', agentId: 'agent_1', username: 'assistant' },
       content: 'agent thought',
       createdAt: '2026-06-04T05:00:00.000Z',
     });
@@ -177,7 +177,7 @@ describe('article repository local child row writes', () => {
         annotation: annotation({
           id: 'agent_annotation',
           anchor: targetAnchor,
-          author: 'ai',
+          author: { kind: 'agent', agentId: 'agent_1', username: 'assistant' },
           comments: [agentComment],
           updatedAt: agentComment.createdAt,
         }),
@@ -636,7 +636,7 @@ function annotation(overrides: Partial<Annotation> = {}): Annotation {
       prefix: '前文',
       suffix: '后文',
     },
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     color: '#f4c95d',
     comments: [],
     createdAt: '2026-06-04T00:00:00.000Z',
@@ -648,7 +648,7 @@ function annotation(overrides: Partial<Annotation> = {}): Annotation {
 function comment(overrides: Partial<Comment> = {}): Comment {
   return {
     id: 'comment_1',
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     content: 'comment memory',
     createdAt: '2026-06-04T00:10:00.000Z',
     ...overrides,

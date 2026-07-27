@@ -41,10 +41,13 @@ function annotation(overrides: Partial<Annotation> = {}): Annotation {
   return {
     id: 'annotation_1',
     anchor: { exact: 'quote', prefix: '', suffix: '', start: 0, end: 5 },
-    author: 'ai',
+    author: {
+      kind: 'agent',
+      agentId: agent.id,
+      username: agent.username,
+      nickname: agent.nickname,
+    },
     color: '#54cda0',
-    agentId: agent.id,
-    agentNickname: agent.nickname,
     comments: [],
     createdAt: '2026-05-16T00:00:00.000Z',
     updatedAt: '2026-05-16T00:00:00.000Z',

@@ -73,12 +73,14 @@ function annotation(id: string, overrides: Partial<Annotation> = {}): Annotation
       start: id === 'user-note' ? 0 : 20,
       end: id === 'user-note' ? 8 : 28,
     },
-    author: 'user',
+    author: {
+      kind: 'user',
+      userId: userProfile.id,
+      username: userProfile.username,
+      nickname: userProfile.nickname,
+    },
     annotationType: 'key_point',
     color: userProfile.annotationColor,
-    userId: userProfile.id,
-    userUsername: userProfile.username,
-    userNickname: userProfile.nickname,
     comments: [],
     createdAt: now,
     updatedAt: now,
@@ -163,9 +165,7 @@ describe('useReaderAnnotationRail', () => {
   it('uses filtered annotations as the visible annotations', () => {
     const userNote = annotation('user-note');
     const agentNote = annotation('agent-note', {
-      author: 'ai',
-      agentId: 'agent-a',
-      agentUsername: 'agent_a',
+      author: { kind: 'agent', agentId: 'agent-a', username: 'agent_a' },
     });
     const noteRefs = createNoteRefs();
 
@@ -205,9 +205,7 @@ describe('useReaderAnnotationRail', () => {
     });
     const userNote = annotation('user-note');
     const agentNote = annotation('agent-note', {
-      author: 'ai',
-      agentId: 'agent-a',
-      agentUsername: 'agent_a',
+      author: { kind: 'agent', agentId: 'agent-a', username: 'agent_a' },
     });
     const noteRefs = createNoteRefs();
 
@@ -286,9 +284,7 @@ describe('useReaderAnnotationRail', () => {
     vi.stubGlobal('ResizeObserver', MockResizeObserver);
     const userNote = annotation('user-note');
     const agentNote = annotation('agent-note', {
-      author: 'ai',
-      agentId: 'agent-a',
-      agentUsername: 'agent_a',
+      author: { kind: 'agent', agentId: 'agent-a', username: 'agent_a' },
     });
     const noteRefs = createNoteRefs();
     const onAnnotationLayoutChange = vi.fn();
@@ -387,9 +383,7 @@ describe('useReaderAnnotationRail', () => {
   it('expands new annotations and clears expansion on article switch', async () => {
     const firstNote = annotation('user-note');
     const addedNote = annotation('agent-note', {
-      author: 'ai',
-      agentId: 'agent-a',
-      agentUsername: 'agent_a',
+      author: { kind: 'agent', agentId: 'agent-a', username: 'agent_a' },
     });
     const nextArticleNote = annotation('next-note');
     const noteRefs = createNoteRefs();
@@ -440,9 +434,7 @@ describe('useReaderAnnotationRail', () => {
   it('expands a new annotation when it enters the current rail subset later', async () => {
     const firstNote = annotation('user-note');
     const addedNote = annotation('agent-note', {
-      author: 'ai',
-      agentId: 'agent-a',
-      agentUsername: 'agent_a',
+      author: { kind: 'agent', agentId: 'agent-a', username: 'agent_a' },
     });
     const noteRefs = createNoteRefs();
 

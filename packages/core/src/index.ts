@@ -1,5 +1,7 @@
 export {
   annotationColor,
+  annotationAgentAuthorRef,
+  annotationAuthorName,
   annotationPersona,
   annotationPrimaryComment,
   annotationThoughtComments,
@@ -7,6 +9,7 @@ export {
   annotationToPublicAgent,
   annotationTypeLabel,
   annotationTypeLabels,
+  annotationUserAuthorRef,
   appendAnnotationComment,
   commentPersona,
   createUserAnnotation,

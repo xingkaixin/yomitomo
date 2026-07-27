@@ -24,7 +24,7 @@ import type {
   WeReadSettings,
 } from '@yomitomo/shared';
 import { normalizeUiLanguage } from '@yomitomo/shared';
-import { sortAnnotations, sortArticles } from '@yomitomo/core';
+import { annotationAuthorName, sortAnnotations, sortArticles } from '@yomitomo/core';
 import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
 import { SourceBookcase } from '../source/bookcase/app-source-bookcase';
 import { publicAnnotationAgents } from '../source/bookcase/source-public-agents';
@@ -607,21 +607,14 @@ function assistantParticipants(
 ): AnnotationDiscussionCapsuleAssistant[] {
   const assistants = new Map<string, AnnotationDiscussionCapsuleAssistant>();
   for (const comment of comments) {
-    if (comment.author !== 'ai') continue;
-    const key =
-      comment.agentId ||
-      comment.agentUsername ||
-      comment.agentNickname ||
-      comment.agentAvatar ||
-      comment.id;
+    const author = comment.author;
+    if (author.kind !== 'agent') continue;
+    const key = author.agentId;
     if (assistants.has(key)) continue;
-    const agent = agents.find((item) => item.id === comment.agentId);
+    const agent = agents.find((item) => item.id === author.agentId);
     const name =
-      agent?.nickname ||
-      comment.agentNickname?.trim() ||
-      comment.agentUsername?.trim() ||
-      i18next.t('common.assistant');
-    const avatar = agent?.avatar || comment.agentAvatar?.trim() || undefined;
+      agent?.nickname || annotationAuthorName(author).trim() || i18next.t('common.assistant');
+    const avatar = agent?.avatar || author.avatar?.trim() || undefined;
     assistants.set(key, {
       key,
       name,

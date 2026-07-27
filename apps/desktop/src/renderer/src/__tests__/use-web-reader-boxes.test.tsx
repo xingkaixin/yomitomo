@@ -267,7 +267,7 @@ function annotation(id: string, exact: string, start: number, end: number): Anno
   return {
     id,
     anchor: { exact, prefix: '', suffix: '', start, end },
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     color: '#f4c95d',
     comments: [],
     createdAt: now,

@@ -9,6 +9,8 @@ import type {
   LlmProvider,
 } from '@yomitomo/shared';
 import {
+  annotationAgentAuthorRef,
+  annotationAuthorName,
   buildCurrentChapterLexicalRelatedPassages,
   buildReadingContextBundle,
   selectionThreadSpoilerPolicy,
@@ -146,14 +148,9 @@ export async function runAgent(
 
   return {
     id: '',
-    author: 'ai',
+    author: annotationAgentAuthorRef(agent),
     content: text,
     createdAt: new Date().toISOString(),
-    agentId: agent.id,
-    agentUsername: agent.username,
-    agentNickname: agent.nickname,
-    agentAvatar: agent.avatar,
-    agentAnnotationColor: agent.annotationColor,
     readingIntent: payload.readingIntent,
   };
 }
@@ -611,11 +608,7 @@ function addCommentParticipant(
   item: Annotation | Comment,
   role: string,
 ) {
-  if (item.author === 'ai') {
-    addParticipant(participants, item.agentUsername || '', item.agentNickname || '', role);
-    return;
-  }
-  addParticipant(participants, item.userUsername || '', item.userNickname || '', role);
+  addParticipant(participants, item.author.username, item.author.nickname || '', role);
 }
 
 function addParticipant(
@@ -660,23 +653,14 @@ function formatThoughtReviewThreads(annotation: Annotation) {
 }
 
 function formatCommentAuthor(comment: Comment) {
-  return comment.author === 'ai' ? formatAgentAuthor(comment) : formatUserAuthor(comment);
-}
-
-function formatAgentAuthor(comment: Comment) {
-  if (comment.agentNickname && comment.agentUsername) {
-    return `${comment.agentNickname} (@${comment.agentUsername})`;
-  }
-  return comment.agentNickname || (comment.agentUsername ? `@${comment.agentUsername}` : 'AI');
+  const name = annotationAuthorName(comment.author);
+  return comment.author.nickname ? `${name} (@${comment.author.username})` : `@${name}`;
 }
 
 function formatUserAuthor(comment: Comment) {
-  if (comment.userNickname && comment.userUsername) {
-    return `${comment.userNickname} (@${comment.userUsername})`;
-  }
-  return comment.userNickname || formatUserMention(comment);
+  return formatCommentAuthor(comment);
 }
 
 function formatUserMention(comment: Comment) {
-  return comment.userUsername ? `@${comment.userUsername}` : '读者';
+  return `@${comment.author.username}`;
 }

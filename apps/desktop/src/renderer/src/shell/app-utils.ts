@@ -6,6 +6,7 @@ import type {
   DesktopStore,
 } from '@yomitomo/shared';
 import { formatDateTimeValue, normalizeUiLanguage } from '@yomitomo/shared';
+import { annotationAuthorName } from '@yomitomo/core';
 import i18next from 'i18next';
 
 import { changeAppI18nLanguage } from '../i18n/app-i18n';
@@ -48,28 +49,16 @@ export function readFileAsDataUrl(file: File) {
 }
 
 export function annotationAuthorProfile(annotation: Annotation) {
-  if (annotation.author === 'ai') {
-    return {
-      avatar: annotation.agentAvatar || '',
-      name: annotation.agentNickname || annotation.agentUsername || i18next.t('common.assistant'),
-    };
-  }
   return {
-    avatar: annotation.userAvatar || '',
-    name: annotation.userNickname || annotation.userUsername || i18next.t('common.me'),
+    avatar: annotation.author.avatar || '',
+    name: annotationAuthorName(annotation.author),
   };
 }
 
 export function commentAuthorProfile(comment: AnnotationComment) {
-  if (comment.author === 'ai') {
-    return {
-      avatar: comment.agentAvatar || '',
-      name: comment.agentNickname || comment.agentUsername || i18next.t('common.assistant'),
-    };
-  }
   return {
-    avatar: comment.userAvatar || '',
-    name: comment.userNickname || comment.userUsername || i18next.t('common.me'),
+    avatar: comment.author.avatar || '',
+    name: annotationAuthorName(comment.author),
   };
 }
 

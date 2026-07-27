@@ -409,7 +409,7 @@ function annotation(input: Partial<Annotation> = {}): Annotation {
       start: 0,
       end: 2,
     },
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     color: '#f59e0b',
     comments: [],
     createdAt: now,

@@ -108,7 +108,7 @@ describe('assistant reading context provider', () => {
         annotation: annotation(),
         userComment: {
           id: 'comment_2',
-          author: 'user',
+          author: { kind: 'user', username: 'reader' },
           content: '读者追问选择压力。',
           replyTo: 'comment_1',
           createdAt: '2026-05-26T00:01:00.000Z',
@@ -150,25 +150,29 @@ function articleRecord(): Pick<ArticleRecord, 'id' | 'title' | 'annotations' | '
 function annotation(): Annotation {
   return {
     id: 'annotation_1',
-    author: 'ai',
-    agentId: 'agent_1',
-    agentNickname: '林知微',
-    agentUsername: 'lin',
+    author: {
+      kind: 'agent',
+      agentId: 'agent_1',
+      nickname: '林知微',
+      username: 'lin',
+    },
     color: '#6fa48f',
     anchor: anchor(),
     comments: [
       {
         id: 'comment_1',
-        author: 'ai',
-        agentId: 'agent_1',
-        agentNickname: '林知微',
-        agentUsername: 'lin',
+        author: {
+          kind: 'agent',
+          agentId: 'agent_1',
+          nickname: '林知微',
+          username: 'lin',
+        },
         content: '目标观点值得展开。',
         createdAt: '2026-05-26T00:00:30.000Z',
       },
       {
         id: 'comment_2',
-        author: 'user',
+        author: { kind: 'user', username: 'reader' },
         content: '读者追问目标观点。',
         replyTo: 'comment_1',
         createdAt: '2026-05-26T00:01:00.000Z',

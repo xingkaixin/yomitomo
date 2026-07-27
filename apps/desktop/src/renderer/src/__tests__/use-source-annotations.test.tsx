@@ -67,14 +67,16 @@ function article(overrides: Partial<WebArticleRecord> = {}): WebArticleRecord {
 function comment(overrides: Partial<AnnotationComment> = {}): AnnotationComment {
   return {
     id: 'comment_1',
-    author: 'user',
+    author: {
+      kind: 'user',
+      userId: userProfile.id,
+      username: userProfile.username,
+      nickname: userProfile.nickname,
+      avatar: userProfile.avatar,
+      annotationColor: userProfile.annotationColor,
+    },
     content: '为什么?',
     createdAt: now,
-    userId: userProfile.id,
-    userUsername: userProfile.username,
-    userNickname: userProfile.nickname,
-    userAvatar: userProfile.avatar,
-    userAnnotationColor: userProfile.annotationColor,
     ...overrides,
   };
 }
@@ -89,14 +91,16 @@ function annotation(id: string, overrides: Partial<Annotation> = {}): Annotation
       start: 0,
       end: 8,
     },
-    author: 'user',
+    author: {
+      kind: 'user',
+      userId: userProfile.id,
+      username: userProfile.username,
+      nickname: userProfile.nickname,
+    },
     color: userProfile.annotationColor,
     comments: [],
     createdAt: now,
     updatedAt: now,
-    userId: userProfile.id,
-    userUsername: userProfile.username,
-    userNickname: userProfile.nickname,
     ...overrides,
   };
 }

@@ -111,7 +111,8 @@ function reviewerAlreadyCommented(
         (candidate) =>
           candidate.replyTo === comment.replyTo &&
           candidate.reviewLabel &&
-          (candidate.agentId === agent.id || candidate.agentUsername === agent.username),
+          candidate.author.kind === 'agent' &&
+          (candidate.author.agentId === agent.id || candidate.author.username === agent.username),
       ),
   );
 }

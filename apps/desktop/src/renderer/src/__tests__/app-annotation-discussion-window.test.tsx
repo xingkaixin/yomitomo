@@ -495,7 +495,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     expect(desktop.saveArticleComment).toHaveBeenCalledTimes(2);
     expect(desktop.saveArticleComment.mock.calls[1]?.[2]).toEqual(
       expect.objectContaining({
-        author: 'ai',
+        author: expect.objectContaining({ kind: 'agent' }),
         content: '请先为供应商配置 API Key。',
         pending: false,
         replyTo: 'thought_1',
@@ -654,11 +654,11 @@ describe('insertMentionAtSelection', () => {
 });
 
 describe('discussion reply targeting', () => {
-  it('falls back to the root assistant by username when id is unavailable', () => {
+  it('falls back to the root assistant by username when id does not match', () => {
     expect(
       replyTargetAgents(
         '继续说',
-        aiComment({ agentId: undefined, agentUsername: 'zhou' }),
+        aiComment({ agentId: 'missing-agent', agentUsername: 'zhou' }),
         publicAnnotationAgents(agents()),
       ).map((item) => item.username),
     ).toEqual(['zhou']);
@@ -821,7 +821,7 @@ function annotation(overrides: Partial<Annotation> = {}): Annotation {
   return {
     id: 'annotation_1',
     anchor: anchor('值得讨论的一段划线'),
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     color: '#f4c95d',
     comments: [],
     createdAt: now,
@@ -843,7 +843,7 @@ function anchor(exact: string): Annotation['anchor'] {
 function rootThought(): Comment {
   return {
     id: 'thought_1',
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     content: '这是一条很长的想法'.repeat(20),
     createdAt: now,
   };
@@ -853,20 +853,22 @@ function discussionComments(): Comment[] {
   return [
     {
       id: 'thought_1',
-      author: 'user',
+      author: { kind: 'user', username: 'reader' },
       content: '这是一条不会再被收起的想法',
       createdAt: now,
     },
     {
       id: 'reply_1',
-      author: 'ai',
+      author: {
+        kind: 'agent',
+        agentId: 'agent_1',
+        username: 'zhou',
+        nickname: '周现',
+        avatar: '',
+      },
       content: '这是第一条回复',
       createdAt: '2026-05-31T06:01:00.000Z',
       replyTo: 'thought_1',
-      agentId: 'agent_1',
-      agentUsername: 'zhou',
-      agentNickname: '周现',
-      agentAvatar: '',
     },
   ];
 }
@@ -894,13 +896,33 @@ function agent(overrides: Partial<Agent> = {}): Agent {
   };
 }
 
-function aiComment(overrides: Partial<Comment> = {}): Comment {
+type AiCommentOverrides = Omit<Partial<Comment>, 'author'> & {
+  agentId?: string;
+  agentUsername?: string;
+  agentNickname?: string;
+  agentAvatar?: string;
+};
+
+function aiComment(overrides: AiCommentOverrides = {}): Comment {
+  const {
+    agentId = 'agent_1',
+    agentUsername = 'assistant',
+    agentNickname,
+    agentAvatar,
+    ...commentOverrides
+  } = overrides;
   return {
-    id: `comment_${overrides.agentUsername || 'ai'}`,
-    author: 'ai',
+    id: `comment_${agentUsername}`,
+    author: {
+      kind: 'agent',
+      agentId,
+      username: agentUsername,
+      nickname: agentNickname,
+      avatar: agentAvatar,
+    },
     content: '助手想法',
     createdAt: now,
-    ...overrides,
+    ...commentOverrides,
   };
 }
 

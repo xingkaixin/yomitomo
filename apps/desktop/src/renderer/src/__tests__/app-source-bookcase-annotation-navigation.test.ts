@@ -68,7 +68,7 @@ function annotation(id: string, start: number, end: number): Annotation {
   return {
     id,
     anchor: createTextAnchor(text, start, end),
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     comments: [],
     color: 'yellow',
     createdAt: now,

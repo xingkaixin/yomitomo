@@ -69,7 +69,7 @@ function annotation(id: string, exact: string): Annotation {
   return {
     id,
     anchor: { exact, prefix: '', suffix: '', start: 0, end: exact.length },
-    author: 'user',
+    author: { kind: 'user', username: 'reader' },
     color: '#f4c95d',
     comments: [],
     createdAt: now,
