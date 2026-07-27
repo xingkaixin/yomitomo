@@ -217,7 +217,7 @@ function buildSegmentAnnotationContext(input: {
   const { payload, agent, index, planItem, chapter, segment, visibleRange, allowedParagraphIds } =
     input;
   const dedupAnnotations = nearbyDedupAnnotations(payload.annotations || [], chapter, visibleRange);
-  const readerProgress = segmentReaderProgress(index, chapter, segment, visibleRange);
+  const readerProgress = segmentReaderProgress(input.prepared.epub, chapter, segment, visibleRange);
   const readingContext = buildEpubReadingContextScope(input.prepared.epub, {
     articleText: payload.article.text,
     readerProgress,
@@ -397,7 +397,7 @@ function segmentRelatedPassages(
 }
 
 function segmentReaderProgress(
-  index: EpubBookIndex,
+  prepared: PreparedEpubBookIndex,
   chapter: EpubChapterIndex,
   segment: EpubSegmentIndex,
   visibleRange: TextRange,
@@ -405,9 +405,7 @@ function segmentReaderProgress(
   return {
     currentChapterId: chapter.id,
     currentSegmentId: segment.id,
-    readChapterIds: index.chapters
-      .filter((item) => item.indexInBook < chapter.indexInBook)
-      .map((item) => item.id),
+    readChapterIds: prepared.chaptersBefore(chapter),
     readUntilTextOffset: visibleRange.textEnd,
   };
 }
