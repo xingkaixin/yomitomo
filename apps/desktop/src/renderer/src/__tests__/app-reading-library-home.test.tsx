@@ -112,8 +112,18 @@ function annotation(id: string, createdAt = now): Annotation {
   };
 }
 
-function article(overrides: Partial<ArticleRecord> = {}): ArticleRecord {
-  return {
+type WebArticleRecord = Extract<ArticleRecord, { sourceType: 'web' }>;
+type EbookArticleRecord = Extract<ArticleRecord, { sourceType: 'ebook' }>;
+type PdfArticleRecord = Extract<ArticleRecord, { sourceType: 'pdf' }>;
+type TextArticleRecord = Extract<ArticleRecord, { sourceType: 'text' }>;
+type ArticleInput =
+  | (Partial<WebArticleRecord> & { sourceType?: 'web' })
+  | (Partial<EbookArticleRecord> & Pick<EbookArticleRecord, 'sourceType' | 'ebook'>)
+  | (Partial<PdfArticleRecord> & Pick<PdfArticleRecord, 'sourceType' | 'pdf'>)
+  | (Partial<TextArticleRecord> & Pick<TextArticleRecord, 'sourceType' | 'text'>);
+
+function article(overrides: ArticleInput = {}): ArticleRecord {
+  const base = {
     id: 'article_1',
     url: 'https://example.com/post',
     canonicalUrl: 'https://example.com/post',
@@ -125,8 +135,18 @@ function article(overrides: Partial<ArticleRecord> = {}): ArticleRecord {
     annotations: [],
     createdAt: now,
     updatedAt: now,
-    ...overrides,
   };
+
+  switch (overrides.sourceType) {
+    case 'ebook':
+      return { ...base, ...overrides, sourceType: 'ebook', ebook: overrides.ebook };
+    case 'pdf':
+      return { ...base, ...overrides, sourceType: 'pdf', pdf: overrides.pdf };
+    case 'text':
+      return { ...base, ...overrides, sourceType: 'text', text: overrides.text };
+    default:
+      return { ...base, ...overrides, sourceType: 'web' };
+  }
 }
 
 function articleSummary(record: ArticleRecord): ArticleSummaryRecord {
@@ -216,6 +236,8 @@ function installDefaultCatalog(
   vi.stubGlobal('yomitomoDesktop', {
     ...desktopApi,
     getArticleCover: desktopApi?.getArticleCover || vi.fn(async () => null),
+    getCurrentArticleTranslation:
+      desktopApi?.getCurrentArticleTranslation || vi.fn(async () => null),
     getWeReadState,
     listLibraryCatalog: (input: LibraryCatalogListInput) =>
       immediateCatalogResult(catalog.list(input)),
@@ -666,6 +688,14 @@ describe('ReadingLibrary home', () => {
         canonicalUrl: 'pdf:hash_newer',
         sourceType: 'pdf',
         title: '较新 PDF',
+        pdf: {
+          metadata: {
+            format: 'pdf',
+            fileName: 'newer.pdf',
+            fileSize: 1,
+            pageCount: 1,
+          },
+        },
         createdAt: '2026-05-10T12:00:00.000Z',
         updatedAt: '2026-05-01T12:00:00.000Z',
       }),
@@ -779,6 +809,14 @@ describe('ReadingLibrary home', () => {
           canonicalUrl: 'pdf:hash_1',
           sourceType: 'pdf',
           title: 'PDF 标题',
+          pdf: {
+            metadata: {
+              format: 'pdf',
+              fileName: 'document.pdf',
+              fileSize: 1,
+              pageCount: 1,
+            },
+          },
         }),
       ],
       {

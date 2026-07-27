@@ -505,7 +505,9 @@ function articleRowsDatabase(): ReadingMemorySqliteExecutor {
   return executor;
 }
 
-function articleRecord(overrides: Partial<ArticleRecord> = {}): ArticleRecord {
+type WebArticleRecord = Extract<ArticleRecord, { sourceType: 'web' }>;
+
+function articleRecord(overrides: Partial<WebArticleRecord> = {}): WebArticleRecord {
   return {
     id: 'article_1',
     url: 'https://example.com/book',

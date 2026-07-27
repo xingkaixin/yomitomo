@@ -12,9 +12,17 @@ import type {
   LibraryItemType,
 } from '../library-entity-types';
 
-export function makeMockArticle(partial: Partial<ArticleSummaryRecord> = {}): ArticleSummaryRecord {
+type WebArticleSummary = Extract<ArticleSummaryRecord, { sourceType: 'web' }>;
+type EbookArticleSummary = Extract<ArticleSummaryRecord, { sourceType: 'ebook' }>;
+type PdfArticleSummary = Extract<ArticleSummaryRecord, { sourceType: 'pdf' }>;
+type MockArticleInput =
+  | (Partial<WebArticleSummary> & { sourceType?: 'web' })
+  | (Partial<EbookArticleSummary> & Pick<EbookArticleSummary, 'sourceType' | 'ebook'>)
+  | (Partial<PdfArticleSummary> & Pick<PdfArticleSummary, 'sourceType' | 'pdf'>);
+
+export function makeMockArticle(partial: MockArticleInput = {}): ArticleSummaryRecord {
   const id = partial.id ?? 'article-mock';
-  return {
+  const base = {
     id,
     url: partial.url ?? `https://example.com/${id}`,
     canonicalUrl: partial.canonicalUrl ?? `https://example.com/${id}`,
@@ -23,8 +31,16 @@ export function makeMockArticle(partial: Partial<ArticleSummaryRecord> = {}): Ar
     annotations: partial.annotations ?? [],
     createdAt: partial.createdAt ?? '2026-06-01T00:00:00.000Z',
     updatedAt: partial.updatedAt ?? '2026-06-01T00:00:00.000Z',
-    ...partial,
   };
+
+  switch (partial.sourceType) {
+    case 'ebook':
+      return { ...base, ...partial, sourceType: 'ebook', ebook: partial.ebook };
+    case 'pdf':
+      return { ...base, ...partial, sourceType: 'pdf', pdf: partial.pdf };
+    default:
+      return { ...base, ...partial, sourceType: 'web' };
+  }
 }
 
 function makeMockWeReadBook(partial: Partial<WeReadBook> = {}): WeReadBook {
@@ -76,6 +92,9 @@ const ebookItem = makeItem(
     article: makeMockArticle({
       id: 'article-ebook',
       sourceType: 'ebook',
+      ebook: {
+        metadata: { format: 'epub', fileName: 'book.epub', fileSize: 1024 },
+      },
       title: 'EPUB 书籍示例',
       updatedAt: '2026-06-09T08:00:00.000Z',
     }),
@@ -91,6 +110,14 @@ const pdfItem = makeItem(
     article: makeMockArticle({
       id: 'article-pdf',
       sourceType: 'pdf',
+      pdf: {
+        metadata: {
+          format: 'pdf',
+          fileName: 'document.pdf',
+          fileSize: 1024,
+          pageCount: 1,
+        },
+      },
       title: 'PDF 文档示例',
       updatedAt: '2026-06-08T08:00:00.000Z',
     }),

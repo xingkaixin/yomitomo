@@ -128,7 +128,7 @@ export function useWebReaderSelection({
     const current = inputRef.current;
     return {
       articleId: current.article.id,
-      sourceType: current.article.sourceType || 'web',
+      sourceType: current.article.sourceType,
       ...current.translation.diagnostics.context(),
       composerOpen: Boolean(current.selection.composer),
       selectionActionOpen: Boolean(current.selection.selectionAction),
@@ -230,7 +230,7 @@ export function useWebReaderSelection({
     selectionAdjustmentRef.current = null;
     suppressMouseUpRef.current = false;
 
-    const debugArticle = { articleId: article.id, sourceType: article.sourceType || 'web' };
+    const debugArticle = { articleId: article.id, sourceType: article.sourceType };
     const currentOpenState = () => {
       const current = inputRef.current.selection;
       return {

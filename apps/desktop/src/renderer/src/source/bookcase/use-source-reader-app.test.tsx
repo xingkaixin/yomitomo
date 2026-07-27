@@ -112,37 +112,43 @@ describe('useSourceReaderApp', () => {
 });
 
 function article(sourceType: 'web' | 'ebook' | 'pdf', id: string): ArticleRecord {
-  return {
+  const base = {
     id,
     url: `${sourceType}:${id}`,
     canonicalUrl: `${sourceType}:${id}`,
-    sourceType,
     title: `${sourceType} article`,
     contentHash: `hash_${id}`,
     annotations: [annotation],
     createdAt: now,
     updatedAt: now,
-    ...(sourceType === 'ebook'
-      ? {
-          ebook: {
-            metadata: { format: 'epub' as const, fileName: 'book.epub', fileSize: 10 },
-            chapters: [{ id: 'chapter_1', title: 'Chapter', html: '<p>text</p>', textLength: 4 }],
-          },
-        }
-      : {}),
-    ...(sourceType === 'pdf'
-      ? {
-          pdf: {
-            metadata: {
-              format: 'pdf' as const,
-              fileName: 'document.pdf',
-              fileSize: 10,
-              pageCount: 1,
-            },
-          },
-        }
-      : {}),
   };
+
+  switch (sourceType) {
+    case 'web':
+      return { ...base, sourceType };
+    case 'ebook':
+      return {
+        ...base,
+        sourceType,
+        ebook: {
+          metadata: { format: 'epub', fileName: 'book.epub', fileSize: 10 },
+          chapters: [{ id: 'chapter_1', title: 'Chapter', html: '<p>text</p>', textLength: 4 }],
+        },
+      };
+    case 'pdf':
+      return {
+        ...base,
+        sourceType,
+        pdf: {
+          metadata: {
+            format: 'pdf',
+            fileName: 'document.pdf',
+            fileSize: 10,
+            pageCount: 1,
+          },
+        },
+      };
+  }
 }
 
 function surface({

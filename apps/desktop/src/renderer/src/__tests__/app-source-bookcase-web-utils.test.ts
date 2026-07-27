@@ -14,7 +14,9 @@ import {
 
 const now = '2026-05-16T12:00:00.000Z';
 
-function article(overrides: Partial<ArticleRecord> = {}): ArticleRecord {
+type WebArticleRecord = Extract<ArticleRecord, { sourceType: 'web' }>;
+
+function article(overrides: Partial<WebArticleRecord> = {}): WebArticleRecord {
   return {
     id: 'article-1',
     url: 'https://example.com/posts/story',

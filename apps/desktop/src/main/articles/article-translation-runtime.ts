@@ -227,7 +227,7 @@ async function deleteCurrentArticleTranslation(
 
 function articleTranslationSource(article: ArticleRecord, input: ArticleTranslationRequest) {
   const sourceId = articleTranslationSourceId(article, input.sourceId);
-  if ((article.sourceType || 'web') === 'web') {
+  if (article.sourceType === 'web') {
     return {
       blocks: extractArticleTranslationBlocks(article),
       sourceId,
@@ -246,7 +246,7 @@ function articleTranslationSource(article: ArticleRecord, input: ArticleTranslat
 }
 
 function articleTranslationSourceId(article: ArticleRecord, requestedSourceId?: string) {
-  if ((article.sourceType || 'web') === 'web') return ARTICLE_TRANSLATION_SOURCE_ID;
+  if (article.sourceType === 'web') return ARTICLE_TRANSLATION_SOURCE_ID;
   if (article.sourceType !== 'ebook') throw new Error('ARTICLE_TRANSLATION_SOURCE_UNSUPPORTED');
   if (article.ebook?.metadata.format !== 'epub') throw new Error('EBOOK_TRANSLATION_EPUB_ONLY');
 

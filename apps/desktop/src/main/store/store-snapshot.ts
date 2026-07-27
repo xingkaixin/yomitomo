@@ -29,8 +29,7 @@ import { measureStoreRead, measureStoreReadAsync } from './store-read-profile';
 import { upsertSettings, upsertUser } from './settings-repository';
 import {
   defaultStore,
-  normalizeArticleReadingProgress,
-  normalizeArticleSourceType,
+  normalizeArticleRecord,
   normalizeStore,
   normalizeUser,
   rowToAgent,
@@ -114,14 +113,10 @@ function seedDefaultStore(database: StoreDatabase) {
 }
 
 function normalizeWritableStore(store: WritableDesktopStore): WritableDesktopStore {
-  const normalized = normalizeStore(store);
+  const normalized = normalizeStore({ ...store, articles: [] });
   return {
     ...normalized,
-    articles: store.articles.map((article) => ({
-      ...article,
-      sourceType: normalizeArticleSourceType(article.sourceType),
-      readingProgress: normalizeArticleReadingProgress(article.readingProgress),
-    })),
+    articles: store.articles.map(normalizeArticleRecord),
   };
 }
 

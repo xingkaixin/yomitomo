@@ -24,6 +24,7 @@ function article(annotations: Annotation[] = []): ArticleRecord {
     id: 'article_1',
     url: 'https://example.com',
     canonicalUrl: 'https://example.com',
+    sourceType: 'web',
     title: '文章',
     contentHash: 'hash_1',
     annotations,

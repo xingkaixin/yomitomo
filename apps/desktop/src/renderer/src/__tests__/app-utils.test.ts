@@ -27,11 +27,14 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
-function article(overrides: Partial<ArticleRecord> = {}): ArticleRecord {
+type WebArticleRecord = Extract<ArticleRecord, { sourceType: 'web' }>;
+
+function article(overrides: Partial<WebArticleRecord> = {}): WebArticleRecord {
   return {
     id: 'article_1',
     url: 'https://example.com/post',
     canonicalUrl: 'https://example.com/canonical',
+    sourceType: 'web',
     title: '文章',
     excerpt: '摘要',
     contentHtml: '<article><p>第一段</p><p>第二段</p></article>',

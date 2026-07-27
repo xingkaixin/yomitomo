@@ -55,6 +55,7 @@ function article(annotations: Annotation[]): ArticleRecord {
     id: 'article_1',
     url: 'https://example.com/post',
     canonicalUrl: 'https://example.com/post',
+    sourceType: 'web',
     title: '文章',
     byline: '作者',
     siteName: 'Example',

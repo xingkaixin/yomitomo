@@ -580,6 +580,7 @@ function makeArticle(id: string): ArticleRecord {
     id,
     url: `https://example.com/${id}`,
     canonicalUrl: `https://example.com/${id}`,
+    sourceType: 'web',
     title: id,
     byline: '',
     siteName: 'Example',

@@ -105,18 +105,18 @@ function elementWithScroll({
   return { clientHeight, scrollTop } as HTMLElement;
 }
 
-function ebookArticle() {
+function ebookArticle(): Extract<ArticleRecord, { sourceType: 'ebook' }> {
   return {
     id: 'article-1',
     title: 'Book',
     url: '',
     canonicalUrl: '',
+    sourceType: 'ebook',
     contentHtml: '',
     contentHash: 'hash',
     excerpt: '',
     byline: '',
     siteName: '',
-    publishedAt: '',
     annotations: [],
     createdAt: now,
     updatedAt: now,
@@ -150,5 +150,5 @@ function ebookArticle() {
         paragraphs: [],
       },
     },
-  } as ArticleRecord & { ebook: NonNullable<ArticleRecord['ebook']> };
+  };
 }

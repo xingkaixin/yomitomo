@@ -906,6 +906,7 @@ describe('desktop store articles', () => {
       id: 'article-upsert',
       url: 'https://example.com/article-upsert',
       canonicalUrl: 'https://example.com/article-upsert',
+      sourceType: 'web',
       title: 'Upsert article',
       contentHash: 'hash-upsert',
       annotations: [],
@@ -999,9 +1000,9 @@ describe('desktop store articles', () => {
     const ebookArticle: ArticleRecord = {
       ...articleRecord({
         id: 'ebook_article',
-        sourceType: 'ebook',
         contentHtml: '<section><p>derived html</p></section>',
       }),
+      sourceType: 'ebook',
       ebook: {
         metadata: { format: 'epub', fileName: 'book.epub', fileSize: 1200 },
         chapters: [
@@ -1523,13 +1524,16 @@ describe('desktop store articles', () => {
   });
 });
 
-function articleSummaryRecord(input: Partial<ArticleSummaryRecord>): ArticleSummaryRecord {
+type WebArticleSummaryRecord = Extract<ArticleSummaryRecord, { sourceType: 'web' }>;
+type WebArticleRecord = Extract<ArticleRecord, { sourceType: 'web' }>;
+
+function articleSummaryRecord(input: Partial<WebArticleSummaryRecord>): WebArticleSummaryRecord {
   const id = input.id || 'article';
   return {
     id,
     url: input.url || `https://example.com/${id}`,
     canonicalUrl: input.canonicalUrl || input.url || `https://example.com/${id}`,
-    sourceType: input.sourceType || 'web',
+    sourceType: 'web',
     title: input.title || id,
     contentHash: input.contentHash || `hash-${id}`,
     annotations: input.annotations || [],
@@ -1538,13 +1542,13 @@ function articleSummaryRecord(input: Partial<ArticleSummaryRecord>): ArticleSumm
   };
 }
 
-function articleRecord(input: Partial<ArticleRecord>): ArticleRecord {
+function articleRecord(input: Partial<WebArticleRecord>): WebArticleRecord {
   const id = input.id || 'article';
   return {
     id,
     url: input.url || `https://example.com/${id}`,
     canonicalUrl: input.canonicalUrl || input.url || `https://example.com/${id}`,
-    sourceType: input.sourceType || 'web',
+    sourceType: 'web',
     title: input.title || id,
     contentHash: input.contentHash || `hash-${id}`,
     annotations: input.annotations || [],

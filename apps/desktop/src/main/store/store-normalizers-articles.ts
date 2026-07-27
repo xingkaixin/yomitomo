@@ -19,6 +19,10 @@ type ArticleRow = typeof schema.articles.$inferSelect;
 export type { ArticleSummaryRow };
 type ArticleBaseRow = ArticleSummaryRow &
   Partial<Pick<ArticleRow, 'siteIconUrl' | 'leadImageUrl' | 'readerChatState'>>;
+type NormalizedArticleRowBase = Omit<
+  ArticleRecord,
+  'sourceType' | 'ebook' | 'pdf' | 'text' | 'contentHtml' | 'focusCoReadingPlan'
+>;
 
 export type ArticleSummaryCounts = {
   annotationCount: number;
@@ -29,14 +33,29 @@ export type ArticleSummaryCounts = {
 };
 
 export function rowToArticle(row: ArticleRow, annotations: Annotation[]): ArticleRecord {
-  return {
+  const base = {
     ...rowToArticleBase(row, annotations),
     contentHtml: row.contentHtml || undefined,
-    ebook: rowToEbook(row),
-    pdf: rowToPdf(row),
-    text: rowToText(row),
     focusCoReadingPlan: normalizeFocusCoReadingPlan(row.focusCoReadingPlan),
   };
+  const sourceType = normalizeArticleSourceType(row.sourceType);
+
+  switch (sourceType) {
+    case 'web':
+      return { ...base, sourceType };
+    case 'ebook': {
+      const ebook = rowToEbook(row);
+      return ebook ? { ...base, sourceType, ebook } : { ...base, sourceType: 'web' };
+    }
+    case 'pdf': {
+      const pdf = rowToPdf(row);
+      return pdf ? { ...base, sourceType, pdf } : { ...base, sourceType: 'web' };
+    }
+    case 'text': {
+      const text = rowToText(row);
+      return text ? { ...base, sourceType, text } : { ...base, sourceType: 'web' };
+    }
+  }
 }
 
 export function rowToArticleSummary(
@@ -45,24 +64,35 @@ export function rowToArticleSummary(
   counts?: ArticleSummaryCounts,
 ): ArticleSummaryRecord {
   const { readerChatState: _readerChatState, ...base } = rowToArticleBase(row, annotations, counts);
-  return {
-    ...base,
-    ebook: rowToEbookSummary(row),
-    pdf: rowToPdfSummary(row),
-    text: rowToTextSummary(row),
-  };
+  const sourceType = normalizeArticleSourceType(row.sourceType);
+
+  switch (sourceType) {
+    case 'web':
+      return { ...base, sourceType };
+    case 'ebook': {
+      const ebook = rowToEbookSummary(row);
+      return ebook ? { ...base, sourceType, ebook } : { ...base, sourceType: 'web' };
+    }
+    case 'pdf': {
+      const pdf = rowToPdfSummary(row);
+      return pdf ? { ...base, sourceType, pdf } : { ...base, sourceType: 'web' };
+    }
+    case 'text': {
+      const text = rowToTextSummary(row);
+      return text ? { ...base, sourceType, text } : { ...base, sourceType: 'web' };
+    }
+  }
 }
 
 function rowToArticleBase(
   row: ArticleBaseRow,
   annotations: Annotation[],
   counts = articleCountsFromAnnotations(annotations),
-): ArticleRecord {
+): NormalizedArticleRowBase {
   return {
     id: row.id,
     url: row.url,
     canonicalUrl: row.canonicalUrl,
-    sourceType: normalizeArticleSourceType(row.sourceType),
     title: row.title,
     byline: row.byline || undefined,
     excerpt: row.excerpt || undefined,

@@ -153,7 +153,7 @@ export function useReadingLibraryDistillationSync(
         articleId: pendingArticle.id,
         annotationId: event.annotationId,
         transition: event.transition,
-        articleSourceType: pendingArticle.sourceType || 'web',
+        articleSourceType: pendingArticle.sourceType,
         annotationExists: pendingArticle.annotations.some(
           (annotation) => annotation.id === event.annotationId,
         ),
