@@ -2,6 +2,7 @@ import { performance } from 'node:perf_hooks';
 import { lstat, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { app, session as electronSession, type Session } from 'electron';
+import { errorMessage, isRecord } from '@yomitomo/shared';
 
 const DEFAULT_THRESHOLD_BYTES = 200 * 1024 * 1024;
 const MARKER_VERSION = 1;
@@ -407,12 +408,4 @@ function elapsedMs(startedAt: number) {
 
 function errorCode(error: unknown) {
   return isRecord(error) && typeof error.code === 'string' ? error.code : undefined;
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

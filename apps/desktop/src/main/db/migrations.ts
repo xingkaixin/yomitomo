@@ -1,3 +1,5 @@
+import { recordField } from '@yomitomo/shared';
+
 export type DatabaseMigration = {
   id: string;
   sql: string;
@@ -1170,10 +1172,4 @@ function tableHasColumn(database: MigrationDatabase, table: string, column: stri
     .prepare(`PRAGMA table_info(${table})`)
     .all()
     .some((row) => recordField(row, 'name') === column);
-}
-
-function recordField(input: unknown, field: string): unknown {
-  return typeof input === 'object' && input !== null && !Array.isArray(input)
-    ? (input as Record<string, unknown>)[field]
-    : undefined;
 }

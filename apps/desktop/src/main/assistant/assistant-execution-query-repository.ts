@@ -1,6 +1,13 @@
 import { and, count, desc, eq, gte, lte, sql, type SQL } from 'drizzle-orm';
 import type { AnySQLiteColumn } from 'drizzle-orm/sqlite-core';
-import { assistantExecutionModes, assistantExecutionTaskTypes } from '@yomitomo/shared';
+import {
+  assistantExecutionModes,
+  assistantExecutionTaskTypes,
+  finiteNumberField,
+  isRecord,
+  recordField,
+  trimmedStringField,
+} from '@yomitomo/shared';
 import type {
   AssistantExecutionQueryInput,
   AssistantExecutionRun,
@@ -396,12 +403,12 @@ function safeTraceSteps(traceJson: unknown): AssistantExecutionSafeStep[] {
 function safeTraceStep(input: unknown): AssistantExecutionSafeStep | null {
   if (!isRecord(input)) return null;
   return {
-    stepIndex: numberField(input.stepIndex) || 0,
-    eventType: stringField(input.eventType) || 'unknown',
-    toolName: stringField(input.toolName) || undefined,
-    latencyMs: numberField(input.latencyMs) || 0,
-    resultCount: numberField(input.resultCount) || 0,
-    failureReason: stringField(input.failureReason) || undefined,
+    stepIndex: finiteNumberField(input.stepIndex) || 0,
+    eventType: trimmedStringField(input.eventType) || 'unknown',
+    toolName: trimmedStringField(input.toolName) || undefined,
+    latencyMs: finiteNumberField(input.latencyMs) || 0,
+    resultCount: finiteNumberField(input.resultCount) || 0,
+    failureReason: trimmedStringField(input.failureReason) || undefined,
   };
 }
 
@@ -421,20 +428,4 @@ function normalizeMode(value: string): AssistantExecutionRunListItem['requestedM
 function normalizeLimit(value: number | undefined) {
   if (!value || !Number.isFinite(value)) return DEFAULT_LIMIT;
   return Math.max(1, Math.min(MAX_LIMIT, Math.floor(value)));
-}
-
-function recordField(input: unknown, field: string): unknown {
-  return isRecord(input) ? input[field] : undefined;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function stringField(value: unknown) {
-  return typeof value === 'string' && value.trim() ? value.trim() : '';
-}
-
-function numberField(value: unknown) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }

@@ -6,6 +6,7 @@ import type {
   AssistantToolExecutionResult,
 } from '@yomitomo/ai';
 import type { AgentMessagePayload, ArticleRecord } from '@yomitomo/shared';
+import { recordField, trimmedStringField } from '@yomitomo/shared';
 import {
   createAssistantReadingContextProvider,
   type AssistantReadingContextProvider,
@@ -154,11 +155,13 @@ function okEvidence(evidence: AssistantToolEvidenceInput[]): AssistantToolExecut
 }
 
 function requireQuery(input: unknown) {
-  return stringField(recordField(input, 'query')) ? null : 'missing_query';
+  return trimmedStringField(recordField(input, 'query')) ? null : 'missing_query';
 }
 
 function requireCandidateThought(input: unknown) {
-  return stringField(recordField(input, 'candidateThought')) ? null : 'missing_candidate_thought';
+  return trimmedStringField(recordField(input, 'candidateThought'))
+    ? null
+    : 'missing_candidate_thought';
 }
 
 function uniqueEvidence(evidence: AssistantToolEvidenceInput[]) {
@@ -193,16 +196,4 @@ function cjkSearchWindows(text: string) {
     windows.push(normalized.slice(index, index + 4));
   }
   return windows;
-}
-
-function stringField(value: unknown) {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function recordField(input: unknown, field: string): unknown {
-  return isRecord(input) ? input[field] : undefined;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

@@ -1,5 +1,5 @@
 import type { Agent, LlmProvider } from '@yomitomo/shared';
-import { normalizeAssistantExecutionMode } from '@yomitomo/shared';
+import { isRecord, normalizeAssistantExecutionMode } from '@yomitomo/shared';
 import type { NormalizedAiUsage } from '@yomitomo/ai';
 import type {
   DistillationReviewRuntimeResult,
@@ -126,8 +126,4 @@ function compactUsage(usage: NormalizedAiUsage) {
 
 function finiteNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

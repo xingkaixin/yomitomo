@@ -1,4 +1,5 @@
 import type SQLiteDatabase from 'better-sqlite3';
+import { recordField, stringField } from '@yomitomo/shared';
 
 import { DatabaseTooNewError } from './errors';
 import { migrations, type DatabaseMigration } from './migrations';
@@ -112,16 +113,4 @@ function databaseTableExists(database: SQLiteDatabase.Database, name: string) {
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
     .get(name);
   return Boolean(row);
-}
-
-function recordField(input: unknown, field: string): unknown {
-  return isRecord(input) ? input[field] : undefined;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function stringField(value: unknown) {
-  return typeof value === 'string' ? value : '';
 }

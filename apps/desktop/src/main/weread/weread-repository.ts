@@ -14,6 +14,7 @@ import type {
   WeReadThought,
   WeReadUser,
 } from '@yomitomo/shared';
+import { isRecord, numberField, stringField } from '@yomitomo/shared';
 import { logError } from '../app/logger';
 import * as schema from '../db/schema';
 import {
@@ -604,10 +605,6 @@ function normalizeWeReadReadingStatsBook(value: unknown) {
   };
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 function arrayField(value: unknown) {
   return Array.isArray(value) ? value : [];
 }
@@ -620,14 +617,6 @@ function numberRecordField(value: unknown) {
     if (number !== undefined) normalized[key] = number;
   }
   return normalized;
-}
-
-function stringField(value: unknown) {
-  return typeof value === 'string' ? value : '';
-}
-
-function numberField(value: unknown) {
-  return typeof value === 'number' ? value : undefined;
 }
 
 function normalizeWeReadStatus(value: unknown): WeReadSettings['status'] {

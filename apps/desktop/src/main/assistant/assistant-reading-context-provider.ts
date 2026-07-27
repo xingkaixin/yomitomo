@@ -6,7 +6,13 @@ import type {
   ReadingMemoryEntry,
   TextAnchor,
 } from '@yomitomo/shared';
-import { createTextAnchor } from '@yomitomo/shared';
+import {
+  createTextAnchor,
+  finiteNumberField,
+  isRecord,
+  recordField,
+  trimmedStringField,
+} from '@yomitomo/shared';
 import {
   annotationAuthorName,
   buildCurrentChapterLexicalRelatedPassages,
@@ -78,7 +84,7 @@ function currentThreadEvidence(
   input: AssistantReadingContextProviderInput,
   raw: unknown,
 ): AssistantToolEvidenceInput[] {
-  const annotation = annotationForTool(input, stringField(recordField(raw, 'annotationId')));
+  const annotation = annotationForTool(input, trimmedStringField(recordField(raw, 'annotationId')));
   if (!annotation) return [];
   const rootComment = rootCommentForThread(annotation, input.currentThreadRootCommentId);
   const threadComments = commentsForThread(annotation, rootComment?.id);
@@ -111,7 +117,7 @@ function anchorContextEvidence(
   input: AssistantReadingContextProviderInput,
   raw: unknown,
 ): AssistantToolEvidenceInput[] {
-  const annotation = annotationForTool(input, stringField(recordField(raw, 'annotationId')));
+  const annotation = annotationForTool(input, trimmedStringField(recordField(raw, 'annotationId')));
   const anchor = anchorFromInput(raw) || annotation?.anchor || input.currentAnchor;
   if (!anchor) return [];
   const range = anchorRange(input.articleText, anchor);
@@ -192,7 +198,7 @@ function duplicateThoughtEvidence(
   input: AssistantReadingContextProviderInput,
   raw: unknown,
 ): AssistantToolEvidenceInput[] {
-  const thought = stringField(recordField(raw, 'candidateThought'));
+  const thought = trimmedStringField(recordField(raw, 'candidateThought'));
   if (!thought) return [];
   const entries = searchReadingMemoryEntries({
     articleId: input.article.id,
@@ -326,14 +332,14 @@ function anchorFromInput(raw: unknown): TextAnchor | undefined {
       suffix: anchor.suffix,
       start: anchor.start,
       end: anchor.end,
-      paragraphId: stringField(anchor.paragraphId) || undefined,
-      chapterId: stringField(anchor.chapterId) || undefined,
-      segmentId: stringField(anchor.segmentId) || undefined,
-      textStartInParagraph: numberField(anchor.textStartInParagraph),
-      textEndInParagraph: numberField(anchor.textEndInParagraph),
-      textStartInBook: numberField(anchor.textStartInBook),
-      textEndInBook: numberField(anchor.textEndInBook),
-      quoteHash: stringField(anchor.quoteHash) || undefined,
+      paragraphId: trimmedStringField(anchor.paragraphId) || undefined,
+      chapterId: trimmedStringField(anchor.chapterId) || undefined,
+      segmentId: trimmedStringField(anchor.segmentId) || undefined,
+      textStartInParagraph: finiteNumberField(anchor.textStartInParagraph),
+      textEndInParagraph: finiteNumberField(anchor.textEndInParagraph),
+      textStartInBook: finiteNumberField(anchor.textStartInBook),
+      textEndInBook: finiteNumberField(anchor.textEndInBook),
+      quoteHash: trimmedStringField(anchor.quoteHash) || undefined,
     };
   }
   return undefined;
@@ -381,7 +387,7 @@ function formatCommentAuthor(comment: Annotation['comments'][number]) {
 }
 
 function queryField(input: unknown) {
-  return stringField(recordField(input, 'query'));
+  return trimmedStringField(recordField(input, 'query'));
 }
 
 function limitField(input: unknown) {
@@ -391,20 +397,4 @@ function limitField(input: unknown) {
 
 function queryTerms(query: string) {
   return Array.from(query.matchAll(/[\p{L}\p{M}\p{N}_]+/gu), (match) => match[0]).slice(0, 8);
-}
-
-function stringField(value: unknown) {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function recordField(input: unknown, field: string): unknown {
-  return isRecord(input) ? input[field] : undefined;
-}
-
-function numberField(value: unknown) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

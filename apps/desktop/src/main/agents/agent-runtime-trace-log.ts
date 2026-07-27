@@ -1,7 +1,7 @@
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { app } from 'electron';
-import { assistantRuntimeTaskTypes, makeId } from '@yomitomo/shared';
+import { assistantRuntimeTaskTypes, isRecord, makeId } from '@yomitomo/shared';
 import type {
   AgentRuntimeTraceDecision,
   AgentRuntimeTraceEntry,
@@ -141,10 +141,6 @@ function isTraceTaskType(value: unknown): value is AgentRuntimeTraceEntry['taskT
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function traceMatchesFilters(entry: AgentRuntimeTraceEntry, input: AgentRuntimeTraceListInput) {

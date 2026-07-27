@@ -2,6 +2,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowRight01Icon } from '@hugeicons/core-free-icons';
 import { useEffect, useMemo, useState } from 'react';
 import type { AppSettings, DesktopStore } from '@yomitomo/shared';
+import { errorMessageOrFallback } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/button';
 import { Dialog, DialogContent, DialogPortal } from '../components/ui/dialog';
@@ -92,7 +93,7 @@ export function OnboardingFlow({
         onboardingCompletedAt: new Date().toISOString(),
       });
     } catch (error) {
-      setStatus(errorMessage(error, t('onboarding.enterFailed')));
+      setStatus(errorMessageOrFallback(error, t('onboarding.enterFailed')));
       setBusy(false);
     }
   }
@@ -185,8 +186,4 @@ function createCopyBlocks(
       endLine,
     };
   });
-}
-
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback;
 }

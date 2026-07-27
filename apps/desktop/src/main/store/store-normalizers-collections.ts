@@ -6,6 +6,7 @@ import type {
   LibraryPin,
   LibraryPinTargetKind,
 } from '@yomitomo/shared';
+import { isRecord } from '@yomitomo/shared';
 import type * as schema from '../db/schema';
 
 type CollectionRow = typeof schema.collections.$inferSelect;
@@ -66,8 +67,4 @@ function normalizeCollectionName(value: unknown) {
 
 function normalizeId(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : '';
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

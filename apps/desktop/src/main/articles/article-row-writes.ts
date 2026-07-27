@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 import type { ArticleRecord, ArticleSummaryRecord, ArticleUpsertPatch } from '@yomitomo/shared';
+import { uniqueNonEmptyStrings } from '@yomitomo/shared';
 import * as schema from '../db/schema';
 import {
   getDatabase,
@@ -127,9 +128,11 @@ function softDeleteRemovedArticleAnnotationMemoryEntries(
   executor: ReadingMemorySqliteExecutor,
   article: Pick<ArticleRecord, 'id' | 'annotations'>,
 ) {
-  const currentAnnotationIds = new Set(uniqueStrings(article.annotations.map((item) => item.id)));
+  const currentAnnotationIds = new Set(
+    uniqueNonEmptyStrings(article.annotations.map((item) => item.id)),
+  );
   const currentCommentIds = new Set(
-    uniqueStrings(
+    uniqueNonEmptyStrings(
       article.annotations.flatMap((item) => item.comments.map((comment) => comment.id)),
     ),
   );
@@ -199,8 +202,4 @@ export function touchArticleRows(database: StoreExecutor, articleId: string, upd
     .set({ updatedAt })
     .where(eq(schema.articles.id, articleId))
     .run();
-}
-
-function uniqueStrings(values: Array<string | null | undefined>) {
-  return Array.from(new Set(values.filter((value): value is string => Boolean(value))));
 }

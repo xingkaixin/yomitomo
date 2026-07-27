@@ -7,7 +7,7 @@ import type {
   AnnotationDistillationReviewItem,
   AnnotationDistillationReviewStance,
 } from '@yomitomo/shared';
-import { makeId } from '@yomitomo/shared';
+import { isRecord, makeId, trimmedStringField } from '@yomitomo/shared';
 import { extractJsonObjects } from '../json';
 
 export type GeneratedDistillationReviewItem =
@@ -201,15 +201,15 @@ function validateGeneratedDistillationReviewItem(
 ): { success: true; value: GeneratedDistillationReviewItem } | { success: false; error: Error } {
   if (!isRecord(value)) return invalidGeneratedItem('item must be an object');
   if (value.type === 'overview') {
-    const content = stringField(value.content);
+    const content = trimmedStringField(value.content);
     const stance = reviewStance(value.stance);
     if (!content) return invalidGeneratedItem('overview.content is required');
     if (!stance) return invalidGeneratedItem('overview.stance is invalid');
     return { success: true, value: { type: 'overview', stance, content } };
   }
   if (value.type === 'finding') {
-    const title = stringField(value.title);
-    const content = stringField(value.content);
+    const title = trimmedStringField(value.title);
+    const content = trimmedStringField(value.content);
     const category = reviewFindingCategory(value.category);
     const severity = reviewFindingSeverity(value.severity);
     if (!title) return invalidGeneratedItem('finding.title is required');
@@ -224,16 +224,16 @@ function validateGeneratedDistillationReviewItem(
         severity,
         title,
         content,
-        draftTargetText: stringField(value.draftTargetText) || undefined,
+        draftTargetText: trimmedStringField(value.draftTargetText) || undefined,
       },
     };
   }
   if (value.type === 'proposal') {
     const kind = proposalKind(value.kind);
-    const title = stringField(value.title);
-    const content = stringField(value.content);
-    const targetText = stringField(value.targetText);
-    const replacementText = stringField(value.replacementText);
+    const title = trimmedStringField(value.title);
+    const content = trimmedStringField(value.content);
+    const targetText = trimmedStringField(value.targetText);
+    const replacementText = trimmedStringField(value.replacementText);
     if (!kind) return invalidGeneratedItem('proposal.kind is invalid');
     if (!title) return invalidGeneratedItem('proposal.title is required');
     if (!validProposalFields(kind, content, targetText, replacementText)) {
@@ -245,8 +245,8 @@ function validateGeneratedDistillationReviewItem(
         type: 'proposal',
         kind,
         title,
-        rationale: stringField(value.rationale) || undefined,
-        insertAfterText: stringField(value.insertAfterText) || undefined,
+        rationale: trimmedStringField(value.rationale) || undefined,
+        insertAfterText: trimmedStringField(value.insertAfterText) || undefined,
         targetText: targetText || undefined,
         replacementText: kind === 'replace' ? replacementText : undefined,
         content: kind === 'insert' ? content : undefined,
@@ -334,12 +334,4 @@ function proposalTitle(
   if (kind === 'insert') return preview ? `新增：${preview}` : '新增内容';
   if (kind === 'replace') return preview ? `修改：${preview}` : '修改内容';
   return preview ? `删除：${preview}` : '删除内容';
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function stringField(value: unknown) {
-  return typeof value === 'string' ? value.trim() : '';
 }

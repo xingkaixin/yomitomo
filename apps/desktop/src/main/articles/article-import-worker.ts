@@ -6,6 +6,7 @@ import {
   extractArticleFromDocument,
 } from '@yomitomo/core/article-extraction';
 import { inlineArticleFavicon, inlineArticleImages } from '@yomitomo/core/article-images';
+import { isRecord, stringField } from '@yomitomo/shared';
 import {
   fetchArticleImportUrl,
   isArticleImportRedirectStatus,
@@ -189,14 +190,6 @@ function workerError(error: unknown) {
   return {
     message: error instanceof Error ? error.message : 'ARTICLE_IMPORT_PARSE_FAILED',
   };
-}
-
-function stringField(value: unknown) {
-  return typeof value === 'string' ? value : '';
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 export const articleImportWorkerTestApi = {

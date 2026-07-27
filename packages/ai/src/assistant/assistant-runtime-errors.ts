@@ -1,3 +1,5 @@
+import { errorMessage } from '@yomitomo/shared';
+
 export class AssistantRuntimeFailure extends Error {
   constructor(readonly failureReason: string) {
     super(failureReason);
@@ -19,10 +21,6 @@ export class AssistantRuntimeToolFailure extends Error {
   constructor(cause: unknown) {
     super(errorMessage(cause) || 'tool_execution_failed');
   }
-}
-
-export function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
 }
 
 export function assistantRuntimeFailureReason(error: unknown) {

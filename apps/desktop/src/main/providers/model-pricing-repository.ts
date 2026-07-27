@@ -1,5 +1,11 @@
 import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm';
 import type { LlmProvider } from '@yomitomo/shared';
+import {
+  errorMessage,
+  finiteNumberField,
+  trimmedStringField,
+  uniqueTrimmedStrings,
+} from '@yomitomo/shared';
 import { Effect, Schema } from 'effect';
 import * as schema from '../db/schema';
 import { withTimeoutAbortSignalEffect } from '../effect-abort-signal';
@@ -150,13 +156,13 @@ function normalizeModelsDevPriceRecords(
 ): ModelPriceRecord[] {
   const records: ModelPriceRecord[] = [];
   for (const [providerKey, provider] of Object.entries(catalogue)) {
-    const providerId = stringField(provider.id) || providerKey;
+    const providerId = trimmedStringField(provider.id) || providerKey;
     for (const [modelKey, model] of Object.entries(provider.models || {})) {
       const cost = model.cost || {};
-      const inputCostPerMillion = numberField(cost.input);
-      const outputCostPerMillion = numberField(cost.output);
-      const cacheReadCostPerMillion = numberField(cost.cache_read);
-      const cacheWriteCostPerMillion = numberField(cost.cache_write);
+      const inputCostPerMillion = finiteNumberField(cost.input);
+      const outputCostPerMillion = finiteNumberField(cost.output);
+      const cacheReadCostPerMillion = finiteNumberField(cost.cache_read);
+      const cacheWriteCostPerMillion = finiteNumberField(cost.cache_write);
       if (
         inputCostPerMillion === undefined &&
         outputCostPerMillion === undefined &&
@@ -165,7 +171,7 @@ function normalizeModelsDevPriceRecords(
       ) {
         continue;
       }
-      const modelId = stringField(model.id) || modelKey;
+      const modelId = trimmedStringField(model.id) || modelKey;
       records.push({
         id: modelPriceRecordId(providerId, modelId),
         providerId,
@@ -307,7 +313,7 @@ function calculateCostMicros(
 }
 
 function providerPriceAliases(provider: LlmProvider) {
-  return uniqueStrings([
+  return uniqueTrimmedStrings([
     providerIdFromBaseUrl(provider.baseUrl),
     provider.presetId,
     provider.presetId === 'mimo' ? 'xiaomi' : undefined,
@@ -337,27 +343,11 @@ function providerIdFromBaseUrl(baseUrl: string) {
 }
 
 function modelPriceAliases(modelName: string) {
-  return uniqueStrings([modelName, `xiaomi/${modelName}`]);
+  return uniqueTrimmedStrings([modelName, `xiaomi/${modelName}`]);
 }
 
 function modelPriceRecordId(providerId: string, modelId: string) {
   return `${providerId}:${modelId}`;
-}
-
-function uniqueStrings(values: Array<string | undefined>) {
-  return Array.from(new Set(values.map((value) => value?.trim()).filter(Boolean))) as string[];
-}
-
-function numberField(value: unknown) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
-}
-
-function stringField(value: unknown) {
-  return typeof value === 'string' && value.trim() ? value.trim() : '';
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
 }
 
 export const modelPricingRepositoryTestApi = {

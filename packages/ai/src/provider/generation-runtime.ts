@@ -1,5 +1,6 @@
 import { generateText, jsonSchema, Output, streamText, type JSONSchema7 } from 'ai';
 import type { LlmProvider } from '@yomitomo/shared';
+import { errorMessage } from '@yomitomo/shared';
 import { Effect } from 'effect';
 import { createYomitomoLanguageModel } from './ai-sdk-provider-adapter';
 import { logAiInfo } from '../logger';
@@ -173,8 +174,4 @@ function logProviderResponse(provider: LlmProvider, textLength: number, usage: N
     textLength,
     ...usage,
   });
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
 }

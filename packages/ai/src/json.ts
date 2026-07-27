@@ -94,10 +94,6 @@ export function stringValue(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-export function uniqueStrings(values: string[]) {
-  return values.filter((value, index, list) => Boolean(value) && list.indexOf(value) === index);
-}
-
 export function booleanValue(value: unknown) {
   return typeof value === 'boolean' ? value : undefined;
 }

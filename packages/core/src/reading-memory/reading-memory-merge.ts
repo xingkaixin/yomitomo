@@ -1,4 +1,5 @@
 import type { ReadingMemory, ReadingTrace, TextSummary, TraceItem } from '@yomitomo/shared';
+import { uniqueNonEmptyStrings } from '@yomitomo/shared';
 
 const MAX_SUMMARY_CHARS = 700;
 const MAX_KEY_TERMS = 12;
@@ -57,7 +58,7 @@ function normalizeTextSummary(summary: TextSummary): TextSummary | null {
     ...summary,
     sourceRange,
     summary: text,
-    keyTerms: uniqueStrings(summary.keyTerms || [])
+    keyTerms: uniqueNonEmptyStrings(summary.keyTerms || [])
       .map((term) => compactText(term, 40))
       .filter(Boolean)
       .slice(0, MAX_KEY_TERMS),
@@ -164,10 +165,6 @@ function normalizeSourceRange(range: TextSummary['sourceRange']) {
 function compactText(text: string, maxLength: number) {
   const normalized = text.replace(/\s+/g, ' ').trim();
   return normalized.length > maxLength ? normalized.slice(0, maxLength).trimEnd() : normalized;
-}
-
-function uniqueStrings(values: string[]) {
-  return values.filter((value, index, list) => Boolean(value) && list.indexOf(value) === index);
 }
 
 function integerValue(value: number | undefined): number | null {
