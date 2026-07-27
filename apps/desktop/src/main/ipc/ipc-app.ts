@@ -1,5 +1,5 @@
 import { pathToFileURL } from 'node:url';
-import { BrowserWindow, ipcMain } from 'electron';
+import { BrowserWindow } from 'electron';
 import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
 import { onDesktopIpcMainEvent } from './ipc-events';
@@ -12,9 +12,7 @@ type AppIpcContext = Pick<
 
 export function registerAppIpc(context: AppIpcContext) {
   handleDesktopIpc('app:info', () => ({ desktopVersion: context.getAppVersion() }));
-  ipcMain.on('app:pdfium-wasm-url', (event) => {
-    event.returnValue = pathToFileURL(pdfiumWasmPath()).href;
-  });
+  handleDesktopIpc('app:pdfium-wasm-url', () => pathToFileURL(pdfiumWasmPath()).href);
   onDesktopIpcMainEvent('app:renderer-ready', (event) => {
     const browserWindow = BrowserWindow.fromWebContents(event.sender);
     if (browserWindow && !browserWindow.isDestroyed()) {

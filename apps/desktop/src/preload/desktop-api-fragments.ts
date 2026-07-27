@@ -72,6 +72,7 @@ import {
 import { createDesktopIpcStreamClient } from './ipc-stream-client';
 
 const desktopIpcStreamClient = createDesktopIpcStreamClient(electronDesktopIpcStreamTransport);
+let pdfiumWasmUrlPromise: Promise<string> | undefined;
 
 export type DesktopPreloadApiInput = {
   platform: NodeJS.Platform;
@@ -81,7 +82,6 @@ export type DesktopPreloadApiInput = {
 export function createYomitomoDesktopApi(input: DesktopPreloadApiInput) {
   return {
     platform: input.platform,
-    pdfiumWasmUrl: readPdfiumWasmUrl(),
     startupTiming: {
       preloadLoadedAt: input.preloadLoadedAt,
     },
@@ -100,15 +100,10 @@ export function createYomitomoDesktopApi(input: DesktopPreloadApiInput) {
   };
 }
 
-function readPdfiumWasmUrl() {
-  const value = ipcRenderer.sendSync('app:pdfium-wasm-url');
-  if (typeof value !== 'string' || !value) throw new Error('PDFIUM_WASM_URL_UNAVAILABLE');
-  return value;
-}
-
 function createAppPreloadApi() {
   return {
     getAppInfo: () => invokeDesktopIpc('app:info'),
+    readPdfiumWasmUrl: () => (pdfiumWasmUrlPromise ??= invokeDesktopIpc('app:pdfium-wasm-url')),
     showMainWindow: () => sendDesktopIpcMainEvent('app:renderer-ready'),
     openUrl: (url: string) => invokeDesktopIpc('url:open', url),
     onAppMenuCommand: (callback: (command: AppMenuCommand) => void) =>
