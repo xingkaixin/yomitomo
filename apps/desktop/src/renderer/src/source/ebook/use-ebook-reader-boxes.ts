@@ -40,7 +40,7 @@ import {
 type UseEbookReaderBoxesInput = {
   annotationAgents: PublicAgent[];
   annotationsRef: RefObject<Annotation[]>;
-  article: EbookBookcaseProps['article'];
+  article: EbookBookcaseProps['content']['article'];
   canvasRef: RefObject<HTMLDivElement | null>;
   viewRef: RefObject<FoliateViewElement | null>;
   pageTurnTraceRef: RefObject<EbookPageTurnTrace | null>;

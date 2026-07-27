@@ -75,31 +75,20 @@ function cssPixelValue(value: string) {
 }
 
 export function EbookBookcase({
-  agents,
-  annotations: articleAnnotations,
-  article,
-  distillationAnimation,
-  focusAnnotationId,
-  messageSendShortcut,
-  readerTheme,
-  settings,
-  selectionActionShortcuts,
-  selectedAnnotationId,
-  uiLanguage,
-  userProfile,
-  onArticleChange,
-  onFocusedAnnotation,
-  onClose,
-  onDeleteArticleAnnotation,
-  onDeleteArticleComment,
-  onOpenAnnotationDiscussion,
-  onOpenAnnotation,
-  onMergeArticleAgentAnnotation,
-  onSaveArticleAnnotation,
-  onSaveArticleComment,
-  onSaveArticleReadingProgress,
-  onSaveArticleReaderChatState,
+  annotationActions: { onArticleChange, onFocusedAnnotation, onOpenAnnotation },
+  articleActions,
+  content: { agents, annotations: articleAnnotations, article, userProfile },
+  presentation: {
+    distillationAnimation,
+    messageSendShortcut,
+    readerTheme,
+    settings,
+    selectionActionShortcuts,
+    uiLanguage,
+  },
+  readerControl: { focusAnnotationId, onClose, selectedAnnotationId },
 }: EbookBookcaseProps) {
+  const { mergeArticleAgentAnnotation, saveArticleReadingProgress } = articleActions;
   const { t } = useTranslation();
   const articleRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -135,6 +124,7 @@ export function EbookBookcase({
     cleanupFoliateTranslationRef.current();
   }, []);
   const sourceReaderApp = useSourceReaderApp({
+    articleActions,
     canvasRef,
     createAgentAnnotationAdapter: ({ setStatusMessage }) =>
       createEbookSourceReaderController({
@@ -204,13 +194,8 @@ export function EbookBookcase({
         }
       },
       onOpenAnnotation: openAnnotation,
-      onDeleteArticleAnnotation,
-      onDeleteArticleComment,
-      onSaveArticleAnnotation,
-      onSaveArticleComment,
       userProfile,
     },
-    onSaveArticleReaderChatState,
   });
   const {
     session: sourceReaderSession,
@@ -342,7 +327,7 @@ export function EbookBookcase({
     maxColumnCount: spreadLayout.columns,
     readerTheme,
     readerSettings,
-    onSaveArticleReadingProgress,
+    onSaveArticleReadingProgress: saveArticleReadingProgress,
     onAttachFoliateDocumentListeners: attachFoliateDocumentListenersBridge,
     onBeforePageTurn: beforeEbookPageTurn,
     onCleanupFoliateDocumentListeners: cleanupFoliateDocumentListenersBridge,
@@ -662,7 +647,7 @@ export function EbookBookcase({
       applyAnnotations(result.annotations);
       openAnnotation(result.activeId);
     }
-    const persisted = await onMergeArticleAgentAnnotation?.(articleId, annotation);
+    const persisted = await mergeArticleAgentAnnotation(articleId, annotation);
     if (persisted) activeId = persisted.activeId;
     if (persisted && isCurrentArticle(articleId)) {
       applyAnnotations(persisted.patch.article.annotations, persisted.patch.article.updatedAt);
@@ -1024,7 +1009,6 @@ export function EbookBookcase({
         onScrollToHeading: goToReaderTocItem,
         onToggleToc: () => setTocOpen((open) => !open),
       },
-      onOpenAnnotationDiscussion,
       onRevealReaderChatContext: revealReaderChatContext,
     },
     agentPlayback: {

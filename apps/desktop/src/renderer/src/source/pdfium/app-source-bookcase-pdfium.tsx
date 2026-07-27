@@ -101,35 +101,24 @@ import {
 } from './pdfium-layout-debug';
 
 type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']> };
+type PdfiumBookcaseProps = SourceBookcaseProps<PdfArticleRecord>;
 type PdfiumLoadedDocument = NonNullable<
   NonNullable<ReturnType<typeof useDocumentState>>['document']
 >;
 
 export function PdfiumBookcase({
-  agents,
-  annotations: articleAnnotations,
-  article,
-  distillationAnimation,
-  focusAnnotationId,
-  messageSendShortcut,
-  settings,
-  selectionActionShortcuts,
-  selectedAnnotationId,
-  uiLanguage,
-  userProfile,
-  onArticleChange,
-  onFocusedAnnotation,
-  onClose,
-  onDeleteArticleAnnotation,
-  onDeleteArticleComment,
-  onOpenAnnotationDiscussion,
-  onOpenAnnotation,
-  onMergeArticleAgentAnnotation,
-  onSaveArticleAnnotation,
-  onSaveArticleComment,
-  onSaveArticleReadingProgress,
-  onSaveArticleReaderChatState,
-}: SourceBookcaseProps & { article: PdfArticleRecord }) {
+  annotationActions: { onArticleChange, onFocusedAnnotation, onOpenAnnotation },
+  articleActions,
+  content: { agents, annotations: articleAnnotations, article, userProfile },
+  presentation: {
+    distillationAnimation,
+    messageSendShortcut,
+    settings,
+    selectionActionShortcuts,
+    uiLanguage,
+  },
+  readerControl: { focusAnnotationId, onClose, selectedAnnotationId },
+}: PdfiumBookcaseProps) {
   const { t } = useTranslation();
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
   const [tocOpen, setTocOpen] = useState(false);
@@ -166,18 +155,11 @@ export function PdfiumBookcase({
                     isLoaded ? (
                       <PdfiumDocument
                         actions={{
+                          article: articleActions,
                           onClose,
                           onArticleChange,
-                          onDeleteArticleAnnotation,
-                          onDeleteArticleComment,
                           onFocusedAnnotation,
-                          onOpenAnnotationDiscussion,
                           onOpenAnnotation,
-                          onMergeArticleAgentAnnotation,
-                          onSaveArticleAnnotation,
-                          onSaveArticleComment,
-                          onSaveArticleReadingProgress,
-                          onSaveArticleReaderChatState,
                         }}
                         document={{
                           documentId: activeDocumentId,
@@ -230,18 +212,11 @@ export function PdfiumBookcase({
 
 type PdfiumDocumentProps = {
   actions: {
-    onClose: SourceBookcaseProps['onClose'];
-    onArticleChange: SourceBookcaseProps['onArticleChange'];
-    onDeleteArticleAnnotation: SourceBookcaseProps['onDeleteArticleAnnotation'];
-    onDeleteArticleComment: SourceBookcaseProps['onDeleteArticleComment'];
-    onFocusedAnnotation: SourceBookcaseProps['onFocusedAnnotation'];
-    onOpenAnnotationDiscussion: SourceBookcaseProps['onOpenAnnotationDiscussion'];
-    onOpenAnnotation: SourceBookcaseProps['onOpenAnnotation'];
-    onMergeArticleAgentAnnotation: SourceBookcaseProps['onMergeArticleAgentAnnotation'];
-    onSaveArticleAnnotation: SourceBookcaseProps['onSaveArticleAnnotation'];
-    onSaveArticleComment: SourceBookcaseProps['onSaveArticleComment'];
-    onSaveArticleReadingProgress: SourceBookcaseProps['onSaveArticleReadingProgress'];
-    onSaveArticleReaderChatState: SourceBookcaseProps['onSaveArticleReaderChatState'];
+    article: PdfiumBookcaseProps['articleActions'];
+    onClose: PdfiumBookcaseProps['readerControl']['onClose'];
+    onArticleChange: PdfiumBookcaseProps['annotationActions']['onArticleChange'];
+    onFocusedAnnotation: PdfiumBookcaseProps['annotationActions']['onFocusedAnnotation'];
+    onOpenAnnotation: PdfiumBookcaseProps['annotationActions']['onOpenAnnotation'];
   };
   document: {
     documentId: string;
@@ -250,17 +225,17 @@ type PdfiumDocumentProps = {
     pageCount: number;
   };
   source: {
-    agents: SourceBookcaseProps['agents'];
-    annotations: SourceBookcaseProps['annotations'];
+    agents: PdfiumBookcaseProps['content']['agents'];
+    annotations: PdfiumBookcaseProps['content']['annotations'];
     article: PdfArticleRecord;
-    distillationAnimation: SourceBookcaseProps['distillationAnimation'];
-    focusAnnotationId: SourceBookcaseProps['focusAnnotationId'];
-    messageSendShortcut: SourceBookcaseProps['messageSendShortcut'];
-    selectedAnnotationId: SourceBookcaseProps['selectedAnnotationId'];
-    settings: SourceBookcaseProps['settings'];
-    selectionActionShortcuts: SourceBookcaseProps['selectionActionShortcuts'];
-    uiLanguage: SourceBookcaseProps['uiLanguage'];
-    userProfile: SourceBookcaseProps['userProfile'];
+    distillationAnimation: PdfiumBookcaseProps['presentation']['distillationAnimation'];
+    focusAnnotationId: PdfiumBookcaseProps['readerControl']['focusAnnotationId'];
+    messageSendShortcut: PdfiumBookcaseProps['presentation']['messageSendShortcut'];
+    selectedAnnotationId: PdfiumBookcaseProps['readerControl']['selectedAnnotationId'];
+    settings: PdfiumBookcaseProps['presentation']['settings'];
+    selectionActionShortcuts: PdfiumBookcaseProps['presentation']['selectionActionShortcuts'];
+    uiLanguage: PdfiumBookcaseProps['presentation']['uiLanguage'];
+    userProfile: PdfiumBookcaseProps['content']['userProfile'];
   };
   toc: {
     items: TocItem[];
@@ -287,19 +262,13 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   } = source;
   const { documentId, engine, openTrace, pageCount } = document;
   const {
+    article: articleActions,
     onClose,
     onArticleChange,
-    onDeleteArticleAnnotation,
-    onDeleteArticleComment,
     onFocusedAnnotation,
-    onOpenAnnotationDiscussion,
     onOpenAnnotation,
-    onMergeArticleAgentAnnotation,
-    onSaveArticleAnnotation,
-    onSaveArticleComment,
-    onSaveArticleReadingProgress,
-    onSaveArticleReaderChatState,
   } = actions;
+  const { mergeArticleAgentAnnotation, saveArticleReadingProgress } = articleActions;
   const {
     items: tocItems,
     open: tocOpen,
@@ -360,7 +329,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     documentReady: Boolean(loadedDocument),
     openTrace,
     pageCount,
-    onSaveArticleReadingProgress,
+    onSaveArticleReadingProgress: saveArticleReadingProgress,
   });
   const {
     currentArticleText,
@@ -377,6 +346,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     openTrace,
   });
   const sourceReaderApp = useSourceReaderApp({
+    articleActions,
     canvasRef,
     createAgentAnnotationAdapter: ({ setStatusMessage }) =>
       createPdfiumSourceReaderController({
@@ -412,16 +382,16 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       agents,
       annotations: articleAnnotations,
       article,
+      clearPendingOnArticleChange: true,
+      clearPendingOnDeleteAnnotation: true,
       onArticleChange,
+      onBeforeDeleteAnnotation: (annotationId) => {
+        noteRefs.current.delete(annotationId);
+      },
       uiLanguage,
       onOpenAnnotation,
-      onDeleteArticleAnnotation,
-      onDeleteArticleComment,
-      onSaveArticleAnnotation,
-      onSaveArticleComment,
       userProfile,
     },
-    onSaveArticleReaderChatState,
   });
   const {
     session: sourceReaderSession,
@@ -1112,7 +1082,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
           : null,
       );
     }
-    const persisted = await onMergeArticleAgentAnnotation?.(articleId, annotation);
+    const persisted = await mergeArticleAgentAnnotation(articleId, annotation);
     if (persisted) activeId = persisted.activeId;
     if (persisted && article.id === articleId) {
       applyAnnotations(persisted.patch.article.annotations, persisted.patch.article.updatedAt);
@@ -1207,7 +1177,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
         onScrollToHeading: scrollToTocItem,
         onToggleToc,
       },
-      onOpenAnnotationDiscussion,
       onRevealReaderChatContext: revealReaderChatContext,
     },
     agentPlayback: {

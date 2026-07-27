@@ -2,9 +2,7 @@ import type {
   Agent,
   Annotation,
   AppSettings,
-  ArticleReadingProgress,
   ArticleRecord,
-  Comment,
   MessageSendShortcut,
   SelectionActionShortcuts,
   UiLanguage,
@@ -12,19 +10,31 @@ import type {
 } from '@yomitomo/shared';
 import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
 import { useTranslation } from 'react-i18next';
-import type {
-  ArticleAgentAnnotationMergeResult,
-  WindowAnimationSourceRect,
-} from '../../../../ipc-contract';
+import type { ReaderArticleActions } from '../../shell/app-article-store-actions';
 import { EbookBookcase } from '../ebook/app-source-bookcase-ebook';
 import { PdfBookcase } from '../pdfium/app-source-bookcase-pdf';
 import { WebSourceBookcase } from '../web/app-source-bookcase-web';
 
-export type SourceBookcaseProps = {
+type SourceBookcaseContent<TArticle extends ArticleRecord | null> = {
   agents: Agent[];
   annotations: Annotation[];
-  article: ArticleRecord | null;
-  readerTheme: ReaderTheme;
+  article: TArticle;
+  userProfile: UserProfile;
+};
+
+type SourceAnnotationActions = {
+  onArticleChange: (article: ArticleRecord) => void;
+  onFocusedAnnotation: () => void;
+  onOpenAnnotation: (annotationId: string | null) => void;
+};
+
+type SourceReaderControl = {
+  focusAnnotationId: string | null;
+  onClose: () => void;
+  selectedAnnotationId: string | null;
+};
+
+type SourcePresentation = {
   distillationAnimation?: {
     annotationId: string;
     transition: 'publish' | 'update' | 'unpublish';
@@ -36,67 +46,30 @@ export type SourceBookcaseProps = {
     };
     token: number;
   } | null;
-  focusAnnotationId: string | null;
   messageSendShortcut?: MessageSendShortcut;
+  readerTheme: ReaderTheme;
   settings?: AppSettings;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
-  selectedAnnotationId: string | null;
   uiLanguage: UiLanguage;
-  userProfile: UserProfile;
-  onArticleChange: (article: ArticleRecord) => void;
-  onFocusedAnnotation: () => void;
-  onClose: () => void;
-  onDeleteArticleAnnotation?: (articleId: string, annotationId: string) => Promise<void> | void;
-  onDeleteArticleComment?: (
-    articleId: string,
-    annotationId: string,
-    commentId: string,
-  ) => Promise<void> | void;
-  onOpenAnnotationDiscussion?: (
-    articleId: string,
-    annotationId: string,
-    sourceRect?: WindowAnimationSourceRect,
-  ) => Promise<void> | void;
-  onOpenAnnotation: (annotationId: string | null) => void;
-  onMergeArticleAgentAnnotation?: (
-    articleId: string,
-    annotation: Annotation,
-  ) => Promise<ArticleAgentAnnotationMergeResult | null> | ArticleAgentAnnotationMergeResult | null;
-  onSaveArticleAnnotation?: (
-    articleId: string,
-    annotation: Annotation,
-    updatedAt?: string,
-  ) => Promise<void> | void;
-  onSaveArticleComment?: (
-    articleId: string,
-    annotationId: string,
-    comment: Comment,
-    updatedAt?: string,
-  ) => Promise<void> | void;
-  onSaveArticleReadingProgress: (
-    articleId: string,
-    progress: ArticleReadingProgress,
-  ) => Promise<void> | void;
-  onSaveArticleReaderChatState?: (
-    articleId: string,
-    readerChatState?: ArticleRecord['readerChatState'],
-  ) => unknown;
 };
 
-export type WebSourceBookcaseProps = Omit<SourceBookcaseProps, 'article'> & {
-  article: ArticleRecord;
+export type SourceBookcaseProps<TArticle extends ArticleRecord | null = ArticleRecord | null> = {
+  annotationActions: SourceAnnotationActions;
+  articleActions: ReaderArticleActions;
+  content: SourceBookcaseContent<TArticle>;
+  presentation: SourcePresentation;
+  readerControl: SourceReaderControl;
 };
 
+export type WebSourceBookcaseProps = SourceBookcaseProps<ArticleRecord>;
 export type EbookArticleRecord = Extract<ArticleRecord, { sourceType: 'ebook' }>;
 type PdfArticleRecord = Extract<ArticleRecord, { sourceType: 'pdf' }>;
-
-export type EbookBookcaseProps = Omit<SourceBookcaseProps, 'article'> & {
-  article: EbookArticleRecord;
-};
+export type EbookBookcaseProps = SourceBookcaseProps<EbookArticleRecord>;
 
 export function SourceBookcase(props: SourceBookcaseProps) {
   const { t } = useTranslation();
-  if (!props.article) {
+  const article = props.content.article;
+  if (!article) {
     return (
       <section className="source-bookcase is-empty">
         <div className="source-empty">{t('source.empty')}</div>
@@ -104,15 +77,15 @@ export function SourceBookcase(props: SourceBookcaseProps) {
     );
   }
 
-  if (isEbookArticle(props.article)) {
-    return <EbookBookcase {...props} article={props.article} />;
+  if (isEbookArticle(article)) {
+    return <EbookBookcase {...props} content={{ ...props.content, article }} />;
   }
 
-  if (isPdfArticle(props.article)) {
-    return <PdfBookcase {...props} article={props.article} />;
+  if (isPdfArticle(article)) {
+    return <PdfBookcase {...props} content={{ ...props.content, article }} />;
   }
 
-  return <WebSourceBookcase {...props} article={props.article} />;
+  return <WebSourceBookcase {...props} content={{ ...props.content, article }} />;
 }
 
 export function isEbookArticle(article: ArticleRecord | null): article is EbookArticleRecord {

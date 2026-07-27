@@ -10,9 +10,11 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import type { SourceBookcaseProps } from '../source/bookcase/app-source-bookcase';
+import type { ArticleActions } from '../shell/app-article-store-actions';
 import { ReadingLibrary } from '../reading-library/app-reading-library';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { defaultTheme } from '../theme/app-theme';
+import { articleActionStubs } from './article-actions-test-utils';
 
 const sourceBookcase = vi.hoisted(() => ({ props: null as SourceBookcaseProps | null }));
 
@@ -39,15 +41,20 @@ describe('ReadingLibrary article updates', () => {
     const onMergeArticleAgentAnnotation = vi.fn().mockResolvedValue(null);
 
     renderReadingLibrary({
+      articleActions: articleActionStubs({
+        mergeArticleAgentAnnotation: onMergeArticleAgentAnnotation,
+        readArticle: vi.fn(async () => selectedArticle),
+      }),
       articles: [selectedArticle],
       openArticleTarget: { articleId: selectedArticle.id },
-      onReadArticle: vi.fn(async () => selectedArticle),
-      onMergeArticleAgentAnnotation,
     });
 
-    await waitFor(() => expect(sourceBookcase.props?.article?.id).toBe(selectedArticle.id));
+    await waitFor(() => expect(sourceBookcase.props?.content.article?.id).toBe(selectedArticle.id));
     await act(async () => {
-      await sourceBookcase.props!.onMergeArticleAgentAnnotation?.(selectedArticle.id, annotation);
+      await sourceBookcase.props!.articleActions.mergeArticleAgentAnnotation(
+        selectedArticle.id,
+        annotation,
+      );
     });
 
     expect(onMergeArticleAgentAnnotation).toHaveBeenCalledWith(selectedArticle.id, annotation);
@@ -61,16 +68,17 @@ describe('ReadingLibrary article updates', () => {
     });
 
     renderReadingLibrary({
+      articleActions: articleActionStubs({
+        readArticle: vi.fn(async () => selectedArticle),
+      }),
       articles: [selectedArticle],
       openArticleTarget: { articleId: selectedArticle.id },
-      onReadArticle: vi.fn(async () => selectedArticle),
-      onMergeArticleAgentAnnotation: vi.fn(),
     });
-    await waitFor(() => expect(sourceBookcase.props?.article?.id).toBe(selectedArticle.id));
+    await waitFor(() => expect(sourceBookcase.props?.content.article?.id).toBe(selectedArticle.id));
 
-    act(() => sourceBookcase.props?.onArticleChange(changedArticle));
+    act(() => sourceBookcase.props?.annotationActions.onArticleChange(changedArticle));
 
-    expect(sourceBookcase.props?.article).toEqual(changedArticle);
+    expect(sourceBookcase.props?.content.article).toEqual(changedArticle);
   });
 
   it('loads a PDF route only once', async () => {
@@ -89,12 +97,11 @@ describe('ReadingLibrary article updates', () => {
     const onReadArticle = vi.fn(async () => selectedArticle);
 
     renderReadingLibrary({
+      articleActions: articleActionStubs({ readArticle: onReadArticle }),
       articles: [selectedArticle],
       openArticleTarget: { articleId: selectedArticle.id },
-      onReadArticle,
-      onMergeArticleAgentAnnotation: vi.fn(),
     });
-    await waitFor(() => expect(sourceBookcase.props?.article?.id).toBe(selectedArticle.id));
+    await waitFor(() => expect(sourceBookcase.props?.content.article?.id).toBe(selectedArticle.id));
     await act(async () => undefined);
 
     expect(onReadArticle).toHaveBeenCalledTimes(1);
@@ -110,18 +117,19 @@ describe('ReadingLibrary article updates', () => {
     let readResult = selectedArticle;
     const onReadArticle = vi.fn(async () => readResult);
     const options = {
+      articleActions: articleActionStubs({ readArticle: onReadArticle }),
       articles: [selectedArticle],
       openArticleTarget,
-      onReadArticle,
-      onMergeArticleAgentAnnotation: vi.fn(),
     };
     const view = renderReadingLibrary(options);
-    await waitFor(() => expect(sourceBookcase.props?.article?.id).toBe(selectedArticle.id));
+    await waitFor(() => expect(sourceBookcase.props?.content.article?.id).toBe(selectedArticle.id));
 
     readResult = externalArticle;
     view.rerender(readingLibrary({ ...options, articles: [externalArticle] }));
 
-    await waitFor(() => expect(sourceBookcase.props?.article?.title).toBe('Changed externally'));
+    await waitFor(() =>
+      expect(sourceBookcase.props?.content.article?.title).toBe('Changed externally'),
+    );
     expect(onReadArticle).toHaveBeenCalledTimes(2);
   });
 
@@ -138,19 +146,18 @@ describe('ReadingLibrary article updates', () => {
     const openArticleTarget = { articleId: selectedArticle.id };
     const onReadArticle = vi.fn(async () => selectedArticle);
     const options = {
+      articleActions: articleActionStubs({ readArticle: onReadArticle }),
       articles: [selectedArticle],
       openArticleTarget,
-      onReadArticle,
-      onMergeArticleAgentAnnotation: vi.fn(),
     };
     const view = renderReadingLibrary(options);
-    await waitFor(() => expect(sourceBookcase.props?.article?.id).toBe(selectedArticle.id));
+    await waitFor(() => expect(sourceBookcase.props?.content.article?.id).toBe(selectedArticle.id));
 
-    act(() => sourceBookcase.props?.onArticleChange(localArticle));
+    act(() => sourceBookcase.props?.annotationActions.onArticleChange(localArticle));
     view.rerender(readingLibrary({ ...options, articles: [staleExternalArticle] }));
 
     await act(async () => undefined);
-    expect(sourceBookcase.props?.article?.title).toBe('Changed locally');
+    expect(sourceBookcase.props?.content.article?.title).toBe('Changed locally');
     expect(onReadArticle).toHaveBeenCalledTimes(1);
   });
 });
@@ -169,26 +176,19 @@ function renderReadingLibrary(options: ReadingLibraryTestOptions) {
 }
 
 function readingLibrary({
+  articleActions,
   articles,
   openArticleTarget,
-  onReadArticle,
-  onMergeArticleAgentAnnotation,
 }: ReadingLibraryTestOptions) {
   return (
     <ReadingLibrary
       agents={[]}
+      articleActions={articleActions}
       articles={articles.map(articleSummary)}
       {...collectionActionStubs()}
       openArticleTarget={openArticleTarget}
       readerTheme={defaultTheme.reader}
       userProfile={userProfile}
-      onDeleteArticle={vi.fn()}
-      onImportEbookFile={vi.fn()}
-      onImportPdfFile={vi.fn()}
-      onImportArticleUrl={vi.fn()}
-      onMergeArticleAgentAnnotation={onMergeArticleAgentAnnotation}
-      onReadArticle={onReadArticle}
-      onSaveArticleReadingProgress={vi.fn()}
     />
   );
 }
@@ -205,10 +205,9 @@ function collectionActionStubs() {
 }
 
 type ReadingLibraryTestOptions = {
+  articleActions: ArticleActions;
   articles: ArticleRecord[];
   openArticleTarget: { articleId: string; annotationId?: string };
-  onReadArticle: (articleId: string) => Promise<ArticleRecord | null>;
-  onMergeArticleAgentAnnotation: SourceBookcaseProps['onMergeArticleAgentAnnotation'];
 };
 
 type WebArticleRecord = Extract<ArticleRecord, { sourceType: 'web' }>;

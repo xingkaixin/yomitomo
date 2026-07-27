@@ -37,6 +37,7 @@ import { initializeAppI18n } from '../i18n/app-i18n';
 import { defaultTheme } from '../theme/app-theme';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 import { appToast } from '../shell/app-toast';
+import { articleActionStubs } from './article-actions-test-utils';
 
 vi.mock('../sound/app-sound-effects', () => ({
   playAppSoundEffect: vi.fn(),
@@ -300,6 +301,27 @@ function renderLibrary(
   return render(
     <ReadingLibrary
       agents={[]}
+      articleActions={articleActionStubs({
+        ...(options.onCancelArticleImport
+          ? {
+              cancelArticleUrlImport: async (requestId) =>
+                Boolean(await options.onCancelArticleImport?.(requestId)),
+            }
+          : {}),
+        deleteArticle: async (articleId) => {
+          await options.onDeleteArticle?.(articleId);
+        },
+        ...(options.onImportArticleUrl ? { importArticleUrl: options.onImportArticleUrl } : {}),
+        ...(options.onImportEbookFile ? { importEbookFile: options.onImportEbookFile } : {}),
+        ...(options.onImportPdfFile ? { importPdfFile: options.onImportPdfFile } : {}),
+        readArticle:
+          options.onReadArticle ||
+          (async (articleId) =>
+            (articles.find((item) => item.id === articleId) as ArticleRecord | undefined) || null),
+        saveArticleReadingProgress: async (articleId, progress) => {
+          await options.onSaveArticleReadingProgress?.(articleId, progress);
+        },
+      })}
       articles={summaries}
       collectionMembers={options.collectionMembers}
       collections={options.collections}
@@ -310,20 +332,9 @@ function renderLibrary(
       userProfile={userProfile}
       onAddCollectionMembers={options.onAddCollectionMembers || vi.fn()}
       onCreateCollection={options.onCreateCollection || vi.fn()}
-      onDeleteArticle={options.onDeleteArticle || vi.fn()}
       onDeleteCollection={options.onDeleteCollection || vi.fn()}
-      onImportEbookFile={options.onImportEbookFile || vi.fn()}
-      onImportPdfFile={options.onImportPdfFile || vi.fn()}
-      onImportArticleUrl={options.onImportArticleUrl || vi.fn()}
-      onCancelArticleImport={options.onCancelArticleImport}
-      onReadArticle={
-        options.onReadArticle ||
-        (async (articleId) =>
-          (articles.find((item) => item.id === articleId) as ArticleRecord | undefined) || null)
-      }
       onRemoveCollectionMember={options.onRemoveCollectionMember || vi.fn()}
       onRenameCollection={options.onRenameCollection || vi.fn()}
-      onSaveArticleReadingProgress={options.onSaveArticleReadingProgress || vi.fn()}
       onSaveSettings={options.onSaveSettings}
       onSetLibraryPin={options.onSetLibraryPin || vi.fn()}
       onOpenDataSources={options.onOpenDataSources}
@@ -2074,16 +2085,13 @@ describe('ReadingLibrary home', () => {
       return (
         <ReadingLibrary
           agents={[]}
+          articleActions={articleActionStubs({
+            readArticle: (articleId) => onReadArticle(articleId),
+          })}
           articles={articles}
           {...collectionActionStubs()}
           readerTheme={defaultTheme.reader}
           userProfile={userProfile}
-          onDeleteArticle={vi.fn()}
-          onImportEbookFile={vi.fn()}
-          onImportPdfFile={vi.fn()}
-          onImportArticleUrl={vi.fn()}
-          onReadArticle={(articleId) => onReadArticle(articleId)}
-          onSaveArticleReadingProgress={vi.fn()}
         />
       );
     }
@@ -2145,16 +2153,13 @@ describe('ReadingLibrary home', () => {
       return (
         <ReadingLibrary
           agents={[]}
+          articleActions={articleActionStubs({
+            readArticle: (articleId) => onReadArticle(articleId),
+          })}
           articles={articles}
           {...collectionActionStubs()}
           readerTheme={defaultTheme.reader}
           userProfile={userProfile}
-          onDeleteArticle={vi.fn()}
-          onImportEbookFile={vi.fn()}
-          onImportPdfFile={vi.fn()}
-          onImportArticleUrl={vi.fn()}
-          onReadArticle={(articleId) => onReadArticle(articleId)}
-          onSaveArticleReadingProgress={vi.fn()}
         />
       );
     }
@@ -2382,16 +2387,13 @@ describe('ReadingLibrary home', () => {
       return (
         <ReadingLibrary
           agents={[]}
+          articleActions={articleActionStubs({
+            readArticle: (articleId) => onReadArticle(articleId),
+          })}
           articles={articles}
           {...collectionActionStubs()}
           readerTheme={defaultTheme.reader}
           userProfile={userProfile}
-          onDeleteArticle={vi.fn()}
-          onImportEbookFile={vi.fn()}
-          onImportPdfFile={vi.fn()}
-          onImportArticleUrl={vi.fn()}
-          onReadArticle={(articleId) => onReadArticle(articleId)}
-          onSaveArticleReadingProgress={vi.fn()}
         />
       );
     }

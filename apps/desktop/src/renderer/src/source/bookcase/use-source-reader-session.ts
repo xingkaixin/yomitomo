@@ -41,8 +41,8 @@ export type UseSourceReaderSessionOptions = {
   agentAnnotationAdapter?: SourceAgentAnnotationAdapter;
   annotations: Annotation[];
   article: ArticleRecord;
-  clearPendingOnArticleChange?: boolean;
-  clearPendingOnDeleteAnnotation?: boolean;
+  clearPendingOnArticleChange: boolean;
+  clearPendingOnDeleteAnnotation: boolean;
   getArticleText?: () => Promise<string> | string;
   onArticleChange: (article: ArticleRecord) => void;
   onAgentCommentMentioned?: (
@@ -52,7 +52,7 @@ export type UseSourceReaderSessionOptions = {
   ) => void;
   onAnnotationsApplied?: (change: SourceAnnotationsChange) => void;
   onAnnotationsSaved?: (change: SourceAnnotationsChange) => void;
-  onBeforeDeleteAnnotation?: (annotationId: string) => void;
+  onBeforeDeleteAnnotation: (annotationId: string) => void;
   onDeleteArticleAnnotation?: (articleId: string, annotationId: string) => Promise<void> | void;
   onDeleteArticleComment?: (
     articleId: string,
@@ -87,8 +87,8 @@ export function useSourceReaderSession({
   agentAnnotationAdapter,
   annotations: articleAnnotations,
   article,
-  clearPendingOnArticleChange = false,
-  clearPendingOnDeleteAnnotation = false,
+  clearPendingOnArticleChange,
+  clearPendingOnDeleteAnnotation,
   getArticleText,
   onArticleChange,
   onAgentCommentMentioned,
@@ -146,7 +146,7 @@ export function useSourceReaderSession({
     article,
     onArticleChange,
     onBeforeDeleteAnnotation: (annotationId) => {
-      onBeforeDeleteAnnotation?.(annotationId);
+      onBeforeDeleteAnnotation(annotationId);
       if (clearPendingOnDeleteAnnotation) clearPendingAnnotationAgents(annotationId);
     },
     onCommentSaved: ({ annotation, comment, mentionedAgents }) => {

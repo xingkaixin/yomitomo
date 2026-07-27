@@ -36,11 +36,11 @@ type EbookReaderState = {
 };
 
 type UseEbookFoliateViewInput = {
-  article: EbookBookcaseProps['article'];
+  article: EbookBookcaseProps['content']['article'];
   maxColumnCount: number;
   readerTheme: ReaderTheme;
   readerSettings: ReaderSettings;
-  onSaveArticleReadingProgress: EbookBookcaseProps['onSaveArticleReadingProgress'];
+  onSaveArticleReadingProgress: EbookBookcaseProps['articleActions']['saveArticleReadingProgress'];
   onAttachFoliateDocumentListeners: (view: FoliateViewElement | null) => void;
   onBeforePageTurn: (trace: EbookPageTurnTrace) => void;
   onCleanupFoliateDocumentListeners: () => void;

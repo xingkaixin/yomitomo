@@ -1,10 +1,7 @@
 import { useEffect, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
-import type {
-  MessageSendShortcut,
-  ReaderChatState,
-  SelectionActionShortcuts,
-} from '@yomitomo/shared';
+import type { MessageSendShortcut, SelectionActionShortcuts } from '@yomitomo/shared';
 import type { ReaderAppViewProps } from '@yomitomo/reader-ui/reader-app-view';
+import type { ReaderArticleActions } from '../../shell/app-article-store-actions';
 import {
   useSourceReaderSession,
   type SourceAgentAnnotationAdapter,
@@ -17,20 +14,20 @@ type ReaderAnnotationActions = ReaderAppActions['annotation'];
 type ReaderChatActions = NonNullable<ReaderAppActions['chat']>;
 type SourceReaderSessionInput = Omit<
   UseSourceReaderSessionOptions,
-  'agentAnnotationAdapter' | 'getArticleText' | 'setStatusMessage'
+  | 'agentAnnotationAdapter'
+  | 'getArticleText'
+  | 'onDeleteArticleAnnotation'
+  | 'onDeleteArticleComment'
+  | 'onSaveArticleAnnotation'
+  | 'onSaveArticleComment'
+  | 'setStatusMessage'
 >;
-type SourceOpenAnnotationDiscussion = (
-  articleId: string,
-  annotationId: string,
-  sourceRect?: Parameters<NonNullable<ReaderAnnotationActions['onOpenAnnotationDiscussion']>>[1],
-) => void | Promise<void>;
 
 type SourceReaderActionAdapters = {
   annotation: Omit<ReaderAnnotationActions, 'onOpenAnnotationDiscussion'>;
   selection: ReaderAppActions['selection'];
   shell: ReaderAppActions['shell'];
   toc: ReaderAppActions['toc'];
-  onOpenAnnotationDiscussion?: SourceOpenAnnotationDiscussion;
   onRevealReaderChatContext?: ReaderChatActions['onRevealContext'];
 };
 
@@ -55,6 +52,7 @@ export type SourceReaderAppSurface = {
 };
 
 export type UseSourceReaderAppInput = {
+  articleActions: ReaderArticleActions;
   canvasRef: RefObject<HTMLElement | null>;
   createAgentAnnotationAdapter?: (context: {
     setStatusMessage: Dispatch<SetStateAction<string>>;
@@ -63,23 +61,26 @@ export type UseSourceReaderAppInput = {
   messageSendShortcut?: MessageSendShortcut;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   session: SourceReaderSessionInput;
-  onSaveArticleReaderChatState?: (articleId: string, readerChatState?: ReaderChatState) => unknown;
 };
 
 export function useSourceReaderApp({
+  articleActions,
   canvasRef,
   createAgentAnnotationAdapter,
   getArticleText,
   messageSendShortcut,
   selectionActionShortcuts,
   session: sessionInput,
-  onSaveArticleReaderChatState,
 }: UseSourceReaderAppInput) {
   const [statusMessage, setStatusMessage] = useState('');
   const session = useSourceReaderSession({
     ...sessionInput,
     agentAnnotationAdapter: createAgentAnnotationAdapter?.({ setStatusMessage }),
     getArticleText,
+    onDeleteArticleAnnotation: articleActions.deleteArticleAnnotation,
+    onDeleteArticleComment: articleActions.deleteArticleComment,
+    onSaveArticleAnnotation: articleActions.saveArticleAnnotation,
+    onSaveArticleComment: articleActions.saveArticleComment,
     setStatusMessage,
   });
   const workspace = useSourceReaderWorkspace({
@@ -90,7 +91,7 @@ export function useSourceReaderApp({
     selectionActionShortcuts,
     session,
     uiLanguage: sessionInput.uiLanguage,
-    onSaveArticleReaderChatState,
+    onSaveArticleReaderChatState: articleActions.saveArticleReaderChatState,
   });
 
   useEffect(() => setStatusMessage(''), [sessionInput.article.id]);
@@ -109,7 +110,7 @@ export function useSourceReaderApp({
       annotation: {
         ...actionAdapters.annotation,
         onOpenAnnotationDiscussion: (annotationId, sourceRect) =>
-          void actionAdapters.onOpenAnnotationDiscussion?.(
+          void articleActions.openArticleDiscussion(
             sessionInput.article.id,
             annotationId,
             sourceRect,

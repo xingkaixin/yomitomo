@@ -23,12 +23,12 @@ export function usePdfiumNavigation({
 }: {
   annotations: Annotation[];
   documentId: string;
-  focusAnnotationId: SourceBookcaseProps['focusAnnotationId'];
+  focusAnnotationId: SourceBookcaseProps['readerControl']['focusAnnotationId'];
   pageCount: number;
   scroll: PdfiumScroll | null | undefined;
   onCloseToc: () => void;
-  onFocusedAnnotation: SourceBookcaseProps['onFocusedAnnotation'];
-  onOpenAnnotation: SourceBookcaseProps['onOpenAnnotation'];
+  onFocusedAnnotation: SourceBookcaseProps['annotationActions']['onFocusedAnnotation'];
+  onOpenAnnotation: SourceBookcaseProps['annotationActions']['onOpenAnnotation'];
   onSetTocItems: (items: TocItem[]) => void;
 }) {
   const { provides: bookmark } = useBookmarkCapability();

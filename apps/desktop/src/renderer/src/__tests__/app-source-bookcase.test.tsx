@@ -7,23 +7,30 @@ import type { ArticleRecord, UserProfile } from '@yomitomo/shared';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { SourceBookcase } from '../source/bookcase/app-source-bookcase';
 import { defaultTheme } from '../theme/app-theme';
+import { articleActionStubs } from './article-actions-test-utils';
 
 vi.mock('../source/web/app-source-bookcase-web', () => ({
-  WebSourceBookcase: ({ article: sourceArticle }: { article: ArticleRecord }) => (
-    <div data-testid="web-source-bookcase">{sourceArticle.title}</div>
-  ),
+  WebSourceBookcase: ({
+    content: { article: sourceArticle },
+  }: {
+    content: { article: ArticleRecord };
+  }) => <div data-testid="web-source-bookcase">{sourceArticle.title}</div>,
 }));
 
 vi.mock('../source/ebook/app-source-bookcase-ebook', () => ({
-  EbookBookcase: ({ article: sourceArticle }: { article: ArticleRecord }) => (
-    <div data-testid="ebook-source-bookcase">{sourceArticle.title}</div>
-  ),
+  EbookBookcase: ({
+    content: { article: sourceArticle },
+  }: {
+    content: { article: ArticleRecord };
+  }) => <div data-testid="ebook-source-bookcase">{sourceArticle.title}</div>,
 }));
 
 vi.mock('../source/pdfium/app-source-bookcase-pdf', () => ({
-  PdfBookcase: ({ article: sourceArticle }: { article: ArticleRecord }) => (
-    <div data-testid="pdf-source-bookcase">{sourceArticle.title}</div>
-  ),
+  PdfBookcase: ({
+    content: { article: sourceArticle },
+  }: {
+    content: { article: ArticleRecord };
+  }) => <div data-testid="pdf-source-bookcase">{sourceArticle.title}</div>,
 }));
 
 const now = '2026-05-16T12:00:00.000Z';
@@ -106,19 +113,27 @@ function pdfArticle(): ArticleRecord {
 function renderSourceBookcase(sourceArticle: ArticleRecord | null) {
   return render(
     <SourceBookcase
-      agents={[]}
-      annotations={sourceArticle?.annotations ?? []}
-      article={sourceArticle}
-      focusAnnotationId={null}
-      readerTheme={defaultTheme.reader}
-      selectedAnnotationId={null}
-      uiLanguage="zh-CN"
-      userProfile={userProfile}
-      onArticleChange={vi.fn()}
-      onClose={vi.fn()}
-      onFocusedAnnotation={vi.fn()}
-      onOpenAnnotation={vi.fn()}
-      onSaveArticleReadingProgress={vi.fn()}
+      annotationActions={{
+        onArticleChange: vi.fn(),
+        onFocusedAnnotation: vi.fn(),
+        onOpenAnnotation: vi.fn(),
+      }}
+      articleActions={articleActionStubs()}
+      content={{
+        agents: [],
+        annotations: sourceArticle?.annotations ?? [],
+        article: sourceArticle,
+        userProfile,
+      }}
+      presentation={{
+        readerTheme: defaultTheme.reader,
+        uiLanguage: 'zh-CN',
+      }}
+      readerControl={{
+        focusAnnotationId: null,
+        onClose: vi.fn(),
+        selectedAnnotationId: null,
+      }}
     />,
   );
 }
