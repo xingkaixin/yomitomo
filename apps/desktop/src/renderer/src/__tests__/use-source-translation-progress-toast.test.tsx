@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { TFunction } from 'i18next';
 import type { ArticleTranslation } from '@yomitomo/shared';
 import { appToast } from '../shell/app-toast';
-import { useWebTranslationProgressToast } from '../source/web/use-web-translation-progress-toast';
+import { useSourceTranslationProgressToast } from '../source/bookcase/use-source-translation-progress-toast';
 
 vi.mock('../shell/app-toast', () => ({
   appToast: {
@@ -22,7 +22,7 @@ vi.mock('../shell/app-assistant-runtime-progress', () => ({
   ),
 }));
 
-type TranslationProgressToast = ReturnType<typeof useWebTranslationProgressToast>;
+type TranslationProgressToast = ReturnType<typeof useSourceTranslationProgressToast>;
 
 const now = '2026-06-30T00:00:00.000Z';
 const t = ((key: string, options?: Record<string, unknown>) =>
@@ -47,9 +47,12 @@ function Probe({
 }: {
   onRevealFirstFailedTranslationSegment?: (nextTranslation: ArticleTranslation) => void;
 }) {
-  latestToast = useWebTranslationProgressToast({
+  latestToast = useSourceTranslationProgressToast({
+    failureKey: 'readerTranslation.article.translationFailed',
+    inProgressDescription: 'translation in progress',
     onRevealFirstFailedTranslationSegment,
     t,
+    translatingLabel: 'translating',
   });
   return null;
 }
@@ -90,7 +93,7 @@ function translationSegment(
   };
 }
 
-describe('useWebTranslationProgressToast', () => {
+describe('useSourceTranslationProgressToast', () => {
   it('dismisses the old toast and creates a pending toast on start', () => {
     vi.mocked(appToast.info).mockReturnValueOnce('toast-1').mockReturnValueOnce('toast-2');
     render(<Probe />);
@@ -101,7 +104,7 @@ describe('useWebTranslationProgressToast', () => {
     });
 
     expect(appToast.dismiss).toHaveBeenCalledWith('toast-1');
-    expect(appToast.info).toHaveBeenLastCalledWith('source.translatingArticle', {
+    expect(appToast.info).toHaveBeenLastCalledWith('translating', {
       description: expect.objectContaining({
         props: expect.objectContaining({
           className: 'translation-toast-progress is-pending',
@@ -136,7 +139,7 @@ describe('useWebTranslationProgressToast', () => {
           className: 'translation-toast-progress',
         }),
       }),
-      title: 'source.translatingArticle',
+      title: 'translating',
       type: 'info',
     });
   });
@@ -162,8 +165,9 @@ describe('useWebTranslationProgressToast', () => {
 
     expect(appToast.update).toHaveBeenCalledWith('toast-1', {
       action: undefined,
-      description: 'source.translationCompleteToastDescription:{"ready":2,"total":2}',
-      title: 'source.translationCompleteToast',
+      description:
+        'readerTranslation.common.translationCompleteToastDescription:{"ready":2,"total":2}',
+      title: 'readerTranslation.common.translationCompleteToast',
       type: 'success',
     });
     expect(appToast.dismiss).not.toHaveBeenCalled();
@@ -196,13 +200,13 @@ describe('useWebTranslationProgressToast', () => {
     const updateOptions = vi.mocked(appToast.update).mock.calls[0]?.[1];
     expect(updateOptions).toEqual({
       action: {
-        label: 'source.translationFailedToastAction',
+        label: 'readerTranslation.common.translationFailedToastAction',
         onClick: expect.any(Function),
-        successLabel: 'source.translationFailedToastActionDone',
+        successLabel: 'readerTranslation.common.translationFailedToastActionDone',
       },
       description:
-        'source.translationCompleteWithFailuresDescription:{"failed":1,"ready":1,"total":2}',
-      title: 'source.translationCompleteWithFailuresToast:{"failed":1}',
+        'readerTranslation.common.translationCompleteWithFailuresDescription:{"failed":1,"ready":1,"total":2}',
+      title: 'readerTranslation.common.translationCompleteWithFailuresToast:{"failed":1}',
       type: 'warning',
     });
     updateOptions?.action?.onClick();

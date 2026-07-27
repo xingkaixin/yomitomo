@@ -3,23 +3,20 @@ import { useTranslation } from 'react-i18next';
 import type { Annotation, ArticleRecord, ArticleTranslation } from '@yomitomo/shared';
 import {
   articleHtmlWithBilingualTranslation,
+  extractWebArticleTranslationBlocks,
   getArticleSelection,
   isRangeInsideArticle,
   scrollReaderSurfaceToRect,
 } from '@yomitomo/core';
-import { assistantRuntimeErrorMessage } from '../../shell/app-assistant-runtime-progress';
-import { getDesktopApi, getOptionalDesktopApi } from '../../shell/app-desktop-api';
 import { appToast } from '../../shell/app-toast';
 import {
-  ReaderTranslationConfirmDialog,
-  ReaderTranslationToolbarButton,
-  type TranslationConfirmAction,
-} from '../bookcase/reader-translation-controls';
+  useSourceBilingualTranslation,
+  type TranslationSurfaceAdapter,
+} from '../bookcase/use-source-bilingual-translation';
 import {
   describeArticleTranslationDom,
   logReaderSelectionDebug,
 } from './web-reader-selection-debug';
-import { useWebTranslationProgressToast } from './use-web-translation-progress-toast';
 
 const translationSelectionToastThrottleMs = 2000;
 const translationSuccessFeedbackDurationMs = 2000;
@@ -31,13 +28,6 @@ type WebArticleHtmlRenderState = {
   html: string;
   pendingHtml: string | null;
 };
-
-type WebTranslationRequestOptions = {
-  force?: boolean;
-  sourceBlockIds?: string[];
-};
-
-type WebTranslationUpdateReason = 'initial-load' | 'request' | 'subscription';
 
 type UseWebBilingualTranslationInput = {
   annotations: Annotation[];
@@ -70,41 +60,32 @@ export function useWebBilingualTranslation({
     pendingHtml: null,
   });
   const htmlRenderFlushTimerRef = useRef<number | null>(null);
-  const loadTokenRef = useRef(0);
-  const selectionGestureActiveRef = useRef(false);
-  const deferredTranslationRef = useRef<ArticleTranslation | null>(null);
   const translationSegmentStatusRef = useRef(
     new Map<string, ArticleTranslation['segments'][number]['status']>(),
   );
   const translationSuccessTimerRef = useRef(new Map<string, number>());
   const selectionToastAtRef = useRef(0);
-  const requestTranslationRef = useRef<(options?: WebTranslationRequestOptions) => Promise<void>>(
-    async () => {},
-  );
   const debugContextRef = useRef<Record<string, unknown>>({});
-  const [, forceHtmlRender] = useState(0);
-  const [busy, setBusy] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<TranslationConfirmAction | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [translation, setTranslation] = useState<ArticleTranslation | null>(null);
+  const [htmlRenderVersion, forceHtmlRender] = useState(0);
   const [translationSuccessBlockIds, setTranslationSuccessBlockIds] = useState<Set<string>>(
     () => new Set(),
   );
-  const [visible, setVisible] = useState(false);
-  const translationInProgress = busy || translation?.status === 'translating';
-  const isSelectionDisabled = visible && translationInProgress;
 
   const scrollTranslationBlockIntoView = useCallback(
     (blockId: string) => {
       const articleElement = articleRef.current;
       const scrollElement = scrollRef.current;
       if (!articleElement || !scrollElement) return;
-      const target = Array.from(
-        articleElement.querySelectorAll<HTMLElement>('[data-reader-translation-block-id]'),
-      ).find((element) => element.getAttribute('data-reader-translation-block-id') === blockId);
-      const source = Array.from(
-        articleElement.querySelectorAll<HTMLElement>('[data-reader-source-block-id]'),
-      ).find((element) => element.getAttribute('data-reader-source-block-id') === blockId);
+      const target = translationBlockElement(
+        articleElement,
+        '[data-reader-translation-block-id]',
+        blockId,
+      );
+      const source = translationBlockElement(
+        articleElement,
+        '[data-reader-source-block-id]',
+        blockId,
+      );
       const element = target || source;
       if (!element) return;
       scrollReaderSurfaceToRect(scrollElement, element.getBoundingClientRect(), 82);
@@ -113,43 +94,79 @@ export function useWebBilingualTranslation({
     [articleRef, scrollRef],
   );
 
-  const revealFirstFailedTranslationSegment = useCallback(
-    (nextTranslation: ArticleTranslation) => {
-      const blockId = nextTranslation.segments.find(
-        (segment) => segment.status === 'failed',
-      )?.sourceBlockId;
-      if (!blockId) return;
-      setVisible(true);
-      window.requestAnimationFrame(() => scrollTranslationBlockIntoView(blockId));
-    },
-    [scrollTranslationBlockIntoView],
+  const translationSurface = useMemo<TranslationSurfaceAdapter<string>>(
+    () => ({
+      applyTranslation: (translation, visible) => {
+        const successBlockIds =
+          translation?.status === 'translating'
+            ? emptyTranslationSuccessBlockIds
+            : translationSuccessBlockIds;
+        const nextHtml =
+          visible && translation
+            ? articleHtmlWithBilingualTranslation(document, contentHtml, translation, {
+                retryLabel: t('readerTranslation.common.retryTranslationSegment'),
+                style,
+                successBlockIds,
+              })
+            : contentHtml;
+        if (shouldFreezeWebArticleHtml(articleRef.current)) {
+          htmlRenderRef.current.frozen = true;
+        }
+        return webArticleHtmlForRender(htmlRenderRef.current, article.id, nextHtml);
+      },
+      extractBlocks: () =>
+        extractWebArticleTranslationBlocks(document, contentHtml).map(({ id, text }) => ({
+          id,
+          text,
+        })),
+      scrollToBlock: scrollTranslationBlockIntoView,
+    }),
+    [
+      article.id,
+      articleRef,
+      contentHtml,
+      htmlRenderVersion,
+      scrollTranslationBlockIntoView,
+      style,
+      t,
+      translationSuccessBlockIds,
+    ],
   );
 
-  const progressToast = useWebTranslationProgressToast({
-    onRevealFirstFailedTranslationSegment: revealFirstFailedTranslationSegment,
-    t,
+  const countTranslationAnnotations = useCallback(
+    (blockIds: ReadonlySet<string>) =>
+      translationAnnotationsForBlocks(annotations, blockIds).length,
+    [annotations],
+  );
+  const removeTranslationAnnotations = useCallback(
+    async (blockIds: ReadonlySet<string>) => {
+      const affected = translationAnnotationsForBlocks(annotationsRef.current, blockIds);
+      for (const annotation of affected) await deleteAnnotation(annotation.id);
+    },
+    [deleteAnnotation],
+  );
+  const translationAnnotations = useMemo(
+    () => ({
+      count: countTranslationAnnotations,
+      remove: removeTranslationAnnotations,
+    }),
+    [countTranslationAnnotations, removeTranslationAnnotations],
+  );
+  const session = useSourceBilingualTranslation({
+    articleId: article.id,
+    contentKind: 'article',
+    surface: translationSurface,
+    targetLanguage,
+    translationAnnotations,
   });
-
-  const renderedTranslation = translation?.articleId === article.id ? translation : null;
-  const renderedSuccessBlockIds =
-    translation?.status === 'translating'
-      ? emptyTranslationSuccessBlockIds
-      : translationSuccessBlockIds;
-  const computedHtml = useMemo(() => {
-    if (!visible || !renderedTranslation) return contentHtml;
-    return articleHtmlWithBilingualTranslation(document, contentHtml, renderedTranslation, {
-      retryLabel: t('source.retryTranslationSegment'),
-      style,
-      successBlockIds: renderedSuccessBlockIds,
-    });
-  }, [contentHtml, renderedSuccessBlockIds, renderedTranslation, style, t, visible]);
-  const renderedHtml = webArticleHtmlForRender(htmlRenderRef.current, article.id, computedHtml);
+  const renderedHtml = session.surfaceOutput ?? contentHtml;
+  const isSelectionDisabled = session.visible && session.translationInProgress;
 
   debugContextRef.current = {
-    translationVisible: visible,
-    hasTranslation: Boolean(translation),
-    translationStatus: translation?.status ?? null,
-    translationSegmentCount: translation?.segments.length ?? 0,
+    translationVisible: session.visible,
+    hasTranslation: Boolean(session.translation),
+    translationStatus: session.translation?.status ?? null,
+    translationSegmentCount: session.translation?.segments.length ?? 0,
     articleHtmlFrozen: htmlRenderRef.current.frozen,
     pendingArticleHtml: Boolean(htmlRenderRef.current.pendingHtml),
     translationSelectionDisabled: isSelectionDisabled,
@@ -190,61 +207,6 @@ export function useWebBilingualTranslation({
     translationSuccessTimerRef.current.set(blockId, nextTimer);
   }, []);
 
-  const shouldDeferTranslationUpdate = useCallback(() => {
-    if (selectionGestureActiveRef.current) return true;
-    const articleElement = articleRef.current;
-    if (!articleElement) return false;
-    const nativeSelection = getArticleSelection(articleElement);
-    if (!nativeSelection || nativeSelection.rangeCount === 0 || nativeSelection.isCollapsed) {
-      return false;
-    }
-    return isRangeInsideArticle(nativeSelection.getRangeAt(0), articleElement);
-  }, [articleRef]);
-
-  const receiveTranslation = useCallback(
-    (nextTranslation: ArticleTranslation, reason: WebTranslationUpdateReason) => {
-      if (nextTranslation.articleId !== article.id) return;
-      if (reason !== 'initial-load') loadTokenRef.current += 1;
-      progressToast.update(nextTranslation);
-      if (shouldDeferTranslationUpdate()) {
-        deferredTranslationRef.current = nextTranslation;
-        logReaderSelectionDebug('translation-update:deferred', () => ({
-          ...debugContextRef.current,
-          reason,
-          latestUpdatedAt: nextTranslation.updatedAt,
-          latestStatus: nextTranslation.status,
-          latestReadySegmentCount: nextTranslation.segments.filter(
-            (segment) => segment.status === 'ready',
-          ).length,
-        }));
-        return;
-      }
-
-      setTranslation(nextTranslation);
-      setVisible(true);
-    },
-    [article.id, progressToast, shouldDeferTranslationUpdate],
-  );
-
-  const flushDeferredTranslation = useCallback((reason: string) => {
-    selectionGestureActiveRef.current = false;
-    const pendingTranslation = deferredTranslationRef.current;
-    deferredTranslationRef.current = null;
-    if (!pendingTranslation) return;
-
-    logReaderSelectionDebug('translation-update:flushed', () => ({
-      ...debugContextRef.current,
-      reason,
-      latestUpdatedAt: pendingTranslation.updatedAt,
-      latestStatus: pendingTranslation.status,
-      latestReadySegmentCount: pendingTranslation.segments.filter(
-        (segment) => segment.status === 'ready',
-      ).length,
-    }));
-    setTranslation(pendingTranslation);
-    setVisible(true);
-  }, []);
-
   const flushHtmlRendering = useCallback((reason: string) => {
     const renderState = htmlRenderRef.current;
     const pendingHtml = renderState.pendingHtml;
@@ -269,15 +231,13 @@ export function useWebBilingualTranslation({
       htmlRenderFlushTimerRef.current = window.setTimeout(() => {
         htmlRenderFlushTimerRef.current = null;
         flushHtmlRendering(reason);
-        flushDeferredTranslation(reason);
       }, 0);
     },
-    [flushDeferredTranslation, flushHtmlRendering],
+    [flushHtmlRendering],
   );
 
   const startSelection = useCallback((reason: string) => {
     const renderState = htmlRenderRef.current;
-    selectionGestureActiveRef.current = true;
     if (renderState.frozen) return;
     renderState.frozen = true;
     if (htmlRenderFlushTimerRef.current) {
@@ -291,122 +251,16 @@ export function useWebBilingualTranslation({
     }));
   }, []);
 
-  const deleteTranslationAnnotations = useCallback(
-    async (blockIds: Set<string>) => {
-      // Translated-text annotations are anchored to generated segments and cannot survive regeneration.
-      const affected = translationAnnotationsForBlocks(annotationsRef.current, blockIds);
-      for (const annotation of affected) await deleteAnnotation(annotation.id);
-    },
-    [deleteAnnotation],
-  );
-
-  const requestTranslation = useCallback(
-    async (options: WebTranslationRequestOptions = {}) => {
-      if (busy) return;
-      if (!options.force && !options.sourceBlockIds?.length && translation && !visible) {
-        setVisible(true);
-        return;
-      }
-      setVisible(true);
-      setBusy(true);
-      loadTokenRef.current += 1;
-      progressToast.start();
-      const translationTask = (async () => {
-        const retranslatedBlockIds = options.force
-          ? currentTranslationBlockIds(translation)
-          : options.sourceBlockIds?.length
-            ? new Set(options.sourceBlockIds)
-            : null;
-        if (retranslatedBlockIds) await deleteTranslationAnnotations(retranslatedBlockIds);
-        const nextTranslation = await getDesktopApi().article.translation.translate({
-          articleId: article.id,
-          force: options.force,
-          sourceBlockIds: options.sourceBlockIds,
-          targetLanguage,
-        });
-        receiveTranslation(nextTranslation, 'request');
-        return nextTranslation;
-      })();
-      try {
-        progressToast.finish(await translationTask);
-      } catch (error) {
-        progressToast.fail(error);
-      } finally {
-        setBusy(false);
-      }
-    },
-    [
-      article.id,
-      busy,
-      deleteTranslationAnnotations,
-      progressToast,
-      receiveTranslation,
-      targetLanguage,
-      translation,
-      visible,
-    ],
-  );
-  requestTranslationRef.current = requestTranslation;
-
-  const deleteTranslation = useCallback(async () => {
-    if (busy) return;
-    loadTokenRef.current += 1;
-    try {
-      await deleteTranslationAnnotations(currentTranslationBlockIds(translation));
-      await getDesktopApi().article.translation.deleteCurrent({
-        articleId: article.id,
-        targetLanguage,
-      });
-      deferredTranslationRef.current = null;
-      progressToast.dismiss();
-      setTranslation(null);
-      setVisible(false);
-      setMenuOpen(false);
-    } catch (error) {
-      appToast.error(assistantRuntimeErrorMessage(error, 'source.deleteTranslationFailed'));
-    }
-  }, [article.id, busy, deleteTranslationAnnotations, progressToast, targetLanguage, translation]);
-
   useEffect(() => {
-    setTranslation(null);
-    setVisible(false);
-    setMenuOpen(false);
-    setConfirmAction(null);
-    deferredTranslationRef.current = null;
-    selectionGestureActiveRef.current = false;
     clearTranslationSuccessFeedback();
     translationSegmentStatusRef.current.clear();
   }, [article.id, clearTranslationSuccessFeedback]);
 
   useEffect(() => {
-    if (article.sourceType !== 'web') return;
-    const token = ++loadTokenRef.current;
-    void getDesktopApi()
-      .article.translation.getCurrent({ articleId: article.id, targetLanguage })
-      .then((current) => {
-        if (token !== loadTokenRef.current) return;
-        if (current) receiveTranslation(current, 'initial-load');
-        else {
-          setTranslation(null);
-          setVisible(false);
-        }
-      })
-      .catch(() => {
-        if (token === loadTokenRef.current) setTranslation(null);
-      });
-  }, [article.id, article.sourceType, receiveTranslation, targetLanguage]);
-
-  useEffect(() => {
-    const subscribe = getOptionalDesktopApi()?.article?.translation?.onUpdated;
-    if (!subscribe) return;
-    return subscribe((nextTranslation) => receiveTranslation(nextTranslation, 'subscription'));
-  }, [receiveTranslation]);
-
-  useEffect(() => {
     const previousStatuses = translationSegmentStatusRef.current;
     const nextStatuses = new Map<string, ArticleTranslation['segments'][number]['status']>();
 
-    for (const segment of translation?.segments || []) {
+    for (const segment of session.translation?.segments || []) {
       nextStatuses.set(segment.sourceBlockId, segment.status);
       const previousStatus = previousStatuses.get(segment.sourceBlockId);
       if (previousStatus === 'translating' && segment.status === 'ready') {
@@ -419,7 +273,7 @@ export function useWebBilingualTranslation({
       if (!nextStatuses.has(blockId)) clearTranslationSuccessFeedback(blockId);
     }
     translationSegmentStatusRef.current = nextStatuses;
-  }, [clearTranslationSuccessFeedback, showTranslationSuccessFeedback, translation]);
+  }, [clearTranslationSuccessFeedback, session.translation, showTranslationSuccessFeedback]);
 
   useEffect(() => {
     const articleElement = articleRef.current;
@@ -427,11 +281,11 @@ export function useWebBilingualTranslation({
     logReaderSelectionDebug('article-dom:rendered', () => ({
       ...debugContextRef.current,
       contentHtmlChars: renderedHtml.length,
-      renderedTranslationStatus: renderedTranslation?.status ?? null,
-      renderedTranslationSegmentCount: renderedTranslation?.segments.length ?? 0,
+      renderedTranslationStatus: session.translation?.status ?? null,
+      renderedTranslationSegmentCount: session.translation?.segments.length ?? 0,
       dom: describeArticleTranslationDom(articleElement),
     }));
-  }, [articleRef, renderedHtml, renderedTranslation]);
+  }, [articleRef, renderedHtml, session.translation]);
 
   useEffect(
     () => () => {
@@ -440,108 +294,56 @@ export function useWebBilingualTranslation({
         htmlRenderFlushTimerRef.current = null;
       }
       clearTranslationSuccessFeedback();
-      progressToast.dismiss();
     },
-    [clearTranslationSuccessFeedback, progressToast],
+    [clearTranslationSuccessFeedback],
   );
 
   const showSelectionDisabledToast = useCallback(() => {
     const now = Date.now();
     if (now - selectionToastAtRef.current < translationSelectionToastThrottleMs) return;
     selectionToastAtRef.current = now;
-    appToast.warning(t('source.translationSelectionDisabledToast'), {
-      description: t('source.translationSelectionDisabledToastDescription'),
+    appToast.warning(t('readerTranslation.article.translationSelectionDisabledToast'), {
+      description: t('readerTranslation.article.translationSelectionDisabledToastDescription'),
     });
   }, [t]);
 
-  const translationAnnotationCount = useMemo(
-    () =>
-      translation
-        ? translationAnnotationsForBlocks(annotations, currentTranslationBlockIds(translation))
-            .length
-        : 0,
-    [annotations, translation],
-  );
-
-  const toolbar = (
-    <ReaderTranslationToolbarButton
-      busy={translationInProgress}
-      hasTranslation={Boolean(translation)}
-      labels={{
-        deleteTranslation: t('source.deleteTranslation'),
-        hideTranslation: t('source.hideTranslation'),
-        retranslate: t('source.retranslateArticle'),
-        showTranslation: t('source.showTranslation'),
-        translate: t('source.translateArticle'),
-      }}
-      menuOpen={menuOpen}
-      visible={visible}
-      onConfirm={setConfirmAction}
-      onMenuOpenChange={setMenuOpen}
-      onSetVisible={setVisible}
-    />
-  );
-
-  const dialog = (
-    <ReaderTranslationConfirmDialog
-      action={confirmAction}
-      annotationNotice={
-        confirmAction && confirmAction !== 'translate' && translationAnnotationCount > 0
-          ? t('source.translationAnnotationsRemovalNotice', {
-              count: translationAnnotationCount,
-            })
-          : ''
-      }
-      labels={{
-        cancel: t('common.cancel'),
-        confirmDeleteTranslation: t('source.confirmDeleteTranslation'),
-        confirmDeleteTranslationDescription: t('source.confirmDeleteTranslationDescription'),
-        confirmDeleteTranslationTitle: t('source.confirmDeleteTranslationTitle'),
-        confirmRetranslate: t('source.confirmRetranslate'),
-        confirmRetranslateDescription: t('source.confirmRetranslateDescription'),
-        confirmRetranslateTitle: t('source.confirmRetranslateTitle'),
-        confirmTranslate: t('source.confirmTranslate'),
-        confirmTranslateDescription: t('source.confirmTranslateDescription'),
-        confirmTranslateTitle: t('source.confirmTranslateTitle'),
-      }}
-      onClose={() => setConfirmAction(null)}
-      onConfirm={async (action) => {
-        setConfirmAction(null);
-        if (action === 'delete') await deleteTranslation();
-        else await requestTranslation({ force: action === 'retranslate' });
-      }}
-    />
-  );
-
   const debugContext = useCallback(() => debugContextRef.current, []);
-  const retryBlock = useCallback((blockId: string) => {
-    void requestTranslationRef.current({ sourceBlockIds: [blockId] });
-  }, []);
 
   return {
     diagnostics: {
       context: debugContext,
     },
-    dialog,
+    dialog: session.dialog,
     renderedHtml,
-    retryBlock,
+    retryBlock: session.retryBlock,
     selection: {
       finish: finishSelection,
       isDisabled: isSelectionDisabled,
       showDisabledToast: showSelectionDisabledToast,
       start: startSelection,
     },
-    toolbar,
+    toolbar: session.toolbar,
   };
 }
 
-function currentTranslationBlockIds(translation: ArticleTranslation | null) {
-  return new Set((translation?.segments || []).map((segment) => segment.sourceBlockId));
+function shouldFreezeWebArticleHtml(articleElement: HTMLElement | null) {
+  if (!articleElement) return false;
+  const selection = getArticleSelection(articleElement);
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return false;
+  return isRangeInsideArticle(selection.getRangeAt(0), articleElement);
 }
 
-function translationAnnotationsForBlocks(annotations: Annotation[], blockIds: Set<string>) {
+function translationAnnotationsForBlocks(annotations: Annotation[], blockIds: ReadonlySet<string>) {
   return annotations.filter(
     (annotation) => annotation.anchor.segmentId && blockIds.has(annotation.anchor.segmentId),
+  );
+}
+
+function translationBlockElement(root: HTMLElement, selector: string, blockId: string) {
+  return Array.from(root.querySelectorAll<HTMLElement>(selector)).find(
+    (element) =>
+      element.getAttribute('data-reader-translation-block-id') === blockId ||
+      element.getAttribute('data-reader-source-block-id') === blockId,
   );
 }
 

@@ -18,6 +18,7 @@ const toastMocks = vi.hoisted(() => ({
   error: vi.fn(),
   info: vi.fn(() => 'translation-toast'),
   success: vi.fn(),
+  update: vi.fn(),
   warning: vi.fn(),
 }));
 
@@ -32,6 +33,7 @@ afterEach(() => {
   document.body.replaceChildren();
   Reflect.deleteProperty(window, 'yomitomoDesktop');
   vi.clearAllMocks();
+  vi.restoreAllMocks();
 });
 
 function ebookArticle(): EbookArticleRecord {
@@ -93,7 +95,10 @@ function foliateView() {
   return { doc: document, view };
 }
 
-function translationFor(doc: Document, translatedText = '当前章节会保留完整的原文。') {
+function translationFor(
+  doc: Document,
+  translatedText = '当前章节会保留完整的原文。',
+): ArticleTranslation {
   const block = extractBilingualTranslationBlocks(doc.body)[0];
   if (!block) throw new Error('translation source block missing');
   return {
@@ -126,20 +131,23 @@ function translationFor(doc: Document, translatedText = '当前章节会保留�
   } satisfies ArticleTranslation;
 }
 
-function installDesktopApi(current: ArticleTranslation | null) {
+function installDesktopApi(
+  current: ArticleTranslation | null,
+  requestedTranslation = translationFor(document, '请求生成的章节译文。'),
+) {
   const callbacks: Array<(translation: ArticleTranslation) => void> = [];
+  const deleteCurrentArticleTranslation = vi.fn(async () => null);
   const getCurrentArticleTranslation = vi.fn(async () => current);
   const translateArticle = vi.fn(async (_input: ArticleTranslationRequest) => {
-    const result = translationFor(document, '请求生成的章节译文。');
-    callbacks.forEach((callback) => callback(result));
-    return result;
+    callbacks.forEach((callback) => callback(requestedTranslation));
+    return requestedTranslation;
   });
   Object.defineProperty(window, 'yomitomoDesktop', {
     configurable: true,
     value: {
       article: {
         translation: {
-          deleteCurrent: vi.fn(async () => null),
+          deleteCurrent: deleteCurrentArticleTranslation,
           getCurrent: getCurrentArticleTranslation,
           onUpdated: (callback: (translation: ArticleTranslation) => void) => {
             callbacks.push(callback);
@@ -150,7 +158,11 @@ function installDesktopApi(current: ArticleTranslation | null) {
       },
     },
   });
-  return { getCurrentArticleTranslation, translateArticle };
+  return {
+    deleteCurrentArticleTranslation,
+    getCurrentArticleTranslation,
+    translateArticle,
+  };
 }
 
 function renderTranslationHook(onLayoutChange = vi.fn()) {
@@ -235,5 +247,67 @@ describe('useEbookBilingualTranslation', () => {
     doc.dispatchEvent(new Event('selectionchange'));
     expect(mutation).toHaveBeenCalledOnce();
     cleanupSelectionListener();
+  });
+
+  it('deletes the cached translation for the active EPUB chapter', async () => {
+    const { doc, view } = foliateView();
+    const api = installDesktopApi(translationFor(doc));
+    const { result } = renderTranslationHook();
+    act(() => result.current.attachFoliateDocument(view));
+    await waitFor(() => expect(doc.querySelector('[data-reader-translation]')).not.toBeNull());
+
+    const dialog = result.current.dialog as React.ReactElement<{
+      onConfirm: (action: 'delete') => Promise<void>;
+    }>;
+    await act(() => dialog.props.onConfirm('delete'));
+
+    expect(api.deleteCurrentArticleTranslation).toHaveBeenCalledWith({
+      articleId: 'ebook-1',
+      sourceId: 'chapter-1',
+      targetLanguage: 'zh-CN',
+    });
+    expect(doc.querySelector('[data-reader-translation]')).toBeNull();
+  });
+
+  it('reveals the first failed EPUB segment from the shared completion toast', async () => {
+    const { doc, view } = foliateView();
+    const failedTranslation = translationFor(doc);
+    failedTranslation.status = 'failed';
+    failedTranslation.segments[0] = {
+      ...failedTranslation.segments[0],
+      error: 'TRANSLATION_FAILED',
+      status: 'failed',
+      translatedText: undefined,
+    };
+    installDesktopApi(null, failedTranslation);
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0);
+      return 1;
+    });
+    const { result } = renderTranslationHook();
+    act(() => result.current.attachFoliateDocument(view));
+    await waitFor(() => expect(result.current.dialog).not.toBeNull());
+
+    const dialog = result.current.dialog as React.ReactElement<{
+      onConfirm: (action: 'translate') => Promise<void>;
+    }>;
+    await act(() => dialog.props.onConfirm('translate'));
+    const failedButton = await waitFor(() => {
+      const button = doc.querySelector<HTMLButtonElement>(
+        '[data-reader-translation-action="failed"]',
+      );
+      expect(button).not.toBeNull();
+      return button!;
+    });
+    const scrollIntoView = vi.fn();
+    failedButton.scrollIntoView = scrollIntoView;
+    const completionToast = toastMocks.update.mock.calls.find(([, options]) => options.action)?.[1];
+
+    await act(async () => {
+      await completionToast?.action?.onClick();
+    });
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center' });
+    expect(doc.activeElement).toBe(failedButton);
   });
 });
