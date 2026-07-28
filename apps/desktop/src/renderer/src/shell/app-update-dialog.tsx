@@ -74,8 +74,10 @@ export function UpdateReleaseDialog({
       .then((info) => setVersion(info.desktopVersion));
   }, []);
 
-  // 远程拉目标版本文案后弹更新前弹窗；拉取失败仍弹纯版本号提示，不阻塞下载决策。
+  // 版本号和下载决策是必需 UI，远程文案是可选补充：先开弹窗，文案到了再补，
+  // 且只在同一 scene 与版本仍打开时补，late response 不重开已关闭的弹窗。
   const openBeforeUpdate = useCallback((targetVersion: string) => {
+    setDialog({ scene: 'before-update', version: targetVersion, highlights: [] });
     void getDesktopApi()
       .updates.getReleaseNote({
         version: targetVersion,
@@ -83,12 +85,15 @@ export function UpdateReleaseDialog({
         language: normalizeUiLanguage(languageRef.current),
       })
       .then((note) => {
-        setDialog({
-          scene: 'before-update',
-          version: targetVersion,
-          highlights: note ? selectHighlights(note, 'before-update') : [],
-        });
-      });
+        const highlights = note ? selectHighlights(note, 'before-update') : [];
+        if (highlights.length === 0) return;
+        setDialog((current) =>
+          current?.scene === 'before-update' && current.version === targetVersion
+            ? { ...current, highlights }
+            : current,
+        );
+      })
+      .catch(() => undefined);
   }, []);
 
   // B：每次启动只判定一次。无论是否弹窗，都把 lastSeenVersion 推进到当前版本，避免下次误判。
