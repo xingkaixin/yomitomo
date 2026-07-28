@@ -50,8 +50,7 @@ describe('desktop smoke', () => {
 
 async function importSmokeEpub(): Promise<ArticleRecord> {
   const { articleRecordFromEpubFile } = await import('../../src/main/ebooks/ebook-import');
-  const { saveEbookSourceFile, deleteEbookSourceFile } =
-    await import('../../src/main/ebooks/ebook-storage');
+  const { stageEbookSourceFile } = await import('../../src/main/ebooks/ebook-storage');
   const { importArticleSource } = await import('../../src/main/articles/article-source-import');
   const { findArticleByIdentity, readArticle, saveArticle } =
     await import('../../src/main/store/store-articles');
@@ -64,8 +63,7 @@ async function importSmokeEpub(): Promise<ArticleRecord> {
   const result = await importArticleSource({
     record,
     repository: { findArticleByIdentity, readArticle, saveArticle },
-    saveSourceFile: (articleId) => saveEbookSourceFile(articleId, data),
-    cleanupSourceFile: deleteEbookSourceFile,
+    stageSourceAssets: (articleId) => stageEbookSourceFile(articleId, data),
   });
   if (result.status !== 'imported') {
     throw new Error(`Expected imported article, received ${result.status}`);
