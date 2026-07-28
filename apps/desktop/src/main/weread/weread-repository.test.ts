@@ -167,19 +167,34 @@ describe('WeRead repository book details', () => {
     ]);
   });
 
-  it('batches child inserts across books', async () => {
+  it('batches every per-book write across a large snapshot', async () => {
     await saveDetailsSnapshot(Array.from({ length: 100 }, (_, index) => detail(`book_${index}`)));
 
     expect(childInsertStatements()).toHaveLength(4);
+    expect(bookUpsertStatements()).toHaveLength(2);
+    expect(childDeleteStatements()).toHaveLength(3);
     expect(repositoryLogger.logInfo).toHaveBeenCalledWith('weread.repository.detail_rows_saved', {
       scope: 'library_snapshot',
       bookCount: 100,
       chapterRowCount: 100,
       highlightRowCount: 100,
       thoughtRowCount: 100,
-      childInsertStatementCount: 4,
+      writeStatementCount: 9,
       transactionDurationMs: expect.any(Number),
     });
+  });
+
+  it('keeps the per-book statement count flat as the snapshot grows', async () => {
+    const counts: number[] = [];
+    for (const bookCount of [1, 10, 100]) {
+      testPaths.sqlStatements.length = 0;
+      await saveDetailsSnapshot(
+        Array.from({ length: bookCount }, (_, index) => detail(`book_${index}`)),
+      );
+      counts.push(bookUpsertStatements().length + childDeleteStatements().length);
+    }
+
+    expect(counts).toEqual([4, 4, 5]);
   });
 
   it('chunks dense child rows below the conservative SQLite parameter limit', async () => {
@@ -192,7 +207,7 @@ describe('WeRead repository book details', () => {
         chapterRowCount: 1_000,
         highlightRowCount: 1_000,
         thoughtRowCount: 1_000,
-        childInsertStatementCount: 28,
+        writeStatementCount: 32,
       }),
     );
   });
@@ -207,7 +222,7 @@ describe('WeRead repository book details', () => {
       chapterRowCount: 0,
       highlightRowCount: 0,
       thoughtRowCount: 0,
-      childInsertStatementCount: 0,
+      writeStatementCount: 0,
       transactionDurationMs: expect.any(Number),
     });
   });
@@ -496,6 +511,16 @@ function saveDetailsSnapshot(
 function childInsertStatements() {
   return testPaths.sqlStatements.filter((sql) =>
     /insert into "weread_(chapters|highlights|thoughts)"/i.test(sql),
+  );
+}
+
+function bookUpsertStatements() {
+  return testPaths.sqlStatements.filter((sql) => /insert into "weread_books"/i.test(sql));
+}
+
+function childDeleteStatements() {
+  return testPaths.sqlStatements.filter((sql) =>
+    /delete from "weread_(chapters|highlights|thoughts)"/i.test(sql),
   );
 }
 

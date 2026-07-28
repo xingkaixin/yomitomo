@@ -27,7 +27,10 @@ import { readWeReadApiKey, wereadApiKeyRef } from '../providers/provider-secrets
 import { getDatabase, type StoreExecutor } from '../store/store-db';
 import {
   buildWeReadDetailRows,
+  deleteWeReadDetailRowsForBooks,
   insertWeReadDetailRows,
+  upsertWeReadBookRows,
+  weReadBookRow,
   type WeReadDetailRows,
 } from './weread-detail-row-writes';
 
@@ -120,7 +123,7 @@ export async function saveWeReadTestResult(ok: boolean, message: string) {
 export async function saveWeReadBooks(books: WeReadBook[]) {
   const database = getDatabase();
   database.transaction((tx) => {
-    for (const book of books) upsertWeReadBook(tx, book);
+    upsertWeReadBookRows(tx, books.map(weReadBookRow));
     removeStaleWeReadBooks(
       tx,
       books.map((book) => book.bookId),
@@ -154,9 +157,9 @@ export async function saveWeReadLibrarySnapshot(
   const detailRows = buildWeReadDetailRows(input.details);
   const database = getDatabase();
   const startedAt = performance.now();
-  let childInsertStatementCount = 0;
+  let writeStatementCount = 0;
   database.transaction((tx) => {
-    childInsertStatementCount = replaceWeReadBookDetails(tx, input.details, detailRows);
+    writeStatementCount = replaceWeReadBookDetails(tx, input.details, detailRows);
     removeStaleWeReadBooks(tx, input.authoritativeBookIds);
     const existing = tx
       .select()
@@ -174,7 +177,7 @@ export async function saveWeReadLibrarySnapshot(
     });
   });
   logWeReadDetailWrite(logInfo, 'library_snapshot', input.details.length, detailRows, {
-    childInsertStatementCount,
+    writeStatementCount,
     startedAt,
   });
   return readWeReadState();
@@ -208,16 +211,16 @@ export async function saveWeReadBookDetail(
   const hasNotes = detail.highlights.length + detail.thoughts.length > 0;
   const detailRows = hasNotes
     ? buildWeReadDetailRows([detail])
-    : { chapters: [], highlights: [], thoughts: [] };
+    : { books: [], chapters: [], highlights: [], thoughts: [] };
   const database = getDatabase();
   const startedAt = performance.now();
-  let childInsertStatementCount = 0;
+  let writeStatementCount = 0;
   database.transaction((tx) => {
     if (!hasNotes) removeWeReadBookRows(tx, [detail.book.bookId]);
-    else childInsertStatementCount = replaceWeReadBookDetails(tx, [detail], detailRows);
+    else writeStatementCount = replaceWeReadBookDetails(tx, [detail], detailRows);
   });
   logWeReadDetailWrite(logInfo, 'book_detail', 1, detailRows, {
-    childInsertStatementCount,
+    writeStatementCount,
     startedAt,
   });
   const saved = readWeReadBookDetail(detail.book.bookId);
@@ -346,50 +349,19 @@ function upsertWeReadAccountRow(
     .run();
 }
 
-function upsertWeReadBook(database: StoreExecutor, book: WeReadBook) {
-  const row = {
-    bookId: book.bookId,
-    title: book.title,
-    author: book.author || null,
-    cover: book.cover || null,
-    intro: book.intro || null,
-    reviewCount: book.reviewCount,
-    noteCount: book.noteCount,
-    bookmarkCount: book.bookmarkCount,
-    readingProgress: book.readingProgress,
-    markedStatus: book.markedStatus ?? null,
-    sort: book.sort ?? null,
-    currentChapterUid: book.currentChapterUid ?? null,
-    currentChapterOffset: book.currentChapterOffset ?? null,
-    readingTime: book.readingTime ?? null,
-    recordReadingTime: book.recordReadingTime ?? null,
-    lastReadAt: book.lastReadAt ?? null,
-    syncedAt: book.syncedAt || new Date().toISOString(),
-    updatedAt: book.updatedAt,
-  };
-  database
-    .insert(schema.wereadBooks)
-    .values(row)
-    .onConflictDoUpdate({ target: schema.wereadBooks.bookId, set: row })
-    .run();
-}
-
 function replaceWeReadBookDetails(
   database: StoreExecutor,
   details: WeReadBookDetail[],
   rows: WeReadDetailRows,
 ) {
-  for (const detail of details) {
-    upsertWeReadBook(database, detail.book);
-    deleteWeReadBookDetailRows(database, detail.book.bookId);
-  }
-  return insertWeReadDetailRows(database, rows);
-}
-
-function deleteWeReadBookDetailRows(database: StoreExecutor, bookId: string) {
-  database.delete(schema.wereadChapters).where(eq(schema.wereadChapters.bookId, bookId)).run();
-  database.delete(schema.wereadHighlights).where(eq(schema.wereadHighlights.bookId, bookId)).run();
-  database.delete(schema.wereadThoughts).where(eq(schema.wereadThoughts.bookId, bookId)).run();
+  return (
+    upsertWeReadBookRows(database, rows.books) +
+    deleteWeReadDetailRowsForBooks(
+      database,
+      details.map((detail) => detail.book.bookId),
+    ) +
+    insertWeReadDetailRows(database, rows)
+  );
 }
 
 function removeStaleWeReadBooks(database: StoreExecutor, bookIds: string[]) {
@@ -446,7 +418,7 @@ function logWeReadDetailWrite(
   scope: 'book_detail' | 'library_snapshot',
   bookCount: number,
   rows: WeReadDetailRows,
-  input: { childInsertStatementCount: number; startedAt: number },
+  input: { writeStatementCount: number; startedAt: number },
 ) {
   logInfo?.('weread.repository.detail_rows_saved', {
     scope,
@@ -454,7 +426,7 @@ function logWeReadDetailWrite(
     chapterRowCount: rows.chapters.length,
     highlightRowCount: rows.highlights.length,
     thoughtRowCount: rows.thoughts.length,
-    childInsertStatementCount: input.childInsertStatementCount,
+    writeStatementCount: input.writeStatementCount,
     transactionDurationMs: Number((performance.now() - input.startedAt).toFixed(2)),
   });
 }
