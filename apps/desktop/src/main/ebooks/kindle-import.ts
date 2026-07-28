@@ -44,6 +44,13 @@ const MAX_KINDLE_CHAPTER_TEXT_CHARS = 1_500_000;
 const MAX_KINDLE_TOTAL_TEXT_CHARS = 6_000_000;
 const MAX_KINDLE_TOTAL_TEXT_BYTES = 18_000_000;
 const MAX_KINDLE_COVER_BYTES = 2_000_000;
+// A HUFF/CDIC entry expands into more codes, so a corrupt dictionary can loop, nest
+// without end, or emit zero-length entries forever. Each budget below bounds one of
+// those, derived from the product limits above rather than from the file's own claims.
+const MAX_KINDLE_DICTIONARY_ENTRIES = 1 << 16;
+const MAX_KINDLE_DICTIONARY_CODE_LENGTH = 16;
+const MAX_KINDLE_DICTIONARY_DEPTH = 32;
+const MAX_KINDLE_DECODE_STEPS = 20_000_000;
 
 type PdbRecord = {
   index: number;
@@ -67,6 +74,18 @@ type MobiHeader = {
   huffcdic: number;
   numHuffcdic: number;
   trailingFlags: number;
+};
+
+type KindleDecodeBudget = {
+  remainingOutputBytes: number;
+  remainingSteps: number;
+};
+
+type KindleDecompressor = (record: Uint8Array, budget: KindleDecodeBudget) => Uint8Array;
+
+type HuffCdicEntry = {
+  bytes: Uint8Array;
+  state: 'done' | 'unseen' | 'visiting';
 };
 
 type ExthRecord = {
@@ -344,15 +363,15 @@ function readKindleMetadata(mobi: MobiHeader, exthRecords: ExthRecord[]): Kindle
 
 function readKindleHtml(records: PdbRecord[], palmDoc: PalmDocHeader, mobi: MobiHeader) {
   const decompress = kindleDecompressor(records, palmDoc, mobi);
+  const budget: KindleDecodeBudget = {
+    remainingOutputBytes: MAX_KINDLE_TOTAL_TEXT_BYTES,
+    remainingSteps: MAX_KINDLE_DECODE_STEPS,
+  };
   const chunks: Uint8Array[] = [];
-  let totalBytes = 0;
   for (let recordIndex = 1; recordIndex <= palmDoc.textRecordCount; recordIndex += 1) {
     const record = records[recordIndex]?.data;
     if (!record) break;
-    const textRecord = decompress(removeTrailingEntries(record, mobi.trailingFlags));
-    totalBytes += textRecord.byteLength;
-    if (totalBytes > MAX_KINDLE_TOTAL_TEXT_BYTES) throw new Error('EBOOK_IMPORT_ENTRY_TOO_LARGE');
-    chunks.push(textRecord);
+    chunks.push(decompress(removeTrailingEntries(record, mobi.trailingFlags), budget));
   }
   const html = decodeBytes(Buffer.concat(chunks.map((chunk) => Buffer.from(chunk))), mobi.encoding)
     .replaceAll('\u0000', '')
@@ -365,13 +384,28 @@ function kindleDecompressor(
   records: PdbRecord[],
   palmDoc: PalmDocHeader,
   mobi: MobiHeader,
-): (record: Uint8Array) => Uint8Array {
-  if (palmDoc.compression === 1) return (record) => record;
-  if (palmDoc.compression === PALMDOC_COMPRESSION_PALMDOC) return decompressPalmDoc;
+): KindleDecompressor {
+  if (palmDoc.compression === 1) return (record, budget) => chargeDecodedBytes(budget, record);
+  if (palmDoc.compression === PALMDOC_COMPRESSION_PALMDOC) {
+    return (record, budget) => chargeDecodedBytes(budget, decompressPalmDoc(record));
+  }
   if (palmDoc.compression === PALMDOC_COMPRESSION_HUFF_CDIC) {
     return huffCdicDecompressor(mobi, (index) => records[index]?.data || Buffer.alloc(0));
   }
   throw new Error('EBOOK_IMPORT_UNSUPPORTED_COMPRESSION');
+}
+
+function chargeDecodedBytes(budget: KindleDecodeBudget, bytes: Uint8Array) {
+  if (bytes.byteLength > budget.remainingOutputBytes) {
+    throw new Error('EBOOK_IMPORT_ENTRY_TOO_LARGE');
+  }
+  budget.remainingOutputBytes -= bytes.byteLength;
+  return bytes;
+}
+
+function concatDecodedChunks(chunks: Uint8Array[]) {
+  const single = chunks.length === 1 ? chunks[0] : undefined;
+  return single || new Uint8Array(Buffer.concat(chunks));
 }
 
 function readKindleCover(
@@ -600,7 +634,7 @@ function decompressPalmDoc(input: Uint8Array) {
 function huffCdicDecompressor(
   mobi: MobiHeader,
   loadRecord: (index: number) => Uint8Array,
-): (record: Uint8Array) => Uint8Array {
+): KindleDecompressor {
   const huffRecord = loadRecord(mobi.huffcdic);
   if (ascii(huffRecord, 0, 4) !== 'HUFF') throw new Error('EBOOK_IMPORT_INVALID_HUFF');
   const offset1 = uint32(huffRecord, 8);
@@ -618,30 +652,46 @@ function huffCdicDecompressor(
         ],
     ),
   );
-  const dictionary: Array<[Uint8Array, boolean]> = [];
+  const dictionary: HuffCdicEntry[] = [];
   for (let index = 1; index < mobi.numHuffcdic; index += 1) {
     const record = loadRecord(mobi.huffcdic + index);
     if (ascii(record, 0, 4) !== 'CDIC') throw new Error('EBOOK_IMPORT_INVALID_CDIC');
     const length = uint32(record, 4);
     const numEntries = uint32(record, 8);
     const codeLength = uint32(record, 12);
-    const entryCount = Math.min(1 << codeLength, numEntries - dictionary.length);
+    if (codeLength > MAX_KINDLE_DICTIONARY_CODE_LENGTH) {
+      throw new Error('EBOOK_IMPORT_INVALID_CDIC');
+    }
+    const entryCount = Math.min(
+      1 << codeLength,
+      numEntries - dictionary.length,
+      MAX_KINDLE_DICTIONARY_ENTRIES - dictionary.length,
+    );
     const buffer = record.subarray(length);
     for (let entryIndex = 0; entryIndex < entryCount; entryIndex += 1) {
       const offset = uint16(buffer, entryIndex * 2);
       const value = uint16(buffer, offset);
       const entryLength = value & 0x7fff;
-      dictionary.push([
-        buffer.subarray(offset + 2, offset + 2 + entryLength),
-        Boolean(value & 0x8000),
-      ]);
+      dictionary.push({
+        bytes: buffer.subarray(offset + 2, offset + 2 + entryLength),
+        state: value & 0x8000 ? 'done' : 'unseen',
+      });
     }
   }
 
-  const decompress = (byteArray: Uint8Array): Uint8Array => {
-    let output = new Uint8Array();
+  const decodeInto = (
+    byteArray: Uint8Array,
+    sink: Uint8Array[],
+    budget: KindleDecodeBudget,
+    depth: number,
+  ) => {
+    if (depth > MAX_KINDLE_DICTIONARY_DEPTH) throw new Error('EBOOK_IMPORT_INVALID_FILE');
+
     const bitLength = byteArray.byteLength * 8;
     for (let cursor = 0; cursor < bitLength; ) {
+      if (budget.remainingSteps <= 0) throw new Error('EBOOK_IMPORT_INVALID_FILE');
+      budget.remainingSteps -= 1;
+
       const bits = Number(read32Bits(byteArray, cursor));
       let [found, codeLength, value] = table1[bits >>> 24] || [0, 0, 0];
       if (!found) {
@@ -650,19 +700,30 @@ function huffCdicDecompressor(
       }
       cursor += codeLength;
       if (cursor > bitLength) break;
-      const code = value - (bits >>> (32 - codeLength));
-      const dictionaryEntry = dictionary[code];
-      if (!dictionaryEntry) break;
-      let [result, decompressed] = dictionaryEntry;
-      if (!decompressed) {
-        result = decompress(result);
-        dictionary[code] = [result, true];
-      }
-      output = concatUint8Array(output, result);
+      const entry = dictionary[value - (bits >>> (32 - codeLength))];
+      if (!entry) break;
+      sink.push(expandEntry(entry, budget, depth));
     }
-    return output;
   };
-  return decompress;
+
+  const expandEntry = (entry: HuffCdicEntry, budget: KindleDecodeBudget, depth: number) => {
+    // A code that is already expanding must not be reachable from its own expansion.
+    if (entry.state === 'visiting') throw new Error('EBOOK_IMPORT_INVALID_FILE');
+    if (entry.state === 'done') return chargeDecodedBytes(budget, entry.bytes);
+
+    entry.state = 'visiting';
+    const expanded: Uint8Array[] = [];
+    decodeInto(entry.bytes, expanded, budget, depth + 1);
+    entry.bytes = concatDecodedChunks(expanded);
+    entry.state = 'done';
+    return entry.bytes;
+  };
+
+  return (record, budget) => {
+    const chunks: Uint8Array[] = [];
+    decodeInto(record, chunks, budget, 0);
+    return concatDecodedChunks(chunks);
+  };
 }
 
 function removeTrailingEntries(input: Uint8Array, trailingFlags: number) {
@@ -698,13 +759,6 @@ function read32Bits(byteArray: Uint8Array, from: number) {
     bits = (bits << 8n) | BigInt(byteArray[index] ?? 0);
   }
   return (bits >> (8n - BigInt(end & 7))) & 0xffffffffn;
-}
-
-function concatUint8Array(left: Uint8Array, right: Uint8Array) {
-  const result = new Uint8Array(left.length + right.length);
-  result.set(left);
-  result.set(right, left.length);
-  return result;
 }
 
 function countBitsSet(value: number) {

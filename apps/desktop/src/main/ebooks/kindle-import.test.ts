@@ -87,7 +87,162 @@ describe('articleRecordFromKindleFile', () => {
       }),
     ).rejects.toThrow('EBOOK_IMPORT_DRM_PROTECTED');
   });
+
+  it('decodes a HUFF/CDIC book through the dictionary', async () => {
+    const article = await articleRecordFromKindleFile({
+      fileName: 'huff.mobi',
+      data: arrayBufferFromBuffer(
+        huffCdicBook([
+          literalEntry('<html><body><h1>压缩章节</h1>'),
+          literalEntry('<p>压缩正文。</p>'),
+          literalEntry('</body></html>'),
+        ]),
+      ),
+    });
+
+    expect(article.ebook?.chapters.map((chapter) => chapter.title)).toEqual(['压缩章节']);
+    expect(article.ebook?.chapters[0]?.html).toContain('压缩正文。');
+  });
+
+  it('rejects a dictionary entry that expands into itself', async () => {
+    await expect(
+      articleRecordFromKindleFile({
+        fileName: 'cyclic.mobi',
+        data: arrayBufferFromBuffer(huffCdicBook([compressedEntry([0])])),
+      }),
+    ).rejects.toThrow('EBOOK_IMPORT_INVALID_FILE');
+  });
+
+  it('rejects a two entry dictionary cycle', async () => {
+    await expect(
+      articleRecordFromKindleFile({
+        fileName: 'cyclic-pair.mobi',
+        data: arrayBufferFromBuffer(
+          huffCdicBook([compressedEntry([1]), compressedEntry([0])], [0]),
+        ),
+      }),
+    ).rejects.toThrow('EBOOK_IMPORT_INVALID_FILE');
+  });
+
+  it('rejects a dictionary nested deeper than the expansion budget', async () => {
+    const depth = 40;
+    const entries = Array.from({ length: depth }, (_, index) =>
+      index === depth - 1 ? literalEntry('末端') : compressedEntry([index + 1]),
+    );
+
+    await expect(
+      articleRecordFromKindleFile({
+        fileName: 'deep.mobi',
+        data: arrayBufferFromBuffer(huffCdicBook(entries, [0])),
+      }),
+    ).rejects.toThrow('EBOOK_IMPORT_INVALID_FILE');
+  });
+
+  it('rejects a dictionary that expands past the text budget', async () => {
+    await expect(
+      articleRecordFromKindleFile({
+        fileName: 'oversize.mobi',
+        data: arrayBufferFromBuffer(
+          huffCdicBook(
+            [literalEntry('x'.repeat(30_000))],
+            Array.from({ length: 1000 }, () => 0),
+            700,
+          ),
+        ),
+      }),
+    ).rejects.toThrow('EBOOK_IMPORT_ENTRY_TOO_LARGE');
+  });
+
+  it('rejects a CDIC record that claims an impossible code length', async () => {
+    await expect(
+      articleRecordFromKindleFile({
+        fileName: 'wide-codes.mobi',
+        data: arrayBufferFromBuffer(
+          huffCdicBook([literalEntry('文本')], [0], 1, { codeLength: 24 }),
+        ),
+      }),
+    ).rejects.toThrow('EBOOK_IMPORT_INVALID_CDIC');
+  });
 });
+
+type HuffCdicDictionaryEntry = { bytes: Buffer; literal: boolean };
+
+function literalEntry(text: string): HuffCdicDictionaryEntry {
+  return { bytes: Buffer.from(text, 'utf8'), literal: true };
+}
+
+/**
+ * An entry the decoder must expand: its bytes are another code stream, one byte per code.
+ */
+function compressedEntry(codes: number[]): HuffCdicDictionaryEntry {
+  return { bytes: Buffer.from(codes), literal: false };
+}
+
+/**
+ * Builds a MOBI whose text records are HUFF/CDIC code streams. table1 maps byte `b` to an
+ * 8 bit code that resolves to dictionary entry `b`, so a text record is simply the list of
+ * entry indices to emit.
+ */
+function huffCdicBook(
+  entries: HuffCdicDictionaryEntry[],
+  codes: number[] = entries.map((_, index) => index),
+  textRecordCount = 1,
+  options: { codeLength?: number } = {},
+) {
+  const record0 = kindleHeaderRecord({
+    version: 6,
+    compression: 0x4448,
+    textLength: 1024,
+    textRecordCount,
+    resourceStart: 2 + textRecordCount,
+    title: 'HUFF 书',
+    author: '作者丁',
+    huffcdic: 1 + textRecordCount,
+    numHuffcdic: 2,
+  });
+  const textRecords = Array.from({ length: textRecordCount }, () => Buffer.from(codes));
+  return palmDatabase([
+    record0,
+    ...textRecords,
+    huffRecord(),
+    cdicRecord(entries, options.codeLength ?? 16),
+  ]);
+}
+
+function huffRecord() {
+  const header = Buffer.alloc(16);
+  header.write('HUFF', 0, 'ascii');
+  header.writeUInt32BE(16, 8);
+  header.writeUInt32BE(16 + 1024, 12);
+
+  const table1 = Buffer.alloc(1024);
+  for (let byte = 0; byte < 256; byte += 1) {
+    // found | code length 8 | value = 2b, so code = value - (bits >>> 24) = b.
+    table1.writeUInt32BE((((byte * 2) << 8) | 0x80 | 8) >>> 0, byte * 4);
+  }
+  return Buffer.concat([header, table1, Buffer.alloc(256)]);
+}
+
+function cdicRecord(entries: HuffCdicDictionaryEntry[], codeLength: number) {
+  const header = Buffer.alloc(16);
+  header.write('CDIC', 0, 'ascii');
+  header.writeUInt32BE(16, 4);
+  header.writeUInt32BE(entries.length, 8);
+  header.writeUInt32BE(codeLength, 12);
+
+  const offsets = Buffer.alloc(entries.length * 2);
+  const payloads: Buffer[] = [];
+  let cursor = offsets.byteLength;
+  for (const [index, entry] of entries.entries()) {
+    offsets.writeUInt16BE(cursor, index * 2);
+    const payload = Buffer.alloc(2 + entry.bytes.byteLength);
+    payload.writeUInt16BE((entry.literal ? 0x8000 : 0) | entry.bytes.byteLength, 0);
+    entry.bytes.copy(payload, 2);
+    payloads.push(payload);
+    cursor += payload.byteLength;
+  }
+  return Buffer.concat([header, offsets, ...payloads]);
+}
 
 function kindleBook(input: {
   version: number;
@@ -119,6 +274,8 @@ function kindleHeaderRecord(input: {
   resourceStart: number;
   title: string;
   author: string;
+  huffcdic?: number;
+  numHuffcdic?: number;
 }) {
   const header = Buffer.alloc(248);
   header.writeUInt16BE(input.compression, 0);
@@ -133,8 +290,8 @@ function kindleHeaderRecord(input: {
   header.writeUInt32BE(1234, 32);
   header.writeUInt32BE(input.version, 36);
   header.writeUInt32BE(input.resourceStart, 108);
-  header.writeUInt32BE(0, 112);
-  header.writeUInt32BE(0, 116);
+  header.writeUInt32BE(input.huffcdic ?? 0, 112);
+  header.writeUInt32BE(input.numHuffcdic ?? 0, 116);
   header.writeUInt32BE(0x40, 128);
   header.writeUInt32BE(0, 240);
 
