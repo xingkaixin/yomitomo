@@ -4,6 +4,7 @@ import type { ArticleActions } from '../shell/app-article-store-actions';
 export function articleActionStubs(overrides: Partial<ArticleActions> = {}): ArticleActions {
   return {
     cancelArticleUrlImport: vi.fn<ArticleActions['cancelArticleUrlImport']>(),
+    commitTextImport: vi.fn<ArticleActions['commitTextImport']>(),
     closeArticleDiscussions: vi.fn<ArticleActions['closeArticleDiscussions']>(),
     deleteArticle: vi.fn<ArticleActions['deleteArticle']>(),
     deleteArticleAnnotation: vi.fn<ArticleActions['deleteArticleAnnotation']>(),

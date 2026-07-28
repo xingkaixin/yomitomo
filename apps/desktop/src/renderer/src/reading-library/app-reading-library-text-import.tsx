@@ -34,7 +34,13 @@ type ConfirmRow = {
 
 const TEXT_IMPORT_ACCEPT = '.txt,.md,.markdown,text/plain,text/markdown';
 
-export function TextImportDialog({ onClose }: { onClose: () => void }) {
+export function TextImportDialog({
+  onClose,
+  onCommit,
+}: {
+  onClose: () => void;
+  onCommit: (input: { items: TextImportCommitItem[] }) => Promise<unknown>;
+}) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<TextImportMode>('paste');
   const [pasteContent, setPasteContent] = useState('');
@@ -121,7 +127,7 @@ export function TextImportDialog({ onClose }: { onClose: () => void }) {
         body: row.body,
         frontMatter: row.frontMatter,
       }));
-      await getDesktopApi().article.text.commitImport({ items });
+      await onCommit({ items });
       onClose();
     } catch {
       setErrors([t('library.import.text.commitFailed')]);

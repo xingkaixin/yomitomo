@@ -374,6 +374,51 @@ describe('useAppArticleStoreActions', () => {
       articles: [importedSummary, firstArticle],
     });
   });
+
+  it('applies every committed text import patch to the store', async () => {
+    const firstArticle = makeArticle('article-1');
+    const firstImport = articleSummary(makeArticle('text-1'));
+    const secondImport = articleSummary(makeArticle('text-2'));
+    const storeRef: { current: DesktopStore } = {
+      current: { ...emptyStore, articles: [firstArticle] },
+    };
+    const applyStore = vi.fn((store: DesktopStore) => {
+      storeRef.current = store;
+      return store;
+    });
+    const commitImport = vi.fn().mockResolvedValue({
+      articles: [],
+      patches: [
+        { type: 'article-upsert', article: firstImport },
+        { type: 'article-upsert', article: secondImport },
+      ],
+    });
+    let actions!: ReturnType<typeof useAppArticleStoreActions>;
+
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: { article: { text: { commitImport } } },
+    });
+    render(
+      createElement(function Harness() {
+        actions = useAppArticleStoreActions({ storeRef, applyStore });
+        return null;
+      }),
+    );
+
+    await act(async () => {
+      await actions.commitTextImport({
+        items: [{ title: 'Imported', format: 'plain', body: 'body' }],
+      });
+    });
+
+    // main excludes the sender from article:patched, so this result is the only way the
+    // importing window learns about its own new articles.
+    expect(applyStore).toHaveBeenCalledWith({
+      ...emptyStore,
+      articles: [secondImport, firstImport, firstArticle],
+    });
+  });
 });
 
 describe('applyArticleReadingProgressPatch', () => {

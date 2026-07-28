@@ -38,6 +38,7 @@ import {
   MAX_EBOOK_IMPORT_BYTES,
   MAX_PDF_IMPORT_BYTES,
   type ArticleImportResult,
+  type TextImportCommitItem,
 } from '../../../ipc-contract';
 
 const MAX_BATCH_IMPORT_FILES = 10;
@@ -285,6 +286,7 @@ export function useLibraryImportDialogs({
   onImportEbookFile,
   onImportPdfFile,
   onCancelArticleImport,
+  onCommitTextImport,
   onOpenArticle,
 }: {
   settings: AppSettings;
@@ -298,6 +300,7 @@ export function useLibraryImportDialogs({
     onProgress?: PdfImportProgressCallback,
   ) => Promise<ArticleImportResult>;
   onCancelArticleImport?: (requestId: string) => Promise<boolean> | boolean;
+  onCommitTextImport: (input: { items: TextImportCommitItem[] }) => Promise<unknown>;
   onOpenArticle: (article: ArticleRecord) => void;
 }): LibraryImportDialogs {
   const [articleImportOpen, setArticleImportOpen] = useState(false);
@@ -357,7 +360,9 @@ export function useLibraryImportDialogs({
           onOpenArticle={onOpenArticle}
         />
       ) : null}
-      {textImportOpen ? <TextImportDialog onClose={() => setTextImportOpen(false)} /> : null}
+      {textImportOpen ? (
+        <TextImportDialog onClose={() => setTextImportOpen(false)} onCommit={onCommitTextImport} />
+      ) : null}
     </>
   );
 

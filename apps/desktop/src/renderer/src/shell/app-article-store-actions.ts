@@ -12,7 +12,7 @@ import type {
   DesktopStore,
   ReaderChatState,
 } from '@yomitomo/shared';
-import type { WindowAnimationSourceRect } from '../../../ipc-contract';
+import type { TextImportCommitInput, WindowAnimationSourceRect } from '../../../ipc-contract';
 import { getDesktopApi } from './app-desktop-api';
 
 type DesktopStoreRef = { current: DesktopStore };
@@ -215,6 +215,20 @@ export function useAppArticleStoreActions({
     [applyStore, storeRef],
   );
 
+  const commitTextImport = useCallback(
+    async (input: TextImportCommitInput) => {
+      const result = await getDesktopApi().article.text.commitImport(input);
+      // main excludes the sender from article:patched, so the importing window only
+      // learns about its own new articles through this result.
+      let nextStore = storeRef.current;
+      for (const patch of result.patches) nextStore = applyArticleStorePatch(nextStore, patch);
+      storeRef.current = nextStore;
+      applyStore(nextStore);
+      return result;
+    },
+    [applyStore, storeRef],
+  );
+
   const importPdfFile = useCallback(
     async (file: File, onProgress?: ImportProgressCallback) => {
       onProgress?.(4);
@@ -256,6 +270,7 @@ export function useAppArticleStoreActions({
     saveArticleReaderChatState,
     importArticleUrl,
     cancelArticleUrlImport,
+    commitTextImport,
     importEbookFile,
     importPdfFile,
   };

@@ -103,6 +103,7 @@ export function ReadingLibrary({
   const {
     cancelArticleUrlImport,
     closeArticleDiscussions,
+    commitTextImport,
     deleteArticle,
     deleteArticleAnnotation,
     importArticleUrl,
@@ -412,6 +413,7 @@ export function ReadingLibrary({
     },
     imports: {
       onCancelArticleImport: cancelArticleUrlImport,
+      onCommitTextImport: commitTextImport,
       onImportArticleUrl: importArticleUrl,
       onImportEbookFile: importEbookFile,
       onImportPdfFile: importPdfFile,

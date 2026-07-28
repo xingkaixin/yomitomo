@@ -58,6 +58,7 @@ import {
   type LibraryCatalogItemType,
   type LibraryCatalogListInput,
   type SetLibraryPinInput,
+  type TextImportCommitInput,
 } from '../../../ipc-contract';
 import type { AppMenuCommandRequest } from '../../../app-menu-types';
 import { libraryContentSourceBaseOptions } from './app-library-content-sources';
@@ -102,6 +103,7 @@ type LibraryHomeImports = {
   ) => Promise<ArticleImportResult>;
   onImportArticleUrl: (url: string, requestId?: string) => Promise<ArticleImportResult>;
   onCancelArticleImport?: (requestId: string) => Promise<boolean> | boolean;
+  onCommitTextImport: (input: TextImportCommitInput) => Promise<unknown>;
 };
 
 type LibraryHomeItemActions = {
@@ -162,7 +164,13 @@ export function LibraryHome({
     onRemoveCollectionMember,
     onRenameCollection,
   } = collectionActions;
-  const { onCancelArticleImport, onImportArticleUrl, onImportEbookFile, onImportPdfFile } = imports;
+  const {
+    onCancelArticleImport,
+    onCommitTextImport,
+    onImportArticleUrl,
+    onImportEbookFile,
+    onImportPdfFile,
+  } = imports;
   const {
     onDeleteArticle,
     onOpenArticle,
@@ -361,6 +369,7 @@ export function LibraryHome({
     onImportEbookFile: importEbookFile,
     onImportPdfFile: importPdfFile,
     onCancelArticleImport,
+    onCommitTextImport,
     onOpenArticle,
   });
 
