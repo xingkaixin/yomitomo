@@ -103,21 +103,24 @@ pnpm --filter @yomitomo/reader-ui test
 mise run check
 ```
 
-`mise run check` 与 CI 门禁顺序一致：`pnpm lint`、`pnpm ui:check-primitives`、
-`pnpm format:check`、`pnpm typecheck`、`pnpm test`、`pnpm test:app:e2e`、`pnpm build`。
-需要更快的本地循环时，可以先运行 `mise run check:fast`，它只覆盖 lint、format check、
-typecheck 和 test。
+`mise run check` 是 canonical 门禁，CI 调用同一顺序（`pnpm gate:check` 会校验两者一致）。
+需要更快的本地循环时，可以先运行 `mise run check:fast`，它覆盖 lint、effect check、
+format check、typecheck 和 test。
 
 如果本机未安装 mise，可直接运行等价命令：
 
+<!-- gate:check -->
 ```bash
 pnpm lint
+pnpm gate:check
+pnpm effect:check
+pnpm docs:check-paths
 pnpm ui:check-primitives
 pnpm format:check
 pnpm typecheck
 pnpm test
-pnpm test:app:e2e
 pnpm build
+pnpm test:app:e2e:from-dist
 ```
 
 无图形环境的 Linux 需要通过 `xvfb-run -a mise run check` 运行完整门禁；macOS 和已有图形

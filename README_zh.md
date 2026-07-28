@@ -172,12 +172,26 @@ pnpm build
 
 ## 提交前检查
 
+`mise run check` 是 canonical 门禁，CI 调用同一顺序：
+
+```bash
+mise run check
+```
+
+展开为：
+
+<!-- gate:check -->
 ```bash
 pnpm lint
+pnpm gate:check
+pnpm effect:check
+pnpm docs:check-paths
+pnpm ui:check-primitives
 pnpm format:check
 pnpm typecheck
 pnpm test
 pnpm build
+pnpm test:app:e2e:from-dist
 ```
 
 ## 开源许可证

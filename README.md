@@ -185,14 +185,18 @@ mise run check:fast
 
 The full gate expands to:
 
+<!-- gate:check -->
 ```bash
 pnpm lint
+pnpm gate:check
+pnpm effect:check
+pnpm docs:check-paths
 pnpm ui:check-primitives
 pnpm format:check
 pnpm typecheck
 pnpm test
-pnpm test:app:e2e
 pnpm build
+pnpm test:app:e2e:from-dist
 ```
 
 On headless Linux, run the full gate through Xvfb:
