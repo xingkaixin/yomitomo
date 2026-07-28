@@ -1,4 +1,5 @@
 import React from 'react';
+import { annotationOrdinalsById, highlightDiscussionLabel } from './reader-highlight-labels';
 import type { Annotation, MessageSendShortcut, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { AnnotationCard } from '../annotations/reader-annotation-card';
 import type { ReaderAnnotationRailState } from '../annotations/use-reader-annotation-rail';
@@ -309,9 +310,13 @@ export function ReaderSurfaceView({
         .filter((annotation): annotation is Annotation => Boolean(annotation))
     : [];
 
+  const annotationOrdinalById = React.useMemo(
+    () => annotationOrdinalsById(annotations),
+    [annotations],
+  );
+
   function highlightLabel(annotationId: string) {
-    const index = annotations.findIndex((annotation) => annotation.id === annotationId);
-    return index >= 0 ? `打开引文讨论 ${index + 1}` : '打开引文讨论';
+    return highlightDiscussionLabel(annotationOrdinalById.get(annotationId));
   }
 
   const annotationRailStyle: AnnotationRailStyle | undefined =
