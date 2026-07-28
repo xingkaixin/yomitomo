@@ -1,32 +1,32 @@
 import { HugeiconsIcon } from '@hugeicons/react';
-import { LockKeyIcon, PartyIcon, VolumeHighIcon } from '@hugeicons/core-free-icons';
-import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
+import { LockKeyIcon, PartyIcon } from '@hugeicons/core-free-icons';
+import { Suspense, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { AppSettings, ArticleSummaryRecord } from '@yomitomo/shared';
+import type { AppSettings } from '@yomitomo/shared';
 import { normalizeUiLanguage } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
 
-import type { SettingsSectionKey } from './settings/app-settings-panels';
 import { AppLockGate } from './app-lock/app-lock-gate';
 import { AvatarImage } from './shell/app-ui';
 import { useAppAgentActions } from './shell/app-agent-actions';
 import { useAppArticleStoreActions } from './shell/app-article-store-actions';
 import { useAppCollectionStoreActions } from './shell/app-library-collection-store-actions';
 import { useDesktopStoreState } from './shell/app-desktop-store-state';
+import { useSecondaryModulePreload } from './shell/app-secondary-module-preload';
+import { applySavedSettings, recordStartupTiming } from './shell/app-utils';
+import { useAppSession } from './shell/app-session';
 import {
-  cancelIdlePreload,
-  preloadedExport,
-  preloadEntries,
-  preloadIdleModules,
-  scheduleIdlePreload,
-  useSecondaryModulePreload,
-} from './shell/app-secondary-module-preload';
+  activeSurfaceComponents,
+  DistillationLibrary,
+  OnboardingFlow,
+  ReadingLibrary,
+} from './shell/app-surface-modules';
 import {
-  applySavedSettings,
-  elapsedMs,
-  recordStartupTiming,
-  recordStatsTiming,
-} from './shell/app-utils';
+  AppMasthead,
+  desktopPlatform,
+  LibrarySkeleton,
+  StartupShell,
+} from './shell/app-shell-chrome';
 import { useSettingsDrafts } from './settings/app-settings-drafts';
 import { SettingsNavButton } from './settings/app-settings-nav-button';
 import { getDesktopApi } from './shell/app-desktop-api';
@@ -35,15 +35,11 @@ import { AnnotationDiscussionWindowApp } from './annotation-discussion/app-annot
 import { AnnotationSedimentationWindowApp } from './annotation-discussion/app-annotation-sedimentation-window';
 import { ThemeSelector } from './theme/app-theme-selector';
 import { useReaderThemeController } from './theme/use-reader-theme-controller';
-import { elementDialogSourceRect, type DialogSourceRect } from './shell/app-dialog-transition';
 import { UpdateReleaseDialog } from './shell/app-update-dialog';
 import { useAppUpdateState } from './shell/use-app-update-state';
 import { changeAppI18nLanguage, initializeAppI18n } from './i18n/app-i18n';
 import { readCachedUiLanguage, writeCachedUiLanguage } from './i18n/app-language-cache';
-import { playAppSoundEffect } from './sound/app-sound-effects';
-import type { ReadingLibraryOpenTarget } from './shell/app-reading-types';
 import { AppToaster, useHeaderToastOffset } from './shell/app-toast';
-import type { AppMenuCommand, AppMenuCommandRequest } from '../../app-menu-types';
 import './styles.css';
 import 'goey-toast/styles.css';
 
@@ -51,91 +47,12 @@ const startupUiLanguage = readCachedUiLanguage();
 initializeAppI18n(startupUiLanguage);
 
 const rendererModuleLoadedAt = performance.now();
-const loadReadingLibrary = () =>
-  import('./reading-library/app-reading-library').then((module) => ({
-    default: module.ReadingLibrary,
-  }));
-const loadReadingStatsModule = () => preloadEntries.stats.load();
-const loadDistillationLibrary = () =>
-  import('./distillations/app-distillation-library').then((module) => ({
-    default: module.DistillationLibrary,
-  }));
-const loadReadingStatsPanel = () =>
-  loadReadingStatsModule().then((module) => ({ default: module.ReadingStatsPanel }));
-const loadOnboardingFlow = () =>
-  import('./shell/app-onboarding').then((module) => ({ default: module.OnboardingFlow }));
-const loadAgentSettings = () =>
-  preloadEntries.agents.load().then((module) => ({ default: module.AgentSettings }));
-const loadDataManagementSettings = () =>
-  preloadEntries.settingsPanels
-    .load()
-    .then((module) => ({ default: module.DataManagementSettings }));
-const loadAiTraceSettingsPanel = () =>
-  preloadEntries.settingsPanels.load().then((module) => ({ default: module.AiTraceSettingsPanel }));
-const loadGeneralSettings = () =>
-  preloadEntries.settingsPanels.load().then((module) => ({ default: module.GeneralSettings }));
-const loadProviderSettings = () =>
-  preloadEntries.settingsProvider.load().then((module) => ({ default: module.ProviderSettings }));
-const loadShortcutSettings = () =>
-  preloadEntries.settingsPanels.load().then((module) => ({ default: module.ShortcutSettings }));
-const loadDataSourcesPanel = () =>
-  preloadEntries.settingsPanels.load().then((module) => ({ default: module.DataSourcesPanel }));
-const loadSettingsSectionShell = () =>
-  preloadEntries.settingsPanels.load().then((module) => ({ default: module.SettingsSectionShell }));
-const loadUserProfileSettingsDialog = () =>
-  preloadEntries.profileDialog
-    .load()
-    .then((module) => ({ default: module.UserProfileSettingsDialog }));
-const loadAboutSettings = () =>
-  preloadEntries.settingsAbout.load().then((module) => ({ default: module.AboutSettings }));
-
-const ReadingLibrary = lazy(loadReadingLibrary);
-const DistillationLibrary = lazy(loadDistillationLibrary);
-const ReadingStatsPanel = lazy(loadReadingStatsPanel);
-const OnboardingFlow = lazy(loadOnboardingFlow);
-const AgentSettings = lazy(loadAgentSettings);
-const DataManagementSettings = lazy(loadDataManagementSettings);
-const AiTraceSettingsPanel = lazy(loadAiTraceSettingsPanel);
-const GeneralSettings = lazy(loadGeneralSettings);
-const ProviderSettings = lazy(loadProviderSettings);
-const ShortcutSettings = lazy(loadShortcutSettings);
-const DataSourcesPanel = lazy(loadDataSourcesPanel);
-const SettingsSectionShell = lazy(loadSettingsSectionShell);
-const UserProfileSettingsDialog = lazy(loadUserProfileSettingsDialog);
-const AboutSettings = lazy(loadAboutSettings);
-
-type SettingKey = 'library' | 'distillations' | 'stats' | 'settings' | 'agents';
 
 function App() {
   const { t } = useTranslation();
-  const [activeSetting, setActiveSetting] = useState<SettingKey>('library');
-  const [activeSettingsSection, setActiveSettingsSection] =
-    useState<SettingsSectionKey>('collection');
   const appUpdateState = useAppUpdateState();
   const updateReady =
     appUpdateState?.status === 'available' || appUpdateState?.status === 'downloaded';
-  const [updateDialogRequest, setUpdateDialogRequest] = useState(0);
-  const [themeDialogOpen, setThemeDialogOpen] = useState(false);
-  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
-  const [profileDialogSourceRect, setProfileDialogSourceRect] = useState<DialogSourceRect>();
-  const [libraryReaderOpen, setLibraryReaderOpen] = useState(false);
-  const [pendingOpenArticle, setPendingOpenArticle] = useState<ReadingLibraryOpenTarget | null>(
-    null,
-  );
-  const [libraryMenuRequest, setLibraryMenuRequest] = useState<AppMenuCommandRequest | null>(null);
-  const [onboardingForced, setOnboardingForced] = useState(false);
-  const [onboardingFlowKey, setOnboardingFlowKey] = useState(0);
-  const [statsArticles, setStatsArticles] = useState<ArticleSummaryRecord[] | null>(null);
-  const [statsNavigationStartedAt, setStatsNavigationStartedAt] = useState<number | undefined>();
-  const menuRequestIdRef = useRef(0);
-  const windowShowRequestedRef = useRef(false);
-  const idlePreloadStartedRef = useRef(false);
-  const toastTopOffset = useHeaderToastOffset(libraryReaderOpen);
-
-  useEffect(() => {
-    recordStartupTiming('app.mounted');
-    requestMainWindow('app.mounted', { storeLoaded: false, storeLoadError: false });
-  }, []);
 
   useSecondaryModulePreload();
 
@@ -151,6 +68,16 @@ function App() {
   } = useDesktopStoreState();
   const appLockEnabled = Boolean(store.settings.appLockEnabled);
   const appLocked = Boolean(appLockEnabled && store.settings.appLockLocked);
+  const session = useAppSession({
+    appLocked,
+    applyStore,
+    articles: store.articles,
+    developerModeEnabled: Boolean(store.settings.developerModeEnabled),
+    onboardingCompletedAt: store.settings.onboardingCompletedAt,
+    readStatsArticles: () => getDesktopApi().article.readStatsSummaries(),
+    storeLoaded,
+    storeLoadFailed: Boolean(storeLoadError),
+  });
   const theme = useReaderThemeController({
     appLocked,
     applyStore,
@@ -158,6 +85,7 @@ function App() {
     storeLoaded,
     storeLoadError,
   });
+  const toastTopOffset = useHeaderToastOffset(session.readerOpen);
 
   useEffect(() => {
     if (!storeLoaded || storeLoadError || appLocked) return;
@@ -184,186 +112,11 @@ function App() {
   const { agentSaveError, agentSaveState, toggleAgent } = useAppAgentActions({
     applySettingsPatch,
   });
-  const showOnboarding = !appLocked && (onboardingForced || !store.settings.onboardingCompletedAt);
 
-  useEffect(() => {
-    if (!appLocked) return;
-    setLibraryReaderOpen(false);
-    setPendingOpenArticle(null);
-    setProfileDialogOpen(false);
-    setProfileDialogSourceRect(undefined);
-    setStatsArticles(null);
-    setStatsNavigationStartedAt(undefined);
-    setThemeDialogOpen(false);
-  }, [appLocked]);
-
-  useEffect(() => {
-    if (!storeLoaded && !storeLoadError) return;
-    recordStartupTiming('store.ready_for_ui', {
-      storeLoaded,
-      storeLoadError: Boolean(storeLoadError),
-    });
-  }, [storeLoadError, storeLoaded]);
-
-  useEffect(() => {
-    if (!storeLoaded || storeLoadError || showOnboarding) return;
-    if (idlePreloadStartedRef.current) return;
-    idlePreloadStartedRef.current = true;
-    const idleId = scheduleIdlePreload(() => {
-      recordStartupTiming('secondary_modules.preload_start');
-      preloadIdleModules();
-    });
-    return () => cancelIdlePreload(idleId);
-  }, [showOnboarding, storeLoadError, storeLoaded]);
-
-  useEffect(() => {
-    if (activeSetting !== 'library') setLibraryReaderOpen(false);
-  }, [activeSetting]);
-
-  useEffect(() => {
-    if (!store.settings.developerModeEnabled && activeSettingsSection === 'aiTrace') {
-      setActiveSettingsSection('about');
-    }
-  }, [activeSettingsSection, store.settings.developerModeEnabled]);
-
-  async function saveOnboardingSettings(settings: AppSettings) {
+  async function saveSettings(settings: AppSettings) {
     const nextStore = await getDesktopApi().store.saveSettings(settings);
     applySavedSettings(nextStore, applyStore);
-    if (settings.onboardingCompletedAt) setOnboardingForced(false);
     return nextStore;
-  }
-
-  async function saveLibrarySettings(settings: AppSettings) {
-    const nextStore = await getDesktopApi().store.saveSettings(settings);
-    applySavedSettings(nextStore, applyStore);
-  }
-
-  function startOnboarding() {
-    setOnboardingForced(true);
-    setOnboardingFlowKey((key) => key + 1);
-  }
-
-  function openModelRoutesSettings() {
-    openSettings();
-    changeSettingsSection('models');
-  }
-
-  function openAgents() {
-    recordStartupTiming('secondary_modules.navigation', {
-      key: 'agents',
-      status: preloadEntries.agents.status,
-    });
-    setActiveSetting('agents');
-  }
-
-  function openSettings() {
-    recordStartupTiming('secondary_modules.navigation', {
-      key: 'settings',
-      settingsPanelsStatus: preloadEntries.settingsPanels.status,
-      settingsProviderStatus: preloadEntries.settingsProvider.status,
-      settingsAboutStatus: preloadEntries.settingsAbout.status,
-    });
-    setActiveSetting('settings');
-  }
-
-  function openDataSources() {
-    openSettings();
-    changeSettingsSection('dataSources');
-  }
-
-  useEffect(() => {
-    return getDesktopApi().app.onMenuCommand((command) => {
-      if (appLocked) return;
-      handleAppMenuCommand(command);
-    });
-  }, [appLocked, applyStore]);
-
-  function openProfileDialog(sourceElement?: Element) {
-    recordStartupTiming('secondary_modules.navigation', {
-      key: 'profile-dialog',
-      status: preloadEntries.profileDialog.status,
-    });
-    setProfileDialogSourceRect(sourceElement ? elementDialogSourceRect(sourceElement) : undefined);
-    setProfileDialogOpen(true);
-  }
-
-  function openStats() {
-    const startedAt = performance.now();
-    setStatsNavigationStartedAt(startedAt);
-    recordStatsTiming('navigation_click', {
-      articleCount: statsArticles?.length ?? store.articles.length,
-      rendererElapsedMs: elapsedMs(0),
-      preloadStatus: preloadEntries.stats.status,
-    });
-    setActiveSetting('stats');
-    void refreshStatsArticles();
-  }
-
-  async function refreshStatsArticles() {
-    try {
-      const articles = await getDesktopApi().article.readStatsSummaries();
-      setStatsArticles(articles);
-    } catch {
-      setStatsArticles(storeRef.current.articles);
-    }
-  }
-
-  function changeSettingsSection(section: SettingsSectionKey) {
-    if (!store.settings.developerModeEnabled && section === 'aiTrace') {
-      setActiveSettingsSection('about');
-      return;
-    }
-    recordStartupTiming('secondary_modules.settings_section_change', {
-      section,
-      settingsPanelsStatus: preloadEntries.settingsPanels.status,
-      settingsProviderStatus: preloadEntries.settingsProvider.status,
-      settingsAboutStatus: preloadEntries.settingsAbout.status,
-    });
-    setActiveSettingsSection(section);
-  }
-
-  function requestMainWindow(reason: string, data: Record<string, unknown>) {
-    if (windowShowRequestedRef.current) return;
-    windowShowRequestedRef.current = true;
-    recordStartupTiming('window.show_requested', { reason, ...data });
-    getDesktopApi().app.showMainWindow();
-  }
-
-  function handleAppMenuCommand(command: AppMenuCommand) {
-    if (command === 'open-settings') {
-      openSettings();
-      return;
-    }
-    if (command === 'open-about') {
-      openSettings();
-      changeSettingsSection('about');
-      return;
-    }
-    if (command === 'backup-database') {
-      void getDesktopApi()
-        .data.backupDatabase()
-        .catch(() => undefined);
-      return;
-    }
-    if (command === 'restore-database') {
-      void getDesktopApi()
-        .data.restoreDatabase()
-        .then((result) => {
-          if (!result.canceled) applyStore(result.store);
-        })
-        .catch(() => undefined);
-      return;
-    }
-    if (command === 'check-updates') {
-      void getDesktopApi()
-        .updates.check()
-        .catch(() => undefined);
-      return;
-    }
-    if (isLibraryMenuCommand(command)) {
-      setActiveSetting('library');
-      setLibraryMenuRequest({ command, id: ++menuRequestIdRef.current });
-    }
   }
 
   if (storeLoadError) {
@@ -372,13 +125,17 @@ function App() {
 
   if (!storeLoaded) return <StartupShell />;
 
-  if (showOnboarding) {
+  if (session.showOnboarding) {
     return (
       <Suspense fallback={null}>
         <OnboardingFlow
-          key={onboardingFlowKey}
+          key={session.onboardingFlowKey}
           store={store}
-          onSaveSettings={saveOnboardingSettings}
+          onSaveSettings={async (settings) => {
+            const nextStore = await saveSettings(settings);
+            if (settings.onboardingCompletedAt) session.actions.completeOnboarding();
+            return nextStore;
+          }}
         />
       </Suspense>
     );
@@ -387,65 +144,11 @@ function App() {
   const appShellClassName = [
     'app-shell',
     `is-${desktopPlatform()}`,
-    libraryReaderOpen ? 'is-reader-open' : '',
+    session.readerOpen ? 'is-reader-open' : '',
   ]
     .filter(Boolean)
     .join(' ');
-  const ActiveReadingStatsPanel = preloadedExport(
-    preloadEntries.stats,
-    'ReadingStatsPanel',
-    ReadingStatsPanel,
-  );
-  const ActiveAgentSettings = preloadedExport(
-    preloadEntries.agents,
-    'AgentSettings',
-    AgentSettings,
-  );
-  const ActiveSettingsSectionShell = preloadedExport(
-    preloadEntries.settingsPanels,
-    'SettingsSectionShell',
-    SettingsSectionShell,
-  );
-  const ActiveGeneralSettings = preloadedExport(
-    preloadEntries.settingsPanels,
-    'GeneralSettings',
-    GeneralSettings,
-  );
-  const ActiveShortcutSettings = preloadedExport(
-    preloadEntries.settingsPanels,
-    'ShortcutSettings',
-    ShortcutSettings,
-  );
-  const ActiveDataSourcesPanel = preloadedExport(
-    preloadEntries.settingsPanels,
-    'DataSourcesPanel',
-    DataSourcesPanel,
-  );
-  const ActiveDataManagementSettings = preloadedExport(
-    preloadEntries.settingsPanels,
-    'DataManagementSettings',
-    DataManagementSettings,
-  );
-  const ActiveAiTraceSettingsPanel = preloadedExport(
-    preloadEntries.settingsPanels,
-    'AiTraceSettingsPanel',
-    AiTraceSettingsPanel,
-  );
-  const ActiveProviderSettings = preloadedExport(
-    preloadEntries.settingsProvider,
-    'ProviderSettings',
-    ProviderSettings,
-  );
-  const ActiveAboutSettings = preloadedExport(
-    preloadEntries.settingsAbout,
-    'AboutSettings',
-    AboutSettings,
-  );
-  const ActiveUserProfileSettingsDialog = preloadedExport(
-    preloadEntries.profileDialog,
-    'UserProfileSettingsDialog',
-    UserProfileSettingsDialog,
-  );
+  const surfaces = activeSurfaceComponents();
 
   return (
     <AppLockGate enabled={appLockEnabled} locked={appLocked} onStoreUpdated={applyStore}>
@@ -455,29 +158,29 @@ function App() {
             <nav className="app-section-nav" aria-label={t('nav.main')}>
               <div className="app-section-links">
                 <SettingsNavButton
-                  active={activeSetting === 'library'}
+                  active={session.surface === 'library'}
                   label={t('nav.library')}
-                  onClick={() => setActiveSetting('library')}
+                  onClick={session.actions.openLibrary}
                 />
                 <SettingsNavButton
-                  active={activeSetting === 'distillations'}
+                  active={session.surface === 'distillations'}
                   label={t('nav.distillations')}
-                  onClick={() => setActiveSetting('distillations')}
+                  onClick={session.actions.openDistillations}
                 />
                 <SettingsNavButton
-                  active={activeSetting === 'agents'}
+                  active={session.surface === 'agents'}
                   label={t('nav.agents')}
-                  onClick={openAgents}
+                  onClick={session.actions.openAgents}
                 />
                 <SettingsNavButton
-                  active={activeSetting === 'stats'}
+                  active={session.surface === 'stats'}
                   label={t('nav.stats')}
-                  onClick={openStats}
+                  onClick={session.actions.openStats}
                 />
                 <SettingsNavButton
-                  active={activeSetting === 'settings'}
+                  active={session.surface === 'settings'}
                   label={t('nav.settings')}
-                  onClick={openSettings}
+                  onClick={session.actions.openSettings}
                 />
               </div>
               <div className="app-section-actions">
@@ -487,11 +190,7 @@ function App() {
                     className="app-nav-update-button"
                     aria-label={t('nav.updateAvailableTooltip')}
                     data-tooltip={t('nav.updateAvailableTooltip')}
-                    onClick={() => {
-                      openSettings();
-                      changeSettingsSection('about');
-                      setUpdateDialogRequest((n) => n + 1);
-                    }}
+                    onClick={session.actions.requestUpdateDialog}
                   >
                     <HugeiconsIcon icon={PartyIcon} aria-hidden="true" size={13} />
                     {t('nav.updateAvailable')}
@@ -510,12 +209,12 @@ function App() {
                 ) : null}
                 <ThemeSelector
                   activeThemeId={theme.activeThemeId}
-                  open={themeDialogOpen}
+                  open={session.themeDialogOpen}
                   readerBackgroundColor={theme.readerBackgroundColor}
                   soundSettings={store.settings}
                   readerBackgroundsByTone={theme.readerBackgroundsByTone}
                   themeIdsByTone={theme.themeIdsByTone}
-                  onOpenChange={setThemeDialogOpen}
+                  onOpenChange={session.actions.setThemeDialogOpen}
                   onSelectReaderBackground={theme.selectReaderBackground}
                   onSelectTheme={(themeId, backgroundColor) =>
                     void theme.selectTheme(themeId, backgroundColor)
@@ -526,7 +225,7 @@ function App() {
                   className="app-nav-profile-button"
                   data-tooltip={t('nav.profile')}
                   type="button"
-                  onClick={(event) => openProfileDialog(event.currentTarget)}
+                  onClick={(event) => session.actions.openProfileDialog(event.currentTarget)}
                 >
                   <AvatarImage
                     value={store.user.avatar || ''}
@@ -540,7 +239,7 @@ function App() {
 
           <section className="settings-content">
             <Suspense fallback={<LibrarySkeleton />}>
-              {activeSetting === 'library' ? (
+              {session.surface === 'library' ? (
                 <ReadingLibrary
                   agents={store.agents}
                   articleActions={articleActions}
@@ -552,96 +251,98 @@ function App() {
                   readerTheme={theme.readerTheme}
                   settings={store.settings}
                   selectionActionShortcuts={store.settings.selectionActionShortcuts}
-                  menuRequest={libraryMenuRequest}
-                  openArticleTarget={pendingOpenArticle}
+                  menuRequest={session.menuRequest}
+                  openArticleTarget={session.pendingOpenArticle}
                   userProfile={store.user}
                   onAddCollectionMembers={addCollectionMembers}
                   onCreateCollection={createCollection}
                   onDeleteCollection={deleteCollection}
-                  onArticleOpened={() => setPendingOpenArticle(null)}
-                  onReadingModeChange={setLibraryReaderOpen}
+                  onArticleOpened={session.actions.setPendingArticleOpened}
+                  onReadingModeChange={session.actions.setReaderOpen}
                   onRemoveCollectionMember={removeCollectionMember}
                   onRenameCollection={renameCollection}
-                  onSaveSettings={saveLibrarySettings}
+                  onSaveSettings={async (settings) => void (await saveSettings(settings))}
                   onSetLibraryPin={setLibraryPin}
-                  onOpenDataSources={openDataSources}
+                  onOpenDataSources={() => session.actions.openSettingsSection('dataSources')}
                 />
               ) : null}
-              {activeSetting === 'distillations' ? (
+              {session.surface === 'distillations' ? (
                 <DistillationLibrary
-                  onOpenOriginal={(articleId, annotationId) => {
-                    setPendingOpenArticle({ articleId, annotationId });
-                    setActiveSetting('library');
-                  }}
+                  onOpenOriginal={(articleId, annotationId) =>
+                    session.actions.openArticleFromDistillation({ articleId, annotationId })
+                  }
                 />
               ) : null}
-              {activeSetting === 'stats' ? (
-                <ActiveReadingStatsPanel
+              {session.surface === 'stats' ? (
+                <surfaces.ReadingStatsPanel
                   agents={store.agents}
-                  articles={statsArticles || store.articles}
-                  navigationStartedAt={statsNavigationStartedAt}
+                  articles={session.statsArticles || store.articles}
+                  navigationStartedAt={session.statsNavigationStartedAt}
                   settings={store.settings}
-                  onRefresh={() => void refreshStatsArticles()}
+                  onRefresh={session.actions.refreshStatsArticles}
                 />
               ) : null}
-              {activeSetting === 'settings' ? (
-                <ActiveSettingsSectionShell
-                  activeSection={activeSettingsSection}
+              {session.surface === 'settings' ? (
+                <surfaces.SettingsSectionShell
+                  activeSection={session.settingsSection}
                   developerModeEnabled={Boolean(store.settings.developerModeEnabled)}
-                  onSectionChange={changeSettingsSection}
+                  onSectionChange={session.actions.changeSettingsSection}
                 >
-                  {activeSettingsSection === 'collection' ? (
-                    <ActiveGeneralSettings draft={settingsDrafts.general} />
+                  {session.settingsSection === 'collection' ? (
+                    <surfaces.GeneralSettings draft={settingsDrafts.general} />
                   ) : null}
-                  {activeSettingsSection === 'models' ? (
-                    <ActiveProviderSettings
+                  {session.settingsSection === 'models' ? (
+                    <surfaces.ProviderSettings
                       providerDraft={settingsDrafts.provider}
                       routesDraft={settingsDrafts.routes}
                       providers={store.providers}
                     />
                   ) : null}
-                  {activeSettingsSection === 'dataSources' ? <ActiveDataSourcesPanel /> : null}
-                  {activeSettingsSection === 'shortcuts' ? (
-                    <ActiveShortcutSettings draft={settingsDrafts.shortcuts} />
+                  {session.settingsSection === 'dataSources' ? <surfaces.DataSourcesPanel /> : null}
+                  {session.settingsSection === 'shortcuts' ? (
+                    <surfaces.ShortcutSettings draft={settingsDrafts.shortcuts} />
                   ) : null}
-                  {activeSettingsSection === 'data' ? (
-                    <ActiveDataManagementSettings
+                  {session.settingsSection === 'data' ? (
+                    <surfaces.DataManagementSettings
                       settings={store.settings}
                       onStoreUpdated={applyStore}
                     />
                   ) : null}
-                  {activeSettingsSection === 'aiTrace' && store.settings.developerModeEnabled ? (
-                    <ActiveAiTraceSettingsPanel agents={store.agents} providers={store.providers} />
+                  {session.settingsSection === 'aiTrace' && store.settings.developerModeEnabled ? (
+                    <surfaces.AiTraceSettingsPanel
+                      agents={store.agents}
+                      providers={store.providers}
+                    />
                   ) : null}
-                  {activeSettingsSection === 'about' ? (
-                    <ActiveAboutSettings
+                  {session.settingsSection === 'about' ? (
+                    <surfaces.AboutSettings
                       settings={store.settings}
-                      onStartOnboarding={startOnboarding}
+                      onStartOnboarding={session.actions.startOnboarding}
                       onStoreUpdated={applyStore}
                     />
                   ) : null}
-                </ActiveSettingsSectionShell>
+                </surfaces.SettingsSectionShell>
               ) : null}
-              {activeSetting === 'agents' ? (
-                <ActiveAgentSettings
+              {session.surface === 'agents' ? (
+                <surfaces.AgentSettings
                   agents={store.agents}
                   error={agentSaveError}
                   providers={store.providers}
                   settings={store.settings}
                   saveState={agentSaveState}
-                  onConfigureRoutes={openModelRoutesSettings}
+                  onConfigureRoutes={() => session.actions.openSettingsSection('models')}
                   onToggle={toggleAgent}
                 />
               ) : null}
             </Suspense>
           </section>
-          {profileDialogOpen ? (
+          {session.profileDialogOpen ? (
             <Suspense fallback={null}>
-              <ActiveUserProfileSettingsDialog
+              <surfaces.UserProfileSettingsDialog
                 profileDraft={settingsDrafts.profile}
-                onClose={() => setProfileDialogOpen(false)}
-                onSaved={() => window.setTimeout(() => setProfileDialogOpen(false), 700)}
-                sourceRect={profileDialogSourceRect}
+                onClose={session.actions.closeProfileDialog}
+                onSaved={() => window.setTimeout(session.actions.closeProfileDialog, 700)}
+                sourceRect={session.profileDialogSourceRect}
               />
             </Suspense>
           ) : null}
@@ -649,108 +350,14 @@ function App() {
             <UpdateReleaseDialog
               store={store}
               updateState={appUpdateState}
-              openRequest={updateDialogRequest}
-              onSaveSettings={async (settings) => {
-                const nextStore = await getDesktopApi().store.saveSettings(settings);
-                applySavedSettings(nextStore, applyStore);
-                return nextStore;
-              }}
+              openRequest={session.updateDialogRequest}
+              onSaveSettings={saveSettings}
             />
           ) : null}
           <AppToaster tone={theme.tone} topOffset={toastTopOffset} />
         </main>
       )}
     </AppLockGate>
-  );
-}
-
-function StartupShell() {
-  return (
-    <main className={`app-shell is-${desktopPlatform()}`}>
-      <AppMasthead>
-        <StartupNav />
-      </AppMasthead>
-      <section className="settings-content">
-        <LibrarySkeleton />
-      </section>
-    </main>
-  );
-}
-
-function AppMasthead({ children, settings }: { children: ReactNode; settings?: AppSettings }) {
-  return (
-    <header className="app-masthead">
-      <BrandTitle settings={settings} />
-      {children}
-    </header>
-  );
-}
-
-function BrandTitle({ settings }: { settings?: AppSettings }) {
-  const { t } = useTranslation();
-  const playPronunciation = () => {
-    playAppSoundEffect('brand.pronunciation', settings || {});
-  };
-  return (
-    <div className="app-masthead-title">
-      <h1>
-        <button
-          aria-label={`Yomitomo · ${t('brandPronounce')}`}
-          className="app-masthead-wordmark"
-          type="button"
-          onClick={playPronunciation}
-        >
-          <span>Yomitomo</span>
-          <HugeiconsIcon icon={VolumeHighIcon} aria-hidden="true" size={14} />
-        </button>
-      </h1>
-    </div>
-  );
-}
-
-function StartupNav() {
-  const { t } = useTranslation();
-  return (
-    <nav className="app-section-nav" aria-label={t('nav.main')}>
-      <div className="app-section-links">
-        <button className="settings-nav-item is-active" disabled type="button">
-          <span>{t('startup.library')}</span>
-        </button>
-        <button className="settings-nav-item" disabled type="button">
-          <span>{t('startup.agents')}</span>
-        </button>
-        <button className="settings-nav-item" disabled type="button">
-          <span>{t('startup.stats')}</span>
-        </button>
-        <button className="settings-nav-item" disabled type="button">
-          <span>{t('startup.settings')}</span>
-        </button>
-      </div>
-    </nav>
-  );
-}
-
-function LibrarySkeleton() {
-  return (
-    <div className="library-skeleton" aria-busy="true">
-      <header className="library-skeleton-header">
-        <span className="library-skeleton-title" />
-        <span className="library-skeleton-action" />
-      </header>
-      <div className="library-skeleton-toolbar">
-        <span />
-        <span />
-      </div>
-      <div className="library-skeleton-grid">
-        {Array.from({ length: 6 }, (_, index) => (
-          <span className="library-skeleton-card" key={index}>
-            <i />
-            <b />
-            <em />
-          </span>
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -769,16 +376,3 @@ const RootApp =
 
 createRoot(document.getElementById('root')!).render(<RootApp />);
 recordStartupTiming('react.render_scheduled');
-
-function desktopPlatform() {
-  return getDesktopApi().platform;
-}
-
-function isLibraryMenuCommand(command: AppMenuCommand) {
-  return (
-    command === 'import-web' ||
-    command === 'import-ebook' ||
-    command === 'import-pdf' ||
-    command === 'sync-weread'
-  );
-}
