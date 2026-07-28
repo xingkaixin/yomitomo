@@ -36,14 +36,17 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: UI primitive boundary check
-        run: pnpm ui:check-primitives
+      - name: Gate documentation check
+        run: pnpm gate:check
 
       - name: Effect v4 boundary check
         run: pnpm effect:check
 
       - name: Documentation path check
         run: pnpm docs:check-paths
+
+      - name: UI primitive boundary check
+        run: pnpm ui:check-primitives
 
       - name: Format check
         run: pnpm format:check
