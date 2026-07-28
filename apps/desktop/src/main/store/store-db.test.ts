@@ -24,6 +24,12 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   };
 });
 
+// The real logger appends to a file under the mocked userData directory, which races
+// with the per-test cleanup of that directory.
+vi.mock('../app/logger', () => ({
+  logInfo: vi.fn(),
+}));
+
 vi.mock('../native/sqlite', async () => {
   const { default: SQLiteDatabaseDriver } = await import('better-sqlite3');
   return {
