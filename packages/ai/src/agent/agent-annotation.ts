@@ -18,6 +18,7 @@ import { budgetArticleText, formatBudgetNotice } from '../provider/budget';
 import { logAiError, logAiInfo } from '../logger';
 import {
   generateYomitomoTextEffect,
+  runOptions,
   streamYomitomoTextEffect,
 } from '../provider/generation-runtime';
 import type { NormalizedAiUsage } from '../provider/usage';
@@ -186,8 +187,12 @@ export async function runAgentAnnotateStream(
   agent: Agent,
   payload: AgentAnnotatePayload,
   onAnnotation: (annotation: Annotation) => void,
+  signal?: AbortSignal,
 ): Promise<AgentAnnotateResult & { usage?: NormalizedAiUsage }> {
-  return Effect.runPromise(runAgentAnnotateStreamEffect(provider, agent, payload, onAnnotation));
+  return Effect.runPromise(
+    runAgentAnnotateStreamEffect(provider, agent, payload, onAnnotation),
+    runOptions(signal),
+  );
 }
 
 export const runAgentAnnotateStreamEffect = Effect.fn('Agent.annotateStream')(function (

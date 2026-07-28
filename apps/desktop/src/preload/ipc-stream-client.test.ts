@@ -128,7 +128,13 @@ class MemoryDesktopIpcStreamTransport implements DesktopIpcStreamTransport {
     request: { requestId: string; payload: unknown };
   }> = [];
 
+  readonly cancelled: Array<{ channel: DesktopIpcStreamChannel; requestId: string }> = [];
+
   private readonly listeners = new Map<string, Set<(event: unknown) => void>>();
+
+  cancel(request: { channel: DesktopIpcStreamChannel; requestId: string }) {
+    this.cancelled.push(request);
+  }
 
   subscribe<Channel extends DesktopIpcStreamChannel>(
     channel: DesktopIpcStreamResponseChannel<Channel>,

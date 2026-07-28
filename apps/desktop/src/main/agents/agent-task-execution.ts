@@ -95,6 +95,7 @@ export async function executeAgentCommentTask(
   context: AgentTaskExecutionContext,
   payload: AgentMessagePayload,
   emit: (event: AgentCommentExecutionEvent) => void,
+  signal?: AbortSignal,
 ): Promise<Comment> {
   const store = await readAgentRuntimeStore(context);
   const taskType = agentMessageRuntimeTaskType(payload);
@@ -138,6 +139,7 @@ export async function executeAgentCommentTask(
     ai,
     provider,
     agent,
+    signal,
     payload: payloadWithRoster,
     requestedMode,
     taskType,
@@ -164,7 +166,7 @@ export async function executeAgentCommentTask(
     agent,
     fastInput.payload,
     (delta) => appendCommentText(comment, delta, emit),
-    fastInput.options,
+    { ...fastInput.options, signal },
   );
   recordFastExecution(
     context,
@@ -182,6 +184,7 @@ export async function executeAgentDistillationReviewTask(
   context: AgentTaskExecutionContext,
   payload: AgentDistillationReviewPayload,
   emit: (event: AgentDistillationReviewExecutionEvent) => void,
+  signal?: AbortSignal,
 ): Promise<AnnotationDistillationReviewMessage> {
   const ai = await context.getAiModule();
   const store = await readAgentRuntimeStore(context);
@@ -197,6 +200,7 @@ export async function executeAgentDistillationReviewTask(
     ai,
     provider,
     agent,
+    signal,
     payload: payloadWithRoster,
     requestedMode,
     onRuntimeEvent: (event) => {
@@ -253,6 +257,7 @@ export async function executeAgentAnnotationTask(
   context: AgentTaskExecutionContext,
   payload: AgentAnnotatePayload,
   emit: (event: AgentAnnotationExecutionEvent) => void,
+  signal?: AbortSignal,
 ): Promise<AgentAnnotateResult> {
   const ai = await context.getAiModule();
   const store = await readAgentRuntimeStore(context);
@@ -279,7 +284,10 @@ export async function executeAgentAnnotationTask(
       annotations.push(annotation);
       emit({ type: 'item', annotation });
     },
+    signal,
   );
+  // A cancelled task must not leave reading memory behind for work the user abandoned.
+  if (signal?.aborted) throw new Error('AGENT_TASK_CANCELLED');
   saveAgentAnnotateReadingMemoryEntries({
     agent,
     payload: payloadWithMemory,
@@ -303,6 +311,7 @@ async function runCommentRuntime(input: {
   ai: AgentTaskAiModule;
   provider: LlmProvider;
   agent: Agent;
+  signal?: AbortSignal;
   payload: AgentMessagePayload;
   requestedMode: ReturnType<typeof normalizeAssistantExecutionMode>;
   taskType: ReturnType<typeof agentMessageRuntimeTaskType>;
@@ -321,6 +330,7 @@ async function runDistillationReviewRuntime(input: {
   ai: AgentTaskAiModule;
   provider: LlmProvider;
   agent: Agent;
+  signal?: AbortSignal;
   payload: AgentMessagePayload;
   requestedMode: ReturnType<typeof normalizeAssistantExecutionMode>;
   onRuntimeEvent: (event: AssistantRuntimeStreamEvent) => void;

@@ -65,6 +65,7 @@ export async function runAgentStream(
     provider,
     { system, user, maxTokens: agentMessageMaxTokens(payload), temperature: agent.temperature },
     onDelta,
+    options.signal,
   );
 }
 
@@ -87,6 +88,7 @@ export async function runAgentDistillationReviewStructuredStream(
     model: adapter.model,
     system,
     prompt: user,
+    abortSignal: options.signal,
     maxOutputTokens: agentMessageMaxTokens(payload),
     temperature: agent.temperature,
     providerOptions: adapter.providerOptions,

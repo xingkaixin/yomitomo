@@ -50,4 +50,7 @@ export const electronDesktopIpcStreamTransport: DesktopIpcStreamTransport = {
   send(channel, request) {
     ipcRenderer.send(channel, request);
   },
+  cancel(request) {
+    ipcRenderer.send('agent:stream-cancel', request);
+  },
 };

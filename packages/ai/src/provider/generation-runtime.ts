@@ -42,15 +42,27 @@ export async function generateYomitomoText(
   payload: TextPayload,
   options: GenerateOptions = {},
 ): Promise<YomitomoTextGenerationResult> {
-  return Effect.runPromise(generateYomitomoTextEffect(provider, payload, options));
+  return Effect.runPromise(
+    generateYomitomoTextEffect(provider, payload, options),
+    runOptions(options.signal),
+  );
 }
 
 export async function streamYomitomoText(
   provider: LlmProvider,
   payload: TextPayload,
   onDelta: (delta: string) => void,
+  signal?: AbortSignal,
 ): Promise<YomitomoTextGenerationResult> {
-  return Effect.runPromise(streamYomitomoTextEffect(provider, payload, onDelta));
+  return Effect.runPromise(
+    streamYomitomoTextEffect(provider, payload, onDelta),
+    runOptions(signal),
+  );
+}
+
+/** Bridges a caller's AbortSignal into the Effect fiber, which already reaches the AI SDK. */
+export function runOptions(signal?: AbortSignal) {
+  return signal ? { signal } : undefined;
 }
 
 export const generateYomitomoTextEffect = Effect.fn('Provider.generateText')(function (

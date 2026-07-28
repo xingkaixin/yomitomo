@@ -1,4 +1,5 @@
 import { jsonSchema, stepCountIs, streamText, type JSONSchema7 } from 'ai';
+import { runOptions } from '../provider/generation-runtime';
 import { Effect, Exit } from 'effect';
 import {
   createYomitomoLanguageModel,
@@ -51,7 +52,7 @@ type AiSdkToolShape = {
 export async function runAssistantAiSdkToolRuntime(
   options: AssistantAiSdkRuntimeOptions,
 ): Promise<AssistantRuntimeResult> {
-  return Effect.runPromise(runAssistantAiSdkToolRuntimeEffect(options));
+  return Effect.runPromise(runAssistantAiSdkToolRuntimeEffect(options), runOptions(options.signal));
 }
 
 export const runAssistantAiSdkToolRuntimeEffect = Effect.fn('Assistant.runAiSdkToolRuntime')(

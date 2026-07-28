@@ -1,4 +1,5 @@
 import type {
+  DesktopIpcStreamCancelRequest,
   DesktopIpcStreamChannel,
   DesktopIpcStreamDoneEvent,
   DesktopIpcStreamEvent,
@@ -20,6 +21,15 @@ export interface DesktopIpcStreamTransport {
     channel: Channel,
     request: DesktopIpcStreamRequest<Channel>,
   ): void;
+  cancel(request: DesktopIpcStreamCancelRequest): void;
+}
+
+export class DesktopIpcStreamCancelledError extends Error {
+  readonly code = 'IPC_STREAM_CANCELLED';
+
+  constructor() {
+    super('Stream request was cancelled');
+  }
 }
 
 export function createDesktopIpcStreamClient(
@@ -34,29 +44,48 @@ export function createDesktopIpcStreamClient(
       resultFromDone: (
         event: DesktopIpcStreamDoneEvent<Channel>,
       ) => DesktopIpcStreamResult<Channel>,
+      signal?: AbortSignal,
     ): Promise<DesktopIpcStreamResult<Channel>> {
       const requestId = requestIdFactory();
       const responseChannel = desktopIpcStreamResponseChannel(channel, requestId);
       return new Promise((resolve, reject) => {
+        // Unsubscribing before telling main to cancel keeps late events from a racing
+        // completion out of an abandoned session.
+        const abort = () => {
+          unsubscribe();
+          transport.cancel({ channel, requestId });
+          reject(new DesktopIpcStreamCancelledError());
+        };
+        if (signal?.aborted) {
+          transport.cancel({ channel, requestId });
+          reject(new DesktopIpcStreamCancelledError());
+          return;
+        }
+        signal?.addEventListener('abort', abort, { once: true });
         const unsubscribe = transport.subscribe(responseChannel, (event) => {
           if (event.type === 'error') {
-            unsubscribe();
+            settle();
             reject(
               event.error ? desktopIpcErrorFromSerialized(event.error) : new Error(event.message),
             );
             return;
           }
           if (event.type === 'done') {
-            unsubscribe();
+            settle();
             resolve(resultFromDone(event as DesktopIpcStreamDoneEvent<Channel>));
             return;
           }
           onEvent(event as DesktopIpcStreamProgressEvent<Channel>);
         });
+        function settle() {
+          unsubscribe();
+          signal?.removeEventListener('abort', abort);
+        }
+
         try {
           transport.send(channel, { requestId, payload });
         } catch (error) {
-          unsubscribe();
+          settle();
           reject(error);
         }
       });

@@ -1,5 +1,6 @@
 export type GenerateOptions = {
   failOnMaxTokens?: boolean;
+  signal?: AbortSignal;
 };
 
 export type JsonSchema = {

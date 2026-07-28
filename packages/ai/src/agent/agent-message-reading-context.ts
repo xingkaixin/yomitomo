@@ -6,4 +6,5 @@ export type AgentMessageReadingContextSnapshot = {
 
 export type AgentMessageRunOptions = {
   readingContext?: AgentMessageReadingContextSnapshot;
+  signal?: AbortSignal;
 };

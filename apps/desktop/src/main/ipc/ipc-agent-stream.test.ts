@@ -42,7 +42,7 @@ describe('runAgentStreamIpc', () => {
         },
       });
     });
-    const sender = { send: vi.fn() };
+    const sender = streamSender();
 
     await ipcHandler('agent:comment:stream')({ sender }, request('req_1', agentMessagePayload));
 
@@ -59,7 +59,7 @@ describe('runAgentStreamIpc', () => {
     runAgentStreamIpc('agent:comment:stream', 'STREAM_FAILED', async () => {
       throw new Error('low level error');
     });
-    const sender = { send: vi.fn() };
+    const sender = streamSender();
 
     await ipcHandler('agent:comment:stream')({ sender }, request('req_2', agentMessagePayload));
 
@@ -80,7 +80,7 @@ describe('runAgentStreamIpc', () => {
         desktopIpcErrorCodes.agentNotFound,
       );
     });
-    const sender = { send: vi.fn() };
+    const sender = streamSender();
 
     await ipcHandler('agent:comment:stream')({ sender }, request('req_3', agentMessagePayload));
 
@@ -99,7 +99,7 @@ describe('runAgentStreamIpc', () => {
     runAgentStreamIpc('agent:comment:stream', 'STREAM_FAILED', handler, async () => {
       throw new DesktopIpcError(desktopIpcErrorCodes.appLockRequired);
     });
-    const sender = { send: vi.fn() };
+    const sender = streamSender();
 
     await ipcHandler('agent:comment:stream')({ sender }, request('req_4', agentMessagePayload));
 
@@ -122,7 +122,7 @@ describe('runAgentStreamIpc', () => {
     const guard = vi.fn();
     const handler = vi.fn();
     runAgentStreamIpc('agent:comment:stream', 'STREAM_FAILED', handler, guard);
-    const sender = { send: vi.fn() };
+    const sender = streamSender();
 
     expect(() => ipcHandler('agent:comment:stream')({ sender }, malformedRequest)).not.toThrow();
 
@@ -158,7 +158,7 @@ describe('runAgentStreamIpc', () => {
     const guard = vi.fn();
     const handler = vi.fn();
     runAgentStreamIpc('agent:comment:stream', 'STREAM_FAILED', handler, guard);
-    const sender = { send: vi.fn() };
+    const sender = streamSender();
 
     expect(() =>
       ipcHandler('agent:comment:stream')({ sender }, request('req_invalid', payload)),
@@ -180,7 +180,7 @@ describe('runAgentStreamIpc', () => {
     const guard = vi.fn();
     const handler = vi.fn();
     runAgentStreamIpc('agent:annotate:stream', 'STREAM_FAILED', handler, guard);
-    const sender = { send: vi.fn() };
+    const sender = streamSender();
     const payload: AgentAnnotatePayload = {
       agentUsername: 'agent',
       article: article('article text'),
@@ -292,3 +292,16 @@ const finalComment: Comment = {
   content: 'done',
   createdAt: '2026-07-15T00:00:00.000Z',
 };
+
+let streamSenderId = 0;
+
+function streamSender() {
+  streamSenderId += 1;
+  return {
+    id: streamSenderId,
+    isDestroyed: () => false,
+    off: vi.fn(),
+    once: vi.fn(),
+    send: vi.fn(),
+  };
+}
