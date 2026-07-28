@@ -15,6 +15,7 @@ import type {
 import { DesktopIpcError, desktopIpcErrorCodes, serializeDesktopIpcError } from '../../ipc-errors';
 import { validateDesktopIpcInvokeArgs } from '../../ipc-schemas';
 import { withDatabaseLease } from '../store/store-db';
+import { assertDesktopIpcInvokeSenderAuthorized } from './ipc-sender-guard';
 import type { RendererStateEventDispatcher } from './renderer-state-event-dispatcher';
 
 export { isAppLockSettingsLocked } from '../../app-store';
@@ -94,6 +95,7 @@ export function handleDesktopIpc<Channel extends DesktopIpcInvokeChannel>(
 ) {
   ipcMain.handle(channel, async (event, ...args: DesktopIpcInvokeArgs<Channel>) => {
     try {
+      assertDesktopIpcInvokeSenderAuthorized(channel, event);
       await assertDesktopIpcChannelAllowedByAppLock(channel);
       const invoke = async () => handler(event, ...validateDesktopIpcInvokeArgs(channel, args));
       const value = databaseLifecycleChannels.has(channel)

@@ -305,7 +305,7 @@ describe('store database restore lifecycle', () => {
     const source = join(testPaths.userData, 'source.sqlite');
     await backupDatabaseFile(source);
     writeMarker('current');
-    let releaseLease = () => {};
+    let releaseLease: () => void = noop;
     const leaseHeld = new Promise<void>((resolve) => {
       releaseLease = resolve;
     });
@@ -447,6 +447,8 @@ async function restoreTemporaryFiles() {
 async function readOptionalFile(filePath: string) {
   return actualFs.readFile(filePath, 'utf8').catch(() => '');
 }
+
+function noop() {}
 
 function runCatching(operation: () => unknown) {
   try {

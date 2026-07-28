@@ -3,16 +3,17 @@ import type {
   DesktopIpcToRendererEventArgs,
   DesktopIpcToRendererEventChannel,
 } from '../../ipc-contract';
+import type { RendererRole } from '../../ipc-authorization';
 import { sendDesktopIpcRendererEvent } from './ipc-events';
+import type { RendererRoleRegistry, RendererRoleTarget } from './renderer-role-registry';
 
 type RendererStateEventChannel = Extract<
   DesktopIpcToRendererEventChannel,
   'article:patched' | 'collection:patched' | 'library-pin:patched' | 'store:updated'
 >;
 
-export type RendererStateEventTargetRole = 'annotation' | 'main';
+export type RendererStateEventTargetRole = RendererRole;
 
-type RendererStateEventTarget = Pick<WebContents, 'id' | 'isDestroyed' | 'send'>;
 type RendererStateEventSource = Pick<WebContents, 'id'>;
 type RendererStateEventPolicy = {
   senderDelivery: 'exclude' | 'include';
@@ -38,41 +39,25 @@ const eventPolicies: Record<RendererStateEventChannel, RendererStateEventPolicy>
   },
 };
 
-export function createRendererStateEventDispatcher() {
-  const targets = new Map<
-    number,
-    { role: RendererStateEventTargetRole; webContents: RendererStateEventTarget }
-  >();
-
-  function registerTarget(
-    role: RendererStateEventTargetRole,
-    webContents: RendererStateEventTarget,
-  ) {
-    targets.set(webContents.id, { role, webContents });
-    return () => {
-      const target = targets.get(webContents.id);
-      if (target?.webContents === webContents) targets.delete(webContents.id);
-    };
-  }
-
+export function createRendererStateEventDispatcher(roles: RendererRoleRegistry) {
   function dispatch<Channel extends RendererStateEventChannel>(
     source: RendererStateEventSource | null,
     channel: Channel,
     ...args: DesktopIpcToRendererEventArgs<Channel>
   ) {
     const policy = eventPolicies[channel];
-    for (const [id, target] of targets) {
-      if (target.webContents.isDestroyed()) {
-        targets.delete(id);
-        continue;
-      }
+    for (const target of roles.liveEntries()) {
       if (!policy.targetRoles.includes(target.role)) continue;
-      if (policy.senderDelivery === 'exclude' && source?.id === id) continue;
+      if (policy.senderDelivery === 'exclude' && source?.id === target.webContents.id) continue;
       sendDesktopIpcRendererEvent(target.webContents, channel, ...args);
     }
   }
 
-  return { dispatch, registerTarget };
+  return {
+    dispatch,
+    registerTarget: (role: RendererRole, webContents: RendererRoleTarget) =>
+      roles.register(role, webContents),
+  };
 }
 
 export type RendererStateEventDispatcher = ReturnType<typeof createRendererStateEventDispatcher>;

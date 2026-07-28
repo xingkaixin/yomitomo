@@ -6,6 +6,7 @@ import type {
   DesktopStore,
   LibraryPinPatch,
 } from '@yomitomo/shared';
+import { createRendererRoleRegistry } from './renderer-role-registry';
 import { createRendererStateEventDispatcher } from './renderer-state-event-dispatcher';
 
 vi.mock('electron', () => ({
@@ -14,7 +15,7 @@ vi.mock('electron', () => ({
 
 describe('renderer state event dispatcher', () => {
   it('sends article patches to every relevant window except the sender', () => {
-    const dispatcher = createRendererStateEventDispatcher();
+    const dispatcher = createRendererStateEventDispatcher(createRendererRoleRegistry());
     const main = rendererTarget(1);
     const sourceAnnotation = rendererTarget(2);
     const otherAnnotation = rendererTarget(3);
@@ -31,7 +32,7 @@ describe('renderer state event dispatcher', () => {
   });
 
   it('does not echo full store updates to their main-window sender', () => {
-    const dispatcher = createRendererStateEventDispatcher();
+    const dispatcher = createRendererStateEventDispatcher(createRendererRoleRegistry());
     const main = rendererTarget(1);
     const annotation = rendererTarget(2);
     dispatcher.registerTarget('main', main.webContents);
@@ -44,7 +45,7 @@ describe('renderer state event dispatcher', () => {
   });
 
   it('sends collection patches to other main windows except the sender', () => {
-    const dispatcher = createRendererStateEventDispatcher();
+    const dispatcher = createRendererStateEventDispatcher(createRendererRoleRegistry());
     const sourceMain = rendererTarget(1);
     const otherMain = rendererTarget(2);
     dispatcher.registerTarget('main', sourceMain.webContents);
@@ -61,7 +62,7 @@ describe('renderer state event dispatcher', () => {
   });
 
   it('sends library pin patches to other main windows except the sender', () => {
-    const dispatcher = createRendererStateEventDispatcher();
+    const dispatcher = createRendererStateEventDispatcher(createRendererRoleRegistry());
     const sourceMain = rendererTarget(1);
     const otherMain = rendererTarget(2);
     dispatcher.registerTarget('main', sourceMain.webContents);
@@ -83,7 +84,7 @@ describe('renderer state event dispatcher', () => {
   });
 
   it('removes closed and explicitly unregistered targets', () => {
-    const dispatcher = createRendererStateEventDispatcher();
+    const dispatcher = createRendererStateEventDispatcher(createRendererRoleRegistry());
     const closed = rendererTarget(1, true);
     const removed = rendererTarget(2);
     dispatcher.registerTarget('main', closed.webContents);
