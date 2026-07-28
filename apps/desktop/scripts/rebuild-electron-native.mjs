@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
+import { assertNativeSqliteVersionAligned } from './native-sqlite-version.mjs';
 
 const desktopRoot = dirname(import.meta.dirname);
 const electronNativeRoot = join(desktopRoot, 'electron-native');
@@ -9,6 +10,8 @@ const electronRebuild = join(
   '.bin',
   process.platform === 'win32' ? 'electron-rebuild.cmd' : 'electron-rebuild',
 );
+
+assertNativeSqliteVersionAligned();
 
 execFileSync(
   electronRebuild,

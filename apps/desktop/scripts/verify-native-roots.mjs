@@ -2,11 +2,13 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
+import { assertNativeSqliteVersionAligned } from './native-sqlite-version.mjs';
 
 const desktopRoot = dirname(import.meta.dirname);
 const requireFromDesktop = createRequire(join(desktopRoot, 'package.json'));
 const electronNativeRoot = join(desktopRoot, 'electron-native');
 
+assertNativeSqliteVersionAligned();
 verifyNodeRoot();
 verifyElectronRoot();
 verifyBuilderConfig();
@@ -32,9 +34,6 @@ function verifyElectronRoot() {
     'node_modules/better-sqlite3/build/Release/better_sqlite3.node',
   );
 
-  if (!existsSync(packagePath)) {
-    throw new Error(`Electron native root is missing better-sqlite3: ${packagePath}`);
-  }
   if (!existsSync(bindingsPath)) {
     throw new Error(`Electron native root is missing bindings: ${bindingsPath}`);
   }
