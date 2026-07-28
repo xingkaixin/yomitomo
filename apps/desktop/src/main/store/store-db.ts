@@ -14,6 +14,7 @@ import {
   readDatabaseReaderLevel,
   writeDatabaseReaderLevel,
 } from '../db/compatibility';
+import { logInfo } from '../app/logger';
 import { ensureAdditiveSchemaColumns, migrations } from '../db/migrations';
 import * as schema from '../db/schema';
 import { loadSQLiteDatabase } from '../native/sqlite';
@@ -22,11 +23,22 @@ const DB_FILE_NAME = 'yomitomo.sqlite';
 const SQLITE_MAINTENANCE_STATE_ID = 'startup-vacuum';
 const SQLITE_VACUUM_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 const SQLITE_VACUUM_FREELIST_THRESHOLD_BYTES = 32 * 1024 * 1024;
+const LEASE_DRAIN_TIMEOUT_MS = 5000;
 
 let sqlite: SQLiteDatabase.Database | null = null;
 let db: StoreDatabase | null = null;
 let seedDatabase: ((database: StoreDatabase) => void) | null = null;
+let lifecycle: DatabaseLifecycleState = 'open';
+let connectionGeneration = 0;
+let activeLeases = 0;
+let leasesDrained: (() => void) | null = null;
 
+/**
+ * `open` serves normal work, `draining` refuses new leases while in-flight ones finish,
+ * and `replacing` spans the window where the file is swapped: no getter may lazily
+ * reopen the old path there.
+ */
+export type DatabaseLifecycleState = 'open' | 'draining' | 'replacing';
 export type StoreDatabase = BetterSQLite3Database<typeof schema>;
 export type StoreTransaction = Parameters<StoreDatabase['transaction']>[0] extends (
   tx: infer T,
@@ -71,8 +83,31 @@ export function getDatabasePath() {
 }
 
 export function getDatabase() {
-  if (db) return db;
+  if (lifecycle === 'replacing') throw new Error('DATA_MANAGEMENT_DATABASE_REPLACING');
+  return db || openDatabaseConnection();
+}
 
+export function readDatabaseLifecycle() {
+  return { state: lifecycle, generation: connectionGeneration, leases: activeLeases };
+}
+
+/**
+ * Entry point for asynchronous database work: a restore waits for the outstanding
+ * leases before it closes the connection, and refuses new ones once it starts.
+ */
+export async function withDatabaseLease<T>(operation: () => Promise<T>): Promise<T> {
+  if (lifecycle !== 'open') throw new Error('DATA_MANAGEMENT_DATABASE_REPLACING');
+
+  activeLeases += 1;
+  try {
+    return await operation();
+  } finally {
+    activeLeases -= 1;
+    if (activeLeases === 0) leasesDrained?.();
+  }
+}
+
+function openDatabaseConnection() {
   const file = databasePath();
   mkdirSync(dirname(file), { recursive: true });
 
@@ -88,6 +123,7 @@ export function getDatabase() {
   }
 
   db = drizzle(sqlite, { schema });
+  connectionGeneration += 1;
   seedDatabase?.(db);
   return db;
 }
@@ -139,6 +175,39 @@ export async function replaceDatabaseFile(sourcePath: string) {
   const target = resolve(databasePath());
   if (source === target) throw new Error('DATA_MANAGEMENT_RESTORE_SOURCE_IS_CURRENT_DATABASE');
 
+  if (lifecycle !== 'open') throw new Error('DATA_MANAGEMENT_DATABASE_REPLACING');
+  lifecycle = 'draining';
+  logInfo('store.database_replace_started', {
+    leases: activeLeases,
+    generation: connectionGeneration,
+  });
+  try {
+    await drainDatabaseLeases();
+    return await installDatabaseReplacement(source, target);
+  } finally {
+    lifecycle = 'open';
+    logInfo('store.database_replace_settled', { generation: connectionGeneration });
+  }
+}
+
+async function drainDatabaseLeases() {
+  if (activeLeases === 0) return;
+
+  await new Promise<void>((settle) => {
+    const timer = setTimeout(() => {
+      leasesDrained = null;
+      logInfo('store.database_replace_drain_timeout', { leases: activeLeases });
+      settle();
+    }, LEASE_DRAIN_TIMEOUT_MS);
+    leasesDrained = () => {
+      clearTimeout(timer);
+      leasesDrained = null;
+      settle();
+    };
+  });
+}
+
+async function installDatabaseReplacement(source: string, target: string) {
   const backupPath = await safetyBackupPath();
   const targetExists = existsSync(target);
   if (targetExists) await backupDatabaseFile(backupPath);
@@ -153,6 +222,7 @@ export async function replaceDatabaseFile(sourcePath: string) {
     validateRestoreCandidate(temporaryTarget);
     await removeSqliteSidecarFiles(temporaryTarget);
 
+    lifecycle = 'replacing';
     closeDatabase();
     databaseClosed = true;
     await removeSqliteSidecarFiles(target);
@@ -161,7 +231,8 @@ export async function replaceDatabaseFile(sourcePath: string) {
     }
     await rename(temporaryTarget, target);
     replacementInstalled = true;
-    getDatabase();
+    openDatabaseConnection();
+    lifecycle = 'draining';
     databaseClosed = false;
     await removeBackupTemporaryFiles(rollbackTarget);
     return backupPath;
@@ -288,11 +359,12 @@ async function rollbackDatabaseReplacement(input: {
 
   if (input.targetExists) {
     try {
-      getDatabase();
+      openDatabaseConnection();
     } catch (error) {
       recoveryErrors.push(error);
     }
   }
+  lifecycle = 'draining';
 
   if (recoveryErrors.length > 0) {
     throw new AggregateError(

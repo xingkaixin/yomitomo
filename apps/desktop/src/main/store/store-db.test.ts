@@ -36,8 +36,10 @@ import {
   closeDatabase,
   getDatabasePath,
   getSqliteExecutor,
+  readDatabaseLifecycle,
   replaceDatabaseFile,
   runSqliteMaintenance,
+  withDatabaseLease,
 } from './store-db';
 import { copyFile, rename, rm } from 'node:fs/promises';
 
@@ -45,6 +47,9 @@ const actualFs = await vi.importActual<typeof import('node:fs/promises')>('node:
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  vi.mocked(copyFile).mockImplementation(actualFs.copyFile);
+  vi.mocked(rename).mockImplementation(actualFs.rename);
+  vi.mocked(rm).mockImplementation(actualFs.rm);
   closeDatabase();
   testPaths.userData = await actualFs.mkdtemp(join(tmpdir(), 'yomitomo-store-db-test-'));
 });
@@ -139,7 +144,10 @@ describe('store database backup and restore', () => {
     const source = join(testPaths.userData, 'source.sqlite');
     await backupDatabaseFile(source);
     writeMarker('current');
-    vi.mocked(copyFile).mockRejectedValueOnce(new Error('copy failed'));
+    vi.mocked(copyFile).mockImplementation(async (from, to) => {
+      if (String(to).includes('.restore-')) throw new Error('copy failed');
+      return actualFs.copyFile(from, to);
+    });
 
     await expect(replaceDatabaseFile(source)).rejects.toThrow('copy failed');
 
@@ -151,8 +159,9 @@ describe('store database backup and restore', () => {
     const source = join(testPaths.userData, 'source.sqlite');
     await backupDatabaseFile(source);
     writeMarker('current');
-    vi.mocked(copyFile).mockImplementationOnce(async (_source, destination) => {
-      await actualFs.writeFile(destination, 'partial restore');
+    vi.mocked(copyFile).mockImplementation(async (from, to) => {
+      if (!String(to).includes('.restore-')) return actualFs.copyFile(from, to);
+      await actualFs.writeFile(to, 'partial restore');
       throw new Error('copy failed after partial write');
     });
 
@@ -259,6 +268,100 @@ describe('store database backup and restore', () => {
   });
 });
 
+describe('store database restore lifecycle', () => {
+  it('refuses to reopen the database while the file is being replaced', async () => {
+    writeMarker('source');
+    const source = join(testPaths.userData, 'source.sqlite');
+    await backupDatabaseFile(source);
+    writeMarker('current');
+    const generationBeforeRestore = readDatabaseLifecycle().generation;
+    const lifecycleDuringRename: string[] = [];
+    const reopenAttempts: unknown[] = [];
+    vi.mocked(rename).mockImplementation(async (from, to) => {
+      if (String(from).includes('.restore-')) {
+        lifecycleDuringRename.push(readDatabaseLifecycle().state);
+        reopenAttempts.push(runCatching(() => getSqliteExecutor()));
+        reopenAttempts.push(await runCatchingAsync(() => withDatabaseLease(async () => 'read')));
+      }
+      return actualFs.rename(from, to);
+    });
+
+    await replaceDatabaseFile(source);
+
+    expect(lifecycleDuringRename).toEqual(['replacing']);
+    expect(reopenAttempts).toEqual([
+      new Error('DATA_MANAGEMENT_DATABASE_REPLACING'),
+      new Error('DATA_MANAGEMENT_DATABASE_REPLACING'),
+    ]);
+    expect(readMarker()).toBe('source');
+    expect(readDatabaseLifecycle()).toMatchObject({
+      state: 'open',
+      generation: generationBeforeRestore + 1,
+    });
+  });
+
+  it('waits for in-flight leases before closing the database', async () => {
+    writeMarker('source');
+    const source = join(testPaths.userData, 'source.sqlite');
+    await backupDatabaseFile(source);
+    writeMarker('current');
+    let releaseLease = () => {};
+    const leaseHeld = new Promise<void>((resolve) => {
+      releaseLease = resolve;
+    });
+    const leaseStates: string[] = [];
+
+    const lease = withDatabaseLease(async () => {
+      await leaseHeld;
+      leaseStates.push(readDatabaseLifecycle().state);
+      return readMarker();
+    });
+    const restore = replaceDatabaseFile(source);
+    expect(readDatabaseLifecycle()).toMatchObject({ state: 'draining', leases: 1 });
+    releaseLease();
+
+    expect(await lease).toBe('current');
+    await restore;
+    expect(leaseStates).toEqual(['draining']);
+    expect(readMarker()).toBe('source');
+  });
+
+  it('refuses a second restore while one is already running', async () => {
+    writeMarker('source');
+    const source = join(testPaths.userData, 'source.sqlite');
+    await backupDatabaseFile(source);
+    writeMarker('current');
+    let concurrentRestore: unknown;
+    vi.mocked(rename).mockImplementation(async (from, to) => {
+      if (String(from).includes('.restore-')) {
+        concurrentRestore = await runCatchingAsync(() => replaceDatabaseFile(source));
+      }
+      return actualFs.rename(from, to);
+    });
+
+    await replaceDatabaseFile(source);
+
+    expect(concurrentRestore).toEqual(new Error('DATA_MANAGEMENT_DATABASE_REPLACING'));
+  });
+
+  it('returns to a usable connection after a failed restore', async () => {
+    writeMarker('source');
+    const source = join(testPaths.userData, 'source.sqlite');
+    await backupDatabaseFile(source);
+    writeMarker('current');
+    vi.mocked(rename).mockImplementation(async (from, to) => {
+      if (String(from).includes('.restore-')) throw new Error('install rename failed');
+      return actualFs.rename(from, to);
+    });
+
+    await expect(replaceDatabaseFile(source)).rejects.toThrow('install rename failed');
+
+    expect(readDatabaseLifecycle().state).toBe('open');
+    writeMarker('after failure');
+    expect(readMarker()).toBe('after failure');
+  });
+});
+
 describe('store database sqlite maintenance', () => {
   it('skips startup vacuum when reusable pages are below the threshold', () => {
     const database = maintenanceDatabase();
@@ -343,6 +446,18 @@ async function restoreTemporaryFiles() {
 
 async function readOptionalFile(filePath: string) {
   return actualFs.readFile(filePath, 'utf8').catch(() => '');
+}
+
+function runCatching(operation: () => unknown) {
+  try {
+    return operation();
+  } catch (error) {
+    return error;
+  }
+}
+
+async function runCatchingAsync(operation: () => Promise<unknown>) {
+  return operation().catch((error: unknown) => error);
 }
 
 function maintenanceDatabase() {
