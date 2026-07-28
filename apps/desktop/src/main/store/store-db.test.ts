@@ -24,6 +24,12 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   };
 });
 
+// The real logger appends to a file under the mocked userData directory, which races
+// with the per-test cleanup of that directory.
+vi.mock('../app/logger', () => ({
+  logInfo: vi.fn(),
+}));
+
 vi.mock('../native/sqlite', async () => {
   const { default: SQLiteDatabaseDriver } = await import('better-sqlite3');
   return {
@@ -305,7 +311,7 @@ describe('store database restore lifecycle', () => {
     const source = join(testPaths.userData, 'source.sqlite');
     await backupDatabaseFile(source);
     writeMarker('current');
-    let releaseLease = () => {};
+    let releaseLease: () => void = noop;
     const leaseHeld = new Promise<void>((resolve) => {
       releaseLease = resolve;
     });
@@ -447,6 +453,8 @@ async function restoreTemporaryFiles() {
 async function readOptionalFile(filePath: string) {
   return actualFs.readFile(filePath, 'utf8').catch(() => '');
 }
+
+function noop() {}
 
 function runCatching(operation: () => unknown) {
   try {

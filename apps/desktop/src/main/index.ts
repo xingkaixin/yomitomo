@@ -40,6 +40,8 @@ import { registerProviderIpc } from './ipc/ipc-provider';
 import { registerStoreDataIpc } from './ipc/ipc-store-data';
 import { registerWeReadIpc } from './ipc/ipc-weread';
 import { createRendererStateEventDispatcher } from './ipc/renderer-state-event-dispatcher';
+import { createRendererRoleRegistry } from './ipc/renderer-role-registry';
+import { configureDesktopIpcRendererRoles } from './ipc/ipc-sender-guard';
 import { modelPriceRefreshIntervalMs } from './providers/model-pricing-repository';
 import {
   createDesktopTelemetryControllerForEnvironment,
@@ -66,7 +68,10 @@ let weReadAutoSyncConfigureToken = 0;
 let weReadAutoSyncRunning = false;
 let desktopTelemetryController: DesktopTelemetryController | null = null;
 let sensitiveRendererEventsLocked = false;
-const rendererStateEventDispatcher = createRendererStateEventDispatcher();
+const rendererRoleRegistry = createRendererRoleRegistry();
+const rendererStateEventDispatcher = createRendererStateEventDispatcher(rendererRoleRegistry);
+
+configureDesktopIpcRendererRoles(rendererRoleRegistry);
 
 const WEREAD_AUTO_SYNC_STARTUP_DELAY_MS = 5_000;
 const WEREAD_AUTO_SYNC_INTERVAL_MS = 30 * 60 * 1000;

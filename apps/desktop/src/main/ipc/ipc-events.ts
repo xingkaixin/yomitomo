@@ -15,6 +15,7 @@ import {
 } from '../../ipc-event-schemas';
 import type { DesktopIpcError } from '../../ipc-errors';
 import { logError } from '../app/logger';
+import { assertDesktopIpcMainEventSenderAuthorized } from './ipc-sender-guard';
 
 type DesktopIpcMainEventListener<Channel extends DesktopIpcToMainEventChannel> = (
   event: IpcMainEvent,
@@ -26,6 +27,8 @@ export function onDesktopIpcMainEvent<Channel extends DesktopIpcToMainEventChann
   listener: DesktopIpcMainEventListener<Channel>,
 ) {
   ipcMain.on(channel, (event, ...args: unknown[]) => {
+    if (!isDesktopIpcMainEventSenderAuthorized(channel, event)) return;
+
     const result = validateDesktopIpcMainEventArgs(channel, args);
     if (!result.success) {
       reportInvalidInput('event', channel, result.error);
@@ -52,6 +55,8 @@ export function onDesktopIpcStreamRequest<Channel extends DesktopIpcStreamChanne
   onInvalidRequest?: (event: IpcMainEvent, requestId: string, error: DesktopIpcError) => void,
 ) {
   ipcMain.on(channel, (event, request: unknown) => {
+    if (!isDesktopIpcMainEventSenderAuthorized(channel, event)) return;
+
     const result = validateDesktopIpcStreamRequest(channel, request);
     if (!result.success) {
       reportInvalidInput('stream', channel, result.error);
@@ -74,6 +79,18 @@ export function sendDesktopIpcStreamEvent<Channel extends DesktopIpcStreamChanne
   event: DesktopIpcStreamEvent<Channel>,
 ) {
   webContents.send(channel, event);
+}
+
+function isDesktopIpcMainEventSenderAuthorized(
+  channel: DesktopIpcToMainEventChannel,
+  event: IpcMainEvent,
+) {
+  try {
+    assertDesktopIpcMainEventSenderAuthorized(channel, event);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function reportInvalidInput(
