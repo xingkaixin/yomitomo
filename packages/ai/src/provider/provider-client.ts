@@ -39,7 +39,24 @@ const geminiModelListResponseSchema = Schema.Struct({
   ),
 });
 
-type ProviderClientError = ProviderHttpError | ProviderNetworkError | ProviderResponseDecodeError;
+type ProviderClientError =
+  | ProviderHttpError
+  | ProviderNetworkError
+  | ProviderResponseDecodeError
+  | ProviderResponseTooLargeError
+  | ProviderTimeoutError;
+
+export type ProviderModelListOptions = {
+  timeoutMs?: number;
+  maxResponseBytes?: number;
+};
+
+// A custom base URL may point at an endpoint that never finishes a response, so model
+// enumeration carries its own deadline and byte budget instead of trusting the peer.
+const PROVIDER_MODEL_LIST_TIMEOUT_MS = 20_000;
+const PROVIDER_MODEL_LIST_MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
+const PROVIDER_MODEL_LIST_MAX_ERROR_BYTES = 64 * 1024;
+const PROVIDER_MODEL_LIST_ERROR_PREVIEW_CHARS = 400;
 
 class ProviderNetworkError extends Error {
   readonly _tag = 'ProviderNetworkError';
@@ -61,8 +78,27 @@ class ProviderResponseDecodeError extends Error {
   }
 }
 
-export async function listProviderModels(provider: Partial<LlmProvider>): Promise<ProviderModel[]> {
-  return Effect.runPromise(listProviderModelsEffect(provider));
+class ProviderTimeoutError extends Error {
+  readonly _tag = 'ProviderTimeoutError';
+
+  constructor(timeoutMs: number) {
+    super(`Provider request timed out after ${timeoutMs}ms`);
+  }
+}
+
+class ProviderResponseTooLargeError extends Error {
+  readonly _tag = 'ProviderResponseTooLargeError';
+
+  constructor(limitBytes: number) {
+    super(`Provider response exceeded ${limitBytes} bytes`);
+  }
+}
+
+export async function listProviderModels(
+  provider: Partial<LlmProvider>,
+  options?: ProviderModelListOptions,
+): Promise<ProviderModel[]> {
+  return Effect.runPromise(listProviderModelsEffect(provider, options));
 }
 
 function normalizeProvider(provider: Partial<LlmProvider>): LlmProvider {
@@ -86,25 +122,32 @@ function normalizeProvider(provider: Partial<LlmProvider>): LlmProvider {
 
 export const listProviderModelsEffect = Effect.fn('Provider.listModels')(function* (
   input: Partial<LlmProvider>,
+  options?: ProviderModelListOptions,
 ) {
   const provider = normalizeProvider(input);
-  if (provider.type === 'gemini') return yield* listGeminiModelsEffect(provider);
-  if (provider.type === 'anthropic') return yield* listAnthropicModelsEffect(provider);
-  return yield* listOpenAICompatibleModelsEffect(provider);
+  const budget = modelListBudget(options);
+  if (provider.type === 'gemini') return yield* listGeminiModelsEffect(provider, budget);
+  if (provider.type === 'anthropic') return yield* listAnthropicModelsEffect(provider, budget);
+  return yield* listOpenAICompatibleModelsEffect(provider, budget);
 });
 
 function listOpenAICompatibleModelsEffect(
   provider: LlmProvider,
+  budget: ProviderModelListBudget,
 ): Effect.Effect<ProviderModel[], ProviderClientError> {
   return Effect.gen(function* () {
-    const response = yield* fetchProviderModels(`${openAIBaseUrl(provider.baseUrl)}/models`, {
-      headers: bearerHeaders(provider),
-    });
+    const response = yield* fetchProviderModels(
+      `${openAIBaseUrl(provider.baseUrl)}/models`,
+      budget,
+      {
+        headers: bearerHeaders(provider),
+      },
+    );
     if (!response.ok) {
-      const message = yield* modelListErrorEffect(response);
+      const message = yield* modelListErrorEffect(response, budget);
       return yield* Effect.fail(new ProviderHttpError(message));
     }
-    const data = yield* responseJsonEffect(response, openAIModelListResponseSchema);
+    const data = yield* responseJsonEffect(response, openAIModelListResponseSchema, budget);
     return modelList(
       data.data?.map((model) => ({
         id: model.id || '',
@@ -117,21 +160,26 @@ function listOpenAICompatibleModelsEffect(
 
 function listAnthropicModelsEffect(
   provider: LlmProvider,
+  budget: ProviderModelListBudget,
 ): Effect.Effect<ProviderModel[], ProviderClientError> {
   return Effect.gen(function* () {
-    const response = yield* fetchProviderModels(`${trimSlash(provider.baseUrl)}/v1/models`, {
-      headers: {
-        'anthropic-version': '2023-06-01',
-        'x-api-key': provider.apiKey,
+    const response = yield* fetchProviderModels(
+      `${trimSlash(provider.baseUrl)}/v1/models`,
+      budget,
+      {
+        headers: {
+          'anthropic-version': '2023-06-01',
+          'x-api-key': provider.apiKey,
+        },
       },
-    });
+    );
     if (!response.ok) {
-      const text = yield* responseTextEffect(response);
+      const text = yield* responseTextEffect(response, budget);
       return yield* Effect.fail(
         new ProviderHttpError(normalizeAnthropicError(response.status, text)),
       );
     }
-    const data = yield* responseJsonEffect(response, anthropicModelListResponseSchema);
+    const data = yield* responseJsonEffect(response, anthropicModelListResponseSchema, budget);
     return modelList(
       data.data?.map((model) => ({
         id: model.id || '',
@@ -144,15 +192,16 @@ function listAnthropicModelsEffect(
 
 function listGeminiModelsEffect(
   provider: LlmProvider,
+  budget: ProviderModelListBudget,
 ): Effect.Effect<ProviderModel[], ProviderClientError> {
   const url = `${geminiBaseUrl(provider.baseUrl)}/models?key=${encodeURIComponent(provider.apiKey)}`;
   return Effect.gen(function* () {
-    const response = yield* fetchProviderModels(url);
+    const response = yield* fetchProviderModels(url, budget);
     if (!response.ok) {
-      const message = yield* modelListErrorEffect(response);
+      const message = yield* modelListErrorEffect(response, budget);
       return yield* Effect.fail(new ProviderHttpError(message));
     }
-    const data = yield* responseJsonEffect(response, geminiModelListResponseSchema);
+    const data = yield* responseJsonEffect(response, geminiModelListResponseSchema, budget);
     return modelList(
       data.models?.map((model) => {
         const id = (model.name || '').replace(/^models\//, '');
@@ -185,36 +234,127 @@ function dedupeModels(models: ProviderModel[]) {
 
 function fetchProviderModels(
   url: string,
+  budget: ProviderModelListBudget,
   init?: RequestInit,
-): Effect.Effect<Response, ProviderNetworkError> {
+): Effect.Effect<Response, ProviderNetworkError | ProviderTimeoutError> {
   return Effect.tryPromise({
-    try: (signal) => fetch(url, { ...init, signal }),
-    catch: (error) => new ProviderNetworkError(error),
+    try: (signal) =>
+      fetch(url, {
+        ...init,
+        signal: AbortSignal.any([signal, AbortSignal.timeout(budget.timeoutMs)]),
+      }),
+    catch: (error) =>
+      isTimeoutAbort(error)
+        ? new ProviderTimeoutError(budget.timeoutMs)
+        : new ProviderNetworkError(error),
   });
 }
 
-function responseJsonEffect<S extends Schema.Constraint>(response: Response, schema: S) {
-  return Effect.tryPromise({
-    try: () => response.json(),
-    catch: (error) => error,
-  }).pipe(
+function responseJsonEffect<S extends Schema.Constraint>(
+  response: Response,
+  schema: S,
+  budget: ProviderModelListBudget,
+) {
+  return readBoundedResponseText(response, budget.maxResponseBytes, 'fail').pipe(
+    Effect.flatMap((text) =>
+      Effect.try({ try: () => JSON.parse(text) as unknown, catch: (error) => error }),
+    ),
     Effect.flatMap(Schema.decodeUnknownEffect(schema)),
-    Effect.mapError((error) => new ProviderResponseDecodeError(error)),
+    Effect.mapError((error) =>
+      error instanceof ProviderResponseTooLargeError || error instanceof ProviderTimeoutError
+        ? error
+        : new ProviderResponseDecodeError(error),
+    ),
   );
 }
 
-function responseTextEffect(response: Response) {
-  return Effect.tryPromise({
-    try: () => response.text(),
-    catch: (error) => new ProviderResponseDecodeError(error),
+function responseTextEffect(response: Response, budget: ProviderModelListBudget) {
+  return readBoundedResponseText(response, budget.maxErrorBytes, 'truncate');
+}
+
+function modelListErrorEffect(response: Response, budget: ProviderModelListBudget) {
+  return Effect.gen(function* () {
+    const text = yield* responseTextEffect(response, budget);
+    return `Provider request failed: ${response.status} ${text.slice(0, PROVIDER_MODEL_LIST_ERROR_PREVIEW_CHARS)}`;
   });
 }
 
-function modelListErrorEffect(response: Response) {
-  return Effect.gen(function* () {
-    const text = yield* responseTextEffect(response);
-    return `Provider request failed: ${response.status} ${text.slice(0, 400)}`;
+type ProviderModelListBudget = {
+  timeoutMs: number;
+  maxResponseBytes: number;
+  maxErrorBytes: number;
+};
+
+function modelListBudget(options: ProviderModelListOptions = {}): ProviderModelListBudget {
+  return {
+    timeoutMs: Math.min(
+      options.timeoutMs || PROVIDER_MODEL_LIST_TIMEOUT_MS,
+      PROVIDER_MODEL_LIST_TIMEOUT_MS,
+    ),
+    maxResponseBytes: Math.min(
+      options.maxResponseBytes || PROVIDER_MODEL_LIST_MAX_RESPONSE_BYTES,
+      PROVIDER_MODEL_LIST_MAX_RESPONSE_BYTES,
+    ),
+    maxErrorBytes: Math.min(
+      options.maxResponseBytes || PROVIDER_MODEL_LIST_MAX_ERROR_BYTES,
+      PROVIDER_MODEL_LIST_MAX_ERROR_BYTES,
+    ),
+  };
+}
+
+/**
+ * Reads a response under a byte budget: an oversized `Content-Length` is refused before
+ * any body arrives, and the stream is cancelled as soon as the running total passes the
+ * limit. `truncate` keeps whatever fit, for error previews that must not mask the status.
+ */
+function readBoundedResponseText(
+  response: Response,
+  limitBytes: number,
+  onExceed: 'fail' | 'truncate',
+): Effect.Effect<string, ProviderResponseTooLargeError | ProviderResponseDecodeError> {
+  return Effect.tryPromise({
+    try: async () => {
+      const declared = Number(response.headers.get('content-length'));
+      if (Number.isFinite(declared) && declared > limitBytes) {
+        await response.body?.cancel();
+        if (onExceed === 'fail') throw new ProviderResponseTooLargeError(limitBytes);
+        return '';
+      }
+      if (!response.body) return await response.text();
+      return await readBoundedStream(response.body, limitBytes, onExceed);
+    },
+    catch: (error) =>
+      error instanceof ProviderResponseTooLargeError
+        ? error
+        : new ProviderResponseDecodeError(error),
   });
+}
+
+async function readBoundedStream(
+  body: ReadableStream<Uint8Array>,
+  limitBytes: number,
+  onExceed: 'fail' | 'truncate',
+) {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let text = '';
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > limitBytes) {
+      await reader.cancel();
+      if (onExceed === 'fail') throw new ProviderResponseTooLargeError(limitBytes);
+      return text;
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  return text + decoder.decode();
+}
+
+function isTimeoutAbort(error: unknown) {
+  return error instanceof Error && error.name === 'TimeoutError';
 }
 
 function trimSlash(value: string) {
