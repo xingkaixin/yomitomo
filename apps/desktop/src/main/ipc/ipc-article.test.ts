@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { Annotation, ArticleRecord } from '@yomitomo/shared';
+import type { Annotation, ArticleRecord, ArticleTranslation } from '@yomitomo/shared';
 import { pdfSourceArrayBufferForIpc, registerArticleIpc } from './ipc-article';
 
 const storageMocks = vi.hoisted(() => ({
@@ -263,12 +263,7 @@ describe('article translation IPC', () => {
       baseUrl: 'https://example.com',
     });
     const article = ebookArticle();
-    const saveArticleTranslation = vi.fn(
-      async (translation: Parameters<ArticlePersistence['saveArticleTranslation']>[0]) => ({
-        ...translation,
-        segments: translation.segments || [],
-      }),
-    );
+    const store = fakeTranslationStore();
     const translateBilingualArticleBlocks = vi.fn(async (input) => ({
       translations: input.blocks.map((block: { id: string; text: string }) => ({
         id: block.id,
@@ -283,7 +278,9 @@ describe('article translation IPC', () => {
         {
           readArticle: vi.fn().mockResolvedValue(article),
           readCurrentArticleTranslation: vi.fn().mockResolvedValue(null),
-          saveArticleTranslation,
+          initializeArticleTranslation: store.initializeArticleTranslation,
+          updateArticleTranslationSegment: store.updateArticleTranslationSegment,
+          finalizeArticleTranslation: store.finalizeArticleTranslation,
         },
         {
           getAiModule: async () => ({
@@ -328,7 +325,7 @@ describe('article translation IPC', () => {
         blocks: [expect.objectContaining({ id: 'block-1', text: 'First source paragraph.' })],
       }),
     );
-    expect(saveArticleTranslation.mock.calls[0]?.[0]).toMatchObject({
+    expect(store.initializeArticleTranslation.mock.calls[0]?.[0]).toMatchObject({
       sourceId: 'chapter-1',
       sourceContentHash: 'ebook-hash',
     });
@@ -419,6 +416,60 @@ type ArticlePersistence = Awaited<
   ReturnType<ArticleIpcContext['getPersistenceModules']>
 >['storeArticles'];
 
+function fakeTranslationStore() {
+  let translation: ArticleTranslation | null = null;
+
+  return {
+    initializeArticleTranslation: vi.fn(
+      async (input: Parameters<ArticlePersistence['initializeArticleTranslation']>[0]) => {
+        translation = {
+          ...input,
+          id: 'translation-1',
+          status: 'translating',
+          segments: input.segments.map((segment, index) => ({
+            id: `segment-${index}`,
+            translationId: 'translation-1',
+            sourceBlockId: segment.sourceBlockId,
+            sourceTextHash: segment.sourceTextHash,
+            sourceText: segment.sourceText,
+            status: 'translating',
+            order: segment.order,
+            createdAt: input.updatedAt,
+            updatedAt: input.updatedAt,
+          })),
+          createdAt: input.updatedAt,
+        };
+        return translation;
+      },
+    ),
+    updateArticleTranslationSegment: vi.fn(
+      async (input: Parameters<ArticlePersistence['updateArticleTranslationSegment']>[0]) => {
+        const segment = translation?.segments.find(
+          (candidate) => candidate.sourceBlockId === input.sourceBlockId,
+        );
+        if (!segment) return null;
+        Object.assign(segment, {
+          status: input.status,
+          translatedText: input.translatedText,
+          error: input.error,
+          updatedAt: input.updatedAt,
+        });
+        return segment;
+      },
+    ),
+    finalizeArticleTranslation: vi.fn(async () => {
+      if (!translation) return null;
+      const statuses = new Set(translation.segments.map((segment) => segment.status));
+      translation.status = statuses.has('translating')
+        ? 'translating'
+        : statuses.has('failed') && !statuses.has('ready')
+          ? 'failed'
+          : 'ready';
+      return translation;
+    }),
+  };
+}
+
 function articleIpcContext(
   persistenceOverrides: Partial<ArticlePersistence>,
   contextOverrides: Partial<ArticleIpcContext>,
@@ -439,7 +490,9 @@ function articleIpcContext(
         deleteArticleComment: vi.fn(),
         deleteCurrentArticleTranslation: vi.fn(),
         ensureArticleSiteIcon: vi.fn(),
+        finalizeArticleTranslation: vi.fn(),
         findArticleByIdentity: vi.fn(),
+        initializeArticleTranslation: vi.fn(),
         listLibraryArticles: vi.fn(),
         mergeArticleAgentAnnotation: vi.fn(),
         readArticle: vi.fn(),
@@ -453,7 +506,7 @@ function articleIpcContext(
         saveArticleComment: vi.fn(),
         saveArticleReaderChatState: vi.fn(),
         saveArticleReadingProgress: vi.fn(),
-        saveArticleTranslation: vi.fn(),
+        updateArticleTranslationSegment: vi.fn(),
         ...persistenceOverrides,
       },
       providerRepository: { hydrateProviderApiKey: vi.fn() },

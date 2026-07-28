@@ -4,7 +4,6 @@ import type {
   ArticleReadingProgress,
   ArticleRecord,
   ArticleSummaryRecord,
-  ArticleTranslation,
   ArticleUpsertPatch,
   Comment,
 } from '@yomitomo/shared';
@@ -42,8 +41,14 @@ import {
 } from '../articles/article-row-writes';
 import {
   deleteArticleTranslationRows,
+  finalizeArticleTranslationRows,
+  initializeArticleTranslationRows,
   readCurrentArticleTranslationRows,
-  upsertArticleTranslationRows,
+  updateArticleTranslationSegmentRows,
+} from '../articles/article-translation-repository';
+import type {
+  ArticleTranslationInitializeInput,
+  ArticleTranslationSegmentUpdateInput,
 } from '../articles/article-translation-repository';
 import { getDatabase } from './store-db';
 import { migrateProviderApiKeys } from './store-provider-key-migration';
@@ -91,12 +96,19 @@ export async function readCurrentArticleTranslation(input: {
   return readCurrentArticleTranslationRows(getDatabase(), input);
 }
 
-export async function saveArticleTranslation(
-  translation: Omit<ArticleTranslation, 'segments'> & {
-    segments?: ArticleTranslation['segments'];
-  },
-) {
-  return upsertArticleTranslationRows(getDatabase(), translation);
+export async function initializeArticleTranslation(input: ArticleTranslationInitializeInput) {
+  return initializeArticleTranslationRows(getDatabase(), input);
+}
+
+export async function updateArticleTranslationSegment(input: ArticleTranslationSegmentUpdateInput) {
+  return updateArticleTranslationSegmentRows(getDatabase(), input);
+}
+
+export async function finalizeArticleTranslation(input: {
+  translationId: string;
+  updatedAt: string;
+}) {
+  return finalizeArticleTranslationRows(getDatabase(), input);
 }
 
 export async function deleteCurrentArticleTranslation(input: {
