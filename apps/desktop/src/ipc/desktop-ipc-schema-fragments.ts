@@ -2,7 +2,12 @@ import { z } from 'zod';
 import {
   MAX_EBOOK_IMPORT_BYTES,
   MAX_PDF_IMPORT_BYTES,
+  MAX_TEXT_IMPORT_BATCH_BYTES,
+  MAX_TEXT_IMPORT_BATCH_CHARS,
+  MAX_TEXT_IMPORT_BODY_CHARS,
   MAX_TEXT_IMPORT_BYTES,
+  MAX_TEXT_IMPORT_FILES,
+  withinImportBudget,
 } from './article-import-boundary';
 
 const idSchema = z.string().min(1).max(256);
@@ -12,7 +17,7 @@ const mimeTypeSchema = z.string().min(1).max(255).optional();
 const httpUrlSchema = z.string().min(1).max(4096).refine(isHttpUrl);
 const arrayBufferSchema = z.custom<ArrayBuffer>(isArrayBuffer);
 const textFormatSchema = z.enum(['plain', 'markdown']);
-const textBodySchema = z.string().max(20_000_000);
+const textBodySchema = z.string().max(MAX_TEXT_IMPORT_BODY_CHARS);
 const textPrepareInputSchema = z.union([
   z.object({ kind: z.literal('paste'), content: textBodySchema, format: textFormatSchema }),
   z.object({
@@ -25,7 +30,13 @@ const textPrepareInputSchema = z.union([
         }),
       )
       .min(1)
-      .max(50),
+      .max(MAX_TEXT_IMPORT_FILES)
+      .refine((files) =>
+        withinImportBudget(
+          files.map((file) => file.data.byteLength),
+          MAX_TEXT_IMPORT_BATCH_BYTES,
+        ),
+      ),
   }),
 ]);
 const textCommitInputSchema = z.object({
@@ -40,7 +51,13 @@ const textCommitInputSchema = z.object({
       }),
     )
     .min(1)
-    .max(50),
+    .max(MAX_TEXT_IMPORT_FILES)
+    .refine((items) =>
+      withinImportBudget(
+        items.map((item) => item.body.length),
+        MAX_TEXT_IMPORT_BATCH_CHARS,
+      ),
+    ),
 });
 const appLockPinSchema = z.string().regex(/^\d{4}$/);
 const appLockShortcutSchema = z.string().trim().min(1).max(80).nullable();

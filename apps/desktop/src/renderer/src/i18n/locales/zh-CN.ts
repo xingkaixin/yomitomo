@@ -749,6 +749,7 @@ export const zhCNResources = {
           cancel: '取消',
           prepareFailed: '无法读取内容，请重试',
           commitFailed: '导入失败，请重试',
+          batchTooLarge: '单次最多导入 {{count}} 个文件、合计 {{megabytes}} MB，请分批导入',
           reason: {
             binary: '{{fileName}} 不是文本文件',
             undecodable: '{{fileName}} 编码无法识别',
