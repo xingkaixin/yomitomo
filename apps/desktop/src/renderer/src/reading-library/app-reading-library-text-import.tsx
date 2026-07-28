@@ -9,6 +9,13 @@ import {
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TextImportCommitItem, TextImportPreparedItem } from '../../../ipc-contract';
+import {
+  MAX_TEXT_IMPORT_BATCH_BYTES,
+  MAX_TEXT_IMPORT_BATCH_CHARS,
+  MAX_TEXT_IMPORT_FILES,
+  withinImportBudget,
+} from '../../../ipc/article-import-boundary';
+import { acceptTextImportFiles, readTextImportFiles } from './text-import-batch';
 import { Button } from '../components/ui/button';
 import { Dialog, DialogContent, DialogOverlay, DialogPortal } from '../components/ui/dialog';
 import { getDesktopApi } from '../shell/app-desktop-api';
@@ -75,12 +82,9 @@ export function TextImportDialog({ onClose }: { onClose: () => void }) {
         });
         applyPrepared(result.items);
       } else {
-        const payload = await Promise.all(
-          files.map(async (file) => ({ fileName: file.name, data: await file.arrayBuffer() })),
-        );
         const result = await getDesktopApi().article.text.prepareImport({
           kind: 'files',
-          files: payload,
+          files: await readTextImportFiles(files),
         });
         applyPrepared(result.items);
       }
@@ -93,6 +97,21 @@ export function TextImportDialog({ onClose }: { onClose: () => void }) {
 
   async function handleCommit() {
     if (!rows) return;
+    if (
+      !withinImportBudget(
+        rows.map((row) => row.body.length),
+        MAX_TEXT_IMPORT_BATCH_CHARS,
+      )
+    ) {
+      setErrors([
+        t('library.import.text.batchTooLarge', {
+          count: MAX_TEXT_IMPORT_FILES,
+          megabytes: Math.floor(MAX_TEXT_IMPORT_BATCH_BYTES / (1024 * 1024)),
+        }),
+      ]);
+      return;
+    }
+
     setBusy(true);
     try {
       const items: TextImportCommitItem[] = rows.map((row) => ({
@@ -112,8 +131,21 @@ export function TextImportDialog({ onClose }: { onClose: () => void }) {
 
   function selectFiles(fileList: FileList | null | undefined) {
     if (!fileList || fileList.length === 0) return;
-    setFiles(Array.from(fileList).slice(0, 50));
-    setErrors([]);
+
+    const selection = Array.from(fileList);
+    const accepted = acceptTextImportFiles(selection);
+
+    setFiles(accepted);
+    setErrors(
+      accepted.length === selection.length
+        ? []
+        : [
+            t('library.import.text.batchTooLarge', {
+              count: MAX_TEXT_IMPORT_FILES,
+              megabytes: Math.floor(MAX_TEXT_IMPORT_BATCH_BYTES / (1024 * 1024)),
+            }),
+          ],
+    );
   }
 
   function updateRow(index: number, patch: Partial<ConfirmRow>) {

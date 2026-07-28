@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { desktopIpcErrorCodes, type DesktopIpcInvokeEnvelope } from '../../ipc-errors';
 import { MAX_PDF_IMPORT_BYTES, type ArticleImportUrlInput } from '../../ipc-contract';
+import {
+  MAX_TEXT_IMPORT_BATCH_BYTES,
+  MAX_TEXT_IMPORT_BODY_CHARS,
+  MAX_TEXT_IMPORT_BYTES,
+} from '../../ipc/article-import-boundary';
 import { desktopIpcInvokeSchemaChannels } from '../../ipc-schemas';
 import { handleDesktopIpc } from './ipc';
 
@@ -89,6 +94,54 @@ describe('handleDesktopIpc', () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
+  it('accepts a text import batch that fills the budget exactly', async () => {
+    const handler = vi.fn(async () => ({ items: [] }));
+    handleDesktopIpc('text:import-prepare', handler);
+
+    const envelope = await invokeRegisteredHandler('text:import-prepare', {
+      kind: 'files',
+      files: textImportFiles(MAX_TEXT_IMPORT_BATCH_BYTES),
+    });
+
+    expect(envelope).toEqual({ ok: true, value: { items: [] } });
+  });
+
+  it('rejects a text import batch one byte over the budget', async () => {
+    const handler = vi.fn();
+    handleDesktopIpc('text:import-prepare', handler);
+
+    const envelope = await invokeRegisteredHandler('text:import-prepare', {
+      kind: 'files',
+      files: textImportFiles(MAX_TEXT_IMPORT_BATCH_BYTES + 1),
+    });
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      error: { code: desktopIpcErrorCodes.invalidArgs, detail: { channel: 'text:import-prepare' } },
+    });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('rejects a text commit whose bodies exceed the character budget', async () => {
+    const handler = vi.fn();
+    handleDesktopIpc('text:import-commit', handler);
+
+    const body = 'x'.repeat(MAX_TEXT_IMPORT_BODY_CHARS);
+    const envelope = await invokeRegisteredHandler('text:import-commit', {
+      items: Array.from({ length: 4 }, (_, index) => ({
+        title: `Doc ${index}`,
+        format: 'plain',
+        body,
+      })),
+    });
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      error: { code: desktopIpcErrorCodes.invalidArgs, detail: { channel: 'text:import-commit' } },
+    });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
   it('keeps explicitly exempt args unchanged', async () => {
     const handler = vi.fn(async () => undefined);
     handleDesktopIpc('url:open', handler);
@@ -104,6 +157,16 @@ describe('handleDesktopIpc', () => {
     expect(desktopIpcInvokeSchemaChannels).not.toContain('settings:save');
   });
 });
+
+function textImportFiles(totalBytes: number) {
+  const fileCount = Math.ceil(totalBytes / MAX_TEXT_IMPORT_BYTES);
+  let remaining = totalBytes;
+  return Array.from({ length: fileCount }, (_, index) => {
+    const byteLength = Math.min(remaining, MAX_TEXT_IMPORT_BYTES);
+    remaining -= byteLength;
+    return { fileName: `note-${index}.txt`, data: new ArrayBuffer(byteLength) };
+  });
+}
 
 async function invokeRegisteredHandler(channel: string, ...args: unknown[]) {
   const handler = ipcHandlers.get(channel);

@@ -767,6 +767,8 @@ export const enResources = {
           cancel: 'Cancel',
           prepareFailed: 'Could not read the content, please try again',
           commitFailed: 'Import failed, please try again',
+          batchTooLarge:
+            'One import takes at most {{count}} files totalling {{megabytes}} MB — please split the batch',
           reason: {
             binary: '{{fileName}} is not a text file',
             undecodable: '{{fileName}} has an unrecognized encoding',
