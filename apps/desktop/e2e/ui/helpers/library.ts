@@ -50,7 +50,12 @@ export async function importEbookFileThroughLibraryUi(page: Page, fixturePath: s
   await dialog.getByText('Add ebook', { exact: true }).waitFor({ timeout: 5_000 });
   await page.locator('#library-ebook-file').setInputFiles(fixturePath);
   await dialog.getByText('Import complete', { exact: true }).waitFor({ timeout: 15_000 });
-  await dialog.getByRole('button', { name: 'Close ebook import' }).click();
+  // A fully successful import closes the dialog on its own, so clicking the button is
+  // only an early exit and may race that timer.
+  await dialog
+    .getByRole('button', { name: 'Close ebook import' })
+    .click({ timeout: 2_000 })
+    .catch(() => undefined);
   await dialog.waitFor({ state: 'detached', timeout: 15_000 });
 }
 
@@ -63,7 +68,12 @@ export async function importPdfFileThroughLibraryUi(page: Page, fixturePath: str
   await dialog.getByText('Add PDF document', { exact: true }).waitFor({ timeout: 5_000 });
   await page.locator('#library-pdf-file').setInputFiles(fixturePath);
   await dialog.getByText('Import complete', { exact: true }).waitFor({ timeout: 20_000 });
-  await dialog.getByRole('button', { name: 'Close PDF import' }).click();
+  // A fully successful import closes the dialog on its own, so clicking the button is
+  // only an early exit and may race that timer.
+  await dialog
+    .getByRole('button', { name: 'Close PDF import' })
+    .click({ timeout: 2_000 })
+    .catch(() => undefined);
   await dialog.waitFor({ state: 'detached', timeout: 15_000 });
 }
 
