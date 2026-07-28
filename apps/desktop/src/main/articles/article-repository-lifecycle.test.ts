@@ -397,6 +397,95 @@ describe('article memory lifecycle', () => {
     ]);
   });
 
+  it('rolls the article write and its memory soft-deletes back together', async () => {
+    const database = articleRowsDatabase();
+    await saveArticleRows(
+      articleRecord({
+        annotations: [
+          annotation({
+            id: 'annotation_rolled_back',
+            comments: [annotationComment({ id: 'comment_rolled_back', content: 'memory' })],
+          }),
+        ],
+      }),
+    );
+    insertProjection(database);
+    const memoryBefore = readReadingMemoryEntries({ articleId: 'article_1', executor: database });
+    database.exec(`
+      CREATE TRIGGER fail_annotation_insert
+      BEFORE INSERT ON annotations
+      BEGIN SELECT RAISE(ABORT, 'annotation insert failed'); END;
+    `);
+
+    await expect(
+      saveArticleRows(
+        articleRecord({
+          annotations: [annotation({ id: 'annotation_new' })],
+          updatedAt: '2026-05-26T02:00:00.000Z',
+        }),
+      ),
+    ).rejects.toThrow('annotation insert failed');
+
+    expect(readReadingMemoryEntries({ articleId: 'article_1', executor: database })).toEqual(
+      memoryBefore,
+    );
+    expect(articleAnnotationIds(database, 'article_1')).toEqual(['annotation_rolled_back']);
+  });
+
+  it('keeps a saved article when only the memory mirror fails', async () => {
+    const database = articleRowsDatabase();
+    database.exec(`
+      CREATE TRIGGER fail_memory_entry_insert
+      BEFORE INSERT ON reading_memory_entries
+      BEGIN SELECT RAISE(ABORT, 'memory mirror failed'); END;
+    `);
+
+    const patch = await saveArticleRows(
+      articleRecord({ annotations: [annotation({ id: 'annotation_mirror' })] }),
+    );
+
+    // The mirror runs after the article transaction and swallows its own failure, so the
+    // article survives while its memory projection is missing.
+    expect(patch.article.id).toBe('article_1');
+    expect(articleAnnotationIds(database, 'article_1')).toEqual(['annotation_mirror']);
+    expect(readReadingMemoryEntries({ articleId: 'article_1', executor: database })).toEqual([]);
+  });
+
+  it('rolls annotation deletion back with its memory soft-delete', () => {
+    const database = lifecycleDatabase();
+    insertAnnotation(database, 'annotation_1');
+    appendReadingMemoryEntries(
+      [
+        memoryEntry({
+          id: 'memory_annotation',
+          kind: 'trace',
+          sourceType: 'annotation',
+          sourceAnnotationId: 'annotation_1',
+          payload: { items: [traceItem('annotation source memory')] },
+        }),
+      ],
+      database,
+    );
+    database.exec(`
+      CREATE TRIGGER fail_annotation_delete
+      BEFORE DELETE ON annotations
+      BEGIN SELECT RAISE(ABORT, 'annotation delete failed'); END;
+    `);
+
+    expect(() =>
+      deleteAnnotationRowsWithMemoryLifecycle(database, {
+        articleId: 'article_1',
+        annotationId: 'annotation_1',
+      }),
+    ).toThrow('annotation delete failed');
+
+    expect(
+      readReadingMemoryEntries({ articleId: 'article_1', executor: database }).map(
+        (entry) => entry.id,
+      ),
+    ).toEqual(['memory_annotation']);
+  });
+
   it('backfills existing web annotations idempotently and leaves PDFs for lazy fill', () => {
     const database = lifecycleDatabase();
     insertArticle(database, 'web_article');
@@ -462,6 +551,13 @@ describe('article memory lifecycle', () => {
     ).toEqual(['annotation_memory_pdf_annotation', 'comment_memory_pdf_comment']);
   });
 });
+
+function articleAnnotationIds(executor: ReadingMemorySqliteExecutor, articleId: string) {
+  return executor
+    .prepare('SELECT id FROM annotations WHERE article_id = ? ORDER BY id')
+    .all(articleId)
+    .map((row) => String(recordField(row, 'id')));
+}
 
 function lifecycleDatabase(): ReadingMemorySqliteExecutor {
   const database = new DatabaseSync(':memory:');
