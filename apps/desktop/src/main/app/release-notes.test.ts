@@ -77,7 +77,10 @@ describe('release notes', () => {
 
     const note = await getReleaseNote('0.6.0', 'remote', 'en');
 
-    expect(fetch).toHaveBeenCalledWith('https://yomitomo.app/release-notes/en/0.6.0.json');
+    expect(fetch).toHaveBeenCalledWith(
+      'https://yomitomo.app/release-notes/en/0.6.0.json',
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
     expect(note?.highlights[0]?.title).toBe('Reading memory');
   });
 
@@ -96,7 +99,11 @@ describe('release notes', () => {
 
     const note = await getReleaseNote('0.6.0', 'remote', 'en');
 
-    expect(fetch).toHaveBeenNthCalledWith(2, 'https://yomitomo.app/release-notes/zh-CN/0.6.0.json');
+    expect(fetch).toHaveBeenNthCalledWith(
+      2,
+      'https://yomitomo.app/release-notes/zh-CN/0.6.0.json',
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(note?.highlights[0]?.title).toBe('中文兜底');
   });

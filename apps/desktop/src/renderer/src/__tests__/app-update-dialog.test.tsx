@@ -139,17 +139,18 @@ describe('UpdateReleaseDialogView', () => {
   });
 });
 
-const stubDesktop = () => {
+const stubDesktop = (getReleaseNote = vi.fn().mockResolvedValue(null)) => {
   vi.stubGlobal('yomitomoDesktop', {
     app: {
       getInfo: vi.fn().mockResolvedValue({ desktopVersion: '0.8.0' }),
     },
     updates: {
-      getReleaseNote: vi.fn().mockResolvedValue(null),
+      getReleaseNote,
       download: vi.fn().mockResolvedValue(undefined),
       install: vi.fn().mockResolvedValue(undefined),
     },
   });
+  return getReleaseNote;
 };
 
 describe('UpdateReleaseDialog before-update gating', () => {
@@ -181,6 +182,42 @@ describe('UpdateReleaseDialog before-update gating', () => {
     });
     expect(await screen.findByText('发现新版本')).toBeTruthy();
     expect(screen.getByText('v0.9.0')).toBeTruthy();
+  });
+
+  it('shows the version prompt while the release note is still pending', async () => {
+    stubDesktop(vi.fn(() => new Promise(() => {})));
+    await act(async () => {
+      render(container(available('manual'), 0));
+    });
+
+    expect(await screen.findByText('发现新版本')).toBeTruthy();
+    expect(screen.getByText('v0.9.0')).toBeTruthy();
+  });
+
+  it('keeps the version prompt when the release note request rejects', async () => {
+    stubDesktop(vi.fn().mockRejectedValue(new Error('offline')));
+    await act(async () => {
+      render(container(available('manual'), 0));
+    });
+
+    expect(await screen.findByText('发现新版本')).toBeTruthy();
+    expect(screen.getByText('v0.9.0')).toBeTruthy();
+  });
+
+  it('ignores a release note that arrives after the dialog was closed', async () => {
+    let resolveNote: (note: unknown) => void = () => {};
+    stubDesktop(vi.fn(() => new Promise((resolve) => (resolveNote = resolve))));
+    await act(async () => {
+      render(container(available('manual'), 0));
+    });
+    expect(await screen.findByText('发现新版本')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('稍后'));
+    await act(async () => {
+      resolveNote({ version: '0.9.0', highlights });
+    });
+
+    expect(screen.queryByText('发现新版本')).toBeNull();
   });
 
   it('pops the dialog for an auto-check hit when the user requests it from the header', async () => {

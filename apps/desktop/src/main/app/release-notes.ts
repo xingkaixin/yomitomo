@@ -13,6 +13,10 @@ import { logError } from './logger';
 export type ReleaseNoteSource = 'local' | 'remote';
 
 const REMOTE_BASE = 'https://yomitomo.app/release-notes';
+// Remote copy is optional decoration for a required decision, so it gets a short
+// deadline and a small budget rather than however long the endpoint wants.
+const REMOTE_RELEASE_NOTE_TIMEOUT_MS = 5_000;
+const REMOTE_RELEASE_NOTE_MAX_BYTES = 256 * 1024;
 const HIGHLIGHT_TYPES = new Set<ReleaseNoteHighlight['type']>([
   'new',
   'changed',
@@ -81,14 +85,47 @@ async function readRemoteReleaseNote(
   url: string,
   version: string,
 ): Promise<UserFacingReleaseNote | null> {
+  const startedAt = Date.now();
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(REMOTE_RELEASE_NOTE_TIMEOUT_MS),
+    });
     if (!response.ok) return null;
-    return parseReleaseNote(await response.text());
+    const declared = Number(response.headers.get('content-length'));
+    if (Number.isFinite(declared) && declared > REMOTE_RELEASE_NOTE_MAX_BYTES) {
+      await response.body?.cancel();
+      return null;
+    }
+    return parseReleaseNote(await readBoundedText(response));
   } catch (error) {
-    logError('release-notes.remote-failed', error, { url, version });
+    logError('release-notes.remote-failed', error, {
+      url,
+      version,
+      durationMs: Date.now() - startedAt,
+      errorKind: error instanceof Error ? error.name : 'unknown',
+    });
     return null;
   }
+}
+
+async function readBoundedText(response: Response) {
+  if (!response.body) return response.text();
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let text = '';
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > REMOTE_RELEASE_NOTE_MAX_BYTES) {
+      await reader.cancel();
+      throw new Error('RELEASE_NOTE_RESPONSE_TOO_LARGE');
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  return text + decoder.decode();
 }
 
 // 仅允许语义版本字符可进入文件名/URL，杜绝路径穿越。
