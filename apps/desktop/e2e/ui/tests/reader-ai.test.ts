@@ -1,4 +1,5 @@
 import type { Page } from 'playwright-core';
+import type { DesktopApiForE2e } from '../helpers/desktop-api';
 import { describe, expect, it } from 'vitest';
 import { createTextFixture } from '../../helpers/e2e-data';
 import { withDesktopE2eApp } from '../helpers/electron-app';
@@ -16,14 +17,6 @@ const readerAiTitle = 'RD-795 Reader AI';
 const readerAiAuthor = 'Yomitomo E2E';
 const readerAiQuote = 'Reader AI E2E asks about this stable selected sentence.';
 const readerAiQuestion = 'What is important about this selection?';
-
-type DesktopApiForReaderAiE2e = {
-  saveProvider: (provider: Record<string, unknown>) => Promise<{
-    providers: Array<{ id: string; name: string }>;
-    settings: Record<string, unknown>;
-  }>;
-  saveSettings: (settings: Record<string, unknown>) => Promise<unknown>;
-};
 
 describe('reader AI', () => {
   it('answers selected text through the desktop E2E fake provider', async () => {
@@ -101,11 +94,10 @@ This second sentence keeps the reader surface stable for selection and chat.
 async function configureReaderAiFakeProvider(page: Page) {
   await page.evaluate(
     async ({ baseUrl, providerName }) => {
-      const desktop = (window as Window & { yomitomoDesktop?: DesktopApiForReaderAiE2e })
-        .yomitomoDesktop;
+      const desktop = (window as Window & { yomitomoDesktop?: DesktopApiForE2e }).yomitomoDesktop;
       if (!desktop) throw new Error('YOMITOMO_DESKTOP_API_UNAVAILABLE');
 
-      const store = await desktop.saveProvider({
+      const store = await desktop.provider.save({
         baseUrl,
         modelInputMode: 'custom',
         modelName: 'rd-795-fake-model',
@@ -115,7 +107,7 @@ async function configureReaderAiFakeProvider(page: Page) {
       const provider = store.providers.find((item) => item.name === providerName);
       if (!provider) throw new Error('RD_795_FAKE_PROVIDER_NOT_SAVED');
 
-      await desktop.saveSettings({
+      await desktop.store.saveSettings({
         ...store.settings,
         assistantExecutionMode: 'fast_response',
         defaultProviderId: provider.id,

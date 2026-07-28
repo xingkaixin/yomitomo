@@ -1,4 +1,5 @@
 import type { Frame, Page } from 'playwright-core';
+import type { DesktopApiForE2e } from '../helpers/desktop-api';
 import { describe, expect, it } from 'vitest';
 import { cleanupE2eData, createE2eRunData, createTinyEpubFixture } from '../../helpers/e2e-data';
 import {
@@ -18,14 +19,6 @@ const ebookChapterText =
   'RD-813 keeps the original EPUB paragraph stable while a chapter translation is displayed.';
 const fakeProviderBaseUrl = 'https://e2e.invalid/yomitomo-ai';
 const translatedTextPrefix = 'RD-813 translation:';
-
-type DesktopApiForEbookTranslationE2e = {
-  saveProvider: (provider: Record<string, unknown>) => Promise<{
-    providers: Array<{ id: string; name: string }>;
-    settings: Record<string, unknown>;
-  }>;
-  saveSettings: (settings: Record<string, unknown>) => Promise<unknown>;
-};
 
 describe('ebook bilingual translation', () => {
   it('translates the current EPUB chapter and restores it after restart', async () => {
@@ -93,10 +86,9 @@ describe('ebook bilingual translation', () => {
 async function configureTranslationProvider(page: Page) {
   await page.evaluate(
     async ({ baseUrl }) => {
-      const desktop = (window as Window & { yomitomoDesktop?: DesktopApiForEbookTranslationE2e })
-        .yomitomoDesktop;
+      const desktop = (window as Window & { yomitomoDesktop?: DesktopApiForE2e }).yomitomoDesktop;
       if (!desktop) throw new Error('YOMITOMO_DESKTOP_API_UNAVAILABLE');
-      const store = await desktop.saveProvider({
+      const store = await desktop.provider.save({
         apiKey: 'rd-813-e2e-key',
         baseUrl,
         modelInputMode: 'custom',
@@ -108,7 +100,7 @@ async function configureTranslationProvider(page: Page) {
         (item) => item.name === 'RD-813 Fake Translation Provider',
       );
       if (!provider) throw new Error('RD_813_FAKE_PROVIDER_NOT_SAVED');
-      await desktop.saveSettings({
+      await desktop.store.saveSettings({
         ...store.settings,
         bilingualTranslationProviderId: provider.id,
         bilingualTranslationTargetLanguage: 'zh-CN',

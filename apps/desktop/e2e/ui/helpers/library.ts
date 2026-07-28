@@ -1,9 +1,5 @@
 import type { Page } from 'playwright-core';
-
-type DesktopApiForE2e = {
-  getState: () => Promise<{ settings: Record<string, unknown> }>;
-  saveSettings: (settings: Record<string, unknown>) => Promise<unknown>;
-};
+import type { DesktopApiForE2e } from './desktop-api';
 
 type TextImportOptions = {
   author?: string;
@@ -15,8 +11,8 @@ export async function openLibraryHome(page: Page) {
     const desktop = (window as Window & { yomitomoDesktop?: DesktopApiForE2e }).yomitomoDesktop;
     if (!desktop) throw new Error('YOMITOMO_DESKTOP_API_UNAVAILABLE');
 
-    const store = await desktop.getState();
-    await desktop.saveSettings({
+    const store = await desktop.store.getState();
+    await desktop.store.saveSettings({
       ...store.settings,
       onboardingCompletedAt: '2026-06-29T00:00:00.000Z',
       uiLanguage: 'en',
