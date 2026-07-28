@@ -146,6 +146,101 @@ describe('listProviderModels', () => {
     });
   });
 
+  it('aborts a model-list request that outlives its deadline', async () => {
+    const started = pendingFetch();
+
+    const exit = await Effect.runPromiseExit(
+      listProviderModelsEffect(provider(), { timeoutMs: 5 }),
+    );
+
+    expect(Exit.isFailure(exit)).toBe(true);
+    if (Exit.isSuccess(exit)) return;
+    expect(Cause.squash(exit.cause)).toMatchObject({ _tag: 'ProviderTimeoutError' });
+    expect((await started).aborted).toBe(true);
+  });
+
+  it('accepts a slow response that still arrives before the deadline', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async () =>
+        new Promise<Response>((resolve) => {
+          setTimeout(() => resolve(jsonResponse({ data: [{ id: 'slow-model' }] })), 5);
+        }),
+    );
+
+    await expect(listProviderModels(provider(), { timeoutMs: 5_000 })).resolves.toMatchObject([
+      { id: 'slow-model' },
+    ]);
+  });
+
+  it('refuses a response whose declared length exceeds the budget', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ data: [{ id: 'model' }] }), {
+        headers: { 'content-length': String(4096) },
+      }),
+    );
+
+    const exit = await Effect.runPromiseExit(
+      listProviderModelsEffect(provider(), { maxResponseBytes: 1024 }),
+    );
+
+    expect(Exit.isFailure(exit)).toBe(true);
+    if (Exit.isSuccess(exit)) return;
+    expect(Cause.squash(exit.cause)).toMatchObject({ _tag: 'ProviderResponseTooLargeError' });
+  });
+
+  it('cancels a streamed response once it passes the budget', async () => {
+    let cancelled = false;
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        new ReadableStream<Uint8Array>({
+          pull(controller) {
+            controller.enqueue(new TextEncoder().encode('x'.repeat(256)));
+          },
+          cancel() {
+            cancelled = true;
+          },
+        }),
+      ),
+    );
+
+    const exit = await Effect.runPromiseExit(
+      listProviderModelsEffect(provider(), { maxResponseBytes: 1024 }),
+    );
+
+    expect(Exit.isFailure(exit)).toBe(true);
+    if (Exit.isSuccess(exit)) return;
+    expect(Cause.squash(exit.cause)).toMatchObject({ _tag: 'ProviderResponseTooLargeError' });
+    expect(cancelled).toBe(true);
+  });
+
+  it('reads a payload that fills the budget exactly', async () => {
+    const body = JSON.stringify({ data: [{ id: 'model-at-limit' }] });
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(body));
+
+    await expect(
+      listProviderModels(provider(), {
+        maxResponseBytes: new TextEncoder().encode(body).byteLength,
+      }),
+    ).resolves.toMatchObject([{ id: 'model-at-limit' }]);
+  });
+
+  it('truncates an oversized error body instead of masking the status', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('detail '.repeat(10_000), { status: 500 }),
+    );
+
+    const exit = await Effect.runPromiseExit(
+      listProviderModelsEffect(provider(), { maxResponseBytes: 1024 }),
+    );
+
+    expect(Exit.isFailure(exit)).toBe(true);
+    if (Exit.isSuccess(exit)) return;
+    const failure = Cause.squash(exit.cause);
+    expect(failure).toMatchObject({ _tag: 'ProviderHttpError' });
+    expect(String((failure as Error).message)).toContain('500');
+  });
+
   it('aborts the model-list request when its Effect fiber is interrupted', async () => {
     const started = pendingFetch();
     const fiber = Effect.runFork(listProviderModelsEffect(provider()));
