@@ -8,17 +8,33 @@ import type {
 } from '../../ipc-contract';
 import { desktopIpcErrorCodes, serializeDesktopIpcError } from '../../ipc-errors';
 import { desktopIpcStreamResponseChannel } from '../../ipc-stream-channel';
-import { onDesktopIpcStreamRequest, sendDesktopIpcStreamEvent } from './ipc-events';
+import {
+  onDesktopIpcMainEvent,
+  onDesktopIpcStreamRequest,
+  sendDesktopIpcStreamEvent,
+} from './ipc-events';
+import { createAgentStreamTasks } from './agent-stream-tasks';
+
+type AgentStreamTask = ReturnType<ReturnType<typeof createAgentStreamTasks>['start']>;
 
 export type AgentStreamSender<Channel extends DesktopIpcStreamChannel> = {
   channel: DesktopIpcStreamResponseChannel<Channel>;
   send: (message: DesktopIpcStreamEvent<Channel>) => void;
+  signal: AbortSignal;
 };
 
 export type AgentStreamGuard<Channel extends DesktopIpcStreamChannel> = (
   input: DesktopIpcStreamRequest<Channel>,
   event: IpcMainEvent,
 ) => Promise<void>;
+
+export const agentStreamTasks = createAgentStreamTasks();
+
+export function registerAgentStreamCancelIpc() {
+  onDesktopIpcMainEvent('agent:stream-cancel', (event, request) => {
+    agentStreamTasks.cancel(event.sender.id, request.channel, request.requestId);
+  });
+}
 
 export function runAgentStreamIpc<Channel extends DesktopIpcStreamChannel>(
   requestChannel: Channel,
@@ -33,15 +49,19 @@ export function runAgentStreamIpc<Channel extends DesktopIpcStreamChannel>(
   onDesktopIpcStreamRequest(
     requestChannel,
     async (event, input) => {
+      const task = agentStreamTasks.start(event.sender, requestChannel, input.requestId);
       const sender = createAgentStreamSender(
         event,
         desktopIpcStreamResponseChannel(requestChannel, input.requestId),
+        task,
       );
       try {
         await guard?.(input, event);
         await handler(input, sender, event);
+        task.finish();
       } catch (error) {
-        sender.send(agentStreamError(error, fallbackMessage));
+        // A cancelled task owns its own terminal state; its failure is expected, not reported.
+        if (task.fail()) sender.send(agentStreamError(error, fallbackMessage));
       }
     },
     (event, requestId, error) => {
@@ -56,10 +76,16 @@ export function runAgentStreamIpc<Channel extends DesktopIpcStreamChannel>(
 function createAgentStreamSender<Channel extends DesktopIpcStreamChannel>(
   event: IpcMainEvent,
   channel: DesktopIpcStreamResponseChannel<Channel>,
+  task?: AgentStreamTask,
 ): AgentStreamSender<Channel> {
   return {
     channel,
-    send: (message) => sendDesktopIpcStreamEvent(event.sender, channel, message),
+    send: (message) => {
+      if (task?.isCancelled()) return;
+      if (event.sender.isDestroyed()) return;
+      sendDesktopIpcStreamEvent(event.sender, channel, message);
+    },
+    signal: task?.signal || AbortSignal.abort(),
   };
 }
 

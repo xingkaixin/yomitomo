@@ -44,6 +44,7 @@ const agentToolLoopTaskDefinitions = {
 };
 
 export type AgentToolLoopTaskInput<TaskType extends AgentToolLoopTaskType> = {
+  signal?: AbortSignal;
   taskType: TaskType;
   provider: LlmProvider;
   agent: Agent;
@@ -73,6 +74,7 @@ export async function runAgentToolLoopTask<TaskType extends AgentToolLoopTaskTyp
 
   const definition = agentToolLoopTaskDefinitions[input.taskType];
   const runtime = await runAssistantAiSdkToolRuntime({
+    signal: input.signal,
     taskType: input.taskType,
     articleId,
     agentId: input.agent.id,

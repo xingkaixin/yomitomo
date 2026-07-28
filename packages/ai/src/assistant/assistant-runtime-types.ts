@@ -278,6 +278,7 @@ export type AssistantRuntimeStreamEvent =
     };
 
 export type AssistantAiSdkRuntimeOptions = {
+  signal?: AbortSignal;
   taskType: AgentToolLoopTaskType;
   articleId: string;
   agentId: string;

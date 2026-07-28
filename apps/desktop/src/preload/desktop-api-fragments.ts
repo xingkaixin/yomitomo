@@ -113,31 +113,42 @@ export function createYomitomoDesktopApi(input: DesktopPreloadApiInput) {
       requestDistillationReviewStream: (
         payload: AgentDistillationReviewPayload,
         onEvent: (event: DesktopIpcStreamProgressEvent<'agent:distillation-review:stream'>) => void,
+        signal?: AbortSignal,
       ) =>
         desktopIpcStreamClient.request(
           'agent:distillation-review:stream',
           payload,
           onEvent,
           (event) => event.message,
+          signal,
         ),
       requestCommentStream: (
         payload: AgentMessagePayload,
         onEvent: (event: DesktopIpcStreamProgressEvent<'agent:comment:stream'>) => void,
+        signal?: AbortSignal,
       ) =>
         desktopIpcStreamClient.request(
           'agent:comment:stream',
           payload,
           onEvent,
           (event) => event.comment,
+          signal,
         ),
       requestAnnotationsStream: (
         payload: AgentAnnotatePayload,
         onEvent: (event: DesktopIpcStreamProgressEvent<'agent:annotate:stream'>) => void,
+        signal?: AbortSignal,
       ) =>
-        desktopIpcStreamClient.request('agent:annotate:stream', payload, onEvent, (event) => ({
-          annotations: event.annotations,
-          readingMemory: event.readingMemory,
-        })),
+        desktopIpcStreamClient.request(
+          'agent:annotate:stream',
+          payload,
+          onEvent,
+          (event) => ({
+            annotations: event.annotations,
+            readingMemory: event.readingMemory,
+          }),
+          signal,
+        ),
     },
   };
 }

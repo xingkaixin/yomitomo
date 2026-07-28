@@ -769,8 +769,14 @@ type DesktopIpcStreamRequestMap = {
   [Channel in DesktopIpcStreamChannel]: DesktopIpcStreamRequest<Channel>;
 };
 
+export type DesktopIpcStreamCancelRequest = {
+  channel: DesktopIpcStreamChannel;
+  requestId: string;
+};
+
 export type DesktopIpcToMainEventMap = DesktopIpcStreamRequestMap & {
   'app:renderer-ready': undefined;
+  'agent:stream-cancel': DesktopIpcStreamCancelRequest;
 };
 
 export type DesktopIpcToRendererEventMap = {

@@ -13,7 +13,7 @@ import {
 } from '../agents/agent-runtime-routing';
 import type { DesktopAiModule, DesktopMainIpcContext } from './ipc';
 import { assertDesktopIpcAppLockUnlocked, handleDesktopIpc } from './ipc';
-import { runAgentStreamIpc } from './ipc-agent-stream';
+import { registerAgentStreamCancelIpc, runAgentStreamIpc } from './ipc-agent-stream';
 
 type AgentIpcContext = Pick<DesktopMainIpcContext, 'elapsedMs' | 'logError' | 'logInfo'> & {
   getAiModule: () => Promise<
@@ -69,12 +69,16 @@ export function registerAgentIpc(context: AgentIpcContext) {
     for (const comment of comments) comment.id = makeId('comment');
     return comments;
   });
+  registerAgentStreamCancelIpc();
   runAgentStreamIpc(
     'agent:comment:stream',
     'AGENT_REPLY_FAILED',
     async (input, sender) => {
-      const comment = await executeAgentCommentTask(context, input.payload, (event) =>
-        sender.send(event),
+      const comment = await executeAgentCommentTask(
+        context,
+        input.payload,
+        (event) => sender.send(event),
+        sender.signal,
       );
       sender.send({ type: 'done', comment });
     },
@@ -84,8 +88,11 @@ export function registerAgentIpc(context: AgentIpcContext) {
     'agent:distillation-review:stream',
     'AGENT_DISTILLATION_REVIEW_FAILED',
     async (input, sender) => {
-      const message = await executeAgentDistillationReviewTask(context, input.payload, (event) =>
-        sender.send(event),
+      const message = await executeAgentDistillationReviewTask(
+        context,
+        input.payload,
+        (event) => sender.send(event),
+        sender.signal,
       );
       sender.send({ type: 'done', message });
     },
@@ -95,8 +102,11 @@ export function registerAgentIpc(context: AgentIpcContext) {
     'agent:annotate:stream',
     'AGENT_ANNOTATION_FAILED',
     async (input, sender) => {
-      const result = await executeAgentAnnotationTask(context, input.payload, (event) =>
-        sender.send(event),
+      const result = await executeAgentAnnotationTask(
+        context,
+        input.payload,
+        (event) => sender.send(event),
+        sender.signal,
       );
       sender.send({ type: 'done', ...result });
     },

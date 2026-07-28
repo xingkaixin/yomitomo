@@ -26,6 +26,7 @@ export type ThreadReplyRuntimeResult =
 
 type AgentMessageToolLoopInput<TaskType extends AgentToolLoopTaskType> = {
   ai: Pick<AiModule, 'runAgentToolLoopTask'>;
+  signal?: AbortSignal;
   taskType: TaskType;
   provider: LlmProvider;
   agent: Agent;
@@ -69,6 +70,7 @@ export async function runAgentMessageWithToolLoop(
   });
 
   const result = await input.ai.runAgentToolLoopTask({
+    signal: input.signal,
     taskType: input.taskType,
     provider: input.provider,
     agent: input.agent,
