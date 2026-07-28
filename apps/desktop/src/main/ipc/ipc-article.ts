@@ -15,7 +15,9 @@ type ArticlePersistence = Pick<
   | 'deleteArticleComment'
   | 'deleteCurrentArticleTranslation'
   | 'ensureArticleSiteIcon'
+  | 'finalizeArticleTranslation'
   | 'findArticleByIdentity'
+  | 'initializeArticleTranslation'
   | 'listLibraryArticles'
   | 'mergeArticleAgentAnnotation'
   | 'readArticle'
@@ -29,7 +31,7 @@ type ArticlePersistence = Pick<
   | 'saveArticleComment'
   | 'saveArticleReaderChatState'
   | 'saveArticleReadingProgress'
-  | 'saveArticleTranslation'
+  | 'updateArticleTranslationSegment'
 >;
 type ArticleTranslationPersistenceModules = Awaited<
   ReturnType<ArticleTranslationRuntimeContext['getPersistenceModules']>

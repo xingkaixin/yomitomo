@@ -5,19 +5,31 @@ import type {
   ArticleTranslation,
   ArticleTranslationDeleteRequest,
   ArticleTranslationRequest,
+  ArticleTranslationSegment,
 } from '@yomitomo/shared';
-import { hashText, makeId } from '@yomitomo/shared';
+import { hashText } from '@yomitomo/shared';
 import { taskProvider } from '../agents/agent-runtime-routing';
 import type { DesktopAiModule } from '../ipc/ipc';
+import {
+  articleTranslationSessionKey,
+  createArticleTranslationSessions,
+  type ArticleTranslationSessionKey,
+  type ArticleTranslationSessionSignal,
+} from './article-translation-session';
 
 type ArticlePersistence = Pick<
   typeof import('../store/store-articles'),
   | 'deleteCurrentArticleTranslation'
+  | 'finalizeArticleTranslation'
+  | 'initializeArticleTranslation'
   | 'readArticle'
   | 'readCurrentArticleTranslation'
-  | 'saveArticleTranslation'
+  | 'updateArticleTranslationSegment'
 >;
 type ArticleTranslationBlock = ReturnType<typeof extractWebArticleTranslationBlocks>[number];
+type ArticleTranslationKey = ArticleTranslationSessionKey;
+type ArticleTranslationSource = ReturnType<typeof articleTranslationSource>;
+type TranslationProvider = Awaited<ReturnType<typeof taskProvider>>;
 
 export type ArticleTranslationRuntimeContext = {
   getAiModule: () => Promise<
@@ -38,17 +50,20 @@ const E2E_FAKE_TRANSLATION_PROVIDER_BASE_URL = 'https://e2e.invalid/yomitomo-ai'
 const TRANSLATION_CONCURRENCY = 3;
 
 export function createArticleTranslationRuntime(context: ArticleTranslationRuntimeContext) {
+  const sessions = createArticleTranslationSessions();
   return {
     deleteCurrent: (input: ArticleTranslationDeleteRequest) =>
-      deleteCurrentArticleTranslation(context, input),
+      deleteCurrentArticleTranslation(context, sessions, input),
     readCurrent: (input: ArticleTranslationRequest) =>
       readCurrentArticleTranslation(context, input),
     translate: (
       input: ArticleTranslationRequest,
       onUpdate: (translation: ArticleTranslation) => void,
-    ) => translateArticle(context, input, onUpdate),
+    ) => translateArticle(context, sessions, input, onUpdate),
   };
 }
+
+type ArticleTranslationSessions = ReturnType<typeof createArticleTranslationSessions>;
 
 async function readCurrentArticleTranslation(
   context: ArticleTranslationRuntimeContext,
@@ -73,6 +88,7 @@ async function readCurrentArticleTranslation(
 
 async function translateArticle(
   context: ArticleTranslationRuntimeContext,
+  sessions: ArticleTranslationSessions,
   input: ArticleTranslationRequest,
   onUpdate: (translation: ArticleTranslation) => void,
 ): Promise<ArticleTranslation> {
@@ -84,14 +100,47 @@ async function translateArticle(
   const source = articleTranslationSource(article, input);
 
   const store = await agentRuntimePersistence.readAgentRuntimeContext();
-  const targetLanguage = translationTargetLanguage(input.targetLanguage, store.settings);
-  const current = await articlePersistence.readCurrentArticleTranslation({
+  const key = {
     articleId: article.id,
     sourceId: source.sourceId,
     sourceContentHash: article.contentHash,
-    targetLanguage,
+    targetLanguage: translationTargetLanguage(input.targetLanguage, store.settings),
     promptVersion: aiModule.bilingualTranslationPromptVersion,
-  });
+  };
+
+  return sessions.run(articleTranslationSessionKey(key), (signal) =>
+    runTranslationSession({
+      aiModule,
+      articlePersistence,
+      input,
+      key,
+      onUpdate,
+      settings: store.settings,
+      signal,
+      source,
+      provider: () =>
+        taskProvider(context, store.providers, store.settings, 'bilingualTranslation'),
+    }),
+  );
+}
+
+type TranslationSessionInput = {
+  aiModule: Awaited<ReturnType<ArticleTranslationRuntimeContext['getAiModule']>>;
+  articlePersistence: ArticlePersistence;
+  input: ArticleTranslationRequest;
+  key: ArticleTranslationKey;
+  onUpdate: (translation: ArticleTranslation) => void;
+  settings: ArticleTranslationSettings;
+  signal: ArticleTranslationSessionSignal;
+  source: ArticleTranslationSource;
+  provider: () => Promise<TranslationProvider>;
+};
+
+async function runTranslationSession(
+  session: TranslationSessionInput,
+): Promise<ArticleTranslation> {
+  const { articlePersistence, input, key, onUpdate, signal, source } = session;
+  const current = await articlePersistence.readCurrentArticleTranslation(key);
   if (!input.force && !input.sourceBlockIds?.length && current?.status === 'ready') return current;
 
   const blocks = source.blocks;
@@ -101,112 +150,115 @@ async function translateArticle(
     selectedBlockIds.size > 0 ? blocks.filter((block) => selectedBlockIds.has(block.id)) : blocks;
   if (targetBlocks.length === 0) throw new Error('ARTICLE_TRANSLATION_NO_TEXT');
 
-  const now = new Date().toISOString();
-  const provider = await taskProvider(
-    context,
-    store.providers,
-    store.settings,
-    'bilingualTranslation',
+  const translatedBlockIds = new Set(
+    (current?.segments || []).map((segment) => segment.sourceBlockId),
   );
-  const translationId = current?.id || makeId('article_translation');
-  const currentSegmentsByBlockId = new Map(
-    (current?.segments || []).map((segment) => [segment.sourceBlockId, segment]),
-  );
-  const initial = await articlePersistence.saveArticleTranslation({
-    id: translationId,
-    articleId: article.id,
-    sourceId: source.sourceId,
-    sourceContentHash: article.contentHash,
-    targetLanguage,
-    promptVersion: aiModule.bilingualTranslationPromptVersion,
+  const provider = await session.provider();
+  let latest = await articlePersistence.initializeArticleTranslation({
+    ...key,
     providerId: provider.id,
     providerName: provider.name,
     modelName: provider.modelName,
-    status: 'translating',
-    createdAt: current?.createdAt || now,
-    updatedAt: now,
-    segments: blocks.map((block) => {
-      const currentSegment = currentSegmentsByBlockId.get(block.id);
-      const shouldTranslate = input.force || !currentSegment || selectedBlockIds.has(block.id);
-      if (!shouldTranslate && currentSegment) return currentSegment;
-      return {
-        id: currentSegment?.id || makeId('translation_segment'),
-        translationId,
-        sourceBlockId: block.id,
-        sourceTextHash: block.textHash,
-        sourceText: block.text,
-        status: 'translating',
-        order: block.order,
-        createdAt: currentSegment?.createdAt || now,
-        updatedAt: now,
-      };
-    }),
+    updatedAt: new Date().toISOString(),
+    segments: blocks.map((block) => ({
+      sourceBlockId: block.id,
+      sourceText: block.text,
+      sourceTextHash: block.textHash,
+      order: block.order,
+      retranslate:
+        Boolean(input.force) || !translatedBlockIds.has(block.id) || selectedBlockIds.has(block.id),
+    })),
   });
-  onUpdate(initial);
+  onUpdate(latest);
 
-  let latest = initial;
-  let saveQueue = Promise.resolve();
-  const enqueueSave = <T>(operation: () => Promise<T>) => {
-    const queued = saveQueue.then(operation, operation);
-    saveQueue = queued.then(
-      () => undefined,
-      () => undefined,
-    );
-    return queued;
-  };
+  const segmentIndexByBlockId = new Map(
+    latest.segments.map((segment, index) => [segment.sourceBlockId, index]),
+  );
   await runWithConcurrency(targetBlocks, TRANSLATION_CONCURRENCY, async (block) => {
-    const updatedAt = new Date().toISOString();
-    try {
-      const translationBlock = {
-        context: store.settings.bilingualTranslationAiContextAware
-          ? translationBlockContext(block.order, blocks)
-          : undefined,
-        id: block.id,
-        text: block.text,
-      };
-      const result =
-        e2eFakeTranslationResult(provider, translationBlock) ||
-        (await aiModule.translateBilingualArticleBlocks({
-          provider,
-          blocks: [translationBlock],
-          targetLanguage,
-          title: source.title,
-          summary: source.summary,
-        }));
-      const translatedText = result.translations[0]?.translation.trim();
-      latest = await enqueueSave(() =>
-        saveTranslationSegmentStatus({
-          base: latest,
-          blockId: block.id,
-          error: translatedText ? undefined : 'TRANSLATION_MISSING',
-          status: translatedText ? 'ready' : 'failed',
-          articlePersistence,
-          translatedText,
-          updatedAt,
-        }),
-      );
-    } catch (error) {
-      latest = await enqueueSave(() =>
-        saveTranslationSegmentStatus({
-          base: latest,
-          blockId: block.id,
-          error: error instanceof Error ? error.message : 'TRANSLATION_FAILED',
-          status: 'failed',
-          articlePersistence,
-          updatedAt,
-        }),
-      );
-    }
+    if (signal.cancelled) return;
+    const update = await translateTranslationBlock({ block, blocks, session, provider });
+    if (signal.cancelled) return;
+    const segment = await articlePersistence.updateArticleTranslationSegment({
+      translationId: latest.id,
+      sourceBlockId: block.id,
+      ...update,
+    });
+    if (!segment) return;
+    latest = replaceTranslationSegment(latest, segmentIndexByBlockId, segment);
     onUpdate(latest);
   });
+  if (signal.cancelled) return latest;
 
-  latest = await saveTranslationFinalStatus(articlePersistence, latest);
+  const finalized = await articlePersistence.finalizeArticleTranslation({
+    translationId: latest.id,
+    updatedAt: new Date().toISOString(),
+  });
+  if (finalized) latest = finalized;
   onUpdate(latest);
   return latest;
 }
 
+async function translateTranslationBlock(input: {
+  block: ArticleTranslationBlock;
+  blocks: ArticleTranslationBlock[];
+  session: TranslationSessionInput;
+  provider: TranslationProvider;
+}): Promise<{
+  status: 'ready' | 'failed';
+  translatedText?: string;
+  error?: string;
+  updatedAt: string;
+}> {
+  const { block, blocks, provider, session } = input;
+  const updatedAt = new Date().toISOString();
+  try {
+    const translationBlock = {
+      context: session.settings.bilingualTranslationAiContextAware
+        ? translationBlockContext(block.order, blocks)
+        : undefined,
+      id: block.id,
+      text: block.text,
+    };
+    const result =
+      e2eFakeTranslationResult(provider, translationBlock) ||
+      (await session.aiModule.translateBilingualArticleBlocks({
+        provider,
+        blocks: [translationBlock],
+        targetLanguage: session.key.targetLanguage,
+        title: session.source.title,
+        summary: session.source.summary,
+      }));
+    const translatedText = result.translations[0]?.translation.trim();
+    return {
+      status: translatedText ? 'ready' : 'failed',
+      error: translatedText ? undefined : 'TRANSLATION_MISSING',
+      translatedText,
+      updatedAt,
+    };
+  } catch (error) {
+    return {
+      status: 'failed',
+      error: error instanceof Error ? error.message : 'TRANSLATION_FAILED',
+      updatedAt,
+    };
+  }
+}
+
+function replaceTranslationSegment(
+  translation: ArticleTranslation,
+  indexByBlockId: Map<string, number>,
+  segment: ArticleTranslationSegment,
+): ArticleTranslation {
+  const index = indexByBlockId.get(segment.sourceBlockId);
+  if (index === undefined) return translation;
+  const segments = translation.segments.slice();
+  segments[index] = segment;
+  return { ...translation, segments, updatedAt: segment.updatedAt };
+}
+
 async function deleteCurrentArticleTranslation(
   context: ArticleTranslationRuntimeContext,
+  sessions: ArticleTranslationSessions,
   input: ArticleTranslationDeleteRequest,
 ) {
   const { storeAgents: agentRuntimePersistence, storeArticles: articlePersistence } =
@@ -215,14 +267,17 @@ async function deleteCurrentArticleTranslation(
   const article = await articlePersistence.readArticle(input.articleId);
   if (!article) return null;
   const store = await agentRuntimePersistence.readAgentRuntimeContext();
-  const sourceId = articleTranslationSourceId(article, input.sourceId);
-  return articlePersistence.deleteCurrentArticleTranslation({
+  const key = {
     articleId: article.id,
-    sourceId,
+    sourceId: articleTranslationSourceId(article, input.sourceId),
     sourceContentHash: article.contentHash,
     targetLanguage: translationTargetLanguage(input.targetLanguage, store.settings),
     promptVersion: aiModule.bilingualTranslationPromptVersion,
-  });
+  };
+
+  const sessionKey = articleTranslationSessionKey(key);
+  sessions.cancel(sessionKey);
+  return sessions.run(sessionKey, () => articlePersistence.deleteCurrentArticleTranslation(key));
 }
 
 function articleTranslationSource(article: ArticleRecord, input: ArticleTranslationRequest) {
@@ -316,50 +371,6 @@ type ArticleTranslationSettings = {
   bilingualTranslationAiContextAware?: boolean;
   bilingualTranslationTargetLanguage?: string;
 };
-
-async function saveTranslationSegmentStatus(input: {
-  base: ArticleTranslation;
-  blockId: string;
-  error?: string;
-  status: 'ready' | 'failed';
-  articlePersistence: ArticlePersistence;
-  translatedText?: string;
-  updatedAt: string;
-}) {
-  const segments = input.base.segments.map((segment) =>
-    segment.sourceBlockId === input.blockId
-      ? Object.assign({}, segment, {
-          error: input.error,
-          status: input.status,
-          translatedText: input.translatedText,
-          updatedAt: input.updatedAt,
-        })
-      : segment,
-  );
-  return input.articlePersistence.saveArticleTranslation({
-    ...input.base,
-    error: undefined,
-    segments,
-    status: 'translating',
-    updatedAt: input.updatedAt,
-  });
-}
-
-async function saveTranslationFinalStatus(
-  articlePersistence: ArticlePersistence,
-  translation: ArticleTranslation,
-) {
-  const hasTranslating = translation.segments.some((segment) => segment.status === 'translating');
-  const hasReady = translation.segments.some((segment) => segment.status === 'ready');
-  const hasFailed = translation.segments.some((segment) => segment.status === 'failed');
-  const status = hasTranslating ? 'translating' : hasFailed && !hasReady ? 'failed' : 'ready';
-  return articlePersistence.saveArticleTranslation({
-    ...translation,
-    error: hasFailed ? 'TRANSLATION_INCOMPLETE' : undefined,
-    status,
-    updatedAt: new Date().toISOString(),
-  });
-}
 
 async function runWithConcurrency<T>(
   items: T[],

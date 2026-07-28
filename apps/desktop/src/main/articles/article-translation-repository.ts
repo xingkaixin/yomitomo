@@ -1,18 +1,52 @@
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 import type {
   ArticleTranslation,
   ArticleTranslationSegment,
   ArticleTranslationStatus,
 } from '@yomitomo/shared';
+import { makeId } from '@yomitomo/shared';
 import * as schema from '../db/schema';
-import type { StoreExecutor } from '../store/store-db';
+import type { StoreDatabase, StoreExecutor } from '../store/store-db';
 
 type ArticleTranslationRow = typeof schema.articleTranslations.$inferSelect;
 type ArticleTranslationSegmentRow = typeof schema.articleTranslationSegments.$inferSelect;
 
-export type ArticleTranslationWriteInput = Omit<ArticleTranslation, 'segments'> & {
-  segments?: ArticleTranslationSegment[];
+export type ArticleTranslationKey = {
+  articleId: string;
+  sourceId: string;
+  sourceContentHash: string;
+  targetLanguage: string;
+  promptVersion: number;
 };
+
+export type ArticleTranslationSegmentInitializer = {
+  sourceBlockId: string;
+  sourceText: string;
+  sourceTextHash: string;
+  order: number;
+  retranslate: boolean;
+};
+
+export type ArticleTranslationInitializeInput = ArticleTranslationKey & {
+  providerId?: string;
+  providerName?: string;
+  modelName?: string;
+  segments: ArticleTranslationSegmentInitializer[];
+  updatedAt: string;
+};
+
+export type ArticleTranslationSegmentUpdateInput = {
+  translationId: string;
+  sourceBlockId: string;
+  status: Extract<ArticleTranslationStatus, 'ready' | 'failed'>;
+  translatedText?: string;
+  error?: string;
+  updatedAt: string;
+};
+
+// SQLite binds one parameter per column; chunking keeps a large chapter well under
+// the statement variable limit while still writing segments in batches.
+const SEGMENT_WRITE_CHUNK_SIZE = 200;
 
 export function readCurrentArticleTranslationRows(
   database: StoreExecutor,
@@ -63,38 +97,187 @@ export function deleteArticleTranslationRows(database: StoreExecutor, translatio
     .run();
 }
 
-export function upsertArticleTranslationRows(
-  database: StoreExecutor,
-  input: ArticleTranslationWriteInput,
+/**
+ * Claims the session owner row for the logical translation key and writes the initial
+ * segment rows. The unique index is the conflict target, so two first-time requests
+ * converge on one owner instead of colliding on independently generated ids.
+ */
+export function initializeArticleTranslationRows(
+  database: StoreDatabase,
+  input: ArticleTranslationInitializeInput,
 ): ArticleTranslation {
-  database
-    .insert(schema.articleTranslations)
-    .values(articleTranslationToRow(input))
-    .onConflictDoUpdate({
-      target: schema.articleTranslations.id,
-      set: articleTranslationToRow(input),
-    })
-    .run();
-
-  for (const segment of input.segments || [])
-    upsertArticleTranslationSegmentRows(database, segment);
-  const translation = readArticleTranslationRows(database, input.id);
-  if (!translation) throw new Error('ARTICLE_TRANSLATION_WRITE_FAILED');
-  return translation;
+  return database.transaction((tx) => {
+    const translationId = claimArticleTranslationRow(tx, input);
+    writeInitialSegmentRows(tx, translationId, input);
+    const translation = readArticleTranslationRows(tx, translationId);
+    if (!translation) throw new Error('ARTICLE_TRANSLATION_WRITE_FAILED');
+    return translation;
+  });
 }
 
-export function upsertArticleTranslationSegmentRows(
+export function updateArticleTranslationSegmentRows(
+  database: StoreDatabase,
+  input: ArticleTranslationSegmentUpdateInput,
+): ArticleTranslationSegment | null {
+  return database.transaction((tx) => {
+    const row = tx
+      .update(schema.articleTranslationSegments)
+      .set({
+        status: input.status,
+        translatedText: input.translatedText || null,
+        error: input.error || null,
+        updatedAt: input.updatedAt,
+      })
+      .where(
+        and(
+          eq(schema.articleTranslationSegments.translationId, input.translationId),
+          eq(schema.articleTranslationSegments.sourceBlockId, input.sourceBlockId),
+        ),
+      )
+      .returning()
+      .get();
+    if (!row) return null;
+
+    tx.update(schema.articleTranslations)
+      .set({ status: 'translating', error: null, updatedAt: input.updatedAt })
+      .where(eq(schema.articleTranslations.id, input.translationId))
+      .run();
+    return rowToArticleTranslationSegment(row);
+  });
+}
+
+export function finalizeArticleTranslationRows(
+  database: StoreDatabase,
+  input: { translationId: string; updatedAt: string },
+): ArticleTranslation | null {
+  return database.transaction((tx) => {
+    const statuses = tx
+      .select({ status: schema.articleTranslationSegments.status })
+      .from(schema.articleTranslationSegments)
+      .where(eq(schema.articleTranslationSegments.translationId, input.translationId))
+      .groupBy(schema.articleTranslationSegments.status)
+      .all()
+      .map((row) => row.status);
+
+    tx.update(schema.articleTranslations)
+      .set({
+        status: deriveArticleTranslationStatus(statuses),
+        error: statuses.includes('failed') ? 'TRANSLATION_INCOMPLETE' : null,
+        updatedAt: input.updatedAt,
+      })
+      .where(eq(schema.articleTranslations.id, input.translationId))
+      .run();
+    return readArticleTranslationRows(tx, input.translationId);
+  });
+}
+
+function claimArticleTranslationRow(
   database: StoreExecutor,
-  segment: ArticleTranslationSegment,
-) {
-  database
-    .insert(schema.articleTranslationSegments)
-    .values(articleTranslationSegmentToRow(segment))
-    .onConflictDoUpdate({
-      target: schema.articleTranslationSegments.id,
-      set: articleTranslationSegmentToRow(segment),
+  input: ArticleTranslationInitializeInput,
+): string {
+  const ownerState = {
+    providerId: input.providerId || null,
+    providerName: input.providerName || null,
+    modelName: input.modelName || null,
+    status: 'translating',
+    error: null,
+    updatedAt: input.updatedAt,
+  };
+  const owner = database
+    .insert(schema.articleTranslations)
+    .values({
+      id: makeId('article_translation'),
+      articleId: input.articleId,
+      sourceId: input.sourceId,
+      sourceContentHash: input.sourceContentHash,
+      targetLanguage: input.targetLanguage,
+      promptVersion: input.promptVersion,
+      createdAt: input.updatedAt,
+      ...ownerState,
     })
-    .run();
+    .onConflictDoUpdate({
+      target: [
+        schema.articleTranslations.articleId,
+        schema.articleTranslations.sourceId,
+        schema.articleTranslations.sourceContentHash,
+        schema.articleTranslations.targetLanguage,
+        schema.articleTranslations.promptVersion,
+      ],
+      set: ownerState,
+    })
+    .returning({ id: schema.articleTranslations.id })
+    .get();
+  return owner.id;
+}
+
+function writeInitialSegmentRows(
+  database: StoreExecutor,
+  translationId: string,
+  input: ArticleTranslationInitializeInput,
+) {
+  const conflictTarget = [
+    schema.articleTranslationSegments.translationId,
+    schema.articleTranslationSegments.sourceBlockId,
+  ];
+
+  for (const chunk of chunked(input.segments.filter((segment) => segment.retranslate))) {
+    database
+      .insert(schema.articleTranslationSegments)
+      .values(chunk.map((segment) => initialSegmentRow(translationId, segment, input.updatedAt)))
+      .onConflictDoUpdate({
+        target: conflictTarget,
+        set: {
+          sourceText: sql`excluded.source_text`,
+          sourceTextHash: sql`excluded.source_text_hash`,
+          order: sql`excluded.order_index`,
+          translatedText: null,
+          status: 'translating',
+          error: null,
+          updatedAt: input.updatedAt,
+        },
+      })
+      .run();
+  }
+
+  for (const chunk of chunked(input.segments.filter((segment) => !segment.retranslate))) {
+    database
+      .insert(schema.articleTranslationSegments)
+      .values(chunk.map((segment) => initialSegmentRow(translationId, segment, input.updatedAt)))
+      .onConflictDoNothing({ target: conflictTarget })
+      .run();
+  }
+}
+
+function initialSegmentRow(
+  translationId: string,
+  segment: ArticleTranslationSegmentInitializer,
+  updatedAt: string,
+) {
+  return {
+    id: makeId('translation_segment'),
+    translationId,
+    sourceBlockId: segment.sourceBlockId,
+    sourceTextHash: segment.sourceTextHash,
+    sourceText: segment.sourceText,
+    translatedText: null,
+    status: 'translating',
+    error: null,
+    order: segment.order,
+    createdAt: updatedAt,
+    updatedAt,
+  };
+}
+
+function deriveArticleTranslationStatus(statuses: string[]): ArticleTranslationStatus {
+  if (statuses.includes('translating')) return 'translating';
+  if (statuses.includes('failed') && !statuses.includes('ready')) return 'failed';
+  return 'ready';
+}
+
+function* chunked<T>(items: T[]) {
+  for (let start = 0; start < items.length; start += SEGMENT_WRITE_CHUNK_SIZE) {
+    yield items.slice(start, start + SEGMENT_WRITE_CHUNK_SIZE);
+  }
 }
 
 function rowToArticleTranslation(
@@ -142,40 +325,6 @@ function rowToArticleTranslationSegment(
     order: row.order,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-  };
-}
-
-function articleTranslationToRow(input: ArticleTranslationWriteInput) {
-  return {
-    id: input.id,
-    articleId: input.articleId,
-    sourceId: input.sourceId,
-    sourceContentHash: input.sourceContentHash,
-    targetLanguage: input.targetLanguage,
-    promptVersion: input.promptVersion,
-    providerId: input.providerId || null,
-    providerName: input.providerName || null,
-    modelName: input.modelName || null,
-    status: input.status,
-    error: input.error || null,
-    createdAt: input.createdAt,
-    updatedAt: input.updatedAt,
-  };
-}
-
-function articleTranslationSegmentToRow(input: ArticleTranslationSegment) {
-  return {
-    id: input.id,
-    translationId: input.translationId,
-    sourceBlockId: input.sourceBlockId,
-    sourceTextHash: input.sourceTextHash,
-    sourceText: input.sourceText,
-    translatedText: input.translatedText || null,
-    status: input.status,
-    error: input.error || null,
-    order: input.order,
-    createdAt: input.createdAt,
-    updatedAt: input.updatedAt,
   };
 }
 
