@@ -5,8 +5,14 @@ import {
   type PublicAgent,
   type UserProfile,
 } from '@yomitomo/shared';
-import { annotationColor, annotationAuthorName, type HighlightBox } from '@yomitomo/core';
+import {
+  annotationColor,
+  annotationAuthorName,
+  selectionActionPosition,
+  type HighlightBox,
+} from '@yomitomo/core';
 import type { AnnotationRailLayout } from '@yomitomo/reader-ui/reader-annotations';
+import type { SelectionAction } from '@yomitomo/reader-ui/reader-app-view';
 import { pageMetricIntersectsBox, type PageMetric } from './pdfium-geometry';
 
 export type PdfAnnotationNavigationState = {
@@ -263,14 +269,43 @@ export function pdfiumTemporaryBoxes(
   metric: PageMetric,
   contributorId: string,
 ): HighlightBox[] {
-  return anchor.rects.map((rect, index) => ({
-    id: `pdfium-selection-${index}`,
-    annotationId: 'pdfium-selection',
-    contributorId,
-    color: 'rgb(77 155 114)',
-    top: metric.top + rect.y * metric.height,
-    left: metric.left + rect.x * metric.width,
-    width: Math.max(1, rect.width * metric.width),
-    height: Math.max(2, rect.height * metric.height),
-  }));
+  return anchor.rects.flatMap((rect, index) => {
+    const box = {
+      id: `pdfium-selection-${index}`,
+      annotationId: 'pdfium-selection',
+      contributorId,
+      color: 'rgb(77 155 114)',
+      top: metric.top + rect.y * metric.height,
+      left: metric.left + rect.x * metric.width,
+      width: Math.max(1, rect.width * metric.width),
+      height: Math.max(2, rect.height * metric.height),
+    };
+    return pageMetricIntersectsBox(metric, box) ? [box] : [];
+  });
+}
+
+export function pdfiumPendingSelectionPresentation(
+  action: SelectionAction,
+  metric: PageMetric | undefined,
+  canvasRect: DOMRect,
+  contributorId: string,
+) {
+  if (!isPdfTextAnchor(action.anchor) || !metric) return null;
+  const boxes = pdfiumTemporaryBoxes(action.anchor, metric, contributorId);
+  const lastBox = boxes.at(-1);
+  if (!lastBox) return null;
+
+  const lastDomRect = new DOMRect(
+    canvasRect.left + lastBox.left,
+    canvasRect.top + lastBox.top,
+    lastBox.width,
+    lastBox.height,
+  );
+  return {
+    action: {
+      ...action,
+      ...selectionActionPosition(lastDomRect, canvasRect),
+    },
+    boxes,
+  };
 }
