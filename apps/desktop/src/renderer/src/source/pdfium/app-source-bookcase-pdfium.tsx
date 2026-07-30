@@ -62,6 +62,7 @@ import {
   pdfiumAnnotationAgentName,
   pdfiumAnnotationRailLayout,
   computeAutoPdfZoom,
+  pdfiumPendingSelectionPresentation,
   pdfiumTemporaryBoxes,
 } from './pdfium-annotation-layout';
 import {
@@ -478,6 +479,20 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     () => pdfiumAnnotationBoxes(annotations, pageMetrics, userProfile, annotationAgents),
     [annotationAgents, annotations, pageMetrics, userProfile],
   );
+  const pendingSelectionPresentation = useMemo(() => {
+    const anchor = selectionAction?.anchor;
+    const canvas = canvasRef.current;
+    if (!selectionAction || !anchor || !isPdfTextAnchor(anchor) || !canvas) return null;
+    return pdfiumPendingSelectionPresentation(
+      selectionAction,
+      pageMetrics[anchor.pageIndex],
+      canvas.getBoundingClientRect(),
+      userProfile.id,
+    );
+  }, [canvasRef, pageMetrics, selectionAction, userProfile.id]);
+  const visibleTemporaryBoxes = selectionAction
+    ? (pendingSelectionPresentation?.boxes ?? [])
+    : temporaryBoxes;
   const { handleHighlightClick, handlePdfiumCanvasClickCapture } = usePdfiumHighlightHitTesting({
     boxes,
     canvasRef,
@@ -1195,7 +1210,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       newAnnotationIds,
       railLayoutOverride: annotationRailLayout,
       searchBoxes,
-      temporaryBoxes,
+      temporaryBoxes: visibleTemporaryBoxes,
     },
     article: {
       content: (
@@ -1320,6 +1335,15 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     },
     userProfile,
   });
+  const visibleReaderAppViewProps = selectionAction
+    ? {
+        ...readerAppViewProps,
+        selection: {
+          ...readerAppViewProps.selection,
+          selectionAction: pendingSelectionPresentation?.action ?? null,
+        },
+      }
+    : readerAppViewProps;
 
   return (
     <section
@@ -1349,7 +1373,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
           <span>{statusMessage}</span>
         </div>
       ) : null}
-      <ReaderAppView {...readerAppViewProps} ref={readerSurfaceRef} />
+      <ReaderAppView {...visibleReaderAppViewProps} ref={readerSurfaceRef} />
     </section>
   );
 }

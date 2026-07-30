@@ -7,6 +7,7 @@ import {
   computeAutoPdfZoom,
   pdfiumAnnotationNavigationState,
   pdfiumAnnotationRailLayout,
+  pdfiumPendingSelectionPresentation,
   pdfiumVisibleAnnotations,
 } from '../source/pdfium/pdfium-annotation-layout';
 
@@ -194,6 +195,79 @@ describe('pdfium annotation layout', () => {
         },
       ]).map((annotation) => annotation.id),
     ).toEqual(['visible']);
+  });
+
+  it('repositions a pending PDF selection from current page metrics', () => {
+    const anchor = createPdfTextAnchor({
+      pageText: 'selected text',
+      pageIndex: 0,
+      pageWidth: 100,
+      pageHeight: 100,
+      start: 0,
+      end: 8,
+      rects: [{ x: 0.1, y: 0.2, width: 0.4, height: 0.1 }],
+    });
+    const action = { anchor, adjustable: true, x: 0, y: 0 };
+    const canvasRect = new DOMRect(100, 200, 400, 300);
+    const metric = {
+      left: 20,
+      top: 30,
+      width: 200,
+      height: 100,
+      clipLeft: 0,
+      clipTop: 0,
+      clipRight: 400,
+      clipBottom: 300,
+    };
+
+    expect(pdfiumPendingSelectionPresentation(action, metric, canvasRect, 'user_1')).toEqual({
+      action: {
+        ...action,
+        x: 122,
+        y: 54,
+      },
+      boxes: [
+        {
+          id: 'pdfium-selection-0',
+          annotationId: 'pdfium-selection',
+          contributorId: 'user_1',
+          color: 'rgb(77 155 114)',
+          top: 50,
+          left: 40,
+          width: 80,
+          height: 10,
+        },
+      ],
+    });
+  });
+
+  it('hides a pending PDF selection after its text leaves the viewport', () => {
+    const anchor = createPdfTextAnchor({
+      pageText: 'selected text',
+      pageIndex: 0,
+      pageWidth: 100,
+      pageHeight: 100,
+      start: 0,
+      end: 8,
+      rects: [{ x: 0.1, y: 0.2, width: 0.4, height: 0.1 }],
+    });
+    const action = { anchor, adjustable: true, x: 0, y: 0 };
+    const canvasRect = new DOMRect(100, 200, 400, 300);
+    const scrolledMetric = {
+      left: 20,
+      top: -90,
+      width: 200,
+      height: 100,
+      clipLeft: 0,
+      clipTop: 0,
+      clipRight: 400,
+      clipBottom: 300,
+    };
+
+    expect(
+      pdfiumPendingSelectionPresentation(action, scrolledMetric, canvasRect, 'user_1'),
+    ).toBeNull();
+    expect(pdfiumPendingSelectionPresentation(action, undefined, canvasRect, 'user_1')).toBeNull();
   });
 
   describe('computeAutoPdfZoom', () => {
