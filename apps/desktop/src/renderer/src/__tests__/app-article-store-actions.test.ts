@@ -18,8 +18,9 @@ import {
   applyArticleUpsertPatch,
   applyArticleDeletePatch,
   applyArticleReadingProgressPatch,
-  useAppArticleStoreActions,
-} from '../shell/app-article-store-actions';
+  useArticleStore,
+} from '../shell/app-article-store';
+import { useAppArticleStoreActions } from '../shell/app-article-store-actions';
 
 afterEach(() => {
   cleanup();
@@ -58,7 +59,9 @@ describe('useAppArticleStoreActions', () => {
     });
     render(
       createElement(function Harness() {
-        actions = useAppArticleStoreActions({ storeRef, applyStore });
+        actions = useAppArticleStoreActions({
+          articleStore: useArticleStore({ storeRef, applyStore }),
+        });
         return null;
       }),
     );
@@ -107,7 +110,9 @@ describe('useAppArticleStoreActions', () => {
     });
     render(
       createElement(function Harness() {
-        actions = useAppArticleStoreActions({ storeRef, applyStore });
+        actions = useAppArticleStoreActions({
+          articleStore: useArticleStore({ storeRef, applyStore }),
+        });
         return null;
       }),
     );
@@ -158,7 +163,9 @@ describe('useAppArticleStoreActions', () => {
     });
     render(
       createElement(function Harness() {
-        actions = useAppArticleStoreActions({ storeRef, applyStore });
+        actions = useAppArticleStoreActions({
+          articleStore: useArticleStore({ storeRef, applyStore }),
+        });
         return null;
       }),
     );
@@ -214,7 +221,9 @@ describe('useAppArticleStoreActions', () => {
     });
     render(
       createElement(function Harness() {
-        actions = useAppArticleStoreActions({ storeRef, applyStore });
+        actions = useAppArticleStoreActions({
+          articleStore: useArticleStore({ storeRef, applyStore }),
+        });
         return null;
       }),
     );
@@ -259,7 +268,9 @@ describe('useAppArticleStoreActions', () => {
     });
     render(
       createElement(function Harness() {
-        actions = useAppArticleStoreActions({ storeRef, applyStore });
+        actions = useAppArticleStoreActions({
+          articleStore: useArticleStore({ storeRef, applyStore }),
+        });
         return null;
       }),
     );
@@ -284,7 +295,9 @@ describe('useAppArticleStoreActions', () => {
     });
     render(
       createElement(function Harness() {
-        actions = useAppArticleStoreActions({ storeRef, applyStore });
+        actions = useAppArticleStoreActions({
+          articleStore: useArticleStore({ storeRef, applyStore }),
+        });
         return null;
       }),
     );
@@ -314,7 +327,9 @@ describe('useAppArticleStoreActions', () => {
     });
     render(
       createElement(function Harness() {
-        actions = useAppArticleStoreActions({ storeRef, applyStore });
+        actions = useAppArticleStoreActions({
+          articleStore: useArticleStore({ storeRef, applyStore }),
+        });
         return null;
       }),
     );
@@ -357,7 +372,9 @@ describe('useAppArticleStoreActions', () => {
     });
     render(
       createElement(function Harness() {
-        actions = useAppArticleStoreActions({ storeRef, applyStore });
+        actions = useAppArticleStoreActions({
+          articleStore: useArticleStore({ storeRef, applyStore }),
+        });
         return null;
       }),
     );
@@ -401,7 +418,9 @@ describe('useAppArticleStoreActions', () => {
     });
     render(
       createElement(function Harness() {
-        actions = useAppArticleStoreActions({ storeRef, applyStore });
+        actions = useAppArticleStoreActions({
+          articleStore: useArticleStore({ storeRef, applyStore }),
+        });
         return null;
       }),
     );

@@ -1,45 +1,33 @@
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import i18next from 'i18next';
 import type {
-  ArticleDeletePatch,
   ArticleReadingProgress,
-  ArticleReadingProgressPatch,
-  ArticleStorePatch,
-  ArticleSummaryRecord,
-  ArticleUpsertPatch,
   Annotation,
   Comment,
-  DesktopStore,
   ReaderChatState,
 } from '@yomitomo/shared';
 import type { TextImportCommitInput, WindowAnimationSourceRect } from '../../../ipc-contract';
+import type { ArticleStore } from './app-article-store';
 import { getDesktopApi } from './app-desktop-api';
 
-type DesktopStoreRef = { current: DesktopStore };
-type ApplyStore = (nextStore: DesktopStore) => DesktopStore;
 type ImportProgressCallback = (progress: number) => void;
 
 type UseAppArticleStoreActionsInput = {
-  storeRef: DesktopStoreRef;
-  applyStore: ApplyStore;
+  articleStore: ArticleStore;
 };
 
-export function useAppArticleStoreActions({
-  storeRef,
-  applyStore,
-}: UseAppArticleStoreActionsInput) {
-  const readingProgressSaveQueueRef = useRef(Promise.resolve());
+export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreActionsInput) {
   const deleteArticle = useCallback(
     async (articleId: string) => {
-      const nextStore = applyArticleStorePatch(storeRef.current, {
-        type: 'article-delete',
-        articleId,
+      await articleStore.runMutation({
+        optimistic: {
+          patches: [{ type: 'article-delete', articleId }],
+        },
+        invoke: () => getDesktopApi().article.delete(articleId),
+        reconcile: () => ({ patches: [] }),
       });
-      storeRef.current = nextStore;
-      applyStore(nextStore);
-      await getDesktopApi().article.delete(articleId);
     },
-    [applyStore, storeRef],
+    [articleStore],
   );
 
   const readArticle = useCallback(async (articleId: string) => {
@@ -48,77 +36,86 @@ export function useAppArticleStoreActions({
 
   const mergeArticleAgentAnnotation = useCallback(
     async (articleId: string, annotation: Annotation) => {
-      const result = await getDesktopApi().article.mergeAgentAnnotation({
-        articleId,
-        annotation,
+      return articleStore.runMutation({
+        invoke: () =>
+          getDesktopApi().article.mergeAgentAnnotation({
+            articleId,
+            annotation,
+          }),
+        reconcile: (result) => ({
+          patches: result ? [result.patch] : [],
+        }),
       });
-      if (!result) return null;
-      const nextStore = applyArticleStorePatch(storeRef.current, result.patch);
-      storeRef.current = nextStore;
-      applyStore(nextStore);
-      return result;
     },
-    [applyStore, storeRef],
+    [articleStore],
   );
 
   const deleteArticleAnnotation = useCallback(
     async (articleId: string, annotationId: string) => {
-      const patch = await getDesktopApi().article.deleteAnnotation({
-        articleId,
-        annotationId,
+      await articleStore.runMutation({
+        invoke: () =>
+          getDesktopApi().article.deleteAnnotation({
+            articleId,
+            annotationId,
+          }),
+        reconcile: (patch) => ({
+          patches: patch ? [patch] : [],
+        }),
       });
-      if (!patch) return;
-      const nextStore = applyArticleStorePatch(storeRef.current, patch);
-      storeRef.current = nextStore;
-      applyStore(nextStore);
     },
-    [applyStore, storeRef],
+    [articleStore],
   );
 
   const deleteArticleComment = useCallback(
     async (articleId: string, annotationId: string, commentId: string) => {
-      const patch = await getDesktopApi().article.deleteComment({
-        articleId,
-        annotationId,
-        commentId,
+      await articleStore.runMutation({
+        invoke: () =>
+          getDesktopApi().article.deleteComment({
+            articleId,
+            annotationId,
+            commentId,
+          }),
+        reconcile: (patch) => ({
+          patches: patch ? [patch] : [],
+        }),
       });
-      if (!patch) return;
-      const nextStore = applyArticleStorePatch(storeRef.current, patch);
-      storeRef.current = nextStore;
-      applyStore(nextStore);
     },
-    [applyStore, storeRef],
+    [articleStore],
   );
 
   const saveArticleAnnotation = useCallback(
     async (articleId: string, annotation: Annotation, updatedAt?: string) => {
-      const patch = await getDesktopApi().article.saveAnnotation({
-        articleId,
-        annotation,
-        updatedAt,
+      await articleStore.runMutation({
+        invoke: () =>
+          getDesktopApi().article.saveAnnotation({
+            articleId,
+            annotation,
+            updatedAt,
+          }),
+        reconcile: (patch) => ({
+          patches: patch ? [patch] : [],
+        }),
       });
-      if (!patch) return;
-      const nextStore = applyArticleStorePatch(storeRef.current, patch);
-      storeRef.current = nextStore;
-      applyStore(nextStore);
     },
-    [applyStore, storeRef],
+    [articleStore],
   );
 
   const saveArticleComment = useCallback(
     async (articleId: string, annotationId: string, comment: Comment, updatedAt?: string) => {
-      const patch = await getDesktopApi().article.saveComment({
-        articleId,
-        annotationId,
-        comment,
-        updatedAt,
+      await articleStore.runMutation({
+        invoke: () =>
+          getDesktopApi().article.saveComment({
+            articleId,
+            annotationId,
+            comment,
+            updatedAt,
+          }),
+        reconcile: (patch) => ({
+          patches: patch ? [patch] : [],
+        }),
       });
-      if (!patch) return;
-      const nextStore = applyArticleStorePatch(storeRef.current, patch);
-      storeRef.current = nextStore;
-      applyStore(nextStore);
     },
-    [applyStore, storeRef],
+    [articleStore],
   );
 
   const openArticleDiscussion = useCallback(
@@ -138,50 +135,51 @@ export function useAppArticleStoreActions({
 
   const saveArticleReadingProgress = useCallback(
     async (articleId: string, progress: ArticleReadingProgress) => {
-      const run = async () => {
-        const optimisticStore = applyArticleReadingProgressPatch(storeRef.current, {
-          articleId,
-          readingProgress: progress,
-          updatedAt: progress.updatedAt,
-        });
-        storeRef.current = optimisticStore;
-        applyStore(optimisticStore);
-        const patch = await getDesktopApi().article.saveReadingProgress({
-          articleId,
-          progress,
-        });
-        const nextStore = applyArticleStorePatch(storeRef.current, {
-          type: 'article-reading-progress',
-          ...patch,
-        });
-        storeRef.current = nextStore;
-        applyStore(nextStore);
-      };
-      const nextUpdate = readingProgressSaveQueueRef.current.then(run, run);
-      readingProgressSaveQueueRef.current = nextUpdate.catch(() => undefined);
-      await nextUpdate;
+      await articleStore.runMutation({
+        optimistic: {
+          patches: [
+            {
+              type: 'article-reading-progress',
+              articleId,
+              readingProgress: progress,
+              updatedAt: progress.updatedAt,
+            },
+          ],
+        },
+        invoke: () =>
+          getDesktopApi().article.saveReadingProgress({
+            articleId,
+            progress,
+          }),
+        reconcile: (patch) => ({
+          patches: [{ type: 'article-reading-progress', ...patch }],
+        }),
+        serialize: 'reading-progress',
+      });
     },
-    [applyStore, storeRef],
+    [articleStore],
   );
 
   const saveArticleReaderChatState = useCallback(
     async (articleId: string, readerChatState?: ReaderChatState) => {
-      return getDesktopApi().article.saveReaderChatState({ articleId, readerChatState });
+      return articleStore.runMutation({
+        invoke: () => getDesktopApi().article.saveReaderChatState({ articleId, readerChatState }),
+        reconcile: () => ({ patches: [] }),
+      });
     },
-    [],
+    [articleStore],
   );
 
   const importArticleUrl = useCallback(
     async (url: string, requestId?: string) => {
-      const result = await getDesktopApi().article.importUrl({ url, requestId });
-      if (result.status === 'imported') {
-        const nextStore = applyArticleStorePatch(storeRef.current, result.patch);
-        storeRef.current = nextStore;
-        applyStore(nextStore);
-      }
-      return result;
+      return articleStore.runMutation({
+        invoke: () => getDesktopApi().article.importUrl({ url, requestId }),
+        reconcile: (result) => ({
+          patches: result.status === 'imported' ? [result.patch] : [],
+        }),
+      });
     },
-    [applyStore, storeRef],
+    [articleStore],
   );
 
   const cancelArticleUrlImport = useCallback((requestId: string) => {
@@ -190,70 +188,74 @@ export function useAppArticleStoreActions({
 
   const importEbookFile = useCallback(
     async (file: File, onProgress?: ImportProgressCallback) => {
-      onProgress?.(4);
-      const data = await readFileArrayBuffer(
-        file,
-        (progress) => {
-          onProgress?.(Math.min(76, Math.round(progress * 76)));
+      return articleStore.runMutation({
+        invoke: async () => {
+          onProgress?.(4);
+          const data = await readFileArrayBuffer(
+            file,
+            (progress) => {
+              onProgress?.(Math.min(76, Math.round(progress * 76)));
+            },
+            i18next.t('library.import.ebook.readFailed'),
+          );
+          onProgress?.(82);
+          const result = await getDesktopApi().article.ebook.importFile({
+            fileName: file.name,
+            mimeType: file.type,
+            data,
+          });
+          onProgress?.(100);
+          return result;
         },
-        i18next.t('library.import.ebook.readFailed'),
-      );
-      onProgress?.(82);
-      const result = await getDesktopApi().article.ebook.importFile({
-        fileName: file.name,
-        mimeType: file.type,
-        data,
+        reconcile: (result) => ({
+          patches: result.status === 'imported' ? [result.patch] : [],
+        }),
       });
-      onProgress?.(100);
-      if (result.status === 'imported') {
-        const nextStore = applyArticleStorePatch(storeRef.current, result.patch);
-        storeRef.current = nextStore;
-        applyStore(nextStore);
-      }
-      return result;
     },
-    [applyStore, storeRef],
+    [articleStore],
   );
 
   const commitTextImport = useCallback(
     async (input: TextImportCommitInput) => {
-      const result = await getDesktopApi().article.text.commitImport(input);
-      // main excludes the sender from article:patched, so the importing window only
-      // learns about its own new articles through this result.
-      let nextStore = storeRef.current;
-      for (const patch of result.patches) nextStore = applyArticleStorePatch(nextStore, patch);
-      storeRef.current = nextStore;
-      applyStore(nextStore);
-      return result;
+      return articleStore.runMutation({
+        invoke: () => getDesktopApi().article.text.commitImport(input),
+        reconcile: (result) => ({
+          // main excludes the sender from article:patched, so this result is the
+          // importing window's only source for its own new articles.
+          patches: result.patches,
+        }),
+      });
     },
-    [applyStore, storeRef],
+    [articleStore],
   );
 
   const importPdfFile = useCallback(
     async (file: File, onProgress?: ImportProgressCallback) => {
-      onProgress?.(4);
-      const data = await readFileArrayBuffer(
-        file,
-        (progress) => {
-          onProgress?.(Math.min(76, Math.round(progress * 76)));
+      return articleStore.runMutation({
+        invoke: async () => {
+          onProgress?.(4);
+          const data = await readFileArrayBuffer(
+            file,
+            (progress) => {
+              onProgress?.(Math.min(76, Math.round(progress * 76)));
+            },
+            i18next.t('library.import.pdf.readFailed'),
+          );
+          onProgress?.(82);
+          const result = await getDesktopApi().article.pdf.importFile({
+            fileName: file.name,
+            mimeType: file.type,
+            data,
+          });
+          onProgress?.(100);
+          return result;
         },
-        i18next.t('library.import.pdf.readFailed'),
-      );
-      onProgress?.(82);
-      const result = await getDesktopApi().article.pdf.importFile({
-        fileName: file.name,
-        mimeType: file.type,
-        data,
+        reconcile: (result) => ({
+          patches: result.status === 'imported' ? [result.patch] : [],
+        }),
       });
-      onProgress?.(100);
-      if (result.status === 'imported') {
-        const nextStore = applyArticleStorePatch(storeRef.current, result.patch);
-        storeRef.current = nextStore;
-        applyStore(nextStore);
-      }
-      return result;
     },
-    [applyStore, storeRef],
+    [articleStore],
   );
 
   return {
@@ -288,70 +290,6 @@ export type ReaderArticleActions = Pick<
   | 'saveArticleReadingProgress'
   | 'saveArticleReaderChatState'
 >;
-
-export function applyArticleStorePatch(
-  store: DesktopStore,
-  patch: ArticleStorePatch,
-): DesktopStore {
-  switch (patch.type) {
-    case 'article-upsert':
-      return applyArticleUpsertPatch(store, patch);
-    case 'article-reading-progress':
-      return applyArticleReadingProgressPatch(store, patch);
-    case 'article-delete':
-      return applyArticleDeletePatch(store, patch);
-  }
-}
-
-export function applyArticleReadingProgressPatch(
-  store: DesktopStore,
-  patch: ArticleReadingProgressPatch,
-): DesktopStore {
-  return {
-    ...store,
-    articles: store.articles.map((article) =>
-      article.id === patch.articleId
-        ? { ...article, readingProgress: patch.readingProgress, updatedAt: patch.updatedAt }
-        : article,
-    ),
-  };
-}
-
-export function applyArticleUpsertPatch(
-  store: DesktopStore,
-  patch: ArticleUpsertPatch,
-): DesktopStore {
-  const existingIndex = store.articles.findIndex((article) => article.id === patch.article.id);
-  if (existingIndex === -1) {
-    return {
-      ...store,
-      articles: [patch.article, ...store.articles],
-    };
-  }
-
-  return {
-    ...store,
-    articles: store.articles.map(
-      (article, index): ArticleSummaryRecord => (index === existingIndex ? patch.article : article),
-    ),
-  };
-}
-
-export function applyArticleDeletePatch(
-  store: DesktopStore,
-  patch: ArticleDeletePatch,
-): DesktopStore {
-  return {
-    ...store,
-    articles: store.articles.filter((article) => article.id !== patch.articleId),
-    collectionMembers: store.collectionMembers.filter(
-      (member) => member.member.kind !== 'article' || member.member.id !== patch.articleId,
-    ),
-    pins: store.pins.filter(
-      (pin) => pin.targetKind !== 'article' || pin.targetId !== patch.articleId,
-    ),
-  };
-}
 
 function readFileArrayBuffer(
   file: File,

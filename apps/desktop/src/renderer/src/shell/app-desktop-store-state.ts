@@ -14,7 +14,7 @@ import {
 import { isDesktopIpcErrorLike } from '../../../ipc-errors';
 
 import { elapsedMs, recordStartupTiming } from './app-utils';
-import { applyArticleStorePatch } from './app-article-store-actions';
+import { applyArticleStorePatch, useArticleStore } from './app-article-store';
 import {
   applyCollectionStorePatch,
   applyLibraryPinPatch,
@@ -34,6 +34,7 @@ export function useDesktopStoreState() {
     setStore(rendererStore);
     return rendererStore;
   }, []);
+  const articleStore = useArticleStore({ storeRef, applyStore });
 
   const applySettingsPatch = useCallback(
     (patch: SettingsStorePatch) => applyStore(applySettingsStorePatch(storeRef.current, patch)),
@@ -146,6 +147,7 @@ export function useDesktopStoreState() {
     refreshStore,
     applyStore,
     applySettingsPatch,
+    articleStore,
   };
 }
 
