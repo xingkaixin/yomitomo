@@ -11,19 +11,12 @@ import type {
 import type { AssistantExecutionRunInput } from '../assistant/assistant-execution-repository';
 import { desktopIpcErrorCodes } from '../../ipc-errors';
 import type { RuntimeExecutionRecord } from './agent-execution-recorder';
+import type { AgentReadingMemoryPort } from './agent-reading-memory';
 
 const runtimeMocks = vi.hoisted(() => ({
   runAgentMessageWithToolLoop: vi.fn(),
 }));
-const memoryMocks = vi.hoisted(() => ({
-  agentAnnotatePayloadWithReadingMemoryEntries: vi.fn(
-    (input: { payload: unknown }) => input.payload,
-  ),
-  agentMessagePayloadWithReadingMemoryView: vi.fn((input: { payload: unknown }) => input.payload),
-  saveAgentAnnotateReadingMemoryEntries: vi.fn(),
-}));
 vi.mock('./agent-message-runtime', () => runtimeMocks);
-vi.mock('./agent-reading-memory', () => memoryMocks);
 
 import {
   executeAgentAnnotationTask,
@@ -34,12 +27,6 @@ import {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  memoryMocks.agentAnnotatePayloadWithReadingMemoryEntries.mockImplementation(
-    (input: { payload: unknown }) => input.payload,
-  );
-  memoryMocks.agentMessagePayloadWithReadingMemoryView.mockImplementation(
-    (input: { payload: unknown }) => input.payload,
-  );
 });
 
 describe('executeAgentCommentTask', () => {
@@ -88,6 +75,13 @@ describe('executeAgentCommentTask', () => {
       { type: 'delta', delta: 'reply' },
     ]);
     expect(runtimeMocks.runAgentMessageWithToolLoop).not.toHaveBeenCalled();
+    expect(fixture.readingMemory.enrichMessagePayload).toHaveBeenCalledWith(
+      expect.objectContaining({ article: expect.objectContaining({ id: 'article_1' }) }),
+    );
+    expect(fixture.readingMemory.createMessageReadingContextSnapshot).toHaveBeenCalledWith({
+      payload: expect.objectContaining({ article: expect.objectContaining({ id: 'article_1' }) }),
+      agentId: 'agent_1',
+    });
     await expectExecutionRecorded(fixture, {
       taskType: 'thread_reply',
       requestedMode: 'fast_response',
@@ -97,7 +91,17 @@ describe('executeAgentCommentTask', () => {
   });
 
   it('streams deep runtime text and progress through the task interface', async () => {
-    const fixture = taskFixture({ settings: { assistantExecutionMode: 'deep_verification' } });
+    const resolvedAgent = agent({
+      id: 'resolved_agent',
+      username: 'resolved_handle',
+      nickname: 'Resolved agent',
+      avatar: 'https://example.com/resolved.png',
+      annotationColor: '#2468ac',
+    });
+    const fixture = taskFixture({
+      agents: [resolvedAgent],
+      settings: { assistantExecutionMode: 'deep_verification' },
+    });
     runtimeMocks.runAgentMessageWithToolLoop.mockImplementation(async (input) => {
       input.onRuntimeEvent({
         type: 'tool_call',
@@ -122,8 +126,10 @@ describe('executeAgentCommentTask', () => {
     });
     const events: unknown[] = [];
 
-    const result = await executeAgentCommentTask(fixture.context, messagePayload(), (event) =>
-      events.push(event),
+    const result = await executeAgentCommentTask(
+      fixture.context,
+      { ...messagePayload(), agentId: undefined, agentUsername: resolvedAgent.username },
+      (event) => events.push(event),
     );
 
     expect(result).toMatchObject({
@@ -131,10 +137,14 @@ describe('executeAgentCommentTask', () => {
       assistantProgress: {
         steps: [{ id: 'get_anchor_context', status: 'done' }],
       },
-      author: agentAuthor(agent()),
+      author: agentAuthor(resolvedAgent),
     });
     expect(events).toEqual(
       expect.arrayContaining([
+        {
+          type: 'start',
+          comment: expect.objectContaining({ author: agentAuthor(resolvedAgent) }),
+        },
         { type: 'delta', delta: 'deep reply' },
         {
           type: 'progress',
@@ -219,6 +229,28 @@ describe('executeAgentCommentTask', () => {
     expect(fixture.recorder.recordRuntimeExecution).toHaveBeenCalledOnce();
   });
 
+  it('does not record or start fast fallback after a cancelled deep runtime', async () => {
+    const fixture = taskFixture({ settings: { assistantExecutionMode: 'deep_verification' } });
+    const controller = new AbortController();
+    runtimeMocks.runAgentMessageWithToolLoop.mockImplementation(async () => {
+      controller.abort();
+      return {
+        status: 'fallback',
+        failureReason: 'tool_loop_failed',
+        runtime: runtimeTrace(),
+      };
+    });
+
+    await expect(
+      executeAgentCommentTask(fixture.context, messagePayload(), vi.fn(), controller.signal),
+    ).rejects.toThrow('AGENT_TASK_CANCELLED');
+
+    expect(fixture.recorder.recordRuntimeExecution).not.toHaveBeenCalled();
+    expect(fixture.ai.runAgentStream).not.toHaveBeenCalled();
+    expect(fixture.readingMemory.enrichMessagePayload).not.toHaveBeenCalled();
+    expect(executionRows(fixture)).toHaveLength(0);
+  });
+
   it('rejects missing agents before loading the AI module', async () => {
     const fixture = taskFixture({ agents: [] });
 
@@ -248,6 +280,10 @@ describe('executeAgentCommentTask', () => {
       ]);
       expect(fixture.context.getAiModule).not.toHaveBeenCalled();
       expect(fixture.persistence.providerRepository.hydrateProviderApiKey).not.toHaveBeenCalled();
+      expect(fixture.readingMemory.enrichMessagePayload).not.toHaveBeenCalled();
+      expect(fixture.readingMemory.createMessageReadingContextSnapshot).not.toHaveBeenCalled();
+      expect(fixture.readingMemory.enrichAnnotatePayload).not.toHaveBeenCalled();
+      expect(fixture.readingMemory.saveAnnotateEntries).not.toHaveBeenCalled();
       expect(executionRows(fixture)).toHaveLength(0);
     } finally {
       if (previousE2e === undefined) delete process.env.YOMITOMO_E2E;
@@ -328,6 +364,31 @@ describe('executeAgentDistillationReviewTask', () => {
     });
   });
 
+  it('forwards fast review cancellation and does not record a cancelled fallback', async () => {
+    const reviewAgent = agent({ id: 'review_1', kind: 'review', username: 'reviewer' });
+    const fixture = taskFixture({ agents: [reviewAgent] });
+    const controller = new AbortController();
+    fixture.ai.runAgentDistillationReviewStructuredStream.mockImplementation(
+      async (_provider, _agent, _payload, _onItem, options) => {
+        expect(options?.signal).toBe(controller.signal);
+        controller.abort();
+        return reviewMessage(reviewAgent);
+      },
+    );
+
+    await expect(
+      executeAgentDistillationReviewTask(
+        fixture.context,
+        reviewPayload(reviewAgent),
+        vi.fn(),
+        controller.signal,
+      ),
+    ).rejects.toThrow('AGENT_TASK_CANCELLED');
+
+    expect(fixture.recorder.recordFastExecution).not.toHaveBeenCalled();
+    expect(executionRows(fixture)).toHaveLength(0);
+  });
+
   it('preserves runtime review events before the final runtime message', async () => {
     const reviewAgent = agent({ id: 'review_1', kind: 'review', username: 'reviewer' });
     const fixture = taskFixture({
@@ -406,12 +467,56 @@ describe('executeAgentAnnotationTask', () => {
 
     expect(result.annotations).toEqual([generatedAnnotation]);
     expect(events).toEqual([{ type: 'start' }, { type: 'item', annotation: generatedAnnotation }]);
-    expect(memoryMocks.saveAgentAnnotateReadingMemoryEntries).toHaveBeenCalledOnce();
+    expect(fixture.readingMemory.saveAnnotateEntries).toHaveBeenCalledOnce();
     await expectExecutionRecorded(fixture, {
       taskType: 'annotation',
       effectiveMode: 'fast_response',
       usage: { inputTokens: 12, outputTokens: 4, totalTokens: 16 },
     });
+  });
+
+  it('does not write memory or execution when cancelled before AI resolution', async () => {
+    const fixture = taskFixture();
+    const controller = new AbortController();
+    let resolveAi: ((value: TaskAiModule) => void) | undefined;
+    fixture.getAiModule.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveAi = resolve;
+        }),
+    );
+
+    const task = executeAgentAnnotationTask(
+      fixture.context,
+      annotatePayload(),
+      vi.fn(),
+      controller.signal,
+    );
+    controller.abort();
+    resolveAi?.(fixture.ai as unknown as TaskAiModule);
+
+    await expect(task).rejects.toThrow('AGENT_TASK_CANCELLED');
+
+    expect(fixture.readingMemory.enrichAnnotatePayload).not.toHaveBeenCalled();
+    expect(fixture.readingMemory.saveAnnotateEntries).not.toHaveBeenCalled();
+    expect(executionRows(fixture)).toHaveLength(0);
+  });
+
+  it('does not write memory or execution when cancelled after annotation generation', async () => {
+    const fixture = taskFixture();
+    const controller = new AbortController();
+    fixture.ai.runAgentAnnotateStream.mockImplementation(async () => {
+      controller.abort();
+      return { annotations: [] };
+    });
+
+    await expect(
+      executeAgentAnnotationTask(fixture.context, annotatePayload(), vi.fn(), controller.signal),
+    ).rejects.toThrow('AGENT_TASK_CANCELLED');
+
+    expect(fixture.readingMemory.saveAnnotateEntries).not.toHaveBeenCalled();
+    expect(fixture.recorder.recordFastExecution).not.toHaveBeenCalled();
+    expect(executionRows(fixture)).toHaveLength(0);
   });
 });
 
@@ -440,6 +545,13 @@ function taskFixture(
       executionEvents.push({ kind: 'fast', input });
     }),
   };
+  const readingMemory = {
+    executor: readingMemoryExecutor(),
+    enrichAnnotatePayload: vi.fn((payload: AgentAnnotatePayload) => payload),
+    enrichMessagePayload: vi.fn((payload: AgentMessagePayload) => payload),
+    saveAnnotateEntries: vi.fn(),
+    createMessageReadingContextSnapshot: vi.fn(),
+  };
   const persistence = {
     storeAgents: {
       readAgentRuntimeContext: vi.fn(async () => store),
@@ -457,6 +569,7 @@ function taskFixture(
     logError: vi.fn(),
     logInfo: vi.fn(),
     recorder,
+    readingMemory: readingMemory as AgentReadingMemoryPort,
   };
   return {
     ai,
@@ -465,6 +578,7 @@ function taskFixture(
     getAiModule,
     getPersistenceModules,
     persistence,
+    readingMemory,
     recorder,
   };
 }
@@ -487,6 +601,13 @@ function executionRows(fixture: ReturnType<typeof taskFixture>) {
 type ExecutionEvent =
   | { kind: 'fast'; input: AssistantExecutionRunInput }
   | { kind: 'runtime'; input: RuntimeExecutionRecord };
+
+function readingMemoryExecutor(): AgentReadingMemoryPort['executor'] {
+  return {
+    exec: vi.fn(),
+    prepare: vi.fn(),
+  } as unknown as AgentReadingMemoryPort['executor'];
+}
 
 function runtimeExecutionRow(input: RuntimeExecutionRecord): AssistantExecutionRunInput[] {
   const runtime = input.result.runtime;

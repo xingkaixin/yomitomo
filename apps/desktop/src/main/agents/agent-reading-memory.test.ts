@@ -7,11 +7,13 @@ import type {
   ReadingMemoryEntry,
   EpubBookIndex,
 } from '@yomitomo/shared';
+import type { ReadingMemorySqliteExecutor } from '../reading-memory/reading-memory-store';
 
 const memoryStore = vi.hoisted(() => ({
   appendReadingMemoryEntries: vi.fn(),
   buildReadingMemoryView: vi.fn(),
   readReadingMemoryEntries: vi.fn(),
+  searchReadingMemoryEntries: vi.fn(),
 }));
 
 vi.mock('../reading-memory/reading-memory-store', () => memoryStore);
@@ -19,6 +21,7 @@ vi.mock('../reading-memory/reading-memory-store', () => memoryStore);
 import {
   agentAnnotatePayloadWithReadingMemoryEntries,
   agentMessagePayloadWithReadingMemoryView,
+  createAgentReadingMemoryPort,
   saveAgentAnnotateReadingMemoryEntries,
 } from './agent-reading-memory';
 
@@ -27,6 +30,7 @@ describe('agent reading memory persistence', () => {
     memoryStore.appendReadingMemoryEntries.mockReset();
     memoryStore.buildReadingMemoryView.mockReset();
     memoryStore.readReadingMemoryEntries.mockReset();
+    memoryStore.searchReadingMemoryEntries.mockReset();
   });
 
   it('uses memory entries before legacy annotate payload memory', () => {
@@ -118,6 +122,7 @@ describe('agent reading memory persistence', () => {
   it('attaches an article section memory view for non-EPUB reading plans', () => {
     const logInfo = vi.fn();
     memoryStore.readReadingMemoryEntries.mockReturnValue([]);
+    memoryStore.searchReadingMemoryEntries.mockReturnValue([]);
     memoryStore.buildReadingMemoryView.mockReturnValue({
       articleId: 'article_1',
       viewType: 'article_section',
@@ -402,6 +407,71 @@ describe('agent reading memory persistence', () => {
         memorySummaryCount: 1,
         memoryTraceCount: 1,
       }),
+    );
+  });
+
+  it('uses one injected executor for annotation, fast message, and memory writes', () => {
+    const executor = {
+      exec: vi.fn(),
+      prepare: vi.fn(),
+    } as unknown as ReadingMemorySqliteExecutor;
+    const logger = { logError: vi.fn(), logInfo: vi.fn() };
+    const port = createAgentReadingMemoryPort({ executor, logger });
+    memoryStore.readReadingMemoryEntries.mockReturnValue([]);
+    memoryStore.buildReadingMemoryView.mockReturnValue({
+      articleId: 'article_1',
+      viewType: 'selection_thread',
+      viewKey: 'selection_thread:::2:6',
+      entries: [],
+      sourceEntryIds: [],
+      updatedAt: '2026-05-26T00:00:00.000Z',
+    });
+
+    port.enrichAnnotatePayload(annotatePayload());
+    port.enrichMessagePayload(messagePayload());
+    port.createMessageReadingContextSnapshot({ payload: messagePayload(), agentId: 'agent_1' });
+    port.saveAnnotateEntries({
+      agent: annotationAgent(),
+      payload: annotatePayload(),
+      result: annotateResult(),
+    });
+
+    expect(memoryStore.readReadingMemoryEntries).toHaveBeenCalledWith(
+      expect.objectContaining({ executor }),
+    );
+    expect(memoryStore.buildReadingMemoryView).toHaveBeenCalledWith(
+      expect.objectContaining({ executor }),
+    );
+    expect(memoryStore.appendReadingMemoryEntries).toHaveBeenCalledWith(
+      expect.any(Array),
+      executor,
+    );
+    expect(memoryStore.searchReadingMemoryEntries).toHaveBeenCalledWith(
+      expect.objectContaining({ executor }),
+    );
+  });
+
+  it('degrades a fast snapshot when injected memory lookup fails', () => {
+    const executor = {
+      exec: vi.fn(),
+      prepare: vi.fn(),
+    } as unknown as ReadingMemorySqliteExecutor;
+    const logger = { logError: vi.fn(), logInfo: vi.fn() };
+    const port = createAgentReadingMemoryPort({ executor, logger });
+    memoryStore.searchReadingMemoryEntries.mockImplementationOnce(() => {
+      throw new Error('snapshot read failed');
+    });
+
+    const snapshot = port.createMessageReadingContextSnapshot({
+      payload: messagePayload(),
+      agentId: 'agent_1',
+    });
+
+    expect(snapshot).toBeUndefined();
+    expect(logger.logError).toHaveBeenCalledWith(
+      'reading_context.snapshot_failed',
+      expect.any(Error),
+      expect.objectContaining({ articleId: 'article_1', agentId: 'agent_1' }),
     );
   });
 });

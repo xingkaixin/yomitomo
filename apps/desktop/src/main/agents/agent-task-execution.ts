@@ -13,7 +13,6 @@ import type {
 } from '@yomitomo/shared';
 import { makeId, normalizeAssistantExecutionMode, normalizeUiLanguage } from '@yomitomo/shared';
 import type { DesktopAiModule, DesktopMainIpcContext } from '../ipc/ipc';
-import { createAgentMessageReadingContextSnapshot } from '../assistant/assistant-reading-tools';
 import { distillationReviewMessagePayload } from './agent-distillation-proposals';
 import {
   pendingAgentComment,
@@ -22,11 +21,7 @@ import {
   type AgentRuntimeExecutionEvent,
 } from './agent-execution-projection';
 import { annotateResultUsage, type AssistantExecutionRecorder } from './agent-execution-recorder';
-import {
-  agentAnnotatePayloadWithReadingMemoryEntries,
-  agentMessagePayloadWithReadingMemoryView,
-  saveAgentAnnotateReadingMemoryEntries,
-} from './agent-reading-memory';
+import type { AgentReadingMemoryPort } from './agent-reading-memory';
 import {
   agentMessageRuntimeTaskType,
   agentNotFoundError,
@@ -70,6 +65,7 @@ export type AgentTaskExecutionContext = Pick<
     storeAgents: Pick<typeof import('../store/store-agents'), 'readAgentRuntimeContext'>;
   }>;
   recorder: AssistantExecutionRecorder;
+  readingMemory: AgentReadingMemoryPort;
 };
 
 export type AgentCommentExecutionEvent =
@@ -134,47 +130,57 @@ export async function executeAgentCommentTask(
     readingIntent: payload.readingIntent || comment.readingIntent,
   };
   emit({ type: 'start', comment });
-  const runtime = await runCommentRuntime({
-    ai,
-    provider,
-    agent,
+  const outcome = await runDeepThenFast({
     signal,
-    payload: payloadWithRoster,
-    requestedMode,
-    taskType,
-    onRuntimeEvent: (event) => applyRuntimeEvent(comment, event, emit),
-  });
-  context.recorder.recordRuntimeExecution({
-    result: runtime,
-    provider,
-    agent,
-    requestedMode,
-    taskType,
-    durationMs: context.elapsedMs(startedAt),
+    attemptRuntime: () =>
+      runCommentRuntime({
+        ai,
+        provider,
+        agent,
+        signal,
+        payload: payloadWithRoster,
+        readingMemoryExecutor: context.readingMemory.executor,
+        requestedMode,
+        taskType,
+        onRuntimeEvent: (event) => applyRuntimeEvent(comment, event, emit),
+      }),
+    recordRuntime: (runtime) =>
+      context.recorder.recordRuntimeExecution({
+        result: runtime,
+        provider,
+        agent,
+        requestedMode,
+        taskType,
+        durationMs: context.elapsedMs(startedAt),
+      }),
+    fastFallback: async () => {
+      throwIfAgentTaskCancelled(signal);
+      const fastInput = agentMessageFastInput(context, payloadWithRoster, agent.id);
+      throwIfAgentTaskCancelled(signal);
+      await ai.runAgentStream(
+        provider,
+        agent,
+        fastInput.payload,
+        (delta) => appendCommentText(comment, delta, emit),
+        { ...fastInput.options, signal },
+      );
+    },
+    recordFast: (failureReason) =>
+      recordFastExecution(
+        context,
+        agent,
+        provider,
+        taskType,
+        requestedMode,
+        failureReason,
+        context.elapsedMs(startedAt),
+      ),
   });
 
-  if (runtime.status === 'comment') {
-    if (!comment.content) appendCommentText(comment, runtime.comment.content, emit);
+  if (outcome.state === 'deep_final') {
+    if (!comment.content) appendCommentText(comment, outcome.result.comment.content, emit);
     return finalAgentComment(comment);
   }
-
-  const fastInput = agentMessageFastInput(context, payloadWithRoster, agent.id);
-  await ai.runAgentStream(
-    provider,
-    agent,
-    fastInput.payload,
-    (delta) => appendCommentText(comment, delta, emit),
-    { ...fastInput.options, signal },
-  );
-  recordFastExecution(
-    context,
-    agent,
-    provider,
-    taskType,
-    requestedMode,
-    runtime.failureReason,
-    context.elapsedMs(startedAt),
-  );
   return finalAgentComment(comment);
 }
 
@@ -199,59 +205,68 @@ export async function executeAgentDistillationReviewTask(
   });
   const payloadWithRoster = distillationReviewMessagePayload(payload, store.agents, store.settings);
   emit({ type: 'start', message });
-  const runtime = await runDistillationReviewRuntime({
-    ai,
-    provider,
-    agent,
+  const outcome = await runDeepThenFast({
     signal,
-    payload: payloadWithRoster,
-    requestedMode,
-    onRuntimeEvent: (event) => {
-      if (event.type === 'distillation_review_item') {
-        appendDistillationReviewItem(message, event.item);
-        emit({ type: 'item', item: event.item });
-        return;
-      }
-      applyRuntimeEvent(message, event, emit);
-    },
-  });
-  context.recorder.recordRuntimeExecution({
-    result: runtime,
-    provider,
-    agent,
-    requestedMode,
-    taskType: 'distillation_review',
-    durationMs: context.elapsedMs(startedAt),
+    attemptRuntime: () =>
+      runDistillationReviewRuntime({
+        ai,
+        provider,
+        agent,
+        signal,
+        payload: payloadWithRoster,
+        readingMemoryExecutor: context.readingMemory.executor,
+        requestedMode,
+        onRuntimeEvent: (event) => {
+          if (event.type === 'distillation_review_item') {
+            appendDistillationReviewItem(message, event.item);
+            emit({ type: 'item', item: event.item });
+            return;
+          }
+          applyRuntimeEvent(message, event, emit);
+        },
+      }),
+    recordRuntime: (runtime) =>
+      context.recorder.recordRuntimeExecution({
+        result: runtime,
+        provider,
+        agent,
+        requestedMode,
+        taskType: 'distillation_review',
+        durationMs: context.elapsedMs(startedAt),
+      }),
+    fastFallback: () =>
+      structuredFastDistillationReview(
+        context,
+        ai,
+        provider,
+        agent,
+        payloadWithRoster,
+        signal,
+        (item) => {
+          appendDistillationReviewItem(message, item);
+          emit({ type: 'item', item });
+        },
+      ),
+    recordFast: (failureReason) =>
+      recordFastExecution(
+        context,
+        agent,
+        provider,
+        'distillation_review',
+        requestedMode,
+        failureReason,
+        context.elapsedMs(startedAt),
+      ),
   });
 
-  if (runtime.status === 'message') {
-    applyRuntimeDistillationReview(message, runtime.message, emit);
+  if (outcome.state === 'deep_final') {
+    applyRuntimeDistillationReview(message, outcome.result.message, emit);
     return message;
   }
-
-  const fastMessage = await structuredFastDistillationReview(
-    context,
-    ai,
-    provider,
-    agent,
-    payloadWithRoster,
-    (item) => {
-      appendDistillationReviewItem(message, item);
-      emit({ type: 'item', item });
-    },
-  );
+  const fastMessage = outcome.result;
   message.content = fastMessage.content;
   message.items = fastMessage.items || message.items || [];
   message.proposals = fastMessage.proposals || [];
-  recordFastExecution(
-    context,
-    agent,
-    provider,
-    'distillation_review',
-    requestedMode,
-    runtime.failureReason,
-    context.elapsedMs(startedAt),
-  );
   return message;
 }
 
@@ -261,22 +276,23 @@ export async function executeAgentAnnotationTask(
   emit: (event: AgentAnnotationExecutionEvent) => void,
   signal?: AbortSignal,
 ): Promise<AgentAnnotateResult> {
+  throwIfAgentTaskCancelled(signal);
   const ai = await context.getAiModule();
+  throwIfAgentTaskCancelled(signal);
   const store = await readAgentRuntimeStore(context);
+  throwIfAgentTaskCancelled(signal);
   const agent = findAnnotationAgent(store.agents, payload.agentId, payload.agentUsername);
   if (!agent) throw annotationAgentNotFoundError(payload.agentUsername);
   const provider = await taskProvider(context, store.providers, store.settings, 'readingAssistant');
+  throwIfAgentTaskCancelled(signal);
   const startedAt = performance.now();
   const annotations: ArticleRecord['annotations'] = [];
   emit({ type: 'start' });
-  const payloadWithMemory = agentAnnotatePayloadWithReadingMemoryEntries({
-    payload: {
-      ...payload,
-      uiLanguage: normalizeUiLanguage(store.settings.uiLanguage),
-    },
-    logInfo: context.logInfo,
-    logError: context.logError,
+  const payloadWithMemory = context.readingMemory.enrichAnnotatePayload({
+    ...payload,
+    uiLanguage: normalizeUiLanguage(store.settings.uiLanguage),
   });
+  throwIfAgentTaskCancelled(signal);
   const requestedMode = normalizeAssistantExecutionMode(store.settings.assistantExecutionMode);
   const result = await ai.runAgentAnnotateStream(
     provider,
@@ -288,14 +304,13 @@ export async function executeAgentAnnotationTask(
     },
     signal,
   );
-  // A cancelled task must not leave reading memory behind for work the user abandoned.
-  if (signal?.aborted) throw new Error('AGENT_TASK_CANCELLED');
-  saveAgentAnnotateReadingMemoryEntries({
+  throwIfAgentTaskCancelled(signal);
+  context.readingMemory.saveAnnotateEntries({
     agent,
     payload: payloadWithMemory,
     result,
-    logError: context.logError,
   });
+  throwIfAgentTaskCancelled(signal);
   recordFastExecution(
     context,
     agent,
@@ -309,23 +324,46 @@ export async function executeAgentAnnotationTask(
   return { annotations, readingMemory: result.readingMemory };
 }
 
+type RuntimeAttempt<RuntimeResult, FinalResult extends RuntimeResult> =
+  | { state: 'not_selected'; failureReason: string; result: RuntimeResult }
+  | { state: 'skipped'; failureReason: string; result: RuntimeResult }
+  | { state: 'deep_final'; result: FinalResult }
+  | { state: 'deep_fallback'; failureReason: string; result: RuntimeResult };
+
+type DeepThenFastOutcome<FinalResult, FastResult> =
+  | { state: 'deep_final'; result: FinalResult }
+  | { state: 'fast'; result: FastResult };
+
 async function runCommentRuntime(input: {
   ai: AgentTaskAiModule;
   provider: LlmProvider;
   agent: Agent;
   signal?: AbortSignal;
   payload: AgentMessagePayload;
+  readingMemoryExecutor: AgentReadingMemoryPort['executor'];
   requestedMode: ReturnType<typeof normalizeAssistantExecutionMode>;
   taskType: ReturnType<typeof agentMessageRuntimeTaskType>;
   onRuntimeEvent: (event: AssistantRuntimeStreamEvent) => void;
-}): Promise<ThreadReplyRuntimeResult> {
+}): Promise<
+  RuntimeAttempt<ThreadReplyRuntimeResult, Extract<ThreadReplyRuntimeResult, { status: 'comment' }>>
+> {
   const selectedRuntime = selectAgentRuntime({
     requestedMode: input.requestedMode,
     taskType: input.taskType,
     supportedTaskTypes: ['thread_reply', 'create_thought'],
   });
-  if (selectedRuntime) return runAgentMessageWithToolLoop({ ...input, taskType: selectedRuntime });
-  return { status: 'fallback', failureReason: 'runtime_not_applicable' };
+  if (!selectedRuntime) {
+    return {
+      state: 'not_selected',
+      failureReason: 'runtime_not_applicable',
+      result: { status: 'fallback', failureReason: 'runtime_not_applicable' },
+    };
+  }
+  const result = await runAgentMessageWithToolLoop({ ...input, taskType: selectedRuntime });
+  if (result.status === 'comment') return { state: 'deep_final', result };
+  return result.runtime
+    ? { state: 'deep_fallback', failureReason: result.failureReason, result }
+    : { state: 'skipped', failureReason: result.failureReason, result };
 }
 
 async function runDistillationReviewRuntime(input: {
@@ -334,16 +372,60 @@ async function runDistillationReviewRuntime(input: {
   agent: Agent;
   signal?: AbortSignal;
   payload: AgentMessagePayload;
+  readingMemoryExecutor: AgentReadingMemoryPort['executor'];
   requestedMode: ReturnType<typeof normalizeAssistantExecutionMode>;
   onRuntimeEvent: (event: AssistantRuntimeStreamEvent) => void;
-}): Promise<DistillationReviewRuntimeResult> {
+}): Promise<
+  RuntimeAttempt<
+    DistillationReviewRuntimeResult,
+    Extract<DistillationReviewRuntimeResult, { status: 'message' }>
+  >
+> {
   const selectedRuntime = selectAgentRuntime({
     requestedMode: input.requestedMode,
     taskType: 'distillation_review',
     supportedTaskTypes: ['distillation_review'],
   });
-  if (selectedRuntime) return runAgentMessageWithToolLoop({ ...input, taskType: selectedRuntime });
-  return { status: 'fallback', failureReason: 'runtime_not_applicable' };
+  if (!selectedRuntime) {
+    return {
+      state: 'not_selected',
+      failureReason: 'runtime_not_applicable',
+      result: { status: 'fallback', failureReason: 'runtime_not_applicable' },
+    };
+  }
+  const result = await runAgentMessageWithToolLoop({ ...input, taskType: selectedRuntime });
+  if (result.status === 'message') return { state: 'deep_final', result };
+  return result.runtime
+    ? { state: 'deep_fallback', failureReason: result.failureReason, result }
+    : { state: 'skipped', failureReason: result.failureReason, result };
+}
+
+async function runDeepThenFast<
+  RuntimeResult,
+  FinalResult extends RuntimeResult,
+  FastResult,
+>(input: {
+  signal?: AbortSignal;
+  attemptRuntime: () => Promise<RuntimeAttempt<RuntimeResult, FinalResult>>;
+  recordRuntime: (result: RuntimeResult) => void;
+  fastFallback: (failureReason: string) => Promise<FastResult>;
+  recordFast: (failureReason: string) => void;
+}): Promise<DeepThenFastOutcome<FinalResult, FastResult>> {
+  throwIfAgentTaskCancelled(input.signal);
+  const attempt = await input.attemptRuntime();
+  throwIfAgentTaskCancelled(input.signal);
+  input.recordRuntime(attempt.result);
+  if (attempt.state === 'deep_final') return { state: 'deep_final', result: attempt.result };
+
+  throwIfAgentTaskCancelled(input.signal);
+  const result = await input.fastFallback(attempt.failureReason);
+  throwIfAgentTaskCancelled(input.signal);
+  input.recordFast(attempt.failureReason);
+  return { state: 'fast', result };
+}
+
+function throwIfAgentTaskCancelled(signal: AbortSignal | undefined) {
+  if (signal?.aborted) throw new Error('AGENT_TASK_CANCELLED');
 }
 
 function finalAgentComment(comment: Comment): Comment {
@@ -398,16 +480,16 @@ async function structuredFastDistillationReview(
   provider: LlmProvider,
   agent: Agent,
   payload: AgentMessagePayload,
+  signal: AbortSignal | undefined,
   onItem: (item: AnnotationDistillationReviewItem) => void,
 ) {
+  throwIfAgentTaskCancelled(signal);
   const fastInput = agentMessageFastInput(context, payload, agent.id);
-  return ai.runAgentDistillationReviewStructuredStream(
-    provider,
-    agent,
-    fastInput.payload,
-    onItem,
-    fastInput.options,
-  );
+  throwIfAgentTaskCancelled(signal);
+  return ai.runAgentDistillationReviewStructuredStream(provider, agent, fastInput.payload, onItem, {
+    ...fastInput.options,
+    signal,
+  });
 }
 
 async function readAgentRuntimeStore(context: AgentTaskExecutionContext) {
@@ -420,33 +502,16 @@ function agentMessageFastInput(
   payload: AgentMessagePayload,
   agentId: string,
 ) {
-  const payloadWithMemory = agentMessagePayloadWithReadingMemoryView({
-    payload,
-    logInfo: context.logInfo,
-    logError: context.logError,
-  });
+  const payloadWithMemory = context.readingMemory.enrichMessagePayload(payload);
   return {
     payload: payloadWithMemory,
     options: {
-      readingContext: safeAgentMessageReadingContextSnapshot(context, payload, agentId),
+      readingContext: context.readingMemory.createMessageReadingContextSnapshot({
+        payload,
+        agentId,
+      }),
     },
   };
-}
-
-function safeAgentMessageReadingContextSnapshot(
-  context: AgentTaskExecutionContext,
-  payload: AgentMessagePayload,
-  agentId: string,
-) {
-  try {
-    return createAgentMessageReadingContextSnapshot({ payload, agentId });
-  } catch (error) {
-    context.logError('reading_context.snapshot_failed', error, {
-      articleId: payload.article.id,
-      agentId,
-    });
-    return undefined;
-  }
 }
 
 function recordFastExecution(

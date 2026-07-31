@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { AssistantRuntimeResult, AssistantRuntimeStreamEvent } from '@yomitomo/ai';
 import type { Agent, AgentMessagePayload, LlmProvider } from '@yomitomo/shared';
 import { createTextAnchor } from '@yomitomo/shared';
+import type { ReadingMemorySqliteExecutor } from '../reading-memory/reading-memory-store';
 import { runAgentMessageWithToolLoop } from './agent-message-runtime';
 
 describe('agent message tool loop', () => {
@@ -14,6 +15,7 @@ describe('agent message tool loop', () => {
       provider: provider(),
       agent: agent(),
       payload: payload(),
+      readingMemoryExecutor: readingMemoryExecutor(),
     });
 
     expect(result.status).toBe('comment');
@@ -49,10 +51,40 @@ describe('agent message tool loop', () => {
       provider: provider(),
       agent: agent(),
       payload: payload(),
+      readingMemoryExecutor: readingMemoryExecutor(),
       onRuntimeEvent,
     });
 
     expect(onRuntimeEvent).toHaveBeenCalledWith({ type: 'text_delta', delta: '流式片段' });
+  });
+
+  it('passes the injected executor to deep reading tools', async () => {
+    const executor = {
+      exec: vi.fn(),
+      prepare: vi.fn(() => ({
+        run: vi.fn(),
+        get: vi.fn(),
+        all: vi.fn(() => []),
+      })),
+    } as unknown as ReadingMemorySqliteExecutor;
+    const task = vi.fn(async (input) => {
+      await input.toolExecutor({
+        name: 'search_article_memory',
+        input: { query: '目标观点' },
+      });
+      return taskSuccess(threadReplyRuntime());
+    });
+
+    await runAgentMessageWithToolLoop({
+      ai: aiModule(task),
+      taskType: 'thread_reply',
+      provider: provider(),
+      agent: agent(),
+      payload: payload(),
+      readingMemoryExecutor: executor,
+    });
+
+    expect(executor.prepare).toHaveBeenCalled();
   });
 
   it('falls back when the article id is missing', async () => {
@@ -66,6 +98,7 @@ describe('agent message tool loop', () => {
         ...payload(),
         article: { ...payload().article, id: undefined },
       },
+      readingMemoryExecutor: readingMemoryExecutor(),
     });
 
     expect(result).toEqual({
@@ -84,6 +117,7 @@ describe('agent message tool loop', () => {
       provider: provider(),
       agent: agent(),
       payload: { ...payload(), responseMode: 'create_thought' },
+      readingMemoryExecutor: readingMemoryExecutor(),
     });
 
     expect(result.status).toBe('comment');
@@ -106,6 +140,7 @@ describe('agent message tool loop', () => {
       provider: provider(),
       agent: { ...agent(), kind: 'review' },
       payload: { ...payload(), responseMode: 'distillation_review' },
+      readingMemoryExecutor: readingMemoryExecutor(),
     });
 
     expect(result.status).toBe('message');
@@ -241,6 +276,17 @@ function agent(): Agent {
     soul: '克制地阅读。',
     createdAt: '2026-05-26T00:00:00.000Z',
     updatedAt: '2026-05-26T00:00:00.000Z',
+  };
+}
+
+function readingMemoryExecutor(): ReadingMemorySqliteExecutor {
+  return {
+    exec: () => undefined,
+    prepare: () => ({
+      run: () => undefined,
+      get: () => undefined,
+      all: () => [],
+    }),
   };
 }
 
