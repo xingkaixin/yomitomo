@@ -7,17 +7,12 @@ import type {
 import { makeId } from '@yomitomo/shared';
 import * as schema from '../db/schema';
 import type { StoreDatabase, StoreExecutor } from '../store/store-db';
+import type { ArticleTranslationIdentity } from './article-translation-identity';
 
 type ArticleTranslationRow = typeof schema.articleTranslations.$inferSelect;
 type ArticleTranslationSegmentRow = typeof schema.articleTranslationSegments.$inferSelect;
 
-export type ArticleTranslationKey = {
-  articleId: string;
-  sourceId: string;
-  sourceContentHash: string;
-  targetLanguage: string;
-  promptVersion: number;
-};
+export type ArticleTranslationKey = ArticleTranslationIdentity;
 
 export type ArticleTranslationSegmentInitializer = {
   sourceBlockId: string;
@@ -27,7 +22,7 @@ export type ArticleTranslationSegmentInitializer = {
   retranslate: boolean;
 };
 
-export type ArticleTranslationInitializeInput = ArticleTranslationKey & {
+export type ArticleTranslationInitializeInput = ArticleTranslationIdentity & {
   providerId?: string;
   providerName?: string;
   modelName?: string;
@@ -50,13 +45,7 @@ const SEGMENT_WRITE_CHUNK_SIZE = 200;
 
 export function readCurrentArticleTranslationRows(
   database: StoreExecutor,
-  input: {
-    articleId: string;
-    sourceId: string;
-    sourceContentHash: string;
-    targetLanguage: string;
-    promptVersion: number;
-  },
+  input: ArticleTranslationIdentity,
 ): ArticleTranslation | null {
   const row = database
     .select()
