@@ -82,6 +82,11 @@ const databaseLifecycleChannels = desktopIpcInvokeChannelsWithFlag(
   'databaseLifecycle',
 );
 
+const registeredDesktopIpcChannels = new Set<DesktopIpcInvokeChannel>();
+const desktopIpcInvokeChannels = Object.keys(
+  desktopIpcInvokeDescriptors,
+) as DesktopIpcInvokeChannel[];
+
 let appLockGuardContext: DesktopIpcAppLockGuardContext | null = null;
 
 export function configureDesktopIpcAppLockGuardContext(
@@ -107,6 +112,19 @@ export function handleDesktopIpc<Channel extends DesktopIpcInvokeChannel>(
       return { ok: false, error: serializeDesktopIpcError(error) };
     }
   });
+  registeredDesktopIpcChannels.add(channel);
+}
+
+export function assertDesktopIpcRegistrationComplete() {
+  const missingChannels = desktopIpcInvokeChannels
+    .filter((channel) => !registeredDesktopIpcChannels.has(channel))
+    .toSorted();
+  if (missingChannels.length === 0) return;
+  throw new Error(`Missing desktop IPC handlers: ${missingChannels.join(', ')}`);
+}
+
+export function resetDesktopIpcRegistrationsForTest() {
+  registeredDesktopIpcChannels.clear();
 }
 
 export async function assertDesktopIpcAppLockUnlocked(context: DesktopIpcAppLockGuardContext) {

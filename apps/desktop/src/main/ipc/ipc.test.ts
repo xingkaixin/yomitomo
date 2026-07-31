@@ -1,26 +1,41 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { desktopIpcErrorCodes, type DesktopIpcInvokeEnvelope } from '../../ipc-errors';
-import { MAX_PDF_IMPORT_BYTES, type ArticleImportUrlInput } from '../../ipc-contract';
+import {
+  desktopIpcInvokeDescriptors,
+  MAX_PDF_IMPORT_BYTES,
+  type ArticleImportUrlInput,
+} from '../../ipc-contract';
 import {
   MAX_TEXT_IMPORT_BATCH_BYTES,
   MAX_TEXT_IMPORT_BODY_CHARS,
   MAX_TEXT_IMPORT_BYTES,
 } from '../../ipc/article-import-boundary';
 import { desktopIpcInvokeSchemaChannels } from '../../ipc-schemas';
-import { handleDesktopIpc } from './ipc';
+import {
+  assertDesktopIpcRegistrationComplete,
+  handleDesktopIpc,
+  resetDesktopIpcRegistrationsForTest,
+} from './ipc';
 
-const ipcHandlers = vi.hoisted(() => new Map<string, (...args: unknown[]) => unknown>());
+const ipcState = vi.hoisted(() => {
+  const handlers = new Map<string, (...args: unknown[]) => unknown>();
+  return {
+    handlers,
+    handle: vi.fn((channel: string, handler: (...args: unknown[]) => unknown) => {
+      handlers.set(channel, handler);
+    }),
+  };
+});
 
 vi.mock('electron', () => ({
   ipcMain: {
-    handle: vi.fn((channel: string, handler: (...args: unknown[]) => unknown) => {
-      ipcHandlers.set(channel, handler);
-    }),
+    handle: ipcState.handle,
   },
 }));
 
 beforeEach(() => {
-  ipcHandlers.clear();
+  ipcState.handlers.clear();
+  resetDesktopIpcRegistrationsForTest();
 });
 
 describe('handleDesktopIpc', () => {
@@ -156,6 +171,27 @@ describe('handleDesktopIpc', () => {
     expect(desktopIpcInvokeSchemaChannels).toContain('article:import-url');
     expect(desktopIpcInvokeSchemaChannels).not.toContain('settings:save');
   });
+
+  it('reports every missing declared handler in stable order', () => {
+    handleDesktopIpc('url:open', async () => undefined);
+
+    expect(() => assertDesktopIpcRegistrationComplete()).toThrow(
+      `Missing desktop IPC handlers: ${missingDesktopIpcHandlers('url:open')}`,
+    );
+  });
+
+  it('records a channel only after Electron accepts its handler', () => {
+    ipcState.handle.mockImplementationOnce(() => {
+      throw new Error('registration failed');
+    });
+
+    expect(() => handleDesktopIpc('url:open', async () => undefined)).toThrow(
+      'registration failed',
+    );
+    expect(() => assertDesktopIpcRegistrationComplete()).toThrow(
+      `Missing desktop IPC handlers: ${missingDesktopIpcHandlers()}`,
+    );
+  });
 });
 
 function textImportFiles(totalBytes: number) {
@@ -169,7 +205,14 @@ function textImportFiles(totalBytes: number) {
 }
 
 async function invokeRegisteredHandler(channel: string, ...args: unknown[]) {
-  const handler = ipcHandlers.get(channel);
+  const handler = ipcState.handlers.get(channel);
   if (!handler) throw new Error(`${channel} handler was not registered`);
   return (await handler({}, ...args)) as DesktopIpcInvokeEnvelope<unknown>;
+}
+
+function missingDesktopIpcHandlers(registeredChannel?: string) {
+  return Object.keys(desktopIpcInvokeDescriptors)
+    .filter((channel) => channel !== registeredChannel)
+    .toSorted()
+    .join(', ');
 }
