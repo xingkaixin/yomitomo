@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.14.0 - 2026-07-31
+
+### Features
+
+- Made article identity and source reading explicit across web articles, ebooks, PDFs, and text imports, so translation, progress, and annotations stay attached to the same source as it moves through the app. (#732, #733, #736, #770)
+- Deepened assistant task orchestration and unified the tool-loop entry point, keeping streamed work attached to the renderer that started it and making model enumeration bounded. (#738, #739, #755, #759, #772)
+
+### Performance
+
+- Paginated the SQLite catalog and reused lexical, chapter-prefix, text-range, and assistant indexes to reduce repeated scans in large libraries and long reading sessions. (#711, #712, #713, #726–#730, #761)
+- Batched WeRead snapshot writes per chunk and split reader utilities so PDF and ebook paths do less unrelated work. (#742, #756)
+
+### Fixes
+
+- Kept PDF selections anchored while scrolling, showed newly imported text without requiring a restart, and opened the update prompt before loading its release note. (#760, #765, #766)
+- Budgeted text-import and Kindle decoding work, validated event and stream IPC, authorized inbound IPC by window role, and made database restore lifecycle transitions explicit. (#751–#754, #709)
+- Made asynchronous logger writes, source lifecycle changes, and credential replacement recoverable instead of leaving partial state after a failure. (#706–#708)
+
+### Engineering
+
+- Centralized desktop IPC descriptors, preload domains, article reconciliation, app-session ownership, and app-lock reads to narrow cross-layer contracts. (#714, #720, #725, #744, #758, #767, #768)
+- Unified author identity, translation sessions, catalog item variants, annotation acceptance, and source-reader seams; removed unused package exports and migrated icons to Hugeicons. (#716, #718, #723, #735, #737, #740, #743, #745–#750, #771)
+- Expanded desktop UI/E2E characterization around PDF translation, article memory persistence, and preload-facing behavior, and clarified the release gate documentation. (#757, #762–#764)
+
 ## 0.13.0 - 2026-07-20
 
 ### Features
@@ -194,7 +218,6 @@
 
 - Stabilized reader chat streaming so in-flight assistant messages keep their session state and render consistently during updates. (#439)
 - Kept the copy label visible after copying a selection so feedback does not disappear immediately after the copy action. (#431)
-
 
 ## 0.7.1 - 2026-06-17
 

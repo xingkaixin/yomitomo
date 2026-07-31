@@ -5,6 +5,16 @@ sidebar:
   hidden: true
 ---
 
+## 0.14.0
+
+Released: 2026-07-31
+
+- Article identity and source reading are now explicit across web articles, ebooks, PDFs, and text imports, keeping translations, progress, and annotations attached to the right source.
+- Assistant task orchestration is deeper and streamed work stays with its originating window; paged catalog and reused indexes make large libraries and long reading sessions lighter.
+- Fixed PDF selection while scrolling, text imports that needed a restart, update-dialog timing, and import, Kindle-decoding, and IPC safety boundaries.
+
+[View 0.14.0 release notes](/en/changelogs/v0-14-0/)
+
 ## 0.13.0
 
 Released: 2026-07-20

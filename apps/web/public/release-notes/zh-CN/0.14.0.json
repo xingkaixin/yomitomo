@@ -1,0 +1,35 @@
+{
+  "version": "0.14.0",
+  "highlights": [
+    {
+      "type": "changed",
+      "title": "每种来源都认得同一篇文章",
+      "description": "网页文章、电子书、PDF 和文本导入现在共享清晰的来源身份，翻译、阅读进度和批注不会因为内容换了入口就跑到别处。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "助手任务更连贯",
+      "description": "深入查证、批注和追问等流式任务会留在发起它的窗口里，模型选择也更克制，长任务不再互相串台。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "大书库打开更轻快",
+      "description": "目录改为分页加载，并复用阅读和助手索引。书越多、文章越长，启动和查找时越能感到差别。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "PDF 选区不会随滚动漂移",
+      "description": "阅读 PDF 时滚动页面，选区仍会贴在原来的文字上；文本导入完成后也会立即出现在书库，不必重启应用。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "导入与同步失败更容易恢复",
+      "description": "文本和 Kindle 导入受到工作量保护，阅读进度、日志、来源变更与凭据替换在失败后会保留可恢复状态。",
+      "audience": "settings"
+    }
+  ]
+}
