@@ -11,9 +11,9 @@ import {
   readCurrentArticleTranslationRows,
   updateArticleTranslationSegmentRows,
   type ArticleTranslationInitializeInput,
-  type ArticleTranslationKey,
   type ArticleTranslationSegmentUpdateInput,
 } from './article-translation-repository';
+import type { ArticleTranslationIdentity } from './article-translation-identity';
 import { createArticleTranslationRuntime } from './article-translation-runtime';
 
 const routingMocks = vi.hoisted(() => ({ taskProvider: vi.fn() }));
@@ -154,6 +154,18 @@ describe('article translation runtime', () => {
     expect(harness.translateBlocks).toHaveBeenCalledTimes(2);
     expect(harness.calls.initialize).toBe(1);
   });
+
+  it('does not reuse a translation after the source content changes', async () => {
+    const harness = translationHarness(1);
+
+    await harness.runtime.translate(translateRequest(1), () => {});
+    harness.changeContentHash('updated-ebook-hash');
+    await harness.runtime.translate(translateRequest(1), () => {});
+
+    expect(harness.translateBlocks).toHaveBeenCalledTimes(2);
+    expect(harness.calls.initialize).toBe(2);
+    expect(harness.countTranslations()).toBe(2);
+  });
 });
 
 function translationHarness(
@@ -171,6 +183,7 @@ INSERT INTO articles (
 );
 `);
   const database = drizzle(sqlite, { schema });
+  let article = ebookArticle(blockCount);
   const calls = { initialize: 0, updateSegment: 0, finalize: 0 };
 
   const translateBlocks = vi.fn(async (input: { blocks: { id: string; text: string }[] }) => ({
@@ -199,8 +212,8 @@ INSERT INTO articles (
         }),
       },
       storeArticles: {
-        readArticle: async () => ebookArticle(blockCount),
-        readCurrentArticleTranslation: async (key: ArticleTranslationKey) =>
+        readArticle: async () => article,
+        readCurrentArticleTranslation: async (key: ArticleTranslationIdentity) =>
           readCurrentArticleTranslationRows(database, key),
         initializeArticleTranslation: async (input: ArticleTranslationInitializeInput) => {
           calls.initialize += 1;
@@ -215,7 +228,7 @@ INSERT INTO articles (
           return finalizeArticleTranslationRows(database, input);
         },
         deleteCurrentArticleTranslation: async (
-          key: ArticleTranslationKey,
+          key: ArticleTranslationIdentity,
         ): Promise<ArticleTranslation | null> => {
           const translation = readCurrentArticleTranslationRows(database, key);
           if (!translation) return null;
@@ -227,6 +240,9 @@ INSERT INTO articles (
   });
 
   return {
+    changeContentHash: (contentHash: string) => {
+      article = { ...article, contentHash };
+    },
     calls,
     countTranslations: () =>
       (

@@ -11,9 +11,12 @@ import { hashText } from '@yomitomo/shared';
 import { taskProvider } from '../agents/agent-runtime-routing';
 import type { DesktopAiModule } from '../ipc/ipc';
 import {
-  articleTranslationSessionKey,
+  articleTranslationIdentityKey,
+  resolveArticleTranslationIdentity,
+  type ArticleTranslationIdentity,
+} from './article-translation-identity';
+import {
   createArticleTranslationSessions,
-  type ArticleTranslationSessionKey,
   type ArticleTranslationSessionSignal,
 } from './article-translation-session';
 
@@ -27,7 +30,6 @@ type ArticlePersistence = Pick<
   | 'updateArticleTranslationSegment'
 >;
 type ArticleTranslationBlock = ReturnType<typeof extractWebArticleTranslationBlocks>[number];
-type ArticleTranslationKey = ArticleTranslationSessionKey;
 type ArticleTranslationSource = ReturnType<typeof articleTranslationSource>;
 type TranslationProvider = Awaited<ReturnType<typeof taskProvider>>;
 
@@ -45,7 +47,6 @@ export type ArticleTranslationRuntimeContext = {
   }>;
 };
 
-const ARTICLE_TRANSLATION_SOURCE_ID = 'article';
 const E2E_FAKE_TRANSLATION_PROVIDER_BASE_URL = 'https://e2e.invalid/yomitomo-ai';
 const TRANSLATION_CONCURRENCY = 3;
 
@@ -75,15 +76,14 @@ async function readCurrentArticleTranslation(
   const article = await articlePersistence.readArticle(input.articleId);
   if (!article) return null;
   const store = await agentRuntimePersistence.readAgentRuntimeContext();
-  const targetLanguage = translationTargetLanguage(input.targetLanguage, store.settings);
-  const sourceId = articleTranslationSourceId(article, input.sourceId);
-  return articlePersistence.readCurrentArticleTranslation({
-    articleId: article.id,
-    sourceId,
-    sourceContentHash: article.contentHash,
-    targetLanguage,
+  const identity = resolveArticleTranslationIdentity({
+    article,
+    requestedSourceId: input.sourceId,
+    requestedTargetLanguage: input.targetLanguage,
+    settings: store.settings,
     promptVersion: aiModule.bilingualTranslationPromptVersion,
   });
+  return articlePersistence.readCurrentArticleTranslation(identity);
 }
 
 async function translateArticle(
@@ -97,23 +97,22 @@ async function translateArticle(
   const aiModule = await context.getAiModule();
   const article = await articlePersistence.readArticle(input.articleId);
   if (!article) throw new Error('ARTICLE_NOT_FOUND');
-  const source = articleTranslationSource(article, input);
-
   const store = await agentRuntimePersistence.readAgentRuntimeContext();
-  const key = {
-    articleId: article.id,
-    sourceId: source.sourceId,
-    sourceContentHash: article.contentHash,
-    targetLanguage: translationTargetLanguage(input.targetLanguage, store.settings),
+  const identity = resolveArticleTranslationIdentity({
+    article,
+    requestedSourceId: input.sourceId,
+    requestedTargetLanguage: input.targetLanguage,
+    settings: store.settings,
     promptVersion: aiModule.bilingualTranslationPromptVersion,
-  };
+  });
+  const source = articleTranslationSource(article, input, identity.sourceId);
 
-  return sessions.run(articleTranslationSessionKey(key), (signal) =>
+  return sessions.run(articleTranslationIdentityKey(identity), (signal) =>
     runTranslationSession({
       aiModule,
       articlePersistence,
       input,
-      key,
+      key: identity,
       onUpdate,
       settings: store.settings,
       signal,
@@ -128,7 +127,7 @@ type TranslationSessionInput = {
   aiModule: Awaited<ReturnType<ArticleTranslationRuntimeContext['getAiModule']>>;
   articlePersistence: ArticlePersistence;
   input: ArticleTranslationRequest;
-  key: ArticleTranslationKey;
+  key: ArticleTranslationIdentity;
   onUpdate: (translation: ArticleTranslation) => void;
   settings: ArticleTranslationSettings;
   signal: ArticleTranslationSessionSignal;
@@ -267,21 +266,26 @@ async function deleteCurrentArticleTranslation(
   const article = await articlePersistence.readArticle(input.articleId);
   if (!article) return null;
   const store = await agentRuntimePersistence.readAgentRuntimeContext();
-  const key = {
-    articleId: article.id,
-    sourceId: articleTranslationSourceId(article, input.sourceId),
-    sourceContentHash: article.contentHash,
-    targetLanguage: translationTargetLanguage(input.targetLanguage, store.settings),
+  const identity = resolveArticleTranslationIdentity({
+    article,
+    requestedSourceId: input.sourceId,
+    requestedTargetLanguage: input.targetLanguage,
+    settings: store.settings,
     promptVersion: aiModule.bilingualTranslationPromptVersion,
-  };
+  });
 
-  const sessionKey = articleTranslationSessionKey(key);
+  const sessionKey = articleTranslationIdentityKey(identity);
   sessions.cancel(sessionKey);
-  return sessions.run(sessionKey, () => articlePersistence.deleteCurrentArticleTranslation(key));
+  return sessions.run(sessionKey, () =>
+    articlePersistence.deleteCurrentArticleTranslation(identity),
+  );
 }
 
-function articleTranslationSource(article: ArticleRecord, input: ArticleTranslationRequest) {
-  const sourceId = articleTranslationSourceId(article, input.sourceId);
+function articleTranslationSource(
+  article: ArticleRecord,
+  input: ArticleTranslationRequest,
+  sourceId: string,
+) {
   if (article.sourceType === 'web') {
     return {
       blocks: extractArticleTranslationBlocks(article),
@@ -298,19 +302,6 @@ function articleTranslationSource(article: ArticleRecord, input: ArticleTranslat
     summary: article.ebook?.metadata.description || article.excerpt,
     title: [article.title, chapter?.title].filter(Boolean).join(' — '),
   };
-}
-
-function articleTranslationSourceId(article: ArticleRecord, requestedSourceId?: string) {
-  if (article.sourceType === 'web') return ARTICLE_TRANSLATION_SOURCE_ID;
-  if (article.sourceType !== 'ebook') throw new Error('ARTICLE_TRANSLATION_SOURCE_UNSUPPORTED');
-  if (article.ebook?.metadata.format !== 'epub') throw new Error('EBOOK_TRANSLATION_EPUB_ONLY');
-
-  const sourceId = requestedSourceId?.trim();
-  if (!sourceId) throw new Error('EBOOK_TRANSLATION_CHAPTER_REQUIRED');
-  if (!ebookTranslationChapter(article, sourceId)) {
-    throw new Error('EBOOK_TRANSLATION_CHAPTER_NOT_FOUND');
-  }
-  return sourceId;
 }
 
 function ebookTranslationChapter(article: ArticleRecord, sourceId: string) {
@@ -357,14 +348,6 @@ function e2eFakeTranslationResult(
     inputTokens: 0,
     outputTokens: 0,
   };
-}
-
-function translationTargetLanguage(
-  requested: string | undefined,
-  settings: ArticleTranslationSettings,
-) {
-  const value = requested?.trim() || settings.bilingualTranslationTargetLanguage?.trim() || 'zh-CN';
-  return value === 'en' || value.toLowerCase() === 'english' ? 'English' : '简体中文';
 }
 
 type ArticleTranslationSettings = {
