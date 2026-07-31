@@ -1574,10 +1574,7 @@ describe('ReadingLibrary home', () => {
     fireEvent.pointerDown(pageSizeOption, { pointerType: 'mouse' });
     fireEvent.click(pageSizeOption);
 
-    expect(onSaveSettings).toHaveBeenCalledWith({
-      libraryPageSize: 24,
-      themeId: 'ink-paper',
-    });
+    await waitFor(() => expect(onSaveSettings).toHaveBeenCalledWith({ libraryPageSize: 24 }));
   });
 
   it('marks pagination direction when moving between library pages', () => {

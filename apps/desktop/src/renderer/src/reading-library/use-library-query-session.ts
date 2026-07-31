@@ -7,7 +7,9 @@ import {
   createLibraryQuerySessionState,
   libraryQuerySessionReducer,
   normalizeLibraryPageSize,
+  type LibraryPageSize,
 } from './library-query-session';
+import { libraryPageSizePersistence } from './library-page-size-persistence';
 import { useLibraryCatalog } from './use-library-catalog';
 
 type UseLibraryQuerySessionOptions = {
@@ -67,6 +69,7 @@ export function useLibraryQuerySession({
   const knownCollectionIds = useMemo(() => new Set(collectionIds), [collectionIds]);
   const pageCount = Math.max(1, Math.ceil((catalog.result?.totalCount || 0) / state.pageSize));
   const externalPageSizeRef = useRef(normalizeLibraryPageSize(settings.libraryPageSize));
+  const latestPageSizeRef = useRef(normalizeLibraryPageSize(settings.libraryPageSize));
 
   useEffect(() => {
     librarySession.searchQuery = state.searchQuery;
@@ -89,8 +92,11 @@ export function useLibraryQuerySession({
 
   const externalPageSize = normalizeLibraryPageSize(settings.libraryPageSize);
   useEffect(() => {
+    libraryPageSizePersistence.observeConfirmed(externalPageSize);
     if (externalPageSizeRef.current === externalPageSize) return;
     externalPageSizeRef.current = externalPageSize;
+    if (libraryPageSizePersistence.hasPendingSave()) return;
+    latestPageSizeRef.current = externalPageSize;
     dispatch({ type: 'page-size-changed', pageSize: externalPageSize });
   }, [externalPageSize]);
 
@@ -115,20 +121,28 @@ export function useLibraryQuerySession({
   const changePage = useCallback((page: number) => {
     dispatch({ type: 'page-changed', page });
   }, []);
-  const changePageSize = useCallback(
-    (pageSize: number) => {
-      const nextPageSize = normalizeLibraryPageSize(pageSize);
-      dispatch({ type: 'page-size-changed', pageSize: nextPageSize });
-      void Promise.resolve(onSaveSettings({ ...settings, libraryPageSize: nextPageSize })).catch(
-        () => {
-          dispatch({
-            type: 'page-size-changed',
-            pageSize: normalizeLibraryPageSize(settings.libraryPageSize),
-          });
+  const queuePageSizeSave = useCallback(
+    (pageSize: LibraryPageSize) => {
+      libraryPageSizePersistence.enqueue(
+        pageSize,
+        () => onSaveSettings({ libraryPageSize: pageSize }),
+        (confirmedPageSize) => {
+          latestPageSizeRef.current = confirmedPageSize;
+          dispatch({ type: 'page-size-changed', pageSize: confirmedPageSize });
         },
       );
     },
-    [onSaveSettings, settings],
+    [onSaveSettings],
+  );
+  const changePageSize = useCallback(
+    (pageSize: number) => {
+      const nextPageSize = normalizeLibraryPageSize(pageSize);
+      if (nextPageSize === latestPageSizeRef.current) return;
+      latestPageSizeRef.current = nextPageSize;
+      dispatch({ type: 'page-size-changed', pageSize: nextPageSize });
+      queuePageSizeSave(nextPageSize);
+    },
+    [queuePageSizeSave],
   );
 
   const actions = useMemo(
