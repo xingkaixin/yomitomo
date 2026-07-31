@@ -14,7 +14,7 @@ import {
 import { isDesktopIpcErrorLike } from '../../../ipc-errors';
 
 import { elapsedMs, recordStartupTiming } from './app-utils';
-import { applyArticleStorePatch } from './app-article-store-actions';
+import { articleStorePatchCommit, useArticleStore } from './app-article-store';
 import {
   applyCollectionStorePatch,
   applyLibraryPinPatch,
@@ -34,6 +34,7 @@ export function useDesktopStoreState() {
     setStore(rendererStore);
     return rendererStore;
   }, []);
+  const articleStore = useArticleStore({ storeRef, applyStore });
 
   const applySettingsPatch = useCallback(
     (patch: SettingsStorePatch) => applyStore(applySettingsStorePatch(storeRef.current, patch)),
@@ -107,9 +108,7 @@ export function useDesktopStoreState() {
     const optionalDesktop = getOptionalDesktopApi();
     const offArticlePatched =
       optionalDesktop?.article?.onPatched?.((patch) => {
-        if (isAppLockSettingsLocked(storeRef.current.settings)) return;
-        const nextStore = applyArticleStorePatch(storeRef.current, patch);
-        applyStore(nextStore);
+        if (!articleStore.commit(articleStorePatchCommit(patch))) return;
         setStoreLoadError(null);
         setStoreLoaded(true);
       }) || (() => undefined);
@@ -135,7 +134,7 @@ export function useDesktopStoreState() {
       offArticlePatched();
       offStoreUpdated();
     };
-  }, [applyStore, refreshStore]);
+  }, [applyStore, articleStore, refreshStore]);
 
   return {
     store,
@@ -146,6 +145,7 @@ export function useDesktopStoreState() {
     refreshStore,
     applyStore,
     applySettingsPatch,
+    articleStore,
   };
 }
 

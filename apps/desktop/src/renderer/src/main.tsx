@@ -65,6 +65,7 @@ function App() {
     refreshStore,
     applyStore,
     applySettingsPatch,
+    articleStore,
   } = useDesktopStoreState();
   const appLockEnabled = Boolean(store.settings.appLockEnabled);
   const appLocked = Boolean(appLockEnabled && store.settings.appLockLocked);
@@ -94,7 +95,7 @@ function App() {
     changeAppI18nLanguage(storedUiLanguage);
   }, [appLocked, store.settings.uiLanguage, storeLoadError, storeLoaded]);
 
-  const articleActions = useAppArticleStoreActions({ storeRef, applyStore });
+  const articleActions = useAppArticleStoreActions({ articleStore });
   const {
     addCollectionMembers,
     createCollection,
@@ -243,6 +244,7 @@ function App() {
                 <ReadingLibrary
                   agents={store.agents}
                   articleActions={articleActions}
+                  articleStore={articleStore}
                   articles={store.articles}
                   collectionMembers={store.collectionMembers}
                   collections={store.collections}

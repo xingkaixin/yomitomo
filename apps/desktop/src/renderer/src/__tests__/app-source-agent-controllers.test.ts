@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { Annotation, ArticleRecord, PublicAgent } from '@yomitomo/shared';
+import type {
+  Annotation,
+  ArticleRecord,
+  ArticleSummaryRecord,
+  PublicAgent,
+} from '@yomitomo/shared';
 import { buildAgentAnnotationRequestInput } from '../source/bookcase/app-source-agent-request';
 import { createEbookSourceReaderController } from '../source/ebook/app-source-bookcase-ebook-controller';
 import { createPdfiumSourceReaderController } from '../source/pdfium/app-source-bookcase-pdfium-controller';
@@ -67,6 +72,52 @@ const surface = {
 };
 
 describe('source agent annotation controllers', () => {
+  it('keeps the optimistic Web annotation when persistence returns a summary', async () => {
+    const applyAnnotations = vi.fn();
+    const openAnnotation = vi.fn();
+    const visibleSurface = {
+      annotations: () => [],
+      applyAnnotations,
+      openAnnotation,
+    };
+    const persisted: ArticleAgentAnnotationMergeResult = {
+      activeId: annotation.id,
+      patch: {
+        type: 'article-upsert',
+        article: articleSummary(currentArticle.id),
+      },
+    };
+    const controller = createWebSourceReaderController({
+      currentArticleText: () => article.text,
+      enqueueAgentAnnotation: vi.fn(),
+      finishVirtualReading: vi.fn(),
+      finishVirtualReadingIfIdle: vi.fn(),
+      isAgentAnnotating: () => false,
+      isCurrentArticle: (articleId) => articleId === currentArticle.id,
+      markAgentAnnotating: vi.fn(),
+      markVirtualReadingDone: vi.fn(),
+      onMergeArticleAgentAnnotation: vi.fn(async () => persisted),
+      processAgentAnnotationQueue: vi.fn(),
+      setStatusMessage: vi.fn(),
+      startVirtualReading: vi.fn(),
+    });
+
+    const run = await controller.prepare({
+      agent,
+      currentArticle,
+      options: { article, articleId: currentArticle.id },
+      surface: visibleSurface,
+    });
+    if (!run) throw new Error('expected Web annotation run');
+    const playback = await run.start(requestInput);
+
+    await expect(Promise.resolve(playback.accept(annotation, requestInput))).resolves.toBe(true);
+
+    expect(applyAnnotations).toHaveBeenCalledOnce();
+    expect(applyAnnotations).toHaveBeenCalledWith([expect.objectContaining({ id: annotation.id })]);
+    expect(openAnnotation).toHaveBeenLastCalledWith(annotation.id);
+  });
+
   it('waits for article-scoped Web annotation persistence', async () => {
     const persistence = createDeferred<ArticleAgentAnnotationMergeResult | null>();
     const onMergeArticleAgentAnnotation = vi.fn(() => persistence.promise);
@@ -179,3 +230,26 @@ describe('source agent annotation controllers', () => {
     expect(finishAgentDock).toHaveBeenCalledWith(agent.id, true);
   });
 });
+
+function articleSummary(id: string): ArticleSummaryRecord {
+  return {
+    id,
+    title: article.title,
+    url: article.url,
+    canonicalUrl: article.url,
+    sourceType: 'web',
+    byline: '',
+    siteName: 'Example',
+    contentHash: 'hash',
+    annotations: [],
+    counts: {
+      annotationCount: 1,
+      thoughtCount: 1,
+      discussionCommentCount: 0,
+      aiCommentCount: 0,
+      distillationCount: 0,
+    },
+    createdAt: '2026-07-15T00:00:00.000Z',
+    updatedAt: '2026-07-15T00:01:00.000Z',
+  };
+}

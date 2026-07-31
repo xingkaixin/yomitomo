@@ -161,6 +161,23 @@ describe('useDesktopStoreState', () => {
 
     expect(latest.current?.store).toBe(appliedStore);
     expect(latest.current?.storeRef.current).toBe(appliedStore);
+
+    const currentArticleSink = {
+      isCurrent: vi.fn((articleId: string) => articleId === patchedArticle.id),
+      apply: vi.fn(),
+    };
+    const unregisterCurrentArticleSink =
+      latest.current?.articleStore.registerCurrentArticleSink(currentArticleSink);
+
+    act(() => {
+      emitArticlePatched({ type: 'article-delete', articleId: patchedArticle.id });
+    });
+
+    expect(currentArticleSink.apply).toHaveBeenCalledWith({
+      type: 'delete',
+      articleId: patchedArticle.id,
+    });
+    unregisterCurrentArticleSink?.();
   });
 
   it('exposes store load errors without leaving an unhandled startup failure', async () => {
@@ -320,6 +337,67 @@ describe('useDesktopStoreState', () => {
     });
 
     expect(latest.current?.store.articles).toEqual([unlockedArticle]);
+  });
+
+  it('keeps load errors when an article patch is ignored while locked', async () => {
+    const lockedStore = makeStore({
+      settings: { appLockEnabled: true, appLockLocked: true },
+    });
+    const getStateResult = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, store: lockedStore })
+      .mockResolvedValueOnce({
+        ok: false,
+        error: {
+          code: 'DATABASE_TOO_NEW',
+          message: '请安装最新版继续使用。',
+          requiredReaderLevel: 2,
+          supportedReaderLevel: 1,
+        },
+      });
+    let emitArticlePatched = noopArticlePatched;
+
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: {
+        store: {
+          getStateResult,
+          onUpdated: vi.fn(() => vi.fn()),
+        },
+        article: {
+          onPatched: vi.fn((callback: (patch: ArticleStorePatch) => void) => {
+            emitArticlePatched = callback;
+            return vi.fn();
+          }),
+        },
+      },
+    });
+
+    const latest: { current?: ReturnType<typeof useDesktopStoreState> } = {};
+
+    function Harness() {
+      latest.current = useDesktopStoreState();
+      return null;
+    }
+
+    render(<Harness />);
+
+    await waitFor(() => expect(latest.current?.storeLoaded).toBe(true));
+    await act(async () => {
+      await latest.current?.refreshStore();
+    });
+    expect(latest.current?.storeLoaded).toBe(false);
+    expect(latest.current?.storeLoadError?.code).toBe('DATABASE_TOO_NEW');
+
+    act(() => {
+      emitArticlePatched({
+        type: 'article-upsert',
+        article: articleSummary({ id: 'article_secret' }),
+      });
+    });
+
+    expect(latest.current?.storeLoaded).toBe(false);
+    expect(latest.current?.storeLoadError?.code).toBe('DATABASE_TOO_NEW');
   });
 });
 

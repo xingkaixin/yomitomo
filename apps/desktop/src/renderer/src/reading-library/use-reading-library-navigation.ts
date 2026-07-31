@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import { articleCounts } from '@yomitomo/core';
 import type { ArticleRecord, ArticleSummaryRecord, WeReadBookDetail } from '@yomitomo/shared';
+import type { CurrentArticleSink } from '../shell/app-article-store';
 
 type ReadingLibraryRoute =
   | { type: 'library' }
@@ -69,6 +70,20 @@ export function useReadingLibraryNavigation({
     closeCurrentArticle();
     send({ type: 'reset-library' });
   }, [cancelArticleLoad, closeCurrentArticle, send]);
+
+  const removeArticleRoute = useCallback(
+    (articleId: string) => {
+      const currentLoad = articleLoadRef.current;
+      if (currentLoad.status === 'loading' && currentLoad.articleId === articleId) {
+        cancelArticleLoad();
+      }
+      const current = routeRef.current;
+      if (current.type !== 'article' || current.article.id !== articleId) return;
+      closeCurrentArticle();
+      send({ type: 'reset-library' });
+    },
+    [cancelArticleLoad, closeCurrentArticle, send],
+  );
 
   const returnToLibrary = useCallback(() => {
     cancelArticleLoad();
@@ -149,6 +164,21 @@ export function useReadingLibraryNavigation({
     const current = routeRef.current;
     return current.type === 'article' ? current.article : null;
   }, []);
+  const currentArticleSink = useMemo<CurrentArticleSink>(
+    () => ({
+      isCurrent: isCurrentArticle,
+      apply: (update) => {
+        switch (update.type) {
+          case 'delete':
+            removeArticleRoute(update.articleId);
+            return;
+          case 'update':
+            updateArticle(update.articleId, update.update);
+        }
+      },
+    }),
+    [isCurrentArticle, removeArticleRoute, updateArticle],
+  );
 
   useEffect(
     () => () => {
@@ -190,7 +220,7 @@ export function useReadingLibraryNavigation({
     ],
   );
 
-  return { actions, model };
+  return { actions, currentArticleSink, model };
 }
 
 export type ReadingLibraryNavigation = ReturnType<typeof useReadingLibraryNavigation>;
