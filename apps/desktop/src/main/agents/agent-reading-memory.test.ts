@@ -22,6 +22,7 @@ import {
   agentAnnotatePayloadWithReadingMemoryEntries,
   agentMessagePayloadWithReadingMemoryView,
   createAgentReadingMemoryPort,
+  createLazyReadingMemoryExecutor,
   saveAgentAnnotateReadingMemoryEntries,
 } from './agent-reading-memory';
 
@@ -31,6 +32,32 @@ describe('agent reading memory persistence', () => {
     memoryStore.buildReadingMemoryView.mockReset();
     memoryStore.readReadingMemoryEntries.mockReset();
     memoryStore.searchReadingMemoryEntries.mockReset();
+  });
+
+  it('resolves the current executor only when an operation starts', () => {
+    const resolveExecutor = vi.fn(readingMemoryExecutor);
+
+    createLazyReadingMemoryExecutor(resolveExecutor);
+
+    expect(resolveExecutor).not.toHaveBeenCalled();
+  });
+
+  it('uses the current executor after the database connection changes', () => {
+    const first = readingMemoryExecutor();
+    const second = readingMemoryExecutor();
+    let current = first;
+    const executor = createLazyReadingMemoryExecutor(() => current);
+
+    executor.exec('first exec');
+    executor.prepare('first prepare');
+    current = second;
+    executor.exec('second exec');
+    executor.prepare('second prepare');
+
+    expect(first.exec).toHaveBeenCalledWith('first exec');
+    expect(first.prepare).toHaveBeenCalledWith('first prepare');
+    expect(second.exec).toHaveBeenCalledWith('second exec');
+    expect(second.prepare).toHaveBeenCalledWith('second prepare');
   });
 
   it('uses memory entries before legacy annotate payload memory', () => {
@@ -608,6 +635,13 @@ function memoryEntry(overrides: Partial<ReadingMemoryEntry> = {}) {
     updatedAt: '2026-05-26T00:00:00.000Z',
     ...overrides,
   };
+}
+
+function readingMemoryExecutor(): ReadingMemorySqliteExecutor {
+  return {
+    exec: vi.fn(),
+    prepare: vi.fn(),
+  } as unknown as ReadingMemorySqliteExecutor;
 }
 
 function ebookIndex(): EpubBookIndex {

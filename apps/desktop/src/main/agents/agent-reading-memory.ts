@@ -41,6 +41,15 @@ export type AgentReadingMemoryPort = {
   }) => AgentMessageReadingContextSnapshot | undefined;
 };
 
+export function createLazyReadingMemoryExecutor(
+  resolveExecutor: () => ReadingMemorySqliteExecutor,
+): ReadingMemorySqliteExecutor {
+  return {
+    exec: (sql) => resolveExecutor().exec(sql),
+    prepare: (sql) => resolveExecutor().prepare(sql),
+  };
+}
+
 export function createAgentReadingMemoryPort(input: {
   executor: ReadingMemorySqliteExecutor;
   logger: AgentReadingMemoryLogger;

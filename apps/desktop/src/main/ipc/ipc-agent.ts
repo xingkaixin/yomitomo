@@ -6,7 +6,10 @@ import {
   type AgentTaskExecutionContext,
 } from '../agents/agent-task-execution';
 import { createAssistantExecutionRecorder } from '../agents/agent-execution-recorder';
-import { createAgentReadingMemoryPort } from '../agents/agent-reading-memory';
+import {
+  createAgentReadingMemoryPort,
+  createLazyReadingMemoryExecutor,
+} from '../agents/agent-reading-memory';
 import {
   findReviewAgent,
   publicCommentAgents,
@@ -54,7 +57,9 @@ export function registerAgentIpc(context: AgentIpcContext) {
       logger: context,
     }),
     readingMemory: createAgentReadingMemoryPort({
-      executor: readingMemoryExecutor(),
+      executor: createLazyReadingMemoryExecutor(
+        getSqliteExecutor as () => ReadingMemorySqliteExecutor,
+      ),
       logger: context,
     }),
   };
@@ -142,15 +147,6 @@ export function registerAgentIpc(context: AgentIpcContext) {
     const { storeAgents } = await context.getPersistenceModules();
     return storeAgents.deleteAgent(id);
   });
-}
-
-function readingMemoryExecutor(): ReadingMemorySqliteExecutor {
-  const database = getSqliteExecutor();
-  return {
-    exec: (sql) => database.exec(sql),
-    prepare: (sql) =>
-      database.prepare(sql) as unknown as ReturnType<ReadingMemorySqliteExecutor['prepare']>,
-  };
 }
 
 async function readAgentRuntimeStore(context: AgentIpcContext) {
