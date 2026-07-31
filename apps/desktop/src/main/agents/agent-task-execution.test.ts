@@ -81,9 +81,13 @@ describe('executeAgentCommentTask', () => {
       content: 'fast reply',
       pending: false,
       replyTo: 'comment_user',
+      author: agentAuthor(agent()),
     });
     expect(events).toEqual([
-      { type: 'start', comment: expect.objectContaining({ pending: true }) },
+      {
+        type: 'start',
+        comment: expect.objectContaining({ pending: true, author: agentAuthor(agent()) }),
+      },
       { type: 'delta', delta: 'fast ' },
       { type: 'delta', delta: 'reply' },
     ]);
@@ -113,7 +117,10 @@ describe('executeAgentCommentTask', () => {
       });
       return {
         status: 'comment',
-        comment: { content: 'deep reply' },
+        comment: {
+          content: 'deep reply',
+          author: { kind: 'agent', agentId: 'runtime_agent', username: 'runtime' },
+        },
         runtime: runtimeTrace(),
       };
     });
@@ -128,6 +135,7 @@ describe('executeAgentCommentTask', () => {
       assistantProgress: {
         steps: [{ id: 'get_anchor_context', status: 'done' }],
       },
+      author: agentAuthor(agent()),
     });
     expect(events).toEqual(
       expect.arrayContaining([
@@ -307,15 +315,13 @@ describe('executeAgentDistillationReviewTask', () => {
       (event) => events.push(event),
     );
 
-    expect(result.content).toBe('review result');
+    expect(result).toMatchObject({ content: 'review result', author: agentAuthor(reviewAgent) });
     expect(events).toEqual([
       {
         type: 'start',
         message: expect.objectContaining({
           author: expect.objectContaining({
-            kind: 'agent',
-            agentId: reviewAgent.id,
-            username: reviewAgent.username,
+            ...agentAuthor(reviewAgent),
           }),
         }),
       },
@@ -348,7 +354,11 @@ describe('executeAgentDistillationReviewTask', () => {
       (event) => events.push(event),
     );
 
-    expect(result).toMatchObject({ content: 'runtime review', items: [] });
+    expect(result).toMatchObject({
+      content: 'runtime review',
+      items: [],
+      author: agentAuthor(reviewAgent),
+    });
     expect(events).toEqual([
       { type: 'start', message: expect.any(Object) },
       { type: 'delta', delta: 'runtime review' },
@@ -505,6 +515,17 @@ function proposalItem() {
       content: 'Proposal content',
       updatedAt: '2026-07-18T00:00:00.000Z',
     },
+  };
+}
+
+function agentAuthor(value: Agent) {
+  return {
+    kind: 'agent',
+    agentId: value.id,
+    username: value.username,
+    nickname: value.nickname,
+    avatar: value.avatar,
+    annotationColor: value.annotationColor,
   };
 }
 

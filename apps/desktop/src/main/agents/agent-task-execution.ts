@@ -8,16 +8,19 @@ import type {
   AnnotationDistillationReviewItem,
   AnnotationDistillationReviewMessage,
   ArticleRecord,
-  AssistantRuntimeProgressEvent,
-  AssistantRuntimeProgressSummary,
   Comment,
   LlmProvider,
 } from '@yomitomo/shared';
 import { makeId, normalizeAssistantExecutionMode, normalizeUiLanguage } from '@yomitomo/shared';
-import { annotationAgentAuthorRef } from '@yomitomo/core';
 import type { DesktopAiModule, DesktopMainIpcContext } from '../ipc/ipc';
 import { createAgentMessageReadingContextSnapshot } from '../assistant/assistant-reading-tools';
 import { distillationReviewMessagePayload } from './agent-distillation-proposals';
+import {
+  pendingAgentComment,
+  pendingDistillationReviewMessage,
+  reduceAssistantRuntimeEvent,
+  type AgentRuntimeExecutionEvent,
+} from './agent-execution-projection';
 import {
   annotateResultUsage,
   logAgentMessageRuntime,
@@ -78,14 +81,12 @@ export type AgentTaskExecutionContext = Pick<
 
 export type AgentCommentExecutionEvent =
   | { type: 'start'; comment: Comment }
-  | { type: 'delta'; delta: string }
-  | { type: 'progress'; progress: AssistantRuntimeProgressEvent };
+  | AgentRuntimeExecutionEvent;
 
 export type AgentDistillationReviewExecutionEvent =
   | { type: 'start'; message: AnnotationDistillationReviewMessage }
-  | { type: 'delta'; delta: string }
   | { type: 'item'; item: AnnotationDistillationReviewItem }
-  | { type: 'progress'; progress: AssistantRuntimeProgressEvent };
+  | AgentRuntimeExecutionEvent;
 
 export type AgentAnnotationExecutionEvent =
   | { type: 'start' }
@@ -107,7 +108,12 @@ export async function executeAgentCommentTask(
   );
   if (!agent) throw agentNotFoundError(payload.agentUsername);
 
-  const comment = pendingAgentComment(agent, payload);
+  const comment = pendingAgentComment({
+    agent,
+    payload,
+    id: makeId('comment'),
+    createdAt: new Date().toISOString(),
+  });
   const providerRoute = taskProviderRoute(
     store.providers,
     store.settings,
@@ -193,7 +199,12 @@ export async function executeAgentDistillationReviewTask(
   const provider = await taskProvider(context, store.providers, store.settings, 'reviewAssistant');
   const requestedMode = normalizeAssistantExecutionMode(store.settings.assistantExecutionMode);
   const startedAt = performance.now();
-  const message = pendingDistillationReviewMessage(agent, payload);
+  const message = pendingDistillationReviewMessage({
+    agent,
+    payload,
+    id: makeId('distillation_review_message'),
+    createdAt: new Date().toISOString(),
+  });
   const payloadWithRoster = distillationReviewMessagePayload(payload, store.agents, store.settings);
   emit({ type: 'start', message });
   const runtime = await runDistillationReviewRuntime({
@@ -344,30 +355,6 @@ async function runDistillationReviewRuntime(input: {
   return { status: 'fallback', failureReason: 'runtime_not_applicable' };
 }
 
-function pendingAgentComment(agent: Agent, payload: AgentMessagePayload): Comment {
-  return {
-    id: makeId('comment'),
-    author: annotationAgentAuthorRef(agent),
-    content: '',
-    createdAt: new Date().toISOString(),
-    replyTo: agentMessageReplyTo(payload),
-    readingIntent: payload.readingIntent,
-    pending: true,
-  };
-}
-
-function pendingDistillationReviewMessage(
-  agent: Agent,
-  payload: AgentDistillationReviewPayload,
-): AnnotationDistillationReviewMessage {
-  return {
-    id: payload.reviewMessageId || makeId('distillation_review_message'),
-    author: annotationAgentAuthorRef(agent),
-    content: '',
-    createdAt: new Date().toISOString(),
-  };
-}
-
 function finalAgentComment(comment: Comment): Comment {
   return { ...comment, pending: false };
 }
@@ -405,65 +392,13 @@ function appendDistillationReviewItem(
 }
 
 function applyRuntimeEvent(
-  target: { content: string; assistantProgress?: AssistantRuntimeProgressSummary },
+  target: { content: string; assistantProgress?: Comment['assistantProgress'] },
   event: AssistantRuntimeStreamEvent,
-  emit: (
-    event:
-      | { type: 'delta'; delta: string }
-      | { type: 'progress'; progress: AssistantRuntimeProgressEvent },
-  ) => void,
+  emit: (event: { type: 'delta'; delta: string } | AgentRuntimeExecutionEvent) => void,
 ) {
-  if (event.type === 'text_delta') {
-    target.content += event.delta;
-    emit({ type: 'delta', delta: event.delta });
-    return;
-  }
-  const progress = runtimeProgressEvent(event);
-  if (!progress) return;
-  applyRuntimeProgress(target, progress);
-  emit({ type: 'progress', progress });
-}
-
-function runtimeProgressEvent(
-  event: AssistantRuntimeStreamEvent,
-): AssistantRuntimeProgressEvent | null {
-  if (event.type === 'tool_call') {
-    return {
-      type: 'step',
-      step: {
-        id: event.toolName,
-        label: event.toolName,
-        status: 'active',
-      },
-    };
-  }
-  if (event.type === 'tool_result') {
-    return {
-      type: 'step',
-      step: {
-        id: event.toolName,
-        label: event.toolName,
-        status: event.ok ? 'done' : 'failed',
-      },
-    };
-  }
-  if (event.type === 'fallback') {
-    return { type: 'fallback', message: 'ASSISTANT_RUNTIME_FALLBACK_FAST_RESPONSE' };
-  }
-  return null;
-}
-
-function applyRuntimeProgress(
-  target: { assistantProgress?: AssistantRuntimeProgressSummary },
-  event: AssistantRuntimeProgressEvent,
-) {
-  const current = target.assistantProgress || { steps: [] };
-  if (event.type === 'fallback') {
-    target.assistantProgress = { ...current, fallbackMessage: event.message };
-    return;
-  }
-  const steps = current.steps.filter((step) => step.id !== event.step.id);
-  target.assistantProgress = { ...current, steps: [...steps, event.step] };
+  const projection = reduceAssistantRuntimeEvent(target, event);
+  Object.assign(target, projection.state);
+  if (projection.emitted) emit(projection.emitted);
 }
 
 async function structuredFastDistillationReview(
@@ -487,13 +422,6 @@ async function structuredFastDistillationReview(
 async function readAgentRuntimeStore(context: AgentTaskExecutionContext) {
   const { storeAgents } = await context.getPersistenceModules();
   return storeAgents.readAgentRuntimeContext();
-}
-
-function agentMessageReplyTo(payload: AgentMessagePayload) {
-  if (payload.responseMode === 'create_thought' || payload.responseMode === 'distillation_review') {
-    return undefined;
-  }
-  return payload.reviewTargetCommentId || payload.userComment.replyTo || payload.userComment.id;
 }
 
 function agentMessageFastInput(
