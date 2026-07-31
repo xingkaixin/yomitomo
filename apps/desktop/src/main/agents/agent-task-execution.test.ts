@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   Agent,
   AgentAnnotatePayload,
+  AgentDistillationReviewPayload,
   AgentMessagePayload,
   Annotation,
   AppSettings,
@@ -46,6 +47,24 @@ beforeEach(() => {
 });
 
 describe('executeAgentCommentTask', () => {
+  it('loads persistence before AI for a comment task', async () => {
+    const fixture = taskFixture();
+    const order: string[] = [];
+    fixture.getPersistenceModules.mockImplementation(async () => {
+      order.push('persistence');
+      return fixture.persistence;
+    });
+    fixture.getAiModule.mockImplementation(async () => {
+      order.push('ai');
+      return fixture.ai as unknown as TaskAiModule;
+    });
+    fixture.ai.runAgentStream.mockResolvedValue(undefined);
+
+    await executeAgentCommentTask(fixture.context, messagePayload(), vi.fn());
+
+    expect(order.slice(0, 2)).toEqual(['persistence', 'ai']);
+  });
+
   it('owns fast response routing, streaming, and execution recording', async () => {
     const fixture = taskFixture();
     fixture.ai.runAgentStream.mockImplementation(async (_provider, _agent, _payload, onDelta) => {
@@ -74,6 +93,7 @@ describe('executeAgentCommentTask', () => {
       requestedMode: 'fast_response',
       effectiveMode: 'fast_response',
     });
+    expect(executionRows(fixture)).toHaveLength(1);
   });
 
   it('streams deep runtime text and progress through the task interface', async () => {
@@ -131,13 +151,16 @@ describe('executeAgentCommentTask', () => {
       requestedMode: 'deep_verification',
       effectiveMode: 'deep_verification',
     });
+    expect(traceMocks.appendAgentRuntimeTrace).toHaveBeenCalledOnce();
+    expect(executionRows(fixture)).toHaveLength(1);
   });
 
-  it('records the reason when deep execution falls back to fast response', async () => {
+  it('records runtime fallback then fast success as two execution attempts', async () => {
     const fixture = taskFixture({ settings: { assistantExecutionMode: 'deep_verification' } });
     runtimeMocks.runAgentMessageWithToolLoop.mockResolvedValue({
       status: 'fallback',
       failureReason: 'tool_loop_failed',
+      runtime: runtimeTrace(),
     });
     fixture.ai.runAgentStream.mockImplementation(async (_provider, _agent, _payload, onDelta) => {
       onDelta('fallback reply');
@@ -151,6 +174,45 @@ describe('executeAgentCommentTask', () => {
       effectiveMode: 'fast_response',
       fallbackReason: 'tool_loop_failed',
     });
+    await vi.waitFor(() => expect(executionRows(fixture)).toHaveLength(2));
+    expect(executionRows(fixture)).toEqual([
+      expect.objectContaining({
+        taskType: 'thread_reply',
+        effectiveMode: 'deep_verification',
+        status: 'fallback',
+        fallbackReason: 'tool_loop_failed',
+      }),
+      expect.objectContaining({
+        taskType: 'thread_reply',
+        effectiveMode: 'fast_response',
+        status: 'success',
+        fallbackReason: 'tool_loop_failed',
+      }),
+    ]);
+    expect(traceMocks.appendAgentRuntimeTrace).toHaveBeenCalledOnce();
+  });
+
+  it('falls back after a skipped deep runtime without recording a runtime attempt', async () => {
+    const fixture = taskFixture({ settings: { assistantExecutionMode: 'deep_verification' } });
+    runtimeMocks.runAgentMessageWithToolLoop.mockResolvedValue({
+      status: 'fallback',
+      failureReason: 'missing_article_id',
+    });
+    fixture.ai.runAgentStream.mockImplementation(async (_provider, _agent, _payload, onDelta) => {
+      onDelta('fast reply');
+    });
+
+    const result = await executeAgentCommentTask(fixture.context, messagePayload(), vi.fn());
+
+    expect(result.content).toBe('fast reply');
+    await vi.waitFor(() => expect(executionRows(fixture)).toHaveLength(1));
+    expect(executionRows(fixture)).toEqual([
+      expect.objectContaining({
+        effectiveMode: 'fast_response',
+        fallbackReason: 'missing_article_id',
+      }),
+    ]);
+    expect(traceMocks.appendAgentRuntimeTrace).not.toHaveBeenCalled();
   });
 
   it('rejects missing agents before loading the AI module', async () => {
@@ -161,20 +223,77 @@ describe('executeAgentCommentTask', () => {
     ).rejects.toMatchObject({ code: desktopIpcErrorCodes.agentNotFound });
     expect(fixture.context.getAiModule).not.toHaveBeenCalled();
   });
+
+  it('does not load AI, read credentials, or record an E2E fake response', async () => {
+    const fixture = taskFixture({
+      providers: [{ ...providerRecord(), baseUrl: 'https://e2e.invalid/yomitomo-ai' }],
+    });
+    const previousE2e = process.env.YOMITOMO_E2E;
+    process.env.YOMITOMO_E2E = '1';
+
+    try {
+      const events: unknown[] = [];
+      const result = await executeAgentCommentTask(fixture.context, messagePayload(), (event) =>
+        events.push(event),
+      );
+
+      expect(result).toMatchObject({ pending: false, content: expect.stringContaining('fake AI') });
+      expect(events).toEqual([
+        { type: 'start', comment: expect.objectContaining({ pending: true }) },
+        { type: 'delta', delta: expect.stringContaining('fake AI') },
+      ]);
+      expect(fixture.context.getAiModule).not.toHaveBeenCalled();
+      expect(fixture.persistence.providerRepository.hydrateProviderApiKey).not.toHaveBeenCalled();
+      expect(executionRows(fixture)).toHaveLength(0);
+    } finally {
+      if (previousE2e === undefined) delete process.env.YOMITOMO_E2E;
+      else process.env.YOMITOMO_E2E = previousE2e;
+    }
+  });
+
+  it('does not create an execution row when provider resolution fails', async () => {
+    const fixture = taskFixture();
+    fixture.persistence.providerRepository.hydrateProviderApiKey.mockRejectedValue(
+      new Error('provider unavailable'),
+    );
+
+    await expect(
+      executeAgentCommentTask(fixture.context, messagePayload(), vi.fn()),
+    ).rejects.toThrow('provider unavailable');
+
+    expect(fixture.context.getAiModule).toHaveBeenCalledOnce();
+    expect(executionRows(fixture)).toHaveLength(0);
+  });
 });
 
 describe('executeAgentDistillationReviewTask', () => {
+  it('loads AI before persistence for a review task', async () => {
+    const reviewAgent = agent({ id: 'review_1', kind: 'review', username: 'reviewer' });
+    const fixture = taskFixture({ agents: [reviewAgent] });
+    const order: string[] = [];
+    fixture.getPersistenceModules.mockImplementation(async () => {
+      order.push('persistence');
+      return fixture.persistence;
+    });
+    fixture.getAiModule.mockImplementation(async () => {
+      order.push('ai');
+      return fixture.ai as unknown as TaskAiModule;
+    });
+    fixture.ai.runAgentDistillationReviewStructuredStream.mockResolvedValue(
+      reviewMessage(reviewAgent),
+    );
+
+    await executeAgentDistillationReviewTask(fixture.context, reviewPayload(reviewAgent), vi.fn());
+
+    expect(order.slice(0, 2)).toEqual(['ai', 'persistence']);
+  });
+
   it('runs structured fast review behind the task interface', async () => {
     const reviewAgent = agent({ id: 'review_1', kind: 'review', username: 'reviewer' });
     const fixture = taskFixture({ agents: [reviewAgent] });
-    fixture.ai.runAgentDistillationReviewStructuredStream.mockResolvedValue({
-      id: '',
-      author: { kind: 'agent', agentId: reviewAgent.id, username: reviewAgent.username },
-      content: 'review result',
-      createdAt: '2026-07-18T00:00:00.000Z',
-      items: [],
-      proposals: [],
-    });
+    fixture.ai.runAgentDistillationReviewStructuredStream.mockResolvedValue(
+      reviewMessage(reviewAgent),
+    );
     const events: unknown[] = [];
 
     const result = await executeAgentDistillationReviewTask(
@@ -206,9 +325,58 @@ describe('executeAgentDistillationReviewTask', () => {
       effectiveMode: 'fast_response',
     });
   });
+
+  it('preserves runtime review events before the final runtime message', async () => {
+    const reviewAgent = agent({ id: 'review_1', kind: 'review', username: 'reviewer' });
+    const fixture = taskFixture({
+      agents: [reviewAgent],
+      settings: { assistantExecutionMode: 'deep_verification' },
+    });
+    runtimeMocks.runAgentMessageWithToolLoop.mockImplementation(async (input) => {
+      input.onRuntimeEvent({ type: 'text_delta', delta: 'runtime review' });
+      input.onRuntimeEvent({
+        type: 'distillation_review_item',
+        item: { type: 'proposal', proposal: proposalItem() },
+      });
+      return { status: 'message', message: reviewMessage(reviewAgent), runtime: runtimeTrace() };
+    });
+    const events: unknown[] = [];
+
+    const result = await executeAgentDistillationReviewTask(
+      fixture.context,
+      reviewPayload(reviewAgent),
+      (event) => events.push(event),
+    );
+
+    expect(result).toMatchObject({ content: 'runtime review', items: [] });
+    expect(events).toEqual([
+      { type: 'start', message: expect.any(Object) },
+      { type: 'delta', delta: 'runtime review' },
+      { type: 'item', item: { type: 'proposal', proposal: proposalItem() } },
+    ]);
+    expect(fixture.ai.runAgentDistillationReviewStructuredStream).not.toHaveBeenCalled();
+  });
 });
 
 describe('executeAgentAnnotationTask', () => {
+  it('loads AI before persistence for an annotation task', async () => {
+    const fixture = taskFixture();
+    const order: string[] = [];
+    fixture.getPersistenceModules.mockImplementation(async () => {
+      order.push('persistence');
+      return fixture.persistence;
+    });
+    fixture.getAiModule.mockImplementation(async () => {
+      order.push('ai');
+      return fixture.ai as unknown as TaskAiModule;
+    });
+    fixture.ai.runAgentAnnotateStream.mockResolvedValue({ annotations: [] });
+
+    await executeAgentAnnotationTask(fixture.context, annotatePayload(), vi.fn());
+
+    expect(order.slice(0, 2)).toEqual(['ai', 'persistence']);
+  });
+
   it('owns memory preparation, item streaming, and usage recording', async () => {
     const fixture = taskFixture();
     const generatedAnnotation = annotation({
@@ -260,22 +428,32 @@ function taskFixture(
   const assistantExecutionPersistence = {
     recordAssistantExecutionRun: vi.fn().mockResolvedValue(undefined),
   };
+  const persistence = {
+    storeAgents: {
+      readAgentRuntimeContext: vi.fn(async () => store),
+    },
+    storeAssistantExecutions: assistantExecutionPersistence,
+    providerRepository: {
+      hydrateProviderApiKey: vi.fn(async (provider: LlmProvider) => provider),
+    },
+  };
+  const getAiModule = vi.fn(async () => ai as unknown as TaskAiModule);
+  const getPersistenceModules = vi.fn(async () => persistence);
   const context: AgentTaskExecutionContext = {
     elapsedMs: () => 12,
-    getAiModule: vi.fn(async () => ai as unknown as TaskAiModule),
-    getPersistenceModules: vi.fn(async () => ({
-      storeAgents: {
-        readAgentRuntimeContext: vi.fn(async () => store),
-      },
-      storeAssistantExecutions: assistantExecutionPersistence,
-      providerRepository: {
-        hydrateProviderApiKey: vi.fn(async (provider: LlmProvider) => provider),
-      },
-    })),
+    getAiModule,
+    getPersistenceModules,
     logError: vi.fn(),
     logInfo: vi.fn(),
   };
-  return { ai, assistantExecutionPersistence, context };
+  return {
+    ai,
+    assistantExecutionPersistence,
+    context,
+    getAiModule,
+    getPersistenceModules,
+    persistence,
+  };
 }
 
 async function expectExecutionRecorded(
@@ -287,6 +465,47 @@ async function expectExecutionRecorded(
       expect.objectContaining(expected),
     );
   });
+}
+
+function executionRows(fixture: ReturnType<typeof taskFixture>) {
+  return fixture.assistantExecutionPersistence.recordAssistantExecutionRun.mock.calls.map(
+    ([input]) => input,
+  );
+}
+
+function reviewPayload(reviewAgent: Agent): AgentDistillationReviewPayload {
+  return {
+    ...messagePayload(),
+    agentId: reviewAgent.id,
+    agentUsername: reviewAgent.username,
+    responseMode: 'distillation_review',
+  };
+}
+
+function reviewMessage(reviewAgent: Agent) {
+  return {
+    id: '',
+    author: { kind: 'agent' as const, agentId: reviewAgent.id, username: reviewAgent.username },
+    content: 'review result',
+    createdAt: '2026-07-18T00:00:00.000Z',
+    items: [],
+    proposals: [],
+  };
+}
+
+function proposalItem() {
+  return {
+    id: 'proposal_1',
+    type: 'proposal' as const,
+    proposal: {
+      id: 'proposal_1',
+      kind: 'insert' as const,
+      status: 'pending' as const,
+      title: 'Proposal',
+      content: 'Proposal content',
+      updatedAt: '2026-07-18T00:00:00.000Z',
+    },
+  };
 }
 
 function storeWith(overrides: {
