@@ -106,7 +106,7 @@ describe('annotation distillation UI', () => {
                 messages: [
                   {
                     id: 'review_message_1',
-                    author: 'ai',
+                    author: reviewAuthor(),
                     content: '建议补成一条可以带走的判断。',
                     createdAt: now,
                     proposals: [
@@ -186,7 +186,7 @@ describe('annotation distillation UI', () => {
                 messages: [
                   {
                     id: 'review_message_1',
-                    author: 'ai',
+                    author: reviewAuthor(),
                     content: '建议改写旧判断。',
                     createdAt: now,
                     proposals: [
@@ -239,7 +239,7 @@ describe('annotation distillation UI', () => {
                 messages: [
                   {
                     id: 'review_message_1',
-                    author: 'ai',
+                    author: reviewAuthor(),
                     content: '建议换一个判断。',
                     createdAt: now,
                     proposals: [
@@ -291,7 +291,7 @@ describe('annotation distillation UI', () => {
                 messages: [
                   {
                     id: 'review_message_1',
-                    author: 'ai',
+                    author: reviewAuthor(),
                     content: '这条建议基于旧草稿。',
                     createdAt: now,
                     proposals: [
@@ -341,7 +341,7 @@ describe('annotation distillation UI', () => {
                 messages: [
                   {
                     id: 'review_message_1',
-                    author: 'ai',
+                    author: reviewAuthor(),
                     content: '这一轮需要同时补充和改写。',
                     createdAt: now,
                     proposals: [
@@ -440,7 +440,7 @@ describe('annotation distillation UI', () => {
                 messages: [
                   {
                     id: 'review_message_1',
-                    author: 'ai',
+                    author: reviewAuthor(),
                     content: '建议换一个判断。',
                     createdAt: now,
                     proposals: [
@@ -511,10 +511,9 @@ describe('annotation distillation UI', () => {
     const desktop = installDesktopApi(article(annotation()));
     desktop.requestAgentDistillationReviewStream.mockImplementation(async (payload) => ({
       id: payload.reviewMessageId || 'review_message_1',
-      author: 'ai',
+      author: reviewAuthor(),
       content: '收到，我来审阅。',
       createdAt: now,
-      agentId: 'agent_1',
       proposals: [],
     }));
     window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
@@ -546,10 +545,9 @@ describe('annotation distillation UI', () => {
     const desktop = installDesktopApi(article(annotation()));
     desktop.requestAgentDistillationReviewStream.mockImplementation(async (payload) => ({
       id: payload.reviewMessageId || 'review_message_1',
-      author: 'ai',
+      author: reviewAuthor(payload.agentId, payload.agentUsername),
       content: '收到，我来审阅。',
       createdAt: now,
-      agentId: payload.agentId,
       proposals: [],
     }));
     window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
@@ -573,10 +571,9 @@ describe('annotation distillation UI', () => {
     const desktop = installDesktopApi(article(annotation()));
     desktop.requestAgentDistillationReviewStream.mockImplementation(async (payload) => ({
       id: payload.reviewMessageId || 'review_message_1',
-      author: 'ai',
+      author: reviewAuthor(payload.agentId, payload.agentUsername),
       content: '收到，我来审阅。',
       createdAt: now,
-      agentId: payload.agentId,
       proposals: [],
     }));
     window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
@@ -623,10 +620,9 @@ describe('annotation distillation UI', () => {
       onEvent({ type: 'item', item: proposalItem });
       return {
         id: payload.reviewMessageId || 'review_message_1',
-        author: 'ai',
+        author: reviewAuthor(),
         content: overviewItem.content,
         createdAt: now,
-        agentId: 'agent_1',
         items: [overviewItem, proposalItem],
         proposals: [proposal],
         status: 'done',
@@ -700,10 +696,9 @@ describe('annotation distillation UI', () => {
       onEvent({ type: 'item', item: overviewItem });
       return {
         id: payload.reviewMessageId || 'review_message_1',
-        author: 'ai',
+        author: reviewAuthor(),
         content: overviewItem.content,
         createdAt: now,
-        agentId: 'agent_1',
         items: [overviewItem],
         proposals: [],
         status: 'done',
@@ -753,10 +748,9 @@ describe('annotation distillation UI', () => {
       onEvent({ type: 'item', item: proposalItem });
       return {
         id: payload.reviewMessageId || 'review_message_1',
-        author: 'ai',
+        author: reviewAuthor(),
         content: '整理完成。',
         createdAt: now,
-        agentId: 'agent_1',
         items: [proposalItem],
         proposals: [proposal],
         status: 'done',
@@ -818,7 +812,7 @@ describe('annotation distillation UI', () => {
                   expect.objectContaining({
                     messages: [
                       expect.objectContaining({
-                        author: 'ai',
+                        author: expect.objectContaining({ kind: 'agent', agentId: 'agent_1' }),
                         content: '',
                         errorMessage: 'provider failed',
                         status: 'failed',
@@ -1629,6 +1623,10 @@ function annotation(overrides: Partial<Annotation> = {}): Annotation {
     updatedAt: now,
     ...overrides,
   };
+}
+
+function reviewAuthor(agentId = 'agent_1', username = 'zhou') {
+  return { kind: 'agent' as const, agentId, username };
 }
 
 function agents(): Agent[] {

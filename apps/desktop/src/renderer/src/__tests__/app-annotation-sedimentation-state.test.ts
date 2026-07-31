@@ -100,7 +100,7 @@ describe('app annotation sedimentation state', () => {
       messages: [
         {
           id: 'message_1',
-          author: 'ai' as const,
+          author: { kind: 'agent' as const, agentId: 'agent_1', username: 'zhou' },
           content: '',
           createdAt: now,
         },
@@ -142,7 +142,7 @@ describe('app annotation sedimentation state', () => {
     const message = appendReviewItemToMessage(
       {
         id: 'message_1',
-        author: 'ai',
+        author: { kind: 'agent', agentId: 'agent_1', username: 'zhou' },
         content: '',
         createdAt: now,
       },
@@ -166,7 +166,7 @@ describe('app annotation sedimentation state', () => {
     const agents = [publicAgent()];
     const userMessage = {
       id: 'user_message_1',
-      author: 'user' as const,
+      author: { kind: 'user' as const, username: 'reader' },
       content: '请看证据',
       createdAt: now,
     };
@@ -179,7 +179,7 @@ describe('app annotation sedimentation state', () => {
         messages: [
           {
             id: 'assistant_message_2',
-            author: 'ai' as const,
+            author: { kind: 'agent' as const, agentId: 'agent_1', username: 'zhou' },
             content: '第二条',
             createdAt: later,
           },
@@ -196,7 +196,7 @@ describe('app annotation sedimentation state', () => {
           userMessage,
           {
             id: 'assistant_message_1',
-            author: 'ai' as const,
+            author: { kind: 'agent' as const, agentId: 'agent_1', username: 'zhou' },
             content: '第一条',
             createdAt: now,
           },
@@ -215,10 +215,49 @@ describe('app annotation sedimentation state', () => {
       'assistant:review_session_2:assistant_message_2',
     ]);
     expect(timeline[1]?.message).toMatchObject({
-      agentId: 'agent_1',
-      agentUsername: 'zhou',
-      agentNickname: '周现',
-      agentAvatar: 'avatar',
+      author: {
+        kind: 'agent',
+        agentId: 'agent_1',
+        username: 'zhou',
+        nickname: '周现',
+        avatar: 'avatar',
+      },
+    });
+  });
+
+  it('uses persisted review authors when their agents are no longer in the roster', () => {
+    const timeline = reviewTimelineMessages(
+      [
+        {
+          id: 'review_session_1',
+          agentId: 'removed_agent',
+          messages: [
+            {
+              id: 'assistant_message_1',
+              author: {
+                kind: 'agent',
+                agentId: 'removed_agent',
+                username: 'archived_reviewer',
+                nickname: '旧审阅助手',
+                avatar: 'archived-avatar',
+              },
+              content: '保留的审阅意见',
+              createdAt: now,
+            },
+          ],
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+      [],
+    );
+
+    expect(timeline[0]?.message.author).toEqual({
+      kind: 'agent',
+      agentId: 'removed_agent',
+      username: 'archived_reviewer',
+      nickname: '旧审阅助手',
+      avatar: 'archived-avatar',
     });
   });
 
@@ -338,7 +377,7 @@ describe('app annotation sedimentation state', () => {
             messages: [
               {
                 id: 'message_1',
-                author: 'ai',
+                author: { kind: 'agent', agentId: 'agent_1', username: 'zhou' },
                 content: '建议',
                 createdAt: now,
                 proposals: [

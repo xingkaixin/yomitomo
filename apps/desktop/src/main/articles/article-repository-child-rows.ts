@@ -1,4 +1,11 @@
-import type { Annotation, AnnotationAuthorRef, ArticleRecord, Comment } from '@yomitomo/shared';
+import type {
+  Annotation,
+  AnnotationAuthorRef,
+  AnnotationDistillationReviewMessage,
+  AnnotationDistillationReviewSession,
+  ArticleRecord,
+  Comment,
+} from '@yomitomo/shared';
 
 export function buildArticleChildRows(article: Pick<ArticleRecord, 'id' | 'annotations'>) {
   const annotationRows = article.annotations.map((annotation) =>
@@ -26,7 +33,9 @@ export function annotationToRow(articleId: string, annotation: Annotation) {
     distillationContent: annotation.distillation?.content,
     distillationPublishedAt: annotation.distillation?.publishedAt,
     distillationUpdatedAt: annotation.distillation?.updatedAt,
-    distillationReviewSessions: annotation.distillation?.reviewSessions,
+    distillationReviewSessions: serializeAnnotationDistillationReviewSessions(
+      annotation.distillation?.reviewSessions,
+    ),
     createdAt: annotation.createdAt,
     updatedAt: annotation.updatedAt,
   };
@@ -48,6 +57,30 @@ export function commentToRow(annotationId: string, comment: Comment) {
     reviewLabel: comment.reviewLabel,
     assistantProgress: comment.assistantProgress,
     pending: comment.pending,
+  };
+}
+
+export function serializeAnnotationDistillationReviewSessions(
+  sessions: AnnotationDistillationReviewSession[] | undefined,
+) {
+  return sessions?.map((session) => ({
+    ...session,
+    messages: session.messages.map(serializeAnnotationDistillationReviewMessage),
+  }));
+}
+
+function serializeAnnotationDistillationReviewMessage(
+  message: AnnotationDistillationReviewMessage,
+) {
+  if (message.author.kind === 'user') return { ...message, author: 'user' as const };
+
+  return {
+    ...message,
+    author: 'ai' as const,
+    agentId: message.author.agentId,
+    agentUsername: message.author.username,
+    agentNickname: message.author.nickname,
+    agentAvatar: message.author.avatar,
   };
 }
 

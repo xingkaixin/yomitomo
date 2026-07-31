@@ -362,13 +362,9 @@ function pendingDistillationReviewMessage(
 ): AnnotationDistillationReviewMessage {
   return {
     id: payload.reviewMessageId || makeId('distillation_review_message'),
-    author: 'ai',
+    author: annotationAgentAuthorRef(agent),
     content: '',
     createdAt: new Date().toISOString(),
-    agentId: agent.id,
-    agentUsername: agent.username,
-    agentNickname: agent.nickname,
-    agentAvatar: agent.avatar,
   };
 }
 

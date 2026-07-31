@@ -110,9 +110,8 @@ describe('agent message tool loop', () => {
 
     expect(result.status).toBe('message');
     expect(result.status === 'message' && result.message).toMatchObject({
-      author: 'ai',
+      author: { kind: 'agent', agentId: 'agent_1' },
       content: '这段沉淀还需要补足原文证据。',
-      agentId: 'agent_1',
       proposals: [
         expect.objectContaining({
           id: 'proposal_1',

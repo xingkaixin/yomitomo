@@ -8,6 +8,7 @@ import type {
   PublicAgent,
 } from '@yomitomo/shared';
 import { hashText, makeId } from '@yomitomo/shared';
+import { annotationAgentAuthorRef } from '@yomitomo/core';
 import {
   composeDistillationProposalDraftChangeSetEntries,
   updateReviewProposalStatusMap,
@@ -353,7 +354,8 @@ export function reviewTimelineMessages(
 
   for (const session of sessions) {
     for (const message of session.messages) {
-      if (message.author === 'user') {
+      const author = message.author;
+      if (author.kind === 'user') {
         const userKey = `user:${message.id}`;
         if (seenUserMessages.has(userKey)) continue;
         seenUserMessages.add(userKey);
@@ -361,16 +363,12 @@ export function reviewTimelineMessages(
         continue;
       }
 
-      const agentId = message.agentId || session.agentId;
-      const agent = agents.find((item) => item.id === agentId);
+      const agent = agents.find((item) => item.id === author.agentId);
       items.push({
         key: `assistant:${session.id}:${message.id}`,
         message: {
           ...message,
-          agentId,
-          agentUsername: agent?.username || message.agentUsername || session.agentUsername,
-          agentNickname: agent?.nickname || message.agentNickname || session.agentNickname,
-          agentAvatar: agent?.avatar || message.agentAvatar || session.agentAvatar,
+          author: agent ? annotationAgentAuthorRef(agent) : author,
         },
       });
     }
@@ -379,8 +377,8 @@ export function reviewTimelineMessages(
   return items.toSorted((left, right) => {
     const timeDelta = timestamp(left.message.createdAt) - timestamp(right.message.createdAt);
     if (timeDelta !== 0) return timeDelta;
-    if (left.message.author !== right.message.author)
-      return left.message.author === 'user' ? -1 : 1;
+    if (left.message.author.kind !== right.message.author.kind)
+      return left.message.author.kind === 'user' ? -1 : 1;
     return left.key.localeCompare(right.key);
   });
 }

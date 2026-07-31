@@ -95,15 +95,11 @@ export async function runAgentMessageWithToolLoop(
       runtime: result.runtime,
       message: {
         id: '',
-        author: 'ai',
+        author: annotationAgentAuthorRef(input.agent),
         content: action.content,
         items: action.items || [],
         proposals: action.proposals || [],
         createdAt: new Date().toISOString(),
-        agentId: input.agent.id,
-        agentUsername: input.agent.username,
-        agentNickname: input.agent.nickname,
-        agentAvatar: input.agent.avatar,
       },
     };
   }

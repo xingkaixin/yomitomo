@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 import { describe, expect, it, vi } from 'vitest';
 import type { Annotation, Comment, ReadingMemoryEntry } from '@yomitomo/shared';
 import * as schema from '../db/schema';
@@ -141,6 +142,35 @@ describe('article repository local child row writes', () => {
         status: 'published',
         content: '沉淀内容',
         updatedAt: '2026-06-04T04:00:00.000Z',
+        reviewSessions: [
+          {
+            id: 'review_session_1',
+            agentId: 'agent_1',
+            agentUsername: 'reviewer',
+            messages: [
+              {
+                id: 'review_message_1',
+                author: {
+                  kind: 'agent',
+                  agentId: 'agent_1',
+                  username: 'reviewer',
+                  nickname: '审阅助手',
+                  avatar: 'reviewer-avatar',
+                },
+                content: '沉淀还需要补足证据。',
+                createdAt: '2026-06-04T04:00:00.000Z',
+              },
+              {
+                id: 'review_message_2',
+                author: { kind: 'user', username: 'reader' },
+                content: '请补充原文依据。',
+                createdAt: '2026-06-04T04:01:00.000Z',
+              },
+            ],
+            createdAt: '2026-06-04T04:00:00.000Z',
+            updatedAt: '2026-06-04T04:00:00.000Z',
+          },
+        ],
       },
       updatedAt: '2026-06-04T04:00:00.000Z',
     });
@@ -148,8 +178,41 @@ describe('article repository local child row writes', () => {
     const saved = readArticleRows(database, 'article_1')?.annotations.find(
       (item) => item.id === target.id,
     );
+    const row = database
+      .select()
+      .from(schema.annotations)
+      .where(eq(schema.annotations.id, target.id))
+      .get();
+    const reviewSessions = storedReviewSessions(row?.distillationReviewSessions);
     expect(patch?.article.updatedAt).toBe('2026-06-04T04:00:00.000Z');
     expect(saved?.distillation).toMatchObject({ status: 'published', content: '沉淀内容' });
+    expect(saved?.distillation?.reviewSessions?.[0]?.messages[0]?.author).toEqual({
+      kind: 'agent',
+      agentId: 'agent_1',
+      username: 'reviewer',
+      nickname: '审阅助手',
+      avatar: 'reviewer-avatar',
+    });
+    expect(saved?.distillation?.reviewSessions?.[0]?.messages[1]?.author).toEqual({
+      kind: 'user',
+      username: 'reader',
+    });
+    expect(reviewSessions).toMatchObject([
+      {
+        messages: [
+          {
+            author: 'ai',
+            agentId: 'agent_1',
+            agentUsername: 'reviewer',
+            agentNickname: '审阅助手',
+            agentAvatar: 'reviewer-avatar',
+          },
+          { author: 'user' },
+        ],
+      },
+    ]);
+    expect(reviewSessions[0]?.messages[0]).not.toHaveProperty('kind');
+    expect(reviewSessions[0]?.messages[1]).not.toHaveProperty('kind');
     expect(saved?.comments.map((item) => item.id)).toEqual(['comment_1', 'comment_2']);
   });
 
@@ -653,4 +716,34 @@ function comment(overrides: Partial<Comment> = {}): Comment {
     createdAt: '2026-06-04T00:10:00.000Z',
     ...overrides,
   };
+}
+
+type StoredReviewMessage = {
+  author: 'ai' | 'user';
+  kind?: unknown;
+};
+
+type StoredReviewSession = {
+  messages: StoredReviewMessage[];
+};
+
+function storedReviewSessions(value: unknown): StoredReviewSession[] {
+  if (!Array.isArray(value)) throw new Error('Expected stored review sessions');
+  return value.map((session) => {
+    if (!isRecord(session) || !Array.isArray(session.messages)) {
+      throw new Error('Expected stored review session messages');
+    }
+    if (!session.messages.every(isStoredReviewMessage)) {
+      throw new Error('Expected stored review message authors');
+    }
+    return { messages: session.messages };
+  });
+}
+
+function isStoredReviewMessage(value: unknown): value is StoredReviewMessage {
+  return isRecord(value) && (value.author === 'ai' || value.author === 'user');
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

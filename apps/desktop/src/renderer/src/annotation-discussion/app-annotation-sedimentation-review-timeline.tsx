@@ -135,15 +135,16 @@ function ReviewTimelineMessage({
 }) {
   const { t } = useTranslation();
   const { message } = item;
-  const isUser = message.author === 'user';
-  const agent = isUser ? undefined : agents.find((candidate) => candidate.id === message.agentId);
-  const avatar = isUser ? userProfile.avatar : agent?.avatar || message.agentAvatar;
+  const author = message.author;
+  const isUser = author.kind === 'user';
+  const agent =
+    author.kind === 'agent'
+      ? agents.find((candidate) => candidate.id === author.agentId)
+      : undefined;
+  const avatar = isUser ? userProfile.avatar : agent?.avatar || author.avatar;
   const nickname = isUser
     ? userProfile.nickname
-    : agent?.nickname ||
-      message.agentNickname ||
-      message.agentUsername ||
-      t('sedimentation.reviewAssistant');
+    : agent?.nickname || author.nickname || author.username || t('sedimentation.reviewAssistant');
   const isFailed = message.status === 'failed';
   const fallback = isUser
     ? userProfile.nickname.slice(0, 1) || t('common.me')

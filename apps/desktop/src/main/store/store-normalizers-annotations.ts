@@ -146,14 +146,22 @@ function normalizeAnnotationDistillationReviewSessions(
     const id = stringValue(session.id);
     const agentId = stringValue(session.agentId);
     if (!id || !agentId) return [];
+    const agentUsername = stringValue(session.agentUsername) || undefined;
+    const agentNickname = stringValue(session.agentNickname) || undefined;
+    const agentAvatar = stringValue(session.agentAvatar) || undefined;
     return [
       {
         id,
         agentId,
-        agentUsername: stringValue(session.agentUsername) || undefined,
-        agentNickname: stringValue(session.agentNickname) || undefined,
-        agentAvatar: stringValue(session.agentAvatar) || undefined,
-        messages: normalizeAnnotationDistillationReviewMessages(session.messages),
+        agentUsername,
+        agentNickname,
+        agentAvatar,
+        messages: normalizeAnnotationDistillationReviewMessages(session.messages, {
+          agentId,
+          agentUsername,
+          agentNickname,
+          agentAvatar,
+        }),
         createdAt: stringValue(session.createdAt),
         updatedAt: stringValue(session.updatedAt),
       },
@@ -162,7 +170,15 @@ function normalizeAnnotationDistillationReviewSessions(
   return sessions.length > 0 ? sessions : undefined;
 }
 
-function normalizeAnnotationDistillationReviewMessages(value: unknown) {
+type ReviewSessionAuthorFallback = Pick<
+  AnnotationDistillationReviewSession,
+  'agentId' | 'agentUsername' | 'agentNickname' | 'agentAvatar'
+>;
+
+function normalizeAnnotationDistillationReviewMessages(
+  value: unknown,
+  session: ReviewSessionAuthorFallback,
+) {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item) => {
     if (!item || typeof item !== 'object') return [];
@@ -175,21 +191,34 @@ function normalizeAnnotationDistillationReviewMessages(value: unknown) {
     return [
       {
         id,
-        author: normalizeAnnotationAuthorKind(message.author),
+        author: normalizeAnnotationDistillationReviewMessageAuthor(message, session),
         content,
         createdAt: stringValue(message.createdAt),
         status: normalizeAnnotationDistillationReviewMessageStatus(message.status) || undefined,
         errorMessage: errorMessage || undefined,
-        agentId: stringValue(message.agentId) || undefined,
-        agentUsername: stringValue(message.agentUsername) || undefined,
-        agentNickname: stringValue(message.agentNickname) || undefined,
-        agentAvatar: stringValue(message.agentAvatar) || undefined,
         assistantProgress: normalizeAssistantRuntimeProgress(message.assistantProgress),
         items,
         proposals: normalizeAnnotationDistillationProposals(message.proposals),
       },
     ];
   });
+}
+
+function normalizeAnnotationDistillationReviewMessageAuthor(
+  message: Record<string, unknown>,
+  session: ReviewSessionAuthorFallback,
+): AnnotationAuthorRef {
+  if (normalizeAnnotationAuthorKind(message.author) !== 'ai') {
+    return { kind: 'user', username: 'reader' };
+  }
+
+  return {
+    kind: 'agent',
+    agentId: stringValue(message.agentId) || session.agentId,
+    username: stringValue(message.agentUsername) || session.agentUsername || 'assistant',
+    nickname: stringValue(message.agentNickname) || session.agentNickname,
+    avatar: stringValue(message.agentAvatar) || session.agentAvatar,
+  };
 }
 
 function normalizeAnnotationDistillationReviewMessageStatus(

@@ -24,7 +24,7 @@ describe('requestAgentReviewRound', () => {
   it('streams review progress, items, and deltas into an optimistic session', async () => {
     const userMessage = reviewMessage({
       id: 'user_message_1',
-      author: 'user',
+      author: { kind: 'user', username: 'reader' },
       content: '请看证据边界',
     });
     const proposal = reviewProposal();
@@ -138,7 +138,11 @@ describe('requestAgentReviewRound', () => {
     const sessions = [
       reviewSession({
         messages: [
-          reviewMessage({ id: 'user_message_1', author: 'user', content: '上一轮问题' }),
+          reviewMessage({
+            id: 'user_message_1',
+            author: { kind: 'user', username: 'reader' },
+            content: '上一轮问题',
+          }),
           reviewMessage({ id: 'assistant_message_0', content: '上一轮回答', status: 'done' }),
         ],
       }),
@@ -271,13 +275,9 @@ function reviewMessage(
 ): AnnotationDistillationReviewMessage {
   return {
     id: 'assistant_message_1',
-    author: 'ai',
+    author: { kind: 'agent', agentId: 'agent_1', username: 'zhou', nickname: '周现', avatar: '' },
     content: '',
     createdAt: now,
-    agentId: 'agent_1',
-    agentUsername: 'zhou',
-    agentNickname: '周现',
-    agentAvatar: '',
     ...overrides,
   };
 }

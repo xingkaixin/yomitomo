@@ -2332,7 +2332,7 @@ describe('ReadingLibrary home', () => {
           messages: [
             {
               id: 'review_message_1',
-              author: 'ai',
+              author: { kind: 'agent', agentId: 'agent_1', username: 'distiller' },
               content: '这里需要再压缩一点。',
               createdAt: now,
             },

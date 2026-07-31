@@ -123,15 +123,11 @@ export type AssistantRuntimeProgressEvent =
 
 export type AnnotationDistillationReviewMessage = {
   id: string;
-  author: AnnotationAuthorKind;
+  author: AnnotationAuthorRef;
   content: string;
   createdAt: string;
   status?: 'pending' | 'done' | 'failed';
   errorMessage?: string;
-  agentId?: string;
-  agentUsername?: string;
-  agentNickname?: string;
-  agentAvatar?: string;
   assistantProgress?: AssistantRuntimeProgressSummary;
   items?: AnnotationDistillationReviewItem[];
   proposals?: AnnotationDistillationProposal[];

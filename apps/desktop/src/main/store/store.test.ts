@@ -1312,10 +1312,19 @@ describe('desktop store articles', () => {
                 messages: [
                   {
                     id: 'review-message-1',
-                    author: 'ai',
+                    author: {
+                      kind: 'agent',
+                      agentId: 'review-agent-1',
+                      username: 'assistant',
+                    },
                     content: '这里还可以追问前提。',
                     createdAt: '2026-05-17T01:30:00.000Z',
-                    agentId: 'review-agent-1',
+                  },
+                  {
+                    id: 'review-message-user-1',
+                    author: { kind: 'user', username: 'reader' },
+                    content: '请确认这里的前提。',
+                    createdAt: '2026-05-17T01:31:00.000Z',
                   },
                 ],
                 createdAt: '2026-05-17T01:20:00.000Z',
@@ -1336,9 +1345,20 @@ describe('desktop store articles', () => {
         expect.objectContaining({
           id: 'review-session-1',
           agentId: 'review-agent-1',
+          messages: [
+            expect.objectContaining({
+              author: 'ai',
+              agentId: 'review-agent-1',
+              agentUsername: 'assistant',
+            }),
+            expect.objectContaining({ author: 'user' }),
+          ],
         }),
       ],
     });
+    expect(rows.annotationRows[0]?.distillationReviewSessions?.[0]?.messages[0]).not.toHaveProperty(
+      'kind',
+    );
   });
 
   it('preserves PDF annotation anchors when reading rows', () => {
@@ -1412,7 +1432,11 @@ describe('desktop store articles', () => {
                 messages: [
                   {
                     id: 'review-message-proposals',
-                    author: 'ai',
+                    author: {
+                      kind: 'agent',
+                      agentId: 'review-agent-1',
+                      username: 'assistant',
+                    },
                     content: '可以把讨论沉淀成可执行判断。',
                     createdAt: '2026-05-17T01:30:00.000Z',
                     proposals: [
@@ -1479,6 +1503,11 @@ describe('desktop store articles', () => {
     );
 
     const message = annotation.distillation?.reviewSessions?.[0]?.messages[0];
+    expect(message?.author).toEqual({
+      kind: 'agent',
+      agentId: 'review-agent-1',
+      username: 'assistant',
+    });
     expect(message?.proposals).toEqual([
       expect.objectContaining({
         id: 'proposal-insert',

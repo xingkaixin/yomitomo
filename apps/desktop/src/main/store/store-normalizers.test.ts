@@ -610,6 +610,9 @@ describe('store normalizers annotation and chat records', () => {
           {
             id: 'session_1',
             agentId: 'agent_1',
+            agentUsername: 'session_agent',
+            agentNickname: '会话助手',
+            agentAvatar: 'session-avatar',
             messages: [
               {
                 id: 'message_1',
@@ -629,6 +632,22 @@ describe('store normalizers annotation and chat records', () => {
                   },
                   { id: 'proposal_2', kind: 'replace', targetText: '', replacementText: 'skip' },
                 ],
+              },
+              {
+                id: 'message_2',
+                author: 'ai',
+                content: 'Message identity',
+                createdAt: '2026-06-11T00:01:00.000Z',
+                agentId: 'message_agent',
+                agentUsername: 'message_agent',
+                agentNickname: '消息助手',
+                agentAvatar: 'message-avatar',
+              },
+              {
+                id: 'message_3',
+                author: 'ai',
+                content: 'Session identity',
+                createdAt: '2026-06-11T00:02:00.000Z',
               },
             ],
             createdAt: '2026-06-11T00:00:00.000Z',
@@ -666,7 +685,7 @@ describe('store normalizers annotation and chat records', () => {
           {
             messages: [
               {
-                author: 'user',
+                author: { kind: 'user', username: 'reader' },
                 proposals: [
                   {
                     kind: 'insert',
@@ -685,6 +704,24 @@ describe('store normalizers annotation and chat records', () => {
                     sourceAgentId: 'agent_1',
                   },
                 ],
+              },
+              {
+                author: {
+                  kind: 'agent',
+                  agentId: 'message_agent',
+                  username: 'message_agent',
+                  nickname: '消息助手',
+                  avatar: 'message-avatar',
+                },
+              },
+              {
+                author: {
+                  kind: 'agent',
+                  agentId: 'agent_1',
+                  username: 'session_agent',
+                  nickname: '会话助手',
+                  avatar: 'session-avatar',
+                },
               },
             ],
           },
@@ -752,6 +789,7 @@ describe('store normalizers annotation and chat records', () => {
 
     expect(annotation.distillation?.reviewSessions?.[0]?.messages[0]).toMatchObject({
       id: 'review_message_failed',
+      author: { kind: 'agent', agentId: 'agent_1', username: 'assistant' },
       content: '',
       errorMessage: 'provider failed',
       status: 'failed',
