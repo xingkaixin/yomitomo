@@ -3,7 +3,7 @@
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, ArticleRecord, UserProfile } from '@yomitomo/shared';
-import type { SourceReaderAppSurface } from './use-source-reader-app';
+import type { SourceReaderAdapter, SourceReaderAppSurface } from './use-source-reader-app';
 import { useSourceReaderApp } from './use-source-reader-app';
 import { articleActionStubs } from '../../__tests__/article-actions-test-utils';
 
@@ -168,6 +168,70 @@ describe('useSourceReaderApp', () => {
       quote: 'text',
     });
   });
+
+  it('owns default shell panels and preserves controlled overrides', () => {
+    const currentArticle = article('web', 'article_1');
+    const articleActions = articleActionStubs();
+    const { result } = renderHook(() =>
+      useSourceReaderApp({
+        articleActions,
+        canvasRef: { current: null },
+        getArticleText: () => 'text',
+        onRequestSelectionCopy: vi.fn(),
+        session: {
+          agents: [],
+          annotations: currentArticle.annotations,
+          article: currentArticle,
+          clearPendingOnArticleChange: true,
+          clearPendingOnDeleteAnnotation: true,
+          onArticleChange: vi.fn(),
+          userProfile,
+        },
+      }),
+    );
+    const defaultSurface = surface({ onRevealReaderChatContext: vi.fn() });
+
+    act(() => result.current.viewProps(defaultSurface).actions.toc.onToggleToc());
+    expect(result.current.viewProps(defaultSurface).toc.open).toBe(true);
+
+    act(() => result.current.viewProps(defaultSurface).actions.shell.onToggleSettings());
+    expect(result.current.viewProps(defaultSurface).settings.settingsOpen).toBe(true);
+
+    act(() => result.current.viewProps(defaultSurface).actions.shell.onCloseFloatingPanels());
+    expect(result.current.viewProps(defaultSurface).settings.settingsOpen).toBe(false);
+
+    const onCloseToc = vi.fn();
+    const onToggleToc = vi.fn();
+    const onToggleSettings = vi.fn();
+    const controlledSurface: SourceReaderAppSurface = {
+      ...defaultSurface,
+      shell: {
+        ...defaultSurface.shell,
+        onCloseFloatingPanels: onCloseToc,
+        onCloseResponsivePanels: onCloseToc,
+        onToggleSettings,
+        settingsOpen: false,
+        showSettings: false,
+      },
+      toc: {
+        ...defaultSurface.toc,
+        onClose: onCloseToc,
+        onToggle: onToggleToc,
+        open: true,
+      },
+    };
+    const props = result.current.viewProps(controlledSurface);
+
+    props.actions.shell.onCloseFloatingPanels();
+    props.actions.shell.onCloseResponsivePanels();
+    props.actions.shell.onToggleSettings();
+    props.actions.toc.onToggleToc();
+
+    expect(props.toc.open).toBe(true);
+    expect(onCloseToc).toHaveBeenCalledTimes(2);
+    expect(onToggleSettings).toHaveBeenCalledTimes(1);
+    expect(onToggleToc).toHaveBeenCalledTimes(1);
+  });
 });
 
 function article(sourceType: 'web' | 'ebook' | 'pdf', id: string): ArticleRecord {
@@ -213,40 +277,20 @@ function article(sourceType: 'web' | 'ebook' | 'pdf', id: string): ArticleRecord
 function surface({
   onRevealReaderChatContext,
 }: {
-  onRevealReaderChatContext: NonNullable<
-    SourceReaderAppSurface['actions']['onRevealReaderChatContext']
-  >;
+  onRevealReaderChatContext: NonNullable<SourceReaderAdapter['onRevealReaderChatContext']>;
 }): SourceReaderAppSurface {
   return {
-    actions: {
-      annotation: {
-        onClearActiveAnnotation: vi.fn(),
-        onCreateAnnotation: vi.fn(),
-        onDeleteAnnotation: vi.fn(),
-        onFocusAnnotation: vi.fn(),
-        onHighlightClick: vi.fn(),
+    adapter: {
+      navigation: {
+        onScrollToHeading: vi.fn(),
         onScrollToHighlight: vi.fn(),
       },
-      selection: {
-        onCancelComposer: vi.fn(),
-        onClearSelection: vi.fn(),
-        onCloseHighlightChoice: vi.fn(),
-        onCopySelection: vi.fn(),
-        onMouseUp: vi.fn(),
-        onOpenComposer: vi.fn(),
-      },
-      shell: {
-        onClose: vi.fn(),
-        onCloseFloatingPanels: vi.fn(),
-        onCloseResponsivePanels: vi.fn(),
-        onToggleSettings: vi.fn(),
-        onUpdateReaderSettings: vi.fn(),
-      },
-      toc: {
-        onScrollToHeading: vi.fn(),
-        onToggleToc: vi.fn(),
-      },
+      onHighlightClick: vi.fn(),
       onRevealReaderChatContext,
+      questionContext: (anchor) => ({ sourceType: 'web', quote: anchor.exact }),
+      selection: {
+        onMouseUp: vi.fn(),
+      },
     },
     agentPlayback: {
       dockCompleting: false,
@@ -266,10 +310,10 @@ function surface({
       extracted: { title: 'Article', content: 'text' },
       id: 'article_1',
     },
+    shell: { onClose: vi.fn() },
     toc: {
       annotationStats: new Map(),
       items: [],
-      open: false,
     },
     userProfile,
   };

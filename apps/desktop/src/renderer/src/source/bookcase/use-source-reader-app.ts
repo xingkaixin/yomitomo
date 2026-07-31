@@ -20,6 +20,9 @@ import { useRecentAnnotationFeedback } from './use-recent-annotation-feedback';
 type ReaderAppActions = ReaderAppViewProps['actions'];
 type ReaderAnnotationActions = ReaderAppActions['annotation'];
 type ReaderChatActions = NonNullable<ReaderAppActions['chat']>;
+type ReaderSelectionActions = ReaderAppActions['selection'];
+type ReaderShellActions = ReaderAppActions['shell'];
+type ReaderTocActions = ReaderAppActions['toc'];
 type SourceReaderSessionInput = Omit<
   UseSourceReaderSessionOptions,
   | 'agentAnnotationAdapter'
@@ -28,15 +31,38 @@ type SourceReaderSessionInput = Omit<
   | 'onDeleteArticleComment'
   | 'onSaveArticleAnnotation'
   | 'onSaveArticleComment'
+  | 'onOpenAnnotation'
   | 'setStatusMessage'
->;
+> & {
+  onOpenAnnotation?: (annotationId: string | null) => void;
+};
 
-type SourceReaderActionAdapters = {
-  annotation: Omit<ReaderAnnotationActions, 'onOpenAnnotationDiscussion'>;
-  selection: ReaderAppActions['selection'];
-  shell: ReaderAppActions['shell'];
-  toc: ReaderAppActions['toc'];
+type SourceReaderLifecycleObserver = {
+  onAskSelection?: (anchor: Annotation['anchor']) => void;
+  onBeforeCreateAnnotation?: (note: string, anchor: Annotation['anchor']) => void;
+  onCancelComposer?: () => void;
+  onClearSelection?: () => void;
+  onOpenComposer?: (action: Parameters<ReaderSelectionActions['onOpenComposer']>[0]) => void;
+};
+
+export type SourceReaderAdapter = {
+  lifecycle?: SourceReaderLifecycleObserver;
+  navigation: Pick<
+    ReaderAnnotationActions,
+    'onNavigateAnnotation' | 'onResolveAnnotationNavigation' | 'onScrollToHighlight'
+  > & {
+    onScrollToHeading: ReaderTocActions['onScrollToHeading'];
+  };
+  onHighlightClick: ReaderAnnotationActions['onHighlightClick'];
   onRevealReaderChatContext?: ReaderChatActions['onRevealContext'];
+  questionContext: (anchor: Annotation['anchor']) => ReaderQuestionContext;
+  selection?: Pick<
+    ReaderSelectionActions,
+    | 'onMouseUp'
+    | 'onSelectionHandleDrag'
+    | 'onSelectionHandleDragEnd'
+    | 'onSelectionHandleDragStart'
+  >;
 };
 
 type SourceReaderAgentPlayback = Omit<
@@ -46,11 +72,24 @@ type SourceReaderAgentPlayback = Omit<
 type SourceReaderAnnotationSurface = Omit<ReaderAppViewProps['annotations'], 'annotationTotals'>;
 
 export type SourceReaderAppSurface = {
-  actions: SourceReaderActionAdapters;
+  adapter: SourceReaderAdapter;
   agentPlayback: SourceReaderAgentPlayback;
   annotations: SourceReaderAnnotationSurface;
   article: ReaderAppViewProps['article'];
-  toc: ReaderAppViewProps['toc'];
+  onAnnotationLayoutChange?: ReaderAnnotationActions['onAnnotationLayoutChange'];
+  shell: {
+    onClose: ReaderShellActions['onClose'];
+    onCloseFloatingPanels?: ReaderShellActions['onCloseFloatingPanels'];
+    onCloseResponsivePanels?: ReaderShellActions['onCloseResponsivePanels'];
+    onToggleSettings?: ReaderShellActions['onToggleSettings'];
+    settingsOpen?: boolean;
+    showSettings?: boolean;
+  };
+  toc: Omit<ReaderAppViewProps['toc'], 'open'> & {
+    onClose?: () => void;
+    onToggle?: ReaderTocActions['onToggleToc'];
+    open?: boolean;
+  };
   userProfile: ReaderAppViewProps['userProfile'];
   toolbar?: ReaderAppViewProps['toolbar'];
 };
@@ -84,6 +123,8 @@ export function useSourceReaderApp({
   session: sessionInput,
 }: UseSourceReaderAppInput) {
   const [statusMessage, setStatusMessage] = useState('');
+  const [tocOpen, setTocOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const session = useSourceReaderSession({
     ...sessionInput,
     agentAnnotationAdapter: createAgentAnnotationAdapter?.({
@@ -116,7 +157,11 @@ export function useSourceReaderApp({
     settings,
   );
 
-  useEffect(() => setStatusMessage(''), [sessionInput.article.id]);
+  useEffect(() => {
+    setSettingsOpen(false);
+    setStatusMessage('');
+    setTocOpen(false);
+  }, [sessionInput.article.id]);
 
   function isCurrentArticle(articleId: string) {
     return sessionInput.article.id === articleId;
@@ -145,34 +190,96 @@ export function useSourceReaderApp({
     workspace.selection.clearSelection();
   }
 
+  function closeSettings() {
+    setSettingsOpen(false);
+  }
+
+  function closeToc() {
+    setTocOpen(false);
+  }
+
+  function toggleSettings() {
+    setSettingsOpen((open) => !open);
+  }
+
+  function toggleToc() {
+    setTocOpen((open) => !open);
+  }
+
   function viewProps({
-    actions: actionAdapters,
+    adapter,
     agentPlayback,
     annotations,
     article,
+    onAnnotationLayoutChange,
+    shell,
     toc,
     toolbar,
     userProfile,
   }: SourceReaderAppSurface): ReaderAppViewProps {
+    const activeTocOpen = toc.open ?? tocOpen;
+    const closeReaderToc = toc.onClose ?? closeToc;
     const actions: ReaderAppActions = {
       annotation: {
-        ...actionAdapters.annotation,
+        onAnnotationLayoutChange,
+        onClearActiveAnnotation: () => sessionInput.onOpenAnnotation?.(null),
+        onCreateAnnotation: async (note) => {
+          const composer = workspace.selection.composer;
+          if (composer) adapter.lifecycle?.onBeforeCreateAnnotation?.(note, composer.anchor);
+          await createAnnotation(note);
+        },
+        onDeleteAnnotation: session.deleteAnnotation,
+        onFocusAnnotation: openAnnotation,
+        onHighlightClick: adapter.onHighlightClick,
+        onNavigateAnnotation: adapter.navigation.onNavigateAnnotation,
         onOpenAnnotationDiscussion: (annotationId, sourceRect) =>
           void articleActions.openArticleDiscussion(
             sessionInput.article.id,
             annotationId,
             sourceRect,
           ),
+        onResolveAnnotationNavigation: adapter.navigation.onResolveAnnotationNavigation,
+        onScrollToHighlight: adapter.navigation.onScrollToHighlight,
       },
       chat: {
         ...workspace.readerChat.actions,
-        ...(actionAdapters.onRevealReaderChatContext
-          ? { onRevealContext: actionAdapters.onRevealReaderChatContext }
+        ...(adapter.onRevealReaderChatContext
+          ? { onRevealContext: adapter.onRevealReaderChatContext }
           : {}),
       },
-      selection: actionAdapters.selection,
-      shell: actionAdapters.shell,
-      toc: actionAdapters.toc,
+      selection: {
+        onAskSelection: (action) => {
+          adapter.lifecycle?.onAskSelection?.(action.anchor);
+          askSelection(action, adapter.questionContext);
+        },
+        onCancelComposer: () => {
+          adapter.lifecycle?.onCancelComposer?.();
+          workspace.selection.cancelComposer();
+        },
+        onClearSelection: () => {
+          adapter.lifecycle?.onClearSelection?.();
+          workspace.selection.clearSelection();
+        },
+        onCloseHighlightChoice: () => workspace.selection.setHighlightChoice(null),
+        onCopySelection: workspace.selection.copySelection,
+        onMouseUp: adapter.selection?.onMouseUp ?? (() => undefined),
+        onOpenComposer: (action) => {
+          adapter.lifecycle?.onOpenComposer?.(action);
+          workspace.selection.openComposer(action);
+        },
+        ...adapter.selection,
+      },
+      shell: {
+        onClose: shell.onClose,
+        onCloseFloatingPanels: shell.onCloseFloatingPanels ?? closeSettings,
+        onCloseResponsivePanels: shell.onCloseResponsivePanels ?? closeReaderToc,
+        onToggleSettings: shell.onToggleSettings ?? toggleSettings,
+        onUpdateReaderSettings: workspace.updateReaderSettings,
+      },
+      toc: {
+        onScrollToHeading: adapter.navigation.onScrollToHeading,
+        onToggleToc: toc.onToggle ?? toggleToc,
+      },
     };
 
     return {
@@ -200,11 +307,14 @@ export function useSourceReaderApp({
         messageSendShortcut: workspace.sendShortcut,
         readerSettings: workspace.readerSettings,
         selectionActionShortcuts: workspace.actionShortcuts,
-        settingsOpen: false,
+        settingsOpen: shell.settingsOpen ?? settingsOpen,
         shortcutModifier: workspace.shortcutModifier,
-        showSettings: false,
+        showSettings: shell.showSettings ?? false,
       },
-      toc,
+      toc: {
+        ...toc,
+        open: activeTocOpen,
+      },
       toolbar,
       userProfile,
     };
@@ -212,6 +322,8 @@ export function useSourceReaderApp({
 
   return {
     askSelection,
+    closeSettings,
+    closeToc,
     createAnnotation,
     isCurrentArticle,
     newAnnotationIds,
@@ -219,6 +331,8 @@ export function useSourceReaderApp({
     session,
     setStatusMessage,
     statusMessage,
+    toggleSettings,
+    toggleToc,
     viewProps,
     workspace,
   };

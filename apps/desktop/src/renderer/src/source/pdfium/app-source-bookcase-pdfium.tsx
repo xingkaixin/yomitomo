@@ -395,7 +395,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   });
   const {
     askSelection,
-    createAnnotation,
     isCurrentArticle,
     newAnnotationIds,
     openAnnotation,
@@ -1134,45 +1133,23 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
 
   const pdfHeaderByline = formatPdfHeaderAuthors(article.pdf.metadata.author || '');
   const readerAppViewProps = sourceReaderApp.viewProps({
-    actions: {
-      annotation: {
-        onAnnotationLayoutChange: handleAnnotationLayoutChange,
-        onClearActiveAnnotation: () => onOpenAnnotation(null),
-        onCreateAnnotation: createAnnotation,
-        onDeleteAnnotation: deleteAnnotation,
-        onFocusAnnotation: openAnnotation,
-        onHighlightClick: handleHighlightClick,
+    adapter: {
+      navigation: {
         onNavigateAnnotation: (annotationId) => scrollToAnnotation(annotationId),
         onResolveAnnotationNavigation: () =>
           pdfiumAnnotationNavigationState(annotations, selectedAnnotationId, currentPage),
         onScrollToHighlight: scrollToAnnotation,
+        onScrollToHeading: scrollToTocItem,
       },
+      onHighlightClick: handleHighlightClick,
+      onRevealReaderChatContext: revealReaderChatContext,
+      questionContext: readerQuestionContext,
       selection: {
-        onCancelComposer: cancelComposer,
-        onClearSelection: clearSelection,
-        onCloseHighlightChoice: () => setHighlightChoice(null),
-        onCopySelection: copySelection,
         onMouseUp: () => undefined,
-        onAskSelection: (action) => askSelection(action, readerQuestionContext),
-        onOpenComposer: openComposer,
         onSelectionHandleDrag: updatePdfiumSelectionAdjustment,
         onSelectionHandleDragEnd: finishPdfiumSelectionAdjustment,
         onSelectionHandleDragStart: startPdfiumSelectionAdjustment,
       },
-      shell: {
-        onClose,
-        onCloseFloatingPanels: () => {
-          onCloseToc();
-        },
-        onCloseResponsivePanels: onCloseToc,
-        onToggleSettings: () => undefined,
-        onUpdateReaderSettings: updatePdfReaderSettings,
-      },
-      toc: {
-        onScrollToHeading: scrollToTocItem,
-        onToggleToc,
-      },
-      onRevealReaderChatContext: revealReaderChatContext,
     },
     agentPlayback: {
       dockCompleting: agentDockCompleting,
@@ -1240,11 +1217,22 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       },
       id: article.id,
     },
+    onAnnotationLayoutChange: handleAnnotationLayoutChange,
+    shell: {
+      onClose,
+      onCloseFloatingPanels: onCloseToc,
+      onCloseResponsivePanels: onCloseToc,
+      onToggleSettings: () => undefined,
+      settingsOpen: false,
+      showSettings: false,
+    },
     toc: {
       activeIndex: activeTocIndex,
       annotationStats: tocStats,
       items: tocItems,
       open: tocOpen,
+      onClose: onCloseToc,
+      onToggle: onToggleToc,
     },
     toolbar: {
       controls: (

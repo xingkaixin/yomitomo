@@ -197,7 +197,8 @@ export function EbookBookcase({
   });
   const {
     askSelection,
-    createAnnotation,
+    closeSettings,
+    closeToc,
     isCurrentArticle,
     newAnnotationIds,
     openAnnotation,
@@ -215,8 +216,6 @@ export function EbookBookcase({
     saveAnnotation,
   } = sourceReaderSession;
   const [annotatingAgentIds, setAnnotatingAgentIds] = useState<string[]>([]);
-  const [tocOpen, setTocOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchBoxes, setSearchBoxes] = useState<HighlightBox[]>([]);
   const clearSearchBoxes = useCallback(() => setSearchBoxes([]), []);
 
@@ -473,8 +472,6 @@ export function EbookBookcase({
     setAnnotatingAgentIds([]);
     cleanupEbookAgentTheater();
     setStatusMessage('');
-    setSettingsOpen(false);
-    setTocOpen(false);
     searchNavigation.resetSearch();
   }, [
     article.id,
@@ -520,7 +517,7 @@ export function EbookBookcase({
   function goToReaderTocItem(item: TocItem) {
     const tocItem = tocItems[item.index];
     if (!tocItem) return;
-    setTocOpen(false);
+    closeToc();
     goToTocItem(tocItem);
   }
 
@@ -537,9 +534,7 @@ export function EbookBookcase({
 
   function handleFoliatePointerDown() {
     clearAnnotationUiState();
-    if (settingsOpen) {
-      setSettingsOpen(false);
-    }
+    closeSettings();
     if (selectedAnnotationId) onOpenAnnotation(null);
   }
 
@@ -942,48 +937,24 @@ export function EbookBookcase({
   }, [annotations, boxes]);
   const supportsAnnotationNavigation = ebookHasStableSectionChapterMapping(article);
   const readerAppViewProps = sourceReaderApp.viewProps({
-    actions: {
-      annotation: {
-        onAnnotationLayoutChange: recalculateActiveConnection,
-        onClearActiveAnnotation: () => onOpenAnnotation(null),
-        onCreateAnnotation: createAnnotation,
-        onDeleteAnnotation: deleteAnnotation,
-        onFocusAnnotation: openAnnotation,
-        onHighlightClick: handleHighlightClick,
+    adapter: {
+      navigation: {
         onNavigateAnnotation: supportsAnnotationNavigation ? navigateAnnotation : undefined,
         onResolveAnnotationNavigation: supportsAnnotationNavigation
           ? resolveAnnotationNavigation
           : undefined,
         onScrollToHighlight: focusPageAnnotation,
+        onScrollToHeading: goToReaderTocItem,
       },
+      onHighlightClick: handleHighlightClick,
+      onRevealReaderChatContext: revealReaderChatContext,
+      questionContext: readerQuestionContext,
       selection: {
-        onCancelComposer: cancelComposer,
-        onClearSelection: clearSelection,
-        onCloseHighlightChoice: () => setHighlightChoice(null),
-        onCopySelection: copySelection,
         onMouseUp: () => undefined,
-        onAskSelection: (action) => askSelection(action, readerQuestionContext),
-        onOpenComposer: openComposer,
         onSelectionHandleDrag: updateEbookSelectionAdjustment,
         onSelectionHandleDragEnd: finishEbookSelectionAdjustment,
         onSelectionHandleDragStart: startEbookSelectionAdjustment,
       },
-      shell: {
-        onClose,
-        onCloseFloatingPanels: () => {
-          setSettingsOpen(false);
-        },
-        onCloseResponsivePanels: () => {
-          setTocOpen(false);
-        },
-        onToggleSettings: () => setSettingsOpen((open) => !open),
-        onUpdateReaderSettings: updateEbookReaderSettings,
-      },
-      toc: {
-        onScrollToHeading: goToReaderTocItem,
-        onToggleToc: () => setTocOpen((open) => !open),
-      },
-      onRevealReaderChatContext: revealReaderChatContext,
     },
     agentPlayback: {
       dockCompleting: ebookAgentDockCompleting,
@@ -1008,11 +979,12 @@ export function EbookBookcase({
       extracted: readerArticle,
       id: article.id,
     },
+    onAnnotationLayoutChange: recalculateActiveConnection,
+    shell: { onClose },
     toc: {
       activeIndex: activeTocIndex,
       annotationStats: tocStats,
       items: readerTocItems,
-      open: tocOpen,
     },
     toolbar: {
       articleLeadingVisual: (
