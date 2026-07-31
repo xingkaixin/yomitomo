@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Agent, Annotation, TextAnchor } from '@yomitomo/shared';
+import type { Agent, AgentMessagePayload, Annotation, TextAnchor } from '@yomitomo/shared';
 import {
   buildEpubBookIndex,
   buildReadingContextBundle,
@@ -8,6 +8,7 @@ import {
 } from '@yomitomo/core';
 import {
   buildSelectionAnnotationContext,
+  buildSelectionThreadContext,
   selectionAnnotationContextPrompt,
 } from './selection-context';
 
@@ -183,6 +184,71 @@ describe('selection annotation context', () => {
     expect(prompt).toContain('失效选区');
     expect(prompt).toContain('后缀上下文');
     expect(prompt).toContain('"source": "anchor-context"');
+  });
+
+  it('preserves thread author refs without changing their display labels', () => {
+    const chapters = [{ id: 'chapter-1', title: '第一章', paragraphs: ['目标论证。'] }];
+    const ebookIndex = buildEpubBookIndex({ articleId: 'book-1', chapters });
+    const text = epubIndexText(chapters);
+    const targetAnchor = anchorForText(ebookIndex, text, '目标论证');
+    const agentAuthor = {
+      kind: 'agent' as const,
+      agentId: 'agent-reviewer',
+      username: 'reviewer',
+      nickname: '审阅者',
+    };
+    const userAuthor = {
+      kind: 'user' as const,
+      userId: 'user-reader',
+      username: 'reader',
+      nickname: '读者',
+    };
+    const userComment = {
+      id: 'comment-user',
+      author: userAuthor,
+      content: '请检查证据边界。',
+      createdAt: '2026-05-13T00:01:00.000Z',
+    };
+    const payload: AgentMessagePayload = {
+      agentId: agent.id,
+      agentUsername: agent.username,
+      article: {
+        id: 'book-1',
+        title: '长书',
+        url: 'ebook://book-1',
+        text,
+        ebookIndex,
+      },
+      annotation: {
+        id: 'annotation-thread',
+        anchor: targetAnchor,
+        author: userAuthor,
+        color: '#6fa48f',
+        comments: [
+          {
+            id: 'comment-agent',
+            author: agentAuthor,
+            content: '原文证据还不够。',
+            createdAt: '2026-05-13T00:00:00.000Z',
+          },
+        ],
+        createdAt: '2026-05-13T00:00:00.000Z',
+        updatedAt: '2026-05-13T00:00:00.000Z',
+      },
+      userComment,
+    };
+
+    const context = buildSelectionThreadContext(payload);
+    if (!context) throw new Error('selection thread context should exist');
+
+    expect(context.thread.messages.map((message) => message.author)).toEqual([
+      agentAuthor,
+      userAuthor,
+    ]);
+    expect(context.thread.messages.map((message) => message.text)).toEqual([
+      '审阅者：原文证据还不够。',
+      '读者：请检查证据边界。',
+    ]);
   });
 });
 

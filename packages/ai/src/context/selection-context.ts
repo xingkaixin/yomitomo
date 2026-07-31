@@ -461,7 +461,7 @@ function threadMessages(
   );
   return comments.map((comment) => ({
     commentId: comment.id,
-    author: comment.author.kind === 'agent' ? 'ai' : 'user',
+    author: comment.author,
     text: `${commentAuthorLabel(comment)}：${clipText(comment.content, THREAD_MESSAGE_MAX_LENGTH)}`,
     source: sourceLabel('thread', index.articleId, {
       chapterId: location?.chapter.id || payload.annotation.anchor.chapterId,

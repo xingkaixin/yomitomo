@@ -135,7 +135,7 @@ describe('reading context packing', () => {
           messages: [
             {
               commentId: 'comment-1',
-              author: 'user',
+              author: { kind: 'user', username: 'reader' },
               text: '读者追问',
               source: source('thread'),
             },
