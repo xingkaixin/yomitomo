@@ -1,0 +1,35 @@
+{
+  "version": "0.14.0",
+  "highlights": [
+    {
+      "type": "changed",
+      "title": "Every source knows the same article",
+      "description": "Web articles, ebooks, PDFs, and text imports now share an explicit source identity, so translations, reading progress, and annotations stay attached when content changes entry points.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Assistant tasks stay coherent",
+      "description": "Streaming work for verification, annotations, and follow-ups stays in the window that started it, while model selection remains bounded so long tasks do not cross wires.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Large libraries open lighter",
+      "description": "The catalog is paged and reading and assistant indexes are reused. The more books and longer texts you have, the more noticeable the difference is at startup and search.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "PDF selections stay put while you scroll",
+      "description": "Selections remain attached to their text as you scroll through a PDF, and imported text appears in the Library immediately without a restart.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "Imports and sync recover more gracefully",
+      "description": "Text and Kindle imports are bounded, and reading progress, logs, source changes, and credential replacement retain recoverable state after a failure.",
+      "audience": "settings"
+    }
+  ]
+}
