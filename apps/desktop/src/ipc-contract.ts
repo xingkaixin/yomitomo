@@ -36,16 +36,22 @@ import type { SerializedDesktopIpcError } from './ipc-errors';
 import type {
   AgentIpcInvokeMap,
   AnnotationWindowIpcInvokeMap,
-  AppIpcInvokeMap,
-  AppLockIpcInvokeMap,
   ArticleIpcInvokeMap,
-  DataIpcInvokeMap,
   LibraryCollectionIpcInvokeMap,
   ProviderIpcInvokeMap,
-  StoreIpcInvokeMap,
-  UpdateIpcInvokeMap,
   WeReadIpcInvokeMap,
 } from './ipc/desktop-ipc-contract-fragments';
+import {
+  appIpcInvokeDescriptors,
+  appLockIpcInvokeDescriptors,
+  dataIpcInvokeDescriptors,
+  storeIpcInvokeDescriptors,
+  updateIpcInvokeDescriptors,
+} from './ipc/desktop-ipc-contract-fragments';
+import {
+  desktopIpcInvokeRoutesFromDescriptors,
+  type DesktopIpcInvokeMapFromDescriptors,
+} from './ipc/desktop-ipc-descriptor';
 import type { DesktopIpcSchemaArgs } from './ipc/desktop-ipc-schema-fragments';
 
 export {
@@ -527,33 +533,24 @@ export type RemoveCollectionMemberInput =
 
 export type SetLibraryPinInput = DesktopIpcSchemaArgs<'library-pin:set'>[0];
 
-export type DesktopIpcValidationExemption = 'domain-payload' | 'handler-owned' | 'no-args';
-
-export type DesktopIpcValidationPolicy = 'schema' | { exempt: DesktopIpcValidationExemption };
-
-type DesktopIpcInvokeEntry = {
-  args: unknown[];
-  result: unknown;
-  validation: DesktopIpcValidationPolicy;
-};
-
-type ValidateDesktopIpcInvokeMap<
-  InvokeMap extends { [Channel in keyof InvokeMap]: DesktopIpcInvokeEntry },
-> = InvokeMap;
+export type {
+  DesktopIpcValidationExemption,
+  DesktopIpcValidationPolicy,
+} from './ipc/desktop-ipc-descriptor';
 
 type DesktopIpcRawInvokeMap = AgentIpcInvokeMap &
   AnnotationWindowIpcInvokeMap &
-  AppIpcInvokeMap &
-  AppLockIpcInvokeMap &
   ArticleIpcInvokeMap &
-  DataIpcInvokeMap &
   LibraryCollectionIpcInvokeMap &
   ProviderIpcInvokeMap &
-  StoreIpcInvokeMap &
-  UpdateIpcInvokeMap &
+  DesktopIpcInvokeMapFromDescriptors<typeof appIpcInvokeDescriptors> &
+  DesktopIpcInvokeMapFromDescriptors<typeof appLockIpcInvokeDescriptors> &
+  DesktopIpcInvokeMapFromDescriptors<typeof dataIpcInvokeDescriptors> &
+  DesktopIpcInvokeMapFromDescriptors<typeof storeIpcInvokeDescriptors> &
+  DesktopIpcInvokeMapFromDescriptors<typeof updateIpcInvokeDescriptors> &
   WeReadIpcInvokeMap;
 
-export type DesktopIpcInvokeMap = ValidateDesktopIpcInvokeMap<DesktopIpcRawInvokeMap>;
+export type DesktopIpcInvokeMap = DesktopIpcRawInvokeMap;
 
 export type DesktopIpcInvokeChannel = keyof DesktopIpcInvokeMap;
 
@@ -563,7 +560,15 @@ export type DesktopIpcInvokeArgs<Channel extends DesktopIpcInvokeChannel> =
 export type DesktopIpcInvokeResult<Channel extends DesktopIpcInvokeChannel> =
   DesktopIpcInvokeMap[Channel]['result'];
 
-export const desktopIpcInvokeRoutes = {
+export const desktopIpcInvokeDescriptors = {
+  ...appIpcInvokeDescriptors,
+  ...appLockIpcInvokeDescriptors,
+  ...dataIpcInvokeDescriptors,
+  ...storeIpcInvokeDescriptors,
+  ...updateIpcInvokeDescriptors,
+};
+
+const desktopIpcLegacyInvokeRoutes = {
   'agent:delete': ['agent', 'delete'],
   'agent:mention-route': ['agent', 'planMentionRoute'],
   'agent:review': ['agent', 'review'],
@@ -578,17 +583,6 @@ export const desktopIpcInvokeRoutes = {
   'annotation-discussion:close-article': ['annotations', 'discussion', 'closeArticle'],
   'annotation-sedimentation:open': ['annotations', 'sedimentation', 'open'],
   'annotation-sedimentation:commit': ['annotations', 'sedimentation', 'commit'],
-  'app:info': ['app', 'getInfo'],
-  'app:pdfium-wasm-url': ['app', 'readPdfiumWasmUrl'],
-  'performance:timing': ['diagnostics', 'recordPerformanceTiming'],
-  'url:open': ['app', 'openUrl'],
-  'appLock:getStatus': ['appLock', 'getStatus'],
-  'appLock:setEnabled': ['appLock', 'setEnabled'],
-  'appLock:setLocked': ['appLock', 'setLocked'],
-  'appLock:setPin': ['appLock', 'setPin'],
-  'appLock:setShortcut': ['appLock', 'setShortcut'],
-  'appLock:verifyPin': ['appLock', 'verifyPin'],
-  'appLock:unlock': ['appLock', 'unlock'],
   'article:delete': ['article', 'delete'],
   'article:delete-annotation': ['article', 'deleteAnnotation'],
   'article:delete-comment': ['article', 'deleteComment'],
@@ -615,13 +609,6 @@ export const desktopIpcInvokeRoutes = {
   'pdf:get-thumbnail': ['article', 'pdf', 'getThumbnail'],
   'text:import-prepare': ['article', 'text', 'prepareImport'],
   'text:import-commit': ['article', 'text', 'commitImport'],
-  'data:database-backup': ['data', 'backupDatabase'],
-  'data:database-restore': ['data', 'restoreDatabase'],
-  'data:open-path': ['data', 'openPath'],
-  'data:paths': ['data', 'getPaths'],
-  'log:clear': ['diagnostics', 'log', 'clear'],
-  'log:path': ['diagnostics', 'log', 'getPath'],
-  'log:read': ['diagnostics', 'log', 'read'],
   'distillation-library:list': ['library', 'distillations', 'list'],
   'library-catalog:list': ['library', 'catalog', 'list'],
   'library-collection:list': ['library', 'collections', 'list'],
@@ -639,13 +626,6 @@ export const desktopIpcInvokeRoutes = {
   'provider:test': ['provider', 'test'],
   'settings:save': ['store', 'saveSettings'],
   'user:save': ['store', 'saveUser'],
-  'store:get': ['store', 'getStateResult'],
-  'updates:check': ['updates', 'check'],
-  'updates:download': ['updates', 'download'],
-  'updates:get-status': ['updates', 'getStatus'],
-  'updates:install': ['updates', 'install'],
-  'updates:simulate-available': ['updates', 'simulateAvailable'],
-  'release-notes:get': ['updates', 'getReleaseNote'],
   'weread:get-settings': ['weRead', 'getSettings'],
   'weread:get-state': ['weRead', 'getState'],
   'weread:read-api-key': ['weRead', 'readApiKey'],
@@ -657,6 +637,11 @@ export const desktopIpcInvokeRoutes = {
   'weread:open': ['weRead', 'open'],
   'weread:get-reading-stats': ['weRead', 'getReadingStats'],
   'weread:query-reading-stats': ['weRead', 'queryReadingStats'],
+} as const;
+
+export const desktopIpcInvokeRoutes = {
+  ...desktopIpcLegacyInvokeRoutes,
+  ...desktopIpcInvokeRoutesFromDescriptors(desktopIpcInvokeDescriptors),
 } as const satisfies Record<DesktopIpcInvokeChannel, readonly [domain: string, ...path: string[]]>;
 
 type DesktopIpcRouteApi<Route extends readonly string[], Operation> = Route extends readonly [

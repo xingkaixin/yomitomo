@@ -1,16 +1,24 @@
-import type { DesktopIpcInvokeChannel, DesktopIpcToMainEventChannel } from './ipc-contract';
+import {
+  desktopIpcInvokeDescriptors,
+  type DesktopIpcInvokeChannel,
+  type DesktopIpcToMainEventChannel,
+} from './ipc-contract';
+import {
+  annotationAndMain,
+  desktopIpcInvokeRolesFromDescriptors,
+  mainOnly,
+  type DesktopIpcRendererRoles,
+  type RendererRole,
+} from './ipc/desktop-ipc-descriptor';
 
 /**
  * Every renderer loads the same preload, so the main process is the authoritative place
  * to decide what a window may call. The matrices below are exhaustive by type: adding a
  * channel without choosing its roles fails to compile, which keeps the default a denial.
  */
-export type RendererRole = 'annotation' | 'main';
+export type { RendererRole } from './ipc/desktop-ipc-descriptor';
 
-const mainOnly = ['main'] as const satisfies readonly RendererRole[];
-const annotationAndMain = ['annotation', 'main'] as const satisfies readonly RendererRole[];
-
-export const desktopIpcInvokeRoles = {
+const desktopIpcLegacyInvokeRoles = {
   'agent:delete': mainOnly,
   'agent:mention-route': annotationAndMain,
   'agent:review': mainOnly,
@@ -25,17 +33,6 @@ export const desktopIpcInvokeRoles = {
   'annotation-discussion:close-article': mainOnly,
   'annotation-sedimentation:open': annotationAndMain,
   'annotation-sedimentation:commit': annotationAndMain,
-  'app:info': annotationAndMain,
-  'app:pdfium-wasm-url': mainOnly,
-  'performance:timing': annotationAndMain,
-  'url:open': annotationAndMain,
-  'appLock:getStatus': mainOnly,
-  'appLock:setEnabled': mainOnly,
-  'appLock:setLocked': mainOnly,
-  'appLock:setPin': mainOnly,
-  'appLock:setShortcut': mainOnly,
-  'appLock:verifyPin': mainOnly,
-  'appLock:unlock': mainOnly,
   'article:delete': mainOnly,
   'article:delete-annotation': mainOnly,
   'article:delete-comment': annotationAndMain,
@@ -62,13 +59,6 @@ export const desktopIpcInvokeRoles = {
   'pdf:get-thumbnail': mainOnly,
   'text:import-prepare': mainOnly,
   'text:import-commit': mainOnly,
-  'data:database-backup': mainOnly,
-  'data:database-restore': mainOnly,
-  'data:open-path': mainOnly,
-  'data:paths': mainOnly,
-  'log:clear': mainOnly,
-  'log:path': mainOnly,
-  'log:read': mainOnly,
   'distillation-library:list': mainOnly,
   'library-catalog:list': mainOnly,
   'library-collection:list': mainOnly,
@@ -86,13 +76,6 @@ export const desktopIpcInvokeRoles = {
   'provider:test': mainOnly,
   'settings:save': mainOnly,
   'user:save': mainOnly,
-  'store:get': annotationAndMain,
-  'updates:check': mainOnly,
-  'updates:download': mainOnly,
-  'updates:get-status': mainOnly,
-  'updates:install': mainOnly,
-  'updates:simulate-available': mainOnly,
-  'release-notes:get': mainOnly,
   'weread:get-settings': mainOnly,
   'weread:get-state': mainOnly,
   'weread:read-api-key': mainOnly,
@@ -104,7 +87,12 @@ export const desktopIpcInvokeRoles = {
   'weread:open': mainOnly,
   'weread:get-reading-stats': mainOnly,
   'weread:query-reading-stats': mainOnly,
-} as const satisfies Record<DesktopIpcInvokeChannel, readonly RendererRole[]>;
+} as const;
+
+export const desktopIpcInvokeRoles = {
+  ...desktopIpcLegacyInvokeRoles,
+  ...desktopIpcInvokeRolesFromDescriptors(desktopIpcInvokeDescriptors),
+} as const satisfies Record<DesktopIpcInvokeChannel, DesktopIpcRendererRoles>;
 
 export const desktopIpcMainEventRoles = {
   'agent:annotate:stream': mainOnly,

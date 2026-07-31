@@ -30,6 +30,12 @@ import type {
 } from '@yomitomo/shared';
 import type { DesktopStoreGetResult } from '../app-store-errors';
 import type { AppUpdateState, AppUpdateTrigger } from '../app-update-types';
+import {
+  annotationAndMain,
+  desktopIpcInvoke,
+  mainOnly,
+  type DesktopIpcInvokeDescriptor,
+} from './desktop-ipc-descriptor';
 import type { DesktopIpcSchemaArgs } from './desktop-ipc-schema-fragments';
 import type {
   AgentRuntimeTraceEntry,
@@ -153,66 +159,79 @@ export type AnnotationWindowIpcInvokeMap = {
   };
 };
 
-export type AppIpcInvokeMap = {
-  'app:info': {
-    args: [];
-    result: AppInfo;
-    validation: { exempt: 'no-args' };
-  };
-  'app:pdfium-wasm-url': {
-    args: [];
-    result: string;
-    validation: { exempt: 'no-args' };
-  };
-  'performance:timing': {
-    args: [input: PerformanceTimingInput];
-    result: void;
-    validation: { exempt: 'domain-payload' };
-  };
-  'url:open': {
-    args: [url: string];
-    result: void;
-    validation: { exempt: 'handler-owned' };
-  };
-};
+export const appIpcInvokeDescriptors = {
+  'app:info': desktopIpcInvoke<[], AppInfo>()({
+    route: ['app', 'getInfo'],
+    roles: annotationAndMain,
+    validation: { exempt: 'no-args' },
+    appLockBypass: true,
+  }),
+  'app:pdfium-wasm-url': desktopIpcInvoke<[], string>()({
+    route: ['app', 'readPdfiumWasmUrl'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+  'performance:timing': desktopIpcInvoke<[input: PerformanceTimingInput], void>()({
+    route: ['diagnostics', 'recordPerformanceTiming'],
+    roles: annotationAndMain,
+    validation: { exempt: 'domain-payload' },
+    appLockBypass: true,
+  }),
+  'url:open': desktopIpcInvoke<[url: string], void>()({
+    route: ['app', 'openUrl'],
+    roles: annotationAndMain,
+    validation: { exempt: 'handler-owned' },
+  }),
+} satisfies Record<string, DesktopIpcInvokeDescriptor>;
 
-export type AppLockIpcInvokeMap = {
-  'appLock:getStatus': {
-    args: [];
-    result: AppLockStatus;
-    validation: { exempt: 'no-args' };
-  };
-  'appLock:setEnabled': {
-    args: DesktopIpcSchemaArgs<'appLock:setEnabled'>;
-    result: DesktopStore;
-    validation: 'schema';
-  };
-  'appLock:setLocked': {
-    args: DesktopIpcSchemaArgs<'appLock:setLocked'>;
-    result: DesktopStore;
-    validation: 'schema';
-  };
-  'appLock:setPin': {
-    args: DesktopIpcSchemaArgs<'appLock:setPin'>;
-    result: AppLockStatus;
-    validation: 'schema';
-  };
-  'appLock:setShortcut': {
-    args: DesktopIpcSchemaArgs<'appLock:setShortcut'>;
-    result: DesktopStore;
-    validation: 'schema';
-  };
-  'appLock:verifyPin': {
-    args: DesktopIpcSchemaArgs<'appLock:verifyPin'>;
-    result: AppLockVerifyPinResult;
-    validation: 'schema';
-  };
-  'appLock:unlock': {
-    args: DesktopIpcSchemaArgs<'appLock:unlock'>;
-    result: DesktopStore;
-    validation: 'schema';
-  };
-};
+export const appLockIpcInvokeDescriptors = {
+  'appLock:getStatus': desktopIpcInvoke<[], AppLockStatus>()({
+    route: ['appLock', 'getStatus'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+    appLockBypass: true,
+  }),
+  'appLock:setEnabled': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'appLock:setEnabled'>,
+    DesktopStore
+  >()({
+    route: ['appLock', 'setEnabled'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'appLock:setLocked': desktopIpcInvoke<DesktopIpcSchemaArgs<'appLock:setLocked'>, DesktopStore>()({
+    route: ['appLock', 'setLocked'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'appLock:setPin': desktopIpcInvoke<DesktopIpcSchemaArgs<'appLock:setPin'>, AppLockStatus>()({
+    route: ['appLock', 'setPin'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'appLock:setShortcut': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'appLock:setShortcut'>,
+    DesktopStore
+  >()({
+    route: ['appLock', 'setShortcut'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'appLock:verifyPin': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'appLock:verifyPin'>,
+    AppLockVerifyPinResult
+  >()({
+    route: ['appLock', 'verifyPin'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'appLock:unlock': desktopIpcInvoke<DesktopIpcSchemaArgs<'appLock:unlock'>, DesktopStore>()({
+    route: ['appLock', 'unlock'],
+    roles: mainOnly,
+    validation: 'schema',
+    appLockBypass: true,
+  }),
+} satisfies Record<string, DesktopIpcInvokeDescriptor>;
 
 export type ArticleIpcInvokeMap = {
   'article:delete': {
@@ -347,43 +366,44 @@ export type ArticleIpcInvokeMap = {
   };
 };
 
-export type DataIpcInvokeMap = {
-  'data:database-backup': {
-    args: [];
-    result: DatabaseBackupResult;
-    validation: { exempt: 'no-args' };
-  };
-  'data:database-restore': {
-    args: [];
-    result: DatabaseRestoreResult;
-    validation: { exempt: 'no-args' };
-  };
-  'data:open-path': {
-    args: DesktopIpcSchemaArgs<'data:open-path'>;
-    result: void;
-    validation: 'schema';
-  };
-  'data:paths': {
-    args: [];
-    result: DataManagementPaths;
-    validation: { exempt: 'no-args' };
-  };
-  'log:clear': {
-    args: [];
-    result: void;
-    validation: { exempt: 'no-args' };
-  };
-  'log:path': {
-    args: [];
-    result: string;
-    validation: { exempt: 'no-args' };
-  };
-  'log:read': {
-    args: [];
-    result: string;
-    validation: { exempt: 'no-args' };
-  };
-};
+export const dataIpcInvokeDescriptors = {
+  'data:database-backup': desktopIpcInvoke<[], DatabaseBackupResult>()({
+    route: ['data', 'backupDatabase'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+  'data:database-restore': desktopIpcInvoke<[], DatabaseRestoreResult>()({
+    route: ['data', 'restoreDatabase'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+    databaseLifecycle: true,
+  }),
+  'data:open-path': desktopIpcInvoke<DesktopIpcSchemaArgs<'data:open-path'>, void>()({
+    route: ['data', 'openPath'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'data:paths': desktopIpcInvoke<[], DataManagementPaths>()({
+    route: ['data', 'getPaths'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+  'log:clear': desktopIpcInvoke<[], void>()({
+    route: ['diagnostics', 'log', 'clear'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+  'log:path': desktopIpcInvoke<[], string>()({
+    route: ['diagnostics', 'log', 'getPath'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+  'log:read': desktopIpcInvoke<[], string>()({
+    route: ['diagnostics', 'log', 'read'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+} satisfies Record<string, DesktopIpcInvokeDescriptor>;
 
 export type LibraryCollectionIpcInvokeMap = {
   'distillation-library:list': {
@@ -476,46 +496,50 @@ export type ProviderIpcInvokeMap = {
   };
 };
 
-export type StoreIpcInvokeMap = {
-  'store:get': {
-    args: [];
-    result: DesktopStoreGetResult;
-    validation: { exempt: 'no-args' };
-  };
-};
+export const storeIpcInvokeDescriptors = {
+  'store:get': desktopIpcInvoke<[], DesktopStoreGetResult>()({
+    route: ['store', 'getStateResult'],
+    roles: annotationAndMain,
+    validation: { exempt: 'no-args' },
+    appLockBypass: true,
+  }),
+} satisfies Record<string, DesktopIpcInvokeDescriptor>;
 
-export type UpdateIpcInvokeMap = {
-  'updates:check': {
-    args: [];
-    result: AppUpdateState;
-    validation: { exempt: 'no-args' };
-  };
-  'updates:download': {
-    args: [];
-    result: AppUpdateState;
-    validation: { exempt: 'no-args' };
-  };
-  'updates:get-status': {
-    args: [];
-    result: AppUpdateState;
-    validation: { exempt: 'no-args' };
-  };
-  'updates:install': {
-    args: [];
-    result: AppUpdateState;
-    validation: { exempt: 'no-args' };
-  };
-  'updates:simulate-available': {
-    args: [trigger?: AppUpdateTrigger];
-    result: AppUpdateState;
-    validation: { exempt: 'handler-owned' };
-  };
-  'release-notes:get': {
-    args: [input: { version: string; source: 'local' | 'remote'; language?: UiLanguage }];
-    result: UserFacingReleaseNote | null;
-    validation: { exempt: 'domain-payload' };
-  };
-};
+export const updateIpcInvokeDescriptors = {
+  'updates:check': desktopIpcInvoke<[], AppUpdateState>()({
+    route: ['updates', 'check'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+  'updates:download': desktopIpcInvoke<[], AppUpdateState>()({
+    route: ['updates', 'download'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+  'updates:get-status': desktopIpcInvoke<[], AppUpdateState>()({
+    route: ['updates', 'getStatus'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+  'updates:install': desktopIpcInvoke<[], AppUpdateState>()({
+    route: ['updates', 'install'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+  'updates:simulate-available': desktopIpcInvoke<[trigger?: AppUpdateTrigger], AppUpdateState>()({
+    route: ['updates', 'simulateAvailable'],
+    roles: mainOnly,
+    validation: { exempt: 'handler-owned' },
+  }),
+  'release-notes:get': desktopIpcInvoke<
+    [input: { version: string; source: 'local' | 'remote'; language?: UiLanguage }],
+    UserFacingReleaseNote | null
+  >()({
+    route: ['updates', 'getReleaseNote'],
+    roles: mainOnly,
+    validation: { exempt: 'domain-payload' },
+  }),
+} satisfies Record<string, DesktopIpcInvokeDescriptor>;
 
 export type WeReadIpcInvokeMap = {
   'weread:get-settings': {
