@@ -21,11 +21,7 @@ import {
   reduceAssistantRuntimeEvent,
   type AgentRuntimeExecutionEvent,
 } from './agent-execution-projection';
-import {
-  annotateResultUsage,
-  logAgentMessageRuntime,
-  recordAssistantExecutionRun,
-} from './agent-execution-recorder';
+import { annotateResultUsage, type AssistantExecutionRecorder } from './agent-execution-recorder';
 import {
   agentAnnotatePayloadWithReadingMemoryEntries,
   agentMessagePayloadWithReadingMemoryView,
@@ -72,11 +68,8 @@ export type AgentTaskExecutionContext = Pick<
       'hydrateProviderApiKey'
     >;
     storeAgents: Pick<typeof import('../store/store-agents'), 'readAgentRuntimeContext'>;
-    storeAssistantExecutions: Pick<
-      typeof import('../store/store-assistant-executions'),
-      'recordAssistantExecutionRun'
-    >;
   }>;
+  recorder: AssistantExecutionRecorder;
 };
 
 export type AgentCommentExecutionEvent =
@@ -151,15 +144,14 @@ export async function executeAgentCommentTask(
     taskType,
     onRuntimeEvent: (event) => applyRuntimeEvent(comment, event, emit),
   });
-  logAgentMessageRuntime(
-    context,
-    runtime,
+  context.recorder.recordRuntimeExecution({
+    result: runtime,
     provider,
     agent,
     requestedMode,
     taskType,
-    context.elapsedMs(startedAt),
-  );
+    durationMs: context.elapsedMs(startedAt),
+  });
 
   if (runtime.status === 'comment') {
     if (!comment.content) appendCommentText(comment, runtime.comment.content, emit);
@@ -223,15 +215,14 @@ export async function executeAgentDistillationReviewTask(
       applyRuntimeEvent(message, event, emit);
     },
   });
-  logAgentMessageRuntime(
-    context,
-    runtime,
+  context.recorder.recordRuntimeExecution({
+    result: runtime,
     provider,
     agent,
     requestedMode,
-    'distillation_review',
-    context.elapsedMs(startedAt),
-  );
+    taskType: 'distillation_review',
+    durationMs: context.elapsedMs(startedAt),
+  });
 
   if (runtime.status === 'message') {
     applyRuntimeDistillationReview(message, runtime.message, emit);
@@ -466,9 +457,9 @@ function recordFastExecution(
   requestedMode: ReturnType<typeof normalizeAssistantExecutionMode>,
   fallbackReason: string,
   durationMs: number,
-  usage?: Parameters<typeof recordAssistantExecutionRun>[1]['usage'],
+  usage?: Parameters<AssistantExecutionRecorder['recordFastExecution']>[0]['usage'],
 ) {
-  recordAssistantExecutionRun(context, {
+  context.recorder.recordFastExecution({
     agent,
     provider,
     taskType,

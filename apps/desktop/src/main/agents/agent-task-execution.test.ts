@@ -8,7 +8,9 @@ import type {
   AppSettings,
   LlmProvider,
 } from '@yomitomo/shared';
+import type { AssistantExecutionRunInput } from '../assistant/assistant-execution-repository';
 import { desktopIpcErrorCodes } from '../../ipc-errors';
+import type { RuntimeExecutionRecord } from './agent-execution-recorder';
 
 const runtimeMocks = vi.hoisted(() => ({
   runAgentMessageWithToolLoop: vi.fn(),
@@ -20,13 +22,8 @@ const memoryMocks = vi.hoisted(() => ({
   agentMessagePayloadWithReadingMemoryView: vi.fn((input: { payload: unknown }) => input.payload),
   saveAgentAnnotateReadingMemoryEntries: vi.fn(),
 }));
-const traceMocks = vi.hoisted(() => ({
-  appendAgentRuntimeTrace: vi.fn().mockResolvedValue(undefined),
-}));
-
 vi.mock('./agent-message-runtime', () => runtimeMocks);
 vi.mock('./agent-reading-memory', () => memoryMocks);
-vi.mock('./agent-runtime-trace-log', () => traceMocks);
 
 import {
   executeAgentAnnotationTask,
@@ -37,7 +34,6 @@ import {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  traceMocks.appendAgentRuntimeTrace.mockResolvedValue(undefined);
   memoryMocks.agentAnnotatePayloadWithReadingMemoryEntries.mockImplementation(
     (input: { payload: unknown }) => input.payload,
   );
@@ -159,7 +155,7 @@ describe('executeAgentCommentTask', () => {
       requestedMode: 'deep_verification',
       effectiveMode: 'deep_verification',
     });
-    expect(traceMocks.appendAgentRuntimeTrace).toHaveBeenCalledOnce();
+    expect(fixture.recorder.recordRuntimeExecution).toHaveBeenCalledOnce();
     expect(executionRows(fixture)).toHaveLength(1);
   });
 
@@ -197,7 +193,7 @@ describe('executeAgentCommentTask', () => {
         fallbackReason: 'tool_loop_failed',
       }),
     ]);
-    expect(traceMocks.appendAgentRuntimeTrace).toHaveBeenCalledOnce();
+    expect(fixture.recorder.recordRuntimeExecution).toHaveBeenCalledOnce();
   });
 
   it('falls back after a skipped deep runtime without recording a runtime attempt', async () => {
@@ -220,7 +216,7 @@ describe('executeAgentCommentTask', () => {
         fallbackReason: 'missing_article_id',
       }),
     ]);
-    expect(traceMocks.appendAgentRuntimeTrace).not.toHaveBeenCalled();
+    expect(fixture.recorder.recordRuntimeExecution).toHaveBeenCalledOnce();
   });
 
   it('rejects missing agents before loading the AI module', async () => {
@@ -435,14 +431,19 @@ function taskFixture(
     runAgentStream: vi.fn(),
     runAgentToolLoopTask: vi.fn(),
   } as unknown as { [Key in keyof TaskAiModule]: ReturnType<typeof vi.fn> };
-  const assistantExecutionPersistence = {
-    recordAssistantExecutionRun: vi.fn().mockResolvedValue(undefined),
+  const executionEvents: ExecutionEvent[] = [];
+  const recorder = {
+    recordRuntimeExecution: vi.fn((input: RuntimeExecutionRecord) => {
+      executionEvents.push({ kind: 'runtime', input });
+    }),
+    recordFastExecution: vi.fn((input: AssistantExecutionRunInput) => {
+      executionEvents.push({ kind: 'fast', input });
+    }),
   };
   const persistence = {
     storeAgents: {
       readAgentRuntimeContext: vi.fn(async () => store),
     },
-    storeAssistantExecutions: assistantExecutionPersistence,
     providerRepository: {
       hydrateProviderApiKey: vi.fn(async (provider: LlmProvider) => provider),
     },
@@ -455,14 +456,16 @@ function taskFixture(
     getPersistenceModules,
     logError: vi.fn(),
     logInfo: vi.fn(),
+    recorder,
   };
   return {
     ai,
-    assistantExecutionPersistence,
     context,
+    executionEvents,
     getAiModule,
     getPersistenceModules,
     persistence,
+    recorder,
   };
 }
 
@@ -471,16 +474,38 @@ async function expectExecutionRecorded(
   expected: Record<string, unknown>,
 ) {
   await vi.waitFor(() => {
-    expect(fixture.assistantExecutionPersistence.recordAssistantExecutionRun).toHaveBeenCalledWith(
-      expect.objectContaining(expected),
-    );
+    expect(executionRows(fixture)).toContainEqual(expect.objectContaining(expected));
   });
 }
 
 function executionRows(fixture: ReturnType<typeof taskFixture>) {
-  return fixture.assistantExecutionPersistence.recordAssistantExecutionRun.mock.calls.map(
-    ([input]) => input,
+  return fixture.executionEvents.flatMap((event) =>
+    event.kind === 'fast' ? [event.input] : runtimeExecutionRow(event.input),
   );
+}
+
+type ExecutionEvent =
+  | { kind: 'fast'; input: AssistantExecutionRunInput }
+  | { kind: 'runtime'; input: RuntimeExecutionRecord };
+
+function runtimeExecutionRow(input: RuntimeExecutionRecord): AssistantExecutionRunInput[] {
+  const runtime = input.result.runtime;
+  if (!runtime) return [];
+  return [
+    {
+      agent: input.agent,
+      provider: input.provider,
+      taskType: input.taskType,
+      requestedMode: input.requestedMode,
+      effectiveMode: 'deep_verification',
+      status: input.result.status === 'fallback' ? 'fallback' : 'success',
+      fallbackReason: input.result.status === 'fallback' ? input.result.failureReason : undefined,
+      usage: runtime.trace.usage,
+      durationMs: input.durationMs,
+      stepCount: runtime.trace.steps.length,
+      traceJson: runtime.trace,
+    },
+  ];
 }
 
 function reviewPayload(reviewAgent: Agent): AgentDistillationReviewPayload {
