@@ -3,7 +3,7 @@
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { LibraryCatalogListResult, LibraryCatalogScope } from '../../../ipc-contract';
-import { useLibraryCatalog } from './use-library-catalog';
+import { useLibraryCatalog, useLocalStoreRevision } from './use-library-catalog';
 
 afterEach(() => {
   cleanup();
@@ -27,6 +27,64 @@ it('invalidates the current catalog page when an article patch changes the shell
   view.rerender(<Harness articles={[{ id: 'article_1', updatedAt: '2026-07-15' }]} />);
 
   await waitFor(() => expect(listLibraryCatalog).toHaveBeenCalledTimes(2));
+});
+
+it('keeps the local revision stable until a fact reference changes', () => {
+  const articles: unknown[] = [];
+  const collections: unknown[] = [];
+  const view = render(<RevisionHarness facts={[articles, collections]} />);
+
+  expect(screen.getByTestId('revision').textContent).toBe('0');
+
+  view.rerender(<RevisionHarness facts={[articles, collections]} />);
+
+  expect(screen.getByTestId('revision').textContent).toBe('0');
+});
+
+it('increments the local revision once when one or more facts change in a render', () => {
+  const initialFacts = [[], [], [], [], []] as const;
+  const view = render(<RevisionHarness facts={initialFacts} />);
+
+  const changedArticles = [{ id: 'article_1' }];
+  view.rerender(<RevisionHarness facts={[changedArticles, ...initialFacts.slice(1)]} />);
+
+  expect(screen.getByTestId('revision').textContent).toBe('1');
+
+  view.rerender(
+    <RevisionHarness facts={[changedArticles, [{ id: 'member_1' }], initialFacts[2], [], []]} />,
+  );
+
+  expect(screen.getByTestId('revision').textContent).toBe('2');
+});
+
+it('detects in-place fact replacements and dependency length changes', () => {
+  const facts: unknown[] = [{ id: 'article_1' }];
+  const view = render(<RevisionHarness facts={facts} />);
+
+  facts[0] = { id: 'article_2' };
+  view.rerender(<RevisionHarness facts={facts} />);
+
+  expect(screen.getByTestId('revision').textContent).toBe('1');
+
+  facts.push({ id: 'collection_1' });
+  view.rerender(<RevisionHarness facts={facts} />);
+
+  expect(screen.getByTestId('revision').textContent).toBe('2');
+});
+
+it('compares local facts with Object.is semantics', () => {
+  const facts: unknown[] = [Number.NaN, 0];
+  const view = render(<RevisionHarness facts={facts} />);
+
+  facts[0] = Number.NaN;
+  view.rerender(<RevisionHarness facts={facts} />);
+
+  expect(screen.getByTestId('revision').textContent).toBe('0');
+
+  facts[1] = -0;
+  view.rerender(<RevisionHarness facts={facts} />);
+
+  expect(screen.getByTestId('revision').textContent).toBe('1');
 });
 
 it('does not expose the previous catalog while a new scope is loading', async () => {
@@ -65,35 +123,24 @@ it('keeps the last good result and exposes an explicit refresh error', async () 
 });
 
 function Harness({ articles }: { articles: unknown }) {
-  useLibraryCatalog(
-    { scope: { kind: 'library' }, page: 1, pageSize: 12 },
-    {
-      articles,
-      collectionMembers: null,
-      collections: null,
-      pins: null,
-      wereadBooks: null,
-    },
-  );
+  const revision = useLocalStoreRevision([articles, null, null, null, null]);
+  useLibraryCatalog({ scope: { kind: 'library' }, page: 1, pageSize: 12 }, revision);
   return null;
 }
 
 function ResultHarness({ scope, query }: { scope: LibraryCatalogScope; query?: string }) {
-  const result = useLibraryCatalog(
-    { scope, query, page: 1, pageSize: 12 },
-    {
-      articles: null,
-      collectionMembers: null,
-      collections: null,
-      pins: null,
-      wereadBooks: null,
-    },
-  );
+  const revision = useLocalStoreRevision([]);
+  const result = useLibraryCatalog({ scope, query, page: 1, pageSize: 12 }, revision);
   return (
     <span data-testid="catalog-result">
       {`${result.result?.query || 'none'}:${result.status}${result.error ? `:${result.error.message}` : ''}`}
     </span>
   );
+}
+
+function RevisionHarness({ facts }: { facts: readonly unknown[] }) {
+  const revision = useLocalStoreRevision(facts);
+  return <span data-testid="revision">{revision}</span>;
 }
 
 function catalogResult(query: string): LibraryCatalogListResult {

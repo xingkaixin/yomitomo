@@ -73,7 +73,7 @@ import { libraryEntityPinTarget } from './app-reading-library-entities';
 import { useLibrarySearchClearDissolve } from './app-reading-library-search-clear-dissolve';
 import { librarySession } from './app-reading-library-session';
 import type { LibraryTypeFilter } from './library-filter-types';
-import { useLibraryCatalog } from './use-library-catalog';
+import { useLibraryCatalog, useLocalStoreRevision } from './use-library-catalog';
 
 const LIBRARY_PAGE_SIZE_OPTIONS = [6, 12, 18, 24] as const;
 const TYPE_FILTER_ICONS: Record<LibraryTypeFilter, React.ReactNode> = {
@@ -229,13 +229,14 @@ export function LibraryHome({
     }),
     [activeCollectionId, page, pageSize, searchQuery, selectedTypesKey],
   );
-  const catalogState = useLibraryCatalog(catalogInput, {
-    articles: sortedArticles,
+  const localRevision = useLocalStoreRevision([
+    sortedArticles,
     collectionMembers,
     collections,
     pins,
     wereadBooks,
-  });
+  ]);
+  const catalogState = useLibraryCatalog(catalogInput, localRevision);
   const remoteCatalog = catalogState.result;
   const wereadAvailable =
     wereadSettings.configured ||

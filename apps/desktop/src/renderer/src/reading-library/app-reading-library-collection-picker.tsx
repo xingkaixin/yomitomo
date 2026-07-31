@@ -56,7 +56,7 @@ import {
   useLibraryDroppable,
 } from './app-reading-library-dnd';
 import type { LibraryTypeScope } from './library-filter-types';
-import { useLibraryCatalog } from './use-library-catalog';
+import { useLibraryCatalog, useLocalStoreRevision } from './use-library-catalog';
 
 const PICKER_PAGE_SIZE = 30;
 
@@ -108,13 +108,14 @@ function CollectionPickerDialogContent({
     }),
     [collection.id, page, query, typeScope],
   );
-  const catalogState = useLibraryCatalog(catalogInput, {
+  const localRevision = useLocalStoreRevision([
     articles,
     collectionMembers,
-    collections: collection,
+    collection,
     pins,
     wereadBooks,
-  });
+  ]);
+  const catalogState = useLibraryCatalog(catalogInput, localRevision);
   const remoteCatalog = catalogState.result;
   const selectedItems = useMemo(() => Array.from(selectedRefs.values()), [selectedRefs]);
   const selectedKeys = useMemo(() => new Set(selectedRefs.keys()), [selectedRefs]);
