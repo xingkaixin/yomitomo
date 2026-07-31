@@ -33,17 +33,15 @@ import type {
 import type { AppMenuCommand } from './app-menu-types';
 import type { AppUpdateState } from './app-update-types';
 import type { SerializedDesktopIpcError } from './ipc-errors';
-import type {
-  AgentIpcInvokeMap,
-  AnnotationWindowIpcInvokeMap,
-  ProviderIpcInvokeMap,
-} from './ipc/desktop-ipc-contract-fragments';
 import {
+  agentIpcInvokeDescriptors,
+  annotationWindowIpcInvokeDescriptors,
   appIpcInvokeDescriptors,
   appLockIpcInvokeDescriptors,
   articleIpcInvokeDescriptors,
   dataIpcInvokeDescriptors,
   libraryCollectionIpcInvokeDescriptors,
+  providerIpcInvokeDescriptors,
   storeIpcInvokeDescriptors,
   updateIpcInvokeDescriptors,
   weReadIpcInvokeDescriptors,
@@ -538,19 +536,23 @@ export type {
   DesktopIpcValidationPolicy,
 } from './ipc/desktop-ipc-descriptor';
 
-type DesktopIpcRawInvokeMap = AgentIpcInvokeMap &
-  AnnotationWindowIpcInvokeMap &
-  ProviderIpcInvokeMap &
-  DesktopIpcInvokeMapFromDescriptors<typeof appIpcInvokeDescriptors> &
-  DesktopIpcInvokeMapFromDescriptors<typeof appLockIpcInvokeDescriptors> &
-  DesktopIpcInvokeMapFromDescriptors<typeof articleIpcInvokeDescriptors> &
-  DesktopIpcInvokeMapFromDescriptors<typeof dataIpcInvokeDescriptors> &
-  DesktopIpcInvokeMapFromDescriptors<typeof libraryCollectionIpcInvokeDescriptors> &
-  DesktopIpcInvokeMapFromDescriptors<typeof storeIpcInvokeDescriptors> &
-  DesktopIpcInvokeMapFromDescriptors<typeof updateIpcInvokeDescriptors> &
-  DesktopIpcInvokeMapFromDescriptors<typeof weReadIpcInvokeDescriptors>;
+export const desktopIpcInvokeDescriptors = {
+  ...agentIpcInvokeDescriptors,
+  ...annotationWindowIpcInvokeDescriptors,
+  ...appIpcInvokeDescriptors,
+  ...appLockIpcInvokeDescriptors,
+  ...articleIpcInvokeDescriptors,
+  ...dataIpcInvokeDescriptors,
+  ...libraryCollectionIpcInvokeDescriptors,
+  ...providerIpcInvokeDescriptors,
+  ...storeIpcInvokeDescriptors,
+  ...updateIpcInvokeDescriptors,
+  ...weReadIpcInvokeDescriptors,
+};
 
-export type DesktopIpcInvokeMap = DesktopIpcRawInvokeMap;
+export type DesktopIpcInvokeMap = DesktopIpcInvokeMapFromDescriptors<
+  typeof desktopIpcInvokeDescriptors
+>;
 
 export type DesktopIpcInvokeChannel = keyof DesktopIpcInvokeMap;
 
@@ -560,45 +562,9 @@ export type DesktopIpcInvokeArgs<Channel extends DesktopIpcInvokeChannel> =
 export type DesktopIpcInvokeResult<Channel extends DesktopIpcInvokeChannel> =
   DesktopIpcInvokeMap[Channel]['result'];
 
-export const desktopIpcInvokeDescriptors = {
-  ...appIpcInvokeDescriptors,
-  ...appLockIpcInvokeDescriptors,
-  ...articleIpcInvokeDescriptors,
-  ...dataIpcInvokeDescriptors,
-  ...libraryCollectionIpcInvokeDescriptors,
-  ...storeIpcInvokeDescriptors,
-  ...updateIpcInvokeDescriptors,
-  ...weReadIpcInvokeDescriptors,
-};
-
-const desktopIpcLegacyInvokeRoutes = {
-  'agent:delete': ['agent', 'delete'],
-  'agent:mention-route': ['agent', 'planMentionRoute'],
-  'agent:review': ['agent', 'review'],
-  'agent:save': ['agent', 'save'],
-  'agent-trace:clear': ['diagnostics', 'agentTraces', 'clear'],
-  'agent-trace:list': ['diagnostics', 'agentTraces', 'list'],
-  'agent-trace:path': ['diagnostics', 'agentTraces', 'getPath'],
-  'assistant-executions:list': ['diagnostics', 'assistantExecutions', 'list'],
-  'assistant-executions:detail': ['diagnostics', 'assistantExecutions', 'getDetail'],
-  'assistant-executions:summary': ['diagnostics', 'assistantExecutions', 'summarize'],
-  'annotation-discussion:open': ['annotations', 'discussion', 'open'],
-  'annotation-discussion:close-article': ['annotations', 'discussion', 'closeArticle'],
-  'annotation-sedimentation:open': ['annotations', 'sedimentation', 'open'],
-  'annotation-sedimentation:commit': ['annotations', 'sedimentation', 'commit'],
-  'provider:delete': ['provider', 'delete'],
-  'provider:list-models': ['provider', 'listModels'],
-  'provider:read-api-key': ['provider', 'readApiKey'],
-  'provider:save': ['provider', 'save'],
-  'provider:test': ['provider', 'test'],
-  'settings:save': ['store', 'saveSettings'],
-  'user:save': ['store', 'saveUser'],
-} as const;
-
-export const desktopIpcInvokeRoutes = {
-  ...desktopIpcLegacyInvokeRoutes,
-  ...desktopIpcInvokeRoutesFromDescriptors(desktopIpcInvokeDescriptors),
-} as const satisfies Record<DesktopIpcInvokeChannel, readonly [domain: string, ...path: string[]]>;
+export const desktopIpcInvokeRoutes = desktopIpcInvokeRoutesFromDescriptors(
+  desktopIpcInvokeDescriptors,
+) satisfies Record<DesktopIpcInvokeChannel, readonly [domain: string, ...path: string[]]>;
 
 type DesktopIpcRouteApi<Route extends readonly string[], Operation> = Route extends readonly [
   infer Segment extends string,

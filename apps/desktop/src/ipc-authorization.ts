@@ -8,7 +8,6 @@ import {
   desktopIpcInvokeRolesFromDescriptors,
   mainOnly,
   type DesktopIpcRendererRoles,
-  type RendererRole,
 } from './ipc/desktop-ipc-descriptor';
 
 /**
@@ -18,34 +17,9 @@ import {
  */
 export type { RendererRole } from './ipc/desktop-ipc-descriptor';
 
-const desktopIpcLegacyInvokeRoles = {
-  'agent:delete': mainOnly,
-  'agent:mention-route': annotationAndMain,
-  'agent:review': mainOnly,
-  'agent:save': mainOnly,
-  'agent-trace:clear': mainOnly,
-  'agent-trace:list': mainOnly,
-  'agent-trace:path': mainOnly,
-  'assistant-executions:list': mainOnly,
-  'assistant-executions:detail': mainOnly,
-  'assistant-executions:summary': mainOnly,
-  'annotation-discussion:open': mainOnly,
-  'annotation-discussion:close-article': mainOnly,
-  'annotation-sedimentation:open': annotationAndMain,
-  'annotation-sedimentation:commit': annotationAndMain,
-  'provider:delete': mainOnly,
-  'provider:list-models': mainOnly,
-  'provider:read-api-key': mainOnly,
-  'provider:save': mainOnly,
-  'provider:test': mainOnly,
-  'settings:save': mainOnly,
-  'user:save': mainOnly,
-} as const;
-
-export const desktopIpcInvokeRoles = {
-  ...desktopIpcLegacyInvokeRoles,
-  ...desktopIpcInvokeRolesFromDescriptors(desktopIpcInvokeDescriptors),
-} as const satisfies Record<DesktopIpcInvokeChannel, DesktopIpcRendererRoles>;
+export const desktopIpcInvokeRoles = desktopIpcInvokeRolesFromDescriptors(
+  desktopIpcInvokeDescriptors,
+) satisfies Record<DesktopIpcInvokeChannel, DesktopIpcRendererRoles>;
 
 export const desktopIpcMainEventRoles = {
   'agent:annotate:stream': mainOnly,
@@ -53,4 +27,4 @@ export const desktopIpcMainEventRoles = {
   'agent:distillation-review:stream': annotationAndMain,
   'agent:stream-cancel': annotationAndMain,
   'app:renderer-ready': mainOnly,
-} as const satisfies Record<DesktopIpcToMainEventChannel, readonly RendererRole[]>;
+} as const satisfies Record<DesktopIpcToMainEventChannel, DesktopIpcRendererRoles>;

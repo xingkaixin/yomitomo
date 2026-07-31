@@ -30,12 +30,7 @@ import type {
 } from '@yomitomo/shared';
 import type { DesktopStoreGetResult } from '../app-store-errors';
 import type { AppUpdateState, AppUpdateTrigger } from '../app-update-types';
-import {
-  annotationAndMain,
-  desktopIpcInvoke,
-  mainOnly,
-  type DesktopIpcInvokeDescriptor,
-} from './desktop-ipc-descriptor';
+import { annotationAndMain, desktopIpcInvoke, mainOnly } from './desktop-ipc-descriptor';
 import type { DesktopIpcSchemaArgs } from './desktop-ipc-schema-fragments';
 import type {
   AgentRuntimeTraceEntry,
@@ -83,81 +78,108 @@ import type {
   WeReadState,
 } from '../ipc-contract';
 
-export type AgentIpcInvokeMap = {
-  'agent:delete': {
-    args: [id: string];
-    result: AgentStorePatch;
-    validation: { exempt: 'handler-owned' };
-  };
-  'agent:mention-route': {
-    args: [payload: AgentMentionInstructionPayload];
-    result: AgentMentionRoutePlan;
-    validation: { exempt: 'domain-payload' };
-  };
-  'agent:review': {
-    args: [payload: AgentReviewPayload];
-    result: Comment[];
-    validation: { exempt: 'domain-payload' };
-  };
-  'agent:save': {
-    args: [agent: Partial<Agent>];
-    result: AgentStorePatch;
-    validation: { exempt: 'domain-payload' };
-  };
-  'agent-trace:clear': {
-    args: [];
-    result: void;
-    validation: { exempt: 'no-args' };
-  };
-  'agent-trace:list': {
-    args: [input?: AgentRuntimeTraceListInput];
-    result: AgentRuntimeTraceEntry[];
-    validation: { exempt: 'domain-payload' };
-  };
-  'agent-trace:path': {
-    args: [];
-    result: string;
-    validation: { exempt: 'no-args' };
-  };
-  'assistant-executions:list': {
-    args: [input: AssistantExecutionQueryInput];
-    result: AssistantExecutionRunListItem[];
-    validation: { exempt: 'domain-payload' };
-  };
-  'assistant-executions:detail': {
-    args: [id: string];
-    result: AssistantExecutionRunDetail | null;
-    validation: { exempt: 'handler-owned' };
-  };
-  'assistant-executions:summary': {
-    args: [input: AssistantExecutionQueryInput];
-    result: AssistantExecutionSummary;
-    validation: { exempt: 'domain-payload' };
-  };
-};
+export const agentIpcInvokeDescriptors = {
+  'agent:delete': desktopIpcInvoke<[id: string], AgentStorePatch>()({
+    route: ['agent', 'delete'],
+    roles: mainOnly,
+    validation: { exempt: 'handler-owned' },
+  }),
+  'agent:mention-route': desktopIpcInvoke<
+    [payload: AgentMentionInstructionPayload],
+    AgentMentionRoutePlan
+  >()({
+    route: ['agent', 'planMentionRoute'],
+    roles: annotationAndMain,
+    validation: { exempt: 'domain-payload' },
+  }),
+  'agent:review': desktopIpcInvoke<[payload: AgentReviewPayload], Comment[]>()({
+    route: ['agent', 'review'],
+    roles: mainOnly,
+    validation: { exempt: 'domain-payload' },
+  }),
+  'agent:save': desktopIpcInvoke<[agent: Partial<Agent>], AgentStorePatch>()({
+    route: ['agent', 'save'],
+    roles: mainOnly,
+    validation: { exempt: 'domain-payload' },
+  }),
+  'agent-trace:clear': desktopIpcInvoke<[], void>()({
+    route: ['diagnostics', 'agentTraces', 'clear'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+  'agent-trace:list': desktopIpcInvoke<
+    [input?: AgentRuntimeTraceListInput],
+    AgentRuntimeTraceEntry[]
+  >()({
+    route: ['diagnostics', 'agentTraces', 'list'],
+    roles: mainOnly,
+    validation: { exempt: 'domain-payload' },
+  }),
+  'agent-trace:path': desktopIpcInvoke<[], string>()({
+    route: ['diagnostics', 'agentTraces', 'getPath'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+  'assistant-executions:list': desktopIpcInvoke<
+    [input: AssistantExecutionQueryInput],
+    AssistantExecutionRunListItem[]
+  >()({
+    route: ['diagnostics', 'assistantExecutions', 'list'],
+    roles: mainOnly,
+    validation: { exempt: 'domain-payload' },
+  }),
+  'assistant-executions:detail': desktopIpcInvoke<
+    [id: string],
+    AssistantExecutionRunDetail | null
+  >()({
+    route: ['diagnostics', 'assistantExecutions', 'getDetail'],
+    roles: mainOnly,
+    validation: { exempt: 'handler-owned' },
+  }),
+  'assistant-executions:summary': desktopIpcInvoke<
+    [input: AssistantExecutionQueryInput],
+    AssistantExecutionSummary
+  >()({
+    route: ['diagnostics', 'assistantExecutions', 'summarize'],
+    roles: mainOnly,
+    validation: { exempt: 'domain-payload' },
+  }),
+} as const;
 
-export type AnnotationWindowIpcInvokeMap = {
-  'annotation-discussion:open': {
-    args: [input: AnnotationDiscussionWindowOpenInput];
-    result: AnnotationDiscussionWindowOpenResult;
-    validation: { exempt: 'domain-payload' };
-  };
-  'annotation-discussion:close-article': {
-    args: [input: AnnotationDiscussionWindowsCloseArticleInput];
-    result: AnnotationDiscussionWindowsCloseArticleResult;
-    validation: { exempt: 'domain-payload' };
-  };
-  'annotation-sedimentation:open': {
-    args: [input: AnnotationSedimentationWindowOpenInput];
-    result: AnnotationSedimentationWindowOpenResult;
-    validation: { exempt: 'domain-payload' };
-  };
-  'annotation-sedimentation:commit': {
-    args: [input: AnnotationSedimentationCommitInput];
-    result: AnnotationSedimentationCommitResult;
-    validation: { exempt: 'domain-payload' };
-  };
-};
+export const annotationWindowIpcInvokeDescriptors = {
+  'annotation-discussion:open': desktopIpcInvoke<
+    [input: AnnotationDiscussionWindowOpenInput],
+    AnnotationDiscussionWindowOpenResult
+  >()({
+    route: ['annotations', 'discussion', 'open'],
+    roles: mainOnly,
+    validation: { exempt: 'domain-payload' },
+  }),
+  'annotation-discussion:close-article': desktopIpcInvoke<
+    [input: AnnotationDiscussionWindowsCloseArticleInput],
+    AnnotationDiscussionWindowsCloseArticleResult
+  >()({
+    route: ['annotations', 'discussion', 'closeArticle'],
+    roles: mainOnly,
+    validation: { exempt: 'domain-payload' },
+  }),
+  'annotation-sedimentation:open': desktopIpcInvoke<
+    [input: AnnotationSedimentationWindowOpenInput],
+    AnnotationSedimentationWindowOpenResult
+  >()({
+    route: ['annotations', 'sedimentation', 'open'],
+    roles: annotationAndMain,
+    validation: { exempt: 'domain-payload' },
+  }),
+  'annotation-sedimentation:commit': desktopIpcInvoke<
+    [input: AnnotationSedimentationCommitInput],
+    AnnotationSedimentationCommitResult
+  >()({
+    route: ['annotations', 'sedimentation', 'commit'],
+    roles: annotationAndMain,
+    validation: { exempt: 'domain-payload' },
+  }),
+} as const;
 
 export const appIpcInvokeDescriptors = {
   'app:info': desktopIpcInvoke<[], AppInfo>()({
@@ -182,7 +204,7 @@ export const appIpcInvokeDescriptors = {
     roles: annotationAndMain,
     validation: { exempt: 'handler-owned' },
   }),
-} satisfies Record<string, DesktopIpcInvokeDescriptor>;
+} as const;
 
 export const appLockIpcInvokeDescriptors = {
   'appLock:getStatus': desktopIpcInvoke<[], AppLockStatus>()({
@@ -231,7 +253,7 @@ export const appLockIpcInvokeDescriptors = {
     validation: 'schema',
     appLockBypass: true,
   }),
-} satisfies Record<string, DesktopIpcInvokeDescriptor>;
+} as const;
 
 export const articleIpcInvokeDescriptors = {
   'article:delete': desktopIpcInvoke<[id: string], ArticleDeletePatch>()({
@@ -418,7 +440,7 @@ export const articleIpcInvokeDescriptors = {
     roles: mainOnly,
     validation: 'schema',
   }),
-} satisfies Record<string, DesktopIpcInvokeDescriptor>;
+} as const;
 
 export const dataIpcInvokeDescriptors = {
   'data:database-backup': desktopIpcInvoke<[], DatabaseBackupResult>()({
@@ -430,6 +452,7 @@ export const dataIpcInvokeDescriptors = {
     route: ['data', 'restoreDatabase'],
     roles: mainOnly,
     validation: { exempt: 'no-args' },
+    // Restore owns the lifecycle, so acquiring a lease would deadlock the drain.
     databaseLifecycle: true,
   }),
   'data:open-path': desktopIpcInvoke<DesktopIpcSchemaArgs<'data:open-path'>, void>()({
@@ -457,7 +480,7 @@ export const dataIpcInvokeDescriptors = {
     roles: mainOnly,
     validation: { exempt: 'no-args' },
   }),
-} satisfies Record<string, DesktopIpcInvokeDescriptor>;
+} as const;
 
 export const libraryCollectionIpcInvokeDescriptors = {
   'distillation-library:list': desktopIpcInvoke<
@@ -531,45 +554,48 @@ export const libraryCollectionIpcInvokeDescriptors = {
     roles: mainOnly,
     validation: 'schema',
   }),
-} satisfies Record<string, DesktopIpcInvokeDescriptor>;
+} as const;
 
-export type ProviderIpcInvokeMap = {
-  'provider:delete': {
-    args: [id: string];
-    result: ProviderStorePatch;
-    validation: { exempt: 'handler-owned' };
-  };
-  'provider:list-models': {
-    args: [provider: Partial<LlmProvider>];
-    result: ProviderModel[];
-    validation: { exempt: 'domain-payload' };
-  };
-  'provider:read-api-key': {
-    args: [providerId: string];
-    result: string;
-    validation: { exempt: 'handler-owned' };
-  };
-  'provider:save': {
-    args: [provider: Partial<LlmProvider> & { removeApiKey?: boolean }];
-    result: ProviderStorePatch;
-    validation: { exempt: 'domain-payload' };
-  };
-  'provider:test': {
-    args: [provider: Partial<LlmProvider>];
-    result: ProviderTestResult;
-    validation: { exempt: 'domain-payload' };
-  };
-  'settings:save': {
-    args: [settings: AppSettings];
-    result: DesktopStore;
-    validation: { exempt: 'domain-payload' };
-  };
-  'user:save': {
-    args: [user: Partial<UserProfile>];
-    result: UserStorePatch;
-    validation: { exempt: 'domain-payload' };
-  };
-};
+export const providerIpcInvokeDescriptors = {
+  'provider:delete': desktopIpcInvoke<[id: string], ProviderStorePatch>()({
+    route: ['provider', 'delete'],
+    roles: mainOnly,
+    validation: { exempt: 'handler-owned' },
+  }),
+  'provider:list-models': desktopIpcInvoke<[provider: Partial<LlmProvider>], ProviderModel[]>()({
+    route: ['provider', 'listModels'],
+    roles: mainOnly,
+    validation: { exempt: 'domain-payload' },
+  }),
+  'provider:read-api-key': desktopIpcInvoke<[providerId: string], string>()({
+    route: ['provider', 'readApiKey'],
+    roles: mainOnly,
+    validation: { exempt: 'handler-owned' },
+  }),
+  'provider:save': desktopIpcInvoke<
+    [provider: Partial<LlmProvider> & { removeApiKey?: boolean }],
+    ProviderStorePatch
+  >()({
+    route: ['provider', 'save'],
+    roles: mainOnly,
+    validation: { exempt: 'domain-payload' },
+  }),
+  'provider:test': desktopIpcInvoke<[provider: Partial<LlmProvider>], ProviderTestResult>()({
+    route: ['provider', 'test'],
+    roles: mainOnly,
+    validation: { exempt: 'domain-payload' },
+  }),
+  'settings:save': desktopIpcInvoke<[settings: AppSettings], DesktopStore>()({
+    route: ['store', 'saveSettings'],
+    roles: mainOnly,
+    validation: { exempt: 'domain-payload' },
+  }),
+  'user:save': desktopIpcInvoke<[user: Partial<UserProfile>], UserStorePatch>()({
+    route: ['store', 'saveUser'],
+    roles: mainOnly,
+    validation: { exempt: 'domain-payload' },
+  }),
+} as const;
 
 export const storeIpcInvokeDescriptors = {
   'store:get': desktopIpcInvoke<[], DesktopStoreGetResult>()({
@@ -578,7 +604,7 @@ export const storeIpcInvokeDescriptors = {
     validation: { exempt: 'no-args' },
     appLockBypass: true,
   }),
-} satisfies Record<string, DesktopIpcInvokeDescriptor>;
+} as const;
 
 export const updateIpcInvokeDescriptors = {
   'updates:check': desktopIpcInvoke<[], AppUpdateState>()({
@@ -614,7 +640,7 @@ export const updateIpcInvokeDescriptors = {
     roles: mainOnly,
     validation: { exempt: 'domain-payload' },
   }),
-} satisfies Record<string, DesktopIpcInvokeDescriptor>;
+} as const;
 
 export const weReadIpcInvokeDescriptors = {
   'weread:get-settings': desktopIpcInvoke<[], WeReadSettings>()({
@@ -684,4 +710,4 @@ export const weReadIpcInvokeDescriptors = {
     roles: mainOnly,
     validation: 'schema',
   }),
-} satisfies Record<string, DesktopIpcInvokeDescriptor>;
+} as const;

@@ -12,6 +12,8 @@ import type {
   DesktopIpcInvokeChannel,
   DesktopIpcInvokeResult,
 } from '../../ipc-contract';
+import { desktopIpcInvokeDescriptors } from '../../ipc-contract';
+import { desktopIpcInvokeChannelsWithFlag } from '../../ipc/desktop-ipc-descriptor';
 import { DesktopIpcError, desktopIpcErrorCodes, serializeDesktopIpcError } from '../../ipc-errors';
 import { validateDesktopIpcInvokeArgs } from '../../ipc-schemas';
 import { withDatabaseLease } from '../store/store-db';
@@ -70,16 +72,15 @@ export type DesktopIpcHandler<Channel extends DesktopIpcInvokeChannel> = (
   ...args: DesktopIpcInvokeArgs<Channel>
 ) => DesktopIpcInvokeResult<Channel> | Promise<DesktopIpcInvokeResult<Channel>>;
 
-const appLockGuardBypassChannels = new Set<DesktopIpcInvokeChannel>([
-  'app:info',
-  'appLock:getStatus',
-  'appLock:unlock',
-  'performance:timing',
-  'store:get',
-]);
+const appLockGuardBypassChannels = desktopIpcInvokeChannelsWithFlag(
+  desktopIpcInvokeDescriptors,
+  'appLockBypass',
+);
 
-// The restore itself owns the database lifecycle, so leasing it would deadlock the drain.
-const databaseLifecycleChannels = new Set<DesktopIpcInvokeChannel>(['data:database-restore']);
+const databaseLifecycleChannels = desktopIpcInvokeChannelsWithFlag(
+  desktopIpcInvokeDescriptors,
+  'databaseLifecycle',
+);
 
 let appLockGuardContext: DesktopIpcAppLockGuardContext | null = null;
 
