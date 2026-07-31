@@ -2,6 +2,7 @@
 
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ComponentProps } from 'react';
 import { articleCounts } from '@yomitomo/core';
 import type {
   Annotation,
@@ -10,6 +11,8 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import type { SourceBookcaseProps } from '../source/bookcase/app-source-bookcase';
+import type { LibraryHome } from '../reading-library/app-reading-library-home';
+import type { CurrentArticleSink } from '../shell/app-article-store';
 import type { ArticleActions } from '../shell/app-article-store-actions';
 import { ReadingLibrary } from '../reading-library/app-reading-library';
 import { initializeAppI18n } from '../i18n/app-i18n';
@@ -17,6 +20,8 @@ import { defaultTheme } from '../theme/app-theme';
 import { articleActionStubs, articleStoreSinkStub } from './article-actions-test-utils';
 
 const sourceBookcase = vi.hoisted(() => ({ props: null as SourceBookcaseProps | null }));
+type LibraryHomeProps = ComponentProps<typeof LibraryHome>;
+const libraryHome = vi.hoisted(() => ({ props: null as LibraryHomeProps | null }));
 const defaultArticleStore = articleStoreSinkStub();
 
 vi.mock('../source/bookcase/app-source-bookcase', () => ({
@@ -26,12 +31,24 @@ vi.mock('../source/bookcase/app-source-bookcase', () => ({
   },
 }));
 
+vi.mock('../reading-library/app-reading-library-home', () => ({
+  LibraryHome: (props: LibraryHomeProps) => {
+    libraryHome.props = props;
+    return <div data-testid="library-home" />;
+  },
+}));
+
+vi.mock('../sound/app-sound-effects', () => ({
+  playAppSoundEffect: vi.fn(),
+}));
+
 beforeEach(() => {
   initializeAppI18n('zh-CN');
 });
 
 afterEach(() => {
   cleanup();
+  libraryHome.props = null;
   sourceBookcase.props = null;
 });
 
@@ -181,22 +198,143 @@ describe('ReadingLibrary article updates', () => {
     expect(onReadArticle).toHaveBeenCalledTimes(1);
   });
 
-  it('resets the current route when the final catalog article is deleted', async () => {
-    const selectedArticle = article();
+  it('does not rehydrate when current reconciliation matches the summary revision', async () => {
+    const selectedAnnotation = annotationRecord();
+    const selectedArticle = article({ annotations: [selectedAnnotation] });
+    const reconciledArticle = article({
+      annotations: [],
+      updatedAt: '2026-07-15T04:03:00.000Z',
+    });
     const openArticleTarget = { articleId: selectedArticle.id };
+    const onReadArticle = vi.fn(async () => selectedArticle);
+    let currentSink: CurrentArticleSink | null = null;
+    const articleStore = articleStoreSinkStub((sink) => {
+      currentSink = sink;
+      return () => {
+        if (currentSink === sink) currentSink = null;
+      };
+    });
     const options = {
-      articleActions: articleActionStubs({
-        readArticle: vi.fn(async () => selectedArticle),
-      }),
+      articleActions: articleActionStubs({ readArticle: onReadArticle }),
+      articleStore,
       articles: [selectedArticle],
       openArticleTarget,
     };
     const view = renderReadingLibrary(options);
+    await waitFor(() => expect(sourceBookcase.props?.content.article?.id).toBe(selectedArticle.id));
+    await waitFor(() => expect(currentSink).not.toBeNull());
+
+    act(() => {
+      expect(currentSink?.isCurrent(selectedArticle.id)).toBe(true);
+      currentSink?.apply({
+        type: 'update',
+        articleId: selectedArticle.id,
+        update: (current) => ({
+          ...current,
+          annotations: [],
+          updatedAt: reconciledArticle.updatedAt,
+        }),
+      });
+    });
+    view.rerender(readingLibrary({ ...options, articles: [reconciledArticle] }));
+    await act(async () => undefined);
+
+    expect(sourceBookcase.props?.content.article).toMatchObject({
+      annotations: [],
+      updatedAt: reconciledArticle.updatedAt,
+    });
+    expect(onReadArticle).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a route outside the sparse catalog until its delete projection arrives', async () => {
+    const selectedArticle = article();
+    const unrelatedArticle = article({
+      id: 'article_2',
+      url: 'https://example.com/other',
+      canonicalUrl: 'https://example.com/other',
+      contentHash: 'hash_2',
+    });
+    const openArticleTarget = { articleId: selectedArticle.id };
+    let currentSink: CurrentArticleSink | null = null;
+    const articleStore = articleStoreSinkStub((sink) => {
+      currentSink = sink;
+      return () => {
+        if (currentSink === sink) currentSink = null;
+      };
+    });
+    const options = {
+      articleActions: articleActionStubs({
+        readArticle: vi.fn(async () => selectedArticle),
+      }),
+      articleStore,
+      articles: [unrelatedArticle],
+      openArticleTarget,
+    };
+    renderReadingLibrary(options);
     await screen.findByTestId('source-bookcase');
+    await waitFor(() => expect(currentSink).not.toBeNull());
+    await act(async () => undefined);
 
-    view.rerender(readingLibrary({ ...options, articles: [] }));
-
+    expect(screen.getByTestId('source-bookcase')).not.toBeNull();
+    act(() => {
+      currentSink?.apply({ type: 'delete', articleId: selectedArticle.id });
+    });
     await waitFor(() => expect(screen.queryByTestId('source-bookcase')).toBeNull());
+  });
+
+  it('does not close a newly opened article when an older delete finishes', async () => {
+    const firstArticle = article();
+    const secondArticle = article({
+      id: 'article_2',
+      url: 'https://example.com/second',
+      canonicalUrl: 'https://example.com/second',
+      contentHash: 'hash_2',
+    });
+    const deletion = deferred<void>();
+    let currentSink: CurrentArticleSink | null = null;
+    const articleStore = articleStoreSinkStub((sink) => {
+      currentSink = sink;
+      return () => {
+        if (currentSink === sink) currentSink = null;
+      };
+    });
+    const deleteArticle = vi.fn((articleId: string) => {
+      currentSink?.apply({ type: 'delete', articleId });
+      return deletion.promise;
+    });
+
+    renderReadingLibrary({
+      articleActions: articleActionStubs({
+        deleteArticle,
+        readArticle: vi.fn(async (articleId) =>
+          articleId === firstArticle.id ? firstArticle : secondArticle,
+        ),
+      }),
+      articleStore,
+      articles: [firstArticle, secondArticle],
+      openArticleTarget: { articleId: firstArticle.id },
+    });
+    await waitFor(() => expect(sourceBookcase.props?.content.article?.id).toBe(firstArticle.id));
+
+    act(() => sourceBookcase.props?.readerControl.onClose());
+    await screen.findByTestId('library-home');
+
+    let pendingDelete!: Promise<void>;
+    act(() => {
+      pendingDelete = libraryHome.props!.itemActions.onDeleteArticle(firstArticle.id);
+    });
+    act(() => {
+      libraryHome.props!.itemActions.onOpenArticle(secondArticle);
+    });
+    await waitFor(() => expect(sourceBookcase.props?.content.article?.id).toBe(secondArticle.id));
+
+    await act(async () => {
+      deletion.resolve();
+      await pendingDelete;
+    });
+
+    expect(sourceBookcase.props?.content.article?.id).toBe(secondArticle.id);
+    expect(screen.getByTestId('source-bookcase')).not.toBeNull();
   });
 });
 
@@ -296,4 +434,12 @@ function annotationRecord(): Annotation {
     createdAt: '2026-07-15T04:30:00.000Z',
     updatedAt: '2026-07-15T04:30:00.000Z',
   };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((promiseResolve) => {
+    resolve = promiseResolve;
+  });
+  return { promise, resolve };
 }

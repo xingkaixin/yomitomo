@@ -133,6 +133,65 @@ describe('useReadingLibraryNavigation', () => {
     });
   });
 
+  it('keeps a different pending load when deleting the current article', async () => {
+    const pending = createDeferred<ArticleRecord | null>();
+    const { result } = renderHook(() =>
+      useReadingLibraryNavigation({ onReadArticle: () => pending.promise }),
+    );
+
+    await act(async () => {
+      await result.current.actions.openArticle(article());
+    });
+    let pendingRequest!: Promise<ArticleRecord | null>;
+    act(() => {
+      pendingRequest = result.current.actions.openArticle(articleSummary('article_2'));
+    });
+    act(() => {
+      result.current.currentArticleSink.apply({
+        type: 'delete',
+        articleId: 'article_1',
+      });
+    });
+
+    expect(result.current.model).toMatchObject({
+      article: null,
+      routeType: 'library',
+    });
+
+    await act(async () => {
+      pending.resolve(article({ id: 'article_2' }));
+      await pendingRequest;
+    });
+
+    await expect(pendingRequest).resolves.toMatchObject({ id: 'article_2' });
+    expect(result.current.model.article?.id).toBe('article_2');
+  });
+
+  it('cancels a deleted pending load without closing the current article', async () => {
+    const pending = createDeferred<ArticleRecord | null>();
+    const { result } = renderHook(() =>
+      useReadingLibraryNavigation({ onReadArticle: () => pending.promise }),
+    );
+
+    await act(async () => {
+      await result.current.actions.openArticle(article());
+    });
+    let pendingRequest!: Promise<ArticleRecord | null>;
+    act(() => {
+      pendingRequest = result.current.actions.openArticle(articleSummary('article_2'));
+    });
+    act(() => {
+      result.current.currentArticleSink.apply({
+        type: 'delete',
+        articleId: 'article_2',
+      });
+    });
+
+    pending.resolve(article({ id: 'article_2' }));
+    await expect(pendingRequest).resolves.toBeNull();
+    expect(result.current.model.article?.id).toBe('article_1');
+  });
+
   it('cancels pending loads and closes the active article on unmount', async () => {
     const pending = createDeferred<ArticleRecord | null>();
     const onCloseArticleDiscussions = vi.fn();

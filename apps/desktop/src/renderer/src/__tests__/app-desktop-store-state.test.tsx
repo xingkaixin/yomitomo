@@ -161,6 +161,23 @@ describe('useDesktopStoreState', () => {
 
     expect(latest.current?.store).toBe(appliedStore);
     expect(latest.current?.storeRef.current).toBe(appliedStore);
+
+    const currentArticleSink = {
+      isCurrent: vi.fn((articleId: string) => articleId === patchedArticle.id),
+      apply: vi.fn(),
+    };
+    const unregisterCurrentArticleSink =
+      latest.current?.articleStore.registerCurrentArticleSink(currentArticleSink);
+
+    act(() => {
+      emitArticlePatched({ type: 'article-delete', articleId: patchedArticle.id });
+    });
+
+    expect(currentArticleSink.apply).toHaveBeenCalledWith({
+      type: 'delete',
+      articleId: patchedArticle.id,
+    });
+    unregisterCurrentArticleSink?.();
   });
 
   it('exposes store load errors without leaving an unhandled startup failure', async () => {
