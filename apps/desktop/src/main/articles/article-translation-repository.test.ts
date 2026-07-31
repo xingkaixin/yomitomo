@@ -11,6 +11,7 @@ import {
   type ArticleTranslationInitializeInput,
   type ArticleTranslationSegmentInitializer,
 } from './article-translation-repository';
+import type { ArticleTranslationIdentity } from './article-translation-identity';
 
 type TranslationDatabase = ReturnType<typeof translationDatabase>;
 
@@ -213,7 +214,7 @@ function countRows(database: TranslationDatabase, table: string) {
   return row.total;
 }
 
-function translationKey(sourceId: string) {
+function translationKey(sourceId: string): ArticleTranslationIdentity {
   return {
     articleId: 'ebook-1',
     sourceId,

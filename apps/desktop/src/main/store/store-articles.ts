@@ -46,6 +46,7 @@ import {
   readCurrentArticleTranslationRows,
   updateArticleTranslationSegmentRows,
 } from '../articles/article-translation-repository';
+import type { ArticleTranslationIdentity } from '../articles/article-translation-identity';
 import type {
   ArticleTranslationInitializeInput,
   ArticleTranslationSegmentUpdateInput,
@@ -86,13 +87,7 @@ export async function readArticleStatsSummaries(): Promise<ArticleSummaryRecord[
   return readArticleStatsSummaryRows(database);
 }
 
-export async function readCurrentArticleTranslation(input: {
-  articleId: string;
-  sourceId: string;
-  sourceContentHash: string;
-  targetLanguage: string;
-  promptVersion: number;
-}) {
+export async function readCurrentArticleTranslation(input: ArticleTranslationIdentity) {
   return readCurrentArticleTranslationRows(getDatabase(), input);
 }
 
@@ -111,13 +106,7 @@ export async function finalizeArticleTranslation(input: {
   return finalizeArticleTranslationRows(getDatabase(), input);
 }
 
-export async function deleteCurrentArticleTranslation(input: {
-  articleId: string;
-  sourceId: string;
-  sourceContentHash: string;
-  targetLanguage: string;
-  promptVersion: number;
-}) {
+export async function deleteCurrentArticleTranslation(input: ArticleTranslationIdentity) {
   const translation = readCurrentArticleTranslationRows(getDatabase(), input);
   if (!translation) return null;
   deleteArticleTranslationRows(getDatabase(), translation.id);
