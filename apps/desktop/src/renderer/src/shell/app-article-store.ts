@@ -7,6 +7,7 @@ import type {
   ArticleUpsertPatch,
   DesktopStore,
 } from '@yomitomo/shared';
+import { isAppLockSettingsLocked } from '../../../app-store';
 
 type DesktopStoreRef = { current: DesktopStore };
 type ApplyStore = (nextStore: DesktopStore) => DesktopStore;
@@ -23,7 +24,7 @@ export type ArticleMutationSpec<T> = {
 };
 
 export type ArticleStore = {
-  commit(commit: ArticleProjectionCommit): void;
+  commit(commit: ArticleProjectionCommit): boolean;
   runMutation<T>(spec: ArticleMutationSpec<T>): Promise<T>;
 };
 
@@ -37,9 +38,11 @@ export function useArticleStore(input: {
 
   const commit = useCallback((projection: ArticleProjectionCommit) => {
     const { applyStore, storeRef } = inputRef.current;
-    if (projection.patches.length === 0) return;
+    if (isAppLockSettingsLocked(storeRef.current.settings)) return false;
+    if (projection.patches.length === 0) return true;
     const nextStore = projection.patches.reduce(applyArticleStorePatch, storeRef.current);
     applyStore(nextStore);
+    return true;
   }, []);
 
   const runMutation = useCallback(
