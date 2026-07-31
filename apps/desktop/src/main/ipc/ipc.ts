@@ -12,6 +12,8 @@ import type {
   DesktopIpcInvokeChannel,
   DesktopIpcInvokeResult,
 } from '../../ipc-contract';
+import { desktopIpcInvokeDescriptors } from '../../ipc-contract';
+import { desktopIpcInvokeChannelsWithFlag } from '../../ipc/desktop-ipc-descriptor';
 import { DesktopIpcError, desktopIpcErrorCodes, serializeDesktopIpcError } from '../../ipc-errors';
 import { validateDesktopIpcInvokeArgs } from '../../ipc-schemas';
 import { withDatabaseLease } from '../store/store-db';
@@ -70,16 +72,20 @@ export type DesktopIpcHandler<Channel extends DesktopIpcInvokeChannel> = (
   ...args: DesktopIpcInvokeArgs<Channel>
 ) => DesktopIpcInvokeResult<Channel> | Promise<DesktopIpcInvokeResult<Channel>>;
 
-const appLockGuardBypassChannels = new Set<DesktopIpcInvokeChannel>([
-  'app:info',
-  'appLock:getStatus',
-  'appLock:unlock',
-  'performance:timing',
-  'store:get',
-]);
+const appLockGuardBypassChannels = desktopIpcInvokeChannelsWithFlag(
+  desktopIpcInvokeDescriptors,
+  'appLockBypass',
+);
 
-// The restore itself owns the database lifecycle, so leasing it would deadlock the drain.
-const databaseLifecycleChannels = new Set<DesktopIpcInvokeChannel>(['data:database-restore']);
+const databaseLifecycleChannels = desktopIpcInvokeChannelsWithFlag(
+  desktopIpcInvokeDescriptors,
+  'databaseLifecycle',
+);
+
+const registeredDesktopIpcChannels = new Set<DesktopIpcInvokeChannel>();
+const desktopIpcInvokeChannels = Object.keys(
+  desktopIpcInvokeDescriptors,
+) as DesktopIpcInvokeChannel[];
 
 let appLockGuardContext: DesktopIpcAppLockGuardContext | null = null;
 
@@ -106,6 +112,19 @@ export function handleDesktopIpc<Channel extends DesktopIpcInvokeChannel>(
       return { ok: false, error: serializeDesktopIpcError(error) };
     }
   });
+  registeredDesktopIpcChannels.add(channel);
+}
+
+export function assertDesktopIpcRegistrationComplete() {
+  const missingChannels = desktopIpcInvokeChannels
+    .filter((channel) => !registeredDesktopIpcChannels.has(channel))
+    .toSorted();
+  if (missingChannels.length === 0) return;
+  throw new Error(`Missing desktop IPC handlers: ${missingChannels.join(', ')}`);
+}
+
+export function resetDesktopIpcRegistrationsForTest() {
+  registeredDesktopIpcChannels.clear();
 }
 
 export async function assertDesktopIpcAppLockUnlocked(context: DesktopIpcAppLockGuardContext) {

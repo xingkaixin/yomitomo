@@ -33,7 +33,11 @@ import { registerAgentIpc } from './ipc/ipc-agent';
 import { registerAppLockIpc } from './ipc/ipc-app-lock';
 import { registerAppIpc } from './ipc/ipc-app';
 import { registerArticleIpc } from './ipc/ipc-article';
-import { configureDesktopIpcAppLockGuardContext, type DesktopPersistenceModules } from './ipc/ipc';
+import {
+  assertDesktopIpcRegistrationComplete,
+  configureDesktopIpcAppLockGuardContext,
+  type DesktopPersistenceModules,
+} from './ipc/ipc';
 import { sendDesktopIpcRendererEvent } from './ipc/ipc-events';
 import { registerLibraryCollectionIpc } from './ipc/ipc-library-collection';
 import { registerProviderIpc } from './ipc/ipc-provider';
@@ -462,6 +466,7 @@ function registerIpc(startupStoreInitialization: StartupStoreInitializationResul
   registerAgentIpc(context);
   registerAnnotationDiscussionWindowIpc(context);
   registerAnnotationSedimentationWindowIpc(context);
+  assertDesktopIpcRegistrationComplete();
 }
 
 function sendFullStoreUpdated(event: IpcMainInvokeEvent, store: DesktopStore) {
