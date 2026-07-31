@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, render, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { articleCounts } from '@yomitomo/core';
 import type {
@@ -14,14 +14,15 @@ import type { ArticleActions } from '../shell/app-article-store-actions';
 import { ReadingLibrary } from '../reading-library/app-reading-library';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { defaultTheme } from '../theme/app-theme';
-import { articleActionStubs } from './article-actions-test-utils';
+import { articleActionStubs, articleStoreSinkStub } from './article-actions-test-utils';
 
 const sourceBookcase = vi.hoisted(() => ({ props: null as SourceBookcaseProps | null }));
+const defaultArticleStore = articleStoreSinkStub();
 
 vi.mock('../source/bookcase/app-source-bookcase', () => ({
   SourceBookcase: (props: SourceBookcaseProps) => {
     sourceBookcase.props = props;
-    return null;
+    return <div data-testid="source-bookcase" />;
   },
 }));
 
@@ -35,6 +36,25 @@ afterEach(() => {
 });
 
 describe('ReadingLibrary article updates', () => {
+  it('registers and unregisters the navigation current-article sink', async () => {
+    const selectedArticle = article();
+    const unregister = vi.fn();
+    const registerCurrentArticleSink = vi.fn(() => unregister);
+    const view = renderReadingLibrary({
+      articleActions: articleActionStubs({
+        readArticle: vi.fn(async () => selectedArticle),
+      }),
+      articleStore: articleStoreSinkStub(registerCurrentArticleSink),
+      articles: [selectedArticle],
+      openArticleTarget: { articleId: selectedArticle.id },
+    });
+
+    await waitFor(() => expect(registerCurrentArticleSink).toHaveBeenCalledOnce());
+    view.unmount();
+
+    expect(unregister).toHaveBeenCalledOnce();
+  });
+
   it('forwards granular agent annotation merges to the source reader', async () => {
     const selectedArticle = article();
     const annotation = annotationRecord();
@@ -160,6 +180,24 @@ describe('ReadingLibrary article updates', () => {
     expect(sourceBookcase.props?.content.article?.title).toBe('Changed locally');
     expect(onReadArticle).toHaveBeenCalledTimes(1);
   });
+
+  it('resets the current route when the final catalog article is deleted', async () => {
+    const selectedArticle = article();
+    const openArticleTarget = { articleId: selectedArticle.id };
+    const options = {
+      articleActions: articleActionStubs({
+        readArticle: vi.fn(async () => selectedArticle),
+      }),
+      articles: [selectedArticle],
+      openArticleTarget,
+    };
+    const view = renderReadingLibrary(options);
+    await screen.findByTestId('source-bookcase');
+
+    view.rerender(readingLibrary({ ...options, articles: [] }));
+
+    await waitFor(() => expect(screen.queryByTestId('source-bookcase')).toBeNull());
+  });
 });
 
 const userProfile: UserProfile = {
@@ -177,6 +215,7 @@ function renderReadingLibrary(options: ReadingLibraryTestOptions) {
 
 function readingLibrary({
   articleActions,
+  articleStore,
   articles,
   openArticleTarget,
 }: ReadingLibraryTestOptions) {
@@ -184,6 +223,7 @@ function readingLibrary({
     <ReadingLibrary
       agents={[]}
       articleActions={articleActions}
+      articleStore={articleStore || defaultArticleStore}
       articles={articles.map(articleSummary)}
       {...collectionActionStubs()}
       openArticleTarget={openArticleTarget}
@@ -206,6 +246,7 @@ function collectionActionStubs() {
 
 type ReadingLibraryTestOptions = {
   articleActions: ArticleActions;
+  articleStore?: ReturnType<typeof articleStoreSinkStub>;
   articles: ArticleRecord[];
   openArticleTarget: { articleId: string; annotationId?: string };
 };

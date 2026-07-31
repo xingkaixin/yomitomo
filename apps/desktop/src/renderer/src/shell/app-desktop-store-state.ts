@@ -14,7 +14,7 @@ import {
 import { isDesktopIpcErrorLike } from '../../../ipc-errors';
 
 import { elapsedMs, recordStartupTiming } from './app-utils';
-import { useArticleStore } from './app-article-store';
+import { articleStorePatchCommit, useArticleStore } from './app-article-store';
 import {
   applyCollectionStorePatch,
   applyLibraryPinPatch,
@@ -108,7 +108,7 @@ export function useDesktopStoreState() {
     const optionalDesktop = getOptionalDesktopApi();
     const offArticlePatched =
       optionalDesktop?.article?.onPatched?.((patch) => {
-        if (!articleStore.commit({ patches: [patch] })) return;
+        if (!articleStore.commit(articleStorePatchCommit(patch))) return;
         setStoreLoadError(null);
         setStoreLoaded(true);
       }) || (() => undefined);

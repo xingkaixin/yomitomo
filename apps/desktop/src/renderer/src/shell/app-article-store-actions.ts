@@ -2,12 +2,18 @@ import { useCallback } from 'react';
 import i18next from 'i18next';
 import type {
   ArticleReadingProgress,
+  ArticleRecord,
   Annotation,
   Comment,
   ReaderChatState,
 } from '@yomitomo/shared';
+import {
+  deleteAnnotationComment,
+  mergeAgentAnnotationAsThought,
+  sortAnnotations,
+} from '@yomitomo/core';
 import type { TextImportCommitInput, WindowAnimationSourceRect } from '../../../ipc-contract';
-import type { ArticleStore } from './app-article-store';
+import { articleStorePatchCommit, type ArticleStore } from './app-article-store';
 import { getDesktopApi } from './app-desktop-api';
 
 type ImportProgressCallback = (progress: number) => void;
@@ -20,9 +26,7 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
   const deleteArticle = useCallback(
     async (articleId: string) => {
       await articleStore.runMutation({
-        optimistic: {
-          patches: [{ type: 'article-delete', articleId }],
-        },
+        optimistic: articleStorePatchCommit({ type: 'article-delete', articleId }),
         invoke: () => getDesktopApi().article.delete(articleId),
         reconcile: () => ({ patches: [] }),
       });
@@ -44,6 +48,18 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
           }),
         reconcile: (result) => ({
           patches: result ? [result.patch] : [],
+          current: result
+            ? {
+                type: 'update',
+                articleId,
+                update: (article) =>
+                  articleWithAnnotations(
+                    article,
+                    mergeAgentAnnotationAsThought(article.annotations, annotation).annotations,
+                    result.patch.article.updatedAt,
+                  ),
+              }
+            : undefined,
         }),
       });
     },
@@ -60,6 +76,19 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
           }),
         reconcile: (patch) => ({
           patches: patch ? [patch] : [],
+          current: patch
+            ? {
+                type: 'update',
+                articleId,
+                update: (article) => ({
+                  ...article,
+                  annotations: article.annotations.filter(
+                    (annotation) => annotation.id !== annotationId,
+                  ),
+                  updatedAt: patch.article.updatedAt,
+                }),
+              }
+            : undefined,
         }),
       });
     },
@@ -77,6 +106,23 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
           }),
         reconcile: (patch) => ({
           patches: patch ? [patch] : [],
+          current: patch
+            ? {
+                type: 'update',
+                articleId,
+                update: (article) =>
+                  articleWithAnnotations(
+                    article,
+                    annotationsWithoutDeletedComment(
+                      article.annotations,
+                      annotationId,
+                      commentId,
+                      patch.article.updatedAt,
+                    ),
+                    patch.article.updatedAt,
+                  ),
+              }
+            : undefined,
         }),
       });
     },
@@ -94,6 +140,18 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
           }),
         reconcile: (patch) => ({
           patches: patch ? [patch] : [],
+          current: patch
+            ? {
+                type: 'update',
+                articleId,
+                update: (article) =>
+                  articleWithAnnotations(
+                    article,
+                    annotationsWithSavedAnnotation(article.annotations, annotation),
+                    patch.article.updatedAt,
+                  ),
+              }
+            : undefined,
         }),
       });
     },
@@ -112,6 +170,18 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
           }),
         reconcile: (patch) => ({
           patches: patch ? [patch] : [],
+          current: patch
+            ? {
+                type: 'update',
+                articleId,
+                update: (article) =>
+                  articleWithAnnotations(
+                    article,
+                    annotationsWithSavedComment(article.annotations, annotationId, comment),
+                    patch.article.updatedAt,
+                  ),
+              }
+            : undefined,
         }),
       });
     },
@@ -145,6 +215,15 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
               updatedAt: progress.updatedAt,
             },
           ],
+          current: {
+            type: 'update',
+            articleId,
+            update: (article) => ({
+              ...article,
+              readingProgress: progress,
+              updatedAt: progress.updatedAt,
+            }),
+          },
         },
         invoke: () =>
           getDesktopApi().article.saveReadingProgress({
@@ -153,6 +232,15 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
           }),
         reconcile: (patch) => ({
           patches: [{ type: 'article-reading-progress', ...patch }],
+          current: {
+            type: 'update',
+            articleId,
+            update: (article) => ({
+              ...article,
+              readingProgress: patch.readingProgress,
+              updatedAt: patch.updatedAt,
+            }),
+          },
         }),
         serialize: 'reading-progress',
       });
@@ -163,8 +251,31 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
   const saveArticleReaderChatState = useCallback(
     async (articleId: string, readerChatState?: ReaderChatState) => {
       return articleStore.runMutation({
+        optimistic: {
+          patches: [],
+          current: {
+            type: 'update',
+            articleId,
+            update: (article) => ({
+              ...article,
+              readerChatState,
+              updatedAt: readerChatState?.updatedAt || article.updatedAt,
+            }),
+          },
+        },
         invoke: () => getDesktopApi().article.saveReaderChatState({ articleId, readerChatState }),
-        reconcile: () => ({ patches: [] }),
+        reconcile: (patch) => ({
+          patches: [],
+          current: {
+            type: 'update',
+            articleId,
+            update: (article) => ({
+              ...article,
+              readerChatState: patch.readerChatState,
+              updatedAt: patch.updatedAt,
+            }),
+          },
+        }),
       });
     },
     [articleStore],
@@ -290,6 +401,49 @@ export type ReaderArticleActions = Pick<
   | 'saveArticleReadingProgress'
   | 'saveArticleReaderChatState'
 >;
+
+function articleWithAnnotations(
+  article: ArticleRecord,
+  annotations: Annotation[],
+  updatedAt: string,
+) {
+  return {
+    ...article,
+    annotations: sortAnnotations(annotations),
+    updatedAt,
+  };
+}
+
+function annotationsWithSavedAnnotation(annotations: Annotation[], saved: Annotation) {
+  const existing = annotations.some((annotation) => annotation.id === saved.id);
+  return existing ? annotations : [...annotations, saved];
+}
+
+function annotationsWithSavedComment(
+  annotations: Annotation[],
+  annotationId: string,
+  saved: Comment,
+) {
+  return annotations.map((annotation) => {
+    if (annotation.id !== annotationId) return annotation;
+    const existing = annotation.comments.some((comment) => comment.id === saved.id);
+    return existing ? annotation : { ...annotation, comments: [...annotation.comments, saved] };
+  });
+}
+
+function annotationsWithoutDeletedComment(
+  annotations: Annotation[],
+  annotationId: string,
+  commentId: string,
+  updatedAt: string,
+) {
+  return (
+    deleteAnnotationComment(annotations, annotationId, commentId, updatedAt) ||
+    annotations.map((annotation) =>
+      annotation.id === annotationId ? { ...annotation, updatedAt } : annotation,
+    )
+  );
+}
 
 function readFileArrayBuffer(
   file: File,

@@ -61,10 +61,6 @@ export function createWebSourceReaderController({
     const persisted = await onMergeArticleAgentAnnotation?.(articleId, annotation);
     if (persisted) activeId = persisted.activeId;
     if (persisted && isCurrentArticle(articleId)) {
-      surface.applyAnnotations(
-        persisted.patch.article.annotations,
-        persisted.patch.article.updatedAt,
-      );
       surface.openAnnotation?.(persisted.activeId);
     }
     return activeId;

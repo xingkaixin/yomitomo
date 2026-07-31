@@ -6,7 +6,6 @@ import { useTranslation } from 'react-i18next';
 import type {
   Agent,
   Annotation,
-  ArticleReadingProgress,
   ArticleRecord,
   ArticleSummaryRecord,
   AppSettings,
@@ -17,7 +16,6 @@ import type {
   LibraryPin,
   MessageSendShortcut,
   PublicAgent,
-  ReaderChatState,
   SelectionActionShortcuts,
   UserProfile,
   WeReadBook,
@@ -40,7 +38,8 @@ import type {
   WindowAnimationSourceRect,
 } from '../../../ipc-contract';
 import type { AppMenuCommandRequest } from '../../../app-menu-types';
-import type { ArticleActions, ReaderArticleActions } from '../shell/app-article-store-actions';
+import type { ArticleStore } from '../shell/app-article-store';
+import type { ArticleActions } from '../shell/app-article-store-actions';
 import { useReadingLibraryDistillationSync } from './use-reading-library-distillation-sync';
 import {
   articleUpdateCanReplace,
@@ -54,6 +53,7 @@ export type { LibrarySort };
 export function ReadingLibrary({
   agents,
   articleActions,
+  articleStore,
   articles,
   collectionMembers = [],
   collections = [],
@@ -78,6 +78,7 @@ export function ReadingLibrary({
 }: {
   agents: Agent[];
   articleActions: ArticleActions;
+  articleStore: Pick<ArticleStore, 'registerCurrentArticleSink'>;
   articles: ArticleSummaryRecord[];
   collectionMembers?: CollectionMember[];
   collections?: Collection[];
@@ -105,20 +106,21 @@ export function ReadingLibrary({
     closeArticleDiscussions,
     commitTextImport,
     deleteArticle,
-    deleteArticleAnnotation,
     importArticleUrl,
     importEbookFile,
     importPdfFile,
     openArticleDiscussion,
     readArticle,
-    saveArticleReadingProgress,
-    saveArticleReaderChatState,
   } = articleActions;
   const { t } = useTranslation();
   const navigation = useReadingLibraryNavigation({
     onCloseArticleDiscussions: closeArticleDiscussions,
     onReadArticle: readArticle,
   });
+  useEffect(
+    () => articleStore.registerCurrentArticleSink(navigation.currentArticleSink),
+    [articleStore, navigation.currentArticleSink],
+  );
   const distillationSync = useReadingLibraryDistillationSync({
     navigation,
     onReadArticle: readArticle,
@@ -148,7 +150,6 @@ export function ReadingLibrary({
   >([]);
   const distillationAnimation = distillationSync.animation;
   const sortedArticles = useMemo<ArticleSummaryRecord[]>(() => sortArticles(articles), [articles]);
-  const hasLocalArticleCatalog = articles.length > 0;
   const annotations = useMemo<Annotation[]>(
     () => (selectedArticle ? sortAnnotations(selectedArticle.annotations) : []),
     [selectedArticle],
@@ -185,13 +186,6 @@ export function ReadingLibrary({
       void distillationSync.onCommitted(event);
     });
   }, [distillationSync.onCommitted]);
-
-  useEffect(() => {
-    if (!hasLocalArticleCatalog) return;
-    if (selectedArticleId && !sortedArticles.some((article) => article.id === selectedArticleId)) {
-      navigation.actions.resetLibrary();
-    }
-  }, [hasLocalArticleCatalog, navigation.actions, selectedArticleId, sortedArticles]);
 
   useEffect(() => {
     if (!openArticleTargetId) return;
@@ -269,9 +263,6 @@ export function ReadingLibrary({
   async function deleteLibraryArticle(articleId: string) {
     await deleteArticle(articleId);
     playAppSoundEffect('library.delete_item', settings || {});
-    if (selectedArticleId === articleId) {
-      navigation.actions.resetLibrary();
-    }
   }
 
   async function openWeReadBook(book: WeReadBook) {
@@ -343,50 +334,6 @@ export function ReadingLibrary({
       setWeReadBookSyncing(false);
     }
   }
-
-  async function saveSelectedArticleReadingProgress(
-    articleId: string,
-    progress: ArticleReadingProgress,
-  ) {
-    if (navigation.actions.isCurrentArticle(articleId)) {
-      navigation.actions.updateArticle(articleId, (current) => ({
-        ...current,
-        readingProgress: progress,
-        updatedAt: progress.updatedAt,
-      }));
-    }
-    await saveArticleReadingProgress(articleId, progress);
-  }
-
-  async function saveSelectedArticleReaderChatState(
-    articleId: string,
-    readerChatState?: ReaderChatState,
-  ) {
-    if (navigation.actions.isCurrentArticle(articleId)) {
-      navigation.actions.updateArticle(articleId, (current) => ({
-        ...current,
-        readerChatState,
-        updatedAt: readerChatState?.updatedAt || current.updatedAt,
-      }));
-    }
-    return saveArticleReaderChatState(articleId, readerChatState);
-  }
-
-  async function deleteSelectedArticleAnnotation(articleId: string, annotationId: string) {
-    await deleteArticleAnnotation(articleId, annotationId);
-    if (!navigation.actions.isCurrentArticle(articleId)) return;
-    navigation.actions.updateArticle(articleId, (current) => ({
-      ...current,
-      annotations: current.annotations.filter((annotation) => annotation.id !== annotationId),
-    }));
-  }
-
-  const sourceArticleActions = {
-    ...articleActions,
-    deleteArticleAnnotation: deleteSelectedArticleAnnotation,
-    saveArticleReadingProgress: saveSelectedArticleReadingProgress,
-    saveArticleReaderChatState: saveSelectedArticleReaderChatState,
-  } satisfies ReaderArticleActions;
 
   async function setLibraryPin(input: SetLibraryPinInput) {
     try {
@@ -478,7 +425,7 @@ export function ReadingLibrary({
                   onFocusedAnnotation: distillationSync.onFocusedAnnotation,
                   onOpenAnnotation: navigation.actions.selectAnnotation,
                 }}
-                articleActions={sourceArticleActions}
+                articleActions={articleActions}
                 content={{
                   agents,
                   annotations,

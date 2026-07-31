@@ -1,5 +1,12 @@
 import { vi } from 'vitest';
+import type { ArticleStore } from '../shell/app-article-store';
 import type { ArticleActions } from '../shell/app-article-store-actions';
+
+export function articleStoreSinkStub(
+  registerCurrentArticleSink: ArticleStore['registerCurrentArticleSink'] = vi.fn(() => vi.fn()),
+): Pick<ArticleStore, 'registerCurrentArticleSink'> {
+  return { registerCurrentArticleSink };
+}
 
 export function articleActionStubs(overrides: Partial<ArticleActions> = {}): ArticleActions {
   return {

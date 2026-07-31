@@ -98,6 +98,41 @@ describe('useReadingLibraryNavigation', () => {
     });
   });
 
+  it('exposes the current article as a projection sink', async () => {
+    const { result } = renderHook(() =>
+      useReadingLibraryNavigation({ onReadArticle: async () => null }),
+    );
+    const progress = {
+      kind: 'scroll' as const,
+      progress: 0.5,
+      updatedAt: '2026-07-15T00:05:00.000Z',
+    };
+
+    await act(async () => {
+      await result.current.actions.openArticle(article());
+    });
+    expect(result.current.currentArticleSink.isCurrent('article_1')).toBe(true);
+    expect(result.current.currentArticleSink.isCurrent('article_2')).toBe(false);
+
+    act(() => {
+      result.current.currentArticleSink.apply({
+        type: 'update',
+        articleId: 'article_1',
+        update: (current) => ({
+          ...current,
+          readingProgress: progress,
+          updatedAt: progress.updatedAt,
+        }),
+      });
+    });
+
+    expect(result.current.model.article).toMatchObject({
+      id: 'article_1',
+      readingProgress: progress,
+      updatedAt: progress.updatedAt,
+    });
+  });
+
   it('cancels pending loads and closes the active article on unmount', async () => {
     const pending = createDeferred<ArticleRecord | null>();
     const onCloseArticleDiscussions = vi.fn();

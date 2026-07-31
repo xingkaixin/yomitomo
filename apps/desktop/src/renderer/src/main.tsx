@@ -244,6 +244,7 @@ function App() {
                 <ReadingLibrary
                   agents={store.agents}
                   articleActions={articleActions}
+                  articleStore={articleStore}
                   articles={store.articles}
                   collectionMembers={store.collectionMembers}
                   collections={store.collections}

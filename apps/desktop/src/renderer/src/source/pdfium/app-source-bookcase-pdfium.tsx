@@ -1102,11 +1102,10 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     const persisted = await mergeArticleAgentAnnotation(articleId, annotation);
     if (persisted) activeId = persisted.activeId;
     if (persisted && article.id === articleId) {
-      applyAnnotations(persisted.patch.article.annotations, persisted.patch.article.updatedAt);
       onOpenAnnotation(
         pdfiumAnnotationIsVisible(
           persisted.activeId,
-          persisted.patch.article.annotations,
+          annotationsRef.current,
           pageMetricsRef.current,
         )
           ? persisted.activeId

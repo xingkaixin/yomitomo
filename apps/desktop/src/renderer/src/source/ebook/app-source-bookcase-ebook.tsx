@@ -646,7 +646,6 @@ export function EbookBookcase({
     const persisted = await mergeArticleAgentAnnotation(articleId, annotation);
     if (persisted) activeId = persisted.activeId;
     if (persisted && isCurrentArticle(articleId)) {
-      applyAnnotations(persisted.patch.article.annotations, persisted.patch.article.updatedAt);
       openAnnotation(persisted.activeId);
     }
     return activeId;

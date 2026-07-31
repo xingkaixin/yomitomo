@@ -37,7 +37,7 @@ import { initializeAppI18n } from '../i18n/app-i18n';
 import { defaultTheme } from '../theme/app-theme';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 import { appToast } from '../shell/app-toast';
-import { articleActionStubs } from './article-actions-test-utils';
+import { articleActionStubs, articleStoreSinkStub } from './article-actions-test-utils';
 
 vi.mock('../sound/app-sound-effects', () => ({
   playAppSoundEffect: vi.fn(),
@@ -48,6 +48,7 @@ vi.mock('../shell/app-toast', () => ({
 }));
 
 const now = '2026-05-09T12:00:00.000Z';
+const articleStore = articleStoreSinkStub();
 let closeDefaultCatalog: (() => void) | undefined;
 
 const userProfile: UserProfile = {
@@ -342,6 +343,7 @@ function renderLibrary(
           await options.onSaveArticleReadingProgress?.(articleId, progress);
         },
       })}
+      articleStore={articleStore}
       articles={summaries}
       collectionMembers={options.collectionMembers}
       collections={options.collections}
@@ -2125,6 +2127,7 @@ describe('ReadingLibrary home', () => {
           articleActions={articleActionStubs({
             readArticle: (articleId) => onReadArticle(articleId),
           })}
+          articleStore={articleStore}
           articles={articles}
           {...collectionActionStubs()}
           readerTheme={defaultTheme.reader}
@@ -2193,6 +2196,7 @@ describe('ReadingLibrary home', () => {
           articleActions={articleActionStubs({
             readArticle: (articleId) => onReadArticle(articleId),
           })}
+          articleStore={articleStore}
           articles={articles}
           {...collectionActionStubs()}
           readerTheme={defaultTheme.reader}
@@ -2431,6 +2435,7 @@ describe('ReadingLibrary home', () => {
           articleActions={articleActionStubs({
             readArticle: (articleId) => onReadArticle(articleId),
           })}
+          articleStore={articleStore}
           articles={articles}
           {...collectionActionStubs()}
           readerTheme={defaultTheme.reader}
