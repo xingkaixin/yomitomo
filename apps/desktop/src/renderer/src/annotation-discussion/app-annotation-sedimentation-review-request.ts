@@ -10,6 +10,7 @@ import type {
   UiLanguage,
 } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
+import { annotationAgentAuthorRef } from '@yomitomo/core';
 import i18next from 'i18next';
 import {
   applyAssistantRuntimeProgress,
@@ -76,14 +77,10 @@ export async function requestAgentReviewRound({
     createReviewSession(agent, startedAt, createSessionId());
   const assistantMessage: AnnotationDistillationReviewMessage = {
     id: createMessageId(),
-    author: 'ai',
+    author: annotationAgentAuthorRef(agent),
     content: '',
     createdAt: startedAt,
     status: 'pending',
-    agentId: agent.id,
-    agentUsername: agent.username,
-    agentNickname: agent.nickname,
-    agentAvatar: agent.avatar,
   };
   const proposalSource = distillationProposalSource({
     draft,
@@ -225,7 +222,7 @@ function distillationReviewTranscript(session: AnnotationDistillationReviewSessi
     .map((message) =>
       i18next.t('sedimentation.reviewPrompt.transcriptLine', {
         role:
-          message.author === 'user'
+          message.author.kind === 'user'
             ? i18next.t('sedimentation.reviewPrompt.userRole')
             : i18next.t('sedimentation.reviewPrompt.assistantRole'),
         content: message.content,

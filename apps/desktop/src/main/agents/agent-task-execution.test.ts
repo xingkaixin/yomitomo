@@ -169,7 +169,7 @@ describe('executeAgentDistillationReviewTask', () => {
     const fixture = taskFixture({ agents: [reviewAgent] });
     fixture.ai.runAgentDistillationReviewStructuredStream.mockResolvedValue({
       id: '',
-      author: 'ai',
+      author: { kind: 'agent', agentId: reviewAgent.id, username: reviewAgent.username },
       content: 'review result',
       createdAt: '2026-07-18T00:00:00.000Z',
       items: [],
@@ -189,7 +189,18 @@ describe('executeAgentDistillationReviewTask', () => {
     );
 
     expect(result.content).toBe('review result');
-    expect(events).toEqual([{ type: 'start', message: expect.objectContaining({ author: 'ai' }) }]);
+    expect(events).toEqual([
+      {
+        type: 'start',
+        message: expect.objectContaining({
+          author: expect.objectContaining({
+            kind: 'agent',
+            agentId: reviewAgent.id,
+            username: reviewAgent.username,
+          }),
+        }),
+      },
+    ]);
     await expectExecutionRecorded(fixture, {
       taskType: 'distillation_review',
       effectiveMode: 'fast_response',

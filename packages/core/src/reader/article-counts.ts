@@ -43,7 +43,7 @@ export function annotationAiContributionDates(annotation: Annotation) {
   }
   for (const session of annotation.distillation?.reviewSessions || []) {
     for (const message of session.messages) {
-      if (message.author === 'ai') dates.push(message.createdAt);
+      if (message.author.kind === 'agent') dates.push(message.createdAt);
     }
   }
   return dates;

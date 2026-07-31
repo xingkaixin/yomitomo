@@ -112,15 +112,11 @@ export async function runAgentDistillationReviewStructuredStream(
   if (!content) throw new Error('Provider returned no distillation review items');
   return {
     id: '',
-    author: 'ai',
+    author: annotationAgentAuthorRef(agent),
     content,
     items,
     proposals: distillationReviewProposalsFromItems(items),
     createdAt: new Date().toISOString(),
-    agentId: agent.id,
-    agentUsername: agent.username,
-    agentNickname: agent.nickname,
-    agentAvatar: agent.avatar,
   };
 }
 

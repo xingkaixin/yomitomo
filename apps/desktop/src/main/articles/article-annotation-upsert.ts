@@ -14,6 +14,7 @@ import {
   annotationToRow,
   commentRowsForAnnotation,
   commentToRow,
+  serializeAnnotationDistillationReviewSessions,
 } from './article-repository-child-rows';
 import { readArticleAnnotations } from './article-annotation-hydration';
 import { readArticleSummaryRows } from './article-row-queries';
@@ -79,7 +80,8 @@ export function saveAnnotationDistillationRows(
         distillationContent: input.distillation?.content ?? null,
         distillationPublishedAt: input.distillation?.publishedAt ?? null,
         distillationUpdatedAt: input.distillation?.updatedAt ?? null,
-        distillationReviewSessions: input.distillation?.reviewSessions ?? null,
+        distillationReviewSessions:
+          serializeAnnotationDistillationReviewSessions(input.distillation?.reviewSessions) ?? null,
         updatedAt,
       })
       .where(eq(schema.annotations.id, input.annotationId))

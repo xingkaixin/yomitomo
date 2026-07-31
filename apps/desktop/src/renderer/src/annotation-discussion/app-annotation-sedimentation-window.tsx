@@ -17,7 +17,7 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import { makeId, normalizeUiLanguage } from '@yomitomo/shared';
-import { annotationAuthorName } from '@yomitomo/core';
+import { annotationAgentAuthorRef, annotationAuthorName } from '@yomitomo/core';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { applyAppTheme, readCachedThemeId, themeRegistry } from '../theme/app-theme';
@@ -387,7 +387,7 @@ function SedimentationShell({
       const userMessage = effectiveReviewDraft.trim()
         ? ({
             id: makeId('distillation_review_message'),
-            author: 'user',
+            author: { kind: 'user', username: 'reader' },
             content: effectiveReviewDraft.trim(),
             createdAt: now,
           } satisfies AnnotationDistillationReviewMessage)
@@ -493,14 +493,10 @@ function SedimentationShell({
     const session = existingSessionForAgent(sessions, agent) || createReviewSession(agent, now);
     let workingMessage: AnnotationDistillationReviewMessage = {
       id: makeId('distillation_review_message'),
-      author: 'ai',
+      author: annotationAgentAuthorRef(agent),
       content: '',
       createdAt: now,
       status: 'pending',
-      agentId: agent.id,
-      agentUsername: agent.username,
-      agentNickname: agent.nickname,
-      agentAvatar: agent.avatar,
     };
     const proposalSource = distillationProposalSource({
       draft,

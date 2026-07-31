@@ -229,7 +229,7 @@ describe('reading core', () => {
               messages: [
                 {
                   id: 'agent-review',
-                  author: 'ai',
+                  author: { kind: 'agent', agentId: 'agent', username: 'assistant' },
                   content: '助手参与沉淀',
                   createdAt: '2026-05-03T08:35:00.000Z',
                 },

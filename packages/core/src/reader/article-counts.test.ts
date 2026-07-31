@@ -39,7 +39,7 @@ describe('articleCounts', () => {
               messages: [
                 {
                   id: 'review_message_1',
-                  author: 'ai',
+                  author: { kind: 'agent', agentId: 'agent_1', username: 'assistant' },
                   content: '审阅',
                   createdAt,
                 },
