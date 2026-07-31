@@ -31,7 +31,6 @@ import {
 } from '@yomitomo/shared';
 import {
   activeTocIndexForOffset,
-  mergeAgentAnnotationAsThought,
   selectionActionPosition,
   type HighlightBox,
   type TocItem,
@@ -43,9 +42,8 @@ import { readerDesktopEmbeddedBundleStyles } from '@yomitomo/reader-ui/reader-st
 import { animateTheaterHighlight, sleep } from '@yomitomo/reader-ui/reader-animation';
 import { selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
 import type { SourceBookcaseProps } from '../bookcase/app-source-bookcase';
-import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
-import { useSourceReaderSurface } from '../bookcase/use-source-reader-surface';
+import { appendAgentAnnotationToArticle as appendPersistedAgentAnnotation } from '../bookcase/append-agent-annotation-to-article';
 import {
   useReaderPageTurnKeys,
   type ReaderPageTurnDirection,
@@ -277,16 +275,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     onToggle: onToggleToc,
   } = toc;
   const { t } = useTranslation();
-  const {
-    canvasRef,
-    getNoteElement,
-    getNoteElements,
-    handleRef: readerSurfaceRef,
-    railRef: notesRef,
-    rootRef: readerRootRef,
-    requestSelectionCopy: dispatchSelectionCopy,
-    viewportRef: surfaceRef,
-  } = useSourceReaderSurface();
   const recordedOpenPhasesRef = useRef(new Set<string>());
   const agentAnnotationPlaybackQueueRef = useRef(Promise.resolve());
   const documentState = useDocumentState(documentId);
@@ -294,14 +282,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   const [agentTheaterBoxes, setAgentTheaterBoxes] = useState<HighlightBox[]>([]);
   const [layoutPageWidth, setLayoutPageWidth] = useState(0);
   const resetLayoutPageWidthOnNextMetricsRef = useRef(true);
-  const {
-    annotationRailViewportHeight,
-    annotationRailViewportWidth,
-    pageMetrics,
-    pageMetricsRef,
-    schedulePageMetricsUpdate,
-    updatePageMetrics,
-  } = usePdfiumPageMetrics({ canvasRef, pageCount });
   const zoom = documentState?.scale || 1;
   const loadedDocument = documentState?.document ?? undefined;
   const pdfBaseWidth = useMemo(() => {
@@ -346,8 +326,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   });
   const sourceReaderApp = useSourceReaderApp({
     articleActions,
-    canvasRef,
-    onRequestSelectionCopy: dispatchSelectionCopy,
     createAgentAnnotationAdapter: ({ isCurrentArticle, setStatusMessage }) =>
       createPdfiumSourceReaderController({
         enqueueAgentAnnotationPlayback: (articleId, annotation) =>
@@ -392,23 +370,30 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     },
   });
   const {
+    canvasRef,
+    getNoteElements,
+    handleRef: readerSurfaceRef,
+    railRef: notesRef,
+    viewportRef: surfaceRef,
+  } = sourceReaderApp.surface;
+  const {
+    annotationRailViewportHeight,
+    annotationRailViewportWidth,
+    pageMetrics,
+    pageMetricsRef,
+    schedulePageMetricsUpdate,
+    updatePageMetrics,
+  } = usePdfiumPageMetrics({ canvasRef, pageCount });
+  const {
     askSelection,
     isCurrentArticle,
     newAnnotationIds,
-    openAnnotation,
     session: sourceReaderSession,
     setStatusMessage,
     statusMessage,
     workspace: sourceReaderWorkspace,
   } = sourceReaderApp;
-  const {
-    annotations,
-    annotationsRef,
-    annotationAgents,
-    applyAnnotations,
-    deleteAnnotation,
-    saveAnnotation,
-  } = sourceReaderSession;
+  const { annotations, annotationsRef, annotationAgents, applyAnnotations } = sourceReaderSession;
   const {
     agentDockCompleting,
     agentDockItems,
@@ -430,12 +415,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     onClearTheaterBoxes: () => setAgentTheaterBoxes([]),
     pageMetricsRef,
   });
-  const {
-    actionShortcuts,
-    readerChat,
-    selection,
-    updateReaderSettings: updatePdfReaderSettings,
-  } = sourceReaderWorkspace;
+  const { actionShortcuts, selection } = sourceReaderWorkspace;
   const {
     temporaryBoxes,
     setHighlightChoice,
@@ -446,8 +426,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     openSelectionAction,
     setSelectionAction,
     setTemporaryBoxes,
-    cancelComposer,
-    copySelection,
     requestSelectionCopy,
     openComposer,
   } = selection;
@@ -655,17 +633,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     rail.addEventListener('wheel', handleWheel, { passive: false });
     return () => rail.removeEventListener('wheel', handleWheel);
   }, [canvasRef, notesRef]);
-  const { activeConnection, recalculateActiveConnection } = useSourceActiveConnection({
-    annotationAgents,
-    annotations,
-    boxes,
-    canvasRef,
-    getNoteElement,
-    readerRootRef,
-    selectedAnnotationId,
-    surfaceRef,
-    userProfile,
-  });
   const { scrollToAnnotation, scrollToTocItem } = usePdfiumNavigation({
     annotations,
     documentId,
@@ -869,7 +836,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       railWidth: annotationRailLayout?.railWidth,
       zoom,
     });
-    recalculateActiveConnection();
   }
 
   function showStatusMessage(message: string) {
@@ -1035,31 +1001,17 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   }
 
   async function appendAgentAnnotationToArticle(articleId: string, annotation: Annotation) {
-    let activeId = annotation.id;
-    if (article.id === articleId) {
-      const result = mergeAgentAnnotationAsThought(annotationsRef.current, annotation);
-      activeId = result.activeId;
-      applyAnnotations(result.annotations);
-      onOpenAnnotation(
-        pdfiumAnnotationIsVisible(result.activeId, result.annotations, pageMetricsRef.current)
-          ? result.activeId
-          : null,
-      );
-    }
-    const persisted = await mergeArticleAgentAnnotation(articleId, annotation);
-    if (persisted) activeId = persisted.activeId;
-    if (persisted && article.id === articleId) {
-      onOpenAnnotation(
-        pdfiumAnnotationIsVisible(
-          persisted.activeId,
-          annotationsRef.current,
-          pageMetricsRef.current,
-        )
-          ? persisted.activeId
-          : null,
-      );
-    }
-    return activeId;
+    return appendPersistedAgentAnnotation({
+      annotations: () => annotationsRef.current,
+      applyAnnotations,
+      annotation,
+      articleId,
+      isAnnotationVisible: (annotationId, currentAnnotations) =>
+        pdfiumAnnotationIsVisible(annotationId, currentAnnotations, pageMetricsRef.current),
+      isCurrentArticle,
+      mergeArticleAgentAnnotation,
+      onOpenAnnotation,
+    });
   }
 
   async function pdfiumPageGeometriesForReadingPlan(
@@ -1110,6 +1062,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
         onScrollToHeading: scrollToTocItem,
       },
       onHighlightClick: handleHighlightClick,
+      onAnnotationLayoutChange: handleAnnotationLayoutChange,
       onRevealReaderChatContext: revealReaderChatContext,
       questionContext: readerQuestionContext,
       search: {
@@ -1131,7 +1084,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       virtualCursors,
     },
     annotations: {
-      activeConnection,
       activeId: selectedAnnotationId,
       annotations,
       boxes,
@@ -1189,7 +1141,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       },
       id: article.id,
     },
-    onAnnotationLayoutChange: handleAnnotationLayoutChange,
     shell: {
       onClose,
       onCloseFloatingPanels: onCloseToc,

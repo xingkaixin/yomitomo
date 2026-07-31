@@ -1,4 +1,4 @@
-import { useEffect, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import type {
   Annotation,
   AppSettings,
@@ -16,6 +16,7 @@ import {
 } from './use-source-reader-session';
 import { useSourceReaderWorkspace } from './use-source-reader-workspace';
 import { useRecentAnnotationFeedback } from './use-recent-annotation-feedback';
+import { useSourceReaderSurface } from './use-source-reader-surface';
 
 type ReaderAppActions = ReaderAppViewProps['actions'];
 type ReaderAnnotationActions = ReaderAppActions['annotation'];
@@ -58,6 +59,7 @@ export type SourceReaderAdapter = {
     onScrollToHeading: ReaderTocActions['onScrollToHeading'];
   };
   onHighlightClick: ReaderAnnotationActions['onHighlightClick'];
+  onAnnotationLayoutChange?: ReaderAnnotationActions['onAnnotationLayoutChange'];
   onRevealReaderChatContext?: ReaderChatActions['onRevealContext'];
   questionContext: (anchor: Annotation['anchor']) => ReaderQuestionContext;
   search: {
@@ -76,9 +78,9 @@ export type SourceReaderAdapter = {
   >;
 };
 
-type SourceReaderAgentPlayback = Omit<
+type SourceReaderAgentPlayback = Pick<
   ReaderAppViewProps['agents'],
-  'agents' | 'pendingAnnotationAgents' | 'reviewAgents'
+  'dockCompleting' | 'dockItems' | 'theaterBoxes' | 'virtualCursors'
 >;
 type SourceReaderAnnotationSurface = Omit<ReaderAppViewProps['annotations'], 'annotationTotals'>;
 
@@ -87,7 +89,6 @@ export type SourceReaderAppSurface = {
   agentPlayback: SourceReaderAgentPlayback;
   annotations: SourceReaderAnnotationSurface;
   article: ReaderAppViewProps['article'];
-  onAnnotationLayoutChange?: ReaderAnnotationActions['onAnnotationLayoutChange'];
   shell: {
     onClose: ReaderShellActions['onClose'];
     onCloseFloatingPanels?: ReaderShellActions['onCloseFloatingPanels'];
@@ -107,7 +108,6 @@ export type SourceReaderAppSurface = {
 
 export type UseSourceReaderAppInput = {
   articleActions: ReaderArticleActions;
-  canvasRef: RefObject<HTMLElement | null>;
   createAgentAnnotationAdapter?: (context: {
     isCurrentArticle: (articleId: string) => boolean;
     setStatusMessage: Dispatch<SetStateAction<string>>;
@@ -115,7 +115,6 @@ export type UseSourceReaderAppInput = {
   getArticleText: () => string | Promise<string>;
   beforeOpenAnnotation?: () => void;
   messageSendShortcut?: MessageSendShortcut;
-  onRequestSelectionCopy: () => void;
   settings?: AppSettings;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   session: SourceReaderSessionInput;
@@ -124,15 +123,14 @@ export type UseSourceReaderAppInput = {
 export function useSourceReaderApp({
   articleActions,
   beforeOpenAnnotation,
-  canvasRef,
   createAgentAnnotationAdapter,
   getArticleText,
   messageSendShortcut,
-  onRequestSelectionCopy,
   settings,
   selectionActionShortcuts,
   session: sessionInput,
 }: UseSourceReaderAppInput) {
+  const surface = useSourceReaderSurface();
   const [statusMessage, setStatusMessage] = useState('');
   const [tocOpen, setTocOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -154,10 +152,10 @@ export function useSourceReaderApp({
   });
   const workspace = useSourceReaderWorkspace({
     article: sessionInput.article,
-    canvasRef,
+    canvasRef: surface.canvasRef,
     getArticleText,
     messageSendShortcut,
-    onRequestSelectionCopy,
+    onRequestSelectionCopy: surface.requestSelectionCopy,
     selectionActionShortcuts,
     session,
     uiLanguage: sessionInput.uiLanguage,
@@ -217,17 +215,19 @@ export function useSourceReaderApp({
     setTocOpen((open) => !open);
   }
 
-  function viewProps({
-    adapter,
-    agentPlayback,
-    annotations,
-    article,
-    onAnnotationLayoutChange,
-    shell,
-    toc,
-    toolbar,
-    userProfile,
-  }: SourceReaderAppSurface): ReaderAppViewProps {
+  function viewProps(
+    {
+      adapter,
+      agentPlayback,
+      annotations,
+      article,
+      shell,
+      toc,
+      toolbar,
+      userProfile,
+    }: SourceReaderAppSurface,
+    onAnnotationLayoutChange?: ReaderAnnotationActions['onAnnotationLayoutChange'],
+  ): ReaderAppViewProps {
     const activeTocOpen = toc.open ?? tocOpen;
     const closeReaderToc = toc.onClose ?? closeToc;
     const actions: ReaderAppActions = {
@@ -342,6 +342,7 @@ export function useSourceReaderApp({
     session,
     setStatusMessage,
     statusMessage,
+    surface,
     toggleSettings,
     toggleToc,
     viewProps,

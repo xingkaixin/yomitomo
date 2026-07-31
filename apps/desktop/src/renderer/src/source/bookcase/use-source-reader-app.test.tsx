@@ -49,9 +49,7 @@ describe('useSourceReaderApp', () => {
         ({ currentArticle }) =>
           useSourceReaderApp({
             articleActions,
-            canvasRef: { current: null },
             getArticleText: () => 'text',
-            onRequestSelectionCopy: vi.fn(),
             session: {
               agents: [],
               annotations: currentArticle.annotations,
@@ -87,9 +85,7 @@ describe('useSourceReaderApp', () => {
     const { result } = renderHook(() =>
       useSourceReaderApp({
         articleActions,
-        canvasRef: { current: null },
         getArticleText: () => 'text',
-        onRequestSelectionCopy: vi.fn(),
         session: {
           agents: [],
           annotations: currentArticle.annotations,
@@ -131,9 +127,7 @@ describe('useSourceReaderApp', () => {
       useSourceReaderApp({
         articleActions,
         beforeOpenAnnotation,
-        canvasRef: { current: null },
         getArticleText: () => 'text',
-        onRequestSelectionCopy: vi.fn(),
         session: {
           agents: [],
           annotations: currentArticle.annotations,
@@ -177,9 +171,7 @@ describe('useSourceReaderApp', () => {
     const { result } = renderHook(() =>
       useSourceReaderApp({
         articleActions,
-        canvasRef: { current: null },
         getArticleText: () => 'text',
-        onRequestSelectionCopy: vi.fn(),
         session: {
           agents: [],
           annotations: currentArticle.annotations,
@@ -250,9 +242,7 @@ describe('useSourceReaderApp', () => {
     const { result } = renderHook(() => {
       const app = useSourceReaderApp({
         articleActions,
-        canvasRef: { current: null },
         getArticleText: () => 'text',
-        onRequestSelectionCopy: vi.fn(),
         session: {
           agents: [],
           annotations: currentArticle.annotations,
@@ -319,9 +309,7 @@ describe('useSourceReaderApp', () => {
       ({ revealSearchMatch }) => {
         const app = useSourceReaderApp({
           articleActions,
-          canvasRef: { current: null },
           getArticleText: () => 'text',
-          onRequestSelectionCopy: vi.fn(),
           session: {
             agents: [],
             annotations: currentArticle.annotations,

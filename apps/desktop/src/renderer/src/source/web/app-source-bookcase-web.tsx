@@ -1,6 +1,5 @@
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import type { Annotation, ArticleReadingProgress, ReaderQuestionContext } from '@yomitomo/shared';
 import { resolveTextAnchor } from '@yomitomo/shared';
 import {
@@ -30,7 +29,6 @@ import { OpenArticleButton } from '../../shell/app-ui';
 import { articleIdentityLine } from '../../shell/app-utils';
 import { recordRendererPerformanceTiming } from '../../shell/app-renderer-performance';
 import type { WebSourceBookcaseProps } from '../bookcase/app-source-bookcase';
-import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
 import { sourceTocOptions, useWebReaderBoxes } from './use-web-reader-boxes';
 import {
   articleLinkExternalUrl,
@@ -40,7 +38,6 @@ import {
 } from './app-source-bookcase-web-utils';
 import { createWebSourceReaderController } from './app-source-bookcase-web-controller';
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
-import { useSourceReaderSurface } from '../bookcase/use-source-reader-surface';
 import { useSourceReaderAppView } from '../bookcase/use-source-reader-app-view';
 import { useSourceReadingProgressSaver } from '../bookcase/use-source-reading-progress-saver';
 import { createWebReadingProgressFrame } from './web-reading-progress-frame';
@@ -66,17 +63,6 @@ export function WebSourceBookcase({
   readerControl: { focusAnnotationId, onClose, selectedAnnotationId },
 }: WebSourceBookcaseProps) {
   const { mergeArticleAgentAnnotation, saveArticleReadingProgress } = articleActions;
-  const { t } = useTranslation();
-  const {
-    articleRef,
-    canvasRef,
-    getNoteElement,
-    handleRef: readerSurfaceRef,
-    railRef,
-    rootRef: readerRootRef,
-    requestSelectionCopy: dispatchSelectionCopy,
-    viewportRef: scrollRef,
-  } = useSourceReaderSurface();
   const restoredWebProgressArticleRef = useRef<string | null>(null);
   const [readingProgress, setReadingProgress] = useState(
     () => normalizeSavedWebProgress(article.readingProgress) ?? 0,
@@ -101,10 +87,8 @@ export function WebSourceBookcase({
   const sourceReaderApp = useSourceReaderApp({
     articleActions,
     beforeOpenAnnotation,
-    canvasRef,
     getArticleText: currentArticleText,
     messageSendShortcut,
-    onRequestSelectionCopy: dispatchSelectionCopy,
     settings,
     selectionActionShortcuts,
     session: {
@@ -120,14 +104,19 @@ export function WebSourceBookcase({
     },
   });
   const {
-    askSelection,
-    createAnnotation,
     isCurrentArticle,
     newAnnotationIds,
     openAnnotation,
     session: sourceReaderSession,
     setStatusMessage,
     statusMessage,
+    surface: {
+      articleRef,
+      canvasRef,
+      handleRef: readerSurfaceRef,
+      railRef,
+      viewportRef: scrollRef,
+    },
     workspace: sourceReaderWorkspace,
   } = sourceReaderApp;
   const { annotations, annotationsRef, annotationAgents, deleteAnnotation, saveAnnotation } =
@@ -172,17 +161,6 @@ export function WebSourceBookcase({
   useEffect(() => {
     webFocusBoxCountRef.current = boxes.length;
   }, [boxes.length]);
-  const { activeConnection, recalculateActiveConnection } = useSourceActiveConnection({
-    annotationAgents,
-    annotations,
-    boxes,
-    canvasRef,
-    getNoteElement,
-    readerRootRef,
-    selectedAnnotationId,
-    surfaceRef: scrollRef,
-    userProfile,
-  });
   const tocStats = useMemo(
     () => buildTocAnnotationStats(tocItems, annotations, userProfile, annotationAgents),
     [annotationAgents, annotations, tocItems, userProfile],
@@ -245,16 +223,7 @@ export function WebSourceBookcase({
   useEffect(() => cleanupVirtualReadingSessions, []);
 
   const { labels, readerSettings, selection, updateReaderSettings } = sourceReaderWorkspace;
-  const {
-    temporaryBoxes,
-    setHighlightChoice,
-    composer,
-    clearSelection,
-    clearAnnotationUiState,
-    cancelComposer,
-    copySelection,
-    openComposer,
-  } = selection;
+  const { temporaryBoxes, setHighlightChoice, clearAnnotationUiState } = selection;
   const webReaderSelection = useWebReaderSelection({
     article,
     articleRef,
@@ -755,7 +724,6 @@ export function WebSourceBookcase({
       virtualCursors,
     },
     annotations: {
-      activeConnection,
       activeId: selectedAnnotationId,
       annotations,
       boxes,
@@ -782,7 +750,6 @@ export function WebSourceBookcase({
       extracted: readerArticle,
       id: article.id,
     },
-    onAnnotationLayoutChange: recalculateActiveConnection,
     shell: { onClose },
     toc: {
       activeIndex: activeTocIndex,

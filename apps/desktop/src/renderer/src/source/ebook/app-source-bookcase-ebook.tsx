@@ -8,7 +8,6 @@ import {
   activeTocIndexForOffset,
   annotationIdsAtHighlightPoint,
   createEpubTextAnchor,
-  mergeAgentAnnotationAsThought,
   type HighlightBox,
   type TocItem,
 } from '@yomitomo/core';
@@ -55,7 +54,6 @@ import {
   useReaderPageTurnKeys,
   type ReaderPageTurnDirection,
 } from '../../shell/use-reader-page-turn-keys';
-import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
 import {
   ebookAnnotationNavigationState,
   ebookSpreadAvailableWidth,
@@ -65,8 +63,8 @@ import { ArticleBook } from '../../shell/app-article-book';
 import { articleDisplayTitle } from '../../reading-library/app-reading-library-utils';
 import { createEbookSourceReaderController } from './app-source-bookcase-ebook-controller';
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
-import { useSourceReaderSurface } from '../bookcase/use-source-reader-surface';
 import { useSourceReaderAppView } from '../bookcase/use-source-reader-app-view';
+import { appendAgentAnnotationToArticle as appendPersistedAgentAnnotation } from '../bookcase/append-agent-annotation-to-article';
 
 function cssPixelValue(value: string) {
   const parsed = Number.parseFloat(value);
@@ -89,14 +87,6 @@ export function EbookBookcase({
 }: EbookBookcaseProps) {
   const { mergeArticleAgentAnnotation, saveArticleReadingProgress } = articleActions;
   const { t } = useTranslation();
-  const {
-    canvasRef,
-    getNoteElement,
-    handleRef: readerSurfaceRef,
-    rootRef: readerRootRef,
-    requestSelectionCopy: dispatchSelectionCopy,
-    viewportRef: surfaceRef,
-  } = useSourceReaderSurface();
   const scheduleEbookBoxUpdateRef = useRef<(reason: EbookBoxUpdateReason) => void>(() => {});
   const pageTurnTraceRef = useRef<EbookPageTurnTrace | null>(null);
   const beforeEbookPageTurnRef = useRef<(trace: EbookPageTurnTrace) => void>(() => {});
@@ -124,8 +114,6 @@ export function EbookBookcase({
   const sourceReaderApp = useSourceReaderApp({
     articleActions,
     beforeOpenAnnotation,
-    canvasRef,
-    onRequestSelectionCopy: dispatchSelectionCopy,
     createAgentAnnotationAdapter: ({ isCurrentArticle, setStatusMessage }) =>
       createEbookSourceReaderController({
         appendAgentAnnotationToArticle,
@@ -196,6 +184,11 @@ export function EbookBookcase({
     },
   });
   const {
+    canvasRef,
+    handleRef: readerSurfaceRef,
+    viewportRef: surfaceRef,
+  } = sourceReaderApp.surface;
+  const {
     askSelection,
     closeSettings,
     closeToc,
@@ -207,20 +200,12 @@ export function EbookBookcase({
     statusMessage,
     workspace: sourceReaderWorkspace,
   } = sourceReaderApp;
-  const {
-    annotations,
-    annotationsRef,
-    annotationAgents,
-    applyAnnotations,
-    deleteAnnotation,
-    saveAnnotation,
-  } = sourceReaderSession;
+  const { annotations, annotationsRef, annotationAgents, applyAnnotations } = sourceReaderSession;
   const [annotatingAgentIds, setAnnotatingAgentIds] = useState<string[]>([]);
 
   const {
     actionShortcuts,
     labels,
-    readerChat,
     readerSettings,
     selection,
     updateReaderSettings: updateEbookReaderSettings,
@@ -235,8 +220,6 @@ export function EbookBookcase({
     openSelectionAction,
     setSelectionAction,
     setTemporaryBoxes,
-    cancelComposer,
-    copySelection,
     requestSelectionCopy,
     openComposer,
   } = selection;
@@ -407,17 +390,6 @@ export function EbookBookcase({
   attachFoliateDocumentListenersRef.current = attachFoliateDocumentListeners;
   cleanupFoliateDocumentListenersRef.current = cleanupFoliateDocumentListeners;
   scheduleEbookBoxUpdateRef.current = scheduleEbookBoxUpdateImpl;
-  const { activeConnection, recalculateActiveConnection } = useSourceActiveConnection({
-    annotationAgents,
-    annotations,
-    boxes,
-    canvasRef,
-    getNoteElement,
-    readerRootRef,
-    selectedAnnotationId,
-    surfaceRef,
-    userProfile,
-  });
   const readerTocItems = useMemo(
     () => ebookTocItemsForReader(tocItems, article),
     [article, tocItems],
@@ -586,19 +558,17 @@ export function EbookBookcase({
   }
 
   async function appendAgentAnnotationToArticle(articleId: string, annotation: Annotation) {
-    let activeId = annotation.id;
-    if (isCurrentArticle(articleId)) {
-      const result = mergeAgentAnnotationAsThought(annotationsRef.current, annotation);
-      activeId = result.activeId;
-      applyAnnotations(result.annotations);
-      openAnnotation(result.activeId);
-    }
-    const persisted = await mergeArticleAgentAnnotation(articleId, annotation);
-    if (persisted) activeId = persisted.activeId;
-    if (persisted && isCurrentArticle(articleId)) {
-      openAnnotation(persisted.activeId);
-    }
-    return activeId;
+    return appendPersistedAgentAnnotation({
+      annotations: () => annotationsRef.current,
+      applyAnnotations,
+      isCurrentArticle,
+      mergeArticleAgentAnnotation,
+      onOpenAnnotation: (annotationId) => {
+        if (annotationId) openAnnotation(annotationId);
+      },
+      articleId,
+      annotation,
+    });
   }
 
   function handleHighlightClick(
@@ -942,7 +912,6 @@ export function EbookBookcase({
       virtualCursors,
     },
     annotations: {
-      activeConnection,
       activeId: selectedAnnotationId,
       annotations: pageAnnotations,
       boxes,
@@ -957,7 +926,6 @@ export function EbookBookcase({
       extracted: readerArticle,
       id: article.id,
     },
-    onAnnotationLayoutChange: recalculateActiveConnection,
     shell: { onClose },
     toc: {
       activeIndex: activeTocIndex,

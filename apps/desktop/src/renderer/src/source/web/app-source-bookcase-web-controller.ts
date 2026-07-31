@@ -1,9 +1,9 @@
 import type { Dispatch, SetStateAction } from 'react';
 import i18next from 'i18next';
 import type { AgentReadingPlanItem, Annotation, PublicAgent } from '@yomitomo/shared';
-import { mergeAgentAnnotationAsThought } from '@yomitomo/core';
 import type { ArticleAgentAnnotationMergeResult } from '../../../../ipc-contract';
 import type { SourceAgentAnnotationPlaybackMode } from '../bookcase/app-source-agent-request';
+import { appendAgentAnnotationToArticle as appendPersistedAgentAnnotation } from '../bookcase/append-agent-annotation-to-article';
 import { promptArticle } from '../bookcase/source-prompt-article';
 import {
   constrainSourceAgentPlanAnnotation,
@@ -51,19 +51,17 @@ export function createWebSourceReaderController({
     annotation: Annotation,
     surface: Parameters<SourceAgentAnnotationAdapter['prepare']>[0]['surface'],
   ) {
-    let activeId = annotation.id;
-    if (isCurrentArticle(articleId)) {
-      const result = mergeAgentAnnotationAsThought(surface.annotations(), annotation);
-      activeId = result.activeId;
-      surface.applyAnnotations(result.annotations);
-      surface.openAnnotation?.(result.activeId);
-    }
-    const persisted = await onMergeArticleAgentAnnotation?.(articleId, annotation);
-    if (persisted) activeId = persisted.activeId;
-    if (persisted && isCurrentArticle(articleId)) {
-      surface.openAnnotation?.(persisted.activeId);
-    }
-    return activeId;
+    return appendPersistedAgentAnnotation({
+      annotations: surface.annotations,
+      applyAnnotations: surface.applyAnnotations,
+      annotation,
+      articleId,
+      isCurrentArticle,
+      mergeArticleAgentAnnotation: onMergeArticleAgentAnnotation,
+      onOpenAnnotation: (annotationId) => {
+        if (annotationId) surface.openAnnotation?.(annotationId);
+      },
+    });
   }
 
   function startAgentAnnotationPlayback(
