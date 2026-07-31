@@ -16,10 +16,10 @@ and collections.
 _Avoid_: Article
 
 **Annotation Author**:
-The user or agent identity attached to an Annotation or Comment. Domain objects represent it as a
-discriminated author reference; the separate user and agent columns in SQLite are persistence
-details translated at the repository boundary.
-_Avoid_: author role plus parallel user and agent identity fields
+The user or agent identity attached to an Annotation, Comment, or assistant review message. Domain
+objects represent it as a discriminated author reference; persistence details such as `agent` and
+`ai` labels are translated at the repository boundary.
+_Avoid_: author role plus parallel user and agent identity fields; `ai` plus copied agent fields
 
 **Reading Progress**:
 The source-specific facts needed to restore an Article's reading position. Web and text sources
@@ -27,6 +27,12 @@ store scroll progress, PDFs store page position, and ebooks store a chapter anch
 independent whole-book progress reported by the reader. Presentation code derives a common ratio
 through `readingProgressRatio`.
 _Avoid_: one universal record padded with synthetic or redundant fields
+
+**Article Translation**:
+A source-bound translation of an Article for one target language and prompt version. Its source
+content identity determines whether an existing translation can be reused; it does not replace the
+Article's original content.
+_Avoid_: mutating Article content; one global translation cache
 
 **Library Catalog Item**:
 An Article or WeRead Book hydrated for the mixed library catalog. Its source discriminant owns one
