@@ -5,7 +5,6 @@ import {
   ArrowRight01Icon,
   Book02Icon,
   Cancel01Icon,
-  File01Icon,
   FilterIcon,
   FolderOpenIcon,
   Globe02Icon,
@@ -56,7 +55,6 @@ import type {
 import {
   libraryCatalogItemRef,
   type LibraryCatalogItemType,
-  type LibraryCatalogListInput,
   type SetLibraryPinInput,
   type TextImportCommitInput,
 } from '../../../ipc-contract';
@@ -71,11 +69,12 @@ import {
 } from './app-reading-library-imports';
 import { libraryEntityPinTarget } from './app-reading-library-entities';
 import { useLibrarySearchClearDissolve } from './app-reading-library-search-clear-dissolve';
-import { librarySession } from './app-reading-library-session';
 import type { LibraryTypeFilter } from './library-filter-types';
-import { useLibraryCatalog } from './use-library-catalog';
+import { libraryEmptyReason, type LibraryEmptyMessageKey } from './library-empty-reason';
+import { LIBRARY_PAGE_SIZE_OPTIONS } from './library-query-session';
+import { useLocalStoreRevision } from './use-library-catalog';
+import { useLibraryQuerySession } from './use-library-query-session';
 
-const LIBRARY_PAGE_SIZE_OPTIONS = [6, 12, 18, 24] as const;
 const TYPE_FILTER_ICONS: Record<LibraryTypeFilter, React.ReactNode> = {
   collection: <HugeiconsIcon icon={LibraryIcon} size={15} />,
   web: <HugeiconsIcon icon={Globe02Icon} size={15} />,
@@ -187,64 +186,54 @@ export function LibraryHome({
     settings: wereadSettings,
     syncing: wereadSyncing,
   } = weRead;
-  const [page, setPage] = useState(1);
-  const [pageTransitionDirection, setPageTransitionDirection] =
-    useState<LibraryTransitionDirection>('none');
-  const [listTransitionDirection, setListTransitionDirection] =
-    useState<LibraryTransitionDirection>('none');
-  const [pageSize, setPageSize] = useState(() =>
-    normalizeLibraryPageSize(settings.libraryPageSize),
-  );
-  const [searchQuery, setSearchQuery] = useState(() => librarySession.searchQuery);
-  const [selectedTypes, setSelectedTypes] = useState<Set<LibraryTypeFilter>>(
-    () => new Set(librarySession.selectedTypes),
-  );
   const [typeMenuOpen, setTypeMenuOpen] = useState(false);
-  const [activeCollectionId, setActiveCollectionId] = useState<string | null>(
-    () => librarySession.activeCollectionId,
-  );
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [collectionNameDialog, setCollectionNameDialog] =
     useState<CollectionNameDialogState | null>(null);
   const [pickerCollectionId, setPickerCollectionId] = useState<string | null>(null);
+  const localRevision = useLocalStoreRevision([
+    sortedArticles,
+    collectionMembers,
+    collections,
+    pins,
+    wereadBooks,
+  ]);
+  const availableCatalogTypes = useMemo<LibraryCatalogItemType[]>(
+    () =>
+      wereadSettings.configured || wereadBooks.length > 0
+        ? [...ARTICLE_SOURCE_TYPES, 'weread']
+        : [...ARTICLE_SOURCE_TYPES],
+    [wereadBooks.length, wereadSettings.configured],
+  );
+  const collectionIds = useMemo(
+    () => collections.map((collection) => collection.id),
+    [collections],
+  );
+  const {
+    actions: libraryQueryActions,
+    availableTypes,
+    catalog: catalogState,
+    pageCount,
+    state: libraryQuery,
+  } = useLibraryQuerySession({
+    availableTypes: availableCatalogTypes,
+    collectionIds,
+    localRevision,
+    onSaveSettings,
+    settings,
+  });
+  const { page, pageSize, searchQuery, selectedTypes } = libraryQuery;
+  const activeCollectionId =
+    libraryQuery.scope.kind === 'collection' ? libraryQuery.scope.collectionId : null;
   const activeCollection = activeCollectionId
     ? collections.find((collection) => collection.id === activeCollectionId) || null
     : null;
   const pickerCollection = pickerCollectionId
     ? collections.find((collection) => collection.id === pickerCollectionId) || null
     : null;
-  const selectedTypesKey = useMemo(() => [...selectedTypes].toSorted().join(','), [selectedTypes]);
-  const catalogInput = useMemo<LibraryCatalogListInput>(
-    () => ({
-      scope: activeCollectionId
-        ? { kind: 'collection', collectionId: activeCollectionId }
-        : { kind: 'library' },
-      types:
-        selectedTypes.size > 0
-          ? ([...selectedTypes] as LibraryCatalogListInput['types'])
-          : undefined,
-      query: searchQuery,
-      page,
-      pageSize,
-    }),
-    [activeCollectionId, page, pageSize, searchQuery, selectedTypesKey],
-  );
-  const catalogState = useLibraryCatalog(catalogInput, {
-    articles: sortedArticles,
-    collectionMembers,
-    collections,
-    pins,
-    wereadBooks,
-  });
   const remoteCatalog = catalogState.result;
-  const wereadAvailable =
-    wereadSettings.configured ||
-    wereadBooks.length > 0 ||
-    Boolean(remoteCatalog?.itemCounts.weread);
-  const availableTypes = useMemo<LibraryCatalogItemType[]>(
-    () => (wereadAvailable ? [...ARTICLE_SOURCE_TYPES, 'weread'] : [...ARTICLE_SOURCE_TYPES]),
-    [wereadAvailable],
-  );
+  const selectedTypesKey = useMemo(() => [...selectedTypes].toSorted().join(','), [selectedTypes]);
+  const wereadAvailable = availableTypes.includes('weread');
   const activeCollectionMemberCount = activeCollection
     ? collectionMembers.filter((member) => member.collectionId === activeCollection.id).length
     : 0;
@@ -281,7 +270,6 @@ export function LibraryHome({
     unfilteredCount: 0,
   };
   const activeItemsLength = catalog.totalCount;
-  const pageCount = Math.max(1, Math.ceil(activeItemsLength / pageSize));
   const pageEntities = catalog.entities;
   const pageNumbers = useMemo(() => {
     const visibleCount = Math.min(5, pageCount);
@@ -297,63 +285,21 @@ export function LibraryHome({
       ? t(`library.total.${singleSelectedType}`, { count: activeItemsLength })
       : t('library.total.all', { count: activeItemsLength });
   const libraryHasItems = Object.values(catalog.itemCounts).some((count) => count > 0);
-  const emptyReason = activeCollection
-    ? emptyCollectionReason({
-        filteredLength: activeItemsLength,
-        libraryHasItems,
-        searchQuery,
-        t,
-      })
-    : emptyLibraryReason({
-        filteredLength: activeItemsLength,
-        itemsLength: catalog.unfilteredCount,
-        searchQuery,
-        t,
-        selectedType: singleSelectedType,
-        wereadConfigured: wereadSettings.configured,
-      });
-
-  useEffect(() => {
-    const valid = new Set(typeOptions.map((option) => option.value));
-    setSelectedTypes((current) => {
-      const next = new Set([...current].filter((type) => valid.has(type)));
-      return next.size === current.size ? current : next;
-    });
-  }, [typeOptions]);
-
-  useEffect(() => {
-    setPage((current) => {
-      const nextPage = Math.min(current, pageCount);
-      if (nextPage !== current) setPageTransitionDirection('none');
-      return nextPage;
-    });
-  }, [pageCount]);
-
-  useEffect(() => {
-    setListTransitionDirection('none');
-    setPageTransitionDirection('none');
-    setPage(1);
-  }, [pageSize, searchQuery]);
-
-  useEffect(() => {
-    librarySession.searchQuery = searchQuery;
-    librarySession.selectedTypes = selectedTypes;
-    librarySession.activeCollectionId = activeCollectionId;
-  }, [searchQuery, selectedTypes, activeCollectionId]);
-
-  useEffect(() => {
-    setPageSize(normalizeLibraryPageSize(settings.libraryPageSize));
-  }, [settings.libraryPageSize]);
-
-  useEffect(() => {
-    if (!activeCollectionId) return;
-    if (collections.some((collection) => collection.id === activeCollectionId)) return;
-    setListTransitionDirection('none');
-    setPageTransitionDirection('none');
-    setPage(1);
-    setActiveCollectionId(null);
-  }, [activeCollectionId, collections]);
-
+  const emptyReason = libraryEmptyReason(
+    activeCollection
+      ? {
+          scope: 'collection',
+          filteredCount: activeItemsLength,
+          libraryHasItems,
+          searchQuery,
+        }
+      : {
+          scope: 'library',
+          unfilteredCount: catalog.unfilteredCount,
+          selectedType: singleSelectedType,
+          wereadConfigured: wereadSettings.configured,
+        },
+  );
   const deleteArticle = async (articleId: string) => {
     await onDeleteArticle(articleId);
   };
@@ -396,14 +342,14 @@ export function LibraryHome({
 
   const createCollection = async (name: string) => {
     const collection = await onCreateCollection(name);
-    openCollection(collection.id);
+    libraryQueryActions.openCollection(collection.id);
   };
   const renameCollection = async (collectionId: string, name: string) => {
     await onRenameCollection(collectionId, name);
   };
   const deleteCollection = async (collectionId: string) => {
     await onDeleteCollection(collectionId);
-    if (activeCollectionId === collectionId) closeCollection();
+    if (activeCollectionId === collectionId) libraryQueryActions.closeCollection();
   };
   const addCollectionMembers = async (collectionId: string, members: ContentRef[]) => {
     if (members.length === 0) return;
@@ -412,46 +358,14 @@ export function LibraryHome({
   const removeCollectionMember = async (collectionId: string, member: ContentRef) => {
     await onRemoveCollectionMember(collectionId, member);
   };
-  const resetListContentTransition = () => {
-    setListTransitionDirection('none');
-    setPageTransitionDirection('none');
-    setPage(1);
-  };
-  const updateSearchQuery = (nextQuery: string) => {
-    resetListContentTransition();
-    setSearchQuery(nextQuery);
-  };
   const searchClear = useLibrarySearchClearDissolve({
     inputRef: searchInputRef,
-    onQueryChange: updateSearchQuery,
+    onQueryChange: libraryQueryActions.updateSearchQuery,
     query: searchQuery,
   });
   const searchPlaceholder = activeCollection
     ? t('library.collection.searchPlaceholder')
     : t('library.searchPlaceholder');
-  const openCollection = (collectionId: string) => {
-    setListTransitionDirection('forward');
-    setPageTransitionDirection('none');
-    setPage(1);
-    setActiveCollectionId(collectionId);
-  };
-  const closeCollection = () => {
-    setListTransitionDirection('backward');
-    setPageTransitionDirection('none');
-    setPage(1);
-    setActiveCollectionId(null);
-  };
-  const toggleType = (type: LibraryTypeFilter) => {
-    resetListContentTransition();
-    setSelectedTypes((current) => {
-      const next = new Set(current);
-      if (next.has(type)) next.delete(type);
-      else next.add(type);
-      // 选满所有类型等价于「全部」，回退到空集
-      if (next.size === typeOptions.length) return new Set();
-      return next;
-    });
-  };
 
   return (
     <section className="library-home is-mixed" aria-label={t('library.title')}>
@@ -462,7 +376,7 @@ export function LibraryHome({
               className="library-collection-inline-back"
               type="button"
               aria-label={t('library.collection.back')}
-              onClick={closeCollection}
+              onClick={libraryQueryActions.closeCollection}
             >
               <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
               <span>{t('library.title')}</span>
@@ -489,7 +403,7 @@ export function LibraryHome({
                 <div className="library-type-filter-menu-head">
                   <span>{t('library.typeFilter.menuTitle')}</span>
                   {selectedTypes.size > 0 ? (
-                    <button type="button" onClick={() => setSelectedTypes(new Set())}>
+                    <button type="button" onClick={libraryQueryActions.resetTypes}>
                       {t('library.typeFilter.reset')}
                     </button>
                   ) : null}
@@ -505,7 +419,7 @@ export function LibraryHome({
                       role="menuitemcheckbox"
                       aria-checked={checked}
                       key={option.value}
-                      onClick={() => toggleType(option.value)}
+                      onClick={() => libraryQueryActions.toggleType(option.value)}
                     >
                       <span className="library-type-filter-check">
                         {checked ? <HugeiconsIcon icon={Tick01Icon} size={13} /> : null}
@@ -529,7 +443,7 @@ export function LibraryHome({
                         className="library-type-filter-chip-remove"
                         type="button"
                         aria-label={t('library.typeFilter.remove', { type: chip.label })}
-                        onClick={() => toggleType(chip.value)}
+                        onClick={() => libraryQueryActions.toggleType(chip.value)}
                       >
                         <HugeiconsIcon icon={Cancel01Icon} size={12} />
                       </button>
@@ -553,7 +467,9 @@ export function LibraryHome({
                   value={searchQuery}
                   placeholder={searchPlaceholder}
                   aria-label={t('library.searchLabel')}
-                  onChange={(event) => updateSearchQuery(event.currentTarget.value)}
+                  onChange={(event) =>
+                    libraryQueryActions.updateSearchQuery(event.currentTarget.value)
+                  }
                 />
                 <div ref={searchClear.mirrorRef} className="t-clear-mirror" aria-hidden="true">
                   {searchClear.mirrorText}
@@ -602,13 +518,13 @@ export function LibraryHome({
           </div>
         </div>
       </header>
-      <div className="library-home-body" data-list-transition={listTransitionDirection}>
+      <div className="library-home-body" data-list-transition={libraryQuery.listTransition}>
         <div
           className="library-source-panel"
           id="library-source-panel-all"
           role="tabpanel"
           aria-label={t('library.groups.all')}
-          data-page-transition={pageTransitionDirection}
+          data-page-transition={libraryQuery.pageTransition}
         >
           <div className="library-page-panel" key={`${selectedTypesKey}-${page}`}>
             {catalogState.status === 'loading' && !remoteCatalog ? (
@@ -632,7 +548,7 @@ export function LibraryHome({
                   deleteArticle: (article) => void deleteArticle(article.id),
                   deleteCollection: (collection) => void deleteCollection(collection.id),
                   openArticle: onOpenArticle,
-                  openCollection: (collection) => openCollection(collection.id),
+                  openCollection: (collection) => libraryQueryActions.openCollection(collection.id),
                   openCollectionPicker: (collection) => setPickerCollectionId(collection.id),
                   openWeReadBook: onOpenWeReadBook,
                   openWeReadExternal: onOpenWeReadExternal,
@@ -674,11 +590,9 @@ export function LibraryHome({
                 onSyncWeRead={onSyncWeRead}
                 onConnectWeRead={onOpenDataSources}
               />
-            ) : (
-              <LibraryEmptyState icon={emptyReason.icon} title={emptyReason.title}>
-                {emptyReason.description}
-              </LibraryEmptyState>
-            )}
+            ) : emptyReason.variant === 'message' ? (
+              <LibraryMessageEmpty messageKey={emptyReason.messageKey} t={t} />
+            ) : null}
           </div>
         </div>
       </div>
@@ -708,7 +622,7 @@ export function LibraryHome({
                 type="button"
                 aria-label={t('library.pagination.previous')}
                 disabled={page === 1}
-                onClick={() => changePage(Math.max(1, page - 1))}
+                onClick={() => libraryQueryActions.changePage(Math.max(1, page - 1))}
               >
                 <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
               </button>
@@ -718,7 +632,7 @@ export function LibraryHome({
                   type="button"
                   aria-current={pageNumber === page ? 'page' : undefined}
                   key={pageNumber}
-                  onClick={() => changePage(pageNumber)}
+                  onClick={() => libraryQueryActions.changePage(pageNumber)}
                 >
                   {pageNumber}
                 </button>
@@ -727,7 +641,7 @@ export function LibraryHome({
                 type="button"
                 aria-label={t('library.pagination.next')}
                 disabled={page === pageCount}
-                onClick={() => changePage(Math.min(pageCount, page + 1))}
+                onClick={() => libraryQueryActions.changePage(Math.min(pageCount, page + 1))}
               >
                 <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
               </button>
@@ -735,16 +649,7 @@ export function LibraryHome({
           ) : null}
           <Select
             value={String(pageSize)}
-            onValueChange={(value) => {
-              const nextPageSize = normalizeLibraryPageSize(Number(value));
-              setListTransitionDirection('none');
-              setPageTransitionDirection('none');
-              setPageSize(nextPageSize);
-              setPage(1);
-              void Promise.resolve(
-                onSaveSettings({ ...settings, libraryPageSize: nextPageSize }),
-              ).catch(() => setPageSize(normalizeLibraryPageSize(settings.libraryPageSize)));
-            }}
+            onValueChange={(value) => libraryQueryActions.changePageSize(Number(value))}
           >
             <SelectTrigger
               className="library-page-size-trigger"
@@ -787,18 +692,7 @@ export function LibraryHome({
       {importDialogs.dialogs}
     </section>
   );
-
-  function changePage(nextPage: number) {
-    if (nextPage === page) {
-      setPageTransitionDirection('none');
-      return;
-    }
-    setPageTransitionDirection(nextPage > page ? 'forward' : 'backward');
-    setPage(nextPage);
-  }
 }
-
-type LibraryTransitionDirection = 'backward' | 'forward' | 'none';
 
 type CollectionNameDialogState = { type: 'create' } | { type: 'rename'; collection: Collection };
 
@@ -898,6 +792,21 @@ function LibraryEmptyState({
       <h3>{title}</h3>
       <div className="library-empty-copy">{children}</div>
     </section>
+  );
+}
+
+function LibraryMessageEmpty({
+  messageKey,
+  t,
+}: {
+  messageKey: LibraryEmptyMessageKey;
+  t: ReturnType<typeof useTranslation>['t'];
+}) {
+  const message = libraryEmptyMessage(messageKey, t);
+  return (
+    <LibraryEmptyState icon={message.icon} title={message.title}>
+      {message.description}
+    </LibraryEmptyState>
   );
 }
 
@@ -1027,117 +936,20 @@ function LibraryCollectionEmpty({
   );
 }
 
-function normalizeLibraryPageSize(value: unknown) {
-  return LIBRARY_PAGE_SIZE_OPTIONS.includes(value as (typeof LIBRARY_PAGE_SIZE_OPTIONS)[number])
-    ? (value as (typeof LIBRARY_PAGE_SIZE_OPTIONS)[number])
-    : 12;
-}
-
-type LibraryEmptyReason =
-  | { variant: 'first-use' }
-  | { variant: 'collection'; libraryHasItems: boolean }
-  | { variant: 'message'; icon: React.ReactNode; title: string; description: string };
-
-function emptyLibraryReason({
-  filteredLength,
-  itemsLength,
-  searchQuery,
-  t,
-  selectedType,
-  wereadConfigured,
-}: {
-  filteredLength: number;
-  itemsLength: number;
-  searchQuery: string;
-  t: ReturnType<typeof useTranslation>['t'];
-  selectedType: LibraryTypeFilter | null;
-  wereadConfigured: boolean;
-}): LibraryEmptyReason {
-  if (selectedType === 'weread' && !wereadConfigured) {
+function libraryEmptyMessage(
+  messageKey: LibraryEmptyMessageKey,
+  t: ReturnType<typeof useTranslation>['t'],
+) {
+  if (messageKey === 'wereadSetup') {
     return {
-      variant: 'message',
       description: t('library.weReadSetupDescription'),
       icon: <HugeiconsIcon icon={SmartPhone01Icon} size={32} />,
       title: t('library.weReadSetupTitle'),
     };
   }
-
-  if (itemsLength === 0) {
-    return { variant: 'first-use' };
-  }
-
-  if (filteredLength === 0 || searchQuery.trim()) {
-    return {
-      variant: 'message',
-      description: t('library.empty.noMatchDescription'),
-      icon: <HugeiconsIcon icon={Search01Icon} size={32} />,
-      title: t('library.empty.noMatchTitle'),
-    };
-  }
-
-  if (selectedType === 'web') {
-    return {
-      variant: 'message',
-      description: t('library.empty.webDescription'),
-      icon: <HugeiconsIcon icon={File01Icon} size={32} />,
-      title: t('library.empty.webTitle'),
-    };
-  }
-
-  if (selectedType === 'pdf') {
-    return {
-      variant: 'message',
-      description: t('library.empty.pdfDescription'),
-      icon: <HugeiconsIcon icon={Pdf01Icon} size={32} />,
-      title: t('library.empty.pdfTitle'),
-    };
-  }
-
-  if (selectedType === 'weread') {
-    return {
-      variant: 'message',
-      description: t('library.empty.wereadDescription'),
-      icon: <HugeiconsIcon icon={SmartPhone01Icon} size={32} />,
-      title: t('library.empty.wereadTitle'),
-    };
-  }
-
-  if (selectedType === 'ebook') {
-    return {
-      variant: 'message',
-      description: t('library.empty.ebookDescription'),
-      icon: <HugeiconsIcon icon={Book02Icon} size={32} />,
-      title: t('library.empty.ebookTitle'),
-    };
-  }
-
   return {
-    variant: 'message',
     description: t('library.empty.noMatchDescription'),
     icon: <HugeiconsIcon icon={Search01Icon} size={32} />,
     title: t('library.empty.noMatchTitle'),
   };
-}
-
-function emptyCollectionReason({
-  filteredLength,
-  libraryHasItems,
-  searchQuery,
-  t,
-}: {
-  filteredLength: number;
-  libraryHasItems: boolean;
-  searchQuery: string;
-  t: ReturnType<typeof useTranslation>['t'];
-}): LibraryEmptyReason {
-  if (filteredLength === 0 && searchQuery.trim()) {
-    return {
-      variant: 'message',
-      description: t('library.empty.noMatchDescription'),
-      icon: <HugeiconsIcon icon={Search01Icon} size={32} />,
-      title: t('library.empty.noMatchTitle'),
-    };
-  }
-
-  return { variant: 'collection', libraryHasItems };
 }

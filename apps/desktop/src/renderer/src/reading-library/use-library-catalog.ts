@@ -1,16 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LibraryCatalogListInput, LibraryCatalogListResult } from '../../../ipc-contract';
 import { getOptionalDesktopApi } from '../shell/app-desktop-api';
 
 const CATALOG_SEARCH_DEBOUNCE_MS = 180;
-
-export type LibraryCatalogRevision = {
-  articles: unknown;
-  collectionMembers: unknown;
-  collections: unknown;
-  pins: unknown;
-  wereadBooks: unknown;
-};
 
 type ResolvedCatalog = {
   scopeKey: string;
@@ -21,10 +13,7 @@ type ResolvedCatalog = {
 
 export type LibraryCatalogState = Pick<ResolvedCatalog, 'result' | 'status' | 'error'>;
 
-export function useLibraryCatalog(
-  input: LibraryCatalogListInput,
-  revision: LibraryCatalogRevision,
-) {
+export function useLibraryCatalog(input: LibraryCatalogListInput, revision: number) {
   const [query, setQuery] = useState(input.query || '');
   useEffect(() => {
     const nextQuery = input.query || '';
@@ -73,16 +62,29 @@ export function useLibraryCatalog(
     return () => {
       cancelled = true;
     };
-  }, [
-    requestKey,
-    revision.articles,
-    revision.collectionMembers,
-    revision.collections,
-    revision.pins,
-    revision.wereadBooks,
-    scopeKey,
-  ]);
+  }, [requestKey, revision, scopeKey]);
 
   if (resolvedCatalog?.scopeKey === scopeKey) return resolvedCatalog;
   return { result: null, status: 'loading', error: null } satisfies LibraryCatalogState;
+}
+
+export function useLocalStoreRevision(deps: readonly unknown[]): number {
+  const previousDepsRef = useRef<readonly unknown[] | null>(null);
+  const revisionRef = useRef(0);
+  const previousDeps = previousDepsRef.current;
+
+  if (!previousDeps) {
+    previousDepsRef.current = deps.slice();
+    return revisionRef.current;
+  }
+
+  const hasChanged =
+    previousDeps.length !== deps.length ||
+    deps.some((dependency, index) => !Object.is(dependency, previousDeps[index]));
+  if (hasChanged) {
+    previousDepsRef.current = deps.slice();
+    revisionRef.current += 1;
+  }
+
+  return revisionRef.current;
 }
