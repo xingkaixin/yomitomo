@@ -233,138 +233,192 @@ export const appLockIpcInvokeDescriptors = {
   }),
 } satisfies Record<string, DesktopIpcInvokeDescriptor>;
 
-export type ArticleIpcInvokeMap = {
-  'article:delete': {
-    args: [id: string];
-    result: ArticleDeletePatch;
-    validation: { exempt: 'handler-owned' };
-  };
-  'article:delete-annotation': {
-    args: [input: ArticleAnnotationDeleteInput];
-    result: ArticleUpsertPatch | null;
-    validation: { exempt: 'domain-payload' };
-  };
-  'article:delete-comment': {
-    args: [input: ArticleCommentDeleteInput];
-    result: ArticleUpsertPatch | null;
-    validation: { exempt: 'domain-payload' };
-  };
-  'article:merge-agent-annotation': {
-    args: [input: ArticleAgentAnnotationMergeInput];
-    result: ArticleAgentAnnotationMergeResult | null;
-    validation: { exempt: 'domain-payload' };
-  };
-  'article:save-annotation': {
-    args: [input: ArticleAnnotationUpsertInput];
-    result: ArticleUpsertPatch | null;
-    validation: { exempt: 'domain-payload' };
-  };
-  'article:save-annotation-distillation': {
-    args: [input: ArticleAnnotationDistillationSaveInput];
-    result: ArticleUpsertPatch | null;
-    validation: { exempt: 'domain-payload' };
-  };
-  'article:save-comment': {
-    args: [input: ArticleCommentUpsertInput];
-    result: ArticleUpsertPatch | null;
-    validation: { exempt: 'domain-payload' };
-  };
-  'article:get': {
-    args: [id: string];
-    result: ArticleRecord | null;
-    validation: { exempt: 'handler-owned' };
-  };
-  'article:get-cover': {
-    args: [id: string];
-    result: string;
-    validation: { exempt: 'handler-owned' };
-  };
-  'article:get-site-icon': {
-    args: [id: string];
-    result: string;
-    validation: { exempt: 'handler-owned' };
-  };
-  'article:import-url': {
-    args: DesktopIpcSchemaArgs<'article:import-url'>;
-    result: ArticleImportResult;
-    validation: 'schema';
-  };
-  'article:import-url-cancel': {
-    args: DesktopIpcSchemaArgs<'article:import-url-cancel'>;
-    result: boolean;
-    validation: 'schema';
-  };
-  'article:list-library': {
-    args: [input: ArticleLibraryListInput];
-    result: ArticleLibraryListResult;
-    validation: { exempt: 'domain-payload' };
-  };
-  'article:stats-summaries': {
-    args: [];
-    result: ArticleSummaryRecord[];
-    validation: { exempt: 'no-args' };
-  };
-  'article:reading-progress': {
-    args: [input: { articleId: string; progress: ArticleReadingProgress }];
-    result: ArticleReadingProgressPatch;
-    validation: { exempt: 'domain-payload' };
-  };
-  'article:reader-chat-state': {
-    args: [input: ArticleReaderChatStateSaveInput];
-    result: ArticleReaderChatStatePatch;
-    validation: { exempt: 'domain-payload' };
-  };
-  'article-translation:get-current': {
-    args: DesktopIpcSchemaArgs<'article-translation:get-current'>;
-    result: ArticleTranslation | null;
-    validation: 'schema';
-  };
-  'article-translation:translate': {
-    args: DesktopIpcSchemaArgs<'article-translation:translate'>;
-    result: ArticleTranslation;
-    validation: 'schema';
-  };
-  'article-translation:delete-current': {
-    args: DesktopIpcSchemaArgs<'article-translation:delete-current'>;
-    result: ArticleTranslation | null;
-    validation: 'schema';
-  };
-  'ebook:import-file': {
-    args: DesktopIpcSchemaArgs<'ebook:import-file'>;
-    result: ArticleImportResult;
-    validation: 'schema';
-  };
-  'ebook:read-file': {
-    args: DesktopIpcSchemaArgs<'ebook:read-file'>;
-    result: ArrayBuffer;
-    validation: 'schema';
-  };
-  'pdf:import-file': {
-    args: DesktopIpcSchemaArgs<'pdf:import-file'>;
-    result: ArticleImportResult;
-    validation: 'schema';
-  };
-  'pdf:read-file': {
-    args: DesktopIpcSchemaArgs<'pdf:read-file'>;
-    result: ArrayBuffer;
-    validation: 'schema';
-  };
-  'pdf:get-thumbnail': {
-    args: DesktopIpcSchemaArgs<'pdf:get-thumbnail'>;
-    result: string;
-    validation: 'schema';
-  };
-  'text:import-prepare': {
-    args: DesktopIpcSchemaArgs<'text:import-prepare'>;
-    result: TextImportPrepareResult;
-    validation: 'schema';
-  };
-  'text:import-commit': {
-    args: DesktopIpcSchemaArgs<'text:import-commit'>;
-    result: TextImportCommitResult;
-    validation: 'schema';
-  };
-};
+export const articleIpcInvokeDescriptors = {
+  'article:delete': desktopIpcInvoke<[id: string], ArticleDeletePatch>()({
+    route: ['article', 'delete'],
+    roles: mainOnly,
+    validation: { exempt: 'handler-owned' },
+  }),
+  'article:delete-annotation': desktopIpcInvoke<
+    [input: ArticleAnnotationDeleteInput],
+    ArticleUpsertPatch | null
+  >()({
+    route: ['article', 'deleteAnnotation'],
+    roles: mainOnly,
+    validation: { exempt: 'domain-payload' },
+  }),
+  'article:delete-comment': desktopIpcInvoke<
+    [input: ArticleCommentDeleteInput],
+    ArticleUpsertPatch | null
+  >()({
+    route: ['article', 'deleteComment'],
+    roles: annotationAndMain,
+    validation: { exempt: 'domain-payload' },
+  }),
+  'article:merge-agent-annotation': desktopIpcInvoke<
+    [input: ArticleAgentAnnotationMergeInput],
+    ArticleAgentAnnotationMergeResult | null
+  >()({
+    route: ['article', 'mergeAgentAnnotation'],
+    roles: mainOnly,
+    validation: { exempt: 'domain-payload' },
+  }),
+  'article:save-annotation': desktopIpcInvoke<
+    [input: ArticleAnnotationUpsertInput],
+    ArticleUpsertPatch | null
+  >()({
+    route: ['article', 'saveAnnotation'],
+    roles: mainOnly,
+    validation: { exempt: 'domain-payload' },
+  }),
+  'article:save-annotation-distillation': desktopIpcInvoke<
+    [input: ArticleAnnotationDistillationSaveInput],
+    ArticleUpsertPatch | null
+  >()({
+    route: ['article', 'saveAnnotationDistillation'],
+    roles: annotationAndMain,
+    validation: { exempt: 'domain-payload' },
+  }),
+  'article:save-comment': desktopIpcInvoke<
+    [input: ArticleCommentUpsertInput],
+    ArticleUpsertPatch | null
+  >()({
+    route: ['article', 'saveComment'],
+    roles: annotationAndMain,
+    validation: { exempt: 'domain-payload' },
+  }),
+  'article:get': desktopIpcInvoke<[id: string], ArticleRecord | null>()({
+    route: ['article', 'get'],
+    roles: annotationAndMain,
+    validation: { exempt: 'handler-owned' },
+  }),
+  'article:get-cover': desktopIpcInvoke<[id: string], string>()({
+    route: ['article', 'getCover'],
+    roles: mainOnly,
+    validation: { exempt: 'handler-owned' },
+  }),
+  'article:get-site-icon': desktopIpcInvoke<[id: string], string>()({
+    route: ['article', 'getSiteIcon'],
+    roles: mainOnly,
+    validation: { exempt: 'handler-owned' },
+  }),
+  'article:import-url': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'article:import-url'>,
+    ArticleImportResult
+  >()({
+    route: ['article', 'importUrl'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'article:import-url-cancel': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'article:import-url-cancel'>,
+    boolean
+  >()({
+    route: ['article', 'cancelUrlImport'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'article:list-library': desktopIpcInvoke<
+    [input: ArticleLibraryListInput],
+    ArticleLibraryListResult
+  >()({
+    route: ['article', 'listLibrary'],
+    roles: mainOnly,
+    validation: { exempt: 'domain-payload' },
+  }),
+  'article:stats-summaries': desktopIpcInvoke<[], ArticleSummaryRecord[]>()({
+    route: ['article', 'readStatsSummaries'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+  'article:reading-progress': desktopIpcInvoke<
+    [input: { articleId: string; progress: ArticleReadingProgress }],
+    ArticleReadingProgressPatch
+  >()({
+    route: ['article', 'saveReadingProgress'],
+    roles: mainOnly,
+    validation: { exempt: 'domain-payload' },
+  }),
+  'article:reader-chat-state': desktopIpcInvoke<
+    [input: ArticleReaderChatStateSaveInput],
+    ArticleReaderChatStatePatch
+  >()({
+    route: ['article', 'saveReaderChatState'],
+    roles: mainOnly,
+    validation: { exempt: 'domain-payload' },
+  }),
+  'article-translation:get-current': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'article-translation:get-current'>,
+    ArticleTranslation | null
+  >()({
+    route: ['article', 'translation', 'getCurrent'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'article-translation:translate': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'article-translation:translate'>,
+    ArticleTranslation
+  >()({
+    route: ['article', 'translation', 'translate'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'article-translation:delete-current': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'article-translation:delete-current'>,
+    ArticleTranslation | null
+  >()({
+    route: ['article', 'translation', 'deleteCurrent'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'ebook:import-file': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'ebook:import-file'>,
+    ArticleImportResult
+  >()({
+    route: ['article', 'ebook', 'importFile'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'ebook:read-file': desktopIpcInvoke<DesktopIpcSchemaArgs<'ebook:read-file'>, ArrayBuffer>()({
+    route: ['article', 'ebook', 'readFile'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'pdf:import-file': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'pdf:import-file'>,
+    ArticleImportResult
+  >()({
+    route: ['article', 'pdf', 'importFile'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'pdf:read-file': desktopIpcInvoke<DesktopIpcSchemaArgs<'pdf:read-file'>, ArrayBuffer>()({
+    route: ['article', 'pdf', 'readFile'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'pdf:get-thumbnail': desktopIpcInvoke<DesktopIpcSchemaArgs<'pdf:get-thumbnail'>, string>()({
+    route: ['article', 'pdf', 'getThumbnail'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'text:import-prepare': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'text:import-prepare'>,
+    TextImportPrepareResult
+  >()({
+    route: ['article', 'text', 'prepareImport'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'text:import-commit': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'text:import-commit'>,
+    TextImportCommitResult
+  >()({
+    route: ['article', 'text', 'commitImport'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+} satisfies Record<string, DesktopIpcInvokeDescriptor>;
 
 export const dataIpcInvokeDescriptors = {
   'data:database-backup': desktopIpcInvoke<[], DatabaseBackupResult>()({
@@ -405,58 +459,79 @@ export const dataIpcInvokeDescriptors = {
   }),
 } satisfies Record<string, DesktopIpcInvokeDescriptor>;
 
-export type LibraryCollectionIpcInvokeMap = {
-  'distillation-library:list': {
-    args: DesktopIpcSchemaArgs<'distillation-library:list'>;
-    result: DistillationLibraryListResult;
-    validation: 'schema';
-  };
-  'library-catalog:list': {
-    args: [input: LibraryCatalogListInput];
-    result: LibraryCatalogListResult;
-    validation: { exempt: 'domain-payload' };
-  };
-  'library-collection:list': {
-    args: [];
-    result: CollectionWithMembers[];
-    validation: { exempt: 'no-args' };
-  };
-  'library-collection:create': {
-    args: DesktopIpcSchemaArgs<'library-collection:create'>;
-    result: CreateCollectionResult;
-    validation: 'schema';
-  };
-  'library-collection:rename': {
-    args: DesktopIpcSchemaArgs<'library-collection:rename'>;
-    result: CollectionStorePatch;
-    validation: 'schema';
-  };
-  'library-collection:delete': {
-    args: DesktopIpcSchemaArgs<'library-collection:delete'>;
-    result: CollectionStorePatch;
-    validation: 'schema';
-  };
-  'library-collection:add-members': {
-    args: DesktopIpcSchemaArgs<'library-collection:add-members'>;
-    result: CollectionStorePatch;
-    validation: 'schema';
-  };
-  'library-collection:remove-member': {
-    args: DesktopIpcSchemaArgs<'library-collection:remove-member'>;
-    result: CollectionStorePatch;
-    validation: 'schema';
-  };
-  'library-pin:list': {
-    args: [];
-    result: LibraryPin[];
-    validation: { exempt: 'no-args' };
-  };
-  'library-pin:set': {
-    args: DesktopIpcSchemaArgs<'library-pin:set'>;
-    result: LibraryPinPatch;
-    validation: 'schema';
-  };
-};
+export const libraryCollectionIpcInvokeDescriptors = {
+  'distillation-library:list': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'distillation-library:list'>,
+    DistillationLibraryListResult
+  >()({
+    route: ['library', 'distillations', 'list'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'library-catalog:list': desktopIpcInvoke<
+    [input: LibraryCatalogListInput],
+    LibraryCatalogListResult
+  >()({
+    route: ['library', 'catalog', 'list'],
+    roles: mainOnly,
+    validation: { exempt: 'domain-payload' },
+  }),
+  'library-collection:list': desktopIpcInvoke<[], CollectionWithMembers[]>()({
+    route: ['library', 'collections', 'list'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+  'library-collection:create': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'library-collection:create'>,
+    CreateCollectionResult
+  >()({
+    route: ['library', 'collections', 'create'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'library-collection:rename': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'library-collection:rename'>,
+    CollectionStorePatch
+  >()({
+    route: ['library', 'collections', 'rename'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'library-collection:delete': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'library-collection:delete'>,
+    CollectionStorePatch
+  >()({
+    route: ['library', 'collections', 'delete'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'library-collection:add-members': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'library-collection:add-members'>,
+    CollectionStorePatch
+  >()({
+    route: ['library', 'collections', 'addMembers'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'library-collection:remove-member': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'library-collection:remove-member'>,
+    CollectionStorePatch
+  >()({
+    route: ['library', 'collections', 'removeMember'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'library-pin:list': desktopIpcInvoke<[], LibraryPin[]>()({
+    route: ['library', 'pins', 'list'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+  'library-pin:set': desktopIpcInvoke<DesktopIpcSchemaArgs<'library-pin:set'>, LibraryPinPatch>()({
+    route: ['library', 'pins', 'set'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+} satisfies Record<string, DesktopIpcInvokeDescriptor>;
 
 export type ProviderIpcInvokeMap = {
   'provider:delete': {
@@ -541,60 +616,72 @@ export const updateIpcInvokeDescriptors = {
   }),
 } satisfies Record<string, DesktopIpcInvokeDescriptor>;
 
-export type WeReadIpcInvokeMap = {
-  'weread:get-settings': {
-    args: [];
-    result: WeReadSettings;
-    validation: { exempt: 'no-args' };
-  };
-  'weread:get-state': {
-    args: [];
-    result: WeReadState;
-    validation: { exempt: 'no-args' };
-  };
-  'weread:read-api-key': {
-    args: [];
-    result: string;
-    validation: { exempt: 'no-args' };
-  };
-  'weread:save-settings': {
-    args: DesktopIpcSchemaArgs<'weread:save-settings'>;
-    result: WeReadState;
-    validation: 'schema';
-  };
-  'weread:test': {
-    args: DesktopIpcSchemaArgs<'weread:test'>;
-    result: ProviderTestResult;
-    validation: 'schema';
-  };
-  'weread:sync': {
-    args: [];
-    result: WeReadSyncResult;
-    validation: { exempt: 'no-args' };
-  };
-  'weread:sync-book': {
-    args: DesktopIpcSchemaArgs<'weread:sync-book'>;
-    result: WeReadBookDetail | null;
-    validation: 'schema';
-  };
-  'weread:get-book': {
-    args: DesktopIpcSchemaArgs<'weread:get-book'>;
-    result: WeReadBookDetail | null;
-    validation: 'schema';
-  };
-  'weread:open': {
-    args: DesktopIpcSchemaArgs<'weread:open'>;
-    result: void;
-    validation: 'schema';
-  };
-  'weread:get-reading-stats': {
-    args: [];
-    result: WeReadReadingStatsState;
-    validation: { exempt: 'no-args' };
-  };
-  'weread:query-reading-stats': {
-    args: DesktopIpcSchemaArgs<'weread:query-reading-stats'>;
-    result: WeReadReadingStatsState;
-    validation: 'schema';
-  };
-};
+export const weReadIpcInvokeDescriptors = {
+  'weread:get-settings': desktopIpcInvoke<[], WeReadSettings>()({
+    route: ['weRead', 'getSettings'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+  'weread:get-state': desktopIpcInvoke<[], WeReadState>()({
+    route: ['weRead', 'getState'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+  'weread:read-api-key': desktopIpcInvoke<[], string>()({
+    route: ['weRead', 'readApiKey'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+  'weread:save-settings': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'weread:save-settings'>,
+    WeReadState
+  >()({
+    route: ['weRead', 'saveSettings'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'weread:test': desktopIpcInvoke<DesktopIpcSchemaArgs<'weread:test'>, ProviderTestResult>()({
+    route: ['weRead', 'test'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'weread:sync': desktopIpcInvoke<[], WeReadSyncResult>()({
+    route: ['weRead', 'sync'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+  'weread:sync-book': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'weread:sync-book'>,
+    WeReadBookDetail | null
+  >()({
+    route: ['weRead', 'syncBook'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'weread:get-book': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'weread:get-book'>,
+    WeReadBookDetail | null
+  >()({
+    route: ['weRead', 'getBook'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'weread:open': desktopIpcInvoke<DesktopIpcSchemaArgs<'weread:open'>, void>()({
+    route: ['weRead', 'open'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'weread:get-reading-stats': desktopIpcInvoke<[], WeReadReadingStatsState>()({
+    route: ['weRead', 'getReadingStats'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+  'weread:query-reading-stats': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'weread:query-reading-stats'>,
+    WeReadReadingStatsState
+  >()({
+    route: ['weRead', 'queryReadingStats'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+} satisfies Record<string, DesktopIpcInvokeDescriptor>;

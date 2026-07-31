@@ -36,17 +36,17 @@ import type { SerializedDesktopIpcError } from './ipc-errors';
 import type {
   AgentIpcInvokeMap,
   AnnotationWindowIpcInvokeMap,
-  ArticleIpcInvokeMap,
-  LibraryCollectionIpcInvokeMap,
   ProviderIpcInvokeMap,
-  WeReadIpcInvokeMap,
 } from './ipc/desktop-ipc-contract-fragments';
 import {
   appIpcInvokeDescriptors,
   appLockIpcInvokeDescriptors,
+  articleIpcInvokeDescriptors,
   dataIpcInvokeDescriptors,
+  libraryCollectionIpcInvokeDescriptors,
   storeIpcInvokeDescriptors,
   updateIpcInvokeDescriptors,
+  weReadIpcInvokeDescriptors,
 } from './ipc/desktop-ipc-contract-fragments';
 import {
   desktopIpcInvokeRoutesFromDescriptors,
@@ -540,15 +540,15 @@ export type {
 
 type DesktopIpcRawInvokeMap = AgentIpcInvokeMap &
   AnnotationWindowIpcInvokeMap &
-  ArticleIpcInvokeMap &
-  LibraryCollectionIpcInvokeMap &
   ProviderIpcInvokeMap &
   DesktopIpcInvokeMapFromDescriptors<typeof appIpcInvokeDescriptors> &
   DesktopIpcInvokeMapFromDescriptors<typeof appLockIpcInvokeDescriptors> &
+  DesktopIpcInvokeMapFromDescriptors<typeof articleIpcInvokeDescriptors> &
   DesktopIpcInvokeMapFromDescriptors<typeof dataIpcInvokeDescriptors> &
+  DesktopIpcInvokeMapFromDescriptors<typeof libraryCollectionIpcInvokeDescriptors> &
   DesktopIpcInvokeMapFromDescriptors<typeof storeIpcInvokeDescriptors> &
   DesktopIpcInvokeMapFromDescriptors<typeof updateIpcInvokeDescriptors> &
-  WeReadIpcInvokeMap;
+  DesktopIpcInvokeMapFromDescriptors<typeof weReadIpcInvokeDescriptors>;
 
 export type DesktopIpcInvokeMap = DesktopIpcRawInvokeMap;
 
@@ -563,9 +563,12 @@ export type DesktopIpcInvokeResult<Channel extends DesktopIpcInvokeChannel> =
 export const desktopIpcInvokeDescriptors = {
   ...appIpcInvokeDescriptors,
   ...appLockIpcInvokeDescriptors,
+  ...articleIpcInvokeDescriptors,
   ...dataIpcInvokeDescriptors,
+  ...libraryCollectionIpcInvokeDescriptors,
   ...storeIpcInvokeDescriptors,
   ...updateIpcInvokeDescriptors,
+  ...weReadIpcInvokeDescriptors,
 };
 
 const desktopIpcLegacyInvokeRoutes = {
@@ -583,42 +586,6 @@ const desktopIpcLegacyInvokeRoutes = {
   'annotation-discussion:close-article': ['annotations', 'discussion', 'closeArticle'],
   'annotation-sedimentation:open': ['annotations', 'sedimentation', 'open'],
   'annotation-sedimentation:commit': ['annotations', 'sedimentation', 'commit'],
-  'article:delete': ['article', 'delete'],
-  'article:delete-annotation': ['article', 'deleteAnnotation'],
-  'article:delete-comment': ['article', 'deleteComment'],
-  'article:merge-agent-annotation': ['article', 'mergeAgentAnnotation'],
-  'article:save-annotation': ['article', 'saveAnnotation'],
-  'article:save-annotation-distillation': ['article', 'saveAnnotationDistillation'],
-  'article:save-comment': ['article', 'saveComment'],
-  'article:get': ['article', 'get'],
-  'article:get-cover': ['article', 'getCover'],
-  'article:get-site-icon': ['article', 'getSiteIcon'],
-  'article:import-url': ['article', 'importUrl'],
-  'article:import-url-cancel': ['article', 'cancelUrlImport'],
-  'article:list-library': ['article', 'listLibrary'],
-  'article:stats-summaries': ['article', 'readStatsSummaries'],
-  'article:reading-progress': ['article', 'saveReadingProgress'],
-  'article:reader-chat-state': ['article', 'saveReaderChatState'],
-  'article-translation:get-current': ['article', 'translation', 'getCurrent'],
-  'article-translation:translate': ['article', 'translation', 'translate'],
-  'article-translation:delete-current': ['article', 'translation', 'deleteCurrent'],
-  'ebook:import-file': ['article', 'ebook', 'importFile'],
-  'ebook:read-file': ['article', 'ebook', 'readFile'],
-  'pdf:import-file': ['article', 'pdf', 'importFile'],
-  'pdf:read-file': ['article', 'pdf', 'readFile'],
-  'pdf:get-thumbnail': ['article', 'pdf', 'getThumbnail'],
-  'text:import-prepare': ['article', 'text', 'prepareImport'],
-  'text:import-commit': ['article', 'text', 'commitImport'],
-  'distillation-library:list': ['library', 'distillations', 'list'],
-  'library-catalog:list': ['library', 'catalog', 'list'],
-  'library-collection:list': ['library', 'collections', 'list'],
-  'library-collection:create': ['library', 'collections', 'create'],
-  'library-collection:rename': ['library', 'collections', 'rename'],
-  'library-collection:delete': ['library', 'collections', 'delete'],
-  'library-collection:add-members': ['library', 'collections', 'addMembers'],
-  'library-collection:remove-member': ['library', 'collections', 'removeMember'],
-  'library-pin:list': ['library', 'pins', 'list'],
-  'library-pin:set': ['library', 'pins', 'set'],
   'provider:delete': ['provider', 'delete'],
   'provider:list-models': ['provider', 'listModels'],
   'provider:read-api-key': ['provider', 'readApiKey'],
@@ -626,17 +593,6 @@ const desktopIpcLegacyInvokeRoutes = {
   'provider:test': ['provider', 'test'],
   'settings:save': ['store', 'saveSettings'],
   'user:save': ['store', 'saveUser'],
-  'weread:get-settings': ['weRead', 'getSettings'],
-  'weread:get-state': ['weRead', 'getState'],
-  'weread:read-api-key': ['weRead', 'readApiKey'],
-  'weread:save-settings': ['weRead', 'saveSettings'],
-  'weread:test': ['weRead', 'test'],
-  'weread:sync': ['weRead', 'sync'],
-  'weread:sync-book': ['weRead', 'syncBook'],
-  'weread:get-book': ['weRead', 'getBook'],
-  'weread:open': ['weRead', 'open'],
-  'weread:get-reading-stats': ['weRead', 'getReadingStats'],
-  'weread:query-reading-stats': ['weRead', 'queryReadingStats'],
 } as const;
 
 export const desktopIpcInvokeRoutes = {
