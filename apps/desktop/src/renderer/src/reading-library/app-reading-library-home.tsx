@@ -5,7 +5,6 @@ import {
   ArrowRight01Icon,
   Book02Icon,
   Cancel01Icon,
-  File01Icon,
   FilterIcon,
   FolderOpenIcon,
   Globe02Icon,
@@ -71,6 +70,7 @@ import {
 import { libraryEntityPinTarget } from './app-reading-library-entities';
 import { useLibrarySearchClearDissolve } from './app-reading-library-search-clear-dissolve';
 import type { LibraryTypeFilter } from './library-filter-types';
+import { libraryEmptyReason, type LibraryEmptyMessageKey } from './library-empty-reason';
 import { LIBRARY_PAGE_SIZE_OPTIONS } from './library-query-session';
 import { useLocalStoreRevision } from './use-library-catalog';
 import { useLibraryQuerySession } from './use-library-query-session';
@@ -285,22 +285,21 @@ export function LibraryHome({
       ? t(`library.total.${singleSelectedType}`, { count: activeItemsLength })
       : t('library.total.all', { count: activeItemsLength });
   const libraryHasItems = Object.values(catalog.itemCounts).some((count) => count > 0);
-  const emptyReason = activeCollection
-    ? emptyCollectionReason({
-        filteredLength: activeItemsLength,
-        libraryHasItems,
-        searchQuery,
-        t,
-      })
-    : emptyLibraryReason({
-        filteredLength: activeItemsLength,
-        itemsLength: catalog.unfilteredCount,
-        searchQuery,
-        t,
-        selectedType: singleSelectedType,
-        wereadConfigured: wereadSettings.configured,
-      });
-
+  const emptyReason = libraryEmptyReason(
+    activeCollection
+      ? {
+          scope: 'collection',
+          filteredCount: activeItemsLength,
+          libraryHasItems,
+          searchQuery,
+        }
+      : {
+          scope: 'library',
+          unfilteredCount: catalog.unfilteredCount,
+          selectedType: singleSelectedType,
+          wereadConfigured: wereadSettings.configured,
+        },
+  );
   const deleteArticle = async (articleId: string) => {
     await onDeleteArticle(articleId);
   };
@@ -591,11 +590,9 @@ export function LibraryHome({
                 onSyncWeRead={onSyncWeRead}
                 onConnectWeRead={onOpenDataSources}
               />
-            ) : (
-              <LibraryEmptyState icon={emptyReason.icon} title={emptyReason.title}>
-                {emptyReason.description}
-              </LibraryEmptyState>
-            )}
+            ) : emptyReason.variant === 'message' ? (
+              <LibraryMessageEmpty messageKey={emptyReason.messageKey} t={t} />
+            ) : null}
           </div>
         </div>
       </div>
@@ -798,6 +795,21 @@ function LibraryEmptyState({
   );
 }
 
+function LibraryMessageEmpty({
+  messageKey,
+  t,
+}: {
+  messageKey: LibraryEmptyMessageKey;
+  t: ReturnType<typeof useTranslation>['t'];
+}) {
+  const message = libraryEmptyMessage(messageKey, t);
+  return (
+    <LibraryEmptyState icon={message.icon} title={message.title}>
+      {message.description}
+    </LibraryEmptyState>
+  );
+}
+
 type LibraryImportEntryHandlers = {
   weReadConfigured: boolean;
   weReadSyncing: boolean;
@@ -924,111 +936,20 @@ function LibraryCollectionEmpty({
   );
 }
 
-type LibraryEmptyReason =
-  | { variant: 'first-use' }
-  | { variant: 'collection'; libraryHasItems: boolean }
-  | { variant: 'message'; icon: React.ReactNode; title: string; description: string };
-
-function emptyLibraryReason({
-  filteredLength,
-  itemsLength,
-  searchQuery,
-  t,
-  selectedType,
-  wereadConfigured,
-}: {
-  filteredLength: number;
-  itemsLength: number;
-  searchQuery: string;
-  t: ReturnType<typeof useTranslation>['t'];
-  selectedType: LibraryTypeFilter | null;
-  wereadConfigured: boolean;
-}): LibraryEmptyReason {
-  if (selectedType === 'weread' && !wereadConfigured) {
+function libraryEmptyMessage(
+  messageKey: LibraryEmptyMessageKey,
+  t: ReturnType<typeof useTranslation>['t'],
+) {
+  if (messageKey === 'wereadSetup') {
     return {
-      variant: 'message',
       description: t('library.weReadSetupDescription'),
       icon: <HugeiconsIcon icon={SmartPhone01Icon} size={32} />,
       title: t('library.weReadSetupTitle'),
     };
   }
-
-  if (itemsLength === 0) {
-    return { variant: 'first-use' };
-  }
-
-  if (filteredLength === 0 || searchQuery.trim()) {
-    return {
-      variant: 'message',
-      description: t('library.empty.noMatchDescription'),
-      icon: <HugeiconsIcon icon={Search01Icon} size={32} />,
-      title: t('library.empty.noMatchTitle'),
-    };
-  }
-
-  if (selectedType === 'web') {
-    return {
-      variant: 'message',
-      description: t('library.empty.webDescription'),
-      icon: <HugeiconsIcon icon={File01Icon} size={32} />,
-      title: t('library.empty.webTitle'),
-    };
-  }
-
-  if (selectedType === 'pdf') {
-    return {
-      variant: 'message',
-      description: t('library.empty.pdfDescription'),
-      icon: <HugeiconsIcon icon={Pdf01Icon} size={32} />,
-      title: t('library.empty.pdfTitle'),
-    };
-  }
-
-  if (selectedType === 'weread') {
-    return {
-      variant: 'message',
-      description: t('library.empty.wereadDescription'),
-      icon: <HugeiconsIcon icon={SmartPhone01Icon} size={32} />,
-      title: t('library.empty.wereadTitle'),
-    };
-  }
-
-  if (selectedType === 'ebook') {
-    return {
-      variant: 'message',
-      description: t('library.empty.ebookDescription'),
-      icon: <HugeiconsIcon icon={Book02Icon} size={32} />,
-      title: t('library.empty.ebookTitle'),
-    };
-  }
-
   return {
-    variant: 'message',
     description: t('library.empty.noMatchDescription'),
     icon: <HugeiconsIcon icon={Search01Icon} size={32} />,
     title: t('library.empty.noMatchTitle'),
   };
-}
-
-function emptyCollectionReason({
-  filteredLength,
-  libraryHasItems,
-  searchQuery,
-  t,
-}: {
-  filteredLength: number;
-  libraryHasItems: boolean;
-  searchQuery: string;
-  t: ReturnType<typeof useTranslation>['t'];
-}): LibraryEmptyReason {
-  if (filteredLength === 0 && searchQuery.trim()) {
-    return {
-      variant: 'message',
-      description: t('library.empty.noMatchDescription'),
-      icon: <HugeiconsIcon icon={Search01Icon} size={32} />,
-      title: t('library.empty.noMatchTitle'),
-    };
-  }
-
-  return { variant: 'collection', libraryHasItems };
 }
