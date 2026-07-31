@@ -9,6 +9,7 @@ import type {
 } from '@yomitomo/shared';
 import { annotationAgentAuthorRef } from '@yomitomo/core';
 import { createAssistantReadingTools } from '../assistant/assistant-reading-tools';
+import type { ReadingMemorySqliteExecutor } from '../reading-memory/reading-memory-store';
 
 type AiModule = typeof import('@yomitomo/ai');
 
@@ -31,6 +32,7 @@ type AgentMessageToolLoopInput<TaskType extends AgentToolLoopTaskType> = {
   provider: LlmProvider;
   agent: Agent;
   payload: AgentMessagePayload;
+  readingMemoryExecutor: ReadingMemorySqliteExecutor;
   onRuntimeEvent?: Parameters<AiModule['runAgentToolLoopTask']>[0]['onEvent'];
 };
 
@@ -64,6 +66,7 @@ export async function runAgentMessageWithToolLoop(
   const readingTools = createAgentMessageReadingTools({
     agent: input.agent,
     payload: input.payload,
+    readingMemoryExecutor: input.readingMemoryExecutor,
     articleId,
     currentThreadRootCommentId:
       input.taskType === 'thread_reply' ? threadRootCommentId(input.payload) : undefined,
@@ -126,6 +129,7 @@ function createAgentMessageReadingTools(input: {
   payload: AgentMessagePayload;
   articleId: string;
   currentThreadRootCommentId?: string;
+  readingMemoryExecutor: ReadingMemorySqliteExecutor;
 }) {
   return createAssistantReadingTools({
     article: {
@@ -140,6 +144,7 @@ function createAgentMessageReadingTools(input: {
     currentThreadRootCommentId: input.currentThreadRootCommentId,
     currentAnchor: input.payload.annotation.anchor,
     readerProgress: input.payload.readerProgress,
+    executor: input.readingMemoryExecutor,
   });
 }
 

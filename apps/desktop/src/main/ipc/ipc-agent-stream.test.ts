@@ -21,7 +21,7 @@ vi.mock('electron', () => ({
 
 vi.mock('../app/logger', () => ({ logError }));
 
-import { runAgentStreamIpc } from './ipc-agent-stream';
+import { agentStreamTasks, runAgentStreamIpc } from './ipc-agent-stream';
 
 beforeEach(() => {
   ipcHandlers.clear();
@@ -92,6 +92,21 @@ describe('runAgentStreamIpc', () => {
         error: expect.objectContaining({ code: desktopIpcErrorCodes.agentNotFound }),
       }),
     );
+  });
+
+  it('does not send done after a cancelled stream handler returns', async () => {
+    runAgentStreamIpc('agent:comment:stream', 'STREAM_FAILED', async (input, sender, event) => {
+      agentStreamTasks.cancel(event.sender.id, 'agent:comment:stream', input.requestId);
+      sender.send({ type: 'done', comment: finalComment });
+    });
+    const sender = streamSender();
+
+    await ipcHandler('agent:comment:stream')(
+      { sender },
+      request('req_cancelled', agentMessagePayload),
+    );
+
+    expect(sender.send).not.toHaveBeenCalled();
   });
 
   it('runs the guard before the stream handler', async () => {

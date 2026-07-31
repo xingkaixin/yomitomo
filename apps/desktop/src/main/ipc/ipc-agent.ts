@@ -5,12 +5,20 @@ import {
   executeAgentDistillationReviewTask,
   type AgentTaskExecutionContext,
 } from '../agents/agent-task-execution';
+import { createAssistantExecutionRecorder } from '../agents/agent-execution-recorder';
+import {
+  createAgentReadingMemoryPort,
+  createLazyReadingMemoryExecutor,
+} from '../agents/agent-reading-memory';
 import {
   findReviewAgent,
   publicCommentAgents,
   reviewAgentNotFoundError,
   taskProvider,
 } from '../agents/agent-runtime-routing';
+import { appendAgentRuntimeTrace } from '../agents/agent-runtime-trace-log';
+import { getSqliteExecutor } from '../store/store-db';
+import type { ReadingMemorySqliteExecutor } from '../reading-memory/reading-memory-store';
 import type { DesktopAiModule, DesktopMainIpcContext } from './ipc';
 import { assertDesktopIpcAppLockUnlocked, handleDesktopIpc } from './ipc';
 import { registerAgentStreamCancelIpc, runAgentStreamIpc } from './ipc-agent-stream';
@@ -36,6 +44,25 @@ type AgentIpcContext = Pick<DesktopMainIpcContext, 'elapsedMs' | 'logError' | 'l
 };
 
 export function registerAgentIpc(context: AgentIpcContext) {
+  const taskExecutionContext: AgentTaskExecutionContext = {
+    ...context,
+    recorder: createAssistantExecutionRecorder({
+      appendRuntimeTrace: appendAgentRuntimeTrace,
+      recordAssistantExecutionRun: (input) =>
+        context
+          .getPersistenceModules()
+          .then(({ storeAssistantExecutions }) =>
+            storeAssistantExecutions.recordAssistantExecutionRun(input),
+          ),
+      logger: context,
+    }),
+    readingMemory: createAgentReadingMemoryPort({
+      executor: createLazyReadingMemoryExecutor(
+        getSqliteExecutor as () => ReadingMemorySqliteExecutor,
+      ),
+      logger: context,
+    }),
+  };
   handleDesktopIpc('agent:mention-route', async (_event, payload) => {
     const { planAgentMentionRoute } = await context.getAiModule();
     const store = await readAgentRuntimeStore(context);
@@ -75,7 +102,7 @@ export function registerAgentIpc(context: AgentIpcContext) {
     'AGENT_REPLY_FAILED',
     async (input, sender) => {
       const comment = await executeAgentCommentTask(
-        context,
+        taskExecutionContext,
         input.payload,
         (event) => sender.send(event),
         sender.signal,
@@ -89,7 +116,7 @@ export function registerAgentIpc(context: AgentIpcContext) {
     'AGENT_DISTILLATION_REVIEW_FAILED',
     async (input, sender) => {
       const message = await executeAgentDistillationReviewTask(
-        context,
+        taskExecutionContext,
         input.payload,
         (event) => sender.send(event),
         sender.signal,
@@ -103,7 +130,7 @@ export function registerAgentIpc(context: AgentIpcContext) {
     'AGENT_ANNOTATION_FAILED',
     async (input, sender) => {
       const result = await executeAgentAnnotationTask(
-        context,
+        taskExecutionContext,
         input.payload,
         (event) => sender.send(event),
         sender.signal,
