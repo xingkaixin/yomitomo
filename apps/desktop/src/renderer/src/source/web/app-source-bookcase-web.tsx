@@ -6,7 +6,6 @@ import { resolveTextAnchor } from '@yomitomo/shared';
 import {
   annotationIdsAtHighlightPoint,
   findCurrentTocTarget,
-  type HighlightBox,
   rangeHighlightBoxes,
   rangeForTranslationTextAnchor,
   rangeFromOffsetsIgnoringSelector,
@@ -42,7 +41,7 @@ import {
 import { createWebSourceReaderController } from './app-source-bookcase-web-controller';
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
 import { useSourceReaderSurface } from '../bookcase/use-source-reader-surface';
-import { useReaderSearchNavigation } from '../bookcase/use-reader-search-navigation';
+import { useSourceReaderAppView } from '../bookcase/use-source-reader-app-view';
 import { useSourceReadingProgressSaver } from '../bookcase/use-source-reading-progress-saver';
 import { createWebReadingProgressFrame } from './web-reading-progress-frame';
 import { useWebAnnotationRailDiagnostics } from './use-web-annotation-rail-diagnostics';
@@ -134,8 +133,6 @@ export function WebSourceBookcase({
   const { annotations, annotationsRef, annotationAgents, deleteAnnotation, saveAnnotation } =
     sourceReaderSession;
   const [articleSearchText, setArticleSearchText] = useState('');
-  const [searchBoxes, setSearchBoxes] = useState<HighlightBox[]>([]);
-  const clearSearchBoxes = useCallback(() => setSearchBoxes([]), []);
   const onFocusedAnnotationRef = useRef(onFocusedAnnotation);
   const webFocusBoxCountRef = useRef(0);
   const scrollToAnnotationRef = useRef<(annotationId: string) => boolean>(() => false);
@@ -152,9 +149,6 @@ export function WebSourceBookcase({
   });
   const translatedContentHtml = bilingualTranslation.renderedHtml;
   const translationSelectionDisabled = bilingualTranslation.selection.isDisabled;
-  const searchNavigation = useReaderSearchNavigation(articleSearchText, {
-    onClose: clearSearchBoxes,
-  });
   const { boxes, tocItems } = useWebReaderBoxes({
     annotationAgents,
     annotations,
@@ -297,58 +291,10 @@ export function WebSourceBookcase({
 
   useEffect(() => {
     setStatusMessage('');
-    searchNavigation.resetSearch();
     setArticleSearchText('');
     setReadingProgress(normalizeSavedWebProgress(article.readingProgress) ?? 0);
     restoredWebProgressArticleRef.current = null;
-  }, [article?.id, searchNavigation.resetSearch]);
-
-  useEffect(() => {
-    if (!searchNavigation.open) {
-      setArticleSearchText('');
-      return;
-    }
-
-    const frame = window.requestAnimationFrame(() => {
-      setArticleSearchText(articleRef.current ? sourceTextContent(articleRef.current) : '');
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [article.id, searchNavigation.open, translatedContentHtml]);
-
-  useEffect(() => {
-    if (searchNavigation.preparing || !searchNavigation.open || !searchNavigation.activeMatch) {
-      setSearchBoxes([]);
-      return;
-    }
-    const articleElement = articleRef.current;
-    const canvasElement = canvasRef.current;
-    const scrollElement = scrollRef.current;
-    if (!articleElement || !canvasElement || !scrollElement) return;
-
-    const range = rangeFromOffsetsIgnoringSelector(
-      articleElement,
-      searchNavigation.activeMatch.start,
-      searchNavigation.activeMatch.end,
-      '[data-reader-translation]',
-    );
-    if (!range) {
-      setSearchBoxes([]);
-      return;
-    }
-
-    const rect = range.getClientRects()[0];
-    if (rect) scrollReaderSurfaceToRect(scrollElement, rect, 82);
-    const canvasRect = canvasElement.getBoundingClientRect();
-    setSearchBoxes(
-      rangeHighlightBoxes(range, canvasRect, searchNavigation.activeMatch.id).map((box) =>
-        Object.assign(box, {
-          annotationId: '__search__',
-          contributorId: '__search__',
-          color: 'var(--reader-search-highlight-active)',
-        }),
-      ),
-    );
-  }, [searchNavigation.activeMatch, searchNavigation.open, searchNavigation.preparing]);
+  }, [article?.id]);
 
   useEffect(() => {
     const scrollElement = scrollRef.current;
@@ -740,13 +686,24 @@ export function WebSourceBookcase({
     });
   }
 
-  if (!article) {
-    return (
-      <section className="source-bookcase is-empty">
-        <div className="source-empty">{t('reader.emptySource')}</div>
-      </section>
+  const revealWebSearchMatch = useCallback((match: { id: string; start: number; end: number }) => {
+    const articleElement = articleRef.current;
+    const canvasElement = canvasRef.current;
+    const scrollElement = scrollRef.current;
+    if (!articleElement || !canvasElement || !scrollElement) return [];
+
+    const range = rangeFromOffsetsIgnoringSelector(
+      articleElement,
+      match.start,
+      match.end,
+      '[data-reader-translation]',
     );
-  }
+    if (!range) return [];
+
+    const rect = range.getClientRects()[0];
+    if (rect) scrollReaderSurfaceToRect(scrollElement, rect, 82);
+    return rangeHighlightBoxes(range, canvasElement.getBoundingClientRect(), match.id);
+  }, []);
 
   const readerArticle = {
     title: article.title,
@@ -754,7 +711,8 @@ export function WebSourceBookcase({
     excerpt: statusMessage,
     content: contentHtml,
   };
-  const readerAppViewProps = sourceReaderApp.viewProps({
+  const { searchOpen, viewProps: readerAppViewProps } = useSourceReaderAppView({
+    app: sourceReaderApp,
     adapter: {
       lifecycle: {
         onAskSelection: (anchor) =>
@@ -779,6 +737,10 @@ export function WebSourceBookcase({
       onHighlightClick: handleHighlightClick,
       onRevealReaderChatContext: revealReaderChatContext,
       questionContext: readerQuestionContext,
+      search: {
+        revealSearchMatch: revealWebSearchMatch,
+        text: articleSearchText,
+      },
       selection: {
         onMouseUp: webReaderSelection.actions.onMouseUp,
         onSelectionHandleDrag: webReaderSelection.actions.onSelectionHandleDrag,
@@ -800,7 +762,6 @@ export function WebSourceBookcase({
       distillationAnimation,
       filteredAnnotations: annotations,
       newAnnotationIds,
-      searchBoxes,
       temporaryBoxes,
     },
     article: {
@@ -840,7 +801,6 @@ export function WebSourceBookcase({
           />
         </>
       ),
-      search: searchNavigation.search,
       headerMeta: {
         title: article.title,
         byline: article.byline,
@@ -850,6 +810,17 @@ export function WebSourceBookcase({
     },
     userProfile,
   });
+  useEffect(() => {
+    if (!searchOpen) {
+      setArticleSearchText('');
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      setArticleSearchText(articleRef.current ? sourceTextContent(articleRef.current) : '');
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [article.id, searchOpen, translatedContentHtml]);
   return (
     <section className="source-bookcase source-reader-shell">
       <style>{`${readerDesktopEmbeddedBundleStyles}\n${sourceReaderTocStyles}`}</style>

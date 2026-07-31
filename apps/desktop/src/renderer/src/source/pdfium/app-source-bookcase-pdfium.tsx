@@ -87,7 +87,7 @@ import { usePdfiumVirtualReading } from './app-source-bookcase-pdfium-virtual-re
 import { usePdfiumDocumentText } from './app-source-bookcase-pdfium-document-text';
 import { usePdfiumReadingProgress } from './app-source-bookcase-pdfium-reading-progress';
 import { usePdfiumNavigation } from './app-source-bookcase-pdfium-navigation';
-import { useReaderSearchNavigation } from '../bookcase/use-reader-search-navigation';
+import { useSourceReaderAppView } from '../bookcase/use-source-reader-app-view';
 import { usePdfiumDocumentSource } from './use-pdfium-document-source';
 import { usePdfiumPlugins } from './use-pdfium-plugins';
 import { usePdfiumSelectionAdjustment } from './use-pdfium-selection-adjustment';
@@ -293,8 +293,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   const { provides: zoomControls } = useZoom(documentId);
   const [agentTheaterBoxes, setAgentTheaterBoxes] = useState<HighlightBox[]>([]);
   const [layoutPageWidth, setLayoutPageWidth] = useState(0);
-  const [searchBoxes, setSearchBoxes] = useState<HighlightBox[]>([]);
-  const clearSearchBoxes = useCallback(() => setSearchBoxes([]), []);
   const resetLayoutPageWidthOnNextMetricsRef = useRef(true);
   const {
     annotationRailViewportHeight,
@@ -438,10 +436,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     selection,
     updateReaderSettings: updatePdfReaderSettings,
   } = sourceReaderWorkspace;
-  const searchNavigation = useReaderSearchNavigation(pdfTextDocument?.text || '', {
-    externalPreparing: pdfTextIndexPreparing,
-    onClose: clearSearchBoxes,
-  });
   const {
     temporaryBoxes,
     setHighlightChoice,
@@ -784,40 +778,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     clearAnnotationUiState();
   }, [article.id, clearAnnotationUiState]);
 
-  useEffect(() => {
-    searchNavigation.resetSearch();
-  }, [article.id, searchNavigation.resetSearch]);
-
-  useEffect(() => {
-    if (
-      searchNavigation.preparing ||
-      !searchNavigation.open ||
-      !searchNavigation.activeMatch ||
-      !pdfTextDocument ||
-      !loadedDocument
-    ) {
-      setSearchBoxes([]);
-      return;
-    }
-
-    let cancelled = false;
-    void revealPdfiumSearchMatch(searchNavigation.activeMatch).then((nextBoxes) => {
-      if (!cancelled) setSearchBoxes(nextBoxes);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    currentPage,
-    loadedDocument,
-    pageMetrics,
-    pdfTextDocument,
-    searchNavigation.activeMatch,
-    searchNavigation.open,
-    searchNavigation.preparing,
-    zoom,
-  ]);
-
   const turnPdfPageFromKeyboard = useCallback(
     (direction: ReaderPageTurnDirection) => {
       if (direction === 'left') {
@@ -917,48 +877,55 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     window.setTimeout(() => setStatusMessage(''), 1800);
   }
 
-  async function revealPdfiumSearchMatch(match: { id: string; start: number; end: number }) {
-    if (!pdfTextDocument || !loadedDocument) return [];
-    const page = pdfTextDocument.pages.find(
-      (item) => match.start >= item.bodyStart && match.end <= item.bodyEnd,
-    );
-    if (!page) return [];
+  const revealPdfiumSearchMatch = useCallback(
+    async (match: { id: string; start: number; end: number }) => {
+      if (!pdfTextDocument || !loadedDocument) return [];
+      const page = pdfTextDocument.pages.find(
+        (item) => match.start >= item.bodyStart && match.end <= item.bodyEnd,
+      );
+      if (!page) return [];
 
-    if (currentPage !== page.pageIndex + 1) {
-      jumpToPdfiumPage(page.pageIndex + 1);
-      schedulePageMetricsUpdate();
-      return [];
-    }
+      if (currentPage !== page.pageIndex + 1) {
+        jumpToPdfiumPage(page.pageIndex + 1);
+        schedulePageMetricsUpdate();
+        return [];
+      }
 
-    const metric = pageMetrics[page.pageIndex];
-    const pdfPage = loadedDocument.pages[page.pageIndex];
-    if (!metric || !pdfPage) {
-      schedulePageMetricsUpdate();
-      return [];
-    }
+      const metric = pageMetrics[page.pageIndex];
+      const pdfPage = loadedDocument.pages[page.pageIndex];
+      if (!metric || !pdfPage) {
+        schedulePageMetricsUpdate();
+        return [];
+      }
 
-    const geometry = await engine.getPageGeometry(loadedDocument, pdfPage).toPromise();
-    const rects = pdfiumRectsForTextRange(
-      geometry,
-      match.start - page.bodyStart,
-      match.end - page.bodyStart,
-      pdfPage.size.width,
-      pdfPage.size.height,
-    );
-    return rects.flatMap((rect, index) => {
-      const box = {
-        id: `${match.id}-${index}`,
-        annotationId: '__search__',
-        contributorId: '__search__',
-        color: 'var(--reader-search-highlight-active)',
-        top: metric.top + rect.y * metric.height,
-        left: metric.left + rect.x * metric.width,
-        width: Math.max(1, rect.width * metric.width),
-        height: Math.max(2, rect.height * metric.height),
-      };
-      return [box];
-    });
-  }
+      const geometry = await engine.getPageGeometry(loadedDocument, pdfPage).toPromise();
+      const rects = pdfiumRectsForTextRange(
+        geometry,
+        match.start - page.bodyStart,
+        match.end - page.bodyStart,
+        pdfPage.size.width,
+        pdfPage.size.height,
+      );
+      return rects.map((rect, index) => {
+        return {
+          id: `${match.id}-${index}`,
+          top: metric.top + rect.y * metric.height,
+          left: metric.left + rect.x * metric.width,
+          width: Math.max(1, rect.width * metric.width),
+          height: Math.max(2, rect.height * metric.height),
+        };
+      });
+    },
+    [
+      currentPage,
+      engine,
+      jumpToPdfiumPage,
+      loadedDocument,
+      pageMetrics,
+      pdfTextDocument,
+      schedulePageMetricsUpdate,
+    ],
+  );
 
   function enqueuePdfiumAgentAnnotationPlayback(articleId: string, annotation: Annotation) {
     agentAnnotationPlaybackQueueRef.current = agentAnnotationPlaybackQueueRef.current
@@ -1132,7 +1099,8 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   );
 
   const pdfHeaderByline = formatPdfHeaderAuthors(article.pdf.metadata.author || '');
-  const readerAppViewProps = sourceReaderApp.viewProps({
+  const { viewProps: readerAppViewProps } = useSourceReaderAppView({
+    app: sourceReaderApp,
     adapter: {
       navigation: {
         onNavigateAnnotation: (annotationId) => scrollToAnnotation(annotationId),
@@ -1144,6 +1112,11 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       onHighlightClick: handleHighlightClick,
       onRevealReaderChatContext: revealReaderChatContext,
       questionContext: readerQuestionContext,
+      search: {
+        externalPreparing: pdfTextIndexPreparing,
+        revealSearchMatch: revealPdfiumSearchMatch,
+        text: pdfTextDocument?.text || '',
+      },
       selection: {
         onMouseUp: () => undefined,
         onSelectionHandleDrag: updatePdfiumSelectionAdjustment,
@@ -1166,7 +1139,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       filteredAnnotations: visiblePdfAnnotations,
       newAnnotationIds,
       railLayoutOverride: annotationRailLayout,
-      searchBoxes,
       temporaryBoxes: visibleTemporaryBoxes,
     },
     article: {
@@ -1299,7 +1271,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
         byline: pdfHeaderByline,
       },
       readingProgress: pageProgress(currentPage - 1, pageCount),
-      search: searchNavigation.search,
     },
     userProfile,
   });

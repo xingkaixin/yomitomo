@@ -6,7 +6,7 @@ import type {
   ReaderQuestionContext,
   SelectionActionShortcuts,
 } from '@yomitomo/shared';
-import { createUserAnnotation } from '@yomitomo/core';
+import { createUserAnnotation, type HighlightBox } from '@yomitomo/core';
 import type { ReaderAppViewProps } from '@yomitomo/reader-ui/reader-app-view';
 import type { ReaderArticleActions } from '../../shell/app-article-store-actions';
 import {
@@ -23,6 +23,10 @@ type ReaderChatActions = NonNullable<ReaderAppActions['chat']>;
 type ReaderSelectionActions = ReaderAppActions['selection'];
 type ReaderShellActions = ReaderAppActions['shell'];
 type ReaderTocActions = ReaderAppActions['toc'];
+type ReaderSearchMatch = NonNullable<
+  NonNullable<ReaderAppViewProps['toolbar']>['search']
+>['matches'][number];
+type ReaderSearchHighlightBox = Omit<HighlightBox, 'annotationId' | 'color' | 'contributorId'>;
 type SourceReaderSessionInput = Omit<
   UseSourceReaderSessionOptions,
   | 'agentAnnotationAdapter'
@@ -56,6 +60,13 @@ export type SourceReaderAdapter = {
   onHighlightClick: ReaderAnnotationActions['onHighlightClick'];
   onRevealReaderChatContext?: ReaderChatActions['onRevealContext'];
   questionContext: (anchor: Annotation['anchor']) => ReaderQuestionContext;
+  search: {
+    externalPreparing?: boolean;
+    revealSearchMatch: (
+      match: ReaderSearchMatch,
+    ) => ReaderSearchHighlightBox[] | Promise<ReaderSearchHighlightBox[]>;
+    text: string;
+  };
   selection?: Pick<
     ReaderSelectionActions,
     | 'onMouseUp'
