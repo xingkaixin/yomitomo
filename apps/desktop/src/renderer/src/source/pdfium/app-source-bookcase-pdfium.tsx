@@ -31,7 +31,6 @@ import {
 } from '@yomitomo/shared';
 import {
   activeTocIndexForOffset,
-  createUserAnnotation,
   mergeAgentAnnotationAsThought,
   selectionActionPosition,
   type HighlightBox,
@@ -45,7 +44,6 @@ import { animateTheaterHighlight, sleep } from '@yomitomo/reader-ui/reader-anima
 import { selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
 import type { SourceBookcaseProps } from '../bookcase/app-source-bookcase';
 import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
-import { useRecentAnnotationFeedback } from '../bookcase/use-recent-annotation-feedback';
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
 import { useSourceReaderSurface } from '../bookcase/use-source-reader-surface';
 import {
@@ -289,10 +287,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     requestSelectionCopy: dispatchSelectionCopy,
     viewportRef: surfaceRef,
   } = useSourceReaderSurface();
-  const { markAnnotationCreated, newAnnotationIds } = useRecentAnnotationFeedback(
-    article.id,
-    settings,
-  );
   const recordedOpenPhasesRef = useRef(new Set<string>());
   const agentAnnotationPlaybackQueueRef = useRef(Promise.resolve());
   const documentState = useDocumentState(documentId);
@@ -356,7 +350,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     articleActions,
     canvasRef,
     onRequestSelectionCopy: dispatchSelectionCopy,
-    createAgentAnnotationAdapter: ({ setStatusMessage }) =>
+    createAgentAnnotationAdapter: ({ isCurrentArticle, setStatusMessage }) =>
       createPdfiumSourceReaderController({
         enqueueAgentAnnotationPlayback: (articleId, annotation) =>
           enqueuePdfiumAgentAnnotationPlayback(articleId, annotation),
@@ -386,6 +380,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     getArticleText: currentArticleText,
     messageSendShortcut,
     selectionActionShortcuts,
+    settings,
     session: {
       agents,
       annotations: articleAnnotations,
@@ -399,6 +394,11 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     },
   });
   const {
+    askSelection,
+    createAnnotation,
+    isCurrentArticle,
+    newAnnotationIds,
+    openAnnotation,
     session: sourceReaderSession,
     setStatusMessage,
     statusMessage,
@@ -845,7 +845,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       return;
     }
     if (shortcut === 'ask') {
-      askSelection(selectionAction);
+      askSelection(selectionAction, readerQuestionContext);
       return;
     }
     openComposer(selectionAction);
@@ -880,11 +880,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     void preparePdfiumSelectionAdjustmentSource(anchor.pageIndex);
   }
 
-  function askSelection(action: { anchor: Annotation['anchor'] }) {
-    readerChat.askSelection(readerQuestionContext(action.anchor));
-    clearSelection();
-  }
-
   function readerQuestionContext(anchor: Annotation['anchor']): ReaderQuestionContext {
     return {
       sourceType: 'pdf',
@@ -916,10 +911,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       zoom,
     });
     recalculateActiveConnection();
-  }
-
-  function isCurrentArticle(articleId: string) {
-    return article.id === articleId;
   }
 
   function showStatusMessage(message: string) {
@@ -1077,16 +1068,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     finishPdfiumVirtualCursor(cursorId);
   }
 
-  async function createAnnotationFromComposer(note: string) {
-    if (!composer) return;
-    const currentComposer = composer;
-    cancelComposer();
-    const annotation = createUserAnnotation(currentComposer.anchor, userProfile, note);
-    await saveAnnotation(annotation);
-    markAnnotationCreated(annotation.id);
-    onOpenAnnotation(annotation.id);
-  }
-
   async function appendAgentAnnotationToArticle(articleId: string, annotation: Annotation) {
     let activeId = annotation.id;
     if (article.id === articleId) {
@@ -1157,9 +1138,9 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       annotation: {
         onAnnotationLayoutChange: handleAnnotationLayoutChange,
         onClearActiveAnnotation: () => onOpenAnnotation(null),
-        onCreateAnnotation: createAnnotationFromComposer,
+        onCreateAnnotation: createAnnotation,
         onDeleteAnnotation: deleteAnnotation,
-        onFocusAnnotation: onOpenAnnotation,
+        onFocusAnnotation: openAnnotation,
         onHighlightClick: handleHighlightClick,
         onNavigateAnnotation: (annotationId) => scrollToAnnotation(annotationId),
         onResolveAnnotationNavigation: () =>
@@ -1172,7 +1153,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
         onCloseHighlightChoice: () => setHighlightChoice(null),
         onCopySelection: copySelection,
         onMouseUp: () => undefined,
-        onAskSelection: askSelection,
+        onAskSelection: (action) => askSelection(action, readerQuestionContext),
         onOpenComposer: openComposer,
         onSelectionHandleDrag: updatePdfiumSelectionAdjustment,
         onSelectionHandleDragEnd: finishPdfiumSelectionAdjustment,

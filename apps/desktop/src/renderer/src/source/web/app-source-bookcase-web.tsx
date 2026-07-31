@@ -11,7 +11,6 @@ import {
   rangeForTranslationTextAnchor,
   rangeFromOffsetsIgnoringSelector,
   scrollReaderSurfaceToRect,
-  createUserAnnotation,
   sourceTextContent,
   textForTranslationAnchor,
   type TocItem,
@@ -33,7 +32,6 @@ import { articleIdentityLine } from '../../shell/app-utils';
 import { recordRendererPerformanceTiming } from '../../shell/app-renderer-performance';
 import type { WebSourceBookcaseProps } from '../bookcase/app-source-bookcase';
 import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
-import { useRecentAnnotationFeedback } from '../bookcase/use-recent-annotation-feedback';
 import { sourceTocOptions, useWebReaderBoxes } from './use-web-reader-boxes';
 import {
   articleLinkExternalUrl,
@@ -81,10 +79,6 @@ export function WebSourceBookcase({
     viewportRef: scrollRef,
   } = useSourceReaderSurface();
   const restoredWebProgressArticleRef = useRef<string | null>(null);
-  const { markAnnotationCreated, newAnnotationIds } = useRecentAnnotationFeedback(
-    article.id,
-    settings,
-  );
   const [readingProgress, setReadingProgress] = useState(
     () => normalizeSavedWebProgress(article.readingProgress) ?? 0,
   );
@@ -107,10 +101,12 @@ export function WebSourceBookcase({
   const [activeTocIndex, setActiveTocIndex] = useState<number | null>(null);
   const sourceReaderApp = useSourceReaderApp({
     articleActions,
+    beforeOpenAnnotation,
     canvasRef,
     getArticleText: currentArticleText,
     messageSendShortcut,
     onRequestSelectionCopy: dispatchSelectionCopy,
+    settings,
     selectionActionShortcuts,
     session: {
       agents,
@@ -120,11 +116,16 @@ export function WebSourceBookcase({
       clearPendingOnArticleChange: true,
       clearPendingOnDeleteAnnotation: true,
       uiLanguage,
-      onOpenAnnotation: openAnnotation,
+      onOpenAnnotation,
       userProfile,
     },
   });
   const {
+    askSelection,
+    createAnnotation,
+    isCurrentArticle,
+    newAnnotationIds,
+    openAnnotation,
     session: sourceReaderSession,
     setStatusMessage,
     statusMessage,
@@ -586,17 +587,12 @@ export function WebSourceBookcase({
     };
   }, [annotationsRef, article.id, focusAnnotationId]);
 
-  function openAnnotation(annotationId: string) {
-    clearAnnotationUiState();
-    onOpenAnnotation(annotationId);
-  }
-
   function currentArticleText() {
     return articleRef.current ? sourceTextContent(articleRef.current) : '';
   }
 
-  function isCurrentArticle(articleId: string) {
-    return article.id === articleId;
+  function beforeOpenAnnotation() {
+    sourceReaderApp.workspace.selection.clearAnnotationUiState();
   }
 
   function handleArticleClick(event: React.MouseEvent<HTMLElement>) {
@@ -666,29 +662,6 @@ export function WebSourceBookcase({
       annotationIds,
     });
     return true;
-  }
-
-  async function createAnnotation(note: string) {
-    if (!composer) return;
-    const currentComposer = composer;
-    webReaderSelection.diagnostics.logAnchor(
-      'composer:create-annotation',
-      currentComposer.anchor,
-      () => ({
-        noteLength: note.length,
-      }),
-    );
-    cancelComposer();
-    const annotation = createUserAnnotation(currentComposer.anchor, userProfile, note);
-    await saveAnnotation(annotation);
-    markAnnotationCreated(annotation.id);
-    openAnnotation(annotation.id);
-  }
-
-  function askSelection(action: { anchor: Annotation['anchor'] }) {
-    webReaderSelection.diagnostics.logAnchor('selection:ask', action.anchor);
-    readerChat.askSelection(readerQuestionContext(action.anchor));
-    clearSelection();
   }
 
   function clearSelectionFromShell() {
@@ -798,7 +771,17 @@ export function WebSourceBookcase({
       annotation: {
         onAnnotationLayoutChange: recalculateActiveConnection,
         onClearActiveAnnotation: () => onOpenAnnotation(null),
-        onCreateAnnotation: createAnnotation,
+        onCreateAnnotation: (note) => {
+          const composer = selection.composer;
+          if (composer) {
+            webReaderSelection.diagnostics.logAnchor(
+              'composer:create-annotation',
+              composer.anchor,
+              () => ({ noteLength: note.length }),
+            );
+          }
+          return createAnnotation(note);
+        },
         onDeleteAnnotation: deleteAnnotation,
         onFocusAnnotation: openAnnotation,
         onHighlightClick: handleHighlightClick,
@@ -815,7 +798,10 @@ export function WebSourceBookcase({
         onCloseHighlightChoice: () => setHighlightChoice(null),
         onCopySelection: copySelection,
         onMouseUp: webReaderSelection.actions.onMouseUp,
-        onAskSelection: askSelection,
+        onAskSelection: (action) => {
+          webReaderSelection.diagnostics.logAnchor('selection:ask', action.anchor);
+          askSelection(action, readerQuestionContext);
+        },
         onSelectionHandleDrag: webReaderSelection.actions.onSelectionHandleDrag,
         onSelectionHandleDragEnd: webReaderSelection.actions.onSelectionHandleDragEnd,
         onSelectionHandleDragStart: webReaderSelection.actions.onSelectionHandleDragStart,

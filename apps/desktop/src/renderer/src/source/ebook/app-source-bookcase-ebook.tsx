@@ -8,7 +8,6 @@ import {
   activeTocIndexForOffset,
   annotationIdsAtHighlightPoint,
   createEpubTextAnchor,
-  createUserAnnotation,
   mergeAgentAnnotationAsThought,
   type HighlightBox,
   type TocItem,
@@ -57,7 +56,6 @@ import {
   type ReaderPageTurnDirection,
 } from '../../shell/use-reader-page-turn-keys';
 import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
-import { useRecentAnnotationFeedback } from '../bookcase/use-recent-annotation-feedback';
 import {
   ebookAnnotationNavigationState,
   ebookSpreadAvailableWidth,
@@ -99,10 +97,6 @@ export function EbookBookcase({
     requestSelectionCopy: dispatchSelectionCopy,
     viewportRef: surfaceRef,
   } = useSourceReaderSurface();
-  const { markAnnotationCreated, newAnnotationIds } = useRecentAnnotationFeedback(
-    article.id,
-    settings,
-  );
   const scheduleEbookBoxUpdateRef = useRef<(reason: EbookBoxUpdateReason) => void>(() => {});
   const pageTurnTraceRef = useRef<EbookPageTurnTrace | null>(null);
   const beforeEbookPageTurnRef = useRef<(trace: EbookPageTurnTrace) => void>(() => {});
@@ -129,9 +123,10 @@ export function EbookBookcase({
   }, []);
   const sourceReaderApp = useSourceReaderApp({
     articleActions,
+    beforeOpenAnnotation,
     canvasRef,
     onRequestSelectionCopy: dispatchSelectionCopy,
-    createAgentAnnotationAdapter: ({ setStatusMessage }) =>
+    createAgentAnnotationAdapter: ({ isCurrentArticle, setStatusMessage }) =>
       createEbookSourceReaderController({
         appendAgentAnnotationToArticle,
         currentArticleText,
@@ -157,6 +152,7 @@ export function EbookBookcase({
     getArticleText: currentArticleText,
     messageSendShortcut,
     selectionActionShortcuts,
+    settings,
     session: {
       agents,
       annotations: articleAnnotations,
@@ -195,11 +191,16 @@ export function EbookBookcase({
           scheduleEbookBoxUpdate('annotations_saved');
         }
       },
-      onOpenAnnotation: openAnnotation,
+      onOpenAnnotation,
       userProfile,
     },
   });
   const {
+    askSelection,
+    createAnnotation,
+    isCurrentArticle,
+    newAnnotationIds,
+    openAnnotation,
     session: sourceReaderSession,
     setStatusMessage,
     statusMessage,
@@ -369,7 +370,7 @@ export function EbookBookcase({
     selectionAction,
     composer,
     clearSelection,
-    askSelection,
+    askSelection: (action) => askSelection(action, readerQuestionContext),
     requestSelectionCopy,
     openComposer,
     openSelectionAction,
@@ -589,28 +590,8 @@ export function EbookBookcase({
     return ebookText;
   }
 
-  function isCurrentArticle(articleId: string) {
-    return article.id === articleId;
-  }
-
-  function openAnnotation(annotationId: string) {
-    clearAnnotationUiState();
-    onOpenAnnotation(annotationId);
-  }
-
-  async function createAnnotation(note: string) {
-    if (!composer) return;
-    const currentComposer = composer;
-    cancelComposer();
-    const annotation = createUserAnnotation(currentComposer.anchor, userProfile, note);
-    await saveAnnotation(annotation);
-    markAnnotationCreated(annotation.id);
-    openAnnotation(annotation.id);
-  }
-
-  function askSelection(action: { anchor: Annotation['anchor'] }) {
-    readerChat.askSelection(readerQuestionContext(action.anchor));
-    clearSelection();
+  function beforeOpenAnnotation() {
+    sourceReaderApp.workspace.selection.clearAnnotationUiState();
   }
 
   function readerQuestionContext(anchor: Annotation['anchor']): ReaderQuestionContext {
@@ -981,7 +962,7 @@ export function EbookBookcase({
         onCloseHighlightChoice: () => setHighlightChoice(null),
         onCopySelection: copySelection,
         onMouseUp: () => undefined,
-        onAskSelection: askSelection,
+        onAskSelection: (action) => askSelection(action, readerQuestionContext),
         onOpenComposer: openComposer,
         onSelectionHandleDrag: updateEbookSelectionAdjustment,
         onSelectionHandleDragEnd: finishEbookSelectionAdjustment,

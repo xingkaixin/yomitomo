@@ -1,5 +1,12 @@
 import { useEffect, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
-import type { MessageSendShortcut, SelectionActionShortcuts } from '@yomitomo/shared';
+import type {
+  Annotation,
+  AppSettings,
+  MessageSendShortcut,
+  ReaderQuestionContext,
+  SelectionActionShortcuts,
+} from '@yomitomo/shared';
+import { createUserAnnotation } from '@yomitomo/core';
 import type { ReaderAppViewProps } from '@yomitomo/reader-ui/reader-app-view';
 import type { ReaderArticleActions } from '../../shell/app-article-store-actions';
 import {
@@ -8,6 +15,7 @@ import {
   type UseSourceReaderSessionOptions,
 } from './use-source-reader-session';
 import { useSourceReaderWorkspace } from './use-source-reader-workspace';
+import { useRecentAnnotationFeedback } from './use-recent-annotation-feedback';
 
 type ReaderAppActions = ReaderAppViewProps['actions'];
 type ReaderAnnotationActions = ReaderAppActions['annotation'];
@@ -51,34 +59,45 @@ export type UseSourceReaderAppInput = {
   articleActions: ReaderArticleActions;
   canvasRef: RefObject<HTMLElement | null>;
   createAgentAnnotationAdapter?: (context: {
+    isCurrentArticle: (articleId: string) => boolean;
     setStatusMessage: Dispatch<SetStateAction<string>>;
   }) => SourceAgentAnnotationAdapter;
   getArticleText: () => string | Promise<string>;
+  beforeOpenAnnotation?: () => void;
   messageSendShortcut?: MessageSendShortcut;
   onRequestSelectionCopy: () => void;
+  settings?: AppSettings;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   session: SourceReaderSessionInput;
 };
 
 export function useSourceReaderApp({
   articleActions,
+  beforeOpenAnnotation,
   canvasRef,
   createAgentAnnotationAdapter,
   getArticleText,
   messageSendShortcut,
   onRequestSelectionCopy,
+  settings,
   selectionActionShortcuts,
   session: sessionInput,
 }: UseSourceReaderAppInput) {
   const [statusMessage, setStatusMessage] = useState('');
   const session = useSourceReaderSession({
     ...sessionInput,
-    agentAnnotationAdapter: createAgentAnnotationAdapter?.({ setStatusMessage }),
+    agentAnnotationAdapter: createAgentAnnotationAdapter?.({
+      isCurrentArticle,
+      setStatusMessage,
+    }),
     getArticleText,
     onDeleteArticleAnnotation: articleActions.deleteArticleAnnotation,
     onDeleteArticleComment: articleActions.deleteArticleComment,
     onSaveArticleAnnotation: articleActions.saveArticleAnnotation,
     onSaveArticleComment: articleActions.saveArticleComment,
+    onOpenAnnotation: sessionInput.onOpenAnnotation
+      ? (annotationId) => openAnnotation(annotationId)
+      : undefined,
     setStatusMessage,
   });
   const workspace = useSourceReaderWorkspace({
@@ -92,8 +111,39 @@ export function useSourceReaderApp({
     uiLanguage: sessionInput.uiLanguage,
     onSaveArticleReaderChatState: articleActions.saveArticleReaderChatState,
   });
+  const { markAnnotationCreated, newAnnotationIds } = useRecentAnnotationFeedback(
+    sessionInput.article.id,
+    settings,
+  );
 
   useEffect(() => setStatusMessage(''), [sessionInput.article.id]);
+
+  function isCurrentArticle(articleId: string) {
+    return sessionInput.article.id === articleId;
+  }
+
+  function openAnnotation(annotationId: string) {
+    beforeOpenAnnotation?.();
+    sessionInput.onOpenAnnotation?.(annotationId);
+  }
+
+  async function createAnnotation(note: string) {
+    const composer = workspace.selection.composer;
+    if (!composer) return;
+    workspace.selection.cancelComposer();
+    const annotation = createUserAnnotation(composer.anchor, sessionInput.userProfile, note);
+    await session.saveAnnotation(annotation);
+    markAnnotationCreated(annotation.id);
+    openAnnotation(annotation.id);
+  }
+
+  function askSelection(
+    action: { anchor: Annotation['anchor'] },
+    questionContext: (anchor: Annotation['anchor']) => ReaderQuestionContext,
+  ) {
+    workspace.readerChat.askSelection(questionContext(action.anchor));
+    workspace.selection.clearSelection();
+  }
 
   function viewProps({
     actions: actionAdapters,
@@ -161,6 +211,11 @@ export function useSourceReaderApp({
   }
 
   return {
+    askSelection,
+    createAnnotation,
+    isCurrentArticle,
+    newAnnotationIds,
+    openAnnotation,
     session,
     setStatusMessage,
     statusMessage,

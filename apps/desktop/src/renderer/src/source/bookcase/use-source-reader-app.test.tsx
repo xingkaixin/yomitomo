@@ -119,6 +119,55 @@ describe('useSourceReaderApp', () => {
     expect(props.options).toEqual({ embedded: true });
     expect(props.settings.settingsOpen).toBe(false);
   });
+
+  it('owns annotation creation, opening, and selection questions', async () => {
+    const currentArticle = article('web', 'article_1');
+    const articleActions = articleActionStubs();
+    const beforeOpenAnnotation = vi.fn();
+    const onOpenAnnotation = vi.fn();
+    const { result } = renderHook(() =>
+      useSourceReaderApp({
+        articleActions,
+        beforeOpenAnnotation,
+        canvasRef: { current: null },
+        getArticleText: () => 'text',
+        onRequestSelectionCopy: vi.fn(),
+        session: {
+          agents: [],
+          annotations: currentArticle.annotations,
+          article: currentArticle,
+          clearPendingOnArticleChange: true,
+          clearPendingOnDeleteAnnotation: true,
+          onArticleChange: vi.fn(),
+          onOpenAnnotation,
+          userProfile,
+        },
+      }),
+    );
+    const selectionAction = { x: 12, y: 16, anchor: annotation.anchor };
+
+    act(() => result.current.workspace.selection.openComposer(selectionAction));
+    await act(() => result.current.createAnnotation('note'));
+
+    expect(articleActions.saveArticleAnnotation).toHaveBeenCalledTimes(1);
+    expect(beforeOpenAnnotation).toHaveBeenCalledTimes(1);
+    expect(onOpenAnnotation).toHaveBeenCalledWith(expect.any(String));
+    expect(result.current.newAnnotationIds.size).toBe(1);
+
+    act(() => result.current.workspace.selection.openSelectionAction(selectionAction, []));
+    act(() =>
+      result.current.askSelection(selectionAction, (anchor) => ({
+        sourceType: 'web',
+        quote: anchor.exact,
+      })),
+    );
+
+    expect(result.current.workspace.selection.selectionAction).toBeNull();
+    expect(result.current.workspace.readerChat.model.draftContext).toEqual({
+      sourceType: 'web',
+      quote: 'text',
+    });
+  });
 });
 
 function article(sourceType: 'web' | 'ebook' | 'pdf', id: string): ArticleRecord {
