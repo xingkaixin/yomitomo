@@ -14,6 +14,7 @@ import {
   planDistillationProposalChangeSet,
 } from '../annotation-discussion/app-annotation-sedimentation-proposals';
 import { initializeAppI18n } from '../i18n/app-i18n';
+import { emptyStore } from '../settings/app-settings';
 import type { ArticleAnnotationDistillationSaveInput } from '../../../ipc-contract';
 
 const now = '2026-05-31T06:00:00.000Z';
@@ -1549,7 +1550,7 @@ function installDesktopApi(sourceArticle: ArticleRecord) {
   const saveArticle = vi.fn();
   const desktop = {
     getArticle: vi.fn().mockImplementation(async () => currentArticle),
-    getState: vi.fn().mockResolvedValue({ agents: agents() }),
+    getState: vi.fn().mockResolvedValue({ ...emptyStore, agents: agents() }),
     saveArticle,
     saveArticleAnnotationDistillation: vi
       .fn()

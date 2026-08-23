@@ -85,11 +85,11 @@ type DiscussionWindowStatus =
       type: 'ready';
       agents: Agent[];
       article: ArticleRecord;
-      annotation: Annotation;
       settings: ResolvedAppSettings;
       uiLanguage: UiLanguage;
     }
   | { type: 'missing' }
+  | { type: 'removed' }
   | { type: 'error'; message: string };
 
 export function AnnotationDiscussionWindowApp() {
@@ -98,19 +98,17 @@ export function AnnotationDiscussionWindowApp() {
   const articleId = params.get('articleId') || '';
   const annotationId = params.get('annotationId') || '';
   const [status, setStatus] = useState<DiscussionWindowStatus>({ type: 'loading' });
-  const pendingArticleUpdateRef = useRef<
-    { annotation: Annotation; article: ArticleRecord } | null | undefined
-  >(undefined);
+  const pendingArticleUpdateRef = useRef<ArticleRecord | null | undefined>(undefined);
   const className = annotationDiscussionWindowClassName();
   const windowTransition = useSourceAwareWindowTransition(params);
   const windowClassName = [className, windowTransition.className].filter(Boolean).join(' ');
 
-  useAnnotationWindowArticlePatches(articleId, annotationId, (update) => {
-    pendingArticleUpdateRef.current = update;
+  useAnnotationWindowArticlePatches(articleId, annotationId, (article) => {
+    pendingArticleUpdateRef.current = article;
     setStatus((current) => {
-      if (!update) return { type: 'missing' };
+      if (!article) return { type: 'missing' };
       if (current.type !== 'ready') return current;
-      return { ...current, ...update };
+      return { ...current, article };
     });
   });
 
@@ -125,9 +123,15 @@ export function AnnotationDiscussionWindowApp() {
   }, []);
 
   useEffect(() => {
-    document.title =
-      status.type === 'ready' ? discussionWindowTitle(status) : t('discussion.title');
-  }, [status, t]);
+    if (status.type === 'ready') {
+      const annotation = status.article.annotations.find((item) => item.id === annotationId);
+      if (annotation) {
+        document.title = discussionWindowTitle({ annotation, article: status.article });
+        return;
+      }
+    }
+    document.title = t('discussion.title');
+  }, [annotationId, status, t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -140,20 +144,17 @@ export function AnnotationDiscussionWindowApp() {
       .loadWindow(articleId)
       .then(({ article, store }) => {
         if (cancelled) return;
-        const pendingUpdate = pendingArticleUpdateRef.current;
-        const currentArticle = pendingUpdate?.article || article;
-        const annotation =
-          pendingUpdate?.annotation ||
-          currentArticle?.annotations.find((item) => item.id === annotationId);
+        const pendingArticle = pendingArticleUpdateRef.current;
+        const currentArticle = pendingArticle === undefined ? article : pendingArticle;
+        const annotation = currentArticle?.annotations.find((item) => item.id === annotationId);
         setStatus(
-          pendingUpdate !== null && currentArticle && annotation
+          pendingArticle !== null && currentArticle && annotation
             ? {
                 type: 'ready',
                 agents: store.agents,
                 article: currentArticle,
-                annotation,
-                settings: store.settings || {},
-                uiLanguage: normalizeUiLanguage(store.settings?.uiLanguage),
+                settings: store.settings,
+                uiLanguage: normalizeUiLanguage(store.settings.uiLanguage),
               }
             : { type: 'missing' },
         );
@@ -172,15 +173,29 @@ export function AnnotationDiscussionWindowApp() {
   }, [annotationId, articleId]);
 
   if (status.type === 'ready') {
+    const annotation = status.article.annotations.find((item) => item.id === annotationId);
+    if (!annotation) {
+      return (
+        <DiscussionStatusScreen
+          className={windowClassName}
+          message={t('discussion.missing')}
+          style={windowTransition.style}
+        />
+      );
+    }
     return (
       <AnnotationDiscussionShell
         agents={status.agents}
         article={status.article}
-        annotation={status.annotation}
+        annotation={annotation}
         className={windowClassName}
         settings={status.settings}
         style={windowTransition.style}
         uiLanguage={status.uiLanguage}
+        onArticleChange={(article) =>
+          setStatus((current) => (current.type === 'ready' ? { ...current, article } : current))
+        }
+        onRemoved={() => setStatus({ type: 'removed' })}
       />
     );
   }
@@ -190,11 +205,34 @@ export function AnnotationDiscussionWindowApp() {
       ? t('discussion.loading')
       : status.type === 'missing'
         ? t('discussion.missing')
-        : status.message;
+        : status.type === 'removed'
+          ? t('discussion.deleted')
+          : status.message;
 
   return (
-    <main className={windowClassName} style={windowTransition.style}>
-      <section className="annotation-discussion-empty" aria-busy={status.type === 'loading'}>
+    <DiscussionStatusScreen
+      className={windowClassName}
+      loading={status.type === 'loading'}
+      message={message}
+      style={windowTransition.style}
+    />
+  );
+}
+
+function DiscussionStatusScreen({
+  className,
+  loading = false,
+  message,
+  style,
+}: {
+  className: string;
+  loading?: boolean;
+  message: string;
+  style: CSSProperties;
+}) {
+  return (
+    <main className={className} style={style}>
+      <section className="annotation-discussion-empty" aria-busy={loading}>
         <HugeiconsIcon icon={BubbleChatIcon} size={24} />
         <strong>{message}</strong>
       </section>
@@ -202,11 +240,58 @@ export function AnnotationDiscussionWindowApp() {
   );
 }
 
+function useDiscussionArticleProjection({
+  annotationId,
+  article,
+  onArticleChange,
+  onRemoved,
+}: {
+  annotationId: string;
+  article: ArticleRecord;
+  onArticleChange: (article: ArticleRecord) => void;
+  onRemoved: () => void;
+}) {
+  const articleRef = useRef(article);
+  articleRef.current = article;
+  const annotationsRef = useMemo(
+    () => ({
+      get current() {
+        return articleRef.current.annotations;
+      },
+    }),
+    [],
+  );
+
+  function replaceArticle(nextArticle: ArticleRecord) {
+    articleRef.current = nextArticle;
+    onArticleChange(nextArticle);
+  }
+
+  function applyAnnotations(annotations: Annotation[]) {
+    const sortedAnnotations = sortAnnotations(annotations);
+    if (!sortedAnnotations.some((item) => item.id === annotationId)) {
+      onRemoved();
+      return null;
+    }
+    const nextArticle = {
+      ...articleRef.current,
+      annotations: sortedAnnotations,
+      updatedAt: new Date().toISOString(),
+    };
+    replaceArticle(nextArticle);
+    return nextArticle;
+  }
+
+  return { annotationsRef, applyAnnotations, articleRef, replaceArticle };
+}
+
 function AnnotationDiscussionShell({
   agents,
   annotation,
   article,
   className,
+  onArticleChange,
+  onRemoved,
   settings,
   style,
   uiLanguage,
@@ -215,13 +300,20 @@ function AnnotationDiscussionShell({
   annotation: Annotation;
   article: ArticleRecord;
   className: string;
+  onArticleChange: (article: ArticleRecord) => void;
+  onRemoved: () => void;
   settings: ResolvedAppSettings;
   style: CSSProperties;
   uiLanguage: UiLanguage;
 }) {
   const { t } = useTranslation();
-  const [currentArticle, setCurrentArticle] = useState(article);
-  const [currentAnnotation, setCurrentAnnotation] = useState(annotation);
+  const { annotationsRef, applyAnnotations, articleRef, replaceArticle } =
+    useDiscussionArticleProjection({
+      annotationId: annotation.id,
+      article,
+      onArticleChange,
+      onRemoved,
+    });
   const [pinnedThoughtIds, setPinnedThoughtIds] = useState<Set<string>>(() => new Set());
   const [selectedThoughtId, setSelectedThoughtId] = useState<string | null>(null);
   const [ideasCollapsed, setIdeasCollapsed] = useState(false);
@@ -241,25 +333,11 @@ function AnnotationDiscussionShell({
   const [replyAgentRuns, setReplyAgentRuns] = useState<ReplyAgentRun[]>([]);
   const [statusMessage, setStatusMessage] = useState('');
   const [sendError, setSendError] = useState('');
-  const [removed, setRemoved] = useState(false);
-  const annotationsRef = useRef<Annotation[]>(article.annotations);
-  const currentArticleRef = useRef(article);
   const discussionLayoutRef = useRef<HTMLElement>(null);
   const ideasAutoCollapsed = useElementWidthBelow(
     discussionLayoutRef,
     DISCUSSION_IDEAS_AUTO_COLLAPSE_WIDTH,
   );
-
-  useEffect(() => {
-    setCurrentArticle(article);
-    setCurrentAnnotation(annotation);
-    setRemoved(false);
-  }, [annotation]);
-
-  useEffect(() => {
-    annotationsRef.current = currentArticle.annotations;
-    currentArticleRef.current = currentArticle;
-  }, [currentArticle]);
 
   const annotationAgents = useMemo(
     () => publicAnnotationAgents(agents, uiLanguage),
@@ -269,10 +347,10 @@ function AnnotationDiscussionShell({
     () => publicAnnotationAgents(agents, uiLanguage, { includeDisabled: true }),
     [agents, uiLanguage],
   );
-  const userProfile = annotationUserProfile(currentAnnotation, currentArticle);
+  const userProfile = annotationUserProfile(annotation, article);
   const threads = useMemo(
-    () => discussionThreads(currentAnnotation, pinnedThoughtIds),
-    [currentAnnotation, pinnedThoughtIds],
+    () => discussionThreads(annotation, pinnedThoughtIds),
+    [annotation, pinnedThoughtIds],
   );
   const selectedThread =
     threads.find((thread) => thread.root.id === selectedThoughtId) || threads[0] || null;
@@ -318,18 +396,15 @@ function AnnotationDiscussionShell({
     try {
       const nextArticle = await annotationWindowActions.deleteCommentAndReload(
         article.id,
-        currentAnnotation.id,
+        annotation.id,
         commentId,
       );
-      const nextAnnotation = nextArticle?.annotations.find(
-        (item) => item.id === currentAnnotation.id,
-      );
+      const nextAnnotation = nextArticle?.annotations.find((item) => item.id === annotation.id);
       if (!nextArticle || !nextAnnotation) {
-        setRemoved(true);
+        onRemoved();
         return;
       }
-      setCurrentArticle(nextArticle);
-      setCurrentAnnotation(nextAnnotation);
+      replaceArticle(nextArticle);
       setPinnedThoughtIds((current) => {
         if (!current.has(commentId)) return current;
         const next = new Set(current);
@@ -339,25 +414,6 @@ function AnnotationDiscussionShell({
     } finally {
       setDeletingCommentId(null);
     }
-  }
-
-  function applyAnnotations(annotations: Annotation[]) {
-    const sortedAnnotations = sortAnnotations(annotations);
-    const nextAnnotation = sortedAnnotations.find((item) => item.id === currentAnnotation.id);
-    if (!nextAnnotation) {
-      setRemoved(true);
-      return null;
-    }
-    const nextArticle = {
-      ...currentArticleRef.current,
-      annotations: sortedAnnotations,
-      updatedAt: new Date().toISOString(),
-    };
-    annotationsRef.current = sortedAnnotations;
-    currentArticleRef.current = nextArticle;
-    setCurrentArticle(nextArticle);
-    setCurrentAnnotation(nextAnnotation);
-    return nextArticle;
   }
 
   async function saveComment(
@@ -394,14 +450,14 @@ function AnnotationDiscussionShell({
       const userComment = createUserComment(userProfile, trimmed, { replyTo: selectedRoot.id });
       const nextAnnotations = appendAnnotationComment(
         annotationsRef.current,
-        currentAnnotation.id,
+        annotation.id,
         userComment,
         userComment.createdAt,
       );
-      const nextAnnotation = nextAnnotations?.find((item) => item.id === currentAnnotation.id);
+      const nextAnnotation = nextAnnotations?.find((item) => item.id === annotation.id);
       if (!nextAnnotations || !nextAnnotation) return;
 
-      await saveComment(currentAnnotation.id, userComment, userComment.createdAt);
+      await saveComment(annotation.id, userComment, userComment.createdAt);
       const mentionedAgents = findMentionedAgents(trimmed, annotationAgents);
       const targetAgents =
         mentionedAgents.length > 0
@@ -424,7 +480,7 @@ function AnnotationDiscussionShell({
           })),
         );
         const latestAnnotation =
-          annotationsRef.current.find((item) => item.id === currentAnnotation.id) || nextAnnotation;
+          annotationsRef.current.find((item) => item.id === annotation.id) || nextAnnotation;
         await requestAgentReply(agent, latestAnnotation, userComment, instruction, {
           allowDisabledAgentForRule: mentionedAgents.length === 0,
         });
@@ -450,22 +506,21 @@ function AnnotationDiscussionShell({
         const userComment = createUserComment(userProfile, trimmed);
         const nextAnnotations = appendAnnotationComment(
           annotationsRef.current,
-          currentAnnotation.id,
+          annotation.id,
           userComment,
           userComment.createdAt,
         );
-        const nextAnnotation = nextAnnotations?.find((item) => item.id === currentAnnotation.id);
+        const nextAnnotation = nextAnnotations?.find((item) => item.id === annotation.id);
         if (!nextAnnotations || !nextAnnotation) return;
 
-        await saveComment(currentAnnotation.id, userComment, userComment.createdAt);
+        await saveComment(annotation.id, userComment, userComment.createdAt);
         setSelectedThoughtId(userComment.id);
 
         const mentionedAgents = findMentionedAgents(trimmed, annotationAgents);
         const instruction = agentInstructionFromNote(trimmed, mentionedAgents) || undefined;
         for (const agent of mentionedAgents) {
           const latestAnnotation =
-            annotationsRef.current.find((item) => item.id === currentAnnotation.id) ||
-            nextAnnotation;
+            annotationsRef.current.find((item) => item.id === annotation.id) || nextAnnotation;
           await requestAgentReply(agent, latestAnnotation, userComment, instruction);
         }
       } else {
@@ -560,8 +615,7 @@ function AnnotationDiscussionShell({
     const results = await Promise.all(
       tasks.map(async (task) => {
         const latestAnnotation =
-          annotationsRef.current.find((item) => item.id === currentAnnotation.id) ||
-          currentAnnotation;
+          annotationsRef.current.find((item) => item.id === annotation.id) || annotation;
         try {
           await requestAgentThought(
             task.agent,
@@ -609,13 +663,10 @@ function AnnotationDiscussionShell({
     try {
       return await annotationWindowActions.planAgentMentionRoute({
         note: routeNote,
-        targetAnchor: currentAnnotation.anchor,
+        targetAnchor: annotation.anchor,
         agents: selectedAgents,
         allowedActions: ['create_thought'],
-        article: promptArticle(
-          currentArticleRef.current,
-          discussionArticleText(currentArticleRef.current),
-        ),
+        article: promptArticle(articleRef.current, discussionArticleText(articleRef.current)),
       });
     } catch {
       return {
@@ -644,8 +695,8 @@ function AnnotationDiscussionShell({
       instruction,
       allowDisabledAgentForRule: options.allowDisabledAgentForRule,
       desktop: getDesktopApi().agent,
-      currentArticle: currentArticleRef.current,
-      articleText: discussionArticleText(currentArticleRef.current),
+      currentArticle: articleRef.current,
+      articleText: discussionArticleText(articleRef.current),
       uiLanguage,
       annotationsRef,
       applyAnnotations,
@@ -668,8 +719,8 @@ function AnnotationDiscussionShell({
       readingIntent,
       uiLanguage,
       desktop: annotationWindowActions,
-      currentArticle: currentArticleRef.current,
-      articleText: discussionArticleText(currentArticleRef.current),
+      currentArticle: articleRef.current,
+      articleText: discussionArticleText(articleRef.current),
       annotationsRef,
       applyAnnotations,
       saveComment,
@@ -709,8 +760,8 @@ function AnnotationDiscussionShell({
 
   function openSedimentationWindow(sourceElement: Element) {
     void annotationWindowActions.openSedimentation({
-      articleId: currentArticle.id,
-      annotationId: currentAnnotation.id,
+      articleId: article.id,
+      annotationId: annotation.id,
       sourceRect: elementWindowSourceRect(sourceElement),
     });
   }
@@ -746,17 +797,6 @@ function AnnotationDiscussionShell({
     });
   }
 
-  if (removed) {
-    return (
-      <main className={className} style={style}>
-        <section className="annotation-discussion-empty">
-          <HugeiconsIcon icon={BubbleChatIcon} size={24} />
-          <strong>{t('discussion.deleted')}</strong>
-        </section>
-      </main>
-    );
-  }
-
   return (
     <main className={className} style={style}>
       <section
@@ -764,7 +804,7 @@ function AnnotationDiscussionShell({
         aria-labelledby="annotation-discussion-quote-title"
       >
         <strong id="annotation-discussion-quote-title">{t('discussion.quoteTitle')}</strong>
-        <p>{currentAnnotation.anchor.exact}</p>
+        <p>{annotation.anchor.exact}</p>
       </section>
 
       <section

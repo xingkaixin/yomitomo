@@ -1,16 +1,11 @@
 import { useEffect, useRef } from 'react';
-import type { Annotation, ArticleRecord, ArticleStorePatch } from '@yomitomo/shared';
+import type { ArticleRecord, ArticleStorePatch } from '@yomitomo/shared';
 import { annotationWindowActions } from './app-annotation-window-actions';
-
-type AnnotationArticleUpdate = {
-  annotation: Annotation;
-  article: ArticleRecord;
-};
 
 export function useAnnotationWindowArticlePatches(
   articleId: string,
   annotationId: string,
-  onUpdate: (update: AnnotationArticleUpdate | null) => void,
+  onUpdate: (article: ArticleRecord | null) => void,
 ) {
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
@@ -28,7 +23,7 @@ export function useAnnotationWindowArticlePatches(
         .then((article) => {
           if (!active || version !== refreshVersion) return;
           const annotation = article?.annotations.find((item) => item.id === annotationId);
-          onUpdateRef.current(article && annotation ? { annotation, article } : null);
+          onUpdateRef.current(article && annotation ? article : null);
         })
         .catch(() => undefined);
     });

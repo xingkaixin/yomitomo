@@ -15,6 +15,7 @@ import {
 } from '../annotation-discussion/app-annotation-discussion-utils';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { publicAnnotationAgents } from '../source/bookcase/source-public-agents';
+import { emptyStore } from '../settings/app-settings';
 
 vi.mock('../sound/app-sound-effects', () => ({
   playAppSoundEffect: vi.fn(),
@@ -111,6 +112,22 @@ describe('AnnotationDiscussionWindowApp', () => {
     expect(await screen.findByText('讨论展开')).toBeTruthy();
     expect(screen.queryByText('展开想法')).toBeNull();
     expect(screen.queryByText('收起想法')).toBeNull();
+  });
+
+  it('derives the removed screen from the window status after deletion', async () => {
+    const desktop = installDesktopApi(article(annotation({ comments: [rootThought()] })));
+    openDiscussionRoute();
+
+    render(<AnnotationDiscussionWindowApp />);
+
+    await screen.findByText('正在讨论的划线');
+    desktop.getArticle.mockResolvedValueOnce(null);
+    fireEvent.click(screen.getByRole('button', { name: '更多想法操作' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '删除这条想法和它的回复' }));
+    fireEvent.click(screen.getByRole('button', { name: '删除想法' }));
+
+    expect(await screen.findByText('这条批注已删除')).toBeTruthy();
+    expect(desktop.deleteArticleComment).toHaveBeenCalledOnce();
   });
 
   it('collapses and expands the thought sidebar manually', async () => {
@@ -704,7 +721,10 @@ function installDesktopApi(
 ) {
   const desktop = {
     getArticle: vi.fn().mockResolvedValue(sourceArticle),
-    getState: vi.fn().mockResolvedValue({ agents: options.agents || agents() }),
+    getState: vi.fn().mockResolvedValue({
+      ...emptyStore,
+      agents: options.agents || agents(),
+    }),
     planAgentMentionRoute: vi.fn(async (payload) => ({
       createUserThought: false,
       directives: payload.agents.map((mentionedAgent: Agent) => ({
@@ -722,6 +742,7 @@ function installDesktopApi(
           agentUsername: payload.agentUsername,
         }),
       ),
+    deleteArticleComment: vi.fn().mockResolvedValue(undefined),
     saveArticle: vi.fn().mockResolvedValue(undefined),
     saveArticleComment: vi.fn().mockResolvedValue(undefined),
     openAnnotationSedimentation: vi.fn().mockResolvedValue(undefined),
@@ -740,6 +761,7 @@ function installDesktopApi(
         },
       },
       article: {
+        deleteComment: desktop.deleteArticleComment,
         get: desktop.getArticle,
         saveComment: desktop.saveArticleComment,
       },

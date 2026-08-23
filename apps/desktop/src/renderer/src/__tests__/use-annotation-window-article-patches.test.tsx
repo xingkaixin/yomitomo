@@ -46,12 +46,7 @@ describe('annotation window article patch sync', () => {
       }),
     );
 
-    await waitFor(() =>
-      expect(onUpdate).toHaveBeenCalledWith({
-        annotation: updatedAnnotation,
-        article: updatedArticle,
-      }),
-    );
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledWith(updatedArticle));
     unmount();
     expect(unsubscribe).toHaveBeenCalledOnce();
   });
