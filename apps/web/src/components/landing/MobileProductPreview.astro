@@ -1,28 +1,37 @@
 ---
 type Props = {
-  lang?: 'zh-CN' | 'en';
+  lang?: 'zh-CN' | 'en' | 'ja';
 };
 
 const { lang = 'zh-CN' } = Astro.props;
 const isEnglish = lang === 'en';
+const isJapanese = lang === 'ja';
 
-const copy = isEnglish
+const copy = isJapanese
   ? {
+      kicker: 'デスクトップ読書ワークスペース',
+      title: '原文を読み、根拠に線を引き、その場で対話する。',
+      caption:
+        'YomitomoはmacOSとWindowsのデスクトップアプリです。記事、線、対話を一つの読書ワークスペースに保ちます。',
+      alt: '原文の線とサイドバーの対話カードがつながったYomitomoデスクトップリーダー',
+    }
+  : isEnglish
+    ? {
       kicker: 'Desktop reading workspace',
       title: 'Read the source. Mark the evidence. Discuss it in context.',
       caption:
         'Yomitomo is a macOS and Windows desktop app. Articles, highlights, and discussions stay in one reading workspace.',
       alt: 'Yomitomo desktop reader with source highlights connected to a discussion card',
-    }
-  : {
+      }
+    : {
       kicker: '桌面端阅读工作台',
       title: '读文章，画线，再讨论。',
       caption:
         'Yomitomo 是 macOS 与 Windows 桌面应用。文章、画线与讨论始终在同一阅读工作台中。',
       alt: 'Yomitomo 桌面阅读器，原文划线连接到边栏讨论卡片',
-    };
+      };
 
-const previewSrc = isEnglish ? '/assets/en-reader-1600.webp' : '/assets/cn-reader-1600.webp';
+const previewSrc = isEnglish || isJapanese ? '/assets/en-reader-1600.webp' : '/assets/cn-reader-1600.webp';
 ---
 
 <section class="mobile-product-preview" aria-labelledby="mobile-preview-title">

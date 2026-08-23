@@ -2,14 +2,19 @@
 import { getFaqItems } from './faq-data';
 
 type Props = {
-  lang?: 'zh-CN' | 'en';
+  lang?: 'zh-CN' | 'en' | 'ja';
 };
 
 const { lang = 'zh-CN' } = Astro.props;
 const isEnglish = lang === 'en';
+const isJapanese = lang === 'ja';
 
-const kicker = isEnglish ? 'FAQ' : '常见问题';
-const title = isEnglish ? 'Questions before you download.' : '下载前，先看看这些问题。';
+const kicker = isEnglish ? 'FAQ' : isJapanese ? 'よくある質問' : '常见问题';
+const title = isEnglish
+  ? 'Questions before you download.'
+  : isJapanese
+    ? 'ダウンロード前に、よくある疑問を確認。'
+    : '下载前，先看看这些问题。';
 
 const items = getFaqItems(lang);
 ---

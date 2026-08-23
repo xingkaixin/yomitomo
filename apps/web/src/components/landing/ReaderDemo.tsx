@@ -305,6 +305,7 @@ export default function ReaderDemo({ lang = 'zh-CN' }: { lang?: Locale }) {
   const content = useMemo(() => getLandingContent(lang), [lang]);
   const { paragraphs, annotations, agents, meta, ui } = content;
   const isEnglish = lang === 'en';
+  const isJapanese = lang === 'ja';
 
   const [active, setActive] = useState<string | null>(null);
   const [modal, setModal] = useState<Annotation | null>(null);
@@ -368,15 +369,22 @@ export default function ReaderDemo({ lang = 'zh-CN' }: { lang?: Locale }) {
   const modalLabels = {
     quote: ui.quoteLabel,
     ideas: ui.ideasLabel,
-    discussion: (n: number) =>
-      isEnglish ? `${ui.discussionLabel} · ${ui.replies(n)}` : `${ui.discussionLabel} · ${n} 条`,
+    discussion: (n: number) => `${ui.discussionLabel} · ${ui.replies(n)}`,
     pick: ui.selectThought,
   };
   const noteLabels = {
-    distill: isEnglish ? 'Distilled · a conclusion to keep' : '沉淀 · 可保留的结论',
+    distill: isEnglish
+      ? 'Distilled · a conclusion to keep'
+      : isJapanese
+        ? 'まとめ · 残す価値のある結論'
+        : '沉淀 · 可保留的结论',
     enter: ui.enterDiscussion,
   };
-  const windowTitle = isEnglish ? 'About Yomitomo · Reading' : '关于 Yomitomo · 阅读中';
+  const windowTitle = isEnglish
+    ? 'About Yomitomo · Reading'
+    : isJapanese
+      ? 'Yomitomoについて · 読書中'
+      : '关于 Yomitomo · 阅读中';
   const openDiscussionModal = useCallback(
     (annotation: Annotation, returnFocusTarget: HTMLElement) => {
       modalReturnFocusRef.current = returnFocusTarget;

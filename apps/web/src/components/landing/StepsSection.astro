@@ -1,13 +1,37 @@
 ---
 type Props = {
-  lang?: 'zh-CN' | 'en';
+  lang?: 'zh-CN' | 'en' | 'ja';
 };
 
 const { lang = 'zh-CN' } = Astro.props;
 const isEnglish = lang === 'en';
+const isJapanese = lang === 'ja';
 
-const copy = isEnglish
+const copy = isJapanese
   ? {
+      kicker: 'Yomitomoとは',
+      title: '読書の最小単位を、記事から判断へ。',
+      lead: [
+        '多くのツールは記事を「保存」するだけで、考え抜くところまでは助けてくれません。',
+        'Yomitomoは逆です。保存を減らし、読んだことを自分の判断へ変えます。',
+      ],
+      steps: [
+        [
+          '線を引く',
+          '立ち止まった段落に線を引きます。単なるハイライトではなく、文単位で原文へ戻れる根拠の印です。',
+        ],
+        [
+          '考えを残す',
+          '線の下に判断や問いを書き、AI読書パートナーを対話へ招きます。一つの線に複数の考えを重ねられます。',
+        ],
+        [
+          'まとめる',
+          '対話が十分に深まったら、出典と自分の視点を持つ、残す価値のある結論へまとめます。',
+        ],
+      ],
+    }
+  : isEnglish
+    ? {
       kicker: 'What it is',
       title: 'Yomitomo shrinks the smallest unit of reading from the article to the judgment.',
       lead: [
@@ -28,8 +52,8 @@ const copy = isEnglish
           'When the discussion is rich enough, distill it into a conclusion worth keeping—carrying its source and your angle.',
         ],
       ],
-    }
-  : {
+      }
+    : {
       kicker: '这是什么',
       title: 'Yomitomo 把阅读的最小单位，从文章变成判断。',
       lead: [
@@ -41,11 +65,13 @@ const copy = isEnglish
         ['想法', '在划线下方写下判断、追问，或让 AI 伴读加入讨论。一条线可以挂多个想法，持续生长。'],
         ['沉淀', '当讨论足够丰富，把它整理成一段可保留的沉淀。它带着出处，也带着你的角度。'],
       ],
-    };
+      };
 
 const titleLines = isEnglish
   ? null
-  : ['Yomitomo 把阅读的最小单位，', '从文章变成判断。'];
+  : isJapanese
+    ? ['読書の最小単位を、', '記事から判断へ。']
+    : ['Yomitomo 把阅读的最小单位，', '从文章变成判断。'];
 ---
 
 <section class="section">

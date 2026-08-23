@@ -13,7 +13,9 @@ const landingStyles = readFileSync(new URL('../styles/landing.css', import.meta.
 
 describe('landing content semantics', () => {
   it('provides a localized skip link to the single main landmark', () => {
-    expect(pageSource).toContain("isEnglish ? 'Skip to main content' : '跳到主要内容'");
+    expect(pageSource).toContain("? 'Skip to main content'");
+    expect(pageSource).toContain("? 'メインコンテンツへ移動'");
+    expect(pageSource).toContain(": '跳到主要内容'");
     expect(pageSource).toContain(
       '<a class="lp-skip-link" href="#main-content">{skipLinkLabel}</a>',
     );

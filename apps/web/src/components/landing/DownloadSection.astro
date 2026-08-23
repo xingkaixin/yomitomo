@@ -1,26 +1,36 @@
 ---
 type Props = {
-  lang?: 'zh-CN' | 'en';
+  lang?: 'zh-CN' | 'en' | 'ja';
   downloads: { version: string; mac: string; windows: string };
 };
 
 const { lang = 'zh-CN', downloads } = Astro.props;
 const isEnglish = lang === 'en';
+const isJapanese = lang === 'ja';
 
-const copy = isEnglish
+const copy = isJapanese
   ? {
+      version: `v${downloads.version} · 公開中`,
+      title: ['Yomitomoをダウンロードして、', '読んだことを残し始めよう。'],
+      desc: [
+        '完全無料のオープンソース。読書データはローカルに保存されます。',
+        'macOSとWindowsに対応しています。',
+      ],
+    }
+  : isEnglish
+    ? {
       version: `v${downloads.version} · Available now`,
       title: ['Download Yomitomo,', 'and start keeping what you read.'],
       desc: [
         'Completely free, open source, with reading data stored locally.',
         'Available for macOS and Windows.',
       ],
-    }
-  : {
+      }
+    : {
       version: `v${downloads.version} · 现已发布`,
       title: ['下载 Yomitomo，', '开始把读过的留下来。'],
       desc: ['完全免费、开源，阅读数据保存在本地。', '支持 macOS 与 Windows。'],
-    };
+      };
 ---
 
 <section class="section" id="download">

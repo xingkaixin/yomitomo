@@ -2,23 +2,30 @@
 import ReaderDemo from './ReaderDemo';
 
 type Props = {
-  lang?: 'zh-CN' | 'en';
+  lang?: 'zh-CN' | 'en' | 'ja';
 };
 
 const { lang = 'zh-CN' } = Astro.props;
 const isEnglish = lang === 'en';
+const isJapanese = lang === 'ja';
 
-const copy = isEnglish
+const copy = isJapanese
   ? {
+      kicker: '使い方を見る',
+      title: '一つの記事で、線もメモも対話も原文のそばに。',
+      hint: '本文の線、または「対話を開く」をクリック',
+    }
+  : isEnglish
+    ? {
       kicker: 'See how it works',
       title: 'One article—lines, notes and discussion all on the page itself.',
       hint: 'Click a line in the text, or "Open discussion"',
-    }
-  : {
+      }
+    : {
       kicker: '看看它怎么工作',
       title: '一篇文章，划线、批注、讨论都在原文现场。',
       hint: '点击文中的划线，或「进入讨论区」',
-    };
+      };
 ---
 
 <section class="demo-section">
