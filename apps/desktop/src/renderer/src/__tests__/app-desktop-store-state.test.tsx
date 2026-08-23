@@ -484,7 +484,6 @@ function articleSummary(input: Partial<WebArticleSummaryRecord>): WebArticleSumm
     contentHash: input.contentHash || 'hash',
     sourceType: 'web',
     readingProgress: input.readingProgress,
-    annotations: [],
     counts: input.counts || {
       annotationCount: 0,
       thoughtCount: 0,

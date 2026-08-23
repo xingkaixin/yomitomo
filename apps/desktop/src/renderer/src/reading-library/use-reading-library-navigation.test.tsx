@@ -284,7 +284,6 @@ function articleSummary(id: string): ArticleSummaryRecord {
     byline: '',
     siteName: 'Example',
     contentHash: `hash_${id}`,
-    annotations: [],
     counts: {
       annotationCount: 0,
       thoughtCount: 0,

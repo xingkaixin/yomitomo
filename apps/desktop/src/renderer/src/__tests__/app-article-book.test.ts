@@ -133,7 +133,6 @@ function textSummary(format: 'plain' | 'markdown'): ArticleSummaryRecord {
     updatedAt: '2026-06-28T00:00:00.000Z',
     sourceType: 'text',
     text: { format },
-    annotations: [],
     counts: emptyCounts,
   };
 }
@@ -164,7 +163,6 @@ function ebookSummary(): ArticleSummaryRecord {
     updatedAt: '2026-06-28T00:00:00.000Z',
     sourceType: 'ebook',
     leadImageUrl: 'data:image/png;base64,cover',
-    annotations: [],
     counts: emptyCounts,
     ebook: {
       metadata: {

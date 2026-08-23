@@ -77,7 +77,7 @@ function articleSummary(record: ArticleRecord): ArticleSummaryRecord {
     readerChatState: _readerChatState,
     ...summary
   } = record;
-  return { ...summary, annotations: [], counts: articleCounts(record) };
+  return { ...summary, counts: articleCounts(record) };
 }
 
 function installDesktopApi(desktop: {

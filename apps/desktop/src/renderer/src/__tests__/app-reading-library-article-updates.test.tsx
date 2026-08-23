@@ -419,7 +419,6 @@ function articleSummary(record: ArticleRecord): ArticleSummaryRecord {
   } = record;
   return {
     ...summary,
-    annotations: [],
     counts: articleCounts(record),
   };
 }

@@ -51,9 +51,9 @@ describe('article repository local child row writes', () => {
     );
 
     const article = readArticleRows(database, 'article_1');
+    expect(patch?.article).not.toHaveProperty('annotations');
     expect(patch?.article).toMatchObject({
       id: 'article_1',
-      annotations: [],
       counts: {
         annotationCount: 2,
         thoughtCount: 2,
@@ -104,8 +104,8 @@ describe('article repository local child row writes', () => {
     const comments = readArticleRows(database, 'article_1')?.annotations.find(
       (item) => item.id === 'annotation_1',
     )?.comments;
+    expect(patch?.article).not.toHaveProperty('annotations');
     expect(patch?.article).toMatchObject({
-      annotations: [],
       counts: {
         annotationCount: 2,
         thoughtCount: 3,

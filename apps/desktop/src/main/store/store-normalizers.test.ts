@@ -418,7 +418,6 @@ describe('store normalizers articles', () => {
       canonicalUrl: 'https://example.com',
       title: 'Article',
       contentHash: 'hash',
-      annotations: [],
       createdAt: '2026-06-11T00:00:00.000Z',
       updatedAt: '2026-06-11T00:00:00.000Z',
     };
@@ -432,6 +431,7 @@ describe('store normalizers articles', () => {
         ...articleBase,
         sourceType: 'pdf',
         ebook,
+        annotations: [],
       } as unknown as ArticleRecord),
     ).toThrow(ArticleSourcePayloadError);
     expect(
@@ -439,7 +439,6 @@ describe('store normalizers articles', () => {
         ...articleBase,
         sourceType: 'ebook',
         ebook: { metadata: ebook.metadata },
-        annotations: [],
         counts: {
           annotationCount: 0,
           thoughtCount: 0,
@@ -531,7 +530,10 @@ describe('store normalizers articles', () => {
       ],
     } as unknown as DesktopStore;
 
-    expect(normalizeStore(store)).toMatchObject({
+    const normalized = normalizeStore(store);
+
+    expect(normalized.articles[0]).not.toHaveProperty('annotations');
+    expect(normalized).toMatchObject({
       user: { id: 'user_local', annotationColor: '#f4c95d' },
       providers: [{ type: 'openai-chat', modelInputMode: 'list', reasoningEffort: 'none' }],
       agents: [

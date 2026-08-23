@@ -243,7 +243,6 @@ function articlePatch(articleId: string): ArticleUpsertPatch {
       sourceType: 'web',
       title: articleId,
       contentHash: `hash-${articleId}`,
-      annotations: [],
       counts: {
         annotationCount: 0,
         thoughtCount: 0,

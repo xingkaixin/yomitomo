@@ -264,7 +264,6 @@ describe('reading core', () => {
       sourceType: 'web',
       title: 'Summary',
       contentHash: 'summary',
-      annotations: [],
       counts: {
         annotationCount: 9,
         thoughtCount: 6,
@@ -326,9 +325,15 @@ describe('reading core', () => {
     const detailed = article('detailed', createdAt, [
       annotation('annotation', 0, createdAt, { comments }),
     ]);
+    const {
+      annotations: _annotations,
+      contentHtml: _contentHtml,
+      focusCoReadingPlan: _focusCoReadingPlan,
+      readerChatState: _readerChatState,
+      ...summaryBase
+    } = article('summary', createdAt);
     const summary: ArticleSummaryRecord = {
-      ...article('summary', createdAt),
-      annotations: [],
+      ...summaryBase,
       counts: {
         annotationCount: 1,
         thoughtCount: 3,

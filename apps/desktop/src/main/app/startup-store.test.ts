@@ -56,7 +56,6 @@ describe('startup store initialization', () => {
         sourceType: 'web',
         title: 'Article',
         contentHash: 'hash_1',
-        annotations: [],
         counts: {
           annotationCount: 4,
           thoughtCount: 3,
