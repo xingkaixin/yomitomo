@@ -4,17 +4,19 @@ import React from 'react';
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  EBOOK_PAGINATION_PAGE_COUNT_CACHE_LIMIT,
-  EbookPaginationPageCountCache,
-  ebookPaginationCacheKey,
-  ebookPendingPaginationSectionIndexes,
-  ebookPaginationSectionOrder,
   ebookReadingProgressPageAnchor,
   ebookReadingProgressRestoreTarget,
   ebookReadingProgressSnapshot,
   ebookSourceFile,
   useEbookFoliateView,
 } from '../source/ebook/use-ebook-foliate-view';
+import {
+  EBOOK_PAGINATION_PAGE_COUNT_CACHE_LIMIT,
+  EbookPaginationPageCountCache,
+  ebookPaginationCacheKey,
+  ebookPendingPaginationSectionIndexes,
+  ebookPaginationSectionOrder,
+} from '../source/ebook/ebook-pagination';
 import type { EbookArticleRecord } from '../source/bookcase/app-source-bookcase';
 import type { EbookBoxUpdateReason } from '../source/ebook/ebook-annotation-layout';
 import type {
