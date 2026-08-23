@@ -1,7 +1,9 @@
-import type { ResolvedAppSettings } from '@yomitomo/shared';
+import type { AppSettingsPatch, ResolvedAppSettings } from '@yomitomo/shared';
 import { normalizeAppSettings } from '../../../settings/app-settings-normalization';
 
-type SettingsDraftSection = 'external' | 'general' | 'routes' | 'shortcuts';
+type SettingsDraftSection = 'external' | SettingsEditorSection;
+
+export type SettingsEditorSection = 'general' | 'routes' | 'shortcuts';
 
 const settingsDraftSectionByField = {
   uiLanguage: 'general',
@@ -34,7 +36,7 @@ const settingsDraftSectionByField = {
 } as const satisfies Record<keyof ResolvedAppSettings, SettingsDraftSection>;
 
 export function settingsDraftSectionHasChanges(
-  section: Exclude<SettingsDraftSection, 'external'>,
+  section: SettingsEditorSection,
   draft: ResolvedAppSettings,
   saved: ResolvedAppSettings,
 ) {
@@ -46,4 +48,34 @@ export function settingsDraftSectionHasChanges(
       settingsDraftSectionByField[field] === section &&
       JSON.stringify(normalizedDraft[field]) !== JSON.stringify(normalizedSaved[field]),
   );
+}
+
+export function settingsDraftSectionPatch(
+  section: SettingsEditorSection,
+  draft: ResolvedAppSettings,
+): AppSettingsPatch {
+  const normalizedDraft = normalizeAppSettings(draft);
+  const patch: AppSettingsPatch = {};
+  for (const field of Object.keys(settingsDraftSectionByField) as Array<
+    keyof ResolvedAppSettings
+  >) {
+    if (settingsDraftSectionByField[field] !== section) continue;
+    Object.assign(patch, { [field]: normalizedDraft[field] });
+  }
+  return patch;
+}
+
+export function mergeSavedSettingsDraftSection(
+  section: SettingsEditorSection,
+  draft: ResolvedAppSettings,
+  saved: ResolvedAppSettings,
+): ResolvedAppSettings {
+  const merged = { ...draft };
+  for (const field of Object.keys(settingsDraftSectionByField) as Array<
+    keyof ResolvedAppSettings
+  >) {
+    if (settingsDraftSectionByField[field] !== section) continue;
+    Object.assign(merged, { [field]: saved[field] });
+  }
+  return merged;
 }

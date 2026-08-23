@@ -16,6 +16,48 @@ afterEach(() => {
 });
 
 describe('useSettingsDrafts', () => {
+  it('saves only the general section and preserves unsaved shortcut edits', async () => {
+    const latest: { current?: ReturnType<typeof useSettingsDrafts> } = {};
+    const saveSettings = vi.fn().mockResolvedValue(emptyStore);
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: { store: { saveSettings } },
+    });
+
+    function Harness() {
+      latest.current = useSettingsDrafts({
+        store: emptyStore,
+        storeSyncSnapshot: emptyStore,
+        applyStore,
+        applySettingsPatch,
+      });
+      return null;
+    }
+
+    render(<Harness />);
+    await waitFor(() => expect(latest.current?.general.value).toEqual(emptyStore.settings));
+
+    act(() => {
+      latest.current?.general.update({
+        ...latest.current.general.value,
+        saveArticleImages: !emptyStore.settings.saveArticleImages,
+        selectionActionShortcuts: { copy: 'Mod+K', annotate: 'Mod+K', ask: 'Mod+L' },
+      });
+    });
+    await act(async () => void (await latest.current?.general.save()));
+
+    expect(saveSettings).toHaveBeenCalledOnce();
+    const payload = saveSettings.mock.calls[0]?.[0];
+    expect(payload).toMatchObject({ saveArticleImages: true });
+    expect(payload).not.toHaveProperty('selectionActionShortcuts');
+    expect(payload).not.toHaveProperty('readingAssistantProviderId');
+    expect(latest.current?.shortcuts.value.selectionActionShortcuts).toEqual({
+      copy: 'Mod+K',
+      annotate: 'Mod+K',
+      ask: 'Mod+L',
+    });
+  });
+
   it.each([
     ['telemetryEnabled', { telemetryEnabled: false }],
     ['allowLocalNetworkArticleImport', { allowLocalNetworkArticleImport: true }],
