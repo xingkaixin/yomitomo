@@ -13,13 +13,11 @@ import {
 import {
   abortCredentialChange,
   commitCredentialChange,
+  completeCommittedSecretDeletion,
   completeCredentialChange,
 } from '../providers/credential-swap';
 import { providerApiKeyRef } from '../providers/provider-secrets';
-import {
-  completeSecretDeletion,
-  queueSecretDeletion,
-} from '../providers/secret-deletion-repository';
+import { queueSecretDeletion } from '../providers/secret-deletion-repository';
 import { getDatabase, type StoreDatabase } from './store-db';
 import { migrateProviderApiKeys } from './store-provider-key-migration';
 import { rowToAgent, rowToProvider, rowToSettings } from './store-normalizers';
@@ -62,7 +60,7 @@ export async function saveProvider(input: SaveProviderInput): Promise<ProviderSt
     await abortCredentialChange(credentialChange);
     throw error;
   }
-  await completeCredentialChange(credentialChange);
+  await completeCredentialChange(credentialChange, { owner: 'provider', ownerId: id });
   return readProviderStorePatch(database);
 }
 
@@ -103,7 +101,7 @@ export async function deleteProvider(id: string): Promise<ProviderStorePatch> {
     queueSecretDeletion(tx, secretRef);
     tx.delete(schema.providers).where(eq(schema.providers.id, id)).run();
   });
-  await completeSecretDeletion(secretRef);
+  await completeCommittedSecretDeletion(secretRef, { owner: 'provider', ownerId: id });
   return readProviderStorePatch(database);
 }
 

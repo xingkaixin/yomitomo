@@ -466,13 +466,22 @@ describe('desktop store providers', () => {
     testState.secrets.set('provider:provider_1:apiKey', 'sk-stored');
     testState.deleteStoredSecretError = deleteError;
 
-    await expect(deleteProvider('provider_1')).rejects.toThrow(deleteError);
+    await expect(deleteProvider('provider_1')).resolves.toMatchObject({ providers: [] });
 
     expect(readProviderRow('provider_1')).toBeUndefined();
     expect(testState.secrets.get('provider:provider_1:apiKey')).toBe('sk-stored');
     expect(readSecretDeletionTasks()).toEqual([
       expect.objectContaining({ secretRef: 'provider:provider_1:apiKey' }),
     ]);
+    expect(testState.logErrors).toContainEqual({
+      event: 'credential_swap.committed_cleanup_deferred',
+      error: deleteError,
+      data: {
+        owner: 'provider',
+        ownerId: 'provider_1',
+        secretRef: 'provider:provider_1:apiKey',
+      },
+    });
 
     closeDatabase();
     await readStore();
@@ -499,9 +508,7 @@ describe('desktop store providers', () => {
     testState.secrets.set('provider:provider_1:apiKey', 'sk-old');
     testState.deleteStoredSecretError = new Error('keyring locked');
 
-    await expect(saveProvider({ id: 'provider_1', removeApiKey: true })).rejects.toThrow(
-      'keyring locked',
-    );
+    await expect(saveProvider({ id: 'provider_1', removeApiKey: true })).resolves.toBeDefined();
 
     testState.deleteStoredSecretError = undefined;
     await saveProvider({ id: 'provider_1', apiKey: 'sk-new' });

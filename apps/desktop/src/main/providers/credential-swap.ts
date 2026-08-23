@@ -14,6 +14,11 @@ export type PreparedCredentialChange = {
   secretRefToDelete?: string;
 };
 
+type CredentialOwner = {
+  owner: 'provider' | 'weread';
+  ownerId: string;
+};
+
 type PrepareCredentialChangeInput = {
   currentRef?: string;
   defaultRef: string;
@@ -60,6 +65,25 @@ export async function abortCredentialChange(change: PreparedCredentialChange) {
   }
 }
 
-export async function completeCredentialChange(change: PreparedCredentialChange) {
-  if (change.secretRefToDelete) await completeSecretDeletion(change.secretRefToDelete);
+export async function completeCredentialChange(
+  change: PreparedCredentialChange,
+  credentialOwner: CredentialOwner,
+) {
+  if (change.secretRefToDelete) {
+    await completeCommittedSecretDeletion(change.secretRefToDelete, credentialOwner);
+  }
+}
+
+export async function completeCommittedSecretDeletion(
+  secretRef: string,
+  credentialOwner: CredentialOwner,
+) {
+  try {
+    await completeSecretDeletion(secretRef);
+  } catch (error) {
+    logError('credential_swap.committed_cleanup_deferred', error, {
+      ...credentialOwner,
+      secretRef,
+    });
+  }
 }

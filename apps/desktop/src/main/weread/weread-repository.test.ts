@@ -8,6 +8,7 @@ const testPaths = vi.hoisted(() => ({
   userData: '',
   secrets: new Map<string, string>(),
   sqlStatements: [] as string[],
+  deleteStoredSecretError: undefined as Error | undefined,
 }));
 const credentialLogger = vi.hoisted(() => ({ logError: vi.fn() }));
 const repositoryLogger = { logInfo: vi.fn() };
@@ -32,6 +33,7 @@ vi.mock('../native/sqlite', async () => {
 
 vi.mock('../providers/provider-secrets', () => ({
   deleteStoredSecret: vi.fn(async (secretRef: string) => {
+    if (testPaths.deleteStoredSecretError) throw testPaths.deleteStoredSecretError;
     testPaths.secrets.delete(secretRef);
   }),
   readWeReadApiKey: vi.fn(
@@ -71,6 +73,7 @@ beforeEach(async () => {
   );
   testPaths.secrets.clear();
   testPaths.sqlStatements = [];
+  testPaths.deleteStoredSecretError = undefined;
   repositoryLogger.logInfo.mockClear();
   credentialLogger.logError.mockClear();
 });
@@ -404,6 +407,32 @@ describe('WeRead repository credentials', () => {
     expect(readWeReadAccount()?.apiKeyRef).toBeNull();
     expect(testPaths.secrets.has('weread:default:apiKey')).toBe(false);
     expect(getDatabase().select().from(schema.secretDeletionTasks).all()).toEqual([]);
+  });
+
+  it('reports committed settings when credential cleanup is deferred', async () => {
+    const deleteError = new Error('keyring locked');
+    insertWeReadAccount('weread:default:apiKey');
+    testPaths.secrets.set('weread:default:apiKey', 'weread-secret');
+    testPaths.deleteStoredSecretError = deleteError;
+
+    await expect(saveWeReadSettings({ removeApiKey: true })).resolves.toMatchObject({
+      settings: { configured: false },
+    });
+
+    expect(readWeReadAccount()?.apiKeyRef).toBeNull();
+    expect(testPaths.secrets.get('weread:default:apiKey')).toBe('weread-secret');
+    expect(getDatabase().select().from(schema.secretDeletionTasks).all()).toEqual([
+      expect.objectContaining({ secretRef: 'weread:default:apiKey' }),
+    ]);
+    expect(credentialLogger.logError).toHaveBeenCalledWith(
+      'credential_swap.committed_cleanup_deferred',
+      deleteError,
+      {
+        owner: 'weread',
+        ownerId: 'default',
+        secretRef: 'weread:default:apiKey',
+      },
+    );
   });
 });
 
