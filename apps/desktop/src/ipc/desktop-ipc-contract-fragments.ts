@@ -76,7 +76,7 @@ import type {
   ProviderStorePatch,
   UserStorePatch,
   WeReadState,
-} from '../ipc-contract';
+} from './desktop-ipc-domain';
 
 export const agentIpcInvokeDescriptors = {
   'agent:delete': desktopIpcInvoke<[id: string], AgentStorePatch>()({
