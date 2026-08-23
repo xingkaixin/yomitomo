@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DesktopIpcError } from '../../../ipc-errors';
 import {
   articleImportErrorMessage,
   fileImportErrorMessage,
@@ -6,20 +7,23 @@ import {
 
 describe('article import errors', () => {
   it('maps import boundary failures to specific message keys', () => {
-    expect(articleImportErrorMessage(new Error('ARTICLE_IMPORT_REQUEST_FAILED'), keyT)).toBe(
-      'library.import.article.requestFailed',
-    );
     expect(
-      articleImportErrorMessage(new Error('ARTICLE_IMPORT_UNSUPPORTED_CONTENT_TYPE'), keyT),
+      articleImportErrorMessage(new DesktopIpcError('ARTICLE_IMPORT_REQUEST_FAILED'), keyT),
+    ).toBe('library.import.article.requestFailed');
+    expect(
+      articleImportErrorMessage(
+        new DesktopIpcError('ARTICLE_IMPORT_UNSUPPORTED_CONTENT_TYPE'),
+        keyT,
+      ),
     ).toBe('library.import.article.unsupportedContentType');
-    expect(articleImportErrorMessage(new Error('ARTICLE_IMPORT_RESPONSE_TOO_LARGE'), keyT)).toBe(
-      'library.import.article.responseTooLarge',
-    );
-    expect(articleImportErrorMessage(new Error('ARTICLE_IMPORT_TIMEOUT'), keyT)).toBe(
+    expect(
+      articleImportErrorMessage(new DesktopIpcError('ARTICLE_IMPORT_RESPONSE_TOO_LARGE'), keyT),
+    ).toBe('library.import.article.responseTooLarge');
+    expect(articleImportErrorMessage(new DesktopIpcError('ARTICLE_IMPORT_TIMEOUT'), keyT)).toBe(
       'library.import.article.timeout',
     );
     expect(
-      articleImportErrorMessage(new Error('ARTICLE_IMPORT_BLOCKED_NETWORK_TARGET'), keyT),
+      articleImportErrorMessage(new DesktopIpcError('ARTICLE_IMPORT_BLOCKED_NETWORK_TARGET'), keyT),
     ).toBe('library.import.article.blockedNetworkTarget');
   });
 
@@ -33,8 +37,18 @@ describe('article import errors', () => {
 describe('file import errors', () => {
   it('maps ebook decompressed entry failures to a specific message key', () => {
     expect(
-      fileImportErrorMessage(new Error('EBOOK_IMPORT_ENTRY_TOO_LARGE'), 'fallback', fileKeyT),
+      fileImportErrorMessage(
+        new DesktopIpcError('EBOOK_IMPORT_ENTRY_TOO_LARGE'),
+        'fallback',
+        fileKeyT,
+      ),
     ).toBe('library.import.ebook.entryTooLarge');
+  });
+
+  it('does not expose unknown internal error messages', () => {
+    expect(fileImportErrorMessage(new Error('database path leaked'), 'fallback', fileKeyT)).toBe(
+      'fallback',
+    );
   });
 });
 

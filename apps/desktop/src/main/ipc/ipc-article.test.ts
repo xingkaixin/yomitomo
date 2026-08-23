@@ -3,12 +3,14 @@ import type { Annotation, ArticleRecord, ArticleTranslation } from '@yomitomo/sh
 import { pdfSourceArrayBufferForIpc, registerArticleIpc } from './ipc-article';
 
 const storageMocks = vi.hoisted(() => ({
+  articleRecordFromUrl: vi.fn(),
   deleteEbookSourceFile: vi.fn<(articleId: string) => Promise<void>>(),
   deletePdfSourceFile: vi.fn<(articleId: string) => Promise<void>>(),
   deletePdfThumbnail: vi.fn<(articleId: string) => Promise<void>>(),
   completeArticleSourceCleanup: vi.fn<(articleId: string) => Promise<void>>(),
   ipcMainHandle: vi.fn(),
   readPdfSourceFile: vi.fn<(articleId: string) => Promise<Buffer>>(),
+  importArticleSource: vi.fn(),
   taskProvider: vi.fn(),
 }));
 
@@ -35,11 +37,47 @@ vi.mock('../articles/article-source-cleanup', () => ({
   completeArticleSourceCleanup: storageMocks.completeArticleSourceCleanup,
 }));
 
+vi.mock('../articles/article-import', () => ({
+  articleRecordFromUrl: storageMocks.articleRecordFromUrl,
+  isArticleImportCanceledError: () => false,
+  isArticleImportChallengeRecord: () => false,
+}));
+
+vi.mock('../articles/article-source-import', () => ({
+  canceledArticleSourceImport: async (operation: Promise<unknown>) => operation,
+  importArticleSource: storageMocks.importArticleSource,
+}));
+
 vi.mock('../agents/agent-runtime-routing', () => ({
   taskProvider: storageMocks.taskProvider,
 }));
 
 describe('article IPC patch broadcasts', () => {
+  it('serializes known import failures with their domain error code', async () => {
+    storageMocks.ipcMainHandle.mockClear();
+    storageMocks.articleRecordFromUrl.mockRejectedValueOnce(
+      new Error('ARTICLE_IMPORT_REQUEST_FAILED'),
+    );
+    const readImportSettings = vi.fn().mockReturnValue({
+      allowLocalNetworkArticleImport: false,
+      saveArticleImages: false,
+    });
+    registerArticleIpc(articleIpcContext({ readImportSettings }, {}));
+    const handler = storageMocks.ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === 'article:import-url',
+    )?.[1];
+
+    const result = await handler({}, { url: 'https://example.com' });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        code: 'ARTICLE_IMPORT_REQUEST_FAILED',
+        message: 'ARTICLE_IMPORT_REQUEST_FAILED',
+      },
+    });
+  });
+
   it('broadcasts article patches after saving annotation distillation', async () => {
     storageMocks.ipcMainHandle.mockClear();
     const patch = articlePatch();
