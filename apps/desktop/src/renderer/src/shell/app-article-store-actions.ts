@@ -26,9 +26,8 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
   const deleteArticle = useCallback(
     async (articleId: string) => {
       await articleStore.runMutation({
-        optimistic: articleStorePatchCommit({ type: 'article-delete', articleId }),
         invoke: () => getDesktopApi().article.delete(articleId),
-        reconcile: () => ({ patches: [] }),
+        reconcile: (patch) => articleStorePatchCommit({ type: 'article-delete', ...patch }),
       });
     },
     [articleStore],

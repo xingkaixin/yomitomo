@@ -605,6 +605,7 @@ export const jaResources = {
         deleteArticleConfirmDescription:
           'これにより、ハイライト、感想、コメント、抽出されたメモを含むアイテムがローカル ライブラリから削除されます。アプリ内からは復元できません。',
         deleteArticleConfirm: 'アイテムを削除',
+        deleteArticleFailed: '項目を削除できませんでした。後でもう一度お試しください。',
         openWeReadExternal: 'WeRead で開く',
         pin: 'ピン',
         unpin: 'ピンを外します',

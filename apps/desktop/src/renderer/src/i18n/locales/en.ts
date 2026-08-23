@@ -629,6 +629,7 @@ export const enResources = {
         deleteArticleConfirmDescription:
           'This removes the item from the local library, including its highlights, thoughts, comments, and distilled notes. It cannot be restored from inside the app.',
         deleteArticleConfirm: 'Delete item',
+        deleteArticleFailed: 'Could not delete the item. Try again later.',
         openWeReadExternal: 'Open in WeRead',
         pin: 'Pin',
         unpin: 'Unpin',

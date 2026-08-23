@@ -250,7 +250,7 @@ describe('useAppArticleStoreActions', () => {
     expect(fixture.getCurrentArticle()?.readerChatState).toBeUndefined();
   });
 
-  it('keeps an optimistic article delete when persistence fails', async () => {
+  it('keeps the article when delete persistence fails', async () => {
     const initial = webArticleRecord('article-1');
     const failure = new Error('delete failed');
     const fixture = renderArticleActions({
@@ -260,6 +260,27 @@ describe('useAppArticleStoreActions', () => {
     });
 
     await expect(fixture.actions.deleteArticle(initial.id)).rejects.toBe(failure);
+
+    expect(fixture.storeRef.current.articles).toEqual([articleSummaryFromRecord(initial)]);
+    expect(fixture.getCurrentArticle()).toEqual(initial);
+    expect(fixture.applyStore).not.toHaveBeenCalled();
+  });
+
+  it('removes the article after delete persistence succeeds', async () => {
+    const initial = webArticleRecord('article-1');
+    const persistence = deferred<{ articleId: string }>();
+    const fixture = renderArticleActions({
+      articles: [articleSummaryFromRecord(initial)],
+      currentArticle: initial,
+      desktopApi: { article: { delete: vi.fn(() => persistence.promise) } },
+    });
+
+    const mutation = fixture.actions.deleteArticle(initial.id);
+    expect(fixture.storeRef.current.articles).toEqual([articleSummaryFromRecord(initial)]);
+    expect(fixture.getCurrentArticle()).toEqual(initial);
+
+    persistence.resolve({ articleId: initial.id });
+    await mutation;
 
     expect(fixture.storeRef.current.articles).toEqual([]);
     expect(fixture.getCurrentArticle()).toBeNull();

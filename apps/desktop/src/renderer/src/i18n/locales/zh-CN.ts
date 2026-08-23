@@ -616,6 +616,7 @@ export const zhCNResources = {
         deleteArticleConfirmDescription:
           '会从本地阅读库删除这篇材料，以及其中的划线、想法、评论和沉淀。此操作无法从应用内恢复。',
         deleteArticleConfirm: '删除材料',
+        deleteArticleFailed: '删除失败，请稍后重试',
         openWeReadExternal: '打开微信读书',
         pin: '置顶',
         unpin: '取消置顶',
