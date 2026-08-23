@@ -2,7 +2,7 @@
 
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DesktopStore } from '@yomitomo/shared';
+import type { AppSettingsPatch, DesktopStore } from '@yomitomo/shared';
 import { readDesktopReaderSettings } from '../settings/app-reader-settings';
 import { emptyStore } from '../settings/app-settings';
 import { inkBlackThemeId, themeRegistry } from '../theme/app-theme';
@@ -10,6 +10,7 @@ import {
   compatibleReaderBackgroundForTheme,
   useReaderThemeController,
 } from '../theme/use-reader-theme-controller';
+import { normalizeAppSettings } from '../../../settings/app-settings-normalization';
 
 beforeEach(() => {
   window.localStorage.clear();
@@ -41,8 +42,7 @@ describe('useReaderThemeController', () => {
       <Harness
         applyStore={applyStore}
         latest={latest}
-        settings={{ themeId: 'default' }}
-        storeLoaded
+        settings={{ ...emptyStore.settings, themeId: 'default' }}
       />,
     );
 
@@ -74,20 +74,16 @@ function Harness({
   applyStore,
   latest,
   settings,
-  storeLoaded = false,
 }: {
   appLocked?: boolean;
   applyStore: (store: DesktopStore) => void;
   latest: { current?: ReturnType<typeof useReaderThemeController> };
   settings: DesktopStore['settings'];
-  storeLoaded?: boolean;
 }) {
   const controller = useReaderThemeController({
     appLocked,
     applyStore,
     settings,
-    storeLoaded,
-    storeLoadError: null,
   });
   latest.current = controller;
 
@@ -99,9 +95,9 @@ function Harness({
   );
 }
 
-function makeStore(settings: DesktopStore['settings']): DesktopStore {
+function makeStore(settings: AppSettingsPatch): DesktopStore {
   return {
     ...emptyStore,
-    settings,
+    settings: normalizeAppSettings(settings),
   };
 }

@@ -11,7 +11,11 @@ describe('desktop store app lock projection', () => {
   it('returns unlocked stores without replacing their identity', () => {
     const store = {
       ...emptyDesktopStore,
-      settings: { appLockEnabled: true, appLockLocked: false },
+      settings: {
+        ...emptyDesktopStore.settings,
+        appLockEnabled: true,
+        appLockLocked: false,
+      },
     };
 
     expect(rendererStoreForAppLockState(store)).toBe(store);
@@ -23,6 +27,7 @@ describe('desktop store app lock projection', () => {
       ...emptyDesktopStore,
       user: { ...emptyDesktopStore.user, nickname: '敏感用户' },
       settings: {
+        ...emptyDesktopStore.settings,
         appLockEnabled: true,
         appLockLocked: true,
         appLockLockOnStartup: true,
@@ -40,6 +45,7 @@ describe('desktop store app lock projection', () => {
     expect(rendererStoreForAppLockState(store)).toEqual({
       ...emptyDesktopStore,
       settings: {
+        ...emptyDesktopStore.settings,
         appLockEnabled: true,
         appLockLocked: true,
         appLockLockOnStartup: true,
@@ -78,6 +84,7 @@ describe('desktop store app lock projection', () => {
     ).toEqual({
       ...emptyDesktopStore,
       settings: {
+        ...emptyDesktopStore.settings,
         appLockEnabled: true,
         appLockLocked: true,
         appLockShortcut: 'CommandOrControl+L',

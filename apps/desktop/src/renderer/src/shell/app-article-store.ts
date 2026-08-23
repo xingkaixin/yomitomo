@@ -10,7 +10,7 @@ import type {
 } from '@yomitomo/shared';
 import { isAppLockSettingsLocked } from '../../../app-store';
 
-type DesktopStoreRef = { current: DesktopStore };
+type DesktopStoreRef = { current: DesktopStore | null };
 type ApplyStore = (nextStore: DesktopStore) => DesktopStore;
 
 export type ArticleProjectionCommit = {
@@ -55,9 +55,10 @@ export function useArticleStore(input: {
 
   const commit = useCallback((projection: ArticleProjectionCommit) => {
     const { applyStore, storeRef } = inputRef.current;
-    if (isAppLockSettingsLocked(storeRef.current.settings)) return false;
+    const store = storeRef.current;
+    if (!store || isAppLockSettingsLocked(store.settings)) return false;
     if (projection.patches.length > 0) {
-      const nextStore = projection.patches.reduce(applyArticleStorePatch, storeRef.current);
+      const nextStore = projection.patches.reduce(applyArticleStorePatch, store);
       applyStore(nextStore);
     }
     const current = projection.current;

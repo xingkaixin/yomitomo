@@ -2,7 +2,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { VolumeHighIcon } from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AppSettings } from '@yomitomo/shared';
+import type { ResolvedAppSettings } from '@yomitomo/shared';
 import { getDesktopApi } from './app-desktop-api';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 
@@ -15,7 +15,7 @@ export function AppMasthead({
   settings,
 }: {
   children: ReactNode;
-  settings?: AppSettings;
+  settings?: ResolvedAppSettings;
 }) {
   return (
     <header className="app-masthead">
@@ -62,7 +62,7 @@ export function LibrarySkeleton() {
   );
 }
 
-function BrandTitle({ settings }: { settings?: AppSettings }) {
+function BrandTitle({ settings }: { settings?: ResolvedAppSettings }) {
   const { t } = useTranslation();
   return (
     <div className="app-masthead-title">
@@ -71,7 +71,7 @@ function BrandTitle({ settings }: { settings?: AppSettings }) {
           aria-label={`Yomitomo · ${t('brandPronounce')}`}
           className="app-masthead-wordmark"
           type="button"
-          onClick={() => playAppSoundEffect('brand.pronunciation', settings || {})}
+          onClick={() => playAppSoundEffect('brand.pronunciation', settings)}
         >
           <span>Yomitomo</span>
           <HugeiconsIcon icon={VolumeHighIcon} aria-hidden="true" size={14} />

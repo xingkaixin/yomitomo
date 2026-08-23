@@ -36,14 +36,14 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 import { IconButton } from '../components/ui/icon-button';
-import type { AppSettings } from '@yomitomo/shared';
+import type { ResolvedAppSettings } from '@yomitomo/shared';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 
 type ThemeSelectorProps = {
   activeThemeId: AppThemeId;
   open: boolean;
   readerBackgroundColor: string;
-  soundSettings?: Pick<AppSettings, 'soundEffectsEnabled' | 'soundEffectsVolume'>;
+  soundSettings?: Partial<Pick<ResolvedAppSettings, 'soundEffectsEnabled' | 'soundEffectsVolume'>>;
   readerBackgroundsByTone?: Record<ReaderBackgroundTone, string>;
   themeIdsByTone?: Record<AppThemeTone, AppThemeId>;
   onOpenChange: (open: boolean) => void;

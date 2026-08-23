@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { AppSettings } from '@yomitomo/shared';
+import type { ResolvedAppSettings } from '@yomitomo/shared';
 import { desktopIpcErrorRetryAfterMs } from '../../../ipc-errors';
 import type { SaveState } from '../shell/app-types';
 import { appSettingsActions } from './app-settings-actions';
@@ -38,7 +38,7 @@ type AppLockWorkflowMessages = {
 
 type UseAppLockSettingsWorkflowOptions = {
   messages: AppLockWorkflowMessages;
-  onSettingsChange: (settings: AppSettings) => void;
+  onSettingsChange: (settings: ResolvedAppSettings) => void;
 };
 
 export type AppLockSettingsDialogModel = {
@@ -164,7 +164,7 @@ export function useAppLockSettingsWorkflow({
     return requestVersion;
   }
 
-  function finishSaving(requestVersion: number, settings: AppSettings) {
+  function finishSaving(requestVersion: number, settings: ResolvedAppSettings) {
     if (requestVersion !== requestVersionRef.current) return;
     onSettingsChange(settings);
     setState({ phase: 'closed', saveState: 'saved' });

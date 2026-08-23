@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type {
   Agent,
   Annotation,
-  AppSettings,
+  ResolvedAppSettings,
   ArticleRecord,
   Comment,
   PublicAgent,
@@ -86,7 +86,7 @@ type DiscussionWindowStatus =
       agents: Agent[];
       article: ArticleRecord;
       annotation: Annotation;
-      settings: AppSettings;
+      settings: ResolvedAppSettings;
       uiLanguage: UiLanguage;
     }
   | { type: 'missing' }
@@ -215,7 +215,7 @@ function AnnotationDiscussionShell({
   annotation: Annotation;
   article: ArticleRecord;
   className: string;
-  settings: AppSettings;
+  settings: ResolvedAppSettings;
   style: CSSProperties;
   uiLanguage: UiLanguage;
 }) {

@@ -1,7 +1,7 @@
 import type {
   Agent,
   AgentMessagePayload,
-  AppSettings,
+  ResolvedAppSettings,
   AssistantExecutionMode,
   LlmProvider,
   UiLanguage,
@@ -20,7 +20,7 @@ type ProviderHydrationContext = {
   }>;
 };
 
-const providerTaskSettings: Record<ProviderTask, keyof AppSettings> = {
+const providerTaskSettings: Record<ProviderTask, keyof ResolvedAppSettings> = {
   readingAssistant: 'readingAssistantProviderId',
   reviewAssistant: 'reviewAssistantProviderId',
   bilingualTranslation: 'bilingualTranslationProviderId',
@@ -29,7 +29,7 @@ const providerTaskSettings: Record<ProviderTask, keyof AppSettings> = {
 export async function taskProvider(
   context: ProviderHydrationContext,
   providers: LlmProvider[],
-  settings: AppSettings,
+  settings: ResolvedAppSettings,
   task: ProviderTask,
 ): Promise<LlmProvider> {
   const provider = taskProviderRoute(providers, settings, task);
@@ -40,7 +40,7 @@ export async function taskProvider(
 
 export function taskProviderRoute(
   providers: LlmProvider[],
-  settings: AppSettings,
+  settings: ResolvedAppSettings,
   task: ProviderTask,
 ) {
   const providerId = settings[providerTaskSettings[task]] || settings.defaultProviderId;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { AppSettings, ArticleRecord } from '@yomitomo/shared';
+import type { ResolvedAppSettings, ArticleRecord } from '@yomitomo/shared';
 import type { AnnotationDistillationCommittedEvent } from '../../../ipc-contract';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 import { recordRendererPerformanceTiming } from '../shell/app-renderer-performance';
@@ -54,7 +54,7 @@ type DistillationSyncLifecycle =
 type UseReadingLibraryDistillationSyncOptions = {
   navigation: ReadingLibraryNavigation;
   onReadArticle: (articleId: string) => Promise<ArticleRecord | null>;
-  settings?: AppSettings;
+  settings?: ResolvedAppSettings;
 };
 
 export function useReadingLibraryDistillationSync(

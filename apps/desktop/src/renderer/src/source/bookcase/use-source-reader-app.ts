@@ -1,7 +1,7 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import type {
   Annotation,
-  AppSettings,
+  ResolvedAppSettings,
   MessageSendShortcut,
   ReaderQuestionContext,
   SelectionActionShortcuts,
@@ -115,7 +115,7 @@ export type UseSourceReaderAppInput = {
   getArticleText: () => string | Promise<string>;
   beforeOpenAnnotation?: () => void;
   messageSendShortcut?: MessageSendShortcut;
-  settings?: AppSettings;
+  settings?: ResolvedAppSettings;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   session: SourceReaderSessionInput;
 };

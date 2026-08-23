@@ -8,7 +8,8 @@ import type {
   Annotation,
   ArticleRecord,
   ArticleSummaryRecord,
-  AppSettings,
+  AppSettingsPatch,
+  ResolvedAppSettings,
   Collection,
   CollectionMember,
   Comment,
@@ -46,6 +47,7 @@ import {
   useReadingLibraryNavigation,
 } from './use-reading-library-navigation';
 import { getDesktopApi, getOptionalDesktopApi } from '../shell/app-desktop-api';
+import { emptyDesktopStore } from '../../../app-store';
 
 export { groupLibraryArticles };
 export type { LibrarySort };
@@ -86,7 +88,7 @@ export function ReadingLibrary({
   messageSendShortcut?: MessageSendShortcut;
   menuRequest?: AppMenuCommandRequest | null;
   readerTheme: ReaderTheme;
-  settings?: AppSettings;
+  settings?: ResolvedAppSettings;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   openArticleTarget?: ReadingLibraryOpenTarget | null;
   userProfile: UserProfile;
@@ -97,7 +99,7 @@ export function ReadingLibrary({
   onReadingModeChange?: (open: boolean) => void;
   onRemoveCollectionMember: (collectionId: string, member: ContentRef) => Promise<void>;
   onRenameCollection: (collectionId: string, name: string) => Promise<void>;
-  onSaveSettings?: (settings: AppSettings) => Promise<void> | void;
+  onSaveSettings?: (settings: AppSettingsPatch) => Promise<void> | void;
   onSetLibraryPin: (input: SetLibraryPinInput) => Promise<void>;
   onOpenDataSources?: () => void;
 }) {
@@ -262,7 +264,7 @@ export function ReadingLibrary({
 
   async function deleteLibraryArticle(articleId: string) {
     await deleteArticle(articleId);
-    playAppSoundEffect('library.delete_item', settings || {});
+    playAppSoundEffect('library.delete_item', settings);
   }
 
   async function openWeReadBook(book: WeReadBook) {
@@ -375,7 +377,7 @@ export function ReadingLibrary({
     },
     menuRequest,
     settingsControl: {
-      settings: settings || {},
+      settings: settings || emptyDesktopStore.settings,
       onSaveSettings: onSaveSettings || (() => undefined),
     },
     weRead: {

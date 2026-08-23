@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import i18next from 'i18next';
-import type { AppSettings, DesktopStore, LlmProvider } from '@yomitomo/shared';
+import type { ResolvedAppSettings, DesktopStore, LlmProvider } from '@yomitomo/shared';
 import type { SettingsStorePatch, UserStorePatch } from '../../../ipc-contract';
 import type { YomitomoDesktopApi } from '../../../preload';
 import {
@@ -24,6 +24,7 @@ import {
 import { useSaveableDraft } from './use-saveable-draft';
 import { settingsDraftSectionHasChanges } from './app-settings-change-detection';
 import { getDesktopApi } from '../shell/app-desktop-api';
+import { normalizeAppSettings } from '../../../settings/app-settings-normalization';
 
 type SettingsDraftDesktopApi = Pick<YomitomoDesktopApi, 'provider' | 'store'>;
 
@@ -44,7 +45,9 @@ export function useSettingsDrafts({
 }: UseSettingsDraftsInput) {
   const resolveDesktop = useCallback(() => desktop ?? getDesktopApi(), [desktop]);
   const [userDraft, setUserDraft] = useState<UserDraft>(defaultUser);
-  const [settingsDraft, setSettingsDraft] = useState<AppSettings>({});
+  const [settingsDraft, setSettingsDraft] = useState<ResolvedAppSettings>(() =>
+    normalizeAppSettings(undefined),
+  );
   const [providerDraft, setProviderDraft] = useState<ProviderDraft>(() => localizedEmptyProvider());
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
   const [providerEditorActive, setProviderEditorActive] = useState(false);
@@ -113,7 +116,7 @@ export function useSettingsDrafts({
   );
 
   const saveSettingsDraft = useCallback(
-    async (draft: AppSettings) => {
+    async (draft: ResolvedAppSettings) => {
       return resolveDesktop().store.saveSettings(draft);
     },
     [resolveDesktop],
@@ -154,7 +157,7 @@ export function useSettingsDrafts({
     onSaved: applySavedUserStore,
     persist: saveUserDraft,
   });
-  const general = useSaveableDraft<AppSettings, DesktopStore | null>({
+  const general = useSaveableDraft<ResolvedAppSettings, DesktopStore | null>({
     value: settingsDraft,
     canSave: () => settingsHasChanges,
     errorMessage: settingsSaveErrorMessage,
@@ -162,7 +165,7 @@ export function useSettingsDrafts({
     onSaved: applySavedSettingsStore,
     persist: saveSettingsDraft,
   });
-  const shortcuts = useSaveableDraft<AppSettings, DesktopStore | null>({
+  const shortcuts = useSaveableDraft<ResolvedAppSettings, DesktopStore | null>({
     value: settingsDraft,
     canSave: () => shortcutSettingsHaveChanges && !shortcutSettingsHaveConflict,
     errorMessage: settingsSaveErrorMessage,
@@ -170,7 +173,7 @@ export function useSettingsDrafts({
     onSaved: applySavedSettingsStore,
     persist: saveSettingsDraft,
   });
-  const routes = useSaveableDraft<AppSettings, DesktopStore | null>({
+  const routes = useSaveableDraft<ResolvedAppSettings, DesktopStore | null>({
     value: settingsDraft,
     canSave: () => providerRoutesHaveChanges,
     errorMessage: settingsSaveErrorMessage,
@@ -283,7 +286,7 @@ function localizedEmptyProvider(): ProviderDraft {
   };
 }
 
-function syncUiLanguageCache(settings: AppSettings) {
+function syncUiLanguageCache(settings: ResolvedAppSettings) {
   const language = normalizeUiLanguage(settings.uiLanguage);
   writeCachedUiLanguage(language);
   changeAppI18nLanguage(language);

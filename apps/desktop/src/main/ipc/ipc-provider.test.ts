@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { DesktopStore } from '@yomitomo/shared';
+import type { AppSettingsPatch, DesktopStore } from '@yomitomo/shared';
+import { emptyDesktopStore } from '../../app-store';
 import { registerProviderIpc } from './ipc-provider';
 
 const ipcMocks = vi.hoisted(() => ({
@@ -21,7 +22,7 @@ describe('provider IPC persistence boundary', () => {
   it('forwards saved settings with their source event', async () => {
     ipcMocks.ipcMainHandle.mockClear();
     const store = desktopStore();
-    const saveSettings = vi.fn(async (_input: DesktopStore['settings']) => store);
+    const saveSettings = vi.fn(async (_input: AppSettingsPatch) => store);
     const readAppLockSettings = vi.fn(() => ({
       appLockEnabled: false,
       appLockLocked: false,
@@ -165,13 +166,7 @@ function providerIpcContext(
 
 function desktopStore(): DesktopStore {
   return {
-    agents: [],
-    articles: [],
-    collectionMembers: [],
-    collections: [],
-    pins: [],
-    providers: [],
-    settings: {},
+    ...emptyDesktopStore,
     user: {
       id: 'user_1',
       nickname: 'User',

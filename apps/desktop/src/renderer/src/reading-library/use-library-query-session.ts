@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
-import type { AppSettings } from '@yomitomo/shared';
+import type { AppSettingsPatch, ResolvedAppSettings } from '@yomitomo/shared';
 import type { LibraryCatalogItemType, LibraryCatalogListInput } from '../../../ipc-contract';
 import { librarySession } from './app-reading-library-session';
 import type { LibraryTypeFilter } from './library-filter-types';
@@ -13,8 +13,8 @@ import { libraryPageSizePersistence } from './library-page-size-persistence';
 import { useLibraryCatalog } from './use-library-catalog';
 
 type UseLibraryQuerySessionOptions = {
-  settings: AppSettings;
-  onSaveSettings: (settings: AppSettings) => Promise<void> | void;
+  settings: ResolvedAppSettings;
+  onSaveSettings: (settings: AppSettingsPatch) => Promise<void> | void;
   localRevision: number;
   availableTypes: readonly LibraryCatalogItemType[];
   collectionIds: readonly string[];

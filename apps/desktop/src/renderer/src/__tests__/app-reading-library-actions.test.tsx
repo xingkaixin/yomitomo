@@ -533,10 +533,10 @@ describe('ReadingLibrary actions', () => {
     fireEvent.click(screen.getByRole('button', { name: '删除材料' }));
 
     await waitFor(() => expect(onDeleteArticle).toHaveBeenCalledWith('article_1'));
-    expect(playAppSoundEffect).toHaveBeenCalledWith('library.delete_item', {
-      soundEffectsEnabled: true,
-      soundEffectsVolume: 0.42,
-    });
+    expect(playAppSoundEffect).toHaveBeenCalledWith(
+      'library.delete_item',
+      expect.objectContaining({ soundEffectsEnabled: true, soundEffectsVolume: 0.42 }),
+    );
   });
 
   it('restores and saves the library page size preference', async () => {

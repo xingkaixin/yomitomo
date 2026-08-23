@@ -13,7 +13,7 @@ import {
 import React, { useState } from 'react';
 import {
   providerPresets,
-  type AppSettings,
+  type ResolvedAppSettings,
   type LlmProvider,
   type ProviderPreset,
 } from '@yomitomo/shared';
@@ -50,7 +50,7 @@ type ProviderDraftController = SaveableDraft<ProviderDraft, boolean> & {
 
 type ProviderSettingsProps = {
   providerDraft: ProviderDraftController;
-  routesDraft: SaveableDraft<AppSettings>;
+  routesDraft: SaveableDraft<ResolvedAppSettings>;
   providers: LlmProvider[];
 };
 
@@ -121,7 +121,7 @@ export function ProviderSettings({ providerDraft, routesDraft, providers }: Prov
     }
   }
 
-  function saveRoutes(nextDraft?: AppSettings) {
+  function saveRoutes(nextDraft?: ResolvedAppSettings) {
     void routesDraft.save(nextDraft);
   }
 
@@ -544,7 +544,7 @@ function providerProtocolLabel(type: ProviderPreset['type']) {
 
 const taskRouteOptions: Array<{
   key: keyof Pick<
-    AppSettings,
+    ResolvedAppSettings,
     'readingAssistantProviderId' | 'reviewAssistantProviderId' | 'bilingualTranslationProviderId'
   >;
   descriptionKey: string;
@@ -580,11 +580,11 @@ function TaskProviderRoutes({
   onSave,
 }: {
   providers: LlmProvider[];
-  settingsDraft: AppSettings;
+  settingsDraft: ResolvedAppSettings;
   saveState: SaveState;
   saveError?: string;
-  onChange: (draft: AppSettings) => void;
-  onSave: (draft?: AppSettings) => void;
+  onChange: (draft: ResolvedAppSettings) => void;
+  onSave: (draft?: ResolvedAppSettings) => void;
 }) {
   const { t } = useTranslation();
   const hasProviders = providers.length > 0;

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SQLiteDatabase from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import type { AppSettings, ArticleRecord, ArticleTranslation } from '@yomitomo/shared';
+import type { ResolvedAppSettings, ArticleRecord, ArticleTranslation } from '@yomitomo/shared';
 import * as schema from '../db/schema';
 import { migrations } from '../db/migrations';
 import {
@@ -208,7 +208,7 @@ INSERT INTO articles (
         readAgentRuntimeContext: async () => ({
           agents: [],
           providers: [],
-          settings: { uiLanguage: 'zh-CN' } as AppSettings,
+          settings: { uiLanguage: 'zh-CN' } as ResolvedAppSettings,
         }),
       },
       storeArticles: {

@@ -3,6 +3,7 @@
 import { cleanup, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
+  AppSettingsPatch,
   ArticleRecord,
   ArticleReadingProgress,
   ArticleSummaryRecord,
@@ -17,6 +18,7 @@ import {
   useArticleStore,
 } from '../shell/app-article-store';
 import { articleSummaryFromRecord, webArticleRecord } from './article-actions-test-utils';
+import { normalizeAppSettings } from '../../../settings/app-settings-normalization';
 
 afterEach(() => {
   cleanup();
@@ -205,7 +207,11 @@ describe('useArticleStore', () => {
 
     fixture.storeRef.current = {
       ...fixture.storeRef.current,
-      settings: { appLockEnabled: true, appLockLocked: true },
+      settings: {
+        ...fixture.storeRef.current.settings,
+        appLockEnabled: true,
+        appLockLocked: true,
+      },
     };
     persistence.resolve(authoritative);
     await mutation;
@@ -326,10 +332,10 @@ describe('useArticleStore', () => {
 
 function renderArticleStore(
   articles: ArticleSummaryRecord[] = [],
-  settings: DesktopStore['settings'] = {},
+  settings: AppSettingsPatch = {},
 ) {
   const storeRef: { current: DesktopStore } = {
-    current: { ...emptyStore, articles, settings },
+    current: { ...emptyStore, articles, settings: normalizeAppSettings(settings) },
   };
   const applyStore = vi.fn((store: DesktopStore) => {
     storeRef.current = store;

@@ -1,4 +1,4 @@
-import type { AppSettings } from '@yomitomo/shared';
+import type { AppSettingsPatch, ResolvedAppSettings } from '@yomitomo/shared';
 import {
   normalizeAssistantExecutionMode,
   normalizeLibraryContentSources,
@@ -8,7 +8,7 @@ import {
   normalizeUiLanguage,
 } from '@yomitomo/shared';
 
-export function normalizeAppSettings(settings: AppSettings | undefined): AppSettings {
+export function normalizeAppSettings(settings: AppSettingsPatch | undefined): ResolvedAppSettings {
   return {
     uiLanguage: normalizeUiLanguage(settings?.uiLanguage),
     themeId: settings?.themeId || undefined,

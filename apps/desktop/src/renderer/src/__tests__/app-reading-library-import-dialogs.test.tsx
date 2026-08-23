@@ -86,10 +86,10 @@ describe('ReadingLibrary imports', () => {
     ).toBe('100');
     expect(screen.getByDisplayValue('新导入文章')).toBeTruthy();
     expect(screen.queryByRole('button', { name: '打开文章' })).toBeNull();
-    expect(playAppSoundEffect).toHaveBeenCalledWith('library.import_success_single', {
-      soundEffectsEnabled: true,
-      soundEffectsVolume: 0.6,
-    });
+    expect(playAppSoundEffect).toHaveBeenCalledWith(
+      'library.import_success_single',
+      expect.objectContaining({ soundEffectsEnabled: true, soundEffectsVolume: 0.6 }),
+    );
     expect(hasScheduledDelay(setTimeoutSpy, 900)).toBe(true);
     expect(hasScheduledDelay(setTimeoutSpy, 1200)).toBe(false);
 
@@ -243,10 +243,10 @@ describe('ReadingLibrary imports', () => {
     expect((await screen.findAllByText('已导入 1 个文件')).length).toBeGreaterThan(0);
     expect(screen.getByText('导入的电子书示例')).toBeTruthy();
     expect(screen.queryByRole('button', { name: '打开电子书' })).toBeNull();
-    expect(playAppSoundEffect).toHaveBeenCalledWith('library.import_success_single', {
-      soundEffectsEnabled: true,
-      soundEffectsVolume: 0.7,
-    });
+    expect(playAppSoundEffect).toHaveBeenCalledWith(
+      'library.import_success_single',
+      expect.objectContaining({ soundEffectsEnabled: true, soundEffectsVolume: 0.7 }),
+    );
   });
 
   it('auto closes successful ebook imports after the shorter celebration delay', async () => {
@@ -334,10 +334,10 @@ describe('ReadingLibrary imports', () => {
     expect(screen.getByText('第一本电子书')).toBeTruthy();
     expect(screen.getByText('第二本电子书')).toBeTruthy();
     expect((await screen.findAllByText('已导入 2 个文件')).length).toBeGreaterThan(0);
-    expect(playAppSoundEffect).toHaveBeenCalledWith('library.import_success_multiple', {
-      soundEffectsEnabled: true,
-      soundEffectsVolume: 0.4,
-    });
+    expect(playAppSoundEffect).toHaveBeenCalledWith(
+      'library.import_success_multiple',
+      expect.objectContaining({ soundEffectsEnabled: true, soundEffectsVolume: 0.4 }),
+    );
   });
 
   it('opens an existing ebook from the duplicate import state', async () => {

@@ -134,20 +134,7 @@ describe('ReadingStatsPanel', () => {
   });
 
   it('keeps the WeRead stats source when old library source preferences disabled it', () => {
-    render(
-      <ReadingStatsPanel
-        articles={[]}
-        settings={{
-          libraryContentSources: [
-            { id: 'web', enabled: true },
-            { id: 'ebook', enabled: true },
-            { id: 'pdf', enabled: true },
-            { id: 'weread', enabled: false },
-          ],
-        }}
-        onRefresh={vi.fn()}
-      />,
-    );
+    render(<ReadingStatsPanel articles={[]} onRefresh={vi.fn()} />);
 
     const sourceTabs = screen.getByRole('tablist', { name: '统计来源' });
     expect(sourceTabs.textContent).toContain('本地阅读');

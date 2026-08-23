@@ -62,9 +62,7 @@ async function applyStartupAppLock(
 }
 
 function shouldLockAppOnStartup(settings: DesktopStore['settings']) {
-  return Boolean(
-    settings.appLockEnabled && settings.appLockLockOnStartup && !settings.appLockLocked,
-  );
+  return settings.appLockEnabled && settings.appLockLockOnStartup && !settings.appLockLocked;
 }
 
 function scheduleLogPrune(

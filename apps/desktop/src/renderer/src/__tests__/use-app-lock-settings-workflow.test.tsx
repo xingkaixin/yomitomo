@@ -36,7 +36,7 @@ describe('useAppLockSettingsWorkflow', () => {
     const onSettingsChange = vi.fn();
     vi.mocked(appSettingsActions.enableAppLock).mockResolvedValue({
       ...emptyStore,
-      settings: { appLockEnabled: true },
+      settings: { ...emptyStore.settings, appLockEnabled: true },
     });
     const { result } = renderWorkflow(onSettingsChange);
 
@@ -51,7 +51,9 @@ describe('useAppLockSettingsWorkflow', () => {
     await act(() => result.current.submit());
 
     expect(appSettingsActions.enableAppLock).toHaveBeenCalledWith('1234', '1234');
-    expect(onSettingsChange).toHaveBeenCalledWith({ appLockEnabled: true });
+    expect(onSettingsChange).toHaveBeenCalledWith(
+      expect.objectContaining({ appLockEnabled: true }),
+    );
     expect(result.current.state).toEqual({ phase: 'closed', saveState: 'saved' });
     expect(JSON.stringify(result.current.state)).not.toContain('1234');
 
@@ -86,7 +88,7 @@ describe('useAppLockSettingsWorkflow', () => {
     const onSettingsChange = vi.fn();
     vi.mocked(appSettingsActions.disableAppLock).mockResolvedValue({
       ...emptyStore,
-      settings: { appLockEnabled: false },
+      settings: { ...emptyStore.settings, appLockEnabled: false },
     });
     const { result } = renderWorkflow(onSettingsChange);
 
@@ -95,7 +97,9 @@ describe('useAppLockSettingsWorkflow', () => {
     await act(() => result.current.submit());
 
     expect(appSettingsActions.disableAppLock).toHaveBeenCalledWith('5678');
-    expect(onSettingsChange).toHaveBeenCalledWith({ appLockEnabled: false });
+    expect(onSettingsChange).toHaveBeenCalledWith(
+      expect.objectContaining({ appLockEnabled: false }),
+    );
     expect(result.current.state).toEqual({ phase: 'closed', saveState: 'saved' });
   });
 
@@ -104,7 +108,7 @@ describe('useAppLockSettingsWorkflow', () => {
       .mockRejectedValueOnce(new Error('Keyring unavailable'))
       .mockResolvedValueOnce({
         ...emptyStore,
-        settings: { appLockEnabled: false },
+        settings: { ...emptyStore.settings, appLockEnabled: false },
       });
     const { result } = renderWorkflow();
 
@@ -163,7 +167,7 @@ function renderWorkflow(onSettingsChange = vi.fn()) {
 function enabledStore() {
   return {
     ...emptyStore,
-    settings: { appLockEnabled: true },
+    settings: { ...emptyStore.settings, appLockEnabled: true },
   };
 }
 

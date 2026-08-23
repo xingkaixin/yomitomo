@@ -624,7 +624,7 @@ describe('ReadingLibrary reading', () => {
     expect(playAppSoundEffect).toHaveBeenNthCalledWith(
       1,
       'reader.distillation_committed',
-      settings,
+      expect.objectContaining(settings),
     );
 
     await act(async () => {
@@ -639,7 +639,7 @@ describe('ReadingLibrary reading', () => {
     expect(playAppSoundEffect).toHaveBeenNthCalledWith(
       2,
       'reader.distillation_committed',
-      settings,
+      expect.objectContaining(settings),
     );
 
     await act(async () => {

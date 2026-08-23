@@ -9,7 +9,7 @@ import {
   type AgentMentionInstructionPayload,
   type AgentReviewPayload,
   type Annotation,
-  type AppSettings,
+  type AppSettingsPatch,
   type Comment,
   type LlmProvider,
   type ReaderChatState,
@@ -285,7 +285,7 @@ const providerShapeSchema = z.object({
 });
 
 const providerPatchSchema = checkedSchema<Partial<LlmProvider>>(providerShapeSchema.partial());
-const settingsSchema = checkedSchema<AppSettings>(
+const settingsSchema = checkedSchema<AppSettingsPatch>(
   z.object({
     uiLanguage: z.enum(['zh-CN', 'en', 'ja']).optional(),
     themeId: idSchema.optional(),

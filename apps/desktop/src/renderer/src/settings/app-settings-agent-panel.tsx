@@ -9,7 +9,13 @@ import {
   ViewOffIcon,
 } from '@hugeicons/core-free-icons';
 import React, { useEffect, useState } from 'react';
-import type { Agent, AgentKind, AppSettings, LlmProvider, UiLanguage } from '@yomitomo/shared';
+import type {
+  Agent,
+  AgentKind,
+  ResolvedAppSettings,
+  LlmProvider,
+  UiLanguage,
+} from '@yomitomo/shared';
 import { agentPersonalities, normalizeUiLanguage } from '@yomitomo/shared';
 import {
   elementDialogSourceRect,
@@ -244,13 +250,24 @@ function agentPresenceLine(agent: Agent, nextEnabled: boolean, uiLanguage: UiLan
   return nextEnabled ? lines.enter : lines.rest;
 }
 
-function agentRouteProviderId(settings: AppSettings, filter: AgentFilter) {
+type AgentRouteSettings = Partial<
+  Pick<
+    ResolvedAppSettings,
+    'readingAssistantProviderId' | 'reviewAssistantProviderId' | 'uiLanguage'
+  >
+>;
+
+function agentRouteProviderId(settings: AgentRouteSettings, filter: AgentFilter) {
   return filter === 'review'
     ? settings.reviewAssistantProviderId
     : settings.readingAssistantProviderId;
 }
 
-function hasAgentRoute(settings: AppSettings, providers: LlmProvider[], filter: AgentFilter) {
+function hasAgentRoute(
+  settings: AgentRouteSettings,
+  providers: LlmProvider[],
+  filter: AgentFilter,
+) {
   const providerId = agentRouteProviderId(settings, filter);
   return Boolean(providerId && providers.some((provider) => provider.id === providerId));
 }
@@ -318,7 +335,7 @@ export function AgentSettings({
   agents: Agent[];
   error: string;
   providers: LlmProvider[];
-  settings: AppSettings;
+  settings: AgentRouteSettings;
   saveState: SaveState;
   onConfigureRoutes: () => void;
   onToggle: (agent: Agent) => void;

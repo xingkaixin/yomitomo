@@ -2,10 +2,11 @@
 
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import type { AppSettings } from '@yomitomo/shared';
+import type { AppSettingsPatch } from '@yomitomo/shared';
 import type { LibraryCatalogItemType, LibraryCatalogListResult } from '../../../ipc-contract';
 import { librarySession } from './app-reading-library-session';
 import { useLibraryQuerySession } from './use-library-query-session';
+import { normalizeAppSettings } from '../../../settings/app-settings-normalization';
 
 afterEach(() => {
   cleanup();
@@ -107,7 +108,7 @@ it('serializes page-size saves across a remounted home', async () => {
   let persisted = 12;
   const saves = [firstSave, secondSave];
   let saveIndex = 0;
-  const onSaveSettings = vi.fn((settings: AppSettings) => {
+  const onSaveSettings = vi.fn((settings: AppSettingsPatch) => {
     const save = saves[saveIndex++];
     return save.promise.then(() => {
       persisted = settings.libraryPageSize ?? persisted;
@@ -213,7 +214,7 @@ it('keeps a newer page size when an older queued save fails', async () => {
 
 it('continues page-size saves after a synchronous failure', async () => {
   let persisted = 12;
-  const onSaveSettings = vi.fn((settings: AppSettings) => {
+  const onSaveSettings = vi.fn((settings: AppSettingsPatch) => {
     if (settings.libraryPageSize === 18) throw new Error('first save failed');
     return Promise.resolve().then(() => {
       persisted = settings.libraryPageSize ?? persisted;
@@ -327,10 +328,16 @@ function sessionOptions({
   availableTypes?: LibraryCatalogItemType[];
   collectionIds?: string[];
   localRevision?: number;
-  onSaveSettings?: (settings: AppSettings) => Promise<void> | void;
-  settings?: AppSettings;
+  onSaveSettings?: (settings: AppSettingsPatch) => Promise<void> | void;
+  settings?: AppSettingsPatch;
 } = {}) {
-  return { availableTypes, collectionIds, localRevision, onSaveSettings, settings };
+  return {
+    availableTypes,
+    collectionIds,
+    localRevision,
+    onSaveSettings,
+    settings: normalizeAppSettings(settings),
+  };
 }
 
 function catalogResult({

@@ -2,7 +2,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { LockKeyIcon, PartyIcon } from '@hugeicons/core-free-icons';
 import { Suspense, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { AppSettings } from '@yomitomo/shared';
+import type { AppSettingsPatch } from '@yomitomo/shared';
 import { normalizeUiLanguage } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
 
@@ -49,51 +49,69 @@ initializeAppI18n(startupUiLanguage);
 const rendererModuleLoadedAt = performance.now();
 
 function App() {
-  const { t } = useTranslation();
   const appUpdateState = useAppUpdateState();
-  const updateReady =
-    appUpdateState?.status === 'available' || appUpdateState?.status === 'downloaded';
-
   useSecondaryModulePreload();
-
-  const {
-    store,
-    storeLoaded,
-    storeLoadError,
-    storeSyncSnapshot,
-    storeRef,
-    refreshStore,
-    applyStore,
-    applySettingsPatch,
-    articleStore,
-  } = useDesktopStoreState();
-  const appLockEnabled = Boolean(store.settings.appLockEnabled);
-  const appLocked = Boolean(appLockEnabled && store.settings.appLockLocked);
+  const storeState = useDesktopStoreState();
+  const readyStore = storeState.status === 'ready' ? storeState.store : null;
+  const appLockEnabled = Boolean(readyStore?.settings.appLockEnabled);
+  const appLocked = Boolean(appLockEnabled && readyStore?.settings.appLockLocked);
   const session = useAppSession({
     appLocked,
-    applyStore,
-    articles: store.articles,
-    developerModeEnabled: Boolean(store.settings.developerModeEnabled),
-    onboardingCompletedAt: store.settings.onboardingCompletedAt,
+    applyStore: storeState.applyStore,
+    articles: readyStore?.articles || [],
+    developerModeEnabled: Boolean(readyStore?.settings.developerModeEnabled),
+    onboardingCompletedAt: readyStore?.settings.onboardingCompletedAt,
     readStatsArticles: () => getDesktopApi().article.readStatsSummaries(),
-    storeLoaded,
-    storeLoadFailed: Boolean(storeLoadError),
+    storeStatus: storeState.status,
   });
   const theme = useReaderThemeController({
     appLocked,
-    applyStore,
-    settings: store.settings,
-    storeLoaded,
-    storeLoadError,
+    applyStore: storeState.applyStore,
+    settings: readyStore?.settings || null,
   });
+
+  if (storeState.status === 'error') {
+    return <StoreLoadErrorScreen error={storeState.error} onRetry={storeState.refreshStore} />;
+  }
+  if (storeState.status === 'loading') return <StartupShell />;
+
+  return (
+    <ReadyApp
+      appUpdateState={appUpdateState}
+      session={session}
+      storeState={storeState}
+      theme={theme}
+    />
+  );
+}
+
+function ReadyApp({
+  appUpdateState,
+  session,
+  storeState,
+  theme,
+}: {
+  appUpdateState: ReturnType<typeof useAppUpdateState>;
+  session: ReturnType<typeof useAppSession>;
+  storeState: Extract<ReturnType<typeof useDesktopStoreState>, { status: 'ready' }>;
+  theme: ReturnType<typeof useReaderThemeController>;
+}) {
+  const { t } = useTranslation();
+  const updateReady =
+    appUpdateState?.status === 'available' || appUpdateState?.status === 'downloaded';
+
+  const { store, storeSyncSnapshot, storeRef, applyStore, applySettingsPatch, articleStore } =
+    storeState;
+  const appLockEnabled = store.settings.appLockEnabled;
+  const appLocked = appLockEnabled && store.settings.appLockLocked;
   const toastTopOffset = useHeaderToastOffset(session.readerOpen);
 
   useEffect(() => {
-    if (!storeLoaded || storeLoadError || appLocked) return;
+    if (appLocked) return;
     const storedUiLanguage = normalizeUiLanguage(store.settings.uiLanguage);
     writeCachedUiLanguage(storedUiLanguage);
     changeAppI18nLanguage(storedUiLanguage);
-  }, [appLocked, store.settings.uiLanguage, storeLoadError, storeLoaded]);
+  }, [appLocked, store.settings.uiLanguage]);
 
   const articleActions = useAppArticleStoreActions({ articleStore });
   const {
@@ -114,17 +132,11 @@ function App() {
     applySettingsPatch,
   });
 
-  async function saveSettings(settings: AppSettings) {
+  async function saveSettings(settings: AppSettingsPatch) {
     const nextStore = await getDesktopApi().store.saveSettings(settings);
     applySavedSettings(nextStore, applyStore);
     return nextStore;
   }
-
-  if (storeLoadError) {
-    return <StoreLoadErrorScreen error={storeLoadError} onRetry={refreshStore} />;
-  }
-
-  if (!storeLoaded) return <StartupShell />;
 
   if (session.showOnboarding) {
     return (
@@ -280,14 +292,13 @@ function App() {
                   agents={store.agents}
                   articles={session.statsArticles || store.articles}
                   navigationStartedAt={session.statsNavigationStartedAt}
-                  settings={store.settings}
                   onRefresh={session.actions.refreshStatsArticles}
                 />
               ) : null}
               {session.surface === 'settings' ? (
                 <surfaces.SettingsSectionShell
                   activeSection={session.settingsSection}
-                  developerModeEnabled={Boolean(store.settings.developerModeEnabled)}
+                  developerModeEnabled={store.settings.developerModeEnabled}
                   onSectionChange={session.actions.changeSettingsSection}
                 >
                   {session.settingsSection === 'collection' ? (

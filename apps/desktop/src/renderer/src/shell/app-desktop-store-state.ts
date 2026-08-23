@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DesktopStore } from '@yomitomo/shared';
 import type { SettingsStorePatch } from '../../../ipc-contract';
 import {
-  emptyDesktopStore,
   isAppLockSettingsLocked,
   lockedRendererStoreFromStatus,
   rendererStoreForAppLockState,
@@ -22,11 +21,10 @@ import {
 import { getDesktopApi, getOptionalDesktopApi } from './app-desktop-api';
 
 export function useDesktopStoreState() {
-  const [store, setStore] = useState<DesktopStore>(emptyDesktopStore);
-  const [storeLoaded, setStoreLoaded] = useState(false);
+  const [store, setStore] = useState<DesktopStore | null>(null);
   const [storeLoadError, setStoreLoadError] = useState<DesktopStoreLoadErrorInfo | null>(null);
   const [storeSyncSnapshot, setStoreSyncSnapshot] = useState<DesktopStore | null>(null);
-  const storeRef = useRef<DesktopStore>(emptyDesktopStore);
+  const storeRef = useRef<DesktopStore | null>(null);
 
   const applyStore = useCallback((nextStore: DesktopStore) => {
     const rendererStore = rendererStoreForAppLockState(nextStore);
@@ -54,7 +52,8 @@ export function useDesktopStoreState() {
           code: result.error.code,
         });
         setStoreLoadError(result.error);
-        setStoreLoaded(false);
+        storeRef.current = null;
+        setStore(null);
         return null;
       }
 
@@ -66,7 +65,6 @@ export function useDesktopStoreState() {
       const rendererStore = applyStore(nextStore);
       setStoreSyncSnapshot(rendererStore);
       setStoreLoadError(null);
-      setStoreLoaded(true);
       return nextStore;
     } catch (error) {
       let refreshError = error;
@@ -76,7 +74,6 @@ export function useDesktopStoreState() {
           const rendererStore = applyStore(nextStore);
           setStoreSyncSnapshot(rendererStore);
           setStoreLoadError(null);
-          setStoreLoaded(true);
           return nextStore;
         } catch (statusError) {
           refreshError = statusError;
@@ -90,7 +87,8 @@ export function useDesktopStoreState() {
           detail: refreshError instanceof Error ? refreshError.message : undefined,
         },
       );
-      setStoreLoaded(false);
+      storeRef.current = null;
+      setStore(null);
       return null;
     }
   }, [applyStore]);
@@ -103,30 +101,28 @@ export function useDesktopStoreState() {
       const rendererStore = applyStore(nextStore);
       setStoreSyncSnapshot(rendererStore);
       setStoreLoadError(null);
-      setStoreLoaded(true);
     });
     const optionalDesktop = getOptionalDesktopApi();
     const offArticlePatched =
       optionalDesktop?.article?.onPatched?.((patch) => {
         if (!articleStore.commit(articleStorePatchCommit(patch))) return;
         setStoreLoadError(null);
-        setStoreLoaded(true);
       }) || (() => undefined);
     const offCollectionPatched =
       optionalDesktop?.library?.collections?.onPatched?.((patch) => {
-        if (isAppLockSettingsLocked(storeRef.current.settings)) return;
-        const nextStore = applyCollectionStorePatch(storeRef.current, patch);
+        const currentStore = storeRef.current;
+        if (!currentStore || isAppLockSettingsLocked(currentStore.settings)) return;
+        const nextStore = applyCollectionStorePatch(currentStore, patch);
         applyStore(nextStore);
         setStoreLoadError(null);
-        setStoreLoaded(true);
       }) || (() => undefined);
     const offLibraryPinPatched =
       optionalDesktop?.library?.pins?.onPatched?.((patch) => {
-        if (isAppLockSettingsLocked(storeRef.current.settings)) return;
-        const nextStore = applyLibraryPinPatch(storeRef.current, patch);
+        const currentStore = storeRef.current;
+        if (!currentStore || isAppLockSettingsLocked(currentStore.settings)) return;
+        const nextStore = applyLibraryPinPatch(currentStore, patch);
         applyStore(nextStore);
         setStoreLoadError(null);
-        setStoreLoaded(true);
       }) || (() => undefined);
     return () => {
       offLibraryPinPatched();
@@ -136,22 +132,29 @@ export function useDesktopStoreState() {
     };
   }, [applyStore, articleStore, refreshStore]);
 
-  return {
-    store,
-    storeLoaded,
-    storeLoadError,
-    storeSyncSnapshot,
+  const common = {
     storeRef,
     refreshStore,
     applyStore,
     applySettingsPatch,
     articleStore,
   };
+  if (storeLoadError) {
+    return { ...common, status: 'error' as const, error: storeLoadError };
+  }
+  if (!store) return { ...common, status: 'loading' as const };
+  return {
+    ...common,
+    status: 'ready' as const,
+    store,
+    storeSyncSnapshot,
+  };
 }
 
 export function applySettingsStorePatch(
-  store: DesktopStore,
+  store: DesktopStore | null,
   patch: SettingsStorePatch,
 ): DesktopStore {
+  if (!store) throw new Error('Desktop store is not loaded');
   return { ...store, ...patch };
 }

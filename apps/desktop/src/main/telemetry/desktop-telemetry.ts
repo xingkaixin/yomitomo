@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import os from 'node:os';
 import { powerMonitor } from 'electron';
-import type { AppSettings } from '@yomitomo/shared';
+import type { ResolvedAppSettings } from '@yomitomo/shared';
 import { getDatabase } from '../store/store-db';
 import {
   readTelemetryEnabled,
@@ -32,7 +32,7 @@ type DesktopTelemetryClientDependencies = {
   endpoint?: string;
   fetch: typeof fetch;
   getAppVersion: () => string;
-  getSettings: () => Pick<AppSettings, 'telemetryEnabled'>;
+  getSettings: () => Pick<ResolvedAppSettings, 'telemetryEnabled'>;
   getState: () => StoredTelemetryState;
   now: () => Date;
   osRelease: () => string;
@@ -155,7 +155,7 @@ export async function runDesktopTelemetryHeartbeat(
   reason: TelemetryReason,
   dependencies: DesktopTelemetryClientDependencies,
 ) {
-  if (dependencies.getSettings().telemetryEnabled === false) {
+  if (!dependencies.getSettings().telemetryEnabled) {
     return { status: 'disabled' as const };
   }
 

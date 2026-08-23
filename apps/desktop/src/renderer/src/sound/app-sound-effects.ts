@@ -1,4 +1,4 @@
-import type { AppSettings } from '@yomitomo/shared';
+import type { ResolvedAppSettings } from '@yomitomo/shared';
 import { normalizeSoundEffectsVolume } from '@yomitomo/shared';
 import highlightOnPaperSoundUrl1 from '../assets/audio/highlight-on-paper-01.mp3';
 import highlightOnPaperSoundUrl2 from '../assets/audio/highlight-on-paper-02.mp3';
@@ -95,7 +95,10 @@ const soundEffects: Record<AppSoundEffectId, SoundEffectDefinition> = {
 const audioByUrl = new Map<string, HTMLAudioElement>();
 const playingUrls = new Set<string>();
 
-export function playAppSoundEffect(effectId: AppSoundEffectId, settings: AppSettings) {
+export function playAppSoundEffect(
+  effectId: AppSoundEffectId,
+  settings: Partial<Pick<ResolvedAppSettings, 'soundEffectsEnabled' | 'soundEffectsVolume'>> = {},
+) {
   if (settings.soundEffectsEnabled === false) return;
   const definition = soundEffects[effectId];
   const volume = normalizeSoundEffectsVolume(settings.soundEffectsVolume) * definition.baseVolume;

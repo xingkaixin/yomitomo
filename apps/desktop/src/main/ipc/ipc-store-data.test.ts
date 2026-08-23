@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DesktopStore } from '@yomitomo/shared';
+import { emptyDesktopStore } from '../../app-store';
 import type { AppUpdateState } from '../../app-update-types';
 import type { DesktopIpcInvokeEnvelope } from '../../ipc-errors';
 import type { StartupStoreInitializationResult } from '../app/startup-store';
@@ -183,13 +184,7 @@ function desktopStore(
   overrides: Partial<Pick<DesktopStore, 'articles' | 'settings'>> = {},
 ): DesktopStore {
   return {
-    agents: [],
-    articles: [],
-    collectionMembers: [],
-    collections: [],
-    pins: [],
-    providers: [],
-    settings: {},
+    ...emptyDesktopStore,
     user: {
       id: 'user_1',
       nickname: 'Test User',
