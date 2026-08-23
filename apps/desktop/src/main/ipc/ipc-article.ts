@@ -1,5 +1,7 @@
 import { performance } from 'node:perf_hooks';
 import type { EbookImportFileInput, PdfImportFileInput } from '../../ipc-contract';
+import { isSourceImportErrorCode } from '../../ipc/article-import-boundary';
+import { DesktopIpcError, isDesktopIpcErrorLike } from '../../ipc-errors';
 import {
   createArticleTranslationRuntime,
   type ArticleTranslationRuntimeContext,
@@ -137,75 +139,83 @@ export function registerArticleIpc(context: ArticleIpcContext) {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();
     return articlePersistence.saveArticleReaderChatState(input.articleId, input.readerChatState);
   });
-  handleDesktopIpc('article:import-url', async (event, input) => {
-    const { storeArticles: articlePersistence } = await context.getPersistenceModules();
-    const { canceledArticleSourceImport, importArticleSource } =
-      await import('../articles/article-source-import');
-    const { articleRecordFromUrl, isArticleImportCanceledError, isArticleImportChallengeRecord } =
-      await import('../articles/article-import');
-    const importSettings = articlePersistence.readImportSettings();
-    const record = await canceledArticleSourceImport(
-      articleRecordFromUrl(input.url, {
-        allowLocalNetworkArticleImport: importSettings.allowLocalNetworkArticleImport,
-        inlineImages: importSettings.saveArticleImages,
-        requestId: input.requestId,
-      }),
-      isArticleImportCanceledError,
-    );
-    if (!record) return { status: 'canceled' };
+  handleDesktopIpc('article:import-url', (event, input) =>
+    withSourceImportIpcErrors(async () => {
+      const { storeArticles: articlePersistence } = await context.getPersistenceModules();
+      const { canceledArticleSourceImport, importArticleSource } =
+        await import('../articles/article-source-import');
+      const { articleRecordFromUrl, isArticleImportCanceledError, isArticleImportChallengeRecord } =
+        await import('../articles/article-import');
+      const importSettings = articlePersistence.readImportSettings();
+      const record = await canceledArticleSourceImport(
+        articleRecordFromUrl(input.url, {
+          allowLocalNetworkArticleImport: importSettings.allowLocalNetworkArticleImport,
+          inlineImages: importSettings.saveArticleImages,
+          requestId: input.requestId,
+        }),
+        isArticleImportCanceledError,
+      );
+      if (!record) return { status: 'canceled' };
 
-    const result = await importArticleSource({
-      record,
-      repository: articleImportRepository(articlePersistence),
-      isDuplicate: (article) => Boolean(article && !isArticleImportChallengeRecord(article)),
-      mergeExistingArticle: (next, existing) => ({
-        ...next,
-        createdAt: existing.createdAt,
-      }),
-    });
-    if (result.status === 'imported') context.sendArticlePatched(event, result.patch);
-    return result;
-  });
+      const result = await importArticleSource({
+        record,
+        repository: articleImportRepository(articlePersistence),
+        isDuplicate: (article) => Boolean(article && !isArticleImportChallengeRecord(article)),
+        mergeExistingArticle: (next, existing) => ({
+          ...next,
+          createdAt: existing.createdAt,
+        }),
+      });
+      if (result.status === 'imported') context.sendArticlePatched(event, result.patch);
+      return result;
+    }),
+  );
   handleDesktopIpc('article:import-url-cancel', async (_event, requestId) => {
     const { cancelArticleImport } = await import('../articles/article-import');
     return cancelArticleImport(requestId);
   });
-  handleDesktopIpc('ebook:import-file', async (event, input: EbookImportFileInput) => {
-    const { storeArticles: articlePersistence } = await context.getPersistenceModules();
-    const { importArticleSource } = await import('../articles/article-source-import');
-    const { articleRecordFromEbookFile } = await import('../ebooks/ebook-import');
-    const { stageEbookSourceFile } = await import('../ebooks/ebook-storage');
-    const record = await articleRecordFromEbookFile(input, { performanceLogger: context.logInfo });
-    const result = await importArticleSource({
-      record,
-      repository: articleImportRepository(articlePersistence),
-      stageSourceAssets: (articleId) =>
-        stageEbookSourceFile(articleId, input.data, record.ebook?.metadata.format),
-      logError: context.logError,
-    });
-    if (result.status === 'imported') context.sendArticlePatched(event, result.patch);
-    return result;
-  });
+  handleDesktopIpc('ebook:import-file', (event, input: EbookImportFileInput) =>
+    withSourceImportIpcErrors(async () => {
+      const { storeArticles: articlePersistence } = await context.getPersistenceModules();
+      const { importArticleSource } = await import('../articles/article-source-import');
+      const { articleRecordFromEbookFile } = await import('../ebooks/ebook-import');
+      const { stageEbookSourceFile } = await import('../ebooks/ebook-storage');
+      const record = await articleRecordFromEbookFile(input, {
+        performanceLogger: context.logInfo,
+      });
+      const result = await importArticleSource({
+        record,
+        repository: articleImportRepository(articlePersistence),
+        stageSourceAssets: (articleId) =>
+          stageEbookSourceFile(articleId, input.data, record.ebook?.metadata.format),
+        logError: context.logError,
+      });
+      if (result.status === 'imported') context.sendArticlePatched(event, result.patch);
+      return result;
+    }),
+  );
   handleDesktopIpc('ebook:read-file', async (_event, articleId) => {
     const { readEbookSourceFile } = await import('../ebooks/ebook-storage');
     const file = await readEbookSourceFile(articleId);
     return file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength);
   });
-  handleDesktopIpc('pdf:import-file', async (event, input: PdfImportFileInput) => {
-    const { storeArticles: articlePersistence } = await context.getPersistenceModules();
-    const { importArticleSource } = await import('../articles/article-source-import');
-    const { articleRecordFromPdfFile } = await import('../pdf/pdf-import');
-    const { stagePdfSourceAssets } = await import('../pdf/pdf-source-assets');
-    const { article: record, thumbnail } = await articleRecordFromPdfFile(input);
-    const result = await importArticleSource({
-      record,
-      repository: articleImportRepository(articlePersistence),
-      stageSourceAssets: (articleId) => stagePdfSourceAssets(articleId, input.data, thumbnail),
-      logError: context.logError,
-    });
-    if (result.status === 'imported') context.sendArticlePatched(event, result.patch);
-    return result;
-  });
+  handleDesktopIpc('pdf:import-file', (event, input: PdfImportFileInput) =>
+    withSourceImportIpcErrors(async () => {
+      const { storeArticles: articlePersistence } = await context.getPersistenceModules();
+      const { importArticleSource } = await import('../articles/article-source-import');
+      const { articleRecordFromPdfFile } = await import('../pdf/pdf-import');
+      const { stagePdfSourceAssets } = await import('../pdf/pdf-source-assets');
+      const { article: record, thumbnail } = await articleRecordFromPdfFile(input);
+      const result = await importArticleSource({
+        record,
+        repository: articleImportRepository(articlePersistence),
+        stageSourceAssets: (articleId) => stagePdfSourceAssets(articleId, input.data, thumbnail),
+        logError: context.logError,
+      });
+      if (result.status === 'imported') context.sendArticlePatched(event, result.patch);
+      return result;
+    }),
+  );
   handleDesktopIpc('text:import-prepare', async (_event, input) => {
     const { prepareTextSourceItems } = await import('../articles/text-source-import');
     return prepareTextSourceItems(input);
@@ -272,6 +282,17 @@ export function pdfSourceArrayBufferForIpc(file: Buffer) {
     copied: true,
     data: sourceBuffer.slice(file.byteOffset, file.byteOffset + file.byteLength),
   };
+}
+
+async function withSourceImportIpcErrors<Result>(operation: () => Promise<Result>) {
+  try {
+    return await operation();
+  } catch (error) {
+    if (isDesktopIpcErrorLike(error)) throw error;
+    const code = error instanceof Error ? error.message.trim() : '';
+    if (!isSourceImportErrorCode(code)) throw error;
+    throw new DesktopIpcError(code, code, { cause: error });
+  }
 }
 
 function articleImportRepository(articlePersistence: ArticlePersistence) {

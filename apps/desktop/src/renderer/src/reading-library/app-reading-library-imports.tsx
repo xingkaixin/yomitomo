@@ -40,6 +40,8 @@ import {
   type ArticleImportResult,
   type TextImportCommitItem,
 } from '../../../ipc-contract';
+import { isSourceImportErrorCode } from '../../../ipc/article-import-boundary';
+import { isDesktopIpcErrorLike } from '../../../ipc-errors';
 
 const MAX_BATCH_IMPORT_FILES = 10;
 const ARTICLE_IMPORT_CANCEL_DELAY_MS = 650;
@@ -180,7 +182,7 @@ function LibraryImportSuccessCheck({ className, size }: { className: string; siz
 type AppT = ReturnType<typeof useTranslation>['t'];
 
 export function articleImportErrorMessage(error: unknown, t: AppT) {
-  const key = articleImportErrorKey(error instanceof Error ? error.message.trim() : '');
+  const key = articleImportErrorKey(sourceImportErrorCode(error));
   return t(key || 'library.import.article.errorTitle');
 }
 
@@ -210,10 +212,8 @@ function fileImportItemId(file: File, index: number) {
 }
 
 export function fileImportErrorMessage(error: unknown, fallback: string, t: AppT) {
-  const message = error instanceof Error ? error.message.trim() : '';
-  if (!message) return fallback;
-  const key = fileImportErrorKey(message);
-  return key ? t(key) : message;
+  const key = fileImportErrorKey(sourceImportErrorCode(error));
+  return key ? t(key) : fallback;
 }
 
 export function fileImportErrorKey(code: string) {
@@ -228,6 +228,11 @@ export function fileImportErrorKey(code: string) {
   if (code === 'PDF_IMPORT_INVALID_FILE') return 'library.import.pdf.invalidFile';
   if (code === 'PDF_IMPORT_FILE_TOO_LARGE') return 'library.import.pdf.oversize';
   return '';
+}
+
+function sourceImportErrorCode(error: unknown) {
+  if (!isDesktopIpcErrorLike(error) || !isSourceImportErrorCode(error.code)) return '';
+  return error.code;
 }
 
 function articleImportMeta(article: ArticleRecord, t: AppT) {

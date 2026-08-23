@@ -3,6 +3,7 @@
 import React from 'react';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { DesktopIpcError } from '../../../ipc-errors';
 import {
   article,
   articleSummary,
@@ -132,7 +133,7 @@ describe('ReadingLibrary imports', () => {
   it('shows webpage import errors inside the dialog', async () => {
     const onImportArticleUrl = vi
       .fn()
-      .mockRejectedValue(new Error('ARTICLE_IMPORT_REQUEST_FAILED'));
+      .mockRejectedValue(new DesktopIpcError('ARTICLE_IMPORT_REQUEST_FAILED'));
     renderLibrary([], { onImportArticleUrl });
 
     await selectLibraryType(/网页文章/);
