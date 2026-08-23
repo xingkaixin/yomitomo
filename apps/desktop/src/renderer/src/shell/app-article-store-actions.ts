@@ -263,18 +263,7 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
           },
         },
         invoke: () => getDesktopApi().article.saveReaderChatState({ articleId, readerChatState }),
-        reconcile: (patch) => ({
-          patches: [],
-          current: {
-            type: 'update',
-            articleId,
-            update: (article) => ({
-              ...article,
-              readerChatState: patch.readerChatState,
-              updatedAt: patch.updatedAt,
-            }),
-          },
-        }),
+        reconcile: articleStorePatchCommit,
       });
     },
     [articleStore],

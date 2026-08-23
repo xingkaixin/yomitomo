@@ -8,6 +8,7 @@ import type {
   ArticleReadingProgress,
   ArticleSummaryRecord,
   DesktopStore,
+  ReaderChatState,
 } from '@yomitomo/shared';
 
 import { emptyStore } from '../settings/app-settings';
@@ -26,7 +27,7 @@ afterEach(() => {
 });
 
 describe('useArticleStore', () => {
-  it('projects article deletes onto both catalog and current article', () => {
+  it('projects article deletes and reader chat changes onto catalog and current article', () => {
     const deletion = { type: 'article-delete' as const, articleId: 'article-1' };
 
     expect(articleStorePatchCommit(deletion)).toEqual({
@@ -41,6 +42,25 @@ describe('useArticleStore', () => {
       updatedAt: '2026-05-17T08:00:00.000Z',
     };
     expect(articleStorePatchCommit(progress)).toEqual({ patches: [progress] });
+
+    const readerChatState = readerChatStateFixture('2026-05-17T08:01:00.000Z');
+    const chatPatch = {
+      type: 'article-reader-chat-state' as const,
+      articleId: deletion.articleId,
+      readerChatState,
+      updatedAt: readerChatState.updatedAt,
+    };
+    const chatCommit = articleStorePatchCommit(chatPatch);
+    expect(chatCommit.patches).toEqual([chatPatch]);
+    expect(chatCommit.current).toMatchObject({
+      type: 'update',
+      articleId: deletion.articleId,
+    });
+    expect(
+      chatCommit.current?.type === 'update'
+        ? chatCommit.current.update(webArticleRecord(deletion.articleId))
+        : null,
+    ).toMatchObject({ readerChatState, updatedAt: readerChatState.updatedAt });
   });
 
   it('folds ordered patches once before updating the current article', () => {
@@ -392,6 +412,24 @@ function readingProgressCommit(articleId: string, progress: ArticleReadingProgre
 
 function scrollProgress(progress: number, updatedAt: string): ArticleReadingProgress {
   return { kind: 'scroll', progress, updatedAt };
+}
+
+function readerChatStateFixture(updatedAt: string): ReaderChatState {
+  return {
+    articleId: 'article-1',
+    activeSessionId: 'session-1',
+    sessions: [
+      {
+        id: 'session-1',
+        articleId: 'article-1',
+        createdAt: updatedAt,
+        updatedAt,
+        messages: [],
+      },
+    ],
+    createdAt: updatedAt,
+    updatedAt,
+  };
 }
 
 function deferred<T>() {

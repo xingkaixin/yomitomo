@@ -101,6 +101,7 @@ export type ArticleDeletePatch = {
 export type ArticleStorePatch =
   | ArticleUpsertPatch
   | (ArticleReadingProgressPatch & { type: 'article-reading-progress' })
+  | ArticleReaderChatStatePatch
   | (ArticleDeletePatch & { type: 'article-delete' });
 
 export type ArticleTranslationStatus = 'idle' | 'translating' | 'ready' | 'failed';
