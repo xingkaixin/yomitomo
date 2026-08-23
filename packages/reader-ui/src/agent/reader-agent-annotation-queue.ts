@@ -1,5 +1,4 @@
 import type { Annotation } from '@yomitomo/shared';
-import { agentQueueKey } from '../annotations/reader-annotations';
 
 export class AgentAnnotationQueue {
   private readonly queues = new Map<string, Annotation[]>();
@@ -64,4 +63,8 @@ export class AgentAnnotationQueue {
     }
     return null;
   }
+}
+
+function agentQueueKey(annotation: Annotation) {
+  return annotation.author.kind === 'agent' ? annotation.author.agentId : '__agent__';
 }

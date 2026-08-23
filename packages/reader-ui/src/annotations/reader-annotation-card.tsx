@@ -12,7 +12,7 @@ import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { annotationPersona as annotationAuthor, commentPersona } from '@yomitomo/core';
 import { AvatarBadge, ReaderTooltip } from '../shared/reader-component-primitives';
 import { formatRelativeTime, formatTime } from '../reader-date-utils';
-import type { AnnotationRailSide } from './reader-annotations';
+import type { AnnotationRailSide } from './annotation-rail-layout';
 import type { ReaderUiLabels } from '../shell/reader-app-view-types';
 import { defaultReaderUiLabels } from '../shell/reader-app-view-types';
 import {

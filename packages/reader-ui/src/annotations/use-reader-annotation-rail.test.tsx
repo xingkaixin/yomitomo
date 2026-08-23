@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, UserProfile } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
 import { useReaderAnnotationRail } from './use-reader-annotation-rail';
-import type { AnnotationRailLayout } from './reader-annotations';
+import type { AnnotationRailLayout } from './annotation-rail-layout';
 
 const now = '2026-05-12T08:00:00.000Z';
 

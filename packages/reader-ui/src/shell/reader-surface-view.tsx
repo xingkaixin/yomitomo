@@ -1,6 +1,7 @@
 import React from 'react';
 import { annotationOrdinalsById, highlightDiscussionLabel } from './reader-highlight-labels';
 import type { Annotation, MessageSendShortcut, PublicAgent, UserProfile } from '@yomitomo/shared';
+import { buildHighlightSegments, highlightSegmentStyle } from '@yomitomo/core';
 import { AnnotationCard } from '../annotations/reader-annotation-card';
 import type { ReaderAnnotationRailState } from '../annotations/use-reader-annotation-rail';
 import { Composer, type ComposerPopupPhase } from './reader-composer';
@@ -28,11 +29,7 @@ type AnnotationRailStyle = React.CSSProperties & {
 type HighlightGrowStyle = React.CSSProperties & {
   '--highlight-grow-delay'?: string;
 };
-import {
-  buildHighlightSegments,
-  highlightSegmentStyle,
-  type AnnotationRailLayout,
-} from '../annotations/reader-annotations';
+import type { AnnotationRailLayout } from '../annotations/annotation-rail-layout';
 
 type ReaderSurfaceActions = Pick<ReaderAppViewActions, 'annotation' | 'selection'>;
 
