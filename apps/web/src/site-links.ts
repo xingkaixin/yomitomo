@@ -4,11 +4,18 @@ const changelogPages = import.meta.glob('./content/docs/changelogs/v*.md', { eag
 const englishChangelogPages = import.meta.glob('./content/docs/en/changelogs/v*.md', {
   eager: true,
 });
+const japaneseChangelogPages = import.meta.glob('./content/docs/ja/changelogs/v*.md', {
+  eager: true,
+});
 
 const latestChangelog = latestChangelogPage(Object.keys(changelogPages), '/changelogs');
 const latestEnglishChangelog = latestChangelogPage(
   Object.keys(englishChangelogPages),
   '/en/changelogs',
+);
+const latestJapaneseChangelog = latestChangelogPage(
+  Object.keys(japaneseChangelogPages),
+  '/ja/changelogs',
 );
 
 function latestChangelogPage(paths: string[], urlPrefix: string) {
@@ -36,9 +43,13 @@ export const youtubeUrl = 'https://www.youtube.com/@yomitomo';
 export const xUrl = 'https://x.com/yomitomo';
 export const docsUrl = '/docs/';
 export const englishDocsUrl = '/en/docs/';
+export const japaneseDocsUrl = '/ja/docs/';
 export const blogUrl = '/blog/';
 export const englishBlogUrl = '/en/blog/';
+export const japaneseBlogUrl = '/ja/blog/';
 export const wereadApiKeyDocsUrl = '/docs/weread-api-key/';
 export const englishWereadApiKeyDocsUrl = '/en/docs/weread-api-key/';
+export const japaneseWereadApiKeyDocsUrl = '/ja/docs/weread-api-key/';
 export const changelogsUrl = latestChangelog.url;
 export const englishChangelogsUrl = latestEnglishChangelog.url;
+export const japaneseChangelogsUrl = latestJapaneseChangelog.url;

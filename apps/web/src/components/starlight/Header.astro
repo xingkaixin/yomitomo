@@ -3,8 +3,8 @@ import LandingMasthead from '../landing/LandingMasthead.astro';
 import '../../styles/landing.css';
 
 const path = Astro.url.pathname;
-const lang = path.startsWith('/en/') ? 'en' : 'zh-CN';
-const normalized = path.replace(/^\/en/, '');
+const lang = path.startsWith('/en/') ? 'en' : path.startsWith('/ja/') ? 'ja' : 'zh-CN';
+const normalized = path.replace(/^\/(?:en|ja)/, '');
 const active = normalized.startsWith('/blog')
   ? 'blog'
   : normalized.startsWith('/changelogs')

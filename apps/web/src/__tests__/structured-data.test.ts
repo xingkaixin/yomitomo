@@ -71,6 +71,7 @@ describe('structured data', () => {
   it('limits article schema to scenario detail routes', () => {
     expect(isBlogScenarioPath('/blog/scenarios/pdf-annotation/')).toBe(true);
     expect(isBlogScenarioPath('/en/blog/scenarios/pdf-annotation/')).toBe(true);
+    expect(isBlogScenarioPath('/ja/blog/scenarios/pdf-annotation/')).toBe(true);
     expect(isBlogScenarioPath('/blog/')).toBe(false);
     expect(isBlogScenarioPath('/docs/reader/')).toBe(false);
   });

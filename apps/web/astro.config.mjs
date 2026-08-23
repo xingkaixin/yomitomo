@@ -8,7 +8,11 @@ export default defineConfig({
   integrations: [
     react(),
     starlight({
-      title: 'Yomitomo 文档',
+      title: {
+        'zh-CN': 'Yomitomo 文档',
+        en: 'Yomitomo Docs',
+        ja: 'Yomitomo ヘルプ',
+      },
       description: 'Yomitomo 的产品使用文档和版本更新记录。',
       locales: {
         root: {
@@ -18,6 +22,10 @@ export default defineConfig({
         en: {
           label: 'English',
           lang: 'en',
+        },
+        ja: {
+          label: '日本語',
+          lang: 'ja',
         },
       },
       favicon: '/assets/favicon.png',

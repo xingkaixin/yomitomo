@@ -1,35 +1,50 @@
 ---
-import { changelogsUrl, englishChangelogsUrl } from '../../site-links';
+import {
+  changelogsUrl,
+  englishChangelogsUrl,
+  japaneseChangelogsUrl,
+} from '../../site-links';
 
 type Props = {
-  lang?: 'zh-CN' | 'en';
+  lang?: 'zh-CN' | 'en' | 'ja';
   active?: 'home' | 'docs' | 'blog' | 'changelogs';
 };
 
 const { lang = 'zh-CN', active = 'home' } = Astro.props;
 const isEnglish = lang === 'en';
+const isJapanese = lang === 'ja';
 const showMobileMenu = active !== 'home';
-const menuLabel = isEnglish ? 'Contents' : '目录';
+const menuLabel = isEnglish ? 'Contents' : isJapanese ? '目次' : '目录';
 
-const homeUrl = isEnglish ? '/en/' : '/';
-const prefix = isEnglish ? '/en' : '';
+const prefix = isEnglish ? '/en' : isJapanese ? '/ja' : '';
+const homeUrl = prefix ? `${prefix}/` : '/';
 const currentPath = Astro.url.pathname;
 const currentSearch = Astro.url.search;
-const pathWithoutEnglishPrefix = currentPath.replace(/^\/en(?=\/|$)/, '') || '/';
-const zhLocaleUrl = `${isEnglish ? pathWithoutEnglishPrefix : currentPath}${currentSearch}`;
-const enLocalePath = isEnglish ? currentPath : currentPath === '/' ? '/en/' : `/en${currentPath}`;
+const pathWithoutLocalePrefix = currentPath.replace(/^\/(?:en|ja)(?=\/|$)/, '') || '/';
+const zhLocaleUrl = `${pathWithoutLocalePrefix}${currentSearch}`;
+const enLocalePath = pathWithoutLocalePrefix === '/' ? '/en/' : `/en${pathWithoutLocalePrefix}`;
 const enLocaleUrl = `${enLocalePath}${currentSearch}`;
+const jaLocalePath = pathWithoutLocalePrefix === '/' ? '/ja/' : `/ja${pathWithoutLocalePrefix}`;
+const jaLocaleUrl = `${jaLocalePath}${currentSearch}`;
 
-const languageLabel = isEnglish ? 'EN' : '中';
+const languageLabel = isEnglish ? 'EN' : isJapanese ? '日' : '中';
 
 const navLinks = [
-  { key: 'home', label: isEnglish ? 'Home' : '首页', href: homeUrl },
-  { key: 'docs', label: isEnglish ? 'Docs' : '文档', href: `${prefix}/docs/` },
-  { key: 'blog', label: isEnglish ? 'Blog' : '博客', href: `${prefix}/blog/` },
+  { key: 'home', label: isEnglish ? 'Home' : isJapanese ? 'ホーム' : '首页', href: homeUrl },
+  {
+    key: 'docs',
+    label: isEnglish ? 'Docs' : isJapanese ? 'ドキュメント' : '文档',
+    href: `${prefix}/docs/`,
+  },
+  { key: 'blog', label: isEnglish ? 'Blog' : isJapanese ? 'ブログ' : '博客', href: `${prefix}/blog/` },
   {
     key: 'changelogs',
-    label: isEnglish ? 'Release Notes' : '更新日志',
-    href: isEnglish ? englishChangelogsUrl : changelogsUrl,
+    label: isEnglish ? 'Release Notes' : isJapanese ? '更新履歴' : '更新日志',
+    href: isEnglish
+      ? englishChangelogsUrl
+      : isJapanese
+        ? japaneseChangelogsUrl
+        : changelogsUrl,
   },
 ] as const;
 ---
@@ -49,7 +64,10 @@ const navLinks = [
         )
       }
     </div>
-    <nav class="mh-nav" aria-label={isEnglish ? 'Main navigation' : '主导航'}>
+    <nav
+      class="mh-nav"
+      aria-label={isEnglish ? 'Main navigation' : isJapanese ? 'メインナビゲーション' : '主导航'}
+    >
       {
         navLinks.map((link) => (
           <a class:list={['nav-item', active === link.key && 'is-active']} href={link.href}>
@@ -84,7 +102,7 @@ const navLinks = [
           aria-haspopup="menu"
           aria-expanded="false"
           aria-controls="masthead-language-menu"
-          aria-label={isEnglish ? 'Select language' : '选择语言'}
+          aria-label={isEnglish ? 'Select language' : isJapanese ? '言語を選択' : '选择语言'}
           data-lang-trigger
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -106,15 +124,15 @@ const navLinks = [
           data-lang-menu
         >
           <a
-            class:list={['lang-opt', !isEnglish && 'sel']}
+            class:list={['lang-opt', lang === 'zh-CN' && 'sel']}
             href={zhLocaleUrl}
             role="menuitem"
-            aria-current={!isEnglish ? 'true' : undefined}
+            aria-current={lang === 'zh-CN' ? 'true' : undefined}
             tabindex="-1"
           >
             <span>简体中文</span>
             {
-              !isEnglish && (
+              lang === 'zh-CN' && (
                 <span class="lang-opt-check">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <polyline points="20 6 9 17 4 12" />
@@ -133,6 +151,24 @@ const navLinks = [
             <span>English</span>
             {
               isEnglish && (
+                <span class="lang-opt-check">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </span>
+              )
+            }
+          </a>
+          <a
+            class:list={['lang-opt', isJapanese && 'sel']}
+            href={jaLocaleUrl}
+            role="menuitem"
+            aria-current={isJapanese ? 'true' : undefined}
+            tabindex="-1"
+          >
+            <span>日本語</span>
+            {
+              isJapanese && (
                 <span class="lang-opt-check">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <polyline points="20 6 9 17 4 12" />

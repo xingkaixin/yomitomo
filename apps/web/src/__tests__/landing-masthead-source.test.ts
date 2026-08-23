@@ -11,8 +11,9 @@ describe('landing masthead source', () => {
     expect(source).toContain('aria-haspopup="menu"');
     expect(source).toContain('role="menu"');
     expect(source).toContain('role="menuitem"');
-    expect(source).toContain('aria-current={!isEnglish ?');
+    expect(source).toContain("aria-current={lang === 'zh-CN' ?");
     expect(source).toContain('aria-current={isEnglish ?');
+    expect(source).toContain('aria-current={isJapanese ?');
     expect(source).toContain('tabindex="-1"');
     expect(source).not.toContain('aria-haspopup="listbox"');
     expect(source).not.toContain('role="listbox"');
