@@ -69,7 +69,6 @@ export function ThoughtListItem({
               className={menuOpen ? 'is-active' : ''}
               type="button"
               aria-label={t('discussion.moreThoughtActions')}
-              onClick={(event) => event.stopPropagation()}
             >
               <HugeiconsIcon icon={MoreHorizontalIcon} size={14} />
             </button>

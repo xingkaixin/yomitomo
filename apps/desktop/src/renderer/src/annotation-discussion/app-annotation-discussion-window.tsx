@@ -18,12 +18,7 @@ import type {
 } from '@yomitomo/shared';
 import { normalizeUiLanguage } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
-import {
-  appendAnnotationComment,
-  createUserComment,
-  findMentionedAgents,
-  sortAnnotations,
-} from '@yomitomo/core';
+import { createUserComment, findMentionedAgents, sortAnnotations } from '@yomitomo/core';
 import { applyAppTheme, readCachedThemeId, themeRegistry } from '../theme/app-theme';
 import {
   agentInstructionFromNote,
@@ -267,7 +262,7 @@ function useDiscussionArticleProjection({
     onArticleChange(nextArticle);
   }
 
-  function applyAnnotations(annotations: Annotation[]) {
+  function applyAnnotations(annotations: Annotation[], updatedAt = new Date().toISOString()) {
     const sortedAnnotations = sortAnnotations(annotations);
     if (!sortedAnnotations.some((item) => item.id === annotationId)) {
       onRemoved();
@@ -276,7 +271,7 @@ function useDiscussionArticleProjection({
     const nextArticle = {
       ...articleRef.current,
       annotations: sortedAnnotations,
-      updatedAt: new Date().toISOString(),
+      updatedAt,
     };
     replaceArticle(nextArticle);
     return nextArticle;
@@ -393,6 +388,7 @@ function AnnotationDiscussionShell({
   async function deleteComment(commentId: string) {
     if (deletingCommentId) return;
     setDeletingCommentId(commentId);
+    setSendError('');
     try {
       const nextArticle = await annotationWindowActions.deleteCommentAndReload(
         article.id,
@@ -411,6 +407,14 @@ function AnnotationDiscussionShell({
         next.delete(commentId);
         return next;
       });
+    } catch (error) {
+      console.warn('[annotation-discussion] comment deletion failed', {
+        articleId: article.id,
+        annotationId: annotation.id,
+        commentId,
+        error,
+      });
+      setSendError(assistantRuntimeErrorMessage(error, 'discussion.deleteFailed'));
     } finally {
       setDeletingCommentId(null);
     }
@@ -421,6 +425,9 @@ function AnnotationDiscussionShell({
     comment: Comment,
     updatedAt = new Date().toISOString(),
   ) {
+    const articleId = articleRef.current.id;
+    const articleUpdatedAt = new Date().toISOString();
+    await annotationWindowActions.saveComment(articleId, annotationId, comment, articleUpdatedAt);
     const nextAnnotations = annotationsWithSavedComment(
       annotationsRef.current,
       annotationId,
@@ -428,36 +435,23 @@ function AnnotationDiscussionShell({
       updatedAt,
     );
     if (!nextAnnotations) return;
-    const nextArticle = applyAnnotations(nextAnnotations);
-    if (!nextArticle) return;
-    await annotationWindowActions.saveComment(
-      nextArticle.id,
-      annotationId,
-      comment,
-      nextArticle.updatedAt,
-    );
+    applyAnnotations(nextAnnotations, articleUpdatedAt);
   }
 
   async function submitReply() {
     const selectedRoot = selectedThread?.root;
-    const trimmed = replyDraft.trim();
+    const draft = replyDraft;
+    const trimmed = draft.trim();
     if (!selectedRoot || !trimmed || sendingReply) return;
     setSendingReply(true);
     setSendError('');
     setReplyDraft('');
     setReplyCaretIndex(0);
+    let userCommentSaved = false;
     try {
       const userComment = createUserComment(userProfile, trimmed, { replyTo: selectedRoot.id });
-      const nextAnnotations = appendAnnotationComment(
-        annotationsRef.current,
-        annotation.id,
-        userComment,
-        userComment.createdAt,
-      );
-      const nextAnnotation = nextAnnotations?.find((item) => item.id === annotation.id);
-      if (!nextAnnotations || !nextAnnotation) return;
-
       await saveComment(annotation.id, userComment, userComment.createdAt);
+      userCommentSaved = true;
       const mentionedAgents = findMentionedAgents(trimmed, annotationAgents);
       const targetAgents =
         mentionedAgents.length > 0
@@ -480,12 +474,21 @@ function AnnotationDiscussionShell({
           })),
         );
         const latestAnnotation =
-          annotationsRef.current.find((item) => item.id === annotation.id) || nextAnnotation;
+          annotationsRef.current.find((item) => item.id === annotation.id) || annotation;
         await requestAgentReply(agent, latestAnnotation, userComment, instruction, {
           allowDisabledAgentForRule: mentionedAgents.length === 0,
         });
       }
     } catch (error) {
+      console.warn('[annotation-discussion] reply submission failed', {
+        articleId: article.id,
+        annotationId: annotation.id,
+        error,
+      });
+      if (!userCommentSaved) {
+        setReplyDraft(draft);
+        setReplyCaretIndex(draft.length);
+      }
       setSendError(assistantRuntimeErrorMessage(error, 'discussion.replyFailed'));
     } finally {
       setSendingReply(false);
@@ -504,15 +507,6 @@ function AnnotationDiscussionShell({
     try {
       if (newThoughtMode === 'self') {
         const userComment = createUserComment(userProfile, trimmed);
-        const nextAnnotations = appendAnnotationComment(
-          annotationsRef.current,
-          annotation.id,
-          userComment,
-          userComment.createdAt,
-        );
-        const nextAnnotation = nextAnnotations?.find((item) => item.id === annotation.id);
-        if (!nextAnnotations || !nextAnnotation) return;
-
         await saveComment(annotation.id, userComment, userComment.createdAt);
         setSelectedThoughtId(userComment.id);
 
@@ -520,7 +514,7 @@ function AnnotationDiscussionShell({
         const instruction = agentInstructionFromNote(trimmed, mentionedAgents) || undefined;
         for (const agent of mentionedAgents) {
           const latestAnnotation =
-            annotationsRef.current.find((item) => item.id === annotation.id) || nextAnnotation;
+            annotationsRef.current.find((item) => item.id === annotation.id) || annotation;
           await requestAgentReply(agent, latestAnnotation, userComment, instruction);
         }
       } else {
@@ -560,6 +554,11 @@ function AnnotationDiscussionShell({
       }
       closeNewThoughtDialog();
     } catch (error) {
+      console.warn('[annotation-discussion] thought submission failed', {
+        articleId: article.id,
+        annotationId: annotation.id,
+        error,
+      });
       setSendError(assistantRuntimeErrorMessage(error, 'discussion.addThought.failed'));
     } finally {
       setSubmittingThought(false);

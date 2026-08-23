@@ -123,11 +123,39 @@ describe('AnnotationDiscussionWindowApp', () => {
     await screen.findByText('正在讨论的划线');
     desktop.getArticle.mockResolvedValueOnce(null);
     fireEvent.click(screen.getByRole('button', { name: '更多想法操作' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: '删除这条想法和它的回复' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: '删除这条想法和它的回复' }));
     fireEvent.click(screen.getByRole('button', { name: '删除想法' }));
 
     expect(await screen.findByText('这条批注已删除')).toBeTruthy();
     expect(desktop.deleteArticleComment).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the discussion open and reports comment deletion failures', async () => {
+    const deleteError = new Error('delete failed');
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const desktop = installDesktopApi(article(annotation({ comments: [rootThought()] })));
+    desktop.deleteArticleComment.mockRejectedValueOnce(deleteError);
+    openDiscussionRoute();
+
+    render(<AnnotationDiscussionWindowApp />);
+
+    await screen.findByText('正在讨论的划线');
+    fireEvent.click(screen.getByRole('button', { name: '更多想法操作' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: '删除这条想法和它的回复' }));
+    fireEvent.click(screen.getByRole('button', { name: '删除想法' }));
+
+    expect(await screen.findByText('delete failed')).toBeTruthy();
+    expect(screen.queryByText('这条批注已删除')).toBeNull();
+    expect(document.querySelector('.annotation-discussion-ideas-count')?.textContent).toBe('1');
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[annotation-discussion] comment deletion failed',
+      expect.objectContaining({
+        articleId: 'article_1',
+        annotationId: 'annotation_1',
+        commentId: 'thought_1',
+        error: deleteError,
+      }),
+    );
   });
 
   it('collapses and expands the thought sidebar manually', async () => {
@@ -325,6 +353,56 @@ describe('AnnotationDiscussionWindowApp', () => {
     expect(scrollTo).not.toHaveBeenCalled();
   });
 
+  it('restores a reply draft without rendering an unsaved comment', async () => {
+    const saveError = new Error('save failed');
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const desktop = installDesktopApi(article(annotation({ comments: [rootThought()] })));
+    desktop.saveArticleComment.mockRejectedValueOnce(saveError);
+    openDiscussionRoute();
+
+    render(<AnnotationDiscussionWindowApp />);
+
+    const replyInput = await screen.findByPlaceholderText(/回复这条想法/);
+    fireEvent.change(replyInput, { target: { value: '未保存的回复' } });
+    fireEvent.click(screen.getByRole('button', { name: '回复' }));
+
+    expect(await screen.findByText('save failed')).toBeTruthy();
+    expect((replyInput as HTMLTextAreaElement).value).toBe('未保存的回复');
+    expect(
+      document.querySelector('.annotation-discussion-thread-scroll')?.textContent,
+    ).not.toContain('未保存的回复');
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[annotation-discussion] reply submission failed',
+      expect.objectContaining({
+        articleId: 'article_1',
+        annotationId: 'annotation_1',
+        error: saveError,
+      }),
+    );
+  });
+
+  it('keeps a new thought draft without rendering unsaved content', async () => {
+    const saveError = new Error('save failed');
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const desktop = installDesktopApi(article(annotation({ comments: [rootThought()] })));
+    desktop.saveArticleComment.mockRejectedValueOnce(saveError);
+    openDiscussionRoute();
+
+    render(<AnnotationDiscussionWindowApp />);
+
+    await screen.findByText('正在讨论的划线');
+    fireEvent.click(screen.getByRole('button', { name: '添加想法' }));
+    const thoughtInput = screen.getByRole('textbox', { name: '想法内容' });
+    fireEvent.change(thoughtInput, { target: { value: '未保存的新想法' } });
+    fireEvent.click(screen.getByRole('button', { name: '添加' }));
+
+    expect(await screen.findByText('save failed')).toBeTruthy();
+    expect((thoughtInput as HTMLTextAreaElement).value).toBe('未保存的新想法');
+    expect(document.querySelector('.annotation-discussion-idea-list')?.textContent).not.toContain(
+      '未保存的新想法',
+    );
+  });
+
   it('routes unmentioned replies to the assistant that created the root thought', async () => {
     const desktop = installDesktopApi(
       article(
@@ -517,6 +595,30 @@ describe('AnnotationDiscussionWindowApp', () => {
         pending: false,
         replyTo: 'thought_1',
       }),
+    );
+  });
+
+  it('removes an assistant placeholder when its final reply cannot be saved', async () => {
+    const saveError = new Error('assistant save failed');
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const desktop = installDesktopApi(article(annotation({ comments: [rootThought()] })));
+    desktop.saveArticleComment.mockResolvedValueOnce(undefined).mockRejectedValueOnce(saveError);
+    openDiscussionRoute();
+
+    render(<AnnotationDiscussionWindowApp />);
+
+    const replyInput = await screen.findByPlaceholderText(/回复这条想法/);
+    fireEvent.change(replyInput, { target: { value: '@zhou 请继续' } });
+    fireEvent.click(screen.getByRole('button', { name: '回复' }));
+
+    expect(await screen.findByText('assistant save failed')).toBeTruthy();
+    expect(desktop.saveArticleComment).toHaveBeenCalledTimes(2);
+    expect((replyInput as HTMLTextAreaElement).value).toBe('');
+    expect(
+      document.querySelector('.annotation-discussion-thread-scroll')?.textContent,
+    ).not.toContain('助手想法');
+    expect(document.querySelector('.annotation-discussion-thread-scroll')?.textContent).toContain(
+      '@zhou 请继续',
     );
   });
 

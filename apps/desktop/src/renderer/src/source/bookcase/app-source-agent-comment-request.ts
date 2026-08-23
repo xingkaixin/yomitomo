@@ -12,6 +12,7 @@ import type { RefObject } from 'react';
 import {
   annotationAgentAuthorRef,
   appendAnnotationComment,
+  deleteAnnotationComment,
   updateAnnotationComment,
 } from '@yomitomo/core';
 import { promptArticle } from './source-prompt-article';
@@ -248,6 +249,14 @@ export async function runSourceAgentCommentRequest({
     ) {
       await saveComment(annotation.id, completedComment);
     }
+  } catch (error) {
+    const nextAnnotations = deleteAnnotationComment(
+      annotationsRef.current,
+      annotation.id,
+      pendingCommentId,
+    );
+    if (nextAnnotations) applyAnnotations(nextAnnotations);
+    throw error;
   } finally {
     stream.cancel();
     setStatusMessage('');

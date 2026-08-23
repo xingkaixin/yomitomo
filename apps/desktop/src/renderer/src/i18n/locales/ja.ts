@@ -999,6 +999,7 @@ export const jaResources = {
       selectThoughtTitle: 'ディスカッションを表示するには考えを選択してください',
       selectThoughtDescription: 'この注釈に関するディスカッションはここに表示されます。',
       replyFailed: '返信を送信できませんでした',
+      deleteFailed: '削除できませんでした。もう一度お試しください。',
       windowTitle: '注釈ディスカッション - {{title}}',
       untitledArticle: '無題の記事',
       replyPlaceholder:
