@@ -1,53 +1,28 @@
-import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
+import {
+  Popover,
+  PopoverSurface,
+  PopoverTrigger,
+  type PopoverSurfaceProps,
+} from '@yomitomo/reader-ui/ui-popover';
 import * as React from 'react';
-import { composePopupClassName } from './popup-class-name';
 
-type PopoverTriggerProps = React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Trigger> & {
-  asChild?: boolean;
-};
-
-const Popover = PopoverPrimitive.Root;
-
-const PopoverTrigger = React.forwardRef<HTMLButtonElement, PopoverTriggerProps>(
-  ({ asChild, children, ...props }, ref) => (
-    <PopoverPrimitive.Trigger
-      ref={ref}
-      render={asChild && React.isValidElement(children) ? children : undefined}
-      {...props}
-    >
-      {asChild ? undefined : children}
-    </PopoverPrimitive.Trigger>
-  ),
-);
-PopoverTrigger.displayName = 'PopoverTrigger';
-
-type PopoverContentProps = React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Popup> &
-  Pick<
-    React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Positioner>,
-    'align' | 'side' | 'sideOffset'
-  >;
+type PopoverContentProps = Omit<
+  PopoverSurfaceProps,
+  'baseClassName' | 'baseStyle' | 'positionerStyle'
+>;
 
 const PopoverContent = React.forwardRef<
-  React.ElementRef<typeof PopoverPrimitive.Popup>,
+  React.ElementRef<typeof PopoverSurface>,
   PopoverContentProps
->(({ className, align = 'start', sideOffset = 8, side, ...props }, ref) => (
-  <PopoverPrimitive.Portal>
-    <PopoverPrimitive.Positioner
-      align={align}
-      side={side}
-      sideOffset={sideOffset}
-      style={{ zIndex: 'var(--app-z-popover, 160)' }}
-    >
-      <PopoverPrimitive.Popup
-        className={composePopupClassName(
-          'ui-popup-content ui-popover-content t-dropdown z-[var(--app-z-popover)] rounded-xl border border-border bg-popover p-4 text-popover-foreground shadow-lg outline-none',
-          className,
-        )}
-        ref={ref}
-        {...props}
-      />
-    </PopoverPrimitive.Positioner>
-  </PopoverPrimitive.Portal>
+>((props, ref) => (
+  <PopoverSurface
+    align="start"
+    baseClassName="ui-popup-content ui-popover-content t-dropdown z-[var(--app-z-popover)] rounded-xl border border-border bg-popover p-4 text-popover-foreground shadow-lg outline-none"
+    positionerStyle={{ zIndex: 'var(--app-z-popover, 160)' }}
+    ref={ref}
+    sideOffset={8}
+    {...props}
+  />
 ));
 PopoverContent.displayName = 'PopoverContent';
 

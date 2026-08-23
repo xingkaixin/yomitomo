@@ -1,79 +1,28 @@
-import { Menu as MenuPrimitive } from '@base-ui/react/menu';
+import {
+  DropdownMenu,
+  DropdownMenuItem,
+  DropdownMenuSurface,
+  DropdownMenuTrigger,
+  type DropdownMenuSurfaceProps,
+} from '@yomitomo/reader-ui/ui-dropdown-menu';
 import * as React from 'react';
-import { composePopupClassName } from './popup-class-name';
 
-function DropdownMenu(props: React.ComponentPropsWithoutRef<typeof MenuPrimitive.Root>) {
-  return <MenuPrimitive.Root modal={false} {...props} />;
-}
-
-type DropdownMenuTriggerProps = React.ComponentPropsWithoutRef<typeof MenuPrimitive.Trigger> & {
-  asChild?: boolean;
-};
-
-const DropdownMenuTrigger = React.forwardRef<HTMLButtonElement, DropdownMenuTriggerProps>(
-  ({ asChild, children, ...props }, ref) => (
-    <MenuPrimitive.Trigger
-      ref={ref}
-      render={asChild && React.isValidElement(children) ? children : undefined}
-      {...props}
-    >
-      {asChild ? undefined : children}
-    </MenuPrimitive.Trigger>
-  ),
-);
-DropdownMenuTrigger.displayName = 'DropdownMenuTrigger';
-
-type DropdownMenuContentProps = Omit<
-  React.ComponentPropsWithoutRef<typeof MenuPrimitive.Popup>,
-  'style'
-> & {
-  style?: React.CSSProperties;
-} & Pick<
-    React.ComponentPropsWithoutRef<typeof MenuPrimitive.Positioner>,
-    'align' | 'side' | 'sideOffset'
-  >;
+type DropdownMenuContentProps = Omit<DropdownMenuSurfaceProps, 'baseClassName' | 'positionerStyle'>;
 
 const DropdownMenuContent = React.forwardRef<
-  React.ElementRef<typeof MenuPrimitive.Popup>,
+  React.ElementRef<typeof DropdownMenuSurface>,
   DropdownMenuContentProps
->(({ align = 'end', className, side = 'bottom', sideOffset = 6, style, ...props }, ref) => (
-  <MenuPrimitive.Portal>
-    <MenuPrimitive.Positioner
-      align={align}
-      side={side}
-      sideOffset={sideOffset}
-      style={{ zIndex: 'var(--app-z-popover, 160)' }}
-    >
-      <MenuPrimitive.Popup
-        className={composePopupClassName(
-          'ui-popup-content ui-dropdown-content t-dropdown',
-          className,
-        )}
-        ref={ref}
-        style={{ position: 'static', ...style }}
-        {...props}
-      />
-    </MenuPrimitive.Positioner>
-  </MenuPrimitive.Portal>
+>((props, ref) => (
+  <DropdownMenuSurface
+    align="end"
+    baseClassName="ui-popup-content ui-dropdown-content t-dropdown"
+    positionerStyle={{ zIndex: 'var(--app-z-popover, 160)' }}
+    ref={ref}
+    side="bottom"
+    sideOffset={6}
+    {...props}
+  />
 ));
 DropdownMenuContent.displayName = 'DropdownMenuContent';
-
-type DropdownMenuItemProps = React.ComponentPropsWithoutRef<typeof MenuPrimitive.Item> & {
-  asChild?: boolean;
-};
-
-const DropdownMenuItem = React.forwardRef<HTMLElement, DropdownMenuItemProps>(
-  ({ asChild, children, nativeButton, ...props }, ref) => (
-    <MenuPrimitive.Item
-      nativeButton={asChild ? true : nativeButton}
-      ref={ref}
-      render={asChild && React.isValidElement(children) ? children : undefined}
-      {...props}
-    >
-      {asChild ? undefined : children}
-    </MenuPrimitive.Item>
-  ),
-);
-DropdownMenuItem.displayName = 'DropdownMenuItem';
 
 export { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger };
