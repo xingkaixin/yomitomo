@@ -3,18 +3,19 @@ import { readerBilingualTranslationStyles } from './reader-bilingual-translation
 import { readerBodyLineHeight } from './reader-settings';
 import {
   composeReaderStyles,
-  readerConversationStyles,
+  readerConversationStyles as readerConversationStylesSource,
   readerDesktopEmbeddedBundleStyles,
   readerDesktopEmbeddedStyles,
   readerStyles,
   readerStyleBundles,
 } from './reader-styles';
-import { readerConversationStylesSource } from './styles/reader-conversation-styles';
+
+const readerConversationStyles = compactCss(readerConversationStylesSource);
 
 describe('reader embedded styles', () => {
   it('keeps compatibility exports wired to explicit style bundles', () => {
     expect(readerStyleBundles.base).toBe(readerStyles);
-    expect(readerStyleBundles.conversation).toBe(readerConversationStyles);
+    expect(readerStyleBundles.conversation).toBe(readerConversationStylesSource);
     expect(readerStyleBundles.desktopEmbedded).toBe(readerDesktopEmbeddedStyles);
     expect(readerStyles).toContain(readerBilingualTranslationStyles);
   });
@@ -51,7 +52,7 @@ describe('reader embedded styles', () => {
     );
     expectCssToContain(combinedReaderStyles(), '.reader-background-options{');
     expectCssToContain(combinedReaderStyles(), 'background:var(--app-reader-edge-blur-top)');
-    expect(combinedReaderStyles()).toContain('background:var(--app-reader-scrim)');
+    expectCssToContain(combinedReaderStyles(), 'background:var(--app-reader-scrim)');
     expect(readerDesktopEmbeddedStyles).toContain('--reader-bg:var(--app-reader-bg)');
     expectCssNotToContain(combinedReaderStyles(), '--reader-bg:#f5f1e8');
     expect(readerDesktopEmbeddedStyles).not.toContain('--reader-bg:#f5f1e8');
@@ -121,10 +122,9 @@ describe('reader embedded styles', () => {
     expect(longestReviewableLine).toBeLessThanOrEqual(220);
   });
 
-  it('compacts conversation CSS from the reviewable source text', () => {
-    expect(readerConversationStyles).toBe(
-      compactReaderCssLikeRuntime(readerConversationStylesSource),
-    );
+  it('keeps conversation CSS unmodified at runtime', () => {
+    expect(readerConversationStylesSource).toContain('\n.reader-app {\n');
+    expect(readerConversationStylesSource).toContain('\n.reader-chat-panel {\n');
   });
 
   it('wires popup surfaces to the shared motion contract', () => {
@@ -247,7 +247,8 @@ describe('reader embedded styles', () => {
       readerStyles,
       '.reader-article blockquote{margin-left:0;padding-left:22px;border-left:4px solid var(--reader-yellow);color:var(--reader-ink)}',
     );
-    expect(combinedReaderStyles()).toContain(
+    expectCssToContain(
+      combinedReaderStyles(),
       '.reader-markdown blockquote{margin:8px 0;padding-left:10px;border-left:3px solid color-mix(in srgb,var(--reader-red) 28%,transparent);color:var(--reader-ink)}',
     );
     expectCssNotToContain(
@@ -585,59 +586,6 @@ function compactCss(source: string) {
     .replace(/\s*([{}:;,])\s*/g, '$1')
     .replace(/;}/g, '}')
     .trim();
-}
-
-function compactReaderCssLikeRuntime(source: string) {
-  const trimmed = source.trim();
-  let result = '';
-  let quote: string | null = null;
-  let escaped = false;
-
-  for (let index = 0; index < trimmed.length; index += 1) {
-    const char = trimmed[index];
-
-    if (quote) {
-      result += char;
-      if (escaped) {
-        escaped = false;
-      } else if (char === '\\') {
-        escaped = true;
-      } else if (char === quote) {
-        quote = null;
-      }
-      continue;
-    }
-
-    if (char === '"' || char === "'") {
-      quote = char;
-      result += char;
-      continue;
-    }
-
-    if (char === '\n' || char === '\r') {
-      while (
-        index + 1 < trimmed.length &&
-        (trimmed[index + 1] === ' ' || trimmed[index + 1] === '\t')
-      ) {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (
-      (char === ' ' || char === '\t') &&
-      trimmed
-        .slice(index + 1)
-        .trimStart()
-        .startsWith('{')
-    ) {
-      continue;
-    }
-
-    result += char;
-  }
-
-  return result;
 }
 
 function countOccurrences(source: string, needle: string) {
