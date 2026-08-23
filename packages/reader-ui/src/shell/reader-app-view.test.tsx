@@ -61,7 +61,6 @@ describe('ReaderAppView surface handle', () => {
           virtualCursors: [],
         }}
         annotations={{
-          activeConnection: null,
           activeId: null,
           annotationTotals: { annotations: 0, distillations: 0 },
           annotations: [],
@@ -102,7 +101,6 @@ describe('ReaderAppView surface handle', () => {
       />,
     );
 
-    expect(surfaceRef.current?.getRootElement()?.classList.contains('reader-app')).toBe(true);
     expect(surfaceRef.current?.getViewportElement()?.classList.contains('reader-surface')).toBe(
       true,
     );
@@ -113,8 +111,6 @@ describe('ReaderAppView surface handle', () => {
     expect(surfaceRef.current?.getRailElement()?.classList.contains('reader-annotation-rail')).toBe(
       true,
     );
-    expect(surfaceRef.current?.getNoteElement('missing')).toBeNull();
-    expect(surfaceRef.current?.getNoteElements()).toEqual([]);
     await act(async () => surfaceRef.current?.requestSelectionCopy());
     expect(onCopySelection).toHaveBeenCalledOnce();
 

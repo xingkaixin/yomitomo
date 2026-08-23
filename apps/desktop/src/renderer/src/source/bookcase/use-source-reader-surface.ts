@@ -20,22 +20,14 @@ export function useSourceReaderSurface() {
       articleRef: elementRef(handleRef, (handle) => handle.getArticleElement()),
       canvasRef: elementRef(handleRef, (handle) => handle.getCanvasElement()),
       railRef: elementRef(handleRef, (handle) => handle.getRailElement()),
-      rootRef: elementRef(handleRef, (handle) => handle.getRootElement()),
       viewportRef: elementRef(handleRef, (handle) => handle.getViewportElement()),
     }),
     [],
   );
-  const getNoteElement = useCallback(
-    (annotationId: string) => handleRef.current?.getNoteElement(annotationId) ?? null,
-    [],
-  );
-  const getNoteElements = useCallback(() => handleRef.current?.getNoteElements() ?? [], []);
   const requestSelectionCopy = useCallback(() => handleRef.current?.requestSelectionCopy(), []);
 
   return {
     ...elementRefs,
-    getNoteElement,
-    getNoteElements,
     handleRef,
     requestSelectionCopy,
   };

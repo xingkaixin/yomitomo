@@ -1,22 +1,22 @@
 import { useCallback, useEffect, useLayoutEffect, useState, type RefObject } from 'react';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { annotationColor, type HighlightBox } from '@yomitomo/core';
-import { buildAnnotationConnectionPath } from '@yomitomo/reader-ui/reader-connection-path';
-import type { ActiveConnection } from '@yomitomo/reader-ui/reader-types';
+import { buildAnnotationConnectionPath } from '../reader-connection-path';
+import type { ActiveConnection } from '../reader-types';
 
-type UseSourceActiveConnectionInput = {
+type UseReaderActiveConnectionInput = {
   annotationAgents: PublicAgent[];
   annotations: Annotation[];
   boxes: HighlightBox[];
   canvasRef: RefObject<HTMLDivElement | null>;
-  getNoteElement: (annotationId: string) => HTMLElement | null;
+  noteRefs: RefObject<Map<string, HTMLElement>>;
   readerRootRef: RefObject<HTMLDivElement | null>;
   selectedAnnotationId: string | null;
   surfaceRef: RefObject<HTMLElement | null>;
   userProfile: UserProfile;
 };
 
-const NOTE_CONNECTION_TARGET_OFFSET = 34;
+const noteConnectionTargetOffset = 34;
 
 function connectionTargetForNote(noteElement: HTMLElement, readerRect: DOMRect) {
   const noteRect = noteElement.getBoundingClientRect();
@@ -24,21 +24,21 @@ function connectionTargetForNote(noteElement: HTMLElement, readerRect: DOMRect) 
   return {
     side,
     x: (side === 'left' ? noteRect.right : noteRect.left) - readerRect.left,
-    y: noteRect.top - readerRect.top + Math.min(NOTE_CONNECTION_TARGET_OFFSET, noteRect.height / 2),
+    y: noteRect.top - readerRect.top + Math.min(noteConnectionTargetOffset, noteRect.height / 2),
   };
 }
 
-export function useSourceActiveConnection({
+export function useReaderActiveConnection({
   annotationAgents,
   annotations,
   boxes,
   canvasRef,
-  getNoteElement,
+  noteRefs,
   readerRootRef,
   selectedAnnotationId,
   surfaceRef,
   userProfile,
-}: UseSourceActiveConnectionInput) {
+}: UseReaderActiveConnectionInput) {
   const [activeConnection, setActiveConnection] = useState<ActiveConnection | null>(null);
 
   const recalculateActiveConnection = useCallback(() => {
@@ -49,7 +49,7 @@ export function useSourceActiveConnection({
 
     const canvasElement = canvasRef.current;
     const scrollElement = surfaceRef.current;
-    const noteElement = getNoteElement(selectedAnnotationId);
+    const noteElement = noteRefs.current.get(selectedAnnotationId);
     const annotation = annotations.find((item) => item.id === selectedAnnotationId);
     const activeBoxes = boxes.filter((box) => box.annotationId === selectedAnnotationId);
     const readerElement = readerRootRef.current;
@@ -108,7 +108,7 @@ export function useSourceActiveConnection({
     annotations,
     boxes,
     canvasRef,
-    getNoteElement,
+    noteRefs,
     readerRootRef,
     selectedAnnotationId,
     surfaceRef,

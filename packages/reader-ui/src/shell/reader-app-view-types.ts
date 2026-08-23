@@ -14,7 +14,6 @@ import type { AnnotationRailLayout } from '../annotations/annotation-rail-layout
 import type { buildTocAnnotationStats } from '../annotations/annotation-toc-stats';
 import type { ReaderWindowSourceRect } from '../annotations/reader-annotation-card';
 import type {
-  ActiveConnection,
   AgentDockItem,
   HighlightChoiceAction,
   ReaderSettings,
@@ -101,17 +100,13 @@ export type ReaderArticleModel = {
 export type ReaderSurfaceHandle = {
   getArticleElement: () => HTMLElement | null;
   getCanvasElement: () => HTMLDivElement | null;
-  getNoteElement: (annotationId: string) => HTMLElement | null;
-  getNoteElements: () => HTMLElement[];
   getRailElement: () => HTMLElement | null;
-  getRootElement: () => HTMLDivElement | null;
   getViewportElement: () => HTMLDivElement | null;
   requestSelectionCopy: () => void;
 };
 
 export type ReaderAnnotationModel = {
   activeId: string | null;
-  activeConnection: ActiveConnection | null;
   railLayoutOverride?: AnnotationRailLayout;
   annotationTotals: { annotations: number; distillations: number };
   annotations: Annotation[];

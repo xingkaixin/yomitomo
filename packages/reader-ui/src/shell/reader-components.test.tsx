@@ -391,7 +391,6 @@ describe('ReaderSurfaceView empty notes', () => {
           viewportHeight: 640,
         }}
         annotations={{
-          activeConnection: null,
           activeId: null,
           annotationTotals: { annotations: annotations.length, distillations: 0 },
           annotations,

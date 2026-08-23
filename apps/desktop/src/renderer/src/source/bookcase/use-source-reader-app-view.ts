@@ -3,12 +3,11 @@ import type { HighlightBox } from '@yomitomo/core';
 import type { SourceReaderAppSurface } from './use-source-reader-app';
 import { useReaderSearchNavigation } from './use-reader-search-navigation';
 import type { useSourceReaderApp } from './use-source-reader-app';
-import { useSourceActiveConnection } from './use-source-active-connection';
 
 type SourceReaderApp = ReturnType<typeof useSourceReaderApp>;
 
 type UseSourceReaderAppViewInput = Omit<SourceReaderAppSurface, 'annotations'> & {
-  annotations: Omit<SourceReaderAppSurface['annotations'], 'activeConnection'>;
+  annotations: SourceReaderAppSurface['annotations'];
   app: SourceReaderApp;
 };
 
@@ -22,17 +21,6 @@ export function useSourceReaderAppView({
   ...surface
 }: UseSourceReaderAppViewInput) {
   const [searchBoxes, setSearchBoxes] = useState<HighlightBox[]>([]);
-  const { activeConnection, recalculateActiveConnection } = useSourceActiveConnection({
-    annotationAgents: app.session.annotationAgents,
-    annotations: app.session.annotations,
-    boxes: annotations.boxes,
-    canvasRef: app.surface.canvasRef,
-    getNoteElement: app.surface.getNoteElement,
-    readerRootRef: app.surface.rootRef,
-    selectedAnnotationId: annotations.activeId,
-    surfaceRef: app.surface.viewportRef,
-    userProfile,
-  });
   const clearSearchBoxes = useCallback(() => {
     setSearchBoxes((current) => (current.length === 0 ? current : []));
   }, []);
@@ -90,23 +78,18 @@ export function useSourceReaderAppView({
     searchNavigation.preparing,
   ]);
 
-  const onAnnotationLayoutChange = useCallback(() => {
-    adapter.onAnnotationLayoutChange?.();
-    recalculateActiveConnection();
-  }, [adapter.onAnnotationLayoutChange, recalculateActiveConnection]);
-
   return {
     searchOpen: searchNavigation.open,
     viewProps: app.viewProps(
       {
         ...surface,
         adapter,
-        annotations: { ...annotations, activeConnection, searchBoxes },
+        annotations: { ...annotations, searchBoxes },
         article,
         toolbar: { ...toolbar, search: searchNavigation.search },
         userProfile,
       },
-      onAnnotationLayoutChange,
+      adapter.onAnnotationLayoutChange,
     ),
   };
 }
