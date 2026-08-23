@@ -1,5 +1,6 @@
 export {
   annotationColor,
+  annotationCommentThreads,
   annotationAgentAuthorRef,
   annotationAuthorName,
   annotationPersona,
@@ -17,6 +18,7 @@ export {
   updateAnnotationComment,
 } from './reader/annotations';
 export type {
+  AnnotationCommentThread,
   AnnotationPersona,
   CreateUserAnnotationOptions,
   MentionQuery,

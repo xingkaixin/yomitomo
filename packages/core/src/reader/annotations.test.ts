@@ -4,6 +4,7 @@ import {
   annotationAgentAuthorRef,
   annotationAuthorName,
   annotationColor,
+  annotationCommentThreads,
   annotationPersona,
   annotationPrimaryComment,
   annotationThoughtComments,
@@ -176,6 +177,31 @@ describe('annotation core', () => {
         comments: [...base.comments, thought, reply, otherThought],
       }).map((item) => item.id),
     ).toEqual([base.comments[0].id, 'thought', 'other-thought']);
+  });
+
+  it('groups nested, orphaned and cyclic comment chains without crossing discussions', () => {
+    const comments = [
+      comment('root-a'),
+      comment('root-b'),
+      { ...comment('reply-b'), replyTo: 'root-b' },
+      { ...comment('nested-b'), replyTo: 'reply-b' },
+      { ...comment('orphan'), replyTo: 'missing' },
+      { ...comment('orphan-child'), replyTo: 'orphan' },
+      { ...comment('cycle-a'), replyTo: 'cycle-b' },
+      { ...comment('cycle-b'), replyTo: 'cycle-a' },
+    ];
+
+    expect(
+      annotationCommentThreads(comments).map(({ root, replies }) => [
+        root.id,
+        replies.map((reply) => reply.id),
+      ]),
+    ).toEqual([
+      ['root-a', []],
+      ['root-b', ['reply-b', 'nested-b']],
+      ['orphan', ['orphan-child']],
+      ['cycle-a', ['cycle-b']],
+    ]);
   });
 
   it('deletes a comment with its replies while keeping the annotation', () => {

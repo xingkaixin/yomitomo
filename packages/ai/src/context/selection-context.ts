@@ -17,6 +17,7 @@ import type {
   TextAnchor,
 } from '@yomitomo/shared';
 import {
+  annotationCommentThreads,
   locateEpubOffset,
   prepareEpubTextAnchorResolver,
   intersectTextRanges,
@@ -481,13 +482,13 @@ function threadContextComments(
     ? comments
     : [...comments, userComment];
   if (!rootCommentId) return clippedThreadContextComments(merged);
-  const root = merged.find((comment) => comment.id === rootCommentId);
-  const resolvedRootId = root?.replyTo || root?.id || rootCommentId;
-  const focused = merged.filter(
-    (comment) =>
-      comment.content.trim() &&
-      (comment.id === resolvedRootId || comment.replyTo === resolvedRootId),
+  const thread = annotationCommentThreads(merged).find(
+    ({ root, replies }) =>
+      root.id === rootCommentId || replies.some((comment) => comment.id === rootCommentId),
   );
+  const focused = thread
+    ? [thread.root, ...thread.replies].filter((comment) => comment.content.trim())
+    : [];
   const nonEmpty =
     focused.length > 0 ? focused : merged.filter((comment) => comment.content.trim());
   return clippedThreadContextComments(nonEmpty);

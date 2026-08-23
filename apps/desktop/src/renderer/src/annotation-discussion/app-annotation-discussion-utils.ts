@@ -6,7 +6,12 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import { formatDateTimeValue, relativeTimeParts } from '@yomitomo/shared';
-import { annotationAuthorName, findMentionedAgents, type getMentionQuery } from '@yomitomo/core';
+import {
+  annotationAuthorName,
+  annotationCommentThreads,
+  findMentionedAgents,
+  type getMentionQuery,
+} from '@yomitomo/core';
 import { mentionDraftWithAgent } from '@yomitomo/reader-ui/reader-mention-utils';
 import i18next from 'i18next';
 import { articlePlainText } from '../shell/app-utils';
@@ -96,22 +101,9 @@ export function discussionThreads(
   annotation: Annotation,
   pinnedThoughtIds: Set<string>,
 ): DiscussionThread[] {
-  const roots = annotation.comments.filter((comment) => !comment.replyTo);
-  const rootIds = new Set(roots.map((comment) => comment.id));
-  const repliesByRoot = new Map(roots.map((comment) => [comment.id, [] as Comment[]]));
-  const fallbackRoot = roots[0];
-
-  for (const comment of annotation.comments) {
-    if (rootIds.has(comment.id)) continue;
-    const rootId =
-      comment.replyTo && rootIds.has(comment.replyTo) ? comment.replyTo : fallbackRoot?.id;
-    if (!rootId) continue;
-    repliesByRoot.get(rootId)?.push(comment);
-  }
-
-  return roots
-    .map((root) => {
-      const replies = (repliesByRoot.get(root.id) || []).toSorted(compareCommentsOldestFirst);
+  return annotationCommentThreads(annotation.comments)
+    .map(({ root, replies: unsortedReplies }) => {
+      const replies = unsortedReplies.toSorted(compareCommentsOldestFirst);
       const updatedAt = latestCommentTime([root, ...replies]);
       return {
         isPinned: pinnedThoughtIds.has(root.id),

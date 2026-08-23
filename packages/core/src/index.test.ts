@@ -6,6 +6,7 @@ const coreRuntimeExports = [
   'annotationAgentAuthorRef',
   'annotationAuthorName',
   'annotationColor',
+  'annotationCommentThreads',
   'annotationHasPublishedDistillation',
   'annotationIdsAtHighlightPoint',
   'annotationPersona',

@@ -9,7 +9,11 @@ import {
 } from '@hugeicons/core-free-icons';
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
-import { annotationPersona as annotationAuthor, commentPersona } from '@yomitomo/core';
+import {
+  annotationCommentThreads,
+  annotationPersona as annotationAuthor,
+  commentPersona,
+} from '@yomitomo/core';
 import { AvatarBadge, ReaderTooltip } from '../shared/reader-component-primitives';
 import { formatRelativeTime, formatTime } from '../reader-date-utils';
 import type { AnnotationRailSide } from './annotation-rail-layout';
@@ -658,27 +662,12 @@ function ReaderConfirmDialog({
 }
 
 function annotationDiscussionThreads(annotation: Annotation): DiscussionThread[] {
-  const topLevelComments = annotation.comments
-    .filter((comment) => !comment.replyTo)
-    .toSorted(compareCommentsOldestFirst);
-  const fallbackRoot = topLevelComments[0];
-  const rootIds = new Set(topLevelComments.map((comment) => comment.id));
-  const repliesByRoot = new Map(
-    topLevelComments.map((comment) => [comment.id, [] as Annotation['comments']]),
-  );
-
-  for (const comment of annotation.comments) {
-    if (rootIds.has(comment.id)) continue;
-    const rootId =
-      comment.replyTo && rootIds.has(comment.replyTo) ? comment.replyTo : fallbackRoot?.id;
-    if (!rootId) continue;
-    repliesByRoot.get(rootId)?.push(comment);
-  }
-
-  return topLevelComments.map((root) => ({
-    root,
-    replies: (repliesByRoot.get(root.id) || []).toSorted(compareCommentsOldestFirst),
-  }));
+  return annotationCommentThreads(annotation.comments)
+    .map(({ root, replies }) => ({
+      root,
+      replies: replies.toSorted(compareCommentsOldestFirst),
+    }))
+    .toSorted((left, right) => compareCommentsOldestFirst(left.root, right.root));
 }
 
 function compareCommentsOldestFirst(

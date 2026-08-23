@@ -11,6 +11,7 @@ import type {
 import {
   annotationAgentAuthorRef,
   annotationAuthorName,
+  annotationCommentThreads,
   buildCurrentChapterLexicalRelatedPassages,
   buildReadingContextBundle,
   selectionThreadSpoilerPolicy,
@@ -540,13 +541,10 @@ function threadMemoryViewPromptBlock(
 function focusedThreadComments(payload: AgentMessagePayload) {
   const rootId = payload.reviewTargetCommentId || payload.userComment.replyTo;
   if (!rootId) return payload.annotation.comments.filter((comment) => comment.content.trim());
-  const root = payload.annotation.comments.find((comment) => comment.id === rootId);
-  const resolvedRootId = root?.replyTo || root?.id || rootId;
-  const focused = payload.annotation.comments.filter(
-    (comment) =>
-      comment.content.trim() &&
-      (comment.id === resolvedRootId || comment.replyTo === resolvedRootId),
+  const thread = annotationCommentThreads(payload.annotation.comments).find(
+    ({ root, replies }) => root.id === rootId || replies.some((comment) => comment.id === rootId),
   );
+  const focused = thread ? [thread.root, ...thread.replies].filter(nonEmptyComment) : [];
   if (focused.length > 0) return focused;
   return payload.annotation.comments.filter((comment) => comment.content.trim());
 }
@@ -625,22 +623,9 @@ function addParticipant(
 }
 
 function formatThoughtReviewThreads(annotation: Annotation) {
-  const roots = annotation.comments.filter((comment) => !comment.replyTo);
-  const rootIds = new Set(roots.map((comment) => comment.id));
-  const fallbackRootId = roots[0]?.id;
-  const repliesByRoot = new Map(roots.map((comment) => [comment.id, [] as Comment[]]));
-
-  for (const comment of annotation.comments) {
-    if (!comment.replyTo) continue;
-    const rootId = rootIds.has(comment.replyTo) ? comment.replyTo : fallbackRootId;
-    if (!rootId) continue;
-    repliesByRoot.get(rootId)?.push(comment);
-  }
-
   return (
-    roots
-      .map((root, index) => {
-        const replies = repliesByRoot.get(root.id) || [];
+    annotationCommentThreads(annotation.comments)
+      .map(({ root, replies }, index) => {
         const lines = [`${index + 1}. ${formatCommentAuthor(root)}: ${root.content}`];
         for (const reply of replies) {
           lines.push(`   - 回复 ${formatCommentAuthor(reply)}: ${reply.content}`);
@@ -649,6 +634,10 @@ function formatThoughtReviewThreads(annotation: Annotation) {
       })
       .join('\n\n') || '- 暂无想法'
   );
+}
+
+function nonEmptyComment(comment: Comment) {
+  return Boolean(comment.content.trim());
 }
 
 function formatCommentAuthor(comment: Comment) {
