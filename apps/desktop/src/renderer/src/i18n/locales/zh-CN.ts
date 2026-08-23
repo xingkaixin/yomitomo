@@ -497,6 +497,7 @@ export const zhCNResources = {
     },
     library: {
       title: '阅读库',
+      articleLoadFailed: '阅读内容不可用，本地来源数据可能已损坏',
       catalog: {
         loading: '正在读取阅读库',
         loadingDescription: '正在从本地数据库整理这一页内容。',

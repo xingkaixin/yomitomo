@@ -54,6 +54,21 @@ type ArticleSummaryRecordWithoutSource = Omit<
   'sourceType' | 'ebook' | 'pdf' | 'text'
 >;
 
+type FileArticleSourceType = Exclude<ArticleSourceType, 'web'>;
+
+export class ArticleSourcePayloadError extends Error {
+  readonly articleId: string;
+  readonly code = 'ARTICLE_SOURCE_PAYLOAD_INVALID';
+  readonly sourceType: FileArticleSourceType;
+
+  constructor(articleId: string, sourceType: FileArticleSourceType) {
+    super(`Article ${articleId} has no valid ${sourceType} source payload`);
+    this.name = 'ArticleSourcePayloadError';
+    this.articleId = articleId;
+    this.sourceType = sourceType;
+  }
+}
+
 export function normalizeArticleRecord(article: ArticleRecord): ArticleRecord {
   const { sourceType, ebook, pdf, text, ...base } = article;
   const normalizedSourceType = normalizeArticleSourceType(sourceType);
@@ -67,21 +82,18 @@ export function normalizeArticleRecord(article: ArticleRecord): ArticleRecord {
       return { ...normalizedBase, sourceType: 'web' };
     case 'ebook': {
       const normalizedEbook = normalizeEbookRecord(ebook);
-      return normalizedEbook
-        ? { ...normalizedBase, sourceType: 'ebook', ebook: normalizedEbook }
-        : { ...normalizedBase, sourceType: 'web' };
+      if (!normalizedEbook) throw new ArticleSourcePayloadError(article.id, 'ebook');
+      return { ...normalizedBase, sourceType: 'ebook', ebook: normalizedEbook };
     }
     case 'pdf': {
       const normalizedPdf = normalizePdfRecord(pdf);
-      return normalizedPdf
-        ? { ...normalizedBase, sourceType: 'pdf', pdf: normalizedPdf }
-        : { ...normalizedBase, sourceType: 'web' };
+      if (!normalizedPdf) throw new ArticleSourcePayloadError(article.id, 'pdf');
+      return { ...normalizedBase, sourceType: 'pdf', pdf: normalizedPdf };
     }
     case 'text': {
       const normalizedText = normalizeTextMetadata(text);
-      return normalizedText
-        ? { ...normalizedBase, sourceType: 'text', text: normalizedText }
-        : { ...normalizedBase, sourceType: 'web' };
+      if (!normalizedText) throw new ArticleSourcePayloadError(article.id, 'text');
+      return { ...normalizedBase, sourceType: 'text', text: normalizedText };
     }
   }
 }
@@ -100,22 +112,16 @@ export function normalizeArticleSummaryRecord(article: ArticleSummaryRecord): Ar
     case 'web':
       return { ...normalizedBase, sourceType: 'web' };
     case 'ebook': {
-      const normalizedEbook = normalizeEbookSummaryRecord(ebook);
-      return normalizedEbook
-        ? { ...normalizedBase, sourceType: 'ebook', ebook: normalizedEbook }
-        : { ...normalizedBase, sourceType: 'web' };
+      const normalizedEbook = normalizeEbookSummaryRecord(ebook) || emptyEbookSummaryRecord();
+      return { ...normalizedBase, sourceType: 'ebook', ebook: normalizedEbook };
     }
     case 'pdf': {
-      const normalizedPdf = normalizePdfRecord(pdf);
-      return normalizedPdf
-        ? { ...normalizedBase, sourceType: 'pdf', pdf: normalizedPdf }
-        : { ...normalizedBase, sourceType: 'web' };
+      const normalizedPdf = normalizePdfRecord(pdf) || emptyPdfRecord();
+      return { ...normalizedBase, sourceType: 'pdf', pdf: normalizedPdf };
     }
     case 'text': {
-      const normalizedText = normalizeTextMetadata(text);
-      return normalizedText
-        ? { ...normalizedBase, sourceType: 'text', text: normalizedText }
-        : { ...normalizedBase, sourceType: 'web' };
+      const normalizedText = normalizeTextMetadata(text) || emptyTextMetadata();
+      return { ...normalizedBase, sourceType: 'text', text: normalizedText };
     }
   }
 }
@@ -135,7 +141,7 @@ export function rowToEbookSummary(row: ArticleSummaryRow): ArticleSummaryRecord[
   if (sourceType !== 'ebook') return undefined;
 
   const metadata = normalizeEbookMetadata(row.ebookMetadata);
-  return metadata ? { metadata } : undefined;
+  return metadata ? { metadata } : emptyEbookSummaryRecord();
 }
 
 export function rowToText(row: ArticleRow): ArticleRecord['text'] {
@@ -145,9 +151,8 @@ export function rowToText(row: ArticleRow): ArticleRecord['text'] {
 }
 
 export function rowToTextSummary(row: ArticleSummaryRow): ArticleSummaryRecord['text'] {
-  return normalizeArticleSourceType(row.sourceType) === 'text'
-    ? normalizeTextMetadata(row.textMetadata)
-    : undefined;
+  if (normalizeArticleSourceType(row.sourceType) !== 'text') return undefined;
+  return normalizeTextMetadata(row.textMetadata) || emptyTextMetadata();
 }
 
 function normalizeTextMetadata(value: unknown): TextSourceMetadata | undefined {
@@ -307,7 +312,7 @@ export function rowToPdfSummary(row: ArticleSummaryRow): ArticleRecord['pdf'] {
   if (sourceType !== 'pdf') return undefined;
 
   const metadata = normalizePdfMetadata(row.pdfMetadata);
-  return metadata ? { metadata } : undefined;
+  return metadata ? { metadata } : emptyPdfRecord();
 }
 
 export function normalizePdfRecord(value: ArticleRecord['pdf'] | undefined): ArticleRecord['pdf'] {
@@ -335,6 +340,20 @@ function normalizePdfMetadata(value: unknown): PdfMetadata | undefined {
     creationDate: stringValue(metadata.creationDate) || undefined,
     modificationDate: stringValue(metadata.modificationDate) || undefined,
   };
+}
+
+function emptyEbookSummaryRecord(): NonNullable<ArticleSummaryRecord['ebook']> {
+  return { metadata: { format: 'epub', fileName: '', fileSize: 0 } };
+}
+
+function emptyPdfRecord(): NonNullable<ArticleRecord['pdf']> {
+  return {
+    metadata: { format: 'pdf', fileName: '', fileSize: 0, pageCount: 1 },
+  };
+}
+
+function emptyTextMetadata(): TextSourceMetadata {
+  return { format: 'plain' };
 }
 
 function normalizeEbookMetadata(value: unknown): EbookMetadata | undefined {

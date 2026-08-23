@@ -53,6 +53,7 @@ export {
   rowToLibraryPin,
 } from './store-normalizers-collections';
 export {
+  ArticleSourcePayloadError,
   normalizeArticleReadingProgress,
   normalizeArticleRecord,
   normalizeArticleSummaryRecord,

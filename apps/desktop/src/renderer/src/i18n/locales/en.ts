@@ -509,6 +509,7 @@ export const enResources = {
     },
     library: {
       title: 'Library',
+      articleLoadFailed: 'This content is unavailable because its local source data may be damaged',
       catalog: {
         loading: 'Loading library',
         loadingDescription: 'Preparing this page from the local database.',
