@@ -15,7 +15,7 @@ import type {
 } from '@yomitomo/shared';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { renderSafeMarkdown } from '@yomitomo/core/article-extraction';
+import { renderSafeMarkdown } from '@yomitomo/core/safe-markdown';
 import { formatAbsoluteTime, formatRelativeTime } from './app-annotation-discussion-utils';
 import { AvatarBadge, ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { AssistantRuntimeProgressList } from '../shell/app-assistant-runtime-progress';

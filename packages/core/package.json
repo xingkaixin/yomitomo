@@ -5,8 +5,10 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./article-content-html": "./src/articles/article-content-html.ts",
     "./article-extraction": "./src/articles/article-extraction.ts",
-    "./article-images": "./src/articles/article-images.ts"
+    "./article-images": "./src/articles/article-images.ts",
+    "./safe-markdown": "./src/articles/safe-markdown.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json --noEmit",

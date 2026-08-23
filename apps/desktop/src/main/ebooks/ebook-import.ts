@@ -9,7 +9,7 @@ import {
   performanceStart,
   type EpubBookIndexChapterInput,
 } from '@yomitomo/core';
-import { sanitizeArticleContent } from '@yomitomo/core/article-extraction';
+import { sanitizeArticleContent } from '@yomitomo/core/article-content-html';
 import {
   cleanEpubDisplayTitle,
   EPUB_TITLE_CLEANUP_VERSION,

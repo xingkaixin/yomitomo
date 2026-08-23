@@ -1,5 +1,5 @@
 import type { Comment, PublicAgent } from '@yomitomo/shared';
-import { renderSafeMarkdown } from '@yomitomo/core/article-extraction';
+import { renderSafeMarkdown } from '@yomitomo/core/safe-markdown';
 import {
   hasMatchedAgentMention,
   mentionChipSegments,

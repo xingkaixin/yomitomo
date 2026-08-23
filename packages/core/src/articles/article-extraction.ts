@@ -1,8 +1,8 @@
 import { Readability } from '@mozilla/readability';
-import DOMPurify from 'dompurify';
-import type { Config } from 'dompurify';
 import type { ArticleRecord } from '@yomitomo/shared';
 import { hashText } from '@yomitomo/shared';
+import { sanitizeArticleContentHtml } from './article-content-html';
+import { resolveHttpUrl } from './article-url';
 
 export type ExtractedArticle = {
   id: string;
@@ -30,12 +30,6 @@ export type ArticlePreview = {
   readingMinutes: number;
   readerActive: boolean;
 };
-
-export const readerHtmlPurifyConfig = {
-  ADD_TAGS: ['math', 'mrow', 'mi', 'mo', 'mn', 'msup', 'msub', 'msqrt', 'semantics', 'annotation'],
-  ADD_ATTR: ['display', 'xmlns', 'encoding'],
-  ALLOWED_URI_REGEXP: /^(?:(?:https?):|data:image\/|(?:[^:/?#]+(?:[/?#]|$))|[/?#])/i,
-} satisfies Config;
 
 export async function extractCurrentArticle(): Promise<ExtractedArticle> {
   return extractArticleFromDocument(document, location.href);
@@ -335,243 +329,11 @@ function normalizeDateString(value: unknown) {
   return Number.isNaN(parsed) ? raw : new Date(parsed).toISOString();
 }
 
-function resolveHttpUrl(value: unknown, baseUrl: string) {
-  const raw = cleanString(value);
-  if (!raw) return undefined;
-  try {
-    const url = new URL(raw, baseUrl);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return undefined;
-    return url.href;
-  } catch {
-    return undefined;
-  }
-}
-
 function normalizeThemeColor(value: unknown) {
   const raw = cleanString(value);
   if (!raw) return undefined;
   if (!/^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(raw)) return undefined;
   return raw.toLowerCase();
-}
-
-export function sanitizeArticleContentHtml(
-  articleDocument: Document,
-  html: string,
-  baseUrl: string,
-) {
-  return sanitizeArticleContent(articleDocument, html, baseUrl).html;
-}
-
-export function renderMarkdown(content: string): string {
-  return renderMarkdownBlocks(content);
-}
-
-function renderMarkdownBlocks(content: string) {
-  const lines = content.replace(/\r\n?/g, '\n').split('\n');
-  const blocks: string[] = [];
-
-  for (let index = 0; index < lines.length; ) {
-    const line = lines[index];
-
-    if (!line.trim()) {
-      index += 1;
-      continue;
-    }
-
-    if (line.match(/^```/)) {
-      const codeLines: string[] = [];
-      index += 1;
-      while (index < lines.length && !lines[index].match(/^```/)) {
-        codeLines.push(lines[index]);
-        index += 1;
-      }
-      if (index < lines.length) index += 1;
-      blocks.push(`<pre><code>${escapeMarkdownHtml(codeLines.join('\n'))}</code></pre>`);
-      continue;
-    }
-
-    const heading = line.match(/^(#{1,6})\s+(.+)$/);
-    if (heading) {
-      const level = heading[1].length;
-      blocks.push(`<h${level}>${renderMarkdownInline(heading[2].trim())}</h${level}>`);
-      index += 1;
-      continue;
-    }
-
-    if (/^\s*>\s?/.test(line)) {
-      const quoteLines: string[] = [];
-      while (index < lines.length && /^\s*>\s?/.test(lines[index])) {
-        quoteLines.push(lines[index].replace(/^\s*>\s?/, ''));
-        index += 1;
-      }
-      blocks.push(`<blockquote>${renderMarkdownParagraph(quoteLines)}</blockquote>`);
-      continue;
-    }
-
-    if (/^\s*[-*+]\s+/.test(line)) {
-      const items: string[] = [];
-      while (index < lines.length && /^\s*[-*+]\s+/.test(lines[index])) {
-        items.push(`<li>${renderMarkdownInline(lines[index].replace(/^\s*[-*+]\s+/, ''))}</li>`);
-        index += 1;
-      }
-      blocks.push(`<ul>${items.join('')}</ul>`);
-      continue;
-    }
-
-    if (/^\s*\d+\.\s+/.test(line)) {
-      const items: string[] = [];
-      while (index < lines.length && /^\s*\d+\.\s+/.test(lines[index])) {
-        items.push(`<li>${renderMarkdownInline(lines[index].replace(/^\s*\d+\.\s+/, ''))}</li>`);
-        index += 1;
-      }
-      blocks.push(`<ol>${items.join('')}</ol>`);
-      continue;
-    }
-
-    const paragraphLines: string[] = [];
-    while (
-      index < lines.length &&
-      lines[index].trim() &&
-      !lines[index].startsWith('```') &&
-      !/^(#{1,6})\s+/.test(lines[index]) &&
-      !/^\s*>\s?/.test(lines[index]) &&
-      !/^\s*[-*+]\s+/.test(lines[index]) &&
-      !/^\s*\d+\.\s+/.test(lines[index])
-    ) {
-      paragraphLines.push(lines[index]);
-      index += 1;
-    }
-    blocks.push(`<p>${renderMarkdownParagraph(paragraphLines)}</p>`);
-  }
-
-  return blocks.join('');
-}
-
-function renderMarkdownParagraph(lines: string[]) {
-  return lines.map((line) => renderMarkdownInline(line)).join('<br>');
-}
-
-function renderMarkdownInline(content: string) {
-  const tokens: string[] = [];
-  const token = (value: string) => {
-    const id = `@@YOMITOMOMD${tokens.length}@@`;
-    tokens.push(value);
-    return id;
-  };
-
-  let text = content.replace(/`([^`]+)`/g, (_match, code: string) =>
-    token(`<code>${escapeMarkdownHtml(code)}</code>`),
-  );
-  text = text.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_match, label: string, href: string) => {
-    if (!/^(https?:\/\/|mailto:)/i.test(href)) return escapeMarkdownHtml(label);
-    const safeHref = escapeMarkdownHtml(href);
-    return token(
-      `<a href="${safeHref}" target="_blank" rel="noreferrer">${escapeMarkdownHtml(label)}</a>`,
-    );
-  });
-
-  text = escapeMarkdownHtml(text)
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/__([^_]+)__/g, '<strong>$1</strong>')
-    .replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>')
-    .replace(/(^|[^_])_([^_]+)_/g, '$1<em>$2</em>');
-
-  tokens.forEach((value, index) => {
-    text = text.replace(`@@YOMITOMOMD${index}@@`, value);
-  });
-
-  return text;
-}
-
-function escapeMarkdownHtml(input: string) {
-  return input
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-export function renderSafeMarkdown(content: string, articleDocument: Document = document) {
-  return sanitizeArticleContentHtml(
-    articleDocument,
-    renderMarkdown(content),
-    documentPageUrl(articleDocument) || 'https://yomitomo.local/',
-  );
-}
-
-export function sanitizeArticleContent(articleDocument: Document, html: string, baseUrl: string) {
-  const purifyWindow = articleDocument.defaultView;
-  const purifier = purifyWindow ? DOMPurify(purifyWindow) : DOMPurify;
-  const sanitized = purifier.sanitize(html, readerHtmlPurifyConfig);
-  const container = normalizeReaderContent(articleDocument, sanitized, baseUrl);
-  return {
-    html: container.innerHTML,
-    container,
-  };
-}
-
-function normalizeReaderContent(articleDocument: Document, html: string, baseUrl: string) {
-  const container = articleDocument.createElement('div');
-  container.innerHTML = html;
-  container.querySelectorAll('script, style, link').forEach((element) => element.remove());
-  container.querySelectorAll<HTMLElement>('*').forEach((element) => {
-    element.removeAttribute('style');
-    element.removeAttribute('width');
-    element.removeAttribute('height');
-    normalizeReaderElementUrls(element, baseUrl);
-    if (element.tagName.includes('-')) {
-      element.replaceWith(...Array.from(element.childNodes));
-    }
-  });
-  return container;
-}
-
-function normalizeReaderElementUrls(element: HTMLElement, baseUrl: string) {
-  const tagName = element.tagName.toLowerCase();
-  if (tagName === 'img') {
-    normalizeUrlAttribute(element, 'src', baseUrl);
-    normalizeUrlAttribute(element, 'data-src', baseUrl);
-    normalizeUrlAttribute(element, 'data-original', baseUrl);
-    normalizeUrlAttribute(element, 'data-lazy-src', baseUrl);
-    normalizeUrlAttribute(element, 'data-actualsrc', baseUrl);
-    normalizeSrcsetAttribute(element, 'srcset', baseUrl);
-    normalizeSrcsetAttribute(element, 'data-srcset', baseUrl);
-  }
-  if (tagName === 'source') {
-    normalizeSrcsetAttribute(element, 'srcset', baseUrl);
-  }
-}
-
-function normalizeUrlAttribute(element: HTMLElement, attribute: string, baseUrl: string) {
-  const resolved = resolveImageUrl(element.getAttribute(attribute), baseUrl);
-  if (resolved) element.setAttribute(attribute, resolved);
-}
-
-function normalizeSrcsetAttribute(element: HTMLElement, attribute: string, baseUrl: string) {
-  const value = element.getAttribute(attribute);
-  if (!value) return;
-  if (value.trim().startsWith('data:image/')) return;
-
-  const normalized = value
-    .split(',')
-    .map((candidate) => {
-      const parts = candidate.trim().split(/\s+/).filter(Boolean);
-      const resolved = resolveHttpUrl(parts[0], baseUrl);
-      return resolved ? [resolved, ...parts.slice(1)].join(' ') : '';
-    })
-    .filter(Boolean)
-    .join(', ');
-
-  if (normalized) element.setAttribute(attribute, normalized);
-  else element.removeAttribute(attribute);
-}
-
-function resolveImageUrl(value: unknown, baseUrl: string) {
-  const raw = cleanString(value);
-  if (!raw) return undefined;
-  if (raw.startsWith('data:image/')) return raw;
-  return resolveHttpUrl(raw, baseUrl);
 }
 
 function articleContentHash(articleDocument: Document, html: string) {

@@ -7,7 +7,7 @@ import type {
   PublicAgent,
 } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
-import { renderSafeMarkdown } from '@yomitomo/core/article-extraction';
+import { renderSafeMarkdown } from '@yomitomo/core/safe-markdown';
 import { AvatarBadge } from '@yomitomo/reader-ui/reader-component-primitives';
 import {
   Dialog,
