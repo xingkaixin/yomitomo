@@ -1018,6 +1018,7 @@ export const enResources = {
       selectThoughtTitle: 'Select a thought to view discussion',
       selectThoughtDescription: 'The discussion for this annotation will appear here.',
       replyFailed: 'Reply failed to send',
+      deleteFailed: 'Delete failed. Please try again.',
       windowTitle: 'Annotation discussion - {{title}}',
       untitledArticle: 'Untitled article',
       replyPlaceholder: 'Reply to this thought. Type @assistant to invite assistants.',

@@ -988,6 +988,7 @@ export const zhCNResources = {
       selectThoughtTitle: '选择想法查看讨论',
       selectThoughtDescription: '这条批注的讨论会在这里展开。',
       replyFailed: '回复发送失败',
+      deleteFailed: '删除失败，请稍后重试',
       windowTitle: '批注讨论 - {{title}}',
       untitledArticle: '未命名文章',
       replyPlaceholder: '回复这条想法，输入 @助手 可邀请助手参与讨论',
