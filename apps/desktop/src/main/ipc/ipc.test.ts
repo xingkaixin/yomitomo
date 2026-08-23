@@ -27,14 +27,32 @@ const ipcState = vi.hoisted(() => {
   };
 });
 
+const databaseLeaseState = vi.hoisted(() => ({
+  active: false,
+  run: vi.fn(async (operation: () => Promise<unknown>) => {
+    databaseLeaseState.active = true;
+    try {
+      return await operation();
+    } finally {
+      databaseLeaseState.active = false;
+    }
+  }),
+}));
+
 vi.mock('electron', () => ({
   ipcMain: {
     handle: ipcState.handle,
   },
 }));
 
+vi.mock('../store/store-db', () => ({
+  withDatabaseLease: databaseLeaseState.run,
+}));
+
 beforeEach(() => {
   ipcState.handlers.clear();
+  databaseLeaseState.active = false;
+  databaseLeaseState.run.mockClear();
   resetDesktopIpcRegistrationsForTest();
 });
 
@@ -50,6 +68,29 @@ describe('handleDesktopIpc', () => {
 
     expect(envelope).toEqual({ ok: true, value: { status: 'canceled' } });
     expect(handler).toHaveBeenCalledWith({}, input);
+  });
+
+  it('holds database-dependent handlers inside the database lease', async () => {
+    const handler = vi.fn(async () => {
+      expect(databaseLeaseState.active).toBe(true);
+      return { status: 'canceled' as const };
+    });
+    handleDesktopIpc('article:import-url', handler);
+
+    await invokeRegisteredHandler('article:import-url', { url: 'https://example.com' });
+
+    expect(databaseLeaseState.run).toHaveBeenCalledOnce();
+  });
+
+  it('releases the database lease before running independent handlers', async () => {
+    const handler = vi.fn(async () => {
+      expect(databaseLeaseState.active).toBe(false);
+    });
+    handleDesktopIpc('url:open', handler);
+
+    await invokeRegisteredHandler('url:open', 'https://example.com');
+
+    expect(databaseLeaseState.run).toHaveBeenCalledOnce();
   });
 
   it('rejects malformed URL imports before invoking the handler', async () => {

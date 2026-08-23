@@ -332,6 +332,39 @@ describe('store database restore lifecycle', () => {
     expect(readMarker()).toBe('source');
   });
 
+  it('keeps the current database when a lease does not drain in time', async () => {
+    writeMarker('source');
+    const source = join(testPaths.userData, 'source.sqlite');
+    await backupDatabaseFile(source);
+    writeMarker('current');
+    const generationBeforeRestore = readDatabaseLifecycle().generation;
+    let releaseLease: () => void = noop;
+    const leaseHeld = new Promise<void>((resolve) => {
+      releaseLease = resolve;
+    });
+    const lease = withDatabaseLease(async () => leaseHeld);
+
+    vi.useFakeTimers();
+    try {
+      const restore = replaceDatabaseFile(source);
+      expect(readDatabaseLifecycle()).toMatchObject({ state: 'draining', leases: 1 });
+      vi.advanceTimersByTime(5000);
+      vi.useRealTimers();
+      await expect(restore).rejects.toThrow('DATA_MANAGEMENT_DATABASE_BUSY');
+
+      expect(readMarker()).toBe('current');
+      expect(readDatabaseLifecycle()).toMatchObject({
+        state: 'open',
+        generation: generationBeforeRestore,
+        leases: 1,
+      });
+    } finally {
+      releaseLease();
+      await lease;
+      vi.useRealTimers();
+    }
+  });
+
   it('refuses a second restore while one is already running', async () => {
     writeMarker('source');
     const source = join(testPaths.userData, 'source.sqlite');

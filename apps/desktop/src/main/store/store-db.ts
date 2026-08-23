@@ -193,11 +193,11 @@ export async function replaceDatabaseFile(sourcePath: string) {
 async function drainDatabaseLeases() {
   if (activeLeases === 0) return;
 
-  await new Promise<void>((settle) => {
+  await new Promise<void>((settle, reject) => {
     const timer = setTimeout(() => {
       leasesDrained = null;
       logInfo('store.database_replace_drain_timeout', { leases: activeLeases });
-      settle();
+      reject(new Error('DATA_MANAGEMENT_DATABASE_BUSY'));
     }, LEASE_DRAIN_TIMEOUT_MS);
     leasesDrained = () => {
       clearTimeout(timer);

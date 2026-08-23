@@ -82,6 +82,11 @@ const databaseLifecycleChannels = desktopIpcInvokeChannelsWithFlag(
   'databaseLifecycle',
 );
 
+const databaseIndependentChannels = desktopIpcInvokeChannelsWithFlag(
+  desktopIpcInvokeDescriptors,
+  'databaseIndependent',
+);
+
 const registeredDesktopIpcChannels = new Set<DesktopIpcInvokeChannel>();
 const desktopIpcInvokeChannels = Object.keys(
   desktopIpcInvokeDescriptors,
@@ -102,11 +107,20 @@ export function handleDesktopIpc<Channel extends DesktopIpcInvokeChannel>(
   ipcMain.handle(channel, async (event, ...args: DesktopIpcInvokeArgs<Channel>) => {
     try {
       assertDesktopIpcInvokeSenderAuthorized(channel, event);
-      await assertDesktopIpcChannelAllowedByAppLock(channel);
       const invoke = async () => handler(event, ...validateDesktopIpcInvokeArgs(channel, args));
-      const value = databaseLifecycleChannels.has(channel)
-        ? await invoke()
-        : await withDatabaseLease(invoke);
+      const invokeAllowed = async () => {
+        await assertDesktopIpcChannelAllowedByAppLock(channel);
+        return invoke();
+      };
+      let value: DesktopIpcInvokeResult<Channel>;
+      if (databaseLifecycleChannels.has(channel)) {
+        value = await invokeAllowed();
+      } else if (databaseIndependentChannels.has(channel)) {
+        await withDatabaseLease(() => assertDesktopIpcChannelAllowedByAppLock(channel));
+        value = await invoke();
+      } else {
+        value = await withDatabaseLease(invokeAllowed);
+      }
       return { ok: true, value };
     } catch (error) {
       return { ok: false, error: serializeDesktopIpcError(error) };
