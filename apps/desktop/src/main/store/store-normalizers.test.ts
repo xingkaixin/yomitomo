@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ArticleRecord, DesktopStore } from '@yomitomo/shared';
 import {
+  ArticleSourcePayloadError,
   defaultUser,
   mergeSettingsForUpsert,
   normalizeAgentKind,
@@ -20,6 +21,7 @@ import {
   rowToAgent,
   rowToAnnotation,
   rowToArticle,
+  rowToArticleSummary,
   rowToComment,
   rowToProvider,
   rowToSettings,
@@ -425,13 +427,13 @@ describe('store normalizers articles', () => {
       chapters: [{ id: 'chapter_1', title: 'Chapter', html: '<p>Text</p>', textLength: 4 }],
     };
 
-    const normalizedMismatch = normalizeArticleRecord({
-      ...articleBase,
-      sourceType: 'pdf',
-      ebook,
-    } as unknown as ArticleRecord);
-    expect(normalizedMismatch).toMatchObject({ ...articleBase, sourceType: 'web' });
-    expect('ebook' in normalizedMismatch).toBe(false);
+    expect(() =>
+      normalizeArticleRecord({
+        ...articleBase,
+        sourceType: 'pdf',
+        ebook,
+      } as unknown as ArticleRecord),
+    ).toThrow(ArticleSourcePayloadError);
     expect(
       normalizeArticleSummaryRecord({
         ...articleBase,
@@ -452,8 +454,8 @@ describe('store normalizers articles', () => {
     });
   });
 
-  it('downgrades persisted source rows whose required payload is missing', () => {
-    expect(
+  it('rejects full source rows whose required payload is missing', () => {
+    expect(() =>
       rowToArticle(
         {
           ...articleRowBase(),
@@ -463,8 +465,21 @@ describe('store normalizers articles', () => {
         },
         [],
       ),
-    ).toMatchObject({ sourceType: 'web' });
+    ).toThrow('Article article_1 has no valid ebook source payload');
   });
+
+  it.each([
+    ['ebook', 'ebook', { metadata: { format: 'epub', fileName: '', fileSize: 0 } }],
+    ['pdf', 'pdf', { metadata: { format: 'pdf', fileName: '', fileSize: 0, pageCount: 1 } }],
+    ['text', 'text', { format: 'plain' }],
+  ] as const)(
+    'preserves %s summaries when display metadata is missing',
+    (sourceType, key, payload) => {
+      const summary = rowToArticleSummary({ ...articleRowBase(), sourceType });
+
+      expect(summary).toMatchObject({ sourceType, [key]: payload });
+    },
+  );
 
   it('normalizes store collections with provider, agent, and article fallbacks', () => {
     const store = {

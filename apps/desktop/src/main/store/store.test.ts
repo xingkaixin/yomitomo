@@ -1,4 +1,5 @@
 import { rm } from 'node:fs/promises';
+import { eq } from 'drizzle-orm';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createPdfTextAnchor,
@@ -100,7 +101,7 @@ import { getDatabase } from './store-db';
 import { closeDatabase } from './store-lifecycle';
 import { deleteProvider, saveProvider } from './store-providers';
 import { saveUser } from './store-settings';
-import { ensureArticleSiteIcon } from './store-articles';
+import { ensureArticleSiteIcon, readArticle } from './store-articles';
 import { readShellStore, readStore } from './store-snapshot';
 import {
   mergeSettingsForUpsert,
@@ -894,6 +895,48 @@ describe('desktop store reading progress', () => {
 });
 
 describe('desktop store articles', () => {
+  it('preserves corrupt source summaries and reports full content as unavailable', async () => {
+    const database = getDatabase();
+    const base = articleRecord({ id: 'corrupt_ebook' });
+    writeArticleRows(database, {
+      ...base,
+      sourceType: 'ebook',
+      ebook: {
+        metadata: { format: 'epub', fileName: 'book.epub', fileSize: 1024 },
+        chapters: [{ id: 'chapter_1', title: 'Chapter', html: '<p>Text</p>', textLength: 4 }],
+      },
+    });
+    database
+      .update(schema.articles)
+      .set({ ebookMetadata: null, ebookChapters: null })
+      .where(eq(schema.articles.id, 'corrupt_ebook'))
+      .run();
+
+    await expect(readStore()).resolves.toMatchObject({
+      articles: [
+        {
+          id: 'corrupt_ebook',
+          sourceType: 'ebook',
+          ebook: { metadata: { format: 'epub', fileName: '', fileSize: 0 } },
+        },
+      ],
+    });
+    await expect(readArticle('corrupt_ebook')).rejects.toMatchObject({
+      articleId: 'corrupt_ebook',
+      code: 'ARTICLE_SOURCE_PAYLOAD_INVALID',
+      sourceType: 'ebook',
+    });
+    expect(testState.logErrors).toContainEqual({
+      event: 'article.source_payload_invalid',
+      error: expect.objectContaining({
+        articleId: 'corrupt_ebook',
+        code: 'ARTICLE_SOURCE_PAYLOAD_INVALID',
+        sourceType: 'ebook',
+      }),
+      data: { articleId: 'corrupt_ebook', sourceType: 'ebook' },
+    });
+  });
+
   it('applies import network settings when localizing a site icon', async () => {
     const database = getDatabase();
     const remoteUrl = 'http://127.0.0.1/favicon.png';

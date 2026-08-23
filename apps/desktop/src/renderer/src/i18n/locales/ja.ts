@@ -483,6 +483,8 @@ export const jaResources = {
     },
     library: {
       title: 'ライブラリ',
+      articleLoadFailed:
+        'ローカルのソースデータが破損している可能性があるため、このコンテンツを利用できません',
       catalog: {
         loading: 'ライブラリを読み込み中',
         loadingDescription: 'ローカル データベースからこのページを準備しています。',

@@ -8,6 +8,7 @@ import type {
   Comment,
 } from '@yomitomo/shared';
 import type { ArticleLibraryListInput, ArticleLibraryListResult } from '../../ipc-contract';
+import { logError } from '../app/logger';
 import {
   deleteAnnotationRowsWithMemoryLifecycle,
   deleteArticleRowsWithMemoryLifecycle,
@@ -52,6 +53,7 @@ import type {
   ArticleTranslationSegmentUpdateInput,
 } from '../articles/article-translation-repository';
 import { getDatabase } from './store-db';
+import { ArticleSourcePayloadError } from './store-normalizers';
 import { migrateProviderApiKeys } from './store-provider-key-migration';
 import {
   backfillArticleAnnotationMemory,
@@ -62,9 +64,19 @@ import { readImportSettings as readImportSettingsRows } from './settings-reposit
 export async function readArticle(id: string): Promise<ArticleRecord | null> {
   const database = getDatabase();
   await migrateProviderApiKeys(database);
-  const article = readArticleRows(database, id);
-  if (article?.sourceType === 'pdf') backfillArticleAnnotationMemory(article);
-  return article;
+  try {
+    const article = readArticleRows(database, id);
+    if (article?.sourceType === 'pdf') backfillArticleAnnotationMemory(article);
+    return article;
+  } catch (error) {
+    if (error instanceof ArticleSourcePayloadError) {
+      logError('article.source_payload_invalid', error, {
+        articleId: error.articleId,
+        sourceType: error.sourceType,
+      });
+    }
+    throw error;
+  }
 }
 
 export async function readArticleSummary(id: string) {

@@ -5,6 +5,7 @@ import { normalizeReaderChatState } from './store-normalizers-reader-chat';
 import {
   normalizeArticleReadingProgress,
   normalizeArticleSourceType,
+  ArticleSourcePayloadError,
   normalizeFocusCoReadingPlan,
   rowToEbook,
   rowToEbookSummary,
@@ -37,15 +38,18 @@ export function rowToArticle(row: ArticleRow, annotations: Annotation[]): Articl
       return { ...base, sourceType };
     case 'ebook': {
       const ebook = rowToEbook(row);
-      return ebook ? { ...base, sourceType, ebook } : { ...base, sourceType: 'web' };
+      if (!ebook) throw new ArticleSourcePayloadError(row.id, sourceType);
+      return { ...base, sourceType, ebook };
     }
     case 'pdf': {
       const pdf = rowToPdf(row);
-      return pdf ? { ...base, sourceType, pdf } : { ...base, sourceType: 'web' };
+      if (!pdf) throw new ArticleSourcePayloadError(row.id, sourceType);
+      return { ...base, sourceType, pdf };
     }
     case 'text': {
       const text = rowToText(row);
-      return text ? { ...base, sourceType, text } : { ...base, sourceType: 'web' };
+      if (!text) throw new ArticleSourcePayloadError(row.id, sourceType);
+      return { ...base, sourceType, text };
     }
   }
 }
@@ -67,15 +71,18 @@ export function rowToArticleSummary(
       return { ...summaryBase, sourceType };
     case 'ebook': {
       const ebook = rowToEbookSummary(row);
-      return ebook ? { ...summaryBase, sourceType, ebook } : { ...summaryBase, sourceType: 'web' };
+      if (!ebook) throw new ArticleSourcePayloadError(row.id, sourceType);
+      return { ...summaryBase, sourceType, ebook };
     }
     case 'pdf': {
       const pdf = rowToPdfSummary(row);
-      return pdf ? { ...summaryBase, sourceType, pdf } : { ...summaryBase, sourceType: 'web' };
+      if (!pdf) throw new ArticleSourcePayloadError(row.id, sourceType);
+      return { ...summaryBase, sourceType, pdf };
     }
     case 'text': {
       const text = rowToTextSummary(row);
-      return text ? { ...summaryBase, sourceType, text } : { ...summaryBase, sourceType: 'web' };
+      if (!text) throw new ArticleSourcePayloadError(row.id, sourceType);
+      return { ...summaryBase, sourceType, text };
     }
   }
 }

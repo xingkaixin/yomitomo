@@ -1,6 +1,6 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowDown01Icon, BubbleChatIcon } from '@hugeicons/core-free-icons';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -119,6 +119,20 @@ export function ReadingLibrary({
     onCloseArticleDiscussions: closeArticleDiscussions,
     onReadArticle: readArticle,
   });
+  const reportArticleLoadError = useCallback(() => {
+    appToast.error(t('library.articleLoadFailed'));
+  }, [t]);
+  const openLibraryArticle = useCallback(
+    async (article: ArticleRecord | ArticleSummaryRecord | string, focusAnnotationId?: string) => {
+      try {
+        return await navigation.actions.openArticle(article, focusAnnotationId);
+      } catch {
+        reportArticleLoadError();
+        return null;
+      }
+    },
+    [navigation.actions, reportArticleLoadError],
+  );
   useEffect(
     () => articleStore.registerCurrentArticleSink(navigation.currentArticleSink),
     [articleStore, navigation.currentArticleSink],
@@ -191,12 +205,12 @@ export function ReadingLibrary({
 
   useEffect(() => {
     if (!openArticleTargetId) return;
-    void navigation.actions
-      .openArticle(openArticleTargetId, openArticleTargetAnnotationId)
-      .then((openedArticle) => {
+    void openLibraryArticle(openArticleTargetId, openArticleTargetAnnotationId).then(
+      (openedArticle) => {
         if (openedArticle) onArticleOpened?.(openedArticle.id);
-      });
-  }, [navigation.actions, onArticleOpened, openArticleTargetAnnotationId, openArticleTargetId]);
+      },
+    );
+  }, [onArticleOpened, openArticleTargetAnnotationId, openArticleTargetId, openLibraryArticle]);
 
   useEffect(() => {
     if (!selectedArticleId || !selectedArticle) return;
@@ -204,10 +218,14 @@ export function ReadingLibrary({
     if (!summary) return;
     if (!articleUpdateCanReplace(selectedArticle, summary)) return;
     let cancelled = false;
-    void readArticle(summary.id).then((fullArticle) => {
-      if (cancelled || !fullArticle || !navigation.actions.isCurrentArticle(summary.id)) return;
-      distillationSync.acceptExternalArticle(fullArticle);
-    });
+    void readArticle(summary.id)
+      .then((fullArticle) => {
+        if (cancelled || !fullArticle || !navigation.actions.isCurrentArticle(summary.id)) return;
+        distillationSync.acceptExternalArticle(fullArticle);
+      })
+      .catch(() => {
+        if (!cancelled) reportArticleLoadError();
+      });
     return () => {
       cancelled = true;
     };
@@ -215,6 +233,7 @@ export function ReadingLibrary({
     distillationSync.acceptExternalArticle,
     navigation.actions,
     readArticle,
+    reportArticleLoadError,
     selectedArticle,
     selectedArticleId,
     sortedArticles,
@@ -370,7 +389,7 @@ export function ReadingLibrary({
     itemActions: {
       onDeleteArticle: deleteLibraryArticle,
       onOpenArticle: (article: ArticleRecord | ArticleSummaryRecord) =>
-        void navigation.actions.openArticle(article),
+        void openLibraryArticle(article),
       onOpenWeReadBook: (book: WeReadBook) => void openWeReadBook(book),
       onOpenWeReadExternal: (book: WeReadBook) => void openWeReadExternal(book),
       onSetLibraryPin: setLibraryPin,

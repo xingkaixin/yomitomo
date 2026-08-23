@@ -82,6 +82,26 @@ describe('useReadingLibraryNavigation', () => {
     expect(result.current.model.article?.id).toBe('article_2');
   });
 
+  it('allows another article load after a source payload error', async () => {
+    const onReadArticle = vi
+      .fn<(articleId: string) => Promise<ArticleRecord | null>>()
+      .mockRejectedValueOnce(new Error('source payload invalid'))
+      .mockResolvedValueOnce(article({ id: 'article_2' }));
+    const { result } = renderHook(() => useReadingLibraryNavigation({ onReadArticle }));
+
+    await expect(
+      act(async () => result.current.actions.openArticle(articleSummary('article_1'))),
+    ).rejects.toThrow('source payload invalid');
+    expect(result.current.model).toMatchObject({ article: null, routeType: 'library' });
+
+    await act(async () => {
+      await result.current.actions.openArticle(articleSummary('article_2'));
+    });
+
+    expect(result.current.model.article?.id).toBe('article_2');
+    expect(onReadArticle).toHaveBeenCalledTimes(2);
+  });
+
   it('opens an article focused on a requested annotation', async () => {
     const { result } = renderHook(() =>
       useReadingLibraryNavigation({ onReadArticle: async () => null }),

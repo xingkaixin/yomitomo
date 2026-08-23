@@ -18,6 +18,19 @@ import {
 } from './app-reading-library-test-support';
 
 describe('ReadingLibrary actions', () => {
+  it('reports unavailable local content without opening the reader', async () => {
+    const onReadArticle = vi.fn().mockRejectedValue(new Error('source payload invalid'));
+    renderLibrary([article({ title: '损坏电子书' })], { onReadArticle });
+
+    fireEvent.click(screen.getByRole('button', { name: '打开文章：损坏电子书' }));
+
+    await waitFor(() =>
+      expect(appToast.error).toHaveBeenCalledWith('阅读内容不可用，本地来源数据可能已损坏'),
+    );
+    expect(onReadArticle).toHaveBeenCalledWith('article_1');
+    expect(screen.getByRole('button', { name: '打开文章：损坏电子书' })).toBeTruthy();
+  });
+
   it('pins articles from the card menu', async () => {
     const setLibraryPin = vi.fn().mockResolvedValue({
       type: 'library-pin',

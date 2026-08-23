@@ -97,10 +97,23 @@ export function useReadingLibraryNavigation({
       closeCurrentArticle(articleId);
       const token = articleLoadRef.current.token + 1;
       articleLoadRef.current = { status: 'loading', token, articleId };
-      const fullArticle =
-        typeof article !== 'string' && articleHasReadableBody(article)
-          ? article
-          : await onReadArticle(articleId);
+      let fullArticle: ArticleRecord | null;
+      try {
+        fullArticle =
+          typeof article !== 'string' && articleHasReadableBody(article)
+            ? article
+            : await onReadArticle(articleId);
+      } catch (error) {
+        const currentLoad = articleLoadRef.current;
+        if (
+          currentLoad.status === 'loading' &&
+          currentLoad.token === token &&
+          currentLoad.articleId === articleId
+        ) {
+          articleLoadRef.current = { status: 'idle', token };
+        }
+        throw error;
+      }
       const currentLoad = articleLoadRef.current;
       if (
         currentLoad.status !== 'loading' ||
