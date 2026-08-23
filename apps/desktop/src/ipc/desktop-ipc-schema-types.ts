@@ -3,7 +3,7 @@ import type {
   DesktopIpcDeclaredSchemaChannel,
   DesktopIpcInvokeArgs,
   DesktopIpcInvokeChannel,
-} from '../ipc-contract';
+} from './desktop-ipc-invoke-contract';
 
 export type DesktopIpcArgsSchema<Channel extends DesktopIpcDeclaredSchemaChannel> = ZodType<
   DesktopIpcInvokeArgs<Channel>
