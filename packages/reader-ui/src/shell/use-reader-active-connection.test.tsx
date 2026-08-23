@@ -5,7 +5,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { HighlightBox } from '@yomitomo/core';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
-import { useSourceActiveConnection } from '../source/bookcase/use-source-active-connection';
+import { useReaderActiveConnection } from './use-reader-active-connection';
 
 const now = '2026-05-16T12:00:00.000Z';
 
@@ -80,16 +80,15 @@ function HookProbe() {
   const canvasRef = React.useRef<HTMLDivElement | null>(null);
   const readerRootRef = React.useRef<HTMLDivElement | null>(null);
   const surfaceRef = React.useRef<HTMLDivElement | null>(null);
-  const noteRef = React.useRef<HTMLElement | null>(null);
-  const railRef = React.useRef<HTMLElement | null>(null);
+  const noteRefs = React.useRef(new Map<string, HTMLElement>());
   const annotations = React.useMemo(() => [annotation('note-1')], []);
   const boxes = React.useMemo(() => [box('note-1')], []);
-  const { activeConnection } = useSourceActiveConnection({
+  const { activeConnection } = useReaderActiveConnection({
     annotationAgents,
     annotations,
     boxes,
     canvasRef,
-    getNoteElement: () => noteRef.current,
+    noteRefs,
     readerRootRef,
     selectedAnnotationId: 'note-1',
     surfaceRef,
@@ -98,7 +97,6 @@ function HookProbe() {
 
   return (
     <div
-      className="reader-app"
       ref={(element) => {
         readerRootRef.current = element;
         if (element) mockRect(element, rect(10, 20, 900, 700));
@@ -116,30 +114,17 @@ function HookProbe() {
             if (element) mockRect(element, rect(30, 50, 760, 900));
           }}
         >
-          <aside
+          <section
+            data-testid="note"
             ref={(element) => {
-              railRef.current = element;
-              if (element) mockRect(element, rect(390, 70, 320, 900));
-            }}
-          >
-            <section
-              data-testid="note"
-              style={{ top: '210px', transform: 'translateX(28px)' }}
-              ref={(element) => {
-                noteRef.current = element;
-                if (!element) return;
+              if (element) {
+                noteRefs.current.set('note-1', element);
                 mockRect(element, rect(418, 322, 320, 140));
-                Object.defineProperty(element, 'offsetParent', {
-                  configurable: true,
-                  get: () => railRef.current,
-                });
-                Object.defineProperty(element, 'offsetLeft', {
-                  configurable: true,
-                  get: () => 0,
-                });
-              }}
-            />
-          </aside>
+              } else {
+                noteRefs.current.delete('note-1');
+              }
+            }}
+          />
         </div>
       </div>
       <output data-testid="path">{activeConnection?.path || ''}</output>
@@ -147,12 +132,10 @@ function HookProbe() {
   );
 }
 
-afterEach(() => {
-  cleanup();
-});
+afterEach(cleanup);
 
-describe('useSourceActiveConnection', () => {
-  it('targets the visible upper edge of an active stacked note', async () => {
+describe('useReaderActiveConnection', () => {
+  it('targets the visible upper edge of an active note', async () => {
     render(<HookProbe />);
 
     await waitFor(() => {

@@ -436,7 +436,6 @@ function surface({
       virtualCursors: [],
     },
     annotations: {
-      activeConnection: null,
       activeId: null,
       annotations: [annotation],
       boxes: [],

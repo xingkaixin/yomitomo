@@ -18,6 +18,7 @@ import { defaultReaderUiLabels } from './reader-app-view-types';
 import { readerBackgroundTone } from '../reader-settings';
 import { ReaderTooltipProvider } from '../shared/reader-component-primitives';
 import { useReaderShellState } from './use-reader-shell-state';
+import { useReaderActiveConnection } from './use-reader-active-connection';
 
 type ReaderAppStyle = React.CSSProperties & {
   '--reader-font-size': string;
@@ -66,7 +67,6 @@ function ReaderAppViewComponent(
     toc: tocActions,
   } = actions;
   const {
-    activeConnection,
     activeId,
     annotationTotals,
     annotations,
@@ -91,6 +91,21 @@ function ReaderAppViewComponent(
   const rootRef = React.useRef<HTMLDivElement | null>(null);
   const surfaceRef = React.useRef<HTMLDivElement | null>(null);
   const surfaceRefs = React.useMemo(() => ({ articleRef, canvasRef, notesRef, surfaceRef }), []);
+  const { activeConnection, recalculateActiveConnection } = useReaderActiveConnection({
+    annotationAgents: agents,
+    annotations,
+    boxes,
+    canvasRef,
+    noteRefs,
+    readerRootRef: rootRef,
+    selectedAnnotationId: activeId,
+    surfaceRef,
+    userProfile,
+  });
+  const handleAnnotationLayoutChange = React.useCallback(() => {
+    annotationActions.onAnnotationLayoutChange?.();
+    recalculateActiveConnection();
+  }, [annotationActions, recalculateActiveConnection]);
   const { embedded = false } = options ?? {};
   const tocOpen = toc.open;
   const tocItems = toc.items;
@@ -142,7 +157,7 @@ function ReaderAppViewComponent(
     selectionActionShortcuts,
     settingsOpen,
     surfaceRef,
-    onAnnotationLayoutChange: annotationActions.onAnnotationLayoutChange,
+    onAnnotationLayoutChange: handleAnnotationLayoutChange,
     onCancelComposer: selectionActions.onCancelComposer,
     onClearActiveAnnotation: annotationActions.onClearActiveAnnotation,
     onClearSelection: selectionActions.onClearSelection,
@@ -162,10 +177,7 @@ function ReaderAppViewComponent(
     () => ({
       getArticleElement: () => articleRef.current,
       getCanvasElement: () => canvasRef.current,
-      getNoteElement: (annotationId) => noteRefs.current.get(annotationId) ?? null,
-      getNoteElements: () => Array.from(noteRefs.current.values()),
       getRailElement: () => notesRef.current,
-      getRootElement: () => rootRef.current,
       getViewportElement: () => surfaceRef.current,
       requestSelectionCopy,
     }),

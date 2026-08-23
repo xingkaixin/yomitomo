@@ -359,7 +359,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   });
   const {
     canvasRef,
-    getNoteElements,
     handleRef: readerSurfaceRef,
     railRef: notesRef,
     viewportRef: surfaceRef,
@@ -517,27 +516,16 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   useEffect(() => {
     if (!annotationRailLayout || !pdfLayoutDebugEnabled()) return;
     const pageWidth = firstVisiblePdfPageWidth(pageMetrics);
-    const noteWidths = getNoteElements()
-      .slice(0, 4)
-      .map((note) => Math.round(note.getBoundingClientRect().width));
     debugPdfLayout('layout', {
       layoutPageWidth,
       mode: annotationRailLayout.mode,
-      noteWidths,
       pageWidth,
       railWidth: annotationRailLayout.railWidth,
       rightRailLeft: annotationRailLayout.rightRailLeft,
       viewportWidth: annotationRailViewportWidth,
       zoom,
     });
-  }, [
-    annotationRailLayout,
-    annotationRailViewportWidth,
-    layoutPageWidth,
-    getNoteElements,
-    pageMetrics,
-    zoom,
-  ]);
+  }, [annotationRailLayout, annotationRailViewportWidth, layoutPageWidth, pageMetrics, zoom]);
   useEffect(() => {
     if (!pdfLayoutDebugEnabled()) return;
 
