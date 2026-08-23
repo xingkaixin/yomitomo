@@ -62,5 +62,8 @@ function translationTargetLanguage(
   settings: { bilingualTranslationTargetLanguage?: string },
 ): string {
   const value = requested?.trim() || settings.bilingualTranslationTargetLanguage?.trim() || 'zh-CN';
-  return value === 'en' || value.toLowerCase() === 'english' ? 'English' : '简体中文';
+  const normalized = value.toLowerCase();
+  if (normalized === 'en' || normalized === 'english') return 'English';
+  if (normalized === 'ja' || normalized === 'japanese' || value === '日本語') return '日本語';
+  return '简体中文';
 }

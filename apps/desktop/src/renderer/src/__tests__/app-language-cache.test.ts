@@ -35,12 +35,23 @@ describe('app language cache', () => {
     expect(readCachedUiLanguage(storage)).toBe('en');
   });
 
+  it('preserves Japanese as a supported startup language', () => {
+    const storage = memoryStorage();
+
+    writeCachedUiLanguage('ja', storage);
+
+    expect(readCachedUiLanguage(storage)).toBe('ja');
+  });
+
   it('syncs the document title with the active app language', () => {
     initializeAppI18n('zh-CN');
     expect(document.title).toBe('Yomitomo | 伴读 · 你的 AI 阅读伙伴');
 
     changeAppI18nLanguage('en');
     expect(document.title).toBe('Yomitomo | Reader · Your AI reading companion');
+
+    changeAppI18nLanguage('ja');
+    expect(document.title).toBe('Yomitomo | Reader · AI読書パートナー');
 
     changeAppI18nLanguage('zh-CN');
     expect(document.title).toBe('Yomitomo | 伴读 · 你的 AI 阅读伙伴');

@@ -78,6 +78,10 @@ const defaultAgentPresenceLines: Record<UiLanguage, AgentPresenceLine> = {
     enter: "I'm here. Let's read this through.",
     rest: "I'll step back for now.",
   },
+  ja: {
+    enter: 'ここにいます。一緒に読みましょう。',
+    rest: 'いったん席を外します。',
+  },
 };
 
 const agentPresenceLineMap: Record<UiLanguage, Partial<Record<string, AgentPresenceLine>>> = {
@@ -179,6 +183,56 @@ const agentPresenceLineMap: Record<UiLanguage, Partial<Record<string, AgentPrese
     'action-calibrator': {
       enter: "Let's make the next step executable.",
       rest: 'The doable version is ready.',
+    },
+  },
+  ja: {
+    'reading-partner': {
+      enter: '余白で一緒に読んでいます。',
+      rest: 'しばらく静かにしておきます。',
+    },
+    'root-reviewer': {
+      enter: '前提から確かめましょう。',
+      rest: '検討はいったんここまでです。',
+    },
+    'question-mentor': {
+      enter: '次の問いを見つけましょう。',
+      rest: '問いはここに残しておきます。',
+    },
+    'insight-editor': {
+      enter: '使える線をまとめます。',
+      rest: '残すべき言葉は整いました。',
+    },
+    'concept-translator': {
+      enter: '分かりにくい言葉を教えてください。',
+      rest: '読み進められるところまで整いました。',
+    },
+    'structure-navigator': {
+      enter: '地図を開きます。現在地を見ましょう。',
+      rest: '道筋は見えました。',
+    },
+    'evidence-archivist': {
+      enter: '根拠まで一つずつ戻ります。',
+      rest: '照合が終わりました。',
+    },
+    'reader-advocate': {
+      enter: '読者の大切な痕跡を確認します。',
+      rest: '残すべき痕跡は守られています。',
+    },
+    'final-copy-editor': {
+      enter: '最終稿として読めるか見ます。',
+      rest: '保存できる文章になりました。',
+    },
+    'logic-auditor': {
+      enter: '推論のつながりを見せてください。',
+      rest: '論理の切れ目を示しました。',
+    },
+    'risk-examiner': {
+      enter: '行動の前に条件を確かめます。',
+      rest: '適用範囲を示しました。',
+    },
+    'action-calibrator': {
+      enter: '次の一歩を実行できる形にします。',
+      rest: 'そのまま使える行動案になりました。',
     },
   },
 };

@@ -244,6 +244,15 @@ describe('agent presets', () => {
     expect(presentation?.name).toBe('林知微');
     expect(presentation?.pinyin).toBeTruthy();
   });
+
+  it('resolves the Japanese preset identity and prompt', () => {
+    const presentation = resolveAgentPersonalityPresentation('reading-partner', 'ja');
+
+    expect(presentation?.locale).toBe('ja');
+    expect(presentation?.name).toBe('高橋 葵');
+    expect(presentation?.username).toBe('AoiTakahashi');
+    expect(presentation?.soul).toContain('高橋 葵');
+  });
 });
 
 describe('provider presets', () => {

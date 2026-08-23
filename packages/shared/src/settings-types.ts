@@ -7,9 +7,9 @@ export const assistantExecutionModes = ['fast_response', 'deep_verification'] as
 
 export type AssistantExecutionMode = (typeof assistantExecutionModes)[number];
 
-export type UiLanguage = 'zh-CN' | 'en';
+export type UiLanguage = 'zh-CN' | 'en' | 'ja';
 
-export type BilingualTranslationTargetLanguage = 'zh-CN' | 'en';
+export type BilingualTranslationTargetLanguage = 'zh-CN' | 'en' | 'ja';
 
 export type BilingualTranslationStyle =
   | 'blur'
@@ -64,7 +64,7 @@ export type AppSettings = {
 };
 
 export function normalizeUiLanguage(value: unknown): UiLanguage {
-  return value === 'en' ? 'en' : 'zh-CN';
+  return value === 'en' || value === 'ja' ? value : 'zh-CN';
 }
 
 export function normalizeAssistantExecutionMode(value: unknown): AssistantExecutionMode {

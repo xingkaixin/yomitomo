@@ -47,6 +47,18 @@ import enReaderAdvocateCover from '../assets/agent-personas/en/review/reader-adv
 import enReaderAdvocateAvatar from '../assets/agent-personas/en/review/reader-advocate.webp';
 import enRiskExaminerCover from '../assets/agent-personas/en/review/risk-examiner-cover.webp';
 import enRiskExaminerAvatar from '../assets/agent-personas/en/review/risk-examiner.webp';
+import jaConceptTranslatorCover from '../assets/agent-personas/ja/annotation/concept-translator-cover.webp';
+import jaConceptTranslatorAvatar from '../assets/agent-personas/ja/annotation/concept-translator.webp';
+import jaInsightEditorCover from '../assets/agent-personas/ja/annotation/insight-editor-cover.webp';
+import jaInsightEditorAvatar from '../assets/agent-personas/ja/annotation/insight-editor.webp';
+import jaQuestionMentorCover from '../assets/agent-personas/ja/annotation/question-mentor-cover.webp';
+import jaQuestionMentorAvatar from '../assets/agent-personas/ja/annotation/question-mentor.webp';
+import jaReadingPartnerCover from '../assets/agent-personas/ja/annotation/reading-partner-cover.webp';
+import jaReadingPartnerAvatar from '../assets/agent-personas/ja/annotation/reading-partner.webp';
+import jaRootReviewerCover from '../assets/agent-personas/ja/annotation/root-reviewer-cover.webp';
+import jaRootReviewerAvatar from '../assets/agent-personas/ja/annotation/root-reviewer.webp';
+import jaStructureNavigatorCover from '../assets/agent-personas/ja/annotation/structure-navigator-cover.webp';
+import jaStructureNavigatorAvatar from '../assets/agent-personas/ja/annotation/structure-navigator.webp';
 
 type AgentPersonaAsset = { avatar: string; cover: string };
 
@@ -80,9 +92,20 @@ const enAssets: Record<string, AgentPersonaAsset> = {
   'action-calibrator': { avatar: enActionCalibratorAvatar, cover: enActionCalibratorCover },
 };
 
+const jaAssets: Record<string, AgentPersonaAsset> = {
+  ...zhAssets,
+  'reading-partner': { avatar: jaReadingPartnerAvatar, cover: jaReadingPartnerCover },
+  'root-reviewer': { avatar: jaRootReviewerAvatar, cover: jaRootReviewerCover },
+  'question-mentor': { avatar: jaQuestionMentorAvatar, cover: jaQuestionMentorCover },
+  'insight-editor': { avatar: jaInsightEditorAvatar, cover: jaInsightEditorCover },
+  'concept-translator': { avatar: jaConceptTranslatorAvatar, cover: jaConceptTranslatorCover },
+  'structure-navigator': { avatar: jaStructureNavigatorAvatar, cover: jaStructureNavigatorCover },
+};
+
 const assetsByLocale: Record<UiLanguage, Record<string, AgentPersonaAsset>> = {
   'zh-CN': zhAssets,
   en: enAssets,
+  ja: jaAssets,
 };
 
 export function resolveAgentPersonaAssets(

@@ -58,6 +58,7 @@ export function normalizeAppLockShortcut(value: unknown) {
 export function normalizeTranslationTargetLanguage(value: unknown) {
   const text = typeof value === 'string' ? value.trim() : '';
   if (text === 'en' || text.toLowerCase() === 'english') return 'en';
+  if (text === 'ja' || text.toLowerCase() === 'japanese' || text === '日本語') return 'ja';
   return 'zh-CN';
 }
 

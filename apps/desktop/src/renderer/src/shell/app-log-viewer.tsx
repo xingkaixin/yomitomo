@@ -424,7 +424,7 @@ function formatVersion(version: string, t: AppT) {
 
 function localizedResourceUrls(language: unknown) {
   const normalized = normalizeUiLanguage(language);
-  const prefix = normalized === 'en' ? '/en' : '';
+  const prefix = normalized === 'zh-CN' ? '' : `/${normalized}`;
 
   return {
     homepage: `${homepageUrl}${prefix}/`,

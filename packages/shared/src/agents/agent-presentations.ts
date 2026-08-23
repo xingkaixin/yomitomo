@@ -7,6 +7,7 @@ import type {
   UiLanguage,
 } from '../types';
 import { agentPersonalities } from './agent-presets';
+import { japaneseAgentPersonalityPresentations } from './agent-presentations-ja';
 
 export const defaultAgentPersonalityLocale: UiLanguage = 'zh-CN';
 
@@ -273,6 +274,7 @@ export const zhAgentPersonalityPresentations: AgentPersonalityPresentation[] =
 export const agentPersonalityPresentations: AgentPersonalityPresentation[] = [
   ...zhAgentPersonalityPresentations,
   ...englishAgentPersonalityPresentations,
+  ...japaneseAgentPersonalityPresentations,
 ];
 
 export function resolveAgentPersonalityPresentation(

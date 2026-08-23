@@ -3,11 +3,13 @@ import { initReactI18next } from 'react-i18next';
 import { normalizeUiLanguage, type UiLanguage } from '@yomitomo/shared';
 
 import { enResources } from './locales/en';
+import { jaResources } from './locales/ja';
 import { zhCNResources } from './locales/zh-CN';
 
 const resources = {
   'zh-CN': zhCNResources,
   en: enResources,
+  ja: jaResources,
 } as const;
 
 export function initializeAppI18n(language: unknown) {

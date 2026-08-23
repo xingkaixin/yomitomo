@@ -1442,12 +1442,14 @@ export const enResources = {
           'Controls the app language and makes assistants reply in the same language by default.',
         languageZh: '简体中文',
         languageEn: 'English',
+        languageJa: '日本語',
         translationGroup: 'Translation',
         translationTargetTitle: 'Bilingual translation target language',
         translationTargetDescription:
           'Used for web article bilingual translation. Existing results are reused per target language.',
         translationLanguageZh: 'Chinese',
         translationLanguageEn: 'English',
+        translationLanguageJa: 'Japanese',
         translationStyleTitle: 'Translation style',
         translationStyleDescription:
           'Controls how translated text is visually separated from the original text.',

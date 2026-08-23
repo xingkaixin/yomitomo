@@ -31,6 +31,24 @@ describe('app menu', () => {
     expect(viewRoles).toEqual(expect.arrayContaining(['reload', 'forceReload', 'toggleDevTools']));
   });
 
+  it('localizes custom menu labels for Japanese system locales', () => {
+    const template = buildAppMenuTemplate(menuOptions({ locale: 'ja-JP' }));
+
+    expect(template.map((item) => item.label)).toEqual([
+      'Yomitomo',
+      'ファイル',
+      '編集',
+      '表示',
+      'ウィンドウ',
+      'ヘルプ',
+    ]);
+    expect(
+      topLevelSubmenu(template, 'ヘルプ')
+        .map((item) => item.label)
+        .filter(Boolean),
+    ).toEqual(['Yomitomo ヘルプ', '更新履歴', '問題を報告', 'アップデートを確認...']);
+  });
+
   it('logs the installed menu branch', () => {
     const logInfo = vi.fn();
 

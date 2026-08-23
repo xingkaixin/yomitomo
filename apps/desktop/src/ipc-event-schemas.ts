@@ -265,7 +265,7 @@ const agentReadingPlanSchema = z
 const agentPayloadBase = {
   agentId: optionalIdSchema,
   agentUsername: idSchema,
-  uiLanguage: z.enum(['zh-CN', 'en']).optional(),
+  uiLanguage: z.enum(['zh-CN', 'en', 'ja']).optional(),
   readingIntent: readingIntentSchema.optional(),
   instruction: optionalShortTextSchema,
   agentRoster: z.array(publicAgentSchema).max(MAX_ROSTER_LENGTH).optional(),

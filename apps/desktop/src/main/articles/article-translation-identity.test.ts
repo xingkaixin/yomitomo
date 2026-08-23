@@ -53,6 +53,20 @@ describe('article translation identity', () => {
     expect(identity.targetLanguage).toBe('English');
   });
 
+  it.each([
+    ['requested language', 'ja', settings],
+    ['configured fallback', ' ', { bilingualTranslationTargetLanguage: ' Japanese ' }],
+  ])('normalizes Japanese from the %s', (_, requestedTargetLanguage, identitySettings) => {
+    const identity = resolveArticleTranslationIdentity({
+      article: webArticle(),
+      requestedTargetLanguage,
+      settings: identitySettings,
+      promptVersion: 1,
+    });
+
+    expect(identity.targetLanguage).toBe('日本語');
+  });
+
   it('rejects EPUB translations without a valid chapter', () => {
     expect(() =>
       resolveArticleTranslationIdentity({
