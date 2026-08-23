@@ -246,6 +246,7 @@ describe('useAppArticleStoreActions', () => {
     await act(async () => {
       await fixture.actions.saveArticleReaderChatState(initial.id, undefined);
     });
+    expect(fixture.storeRef.current.articles[0]).toMatchObject({ updatedAt: chatClearedAt });
     expect(fixture.getCurrentArticle()).toMatchObject({ updatedAt: chatClearedAt });
     expect(fixture.getCurrentArticle()?.readerChatState).toBeUndefined();
   });

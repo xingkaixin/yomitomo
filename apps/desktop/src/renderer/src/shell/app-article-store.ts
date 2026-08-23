@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef } from 'react';
 import type {
   ArticleDeletePatch,
   ArticleRecord,
+  ArticleReaderChatStatePatch,
   ArticleReadingProgressPatch,
   ArticleStorePatch,
   ArticleSummaryRecord,
@@ -113,16 +114,47 @@ export function applyArticleStorePatch(
       return applyArticleUpsertPatch(store, patch);
     case 'article-reading-progress':
       return applyArticleReadingProgressPatch(store, patch);
+    case 'article-reader-chat-state':
+      return applyArticleReaderChatStatePatch(store, patch);
     case 'article-delete':
       return applyArticleDeletePatch(store, patch);
   }
 }
 
 export function articleStorePatchCommit(patch: ArticleStorePatch): ArticleProjectionCommit {
-  if (patch.type !== 'article-delete') return { patches: [patch] };
+  switch (patch.type) {
+    case 'article-delete':
+      return {
+        patches: [patch],
+        current: { type: 'delete', articleId: patch.articleId },
+      };
+    case 'article-reader-chat-state':
+      return {
+        patches: [patch],
+        current: {
+          type: 'update',
+          articleId: patch.articleId,
+          update: (article) => ({
+            ...article,
+            readerChatState: patch.readerChatState,
+            updatedAt: patch.updatedAt,
+          }),
+        },
+      };
+    default:
+      return { patches: [patch] };
+  }
+}
+
+export function applyArticleReaderChatStatePatch(
+  store: DesktopStore,
+  patch: ArticleReaderChatStatePatch,
+): DesktopStore {
   return {
-    patches: [patch],
-    current: { type: 'delete', articleId: patch.articleId },
+    ...store,
+    articles: store.articles.map((article) =>
+      article.id === patch.articleId ? { ...article, updatedAt: patch.updatedAt } : article,
+    ),
   };
 }
 
