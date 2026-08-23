@@ -132,17 +132,16 @@ export function AnnotationSedimentationWindowApp() {
   const articleId = params.get('articleId') || '';
   const annotationId = params.get('annotationId') || '';
   const [status, setStatus] = useState<SedimentationWindowStatus>({ type: 'loading' });
-  const pendingArticleUpdateRef = useRef<
-    { annotation: Annotation; article: ArticleRecord } | null | undefined
-  >(undefined);
+  const pendingArticleUpdateRef = useRef<ArticleRecord | null | undefined>(undefined);
   const windowTransition = useSourceAwareWindowTransition(params);
 
-  useAnnotationWindowArticlePatches(articleId, annotationId, (update) => {
-    pendingArticleUpdateRef.current = update;
+  useAnnotationWindowArticlePatches(articleId, annotationId, (article) => {
+    pendingArticleUpdateRef.current = article;
     setStatus((current) => {
-      if (!update) return { type: 'missing' };
+      if (!article) return { type: 'missing' };
       if (current.type !== 'ready') return current;
-      return { ...current, ...update };
+      const annotation = article.annotations.find((item) => item.id === annotationId);
+      return annotation ? { ...current, annotation, article } : { type: 'missing' };
     });
   });
 
@@ -174,13 +173,11 @@ export function AnnotationSedimentationWindowApp() {
       .loadWindow(articleId)
       .then(({ article, store }) => {
         if (cancelled) return;
-        const pendingUpdate = pendingArticleUpdateRef.current;
-        const currentArticle = pendingUpdate?.article || article;
-        const annotation =
-          pendingUpdate?.annotation ||
-          currentArticle?.annotations.find((item) => item.id === annotationId);
+        const pendingArticle = pendingArticleUpdateRef.current;
+        const currentArticle = pendingArticle === undefined ? article : pendingArticle;
+        const annotation = currentArticle?.annotations.find((item) => item.id === annotationId);
         setStatus(
-          pendingUpdate !== null && currentArticle && annotation
+          pendingArticle !== null && currentArticle && annotation
             ? {
                 type: 'ready',
                 agents: store.agents,
