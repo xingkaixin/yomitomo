@@ -1121,6 +1121,7 @@ export const zhCNResources = {
       sendReviewRequest: '发送审阅请求',
       reviewPlaceholder: '让当前审阅助手讨论这份沉淀...',
       selectReviewerRequired: '需要保留一个审阅助手',
+      saveConflict: '沉淀已在其他位置更新，本次保存已取消。',
       reviewFailed: '审阅失败',
       organizeDiscussionInstruction:
         '请整理当前高亮、想法和审阅讨论，生成可直接加入沉淀稿的新增建议。只给新增建议，不要修改或删除现有草稿。',

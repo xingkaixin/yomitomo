@@ -4,6 +4,7 @@ import {
   mergeAgentAnnotationAsThought,
   readingMemoryEntriesFromAnnotationThread,
 } from '@yomitomo/core';
+import { DesktopIpcError, desktopIpcErrorCodes } from '../../ipc-errors';
 import * as schema from '../db/schema';
 import { getSqliteExecutor, type StoreDatabase, type StoreExecutor } from '../store/store-db';
 import {
@@ -67,13 +68,28 @@ export function saveAnnotationDistillationRows(
     articleId: string;
     annotationId: string;
     distillation: Annotation['distillation'];
+    expectedDistillationUpdatedAt: string | null;
     updatedAt?: string;
   },
 ): ArticleUpsertPatch | null {
-  if (readAnnotationArticleId(database, input.annotationId) !== input.articleId) return null;
-
   const updatedAt = input.updatedAt || input.distillation?.updatedAt || new Date().toISOString();
-  database.transaction((tx) => {
+  const saved = database.transaction((tx) => {
+    const storedAnnotation = tx
+      .select()
+      .from(schema.annotations)
+      .where(eq(schema.annotations.id, input.annotationId))
+      .get();
+    if (storedAnnotation?.articleId !== input.articleId) return false;
+    const storedDistillationUpdatedAt = storedAnnotation.distillationUpdatedAt ?? null;
+    if (storedDistillationUpdatedAt !== input.expectedDistillationUpdatedAt) {
+      throw new DesktopIpcError(desktopIpcErrorCodes.annotationDistillationConflict, undefined, {
+        detail: {
+          annotationId: input.annotationId,
+          expectedUpdatedAt: input.expectedDistillationUpdatedAt,
+          storedUpdatedAt: storedDistillationUpdatedAt,
+        },
+      });
+    }
     tx.update(schema.annotations)
       .set({
         distillationStatus: input.distillation?.status ?? null,
@@ -87,7 +103,9 @@ export function saveAnnotationDistillationRows(
       .where(eq(schema.annotations.id, input.annotationId))
       .run();
     touchArticleRows(tx, input.articleId, updatedAt);
+    return true;
   });
+  if (!saved) return null;
   const article = readArticleSummaryRows(database, input.articleId);
   return article ? buildArticleUpsertPatch(article) : null;
 }

@@ -20,6 +20,7 @@ import { makeId, normalizeUiLanguage } from '@yomitomo/shared';
 import { annotationAgentAuthorRef, annotationAuthorName } from '@yomitomo/core';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
+import { desktopIpcErrorCodes, isDesktopIpcErrorLike } from '../../../ipc-errors';
 import { applyAppTheme, readCachedThemeId, themeRegistry } from '../theme/app-theme';
 import { FloatingComposer } from '@yomitomo/reader-ui/floating-composer';
 import { promptArticle } from '../source/bookcase/source-prompt-article';
@@ -37,6 +38,7 @@ import {
   applyAssistantRuntimeProgress,
   assistantRuntimeErrorMessage,
 } from '../shell/app-assistant-runtime-progress';
+import { recordRendererPerformanceTiming } from '../shell/app-renderer-performance';
 import { useSourceAwareWindowTransition } from '../shell/app-window-transition';
 import {
   DraftAnchorHighlightLayer,
@@ -98,6 +100,8 @@ type SedimentationWindowStatus =
     }
   | { type: 'missing' }
   | { type: 'error'; message: string };
+
+type DistillationOperation = 'organize' | 'publish' | 'review' | 'unpublish' | 'update' | null;
 
 type PendingDraftPreview =
   | {
@@ -241,8 +245,7 @@ function SedimentationShell({
   const activeAgents = activeAgent ? [activeAgent] : [];
   const [draft, setDraft] = useState(() => initialDistillationDraft(article.id, annotation));
   const [reviewDraft, setReviewDraft] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [reviewing, setReviewing] = useState(false);
+  const [activeOperation, setActiveOperation] = useState<DistillationOperation>(null);
   const [reviewNotice, setReviewNotice] = useState('');
   const [organizeState, setOrganizeState] = useState<OrganizeDiscussionState>({ type: 'idle' });
   const [organizeConfirmOpen, setOrganizeConfirmOpen] = useState(false);
@@ -263,18 +266,18 @@ function SedimentationShell({
   const shortcutModifier = getShortcutModifier();
   const messageSendShortcut = 'mod-enter' as const;
   const hasPendingDraftPreview = Boolean(pendingDraftPreview);
-  const canPublish = Boolean(draft.trim()) && !saving && !hasPendingDraftPreview;
-  const organizing = organizeState.type === 'running';
-  const assistantBusy = reviewing || organizing;
-  const canReview = activeAgents.length > 0 && !assistantBusy && !hasPendingDraftPreview;
-  const canOrganize = activeAgents.length > 0 && !assistantBusy && !hasPendingDraftPreview;
+  const busy = activeOperation !== null;
+  const reviewing = activeOperation === 'review';
+  const canPublish = Boolean(draft.trim()) && !busy && !hasPendingDraftPreview;
+  const canReview = activeAgents.length > 0 && !busy && !hasPendingDraftPreview;
+  const canOrganize = activeAgents.length > 0 && !busy && !hasPendingDraftPreview;
   const sessions = annotation.distillation?.reviewSessions || [];
   const isPublished = annotation.distillation?.status === 'published';
   const statusLabel = isPublished
     ? t('sedimentation.status.published')
     : t('sedimentation.status.draft');
   const publishLabel = isPublished ? t('sedimentation.updatePublish') : t('sedimentation.publish');
-  const canUnpublish = isPublished && !saving;
+  const canUnpublish = isPublished && !busy;
 
   useEffect(() => {
     setActiveAgentId((current) => {
@@ -297,9 +300,10 @@ function SedimentationShell({
 
   async function publishDistillation() {
     const content = draft.trim();
-    if (!content) return;
+    if (!content || busy) return;
     const transition = isPublished ? 'update' : 'publish';
-    setSaving(true);
+    recordDistillationOperation(annotation.id, transition, 'started');
+    setActiveOperation(transition);
     try {
       const nextArticle = publishedDistillationArticle({
         annotationId: annotation.id,
@@ -311,6 +315,7 @@ function SedimentationShell({
         nextArticle,
         agents,
         annotation.id,
+        annotation.distillation?.updatedAt ?? null,
         uiLanguage,
         onStatusChange,
       );
@@ -324,14 +329,18 @@ function SedimentationShell({
         distillation: nextDistillation,
         transition,
       });
+    } catch (error) {
+      setReviewNotice(distillationSaveErrorMessage(error));
     } finally {
-      setSaving(false);
+      recordDistillationOperation(annotation.id, transition, 'settled');
+      setActiveOperation(null);
     }
   }
 
   async function unpublishDistillation() {
-    if (!isPublished || saving) return;
-    setSaving(true);
+    if (!isPublished || busy) return;
+    recordDistillationOperation(annotation.id, 'unpublish', 'started');
+    setActiveOperation('unpublish');
     try {
       const nextArticle = unpublishedDistillationArticle({
         annotationId: annotation.id,
@@ -343,6 +352,7 @@ function SedimentationShell({
         nextArticle,
         agents,
         annotation.id,
+        annotation.distillation?.updatedAt ?? null,
         uiLanguage,
         onStatusChange,
       );
@@ -355,8 +365,11 @@ function SedimentationShell({
         distillation: nextDistillation,
         transition: 'unpublish',
       });
+    } catch (error) {
+      setReviewNotice(distillationSaveErrorMessage(error));
     } finally {
-      setSaving(false);
+      recordDistillationOperation(annotation.id, 'unpublish', 'settled');
+      setActiveOperation(null);
     }
   }
 
@@ -375,8 +388,9 @@ function SedimentationShell({
     reviewDraftOverride?: string;
     reviewMode?: 'review' | 'organize_discussion';
   }) {
-    if (activeAgents.length === 0 || assistantBusy) return;
-    setReviewing(true);
+    if (activeAgents.length === 0 || busy) return;
+    recordDistillationOperation(annotation.id, 'review', 'started');
+    setActiveOperation('review');
     setReviewNotice('');
     const effectiveReviewDraft = input?.reviewDraftOverride ?? reviewDraft;
     if (!input?.reviewDraftOverride) setReviewDraft('');
@@ -439,7 +453,14 @@ function SedimentationShell({
           new Date().toISOString(),
         );
       }
-      await saveAndRefresh(workingArticle, agents, annotation.id, uiLanguage, onStatusChange);
+      await saveAndRefresh(
+        workingArticle,
+        agents,
+        annotation.id,
+        annotation.distillation?.updatedAt ?? null,
+        uiLanguage,
+        onStatusChange,
+      );
       const previewMessage = completedReviewMessages.find(
         (message) => pendingReviewProposals(message.proposals || []).length > 0,
       );
@@ -449,16 +470,29 @@ function SedimentationShell({
         });
       }
     } catch (error) {
-      setReviewNotice(assistantRuntimeErrorMessage(error, 'sedimentation.reviewFailed'));
-      if (workingArticle !== article) {
+      const conflict = isDistillationConflict(error);
+      setReviewNotice(
+        conflict
+          ? distillationSaveErrorMessage(error)
+          : assistantRuntimeErrorMessage(error, 'sedimentation.reviewFailed'),
+      );
+      if (workingArticle !== article && !conflict) {
         try {
-          await saveAndRefresh(workingArticle, agents, annotation.id, uiLanguage, onStatusChange);
+          await saveAndRefresh(
+            workingArticle,
+            agents,
+            annotation.id,
+            annotation.distillation?.updatedAt ?? null,
+            uiLanguage,
+            onStatusChange,
+          );
         } catch {
           setReviewNotice(assistantRuntimeErrorMessage(error, 'sedimentation.reviewFailed'));
         }
       }
     } finally {
-      setReviewing(false);
+      recordDistillationOperation(annotation.id, 'review', 'settled');
+      setActiveOperation(null);
     }
   }
 
@@ -484,7 +518,9 @@ function SedimentationShell({
 
   async function runOrganizeDiscussion() {
     const agent = activeAgents[0];
-    if (!agent || assistantBusy) return;
+    if (!agent || busy) return;
+    recordDistillationOperation(annotation.id, 'organize', 'started');
+    setActiveOperation('organize');
     setAppliedOrganizeProposalIds(new Set());
     setDismissedOrganizeProposalIds(new Set());
     setReviewNotice('');
@@ -581,6 +617,9 @@ function SedimentationShell({
         status: 'failed' as const,
       });
       setOrganizeState({ type: 'failed', agent, message: workingMessage });
+    } finally {
+      recordDistillationOperation(annotation.id, 'organize', 'settled');
+      setActiveOperation(null);
     }
   }
 
@@ -815,7 +854,14 @@ function SedimentationShell({
       now: new Date().toISOString(),
       proposalStatusById,
     });
-    await saveAndRefresh(nextArticle, agents, annotation.id, uiLanguage, onStatusChange);
+    await saveAndRefresh(
+      nextArticle,
+      agents,
+      annotation.id,
+      annotation.distillation?.updatedAt ?? null,
+      uiLanguage,
+      onStatusChange,
+    );
   }
 
   return (
@@ -1081,17 +1127,39 @@ async function saveAndRefresh(
   nextArticle: ArticleRecord,
   agents: Agent[],
   annotationId: string,
+  expectedDistillationUpdatedAt: string | null,
   uiLanguage: UiLanguage,
   onStatusChange: (status: SedimentationWindowStatus) => void,
 ): Promise<Annotation | null> {
   const annotation = nextArticle.annotations.find((item) => item.id === annotationId);
   if (!annotation) return null;
-  const nextFullArticle = await annotationWindowActions.saveDistillationAndReload({
-    articleId: nextArticle.id,
-    annotationId,
-    distillation: annotation.distillation,
-    updatedAt: annotation.updatedAt,
-  });
+  let nextFullArticle: ArticleRecord | null;
+  try {
+    nextFullArticle = await annotationWindowActions.saveDistillationAndReload({
+      articleId: nextArticle.id,
+      annotationId,
+      distillation: annotation.distillation,
+      expectedDistillationUpdatedAt,
+      updatedAt: annotation.updatedAt,
+    });
+  } catch (error) {
+    if (isDistillationConflict(error)) {
+      const currentArticle = await annotationWindowActions.loadArticle(nextArticle.id);
+      const currentAnnotation = currentArticle?.annotations.find(
+        (item) => item.id === annotationId,
+      );
+      if (currentArticle && currentAnnotation) {
+        onStatusChange({
+          type: 'ready',
+          agents,
+          article: currentArticle,
+          annotation: currentAnnotation,
+          uiLanguage,
+        });
+      }
+    }
+    throw error;
+  }
   const nextAnnotation = nextFullArticle?.annotations.find((item) => item.id === annotationId);
   if (!nextFullArticle || !nextAnnotation) return null;
   onStatusChange({
@@ -1111,6 +1179,31 @@ function initialDistillationDraft(articleId: string, annotation: Annotation) {
 
 function distillationDraftKey(articleId: string, annotationId: string) {
   return `annotation-distillation-draft:${articleId}:${annotationId}`;
+}
+
+function recordDistillationOperation(
+  annotationId: string,
+  operation: Exclude<DistillationOperation, null>,
+  phase: 'settled' | 'started',
+) {
+  recordRendererPerformanceTiming('annotation.distillation_operation', {
+    annotationId,
+    operation,
+    phase,
+  });
+}
+
+function isDistillationConflict(error: unknown) {
+  return (
+    isDesktopIpcErrorLike(error) &&
+    error.code === desktopIpcErrorCodes.annotationDistillationConflict
+  );
+}
+
+function distillationSaveErrorMessage(error: unknown) {
+  return isDistillationConflict(error)
+    ? i18next.t('sedimentation.saveConflict')
+    : i18next.t('common.saveFailed');
 }
 
 function sedimentationWindowClassName() {

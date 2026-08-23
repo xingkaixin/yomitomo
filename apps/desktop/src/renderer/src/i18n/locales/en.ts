@@ -1156,6 +1156,7 @@ export const enResources = {
       sendReviewRequest: 'Send review request',
       reviewPlaceholder: 'Ask the current review assistant to discuss this distillation...',
       selectReviewerRequired: 'Keep one review assistant selected',
+      saveConflict: 'This distillation changed elsewhere, so this save was canceled.',
       reviewFailed: 'Review failed',
       organizeDiscussionInstruction:
         'Organize the current highlight, thoughts, and review discussion into additions that can be inserted directly into the distillation draft. Only provide new additions; do not modify or delete the current draft.',

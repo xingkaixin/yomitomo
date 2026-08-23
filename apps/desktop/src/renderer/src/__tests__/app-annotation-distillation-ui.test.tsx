@@ -541,6 +541,28 @@ describe('annotation distillation UI', () => {
     });
   });
 
+  it('prevents publishing while a review is still running', async () => {
+    const desktop = installDesktopApi(article(annotation()));
+    desktop.requestAgentDistillationReviewStream.mockImplementation(
+      () => new Promise(() => undefined),
+    );
+    window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
+
+    render(<AnnotationSedimentationWindowApp />);
+
+    await screen.findByText('沉淀稿');
+    fireEvent.change(draftTextarea(), { target: { value: '正在审阅的沉淀稿' } });
+    fireEvent.click(await screen.findByRole('button', { name: '发送' }));
+    await waitFor(() => {
+      expect(desktop.requestAgentDistillationReviewStream).toHaveBeenCalledOnce();
+    });
+
+    expect(await screen.findByRole('button', { name: '发布沉淀' })).toHaveProperty(
+      'disabled',
+      true,
+    );
+  });
+
   it('switches the selected review assistant instead of selecting multiple assistants', async () => {
     const desktop = installDesktopApi(article(annotation()));
     desktop.requestAgentDistillationReviewStream.mockImplementation(async (payload) => ({
@@ -1549,6 +1571,7 @@ function installDesktopApi(sourceArticle: ArticleRecord) {
         return { type: 'article-upsert', article: currentArticle };
       }),
     commitAnnotationSedimentation: vi.fn().mockResolvedValue(undefined),
+    recordPerformanceTiming: vi.fn(),
     requestAgentDistillationReviewStream: vi.fn(),
   };
   Object.defineProperty(window, 'yomitomoDesktop', {
@@ -1562,6 +1585,9 @@ function installDesktopApi(sourceArticle: ArticleRecord) {
         sedimentation: {
           commit: desktop.commitAnnotationSedimentation,
         },
+      },
+      diagnostics: {
+        recordPerformanceTiming: desktop.recordPerformanceTiming,
       },
       article: {
         get: desktop.getArticle,
