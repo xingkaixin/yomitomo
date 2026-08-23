@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { Suspense } from 'react';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { LibraryCatalogListResult, LibraryCatalogScope } from '../../../ipc-contract';
@@ -87,6 +88,32 @@ it('compares local facts with Object.is semantics', () => {
   expect(screen.getByTestId('revision').textContent).toBe('1');
 });
 
+it('ignores dependency changes from a render that never commits', () => {
+  const initialFact = { id: 'article_1' };
+  const changedFact = { id: 'article_2' };
+  const onRender = vi.fn();
+  const view = render(
+    <Suspense fallback={null}>
+      <SuspendingRevisionHarness facts={[initialFact]} onRender={onRender} suspend={false} />
+    </Suspense>,
+  );
+  expect(screen.getByTestId('revision').textContent).toBe('0');
+
+  view.rerender(
+    <Suspense fallback={null}>
+      <SuspendingRevisionHarness facts={[changedFact]} onRender={onRender} suspend />
+    </Suspense>,
+  );
+  expect(onRender).toHaveBeenLastCalledWith([changedFact]);
+
+  view.rerender(
+    <Suspense fallback={null}>
+      <SuspendingRevisionHarness facts={[initialFact]} onRender={onRender} suspend={false} />
+    </Suspense>,
+  );
+  expect(screen.getByTestId('revision').textContent).toBe('0');
+});
+
 it('does not expose the previous catalog while a new scope is loading', async () => {
   const collectionResult = deferred<LibraryCatalogListResult>();
   const listLibraryCatalog = vi
@@ -140,6 +167,23 @@ function ResultHarness({ scope, query }: { scope: LibraryCatalogScope; query?: s
 
 function RevisionHarness({ facts }: { facts: readonly unknown[] }) {
   const revision = useLocalStoreRevision(facts);
+  return <span data-testid="revision">{revision}</span>;
+}
+
+const suspendedRender = new Promise<never>(() => undefined);
+
+function SuspendingRevisionHarness({
+  facts,
+  onRender,
+  suspend,
+}: {
+  facts: readonly unknown[];
+  onRender: (facts: readonly unknown[]) => void;
+  suspend: boolean;
+}) {
+  const revision = useLocalStoreRevision(facts);
+  onRender(facts);
+  if (suspend) throw suspendedRender;
   return <span data-testid="revision">{revision}</span>;
 }
 
