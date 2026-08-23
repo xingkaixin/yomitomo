@@ -1,14 +1,11 @@
 import type {
   ContextSourceLabel,
   ReadingMemoryEntry,
-  ReadingMemoryCorrectionPayload,
-  ReadingMemorySummaryPayload,
-  ReadingMemoryTracePayload,
   ReadingMemoryView,
   SourceLabeledContextBlock,
   TraceItem,
 } from '@yomitomo/shared';
-import { isRecord, trimmedStringField } from '@yomitomo/shared';
+import { parseReadingMemoryEntryPayload } from '@yomitomo/core';
 
 export function readingMemoryViewContextBlocks(
   view: ReadingMemoryView | undefined,
@@ -37,53 +34,38 @@ export function readingMemoryViewContextBlocks(
 }
 
 function memoryEntryBlockText(entry: ReadingMemoryEntry) {
-  if (entry.kind === 'summary' && isSummaryPayload(entry.payload)) {
+  const parsed = parseReadingMemoryEntryPayload(entry);
+  if (!parsed) return '';
+
+  if (parsed.type === 'summary') {
     const terms =
-      entry.payload.keyTerms.length > 0 ? `\nkeywords: ${entry.payload.keyTerms.join(', ')}` : '';
-    return `summary (${entry.scope}): ${entry.payload.summary}${terms}`;
+      parsed.payload.keyTerms.length > 0 ? `\nkeywords: ${parsed.payload.keyTerms.join(', ')}` : '';
+    return `summary (${entry.scope}): ${parsed.payload.summary}${terms}`;
   }
 
-  if (entry.kind === 'trace' && isTracePayload(entry.payload)) {
-    return entry.payload.items.map(formatTraceItem).join('\n');
+  if (parsed.type === 'trace') {
+    return parsed.payload.items.map(formatTraceItem).join('\n');
   }
 
-  if (entry.kind === 'correction' && isCorrectionPayload(entry.payload)) {
+  if (parsed.type === 'correction') {
     const replacement =
-      entry.payload.replacement === undefined
+      parsed.payload.replacement === undefined
         ? ''
-        : `\nreplacement: ${stringifyValue(entry.payload.replacement)}`;
-    return `correction: ${entry.payload.reason}${replacement}`;
+        : `\nreplacement: ${stringifyValue(parsed.payload.replacement)}`;
+    return `correction: ${parsed.payload.reason}${replacement}`;
   }
 
-  const sourcePayload = memorySourcePayloadText(entry);
-  if (sourcePayload) return sourcePayload;
-
-  return '';
-}
-
-function memorySourcePayloadText(entry: ReadingMemoryEntry) {
-  if (!isRecord(entry.payload)) return '';
-  const payload = entry.payload as Record<string, unknown>;
-  const source = trimmedStringField(payload.source);
-  const author = trimmedStringField(payload.author);
-  const authorPrefix = author ? `${author} ` : '';
-
-  if (source === 'comment') {
-    const content = trimmedStringField(payload.content);
-    if (!content) return '';
-    return `${authorPrefix}comment: ${content}`;
+  const authorPrefix = parsed.payload.author ? `${parsed.payload.author} ` : '';
+  if (parsed.type === 'comment') {
+    return `${authorPrefix}comment: ${parsed.payload.content}`;
   }
 
-  if (source === 'annotation') {
-    const anchorExact = trimmedStringField(payload.anchorExact);
-    const annotationType = trimmedStringField(payload.annotationType);
-    const readingIntent = trimmedStringField(payload.readingIntent);
-    const whyHere = trimmedStringField(payload.whyHere);
+  if (parsed.type === 'annotation') {
     const parts = [
-      anchorExact ? `selection: ${anchorExact}` : '',
-      annotationType ? `type: ${annotationType}` : '',
-      readingIntent ? `intent: ${readingIntent}` : '',
-      whyHere ? `why: ${whyHere}` : '',
+      parsed.payload.anchorExact ? `selection: ${parsed.payload.anchorExact}` : '',
+      parsed.payload.annotationType ? `type: ${parsed.payload.annotationType}` : '',
+      parsed.payload.readingIntent ? `intent: ${parsed.payload.readingIntent}` : '',
+      parsed.payload.whyHere ? `why: ${parsed.payload.whyHere}` : '',
     ].filter(Boolean);
     return parts.length > 0 ? `${authorPrefix}annotation\n${parts.join('\n')}` : '';
   }
@@ -103,33 +85,6 @@ function memoryEntryScore(
 
 function formatTraceItem(item: TraceItem) {
   return `${item.type} / ${item.confidence}: ${item.content}`;
-}
-
-function isSummaryPayload(
-  payload: ReadingMemoryEntry['payload'],
-): payload is ReadingMemorySummaryPayload {
-  if (!isRecord(payload)) return false;
-  const value = payload as Record<string, unknown>;
-  const keyTerms = value.keyTerms;
-  return (
-    typeof value.summary === 'string' &&
-    Array.isArray(keyTerms) &&
-    keyTerms.every((term) => typeof term === 'string')
-  );
-}
-
-function isTracePayload(
-  payload: ReadingMemoryEntry['payload'],
-): payload is ReadingMemoryTracePayload {
-  if (!isRecord(payload)) return false;
-  return Array.isArray((payload as Record<string, unknown>).items);
-}
-
-function isCorrectionPayload(
-  payload: ReadingMemoryEntry['payload'],
-): payload is ReadingMemoryCorrectionPayload {
-  if (!isRecord(payload)) return false;
-  return typeof (payload as Record<string, unknown>).reason === 'string';
 }
 
 function stringifyValue(value: unknown) {

@@ -60,6 +60,7 @@ const coreRuntimeExports = [
   'normalizeReadingMemoryEntry',
   'offsetFromArticleStart',
   'offsetFromArticleStartIgnoringSelector',
+  'parseReadingMemoryEntryPayload',
   'performanceElapsedMs',
   'performanceStart',
   'prepareEpubBookIndex',

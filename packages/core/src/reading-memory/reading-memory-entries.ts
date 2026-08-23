@@ -13,8 +13,9 @@ import type {
   TextSummary,
   TextRange,
 } from '@yomitomo/shared';
-import { createTextAnchor, isRecord, uniqueTrimmedStrings } from '@yomitomo/shared';
+import { createTextAnchor, uniqueTrimmedStrings } from '@yomitomo/shared';
 import { createEpubTextAnchor } from '../epub/ebook-index';
+import { parseReadingMemoryEntryPayload } from './reading-memory-entry-payload';
 
 const ENTRY_KINDS = new Set<ReadingMemoryEntryKind>([
   'summary',
@@ -366,25 +367,24 @@ function commentMemoryEntryId(commentId: string) {
 }
 
 function textSummaryFromEntry(entry: ReadingMemoryEntry): TextSummary | null {
-  if (entry.kind !== 'summary') return null;
   if (!entry.textRange) return null;
   if (entry.scope !== 'segment' && entry.scope !== 'chapter' && entry.scope !== 'book') {
     return null;
   }
-  if (!isSummaryPayload(entry.payload)) return null;
+  const parsed = parseReadingMemoryEntryPayload(entry);
+  if (parsed?.type !== 'summary') return null;
   return {
     scope: entry.scope,
     chapterId: entry.chapterId,
     segmentId: entry.segmentId,
     sourceRange: entry.textRange,
-    summary: entry.payload.summary,
-    keyTerms: entry.payload.keyTerms,
+    summary: parsed.payload.summary,
+    keyTerms: parsed.payload.keyTerms,
     updatedAt: entry.updatedAt,
   };
 }
 
 function readingTraceFromEntry(entry: ReadingMemoryEntry): ReadingTrace | null {
-  if (entry.kind !== 'trace') return null;
   if (
     entry.scope !== 'segment' &&
     entry.scope !== 'chapter' &&
@@ -393,20 +393,20 @@ function readingTraceFromEntry(entry: ReadingMemoryEntry): ReadingTrace | null {
   ) {
     return null;
   }
-  if (!isTracePayload(entry.payload)) return null;
+  const parsed = parseReadingMemoryEntryPayload(entry);
+  if (parsed?.type !== 'trace') return null;
   return {
     scope: entry.scope,
     chapterId: entry.chapterId,
     segmentId: entry.segmentId,
     sourceRange: entry.textRange,
     agentId: entry.agentId,
-    items: entry.payload.items,
+    items: parsed.payload.items,
     updatedAt: entry.updatedAt,
   };
 }
 
 function correctionTraceFromEntry(entry: ReadingMemoryEntry): ReadingTrace | null {
-  if (entry.kind !== 'correction') return null;
   if (
     entry.scope !== 'segment' &&
     entry.scope !== 'chapter' &&
@@ -415,11 +415,12 @@ function correctionTraceFromEntry(entry: ReadingMemoryEntry): ReadingTrace | nul
   ) {
     return null;
   }
-  if (!isCorrectionPayload(entry.payload)) return null;
+  const parsed = parseReadingMemoryEntryPayload(entry);
+  if (parsed?.type !== 'correction') return null;
   const replacementText =
-    entry.payload.replacement === undefined
+    parsed.payload.replacement === undefined
       ? ''
-      : `；replacement：${stringifyCorrectionReplacement(entry.payload.replacement)}`;
+      : `；replacement：${stringifyCorrectionReplacement(parsed.payload.replacement)}`;
   return {
     scope: entry.scope,
     chapterId: entry.chapterId,
@@ -429,7 +430,7 @@ function correctionTraceFromEntry(entry: ReadingMemoryEntry): ReadingTrace | nul
     items: [
       {
         type: 'reader_interest',
-        content: `correction：${entry.payload.reason}${replacementText}`,
+        content: `correction：${parsed.payload.reason}${replacementText}`,
         evidenceAnchors: entry.anchor ? [entry.anchor] : [],
         confidence: 'high',
         createdFromTask: 'memory_correction',
@@ -437,35 +438,6 @@ function correctionTraceFromEntry(entry: ReadingMemoryEntry): ReadingTrace | nul
     ],
     updatedAt: entry.updatedAt,
   };
-}
-
-function isSummaryPayload(payload: ReadingMemoryEntry['payload']): payload is {
-  summary: string;
-  keyTerms: string[];
-} {
-  if (!isRecord(payload)) return false;
-  const value = payload as Record<string, unknown>;
-  const keyTerms = value.keyTerms;
-  return (
-    typeof value.summary === 'string' &&
-    Array.isArray(keyTerms) &&
-    keyTerms.every((term) => typeof term === 'string')
-  );
-}
-
-function isTracePayload(payload: ReadingMemoryEntry['payload']): payload is {
-  items: ReadingTrace['items'];
-} {
-  if (!isRecord(payload)) return false;
-  return Array.isArray((payload as Record<string, unknown>).items);
-}
-
-function isCorrectionPayload(payload: ReadingMemoryEntry['payload']): payload is {
-  reason: string;
-  replacement?: unknown;
-} {
-  if (!isRecord(payload)) return false;
-  return typeof (payload as Record<string, unknown>).reason === 'string';
 }
 
 function stringifyCorrectionReplacement(value: unknown) {

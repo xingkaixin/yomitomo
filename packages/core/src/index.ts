@@ -124,6 +124,9 @@ export type { TocAnnotationStats } from './reader/reader-annotations';
 
 export { mergeReadingMemory } from './reading-memory/reading-memory-merge';
 
+export { parseReadingMemoryEntryPayload } from './reading-memory/reading-memory-entry-payload';
+export type { ParsedReadingMemoryEntryPayload } from './reading-memory/reading-memory-entry-payload';
+
 export {
   applySupersededEntryFilter,
   normalizeReadingMemoryEntry,
