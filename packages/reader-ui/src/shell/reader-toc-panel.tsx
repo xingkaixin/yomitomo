@@ -2,7 +2,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { HighlighterIcon, Layers02Icon } from '@hugeicons/core-free-icons';
 import React from 'react';
 import type { TocItem } from '@yomitomo/core';
-import type { buildTocAnnotationStats } from '../annotations/reader-annotations';
+import type { buildTocAnnotationStats } from '../annotations/annotation-toc-stats';
 import { TooltipProvider } from '../components/ui/tooltip';
 import { ReaderTooltip } from '../shared/reader-component-primitives';
 import type { ReaderUiLabels } from './reader-app-view-types';

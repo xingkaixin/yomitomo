@@ -1,7 +1,7 @@
 import React from 'react';
 import { annotationIdsAtHighlightPoint, type HighlightBox } from '@yomitomo/core';
 import type { Annotation, SelectionActionShortcuts } from '@yomitomo/shared';
-import type { AnnotationRailLayout } from '../annotations/reader-annotations';
+import type { AnnotationRailLayout } from '../annotations/annotation-rail-layout';
 import { useReaderAnnotationRail } from '../annotations/use-reader-annotation-rail';
 import type {
   AnnotationNavigationDirection,
