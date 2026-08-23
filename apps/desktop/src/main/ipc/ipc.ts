@@ -132,7 +132,9 @@ export async function assertDesktopIpcAppLockUnlocked(context: DesktopIpcAppLock
   assertAppLockSettingsUnlocked(storeSettings.readAppLockSettings());
 }
 
-export function assertAppLockSettingsUnlocked(settings: DesktopStore['settings']) {
+export function assertAppLockSettingsUnlocked(
+  settings: Pick<DesktopStore['settings'], 'appLockEnabled' | 'appLockLocked'>,
+) {
   if (!isAppLockSettingsLocked(settings)) return;
   throw new DesktopIpcError(desktopIpcErrorCodes.appLockRequired);
 }

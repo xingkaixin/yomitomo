@@ -24,12 +24,22 @@ import {
   type ProviderTestState,
   type UserDraft,
 } from '../settings/app-settings';
-import type { Agent, AppSettings, LlmProvider } from '@yomitomo/shared';
+import {
+  normalizeSelectionActionShortcutDraft,
+  type Agent,
+  type AppSettingsPatch,
+  type LlmProvider,
+  type ResolvedAppSettings,
+} from '@yomitomo/shared';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 import { appToast } from '../shell/app-toast';
 import type { SaveState } from '../shell/app-types';
 import type { SaveableDraft } from '../settings/use-saveable-draft';
+import {
+  normalizeAppSettings,
+  normalizeTranslationTargetLanguage,
+} from '../../../settings/app-settings-normalization';
 
 vi.mock('../sound/app-sound-effects', () => ({
   playAppSoundEffect: vi.fn(),
@@ -106,14 +116,14 @@ function GeneralSettings({
   onSave,
   saveError,
   saveState,
-}: Omit<DraftFixtureProps<AppSettings>, 'onChange' | 'value'> & {
-  onSettingsChange: (draft: AppSettings) => void;
-  settingsDraft: AppSettings;
+}: Omit<DraftFixtureProps<ResolvedAppSettings>, 'onChange' | 'value'> & {
+  onSettingsChange: (draft: ResolvedAppSettings) => void;
+  settingsDraft: AppSettingsPatch;
 }) {
   return (
     <GeneralSettingsComponent
       draft={fixtureDraft({
-        value: settingsDraft,
+        value: resolvedSettingsFixture(settingsDraft),
         canSave,
         onChange: onSettingsChange,
         onSave,
@@ -131,14 +141,14 @@ function ShortcutSettings({
   onSave,
   saveError,
   saveState,
-}: Omit<DraftFixtureProps<AppSettings>, 'onChange' | 'value'> & {
-  onSettingsChange: (draft: AppSettings) => void;
-  settingsDraft: AppSettings;
+}: Omit<DraftFixtureProps<ResolvedAppSettings>, 'onChange' | 'value'> & {
+  onSettingsChange: (draft: ResolvedAppSettings) => void;
+  settingsDraft: AppSettingsPatch;
 }) {
   return (
     <ShortcutSettingsComponent
       draft={fixtureDraft({
-        value: settingsDraft,
+        value: resolvedSettingsFixture(settingsDraft),
         canSave,
         onChange: onSettingsChange,
         onSave,
@@ -147,6 +157,19 @@ function ShortcutSettings({
       })}
     />
   );
+}
+
+function resolvedSettingsFixture(settings: AppSettingsPatch): ResolvedAppSettings {
+  return {
+    ...normalizeAppSettings(settings),
+    ...settings,
+    selectionActionShortcuts: normalizeSelectionActionShortcutDraft(
+      settings.selectionActionShortcuts,
+    ),
+    bilingualTranslationTargetLanguage: normalizeTranslationTargetLanguage(
+      settings.bilingualTranslationTargetLanguage,
+    ),
+  };
 }
 
 function UserProfileSettingsDialog({
@@ -658,7 +681,7 @@ describe('ProviderSettings', () => {
     expect(screen.getByText('使用工具核验')).toBeTruthy();
     fireEvent.pointerUp(screen.getByRole('slider', { name: '助手执行模式' }));
 
-    const nextDraft = { assistantExecutionMode: 'deep_verification' };
+    const nextDraft = expect.objectContaining({ assistantExecutionMode: 'deep_verification' });
     expect(onRoutesChange).toHaveBeenCalledWith(nextDraft);
     expect(onRoutesSave).toHaveBeenCalledWith(nextDraft);
   });
@@ -800,7 +823,7 @@ describe('ProviderSettings', () => {
 type ProviderSettingsFixtureOptions = {
   providerValue: ProviderDraft;
   providers: LlmProvider[];
-  routesValue?: AppSettings;
+  routesValue?: AppSettingsPatch;
   testState?: ProviderTestState;
   canSave?: boolean;
   canSaveRoutes?: boolean;
@@ -809,11 +832,11 @@ type ProviderSettingsFixtureOptions = {
   routeSaveState?: SaveState;
   routeSaveError?: string;
   onProviderChange?: (draft: ProviderDraft) => void;
-  onRoutesChange?: (draft: AppSettings) => void;
+  onRoutesChange?: (draft: ResolvedAppSettings) => void;
   onCreate?: () => void;
   onDelete?: (id: string) => Promise<void> | void;
   onSave?: (draft?: ProviderDraft) => Promise<boolean | undefined> | boolean | undefined;
-  onRouteSave?: (draft?: AppSettings) => Promise<void> | void;
+  onRouteSave?: (draft?: ResolvedAppSettings) => Promise<void> | void;
   onSelect?: (provider: LlmProvider) => void;
   onTest?: (draft: ProviderDraft) => Promise<void> | void;
 };
@@ -855,7 +878,7 @@ function makeProviderSettingsProps({
       update: onProviderChange,
     },
     routesDraft: {
-      value: routesValue,
+      value: normalizeAppSettings(routesValue),
       canSave: canSaveRoutes,
       reset: vi.fn(),
       save: async (override) => (override === undefined ? onRouteSave() : onRouteSave(override)),
@@ -976,10 +999,10 @@ function renderAgentSettings({
   agents: nextAgents = agentSettingsAgents,
   error = '',
   providers = [makeProvider('provider_1', 'Anthropic')],
-  settings = {
+  settings = normalizeAppSettings({
     readingAssistantProviderId: 'provider_1',
     reviewAssistantProviderId: 'provider_1',
-  },
+  }),
   saveState = 'idle',
   onConfigureRoutes = vi.fn(),
   onToggle = vi.fn(),
@@ -987,7 +1010,7 @@ function renderAgentSettings({
   agents?: Agent[];
   error?: string;
   providers?: LlmProvider[];
-  settings?: AppSettings;
+  settings?: AppSettingsPatch;
   saveState?: 'idle' | 'saving' | 'saved';
   onConfigureRoutes?: () => void;
   onToggle?: (agent: Agent) => void;
@@ -1133,7 +1156,9 @@ describe('GeneralSettings', () => {
 
     fireEvent.click(screen.getByRole('checkbox', { name: /采集文章时保存正文图片/ }));
 
-    expect(onSettingsChange).toHaveBeenCalledWith({ saveArticleImages: true });
+    expect(onSettingsChange).toHaveBeenCalledWith(
+      expect.objectContaining({ saveArticleImages: true }),
+    );
   });
 
   it('requires confirmation before enabling local network article imports', () => {
@@ -1156,8 +1181,9 @@ describe('GeneralSettings', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '确认开启' }));
 
-    expect(onSettingsChange).toHaveBeenCalledWith({ allowLocalNetworkArticleImport: true });
-    expect(onSave).toHaveBeenCalledWith({ allowLocalNetworkArticleImport: true });
+    const nextDraft = expect.objectContaining({ allowLocalNetworkArticleImport: true });
+    expect(onSettingsChange).toHaveBeenCalledWith(nextDraft);
+    expect(onSave).toHaveBeenCalledWith(nextDraft);
   });
 
   it('disables local network article imports without confirmation', () => {
@@ -1176,8 +1202,9 @@ describe('GeneralSettings', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /允许导入本机和私有网络地址/ }));
 
     expect(screen.queryByText('允许访问本机和私有网络？')).toBeNull();
-    expect(onSettingsChange).toHaveBeenCalledWith({ allowLocalNetworkArticleImport: false });
-    expect(onSave).toHaveBeenCalledWith({ allowLocalNetworkArticleImport: false });
+    const nextDraft = expect.objectContaining({ allowLocalNetworkArticleImport: false });
+    expect(onSettingsChange).toHaveBeenCalledWith(nextDraft);
+    expect(onSave).toHaveBeenCalledWith(nextDraft);
   });
 
   it('saves the telemetry opt-out setting without confirmation', () => {
@@ -1196,8 +1223,9 @@ describe('GeneralSettings', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /发送匿名版本与系统指标/ }));
 
     expect(screen.queryByText('允许访问本机和私有网络？')).toBeNull();
-    expect(onSettingsChange).toHaveBeenCalledWith({ telemetryEnabled: false });
-    expect(onSave).toHaveBeenCalledWith({ telemetryEnabled: false });
+    const nextDraft = expect.objectContaining({ telemetryEnabled: false });
+    expect(onSettingsChange).toHaveBeenCalledWith(nextDraft);
+    expect(onSave).toHaveBeenCalledWith(nextDraft);
   });
 
   it('retries telemetry saving even when the current draft is not saveable', () => {
@@ -1244,8 +1272,9 @@ describe('GeneralSettings', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'English' }));
 
-    expect(onSettingsChange).toHaveBeenCalledWith({ uiLanguage: 'en' });
-    expect(onSave).toHaveBeenCalledWith({ uiLanguage: 'en' });
+    const nextDraft = expect.objectContaining({ uiLanguage: 'en' });
+    expect(onSettingsChange).toHaveBeenCalledWith(nextDraft);
+    expect(onSave).toHaveBeenCalledWith(nextDraft);
   });
 
   it('saves sound effect controls', () => {
@@ -1262,14 +1291,13 @@ describe('GeneralSettings', () => {
     );
 
     fireEvent.click(screen.getByRole('checkbox', { name: '启用应用音效' }));
-    expect(onSave).toHaveBeenLastCalledWith({
-      soundEffectsEnabled: true,
-      soundEffectsVolume: 0.7,
-    });
-    expect(playAppSoundEffect).toHaveBeenLastCalledWith('settings.sound_preview', {
-      soundEffectsEnabled: true,
-      soundEffectsVolume: 0.7,
-    });
+    expect(onSave).toHaveBeenLastCalledWith(
+      expect.objectContaining({ soundEffectsEnabled: true, soundEffectsVolume: 0.7 }),
+    );
+    expect(playAppSoundEffect).toHaveBeenLastCalledWith(
+      'settings.sound_preview',
+      expect.objectContaining({ soundEffectsEnabled: true, soundEffectsVolume: 0.7 }),
+    );
 
     view.rerender(
       <GeneralSettings
@@ -1297,31 +1325,24 @@ describe('GeneralSettings', () => {
     expect(onSettingsChange).toHaveBeenCalledTimes(1);
 
     fireEvent.pointerUp(slider, { button: 0, clientX: 70, pointerId: 1 });
-    expect(onSettingsChange).toHaveBeenLastCalledWith({
+    const pointerDraft = expect.objectContaining({
       soundEffectsEnabled: true,
       soundEffectsVolume: 0.35,
     });
-    expect(onSave).toHaveBeenLastCalledWith({
-      soundEffectsEnabled: true,
-      soundEffectsVolume: 0.35,
-    });
-    expect(playAppSoundEffect).toHaveBeenLastCalledWith('settings.sound_preview', {
-      soundEffectsEnabled: true,
-      soundEffectsVolume: 0.35,
-    });
+    expect(onSettingsChange).toHaveBeenLastCalledWith(pointerDraft);
+    expect(onSave).toHaveBeenLastCalledWith(pointerDraft);
+    expect(playAppSoundEffect).toHaveBeenLastCalledWith('settings.sound_preview', pointerDraft);
 
     fireEvent.keyDown(slider, { key: 'ArrowRight' });
     expect(onSave).toHaveBeenCalledTimes(2);
 
     fireEvent.keyUp(slider, { key: 'ArrowRight' });
-    expect(onSettingsChange).toHaveBeenLastCalledWith({
+    const keyboardDraft = expect.objectContaining({
       soundEffectsEnabled: true,
       soundEffectsVolume: 0.4,
     });
-    expect(onSave).toHaveBeenLastCalledWith({
-      soundEffectsEnabled: true,
-      soundEffectsVolume: 0.4,
-    });
+    expect(onSettingsChange).toHaveBeenLastCalledWith(keyboardDraft);
+    expect(onSave).toHaveBeenLastCalledWith(keyboardDraft);
   });
 
   it('shows the saved status only on the general section that changed', () => {
@@ -1561,7 +1582,9 @@ describe('ShortcutSettings', () => {
 
     fireEvent.click(screen.getAllByRole('radio')[1]);
 
-    expect(onSettingsChange).toHaveBeenCalledWith({ messageSendShortcut: 'mod-enter' });
+    expect(onSettingsChange).toHaveBeenCalledWith(
+      expect.objectContaining({ messageSendShortcut: 'mod-enter' }),
+    );
     expect(screen.getAllByText('⏎').some((element) => element.tagName === 'KBD')).toBe(true);
     expect(screen.getByText('消息发送')).toBeTruthy();
     expect(screen.getByRole('radio', { name: '回车发送' })).toBeTruthy();
@@ -1602,10 +1625,12 @@ describe('ShortcutSettings', () => {
     fireEvent.click(screen.getByRole('button', { name: '设置复制快捷键' }));
     fireEvent.keyDown(window, { key: 'x' });
 
-    expect(onSettingsChange).toHaveBeenCalledWith({
-      messageSendShortcut: 'enter',
-      selectionActionShortcuts: { copy: 'X', annotate: 'A', ask: 'Q' },
-    });
+    expect(onSettingsChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageSendShortcut: 'enter',
+        selectionActionShortcuts: { copy: 'X', annotate: 'A', ask: 'Q' },
+      }),
+    );
   });
 
   it('shows shortcut saved status on the section that changed', () => {
@@ -1676,10 +1701,12 @@ describe('ShortcutSettings', () => {
     fireEvent.keyDown(window, { key: 'b' });
 
     expect(onSettingsChange).toHaveBeenCalledOnce();
-    expect(onSettingsChange).toHaveBeenCalledWith({
-      messageSendShortcut: 'enter',
-      selectionActionShortcuts: { copy: 'C', annotate: 'B', ask: 'Q' },
-    });
+    expect(onSettingsChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageSendShortcut: 'enter',
+        selectionActionShortcuts: { copy: 'C', annotate: 'B', ask: 'Q' },
+      }),
+    );
   });
 
   it('records the ask selection shortcut', () => {
@@ -1697,10 +1724,12 @@ describe('ShortcutSettings', () => {
     fireEvent.click(screen.getByRole('button', { name: '设置问一下快捷键' }));
     fireEvent.keyDown(window, { key: 'y' });
 
-    expect(onSettingsChange).toHaveBeenCalledWith({
-      messageSendShortcut: 'enter',
-      selectionActionShortcuts: { copy: 'C', annotate: 'A', ask: 'Y' },
-    });
+    expect(onSettingsChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageSendShortcut: 'enter',
+        selectionActionShortcuts: { copy: 'C', annotate: 'A', ask: 'Y' },
+      }),
+    );
   });
 
   it('shows conflicts and resets reader action shortcuts', () => {
@@ -1723,10 +1752,12 @@ describe('ShortcutSettings', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '重置复制为默认 C' }));
 
-    expect(onSettingsChange).toHaveBeenCalledWith({
-      messageSendShortcut: 'enter',
-      selectionActionShortcuts: { copy: 'C', annotate: 'B', ask: 'Q' },
-    });
+    expect(onSettingsChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageSendShortcut: 'enter',
+        selectionActionShortcuts: { copy: 'C', annotate: 'B', ask: 'Q' },
+      }),
+    );
   });
 });
 
@@ -1761,12 +1792,7 @@ describe('DataManagementSettings', () => {
     fireEvent.click(screen.getByRole('button', { name: '15 天' }));
 
     await waitFor(() =>
-      expect(desktop.saveSettings).toHaveBeenCalledWith(
-        expect.objectContaining({
-          logRetentionDays: 15,
-          onboardingCompletedAt: '2026-05-12T00:00:00.000Z',
-        }),
-      ),
+      expect(desktop.saveSettings).toHaveBeenCalledWith({ logRetentionDays: 15 }),
     );
     expect(onStoreUpdated).toHaveBeenCalledWith(
       expect.objectContaining({ settings: expect.objectContaining({ logRetentionDays: 15 }) }),

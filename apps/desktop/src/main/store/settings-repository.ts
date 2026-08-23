@@ -1,4 +1,4 @@
-import type { AppSettings, UserProfile } from '@yomitomo/shared';
+import type { AppSettingsPatch, ResolvedAppSettings, UserProfile } from '@yomitomo/shared';
 import {
   normalizeLibraryContentSources,
   normalizeMessageSendShortcut,
@@ -27,15 +27,15 @@ export type AppLockSettings = {
 export function readAppLockSettings(database: StoreExecutor): AppLockSettings {
   const settings = rowToSettings(database.select().from(schema.appSettings).limit(1).get());
   return {
-    appLockEnabled: Boolean(settings.appLockEnabled),
-    appLockLocked: Boolean(settings.appLockEnabled && settings.appLockLocked),
+    appLockEnabled: settings.appLockEnabled,
+    appLockLocked: settings.appLockEnabled && settings.appLockLocked,
     appLockShortcut: settings.appLockShortcut,
   };
 }
 
 export function readImportSettings(
   database: StoreExecutor,
-): Pick<AppSettings, 'saveArticleImages' | 'allowLocalNetworkArticleImport'> {
+): Pick<ResolvedAppSettings, 'saveArticleImages' | 'allowLocalNetworkArticleImport'> {
   const settings = database.select().from(schema.appSettings).limit(1).get();
   return {
     saveArticleImages: Boolean(settings?.saveArticleImages),
@@ -71,18 +71,18 @@ export function upsertUser(database: StoreExecutor, user: UserProfile) {
     .run();
 }
 
-export function upsertSettings(database: StoreExecutor, settings: AppSettings) {
+export function upsertSettings(database: StoreExecutor, settings: AppSettingsPatch) {
   const existing = database.select().from(schema.appSettings).limit(1).get();
   const merged = mergeSettingsForUpsert(settings, existing ? rowToSettings(existing) : undefined);
   const row = {
     id: 'default',
     uiLanguage: normalizeUiLanguage(merged.uiLanguage),
     themeId: merged.themeId || null,
-    soundEffectsEnabled: merged.soundEffectsEnabled ?? true,
+    soundEffectsEnabled: merged.soundEffectsEnabled,
     soundEffectsVolume: normalizeSoundEffectsVolume(merged.soundEffectsVolume),
-    appLockEnabled: Boolean(merged.appLockEnabled),
-    appLockLocked: Boolean(merged.appLockEnabled && merged.appLockLocked),
-    appLockLockOnStartup: Boolean(merged.appLockEnabled && merged.appLockLockOnStartup),
+    appLockEnabled: merged.appLockEnabled,
+    appLockLocked: merged.appLockEnabled && merged.appLockLocked,
+    appLockLockOnStartup: merged.appLockEnabled && merged.appLockLockOnStartup,
     appLockShortcut: merged.appLockShortcut || null,
     libraryPageSize: merged.libraryPageSize || null,
     libraryContentSources: normalizeLibraryContentSources(merged.libraryContentSources),
@@ -92,15 +92,15 @@ export function upsertSettings(database: StoreExecutor, settings: AppSettings) {
     bilingualTranslationProviderId: merged.bilingualTranslationProviderId || null,
     bilingualTranslationTargetLanguage: merged.bilingualTranslationTargetLanguage || null,
     bilingualTranslationStyle: merged.bilingualTranslationStyle || null,
-    bilingualTranslationAiContextAware: Boolean(merged.bilingualTranslationAiContextAware),
+    bilingualTranslationAiContextAware: merged.bilingualTranslationAiContextAware,
     assistantExecutionMode: merged.assistantExecutionMode || 'fast_response',
     messageSendShortcut: normalizeMessageSendShortcut(merged.messageSendShortcut),
     selectionActionShortcuts: normalizeSelectionActionShortcuts(merged.selectionActionShortcuts),
-    saveArticleImages: Boolean(merged.saveArticleImages),
-    allowLocalNetworkArticleImport: Boolean(merged.allowLocalNetworkArticleImport),
-    telemetryEnabled: merged.telemetryEnabled ?? true,
-    developerModeEnabled: Boolean(merged.developerModeEnabled),
-    logRetentionDays: merged.logRetentionDays ?? 90,
+    saveArticleImages: merged.saveArticleImages,
+    allowLocalNetworkArticleImport: merged.allowLocalNetworkArticleImport,
+    telemetryEnabled: merged.telemetryEnabled,
+    developerModeEnabled: merged.developerModeEnabled,
+    logRetentionDays: merged.logRetentionDays,
     onboardingCompletedAt: merged.onboardingCompletedAt || null,
     lastSeenVersion: merged.lastSeenVersion || null,
     updatedAt: new Date().toISOString(),

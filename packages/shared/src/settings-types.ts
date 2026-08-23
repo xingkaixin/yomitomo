@@ -33,34 +33,42 @@ export type LibraryContentSourcePreference = {
   enabled: boolean;
 };
 
-export type AppSettings = {
-  uiLanguage?: UiLanguage;
-  themeId?: string;
-  soundEffectsEnabled?: boolean;
-  soundEffectsVolume?: number;
-  appLockEnabled?: boolean;
-  appLockLocked?: boolean;
-  appLockLockOnStartup?: boolean;
-  appLockShortcut?: string;
-  libraryPageSize?: number;
-  libraryContentSources?: LibraryContentSourcePreference[];
-  defaultProviderId?: string;
-  readingAssistantProviderId?: string;
-  reviewAssistantProviderId?: string;
-  bilingualTranslationProviderId?: string;
+export type ResolvedAppSettings = {
+  uiLanguage: UiLanguage;
+  themeId: string | undefined;
+  soundEffectsEnabled: boolean;
+  soundEffectsVolume: number;
+  appLockEnabled: boolean;
+  appLockLocked: boolean;
+  appLockLockOnStartup: boolean;
+  appLockShortcut: string | undefined;
+  libraryPageSize: number | undefined;
+  libraryContentSources: LibraryContentSourcePreference[];
+  defaultProviderId: string | undefined;
+  readingAssistantProviderId: string | undefined;
+  reviewAssistantProviderId: string | undefined;
+  bilingualTranslationProviderId: string | undefined;
+  bilingualTranslationTargetLanguage: BilingualTranslationTargetLanguage;
+  bilingualTranslationStyle: BilingualTranslationStyle;
+  bilingualTranslationAiContextAware: boolean;
+  assistantExecutionMode: AssistantExecutionMode;
+  messageSendShortcut: MessageSendShortcut;
+  selectionActionShortcuts: SelectionActionShortcuts;
+  saveArticleImages: boolean;
+  allowLocalNetworkArticleImport: boolean;
+  telemetryEnabled: boolean;
+  developerModeEnabled: boolean;
+  logRetentionDays: number;
+  onboardingCompletedAt: string | undefined;
+  lastSeenVersion: string | undefined;
+};
+
+export type AppSettingsPatch = Omit<
+  Partial<ResolvedAppSettings>,
+  'bilingualTranslationTargetLanguage' | 'selectionActionShortcuts'
+> & {
   bilingualTranslationTargetLanguage?: string;
-  bilingualTranslationStyle?: BilingualTranslationStyle;
-  bilingualTranslationAiContextAware?: boolean;
-  assistantExecutionMode?: AssistantExecutionMode;
-  messageSendShortcut?: MessageSendShortcut;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
-  saveArticleImages?: boolean;
-  allowLocalNetworkArticleImport?: boolean;
-  telemetryEnabled?: boolean;
-  developerModeEnabled?: boolean;
-  logRetentionDays?: number;
-  onboardingCompletedAt?: string;
-  lastSeenVersion?: string;
 };
 
 export function normalizeUiLanguage(value: unknown): UiLanguage {

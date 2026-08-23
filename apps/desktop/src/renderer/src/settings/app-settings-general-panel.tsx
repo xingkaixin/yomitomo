@@ -11,7 +11,7 @@ import {
   VolumeHighIcon,
 } from '@hugeicons/core-free-icons';
 import React, { useEffect, useRef, useState } from 'react';
-import type { AppSettings } from '@yomitomo/shared';
+import type { ResolvedAppSettings } from '@yomitomo/shared';
 import {
   normalizeSoundEffectsVolume,
   normalizeUiLanguage,
@@ -67,9 +67,9 @@ type GeneralSaveSection =
   | 'appLock'
   | 'collection'
   | 'telemetry';
-export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }) {
+export function GeneralSettings({ draft }: { draft: SaveableDraft<ResolvedAppSettings> }) {
   const { value: settingsDraft, update: onSettingsChange, saveError, saveState } = draft;
-  const onSave = (override?: AppSettings) => {
+  const onSave = (override?: ResolvedAppSettings) => {
     void draft.save(override);
   };
   const { t } = useTranslation();
@@ -112,7 +112,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
   function saveTranslationSettings(
     patch: Partial<
       Pick<
-        AppSettings,
+        ResolvedAppSettings,
         | 'bilingualTranslationTargetLanguage'
         | 'bilingualTranslationStyle'
         | 'bilingualTranslationAiContextAware'
@@ -129,7 +129,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
   }
 
   function saveSoundSettings(
-    patch: Partial<Pick<AppSettings, 'soundEffectsEnabled' | 'soundEffectsVolume'>>,
+    patch: Partial<Pick<ResolvedAppSettings, 'soundEffectsEnabled' | 'soundEffectsVolume'>>,
   ) {
     const nextDraft = {
       ...settingsDraft,
@@ -147,7 +147,9 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
   }
 
   function saveCollectionSettings(
-    patch: Partial<Pick<AppSettings, 'saveArticleImages' | 'allowLocalNetworkArticleImport'>>,
+    patch: Partial<
+      Pick<ResolvedAppSettings, 'saveArticleImages' | 'allowLocalNetworkArticleImport'>
+    >,
   ) {
     const nextDraft = {
       ...settingsDraft,
@@ -158,7 +160,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
     onSave(nextDraft);
   }
 
-  function saveTelemetrySettings(patch: Pick<AppSettings, 'telemetryEnabled'>) {
+  function saveTelemetrySettings(patch: Pick<ResolvedAppSettings, 'telemetryEnabled'>) {
     const nextDraft = {
       ...settingsDraft,
       ...patch,
@@ -385,7 +387,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
         >
           <SettingsToggle
             id="general-translation-ai-context"
-            checked={Boolean(settingsDraft.bilingualTranslationAiContextAware)}
+            checked={settingsDraft.bilingualTranslationAiContextAware}
             label={t('settings.general.translationAiContextTitle')}
             onChange={(checked) =>
               saveTranslationSettings({ bilingualTranslationAiContextAware: checked })
@@ -423,7 +425,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
         >
           <SettingsElasticSlider
             ariaLabel={t('settings.general.soundVolumeTitle')}
-            disabled={settingsDraft.soundEffectsEnabled === false}
+            disabled={!settingsDraft.soundEffectsEnabled}
             formatValue={(value) => t('settings.general.soundVolumeValue', { value })}
             label={t('settings.general.soundVolumeTitle')}
             max={100}
@@ -459,7 +461,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
         >
           <SettingsToggle
             id="general-app-lock-enabled"
-            checked={Boolean(settingsDraft.appLockEnabled)}
+            checked={settingsDraft.appLockEnabled}
             disabled={appLockWorkflow.saveState === 'saving'}
             label={t('settings.general.appLockEnabledTitle')}
             onChange={appLockWorkflow.open}
@@ -491,7 +493,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
         >
           <SettingsToggle
             id="general-app-lock-startup"
-            checked={Boolean(settingsDraft.appLockLockOnStartup)}
+            checked={settingsDraft.appLockLockOnStartup}
             disabled={!settingsDraft.appLockEnabled || appLockWorkflow.saveState === 'saving'}
             label={t('settings.general.appLockStartupTitle')}
             onChange={toggleAppLockOnStartup}
@@ -516,7 +518,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
         >
           <SettingsToggle
             id="general-save-images"
-            checked={Boolean(settingsDraft.saveArticleImages)}
+            checked={settingsDraft.saveArticleImages}
             label={t('settings.general.saveImagesTitle')}
             onChange={(checked) => saveCollectionSettings({ saveArticleImages: checked })}
           />
@@ -528,7 +530,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
         >
           <SettingsToggle
             id="general-local-network-import"
-            checked={Boolean(settingsDraft.allowLocalNetworkArticleImport)}
+            checked={settingsDraft.allowLocalNetworkArticleImport}
             label={t('settings.general.localNetworkImportTitle')}
             onChange={toggleLocalNetworkArticleImport}
           />

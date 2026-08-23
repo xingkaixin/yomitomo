@@ -2,7 +2,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { BarChartIcon, Refresh01Icon } from '@hugeicons/core-free-icons';
 import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Agent, AppSettings, ArticleRecord, ArticleSummaryRecord } from '@yomitomo/shared';
+import type { Agent, ArticleRecord, ArticleSummaryRecord } from '@yomitomo/shared';
 import { Button } from '../components/ui/button';
 import { SegmentedControl } from '../components/ui/segmented-control';
 import { PanelHeader } from '../shell/app-ui';
@@ -49,7 +49,6 @@ export function ReadingStatsPanel({
   articles: Array<ArticleRecord | ArticleSummaryRecord>;
   navigationStartedAt?: number;
   onRefresh: () => void;
-  settings?: AppSettings;
 }) {
   const { t } = useTranslation();
   const [showDeferredContent, setShowDeferredContent] = useState(false);

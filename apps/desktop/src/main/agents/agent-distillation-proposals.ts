@@ -3,7 +3,7 @@ import type {
   AgentDistillationReviewPayload,
   AgentMessagePayload,
   AnnotationDistillationReviewMessage,
-  AppSettings,
+  ResolvedAppSettings,
 } from '@yomitomo/shared';
 import { normalizeUiLanguage } from '@yomitomo/shared';
 import { publicCommentAgents } from './agent-runtime-routing';
@@ -11,7 +11,7 @@ import { publicCommentAgents } from './agent-runtime-routing';
 export function distillationReviewMessagePayload(
   payload: AgentDistillationReviewPayload,
   agents: Agent[],
-  settings: AppSettings,
+  settings: ResolvedAppSettings,
 ): AgentMessagePayload {
   return {
     ...payload,

@@ -18,7 +18,8 @@ import {
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ARTICLE_SOURCE_TYPES,
-  type AppSettings,
+  type AppSettingsPatch,
+  type ResolvedAppSettings,
   type ArticleRecord,
   type ArticleSummaryRecord,
   type Collection,
@@ -122,8 +123,8 @@ type LibraryHomeCollectionActions = {
 };
 
 type LibraryHomeSettingsControl = {
-  settings: AppSettings;
-  onSaveSettings: (settings: AppSettings) => Promise<void> | void;
+  settings: ResolvedAppSettings;
+  onSaveSettings: (settings: AppSettingsPatch) => Promise<void> | void;
 };
 
 type LibraryHomeWeReadControl = {

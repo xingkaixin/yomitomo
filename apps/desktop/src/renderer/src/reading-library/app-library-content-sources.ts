@@ -1,6 +1,6 @@
 import i18next from 'i18next';
 import type {
-  AppSettings,
+  ResolvedAppSettings,
   LibraryContentSourceId,
   LibraryContentSourcePreference,
 } from '@yomitomo/shared';
@@ -26,13 +26,13 @@ export function libraryContentSourceBaseOptions(): LibraryContentSourceOption[] 
 }
 
 export function libraryContentSourcePreferences(
-  settings: Pick<AppSettings, 'libraryContentSources'> | undefined,
+  settings: Partial<Pick<ResolvedAppSettings, 'libraryContentSources'>> | undefined,
 ): LibraryContentSourcePreference[] {
   return normalizeLibraryContentSources(settings?.libraryContentSources);
 }
 
 export function enabledLibraryContentSources(
-  settings: Pick<AppSettings, 'libraryContentSources'> | undefined,
+  settings: Partial<Pick<ResolvedAppSettings, 'libraryContentSources'>> | undefined,
 ): LibrarySource[] {
   return libraryContentSourcePreferences(settings)
     .filter((preference) => preference.enabled)
@@ -40,7 +40,7 @@ export function enabledLibraryContentSources(
 }
 
 export function libraryContentSourceOptions(
-  settings: Pick<AppSettings, 'libraryContentSources'> | undefined,
+  settings: Partial<Pick<ResolvedAppSettings, 'libraryContentSources'>> | undefined,
 ): LibraryContentSourceOption[] {
   return enabledLibraryContentSources(settings)
     .filter((id): id is LibrarySource => defaultLibraryContentSourceOrder.includes(id))

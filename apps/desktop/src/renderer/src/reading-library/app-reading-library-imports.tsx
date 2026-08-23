@@ -16,7 +16,7 @@ import {
   Upload01Icon,
 } from '@hugeicons/core-free-icons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import type { AppSettings, ArticleRecord } from '@yomitomo/shared';
+import type { ResolvedAppSettings, ArticleRecord } from '@yomitomo/shared';
 import { clampNumber } from '@yomitomo/reader-ui/reader-settings';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/button';
@@ -288,7 +288,7 @@ function centerFirstOrder(count: number) {
   return new Map(indexes.map((index, order) => [index, order]));
 }
 
-function playImportSuccessSound(importedCount: number, settings: AppSettings) {
+function playImportSuccessSound(importedCount: number, settings: ResolvedAppSettings) {
   if (importedCount <= 0) return;
   playAppSoundEffect(
     importedCount > 1 ? 'library.import_success_multiple' : 'library.import_success_single',
@@ -313,7 +313,7 @@ export function useLibraryImportDialogs({
   onCommitTextImport,
   onOpenArticle,
 }: {
-  settings: AppSettings;
+  settings: ResolvedAppSettings;
   onImportArticleUrl: (url: string, requestId?: string) => Promise<ArticleImportResult>;
   onImportEbookFile: (
     file: File,
@@ -568,7 +568,7 @@ function ArticleImportDialog({
   onCancelArticleImport,
   onOpenArticle,
 }: {
-  settings: AppSettings;
+  settings: ResolvedAppSettings;
   onClose: () => void;
   onImportArticleUrl: (url: string, requestId?: string) => Promise<ArticleImportResult>;
   onCancelArticleImport?: (requestId: string) => Promise<boolean> | boolean;
@@ -888,7 +888,7 @@ function EbookImportDialog({
   onImportEbookFile,
   onOpenArticle,
 }: {
-  settings: AppSettings;
+  settings: ResolvedAppSettings;
   onClose: () => void;
   onImportEbookFile: (
     file: File,
@@ -941,7 +941,7 @@ function PdfImportDialog({
   onImportPdfFile,
   onOpenArticle,
 }: {
-  settings: AppSettings;
+  settings: ResolvedAppSettings;
   onClose: () => void;
   onImportPdfFile: (
     file: File,
@@ -994,7 +994,7 @@ function FileImportDialog({
   onOpenArticle,
 }: {
   config: FileImportDialogConfig;
-  settings: AppSettings;
+  settings: ResolvedAppSettings;
   onClose: () => void;
   onOpenArticle: (article: ArticleRecord) => void;
 }) {

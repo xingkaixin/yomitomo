@@ -1,6 +1,6 @@
 import type {
   Annotation,
-  AppSettings,
+  ResolvedAppSettings,
   ArticleReadingProgress,
   ArticleRecord,
   ArticleSummaryRecord,
@@ -114,7 +114,7 @@ export async function deleteCurrentArticleTranslation(input: ArticleTranslationI
 }
 
 export function readImportSettings(): Pick<
-  AppSettings,
+  ResolvedAppSettings,
   'saveArticleImages' | 'allowLocalNetworkArticleImport'
 > {
   return readImportSettingsRows(getDatabase());

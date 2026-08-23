@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { AppSettings, DesktopStore } from '@yomitomo/shared';
+import type { ResolvedAppSettings, DesktopStore } from '@yomitomo/shared';
 import {
   readerBackgroundTone,
   type ReaderBackgroundTone,
@@ -32,9 +32,7 @@ applyAppTheme(themeRegistry[startupThemeId]);
 type UseReaderThemeControllerInput = {
   appLocked: boolean;
   applyStore: (store: DesktopStore) => void;
-  settings: AppSettings;
-  storeLoaded: boolean;
-  storeLoadError: unknown;
+  settings: ResolvedAppSettings | null;
 };
 
 type ReaderThemeController = {
@@ -52,8 +50,6 @@ export function useReaderThemeController({
   appLocked,
   applyStore,
   settings,
-  storeLoaded,
-  storeLoadError,
 }: UseReaderThemeControllerInput): ReaderThemeController {
   const [activeThemeId, setActiveThemeId] = useState<AppThemeId>(startupThemeId);
   const [themeIdsByTone, setThemeIdsByTone] = useState(startupThemeIdsByTone);
@@ -69,7 +65,7 @@ export function useReaderThemeController({
   }, [activeThemeId]);
 
   useEffect(() => {
-    if (!storeLoaded || storeLoadError || appLocked) return;
+    if (!settings || appLocked) return;
     const storedThemeId = resolveAppThemeId(settings.themeId);
     setActiveThemeId((currentThemeId) =>
       currentThemeId === storedThemeId ? currentThemeId : storedThemeId,
@@ -96,7 +92,7 @@ export function useReaderThemeController({
       writeDesktopReaderSettings(nextSettings);
     }
     writeCachedThemeId(storedThemeId);
-  }, [appLocked, settings.themeId, storeLoadError, storeLoaded]);
+  }, [appLocked, settings]);
 
   async function selectTheme(themeId: AppThemeId, preferredReaderBackgroundColor?: string) {
     const themeTone = themeRegistry[themeId].meta.tone;

@@ -22,8 +22,7 @@ export type AppSessionInput = {
   developerModeEnabled: boolean;
   onboardingCompletedAt?: string;
   readStatsArticles: () => Promise<ArticleSummaryRecord[]>;
-  storeLoaded: boolean;
-  storeLoadFailed: boolean;
+  storeStatus: 'error' | 'loading' | 'ready';
 };
 
 const libraryMenuCommands = new Set<AppMenuCommand>([
@@ -70,20 +69,23 @@ export function useAppSession(input: AppSessionInput) {
 
   useEffect(() => {
     recordStartupTiming('app.mounted');
-    requestMainWindow('app.mounted', { storeLoaded: false, storeLoadError: false });
+    requestMainWindow('app.mounted', {
+      storeLoaded: input.storeStatus === 'ready',
+      storeLoadError: input.storeStatus === 'error',
+    });
     // The window may only be requested once, so this intentionally ignores later store facts.
   }, []);
 
   useEffect(() => {
-    if (!input.storeLoaded && !input.storeLoadFailed) return;
+    if (input.storeStatus === 'loading') return;
     recordStartupTiming('store.ready_for_ui', {
-      storeLoaded: input.storeLoaded,
-      storeLoadError: input.storeLoadFailed,
+      storeLoaded: input.storeStatus === 'ready',
+      storeLoadError: input.storeStatus === 'error',
     });
-  }, [input.storeLoadFailed, input.storeLoaded]);
+  }, [input.storeStatus]);
 
   useEffect(() => {
-    if (!input.storeLoaded || input.storeLoadFailed || showOnboarding) return;
+    if (input.storeStatus !== 'ready' || showOnboarding) return;
     if (idlePreloadStartedRef.current) return;
     idlePreloadStartedRef.current = true;
     const idleId = scheduleIdlePreload(() => {
@@ -91,7 +93,7 @@ export function useAppSession(input: AppSessionInput) {
       preloadIdleModules();
     });
     return () => cancelIdlePreload(idleId);
-  }, [showOnboarding, input.storeLoadFailed, input.storeLoaded]);
+  }, [showOnboarding, input.storeStatus]);
 
   useEffect(() => {
     if (!input.appLocked) return;

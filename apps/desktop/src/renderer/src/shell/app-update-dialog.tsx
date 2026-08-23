@@ -10,7 +10,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './app-update-dialog.css';
 import type {
-  AppSettings,
+  AppSettingsPatch,
   DesktopStore,
   ReleaseNoteHighlight,
   ReleaseNoteHighlightType,
@@ -54,7 +54,7 @@ export function UpdateReleaseDialog({
   store: DesktopStore;
   updateState: AppUpdateState | null;
   openRequest: number;
-  onSaveSettings: (settings: AppSettings) => Promise<DesktopStore>;
+  onSaveSettings: (settings: AppSettingsPatch) => Promise<DesktopStore>;
 }) {
   const { i18n } = useTranslation();
   const [version, setVersion] = useState('');

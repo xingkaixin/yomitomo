@@ -1,4 +1,4 @@
-import type { AppSettings, DesktopStore, UserProfile } from '@yomitomo/shared';
+import type { AppSettingsPatch, DesktopStore, UserProfile } from '@yomitomo/shared';
 import type { UserStorePatch } from '../../ipc-contract';
 import { getDatabase } from './store-db';
 import { readShellStore, readStore } from './store-snapshot';
@@ -16,12 +16,12 @@ export async function saveUser(input: Partial<UserProfile>): Promise<UserStorePa
   return { user: saveUserProfile(getDatabase(), input) };
 }
 
-export async function saveSettings(input: AppSettings): Promise<DesktopStore> {
+export async function saveSettings(input: AppSettingsPatch): Promise<DesktopStore> {
   upsertSettings(getDatabase(), input);
   return readStore();
 }
 
-export async function saveSettingsShell(input: AppSettings): Promise<DesktopStore> {
+export async function saveSettingsShell(input: AppSettingsPatch): Promise<DesktopStore> {
   upsertSettings(getDatabase(), input);
   return readShellStore();
 }

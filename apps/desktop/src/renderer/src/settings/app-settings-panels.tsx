@@ -18,7 +18,8 @@ import {
 } from '@hugeicons/core-free-icons';
 import React, { useEffect, useState } from 'react';
 import type {
-  AppSettings,
+  AppSettingsPatch,
+  ResolvedAppSettings,
   DesktopStore,
   MessageSendShortcut,
   SelectionActionShortcuts,
@@ -210,9 +211,9 @@ export function SettingsSectionShell({
   );
 }
 
-export function ShortcutSettings({ draft }: { draft: SaveableDraft<AppSettings> }) {
+export function ShortcutSettings({ draft }: { draft: SaveableDraft<ResolvedAppSettings> }) {
   const { value: settingsDraft, update: onSettingsChange, saveError, saveState } = draft;
-  const onSave = (override?: AppSettings) => {
+  const onSave = (override?: ResolvedAppSettings) => {
     void draft.save(override);
   };
   const { t } = useTranslation();
@@ -444,7 +445,7 @@ export function DataManagementSettings({
   settings,
   onStoreUpdated,
 }: {
-  settings: AppSettings;
+  settings: AppSettingsPatch;
   onStoreUpdated: (store: DesktopStore) => void;
 }) {
   const { t } = useTranslation();
@@ -481,7 +482,7 @@ export function DataManagementSettings({
   async function saveLogRetention(days: number) {
     setLastRetentionDays(days);
     await runDataAction(`retention:${days}`, async () => {
-      await retentionSave.run(() => dataManagementActions.saveLogRetention(settings, days), {
+      await retentionSave.run(() => dataManagementActions.saveLogRetention(days), {
         onError: (_error, message) => setStatus(message),
         onSaved: (nextStore) => {
           onStoreUpdated(nextStore);

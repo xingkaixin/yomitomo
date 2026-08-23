@@ -2,11 +2,12 @@
 
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { DesktopStore } from '@yomitomo/shared';
+import type { AppSettingsPatch, DesktopStore } from '@yomitomo/shared';
 import type { SettingsStorePatch } from '../../../ipc-contract';
 
 import { emptyStore } from '../settings/app-settings';
 import { useSettingsDrafts } from '../settings/app-settings-drafts';
+import { normalizeAppSettings } from '../../../settings/app-settings-normalization';
 
 afterEach(() => {
   cleanup();
@@ -32,10 +33,10 @@ describe('useSettingsDrafts', () => {
     }
 
     render(<Harness />);
-    await waitFor(() => expect(latest.current?.general.value).toEqual({}));
+    await waitFor(() => expect(latest.current?.general.value).toEqual(emptyStore.settings));
 
     act(() => {
-      latest.current?.general.update(settings);
+      latest.current?.general.update({ ...emptyStore.settings, ...settings });
     });
 
     expect(latest.current?.general.canSave).toBe(true);
@@ -67,7 +68,10 @@ describe('useSettingsDrafts', () => {
     await waitFor(() => expect(latest.current?.general.value.saveArticleImages).toBe(false));
 
     act(() => {
-      latest.current?.general.update({ saveArticleImages: true });
+      latest.current?.general.update({
+        ...latest.current.general.value,
+        saveArticleImages: true,
+      });
     });
 
     view.rerender(<Harness store={articleStore} storeSyncSnapshot={initialStore} />);
@@ -155,12 +159,12 @@ describe('useSettingsDrafts', () => {
 });
 
 function makeStore(
-  input: { settings?: DesktopStore['settings']; user?: DesktopStore['user'] } = {},
+  input: { settings?: AppSettingsPatch; user?: DesktopStore['user'] } = {},
 ): DesktopStore {
   return {
     ...emptyStore,
     user: input.user || emptyStore.user,
-    settings: input.settings || {},
+    settings: normalizeAppSettings(input.settings),
   };
 }
 

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AppSettings } from '@yomitomo/shared';
+import type { ResolvedAppSettings } from '@yomitomo/shared';
 import { playAppSoundEffect } from '../../sound/app-sound-effects';
 
 const annotationFeedbackDurationMs = 1200;
 
-export function useRecentAnnotationFeedback(scopeKey: string, settings?: AppSettings) {
+export function useRecentAnnotationFeedback(scopeKey: string, settings?: ResolvedAppSettings) {
   const [newAnnotationIds, setNewAnnotationIds] = useState<Set<string>>(() => new Set());
   const timersRef = useRef(new Map<string, number>());
 
@@ -21,7 +21,7 @@ export function useRecentAnnotationFeedback(scopeKey: string, settings?: AppSett
 
   const markAnnotationCreated = useCallback(
     (annotationId: string) => {
-      playAppSoundEffect('reader.annotation_created', settings || {});
+      playAppSoundEffect('reader.annotation_created', settings);
       setNewAnnotationIds((current) => new Set(current).add(annotationId));
 
       const existingTimer = timersRef.current.get(annotationId);

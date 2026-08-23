@@ -10,7 +10,7 @@ import type { SetLibraryPinInput } from '../../../ipc-contract';
 import { appToast } from './app-toast';
 import { getDesktopApi } from './app-desktop-api';
 
-type DesktopStoreRef = { current: DesktopStore };
+type DesktopStoreRef = { current: DesktopStore | null };
 type ApplyStore = (nextStore: DesktopStore) => DesktopStore;
 
 type UseAppCollectionStoreActionsInput = {
@@ -24,7 +24,8 @@ export function useAppCollectionStoreActions({
 }: UseAppCollectionStoreActionsInput) {
   const applyCollectionPatch = useCallback(
     (patch: CollectionStorePatch) => {
-      const nextStore = applyCollectionStorePatch(storeRef.current, patch);
+      const store = requireDesktopStore(storeRef.current);
+      const nextStore = applyCollectionStorePatch(store, patch);
       storeRef.current = nextStore;
       applyStore(nextStore);
     },
@@ -32,7 +33,8 @@ export function useAppCollectionStoreActions({
   );
   const applyPinPatch = useCallback(
     (patch: LibraryPinPatch) => {
-      const nextStore = applyLibraryPinPatch(storeRef.current, patch);
+      const store = requireDesktopStore(storeRef.current);
+      const nextStore = applyLibraryPinPatch(store, patch);
       storeRef.current = nextStore;
       applyStore(nextStore);
     },
@@ -106,6 +108,11 @@ export function useAppCollectionStoreActions({
     renameCollection,
     setLibraryPin,
   };
+}
+
+function requireDesktopStore(store: DesktopStore | null) {
+  if (!store) throw new Error('Desktop store is not loaded');
+  return store;
 }
 
 export function applyCollectionStorePatch(

@@ -2,10 +2,11 @@
 
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DesktopStore } from '@yomitomo/shared';
+import type { AppSettingsPatch, DesktopStore } from '@yomitomo/shared';
 import { AppLockGate, useAppLockController } from '../app-lock/app-lock-gate';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { emptyStore } from '../settings/app-settings';
+import { normalizeAppSettings } from '../../../settings/app-settings-normalization';
 
 beforeEach(() => {
   initializeAppI18n('zh-CN');
@@ -167,15 +168,12 @@ function Harness({
 
 function makeStore(input: {
   articles?: DesktopStore['articles'];
-  settings: DesktopStore['settings'];
+  settings: AppSettingsPatch;
 }): DesktopStore {
   return {
     ...emptyStore,
     articles: input.articles || [],
-    settings: {
-      soundEffectsEnabled: false,
-      ...input.settings,
-    },
+    settings: normalizeAppSettings({ soundEffectsEnabled: false, ...input.settings }),
   };
 }
 

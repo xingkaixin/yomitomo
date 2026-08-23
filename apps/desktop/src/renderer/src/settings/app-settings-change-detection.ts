@@ -1,4 +1,4 @@
-import type { AppSettings } from '@yomitomo/shared';
+import type { ResolvedAppSettings } from '@yomitomo/shared';
 import { normalizeAppSettings } from '../../../settings/app-settings-normalization';
 
 type SettingsDraftSection = 'external' | 'general' | 'routes' | 'shortcuts';
@@ -31,17 +31,17 @@ const settingsDraftSectionByField = {
   logRetentionDays: 'external',
   onboardingCompletedAt: 'external',
   lastSeenVersion: 'external',
-} as const satisfies Record<keyof AppSettings, SettingsDraftSection>;
+} as const satisfies Record<keyof ResolvedAppSettings, SettingsDraftSection>;
 
 export function settingsDraftSectionHasChanges(
   section: Exclude<SettingsDraftSection, 'external'>,
-  draft: AppSettings,
-  saved: AppSettings,
+  draft: ResolvedAppSettings,
+  saved: ResolvedAppSettings,
 ) {
   const normalizedDraft = normalizeAppSettings(draft);
   const normalizedSaved = normalizeAppSettings(saved);
 
-  return (Object.keys(settingsDraftSectionByField) as Array<keyof AppSettings>).some(
+  return (Object.keys(settingsDraftSectionByField) as Array<keyof ResolvedAppSettings>).some(
     (field) =>
       settingsDraftSectionByField[field] === section &&
       JSON.stringify(normalizedDraft[field]) !== JSON.stringify(normalizedSaved[field]),

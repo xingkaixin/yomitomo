@@ -1,6 +1,7 @@
-import type { AppSettings, DesktopStore } from '@yomitomo/shared';
+import type { AppSettingsPatch, DesktopStore, ResolvedAppSettings } from '@yomitomo/shared';
 import { defaultUserProfile } from '@yomitomo/shared';
 import type { AppLockStatus } from './ipc-contract';
+import { normalizeAppSettings } from './settings/app-settings-normalization';
 
 const lockedRendererSettingKeys = [
   'appLockEnabled',
@@ -12,13 +13,13 @@ const lockedRendererSettingKeys = [
   'soundEffectsVolume',
   'themeId',
   'uiLanguage',
-] as const satisfies ReadonlyArray<keyof AppSettings>;
+] as const satisfies ReadonlyArray<keyof ResolvedAppSettings>;
 
 type LockedRendererSettingKey = (typeof lockedRendererSettingKeys)[number];
 
 export const emptyDesktopStore: DesktopStore = {
   user: defaultUserProfile,
-  settings: {},
+  settings: normalizeAppSettings(undefined),
   providers: [],
   agents: [],
   articles: [],
@@ -27,8 +28,10 @@ export const emptyDesktopStore: DesktopStore = {
   pins: [],
 };
 
-export function isAppLockSettingsLocked(settings: AppSettings) {
-  return Boolean(settings.appLockEnabled && settings.appLockLocked);
+export function isAppLockSettingsLocked(
+  settings: Pick<ResolvedAppSettings, 'appLockEnabled' | 'appLockLocked'>,
+) {
+  return settings.appLockEnabled && settings.appLockLocked;
 }
 
 export function rendererStoreForAppLockState(store: DesktopStore): DesktopStore {
@@ -36,12 +39,13 @@ export function rendererStoreForAppLockState(store: DesktopStore): DesktopStore 
   return lockedRendererStoreFromSettings(store.settings);
 }
 
-export function lockedRendererStoreFromSettings(settings: AppSettings): DesktopStore {
-  const normalizedSettings: AppSettings = {
-    ...settings,
-    appLockEnabled: Boolean(settings.appLockEnabled),
-    appLockLocked: isAppLockSettingsLocked(settings),
-    appLockLockOnStartup: Boolean(settings.appLockLockOnStartup),
+export function lockedRendererStoreFromSettings(settings: AppSettingsPatch): DesktopStore {
+  const normalized = normalizeAppSettings(settings);
+  const normalizedSettings: ResolvedAppSettings = {
+    ...normalized,
+    appLockEnabled: normalized.appLockEnabled,
+    appLockLocked: isAppLockSettingsLocked(normalized),
+    appLockLockOnStartup: normalized.appLockLockOnStartup,
   };
   return emptyStoreWithSettings(projectLockedRendererSettings(normalizedSettings));
 }
@@ -54,18 +58,18 @@ export function lockedRendererStoreFromStatus(status: AppLockStatus): DesktopSto
   });
 }
 
-function emptyStoreWithSettings(settings: AppSettings): DesktopStore {
+function emptyStoreWithSettings(settings: AppSettingsPatch): DesktopStore {
   return {
     ...emptyDesktopStore,
-    settings,
+    settings: normalizeAppSettings(settings),
   };
 }
 
 function projectLockedRendererSettings(
-  settings: AppSettings,
-): Pick<AppSettings, LockedRendererSettingKey> {
+  settings: ResolvedAppSettings,
+): Pick<ResolvedAppSettings, LockedRendererSettingKey> {
   return Object.fromEntries(lockedRendererSettingKeys.map((key) => [key, settings[key]])) as Pick<
-    AppSettings,
+    ResolvedAppSettings,
     LockedRendererSettingKey
   >;
 }

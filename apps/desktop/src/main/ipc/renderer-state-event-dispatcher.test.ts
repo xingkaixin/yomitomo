@@ -8,6 +8,7 @@ import type {
 } from '@yomitomo/shared';
 import { createRendererRoleRegistry } from './renderer-role-registry';
 import { createRendererStateEventDispatcher } from './renderer-state-event-dispatcher';
+import { emptyDesktopStore } from '../../app-store';
 
 vi.mock('electron', () => ({
   ipcMain: { on: vi.fn() },
@@ -117,13 +118,7 @@ function articlePatch(): ArticleStorePatch {
 
 function desktopStore(): DesktopStore {
   return {
-    agents: [],
-    articles: [],
-    collectionMembers: [],
-    collections: [],
-    pins: [],
-    providers: [],
-    settings: {},
+    ...emptyDesktopStore,
     user: {
       id: 'user_1',
       nickname: 'User',

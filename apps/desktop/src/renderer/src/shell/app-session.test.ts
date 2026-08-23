@@ -71,38 +71,38 @@ beforeEach(() => {
 
 describe('useAppSession', () => {
   it('requests the main window once, even as store facts change', () => {
-    const { rerender } = renderSession({ storeLoaded: false });
+    const { rerender } = renderSession({ storeStatus: 'loading' });
 
-    rerender({ storeLoaded: true });
-    rerender({ storeLoaded: true, appLocked: true });
+    rerender({ storeStatus: 'ready' });
+    rerender({ storeStatus: 'ready', appLocked: true });
 
     expect(desktopApi.showMainWindow).toHaveBeenCalledTimes(1);
   });
 
   it('schedules the idle preload once the store is ready and onboarding is done', () => {
-    const { rerender } = renderSession({ storeLoaded: false });
+    const { rerender } = renderSession({ storeStatus: 'loading' });
     expect(preload.preloadIdleModules).not.toHaveBeenCalled();
 
-    rerender({ storeLoaded: true });
+    rerender({ storeStatus: 'ready' });
 
     expect(preload.preloadIdleModules).toHaveBeenCalledTimes(1);
   });
 
   it('does not preload while onboarding is still showing', () => {
-    renderSession({ storeLoaded: true, onboardingCompletedAt: undefined });
+    renderSession({ storeStatus: 'ready', onboardingCompletedAt: undefined });
 
     expect(preload.preloadIdleModules).not.toHaveBeenCalled();
   });
 
   it('closes transient surfaces when the app locks', async () => {
-    const { result, rerender } = renderSession({ storeLoaded: true });
+    const { result, rerender } = renderSession({ storeStatus: 'ready' });
     act(() => result.current.actions.openProfileDialog());
     act(() => result.current.actions.setThemeDialogOpen(true));
     act(() => result.current.actions.setReaderOpen(true));
     act(() => result.current.actions.openArticleFromDistillation({ articleId: 'article_1' }));
     await act(async () => result.current.actions.openStats());
 
-    rerender({ storeLoaded: true, appLocked: true });
+    rerender({ storeStatus: 'ready', appLocked: true });
 
     expect(result.current).toMatchObject({
       pendingOpenArticle: null,
@@ -115,7 +115,7 @@ describe('useAppSession', () => {
   });
 
   it('routes menu commands to their surface or desktop action', () => {
-    const { result } = renderSession({ storeLoaded: true });
+    const { result } = renderSession({ storeStatus: 'ready' });
 
     act(() => emitMenuCommand('open-about'));
     expect(result.current).toMatchObject({ surface: 'settings', settingsSection: 'about' });
@@ -132,7 +132,7 @@ describe('useAppSession', () => {
   });
 
   it('ignores menu commands while the app is locked', () => {
-    renderSession({ storeLoaded: true, appLocked: true });
+    renderSession({ storeStatus: 'ready', appLocked: true });
 
     act(() => emitMenuCommand('backup-database'));
 
@@ -140,11 +140,14 @@ describe('useAppSession', () => {
   });
 
   it('keeps developer-only sections unreachable without developer mode', () => {
-    const { result, rerender } = renderSession({ storeLoaded: true, developerModeEnabled: true });
+    const { result, rerender } = renderSession({
+      storeStatus: 'ready',
+      developerModeEnabled: true,
+    });
     act(() => result.current.actions.openSettingsSection('aiTrace'));
     expect(result.current.settingsSection).toBe('aiTrace');
 
-    rerender({ storeLoaded: true, developerModeEnabled: false });
+    rerender({ storeStatus: 'ready', developerModeEnabled: false });
     expect(result.current.settingsSection).toBe('about');
 
     act(() => result.current.actions.changeSettingsSection('aiTrace'));
@@ -154,7 +157,7 @@ describe('useAppSession', () => {
   it('falls back to the store articles when the stats read fails', async () => {
     const articles = [{ id: 'article_1' }] as ArticleSummaryRecord[];
     desktopApi.readStatsSummaries.mockRejectedValueOnce(new Error('offline'));
-    const { result } = renderSession({ storeLoaded: true, articles });
+    const { result } = renderSession({ storeStatus: 'ready', articles });
 
     await act(async () => result.current.actions.openStats());
 
@@ -163,7 +166,7 @@ describe('useAppSession', () => {
   });
 
   it('closes the reader when navigating away from the library', () => {
-    const { result } = renderSession({ storeLoaded: true });
+    const { result } = renderSession({ storeStatus: 'ready' });
     act(() => result.current.actions.setReaderOpen(true));
 
     act(() => result.current.actions.openSettings());
@@ -195,8 +198,7 @@ function sessionInput(overrides: Partial<AppSessionInput>): AppSessionInput {
     developerModeEnabled: false,
     onboardingCompletedAt: '2026-06-29T00:00:00.000Z',
     readStatsArticles: desktopApi.readStatsSummaries,
-    storeLoaded: true,
-    storeLoadFailed: false,
+    storeStatus: 'ready',
     ...overrides,
   };
 }

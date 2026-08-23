@@ -38,16 +38,13 @@ describe('app settings actions', () => {
 });
 
 describe('data management actions', () => {
-  it('persists log retention without mutating the current settings', async () => {
+  it('persists only the log retention patch', async () => {
     const saveSettings = vi.fn().mockResolvedValue({ settings: { logRetentionDays: 30 } });
     const actions = createDataManagementActions(
       () => ({ store: { saveSettings } }) as unknown as DataManagementDesktop,
     );
-    const settings = { themeId: 'paper-white' as const };
+    await actions.saveLogRetention(30);
 
-    await actions.saveLogRetention(settings, 30);
-
-    expect(saveSettings).toHaveBeenCalledWith({ themeId: 'paper-white', logRetentionDays: 30 });
-    expect(settings).toEqual({ themeId: 'paper-white' });
+    expect(saveSettings).toHaveBeenCalledWith({ logRetentionDays: 30 });
   });
 });

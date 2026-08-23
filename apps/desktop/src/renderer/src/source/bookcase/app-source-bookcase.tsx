@@ -1,7 +1,7 @@
 import type {
   Agent,
   Annotation,
-  AppSettings,
+  ResolvedAppSettings,
   ArticleRecord,
   MessageSendShortcut,
   SelectionActionShortcuts,
@@ -48,7 +48,7 @@ type SourcePresentation = {
   } | null;
   messageSendShortcut?: MessageSendShortcut;
   readerTheme: ReaderTheme;
-  settings?: AppSettings;
+  settings?: ResolvedAppSettings;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   uiLanguage: UiLanguage;
 };

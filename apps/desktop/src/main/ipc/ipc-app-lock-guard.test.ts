@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DesktopStore } from '@yomitomo/shared';
+import type { AppSettingsPatch, DesktopStore } from '@yomitomo/shared';
 import { desktopIpcErrorCodes, type DesktopIpcInvokeEnvelope } from '../../ipc-errors';
 import { resetAppLockPinAttempts } from '../app-lock/app-lock-attempt-policy';
 import { registerAppLockIpc } from './ipc-app-lock';
 import { registerStoreDataIpc } from './ipc-store-data';
 import { configureDesktopIpcAppLockGuardContext, handleDesktopIpc } from './ipc';
+import { normalizeAppSettings } from '../../settings/app-settings-normalization';
 
 const ipcState = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
@@ -266,8 +267,8 @@ function createStoreModule(initialStore: DesktopStore) {
   return {
     readArticle: vi.fn(async () => ({ id: 'article_1' })),
     readAppLockSettings: vi.fn(() => ({
-      appLockEnabled: Boolean(store.settings.appLockEnabled),
-      appLockLocked: Boolean(store.settings.appLockEnabled && store.settings.appLockLocked),
+      appLockEnabled: store.settings.appLockEnabled,
+      appLockLocked: store.settings.appLockEnabled && store.settings.appLockLocked,
       appLockShortcut: store.settings.appLockShortcut,
     })),
     readStore: vi.fn(async () => store),
@@ -275,8 +276,8 @@ function createStoreModule(initialStore: DesktopStore) {
     readStoreWithProfile: vi.fn(async () => ({ store, profile: [] })),
     readStoredProviderApiKey: vi.fn(async () => 'provider-secret'),
     readStoredWeReadApiKey: vi.fn(async () => 'weread-secret'),
-    saveSettings: vi.fn(async (settings: Partial<DesktopStore['settings']>) => {
-      store = { ...store, settings: { ...store.settings, ...settings } };
+    saveSettings: vi.fn(async (settings: AppSettingsPatch) => {
+      store = { ...store, settings: normalizeAppSettings({ ...store.settings, ...settings }) };
       return store;
     }),
   };

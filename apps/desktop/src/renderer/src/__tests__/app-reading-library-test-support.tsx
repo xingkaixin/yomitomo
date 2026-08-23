@@ -9,7 +9,7 @@ import type {
   ArticleReadingProgress,
   ArticleRecord,
   ArticleSummaryRecord,
-  AppSettings,
+  AppSettingsPatch,
   Collection,
   CollectionMember,
   ContentRef,
@@ -29,6 +29,7 @@ import { librarySession } from '../reading-library/app-reading-library-session';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { defaultTheme } from '../theme/app-theme';
 import { articleActionStubs, articleStoreSinkStub } from './article-actions-test-utils';
+import { normalizeAppSettings } from '../../../settings/app-settings-normalization';
 
 const feedbackSpies = vi.hoisted(() => ({
   playAppSoundEffect: vi.fn(),
@@ -309,14 +310,14 @@ export function renderLibrary(
       articleId: string,
       progress: ArticleReadingProgress,
     ) => Promise<void> | void;
-    onSaveSettings?: (settings: AppSettings) => Promise<void> | void;
+    onSaveSettings?: (settings: AppSettingsPatch) => Promise<void> | void;
     onSetLibraryPin?: (input: SetLibraryPinInput) => Promise<void>;
     onOpenDataSources?: () => void;
     collections?: Collection[];
     collectionMembers?: CollectionMember[];
     menuRequest?: AppMenuCommandRequest | null;
     pins?: LibraryPin[];
-    settings?: AppSettings;
+    settings?: AppSettingsPatch;
   } = {},
 ) {
   const summaries = articles.map((item) => ('counts' in item ? item : articleSummary(item)));
@@ -352,7 +353,7 @@ export function renderLibrary(
       menuRequest={options.menuRequest}
       pins={options.pins}
       readerTheme={defaultTheme.reader}
-      settings={options.settings}
+      settings={normalizeAppSettings(options.settings)}
       userProfile={userProfile}
       onAddCollectionMembers={options.onAddCollectionMembers || vi.fn()}
       onCreateCollection={options.onCreateCollection || vi.fn()}

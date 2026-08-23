@@ -1,4 +1,4 @@
-import type { AppSettings } from '@yomitomo/shared';
+import type { AppSettingsPatch, ResolvedAppSettings } from '@yomitomo/shared';
 import {
   normalizeAssistantExecutionMode,
   normalizeLibraryContentSources,
@@ -17,7 +17,10 @@ import {
   normalizeTranslationTargetLanguage,
 } from '../../settings/app-settings-normalization';
 
-export function mergeSettingsForUpsert(settings: AppSettings, existing?: AppSettings): AppSettings {
+export function mergeSettingsForUpsert(
+  settings: AppSettingsPatch,
+  existing?: AppSettingsPatch,
+): ResolvedAppSettings {
   return {
     uiLanguage: settingsFieldProvided(settings, 'uiLanguage')
       ? normalizeUiLanguage(settings.uiLanguage)
@@ -115,13 +118,13 @@ export function mergeSettingsForUpsert(settings: AppSettings, existing?: AppSett
   };
 }
 
-function settingsFieldProvided(settings: AppSettings, field: keyof AppSettings) {
+function settingsFieldProvided(settings: AppSettingsPatch, field: keyof ResolvedAppSettings) {
   return Object.prototype.hasOwnProperty.call(settings, field);
 }
 
 export function rowToSettings(
   row: typeof schema.appSettings.$inferSelect | undefined,
-): AppSettings {
+): ResolvedAppSettings {
   return {
     uiLanguage: normalizeUiLanguage(row?.uiLanguage),
     themeId: row?.themeId || undefined,

@@ -37,7 +37,7 @@ import {
   SettingsToggle,
 } from '../settings/app-settings-kit';
 import { appToast } from './app-toast';
-import { normalizeUiLanguage, type AppSettings, type DesktopStore } from '@yomitomo/shared';
+import { normalizeUiLanguage, type AppSettingsPatch, type DesktopStore } from '@yomitomo/shared';
 import type { AppInfo } from '../../../preload';
 import type { AppUpdateState } from '../../../app-update-types';
 import { useTranslation } from 'react-i18next';
@@ -72,7 +72,7 @@ export function AboutSettings({
   onStoreUpdated = () => undefined,
 }: {
   onStartOnboarding?: () => void;
-  settings?: AppSettings;
+  settings?: AppSettingsPatch;
   onStoreUpdated?: (store: DesktopStore) => void;
 }) {
   const { t } = useTranslation();

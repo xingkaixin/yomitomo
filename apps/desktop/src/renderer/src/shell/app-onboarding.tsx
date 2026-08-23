@@ -1,7 +1,7 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowRight01Icon } from '@hugeicons/core-free-icons';
 import { useEffect, useMemo, useState } from 'react';
-import type { AppSettings, DesktopStore } from '@yomitomo/shared';
+import type { AppSettingsPatch, DesktopStore } from '@yomitomo/shared';
 import { errorMessageOrFallback } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/button';
@@ -34,7 +34,7 @@ export function OnboardingFlow({
   onSaveSettings,
 }: {
   store: DesktopStore;
-  onSaveSettings: (settings: AppSettings) => Promise<DesktopStore>;
+  onSaveSettings: (settings: AppSettingsPatch) => Promise<DesktopStore>;
 }) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);

@@ -5,7 +5,7 @@ import type {
   AgentDistillationReviewPayload,
   AgentMessagePayload,
   Annotation,
-  AppSettings,
+  ResolvedAppSettings,
   LlmProvider,
 } from '@yomitomo/shared';
 import type { AssistantExecutionRunInput } from '../assistant/assistant-execution-repository';
@@ -526,7 +526,7 @@ function taskFixture(
   overrides: {
     agents?: Agent[];
     providers?: LlmProvider[];
-    settings?: Partial<AppSettings>;
+    settings?: Partial<ResolvedAppSettings>;
   } = {},
 ) {
   const store = storeWith(overrides);
@@ -678,7 +678,7 @@ function agentAuthor(value: Agent) {
 function storeWith(overrides: {
   agents?: Agent[];
   providers?: LlmProvider[];
-  settings?: Partial<AppSettings>;
+  settings?: Partial<ResolvedAppSettings>;
 }) {
   return {
     agents: overrides.agents ?? [agent()],
@@ -690,7 +690,7 @@ function storeWith(overrides: {
       reviewAssistantProviderId: 'provider_1',
       uiLanguage: 'zh-CN',
       ...overrides.settings,
-    } as AppSettings,
+    } as ResolvedAppSettings,
   };
 }
 

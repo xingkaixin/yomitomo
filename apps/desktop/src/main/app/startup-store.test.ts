@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DesktopStore } from '@yomitomo/shared';
+import type { AppSettingsPatch, DesktopStore } from '@yomitomo/shared';
 import { initializeStartupStore } from './startup-store';
 import { logError, pruneLogFile } from './logger';
+import { normalizeAppSettings } from '../../settings/app-settings-normalization';
 
 vi.mock('./logger', () => ({
   logError: vi.fn(),
@@ -97,9 +98,9 @@ describe('startup store initialization', () => {
 });
 
 function startupContext(store: DesktopStore, options: { readError?: Error } = {}) {
-  const saveSettingsShell = vi.fn(async (settings: DesktopStore['settings']) => ({
+  const saveSettingsShell = vi.fn(async (settings: AppSettingsPatch) => ({
     ...store,
-    settings: { ...store.settings, ...settings },
+    settings: normalizeAppSettings({ ...store.settings, ...settings }),
   }));
   const recordStartupTiming = vi.fn();
   const setSensitiveRendererEventsLocked = vi.fn();
@@ -134,7 +135,7 @@ function unlockedStartupStore(): DesktopStore {
   });
 }
 
-function startupStore(settings: DesktopStore['settings'] = { logRetentionDays: 30 }): DesktopStore {
+function startupStore(settings: AppSettingsPatch = { logRetentionDays: 30 }): DesktopStore {
   return {
     agents: [],
     articles: [],
@@ -142,7 +143,7 @@ function startupStore(settings: DesktopStore['settings'] = { logRetentionDays: 3
     collections: [],
     pins: [],
     providers: [],
-    settings,
+    settings: normalizeAppSettings(settings),
     user: {
       id: 'user_1',
       nickname: 'User',
