@@ -3,6 +3,8 @@
 import { describe, expect, it } from 'vitest';
 import { changeAppI18nLanguage, initializeAppI18n } from '../i18n/app-i18n';
 import { readCachedUiLanguage, writeCachedUiLanguage } from '../i18n/app-language-cache';
+import { enResources } from '../i18n/locales/en';
+import { jaResources } from '../i18n/locales/ja';
 
 function memoryStorage(): Storage {
   const values = new Map<string, string>();
@@ -19,6 +21,12 @@ function memoryStorage(): Storage {
 }
 
 describe('app language cache', () => {
+  it('keeps provider brand names in English for Japanese', () => {
+    expect(jaResources.app.settings.models.providerPresets).toEqual(
+      enResources.app.settings.models.providerPresets,
+    );
+  });
+
   it('defaults invalid or missing cached language to Chinese', () => {
     const storage = memoryStorage();
 
