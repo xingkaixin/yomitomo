@@ -13,6 +13,8 @@ import {
 const testState = vi.hoisted(() => ({
   secrets: new Map<string, string>(),
   saveProviderApiKeyError: undefined as Error | undefined,
+  saveProviderApiKeyPause: undefined as Promise<void> | undefined,
+  saveProviderApiKeyCalls: 0,
   deleteStoredSecretError: undefined as Error | undefined,
   providerApiKeyRef: (providerId: string) => `provider:${providerId}:apiKey`,
   backfillAnnotationMemoryEntries: vi.fn(),
@@ -37,6 +39,8 @@ vi.mock('../providers/provider-secrets', () => {
   return {
     providerApiKeyRef: testState.providerApiKeyRef,
     saveProviderApiKey: async (providerId: string, apiKey: string) => {
+      testState.saveProviderApiKeyCalls += 1;
+      await testState.saveProviderApiKeyPause;
       if (testState.saveProviderApiKeyError) throw testState.saveProviderApiKeyError;
       const ref = testState.providerApiKeyRef(providerId);
       testState.secrets.set(ref, apiKey);
@@ -114,6 +118,8 @@ beforeEach(async () => {
   await rm('/tmp/yomitomo-store-test', { recursive: true, force: true });
   testState.secrets.clear();
   testState.saveProviderApiKeyError = undefined;
+  testState.saveProviderApiKeyPause = undefined;
+  testState.saveProviderApiKeyCalls = 0;
   testState.deleteStoredSecretError = undefined;
   testState.backfillAnnotationMemoryEntries.mockReset();
   testState.backfillAnnotationMemoryEntries.mockReturnValue({
@@ -620,30 +626,49 @@ describe('desktop store providers', () => {
     });
   });
 
-  it('clears legacy provider api keys and marks providers unconfigured when keyring migration fails', async () => {
+  it('retains and retries legacy provider api keys when keyring migration fails', async () => {
     const error = new Error('keyring locked');
     testState.saveProviderApiKeyError = error;
-    insertProviderRow({
-      id: 'provider_1',
-      apiKey: 'legacy-key',
-      apiKeyRef: 'provider:provider_1:apiKey',
-    });
+    insertProviderRow({ id: 'provider_1', apiKey: 'legacy-key' });
 
-    const store = await readStore();
-    const row = readProviderRow('provider_1');
+    await readStore();
 
     expect(testState.secrets.has('provider:provider_1:apiKey')).toBe(false);
-    expect(row).toMatchObject({ apiKey: '', apiKeyRef: null });
-    expect(store.providers.find((provider) => provider.id === 'provider_1')).toMatchObject({
-      hasApiKey: false,
-    });
+    expect(readProviderRow('provider_1')).toMatchObject({ apiKey: 'legacy-key', apiKeyRef: null });
     expect(testState.logErrors).toEqual([
       {
         event: 'provider.migrate_api_key_failed',
         error,
-        data: { providerId: 'provider_1' },
+        data: { providerId: 'provider_1', legacySecretRetained: true },
       },
     ]);
+
+    testState.saveProviderApiKeyError = undefined;
+    await readStore();
+
+    expect(testState.secrets.get('provider:provider_1:apiKey')).toBe('legacy-key');
+    expect(readProviderRow('provider_1')).toMatchObject({
+      apiKey: '',
+      apiKeyRef: 'provider:provider_1:apiKey',
+    });
+  });
+
+  it('shares an in-flight provider api key migration', async () => {
+    const migration = deferred<void>();
+    testState.saveProviderApiKeyPause = migration.promise;
+    insertProviderRow({ id: 'provider_1', apiKey: 'legacy-key' });
+
+    const firstRead = readStore();
+    const secondRead = readStore();
+    await vi.waitFor(() => expect(testState.saveProviderApiKeyCalls).toBe(1));
+    migration.resolve();
+    await Promise.all([firstRead, secondRead]);
+
+    expect(testState.saveProviderApiKeyCalls).toBe(1);
+    expect(readProviderRow('provider_1')).toMatchObject({
+      apiKey: '',
+      apiKeyRef: 'provider:provider_1:apiKey',
+    });
   });
 });
 
@@ -1717,6 +1742,16 @@ function readProviderRow(providerId: string) {
 
 function readSecretDeletionTasks() {
   return getDatabase().select().from(schema.secretDeletionTasks).all();
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, reject, resolve };
 }
 
 function readAnnotationMemoryBackfillVersion() {

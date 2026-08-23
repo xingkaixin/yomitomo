@@ -4,17 +4,28 @@ import * as schema from '../db/schema';
 import { saveProviderApiKey } from '../providers/provider-secrets';
 import { purgeSqliteFiles, type StoreDatabase } from './store-db';
 
-let providerSecretsMigrated = false;
+let providerSecretsMigration: { database: StoreDatabase; promise: Promise<void> } | undefined;
 
 export function resetProviderApiKeyMigration() {
-  providerSecretsMigrated = false;
+  providerSecretsMigration = undefined;
 }
 
-export async function migrateProviderApiKeys(database: StoreDatabase) {
-  if (providerSecretsMigrated) return;
+export function migrateProviderApiKeys(database: StoreDatabase) {
+  if (providerSecretsMigration?.database === database) return providerSecretsMigration.promise;
 
+  const promise = migrateProviderApiKeysOnce(database).then((retryNeeded) => {
+    if (retryNeeded && providerSecretsMigration?.promise === promise) {
+      providerSecretsMigration = undefined;
+    }
+  });
+  providerSecretsMigration = { database, promise };
+  return promise;
+}
+
+async function migrateProviderApiKeysOnce(database: StoreDatabase) {
   const providerRows = database.select().from(schema.providers).all();
   let legacySecretCleared = false;
+  let retryNeeded = false;
   for (const provider of providerRows) {
     const apiKey = provider.apiKey.trim();
     if (!apiKey) continue;
@@ -27,12 +38,12 @@ export async function migrateProviderApiKeys(database: StoreDatabase) {
         .where(eq(schema.providers.id, provider.id))
         .run();
     } catch (error) {
-      database
-        .update(schema.providers)
-        .set({ apiKey: '', apiKeyRef: null })
-        .where(eq(schema.providers.id, provider.id))
-        .run();
-      logError('provider.migrate_api_key_failed', error, { providerId: provider.id });
+      retryNeeded = true;
+      logError('provider.migrate_api_key_failed', error, {
+        providerId: provider.id,
+        legacySecretRetained: true,
+      });
+      continue;
     }
     legacySecretCleared = true;
   }
@@ -44,7 +55,7 @@ export async function migrateProviderApiKeys(database: StoreDatabase) {
       // SQLite cleanup failure should not block state reads.
     }
   }
-  providerSecretsMigrated = true;
+  return retryNeeded;
 }
 
 function purgeLegacyProviderApiKeysFromSqliteFiles() {
