@@ -8,6 +8,7 @@ import {
   pdfiumAgentAnnotationRequestOptions,
   pdfiumMapReadingPlanAgentAnnotation,
   pdfiumMapTargetAgentAnnotation,
+  pdfiumPageGeometriesForReadingPlan,
 } from '../source/pdfium/pdfium-agent-plan';
 import { buildPdfTextDocument } from '../source/pdfium/pdfium-text-document';
 
@@ -103,6 +104,40 @@ describe('pdfium agent plan', () => {
     expect(mapped).toBeTruthy();
     expect((mapped!.anchor as ReturnType<typeof createPdfTextAnchor>).rects.length).toBeGreaterThan(
       0,
+    );
+  });
+
+  it('loads geometry only for pages covered by the reading plan', async () => {
+    const textDocument = buildPdfTextDocument(['第一页', '第二页', '第三页']);
+    const document = {
+      pages: textDocument.pages.map((_, index) => ({
+        id: index,
+        size: { height: 800 + index, width: 600 + index },
+      })),
+    };
+    const geometry = glyphGeometry(3);
+    const getPageGeometry = vi.fn(async () => geometry);
+
+    const geometries = await pdfiumPageGeometriesForReadingPlan(
+      document,
+      textDocument,
+      [
+        {
+          sectionId: 'covered-pages',
+          sectionTitle: '前两页',
+          sectionStart: textDocument.pages[0].bodyStart,
+          sectionEnd: textDocument.pages[1].bodyEnd,
+        },
+      ],
+      getPageGeometry,
+    );
+
+    expect(getPageGeometry).toHaveBeenCalledTimes(2);
+    expect(geometries).toEqual(
+      new Map([
+        [0, { geometry, width: 600, height: 800 }],
+        [1, { geometry, width: 601, height: 801 }],
+      ]),
     );
   });
 });

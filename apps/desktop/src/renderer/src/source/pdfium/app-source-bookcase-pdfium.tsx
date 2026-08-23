@@ -24,7 +24,6 @@ import type { PdfEngine } from '@embedpdf/models';
 import {
   createPdfTextAnchor,
   isPdfTextAnchor,
-  type AgentReadingPlanItem,
   type Annotation,
   type ArticleRecord,
   type ReaderQuestionContext,
@@ -39,11 +38,9 @@ import { ReaderAppView } from '@yomitomo/reader-ui/reader-app-view';
 import { ReaderToolbarSliderPopover } from '@yomitomo/reader-ui/reader-toolbar-controls';
 import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { readerDesktopEmbeddedBundleStyles } from '@yomitomo/reader-ui/reader-styles';
-import { animateTheaterHighlight, sleep } from '@yomitomo/reader-ui/reader-animation';
 import { selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
 import type { SourceBookcaseProps } from '../bookcase/app-source-bookcase';
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
-import { appendAgentAnnotationToArticle as appendPersistedAgentAnnotation } from '../bookcase/append-agent-annotation-to-article';
 import {
   useReaderPageTurnKeys,
   type ReaderPageTurnDirection,
@@ -51,11 +48,8 @@ import {
 import { formatPdfHeaderAuthors } from '../../shell/app-article-book';
 import {
   pdfiumAnnotationBoxes,
-  pdfiumAnnotationIsVisible,
   pdfiumAnnotationNavigationState,
-  pdfiumAnnotationTheaterBoxes,
   pdfiumVisibleAnnotations,
-  pdfiumAnnotationAgentName,
   pdfiumAnnotationRailLayout,
   computeAutoPdfZoom,
   pdfiumPendingSelectionPresentation,
@@ -72,7 +66,7 @@ import {
   pageProgress,
   pdfPageProgressPercent,
 } from './app-source-bookcase-pdfium-reading-progress';
-import { pdfiumTocAnnotationStats, type PdfTextDocument } from './pdfium-text-document';
+import { pdfiumTocAnnotationStats } from './pdfium-text-document';
 import { createPdfiumSourceReaderController } from './app-source-bookcase-pdfium-controller';
 import { EmbedPdfSelectionBridge } from './app-source-bookcase-pdfium-selection-bridge';
 import {
@@ -90,6 +84,7 @@ import { usePdfiumDocumentSource } from './use-pdfium-document-source';
 import { usePdfiumPlugins } from './use-pdfium-plugins';
 import { usePdfiumSelectionAdjustment } from './use-pdfium-selection-adjustment';
 import { usePdfiumHighlightHitTesting } from './use-pdfium-highlight-hit-testing';
+import { usePdfiumAgentAnnotationPlayback } from './use-pdfium-agent-annotation-playback';
 import { suppressPdfiumContinuousTextSelectionEvent } from './app-source-bookcase-pdfium-selection-events';
 import {
   debugComputedStyle,
@@ -276,7 +271,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   } = toc;
   const { t } = useTranslation();
   const recordedOpenPhasesRef = useRef(new Set<string>());
-  const agentAnnotationPlaybackQueueRef = useRef(Promise.resolve());
   const documentState = useDocumentState(documentId);
   const { provides: zoomControls } = useZoom(documentId);
   const [agentTheaterBoxes, setAgentTheaterBoxes] = useState<HighlightBox[]>([]);
@@ -343,12 +337,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
             .toPromise(),
         getPdfTextDocument: () => pdfTextDocument,
         isCurrentArticle,
-        pageGeometriesForReadingPlan: (pdfDocument, textDocument, readingPlan) =>
-          pdfiumPageGeometriesForReadingPlan(
-            pdfDocument as PdfiumLoadedDocument,
-            textDocument,
-            readingPlan,
-          ),
         setStatusMessage,
         startAgentDock: (agent) => startPdfiumAgentDock(agent),
         startVirtualReading: (agent, anchor) => startPdfiumVirtualReading(agent, anchor),
@@ -394,26 +382,36 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     workspace: sourceReaderWorkspace,
   } = sourceReaderApp;
   const { annotations, annotationsRef, annotationAgents, applyAnnotations } = sourceReaderSession;
-  const {
-    agentDockCompleting,
-    agentDockItems,
-    clearAgentAnnotationPlayback,
-    finishPdfiumAgentDock,
-    finishPdfiumVirtualCursor,
-    finishPdfiumVirtualReading,
-    pdfiumOffscreenDirection,
-    pdfiumReadingFallbackCursor,
-    startPdfiumAgentDock,
-    startPdfiumVirtualReading,
-    stopPdfiumVirtualReading,
-    updatePdfiumVirtualCursor,
-    virtualCursors,
-  } = usePdfiumVirtualReading({
+  const pdfiumVirtualReading = usePdfiumVirtualReading({
     annotationAgents,
     canvasRef,
     currentPage,
     onClearTheaterBoxes: () => setAgentTheaterBoxes([]),
     pageMetricsRef,
+  });
+  const {
+    agentDockCompleting,
+    agentDockItems,
+    clearAgentAnnotationPlayback,
+    finishPdfiumAgentDock,
+    finishPdfiumVirtualReading,
+    startPdfiumAgentDock,
+    startPdfiumVirtualReading,
+    virtualCursors,
+  } = pdfiumVirtualReading;
+  const pdfiumAgentPlayback = usePdfiumAgentAnnotationPlayback({
+    annotationAgents,
+    annotationsRef,
+    applyAnnotations,
+    article,
+    canvasRef,
+    isCurrentArticle,
+    mergeArticleAgentAnnotation,
+    onOpenAnnotation,
+    pageMetricsRef,
+    setAgentTheaterBoxes,
+    updatePageMetrics,
+    virtualReading: pdfiumVirtualReading,
   });
   const { actionShortcuts, selection } = sourceReaderWorkspace;
   const {
@@ -894,148 +892,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   );
 
   function enqueuePdfiumAgentAnnotationPlayback(articleId: string, annotation: Annotation) {
-    agentAnnotationPlaybackQueueRef.current = agentAnnotationPlaybackQueueRef.current
-      .catch(() => undefined)
-      .then(() => playPdfiumAgentAnnotation(articleId, annotation));
-    return agentAnnotationPlaybackQueueRef.current;
-  }
-
-  async function playPdfiumAgentAnnotation(articleId: string, annotation: Annotation) {
-    if (article.id !== articleId || !isPdfTextAnchor(annotation.anchor)) {
-      await appendAgentAnnotationToArticle(articleId, annotation);
-      return;
-    }
-
-    const author = annotation.author;
-    const cursorAgent =
-      author.kind === 'agent'
-        ? annotationAgents.find(
-            (agent) => agent.id === author.agentId || agent.username === author.username,
-          )
-        : undefined;
-    const cursorId = cursorAgent?.id || (author.kind === 'agent' ? author.agentId : annotation.id);
-    updatePageMetrics();
-    let theaterBoxes = pdfiumAnnotationTheaterBoxes(annotation, pageMetricsRef.current);
-    const firstBox = theaterBoxes[0];
-    const lastBox = theaterBoxes[theaterBoxes.length - 1];
-    const canvasRect = canvasRef.current?.getBoundingClientRect();
-    if (!firstBox || !lastBox || !canvasRect) {
-      const direction = pdfiumOffscreenDirection(
-        annotation.anchor.pageIndex,
-        pageMetricsRef.current,
-      );
-      if (direction) {
-        const cursor = pdfiumReadingFallbackCursor(
-          cursorId,
-          cursorAgent,
-          annotation.anchor.pageIndex,
-          i18next.t('source.agentStatus.addingThought', {
-            name: pdfiumAnnotationAgentName(annotation),
-          }),
-          0,
-        );
-        if (cursor) {
-          updatePdfiumVirtualCursor(cursorId, {
-            ...cursor,
-            label: i18next.t('source.agentStatus.addingThoughtOffscreen', {
-              direction: i18next.t(`source.agentStatus.direction.${direction}`),
-              name: pdfiumAnnotationAgentName(annotation),
-            }),
-            offscreen: direction,
-          });
-          await sleep(700);
-        }
-      }
-      await appendAgentAnnotationToArticle(articleId, annotation);
-      finishPdfiumVirtualReading(cursorId);
-      return;
-    }
-
-    const label = i18next.t('source.agentStatus.addingThought', {
-      name: pdfiumAnnotationAgentName(annotation),
-    });
-    stopPdfiumVirtualReading(cursorId);
-    updatePdfiumVirtualCursor(cursorId, {
-      id: cursorId,
-      visible: true,
-      x: canvasRect.left + firstBox.left,
-      y: canvasRect.top + firstBox.top + firstBox.height / 2,
-      label,
-      offscreen: null,
-      agent: cursorAgent,
-    });
-    await sleep(260);
-
-    await animateTheaterHighlight(theaterBoxes, annotation.anchor.exact.length, (nextBoxes) => {
-      const cursorBox = nextBoxes[nextBoxes.length - 1];
-      if (cursorBox) {
-        updatePdfiumVirtualCursor(cursorId, {
-          id: cursorId,
-          visible: true,
-          x: canvasRect.left + cursorBox.left + cursorBox.width,
-          y: canvasRect.top + cursorBox.top + cursorBox.height / 2,
-          label,
-          offscreen: null,
-          agent: cursorAgent,
-        });
-      }
-      setAgentTheaterBoxes(nextBoxes);
-    });
-
-    await appendAgentAnnotationToArticle(articleId, annotation);
-    setAgentTheaterBoxes([]);
-    updatePdfiumVirtualCursor(cursorId, {
-      id: cursorId,
-      visible: true,
-      x: canvasRect.left + lastBox.left + lastBox.width,
-      y: canvasRect.top + lastBox.top + lastBox.height / 2,
-      label: i18next.t('source.agentStatus.withSuffix', {
-        name: pdfiumAnnotationAgentName(annotation),
-        suffix: i18next.t('source.agentStatus.thoughtAdded'),
-      }),
-      offscreen: null,
-      agent: cursorAgent,
-    });
-    await sleep(360);
-    finishPdfiumVirtualCursor(cursorId);
-  }
-
-  async function appendAgentAnnotationToArticle(articleId: string, annotation: Annotation) {
-    return appendPersistedAgentAnnotation({
-      annotations: () => annotationsRef.current,
-      applyAnnotations,
-      annotation,
-      articleId,
-      isAnnotationVisible: (annotationId, currentAnnotations) =>
-        pdfiumAnnotationIsVisible(annotationId, currentAnnotations, pageMetricsRef.current),
-      isCurrentArticle,
-      mergeArticleAgentAnnotation,
-      onOpenAnnotation,
-    });
-  }
-
-  async function pdfiumPageGeometriesForReadingPlan(
-    pdfDocument: PdfiumLoadedDocument,
-    textDocument: PdfTextDocument,
-    readingPlan: AgentReadingPlanItem[],
-  ) {
-    const pageIndexes = new Set<number>();
-    for (const item of readingPlan) {
-      for (const page of textDocument.pages) {
-        if (page.bodyEnd <= item.sectionStart || page.bodyStart >= item.sectionEnd) continue;
-        pageIndexes.add(page.pageIndex);
-      }
-    }
-
-    const entries = await Promise.all(
-      Array.from(pageIndexes).map(async (pageIndex) => {
-        const page = pdfDocument.pages[pageIndex];
-        if (!page) return null;
-        const geometry = await engine.getPageGeometry(pdfDocument, page).toPromise();
-        return [pageIndex, { geometry, width: page.size.width, height: page.size.height }] as const;
-      }),
-    );
-    return new Map(entries.filter((entry): entry is NonNullable<typeof entry> => Boolean(entry)));
+    return pdfiumAgentPlayback.enqueue(articleId, annotation);
   }
 
   const tocStats = useMemo(
