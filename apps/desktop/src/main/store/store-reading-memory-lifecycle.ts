@@ -20,7 +20,7 @@ export function resetAnnotationMemoryBackfill() {
 }
 
 export function getReadingMemorySqliteExecutor(): ReadingMemorySqliteExecutor {
-  return getSqliteExecutor() as unknown as ReadingMemorySqliteExecutor;
+  return getSqliteExecutor();
 }
 
 export function backfillAnnotationMemoryOnce(

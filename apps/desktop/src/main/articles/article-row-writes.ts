@@ -26,7 +26,7 @@ const INSERT_BATCH_SIZE = 32;
 
 export async function saveArticleRows(input: ArticleRecord): Promise<ArticleUpsertPatch> {
   const database = getDatabase();
-  const executor = getSqliteExecutor() as unknown as ReadingMemorySqliteExecutor;
+  const executor: ReadingMemorySqliteExecutor = getSqliteExecutor();
   writeArticleRowsInTransaction(database, input, executor);
   trySyncArticleAnnotationMemoryEntries(input, executor);
   const article = readArticleSummaryRows(database, input.id);

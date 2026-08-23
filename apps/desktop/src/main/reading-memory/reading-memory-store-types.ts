@@ -12,14 +12,14 @@ export type ReadingMemoryPerformanceLogger = (
 ) => void;
 
 type SqliteStatement = {
-  run: (...values: SqliteValue[]) => unknown;
-  get: (...values: SqliteValue[]) => unknown;
-  all: (...values: SqliteValue[]) => unknown[];
+  run(...values: SqliteValue[]): unknown;
+  get(...values: SqliteValue[]): unknown;
+  all(...values: SqliteValue[]): unknown[];
 };
 
 export type ReadingMemorySqliteExecutor = {
-  exec: (sql: string) => unknown;
-  prepare: (sql: string) => SqliteStatement;
+  exec(sql: string): unknown;
+  prepare(sql: string): SqliteStatement;
 };
 
 export type ReadReadingMemoryEntriesOptions = {

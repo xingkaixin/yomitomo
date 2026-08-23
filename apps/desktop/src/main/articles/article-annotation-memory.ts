@@ -35,10 +35,7 @@ export function syncArticleAnnotationMemoryEntries(
   executor?: ReadingMemorySqliteExecutor,
 ) {
   const entries = articleAnnotationMemoryEntries(article);
-  upsertReadingMemoryEntries(
-    entries,
-    executor || (getSqliteExecutor() as unknown as ReadingMemorySqliteExecutor),
-  );
+  upsertReadingMemoryEntries(entries, executor || getSqliteExecutor());
   return entries.length;
 }
 

@@ -594,7 +594,7 @@ function articleRowsDatabase(): ReadingMemorySqliteExecutor {
   }
 
   const database = drizzle(sqlite, { schema });
-  const executor = sqlite as unknown as ReadingMemorySqliteExecutor;
+  const executor: ReadingMemorySqliteExecutor = sqlite;
   storeDbState.database = database;
   storeDbState.executor = executor;
   return executor;

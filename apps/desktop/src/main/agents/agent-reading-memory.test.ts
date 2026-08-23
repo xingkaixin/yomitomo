@@ -441,7 +441,7 @@ describe('agent reading memory persistence', () => {
     const executor = {
       exec: vi.fn(),
       prepare: vi.fn(),
-    } as unknown as ReadingMemorySqliteExecutor;
+    } satisfies ReadingMemorySqliteExecutor;
     const logger = { logError: vi.fn(), logInfo: vi.fn() };
     const port = createAgentReadingMemoryPort({ executor, logger });
     memoryStore.readReadingMemoryEntries.mockReturnValue([]);
@@ -482,7 +482,7 @@ describe('agent reading memory persistence', () => {
     const executor = {
       exec: vi.fn(),
       prepare: vi.fn(),
-    } as unknown as ReadingMemorySqliteExecutor;
+    } satisfies ReadingMemorySqliteExecutor;
     const logger = { logError: vi.fn(), logInfo: vi.fn() };
     const port = createAgentReadingMemoryPort({ executor, logger });
     memoryStore.searchReadingMemoryEntries.mockImplementationOnce(() => {
@@ -637,11 +637,11 @@ function memoryEntry(overrides: Partial<ReadingMemoryEntry> = {}) {
   };
 }
 
-function readingMemoryExecutor(): ReadingMemorySqliteExecutor {
+function readingMemoryExecutor() {
   return {
     exec: vi.fn(),
     prepare: vi.fn(),
-  } as unknown as ReadingMemorySqliteExecutor;
+  } satisfies ReadingMemorySqliteExecutor;
 }
 
 function ebookIndex(): EpubBookIndex {

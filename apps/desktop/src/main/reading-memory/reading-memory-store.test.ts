@@ -15,6 +15,14 @@ import {
 } from './reading-memory-store';
 
 describe('reading memory store', () => {
+  it('uses a native SQLite database without an adapter', () => {
+    const database: ReadingMemorySqliteExecutor = new DatabaseSync(':memory:');
+    database.exec('CREATE TABLE probe (value TEXT NOT NULL)');
+    database.prepare('INSERT INTO probe (value) VALUES (?)').run('native');
+
+    expect(database.prepare('SELECT value FROM probe').get()).toEqual({ value: 'native' });
+  });
+
   it('appends entries and keeps FTS queryable', () => {
     const database = memoryDatabase();
     insertProjection(database);
@@ -542,10 +550,12 @@ function memoryDatabase(): ReadingMemorySqliteExecutor {
   database.exec(initial.sql);
   database.exec(readingMemory.sql);
   insertArticle(database, 'article_1');
-  return database as unknown as ReadingMemorySqliteExecutor;
+  return database;
 }
 
-function recordingExecutor(executor: ReadingMemorySqliteExecutor) {
+function recordingExecutor(
+  executor: ReadingMemorySqliteExecutor,
+): ReadingMemorySqliteExecutor & { sqlLog: string[] } {
   const sqlLog: string[] = [];
   return {
     sqlLog,
@@ -554,7 +564,7 @@ function recordingExecutor(executor: ReadingMemorySqliteExecutor) {
       sqlLog.push(sql);
       return executor.prepare(sql);
     },
-  } as ReadingMemorySqliteExecutor & { sqlLog: string[] };
+  };
 }
 
 function entry(overrides: Partial<ReadingMemoryEntry> = {}): ReadingMemoryEntry {

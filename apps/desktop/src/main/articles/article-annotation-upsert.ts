@@ -170,6 +170,6 @@ function syncAnnotationMemoryEntries(
 ) {
   upsertReadingMemoryEntries(
     readingMemoryEntriesFromAnnotationThread({ articleId, annotation }),
-    executor || (getSqliteExecutor() as unknown as ReadingMemorySqliteExecutor),
+    executor || getSqliteExecutor(),
   );
 }

@@ -436,7 +436,7 @@ export function rebuildReadingMemoryFts(
 }
 
 function defaultExecutor(): ReadingMemorySqliteExecutor {
-  return getSqliteExecutor() as unknown as ReadingMemorySqliteExecutor;
+  return getSqliteExecutor();
 }
 
 function appendReadingMemoryEntryInTransaction(
