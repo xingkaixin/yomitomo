@@ -1,11 +1,5 @@
 import { performance } from 'node:perf_hooks';
-import type {
-  MemoryViewType,
-  ReaderProgress,
-  ReadingMemoryEntry,
-  ReadingMemoryView,
-  TextRange,
-} from '@yomitomo/shared';
+import type { ReadingMemoryEntry, ReadingMemoryView } from '@yomitomo/shared';
 import { recordField, uniqueNonEmptyStrings } from '@yomitomo/shared';
 import {
   applySupersededEntryFilter,
@@ -17,85 +11,42 @@ import {
   readingMemoryFtsQuery,
   readingMemoryWhereClause,
   sourceWhereClause,
+  structuredMemoryViewCandidateClause,
 } from './reading-memory-query-builder';
 import {
   readingMemoryEntrySqlValues,
   rowToReadingMemoryEntry,
   type SqliteValue,
 } from './reading-memory-row-mapper';
+import type {
+  BuildReadingMemoryViewOptions,
+  ReadingMemoryPerformanceLogger,
+  ReadingMemorySqliteExecutor,
+  ReadReadingMemoryEntriesOptions,
+  SearchReadingMemoryEntriesOptions,
+  SoftDeleteReadingMemoryEntriesBySourceOptions,
+} from './reading-memory-store-types';
+import {
+  buildReadingMemoryViewFromCandidates,
+  readingMemoryViewLimits,
+} from './reading-memory-view-policy';
+export type {
+  BuildReadingMemoryViewOptions,
+  ReadingMemorySqliteExecutor,
+  ReadReadingMemoryEntriesOptions,
+  SearchReadingMemoryEntriesOptions,
+  SoftDeleteReadingMemoryEntriesBySourceOptions,
+} from './reading-memory-store-types';
 
-type PerformanceLogger = (event: string, data?: Record<string, unknown>) => void;
 type SqliteStatement = {
   run: (...values: SqliteValue[]) => unknown;
   get: (...values: SqliteValue[]) => unknown;
   all: (...values: SqliteValue[]) => unknown[];
 };
-export type ReadingMemorySqliteExecutor = {
-  exec: (sql: string) => unknown;
-  prepare: (sql: string) => SqliteStatement;
-};
-
-export type ReadReadingMemoryEntriesOptions = {
-  articleId: string;
-  kind?: ReadingMemoryEntry['kind'];
-  scope?: ReadingMemoryEntry['scope'];
-  agentId?: string;
-  excludeAgentId?: string;
-  requireAgentId?: boolean;
-  visibility?: ReadingMemoryEntry['visibility'][];
-  chapterId?: string;
-  segmentId?: string;
-  includeDeleted?: boolean;
-  applySupersedes?: boolean;
-  performanceLogger?: PerformanceLogger;
-  executor?: ReadingMemorySqliteExecutor;
-};
-
-export type SearchReadingMemoryEntriesOptions = {
-  articleId: string;
-  query: string;
-  agentId?: string;
-  excludeAgentId?: string;
-  requireAgentId?: boolean;
-  visibility?: ReadingMemoryEntry['visibility'][];
-  fallbackToSubstring?: boolean;
-  limit?: number;
-  performanceLogger?: PerformanceLogger;
-  executor?: ReadingMemorySqliteExecutor;
-};
 
 type SubstringFallbackResult = {
   entries: ReadingMemoryEntry[];
   candidateCount: number;
-};
-
-export type BuildReadingMemoryViewOptions = {
-  articleId: string;
-  viewType: Extract<
-    MemoryViewType,
-    'selection' | 'selection_thread' | 'article_section' | 'segment' | 'chapter'
-  >;
-  chapterId?: string;
-  segmentId?: string;
-  textRange?: TextRange;
-  query?: string;
-  readerProgress?: ReaderProgress;
-  structuredLimit?: number;
-  ftsLimit?: number;
-  performanceLogger?: PerformanceLogger;
-  executor?: ReadingMemorySqliteExecutor;
-};
-
-export type SoftDeleteReadingMemoryEntriesBySourceOptions = {
-  articleId: string;
-  sourceAnnotationId?: string;
-  sourceCommentId?: string;
-  sourceType?: ReadingMemoryEntry['sourceType'];
-  sourceId?: string;
-  deletedAt?: string;
-  deletionReason: string;
-  executor?: ReadingMemorySqliteExecutor;
-  useTransaction?: boolean;
 };
 
 type ReadingMemoryWriteStatements = {
@@ -351,57 +302,30 @@ ORDER BY created_at ASC, id ASC
 export function buildReadingMemoryView(options: BuildReadingMemoryViewOptions): ReadingMemoryView {
   const startedAt = performance.now();
   const executor = options.executor || defaultExecutor();
-  const structuredLimit = normalizeLimit(options.structuredLimit, 12, 50);
-  const ftsLimit = normalizeLimit(options.ftsLimit, 5, 20);
-  const structured = readStructuredMemoryViewCandidates(options, executor)
-    .filter((entry) => structuredMemoryViewEntry(entry, options))
-    .toSorted(memoryViewEntryOrder)
-    .slice(-structuredLimit);
-
-  const entries: ReadingMemoryView['entries'] = structured.map((entry) => ({
-    entry,
-    source: 'structured',
-  }));
-  const seenIds = new Set(structured.map((entry) => entry.id));
-  const seenProvenance = new Set(structured.map(memoryEntryProvenanceKey));
-
+  const limits = readingMemoryViewLimits(options);
+  const structuredCandidates = readStructuredMemoryViewCandidates(options, executor);
   const query = options.query?.trim();
-  if (query) {
-    for (const entry of searchReadingMemoryEntries({
-      articleId: options.articleId,
-      query,
-      limit: ftsLimit * 3,
-      performanceLogger: options.performanceLogger,
-      executor,
-    })) {
-      if (entries.length >= structured.length + ftsLimit) break;
-      if (seenIds.has(entry.id)) continue;
-      if (!memoryEntryAllowedByProgress(entry, options.readerProgress)) continue;
-      if (!memoryEntryAllowedForView(entry, options)) continue;
-
-      const provenanceKey = memoryEntryProvenanceKey(entry);
-      if (seenProvenance.has(provenanceKey)) continue;
-      seenIds.add(entry.id);
-      seenProvenance.add(provenanceKey);
-      entries.push({ entry, source: 'fts' as const });
-    }
-  }
-
-  const view = {
-    articleId: options.articleId,
-    viewType: options.viewType,
-    viewKey: memoryViewKey(options),
-    entries,
-    sourceEntryIds: entries.map((item) => item.entry.id),
-    updatedAt: latestMemoryEntryUpdatedAt(entries.map((item) => item.entry)),
-  };
+  const searchCandidates = query
+    ? searchReadingMemoryEntries({
+        articleId: options.articleId,
+        query,
+        limit: limits.fts * 3,
+        performanceLogger: options.performanceLogger,
+        executor,
+      })
+    : [];
+  const view = buildReadingMemoryViewFromCandidates({
+    options,
+    searchCandidates,
+    structuredCandidates,
+  });
   logReadingMemoryTiming(options.performanceLogger, 'view_build', startedAt, {
     articleId: options.articleId,
     viewType: options.viewType,
     viewKey: view.viewKey,
-    structuredCount: structured.length,
-    ftsCount: entries.filter((item) => item.source === 'fts').length,
-    entryCount: entries.length,
+    structuredCount: view.entries.filter((item) => item.source === 'structured').length,
+    ftsCount: view.entries.filter((item) => item.source === 'fts').length,
+    entryCount: view.entries.length,
   });
   return view;
 }
@@ -690,198 +614,8 @@ ORDER BY created_at ASC, id ASC
   });
 }
 
-function structuredMemoryViewCandidateClause(options: BuildReadingMemoryViewOptions) {
-  const clauses = [`kind IN ('summary', 'trace', 'correction', 'reader_signal')`];
-  const values: SqliteValue[] = [];
-
-  if (options.viewType === 'selection' || options.viewType === 'selection_thread') {
-    addOptionalChapterClause(clauses, values, options.chapterId);
-    addNearTextRangeClause(clauses, values, options.textRange, 2400);
-  } else if (options.viewType === 'article_section') {
-    addNearTextRangeClause(clauses, values, options.textRange, 2400);
-  } else if (options.viewType === 'segment') {
-    clauses.push(`scope IN ('segment', 'chapter', 'reader')`);
-    addOptionalChapterClause(clauses, values, options.chapterId);
-    if (options.textRange) {
-      clauses.push('(text_start IS NULL OR text_end IS NULL OR text_end <= ?)');
-      values.push(options.textRange.textEnd);
-    }
-  } else if (options.viewType === 'chapter') {
-    clauses.push(`scope IN ('chapter', 'segment', 'reader')`);
-    addOptionalChapterClause(clauses, values, options.chapterId);
-  } else {
-    clauses.push('0');
-  }
-
-  addProgressClause(clauses, values, options.readerProgress);
-  return { where: clauses.join('\n    AND '), values };
-}
-
-function addOptionalChapterClause(
-  clauses: string[],
-  values: SqliteValue[],
-  chapterId: string | undefined,
-) {
-  if (!chapterId) return;
-  clauses.push('(chapter_id IS NULL OR chapter_id = ?)');
-  values.push(chapterId);
-}
-
-function addNearTextRangeClause(
-  clauses: string[],
-  values: SqliteValue[],
-  textRange: TextRange | undefined,
-  distance: number,
-) {
-  if (!textRange) return;
-  clauses.push('(text_start IS NULL OR text_end IS NULL OR (text_end >= ? AND text_start <= ?))');
-  values.push(textRange.textStart - distance, textRange.textEnd + distance);
-}
-
-function addProgressClause(
-  clauses: string[],
-  values: SqliteValue[],
-  progress: ReaderProgress | undefined,
-) {
-  if (!progress) return;
-  const readChapterIds = uniqueNonEmptyStrings(progress.readChapterIds);
-  const chapterClauses = ['chapter_id IS NULL', 'chapter_id = ?'];
-  const chapterValues: SqliteValue[] = [progress.currentChapterId];
-  if (readChapterIds.length > 0) {
-    chapterClauses.unshift(`chapter_id IN (${questionMarks(readChapterIds.length)})`);
-    chapterValues.unshift(...readChapterIds);
-  }
-  clauses.push(`(${chapterClauses.join(' OR ')})`);
-  values.push(...chapterValues);
-  if (progress.readUntilTextOffset !== undefined) {
-    const offsetClauses = ['text_start IS NULL', 'text_end IS NULL', 'text_end <= ?'];
-    const offsetValues: SqliteValue[] = [progress.readUntilTextOffset];
-    if (readChapterIds.length > 0) {
-      offsetClauses.unshift(`chapter_id IN (${questionMarks(readChapterIds.length)})`);
-      offsetValues.unshift(...readChapterIds);
-    }
-    clauses.push(
-      `(
-        ${offsetClauses.join('\n        OR ')}
-      )`,
-    );
-    values.push(...offsetValues);
-  }
-}
-
-function structuredMemoryViewEntry(
-  entry: ReadingMemoryEntry,
-  options: BuildReadingMemoryViewOptions,
-) {
-  if (!memoryEntryAllowedForView(entry, options)) return false;
-  return memoryEntryAllowedByProgress(entry, options.readerProgress);
-}
-
-function memoryEntryAllowedForView(
-  entry: ReadingMemoryEntry,
-  options: BuildReadingMemoryViewOptions,
-) {
-  if (
-    entry.kind !== 'summary' &&
-    entry.kind !== 'trace' &&
-    entry.kind !== 'correction' &&
-    entry.kind !== 'reader_signal'
-  ) {
-    return false;
-  }
-
-  if (options.viewType === 'selection' || options.viewType === 'selection_thread') {
-    if (options.chapterId && entry.chapterId && entry.chapterId !== options.chapterId) return false;
-    if (!options.textRange || !entry.textRange) return true;
-    return rangesNear(entry.textRange, options.textRange, 2400);
-  }
-
-  if (options.viewType === 'article_section') {
-    if (!options.textRange || !entry.textRange) return true;
-    return rangesNear(entry.textRange, options.textRange, 2400);
-  }
-
-  if (options.viewType === 'segment') {
-    if (entry.scope !== 'segment' && entry.scope !== 'chapter' && entry.scope !== 'reader') {
-      return false;
-    }
-    if (options.chapterId && entry.chapterId && entry.chapterId !== options.chapterId) return false;
-    if (!options.textRange || !entry.textRange) return true;
-    return entry.textRange.textEnd <= options.textRange.textEnd;
-  }
-
-  if (options.viewType === 'chapter') {
-    if (entry.scope !== 'chapter' && entry.scope !== 'segment' && entry.scope !== 'reader') {
-      return false;
-    }
-    return !options.chapterId || !entry.chapterId || entry.chapterId === options.chapterId;
-  }
-
-  return false;
-}
-
-function memoryEntryAllowedByProgress(
-  entry: ReadingMemoryEntry,
-  progress: ReaderProgress | undefined,
-) {
-  if (!progress) return true;
-  if (entry.chapterId && progress.readChapterIds.includes(entry.chapterId)) return true;
-  if (entry.chapterId && entry.chapterId !== progress.currentChapterId) return false;
-  if (progress.readUntilTextOffset === undefined || !entry.textRange) return true;
-  return entry.textRange.textEnd <= progress.readUntilTextOffset;
-}
-
-function memoryViewEntryOrder(left: ReadingMemoryEntry, right: ReadingMemoryEntry) {
-  const leftStart = left.textRange?.textStart ?? Number.MAX_SAFE_INTEGER;
-  const rightStart = right.textRange?.textStart ?? Number.MAX_SAFE_INTEGER;
-  if (leftStart !== rightStart) return leftStart - rightStart;
-  if (left.updatedAt !== right.updatedAt) return left.updatedAt.localeCompare(right.updatedAt);
-  return left.id.localeCompare(right.id);
-}
-
-function rangesNear(left: TextRange, right: TextRange, distance: number) {
-  if (left.textEnd < right.textStart) return right.textStart - left.textEnd <= distance;
-  if (right.textEnd < left.textStart) return left.textStart - right.textEnd <= distance;
-  return true;
-}
-
-function memoryEntryProvenanceKey(entry: ReadingMemoryEntry) {
-  return [
-    entry.sourceType,
-    entry.sourceId || '',
-    entry.sourceTaskId || '',
-    entry.supersedesEntryId || '',
-    entry.sourceEntryIds.join(','),
-    entry.chapterId || '',
-    entry.segmentId || '',
-    entry.textRange?.textStart ?? '',
-    entry.textRange?.textEnd ?? '',
-  ].join(':');
-}
-
-function memoryViewKey(options: BuildReadingMemoryViewOptions) {
-  return [
-    options.viewType,
-    options.chapterId || '',
-    options.segmentId || '',
-    options.textRange?.textStart ?? '',
-    options.textRange?.textEnd ?? '',
-  ].join(':');
-}
-
-function latestMemoryEntryUpdatedAt(entries: ReadingMemoryEntry[]) {
-  return entries.reduce((latest, entry) => {
-    if (!latest || entry.updatedAt > latest) return entry.updatedAt;
-    return latest;
-  }, '');
-}
-
-function normalizeLimit(value: number | undefined, fallback: number, max: number) {
-  return Math.max(1, Math.min(value || fallback, max));
-}
-
 function logReadingMemoryTiming(
-  logger: PerformanceLogger | undefined,
+  logger: ReadingMemoryPerformanceLogger | undefined,
   phase: string,
   startedAt: number,
   data: Record<string, unknown>,
