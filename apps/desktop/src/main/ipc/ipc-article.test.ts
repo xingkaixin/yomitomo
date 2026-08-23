@@ -58,6 +58,7 @@ describe('article IPC patch broadcasts', () => {
       articleId: 'article_1',
       annotationId: 'annotation_1',
       distillation: { status: 'published', content: '沉淀内容' } as const,
+      expectedDistillationUpdatedAt: null,
     };
 
     const event = { sender: { id: 17 } };
@@ -179,9 +180,9 @@ describe('article IPC patch broadcasts', () => {
   it('broadcasts reading progress in the article patch envelope', async () => {
     storageMocks.ipcMainHandle.mockClear();
     const readingProgress = {
+      kind: 'page' as const,
       pageIndex: 2,
       pageCount: 10,
-      progress: 0.2,
       updatedAt: '2026-07-18T00:01:00.000Z',
     };
     const patch = {

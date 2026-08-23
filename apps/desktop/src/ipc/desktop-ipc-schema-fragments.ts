@@ -9,6 +9,15 @@ import {
   MAX_TEXT_IMPORT_FILES,
   withinImportBudget,
 } from './article-import-boundary';
+import {
+  agentDomainIpcInvokeSchemas,
+  annotationWindowDomainIpcInvokeSchemas,
+  appDomainIpcInvokeSchemas,
+  articleDomainIpcInvokeSchemas,
+  libraryDomainIpcInvokeSchemas,
+  providerDomainIpcInvokeSchemas,
+  updateDomainIpcInvokeSchemas,
+} from './desktop-ipc-domain-schema-fragments';
 
 const idSchema = z.string().min(1).max(256);
 const requestIdSchema = z.string().min(1).max(128);
@@ -228,10 +237,17 @@ export const wereadIpcInvokeSchemas = {
 };
 
 export const desktopIpcRawInvokeSchemas = {
+  ...agentDomainIpcInvokeSchemas,
+  ...annotationWindowDomainIpcInvokeSchemas,
+  ...appDomainIpcInvokeSchemas,
   ...appLockIpcInvokeSchemas,
+  ...articleDomainIpcInvokeSchemas,
   ...articleIpcInvokeSchemas,
   ...dataIpcInvokeSchemas,
+  ...libraryDomainIpcInvokeSchemas,
   ...libraryCollectionIpcInvokeSchemas,
+  ...providerDomainIpcInvokeSchemas,
+  ...updateDomainIpcInvokeSchemas,
   ...wereadIpcInvokeSchemas,
 };
 
