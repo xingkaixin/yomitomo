@@ -138,6 +138,7 @@ describe('article repository local child row writes', () => {
     const patch = saveAnnotationDistillationRows(database, {
       articleId: 'article_1',
       annotationId: target.id,
+      expectedDistillationUpdatedAt: null,
       distillation: {
         status: 'published',
         content: '沉淀内容',
@@ -214,6 +215,42 @@ describe('article repository local child row writes', () => {
     expect(reviewSessions[0]?.messages[0]).not.toHaveProperty('kind');
     expect(reviewSessions[0]?.messages[1]).not.toHaveProperty('kind');
     expect(saved?.comments.map((item) => item.id)).toEqual(['comment_1', 'comment_2']);
+  });
+
+  it('rejects a distillation write based on a stale version', () => {
+    const database = repositoryDatabase();
+    const target = annotation({ id: 'annotation_1' });
+    upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, fakeExecutor());
+
+    saveAnnotationDistillationRows(database, {
+      articleId: 'article_1',
+      annotationId: target.id,
+      distillation: {
+        status: 'unpublished',
+        content: 'newer content',
+        updatedAt: '2026-06-04T04:00:00.000Z',
+      },
+      expectedDistillationUpdatedAt: null,
+      updatedAt: '2026-06-04T04:00:00.000Z',
+    });
+
+    expect(() =>
+      saveAnnotationDistillationRows(database, {
+        articleId: 'article_1',
+        annotationId: target.id,
+        distillation: {
+          status: 'published',
+          content: 'stale content',
+          updatedAt: '2026-06-04T05:00:00.000Z',
+        },
+        expectedDistillationUpdatedAt: null,
+        updatedAt: '2026-06-04T05:00:00.000Z',
+      }),
+    ).toThrow('ANNOTATION_DISTILLATION_CONFLICT');
+    expect(
+      readArticleRows(database, 'article_1')?.annotations.find((item) => item.id === target.id)
+        ?.distillation,
+    ).toMatchObject({ status: 'unpublished', content: 'newer content' });
   });
 
   it('merges agent thoughts against the persisted annotation', () => {

@@ -111,6 +111,7 @@ export type ArticleAnnotationDistillationSaveInput = {
   articleId: string;
   annotationId: string;
   distillation: Annotation['distillation'];
+  expectedDistillationUpdatedAt: string | null;
   updatedAt?: string;
 };
 

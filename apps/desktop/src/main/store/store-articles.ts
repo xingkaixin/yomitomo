@@ -158,6 +158,7 @@ export async function saveArticleAnnotationDistillation(input: {
   articleId: string;
   annotationId: string;
   distillation: Annotation['distillation'];
+  expectedDistillationUpdatedAt: string | null;
   updatedAt?: string;
 }) {
   return saveAnnotationDistillationRows(getDatabase(), input);

@@ -90,6 +90,12 @@ export function registerArticleIpc(context: ArticleIpcContext) {
   });
   handleDesktopIpc('article:save-annotation-distillation', async (event, input) => {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();
+    context.logInfo('annotation.distillation_write_requested', {
+      annotationId: input.annotationId,
+      articleId: input.articleId,
+      expectedUpdatedAt: input.expectedDistillationUpdatedAt,
+      updatedAt: input.updatedAt,
+    });
     const patch = await articlePersistence.saveArticleAnnotationDistillation(input);
     if (patch) context.sendArticlePatched(event, patch);
     return patch;

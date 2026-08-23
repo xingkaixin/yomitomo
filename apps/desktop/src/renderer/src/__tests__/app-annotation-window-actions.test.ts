@@ -64,6 +64,7 @@ describe('annotation window actions', () => {
       articleId: 'article-1',
       annotationId: 'annotation-1',
       distillation: undefined,
+      expectedDistillationUpdatedAt: null,
       updatedAt: '2026-07-19T00:00:00.000Z',
     };
 

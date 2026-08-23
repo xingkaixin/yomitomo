@@ -1139,6 +1139,7 @@ export const jaResources = {
       reviewPlaceholder:
         '現在のレビューアシスタントにこの蒸留について話し合うよう依頼してください...',
       selectReviewerRequired: 'レビュー アシスタントを 1 人選択したままにしておきます',
+      saveConflict: '別の場所で蒸留が更新されたため、今回の保存を取り消しました。',
       reviewFailed: '審査に失敗しました',
       organizeDiscussionInstruction:
         '現在のハイライト、意見、レビューの議論を整理して、蒸留ドラフトに直接挿入できる追加情報を作成します。新しい追加のみを提供します。現在の下書きを変更または削除しないでください。',
