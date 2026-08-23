@@ -64,7 +64,7 @@ export function rowToArticleSummary(
     ...base
   } = rowToArticleBase(row, []);
   const sourceType = normalizeArticleSourceType(row.sourceType);
-  const summaryBase = { ...base, annotations: [] as [], counts };
+  const summaryBase = { ...base, counts };
 
   switch (sourceType) {
     case 'web':

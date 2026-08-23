@@ -21,7 +21,6 @@ export function makeMockArticle(partial: MockArticleInput = {}): ArticleSummaryR
     canonicalUrl: partial.canonicalUrl ?? `https://example.com/${id}`,
     title: partial.title ?? 'Mock Article',
     contentHash: partial.contentHash ?? 'hash-mock',
-    annotations: [] as [],
     counts: partial.counts ?? {
       annotationCount: 0,
       thoughtCount: 0,

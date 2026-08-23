@@ -169,7 +169,6 @@ export function articleSummary(record: ArticleRecord): ArticleSummaryRecord {
   } = record;
   const base = {
     ...summary,
-    annotations: [] as [],
     counts: articleCounts(record),
   };
   if (record.sourceType === 'ebook') {

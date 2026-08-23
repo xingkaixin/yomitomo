@@ -56,9 +56,9 @@ describe('article repository summaries', () => {
   it('uses scoped counts when reading one article summary', () => {
     const article = readArticleSummaryRows(repositoryDatabase(), 'article_a');
 
+    expect(article).not.toHaveProperty('annotations');
     expect(article).toMatchObject({
       id: 'article_a',
-      annotations: [],
       counts: {
         annotationCount: 2,
         thoughtCount: 2,

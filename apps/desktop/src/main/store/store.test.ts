@@ -983,7 +983,6 @@ describe('desktop store articles', () => {
       sourceType: 'web',
       title: 'Upsert article',
       contentHash: 'hash-upsert',
-      annotations: [],
       counts: {
         annotationCount: 0,
         thoughtCount: 0,
@@ -1011,7 +1010,7 @@ describe('desktop store articles', () => {
     };
     const article = rowToArticleSummary(storeSummaryRow(), counts);
 
-    expect(article.annotations).toEqual([]);
+    expect(article).not.toHaveProperty('annotations');
     expect(article.counts).toEqual(counts);
   });
 
@@ -1653,7 +1652,6 @@ function articleSummaryRecord(input: Partial<WebArticleSummaryRecord>): WebArtic
     sourceType: 'web',
     title: input.title || id,
     contentHash: input.contentHash || `hash-${id}`,
-    annotations: [],
     counts: input.counts || {
       annotationCount: 0,
       thoughtCount: 0,

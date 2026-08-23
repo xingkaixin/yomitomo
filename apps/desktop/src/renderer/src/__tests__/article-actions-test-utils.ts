@@ -66,7 +66,6 @@ export function articleSummaryFromRecord(record: WebArticleRecord): WebArticleSu
   } = record;
   return {
     ...summary,
-    annotations: [],
     counts: articleCounts({ annotations }),
   };
 }

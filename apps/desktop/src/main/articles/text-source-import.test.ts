@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ArticleRecord, ArticleUpsertPatch } from '@yomitomo/shared';
+import { articleCounts } from '@yomitomo/core';
 import type { ArticleSourceImportRepository } from './article-source-import';
 import { commitTextSources, prepareTextSourceItems } from './text-source-import';
 
@@ -56,7 +57,18 @@ describe('commitTextSources', () => {
       readArticle: async () => null,
       saveArticle: async (article) => {
         saved.push(article);
-        return { type: 'article-upsert', article } as ArticleUpsertPatch;
+        if (article.sourceType !== 'text') throw new Error('expected text article');
+        const {
+          annotations,
+          contentHtml: _contentHtml,
+          focusCoReadingPlan: _focusCoReadingPlan,
+          readerChatState: _readerChatState,
+          ...summary
+        } = article;
+        return {
+          type: 'article-upsert',
+          article: { ...summary, counts: articleCounts({ annotations }) },
+        } satisfies ArticleUpsertPatch;
       },
     };
 

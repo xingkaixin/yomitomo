@@ -240,7 +240,6 @@ function articleSummary(id: string): ArticleSummaryRecord {
     byline: '',
     siteName: 'Example',
     contentHash: 'hash',
-    annotations: [],
     counts: {
       annotationCount: 1,
       thoughtCount: 1,

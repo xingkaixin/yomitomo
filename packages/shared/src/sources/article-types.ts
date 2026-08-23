@@ -198,7 +198,6 @@ type ArticleSummaryRecordBase = Omit<
   ArticleRecordBase,
   'annotations' | 'contentHtml' | 'focusCoReadingPlan' | 'readerChatState'
 > & {
-  annotations: [];
   counts: ArticleCounts;
 };
 

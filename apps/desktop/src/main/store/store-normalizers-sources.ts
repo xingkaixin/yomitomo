@@ -99,11 +99,17 @@ export function normalizeArticleRecord(article: ArticleRecord): ArticleRecord {
 }
 
 export function normalizeArticleSummaryRecord(article: ArticleSummaryRecord): ArticleSummaryRecord {
-  const { sourceType, ebook, pdf, text, ...base } = article;
+  const {
+    sourceType,
+    ebook,
+    pdf,
+    text,
+    annotations: _annotations,
+    ...base
+  } = article as ArticleSummaryRecord & { annotations?: unknown };
   const normalizedSourceType = normalizeArticleSourceType(sourceType);
   const normalizedBase: ArticleSummaryRecordWithoutSource = {
     ...base,
-    annotations: [],
     counts: articleCounts(article),
     readingProgress: normalizeArticleReadingProgress(base.readingProgress, normalizedSourceType),
   };
