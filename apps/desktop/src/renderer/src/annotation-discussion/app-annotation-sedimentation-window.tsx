@@ -6,125 +6,41 @@ import {
   SparklesIcon,
 } from '@hugeicons/core-free-icons';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import type {
-  Agent,
-  Annotation,
-  AnnotationDistillationProposal,
-  AnnotationDistillationReviewMessage,
-  ArticleRecord,
-  PublicAgent,
-  UiLanguage,
-  UserProfile,
-} from '@yomitomo/shared';
-import { makeId, normalizeUiLanguage } from '@yomitomo/shared';
-import { annotationAgentAuthorRef, annotationAuthorName } from '@yomitomo/core';
+import type { Annotation, ArticleRecord, UserProfile } from '@yomitomo/shared';
+import { normalizeUiLanguage } from '@yomitomo/shared';
+import { annotationAuthorName } from '@yomitomo/core';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { desktopIpcErrorCodes, isDesktopIpcErrorLike } from '../../../ipc-errors';
-import { applyAppTheme, readCachedThemeId, themeRegistry } from '../theme/app-theme';
 import { FloatingComposer } from '@yomitomo/reader-ui/floating-composer';
-import { promptArticle } from '../source/bookcase/source-prompt-article';
-import { publicReviewAgents } from '../source/bookcase/source-public-agents';
-import { articlePlainText } from '../shell/app-utils';
 import {
   AgentAvatarStack,
   ReaderTooltipProvider,
   ReaderTooltip,
   SubmitShortcutTooltipContent,
 } from '@yomitomo/reader-ui/reader-component-primitives';
-import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
-import { useCompositionSubmit } from '@yomitomo/reader-ui/use-composition-submit';
-import {
-  applyAssistantRuntimeProgress,
-  assistantRuntimeErrorMessage,
-} from '../shell/app-assistant-runtime-progress';
-import { recordRendererPerformanceTiming } from '../shell/app-renderer-performance';
+import { applyAppTheme, readCachedThemeId, themeRegistry } from '../theme/app-theme';
 import { useSourceAwareWindowTransition } from '../shell/app-window-transition';
 import {
   DraftAnchorHighlightLayer,
   DraftChangePreviewLayer,
-  type HoveredDraftAnchor,
 } from './app-annotation-sedimentation-draft-preview';
 import {
   OrganizeDiscussionCard,
   OrganizeDiscussionConfirmDialog,
-  type OrganizeDiscussionState,
 } from './app-annotation-sedimentation-organize-card';
-import {
-  distillationReviewPayloadFields,
-  requestAgentReviewRound,
-} from './app-annotation-sedimentation-review-request';
 import { SedimentationReviewTimeline } from './app-annotation-sedimentation-review-timeline';
-import {
-  planDistillationProposalDraftAnchor,
-  planDistillationProposalChangeSet,
-  proposalApplyFailureMessage,
-  type DistillationProposalDraftChange,
-  type DistillationProposalDraftChangeSet,
-  type DraftSelectionSnapshot,
-} from './app-annotation-sedimentation-proposals';
-import {
-  acceptedDraftPreviewChanges,
-  annotationWithReviewSession,
-  appendReviewItemToMessage,
-  articleWithReviewProposalStatuses,
-  createReviewSession,
-  draftPreviewDecisionsForProposals,
-  draftPreviewDraft,
-  draftPreviewStatusesFromDecisions,
-  distillationProposalSource,
-  existingSessionForAgent,
-  hasPendingDraftPreviewDecisions,
-  organizeProposalDecisionSets,
-  pendingOrganizeProposals,
-  pendingReviewProposals,
-  publishedDistillationArticle,
-  reviewItemWithProposalSource,
-  reviewMessageWithProposalSource,
-  unpublishedDistillationArticle,
-  updateArticleAnnotation,
-  type DraftPreviewDecision,
-  type DraftPreviewDecisions,
-} from './app-annotation-sedimentation-state';
 import { useAnnotationWindowArticlePatches } from './use-annotation-window-article-patches';
 import { annotationWindowActions } from './app-annotation-window-actions';
+import {
+  useAnnotationSedimentationController,
+  type SedimentationReadyStatus,
+} from './use-annotation-sedimentation-controller';
 
 type SedimentationWindowStatus =
   | { type: 'loading' }
-  | {
-      type: 'ready';
-      agents: Agent[];
-      article: ArticleRecord;
-      annotation: Annotation;
-      uiLanguage: UiLanguage;
-    }
+  | SedimentationReadyStatus
   | { type: 'missing' }
   | { type: 'error'; message: string };
-
-type DistillationOperation = 'organize' | 'publish' | 'review' | 'unpublish' | 'update' | null;
-
-type PendingDraftPreview =
-  | {
-      source: 'review';
-      messageId: string;
-      proposals: AnnotationDistillationProposal[];
-      changeSet: DistillationProposalDraftChangeSet;
-      decisions: DraftPreviewDecisions;
-    }
-  | {
-      source: 'organize';
-      proposals: AnnotationDistillationProposal[];
-      changeSet: DistillationProposalDraftChangeSet;
-      decisions: DraftPreviewDecisions;
-    };
-
-function pendingDraftProposalIds(
-  preview: PendingDraftPreview | null,
-  source: PendingDraftPreview['source'],
-) {
-  if (!preview || preview.source !== source) return [];
-  return preview.proposals.map((proposal) => proposal.id);
-}
 
 export function AnnotationSedimentationWindowApp() {
   const { t } = useTranslation();
@@ -199,7 +115,7 @@ export function AnnotationSedimentationWindowApp() {
     return () => {
       cancelled = true;
     };
-  }, [annotationId, articleId]);
+  }, [annotationId, articleId, t]);
 
   if (status.type !== 'ready') {
     return (
@@ -227,639 +143,23 @@ function SedimentationShell({
   onStatusChange,
 }: {
   className: string;
-  status: Extract<SedimentationWindowStatus, { type: 'ready' }>;
+  status: SedimentationReadyStatus;
   style: CSSProperties;
   onStatusChange: (status: SedimentationWindowStatus) => void;
 }) {
   const { t } = useTranslation();
-  const { agents, article, annotation, uiLanguage } = status;
-  const reviewAgents = useMemo(() => publicReviewAgents(agents, uiLanguage), [agents, uiLanguage]);
+  const { article, annotation } = status;
+  const { draft, organize, publication, review, shortcut } = useAnnotationSedimentationController({
+    status,
+    onStatusChange,
+  });
   const userProfile = sedimentationUserProfile(annotation, article);
-  const [activeAgentId, setActiveAgentId] = useState<string | null>(
-    () => reviewAgents[0]?.id || null,
-  );
-  const activeAgent = reviewAgents.find((agent) => agent.id === activeAgentId) || null;
-  const activeAgents = activeAgent ? [activeAgent] : [];
-  const [draft, setDraft] = useState(() => initialDistillationDraft(article.id, annotation));
-  const [reviewDraft, setReviewDraft] = useState('');
-  const [activeOperation, setActiveOperation] = useState<DistillationOperation>(null);
-  const [reviewNotice, setReviewNotice] = useState('');
-  const [organizeState, setOrganizeState] = useState<OrganizeDiscussionState>({ type: 'idle' });
-  const [organizeConfirmOpen, setOrganizeConfirmOpen] = useState(false);
-  const [pendingDraftPreview, setPendingDraftPreview] = useState<PendingDraftPreview | null>(null);
-  const [hoveredDraftAnchor, setHoveredDraftAnchor] = useState<HoveredDraftAnchor | null>(null);
-  const [draftPreviewScroll, setDraftPreviewScroll] = useState({ left: 0, top: 0 });
-  const [appliedOrganizeProposalIds, setAppliedOrganizeProposalIds] = useState<Set<string>>(
-    () => new Set(),
-  );
-  const [dismissedOrganizeProposalIds, setDismissedOrganizeProposalIds] = useState<Set<string>>(
-    () => new Set(),
-  );
-  const draftKey = distillationDraftKey(article.id, annotation.id);
-  const draftRef = useRef(draft);
-  const draftTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const draftSelectionRef = useRef<DraftSelectionSnapshot | null>(null);
-  const reviewTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const shortcutModifier = getShortcutModifier();
-  const messageSendShortcut = 'mod-enter' as const;
-  const hasPendingDraftPreview = Boolean(pendingDraftPreview);
-  const busy = activeOperation !== null;
-  const reviewing = activeOperation === 'review';
-  const canPublish = Boolean(draft.trim()) && !busy && !hasPendingDraftPreview;
-  const canReview = activeAgents.length > 0 && !busy && !hasPendingDraftPreview;
-  const canOrganize = activeAgents.length > 0 && !busy && !hasPendingDraftPreview;
-  const sessions = annotation.distillation?.reviewSessions || [];
-  const isPublished = annotation.distillation?.status === 'published';
-  const statusLabel = isPublished
+  const statusLabel = publication.isPublished
     ? t('sedimentation.status.published')
     : t('sedimentation.status.draft');
-  const publishLabel = isPublished ? t('sedimentation.updatePublish') : t('sedimentation.publish');
-  const canUnpublish = isPublished && !busy;
-
-  useEffect(() => {
-    setActiveAgentId((current) => {
-      if (current && reviewAgents.some((agent) => agent.id === current)) return current;
-      return reviewAgents[0]?.id || null;
-    });
-  }, [reviewAgents]);
-
-  useEffect(() => {
-    window.localStorage.setItem(draftKey, draft);
-  }, [draft, draftKey]);
-
-  useEffect(() => {
-    draftRef.current = draft;
-  }, [draft]);
-
-  useEffect(() => {
-    if (pendingDraftPreview) setHoveredDraftAnchor(null);
-  }, [pendingDraftPreview]);
-
-  async function publishDistillation() {
-    const content = draft.trim();
-    if (!content || busy) return;
-    const transition = isPublished ? 'update' : 'publish';
-    recordDistillationOperation(annotation.id, transition, 'started');
-    setActiveOperation(transition);
-    try {
-      const nextArticle = publishedDistillationArticle({
-        annotationId: annotation.id,
-        article,
-        content,
-        now: new Date().toISOString(),
-      });
-      const nextAnnotation = await saveAndRefresh(
-        nextArticle,
-        agents,
-        annotation.id,
-        annotation.distillation?.updatedAt ?? null,
-        uiLanguage,
-        onStatusChange,
-      );
-      const nextDistillation =
-        nextAnnotation?.distillation ||
-        nextArticle.annotations.find((item) => item.id === annotation.id)?.distillation;
-      window.localStorage.removeItem(draftKey);
-      await annotationWindowActions.commitSedimentation({
-        articleId: article.id,
-        annotationId: annotation.id,
-        distillation: nextDistillation,
-        transition,
-      });
-    } catch (error) {
-      setReviewNotice(distillationSaveErrorMessage(error));
-    } finally {
-      recordDistillationOperation(annotation.id, transition, 'settled');
-      setActiveOperation(null);
-    }
-  }
-
-  async function unpublishDistillation() {
-    if (!isPublished || busy) return;
-    recordDistillationOperation(annotation.id, 'unpublish', 'started');
-    setActiveOperation('unpublish');
-    try {
-      const nextArticle = unpublishedDistillationArticle({
-        annotationId: annotation.id,
-        article,
-        fallbackContent: draft.trim(),
-        now: new Date().toISOString(),
-      });
-      const nextAnnotation = await saveAndRefresh(
-        nextArticle,
-        agents,
-        annotation.id,
-        annotation.distillation?.updatedAt ?? null,
-        uiLanguage,
-        onStatusChange,
-      );
-      const nextDistillation =
-        nextAnnotation?.distillation ||
-        nextArticle.annotations.find((item) => item.id === annotation.id)?.distillation;
-      await annotationWindowActions.commitSedimentation({
-        articleId: article.id,
-        annotationId: annotation.id,
-        distillation: nextDistillation,
-        transition: 'unpublish',
-      });
-    } catch (error) {
-      setReviewNotice(distillationSaveErrorMessage(error));
-    } finally {
-      recordDistillationOperation(annotation.id, 'unpublish', 'settled');
-      setActiveOperation(null);
-    }
-  }
-
-  function selectReviewAgent(agent: PublicAgent) {
-    setActiveAgentId((current) => {
-      if (current === agent.id) {
-        setReviewNotice(t('sedimentation.selectReviewerRequired'));
-        return current;
-      }
-      setReviewNotice('');
-      return agent.id;
-    });
-  }
-
-  async function submitReviewRound(input?: {
-    reviewDraftOverride?: string;
-    reviewMode?: 'review' | 'organize_discussion';
-  }) {
-    if (activeAgents.length === 0 || busy) return;
-    recordDistillationOperation(annotation.id, 'review', 'started');
-    setActiveOperation('review');
-    setReviewNotice('');
-    const effectiveReviewDraft = input?.reviewDraftOverride ?? reviewDraft;
-    if (!input?.reviewDraftOverride) setReviewDraft('');
-    let workingArticle = article;
-    let workingAnnotation = annotation;
-    try {
-      const now = new Date().toISOString();
-      const userMessage = effectiveReviewDraft.trim()
-        ? ({
-            id: makeId('distillation_review_message'),
-            author: { kind: 'user', username: 'reader' },
-            content: effectiveReviewDraft.trim(),
-            createdAt: now,
-          } satisfies AnnotationDistillationReviewMessage)
-        : undefined;
-      const completedReviewMessages: AnnotationDistillationReviewMessage[] = [];
-      for (const agent of activeAgents) {
-        const result = await requestAgentReviewRound({
-          agent,
-          articlePrompt: promptArticle(workingArticle, articlePlainText(workingArticle)),
-          annotation: workingAnnotation,
-          draft,
-          requestReviewStream: (payload, onEvent) =>
-            annotationWindowActions.requestAgentDistillationReviewStream(payload, onEvent),
-          reviewDraft: effectiveReviewDraft,
-          reviewMode: input?.reviewMode || 'review',
-          sessions: workingAnnotation.distillation?.reviewSessions || sessions,
-          uiLanguage,
-          userMessage,
-          onOptimisticSession: (session) => {
-            const optimisticNow = new Date().toISOString();
-            const nextAnnotation = annotationWithReviewSession({
-              annotation: workingAnnotation,
-              session,
-              now: optimisticNow,
-            });
-            const nextArticle = updateArticleAnnotation(
-              workingArticle,
-              workingAnnotation.id,
-              () => nextAnnotation,
-              optimisticNow,
-            );
-            workingAnnotation = nextAnnotation;
-            workingArticle = nextArticle;
-            onStatusChange({
-              type: 'ready',
-              agents,
-              article: nextArticle,
-              annotation: nextAnnotation,
-              uiLanguage,
-            });
-          },
-        });
-        workingAnnotation = result.annotation;
-        completedReviewMessages.push(result.message);
-        workingArticle = updateArticleAnnotation(
-          workingArticle,
-          workingAnnotation.id,
-          () => result.annotation,
-          new Date().toISOString(),
-        );
-      }
-      await saveAndRefresh(
-        workingArticle,
-        agents,
-        annotation.id,
-        annotation.distillation?.updatedAt ?? null,
-        uiLanguage,
-        onStatusChange,
-      );
-      const previewMessage = completedReviewMessages.find(
-        (message) => pendingReviewProposals(message.proposals || []).length > 0,
-      );
-      if (previewMessage && draftRef.current === draft) {
-        previewReviewProposals(previewMessage.id, previewMessage.proposals || [], {
-          showFailure: false,
-        });
-      }
-    } catch (error) {
-      const conflict = isDistillationConflict(error);
-      setReviewNotice(
-        conflict
-          ? distillationSaveErrorMessage(error)
-          : assistantRuntimeErrorMessage(error, 'sedimentation.reviewFailed'),
-      );
-      if (workingArticle !== article && !conflict) {
-        try {
-          await saveAndRefresh(
-            workingArticle,
-            agents,
-            annotation.id,
-            annotation.distillation?.updatedAt ?? null,
-            uiLanguage,
-            onStatusChange,
-          );
-        } catch {
-          setReviewNotice(assistantRuntimeErrorMessage(error, 'sedimentation.reviewFailed'));
-        }
-      }
-    } finally {
-      recordDistillationOperation(annotation.id, 'review', 'settled');
-      setActiveOperation(null);
-    }
-  }
-
-  const handlePublishKeyDown = useCompositionSubmit({
-    messageSendShortcut,
-    onSubmit: () => void publishDistillation(),
-  });
-  const handleReviewKeyDown = useCompositionSubmit({
-    messageSendShortcut,
-    onSubmit: () => void submitReviewRound(),
-  });
-
-  function organizeDiscussion() {
-    if (!canOrganize) return;
-    setOrganizeConfirmOpen(true);
-  }
-
-  function confirmOrganizeDiscussion() {
-    if (!canOrganize) return;
-    setOrganizeConfirmOpen(false);
-    void runOrganizeDiscussion();
-  }
-
-  async function runOrganizeDiscussion() {
-    const agent = activeAgents[0];
-    if (!agent || busy) return;
-    recordDistillationOperation(annotation.id, 'organize', 'started');
-    setActiveOperation('organize');
-    setAppliedOrganizeProposalIds(new Set());
-    setDismissedOrganizeProposalIds(new Set());
-    setReviewNotice('');
-    const now = new Date().toISOString();
-    const instruction = t('sedimentation.organizeDiscussionInstruction');
-    const session = existingSessionForAgent(sessions, agent) || createReviewSession(agent, now);
-    let workingMessage: AnnotationDistillationReviewMessage = {
-      id: makeId('distillation_review_message'),
-      author: annotationAgentAuthorRef(agent),
-      content: '',
-      createdAt: now,
-      status: 'pending',
-    };
-    const proposalSource = distillationProposalSource({
-      draft,
-      sessionId: session.id,
-      messageId: workingMessage.id,
-      agentId: agent.id,
-    });
-    const setMessage = (message: AnnotationDistillationReviewMessage) => {
-      workingMessage = message;
-      setOrganizeState({
-        type: message.status === 'failed' ? 'failed' : 'running',
-        agent,
-        message,
-      });
-    };
-    setOrganizeState({ type: 'running', agent, message: workingMessage });
-
-    try {
-      const finalMessage = await annotationWindowActions.requestAgentDistillationReviewStream(
-        {
-          agentId: agent.id,
-          agentUsername: agent.username,
-          uiLanguage,
-          reviewMessageId: workingMessage.id,
-          distillationReviewMode: 'organize_discussion',
-          ...distillationReviewPayloadFields(draft, instruction, session),
-          article: promptArticle(article, articlePlainText(article)),
-          annotation,
-          userComment: {
-            id: makeId('distillation_review_request'),
-            author: { kind: 'user', username: 'reader' },
-            content: instruction,
-            createdAt: now,
-          },
-        },
-        (event) => {
-          if (event.type === 'start') return;
-          if (event.type === 'progress') {
-            setMessage(
-              Object.assign({}, workingMessage, {
-                assistantProgress: applyAssistantRuntimeProgress(
-                  workingMessage.assistantProgress,
-                  event.progress,
-                ),
-              }),
-            );
-            return;
-          }
-          if (event.type === 'item') {
-            setMessage(
-              appendReviewItemToMessage(
-                workingMessage,
-                reviewItemWithProposalSource(event.item, proposalSource),
-              ),
-            );
-            return;
-          }
-          if (event.type !== 'delta') return;
-          setMessage(
-            Object.assign({}, workingMessage, {
-              content: `${workingMessage.content}${event.delta}`,
-            }),
-          );
-        },
-      );
-      const sourcedFinalMessage = reviewMessageWithProposalSource(finalMessage, proposalSource);
-      workingMessage = Object.assign({}, workingMessage, {
-        content: sourcedFinalMessage.content || workingMessage.content || '',
-        errorMessage: undefined,
-        items: sourcedFinalMessage.items || workingMessage.items || [],
-        proposals: sourcedFinalMessage.proposals || workingMessage.proposals || [],
-        status: 'done' as const,
-      });
-      setOrganizeState({ type: 'done', agent, message: workingMessage });
-      if (draftRef.current === draft) {
-        previewOrganizeProposals(workingMessage.proposals || [], { showFailure: false });
-      }
-    } catch (error) {
-      const errorMessage = assistantRuntimeErrorMessage(error, 'sedimentation.reviewFailed');
-      workingMessage = Object.assign({}, workingMessage, {
-        errorMessage,
-        status: 'failed' as const,
-      });
-      setOrganizeState({ type: 'failed', agent, message: workingMessage });
-    } finally {
-      recordDistillationOperation(annotation.id, 'organize', 'settled');
-      setActiveOperation(null);
-    }
-  }
-
-  function recordDraftSelection() {
-    const textarea = draftTextareaRef.current;
-    if (!textarea) return;
-    draftSelectionRef.current = {
-      start: textarea.selectionStart,
-      end: textarea.selectionEnd,
-    };
-  }
-
-  function handleDraftAnchorEnter(proposal: AnnotationDistillationProposal) {
-    if (pendingDraftPreview) return;
-    const result = planDistillationProposalDraftAnchor(draftRef.current, proposal);
-    setHoveredDraftAnchor(result.ok ? result : null);
-  }
-
-  function handleDraftAnchorLeave() {
-    setHoveredDraftAnchor(null);
-  }
-
-  function syncDraftPreviewScroll() {
-    const textarea = draftTextareaRef.current;
-    if (!textarea) return;
-    setDraftPreviewScroll({ left: textarea.scrollLeft, top: textarea.scrollTop });
-  }
-
-  async function handleProposalPreview(
-    messageId: string,
-    proposals: AnnotationDistillationProposal[],
-  ) {
-    previewReviewProposals(messageId, proposals, { showFailure: true });
-  }
-
-  function previewReviewProposals(
-    messageId: string,
-    proposals: AnnotationDistillationProposal[],
-    options: { showFailure: boolean },
-  ) {
-    const pendingProposals = pendingReviewProposals(proposals);
-    if (pendingProposals.length === 0) return false;
-    const selection = pendingProposals.length === 1 ? draftSelectionRef.current : null;
-    const result = planDistillationProposalChangeSet(draftRef.current, pendingProposals, selection);
-    if (!result.ok) {
-      if (options.showFailure) {
-        setReviewNotice(proposalApplyFailureMessage(result.reason));
-      }
-      return false;
-    }
-    setPendingDraftPreview({
-      source: 'review',
-      messageId,
-      proposals: pendingProposals,
-      changeSet: result.changeSet,
-      decisions: draftPreviewDecisionsForProposals(pendingProposals),
-    });
-    setReviewNotice(t('sedimentation.previewReady'));
-    focusDraftChangeSet(result.changeSet);
-    return true;
-  }
-
-  async function handleDraftPreviewDecision(
-    proposalId: string,
-    decision: Exclude<DraftPreviewDecision, 'pending'>,
-  ) {
-    const preview = pendingDraftPreview;
-    if (!preview || preview.decisions[proposalId] !== 'pending') return;
-    const nextDecisions: DraftPreviewDecisions = {
-      ...preview.decisions,
-      [proposalId]: decision,
-    };
-    if (hasPendingDraftPreviewDecisions(nextDecisions)) {
-      setPendingDraftPreview(Object.assign({}, preview, { decisions: nextDecisions }));
-      return;
-    }
-    await finalizeDraftPreview(preview, nextDecisions);
-  }
-
-  async function finalizeDraftPreview(
-    preview: PendingDraftPreview,
-    decisions: DraftPreviewDecisions,
-  ) {
-    const acceptedChanges = acceptedDraftPreviewChanges(preview.changeSet, decisions);
-    const nextDraft = draftPreviewDraft(preview.changeSet, decisions);
-    setDraft(nextDraft);
-    setPendingDraftPreview(null);
-
-    if (preview.source === 'review') {
-      await updateProposalStatusesById(
-        preview.messageId,
-        draftPreviewStatusesFromDecisions(decisions),
-      );
-      setReviewNotice('');
-    } else {
-      applyOrganizePreviewDecisions(decisions);
-      setOrganizeNotice(acceptedChanges.length > 0 ? t('sedimentation.organizeAddedToDraft') : '');
-    }
-
-    if (acceptedChanges[0]) {
-      focusDraftChange(acceptedChanges[0]);
-    } else {
-      focusDraftTextarea();
-    }
-  }
-
-  function applyOrganizePreviewDecisions(decisions: DraftPreviewDecisions) {
-    setAppliedOrganizeProposalIds((current) => {
-      return organizeProposalDecisionSets({
-        appliedProposalIds: current,
-        dismissedProposalIds: new Set(),
-        decisions,
-      }).appliedProposalIds;
-    });
-    setDismissedOrganizeProposalIds((current) => {
-      return organizeProposalDecisionSets({
-        appliedProposalIds: new Set(),
-        dismissedProposalIds: current,
-        decisions,
-      }).dismissedProposalIds;
-    });
-  }
-
-  async function handleProposalIgnore(messageId: string, proposalId: string) {
-    if (
-      pendingDraftPreview?.source === 'review' &&
-      pendingDraftPreview.proposals.some((proposal) => proposal.id === proposalId)
-    ) {
-      setPendingDraftPreview(null);
-    }
-    await updateProposalStatus(messageId, proposalId, 'ignored');
-    setReviewNotice('');
-  }
-
-  async function handleProposalRestore(messageId: string, proposalId: string) {
-    await updateProposalStatus(messageId, proposalId, 'pending');
-    setReviewNotice('');
-  }
-
-  function handleOrganizeProposalPreview(proposals: AnnotationDistillationProposal[]) {
-    previewOrganizeProposals(proposals, { showFailure: true });
-  }
-
-  function previewOrganizeProposals(
-    proposals: AnnotationDistillationProposal[],
-    options: { showFailure: boolean },
-  ) {
-    const pendingProposals = pendingOrganizeProposals(
-      proposals,
-      appliedOrganizeProposalIds,
-      dismissedOrganizeProposalIds,
-    );
-    if (pendingProposals.length === 0) return false;
-    const result = planDistillationProposalChangeSet(draftRef.current, pendingProposals, null);
-    if (!result.ok) {
-      if (options.showFailure) {
-        setOrganizeNotice(proposalApplyFailureMessage(result.reason));
-      }
-      return false;
-    }
-    setPendingDraftPreview({
-      source: 'organize',
-      proposals: pendingProposals,
-      changeSet: result.changeSet,
-      decisions: draftPreviewDecisionsForProposals(pendingProposals),
-    });
-    setOrganizeNotice(t('sedimentation.previewReady'));
-    focusDraftChangeSet(result.changeSet);
-    return true;
-  }
-
-  function focusDraftChangeSet(changeSet: DistillationProposalDraftChangeSet) {
-    focusDraftChange(changeSet.changes[0]);
-  }
-
-  function focusDraftChange(change: DistillationProposalDraftChange | undefined) {
-    if (!change) return;
-    requestAnimationFrame(() => {
-      const textarea = draftTextareaRef.current;
-      if (!textarea) return;
-      textarea.focus();
-      textarea.setSelectionRange(change.changeOffset, change.changeOffset + change.changeLength);
-      scrollTextareaToOffset(textarea, change.changeOffset);
-      syncDraftPreviewScroll();
-    });
-  }
-
-  function focusDraftTextarea() {
-    requestAnimationFrame(() => {
-      const textarea = draftTextareaRef.current;
-      if (!textarea) return;
-      textarea.focus();
-    });
-  }
-
-  function setOrganizeNotice(notice: string) {
-    setOrganizeState((current) =>
-      current.type === 'idle' ? current : Object.assign({}, current, { notice }),
-    );
-  }
-
-  async function updateProposalStatus(
-    messageId: string,
-    proposalId: string,
-    proposalStatus: AnnotationDistillationProposal['status'],
-  ) {
-    await updateProposalStatuses(messageId, [proposalId], proposalStatus);
-  }
-
-  async function updateProposalStatuses(
-    messageId: string,
-    proposalIds: string[],
-    proposalStatus: AnnotationDistillationProposal['status'],
-  ) {
-    await updateProposalStatusesById(
-      messageId,
-      Object.fromEntries(proposalIds.map((proposalId) => [proposalId, proposalStatus])) as Record<
-        string,
-        AnnotationDistillationProposal['status']
-      >,
-    );
-  }
-
-  async function updateProposalStatusesById(
-    messageId: string,
-    proposalStatusById: Record<string, AnnotationDistillationProposal['status']>,
-  ) {
-    const nextArticle = articleWithReviewProposalStatuses({
-      annotation,
-      article,
-      messageId,
-      now: new Date().toISOString(),
-      proposalStatusById,
-    });
-    await saveAndRefresh(
-      nextArticle,
-      agents,
-      annotation.id,
-      annotation.distillation?.updatedAt ?? null,
-      uiLanguage,
-      onStatusChange,
-    );
-  }
+  const publishLabel = publication.isPublished
+    ? t('sedimentation.updatePublish')
+    : t('sedimentation.publish');
 
   return (
     <ReaderTooltipProvider>
@@ -880,13 +180,13 @@ function SedimentationShell({
               <div className="annotation-sedimentation-document-title">
                 <strong>{t('sedimentation.draftTitle')}</strong>
                 <span
-                  className={`annotation-sedimentation-status is-${isPublished ? 'published' : 'draft'}`}
+                  className={`annotation-sedimentation-status is-${publication.isPublished ? 'published' : 'draft'}`}
                 >
                   {statusLabel}
                 </span>
               </div>
               <div className="annotation-sedimentation-document-actions">
-                {isPublished ? (
+                {publication.isPublished ? (
                   <ReaderTooltip
                     content={
                       <SedimentationActionTooltipContent
@@ -898,8 +198,8 @@ function SedimentationShell({
                     <button
                       className="is-secondary"
                       type="button"
-                      disabled={!canUnpublish}
-                      onClick={() => void unpublishDistillation()}
+                      disabled={!publication.canUnpublish}
+                      onClick={() => void publication.unpublish()}
                     >
                       <HugeiconsIcon icon={RotateLeft01Icon} size={15} />
                       <span>{t('sedimentation.unpublish')}</span>
@@ -917,8 +217,8 @@ function SedimentationShell({
                   <button
                     className="is-secondary"
                     type="button"
-                    disabled={!canOrganize}
-                    onClick={organizeDiscussion}
+                    disabled={!organize.canRun}
+                    onClick={organize.request}
                   >
                     <HugeiconsIcon icon={SparklesIcon} size={15} />
                     <span>{t('sedimentation.organizeDiscussion')}</span>
@@ -928,15 +228,15 @@ function SedimentationShell({
                   content={
                     <SubmitShortcutTooltipContent
                       label={publishLabel}
-                      shortcut={messageSendShortcut}
-                      shortcutModifier={shortcutModifier}
+                      shortcut={shortcut.messageSendShortcut}
+                      shortcutModifier={shortcut.shortcutModifier}
                     />
                   }
                 >
                   <button
                     type="button"
-                    disabled={!canPublish}
-                    onClick={() => void publishDistillation()}
+                    disabled={!publication.canPublish}
+                    onClick={() => void publication.publish()}
                   >
                     <HugeiconsIcon icon={CloudUploadIcon} size={15} />
                     <span>{publishLabel}</span>
@@ -948,60 +248,55 @@ function SedimentationShell({
               <div
                 className={[
                   'annotation-sedimentation-draft-editor',
-                  pendingDraftPreview ? 'has-preview' : '',
+                  draft.preview ? 'has-preview' : '',
                 ]
                   .filter(Boolean)
                   .join(' ')}
               >
-                {pendingDraftPreview ? (
+                {draft.preview ? (
                   <DraftChangePreviewLayer
-                    changeSet={pendingDraftPreview.changeSet}
-                    decisions={pendingDraftPreview.decisions}
-                    scrollLeft={draftPreviewScroll.left}
-                    scrollTop={draftPreviewScroll.top}
+                    changeSet={draft.preview.changeSet}
+                    decisions={draft.preview.decisions}
+                    scrollLeft={draft.scroll.left}
+                    scrollTop={draft.scroll.top}
                     onDecision={(proposalId, decision) =>
-                      void handleDraftPreviewDecision(proposalId, decision)
+                      void draft.decidePreview(proposalId, decision)
                     }
                   />
-                ) : hoveredDraftAnchor ? (
+                ) : draft.hoveredAnchor ? (
                   <DraftAnchorHighlightLayer
-                    anchor={hoveredDraftAnchor}
-                    draft={draft}
-                    scrollLeft={draftPreviewScroll.left}
-                    scrollTop={draftPreviewScroll.top}
+                    anchor={draft.hoveredAnchor}
+                    draft={draft.value}
+                    scrollLeft={draft.scroll.left}
+                    scrollTop={draft.scroll.top}
                   />
                 ) : null}
                 <textarea
-                  ref={draftTextareaRef}
-                  value={draft}
-                  readOnly={Boolean(pendingDraftPreview)}
-                  placeholder={pendingDraftPreview ? '' : t('sedimentation.draftPlaceholder')}
-                  onChange={(event) => {
-                    setHoveredDraftAnchor(null);
-                    setDraft(event.target.value);
-                    recordDraftSelection();
-                  }}
-                  onClick={recordDraftSelection}
-                  onKeyDown={handlePublishKeyDown}
-                  onKeyUp={recordDraftSelection}
-                  onScroll={syncDraftPreviewScroll}
-                  onSelect={recordDraftSelection}
+                  ref={draft.textareaRef}
+                  value={draft.value}
+                  readOnly={Boolean(draft.preview)}
+                  placeholder={draft.preview ? '' : t('sedimentation.draftPlaceholder')}
+                  onChange={(event) => draft.change(event.target.value)}
+                  onClick={draft.recordSelection}
+                  onKeyDown={draft.handlePublishKeyDown}
+                  onKeyUp={draft.recordSelection}
+                  onScroll={draft.syncScroll}
+                  onSelect={draft.recordSelection}
                 />
               </div>
-              {organizeState.type !== 'idle' ? (
+              {organize.state.type !== 'idle' ? (
                 <OrganizeDiscussionCard
-                  state={organizeState}
-                  appliedProposalIds={appliedOrganizeProposalIds}
-                  dismissedProposalIds={dismissedOrganizeProposalIds}
-                  pendingProposalIds={pendingDraftProposalIds(pendingDraftPreview, 'organize')}
-                  onProposalAnchorEnter={handleDraftAnchorEnter}
-                  onProposalAnchorLeave={handleDraftAnchorLeave}
-                  onPreviewProposals={handleOrganizeProposalPreview}
-                  onClose={() => {
-                    if (pendingDraftPreview?.source === 'organize') setPendingDraftPreview(null);
-                    setOrganizeState({ type: 'idle' });
+                  state={organize.state}
+                  appliedProposalIds={organize.appliedProposalIds}
+                  dismissedProposalIds={organize.dismissedProposalIds}
+                  pendingProposalIds={organize.pendingProposalIds}
+                  onProposalAnchorEnter={draft.enterProposalAnchor}
+                  onProposalAnchorLeave={draft.leaveProposalAnchor}
+                  onPreviewProposals={(proposals) => {
+                    organize.previewProposals(proposals);
                   }}
-                  onRetry={() => void runOrganizeDiscussion()}
+                  onClose={organize.close}
+                  onRetry={() => void organize.retry()}
                 />
               ) : null}
             </div>
@@ -1014,23 +309,24 @@ function SedimentationShell({
             <header>
               <div>
                 <strong>{t('sedimentation.reviewTitle')}</strong>
-                <span>{reviewNotice || t('sedimentation.reviewHint')}</span>
+                <span>{review.notice || t('sedimentation.reviewHint')}</span>
               </div>
             </header>
             <SedimentationReviewTimeline
-              agents={reviewAgents}
-              sessions={sessions}
+              agents={review.agents}
+              sessions={review.sessions}
               userProfile={userProfile}
-              pendingProposalIds={pendingDraftProposalIds(pendingDraftPreview, 'review')}
-              onProposalAnchorEnter={handleDraftAnchorEnter}
-              onProposalAnchorLeave={handleDraftAnchorLeave}
-              onProposalPreview={handleProposalPreview}
-              onProposalIgnore={handleProposalIgnore}
-              onProposalRestore={handleProposalRestore}
+              pendingProposalIds={review.pendingProposalIds}
+              onProposalAnchorEnter={draft.enterProposalAnchor}
+              onProposalAnchorLeave={draft.leaveProposalAnchor}
+              onProposalPreview={(messageId, proposals) => {
+                review.previewProposals(messageId, proposals);
+              }}
+              onProposalIgnore={review.ignoreProposal}
+              onProposalRestore={review.restoreProposal}
             />
             <footer>
               <FloatingComposer
-                ref={reviewTextareaRef}
                 className="annotation-sedimentation-review-composer"
                 accessory={
                   <div
@@ -1038,42 +334,42 @@ function SedimentationShell({
                     aria-label={t('sedimentation.reviewAgents')}
                   >
                     <AgentAvatarStack
-                      agents={reviewAgents}
-                      activeAgentIds={activeAgentId ? [activeAgentId] : []}
+                      agents={review.agents}
+                      activeAgentIds={review.activeAgentId ? [review.activeAgentId] : []}
                       ariaLabel={t('sedimentation.reviewAgents')}
-                      className={reviewing ? 'is-reviewing' : ''}
+                      className={review.reviewing ? 'is-reviewing' : ''}
                       revealLabelOnDoubleClick={false}
-                      onAgentClick={selectReviewAgent}
+                      onAgentClick={review.selectAgent}
                     />
                   </div>
                 }
-                submitDisabled={!canReview}
+                submitDisabled={!review.canSubmit}
                 submitIcon={<HugeiconsIcon icon={SentIcon} size={14} />}
                 submitLabel={t('sedimentation.send')}
                 submitTooltip={
                   <SubmitShortcutTooltipContent
                     label={t('sedimentation.sendReviewRequest')}
-                    shortcut={messageSendShortcut}
-                    shortcutModifier={shortcutModifier}
+                    shortcut={shortcut.messageSendShortcut}
+                    shortcutModifier={shortcut.shortcutModifier}
                   />
                 }
                 textarea={{
-                  value: reviewDraft,
+                  value: review.value,
                   placeholder: t('sedimentation.reviewPlaceholder'),
                   rows: 2,
-                  onChange: (event) => setReviewDraft(event.target.value),
-                  onKeyDown: handleReviewKeyDown,
+                  onChange: (event) => review.change(event.target.value),
+                  onKeyDown: review.handleKeyDown,
                 }}
-                onSubmit={() => void submitReviewRound()}
+                onSubmit={() => void review.submit()}
               />
             </footer>
           </aside>
         </section>
         <OrganizeDiscussionConfirmDialog
-          disabled={!canOrganize}
-          open={organizeConfirmOpen}
-          onCancel={() => setOrganizeConfirmOpen(false)}
-          onConfirm={confirmOrganizeDiscussion}
+          disabled={!organize.canRun}
+          open={organize.confirmOpen}
+          onCancel={organize.cancel}
+          onConfirm={organize.confirm}
         />
       </main>
     </ReaderTooltipProvider>
@@ -1120,89 +416,6 @@ function SedimentationEmptyState({
   );
 }
 
-async function saveAndRefresh(
-  nextArticle: ArticleRecord,
-  agents: Agent[],
-  annotationId: string,
-  expectedDistillationUpdatedAt: string | null,
-  uiLanguage: UiLanguage,
-  onStatusChange: (status: SedimentationWindowStatus) => void,
-): Promise<Annotation | null> {
-  const annotation = nextArticle.annotations.find((item) => item.id === annotationId);
-  if (!annotation) return null;
-  let nextFullArticle: ArticleRecord | null;
-  try {
-    nextFullArticle = await annotationWindowActions.saveDistillationAndReload({
-      articleId: nextArticle.id,
-      annotationId,
-      distillation: annotation.distillation,
-      expectedDistillationUpdatedAt,
-      updatedAt: annotation.updatedAt,
-    });
-  } catch (error) {
-    if (isDistillationConflict(error)) {
-      const currentArticle = await annotationWindowActions.loadArticle(nextArticle.id);
-      const currentAnnotation = currentArticle?.annotations.find(
-        (item) => item.id === annotationId,
-      );
-      if (currentArticle && currentAnnotation) {
-        onStatusChange({
-          type: 'ready',
-          agents,
-          article: currentArticle,
-          annotation: currentAnnotation,
-          uiLanguage,
-        });
-      }
-    }
-    throw error;
-  }
-  const nextAnnotation = nextFullArticle?.annotations.find((item) => item.id === annotationId);
-  if (!nextFullArticle || !nextAnnotation) return null;
-  onStatusChange({
-    type: 'ready',
-    agents,
-    article: nextFullArticle,
-    annotation: nextAnnotation,
-    uiLanguage,
-  });
-  return nextAnnotation;
-}
-
-function initialDistillationDraft(articleId: string, annotation: Annotation) {
-  const localDraft = window.localStorage.getItem(distillationDraftKey(articleId, annotation.id));
-  return localDraft ?? annotation.distillation?.content ?? '';
-}
-
-function distillationDraftKey(articleId: string, annotationId: string) {
-  return `annotation-distillation-draft:${articleId}:${annotationId}`;
-}
-
-function recordDistillationOperation(
-  annotationId: string,
-  operation: Exclude<DistillationOperation, null>,
-  phase: 'settled' | 'started',
-) {
-  recordRendererPerformanceTiming('annotation.distillation_operation', {
-    annotationId,
-    operation,
-    phase,
-  });
-}
-
-function isDistillationConflict(error: unknown) {
-  return (
-    isDesktopIpcErrorLike(error) &&
-    error.code === desktopIpcErrorCodes.annotationDistillationConflict
-  );
-}
-
-function distillationSaveErrorMessage(error: unknown) {
-  return isDistillationConflict(error)
-    ? i18next.t('sedimentation.saveConflict')
-    : i18next.t('common.saveFailed');
-}
-
 function sedimentationWindowClassName() {
   return [
     'annotation-sedimentation-window',
@@ -1234,13 +447,4 @@ function sedimentationUserProfile(annotation: Annotation, article: ArticleRecord
     annotationColor: author?.annotationColor || annotation.color,
     updatedAt: article.updatedAt,
   };
-}
-
-function scrollTextareaToOffset(textarea: HTMLTextAreaElement, offset: number) {
-  const text = textarea.value.slice(0, offset);
-  const linesBefore = text.split('\n').length - 1;
-  const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight) || 28;
-  const targetTop = linesBefore * lineHeight;
-  const visibleHeight = textarea.clientHeight;
-  textarea.scrollTop = Math.max(0, targetTop - visibleHeight / 3);
 }
