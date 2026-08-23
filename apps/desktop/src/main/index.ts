@@ -18,6 +18,7 @@ import {
 import { installDevProcessLifecycle } from './app/dev-process-lifecycle';
 import { installElectronSmokeProbe } from './app/electron-smoke-probe';
 import { initializeStartupStore, type StartupStoreInitializationResult } from './app/startup-store';
+import { startMainProcessRuntime, type MainProcessRuntime } from './app/main-process-runtime';
 import type { AppUpdateState } from '../app-update-types';
 import { isAppLockSettingsLocked, rendererStoreForAppLockState } from '../app-store';
 import type { DesktopStoreLoadErrorInfo } from '../app-store-errors';
@@ -46,12 +47,6 @@ import { registerWeReadIpc } from './ipc/ipc-weread';
 import { createRendererStateEventDispatcher } from './ipc/renderer-state-event-dispatcher';
 import { createRendererRoleRegistry } from './ipc/renderer-role-registry';
 import { configureDesktopIpcRendererRoles } from './ipc/ipc-sender-guard';
-import { modelPriceRefreshIntervalMs } from './providers/model-pricing-repository';
-import {
-  createDesktopTelemetryControllerForEnvironment,
-  type DesktopTelemetryController,
-} from './telemetry/desktop-telemetry';
-import { syncWeReadLibrary } from './weread/weread-sync';
 import { secureRendererWebPreferences } from './windows/renderer-window-security';
 import { installRendererNavigationGuard } from './windows/renderer-navigation';
 import { windowChromeOptions } from './windows/window-chrome';
@@ -64,31 +59,15 @@ let aiModulePromise: Promise<typeof import('@yomitomo/ai')> | null = null;
 let aiLoggerConfigured = false;
 let appUpdaterModulePromise: Promise<typeof import('./app/app-updater')> | null = null;
 let persistenceModulesPromise: Promise<DesktopPersistenceModules> | null = null;
-let modelPriceRefreshTimer: NodeJS.Timeout | null = null;
-let appUpdateCheckTimer: NodeJS.Timeout | null = null;
-let weReadAutoSyncStartupTimer: NodeJS.Timeout | null = null;
-let weReadAutoSyncIntervalTimer: NodeJS.Timeout | null = null;
-let weReadAutoSyncConfigureToken = 0;
-let weReadAutoSyncRunning = false;
-let desktopTelemetryController: DesktopTelemetryController | null = null;
+let mainProcessRuntime: MainProcessRuntime | null = null;
 let sensitiveRendererEventsLocked = false;
 const rendererRoleRegistry = createRendererRoleRegistry();
 const rendererStateEventDispatcher = createRendererStateEventDispatcher(rendererRoleRegistry);
 
 configureDesktopIpcRendererRoles(rendererRoleRegistry);
 
-const WEREAD_AUTO_SYNC_STARTUP_DELAY_MS = 5_000;
-const WEREAD_AUTO_SYNC_INTERVAL_MS = 30 * 60 * 1000;
-const APP_UPDATE_CHECK_STARTUP_DELAY_MS = 8_000;
-const DEFAULT_APP_UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const HOMEPAGE_URL = 'https://yomitomo.app';
 const FEEDBACK_URL = 'https://github.com/xingkaixin/yomitomo/issues';
-
-// 自动检查间隔默认 24h，YOMITOMO_UPDATE_CHECK_MS 可缩短间隔用于开发期验证。
-function appUpdateCheckIntervalMs() {
-  const raw = Number(process.env.YOMITOMO_UPDATE_CHECK_MS);
-  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_APP_UPDATE_CHECK_INTERVAL_MS;
-}
 
 configureDesktopAppStorage();
 installDevProcessLifecycle(logInfo);
@@ -204,134 +183,6 @@ async function runStartupChromiumCacheCleanup() {
   }
 }
 
-function scheduleModelPriceRefresh() {
-  const refresh = (reason: string) => {
-    const startedAt = performance.now();
-    void getPersistenceModules()
-      .then((modules) => modules.storeModelPricing.refreshModelPrices())
-      .then((result) => {
-        logInfo('model_pricing.refresh', {
-          reason,
-          refreshed: result.refreshed,
-          recordCount: result.recordCount,
-          resultReason: result.reason,
-          durationMs: elapsedMs(startedAt),
-        });
-      })
-      .catch((error) => {
-        logError('model_pricing.refresh_failed', error, { reason });
-      });
-  };
-  setTimeout(() => refresh('startup'), 5_000);
-  modelPriceRefreshTimer ||= setInterval(() => refresh('interval'), modelPriceRefreshIntervalMs());
-  modelPriceRefreshTimer.unref?.();
-}
-
-function scheduleAppUpdateCheck() {
-  const check = (reason: string) => {
-    void getAppUpdaterModule()
-      .then((module) => module.checkForAppUpdates('auto'))
-      .then((state) => {
-        logInfo('updater.auto_check', { reason, status: state.status });
-      })
-      .catch((error) => {
-        logError('updater.auto_check_failed', error, { reason });
-      });
-  };
-  setTimeout(() => check('startup'), APP_UPDATE_CHECK_STARTUP_DELAY_MS);
-  appUpdateCheckTimer ||= setInterval(() => check('interval'), appUpdateCheckIntervalMs());
-  appUpdateCheckTimer.unref?.();
-}
-
-function configureWeReadAutoSync(reason: string) {
-  const token = ++weReadAutoSyncConfigureToken;
-  clearWeReadAutoSyncTimers();
-  void getPersistenceModules()
-    .then(async (modules) => {
-      const settings = await modules.weReadRepository.readWeReadSettings();
-      if (token !== weReadAutoSyncConfigureToken) return;
-      if (!settings.configured || settings.syncMode !== 'auto') {
-        logInfo('weread.auto_sync.disabled', {
-          reason,
-          configured: settings.configured,
-          syncMode: settings.syncMode ?? 'manual',
-        });
-        return;
-      }
-
-      weReadAutoSyncStartupTimer = setTimeout(
-        () => void runWeReadAutoSync('startup'),
-        WEREAD_AUTO_SYNC_STARTUP_DELAY_MS,
-      );
-      weReadAutoSyncStartupTimer.unref?.();
-      weReadAutoSyncIntervalTimer = setInterval(
-        () => void runWeReadAutoSync('interval'),
-        WEREAD_AUTO_SYNC_INTERVAL_MS,
-      );
-      weReadAutoSyncIntervalTimer.unref?.();
-      logInfo('weread.auto_sync.scheduled', {
-        reason,
-        startupDelayMs: WEREAD_AUTO_SYNC_STARTUP_DELAY_MS,
-        intervalMs: WEREAD_AUTO_SYNC_INTERVAL_MS,
-      });
-    })
-    .catch((error) => {
-      logError('weread.auto_sync.configure_failed', error, { reason });
-    });
-}
-
-function clearWeReadAutoSyncTimers() {
-  if (weReadAutoSyncStartupTimer) {
-    clearTimeout(weReadAutoSyncStartupTimer);
-    weReadAutoSyncStartupTimer = null;
-  }
-  if (weReadAutoSyncIntervalTimer) {
-    clearInterval(weReadAutoSyncIntervalTimer);
-    weReadAutoSyncIntervalTimer = null;
-  }
-}
-
-async function runWeReadAutoSync(reason: string) {
-  if (weReadAutoSyncRunning) {
-    logInfo('weread.auto_sync.skipped', { reason, skippedReason: 'in_flight' });
-    return;
-  }
-
-  const startedAt = performance.now();
-  weReadAutoSyncRunning = true;
-  try {
-    const modules = await getPersistenceModules();
-    const settings = await modules.weReadRepository.readWeReadSettings();
-    if (!settings.configured || settings.syncMode !== 'auto') {
-      logInfo('weread.auto_sync.skipped', {
-        reason,
-        configured: settings.configured,
-        syncMode: settings.syncMode ?? 'manual',
-        skippedReason: 'disabled',
-      });
-      return;
-    }
-
-    const result = await syncWeReadLibrary({
-      persistence: modules.weReadRepository,
-      reason: `auto:${reason}`,
-      logInfo,
-      logError,
-      elapsedMs,
-    });
-    sendWeReadStateUpdated(result);
-    logInfo('weread.auto_sync.complete', {
-      reason,
-      bookCount: result.books.length,
-      durationMs: elapsedMs(startedAt),
-    });
-  } catch (error) {
-    logError('weread.auto_sync.failed', error, { reason, durationMs: elapsedMs(startedAt) });
-  } finally {
-    weReadAutoSyncRunning = false;
-  }
-}
-
 async function createWindow() {
   recordStartupTiming('window.create_start');
   const browserWindow = new BrowserWindow({
@@ -357,7 +208,7 @@ async function createWindow() {
     unregisterRendererStateTarget();
     if (mainWindow === browserWindow) mainWindow = null;
   });
-  browserWindow.on('focus', () => desktopTelemetryController?.check('focus'));
+  browserWindow.on('focus', () => mainProcessRuntime?.checkTelemetryFocus());
   browserWindow.webContents.once('dom-ready', () => {
     recordStartupTiming('renderer.dom_ready');
   });
@@ -400,15 +251,16 @@ void app.whenReady().then(async () => {
     recordStartupTiming,
     setSensitiveRendererEventsLocked,
   });
-  registerIpc(startupStoreInitialization);
-  scheduleModelPriceRefresh();
-  scheduleAppUpdateCheck();
-  configureWeReadAutoSync('startup');
-  desktopTelemetryController = createDesktopTelemetryControllerForEnvironment({
+  mainProcessRuntime = startMainProcessRuntime({
+    getPersistenceModules,
+    getAppUpdaterModule,
     getAppVersion: () => app.getVersion(),
+    sendWeReadStateUpdated,
+    elapsedMs,
     logInfo,
     logError,
   });
+  registerIpc(startupStoreInitialization);
   recordStartupTiming('ipc.registered');
   recordStartupTiming('updater.deferred');
   await runStartupChromiumCacheCleanup();
@@ -421,8 +273,8 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-  desktopTelemetryController?.dispose();
-  desktopTelemetryController = null;
+  mainProcessRuntime?.dispose();
+  mainProcessRuntime = null;
 });
 
 app.on('activate', () => {
@@ -447,7 +299,8 @@ function registerIpc(startupStoreInitialization: StartupStoreInitializationResul
     setSensitiveRendererEventsLocked,
     recordStartupTiming,
     recordPerformanceTiming,
-    configureWeReadAutoSync,
+    configureWeReadAutoSync: (reason: string) =>
+      mainProcessRuntime?.configureWeReadAutoSync(reason),
     storeLoadErrorInfo,
     elapsedMs,
     logInfo,
