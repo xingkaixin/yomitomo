@@ -102,7 +102,10 @@ export async function saveWeReadSettings(input: {
     await abortCredentialChange(credentialChange);
     throw error;
   }
-  await completeCredentialChange(credentialChange);
+  await completeCredentialChange(credentialChange, {
+    owner: 'weread',
+    ownerId: WEREAD_ACCOUNT_ID,
+  });
   return readWeReadState();
 }
 
