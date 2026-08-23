@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
 import i18next from 'i18next';
-import type { AgentReadingPlanItem, Annotation, PublicAgent } from '@yomitomo/shared';
+import type { Annotation, PublicAgent } from '@yomitomo/shared';
 import { isPdfTextAnchor } from '@yomitomo/shared';
 import type { PdfPageGeometry } from '@embedpdf/models';
 import { promptArticle } from '../bookcase/source-prompt-article';
@@ -13,9 +13,9 @@ import {
   pdfiumAnchorForReadingPlanStart,
   pdfiumMapReadingPlanAgentAnnotation,
   pdfiumMapTargetAgentAnnotation,
+  pdfiumPageGeometriesForReadingPlan,
   pdfiumPromptArticle,
 } from './pdfium-agent-plan';
-import type { PdfPageGeometryEntry } from './pdfium-geometry';
 import type { PdfTextDocument } from './pdfium-text-document';
 
 type PdfiumControllerPage = {
@@ -58,11 +58,6 @@ type PdfiumSourceReaderControllerOptions = {
   ) => Promise<PdfPageGeometry | null>;
   getPdfTextDocument: () => PdfTextDocument | null;
   isCurrentArticle: (articleId: string) => boolean;
-  pageGeometriesForReadingPlan: (
-    document: PdfiumControllerDocument,
-    textDocument: PdfTextDocument,
-    readingPlan: AgentReadingPlanItem[],
-  ) => Promise<Map<number, PdfPageGeometryEntry>>;
   setStatusMessage: Dispatch<SetStateAction<string>>;
   startAgentDock: (agent: PublicAgent) => void;
   startVirtualReading: (agent: PublicAgent, anchor: Annotation['anchor'] | undefined) => void;
@@ -83,7 +78,6 @@ export function createPdfiumSourceReaderController({
   getPageGeometry,
   getPdfTextDocument,
   isCurrentArticle,
-  pageGeometriesForReadingPlan,
   setStatusMessage,
   startAgentDock,
   startVirtualReading,
@@ -112,10 +106,11 @@ export function createPdfiumSourceReaderController({
           start: async (requestInput) => {
             const visibleArticle = context.visibleArticle !== false;
             if (visibleArticle) startAgentDock(agent);
-            const pageGeometryByIndex = await pageGeometriesForReadingPlan(
+            const pageGeometryByIndex = await pdfiumPageGeometriesForReadingPlan(
               document,
               textDocument,
               requestInput.readingPlan,
+              getPageGeometry,
             );
             if (visibleArticle) {
               startVirtualReading(

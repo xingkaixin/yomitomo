@@ -210,7 +210,6 @@ describe('source agent annotation controllers', () => {
       getPageGeometry: vi.fn(async () => null),
       getPdfTextDocument: () => null,
       isCurrentArticle: () => true,
-      pageGeometriesForReadingPlan: vi.fn(async () => new Map()),
       setStatusMessage: vi.fn(),
       startAgentDock: vi.fn(),
       startVirtualReading: vi.fn(),

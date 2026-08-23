@@ -15,6 +15,17 @@ import { promptArticle } from '../bookcase/source-prompt-article';
 import { pdfiumRectsForTextRange, type PdfPageGeometryEntry } from './pdfium-geometry';
 import type { PdfPageTextIndex, PdfTextDocument } from './pdfium-text-document';
 
+type PdfiumPlanPage = {
+  size: {
+    height: number;
+    width: number;
+  };
+};
+
+type PdfiumPlanDocument = {
+  pages: PdfiumPlanPage[];
+};
+
 export function pdfiumPromptArticle(
   article: ArticleRecord,
   anchor: Annotation['anchor'] | undefined,
@@ -134,6 +145,35 @@ export function pdfiumAnchorForReadingPlanStart(
     pageHeight: geometryEntry.height,
     rects,
   });
+}
+
+export async function pdfiumPageGeometriesForReadingPlan(
+  document: PdfiumPlanDocument,
+  textDocument: PdfTextDocument,
+  readingPlan: AgentReadingPlanItem[],
+  getPageGeometry: (
+    document: PdfiumPlanDocument,
+    page: PdfiumPlanPage,
+  ) => Promise<PdfPageGeometry | null>,
+) {
+  const pageIndexes = new Set<number>();
+  for (const item of readingPlan) {
+    for (const page of textDocument.pages) {
+      if (page.bodyEnd <= item.sectionStart || page.bodyStart >= item.sectionEnd) continue;
+      pageIndexes.add(page.pageIndex);
+    }
+  }
+
+  const entries = await Promise.all(
+    Array.from(pageIndexes).map(async (pageIndex) => {
+      const page = document.pages[pageIndex];
+      if (!page) return null;
+      const geometry = await getPageGeometry(document, page);
+      if (!geometry) return null;
+      return [pageIndex, { geometry, width: page.size.width, height: page.size.height }] as const;
+    }),
+  );
+  return new Map(entries.filter((entry): entry is NonNullable<typeof entry> => Boolean(entry)));
 }
 
 export function pdfiumReadingPlanStartRange(item: AgentReadingPlanItem, page: PdfPageTextIndex) {
