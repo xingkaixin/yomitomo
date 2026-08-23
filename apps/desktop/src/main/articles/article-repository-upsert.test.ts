@@ -1,22 +1,15 @@
+import SQLiteDatabase from 'better-sqlite3';
 import { eq } from 'drizzle-orm';
-import { describe, expect, it, vi } from 'vitest';
-import type { Annotation, Comment, ReadingMemoryEntry } from '@yomitomo/shared';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { afterEach, describe, expect, it } from 'vitest';
+import type { Annotation, Comment } from '@yomitomo/shared';
+import { migrations } from '../db/migrations';
 import * as schema from '../db/schema';
 import type { StoreDatabase } from '../store/store-db';
-
-const memoryState = vi.hoisted(() => ({
-  entries: [] as ReadingMemoryEntry[],
-}));
-
-vi.mock('../reading-memory/reading-memory-store', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../reading-memory/reading-memory-store')>();
-  return {
-    ...original,
-    upsertReadingMemoryEntries: (entries: ReadingMemoryEntry[]) => {
-      memoryState.entries.push(...entries);
-    },
-  };
-});
+import {
+  readReadingMemoryEntries,
+  type ReadingMemorySqliteExecutor,
+} from '../reading-memory/reading-memory-store';
 
 import {
   mergeAgentAnnotationRows,
@@ -26,15 +19,22 @@ import {
 } from './article-annotation-upsert';
 import { readArticleRows } from './article-row-queries';
 
+const openDatabases: SQLiteDatabase.Database[] = [];
+
 describe('article repository local child row writes', () => {
+  afterEach(() => {
+    for (const database of openDatabases) database.close();
+    openDatabases.length = 0;
+  });
+
   it('upserts one annotation without replacing sibling annotations', () => {
-    const database = repositoryDatabase();
+    const { database, memory } = repositoryDatabase();
     const target = annotation({
       id: 'annotation_1',
       comments: [comment({ id: 'comment_1', content: 'first local memory' })],
       updatedAt: '2026-06-04T01:00:00.000Z',
     });
-    upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, fakeExecutor());
+    upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, memory);
 
     const patch = upsertAnnotationRows(
       database,
@@ -47,7 +47,7 @@ describe('article repository local child row writes', () => {
           updatedAt: '2026-06-04T02:00:00.000Z',
         },
       },
-      fakeExecutor(),
+      memory,
     );
 
     const article = readArticleRows(database, 'article_1');
@@ -68,11 +68,13 @@ describe('article repository local child row writes', () => {
     expect(article?.annotations.find((item) => item.id === 'annotation_1')?.comments).toEqual([
       expect.objectContaining({ id: 'comment_1', content: 'updated local memory' }),
     ]);
-    expect(memoryState.entries.map((entry) => entry.id)).toContain('comment_memory_comment_1');
+    expect(readReadingMemoryEntries({ articleId: 'article_1', executor: memory })).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'comment_memory_comment_1' })]),
+    );
   });
 
   it('upserts one comment without replacing sibling comments', () => {
-    const database = repositoryDatabase();
+    const { database, memory } = repositoryDatabase();
     upsertAnnotationRows(
       database,
       {
@@ -85,7 +87,7 @@ describe('article repository local child row writes', () => {
           ],
         },
       },
-      fakeExecutor(),
+      memory,
     );
 
     const patch = upsertCommentRows(
@@ -96,7 +98,7 @@ describe('article repository local child row writes', () => {
         comment: comment({ id: 'comment_2', content: 'updated comment memory' }),
         updatedAt: '2026-06-04T03:00:00.000Z',
       },
-      fakeExecutor(),
+      memory,
     );
 
     const comments = readArticleRows(database, 'article_1')?.annotations.find(
@@ -115,16 +117,18 @@ describe('article repository local child row writes', () => {
       expect.objectContaining({ id: 'comment_1', content: 'keep this comment' }),
       expect.objectContaining({ id: 'comment_2', content: 'updated comment memory' }),
     ]);
-    expect(memoryState.entries.map((entry) => entry.id)).toContain('comment_memory_comment_2');
+    expect(readReadingMemoryEntries({ articleId: 'article_1', executor: memory })).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'comment_memory_comment_2' })]),
+    );
   });
 
   it('updates only distillation fields without replacing concurrent comments', () => {
-    const database = repositoryDatabase();
+    const { database, memory } = repositoryDatabase();
     const target = annotation({
       id: 'annotation_1',
       comments: [comment({ id: 'comment_1', content: 'existing comment' })],
     });
-    upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, fakeExecutor());
+    upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, memory);
     upsertCommentRows(
       database,
       {
@@ -132,7 +136,7 @@ describe('article repository local child row writes', () => {
         annotationId: target.id,
         comment: comment({ id: 'comment_2', content: 'concurrent comment' }),
       },
-      fakeExecutor(),
+      memory,
     );
 
     const patch = saveAnnotationDistillationRows(database, {
@@ -218,9 +222,9 @@ describe('article repository local child row writes', () => {
   });
 
   it('rejects a distillation write based on a stale version', () => {
-    const database = repositoryDatabase();
+    const { database, memory } = repositoryDatabase();
     const target = annotation({ id: 'annotation_1' });
-    upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, fakeExecutor());
+    upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, memory);
 
     saveAnnotationDistillationRows(database, {
       articleId: 'article_1',
@@ -254,7 +258,7 @@ describe('article repository local child row writes', () => {
   });
 
   it('merges agent thoughts against the persisted annotation', () => {
-    const database = repositoryDatabase();
+    const { database, memory } = repositoryDatabase();
     const targetAnchor = { start: 20, end: 24, exact: '另一目标句子', prefix: '', suffix: '' };
     const target = annotation({
       id: 'annotation_1',
@@ -262,7 +266,7 @@ describe('article repository local child row writes', () => {
       comments: [comment({ id: 'comment_1', content: 'existing comment' })],
       distillation: { status: 'published', content: 'keep distillation' },
     });
-    upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, fakeExecutor());
+    upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, memory);
     const agentComment = comment({
       id: 'comment_2',
       author: { kind: 'agent', agentId: 'agent_1', username: 'assistant' },
@@ -282,7 +286,7 @@ describe('article repository local child row writes', () => {
           updatedAt: agentComment.createdAt,
         }),
       },
-      fakeExecutor(),
+      memory,
     );
 
     const saved = readArticleRows(database, 'article_1')?.annotations.find(
@@ -295,7 +299,7 @@ describe('article repository local child row writes', () => {
   });
 
   it('does not move child rows across articles when ids are mismatched', () => {
-    const database = repositoryDatabase();
+    const { database, memory } = repositoryDatabase();
     upsertAnnotationRows(
       database,
       {
@@ -305,7 +309,7 @@ describe('article repository local child row writes', () => {
           comments: [comment({ id: 'comment_1', content: 'article one comment' })],
         }),
       },
-      fakeExecutor(),
+      memory,
     );
 
     const annotationPatch = upsertAnnotationRows(
@@ -314,7 +318,7 @@ describe('article repository local child row writes', () => {
         articleId: 'article_2',
         annotation: annotation({ id: 'annotation_1', comments: [] }),
       },
-      fakeExecutor(),
+      memory,
     );
     const commentPatch = upsertCommentRows(
       database,
@@ -323,7 +327,7 @@ describe('article repository local child row writes', () => {
         annotationId: 'annotation_1',
         comment: comment({ id: 'comment_2', content: 'wrong article comment' }),
       },
-      fakeExecutor(),
+      memory,
     );
 
     expect(annotationPatch).toBeNull();
@@ -335,30 +339,26 @@ describe('article repository local child row writes', () => {
   });
 });
 
-type Rows = {
-  articles: ArticleRow[];
-  annotations: AnnotationRow[];
-  comments: CommentRow[];
-  agents: AgentRow[];
-  users: UserProfileRow[];
-};
 type ArticleRow = typeof schema.articles.$inferSelect;
-type AnnotationRow = typeof schema.annotations.$inferSelect;
-type CommentRow = typeof schema.comments.$inferSelect;
-type AgentRow = typeof schema.agents.$inferSelect;
 type UserProfileRow = typeof schema.userProfiles.$inferSelect;
-type QueryCondition = { queryChunks?: unknown[] } | undefined;
 
-function repositoryDatabase(): StoreDatabase {
-  memoryState.entries = [];
-  const rows: Rows = {
-    articles: [articleRow('article_1'), articleRow('article_2')],
-    annotations: [],
-    comments: [],
-    agents: [],
-    users: [userProfileRow()],
-  };
-  const database = new FakeStoreDatabase(rows) as unknown as StoreDatabase;
+function repositoryDatabase(): {
+  database: StoreDatabase;
+  memory: ReadingMemorySqliteExecutor;
+} {
+  const sqlite = new SQLiteDatabase(':memory:');
+  openDatabases.push(sqlite);
+  sqlite.pragma('foreign_keys = ON');
+  for (const migration of migrations) sqlite.exec(migration.sql);
+
+  const database: StoreDatabase = drizzle(sqlite, { schema });
+  database
+    .insert(schema.articles)
+    .values([articleRow('article_1'), articleRow('article_2')])
+    .run();
+  database.insert(schema.userProfiles).values(userProfileRow()).run();
+
+  const memory = readingMemoryExecutor(sqlite);
   upsertAnnotationRows(
     database,
     {
@@ -368,323 +368,23 @@ function repositoryDatabase(): StoreDatabase {
         comments: [comment({ id: 'sibling_comment', content: 'sibling comment memory' })],
       }),
     },
-    fakeExecutor(),
+    memory,
   );
-  memoryState.entries = [];
-  return database;
+  return { database, memory };
 }
 
-function fakeExecutor() {
-  return {} as Parameters<typeof upsertAnnotationRows>[2];
-}
-
-class FakeStoreDatabase {
-  constructor(private readonly rows: Rows) {}
-
-  transaction(run: (tx: FakeStoreDatabase) => unknown) {
-    return run(this);
-  }
-
-  select(selection?: unknown) {
-    return new FakeSelect(this.rows, selection);
-  }
-
-  insert(table: unknown) {
-    return new FakeInsert(this.rows, table);
-  }
-
-  update(table: unknown) {
-    return new FakeUpdate(this.rows, table);
-  }
-
-  delete(table: unknown) {
-    return new FakeDelete(this.rows, table);
-  }
-}
-
-class FakeSelect {
-  private table: unknown;
-  private condition: QueryCondition;
-  private grouped = false;
-
-  constructor(
-    private readonly rows: Rows,
-    private readonly selection?: unknown,
-  ) {}
-
-  from(table: unknown) {
-    this.table = table;
-    return this;
-  }
-
-  innerJoin() {
-    return this;
-  }
-
-  where(condition: QueryCondition) {
-    this.condition = condition;
-    return this;
-  }
-
-  groupBy() {
-    this.grouped = true;
-    return this;
-  }
-
-  limit() {
-    return this;
-  }
-
-  orderBy() {
-    return this;
-  }
-
-  all() {
-    if (this.table === schema.annotations) {
-      const articleIds = conditionValues(this.condition);
-      if (this.grouped && hasSelectionKey(this.selection, 'annotationCount')) {
-        return countAnnotationSummaries(this.rows, articleIds);
-      }
-      if (this.grouped) return countAnnotations(this.rows, articleIds, this.condition);
-      return this.rows.annotations.filter(
-        (row) => articleIds.size === 0 || articleIds.has(row.articleId),
-      );
-    }
-    if (this.table === schema.comments) {
-      const values = conditionValues(this.condition);
-      if (this.grouped && hasSelectionKey(this.selection, 'thoughtCount')) {
-        return countCommentSummaries(this.rows, values);
-      }
-      if (this.grouped) return countRootComments(this.rows, values);
-      return this.rows.comments.filter((row) => values.size === 0 || values.has(row.annotationId));
-    }
-    if (this.table === schema.agents) {
-      const values = conditionValues(this.condition);
-      return this.rows.agents.filter((row) => values.size === 0 || values.has(row.id));
-    }
-    if (this.table === schema.userProfiles) {
-      const values = conditionValues(this.condition);
-      return this.rows.users.filter((row) => values.size === 0 || values.has(row.id));
-    }
-    return this.rows.articles;
-  }
-
-  get() {
-    const ids = conditionValues(this.condition);
-    if (this.table === schema.annotations) {
-      return this.rows.annotations.find((row) => ids.has(row.id)) || null;
-    }
-    if (this.table === schema.userProfiles) {
-      return this.rows.users.find((row) => ids.size === 0 || ids.has(row.id)) || null;
-    }
-    if (this.table !== schema.articles) return undefined;
-    return this.rows.articles.find((article) => ids.has(article.id)) || null;
-  }
-}
-
-class FakeInsert {
-  private valuesInput: unknown;
-  private conflictSet: unknown;
-
-  constructor(
-    private readonly rows: Rows,
-    private readonly table: unknown,
-  ) {}
-
-  values(input: unknown) {
-    this.valuesInput = input;
-    return this;
-  }
-
-  onConflictDoUpdate(input: { set: unknown }) {
-    this.conflictSet = input.set;
-    return this;
-  }
-
-  run() {
-    for (const row of Array.isArray(this.valuesInput) ? this.valuesInput : [this.valuesInput]) {
-      this.upsertRow(row);
-    }
-  }
-
-  private upsertRow(row: unknown) {
-    if (this.table === schema.annotations) {
-      upsertById(
-        this.rows.annotations,
-        row as AnnotationRow,
-        this.conflictSet as Partial<AnnotationRow>,
-      );
-    }
-    if (this.table === schema.comments) {
-      upsertById(this.rows.comments, row as CommentRow, this.conflictSet as Partial<CommentRow>);
-    }
-  }
-}
-
-class FakeUpdate {
-  private patch: Partial<ArticleRow & AnnotationRow> = {};
-
-  constructor(
-    private readonly rows: Rows,
-    private readonly table: unknown,
-  ) {}
-
-  set(patch: Partial<ArticleRow & AnnotationRow>) {
-    this.patch = patch;
-    return this;
-  }
-
-  where(condition: QueryCondition) {
-    const ids = conditionValues(condition);
-    if (this.table === schema.articles) {
-      for (const row of this.rows.articles) {
-        if (ids.has(row.id)) Object.assign(row, this.patch);
-      }
-    }
-    if (this.table === schema.annotations) {
-      for (const row of this.rows.annotations) {
-        if (ids.has(row.id)) Object.assign(row, this.patch);
-      }
-    }
-    return { run: () => undefined };
-  }
-}
-
-class FakeDelete {
-  constructor(
-    private readonly rows: Rows,
-    private readonly table: unknown,
-  ) {}
-
-  where(condition: QueryCondition) {
-    const ids = conditionValues(condition);
-    if (this.table === schema.comments) {
-      this.rows.comments = this.rows.comments.filter((row) => !ids.has(row.annotationId));
-    }
-    if (this.table === schema.annotations) {
-      this.rows.annotations = this.rows.annotations.filter((row) => !ids.has(row.articleId));
-      this.rows.comments = this.rows.comments.filter((row) =>
-        this.rows.annotations.some((annotationRow) => annotationRow.id === row.annotationId),
-      );
-    }
-    return { run: () => undefined };
-  }
-}
-
-function upsertById<T extends { id: string }>(rows: T[], row: T, conflictSet: Partial<T>) {
-  const index = rows.findIndex((item) => item.id === row.id);
-  if (index === -1) rows.push(row);
-  else rows[index] = { ...rows[index], ...conflictSet };
-}
-
-function countRootComments(rows: Rows, articleIds: Set<string>) {
-  const articleByAnnotation = new Map(rows.annotations.map((row) => [row.id, row.articleId]));
-  const counts = new Map<string, number>();
-  for (const commentRow of rows.comments) {
-    if (commentRow.replyTo) continue;
-    const articleId = articleByAnnotation.get(commentRow.annotationId);
-    if (!articleId || (articleIds.size > 0 && !articleIds.has(articleId))) continue;
-    counts.set(articleId, (counts.get(articleId) || 0) + 1);
-  }
-  return Array.from(counts.entries()).map(([articleId, count]) => ({ articleId, count }));
-}
-
-function countCommentSummaries(rows: Rows, articleIds: Set<string>) {
-  const articleByAnnotation = new Map(rows.annotations.map((row) => [row.id, row.articleId]));
-  const annotationById = new Map(rows.annotations.map((row) => [row.id, row]));
-  const counts = new Map<
-    string,
-    { thoughtCount: number; discussionCommentCount: number; aiCommentCount: number }
-  >();
-  const primaryAnnotationsByArticle = new Map<string, Set<string>>();
-  for (const commentRow of rows.comments) {
-    const articleId = articleByAnnotation.get(commentRow.annotationId);
-    if (!articleId || (articleIds.size > 0 && !articleIds.has(articleId))) continue;
-    const annotationRow = annotationById.get(commentRow.annotationId);
-    const count = counts.get(articleId) || {
-      thoughtCount: 0,
-      discussionCommentCount: 0,
-      aiCommentCount: 0,
-    };
-    if (!commentRow.replyTo) count.thoughtCount += 1;
-    count.discussionCommentCount += 1;
-    if (
-      annotationRow &&
-      commentRow.author === annotationRow.author &&
-      commentRow.createdAt === annotationRow.createdAt
-    ) {
-      const primaryAnnotations = primaryAnnotationsByArticle.get(articleId) || new Set<string>();
-      primaryAnnotations.add(annotationRow.id);
-      primaryAnnotationsByArticle.set(articleId, primaryAnnotations);
-    }
-    if (commentRow.author === 'ai') count.aiCommentCount += 1;
-    counts.set(articleId, count);
-  }
-  return Array.from(counts.entries()).map(([articleId, count]) => ({
-    articleId,
-    thoughtCount: count.thoughtCount,
-    discussionCommentCount:
-      count.discussionCommentCount - (primaryAnnotationsByArticle.get(articleId)?.size || 0),
-    aiCommentCount: count.aiCommentCount,
-  }));
-}
-
-function countAnnotations(rows: Rows, articleIds: Set<string>, condition: QueryCondition) {
-  const publishedOnly = conditionValues(condition).has('published');
-  const counts = new Map<string, number>();
-  for (const annotationRow of rows.annotations) {
-    if (articleIds.size > 0 && !articleIds.has(annotationRow.articleId)) continue;
-    if (publishedOnly && annotationRow.distillationStatus !== 'published') continue;
-    counts.set(annotationRow.articleId, (counts.get(annotationRow.articleId) || 0) + 1);
-  }
-  return Array.from(counts.entries()).map(([articleId, count]) => ({ articleId, count }));
-}
-
-function countAnnotationSummaries(rows: Rows, articleIds: Set<string>) {
-  const counts = new Map<string, { annotationCount: number; distillationCount: number }>();
-  for (const annotationRow of rows.annotations) {
-    if (articleIds.size > 0 && !articleIds.has(annotationRow.articleId)) continue;
-    const count = counts.get(annotationRow.articleId) || {
-      annotationCount: 0,
-      distillationCount: 0,
-    };
-    count.annotationCount += 1;
-    if (annotationRow.distillationStatus === 'published') count.distillationCount += 1;
-    counts.set(annotationRow.articleId, count);
-  }
-  return Array.from(counts.entries()).map(([articleId, count]) =>
-    Object.assign({ articleId }, count),
-  );
-}
-
-function hasSelectionKey(selection: unknown, key: string) {
-  return Boolean(
-    selection &&
-    typeof selection === 'object' &&
-    Object.prototype.hasOwnProperty.call(selection, key),
-  );
-}
-
-function conditionValues(condition: QueryCondition) {
-  const values = new Set<string>();
-  collectConditionValues(condition, values);
-  return values;
-}
-
-function collectConditionValues(input: unknown, values: Set<string>) {
-  if (!input || typeof input !== 'object') return;
-  const value = (input as { value?: unknown }).value;
-  if (typeof value === 'string') values.add(value);
-  const chunks = (input as { queryChunks?: unknown[] }).queryChunks;
-  if (Array.isArray(chunks)) {
-    for (const chunk of chunks) {
-      if (Array.isArray(chunk)) {
-        for (const item of chunk) collectConditionValues(item, values);
-      } else {
-        collectConditionValues(chunk, values);
-      }
-    }
-  }
+function readingMemoryExecutor(database: SQLiteDatabase.Database): ReadingMemorySqliteExecutor {
+  return {
+    exec: (sql) => database.exec(sql),
+    prepare: (sql) => {
+      const statement = database.prepare(sql);
+      return {
+        run: (...values) => statement.run(...values),
+        get: (...values) => statement.get(...values),
+        all: (...values) => statement.all(...values),
+      };
+    },
+  };
 }
 
 function articleRow(id: string): ArticleRow {
