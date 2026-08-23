@@ -10,6 +10,7 @@ import {
 } from '@yomitomo/core';
 import { promptArticle } from '../source/bookcase/source-prompt-article';
 import { applyAssistantRuntimeProgress } from '../shell/app-assistant-runtime-progress';
+import { createStreamDeltaFrame } from '../lib/stream-delta-frame';
 import type { AnnotationWindowActions } from './app-annotation-window-actions';
 
 export type RunSourceAgentThoughtLifecycle = {
@@ -79,16 +80,7 @@ export async function runSourceAgentThoughtRequest({
     readingIntent,
   };
   let pendingCommentId = placeholderComment.id;
-  let pendingDelta = '';
-  let pendingFrame = 0;
-  let streamedContent = '';
-
-  const flushDelta = () => {
-    pendingFrame = 0;
-    if (!pendingDelta || !pendingCommentId) return;
-    const delta = pendingDelta;
-    pendingDelta = '';
-    streamedContent += delta;
+  const stream = createStreamDeltaFrame((delta) => {
     const nextAnnotations = updateAnnotationComment(
       annotationsRef.current,
       annotation.id,
@@ -96,11 +88,7 @@ export async function runSourceAgentThoughtRequest({
       (comment) => ({ ...comment, content: comment.content + delta }),
     );
     if (nextAnnotations) applyAnnotations(nextAnnotations);
-  };
-  const scheduleDeltaFlush = () => {
-    if (pendingFrame) return;
-    pendingFrame = window.requestAnimationFrame(flushDelta);
-  };
+  });
 
   try {
     const finalComment = await desktop.requestAgentCommentStream(
@@ -149,20 +137,16 @@ export async function runSourceAgentThoughtRequest({
           if (nextAnnotations) applyAnnotations(nextAnnotations);
           return;
         }
-        pendingDelta += event.delta;
-        scheduleDeltaFlush();
+        stream.append(event.delta);
       },
     );
 
-    if (pendingFrame) {
-      window.cancelAnimationFrame(pendingFrame);
-      flushDelta();
-    }
+    stream.flush();
     const completedComment = {
       ...localizedAgentComment(agent, finalComment),
       id: pendingCommentId,
       replyTo: undefined,
-      content: finalComment.content || streamedContent,
+      content: finalComment.content || stream.streamedContent,
       assistantProgress:
         finalComment.assistantProgress ||
         annotationsRef.current
@@ -182,10 +166,7 @@ export async function runSourceAgentThoughtRequest({
     }
     lifecycle?.onComplete?.();
   } catch (error) {
-    if (pendingFrame) {
-      window.cancelAnimationFrame(pendingFrame);
-      pendingFrame = 0;
-    }
+    stream.cancel();
     const nextAnnotations = deleteAnnotationComment(
       annotationsRef.current,
       annotation.id,
@@ -195,7 +176,7 @@ export async function runSourceAgentThoughtRequest({
     lifecycle?.onError?.();
     throw error;
   } finally {
-    if (pendingFrame) window.cancelAnimationFrame(pendingFrame);
+    stream.cancel();
     setStatusMessage('');
   }
 }

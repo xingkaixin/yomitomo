@@ -19,6 +19,7 @@ import {
   applyAssistantRuntimeProgress,
   assistantRuntimeErrorMessage,
 } from '../../shell/app-assistant-runtime-progress';
+import { createStreamDeltaFrame } from '../../lib/stream-delta-frame';
 import type { YomitomoDesktopApi } from '../../../../preload';
 
 type RunSourceAgentCommentRequestInput = {
@@ -64,16 +65,9 @@ export async function runSourceAgentCommentRequest({
   );
   const replyTargetId = reviewTargetCommentId || userComment.replyTo || userComment.id;
   let pendingCommentId = '';
-  let pendingDelta = '';
-  let pendingFrame = 0;
   let pendingComment: AnnotationComment | null = null;
-  let streamedContent = '';
-  const flushDelta = () => {
-    pendingFrame = 0;
-    if (!pendingDelta || !pendingCommentId) return;
-    const delta = pendingDelta;
-    pendingDelta = '';
-    streamedContent += delta;
+  const stream = createStreamDeltaFrame((delta, streamedContent) => {
+    if (!pendingCommentId) return;
     const nextAnnotations = updateAnnotationComment(
       annotationsRef.current,
       annotation.id,
@@ -98,11 +92,7 @@ export async function runSourceAgentCommentRequest({
       pendingComment.createdAt,
     );
     if (restoredAnnotations) applyAnnotations(restoredAnnotations);
-  };
-  const scheduleDeltaFlush = () => {
-    if (pendingFrame) return;
-    pendingFrame = window.requestAnimationFrame(flushDelta);
-  };
+  });
   const saveFailedReply = async (error: unknown) => {
     const message = assistantRuntimeErrorMessage(error, 'discussion.replyFailed');
     console.warn('[agent-comment] assistant reply failed', {
@@ -113,10 +103,7 @@ export async function runSourceAgentCommentRequest({
       message,
       error,
     });
-    if (pendingFrame) {
-      window.cancelAnimationFrame(pendingFrame);
-      flushDelta();
-    }
+    stream.flush();
 
     const currentComment = currentAnnotationComment(
       annotationsRef.current,
@@ -131,7 +118,7 @@ export async function runSourceAgentCommentRequest({
         content: '',
         createdAt: new Date().toISOString(),
       }),
-      content: failedReplyContent(baseComment?.content || streamedContent, message),
+      content: failedReplyContent(baseComment?.content || stream.streamedContent, message),
       replyTo: replyTargetId,
       pending: false,
       readingIntent:
@@ -236,18 +223,14 @@ export async function runSourceAgentCommentRequest({
             return;
           }
 
-          pendingDelta += event.delta;
-          scheduleDeltaFlush();
+          stream.append(event.delta);
         },
       );
     } catch (error) {
       await saveFailedReply(error);
       return;
     }
-    if (pendingFrame) {
-      window.cancelAnimationFrame(pendingFrame);
-      flushDelta();
-    }
+    stream.flush();
     const completedComment = {
       ...localizedAgentComment(agent, finalComment),
       id: finalComment.id || pendingCommentId,
@@ -266,7 +249,7 @@ export async function runSourceAgentCommentRequest({
       await saveComment(annotation.id, completedComment);
     }
   } finally {
-    if (pendingFrame) window.cancelAnimationFrame(pendingFrame);
+    stream.cancel();
     setStatusMessage('');
   }
 }
