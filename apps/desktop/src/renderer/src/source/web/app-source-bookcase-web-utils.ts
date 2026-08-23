@@ -1,7 +1,7 @@
 import i18next from 'i18next';
 import type { Annotation, ArticleRecord } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
-import { sanitizeArticleContentHtml } from '@yomitomo/core/article-extraction';
+import { sanitizeArticleContentHtml } from '@yomitomo/core/article-content-html';
 import {
   annotationNavigationForInsertionIndex,
   annotationNavigationForReferenceIndex,

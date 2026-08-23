@@ -1,7 +1,7 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { BulbIcon } from '@hugeicons/core-free-icons';
 import React from 'react';
-import { renderSafeMarkdown } from '@yomitomo/core/article-extraction';
+import { renderSafeMarkdown } from '@yomitomo/core/safe-markdown';
 import { AvatarBadge } from '../shared/reader-component-primitives';
 import { formatTime } from '../reader-date-utils';
 import type { ReaderUiLabels } from '../shell/reader-app-view-types';

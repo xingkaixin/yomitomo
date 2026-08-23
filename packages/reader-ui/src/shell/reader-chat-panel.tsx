@@ -1,7 +1,7 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { MessageQuestionIcon, MinusSignIcon, SentIcon } from '@hugeicons/core-free-icons';
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { renderSafeMarkdown } from '@yomitomo/core/article-extraction';
+import { renderSafeMarkdown } from '@yomitomo/core/safe-markdown';
 import type {
   MessageSendShortcut,
   PublicAgent,

@@ -5,8 +5,6 @@ import {
   articlePreviewFromExtractedArticle,
   extractCurrentArticle,
   fallbackCurrentArticle,
-  renderMarkdown,
-  sanitizeArticleContentHtml,
 } from './article-extraction';
 
 vi.mock('defuddle', () => ({
@@ -32,21 +30,6 @@ afterEach(() => {
 });
 
 describe('article extraction', () => {
-  it('escapes inline html while rendering simple markdown', () => {
-    const html = renderMarkdown('Hello **world** <script>alert(1)</script>');
-
-    expect(html).toContain('<strong>world</strong>');
-    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
-  });
-
-  it('keeps unsafe markdown links as escaped text', () => {
-    const html = renderMarkdown('[click](javascript:alert(1)) [mail](mailto:test@example.com)');
-
-    expect(html).toContain('click');
-    expect(html).not.toContain('javascript:alert');
-    expect(html).toContain('href="mailto:test@example.com"');
-  });
-
   it('normalizes fallback article html and canonical url', () => {
     document.title = '页面标题';
     document.head.innerHTML = `
@@ -125,33 +108,5 @@ describe('article extraction', () => {
       readingMinutes: 1,
       readerActive: false,
     });
-  });
-
-  it('sanitizes reader html with a narrow URI allowlist', () => {
-    const html = sanitizeArticleContentHtml(
-      document,
-      `
-        <p>正文</p>
-        <a href="https://example.com/safe">https</a>
-        <a href="/relative/path">relative</a>
-        <a href="mailto:hello@example.com">mailto</a>
-        <a href="data:text/html,<script>alert(1)</script>">data html</a>
-        <img src="data:image/png;base64,abc" />
-        <img srcset="javascript:alert(1) 1x, /safe.jpg 2x" />
-        <form><button formaction="javascript:alert(1)">bad form</button></form>
-        <svg><use xlink:href="javascript:alert(1)"></use></svg>
-      `,
-      'https://example.com/articles/story',
-    );
-
-    expect(html).toContain('href="https://example.com/safe"');
-    expect(html).toContain('href="/relative/path"');
-    expect(html).toContain('src="data:image/png;base64,abc"');
-    expect(html).not.toContain('srcset=');
-    expect(html).not.toContain('mailto:');
-    expect(html).not.toContain('data:text/html');
-    expect(html).not.toContain('javascript:');
-    expect(html).not.toContain('formaction');
-    expect(html).not.toContain('xlink:href');
   });
 });

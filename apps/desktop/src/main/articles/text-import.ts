@@ -1,4 +1,5 @@
-import { renderMarkdown, sanitizeArticleContent } from '@yomitomo/core/article-extraction';
+import { sanitizeArticleContent } from '@yomitomo/core/article-content-html';
+import { renderMarkdown } from '@yomitomo/core/safe-markdown';
 import { hashText, type TextSourceFormat } from '@yomitomo/shared';
 
 export type TextDecodeResult =
