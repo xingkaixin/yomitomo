@@ -30,6 +30,11 @@ export type AnnotationPersona = {
   color: string;
 };
 
+export type AnnotationCommentThread = {
+  root: Comment;
+  replies: Comment[];
+};
+
 type AnnotationAgentIdentity = Pick<
   PublicAgent,
   'id' | 'username' | 'nickname' | 'avatar' | 'annotationColor'
@@ -106,6 +111,82 @@ export function annotationThreadComments(annotation: Annotation): Comment[] {
 
 export function annotationThoughtComments(annotation: Annotation): Comment[] {
   return annotation.comments.filter((comment) => !comment.replyTo);
+}
+
+export function annotationCommentThreads(comments: Comment[]): AnnotationCommentThread[] {
+  const commentsById = new Map(comments.map((comment) => [comment.id, comment]));
+  const commentIndex = new Map(comments.map((comment, index) => [comment.id, index]));
+  const rootByCommentId = new Map<string, string>();
+
+  const resolveRootId = (comment: Comment) => {
+    const resolved = rootByCommentId.get(comment.id);
+    if (resolved) return resolved;
+
+    const path: Comment[] = [];
+    const pathIndex = new Map<string, number>();
+    let current = comment;
+    let rootId: string;
+
+    while (true) {
+      const knownRootId = rootByCommentId.get(current.id);
+      if (knownRootId) {
+        rootId = knownRootId;
+        break;
+      }
+
+      const cycleStart = pathIndex.get(current.id);
+      if (cycleStart !== undefined) {
+        rootId = path
+          .slice(cycleStart)
+          .toSorted(
+            (left, right) =>
+              (commentIndex.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
+              (commentIndex.get(right.id) ?? Number.MAX_SAFE_INTEGER),
+          )[0].id;
+        break;
+      }
+
+      pathIndex.set(current.id, path.length);
+      path.push(current);
+      if (!current.replyTo) {
+        rootId = current.id;
+        break;
+      }
+
+      const parent = commentsById.get(current.replyTo);
+      if (!parent) {
+        rootId = current.id;
+        break;
+      }
+      current = parent;
+    }
+
+    for (const item of path) rootByCommentId.set(item.id, rootId);
+    return rootId;
+  };
+
+  const rootIds = Array.from(new Set(comments.map(resolveRootId))).toSorted(
+    (left, right) =>
+      (commentIndex.get(left) ?? Number.MAX_SAFE_INTEGER) -
+      (commentIndex.get(right) ?? Number.MAX_SAFE_INTEGER),
+  );
+  const threadsByRootId = new Map(
+    rootIds.flatMap((rootId) => {
+      const root = commentsById.get(rootId);
+      return root ? [[rootId, { root, replies: [] as Comment[] }] as const] : [];
+    }),
+  );
+
+  for (const comment of comments) {
+    const rootId = rootByCommentId.get(comment.id);
+    if (!rootId || rootId === comment.id) continue;
+    threadsByRootId.get(rootId)?.replies.push(comment);
+  }
+
+  return rootIds.flatMap((rootId) => {
+    const thread = threadsByRootId.get(rootId);
+    return thread ? [thread] : [];
+  });
 }
 
 export function appendAnnotationComment(
