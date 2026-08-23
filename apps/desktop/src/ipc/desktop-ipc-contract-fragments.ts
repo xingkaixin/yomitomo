@@ -1,12 +1,7 @@
 import type {
-  Agent,
-  AgentMentionInstructionPayload,
   AgentMentionRoutePlan,
-  AgentReviewPayload,
-  AppSettings,
   ArticleDeletePatch,
   ArticleReaderChatStatePatch,
-  ArticleReadingProgress,
   ArticleReadingProgressPatch,
   ArticleRecord,
   ArticleSummaryRecord,
@@ -18,47 +13,30 @@ import type {
   DesktopStore,
   LibraryPin,
   LibraryPinPatch,
-  LlmProvider,
   ProviderModel,
-  UiLanguage,
   UserFacingReleaseNote,
-  UserProfile,
   WeReadBookDetail,
   WeReadReadingStatsState,
   WeReadSettings,
   WeReadSyncResult,
 } from '@yomitomo/shared';
 import type { DesktopStoreGetResult } from '../app-store-errors';
-import type { AppUpdateState, AppUpdateTrigger } from '../app-update-types';
+import type { AppUpdateState } from '../app-update-types';
 import { annotationAndMain, desktopIpcInvoke, mainOnly } from './desktop-ipc-descriptor';
 import type { DesktopIpcSchemaArgs } from './desktop-ipc-schema-fragments';
 import type {
   AgentRuntimeTraceEntry,
-  AgentRuntimeTraceListInput,
   AgentStorePatch,
-  AnnotationDiscussionWindowOpenInput,
   AnnotationDiscussionWindowOpenResult,
-  AnnotationDiscussionWindowsCloseArticleInput,
   AnnotationDiscussionWindowsCloseArticleResult,
-  AnnotationSedimentationCommitInput,
   AnnotationSedimentationCommitResult,
-  AnnotationSedimentationWindowOpenInput,
   AnnotationSedimentationWindowOpenResult,
   AppInfo,
   AppLockStatus,
   AppLockVerifyPinResult,
-  ArticleAnnotationDeleteInput,
-  ArticleAnnotationDistillationSaveInput,
-  ArticleAnnotationUpsertInput,
-  ArticleAgentAnnotationMergeInput,
   ArticleAgentAnnotationMergeResult,
-  ArticleCommentDeleteInput,
-  ArticleCommentUpsertInput,
   ArticleImportResult,
-  ArticleLibraryListInput,
   ArticleLibraryListResult,
-  ArticleReaderChatStateSaveInput,
-  AssistantExecutionQueryInput,
   AssistantExecutionRunDetail,
   AssistantExecutionRunListItem,
   AssistantExecutionSummary,
@@ -69,8 +47,6 @@ import type {
   DistillationLibraryListResult,
   TextImportPrepareResult,
   TextImportCommitResult,
-  PerformanceTimingInput,
-  LibraryCatalogListInput,
   LibraryCatalogListResult,
   ProviderTestResult,
   ProviderStorePatch,
@@ -79,28 +55,28 @@ import type {
 } from './desktop-ipc-domain';
 
 export const agentIpcInvokeDescriptors = {
-  'agent:delete': desktopIpcInvoke<[id: string], AgentStorePatch>()({
+  'agent:delete': desktopIpcInvoke<DesktopIpcSchemaArgs<'agent:delete'>, AgentStorePatch>()({
     route: ['agent', 'delete'],
     roles: mainOnly,
-    validation: { exempt: 'handler-owned' },
+    validation: 'schema',
   }),
   'agent:mention-route': desktopIpcInvoke<
-    [payload: AgentMentionInstructionPayload],
+    DesktopIpcSchemaArgs<'agent:mention-route'>,
     AgentMentionRoutePlan
   >()({
     route: ['agent', 'planMentionRoute'],
     roles: annotationAndMain,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
-  'agent:review': desktopIpcInvoke<[payload: AgentReviewPayload], Comment[]>()({
+  'agent:review': desktopIpcInvoke<DesktopIpcSchemaArgs<'agent:review'>, Comment[]>()({
     route: ['agent', 'review'],
     roles: mainOnly,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
-  'agent:save': desktopIpcInvoke<[agent: Partial<Agent>], AgentStorePatch>()({
+  'agent:save': desktopIpcInvoke<DesktopIpcSchemaArgs<'agent:save'>, AgentStorePatch>()({
     route: ['agent', 'save'],
     roles: mainOnly,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
   'agent-trace:clear': desktopIpcInvoke<[], void>()({
     route: ['diagnostics', 'agentTraces', 'clear'],
@@ -108,12 +84,12 @@ export const agentIpcInvokeDescriptors = {
     validation: { exempt: 'no-args' },
   }),
   'agent-trace:list': desktopIpcInvoke<
-    [input?: AgentRuntimeTraceListInput],
+    DesktopIpcSchemaArgs<'agent-trace:list'>,
     AgentRuntimeTraceEntry[]
   >()({
     route: ['diagnostics', 'agentTraces', 'list'],
     roles: mainOnly,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
   'agent-trace:path': desktopIpcInvoke<[], string>()({
     route: ['diagnostics', 'agentTraces', 'getPath'],
@@ -121,63 +97,63 @@ export const agentIpcInvokeDescriptors = {
     validation: { exempt: 'no-args' },
   }),
   'assistant-executions:list': desktopIpcInvoke<
-    [input: AssistantExecutionQueryInput],
+    DesktopIpcSchemaArgs<'assistant-executions:list'>,
     AssistantExecutionRunListItem[]
   >()({
     route: ['diagnostics', 'assistantExecutions', 'list'],
     roles: mainOnly,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
   'assistant-executions:detail': desktopIpcInvoke<
-    [id: string],
+    DesktopIpcSchemaArgs<'assistant-executions:detail'>,
     AssistantExecutionRunDetail | null
   >()({
     route: ['diagnostics', 'assistantExecutions', 'getDetail'],
     roles: mainOnly,
-    validation: { exempt: 'handler-owned' },
+    validation: 'schema',
   }),
   'assistant-executions:summary': desktopIpcInvoke<
-    [input: AssistantExecutionQueryInput],
+    DesktopIpcSchemaArgs<'assistant-executions:summary'>,
     AssistantExecutionSummary
   >()({
     route: ['diagnostics', 'assistantExecutions', 'summarize'],
     roles: mainOnly,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
 } as const;
 
 export const annotationWindowIpcInvokeDescriptors = {
   'annotation-discussion:open': desktopIpcInvoke<
-    [input: AnnotationDiscussionWindowOpenInput],
+    DesktopIpcSchemaArgs<'annotation-discussion:open'>,
     AnnotationDiscussionWindowOpenResult
   >()({
     route: ['annotations', 'discussion', 'open'],
     roles: mainOnly,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
   'annotation-discussion:close-article': desktopIpcInvoke<
-    [input: AnnotationDiscussionWindowsCloseArticleInput],
+    DesktopIpcSchemaArgs<'annotation-discussion:close-article'>,
     AnnotationDiscussionWindowsCloseArticleResult
   >()({
     route: ['annotations', 'discussion', 'closeArticle'],
     roles: mainOnly,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
   'annotation-sedimentation:open': desktopIpcInvoke<
-    [input: AnnotationSedimentationWindowOpenInput],
+    DesktopIpcSchemaArgs<'annotation-sedimentation:open'>,
     AnnotationSedimentationWindowOpenResult
   >()({
     route: ['annotations', 'sedimentation', 'open'],
     roles: annotationAndMain,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
   'annotation-sedimentation:commit': desktopIpcInvoke<
-    [input: AnnotationSedimentationCommitInput],
+    DesktopIpcSchemaArgs<'annotation-sedimentation:commit'>,
     AnnotationSedimentationCommitResult
   >()({
     route: ['annotations', 'sedimentation', 'commit'],
     roles: annotationAndMain,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
 } as const;
 
@@ -193,16 +169,16 @@ export const appIpcInvokeDescriptors = {
     roles: mainOnly,
     validation: { exempt: 'no-args' },
   }),
-  'performance:timing': desktopIpcInvoke<[input: PerformanceTimingInput], void>()({
+  'performance:timing': desktopIpcInvoke<DesktopIpcSchemaArgs<'performance:timing'>, void>()({
     route: ['diagnostics', 'recordPerformanceTiming'],
     roles: annotationAndMain,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
     appLockBypass: true,
   }),
-  'url:open': desktopIpcInvoke<[url: string], void>()({
+  'url:open': desktopIpcInvoke<DesktopIpcSchemaArgs<'url:open'>, void>()({
     route: ['app', 'openUrl'],
     roles: annotationAndMain,
-    validation: { exempt: 'handler-owned' },
+    validation: 'schema',
   }),
 } as const;
 
@@ -256,73 +232,76 @@ export const appLockIpcInvokeDescriptors = {
 } as const;
 
 export const articleIpcInvokeDescriptors = {
-  'article:delete': desktopIpcInvoke<[id: string], ArticleDeletePatch>()({
+  'article:delete': desktopIpcInvoke<DesktopIpcSchemaArgs<'article:delete'>, ArticleDeletePatch>()({
     route: ['article', 'delete'],
     roles: mainOnly,
-    validation: { exempt: 'handler-owned' },
+    validation: 'schema',
   }),
   'article:delete-annotation': desktopIpcInvoke<
-    [input: ArticleAnnotationDeleteInput],
+    DesktopIpcSchemaArgs<'article:delete-annotation'>,
     ArticleUpsertPatch | null
   >()({
     route: ['article', 'deleteAnnotation'],
     roles: mainOnly,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
   'article:delete-comment': desktopIpcInvoke<
-    [input: ArticleCommentDeleteInput],
+    DesktopIpcSchemaArgs<'article:delete-comment'>,
     ArticleUpsertPatch | null
   >()({
     route: ['article', 'deleteComment'],
     roles: annotationAndMain,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
   'article:merge-agent-annotation': desktopIpcInvoke<
-    [input: ArticleAgentAnnotationMergeInput],
+    DesktopIpcSchemaArgs<'article:merge-agent-annotation'>,
     ArticleAgentAnnotationMergeResult | null
   >()({
     route: ['article', 'mergeAgentAnnotation'],
     roles: mainOnly,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
   'article:save-annotation': desktopIpcInvoke<
-    [input: ArticleAnnotationUpsertInput],
+    DesktopIpcSchemaArgs<'article:save-annotation'>,
     ArticleUpsertPatch | null
   >()({
     route: ['article', 'saveAnnotation'],
     roles: mainOnly,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
   'article:save-annotation-distillation': desktopIpcInvoke<
-    [input: ArticleAnnotationDistillationSaveInput],
+    DesktopIpcSchemaArgs<'article:save-annotation-distillation'>,
     ArticleUpsertPatch | null
   >()({
     route: ['article', 'saveAnnotationDistillation'],
     roles: annotationAndMain,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
   'article:save-comment': desktopIpcInvoke<
-    [input: ArticleCommentUpsertInput],
+    DesktopIpcSchemaArgs<'article:save-comment'>,
     ArticleUpsertPatch | null
   >()({
     route: ['article', 'saveComment'],
     roles: annotationAndMain,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
-  'article:get': desktopIpcInvoke<[id: string], ArticleRecord | null>()({
+  'article:get': desktopIpcInvoke<DesktopIpcSchemaArgs<'article:get'>, ArticleRecord | null>()({
     route: ['article', 'get'],
     roles: annotationAndMain,
-    validation: { exempt: 'handler-owned' },
+    validation: 'schema',
   }),
-  'article:get-cover': desktopIpcInvoke<[id: string], string>()({
+  'article:get-cover': desktopIpcInvoke<DesktopIpcSchemaArgs<'article:get-cover'>, string>()({
     route: ['article', 'getCover'],
     roles: mainOnly,
-    validation: { exempt: 'handler-owned' },
+    validation: 'schema',
   }),
-  'article:get-site-icon': desktopIpcInvoke<[id: string], string>()({
+  'article:get-site-icon': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'article:get-site-icon'>,
+    string
+  >()({
     route: ['article', 'getSiteIcon'],
     roles: mainOnly,
-    validation: { exempt: 'handler-owned' },
+    validation: 'schema',
   }),
   'article:import-url': desktopIpcInvoke<
     DesktopIpcSchemaArgs<'article:import-url'>,
@@ -341,12 +320,12 @@ export const articleIpcInvokeDescriptors = {
     validation: 'schema',
   }),
   'article:list-library': desktopIpcInvoke<
-    [input: ArticleLibraryListInput],
+    DesktopIpcSchemaArgs<'article:list-library'>,
     ArticleLibraryListResult
   >()({
     route: ['article', 'listLibrary'],
     roles: mainOnly,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
   'article:stats-summaries': desktopIpcInvoke<[], ArticleSummaryRecord[]>()({
     route: ['article', 'readStatsSummaries'],
@@ -354,20 +333,20 @@ export const articleIpcInvokeDescriptors = {
     validation: { exempt: 'no-args' },
   }),
   'article:reading-progress': desktopIpcInvoke<
-    [input: { articleId: string; progress: ArticleReadingProgress }],
+    DesktopIpcSchemaArgs<'article:reading-progress'>,
     ArticleReadingProgressPatch
   >()({
     route: ['article', 'saveReadingProgress'],
     roles: mainOnly,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
   'article:reader-chat-state': desktopIpcInvoke<
-    [input: ArticleReaderChatStateSaveInput],
+    DesktopIpcSchemaArgs<'article:reader-chat-state'>,
     ArticleReaderChatStatePatch
   >()({
     route: ['article', 'saveReaderChatState'],
     roles: mainOnly,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
   'article-translation:get-current': desktopIpcInvoke<
     DesktopIpcSchemaArgs<'article-translation:get-current'>,
@@ -492,12 +471,12 @@ export const libraryCollectionIpcInvokeDescriptors = {
     validation: 'schema',
   }),
   'library-catalog:list': desktopIpcInvoke<
-    [input: LibraryCatalogListInput],
+    DesktopIpcSchemaArgs<'library-catalog:list'>,
     LibraryCatalogListResult
   >()({
     route: ['library', 'catalog', 'list'],
     roles: mainOnly,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
   'library-collection:list': desktopIpcInvoke<[], CollectionWithMembers[]>()({
     route: ['library', 'collections', 'list'],
@@ -557,43 +536,49 @@ export const libraryCollectionIpcInvokeDescriptors = {
 } as const;
 
 export const providerIpcInvokeDescriptors = {
-  'provider:delete': desktopIpcInvoke<[id: string], ProviderStorePatch>()({
-    route: ['provider', 'delete'],
-    roles: mainOnly,
-    validation: { exempt: 'handler-owned' },
-  }),
-  'provider:list-models': desktopIpcInvoke<[provider: Partial<LlmProvider>], ProviderModel[]>()({
-    route: ['provider', 'listModels'],
-    roles: mainOnly,
-    validation: { exempt: 'domain-payload' },
-  }),
-  'provider:read-api-key': desktopIpcInvoke<[providerId: string], string>()({
-    route: ['provider', 'readApiKey'],
-    roles: mainOnly,
-    validation: { exempt: 'handler-owned' },
-  }),
-  'provider:save': desktopIpcInvoke<
-    [provider: Partial<LlmProvider> & { removeApiKey?: boolean }],
+  'provider:delete': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'provider:delete'>,
     ProviderStorePatch
   >()({
+    route: ['provider', 'delete'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'provider:list-models': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'provider:list-models'>,
+    ProviderModel[]
+  >()({
+    route: ['provider', 'listModels'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'provider:read-api-key': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'provider:read-api-key'>,
+    string
+  >()({
+    route: ['provider', 'readApiKey'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'provider:save': desktopIpcInvoke<DesktopIpcSchemaArgs<'provider:save'>, ProviderStorePatch>()({
     route: ['provider', 'save'],
     roles: mainOnly,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
-  'provider:test': desktopIpcInvoke<[provider: Partial<LlmProvider>], ProviderTestResult>()({
+  'provider:test': desktopIpcInvoke<DesktopIpcSchemaArgs<'provider:test'>, ProviderTestResult>()({
     route: ['provider', 'test'],
     roles: mainOnly,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
-  'settings:save': desktopIpcInvoke<[settings: AppSettings], DesktopStore>()({
+  'settings:save': desktopIpcInvoke<DesktopIpcSchemaArgs<'settings:save'>, DesktopStore>()({
     route: ['store', 'saveSettings'],
     roles: mainOnly,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
-  'user:save': desktopIpcInvoke<[user: Partial<UserProfile>], UserStorePatch>()({
+  'user:save': desktopIpcInvoke<DesktopIpcSchemaArgs<'user:save'>, UserStorePatch>()({
     route: ['store', 'saveUser'],
     roles: mainOnly,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
 } as const;
 
@@ -627,18 +612,21 @@ export const updateIpcInvokeDescriptors = {
     roles: mainOnly,
     validation: { exempt: 'no-args' },
   }),
-  'updates:simulate-available': desktopIpcInvoke<[trigger?: AppUpdateTrigger], AppUpdateState>()({
+  'updates:simulate-available': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'updates:simulate-available'>,
+    AppUpdateState
+  >()({
     route: ['updates', 'simulateAvailable'],
     roles: mainOnly,
-    validation: { exempt: 'handler-owned' },
+    validation: 'schema',
   }),
   'release-notes:get': desktopIpcInvoke<
-    [input: { version: string; source: 'local' | 'remote'; language?: UiLanguage }],
+    DesktopIpcSchemaArgs<'release-notes:get'>,
     UserFacingReleaseNote | null
   >()({
     route: ['updates', 'getReleaseNote'],
     roles: mainOnly,
-    validation: { exempt: 'domain-payload' },
+    validation: 'schema',
   }),
 } as const;
 

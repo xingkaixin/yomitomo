@@ -72,13 +72,8 @@ export type ArticleAnnotationUpsertInput = {
   updatedAt?: string;
 };
 
-export type ArticleAnnotationDistillationSaveInput = {
-  articleId: string;
-  annotationId: string;
-  distillation: Annotation['distillation'];
-  expectedDistillationUpdatedAt: string | null;
-  updatedAt?: string;
-};
+export type ArticleAnnotationDistillationSaveInput =
+  DesktopIpcSchemaArgs<'article:save-annotation-distillation'>[0];
 
 export type ArticleAgentAnnotationMergeInput = {
   articleId: string;
@@ -249,12 +244,8 @@ export type AnnotationSedimentationWindowOpenResult = {
 
 export type AnnotationDistillationCommitTransition = 'publish' | 'update' | 'unpublish';
 
-export type AnnotationSedimentationCommitInput = {
-  articleId: string;
-  annotationId: string;
-  distillation: Annotation['distillation'];
-  transition: AnnotationDistillationCommitTransition;
-};
+export type AnnotationSedimentationCommitInput =
+  DesktopIpcSchemaArgs<'annotation-sedimentation:commit'>[0];
 
 export type AnnotationSedimentationCommitResult = {
   closed: number;

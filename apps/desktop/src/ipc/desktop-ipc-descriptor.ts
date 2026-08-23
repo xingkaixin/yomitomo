@@ -1,6 +1,6 @@
 export type RendererRole = 'annotation' | 'main';
 
-export type DesktopIpcValidationExemption = 'domain-payload' | 'handler-owned' | 'no-args';
+export type DesktopIpcValidationExemption = 'no-args';
 
 export type DesktopIpcValidationPolicy = 'schema' | { exempt: DesktopIpcValidationExemption };
 

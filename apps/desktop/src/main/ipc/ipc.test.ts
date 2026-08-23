@@ -157,7 +157,7 @@ describe('handleDesktopIpc', () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
-  it('keeps explicitly exempt args unchanged', async () => {
+  it('accepts valid custom-scheme URLs', async () => {
     const handler = vi.fn(async () => undefined);
     handleDesktopIpc('url:open', handler);
 
@@ -167,9 +167,42 @@ describe('handleDesktopIpc', () => {
     expect(handler).toHaveBeenCalledWith({}, 'custom-scheme:value');
   });
 
+  it('rejects malformed settings before invoking the handler', async () => {
+    const handler = vi.fn();
+    handleDesktopIpc('settings:save', handler);
+
+    const envelope = await invokeRegisteredHandler('settings:save', {
+      soundEffectsVolume: 2,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      error: { code: desktopIpcErrorCodes.invalidArgs, detail: { channel: 'settings:save' } },
+    });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('rejects incomplete domain payloads before invoking the handler', async () => {
+    const handler = vi.fn();
+    handleDesktopIpc('article:delete-annotation', handler);
+
+    const envelope = await invokeRegisteredHandler('article:delete-annotation', {
+      articleId: 'article_1',
+    });
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      error: {
+        code: desktopIpcErrorCodes.invalidArgs,
+        detail: { channel: 'article:delete-annotation' },
+      },
+    });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
   it('derives schema channels from the invoke schema registry', () => {
     expect(desktopIpcInvokeSchemaChannels).toContain('article:import-url');
-    expect(desktopIpcInvokeSchemaChannels).not.toContain('settings:save');
+    expect(desktopIpcInvokeSchemaChannels).toContain('settings:save');
   });
 
   it('reports every missing declared handler in stable order', () => {

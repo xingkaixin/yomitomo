@@ -53,7 +53,7 @@ describe('desktop IPC event contract', () => {
   it('keeps schema declarations exact to descriptor validation', () => {
     expectTypeOf<DesktopIpcDeclaredSchemaChannel>().toEqualTypeOf<DesktopIpcSchemaChannel>();
     expectTypeOf<'article:import-url'>().toMatchTypeOf<DesktopIpcDeclaredSchemaChannel>();
-    expectTypeOf<'settings:save'>().not.toMatchTypeOf<DesktopIpcDeclaredSchemaChannel>();
+    expectTypeOf<'settings:save'>().toMatchTypeOf<DesktopIpcDeclaredSchemaChannel>();
   });
 
   it('derives static event channels and payload tuples', () => {
