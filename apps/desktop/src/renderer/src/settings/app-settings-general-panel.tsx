@@ -49,6 +49,7 @@ const appLockShortcutKeys = [getShortcutModifier(), 'L'];
 const translationLanguageOptions = [
   { value: 'zh-CN', labelKey: 'settings.general.translationLanguageZh' },
   { value: 'en', labelKey: 'settings.general.translationLanguageEn' },
+  { value: 'ja', labelKey: 'settings.general.translationLanguageJa' },
 ] as const;
 
 const translationStyleOptions = [
@@ -229,6 +230,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<AppSettings> }
             options={[
               { label: t('settings.general.languageZh'), value: 'zh-CN' },
               { label: t('settings.general.languageEn'), value: 'en' },
+              { label: t('settings.general.languageJa'), value: 'ja' },
             ]}
             onChange={saveUiLanguage}
           />

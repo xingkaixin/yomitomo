@@ -13,7 +13,7 @@
     "make:win-x64": "pnpm run build && pnpm run make:win-x64:from-dist",
     "make:win-x64:from-dist": "pnpm run dist:verify && node scripts/verify-native-roots.mjs && electron-builder --config electron-builder.config.cjs --config.directories.output=../../dist/app/win-x64 --win --x64 --publish never",
     "db:generate": "drizzle-kit generate",
-    "native:install": "pnpm --dir electron-native install",
+    "native:install": "pnpm --dir electron-native install --package-import-method=copy",
     "rebuild:native": "pnpm run native:install && node scripts/rebuild-electron-native.mjs && node scripts/prepare-native-macos.mjs",
     "native:verify": "pnpm run rebuild:native && node scripts/verify-native-roots.mjs",
     "test:e2e": "pnpm run build && pnpm run test:e2e:from-dist",

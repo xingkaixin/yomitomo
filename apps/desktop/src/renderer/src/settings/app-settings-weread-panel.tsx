@@ -37,6 +37,7 @@ import { getDesktopApi } from '../shell/app-desktop-api';
 const WEREAD_API_KEY_HELP_URLS = {
   'zh-CN': 'https://yomitomo.app/docs/weread-api-key/',
   en: 'https://yomitomo.app/en/docs/weread-api-key/',
+  ja: 'https://yomitomo.app/ja/docs/weread-api-key/',
 } as const;
 
 export function WeReadSettingsPanel() {

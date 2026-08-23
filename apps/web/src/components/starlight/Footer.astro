@@ -1,7 +1,8 @@
 ---
 import LandingFooter from '../landing/LandingFooter.astro';
 
-const lang = Astro.url.pathname.startsWith('/en/') ? 'en' : 'zh-CN';
+const path = Astro.url.pathname;
+const lang = path.startsWith('/en/') ? 'en' : path.startsWith('/ja/') ? 'ja' : 'zh-CN';
 ---
 
 <LandingFooter lang={lang} />

@@ -1,14 +1,30 @@
 ---
 type Props = {
-  lang?: 'zh-CN' | 'en';
+  lang?: 'zh-CN' | 'en' | 'ja';
   version: string;
 };
 
 const { lang = 'zh-CN', version } = Astro.props;
 const isEnglish = lang === 'en';
+const isJapanese = lang === 'ja';
 
-const copy = isEnglish
+const copy = isJapanese
   ? {
+      eyebrow: '500本保存して、本当に残った判断はいくつ？',
+      headPre: '読書の最小単位を、記事から',
+      headEm: '判断',
+      headTail: 'へ。',
+      subLines: [
+        'YomitomoはローカルファーストのAI読書パートナー。',
+        '線は根拠の印、考えは読書の成果です。',
+      ],
+      cta: 'Yomitomoをダウンロード',
+      altMac: 'macOS版もあります →',
+      altWin: 'Windows版もあります →',
+      version: `v${version} · 無料・オープンソース · 読書データはローカルに保存`,
+    }
+  : isEnglish
+    ? {
       eyebrow: '500 SAVED · FEW KEPT',
       headPre: 'Shrink reading from the article to the',
       headEm: 'call',
@@ -21,8 +37,8 @@ const copy = isEnglish
       altMac: 'Also on macOS →',
       altWin: 'Also on Windows →',
       version: `v${version} · Free & open source · Reading data stays local`,
-    }
-  : {
+      }
+    : {
       eyebrow: '收藏了 500 篇文章 · 真正留下来的判断有几个',
       headPre: '把阅读的最小单位，从文章变成',
       headEm: '判断',
@@ -35,7 +51,7 @@ const copy = isEnglish
       altMac: '也支持 macOS →',
       altWin: '也支持 Windows →',
       version: `v${version} · 免费开源 · 阅读数据保存在本地`,
-    };
+      };
 ---
 
 <section class="hero-c">

@@ -41,6 +41,7 @@ const enAnnotationWritingAnimations: Record<string, AgentWritingAnimationAsset> 
 const writingAnimationsByLocale: Record<UiLanguage, Record<string, AgentWritingAnimationAsset>> = {
   'zh-CN': zhAnnotationWritingAnimations,
   en: enAnnotationWritingAnimations,
+  ja: {},
 };
 
 export function resolveAgentWritingAnimation(
@@ -48,7 +49,7 @@ export function resolveAgentWritingAnimation(
   presetId: string | undefined,
 ): AgentWritingAnimationAsset | undefined {
   if (!presetId) return undefined;
-  return writingAnimationsByLocale[locale]?.[presetId] || zhAnnotationWritingAnimations[presetId];
+  return writingAnimationsByLocale[locale]?.[presetId];
 }
 
 export function agentWritingAnimationDuration(asset: AgentWritingAnimationAsset) {

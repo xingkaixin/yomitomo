@@ -26,7 +26,7 @@ type LandingStructuredDataOptions = {
   description: string;
   downloads: { mac: string; windows: string };
   faqItems: { question: string; answer: string }[];
-  language: 'zh-CN' | 'en';
+  language: 'zh-CN' | 'en' | 'ja';
   sameAs: string[];
   title: string;
   version: string;
@@ -117,7 +117,7 @@ type BlogArticleStructuredDataOptions = {
   canonicalUrl: string;
   dateModified?: Date;
   description: string;
-  language: 'zh-CN' | 'en';
+  language: 'zh-CN' | 'en' | 'ja';
   title: string;
 };
 
@@ -162,5 +162,5 @@ export function buildBlogArticleStructuredData({
 }
 
 export function isBlogScenarioPath(pathname: string) {
-  return /^\/(?:en\/)?blog\/scenarios\/[^/]+\/$/.test(pathname);
+  return /^\/(?:(?:en|ja)\/)?blog\/scenarios\/[^/]+\/$/.test(pathname);
 }

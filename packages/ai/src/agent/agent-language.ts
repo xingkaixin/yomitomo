@@ -3,6 +3,7 @@ import { normalizeUiLanguage, type UiLanguage } from '@yomitomo/shared';
 const responseLanguageLabels: Record<UiLanguage, string> = {
   'zh-CN': '简体中文',
   en: 'English',
+  ja: '自然な日本語',
 };
 
 export function responseLanguageSystemPrompt(language: unknown) {

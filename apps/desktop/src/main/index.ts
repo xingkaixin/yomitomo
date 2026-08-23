@@ -525,7 +525,8 @@ async function openMenuExternalUrl(url: string, command: AppMenuCommand) {
 }
 
 function menuResourceUrls() {
-  const prefix = app.getLocale().toLowerCase().startsWith('zh') ? '' : '/en';
+  const locale = app.getLocale().toLowerCase();
+  const prefix = locale.startsWith('zh') ? '' : locale.startsWith('ja') ? '/ja' : '/en';
   return {
     docs: `${HOMEPAGE_URL}${prefix}/docs/`,
     releaseNotes: `${HOMEPAGE_URL}${prefix}/changelogs/`,

@@ -16,12 +16,17 @@ import { buildLandingStructuredData, siteUrl } from '../structured-data';
 import '../styles/landing.css';
 
 type Props = {
-  lang?: 'zh-CN' | 'en';
+  lang?: 'zh-CN' | 'en' | 'ja';
 };
 
 const { lang = 'zh-CN' } = Astro.props;
 const isEnglish = lang === 'en';
-const skipLinkLabel = isEnglish ? 'Skip to main content' : '跳到主要内容';
+const isJapanese = lang === 'ja';
+const skipLinkLabel = isEnglish
+  ? 'Skip to main content'
+  : isJapanese
+    ? 'メインコンテンツへ移動'
+    : '跳到主要内容';
 
 const releaseVersion = desktopPackage.version;
 const releaseBaseUrl = `https://download.yomitomo.app/releases/download/v${releaseVersion}`;
@@ -31,15 +36,23 @@ const downloads = {
   windows: `${releaseBaseUrl}/Yomitomo-${releaseVersion}-win-x64.exe`,
 };
 
-const canonicalUrl = isEnglish ? `${siteUrl}/en/` : `${siteUrl}/`;
-const alternateUrl = isEnglish ? `${siteUrl}/` : `${siteUrl}/en/`;
+const localeUrls = {
+  'zh-CN': `${siteUrl}/`,
+  en: `${siteUrl}/en/`,
+  ja: `${siteUrl}/ja/`,
+};
+const canonicalUrl = localeUrls[lang];
 const defaultLocaleUrl = `${siteUrl}/`;
 const pageTitle = isEnglish
   ? 'Yomitomo - Local-first AI reading companion'
-  : 'Yomitomo - 本地优先的 AI 伴读桌面应用';
+  : isJapanese
+    ? 'Yomitomo - ローカルファーストのAI読書パートナー'
+    : 'Yomitomo - 本地优先的 AI 伴读桌面应用';
 const pageDescription = isEnglish
   ? 'Yomitomo is a local-first AI reading companion for desktop. Highlight, capture thoughts, discuss with assistants, and keep your reading judgments anchored to the source.'
-  : 'Yomitomo 是本地优先的 AI 伴读桌面应用。划线、记下想法、和 AI 助手讨论，把阅读判断留在原文现场。';
+  : isJapanese
+    ? 'YomitomoはローカルファーストのAI読書パートナーです。原文に線を引き、考えを残し、AIアシスタントと対話しながら、自分の判断を根拠と結びつけて保存できます。'
+    : 'Yomitomo 是本地优先的 AI 伴读桌面应用。划线、记下想法、和 AI 助手讨论，把阅读判断留在原文现场。';
 const ogImageUrl = `${siteUrl}/assets/og-image.jpg`;
 const faqItems = getFaqItems(lang);
 const jsonLd = buildLandingStructuredData({
@@ -63,8 +76,11 @@ const jsonLd = buildLandingStructuredData({
     <meta name="description" content={pageDescription} />
     <title>{pageTitle}</title>
     <link rel="canonical" href={canonicalUrl} />
-    <link rel="alternate" hreflang={isEnglish ? 'zh-CN' : 'en'} href={alternateUrl} />
-    <link rel="alternate" hreflang={lang} href={canonicalUrl} />
+    {
+      Object.entries(localeUrls).map(([locale, url]) => (
+        <link rel="alternate" hreflang={locale} href={url} />
+      ))
+    }
     <link rel="alternate" hreflang="x-default" href={defaultLocaleUrl} />
     <link rel="icon" type="image/png" sizes="64x64" href="/assets/favicon.png" />
     <link
@@ -91,7 +107,7 @@ const jsonLd = buildLandingStructuredData({
     </noscript>
 
     <meta property="og:type" content="website" />
-    <meta property="og:locale" content={isEnglish ? 'en_US' : 'zh_CN'} />
+    <meta property="og:locale" content={isEnglish ? 'en_US' : isJapanese ? 'ja_JP' : 'zh_CN'} />
     <meta property="og:site_name" content="Yomitomo" />
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={pageDescription} />

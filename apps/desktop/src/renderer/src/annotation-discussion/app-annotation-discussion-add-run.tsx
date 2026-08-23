@@ -1,7 +1,12 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Tick01Icon } from '@hugeicons/core-free-icons';
 import type { CSSProperties } from 'react';
-import type { Comment, PublicAgent, UiLanguage } from '@yomitomo/shared';
+import {
+  normalizeUiLanguage,
+  type Comment,
+  type PublicAgent,
+  type UiLanguage,
+} from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
 import { AvatarBadge } from '@yomitomo/reader-ui/reader-component-primitives';
 import { AssistantRuntimeProgressList } from '../shell/app-assistant-runtime-progress';
@@ -47,7 +52,7 @@ export function AddThoughtAssistantRunPanel({
   runs: AddThoughtAgentRun[];
 }) {
   const { i18n, t } = useTranslation();
-  const uiLanguage = i18n.resolvedLanguage === 'en' ? 'en' : 'zh-CN';
+  const uiLanguage = normalizeUiLanguage(i18n.resolvedLanguage);
   const activeCount = runs.filter((run) => run.status === 'active').length;
   const doneCount = runs.filter((run) => run.status === 'done').length;
   const failedRuns = runs.filter((run) => run.status === 'failed');

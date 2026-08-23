@@ -17,9 +17,11 @@ export const onRequest = defineRouteMiddleware((context) => {
   const route = context.locals.starlightRoute;
   const sidebar = route.sidebar;
   const isEnglish = pathname.startsWith('/en/');
-  const docsPrefix = isEnglish ? '/en/docs' : '/docs';
-  const blogPrefix = isEnglish ? '/en/blog' : '/blog';
-  const changelogsPrefix = isEnglish ? '/en/changelogs' : '/changelogs';
+  const isJapanese = pathname.startsWith('/ja/');
+  const localePrefix = isEnglish ? '/en' : isJapanese ? '/ja' : '';
+  const docsPrefix = `${localePrefix}/docs`;
+  const blogPrefix = `${localePrefix}/blog`;
+  const changelogsPrefix = `${localePrefix}/changelogs`;
 
   if (isBlogScenarioPath(pathname) && route.entry.data.description) {
     route.head.push({
@@ -30,7 +32,7 @@ export const onRequest = defineRouteMiddleware((context) => {
           canonicalUrl: new URL(pathname, siteUrl).href,
           dateModified: route.lastUpdated,
           description: route.entry.data.description,
-          language: isEnglish ? 'en' : 'zh-CN',
+          language: isEnglish ? 'en' : isJapanese ? 'ja' : 'zh-CN',
           title: route.entry.data.title,
         }),
       ),

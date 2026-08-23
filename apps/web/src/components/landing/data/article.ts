@@ -86,7 +86,7 @@ export type LandingContent = {
   ui: UiStrings;
 };
 
-export type Locale = 'zh-CN' | 'en';
+export type Locale = 'zh-CN' | 'en' | 'ja';
 
 // ── Agent colors (shared) + locale-specific avatars ──────
 
@@ -1001,8 +1001,346 @@ const enContent: LandingContent = {
   },
 };
 
+// ── Japanese content ─────────────────────────────────────
+
+const jaAgents = buildAgents('ja', {
+  yomitomo: 'Yomitomo',
+  'reading-partner': '高橋 葵',
+  'root-reviewer': '黒沢 蓮',
+  'question-mentor': '水野 花',
+  'insight-editor': '橘 駿',
+  'concept-translator': '白川 澪',
+});
+
+const jaAnnotations: Annotation[] = [
+  {
+    id: 'ann-d1',
+    quote: 'ほとんど何も残らない',
+    authorId: 'yomitomo',
+    content:
+      '線は飾りではなく判断です。原文の位置と結びついているため、三か月後でも当時の文脈へ戻れます。',
+    type: 'distillation',
+    createdAt: '2025-01-15',
+    agentIds: ['yomitomo'],
+    thoughts: [],
+  },
+  {
+    id: 'ann-2',
+    quote: 'ローカルファースト',
+    authorId: 'yomitomo',
+    type: 'discussion',
+    createdAt: '2025-01-15',
+    agentIds: ['question-mentor'],
+    thoughts: [
+      {
+        id: 't2-1',
+        authorId: 'question-mentor',
+        content: '読書データがローカルにあると、端末を替えるときに困りませんか？',
+        comments: [
+          {
+            id: 't2-1-c1',
+            authorId: 'yomitomo',
+            content:
+              'データの主導権をローカルに置くという意味です。必要なら自分の同期ドライブや書き出しファイルを使えます。',
+          },
+          {
+            id: 't2-1-c2',
+            authorId: 'question-mentor',
+            content: '同期するかどうかも、自分で選べるということですね。',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'ann-d2',
+    quote: 'クラウド型リーダー',
+    authorId: 'yomitomo',
+    content:
+      '記事、注釈、対話、APIキーはあなたのコンピューターに保存されます。読書データをクラウドへアップロードしません。',
+    type: 'distillation',
+    createdAt: '2025-01-15',
+    agentIds: ['yomitomo'],
+    thoughts: [],
+  },
+  {
+    id: 'ann-3',
+    quote: '立ち止まった段落に線を引きます',
+    authorId: 'yomitomo',
+    type: 'discussion',
+    createdAt: '2025-01-15',
+    agentIds: ['insight-editor', 'concept-translator'],
+    thoughts: [
+      {
+        id: 't3-1',
+        authorId: 'insight-editor',
+        content: 'なぜ「立ち止まった」ところだけに線を引くのでしょう？',
+        comments: [
+          {
+            id: 't3-1-c1',
+            authorId: 'yomitomo',
+            content:
+              '線は単なるハイライトではなく、一つの判断だからです。すべてを強調すると、何も選んでいないのと同じになります。',
+          },
+          {
+            id: 't3-1-c2',
+            authorId: 'concept-translator',
+            content: '線の先に考えや対話を重ねられるので、終点ではなく入口になります。',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'ann-4',
+    quote: '複数の考え、返信、アシスタントのコメント',
+    authorId: 'yomitomo',
+    type: 'discussion',
+    createdAt: '2025-01-15',
+    agentIds: ['root-reviewer', 'question-mentor', 'reading-partner'],
+    thoughts: [
+      {
+        id: 't4-1',
+        authorId: 'root-reviewer',
+        content: '一つの線から、対話はどのように育っていきますか？',
+        comments: [
+          {
+            id: 't4-1-c1',
+            authorId: 'yomitomo',
+            content:
+              '今日の疑問に、あとで関連する文章や新しい考えを追加できます。アシスタントも必要なときだけ参加します。',
+          },
+          {
+            id: 't4-1-c2',
+            authorId: 'reading-partner',
+            content: 'スナップショットではなく、読み続ける過程そのものを残すのですね。',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'ann-5',
+    quote: '残す価値のあるまとめ',
+    authorId: 'yomitomo',
+    type: 'discussion',
+    createdAt: '2025-01-15',
+    agentIds: ['concept-translator', 'insight-editor'],
+    thoughts: [
+      {
+        id: 't5-1',
+        authorId: 'concept-translator',
+        content: 'これは普通の要約と何が違うのでしょう？',
+        comments: [
+          {
+            id: 't5-1-c1',
+            authorId: 'yomitomo',
+            content:
+              '事実を縮めるだけでなく、あなた自身の判断を含みます。しかも原文と対話へいつでも戻れます。',
+          },
+          {
+            id: 't5-1-c2',
+            authorId: 'insight-editor',
+            content: '出典を持った自分の見解だから、あとで別の場面にも使えます。',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'ann-d3',
+    quote: '個性の異なる六人のAI読書パートナー',
+    authorId: 'yomitomo',
+    content:
+      '代わりに読むのではなく、一緒に読む。六つの視点が問い、掘り下げ、翻訳し、編集しますが、最後に判断するのはあなたです。',
+    type: 'distillation',
+    createdAt: '2025-01-15',
+    agentIds: ['yomitomo'],
+    thoughts: [],
+  },
+  {
+    id: 'ann-7',
+    quote: 'Web記事、PDF、EPUB、微信読書',
+    authorId: 'yomitomo',
+    type: 'discussion',
+    createdAt: '2025-01-15',
+    agentIds: ['insight-editor', 'concept-translator'],
+    thoughts: [
+      {
+        id: 't7-1',
+        authorId: 'insight-editor',
+        content: '異なるソースの線や対話も、まとめて管理できますか？',
+        comments: [
+          {
+            id: 't7-1-c1',
+            authorId: 'yomitomo',
+            content: 'はい。どのソースでも、線と対話は同じワークスペースに集まります。',
+          },
+          {
+            id: 't7-1-c2',
+            authorId: 'concept-translator',
+            content: '同期したメモも原文の位置を保つので、そこから考えを続けられます。',
+          },
+        ],
+      },
+    ],
+  },
+];
+
+const jaParagraphs: Paragraph[] = [
+  {
+    id: 'p1',
+    segments: [
+      { type: 'text', content: '私たちはたくさん読んでも、最後には' },
+      { type: 'highlight', content: 'ほとんど何も残らない', annotationId: 'ann-d1' },
+      {
+        type: 'text',
+        content: '。保存一覧と「あとで読む」だけが増え、自分の判断はなかなか残りません。',
+      },
+    ],
+  },
+  {
+    id: 'p2',
+    segments: [
+      { type: 'text', content: 'Yomitomoは' },
+      { type: 'highlight', content: 'ローカルファースト', annotationId: 'ann-2' },
+      { type: 'text', content: 'のAI読書パートナーです。もう一つの' },
+      { type: 'highlight', content: 'クラウド型リーダー', annotationId: 'ann-d2' },
+      { type: 'text', content: 'ではなく、あなたのコンピューターにある読書の机です。' },
+    ],
+  },
+  {
+    id: 'p3',
+    segments: [
+      { type: 'text', content: '読んでいる途中で、' },
+      { type: 'highlight', content: '立ち止まった段落に線を引きます', annotationId: 'ann-3' },
+      {
+        type: 'text',
+        content: '。その線は根拠の印です。時間がたっても、当時の文脈へすぐ戻れます。',
+      },
+    ],
+  },
+  {
+    id: 'p3b',
+    segments: [
+      {
+        type: 'text',
+        content:
+          '多くの読書ツールは記事を保存するだけで、考え抜くところまでは助けてくれません。Yomitomoは逆に、保存を減らし、読んだことを自分の判断へ変えます。',
+      },
+    ],
+  },
+  {
+    id: 'p4',
+    segments: [
+      { type: 'text', content: '一つの線には' },
+      {
+        type: 'highlight',
+        content: '複数の考え、返信、アシスタントのコメント',
+        annotationId: 'ann-4',
+      },
+      { type: 'text', content: 'を重ねられます。静的なメモではなく、育ち続ける対話です。' },
+    ],
+  },
+  {
+    id: 'p5',
+    segments: [
+      { type: 'text', content: '対話が十分に深まったら、' },
+      { type: 'highlight', content: '残す価値のあるまとめ', annotationId: 'ann-5' },
+      {
+        type: 'text',
+        content: 'へ整えます。原文を置き換えず、出典とあなたの視点を一緒に残します。',
+      },
+    ],
+  },
+  {
+    id: 'p5b',
+    segments: [
+      {
+        type: 'text',
+        content:
+          '線、考え、まとめは、印から判断、結論へ進む道です。まとめから対話へ、対話から線へ、線から原文へ、いつでも戻れます。',
+      },
+    ],
+  },
+  {
+    id: 'p6',
+    segments: [
+      { type: 'text', content: 'その道を一緒に歩くのが、' },
+      {
+        type: 'highlight',
+        content: '個性の異なる六人のAI読書パートナー',
+        annotationId: 'ann-d3',
+      },
+      { type: 'text', content: 'です。問い、前提、概念、構成、編集をそれぞれの視点で支えます。' },
+    ],
+  },
+  {
+    id: 'p6b',
+    segments: [
+      {
+        type: 'text',
+        content:
+          '彼らが代わりに読んだり、結論を決めたりすることはありません。参加者は線ごとに選べます。価値は答えを渡すことではなく、あなた自身の判断を明確にすることにあります。',
+      },
+    ],
+  },
+  {
+    id: 'p7',
+    segments: [
+      { type: 'text', content: 'Yomitomoは' },
+      { type: 'highlight', content: 'Web記事、PDF、EPUB、微信読書', annotationId: 'ann-7' },
+      {
+        type: 'text',
+        content: 'に対応します。異なるソースの線と対話を一つの机に集め、原文の位置を保ちます。',
+      },
+    ],
+  },
+  {
+    id: 'p8',
+    segments: [
+      {
+        type: 'text',
+        content:
+          'Yomitomoは完全無料のオープンソースで、データはあなたのコンピューターに残ります。読んだことを、あとで使える形へ変える。それだけに集中します。',
+      },
+    ],
+  },
+];
+
+const jaContent: LandingContent = {
+  agents: jaAgents,
+  annotations: jaAnnotations,
+  paragraphs: jaParagraphs,
+  meta: {
+    title: 'Yomitomoについて',
+    byline: 'Yomitomo Team',
+    date: '2025年1月15日',
+    readingTime: '読了5分',
+  },
+  ui: {
+    eyebrow: 'Yomitomo / プロダクト紹介',
+    railHeader: '線と対話',
+    download: {
+      title: 'Yomitomoをダウンロード',
+      desc: '無料・オープンソース。データはローカルに保存されます。',
+      mac: 'macOS',
+      macArch: 'Apple Silicon',
+      win: 'Windows',
+      winArch: 'x64',
+    },
+    enterDiscussion: '対話を開く',
+    quoteLabel: '引用',
+    ideasLabel: '考え',
+    discussionLabel: '対話',
+    selectThought: '考えを選んで対話を表示',
+    replies: (n) => `${n}件の返信`,
+    footer: '© 2025 Yomitomo. MITライセンスのオープンソース。',
+  },
+};
+
 // ── Public selector ──────────────────────────────────────
 
 export function getLandingContent(lang: Locale): LandingContent {
-  return lang === 'en' ? enContent : zhContent;
+  return lang === 'en' ? enContent : lang === 'ja' ? jaContent : zhContent;
 }

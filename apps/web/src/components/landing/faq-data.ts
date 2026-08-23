@@ -69,6 +69,39 @@ const enFaq: FaqItem[] = [
   },
 ];
 
-export function getFaqItems(lang: 'zh-CN' | 'en'): FaqItem[] {
-  return lang === 'en' ? enFaq : zhFaq;
+const jaFaq: FaqItem[] = [
+  {
+    question: 'Yomitomoとは何ですか？',
+    answer:
+      'YomitomoはmacOSとWindows向けのローカルファーストなAI読書パートナーです。原文に線を引き、考えを残し、AIアシスタントと対話しながら、読書の判断を根拠と結びつけてローカルに保存できます。',
+  },
+  {
+    question: 'どの読書ソースに対応していますか？',
+    answer:
+      'Web記事、PDF、EPUB、微信読書に対応しています。異なるソースの本文、線、対話を一つのワークスペースに集め、同期したメモも原文の位置を保ちます。',
+  },
+  {
+    question: '読書データはクラウドへ送信されますか？',
+    answer:
+      '送信されません。記事、注釈、対話、APIキーはあなたのコンピューターに保存され、Yomitomoが読書データをクラウドへアップロードすることはありません。',
+  },
+  {
+    question: 'Yomitomoは無料ですか？',
+    answer:
+      'はい。Yomitomoは完全無料で、MITライセンスのもとでオープンソースとして公開されています。コンテンツの押しつけや並べ替え、読書データの販売は行いません。',
+  },
+  {
+    question: 'AI読書パートナーが代わりに判断しますか？',
+    answer:
+      'いいえ。六人のAI読書パートナーが問い、掘り下げ、翻訳し、編集しますが、最後の判断はいつもあなた自身に残ります。',
+  },
+  {
+    question: 'Yomitomoを使うにはAPIキーが必要ですか？',
+    answer:
+      'AI機能にはご自身のLLM APIキーが必要です。キーはローカルシステムに安全に保存され、端末からAIアシスタントを呼び出すためだけに使われます。',
+  },
+];
+
+export function getFaqItems(lang: 'zh-CN' | 'en' | 'ja'): FaqItem[] {
+  return lang === 'en' ? enFaq : lang === 'ja' ? jaFaq : zhFaq;
 }

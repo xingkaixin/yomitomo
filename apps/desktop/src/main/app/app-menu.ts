@@ -177,7 +177,8 @@ function commandItem(
 }
 
 function appMenuLabels(locale: string) {
-  if (locale.toLowerCase().startsWith('zh')) {
+  const normalized = locale.toLowerCase();
+  if (normalized.startsWith('zh')) {
     return {
       about: '关于 Yomitomo',
       backupDatabase: '备份数据库...',
@@ -206,6 +207,38 @@ function appMenuLabels(locale: string) {
       zoom: '缩放',
       zoomIn: '放大',
       zoomOut: '缩小',
+    };
+  }
+
+  if (normalized.startsWith('ja')) {
+    return {
+      about: 'Yomitomo について',
+      backupDatabase: 'データベースをバックアップ...',
+      checkUpdates: 'アップデートを確認...',
+      edit: '編集',
+      exit: '終了',
+      file: 'ファイル',
+      forceReload: '強制再読み込み',
+      help: 'ヘルプ',
+      helpDocs: 'Yomitomo ヘルプ',
+      importEbook: '電子書籍を読み込む...',
+      importPdf: 'PDF を読み込む...',
+      importWeb: 'Web 記事を追加...',
+      releaseNotes: '更新履歴',
+      reload: '再読み込み',
+      reportIssue: '問題を報告',
+      resetZoom: '実際のサイズ',
+      restoreDatabase: 'データベースを復元...',
+      settings: '設定...',
+      syncWeRead: 'WeRead を同期',
+      toggleDevTools: '開発者ツールを切り替える',
+      toggleFullscreen: 'フルスクリーンを切り替える',
+      view: '表示',
+      window: 'ウィンドウ',
+      windowZoom: '拡大／縮小',
+      zoom: '拡大／縮小',
+      zoomIn: '拡大',
+      zoomOut: '縮小',
     };
   }
 

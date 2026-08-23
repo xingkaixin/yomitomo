@@ -3,37 +3,45 @@ import {
   changelogsUrl,
   englishChangelogsUrl,
   githubUrl,
+  japaneseChangelogsUrl,
   xUrl,
   youtubeUrl,
 } from '../../site-links';
 
 type Props = {
-  lang?: 'zh-CN' | 'en';
+  lang?: 'zh-CN' | 'en' | 'ja';
 };
 
 const { lang = 'zh-CN' } = Astro.props;
 const isEnglish = lang === 'en';
-const prefix = isEnglish ? '/en' : '';
+const isJapanese = lang === 'ja';
+const prefix = isEnglish ? '/en' : isJapanese ? '/ja' : '';
 const year = new Date().getFullYear();
 
 const links = [
-  { label: isEnglish ? 'Docs' : '文档', href: `${prefix}/docs/` },
-  { label: isEnglish ? 'Blog' : '博客', href: `${prefix}/blog/` },
+  { label: isEnglish ? 'Docs' : isJapanese ? 'ドキュメント' : '文档', href: `${prefix}/docs/` },
+  { label: isEnglish ? 'Blog' : isJapanese ? 'ブログ' : '博客', href: `${prefix}/blog/` },
   {
-    label: isEnglish ? 'Release Notes' : '更新日志',
-    href: isEnglish ? englishChangelogsUrl : changelogsUrl,
+    label: isEnglish ? 'Release Notes' : isJapanese ? '更新履歴' : '更新日志',
+    href: isEnglish
+      ? englishChangelogsUrl
+      : isJapanese
+        ? japaneseChangelogsUrl
+        : changelogsUrl,
   },
 ];
 
 const fine = isEnglish
   ? `© ${year} YOMITOMO · Open source under the MIT license · Local-first AI reading companion`
-  : `© ${year} YOMITOMO · 开源在 MIT 协议下 · 本地优先的 AI 伴读桌面应用`;
+  : isJapanese
+    ? `© ${year} YOMITOMO · MITライセンスのオープンソース · ローカルファーストのAI読書パートナー`
+    : `© ${year} YOMITOMO · 开源在 MIT 协议下 · 本地优先的 AI 伴读桌面应用`;
 ---
 
 <footer class="lp-footer">
   <div class="lp-container">
     <div class="row">
-      <a class="brand" href={isEnglish ? '/en/' : '/'}>
+      <a class="brand" href={isEnglish ? '/en/' : isJapanese ? '/ja/' : '/'}>
         Yomitomo
       </a>
       <div class="links">
