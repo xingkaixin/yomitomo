@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { LibraryCatalogListInput, LibraryCatalogListResult } from '../../../ipc-contract';
 import { getOptionalDesktopApi } from '../shell/app-desktop-api';
 
@@ -69,22 +69,18 @@ export function useLibraryCatalog(input: LibraryCatalogListInput, revision: numb
 }
 
 export function useLocalStoreRevision(deps: readonly unknown[]): number {
-  const previousDepsRef = useRef<readonly unknown[] | null>(null);
-  const revisionRef = useRef(0);
-  const previousDeps = previousDepsRef.current;
+  const previousDepsRef = useRef<readonly unknown[]>(deps.slice());
+  const [revision, setRevision] = useState(0);
 
-  if (!previousDeps) {
+  useLayoutEffect(() => {
+    const previousDeps = previousDepsRef.current;
+    const hasChanged =
+      previousDeps.length !== deps.length ||
+      deps.some((dependency, index) => !Object.is(dependency, previousDeps[index]));
+    if (!hasChanged) return;
     previousDepsRef.current = deps.slice();
-    return revisionRef.current;
-  }
+    setRevision((current) => current + 1);
+  });
 
-  const hasChanged =
-    previousDeps.length !== deps.length ||
-    deps.some((dependency, index) => !Object.is(dependency, previousDeps[index]));
-  if (hasChanged) {
-    previousDepsRef.current = deps.slice();
-    revisionRef.current += 1;
-  }
-
-  return revisionRef.current;
+  return revision;
 }
