@@ -22,7 +22,12 @@ import {
   type UserDraft,
 } from './app-settings';
 import { useSaveableDraft } from './use-saveable-draft';
-import { settingsDraftSectionHasChanges } from './app-settings-change-detection';
+import {
+  mergeSavedSettingsDraftSection,
+  settingsDraftSectionHasChanges,
+  settingsDraftSectionPatch,
+  type SettingsEditorSection,
+} from './app-settings-change-detection';
 import { getDesktopApi } from '../shell/app-desktop-api';
 import { normalizeAppSettings } from '../../../settings/app-settings-normalization';
 
@@ -115,22 +120,49 @@ export function useSettingsDrafts({
     [applySettingsPatch],
   );
 
-  const saveSettingsDraft = useCallback(
-    async (draft: ResolvedAppSettings) => {
-      return resolveDesktop().store.saveSettings(draft);
+  const saveSettingsDraftSection = useCallback(
+    async (section: SettingsEditorSection, draft: ResolvedAppSettings) => {
+      return resolveDesktop().store.saveSettings(settingsDraftSectionPatch(section, draft));
     },
     [resolveDesktop],
   );
 
-  const applySavedSettingsStore = useCallback(
-    (nextStore: DesktopStore | null) => {
+  const applySavedSettingsDraftSection = useCallback(
+    (section: SettingsEditorSection, nextStore: DesktopStore | null) => {
       if (!nextStore) return false;
-      syncUiLanguageCache(nextStore.settings);
+      if (section === 'general') syncUiLanguageCache(nextStore.settings);
       applyStore(nextStore);
-      setSettingsDraft(nextStore.settings);
+      setSettingsDraft((draft) =>
+        mergeSavedSettingsDraftSection(section, draft, nextStore.settings),
+      );
       return true;
     },
     [applyStore],
+  );
+
+  const saveGeneralSettingsDraft = useCallback(
+    (draft: ResolvedAppSettings) => saveSettingsDraftSection('general', draft),
+    [saveSettingsDraftSection],
+  );
+  const saveShortcutSettingsDraft = useCallback(
+    (draft: ResolvedAppSettings) => saveSettingsDraftSection('shortcuts', draft),
+    [saveSettingsDraftSection],
+  );
+  const saveRouteSettingsDraft = useCallback(
+    (draft: ResolvedAppSettings) => saveSettingsDraftSection('routes', draft),
+    [saveSettingsDraftSection],
+  );
+  const applySavedGeneralSettings = useCallback(
+    (nextStore: DesktopStore | null) => applySavedSettingsDraftSection('general', nextStore),
+    [applySavedSettingsDraftSection],
+  );
+  const applySavedShortcutSettings = useCallback(
+    (nextStore: DesktopStore | null) => applySavedSettingsDraftSection('shortcuts', nextStore),
+    [applySavedSettingsDraftSection],
+  );
+  const applySavedRouteSettings = useCallback(
+    (nextStore: DesktopStore | null) => applySavedSettingsDraftSection('routes', nextStore),
+    [applySavedSettingsDraftSection],
   );
 
   const saveProviderDraftValue = useCallback(
@@ -162,24 +194,24 @@ export function useSettingsDrafts({
     canSave: () => settingsHasChanges,
     errorMessage: settingsSaveErrorMessage,
     onChange: setSettingsDraft,
-    onSaved: applySavedSettingsStore,
-    persist: saveSettingsDraft,
+    onSaved: applySavedGeneralSettings,
+    persist: saveGeneralSettingsDraft,
   });
   const shortcuts = useSaveableDraft<ResolvedAppSettings, DesktopStore | null>({
     value: settingsDraft,
     canSave: () => shortcutSettingsHaveChanges && !shortcutSettingsHaveConflict,
     errorMessage: settingsSaveErrorMessage,
     onChange: setSettingsDraft,
-    onSaved: applySavedSettingsStore,
-    persist: saveSettingsDraft,
+    onSaved: applySavedShortcutSettings,
+    persist: saveShortcutSettingsDraft,
   });
   const routes = useSaveableDraft<ResolvedAppSettings, DesktopStore | null>({
     value: settingsDraft,
     canSave: () => providerRoutesHaveChanges,
     errorMessage: settingsSaveErrorMessage,
     onChange: setSettingsDraft,
-    onSaved: applySavedSettingsStore,
-    persist: saveSettingsDraft,
+    onSaved: applySavedRouteSettings,
+    persist: saveRouteSettingsDraft,
   });
   const providerDraftController = useSaveableDraft<ProviderDraft, boolean>({
     value: providerDraft,
