@@ -66,7 +66,7 @@ describe('agent message tool loop', () => {
         get: vi.fn(),
         all: vi.fn(() => []),
       })),
-    } as unknown as ReadingMemorySqliteExecutor;
+    } satisfies ReadingMemorySqliteExecutor;
     const task = vi.fn(async (input) => {
       await input.toolExecutor({
         name: 'search_article_memory',

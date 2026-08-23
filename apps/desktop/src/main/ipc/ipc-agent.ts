@@ -18,7 +18,6 @@ import {
 } from '../agents/agent-runtime-routing';
 import { appendAgentRuntimeTrace } from '../agents/agent-runtime-trace-log';
 import { getSqliteExecutor } from '../store/store-db';
-import type { ReadingMemorySqliteExecutor } from '../reading-memory/reading-memory-store';
 import type { DesktopAiModule, DesktopMainIpcContext } from './ipc';
 import { assertDesktopIpcAppLockUnlocked, handleDesktopIpc } from './ipc';
 import { registerAgentStreamCancelIpc, runAgentStreamIpc } from './ipc-agent-stream';
@@ -57,9 +56,7 @@ export function registerAgentIpc(context: AgentIpcContext) {
       logger: context,
     }),
     readingMemory: createAgentReadingMemoryPort({
-      executor: createLazyReadingMemoryExecutor(
-        getSqliteExecutor as () => ReadingMemorySqliteExecutor,
-      ),
+      executor: createLazyReadingMemoryExecutor(getSqliteExecutor),
       logger: context,
     }),
   };
