@@ -82,6 +82,7 @@ export const agentIpcInvokeDescriptors = {
     route: ['diagnostics', 'agentTraces', 'clear'],
     roles: mainOnly,
     validation: { exempt: 'no-args' },
+    databaseIndependent: true,
   }),
   'agent-trace:list': desktopIpcInvoke<
     DesktopIpcSchemaArgs<'agent-trace:list'>,
@@ -90,11 +91,13 @@ export const agentIpcInvokeDescriptors = {
     route: ['diagnostics', 'agentTraces', 'list'],
     roles: mainOnly,
     validation: 'schema',
+    databaseIndependent: true,
   }),
   'agent-trace:path': desktopIpcInvoke<[], string>()({
     route: ['diagnostics', 'agentTraces', 'getPath'],
     roles: mainOnly,
     validation: { exempt: 'no-args' },
+    databaseIndependent: true,
   }),
   'assistant-executions:list': desktopIpcInvoke<
     DesktopIpcSchemaArgs<'assistant-executions:list'>,
@@ -163,22 +166,26 @@ export const appIpcInvokeDescriptors = {
     roles: annotationAndMain,
     validation: { exempt: 'no-args' },
     appLockBypass: true,
+    databaseIndependent: true,
   }),
   'app:pdfium-wasm-url': desktopIpcInvoke<[], string>()({
     route: ['app', 'readPdfiumWasmUrl'],
     roles: mainOnly,
     validation: { exempt: 'no-args' },
+    databaseIndependent: true,
   }),
   'performance:timing': desktopIpcInvoke<DesktopIpcSchemaArgs<'performance:timing'>, void>()({
     route: ['diagnostics', 'recordPerformanceTiming'],
     roles: annotationAndMain,
     validation: 'schema',
     appLockBypass: true,
+    databaseIndependent: true,
   }),
   'url:open': desktopIpcInvoke<DesktopIpcSchemaArgs<'url:open'>, void>()({
     route: ['app', 'openUrl'],
     roles: annotationAndMain,
     validation: 'schema',
+    databaseIndependent: true,
   }),
 } as const;
 
@@ -438,26 +445,31 @@ export const dataIpcInvokeDescriptors = {
     route: ['data', 'openPath'],
     roles: mainOnly,
     validation: 'schema',
+    databaseIndependent: true,
   }),
   'data:paths': desktopIpcInvoke<[], DataManagementPaths>()({
     route: ['data', 'getPaths'],
     roles: mainOnly,
     validation: { exempt: 'no-args' },
+    databaseIndependent: true,
   }),
   'log:clear': desktopIpcInvoke<[], void>()({
     route: ['diagnostics', 'log', 'clear'],
     roles: mainOnly,
     validation: { exempt: 'no-args' },
+    databaseIndependent: true,
   }),
   'log:path': desktopIpcInvoke<[], string>()({
     route: ['diagnostics', 'log', 'getPath'],
     roles: mainOnly,
     validation: { exempt: 'no-args' },
+    databaseIndependent: true,
   }),
   'log:read': desktopIpcInvoke<[], string>()({
     route: ['diagnostics', 'log', 'read'],
     roles: mainOnly,
     validation: { exempt: 'no-args' },
+    databaseIndependent: true,
   }),
 } as const;
 
@@ -551,6 +563,7 @@ export const providerIpcInvokeDescriptors = {
     route: ['provider', 'listModels'],
     roles: mainOnly,
     validation: 'schema',
+    databaseIndependent: true,
   }),
   'provider:read-api-key': desktopIpcInvoke<
     DesktopIpcSchemaArgs<'provider:read-api-key'>,
@@ -559,6 +572,7 @@ export const providerIpcInvokeDescriptors = {
     route: ['provider', 'readApiKey'],
     roles: mainOnly,
     validation: 'schema',
+    databaseIndependent: true,
   }),
   'provider:save': desktopIpcInvoke<DesktopIpcSchemaArgs<'provider:save'>, ProviderStorePatch>()({
     route: ['provider', 'save'],
@@ -569,6 +583,7 @@ export const providerIpcInvokeDescriptors = {
     route: ['provider', 'test'],
     roles: mainOnly,
     validation: 'schema',
+    databaseIndependent: true,
   }),
   'settings:save': desktopIpcInvoke<DesktopIpcSchemaArgs<'settings:save'>, DesktopStore>()({
     route: ['store', 'saveSettings'],
@@ -596,21 +611,25 @@ export const updateIpcInvokeDescriptors = {
     route: ['updates', 'check'],
     roles: mainOnly,
     validation: { exempt: 'no-args' },
+    databaseIndependent: true,
   }),
   'updates:download': desktopIpcInvoke<[], AppUpdateState>()({
     route: ['updates', 'download'],
     roles: mainOnly,
     validation: { exempt: 'no-args' },
+    databaseIndependent: true,
   }),
   'updates:get-status': desktopIpcInvoke<[], AppUpdateState>()({
     route: ['updates', 'getStatus'],
     roles: mainOnly,
     validation: { exempt: 'no-args' },
+    databaseIndependent: true,
   }),
   'updates:install': desktopIpcInvoke<[], AppUpdateState>()({
     route: ['updates', 'install'],
     roles: mainOnly,
     validation: { exempt: 'no-args' },
+    databaseIndependent: true,
   }),
   'updates:simulate-available': desktopIpcInvoke<
     DesktopIpcSchemaArgs<'updates:simulate-available'>,
@@ -619,6 +638,7 @@ export const updateIpcInvokeDescriptors = {
     route: ['updates', 'simulateAvailable'],
     roles: mainOnly,
     validation: 'schema',
+    databaseIndependent: true,
   }),
   'release-notes:get': desktopIpcInvoke<
     DesktopIpcSchemaArgs<'release-notes:get'>,
@@ -627,6 +647,7 @@ export const updateIpcInvokeDescriptors = {
     route: ['updates', 'getReleaseNote'],
     roles: mainOnly,
     validation: 'schema',
+    databaseIndependent: true,
   }),
 } as const;
 

@@ -16,13 +16,14 @@ export type DesktopIpcInvokeDescriptor<Args extends unknown[] = unknown[], Resul
   readonly roles: DesktopIpcRendererRoles;
   readonly validation: DesktopIpcValidationPolicy;
   readonly appLockBypass?: true;
+  readonly databaseIndependent?: true;
   readonly databaseLifecycle?: true;
   readonly [desktopIpcInvokeTypes]?: { args: Args; result: Result };
 };
 
 export type DesktopIpcInvokeDescriptorInit = Pick<
   DesktopIpcInvokeDescriptor,
-  'appLockBypass' | 'databaseLifecycle' | 'roles' | 'route' | 'validation'
+  'appLockBypass' | 'databaseIndependent' | 'databaseLifecycle' | 'roles' | 'route' | 'validation'
 >;
 
 type DesktopIpcInvokeDescriptorTypeMetadata<Args extends unknown[], Result> = {
@@ -94,7 +95,7 @@ export function desktopIpcInvokeChannelsWithFlag<
   const Descriptors extends DesktopIpcInvokeDescriptorMap<Descriptors>,
 >(
   descriptors: Descriptors,
-  flag: 'appLockBypass' | 'databaseLifecycle',
+  flag: 'appLockBypass' | 'databaseIndependent' | 'databaseLifecycle',
 ): Set<Extract<keyof Descriptors, string>> {
   return new Set(
     descriptorEntries(descriptors)
