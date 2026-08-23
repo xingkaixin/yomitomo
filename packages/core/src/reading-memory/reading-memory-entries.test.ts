@@ -11,6 +11,7 @@ import {
   readingMemoryFromEntries,
   readingMemoryEntrySearchText,
 } from './reading-memory-entries';
+import { parseReadingMemoryEntryPayload } from './reading-memory-entry-payload';
 
 describe('reading memory entries', () => {
   it('normalizes valid entries and deduplicates source entry ids', () => {
@@ -34,6 +35,42 @@ describe('reading memory entries', () => {
       normalizeReadingMemoryEntry(
         entry({
           textRange: { textStart: 20, textEnd: 20 },
+        }),
+      ),
+    ).toBeNull();
+  });
+
+  it('preserves future payload versions without interpreting them', () => {
+    const futureEntry = entry({
+      kind: 'summary',
+      payloadVersion: 2,
+      textRange: { textStart: 0, textEnd: 10 },
+      payload: { summary: 'future summary', keyTerms: [] },
+    });
+
+    expect(normalizeReadingMemoryEntry(futureEntry)).toEqual(futureEntry);
+    expect(parseReadingMemoryEntryPayload(futureEntry)).toBeNull();
+    expect(readingMemoryFromEntries([futureEntry])).toBeUndefined();
+  });
+
+  it('rejects payloads that conflict with their source type', () => {
+    expect(
+      parseReadingMemoryEntryPayload(
+        entry({
+          kind: 'summary',
+          sourceType: 'comment',
+          payload: { summary: 'not a comment', keyTerms: [] },
+        }),
+      ),
+    ).toBeNull();
+  });
+
+  it('rejects incomplete trace items', () => {
+    expect(
+      parseReadingMemoryEntryPayload(
+        entry({
+          kind: 'trace',
+          payload: { items: [{ content: 'missing trace metadata' }] },
         }),
       ),
     ).toBeNull();

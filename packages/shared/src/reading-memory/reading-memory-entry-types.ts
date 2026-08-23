@@ -54,12 +54,7 @@ export type ReadingMemoryCorrectionPayload = {
   replacement?: unknown;
 };
 
-export type ReadingMemoryEntryPayload =
-  | ReadingMemorySummaryPayload
-  | ReadingMemoryTracePayload
-  | ReadingMemoryAnchorPayload
-  | ReadingMemoryCorrectionPayload
-  | Record<string, unknown>;
+export type ReadingMemoryEntryPayload = Record<string, unknown>;
 
 export type ReadingMemoryEntry = {
   id: string;
