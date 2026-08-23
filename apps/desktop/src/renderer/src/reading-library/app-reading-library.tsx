@@ -282,8 +282,13 @@ export function ReadingLibrary({
   }, [menuRequest?.command, menuRequest?.id, navigation.actions]);
 
   async function deleteLibraryArticle(articleId: string) {
-    await deleteArticle(articleId);
-    playAppSoundEffect('library.delete_item', settings);
+    try {
+      await deleteArticle(articleId);
+      playAppSoundEffect('library.delete_item', settings);
+    } catch (error) {
+      const fallback = t('library.actions.deleteArticleFailed');
+      appToast.error(fallback, { description: errorMessageOrFallback(error, fallback) });
+    }
   }
 
   async function openWeReadBook(book: WeReadBook) {

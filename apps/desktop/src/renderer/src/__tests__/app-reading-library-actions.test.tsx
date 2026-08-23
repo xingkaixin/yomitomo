@@ -552,6 +552,22 @@ describe('ReadingLibrary actions', () => {
     );
   });
 
+  it('reports a failed delete without playing the success sound', async () => {
+    const onDeleteArticle = vi.fn().mockRejectedValue(new Error('database busy'));
+    renderLibrary([article({ title: '删除失败文章' })], { onDeleteArticle });
+
+    fireEvent.click(screen.getByRole('button', { name: '更多操作：删除失败文章' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '删除阅读材料：删除失败文章' }));
+    fireEvent.click(screen.getByRole('button', { name: '删除材料' }));
+
+    await waitFor(() =>
+      expect(appToast.error).toHaveBeenCalledWith('删除失败，请稍后重试', {
+        description: 'database busy',
+      }),
+    );
+    expect(playAppSoundEffect).not.toHaveBeenCalled();
+  });
+
   it('restores and saves the library page size preference', async () => {
     const onSaveSettings = vi.fn();
     const articles = Array.from({ length: 20 }, (_, index) =>
