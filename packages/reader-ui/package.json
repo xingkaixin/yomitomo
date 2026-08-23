@@ -22,6 +22,11 @@
     "./reader-connection-path": "./src/reader-connection-path.ts",
     "./reader-types": "./src/reader-types.ts",
     "./reader-search-clear-dissolve-core": "./src/shell/reader-search-clear-dissolve-core.ts",
+    "./ui-dialog": "./src/components/ui/dialog.tsx",
+    "./ui-dropdown-menu": "./src/components/ui/dropdown-menu.tsx",
+    "./ui-kbd": "./src/components/ui/kbd.tsx",
+    "./ui-popover": "./src/components/ui/popover.tsx",
+    "./ui-popup-class-name": "./src/components/ui/popup-class-name.ts",
     "./use-composition-submit": "./src/use-composition-submit.ts",
     "./use-agent-annotation-queue": "./src/agent/use-agent-annotation-queue.ts",
     "./use-agent-reading-dock": "./src/agent/use-agent-reading-dock.ts"

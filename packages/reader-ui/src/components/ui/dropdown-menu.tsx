@@ -23,38 +23,60 @@ export const DropdownMenuTrigger = React.forwardRef<HTMLButtonElement, DropdownM
 );
 DropdownMenuTrigger.displayName = 'DropdownMenuTrigger';
 
-type DropdownMenuContentProps = Omit<
+export type DropdownMenuSurfaceProps = Omit<
   React.ComponentPropsWithoutRef<typeof MenuPrimitive.Popup>,
   'style'
 > & {
+  baseClassName: string;
+  positionerStyle?: React.CSSProperties;
   style?: React.CSSProperties;
 } & Pick<
     React.ComponentPropsWithoutRef<typeof MenuPrimitive.Positioner>,
     'align' | 'side' | 'sideOffset'
   >;
 
-export const DropdownMenuContent = React.forwardRef<
+export const DropdownMenuSurface = React.forwardRef<
   React.ElementRef<typeof MenuPrimitive.Popup>,
+  DropdownMenuSurfaceProps
+>(
+  (
+    { align, baseClassName, className, positionerStyle, side, sideOffset, style, ...props },
+    ref,
+  ) => (
+    <MenuPrimitive.Portal>
+      <MenuPrimitive.Positioner
+        align={align}
+        side={side}
+        sideOffset={sideOffset}
+        style={positionerStyle}
+      >
+        <MenuPrimitive.Popup
+          className={composePopupClassName(baseClassName, className)}
+          ref={ref}
+          style={{ position: 'static', ...style }}
+          {...props}
+        />
+      </MenuPrimitive.Positioner>
+    </MenuPrimitive.Portal>
+  ),
+);
+DropdownMenuSurface.displayName = 'DropdownMenuSurface';
+
+type DropdownMenuContentProps = Omit<DropdownMenuSurfaceProps, 'baseClassName' | 'positionerStyle'>;
+
+export const DropdownMenuContent = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuSurface>,
   DropdownMenuContentProps
->(({ align = 'end', className, side = 'bottom', sideOffset = 6, style, ...props }, ref) => (
-  <MenuPrimitive.Portal>
-    <MenuPrimitive.Positioner
-      align={align}
-      side={side}
-      sideOffset={sideOffset}
-      style={{ zIndex: 'var(--reader-z-popover, var(--app-z-popover, 160))' }}
-    >
-      <MenuPrimitive.Popup
-        className={composePopupClassName(
-          'reader-popup-content reader-dropdown-content t-dropdown',
-          className,
-        )}
-        ref={ref}
-        style={{ position: 'static', ...style }}
-        {...props}
-      />
-    </MenuPrimitive.Positioner>
-  </MenuPrimitive.Portal>
+>((props, ref) => (
+  <DropdownMenuSurface
+    align="end"
+    baseClassName="reader-popup-content reader-dropdown-content t-dropdown"
+    positionerStyle={{ zIndex: 'var(--reader-z-popover, var(--app-z-popover, 160))' }}
+    ref={ref}
+    side="bottom"
+    sideOffset={6}
+    {...props}
+  />
 ));
 DropdownMenuContent.displayName = 'DropdownMenuContent';
 

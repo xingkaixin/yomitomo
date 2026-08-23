@@ -23,27 +23,33 @@ export const PopoverTrigger = React.forwardRef<HTMLButtonElement, PopoverTrigger
 );
 PopoverTrigger.displayName = 'PopoverTrigger';
 
-type PopoverContentProps = Omit<
+export type PopoverSurfaceProps = Omit<
   React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Popup>,
   'style'
 > & {
+  baseClassName: string;
+  baseStyle?: React.CSSProperties;
+  positionerStyle?: React.CSSProperties;
   style?: React.CSSProperties;
 } & Pick<
     React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Positioner>,
     'align' | 'collisionPadding' | 'side' | 'sideOffset'
   >;
 
-export const PopoverContent = React.forwardRef<
+export const PopoverSurface = React.forwardRef<
   React.ElementRef<typeof PopoverPrimitive.Popup>,
-  PopoverContentProps
+  PopoverSurfaceProps
 >(
   (
     {
-      align = 'center',
+      align,
+      baseClassName,
+      baseStyle,
       className,
-      collisionPadding = 10,
-      side = 'bottom',
-      sideOffset = 8,
+      collisionPadding,
+      positionerStyle,
+      side,
+      sideOffset,
       style,
       ...props
     },
@@ -55,19 +61,39 @@ export const PopoverContent = React.forwardRef<
         collisionPadding={collisionPadding}
         side={side}
         sideOffset={sideOffset}
-        style={{ zIndex: 'var(--reader-z-popover)' }}
+        style={positionerStyle}
       >
         <PopoverPrimitive.Popup
-          className={composePopupClassName(
-            'reader-popup-content reader-popover-content t-dropdown',
-            className,
-          )}
+          className={composePopupClassName(baseClassName, className)}
           ref={ref}
-          style={{ position: 'static', ...style }}
+          style={baseStyle || style ? { ...baseStyle, ...style } : undefined}
           {...props}
         />
       </PopoverPrimitive.Positioner>
     </PopoverPrimitive.Portal>
   ),
 );
+PopoverSurface.displayName = 'PopoverSurface';
+
+type PopoverContentProps = Omit<
+  PopoverSurfaceProps,
+  'baseClassName' | 'baseStyle' | 'positionerStyle'
+>;
+
+export const PopoverContent = React.forwardRef<
+  React.ElementRef<typeof PopoverSurface>,
+  PopoverContentProps
+>((props, ref) => (
+  <PopoverSurface
+    align="center"
+    baseClassName="reader-popup-content reader-popover-content t-dropdown"
+    baseStyle={{ position: 'static' }}
+    collisionPadding={10}
+    positionerStyle={{ zIndex: 'var(--reader-z-popover)' }}
+    ref={ref}
+    side="bottom"
+    sideOffset={8}
+    {...props}
+  />
+));
 PopoverContent.displayName = 'PopoverContent';
