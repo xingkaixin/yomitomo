@@ -108,6 +108,11 @@ describe('useDesktopStoreState', () => {
     await waitFor(() => expect(latest.current?.status).toBe('ready'));
     expect(readyState(latest).store).toBe(initialStore);
     expect(latest.current?.storeRef.current).toBe(initialStore);
+    expect(readyState(latest).settingsSyncSnapshot).toEqual({
+      user: initialStore.user,
+      settings: initialStore.settings,
+    });
+    expect(readyState(latest).settingsSyncSnapshot).not.toHaveProperty('articles');
 
     act(() => {
       emitStoreUpdated(updatedStore);
@@ -115,6 +120,11 @@ describe('useDesktopStoreState', () => {
 
     expect(readyState(latest).store).toBe(updatedStore);
     expect(latest.current?.storeRef.current).toBe(updatedStore);
+    const settingsSyncSnapshot = readyState(latest).settingsSyncSnapshot;
+    expect(settingsSyncSnapshot).toEqual({
+      user: updatedStore.user,
+      settings: updatedStore.settings,
+    });
 
     const patchedArticle = articleSummary({
       id: 'article_1',
@@ -132,6 +142,7 @@ describe('useDesktopStoreState', () => {
 
     expect(readyState(latest).store.articles).toEqual([patchedArticle]);
     expect(latest.current?.storeRef.current?.articles).toEqual([patchedArticle]);
+    expect(readyState(latest).settingsSyncSnapshot).toBe(settingsSyncSnapshot);
 
     const patchedUser = { ...updatedStore.user, nickname: '局部更新' };
     act(() => {

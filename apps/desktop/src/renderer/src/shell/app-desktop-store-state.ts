@@ -20,10 +20,14 @@ import {
 } from './app-library-collection-store-actions';
 import { getDesktopApi, getOptionalDesktopApi } from './app-desktop-api';
 
+export type SettingsSyncSnapshot = Pick<DesktopStore, 'user' | 'settings'>;
+
 export function useDesktopStoreState() {
   const [store, setStore] = useState<DesktopStore | null>(null);
   const [storeLoadError, setStoreLoadError] = useState<DesktopStoreLoadErrorInfo | null>(null);
-  const [storeSyncSnapshot, setStoreSyncSnapshot] = useState<DesktopStore | null>(null);
+  const [settingsSyncSnapshot, setSettingsSyncSnapshot] = useState<SettingsSyncSnapshot | null>(
+    null,
+  );
   const storeRef = useRef<DesktopStore | null>(null);
 
   const applyStore = useCallback((nextStore: DesktopStore) => {
@@ -63,7 +67,7 @@ export function useDesktopStoreState() {
         articleCount: nextStore.articles.length,
       });
       const rendererStore = applyStore(nextStore);
-      setStoreSyncSnapshot(rendererStore);
+      setSettingsSyncSnapshot(settingsSyncSnapshotFromStore(rendererStore));
       setStoreLoadError(null);
       return nextStore;
     } catch (error) {
@@ -72,7 +76,7 @@ export function useDesktopStoreState() {
         try {
           const nextStore = lockedRendererStoreFromStatus(await desktop.appLock.getStatus());
           const rendererStore = applyStore(nextStore);
-          setStoreSyncSnapshot(rendererStore);
+          setSettingsSyncSnapshot(settingsSyncSnapshotFromStore(rendererStore));
           setStoreLoadError(null);
           return nextStore;
         } catch (statusError) {
@@ -99,7 +103,7 @@ export function useDesktopStoreState() {
     void refreshStore();
     const offStoreUpdated = desktop.store.onUpdated((nextStore) => {
       const rendererStore = applyStore(nextStore);
-      setStoreSyncSnapshot(rendererStore);
+      setSettingsSyncSnapshot(settingsSyncSnapshotFromStore(rendererStore));
       setStoreLoadError(null);
     });
     const optionalDesktop = getOptionalDesktopApi();
@@ -147,8 +151,12 @@ export function useDesktopStoreState() {
     ...common,
     status: 'ready' as const,
     store,
-    storeSyncSnapshot,
+    settingsSyncSnapshot,
   };
+}
+
+function settingsSyncSnapshotFromStore(store: DesktopStore): SettingsSyncSnapshot {
+  return { user: store.user, settings: store.settings };
 }
 
 export function applySettingsStorePatch(

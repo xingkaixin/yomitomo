@@ -7,7 +7,10 @@ import type { SettingsStorePatch } from '../../../ipc-contract';
 
 import { emptyStore } from '../settings/app-settings';
 import { useSettingsDrafts } from '../settings/app-settings-drafts';
+import type { SettingsSyncSnapshot } from '../shell/app-desktop-store-state';
 import { normalizeAppSettings } from '../../../settings/app-settings-normalization';
+
+const emptySettingsSyncSnapshot = syncSnapshot(emptyStore);
 
 afterEach(() => {
   cleanup();
@@ -27,7 +30,7 @@ describe('useSettingsDrafts', () => {
     function Harness() {
       latest.current = useSettingsDrafts({
         store: emptyStore,
-        storeSyncSnapshot: emptyStore,
+        settingsSyncSnapshot: emptySettingsSyncSnapshot,
         applyStore,
         applySettingsPatch,
       });
@@ -67,7 +70,7 @@ describe('useSettingsDrafts', () => {
     function Harness() {
       latest.current = useSettingsDrafts({
         store: emptyStore,
-        storeSyncSnapshot: emptyStore,
+        settingsSyncSnapshot: emptySettingsSyncSnapshot,
         applyStore,
         applySettingsPatch,
       });
@@ -92,21 +95,24 @@ describe('useSettingsDrafts', () => {
 
     function Harness({
       store,
-      storeSyncSnapshot,
+      settingsSyncSnapshot,
     }: {
       store: DesktopStore;
-      storeSyncSnapshot: DesktopStore | null;
+      settingsSyncSnapshot: SettingsSyncSnapshot | null;
     }) {
       latest.current = useSettingsDrafts({
         store,
-        storeSyncSnapshot,
+        settingsSyncSnapshot,
         applyStore,
         applySettingsPatch,
       });
       return null;
     }
 
-    const view = render(<Harness store={initialStore} storeSyncSnapshot={initialStore} />);
+    const initialSyncSnapshot = syncSnapshot(initialStore);
+    const view = render(
+      <Harness store={initialStore} settingsSyncSnapshot={initialSyncSnapshot} />,
+    );
     await waitFor(() => expect(latest.current?.general.value.saveArticleImages).toBe(false));
 
     act(() => {
@@ -116,10 +122,12 @@ describe('useSettingsDrafts', () => {
       });
     });
 
-    view.rerender(<Harness store={articleStore} storeSyncSnapshot={initialStore} />);
+    view.rerender(<Harness store={articleStore} settingsSyncSnapshot={initialSyncSnapshot} />);
     expect(latest.current?.general.value.saveArticleImages).toBe(true);
 
-    view.rerender(<Harness store={refreshedStore} storeSyncSnapshot={refreshedStore} />);
+    view.rerender(
+      <Harness store={refreshedStore} settingsSyncSnapshot={syncSnapshot(refreshedStore)} />,
+    );
     await waitFor(() => expect(latest.current?.general.value.saveArticleImages).toBe(false));
   });
 
@@ -138,7 +146,7 @@ describe('useSettingsDrafts', () => {
     function Harness() {
       latest.current = useSettingsDrafts({
         store: emptyStore,
-        storeSyncSnapshot: emptyStore,
+        settingsSyncSnapshot: emptySettingsSyncSnapshot,
         applyStore,
         applySettingsPatch,
       });
@@ -177,7 +185,7 @@ describe('useSettingsDrafts', () => {
     function Harness() {
       latest.current = useSettingsDrafts({
         store: emptyStore,
-        storeSyncSnapshot: emptyStore,
+        settingsSyncSnapshot: emptySettingsSyncSnapshot,
         applyStore,
         applySettingsPatch,
       });
@@ -216,4 +224,8 @@ function applyStore(nextStore: DesktopStore) {
 
 function applySettingsPatch(patch: SettingsStorePatch) {
   return { ...emptyStore, ...patch };
+}
+
+function syncSnapshot(store: DesktopStore): SettingsSyncSnapshot {
+  return { user: store.user, settings: store.settings };
 }
