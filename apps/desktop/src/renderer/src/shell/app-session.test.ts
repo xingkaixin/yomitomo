@@ -4,7 +4,7 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ArticleSummaryRecord, DesktopStore } from '@yomitomo/shared';
 import type { AppMenuCommand } from '../../../app-menu-types';
-import { useAppSession, type AppSessionInput } from './app-session';
+import { appNavigationReducer, useAppSession, type AppSessionInput } from './app-session';
 
 const desktopApi = vi.hoisted(() => ({
   backupDatabase: vi.fn(async () => undefined),
@@ -172,6 +172,55 @@ describe('useAppSession', () => {
     act(() => result.current.actions.openSettings());
 
     expect(result.current.readerOpen).toBe(false);
+  });
+
+  it('ignores reader state updates outside the library', () => {
+    const { result } = renderSession({ storeStatus: 'ready' });
+    act(() => result.current.actions.openSettings());
+
+    act(() => result.current.actions.setReaderOpen(true));
+    act(() => result.current.actions.openLibrary());
+
+    expect(result.current).toMatchObject({ surface: 'library', readerOpen: false });
+  });
+});
+
+describe('appNavigationReducer', () => {
+  it('makes reader state representable only on the library surface', () => {
+    const reading = appNavigationReducer(
+      { pendingOpenArticle: null, readerOpen: false, surface: 'library' },
+      { type: 'set-reader-open', open: true },
+    );
+    const settings = appNavigationReducer(reading, {
+      type: 'open-surface',
+      surface: 'settings',
+    });
+
+    expect(reading).toEqual({
+      pendingOpenArticle: null,
+      readerOpen: true,
+      surface: 'library',
+    });
+    expect(settings).toEqual({ surface: 'settings' });
+    expect(appNavigationReducer(settings, { type: 'set-reader-open', open: true })).toBe(settings);
+  });
+
+  it('moves pending article navigation into the library state', () => {
+    const opening = appNavigationReducer(
+      { surface: 'distillations' },
+      { type: 'open-article', target: { articleId: 'article_1', annotationId: 'annotation_1' } },
+    );
+
+    expect(opening).toEqual({
+      pendingOpenArticle: { articleId: 'article_1', annotationId: 'annotation_1' },
+      readerOpen: false,
+      surface: 'library',
+    });
+    expect(appNavigationReducer(opening, { type: 'article-opened' })).toEqual({
+      pendingOpenArticle: null,
+      readerOpen: false,
+      surface: 'library',
+    });
   });
 });
 

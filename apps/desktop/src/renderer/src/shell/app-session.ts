@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
 import type { ArticleSummaryRecord, DesktopStore } from '@yomitomo/shared';
 import type { AppMenuCommand, AppMenuCommandRequest } from '../../../app-menu-types';
 import type { SettingsSectionKey } from '../settings/app-settings-panels';
@@ -14,6 +14,54 @@ import {
 import { elapsedMs, recordStartupTiming, recordStatsTiming } from './app-utils';
 
 export type AppSurfaceKey = 'agents' | 'distillations' | 'library' | 'settings' | 'stats';
+
+type AppNavigationState =
+  | {
+      pendingOpenArticle: ReadingLibraryOpenTarget | null;
+      readerOpen: boolean;
+      surface: 'library';
+    }
+  | {
+      surface: Exclude<AppSurfaceKey, 'library'>;
+    };
+
+type AppNavigationEvent =
+  | { type: 'article-opened' }
+  | { type: 'open-article'; target: ReadingLibraryOpenTarget }
+  | { type: 'open-surface'; surface: AppSurfaceKey }
+  | { type: 'reset-transients' }
+  | { type: 'set-reader-open'; open: boolean };
+
+const initialNavigation: AppNavigationState = {
+  pendingOpenArticle: null,
+  readerOpen: false,
+  surface: 'library',
+};
+
+export function appNavigationReducer(
+  state: AppNavigationState,
+  event: AppNavigationEvent,
+): AppNavigationState {
+  switch (event.type) {
+    case 'open-surface':
+      if (event.surface === 'library') {
+        return state.surface === 'library' ? state : initialNavigation;
+      }
+      return { surface: event.surface };
+    case 'set-reader-open':
+      return state.surface === 'library' ? { ...state, readerOpen: event.open } : state;
+    case 'open-article':
+      return {
+        pendingOpenArticle: event.target,
+        readerOpen: false,
+        surface: 'library',
+      };
+    case 'article-opened':
+      return state.surface === 'library' ? { ...state, pendingOpenArticle: null } : state;
+    case 'reset-transients':
+      return state.surface === 'library' ? initialNavigation : state;
+  }
+}
 
 export type AppSessionInput = {
   appLocked: boolean;
@@ -39,12 +87,9 @@ const libraryMenuCommands = new Set<AppMenuCommand>([
  * timing or reset lists.
  */
 export function useAppSession(input: AppSessionInput) {
-  const [surface, setSurface] = useState<AppSurfaceKey>('library');
-  const [settingsSection, setSettingsSection] = useState<SettingsSectionKey>('collection');
-  const [readerOpen, setReaderOpen] = useState(false);
-  const [pendingOpenArticle, setPendingOpenArticle] = useState<ReadingLibraryOpenTarget | null>(
-    null,
-  );
+  const [navigation, dispatchNavigation] = useReducer(appNavigationReducer, initialNavigation);
+  const [requestedSettingsSection, setRequestedSettingsSection] =
+    useState<SettingsSectionKey>('collection');
   const [menuRequest, setMenuRequest] = useState<AppMenuCommandRequest | null>(null);
   const [onboardingForced, setOnboardingForced] = useState(false);
   const [onboardingFlowKey, setOnboardingFlowKey] = useState(0);
@@ -97,8 +142,7 @@ export function useAppSession(input: AppSessionInput) {
 
   useEffect(() => {
     if (!input.appLocked) return;
-    setReaderOpen(false);
-    setPendingOpenArticle(null);
+    dispatchNavigation({ type: 'reset-transients' });
     setProfileDialogOpen(false);
     setProfileDialogSourceRect(undefined);
     setStatsArticles(null);
@@ -106,13 +150,10 @@ export function useAppSession(input: AppSessionInput) {
     setThemeDialogOpen(false);
   }, [input.appLocked]);
 
-  useEffect(() => {
-    if (surface !== 'library') setReaderOpen(false);
-  }, [surface]);
-
-  useEffect(() => {
-    if (!input.developerModeEnabled && settingsSection === 'aiTrace') setSettingsSection('about');
-  }, [input.developerModeEnabled, settingsSection]);
+  const settingsSection = visibleSettingsSection(
+    requestedSettingsSection,
+    input.developerModeEnabled,
+  );
 
   async function refreshStatsArticles() {
     try {
@@ -129,12 +170,12 @@ export function useAppSession(input: AppSessionInput) {
       settingsProviderStatus: preloadEntries.settingsProvider.status,
       settingsAboutStatus: preloadEntries.settingsAbout.status,
     });
-    setSurface('settings');
+    dispatchNavigation({ type: 'open-surface', surface: 'settings' });
   }
 
   function changeSettingsSection(section: SettingsSectionKey) {
     if (!input.developerModeEnabled && section === 'aiTrace') {
-      setSettingsSection('about');
+      setRequestedSettingsSection('about');
       return;
     }
     recordStartupTiming('secondary_modules.settings_section_change', {
@@ -143,7 +184,7 @@ export function useAppSession(input: AppSessionInput) {
       settingsProviderStatus: preloadEntries.settingsProvider.status,
       settingsAboutStatus: preloadEntries.settingsAbout.status,
     });
-    setSettingsSection(section);
+    setRequestedSettingsSection(section);
   }
 
   function openSettingsSection(section: SettingsSectionKey) {
@@ -158,7 +199,7 @@ export function useAppSession(input: AppSessionInput) {
       rendererElapsedMs: elapsedMs(0),
       preloadStatus: preloadEntries.stats.status,
     });
-    setSurface('stats');
+    dispatchNavigation({ type: 'open-surface', surface: 'stats' });
     void refreshStatsArticles();
   }
 
@@ -167,7 +208,7 @@ export function useAppSession(input: AppSessionInput) {
       key: 'agents',
       status: preloadEntries.agents.status,
     });
-    setSurface('agents');
+    dispatchNavigation({ type: 'open-surface', surface: 'agents' });
   }
 
   function openProfileDialog(sourceElement?: Element) {
@@ -204,7 +245,7 @@ export function useAppSession(input: AppSessionInput) {
       return;
     }
     if (libraryMenuCommands.has(command)) {
-      setSurface('library');
+      dispatchNavigation({ type: 'open-surface', surface: 'library' });
       setMenuRequest({ command, id: ++menuRequestIdRef.current });
     }
   }
@@ -219,15 +260,15 @@ export function useAppSession(input: AppSessionInput) {
   return {
     menuRequest,
     onboardingFlowKey,
-    pendingOpenArticle,
+    pendingOpenArticle: navigation.surface === 'library' ? navigation.pendingOpenArticle : null,
     profileDialogOpen,
     profileDialogSourceRect,
-    readerOpen,
+    readerOpen: navigation.surface === 'library' && navigation.readerOpen,
     settingsSection,
     showOnboarding,
     statsArticles,
     statsNavigationStartedAt,
-    surface,
+    surface: navigation.surface,
     themeDialogOpen,
     updateDialogRequest,
     actions: {
@@ -236,11 +277,11 @@ export function useAppSession(input: AppSessionInput) {
       completeOnboarding: () => setOnboardingForced(false),
       openAgents,
       openArticleFromDistillation: (target: ReadingLibraryOpenTarget) => {
-        setPendingOpenArticle(target);
-        setSurface('library');
+        dispatchNavigation({ type: 'open-article', target });
       },
-      openDistillations: () => setSurface('distillations'),
-      openLibrary: () => setSurface('library'),
+      openDistillations: () =>
+        dispatchNavigation({ type: 'open-surface', surface: 'distillations' }),
+      openLibrary: () => dispatchNavigation({ type: 'open-surface', surface: 'library' }),
       openProfileDialog,
       openSettings,
       openSettingsSection,
@@ -250,8 +291,8 @@ export function useAppSession(input: AppSessionInput) {
         openSettingsSection('about');
         setUpdateDialogRequest((request) => request + 1);
       },
-      setPendingArticleOpened: () => setPendingOpenArticle(null),
-      setReaderOpen,
+      setPendingArticleOpened: () => dispatchNavigation({ type: 'article-opened' }),
+      setReaderOpen: (open: boolean) => dispatchNavigation({ type: 'set-reader-open', open }),
       setThemeDialogOpen,
       startOnboarding: () => {
         setOnboardingForced(true);
@@ -259,4 +300,8 @@ export function useAppSession(input: AppSessionInput) {
       },
     },
   };
+}
+
+function visibleSettingsSection(section: SettingsSectionKey, developerModeEnabled: boolean) {
+  return !developerModeEnabled && section === 'aiTrace' ? 'about' : section;
 }
