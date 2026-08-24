@@ -703,7 +703,7 @@ function huffCdicDecompressor(
     }
 
     const bitLength = byteArray.byteLength * 8;
-    for (let cursor = 0; cursor < bitLength; ) {
+    for (let cursor = 0; cursor < bitLength;) {
       if (budget.remainingSteps <= 0) throw new SourceImportError('EBOOK_IMPORT_INVALID_FILE');
       budget.remainingSteps -= 1;
 

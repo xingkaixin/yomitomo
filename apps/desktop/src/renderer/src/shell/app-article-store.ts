@@ -186,8 +186,8 @@ export function applyArticleUpsertPatch(
 
   return {
     ...store,
-    articles: store.articles.map(
-      (article, index): ArticleSummaryRecord => (index === existingIndex ? patch.article : article),
+    articles: store.articles.map((article, index): ArticleSummaryRecord =>
+      index === existingIndex ? patch.article : article,
     ),
   };
 }

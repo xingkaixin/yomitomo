@@ -59,9 +59,11 @@ export function builtinDailyQuotes(): DailyQuoteCandidate[] {
     ? resource.filter((text): text is string => typeof text === 'string' && text.length > 0)
     : fallbackBuiltinDailyQuoteTexts;
 
-  return texts.map(
-    (text, index): DailyQuoteCandidate => ({ id: `builtin:${index}`, text, source: 'builtin' }),
-  );
+  return texts.map((text, index): DailyQuoteCandidate => ({
+    id: `builtin:${index}`,
+    text,
+    source: 'builtin',
+  }));
 }
 
 export function selectDailyQuote(

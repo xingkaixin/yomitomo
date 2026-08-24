@@ -16,7 +16,7 @@ function renderMarkdownBlocks(content: string) {
   const lines = content.replace(/\r\n?/g, '\n').split('\n');
   const blocks: string[] = [];
 
-  for (let index = 0; index < lines.length; ) {
+  for (let index = 0; index < lines.length;) {
     const line = lines[index];
 
     if (!line.trim()) {

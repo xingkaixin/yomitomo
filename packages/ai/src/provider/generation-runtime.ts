@@ -77,7 +77,7 @@ export const generateYomitomoTextEffect = Effect.fn('Provider.generateText')(fun
       try: (signal) =>
         generateText({
           model: adapter.model,
-          system: payload.system,
+          instructions: payload.system,
           prompt: payload.user,
           maxOutputTokens: payload.maxTokens,
           temperature: payload.temperature,
@@ -119,7 +119,7 @@ export const streamYomitomoTextEffect = Effect.fn('Provider.streamText')(functio
       try: async (signal) => {
         const result = streamText({
           model: adapter.model,
-          system: payload.system,
+          instructions: payload.system,
           prompt: payload.user,
           maxOutputTokens: payload.maxTokens,
           temperature: payload.temperature,

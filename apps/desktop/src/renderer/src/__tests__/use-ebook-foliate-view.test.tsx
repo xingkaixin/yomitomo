@@ -240,11 +240,9 @@ function createMockFoliateView() {
     goTo: (target: { index: number }) => Promise<void>;
     setStyles: (styles: string | string[]) => void;
   };
-  const sections = mockFoliatePageCounts.map(
-    (_, index): FoliateSectionSource => ({
-      id: `section-${index}`,
-    }),
-  );
+  const sections = mockFoliatePageCounts.map((_, index): FoliateSectionSource => ({
+    id: `section-${index}`,
+  }));
   renderer.getContents = () => [{ index: sectionIndex }];
   renderer.goTo = vi.fn().mockImplementation(async (target: { index: number }) => {
     sectionIndex = target.index;
