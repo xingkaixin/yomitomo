@@ -30,6 +30,10 @@ import {
   type SegmentAnnotationTaskRebuilder,
 } from './segment-annotation-context';
 import { instructionPromptLine, readingIntentPromptLine } from '../agent/agent-runtime-prompts';
+import {
+  MULTI_ANNOTATION_OUTPUT_FRAMING,
+  type AnnotationOutputFormat,
+} from '../agent/annotation-output-format';
 
 export async function runAgentSegmentAnnotate(
   provider: LlmProvider,
@@ -58,7 +62,7 @@ export const runAgentSegmentAnnotateEffect = Effect.fn('Segment.annotate')(funct
     for (const task of segmentTasks) {
       const { text } = yield* generateYomitomoTextEffect(provider, {
         system,
-        user: buildAgentSegmentAnnotatePrompt(payload, agent, task),
+        user: buildAgentSegmentAnnotatePrompt('json', payload, agent, task),
         maxTokens: 3000,
         temperature: agent.temperature,
       });
@@ -121,7 +125,7 @@ export const runAgentSegmentAnnotateWithMemoryEffect = Effect.fn('Segment.annota
         );
         const { text } = yield* generateYomitomoTextEffect(provider, {
           system,
-          user: buildAgentSegmentAnnotatePrompt(payload, agent, task),
+          user: buildAgentSegmentAnnotatePrompt('json', payload, agent, task),
           maxTokens: 3000,
           temperature: agent.temperature,
         });
@@ -238,7 +242,7 @@ export const runAgentSegmentAnnotateStreamWithMemoryEffect = Effect.fn(
         provider,
         {
           system,
-          user: buildAgentSegmentAnnotateStreamPrompt(payload, agent, task),
+          user: buildAgentSegmentAnnotatePrompt('ndjson', payload, agent, task),
           maxTokens: 3000,
           temperature: agent.temperature,
         },
@@ -331,6 +335,7 @@ function acceptSegmentAnnotationSuggestion(
 }
 
 function buildAgentSegmentAnnotatePrompt(
+  outputFormat: AnnotationOutputFormat,
   payload: AgentAnnotatePayload,
   agent: Agent,
   task: SegmentAnnotationTask,
@@ -340,20 +345,7 @@ function buildAgentSegmentAnnotatePrompt(
     readingIntent: task.planItem.readingIntent || payload.readingIntent,
   };
   const density = task.targetDensity || agent.annotationDensity;
-  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}${segmentAnnotationContextPrompt(task)}${readingIntentPromptLine(promptPayload)}${instructionPromptLine(payload)}\n\n请返回 JSON 数组。每个元素包含：\n- exact：必须来自 currentSegment 的 allowedAnchorRange.coreParagraphIds，逐字一致，不能来自 retrieved_evidence、segment_memory、segment_trace、next_preview、chapter_trace 或 dedup\n- prefix：exact 前方 10-40 个字，来自 currentSegment 原文\n- suffix：exact 后方 10-40 个字，来自 currentSegment 原文\n- type：只允许 key_point、assumption、concept、question、quote\n- readingIntent：章节 readingIntent 有值时必须等于该值；否则从 explain、decompose、challenge、question、connect 中选择\n- moveType：只允许 explain_concept、surface_assumption、ask_question、connect_previous、challenge_argument、reader_application、style_observation、structure_marker、definition_watch、foreshadowing_watch\n- whyHere：说明为什么这一个位置值得批注，避免泛泛摘要\n- evidenceUsed：数组，只能包含 localText、chapterSummary、trace、relatedPassage\n- confidence：low、medium 或 high\n- shouldShow：布尔值，只有确信值得展示才为 true\n- comment：写给读者的批注评论，要体现 moveType，不要写“这段说明了”式摘要\n\n批注密度：${annotationDensityInstruction(density, task.context.currentSegment.text)}\n\n选择标准：优先选择会改变理解、暴露前提、连接前文、提出好问题或标记结构的位置；没有价值返回空数组。\n\n只返回 JSON，不要输出 Markdown。`;
-}
-
-function buildAgentSegmentAnnotateStreamPrompt(
-  payload: AgentAnnotatePayload,
-  agent: Agent,
-  task: SegmentAnnotationTask,
-) {
-  const promptPayload = {
-    ...payload,
-    readingIntent: task.planItem.readingIntent || payload.readingIntent,
-  };
-  const density = task.targetDensity || agent.annotationDensity;
-  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}${segmentAnnotationContextPrompt(task)}${readingIntentPromptLine(promptPayload)}${instructionPromptLine(payload)}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"currentSegment 中的原文连续片段","prefix":"exact 前方 10-40 个字","suffix":"exact 后方 10-40 个字","type":"key_point","readingIntent":"explain","moveType":"explain_concept","whyHere":"为什么选这里","evidenceUsed":["localText"],"confidence":"high","shouldShow":true,"comment":"写给读者的批注评论"}\n\n批注密度：${annotationDensityInstruction(density, task.context.currentSegment.text)}\n\n要求：\n- exact 必须来自 currentSegment 的 allowedAnchorRange.coreParagraphIds，逐字一致，不能来自 retrieved_evidence、segment_memory、segment_trace、next_preview、chapter_trace 或 dedup\n- type 只允许 key_point、assumption、concept、question、quote\n- readingIntent：章节 readingIntent 有值时必须等于该值；否则从 explain、decompose、challenge、question、connect 中选择\n- moveType 只允许 explain_concept、surface_assumption、ask_question、connect_previous、challenge_argument、reader_application、style_observation、structure_marker、definition_watch、foreshadowing_watch\n- evidenceUsed 只能包含 localText、chapterSummary、trace、relatedPassage\n- 每发现一条值得批注的内容，就立刻输出一行 JSON；没有价值可以不输出任何行\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
+  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}${segmentAnnotationContextPrompt(task)}${readingIntentPromptLine(promptPayload)}${instructionPromptLine(payload)}\n\n## 批注语义\n每条批注包含：\n- exact：必须来自 currentSegment 的 allowedAnchorRange.coreParagraphIds，逐字一致，不能来自 retrieved_evidence、segment_memory、segment_trace、next_preview、chapter_trace 或 dedup\n- prefix：exact 前方 10-40 个字，来自 currentSegment 原文\n- suffix：exact 后方 10-40 个字，来自 currentSegment 原文\n- type：只允许 key_point、assumption、concept、question、quote\n- readingIntent：章节 readingIntent 有值时必须等于该值；否则从 explain、decompose、challenge、question、connect 中选择\n- moveType：只允许 explain_concept、surface_assumption、ask_question、connect_previous、challenge_argument、reader_application、style_observation、structure_marker、definition_watch、foreshadowing_watch\n- whyHere：说明为什么这一个位置值得批注，避免泛泛摘要\n- evidenceUsed：数组，只能包含 localText、chapterSummary、trace、relatedPassage\n- confidence：low、medium 或 high\n- shouldShow：布尔值，只有确信值得展示才为 true\n- comment：写给读者的批注评论，要体现 moveType，不要写“这段说明了”式摘要\n\n批注密度：${annotationDensityInstruction(density, task.context.currentSegment.text)}\n\n选择标准：优先选择会改变理解、暴露前提、连接前文、提出好问题或标记结构的位置；没有价值则不输出批注。\n\n## 输出格式\n${MULTI_ANNOTATION_OUTPUT_FRAMING[outputFormat]}`;
 }
 
 function segmentAnnotationOutputLimit(agent: Agent, task: SegmentAnnotationTask) {
