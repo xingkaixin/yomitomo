@@ -1,6 +1,6 @@
 import type React from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Annotation, ArticleReadingProgress, ReaderQuestionContext } from '@yomitomo/shared';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { Annotation, ReaderQuestionContext } from '@yomitomo/shared';
 import { resolveTextAnchor } from '@yomitomo/shared';
 import {
   annotationIdsAtHighlightPoint,
@@ -27,7 +27,6 @@ import {
 import { useAgentAnnotationQueue } from '@yomitomo/reader-ui/use-agent-annotation-queue';
 import { OpenArticleButton } from '../../shell/app-ui';
 import { articleIdentityLine } from '../../shell/app-utils';
-import { recordRendererPerformanceTiming } from '../../shell/app-renderer-performance';
 import type { WebSourceBookcaseProps } from '../bookcase/app-source-bookcase';
 import { sourceTocOptions, useWebReaderBoxes } from './use-web-reader-boxes';
 import {
@@ -39,15 +38,14 @@ import {
 import { createWebSourceReaderController } from './app-source-bookcase-web-controller';
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
 import { useSourceReaderAppView } from '../bookcase/use-source-reader-app-view';
-import { useSourceReadingProgressSaver } from '../bookcase/use-source-reading-progress-saver';
-import { createWebReadingProgressFrame } from './web-reading-progress-frame';
 import { useWebAnnotationRailDiagnostics } from './use-web-annotation-rail-diagnostics';
 import { useWebBilingualTranslation } from './use-web-bilingual-translation';
 import { useWebReaderSelection } from './use-web-reader-selection';
+import { useWebActiveTocIndex } from './use-web-active-toc-index';
+import { useWebReadingProgress } from './use-web-reading-progress';
+import { useWebAnnotationFocus } from './use-web-annotation-focus';
 
 const WEB_HIGHLIGHT_HIT_PADDING = 8;
-const WEB_READING_PROGRESS_SAVE_DEBOUNCE_MS = 450;
-const WEB_READING_PROGRESS_SAVE_MIN_DELTA = 0.01;
 
 export function WebSourceBookcase({
   annotationActions: { onArticleChange, onFocusedAnnotation, onOpenAnnotation },
@@ -63,27 +61,6 @@ export function WebSourceBookcase({
   readerControl: { focusAnnotationId, onClose, selectedAnnotationId },
 }: WebSourceBookcaseProps) {
   const { mergeArticleAgentAnnotation, saveArticleReadingProgress } = articleActions;
-  const restoredWebProgressArticleRef = useRef<string | null>(null);
-  const [readingProgress, setReadingProgress] = useState(
-    () => normalizeSavedWebProgress(article.readingProgress) ?? 0,
-  );
-  const shouldSaveWebProgress = useCallback(
-    (nextProgress: ArticleReadingProgress, lastSavedProgress: ArticleReadingProgress | null) =>
-      nextProgress.kind === 'scroll' &&
-      (lastSavedProgress?.kind !== 'scroll' ||
-        Math.abs(nextProgress.progress - lastSavedProgress.progress) >=
-          WEB_READING_PROGRESS_SAVE_MIN_DELTA),
-    [],
-  );
-  const { saveNow: saveWebProgressNow, scheduleSave: scheduleWebProgressSave } =
-    useSourceReadingProgressSaver({
-      articleId: article.id,
-      debounceMs: WEB_READING_PROGRESS_SAVE_DEBOUNCE_MS,
-      initialProgress: article.readingProgress,
-      onSaveArticleReadingProgress: saveArticleReadingProgress,
-      shouldSave: shouldSaveWebProgress,
-    });
-  const [activeTocIndex, setActiveTocIndex] = useState<number | null>(null);
   const sourceReaderApp = useSourceReaderApp({
     articleActions,
     beforeOpenAnnotation,
@@ -119,12 +96,15 @@ export function WebSourceBookcase({
     },
     workspace: sourceReaderWorkspace,
   } = sourceReaderApp;
+  const readingProgress = useWebReadingProgress({
+    articleId: article.id,
+    initialProgress: article.readingProgress,
+    onSaveArticleReadingProgress: saveArticleReadingProgress,
+    scrollRef,
+  });
   const { annotations, annotationsRef, annotationAgents, deleteAnnotation, saveAnnotation } =
     sourceReaderSession;
   const [articleSearchText, setArticleSearchText] = useState('');
-  const onFocusedAnnotationRef = useRef(onFocusedAnnotation);
-  const webFocusBoxCountRef = useRef(0);
-  const scrollToAnnotationRef = useRef<(annotationId: string) => boolean>(() => false);
   const contentHtml = useMemo(() => (article ? sourceArticleBodyHtml(article) : ''), [article]);
   const bilingualTranslation = useWebBilingualTranslation({
     annotations,
@@ -147,6 +127,12 @@ export function WebSourceBookcase({
     contentHtml: translatedContentHtml,
     userProfile,
   });
+  const activeTocIndex = useWebActiveTocIndex({
+    articleRef,
+    contentVersion: translatedContentHtml,
+    scrollRef,
+    tocItems,
+  });
   useWebAnnotationRailDiagnostics({
     articleId: article.id,
     boxes,
@@ -155,45 +141,10 @@ export function WebSourceBookcase({
     scrollRef,
     selectedAnnotationId,
   });
-  useEffect(() => {
-    onFocusedAnnotationRef.current = onFocusedAnnotation;
-  }, [onFocusedAnnotation]);
-  useEffect(() => {
-    webFocusBoxCountRef.current = boxes.length;
-  }, [boxes.length]);
   const tocStats = useMemo(
     () => buildTocAnnotationStats(tocItems, annotations, userProfile, annotationAgents),
     [annotationAgents, annotations, tocItems, userProfile],
   );
-
-  useEffect(() => {
-    const scrollElement = scrollRef.current;
-    const articleElement = articleRef.current;
-    if (!scrollElement || !articleElement || tocItems.length === 0) {
-      setActiveTocIndex(null);
-      return;
-    }
-
-    let frame = 0;
-    const updateActiveTocIndex = () => {
-      frame = 0;
-      const nextIndex = webActiveTocIndex(articleElement, scrollElement, tocItems);
-      setActiveTocIndex((current) => (current === nextIndex ? current : nextIndex));
-    };
-    const scheduleUpdate = () => {
-      if (frame) return;
-      frame = window.requestAnimationFrame(updateActiveTocIndex);
-    };
-
-    scheduleUpdate();
-    scrollElement.addEventListener('scroll', scheduleUpdate, { passive: true });
-    window.addEventListener('resize', scheduleUpdate);
-    return () => {
-      scrollElement.removeEventListener('scroll', scheduleUpdate);
-      window.removeEventListener('resize', scheduleUpdate);
-      if (frame) window.cancelAnimationFrame(frame);
-    };
-  }, [tocItems, translatedContentHtml]);
 
   const {
     agentDockCompleting,
@@ -261,68 +212,7 @@ export function WebSourceBookcase({
   useEffect(() => {
     setStatusMessage('');
     setArticleSearchText('');
-    setReadingProgress(normalizeSavedWebProgress(article.readingProgress) ?? 0);
-    restoredWebProgressArticleRef.current = null;
   }, [article?.id]);
-
-  useEffect(() => {
-    const scrollElement = scrollRef.current;
-    if (!scrollElement || restoredWebProgressArticleRef.current === article.id) return;
-    const savedProgress = normalizeSavedWebProgress(article.readingProgress);
-    if (savedProgress === null || savedProgress <= 0) {
-      restoredWebProgressArticleRef.current = article.id;
-      return;
-    }
-
-    let cancelled = false;
-    const restore = () => {
-      if (cancelled) return;
-      const maxScrollTop = webReaderMaxScrollTop(scrollElement);
-      if (maxScrollTop > 0) scrollElement.scrollTo({ top: maxScrollTop * savedProgress });
-      setReadingProgress(savedProgress);
-      restoredWebProgressArticleRef.current = article.id;
-    };
-    const frame = window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(restore);
-    });
-    return () => {
-      cancelled = true;
-      window.cancelAnimationFrame(frame);
-    };
-  }, [article.id, article.readingProgress]);
-
-  useEffect(() => {
-    const scrollElement = scrollRef.current;
-    if (!scrollElement) return;
-
-    const progressFrame = createWebReadingProgressFrame(setReadingProgress);
-    const scheduleProgressUpdate = () => {
-      const progress = webReaderProgress(scrollElement);
-      progressFrame.schedule(progress);
-      return progress;
-    };
-    const scheduleSave = () => {
-      const progress = scheduleProgressUpdate();
-      scheduleWebProgressSave(webReadingProgressSnapshot(progress));
-    };
-
-    let initialFrame: number | null = null;
-    initialFrame = window.requestAnimationFrame(() => {
-      initialFrame = window.requestAnimationFrame(() => {
-        initialFrame = null;
-        const progress = webReaderProgress(scrollElement);
-        setReadingProgress(progress);
-        if (webReaderMaxScrollTop(scrollElement) <= 0)
-          void saveWebProgressNow(webReadingProgressSnapshot(progress));
-      });
-    });
-    scrollElement.addEventListener('scroll', scheduleSave, { passive: true });
-    return () => {
-      scrollElement.removeEventListener('scroll', scheduleSave);
-      if (initialFrame !== null) window.cancelAnimationFrame(initialFrame);
-      progressFrame.cancel();
-    };
-  }, [article.id, saveWebProgressNow, scheduleWebProgressSave]);
 
   const scrollToAnnotation = useCallback(
     (annotationId: string) => {
@@ -344,29 +234,15 @@ export function WebSourceBookcase({
     },
     [boxes],
   );
-  useEffect(() => {
-    scrollToAnnotationRef.current = scrollToAnnotation;
-  }, [scrollToAnnotation]);
-
-  useEffect(() => {
-    if (!focusAnnotationId) return;
-    const scrollElement = scrollRef.current;
-    if (!scrollElement) return;
-    const handleWheel = (event: WheelEvent) => {
-      recordRendererPerformanceTiming('reader_scroll_input', {
-        source: 'web',
-        articleId: article.id,
-        annotationId: focusAnnotationId,
-        deltaY: event.deltaY,
-        defaultPrevented: event.defaultPrevented,
-        scrollTop: scrollElement.scrollTop,
-        scrollHeight: scrollElement.scrollHeight,
-        clientHeight: scrollElement.clientHeight,
-      });
-    };
-    scrollElement.addEventListener('wheel', handleWheel, { passive: true });
-    return () => scrollElement.removeEventListener('wheel', handleWheel);
-  }, [article.id, focusAnnotationId]);
+  useWebAnnotationFocus({
+    annotationsRef,
+    articleId: article.id,
+    boxCount: boxes.length,
+    focusAnnotationId,
+    onFocusedAnnotation,
+    scrollRef,
+    scrollToAnnotation,
+  });
 
   const resolveAnnotationNavigation = useCallback(
     ({
@@ -394,108 +270,6 @@ export function WebSourceBookcase({
     },
     [clearAnnotationUiState, onOpenAnnotation, scrollToAnnotation],
   );
-
-  useEffect(() => {
-    if (!focusAnnotationId) return;
-    const scrollElement = scrollRef.current;
-    recordRendererPerformanceTiming('reader_focus', {
-      source: 'web',
-      phase: 'effect_start',
-      articleId: article.id,
-      annotationId: focusAnnotationId,
-      annotationCount: annotations.length,
-      boxCount: boxes.length,
-      hasScrollElement: Boolean(scrollElement),
-      scrollTop: scrollElement?.scrollTop ?? null,
-      scrollHeight: scrollElement?.scrollHeight ?? null,
-      clientHeight: scrollElement?.clientHeight ?? null,
-    });
-    const maxAttemptCount = 30;
-    let attemptCount = 0;
-    let cancelled = false;
-    let frame: number | null = null;
-    let timer: number | null = null;
-
-    const completeFocus = (phase: string, delayMs: number) => {
-      timer = window.setTimeout(() => {
-        if (cancelled) return;
-        const currentScrollElement = scrollRef.current;
-        recordRendererPerformanceTiming('reader_focus', {
-          source: 'web',
-          phase,
-          articleId: article.id,
-          annotationId: focusAnnotationId,
-          scrollTop: currentScrollElement?.scrollTop ?? null,
-        });
-        onFocusedAnnotationRef.current();
-      }, delayMs);
-    };
-
-    const attemptFocus = () => {
-      if (cancelled) return;
-      const currentScrollElement = scrollRef.current;
-      const currentAnnotations = annotationsRef.current;
-      if (!currentAnnotations.some((annotation) => annotation.id === focusAnnotationId)) {
-        recordRendererPerformanceTiming('reader_focus', {
-          source: 'web',
-          phase: 'annotation_missing_consume',
-          articleId: article.id,
-          annotationId: focusAnnotationId,
-          annotationCount: currentAnnotations.length,
-          attemptCount,
-        });
-        onFocusedAnnotationRef.current();
-        return;
-      }
-
-      const scrolled = scrollToAnnotationRef.current(focusAnnotationId);
-      recordRendererPerformanceTiming('reader_focus', {
-        source: 'web',
-        phase: 'navigation_requested',
-        articleId: article.id,
-        annotationId: focusAnnotationId,
-        scrolled,
-        attemptCount,
-        scrollTop: currentScrollElement?.scrollTop ?? null,
-        boxCount: webFocusBoxCountRef.current,
-      });
-
-      if (scrolled) {
-        completeFocus('complete_timer', 520);
-        return;
-      }
-
-      attemptCount += 1;
-      if (attemptCount >= maxAttemptCount) {
-        recordRendererPerformanceTiming('reader_focus', {
-          source: 'web',
-          phase: 'navigation_unavailable_consume',
-          articleId: article.id,
-          annotationId: focusAnnotationId,
-          attemptCount,
-          boxCount: webFocusBoxCountRef.current,
-        });
-        completeFocus('unavailable_complete', 0);
-        return;
-      }
-
-      frame = window.requestAnimationFrame(attemptFocus);
-    };
-
-    frame = window.requestAnimationFrame(attemptFocus);
-    return () => {
-      recordRendererPerformanceTiming('reader_focus', {
-        source: 'web',
-        phase: 'effect_cleanup',
-        articleId: article.id,
-        annotationId: focusAnnotationId,
-        scrollTop: scrollElement?.scrollTop ?? null,
-      });
-      cancelled = true;
-      if (frame !== null) window.cancelAnimationFrame(frame);
-      if (timer !== null) window.clearTimeout(timer);
-    };
-  }, [annotationsRef, article.id, focusAnnotationId]);
 
   function currentArticleText() {
     return articleRef.current ? sourceTextContent(articleRef.current) : '';
@@ -795,52 +569,4 @@ export function WebSourceBookcase({
       {bilingualTranslation.dialog}
     </section>
   );
-}
-
-function normalizeSavedWebProgress(progress: ArticleReadingProgress | undefined) {
-  if (progress?.kind !== 'scroll') return null;
-  if (!Number.isFinite(progress.progress)) return null;
-  return Math.min(1, Math.max(0, progress.progress));
-}
-
-function webReaderMaxScrollTop(scrollElement: HTMLElement) {
-  return Math.max(0, scrollElement.scrollHeight - scrollElement.clientHeight);
-}
-
-function webReaderProgress(scrollElement: HTMLElement) {
-  const maxScrollTop = webReaderMaxScrollTop(scrollElement);
-  if (maxScrollTop <= 0) return 1;
-  return Math.min(1, Math.max(0, scrollElement.scrollTop / maxScrollTop));
-}
-
-function webActiveTocIndex(
-  articleElement: HTMLElement,
-  scrollElement: HTMLElement,
-  tocItems: TocItem[],
-) {
-  const scrollRect = scrollElement.getBoundingClientRect();
-  const sampleY = scrollRect.top + scrollRect.height * 0.2;
-  const sortedItems = tocItems
-    .filter((item) => item.index >= 0)
-    .toSorted((left, right) => left.start - right.start);
-  let firstIndex: number | null = null;
-  let activeIndex: number | null = null;
-
-  for (const item of sortedItems) {
-    const target = findCurrentTocTarget(articleElement, item, sourceTocOptions);
-    if (!target) continue;
-    firstIndex ??= item.index;
-    if (target.getBoundingClientRect().top <= sampleY) activeIndex = item.index;
-    else break;
-  }
-
-  return activeIndex ?? firstIndex;
-}
-
-function webReadingProgressSnapshot(progress: number): ArticleReadingProgress {
-  return {
-    kind: 'scroll',
-    progress,
-    updatedAt: new Date().toISOString(),
-  };
 }
