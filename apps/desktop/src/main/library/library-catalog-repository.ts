@@ -1,4 +1,4 @@
-import { and, count, eq, exists, notExists, or, sql, type AnyColumn, type SQL } from 'drizzle-orm';
+import { and, eq, exists, notExists, or, sql, type AnyColumn, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 import { ARTICLE_SOURCE_TYPES, normalizeArticleSourceType } from '@yomitomo/shared';
 import type {
@@ -28,20 +28,16 @@ export function readLibraryCatalogRows(
 ): LibraryCatalogListResult {
   const input = normalizeInput(rawInput);
   const offset = (input.page - 1) * input.pageSize;
-  const candidates = readCatalogCandidates(database, input, offset, input.pageSize);
-  const totalCount = countCatalogCandidates(database, input);
-  const unfilteredCount = input.query
-    ? countCatalogCandidates(database, { ...input, query: '' })
-    : totalCount;
+  const page = readCatalogPage(database, input, offset, input.pageSize);
 
   return {
-    entities: hydrateCatalogCandidates(database, candidates),
+    entities: hydrateCatalogCandidates(database, page.candidates),
     itemCounts: readItemCounts(database),
     page: input.page,
     pageSize: input.pageSize,
     query: input.query,
-    totalCount,
-    unfilteredCount,
+    totalCount: page.totalCount,
+    unfilteredCount: page.unfilteredCount,
   };
 }
 
@@ -81,7 +77,7 @@ function isLibraryCatalogType(value: unknown): value is LibraryCatalogType {
   return ALL_TYPES.includes(value as LibraryCatalogType);
 }
 
-function readCatalogCandidates(
+function readCatalogPage(
   database: StoreDatabase,
   input: NormalizedInput,
   offset: number,
@@ -99,23 +95,36 @@ function readCatalogCandidates(
     selects.push(collectionCandidateSelect(database, input));
   }
   const union = selects.length > 0 ? sql.join(selects, sql` union all `) : emptyCandidateSelect();
-  let rows: Array<{
-    kind: CatalogCandidate['kind'];
-    id: string;
-    type: LibraryCatalogType;
-    sortTime: string;
-    title: string;
-    pinned: number;
-    memberCount: number | null;
-  }>;
+  let rows: CatalogPageRow[];
   try {
     rows = database.all(sql`
-      with catalog_candidates as (${union})
-      select kind, id, type, sortTime, title, pinned, memberCount
-      from catalog_candidates
-      order by pinned desc, sortTime desc, title collate nocase asc, id asc
-      limit ${limit}
-      offset ${offset}
+      with all_candidates as (${union}),
+      catalog_counts as (
+        select
+          coalesce(sum(matchesQuery), 0) as totalCount,
+          count(*) as unfilteredCount
+        from all_candidates
+      ),
+      page_candidates as (
+        select kind, id, type, sortTime, title, pinned, memberCount
+        from all_candidates
+        where matchesQuery = 1
+        order by pinned desc, sortTime desc, title collate nocase asc, id asc
+        limit ${limit}
+        offset ${offset}
+      )
+      select
+        page_candidates.kind,
+        page_candidates.id,
+        page_candidates.type,
+        page_candidates.sortTime,
+        page_candidates.title,
+        page_candidates.pinned,
+        page_candidates.memberCount,
+        catalog_counts.totalCount,
+        catalog_counts.unfilteredCount
+      from catalog_counts
+      left join page_candidates on 1 = 1
     `);
   } catch (error) {
     console.error('[library-catalog] candidate query failed', {
@@ -128,28 +137,53 @@ function readCatalogCandidates(
     });
     throw error;
   }
-  return rows.map((row): CatalogCandidate => {
+  const firstRow = rows[0];
+  const candidates = rows.flatMap((row): CatalogCandidate[] => {
+    if (!row.kind || !row.id || !row.type || row.sortTime === null || row.title === null) {
+      return [];
+    }
     if (row.kind === 'collection') {
-      return {
-        kind: 'collection',
+      return [
+        {
+          kind: 'collection',
+          id: row.id,
+          sortTime: row.sortTime,
+          title: row.title,
+          pinned: Boolean(row.pinned),
+          memberCount: row.memberCount ?? 0,
+        },
+      ];
+    }
+    if (row.type === 'collection') throw new Error('LIBRARY_CATALOG_INVALID_ITEM_TYPE');
+    return [
+      {
+        kind: 'item',
         id: row.id,
+        type: row.type,
         sortTime: row.sortTime,
         title: row.title,
         pinned: Boolean(row.pinned),
-        memberCount: row.memberCount ?? 0,
-      };
-    }
-    if (row.type === 'collection') throw new Error('LIBRARY_CATALOG_INVALID_ITEM_TYPE');
-    return {
-      kind: 'item',
-      id: row.id,
-      type: row.type,
-      sortTime: row.sortTime,
-      title: row.title,
-      pinned: Boolean(row.pinned),
-    };
+      },
+    ];
   });
+  return {
+    candidates,
+    totalCount: firstRow?.totalCount || 0,
+    unfilteredCount: firstRow?.unfilteredCount || 0,
+  };
 }
+
+type CatalogPageRow = {
+  kind: CatalogCandidate['kind'] | null;
+  id: string | null;
+  type: LibraryCatalogType | null;
+  sortTime: string | null;
+  title: string | null;
+  pinned: number | null;
+  memberCount: number | null;
+  totalCount: number;
+  unfilteredCount: number;
+};
 
 function articleCandidateSelect(
   database: StoreDatabase,
@@ -157,6 +191,7 @@ function articleCandidateSelect(
   source: Exclude<LibraryCatalogItemType, 'weread'>,
 ) {
   const pinned = sql`case when ${schema.libraryPins.targetId} is null then 0 else 1 end`;
+  const matchesQuery = searchMatch(articleSearchCondition(schema.articles, input.query));
   if (input.scope.kind === 'collection') {
     return sql`
       select
@@ -166,7 +201,8 @@ function articleCandidateSelect(
         ${schema.collectionMembers.addedAt} as sortTime,
         ${schema.articles.title} as title,
         ${pinned} as pinned,
-        null as memberCount
+        null as memberCount,
+        ${matchesQuery} as matchesQuery
       from ${schema.collectionMembers}
       inner join ${schema.articles}
         on ${schema.collectionMembers.memberKind} = ${'article'}
@@ -177,7 +213,6 @@ function articleCandidateSelect(
       where ${and(
         eq(schema.collectionMembers.collectionId, input.scope.collectionId),
         eq(schema.articles.sourceType, source),
-        articleSearchCondition(schema.articles, input.query),
       )}
     `;
   }
@@ -189,21 +224,19 @@ function articleCandidateSelect(
       ${schema.articles.createdAt} as sortTime,
       ${schema.articles.title} as title,
       ${pinned} as pinned,
-      null as memberCount
+      null as memberCount,
+      ${matchesQuery} as matchesQuery
     from ${schema.articles}
     left join ${schema.libraryPins}
       on ${schema.libraryPins.targetKind} = ${'article'}
       and ${schema.libraryPins.targetId} = ${schema.articles.id}
-    where ${and(
-      eq(schema.articles.sourceType, source),
-      articleScopeCondition(database, input),
-      articleSearchCondition(schema.articles, input.query),
-    )}
+    where ${and(eq(schema.articles.sourceType, source), articleScopeCondition(database, input))}
   `;
 }
 
 function weReadCandidateSelect(database: StoreDatabase, input: NormalizedInput) {
   const pinned = sql`case when ${schema.libraryPins.targetId} is null then 0 else 1 end`;
+  const matchesQuery = searchMatch(weReadSearchCondition(schema.wereadBooks, input.query));
   if (input.scope.kind === 'collection') {
     return sql`
       select
@@ -213,7 +246,8 @@ function weReadCandidateSelect(database: StoreDatabase, input: NormalizedInput) 
         ${schema.collectionMembers.addedAt} as sortTime,
         ${schema.wereadBooks.title} as title,
         ${pinned} as pinned,
-        null as memberCount
+        null as memberCount,
+        ${matchesQuery} as matchesQuery
       from ${schema.collectionMembers}
       inner join ${schema.wereadBooks}
         on ${schema.collectionMembers.memberKind} = ${'weread'}
@@ -221,10 +255,7 @@ function weReadCandidateSelect(database: StoreDatabase, input: NormalizedInput) 
       left join ${schema.libraryPins}
         on ${schema.libraryPins.targetKind} = ${'weread'}
         and ${schema.libraryPins.targetId} = ${schema.wereadBooks.bookId}
-      where ${and(
-        eq(schema.collectionMembers.collectionId, input.scope.collectionId),
-        weReadSearchCondition(schema.wereadBooks, input.query),
-      )}
+      where ${eq(schema.collectionMembers.collectionId, input.scope.collectionId)}
     `;
   }
   return sql`
@@ -235,17 +266,13 @@ function weReadCandidateSelect(database: StoreDatabase, input: NormalizedInput) 
       ${weReadSortTime()} as sortTime,
       ${schema.wereadBooks.title} as title,
       ${pinned} as pinned,
-      null as memberCount
+      null as memberCount,
+      ${matchesQuery} as matchesQuery
     from ${schema.wereadBooks}
     left join ${schema.libraryPins}
       on ${schema.libraryPins.targetKind} = ${'weread'}
       and ${schema.libraryPins.targetId} = ${schema.wereadBooks.bookId}
-    where ${requiredCondition(
-      and(
-        weReadScopeCondition(database, input),
-        weReadSearchCondition(schema.wereadBooks, input.query),
-      ),
-    )}
+    where ${requiredCondition(weReadScopeCondition(database, input))}
   `;
 }
 
@@ -255,6 +282,7 @@ function collectionCandidateSelect(database: StoreDatabase, input: NormalizedInp
     from ${schema.collectionMembers}
     where ${schema.collectionMembers.collectionId} = ${schema.collections.id}
   )`;
+  const matchesQuery = searchMatch(collectionSearchCondition(database, input.query));
   return sql`
     select
       ${'collection'} as kind,
@@ -263,12 +291,12 @@ function collectionCandidateSelect(database: StoreDatabase, input: NormalizedInp
       ${schema.collections.createdAt} as sortTime,
       ${schema.collections.name} as title,
       case when ${schema.libraryPins.targetId} is null then 0 else 1 end as pinned,
-      ${memberCount} as memberCount
+      ${memberCount} as memberCount,
+      ${matchesQuery} as matchesQuery
     from ${schema.collections}
     left join ${schema.libraryPins}
       on ${schema.libraryPins.targetKind} = ${'collection'}
       and ${schema.libraryPins.targetId} = ${schema.collections.id}
-    where ${requiredCondition(collectionSearchCondition(database, input.query))}
   `;
 }
 
@@ -281,7 +309,8 @@ function emptyCandidateSelect() {
       ${''} as sortTime,
       ${''} as title,
       0 as pinned,
-      null as memberCount
+      null as memberCount,
+      0 as matchesQuery
     where 0
   `;
 }
@@ -290,102 +319,8 @@ function requiredCondition(condition: SQL | undefined) {
   return condition || sql`1`;
 }
 
-function countCatalogCandidates(database: StoreDatabase, input: NormalizedInput) {
-  let total = 0;
-  for (const source of ARTICLE_SOURCE_TYPES) {
-    if (!input.types.has(source)) continue;
-    total += countArticleCandidates(database, input, source);
-  }
-  if (input.types.has('weread')) {
-    total += countWeReadCandidates(database, input);
-  }
-  if (showsCollections(input)) {
-    total +=
-      database
-        .select({ count: count() })
-        .from(schema.collections)
-        .where(collectionSearchCondition(database, input.query))
-        .get()?.count || 0;
-  }
-  return total;
-}
-
-function countArticleCandidates(
-  database: StoreDatabase,
-  input: NormalizedInput,
-  source: Exclude<LibraryCatalogItemType, 'weread'>,
-) {
-  if (input.scope.kind === 'collection') {
-    return (
-      database
-        .select({ count: count() })
-        .from(schema.collectionMembers)
-        .innerJoin(
-          schema.articles,
-          and(
-            eq(schema.collectionMembers.memberKind, 'article'),
-            eq(schema.collectionMembers.memberId, schema.articles.id),
-          ),
-        )
-        .where(
-          and(
-            eq(schema.collectionMembers.collectionId, input.scope.collectionId),
-            eq(schema.articles.sourceType, source),
-            articleSearchCondition(schema.articles, input.query),
-          ),
-        )
-        .get()?.count || 0
-    );
-  }
-  return (
-    database
-      .select({ count: count() })
-      .from(schema.articles)
-      .where(
-        and(
-          eq(schema.articles.sourceType, source),
-          articleScopeCondition(database, input),
-          articleSearchCondition(schema.articles, input.query),
-        ),
-      )
-      .get()?.count || 0
-  );
-}
-
-function countWeReadCandidates(database: StoreDatabase, input: NormalizedInput) {
-  if (input.scope.kind === 'collection') {
-    return (
-      database
-        .select({ count: count() })
-        .from(schema.collectionMembers)
-        .innerJoin(
-          schema.wereadBooks,
-          and(
-            eq(schema.collectionMembers.memberKind, 'weread'),
-            eq(schema.collectionMembers.memberId, schema.wereadBooks.bookId),
-          ),
-        )
-        .where(
-          and(
-            eq(schema.collectionMembers.collectionId, input.scope.collectionId),
-            weReadSearchCondition(schema.wereadBooks, input.query),
-          ),
-        )
-        .get()?.count || 0
-    );
-  }
-  return (
-    database
-      .select({ count: count() })
-      .from(schema.wereadBooks)
-      .where(
-        and(
-          weReadScopeCondition(database, input),
-          weReadSearchCondition(schema.wereadBooks, input.query),
-        ),
-      )
-      .get()?.count || 0
-  );
+function searchMatch(condition: SQL | undefined) {
+  return sql`case when ${requiredCondition(condition)} then 1 else 0 end`;
 }
 
 function showsCollections(input: NormalizedInput) {
@@ -592,15 +527,21 @@ function textLike(column: AnyColumn, pattern: string) {
 
 function readItemCounts(database: StoreDatabase): LibraryCatalogItemCounts {
   const counts: LibraryCatalogItemCounts = { web: 0, ebook: 0, pdf: 0, text: 0, weread: 0 };
-  const articleCounts = database
-    .select({ source: schema.articles.sourceType, count: count() })
-    .from(schema.articles)
-    .groupBy(schema.articles.sourceType)
-    .all();
-  for (const row of articleCounts) {
+  const rows = database.all<{ source: string; count: number }>(sql`
+    select source_type as source, count(*) as count
+    from ${schema.articles}
+    group by source_type
+    union all
+    select ${'weread'} as source, count(*) as count
+    from ${schema.wereadBooks}
+  `);
+  for (const row of rows) {
+    if (row.source === 'weread') {
+      counts.weread = row.count || 0;
+      continue;
+    }
     const source = normalizeArticleSourceType(row.source);
     counts[source] += row.count || 0;
   }
-  counts.weread = database.select({ count: count() }).from(schema.wereadBooks).get()?.count || 0;
   return counts;
 }
