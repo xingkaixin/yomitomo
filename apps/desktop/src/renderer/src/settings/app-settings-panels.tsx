@@ -50,7 +50,6 @@ import {
 } from './app-settings-kit';
 import type { SaveableDraft } from './use-saveable-draft';
 import { useSaveStatus } from './use-save-status';
-import { dataManagementActions } from './app-data-management-actions';
 import { getDesktopApi } from '../shell/app-desktop-api';
 
 export { GeneralSettings } from './app-settings-general-panel';
@@ -482,13 +481,16 @@ export function DataManagementSettings({
   async function saveLogRetention(days: number) {
     setLastRetentionDays(days);
     await runDataAction(`retention:${days}`, async () => {
-      await retentionSave.run(() => dataManagementActions.saveLogRetention(days), {
-        onError: (_error, message) => setStatus(message),
-        onSaved: (nextStore) => {
-          onStoreUpdated(nextStore);
-          setStatus(t('settings.data.retentionSavedDays', { count: days }));
+      await retentionSave.run(
+        () => getDesktopApi().store.saveSettings({ logRetentionDays: days }),
+        {
+          onError: (_error, message) => setStatus(message),
+          onSaved: (nextStore) => {
+            onStoreUpdated(nextStore);
+            setStatus(t('settings.data.retentionSavedDays', { count: days }));
+          },
         },
-      });
+      );
     });
   }
 

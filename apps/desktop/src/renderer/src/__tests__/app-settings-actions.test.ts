@@ -1,9 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createDataManagementActions } from '../settings/app-data-management-actions';
 import { createAppSettingsActions } from '../settings/app-settings-actions';
 
 type SettingsDesktop = ReturnType<Parameters<typeof createAppSettingsActions>[0]>;
-type DataManagementDesktop = ReturnType<Parameters<typeof createDataManagementActions>[0]>;
 
 describe('app settings actions', () => {
   it('enables app lock only after saving the new PIN', async () => {
@@ -34,17 +32,5 @@ describe('app settings actions', () => {
     });
     expect(test).toHaveBeenCalledWith('api-key');
     expect(getState).toHaveBeenCalledOnce();
-  });
-});
-
-describe('data management actions', () => {
-  it('persists only the log retention patch', async () => {
-    const saveSettings = vi.fn().mockResolvedValue({ settings: { logRetentionDays: 30 } });
-    const actions = createDataManagementActions(
-      () => ({ store: { saveSettings } }) as unknown as DataManagementDesktop,
-    );
-    await actions.saveLogRetention(30);
-
-    expect(saveSettings).toHaveBeenCalledWith({ logRetentionDays: 30 });
   });
 });
