@@ -1,17 +1,16 @@
 // @vitest-environment jsdom
 
-import { Suspense } from 'react';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { LibraryCatalogListResult, LibraryCatalogScope } from '../../../ipc-contract';
-import { useLibraryCatalog, useLocalStoreRevision } from './use-library-catalog';
+import { useLibraryCatalog } from './use-library-catalog';
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
 
-it('invalidates the current catalog page when an article patch changes the shell revision', async () => {
+it('invalidates the current catalog page when its explicit revision changes', async () => {
   const listLibraryCatalog = vi.fn(async () => ({
     entities: [],
     itemCounts: { web: 0, ebook: 0, pdf: 0, text: 0, weread: 0 },
@@ -22,96 +21,12 @@ it('invalidates the current catalog page when an article patch changes the shell
     unfilteredCount: 0,
   }));
   vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listLibraryCatalog } } });
-  const view = render(<Harness articles={[]} />);
+  const view = render(<Harness revision={0} />);
   await waitFor(() => expect(listLibraryCatalog).toHaveBeenCalledOnce());
 
-  view.rerender(<Harness articles={[{ id: 'article_1', updatedAt: '2026-07-15' }]} />);
+  view.rerender(<Harness revision={1} />);
 
   await waitFor(() => expect(listLibraryCatalog).toHaveBeenCalledTimes(2));
-});
-
-it('keeps the local revision stable until a fact reference changes', () => {
-  const articles: unknown[] = [];
-  const collections: unknown[] = [];
-  const view = render(<RevisionHarness facts={[articles, collections]} />);
-
-  expect(screen.getByTestId('revision').textContent).toBe('0');
-
-  view.rerender(<RevisionHarness facts={[articles, collections]} />);
-
-  expect(screen.getByTestId('revision').textContent).toBe('0');
-});
-
-it('increments the local revision once when one or more facts change in a render', () => {
-  const initialFacts = [[], [], [], [], []] as const;
-  const view = render(<RevisionHarness facts={initialFacts} />);
-
-  const changedArticles = [{ id: 'article_1' }];
-  view.rerender(<RevisionHarness facts={[changedArticles, ...initialFacts.slice(1)]} />);
-
-  expect(screen.getByTestId('revision').textContent).toBe('1');
-
-  view.rerender(
-    <RevisionHarness facts={[changedArticles, [{ id: 'member_1' }], initialFacts[2], [], []]} />,
-  );
-
-  expect(screen.getByTestId('revision').textContent).toBe('2');
-});
-
-it('detects in-place fact replacements and dependency length changes', () => {
-  const facts: unknown[] = [{ id: 'article_1' }];
-  const view = render(<RevisionHarness facts={facts} />);
-
-  facts[0] = { id: 'article_2' };
-  view.rerender(<RevisionHarness facts={facts} />);
-
-  expect(screen.getByTestId('revision').textContent).toBe('1');
-
-  facts.push({ id: 'collection_1' });
-  view.rerender(<RevisionHarness facts={facts} />);
-
-  expect(screen.getByTestId('revision').textContent).toBe('2');
-});
-
-it('compares local facts with Object.is semantics', () => {
-  const facts: unknown[] = [Number.NaN, 0];
-  const view = render(<RevisionHarness facts={facts} />);
-
-  facts[0] = Number.NaN;
-  view.rerender(<RevisionHarness facts={facts} />);
-
-  expect(screen.getByTestId('revision').textContent).toBe('0');
-
-  facts[1] = -0;
-  view.rerender(<RevisionHarness facts={facts} />);
-
-  expect(screen.getByTestId('revision').textContent).toBe('1');
-});
-
-it('ignores dependency changes from a render that never commits', () => {
-  const initialFact = { id: 'article_1' };
-  const changedFact = { id: 'article_2' };
-  const onRender = vi.fn();
-  const view = render(
-    <Suspense fallback={null}>
-      <SuspendingRevisionHarness facts={[initialFact]} onRender={onRender} suspend={false} />
-    </Suspense>,
-  );
-  expect(screen.getByTestId('revision').textContent).toBe('0');
-
-  view.rerender(
-    <Suspense fallback={null}>
-      <SuspendingRevisionHarness facts={[changedFact]} onRender={onRender} suspend />
-    </Suspense>,
-  );
-  expect(onRender).toHaveBeenLastCalledWith([changedFact]);
-
-  view.rerender(
-    <Suspense fallback={null}>
-      <SuspendingRevisionHarness facts={[initialFact]} onRender={onRender} suspend={false} />
-    </Suspense>,
-  );
-  expect(screen.getByTestId('revision').textContent).toBe('0');
 });
 
 it('does not expose the previous catalog while a new scope is loading', async () => {
@@ -149,42 +64,18 @@ it('keeps the last good result and exposes an explicit refresh error', async () 
   await screen.findByText('first:error:database busy');
 });
 
-function Harness({ articles }: { articles: unknown }) {
-  const revision = useLocalStoreRevision([articles, null, null, null, null]);
+function Harness({ revision }: { revision: number }) {
   useLibraryCatalog({ scope: { kind: 'library' }, page: 1, pageSize: 12 }, revision);
   return null;
 }
 
 function ResultHarness({ scope, query }: { scope: LibraryCatalogScope; query?: string }) {
-  const revision = useLocalStoreRevision([]);
-  const result = useLibraryCatalog({ scope, query, page: 1, pageSize: 12 }, revision);
+  const result = useLibraryCatalog({ scope, query, page: 1, pageSize: 12 }, 0);
   return (
     <span data-testid="catalog-result">
       {`${result.result?.query || 'none'}:${result.status}${result.error ? `:${result.error.message}` : ''}`}
     </span>
   );
-}
-
-function RevisionHarness({ facts }: { facts: readonly unknown[] }) {
-  const revision = useLocalStoreRevision(facts);
-  return <span data-testid="revision">{revision}</span>;
-}
-
-const suspendedRender = new Promise<never>(() => undefined);
-
-function SuspendingRevisionHarness({
-  facts,
-  onRender,
-  suspend,
-}: {
-  facts: readonly unknown[];
-  onRender: (facts: readonly unknown[]) => void;
-  suspend: boolean;
-}) {
-  const revision = useLocalStoreRevision(facts);
-  onRender(facts);
-  if (suspend) throw suspendedRender;
-  return <span data-testid="revision">{revision}</span>;
 }
 
 function catalogResult(query: string): LibraryCatalogListResult {

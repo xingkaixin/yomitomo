@@ -258,10 +258,11 @@ function ReadyApp({
                   articleActions={articleActions}
                   articleStore={articleStore}
                   articles={store.articles}
+                  catalogRevision={storeState.libraryCatalogRevision}
                   collectionMembers={store.collectionMembers}
                   collections={store.collections}
                   messageSendShortcut={store.settings.messageSendShortcut}
-                  pins={store.pins}
+                  libraryQuery={session.libraryQuery}
                   readerTheme={theme.readerTheme}
                   settings={store.settings}
                   selectionActionShortcuts={store.settings.selectionActionShortcuts}

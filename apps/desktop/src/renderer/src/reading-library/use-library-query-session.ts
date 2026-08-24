@@ -1,21 +1,17 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { AppSettingsPatch, ResolvedAppSettings } from '@yomitomo/shared';
 import type { LibraryCatalogItemType, LibraryCatalogListInput } from '../../../ipc-contract';
-import { librarySession } from './app-reading-library-session';
 import type { LibraryTypeFilter } from './library-filter-types';
-import {
-  createLibraryQuerySessionState,
-  libraryQuerySessionReducer,
-  normalizeLibraryPageSize,
-  type LibraryPageSize,
-} from './library-query-session';
+import { normalizeLibraryPageSize, type LibraryPageSize } from './library-query-session';
 import { libraryPageSizePersistence } from './library-page-size-persistence';
 import { useLibraryCatalog } from './use-library-catalog';
+import type { LibraryQueryState } from './use-library-query-state';
 
 type UseLibraryQuerySessionOptions = {
   settings: ResolvedAppSettings;
   onSaveSettings: (settings: AppSettingsPatch) => Promise<void> | void;
-  localRevision: number;
+  catalogRevision: unknown;
+  query: LibraryQueryState;
   availableTypes: readonly LibraryCatalogItemType[];
   collectionIds: readonly string[];
 };
@@ -23,18 +19,12 @@ type UseLibraryQuerySessionOptions = {
 export function useLibraryQuerySession({
   availableTypes,
   collectionIds,
-  localRevision,
+  catalogRevision,
   onSaveSettings,
+  query,
   settings,
 }: UseLibraryQuerySessionOptions) {
-  const [state, dispatch] = useReducer(libraryQuerySessionReducer, undefined, () =>
-    createLibraryQuerySessionState({
-      activeCollectionId: librarySession.activeCollectionId,
-      pageSize: settings.libraryPageSize,
-      searchQuery: librarySession.searchQuery,
-      selectedTypes: librarySession.selectedTypes,
-    }),
-  );
+  const { dispatch, state } = query;
   const selectedTypesKey = useMemo(
     () => [...state.selectedTypes].toSorted().join(','),
     [state.selectedTypes],
@@ -52,7 +42,7 @@ export function useLibraryQuerySession({
     }),
     [selectedTypesKey, state.page, state.pageSize, state.scope, state.searchQuery],
   );
-  const catalog = useLibraryCatalog(catalogInput, localRevision);
+  const catalog = useLibraryCatalog(catalogInput, catalogRevision);
   const resolvedAvailableTypes = useMemo<readonly LibraryCatalogItemType[]>(
     () => resolvedLibraryAvailableTypes(availableTypes, catalog.result?.itemCounts.weread),
     [availableTypes, catalog.result?.itemCounts.weread],
@@ -68,15 +58,8 @@ export function useLibraryQuerySession({
   );
   const knownCollectionIds = useMemo(() => new Set(collectionIds), [collectionIds]);
   const pageCount = Math.max(1, Math.ceil((catalog.result?.totalCount || 0) / state.pageSize));
-  const externalPageSizeRef = useRef(normalizeLibraryPageSize(settings.libraryPageSize));
-  const latestPageSizeRef = useRef(normalizeLibraryPageSize(settings.libraryPageSize));
-
-  useEffect(() => {
-    librarySession.searchQuery = state.searchQuery;
-    librarySession.selectedTypes = new Set(state.selectedTypes);
-    librarySession.activeCollectionId =
-      state.scope.kind === 'collection' ? state.scope.collectionId : null;
-  }, [state.scope, state.searchQuery, state.selectedTypes]);
+  const externalPageSizeRef = useRef(state.pageSize);
+  const latestPageSizeRef = useRef(state.pageSize);
 
   useEffect(() => {
     dispatch({ type: 'types-pruned', available: selectableTypes });
@@ -100,8 +83,8 @@ export function useLibraryQuerySession({
     dispatch({ type: 'page-size-changed', pageSize: externalPageSize });
   }, [externalPageSize]);
 
-  const updateSearchQuery = useCallback((query: string) => {
-    dispatch({ type: 'query-changed', query });
+  const updateSearchQuery = useCallback((nextQuery: string) => {
+    dispatch({ type: 'query-changed', query: nextQuery });
   }, []);
   const toggleType = useCallback(
     (value: LibraryTypeFilter) => {
@@ -175,6 +158,8 @@ export function useLibraryQuerySession({
     state,
   };
 }
+
+export type LibraryQuerySession = ReturnType<typeof useLibraryQuerySession>;
 
 function resolvedLibraryAvailableTypes(
   availableTypes: readonly LibraryCatalogItemType[],

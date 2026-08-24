@@ -4,24 +4,23 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { AppSettingsPatch } from '@yomitomo/shared';
 import type { LibraryCatalogItemType, LibraryCatalogListResult } from '../../../ipc-contract';
-import { librarySession } from './app-reading-library-session';
-import { useLibraryQuerySession } from './use-library-query-session';
+import { useLibraryQuerySession as useLibraryQuerySessionRuntime } from './use-library-query-session';
+import { useLibraryQueryState } from './use-library-query-state';
 import { normalizeAppSettings } from '../../../settings/app-settings-normalization';
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
-  librarySession.searchQuery = '';
-  librarySession.selectedTypes = new Set();
-  librarySession.activeCollectionId = null;
 });
 
-it('derives the catalog input from session state and mirrors it to the library session', async () => {
+it('derives the catalog input directly from the owned query state', async () => {
   const listCatalog = vi.fn(async () => catalogResult());
   vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listCatalog } } });
-  librarySession.searchQuery = 'saved query';
-  librarySession.selectedTypes = new Set(['web']);
-  const { result } = renderHook(() => useLibraryQuerySession(sessionOptions()));
+  const { result } = renderHook(() =>
+    useLibraryQuerySession(
+      sessionOptions({ initial: { searchQuery: 'saved query', selectedTypes: new Set(['web']) } }),
+    ),
+  );
 
   await waitFor(() => expect(listCatalog).toHaveBeenCalledOnce());
   expect(result.current.input).toMatchObject({
@@ -35,17 +34,21 @@ it('derives the catalog input from session state and mirrors it to the library s
   act(() => result.current.actions.updateSearchQuery('next query'));
 
   expect(result.current.input).toMatchObject({ query: 'next query', page: 1 });
-  await waitFor(() => expect(librarySession.searchQuery).toBe('next query'));
 });
 
 it('prunes unavailable types and exits a removed collection from external facts', async () => {
   const listCatalog = vi.fn(async () => catalogResult());
   vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listCatalog } } });
-  librarySession.activeCollectionId = 'collection_missing';
-  librarySession.selectedTypes = new Set(['collection']);
   const { result } = renderHook(() =>
     useLibraryQuerySession(
-      sessionOptions({ availableTypes: ['web'], collectionIds: ['collection_available'] }),
+      sessionOptions({
+        availableTypes: ['web'],
+        collectionIds: ['collection_available'],
+        initial: {
+          activeCollectionId: 'collection_missing',
+          selectedTypes: new Set(['collection']),
+        },
+      }),
     ),
   );
 
@@ -100,6 +103,16 @@ it('serializes page-size saves as partial settings patches', async () => {
     secondSave.resolve();
     await secondSave.promise;
   });
+});
+
+it('adopts the configured page size on its first mount', async () => {
+  const listCatalog = vi.fn(async () => catalogResult());
+  vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listCatalog } } });
+  const { result } = renderHook(() =>
+    useLibraryQuerySession(sessionOptions({ settings: { libraryPageSize: 24 } })),
+  );
+
+  await waitFor(() => expect(result.current.state.pageSize).toBe(24));
 });
 
 it('serializes page-size saves across a remounted home', async () => {
@@ -321,12 +334,14 @@ it('keeps an optimistic page size while observing external settings during a sav
 function sessionOptions({
   availableTypes = ['web', 'ebook', 'pdf', 'text', 'weread'],
   collectionIds = [],
+  initial = {},
   localRevision = 0,
   onSaveSettings = vi.fn(),
   settings = {},
 }: {
   availableTypes?: LibraryCatalogItemType[];
   collectionIds?: string[];
+  initial?: Parameters<typeof useLibraryQueryState>[0];
   localRevision?: number;
   onSaveSettings?: (settings: AppSettingsPatch) => Promise<void> | void;
   settings?: AppSettingsPatch;
@@ -334,10 +349,21 @@ function sessionOptions({
   return {
     availableTypes,
     collectionIds,
+    initial,
     localRevision,
     onSaveSettings,
     settings: normalizeAppSettings(settings),
   };
+}
+
+function useLibraryQuerySession(options: ReturnType<typeof sessionOptions>) {
+  const { initial, localRevision, ...runtimeOptions } = options;
+  const query = useLibraryQueryState(initial);
+  return useLibraryQuerySessionRuntime({
+    ...runtimeOptions,
+    catalogRevision: localRevision,
+    query,
+  });
 }
 
 function catalogResult({

@@ -12,6 +12,7 @@ import {
   scheduleIdlePreload,
 } from './app-secondary-module-preload';
 import { elapsedMs, recordStartupTiming, recordStatsTiming } from './app-utils';
+import { useLibraryQueryState } from '../reading-library/use-library-query-state';
 
 export type AppSurfaceKey = 'agents' | 'distillations' | 'library' | 'settings' | 'stats';
 
@@ -88,6 +89,7 @@ const libraryMenuCommands = new Set<AppMenuCommand>([
  */
 export function useAppSession(input: AppSessionInput) {
   const [navigation, dispatchNavigation] = useReducer(appNavigationReducer, initialNavigation);
+  const libraryQuery = useLibraryQueryState();
   const [requestedSettingsSection, setRequestedSettingsSection] =
     useState<SettingsSectionKey>('collection');
   const [menuRequest, setMenuRequest] = useState<AppMenuCommandRequest | null>(null);
@@ -258,6 +260,7 @@ export function useAppSession(input: AppSessionInput) {
   }, [input.appLocked, input.applyStore]);
 
   return {
+    libraryQuery,
     menuRequest,
     onboardingFlowKey,
     pendingOpenArticle: navigation.surface === 'library' ? navigation.pendingOpenArticle : null,

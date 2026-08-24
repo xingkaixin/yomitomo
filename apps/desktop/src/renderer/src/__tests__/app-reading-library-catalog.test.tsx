@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Collection } from '@yomitomo/shared';
 import type { LibraryCatalogListInput, LibraryCatalogListResult } from '../../../ipc-contract';
@@ -276,7 +276,7 @@ describe('ReadingLibrary catalog', () => {
 
   it('keeps search query and type filter across remounts within the session', async () => {
     const articles = [article({ id: 'web_1', title: '网页文章' })];
-    renderLibrary(articles);
+    const view = renderLibrary(articles);
 
     fireEvent.change(screen.getByLabelText('搜索文章、合集、作者或来源'), {
       target: { value: '关键字' },
@@ -284,9 +284,7 @@ describe('ReadingLibrary catalog', () => {
     await selectLibraryType(/网页文章/);
     expect(screen.getByRole('button', { name: '移除网页文章' })).toBeTruthy();
 
-    // 模拟切到其他菜单或进入文章：卸载后再次进入阅读库
-    cleanup();
-    renderLibrary(articles);
+    view.remountLibrary();
 
     expect(screen.getByLabelText<HTMLInputElement>('搜索文章、合集、作者或来源').value).toBe(
       '关键字',
@@ -329,14 +327,12 @@ describe('ReadingLibrary catalog', () => {
         },
       ],
     };
-    renderLibrary([collectedArticle], options);
+    const view = renderLibrary([collectedArticle], options);
 
     fireEvent.click(screen.getByRole('button', { name: '打开合集：研究合集' }));
     expect(screen.getByRole('button', { name: '返回全部' })).toBeTruthy();
 
-    // 模拟在合集内进入文章后返回：卸载后再次进入阅读库应仍停留在该合集
-    cleanup();
-    renderLibrary([collectedArticle], options);
+    view.remountLibrary();
 
     expect(screen.getByRole('button', { name: '返回全部' })).toBeTruthy();
     expect(screen.getByText('研究合集')).toBeTruthy();

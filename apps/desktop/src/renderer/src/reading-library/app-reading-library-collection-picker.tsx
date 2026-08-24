@@ -13,14 +13,7 @@ import {
   ReaderTooltip,
   ReaderTooltipProvider,
 } from '@yomitomo/reader-ui/reader-component-primitives';
-import type {
-  ArticleSummaryRecord,
-  Collection,
-  CollectionMember,
-  ContentRef,
-  LibraryPin,
-  WeReadBook,
-} from '@yomitomo/shared';
+import type { Collection, ContentRef } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
 import { Input } from '../components/ui/input';
 import {
@@ -56,17 +49,14 @@ import {
   useLibraryDroppable,
 } from './app-reading-library-dnd';
 import type { LibraryTypeScope } from './library-filter-types';
-import { useLibraryCatalog, useLocalStoreRevision } from './use-library-catalog';
+import { useLibraryCatalog } from './use-library-catalog';
 
 const PICKER_PAGE_SIZE = 30;
 
 type CollectionPickerDialogProps = {
-  articles: ArticleSummaryRecord[];
+  catalogRevision: unknown;
   collection: Collection;
-  collectionMembers: CollectionMember[];
-  pins: LibraryPin[];
   typeOptions: { value: LibraryTypeScope; label: string }[];
-  wereadBooks: WeReadBook[];
   onAddMembers: (members: ContentRef[]) => Promise<void> | void;
   onClose: () => void;
 };
@@ -80,12 +70,9 @@ export function CollectionPickerDialog(props: CollectionPickerDialogProps) {
 }
 
 function CollectionPickerDialogContent({
-  articles,
+  catalogRevision,
   collection,
-  collectionMembers,
-  pins,
   typeOptions,
-  wereadBooks,
   onAddMembers,
   onClose,
 }: CollectionPickerDialogProps) {
@@ -108,14 +95,7 @@ function CollectionPickerDialogContent({
     }),
     [collection.id, page, query, typeScope],
   );
-  const localRevision = useLocalStoreRevision([
-    articles,
-    collectionMembers,
-    collection,
-    pins,
-    wereadBooks,
-  ]);
-  const catalogState = useLibraryCatalog(catalogInput, localRevision);
+  const catalogState = useLibraryCatalog(catalogInput, catalogRevision);
   const remoteCatalog = catalogState.result;
   const selectedItems = useMemo(() => Array.from(selectedRefs.values()), [selectedRefs]);
   const selectedKeys = useMemo(() => new Set(selectedRefs.keys()), [selectedRefs]);

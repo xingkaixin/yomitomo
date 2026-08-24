@@ -18,6 +18,7 @@ import type {
 } from '@yomitomo/shared';
 import { createLibraryCatalogTestAdapter } from '../../../main/library/library-catalog-test-adapter';
 import { ReadingLibrary } from '../reading-library/app-reading-library';
+import { useLibraryQueryState } from '../reading-library/use-library-query-state';
 import type { AppMenuCommandRequest } from '../../../app-menu-types';
 import type {
   ArticleImportResult,
@@ -25,7 +26,6 @@ import type {
   LibraryCatalogListResult,
   SetLibraryPinInput,
 } from '../../../ipc-contract';
-import { librarySession } from '../reading-library/app-reading-library-session';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { defaultTheme } from '../theme/app-theme';
 import { articleActionStubs, articleStoreSinkStub } from './article-actions-test-utils';
@@ -46,8 +46,15 @@ vi.mock('../shell/app-toast', () => ({
 
 export const { appToast, playAppSoundEffect } = feedbackSpies;
 
-export function TestReadingLibrary(props: React.ComponentProps<typeof ReadingLibrary>) {
-  return <ReadingLibrary {...props} />;
+type TestReadingLibraryProps = Omit<
+  React.ComponentProps<typeof ReadingLibrary>,
+  'catalogRevision' | 'libraryQuery'
+> & { active?: boolean };
+
+export function TestReadingLibrary({ active = true, ...props }: TestReadingLibraryProps) {
+  const libraryQuery = useLibraryQueryState();
+  if (!active) return null;
+  return <ReadingLibrary {...props} catalogRevision={0} libraryQuery={libraryQuery} />;
 }
 
 export const now = '2026-05-09T12:00:00.000Z';
@@ -95,9 +102,6 @@ afterEach(() => {
 beforeEach(() => {
   initializeAppI18n('zh-CN');
   document.documentElement.dataset.themeTone = defaultTheme.meta.tone;
-  librarySession.searchQuery = '';
-  librarySession.selectedTypes = new Set();
-  librarySession.activeCollectionId = null;
 });
 
 export function annotation(id: string, createdAt = now): Annotation {
@@ -321,8 +325,8 @@ export function renderLibrary(
 ) {
   const summaries = articles.map((item) => ('counts' in item ? item : articleSummary(item)));
   installDefaultCatalog(summaries, options);
-  return render(
-    <ReadingLibrary
+  const library = (
+    <TestReadingLibrary
       agents={[]}
       articleActions={articleActionStubs({
         ...(options.onCancelArticleImport
@@ -350,7 +354,6 @@ export function renderLibrary(
       collectionMembers={options.collectionMembers}
       collections={options.collections}
       menuRequest={options.menuRequest}
-      pins={options.pins}
       readerTheme={defaultTheme.reader}
       settings={normalizeAppSettings(options.settings)}
       userProfile={userProfile}
@@ -362,8 +365,15 @@ export function renderLibrary(
       onSaveSettings={options.onSaveSettings}
       onSetLibraryPin={options.onSetLibraryPin || vi.fn()}
       onOpenDataSources={options.onOpenDataSources}
-    />,
+    />
   );
+  const view = render(library);
+  return Object.assign(view, {
+    remountLibrary: () => {
+      view.rerender(React.cloneElement(library, { active: false }));
+      view.rerender(library);
+    },
+  });
 }
 
 export function collectionActionStubs() {
