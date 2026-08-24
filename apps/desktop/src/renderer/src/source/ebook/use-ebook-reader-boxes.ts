@@ -16,7 +16,6 @@ import {
 } from './ebook-content';
 import {
   currentFoliateContent,
-  currentFoliateContents,
   recordEbookPageTurnTrace,
   type EbookPageTurnTrace,
   type FoliateViewElement,
@@ -27,15 +26,7 @@ import {
   recordRendererPerformanceTiming,
 } from '../../shell/app-renderer-performance';
 import type { EbookBookcaseProps } from '../bookcase/source-bookcase-types';
-import { isContinuousTextSelectionMouseEvent } from '../bookcase/source-reader-selection-events';
-import {
-  readerPageTurnDirectionFromKeyboardEvent,
-  type ReaderPageTurnDirection,
-} from '../../shell/use-reader-page-turn-keys';
-import {
-  ebookClickPagingDirectionAtClientX,
-  type EbookClickPagingDirection,
-} from './app-source-bookcase-ebook-utils';
+import { debugEbookLayout } from './ebook-layout-debug';
 
 type UseEbookReaderBoxesInput = {
   annotationAgents: PublicAgent[];
@@ -50,52 +41,7 @@ type UseEbookReaderBoxesInput = {
   readerStateStatus: 'loading' | 'ready' | 'error';
   readerStateStatusRef: RefObject<'loading' | 'ready' | 'error'>;
   userProfile: UserProfile;
-  onFoliateClick: (event: MouseEvent, doc: Document) => boolean | void;
-  onFoliatePointerDown: () => void;
-  onFoliatePageTurnClick: (direction: EbookClickPagingDirection) => void;
-  onFoliatePageTurnKey: (direction: ReaderPageTurnDirection) => void;
-  onFoliateSelection: (doc: Document) => void;
-  onFoliateSelectionShortcut: (event: KeyboardEvent) => void;
 };
-
-function ebookLayoutDebugEnabled() {
-  try {
-    return (
-      (window as unknown as { yomitomoEbookLayoutDebug?: boolean }).yomitomoEbookLayoutDebug ===
-        true || window.localStorage.getItem('yomitomo:ebook-layout-debug') === '1'
-    );
-  } catch {
-    return false;
-  }
-}
-
-function debugEbookLayout(event: string, details: Record<string, unknown>) {
-  if (!ebookLayoutDebugEnabled()) return;
-  console.info(`[yomitomo:ebook-layout] ${event}`, details);
-}
-
-function debugRect(rect: DOMRect | null | undefined) {
-  if (!rect) return null;
-  return {
-    height: Math.round(rect.height),
-    left: Math.round(rect.left),
-    right: Math.round(rect.right),
-    top: Math.round(rect.top),
-    width: Math.round(rect.width),
-  };
-}
-
-function foliateClickTargetIsInteractive(target: EventTarget | null) {
-  if (!target || !('closest' in target)) return false;
-  const closest = (target as { closest?: (selector: string) => Element | null }).closest;
-  if (typeof closest !== 'function') return false;
-  return Boolean(
-    closest.call(
-      target,
-      'a, button, input, textarea, select, summary, audio, video, [role="button"], [contenteditable=""], [contenteditable="true"]',
-    ),
-  );
-}
 
 export function useEbookReaderBoxes({
   annotationAgents,
@@ -110,12 +56,6 @@ export function useEbookReaderBoxes({
   readerStateStatus,
   readerStateStatusRef,
   userProfile,
-  onFoliateClick,
-  onFoliatePointerDown,
-  onFoliatePageTurnClick,
-  onFoliatePageTurnKey,
-  onFoliateSelection,
-  onFoliateSelectionShortcut,
 }: UseEbookReaderBoxesInput) {
   const [boxes, setBoxes] = useState<HighlightBox[]>([]);
   const updateBoxesFrameRef = useRef(0);
@@ -131,23 +71,6 @@ export function useEbookReaderBoxes({
     rangeCount: 0,
     resolvedAnchorCount: 0,
   });
-  const observedFoliateViewsRef = useRef(new WeakSet<FoliateViewElement>());
-  const observedFoliateDocsRef = useRef(new WeakSet<Document>());
-  const suppressedFoliateSelectionDocsRef = useRef(new WeakSet<Document>());
-  const foliateDocCleanupsRef = useRef<Array<() => void>>([]);
-  const handleFoliateSelectionRef = useRef(onFoliateSelection);
-  const handleFoliateClickRef = useRef(onFoliateClick);
-  const handleFoliatePageTurnClickRef = useRef(onFoliatePageTurnClick);
-  const handleFoliatePageTurnKeyRef = useRef(onFoliatePageTurnKey);
-  const handleFoliatePointerDownRef = useRef(onFoliatePointerDown);
-  const handleFoliateSelectionShortcutRef = useRef(onFoliateSelectionShortcut);
-
-  handleFoliateSelectionRef.current = onFoliateSelection;
-  handleFoliateClickRef.current = onFoliateClick;
-  handleFoliatePageTurnClickRef.current = onFoliatePageTurnClick;
-  handleFoliatePageTurnKeyRef.current = onFoliatePageTurnKey;
-  handleFoliatePointerDownRef.current = onFoliatePointerDown;
-  handleFoliateSelectionShortcutRef.current = onFoliateSelectionShortcut;
 
   const resetEbookBoxState = useCallback(() => {
     if (updateBoxesFrameRef.current) {
@@ -502,235 +425,19 @@ export function useEbookReaderBoxes({
     };
   }, [article.id, canvasRef, scheduleEbookBoxUpdate]);
 
-  const cleanupFoliateDocumentListeners = useCallback(() => {
-    for (const cleanup of foliateDocCleanupsRef.current) cleanup();
-    foliateDocCleanupsRef.current = [];
-    observedFoliateViewsRef.current = new WeakSet<FoliateViewElement>();
-    observedFoliateDocsRef.current = new WeakSet<Document>();
-    suppressedFoliateSelectionDocsRef.current = new WeakSet<Document>();
-    const canvas = canvasRef.current;
-    if (canvas) delete canvas.dataset.ebookClickPagingHover;
-  }, [canvasRef]);
-
-  const setClickPagingHoverDirection = useCallback(
-    (direction: EbookClickPagingDirection | null) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      if (direction) canvas.dataset.ebookClickPagingHover = direction;
-      else delete canvas.dataset.ebookClickPagingHover;
-    },
-    [canvasRef],
-  );
-
-  const foliateDocumentHasExpandedSelection = useCallback((doc: Document) => {
-    const selection = doc.getSelection();
-    return Boolean(selection && selection.rangeCount > 0 && !selection.isCollapsed);
-  }, []);
-
-  const foliateViewHasExpandedSelection = useCallback(
-    (view: FoliateViewElement | null) =>
-      currentFoliateContents(view).some(({ doc }) =>
-        doc ? foliateDocumentHasExpandedSelection(doc) : false,
-      ),
-    [foliateDocumentHasExpandedSelection],
-  );
-
-  const foliateViewClickPagingDirection = useCallback(
-    (event: MouseEvent, view: FoliateViewElement) => {
-      const viewRect = view.getBoundingClientRect();
-      const direction = ebookClickPagingDirectionAtClientX({
-        clientX: event.clientX,
-        rect: viewRect,
-      });
-      debugEbookLayout('click-paging-view-direction', {
-        canvas: debugRect(canvasRef.current?.getBoundingClientRect()),
-        clientX: Math.round(event.clientX),
-        direction,
-        eventType: event.type,
-        view: debugRect(viewRect),
-      });
-      return direction;
-    },
-    [canvasRef],
-  );
-
-  const foliateClickPagingDirection = useCallback(
-    (event: MouseEvent, doc: Document) => {
-      const frame = doc.defaultView?.frameElement;
-      if (!(frame instanceof HTMLIFrameElement)) return null;
-      const frameRect = frame.getBoundingClientRect();
-      const viewRect = viewRef.current?.getBoundingClientRect() ?? null;
-      const hitRect = viewRect && viewRect.width > 0 ? viewRect : frameRect;
-      const clientX = frameRect.left + event.clientX;
-      const direction = ebookClickPagingDirectionAtClientX({
-        clientX,
-        rect: hitRect,
-      });
-      debugEbookLayout('click-paging-direction', {
-        canvas: debugRect(canvasRef.current?.getBoundingClientRect()),
-        clientX: Math.round(clientX),
-        direction,
-        eventClientX: Math.round(event.clientX),
-        eventType: event.type,
-        frame: debugRect(frameRect),
-        hitRect: debugRect(hitRect),
-        view: debugRect(viewRect),
-      });
-      return direction;
-    },
-    [canvasRef, viewRef],
-  );
-
-  const attachFoliateViewListeners = useCallback(
-    (view: FoliateViewElement | null) => {
-      if (!view || observedFoliateViewsRef.current.has(view)) return;
-      observedFoliateViewsRef.current.add(view);
-
-      const handleClick = (event: MouseEvent) => {
-        if (event.button !== 0 || event.defaultPrevented) return;
-        if (foliateViewHasExpandedSelection(view)) return;
-        if (foliateClickTargetIsInteractive(event.target)) return;
-        const direction = foliateViewClickPagingDirection(event, view);
-        if (!direction) return;
-        handleFoliatePageTurnClickRef.current(direction);
-      };
-      const handleMouseMove = (event: MouseEvent) => {
-        if (foliateViewHasExpandedSelection(view)) {
-          setClickPagingHoverDirection(null);
-          return;
-        }
-        setClickPagingHoverDirection(foliateViewClickPagingDirection(event, view));
-      };
-      const handleMouseLeave = () => setClickPagingHoverDirection(null);
-      const handlePointerDown = () => handleFoliatePointerDownRef.current();
-
-      view.addEventListener('click', handleClick);
-      view.addEventListener('mousemove', handleMouseMove);
-      view.addEventListener('mouseleave', handleMouseLeave);
-      view.addEventListener('pointerdown', handlePointerDown, true);
-      foliateDocCleanupsRef.current.push(() => {
-        view.removeEventListener('click', handleClick);
-        view.removeEventListener('mousemove', handleMouseMove);
-        view.removeEventListener('mouseleave', handleMouseLeave);
-        view.removeEventListener('pointerdown', handlePointerDown, true);
-      });
-    },
-    [
-      foliateViewClickPagingDirection,
-      foliateViewHasExpandedSelection,
-      setClickPagingHoverDirection,
-    ],
-  );
-
-  const attachFoliateDocumentListeners = useCallback(
-    (view: FoliateViewElement | null) => {
-      attachFoliateViewListeners(view);
-      const contents = currentFoliateContents(view);
-      for (const { doc } of contents) {
-        if (!doc || observedFoliateDocsRef.current.has(doc)) continue;
-        observedFoliateDocsRef.current.add(doc);
-
-        const handleSelection = () => {
-          window.setTimeout(() => {
-            if (suppressedFoliateSelectionDocsRef.current.delete(doc)) {
-              doc.getSelection()?.removeAllRanges();
-              return;
-            }
-            const selection = doc.getSelection();
-            if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
-            handleFoliateSelectionRef.current(doc);
-          }, 0);
-        };
-        const handleMouseDown = (event: MouseEvent) => {
-          if (!isContinuousTextSelectionMouseEvent(event)) {
-            suppressedFoliateSelectionDocsRef.current.delete(doc);
-            return;
-          }
-          if (foliateClickTargetIsInteractive(event.target)) return;
-          event.preventDefault();
-          suppressedFoliateSelectionDocsRef.current.add(doc);
-          doc.getSelection()?.removeAllRanges();
-        };
-        const handleClick = (event: MouseEvent) => {
-          if (event.button !== 0 || event.defaultPrevented) return;
-          if (foliateDocumentHasExpandedSelection(doc)) return;
-          const handled = handleFoliateClickRef.current(event, doc);
-          if (handled) return;
-          if (foliateClickTargetIsInteractive(event.target)) return;
-          const direction = foliateClickPagingDirection(event, doc);
-          if (!direction) return;
-          handleFoliatePageTurnClickRef.current(direction);
-        };
-        const handleMouseMove = (event: MouseEvent) => {
-          if (foliateDocumentHasExpandedSelection(doc)) {
-            setClickPagingHoverDirection(null);
-            return;
-          }
-          setClickPagingHoverDirection(foliateClickPagingDirection(event, doc));
-        };
-        const handleMouseLeave = () => setClickPagingHoverDirection(null);
-        const handlePointerDown = () => handleFoliatePointerDownRef.current();
-        const handleKeyDown = (event: KeyboardEvent) => {
-          handleFoliateSelectionShortcutRef.current(event);
-          const direction = readerPageTurnDirectionFromKeyboardEvent(event);
-          if (!direction) return;
-          event.preventDefault();
-          handleFoliatePageTurnKeyRef.current(direction);
-        };
-
-        doc.addEventListener('mousedown', handleMouseDown, true);
-        doc.addEventListener('mouseup', handleSelection);
-        doc.addEventListener('click', handleClick);
-        doc.addEventListener('keyup', handleSelection);
-        doc.addEventListener('keydown', handleKeyDown);
-        doc.addEventListener('mousemove', handleMouseMove);
-        doc.addEventListener('mouseleave', handleMouseLeave);
-        doc.addEventListener('pointerdown', handlePointerDown, true);
-        foliateDocCleanupsRef.current.push(() => {
-          doc.removeEventListener('mousedown', handleMouseDown, true);
-          doc.removeEventListener('mouseup', handleSelection);
-          doc.removeEventListener('click', handleClick);
-          doc.removeEventListener('keyup', handleSelection);
-          doc.removeEventListener('keydown', handleKeyDown);
-          doc.removeEventListener('mousemove', handleMouseMove);
-          doc.removeEventListener('mouseleave', handleMouseLeave);
-          doc.removeEventListener('pointerdown', handlePointerDown, true);
-        });
-      }
-    },
-    [
-      attachFoliateViewListeners,
-      foliateClickPagingDirection,
-      foliateDocumentHasExpandedSelection,
-      setClickPagingHoverDirection,
-    ],
-  );
-
-  useLayoutEffect(() => {
-    attachFoliateDocumentListeners(viewRef.current);
-  }, [attachFoliateDocumentListeners, readerStateStatus, viewRef]);
-
-  useLayoutEffect(() => {
-    if (readerStateStatus === 'ready') return;
-    setClickPagingHoverDirection(null);
-  }, [readerStateStatus, setClickPagingHoverDirection]);
-
   useLayoutEffect(() => {
     updateEbookBoxes('layout_effect');
   }, [readerStateStatus, updateEbookBoxes]);
 
   useEffect(
     () => () => {
-      cleanupFoliateDocumentListeners();
       if (updateBoxesFrameRef.current) window.cancelAnimationFrame(updateBoxesFrameRef.current);
     },
-    [cleanupFoliateDocumentListeners],
+    [],
   );
 
   return {
     boxes,
-    attachFoliateDocumentListeners,
-    cleanupFoliateDocumentListeners,
     hideEbookBoxLayer,
     resetEbookBoxState,
     scheduleEbookBoxUpdate,
