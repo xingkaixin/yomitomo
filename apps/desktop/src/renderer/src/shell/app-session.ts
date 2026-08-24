@@ -11,7 +11,11 @@ import {
   preloadIdleModules,
   scheduleIdlePreload,
 } from './app-secondary-module-preload';
-import { elapsedMs, recordStartupTiming, recordStatsTiming } from './app-utils';
+import {
+  recordStartupTiming,
+  recordStatsTiming,
+  rendererPerformanceElapsedMs,
+} from './app-renderer-performance';
 import { useLibraryQueryState } from '../reading-library/use-library-query-state';
 
 export type AppSurfaceKey = 'agents' | 'distillations' | 'library' | 'settings' | 'stats';
@@ -198,7 +202,7 @@ export function useAppSession(input: AppSessionInput) {
     setStatsNavigationStartedAt(performance.now());
     recordStatsTiming('navigation_click', {
       articleCount: statsArticles?.length ?? input.articles.length,
-      rendererElapsedMs: elapsedMs(0),
+      rendererElapsedMs: rendererPerformanceElapsedMs(0),
       preloadStatus: preloadEntries.stats.status,
     });
     dispatchNavigation({ type: 'open-surface', surface: 'stats' });

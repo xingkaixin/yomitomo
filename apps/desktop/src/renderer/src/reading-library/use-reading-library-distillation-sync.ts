@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ResolvedAppSettings, ArticleRecord } from '@yomitomo/shared';
 import type { AnnotationDistillationCommittedEvent } from '../../../ipc-contract';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
-import { recordRendererPerformanceTiming } from '../shell/app-renderer-performance';
+import {
+  recordRendererPerformanceTiming,
+  rendererPerformanceElapsedMs,
+} from '../shell/app-renderer-performance';
 import {
   articleDistillationStateChanged,
   articleWithCommittedDistillation,
@@ -126,7 +129,7 @@ export function useReadingLibraryDistillationSync(
           articleId: event.articleId,
           annotationId: event.annotationId,
           transition: event.transition,
-          elapsedMs: Number((performance.now() - startedAt).toFixed(2)),
+          elapsedMs: rendererPerformanceElapsedMs(startedAt),
         });
         return;
       }
@@ -157,7 +160,7 @@ export function useReadingLibraryDistillationSync(
         annotationExists: pendingArticle.annotations.some(
           (annotation) => annotation.id === event.annotationId,
         ),
-        elapsedMs: Number((performance.now() - startedAt).toFixed(2)),
+        elapsedMs: rendererPerformanceElapsedMs(startedAt),
       });
     },
     [completeLifecycle],

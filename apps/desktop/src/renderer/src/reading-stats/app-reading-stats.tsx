@@ -7,7 +7,7 @@ import { Button } from '../components/ui/button';
 import { SegmentedControl } from '../components/ui/segmented-control';
 import { PanelHeader } from '../shell/app-ui';
 import { AiUsagePanel } from '../shell/app-assistant-diagnostics';
-import { elapsedMs, recordStatsTiming } from '../shell/app-utils';
+import { recordStatsTiming, rendererPerformanceElapsedMs } from '../shell/app-renderer-performance';
 import { WeReadReadingStatsPanel } from './app-reading-stats-weread';
 import {
   activityMapDescription,
@@ -356,7 +356,7 @@ function recordStatsLoadTiming(
   data: Record<string, unknown>,
 ) {
   recordStatsTiming(phase, {
-    elapsedMs: navigationStartedAt ? elapsedMs(navigationStartedAt) : undefined,
+    elapsedMs: navigationStartedAt ? rendererPerformanceElapsedMs(navigationStartedAt) : undefined,
     phase,
     ...data,
   });

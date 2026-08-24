@@ -13,7 +13,8 @@ import { useAppArticleStoreActions } from './shell/app-article-store-actions';
 import { useAppCollectionStoreActions } from './shell/app-library-collection-store-actions';
 import { useDesktopStoreState } from './shell/app-desktop-store-state';
 import { useSecondaryModulePreload } from './shell/app-secondary-module-preload';
-import { applySavedSettings, recordStartupTiming } from './shell/app-utils';
+import { applySavedSettings } from './settings/app-settings-application';
+import { recordStartupTiming } from './shell/app-renderer-performance';
 import { useAppSession } from './shell/app-session';
 import {
   activeSurfaceComponents,

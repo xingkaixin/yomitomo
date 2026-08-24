@@ -14,7 +14,7 @@ import { makeId } from '@yomitomo/shared';
 import { annotationAgentAuthorRef } from '@yomitomo/core';
 import { promptArticle } from '../source/bookcase/source-prompt-article';
 import { publicReviewAgents } from '../source/bookcase/source-public-agents';
-import { articlePlainText } from '../shell/app-utils';
+import { articlePlainText } from '../shell/app-article-presentation';
 import {
   applyAssistantRuntimeProgress,
   assistantRuntimeErrorMessage,
