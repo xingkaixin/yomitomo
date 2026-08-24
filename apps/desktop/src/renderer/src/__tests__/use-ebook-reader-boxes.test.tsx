@@ -5,6 +5,7 @@ import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { useEbookReaderBoxes } from '../source/ebook/use-ebook-reader-boxes';
+import { useFoliateInputBridge } from '../source/ebook/use-foliate-input-bridge';
 import type { EbookArticleRecord } from '../source/bookcase/app-source-bookcase';
 import type { FoliateViewElement } from '../source/ebook/ebook-foliate-view';
 
@@ -20,12 +21,16 @@ const userProfile: UserProfile = {
 };
 
 type EbookReaderBoxesState = ReturnType<typeof useEbookReaderBoxes>;
+type FoliateInputBridgeState = ReturnType<typeof useFoliateInputBridge>;
 
 let latestBoxesState: EbookReaderBoxesState | null = null;
+let latestInputBridgeState: FoliateInputBridgeState | null = null;
 
 afterEach(() => {
   latestBoxesState = null;
+  latestInputBridgeState = null;
   cleanup();
+  vi.useRealTimers();
   vi.clearAllMocks();
   Reflect.deleteProperty(window, 'yomitomoDesktop');
   Reflect.deleteProperty(window, 'yomitomoEbookLayoutDebug');
@@ -82,6 +87,11 @@ function requireBoxesState() {
   return latestBoxesState;
 }
 
+function requireInputBridgeState() {
+  if (!latestInputBridgeState) throw new Error('foliate input bridge not rendered');
+  return latestInputBridgeState;
+}
+
 function EbookBoxesProbe({
   annotations = [],
   view = null,
@@ -104,6 +114,17 @@ function EbookBoxesProbe({
   annotationsRef.current = annotations;
   viewRef.current = view;
 
+  latestInputBridgeState = useFoliateInputBridge({
+    canvasRef,
+    readerStateStatus: 'ready',
+    viewRef,
+    onFoliateClick,
+    onFoliatePointerDown,
+    onFoliatePageTurnClick,
+    onFoliatePageTurnKey,
+    onFoliateSelection,
+    onFoliateSelectionShortcut,
+  });
   latestBoxesState = useEbookReaderBoxes({
     annotationAgents,
     annotationsRef,
@@ -117,12 +138,6 @@ function EbookBoxesProbe({
     readerStateStatus: 'ready',
     readerStateStatusRef,
     userProfile,
-    onFoliateClick,
-    onFoliatePointerDown,
-    onFoliatePageTurnClick,
-    onFoliatePageTurnKey,
-    onFoliateSelection,
-    onFoliateSelectionShortcut,
   });
 
   return <div data-testid="canvas" ref={canvasRef} />;
@@ -177,7 +192,7 @@ describe('useEbookReaderBoxes', () => {
     render(<EbookBoxesProbe view={foliateView(doc)} />);
 
     act(() => {
-      requireBoxesState().attachFoliateDocumentListeners(foliateView(doc));
+      requireInputBridgeState().attachFoliateDocumentListeners(foliateView(doc));
     });
 
     doc.body.dispatchEvent(
@@ -196,7 +211,7 @@ describe('useEbookReaderBoxes', () => {
     render(<EbookBoxesProbe view={foliateView(doc)} />);
 
     act(() => {
-      requireBoxesState().attachFoliateDocumentListeners(foliateView(doc));
+      requireInputBridgeState().attachFoliateDocumentListeners(foliateView(doc));
     });
 
     doc.body.dispatchEvent(
@@ -267,6 +282,22 @@ describe('useEbookReaderBoxes', () => {
     await waitForFoliateSelection();
 
     expect(onFoliateSelection).toHaveBeenCalledWith(doc);
+  });
+
+  it('cancels pending foliate selections during listener cleanup', async () => {
+    vi.useFakeTimers();
+    const doc = foliateDocument('正文');
+    vi.spyOn(doc, 'getSelection').mockReturnValue({
+      isCollapsed: false,
+      rangeCount: 1,
+    } as Selection);
+    render(<EbookBoxesProbe view={foliateView(doc)} />);
+
+    doc.body.dispatchEvent(foliateMouseEvent('mouseup', { clientX: 20 }));
+    act(() => requireInputBridgeState().cleanupFoliateDocumentListeners());
+    await act(() => vi.runAllTimersAsync());
+
+    expect(onFoliateSelection).not.toHaveBeenCalled();
   });
 
   it('does not let stale foliate double-click suppression block the next selection', async () => {

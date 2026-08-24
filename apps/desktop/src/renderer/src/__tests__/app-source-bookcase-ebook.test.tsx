@@ -92,11 +92,16 @@ vi.mock('../source/ebook/use-ebook-foliate-view', () => ({
 vi.mock('../source/ebook/use-ebook-reader-boxes', () => ({
   useEbookReaderBoxes: () => ({
     boxes: mocks.boxes,
-    attachFoliateDocumentListeners: mocks.attachFoliateDocumentListeners,
-    cleanupFoliateDocumentListeners: mocks.cleanupFoliateDocumentListeners,
     hideEbookBoxLayer: mocks.hideEbookBoxLayer,
     resetEbookBoxState: mocks.resetEbookBoxState,
     scheduleEbookBoxUpdate: mocks.scheduleEbookBoxUpdate,
+  }),
+}));
+
+vi.mock('../source/ebook/use-foliate-input-bridge', () => ({
+  useFoliateInputBridge: () => ({
+    attachFoliateDocumentListeners: mocks.attachFoliateDocumentListeners,
+    cleanupFoliateDocumentListeners: mocks.cleanupFoliateDocumentListeners,
   }),
 }));
 

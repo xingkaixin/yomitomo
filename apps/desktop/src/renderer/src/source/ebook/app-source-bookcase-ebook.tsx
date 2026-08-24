@@ -36,6 +36,7 @@ import { useEbookAgentVirtualReading } from './use-ebook-agent-virtual-reading';
 import { useEbookFoliateView } from './use-ebook-foliate-view';
 import { useEbookBilingualTranslation } from './use-ebook-bilingual-translation';
 import { useEbookReaderBoxes } from './use-ebook-reader-boxes';
+import { useFoliateInputBridge } from './use-foliate-input-bridge';
 import { useEbookSelection } from './use-ebook-selection';
 import { useEbookAnnotationNavigation } from './use-ebook-annotation-navigation';
 import {
@@ -295,10 +296,21 @@ export function EbookBookcase({
     enabled: readerState.status === 'ready',
     onTurnPage: turnPageFromKeyboard,
   });
+  const { attachFoliateDocumentListeners, cleanupFoliateDocumentListeners } = useFoliateInputBridge(
+    {
+      canvasRef,
+      readerStateStatus: readerState.status,
+      viewRef,
+      onFoliateClick: handleFoliateClick,
+      onFoliatePointerDown: handleFoliatePointerDown,
+      onFoliatePageTurnClick: turnPageFromKeyboard,
+      onFoliatePageTurnKey: turnPageFromKeyboard,
+      onFoliateSelection: handleFoliateSelection,
+      onFoliateSelectionShortcut: handleFoliateSelectionShortcut,
+    },
+  );
   const {
     boxes,
-    attachFoliateDocumentListeners,
-    cleanupFoliateDocumentListeners,
     hideEbookBoxLayer,
     resetEbookBoxState,
     scheduleEbookBoxUpdate: scheduleEbookBoxUpdateImpl,
@@ -315,12 +327,6 @@ export function EbookBookcase({
     readerStateStatus: readerState.status,
     readerStateStatusRef,
     userProfile,
-    onFoliateClick: handleFoliateClick,
-    onFoliatePointerDown: handleFoliatePointerDown,
-    onFoliatePageTurnClick: turnPageFromKeyboard,
-    onFoliatePageTurnKey: turnPageFromKeyboard,
-    onFoliateSelection: handleFoliateSelection,
-    onFoliateSelectionShortcut: handleFoliateSelectionShortcut,
   });
   ebookBoxesRef.current = boxes;
   attachFoliateDocumentListenersRef.current = attachFoliateDocumentListeners;
