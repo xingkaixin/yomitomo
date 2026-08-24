@@ -4,6 +4,7 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Agent, Annotation, ArticleRecord, Comment } from '@yomitomo/shared';
+import { DesktopIpcError, desktopIpcErrorCodes } from '../../../ipc-errors';
 import {
   AnnotationDiscussionWindowApp,
   insertMentionAtSelection,
@@ -567,7 +568,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const desktop = installDesktopApi(article(annotation({ comments: [rootThought()] })), {
       requestAgentCommentStream: vi.fn(async () => {
-        throw new Error('PROVIDER_API_KEY_REQUIRED');
+        throw new DesktopIpcError(desktopIpcErrorCodes.providerApiKeyRequired);
       }),
     });
     openDiscussionRoute();

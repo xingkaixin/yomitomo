@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ResolvedAppSettings } from '@yomitomo/shared';
-import { desktopIpcErrorRetryAfterMs } from '../../../ipc-errors';
+import {
+  desktopIpcErrorCodes,
+  desktopIpcErrorRetryAfterMs,
+  isDesktopIpcErrorLike,
+} from '../../../ipc-errors';
 import type { SaveState } from '../shell/app-types';
 import { appSettingsActions } from './app-settings-actions';
 
@@ -282,13 +286,16 @@ function validPin(value: string) {
 function appLockErrorMessage(error: unknown, messages: AppLockWorkflowMessages) {
   const retryAfterMs = desktopIpcErrorRetryAfterMs(error);
   if (retryAfterMs) return messages.retryAfter(Math.ceil(retryAfterMs / 1_000));
-  if (error && typeof error === 'object' && 'message' in error) {
-    const rawMessage = (error as { message?: unknown }).message;
-    const message = typeof rawMessage === 'string' ? rawMessage : '';
-    if (message === 'APP_LOCK_PIN_INVALID') return messages.saveFailed;
-    if (message === 'APP_LOCK_PIN_REQUIRED') return messages.saveFailed;
-    if (message === 'APP_LOCK_PIN_MISMATCH') return messages.saveFailed;
-    if (message) return message;
+  if (isDesktopIpcErrorLike(error)) {
+    if (
+      error.code === desktopIpcErrorCodes.appLockPinInvalid ||
+      error.code === desktopIpcErrorCodes.appLockPinRequired ||
+      error.code === desktopIpcErrorCodes.appLockPinMismatch
+    ) {
+      return messages.saveFailed;
+    }
+    return error.message || messages.saveFailed;
   }
+  if (error instanceof Error && error.message) return error.message;
   return messages.saveFailed;
 }

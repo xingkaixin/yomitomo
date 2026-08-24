@@ -57,28 +57,8 @@ export function AssistantRuntimeProgressList({
 export function assistantRuntimeErrorMessage(error: unknown, fallbackKey: string) {
   const ipcMessage = assistantRuntimeIpcErrorMessage(error);
   if (ipcMessage) return ipcMessage;
+  if (isDesktopIpcErrorLike(error)) return i18next.t(fallbackKey);
   const message = error instanceof Error ? error.message : '';
-  if (message === 'AGENT_REPLY_FAILED') return i18next.t(fallbackKey);
-  if (message === 'AGENT_DISTILLATION_REVIEW_FAILED') {
-    return i18next.t('sedimentation.reviewFailed');
-  }
-  if (message === 'AGENT_ANNOTATION_FAILED') {
-    return i18next.t('discussion.addThought.assistantFailed');
-  }
-  if (message === 'PROVIDER_API_KEY_REQUIRED') {
-    return i18next.t('settings.models.providerApiKeyRequired');
-  }
-  if (message === 'PROVIDER_ROUTE_REQUIRED:readingAssistant') {
-    return i18next.t('settings.models.readingProviderRouteRequired');
-  }
-  if (message === 'PROVIDER_ROUTE_REQUIRED:reviewAssistant') {
-    return i18next.t('settings.models.reviewProviderRouteRequired');
-  }
-  if (message === 'PROVIDER_ROUTE_REQUIRED:bilingualTranslation') {
-    return i18next.t('settings.models.translationProviderRouteRequired');
-  }
-  const agentNotFound = agentNotFoundMessage(message);
-  if (agentNotFound) return agentNotFound;
   return message || i18next.t(fallbackKey);
 }
 
@@ -104,18 +84,8 @@ function assistantRuntimeIpcErrorMessage(error: unknown) {
       return i18next.t('settings.models.translationProviderRouteRequired');
     }
   }
-  return '';
-}
-
-function agentNotFoundMessage(message: string) {
-  const [code, username = ''] = message.split(':');
-  const name = username ? `@${username}` : '';
-  if (code === 'AGENT_NOT_FOUND') return i18next.t('assistantErrors.agentNotFound', { name });
-  if (code === 'REVIEW_AGENT_NOT_FOUND') {
-    return i18next.t('assistantErrors.reviewAgentNotFound', { name });
-  }
-  if (code === 'ANNOTATION_AGENT_NOT_FOUND') {
-    return i18next.t('assistantErrors.annotationAgentNotFound', { name });
+  if (error.code === desktopIpcErrorCodes.providerApiKeyRequired) {
+    return i18next.t('settings.models.providerApiKeyRequired');
   }
   return '';
 }

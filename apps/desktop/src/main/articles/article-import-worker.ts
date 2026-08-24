@@ -7,6 +7,7 @@ import {
 } from '@yomitomo/core/article-extraction';
 import { inlineArticleFavicon, inlineArticleImages } from '@yomitomo/core/article-images';
 import { isRecord, stringField } from '@yomitomo/shared';
+import { isSourceImportError, SourceImportError } from '../../ipc/article-import-boundary';
 import {
   fetchArticleImportUrl,
   isArticleImportRedirectStatus,
@@ -81,11 +82,11 @@ async function extractArticleRecord(input: unknown) {
 }
 
 function articleImportWorkerData(input: unknown): ArticleImportWorkerData {
-  if (!isRecord(input)) throw new Error('ARTICLE_IMPORT_INVALID_TASK');
+  if (!isRecord(input)) throw new SourceImportError('ARTICLE_IMPORT_INVALID_TASK');
   const html = stringField(input.html);
   const url = stringField(input.url);
   const userAgent = stringField(input.userAgent) || undefined;
-  if (!html || !url) throw new Error('ARTICLE_IMPORT_INVALID_TASK');
+  if (!html || !url) throw new SourceImportError('ARTICLE_IMPORT_INVALID_TASK');
   return {
     allowLocalNetworkArticleImport: input.allowLocalNetworkArticleImport === true,
     html,
@@ -188,7 +189,7 @@ function imageContentType(value: string | null) {
 
 function workerError(error: unknown) {
   return {
-    message: error instanceof Error ? error.message : 'ARTICLE_IMPORT_PARSE_FAILED',
+    code: isSourceImportError(error) ? error.importCode : 'ARTICLE_IMPORT_PARSE_FAILED',
   };
 }
 

@@ -2,7 +2,7 @@ import type { ResolvedAppSettings } from '@yomitomo/shared';
 import type { DesktopAiModule, DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
 import { hasAppLockPin } from '../app-lock/app-lock-secrets';
-import { DesktopIpcError } from '../../ipc-errors';
+import { DesktopIpcError, desktopIpcErrorCodes } from '../../ipc-errors';
 import { pruneLogFile } from '../app/logger';
 
 type ProviderIpcContext = Pick<DesktopMainIpcContext, 'sendFullStoreUpdated'> & {
@@ -94,11 +94,15 @@ async function assertSettingsAppLockChangeAllowed(
     Object.prototype.hasOwnProperty.call(input, 'appLockLocked') &&
     Boolean(input.appLockLocked) !== settings.appLockLocked
   ) {
-    throw new DesktopIpcError('APP_LOCK_LOCKED_STATE_RESTRICTED');
+    throw new DesktopIpcError(desktopIpcErrorCodes.appLockLockedStateRestricted);
   }
   if (!Object.prototype.hasOwnProperty.call(input, 'appLockEnabled')) return;
   const nextEnabled = Boolean(input.appLockEnabled);
   const currentEnabled = settings.appLockEnabled;
-  if (nextEnabled && !(await hasAppLockPin())) throw new DesktopIpcError('APP_LOCK_PIN_REQUIRED');
-  if (!nextEnabled && currentEnabled) throw new DesktopIpcError('APP_LOCK_PIN_REQUIRED');
+  if (nextEnabled && !(await hasAppLockPin())) {
+    throw new DesktopIpcError(desktopIpcErrorCodes.appLockPinRequired);
+  }
+  if (!nextEnabled && currentEnabled) {
+    throw new DesktopIpcError(desktopIpcErrorCodes.appLockPinRequired);
+  }
 }

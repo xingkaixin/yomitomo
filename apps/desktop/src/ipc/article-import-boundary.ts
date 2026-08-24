@@ -41,8 +41,24 @@ export type SourceImportErrorCode = (typeof sourceImportErrorCodes)[number];
 
 const sourceImportErrorCodeSet = new Set<string>(sourceImportErrorCodes);
 
+export class SourceImportError extends Error {
+  readonly importCode: SourceImportErrorCode;
+
+  constructor(code: SourceImportErrorCode, options: { cause?: unknown } = {}) {
+    super(code, options);
+    this.name = 'SourceImportError';
+    this.importCode = code;
+  }
+}
+
 export function isSourceImportErrorCode(value: unknown): value is SourceImportErrorCode {
   return typeof value === 'string' && sourceImportErrorCodeSet.has(value);
+}
+
+export function isSourceImportError(error: unknown): error is SourceImportError {
+  return (
+    error instanceof Error && 'importCode' in error && isSourceImportErrorCode(error.importCode)
+  );
 }
 
 export const MAX_EBOOK_IMPORT_BYTES = 80 * 1024 * 1024;

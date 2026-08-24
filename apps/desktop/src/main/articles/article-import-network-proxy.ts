@@ -2,6 +2,7 @@ import { createServer, request as requestHttp, type IncomingMessage } from 'node
 import { request as requestHttps } from 'node:https';
 import { connect } from 'node:net';
 import type { Duplex } from 'node:stream';
+import { SourceImportError } from '../../ipc/article-import-boundary';
 import {
   createFixedArticleImportLookup,
   resolveAllowedArticleImportTarget,
@@ -37,7 +38,7 @@ export async function createArticleImportNetworkProxy(
   const address = server.address();
   if (!address || typeof address === 'string') {
     server.close();
-    throw new Error('ARTICLE_IMPORT_PROXY_START_FAILED');
+    throw new SourceImportError('ARTICLE_IMPORT_PROXY_START_FAILED');
   }
 
   return {
@@ -111,7 +112,7 @@ async function forwardTunnel(
 function proxyRequestUrl(request: IncomingMessage) {
   if (/^https?:\/\//i.test(request.url || '')) return new URL(request.url || '');
   const host = request.headers.host;
-  if (!host) throw new Error('ARTICLE_IMPORT_PROXY_INVALID_REQUEST');
+  if (!host) throw new SourceImportError('ARTICLE_IMPORT_PROXY_INVALID_REQUEST');
   return new URL(request.url || '/', `http://${host}`);
 }
 
