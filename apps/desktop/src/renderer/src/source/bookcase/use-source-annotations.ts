@@ -26,6 +26,8 @@ type SourceAnnotationsChange = {
   nextArticle: ArticleRecord;
 };
 
+type SourceAnnotationPersistenceResult = string | void;
+
 type UseSourceAnnotationsOptions = {
   annotationAgents?: PublicAgent[];
   annotations: Annotation[];
@@ -42,22 +44,25 @@ type UseSourceAnnotationsOptions = {
     articleId: string,
     annotation: Annotation,
     updatedAt?: string,
-  ) => Promise<void> | void;
+  ) => Promise<SourceAnnotationPersistenceResult> | SourceAnnotationPersistenceResult;
   onSaveArticleComment?: (
     articleId: string,
     annotationId: string,
     comment: AnnotationComment,
     updatedAt?: string,
-  ) => Promise<void> | void;
+  ) => Promise<SourceAnnotationPersistenceResult> | SourceAnnotationPersistenceResult;
   onAnnotationsApplied?: (change: SourceAnnotationsChange) => void;
   onAnnotationsSaved?: (change: SourceAnnotationsChange) => void;
   userProfile: UserProfile;
-  onDeleteArticleAnnotation?: (articleId: string, annotationId: string) => Promise<void> | void;
+  onDeleteArticleAnnotation?: (
+    articleId: string,
+    annotationId: string,
+  ) => Promise<SourceAnnotationPersistenceResult> | SourceAnnotationPersistenceResult;
   onDeleteArticleComment?: (
     articleId: string,
     annotationId: string,
     commentId: string,
-  ) => Promise<void> | void;
+  ) => Promise<SourceAnnotationPersistenceResult> | SourceAnnotationPersistenceResult;
 };
 
 export function useSourceAnnotations({
@@ -78,13 +83,15 @@ export function useSourceAnnotations({
 }: UseSourceAnnotationsOptions) {
   const annotations = useMemo(() => sortAnnotations(articleAnnotations), [articleAnnotations]);
   const annotationsRef = useRef<Annotation[]>(annotations);
+  const articleRef = useRef(article);
   annotationsRef.current = annotations;
+  articleRef.current = article;
 
   const applySavedAnnotations = useCallback(
-    (nextAnnotations: Annotation[]) => {
+    (nextAnnotations: Annotation[], updatedAt: string) => {
       const previousAnnotations = annotationsRef.current;
-      const previousArticle = { ...article, annotations: previousAnnotations };
-      const nextArticle = articleWithAnnotations(previousArticle, nextAnnotations);
+      const previousArticle = { ...articleRef.current, annotations: previousAnnotations };
+      const nextArticle = articleWithAnnotations(previousArticle, nextAnnotations, updatedAt);
       annotationsRef.current = nextArticle.annotations;
       onArticleChange(nextArticle);
       return {
@@ -94,20 +101,22 @@ export function useSourceAnnotations({
         nextArticle,
       };
     },
-    [article, onArticleChange],
+    [onArticleChange],
   );
 
   const saveAnnotation = useCallback(
     async (annotation: Annotation) => {
       if (!onSaveArticleAnnotation) return;
+      const requestedUpdatedAt = new Date().toISOString();
+      const persistedUpdatedAt = await onSaveArticleAnnotation(
+        articleRef.current.id,
+        annotation,
+        requestedUpdatedAt,
+      );
+      const updatedAt = persistedUpdatedAt || requestedUpdatedAt;
       const change = applySavedAnnotations(
         annotationsWithSavedAnnotation(annotationsRef.current, annotation),
-      );
-      if (!change) return;
-      await onSaveArticleAnnotation(
-        change.nextArticle.id,
-        annotation,
-        change.nextArticle.updatedAt,
+        updatedAt,
       );
       onAnnotationsSaved?.(change);
     },
@@ -121,20 +130,28 @@ export function useSourceAnnotations({
       updatedAt = new Date().toISOString(),
     ) => {
       if (!onSaveArticleComment) return;
-      const nextAnnotations = annotationsWithSavedComment(
+      const pendingAnnotations = annotationsWithSavedComment(
         annotationsRef.current,
         annotationId,
         comment,
         updatedAt,
       );
-      const change = nextAnnotations ? applySavedAnnotations(nextAnnotations) : null;
-      if (!change) return;
-      await onSaveArticleComment(
-        change.nextArticle.id,
+      if (!pendingAnnotations) return;
+      const persistedUpdatedAt = await onSaveArticleComment(
+        articleRef.current.id,
         annotationId,
         comment,
-        change.nextArticle.updatedAt,
+        updatedAt,
       );
+      const resolvedUpdatedAt = persistedUpdatedAt || updatedAt;
+      const nextAnnotations = annotationsWithSavedComment(
+        annotationsRef.current,
+        annotationId,
+        comment,
+        resolvedUpdatedAt,
+      );
+      if (!nextAnnotations) return;
+      const change = applySavedAnnotations(nextAnnotations, resolvedUpdatedAt);
       onAnnotationsSaved?.(change);
     },
     [applySavedAnnotations, onAnnotationsSaved, onSaveArticleComment],
@@ -193,13 +210,17 @@ export function useSourceAnnotations({
   const deleteAnnotation = useCallback(
     async (annotationId: string) => {
       if (!onDeleteArticleAnnotation) return;
-      const nextAnnotations = annotationsRef.current.filter(
-        (annotation) => annotation.id !== annotationId,
+      const persistedUpdatedAt = await onDeleteArticleAnnotation(
+        articleRef.current.id,
+        annotationId,
       );
       onBeforeDeleteAnnotation?.(annotationId);
 
-      const change = applySavedAnnotations(nextAnnotations);
-      await onDeleteArticleAnnotation(change.previousArticle.id, annotationId);
+      const updatedAt = persistedUpdatedAt || new Date().toISOString();
+      const nextAnnotations = annotationsRef.current.filter(
+        (annotation) => annotation.id !== annotationId,
+      );
+      const change = applySavedAnnotations(nextAnnotations, updatedAt);
       onAnnotationsSaved?.(change);
     },
     [
@@ -213,15 +234,28 @@ export function useSourceAnnotations({
   const deleteComment = useCallback(
     async (annotationId: string, commentId: string) => {
       if (!onDeleteArticleComment) return;
+      const pendingAnnotations = deleteAnnotationComment(
+        annotationsRef.current,
+        annotationId,
+        commentId,
+      );
+      if (!pendingAnnotations) return;
+
+      const persistedUpdatedAt = await onDeleteArticleComment(
+        articleRef.current.id,
+        annotationId,
+        commentId,
+      );
       const nextAnnotations = deleteAnnotationComment(
         annotationsRef.current,
         annotationId,
         commentId,
       );
       if (!nextAnnotations) return;
-
-      const change = applySavedAnnotations(nextAnnotations);
-      await onDeleteArticleComment(change.previousArticle.id, annotationId, commentId);
+      const change = applySavedAnnotations(
+        nextAnnotations,
+        persistedUpdatedAt || new Date().toISOString(),
+      );
       onAnnotationsSaved?.(change);
       onOpenAnnotation?.(annotationId);
     },

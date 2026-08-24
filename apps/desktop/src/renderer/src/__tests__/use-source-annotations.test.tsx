@@ -296,6 +296,28 @@ describe('useSourceAnnotations', () => {
     expect(screen.getByTestId('annotations').textContent).toBe('question_1');
   });
 
+  it('does not apply an annotation when persistence fails', async () => {
+    let api: SourceAnnotationsApi | null = null;
+    const onSaveArticleAnnotation = vi.fn(() => Promise.reject(new Error('save failed')));
+    const target = annotation('question_1');
+
+    render(
+      <HookProbe
+        articleRecord={article()}
+        onApi={(nextApi) => {
+          api = nextApi;
+        }}
+        onSaveArticleAnnotation={onSaveArticleAnnotation}
+      />,
+    );
+
+    await act(async () => {
+      await expect(api?.saveAnnotation(target)).rejects.toThrow('save failed');
+    });
+
+    expect(screen.getByTestId('annotations').textContent).toBe('');
+  });
+
   it('does not expose a full annotation replacement save path', () => {
     let api: SourceAnnotationsApi | null = null;
 
@@ -339,6 +361,34 @@ describe('useSourceAnnotations', () => {
     expect(screen.getByTestId('comment-count').textContent).toBe('1');
   });
 
+  it('does not apply comment side effects when persistence fails', async () => {
+    let api: SourceAnnotationsApi | null = null;
+    const onCommentSaved = vi.fn();
+    const onOpenAnnotation = vi.fn();
+    const onSaveArticleComment = vi.fn(() => Promise.reject(new Error('save failed')));
+    const question = annotation('question_1');
+
+    render(
+      <HookProbe
+        articleRecord={article({ annotations: [question] })}
+        onApi={(nextApi) => {
+          api = nextApi;
+        }}
+        onCommentSaved={onCommentSaved}
+        onOpenAnnotation={onOpenAnnotation}
+        onSaveArticleComment={onSaveArticleComment}
+      />,
+    );
+
+    await act(async () => {
+      await expect(api?.addComment('question_1', '单条评论')).rejects.toThrow('save failed');
+    });
+
+    expect(screen.getByTestId('comment-count').textContent).toBe('0');
+    expect(onCommentSaved).not.toHaveBeenCalled();
+    expect(onOpenAnnotation).not.toHaveBeenCalled();
+  });
+
   it('delegates delete cleanup', async () => {
     let api: SourceAnnotationsApi | null = null;
     const onBeforeDeleteAnnotation = vi.fn();
@@ -365,6 +415,31 @@ describe('useSourceAnnotations', () => {
     expect(onBeforeDeleteAnnotation).toHaveBeenCalledWith('question_1');
     expect(onDeleteArticleAnnotation).toHaveBeenCalledWith('article_1', 'question_1');
     expect(screen.getByTestId('annotations').textContent).toBe('');
+  });
+
+  it('keeps an annotation when deletion persistence fails', async () => {
+    let api: SourceAnnotationsApi | null = null;
+    const onBeforeDeleteAnnotation = vi.fn();
+    const onDeleteArticleAnnotation = vi.fn(() => Promise.reject(new Error('delete failed')));
+    const target = annotation('question_1');
+
+    render(
+      <HookProbe
+        articleRecord={article({ annotations: [target] })}
+        onApi={(nextApi) => {
+          api = nextApi;
+        }}
+        onBeforeDeleteAnnotation={onBeforeDeleteAnnotation}
+        onDeleteArticleAnnotation={onDeleteArticleAnnotation}
+      />,
+    );
+
+    await act(async () => {
+      await expect(api?.deleteAnnotation('question_1')).rejects.toThrow('delete failed');
+    });
+
+    expect(screen.getByTestId('annotations').textContent).toBe('question_1');
+    expect(onBeforeDeleteAnnotation).not.toHaveBeenCalled();
   });
 
   it('deletes a comment thread while keeping the annotation', async () => {

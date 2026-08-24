@@ -6,9 +6,12 @@ import type {
   ReaderQuestionContext,
   SelectionActionShortcuts,
 } from '@yomitomo/shared';
+import { errorMessageOrFallback } from '@yomitomo/shared';
 import { createUserAnnotation, type HighlightBox } from '@yomitomo/core';
 import type { ReaderAppViewProps } from '@yomitomo/reader-ui/reader-app-view';
+import i18next from 'i18next';
 import type { ReaderArticleActions } from '../../shell/app-article-store-actions';
+import { appToast } from '../../shell/app-toast';
 import {
   useSourceReaderSession,
   type SourceAgentAnnotationAdapter,
@@ -184,11 +187,26 @@ export function useSourceReaderApp({
   async function createAnnotation(note: string) {
     const composer = workspace.selection.composer;
     if (!composer) return;
-    workspace.selection.cancelComposer();
     const annotation = createUserAnnotation(composer.anchor, sessionInput.userProfile, note);
     await session.saveAnnotation(annotation);
+    workspace.selection.cancelComposer();
     markAnnotationCreated(annotation.id);
     openAnnotation(annotation.id);
+  }
+
+  async function runReaderPersistenceAction(action: string, operation: () => Promise<void>) {
+    try {
+      await operation();
+    } catch (error) {
+      const fallback =
+        i18next.t('common.saveFailed', { defaultValue: 'Save failed.' }) || 'Save failed.';
+      console.warn('[reader] persistence action failed', {
+        action,
+        articleId: sessionInput.article.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      appToast.error(fallback, { description: errorMessageOrFallback(error, fallback) });
+    }
   }
 
   function askSelection(
@@ -235,11 +253,16 @@ export function useSourceReaderApp({
         onAnnotationLayoutChange,
         onClearActiveAnnotation: () => sessionInput.onOpenAnnotation?.(null),
         onCreateAnnotation: async (note) => {
-          const composer = workspace.selection.composer;
-          if (composer) adapter.lifecycle?.onBeforeCreateAnnotation?.(note, composer.anchor);
-          await createAnnotation(note);
+          await runReaderPersistenceAction('create-annotation', async () => {
+            const composer = workspace.selection.composer;
+            if (composer) adapter.lifecycle?.onBeforeCreateAnnotation?.(note, composer.anchor);
+            await createAnnotation(note);
+          });
         },
-        onDeleteAnnotation: session.deleteAnnotation,
+        onDeleteAnnotation: (annotationId) =>
+          runReaderPersistenceAction('delete-annotation', () =>
+            session.deleteAnnotation(annotationId),
+          ),
         onFocusAnnotation: openAnnotation,
         onHighlightClick: adapter.onHighlightClick,
         onNavigateAnnotation: adapter.navigation.onNavigateAnnotation,

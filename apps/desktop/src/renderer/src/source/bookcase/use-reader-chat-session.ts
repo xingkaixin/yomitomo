@@ -21,7 +21,10 @@ type UseReaderChatSessionInput = {
   article: ArticleRecord;
   getArticleText: () => string | Promise<string>;
   uiLanguage?: UiLanguage;
-  onSaveArticleReaderChatState?: (articleId: string, readerChatState?: ReaderChatState) => unknown;
+  onSaveArticleReaderChatState?: (
+    articleId: string,
+    readerChatState?: ReaderChatState,
+  ) => Promise<unknown>;
 };
 
 function updateActiveSession(
@@ -71,10 +74,29 @@ export function useReaderChatSession({
     [agents, state?.selectedAssistantId],
   );
 
-  function replaceState(nextState: ReaderChatState, persist = false) {
+  function replaceState(nextState: ReaderChatState | undefined) {
     stateRef.current = nextState;
     setState(nextState);
-    if (persist) void onSaveArticleReaderChatState?.(article.id, nextState);
+  }
+
+  async function persistState(
+    nextState: ReaderChatState,
+    previousState: ReaderChatState | undefined,
+  ) {
+    replaceState(nextState);
+    if (!onSaveArticleReaderChatState) return true;
+    try {
+      await onSaveArticleReaderChatState(article.id, nextState);
+      return true;
+    } catch (persistError) {
+      console.warn('[reader-chat] state persistence failed', {
+        articleId: article.id,
+        error: persistError instanceof Error ? persistError.message : String(persistError),
+      });
+      replaceState(previousState);
+      setError(i18next.t('common.saveFailed'));
+      return false;
+    }
   }
 
   function setSendingState(nextSending: boolean) {
@@ -112,9 +134,11 @@ export function useReaderChatSession({
     setError('');
   }
 
-  function selectAssistant(assistantId: string) {
+  async function selectAssistant(assistantId: string) {
+    const previousState = stateRef.current;
     const nextState = { ...ensureState(assistantId), selectedAssistantId: assistantId };
-    replaceState(nextState, true);
+    setError('');
+    await persistState(nextState, previousState);
   }
 
   async function submit(content: string) {
@@ -147,7 +171,11 @@ export function useReaderChatSession({
       userMessage,
       assistantMessage,
     ]);
-    replaceState(pendingState, true);
+    const previousState = stateRef.current;
+    if (!(await persistState(pendingState, previousState))) {
+      setSendingState(false);
+      return;
+    }
 
     try {
       const finalComment = await getDesktopApi().agent.requestCommentStream(
@@ -179,7 +207,7 @@ export function useReaderChatSession({
             : message,
         ),
       );
-      replaceState(completedState, true);
+      await persistState(completedState, pendingState);
     } catch (requestError) {
       const message = assistantRuntimeErrorMessage(requestError, 'source.readerChatFailed');
       setError(message);
@@ -190,7 +218,7 @@ export function useReaderChatSession({
             : item,
         ),
       );
-      replaceState(failedState, true);
+      await persistState(failedState, pendingState);
     } finally {
       setSendingState(false);
     }

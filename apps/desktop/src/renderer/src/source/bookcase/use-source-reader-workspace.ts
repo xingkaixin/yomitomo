@@ -30,7 +30,10 @@ type UseSourceReaderWorkspaceInput = {
   session: SourceReaderWorkspaceSession;
   uiLanguage?: UiLanguage;
   onRequestSelectionCopy: () => void;
-  onSaveArticleReaderChatState?: (articleId: string, readerChatState?: ReaderChatState) => unknown;
+  onSaveArticleReaderChatState?: (
+    articleId: string,
+    readerChatState?: ReaderChatState,
+  ) => Promise<unknown>;
 };
 
 export function useSourceReaderWorkspace({

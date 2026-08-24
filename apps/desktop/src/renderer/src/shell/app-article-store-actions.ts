@@ -67,7 +67,7 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
 
   const deleteArticleAnnotation = useCallback(
     async (articleId: string, annotationId: string) => {
-      await articleStore.runMutation({
+      const result = await articleStore.runMutation({
         invoke: () =>
           getDesktopApi().article.deleteAnnotation({
             articleId,
@@ -90,13 +90,14 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
             : undefined,
         }),
       });
+      return result?.article.updatedAt;
     },
     [articleStore],
   );
 
   const deleteArticleComment = useCallback(
     async (articleId: string, annotationId: string, commentId: string) => {
-      await articleStore.runMutation({
+      const result = await articleStore.runMutation({
         invoke: () =>
           getDesktopApi().article.deleteComment({
             articleId,
@@ -124,13 +125,14 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
             : undefined,
         }),
       });
+      return result?.article.updatedAt;
     },
     [articleStore],
   );
 
   const saveArticleAnnotation = useCallback(
     async (articleId: string, annotation: Annotation, updatedAt?: string) => {
-      await articleStore.runMutation({
+      const result = await articleStore.runMutation({
         invoke: () =>
           getDesktopApi().article.saveAnnotation({
             articleId,
@@ -153,13 +155,14 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
             : undefined,
         }),
       });
+      return result?.article.updatedAt;
     },
     [articleStore],
   );
 
   const saveArticleComment = useCallback(
     async (articleId: string, annotationId: string, comment: Comment, updatedAt?: string) => {
-      await articleStore.runMutation({
+      const result = await articleStore.runMutation({
         invoke: () =>
           getDesktopApi().article.saveComment({
             articleId,
@@ -183,6 +186,7 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
             : undefined,
         }),
       });
+      return result?.article.updatedAt;
     },
     [articleStore],
   );
@@ -250,18 +254,6 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
   const saveArticleReaderChatState = useCallback(
     async (articleId: string, readerChatState?: ReaderChatState) => {
       return articleStore.runMutation({
-        optimistic: {
-          patches: [],
-          current: {
-            type: 'update',
-            articleId,
-            update: (article) => ({
-              ...article,
-              readerChatState,
-              updatedAt: readerChatState?.updatedAt || article.updatedAt,
-            }),
-          },
-        },
         invoke: () => getDesktopApi().article.saveReaderChatState({ articleId, readerChatState }),
         reconcile: articleStorePatchCommit,
       });
