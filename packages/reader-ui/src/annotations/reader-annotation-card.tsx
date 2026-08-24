@@ -17,6 +17,7 @@ import {
 import { AvatarBadge, ReaderTooltip } from '../shared/reader-component-primitives';
 import { formatRelativeTime, formatTime } from '../reader-date-utils';
 import type { AnnotationRailSide } from './annotation-rail-layout';
+import type { ReaderWindowSourceRect } from './reader-annotation-types';
 import type { ReaderUiLabels } from '../shell/reader-app-view-types';
 import { defaultReaderUiLabels } from '../shell/reader-app-view-types';
 import {
@@ -71,12 +72,7 @@ type DeleteActionMenuLabels = Pick<
   | 'enterDiscussion'
 >;
 
-export type ReaderWindowSourceRect = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
+export type { ReaderWindowSourceRect } from './reader-annotation-types';
 
 export function AnnotationCard({
   active,

@@ -20,6 +20,7 @@ import {
 import { MAX_EBOOK_IMPORT_BYTES } from '../../ipc-contract';
 import { isSourceImportError, SourceImportError } from '../../ipc/article-import-boundary';
 import { articleRecordFromKindleFile, isKindleFile } from './kindle-import';
+import type { EbookImportFileInput, EbookImportOptions } from './ebook-import-types';
 
 const EPUB_MIME = 'application/epub+zip';
 const EBOOK_IMPORT_ENTRY_TOO_LARGE = 'EBOOK_IMPORT_ENTRY_TOO_LARGE';
@@ -40,15 +41,7 @@ const HTML_IMAGE_REFERENCE_ATTRIBUTES = [
   'data-srcset',
 ];
 
-export type EbookImportFileInput = {
-  fileName: string;
-  mimeType?: string;
-  data: ArrayBuffer;
-};
-
-export type EbookImportOptions = {
-  performanceLogger?: (event: string, data?: Record<string, unknown>) => void;
-};
+export type { EbookImportFileInput, EbookImportOptions } from './ebook-import-types';
 
 type ManifestItem = {
   id: string;

@@ -1,5 +1,8 @@
 import { ARTICLE_SOURCE_TYPES } from './sources/article-types';
 import { isRecord } from './runtime-guards';
+import type { UiLanguage } from './locale-types';
+
+export type { UiLanguage } from './locale-types';
 
 export type MessageSendShortcut = 'enter' | 'mod-enter';
 
@@ -7,9 +10,7 @@ export const assistantExecutionModes = ['fast_response', 'deep_verification'] as
 
 export type AssistantExecutionMode = (typeof assistantExecutionModes)[number];
 
-export type UiLanguage = 'zh-CN' | 'en' | 'ja';
-
-export type BilingualTranslationTargetLanguage = 'zh-CN' | 'en' | 'ja';
+export type BilingualTranslationTargetLanguage = UiLanguage;
 
 export type BilingualTranslationStyle =
   | 'blur'

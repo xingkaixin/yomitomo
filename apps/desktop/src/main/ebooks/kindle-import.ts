@@ -19,7 +19,7 @@ import {
 } from '@yomitomo/shared';
 import { MAX_EBOOK_IMPORT_BYTES } from '../../ipc-contract';
 import { SourceImportError } from '../../ipc/article-import-boundary';
-import type { EbookImportFileInput, EbookImportOptions } from './ebook-import';
+import type { EbookImportFileInput, EbookImportOptions } from './ebook-import-types';
 
 const BOOKMOBI_MAGIC_OFFSET = 60;
 const PDB_RECORD_COUNT_OFFSET = 76;

@@ -26,7 +26,7 @@ import {
   rendererPerformanceElapsedMs,
   recordRendererPerformanceTiming,
 } from '../../shell/app-renderer-performance';
-import type { EbookBookcaseProps } from '../bookcase/app-source-bookcase';
+import type { EbookBookcaseProps } from '../bookcase/source-bookcase-types';
 import { isContinuousTextSelectionMouseEvent } from '../bookcase/source-reader-selection-events';
 import {
   readerPageTurnDirectionFromKeyboardEvent,

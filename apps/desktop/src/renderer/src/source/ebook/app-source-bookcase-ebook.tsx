@@ -31,7 +31,7 @@ import {
 import { ebookArticleText } from './ebook-text-anchor';
 import { EbookReaderShell } from './app-source-ebook-reader-shell';
 import { playEbookAgentAnnotationPlayback } from './app-source-ebook-agent-playback';
-import type { EbookBookcaseProps } from '../bookcase/app-source-bookcase';
+import type { EbookBookcaseProps } from '../bookcase/source-bookcase-types';
 import { useEbookAgentVirtualReading } from './use-ebook-agent-virtual-reading';
 import { useEbookFoliateView } from './use-ebook-foliate-view';
 import { useEbookBilingualTranslation } from './use-ebook-bilingual-translation';

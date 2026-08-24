@@ -3,7 +3,7 @@ import { useBookmarkCapability } from '@embedpdf/plugin-bookmark/react';
 import { isPdfTextAnchor, type Annotation } from '@yomitomo/shared';
 import type { TocItem } from '@yomitomo/core';
 import { recordRendererPerformanceTiming } from '../../shell/app-renderer-performance';
-import type { SourceBookcaseProps } from '../bookcase/app-source-bookcase';
+import type { SourceBookcaseProps } from '../bookcase/source-bookcase-types';
 import { pdfiumBookmarkTocItems } from './pdfium-text-document';
 
 type PdfiumScroll = {

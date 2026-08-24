@@ -12,7 +12,7 @@ import type {
 import type { HighlightBox, TocItem } from '@yomitomo/core';
 import type { AnnotationRailLayout } from '../annotations/annotation-rail-layout';
 import type { buildTocAnnotationStats } from '../annotations/annotation-toc-stats';
-import type { ReaderWindowSourceRect } from '../annotations/reader-annotation-card';
+import type { ReaderWindowSourceRect } from '../annotations/reader-annotation-types';
 import type {
   AgentDockItem,
   HighlightChoiceAction,

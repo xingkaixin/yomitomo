@@ -9,7 +9,7 @@ import {
 import type { HighlightBox } from '@yomitomo/core';
 import { animateTheaterHighlight, sleep } from '@yomitomo/reader-ui/reader-animation';
 import { appendAgentAnnotationToArticle as appendPersistedAgentAnnotation } from '../bookcase/append-agent-annotation-to-article';
-import type { SourceBookcaseProps } from '../bookcase/app-source-bookcase';
+import type { SourceBookcaseProps } from '../bookcase/source-bookcase-types';
 import {
   pdfiumAnnotationAgentName,
   pdfiumAnnotationIsVisible,
