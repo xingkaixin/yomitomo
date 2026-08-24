@@ -251,6 +251,27 @@ describe('useAppArticleStoreActions', () => {
     expect(fixture.getCurrentArticle()?.readerChatState).toBeUndefined();
   });
 
+  it('does not project reader chat state when persistence fails', async () => {
+    const initialState = readerChatState('2026-05-17T07:30:00.000Z');
+    const nextState = readerChatState('2026-05-17T08:00:00.000Z');
+    const initial = webArticleRecord('article-1', { readerChatState: initialState });
+    const failure = new Error('save failed');
+    const fixture = renderArticleActions({
+      articles: [articleSummaryFromRecord(initial)],
+      currentArticle: initial,
+      desktopApi: {
+        article: { saveReaderChatState: vi.fn().mockRejectedValue(failure) },
+      },
+    });
+
+    await expect(fixture.actions.saveArticleReaderChatState(initial.id, nextState)).rejects.toBe(
+      failure,
+    );
+
+    expect(fixture.getCurrentArticle()?.readerChatState).toEqual(initialState);
+    expect(fixture.applyStore).not.toHaveBeenCalled();
+  });
+
   it('keeps the article when delete persistence fails', async () => {
     const initial = webArticleRecord('article-1');
     const failure = new Error('delete failed');

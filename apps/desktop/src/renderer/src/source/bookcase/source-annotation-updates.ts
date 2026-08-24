@@ -1,11 +1,15 @@
 import type { Annotation, ArticleRecord, Comment } from '@yomitomo/shared';
 import { sortAnnotations } from '@yomitomo/core';
 
-export function articleWithAnnotations(article: ArticleRecord, annotations: Annotation[]) {
+export function articleWithAnnotations(
+  article: ArticleRecord,
+  annotations: Annotation[],
+  updatedAt = new Date().toISOString(),
+) {
   return {
     ...article,
     annotations: sortAnnotations(annotations),
-    updatedAt: new Date().toISOString(),
+    updatedAt,
   };
 }
 

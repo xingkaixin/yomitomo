@@ -54,24 +54,27 @@ export type UseSourceReaderSessionOptions = {
   onAnnotationsApplied?: (change: SourceAnnotationsChange) => void;
   onAnnotationsSaved?: (change: SourceAnnotationsChange) => void;
   onBeforeDeleteAnnotation?: (annotationId: string) => void;
-  onDeleteArticleAnnotation?: (articleId: string, annotationId: string) => Promise<void> | void;
+  onDeleteArticleAnnotation?: (
+    articleId: string,
+    annotationId: string,
+  ) => Promise<string | void> | string | void;
   onDeleteArticleComment?: (
     articleId: string,
     annotationId: string,
     commentId: string,
-  ) => Promise<void> | void;
+  ) => Promise<string | void> | string | void;
   onOpenAnnotation?: (annotationId: string) => void;
   onSaveArticleAnnotation?: (
     articleId: string,
     annotation: Annotation,
     updatedAt?: string,
-  ) => Promise<void> | void;
+  ) => Promise<string | void> | string | void;
   onSaveArticleComment?: (
     articleId: string,
     annotationId: string,
     comment: AnnotationComment,
     updatedAt?: string,
-  ) => Promise<void> | void;
+  ) => Promise<string | void> | string | void;
   setStatusMessage?: (message: string) => void;
   uiLanguage?: UiLanguage;
   userProfile: UserProfile;

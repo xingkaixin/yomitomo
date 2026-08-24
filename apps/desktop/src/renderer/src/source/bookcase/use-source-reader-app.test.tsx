@@ -7,6 +7,9 @@ import type { SourceReaderAdapter, SourceReaderAppSurface } from './use-source-r
 import { useSourceReaderApp } from './use-source-reader-app';
 import { useSourceReaderAppView } from './use-source-reader-app-view';
 import { articleActionStubs } from '../../__tests__/article-actions-test-utils';
+import { appToast } from '../../shell/app-toast';
+
+vi.mock('../../shell/app-toast', () => ({ appToast: { error: vi.fn() } }));
 
 const now = '2026-07-26T00:00:00.000Z';
 const annotation: Annotation = {
@@ -163,6 +166,43 @@ describe('useSourceReaderApp', () => {
       sourceType: 'web',
       quote: 'text',
     });
+  });
+
+  it('reports annotation persistence failures without dismissing the composer', async () => {
+    const currentArticle = article('web', 'article_1');
+    const saveArticleAnnotation = vi.fn(() => Promise.reject(new Error('disk failed')));
+    const articleActions = articleActionStubs({ saveArticleAnnotation });
+    const onArticleChange = vi.fn();
+    const { result } = renderHook(() =>
+      useSourceReaderApp({
+        articleActions,
+        getArticleText: () => 'text',
+        session: {
+          agents: [],
+          annotations: currentArticle.annotations,
+          article: currentArticle,
+          clearPendingOnArticleChange: true,
+          clearPendingOnDeleteAnnotation: true,
+          onArticleChange,
+          userProfile,
+        },
+      }),
+    );
+    const selectionAction = { x: 12, y: 16, anchor: annotation.anchor };
+
+    act(() => result.current.workspace.selection.openComposer(selectionAction));
+    await act(async () => {
+      await result.current
+        .viewProps(surface({ onRevealReaderChatContext: vi.fn() }))
+        .actions.annotation.onCreateAnnotation('note');
+    });
+
+    expect(saveArticleAnnotation).toHaveBeenCalledOnce();
+    expect(onArticleChange).not.toHaveBeenCalled();
+    expect(result.current.workspace.selection.composer).toMatchObject({
+      anchor: annotation.anchor,
+    });
+    expect(appToast.error).toHaveBeenCalledWith('Save failed.', { description: 'disk failed' });
   });
 
   it('owns default shell panels and preserves controlled overrides', () => {

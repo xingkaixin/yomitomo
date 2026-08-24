@@ -22,9 +22,15 @@ const agents: PublicAgent[] = [agent('agent_1', '林知微'), agent('agent_2', '
 
 type ReaderChatSession = ReturnType<typeof useReaderChatSession>;
 
-function renderReaderChatSession() {
+function renderReaderChatSession(
+  onSaveArticleReaderChatState: (
+    articleId: string,
+    readerChatState?: ReaderChatState,
+  ) => void | Promise<void> = () => undefined,
+) {
   let session: ReaderChatSession | null = null;
   let updateArticle: React.Dispatch<React.SetStateAction<ArticleRecord>> | null = null;
+  let savedReaderChatState: ReaderChatState | undefined;
 
   function Harness() {
     const [article, setArticle] = useState<ArticleRecord>(() => articleRecord());
@@ -33,7 +39,9 @@ function renderReaderChatSession() {
       agents,
       article,
       getArticleText: () => '这是一段可以提问的正文。',
-      onSaveArticleReaderChatState: (_articleId, readerChatState?: ReaderChatState) => {
+      onSaveArticleReaderChatState: async (articleId, readerChatState) => {
+        await onSaveArticleReaderChatState(articleId, readerChatState);
+        savedReaderChatState = readerChatState;
         setArticle((current) => ({
           ...current,
           readerChatState,
@@ -60,6 +68,7 @@ function renderReaderChatSession() {
       if (!updateArticle) throw new Error('article updater not ready');
       updateArticle(update);
     },
+    savedReaderChatState: () => savedReaderChatState,
   };
 }
 
@@ -77,8 +86,8 @@ describe('useReaderChatSession', () => {
 
     expect(session().model.draftContext?.quote).toBe('可以提问的正文');
 
-    act(() => {
-      session().actions.onSelectAssistant?.('agent_2');
+    await act(async () => {
+      await session().actions.onSelectAssistant?.('agent_2');
     });
 
     await waitFor(() => expect(session().model.selectedAssistantId).toBe('agent_2'));
@@ -135,6 +144,24 @@ describe('useReaderChatSession', () => {
       expect.objectContaining({ role: 'user', content: '会失败吗？' }),
       expect.objectContaining({ role: 'assistant', content: expect.stringContaining('请求失败') }),
     ]);
+  });
+
+  it('restores the last saved chat state when persistence fails', async () => {
+    const requestAgentCommentStream = vi.fn();
+    mockDesktop({ requestAgentCommentStream });
+    const saveReaderChatState = vi.fn(() => Promise.reject(new Error('save failed')));
+    const { savedReaderChatState, session } = renderReaderChatSession(saveReaderChatState);
+
+    await act(async () => {
+      await session().actions.onSubmit('无法保存的问题');
+    });
+
+    expect(saveReaderChatState).toHaveBeenCalledOnce();
+    expect(requestAgentCommentStream).not.toHaveBeenCalled();
+    expect(savedReaderChatState()).toBeUndefined();
+    expect(session().model.state).toBeUndefined();
+    expect(session().model.error).toBe('保存失败。');
+    expect(session().model.sending).toBe(false);
   });
 
   it('keeps the streaming reader chat state when stale article props arrive mid-request', async () => {
