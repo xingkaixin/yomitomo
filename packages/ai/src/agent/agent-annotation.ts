@@ -49,6 +49,10 @@ import {
   createAnnotationSuggestionAcceptance,
   parseAnnotationSuggestionInputs,
 } from './annotation-generation';
+import {
+  MULTI_ANNOTATION_OUTPUT_FRAMING,
+  type AnnotationOutputFormat,
+} from './annotation-output-format';
 
 export async function runAgentAnnotate(
   provider: LlmProvider,
@@ -434,8 +438,6 @@ function agentAnnotationOutputLimit(
   return annotationDensityMax(agent.annotationDensity, annotationBudgetText(payload, context));
 }
 
-type AgentAnnotationOutputFormat = 'json' | 'ndjson';
-
 type AgentAnnotationPromptMode = 'reading-plan' | 'selection' | 'whole-article';
 
 type AgentAnnotationPromptInput = {
@@ -452,15 +454,6 @@ const ANNOTATION_TYPE_MEANINGS = `类型含义：
 - question：值得追问的问题
 - quote：金句或可复用表达`;
 
-const MULTI_ANNOTATION_OUTPUT_FRAMING = {
-  json: `请返回 JSON 数组，每个元素是一条完整批注。没有值得批注的内容时返回空数组。
-
-只返回 JSON，不要输出 Markdown。`,
-  ndjson: `请用 NDJSON 返回批注，每一行是一个完整 JSON 对象。每发现一条值得批注的内容，就立刻输出一行；没有值得批注的内容时不输出任何行。
-
-只输出 NDJSON，不要输出 Markdown，不要输出数组。`,
-} as const;
-
 const ANNOTATION_OUTPUT_FRAMING = {
   'reading-plan': MULTI_ANNOTATION_OUTPUT_FRAMING,
   selection: {
@@ -472,10 +465,10 @@ const ANNOTATION_OUTPUT_FRAMING = {
 只输出 1 个 JSON 对象，不要输出 Markdown，不要输出数组。`,
   },
   'whole-article': MULTI_ANNOTATION_OUTPUT_FRAMING,
-} as const satisfies Record<AgentAnnotationPromptMode, Record<AgentAnnotationOutputFormat, string>>;
+} as const satisfies Record<AgentAnnotationPromptMode, Record<AnnotationOutputFormat, string>>;
 
 export function buildAgentAnnotationPrompt(
-  outputFormat: AgentAnnotationOutputFormat,
+  outputFormat: AnnotationOutputFormat,
   input: AgentAnnotationPromptInput,
 ) {
   const context = input.context ?? buildAgentAnnotateContextBundle(input.payload);

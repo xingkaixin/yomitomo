@@ -4,7 +4,10 @@ import { readingPartnerSoul } from '@yomitomo/shared';
 import { buildEpubBookIndex, epubIndexText } from '@yomitomo/core';
 import { Effect } from 'effect';
 import { buildSegmentAnnotationTasks } from './segment-annotation-context';
-import { runAgentSegmentAnnotateStreamWithMemory } from './segment-annotation-runner';
+import {
+  runAgentSegmentAnnotate,
+  runAgentSegmentAnnotateStreamWithMemory,
+} from './segment-annotation-runner';
 
 const providerMocks = vi.hoisted(() => ({
   generateYomitomoTextEffect: vi.fn(),
@@ -22,6 +25,78 @@ beforeEach(() => {
 });
 
 describe('runAgentSegmentAnnotateStreamWithMemory', () => {
+  it('uses one annotation contract for JSON and NDJSON generation', async () => {
+    const provider = testProvider();
+    const agent = testAgent();
+    const chapters = [
+      {
+        id: 'chapter-1',
+        title: '第一章',
+        paragraphs: ['同一段批注内容需要使用相同语义契约。'],
+      },
+    ];
+    const ebookIndex = buildEpubBookIndex({
+      articleId: 'book-contract',
+      chapters,
+      maxSegmentTextLength: 100,
+      minSegmentTextLength: 1,
+    });
+    const payload = {
+      agentId: agent.id,
+      agentUsername: agent.username,
+      article: {
+        title: '契约测试',
+        url: 'ebook://book-contract',
+        text: epubIndexText(chapters),
+        ebookIndex,
+      },
+      readingPlan: [
+        {
+          sectionId: ebookIndex.chapters[0].id,
+          sectionTitle: ebookIndex.chapters[0].title,
+          sectionStart: ebookIndex.chapters[0].textStart,
+          sectionEnd: ebookIndex.chapters[0].textEnd,
+        },
+      ],
+    };
+    const task = buildSegmentAnnotationTasks(payload, agent)[0];
+    const annotationPrompts: string[] = [];
+
+    providerMocks.generateYomitomoTextEffect.mockImplementation((_provider, request) =>
+      Effect.sync(() => {
+        if (request.user.includes('## 批注语义')) {
+          annotationPrompts.push(request.user);
+          return { text: '[]' };
+        }
+        return { text: '{"segmentTrace":{"items":[]}}' };
+      }),
+    );
+    providerMocks.streamYomitomoTextEffect.mockImplementation((_provider, request) =>
+      Effect.sync(() => {
+        annotationPrompts.push(request.user);
+        return { text: '' };
+      }),
+    );
+
+    await runAgentSegmentAnnotate(provider, agent, payload, 'system', [task]);
+    await runAgentSegmentAnnotateStreamWithMemory(
+      provider,
+      agent,
+      payload,
+      'system',
+      [task],
+      vi.fn(),
+    );
+
+    expect(annotationPrompts).toHaveLength(2);
+    const [jsonPrompt, ndjsonPrompt] = annotationPrompts;
+    expect(promptBeforeOutputFormat(jsonPrompt)).toBe(promptBeforeOutputFormat(ndjsonPrompt));
+    expect(jsonPrompt).toContain('请返回 JSON 数组');
+    expect(jsonPrompt).toContain('没有值得批注的内容时返回空数组');
+    expect(ndjsonPrompt).toContain('请用 NDJSON 返回批注');
+    expect(ndjsonPrompt).toContain('每一行是一个完整 JSON 对象');
+  });
+
   it('streams allowed segment annotations, deduplicates moves, and feeds memory forward', async () => {
     const provider = testProvider();
     const agent = testAgent();
@@ -134,6 +209,10 @@ describe('runAgentSegmentAnnotateStreamWithMemory', () => {
     ).toBe('第一段有效点需要后续验证。');
   });
 });
+
+function promptBeforeOutputFormat(prompt: string | undefined) {
+  return prompt?.split('\n\n## 输出格式\n')[0];
+}
 
 function emitJson(onDelta: (delta: string) => void, value: Record<string, unknown>) {
   onDelta(`${JSON.stringify(value)}\n`);
