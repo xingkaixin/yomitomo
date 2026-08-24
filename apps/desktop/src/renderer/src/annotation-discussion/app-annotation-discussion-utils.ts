@@ -14,7 +14,7 @@ import {
 } from '@yomitomo/core';
 import { mentionDraftWithAgent } from '@yomitomo/reader-ui/reader-mention-utils';
 import i18next from 'i18next';
-import { articlePlainText } from '../shell/app-utils';
+import { articlePlainText } from '../shell/app-article-presentation';
 
 export type DiscussionThread = {
   isPinned: boolean;

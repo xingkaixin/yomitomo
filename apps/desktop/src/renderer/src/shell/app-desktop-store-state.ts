@@ -12,7 +12,7 @@ import {
 } from '../../../app-store-errors';
 import { desktopIpcErrorCodes, isDesktopIpcErrorLike } from '../../../ipc-errors';
 
-import { elapsedMs, recordStartupTiming } from './app-utils';
+import { recordStartupTiming, rendererPerformanceElapsedMs } from './app-renderer-performance';
 import { articleStorePatchCommit, useArticleStore } from './app-article-store';
 import {
   applyCollectionStorePatch,
@@ -56,7 +56,7 @@ export function useDesktopStoreState() {
       const result = await desktop.store.getStateResult();
       if (!result.ok) {
         recordStartupTiming('store.refresh_error', {
-          durationMs: elapsedMs(startedAt),
+          durationMs: rendererPerformanceElapsedMs(startedAt),
           code: result.error.code,
         });
         setStoreLoadError(result.error);
@@ -67,7 +67,7 @@ export function useDesktopStoreState() {
 
       const nextStore = result.store;
       recordStartupTiming('store.refresh_success', {
-        durationMs: elapsedMs(startedAt),
+        durationMs: rendererPerformanceElapsedMs(startedAt),
         articleCount: nextStore.articles.length,
       });
       const rendererStore = applyStore(nextStore);
@@ -88,7 +88,9 @@ export function useDesktopStoreState() {
         }
       }
 
-      recordStartupTiming('store.refresh_exception', { durationMs: elapsedMs(startedAt) });
+      recordStartupTiming('store.refresh_exception', {
+        durationMs: rendererPerformanceElapsedMs(startedAt),
+      });
       setStoreLoadError(
         desktopStoreLoadErrorInfo(refreshError) || {
           code: 'DATABASE_UNAVAILABLE',

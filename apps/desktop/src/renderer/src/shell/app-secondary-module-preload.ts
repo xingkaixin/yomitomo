@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { elapsedMs, recordStartupTiming } from './app-utils';
+import { recordStartupTiming, rendererPerformanceElapsedMs } from './app-renderer-performance';
 
 type ReadingStatsModule = typeof import('../reading-stats/app-reading-stats');
 type AgentSettingsModule = typeof import('../settings/app-settings-agent-panel');
@@ -66,7 +66,7 @@ function createPreloadEntry<TModule>(
           entry.status = 'ready';
           recordStartupTiming('secondary_modules.preload_module_success', {
             key,
-            durationMs: elapsedMs(startedAt),
+            durationMs: rendererPerformanceElapsedMs(startedAt),
           });
           notifyPreloadModules();
           return module;
@@ -76,7 +76,7 @@ function createPreloadEntry<TModule>(
           entry.promise = undefined;
           recordStartupTiming('secondary_modules.preload_module_failed', {
             key,
-            durationMs: elapsedMs(startedAt),
+            durationMs: rendererPerformanceElapsedMs(startedAt),
             message: error instanceof Error ? error.message : String(error),
           });
           notifyPreloadModules();

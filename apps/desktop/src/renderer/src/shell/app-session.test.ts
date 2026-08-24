@@ -58,8 +58,8 @@ vi.mock('./app-secondary-module-preload', () => ({
   },
 }));
 
-vi.mock('./app-utils', () => ({
-  elapsedMs: () => 0,
+vi.mock('./app-renderer-performance', () => ({
+  rendererPerformanceElapsedMs: () => 0,
   recordStartupTiming: vi.fn(),
   recordStatsTiming: vi.fn(),
 }));

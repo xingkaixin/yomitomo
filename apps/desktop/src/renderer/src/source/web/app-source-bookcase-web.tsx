@@ -26,7 +26,7 @@ import {
 } from '@yomitomo/reader-ui/reader-annotations';
 import { useAgentAnnotationQueue } from '@yomitomo/reader-ui/use-agent-annotation-queue';
 import { OpenArticleButton } from '../../shell/app-ui';
-import { articleIdentityLine } from '../../shell/app-utils';
+import { articleIdentityLine } from '../../shell/app-article-presentation';
 import type { WebSourceBookcaseProps } from '../bookcase/source-bookcase-types';
 import { sourceTocOptions, useWebReaderBoxes } from './use-web-reader-boxes';
 import {

@@ -11,7 +11,7 @@ import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { readingProgressRatio } from '@yomitomo/core';
 import type { ArticleSummaryRecord } from '@yomitomo/shared';
-import { urlHost } from '../shell/app-utils';
+import { urlHost } from '../shell/app-article-presentation';
 import { ArticleBook, formatPdfAuthors } from '../shell/app-article-book';
 import { ArticleDeleteMenuItem, useArticleDeleteConfirm } from './app-reading-library-delete';
 import {

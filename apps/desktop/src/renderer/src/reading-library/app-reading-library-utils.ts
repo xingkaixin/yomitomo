@@ -7,7 +7,7 @@ import {
   type LibraryContentSourceId,
   type WeReadBook,
 } from '@yomitomo/shared';
-import { articlePlainText, formatDate, urlHost } from '../shell/app-utils';
+import { articlePlainText, formatDate, urlHost } from '../shell/app-article-presentation';
 
 export type LibraryFilter = 'all' | 'new' | 'progress' | 'done';
 
