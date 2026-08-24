@@ -13,7 +13,7 @@ import {
 import { normalizeRenderedText, rangeForEbookAnchorInDocument } from './ebook-text-anchor';
 import { ebookAnnotationNavigationState } from './app-source-bookcase-ebook-utils';
 import { recordRendererPerformanceTiming } from '../../shell/app-renderer-performance';
-import type { EbookBookcaseProps } from '../bookcase/app-source-bookcase';
+import type { EbookBookcaseProps } from '../bookcase/source-bookcase-types';
 
 type NavigationRef<T> = { current: T };
 

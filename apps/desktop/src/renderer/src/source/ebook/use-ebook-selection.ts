@@ -46,7 +46,7 @@ import {
   selectionAdjustmentAdjustedOffsets,
   selectionAdjustmentDraggingHandle,
 } from '../bookcase/selection-adjustment';
-import type { EbookBookcaseProps } from '../bookcase/app-source-bookcase';
+import type { EbookBookcaseProps } from '../bookcase/source-bookcase-types';
 
 type UseEbookSelectionInput = {
   article: EbookBookcaseProps['content']['article'];

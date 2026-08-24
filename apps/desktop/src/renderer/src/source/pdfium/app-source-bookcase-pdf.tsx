@@ -4,7 +4,7 @@ import {
   recordRendererPerformanceTiming,
   rendererPerformanceElapsedMs,
 } from '../../shell/app-renderer-performance';
-import type { SourceBookcaseProps } from '../bookcase/app-source-bookcase';
+import type { SourceBookcaseProps } from '../bookcase/source-bookcase-types';
 
 const PdfiumBookcase = lazy(() => {
   const startedAt = performance.now();

@@ -5,7 +5,7 @@ import {
   clearBilingualTranslation,
   extractBilingualTranslationBlocks,
 } from '@yomitomo/core';
-import type { EbookArticleRecord } from '../bookcase/app-source-bookcase';
+import type { EbookArticleRecord } from '../bookcase/source-bookcase-types';
 import {
   useSourceBilingualTranslation,
   type TranslationSurfaceAdapter,

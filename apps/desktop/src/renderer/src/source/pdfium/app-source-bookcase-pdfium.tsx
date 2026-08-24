@@ -39,7 +39,7 @@ import { ReaderToolbarSliderPopover } from '@yomitomo/reader-ui/reader-toolbar-c
 import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { readerDesktopEmbeddedBundleStyles } from '@yomitomo/reader-ui/reader-styles';
 import { selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
-import type { SourceBookcaseProps } from '../bookcase/app-source-bookcase';
+import type { SourceBookcaseProps } from '../bookcase/source-bookcase-types';
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
 import {
   useReaderPageTurnKeys,

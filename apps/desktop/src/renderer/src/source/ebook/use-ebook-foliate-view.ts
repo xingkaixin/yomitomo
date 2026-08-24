@@ -20,7 +20,7 @@ import type { EbookBoxUpdateReason } from './ebook-annotation-layout';
 import { useEbookPaginationMeasurement } from './use-ebook-pagination-measurement';
 import { getDesktopApi } from '../../shell/app-desktop-api';
 import { recordRendererPerformanceTiming } from '../../shell/app-renderer-performance';
-import type { EbookBookcaseProps } from '../bookcase/app-source-bookcase';
+import type { EbookBookcaseProps } from '../bookcase/source-bookcase-types';
 import { useSourceReadingProgressSaver } from '../bookcase/use-source-reading-progress-saver';
 
 type EbookReaderState = {

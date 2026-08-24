@@ -1,4 +1,4 @@
-import type { UiLanguage } from '../settings-types';
+import type { UiLanguage } from '../locale-types';
 
 export type AgentAnnotationDensity = 'low' | 'medium' | 'high';
 
