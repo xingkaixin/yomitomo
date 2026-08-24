@@ -1,11 +1,4 @@
 import type { AppSettingsPatch, ResolvedAppSettings, UserProfile } from '@yomitomo/shared';
-import {
-  normalizeLibraryContentSources,
-  normalizeMessageSendShortcut,
-  normalizeSelectionActionShortcuts,
-  normalizeSoundEffectsVolume,
-  normalizeUiLanguage,
-} from '@yomitomo/shared';
 import * as schema from '../db/schema';
 import { type StoreExecutor } from './store-db';
 import {
@@ -15,6 +8,7 @@ import {
   normalizeUsername,
   rowToSettings,
   rowToUser,
+  settingsToRow,
   userToRow,
 } from './store-normalizers';
 
@@ -74,37 +68,7 @@ export function upsertUser(database: StoreExecutor, user: UserProfile) {
 export function upsertSettings(database: StoreExecutor, settings: AppSettingsPatch) {
   const existing = database.select().from(schema.appSettings).limit(1).get();
   const merged = mergeSettingsForUpsert(settings, existing ? rowToSettings(existing) : undefined);
-  const row = {
-    id: 'default',
-    uiLanguage: normalizeUiLanguage(merged.uiLanguage),
-    themeId: merged.themeId || null,
-    soundEffectsEnabled: merged.soundEffectsEnabled,
-    soundEffectsVolume: normalizeSoundEffectsVolume(merged.soundEffectsVolume),
-    appLockEnabled: merged.appLockEnabled,
-    appLockLocked: merged.appLockEnabled && merged.appLockLocked,
-    appLockLockOnStartup: merged.appLockEnabled && merged.appLockLockOnStartup,
-    appLockShortcut: merged.appLockShortcut || null,
-    libraryPageSize: merged.libraryPageSize || null,
-    libraryContentSources: normalizeLibraryContentSources(merged.libraryContentSources),
-    defaultProviderId: merged.defaultProviderId || null,
-    readingAssistantProviderId: merged.readingAssistantProviderId || null,
-    reviewAssistantProviderId: merged.reviewAssistantProviderId || null,
-    bilingualTranslationProviderId: merged.bilingualTranslationProviderId || null,
-    bilingualTranslationTargetLanguage: merged.bilingualTranslationTargetLanguage || null,
-    bilingualTranslationStyle: merged.bilingualTranslationStyle || null,
-    bilingualTranslationAiContextAware: merged.bilingualTranslationAiContextAware,
-    assistantExecutionMode: merged.assistantExecutionMode || 'fast_response',
-    messageSendShortcut: normalizeMessageSendShortcut(merged.messageSendShortcut),
-    selectionActionShortcuts: normalizeSelectionActionShortcuts(merged.selectionActionShortcuts),
-    saveArticleImages: merged.saveArticleImages,
-    allowLocalNetworkArticleImport: merged.allowLocalNetworkArticleImport,
-    telemetryEnabled: merged.telemetryEnabled,
-    developerModeEnabled: merged.developerModeEnabled,
-    logRetentionDays: merged.logRetentionDays,
-    onboardingCompletedAt: merged.onboardingCompletedAt || null,
-    lastSeenVersion: merged.lastSeenVersion || null,
-    updatedAt: new Date().toISOString(),
-  };
+  const row = settingsToRow(merged);
   database
     .insert(schema.appSettings)
     .values(row)

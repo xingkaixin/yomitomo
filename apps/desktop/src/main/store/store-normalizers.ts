@@ -67,7 +67,7 @@ export {
   rowToPdfSummary,
 } from './store-normalizers-sources';
 export { normalizeReaderChatState } from './store-normalizers-reader-chat';
-export { mergeSettingsForUpsert, rowToSettings } from './store-normalizers-settings';
+export { mergeSettingsForUpsert, rowToSettings, settingsToRow } from './store-normalizers-settings';
 export { sortByCreatedAt } from './store-normalizers-common';
 export { emptyDesktopStore as defaultStore } from '../../app-store';
 
