@@ -8,6 +8,20 @@ import { migrations } from '../db/migrations';
 import { readLibraryCatalogRows } from './library-catalog-repository';
 
 describe('library catalog repository', () => {
+  it('bounds the statement count for a mixed catalog search', () => {
+    const queries: string[] = [];
+    const { database } = createCatalogDatabase((query) => queries.push(query));
+    queries.length = 0;
+
+    readLibraryCatalogRows(database, {
+      scope: { kind: 'library' },
+      query: 'member topic',
+      pageSize: 10,
+    });
+
+    expect(queries.length).toBeLessThanOrEqual(8);
+  });
+
   it('uses the catalog index without a temporary article sort', () => {
     const { sqlite } = createCatalogDatabase();
     const plan = sqlite
@@ -138,6 +152,18 @@ describe('library catalog repository', () => {
       weread: 20,
     });
   });
+
+  it('returns counts when the requested page is empty', () => {
+    const result = readLibraryCatalogRows(catalogDatabase(), {
+      scope: { kind: 'library' },
+      page: 10,
+      pageSize: 10,
+    });
+
+    expect(result.entities).toEqual([]);
+    expect(result.totalCount).toBe(4);
+    expect(result.unfilteredCount).toBe(4);
+  });
 });
 
 function entityKey(entity: ReturnType<typeof readLibraryCatalogRows>['entities'][number]) {
@@ -150,8 +176,14 @@ function catalogDatabase() {
   return createCatalogDatabase().database;
 }
 
-function createCatalogDatabase() {
-  const sqlite = new SQLiteDatabase(':memory:');
+function createCatalogDatabase(verbose?: (query: string) => void) {
+  const sqlite = new SQLiteDatabase(':memory:', {
+    verbose: verbose
+      ? (message) => {
+          if (typeof message === 'string') verbose(message);
+        }
+      : undefined,
+  });
   for (const migration of migrations) sqlite.exec(migration.sql);
   const database = drizzle(sqlite, { schema });
   const insertArticle = sqlite.prepare(`
