@@ -87,6 +87,11 @@ describe('ReadingLibrary imports', () => {
     ).toBe('100');
     expect(screen.getByDisplayValue('新导入文章')).toBeTruthy();
     expect(screen.queryByRole('button', { name: '打开文章' })).toBeNull();
+    expect(
+      document
+        .querySelector('.library-article-import-result-icon path')
+        ?.getAttribute('pathLength'),
+    ).toBe('1');
     expect(playAppSoundEffect).toHaveBeenCalledWith(
       'library.import_success_single',
       expect.objectContaining({ soundEffectsEnabled: true, soundEffectsVolume: 0.6 }),
@@ -260,6 +265,9 @@ describe('ReadingLibrary imports', () => {
     expect((await screen.findAllByText('已导入 1 个文件')).length).toBeGreaterThan(0);
     expect(screen.getByText('导入的电子书示例')).toBeTruthy();
     expect(screen.queryByRole('button', { name: '打开电子书' })).toBeNull();
+    expect(
+      document.querySelector('.library-import-success-icon path')?.getAttribute('pathLength'),
+    ).toBe('1');
     expect(playAppSoundEffect).toHaveBeenCalledWith(
       'library.import_success_single',
       expect.objectContaining({ soundEffectsEnabled: true, soundEffectsVolume: 0.7 }),

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { relative } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
@@ -46,6 +46,7 @@ function trackedFiles() {
 const violations = [];
 
 for (const file of trackedFiles()) {
+  if (!existsSync(file)) continue;
   const source = readFileSync(file, 'utf8');
   const normalizedFile = relative(process.cwd(), file);
 
