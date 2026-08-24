@@ -3,6 +3,7 @@ import { ArrowDown01Icon, BubbleChatIcon } from '@hugeicons/core-free-icons';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
+import { ARTICLE_SOURCE_TYPES } from '@yomitomo/shared';
 import type {
   Agent,
   Annotation,
@@ -14,7 +15,6 @@ import type {
   CollectionMember,
   Comment,
   ContentRef,
-  LibraryPin,
   MessageSendShortcut,
   PublicAgent,
   SelectionActionShortcuts,
@@ -35,6 +35,7 @@ import { groupLibraryArticles, type LibrarySort } from './app-reading-library-ut
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 import type {
   AnnotationDiscussionWindowState,
+  LibraryCatalogItemType,
   SetLibraryPinInput,
   WindowAnimationSourceRect,
 } from '../../../ipc-contract';
@@ -48,6 +49,8 @@ import {
 } from './use-reading-library-navigation';
 import { getDesktopApi, getOptionalDesktopApi } from '../shell/app-desktop-api';
 import { emptyDesktopStore } from '../../../app-store';
+import type { LibraryQueryState } from './use-library-query-state';
+import { useLibraryQuerySession } from './use-library-query-session';
 
 export { groupLibraryArticles };
 export type { LibrarySort };
@@ -57,12 +60,13 @@ export function ReadingLibrary({
   articleActions,
   articleStore,
   articles,
+  catalogRevision,
   collectionMembers = [],
   collections = [],
-  pins = [],
   messageSendShortcut,
   menuRequest,
   readerTheme,
+  libraryQuery,
   settings,
   selectionActionShortcuts,
   openArticleTarget,
@@ -82,12 +86,13 @@ export function ReadingLibrary({
   articleActions: ArticleActions;
   articleStore: Pick<ArticleStore, 'registerCurrentArticleSink'>;
   articles: ArticleSummaryRecord[];
+  catalogRevision: number;
   collectionMembers?: CollectionMember[];
   collections?: Collection[];
-  pins?: LibraryPin[];
   messageSendShortcut?: MessageSendShortcut;
   menuRequest?: AppMenuCommandRequest | null;
   readerTheme: ReaderTheme;
+  libraryQuery: LibraryQueryState;
   settings?: ResolvedAppSettings;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   openArticleTarget?: ReadingLibraryOpenTarget | null;
@@ -166,6 +171,30 @@ export function ReadingLibrary({
   >([]);
   const distillationAnimation = distillationSync.animation;
   const sortedArticles = useMemo<ArticleSummaryRecord[]>(() => sortArticles(articles), [articles]);
+  const resolvedSettings = settings || emptyDesktopStore.settings;
+  const availableCatalogTypes = useMemo<LibraryCatalogItemType[]>(
+    () =>
+      wereadSettings.configured || wereadBooks.length > 0
+        ? [...ARTICLE_SOURCE_TYPES, 'weread']
+        : [...ARTICLE_SOURCE_TYPES],
+    [wereadBooks.length, wereadSettings.configured],
+  );
+  const collectionIds = useMemo(
+    () => collections.map((collection) => collection.id),
+    [collections],
+  );
+  const catalogRevisionToken = useMemo(
+    () => ({ catalogRevision, wereadBooks }),
+    [catalogRevision, wereadBooks],
+  );
+  const libraryQuerySession = useLibraryQuerySession({
+    availableTypes: availableCatalogTypes,
+    catalogRevision: catalogRevisionToken,
+    collectionIds,
+    onSaveSettings: onSaveSettings || (() => undefined),
+    query: libraryQuery,
+    settings: resolvedSettings,
+  });
   const annotations = useMemo<Annotation[]>(
     () => (selectedArticle ? sortAnnotations(selectedArticle.annotations) : []),
     [selectedArticle],
@@ -371,6 +400,7 @@ export function ReadingLibrary({
   }
 
   const libraryHomeProps = {
+    catalogRevision: catalogRevisionToken,
     collectionActions: {
       onAddCollectionMembers,
       onCreateCollection,
@@ -381,8 +411,6 @@ export function ReadingLibrary({
     content: {
       collectionMembers,
       collections,
-      pins,
-      sortedArticles,
     },
     imports: {
       onCancelArticleImport: cancelArticleUrlImport,
@@ -400,12 +428,11 @@ export function ReadingLibrary({
       onSetLibraryPin: setLibraryPin,
     },
     menuRequest,
+    querySession: libraryQuerySession,
     settingsControl: {
-      settings: settings || emptyDesktopStore.settings,
-      onSaveSettings: onSaveSettings || (() => undefined),
+      settings: resolvedSettings,
     },
     weRead: {
-      books: wereadBooks,
       onOpenDataSources,
       onSync: () => void syncWeReadLibrary({ manual: true }),
       openMessage: wereadOpenMessage,

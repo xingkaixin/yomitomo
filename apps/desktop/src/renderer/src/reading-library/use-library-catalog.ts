@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { LibraryCatalogListInput, LibraryCatalogListResult } from '../../../ipc-contract';
 import { getOptionalDesktopApi } from '../shell/app-desktop-api';
 
@@ -13,7 +13,7 @@ type ResolvedCatalog = {
 
 export type LibraryCatalogState = Pick<ResolvedCatalog, 'result' | 'status' | 'error'>;
 
-export function useLibraryCatalog(input: LibraryCatalogListInput, revision: number) {
+export function useLibraryCatalog(input: LibraryCatalogListInput, revision: unknown) {
   const [query, setQuery] = useState(input.query || '');
   useEffect(() => {
     const nextQuery = input.query || '';
@@ -66,21 +66,4 @@ export function useLibraryCatalog(input: LibraryCatalogListInput, revision: numb
 
   if (resolvedCatalog?.scopeKey === scopeKey) return resolvedCatalog;
   return { result: null, status: 'loading', error: null } satisfies LibraryCatalogState;
-}
-
-export function useLocalStoreRevision(deps: readonly unknown[]): number {
-  const previousDepsRef = useRef<readonly unknown[]>(deps.slice());
-  const [revision, setRevision] = useState(0);
-
-  useLayoutEffect(() => {
-    const previousDeps = previousDepsRef.current;
-    const hasChanged =
-      previousDeps.length !== deps.length ||
-      deps.some((dependency, index) => !Object.is(dependency, previousDeps[index]));
-    if (!hasChanged) return;
-    previousDepsRef.current = deps.slice();
-    setRevision((current) => current + 1);
-  });
-
-  return revision;
 }

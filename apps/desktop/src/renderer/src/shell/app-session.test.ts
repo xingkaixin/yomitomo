@@ -174,6 +174,18 @@ describe('useAppSession', () => {
     expect(result.current.readerOpen).toBe(false);
   });
 
+  it('keeps library query state while another surface is open', () => {
+    const { result } = renderSession({ storeStatus: 'ready' });
+    act(() => {
+      result.current.libraryQuery.dispatch({ type: 'query-changed', query: 'design' });
+      result.current.actions.openSettings();
+    });
+
+    act(() => result.current.actions.openLibrary());
+
+    expect(result.current.libraryQuery.state.searchQuery).toBe('design');
+  });
+
   it('ignores reader state updates outside the library', () => {
     const { result } = renderSession({ storeStatus: 'ready' });
     act(() => result.current.actions.openSettings());

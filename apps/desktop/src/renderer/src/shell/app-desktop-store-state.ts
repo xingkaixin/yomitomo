@@ -29,9 +29,13 @@ export function useDesktopStoreState() {
     null,
   );
   const storeRef = useRef<DesktopStore | null>(null);
+  const libraryCatalogRevisionRef = useRef(0);
 
   const applyStore = useCallback((nextStore: DesktopStore) => {
     const rendererStore = rendererStoreForAppLockState(nextStore);
+    if (libraryCatalogFactsChanged(storeRef.current, rendererStore)) {
+      libraryCatalogRevisionRef.current += 1;
+    }
     storeRef.current = rendererStore;
     setStore(rendererStore);
     return rendererStore;
@@ -151,8 +155,19 @@ export function useDesktopStoreState() {
     ...common,
     status: 'ready' as const,
     store,
+    libraryCatalogRevision: libraryCatalogRevisionRef.current,
     settingsSyncSnapshot,
   };
+}
+
+function libraryCatalogFactsChanged(current: DesktopStore | null, next: DesktopStore) {
+  return (
+    !current ||
+    current.articles !== next.articles ||
+    current.collectionMembers !== next.collectionMembers ||
+    current.collections !== next.collections ||
+    current.pins !== next.pins
+  );
 }
 
 function settingsSyncSnapshotFromStore(store: DesktopStore): SettingsSyncSnapshot {

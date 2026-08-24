@@ -17,15 +17,12 @@ import {
 } from '@hugeicons/core-free-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ARTICLE_SOURCE_TYPES,
-  type AppSettingsPatch,
   type ResolvedAppSettings,
   type ArticleRecord,
   type ArticleSummaryRecord,
   type Collection,
   type CollectionMember,
   type ContentRef,
-  type LibraryPin,
   type WeReadBook,
   type WeReadSettings,
 } from '@yomitomo/shared';
@@ -55,7 +52,6 @@ import type {
 } from '../shell/app-reading-types';
 import {
   libraryCatalogItemRef,
-  type LibraryCatalogItemType,
   type SetLibraryPinInput,
   type TextImportCommitInput,
 } from '../../../ipc-contract';
@@ -73,8 +69,7 @@ import { useLibrarySearchClearDissolve } from './app-reading-library-search-clea
 import type { LibraryTypeFilter } from './library-filter-types';
 import { libraryEmptyReason, type LibraryEmptyMessageKey } from './library-empty-reason';
 import { LIBRARY_PAGE_SIZE_OPTIONS } from './library-query-session';
-import { useLocalStoreRevision } from './use-library-catalog';
-import { useLibraryQuerySession } from './use-library-query-session';
+import type { LibraryQuerySession } from './use-library-query-session';
 
 const TYPE_FILTER_ICONS: Record<LibraryTypeFilter, React.ReactNode> = {
   collection: <HugeiconsIcon icon={LibraryIcon} size={15} />,
@@ -88,8 +83,6 @@ const TYPE_FILTER_ICONS: Record<LibraryTypeFilter, React.ReactNode> = {
 type LibraryHomeContent = {
   collectionMembers: CollectionMember[];
   collections: Collection[];
-  pins: LibraryPin[];
-  sortedArticles: ArticleSummaryRecord[];
 };
 
 type LibraryHomeImports = {
@@ -124,11 +117,9 @@ type LibraryHomeCollectionActions = {
 
 type LibraryHomeSettingsControl = {
   settings: ResolvedAppSettings;
-  onSaveSettings: (settings: AppSettingsPatch) => Promise<void> | void;
 };
 
 type LibraryHomeWeReadControl = {
-  books: WeReadBook[];
   openMessage: string;
   settings: WeReadSettings;
   syncing: boolean;
@@ -137,26 +128,30 @@ type LibraryHomeWeReadControl = {
 };
 
 type LibraryHomeProps = {
+  catalogRevision: unknown;
   collectionActions: LibraryHomeCollectionActions;
   content: LibraryHomeContent;
   imports: LibraryHomeImports;
   itemActions: LibraryHomeItemActions;
   menuRequest?: AppMenuCommandRequest | null;
+  querySession: LibraryQuerySession;
   settingsControl: LibraryHomeSettingsControl;
   weRead: LibraryHomeWeReadControl;
 };
 
 export function LibraryHome({
+  catalogRevision,
   collectionActions,
   content,
   imports,
   itemActions,
   menuRequest,
+  querySession,
   settingsControl,
   weRead,
 }: LibraryHomeProps) {
   const { t } = useTranslation();
-  const { collectionMembers, collections, pins, sortedArticles } = content;
+  const { collectionMembers, collections } = content;
   const {
     onAddCollectionMembers,
     onCreateCollection,
@@ -178,9 +173,8 @@ export function LibraryHome({
     onOpenWeReadExternal,
     onSetLibraryPin,
   } = itemActions;
-  const { onSaveSettings, settings } = settingsControl;
+  const { settings } = settingsControl;
   const {
-    books: wereadBooks,
     onOpenDataSources,
     onSync: onSyncWeRead,
     openMessage: wereadOpenMessage,
@@ -192,37 +186,13 @@ export function LibraryHome({
   const [collectionNameDialog, setCollectionNameDialog] =
     useState<CollectionNameDialogState | null>(null);
   const [pickerCollectionId, setPickerCollectionId] = useState<string | null>(null);
-  const localRevision = useLocalStoreRevision([
-    sortedArticles,
-    collectionMembers,
-    collections,
-    pins,
-    wereadBooks,
-  ]);
-  const availableCatalogTypes = useMemo<LibraryCatalogItemType[]>(
-    () =>
-      wereadSettings.configured || wereadBooks.length > 0
-        ? [...ARTICLE_SOURCE_TYPES, 'weread']
-        : [...ARTICLE_SOURCE_TYPES],
-    [wereadBooks.length, wereadSettings.configured],
-  );
-  const collectionIds = useMemo(
-    () => collections.map((collection) => collection.id),
-    [collections],
-  );
   const {
     actions: libraryQueryActions,
     availableTypes,
     catalog: catalogState,
     pageCount,
     state: libraryQuery,
-  } = useLibraryQuerySession({
-    availableTypes: availableCatalogTypes,
-    collectionIds,
-    localRevision,
-    onSaveSettings,
-    settings,
-  });
+  } = querySession;
   const { page, pageSize, searchQuery, selectedTypes } = libraryQuery;
   const activeCollectionId =
     libraryQuery.scope.kind === 'collection' ? libraryQuery.scope.collectionId : null;
@@ -680,12 +650,9 @@ export function LibraryHome({
       ) : null}
       {pickerCollection ? (
         <CollectionPickerDialog
-          articles={sortedArticles}
+          catalogRevision={catalogRevision}
           collection={pickerCollection}
-          collectionMembers={collectionMembers}
-          pins={pins}
           typeOptions={pickerTypeOptions}
-          wereadBooks={wereadBooks}
           onAddMembers={(members) => addCollectionMembers(pickerCollection.id, members)}
           onClose={() => setPickerCollectionId(null)}
         />

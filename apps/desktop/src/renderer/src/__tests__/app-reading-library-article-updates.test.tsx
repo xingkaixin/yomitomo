@@ -15,6 +15,7 @@ import type { LibraryHome } from '../reading-library/app-reading-library-home';
 import type { CurrentArticleSink } from '../shell/app-article-store';
 import type { ArticleActions } from '../shell/app-article-store-actions';
 import { ReadingLibrary } from '../reading-library/app-reading-library';
+import { useLibraryQueryState } from '../reading-library/use-library-query-state';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { defaultTheme } from '../theme/app-theme';
 import { articleActionStubs, articleStoreSinkStub } from './article-actions-test-utils';
@@ -358,13 +359,25 @@ function readingLibrary({
   openArticleTarget,
 }: ReadingLibraryTestOptions) {
   return (
+    <ReadingLibraryHarness
+      options={{ articleActions, articleStore, articles, openArticleTarget }}
+    />
+  );
+}
+
+function ReadingLibraryHarness({ options }: { options: ReadingLibraryTestOptions }) {
+  const { articleActions, articleStore, articles, openArticleTarget } = options;
+  const libraryQuery = useLibraryQueryState();
+  return (
     <ReadingLibrary
       agents={[]}
       articleActions={articleActions}
       articleStore={articleStore || defaultArticleStore}
       articles={articles.map(articleSummary)}
+      catalogRevision={0}
       {...collectionActionStubs()}
       openArticleTarget={openArticleTarget}
+      libraryQuery={libraryQuery}
       readerTheme={defaultTheme.reader}
       userProfile={userProfile}
     />
