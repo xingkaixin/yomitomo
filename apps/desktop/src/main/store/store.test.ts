@@ -137,6 +137,43 @@ afterEach(async () => {
   await rm('/tmp/yomitomo-store-test', { recursive: true, force: true });
 });
 
+describe('desktop store initialization', () => {
+  it('fills missing default rows without replacing existing data', () => {
+    const database = getDatabase();
+    writeArticleRows(database, articleRecord({ id: 'article_preserved_during_seed' }));
+    database.update(schema.appSettings).set({ uiLanguage: 'en' }).run();
+    database.delete(schema.userProfiles).run();
+    closeDatabase();
+
+    const reopened = getDatabase();
+
+    expect(reopened.select().from(schema.userProfiles).all()).toHaveLength(1);
+    expect(reopened.select().from(schema.appSettings).limit(1).get()?.uiLanguage).toBe('en');
+    expect(
+      reopened
+        .select({ id: schema.articles.id })
+        .from(schema.articles)
+        .all()
+        .map((row) => row.id),
+    ).toContain('article_preserved_during_seed');
+
+    reopened.delete(schema.appSettings).run();
+    closeDatabase();
+
+    const reopenedWithoutSettings = getDatabase();
+
+    expect(reopenedWithoutSettings.select().from(schema.userProfiles).all()).toHaveLength(1);
+    expect(reopenedWithoutSettings.select().from(schema.appSettings).all()).toHaveLength(1);
+    expect(
+      reopenedWithoutSettings
+        .select({ id: schema.articles.id })
+        .from(schema.articles)
+        .all()
+        .map((row) => row.id),
+    ).toContain('article_preserved_during_seed');
+  });
+});
+
 describe('desktop store settings', () => {
   it('returns only the saved user slice', async () => {
     const patch = await saveUser({ nickname: 'Updated User' });

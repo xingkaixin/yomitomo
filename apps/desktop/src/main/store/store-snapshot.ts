@@ -1,24 +1,17 @@
-import type { ArticleRecord, DesktopStore } from '@yomitomo/shared';
-import { ensurePresetAgents, upsertAgent } from '../agents/agent-repository';
+import type { DesktopStore } from '@yomitomo/shared';
+import { ensurePresetAgents } from '../agents/agent-repository';
 import { readArticleSummaryCounts } from '../articles/article-summary-counts';
 import { readArticleSummaryRowsForStore } from '../articles/article-summary-queries';
-import { writeArticleRows } from '../articles/article-row-writes';
 import {
   readCollectionMemberRows,
   readCollectionRows,
   readLibraryPinRows,
-  writeCollectionMemberRows,
-  writeCollectionRows,
-  writeLibraryPinRows,
 } from '../collections/collection-repository';
 import * as schema from '../db/schema';
-import { providerApiKeyRef } from '../providers/provider-secrets';
-import { upsertProvider } from '../providers/provider-repository';
 import {
   configureStoreDatabaseSeeder,
   getDatabase,
   type StoreDatabase,
-  type StoreExecutor,
   type StoreReadProfileEntry,
 } from './store-db';
 import { migrateProviderApiKeys } from './store-provider-key-migration';
@@ -29,8 +22,6 @@ import { measureStoreRead, measureStoreReadAsync } from './store-read-profile';
 import { upsertSettings, upsertUser } from './settings-repository';
 import {
   defaultStore,
-  normalizeArticleRecord,
-  normalizeStore,
   normalizeUser,
   rowToAgent,
   rowToArticleSummary,
@@ -39,9 +30,7 @@ import {
   rowToUser,
 } from './store-normalizers';
 
-type WritableDesktopStore = Omit<DesktopStore, 'articles'> & { articles: ArticleRecord[] };
-
-configureStoreDatabaseSeeder(seedDefaultStore);
+configureStoreDatabaseSeeder(ensureDefaultStoreRows);
 
 export async function readStore(): Promise<DesktopStore> {
   return readStoreInternal();
@@ -73,14 +62,6 @@ export function warmStoreDatabaseWithProfile() {
   return profile;
 }
 
-export async function writeStore(store: WritableDesktopStore): Promise<DesktopStore> {
-  const normalized = normalizeWritableStore(store);
-  const database = getDatabase();
-  await migrateProviderApiKeys(database);
-  writeStoreRows(database, normalized);
-  return readStore();
-}
-
 async function readStoreInternal(
   profile?: StoreReadProfileEntry[],
   options: { includeArticles?: boolean } = {},
@@ -101,23 +82,23 @@ async function readStoreInternal(
   );
 }
 
-function seedDefaultStore(database: StoreDatabase) {
+function ensureDefaultStoreRows(database: StoreDatabase) {
   const hasUser = database
     .select({ id: schema.userProfiles.id })
     .from(schema.userProfiles)
     .limit(1)
     .get();
-  if (hasUser) return;
+  const hasSettings = database
+    .select({ id: schema.appSettings.id })
+    .from(schema.appSettings)
+    .limit(1)
+    .get();
+  if (hasUser && hasSettings) return;
 
-  writeStoreRows(database, { ...defaultStore, articles: [] });
-}
-
-function normalizeWritableStore(store: WritableDesktopStore): WritableDesktopStore {
-  const normalized = normalizeStore({ ...store, articles: [] });
-  return {
-    ...normalized,
-    articles: store.articles.map(normalizeArticleRecord),
-  };
+  database.transaction((tx) => {
+    if (!hasUser) upsertUser(tx, defaultStore.user);
+    if (!hasSettings) upsertSettings(tx, defaultStore.settings);
+  });
 }
 
 function readStoreRows(
@@ -175,36 +156,4 @@ function readStoreRows(
       pinCount: pinRows.length,
     },
   );
-}
-
-function writeStoreRows(database: StoreDatabase, store: WritableDesktopStore) {
-  database.transaction((tx) => {
-    tx.delete(schema.libraryPins).run();
-    tx.delete(schema.collectionMembers).run();
-    tx.delete(schema.collections).run();
-    tx.delete(schema.comments).run();
-    tx.delete(schema.annotations).run();
-    tx.delete(schema.articles).run();
-    tx.delete(schema.agents).run();
-    tx.delete(schema.providers).run();
-    tx.delete(schema.appSettings).run();
-    tx.delete(schema.userProfiles).run();
-
-    upsertUser(tx, store.user);
-    upsertSettings(tx, store.settings);
-    for (const provider of store.providers)
-      upsertProvider(tx, provider, provider.hasApiKey ? providerApiKeyRef(provider.id) : undefined);
-    for (const agent of store.agents) upsertAgent(tx, agent);
-    for (const article of store.articles) writeArticleRows(tx, article);
-    writeCollectionStoreRows(tx, store);
-  });
-}
-
-function writeCollectionStoreRows(
-  database: StoreExecutor,
-  store: Pick<DesktopStore, 'collections' | 'collectionMembers' | 'pins'>,
-) {
-  for (const collection of store.collections) writeCollectionRows(database, collection);
-  for (const member of store.collectionMembers) writeCollectionMemberRows(database, member);
-  for (const pin of store.pins) writeLibraryPinRows(database, pin);
 }
