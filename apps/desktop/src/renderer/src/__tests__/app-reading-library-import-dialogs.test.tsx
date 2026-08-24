@@ -173,6 +173,22 @@ describe('ReadingLibrary imports', () => {
     expect(within(dialog).getByText('文件仅保存在本机，不会上传到任何服务器。')).toBeTruthy();
   });
 
+  it('keeps an active ebook import mounted when another import is requested', async () => {
+    const deferred = deferredImportResult();
+    const onImportEbookFile = vi.fn().mockReturnValue(deferred.promise);
+    const view = renderLibrary([], { onImportEbookFile });
+
+    await selectLibraryType(/电子书/);
+    await openAddMenuItem('电子书文件');
+    selectImportFile(view.container, 'library-ebook-file', fileWithSize('slow.epub', 1024));
+    await waitFor(() => expect(onImportEbookFile).toHaveBeenCalledOnce());
+
+    view.updateMenuRequest({ command: 'import-web', id: 1 });
+
+    expect(await screen.findByText('添加电子书')).toBeTruthy();
+    expect(screen.queryByText('添加网页文章')).toBeNull();
+  });
+
   it('renders the first-use empty state with import entries', () => {
     renderLibrary([]);
 

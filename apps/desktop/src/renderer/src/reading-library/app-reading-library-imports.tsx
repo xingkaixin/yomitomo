@@ -96,6 +96,8 @@ type ImportedBookCelebrationItem = {
   order: number;
 };
 
+type LibraryImportDialogKind = 'article' | 'ebook' | 'pdf' | 'text';
+
 type FileImportDialogConfig = {
   kind: 'ebook' | 'pdf';
   titleId: string;
@@ -332,65 +334,64 @@ export function useLibraryImportDialogs({
   onCommitTextImport: (input: { items: TextImportCommitItem[] }) => Promise<unknown>;
   onOpenArticle: (article: ArticleRecord) => void;
 }): LibraryImportDialogs {
-  const [articleImportOpen, setArticleImportOpen] = useState(false);
-  const [ebookImportOpen, setEbookImportOpen] = useState(false);
-  const [pdfImportOpen, setPdfImportOpen] = useState(false);
-  const [textImportOpen, setTextImportOpen] = useState(false);
+  const [activeDialog, setActiveDialog] = useState<LibraryImportDialogKind | null>(null);
+  const importBusyRef = useRef(false);
 
-  const openArticleImport = useCallback(() => {
-    setEbookImportOpen(false);
-    setPdfImportOpen(false);
-    setTextImportOpen(false);
-    setArticleImportOpen(true);
+  const setImportBusy = useCallback((busy: boolean) => {
+    importBusyRef.current = busy;
   }, []);
-  const openEbookImport = useCallback(() => {
-    setArticleImportOpen(false);
-    setPdfImportOpen(false);
-    setTextImportOpen(false);
-    setEbookImportOpen(true);
+
+  const openDialog = useCallback((kind: LibraryImportDialogKind) => {
+    if (importBusyRef.current) return;
+    setActiveDialog(kind);
   }, []);
-  const openPdfImport = useCallback(() => {
-    setArticleImportOpen(false);
-    setEbookImportOpen(false);
-    setTextImportOpen(false);
-    setPdfImportOpen(true);
+
+  const closeDialog = useCallback(() => {
+    if (importBusyRef.current) return;
+    setActiveDialog(null);
   }, []);
-  const openTextImport = useCallback(() => {
-    setArticleImportOpen(false);
-    setEbookImportOpen(false);
-    setPdfImportOpen(false);
-    setTextImportOpen(true);
-  }, []);
+
+  const openArticleImport = useCallback(() => openDialog('article'), [openDialog]);
+  const openEbookImport = useCallback(() => openDialog('ebook'), [openDialog]);
+  const openPdfImport = useCallback(() => openDialog('pdf'), [openDialog]);
+  const openTextImport = useCallback(() => openDialog('text'), [openDialog]);
 
   const dialogs = (
     <>
-      {articleImportOpen ? (
+      {activeDialog === 'article' ? (
         <ArticleImportDialog
           settings={settings}
-          onClose={() => setArticleImportOpen(false)}
+          onBusyChange={setImportBusy}
+          onClose={closeDialog}
           onImportArticleUrl={onImportArticleUrl}
           onCancelArticleImport={onCancelArticleImport}
           onOpenArticle={onOpenArticle}
         />
       ) : null}
-      {ebookImportOpen ? (
+      {activeDialog === 'ebook' ? (
         <EbookImportDialog
           settings={settings}
-          onClose={() => setEbookImportOpen(false)}
+          onBusyChange={setImportBusy}
+          onClose={closeDialog}
           onImportEbookFile={onImportEbookFile}
           onOpenArticle={onOpenArticle}
         />
       ) : null}
-      {pdfImportOpen ? (
+      {activeDialog === 'pdf' ? (
         <PdfImportDialog
           settings={settings}
-          onClose={() => setPdfImportOpen(false)}
+          onBusyChange={setImportBusy}
+          onClose={closeDialog}
           onImportPdfFile={onImportPdfFile}
           onOpenArticle={onOpenArticle}
         />
       ) : null}
-      {textImportOpen ? (
-        <TextImportDialog onClose={() => setTextImportOpen(false)} onCommit={onCommitTextImport} />
+      {activeDialog === 'text' ? (
+        <TextImportDialog
+          onBusyChange={setImportBusy}
+          onClose={closeDialog}
+          onCommit={onCommitTextImport}
+        />
       ) : null}
     </>
   );
@@ -568,12 +569,14 @@ export function LibraryImportControls({
 
 function ArticleImportDialog({
   settings,
+  onBusyChange,
   onClose,
   onImportArticleUrl,
   onCancelArticleImport,
   onOpenArticle,
 }: {
   settings: ResolvedAppSettings;
+  onBusyChange: (busy: boolean) => void;
   onClose: () => void;
   onImportArticleUrl: (url: string, requestId?: string) => Promise<ArticleImportResult>;
   onCancelArticleImport?: (requestId: string) => Promise<boolean> | boolean;
@@ -597,6 +600,11 @@ function ArticleImportDialog({
     },
     [],
   );
+
+  useEffect(() => {
+    onBusyChange(importState.type === 'submitting');
+    return () => onBusyChange(false);
+  }, [importState.type, onBusyChange]);
 
   useEffect(() => {
     if (importState.type !== 'submitting') return;
@@ -889,11 +897,13 @@ function ArticleImportDialog({
 
 function EbookImportDialog({
   settings,
+  onBusyChange,
   onClose,
   onImportEbookFile,
   onOpenArticle,
 }: {
   settings: ResolvedAppSettings;
+  onBusyChange: (busy: boolean) => void;
   onClose: () => void;
   onImportEbookFile: (
     file: File,
@@ -934,6 +944,7 @@ function EbookImportDialog({
         onImportFile: onImportEbookFile,
       }}
       settings={settings}
+      onBusyChange={onBusyChange}
       onClose={onClose}
       onOpenArticle={onOpenArticle}
     />
@@ -942,11 +953,13 @@ function EbookImportDialog({
 
 function PdfImportDialog({
   settings,
+  onBusyChange,
   onClose,
   onImportPdfFile,
   onOpenArticle,
 }: {
   settings: ResolvedAppSettings;
+  onBusyChange: (busy: boolean) => void;
   onClose: () => void;
   onImportPdfFile: (
     file: File,
@@ -986,6 +999,7 @@ function PdfImportDialog({
         onImportFile: onImportPdfFile,
       }}
       settings={settings}
+      onBusyChange={onBusyChange}
       onClose={onClose}
       onOpenArticle={onOpenArticle}
     />
@@ -995,11 +1009,13 @@ function PdfImportDialog({
 function FileImportDialog({
   config,
   settings,
+  onBusyChange,
   onClose,
   onOpenArticle,
 }: {
   config: FileImportDialogConfig;
   settings: ResolvedAppSettings;
+  onBusyChange: (busy: boolean) => void;
   onClose: () => void;
   onOpenArticle: (article: ArticleRecord) => void;
 }) {
@@ -1010,6 +1026,11 @@ function FileImportDialog({
   const importCloseTimerRef = useRef<number | null>(null);
 
   useEffect(() => () => clearImportCloseTimer(), []);
+
+  useEffect(() => {
+    onBusyChange(importState.type === 'submitting');
+    return () => onBusyChange(false);
+  }, [importState.type, onBusyChange]);
 
   async function importFiles(fileList: FileList | File[] | undefined) {
     const files = Array.from(fileList || []);

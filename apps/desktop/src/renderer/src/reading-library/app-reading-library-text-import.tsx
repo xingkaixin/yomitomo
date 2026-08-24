@@ -6,7 +6,7 @@ import {
   Loading03Icon,
   Upload01Icon,
 } from '@hugeicons/core-free-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TextImportCommitItem, TextImportPreparedItem } from '../../../ipc-contract';
 import {
@@ -35,9 +35,11 @@ type ConfirmRow = {
 const TEXT_IMPORT_ACCEPT = '.txt,.md,.markdown,text/plain,text/markdown';
 
 export function TextImportDialog({
+  onBusyChange,
   onClose,
   onCommit,
 }: {
+  onBusyChange: (busy: boolean) => void;
   onClose: () => void;
   onCommit: (input: { items: TextImportCommitItem[] }) => Promise<unknown>;
 }) {
@@ -50,6 +52,11 @@ export function TextImportDialog({
   const [rows, setRows] = useState<ConfirmRow[] | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    onBusyChange(busy);
+    return () => onBusyChange(false);
+  }, [busy, onBusyChange]);
 
   function reasonLabel(item: Extract<TextImportPreparedItem, { ok: false }>) {
     return t(`library.import.text.reason.${item.reason}`, { fileName: item.fileName || '' });
@@ -128,6 +135,8 @@ export function TextImportDialog({
         frontMatter: row.frontMatter,
       }));
       await onCommit({ items });
+      setBusy(false);
+      onBusyChange(false);
       onClose();
     } catch {
       setErrors([t('library.import.text.commitFailed')]);
