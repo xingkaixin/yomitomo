@@ -100,7 +100,7 @@ function ReadyApp({
   const updateReady =
     appUpdateState?.status === 'available' || appUpdateState?.status === 'downloaded';
 
-  const { store, storeSyncSnapshot, storeRef, applyStore, applySettingsPatch, articleStore } =
+  const { store, settingsSyncSnapshot, storeRef, applyStore, applySettingsPatch, articleStore } =
     storeState;
   const appLockEnabled = store.settings.appLockEnabled;
   const appLocked = appLockEnabled && store.settings.appLockLocked;
@@ -124,7 +124,7 @@ function ReadyApp({
   } = useAppCollectionStoreActions({ storeRef, applyStore });
   const settingsDrafts = useSettingsDrafts({
     store,
-    storeSyncSnapshot,
+    settingsSyncSnapshot,
     applyStore,
     applySettingsPatch,
   });

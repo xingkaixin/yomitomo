@@ -29,13 +29,14 @@ import {
   type SettingsEditorSection,
 } from './app-settings-change-detection';
 import { getDesktopApi } from '../shell/app-desktop-api';
+import type { SettingsSyncSnapshot } from '../shell/app-desktop-store-state';
 import { normalizeAppSettings } from '../../../settings/app-settings-normalization';
 
 type SettingsDraftDesktopApi = Pick<YomitomoDesktopApi, 'provider' | 'store'>;
 
 type UseSettingsDraftsInput = {
   store: DesktopStore;
-  storeSyncSnapshot: DesktopStore | null;
+  settingsSyncSnapshot: SettingsSyncSnapshot | null;
   applyStore: (nextStore: DesktopStore) => DesktopStore;
   applySettingsPatch: (patch: SettingsStorePatch) => DesktopStore;
   desktop?: SettingsDraftDesktopApi;
@@ -43,7 +44,7 @@ type UseSettingsDraftsInput = {
 
 export function useSettingsDrafts({
   store,
-  storeSyncSnapshot,
+  settingsSyncSnapshot,
   applyStore,
   applySettingsPatch,
   desktop,
@@ -60,10 +61,10 @@ export function useSettingsDrafts({
   const initialProviderSelectedRef = useRef(false);
 
   useEffect(() => {
-    if (!storeSyncSnapshot) return;
-    setUserDraft(storeSyncSnapshot.user);
-    setSettingsDraft(storeSyncSnapshot.settings);
-  }, [storeSyncSnapshot]);
+    if (!settingsSyncSnapshot) return;
+    setUserDraft(settingsSyncSnapshot.user);
+    setSettingsDraft(settingsSyncSnapshot.settings);
+  }, [settingsSyncSnapshot]);
 
   const userHasChanges = useMemo(
     () => userDraftHasChanges(userDraft, store.user),
