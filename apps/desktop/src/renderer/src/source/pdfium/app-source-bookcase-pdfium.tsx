@@ -6,7 +6,7 @@ import {
   SearchAddIcon,
 } from '@hugeicons/core-free-icons';
 import type React from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { EmbedPDF, useDocumentState } from '@embedpdf/core/react';
@@ -50,18 +50,10 @@ import {
   pdfiumAnnotationBoxes,
   pdfiumAnnotationNavigationState,
   pdfiumVisibleAnnotations,
-  pdfiumAnnotationRailLayout,
-  computeAutoPdfZoom,
   pdfiumPendingSelectionPresentation,
   pdfiumTemporaryBoxes,
 } from './pdfium-annotation-layout';
-import {
-  firstVisiblePdfPageWidth,
-  pdfiumRailWheelHasLocalScrollTarget,
-  pdfiumScrollSnapshotCanConsumeDelta,
-  pdfiumRectsForTextRange,
-  pdfiumWheelDeltaPixels,
-} from './pdfium-geometry';
+import { pdfiumRectsForTextRange } from './pdfium-geometry';
 import {
   pageProgress,
   pdfPageProgressPercent,
@@ -69,11 +61,7 @@ import {
 import { pdfiumTocAnnotationStats } from './pdfium-text-document';
 import { createPdfiumSourceReaderController } from './app-source-bookcase-pdfium-controller';
 import { EmbedPdfSelectionBridge } from './app-source-bookcase-pdfium-selection-bridge';
-import {
-  recordPdfOpenTiming,
-  recordPdfOpenTimingOnce,
-  type PdfOpenTrace,
-} from './app-source-bookcase-pdfium-open-trace';
+import type { PdfOpenTrace } from './app-source-bookcase-pdfium-open-trace';
 import { usePdfiumPageMetrics } from './app-source-bookcase-pdfium-page-metrics';
 import { usePdfiumVirtualReading } from './app-source-bookcase-pdfium-virtual-reading';
 import { usePdfiumDocumentText } from './app-source-bookcase-pdfium-document-text';
@@ -86,12 +74,9 @@ import { usePdfiumSelectionAdjustment } from './use-pdfium-selection-adjustment'
 import { usePdfiumHighlightHitTesting } from './use-pdfium-highlight-hit-testing';
 import { usePdfiumAgentAnnotationPlayback } from './use-pdfium-agent-annotation-playback';
 import { suppressPdfiumContinuousTextSelectionEvent } from './app-source-bookcase-pdfium-selection-events';
-import {
-  debugComputedStyle,
-  debugPdfLayout,
-  debugRect,
-  pdfLayoutDebugEnabled,
-} from './pdfium-layout-debug';
+import { debugPdfLayout } from './pdfium-layout-debug';
+import { usePdfiumReaderLayout } from './use-pdfium-reader-layout';
+import { usePdfiumOpenLifecycle } from './use-pdfium-open-lifecycle';
 
 type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']> };
 type PdfiumBookcaseProps = SourceBookcaseProps<PdfArticleRecord>;
@@ -270,12 +255,9 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     onToggle: onToggleToc,
   } = toc;
   const { t } = useTranslation();
-  const recordedOpenPhasesRef = useRef(new Set<string>());
   const documentState = useDocumentState(documentId);
   const { provides: zoomControls } = useZoom(documentId);
   const [agentTheaterBoxes, setAgentTheaterBoxes] = useState<HighlightBox[]>([]);
-  const [layoutPageWidth, setLayoutPageWidth] = useState(0);
-  const resetLayoutPageWidthOnNextMetricsRef = useRef(true);
   const zoom = documentState?.scale || 1;
   const loadedDocument = documentState?.document ?? undefined;
   const pdfBaseWidth = useMemo(() => {
@@ -283,12 +265,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     if (!pages || pages.length === 0) return 0;
     return pages.reduce((max, page) => Math.max(max, page.size.width), 0);
   }, [loadedDocument]);
-  // 自适应初始缩放：手动调缩放后置 false，退出自适应、不再随 resize 回弹。
-  const [autoZoomEnabled, setAutoZoomEnabled] = useState(true);
-  const appliedAutoZoomRef = useRef<number | null>(null);
-  // zoomControls 每次 render 是新引用，放进 effect 依赖会和 requestZoom 形成渲染死循环，故用 ref 旁路。
-  const zoomControlsRef = useRef(zoomControls);
-  zoomControlsRef.current = zoomControls;
   const {
     currentPage,
     initialPageNumber,
@@ -473,152 +449,22 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     () => pdfiumVisibleAnnotations(annotations, boxes),
     [annotations, boxes],
   );
-  useEffect(() => {
-    const pageWidth = firstVisiblePdfPageWidth(pageMetrics);
-    if (!pageWidth) return;
-    const shouldReset = resetLayoutPageWidthOnNextMetricsRef.current;
-    if (shouldReset) resetLayoutPageWidthOnNextMetricsRef.current = false;
-    setLayoutPageWidth((current) => {
-      const nextWidth = shouldReset || current <= 0 ? pageWidth : Math.min(current, pageWidth);
-      return current === nextWidth ? current : nextWidth;
-    });
-  }, [pageMetrics]);
-  const annotationRailLayout = useMemo(
-    () =>
-      pdfiumAnnotationRailLayout(
-        pageMetrics,
-        canvasRef.current,
-        annotationRailViewportHeight,
-        annotationRailViewportWidth,
-        layoutPageWidth || undefined,
-      ),
-    [annotationRailViewportHeight, annotationRailViewportWidth, layoutPageWidth, pageMetrics],
-  );
-  useEffect(() => {
-    if (!autoZoomEnabled) return;
-    const scale = computeAutoPdfZoom({
-      viewportWidth: annotationRailViewportWidth,
-      baseWidth: pdfBaseWidth,
-    });
-    if (scale == null || appliedAutoZoomRef.current === scale) return;
-    appliedAutoZoomRef.current = scale;
-    zoomControlsRef.current?.requestZoom(scale);
-  }, [autoZoomEnabled, annotationRailViewportWidth, pdfBaseWidth]);
-  useEffect(() => {
-    if (!annotationRailLayout) return;
-    schedulePageMetricsUpdate();
-  }, [annotationRailLayout?.mode, schedulePageMetricsUpdate]);
-  useEffect(() => {
-    debugPdfLayout('debug-enabled', {
-      articleId: article.id,
-    });
-  }, [article.id]);
-  useEffect(() => {
-    if (!annotationRailLayout || !pdfLayoutDebugEnabled()) return;
-    const pageWidth = firstVisiblePdfPageWidth(pageMetrics);
-    debugPdfLayout('layout', {
-      layoutPageWidth,
-      mode: annotationRailLayout.mode,
-      pageWidth,
-      railWidth: annotationRailLayout.railWidth,
-      rightRailLeft: annotationRailLayout.rightRailLeft,
-      viewportWidth: annotationRailViewportWidth,
-      zoom,
-    });
-  }, [annotationRailLayout, annotationRailViewportWidth, layoutPageWidth, pageMetrics, zoom]);
-  useEffect(() => {
-    if (!pdfLayoutDebugEnabled()) return;
-
-    const frame = window.requestAnimationFrame(() => {
-      const canvas = canvasRef.current;
-      const surface = surfaceRef.current;
-      const rail = notesRef.current;
-      const empty = canvas?.querySelector<HTMLElement>('.reader-empty') ?? null;
-      const viewport = canvas?.querySelector<HTMLElement>('.pdfium-spike-viewport') ?? null;
-      const firstPage = canvas?.querySelector<HTMLElement>('[data-pdfium-page-index]') ?? null;
-      const readerApp = canvas?.closest<HTMLElement>('.reader-app') ?? null;
-      const readerMain = canvas?.closest<HTMLElement>('.reader-main') ?? null;
-      const pdfReaderMain = canvas?.closest<HTMLElement>('.pdf-reader-main') ?? null;
-      const shell = canvas?.closest<HTMLElement>('.source-pdf-reader-shell') ?? null;
-
-      debugPdfLayout('empty-state', {
-        annotationCount: annotations.length,
-        appClasses: readerApp?.className ?? null,
-        canvasRect: debugRect(canvas?.getBoundingClientRect()),
-        emptyComputed: debugComputedStyle(empty),
-        emptyExists: Boolean(empty),
-        emptyRect: debugRect(empty?.getBoundingClientRect()),
-        firstPageRect: debugRect(firstPage?.getBoundingClientRect()),
-        layout: annotationRailLayout ?? null,
-        layoutPageWidth,
-        pageMetricKeys: Object.keys(pageMetrics),
-        pdfReaderMainComputed: debugComputedStyle(pdfReaderMain),
-        pdfReaderMainRect: debugRect(pdfReaderMain?.getBoundingClientRect()),
-        railComputed: debugComputedStyle(rail),
-        railRect: debugRect(rail?.getBoundingClientRect()),
-        readerMainComputed: debugComputedStyle(readerMain),
-        readerMainRect: debugRect(readerMain?.getBoundingClientRect()),
-        shellComputed: debugComputedStyle(shell),
-        shellRect: debugRect(shell?.getBoundingClientRect()),
-        surfaceRect: debugRect(surface?.getBoundingClientRect()),
-        viewportHeight: annotationRailViewportHeight,
-        viewportRect: debugRect(viewport?.getBoundingClientRect()),
-        viewportWidth: annotationRailViewportWidth,
-        visibleAnnotationCount: visiblePdfAnnotations.length,
-        zoom,
-      });
-    });
-
-    return () => window.cancelAnimationFrame(frame);
-  }, [
-    annotationRailLayout,
-    annotationRailViewportHeight,
-    annotationRailViewportWidth,
-    annotations.length,
+  const { annotationRailLayout, disableAutoZoom } = usePdfiumReaderLayout({
+    annotationCount: annotations.length,
+    articleId: article.id,
     canvasRef,
-    layoutPageWidth,
+    documentScale: documentState?.scale,
     notesRef,
     pageMetrics,
+    pdfBaseWidth,
+    requestZoom: zoomControls ? (scale) => zoomControls.requestZoom(scale) : undefined,
+    schedulePageMetricsUpdate,
     surfaceRef,
-    visiblePdfAnnotations.length,
+    viewportHeight: annotationRailViewportHeight,
+    viewportWidth: annotationRailViewportWidth,
+    visibleAnnotationCount: visiblePdfAnnotations.length,
     zoom,
-  ]);
-  useEffect(() => {
-    const rail = notesRef.current;
-    if (!rail) return;
-    const handleWheel = (event: WheelEvent) => {
-      const target = event.target instanceof Element ? event.target : null;
-      const viewport =
-        canvasRef.current?.querySelector<HTMLElement>('.pdfium-spike-viewport') ?? null;
-      if (!viewport) return;
-
-      const delta = pdfiumWheelDeltaPixels(event, viewport.clientHeight);
-      const viewportCanScroll =
-        pdfiumScrollSnapshotCanConsumeDelta(
-          {
-            clientSize: viewport.clientHeight,
-            scrollOffset: viewport.scrollTop,
-            scrollSize: viewport.scrollHeight,
-          },
-          delta.y,
-        ) ||
-        pdfiumScrollSnapshotCanConsumeDelta(
-          {
-            clientSize: viewport.clientWidth,
-            scrollOffset: viewport.scrollLeft,
-            scrollSize: viewport.scrollWidth,
-          },
-          delta.x,
-        );
-      if (!viewportCanScroll || pdfiumRailWheelHasLocalScrollTarget(target, rail, delta)) return;
-
-      event.preventDefault();
-      viewport.scrollBy({ left: delta.x, top: delta.y, behavior: 'auto' });
-    };
-
-    rail.addEventListener('wheel', handleWheel, { passive: false });
-    return () => rail.removeEventListener('wheel', handleWheel);
-  }, [canvasRef, notesRef]);
+  });
   const { scrollToAnnotation, scrollToTocItem } = usePdfiumNavigation({
     annotations,
     documentId,
@@ -635,97 +481,24 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     [currentPage, tocItems],
   );
 
-  useEffect(() => {
-    recordedOpenPhasesRef.current = new Set();
-  }, [article.id]);
-
-  const restoreMetricsWaitLoggedRef = useRef(false);
-
-  useEffect(() => {
-    restoreMetricsWaitLoggedRef.current = false;
-  }, [article.id]);
-
-  useEffect(() => {
-    const loadedPdfDocument = documentState?.document;
-    if (!loadedPdfDocument) return;
-    recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'document_ready', {
-      pageCount: loadedPdfDocument.pageCount,
-    });
-  }, [documentState?.document, openTrace]);
-
-  useEffect(() => {
-    resetPdfiumTextDocument();
-    clearAgentAnnotationPlayback();
-  }, [article.id, article.pdf.metadata.pageCount, resetPdfiumTextDocument]);
-
-  useEffect(() => {
-    const visiblePageCount = Object.keys(pageMetrics).length;
-    if (visiblePageCount === 0) return;
-    const expectedPageIndex = initialPageNumber - 1;
-    const waitingForInitialRestorePage = restoringInitialPage && expectedPageIndex > 0;
-    if (waitingForInitialRestorePage && !pageMetrics[expectedPageIndex]) {
-      if (!restoreMetricsWaitLoggedRef.current) {
-        restoreMetricsWaitLoggedRef.current = true;
-        recordPdfOpenTiming(openTrace, 'initial_restore_metrics_wait', {
-          currentPage,
-          targetPage: initialPageNumber,
-          visiblePageCount,
-          visiblePageIndexes: Object.keys(pageMetrics).map(Number),
-        });
-      }
-      return;
-    }
-    if (waitingForInitialRestorePage) {
-      recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'initial_restore_metrics_ready', {
-        currentPage,
-        targetPage: initialPageNumber,
-        visiblePageCount,
-        visiblePageIndexes: Object.keys(pageMetrics).map(Number),
-      });
-    }
-    markInitialPageReady();
-    markPdfiumFirstPageReady();
-    recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'first_page_ready', {
-      visiblePageCount,
-    });
-    recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'interactive_ready', {
-      visiblePageCount,
-    });
-  }, [
+  usePdfiumOpenLifecycle({
+    annotationCount: annotations.length,
+    articleId: article.id,
+    articlePageCount: article.pdf.metadata.pageCount,
+    boxCount: boxes.length,
+    clearAgentAnnotationPlayback,
     currentPage,
     initialPageNumber,
+    loadedDocumentPageCount: documentState?.document?.pageCount,
     markInitialPageReady,
     markPdfiumFirstPageReady,
     openTrace,
     pageMetrics,
+    resetPdfiumTextDocument,
     restoringInitialPage,
-  ]);
-
-  useEffect(() => {
-    const unsubscribe = scroll?.onScroll?.(() => {
-      schedulePageMetricsUpdate();
-    });
-    return () => {
-      unsubscribe?.();
-    };
-  }, [schedulePageMetricsUpdate, scroll]);
-
-  useEffect(() => {
-    if (!documentState?.scale) return;
-    resetLayoutPageWidthOnNextMetricsRef.current = true;
-    schedulePageMetricsUpdate();
-  }, [documentState?.scale, schedulePageMetricsUpdate]);
-
-  useEffect(() => {
-    if (boxes.length > 0 || annotations.length === 0) return;
-    schedulePageMetricsUpdate();
-  }, [annotations.length, boxes.length, schedulePageMetricsUpdate]);
-
-  useEffect(() => {
-    return () => {
-      clearAgentAnnotationPlayback();
-    };
-  }, []);
+    schedulePageMetricsUpdate,
+    scroll,
+  });
 
   useEffect(() => {
     clearAnnotationUiState();
@@ -1056,7 +829,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
             unit="%"
             value={Math.round(zoom * 100)}
             onChange={(value) => {
-              setAutoZoomEnabled(false);
+              disableAutoZoom();
               zoomControls?.requestZoom(value / 100);
             }}
           />

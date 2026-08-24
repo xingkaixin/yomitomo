@@ -31,7 +31,6 @@ import {
 import { ebookArticleText } from './ebook-text-anchor';
 import { EbookReaderShell } from './app-source-ebook-reader-shell';
 import { playEbookAgentAnnotationPlayback } from './app-source-ebook-agent-playback';
-import { recordRendererPerformanceTiming } from '../../shell/app-renderer-performance';
 import type { EbookBookcaseProps } from '../bookcase/app-source-bookcase';
 import { useEbookAgentVirtualReading } from './use-ebook-agent-virtual-reading';
 import { useEbookFoliateView } from './use-ebook-foliate-view';
@@ -43,18 +42,13 @@ import {
   useReaderPageTurnKeys,
   type ReaderPageTurnDirection,
 } from '../../shell/use-reader-page-turn-keys';
-import { ebookSpreadAvailableWidth, ebookSpreadLayout } from './app-source-bookcase-ebook-utils';
 import { ArticleBook } from '../../shell/app-article-book';
 import { articleDisplayTitle } from '../../reading-library/app-reading-library-utils';
 import { createEbookSourceReaderController } from './app-source-bookcase-ebook-controller';
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
 import { useSourceReaderAppView } from '../bookcase/use-source-reader-app-view';
 import { appendAgentAnnotationToArticle as appendPersistedAgentAnnotation } from '../bookcase/append-agent-annotation-to-article';
-
-function cssPixelValue(value: string) {
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
+import { useEbookSpreadLayout } from './use-ebook-spread-layout';
 
 export function EbookBookcase({
   annotationActions: { onArticleChange, onFocusedAnnotation, onOpenAnnotation },
@@ -217,51 +211,12 @@ export function EbookBookcase({
     articleId: article.id,
     signature: articleAnnotationSignature,
   });
-  const [spreadLayout, setSpreadLayout] = useState(() =>
-    ebookSpreadLayout({ canvasWidth: 0, contentWidth: readerSettings.contentWidth }),
-  );
-  const spreadLayoutTraceRef = useRef('');
-  useEffect(() => {
-    const layoutElement = surfaceRef.current ?? canvasRef.current;
-    if (!layoutElement) return;
-    const update = () => {
-      const rect = layoutElement.getBoundingClientRect();
-      if (rect.width <= 0) return;
-      const style = window.getComputedStyle(layoutElement);
-      const layoutWidth = ebookSpreadAvailableWidth({
-        layoutWidth: rect.width,
-        paddingLeft: cssPixelValue(style.paddingLeft),
-        paddingRight: cssPixelValue(style.paddingRight),
-      });
-      const nextSpreadLayout = ebookSpreadLayout({
-        canvasWidth: layoutWidth,
-        contentWidth: readerSettings.contentWidth,
-      });
-      const traceKey = [
-        readerSettings.contentWidth,
-        nextSpreadLayout.columns,
-        nextSpreadLayout.railLayout.mode,
-        nextSpreadLayout.railLayout.articleWidth,
-      ].join(':');
-      if (spreadLayoutTraceRef.current !== traceKey) {
-        spreadLayoutTraceRef.current = traceKey;
-        recordRendererPerformanceTiming('ebook_spread_layout', {
-          articleId: article.id,
-          columns: nextSpreadLayout.columns,
-          contentWidth: readerSettings.contentWidth,
-          layoutSource: layoutElement === surfaceRef.current ? 'surface' : 'canvas',
-          layoutWidth: Math.round(layoutWidth),
-          measuredWidth: Math.round(rect.width),
-          railLayout: nextSpreadLayout.railLayout,
-        });
-      }
-      setSpreadLayout(nextSpreadLayout);
-    };
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(layoutElement);
-    return () => observer.disconnect();
-  }, [canvasRef, readerSettings.contentWidth, surfaceRef]);
+  const spreadLayout = useEbookSpreadLayout({
+    articleId: article.id,
+    canvasRef,
+    contentWidth: readerSettings.contentWidth,
+    surfaceRef,
+  });
   const {
     viewHostRef,
     measureHostRef,
