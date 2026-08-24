@@ -18,6 +18,73 @@ import {
 export type DraftPreviewDecision = 'pending' | 'accepted' | 'rejected';
 export type DraftPreviewDecisions = Record<string, DraftPreviewDecision>;
 
+export type PendingDraftPreview =
+  | {
+      source: 'review';
+      messageId: string;
+      proposals: AnnotationDistillationProposal[];
+      changeSet: DistillationProposalDraftChangeSet;
+      decisions: DraftPreviewDecisions;
+    }
+  | {
+      source: 'organize';
+      proposals: AnnotationDistillationProposal[];
+      changeSet: DistillationProposalDraftChangeSet;
+      decisions: DraftPreviewDecisions;
+    };
+
+export type DraftProposalWorkflowState = {
+  preview: PendingDraftPreview | null;
+  appliedOrganizeProposalIds: Set<string>;
+  dismissedOrganizeProposalIds: Set<string>;
+};
+
+export type DraftProposalWorkflowAction =
+  | { type: 'open-preview'; preview: PendingDraftPreview }
+  | { type: 'update-preview-decisions'; decisions: DraftPreviewDecisions }
+  | { type: 'close-preview' }
+  | { type: 'reset-organize-decisions' }
+  | { type: 'apply-organize-decisions'; decisions: DraftPreviewDecisions }
+  | { type: 'close-organize' };
+
+export function initialDraftProposalWorkflowState(): DraftProposalWorkflowState {
+  return {
+    preview: null,
+    appliedOrganizeProposalIds: new Set(),
+    dismissedOrganizeProposalIds: new Set(),
+  };
+}
+
+export function draftProposalWorkflowReducer(
+  state: DraftProposalWorkflowState,
+  action: DraftProposalWorkflowAction,
+): DraftProposalWorkflowState {
+  if (action.type === 'open-preview') return { ...state, preview: action.preview };
+  if (action.type === 'update-preview-decisions') {
+    return state.preview
+      ? { ...state, preview: { ...state.preview, decisions: action.decisions } }
+      : state;
+  }
+  if (action.type === 'close-preview') return { ...state, preview: null };
+  if (action.type === 'reset-organize-decisions') return initialDraftProposalWorkflowState();
+  if (action.type === 'apply-organize-decisions') {
+    const decisionSets = organizeProposalDecisionSets({
+      appliedProposalIds: state.appliedOrganizeProposalIds,
+      dismissedProposalIds: state.dismissedOrganizeProposalIds,
+      decisions: action.decisions,
+    });
+    return {
+      preview: null,
+      appliedOrganizeProposalIds: decisionSets.appliedProposalIds,
+      dismissedOrganizeProposalIds: decisionSets.dismissedProposalIds,
+    };
+  }
+  return {
+    ...state,
+    preview: state.preview?.source === 'organize' ? null : state.preview,
+  };
+}
+
 export type ReviewTimelineItem = {
   key: string;
   message: AnnotationDistillationReviewMessage;
@@ -96,8 +163,14 @@ export function organizeProposalDecisionSets({
   const dismissed = new Set(dismissedProposalIds);
 
   for (const [proposalId, decision] of Object.entries(decisions)) {
-    if (decision === 'accepted') applied.add(proposalId);
-    if (decision === 'rejected') dismissed.add(proposalId);
+    if (decision === 'accepted') {
+      applied.add(proposalId);
+      dismissed.delete(proposalId);
+    }
+    if (decision === 'rejected') {
+      dismissed.add(proposalId);
+      applied.delete(proposalId);
+    }
   }
 
   return { appliedProposalIds: applied, dismissedProposalIds: dismissed };
