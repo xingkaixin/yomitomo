@@ -8,8 +8,10 @@ import {
   createReviewSession,
   draftPreviewDecisionsForProposals,
   draftPreviewDraft,
+  draftProposalWorkflowReducer,
   draftPreviewStatusesFromDecisions,
   hasPendingDraftPreviewDecisions,
+  initialDraftProposalWorkflowState,
   organizeProposalDecisionSets,
   pendingOrganizeProposals,
   publishedDistillationArticle,
@@ -363,6 +365,46 @@ describe('app annotation sedimentation state', () => {
 
     expect(Array.from(result.appliedProposalIds)).toEqual(['proposal_0', 'proposal_1']);
     expect(Array.from(result.dismissedProposalIds)).toEqual(['proposal_2']);
+  });
+
+  it('keeps organize preview decisions atomic and mutually exclusive', () => {
+    const proposal = {
+      id: 'proposal_1',
+      kind: 'insert' as const,
+      status: 'pending' as const,
+      title: '补充',
+      content: '补充判断。',
+      updatedAt: now,
+    };
+    const preview = {
+      source: 'organize' as const,
+      proposals: [proposal],
+      changeSet: {
+        baseDraft: '草稿',
+        draft: '草稿\n补充判断。',
+        changes: [],
+      },
+      decisions: { proposal_1: 'pending' as const },
+    };
+    let state = draftProposalWorkflowReducer(initialDraftProposalWorkflowState(), {
+      type: 'open-preview',
+      preview,
+    });
+
+    state = draftProposalWorkflowReducer(state, {
+      type: 'apply-organize-decisions',
+      decisions: { proposal_1: 'accepted' },
+    });
+    expect(state.preview).toBeNull();
+    expect(state.appliedOrganizeProposalIds.has('proposal_1')).toBe(true);
+    expect(state.dismissedOrganizeProposalIds.has('proposal_1')).toBe(false);
+
+    state = draftProposalWorkflowReducer(state, {
+      type: 'apply-organize-decisions',
+      decisions: { proposal_1: 'rejected' },
+    });
+    expect(state.appliedOrganizeProposalIds.has('proposal_1')).toBe(false);
+    expect(state.dismissedOrganizeProposalIds.has('proposal_1')).toBe(true);
   });
 
   it('updates review proposal statuses through the article boundary', () => {

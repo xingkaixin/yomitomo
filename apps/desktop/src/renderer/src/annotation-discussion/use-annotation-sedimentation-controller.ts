@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18next from 'i18next';
 import type {
@@ -34,7 +34,6 @@ import {
   planDistillationProposalChangeSet,
   proposalApplyFailureMessage,
   type DistillationProposalDraftChange,
-  type DistillationProposalDraftChangeSet,
   type DraftSelectionSnapshot,
 } from './app-annotation-sedimentation-proposals';
 import {
@@ -45,11 +44,12 @@ import {
   createReviewSession,
   draftPreviewDecisionsForProposals,
   draftPreviewDraft,
+  draftProposalWorkflowReducer,
   draftPreviewStatusesFromDecisions,
   distillationProposalSource,
   existingSessionForAgent,
   hasPendingDraftPreviewDecisions,
-  organizeProposalDecisionSets,
+  initialDraftProposalWorkflowState,
   pendingOrganizeProposals,
   pendingReviewProposals,
   publishedDistillationArticle,
@@ -58,26 +58,11 @@ import {
   unpublishedDistillationArticle,
   updateArticleAnnotation,
   type DraftPreviewDecision,
-  type DraftPreviewDecisions,
+  type PendingDraftPreview,
 } from './app-annotation-sedimentation-state';
 import { annotationWindowActions } from './app-annotation-window-actions';
 
 type DistillationOperation = 'organize' | 'publish' | 'review' | 'unpublish' | 'update' | null;
-
-type PendingDraftPreview =
-  | {
-      source: 'review';
-      messageId: string;
-      proposals: AnnotationDistillationProposal[];
-      changeSet: DistillationProposalDraftChangeSet;
-      decisions: DraftPreviewDecisions;
-    }
-  | {
-      source: 'organize';
-      proposals: AnnotationDistillationProposal[];
-      changeSet: DistillationProposalDraftChangeSet;
-      decisions: DraftPreviewDecisions;
-    };
 
 export type SedimentationReadyStatus = {
   type: 'ready';
@@ -107,15 +92,18 @@ export function useAnnotationSedimentationController({
   const [reviewNotice, setReviewNotice] = useState('');
   const [organizeState, setOrganizeState] = useState<OrganizeDiscussionState>({ type: 'idle' });
   const [organizeConfirmOpen, setOrganizeConfirmOpen] = useState(false);
-  const [pendingDraftPreview, setPendingDraftPreview] = useState<PendingDraftPreview | null>(null);
+  const [proposalWorkflow, dispatchProposalWorkflow] = useReducer(
+    draftProposalWorkflowReducer,
+    undefined,
+    initialDraftProposalWorkflowState,
+  );
   const [hoveredDraftAnchor, setHoveredDraftAnchor] = useState<HoveredDraftAnchor | null>(null);
   const [draftPreviewScroll, setDraftPreviewScroll] = useState({ left: 0, top: 0 });
-  const [appliedOrganizeProposalIds, setAppliedOrganizeProposalIds] = useState<Set<string>>(
-    () => new Set(),
-  );
-  const [dismissedOrganizeProposalIds, setDismissedOrganizeProposalIds] = useState<Set<string>>(
-    () => new Set(),
-  );
+  const {
+    appliedOrganizeProposalIds,
+    dismissedOrganizeProposalIds,
+    preview: pendingDraftPreview,
+  } = proposalWorkflow;
   const draftKey = distillationDraftKey(article.id, annotation.id);
   const draftRef = useRef(draft);
   const draftTextareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -137,14 +125,6 @@ export function useAnnotationSedimentationController({
   useEffect(() => {
     window.localStorage.setItem(draftKey, draft);
   }, [draft, draftKey]);
-
-  useEffect(() => {
-    draftRef.current = draft;
-  }, [draft]);
-
-  useEffect(() => {
-    if (pendingDraftPreview) setHoveredDraftAnchor(null);
-  }, [pendingDraftPreview]);
 
   async function publish() {
     const content = draft.trim();
@@ -358,8 +338,7 @@ export function useAnnotationSedimentationController({
     if (!activeAgent || busy) return;
     recordOperation(annotation.id, 'organize', 'started');
     setActiveOperation('organize');
-    setAppliedOrganizeProposalIds(new Set());
-    setDismissedOrganizeProposalIds(new Set());
+    dispatchProposalWorkflow({ type: 'reset-organize-decisions' });
     setReviewNotice('');
     const now = new Date().toISOString();
     const instruction = t('sedimentation.organizeDiscussionInstruction');
@@ -462,8 +441,18 @@ export function useAnnotationSedimentationController({
 
   function changeDraft(value: string) {
     setHoveredDraftAnchor(null);
-    setDraft(value);
+    updateDraft(value);
     recordDraftSelection();
+  }
+
+  function updateDraft(value: string) {
+    draftRef.current = value;
+    setDraft(value);
+  }
+
+  function openDraftPreview(preview: PendingDraftPreview) {
+    setHoveredDraftAnchor(null);
+    dispatchProposalWorkflow({ type: 'open-preview', preview });
   }
 
   function handleDraftAnchorEnter(proposal: AnnotationDistillationProposal) {
@@ -490,7 +479,7 @@ export function useAnnotationSedimentationController({
       if (showFailure) setReviewNotice(proposalApplyFailureMessage(result.reason));
       return false;
     }
-    setPendingDraftPreview({
+    openDraftPreview({
       source: 'review',
       messageId,
       proposals: pendingProposals,
@@ -517,7 +506,7 @@ export function useAnnotationSedimentationController({
       if (showFailure) setOrganizeNotice(proposalApplyFailureMessage(result.reason));
       return false;
     }
-    setPendingDraftPreview({
+    openDraftPreview({
       source: 'organize',
       proposals: pendingProposals,
       changeSet: result.changeSet,
@@ -536,43 +525,24 @@ export function useAnnotationSedimentationController({
     if (!preview || preview.decisions[proposalId] !== 'pending') return;
     const nextDecisions = { ...preview.decisions, [proposalId]: decision };
     if (hasPendingDraftPreviewDecisions(nextDecisions)) {
-      setPendingDraftPreview({ ...preview, decisions: nextDecisions });
+      dispatchProposalWorkflow({ type: 'update-preview-decisions', decisions: nextDecisions });
       return;
     }
     const acceptedChanges = acceptedDraftPreviewChanges(preview.changeSet, nextDecisions);
-    setDraft(draftPreviewDraft(preview.changeSet, nextDecisions));
-    setPendingDraftPreview(null);
+    updateDraft(draftPreviewDraft(preview.changeSet, nextDecisions));
 
     if (preview.source === 'review') {
+      dispatchProposalWorkflow({ type: 'close-preview' });
       await updateProposalStatusesById(
         preview.messageId,
         draftPreviewStatusesFromDecisions(nextDecisions),
       );
       setReviewNotice('');
     } else {
-      applyOrganizePreviewDecisions(nextDecisions);
+      dispatchProposalWorkflow({ type: 'apply-organize-decisions', decisions: nextDecisions });
       setOrganizeNotice(acceptedChanges.length > 0 ? t('sedimentation.organizeAddedToDraft') : '');
     }
     focusDraftChange(acceptedChanges[0]);
-  }
-
-  function applyOrganizePreviewDecisions(decisions: DraftPreviewDecisions) {
-    setAppliedOrganizeProposalIds(
-      (current) =>
-        organizeProposalDecisionSets({
-          appliedProposalIds: current,
-          dismissedProposalIds: new Set(),
-          decisions,
-        }).appliedProposalIds,
-    );
-    setDismissedOrganizeProposalIds(
-      (current) =>
-        organizeProposalDecisionSets({
-          appliedProposalIds: new Set(),
-          dismissedProposalIds: current,
-          decisions,
-        }).dismissedProposalIds,
-    );
   }
 
   async function ignoreProposal(messageId: string, proposalId: string) {
@@ -580,7 +550,7 @@ export function useAnnotationSedimentationController({
       pendingDraftPreview?.source === 'review' &&
       pendingDraftPreview.proposals.some((proposal) => proposal.id === proposalId)
     ) {
-      setPendingDraftPreview(null);
+      dispatchProposalWorkflow({ type: 'close-preview' });
     }
     await updateProposalStatusesById(messageId, { [proposalId]: 'ignored' });
     setReviewNotice('');
@@ -682,7 +652,7 @@ export function useAnnotationSedimentationController({
       confirm: confirmOrganize,
       cancel: () => setOrganizeConfirmOpen(false),
       close: () => {
-        if (pendingDraftPreview?.source === 'organize') setPendingDraftPreview(null);
+        dispatchProposalWorkflow({ type: 'close-organize' });
         setOrganizeState({ type: 'idle' });
       },
       retry: runOrganize,
