@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Annotation, ArticleRecord, ArticleTranslation } from '@yomitomo/shared';
+import { SourceImportError } from '../../ipc/article-import-boundary';
 import { pdfSourceArrayBufferForIpc, registerArticleIpc } from './ipc-article';
 
 const storageMocks = vi.hoisted(() => ({
@@ -56,7 +57,7 @@ describe('article IPC patch broadcasts', () => {
   it('serializes known import failures with their domain error code', async () => {
     storageMocks.ipcMainHandle.mockClear();
     storageMocks.articleRecordFromUrl.mockRejectedValueOnce(
-      new Error('ARTICLE_IMPORT_REQUEST_FAILED'),
+      new SourceImportError('ARTICLE_IMPORT_REQUEST_FAILED'),
     );
     const readImportSettings = vi.fn().mockReturnValue({
       allowLocalNetworkArticleImport: false,
@@ -73,6 +74,37 @@ describe('article IPC patch broadcasts', () => {
       ok: false,
       error: {
         code: 'ARTICLE_IMPORT_REQUEST_FAILED',
+        message: 'ARTICLE_IMPORT_REQUEST_FAILED',
+      },
+    });
+  });
+
+  it('does not infer import error codes from generic error messages', async () => {
+    storageMocks.ipcMainHandle.mockClear();
+    storageMocks.articleRecordFromUrl.mockRejectedValueOnce(
+      new Error('ARTICLE_IMPORT_REQUEST_FAILED'),
+    );
+    registerArticleIpc(
+      articleIpcContext(
+        {
+          readImportSettings: vi.fn().mockReturnValue({
+            allowLocalNetworkArticleImport: false,
+            saveArticleImages: false,
+          }),
+        },
+        {},
+      ),
+    );
+    const handler = storageMocks.ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === 'article:import-url',
+    )?.[1];
+
+    const result = await handler({}, { url: 'https://example.com' });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        code: 'IPC_HANDLER_FAILED',
         message: 'ARTICLE_IMPORT_REQUEST_FAILED',
       },
     });

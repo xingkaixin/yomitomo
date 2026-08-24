@@ -6,6 +6,7 @@ import { init } from '@embedpdf/pdfium';
 import { nativeImage } from 'electron';
 import type { ArticleRecord } from '@yomitomo/shared';
 import { MAX_PDF_IMPORT_BYTES } from '../../ipc-contract';
+import { SourceImportError } from '../../ipc/article-import-boundary';
 import { readPdfiumWasmBinary } from './pdfium-resource';
 
 export const MAX_PDF_BYTES = MAX_PDF_IMPORT_BYTES;
@@ -32,8 +33,12 @@ export async function articleRecordFromPdfFile(
 ): Promise<PdfImportResult> {
   const fileName = input.fileName.trim() || 'Untitled.pdf';
   const fileSize = input.data.byteLength;
-  if (!isPdfFile(fileName, input.mimeType)) throw new Error('PDF_IMPORT_INVALID_FILE');
-  if (fileSize > MAX_PDF_IMPORT_BYTES) throw new Error('PDF_IMPORT_FILE_TOO_LARGE');
+  if (!isPdfFile(fileName, input.mimeType)) {
+    throw new SourceImportError('PDF_IMPORT_INVALID_FILE');
+  }
+  if (fileSize > MAX_PDF_IMPORT_BYTES) {
+    throw new SourceImportError('PDF_IMPORT_FILE_TOO_LARGE');
+  }
 
   const bytes = new Uint8Array(input.data);
   const contentHash = pdfContentHash(bytes);

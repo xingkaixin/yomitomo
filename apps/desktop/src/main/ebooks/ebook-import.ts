@@ -18,6 +18,7 @@ import {
   type EbookChapterRecord,
 } from '@yomitomo/shared';
 import { MAX_EBOOK_IMPORT_BYTES } from '../../ipc-contract';
+import { isSourceImportError, SourceImportError } from '../../ipc/article-import-boundary';
 import { articleRecordFromKindleFile, isKindleFile } from './kindle-import';
 
 const EPUB_MIME = 'application/epub+zip';
@@ -102,7 +103,7 @@ export async function articleRecordFromEbookFile(
   if (isKindleFile(fileName, input.mimeType, input.data)) {
     return articleRecordFromKindleFile(input, options);
   }
-  throw new Error('EBOOK_IMPORT_INVALID_FILE');
+  throw new SourceImportError('EBOOK_IMPORT_INVALID_FILE');
 }
 
 export async function articleRecordFromEpubFile(
@@ -112,8 +113,12 @@ export async function articleRecordFromEpubFile(
   const importStartedAt = performanceStart();
   const fileName = input.fileName.trim() || 'Untitled.epub';
   const fileSize = input.data.byteLength;
-  if (!isEpubFile(fileName, input.mimeType)) throw new Error('EBOOK_IMPORT_INVALID_FILE');
-  if (fileSize > MAX_EBOOK_IMPORT_BYTES) throw new Error('EBOOK_IMPORT_FILE_TOO_LARGE');
+  if (!isEpubFile(fileName, input.mimeType)) {
+    throw new SourceImportError('EBOOK_IMPORT_INVALID_FILE');
+  }
+  if (fileSize > MAX_EBOOK_IMPORT_BYTES) {
+    throw new SourceImportError('EBOOK_IMPORT_FILE_TOO_LARGE');
+  }
 
   const zipStartedAt = performanceStart();
   const zip = await JSZip.loadAsync(Buffer.from(input.data));
@@ -171,7 +176,9 @@ export async function articleRecordFromEpubFile(
     ),
     textChars: importedChapters.reduce((count, chapter) => count + chapter.textLength, 0),
   });
-  if (importedChapters.length === 0) throw new Error('EBOOK_IMPORT_NO_READABLE_CHAPTERS');
+  if (importedChapters.length === 0) {
+    throw new SourceImportError('EBOOK_IMPORT_NO_READABLE_CHAPTERS');
+  }
 
   const coverStartedAt = performanceStart();
   const cover = await readCoverImage(zip, epub, options.performanceLogger);
@@ -267,16 +274,16 @@ function logEpubImportTiming(
 
 async function readEpubPackage(zip: JSZip): Promise<EpubPackage> {
   const containerText = await zipText(zip, 'META-INF/container.xml');
-  if (!containerText) throw new Error('EBOOK_IMPORT_MISSING_CONTAINER');
+  if (!containerText) throw new SourceImportError('EBOOK_IMPORT_MISSING_CONTAINER');
 
   const rootfilePath = readXml(containerText, (document) => {
     const rootfile = elementsByLocalName(document, 'rootfile')[0];
     return normalizeZipPath(rootfile?.getAttribute('full-path') || '');
   });
-  if (!rootfilePath) throw new Error('EBOOK_IMPORT_MISSING_OPF');
+  if (!rootfilePath) throw new SourceImportError('EBOOK_IMPORT_MISSING_OPF');
 
   const opfText = await zipText(zip, rootfilePath);
-  if (!opfText) throw new Error('EBOOK_IMPORT_OPF_UNREADABLE');
+  if (!opfText) throw new SourceImportError('EBOOK_IMPORT_OPF_UNREADABLE');
 
   return readXml(opfText, (document) => {
     const opfDir = dirname(rootfilePath) === '.' ? '' : dirname(rootfilePath);
@@ -453,7 +460,7 @@ async function readEpubChapters(
         textLength > MAX_EPUB_CHAPTER_TEXT_CHARS ||
         totalTextLength + textLength > MAX_EPUB_TOTAL_TEXT_CHARS
       ) {
-        throw new Error(EBOOK_IMPORT_ENTRY_TOO_LARGE);
+        throw new SourceImportError(EBOOK_IMPORT_ENTRY_TOO_LARGE);
       }
       chapters.push({
         id: `chapter-${chapters.length + 1}`,
@@ -671,7 +678,7 @@ async function zipText(zip: JSZip, path: string, maxBytes = MAX_EPUB_METADATA_EN
 async function readZipEntryBytes(file: JSZip.JSZipObject, maxBytes: number) {
   const uncompressedBytes = zipEntryUncompressedBytes(file);
   if (uncompressedBytes !== undefined && uncompressedBytes > maxBytes) {
-    throw new Error(EBOOK_IMPORT_ENTRY_TOO_LARGE);
+    throw new SourceImportError(EBOOK_IMPORT_ENTRY_TOO_LARGE);
   }
 
   const stream = file.nodeStream('nodebuffer');
@@ -693,9 +700,9 @@ async function readZipEntryBytes(file: JSZip.JSZipObject, maxBytes: number) {
       totalBytes += buffer.byteLength;
       if (totalBytes > maxBytes) {
         (stream as NodeJS.ReadableStream & { destroy?: (error?: Error) => void }).destroy?.(
-          new Error(EBOOK_IMPORT_ENTRY_TOO_LARGE),
+          new SourceImportError(EBOOK_IMPORT_ENTRY_TOO_LARGE),
         );
-        fail(new Error(EBOOK_IMPORT_ENTRY_TOO_LARGE));
+        fail(new SourceImportError(EBOOK_IMPORT_ENTRY_TOO_LARGE));
         return;
       }
       chunks.push(buffer);
@@ -718,7 +725,7 @@ function zipEntryUncompressedBytes(file: JSZip.JSZipObject) {
 }
 
 function isEbookEntryTooLargeError(error: unknown) {
-  return error instanceof Error && error.message === EBOOK_IMPORT_ENTRY_TOO_LARGE;
+  return isSourceImportError(error) && error.importCode === EBOOK_IMPORT_ENTRY_TOO_LARGE;
 }
 
 function zipFile(zip: JSZip, path: string) {

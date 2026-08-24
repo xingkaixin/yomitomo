@@ -64,7 +64,7 @@ describe('article import worker', () => {
 
     expect(port.postMessage).toHaveBeenCalledWith({
       ok: false,
-      error: { message: 'ARTICLE_IMPORT_INVALID_TASK' },
+      error: { code: 'ARTICLE_IMPORT_INVALID_TASK' },
     });
     expect(jsdomMocks.closeWindow).not.toHaveBeenCalled();
   });
@@ -77,7 +77,7 @@ describe('article import worker', () => {
 
     expect(port.postMessage).toHaveBeenCalledWith({
       ok: false,
-      error: { message: '正文抽取失败' },
+      error: { code: 'ARTICLE_IMPORT_PARSE_FAILED' },
     });
     expect(jsdomMocks.closeWindow).toHaveBeenCalledTimes(1);
   });

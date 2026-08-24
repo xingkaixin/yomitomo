@@ -8,6 +8,7 @@ import type {
 } from '@yomitomo/shared';
 import { resolveAgentPublicIdentity } from '@yomitomo/shared';
 import { DesktopIpcError, desktopIpcErrorCodes } from '../../ipc-errors';
+import { ProviderApiKeyRequiredError } from '../providers/provider-repository';
 
 export type ProviderTask = 'readingAssistant' | 'reviewAssistant' | 'bilingualTranslation';
 
@@ -35,7 +36,16 @@ export async function taskProvider(
   const provider = taskProviderRoute(providers, settings, task);
   if (!provider) throw providerRouteRequiredError(task);
   const { providerRepository } = await context.getPersistenceModules();
-  return providerRepository.hydrateProviderApiKey(provider);
+  try {
+    return await providerRepository.hydrateProviderApiKey(provider);
+  } catch (error) {
+    if (error instanceof ProviderApiKeyRequiredError) {
+      throw new DesktopIpcError(desktopIpcErrorCodes.providerApiKeyRequired, undefined, {
+        cause: error,
+      });
+    }
+    throw error;
+  }
 }
 
 export function taskProviderRoute(

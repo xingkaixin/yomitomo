@@ -1,6 +1,6 @@
 import { performance } from 'node:perf_hooks';
 import type { EbookImportFileInput, PdfImportFileInput } from '../../ipc-contract';
-import { isSourceImportErrorCode } from '../../ipc/article-import-boundary';
+import { isSourceImportError } from '../../ipc/article-import-boundary';
 import { DesktopIpcError, isDesktopIpcErrorLike } from '../../ipc-errors';
 import {
   createArticleTranslationRuntime,
@@ -289,9 +289,8 @@ async function withSourceImportIpcErrors<Result>(operation: () => Promise<Result
     return await operation();
   } catch (error) {
     if (isDesktopIpcErrorLike(error)) throw error;
-    const code = error instanceof Error ? error.message.trim() : '';
-    if (!isSourceImportErrorCode(code)) throw error;
-    throw new DesktopIpcError(code, code, { cause: error });
+    if (!isSourceImportError(error)) throw error;
+    throw new DesktopIpcError(error.importCode, undefined, { cause: error });
   }
 }
 

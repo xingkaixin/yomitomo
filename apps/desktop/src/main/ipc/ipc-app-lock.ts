@@ -28,7 +28,9 @@ export function registerAppLockIpc(context: AppLockIpcContext) {
   handleDesktopIpc('appLock:getStatus', async () => readAppLockStatus(context));
 
   handleDesktopIpc('appLock:setPin', async (_event, input) => {
-    if (input.pin !== input.confirmPin) throw new DesktopIpcError('APP_LOCK_PIN_MISMATCH');
+    if (input.pin !== input.confirmPin) {
+      throw new DesktopIpcError(desktopIpcErrorCodes.appLockPinMismatch);
+    }
     await saveAppLockPin(input.pin);
     resetAppLockPinAttempts();
     return readAppLockStatus(context);
@@ -41,8 +43,12 @@ export function registerAppLockIpc(context: AppLockIpcContext) {
   handleDesktopIpc('appLock:unlock', async (event, input) => {
     const { storeSettings, storeSnapshot } = await context.getPersistenceModules();
     const settings = storeSettings.readAppLockSettings();
-    if (!settings.appLockEnabled) throw new DesktopIpcError('APP_LOCK_DISABLED');
-    if (!(await hasAppLockPin())) throw new DesktopIpcError('APP_LOCK_PIN_REQUIRED');
+    if (!settings.appLockEnabled) {
+      throw new DesktopIpcError(desktopIpcErrorCodes.appLockDisabled);
+    }
+    if (!(await hasAppLockPin())) {
+      throw new DesktopIpcError(desktopIpcErrorCodes.appLockPinRequired);
+    }
     const verification = await verifyAppLockPinAttempt(input.pin);
     if (verification.status !== 'verified') throw appLockPinAttemptError(verification);
     if (!settings.appLockLocked) return storeSnapshot.readStore();
@@ -53,14 +59,14 @@ export function registerAppLockIpc(context: AppLockIpcContext) {
   });
 
   handleDesktopIpc('appLock:setLocked', async (event, input) => {
-    if (!input.locked) throw new DesktopIpcError('APP_LOCK_UNLOCK_REQUIRED');
+    if (!input.locked) throw new DesktopIpcError(desktopIpcErrorCodes.appLockUnlockRequired);
     const { storeSettings } = await context.getPersistenceModules();
     const settings = storeSettings.readAppLockSettings();
     if (input.locked && !settings.appLockEnabled) {
-      throw new DesktopIpcError('APP_LOCK_DISABLED');
+      throw new DesktopIpcError(desktopIpcErrorCodes.appLockDisabled);
     }
     if (input.locked && !(await hasAppLockPin())) {
-      throw new DesktopIpcError('APP_LOCK_PIN_REQUIRED');
+      throw new DesktopIpcError(desktopIpcErrorCodes.appLockPinRequired);
     }
     const nextStore = rendererStoreForAppLockState(
       await storeSettings.saveSettings({ appLockLocked: input.locked }),
@@ -108,7 +114,9 @@ async function readAppLockStatus(context: AppLockIpcContext) {
 
 async function assertCanSetAppLockEnabled(input: AppLockSetEnabledInput) {
   if (input.enabled) {
-    if (!(await hasAppLockPin())) throw new DesktopIpcError('APP_LOCK_PIN_REQUIRED');
+    if (!(await hasAppLockPin())) {
+      throw new DesktopIpcError(desktopIpcErrorCodes.appLockPinRequired);
+    }
     return;
   }
 

@@ -12,6 +12,12 @@ import type { ArticleRecord } from '@yomitomo/shared';
 import { isRecord, recordField, stringField } from '@yomitomo/shared';
 import { Effect } from 'effect';
 import {
+  isSourceImportError,
+  isSourceImportErrorCode,
+  SourceImportError,
+  type SourceImportErrorCode,
+} from '../../ipc/article-import-boundary';
+import {
   assertAllowedArticleImportUrl,
   fetchArticleImportUrl,
   isArticleImportRedirectStatus,
@@ -27,7 +33,7 @@ const RENDERED_IMPORT_SETTLE_MS = 1_500;
 const MAX_ARTICLE_IMPORT_REDIRECTS = 5;
 const WECHAT_MOBILE_USER_AGENT =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1 MicroMessenger/8.0.49';
-const ARTICLE_IMPORT_CANCELED_MESSAGE = 'ARTICLE_IMPORT_CANCELED';
+const ARTICLE_IMPORT_CANCELED_CODE = 'ARTICLE_IMPORT_CANCELED';
 
 type ArticleImportOptions = ArticleImportNetworkPolicyOptions & {
   inlineImages?: boolean;
@@ -50,7 +56,7 @@ type ArticleImportTask = {
 
 type ArticleImportWorkerMessage =
   | { ok: true; article: ArticleRecord }
-  | { ok: false; error?: { message?: string } };
+  | { ok: false; error?: { code?: string } };
 
 const articleImportTasks = new Map<string, ArticleImportTask>();
 
@@ -95,7 +101,7 @@ export function cancelArticleImport(requestId: string) {
 }
 
 export function isArticleImportCanceledError(error: unknown) {
-  return error instanceof Error && error.message === ARTICLE_IMPORT_CANCELED_MESSAGE;
+  return isSourceImportError(error) && error.importCode === ARTICLE_IMPORT_CANCELED_CODE;
 }
 
 export function isArticleImportChallengeRecord(article: ArticleRecord) {
@@ -112,10 +118,10 @@ function normalizeImportUrl(input: string) {
   try {
     url = new URL(candidate);
   } catch {
-    throw new Error('ARTICLE_IMPORT_INVALID_URL');
+    throw new SourceImportError('ARTICLE_IMPORT_INVALID_URL');
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    throw new Error('ARTICLE_IMPORT_UNSUPPORTED_PROTOCOL');
+    throw new SourceImportError('ARTICLE_IMPORT_UNSUPPORTED_PROTOCOL');
   }
   return url.href;
 }
@@ -136,7 +142,7 @@ function fetchArticleHtmlEffect(url: string, signal: AbortSignal, options: Artic
         if (shouldLoadWithBrowser(response)) {
           return yield* loadRenderedArticleHtmlEffect(page.url, userAgent, signal, options);
         }
-        return yield* Effect.fail(new Error('ARTICLE_IMPORT_REQUEST_FAILED'));
+        return yield* Effect.fail(new SourceImportError('ARTICLE_IMPORT_REQUEST_FAILED'));
       }
 
       const html = yield* Effect.tryPromise({
@@ -181,20 +187,20 @@ async function fetchArticleResponse(
 
     if (!isArticleImportRedirect(response)) return { response, url };
     if (redirectCount === MAX_ARTICLE_IMPORT_REDIRECTS) {
-      throw new Error('ARTICLE_IMPORT_REQUEST_FAILED');
+      throw new SourceImportError('ARTICLE_IMPORT_REQUEST_FAILED');
     }
 
     const location = response.headers.get('location');
-    if (!location) throw new Error('ARTICLE_IMPORT_REQUEST_FAILED');
+    if (!location) throw new SourceImportError('ARTICLE_IMPORT_REQUEST_FAILED');
     await response.body?.cancel().catch(() => undefined);
     try {
       url = new URL(location, url).href;
     } catch {
-      throw new Error('ARTICLE_IMPORT_REQUEST_FAILED');
+      throw new SourceImportError('ARTICLE_IMPORT_REQUEST_FAILED');
     }
   }
 
-  throw new Error('ARTICLE_IMPORT_REQUEST_FAILED');
+  throw new SourceImportError('ARTICLE_IMPORT_REQUEST_FAILED');
 }
 
 function isArticleImportRedirect(response: Response) {
@@ -203,9 +209,10 @@ function isArticleImportRedirect(response: Response) {
 
 function articleFetchError(error: unknown, signal: AbortSignal) {
   if (error instanceof Error && error.name === 'AbortError') {
-    return new Error(signal.aborted ? ARTICLE_IMPORT_CANCELED_MESSAGE : 'ARTICLE_IMPORT_TIMEOUT', {
-      cause: error,
-    });
+    return new SourceImportError(
+      signal.aborted ? ARTICLE_IMPORT_CANCELED_CODE : 'ARTICLE_IMPORT_TIMEOUT',
+      { cause: error },
+    );
   }
   return error;
 }
@@ -285,7 +292,7 @@ async function loadRenderedArticleHtml(
     await browserWindow.loadURL(url, userAgent ? { userAgent } : undefined);
     const page = await waitForRenderedPage(browserWindow.webContents, deadline, signal);
     if (typeof page.html !== 'string' || !page.html.trim()) {
-      throw new Error('ARTICLE_IMPORT_RENDER_EMPTY');
+      throw new SourceImportError('ARTICLE_IMPORT_RENDER_EMPTY');
     }
     assertArticleImportHtmlByteLimit(page.html);
     const renderedUrl = typeof page.url === 'string' && page.url ? page.url : url;
@@ -403,12 +410,14 @@ async function waitForRenderedPage(
       ),
     );
     throwIfArticleImportCanceled(signal);
-    if (renderedPageTooLarge(lastPage)) throw new Error('ARTICLE_IMPORT_RESPONSE_TOO_LARGE');
+    if (renderedPageTooLarge(lastPage)) {
+      throw new SourceImportError('ARTICLE_IMPORT_RESPONSE_TOO_LARGE');
+    }
     if (!isChallengePage(lastPage)) return lastPage;
   }
 
   if (isChallengePage(lastPage)) {
-    throw new Error('ARTICLE_IMPORT_CHALLENGE_BLOCKED');
+    throw new SourceImportError('ARTICLE_IMPORT_CHALLENGE_BLOCKED');
   }
   return lastPage;
 }
@@ -446,12 +455,12 @@ function renderedPageValue(value: unknown) {
 async function readArticleImportResponseHtml(response: Response, signal: AbortSignal) {
   const declaredLength = contentLengthBytes(response.headers);
   if (declaredLength !== null && declaredLength > MAX_ARTICLE_IMPORT_HTML_BYTES) {
-    throw new Error('ARTICLE_IMPORT_RESPONSE_TOO_LARGE');
+    throw new SourceImportError('ARTICLE_IMPORT_RESPONSE_TOO_LARGE');
   }
 
   const html = await readLimitedResponseText(response, signal);
   if (isArticleImportHtmlResponse(response.headers, html)) return html;
-  throw new Error('ARTICLE_IMPORT_UNSUPPORTED_CONTENT_TYPE');
+  throw new SourceImportError('ARTICLE_IMPORT_UNSUPPORTED_CONTENT_TYPE');
 }
 
 async function readLimitedResponseText(response: Response, signal: AbortSignal) {
@@ -459,7 +468,7 @@ async function readLimitedResponseText(response: Response, signal: AbortSignal) 
   if (!reader) {
     const buffer = await response.arrayBuffer();
     if (buffer.byteLength > MAX_ARTICLE_IMPORT_HTML_BYTES) {
-      throw new Error('ARTICLE_IMPORT_RESPONSE_TOO_LARGE');
+      throw new SourceImportError('ARTICLE_IMPORT_RESPONSE_TOO_LARGE');
     }
     return new TextDecoder().decode(buffer);
   }
@@ -476,7 +485,7 @@ async function readLimitedResponseText(response: Response, signal: AbortSignal) 
       byteLength += result.value.byteLength;
       if (byteLength > MAX_ARTICLE_IMPORT_HTML_BYTES) {
         await reader.cancel().catch(() => undefined);
-        throw new Error('ARTICLE_IMPORT_RESPONSE_TOO_LARGE');
+        throw new SourceImportError('ARTICLE_IMPORT_RESPONSE_TOO_LARGE');
       }
       chunks.push(result.value);
     }
@@ -529,7 +538,7 @@ function isLikelyBinaryText(value: string) {
 
 function assertArticleImportHtmlByteLimit(html: string) {
   if (new TextEncoder().encode(html).byteLength > MAX_ARTICLE_IMPORT_HTML_BYTES) {
-    throw new Error('ARTICLE_IMPORT_RESPONSE_TOO_LARGE');
+    throw new SourceImportError('ARTICLE_IMPORT_RESPONSE_TOO_LARGE');
   }
 }
 
@@ -573,7 +582,7 @@ function extractArticleRecordInWorkerEffect({
 }) {
   return Effect.callback<ArticleRecord, Error>((resume, effectSignal) => {
     if (signal.aborted) {
-      resume(Effect.fail(new Error(ARTICLE_IMPORT_CANCELED_MESSAGE)));
+      resume(Effect.fail(new SourceImportError(ARTICLE_IMPORT_CANCELED_CODE)));
       return;
     }
 
@@ -607,7 +616,7 @@ function extractArticleRecordInWorkerEffect({
     };
     const abort = () => {
       void worker.terminate();
-      settle(Effect.fail(new Error(ARTICLE_IMPORT_CANCELED_MESSAGE)));
+      settle(Effect.fail(new SourceImportError(ARTICLE_IMPORT_CANCELED_CODE)));
     };
     const interrupt = () => {
       void worker.terminate();
@@ -621,7 +630,13 @@ function extractArticleRecordInWorkerEffect({
       settle(
         message.ok
           ? Effect.succeed(message.article)
-          : Effect.fail(new Error(message.error?.message || 'ARTICLE_IMPORT_PARSE_FAILED')),
+          : Effect.fail(
+              new SourceImportError(
+                isSourceImportErrorCode(message.error?.code)
+                  ? message.error.code
+                  : 'ARTICLE_IMPORT_PARSE_FAILED',
+              ),
+            ),
       );
     });
     worker.once('error', (error) => {
@@ -630,7 +645,7 @@ function extractArticleRecordInWorkerEffect({
     });
     worker.once('exit', (code) => {
       if (code === 0 || settled) return;
-      settle(Effect.fail(new Error('ARTICLE_IMPORT_WORKER_EXITED')));
+      settle(Effect.fail(new SourceImportError('ARTICLE_IMPORT_WORKER_EXITED')));
     });
 
     return Effect.sync(() => {
@@ -673,7 +688,7 @@ function withTimeoutSignalEffect<T>(
 }
 
 function throwIfArticleImportCanceled(signal: AbortSignal) {
-  if (signal.aborted) throw new Error(ARTICLE_IMPORT_CANCELED_MESSAGE);
+  if (signal.aborted) throw new SourceImportError(ARTICLE_IMPORT_CANCELED_CODE);
 }
 
 function throwIfArticleImportCanceledEffect(signal: AbortSignal) {
@@ -683,8 +698,8 @@ function throwIfArticleImportCanceledEffect(signal: AbortSignal) {
   });
 }
 
-function errorFromUnknown(error: unknown, fallback: string) {
-  return error instanceof Error ? error : new Error(fallback);
+function errorFromUnknown(error: unknown, fallback: SourceImportErrorCode) {
+  return error instanceof Error ? error : new SourceImportError(fallback);
 }
 
 function isChallengeHtml(html: string) {
@@ -700,7 +715,7 @@ function isChallengeHtml(html: string) {
 function wait(ms: number, signal: AbortSignal) {
   return new Promise<void>((resolve, reject) => {
     if (signal.aborted) {
-      reject(new Error(ARTICLE_IMPORT_CANCELED_MESSAGE));
+      reject(new SourceImportError(ARTICLE_IMPORT_CANCELED_CODE));
       return;
     }
     const timeout = setTimeout(() => {
@@ -709,7 +724,7 @@ function wait(ms: number, signal: AbortSignal) {
     }, ms);
     const abort = () => {
       clearTimeout(timeout);
-      reject(new Error(ARTICLE_IMPORT_CANCELED_MESSAGE));
+      reject(new SourceImportError(ARTICLE_IMPORT_CANCELED_CODE));
     };
     signal.addEventListener('abort', abort, { once: true });
   });

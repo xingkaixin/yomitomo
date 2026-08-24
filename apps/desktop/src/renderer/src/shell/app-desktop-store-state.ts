@@ -10,7 +10,7 @@ import {
   desktopStoreLoadErrorInfo,
   type DesktopStoreLoadErrorInfo,
 } from '../../../app-store-errors';
-import { isDesktopIpcErrorLike } from '../../../ipc-errors';
+import { desktopIpcErrorCodes, isDesktopIpcErrorLike } from '../../../ipc-errors';
 
 import { elapsedMs, recordStartupTiming } from './app-utils';
 import { articleStorePatchCommit, useArticleStore } from './app-article-store';
@@ -68,7 +68,7 @@ export function useDesktopStoreState() {
       return nextStore;
     } catch (error) {
       let refreshError = error;
-      if (isDesktopIpcErrorLike(error) && error.code === 'APP_LOCK_REQUIRED') {
+      if (isDesktopIpcErrorLike(error) && error.code === desktopIpcErrorCodes.appLockRequired) {
         try {
           const nextStore = lockedRendererStoreFromStatus(await desktop.appLock.getStatus());
           const rendererStore = applyStore(nextStore);

@@ -18,6 +18,7 @@ import {
   type EbookFormat,
 } from '@yomitomo/shared';
 import { MAX_EBOOK_IMPORT_BYTES } from '../../ipc-contract';
+import { SourceImportError } from '../../ipc/article-import-boundary';
 import type { EbookImportFileInput, EbookImportOptions } from './ebook-import';
 
 const BOOKMOBI_MAGIC_OFFSET = 60;
@@ -134,8 +135,10 @@ export async function articleRecordFromKindleFile(
   const fileName = input.fileName.trim() || 'Untitled.mobi';
   const fileSize = input.data.byteLength;
   if (!isKindleFile(fileName, input.mimeType, input.data))
-    throw new Error('EBOOK_IMPORT_INVALID_FILE');
-  if (fileSize > MAX_EBOOK_IMPORT_BYTES) throw new Error('EBOOK_IMPORT_FILE_TOO_LARGE');
+    throw new SourceImportError('EBOOK_IMPORT_INVALID_FILE');
+  if (fileSize > MAX_EBOOK_IMPORT_BYTES) {
+    throw new SourceImportError('EBOOK_IMPORT_FILE_TOO_LARGE');
+  }
 
   const parseStartedAt = performanceStart();
   const parsed = parseKindleBook(Buffer.from(input.data), detectKindleFormat(fileName));
@@ -177,7 +180,9 @@ export async function articleRecordFromKindleFile(
     ),
     textChars: importedChapters.reduce((count, chapter) => count + chapter.textLength, 0),
   });
-  if (importedChapters.length === 0) throw new Error('EBOOK_IMPORT_NO_READABLE_CHAPTERS');
+  if (importedChapters.length === 0) {
+    throw new SourceImportError('EBOOK_IMPORT_NO_READABLE_CHAPTERS');
+  }
 
   const indexStartedAt = performanceStart();
   const chapters = importedChapters.map(ebookChapterRecord);
@@ -250,13 +255,13 @@ export async function articleRecordFromKindleFile(
 function parseKindleBook(buffer: Buffer, fallbackFormat: EbookFormat): ParsedKindleBook {
   const records = readPdbRecords(buffer);
   const headerRecord = records[0]?.data;
-  if (!headerRecord) throw new Error('EBOOK_IMPORT_INVALID_FILE');
+  if (!headerRecord) throw new SourceImportError('EBOOK_IMPORT_INVALID_FILE');
   if (ascii(buffer, BOOKMOBI_MAGIC_OFFSET, BOOKMOBI_MAGIC_OFFSET + 8) !== 'BOOKMOBI') {
-    throw new Error('EBOOK_IMPORT_INVALID_FILE');
+    throw new SourceImportError('EBOOK_IMPORT_INVALID_FILE');
   }
 
   const palmDoc = readPalmDocHeader(headerRecord);
-  if (palmDoc.encryptionType !== 0) throw new Error('EBOOK_IMPORT_DRM_PROTECTED');
+  if (palmDoc.encryptionType !== 0) throw new SourceImportError('EBOOK_IMPORT_DRM_PROTECTED');
 
   const mobi = readMobiHeader(headerRecord);
   const exthRecords = readExthRecords(headerRecord);
@@ -278,7 +283,7 @@ function parseKindleBook(buffer: Buffer, fallbackFormat: EbookFormat): ParsedKin
 
 function readPdbRecords(buffer: Buffer): PdbRecord[] {
   const recordCount = uint16(buffer, PDB_RECORD_COUNT_OFFSET);
-  if (recordCount <= 0) throw new Error('EBOOK_IMPORT_INVALID_FILE');
+  if (recordCount <= 0) throw new SourceImportError('EBOOK_IMPORT_INVALID_FILE');
   const records: PdbRecord[] = [];
   for (let index = 0; index < recordCount; index += 1) {
     const entryOffset = PDB_RECORD_LIST_OFFSET + index * 8;
@@ -286,7 +291,7 @@ function readPdbRecords(buffer: Buffer): PdbRecord[] {
     const nextOffset =
       index + 1 < recordCount ? uint32(buffer, entryOffset + 8) : buffer.byteLength;
     if (offset < 0 || nextOffset < offset || nextOffset > buffer.byteLength) {
-      throw new Error('EBOOK_IMPORT_INVALID_FILE');
+      throw new SourceImportError('EBOOK_IMPORT_INVALID_FILE');
     }
     records.push({ index, offset, data: buffer.subarray(offset, nextOffset) });
   }
@@ -304,7 +309,7 @@ function readPalmDocHeader(record: Buffer): PalmDocHeader {
 
 function readMobiHeader(record: Buffer): MobiHeader {
   if (ascii(record, MOBI_HEADER_OFFSET, MOBI_HEADER_OFFSET + 4) !== 'MOBI') {
-    throw new Error('EBOOK_IMPORT_INVALID_FILE');
+    throw new SourceImportError('EBOOK_IMPORT_INVALID_FILE');
   }
   const encoding = uint32(record, 28);
   const titleOffset = uint32(record, 84);
@@ -376,7 +381,9 @@ function readKindleHtml(records: PdbRecord[], palmDoc: PalmDocHeader, mobi: Mobi
   const html = decodeBytes(Buffer.concat(chunks.map((chunk) => Buffer.from(chunk))), mobi.encoding)
     .replaceAll('\u0000', '')
     .trim();
-  if (html.length > MAX_KINDLE_TOTAL_TEXT_CHARS) throw new Error('EBOOK_IMPORT_ENTRY_TOO_LARGE');
+  if (html.length > MAX_KINDLE_TOTAL_TEXT_CHARS) {
+    throw new SourceImportError('EBOOK_IMPORT_ENTRY_TOO_LARGE');
+  }
   return html;
 }
 
@@ -392,12 +399,12 @@ function kindleDecompressor(
   if (palmDoc.compression === PALMDOC_COMPRESSION_HUFF_CDIC) {
     return huffCdicDecompressor(mobi, (index) => records[index]?.data || Buffer.alloc(0));
   }
-  throw new Error('EBOOK_IMPORT_UNSUPPORTED_COMPRESSION');
+  throw new SourceImportError('EBOOK_IMPORT_UNSUPPORTED_COMPRESSION');
 }
 
 function chargeDecodedBytes(budget: KindleDecodeBudget, bytes: Uint8Array) {
   if (bytes.byteLength > budget.remainingOutputBytes) {
-    throw new Error('EBOOK_IMPORT_ENTRY_TOO_LARGE');
+    throw new SourceImportError('EBOOK_IMPORT_ENTRY_TOO_LARGE');
   }
   budget.remainingOutputBytes -= bytes.byteLength;
   return bytes;
@@ -510,7 +517,9 @@ function importedChapter(
   const paragraphs = chapterParagraphs(html);
   const textLength = paragraphs.join('\n\n').length;
   if (paragraphs.length === 0 || textLength === 0) return null;
-  if (textLength > MAX_KINDLE_CHAPTER_TEXT_CHARS) throw new Error('EBOOK_IMPORT_ENTRY_TOO_LARGE');
+  if (textLength > MAX_KINDLE_CHAPTER_TEXT_CHARS) {
+    throw new SourceImportError('EBOOK_IMPORT_ENTRY_TOO_LARGE');
+  }
   return {
     id,
     title,
@@ -636,7 +645,9 @@ function huffCdicDecompressor(
   loadRecord: (index: number) => Uint8Array,
 ): KindleDecompressor {
   const huffRecord = loadRecord(mobi.huffcdic);
-  if (ascii(huffRecord, 0, 4) !== 'HUFF') throw new Error('EBOOK_IMPORT_INVALID_HUFF');
+  if (ascii(huffRecord, 0, 4) !== 'HUFF') {
+    throw new SourceImportError('EBOOK_IMPORT_INVALID_HUFF');
+  }
   const offset1 = uint32(huffRecord, 8);
   const offset2 = uint32(huffRecord, 12);
   const table1 = Array.from({ length: 256 }, (_, index) =>
@@ -655,12 +666,14 @@ function huffCdicDecompressor(
   const dictionary: HuffCdicEntry[] = [];
   for (let index = 1; index < mobi.numHuffcdic; index += 1) {
     const record = loadRecord(mobi.huffcdic + index);
-    if (ascii(record, 0, 4) !== 'CDIC') throw new Error('EBOOK_IMPORT_INVALID_CDIC');
+    if (ascii(record, 0, 4) !== 'CDIC') {
+      throw new SourceImportError('EBOOK_IMPORT_INVALID_CDIC');
+    }
     const length = uint32(record, 4);
     const numEntries = uint32(record, 8);
     const codeLength = uint32(record, 12);
     if (codeLength > MAX_KINDLE_DICTIONARY_CODE_LENGTH) {
-      throw new Error('EBOOK_IMPORT_INVALID_CDIC');
+      throw new SourceImportError('EBOOK_IMPORT_INVALID_CDIC');
     }
     const entryCount = Math.min(
       1 << codeLength,
@@ -685,11 +698,13 @@ function huffCdicDecompressor(
     budget: KindleDecodeBudget,
     depth: number,
   ) => {
-    if (depth > MAX_KINDLE_DICTIONARY_DEPTH) throw new Error('EBOOK_IMPORT_INVALID_FILE');
+    if (depth > MAX_KINDLE_DICTIONARY_DEPTH) {
+      throw new SourceImportError('EBOOK_IMPORT_INVALID_FILE');
+    }
 
     const bitLength = byteArray.byteLength * 8;
     for (let cursor = 0; cursor < bitLength; ) {
-      if (budget.remainingSteps <= 0) throw new Error('EBOOK_IMPORT_INVALID_FILE');
+      if (budget.remainingSteps <= 0) throw new SourceImportError('EBOOK_IMPORT_INVALID_FILE');
       budget.remainingSteps -= 1;
 
       const bits = Number(read32Bits(byteArray, cursor));
@@ -708,7 +723,7 @@ function huffCdicDecompressor(
 
   const expandEntry = (entry: HuffCdicEntry, budget: KindleDecodeBudget, depth: number) => {
     // A code that is already expanding must not be reachable from its own expansion.
-    if (entry.state === 'visiting') throw new Error('EBOOK_IMPORT_INVALID_FILE');
+    if (entry.state === 'visiting') throw new SourceImportError('EBOOK_IMPORT_INVALID_FILE');
     if (entry.state === 'done') return chargeDecodedBytes(budget, entry.bytes);
 
     entry.state = 'visiting';

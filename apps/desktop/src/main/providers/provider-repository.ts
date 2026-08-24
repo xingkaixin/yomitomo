@@ -14,6 +14,13 @@ import {
 
 const defaultProviderPreset = providerPresets.find((preset) => preset.id === 'deepseek');
 
+export class ProviderApiKeyRequiredError extends Error {
+  constructor() {
+    super('Provider API key is required');
+    this.name = 'ProviderApiKeyRequiredError';
+  }
+}
+
 export type SaveProviderInput = Partial<LlmProvider> & {
   removeApiKey?: boolean;
 };
@@ -32,7 +39,7 @@ export async function hydrateProviderApiKey(provider: LlmProvider): Promise<LlmP
   const apiKey =
     provider.apiKey?.trim() ||
     (await readProviderApiKey(provider.id, readProviderSecretStorageRow(provider.id)?.apiKeyRef));
-  if (!apiKey) throw new Error('PROVIDER_API_KEY_REQUIRED');
+  if (!apiKey) throw new ProviderApiKeyRequiredError();
   return { ...provider, apiKey };
 }
 

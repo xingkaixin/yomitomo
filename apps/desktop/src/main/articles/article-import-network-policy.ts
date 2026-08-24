@@ -2,6 +2,7 @@ import type { LookupAddress, LookupOptions } from 'node:dns';
 import { lookup as lookupDns } from 'node:dns/promises';
 import { BlockList, isIP, SocketAddress, type LookupFunction } from 'node:net';
 import { Agent, type Dispatcher } from 'undici';
+import { SourceImportError } from '../../ipc/article-import-boundary';
 
 export const ARTICLE_IMPORT_BLOCKED_NETWORK_TARGET = 'ARTICLE_IMPORT_BLOCKED_NETWORK_TARGET';
 
@@ -59,7 +60,7 @@ export async function resolveAllowedArticleImportTarget(
 
   const hostname = normalizedHostname(parsed.hostname);
   if (!hostname || isLocalhostName(hostname)) {
-    throw new Error(ARTICLE_IMPORT_BLOCKED_NETWORK_TARGET);
+    throw new SourceImportError(ARTICLE_IMPORT_BLOCKED_NETWORK_TARGET);
   }
 
   const ipVersion = isIP(hostname);
@@ -70,7 +71,7 @@ export async function resolveAllowedArticleImportTarget(
     !addresses.length ||
     addresses.some(({ address }) => isBlockedArticleImportAddress(address))
   ) {
-    throw new Error(ARTICLE_IMPORT_BLOCKED_NETWORK_TARGET);
+    throw new SourceImportError(ARTICLE_IMPORT_BLOCKED_NETWORK_TARGET);
   }
 
   return {
@@ -85,7 +86,9 @@ export function createFixedArticleImportLookup(addresses: LookupAddress[]): Look
   return (_hostname, options, callback) => {
     const matches = addressesMatchingFamily(addresses, options);
     if (!matches.length) {
-      const error = new Error('ARTICLE_IMPORT_DNS_ADDRESS_UNAVAILABLE') as NodeJS.ErrnoException;
+      const error = new SourceImportError(
+        'ARTICLE_IMPORT_DNS_ADDRESS_UNAVAILABLE',
+      ) as SourceImportError & NodeJS.ErrnoException;
       error.code = 'ENOTFOUND';
       callback(error, '');
       return;
@@ -107,10 +110,10 @@ function parseArticleImportUrl(url: string) {
   try {
     parsed = new URL(url);
   } catch {
-    throw new Error('ARTICLE_IMPORT_INVALID_URL');
+    throw new SourceImportError('ARTICLE_IMPORT_INVALID_URL');
   }
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    throw new Error('ARTICLE_IMPORT_UNSUPPORTED_PROTOCOL');
+    throw new SourceImportError('ARTICLE_IMPORT_UNSUPPORTED_PROTOCOL');
   }
   return parsed;
 }
