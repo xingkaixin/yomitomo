@@ -1,4 +1,4 @@
-import type { AppSettingsPatch, ResolvedAppSettings } from '@yomitomo/shared';
+import type { ResolvedAppSettings } from '@yomitomo/shared';
 import {
   normalizeAssistantExecutionMode,
   normalizeLibraryContentSources,
@@ -8,11 +8,13 @@ import {
   normalizeUiLanguage,
 } from '@yomitomo/shared';
 
-export function normalizeAppSettings(settings: AppSettingsPatch | undefined): ResolvedAppSettings {
+type AppSettingsInput = Partial<Record<keyof ResolvedAppSettings, unknown>>;
+
+export function normalizeAppSettings(settings: AppSettingsInput | undefined): ResolvedAppSettings {
   return {
     uiLanguage: normalizeUiLanguage(settings?.uiLanguage),
-    themeId: settings?.themeId || undefined,
-    soundEffectsEnabled: settings?.soundEffectsEnabled ?? true,
+    themeId: normalizeOptionalString(settings?.themeId),
+    soundEffectsEnabled: normalizeBoolean(settings?.soundEffectsEnabled, true),
     soundEffectsVolume: normalizeSoundEffectsVolume(settings?.soundEffectsVolume),
     appLockEnabled: Boolean(settings?.appLockEnabled),
     appLockLocked: Boolean(settings?.appLockEnabled && settings?.appLockLocked),
@@ -20,10 +22,12 @@ export function normalizeAppSettings(settings: AppSettingsPatch | undefined): Re
     appLockShortcut: normalizeAppLockShortcut(settings?.appLockShortcut),
     libraryPageSize: normalizeLibraryPageSize(settings?.libraryPageSize),
     libraryContentSources: normalizeLibraryContentSources(settings?.libraryContentSources),
-    defaultProviderId: settings?.defaultProviderId || undefined,
-    readingAssistantProviderId: settings?.readingAssistantProviderId || undefined,
-    reviewAssistantProviderId: settings?.reviewAssistantProviderId || undefined,
-    bilingualTranslationProviderId: settings?.bilingualTranslationProviderId || undefined,
+    defaultProviderId: normalizeOptionalString(settings?.defaultProviderId),
+    readingAssistantProviderId: normalizeOptionalString(settings?.readingAssistantProviderId),
+    reviewAssistantProviderId: normalizeOptionalString(settings?.reviewAssistantProviderId),
+    bilingualTranslationProviderId: normalizeOptionalString(
+      settings?.bilingualTranslationProviderId,
+    ),
     bilingualTranslationTargetLanguage: normalizeTranslationTargetLanguage(
       settings?.bilingualTranslationTargetLanguage,
     ),
@@ -34,12 +38,20 @@ export function normalizeAppSettings(settings: AppSettingsPatch | undefined): Re
     selectionActionShortcuts: normalizeSelectionActionShortcuts(settings?.selectionActionShortcuts),
     saveArticleImages: Boolean(settings?.saveArticleImages),
     allowLocalNetworkArticleImport: Boolean(settings?.allowLocalNetworkArticleImport),
-    telemetryEnabled: settings?.telemetryEnabled ?? true,
+    telemetryEnabled: normalizeBoolean(settings?.telemetryEnabled, true),
     developerModeEnabled: Boolean(settings?.developerModeEnabled),
     logRetentionDays: normalizeLogRetentionDays(settings?.logRetentionDays),
-    onboardingCompletedAt: settings?.onboardingCompletedAt || undefined,
-    lastSeenVersion: settings?.lastSeenVersion || undefined,
+    onboardingCompletedAt: normalizeOptionalString(settings?.onboardingCompletedAt),
+    lastSeenVersion: normalizeOptionalString(settings?.lastSeenVersion),
   };
+}
+
+function normalizeOptionalString(value: unknown) {
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+function normalizeBoolean(value: unknown, fallback: boolean) {
+  return value === undefined || value === null ? fallback : Boolean(value);
 }
 
 export function normalizeLogRetentionDays(value: unknown) {

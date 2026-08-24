@@ -25,6 +25,7 @@ import {
   rowToComment,
   rowToProvider,
   rowToSettings,
+  settingsToRow,
 } from './store-normalizers';
 
 describe('store normalizers user fields', () => {
@@ -238,6 +239,45 @@ describe('store normalizers settings', () => {
       telemetryEnabled: false,
       logRetentionDays: 90,
     });
+  });
+
+  it('merges partial selection shortcuts without resetting sibling actions', () => {
+    expect(
+      mergeSettingsForUpsert(
+        { selectionActionShortcuts: { copy: 'C' } },
+        { selectionActionShortcuts: { copy: 'X', annotate: 'B', ask: 'Q' } },
+      ).selectionActionShortcuts,
+    ).toEqual({ copy: 'C', annotate: 'B', ask: 'Q' });
+  });
+
+  it('clears dependent lock state when the app lock is disabled', () => {
+    expect(
+      mergeSettingsForUpsert(
+        { appLockEnabled: false },
+        { appLockEnabled: true, appLockLocked: true, appLockLockOnStartup: true },
+      ),
+    ).toMatchObject({
+      appLockEnabled: false,
+      appLockLocked: false,
+      appLockLockOnStartup: false,
+    });
+  });
+
+  it('round trips normalized settings through the persistence row mapping', () => {
+    const settings = mergeSettingsForUpsert(
+      { appLockEnabled: false, themeId: undefined },
+      {
+        appLockEnabled: true,
+        appLockLocked: true,
+        appLockLockOnStartup: true,
+        selectionActionShortcuts: { copy: 'X', annotate: 'B', ask: 'Q' },
+      },
+    );
+    const row = settingsToRow(settings, '2026-08-24T00:00:00.000Z');
+
+    expect(row.themeId).toBeNull();
+    expect(row.updatedAt).toBe('2026-08-24T00:00:00.000Z');
+    expect(rowToSettings({ ...row, annotationMemoryBackfillVersion: null })).toEqual(settings);
   });
 });
 
