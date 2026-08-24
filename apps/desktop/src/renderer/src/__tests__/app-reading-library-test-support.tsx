@@ -369,6 +369,9 @@ export function renderLibrary(
   );
   const view = render(library);
   return Object.assign(view, {
+    updateMenuRequest: (menuRequest: AppMenuCommandRequest) => {
+      view.rerender(React.cloneElement(library, { menuRequest }));
+    },
     remountLibrary: () => {
       view.rerender(React.cloneElement(library, { active: false }));
       view.rerender(library);
