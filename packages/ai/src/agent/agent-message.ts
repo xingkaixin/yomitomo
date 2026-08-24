@@ -87,7 +87,7 @@ export async function runAgentDistillationReviewStructuredStream(
   )}`;
   const result = streamText({
     model: adapter.model,
-    system,
+    instructions: system,
     prompt: user,
     abortSignal: options.signal,
     maxOutputTokens: agentMessageMaxTokens(payload),

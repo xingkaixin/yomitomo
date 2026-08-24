@@ -15,9 +15,9 @@
     "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260627.1",
+    "@cloudflare/workers-types": "^5.20260823.1",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.9",
-    "wrangler": "^4.114.0"
+    "vitest": "^4.1.11",
+    "wrangler": "^4.125.0"
   }
 }

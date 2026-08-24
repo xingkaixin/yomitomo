@@ -1,4 +1,4 @@
-import { jsonSchema, stepCountIs, streamText, type JSONSchema7 } from 'ai';
+import { isStepCount, jsonSchema, streamText, type JSONSchema7 } from 'ai';
 import { runOptions } from '../provider/generation-runtime';
 import { Effect, Exit } from 'effect';
 import {
@@ -92,7 +92,7 @@ export const runAssistantAiSdkToolRuntimeEffect = Effect.fn('Assistant.runAiSdkT
           const result = yield* aiSdkStreamTextEffect(
             {
               model: adapter.model,
-              system: options.payload.system,
+              instructions: options.payload.system,
               prompt: useStructuredDistillationReview
                 ? `${options.payload.user}\n\n${distillationReviewStructuredOutputPrompt({
                     jsonlFallback: distillationReviewUsesJsonlFallback,
@@ -103,7 +103,7 @@ export const runAssistantAiSdkToolRuntimeEffect = Effect.fn('Assistant.runAiSdkT
               temperature: options.payload.temperature,
               providerOptions: adapter.providerOptions,
               tools: aiSdkTools,
-              stopWhen: stepCountIs(
+              stopWhen: isStepCount(
                 useStructuredDistillationReview ? budget.maxSteps + 1 : budget.maxSteps,
               ),
               output:
@@ -139,9 +139,7 @@ export const runAssistantAiSdkToolRuntimeEffect = Effect.fn('Assistant.runAiSdkT
             AssistantRuntimeProviderFailure,
           );
           kernel.setUsage(
-            normalizeAiUsage(
-              yield* promiseEffect(result.totalUsage, AssistantRuntimeProviderFailure),
-            ),
+            normalizeAiUsage(yield* promiseEffect(result.usage, AssistantRuntimeProviderFailure)),
           );
           if (finishReason === 'length') {
             return emitFallback(

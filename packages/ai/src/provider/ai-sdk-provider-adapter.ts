@@ -1,5 +1,5 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createGoogle } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import type { LanguageModel } from 'ai';
@@ -33,7 +33,7 @@ export function createYomitomoLanguageModel(provider: LlmProvider): YomitomoLang
 
   if (provider.type === 'gemini') {
     return {
-      model: createGoogleGenerativeAI({
+      model: createGoogle({
         apiKey: provider.apiKey,
         baseURL: geminiBaseUrl(provider.baseUrl),
       })(provider.modelName),

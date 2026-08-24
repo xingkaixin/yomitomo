@@ -26,7 +26,7 @@ vi.mock('ai', () => ({
     array: vi.fn((value: unknown) => ({ name: 'array', value })),
   },
   jsonSchema: vi.fn((schema: unknown) => ({ schema })),
-  stepCountIs: vi.fn((count: number) => ({ count })),
+  isStepCount: vi.fn((count: number) => ({ count })),
   streamText: vi.fn((options: StreamTextOptions) => streamTextImpl(options)),
 }));
 
@@ -51,7 +51,7 @@ describe('assistant AI SDK tool runtime', () => {
         yield '给出回复。';
       })(),
       finishReason: Promise.resolve('stop'),
-      totalUsage: Promise.resolve({ inputTokens: 10, outputTokens: 6, totalTokens: 16 }),
+      usage: Promise.resolve({ inputTokens: 10, outputTokens: 6, totalTokens: 16 }),
     });
     const { runAssistantAiSdkToolRuntime } = await import('./assistant-runtime');
     const events: unknown[] = [];
@@ -106,7 +106,7 @@ describe('assistant AI SDK tool runtime', () => {
           yield '连续读取后回复。';
         })(),
         finishReason: Promise.resolve('stop'),
-        totalUsage: Promise.resolve({}),
+        usage: Promise.resolve({}),
       };
     };
     const { runAssistantAiSdkToolRuntime } = await import('./assistant-runtime');
@@ -151,7 +151,7 @@ describe('assistant AI SDK tool runtime', () => {
           yield '直接回复。';
         })(),
         finishReason: Promise.resolve('stop'),
-        totalUsage: Promise.resolve({}),
+        usage: Promise.resolve({}),
       };
     };
     const { runAssistantAiSdkToolRuntime } = await import('./assistant-runtime');
@@ -183,7 +183,7 @@ describe('assistant AI SDK tool runtime', () => {
         yield '不会到达这里';
       })(),
       finishReason: Promise.resolve('stop'),
-      totalUsage: Promise.resolve({}),
+      usage: Promise.resolve({}),
     });
     const { runAssistantAiSdkToolRuntime } = await import('./assistant-runtime');
 
@@ -248,7 +248,7 @@ describe('assistant AI SDK tool runtime', () => {
         yield '不会到达这里';
       })(),
       finishReason: Promise.resolve('stop'),
-      totalUsage: Promise.resolve({}),
+      usage: Promise.resolve({}),
     });
     const { runAssistantAiSdkToolRuntime } = await import('./assistant-runtime');
 
@@ -289,7 +289,7 @@ describe('assistant AI SDK tool runtime', () => {
           yield '不会到达这里';
         })(),
         finishReason: Promise.resolve('stop'),
-        totalUsage: Promise.resolve({}),
+        usage: Promise.resolve({}),
       };
     };
     const { runAssistantAiSdkToolRuntimeEffect } = await import('./assistant-ai-sdk-runtime');

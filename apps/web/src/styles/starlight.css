@@ -252,10 +252,7 @@ h1#_top {
     margin-block-start: auto;
     margin-inline-start: calc(
       -1 *
-        (
-          var(--docs-shell-margin, 0px) + var(--sl-sidebar-width, 0px) +
-            var(--sl-content-pad-x, 0px)
-        )
+        (var(--docs-shell-margin, 0px) + var(--sl-sidebar-width, 0px) + var(--sl-content-pad-x, 0px))
     );
   }
 }

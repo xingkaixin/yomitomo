@@ -22,12 +22,12 @@
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
     "@yomitomo/shared": "workspace:*",
-    "defuddle": "^0.18.1",
-    "dompurify": "^3.4.12",
+    "defuddle": "^0.19.3",
+    "dompurify": "^3.4.14",
     "effect": "4.0.0-beta.98"
   },
   "devDependencies": {
     "typescript": "^7.0.2",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.11"
   }
 }
