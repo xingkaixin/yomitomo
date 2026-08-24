@@ -93,6 +93,38 @@ describe('model pricing repository', () => {
     expect(database.rows.assistantRuns[0].estimatedCostMicros).toBe(2000);
   });
 
+  it('loads cached prices once while backfilling many runs', async () => {
+    const database = pricingDatabase();
+    database.rows.providers.push(providerRow({ id: 'provider_1', presetId: 'openai' }));
+    database.rows.modelPrices.push(
+      modelPriceRow({
+        id: 'openai:gpt-5-mini',
+        providerId: 'openai',
+        modelId: 'gpt-5-mini',
+        fetchedAt: new Date().toISOString(),
+        inputCostPerMillion: 1,
+        outputCostPerMillion: 2,
+      }),
+    );
+    for (let index = 0; index < 50; index += 1) {
+      database.rows.assistantRuns.push(
+        assistantRunRow({
+          id: `run_${index}`,
+          providerId: 'provider_1',
+          providerName: 'OpenAI',
+          modelName: 'gpt-5-mini',
+          inputTokens: 1_000,
+          outputTokens: 500,
+        }),
+      );
+    }
+
+    await refreshModelsDevPrices(database.store);
+
+    expect(database.metrics.modelPriceReads).toBe(2);
+    expect(database.rows.assistantRuns.every((run) => run.estimatedCostMicros === 2000)).toBe(true);
+  });
+
   it('rejects with the models.dev HTTP error without writing prices', async () => {
     const database = pricingDatabase();
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 502 }));
@@ -228,18 +260,20 @@ function pricingDatabase() {
     assistantRuns: [] as AssistantRunRow[],
     providers: [] as ProviderRow[],
   };
+  const metrics = { modelPriceReads: 0 };
   const store = {
     rows,
-    select: (fields?: Record<string, unknown>) => selectQuery(rows, fields),
+    select: (fields?: Record<string, unknown>) => selectQuery(rows, metrics, fields),
     insert: (table: unknown) => insertQuery(rows, table),
     update: (table: unknown) => updateQuery(rows, table),
     transaction: (run: (tx: StoreDatabase) => unknown) => run(store as unknown as StoreDatabase),
   };
-  return { rows, store: store as unknown as StoreDatabase };
+  return { metrics, rows, store: store as unknown as StoreDatabase };
 }
 
 function selectQuery(
   rows: ReturnType<typeof pricingDatabase>['rows'],
+  metrics: ReturnType<typeof pricingDatabase>['metrics'],
   fields?: Record<string, unknown>,
 ) {
   let table: unknown;
@@ -267,11 +301,15 @@ function selectQuery(
         );
       }
       if (table === schema.providers) return rows.providers;
-      if (table === schema.modelPriceRecords) return rows.modelPrices;
+      if (table === schema.modelPriceRecords) {
+        metrics.modelPriceReads += 1;
+        return rows.modelPrices;
+      }
       return [];
     },
     get() {
       if (table === schema.modelPriceRecords && fields?.fetchedAt) {
+        metrics.modelPriceReads += 1;
         const [latest] = rows.modelPrices.toSorted((left, right) =>
           (right.fetchedAt || '').localeCompare(left.fetchedAt || ''),
         );
@@ -314,7 +352,8 @@ function updateQuery(rows: ReturnType<typeof pricingDatabase>['rows'], table: un
     },
     run() {
       if (table !== schema.assistantExecutionRuns || rows.assistantRuns.length === 0) return;
-      rows.assistantRuns[0] = { ...rows.assistantRuns[0], ...value };
+      const index = rows.assistantRuns.findIndex((run) => run.estimatedCostMicros === null);
+      if (index >= 0) rows.assistantRuns[index] = { ...rows.assistantRuns[index], ...value };
     },
   };
 }

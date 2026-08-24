@@ -76,7 +76,9 @@ function refreshModelsDevPricesEffect(database: StoreDatabase) {
   return Effect.gen(function* () {
     const shouldRefresh = yield* Effect.sync(() => shouldRefreshModelPrices(database));
     if (!shouldRefresh) {
-      yield* Effect.sync(() => backfillAssistantExecutionRunCosts(database));
+      yield* Effect.sync(() =>
+        database.transaction((tx) => backfillAssistantExecutionRunCosts(tx)),
+      );
       return { refreshed: false, recordCount: 0, reason: 'fresh_cache' as const };
     }
 
@@ -234,10 +236,23 @@ function backfillAssistantExecutionRunCosts(database: StoreExecutor) {
       ),
     )
     .all();
-  const providers = database.select().from(schema.providers).all();
+  const providersById = new Map(
+    database
+      .select()
+      .from(schema.providers)
+      .all()
+      .map((provider) => [provider.id, provider]),
+  );
+  const pricesByIdentity = new Map(
+    database
+      .select()
+      .from(schema.modelPriceRecords)
+      .all()
+      .map((price) => [modelPriceIdentity(price.providerId, price.modelId), price]),
+  );
   for (const run of runs) {
-    const provider = providers.find((item) => item.id === run.providerId);
-    const price = findModelPrice(database, {
+    const provider = providersById.get(run.providerId);
+    const price = findModelPriceInIndex(pricesByIdentity, {
       id: run.providerId,
       name: run.providerName,
       type: (provider?.type || 'openai-chat') as LlmProvider['type'],
@@ -282,6 +297,21 @@ function findModelPrice(database: StoreExecutor, provider: LlmProvider) {
         )
         .limit(1)
         .get();
+      if (record) return record;
+    }
+  }
+  return null;
+}
+
+function findModelPriceInIndex(
+  pricesByIdentity: Map<string, typeof schema.modelPriceRecords.$inferSelect>,
+  provider: LlmProvider,
+) {
+  const providerIds = providerPriceAliases(provider);
+  const modelIds = modelPriceAliases(provider.modelName);
+  for (const providerId of providerIds) {
+    for (const modelId of modelIds) {
+      const record = pricesByIdentity.get(modelPriceIdentity(providerId, modelId));
       if (record) return record;
     }
   }
@@ -348,6 +378,10 @@ function modelPriceAliases(modelName: string) {
 
 function modelPriceRecordId(providerId: string, modelId: string) {
   return `${providerId}:${modelId}`;
+}
+
+function modelPriceIdentity(providerId: string, modelId: string) {
+  return `${providerId}\u0000${modelId}`;
 }
 
 export const modelPricingRepositoryTestApi = {
