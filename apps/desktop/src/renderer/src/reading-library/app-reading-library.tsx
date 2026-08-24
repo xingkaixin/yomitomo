@@ -20,7 +20,6 @@ import type {
   SelectionActionShortcuts,
   UserProfile,
   WeReadBook,
-  WeReadSettings,
 } from '@yomitomo/shared';
 import { errorMessageOrFallback, normalizeUiLanguage } from '@yomitomo/shared';
 import { annotationAuthorName, sortAnnotations, sortArticles } from '@yomitomo/core';
@@ -47,10 +46,12 @@ import {
   articleUpdateCanReplace,
   useReadingLibraryNavigation,
 } from './use-reading-library-navigation';
-import { getDesktopApi, getOptionalDesktopApi } from '../shell/app-desktop-api';
+import { getOptionalDesktopApi } from '../shell/app-desktop-api';
 import { emptyDesktopStore } from '../../../app-store';
 import type { LibraryQueryState } from './use-library-query-state';
 import { useLibraryQuerySession } from './use-library-query-session';
+import { useMinimizedDiscussionWindows } from './use-minimized-discussion-windows';
+import { useWeReadLibrarySession } from './use-weread-library-session';
 
 export { groupLibraryArticles };
 export type { LibrarySort };
@@ -158,34 +159,27 @@ export function ReadingLibrary({
   const selectedArticleId = selectedArticle?.id || null;
   const openArticleTargetId = openArticleTarget?.articleId;
   const openArticleTargetAnnotationId = openArticleTarget?.annotationId;
-  const [wereadBooks, setWeReadBooks] = useState<WeReadBook[]>([]);
-  const [wereadSettings, setWeReadSettings] = useState<WeReadSettings>({
-    configured: false,
-    openMethod: 'deeplink',
+  const weRead = useWeReadLibrarySession({
+    onResetLibrary: navigation.actions.resetLibrary,
+    onShowBook: navigation.actions.showWeReadBook,
   });
-  const [wereadSyncing, setWeReadSyncing] = useState(false);
-  const [wereadBookSyncing, setWeReadBookSyncing] = useState(false);
-  const [wereadOpenMessage, setWeReadOpenMessage] = useState('');
-  const [minimizedDiscussionWindows, setMinimizedDiscussionWindows] = useState<
-    AnnotationDiscussionWindowState[]
-  >([]);
   const distillationAnimation = distillationSync.animation;
   const sortedArticles = useMemo<ArticleSummaryRecord[]>(() => sortArticles(articles), [articles]);
   const resolvedSettings = settings || emptyDesktopStore.settings;
   const availableCatalogTypes = useMemo<LibraryCatalogItemType[]>(
     () =>
-      wereadSettings.configured || wereadBooks.length > 0
+      weRead.settings.configured || weRead.books.length > 0
         ? [...ARTICLE_SOURCE_TYPES, 'weread']
         : [...ARTICLE_SOURCE_TYPES],
-    [wereadBooks.length, wereadSettings.configured],
+    [weRead.books.length, weRead.settings.configured],
   );
   const collectionIds = useMemo(
     () => collections.map((collection) => collection.id),
     [collections],
   );
   const catalogRevisionToken = useMemo(
-    () => ({ catalogRevision, wereadBooks }),
-    [catalogRevision, wereadBooks],
+    () => ({ catalogRevision, wereadBooks: weRead.books }),
+    [catalogRevision, weRead.books],
   );
   const libraryQuerySession = useLibraryQuerySession({
     availableTypes: availableCatalogTypes,
@@ -201,28 +195,7 @@ export function ReadingLibrary({
   );
   const selectedAnnotation =
     annotations.find((annotation) => annotation.id === selectedAnnotationId) || null;
-  const currentMinimizedDiscussionWindows = selectedArticle
-    ? minimizedDiscussionWindows.filter((item) => item.articleId === selectedArticle.id)
-    : [];
-  useEffect(() => {
-    const subscribe = getOptionalDesktopApi()?.annotations?.onDiscussionWindowState;
-    if (!subscribe) return;
-    return subscribe((event) => {
-      setMinimizedDiscussionWindows((current) => {
-        if (event.type === 'remove') {
-          return current.filter(
-            (item) =>
-              item.articleId !== event.articleId || item.annotationId !== event.annotationId,
-          );
-        }
-        const next = event.window;
-        const rest = current.filter(
-          (item) => item.articleId !== next.articleId || item.annotationId !== next.annotationId,
-        );
-        return next.minimized ? [...rest, next] : rest;
-      });
-    });
-  }, []);
+  const currentMinimizedDiscussionWindows = useMinimizedDiscussionWindows(selectedArticleId);
 
   useEffect(() => {
     const subscribe = getOptionalDesktopApi()?.annotations?.onDistillationCommitted;
@@ -276,39 +249,14 @@ export function ReadingLibrary({
   }, [activeShelf, onReadingModeChange, selectedArticle, selectedWeReadBook]);
 
   useEffect(() => {
-    let cancelled = false;
-    const getState = getOptionalDesktopApi()?.weRead?.getState;
-    if (!getState) return;
-    void getState()
-      .then((state) => {
-        if (cancelled) return;
-        setWeReadSettings(state.settings);
-        setWeReadBooks(state.books);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    const subscribe = getOptionalDesktopApi()?.weRead?.onStateUpdated;
-    if (!subscribe) return;
-    return subscribe((state) => {
-      setWeReadSettings(state.settings);
-      setWeReadBooks(state.books);
-    });
-  }, []);
-
-  useEffect(() => {
     if (!menuRequest) return;
     if (menuRequest.command === 'sync-weread') {
-      void syncWeReadLibrary({ manual: true });
+      void weRead.syncLibrary({ manual: true });
       return;
     }
     if (!isImportMenuCommand(menuRequest.command)) return;
     navigation.actions.resetLibrary();
-  }, [menuRequest?.command, menuRequest?.id, navigation.actions]);
+  }, [menuRequest?.command, menuRequest?.id, navigation.actions, weRead.syncLibrary]);
 
   async function deleteLibraryArticle(articleId: string) {
     try {
@@ -320,74 +268,8 @@ export function ReadingLibrary({
     }
   }
 
-  async function openWeReadBook(book: WeReadBook) {
-    navigation.actions.resetLibrary();
-    const cached = await getDesktopApi().weRead.getBook(book.bookId);
-    const detail =
-      cached &&
-      (cached.chapters.length > 0 || cached.highlights.length > 0 || cached.thoughts.length > 0)
-        ? cached
-        : await syncWeReadBook(book.bookId);
-    if (!detail) return;
-    navigation.actions.showWeReadBook(detail);
-  }
-
   function openLibraryShelf() {
     navigation.actions.returnToLibrary();
-  }
-
-  async function syncWeReadLibrary(options: { manual?: boolean } = {}) {
-    setWeReadSyncing(true);
-    try {
-      const result = await getDesktopApi().weRead.sync();
-      setWeReadSettings(result.settings);
-      setWeReadBooks(result.books);
-      if (options.manual) {
-        const summary = weReadLibrarySyncSummary(result.books);
-        appToast.success(t('library.weReadSyncSuccess'), {
-          description: t('library.weReadSyncSuccessDescription', summary),
-        });
-      }
-    } catch (error) {
-      if (options.manual) {
-        appToast.error(t('library.weReadSyncFailed'), {
-          description: errorMessageOrFallback(error, t('library.weReadSyncFailed')),
-        });
-      }
-    } finally {
-      setWeReadSyncing(false);
-    }
-  }
-
-  async function openWeReadExternal(
-    book: WeReadBook,
-    target: { chapterUid?: number; range?: string; userVid?: number } = {},
-  ) {
-    setWeReadOpenMessage('');
-    try {
-      await getDesktopApi().weRead.open({ bookId: book.bookId, ...target });
-    } catch (error) {
-      setWeReadOpenMessage(weReadOpenErrorMessage(error));
-    }
-  }
-
-  async function syncWeReadBook(bookId: string) {
-    setWeReadBookSyncing(true);
-    try {
-      const detail = await getDesktopApi().weRead.syncBook(bookId);
-      if (!detail) {
-        setWeReadBooks((books) => books.filter((book) => book.bookId !== bookId));
-        navigation.actions.resetLibrary();
-        return null;
-      }
-      navigation.actions.showWeReadBook(detail);
-      setWeReadBooks((books) =>
-        books.map((book) => (book.bookId === detail.book.bookId ? detail.book : book)),
-      );
-      return detail;
-    } finally {
-      setWeReadBookSyncing(false);
-    }
   }
 
   async function setLibraryPin(input: SetLibraryPinInput) {
@@ -423,8 +305,8 @@ export function ReadingLibrary({
       onDeleteArticle: deleteLibraryArticle,
       onOpenArticle: (article: ArticleRecord | ArticleSummaryRecord) =>
         void openLibraryArticle(article),
-      onOpenWeReadBook: (book: WeReadBook) => void openWeReadBook(book),
-      onOpenWeReadExternal: (book: WeReadBook) => void openWeReadExternal(book),
+      onOpenWeReadBook: (book: WeReadBook) => void weRead.openBook(book),
+      onOpenWeReadExternal: (book: WeReadBook) => void weRead.openExternal(book),
       onSetLibraryPin: setLibraryPin,
     },
     menuRequest,
@@ -434,10 +316,10 @@ export function ReadingLibrary({
     },
     weRead: {
       onOpenDataSources,
-      onSync: () => void syncWeReadLibrary({ manual: true }),
-      openMessage: wereadOpenMessage,
-      settings: wereadSettings,
-      syncing: wereadSyncing,
+      onSync: () => void weRead.syncLibrary({ manual: true }),
+      openMessage: weRead.openMessage,
+      settings: weRead.settings,
+      syncing: weRead.librarySyncing,
     },
   } satisfies React.ComponentProps<typeof LibraryHome>;
 
@@ -462,13 +344,13 @@ export function ReadingLibrary({
             {selectedWeReadBook ? (
               <WeReadBookcase
                 detail={selectedWeReadBook}
-                syncing={wereadBookSyncing}
+                syncing={weRead.bookSyncing}
                 userProfile={userProfile}
                 onClose={openLibraryShelf}
                 onOpenExternal={(target) =>
-                  void openWeReadExternal(selectedWeReadBook.book, target)
+                  void weRead.openExternal(selectedWeReadBook.book, target)
                 }
-                onSync={() => void syncWeReadBook(selectedWeReadBook.book.bookId)}
+                onSync={() => void weRead.syncBook(selectedWeReadBook.book.bookId)}
               />
             ) : selectedArticle ? (
               <SourceBookcase
@@ -698,23 +580,4 @@ export function AnnotationDiscussionCapsules({
 
 function isImportMenuCommand(command: AppMenuCommandRequest['command']) {
   return command === 'import-web' || command === 'import-ebook' || command === 'import-pdf';
-}
-
-function weReadOpenErrorMessage(error: unknown) {
-  const message = error instanceof Error ? error.message : '';
-  if (/No application found|weread:/.test(message)) {
-    return i18next.t('wereadBook.nativeAppMissing');
-  }
-  return message || i18next.t('wereadBook.openFailed');
-}
-
-function weReadLibrarySyncSummary(books: WeReadBook[]) {
-  return books.reduce(
-    (summary, book) => ({
-      books: summary.books + 1,
-      bookmarks: summary.bookmarks + book.bookmarkCount,
-      reviews: summary.reviews + book.reviewCount,
-    }),
-    { books: 0, bookmarks: 0, reviews: 0 },
-  );
 }
