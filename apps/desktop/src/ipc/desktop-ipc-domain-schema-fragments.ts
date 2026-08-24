@@ -577,6 +577,6 @@ export const updateDomainIpcInvokeSchemas = {
   ]),
 };
 
-function checkedSchema<Type>(shape: z.ZodType) {
-  return z.custom<Type>((value) => shape.safeParse(value).success);
+function checkedSchema<Type>(schema: z.ZodType): z.ZodType<Type> {
+  return schema as z.ZodType<Type>;
 }
