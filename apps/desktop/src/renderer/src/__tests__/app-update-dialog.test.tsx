@@ -107,20 +107,71 @@ describe('UpdateReleaseDialogView', () => {
     expect(screen.queryByText('修复进度回退')).toBeNull();
   });
 
-  it('shows download percent on the primary button while downloading', () => {
+  it('shows filled progress, transferred bytes, total bytes, and speed while downloading', () => {
     render(
       <UpdateReleaseDialogView
         scene="before-update"
         version="0.9.0"
         highlights={[]}
         downloadStatus="downloading"
-        downloadPercent={42.6}
+        downloadProgress={{
+          percent: 42.6,
+          transferred: 45 * 1024 * 1024,
+          total: 105 * 1024 * 1024,
+          bytesPerSecond: 3.2 * 1024 * 1024,
+        }}
         onPrimary={() => undefined}
         onSecondary={() => undefined}
       />,
     );
-    expect(screen.getByText('43%')).toBeTruthy();
+    const progress = screen.getByRole('progressbar', { name: /更新下载进度 43%/ });
+    expect(progress.getAttribute('aria-valuenow')).toBe('43');
+    expect(progress.querySelector<HTMLElement>('.update-dialog-progress-fill')?.style.width).toBe(
+      '43%',
+    );
+    expect(progress.querySelector('.update-dialog-progress-copy.is-base')?.textContent).toContain(
+      '正在下载 43%',
+    );
+    expect(progress.querySelector('.update-dialog-progress-copy.is-base')?.textContent).toContain(
+      '45 MB / 105 MB · 3.2 MB/秒',
+    );
+    expect(screen.getByText('后台下载')).toBeTruthy();
     expect(screen.queryByText('立即更新')).toBeNull();
+  });
+
+  it('shows a preparing state before the first progress event', () => {
+    render(
+      <UpdateReleaseDialogView
+        scene="before-update"
+        version="0.9.0"
+        highlights={[]}
+        downloadStatus="downloading"
+        onPrimary={() => undefined}
+        onSecondary={() => undefined}
+      />,
+    );
+
+    const progress = screen.getByRole('progressbar', { name: /正在准备下载/ });
+    expect(progress.querySelector('.update-dialog-progress-copy.is-base')?.textContent).toContain(
+      '正在准备下载…',
+    );
+  });
+
+  it('offers a download retry after a recoverable failure', () => {
+    const onPrimary = vi.fn();
+    render(
+      <UpdateReleaseDialogView
+        scene="before-update"
+        version="0.9.0"
+        highlights={[]}
+        downloadStatus="error"
+        onPrimary={onPrimary}
+        onSecondary={() => undefined}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('重试下载'));
+    expect(onPrimary).toHaveBeenCalledOnce();
   });
 
   it('switches the primary button to restart-install once downloaded', () => {
@@ -134,23 +185,27 @@ describe('UpdateReleaseDialogView', () => {
         onSecondary={() => undefined}
       />,
     );
-    expect(screen.getByText('重启安装')).toBeTruthy();
+    expect(screen.getByText('更新已就绪')).toBeTruthy();
+    expect(screen.getByText('重启并更新')).toBeTruthy();
+    expect(screen.getByText('稍后重启')).toBeTruthy();
     expect(screen.queryByText('立即更新')).toBeNull();
   });
 });
 
 const stubDesktop = (getReleaseNote = vi.fn().mockResolvedValue(null)) => {
+  const download = vi.fn().mockResolvedValue(undefined);
+  const install = vi.fn().mockResolvedValue(undefined);
   vi.stubGlobal('yomitomoDesktop', {
     app: {
       getInfo: vi.fn().mockResolvedValue({ desktopVersion: '0.8.0' }),
     },
     updates: {
       getReleaseNote,
-      download: vi.fn().mockResolvedValue(undefined),
-      install: vi.fn().mockResolvedValue(undefined),
+      download,
+      install,
     },
   });
-  return getReleaseNote;
+  return { download, getReleaseNote, install };
 };
 
 describe('UpdateReleaseDialog before-update gating', () => {
@@ -232,5 +287,63 @@ describe('UpdateReleaseDialog before-update gating', () => {
     });
     expect(await screen.findByText('发现新版本')).toBeTruthy();
     expect(screen.getByText('v0.9.0')).toBeTruthy();
+  });
+
+  it('reopens a dismissed download as a restart confirmation when it finishes', async () => {
+    stubDesktop();
+    let view!: ReturnType<typeof render>;
+    await act(async () => {
+      view = render(container(available('manual'), 0));
+    });
+
+    await act(async () => {
+      view.rerender(
+        container(
+          {
+            ...available('manual'),
+            status: 'downloading',
+            progress: { percent: 50, transferred: 50, total: 100, bytesPerSecond: 10 },
+          },
+          0,
+        ),
+      );
+    });
+    fireEvent.click(screen.getByText('后台下载'));
+    expect(screen.queryByText('发现新版本')).toBeNull();
+
+    await act(async () => {
+      view.rerender(
+        container(
+          {
+            ...available('manual'),
+            status: 'downloaded',
+            checkedAt: '2026-08-25T00:00:00.000Z',
+          },
+          0,
+        ),
+      );
+    });
+    expect(await screen.findByText('更新已就绪')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('稍后重启'));
+    expect(screen.queryByText('更新已就绪')).toBeNull();
+  });
+
+  it('opens the current download when requested from the header', async () => {
+    stubDesktop();
+    const downloading: AppUpdateState = {
+      ...available('auto'),
+      status: 'downloading',
+      progress: { percent: 50, transferred: 50, total: 100, bytesPerSecond: 10 },
+    };
+    let view!: ReturnType<typeof render>;
+    await act(async () => {
+      view = render(container(downloading, 0));
+    });
+
+    await act(async () => {
+      view.rerender(container(downloading, 1));
+    });
+    expect(await screen.findByRole('progressbar')).toBeTruthy();
   });
 });

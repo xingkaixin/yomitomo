@@ -463,6 +463,16 @@ function updateAction(
     };
   }
 
+  if (state.status === 'download-error') {
+    return {
+      label: t('about.updateAction.retryDownload'),
+      method: 'download',
+      disabled: false,
+      busy: false,
+      icon: <HugeiconsIcon icon={Download01Icon} size={15} />,
+    };
+  }
+
   if (state.status === 'downloaded') {
     return {
       label: t('about.updateAction.install'),
@@ -501,6 +511,7 @@ function updateStateCopy(state: AppUpdateState | null, t: AppT) {
       percent: `${Math.round(state.progress?.percent || 0)}%`,
     });
   }
+  if (state.status === 'download-error') return t('about.updateState.downloadError');
   if (state.status === 'downloaded') return t('about.updateState.downloaded');
   if (state.status === 'error') {
     return updateStateMessage(state.message, t) || t('about.updateState.error');

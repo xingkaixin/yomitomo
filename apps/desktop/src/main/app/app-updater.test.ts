@@ -231,6 +231,39 @@ describe('app updater state machine', () => {
     );
   });
 
+  it('keeps download context after a failure and allows retrying', async () => {
+    const updater = await loadUpdater();
+    updater.configureAppUpdater(vi.fn());
+    emitUpdaterEvent('update-available', {
+      releaseDate: '2026-06-18T00:00:00.000Z',
+      releaseName: 'Yomitomo 1.2.4',
+      version: '1.2.4',
+    });
+    updaterMocks.autoUpdater.downloadUpdate
+      .mockRejectedValueOnce(new Error('connection reset'))
+      .mockImplementationOnce(async () => {
+        emitUpdaterEvent('update-downloaded', {
+          releaseDate: '2026-06-18T00:00:00.000Z',
+          releaseName: 'Yomitomo 1.2.4',
+          version: '1.2.4',
+        });
+      });
+
+    await expect(updater.downloadAppUpdate()).resolves.toEqual({
+      status: 'download-error',
+      currentVersion: '1.2.3-test',
+      availableVersion: '1.2.4',
+      releaseName: 'Yomitomo 1.2.4',
+      releaseDate: '2026-06-18T00:00:00.000Z',
+      message: 'connection reset',
+    });
+    await expect(updater.downloadAppUpdate()).resolves.toMatchObject({
+      status: 'downloaded',
+      availableVersion: '1.2.4',
+    });
+    expect(updaterMocks.autoUpdater.downloadUpdate).toHaveBeenCalledTimes(2);
+  });
+
   it('tags the available state with the originating check trigger', async () => {
     const updater = await loadUpdater();
     updater.configureAppUpdater(vi.fn());

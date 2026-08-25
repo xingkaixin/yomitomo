@@ -16,7 +16,7 @@ import type {
   ReleaseNoteHighlightType,
 } from '@yomitomo/shared';
 import { normalizeUiLanguage, selectHighlights, shouldShowAfterUpdate } from '@yomitomo/shared';
-import type { AppUpdateState } from '../../../app-update-types';
+import type { AppUpdateProgress, AppUpdateState } from '../../../app-update-types';
 import { resolveAppThemeId, themeRegistry } from '../theme/app-theme';
 import coverLighterImage from '../assets/update/updater-cover-lighter.webp';
 import coverDarkerImage from '../assets/update/updater-cover-darker.webp';
@@ -26,7 +26,7 @@ import { getDesktopApi } from './app-desktop-api';
 
 type ReleaseDialogScene = 'before-update' | 'after-update';
 
-type DownloadStatus = 'idle' | 'downloading' | 'downloaded';
+type DownloadStatus = 'idle' | 'downloading' | 'error' | 'downloaded';
 
 type ActiveReleaseDialog = {
   scene: ReleaseDialogScene;
@@ -61,6 +61,7 @@ export function UpdateReleaseDialog({
   const [dialog, setDialog] = useState<ActiveReleaseDialog | null>(null);
   const afterUpdateHandledRef = useRef(false);
   const handledManualRef = useRef<string | null>(null);
+  const handledDownloadedRef = useRef<string | null>(null);
   const settingsRef = useRef(store.settings);
   settingsRef.current = store.settings;
   const updateStateRef = useRef(updateState);
@@ -132,22 +133,34 @@ export function UpdateReleaseDialog({
     openBeforeUpdate(updateState.availableVersion);
   }, [updateState, openBeforeUpdate]);
 
-  // 自动检查命中后，用户从 header「有新版本」主动请求时弹窗；当前必为 available（入口仅此时显示）。
+  // 用户从 header「有新版本」主动请求时打开当前更新，无论正在等待、下载还是已就绪。
   useEffect(() => {
     if (openRequest === 0) return;
     const state = updateStateRef.current;
-    if (state?.status !== 'available' || !state.availableVersion) return;
+    if (!state?.availableVersion || !canOpenUpdateDialog(state.status)) return;
     openBeforeUpdate(state.availableVersion);
   }, [openRequest, openBeforeUpdate]);
+
+  useEffect(() => {
+    if (updateState?.status !== 'downloaded' || !updateState.availableVersion) return;
+    const dedupeKey = updateState.checkedAt ?? updateState.availableVersion;
+    if (handledDownloadedRef.current === dedupeKey) return;
+    handledDownloadedRef.current = dedupeKey;
+    if (dialog?.scene === 'before-update' && dialog.version === updateState.availableVersion)
+      return;
+    openBeforeUpdate(updateState.availableVersion);
+  }, [dialog, openBeforeUpdate, updateState]);
 
   if (!dialog) return null;
 
   const downloadStatus: DownloadStatus =
     dialog.scene === 'before-update' && updateState?.status === 'downloading'
       ? 'downloading'
-      : dialog.scene === 'before-update' && updateState?.status === 'downloaded'
-        ? 'downloaded'
-        : 'idle';
+      : dialog.scene === 'before-update' && updateState?.status === 'download-error'
+        ? 'error'
+        : dialog.scene === 'before-update' && updateState?.status === 'downloaded'
+          ? 'downloaded'
+          : 'idle';
 
   const handlePrimary = () => {
     if (dialog.scene === 'after-update') {
@@ -172,7 +185,7 @@ export function UpdateReleaseDialog({
       highlights={dialog.highlights}
       coverImage={coverImage}
       downloadStatus={downloadStatus}
-      downloadPercent={updateState?.progress?.percent ?? 0}
+      downloadProgress={updateState?.progress}
       onPrimary={handlePrimary}
       onSecondary={() => setDialog(null)}
     />
@@ -185,7 +198,7 @@ export function UpdateReleaseDialogView({
   highlights,
   coverImage,
   downloadStatus = 'idle',
-  downloadPercent = 0,
+  downloadProgress,
   onPrimary,
   onSecondary,
 }: {
@@ -194,11 +207,11 @@ export function UpdateReleaseDialogView({
   highlights: ReleaseNoteHighlight[];
   coverImage?: string;
   downloadStatus?: DownloadStatus;
-  downloadPercent?: number;
+  downloadProgress?: AppUpdateProgress;
   onPrimary: () => void;
   onSecondary: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const isAfter = scene === 'after-update';
   const hasHighlights = highlights.length > 0;
 
@@ -206,14 +219,23 @@ export function UpdateReleaseDialogView({
     if (isAfter) fireReleaseConfetti();
   }, [isAfter]);
 
-  const badge = isAfter ? t('updateDialog.afterBadge') : t('updateDialog.beforeBadge');
-  const lead = isAfter
-    ? hasHighlights
-      ? t('updateDialog.afterLeadWithHighlights')
-      : t('updateDialog.afterLead')
-    : hasHighlights
-      ? t('updateDialog.beforeLeadWithHighlights')
-      : t('updateDialog.beforeLead');
+  const isDownloaded = !isAfter && downloadStatus === 'downloaded';
+  const badge = isAfter
+    ? t('updateDialog.afterBadge')
+    : isDownloaded
+      ? t('updateDialog.readyBadge')
+      : t('updateDialog.beforeBadge');
+  const lead = isDownloaded
+    ? t('updateDialog.readyLead')
+    : isAfter
+      ? hasHighlights
+        ? t('updateDialog.afterLeadWithHighlights')
+        : t('updateDialog.afterLead')
+      : hasHighlights
+        ? t('updateDialog.beforeLeadWithHighlights')
+        : t('updateDialog.beforeLead');
+  const progress = normalizedProgress(downloadProgress);
+  const progressDetails = downloadProgressDetails(progress, i18n.language, t);
 
   return (
     <Dialog open onOpenChange={(nextOpen) => !nextOpen && onSecondary()}>
@@ -269,7 +291,11 @@ export function UpdateReleaseDialogView({
                     type="button"
                     onClick={onSecondary}
                   >
-                    {t('updateDialog.later')}
+                    {downloadStatus === 'downloading'
+                      ? t('updateDialog.backgroundDownload')
+                      : downloadStatus === 'downloaded'
+                        ? t('updateDialog.restartLater')
+                        : t('updateDialog.later')}
                   </button>
                   {downloadStatus === 'downloaded' ? (
                     <button
@@ -281,9 +307,43 @@ export function UpdateReleaseDialogView({
                       {t('updateDialog.install')}
                     </button>
                   ) : downloadStatus === 'downloading' ? (
-                    <button className="update-dialog-button is-primary" type="button" disabled>
-                      <HugeiconsIcon icon={CircleArrowUp01Icon} size={16} aria-hidden />
-                      {`${Math.round(downloadPercent)}%`}
+                    <div
+                      aria-label={t('updateDialog.progressAria', {
+                        percent: progress.percent,
+                        details: progressDetails,
+                      })}
+                      aria-valuemax={100}
+                      aria-valuemin={0}
+                      aria-valuenow={progress.percent}
+                      className="update-dialog-button is-primary is-progress"
+                      role="progressbar"
+                    >
+                      <span
+                        aria-hidden
+                        className="update-dialog-progress-fill"
+                        style={{ width: `${progress.percent}%` }}
+                      />
+                      <span className="update-dialog-progress-copy is-base">
+                        <span>{t('updateDialog.downloading', { percent: progress.percent })}</span>
+                        <span className="update-dialog-progress-details">{progressDetails}</span>
+                      </span>
+                      <span
+                        aria-hidden
+                        className="update-dialog-progress-copy is-filled"
+                        style={{ clipPath: `inset(0 ${100 - progress.percent}% 0 0)` }}
+                      >
+                        <span>{t('updateDialog.downloading', { percent: progress.percent })}</span>
+                        <span className="update-dialog-progress-details">{progressDetails}</span>
+                      </span>
+                    </div>
+                  ) : downloadStatus === 'error' ? (
+                    <button
+                      className="update-dialog-button is-primary"
+                      type="button"
+                      onClick={onPrimary}
+                    >
+                      <HugeiconsIcon icon={Refresh01Icon} size={16} aria-hidden />
+                      {t('updateDialog.retryDownload')}
                     </button>
                   ) : (
                     <button
@@ -303,6 +363,59 @@ export function UpdateReleaseDialogView({
       </DialogPortal>
     </Dialog>
   );
+}
+
+function canOpenUpdateDialog(status: AppUpdateState['status']) {
+  return (
+    status === 'available' ||
+    status === 'downloading' ||
+    status === 'download-error' ||
+    status === 'downloaded'
+  );
+}
+
+function normalizedProgress(progress: AppUpdateProgress | undefined) {
+  const percent = Number.isFinite(progress?.percent)
+    ? Math.min(100, Math.max(0, Math.round(progress?.percent ?? 0)))
+    : 0;
+  const total = finiteBytes(progress?.total);
+  const transferred = Math.min(
+    total || Number.MAX_SAFE_INTEGER,
+    finiteBytes(progress?.transferred),
+  );
+  const bytesPerSecond = finiteBytes(progress?.bytesPerSecond);
+  return { percent, total, transferred, bytesPerSecond };
+}
+
+function finiteBytes(value: number | undefined) {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function downloadProgressDetails(
+  progress: ReturnType<typeof normalizedProgress>,
+  locale: string,
+  t: ReturnType<typeof useTranslation>['t'],
+) {
+  if (progress.total === 0) return t('updateDialog.preparingDownload');
+  const values = {
+    transferred: formatBytes(progress.transferred, locale),
+    total: formatBytes(progress.total, locale),
+  };
+  return progress.bytesPerSecond > 0
+    ? t('updateDialog.progressDetails', {
+        ...values,
+        speed: formatBytes(progress.bytesPerSecond, locale),
+      })
+    : t('updateDialog.progressDetailsWaitingSpeed', values);
+}
+
+function formatBytes(bytes: number, locale: string) {
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const unitIndex = Math.min(Math.floor(Math.log(Math.max(bytes, 1)) / Math.log(1024)), 3);
+  const value = bytes / 1024 ** unitIndex;
+  return `${new Intl.NumberFormat(locale, {
+    maximumFractionDigits: value >= 10 || unitIndex === 0 ? 0 : 1,
+  }).format(value)} ${units[unitIndex]}`;
 }
 
 const CONFETTI_COLORS = ['#e0a458', '#c2693b', '#4a5a7a', '#7c9a6e', '#d9c8a8', '#b8607a'];

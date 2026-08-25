@@ -61,10 +61,14 @@ export function configureAppUpdater(notify: (state: AppUpdateState) => void) {
   });
   autoUpdater.on('error', (error) => {
     logError('updater.error', error);
-    setUpdateState({
-      status: 'error',
-      message: error.message || 'UPDATE_FAILED',
-    });
+    setUpdateState(
+      updateState.status === 'downloading'
+        ? downloadErrorState(error.message || 'UPDATE_DOWNLOAD_FAILED')
+        : {
+            status: 'error',
+            message: error.message || 'UPDATE_FAILED',
+          },
+    );
   });
 }
 
@@ -112,7 +116,7 @@ export async function downloadAppUpdate() {
   if (unsupported) return setUpdateState(unsupported);
   if (downloadPromise) return downloadPromise;
   if (updateState.status === 'downloaded') return updateState;
-  if (updateState.status !== 'available') {
+  if (updateState.status !== 'available' && updateState.status !== 'download-error') {
     return setUpdateState({
       status: 'error',
       message: 'UPDATE_CHECK_REQUIRED',
@@ -137,11 +141,9 @@ export async function downloadAppUpdate() {
     .then(() => updateState)
     .catch((error: unknown) => {
       logError('updater.download-failed', error);
-      return setUpdateState({
-        status: 'error',
-        availableVersion: updateState.availableVersion,
-        message: errorMessageOrFallback(error, 'UPDATE_DOWNLOAD_FAILED'),
-      });
+      return setUpdateState(
+        downloadErrorState(errorMessageOrFallback(error, 'UPDATE_DOWNLOAD_FAILED')),
+      );
     })
     .finally(() => {
       downloadPromise = null;
@@ -218,6 +220,17 @@ function downloadProgressState(progress: ProgressInfo): AppUpdateState {
       total: progress.total,
       bytesPerSecond: progress.bytesPerSecond,
     },
+  };
+}
+
+function downloadErrorState(message: string): AppUpdateState {
+  return {
+    status: 'download-error',
+    currentVersion: app.getVersion(),
+    availableVersion: updateState.availableVersion,
+    releaseName: updateState.releaseName,
+    releaseDate: updateState.releaseDate,
+    message,
   };
 }
 

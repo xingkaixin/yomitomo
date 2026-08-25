@@ -168,6 +168,27 @@ describe('AboutSettings', () => {
     expect(appToast.success).not.toHaveBeenCalled();
   });
 
+  it('retries a failed update download without checking again', async () => {
+    const desktop = installDesktopAboutApi();
+
+    render(<AboutSettings />);
+    await screen.findByLabelText('可手动检查新版本。');
+    act(() => {
+      desktop.emitUpdate({
+        status: 'download-error',
+        currentVersion: '0.1.0',
+        availableVersion: '0.2.0',
+        message: 'connection reset',
+      });
+    });
+
+    expect(await screen.findByLabelText('下载更新失败，可以重试。')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /重试下载/ }));
+
+    await waitFor(() => expect(desktop.downloadUpdate).toHaveBeenCalledOnce());
+    expect(desktop.checkForUpdates).not.toHaveBeenCalled();
+  });
+
   it('opens localized website links through the desktop bridge', async () => {
     const desktop = installDesktopAboutApi();
 

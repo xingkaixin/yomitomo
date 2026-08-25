@@ -99,7 +99,10 @@ function ReadyApp({
 }) {
   const { t } = useTranslation();
   const updateReady =
-    appUpdateState?.status === 'available' || appUpdateState?.status === 'downloaded';
+    appUpdateState?.status === 'available' ||
+    appUpdateState?.status === 'downloading' ||
+    appUpdateState?.status === 'download-error' ||
+    appUpdateState?.status === 'downloaded';
 
   const { store, settingsSyncSnapshot, storeRef, applyStore, applySettingsPatch, articleStore } =
     storeState;

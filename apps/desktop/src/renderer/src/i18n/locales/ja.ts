@@ -280,15 +280,26 @@ export const jaResources = {
       },
       afterBadge: '更新されました',
       beforeBadge: '新しいバージョンが利用可能になりました',
+      readyBadge: 'アップデートの準備ができました',
       afterLeadWithHighlights: 'Yomitomoが更新されました。このリリースでは以下がもたらされます。',
       afterLead: 'Yomitomoが最新バージョンにアップデートされました。',
       beforeLeadWithHighlights: '新しいバージョンが利用可能です。ハイライト:',
       beforeLead: '新しいバージョンが利用可能です。最新のエクスペリエンスを更新します。',
+      readyLead:
+        'アップデートのダウンロードが完了しました。今すぐ再起動するか、後で終了するときに自動的にインストールできます。',
       tagline: '新しいページへ',
       start: '使用を開始する',
       later: '後で',
+      backgroundDownload: 'バックグラウンドでダウンロード',
+      restartLater: '後で再起動',
       updateNow: '今すぐ更新してください',
-      install: '再起動してインストールしてください',
+      install: '再起動して更新',
+      retryDownload: 'ダウンロードを再試行',
+      downloading: 'ダウンロード中 {{percent}}%',
+      preparingDownload: 'ダウンロードを準備中…',
+      progressDetails: '{{transferred}} / {{total}} · {{speed}}/秒',
+      progressDetailsWaitingSpeed: '{{transferred}} / {{total}} · 速度を計算中',
+      progressAria: 'アップデートのダウンロード {{percent}}%、{{details}}',
     },
     about: {
       trailSettings: '設定',
@@ -361,6 +372,7 @@ export const jaResources = {
       updateAction: {
         check: '更新情報を確認する',
         download: 'アップデートをダウンロード',
+        retryDownload: 'ダウンロードを再試行',
         install: '再起動してインストールしてください',
       },
       updateToast: {
@@ -374,6 +386,7 @@ export const jaResources = {
           '{{version}} が見つかりました。ダウンロードしてインストールする準備ができました。',
         notAvailable: '最新バージョンを使用しています。',
         downloading: 'アップデートのダウンロード、{{percent}} 完了しました。',
+        downloadError: 'アップデートのダウンロードに失敗しました。再試行できます。',
         downloaded:
           'アップデートをダウンロードしました。アプリを再起動してインストールを完了します。',
         error: 'アップデートに失敗しました。後でもう一度試してください。',
