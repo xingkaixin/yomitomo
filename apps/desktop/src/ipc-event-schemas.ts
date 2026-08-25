@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { isRecord } from '@yomitomo/shared';
+import { avatarSchema } from './ipc-avatar-schema';
 import type {
   DesktopIpcStreamChannel,
   DesktopIpcStreamRequest,
@@ -38,7 +39,7 @@ const readingIntentSchema = z.enum(['explain', 'decompose', 'challenge', 'questi
 const annotationAuthorIdentitySchema = {
   username: idSchema,
   nickname: optionalShortTextSchema,
-  avatar: z.string().max(4096).optional(),
+  avatar: avatarSchema.optional(),
   annotationColor: z.string().max(128).optional(),
 };
 const annotationAuthorSchema = z.discriminatedUnion('kind', [
@@ -174,7 +175,7 @@ const publicAgentSchema = z.looseObject({
   enabled: z.boolean(),
   nickname: shortTextSchema,
   username: idSchema,
-  avatar: z.string().max(4096),
+  avatar: avatarSchema,
   annotationColor: z.string().max(128),
   annotationDensity: z.enum(['low', 'medium', 'high']),
   temperature: z.number().finite(),

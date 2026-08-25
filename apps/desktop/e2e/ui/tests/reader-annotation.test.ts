@@ -1,6 +1,7 @@
 import type { Page } from 'playwright-core';
 import { describe, it } from 'vitest';
 import { createTextFixture } from '../../helpers/e2e-data';
+import type { DesktopApiForE2e } from '../helpers/desktop-api';
 import { withDesktopE2eApp } from '../helpers/electron-app';
 import {
   importTextFileThroughLibraryUi,
@@ -14,8 +15,8 @@ const annotationAuthor = 'Yomitomo E2E';
 const annotationQuote = 'Reader annotation E2E selects this stable sentence.';
 
 describe('reader annotation', () => {
-  it('creates a highlight from selected text and keeps it after reopening the reader', async () => {
-    await withDesktopE2eApp('reader-annotation', async ({ fixtureDir, page }) => {
+  it('keeps a highlight and a thought created with an inline-image avatar', async () => {
+    await withDesktopE2eApp('reader-annotation', async ({ app, fixtureDir, page }) => {
       const fixture = await createTextFixture(fixtureDir, {
         content: `---
 title: ${annotationTitle}
@@ -51,6 +52,31 @@ This second sentence keeps the article body long enough for the reader surface.
       await waitForLibraryArticle(page, annotationTitle);
       await openReaderArticle(page, annotationTitle);
       await waitForReaderAnnotation(page, annotationQuote);
+
+      await page.evaluate(async () => {
+        const desktop = (window as Window & { yomitomoDesktop?: DesktopApiForE2e }).yomitomoDesktop;
+        if (!desktop) throw new Error('YOMITOMO_DESKTOP_API_UNAVAILABLE');
+        await desktop.store.saveUser({
+          avatar: `data:image/svg+xml,${encodeURIComponent(
+            `<svg xmlns="http://www.w3.org/2000/svg"><desc>${'A'.repeat(5000)}</desc></svg>`,
+          )}`,
+        });
+      });
+
+      const discussionWindowPromise = app.waitForEvent('window');
+      await page.getByRole('button', { name: 'Open discussion' }).click();
+      const discussionPage = await discussionWindowPromise;
+      await discussionPage.getByRole('button', { name: 'Add thought' }).click();
+      const addThoughtDialog = discussionPage.locator('.annotation-discussion-add-modal');
+      await addThoughtDialog
+        .getByRole('textbox', { name: 'Thought content' })
+        .fill('Saved thought');
+      await addThoughtDialog.getByRole('button', { name: 'Add', exact: true }).click();
+      await discussionPage
+        .locator('.annotation-discussion-idea-list')
+        .getByText('Saved thought', { exact: true })
+        .waitFor({ timeout: 15_000 });
+      await discussionPage.close();
     });
   });
 });
