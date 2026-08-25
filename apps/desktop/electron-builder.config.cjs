@@ -97,6 +97,7 @@ module.exports = {
     {
       provider: 'generic',
       url: 'https://download.yomitomo.app/updates/',
+      useMultipleRangeRequest: false,
     },
   ],
   mac: {
