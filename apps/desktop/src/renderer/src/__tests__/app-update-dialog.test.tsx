@@ -346,4 +346,36 @@ describe('UpdateReleaseDialog before-update gating', () => {
     });
     expect(await screen.findByRole('progressbar')).toBeTruthy();
   });
+
+  it('prepares the post-update prompt before restarting a development simulation', async () => {
+    const { install } = stubDesktop();
+    const onSaveSettings = vi.fn().mockResolvedValue(store);
+    await act(async () => {
+      render(
+        <UpdateReleaseDialog
+          store={store}
+          updateState={{
+            ...available('manual'),
+            status: 'downloaded',
+            checkedAt: '2026-08-25T00:00:00.000Z',
+            simulation: 'development',
+          }}
+          openRequest={0}
+          onSaveSettings={onSaveSettings}
+        />,
+      );
+    });
+
+    fireEvent.click(await screen.findByText('重启并更新'));
+    await act(async () => undefined);
+
+    expect(onSaveSettings).toHaveBeenCalledWith({
+      ...store.settings,
+      lastSeenVersion: '0.0.0',
+    });
+    expect(install).toHaveBeenCalledOnce();
+    expect(onSaveSettings.mock.invocationCallOrder[0]).toBeLessThan(
+      install.mock.invocationCallOrder[0],
+    );
+  });
 });

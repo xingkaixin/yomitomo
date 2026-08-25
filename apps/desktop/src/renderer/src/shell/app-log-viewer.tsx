@@ -508,7 +508,7 @@ function updateStateCopy(state: AppUpdateState | null, t: AppT) {
   if (state.status === 'not-available') return t('about.updateState.notAvailable');
   if (state.status === 'downloading') {
     return t('about.updateState.downloading', {
-      percent: `${Math.round(state.progress?.percent || 0)}%`,
+      percent: Math.round(state.progress?.percent || 0),
     });
   }
   if (state.status === 'download-error') return t('about.updateState.downloadError');

@@ -28,4 +28,5 @@ export type AppUpdateState = {
   message?: string;
   progress?: AppUpdateProgress;
   trigger?: AppUpdateTrigger;
+  simulation?: 'development';
 };

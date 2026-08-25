@@ -381,10 +381,10 @@ export const zhCNResources = {
       },
       dev: {
         simulateAfter: '模拟版本更新（更新后弹窗）',
-        simulateBefore: '模拟发现新版本（更新前弹窗）',
+        simulateBefore: '模拟完整更新流程（约 15 秒）',
         simulateAuto: '模拟自动检查命中（仅常驻入口）',
         resetDone: '已重置更新标记，重启应用即可预览「已更新」弹窗。',
-        hint: '开发用：「更新后」重置标记后重启预览；「更新前」点击即时弹出。',
+        hint: '点击完整流程后，在弹窗开始下载；可收起到后台，完成后会再次提示并模拟重启。',
       },
       loading: '读取中',
       updateAction: {

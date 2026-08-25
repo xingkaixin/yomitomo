@@ -189,6 +189,23 @@ describe('AboutSettings', () => {
     expect(desktop.checkForUpdates).not.toHaveBeenCalled();
   });
 
+  it('shows a single percent sign for download progress', async () => {
+    const desktop = installDesktopAboutApi();
+
+    render(<AboutSettings />);
+    await screen.findByLabelText('可手动检查新版本。');
+    act(() => {
+      desktop.emitUpdate({
+        status: 'downloading',
+        currentVersion: '0.1.0',
+        availableVersion: '0.2.0',
+        progress: { percent: 53, transferred: 53, total: 100, bytesPerSecond: 10 },
+      });
+    });
+
+    expect(await screen.findByLabelText('正在下载更新，已完成 53%。')).toBeTruthy();
+  });
+
   it('opens localized website links through the desktop bridge', async () => {
     const desktop = installDesktopAboutApi();
 

@@ -169,7 +169,12 @@ export function UpdateReleaseDialog({
     }
     // 下载完成停留在「重启安装」态；点击触发安装。其余情况触发下载，下载进度在弹窗内推进，不关闭弹窗。
     if (downloadStatus === 'downloaded') {
-      void getDesktopApi().updates.install();
+      void (async () => {
+        if (updateState?.simulation === 'development') {
+          await onSaveSettings({ ...settingsRef.current, lastSeenVersion: '0.0.0' });
+        }
+        await getDesktopApi().updates.install();
+      })();
       return;
     }
     void getDesktopApi().updates.download();

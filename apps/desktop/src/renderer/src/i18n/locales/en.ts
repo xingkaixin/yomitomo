@@ -391,10 +391,10 @@ export const enResources = {
       },
       dev: {
         simulateAfter: 'Simulate version update (after-update dialog)',
-        simulateBefore: 'Simulate new version (before-update dialog)',
+        simulateBefore: 'Simulate full update flow (about 15s)',
         simulateAuto: 'Simulate auto-check hit (badge only)',
         resetDone: 'Update marker reset. Restart the app to preview the updated dialog.',
-        hint: 'Development only: reset for after-update preview, or trigger before-update immediately.',
+        hint: 'Start the full flow, dismiss the download to the background, then confirm the simulated restart when ready.',
       },
       loading: 'Loading',
       updateAction: {
@@ -412,7 +412,7 @@ export const enResources = {
         checking: 'Checking for a new version.',
         available: 'Found {{version}}. It is ready to download and install.',
         notAvailable: 'You are on the latest version.',
-        downloading: 'Downloading update, {{percent}} complete.',
+        downloading: 'Downloading update, {{percent}}% complete.',
         downloadError: 'Failed to download the update. You can retry now.',
         downloaded: 'Update downloaded. Restart the app to finish installing.',
         error: 'Update failed. Try again later.',
