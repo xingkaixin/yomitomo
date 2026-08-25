@@ -5,6 +5,9 @@ const electronMocks = vi.hoisted(() => ({
     getVersion: vi.fn(() => '1.2.3-test'),
     isPackaged: true,
   },
+  browserWindow: {
+    webContents: { reload: vi.fn() },
+  },
 }));
 
 const updaterMocks = vi.hoisted(() => {
@@ -34,6 +37,10 @@ const loggerMocks = vi.hoisted(() => ({
 
 vi.mock('electron', () => ({
   app: electronMocks.app,
+  BrowserWindow: {
+    getAllWindows: vi.fn(() => [electronMocks.browserWindow]),
+    getFocusedWindow: vi.fn(() => electronMocks.browserWindow),
+  },
 }));
 
 vi.mock('electron-updater', () => ({
@@ -57,6 +64,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   if (originalPlatformDescriptor) {
     Object.defineProperty(process, 'platform', originalPlatformDescriptor);
   }
@@ -231,6 +239,39 @@ describe('app updater state machine', () => {
     );
   });
 
+  it('keeps download context after a failure and allows retrying', async () => {
+    const updater = await loadUpdater();
+    updater.configureAppUpdater(vi.fn());
+    emitUpdaterEvent('update-available', {
+      releaseDate: '2026-06-18T00:00:00.000Z',
+      releaseName: 'Yomitomo 1.2.4',
+      version: '1.2.4',
+    });
+    updaterMocks.autoUpdater.downloadUpdate
+      .mockRejectedValueOnce(new Error('connection reset'))
+      .mockImplementationOnce(async () => {
+        emitUpdaterEvent('update-downloaded', {
+          releaseDate: '2026-06-18T00:00:00.000Z',
+          releaseName: 'Yomitomo 1.2.4',
+          version: '1.2.4',
+        });
+      });
+
+    await expect(updater.downloadAppUpdate()).resolves.toEqual({
+      status: 'download-error',
+      currentVersion: '1.2.3-test',
+      availableVersion: '1.2.4',
+      releaseName: 'Yomitomo 1.2.4',
+      releaseDate: '2026-06-18T00:00:00.000Z',
+      message: 'connection reset',
+    });
+    await expect(updater.downloadAppUpdate()).resolves.toMatchObject({
+      status: 'downloaded',
+      availableVersion: '1.2.4',
+    });
+    expect(updaterMocks.autoUpdater.downloadUpdate).toHaveBeenCalledTimes(2);
+  });
+
   it('tags the available state with the originating check trigger', async () => {
     const updater = await loadUpdater();
     updater.configureAppUpdater(vi.fn());
@@ -259,8 +300,48 @@ describe('app updater state machine', () => {
 
     expect(updater.simulateUpdateAvailable('auto')).toMatchObject({
       status: 'available',
+      simulation: 'development',
       trigger: 'auto',
     });
+  });
+
+  it('simulates download progress and an application restart in dev', async () => {
+    vi.useFakeTimers();
+    setPlatform('linux');
+    electronMocks.app.isPackaged = false;
+    const updater = await loadUpdater();
+    const notify = vi.fn();
+    updater.configureAppUpdater(notify);
+    updater.simulateUpdateAvailable('manual');
+
+    const download = updater.downloadAppUpdate();
+    expect(updater.getAppUpdateState()).toMatchObject({
+      status: 'downloading',
+      progress: { percent: 0, transferred: 0, total: 0, bytesPerSecond: 0 },
+      simulation: 'development',
+    });
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(updater.getAppUpdateState()).toMatchObject({
+      status: 'downloading',
+      progress: {
+        transferred: 10 * 1024 * 1024,
+        total: 150 * 1024 * 1024,
+        bytesPerSecond: 10 * 1024 * 1024,
+      },
+      simulation: 'development',
+    });
+
+    await vi.runAllTimersAsync();
+    await expect(download).resolves.toMatchObject({
+      status: 'downloaded',
+      simulation: 'development',
+    });
+    expect(updaterMocks.autoUpdater.downloadUpdate).not.toHaveBeenCalled();
+
+    expect(updater.installAppUpdate()).toMatchObject({ status: 'idle' });
+    expect(electronMocks.browserWindow.webContents.reload).toHaveBeenCalledOnce();
+    expect(updaterMocks.autoUpdater.quitAndInstall).not.toHaveBeenCalled();
   });
 
   it('installs only after an update has been downloaded', async () => {
@@ -294,6 +375,7 @@ async function loadUpdater() {
 function resetMocks() {
   electronMocks.app.getVersion.mockReturnValue('1.2.3-test');
   electronMocks.app.isPackaged = true;
+  electronMocks.browserWindow.webContents.reload.mockReset();
   updaterMocks.listeners.clear();
   updaterMocks.autoUpdater.allowPrerelease = true;
   updaterMocks.autoUpdater.autoDownload = true;

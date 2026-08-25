@@ -163,13 +163,59 @@
   border-color: var(--app-action-primary-border);
 }
 
-.update-dialog-button.is-primary:hover {
+.update-dialog-button.is-primary:not(.is-progress):hover {
   background: var(--app-action-primary-hover-bg);
 }
 
 .update-dialog-button.is-primary:disabled {
   background: var(--app-action-primary-disabled-bg);
   color: var(--app-action-primary-disabled-fg);
+}
+
+.update-dialog-button.is-progress {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
+  overflow: hidden;
+  padding-block: 7px;
+  background: var(--app-action-primary-disabled-bg);
+}
+
+.update-dialog-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--app-action-primary-bg);
+  transition: width 0.2s linear;
+}
+
+.update-dialog-progress-copy {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.25;
+}
+
+.update-dialog-progress-copy.is-base {
+  color: var(--app-action-primary-disabled-fg);
+}
+
+.update-dialog-progress-copy.is-filled {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  justify-content: center;
+  color: var(--app-action-primary-fg);
+  transition: clip-path 0.2s linear;
+}
+
+.update-dialog-progress-details {
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0.82;
 }
 
 .update-dialog-button.is-ghost {

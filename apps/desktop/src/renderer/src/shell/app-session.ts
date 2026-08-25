@@ -54,7 +54,9 @@ export function appNavigationReducer(
       }
       return { surface: event.surface };
     case 'set-reader-open':
-      return state.surface === 'library' ? { ...state, readerOpen: event.open } : state;
+      return state.surface === 'library' && state.readerOpen !== event.open
+        ? { ...state, readerOpen: event.open }
+        : state;
     case 'open-article':
       return {
         pendingOpenArticle: event.target,

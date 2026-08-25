@@ -1,4 +1,4 @@
-import { app } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import electronUpdater, {
   type ProgressInfo,
   type UpdateDownloadedEvent,
@@ -9,6 +9,9 @@ import type { AppUpdateState, AppUpdateTrigger } from '../../app-update-types';
 import { logError, logInfo } from './logger';
 
 const { autoUpdater } = electronUpdater;
+const DEVELOPMENT_DOWNLOAD_TOTAL = 150 * 1024 * 1024;
+const DEVELOPMENT_DOWNLOAD_SPEED = 10 * 1024 * 1024;
+const DEVELOPMENT_DOWNLOAD_TICK_MS = 1_000;
 
 let updateState: AppUpdateState = {
   status: 'idle',
@@ -61,10 +64,14 @@ export function configureAppUpdater(notify: (state: AppUpdateState) => void) {
   });
   autoUpdater.on('error', (error) => {
     logError('updater.error', error);
-    setUpdateState({
-      status: 'error',
-      message: error.message || 'UPDATE_FAILED',
-    });
+    setUpdateState(
+      updateState.status === 'downloading'
+        ? downloadErrorState(error.message || 'UPDATE_DOWNLOAD_FAILED')
+        : {
+            status: 'error',
+            message: error.message || 'UPDATE_FAILED',
+          },
+    );
   });
 }
 
@@ -76,12 +83,14 @@ export function getAppUpdateState() {
 // 触发更新前弹窗（A 场景）走与生产一致的 onUpdateStatus 链路。仅开发环境生效。
 export function simulateUpdateAvailable(trigger: AppUpdateTrigger = 'manual') {
   if (app.isPackaged) return updateState;
+  if (downloadPromise) return updateState;
   pendingTrigger = trigger;
   return setUpdateState({
     status: 'available',
     availableVersion: app.getVersion(),
     checkedAt: new Date().toISOString(),
     trigger,
+    simulation: 'development',
   });
 }
 
@@ -112,7 +121,7 @@ export async function downloadAppUpdate() {
   if (unsupported) return setUpdateState(unsupported);
   if (downloadPromise) return downloadPromise;
   if (updateState.status === 'downloaded') return updateState;
-  if (updateState.status !== 'available') {
+  if (updateState.status !== 'available' && updateState.status !== 'download-error') {
     return setUpdateState({
       status: 'error',
       message: 'UPDATE_CHECK_REQUIRED',
@@ -124,6 +133,7 @@ export async function downloadAppUpdate() {
     availableVersion: updateState.availableVersion,
     releaseName: updateState.releaseName,
     releaseDate: updateState.releaseDate,
+    ...simulationState(),
     progress: {
       percent: 0,
       transferred: 0,
@@ -132,16 +142,18 @@ export async function downloadAppUpdate() {
     },
   });
 
-  downloadPromise = autoUpdater
-    .downloadUpdate()
+  const download =
+    updateState.simulation === 'development' && !app.isPackaged
+      ? simulateDevelopmentDownload()
+      : autoUpdater.downloadUpdate();
+
+  downloadPromise = download
     .then(() => updateState)
     .catch((error: unknown) => {
       logError('updater.download-failed', error);
-      return setUpdateState({
-        status: 'error',
-        availableVersion: updateState.availableVersion,
-        message: errorMessageOrFallback(error, 'UPDATE_DOWNLOAD_FAILED'),
-      });
+      return setUpdateState(
+        downloadErrorState(errorMessageOrFallback(error, 'UPDATE_DOWNLOAD_FAILED')),
+      );
     })
     .finally(() => {
       downloadPromise = null;
@@ -161,11 +173,20 @@ export function installAppUpdate() {
   }
 
   logInfo('updater.install', { version: updateState.availableVersion });
+  if (updateState.simulation === 'development' && !app.isPackaged) {
+    logInfo('updater.simulation.restart', { version: updateState.availableVersion });
+    const nextState = setUpdateState({ status: 'idle' });
+    const targetWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+    targetWindow?.webContents.reload();
+    return nextState;
+  }
   autoUpdater.quitAndInstall(false, true);
   return updateState;
 }
 
 function supportedState(): AppUpdateState | null {
+  if (!app.isPackaged && updateState.simulation === 'development') return null;
+
   if (process.platform !== 'darwin' && process.platform !== 'win32') {
     return {
       status: 'unsupported',
@@ -212,6 +233,7 @@ function downloadProgressState(progress: ProgressInfo): AppUpdateState {
     availableVersion: updateState.availableVersion,
     releaseName: updateState.releaseName,
     releaseDate: updateState.releaseDate,
+    ...simulationState(),
     progress: {
       percent: progress.percent,
       transferred: progress.transferred,
@@ -219,6 +241,59 @@ function downloadProgressState(progress: ProgressInfo): AppUpdateState {
       bytesPerSecond: progress.bytesPerSecond,
     },
   };
+}
+
+function downloadErrorState(message: string): AppUpdateState {
+  return {
+    status: 'download-error',
+    currentVersion: app.getVersion(),
+    availableVersion: updateState.availableVersion,
+    releaseName: updateState.releaseName,
+    releaseDate: updateState.releaseDate,
+    message,
+    ...simulationState(),
+  };
+}
+
+function simulationState(): Partial<Pick<AppUpdateState, 'simulation'>> {
+  return updateState.simulation ? { simulation: updateState.simulation } : {};
+}
+
+async function simulateDevelopmentDownload() {
+  logInfo('updater.simulation.download-started', {
+    total: DEVELOPMENT_DOWNLOAD_TOTAL,
+    bytesPerSecond: DEVELOPMENT_DOWNLOAD_SPEED,
+  });
+  for (
+    let transferred = DEVELOPMENT_DOWNLOAD_SPEED;
+    transferred < DEVELOPMENT_DOWNLOAD_TOTAL;
+    transferred += DEVELOPMENT_DOWNLOAD_SPEED
+  ) {
+    await delay(DEVELOPMENT_DOWNLOAD_TICK_MS);
+    setUpdateState(
+      downloadProgressState({
+        percent: (transferred / DEVELOPMENT_DOWNLOAD_TOTAL) * 100,
+        transferred,
+        total: DEVELOPMENT_DOWNLOAD_TOTAL,
+        bytesPerSecond: DEVELOPMENT_DOWNLOAD_SPEED,
+        delta: DEVELOPMENT_DOWNLOAD_SPEED,
+      }),
+    );
+  }
+  await delay(DEVELOPMENT_DOWNLOAD_TICK_MS);
+  logInfo('updater.simulation.download-completed', { total: DEVELOPMENT_DOWNLOAD_TOTAL });
+  return setUpdateState({
+    status: 'downloaded',
+    availableVersion: updateState.availableVersion,
+    releaseName: updateState.releaseName,
+    releaseDate: updateState.releaseDate,
+    checkedAt: new Date().toISOString(),
+    simulation: 'development',
+  });
+}
+
+function delay(milliseconds: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function updateDownloadedState(event: UpdateDownloadedEvent): AppUpdateState {

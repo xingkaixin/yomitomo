@@ -4,6 +4,7 @@ export type AppUpdateStatus =
   | 'available'
   | 'not-available'
   | 'downloading'
+  | 'download-error'
   | 'downloaded'
   | 'error'
   | 'unsupported';
@@ -27,4 +28,5 @@ export type AppUpdateState = {
   message?: string;
   progress?: AppUpdateProgress;
   trigger?: AppUpdateTrigger;
+  simulation?: 'development';
 };

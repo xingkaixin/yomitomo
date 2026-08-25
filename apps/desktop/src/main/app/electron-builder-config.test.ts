@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 const require = createRequire(import.meta.url);
 const builderConfig = require('../../../electron-builder.config.cjs') as {
   npmRebuild?: boolean;
-  publish?: Array<{ provider?: string; url?: string }>;
+  publish?: Array<{ provider?: string; url?: string; useMultipleRangeRequest?: boolean }>;
 };
 
 describe('electron builder config', () => {
@@ -12,6 +12,7 @@ describe('electron builder config', () => {
     expect(builderConfig.publish?.[0]).toMatchObject({
       provider: 'generic',
       url: 'https://download.yomitomo.app/updates/',
+      useMultipleRangeRequest: false,
     });
   });
 

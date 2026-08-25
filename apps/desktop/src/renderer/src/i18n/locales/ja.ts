@@ -280,15 +280,26 @@ export const jaResources = {
       },
       afterBadge: '更新されました',
       beforeBadge: '新しいバージョンが利用可能になりました',
+      readyBadge: 'アップデートの準備ができました',
       afterLeadWithHighlights: 'Yomitomoが更新されました。このリリースでは以下がもたらされます。',
       afterLead: 'Yomitomoが最新バージョンにアップデートされました。',
       beforeLeadWithHighlights: '新しいバージョンが利用可能です。ハイライト:',
       beforeLead: '新しいバージョンが利用可能です。最新のエクスペリエンスを更新します。',
+      readyLead:
+        'アップデートのダウンロードが完了しました。今すぐ再起動するか、後で終了するときに自動的にインストールできます。',
       tagline: '新しいページへ',
       start: '使用を開始する',
       later: '後で',
+      backgroundDownload: 'バックグラウンドでダウンロード',
+      restartLater: '後で再起動',
       updateNow: '今すぐ更新してください',
-      install: '再起動してインストールしてください',
+      install: '再起動して更新',
+      retryDownload: 'ダウンロードを再試行',
+      downloading: 'ダウンロード中 {{percent}}%',
+      preparingDownload: 'ダウンロードを準備中…',
+      progressDetails: '{{transferred}} / {{total}} · {{speed}}/秒',
+      progressDetailsWaitingSpeed: '{{transferred}} / {{total}} · 速度を計算中',
+      progressAria: 'アップデートのダウンロード {{percent}}%、{{details}}',
     },
     about: {
       trailSettings: '設定',
@@ -351,16 +362,17 @@ export const jaResources = {
       },
       dev: {
         simulateAfter: 'バージョンアップデートのシミュレーション（アップデート後ダイアログ）',
-        simulateBefore: '新しいバージョンをシミュレートする（アップデート前ダイアログ）',
+        simulateBefore: '更新フロー全体をシミュレート（約15秒）',
         simulateAuto: '自動チェックヒットのシミュレート (バッジのみ)',
         resetDone:
           'マーカーをリセットしました。アプリを再起動して、更新されたダイアログをプレビューします。',
-        hint: '開発のみ: 更新後のプレビューのためにリセットするか、更新前をすぐにトリガーします。',
+        hint: 'フローを開始してダウンロードをバックグラウンドに移し、完了後に再起動を確認できます。',
       },
       loading: '読み込み中',
       updateAction: {
         check: '更新情報を確認する',
         download: 'アップデートをダウンロード',
+        retryDownload: 'ダウンロードを再試行',
         install: '再起動してインストールしてください',
       },
       updateToast: {
@@ -373,7 +385,8 @@ export const jaResources = {
         available:
           '{{version}} が見つかりました。ダウンロードしてインストールする準備ができました。',
         notAvailable: '最新バージョンを使用しています。',
-        downloading: 'アップデートのダウンロード、{{percent}} 完了しました。',
+        downloading: 'アップデートのダウンロード、{{percent}}% 完了しました。',
+        downloadError: 'アップデートのダウンロードに失敗しました。再試行できます。',
         downloaded:
           'アップデートをダウンロードしました。アプリを再起動してインストールを完了します。',
         error: 'アップデートに失敗しました。後でもう一度試してください。',
@@ -443,6 +456,9 @@ export const jaResources = {
       profile: 'プロフィール設定を開く',
       updateAvailable: 'アップデートが利用可能です',
       updateAvailableTooltip: '新しいバージョンが利用可能です — クリックして更新してください',
+      updateDownloading: 'ダウンロード中 {{percent}}%',
+      updateDownloadingTooltip:
+        '更新のダウンロードは {{percent}}% 完了しました — クリックして詳細を表示',
     },
     distillationLibrary: {
       title: '蒸留',
