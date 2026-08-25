@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
+import { resolveNativeSqliteBinding } from './native-sqlite-version.mjs';
 
 if (process.platform !== 'darwin') process.exit(0);
 
@@ -10,7 +11,7 @@ const desktopRoot = dirname(import.meta.dirname);
 const electronNativeRoot = join(desktopRoot, 'electron-native');
 
 const nativeModules = [
-  electronNativePath('better-sqlite3', 'build/Release/better_sqlite3.node'),
+  resolveNativeSqliteBinding(electronNativePath('better-sqlite3', 'package.json')),
   nativePath('@napi-rs/keyring-darwin-arm64', 'keyring.darwin-arm64.node'),
 ].filter((file) => file && existsSync(file));
 
