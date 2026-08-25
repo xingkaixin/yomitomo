@@ -215,6 +215,7 @@ describe('appNavigationReducer', () => {
     });
     expect(settings).toEqual({ surface: 'settings' });
     expect(appNavigationReducer(settings, { type: 'set-reader-open', open: true })).toBe(settings);
+    expect(appNavigationReducer(reading, { type: 'set-reader-open', open: true })).toBe(reading);
   });
 
   it('moves pending article navigation into the library state', () => {
