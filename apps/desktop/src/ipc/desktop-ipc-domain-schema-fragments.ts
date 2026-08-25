@@ -16,6 +16,7 @@ import {
   type UserProfile,
 } from '@yomitomo/shared';
 import { z } from 'zod';
+import { avatarSchema } from '../ipc-avatar-schema';
 
 const idSchema = z.string().min(1).max(256);
 const timestampSchema = z.string().min(1).max(128);
@@ -46,7 +47,7 @@ const annotationAuthorShapeSchema = z.discriminatedUnion('kind', [
     agentId: idSchema,
     username: z.string().min(1).max(256),
     nickname: z.string().max(256).optional(),
-    avatar: z.string().max(4096).optional(),
+    avatar: avatarSchema.optional(),
     annotationColor: z.string().max(128).optional(),
   }),
   z.object({
@@ -54,7 +55,7 @@ const annotationAuthorShapeSchema = z.discriminatedUnion('kind', [
     userId: idSchema.optional(),
     username: z.string().min(1).max(256),
     nickname: z.string().max(256).optional(),
-    avatar: z.string().max(4096).optional(),
+    avatar: avatarSchema.optional(),
     annotationColor: z.string().max(128).optional(),
   }),
 ]);
@@ -137,7 +138,7 @@ const agentShapeSchema = z.object({
   providerId: idSchema,
   nickname: z.string().max(256),
   username: z.string().min(1).max(256),
-  avatar: z.string().max(4096),
+  avatar: avatarSchema,
   annotationColor: z.string().max(128),
   annotationDensity: z.enum(['low', 'medium', 'high']),
   temperature: z.number().finite(),
@@ -340,7 +341,7 @@ const userPatchSchema = checkedSchema<Partial<UserProfile>>(
     id: idSchema.optional(),
     nickname: z.string().max(256).optional(),
     username: z.string().max(256).optional(),
-    avatar: z.string().max(4096).optional(),
+    avatar: avatarSchema.optional(),
     annotationColor: z.string().max(128).optional(),
     updatedAt: timestampSchema.optional(),
   }),
