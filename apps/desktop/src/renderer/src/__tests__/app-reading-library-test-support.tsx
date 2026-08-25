@@ -305,6 +305,7 @@ export function renderLibrary(
       file: File,
       onProgress?: (progress: number) => void,
     ) => Promise<ArticleImportResult>;
+    onReadingModeChange?: (open: boolean) => void;
     onReadArticle?: (articleId: string) => Promise<ArticleRecord | null>;
     onRemoveCollectionMember?: (collectionId: string, member: ContentRef) => Promise<void>;
     onRenameCollection?: (collectionId: string, name: string) => Promise<void>;
@@ -360,6 +361,7 @@ export function renderLibrary(
       onAddCollectionMembers={options.onAddCollectionMembers || vi.fn()}
       onCreateCollection={options.onCreateCollection || vi.fn()}
       onDeleteCollection={options.onDeleteCollection || vi.fn()}
+      onReadingModeChange={options.onReadingModeChange}
       onRemoveCollectionMember={options.onRemoveCollectionMember || vi.fn()}
       onRenameCollection={options.onRenameCollection || vi.fn()}
       onSaveSettings={options.onSaveSettings}
@@ -371,6 +373,9 @@ export function renderLibrary(
   return Object.assign(view, {
     updateMenuRequest: (menuRequest: AppMenuCommandRequest) => {
       view.rerender(React.cloneElement(library, { menuRequest }));
+    },
+    updateReadingModeChange: (onReadingModeChange: (open: boolean) => void) => {
+      view.rerender(React.cloneElement(library, { onReadingModeChange }));
     },
     remountLibrary: () => {
       view.rerender(React.cloneElement(library, { active: false }));

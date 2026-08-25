@@ -241,12 +241,23 @@ export function ReadingLibrary({
     sortedArticles,
   ]);
 
+  const readingModeOpen = Boolean(
+    (selectedArticle || selectedWeReadBook) && activeShelf === 'source',
+  );
+  const notifyReadingModeChange = React.useEffectEvent((open: boolean) => {
+    onReadingModeChange?.(open);
+  });
+
   useEffect(() => {
-    onReadingModeChange?.(
-      Boolean((selectedArticle || selectedWeReadBook) && activeShelf === 'source'),
-    );
-    return () => onReadingModeChange?.(false);
-  }, [activeShelf, onReadingModeChange, selectedArticle, selectedWeReadBook]);
+    notifyReadingModeChange(readingModeOpen);
+  }, [readingModeOpen]);
+
+  useEffect(
+    () => () => {
+      notifyReadingModeChange(false);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!menuRequest) return;

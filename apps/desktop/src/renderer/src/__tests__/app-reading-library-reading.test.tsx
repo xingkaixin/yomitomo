@@ -422,6 +422,32 @@ describe('ReadingLibrary reading', () => {
     expect(screen.getAllByRole('button', { name: '打开文章：网页文章' }).length).toBeGreaterThan(0);
   });
 
+  it('does not repeat reading mode updates when the callback is recreated', async () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    const initialReadingModeChange = vi.fn();
+    const nextReadingModeChange = vi.fn();
+    const view = renderLibrary([article({ title: '网页文章' })], {
+      onReadingModeChange: initialReadingModeChange,
+    });
+
+    fireEvent.click(screen.getAllByRole('button', { name: '打开文章：网页文章' })[0]);
+    await screen.findByRole('button', { name: '返回阅读库' });
+
+    expect(initialReadingModeChange.mock.calls).toEqual([[false], [true]]);
+
+    view.updateReadingModeChange(nextReadingModeChange);
+
+    expect(initialReadingModeChange.mock.calls).toEqual([[false], [true]]);
+    expect(nextReadingModeChange).not.toHaveBeenCalled();
+  });
+
   it('refreshes the open article when its summary changes externally', async () => {
     vi.stubGlobal(
       'ResizeObserver',
