@@ -5,6 +5,16 @@ sidebar:
   hidden: true
 ---
 
+## 0.14.1
+
+Released: 2026-08-25
+
+- Added Japanese across the desktop app, assistant personas, website, and documentation, with switching between three interface languages.
+- Update downloads continue in the background while the dialog and header keep size and speed visible.
+- Fixed recursive reader updates, annotation and persistence failures, and lost Library import, delete, and query state.
+
+[View 0.14.1 release notes](/en/changelogs/v0-14-1/)
+
 ## 0.14.0
 
 Released: 2026-07-31
