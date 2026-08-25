@@ -60,6 +60,9 @@ export function useReaderAnnotationRail({
   const registerNoteElementRef = React.useRef<
     (annotationId: string, element: HTMLElement | null) => void
   >(() => {});
+  const notifyAnnotationLayoutChange = React.useEffectEvent(() => {
+    onAnnotationLayoutChange?.();
+  });
 
   const visibleAnnotations = filteredAnnotations;
   const visibleAnnotationIds = React.useMemo(
@@ -263,8 +266,8 @@ export function useReaderAnnotationRail({
   );
 
   React.useLayoutEffect(() => {
-    onAnnotationLayoutChange?.();
-  }, [annotationRailItems, noteHeights, onAnnotationLayoutChange]);
+    notifyAnnotationLayoutChange();
+  }, [annotationRailItems, noteHeights]);
 
   return {
     annotationRailItems,

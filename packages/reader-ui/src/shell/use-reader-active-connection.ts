@@ -42,8 +42,12 @@ export function useReaderActiveConnection({
   const [activeConnection, setActiveConnection] = useState<ActiveConnection | null>(null);
 
   const recalculateActiveConnection = useCallback(() => {
+    const clearActiveConnection = () => {
+      if (activeConnection !== null) setActiveConnection(null);
+    };
+
     if (!selectedAnnotationId) {
-      setActiveConnection(null);
+      clearActiveConnection();
       return;
     }
 
@@ -61,7 +65,7 @@ export function useReaderActiveConnection({
       !readerElement ||
       activeBoxes.length === 0
     ) {
-      setActiveConnection(null);
+      clearActiveConnection();
       return;
     }
 
@@ -77,7 +81,7 @@ export function useReaderActiveConnection({
       return Math.abs(leftY - noteY) - Math.abs(rightY - noteY);
     })[0];
     if (!box) {
-      setActiveConnection(null);
+      clearActiveConnection();
       return;
     }
 
@@ -94,7 +98,7 @@ export function useReaderActiveConnection({
     const noteVisible =
       noteRect.bottom >= scrollRect.top + 24 && noteRect.top <= scrollRect.bottom - 24;
     if (!highlightVisible || !noteVisible) {
-      setActiveConnection(null);
+      clearActiveConnection();
       return;
     }
 
@@ -104,6 +108,7 @@ export function useReaderActiveConnection({
       current?.path === path && current.color === color ? current : { path, color },
     );
   }, [
+    activeConnection,
     annotationAgents,
     annotations,
     boxes,

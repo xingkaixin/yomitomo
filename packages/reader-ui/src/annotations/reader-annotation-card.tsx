@@ -202,7 +202,7 @@ export function AnnotationCard({
 
   useLayoutEffect(() => {
     if (!isDualMorph) {
-      setDualMorphHeight(null);
+      if (dualMorphHeight !== null) setDualMorphHeight(null);
       return;
     }
 
@@ -211,8 +211,8 @@ export function AnnotationCard({
         ? dualMorphDistillationRef.current
         : dualMorphAnnotationRef.current;
     const nextHeight = targetElement?.offsetHeight ?? null;
-    if (nextHeight === null) return;
-    setDualMorphHeight((current) => (current === nextHeight ? current : nextHeight));
+    if (nextHeight === null || nextHeight === dualMorphHeight) return;
+    setDualMorphHeight(nextHeight);
   });
 
   const setNoteElement = useCallback(

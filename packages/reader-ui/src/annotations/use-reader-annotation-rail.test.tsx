@@ -235,15 +235,18 @@ describe('useReaderAnnotationRail', () => {
     expect(Array.from(noteRefs.current.keys())).toEqual(['user-note']);
   });
 
-  it('does not notify layout again when rail animation state is unchanged', () => {
+  it('does not notify layout again when only the callback is recreated', () => {
     vi.useFakeTimers();
     const userNote = annotation('user-note');
+    const annotations = [userNote];
+    const boxes: HighlightBox[] = [];
     const noteRefs = createNoteRefs();
     const onAnnotationLayoutChange = vi.fn();
 
-    render(
+    const view = render(
       <HookProbe
-        annotations={[userNote]}
+        annotations={annotations}
+        boxes={boxes}
         noteRefs={noteRefs}
         onAnnotationLayoutChange={onAnnotationLayoutChange}
       />,
@@ -256,6 +259,18 @@ describe('useReaderAnnotationRail', () => {
     });
 
     expect(onAnnotationLayoutChange).toHaveBeenCalledTimes(1);
+
+    const nextAnnotationLayoutChange = vi.fn();
+    view.rerender(
+      <HookProbe
+        annotations={annotations}
+        boxes={boxes}
+        noteRefs={noteRefs}
+        onAnnotationLayoutChange={nextAnnotationLayoutChange}
+      />,
+    );
+
+    expect(nextAnnotationLayoutChange).not.toHaveBeenCalled();
   });
 
   it('uses ResizeObserver instead of synchronous mount measurement when available', () => {
