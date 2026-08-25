@@ -1,0 +1,35 @@
+{
+  "version": "0.14.1",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "Read Yomitomo in Japanese",
+      "description": "Readers who prefer Japanese can switch to 日本語 in Settings. The app, assistant personas, website help, and release notes change together.",
+      "audience": "settings"
+    },
+    {
+      "type": "changed",
+      "title": "Leave update downloads in the background",
+      "description": "Downloads show transferred size, total size, and live speed. Close the dialog and work continues; the header entry can reopen progress at any time.",
+      "audience": "settings"
+    },
+    {
+      "type": "fixed",
+      "title": "Library failures keep your place",
+      "description": "When an import, delete, search, or collection switch fails, existing articles and the dialog you were using stay in place so you can continue after recovery.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "Annotations and conversations save reliably",
+      "description": "Nested replies, comment edits, distillation commits, and reading progress now recover correctly from concurrent or failed saves instead of being replaced by stale content.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "Long reading sessions stay steady",
+      "description": "Reader updates no longer trigger themselves repeatedly, Library queries do less duplicate work, and assistant avatars using inline images render correctly.",
+      "audience": "reader"
+    }
+  ]
+}

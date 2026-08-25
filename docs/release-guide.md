@@ -6,7 +6,7 @@
 
 - **版本区间**：以 `git tag vX.Y.Z` 为界，用 `git log vPREV..HEAD --oneline --no-merges` 核对变更，避免只写 milestone 中途草稿而漏掉后续迭代。
 - **用户向 vs 工程向**：根目录 `CHANGELOG*.md` 与官网 changelog 面向用户；工程条目可写进 CHANGELOG 的 Engineering，不必全部塞进更新弹窗 JSON。
-- **双语**：中文默认路径与 `en/` 英文路径成对维护（文档、changelog、release-notes JSON）。
+- **多语言**：根目录 changelog 维护中英文；官网文档、changelog 与 release-notes JSON 同步维护 `zh-CN`、`en`、`ja` 三种语言。
 - **发布日**：各处的「发布日期 / Released」与计划打 tag 的日期一致（例如与 `HEAD` 提交日或约定发布日对齐）。
 
 ## 发布前检查（代码）
@@ -76,14 +76,19 @@ pnpm deploy:download
 | 项目 README | `README.md`, `README_zh.md` | 核心能力等与当前产品一致即可，不必复述整份 changelog |
 | 官网 changelog 索引 | `apps/web/src/content/docs/changelogs/index.md` | 摘要 + 发布日期 |
 | 官网 changelog 索引（英） | `apps/web/src/content/docs/en/changelogs/index.md` | 同上 |
+| 官网 changelog 索引（日） | `apps/web/src/content/docs/ja/changelogs/index.md` | 同上 |
 | 官网 changelog 详情 | `apps/web/src/content/docs/changelogs/v0-X-Y-Z.md` | 可从根 CHANGELOG 精简 |
 | 官网 changelog 详情（英） | `apps/web/src/content/docs/en/changelogs/v0-X-Y-Z.md` | 同上 |
+| 官网 changelog 详情（日） | `apps/web/src/content/docs/ja/changelogs/v0-X-Y-Z.md` | 同上 |
 | 帮助文档（中） | `apps/web/src/content/docs/docs/*.md` | 按功能变更按需改 `index`、`reader`、`settings`、`library`、`stats-and-faq` 等 |
 | 帮助文档（英） | `apps/web/src/content/docs/en/docs/*.md` | 与中文页面对齐 |
-| 更新弹窗（打包进应用） | `apps/desktop/resources/release-notes/zh-CN/X.Y.Z.json` | 短亮点，，`audience`: `reader` / `settings` |
+| 帮助文档（日） | `apps/web/src/content/docs/ja/docs/*.md` | 与中文页面对齐 |
+| 更新弹窗（打包进应用） | `apps/desktop/resources/release-notes/zh-CN/X.Y.Z.json` | 短亮点，`audience`: `reader` / `settings` |
 | 更新弹窗（打包进应用） | `apps/desktop/resources/release-notes/en/X.Y.Z.json` | 同上 |
+| 更新弹窗（打包进应用） | `apps/desktop/resources/release-notes/ja/X.Y.Z.json` | 同上 |
 | 更新弹窗（官网 CDN） | `apps/web/public/release-notes/zh-CN/X.Y.Z.json` | **与 desktop resources 内容保持一致** |
 | 更新弹窗（官网 CDN） | `apps/web/public/release-notes/en/X.Y.Z.json` | 同上 |
+| 更新弹窗（官网 CDN） | `apps/web/public/release-notes/ja/X.Y.Z.json` | 同上 |
 
 ### release-notes JSON 约定
 
@@ -101,6 +106,7 @@ pnpm deploy:download
 ```bash
 cp apps/desktop/resources/release-notes/zh-CN/X.Y.Z.json apps/web/public/release-notes/zh-CN/X.Y.Z.json
 cp apps/desktop/resources/release-notes/en/X.Y.Z.json apps/web/public/release-notes/en/X.Y.Z.json
+cp apps/desktop/resources/release-notes/ja/X.Y.Z.json apps/web/public/release-notes/ja/X.Y.Z.json
 ```
 
 ## 发布后：Download Worker Smoke Check

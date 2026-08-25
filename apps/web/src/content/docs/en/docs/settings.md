@@ -50,7 +50,7 @@ Assistant execution mode applies globally to reader annotations, follow-up quest
 
 ## Language
 
-In Settings > General you can switch the UI language (for example Simplified Chinese and English). App UI, assistant persona copy, and many prompts follow the selected language.
+In Settings > General you can switch the UI language between Simplified Chinese, English, and Japanese. App UI, assistant persona copy, and many prompts follow the selected language.
 
 ## Theme and Reader Paper
 
@@ -78,7 +78,7 @@ Settings > General can allow or block web-article import access to localhost, pr
 
 ## App Updates
 
-Yomitomo supports update flows on macOS and Windows. The app checks for new versions automatically after startup, then silently every 24 hours. When an update is available it does not open a dialog to interrupt reading; instead a "Update available" badge appears in the top navigation, and clicking it opens Settings > About to download and install. You can also check manually with "Check for updates" in Settings > About. When an update is available, release notes for that version are shown (fetched from the website before update, bundled locally after update). Public macOS installers are signed and notarized.
+Yomitomo supports update flows on macOS and Windows. The app checks for new versions automatically after startup, then silently every 24 hours. When an update is available it does not open a dialog to interrupt reading; instead an "Update available" badge appears in the top navigation, and clicking it opens Settings > About to download and install. The download button shows transferred size, total size, and live speed. Closing the dialog leaves the download running in the background, and the header badge can reopen its progress at any time. When the download finishes, Yomitomo asks whether to restart now; choosing later lets you keep working and installs the update after a normal quit. You can also check manually with "Check for updates" in Settings > About. When an update is available, release notes for that version are shown (fetched from the website before update, bundled locally after update). Public macOS installers are signed and notarized.
 
 ## Privacy and Telemetry
 

@@ -1,0 +1,35 @@
+{
+  "version": "0.14.1",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "现在可以用日文阅读",
+      "description": "习惯日文界面的读者，现在可以在设置中切换日本語；应用界面、助手角色、官网帮助与更新说明会一起切换。",
+      "audience": "settings"
+    },
+    {
+      "type": "changed",
+      "title": "更新下载不必一直守着弹窗",
+      "description": "下载时会显示已完成大小、总大小和实时速度。关掉弹窗也会在后台继续，顶部入口随时能找回进度。",
+      "audience": "settings"
+    },
+    {
+      "type": "fixed",
+      "title": "书库操作失败时不再丢现场",
+      "description": "导入、删除、搜索或切换合集遇到失败时，原文章和正在使用的弹窗会保留下来，修复后可以从刚才的位置继续。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "批注与对话保存更可靠",
+      "description": "嵌套回复、评论修改、沉淀提交和阅读进度在并发或保存失败时会正确恢复，不会被旧内容覆盖。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "长时间阅读更稳定",
+      "description": "停止可能反复触发的阅读器更新，减少书库重复查询，并修复内联图片助手头像无法显示的问题。",
+      "audience": "reader"
+    }
+  ]
+}

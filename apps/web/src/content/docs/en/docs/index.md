@@ -21,7 +21,7 @@ Yomitomo is a local-first AI reading companion for desktop. It does not read ins
 4. Assign task routes for reading assistants and review assistants.
 5. Return to the Library and import a web article, EPUB/AZW3/MOBI ebook, or PDF document.
 
-You can switch the app language in Settings. Website docs are available in [Chinese](/docs/) and [English](/en/docs/). To sync highlights, thoughts, and reading progress from WeRead, first read "[Get a WeRead API Key](/en/docs/weread-api-key/)".
+You can switch the app language in Settings. Website docs are available in [Chinese](/docs/), [English](/en/docs/), and [Japanese](/ja/docs/). To sync highlights, thoughts, and reading progress from WeRead, first read "[Get a WeRead API Key](/en/docs/weread-api-key/)".
 
 ## Product Areas
 
