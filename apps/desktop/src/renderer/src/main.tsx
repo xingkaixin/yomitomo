@@ -1,5 +1,5 @@
 import { HugeiconsIcon } from '@hugeicons/react';
-import { LockKeyIcon, PartyIcon } from '@hugeicons/core-free-icons';
+import { LockKeyIcon } from '@hugeicons/core-free-icons';
 import { Suspense, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { AppSettingsPatch } from '@yomitomo/shared';
@@ -37,6 +37,7 @@ import { AnnotationSedimentationWindowApp } from './annotation-discussion/app-an
 import { ThemeSelector } from './theme/app-theme-selector';
 import { useReaderThemeController } from './theme/use-reader-theme-controller';
 import { UpdateReleaseDialog } from './shell/app-update-dialog';
+import { AppUpdateNavButton } from './shell/app-update-nav-button';
 import { useAppUpdateState } from './shell/use-app-update-state';
 import { changeAppI18nLanguage, initializeAppI18n } from './i18n/app-i18n';
 import { readCachedUiLanguage, writeCachedUiLanguage } from './i18n/app-language-cache';
@@ -98,12 +99,6 @@ function ReadyApp({
   theme: ReturnType<typeof useReaderThemeController>;
 }) {
   const { t } = useTranslation();
-  const updateReady =
-    appUpdateState?.status === 'available' ||
-    appUpdateState?.status === 'downloading' ||
-    appUpdateState?.status === 'download-error' ||
-    appUpdateState?.status === 'downloaded';
-
   const { store, settingsSyncSnapshot, storeRef, applyStore, applySettingsPatch, articleStore } =
     storeState;
   const appLockEnabled = store.settings.appLockEnabled;
@@ -201,18 +196,10 @@ function ReadyApp({
                 />
               </div>
               <div className="app-section-actions">
-                {updateReady ? (
-                  <button
-                    type="button"
-                    className="app-nav-update-button"
-                    aria-label={t('nav.updateAvailableTooltip')}
-                    data-tooltip={t('nav.updateAvailableTooltip')}
-                    onClick={session.actions.requestUpdateDialog}
-                  >
-                    <HugeiconsIcon icon={PartyIcon} aria-hidden="true" size={13} />
-                    {t('nav.updateAvailable')}
-                  </button>
-                ) : null}
+                <AppUpdateNavButton
+                  state={appUpdateState}
+                  onClick={session.actions.requestUpdateDialog}
+                />
                 {lockEnabled ? (
                   <button
                     aria-label={t('appLock.lockNow', { shortcut: shortcutLabel })}

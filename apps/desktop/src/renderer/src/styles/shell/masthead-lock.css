@@ -166,10 +166,12 @@
 }
 
 .app-nav-update-button {
+  position: relative;
+  isolation: isolate;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
   height: 28px;
+  overflow: hidden;
   padding: 0 11px;
   border: 1px solid hsl(var(--foreground) / 0.18);
   border-radius: 999px;
@@ -186,6 +188,32 @@
     transform 150ms ease;
 }
 
+.app-nav-update-button::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--app-interactive-selected-bg);
+  content: '';
+  transform: scaleX(var(--app-nav-update-progress, 0));
+  transform-origin: left center;
+  transition: transform 180ms linear;
+}
+
+.app-nav-update-button-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.app-nav-update-button[data-downloading='true'] {
+  border-color: var(--app-interactive-selected-border);
+  color: var(--app-interactive-selected-fg);
+  font-variant-numeric: tabular-nums;
+  min-width: 88px;
+  justify-content: center;
+}
+
 .app-nav-update-button:hover,
 .app-nav-update-button:focus-visible {
   background-color: var(--app-interactive-hover-bg);
@@ -195,6 +223,12 @@
 
 .app-nav-update-button:active {
   transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-nav-update-button::before {
+    transition: none;
+  }
 }
 
 .app-nav-lock-button,

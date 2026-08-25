@@ -469,6 +469,8 @@ export const zhCNResources = {
       profile: '个人设置',
       updateAvailable: '有新版本',
       updateAvailableTooltip: '有新版本可更新，点击前往更新',
+      updateDownloading: '下载中 {{percent}}%',
+      updateDownloadingTooltip: '正在后台下载更新，已完成 {{percent}}%，点击查看详情',
     },
     distillationLibrary: {
       title: '沉淀',

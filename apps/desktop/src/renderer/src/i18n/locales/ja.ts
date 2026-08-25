@@ -456,6 +456,9 @@ export const jaResources = {
       profile: 'プロフィール設定を開く',
       updateAvailable: 'アップデートが利用可能です',
       updateAvailableTooltip: '新しいバージョンが利用可能です — クリックして更新してください',
+      updateDownloading: 'ダウンロード中 {{percent}}%',
+      updateDownloadingTooltip:
+        '更新のダウンロードは {{percent}}% 完了しました — クリックして詳細を表示',
     },
     distillationLibrary: {
       title: '蒸留',

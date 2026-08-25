@@ -482,6 +482,8 @@ export const enResources = {
       profile: 'Open profile settings',
       updateAvailable: 'Update available',
       updateAvailableTooltip: 'A new version is available — click to update',
+      updateDownloading: 'Downloading {{percent}}%',
+      updateDownloadingTooltip: 'Update download is {{percent}}% complete — click for details',
     },
     distillationLibrary: {
       title: 'Distillations',
