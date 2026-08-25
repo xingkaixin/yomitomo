@@ -43,6 +43,31 @@ export function assertNativeSqliteVersionAligned() {
   return expected;
 }
 
+export function resolveNativeSqliteBinding(packagePath) {
+  const packageRoot = dirname(packagePath);
+  const bindingResolverPath = join(packageRoot, 'lib', 'binding.js');
+  const candidates = [];
+
+  if (existsSync(bindingResolverPath)) {
+    const bindingResolver = createRequire(packagePath)(bindingResolverPath);
+    if (typeof bindingResolver.getPrebuildPath === 'function') {
+      candidates.push(bindingResolver.getPrebuildPath());
+    }
+  }
+
+  candidates.push(
+    join(packageRoot, 'build', 'Debug', 'better_sqlite3.node'),
+    join(packageRoot, 'build', 'Release', 'better_sqlite3.node'),
+  );
+
+  const bindingPath = candidates.find((candidate) => candidate && existsSync(candidate));
+  if (bindingPath) return bindingPath;
+
+  throw new Error(
+    `${PACKAGE_NAME} native addon is missing for ${process.platform}-${process.arch}: ${packageRoot}`,
+  );
+}
+
 function readInstalledVersion() {
   if (!existsSync(electronNativeInstallPath)) {
     throw new Error(

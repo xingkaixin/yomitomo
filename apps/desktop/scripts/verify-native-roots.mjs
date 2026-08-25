@@ -2,7 +2,10 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
-import { assertNativeSqliteVersionAligned } from './native-sqlite-version.mjs';
+import {
+  assertNativeSqliteVersionAligned,
+  resolveNativeSqliteBinding,
+} from './native-sqlite-version.mjs';
 
 const desktopRoot = dirname(import.meta.dirname);
 const requireFromDesktop = createRequire(join(desktopRoot, 'package.json'));
@@ -15,11 +18,7 @@ verifyBuilderConfig();
 
 function verifyNodeRoot() {
   const packagePath = requireFromDesktop.resolve('better-sqlite3/package.json');
-  const addonPath = join(dirname(packagePath), 'build/Release/better_sqlite3.node');
-
-  if (!existsSync(addonPath)) {
-    throw new Error(`Workspace better-sqlite3 native addon is missing: ${addonPath}`);
-  }
+  const addonPath = resolveNativeSqliteBinding(packagePath);
 
   smokeSQLite(requireFromDesktop('better-sqlite3'));
   console.log(`verified workspace better-sqlite3: ${addonPath}`);
@@ -29,10 +28,7 @@ function verifyElectronRoot() {
   const packagePath = join(electronNativeRoot, 'node_modules/better-sqlite3/package.json');
   const bindingsPath = join(electronNativeRoot, 'node_modules/bindings/package.json');
   const fileUriPath = join(electronNativeRoot, 'node_modules/file-uri-to-path/package.json');
-  const addonPath = join(
-    electronNativeRoot,
-    'node_modules/better-sqlite3/build/Release/better_sqlite3.node',
-  );
+  const addonPath = resolveNativeSqliteBinding(packagePath);
 
   if (!existsSync(bindingsPath)) {
     throw new Error(`Electron native root is missing bindings: ${bindingsPath}`);
@@ -40,10 +36,6 @@ function verifyElectronRoot() {
   if (!existsSync(fileUriPath)) {
     throw new Error(`Electron native root is missing file-uri-to-path: ${fileUriPath}`);
   }
-  if (!existsSync(addonPath)) {
-    throw new Error(`Electron better-sqlite3 native addon is missing: ${addonPath}`);
-  }
-
   const electron = requireFromDesktop('electron');
 
   execFileSync(
