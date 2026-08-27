@@ -97,6 +97,7 @@ export function simulateUpdateAvailable(trigger: AppUpdateTrigger = 'manual') {
 export async function checkForAppUpdates(trigger: AppUpdateTrigger = 'manual') {
   const unsupported = supportedState();
   if (unsupported) return setUpdateState(unsupported);
+  if (downloadPromise || updateState.status === 'downloaded') return updateState;
   if (checkPromise) return checkPromise;
 
   pendingTrigger = trigger;
@@ -119,6 +120,7 @@ export async function checkForAppUpdates(trigger: AppUpdateTrigger = 'manual') {
 export async function downloadAppUpdate() {
   const unsupported = supportedState();
   if (unsupported) return setUpdateState(unsupported);
+  if (checkPromise) await checkPromise;
   if (downloadPromise) return downloadPromise;
   if (updateState.status === 'downloaded') return updateState;
   if (updateState.status !== 'available' && updateState.status !== 'download-error') {

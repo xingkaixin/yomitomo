@@ -175,6 +175,79 @@ describe('app updater state machine', () => {
     expect(loggerMocks.logError).toHaveBeenCalledWith('updater.check-failed', expect.any(Error));
   });
 
+  it('keeps a downloaded update installable when manual and automatic checks are requested', async () => {
+    const updater = await loadUpdater();
+    const notify = vi.fn();
+    updater.configureAppUpdater(notify);
+    emitUpdaterEvent('update-downloaded', { version: '1.2.4' });
+    const downloaded = updater.getAppUpdateState();
+    updaterMocks.autoUpdater.checkForUpdates.mockRejectedValue(new Error('feed unavailable'));
+    notify.mockClear();
+
+    await expect(updater.checkForAppUpdates('auto')).resolves.toEqual(downloaded);
+    await expect(updater.checkForAppUpdates('manual')).resolves.toEqual(downloaded);
+
+    expect(updaterMocks.autoUpdater.checkForUpdates).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
+    expect(updater.installAppUpdate()).toEqual(downloaded);
+    expect(updaterMocks.autoUpdater.quitAndInstall).toHaveBeenCalledWith(false, true);
+  });
+
+  it('keeps download progress intact when a check is requested', async () => {
+    const updater = await loadUpdater();
+    updater.configureAppUpdater(vi.fn());
+    emitUpdaterEvent('update-available', { version: '1.2.4' });
+    const pendingDownload = createDeferred<void>();
+    updaterMocks.autoUpdater.downloadUpdate.mockReturnValueOnce(pendingDownload.promise);
+    updaterMocks.autoUpdater.checkForUpdates.mockImplementation(async () => {
+      emitUpdaterEvent('checking-for-update');
+      emitUpdaterEvent('update-available', { version: '1.2.5' });
+    });
+    const download = updater.downloadAppUpdate();
+    emitUpdaterEvent('download-progress', {
+      percent: 42,
+      transferred: 42,
+      total: 100,
+      bytesPerSecond: 10,
+    });
+    const downloading = updater.getAppUpdateState();
+    const checked = await updater.checkForAppUpdates('auto');
+    emitUpdaterEvent('update-downloaded', { version: '1.2.4' });
+    pendingDownload.resolve();
+
+    await expect(download).resolves.toMatchObject({
+      status: 'downloaded',
+      availableVersion: '1.2.4',
+    });
+    expect(checked).toEqual(downloading);
+    expect(updaterMocks.autoUpdater.checkForUpdates).not.toHaveBeenCalled();
+  });
+
+  it('waits for an active check before coalescing download requests', async () => {
+    const updater = await loadUpdater();
+    updater.configureAppUpdater(vi.fn());
+    const pendingCheck = createDeferred<void>();
+    const pendingDownload = createDeferred<void>();
+    updaterMocks.autoUpdater.checkForUpdates.mockReturnValueOnce(pendingCheck.promise);
+    updaterMocks.autoUpdater.downloadUpdate.mockReturnValueOnce(pendingDownload.promise);
+    const check = updater.checkForAppUpdates();
+    emitUpdaterEvent('update-available', { version: '1.2.4' });
+
+    const firstDownload = updater.downloadAppUpdate();
+    const secondDownload = updater.downloadAppUpdate();
+    const downloadsBeforeCheckCompleted = updaterMocks.autoUpdater.downloadUpdate.mock.calls.length;
+    pendingCheck.resolve();
+    await check;
+    emitUpdaterEvent('update-downloaded', { version: '1.2.4' });
+    pendingDownload.resolve();
+
+    const downloaded = { status: 'downloaded', availableVersion: '1.2.4' };
+    await expect(firstDownload).resolves.toMatchObject(downloaded);
+    await expect(secondDownload).resolves.toMatchObject(downloaded);
+    expect(downloadsBeforeCheckCompleted).toBe(0);
+    expect(updaterMocks.autoUpdater.downloadUpdate).toHaveBeenCalledOnce();
+  });
+
   it('returns unsupported state without touching electron-updater on unsupported platforms', async () => {
     setPlatform('linux');
     const updater = await loadUpdater();
