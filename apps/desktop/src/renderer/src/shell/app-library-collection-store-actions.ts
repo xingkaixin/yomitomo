@@ -26,7 +26,6 @@ export function useAppCollectionStoreActions({
     (patch: CollectionStorePatch) => {
       const store = requireDesktopStore(storeRef.current);
       const nextStore = applyCollectionStorePatch(store, patch);
-      storeRef.current = nextStore;
       applyStore(nextStore);
     },
     [applyStore, storeRef],
@@ -35,7 +34,6 @@ export function useAppCollectionStoreActions({
     (patch: LibraryPinPatch) => {
       const store = requireDesktopStore(storeRef.current);
       const nextStore = applyLibraryPinPatch(store, patch);
-      storeRef.current = nextStore;
       applyStore(nextStore);
     },
     [applyStore, storeRef],
