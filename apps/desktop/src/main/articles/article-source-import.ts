@@ -3,6 +3,7 @@ import type { ArticleImportResult } from '../../ipc-contract';
 import type { ArticleRecord, ArticleUpsertPatch } from '@yomitomo/shared';
 import type { ArticleIdentity } from './article-repository-columns';
 import type { StagedSourceAssets } from './source-asset-staging';
+import { withArticleSourceOperation } from './article-source-operations';
 
 export type ArticleSourceImportRepository = {
   findArticleByIdentity: (identity: ArticleIdentity) => ArticleIdentity | null;
@@ -20,6 +21,13 @@ export type ArticleSourceImportLifecycleInput = {
 };
 
 export async function importArticleSource(
+  input: ArticleSourceImportLifecycleInput,
+): Promise<ArticleImportResult> {
+  const articleId = input.repository.findArticleByIdentity(input.record)?.id || input.record.id;
+  return withArticleSourceOperation(articleId, () => persistArticleSource(input));
+}
+
+async function persistArticleSource(
   input: ArticleSourceImportLifecycleInput,
 ): Promise<ArticleImportResult> {
   const existingIdentity = input.repository.findArticleByIdentity(input.record);
