@@ -1,16 +1,74 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { AppSettingsPatch } from '@yomitomo/shared';
-import type { LibraryCatalogItemType, LibraryCatalogListResult } from '../../../ipc-contract';
+import type {
+  LibraryCatalogItemType,
+  LibraryCatalogListInput,
+  LibraryCatalogListResult,
+} from '../../../ipc-contract';
 import { useLibraryQuerySession as useLibraryQuerySessionRuntime } from './use-library-query-session';
-import { useLibraryQueryState } from './use-library-query-state';
+import { useLibraryQueryState, type LibraryQueryState } from './use-library-query-state';
 import { normalizeAppSettings } from '../../../settings/app-settings-normalization';
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+});
+
+it.each([60, 14, 0])(
+  'preserves the saved page while remounting, then clamps against %s resolved items',
+  async (totalCount) => {
+    const pending = deferred<LibraryCatalogListResult>();
+    const listCatalog = vi
+      .fn(async (input: LibraryCatalogListInput) => ({
+        ...catalogResult(),
+        page: input.page || 1,
+        totalCount,
+      }))
+      .mockReturnValueOnce(pending.promise);
+    vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listCatalog } } });
+    const view = render(<RestorableQueryHarness showCatalog={false} />);
+    fireEvent.click(screen.getByRole('button', { name: 'page five' }));
+    expect(screen.getByTestId('current-page').textContent).toBe('5');
+
+    view.rerender(<RestorableQueryHarness showCatalog />);
+    expect(screen.getByTestId('catalog-status').textContent).toBe('loading');
+    expect(screen.getByTestId('current-page').textContent).toBe('5');
+    expect(listCatalog).toHaveBeenCalledOnce();
+    expect(listCatalog.mock.calls[0][0].page).toBe(5);
+
+    await act(async () => pending.resolve({ ...catalogResult(), page: 5, totalCount }));
+    const expectedPage = Math.min(5, Math.max(1, Math.ceil(totalCount / 12)));
+    await waitFor(() =>
+      expect(screen.getByTestId('current-page').textContent).toBe(String(expectedPage)),
+    );
+    await waitFor(() => expect(screen.getByTestId('catalog-status').textContent).toBe('ready'));
+  },
+);
+
+it('keeps the saved page when the remounted catalog cannot load', async () => {
+  const pending = deferred<LibraryCatalogListResult>();
+  vi.stubGlobal('yomitomoDesktop', {
+    library: { catalog: { list: vi.fn(() => pending.promise) } },
+  });
+  const view = render(<RestorableQueryHarness showCatalog={false} />);
+  fireEvent.click(screen.getByRole('button', { name: 'page five' }));
+  view.rerender(<RestorableQueryHarness showCatalog />);
+
+  await act(async () => pending.reject(new Error('database busy')));
+
+  expect(screen.getByTestId('catalog-status').textContent).toBe('error');
+  expect(screen.getByTestId('current-page').textContent).toBe('5');
 });
 
 it('derives the catalog input directly from the owned query state', async () => {
@@ -354,6 +412,26 @@ function sessionOptions({
     onSaveSettings,
     settings: normalizeAppSettings(settings),
   };
+}
+
+function RestorableQueryHarness({ showCatalog }: { showCatalog: boolean }) {
+  const query = useLibraryQueryState();
+  return (
+    <>
+      <button onClick={() => query.dispatch({ type: 'page-changed', page: 5 })}>page five</button>
+      <span data-testid="current-page">{query.state.page}</span>
+      {showCatalog ? <RestoredCatalog query={query} /> : null}
+    </>
+  );
+}
+
+function RestoredCatalog({ query }: { query: LibraryQueryState }) {
+  const { catalog } = useLibraryQuerySessionRuntime({
+    ...sessionOptions(),
+    catalogRevision: 0,
+    query,
+  });
+  return <span data-testid="catalog-status">{catalog.status}</span>;
 }
 
 function useLibraryQuerySession(options: ReturnType<typeof sessionOptions>) {
