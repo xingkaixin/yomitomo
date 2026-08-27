@@ -45,6 +45,7 @@ import {
   finalizeArticleTranslationRows,
   initializeArticleTranslationRows,
   readCurrentArticleTranslationRows,
+  recoverInterruptedArticleTranslationRows,
   updateArticleTranslationSegmentRows,
 } from '../articles/article-translation-repository';
 import type { ArticleTranslationIdentity } from '../articles/article-translation-identity';
@@ -116,6 +117,11 @@ export async function finalizeArticleTranslation(input: {
   updatedAt: string;
 }) {
   return finalizeArticleTranslationRows(getDatabase(), input);
+}
+
+/** Stays synchronous so a new session cannot start after the runtime's active-session check. */
+export function recoverInterruptedArticleTranslation(input: ArticleTranslationIdentity) {
+  return recoverInterruptedArticleTranslationRows(getDatabase(), input, new Date().toISOString());
 }
 
 export async function deleteCurrentArticleTranslation(input: ArticleTranslationIdentity) {

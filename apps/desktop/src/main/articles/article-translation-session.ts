@@ -13,6 +13,9 @@ export function createArticleTranslationSessions() {
   const sessions = new Map<string, Session>();
 
   return {
+    has(key: string) {
+      return sessions.has(key);
+    },
     run<T>(key: string, task: (signal: ArticleTranslationSessionSignal) => Promise<T>): Promise<T> {
       const session = sessions.get(key) || { queue: Promise.resolve(), signals: new Set() };
       sessions.set(key, session);

@@ -139,25 +139,52 @@ export function finalizeArticleTranslationRows(
   database: StoreDatabase,
   input: { translationId: string; updatedAt: string },
 ): ArticleTranslation | null {
-  return database.transaction((tx) => {
-    const statuses = tx
-      .select({ status: schema.articleTranslationSegments.status })
-      .from(schema.articleTranslationSegments)
-      .where(eq(schema.articleTranslationSegments.translationId, input.translationId))
-      .groupBy(schema.articleTranslationSegments.status)
-      .all()
-      .map((row) => row.status);
+  return database.transaction((tx) => finalizeArticleTranslationOwner(tx, input));
+}
 
-    tx.update(schema.articleTranslations)
-      .set({
-        status: deriveArticleTranslationStatus(statuses),
-        error: statuses.includes('failed') ? 'TRANSLATION_INCOMPLETE' : null,
-        updatedAt: input.updatedAt,
-      })
-      .where(eq(schema.articleTranslations.id, input.translationId))
+export function recoverInterruptedArticleTranslationRows(
+  database: StoreDatabase,
+  identity: ArticleTranslationIdentity,
+  updatedAt: string,
+): ArticleTranslation | null {
+  return database.transaction((tx) => {
+    const current = readCurrentArticleTranslationRows(tx, identity);
+    if (current?.status !== 'translating') return current;
+    tx.update(schema.articleTranslationSegments)
+      .set({ status: 'failed', error: 'TRANSLATION_INTERRUPTED', updatedAt })
+      .where(
+        and(
+          eq(schema.articleTranslationSegments.translationId, current.id),
+          eq(schema.articleTranslationSegments.status, 'translating'),
+        ),
+      )
       .run();
-    return readArticleTranslationRows(tx, input.translationId);
+    return finalizeArticleTranslationOwner(tx, { translationId: current.id, updatedAt });
   });
+}
+
+function finalizeArticleTranslationOwner(
+  database: StoreExecutor,
+  input: { translationId: string; updatedAt: string },
+) {
+  const statuses = database
+    .select({ status: schema.articleTranslationSegments.status })
+    .from(schema.articleTranslationSegments)
+    .where(eq(schema.articleTranslationSegments.translationId, input.translationId))
+    .groupBy(schema.articleTranslationSegments.status)
+    .all()
+    .map((row) => row.status);
+
+  database
+    .update(schema.articleTranslations)
+    .set({
+      status: deriveArticleTranslationStatus(statuses),
+      error: statuses.includes('failed') ? 'TRANSLATION_INCOMPLETE' : null,
+      updatedAt: input.updatedAt,
+    })
+    .where(eq(schema.articleTranslations.id, input.translationId))
+    .run();
+  return readArticleTranslationRows(database, input.translationId);
 }
 
 function claimArticleTranslationRow(

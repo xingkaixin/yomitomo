@@ -349,6 +349,7 @@ describe('article translation IPC', () => {
         {
           readArticle: vi.fn().mockResolvedValue(article),
           readCurrentArticleTranslation: vi.fn().mockResolvedValue(null),
+          recoverInterruptedArticleTranslation: vi.fn().mockReturnValue(null),
           initializeArticleTranslation: store.initializeArticleTranslation,
           updateArticleTranslationSegment: store.updateArticleTranslationSegment,
           finalizeArticleTranslation: store.finalizeArticleTranslation,
@@ -570,6 +571,7 @@ function articleIpcContext(
         readArticleCover: vi.fn(),
         readArticleStatsSummaries: vi.fn(),
         readCurrentArticleTranslation: vi.fn(),
+        recoverInterruptedArticleTranslation: vi.fn(),
         readImportSettings: vi.fn(),
         saveArticle: vi.fn(),
         saveArticleAnnotation: vi.fn(),

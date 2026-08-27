@@ -26,6 +26,7 @@ type ArticlePersistence = Pick<
   | 'readArticleCover'
   | 'readArticleStatsSummaries'
   | 'readCurrentArticleTranslation'
+  | 'recoverInterruptedArticleTranslation'
   | 'readImportSettings'
   | 'saveArticle'
   | 'saveArticleAnnotation'

@@ -9,6 +9,7 @@ import {
   finalizeArticleTranslationRows,
   initializeArticleTranslationRows,
   readCurrentArticleTranslationRows,
+  recoverInterruptedArticleTranslationRows,
   updateArticleTranslationSegmentRows,
   type ArticleTranslationInitializeInput,
   type ArticleTranslationSegmentUpdateInput,
@@ -32,6 +33,67 @@ describe('article translation runtime', () => {
       modelName: 'model-1',
       baseUrl: 'https://example.com',
     });
+  });
+
+  it.each([
+    { readyBlocks: [], status: 'failed', error: 'TRANSLATION_INCOMPLETE' },
+    { readyBlocks: ['block-0'], status: 'ready', error: 'TRANSLATION_INCOMPLETE' },
+    { readyBlocks: ['block-0', 'block-1'], status: 'ready', error: undefined },
+  ])('recovers an interrupted translation with $readyBlocks completed', async (expected) => {
+    const harness = translationHarness(2);
+    const interrupted = harness.seedInterruptedTranslation(expected.readyBlocks);
+
+    const [recovered, concurrentRead] = await Promise.all([
+      harness.runtime.readCurrent(translateRequest(2)),
+      harness.runtime.readCurrent(translateRequest(2)),
+    ]);
+
+    expect(recovered).toMatchObject({ status: expected.status, error: expected.error });
+    expect(recovered?.segments.filter((segment) => segment.status === 'ready')).toEqual(
+      interrupted.segments.filter((segment) => segment.status === 'ready'),
+    );
+    expect(recovered?.segments.some((segment) => segment.status === 'translating')).toBe(false);
+    expect(await harness.runtime.readCurrent(translateRequest(2))).toEqual(recovered);
+    expect(concurrentRead).toEqual(recovered);
+    expect(harness.translateBlocks).not.toHaveBeenCalled();
+  });
+
+  it('keeps a live translation busy while reading its progress', async () => {
+    const pending = new Map<string, (translation: string) => void>();
+    const harness = translationHarness(
+      2,
+      (blockId) =>
+        new Promise((resolve) => {
+          pending.set(blockId, resolve);
+        }),
+    );
+    const running = harness.runtime.translate(translateRequest(2), () => {});
+    await vi.waitFor(() => expect(pending.size).toBe(2));
+
+    const current = await harness.runtime.readCurrent(translateRequest(2));
+    for (const [blockId, resolve] of pending) resolve(`translated ${blockId}`);
+    const completed = await running;
+
+    expect(current?.status).toBe('translating');
+    expect(current?.segments.every((segment) => segment.status === 'translating')).toBe(true);
+    expect(completed.status).toBe('ready');
+  });
+
+  it('recovers all interrupted segments before retrying a selected block', async () => {
+    const harness = translationHarness(3);
+    harness.seedInterruptedTranslation(['block-0']);
+
+    const retried = await harness.runtime.translate(
+      { ...translateRequest(3), sourceBlockIds: ['block-1'] },
+      () => {},
+    );
+
+    expect(retried).toMatchObject({ status: 'ready', error: 'TRANSLATION_INCOMPLETE' });
+    expect(retried.segments.map((segment) => segment.status)).toEqual(['ready', 'ready', 'failed']);
+    expect(retried.segments[0]?.translatedText).toBe('saved block-0');
+    expect(harness.translateBlocks).toHaveBeenCalledOnce();
+    expect(await harness.runtime.deleteCurrent(translateRequest(3))).not.toBeNull();
+    expect(await harness.runtime.readCurrent(translateRequest(3))).toBeNull();
   });
 
   it('writes one segment update per block instead of rewriting the translation', async () => {
@@ -215,6 +277,8 @@ INSERT INTO articles (
         readArticle: async () => article,
         readCurrentArticleTranslation: async (key: ArticleTranslationIdentity) =>
           readCurrentArticleTranslationRows(database, key),
+        recoverInterruptedArticleTranslation: (key: ArticleTranslationIdentity) =>
+          recoverInterruptedArticleTranslationRows(database, key, new Date().toISOString()),
         initializeArticleTranslation: async (input: ArticleTranslationInitializeInput) => {
           calls.initialize += 1;
           return initializeArticleTranslationRows(database, input);
@@ -240,6 +304,36 @@ INSERT INTO articles (
   });
 
   return {
+    seedInterruptedTranslation(readyBlocks: string[]) {
+      const key: ArticleTranslationIdentity = {
+        articleId: article.id,
+        sourceId: 'chapter-1',
+        sourceContentHash: article.contentHash,
+        targetLanguage: '简体中文',
+        promptVersion: 1,
+      };
+      const initial = initializeArticleTranslationRows(database, {
+        ...key,
+        updatedAt: '2026-07-15T00:00:00.000Z',
+        segments: translateRequest(blockCount).sourceBlocks.map((block, order) => ({
+          sourceBlockId: block.id,
+          sourceText: block.text,
+          sourceTextHash: `hash-${block.id}`,
+          order,
+          retranslate: true,
+        })),
+      });
+      for (const blockId of readyBlocks) {
+        updateArticleTranslationSegmentRows(database, {
+          translationId: initial.id,
+          sourceBlockId: blockId,
+          status: 'ready',
+          translatedText: `saved ${blockId}`,
+          updatedAt: '2026-07-15T00:01:00.000Z',
+        });
+      }
+      return readCurrentArticleTranslationRows(database, key)!;
+    },
     changeContentHash: (contentHash: string) => {
       article = { ...article, contentHash };
     },
