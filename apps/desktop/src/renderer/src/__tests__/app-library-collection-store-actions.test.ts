@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 
 import { createElement } from 'react';
-import { act, cleanup, render } from '@testing-library/react';
+import { act, cleanup, render, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DesktopStore } from '@yomitomo/shared';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { emptyStore } from '../settings/app-settings';
+import { useLibraryCatalog } from '../reading-library/use-library-catalog';
+import { useDesktopStoreState } from '../shell/app-desktop-store-state';
 import { appToast } from '../shell/app-toast';
 import {
   applyCollectionStorePatch,
@@ -79,6 +81,108 @@ describe('useAppCollectionStoreActions', () => {
     expect(storeRef.current.pins).toEqual([patch.pin]);
     expect(applyStore).toHaveBeenCalledWith(storeRef.current);
   });
+
+  it.each(['rename', 'pin'] as const)(
+    'refreshes the catalog after a local %s without an event echo',
+    async (action) => {
+      const collection = {
+        id: 'collection_1',
+        name: 'Before',
+        createdAt: '2026-06-21T00:00:00.000Z',
+        updatedAt: '2026-06-21T00:00:00.000Z',
+      };
+      let serverCollection = collection;
+      let serverPinned = false;
+      Object.defineProperty(window, 'yomitomoDesktop', {
+        configurable: true,
+        value: {
+          store: {
+            getStateResult: async () => ({
+              ok: true,
+              store: { ...emptyStore, collections: [collection] },
+            }),
+            onUpdated: () => () => undefined,
+          },
+          library: {
+            catalog: {
+              list: async () => ({
+                entities: [
+                  {
+                    kind: 'col',
+                    collection: serverCollection,
+                    pinned: serverPinned,
+                    sortTime: collection.updatedAt,
+                    memberCount: 0,
+                    coverMembers: [],
+                  },
+                ],
+                itemCounts: { web: 0, ebook: 0, pdf: 0, text: 0, weread: 0 },
+                page: 1,
+                pageSize: 12,
+                query: '',
+                totalCount: 1,
+                unfilteredCount: 1,
+              }),
+            },
+            collections: {
+              rename: async ({ name }: { name: string }) => {
+                serverCollection = { ...collection, name };
+                return { type: 'collection-upsert', collection: serverCollection };
+              },
+            },
+            pins: {
+              set: async ({ pinned }: { pinned: boolean }) => {
+                serverPinned = pinned;
+                return {
+                  type: 'library-pin',
+                  pinned,
+                  pin: {
+                    targetKind: 'collection',
+                    targetId: collection.id,
+                    pinnedAt: collection.updatedAt,
+                  },
+                };
+              },
+            },
+          },
+        },
+      });
+      const { result } = renderHook(() => {
+        const state = useDesktopStoreState();
+        const actions = useAppCollectionStoreActions(state);
+        const catalog = useLibraryCatalog(
+          { scope: { kind: 'library' }, page: 1, pageSize: 12 },
+          state.status === 'ready' ? state.libraryCatalogRevision : 0,
+        );
+        return { state, actions, catalog };
+      });
+      await waitFor(() => {
+        expect(result.current.state.status).toBe('ready');
+        expect(result.current.catalog).toMatchObject({
+          status: 'ready',
+          result: { entities: [{ collection: { name: 'Before' }, pinned: false }] },
+        });
+      });
+
+      await act(async () => {
+        if (action === 'rename') {
+          await result.current.actions.renameCollection(collection.id, 'After');
+        } else {
+          await result.current.actions.setLibraryPin({
+            target: { kind: 'collection', id: collection.id },
+            pinned: true,
+          });
+        }
+      });
+
+      await waitFor(() => {
+        expect(result.current.catalog).toMatchObject({
+          status: 'ready',
+          result: { entities: [{ collection: serverCollection, pinned: serverPinned }] },
+        });
+      });
+    },
+  );
 });
 
 describe('library collection store patch actions', () => {
