@@ -13,13 +13,17 @@ import {
   cleanEpubDisplayTitle,
   EPUB_TITLE_CLEANUP_VERSION,
   hashText,
-  type ArticleRecord,
   type EbookChapterRecord,
   type EbookFormat,
 } from '@yomitomo/shared';
 import { MAX_EBOOK_IMPORT_BYTES } from '../../ipc-contract';
 import { SourceImportError } from '../../ipc/article-import-boundary';
-import type { EbookImportFileInput, EbookImportOptions } from './ebook-import-types';
+import type {
+  EbookImportFileInput,
+  EbookImportOptions,
+  ImportedEbookArticle,
+} from './ebook-import-types';
+import { ebookSourceIdentity } from './ebook-source-identity';
 
 const BOOKMOBI_MAGIC_OFFSET = 60;
 const PDB_RECORD_COUNT_OFFSET = 76;
@@ -130,7 +134,7 @@ export function isKindleFile(fileName: string, mimeType: string | undefined, dat
 export async function articleRecordFromKindleFile(
   input: EbookImportFileInput,
   options: EbookImportOptions = {},
-): Promise<ArticleRecord> {
+): Promise<ImportedEbookArticle> {
   const importStartedAt = performanceStart();
   const fileName = input.fileName.trim() || 'Untitled.mobi';
   const fileSize = input.data.byteLength;
@@ -193,10 +197,10 @@ export async function articleRecordFromKindleFile(
     paragraphs: chapter.paragraphs,
   }));
   const fullText = epubIndexText(indexChapters);
-  const contentHash = hashText(fullText.slice(0, 12000));
+  const { id, contentHash } = ebookSourceIdentity(input.data);
   const title = parsed.metadata.title || fileTitle(fileName);
-  const id = hashText(
-    `ebook:${parsed.format}:${title}:${parsed.metadata.creator || ''}:${contentHash}`,
+  const legacyId = hashText(
+    `ebook:${parsed.format}:${title}:${parsed.metadata.creator || ''}:${hashText(fullText.slice(0, 12000))}`,
   );
   const index = buildEpubBookIndex({ articleId: id, chapters: indexChapters });
   logKindleImportTiming(options.performanceLogger, 'index', indexStartedAt, {
@@ -222,6 +226,7 @@ export async function articleRecordFromKindleFile(
 
   return {
     id,
+    legacyId,
     url: `ebook:${id}`,
     canonicalUrl: `ebook:${id}`,
     sourceType: 'ebook',

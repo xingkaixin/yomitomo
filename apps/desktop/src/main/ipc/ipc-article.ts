@@ -179,13 +179,16 @@ export function registerArticleIpc(context: ArticleIpcContext) {
       const { storeArticles: articlePersistence } = await context.getPersistenceModules();
       const { importArticleSource } = await import('../articles/article-source-import');
       const { articleRecordFromEbookFile } = await import('../ebooks/ebook-import');
+      const { resolveEbookImportRecord } = await import('../ebooks/ebook-source-identity');
       const { stageEbookSourceFile } = await import('../ebooks/ebook-storage');
-      const record = await articleRecordFromEbookFile(input, {
+      const imported = await articleRecordFromEbookFile(input, {
         performanceLogger: context.logInfo,
       });
+      const repository = articleImportRepository(articlePersistence);
+      const record = await resolveEbookImportRecord(imported, repository);
       const result = await importArticleSource({
         record,
-        repository: articleImportRepository(articlePersistence),
+        repository,
         stageSourceAssets: (articleId) =>
           stageEbookSourceFile(articleId, input.data, record.ebook?.metadata.format),
         logError: context.logError,

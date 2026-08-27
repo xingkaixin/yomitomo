@@ -10,6 +10,32 @@ function arrayBufferFromBuffer(buffer: Buffer) {
 }
 
 describe('articleRecordFromKindleFile', () => {
+  it.each([
+    { version: 6, extension: 'mobi' },
+    { version: 8, extension: 'azw3' },
+  ])(
+    'distinguishes $extension books with the same opening and different later content',
+    async ({ version, extension }) => {
+      const records = await Promise.all(
+        ['original ending', 'revised ending'].map(async (ending) => {
+          const data = arrayBufferFromBuffer(
+            kindleBook({
+              version,
+              compression: 1,
+              title: 'Same book',
+              author: 'Same author',
+              fileHtml: `<html><body><p>${'Shared opening. '.repeat(900)}</p><p>${ending}</p></body></html>`,
+            }),
+          );
+          return articleRecordFromKindleFile({ fileName: `book.${extension}`, data });
+        }),
+      );
+      expect(records[0].legacyId).toBe(records[1].legacyId);
+      expect(records[0].id).not.toBe(records[1].id);
+      expect(records[0].contentHash).not.toBe(records[1].contentHash);
+    },
+  );
+
   it('extracts AZW3 metadata, chapters, and cover image', async () => {
     const data = arrayBufferFromBuffer(
       kindleBook({
