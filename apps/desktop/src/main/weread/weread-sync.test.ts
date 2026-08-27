@@ -27,6 +27,58 @@ beforeEach(() => {
 });
 
 describe('syncWeReadLibrary', () => {
+  it('serializes automatic and manual snapshots from fetch through persistence', async () => {
+    let releaseNotebooks!: (books: WeReadBook[]) => void;
+    const notebooks = new Promise<WeReadBook[]>((resolve) => {
+      releaseNotebooks = resolve;
+    });
+    vi.mocked(fetchWeReadNotebooks)
+      .mockReturnValueOnce(notebooks)
+      .mockResolvedValueOnce([bookFixture('book_old'), bookFixture('book_new')]);
+    vi.mocked(fetchWeReadBookDetail).mockImplementation(async (_key, bookId) =>
+      bookDetailFixture(bookId),
+    );
+    const snapshots: string[][] = [];
+    const persistence = {
+      readStoredWeReadApiKey: vi.fn(async () => 'weread-key'),
+      saveWeReadLibrarySnapshot: vi.fn(async (input: { authoritativeBookIds: string[] }) => {
+        snapshots.push(input.authoritativeBookIds);
+        return syncResult();
+      }),
+    };
+    const automatic = syncWeReadLibrary({ persistence, reason: 'auto:startup', ...testLogger() });
+    await vi.waitFor(() => expect(fetchWeReadNotebooks).toHaveBeenCalledOnce());
+    const manual = syncWeReadLibrary({ persistence, reason: 'manual', ...testLogger() });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    const apiKeyReadsBeforeCompletion = persistence.readStoredWeReadApiKey.mock.calls.length;
+    releaseNotebooks([bookFixture('book_old')]);
+    await Promise.all([automatic, manual]);
+
+    expect(apiKeyReadsBeforeCompletion).toBe(1);
+    expect(snapshots).toEqual([['book_old'], ['book_old', 'book_new']]);
+  });
+
+  it('continues with the next queued sync after a failed fetch', async () => {
+    const error = new Error('gateway unavailable');
+    vi.mocked(fetchWeReadNotebooks).mockRejectedValueOnce(error).mockResolvedValueOnce([]);
+    const result = syncResult();
+    const persistence = {
+      readStoredWeReadApiKey: vi.fn(async () => 'weread-key'),
+      saveWeReadLibrarySnapshot: vi.fn(async () => result),
+    };
+
+    const results = await Promise.allSettled([
+      syncWeReadLibrary({ persistence, reason: 'auto:startup', ...testLogger() }),
+      syncWeReadLibrary({ persistence, reason: 'manual', ...testLogger() }),
+    ]);
+
+    expect(results).toEqual([
+      { status: 'rejected', reason: error },
+      { status: 'fulfilled', value: result },
+    ]);
+    expect(persistence.saveWeReadLibrarySnapshot).toHaveBeenCalledOnce();
+  });
+
   it('rejects before loading notebooks when the API key is missing', async () => {
     const persistence = {
       readStoredWeReadApiKey: vi.fn(async () => ''),
