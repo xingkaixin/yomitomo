@@ -1,14 +1,64 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { useLayoutEffect } from 'react';
+import { act, cleanup, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import type { LibraryCatalogListResult, LibraryCatalogScope } from '../../../ipc-contract';
+import type {
+  LibraryCatalogListInput,
+  LibraryCatalogListResult,
+  LibraryCatalogScope,
+} from '../../../ipc-contract';
 import { useLibraryCatalog } from './use-library-catalog';
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
+
+it.each(['filter', 'revision', 'search'] as const)(
+  'never exposes an old ready status after a %s change',
+  async (change) => {
+    const refresh = deferred<LibraryCatalogListResult>();
+    const initialResult = catalogResult('initial');
+    const list = vi.fn().mockResolvedValueOnce(initialResult).mockReturnValue(refresh.promise);
+    vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list } } });
+    const statuses: string[] = [];
+    const initialInput: LibraryCatalogListInput = {
+      scope: { kind: 'library' },
+      query: 'initial',
+      page: 1,
+      pageSize: 12,
+    };
+    const { result, rerender } = renderHook(
+      ({ input, revision }) => {
+        const catalog = useLibraryCatalog(input, revision);
+        useLayoutEffect(() => {
+          statuses.push(catalog.status);
+        });
+        return catalog;
+      },
+      { initialProps: { input: initialInput, revision: 0 } },
+    );
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    statuses.length = 0;
+
+    rerender({
+      input: {
+        ...initialInput,
+        types: change === 'filter' ? ['web'] : undefined,
+        query: change === 'search' ? 'next' : 'initial',
+      },
+      revision: change === 'revision' ? 1 : 0,
+    });
+
+    expect(result.current.result).toEqual(initialResult);
+    expect(statuses).not.toContain('ready');
+    expect(result.current.status).toBe('loading');
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+    await act(async () => refresh.resolve(catalogResult('next')));
+    expect(result.current.status).toBe('ready');
+  },
+);
 
 it('invalidates the current catalog page when its explicit revision changes', async () => {
   const listLibraryCatalog = vi.fn(async () => ({
@@ -59,6 +109,7 @@ it('keeps the last good result and exposes an explicit refresh error', async () 
 
   view.rerender(<ResultHarness scope={{ kind: 'library' }} query="second" />);
   await screen.findByText('first:loading');
+  await waitFor(() => expect(listLibraryCatalog).toHaveBeenCalledTimes(2));
 
   await act(async () => refresh.reject(new Error('database busy')));
   await screen.findByText('first:error:database busy');

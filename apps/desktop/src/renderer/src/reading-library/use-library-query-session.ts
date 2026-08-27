@@ -70,8 +70,9 @@ export function useLibraryQuerySession({
   }, [knownCollectionIds]);
 
   useEffect(() => {
+    if (catalog.status !== 'ready' || !catalog.result) return;
     dispatch({ type: 'page-clamped', pageCount });
-  }, [pageCount]);
+  }, [catalog.result, catalog.status, pageCount]);
 
   const externalPageSize = normalizeLibraryPageSize(settings.libraryPageSize);
   useEffect(() => {
