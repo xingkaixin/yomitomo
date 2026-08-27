@@ -243,6 +243,7 @@ function context(storeModule: ReturnType<typeof createStoreModule>) {
       },
     }),
     logError: vi.fn(),
+    configureWeReadAutoSync: vi.fn(),
     sendFullStoreUpdated: vi.fn(),
     storeLoadErrorInfo: vi.fn(),
   };

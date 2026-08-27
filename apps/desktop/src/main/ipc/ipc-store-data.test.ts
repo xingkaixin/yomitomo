@@ -113,7 +113,27 @@ describe('store data update IPC', () => {
 
     expect(result).toEqual({ ok: true, value: { canceled: false, store } });
     expect(context.sendFullStoreUpdated).toHaveBeenCalledWith(event, store);
+    expect(context.configureWeReadAutoSync).toHaveBeenCalledWith('database-restored');
   });
+
+  it.each(['canceled', 'failed'])(
+    'leaves runtime settings unchanged when restore is %s',
+    async (outcome) => {
+      if (outcome === 'canceled') {
+        ipcState.restoreDatabaseWithDialog.mockResolvedValue({ canceled: true });
+      } else {
+        ipcState.restoreDatabaseWithDialog.mockRejectedValue(new Error('invalid backup'));
+      }
+      const context = storeContext({});
+      registerStoreDataIpc(context);
+
+      const result = await invokeRegisteredHandler('data:database-restore');
+
+      expect(result.ok).toBe(outcome === 'canceled');
+      expect(context.sendFullStoreUpdated).not.toHaveBeenCalled();
+      expect(context.configureWeReadAutoSync).not.toHaveBeenCalled();
+    },
+  );
 });
 
 async function expectUpdateForward(
@@ -175,6 +195,7 @@ function storeContext(input: {
       },
     }),
     logError: vi.fn(),
+    configureWeReadAutoSync: vi.fn(),
     sendFullStoreUpdated: vi.fn(),
     storeLoadErrorInfo: vi.fn(),
   };

@@ -12,7 +12,11 @@ import { clearLogFile, getLogPath, readLogFile } from '../app/logger';
 
 type StoreDataIpcContext = Pick<
   DesktopMainIpcContext,
-  'getMainWindow' | 'logError' | 'sendFullStoreUpdated' | 'storeLoadErrorInfo'
+  | 'configureWeReadAutoSync'
+  | 'getMainWindow'
+  | 'logError'
+  | 'sendFullStoreUpdated'
+  | 'storeLoadErrorInfo'
 > & {
   startupStoreInitialization: StartupStoreInitializationResult;
   getAppUpdaterModule: () => Promise<
@@ -67,7 +71,10 @@ export function registerStoreDataIpc(context: StoreDataIpcContext) {
   handleDesktopIpc('data:database-restore', async (event) => {
     const { restoreDatabaseWithDialog } = await import('../data-management');
     const result = await restoreDatabaseWithDialog(context.getMainWindow());
-    if (!result.canceled) context.sendFullStoreUpdated(event, result.store);
+    if (!result.canceled) {
+      context.configureWeReadAutoSync('database-restored');
+      context.sendFullStoreUpdated(event, result.store);
+    }
     return result;
   });
   handleDesktopIpc('log:path', () => getLogPath());
