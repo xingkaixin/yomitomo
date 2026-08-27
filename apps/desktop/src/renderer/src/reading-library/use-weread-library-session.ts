@@ -13,13 +13,12 @@ type UseWeReadLibrarySessionInput = {
   ) => Promise<WeReadBookDetail | null>;
 };
 
+const DEFAULT_WEREAD_SETTINGS: WeReadSettings = { configured: false, openMethod: 'deeplink' };
+
 export function useWeReadLibrarySession({ onOpenBook }: UseWeReadLibrarySessionInput) {
   const { t } = useTranslation();
   const [books, setBooks] = useState<WeReadBook[]>([]);
-  const [settings, setSettings] = useState<WeReadSettings>({
-    configured: false,
-    openMethod: 'deeplink',
-  });
+  const [settings, setSettings] = useState<WeReadSettings | null>(null);
   const [librarySyncing, setLibrarySyncing] = useState(false);
   const [pendingBookSyncs, setPendingBookSyncs] = useState(0);
   const [openMessage, setOpenMessage] = useState('');
@@ -129,7 +128,8 @@ export function useWeReadLibrarySession({ onOpenBook }: UseWeReadLibrarySessionI
 
   return {
     books,
-    settings,
+    settings: settings ?? DEFAULT_WEREAD_SETTINGS,
+    available: books.length > 0 ? true : (settings?.configured ?? null),
     librarySyncing,
     bookSyncing: pendingBookSyncs > 0,
     openMessage,

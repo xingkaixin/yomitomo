@@ -4,6 +4,7 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Annotation, ArticleRecord, ArticleSummaryRecord, WeReadBook } from '@yomitomo/shared';
+import type { WeReadState } from '../../../ipc-contract';
 import { defaultTheme } from '../theme/app-theme';
 import { articleActionStubs } from './article-actions-test-utils';
 import {
@@ -941,5 +942,33 @@ describe('ReadingLibrary reading', () => {
       screen.getAllByRole('button', { name: '打开电子书：电子书标题' }).length,
     ).toBeGreaterThan(0);
     expect(screen.getAllByRole('button', { name: '打开文章：网页文章' }).length).toBeGreaterThan(0);
+  });
+
+  it('restores the WeRead filter before settings finish loading for an empty account', async () => {
+    const state: WeReadState = {
+      settings: { configured: true, openMethod: 'deeplink' },
+      books: [],
+    };
+    let resolveSettings!: (state: WeReadState) => void;
+    const pendingSettings = new Promise<WeReadState>((resolve) => {
+      resolveSettings = resolve;
+    });
+    const getState = vi.fn().mockResolvedValueOnce(state).mockReturnValue(pendingSettings);
+    vi.stubGlobal('yomitomoDesktop', { weRead: { getState } });
+    const view = renderLibrary([article({ title: '网页文章' })]);
+    await selectLibraryType('微信读书');
+    expect(screen.queryByRole('button', { name: '打开文章：网页文章' })).toBeNull();
+
+    view.remountLibrary();
+    await waitFor(() => expect(getState).toHaveBeenCalledTimes(2));
+
+    expect(screen.queryByRole('button', { name: '打开文章：网页文章' })).toBeNull();
+    await act(async () => resolveSettings(state));
+    fireEvent.click(screen.getByRole('button', { name: '筛选内容类型' }));
+
+    expect(
+      screen.getByRole('menuitemcheckbox', { name: '微信读书' }).getAttribute('aria-checked'),
+    ).toBe('true');
+    expect(screen.queryByRole('button', { name: '打开文章：网页文章' })).toBeNull();
   });
 });
