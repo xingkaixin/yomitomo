@@ -55,15 +55,18 @@ vi.mock('../app/logger', () => ({
 }));
 
 import * as schema from '../db/schema';
+import { saveStoredSecret } from '../providers/provider-secrets';
 import { closeDatabase, getDatabase } from '../store/store-db';
 import {
   readWeReadBookDetail,
   readWeReadBooks,
   readWeReadReadingStatsState,
+  readWeReadState,
   saveWeReadBookDetail,
   saveWeReadLibrarySnapshot,
   saveWeReadReadingStatsSnapshot,
   saveWeReadSettings,
+  saveWeReadTestResult,
 } from './weread-repository';
 
 beforeEach(async () => {
@@ -337,6 +340,85 @@ describe('WeRead repository book details', () => {
 });
 
 describe('WeRead repository credentials', () => {
+  it('preserves preferences saved after a pending credential replacement', async () => {
+    await saveWeReadSettings({ apiKey: 'weread-old' });
+    const preparation = pauseNextCredentialSave();
+    const saving = saveWeReadSettings({ apiKey: 'weread-new' });
+    await preparation.started;
+
+    const preferences = saveWeReadSettings({ openMethod: 'web', syncMode: 'auto' });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    preparation.resolve();
+    await Promise.all([saving, preferences]);
+
+    const state = await readWeReadState();
+    expect(state.settings).toMatchObject({
+      configured: true,
+      openMethod: 'web',
+      syncMode: 'auto',
+    });
+    expect([...testPaths.secrets.values()]).toEqual(['weread-new']);
+    expect(getDatabase().select().from(schema.secretDeletionTasks).all()).toEqual([]);
+  });
+
+  it('keeps the credential removed after an earlier replacement finishes', async () => {
+    await saveWeReadSettings({ apiKey: 'weread-old' });
+    const preparation = pauseNextCredentialSave();
+    const saving = saveWeReadSettings({ apiKey: 'weread-new' });
+    await preparation.started;
+
+    const removing = saveWeReadSettings({ removeApiKey: true });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    preparation.resolve();
+    await Promise.all([saving, removing]);
+
+    const state = await readWeReadState();
+    expect(state.settings.configured).toBe(false);
+    expect(readWeReadAccount()?.apiKeyRef).toBeNull();
+    expect(testPaths.secrets.size).toBe(0);
+    expect(getDatabase().select().from(schema.secretDeletionTasks).all()).toEqual([]);
+  });
+
+  it('preserves sync and test results completed during credential preparation', async () => {
+    await saveWeReadSettings({ apiKey: 'weread-old' });
+    const preparation = pauseNextCredentialSave();
+    const saving = saveWeReadSettings({ apiKey: 'weread-new' });
+    await preparation.started;
+
+    await saveDetailsSnapshot([detail('book_1')]);
+    const tested = await saveWeReadTestResult(false, 'Connection test failed');
+    preparation.resolve();
+    const saved = await saving;
+
+    expect(tested.settings.lastSyncAt).toBeTruthy();
+    expect(tested.settings.lastTestAt).toBeTruthy();
+    expect(saved.settings).toMatchObject({
+      configured: true,
+      status: 'error',
+      message: 'Connection test failed',
+      lastSyncAt: tested.settings.lastSyncAt,
+      lastTestAt: tested.settings.lastTestAt,
+    });
+    expect(saved.books.map((item) => item.bookId)).toEqual(['book_1']);
+  });
+
+  it('continues a queued removal after credential preparation fails', async () => {
+    await saveWeReadSettings({ apiKey: 'weread-old' });
+    const preparation = pauseNextCredentialSave();
+    const error = new Error('keyring unavailable');
+    const saving = saveWeReadSettings({ apiKey: 'weread-new' }).catch((failure) => failure);
+    await preparation.started;
+
+    const removing = saveWeReadSettings({ removeApiKey: true });
+    preparation.reject(error);
+    expect(await saving).toBe(error);
+    await expect(removing).resolves.toMatchObject({ settings: { configured: false } });
+
+    expect(readWeReadAccount()?.apiKeyRef).toBeNull();
+    expect(testPaths.secrets.size).toBe(0);
+    expect(getDatabase().select().from(schema.secretDeletionTasks).all()).toEqual([]);
+  });
+
   it('records the credential state when api key replacement cannot commit', async () => {
     insertWeReadAccount('weread:default:apiKey');
     testPaths.secrets.set('weread:default:apiKey', 'weread-old');
@@ -466,6 +548,27 @@ describe('WeRead repository reading stats', () => {
     ]);
   });
 });
+
+function pauseNextCredentialSave() {
+  const started = deferred<void>();
+  const preparation = deferred<void>();
+  vi.mocked(saveStoredSecret).mockImplementationOnce(async (ref, secret) => {
+    started.resolve();
+    await preparation.promise;
+    testPaths.secrets.set(ref, secret);
+  });
+  return { started: started.promise, resolve: preparation.resolve, reject: preparation.reject };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, reject, resolve };
+}
 
 function insertLibraryReferences(bookId: string) {
   const database = getDatabase();

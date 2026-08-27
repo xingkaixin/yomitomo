@@ -36,8 +36,16 @@ import {
 
 const WEREAD_ACCOUNT_ID = 'default';
 const WEREAD_SKILL_VERSION = '1.0.3';
+let pendingSettingsSave = Promise.resolve();
 
 type WeReadRepositoryLogInfo = (event: string, data?: Record<string, unknown>) => void;
+
+type SaveWeReadSettingsInput = {
+  apiKey?: string;
+  removeApiKey?: boolean;
+  openMethod?: WeReadOpenMethod;
+  syncMode?: WeReadSyncMode;
+};
 
 export async function readStoredWeReadApiKey() {
   const account = readWeReadAccountRow();
@@ -64,19 +72,23 @@ export async function readWeReadSettings(): Promise<WeReadSettings> {
   };
 }
 
-export async function saveWeReadSettings(input: {
-  apiKey?: string;
-  removeApiKey?: boolean;
-  openMethod?: WeReadOpenMethod;
-  syncMode?: WeReadSyncMode;
-}) {
-  const existing = readWeReadAccountRow();
+export function saveWeReadSettings(input: SaveWeReadSettingsInput) {
+  const saving = pendingSettingsSave.then(() => saveWeReadSettingsRecord(input));
+  pendingSettingsSave = saving.then(
+    () => undefined,
+    () => undefined,
+  );
+  return saving;
+}
+
+async function saveWeReadSettingsRecord(input: SaveWeReadSettingsInput) {
   const credentialChange = await prepareCredentialChange({
-    currentRef: existing?.apiKeyRef || undefined,
+    currentRef: readWeReadAccountRow()?.apiKeyRef || undefined,
     defaultRef: wereadApiKeyRef(),
     remove: input.removeApiKey,
     secret: input.apiKey,
   });
+  const existing = readWeReadAccountRow();
   const apiKeyRef = credentialChange.apiKeyRef || null;
   const account = {
     apiKeyRef,
