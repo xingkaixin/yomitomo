@@ -27,6 +27,7 @@ type ArticlePersistence = Pick<
   | 'initializeArticleTranslation'
   | 'readArticle'
   | 'readCurrentArticleTranslation'
+  | 'recoverInterruptedArticleTranslation'
   | 'updateArticleTranslationSegment'
 >;
 type ArticleTranslationBlock = ReturnType<typeof extractWebArticleTranslationBlocks>[number];
@@ -56,7 +57,7 @@ export function createArticleTranslationRuntime(context: ArticleTranslationRunti
     deleteCurrent: (input: ArticleTranslationDeleteRequest) =>
       deleteCurrentArticleTranslation(context, sessions, input),
     readCurrent: (input: ArticleTranslationRequest) =>
-      readCurrentArticleTranslation(context, input),
+      readCurrentArticleTranslation(context, sessions, input),
     translate: (
       input: ArticleTranslationRequest,
       onUpdate: (translation: ArticleTranslation) => void,
@@ -68,6 +69,7 @@ type ArticleTranslationSessions = ReturnType<typeof createArticleTranslationSess
 
 async function readCurrentArticleTranslation(
   context: ArticleTranslationRuntimeContext,
+  sessions: ArticleTranslationSessions,
   input: ArticleTranslationRequest,
 ) {
   const { storeAgents: agentRuntimePersistence, storeArticles: articlePersistence } =
@@ -83,7 +85,9 @@ async function readCurrentArticleTranslation(
     settings: store.settings,
     promptVersion: aiModule.bilingualTranslationPromptVersion,
   });
-  return articlePersistence.readCurrentArticleTranslation(identity);
+  const sessionKey = articleTranslationIdentityKey(identity);
+  if (sessions.has(sessionKey)) return articlePersistence.readCurrentArticleTranslation(identity);
+  return articlePersistence.recoverInterruptedArticleTranslation(identity);
 }
 
 async function translateArticle(
@@ -139,7 +143,7 @@ async function runTranslationSession(
   session: TranslationSessionInput,
 ): Promise<ArticleTranslation> {
   const { articlePersistence, input, key, onUpdate, signal, source } = session;
-  const current = await articlePersistence.readCurrentArticleTranslation(key);
+  const current = articlePersistence.recoverInterruptedArticleTranslation(key);
   if (!input.force && !input.sourceBlockIds?.length && current?.status === 'ready') return current;
 
   const blocks = source.blocks;

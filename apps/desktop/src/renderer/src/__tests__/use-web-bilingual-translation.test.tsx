@@ -147,6 +147,44 @@ function renderedTranslationText(html: string) {
 }
 
 describe('useWebBilingualTranslation', () => {
+  it.each(['retranslate', 'delete'] as const)(
+    'allows %s after the runtime recovers an interrupted translation',
+    async (action) => {
+      const cached = translationFor();
+      const api = installDesktopApi({
+        ...cached,
+        status: 'failed',
+        error: 'TRANSLATION_INCOMPLETE',
+        segments: cached.segments.map((segment) => ({
+          ...segment,
+          status: 'failed',
+          error: 'TRANSLATION_INTERRUPTED',
+          translatedText: undefined,
+        })),
+      });
+      const { result } = renderTranslationHook();
+      await waitFor(() => {
+        const toolbar = result.current.toolbar as React.ReactElement<{
+          busy: boolean;
+          hasTranslation: boolean;
+        }>;
+        expect(toolbar.props.hasTranslation).toBe(true);
+        expect(toolbar.props.busy).toBe(false);
+      });
+
+      const dialog = result.current.dialog as React.ReactElement<{
+        onConfirm: (action: 'retranslate' | 'delete') => Promise<void>;
+      }>;
+      await act(() => dialog.props.onConfirm(action));
+
+      if (action === 'delete') {
+        expect(api.deleteCurrentArticleTranslation).toHaveBeenCalledOnce();
+      } else {
+        expect(api.translateArticle).toHaveBeenCalledWith(expect.objectContaining({ force: true }));
+      }
+    },
+  );
+
   it.each([
     ['en', 'English'],
     ['ja', '日本語'],
