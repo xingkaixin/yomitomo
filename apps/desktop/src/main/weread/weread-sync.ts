@@ -20,12 +20,23 @@ type WeReadSyncPersistence = {
   ) => Promise<WeReadSyncResult>;
 };
 
-export async function syncWeReadLibrary(
-  input: {
-    persistence: WeReadSyncPersistence;
-    reason: string;
-  } & WeReadSyncLogger,
-) {
+type WeReadSyncInput = {
+  persistence: WeReadSyncPersistence;
+  reason: string;
+} & WeReadSyncLogger;
+
+let librarySyncQueue: Promise<void> = Promise.resolve();
+
+export function syncWeReadLibrary(input: WeReadSyncInput) {
+  const result = librarySyncQueue.then(() => runWeReadLibrarySync(input));
+  librarySyncQueue = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
+}
+
+async function runWeReadLibrarySync(input: WeReadSyncInput) {
   const startedAt = performance.now();
   const apiKey = await input.persistence.readStoredWeReadApiKey();
   if (!apiKey) throw new Error('WEREAD_API_KEY_REQUIRED');
