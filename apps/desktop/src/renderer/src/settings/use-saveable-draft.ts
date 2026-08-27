@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { SaveState } from '../shell/app-types';
 import { useSaveStatus } from './use-save-status';
 
@@ -32,17 +32,20 @@ export function useSaveableDraft<TValue, TResult = unknown>({
   value,
 }: UseSaveableDraftOptions<TValue, TResult>): SaveableDraft<TValue, TResult> {
   const failedValueRef = useRef<{ value: TValue } | undefined>(undefined);
+  const pendingSavesRef = useRef(0);
+  const [isSaving, setIsSaving] = useState(false);
   const {
     reset: resetStatus,
     run,
     saveError,
-    saveState,
+    saveState: draftSaveState,
   } = useSaveStatus({
     errorMessage,
     resetDelayMs,
   });
 
-  const saveable = saveState !== 'saving' && canSave(value);
+  const saveState: SaveState = isSaving ? 'saving' : draftSaveState;
+  const saveable = !isSaving && canSave(value);
 
   const update = useCallback(
     (nextValue: TValue) => {
@@ -56,17 +59,26 @@ export function useSaveableDraft<TValue, TResult = unknown>({
   const save = useCallback(
     async (override?: TValue) => {
       const failedValue = failedValueRef.current;
-      if (override === undefined && !failedValue && !saveable) return undefined;
+      if (override === undefined && (pendingSavesRef.current > 0 || (!failedValue && !saveable))) {
+        return undefined;
+      }
       const nextValue = override ?? failedValue?.value ?? value;
-      return run(() => persist(nextValue), {
-        onError: () => {
-          failedValueRef.current = { value: nextValue };
-        },
-        onSaved: (result) => {
-          failedValueRef.current = undefined;
-          return onSaved?.(result, nextValue);
-        },
-      });
+      pendingSavesRef.current += 1;
+      setIsSaving(true);
+      try {
+        return await run(() => persist(nextValue), {
+          onError: () => {
+            failedValueRef.current = { value: nextValue };
+          },
+          onSaved: (result) => {
+            failedValueRef.current = undefined;
+            return onSaved?.(result, nextValue);
+          },
+        });
+      } finally {
+        pendingSavesRef.current -= 1;
+        setIsSaving(pendingSavesRef.current > 0);
+      }
     },
     [onSaved, persist, run, saveable, value],
   );

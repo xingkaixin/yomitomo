@@ -118,7 +118,7 @@ describe('useSettingsDrafts', () => {
     expect(saved).toBeUndefined();
   });
 
-  it('retains the created provider identity without replacing newer input', async () => {
+  it('blocks duplicate creation while retaining the provider identity and newer input', async () => {
     const pending = deferred<DesktopStore>();
     const created = makeProvider('created');
     const save = vi
@@ -141,10 +141,15 @@ describe('useSettingsDrafts', () => {
     act(() =>
       result.current.provider.update({ ...result.current.provider.value, name: 'newer input' }),
     );
+    const canSaveWhilePending = result.current.provider.canSave;
+    await act(async () => void (await result.current.provider.save()));
+    const pendingRequestIds = save.mock.calls.map(([draft]) => draft.id ?? null);
     await act(async () => {
       pending.resolve({ ...emptyStore, providers: [created] });
       await request;
     });
+    expect(canSaveWhilePending).toBe(false);
+    expect(pendingRequestIds).toEqual([null]);
     expect(result.current.provider.value).toMatchObject({ id: created.id, name: 'newer input' });
     expect(result.current.provider.canSave).toBe(true);
     await act(async () => void (await result.current.provider.save()));
