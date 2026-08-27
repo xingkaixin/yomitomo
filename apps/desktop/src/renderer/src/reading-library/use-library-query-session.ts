@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { AppSettingsPatch, ResolvedAppSettings } from '@yomitomo/shared';
+import { ARTICLE_SOURCE_TYPES } from '@yomitomo/shared';
 import type { LibraryCatalogItemType, LibraryCatalogListInput } from '../../../ipc-contract';
 import type { LibraryTypeFilter } from './library-filter-types';
 import { normalizeLibraryPageSize, type LibraryPageSize } from './library-query-session';
@@ -12,7 +13,7 @@ type UseLibraryQuerySessionOptions = {
   onSaveSettings: (settings: AppSettingsPatch) => Promise<void> | void;
   catalogRevision: unknown;
   query: LibraryQueryState;
-  availableTypes: readonly LibraryCatalogItemType[];
+  availableTypes: readonly LibraryCatalogItemType[] | null;
   collectionIds: readonly string[];
 };
 
@@ -62,8 +63,24 @@ export function useLibraryQuerySession({
   const latestPageSizeRef = useRef(state.pageSize);
 
   useEffect(() => {
-    dispatch({ type: 'types-pruned', available: selectableTypes });
-  }, [selectableTypes]);
+    const typesReady =
+      availableTypes !== null && catalog.status === 'ready' && catalog.result !== null;
+    const available = typesReady
+      ? selectableTypes
+      : new Set(
+          [...state.selectedTypes].filter(
+            (type) => type !== 'collection' || state.scope.kind === 'library',
+          ),
+        );
+    dispatch({ type: 'types-pruned', available });
+  }, [
+    availableTypes,
+    catalog.result,
+    catalog.status,
+    selectableTypes,
+    state.scope.kind,
+    state.selectedTypes,
+  ]);
 
   useEffect(() => {
     dispatch({ type: 'collection-removed', existingIds: knownCollectionIds });
@@ -163,9 +180,10 @@ export function useLibraryQuerySession({
 export type LibraryQuerySession = ReturnType<typeof useLibraryQuerySession>;
 
 function resolvedLibraryAvailableTypes(
-  availableTypes: readonly LibraryCatalogItemType[],
+  availableTypes: readonly LibraryCatalogItemType[] | null,
   wereadCount: number | undefined,
 ): readonly LibraryCatalogItemType[] {
-  if (availableTypes.includes('weread') || !wereadCount) return availableTypes;
-  return [...availableTypes, 'weread'];
+  const knownTypes = availableTypes ?? ARTICLE_SOURCE_TYPES;
+  if (knownTypes.includes('weread') || !wereadCount) return knownTypes;
+  return [...knownTypes, 'weread'];
 }

@@ -165,13 +165,10 @@ export function ReadingLibrary({
   const distillationAnimation = distillationSync.animation;
   const sortedArticles = useMemo<ArticleSummaryRecord[]>(() => sortArticles(articles), [articles]);
   const resolvedSettings = settings || emptyDesktopStore.settings;
-  const availableCatalogTypes = useMemo<LibraryCatalogItemType[]>(
-    () =>
-      weRead.settings.configured || weRead.books.length > 0
-        ? [...ARTICLE_SOURCE_TYPES, 'weread']
-        : [...ARTICLE_SOURCE_TYPES],
-    [weRead.books.length, weRead.settings.configured],
-  );
+  const availableCatalogTypes = useMemo<LibraryCatalogItemType[] | null>(() => {
+    if (weRead.available === null) return null;
+    return weRead.available ? [...ARTICLE_SOURCE_TYPES, 'weread'] : [...ARTICLE_SOURCE_TYPES];
+  }, [weRead.available]);
   const collectionIds = useMemo(
     () => collections.map((collection) => collection.id),
     [collections],

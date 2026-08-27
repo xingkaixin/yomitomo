@@ -3,6 +3,7 @@
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ArticleRecord, WeReadBook, WeReadBookDetail } from '@yomitomo/shared';
+import type { WeReadState } from '../../../ipc-contract';
 import { useWeReadLibrarySession } from './use-weread-library-session';
 import { useReadingLibraryNavigation } from './use-reading-library-navigation';
 
@@ -12,6 +13,26 @@ afterEach(() => {
 });
 
 describe('useWeReadLibrarySession', () => {
+  it.each([
+    { configured: true, books: [], available: true },
+    { configured: false, books: [], available: false },
+    { configured: false, books: [weReadDetail().book], available: true },
+  ])(
+    'resolves availability from loaded settings and books: %j',
+    async ({ configured, books, available }) => {
+      const pending = createDeferred<WeReadState>();
+      vi.stubGlobal('yomitomoDesktop', { weRead: { getState: () => pending.promise } });
+      const { result } = renderHook(() => useLibrarySession());
+
+      expect(result.current.session.available).toBeNull();
+      await act(async () =>
+        pending.resolve({ settings: { configured, openMethod: 'deeplink' }, books }),
+      );
+
+      expect(result.current.session.available).toBe(available);
+    },
+  );
+
   it('keeps the latest book when cached reads finish out of order', async () => {
     const first = createDeferred<WeReadBookDetail | null>();
     const second = createDeferred<WeReadBookDetail | null>();

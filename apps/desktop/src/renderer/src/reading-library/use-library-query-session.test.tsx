@@ -25,6 +25,104 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+it('preserves a saved WeRead filter while the remounted catalog loads', async () => {
+  const pending = deferred<LibraryCatalogListResult>();
+  let reloading = false;
+  const listCatalog = vi.fn((_input: LibraryCatalogListInput) =>
+    reloading ? pending.promise : Promise.resolve(catalogResult({ wereadCount: 1 })),
+  );
+  vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listCatalog } } });
+  const view = render(<RestorableQueryHarness showCatalog availableTypes={['web']} />);
+  await waitFor(() => expect(screen.getByTestId('catalog-status').textContent).toBe('ready'));
+  fireEvent.click(screen.getByRole('button', { name: 'filter WeRead' }));
+  await waitFor(() => expect(screen.getByTestId('catalog-status').textContent).toBe('ready'));
+  expect(screen.getByTestId('selected-types').textContent).toBe('weread');
+  view.rerender(<RestorableQueryHarness showCatalog={false} availableTypes={['web']} />);
+  reloading = true;
+  view.rerender(<RestorableQueryHarness showCatalog availableTypes={['web']} />);
+
+  expect(screen.getByTestId('catalog-status').textContent).toBe('loading');
+  expect(screen.getByTestId('selected-types').textContent).toBe('weread');
+  await act(async () => pending.resolve(catalogResult({ wereadCount: 1 })));
+  expect(screen.getByTestId('selected-types').textContent).toBe('weread');
+  expect(listCatalog.mock.calls.at(-1)?.[0]).toMatchObject({ types: ['weread'] });
+});
+
+it.each([true, false])(
+  'waits for type availability before reconciling an empty catalog (WeRead available: %s)',
+  async (wereadAvailable) => {
+    const listCatalog = vi.fn(async () => catalogResult());
+    vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listCatalog } } });
+    const initialProps: { availableTypes: LibraryCatalogItemType[] | null } = {
+      availableTypes: null,
+    };
+    const { result, rerender } = renderHook(
+      ({ availableTypes }) =>
+        useLibraryQuerySession(
+          sessionOptions({ availableTypes, initial: { selectedTypes: new Set(['weread']) } }),
+        ),
+      { initialProps },
+    );
+    await waitFor(() => expect(result.current.catalog.status).toBe('ready'));
+
+    expect(result.current.state.selectedTypes).toEqual(new Set(['weread']));
+    rerender({ availableTypes: wereadAvailable ? ['web', 'weread'] : ['web'] });
+
+    expect(result.current.state.selectedTypes).toEqual(new Set(wereadAvailable ? ['weread'] : []));
+  },
+);
+
+it('keeps the saved WeRead filter when the catalog cannot load', async () => {
+  const pending = deferred<LibraryCatalogListResult>();
+  vi.stubGlobal('yomitomoDesktop', {
+    library: { catalog: { list: () => pending.promise } },
+  });
+  const { result } = renderHook(() =>
+    useLibraryQuerySession(
+      sessionOptions({ availableTypes: ['web'], initial: { selectedTypes: new Set(['weread']) } }),
+    ),
+  );
+  await act(async () => pending.reject(new Error('database busy')));
+
+  expect(result.current.catalog.status).toBe('error');
+  expect(result.current.state.selectedTypes).toEqual(new Set(['weread']));
+});
+
+it('does not prune against a previous catalog while its revision is refreshing', async () => {
+  const pending = deferred<LibraryCatalogListResult>();
+  const listCatalog = vi
+    .fn()
+    .mockResolvedValueOnce(catalogResult())
+    .mockReturnValue(pending.promise);
+  vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listCatalog } } });
+  const { result, rerender } = renderHook(
+    ({
+      availableTypes,
+      localRevision,
+    }: {
+      availableTypes: LibraryCatalogItemType[];
+      localRevision: number;
+    }) =>
+      useLibraryQuerySession(
+        sessionOptions({
+          availableTypes,
+          localRevision,
+          initial: { selectedTypes: new Set(['weread']) },
+        }),
+      ),
+    { initialProps: { availableTypes: ['web', 'weread'], localRevision: 0 } },
+  );
+  await waitFor(() => expect(result.current.catalog.status).toBe('ready'));
+
+  rerender({ availableTypes: ['web'], localRevision: 1 });
+  expect(result.current.catalog.status).toBe('loading');
+  expect(result.current.state.selectedTypes).toEqual(new Set(['weread']));
+  await act(async () => pending.resolve(catalogResult({ wereadCount: 1 })));
+
+  expect(result.current.catalog.status).toBe('ready');
+  expect(result.current.state.selectedTypes).toEqual(new Set(['weread']));
+});
+
 it.each([60, 14, 0])(
   'preserves the saved page while remounting, then clamps against %s resolved items',
   async (totalCount) => {
@@ -397,7 +495,7 @@ function sessionOptions({
   onSaveSettings = vi.fn(),
   settings = {},
 }: {
-  availableTypes?: LibraryCatalogItemType[];
+  availableTypes?: LibraryCatalogItemType[] | null;
   collectionIds?: string[];
   initial?: Parameters<typeof useLibraryQueryState>[0];
   localRevision?: number;
@@ -414,20 +512,38 @@ function sessionOptions({
   };
 }
 
-function RestorableQueryHarness({ showCatalog }: { showCatalog: boolean }) {
+function RestorableQueryHarness({
+  showCatalog,
+  availableTypes,
+}: {
+  showCatalog: boolean;
+  availableTypes?: LibraryCatalogItemType[];
+}) {
   const query = useLibraryQueryState();
   return (
     <>
       <button onClick={() => query.dispatch({ type: 'page-changed', page: 5 })}>page five</button>
+      <button
+        onClick={() => query.dispatch({ type: 'type-toggled', value: 'weread', availableCount: 6 })}
+      >
+        filter WeRead
+      </button>
+      <span data-testid="selected-types">{[...query.state.selectedTypes].join(',')}</span>
       <span data-testid="current-page">{query.state.page}</span>
-      {showCatalog ? <RestoredCatalog query={query} /> : null}
+      {showCatalog ? <RestoredCatalog query={query} availableTypes={availableTypes} /> : null}
     </>
   );
 }
 
-function RestoredCatalog({ query }: { query: LibraryQueryState }) {
+function RestoredCatalog({
+  query,
+  availableTypes,
+}: {
+  query: LibraryQueryState;
+  availableTypes?: LibraryCatalogItemType[];
+}) {
   const { catalog } = useLibraryQuerySessionRuntime({
-    ...sessionOptions(),
+    ...sessionOptions({ availableTypes }),
     catalogRevision: 0,
     query,
   });
