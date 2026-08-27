@@ -27,6 +27,11 @@ type UseReaderChatSessionInput = {
   ) => Promise<unknown>;
 };
 
+type ArticleChatState = {
+  articleId: string;
+  state: ReaderChatState | undefined;
+};
+
 function updateActiveSession(
   current: ReaderChatState,
   update: (messages: ReaderChatMessage[]) => ReaderChatMessage[],
@@ -55,13 +60,18 @@ export function useReaderChatSession({
   const [draftContext, setDraftContext] = useState<ReaderQuestionContext | undefined>();
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
-  const stateRef = useRef<ReaderChatState | undefined>(state);
-  const sendingRef = useRef(false);
+  const articleChatRef = useRef<ArticleChatState>({ articleId: article.id, state });
+  const requestChatRef = useRef<ArticleChatState | undefined>(undefined);
 
   useEffect(() => {
-    if (sendingRef.current && stateRef.current?.articleId === article.id) return;
-    setState(article.readerChatState);
-    stateRef.current = article.readerChatState;
+    const requestChat = requestChatRef.current;
+    if (requestChat?.articleId === article.id) {
+      if (articleChatRef.current === requestChat) return;
+      articleChatRef.current = requestChat;
+    } else {
+      articleChatRef.current = { articleId: article.id, state: article.readerChatState };
+    }
+    setState(articleChatRef.current.state);
     setError('');
   }, [article.id, article.readerChatState]);
 
@@ -74,58 +84,30 @@ export function useReaderChatSession({
     [agents, state?.selectedAssistantId],
   );
 
-  function replaceState(nextState: ReaderChatState | undefined) {
-    stateRef.current = nextState;
-    setState(nextState);
+  function replaceState(chat: ArticleChatState, nextState: ReaderChatState | undefined) {
+    chat.state = nextState;
+    if (articleChatRef.current === chat) setState(nextState);
   }
 
   async function persistState(
+    chat: ArticleChatState,
     nextState: ReaderChatState,
     previousState: ReaderChatState | undefined,
   ) {
-    replaceState(nextState);
+    replaceState(chat, nextState);
     if (!onSaveArticleReaderChatState) return true;
     try {
-      await onSaveArticleReaderChatState(article.id, nextState);
+      await onSaveArticleReaderChatState(chat.articleId, nextState);
       return true;
     } catch (persistError) {
       console.warn('[reader-chat] state persistence failed', {
-        articleId: article.id,
+        articleId: chat.articleId,
         error: persistError instanceof Error ? persistError.message : String(persistError),
       });
-      replaceState(previousState);
-      setError(i18next.t('common.saveFailed'));
+      replaceState(chat, previousState);
+      if (articleChatRef.current === chat) setError(i18next.t('common.saveFailed'));
       return false;
     }
-  }
-
-  function setSendingState(nextSending: boolean) {
-    sendingRef.current = nextSending;
-    setSending(nextSending);
-  }
-
-  function ensureState(assistantId = selectedAssistantId) {
-    const current = stateRef.current;
-    if (current) return current;
-
-    const now = new Date().toISOString();
-    const sessionId = makeId('reader_chat_session');
-    return {
-      articleId: article.id,
-      activeSessionId: sessionId,
-      selectedAssistantId: assistantId,
-      sessions: [
-        {
-          id: sessionId,
-          articleId: article.id,
-          createdAt: now,
-          updatedAt: now,
-          messages: [],
-        },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    };
   }
 
   function askSelection(context: ReaderQuestionContext) {
@@ -135,17 +117,19 @@ export function useReaderChatSession({
   }
 
   async function selectAssistant(assistantId: string) {
-    const previousState = stateRef.current;
-    const nextState = { ...ensureState(assistantId), selectedAssistantId: assistantId };
+    const chat = articleChatRef.current;
+    const previousState = chat.state;
+    const nextState = { ...ensureState(chat, assistantId), selectedAssistantId: assistantId };
     setError('');
-    await persistState(nextState, previousState);
+    await persistState(chat, nextState, previousState);
   }
 
   async function submit(content: string) {
     const question = content.trim();
     const assistant = agents.find((agent) => agent.id === selectedAssistantId) || agents[0];
-    if (!question || !assistant) return;
+    if (!question || !assistant || requestChatRef.current) return;
 
+    const chat = articleChatRef.current;
     const context = draftContext;
     const userMessage: ReaderChatMessage = {
       id: makeId('reader_chat_message'),
@@ -163,26 +147,26 @@ export function useReaderChatSession({
     };
 
     setDraftContext(undefined);
-    setSendingState(true);
+    requestChatRef.current = chat;
+    setSending(true);
     setError('');
 
-    const pendingState = updateActiveSession(ensureState(assistant.id), (messages) => [
+    const pendingState = updateActiveSession(ensureState(chat, assistant.id), (messages) => [
       ...messages,
       userMessage,
       assistantMessage,
     ]);
-    const previousState = stateRef.current;
-    if (!(await persistState(pendingState, previousState))) {
-      setSendingState(false);
-      return;
-    }
+    const previousState = chat.state;
+    replaceState(chat, pendingState);
 
     try {
+      const articleText = await getArticleText();
+      if (!(await persistState(chat, chat.state || pendingState, previousState))) return;
       const finalComment = await getDesktopApi().agent.requestCommentStream(
         readerChatPayload({
           agent: assistant,
           article,
-          articleText: await getArticleText(),
+          articleText,
           context,
           question,
           uiLanguage,
@@ -190,37 +174,38 @@ export function useReaderChatSession({
         }),
         (event) => {
           if (event.type !== 'delta') return;
-          const nextState = updateActiveSession(stateRef.current || pendingState, (messages) =>
+          const nextState = updateActiveSession(chat.state || pendingState, (messages) =>
             messages.map((message) =>
               message.id === assistantMessage.id
                 ? { ...message, content: `${message.content}${event.delta}` }
                 : message,
             ),
           );
-          replaceState(nextState);
+          replaceState(chat, nextState);
         },
       );
-      const completedState = updateActiveSession(stateRef.current || pendingState, (messages) =>
+      const completedState = updateActiveSession(chat.state || pendingState, (messages) =>
         messages.map((message) =>
           message.id === assistantMessage.id
             ? { ...message, content: finalComment.content || message.content }
             : message,
         ),
       );
-      await persistState(completedState, pendingState);
+      await persistState(chat, completedState, pendingState);
     } catch (requestError) {
       const message = assistantRuntimeErrorMessage(requestError, 'source.readerChatFailed');
-      setError(message);
-      const failedState = updateActiveSession(stateRef.current || pendingState, (messages) =>
+      if (articleChatRef.current === chat) setError(message);
+      const failedState = updateActiveSession(chat.state || pendingState, (messages) =>
         messages.map((item) =>
           item.id === assistantMessage.id
             ? { ...item, content: i18next.t('source.requestFailedWithMessage', { message }) }
             : item,
         ),
       );
-      await persistState(failedState, pendingState);
+      await persistState(chat, failedState, pendingState);
     } finally {
-      setSendingState(false);
+      requestChatRef.current = undefined;
+      setSending(false);
     }
   }
 
@@ -241,6 +226,30 @@ export function useReaderChatSession({
       sending,
       state,
     },
+  };
+}
+
+function ensureState(chat: ArticleChatState, assistantId: string) {
+  const current = chat.state;
+  if (current) return current;
+
+  const now = new Date().toISOString();
+  const sessionId = makeId('reader_chat_session');
+  return {
+    articleId: chat.articleId,
+    activeSessionId: sessionId,
+    selectedAssistantId: assistantId,
+    sessions: [
+      {
+        id: sessionId,
+        articleId: chat.articleId,
+        createdAt: now,
+        updatedAt: now,
+        messages: [],
+      },
+    ],
+    createdAt: now,
+    updatedAt: now,
   };
 }
 
