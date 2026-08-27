@@ -123,17 +123,19 @@ function renderTranslationHook({
   const articleRef = { current: articleElement };
   const scrollRef = { current: scrollElement };
   document.body.append(scrollElement, articleElement);
-  const hook = renderHook(() =>
-    useWebBilingualTranslation({
-      annotations,
-      article: webArticle(),
-      articleRef,
-      contentHtml,
-      deleteAnnotation,
-      scrollRef,
-      style: 'dashedLine',
-      targetLanguage: 'zh-CN',
-    }),
+  const hook = renderHook(
+    ({ targetLanguage }) =>
+      useWebBilingualTranslation({
+        annotations,
+        article: webArticle(),
+        articleRef,
+        contentHtml,
+        deleteAnnotation,
+        scrollRef,
+        style: 'dashedLine',
+        targetLanguage,
+      }),
+    { initialProps: { targetLanguage: 'zh-CN' } },
   );
   return { ...hook, articleElement };
 }
@@ -145,6 +147,63 @@ function renderedTranslationText(html: string) {
 }
 
 describe('useWebBilingualTranslation', () => {
+  it.each([
+    ['en', 'English'],
+    ['ja', '日本語'],
+  ])(
+    'ignores old-language events after switching to %s',
+    async (targetLanguage, canonicalLanguage) => {
+      const api = installDesktopApi(translationFor());
+      const { result, rerender } = renderTranslationHook();
+      await waitFor(() =>
+        expect(renderedTranslationText(result.current.renderedHtml)).toBe(
+          '你好世界，这一段应该被翻译。',
+        ),
+      );
+      const current = {
+        ...translationFor('Current translation'),
+        targetLanguage: canonicalLanguage,
+      };
+      api.getCurrentArticleTranslation.mockResolvedValue(current);
+      rerender({ targetLanguage });
+      await waitFor(() =>
+        expect(renderedTranslationText(result.current.renderedHtml)).toBe('Current translation'),
+      );
+      act(() => api.callbacks.forEach((receive) => receive(translationFor('迟到的中文译文'))));
+      expect(renderedTranslationText(result.current.renderedHtml)).toBe('Current translation');
+      act(() =>
+        api.callbacks.forEach((receive) =>
+          receive({
+            ...translationFor('Updated current translation'),
+            targetLanguage: canonicalLanguage,
+          }),
+        ),
+      );
+      expect(renderedTranslationText(result.current.renderedHtml)).toBe(
+        'Updated current translation',
+      );
+    },
+  );
+
+  it('does not reveal the old language while the new target is loading', async () => {
+    const api = installDesktopApi(translationFor());
+    const { result, rerender } = renderTranslationHook();
+    await waitFor(() => expect(renderedTranslationText(result.current.renderedHtml)).toBeDefined());
+    let complete!: (value: ArticleTranslation | null) => void;
+    const pending = new Promise<ArticleTranslation | null>((resolve) => {
+      complete = resolve;
+    });
+    api.getCurrentArticleTranslation.mockReturnValue(pending);
+    rerender({ targetLanguage: 'en' });
+    act(() => api.callbacks.forEach((receive) => receive(translationFor('迟到的中文译文'))));
+    expect(renderedTranslationText(result.current.renderedHtml)).toBeUndefined();
+    await act(async () => {
+      complete(null);
+      await pending;
+    });
+    expect(renderedTranslationText(result.current.renderedHtml)).toBeUndefined();
+  });
+
   it('restores and renders the cached article translation', async () => {
     const cached = translationFor();
     const api = installDesktopApi(cached);

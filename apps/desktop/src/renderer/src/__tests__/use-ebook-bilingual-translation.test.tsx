@@ -159,6 +159,7 @@ function installDesktopApi(
     },
   });
   return {
+    callbacks,
     deleteCurrentArticleTranslation,
     getCurrentArticleTranslation,
     translateArticle,
@@ -166,17 +167,42 @@ function installDesktopApi(
 }
 
 function renderTranslationHook(onLayoutChange = vi.fn()) {
-  return renderHook(() =>
-    useEbookBilingualTranslation({
-      article: ebookArticle(),
-      style: 'dashedLine',
-      targetLanguage: 'zh-CN',
-      onLayoutChange,
-    }),
+  return renderHook(
+    ({ targetLanguage }) =>
+      useEbookBilingualTranslation({
+        article: ebookArticle(),
+        style: 'dashedLine',
+        targetLanguage,
+        onLayoutChange,
+      }),
+    { initialProps: { targetLanguage: 'zh-CN' } },
   );
 }
 
 describe('useEbookBilingualTranslation', () => {
+  it('keeps the current chapter language when old translation events arrive', async () => {
+    const { doc, view } = foliateView();
+    const cached = translationFor(doc);
+    const api = installDesktopApi(cached);
+    const { result, rerender } = renderTranslationHook();
+    act(() => result.current.attachFoliateDocument(view));
+    await waitFor(() =>
+      expect(doc.querySelector('[data-reader-translation]')?.textContent).toBe(
+        '当前章节会保留完整的原文。',
+      ),
+    );
+    api.getCurrentArticleTranslation.mockResolvedValue({
+      ...translationFor(doc, 'English chapter'),
+      targetLanguage: 'English',
+    });
+    rerender({ targetLanguage: 'en' });
+    await waitFor(() =>
+      expect(doc.querySelector('[data-reader-translation]')?.textContent).toBe('English chapter'),
+    );
+    act(() => api.callbacks.forEach((receive) => receive(cached)));
+    expect(doc.querySelector('[data-reader-translation]')?.textContent).toBe('English chapter');
+  });
+
   it('restores the cached translation for the visible EPUB chapter', async () => {
     const { doc, view } = foliateView();
     const cached = translationFor(doc);

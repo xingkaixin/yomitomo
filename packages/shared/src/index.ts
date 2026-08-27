@@ -13,6 +13,7 @@ export {
   normalizeUiLanguage,
 } from './types';
 export { ARTICLE_SOURCE_TYPES, normalizeArticleSourceType } from './sources/article-types';
+export { normalizeArticleTranslationTargetLanguage } from './sources/article-translation';
 export type {
   Agent,
   AgentAnnotatePayload,

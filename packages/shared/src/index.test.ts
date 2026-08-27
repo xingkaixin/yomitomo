@@ -70,6 +70,7 @@ const sharedRuntimeExports = [
   'normalizeAnnotationMove',
   'normalizeAnnotationType',
   'normalizeArticleSourceType',
+  'normalizeArticleTranslationTargetLanguage',
   'normalizeAssistantExecutionMode',
   'normalizeLibraryContentSources',
   'normalizeMessageSendShortcut',

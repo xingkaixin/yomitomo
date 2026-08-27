@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ArticleTranslation, ArticleTranslationSourceBlockInput } from '@yomitomo/shared';
+import { normalizeArticleTranslationTargetLanguage } from '@yomitomo/shared';
 import { assistantRuntimeErrorMessage } from '../../shell/app-assistant-runtime-progress';
 import { getDesktopApi, getOptionalDesktopApi } from '../../shell/app-desktop-api';
 import { appToast } from '../../shell/app-toast';
@@ -94,12 +95,13 @@ export function useSourceBilingualTranslation<ApplyResult>({
 
   const receiveTranslation = useCallback(
     (nextTranslation: ArticleTranslation) => {
-      if (!hasSurface || !translationMatches(nextTranslation, articleId, sourceId)) return;
+      if (!hasSurface || !translationMatches(nextTranslation, articleId, sourceId, targetLanguage))
+        return;
       progressToast.update(nextTranslation);
       setTranslation(nextTranslation);
       setVisible(true);
     },
-    [articleId, hasSurface, progressToast, sourceId],
+    [articleId, hasSurface, progressToast, sourceId, targetLanguage],
   );
 
   const requestTranslation = useCallback(
@@ -254,7 +256,9 @@ export function useSourceBilingualTranslation<ApplyResult>({
   useEffect(() => () => progressToast.dismiss(), [progressToast]);
 
   const activeTranslation =
-    hasSurface && translation && translationMatches(translation, articleId, sourceId)
+    hasSurface &&
+    translation &&
+    translationMatches(translation, articleId, sourceId, targetLanguage)
       ? translation
       : null;
   const translationInProgress = busy || activeTranslation?.status === 'translating';
@@ -343,10 +347,12 @@ function translationMatches(
   translation: ArticleTranslation,
   articleId: string,
   sourceId: string | undefined,
+  targetLanguage: string | undefined,
 ) {
   return (
     translation.articleId === articleId &&
-    (sourceId === undefined || translation.sourceId === sourceId)
+    (sourceId === undefined || translation.sourceId === sourceId) &&
+    translation.targetLanguage === normalizeArticleTranslationTargetLanguage(targetLanguage)
   );
 }
 
