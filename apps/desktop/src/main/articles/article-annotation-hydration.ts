@@ -2,10 +2,10 @@ import { inArray } from 'drizzle-orm';
 import type { Annotation, AnnotationAuthorRef, Comment } from '@yomitomo/shared';
 import { uniqueNonEmptyStrings } from '@yomitomo/shared';
 import * as schema from '../db/schema';
-import type { StoreDatabase } from '../store/store-db';
+import type { StoreExecutor } from '../store/store-db';
 import { rowToAnnotation, rowToComment, sortByCreatedAt } from '../store/store-normalizers';
 
-export function readArticleAnnotations(database: StoreDatabase, articleId: string) {
+export function readArticleAnnotations(database: StoreExecutor, articleId: string) {
   const annotationRows = readAnnotationRowsForArticles(database, [articleId]);
   const annotationIds = annotationRows.map((row) => row.id);
   const commentRows = readCommentRowsForAnnotations(database, annotationIds);
@@ -15,7 +15,7 @@ export function readArticleAnnotations(database: StoreDatabase, articleId: strin
   );
 }
 
-export function readAnnotationRowsForArticles(database: StoreDatabase, articleIds: string[]) {
+export function readAnnotationRowsForArticles(database: StoreExecutor, articleIds: string[]) {
   return articleIds.length > 0
     ? database
         .select()
@@ -25,7 +25,7 @@ export function readAnnotationRowsForArticles(database: StoreDatabase, articleId
     : [];
 }
 
-export function readCommentRowsForAnnotations(database: StoreDatabase, annotationIds: string[]) {
+export function readCommentRowsForAnnotations(database: StoreExecutor, annotationIds: string[]) {
   return annotationIds.length > 0
     ? database
         .select()
@@ -68,7 +68,7 @@ type AnnotationActorAvatars = {
 };
 
 export function readAnnotationActorAvatars(
-  database: StoreDatabase,
+  database: StoreExecutor,
   annotationRows: Array<typeof schema.annotations.$inferSelect>,
   commentRows: Array<typeof schema.comments.$inferSelect>,
 ): AnnotationActorAvatars {
