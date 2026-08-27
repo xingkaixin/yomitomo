@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import type { ArticleRecord } from '@yomitomo/shared';
 import { logError } from '../app/logger';
 import * as schema from '../db/schema';
-import { getDatabase, withDatabaseLease } from '../store/store-db';
+import { getDatabase, withDatabaseLease, type StoreDatabase } from '../store/store-db';
 import { withArticleSourceOperation } from './article-source-operations';
 
 type CleanupSourceType = Extract<ArticleRecord['sourceType'], 'ebook' | 'pdf'>;
@@ -13,7 +13,7 @@ type CleanupTaskExecutor = {
   };
 };
 
-let recoveryPromise: Promise<void> | undefined;
+let recovery: { database: StoreDatabase; promise: Promise<void> } | undefined;
 
 export function queueArticleSourceCleanup(
   executor: CleanupTaskExecutor,
@@ -71,16 +71,20 @@ export async function completeArticleSourceCleanup(articleId: string) {
 }
 
 export function recoverPendingArticleSourceCleanup() {
-  recoveryPromise ||= recoverArticleSourceCleanup();
-  return recoveryPromise;
+  const database = getDatabase();
+  if (recovery?.database === database) return recovery.promise;
+
+  const promise = recoverArticleSourceCleanup(database);
+  recovery = { database, promise };
+  return promise;
 }
 
 export function resetArticleSourceCleanupRecovery() {
-  recoveryPromise = undefined;
+  recovery = undefined;
 }
 
-async function recoverArticleSourceCleanup() {
-  const pending = getDatabase().select().from(schema.articleSourceCleanupTasks).all();
+async function recoverArticleSourceCleanup(database: StoreDatabase) {
+  const pending = database.select().from(schema.articleSourceCleanupTasks).all();
   for (const task of pending) await completeArticleSourceCleanup(task.articleId);
 }
 

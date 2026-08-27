@@ -1,10 +1,10 @@
 import { eq } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import { logError } from '../app/logger';
-import { getDatabase, type StoreExecutor } from '../store/store-db';
+import { getDatabase, type StoreDatabase, type StoreExecutor } from '../store/store-db';
 import { deleteStoredSecret } from './provider-secrets';
 
-let recoveryPromise: Promise<void> | undefined;
+let recovery: { database: StoreDatabase; promise: Promise<void> } | undefined;
 
 export function queueSecretDeletion(database: StoreExecutor, secretRef: string) {
   database
@@ -30,16 +30,20 @@ export async function completeSecretDeletion(secretRef: string) {
 }
 
 export function recoverPendingSecretDeletions() {
-  recoveryPromise ||= recoverSecretDeletions();
-  return recoveryPromise;
+  const database = getDatabase();
+  if (recovery?.database === database) return recovery.promise;
+
+  const promise = recoverSecretDeletions(database);
+  recovery = { database, promise };
+  return promise;
 }
 
 export function resetSecretDeletionRecovery() {
-  recoveryPromise = undefined;
+  recovery = undefined;
 }
 
-async function recoverSecretDeletions() {
-  const pending = getDatabase().select().from(schema.secretDeletionTasks).all();
+async function recoverSecretDeletions(database: StoreDatabase) {
+  const pending = database.select().from(schema.secretDeletionTasks).all();
   for (const task of pending) {
     try {
       await completeSecretDeletion(task.secretRef);
