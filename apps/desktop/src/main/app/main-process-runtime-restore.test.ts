@@ -13,11 +13,27 @@ import {
 import { startMainProcessRuntime } from './main-process-runtime';
 import { createDesktopTelemetryController } from '../telemetry/desktop-telemetry';
 import { readTelemetryState, upsertTelemetryState } from '../telemetry/telemetry-repository';
+import { registerStoreDataIpc } from '../ipc/ipc-store-data';
+import * as schema from '../db/schema';
+import * as weReadRepository from '../weread/weread-repository';
+import * as providerSecrets from '../providers/provider-secrets';
 
 const paths = vi.hoisted(() => ({ userData: '' }));
+const ipcHandlers = vi.hoisted(() => new Map<string, (...args: unknown[]) => unknown>());
 
 vi.mock('electron', () => ({
   app: { getPath: () => paths.userData },
+  dialog: {
+    showOpenDialog: async () => ({
+      canceled: false,
+      filePaths: [join(paths.userData, 'auto-sync-backup.sqlite')],
+    }),
+  },
+  ipcMain: {
+    handle: (channel: string, handler: (...args: unknown[]) => unknown) => {
+      ipcHandlers.set(channel, handler);
+    },
+  },
   powerMonitor: { on: vi.fn(), off: vi.fn() },
 }));
 vi.mock('../native/sqlite', async () => {
@@ -27,6 +43,7 @@ vi.mock('../native/sqlite', async () => {
 vi.mock('./logger', () => ({ logInfo: vi.fn(), logError: vi.fn() }));
 
 beforeEach(async () => {
+  ipcHandlers.clear();
   paths.userData = await mkdtemp(join(tmpdir(), 'yomitomo-background-restore-'));
 });
 
@@ -147,6 +164,74 @@ it('finishes a telemetry heartbeat before restoring its saved identity', async (
     await finished.promise;
     await restoration;
     controller.dispose();
+  }
+});
+
+it('starts automatic sync when the restore IPC replaces manual settings', async () => {
+  await import('../data-management');
+  vi.spyOn(providerSecrets, 'readWeReadApiKey').mockResolvedValue('test-key');
+  getDatabase()
+    .insert(schema.wereadAccounts)
+    .values({
+      id: 'default',
+      apiKeyRef: 'test-key-ref',
+      openMethod: 'deeplink',
+      syncMode: 'auto',
+      skillVersion: '1.0.3',
+      status: 'connected',
+      updatedAt: '2026-08-28T00:00:00.000Z',
+    })
+    .run();
+  await backupDatabaseFile(join(paths.userData, 'auto-sync-backup.sqlite'));
+  getDatabase().update(schema.wereadAccounts).set({ syncMode: 'manual' }).run();
+  const syncWeRead = vi.fn(() => weReadRepository.readWeReadState());
+  vi.useFakeTimers({
+    toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'],
+  });
+  const runtime = startMainProcessRuntime({
+    getPersistenceModules: async () => ({
+      weReadRepository,
+      storeModelPricing: { refreshModelPrices: vi.fn() },
+    }),
+    getAppUpdaterModule: async () => ({ checkForAppUpdates: vi.fn() }),
+    getAppVersion: () => 'test',
+    sendWeReadStateUpdated: vi.fn(),
+    elapsedMs: () => 0,
+    logInfo: vi.fn(),
+    logError: vi.fn(),
+    createTelemetryController: () => ({ check() {}, dispose() {} }),
+    syncWeRead,
+    timing: {
+      weReadStartupDelayMs: 10,
+      weReadIntervalMs: 100,
+      modelPriceStartupDelayMs: 60_000,
+      appUpdateStartupDelayMs: 60_000,
+    },
+  });
+  try {
+    await vi.advanceTimersByTimeAsync(20);
+    expect(syncWeRead).not.toHaveBeenCalled();
+    const sendFullStoreUpdated = vi.fn();
+    registerStoreDataIpc({
+      getMainWindow: () => null,
+      logError: vi.fn(),
+      storeLoadErrorInfo: vi.fn(),
+      sendFullStoreUpdated,
+      startupStoreInitialization: { ok: true },
+      configureWeReadAutoSync: runtime.configureWeReadAutoSync,
+      getPersistenceModules: vi.fn(),
+      getAppUpdaterModule: vi.fn(),
+    });
+    const result = await ipcHandlers.get('data:database-restore')?.({ sender: { id: 1 } });
+    expect(result).toMatchObject({ ok: true, value: { canceled: false } });
+    expect(sendFullStoreUpdated).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(10);
+    expect(syncWeRead).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(syncWeRead).toHaveBeenCalledTimes(2);
+  } finally {
+    runtime.dispose();
+    vi.useRealTimers();
   }
 });
 
