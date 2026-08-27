@@ -72,6 +72,38 @@ function renderReaderChatSession(
 }
 
 describe('useReaderChatSession', () => {
+  it('includes earlier questions and assistant replies in a follow-up request', async () => {
+    const requestAgentCommentStream = vi.fn((_payload, _onEvent) =>
+      Promise.resolve({
+        id: 'answer_1',
+        author: 'ai' as const,
+        content: '第一轮回答',
+        createdAt: now,
+      }),
+    );
+    mockDesktop({ requestAgentCommentStream });
+    const { session } = renderReaderChatSession();
+
+    await act(async () => {
+      await session().actions.onSubmit('第一轮问题');
+    });
+    await act(async () => {
+      await session().actions.onSelectAssistant('agent_2');
+    });
+    await act(async () => {
+      await session().actions.onSubmit('请解释刚才的答案');
+    });
+
+    const payload = requestAgentCommentStream.mock.calls[1][0];
+    expect(payload.annotation.comments).toMatchObject([
+      { author: { kind: 'user' }, content: '第一轮问题' },
+      { author: { kind: 'agent', agentId: 'agent_1', username: 'agent_1' }, content: '第一轮回答' },
+      { author: { kind: 'user' }, content: '请解释刚才的答案' },
+    ]);
+    expect(payload.agentId).toBe('agent_2');
+    expect(payload.userComment.content).toBe('请解释刚才的答案');
+  });
+
   it('keeps the quoted selection when switching the selected assistant', async () => {
     const { session } = renderReaderChatSession();
 
