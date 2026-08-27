@@ -118,7 +118,8 @@ function queueSourceReadingProgress(
   state: SourceReadingProgressSaveState,
   progress: ArticleReadingProgress,
 ) {
-  if (!state.runtime.shouldSave(progress, state.lastPersistedProgress)) {
+  // An in-flight save can replace the persisted value before this progress is drained.
+  if (!state.drainPromise && !state.runtime.shouldSave(progress, state.lastPersistedProgress)) {
     state.pendingProgress = null;
     return false;
   }
