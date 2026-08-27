@@ -39,7 +39,7 @@ import { providerDisplayName, providerPresetDisplayName } from '../i18n/app-i18n
 import type { SaveableDraft } from './use-saveable-draft';
 import { AssistantExecutionModeSlider } from './app-settings-execution-mode-slider';
 
-type ProviderDraftController = SaveableDraft<ProviderDraft, boolean> & {
+type ProviderDraftController = SaveableDraft<ProviderDraft> & {
   create: () => void;
   deleteProvider: (id: string) => Promise<void> | void;
   select: (provider: LlmProvider) => void;
