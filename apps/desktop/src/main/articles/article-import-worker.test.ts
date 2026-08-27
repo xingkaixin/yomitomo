@@ -130,6 +130,35 @@ describe('article import worker', () => {
     await expect(fetchImageDataUrl()).resolves.toBeNull();
   });
 
+  it.each([undefined, '1'])(
+    'stops reading oversized images with content-length %s',
+    async (contentLength) => {
+      let produced = 0;
+      const cancel = vi.fn();
+      const body = new ReadableStream<Uint8Array>(
+        {
+          pull(controller) {
+            produced += 1;
+            controller.enqueue(new Uint8Array(1_000_000));
+            if (produced === 12) controller.close();
+          },
+          cancel,
+        },
+        { highWaterMark: 0 },
+      );
+      const headers = new Headers({ 'content-type': 'image/png' });
+      if (contentLength) headers.set('content-length', contentLength);
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(body, { headers }));
+
+      const result = await fetchImageDataUrl();
+
+      expect(result).toBeNull();
+      // The network-policy stream can prefetch one extra chunk.
+      expect(produced).toBeLessThanOrEqual(4);
+      expect(cancel).toHaveBeenCalledOnce();
+    },
+  );
+
   it('returns null when image fetching fails', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network failed'));
 
@@ -195,6 +224,23 @@ describe('article import worker', () => {
     await vi.advanceTimersByTimeAsync(10_000);
 
     await expect(result).resolves.toBeNull();
+  });
+
+  it('cancels a stalled image body when its download times out', async () => {
+    vi.useFakeTimers();
+    const cancel = vi.fn();
+    const body = new ReadableStream<Uint8Array>({ cancel });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(body, {
+        headers: { 'content-type': 'image/png' },
+      }),
+    );
+
+    const result = fetchImageDataUrl();
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    await expect(result).resolves.toBeNull();
+    expect(cancel).toHaveBeenCalledOnce();
   });
 });
 

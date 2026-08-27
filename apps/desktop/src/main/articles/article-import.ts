@@ -24,6 +24,7 @@ import {
   type ArticleImportNetworkPolicyOptions,
 } from './article-import-network-policy';
 import { createArticleImportNetworkProxy } from './article-import-network-proxy';
+import { readArticleImportResponseBytes } from './article-import-response';
 import { withTimeoutAbortSignalEffect } from '../effect-abort-signal';
 
 const IMPORT_TIMEOUT_MS = 15_000;
@@ -453,53 +454,14 @@ function renderedPageValue(value: unknown) {
 }
 
 async function readArticleImportResponseHtml(response: Response, signal: AbortSignal) {
-  const declaredLength = contentLengthBytes(response.headers);
-  if (declaredLength !== null && declaredLength > MAX_ARTICLE_IMPORT_HTML_BYTES) {
-    throw new SourceImportError('ARTICLE_IMPORT_RESPONSE_TOO_LARGE');
-  }
-
-  const html = await readLimitedResponseText(response, signal);
+  const buffer = await readArticleImportResponseBytes(
+    response,
+    MAX_ARTICLE_IMPORT_HTML_BYTES,
+    signal,
+  );
+  const html = new TextDecoder().decode(buffer);
   if (isArticleImportHtmlResponse(response.headers, html)) return html;
   throw new SourceImportError('ARTICLE_IMPORT_UNSUPPORTED_CONTENT_TYPE');
-}
-
-async function readLimitedResponseText(response: Response, signal: AbortSignal) {
-  const reader = response.body?.getReader();
-  if (!reader) {
-    const buffer = await response.arrayBuffer();
-    if (buffer.byteLength > MAX_ARTICLE_IMPORT_HTML_BYTES) {
-      throw new SourceImportError('ARTICLE_IMPORT_RESPONSE_TOO_LARGE');
-    }
-    return new TextDecoder().decode(buffer);
-  }
-
-  const chunks: Uint8Array[] = [];
-  let byteLength = 0;
-
-  try {
-    for (;;) {
-      throwIfSignalAborted(signal);
-      const result = await reader.read();
-      if (result.done) break;
-      if (!result.value) continue;
-      byteLength += result.value.byteLength;
-      if (byteLength > MAX_ARTICLE_IMPORT_HTML_BYTES) {
-        await reader.cancel().catch(() => undefined);
-        throw new SourceImportError('ARTICLE_IMPORT_RESPONSE_TOO_LARGE');
-      }
-      chunks.push(result.value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-
-  return new TextDecoder().decode(concatUint8Arrays(chunks, byteLength));
-}
-
-function contentLengthBytes(headers: Headers) {
-  const value = headers.get('content-length')?.trim();
-  if (!value || !/^\d+$/.test(value)) return null;
-  return Number(value);
 }
 
 function isArticleImportHtmlResponse(headers: Headers, html: string) {
@@ -546,23 +508,6 @@ function renderedPageTooLarge(page: { htmlByteLength?: unknown }) {
   return (
     typeof page.htmlByteLength === 'number' && page.htmlByteLength > MAX_ARTICLE_IMPORT_HTML_BYTES
   );
-}
-
-function throwIfSignalAborted(signal: AbortSignal) {
-  if (!signal.aborted) return;
-  const error = new Error('aborted');
-  error.name = 'AbortError';
-  throw error;
-}
-
-function concatUint8Arrays(chunks: Uint8Array[], byteLength: number) {
-  const result = new Uint8Array(byteLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    result.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return result;
 }
 
 function extractArticleRecordInWorkerEffect({
