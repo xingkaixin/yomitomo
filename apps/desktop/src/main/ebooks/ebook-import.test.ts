@@ -20,6 +20,30 @@ function ebookChaptersHtml(article: Awaited<ReturnType<typeof articleRecordFromE
 }
 
 describe('articleRecordFromEpubFile', () => {
+  it('distinguishes books with the same opening and different later content', async () => {
+    const records = await Promise.all(
+      ['original ending', 'revised ending'].map(async (ending) => {
+        const data = await minimalEpubZip({
+          chapter: `<html><body><p>${'Shared opening. '.repeat(900)}</p><p>${ending}</p></body></html>`,
+        }).generateAsync({ type: 'arraybuffer' });
+        return articleRecordFromEpubFile({ fileName: 'book.epub', data });
+      }),
+    );
+    expect(records[0].legacyId).toBe(records[1].legacyId);
+    expect(records[0].id).not.toBe(records[1].id);
+    expect(records[0].contentHash).not.toBe(records[1].contentHash);
+  });
+
+  it('keeps the same source identity when only the imported filename changes', async () => {
+    const data = await minimalEpubZip({
+      chapter: '<html><body><p>Book text</p></body></html>',
+    }).generateAsync({ type: 'arraybuffer' });
+    const original = await articleRecordFromEpubFile({ fileName: 'original.epub', data });
+    const renamed = await articleRecordFromEpubFile({ fileName: 'renamed.epub', data });
+    expect(renamed.id).toBe(original.id);
+    expect(renamed.contentHash).toBe(original.contentHash);
+  });
+
   it('extracts epub metadata and chapters into an article record', async () => {
     const zip = new JSZip();
     zip.file(

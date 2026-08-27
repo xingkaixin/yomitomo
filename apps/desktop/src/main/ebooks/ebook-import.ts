@@ -14,13 +14,17 @@ import {
   cleanEpubDisplayTitle,
   EPUB_TITLE_CLEANUP_VERSION,
   hashText,
-  type ArticleRecord,
   type EbookChapterRecord,
 } from '@yomitomo/shared';
 import { MAX_EBOOK_IMPORT_BYTES } from '../../ipc-contract';
 import { isSourceImportError, SourceImportError } from '../../ipc/article-import-boundary';
 import { articleRecordFromKindleFile, isKindleFile } from './kindle-import';
-import type { EbookImportFileInput, EbookImportOptions } from './ebook-import-types';
+import type {
+  EbookImportFileInput,
+  EbookImportOptions,
+  ImportedEbookArticle,
+} from './ebook-import-types';
+import { ebookSourceIdentity } from './ebook-source-identity';
 
 const EPUB_MIME = 'application/epub+zip';
 const EBOOK_IMPORT_ENTRY_TOO_LARGE = 'EBOOK_IMPORT_ENTRY_TOO_LARGE';
@@ -90,7 +94,7 @@ type JSZipObjectWithData = JSZip.JSZipObject & {
 export async function articleRecordFromEbookFile(
   input: EbookImportFileInput,
   options: EbookImportOptions = {},
-): Promise<ArticleRecord> {
+): Promise<ImportedEbookArticle> {
   const fileName = input.fileName.trim();
   if (isEpubFile(fileName, input.mimeType)) return articleRecordFromEpubFile(input, options);
   if (isKindleFile(fileName, input.mimeType, input.data)) {
@@ -102,7 +106,7 @@ export async function articleRecordFromEbookFile(
 export async function articleRecordFromEpubFile(
   input: EbookImportFileInput,
   options: EbookImportOptions = {},
-): Promise<ArticleRecord> {
+): Promise<ImportedEbookArticle> {
   const importStartedAt = performanceStart();
   const fileName = input.fileName.trim() || 'Untitled.epub';
   const fileSize = input.data.byteLength;
@@ -191,8 +195,10 @@ export async function articleRecordFromEpubFile(
     paragraphs: chapter.paragraphs,
   }));
   const fullText = epubIndexText(indexChapters);
-  const contentHash = hashText(fullText.slice(0, 12000));
-  const id = hashText(`ebook:${epub.title}:${epub.creator || ''}:${contentHash}`);
+  const { id, contentHash } = ebookSourceIdentity(input.data);
+  const legacyId = hashText(
+    `ebook:${epub.title}:${epub.creator || ''}:${hashText(fullText.slice(0, 12000))}`,
+  );
   const index = buildEpubBookIndex({ articleId: id, chapters: indexChapters });
   logEpubImportTiming(options.performanceLogger, 'index', indexStartedAt, {
     fileName,
@@ -219,6 +225,7 @@ export async function articleRecordFromEpubFile(
 
   return {
     id,
+    legacyId,
     url: `ebook:${id}`,
     canonicalUrl: `ebook:${id}`,
     sourceType: 'ebook',
