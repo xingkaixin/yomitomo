@@ -12,11 +12,11 @@ import {
 } from './store-db';
 import { measureStoreRead } from './store-read-profile';
 
-let annotationMemoryBackfilled = false;
+let annotationMemoryBackfillDatabase: StoreDatabase | undefined;
 const annotationMemoryBackfillVersion = 'annotation-memory-v1';
 
 export function resetAnnotationMemoryBackfill() {
-  annotationMemoryBackfilled = false;
+  annotationMemoryBackfillDatabase = undefined;
 }
 
 export function getReadingMemorySqliteExecutor(): ReadingMemorySqliteExecutor {
@@ -27,9 +27,9 @@ export function backfillAnnotationMemoryOnce(
   database: StoreDatabase,
   profile?: StoreReadProfileEntry[],
 ) {
-  if (annotationMemoryBackfilled) return;
+  if (annotationMemoryBackfillDatabase === database) return;
   if (isAnnotationMemoryBackfillComplete(database)) {
-    annotationMemoryBackfilled = true;
+    annotationMemoryBackfillDatabase = database;
     return;
   }
 
@@ -40,9 +40,9 @@ export function backfillAnnotationMemoryOnce(
       }),
     );
     markAnnotationMemoryBackfillComplete(database);
-    annotationMemoryBackfilled = true;
+    annotationMemoryBackfillDatabase = database;
   } catch (error) {
-    annotationMemoryBackfilled = true;
+    annotationMemoryBackfillDatabase = database;
     logError('reading-memory.backfill_annotation_memory_failed', error);
   }
 }
