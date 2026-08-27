@@ -32,26 +32,25 @@ export function useSaveableDraft<TValue, TResult = unknown>({
   value,
 }: UseSaveableDraftOptions<TValue, TResult>): SaveableDraft<TValue, TResult> {
   const failedValueRef = useRef<{ value: TValue } | undefined>(undefined);
-  const saveStatus = useSaveStatus({ errorMessage, resetDelayMs });
+  const {
+    reset: resetStatus,
+    run,
+    saveError,
+    saveState,
+  } = useSaveStatus({
+    errorMessage,
+    resetDelayMs,
+  });
 
-  const saveable = saveStatus.saveState !== 'saving' && canSave(value);
+  const saveable = saveState !== 'saving' && canSave(value);
 
   const update = useCallback(
     (nextValue: TValue) => {
       failedValueRef.current = undefined;
       onChange(nextValue);
-      saveStatus.reset();
+      resetStatus();
     },
-    [onChange, saveStatus],
-  );
-
-  const reset = useCallback(
-    (nextValue: TValue) => {
-      failedValueRef.current = undefined;
-      onChange(nextValue);
-      saveStatus.reset();
-    },
-    [onChange, saveStatus],
+    [onChange, resetStatus],
   );
 
   const save = useCallback(
@@ -59,7 +58,7 @@ export function useSaveableDraft<TValue, TResult = unknown>({
       const failedValue = failedValueRef.current;
       if (override === undefined && !failedValue && !saveable) return undefined;
       const nextValue = override ?? failedValue?.value ?? value;
-      return saveStatus.run(() => persist(nextValue), {
+      return run(() => persist(nextValue), {
         onError: () => {
           failedValueRef.current = { value: nextValue };
         },
@@ -69,19 +68,19 @@ export function useSaveableDraft<TValue, TResult = unknown>({
         },
       });
     },
-    [onSaved, persist, saveStatus, saveable, value],
+    [onSaved, persist, run, saveable, value],
   );
 
   return useMemo(
     () => ({
       canSave: saveable,
-      reset,
+      reset: update,
       save,
-      saveError: saveStatus.saveError,
-      saveState: saveStatus.saveState,
+      saveError,
+      saveState,
       update,
       value,
     }),
-    [reset, save, saveStatus.saveError, saveStatus.saveState, saveable, update, value],
+    [save, saveError, saveState, saveable, update, value],
   );
 }

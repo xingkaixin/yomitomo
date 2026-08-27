@@ -105,6 +105,45 @@ describe('useSaveableDraft', () => {
     expect(persist).toHaveBeenNthCalledWith(2, 'changed');
     expect(latest.current?.saveState).toBe('saved');
   });
+
+  it('does not retry an obsolete failure after the draft changes', async () => {
+    const pending = deferred<string>();
+    const persist = vi.fn().mockReturnValueOnce(pending.promise).mockResolvedValue('saved');
+    const latest = renderDraft({ persist });
+    let request: Promise<string | undefined> | undefined;
+    act(() => {
+      request = latest.current?.save('A');
+    });
+    act(() => latest.current?.update('B'));
+    await act(async () => {
+      pending.reject(new Error('old failure'));
+      await request;
+    });
+    expect(latest.current?.saveState).toBe('idle');
+    await act(async () => void (await latest.current?.save()));
+    expect(persist).toHaveBeenLastCalledWith('B');
+    expect(latest.current?.saveError).toBe('');
+  });
+
+  it('does not apply or report an obsolete success after reset', async () => {
+    const pending = deferred<string>();
+    const onSaved = vi.fn();
+    const latest = renderDraft({ persist: () => pending.promise, onSaved });
+    let request: Promise<string | undefined> | undefined;
+    act(() => {
+      request = latest.current?.save('A');
+    });
+    act(() => latest.current?.reset('B'));
+    let saved: string | undefined;
+    await act(async () => {
+      pending.resolve('saved A');
+      saved = await request;
+    });
+    expect(latest.current?.value).toBe('B');
+    expect(latest.current?.saveState).toBe('idle');
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(saved).toBeUndefined();
+  });
 });
 
 function renderDraft({
@@ -134,4 +173,14 @@ function renderDraft({
 
   render(<Harness />);
   return latest;
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
 }

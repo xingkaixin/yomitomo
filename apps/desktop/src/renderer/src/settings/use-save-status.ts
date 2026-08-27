@@ -28,7 +28,7 @@ export function useSaveStatus({
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [saveError, setSaveError] = useState('');
   const idleTimerRef = useRef<number | undefined>(undefined);
-  const mountedRef = useRef(true);
+  const activeSaveRef = useRef<symbol | undefined>(undefined);
 
   const clearIdleTimer = useCallback(() => {
     if (idleTimerRef.current === undefined) return;
@@ -37,6 +37,7 @@ export function useSaveStatus({
   }, []);
 
   const reset = useCallback(() => {
+    activeSaveRef.current = undefined;
     clearIdleTimer();
     setSaveState('idle');
     setSaveError('');
@@ -44,13 +45,15 @@ export function useSaveStatus({
 
   const run = useCallback(
     async <TResult>(task: () => Promise<TResult>, options?: RunSaveOptions<TResult>) => {
+      const request = Symbol();
+      activeSaveRef.current = request;
       clearIdleTimer();
       setSaveState('saving');
       setSaveError('');
       try {
         const result = await task();
+        if (activeSaveRef.current !== request) return undefined;
         const shouldMarkSaved = options?.onSaved?.(result) !== false;
-        if (!mountedRef.current) return result;
         if (!shouldMarkSaved) {
           setSaveState('idle');
           return result;
@@ -62,12 +65,11 @@ export function useSaveStatus({
         }, resetDelayMs);
         return result;
       } catch (error) {
+        if (activeSaveRef.current !== request) return undefined;
         const message = errorMessage(error);
         options?.onError?.(error, message);
-        if (mountedRef.current) {
-          setSaveError(message);
-          setSaveState('error');
-        }
+        setSaveError(message);
+        setSaveState('error');
         return undefined;
       }
     },
@@ -75,9 +77,8 @@ export function useSaveStatus({
   );
 
   useEffect(() => {
-    mountedRef.current = true;
     return () => {
-      mountedRef.current = false;
+      activeSaveRef.current = undefined;
       clearIdleTimer();
     };
   }, [clearIdleTimer]);

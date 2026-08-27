@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, render, waitFor } from '@testing-library/react';
+import { useCallback, useState } from 'react';
+import { act, cleanup, render, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { AppSettingsPatch, DesktopStore } from '@yomitomo/shared';
-import type { SettingsStorePatch } from '../../../ipc-contract';
+import type { AppSettingsPatch, DesktopStore, LlmProvider } from '@yomitomo/shared';
+import type { SettingsStorePatch, UserStorePatch } from '../../../ipc-contract';
 
 import { emptyStore } from '../settings/app-settings';
 import { useSettingsDrafts } from '../settings/app-settings-drafts';
@@ -19,6 +20,141 @@ afterEach(() => {
 });
 
 describe('useSettingsDrafts', () => {
+  it('updates the saved profile without overwriting edits made during the save', async () => {
+    const pending = deferred<UserStorePatch>();
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: { store: { saveUser: () => pending.promise } },
+    });
+    const { result } = renderStoreDrafts();
+    act(() => result.current.profile.update({ ...emptyStore.user, nickname: 'A' }));
+    let request: ReturnType<typeof result.current.profile.save>;
+    act(() => {
+      request = result.current.profile.save();
+    });
+    act(() => result.current.profile.update({ ...emptyStore.user, nickname: 'B' }));
+    let saved: unknown;
+    await act(async () => {
+      pending.resolve({ user: { ...emptyStore.user, nickname: 'A' } });
+      saved = await request;
+    });
+    expect(result.current.profile.value.nickname).toBe('B');
+    expect(result.current.store.user.nickname).toBe('A');
+    expect(result.current.profile.canSave).toBe(true);
+    expect(result.current.profile.saveState).toBe('idle');
+    expect(saved).toBeUndefined();
+  });
+
+  it('preserves newer general edits after an autosave override completes', async () => {
+    const pending = deferred<DesktopStore>();
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: { store: { saveSettings: () => pending.promise } },
+    });
+    const { result } = renderStoreDrafts();
+    const submitted = { ...emptyStore.settings, saveArticleImages: true };
+    let request: ReturnType<typeof result.current.general.save>;
+    act(() => {
+      result.current.general.update(submitted);
+      request = result.current.general.save(submitted);
+    });
+    act(() => result.current.general.update({ ...submitted, saveArticleImages: false }));
+    await act(async () => {
+      pending.resolve({ ...emptyStore, settings: submitted });
+      await request;
+    });
+    expect(result.current.store.settings.saveArticleImages).toBe(true);
+    expect(result.current.general.value.saveArticleImages).toBe(false);
+    expect(result.current.general.canSave).toBe(true);
+    expect(result.current.general.saveState).toBe('idle');
+  });
+
+  it('does not replace a profile restored while saving', async () => {
+    const pending = deferred<UserStorePatch>();
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: { store: { saveUser: () => pending.promise } },
+    });
+    const { result, rerender } = renderStoreDrafts();
+    let request: ReturnType<typeof result.current.profile.save>;
+    act(() => {
+      request = result.current.profile.save({ ...emptyStore.user, nickname: 'A' });
+    });
+    const restored = { ...emptyStore.user, nickname: 'restored' };
+    rerender({ snapshot: { ...emptySettingsSyncSnapshot, user: restored } });
+    await act(async () => {
+      pending.resolve({ user: { ...emptyStore.user, nickname: 'A' } });
+      await request;
+    });
+    expect(result.current.profile.value).toEqual(restored);
+    expect(result.current.profile.saveState).toBe('idle');
+  });
+
+  it('keeps the selected provider when another provider finishes saving', async () => {
+    const first = makeProvider('first');
+    const second = makeProvider('second');
+    const pending = deferred<DesktopStore>();
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: { provider: { save: () => pending.promise } },
+    });
+    const { result } = renderStoreDrafts({ ...emptyStore, providers: [first, second] });
+    const edited = { ...first, name: 'edited' };
+    act(() => result.current.provider.update(edited));
+    let request: ReturnType<typeof result.current.provider.save>;
+    act(() => {
+      request = result.current.provider.save();
+    });
+    act(() => result.current.provider.select(second));
+    let saved: unknown;
+    await act(async () => {
+      pending.resolve({ ...emptyStore, providers: [edited, second] });
+      saved = await request;
+    });
+    expect(result.current.store.providers[0]).toEqual(edited);
+    expect(result.current.provider.value).toEqual(second);
+    expect(result.current.provider.selectedProviderId).toBe(second.id);
+    expect(result.current.provider.saveState).toBe('idle');
+    expect(saved).toBeUndefined();
+  });
+
+  it('retains the created provider identity without replacing newer input', async () => {
+    const pending = deferred<DesktopStore>();
+    const created = makeProvider('created');
+    const save = vi
+      .fn()
+      .mockReturnValueOnce(pending.promise)
+      .mockResolvedValue({
+        ...emptyStore,
+        providers: [{ ...created, name: 'newer input' }],
+      });
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: { provider: { save } },
+    });
+    const { result } = renderStoreDrafts();
+    act(() => result.current.provider.create());
+    let request: ReturnType<typeof result.current.provider.save>;
+    act(() => {
+      request = result.current.provider.save();
+    });
+    act(() =>
+      result.current.provider.update({ ...result.current.provider.value, name: 'newer input' }),
+    );
+    await act(async () => {
+      pending.resolve({ ...emptyStore, providers: [created] });
+      await request;
+    });
+    expect(result.current.provider.value).toMatchObject({ id: created.id, name: 'newer input' });
+    expect(result.current.provider.canSave).toBe(true);
+    await act(async () => void (await result.current.provider.save()));
+    expect(save).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: created.id, name: 'newer input' }),
+    );
+    expect(result.current.provider.canSave).toBe(false);
+    expect(result.current.provider.saveState).toBe('saved');
+  });
+
   it('saves only the general section and preserves unsaved shortcut edits', async () => {
     const latest: { current?: ReturnType<typeof useSettingsDrafts> } = {};
     const saveSettings = vi.fn().mockResolvedValue(emptyStore);
@@ -218,6 +354,39 @@ function makeStore(
   };
 }
 
+function renderStoreDrafts(initialStore = emptyStore) {
+  return renderHook(
+    ({ snapshot }: { snapshot: SettingsSyncSnapshot }) => {
+      const [store, setStore] = useState(initialStore);
+      const updateStore = useCallback((next: DesktopStore) => {
+        setStore(next);
+        return next;
+      }, []);
+      const drafts = useSettingsDrafts({
+        store,
+        applyStore: updateStore,
+        applySettingsPatch: (patch) => updateStore({ ...store, ...patch }),
+        settingsSyncSnapshot: snapshot,
+      });
+      return { store, ...drafts };
+    },
+    { initialProps: { snapshot: syncSnapshot(initialStore) } },
+  );
+}
+
+function makeProvider(id: string): LlmProvider {
+  return {
+    id,
+    name: id,
+    type: 'openai-chat',
+    baseUrl: 'https://example.com',
+    apiKey: '',
+    modelName: 'test',
+    createdAt: emptyStore.user.updatedAt,
+    updatedAt: emptyStore.user.updatedAt,
+  };
+}
+
 function applyStore(nextStore: DesktopStore) {
   return nextStore;
 }
@@ -228,4 +397,12 @@ function applySettingsPatch(patch: SettingsStorePatch) {
 
 function syncSnapshot(store: DesktopStore): SettingsSyncSnapshot {
   return { user: store.user, settings: store.settings };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
 }

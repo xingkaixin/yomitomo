@@ -59,12 +59,7 @@ export function useSettingsDrafts({
   const [providerEditorActive, setProviderEditorActive] = useState(false);
   const [testState, setTestState] = useState<ProviderTestState>({ status: 'idle' });
   const initialProviderSelectedRef = useRef(false);
-
-  useEffect(() => {
-    if (!settingsSyncSnapshot) return;
-    setUserDraft(settingsSyncSnapshot.user);
-    setSettingsDraft(settingsSyncSnapshot.settings);
-  }, [settingsSyncSnapshot]);
+  const providerEditorRef = useRef<symbol | undefined>(undefined);
 
   const userHasChanges = useMemo(
     () => userDraftHasChanges(userDraft, store.user),
@@ -106,39 +101,42 @@ export function useSettingsDrafts({
 
   const saveUserDraft = useCallback(
     async (draft: UserDraft) => {
-      return resolveDesktop().store.saveUser(draft);
+      const patch = await resolveDesktop().store.saveUser(draft);
+      if (patch) applySettingsPatch(patch);
+      return patch;
     },
-    [resolveDesktop],
+    [applySettingsPatch, resolveDesktop],
   );
 
-  const applySavedUserStore = useCallback(
-    (patch: UserStorePatch | null) => {
-      if (!patch) return false;
-      const nextStore = applySettingsPatch(patch);
-      setUserDraft(nextStore.user);
-      return true;
-    },
-    [applySettingsPatch],
-  );
+  const applySavedUserDraft = useCallback((patch: UserStorePatch | null) => {
+    if (!patch) return false;
+    setUserDraft(patch.user);
+    return true;
+  }, []);
 
   const saveSettingsDraftSection = useCallback(
     async (section: SettingsEditorSection, draft: ResolvedAppSettings) => {
-      return resolveDesktop().store.saveSettings(settingsDraftSectionPatch(section, draft));
+      const nextStore = await resolveDesktop().store.saveSettings(
+        settingsDraftSectionPatch(section, draft),
+      );
+      if (nextStore) {
+        if (section === 'general') syncUiLanguageCache(nextStore.settings);
+        applyStore(nextStore);
+      }
+      return nextStore;
     },
-    [resolveDesktop],
+    [applyStore, resolveDesktop],
   );
 
   const applySavedSettingsDraftSection = useCallback(
     (section: SettingsEditorSection, nextStore: DesktopStore | null) => {
       if (!nextStore) return false;
-      if (section === 'general') syncUiLanguageCache(nextStore.settings);
-      applyStore(nextStore);
       setSettingsDraft((draft) =>
         mergeSavedSettingsDraftSection(section, draft, nextStore.settings),
       );
       return true;
     },
-    [applyStore],
+    [],
   );
 
   const saveGeneralSettingsDraft = useCallback(
@@ -168,26 +166,36 @@ export function useSettingsDrafts({
 
   const saveProviderDraftValue = useCallback(
     async (draft: ProviderDraft) => {
+      const editor = providerEditorRef.current;
       const patch = await resolveDesktop().provider.save(draft);
       const nextStore = applySettingsPatch(patch);
       const savedProvider = draft.id
         ? nextStore.providers.find((provider) => provider.id === draft.id)
         : nextStore.providers.at(-1);
-      setTestState({ status: 'idle' });
-      if (!savedProvider) return false;
-      setSelectedProviderId(savedProvider.id);
-      setProviderDraft(savedProvider);
-      return true;
+      if (savedProvider && !draft.id && providerEditorRef.current === editor) {
+        // Keep the newly assigned identity even when edits invalidate the saved draft.
+        setSelectedProviderId(savedProvider.id);
+        setProviderDraft((current) => ({ ...current, id: savedProvider.id }));
+      }
+      return savedProvider;
     },
     [applySettingsPatch, resolveDesktop],
   );
+
+  const applySavedProvider = useCallback((provider: LlmProvider | undefined) => {
+    if (!provider) return false;
+    setTestState({ status: 'idle' });
+    setSelectedProviderId(provider.id);
+    setProviderDraft(provider);
+    return true;
+  }, []);
 
   const profile = useSaveableDraft<UserDraft, UserStorePatch | null>({
     value: userDraft,
     canSave: () => userHasChanges,
     errorMessage: settingsSaveErrorMessage,
     onChange: setUserDraft,
-    onSaved: applySavedUserStore,
+    onSaved: applySavedUserDraft,
     persist: saveUserDraft,
   });
   const general = useSaveableDraft<ResolvedAppSettings, DesktopStore | null>({
@@ -214,18 +222,38 @@ export function useSettingsDrafts({
     onSaved: applySavedRouteSettings,
     persist: saveRouteSettingsDraft,
   });
-  const providerDraftController = useSaveableDraft<ProviderDraft, boolean>({
+  const providerDraftController = useSaveableDraft<ProviderDraft, LlmProvider | undefined>({
     value: providerDraft,
     canSave: () => providerEditorActive && (selectedProviderId ? providerHasChanges : true),
     errorMessage: settingsSaveErrorMessage,
     onChange: updateProviderDraftValue,
-    onSaved: keepSavedProviderState,
+    onSaved: applySavedProvider,
     persist: saveProviderDraftValue,
   });
   const { reset: resetProviderDraft } = providerDraftController;
+  const { reset: resetProfile } = profile;
+  const { reset: resetGeneral } = general;
+  const { reset: resetShortcuts } = shortcuts;
+  const { reset: resetRoutes } = routes;
+
+  useEffect(
+    () => () => {
+      providerEditorRef.current = undefined;
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!settingsSyncSnapshot) return;
+    resetProfile(settingsSyncSnapshot.user);
+    resetGeneral(settingsSyncSnapshot.settings);
+    resetShortcuts(settingsSyncSnapshot.settings);
+    resetRoutes(settingsSyncSnapshot.settings);
+  }, [settingsSyncSnapshot, resetProfile, resetGeneral, resetShortcuts, resetRoutes]);
 
   useEffect(() => {
     if (store.providers.length > 0) return;
+    providerEditorRef.current = undefined;
     initialProviderSelectedRef.current = false;
     setSelectedProviderId(null);
     resetProviderDraft(localizedEmptyProvider());
@@ -235,6 +263,7 @@ export function useSettingsDrafts({
 
   const selectProvider = useCallback(
     (provider: LlmProvider) => {
+      providerEditorRef.current = Symbol();
       setSelectedProviderId(provider.id);
       resetProviderDraft(provider);
       setProviderEditorActive(true);
@@ -244,6 +273,7 @@ export function useSettingsDrafts({
   );
 
   const createProvider = useCallback(() => {
+    providerEditorRef.current = Symbol();
     setSelectedProviderId(null);
     resetProviderDraft(localizedEmptyProvider());
     setProviderEditorActive(true);
@@ -251,12 +281,12 @@ export function useSettingsDrafts({
   }, [resetProviderDraft]);
 
   useEffect(() => {
-    if (initialProviderSelectedRef.current) return;
+    if (initialProviderSelectedRef.current || providerEditorActive) return;
     const firstProvider = store.providers[0];
     if (!firstProvider) return;
     initialProviderSelectedRef.current = true;
     selectProvider(firstProvider);
-  }, [selectProvider, store.providers]);
+  }, [providerEditorActive, selectProvider, store.providers]);
 
   const deleteProvider = useCallback(
     async (id: string) => {
@@ -323,10 +353,6 @@ function syncUiLanguageCache(settings: ResolvedAppSettings) {
   const language = normalizeUiLanguage(settings.uiLanguage);
   writeCachedUiLanguage(language);
   changeAppI18nLanguage(language);
-}
-
-function keepSavedProviderState(saved: boolean) {
-  return saved;
 }
 
 function settingsSaveErrorMessage(error: unknown) {

@@ -61,7 +61,8 @@ describe('useSaveStatus', () => {
     }
 
     const view = render(<Harness />);
-    const run = latest.current!.run(() => pendingSave);
+    const onSaved = vi.fn();
+    const run = latest.current!.run(() => pendingSave, { onSaved });
     view.unmount();
 
     await act(async () => {
@@ -70,7 +71,43 @@ describe('useSaveStatus', () => {
     });
 
     expect(setTimeoutSpy).not.toHaveBeenCalled();
+    expect(onSaved).not.toHaveBeenCalled();
   });
+
+  it.each(['resolve', 'reject'] as const)(
+    'keeps the newest save active when an older request settles with %s',
+    async (outcome) => {
+      vi.useFakeTimers();
+      const latest = renderSaveStatus();
+      const first = deferred<string>();
+      const second = deferred<string>();
+      const onSaved = vi.fn();
+      const onError = vi.fn();
+      let firstRun: Promise<string | undefined> | undefined;
+      let secondRun: Promise<string | undefined> | undefined;
+      act(() => {
+        firstRun = latest.current?.run(() => first.promise, { onSaved, onError });
+        secondRun = latest.current?.run(() => second.promise);
+      });
+      await act(async () => {
+        if (outcome === 'resolve') first.resolve('old');
+        else first.reject(new Error('old failure'));
+        await firstRun;
+      });
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
+      expect(latest.current?.saveState).toBe('saving');
+      expect(latest.current?.saveError).toBe('');
+      expect(onSaved).not.toHaveBeenCalled();
+      expect(onError).not.toHaveBeenCalled();
+      await act(async () => {
+        second.resolve('new');
+        await secondRun;
+      });
+      expect(latest.current?.saveState).toBe('saved');
+    },
+  );
 });
 
 function renderSaveStatus() {
@@ -87,4 +124,14 @@ function renderSaveStatus() {
 
   render(<Harness />);
   return latest;
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
 }
