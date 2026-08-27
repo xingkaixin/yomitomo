@@ -1,4 +1,5 @@
 import { rm } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
 const testState = vi.hoisted(() => ({
@@ -63,13 +64,20 @@ vi.mock('../articles/article-favicon', () => ({
 }));
 
 vi.mock('../app/logger', () => ({
+  logInfo: vi.fn(),
   logError: (event: string, error: unknown, data?: Record<string, unknown>) => {
     testState.logErrors.push({ event, error, data });
   },
 }));
 
 import { buildArticleReadingProgressPatch } from '../articles/article-reading-state';
-import { getDatabase } from './store-db';
+import {
+  backupDatabaseFile,
+  getDatabase,
+  getDatabasePath,
+  getSqliteExecutor,
+  replaceDatabaseFile,
+} from './store-db';
 import { closeDatabase } from './store-lifecycle';
 import { readStore } from './store-snapshot';
 import { normalizeWeReadReadingStats } from '../weread/weread-repository';
@@ -99,7 +107,96 @@ afterEach(async () => {
 });
 
 describe('desktop store annotation memory backfill', () => {
-  it('does not retry a failed annotation memory backfill in the same process', async () => {
+  it('backfills restored annotations after the previous database completed its backfill', async () => {
+    const actual = await vi.importActual<typeof import('../articles/article-annotation-memory')>(
+      '../articles/article-annotation-memory',
+    );
+    testState.backfillAnnotationMemoryEntries.mockImplementation(
+      actual.backfillStoredArticleAnnotationMemoryEntries,
+    );
+    await readStore();
+    const original = getSqliteExecutor();
+    original
+      .prepare(`
+      INSERT INTO articles (id, url, canonical_url, title, content_hash, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `)
+      .run(
+        'restored-article',
+        'https://example.com/restored',
+        'https://example.com/restored',
+        'Restored article',
+        'hash',
+        '2026-07-01T00:00:00.000Z',
+        '2026-07-01T00:00:00.000Z',
+      );
+    original
+      .prepare(`
+      INSERT INTO annotations (id, article_id, anchor, author, color, user_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+      .run(
+        'restored-annotation',
+        'restored-article',
+        JSON.stringify({ exact: 'Restored annotation', prefix: '', suffix: '' }),
+        'user',
+        '#facc15',
+        'user-1',
+        '2026-07-01T00:00:00.000Z',
+        '2026-07-01T00:00:00.000Z',
+      );
+    original.prepare('UPDATE app_settings SET annotation_memory_backfill_version = NULL').run();
+    const source = join(dirname(getDatabasePath()), 'legacy-memory-backup.sqlite');
+    await backupDatabaseFile(source);
+    original
+      .prepare('UPDATE app_settings SET annotation_memory_backfill_version = ?')
+      .run('annotation-memory-v1');
+
+    await replaceDatabaseFile(source);
+    await readStore();
+    await readStore();
+
+    const entries = getSqliteExecutor()
+      .prepare(
+        'SELECT article_id, source_annotation_id FROM reading_memory_entries WHERE article_id = ?',
+      )
+      .all('restored-article');
+    expect(entries).toEqual([
+      { article_id: 'restored-article', source_annotation_id: 'restored-annotation' },
+    ]);
+    expect(readAnnotationMemoryBackfillVersion()).toBe('annotation-memory-v1');
+    expect(testState.backfillAnnotationMemoryEntries).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not repeat a backfill already recorded in the restored database', async () => {
+    await readStore();
+    const source = join(dirname(getDatabasePath()), 'completed-memory-backup.sqlite');
+    await backupDatabaseFile(source);
+
+    await replaceDatabaseFile(source);
+    await readStore();
+    await readStore();
+
+    expect(testState.backfillAnnotationMemoryEntries).toHaveBeenCalledOnce();
+    expect(readAnnotationMemoryBackfillVersion()).toBe('annotation-memory-v1');
+  });
+
+  it('retries on a restored database after a previous connection failed', async () => {
+    testState.backfillAnnotationMemoryEntries.mockImplementationOnce(() => {
+      throw new Error('backfill failed');
+    });
+    await readStore();
+    const source = join(dirname(getDatabasePath()), 'unfinished-memory-backup.sqlite');
+    await backupDatabaseFile(source);
+
+    await replaceDatabaseFile(source);
+    await readStore();
+
+    expect(testState.backfillAnnotationMemoryEntries).toHaveBeenCalledTimes(2);
+    expect(readAnnotationMemoryBackfillVersion()).toBe('annotation-memory-v1');
+  });
+
+  it('does not retry a failed annotation memory backfill on the same connection', async () => {
     const error = new Error('backfill failed');
     testState.backfillAnnotationMemoryEntries.mockImplementation(() => {
       throw error;
