@@ -1,4 +1,5 @@
 import type { ArticleRecord } from '@yomitomo/shared';
+import { normalizeArticleTranslationTargetLanguage } from '@yomitomo/shared';
 
 const ARTICLE_TRANSLATION_SOURCE_ID = 'article';
 
@@ -21,7 +22,9 @@ export function resolveArticleTranslationIdentity(input: {
     articleId: input.article.id,
     sourceId: articleTranslationSourceId(input.article, input.requestedSourceId),
     sourceContentHash: input.article.contentHash,
-    targetLanguage: translationTargetLanguage(input.requestedTargetLanguage, input.settings),
+    targetLanguage: normalizeArticleTranslationTargetLanguage(
+      input.requestedTargetLanguage?.trim() || input.settings.bilingualTranslationTargetLanguage,
+    ),
     promptVersion: input.promptVersion,
   };
 }
@@ -55,15 +58,4 @@ function ebookTranslationChapter(article: ArticleRecord, id: string) {
     article.ebook?.chapters.find((chapter) => chapter.id === id) ||
     null
   );
-}
-
-function translationTargetLanguage(
-  requested: string | undefined,
-  settings: { bilingualTranslationTargetLanguage?: string },
-): string {
-  const value = requested?.trim() || settings.bilingualTranslationTargetLanguage?.trim() || 'zh-CN';
-  const normalized = value.toLowerCase();
-  if (normalized === 'en' || normalized === 'english') return 'English';
-  if (normalized === 'ja' || normalized === 'japanese' || value === '日本語') return '日本語';
-  return '简体中文';
 }
