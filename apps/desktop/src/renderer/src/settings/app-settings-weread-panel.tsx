@@ -108,14 +108,15 @@ export function WeReadSettingsPanel() {
     if (!apiKey.trim()) return;
     setApiKeyMessage('');
     await credentialSave.run(
-      () =>
-        getDesktopApi().weRead.saveSettings({
+      async () => {
+        const state = await getDesktopApi().weRead.saveSettings({
           apiKey,
           openMethod: settings.openMethod,
-        }),
+        });
+        setSettings(state.settings);
+      },
       {
-        onSaved: (state) => {
-          setSettings(state.settings);
+        onSaved: () => {
           setApiKey('');
           setApiKeyVisible(false);
           setRevealedStoredApiKey('');
@@ -129,14 +130,15 @@ export function WeReadSettingsPanel() {
     setRemoveConfirmOpen(false);
     setApiKeyMessage('');
     await credentialSave.run(
-      () =>
-        getDesktopApi().weRead.saveSettings({
+      async () => {
+        const state = await getDesktopApi().weRead.saveSettings({
           removeApiKey: true,
           openMethod: settings.openMethod,
-        }),
+        });
+        setSettings(state.settings);
+      },
       {
-        onSaved: (state) => {
-          setSettings(state.settings);
+        onSaved: () => {
           setApiKey('');
           setApiKeyVisible(false);
           setRevealedStoredApiKey('');
