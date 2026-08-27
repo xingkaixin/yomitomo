@@ -27,6 +27,69 @@ describe('article repository local child row writes', () => {
     openDatabases.length = 0;
   });
 
+  it.each(['annotation', 'comment'] as const)(
+    'rolls back the %s write with its reading memory and allows retry',
+    (operation) => {
+      const { database, memory } = repositoryDatabase();
+      const target = annotation({ comments: [comment({ content: 'original comment' })] });
+      upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, memory);
+      const articleBefore = readArticleRows(database, 'article_1');
+      const memoryBefore = readReadingMemoryEntries({ articleId: 'article_1', executor: memory });
+      const ftsBefore = memory
+        .prepare('SELECT * FROM reading_memory_entry_fts ORDER BY entry_id')
+        .all();
+      const updatedAt = '2026-06-04T03:00:00.000Z';
+      const updatedComment = comment({ content: 'updated comment', createdAt: updatedAt });
+      const save = () =>
+        operation === 'annotation'
+          ? upsertAnnotationRows(
+              database,
+              {
+                articleId: 'article_1',
+                annotation: { ...target, color: '#96c7ff', comments: [updatedComment], updatedAt },
+              },
+              memory,
+            )
+          : upsertCommentRows(
+              database,
+              {
+                articleId: 'article_1',
+                annotationId: target.id,
+                comment: updatedComment,
+                updatedAt,
+              },
+              memory,
+            );
+      memory.exec(`
+        CREATE TRIGGER fail_comment_memory_insert
+        BEFORE INSERT ON reading_memory_entries
+        WHEN NEW.id = 'comment_memory_comment_1'
+        BEGIN SELECT RAISE(ABORT, 'injected memory write failure'); END;
+      `);
+
+      expect(save).toThrow('injected memory write failure');
+      expect(readArticleRows(database, 'article_1')).toEqual(articleBefore);
+      expect(readReadingMemoryEntries({ articleId: 'article_1', executor: memory })).toEqual(
+        memoryBefore,
+      );
+      expect(
+        memory.prepare('SELECT * FROM reading_memory_entry_fts ORDER BY entry_id').all(),
+      ).toEqual(ftsBefore);
+
+      memory.exec('DROP TRIGGER fail_comment_memory_insert');
+      expect(save()?.article.updatedAt).toBe(updatedAt);
+      expect(
+        readArticleRows(database, 'article_1')?.annotations.find((item) => item.id === target.id)
+          ?.comments[0]?.content,
+      ).toBe('updated comment');
+      expect(
+        readReadingMemoryEntries({ articleId: 'article_1', executor: memory }).find(
+          (entry) => entry.id === 'comment_memory_comment_1',
+        )?.payload,
+      ).toMatchObject({ content: 'updated comment' });
+    },
+  );
+
   it('upserts one annotation without replacing sibling annotations', () => {
     const { database, memory } = repositoryDatabase();
     const target = annotation({

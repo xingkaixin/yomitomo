@@ -34,8 +34,8 @@ export function upsertAnnotationRows(
     tx.delete(schema.comments).where(eq(schema.comments.annotationId, input.annotation.id)).run();
     insertCommentRows(tx, commentRowsForAnnotation(input.annotation));
     touchArticleRows(tx, input.articleId, input.updatedAt || input.annotation.updatedAt);
+    syncAnnotationMemoryEntries(input.articleId, input.annotation, executor);
   });
-  syncAnnotationMemoryEntries(input.articleId, input.annotation, executor);
   const article = readArticleSummaryRows(database, input.articleId);
   return article ? buildArticleUpsertPatch(article) : null;
 }
@@ -56,8 +56,8 @@ export function upsertCommentRows(
       })
       .run();
     touchArticleRows(tx, input.articleId, input.updatedAt || input.comment.createdAt);
+    syncStoredAnnotationMemoryEntries(tx, input.articleId, input.annotationId, executor);
   });
-  syncStoredAnnotationMemoryEntries(database, input.articleId, input.annotationId, executor);
   const article = readArticleSummaryRows(database, input.articleId);
   return article ? buildArticleUpsertPatch(article) : null;
 }
@@ -152,7 +152,7 @@ function readAnnotationArticleId(database: StoreDatabase, annotationId: string) 
 }
 
 function syncStoredAnnotationMemoryEntries(
-  database: StoreDatabase,
+  database: StoreExecutor,
   articleId: string,
   annotationId: string,
   executor?: ReadingMemorySqliteExecutor,
@@ -171,5 +171,6 @@ function syncAnnotationMemoryEntries(
   upsertReadingMemoryEntries(
     readingMemoryEntriesFromAnnotationThread({ articleId, annotation }),
     executor || getSqliteExecutor(),
+    { useTransaction: false },
   );
 }
