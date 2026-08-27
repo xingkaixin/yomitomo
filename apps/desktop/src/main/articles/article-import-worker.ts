@@ -13,6 +13,7 @@ import {
   isArticleImportRedirectStatus,
   type ArticleImportNetworkPolicyOptions,
 } from './article-import-network-policy';
+import { readArticleImportResponseBytes } from './article-import-response';
 
 const ARTICLE_IMAGE_TIMEOUT_MS = 10_000;
 const MAX_ARTICLE_IMAGE_BYTES = 2_000_000;
@@ -123,11 +124,11 @@ async function fetchArticleImageDataUrl(
       const contentType = imageContentType(response.headers.get('content-type'));
       if (!contentType) return null;
 
-      const contentLength = Number(response.headers.get('content-length') || 0);
-      if (contentLength > MAX_ARTICLE_IMAGE_BYTES) return null;
-
-      const buffer = await response.arrayBuffer();
-      if (buffer.byteLength > MAX_ARTICLE_IMAGE_BYTES) return null;
+      const buffer = await readArticleImportResponseBytes(
+        response,
+        MAX_ARTICLE_IMAGE_BYTES,
+        signal,
+      );
 
       return `data:${contentType};base64,${Buffer.from(buffer).toString('base64')}`;
     } finally {
