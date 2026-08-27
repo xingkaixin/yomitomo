@@ -6,6 +6,7 @@ import {
   type DesktopTelemetryController,
 } from '../telemetry/desktop-telemetry';
 import { syncWeReadLibrary } from '../weread/weread-sync';
+import { withDatabaseLease } from '../store/store-db';
 
 const DEFAULT_APP_UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
@@ -68,9 +69,10 @@ export function startMainProcessRuntime(
   const refreshModelPrices = (reason: string) => {
     if (disposed) return;
     const startedAt = performance.now();
-    void dependencies
-      .getPersistenceModules()
-      .then((modules) => modules.storeModelPricing.refreshModelPrices())
+    void withDatabaseLease(async () => {
+      const modules = await dependencies.getPersistenceModules();
+      return modules.storeModelPricing.refreshModelPrices();
+    })
       .then((result) => {
         if (disposed) return;
         dependencies.logInfo('model_pricing.refresh', {
@@ -119,27 +121,29 @@ export function startMainProcessRuntime(
     const startedAt = performance.now();
     weReadSyncRunning = true;
     try {
-      const modules = await dependencies.getPersistenceModules();
-      const settings = await modules.weReadRepository.readWeReadSettings();
-      if (disposed) return;
-      if (!settings.configured || settings.syncMode !== 'auto') {
-        dependencies.logInfo('weread.auto_sync.skipped', {
-          reason,
-          configured: settings.configured,
-          syncMode: settings.syncMode ?? 'manual',
-          skippedReason: 'disabled',
-        });
-        return;
-      }
+      const result = await withDatabaseLease(async () => {
+        const modules = await dependencies.getPersistenceModules();
+        const settings = await modules.weReadRepository.readWeReadSettings();
+        if (disposed) return;
+        if (!settings.configured || settings.syncMode !== 'auto') {
+          dependencies.logInfo('weread.auto_sync.skipped', {
+            reason,
+            configured: settings.configured,
+            syncMode: settings.syncMode ?? 'manual',
+            skippedReason: 'disabled',
+          });
+          return;
+        }
 
-      const result = await syncWeRead({
-        persistence: modules.weReadRepository,
-        reason: `auto:${reason}`,
-        logInfo: dependencies.logInfo,
-        logError: dependencies.logError,
-        elapsedMs: dependencies.elapsedMs,
+        return syncWeRead({
+          persistence: modules.weReadRepository,
+          reason: `auto:${reason}`,
+          logInfo: dependencies.logInfo,
+          logError: dependencies.logError,
+          elapsedMs: dependencies.elapsedMs,
+        });
       });
-      if (disposed) return;
+      if (disposed || !result) return;
       dependencies.sendWeReadStateUpdated(result);
       dependencies.logInfo('weread.auto_sync.complete', {
         reason,
@@ -162,10 +166,11 @@ export function startMainProcessRuntime(
     if (disposed) return;
     const token = ++weReadConfigurationToken;
     clearWeReadTimers();
-    void dependencies
-      .getPersistenceModules()
-      .then(async (modules) => {
-        const settings = await modules.weReadRepository.readWeReadSettings();
+    void withDatabaseLease(async () => {
+      const modules = await dependencies.getPersistenceModules();
+      return modules.weReadRepository.readWeReadSettings();
+    })
+      .then((settings) => {
         if (disposed || token !== weReadConfigurationToken) return;
         if (!settings.configured || settings.syncMode !== 'auto') {
           dependencies.logInfo('weread.auto_sync.disabled', {

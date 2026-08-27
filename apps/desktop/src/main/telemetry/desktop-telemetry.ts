@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import os from 'node:os';
 import { powerMonitor } from 'electron';
 import type { ResolvedAppSettings } from '@yomitomo/shared';
-import { getDatabase } from '../store/store-db';
+import { getDatabase, withDatabaseLease } from '../store/store-db';
 import {
   readTelemetryEnabled,
   readTelemetryState,
@@ -121,7 +121,7 @@ export function createDesktopTelemetryController(
   let running: Promise<void> | null = null;
   const run = (reason: TelemetryReason) => {
     if (running) return;
-    running = runDesktopTelemetryHeartbeat(reason, clientDependencies)
+    running = withDatabaseLease(() => runDesktopTelemetryHeartbeat(reason, clientDependencies))
       .then((result) => {
         if (result.status === 'sent')
           dependencies.logInfo?.('telemetry.heartbeat_sent', { reason });

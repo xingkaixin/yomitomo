@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WeReadSettings, WeReadSyncResult } from '@yomitomo/shared';
 import { startMainProcessRuntime } from './main-process-runtime';
+import { readDatabaseLifecycle } from '../store/store-db';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -64,6 +65,27 @@ describe('main process runtime', () => {
 
     expect(dependencies.syncWeRead).not.toHaveBeenCalled();
     expect(dependencies.sendWeReadStateUpdated).not.toHaveBeenCalled();
+  });
+
+  it('releases the database lease when automatic sync fails', async () => {
+    vi.useFakeTimers();
+    const dependencies = runtimeDependencies({
+      settings: { configured: true, openMethod: 'deeplink', syncMode: 'auto' },
+    });
+    const error = new Error('sync failed');
+    dependencies.syncWeRead.mockRejectedValue(error);
+    const runtime = startMainProcessRuntime(dependencies.input);
+    try {
+      await vi.advanceTimersByTimeAsync(10);
+      expect(dependencies.input.logError).toHaveBeenCalledWith(
+        'weread.auto_sync.failed',
+        error,
+        expect.anything(),
+      );
+      expect(readDatabaseLifecycle().leases).toBe(0);
+    } finally {
+      runtime.dispose();
+    }
   });
 });
 

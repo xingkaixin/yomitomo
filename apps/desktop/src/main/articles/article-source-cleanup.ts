@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import type { ArticleRecord } from '@yomitomo/shared';
 import { logError } from '../app/logger';
 import * as schema from '../db/schema';
-import { getDatabase } from '../store/store-db';
+import { getDatabase, withDatabaseLease } from '../store/store-db';
 
 type CleanupSourceType = Extract<ArticleRecord['sourceType'], 'ebook' | 'pdf'>;
 type CleanupTaskExecutor = {
@@ -37,19 +37,21 @@ export async function completeArticleSourceCleanup(articleId: string) {
   const operationId = randomUUID();
   let sourceType: CleanupSourceType | undefined;
   try {
-    const task = getDatabase()
-      .select()
-      .from(schema.articleSourceCleanupTasks)
-      .where(eq(schema.articleSourceCleanupTasks.articleId, articleId))
-      .get();
-    if (!task || !isCleanupSourceType(task.sourceType)) return;
-    sourceType = task.sourceType;
+    await withDatabaseLease(async () => {
+      const task = getDatabase()
+        .select()
+        .from(schema.articleSourceCleanupTasks)
+        .where(eq(schema.articleSourceCleanupTasks.articleId, articleId))
+        .get();
+      if (!task || !isCleanupSourceType(task.sourceType)) return;
+      sourceType = task.sourceType;
 
-    await deleteSourceAssets(task.articleId, sourceType);
-    getDatabase()
-      .delete(schema.articleSourceCleanupTasks)
-      .where(eq(schema.articleSourceCleanupTasks.articleId, task.articleId))
-      .run();
+      await deleteSourceAssets(task.articleId, sourceType);
+      getDatabase()
+        .delete(schema.articleSourceCleanupTasks)
+        .where(eq(schema.articleSourceCleanupTasks.articleId, task.articleId))
+        .run();
+    });
   } catch (error) {
     logError('article_source.cleanup_deferred', error, {
       articleId,
