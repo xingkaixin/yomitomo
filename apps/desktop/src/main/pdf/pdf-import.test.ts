@@ -265,4 +265,46 @@ describe('renderPdfThumbnailFromBuffer', () => {
     expect(thumbnail).toBeNull();
     expect(pdfMocks.engine.closeDocument).toHaveBeenCalledWith(document);
   });
+
+  it.each([
+    { width: 14_400, height: 14_400 },
+    { width: 300, height: 14_400 },
+    { width: 30_000, height: 60_000 },
+    { width: 100, height: 200 },
+  ])('bounds thumbnail pixels for a $width by $height page', async (size) => {
+    const document = { pageCount: 1, pages: [{ id: 'page-1', size }] };
+    pdfMocks.engine.openDocumentBuffer.mockReturnValue(asyncResult(document));
+    pdfMocks.engine.renderPage.mockReturnValue(asyncResult(Buffer.from('thumbnail')));
+    const { renderPdfThumbnailFromBuffer } = await importPdfModule();
+
+    const thumbnail = await renderPdfThumbnailFromBuffer(new ArrayBuffer(8));
+    const { scaleFactor } = pdfMocks.engine.renderPage.mock.calls[0][2];
+    const width = Math.max(1, Math.round(size.width * Math.max(0.01, scaleFactor)));
+    const height = Math.max(1, Math.round(size.height * Math.max(0.01, scaleFactor)));
+
+    expect(thumbnail).toEqual(Buffer.from('thumbnail'));
+    expect(width).toBeLessThanOrEqual(300);
+    expect(height).toBeLessThanOrEqual(600);
+    expect(width * height).toBeLessThanOrEqual(180_000);
+    expect(scaleFactor).toBeLessThanOrEqual(2);
+    expect(scaleFactor).toBeGreaterThanOrEqual(0.01);
+    expect(pdfMocks.engine.closeDocument).toHaveBeenCalledWith(document);
+  });
+
+  it.each([
+    { width: Number.NaN, height: 800 },
+    { width: 600, height: Number.POSITIVE_INFINITY },
+    { width: 600, height: 0 },
+    { width: -1, height: 800 },
+    { width: 300, height: 60_001 },
+    { width: 30_001, height: 600 },
+  ])('skips invalid or unrenderable $width by $height pages', async (size) => {
+    const document = { pageCount: 1, pages: [{ id: 'page-1', size }] };
+    pdfMocks.engine.openDocumentBuffer.mockReturnValue(asyncResult(document));
+    const { renderPdfThumbnailFromBuffer } = await importPdfModule();
+
+    expect(await renderPdfThumbnailFromBuffer(new ArrayBuffer(8))).toBeNull();
+    expect(pdfMocks.engine.renderPage).not.toHaveBeenCalled();
+    expect(pdfMocks.engine.closeDocument).toHaveBeenCalledWith(document);
+  });
 });

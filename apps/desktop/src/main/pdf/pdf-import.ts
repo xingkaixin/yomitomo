@@ -13,6 +13,7 @@ export const MAX_PDF_BYTES = MAX_PDF_IMPORT_BYTES;
 
 // 封面缩略图：约 300px 宽的 JPEG，导入期一次性渲染并本地持久化。
 const PDF_THUMBNAIL_TARGET_WIDTH = 300;
+const PDF_THUMBNAIL_MAX_HEIGHT = 600;
 const PDF_THUMBNAIL_QUALITY = 0.72;
 
 export type PdfImportFileInput = {
@@ -119,8 +120,16 @@ async function renderFirstPageThumbnail(
   document: PdfDocumentObject,
 ): Promise<Buffer | null> {
   const page = document.pages[0];
-  if (!page || page.size.width <= 0) return null;
-  const scaleFactor = clampScaleFactor(PDF_THUMBNAIL_TARGET_WIDTH / page.size.width);
+  if (!page) return null;
+  const { width, height } = page.size;
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
+  const scaleFactor = Math.min(
+    PDF_THUMBNAIL_TARGET_WIDTH / width,
+    PDF_THUMBNAIL_MAX_HEIGHT / height,
+    2,
+  );
+  // The rendering engine clamps scales to 0.01, so smaller requested scales would not be honored.
+  if (scaleFactor < 0.01) return null;
   try {
     return await engine
       .renderPage(document, page, {
@@ -132,11 +141,6 @@ async function renderFirstPageThumbnail(
   } catch {
     return null;
   }
-}
-
-function clampScaleFactor(value: number) {
-  if (!Number.isFinite(value) || value <= 0) return 1;
-  return Math.min(Math.max(value, 0.2), 2);
 }
 
 async function pdfImportEngine() {
