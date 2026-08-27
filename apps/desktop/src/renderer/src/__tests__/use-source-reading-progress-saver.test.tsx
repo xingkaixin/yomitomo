@@ -169,6 +169,34 @@ describe('useSourceReadingProgressSaver', () => {
     expect(onSave).toHaveBeenCalledWith('article-1', expect.objectContaining({ progress: 0.52 }));
   });
 
+  it('waits for a save queued immediately after a duplicate', async () => {
+    const pendingSave = deferred<void>();
+    const onSave = vi.fn().mockReturnValue(pendingSave.promise);
+    render(<Probe initialProgress={progress({ progress: 0.1 })} onSave={onSave} />);
+
+    let completed = false;
+    let drain!: Promise<void>;
+    act(() => {
+      void saver().saveNow(progress({ progress: 0.1 }));
+      drain = saver().saveNow(progress({ progress: 0.7 }));
+      void drain.then(() => {
+        completed = true;
+      });
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(completed).toBe(false);
+
+    await act(async () => {
+      pendingSave.resolve();
+      await drain;
+    });
+    expect(completed).toBe(true);
+  });
+
   it('flushes pending progress on unmount and resets for the next article', () => {
     vi.useFakeTimers();
     const onSave = vi.fn();
@@ -279,6 +307,54 @@ describe('useSourceReadingProgressSaver', () => {
       'article-1',
       expect.objectContaining({ progress: 0.4 }),
     );
+  });
+
+  it('persists a return to the saved position after an in-flight move succeeds', async () => {
+    const firstSave = deferred<void>();
+    const onSave = vi
+      .fn()
+      .mockImplementationOnce(() => firstSave.promise)
+      .mockResolvedValue(undefined);
+    render(<Probe initialProgress={progress({ progress: 0.1 })} onSave={onSave} />);
+
+    let drain!: Promise<void>;
+    act(() => {
+      void saver().saveNow(progress({ progress: 0.7 }));
+      drain = saver().saveNow(progress({ progress: 0.1 }));
+    });
+    await act(async () => {
+      firstSave.resolve();
+      await drain;
+    });
+
+    expect(onSave.mock.calls.map((call) => call[1].progress)).toEqual([0.7, 0.1]);
+  });
+
+  it('does not retry an abandoned position when a scheduled return is flushed after failure', async () => {
+    const firstSave = deferred<void>();
+    const onSave = vi
+      .fn()
+      .mockImplementationOnce(() => firstSave.promise)
+      .mockResolvedValue(undefined);
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { unmount } = render(
+      <Probe initialProgress={progress({ progress: 0.1 })} onSave={onSave} />,
+    );
+
+    let drain!: Promise<void>;
+    act(() => {
+      drain = saver().saveNow(progress({ progress: 0.7 }));
+      saver().scheduleSave(progress({ progress: 0.1 }));
+    });
+    await act(async () => {
+      firstSave.reject(new Error('temporary save failure'));
+      await drain;
+    });
+    await act(async () => {
+      unmount();
+    });
+
+    expect(onSave).toHaveBeenCalledTimes(1);
   });
 
   it('keeps an older article save isolated after switching articles', async () => {
