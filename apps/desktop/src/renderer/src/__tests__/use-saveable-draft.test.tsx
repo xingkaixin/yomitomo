@@ -13,6 +13,61 @@ afterEach(() => {
 });
 
 describe('useSaveableDraft', () => {
+  it('blocks duplicate manual requests before React rerenders', async () => {
+    const pending = deferred<string>();
+    const persist = vi.fn(() => pending.promise);
+    const latest = renderDraft({ persist });
+    act(() => latest.current?.update('changed'));
+    let first: Promise<string | undefined> | undefined;
+    let second: Promise<string | undefined> | undefined;
+    act(() => {
+      first = latest.current?.save();
+      second = latest.current?.save();
+    });
+    expect(latest.current?.canSave).toBe(false);
+    expect(persist).toHaveBeenCalledOnce();
+    await expect(second).resolves.toBeUndefined();
+    await act(async () => {
+      pending.resolve('saved');
+      await first;
+    });
+  });
+
+  it('keeps manual saves blocked until every explicit override settles', async () => {
+    const first = deferred<string>();
+    const second = deferred<string>();
+    const persist = vi
+      .fn()
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise)
+      .mockResolvedValue('saved C');
+    const latest = renderDraft({ persist });
+    let firstRequest: Promise<string | undefined> | undefined;
+    let secondRequest: Promise<string | undefined> | undefined;
+    act(() => {
+      firstRequest = latest.current?.save('A');
+      secondRequest = latest.current?.save('B');
+    });
+    await act(async () => {
+      second.resolve('saved B');
+      await secondRequest;
+    });
+    expect(latest.current?.saveState).toBe('saving');
+    act(() => latest.current?.update('C'));
+    await act(async () => void (await latest.current?.save()));
+    expect(latest.current?.canSave).toBe(false);
+    expect(persist).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      first.reject(new Error('obsolete failure'));
+      await firstRequest;
+    });
+    expect(latest.current?.canSave).toBe(true);
+    expect(latest.current?.saveState).toBe('idle');
+    expect(latest.current?.saveError).toBe('');
+    await act(async () => void (await latest.current?.save()));
+    expect(persist).toHaveBeenLastCalledWith('C');
+  });
+
   it('saves changed values and resets saved state after the delay', async () => {
     vi.useFakeTimers();
     const persist = vi.fn().mockResolvedValue('saved-result');
@@ -86,10 +141,11 @@ describe('useSaveableDraft', () => {
   });
 
   it('retries the last failed override without consulting the change predicate', async () => {
+    const pending = deferred<string>();
     const persist = vi
       .fn()
       .mockRejectedValueOnce(new Error('network failed'))
-      .mockResolvedValueOnce('saved-result');
+      .mockReturnValueOnce(pending.promise);
     const latest = renderDraft({ canSave: () => false, persist });
 
     await act(async () => {
@@ -97,8 +153,15 @@ describe('useSaveableDraft', () => {
     });
     expect(latest.current?.saveState).toBe('error');
 
+    let retry: Promise<string | undefined> | undefined;
+    act(() => {
+      retry = latest.current?.save();
+    });
+    await act(async () => void (await latest.current?.save()));
+    expect(persist).toHaveBeenCalledTimes(2);
     await act(async () => {
-      await latest.current?.save();
+      pending.resolve('saved-result');
+      await retry;
     });
 
     expect(persist).toHaveBeenNthCalledWith(1, 'changed');
