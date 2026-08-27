@@ -7,14 +7,13 @@ import { getDesktopApi, getOptionalDesktopApi } from '../shell/app-desktop-api';
 import { appToast } from '../shell/app-toast';
 
 type UseWeReadLibrarySessionInput = {
-  onResetLibrary: () => void;
-  onShowBook: (detail: WeReadBookDetail) => void;
+  onOpenBook: (
+    bookId: string,
+    read: () => Promise<WeReadBookDetail | null>,
+  ) => Promise<WeReadBookDetail | null>;
 };
 
-export function useWeReadLibrarySession({
-  onResetLibrary,
-  onShowBook,
-}: UseWeReadLibrarySessionInput) {
+export function useWeReadLibrarySession({ onOpenBook }: UseWeReadLibrarySessionInput) {
   const { t } = useTranslation();
   const [books, setBooks] = useState<WeReadBook[]>([]);
   const [settings, setSettings] = useState<WeReadSettings>({
@@ -22,7 +21,7 @@ export function useWeReadLibrarySession({
     openMethod: 'deeplink',
   });
   const [librarySyncing, setLibrarySyncing] = useState(false);
-  const [bookSyncing, setBookSyncing] = useState(false);
+  const [pendingBookSyncs, setPendingBookSyncs] = useState(0);
   const [openMessage, setOpenMessage] = useState('');
 
   useEffect(() => {
@@ -75,42 +74,42 @@ export function useWeReadLibrarySession({
     [t],
   );
 
-  const syncBook = useCallback(
-    async (bookId: string) => {
-      setBookSyncing(true);
-      try {
-        const detail = await getDesktopApi().weRead.syncBook(bookId);
-        if (!detail) {
-          setBooks((current) => current.filter((book) => book.bookId !== bookId));
-          onResetLibrary();
-          return null;
-        }
-        onShowBook(detail);
-        setBooks((current) =>
-          current.map((book) => (book.bookId === detail.book.bookId ? detail.book : book)),
-        );
-        return detail;
-      } finally {
-        setBookSyncing(false);
+  const readSyncedBook = useCallback(async (bookId: string) => {
+    setPendingBookSyncs((count) => count + 1);
+    try {
+      const detail = await getDesktopApi().weRead.syncBook(bookId);
+      if (!detail) {
+        setBooks((current) => current.filter((book) => book.bookId !== bookId));
+        return null;
       }
-    },
-    [onResetLibrary, onShowBook],
+      setBooks((current) =>
+        current.map((book) => (book.bookId === detail.book.bookId ? detail.book : book)),
+      );
+      return detail;
+    } finally {
+      setPendingBookSyncs((count) => count - 1);
+    }
+  }, []);
+
+  const syncBook = useCallback(
+    (bookId: string) => onOpenBook(bookId, () => readSyncedBook(bookId)),
+    [onOpenBook, readSyncedBook],
   );
 
   const openBook = useCallback(
     async (book: WeReadBook) => {
-      onResetLibrary();
-      const cached = await getDesktopApi().weRead.getBook(book.bookId);
-      if (
-        cached &&
-        (cached.chapters.length > 0 || cached.highlights.length > 0 || cached.thoughts.length > 0)
-      ) {
-        onShowBook(cached);
-        return;
-      }
-      await syncBook(book.bookId);
+      await onOpenBook(book.bookId, async () => {
+        const cached = await getDesktopApi().weRead.getBook(book.bookId);
+        if (
+          cached &&
+          (cached.chapters.length > 0 || cached.highlights.length > 0 || cached.thoughts.length > 0)
+        ) {
+          return cached;
+        }
+        return readSyncedBook(book.bookId);
+      });
     },
-    [onResetLibrary, onShowBook, syncBook],
+    [onOpenBook, readSyncedBook],
   );
 
   const openExternal = useCallback(
@@ -132,7 +131,7 @@ export function useWeReadLibrarySession({
     books,
     settings,
     librarySyncing,
-    bookSyncing,
+    bookSyncing: pendingBookSyncs > 0,
     openMessage,
     openBook,
     openExternal,

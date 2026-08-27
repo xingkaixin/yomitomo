@@ -160,8 +160,7 @@ export function ReadingLibrary({
   const openArticleTargetId = openArticleTarget?.articleId;
   const openArticleTargetAnnotationId = openArticleTarget?.annotationId;
   const weRead = useWeReadLibrarySession({
-    onResetLibrary: navigation.actions.resetLibrary,
-    onShowBook: navigation.actions.showWeReadBook,
+    onOpenBook: navigation.actions.openWeReadBook,
   });
   const distillationAnimation = distillationSync.animation;
   const sortedArticles = useMemo<ArticleSummaryRecord[]>(() => sortArticles(articles), [articles]);

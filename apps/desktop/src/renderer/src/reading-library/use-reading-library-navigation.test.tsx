@@ -43,7 +43,9 @@ describe('useReadingLibraryNavigation', () => {
       selectedAnnotationId: null,
     });
 
-    act(() => result.current.actions.showWeReadBook(wereadBookDetail));
+    await act(() =>
+      result.current.actions.openWeReadBook('weread_1', async () => wereadBookDetail),
+    );
     expect(result.current.model).toMatchObject({
       activeShelf: 'source',
       article: null,

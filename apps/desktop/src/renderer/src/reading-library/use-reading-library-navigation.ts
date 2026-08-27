@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import { articleCounts } from '@yomitomo/core';
-import type { ArticleRecord, ArticleSummaryRecord, WeReadBookDetail } from '@yomitomo/shared';
+import type {
+  ArticleRecord,
+  ArticleSummaryRecord,
+  ContentRef,
+  WeReadBookDetail,
+} from '@yomitomo/shared';
 import type { CurrentArticleSink } from '../shell/app-article-store';
 
 type ReadingLibraryRoute =
@@ -28,10 +33,6 @@ type ReadingLibraryNavigationEvent =
       update: (article: ArticleRecord) => ArticleRecord;
     };
 
-type ArticleLoadLifecycle =
-  | { status: 'idle'; token: number }
-  | { status: 'loading'; token: number; articleId: string };
-
 type UseReadingLibraryNavigationOptions = {
   onCloseArticleDiscussions?: (articleId: string) => Promise<void> | void;
   onReadArticle: (articleId: string) => Promise<ArticleRecord | null>;
@@ -43,7 +44,7 @@ export function useReadingLibraryNavigation({
 }: UseReadingLibraryNavigationOptions) {
   const [route, dispatch] = useReducer(readingLibraryRoute, { type: 'library' });
   const routeRef = useRef<ReadingLibraryRoute>(route);
-  const articleLoadRef = useRef<ArticleLoadLifecycle>({ status: 'idle', token: 0 });
+  const contentLoadRef = useRef<ContentRef | null>(null);
   const discussionArticleIdRef = useRef<string | null>(null);
 
   const send = useCallback((event: ReadingLibraryNavigationEvent) => {
@@ -51,8 +52,8 @@ export function useReadingLibraryNavigation({
     dispatch(event);
   }, []);
 
-  const cancelArticleLoad = useCallback(() => {
-    articleLoadRef.current = { status: 'idle', token: articleLoadRef.current.token + 1 };
+  const cancelContentLoad = useCallback(() => {
+    contentLoadRef.current = null;
   }, []);
 
   const closeCurrentArticle = useCallback(
@@ -66,88 +67,89 @@ export function useReadingLibraryNavigation({
   );
 
   const resetLibrary = useCallback(() => {
-    cancelArticleLoad();
+    cancelContentLoad();
     closeCurrentArticle();
     send({ type: 'reset-library' });
-  }, [cancelArticleLoad, closeCurrentArticle, send]);
+  }, [cancelContentLoad, closeCurrentArticle, send]);
 
   const removeArticleRoute = useCallback(
     (articleId: string) => {
-      const currentLoad = articleLoadRef.current;
-      if (currentLoad.status === 'loading' && currentLoad.articleId === articleId) {
-        cancelArticleLoad();
+      const currentLoad = contentLoadRef.current;
+      if (currentLoad?.kind === 'article' && currentLoad.id === articleId) {
+        cancelContentLoad();
       }
       const current = routeRef.current;
       if (current.type !== 'article' || current.article.id !== articleId) return;
       closeCurrentArticle();
       send({ type: 'reset-library' });
     },
-    [cancelArticleLoad, closeCurrentArticle, send],
+    [cancelContentLoad, closeCurrentArticle, send],
   );
 
   const returnToLibrary = useCallback(() => {
-    cancelArticleLoad();
+    cancelContentLoad();
     closeCurrentArticle();
     send({ type: 'return-to-library' });
-  }, [cancelArticleLoad, closeCurrentArticle, send]);
+  }, [cancelContentLoad, closeCurrentArticle, send]);
 
-  const openArticle = useCallback(
-    async (article: ArticleRecord | ArticleSummaryRecord | string, focusAnnotationId?: string) => {
-      const articleId = typeof article === 'string' ? article : article.id;
-      closeCurrentArticle(articleId);
-      const token = articleLoadRef.current.token + 1;
-      articleLoadRef.current = { status: 'loading', token, articleId };
-      let fullArticle: ArticleRecord | null;
+  const loadContent = useCallback(
+    async <T>(
+      target: ContentRef,
+      read: () => T | null | Promise<T | null>,
+      onLoaded: (value: T | null) => void,
+    ) => {
+      closeCurrentArticle(target.kind === 'article' ? target.id : undefined);
+      contentLoadRef.current = target;
+      let value: T | null;
       try {
-        fullArticle =
-          typeof article !== 'string' && articleHasReadableBody(article)
-            ? article
-            : await onReadArticle(articleId);
+        value = await read();
       } catch (error) {
-        const currentLoad = articleLoadRef.current;
-        if (
-          currentLoad.status === 'loading' &&
-          currentLoad.token === token &&
-          currentLoad.articleId === articleId
-        ) {
-          articleLoadRef.current = { status: 'idle', token };
-        }
+        if (contentLoadRef.current === target) contentLoadRef.current = null;
         throw error;
       }
-      const currentLoad = articleLoadRef.current;
-      if (
-        currentLoad.status !== 'loading' ||
-        currentLoad.token !== token ||
-        currentLoad.articleId !== articleId
-      ) {
-        return null;
-      }
-      articleLoadRef.current = { status: 'idle', token };
-      if (!fullArticle) return null;
-      discussionArticleIdRef.current = fullArticle.id;
-      send({ type: 'show-article', article: fullArticle, focusAnnotationId });
-      return fullArticle;
+      if (contentLoadRef.current !== target) return null;
+      contentLoadRef.current = null;
+      onLoaded(value);
+      return value;
     },
-    [closeCurrentArticle, onReadArticle, send],
+    [closeCurrentArticle],
+  );
+
+  const openArticle = useCallback(
+    (article: ArticleRecord | ArticleSummaryRecord | string, focusAnnotationId?: string) => {
+      const articleId = typeof article === 'string' ? article : article.id;
+      return loadContent(
+        { kind: 'article', id: articleId },
+        () =>
+          typeof article !== 'string' && articleHasReadableBody(article)
+            ? article
+            : onReadArticle(articleId),
+        (fullArticle) => {
+          if (!fullArticle) return;
+          discussionArticleIdRef.current = fullArticle.id;
+          send({ type: 'show-article', article: fullArticle, focusAnnotationId });
+        },
+      );
+    },
+    [loadContent, onReadArticle, send],
   );
 
   const focusArticle = useCallback(
     (article: ArticleRecord, annotationId: string) => {
-      cancelArticleLoad();
+      cancelContentLoad();
       closeCurrentArticle(article.id);
       discussionArticleIdRef.current = article.id;
       send({ type: 'show-article', article, focusAnnotationId: annotationId });
     },
-    [cancelArticleLoad, closeCurrentArticle, send],
+    [cancelContentLoad, closeCurrentArticle, send],
   );
 
-  const showWeReadBook = useCallback(
-    (detail: WeReadBookDetail) => {
-      cancelArticleLoad();
-      closeCurrentArticle();
-      send({ type: 'show-weread', detail });
-    },
-    [cancelArticleLoad, closeCurrentArticle, send],
+  const openWeReadBook = useCallback(
+    (bookId: string, read: () => Promise<WeReadBookDetail | null>) =>
+      loadContent({ kind: 'weread', id: bookId }, read, (detail) => {
+        send(detail ? { type: 'show-weread', detail } : { type: 'reset-library' });
+      }),
+    [loadContent, send],
   );
 
   const selectAnnotation = useCallback(
@@ -195,12 +197,12 @@ export function useReadingLibraryNavigation({
 
   useEffect(
     () => () => {
-      cancelArticleLoad();
+      cancelContentLoad();
       const articleId = discussionArticleIdRef.current;
       discussionArticleIdRef.current = null;
       if (articleId) void onCloseArticleDiscussions?.(articleId);
     },
-    [cancelArticleLoad, onCloseArticleDiscussions],
+    [cancelContentLoad, onCloseArticleDiscussions],
   );
 
   const model = useMemo(() => readingLibraryNavigationModel(route), [route]);
@@ -215,7 +217,7 @@ export function useReadingLibraryNavigation({
       resetLibrary,
       returnToLibrary,
       selectAnnotation,
-      showWeReadBook,
+      openWeReadBook,
       updateArticle,
     }),
     [
@@ -228,7 +230,7 @@ export function useReadingLibraryNavigation({
       resetLibrary,
       returnToLibrary,
       selectAnnotation,
-      showWeReadBook,
+      openWeReadBook,
       updateArticle,
     ],
   );
