@@ -23,13 +23,22 @@ import { migrateProviderApiKeys } from './store-provider-key-migration';
 import { rowToAgent, rowToProvider, rowToSettings } from './store-normalizers';
 import { upsertSettings } from './settings-repository';
 
-export async function saveProvider(input: SaveProviderInput): Promise<ProviderStorePatch> {
+const pendingProviderMutations = new Map<string, Promise<void>>();
+
+export function saveProvider(input: SaveProviderInput): Promise<ProviderStorePatch> {
+  return input.id
+    ? withProviderMutation(input.id, () => saveProviderRecord(input))
+    : saveProviderRecord(input);
+}
+
+async function saveProviderRecord(input: SaveProviderInput): Promise<ProviderStorePatch> {
   const database = getDatabase();
   await migrateProviderApiKeys(database);
   const now = new Date().toISOString();
   const existingRow = input.id
     ? database.select().from(schema.providers).where(eq(schema.providers.id, input.id)).get()
     : undefined;
+  if (input.id && !existingRow) throw new Error('Provider no longer exists');
   const existing = existingRow ? rowToProvider(existingRow) : undefined;
   const id = existing?.id || makeId('provider');
   const { credentialChange, storedApiKey } = await resolveProviderApiKeyStorage(
@@ -64,7 +73,11 @@ export async function saveProvider(input: SaveProviderInput): Promise<ProviderSt
   return readProviderStorePatch(database);
 }
 
-export async function deleteProvider(id: string): Promise<ProviderStorePatch> {
+export function deleteProvider(id: string): Promise<ProviderStorePatch> {
+  return withProviderMutation(id, () => deleteProviderRecord(id));
+}
+
+async function deleteProviderRecord(id: string): Promise<ProviderStorePatch> {
   const database = getDatabase();
   const provider = database
     .select({ apiKeyRef: schema.providers.apiKeyRef })
@@ -103,6 +116,21 @@ export async function deleteProvider(id: string): Promise<ProviderStorePatch> {
   });
   await completeCommittedSecretDeletion(secretRef, { owner: 'provider', ownerId: id });
   return readProviderStorePatch(database);
+}
+
+async function withProviderMutation(id: string, run: () => Promise<ProviderStorePatch>) {
+  const previous = pendingProviderMutations.get(id) || Promise.resolve();
+  const result = previous.then(run);
+  const settled = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  pendingProviderMutations.set(id, settled);
+  try {
+    return await result;
+  } finally {
+    if (pendingProviderMutations.get(id) === settled) pendingProviderMutations.delete(id);
+  }
 }
 
 function readProviderStorePatch(database: StoreDatabase): ProviderStorePatch {

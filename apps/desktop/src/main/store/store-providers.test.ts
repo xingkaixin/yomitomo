@@ -6,6 +6,8 @@ const testState = vi.hoisted(() => ({
   saveProviderApiKeyError: undefined as Error | undefined,
   saveProviderApiKeyPause: undefined as Promise<void> | undefined,
   saveProviderApiKeyCalls: 0,
+  saveStoredSecretPause: undefined as Promise<void> | undefined,
+  saveStoredSecretCalls: 0,
   deleteStoredSecretError: undefined as Error | undefined,
   providerApiKeyRef: (providerId: string) => `provider:${providerId}:apiKey`,
   backfillAnnotationMemoryEntries: vi.fn(),
@@ -38,6 +40,8 @@ vi.mock('../providers/provider-secrets', () => {
       return ref;
     },
     saveStoredSecret: async (ref: string, secret: string) => {
+      testState.saveStoredSecretCalls += 1;
+      await testState.saveStoredSecretPause;
       if (testState.saveProviderApiKeyError) throw testState.saveProviderApiKeyError;
       testState.secrets.set(ref, secret);
     },
@@ -86,6 +90,8 @@ beforeEach(async () => {
   testState.saveProviderApiKeyError = undefined;
   testState.saveProviderApiKeyPause = undefined;
   testState.saveProviderApiKeyCalls = 0;
+  testState.saveStoredSecretPause = undefined;
+  testState.saveStoredSecretCalls = 0;
   testState.deleteStoredSecretError = undefined;
   testState.backfillAnnotationMemoryEntries.mockReset();
   testState.backfillAnnotationMemoryEntries.mockReturnValue({
@@ -103,6 +109,58 @@ afterEach(async () => {
 });
 
 describe('desktop store providers', () => {
+  it('finishes a pending credential save before deleting its provider without blocking others', async () => {
+    insertProviderRow({ id: 'provider_1', apiKeyRef: 'provider:provider_1:apiKey' });
+    testState.secrets.set('provider:provider_1:apiKey', 'sk-old');
+    const preparation = deferred<void>();
+    testState.saveStoredSecretPause = preparation.promise;
+    const saving = saveProvider({ id: 'provider_1', apiKey: 'sk-new' });
+    await vi.waitFor(() => expect(testState.saveStoredSecretCalls).toBe(1));
+
+    const deleting = deleteProvider('provider_1');
+    await saveProvider({ name: 'Independent provider' });
+    preparation.resolve();
+    await Promise.all([saving, deleting]);
+
+    expect(readProviderRow('provider_1')).toBeUndefined();
+    expect(getDatabase().select().from(schema.providers).all()).toMatchObject([
+      { name: 'Independent provider' },
+    ]);
+    expect(testState.secrets.size).toBe(0);
+    expect(readSecretDeletionTasks()).toEqual([]);
+  });
+
+  it('rejects an update ordered after deletion instead of creating another provider', async () => {
+    insertProviderRow({ id: 'provider_1' });
+    const deleting = deleteProvider('provider_1');
+    const saving = saveProvider({ id: 'provider_1', apiKey: 'sk-new' });
+
+    await expect(saving.then(() => undefined)).rejects.toThrow('Provider no longer exists');
+    await deleting;
+    expect(getDatabase().select().from(schema.providers).all()).toEqual([]);
+    expect(testState.saveStoredSecretCalls).toBe(0);
+    expect(testState.secrets.size).toBe(0);
+  });
+
+  it('continues a queued deletion after credential preparation fails', async () => {
+    insertProviderRow({ id: 'provider_1', apiKeyRef: 'provider:provider_1:apiKey' });
+    testState.secrets.set('provider:provider_1:apiKey', 'sk-old');
+    const preparation = deferred<void>();
+    testState.saveStoredSecretPause = preparation.promise;
+    const error = new Error('keyring unavailable');
+    const saving = saveProvider({ id: 'provider_1', apiKey: 'sk-new' }).catch((failure) => failure);
+    await vi.waitFor(() => expect(testState.saveStoredSecretCalls).toBe(1));
+
+    const deleting = deleteProvider('provider_1');
+    preparation.reject(error);
+    expect(await saving).toBe(error);
+    await deleting;
+
+    expect(readProviderRow('provider_1')).toBeUndefined();
+    expect(testState.secrets.size).toBe(0);
+    expect(readSecretDeletionTasks()).toEqual([]);
+  });
+
   it('returns only provider and settings slices', async () => {
     const saved = await saveProvider({ name: 'Provider' });
     const providerId = saved.providers[0]?.id;
