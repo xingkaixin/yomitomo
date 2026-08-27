@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React, { useEffect, useLayoutEffect, useState } from 'react';
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   Annotation,
@@ -177,6 +177,48 @@ function HookProbe({
 }
 
 describe('useSourceAnnotations', () => {
+  it.each(['navigation', 'unmount'] as const)(
+    'does not apply a saved annotation after %s',
+    async (exit) => {
+      let completeSave!: () => void;
+      const pending = new Promise<void>((resolve) => {
+        completeSave = resolve;
+      });
+      const onArticleChange = vi.fn();
+      const onAnnotationsSaved = vi.fn();
+      const onSaveArticleAnnotation = vi.fn(() => pending);
+      const { result, rerender, unmount } = renderHook(
+        ({ record }) =>
+          useSourceAnnotations({
+            article: record,
+            annotations: record.annotations,
+            userProfile,
+            onArticleChange,
+            onAnnotationsSaved,
+            onSaveArticleAnnotation,
+          }),
+        { initialProps: { record: article() } },
+      );
+      let saving!: Promise<void>;
+      act(() => {
+        saving = result.current.saveAnnotation(annotation('annotation_a'));
+      });
+      if (exit === 'navigation') rerender({ record: article({ id: 'article_2' }) });
+      else unmount();
+      await act(async () => {
+        completeSave();
+        await saving;
+      });
+      expect(onSaveArticleAnnotation).toHaveBeenCalledWith(
+        'article_1',
+        expect.anything(),
+        expect.any(String),
+      );
+      expect(onArticleChange).not.toHaveBeenCalled();
+      expect(onAnnotationsSaved).not.toHaveBeenCalled();
+    },
+  );
+
   it('saves and applies sorted annotations through the granular path', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-05-16T12:00:00.000Z'));
@@ -224,6 +266,112 @@ describe('useSourceAnnotations', () => {
     expect(onAnnotationsApplied).toHaveBeenCalledWith(
       expect.objectContaining({ previousAnnotations: [earlier, later], nextAnnotations: [later] }),
     );
+  });
+
+  it.each(['comment', 'delete'] as const)(
+    'does not run %s completion side effects in another article',
+    async (operation) => {
+      let complete!: () => void;
+      const pending = new Promise<void>((resolve) => {
+        complete = resolve;
+      });
+      const onArticleChange = vi.fn();
+      const onOpenAnnotation = vi.fn();
+      const onCommentSaved = vi.fn();
+      const onBeforeDeleteAnnotation = vi.fn();
+      const { result, rerender } = renderHook(
+        ({ record }) =>
+          useSourceAnnotations({
+            article: record,
+            annotations: record.annotations,
+            userProfile,
+            annotationAgents: [lin],
+            onArticleChange,
+            onOpenAnnotation,
+            onCommentSaved,
+            onBeforeDeleteAnnotation,
+            onSaveArticleComment: () => pending,
+            onDeleteArticleAnnotation: () => pending,
+          }),
+        { initialProps: { record: article({ annotations: [annotation('annotation_a')] }) } },
+      );
+      let saving!: Promise<void>;
+      act(() => {
+        saving =
+          operation === 'comment'
+            ? result.current.addComment('annotation_a', '@lin question')
+            : result.current.deleteAnnotation('annotation_a');
+      });
+      rerender({ record: article({ id: 'article_2' }) });
+      await act(async () => {
+        complete();
+        await saving;
+      });
+      expect(onArticleChange).not.toHaveBeenCalled();
+      expect(onOpenAnnotation).not.toHaveBeenCalled();
+      expect(onCommentSaved).not.toHaveBeenCalled();
+      expect(onBeforeDeleteAnnotation).not.toHaveBeenCalled();
+    },
+  );
+
+  it('merges completion into the latest article after returning to its owner', async () => {
+    let complete!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      complete = resolve;
+    });
+    const onArticleChange = vi.fn();
+    const saved = annotation('saved');
+    const external = annotation('external');
+    const { result, rerender } = renderHook(
+      ({ record }) =>
+        useSourceAnnotations({
+          article: record,
+          annotations: record.annotations,
+          userProfile,
+          onArticleChange,
+          onSaveArticleAnnotation: () => pending,
+        }),
+      { initialProps: { record: article() } },
+    );
+    let saving!: Promise<void>;
+    act(() => {
+      saving = result.current.saveAnnotation(saved);
+    });
+    rerender({ record: article({ id: 'article_2' }) });
+    rerender({ record: article({ title: 'Latest title', annotations: [external] }) });
+    await act(async () => {
+      complete();
+      await saving;
+    });
+    expect(onArticleChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'article_1',
+        title: 'Latest title',
+        annotations: expect.arrayContaining([external, saved]),
+      }),
+    );
+  });
+
+  it('rejects stale local annotation callbacks without changing the current reference', () => {
+    const onArticleChange = vi.fn();
+    const target = annotation('current');
+    const { result, rerender } = renderHook(
+      ({ record }) =>
+        useSourceAnnotations({
+          article: record,
+          annotations: record.annotations,
+          userProfile,
+          onArticleChange,
+        }),
+      { initialProps: { record: article() } },
+    );
+    const oldApply = result.current.applyAnnotations;
+    rerender({ record: article({ id: 'article_2', annotations: [target] }) });
+    act(() => {
+      expect(oldApply([annotation('old')])).toBeNull();
+    });
+    expect(result.current.annotationsRef.current).toEqual([target]);
+    expect(onArticleChange).not.toHaveBeenCalled();
   });
 
   it('adds comments while preserving mention callbacks', async () => {

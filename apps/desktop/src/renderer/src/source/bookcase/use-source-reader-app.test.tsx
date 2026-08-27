@@ -205,6 +205,50 @@ describe('useSourceReaderApp', () => {
     expect(appToast.error).toHaveBeenCalledWith('Save failed.', { description: 'disk failed' });
   });
 
+  it('keeps the new article composer open when an old annotation save completes', async () => {
+    let complete!: () => void;
+    const pending = new Promise<undefined>((resolve) => {
+      complete = () => resolve(undefined);
+    });
+    const onOpenAnnotation = vi.fn();
+    const articleActions = articleActionStubs({ saveArticleAnnotation: () => pending });
+    const { result, rerender } = renderHook(
+      ({ currentArticle }) =>
+        useSourceReaderApp({
+          articleActions,
+          getArticleText: () => 'text',
+          session: {
+            agents: [],
+            article: currentArticle,
+            annotations: currentArticle.annotations,
+            clearPendingOnArticleChange: true,
+            clearPendingOnDeleteAnnotation: true,
+            onArticleChange: vi.fn(),
+            onOpenAnnotation,
+            userProfile,
+          },
+        }),
+      { initialProps: { currentArticle: article('web', 'article_1') } },
+    );
+    act(() =>
+      result.current.workspace.selection.openComposer({ x: 12, y: 16, anchor: annotation.anchor }),
+    );
+    let saving!: Promise<void>;
+    act(() => {
+      saving = result.current.createAnnotation('old note');
+    });
+    rerender({ currentArticle: article('web', 'article_2') });
+    const newAnchor = { ...annotation.anchor, exact: 'new text' };
+    act(() => result.current.workspace.selection.openComposer({ x: 12, y: 16, anchor: newAnchor }));
+    await act(async () => {
+      complete();
+      await saving;
+    });
+    expect(result.current.workspace.selection.composer?.anchor).toEqual(newAnchor);
+    expect(result.current.newAnnotationIds.size).toBe(0);
+    expect(onOpenAnnotation).not.toHaveBeenCalled();
+  });
+
   it('owns default shell panels and preserves controlled overrides', () => {
     const currentArticle = article('web', 'article_1');
     const articleActions = articleActionStubs();

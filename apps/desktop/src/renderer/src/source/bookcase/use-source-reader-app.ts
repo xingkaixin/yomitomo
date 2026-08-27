@@ -176,7 +176,7 @@ export function useSourceReaderApp({
   }, [sessionInput.article.id]);
 
   function isCurrentArticle(articleId: string) {
-    return sessionInput.article.id === articleId;
+    return session.isCurrentArticle(articleId);
   }
 
   function openAnnotation(annotationId: string) {
@@ -189,6 +189,7 @@ export function useSourceReaderApp({
     if (!composer) return;
     const annotation = createUserAnnotation(composer.anchor, sessionInput.userProfile, note);
     await session.saveAnnotation(annotation);
+    if (!isCurrentArticle(sessionInput.article.id)) return;
     workspace.selection.cancelComposer();
     markAnnotationCreated(annotation.id);
     openAnnotation(annotation.id);
