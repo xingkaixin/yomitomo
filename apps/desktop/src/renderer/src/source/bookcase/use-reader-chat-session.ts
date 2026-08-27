@@ -13,6 +13,7 @@ import type {
 import { makeId } from '@yomitomo/shared';
 import i18next from 'i18next';
 import { promptArticle } from './source-prompt-article';
+import { readerChatHistoryComments } from './reader-chat-history';
 import { assistantRuntimeErrorMessage } from '../../shell/app-assistant-runtime-progress';
 import { getDesktopApi } from '../../shell/app-desktop-api';
 
@@ -171,6 +172,7 @@ export function useReaderChatSession({
           question,
           uiLanguage,
           userMessageId: userMessage.id,
+          history: readerChatHistoryComments(previousState, agents),
         }),
         (event) => {
           if (event.type !== 'delta') return;
@@ -261,6 +263,7 @@ function readerChatPayload({
   question,
   uiLanguage,
   userMessageId,
+  history,
 }: {
   agent: PublicAgent;
   article: ArticleRecord;
@@ -269,6 +272,7 @@ function readerChatPayload({
   question: string;
   uiLanguage?: UiLanguage;
   userMessageId: string;
+  history: Comment[];
 }): AgentMessagePayload {
   const anchor = context?.anchor || {
     exact: article.title || i18next.t('source.currentArticle'),
@@ -288,7 +292,7 @@ function readerChatPayload({
     anchor,
     author: { kind: 'user', username: 'reader' },
     color: '#d7b35a',
-    comments: [userComment],
+    comments: [...history, userComment],
     createdAt: userComment.createdAt,
     updatedAt: userComment.createdAt,
   };
