@@ -38,7 +38,8 @@ vi.mock('../app/logger', () => ({
 
 import * as schema from '../db/schema';
 import { closeDatabase } from '../store/store-lifecycle';
-import { getDatabase } from '../store/store-db';
+import { getDatabase, readDatabaseLifecycle } from '../store/store-db';
+import { deleteEbookSourceFile } from '../ebooks/ebook-storage';
 import {
   completeArticleSourceCleanup,
   recoverPendingArticleSourceCleanup,
@@ -60,6 +61,26 @@ afterEach(async () => {
 });
 
 describe('article source cleanup recovery', () => {
+  it('holds its database lease until detached source cleanup finishes', async () => {
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    vi.mocked(deleteEbookSourceFile).mockImplementationOnce(() => pending);
+    insertCleanupTask('article_pending', 'ebook');
+    const cleanup = completeArticleSourceCleanup('article_pending');
+    try {
+      await vi.waitFor(() => expect(deleteEbookSourceFile).toHaveBeenCalledWith('article_pending'));
+      expect(readDatabaseLifecycle().leases).toBe(1);
+      expect(readCleanupTasks()).toHaveLength(1);
+    } finally {
+      release();
+      await cleanup;
+    }
+    expect(readCleanupTasks()).toEqual([]);
+    expect(readDatabaseLifecycle().leases).toBe(0);
+  });
+
   it('keeps failed cleanup tasks and retries them after recovery reset', async () => {
     const deleteError = new Error('injected source delete failure');
     cleanupState.deleteError = deleteError;
