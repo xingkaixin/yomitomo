@@ -71,6 +71,9 @@ vi.mock('../app/logger', () => ({
 }));
 
 import { buildArticleReadingProgressPatch } from '../articles/article-reading-state';
+import { queueArticleSourceCleanup } from '../articles/article-source-cleanup';
+import { readEbookSourceFile, stageEbookSourceFile } from '../ebooks/ebook-storage';
+import { queueSecretDeletion } from '../providers/secret-deletion-repository';
 import {
   backupDatabaseFile,
   getDatabase,
@@ -104,6 +107,52 @@ beforeEach(async () => {
 afterEach(async () => {
   closeDatabase();
   await rm('/tmp/yomitomo-store-reading-data-test', { recursive: true, force: true });
+});
+
+describe('desktop store cleanup recovery', () => {
+  it('recovers restored secret and source tasks after the previous scan completed', async () => {
+    await readStore();
+    const articleId = 'restored-orphan-source';
+    const secretRef = 'restored-orphan-secret';
+    const assets = await stageEbookSourceFile(articleId, new Uint8Array([1, 2, 3]).buffer);
+    await assets.commit();
+    await assets.finalize();
+    await expect(readEbookSourceFile(articleId)).resolves.toEqual(Buffer.from([1, 2, 3]));
+    testState.secrets.set(secretRef, 'fixture-secret');
+    queueSecretDeletion(getDatabase(), secretRef);
+    queueArticleSourceCleanup(getSqliteExecutor(), articleId, 'ebook');
+    const source = join(dirname(getDatabasePath()), 'pending-cleanup-backup.sqlite');
+    await backupDatabaseFile(source);
+
+    await replaceDatabaseFile(source);
+    await Promise.all([readStore(), readStore()]);
+
+    expect(getDatabase().select().from(schema.secretDeletionTasks).all()).toEqual([]);
+    expect(getDatabase().select().from(schema.articleSourceCleanupTasks).all()).toEqual([]);
+    expect(testState.secrets.has(secretRef)).toBe(false);
+    await expect(readEbookSourceFile(articleId)).rejects.toThrow('EBOOK_SOURCE_FILE_MISSING');
+  });
+
+  it('retries a failed secret deletion only after the database changes', async () => {
+    const secretRef = 'failed-cleanup-secret';
+    testState.secrets.set(secretRef, 'fixture-secret');
+    queueSecretDeletion(getDatabase(), secretRef);
+    testState.deleteStoredSecretError = new Error('keyring locked');
+    await readStore();
+    const source = join(dirname(getDatabasePath()), 'failed-cleanup-backup.sqlite');
+    await backupDatabaseFile(source);
+
+    testState.deleteStoredSecretError = undefined;
+    await readStore();
+    expect(testState.secrets.has(secretRef)).toBe(true);
+    expect(testState.logErrors).toMatchObject([{ event: 'secret_deletion.recovery_failed' }]);
+
+    await replaceDatabaseFile(source);
+    await readStore();
+
+    expect(testState.secrets.has(secretRef)).toBe(false);
+    expect(getDatabase().select().from(schema.secretDeletionTasks).all()).toEqual([]);
+  });
 });
 
 describe('desktop store annotation memory backfill', () => {
