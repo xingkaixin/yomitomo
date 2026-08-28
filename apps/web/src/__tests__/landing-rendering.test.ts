@@ -1,7 +1,7 @@
 import reactRenderer from '@astrojs/react/server.js';
 import { experimental_AstroContainer as AstroContainer } from 'astro/container';
 import { JSDOM } from 'jsdom';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import ReaderLandingPage from '../components/ReaderLandingPage.astro';
 
 let container: AstroContainer;
@@ -10,6 +10,10 @@ beforeAll(async () => {
   container = await AstroContainer.create();
   container.addServerRenderer({ renderer: reactRenderer });
   container.addClientRenderer({ name: '@astrojs/react', entrypoint: '@astrojs/react/client.js' });
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 async function renderLandingPage(lang: 'zh-CN' | 'en' | 'ja') {
@@ -22,6 +26,30 @@ async function renderLandingPage(lang: 'zh-CN' | 'en' | 'ja') {
 }
 
 describe('landing page rendering', () => {
+  it.each(['zh-CN', 'en', 'ja'] as const)(
+    'renders one deferred Umami tracker on the %s production landing page',
+    async (lang) => {
+      vi.stubEnv('PROD', true);
+
+      const page = await renderLandingPage(lang);
+      const trackers = page.head.querySelectorAll<HTMLScriptElement>('script[data-website-id]');
+
+      expect(trackers).toHaveLength(1);
+      expect(trackers[0].src).toBe('https://umami.xingkaixin.me/script.js');
+      expect(trackers[0].dataset.websiteId).toBe('08d9ce5d-0cd7-403c-9947-5eba7cd04bb8');
+      expect(trackers[0].defer).toBe(true);
+      expect(trackers[0].type).not.toBe('module');
+    },
+  );
+
+  it('omits Umami tracking in development', async () => {
+    vi.stubEnv('PROD', false);
+
+    const page = await renderLandingPage('zh-CN');
+
+    expect(page.querySelector('script[data-website-id]')).toBeNull();
+  });
+
   it.each([
     ['zh-CN', '跳到主要内容'],
     ['en', 'Skip to main content'],
