@@ -122,6 +122,16 @@ const jsonLd = buildLandingStructuredData({
     <meta name="theme-color" content="#fbf9f3" />
 
     <script type="application/ld+json" is:inline set:html={JSON.stringify(jsonLd)} />
+    {
+      import.meta.env.PROD && (
+        <script
+          is:inline
+          defer
+          src="https://umami.xingkaixin.me/script.js"
+          data-website-id="08d9ce5d-0cd7-403c-9947-5eba7cd04bb8"
+        />
+      )
+    }
   </head>
   <body>
     <div class="lp-root">
