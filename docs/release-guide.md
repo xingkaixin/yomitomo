@@ -44,6 +44,11 @@ pnpm deploy:download
 
 如果本轮没有改动 Worker 代码或配置，可以跳过部署，但发布后 smoke check 仍必须执行。
 
+阅读记忆模型使用独立的 R2 发布流程。首次初始化、不可变发布顺序、GitHub Actions secrets
+和模型分发 smoke check 见 [阅读记忆模型分发](reading-memory-model-distribution.md)。模型内容不能
+随应用版本发布流程覆盖；只有模型版本发生变化时，才从 `main` 手动运行
+`Publish Reading Memory Model` 工作流。
+
 ## 发布前：图片资源（按需）
 
 每次发布前快速过一遍视觉是否仍代表当前产品，**不必每版都换图**，但若本版改了阅读器、设置、主题或品牌呈现，建议同步截图或插画。
