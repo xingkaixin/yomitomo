@@ -20,8 +20,8 @@ import {
 } from '../store/store-normalizers';
 import { buildArticleChildRows, commentRowsForAnnotation } from './article-repository-child-rows';
 import {
-  softDeleteAnnotationMemoryEntries,
-  softDeleteCommentMemoryEntries,
+  trySoftDeleteAnnotationMemoryEntries,
+  trySoftDeleteCommentMemoryEntries,
 } from './article-repository-lifecycle';
 import { trySyncArticleAnnotationMemoryEntries } from './article-annotation-memory';
 import { readArticleSummaryRows } from './article-row-queries';
@@ -31,7 +31,14 @@ const INSERT_BATCH_SIZE = 32;
 export async function saveArticleRows(input: ArticleRecord): Promise<ArticleUpsertPatch> {
   const database = getDatabase();
   const executor: ReadingMemorySqliteExecutor = getSqliteExecutor();
-  writeArticleRowsInTransaction(database, input, executor);
+  const removedSources = writeArticleRowsInTransaction(database, input, executor);
+  for (const annotationId of removedSources.annotationIds) {
+    trySoftDeleteAnnotationMemoryEntries(executor, { articleId: input.id, annotationId });
+  }
+  trySoftDeleteCommentMemoryEntries(executor, {
+    articleId: input.id,
+    commentIds: removedSources.commentIds,
+  });
   trySyncArticleAnnotationMemoryEntries(input, executor);
   const article = readArticleSummaryRows(database, input.id);
   if (!article) throw new Error('ARTICLE_SAVE_FAILED');
@@ -117,18 +124,14 @@ function writeArticleRowsInTransaction(
   executor: ReadingMemorySqliteExecutor,
 ) {
   const queuedAt = new Date().toISOString();
+  const removedSources = readRemovedArticleAnnotationSources(database, article);
   database.transaction((tx) => {
-    const removedAnnotationIds = softDeleteRemovedArticleAnnotationMemoryEntries(
-      tx,
-      executor,
-      article,
-    );
     writeArticleRows(tx, article);
     queueStoredArticleAnnotationThreadProjections(executor, {
       articleId: article.id,
       queuedAt,
     });
-    for (const annotationId of removedAnnotationIds) {
+    for (const annotationId of removedSources.annotationIds) {
       queueDeletedAnnotationThreadProjection(executor, {
         articleId: article.id,
         annotationId,
@@ -136,6 +139,7 @@ function writeArticleRowsInTransaction(
       });
     }
   });
+  return removedSources;
 }
 
 type ArticleAnnotationSourceSnapshot = {
@@ -143,9 +147,8 @@ type ArticleAnnotationSourceSnapshot = {
   comments: Array<{ id: string; annotationId: string }>;
 };
 
-function softDeleteRemovedArticleAnnotationMemoryEntries(
+function readRemovedArticleAnnotationSources(
   database: StoreExecutor,
-  executor: ReadingMemorySqliteExecutor,
   article: Pick<ArticleRecord, 'id' | 'annotations'>,
 ) {
   const currentAnnotationIds = new Set(
@@ -157,30 +160,17 @@ function softDeleteRemovedArticleAnnotationMemoryEntries(
     ),
   );
   const storedSources = readArticleAnnotationSourceSnapshot(database, article.id);
-  const removedAnnotationIds = storedSources.annotationIds.filter(
+  const annotationIds = storedSources.annotationIds.filter(
     (annotationId) => !currentAnnotationIds.has(annotationId),
   );
-  const removedAnnotationIdSet = new Set(removedAnnotationIds);
-  const removedCommentIds = storedSources.comments
+  const removedAnnotationIdSet = new Set(annotationIds);
+  const commentIds = storedSources.comments
     .filter(
       (comment) =>
         !removedAnnotationIdSet.has(comment.annotationId) && !currentCommentIds.has(comment.id),
     )
     .map((comment) => comment.id);
-
-  for (const annotationId of removedAnnotationIds) {
-    softDeleteAnnotationMemoryEntries(executor, {
-      articleId: article.id,
-      annotationId,
-      useTransaction: false,
-    });
-  }
-  softDeleteCommentMemoryEntries(executor, {
-    articleId: article.id,
-    commentIds: removedCommentIds,
-    useTransaction: false,
-  });
-  return removedAnnotationIds;
+  return { annotationIds, commentIds };
 }
 
 function readArticleAnnotationSourceSnapshot(

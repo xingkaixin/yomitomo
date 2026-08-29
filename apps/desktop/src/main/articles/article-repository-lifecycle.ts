@@ -1,7 +1,6 @@
 import { recordField, stringField } from '@yomitomo/shared';
 import {
   deleteReadingMemoryForArticle,
-  softDeleteReadingMemoryEntriesBySource,
   withReadingMemoryTransaction,
   type ReadingMemorySqliteExecutor,
 } from '../reading-memory/reading-memory-store';
@@ -24,11 +23,22 @@ export function deleteArticleRowsWithMemoryLifecycle(
       articleId,
       stringField(recordField(article, 'sourceType')) || undefined,
     );
-    deleteReadingMemoryForArticle(articleId, executor, { useTransaction: false });
     deleteArticleLibraryReferences(executor, articleId);
     executor.prepare('DELETE FROM articles WHERE id = ?').run(articleId);
   });
+  tryDeleteReadingMemoryForArticle(executor, articleId);
   return { articleId };
+}
+
+function tryDeleteReadingMemoryForArticle(
+  executor: ReadingMemorySqliteExecutor,
+  articleId: string,
+) {
+  try {
+    deleteReadingMemoryForArticle(articleId, executor);
+  } catch (error) {
+    console.warn('[reading-memory] cleanup article memory failed', { articleId, error });
+  }
 }
 
 export function deleteAnnotationRowsWithMemoryLifecycle(
@@ -36,27 +46,30 @@ export function deleteAnnotationRowsWithMemoryLifecycle(
   input: { articleId: string; annotationId: string; deletedAt?: string },
 ) {
   const deletedAt = input.deletedAt || new Date().toISOString();
-  return withReadingMemoryTransaction(executor, () => {
-    const deletedMemoryCount = softDeleteAnnotationMemoryEntries(executor, {
-      articleId: input.articleId,
-      annotationId: input.annotationId,
-      deletedAt,
-      useTransaction: false,
-    });
-    const deletedAnnotationCount = runChanges(
+  const deletedAnnotationCount = withReadingMemoryTransaction(executor, () => {
+    const deletedCount = runChanges(
       executor
         .prepare('DELETE FROM annotations WHERE article_id = ? AND id = ?')
         .run(input.articleId, input.annotationId),
     );
-    if (deletedAnnotationCount > 0) {
+    if (deletedCount > 0) {
       queueDeletedAnnotationThreadProjection(executor, {
         articleId: input.articleId,
         annotationId: input.annotationId,
         queuedAt: deletedAt,
       });
     }
-    return { deletedAnnotationCount, deletedMemoryCount };
+    return deletedCount;
   });
+  const deletedMemoryCount =
+    deletedAnnotationCount > 0
+      ? trySoftDeleteAnnotationMemoryEntries(executor, {
+          articleId: input.articleId,
+          annotationId: input.annotationId,
+          deletedAt,
+        })
+      : 0;
+  return { deletedAnnotationCount, deletedMemoryCount };
 }
 
 export function deleteCommentRowsWithMemoryLifecycle(
@@ -64,14 +77,8 @@ export function deleteCommentRowsWithMemoryLifecycle(
   input: { articleId: string; annotationId: string; commentId: string; deletedAt?: string },
 ) {
   const deletedAt = input.deletedAt || new Date().toISOString();
-  return withReadingMemoryTransaction(executor, () => {
+  const result = withReadingMemoryTransaction(executor, () => {
     const commentIds = deletedCommentThreadIds(executor, input.annotationId, input.commentId);
-    const deletedMemoryCount = softDeleteCommentMemoryEntries(executor, {
-      articleId: input.articleId,
-      commentIds,
-      deletedAt,
-      useTransaction: false,
-    });
     const deletedCommentCount = deleteCommentsByIds(executor, {
       articleId: input.articleId,
       annotationId: input.annotationId,
@@ -84,23 +91,59 @@ export function deleteCommentRowsWithMemoryLifecycle(
         queuedAt: deletedAt,
       });
     }
-
-    return { deletedCommentCount, deletedMemoryCount };
+    return { commentIds, deletedCommentCount };
   });
+  const deletedMemoryCount =
+    result.deletedCommentCount > 0
+      ? trySoftDeleteCommentMemoryEntries(executor, {
+          articleId: input.articleId,
+          commentIds: result.commentIds,
+          deletedAt,
+        })
+      : 0;
+  return { deletedCommentCount: result.deletedCommentCount, deletedMemoryCount };
 }
 
 export function softDeleteAnnotationMemoryEntries(
   executor: ReadingMemorySqliteExecutor,
   input: { articleId: string; annotationId: string; deletedAt?: string; useTransaction?: boolean },
 ) {
-  return softDeleteReadingMemoryEntriesBySource({
+  return softDeleteOwnedMemoryEntries(executor, {
     articleId: input.articleId,
-    sourceAnnotationId: input.annotationId,
+    where: `
+(
+  source_type = 'annotation'
+  AND source_id = ?
+  AND id = ?
+)
+OR (
+  source_type = 'comment'
+  AND source_annotation_id = ?
+  AND source_comment_id IS NOT NULL
+  AND id = 'comment_memory_' || source_comment_id
+)
+`,
+    values: [input.annotationId, annotationMemoryEntryId(input.annotationId), input.annotationId],
     deletedAt: input.deletedAt,
     deletionReason: 'annotation_deleted',
-    executor,
     useTransaction: input.useTransaction,
   });
+}
+
+export function trySoftDeleteAnnotationMemoryEntries(
+  executor: ReadingMemorySqliteExecutor,
+  input: { articleId: string; annotationId: string; deletedAt?: string },
+) {
+  try {
+    return softDeleteAnnotationMemoryEntries(executor, input);
+  } catch (error) {
+    console.warn('[reading-memory] cleanup annotation memory mirror failed', {
+      articleId: input.articleId,
+      annotationId: input.annotationId,
+      error,
+    });
+    return 0;
+  }
 }
 
 function deletedCommentThreadIds(
@@ -149,10 +192,50 @@ export function softDeleteCommentMemoryEntries(
   input: { articleId: string; commentIds: string[]; deletedAt?: string; useTransaction?: boolean },
 ) {
   if (input.commentIds.length === 0) return 0;
+  const placeholders = sqlPlaceholders(input.commentIds);
+  return softDeleteOwnedMemoryEntries(executor, {
+    articleId: input.articleId,
+    where: `
+source_type = 'comment'
+AND source_comment_id IN (${placeholders})
+AND id = 'comment_memory_' || source_comment_id
+`,
+    values: input.commentIds,
+    deletedAt: input.deletedAt,
+    deletionReason: 'comment_deleted',
+    useTransaction: input.useTransaction,
+  });
+}
 
+export function trySoftDeleteCommentMemoryEntries(
+  executor: ReadingMemorySqliteExecutor,
+  input: { articleId: string; commentIds: string[]; deletedAt?: string },
+) {
+  try {
+    return softDeleteCommentMemoryEntries(executor, input);
+  } catch (error) {
+    console.warn('[reading-memory] cleanup comment memory mirror failed', {
+      articleId: input.articleId,
+      commentIds: input.commentIds,
+      error,
+    });
+    return 0;
+  }
+}
+
+function softDeleteOwnedMemoryEntries(
+  executor: ReadingMemorySqliteExecutor,
+  input: {
+    articleId: string;
+    where: string;
+    values: string[];
+    deletedAt?: string;
+    deletionReason: string;
+    useTransaction?: boolean;
+  },
+) {
   const run = () => {
     const deletedAt = input.deletedAt || new Date().toISOString();
-    const placeholders = sqlPlaceholders(input.commentIds);
     const ids = executor
       .prepare(
         `
@@ -160,10 +243,10 @@ SELECT id
 FROM reading_memory_entries
 WHERE article_id = ?
   AND deleted_at IS NULL
-  AND source_comment_id IN (${placeholders})
+  AND (${input.where})
 `,
       )
-      .all(input.articleId, ...input.commentIds)
+      .all(input.articleId, ...input.values)
       .map((row) => stringField(recordField(row, 'id')))
       .filter(Boolean);
     if (ids.length === 0) return 0;
@@ -172,13 +255,13 @@ WHERE article_id = ?
       .prepare(
         `
 UPDATE reading_memory_entries
-SET deleted_at = ?, deletion_reason = 'comment_deleted', updated_at = ?
+SET deleted_at = ?, deletion_reason = ?, updated_at = ?
 WHERE article_id = ?
   AND deleted_at IS NULL
-  AND source_comment_id IN (${placeholders})
+  AND (${input.where})
 `,
       )
-      .run(deletedAt, deletedAt, input.articleId, ...input.commentIds);
+      .run(deletedAt, input.deletionReason, deletedAt, input.articleId, ...input.values);
     executor
       .prepare(
         `
@@ -194,6 +277,10 @@ WHERE article_id = ?
     return ids.length;
   };
   return input.useTransaction === false ? run() : withReadingMemoryTransaction(executor, run);
+}
+
+function annotationMemoryEntryId(annotationId: string) {
+  return `annotation_memory_${annotationId}`;
 }
 
 function deleteCommentsByIds(

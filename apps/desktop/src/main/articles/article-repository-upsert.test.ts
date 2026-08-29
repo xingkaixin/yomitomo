@@ -1,7 +1,7 @@
 import SQLiteDatabase from 'better-sqlite3';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, Comment } from '@yomitomo/shared';
 import { migrations } from '../db/migrations';
 import * as schema from '../db/schema';
@@ -26,15 +26,15 @@ describe('article repository local child row writes', () => {
   afterEach(() => {
     for (const database of openDatabases) database.close();
     openDatabases.length = 0;
+    vi.restoreAllMocks();
   });
 
   it.each(['annotation', 'comment'] as const)(
-    'rolls back the %s write with its reading memory and allows retry',
+    'keeps the %s write and projection job when its compatibility mirror fails',
     (operation) => {
       const { database, memory } = repositoryDatabase();
       const target = annotation({ comments: [comment({ content: 'original comment' })] });
       upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, memory);
-      const articleBefore = readArticleRows(database, 'article_1');
       const memoryBefore = readReadingMemoryEntries({ articleId: 'article_1', executor: memory });
       const projectionJobsBefore = readReadingMemoryProjectionJobs(memory, 10);
       const ftsBefore = memory
@@ -68,16 +68,26 @@ describe('article repository local child row writes', () => {
         WHEN NEW.id = 'comment_memory_comment_1'
         BEGIN SELECT RAISE(ABORT, 'injected memory write failure'); END;
       `);
+      const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
-      expect(save).toThrow('injected memory write failure');
-      expect(readArticleRows(database, 'article_1')).toEqual(articleBefore);
+      expect(save()?.article.updatedAt).toBe(updatedAt);
+      expect(
+        readArticleRows(database, 'article_1')?.annotations.find((item) => item.id === target.id)
+          ?.comments[0]?.content,
+      ).toBe('updated comment');
       expect(readReadingMemoryEntries({ articleId: 'article_1', executor: memory })).toEqual(
         memoryBefore,
       );
-      expect(readReadingMemoryProjectionJobs(memory, 10)).toEqual(projectionJobsBefore);
+      expect(projectionJobFor(memory, target.id)?.sourceVersion).not.toBe(
+        projectionJobsBefore.find((job) => job.targetId === target.id)?.sourceVersion,
+      );
       expect(
         memory.prepare('SELECT * FROM reading_memory_entry_fts ORDER BY entry_id').all(),
       ).toEqual(ftsBefore);
+      expect(warning).toHaveBeenCalledWith(
+        '[reading-memory] sync annotation memory entries failed',
+        expect.objectContaining({ articleId: 'article_1' }),
+      );
 
       memory.exec('DROP TRIGGER fail_comment_memory_insert');
       expect(save()?.article.updatedAt).toBe(updatedAt);
@@ -92,6 +102,39 @@ describe('article repository local child row writes', () => {
       ).toMatchObject({ content: 'updated comment' });
     },
   );
+
+  it('keeps a comment write when compatibility hydration encounters corrupt data', () => {
+    const { database, memory } = repositoryDatabase();
+    const target = annotation({ id: 'annotation_1' });
+    upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, memory);
+    memory.prepare("UPDATE annotations SET anchor = '{' WHERE id = ?").run('sibling_annotation');
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const updatedAt = '2026-06-04T03:00:00.000Z';
+
+    const patch = upsertCommentRows(
+      database,
+      {
+        articleId: 'article_1',
+        annotationId: target.id,
+        comment: comment({ content: 'saved despite corrupt sibling', createdAt: updatedAt }),
+        updatedAt,
+      },
+      memory,
+    );
+
+    expect(patch?.article.updatedAt).toBe(updatedAt);
+    expect(
+      memory.prepare('SELECT content FROM comments WHERE id = ?').get('comment_1'),
+    ).toMatchObject({ content: 'saved despite corrupt sibling' });
+    expect(projectionJobFor(memory, target.id)).toMatchObject({
+      targetId: target.id,
+      operation: 'upsert',
+    });
+    expect(warning).toHaveBeenCalledWith(
+      '[reading-memory] sync annotation memory entries failed',
+      expect.objectContaining({ articleId: 'article_1', annotationId: target.id }),
+    );
+  });
 
   it('queues the latest persisted annotation thread after local writes', () => {
     const { database, memory } = repositoryDatabase();
