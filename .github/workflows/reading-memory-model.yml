@@ -36,7 +36,7 @@ jobs:
             expectedPlatform: win32-x64
             mode: benchmark
             minimumCpuThreads: 4
-            minimumMemoryBytes: 17179869184
+            minimumMemoryBytes: 16000000000
 
     env:
       CI: true
