@@ -5,6 +5,10 @@ import {
   withReadingMemoryTransaction,
   type ReadingMemorySqliteExecutor,
 } from '../reading-memory/reading-memory-store';
+import {
+  queueDeletedAnnotationThreadProjection,
+  queueStoredAnnotationThreadProjection,
+} from '../reading-memory/reading-memory-projection-job-queue';
 import { queueArticleSourceCleanup } from './article-source-cleanup';
 
 export function deleteArticleRowsWithMemoryLifecycle(
@@ -31,11 +35,12 @@ export function deleteAnnotationRowsWithMemoryLifecycle(
   executor: ReadingMemorySqliteExecutor,
   input: { articleId: string; annotationId: string; deletedAt?: string },
 ) {
+  const deletedAt = input.deletedAt || new Date().toISOString();
   return withReadingMemoryTransaction(executor, () => {
     const deletedMemoryCount = softDeleteAnnotationMemoryEntries(executor, {
       articleId: input.articleId,
       annotationId: input.annotationId,
-      deletedAt: input.deletedAt,
+      deletedAt,
       useTransaction: false,
     });
     const deletedAnnotationCount = runChanges(
@@ -43,6 +48,13 @@ export function deleteAnnotationRowsWithMemoryLifecycle(
         .prepare('DELETE FROM annotations WHERE article_id = ? AND id = ?')
         .run(input.articleId, input.annotationId),
     );
+    if (deletedAnnotationCount > 0) {
+      queueDeletedAnnotationThreadProjection(executor, {
+        articleId: input.articleId,
+        annotationId: input.annotationId,
+        queuedAt: deletedAt,
+      });
+    }
     return { deletedAnnotationCount, deletedMemoryCount };
   });
 }
@@ -51,12 +63,13 @@ export function deleteCommentRowsWithMemoryLifecycle(
   executor: ReadingMemorySqliteExecutor,
   input: { articleId: string; annotationId: string; commentId: string; deletedAt?: string },
 ) {
+  const deletedAt = input.deletedAt || new Date().toISOString();
   return withReadingMemoryTransaction(executor, () => {
     const commentIds = deletedCommentThreadIds(executor, input.annotationId, input.commentId);
     const deletedMemoryCount = softDeleteCommentMemoryEntries(executor, {
       articleId: input.articleId,
       commentIds,
-      deletedAt: input.deletedAt,
+      deletedAt,
       useTransaction: false,
     });
     const deletedCommentCount = deleteCommentsByIds(executor, {
@@ -64,6 +77,13 @@ export function deleteCommentRowsWithMemoryLifecycle(
       annotationId: input.annotationId,
       commentIds,
     });
+    if (deletedCommentCount > 0) {
+      queueStoredAnnotationThreadProjection(executor, {
+        articleId: input.articleId,
+        annotationId: input.annotationId,
+        queuedAt: deletedAt,
+      });
+    }
 
     return { deletedCommentCount, deletedMemoryCount };
   });

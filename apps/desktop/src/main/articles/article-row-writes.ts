@@ -10,6 +10,10 @@ import {
 } from '../store/store-db';
 import type { ReadingMemorySqliteExecutor } from '../reading-memory/reading-memory-store';
 import {
+  queueDeletedAnnotationThreadProjection,
+  queueStoredArticleAnnotationThreadProjections,
+} from '../reading-memory/reading-memory-projection-job-queue';
+import {
   normalizeArticleReadingProgress,
   normalizeArticleSourceType,
   normalizeReaderChatState,
@@ -112,9 +116,25 @@ function writeArticleRowsInTransaction(
   article: ArticleRecord,
   executor: ReadingMemorySqliteExecutor,
 ) {
+  const queuedAt = new Date().toISOString();
   database.transaction((tx) => {
-    softDeleteRemovedArticleAnnotationMemoryEntries(tx, executor, article);
+    const removedAnnotationIds = softDeleteRemovedArticleAnnotationMemoryEntries(
+      tx,
+      executor,
+      article,
+    );
     writeArticleRows(tx, article);
+    queueStoredArticleAnnotationThreadProjections(executor, {
+      articleId: article.id,
+      queuedAt,
+    });
+    for (const annotationId of removedAnnotationIds) {
+      queueDeletedAnnotationThreadProjection(executor, {
+        articleId: article.id,
+        annotationId,
+        queuedAt,
+      });
+    }
   });
 }
 
@@ -160,6 +180,7 @@ function softDeleteRemovedArticleAnnotationMemoryEntries(
     commentIds: removedCommentIds,
     useTransaction: false,
   });
+  return removedAnnotationIds;
 }
 
 function readArticleAnnotationSourceSnapshot(

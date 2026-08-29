@@ -10,6 +10,7 @@ import {
   readReadingMemoryEntries,
   type ReadingMemorySqliteExecutor,
 } from '../reading-memory/reading-memory-store';
+import { readReadingMemoryProjectionJobs } from '../reading-memory/reading-memory-projection-job-store';
 
 import {
   mergeAgentAnnotationRows,
@@ -35,6 +36,7 @@ describe('article repository local child row writes', () => {
       upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, memory);
       const articleBefore = readArticleRows(database, 'article_1');
       const memoryBefore = readReadingMemoryEntries({ articleId: 'article_1', executor: memory });
+      const projectionJobsBefore = readReadingMemoryProjectionJobs(memory, 10);
       const ftsBefore = memory
         .prepare('SELECT * FROM reading_memory_entry_fts ORDER BY entry_id')
         .all();
@@ -72,6 +74,7 @@ describe('article repository local child row writes', () => {
       expect(readReadingMemoryEntries({ articleId: 'article_1', executor: memory })).toEqual(
         memoryBefore,
       );
+      expect(readReadingMemoryProjectionJobs(memory, 10)).toEqual(projectionJobsBefore);
       expect(
         memory.prepare('SELECT * FROM reading_memory_entry_fts ORDER BY entry_id').all(),
       ).toEqual(ftsBefore);
@@ -89,6 +92,40 @@ describe('article repository local child row writes', () => {
       ).toMatchObject({ content: 'updated comment' });
     },
   );
+
+  it('queues the latest persisted annotation thread after local writes', () => {
+    const { database, memory } = repositoryDatabase();
+    const target = annotation({
+      id: 'annotation_projection',
+      comments: [comment({ id: 'comment_projection', content: 'first version' })],
+    });
+
+    upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, memory);
+    const annotationJob = projectionJobFor(memory, target.id);
+    if (!annotationJob) throw new Error('missing annotation projection job');
+
+    upsertCommentRows(
+      database,
+      {
+        articleId: 'article_1',
+        annotationId: target.id,
+        comment: comment({
+          id: 'comment_projection',
+          content: 'second version',
+          createdAt: target.comments[0]?.createdAt,
+        }),
+      },
+      memory,
+    );
+    const job = projectionJobFor(memory, target.id);
+    expect(job).toMatchObject({
+      targetType: 'annotation_thread',
+      targetId: target.id,
+      articleId: 'article_1',
+      operation: 'upsert',
+    });
+    expect(job?.sourceVersion).not.toBe(annotationJob.sourceVersion);
+  });
 
   it('upserts one annotation without replacing sibling annotations', () => {
     const { database, memory } = repositoryDatabase();
@@ -201,47 +238,52 @@ describe('article repository local child row writes', () => {
       },
       memory,
     );
+    const sourceVersionBeforeDistillation = projectionJobFor(memory, target.id)?.sourceVersion;
 
-    const patch = saveAnnotationDistillationRows(database, {
-      articleId: 'article_1',
-      annotationId: target.id,
-      expectedDistillationUpdatedAt: null,
-      distillation: {
-        status: 'published',
-        content: '沉淀内容',
-        updatedAt: '2026-06-04T04:00:00.000Z',
-        reviewSessions: [
-          {
-            id: 'review_session_1',
-            agentId: 'agent_1',
-            agentUsername: 'reviewer',
-            messages: [
-              {
-                id: 'review_message_1',
-                author: {
-                  kind: 'agent',
-                  agentId: 'agent_1',
-                  username: 'reviewer',
-                  nickname: '审阅助手',
-                  avatar: 'reviewer-avatar',
+    const patch = saveAnnotationDistillationRows(
+      database,
+      {
+        articleId: 'article_1',
+        annotationId: target.id,
+        expectedDistillationUpdatedAt: null,
+        distillation: {
+          status: 'published',
+          content: '沉淀内容',
+          updatedAt: '2026-06-04T04:00:00.000Z',
+          reviewSessions: [
+            {
+              id: 'review_session_1',
+              agentId: 'agent_1',
+              agentUsername: 'reviewer',
+              messages: [
+                {
+                  id: 'review_message_1',
+                  author: {
+                    kind: 'agent',
+                    agentId: 'agent_1',
+                    username: 'reviewer',
+                    nickname: '审阅助手',
+                    avatar: 'reviewer-avatar',
+                  },
+                  content: '沉淀还需要补足证据。',
+                  createdAt: '2026-06-04T04:00:00.000Z',
                 },
-                content: '沉淀还需要补足证据。',
-                createdAt: '2026-06-04T04:00:00.000Z',
-              },
-              {
-                id: 'review_message_2',
-                author: { kind: 'user', username: 'reader' },
-                content: '请补充原文依据。',
-                createdAt: '2026-06-04T04:01:00.000Z',
-              },
-            ],
-            createdAt: '2026-06-04T04:00:00.000Z',
-            updatedAt: '2026-06-04T04:00:00.000Z',
-          },
-        ],
+                {
+                  id: 'review_message_2',
+                  author: { kind: 'user', username: 'reader' },
+                  content: '请补充原文依据。',
+                  createdAt: '2026-06-04T04:01:00.000Z',
+                },
+              ],
+              createdAt: '2026-06-04T04:00:00.000Z',
+              updatedAt: '2026-06-04T04:00:00.000Z',
+            },
+          ],
+        },
+        updatedAt: '2026-06-04T04:00:00.000Z',
       },
-      updatedAt: '2026-06-04T04:00:00.000Z',
-    });
+      memory,
+    );
 
     const saved = readArticleRows(database, 'article_1')?.annotations.find(
       (item) => item.id === target.id,
@@ -282,6 +324,9 @@ describe('article repository local child row writes', () => {
     expect(reviewSessions[0]?.messages[0]).not.toHaveProperty('kind');
     expect(reviewSessions[0]?.messages[1]).not.toHaveProperty('kind');
     expect(saved?.comments.map((item) => item.id)).toEqual(['comment_1', 'comment_2']);
+    expect(projectionJobFor(memory, target.id)?.sourceVersion).not.toBe(
+      sourceVersionBeforeDistillation,
+    );
   });
 
   it('rejects a distillation write based on a stale version', () => {
@@ -289,35 +334,45 @@ describe('article repository local child row writes', () => {
     const target = annotation({ id: 'annotation_1' });
     upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, memory);
 
-    saveAnnotationDistillationRows(database, {
-      articleId: 'article_1',
-      annotationId: target.id,
-      distillation: {
-        status: 'unpublished',
-        content: 'newer content',
-        updatedAt: '2026-06-04T04:00:00.000Z',
-      },
-      expectedDistillationUpdatedAt: null,
-      updatedAt: '2026-06-04T04:00:00.000Z',
-    });
-
-    expect(() =>
-      saveAnnotationDistillationRows(database, {
+    saveAnnotationDistillationRows(
+      database,
+      {
         articleId: 'article_1',
         annotationId: target.id,
         distillation: {
-          status: 'published',
-          content: 'stale content',
-          updatedAt: '2026-06-04T05:00:00.000Z',
+          status: 'unpublished',
+          content: 'newer content',
+          updatedAt: '2026-06-04T04:00:00.000Z',
         },
         expectedDistillationUpdatedAt: null,
-        updatedAt: '2026-06-04T05:00:00.000Z',
-      }),
+        updatedAt: '2026-06-04T04:00:00.000Z',
+      },
+      memory,
+    );
+    const projectionJobBeforeConflict = projectionJobFor(memory, target.id);
+
+    expect(() =>
+      saveAnnotationDistillationRows(
+        database,
+        {
+          articleId: 'article_1',
+          annotationId: target.id,
+          distillation: {
+            status: 'published',
+            content: 'stale content',
+            updatedAt: '2026-06-04T05:00:00.000Z',
+          },
+          expectedDistillationUpdatedAt: null,
+          updatedAt: '2026-06-04T05:00:00.000Z',
+        },
+        memory,
+      ),
     ).toThrow('ANNOTATION_DISTILLATION_CONFLICT');
     expect(
       readArticleRows(database, 'article_1')?.annotations.find((item) => item.id === target.id)
         ?.distillation,
     ).toMatchObject({ status: 'unpublished', content: 'newer content' });
+    expect(projectionJobFor(memory, target.id)).toEqual(projectionJobBeforeConflict);
   });
 
   it('merges agent thoughts against the persisted annotation', () => {
@@ -448,6 +503,12 @@ function readingMemoryExecutor(database: SQLiteDatabase.Database): ReadingMemory
       };
     },
   };
+}
+
+function projectionJobFor(executor: ReadingMemorySqliteExecutor, annotationId: string) {
+  return readReadingMemoryProjectionJobs(executor, 100).find(
+    (job) => job.targetId === annotationId,
+  );
 }
 
 function articleRow(id: string): ArticleRow {

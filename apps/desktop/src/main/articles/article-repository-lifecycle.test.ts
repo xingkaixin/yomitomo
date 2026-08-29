@@ -39,6 +39,7 @@ import {
   searchReadingMemoryEntries,
   type ReadingMemorySqliteExecutor,
 } from '../reading-memory/reading-memory-store';
+import { readReadingMemoryProjectionJobs } from '../reading-memory/reading-memory-projection-job-store';
 
 describe('article memory lifecycle', () => {
   afterEach(() => {
@@ -147,6 +148,11 @@ describe('article memory lifecycle', () => {
         executor: database,
       }).map((entry) => entry.id),
     ).toEqual(['original_summary']);
+    expect(readReadingMemoryProjectionJobs(database, 1)[0]).toMatchObject({
+      targetId: 'annotation_1',
+      articleId: 'article_1',
+      operation: 'delete',
+    });
   });
 
   it('soft-deletes comment source memory without deleting annotation memory', () => {
@@ -211,6 +217,11 @@ describe('article memory lifecycle', () => {
         (entry) => entry.id,
       ),
     ).toEqual(['annotation_entry', 'sibling_entry']);
+    expect(readReadingMemoryProjectionJobs(database, 1)[0]).toMatchObject({
+      targetId: 'annotation_1',
+      articleId: 'article_1',
+      operation: 'upsert',
+    });
   });
 
   it('syncs annotation and comment memory entries from the main store model', () => {
@@ -330,6 +341,11 @@ describe('article memory lifecycle', () => {
         deletionReason: 'annotation_deleted',
       },
     ]);
+    expect(readReadingMemoryProjectionJobs(database, 1)[0]).toMatchObject({
+      targetId: 'annotation_removed',
+      articleId: 'article_1',
+      operation: 'delete',
+    });
   });
 
   it('soft-deletes removed comment memory during full article saves', async () => {
@@ -395,6 +411,11 @@ describe('article memory lifecycle', () => {
         deletionReason: 'comment_deleted',
       },
     ]);
+    expect(readReadingMemoryProjectionJobs(database, 1)[0]).toMatchObject({
+      targetId: 'annotation_1',
+      articleId: 'article_1',
+      operation: 'upsert',
+    });
   });
 
   it('rolls the article write and its memory soft-deletes back together', async () => {
@@ -411,6 +432,7 @@ describe('article memory lifecycle', () => {
     );
     insertProjection(database);
     const memoryBefore = readReadingMemoryEntries({ articleId: 'article_1', executor: database });
+    const projectionJobsBefore = readReadingMemoryProjectionJobs(database, 10);
     database.exec(`
       CREATE TRIGGER fail_annotation_insert
       BEFORE INSERT ON annotations
@@ -430,6 +452,7 @@ describe('article memory lifecycle', () => {
       memoryBefore,
     );
     expect(articleAnnotationIds(database, 'article_1')).toEqual(['annotation_rolled_back']);
+    expect(readReadingMemoryProjectionJobs(database, 10)).toEqual(projectionJobsBefore);
   });
 
   it('keeps a saved article when only the memory mirror fails', async () => {
@@ -449,6 +472,11 @@ describe('article memory lifecycle', () => {
     expect(patch.article.id).toBe('article_1');
     expect(articleAnnotationIds(database, 'article_1')).toEqual(['annotation_mirror']);
     expect(readReadingMemoryEntries({ articleId: 'article_1', executor: database })).toEqual([]);
+    expect(readReadingMemoryProjectionJobs(database, 1)[0]).toMatchObject({
+      targetId: 'annotation_mirror',
+      articleId: 'article_1',
+      operation: 'upsert',
+    });
   });
 
   it('rolls annotation deletion back with its memory soft-delete', () => {
@@ -484,6 +512,7 @@ describe('article memory lifecycle', () => {
         (entry) => entry.id,
       ),
     ).toEqual(['memory_annotation']);
+    expect(readReadingMemoryProjectionJobs(database, 1)).toEqual([]);
   });
 
   it('backfills existing web annotations idempotently and leaves PDFs for lazy fill', () => {
@@ -562,25 +591,24 @@ function articleAnnotationIds(executor: ReadingMemorySqliteExecutor, articleId: 
 function lifecycleDatabase(): ReadingMemorySqliteExecutor {
   const database = new DatabaseSync(':memory:');
   database.exec('PRAGMA foreign_keys = ON');
-  const initial = migrations.find((migration) => migration.id === '0001_initial');
-  const readingMemory = migrations.find((migration) => migration.id === '0035_reading_memory_tape');
-  const collections = migrations.find(
-    (migration) => migration.id === '0054_library_collections_pins',
-  );
-  const articleSource = migrations.find(
-    (migration) => migration.id === '0022_article_ebook_source',
-  );
-  const sourceCleanup = migrations.find(
-    (migration) => migration.id === '0066_article_source_cleanup_tasks',
-  );
-  if (!initial || !readingMemory || !collections || !articleSource || !sourceCleanup) {
-    throw new Error('missing migrations for test');
+  for (const id of [
+    '0001_initial',
+    '0002_annotation_type_density',
+    '0012_reading_intent',
+    '0022_article_ebook_source',
+    '0025_annotation_generation_fields',
+    '0029_comment_review_label',
+    '0035_reading_memory_tape',
+    '0043_annotation_distillation',
+    '0044_comment_assistant_progress',
+    '0054_library_collections_pins',
+    '0066_article_source_cleanup_tasks',
+    '0067_reading_memory_projection_jobs',
+  ]) {
+    const migration = migrations.find((item) => item.id === id);
+    if (!migration) throw new Error(`missing migration ${id}`);
+    database.exec(migration.sql);
   }
-  database.exec(initial.sql);
-  database.exec(articleSource.sql);
-  database.exec(readingMemory.sql);
-  database.exec(collections.sql);
-  database.exec(sourceCleanup.sql);
   const executor = memoryExecutor(database);
   insertArticle(executor, 'article_1');
   return executor;
