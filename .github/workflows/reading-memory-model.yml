@@ -44,8 +44,6 @@ jobs:
       EXPECTED_PLATFORM: ${{ matrix.expectedPlatform }}
       MINIMUM_CPU_THREADS: ${{ matrix.minimumCpuThreads }}
       MINIMUM_MEMORY_BYTES: ${{ matrix.minimumMemoryBytes }}
-      MODEL_CACHE_DIR: ${{ runner.temp }}/reading-memory-model-cache
-      REPORT_PATH: ${{ runner.temp }}/reading-memory-model-${{ matrix.expectedPlatform }}.json
 
     steps:
       - name: Checkout
@@ -69,19 +67,19 @@ jobs:
       - name: Restore selected model cache
         uses: actions/cache@v4
         with:
-          path: ${{ env.MODEL_CACHE_DIR }}
+          path: ${{ runner.temp }}/reading-memory-model-cache
           key: reading-memory-model-${{ matrix.expectedPlatform }}-${{ hashFiles('packages/ai/evaluation/semantic-retrieval/candidates-v1.json', 'packages/ai/evaluation/semantic-retrieval/selection-v1.json', 'pnpm-lock.yaml') }}
 
       - name: Assert runner architecture
         run: node -e "const os = require('node:os'); const actual = process.platform + '-' + process.arch; if (actual !== process.env.EXPECTED_PLATFORM) throw new Error('Expected ' + process.env.EXPECTED_PLATFORM + ', received ' + actual); if (os.availableParallelism() < Number(process.env.MINIMUM_CPU_THREADS)) throw new Error('Runner has too few CPU threads'); if (os.totalmem() < Number(process.env.MINIMUM_MEMORY_BYTES)) throw new Error('Runner has too little memory')"
 
       - name: Validate selected model
-        run: pnpm --filter @yomitomo/ai evaluate:semantic --candidate=selected --mode=${{ matrix.mode }} --iterations=100 --cache-dir=${{ env.MODEL_CACHE_DIR }} --output=${{ env.REPORT_PATH }}
+        run: pnpm --filter @yomitomo/ai evaluate:semantic --candidate=selected --mode=${{ matrix.mode }} --iterations=100 --cache-dir="${{ runner.temp }}/reading-memory-model-cache" --output="${{ runner.temp }}/reading-memory-model-${{ matrix.expectedPlatform }}.json"
 
       - name: Upload validation report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: reading-memory-model-${{ matrix.expectedPlatform }}
-          path: ${{ env.REPORT_PATH }}
+          path: ${{ runner.temp }}/reading-memory-model-${{ matrix.expectedPlatform }}.json
           if-no-files-found: error
