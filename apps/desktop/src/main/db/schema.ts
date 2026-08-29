@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   check,
+  foreignKey,
   index,
   integer,
   primaryKey,
@@ -409,6 +410,9 @@ export const readingMemoryProjectionJobs = sqliteTable(
     sourceVersion: text('source_version').notNull(),
     operation: text('operation').$type<'upsert' | 'delete'>().notNull(),
     queuedAt: text('queued_at').notNull(),
+    attemptCount: integer('attempt_count').notNull().default(0),
+    availableAt: text('available_at').notNull().default(''),
+    lastErrorAt: text('last_error_at'),
   },
   (table) => [
     primaryKey({
@@ -423,10 +427,101 @@ export const readingMemoryProjectionJobs = sqliteTable(
       'reading_memory_projection_jobs_operation_check',
       sql`${table.operation} IN ('upsert', 'delete')`,
     ),
+    check(
+      'reading_memory_projection_jobs_attempt_count_check',
+      sql`${table.attemptCount} BETWEEN 0 AND 2147483647`,
+    ),
     index('reading_memory_projection_jobs_queue_idx').on(
       table.queuedAt,
       table.targetType,
       table.targetId,
+    ),
+    index('reading_memory_projection_jobs_available_idx').on(
+      table.availableAt,
+      table.queuedAt,
+      table.targetType,
+      table.targetId,
+    ),
+  ],
+);
+
+export const readingMemoryEvidenceReceipts = sqliteTable(
+  'reading_memory_evidence_receipts',
+  {
+    targetType: text('target_type').$type<'annotation_thread'>().notNull(),
+    targetId: text('target_id').notNull(),
+    articleId: text('article_id')
+      .notNull()
+      .references(() => articles.id, { onDelete: 'cascade' }),
+    sourceVersion: text('source_version').notNull(),
+    projectorVersion: text('projector_version').notNull(),
+    projectedAt: text('projected_at').notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: 'reading_memory_evidence_receipts_pk',
+      columns: [table.targetType, table.targetId],
+    }),
+    check(
+      'reading_memory_evidence_receipts_target_type_check',
+      sql`${table.targetType} = 'annotation_thread'`,
+    ),
+    index('reading_memory_evidence_receipts_article_idx').on(
+      table.articleId,
+      table.projectorVersion,
+      table.targetId,
+    ),
+  ],
+);
+
+export const readingMemoryEvidenceEntries = sqliteTable(
+  'reading_memory_evidence_entries',
+  {
+    id: text('id').primaryKey(),
+    articleId: text('article_id')
+      .notNull()
+      .references(() => articles.id, { onDelete: 'cascade' }),
+    targetType: text('target_type').$type<'annotation_thread'>().notNull(),
+    targetId: text('target_id').notNull(),
+    assetType: text('asset_type').$type<'annotation' | 'comment' | 'distillation'>().notNull(),
+    sourceCommentId: text('source_comment_id'),
+    sourceVersion: text('source_version').notNull(),
+    projectorVersion: text('projector_version').notNull(),
+    isJudgment: integer('is_judgment', { mode: 'boolean' }).notNull(),
+    isUserAuthored: integer('is_user_authored', { mode: 'boolean' }).notNull(),
+    searchText: text('search_text').notNull(),
+    sourceCreatedAt: text('source_created_at').notNull(),
+    sourceUpdatedAt: text('source_updated_at').notNull(),
+  },
+  (table) => [
+    check(
+      'reading_memory_evidence_entries_target_type_check',
+      sql`${table.targetType} = 'annotation_thread'`,
+    ),
+    check(
+      'reading_memory_evidence_entries_asset_type_check',
+      sql`${table.assetType} IN ('annotation', 'comment', 'distillation')`,
+    ),
+    check('reading_memory_evidence_entries_is_judgment_check', sql`${table.isJudgment} IN (0, 1)`),
+    check(
+      'reading_memory_evidence_entries_is_user_authored_check',
+      sql`${table.isUserAuthored} IN (0, 1)`,
+    ),
+    foreignKey({
+      name: 'reading_memory_evidence_entries_receipt_fk',
+      columns: [table.targetType, table.targetId],
+      foreignColumns: [
+        readingMemoryEvidenceReceipts.targetType,
+        readingMemoryEvidenceReceipts.targetId,
+      ],
+    }).onDelete('cascade'),
+    index('reading_memory_evidence_entries_target_idx').on(table.targetType, table.targetId),
+    index('reading_memory_evidence_entries_article_idx').on(
+      table.articleId,
+      table.projectorVersion,
+      table.assetType,
+      table.sourceUpdatedAt,
+      table.id,
     ),
   ],
 );
