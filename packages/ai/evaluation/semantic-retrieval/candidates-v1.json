@@ -1,0 +1,290 @@
+{
+  "schemaVersion": 1,
+  "evaluationId": "reading-memory-semantic-v1",
+  "runtime": {
+    "package": "@huggingface/transformers",
+    "version": "4.2.0",
+    "backend": "onnxruntime-node",
+    "backendVersion": "1.24.3",
+    "device": "cpu",
+    "intraOpThreads": 4
+  },
+  "qualityGates": {
+    "directions": [
+      "zh->zh",
+      "zh->en",
+      "zh->ja",
+      "en->zh",
+      "en->en",
+      "en->ja",
+      "ja->zh",
+      "ja->en",
+      "ja->ja"
+    ],
+    "minimumQueriesPerDirection": 20,
+    "minimumHelpfulHitAt3": 0.8,
+    "minimumNecessaryCoverageAt12": 0.9
+  },
+  "performanceGate": {
+    "assetCount": 10000,
+    "maximumCandidateP95Ms": 1000,
+    "cpuThreads": 4,
+    "memoryBytes": 17179869184
+  },
+  "candidates": [
+    {
+      "id": "multilingual-e5-small-int8",
+      "source": {
+        "modelId": "intfloat/multilingual-e5-small",
+        "revision": "614241f622f53c4eeff9890bdc4f31cfecc418b3",
+        "license": "MIT",
+        "licenseUrl": "https://huggingface.co/intfloat/multilingual-e5-small/blob/614241f622f53c4eeff9890bdc4f31cfecc418b3/README.md"
+      },
+      "artifact": {
+        "modelId": "Xenova/multilingual-e5-small",
+        "revision": "761b726dd34fb83930e26aab4e9ac3899aa1fa78",
+        "files": [
+          {
+            "path": "config.json",
+            "sizeBytes": 658,
+            "sha256": "cb99455288675345e1a4f411438d5d0adbba5fbd3a67ea4fb03c015433b996c1"
+          },
+          {
+            "path": "tokenizer.json",
+            "sizeBytes": 17082730,
+            "sha256": "0b44a9d7b51c3c62626640cda0e2c2f70fdacdc25bbbd68038369d14ebdf4c39"
+          },
+          {
+            "path": "tokenizer_config.json",
+            "sizeBytes": 443,
+            "sha256": "a1d6bc8734a6f635dc158508bef000f8e2e5a759c7d92f984b2c86e5ff53425b"
+          },
+          {
+            "path": "onnx/model_int8.onnx",
+            "sizeBytes": 118054593,
+            "sha256": "4d24e2bc01a447951524466ef533e52944bf48509e6552810bcee1a2711cb02c"
+          }
+        ]
+      },
+      "parameterCount": 117654272,
+      "maxInputTokens": 512,
+      "embeddingDimension": 384,
+      "dtype": "int8",
+      "quantization": "onnx-int8",
+      "pooling": "mean",
+      "normalization": "l2",
+      "queryPrefix": "query: ",
+      "documentPrefix": "passage: ",
+      "redistributionNotices": [
+        "Preserve the upstream MIT license and copyright notice.",
+        "Record the conversion artifact revision separately from the source model revision."
+      ]
+    },
+    {
+      "id": "paraphrase-multilingual-minilm-l12-v2-int8",
+      "source": {
+        "modelId": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+        "revision": "e8f8c211226b894fcb81acc59f3b34ba3efd5f42",
+        "license": "Apache-2.0",
+        "licenseUrl": "https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2/blob/e8f8c211226b894fcb81acc59f3b34ba3efd5f42/README.md"
+      },
+      "artifact": {
+        "modelId": "Xenova/paraphrase-multilingual-MiniLM-L12-v2",
+        "revision": "2c4055b12046f11709e9df2c122e59ffbdc2f900",
+        "files": [
+          {
+            "path": "config.json",
+            "sizeBytes": 673,
+            "sha256": "05b570bff786faa5c4604152aa16f19f77ed6dfc31e47dd0f3dd987078693ac7"
+          },
+          {
+            "path": "tokenizer.json",
+            "sizeBytes": 17082913,
+            "sha256": "b60b6b43406a48bf3638526314f3d232d97058bc93472ff2de930d43686fa441"
+          },
+          {
+            "path": "tokenizer_config.json",
+            "sizeBytes": 496,
+            "sha256": "3f5961b9ac86288cccdb97f32fb848d6187c78e1603958c53f3ea1f296b7d8a2"
+          },
+          {
+            "path": "onnx/model_int8.onnx",
+            "sizeBytes": 118054609,
+            "sha256": "d6ea442ff6a891daefed7c83b2f596fc5dc66bf697e4d006236f64f34bbcf4c8"
+          }
+        ]
+      },
+      "parameterCount": 117654272,
+      "maxInputTokens": 128,
+      "embeddingDimension": 384,
+      "dtype": "int8",
+      "quantization": "onnx-int8",
+      "pooling": "mean",
+      "normalization": "l2",
+      "queryPrefix": "",
+      "documentPrefix": "",
+      "redistributionNotices": [
+        "Preserve the upstream Apache-2.0 license and notices.",
+        "Record the conversion artifact revision separately from the source model revision."
+      ]
+    },
+    {
+      "id": "gte-multilingual-base-int8",
+      "source": {
+        "modelId": "Alibaba-NLP/gte-multilingual-base",
+        "revision": "9bbca17d9273fd0d03d5725c7a4b0f6b45142062",
+        "license": "Apache-2.0",
+        "licenseUrl": "https://huggingface.co/Alibaba-NLP/gte-multilingual-base/blob/9bbca17d9273fd0d03d5725c7a4b0f6b45142062/README.md"
+      },
+      "artifact": {
+        "modelId": "onnx-community/gte-multilingual-base",
+        "revision": "2edbf5e672aab465f9ed4c154a8b61791c082c69",
+        "files": [
+          {
+            "path": "config.json",
+            "sizeBytes": 1648,
+            "sha256": "6ef2538d4286a7cd18d05225f659d8a1bceca7adb01c186868e53dbd4f822e17"
+          },
+          {
+            "path": "tokenizer.json",
+            "sizeBytes": 17082734,
+            "sha256": "3a56def25aa40facc030ea8b0b87f3688e4b3c39eb8b45d5702b3a1300fe2a20"
+          },
+          {
+            "path": "tokenizer_config.json",
+            "sizeBytes": 1149,
+            "sha256": "24cebbf2ef20fc317256e03e52ac7b2ca326586f946a8427ecac036332bf0933"
+          },
+          {
+            "path": "onnx/model_int8.onnx",
+            "sizeBytes": 340318797,
+            "sha256": "ab2bd164ebd8ca9003dc49a981b611e849b5d326f504c8873ba76e07fa6c0082"
+          }
+        ]
+      },
+      "parameterCount": 304577536,
+      "maxInputTokens": 8192,
+      "embeddingDimension": 768,
+      "dtype": "int8",
+      "quantization": "onnx-int8",
+      "pooling": "cls",
+      "normalization": "l2",
+      "queryPrefix": "",
+      "documentPrefix": "",
+      "redistributionNotices": [
+        "Preserve the upstream Apache-2.0 license and notices.",
+        "Record the conversion artifact revision separately from the source model revision."
+      ]
+    },
+    {
+      "id": "embeddinggemma-300m-q4",
+      "source": {
+        "modelId": "google/embeddinggemma-300m",
+        "revision": "57c266a740f537b4dc058e1b0cda161fd15afa75",
+        "license": "Gemma",
+        "licenseUrl": "https://ai.google.dev/gemma/terms",
+        "licenseTermsVersion": "2026-04-01",
+        "noticeUrl": "https://ai.google.dev/gemma/terms#3.1-distribution"
+      },
+      "artifact": {
+        "modelId": "onnx-community/embeddinggemma-300m-ONNX",
+        "revision": "5090578d9565bb06545b4552f76e6bc2c93e4a66",
+        "files": [
+          {
+            "path": "config.json",
+            "sizeBytes": 1765,
+            "sha256": "6e1f06404b7163e0325ed2ea3e6781cde50f4a50b31780a95ad0d30e8404d77b"
+          },
+          {
+            "path": "tokenizer.json",
+            "sizeBytes": 20323312,
+            "sha256": "4dda02faaf32bc91031dc8c88457ac272b00c1016cc679757d1c441b248b9c47"
+          },
+          {
+            "path": "tokenizer_config.json",
+            "sizeBytes": 1156830,
+            "sha256": "3ca953eea6c3c9fcda9cf3df22949ff18b216f7c74bd6459230f3f1013953f3a"
+          },
+          {
+            "path": "onnx/model_q4.onnx",
+            "sizeBytes": 519322,
+            "sha256": "ad1dfee81a70f7944b9b9d1cc6e48075b832881cf33fab2f2b248be78f3f0043"
+          },
+          {
+            "path": "onnx/model_q4.onnx_data",
+            "sizeBytes": 196725760,
+            "sha256": "599962c3143b040de2dd05e5975be3e9091dd067cacc6a8f7186e3203bab9e02"
+          }
+        ]
+      },
+      "parameterCount": 302863104,
+      "maxInputTokens": 2048,
+      "embeddingDimension": 768,
+      "dtype": "q4",
+      "quantization": "onnx-q4",
+      "pooling": "sentence_embedding",
+      "normalization": "l2",
+      "queryPrefix": "task: search result | query: ",
+      "documentPrefix": "title: none | text: ",
+      "redistributionNotices": [
+        "Include the Section 3.2 use restrictions as an enforceable provision in the agreement governing use or distribution.",
+        "Notify every downstream user that the model is subject to the Section 3.2 use restrictions.",
+        "Provide every recipient a copy of the complete Gemma Terms of Use.",
+        "Make every modified file carry a prominent notice stating that it was modified.",
+        "Preserve the conversion artifact revision separately from the source model revision."
+      ],
+      "requiredNoticeFile": {
+        "fileName": "NOTICE",
+        "text": "Gemma is provided under and subject to the Gemma Terms of Use found at ai.google.dev/gemma/terms"
+      }
+    },
+    {
+      "id": "qwen3-embedding-0.6b-q8",
+      "source": {
+        "modelId": "Qwen/Qwen3-Embedding-0.6B",
+        "revision": "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3",
+        "license": "Apache-2.0",
+        "licenseUrl": "https://huggingface.co/Qwen/Qwen3-Embedding-0.6B/blob/97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3/LICENSE"
+      },
+      "artifact": {
+        "modelId": "onnx-community/Qwen3-Embedding-0.6B-ONNX",
+        "revision": "c25a394dd583836952667c12f008335071b3f43d",
+        "files": [
+          {
+            "path": "config.json",
+            "sizeBytes": 1576,
+            "sha256": "66a10929782f3c9a3cd5dec90e2a95c60e05736134a63cd54479eeae80bed175"
+          },
+          {
+            "path": "tokenizer.json",
+            "sizeBytes": 11423705,
+            "sha256": "def76fb086971c7867b829c23a26261e38d9d74e02139253b38aeb9df8b4b50a"
+          },
+          {
+            "path": "tokenizer_config.json",
+            "sizeBytes": 9731,
+            "sha256": "977648852447cb6587327ff3205b0a84cf2fc9f05621d6c8e88a497caafab2e1"
+          },
+          {
+            "path": "onnx/model_quantized.onnx",
+            "sizeBytes": 613527631,
+            "sha256": "87cd124e0ef1fd1f223ebc283efccbaeac386d0b08344701c46975d0657b591f"
+          }
+        ]
+      },
+      "parameterCount": 595776512,
+      "maxInputTokens": 32768,
+      "embeddingDimension": 1024,
+      "dtype": "q8",
+      "quantization": "onnx-q8",
+      "pooling": "last_token",
+      "normalization": "l2",
+      "queryPrefix": "Instruct: Given a reading passage or question, retrieve relevant passages that support, complement, or contradict it\nQuery:",
+      "documentPrefix": "",
+      "redistributionNotices": [
+        "Preserve the upstream Apache-2.0 license and notices.",
+        "Record the conversion artifact revision separately from the source model revision."
+      ]
+    }
+  ]
+}

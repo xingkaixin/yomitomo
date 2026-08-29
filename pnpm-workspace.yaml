@@ -7,6 +7,8 @@ allowBuilds:
   electron-winstaller: true
   esbuild: true
   msgpackr-extract: false
+  onnxruntime-node: true
+  protobufjs: false
   sharp: true
   spawn-sync: true
   workerd: true
