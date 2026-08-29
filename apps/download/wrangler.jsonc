@@ -15,4 +15,10 @@
       "dataset": "yomitomo_download_events",
     },
   ],
+  "r2_buckets": [
+    {
+      "binding": "MODEL_ASSETS",
+      "bucket_name": "yomitomo-model-assets",
+    },
+  ],
 }

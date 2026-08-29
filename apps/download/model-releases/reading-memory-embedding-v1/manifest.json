@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "internalId": "reading-memory-embedding-v1",
+  "source": {
+    "modelId": "google/embeddinggemma-300m",
+    "revision": "57c266a740f537b4dc058e1b0cda161fd15afa75",
+    "license": "Gemma",
+    "licenseUrl": "https://ai.google.dev/gemma/terms",
+    "licenseTermsVersion": "2026-04-01",
+    "noticeUrl": "https://ai.google.dev/gemma/terms#3.1-distribution"
+  },
+  "artifact": {
+    "modelId": "onnx-community/embeddinggemma-300m-ONNX",
+    "revision": "5090578d9565bb06545b4552f76e6bc2c93e4a66",
+    "downloadSizeBytes": 218726989,
+    "files": [
+      {
+        "path": "config.json",
+        "url": "https://download.yomitomo.app/models/reading-memory-embedding-v1/objects/sha256/6e1f06404b7163e0325ed2ea3e6781cde50f4a50b31780a95ad0d30e8404d77b/config.json",
+        "sizeBytes": 1765,
+        "sha256": "6e1f06404b7163e0325ed2ea3e6781cde50f4a50b31780a95ad0d30e8404d77b"
+      },
+      {
+        "path": "tokenizer.json",
+        "url": "https://download.yomitomo.app/models/reading-memory-embedding-v1/objects/sha256/4dda02faaf32bc91031dc8c88457ac272b00c1016cc679757d1c441b248b9c47/tokenizer.json",
+        "sizeBytes": 20323312,
+        "sha256": "4dda02faaf32bc91031dc8c88457ac272b00c1016cc679757d1c441b248b9c47"
+      },
+      {
+        "path": "tokenizer_config.json",
+        "url": "https://download.yomitomo.app/models/reading-memory-embedding-v1/objects/sha256/3ca953eea6c3c9fcda9cf3df22949ff18b216f7c74bd6459230f3f1013953f3a/tokenizer_config.json",
+        "sizeBytes": 1156830,
+        "sha256": "3ca953eea6c3c9fcda9cf3df22949ff18b216f7c74bd6459230f3f1013953f3a"
+      },
+      {
+        "path": "onnx/model_q4.onnx",
+        "url": "https://download.yomitomo.app/models/reading-memory-embedding-v1/objects/sha256/ad1dfee81a70f7944b9b9d1cc6e48075b832881cf33fab2f2b248be78f3f0043/onnx/model_q4.onnx",
+        "sizeBytes": 519322,
+        "sha256": "ad1dfee81a70f7944b9b9d1cc6e48075b832881cf33fab2f2b248be78f3f0043"
+      },
+      {
+        "path": "onnx/model_q4.onnx_data",
+        "url": "https://download.yomitomo.app/models/reading-memory-embedding-v1/objects/sha256/599962c3143b040de2dd05e5975be3e9091dd067cacc6a8f7186e3203bab9e02/onnx/model_q4.onnx_data",
+        "sizeBytes": 196725760,
+        "sha256": "599962c3143b040de2dd05e5975be3e9091dd067cacc6a8f7186e3203bab9e02"
+      }
+    ]
+  },
+  "runtime": {
+    "package": "@huggingface/transformers",
+    "version": "4.2.0",
+    "backend": "onnxruntime-node",
+    "backendVersion": "1.24.3",
+    "device": "cpu",
+    "dtype": "q4",
+    "intraOpThreads": 4,
+    "interOpThreads": 1,
+    "modelOutput": "sentence_embedding"
+  },
+  "input": {
+    "maxTokens": 2048,
+    "queryPrefix": "task: search result | query: ",
+    "documentPrefix": "title: none | text: ",
+    "truncation": "end"
+  },
+  "vector": {
+    "dimension": 768,
+    "normalization": "l2",
+    "scalar": "float32",
+    "byteOrder": "little-endian",
+    "layout": "row-major"
+  },
+  "supportedPlatforms": ["darwin-arm64", "win32-x64"],
+  "redistributionNotices": [
+    "Include the Section 3.2 use restrictions as an enforceable provision in the agreement governing use or distribution.",
+    "Notify every downstream user that the model is subject to the Section 3.2 use restrictions.",
+    "Provide every recipient a copy of the complete Gemma Terms of Use.",
+    "Make every modified file carry a prominent notice stating that it was modified.",
+    "Preserve the conversion artifact revision separately from the source model revision."
+  ],
+  "requiredNoticeFile": {
+    "fileName": "NOTICE",
+    "text": "Gemma is provided under and subject to the Gemma Terms of Use found at ai.google.dev/gemma/terms"
+  },
+  "legal": {
+    "downloadSizeBytes": 9470,
+    "files": [
+      {
+        "kind": "notice",
+        "path": "NOTICE",
+        "url": "https://download.yomitomo.app/models/reading-memory-embedding-v1/objects/sha256/66f856d7da72797f528fca46b7c80634ab481f917bfe020960e123d84b19f75f/NOTICE",
+        "sizeBytes": 97,
+        "sha256": "66f856d7da72797f528fca46b7c80634ab481f917bfe020960e123d84b19f75f"
+      },
+      {
+        "kind": "terms",
+        "path": "GEMMA_TERMS_OF_USE.txt",
+        "url": "https://download.yomitomo.app/models/reading-memory-embedding-v1/objects/sha256/42bf787a62bff11421e6fc0af964e502eec706d98dde1fda175a86c3256e7762/GEMMA_TERMS_OF_USE.txt",
+        "sizeBytes": 8950,
+        "sha256": "42bf787a62bff11421e6fc0af964e502eec706d98dde1fda175a86c3256e7762"
+      },
+      {
+        "kind": "modifications",
+        "path": "MODIFICATIONS",
+        "url": "https://download.yomitomo.app/models/reading-memory-embedding-v1/objects/sha256/2217581188fecd078fecd8dd19d64af276a72b7ef550b25d8e6f0d0051cb90ba/MODIFICATIONS",
+        "sizeBytes": 423,
+        "sha256": "2217581188fecd078fecd8dd19d64af276a72b7ef550b25d8e6f0d0051cb90ba"
+      }
+    ]
+  },
+  "distributionDownloadSizeBytes": 218736459
+}
