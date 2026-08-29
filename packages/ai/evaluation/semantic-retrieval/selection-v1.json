@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "evaluationId": "reading-memory-semantic-v1",
+  "selectedCandidateId": "embeddinggemma-300m-q4",
+  "selectedInternalId": "reading-memory-embedding-v1",
+  "decision": "selected_with_hybrid_quality_gate",
+  "evaluatedCandidateCount": 5,
+  "evidence": {
+    "datasetSha256": "8f3288819d4336d39de278e04a2c2f487119aba611e30c2e777e608c14d674c7",
+    "candidatesManifestSha256": "dfe91f0fe37e8508912d0da8f2f2300695a514943783bc2df6ff37ec803ca62c",
+    "darwinArm64Report": "results/darwin-arm64-candidates-v1.json"
+  },
+  "pureSemanticQuality": {
+    "passed": false,
+    "top3DirectionsPassed": 8,
+    "top3DirectionsRequired": 9,
+    "top12DirectionsPassed": 9,
+    "top12DirectionsRequired": 9,
+    "remainingFailures": ["zh->zh:relate_hit_at_3"],
+    "remainingDirection": {
+      "direction": "zh->zh",
+      "helpfulHitAt3": 0.75,
+      "minimumHelpfulHitAt3": 0.8,
+      "successfulQueries": 15,
+      "requiredSuccessfulQueries": 16
+    }
+  },
+  "performance": {
+    "assetCount": 10000,
+    "candidateP95Ms": 65.16929199999868,
+    "maximumCandidateP95Ms": 1000,
+    "coldStartMs": 1672,
+    "peakRssBytes": 742260736,
+    "vectorIndexBytes": 30720000
+  },
+  "reasonCodes": [
+    "all_top12_gates_met",
+    "one_query_below_the_remaining_top3_gate",
+    "same_language_gap_can_use_required_hybrid_retrieval",
+    "smaller_and_lower_memory_than_gte",
+    "larger_candidate_did_not_pass_all_directional_gates",
+    "hybrid_retrieval_is_already_required"
+  ],
+  "releaseConstraints": [
+    {
+      "issue": "RD-968",
+      "requirement": "The fixed full-text and semantic fusion must raise zh->zh helpful Hit@3 to at least 0.8 without regressing another direction."
+    },
+    {
+      "issue": "RD-973",
+      "requirement": "All nine directional gates and both packaged runtime smoke tests must pass before the feature is enabled."
+    }
+  ]
+}

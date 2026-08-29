@@ -1,0 +1,85 @@
+name: Reading Memory Model
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/reading-memory-model.yml'
+      - 'packages/ai/evaluation/semantic-retrieval/**'
+      - 'packages/ai/scripts/evaluate-semantic-retrieval.js'
+      - 'packages/ai/src/evaluation/semantic-retrieval-*.ts'
+      - 'packages/ai/package.json'
+      - 'packages/ai/tsconfig.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+
+permissions:
+  contents: read
+
+jobs:
+  selected-model:
+    name: Selected model (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS arm64 smoke
+            os: macos-15
+            expectedPlatform: darwin-arm64
+            mode: smoke
+            minimumCpuThreads: 1
+            minimumMemoryBytes: 1
+          - name: Windows x64 benchmark
+            os: windows-latest
+            expectedPlatform: win32-x64
+            mode: benchmark
+            minimumCpuThreads: 4
+            minimumMemoryBytes: 16000000000
+
+    env:
+      CI: true
+      TZ: Asia/Shanghai
+      EXPECTED_PLATFORM: ${{ matrix.expectedPlatform }}
+      MINIMUM_CPU_THREADS: ${{ matrix.minimumCpuThreads }}
+      MINIMUM_MEMORY_BYTES: ${{ matrix.minimumMemoryBytes }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build desktop application
+        run: pnpm --filter @yomitomo/desktop build
+
+      - name: Restore selected model cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/reading-memory-model-cache
+          key: reading-memory-model-${{ matrix.expectedPlatform }}-${{ hashFiles('packages/ai/evaluation/semantic-retrieval/candidates-v1.json', 'packages/ai/evaluation/semantic-retrieval/selection-v1.json', 'pnpm-lock.yaml') }}
+
+      - name: Assert runner architecture
+        run: node -e "const os = require('node:os'); const actual = process.platform + '-' + process.arch; const cpuThreads = os.availableParallelism(); const memoryBytes = os.totalmem(); console.log(JSON.stringify({ actual, cpuThreads, memoryBytes })); if (actual !== process.env.EXPECTED_PLATFORM) throw new Error('Expected ' + process.env.EXPECTED_PLATFORM + ', received ' + actual); if (cpuThreads < Number(process.env.MINIMUM_CPU_THREADS)) throw new Error('Runner has too few CPU threads'); if (memoryBytes < Number(process.env.MINIMUM_MEMORY_BYTES)) throw new Error('Runner has too little memory')"
+
+      - name: Validate selected model
+        run: pnpm --filter @yomitomo/ai evaluate:semantic --candidate=selected --mode=${{ matrix.mode }} --iterations=100 --cache-dir="${{ runner.temp }}/reading-memory-model-cache" --output="${{ runner.temp }}/reading-memory-model-${{ matrix.expectedPlatform }}.json"
+
+      - name: Upload validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reading-memory-model-${{ matrix.expectedPlatform }}
+          path: ${{ runner.temp }}/reading-memory-model-${{ matrix.expectedPlatform }}.json
+          if-no-files-found: error

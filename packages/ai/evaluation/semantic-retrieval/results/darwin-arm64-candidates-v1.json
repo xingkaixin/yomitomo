@@ -1,0 +1,2437 @@
+{
+  "schemaVersion": 1,
+  "evaluationId": "reading-memory-semantic-v1",
+  "generatedAt": "2026-08-29T09:26:47.673Z",
+  "datasetSha256": "8f3288819d4336d39de278e04a2c2f487119aba611e30c2e777e608c14d674c7",
+  "candidatesManifestSha256": "dfe91f0fe37e8508912d0da8f2f2300695a514943783bc2df6ff37ec803ca62c",
+  "mode": "full",
+  "reports": [
+    {
+      "candidateId": "multilingual-e5-small-int8",
+      "platform": "darwin-arm64",
+      "runtimeLoaded": true,
+      "modelBundleBytes": 135138424,
+      "embeddingDimension": 384,
+      "coldStartMs": 1227,
+      "baselineRssBytes": 88719360,
+      "peakRssBytes": 869269504,
+      "peakAdditionalRssBytes": 780550144,
+      "quality": {
+        "passed": false,
+        "failures": [
+          "zh->zh:relate_hit_at_3",
+          "zh->zh:ask_coverage_at_12",
+          "zh->en:relate_hit_at_3",
+          "zh->en:ask_coverage_at_12",
+          "zh->ja:relate_hit_at_3",
+          "zh->ja:ask_coverage_at_12",
+          "en->en:relate_hit_at_3",
+          "en->en:ask_coverage_at_12",
+          "en->ja:relate_hit_at_3",
+          "en->ja:ask_coverage_at_12",
+          "ja->ja:relate_hit_at_3"
+        ],
+        "evaluation": {
+          "directions": [
+            {
+              "direction": "zh->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.6,
+              "askNecessaryCoverageAt12": 0.85,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.5714285714285714
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.575
+            },
+            {
+              "direction": "zh->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.6,
+              "askNecessaryCoverageAt12": 0.75,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.6666666666666666
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.925
+            },
+            {
+              "direction": "zh->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.4,
+              "askNecessaryCoverageAt12": 0.85,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.3333333333333333
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.2857142857142857
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.5714285714285714
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.725
+            },
+            {
+              "direction": "en->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.85,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 1
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.875
+            },
+            {
+              "direction": "en->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.55,
+              "askNecessaryCoverageAt12": 0.85,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.5714285714285714
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 0.6666666666666666
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.875
+            },
+            {
+              "direction": "en->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.75,
+              "askNecessaryCoverageAt12": 0.85,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.8
+            },
+            {
+              "direction": "ja->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.8,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.75
+            },
+            {
+              "direction": "ja->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.9,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 1
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.975
+            },
+            {
+              "direction": "ja->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.75,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.5
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.925
+            }
+          ]
+        },
+        "mixedCorpusEvaluation": {
+          "directions": [
+            {
+              "direction": "zh->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.6,
+              "askNecessaryCoverageAt12": 0.85,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.5714285714285714
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.575
+            },
+            {
+              "direction": "zh->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0,
+              "askNecessaryCoverageAt12": 0,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.925
+            },
+            {
+              "direction": "zh->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0,
+              "askNecessaryCoverageAt12": 0,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.725
+            },
+            {
+              "direction": "en->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.1,
+              "askNecessaryCoverageAt12": 0.15,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 0.3333333333333333
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.875
+            },
+            {
+              "direction": "en->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.55,
+              "askNecessaryCoverageAt12": 0.85,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.5714285714285714
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 0.6666666666666666
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.875
+            },
+            {
+              "direction": "en->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.2,
+              "askNecessaryCoverageAt12": 0.15,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.2857142857142857
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 0.3333333333333333
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.8
+            },
+            {
+              "direction": "ja->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0,
+              "askNecessaryCoverageAt12": 0.2,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.75
+            },
+            {
+              "direction": "ja->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0,
+              "askNecessaryCoverageAt12": 0.05,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.975
+            },
+            {
+              "direction": "ja->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.75,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.5
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.925
+            }
+          ]
+        }
+      },
+      "performance": {
+        "passed": true,
+        "assetCount": 10000,
+        "iterations": 100,
+        "p95LatencyMs": 22.34862499999963,
+        "medianLatencyMs": 19.211333999999624,
+        "minimumLatencyMs": 17.365083000000595,
+        "maximumLatencyMs": 31.064124999999876,
+        "vectorIndexBytes": 15360000,
+        "idMapBytes": 128891,
+        "storage": {
+          "scalar": "float32",
+          "byteOrder": "little-endian",
+          "layout": "row-major",
+          "normalized": true
+        }
+      },
+      "environment": {
+        "node": "v24.15.0",
+        "platform": "darwin",
+        "arch": "arm64",
+        "availableCpuThreads": 10,
+        "totalMemoryBytes": 34359738368,
+        "configuredInferenceThreads": 4
+      }
+    },
+    {
+      "candidateId": "paraphrase-multilingual-minilm-l12-v2-int8",
+      "platform": "darwin-arm64",
+      "runtimeLoaded": true,
+      "modelBundleBytes": 135138691,
+      "embeddingDimension": 384,
+      "coldStartMs": 2084,
+      "baselineRssBytes": 88702976,
+      "peakRssBytes": 870055936,
+      "peakAdditionalRssBytes": 781352960,
+      "quality": {
+        "passed": false,
+        "failures": [
+          "zh->zh:relate_hit_at_3",
+          "zh->zh:ask_coverage_at_12",
+          "zh->en:relate_hit_at_3",
+          "zh->en:ask_coverage_at_12",
+          "zh->ja:relate_hit_at_3",
+          "zh->ja:ask_coverage_at_12",
+          "en->en:relate_hit_at_3",
+          "en->ja:relate_hit_at_3",
+          "ja->zh:relate_hit_at_3",
+          "ja->ja:relate_hit_at_3"
+        ],
+        "evaluation": {
+          "directions": [
+            {
+              "direction": "zh->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.6,
+              "askNecessaryCoverageAt12": 0.85,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.6666666666666666
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.725
+            },
+            {
+              "direction": "zh->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.65,
+              "askNecessaryCoverageAt12": 0.8,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.5
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.8
+            },
+            {
+              "direction": "zh->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.65,
+              "askNecessaryCoverageAt12": 0.85,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.5714285714285714
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.5714285714285714
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.7
+            },
+            {
+              "direction": "en->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.9,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.95
+            },
+            {
+              "direction": "en->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.75,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.85
+            },
+            {
+              "direction": "en->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.6,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.2857142857142857
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.925
+            },
+            {
+              "direction": "ja->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.75,
+              "askNecessaryCoverageAt12": 0.9,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.5714285714285714
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.6666666666666666
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.825
+            },
+            {
+              "direction": "ja->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.9,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.95
+            },
+            {
+              "direction": "ja->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.7,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.5
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.9
+            }
+          ]
+        },
+        "mixedCorpusEvaluation": {
+          "directions": [
+            {
+              "direction": "zh->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.45,
+              "askNecessaryCoverageAt12": 0.55,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.3333333333333333
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.5714285714285714
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.725
+            },
+            {
+              "direction": "zh->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.3,
+              "askNecessaryCoverageAt12": 0.75,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.3333333333333333
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.14285714285714285
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.8
+            },
+            {
+              "direction": "zh->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.4,
+              "askNecessaryCoverageAt12": 0.7,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.6666666666666666
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.2857142857142857
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.2857142857142857
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.7
+            },
+            {
+              "direction": "en->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.8,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.95
+            },
+            {
+              "direction": "en->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.35,
+              "askNecessaryCoverageAt12": 0.7,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.2857142857142857
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.2857142857142857
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 0.5
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.85
+            },
+            {
+              "direction": "en->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.55,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.14285714285714285
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.925
+            },
+            {
+              "direction": "ja->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.55,
+              "askNecessaryCoverageAt12": 0.85,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.6666666666666666
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.5714285714285714
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.825
+            },
+            {
+              "direction": "ja->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.4,
+              "askNecessaryCoverageAt12": 0.75,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.3333333333333333
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.95
+            },
+            {
+              "direction": "ja->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.55,
+              "askNecessaryCoverageAt12": 0.8,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.16666666666666666
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.5714285714285714
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.9
+            }
+          ]
+        }
+      },
+      "performance": {
+        "passed": true,
+        "assetCount": 10000,
+        "iterations": 100,
+        "p95LatencyMs": 24.920334000000366,
+        "medianLatencyMs": 19.585124999999607,
+        "minimumLatencyMs": 17.9389170000004,
+        "maximumLatencyMs": 70.93270799999937,
+        "vectorIndexBytes": 15360000,
+        "idMapBytes": 128891,
+        "storage": {
+          "scalar": "float32",
+          "byteOrder": "little-endian",
+          "layout": "row-major",
+          "normalized": true
+        }
+      },
+      "environment": {
+        "node": "v24.15.0",
+        "platform": "darwin",
+        "arch": "arm64",
+        "availableCpuThreads": 10,
+        "totalMemoryBytes": 34359738368,
+        "configuredInferenceThreads": 4
+      }
+    },
+    {
+      "candidateId": "gte-multilingual-base-int8",
+      "platform": "darwin-arm64",
+      "runtimeLoaded": true,
+      "modelBundleBytes": 357404328,
+      "embeddingDimension": 768,
+      "coldStartMs": 1363,
+      "baselineRssBytes": 89407488,
+      "peakRssBytes": 1363263488,
+      "peakAdditionalRssBytes": 1273856000,
+      "quality": {
+        "passed": false,
+        "failures": ["ja->en:ask_coverage_at_12"],
+        "evaluation": {
+          "directions": [
+            {
+              "direction": "zh->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.8,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 1
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.5714285714285714
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.65
+            },
+            {
+              "direction": "zh->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.85,
+              "askNecessaryCoverageAt12": 0.9,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.825
+            },
+            {
+              "direction": "zh->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.8,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.5714285714285714
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.75
+            },
+            {
+              "direction": "en->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.95,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.925
+            },
+            {
+              "direction": "en->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.9,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.8
+            },
+            {
+              "direction": "en->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.85,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 1
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.9
+            },
+            {
+              "direction": "ja->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.85,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.85
+            },
+            {
+              "direction": "ja->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.85,
+              "askNecessaryCoverageAt12": 0.85,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.8
+            },
+            {
+              "direction": "ja->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.85,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.875
+            }
+          ]
+        },
+        "mixedCorpusEvaluation": {
+          "directions": [
+            {
+              "direction": "zh->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.45,
+              "askNecessaryCoverageAt12": 0.9,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.3333333333333333
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.2857142857142857
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.65
+            },
+            {
+              "direction": "zh->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.55,
+              "askNecessaryCoverageAt12": 0.75,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.6666666666666666
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.2857142857142857
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.825
+            },
+            {
+              "direction": "zh->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.65,
+              "askNecessaryCoverageAt12": 0.9,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.75
+            },
+            {
+              "direction": "en->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.75,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.5714285714285714
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.925
+            },
+            {
+              "direction": "en->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.55,
+              "askNecessaryCoverageAt12": 0.85,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 0.3333333333333333
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.8
+            },
+            {
+              "direction": "en->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.75,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 1
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.9
+            },
+            {
+              "direction": "ja->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.6,
+              "askNecessaryCoverageAt12": 0.85,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.5714285714285714
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.5
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.85
+            },
+            {
+              "direction": "ja->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.4,
+              "askNecessaryCoverageAt12": 0.7,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.3333333333333333
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.8
+            },
+            {
+              "direction": "ja->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.7,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.5
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.5714285714285714
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.875
+            }
+          ]
+        }
+      },
+      "performance": {
+        "passed": true,
+        "assetCount": 10000,
+        "iterations": 100,
+        "p95LatencyMs": 45.615749999999025,
+        "medianLatencyMs": 39.8549579999999,
+        "minimumLatencyMs": 36.310207999998966,
+        "maximumLatencyMs": 117.09991700000137,
+        "vectorIndexBytes": 30720000,
+        "idMapBytes": 128891,
+        "storage": {
+          "scalar": "float32",
+          "byteOrder": "little-endian",
+          "layout": "row-major",
+          "normalized": true
+        }
+      },
+      "environment": {
+        "node": "v24.15.0",
+        "platform": "darwin",
+        "arch": "arm64",
+        "availableCpuThreads": 10,
+        "totalMemoryBytes": 34359738368,
+        "configuredInferenceThreads": 4
+      }
+    },
+    {
+      "candidateId": "embeddinggemma-300m-q4",
+      "platform": "darwin-arm64",
+      "runtimeLoaded": true,
+      "modelBundleBytes": 218726989,
+      "embeddingDimension": 768,
+      "coldStartMs": 1672,
+      "baselineRssBytes": 89538560,
+      "peakRssBytes": 742260736,
+      "peakAdditionalRssBytes": 652722176,
+      "quality": {
+        "passed": false,
+        "failures": ["zh->zh:relate_hit_at_3"],
+        "evaluation": {
+          "directions": [
+            {
+              "direction": "zh->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.75,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.5714285714285714
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.675
+            },
+            {
+              "direction": "zh->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.85,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.9
+            },
+            {
+              "direction": "zh->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.85,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 1
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.85
+            },
+            {
+              "direction": "en->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 1,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 1
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.95
+            },
+            {
+              "direction": "en->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.9,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 1
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.9
+            },
+            {
+              "direction": "en->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.95,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 1
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.95
+            },
+            {
+              "direction": "ja->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.95,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.925
+            },
+            {
+              "direction": "ja->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.85,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.975
+            },
+            {
+              "direction": "ja->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.85,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.6666666666666666
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.9
+            }
+          ]
+        },
+        "mixedCorpusEvaluation": {
+          "directions": [
+            {
+              "direction": "zh->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.45,
+              "askNecessaryCoverageAt12": 0.9,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.3333333333333333
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.2857142857142857
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.675
+            },
+            {
+              "direction": "zh->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.55,
+              "askNecessaryCoverageAt12": 0.9,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.6666666666666666
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.2857142857142857
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.9
+            },
+            {
+              "direction": "zh->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.6,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.5714285714285714
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.85
+            },
+            {
+              "direction": "en->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.85,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 1
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.95
+            },
+            {
+              "direction": "en->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.6,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.5714285714285714
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 0.5
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.9
+            },
+            {
+              "direction": "en->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.85,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.95
+            },
+            {
+              "direction": "ja->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.8,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.5
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.925
+            },
+            {
+              "direction": "ja->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.6,
+              "askNecessaryCoverageAt12": 0.9,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.5714285714285714
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.5
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.975
+            },
+            {
+              "direction": "ja->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.75,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.3333333333333333
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.9
+            }
+          ]
+        }
+      },
+      "performance": {
+        "passed": true,
+        "assetCount": 10000,
+        "iterations": 100,
+        "p95LatencyMs": 65.16929199999868,
+        "medianLatencyMs": 48.757917000002635,
+        "minimumLatencyMs": 43.886209000000235,
+        "maximumLatencyMs": 368.23983299999963,
+        "vectorIndexBytes": 30720000,
+        "idMapBytes": 128891,
+        "storage": {
+          "scalar": "float32",
+          "byteOrder": "little-endian",
+          "layout": "row-major",
+          "normalized": true
+        }
+      },
+      "environment": {
+        "node": "v24.15.0",
+        "platform": "darwin",
+        "arch": "arm64",
+        "availableCpuThreads": 10,
+        "totalMemoryBytes": 34359738368,
+        "configuredInferenceThreads": 4
+      }
+    },
+    {
+      "candidateId": "qwen3-embedding-0.6b-q8",
+      "platform": "darwin-arm64",
+      "runtimeLoaded": true,
+      "modelBundleBytes": 624962643,
+      "embeddingDimension": 1024,
+      "coldStartMs": 1393,
+      "baselineRssBytes": 89997312,
+      "peakRssBytes": 2100215808,
+      "peakAdditionalRssBytes": 2010218496,
+      "quality": {
+        "passed": false,
+        "failures": [
+          "zh->en:relate_hit_at_3",
+          "zh->ja:relate_hit_at_3",
+          "ja->en:ask_coverage_at_12"
+        ],
+        "evaluation": {
+          "directions": [
+            {
+              "direction": "zh->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.8,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.6666666666666666
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.7
+            },
+            {
+              "direction": "zh->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.75,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.6666666666666666
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.875
+            },
+            {
+              "direction": "zh->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.65,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.6666666666666666
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.8
+            },
+            {
+              "direction": "en->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.95,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 1
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.95
+            },
+            {
+              "direction": "en->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.95,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 1
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.875
+            },
+            {
+              "direction": "en->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.85,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 1
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.95
+            },
+            {
+              "direction": "ja->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.85,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.8
+            },
+            {
+              "direction": "ja->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.85,
+              "askNecessaryCoverageAt12": 0.85,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.975
+            },
+            {
+              "direction": "ja->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.85,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.5
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.925
+            }
+          ]
+        },
+        "mixedCorpusEvaluation": {
+          "directions": [
+            {
+              "direction": "zh->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.75,
+              "askNecessaryCoverageAt12": 0.8,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.6666666666666666
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.7
+            },
+            {
+              "direction": "zh->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.35,
+              "askNecessaryCoverageAt12": 0.85,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.3333333333333333
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.2857142857142857
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.875
+            },
+            {
+              "direction": "zh->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.3,
+              "askNecessaryCoverageAt12": 0.5,
+              "relations": {
+                "same": {
+                  "queryCount": 6,
+                  "hitAt3": 0.3333333333333333
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.14285714285714285
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.8
+            },
+            {
+              "direction": "en->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.9,
+              "askNecessaryCoverageAt12": 1,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.8571428571428571
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 1
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.95
+            },
+            {
+              "direction": "en->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.75,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.7142857142857143
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 0.8333333333333334
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.875
+            },
+            {
+              "direction": "en->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.45,
+              "askNecessaryCoverageAt12": 0.75,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                },
+                "complements": {
+                  "queryCount": 7,
+                  "hitAt3": 0.2857142857142857
+                },
+                "contradicts": {
+                  "queryCount": 6,
+                  "hitAt3": 0.6666666666666666
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.95
+            },
+            {
+              "direction": "ja->zh",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.6,
+              "askNecessaryCoverageAt12": 0.75,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.5714285714285714
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.6666666666666666
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.5714285714285714
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.8
+            },
+            {
+              "direction": "ja->en",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.4,
+              "askNecessaryCoverageAt12": 0.75,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.3333333333333333
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.42857142857142855
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.975
+            },
+            {
+              "direction": "ja->ja",
+              "queryCount": 40,
+              "relateQueryCount": 20,
+              "askQueryCount": 20,
+              "relateHitAt3": 0.6,
+              "askNecessaryCoverageAt12": 0.95,
+              "relations": {
+                "same": {
+                  "queryCount": 7,
+                  "hitAt3": 1
+                },
+                "complements": {
+                  "queryCount": 6,
+                  "hitAt3": 0.16666666666666666
+                },
+                "contradicts": {
+                  "queryCount": 7,
+                  "hitAt3": 0.5714285714285714
+                }
+              },
+              "hardNegativeComparisonCount": 40,
+              "necessaryBeforeHardNegativeRate": 0.925
+            }
+          ]
+        }
+      },
+      "performance": {
+        "passed": true,
+        "assetCount": 10000,
+        "iterations": 100,
+        "p95LatencyMs": 119.57404099999985,
+        "medianLatencyMs": 99.32745799999975,
+        "minimumLatencyMs": 86.15970899999957,
+        "maximumLatencyMs": 163.9165839999987,
+        "vectorIndexBytes": 40960000,
+        "idMapBytes": 128891,
+        "storage": {
+          "scalar": "float32",
+          "byteOrder": "little-endian",
+          "layout": "row-major",
+          "normalized": true
+        }
+      },
+      "environment": {
+        "node": "v24.15.0",
+        "platform": "darwin",
+        "arch": "arm64",
+        "availableCpuThreads": 10,
+        "totalMemoryBytes": 34359738368,
+        "configuredInferenceThreads": 4
+      }
+    }
+  ]
+}
