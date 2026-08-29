@@ -76,6 +76,39 @@ describe('reading memory migrations', () => {
     expect(tableNames(database)).toContain('article_source_cleanup_tasks');
   });
 
+  it('adds constrained reading memory projection jobs', () => {
+    const database = new DatabaseSync(':memory:');
+    database.exec('PRAGMA foreign_keys = ON');
+    for (const id of ['0001_initial', '0067_reading_memory_projection_jobs']) {
+      const migration = migrations.find((item) => item.id === id);
+      if (!migration) throw new Error(`missing migration ${id}`);
+      database.exec(migration.sql);
+    }
+    insertArticle(database, 'article_projection');
+
+    expect(tableNames(database)).toContain('reading_memory_projection_jobs');
+    expect(indexNames(database)).toContain('reading_memory_projection_jobs_queue_idx');
+    expect(() =>
+      insertProjectionJob(database, {
+        targetType: 'article',
+        operation: 'upsert',
+      }),
+    ).toThrow();
+    expect(() =>
+      insertProjectionJob(database, {
+        targetType: 'annotation_thread',
+        operation: 'refresh',
+      }),
+    ).toThrow();
+
+    insertProjectionJob(database, {
+      targetType: 'annotation_thread',
+      operation: 'delete',
+    });
+    database.exec("DELETE FROM articles WHERE id = 'article_projection'");
+    expect(countRows(database, 'reading_memory_projection_jobs')).toBe(0);
+  });
+
   it('adds the article catalog pagination index', () => {
     const database = new DatabaseSync(':memory:');
     const initial = migrations.find((item) => item.id === '0001_initial');
@@ -617,6 +650,26 @@ VALUES (?, 'https://example.com/book', 'https://example.com/book', 'Book', 'hash
 `,
     )
     .run(id, '2026-05-26T00:00:00.000Z', '2026-05-26T00:00:00.000Z');
+}
+
+function insertProjectionJob(
+  database: DatabaseSync,
+  input: { targetType: string; operation: string },
+) {
+  database
+    .prepare(
+      `
+INSERT INTO reading_memory_projection_jobs (
+  target_type,
+  target_id,
+  article_id,
+  source_version,
+  operation,
+  queued_at
+) VALUES (?, 'annotation_1', 'article_projection', 'version_1', ?, '2026-08-29T00:00:00.000Z')
+`,
+    )
+    .run(input.targetType, input.operation);
 }
 
 function articleContentHtml(database: DatabaseSync, id: string) {

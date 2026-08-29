@@ -179,7 +179,7 @@ export async function saveArticleAnnotationDistillation(input: {
   expectedDistillationUpdatedAt: string | null;
   updatedAt?: string;
 }) {
-  return saveAnnotationDistillationRows(getDatabase(), input);
+  return saveAnnotationDistillationRows(getDatabase(), input, getReadingMemorySqliteExecutor());
 }
 
 export async function mergeArticleAgentAnnotation(input: {

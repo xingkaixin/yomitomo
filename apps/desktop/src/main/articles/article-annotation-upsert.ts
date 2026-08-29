@@ -6,11 +6,12 @@ import {
 } from '@yomitomo/core';
 import { DesktopIpcError, desktopIpcErrorCodes } from '../../ipc-errors';
 import * as schema from '../db/schema';
-import { getSqliteExecutor, type StoreDatabase, type StoreExecutor } from '../store/store-db';
+import type { StoreDatabase, StoreExecutor } from '../store/store-db';
 import {
   upsertReadingMemoryEntries,
   type ReadingMemorySqliteExecutor,
 } from '../reading-memory/reading-memory-store';
+import { queueStoredAnnotationThreadProjection } from '../reading-memory/reading-memory-projection-job-queue';
 import {
   annotationToRow,
   commentRowsForAnnotation,
@@ -24,10 +25,11 @@ import { buildArticleUpsertPatch, insertCommentRows, touchArticleRows } from './
 export function upsertAnnotationRows(
   database: StoreDatabase,
   input: { articleId: string; annotation: Annotation; updatedAt?: string },
-  executor?: ReadingMemorySqliteExecutor,
+  executor: ReadingMemorySqliteExecutor,
 ): ArticleUpsertPatch | null {
   const existingArticleId = readAnnotationArticleId(database, input.annotation.id);
   if (existingArticleId && existingArticleId !== input.articleId) return null;
+  const queuedAt = new Date().toISOString();
 
   database.transaction((tx) => {
     upsertAnnotationRow(tx, input.articleId, input.annotation);
@@ -35,6 +37,11 @@ export function upsertAnnotationRows(
     insertCommentRows(tx, commentRowsForAnnotation(input.annotation));
     touchArticleRows(tx, input.articleId, input.updatedAt || input.annotation.updatedAt);
     syncAnnotationMemoryEntries(input.articleId, input.annotation, executor);
+    queueStoredAnnotationThreadProjection(executor, {
+      articleId: input.articleId,
+      annotationId: input.annotation.id,
+      queuedAt,
+    });
   });
   const article = readArticleSummaryRows(database, input.articleId);
   return article ? buildArticleUpsertPatch(article) : null;
@@ -43,9 +50,10 @@ export function upsertAnnotationRows(
 export function upsertCommentRows(
   database: StoreDatabase,
   input: { articleId: string; annotationId: string; comment: Comment; updatedAt?: string },
-  executor?: ReadingMemorySqliteExecutor,
+  executor: ReadingMemorySqliteExecutor,
 ): ArticleUpsertPatch | null {
   if (readAnnotationArticleId(database, input.annotationId) !== input.articleId) return null;
+  const queuedAt = new Date().toISOString();
 
   database.transaction((tx) => {
     tx.insert(schema.comments)
@@ -57,6 +65,11 @@ export function upsertCommentRows(
       .run();
     touchArticleRows(tx, input.articleId, input.updatedAt || input.comment.createdAt);
     syncStoredAnnotationMemoryEntries(tx, input.articleId, input.annotationId, executor);
+    queueStoredAnnotationThreadProjection(executor, {
+      articleId: input.articleId,
+      annotationId: input.annotationId,
+      queuedAt,
+    });
   });
   const article = readArticleSummaryRows(database, input.articleId);
   return article ? buildArticleUpsertPatch(article) : null;
@@ -71,8 +84,10 @@ export function saveAnnotationDistillationRows(
     expectedDistillationUpdatedAt: string | null;
     updatedAt?: string;
   },
+  executor: ReadingMemorySqliteExecutor,
 ): ArticleUpsertPatch | null {
   const updatedAt = input.updatedAt || input.distillation?.updatedAt || new Date().toISOString();
+  const queuedAt = new Date().toISOString();
   const saved = database.transaction((tx) => {
     const storedAnnotation = tx
       .select()
@@ -103,6 +118,11 @@ export function saveAnnotationDistillationRows(
       .where(eq(schema.annotations.id, input.annotationId))
       .run();
     touchArticleRows(tx, input.articleId, updatedAt);
+    queueStoredAnnotationThreadProjection(executor, {
+      articleId: input.articleId,
+      annotationId: input.annotationId,
+      queuedAt,
+    });
     return true;
   });
   if (!saved) return null;
@@ -113,7 +133,7 @@ export function saveAnnotationDistillationRows(
 export function mergeAgentAnnotationRows(
   database: StoreDatabase,
   input: { articleId: string; annotation: Annotation },
-  executor?: ReadingMemorySqliteExecutor,
+  executor: ReadingMemorySqliteExecutor,
 ) {
   const annotations = readArticleAnnotations(database, input.articleId);
   const result = mergeAgentAnnotationAsThought(annotations, input.annotation);
@@ -155,7 +175,7 @@ function syncStoredAnnotationMemoryEntries(
   database: StoreExecutor,
   articleId: string,
   annotationId: string,
-  executor?: ReadingMemorySqliteExecutor,
+  executor: ReadingMemorySqliteExecutor,
 ) {
   const annotation = readArticleAnnotations(database, articleId).find(
     (item) => item.id === annotationId,
@@ -166,11 +186,11 @@ function syncStoredAnnotationMemoryEntries(
 function syncAnnotationMemoryEntries(
   articleId: string,
   annotation: Annotation,
-  executor?: ReadingMemorySqliteExecutor,
+  executor: ReadingMemorySqliteExecutor,
 ) {
   upsertReadingMemoryEntries(
     readingMemoryEntriesFromAnnotationThread({ articleId, annotation }),
-    executor || getSqliteExecutor(),
+    executor,
     { useTransaction: false },
   );
 }
