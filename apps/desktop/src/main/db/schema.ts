@@ -1,6 +1,9 @@
+import { sql } from 'drizzle-orm';
 import {
+  check,
   index,
   integer,
+  primaryKey,
   real,
   sqliteTable,
   text,
@@ -391,6 +394,39 @@ export const readingMemoryProjections = sqliteTable(
       table.articleId,
       table.viewType,
       table.viewKey,
+    ),
+  ],
+);
+
+export const readingMemoryProjectionJobs = sqliteTable(
+  'reading_memory_projection_jobs',
+  {
+    targetType: text('target_type').$type<'annotation_thread'>().notNull(),
+    targetId: text('target_id').notNull(),
+    articleId: text('article_id')
+      .notNull()
+      .references(() => articles.id, { onDelete: 'cascade' }),
+    sourceVersion: text('source_version').notNull(),
+    operation: text('operation').$type<'upsert' | 'delete'>().notNull(),
+    queuedAt: text('queued_at').notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: 'reading_memory_projection_jobs_pk',
+      columns: [table.targetType, table.targetId],
+    }),
+    check(
+      'reading_memory_projection_jobs_target_type_check',
+      sql`${table.targetType} = 'annotation_thread'`,
+    ),
+    check(
+      'reading_memory_projection_jobs_operation_check',
+      sql`${table.operation} IN ('upsert', 'delete')`,
+    ),
+    index('reading_memory_projection_jobs_queue_idx').on(
+      table.queuedAt,
+      table.targetType,
+      table.targetId,
     ),
   ],
 );

@@ -1109,6 +1109,27 @@ CREATE TABLE IF NOT EXISTS article_source_cleanup_tasks (
 );
 `,
   },
+  {
+    id: '0067_reading_memory_projection_jobs',
+    sql: `
+CREATE TABLE IF NOT EXISTS reading_memory_projection_jobs (
+  target_type TEXT NOT NULL
+    CONSTRAINT reading_memory_projection_jobs_target_type_check
+    CHECK (target_type = 'annotation_thread'),
+  target_id TEXT NOT NULL,
+  article_id TEXT NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+  source_version TEXT NOT NULL,
+  operation TEXT NOT NULL
+    CONSTRAINT reading_memory_projection_jobs_operation_check
+    CHECK (operation IN ('upsert', 'delete')),
+  queued_at TEXT NOT NULL,
+  CONSTRAINT reading_memory_projection_jobs_pk PRIMARY KEY (target_type, target_id)
+);
+
+CREATE INDEX IF NOT EXISTS reading_memory_projection_jobs_queue_idx
+ON reading_memory_projection_jobs(queued_at, target_type, target_id);
+`,
+  },
 ];
 
 type MigrationDatabase = {
