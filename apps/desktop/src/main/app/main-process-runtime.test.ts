@@ -20,13 +20,25 @@ describe('main process runtime', () => {
 
     runtime.checkTelemetryFocus();
     expect(dependencies.telemetryCheck).toHaveBeenCalledWith('focus');
+    expect(dependencies.startEvidenceProjectionWorker).toHaveBeenCalledOnce();
 
     runtime.dispose();
     await vi.advanceTimersByTimeAsync(100);
 
     expect(dependencies.refreshModelPrices).toHaveBeenCalledOnce();
     expect(dependencies.checkForAppUpdates).toHaveBeenCalledOnce();
+    expect(dependencies.projectionDispose).toHaveBeenCalledOnce();
     expect(dependencies.telemetryDispose).toHaveBeenCalledOnce();
+  });
+
+  it('reconfigures database-backed services after a restore', () => {
+    const dependencies = runtimeDependencies();
+    const runtime = startMainProcessRuntime(dependencies.input);
+
+    runtime.onDatabaseRestored();
+
+    expect(dependencies.projectionRequestRun).toHaveBeenCalledWith('database_restored');
+    runtime.dispose();
   });
 
   it('schedules and reconfigures automatic WeRead sync', async () => {
@@ -115,6 +127,12 @@ function runtimeDependencies(
   const sendWeReadStateUpdated = vi.fn();
   const telemetryCheck = vi.fn();
   const telemetryDispose = vi.fn();
+  const projectionRequestRun = vi.fn();
+  const projectionDispose = vi.fn();
+  const startEvidenceProjectionWorker = vi.fn(() => ({
+    requestRun: projectionRequestRun,
+    dispose: projectionDispose,
+  }));
 
   return {
     refreshModelPrices,
@@ -123,6 +141,9 @@ function runtimeDependencies(
     syncWeRead,
     telemetryCheck,
     telemetryDispose,
+    projectionRequestRun,
+    projectionDispose,
+    startEvidenceProjectionWorker,
     input: {
       getPersistenceModules: async () => ({
         storeModelPricing: { refreshModelPrices },
@@ -151,6 +172,7 @@ function runtimeDependencies(
         dispose: telemetryDispose,
       }),
       syncWeRead,
+      startEvidenceProjectionWorker,
     },
   };
 }

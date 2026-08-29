@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { migrations } from '../db/migrations';
 import {
   completeReadingMemoryProjectionJob,
+  deferFailedReadingMemoryProjectionJob,
   queueReadingMemoryProjectionJob,
+  readDueReadingMemoryProjectionJobs,
   readReadingMemoryProjectionJobs,
   type ReadingMemoryProjectionJob,
 } from './reading-memory-projection-job-store';
@@ -66,6 +68,107 @@ describe('reading memory projection job store', () => {
     expect(readReadingMemoryProjectionJobs(database, 0)).toEqual([]);
     expect(readReadingMemoryProjectionJobs(database, 1.5)).toEqual([]);
     expect(readReadingMemoryProjectionJobs(database, Number.MAX_SAFE_INTEGER + 1)).toEqual([]);
+    expect(readDueReadingMemoryProjectionJobs(database, '2026-08-29T00:03:00.000Z', 0)).toEqual([]);
+  });
+
+  it('reads only due jobs and preserves the diagnostic shape', () => {
+    const database = createDatabase();
+    const job = projectionJob();
+    queueReadingMemoryProjectionJob(database, job);
+    deferFailedReadingMemoryProjectionJob(database, job, {
+      availableAt: '2026-08-29T00:05:00.000Z',
+      failedAt: '2026-08-29T00:02:00.000Z',
+    });
+
+    expect(readDueReadingMemoryProjectionJobs(database, '2026-08-29T00:04:59.999Z', 10)).toEqual(
+      [],
+    );
+    expect(readDueReadingMemoryProjectionJobs(database, '2026-08-29T00:05:00.000Z', 10)).toEqual([
+      {
+        ...job,
+        attemptCount: 1,
+        availableAt: '2026-08-29T00:05:00.000Z',
+        lastErrorAt: '2026-08-29T00:02:00.000Z',
+      },
+    ]);
+    expect(readReadingMemoryProjectionJobs(database, 10)).toEqual([job]);
+  });
+
+  it('keeps unchanged backoff and resets it for a new intent', () => {
+    const database = createDatabase();
+    const original = projectionJob();
+    queueReadingMemoryProjectionJob(database, original);
+    deferFailedReadingMemoryProjectionJob(database, original, {
+      availableAt: '2026-08-29T00:10:00.000Z',
+      failedAt: '2026-08-29T00:02:00.000Z',
+    });
+    queueReadingMemoryProjectionJob(
+      database,
+      projectionJob({ queuedAt: '2026-08-29T00:03:00.000Z' }),
+    );
+
+    expect(readDueReadingMemoryProjectionJobs(database, '2026-08-29T00:03:00.000Z', 10)).toEqual(
+      [],
+    );
+    expect(readReadingMemoryProjectionJobs(database, 10)).toEqual([original]);
+
+    const replacement = projectionJob({
+      sourceVersion: 'version_2',
+      queuedAt: '2026-08-29T00:03:00.000Z',
+    });
+    queueReadingMemoryProjectionJob(database, replacement);
+    expect(readDueReadingMemoryProjectionJobs(database, '2026-08-29T00:03:00.000Z', 10)).toEqual([
+      {
+        ...replacement,
+        attemptCount: 0,
+        availableAt: replacement.queuedAt,
+        lastErrorAt: null,
+      },
+    ]);
+  });
+
+  it('defers by source version and saturates the attempt count', () => {
+    const database = createDatabase();
+    const original = projectionJob();
+    const replacement = projectionJob({
+      sourceVersion: 'version_2',
+      queuedAt: '2026-08-29T00:02:00.000Z',
+    });
+    queueReadingMemoryProjectionJob(database, original);
+    queueReadingMemoryProjectionJob(database, replacement);
+    deferFailedReadingMemoryProjectionJob(database, original, {
+      availableAt: '2026-08-29T00:10:00.000Z',
+      failedAt: '2026-08-29T00:03:00.000Z',
+    });
+    expect(readDueReadingMemoryProjectionJobs(database, replacement.queuedAt, 10)[0]).toMatchObject(
+      {
+        sourceVersion: 'version_2',
+        attemptCount: 0,
+        availableAt: replacement.queuedAt,
+        lastErrorAt: null,
+      },
+    );
+
+    database
+      .prepare(
+        `
+UPDATE reading_memory_projection_jobs
+SET attempt_count = 2147483647
+WHERE target_type = 'annotation_thread' AND target_id = 'annotation_1'
+`,
+      )
+      .run();
+    deferFailedReadingMemoryProjectionJob(database, replacement, {
+      availableAt: '2026-08-29T00:11:00.000Z',
+      failedAt: '2026-08-29T00:04:00.000Z',
+    });
+    expect(
+      readDueReadingMemoryProjectionJobs(database, '2026-08-29T00:11:00.000Z', 10)[0],
+    ).toMatchObject({
+      attemptCount: 2_147_483_647,
+      availableAt: '2026-08-29T00:11:00.000Z',
+      lastErrorAt: '2026-08-29T00:04:00.000Z',
+    });
   });
 
   it('does not let an old processor complete a newer task', () => {
@@ -100,7 +203,11 @@ describe('reading memory projection job store', () => {
 function createDatabase(): ReadingMemorySqliteExecutor {
   const sqlite = new SQLiteDatabase(':memory:');
   sqlite.pragma('foreign_keys = ON');
-  for (const id of ['0001_initial', '0067_reading_memory_projection_jobs']) {
+  for (const id of [
+    '0001_initial',
+    '0067_reading_memory_projection_jobs',
+    '0068_reading_memory_evidence',
+  ]) {
     const migration = migrations.find((item) => item.id === id);
     if (!migration) throw new Error(`missing migration ${id}`);
     sqlite.exec(migration.sql);

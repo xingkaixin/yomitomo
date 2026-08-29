@@ -1,17 +1,12 @@
 import { eq } from 'drizzle-orm';
 import type { Annotation, ArticleUpsertPatch, Comment } from '@yomitomo/shared';
-import {
-  mergeAgentAnnotationAsThought,
-  readingMemoryEntriesFromAnnotationThread,
-} from '@yomitomo/core';
+import { mergeAgentAnnotationAsThought } from '@yomitomo/core';
 import { DesktopIpcError, desktopIpcErrorCodes } from '../../ipc-errors';
 import * as schema from '../db/schema';
 import type { StoreDatabase, StoreExecutor } from '../store/store-db';
-import {
-  upsertReadingMemoryEntries,
-  type ReadingMemorySqliteExecutor,
-} from '../reading-memory/reading-memory-store';
+import type { ReadingMemorySqliteExecutor } from '../reading-memory/reading-memory-store';
 import { queueStoredAnnotationThreadProjection } from '../reading-memory/reading-memory-projection-job-queue';
+import { trySyncArticleAnnotationMemoryEntries } from './article-annotation-memory';
 import {
   annotationToRow,
   commentRowsForAnnotation,
@@ -36,13 +31,16 @@ export function upsertAnnotationRows(
     tx.delete(schema.comments).where(eq(schema.comments.annotationId, input.annotation.id)).run();
     insertCommentRows(tx, commentRowsForAnnotation(input.annotation));
     touchArticleRows(tx, input.articleId, input.updatedAt || input.annotation.updatedAt);
-    syncAnnotationMemoryEntries(input.articleId, input.annotation, executor);
     queueStoredAnnotationThreadProjection(executor, {
       articleId: input.articleId,
       annotationId: input.annotation.id,
       queuedAt,
     });
   });
+  trySyncArticleAnnotationMemoryEntries(
+    { id: input.articleId, annotations: [input.annotation] },
+    executor,
+  );
   const article = readArticleSummaryRows(database, input.articleId);
   return article ? buildArticleUpsertPatch(article) : null;
 }
@@ -64,13 +62,13 @@ export function upsertCommentRows(
       })
       .run();
     touchArticleRows(tx, input.articleId, input.updatedAt || input.comment.createdAt);
-    syncStoredAnnotationMemoryEntries(tx, input.articleId, input.annotationId, executor);
     queueStoredAnnotationThreadProjection(executor, {
       articleId: input.articleId,
       annotationId: input.annotationId,
       queuedAt,
     });
   });
+  trySyncStoredAnnotationMemoryEntries(database, input.articleId, input.annotationId, executor);
   const article = readArticleSummaryRows(database, input.articleId);
   return article ? buildArticleUpsertPatch(article) : null;
 }
@@ -171,26 +169,24 @@ function readAnnotationArticleId(database: StoreDatabase, annotationId: string) 
   );
 }
 
-function syncStoredAnnotationMemoryEntries(
+function trySyncStoredAnnotationMemoryEntries(
   database: StoreExecutor,
   articleId: string,
   annotationId: string,
   executor: ReadingMemorySqliteExecutor,
 ) {
-  const annotation = readArticleAnnotations(database, articleId).find(
-    (item) => item.id === annotationId,
-  );
-  if (annotation) syncAnnotationMemoryEntries(articleId, annotation, executor);
-}
-
-function syncAnnotationMemoryEntries(
-  articleId: string,
-  annotation: Annotation,
-  executor: ReadingMemorySqliteExecutor,
-) {
-  upsertReadingMemoryEntries(
-    readingMemoryEntriesFromAnnotationThread({ articleId, annotation }),
-    executor,
-    { useTransaction: false },
-  );
+  try {
+    const annotation = readArticleAnnotations(database, articleId).find(
+      (item) => item.id === annotationId,
+    );
+    if (annotation) {
+      trySyncArticleAnnotationMemoryEntries({ id: articleId, annotations: [annotation] }, executor);
+    }
+  } catch (error) {
+    console.warn('[reading-memory] sync annotation memory entries failed', {
+      articleId,
+      annotationId,
+      error,
+    });
+  }
 }

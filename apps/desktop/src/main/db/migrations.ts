@@ -1130,6 +1130,114 @@ CREATE INDEX IF NOT EXISTS reading_memory_projection_jobs_queue_idx
 ON reading_memory_projection_jobs(queued_at, target_type, target_id);
 `,
   },
+  {
+    id: '0068_reading_memory_evidence',
+    sql: `
+ALTER TABLE reading_memory_projection_jobs
+ADD COLUMN attempt_count INTEGER NOT NULL DEFAULT 0
+  CONSTRAINT reading_memory_projection_jobs_attempt_count_check
+  CHECK (attempt_count BETWEEN 0 AND 2147483647);
+
+ALTER TABLE reading_memory_projection_jobs
+ADD COLUMN available_at TEXT NOT NULL DEFAULT '';
+
+ALTER TABLE reading_memory_projection_jobs
+ADD COLUMN last_error_at TEXT;
+
+UPDATE reading_memory_projection_jobs
+SET available_at = queued_at
+WHERE available_at = '';
+
+CREATE INDEX IF NOT EXISTS reading_memory_projection_jobs_available_idx
+ON reading_memory_projection_jobs(
+  available_at,
+  queued_at,
+  target_type,
+  target_id
+);
+
+CREATE TABLE IF NOT EXISTS reading_memory_evidence_receipts (
+  target_type TEXT NOT NULL
+    CONSTRAINT reading_memory_evidence_receipts_target_type_check
+    CHECK (target_type = 'annotation_thread'),
+  target_id TEXT NOT NULL,
+  article_id TEXT NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+  source_version TEXT NOT NULL,
+  projector_version TEXT NOT NULL,
+  projected_at TEXT NOT NULL,
+  CONSTRAINT reading_memory_evidence_receipts_pk PRIMARY KEY (target_type, target_id)
+);
+
+CREATE INDEX IF NOT EXISTS reading_memory_evidence_receipts_article_idx
+ON reading_memory_evidence_receipts(article_id, projector_version, target_id);
+
+CREATE TABLE IF NOT EXISTS reading_memory_evidence_entries (
+  id TEXT PRIMARY KEY NOT NULL,
+  article_id TEXT NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+  target_type TEXT NOT NULL
+    CONSTRAINT reading_memory_evidence_entries_target_type_check
+    CHECK (target_type = 'annotation_thread'),
+  target_id TEXT NOT NULL,
+  asset_type TEXT NOT NULL
+    CONSTRAINT reading_memory_evidence_entries_asset_type_check
+    CHECK (asset_type IN ('annotation', 'comment', 'distillation')),
+  source_comment_id TEXT,
+  source_version TEXT NOT NULL,
+  projector_version TEXT NOT NULL,
+  is_judgment INTEGER NOT NULL
+    CONSTRAINT reading_memory_evidence_entries_is_judgment_check
+    CHECK (is_judgment IN (0, 1)),
+  is_user_authored INTEGER NOT NULL
+    CONSTRAINT reading_memory_evidence_entries_is_user_authored_check
+    CHECK (is_user_authored IN (0, 1)),
+  search_text TEXT NOT NULL,
+  source_created_at TEXT NOT NULL,
+  source_updated_at TEXT NOT NULL,
+  CONSTRAINT reading_memory_evidence_entries_receipt_fk
+    FOREIGN KEY (target_type, target_id)
+    REFERENCES reading_memory_evidence_receipts(target_type, target_id)
+    ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS reading_memory_evidence_entries_target_idx
+ON reading_memory_evidence_entries(target_type, target_id);
+
+CREATE INDEX IF NOT EXISTS reading_memory_evidence_entries_article_idx
+ON reading_memory_evidence_entries(
+  article_id,
+  projector_version,
+  asset_type,
+  source_updated_at DESC,
+  id
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS reading_memory_evidence_fts USING fts5(
+  entry_id UNINDEXED,
+  article_id UNINDEXED,
+  asset_type UNINDEXED,
+  search_text,
+  tokenize='trigram'
+);
+
+CREATE TRIGGER IF NOT EXISTS reading_memory_evidence_entries_insert
+AFTER INSERT ON reading_memory_evidence_entries BEGIN
+  INSERT INTO reading_memory_evidence_fts (entry_id, article_id, asset_type, search_text)
+  VALUES (new.id, new.article_id, new.asset_type, new.search_text);
+END;
+
+CREATE TRIGGER IF NOT EXISTS reading_memory_evidence_entries_update
+AFTER UPDATE OF id, article_id, asset_type, search_text ON reading_memory_evidence_entries BEGIN
+  DELETE FROM reading_memory_evidence_fts WHERE entry_id = old.id;
+  INSERT INTO reading_memory_evidence_fts (entry_id, article_id, asset_type, search_text)
+  VALUES (new.id, new.article_id, new.asset_type, new.search_text);
+END;
+
+CREATE TRIGGER IF NOT EXISTS reading_memory_evidence_entries_delete
+AFTER DELETE ON reading_memory_evidence_entries BEGIN
+  DELETE FROM reading_memory_evidence_fts WHERE entry_id = old.id;
+END;
+`,
+  },
 ];
 
 type MigrationDatabase = {

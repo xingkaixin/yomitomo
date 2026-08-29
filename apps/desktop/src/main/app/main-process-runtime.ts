@@ -7,6 +7,10 @@ import {
 } from '../telemetry/desktop-telemetry';
 import { syncWeReadLibrary } from '../weread/weread-sync';
 import { withDatabaseLease } from '../store/store-db';
+import {
+  startReadingMemoryEvidenceProjectionWorker,
+  type ReadingMemoryEvidenceProjectionWorker,
+} from '../reading-memory/reading-memory-evidence-projection-worker';
 
 const DEFAULT_APP_UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
@@ -40,10 +44,12 @@ type MainProcessRuntimeDependencies = {
   timing?: Partial<MainProcessRuntimeTiming>;
   createTelemetryController?: typeof createDesktopTelemetryControllerForEnvironment;
   syncWeRead?: typeof syncWeReadLibrary;
+  startEvidenceProjectionWorker?: typeof startReadingMemoryEvidenceProjectionWorker;
 };
 
 export type MainProcessRuntime = {
   configureWeReadAutoSync: (reason: string) => void;
+  onDatabaseRestored: () => void;
   checkTelemetryFocus: () => void;
   dispose: () => void;
 };
@@ -55,6 +61,9 @@ export function startMainProcessRuntime(
   const createTelemetryController =
     dependencies.createTelemetryController ?? createDesktopTelemetryControllerForEnvironment;
   const syncWeRead = dependencies.syncWeRead ?? syncWeReadLibrary;
+  const evidenceProjectionWorker: ReadingMemoryEvidenceProjectionWorker = (
+    dependencies.startEvidenceProjectionWorker ?? startReadingMemoryEvidenceProjectionWorker
+  )();
   let disposed = false;
   let weReadConfigurationToken = 0;
   let weReadSyncRunning = false;
@@ -217,6 +226,11 @@ export function startMainProcessRuntime(
 
   return {
     configureWeReadAutoSync,
+    onDatabaseRestored: () => {
+      if (disposed) return;
+      configureWeReadAutoSync('database-restored');
+      evidenceProjectionWorker.requestRun('database_restored');
+    },
     checkTelemetryFocus: () => {
       if (!disposed) telemetryController?.check('focus');
     },
@@ -227,6 +241,7 @@ export function startMainProcessRuntime(
       disposeModelPriceRefresh();
       disposeAppUpdateCheck();
       clearWeReadTimers();
+      evidenceProjectionWorker.dispose();
       telemetryController?.dispose();
       telemetryController = null;
     },

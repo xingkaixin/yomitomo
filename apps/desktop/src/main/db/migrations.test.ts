@@ -109,6 +109,196 @@ describe('reading memory migrations', () => {
     expect(countRows(database, 'reading_memory_projection_jobs')).toBe(0);
   });
 
+  it('adds retryable evidence projection storage with synchronized search', () => {
+    const database = new DatabaseSync(':memory:');
+    database.exec('PRAGMA foreign_keys = ON');
+    for (const id of ['0001_initial', '0067_reading_memory_projection_jobs']) {
+      const migration = migrations.find((item) => item.id === id);
+      if (!migration) throw new Error(`missing migration ${id}`);
+      database.exec(migration.sql);
+    }
+    insertArticle(database, 'article_projection');
+    insertProjectionJob(database, {
+      targetType: 'annotation_thread',
+      operation: 'upsert',
+    });
+
+    const evidenceMigration = migrations.find((item) => item.id === '0068_reading_memory_evidence');
+    if (!evidenceMigration) throw new Error('missing migration 0068_reading_memory_evidence');
+    database.exec(evidenceMigration.sql);
+
+    expect(tableNames(database)).toEqual(
+      expect.arrayContaining([
+        'reading_memory_evidence_receipts',
+        'reading_memory_evidence_entries',
+        'reading_memory_evidence_fts',
+      ]),
+    );
+    expect(indexNames(database)).toEqual(
+      expect.arrayContaining([
+        'reading_memory_projection_jobs_available_idx',
+        'reading_memory_evidence_receipts_article_idx',
+        'reading_memory_evidence_entries_target_idx',
+        'reading_memory_evidence_entries_article_idx',
+      ]),
+    );
+    expect(columnNames(database, 'reading_memory_projection_jobs')).toEqual(
+      expect.arrayContaining(['attempt_count', 'available_at', 'last_error_at']),
+    );
+    expect(
+      database
+        .prepare(
+          `
+SELECT attempt_count AS attemptCount, available_at AS availableAt, last_error_at AS lastErrorAt
+FROM reading_memory_projection_jobs
+`,
+        )
+        .get(),
+    ).toEqual({
+      attemptCount: 0,
+      availableAt: '2026-08-29T00:00:00.000Z',
+      lastErrorAt: null,
+    });
+
+    database
+      .prepare(
+        `
+INSERT INTO reading_memory_evidence_receipts (
+  target_type,
+  target_id,
+  article_id,
+  source_version,
+  projector_version,
+  projected_at
+) VALUES (
+  'annotation_thread',
+  'annotation_1',
+  'article_projection',
+  'source_1',
+  'projector_1',
+  '2026-08-29T00:01:00.000Z'
+)
+`,
+      )
+      .run();
+    const insertEntry = database.prepare(
+      `
+INSERT INTO reading_memory_evidence_entries (
+  id,
+  article_id,
+  target_type,
+  target_id,
+  asset_type,
+  source_comment_id,
+  source_version,
+  projector_version,
+  is_judgment,
+  is_user_authored,
+  search_text,
+  source_created_at,
+  source_updated_at
+) VALUES (?, 'article_projection', 'annotation_thread', ?, ?, NULL, 'source_1', 'projector_1', ?, 1, ?, ?, ?)
+`,
+    );
+    expect(() =>
+      insertEntry.run(
+        'missing_receipt',
+        'annotation_missing',
+        'annotation',
+        1,
+        '不应插入',
+        '2026-08-29T00:00:00.000Z',
+        '2026-08-29T00:00:00.000Z',
+      ),
+    ).toThrow();
+    expect(() =>
+      insertEntry.run(
+        'invalid_asset',
+        'annotation_1',
+        'summary',
+        1,
+        '不应插入',
+        '2026-08-29T00:00:00.000Z',
+        '2026-08-29T00:00:00.000Z',
+      ),
+    ).toThrow();
+    expect(() =>
+      insertEntry.run(
+        'invalid_boolean',
+        'annotation_1',
+        'annotation',
+        2,
+        '不应插入',
+        '2026-08-29T00:00:00.000Z',
+        '2026-08-29T00:00:00.000Z',
+      ),
+    ).toThrow();
+    insertEntry.run(
+      'evidence_1',
+      'annotation_1',
+      'annotation',
+      1,
+      '选择压力与认知偏差',
+      '2026-08-29T00:00:00.000Z',
+      '2026-08-29T00:00:00.000Z',
+    );
+
+    expect(
+      database
+        .prepare(
+          `
+SELECT entry_id AS entryId
+FROM reading_memory_evidence_fts
+WHERE reading_memory_evidence_fts MATCH '选择压'
+`,
+        )
+        .get(),
+    ).toEqual({ entryId: 'evidence_1' });
+
+    database
+      .prepare(
+        `
+UPDATE reading_memory_evidence_entries
+SET search_text = '読書の記憶を検索する'
+WHERE id = 'evidence_1'
+`,
+      )
+      .run();
+    expect(
+      database
+        .prepare(
+          `
+SELECT entry_id AS entryId
+FROM reading_memory_evidence_fts
+WHERE reading_memory_evidence_fts MATCH '読書の'
+`,
+        )
+        .get(),
+    ).toEqual({ entryId: 'evidence_1' });
+    expect(
+      database
+        .prepare(
+          `
+SELECT entry_id AS entryId
+FROM reading_memory_evidence_fts
+WHERE reading_memory_evidence_fts MATCH '选择压'
+`,
+        )
+        .get(),
+    ).toBeUndefined();
+
+    database
+      .prepare(
+        `
+DELETE FROM reading_memory_evidence_receipts
+WHERE target_type = 'annotation_thread' AND target_id = 'annotation_1'
+`,
+      )
+      .run();
+    expect(countRows(database, 'reading_memory_evidence_entries')).toBe(0);
+    expect(countRows(database, 'reading_memory_evidence_fts')).toBe(0);
+  });
+
   it('adds the article catalog pagination index', () => {
     const database = new DatabaseSync(':memory:');
     const initial = migrations.find((item) => item.id === '0001_initial');

@@ -45,6 +45,7 @@ describe('article memory lifecycle', () => {
   afterEach(() => {
     storeDbState.database = null;
     storeDbState.executor = null;
+    vi.restoreAllMocks();
   });
 
   it('deletes article memory entries, projections, and FTS rows with the article', () => {
@@ -93,17 +94,68 @@ describe('article memory lifecycle', () => {
     expect(countRows(database, 'article_source_cleanup_tasks')).toBe(1);
   });
 
+  it('keeps an article deletion when its compatibility memory cleanup fails', () => {
+    const database = lifecycleDatabase();
+    database.prepare("UPDATE articles SET source_type = 'pdf' WHERE id = ?").run('article_1');
+    appendReadingMemoryEntries(
+      [
+        memoryEntry({
+          id: 'entry_1',
+          payload: { summary: 'article lifecycle memory', keyTerms: ['lifecycle'] },
+        }),
+      ],
+      database,
+    );
+    const failingExecutor: ReadingMemorySqliteExecutor = {
+      exec: (sql) => database.exec(sql),
+      prepare: (sql) => {
+        const statement = database.prepare(sql);
+        return {
+          run: (...values) => {
+            if (sql.includes('DELETE FROM reading_memory_entry_fts WHERE article_id = ?')) {
+              throw new Error('article memory cleanup failed');
+            }
+            return statement.run(...values);
+          },
+          get: (...values) => statement.get(...values),
+          all: (...values) => statement.all(...values),
+        };
+      },
+    };
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    deleteArticleRowsWithMemoryLifecycle(failingExecutor, 'article_1');
+
+    expect(countRows(database, 'articles')).toBe(0);
+    expect(countRows(database, 'article_source_cleanup_tasks')).toBe(1);
+    expect(countRows(database, 'reading_memory_entries')).toBe(0);
+    expect(countRows(database, 'reading_memory_entry_fts')).toBe(1);
+    expect(warning).toHaveBeenCalledWith(
+      '[reading-memory] cleanup article memory failed',
+      expect.objectContaining({ articleId: 'article_1' }),
+    );
+  });
+
   it('soft-deletes annotation source memory without touching original summaries', () => {
     const database = lifecycleDatabase();
     insertAnnotation(database, 'annotation_1');
     appendReadingMemoryEntries(
       [
         memoryEntry({
-          id: 'annotation_entry',
+          id: 'annotation_memory_annotation_1',
           kind: 'trace',
           sourceType: 'annotation',
+          sourceId: 'annotation_1',
           sourceAnnotationId: 'annotation_1',
           payload: { items: [traceItem('annotation source memory')] },
+        }),
+        memoryEntry({
+          id: 'other_annotation_projection',
+          kind: 'trace',
+          sourceType: 'annotation',
+          sourceId: 'annotation_1',
+          sourceAnnotationId: 'annotation_1',
+          payload: { items: [traceItem('independent retained memory')] },
         }),
         memoryEntry({
           id: 'original_summary',
@@ -126,21 +178,21 @@ describe('article memory lifecycle', () => {
       readReadingMemoryEntries({ articleId: 'article_1', executor: database }).map(
         (entry) => entry.id,
       ),
-    ).toEqual(['original_summary']);
+    ).toEqual(['original_summary', 'other_annotation_projection']);
     expect(
       readReadingMemoryEntries({
         articleId: 'article_1',
         includeDeleted: true,
         executor: database,
-      }).find((entry) => entry.id === 'annotation_entry')?.deletedAt,
+      }).find((entry) => entry.id === 'annotation_memory_annotation_1')?.deletedAt,
     ).toBe('2026-05-26T01:00:00.000Z');
     expect(
       searchReadingMemoryEntries({
         articleId: 'article_1',
         query: 'annotation',
         executor: database,
-      }),
-    ).toEqual([]);
+      }).map((entry) => entry.id),
+    ).toEqual(['other_annotation_projection']);
     expect(
       searchReadingMemoryEntries({
         articleId: 'article_1',
@@ -165,39 +217,52 @@ describe('article memory lifecycle', () => {
     appendReadingMemoryEntries(
       [
         memoryEntry({
-          id: 'comment_entry',
+          id: 'comment_memory_comment_1',
           kind: 'trace',
           sourceType: 'comment',
+          sourceId: 'comment_1',
           sourceCommentId: 'comment_1',
           payload: { items: [traceItem('comment source memory')] },
         }),
         memoryEntry({
-          id: 'annotation_entry',
+          id: 'annotation_memory_annotation_1',
           kind: 'trace',
           sourceType: 'annotation',
+          sourceId: 'annotation_1',
           sourceAnnotationId: 'annotation_1',
           payload: { items: [traceItem('annotation source memory')] },
         }),
         memoryEntry({
-          id: 'reply_entry',
+          id: 'comment_memory_reply_1',
           kind: 'trace',
           sourceType: 'comment',
+          sourceId: 'reply_1',
           sourceCommentId: 'reply_1',
           payload: { items: [traceItem('reply source memory')] },
         }),
         memoryEntry({
-          id: 'nested_reply_entry',
+          id: 'comment_memory_reply_2',
           kind: 'trace',
           sourceType: 'comment',
+          sourceId: 'reply_2',
           sourceCommentId: 'reply_2',
           payload: { items: [traceItem('nested reply source memory')] },
         }),
         memoryEntry({
-          id: 'sibling_entry',
+          id: 'comment_memory_sibling_1',
           kind: 'trace',
           sourceType: 'comment',
+          sourceId: 'sibling_1',
           sourceCommentId: 'sibling_1',
           payload: { items: [traceItem('sibling source memory')] },
+        }),
+        memoryEntry({
+          id: 'other_comment_projection',
+          kind: 'trace',
+          sourceType: 'comment',
+          sourceId: 'comment_1',
+          sourceCommentId: 'comment_1',
+          payload: { items: [traceItem('independent comment memory')] },
         }),
       ],
       database,
@@ -216,7 +281,11 @@ describe('article memory lifecycle', () => {
       readReadingMemoryEntries({ articleId: 'article_1', executor: database }).map(
         (entry) => entry.id,
       ),
-    ).toEqual(['annotation_entry', 'sibling_entry']);
+    ).toEqual([
+      'annotation_memory_annotation_1',
+      'comment_memory_sibling_1',
+      'other_comment_projection',
+    ]);
     expect(readReadingMemoryProjectionJobs(database, 1)[0]).toMatchObject({
       targetId: 'annotation_1',
       articleId: 'article_1',
@@ -418,7 +487,7 @@ describe('article memory lifecycle', () => {
     });
   });
 
-  it('rolls the article write and its memory soft-deletes back together', async () => {
+  it('rolls source rows and projection jobs back when an article write fails', async () => {
     const database = articleRowsDatabase();
     await saveArticleRows(
       articleRecord({
@@ -467,8 +536,6 @@ describe('article memory lifecycle', () => {
       articleRecord({ annotations: [annotation({ id: 'annotation_mirror' })] }),
     );
 
-    // The mirror runs after the article transaction and swallows its own failure, so the
-    // article survives while its memory projection is missing.
     expect(patch.article.id).toBe('article_1');
     expect(articleAnnotationIds(database, 'article_1')).toEqual(['annotation_mirror']);
     expect(readReadingMemoryEntries({ articleId: 'article_1', executor: database })).toEqual([]);
@@ -479,7 +546,42 @@ describe('article memory lifecycle', () => {
     });
   });
 
-  it('rolls annotation deletion back with its memory soft-delete', () => {
+  it('keeps a full article save when removed mirror cleanup fails', async () => {
+    const database = articleRowsDatabase();
+    await saveArticleRows(
+      articleRecord({ annotations: [annotation({ id: 'annotation_removed' })] }),
+    );
+    database.exec(`
+      CREATE TRIGGER fail_memory_cleanup
+      BEFORE UPDATE ON reading_memory_entries
+      WHEN OLD.id = 'annotation_memory_annotation_removed'
+      BEGIN SELECT RAISE(ABORT, 'memory cleanup failed'); END;
+    `);
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    const patch = await saveArticleRows(
+      articleRecord({ annotations: [], updatedAt: '2026-05-26T02:00:00.000Z' }),
+    );
+
+    expect(patch.article.updatedAt).toBe('2026-05-26T02:00:00.000Z');
+    expect(articleAnnotationIds(database, 'article_1')).toEqual([]);
+    expect(
+      readReadingMemoryEntries({ articleId: 'article_1', executor: database }).map(
+        (entry) => entry.id,
+      ),
+    ).toEqual(['annotation_memory_annotation_removed']);
+    expect(readReadingMemoryProjectionJobs(database, 1)[0]).toMatchObject({
+      targetId: 'annotation_removed',
+      articleId: 'article_1',
+      operation: 'delete',
+    });
+    expect(warning).toHaveBeenCalledWith(
+      '[reading-memory] cleanup annotation memory mirror failed',
+      expect.objectContaining({ articleId: 'article_1', annotationId: 'annotation_removed' }),
+    );
+  });
+
+  it('rolls the projection job back when annotation deletion fails', () => {
     const database = lifecycleDatabase();
     insertAnnotation(database, 'annotation_1');
     appendReadingMemoryEntries(
@@ -513,6 +615,100 @@ describe('article memory lifecycle', () => {
       ),
     ).toEqual(['memory_annotation']);
     expect(readReadingMemoryProjectionJobs(database, 1)).toEqual([]);
+  });
+
+  it('keeps an annotation deletion when its compatibility mirror cleanup fails', () => {
+    const database = lifecycleDatabase();
+    insertAnnotation(database, 'annotation_1');
+    appendReadingMemoryEntries(
+      [
+        memoryEntry({
+          id: 'annotation_memory_annotation_1',
+          kind: 'trace',
+          sourceType: 'annotation',
+          sourceId: 'annotation_1',
+          sourceAnnotationId: 'annotation_1',
+          payload: { items: [traceItem('annotation source memory')] },
+        }),
+      ],
+      database,
+    );
+    database.exec(`
+      CREATE TRIGGER fail_memory_cleanup
+      BEFORE UPDATE ON reading_memory_entries
+      WHEN OLD.id = 'annotation_memory_annotation_1'
+      BEGIN SELECT RAISE(ABORT, 'memory cleanup failed'); END;
+    `);
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    const result = deleteAnnotationRowsWithMemoryLifecycle(database, {
+      articleId: 'article_1',
+      annotationId: 'annotation_1',
+    });
+
+    expect(result).toEqual({ deletedAnnotationCount: 1, deletedMemoryCount: 0 });
+    expect(countRows(database, 'annotations')).toBe(0);
+    expect(
+      readReadingMemoryEntries({ articleId: 'article_1', executor: database }).map(
+        (entry) => entry.id,
+      ),
+    ).toEqual(['annotation_memory_annotation_1']);
+    expect(readReadingMemoryProjectionJobs(database, 1)[0]).toMatchObject({
+      targetId: 'annotation_1',
+      operation: 'delete',
+    });
+    expect(warning).toHaveBeenCalledWith(
+      '[reading-memory] cleanup annotation memory mirror failed',
+      expect.objectContaining({ articleId: 'article_1', annotationId: 'annotation_1' }),
+    );
+  });
+
+  it('keeps a comment deletion when its compatibility mirror cleanup fails', () => {
+    const database = lifecycleDatabase();
+    insertAnnotation(database, 'annotation_1');
+    insertComment(database, 'annotation_1', 'comment_1');
+    appendReadingMemoryEntries(
+      [
+        memoryEntry({
+          id: 'comment_memory_comment_1',
+          kind: 'trace',
+          sourceType: 'comment',
+          sourceId: 'comment_1',
+          sourceCommentId: 'comment_1',
+          payload: { items: [traceItem('comment source memory')] },
+        }),
+      ],
+      database,
+    );
+    database.exec(`
+      CREATE TRIGGER fail_memory_cleanup
+      BEFORE UPDATE ON reading_memory_entries
+      WHEN OLD.id = 'comment_memory_comment_1'
+      BEGIN SELECT RAISE(ABORT, 'memory cleanup failed'); END;
+    `);
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    const result = deleteCommentRowsWithMemoryLifecycle(database, {
+      articleId: 'article_1',
+      annotationId: 'annotation_1',
+      commentId: 'comment_1',
+    });
+
+    expect(result).toEqual({ deletedCommentCount: 1, deletedMemoryCount: 0 });
+    expect(commentIds(database)).toEqual([]);
+    expect(
+      readReadingMemoryEntries({ articleId: 'article_1', executor: database }).map(
+        (entry) => entry.id,
+      ),
+    ).toEqual(['comment_memory_comment_1']);
+    expect(readReadingMemoryProjectionJobs(database, 1)[0]).toMatchObject({
+      targetId: 'annotation_1',
+      operation: 'upsert',
+    });
+    expect(warning).toHaveBeenCalledWith(
+      '[reading-memory] cleanup comment memory mirror failed',
+      expect.objectContaining({ articleId: 'article_1', commentIds: ['comment_1'] }),
+    );
   });
 
   it('backfills existing web annotations idempotently and leaves PDFs for lazy fill', () => {
@@ -604,6 +800,7 @@ function lifecycleDatabase(): ReadingMemorySqliteExecutor {
     '0054_library_collections_pins',
     '0066_article_source_cleanup_tasks',
     '0067_reading_memory_projection_jobs',
+    '0068_reading_memory_evidence',
   ]) {
     const migration = migrations.find((item) => item.id === id);
     if (!migration) throw new Error(`missing migration ${id}`);

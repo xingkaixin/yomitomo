@@ -301,6 +301,7 @@ function registerIpc(startupStoreInitialization: StartupStoreInitializationResul
     recordPerformanceTiming,
     configureWeReadAutoSync: (reason: string) =>
       mainProcessRuntime?.configureWeReadAutoSync(reason),
+    onDatabaseRestored: () => mainProcessRuntime?.onDatabaseRestored(),
     storeLoadErrorInfo,
     elapsedMs,
     logInfo,

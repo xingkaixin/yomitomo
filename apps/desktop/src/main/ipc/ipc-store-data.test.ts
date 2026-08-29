@@ -113,7 +113,7 @@ describe('store data update IPC', () => {
 
     expect(result).toEqual({ ok: true, value: { canceled: false, store } });
     expect(context.sendFullStoreUpdated).toHaveBeenCalledWith(event, store);
-    expect(context.configureWeReadAutoSync).toHaveBeenCalledWith('database-restored');
+    expect(context.onDatabaseRestored).toHaveBeenCalledOnce();
   });
 
   it.each(['canceled', 'failed'])(
@@ -131,7 +131,7 @@ describe('store data update IPC', () => {
 
       expect(result.ok).toBe(outcome === 'canceled');
       expect(context.sendFullStoreUpdated).not.toHaveBeenCalled();
-      expect(context.configureWeReadAutoSync).not.toHaveBeenCalled();
+      expect(context.onDatabaseRestored).not.toHaveBeenCalled();
     },
   );
 });
@@ -195,7 +195,7 @@ function storeContext(input: {
       },
     }),
     logError: vi.fn(),
-    configureWeReadAutoSync: vi.fn(),
+    onDatabaseRestored: vi.fn(),
     sendFullStoreUpdated: vi.fn(),
     storeLoadErrorInfo: vi.fn(),
   };

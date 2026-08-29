@@ -98,6 +98,7 @@ it.each(['weread', 'model-pricing'] as const)(
       },
       logError: vi.fn(),
       createTelemetryController: () => ({ check() {}, dispose() {} }),
+      startEvidenceProjectionWorker: () => ({ requestRun() {}, dispose() {} }),
       syncWeRead: async () => {
         await work();
         return { settings, books: [] };
@@ -185,6 +186,7 @@ it('starts automatic sync when the restore IPC replaces manual settings', async 
   await backupDatabaseFile(join(paths.userData, 'auto-sync-backup.sqlite'));
   getDatabase().update(schema.wereadAccounts).set({ syncMode: 'manual' }).run();
   const syncWeRead = vi.fn(() => weReadRepository.readWeReadState());
+  const requestEvidenceProjection = vi.fn();
   vi.useFakeTimers({
     toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'],
   });
@@ -200,6 +202,10 @@ it('starts automatic sync when the restore IPC replaces manual settings', async 
     logInfo: vi.fn(),
     logError: vi.fn(),
     createTelemetryController: () => ({ check() {}, dispose() {} }),
+    startEvidenceProjectionWorker: () => ({
+      requestRun: requestEvidenceProjection,
+      dispose() {},
+    }),
     syncWeRead,
     timing: {
       weReadStartupDelayMs: 10,
@@ -218,13 +224,14 @@ it('starts automatic sync when the restore IPC replaces manual settings', async 
       storeLoadErrorInfo: vi.fn(),
       sendFullStoreUpdated,
       startupStoreInitialization: { ok: true },
-      configureWeReadAutoSync: runtime.configureWeReadAutoSync,
+      onDatabaseRestored: runtime.onDatabaseRestored,
       getPersistenceModules: vi.fn(),
       getAppUpdaterModule: vi.fn(),
     });
     const result = await ipcHandlers.get('data:database-restore')?.({ sender: { id: 1 } });
     expect(result).toMatchObject({ ok: true, value: { canceled: false } });
     expect(sendFullStoreUpdated).toHaveBeenCalledOnce();
+    expect(requestEvidenceProjection).toHaveBeenCalledWith('database_restored');
     await vi.advanceTimersByTimeAsync(10);
     expect(syncWeRead).toHaveBeenCalledOnce();
     await vi.advanceTimersByTimeAsync(100);
