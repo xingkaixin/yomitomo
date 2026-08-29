@@ -144,6 +144,14 @@ export {
 export type { ReadingMemoryViewRequest } from './reading-memory/reading-memory-view-request';
 
 export {
+  materializeReadingEvidence,
+  projectReadingEvidenceThread,
+} from './reading-memory/reading-evidence-projection';
+export type { ProjectedReadingEvidenceEntry } from './reading-memory/reading-evidence-projection';
+
+export { rankReadingEvidenceCandidates } from './reading-memory/reading-evidence-ranking';
+
+export {
   activeTocIndexForOffset,
   annotationIdsAtHighlightPoint,
   articleTitleTocItems,

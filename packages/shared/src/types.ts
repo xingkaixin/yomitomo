@@ -13,6 +13,7 @@ export * from './sources/collection-types';
 export * from './reader-context-types';
 export * from './reading-memory/reading-memory-types';
 export * from './reading-memory/reading-memory-entry-types';
+export * from './reading-memory/reading-evidence-types';
 export * from './sources/article-types';
 export * from './store-types';
 export * from './agents/agent-payload-types';
