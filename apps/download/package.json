@@ -6,15 +6,18 @@
   "scripts": {
     "dev:worker": "wrangler dev",
     "deploy:cf": "wrangler deploy",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "oxlint src --type-aware",
-    "lint:fix": "oxlint src --fix",
-    "format": "oxfmt --write \"src/**/*.ts\" package.json tsconfig.json wrangler.jsonc",
-    "format:check": "oxfmt --check \"src/**/*.ts\" package.json tsconfig.json wrangler.jsonc",
+    "model:publish": "node scripts/publish-reading-memory-model.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.scripts.json --noEmit",
+    "lint": "oxlint src --type-aware && oxlint scripts --type-aware --tsconfig tsconfig.scripts.json",
+    "lint:fix": "oxlint src scripts --fix",
+    "format": "oxfmt --write \"src/**/*.ts\" \"scripts/**/*.ts\" \"model-releases/**/*.json\" package.json tsconfig.json tsconfig.scripts.json wrangler.jsonc",
+    "format:check": "oxfmt --check \"src/**/*.ts\" \"scripts/**/*.ts\" \"model-releases/**/*.json\" package.json tsconfig.json tsconfig.scripts.json wrangler.jsonc",
     "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "^3.1121.0",
     "@cloudflare/workers-types": "^5.20260823.1",
+    "@types/node": "^26.2.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11",
     "wrangler": "^4.125.0"
