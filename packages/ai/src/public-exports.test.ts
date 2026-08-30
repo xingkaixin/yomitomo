@@ -12,6 +12,7 @@ describe('@yomitomo/ai public exports', () => {
       'runAgentReview',
       'runAgentStream',
       'runAgentToolLoopTask',
+      'runReadingJudgment',
       'setAiLogger',
       'testProvider',
       'translateBilingualArticleBlocks',

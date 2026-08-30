@@ -83,6 +83,7 @@ export const generateYomitomoTextEffect = Effect.fn('Provider.generateText')(fun
           temperature: payload.temperature,
           providerOptions: adapter.providerOptions,
           abortSignal: signal,
+          telemetry: options.disableTelemetry ? { isEnabled: false } : undefined,
           output:
             payload.responseSchema && adapter.supportsStructuredOutput
               ? Output.object({

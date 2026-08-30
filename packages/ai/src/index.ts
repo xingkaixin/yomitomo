@@ -28,3 +28,4 @@ export {
 } from './agent/agent-message';
 export { runAgentAnnotateStream } from './agent/agent-annotation';
 export { runAgentReview } from './agent/agent-review';
+export { runReadingJudgment } from './reading-memory/reading-judgment';
