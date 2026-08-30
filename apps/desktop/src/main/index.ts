@@ -44,6 +44,7 @@ import {
 import { sendDesktopIpcRendererEvent } from './ipc/ipc-events';
 import { registerLibraryCollectionIpc } from './ipc/ipc-library-collection';
 import { registerProviderIpc } from './ipc/ipc-provider';
+import { registerReadingMemoryIpc } from './ipc/ipc-reading-memory';
 import { registerStoreDataIpc } from './ipc/ipc-store-data';
 import { registerWeReadIpc } from './ipc/ipc-weread';
 import { createRendererStateEventDispatcher } from './ipc/renderer-state-event-dispatcher';
@@ -51,6 +52,11 @@ import { createRendererRoleRegistry } from './ipc/renderer-role-registry';
 import { configureDesktopIpcRendererRoles } from './ipc/ipc-sender-guard';
 import { createReadingMemoryModelLifecycle } from './reading-memory/reading-memory-model-lifecycle';
 import { createReadingMemorySemanticIndex } from './reading-memory/reading-memory-semantic-index';
+import { createReadingMemoryControls } from './reading-memory/reading-memory-controls';
+import {
+  createReadingRelationsRuntime,
+  type ReadingRelationsRuntime,
+} from './reading-memory/reading-relations-runtime';
 import { getSqliteExecutor, readDatabaseLifecycle, withDatabaseLease } from './store/store-db';
 import { secureRendererWebPreferences } from './windows/renderer-window-security';
 import { installRendererNavigationGuard } from './windows/renderer-navigation';
@@ -65,6 +71,7 @@ let aiLoggerConfigured = false;
 let appUpdaterModulePromise: Promise<typeof import('./app/app-updater')> | null = null;
 let persistenceModulesPromise: Promise<DesktopPersistenceModules> | null = null;
 let mainProcessRuntime: MainProcessRuntime | null = null;
+let readingRelationsRuntime: ReadingRelationsRuntime | null = null;
 let sensitiveRendererEventsLocked = false;
 const rendererRoleRegistry = createRendererRoleRegistry();
 const rendererStateEventDispatcher = createRendererStateEventDispatcher(rendererRoleRegistry);
@@ -287,6 +294,16 @@ void app.whenReady().then(async () => {
     logInfo,
     logError,
   });
+  const readingMemoryControls = createReadingMemoryControls({
+    modelLifecycle: readingMemoryModelLifecycle,
+    semanticIndex: readingMemorySemanticIndex,
+    userDataPath: app.getPath('userData'),
+  });
+  readingRelationsRuntime = createReadingRelationsRuntime({
+    semanticIndex: readingMemorySemanticIndex,
+    getAiModule,
+    logInfo,
+  });
   mainProcessRuntime = startMainProcessRuntime({
     getPersistenceModules,
     getAppUpdaterModule,
@@ -295,8 +312,9 @@ void app.whenReady().then(async () => {
     elapsedMs,
     logInfo,
     logError,
-    readingMemorySemanticIndex,
+    readingMemoryControls,
   });
+  registerReadingMemoryIpc({ relations: readingRelationsRuntime, controls: readingMemoryControls });
   registerIpc(startupStoreInitialization);
   recordStartupTiming('ipc.registered');
   recordStartupTiming('updater.deferred');
@@ -311,6 +329,8 @@ app.on('window-all-closed', () => {
 
 const beforeQuit = createBeforeQuitHandler({
   dispose: async () => {
+    readingRelationsRuntime?.cancelAll();
+    readingRelationsRuntime = null;
     await mainProcessRuntime?.dispose();
     mainProcessRuntime = null;
   },
@@ -347,7 +367,10 @@ function registerIpc(startupStoreInitialization: StartupStoreInitializationResul
     recordPerformanceTiming,
     configureWeReadAutoSync: (reason: string) =>
       mainProcessRuntime?.configureWeReadAutoSync(reason),
-    onDatabaseRestored: () => mainProcessRuntime?.onDatabaseRestored(),
+    onDatabaseRestored: () => {
+      readingRelationsRuntime?.cancelAll();
+      mainProcessRuntime?.onDatabaseRestored();
+    },
     storeLoadErrorInfo,
     elapsedMs,
     logInfo,
@@ -397,6 +420,7 @@ function sendWeReadStateUpdated(state: WeReadState) {
 
 function setSensitiveRendererEventsLocked(locked: boolean) {
   sensitiveRendererEventsLocked = locked;
+  if (locked) readingRelationsRuntime?.cancelAll();
 }
 
 function handleAppMenuCommand(command: AppMenuCommand) {

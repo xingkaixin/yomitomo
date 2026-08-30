@@ -125,7 +125,7 @@ export function useReadingLibraryNavigation({
             ? article
             : onReadArticle(articleId),
         (fullArticle) => {
-          if (!fullArticle) return;
+          if (!fullArticle) throw new Error('Reading source is unavailable');
           discussionArticleIdRef.current = fullArticle.id;
           send({ type: 'show-article', article: fullArticle, focusAnnotationId });
         },

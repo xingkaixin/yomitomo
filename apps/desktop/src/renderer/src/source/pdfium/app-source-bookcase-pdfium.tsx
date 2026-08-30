@@ -95,7 +95,7 @@ export function PdfiumBookcase({
     selectionActionShortcuts,
     uiLanguage,
   },
-  readerControl: { focusAnnotationId, onClose, selectedAnnotationId },
+  readerControl: { focusAnnotationId, onClose, onOpenEvidenceSource, selectedAnnotationId },
 }: PdfiumBookcaseProps) {
   const { t } = useTranslation();
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
@@ -137,6 +137,7 @@ export function PdfiumBookcase({
                           onClose,
                           onArticleChange,
                           onFocusedAnnotation,
+                          onOpenEvidenceSource,
                           onOpenAnnotation,
                         }}
                         document={{
@@ -194,6 +195,7 @@ type PdfiumDocumentProps = {
     onClose: PdfiumBookcaseProps['readerControl']['onClose'];
     onArticleChange: PdfiumBookcaseProps['annotationActions']['onArticleChange'];
     onFocusedAnnotation: PdfiumBookcaseProps['annotationActions']['onFocusedAnnotation'];
+    onOpenEvidenceSource: PdfiumBookcaseProps['readerControl']['onOpenEvidenceSource'];
     onOpenAnnotation: PdfiumBookcaseProps['annotationActions']['onOpenAnnotation'];
   };
   document: {
@@ -244,6 +246,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     onClose,
     onArticleChange,
     onFocusedAnnotation,
+    onOpenEvidenceSource,
     onOpenAnnotation,
   } = actions;
   const { mergeArticleAgentAnnotation, saveArticleReadingProgress } = articleActions;
@@ -296,6 +299,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   });
   const sourceReaderApp = useSourceReaderApp({
     articleActions,
+    onOpenEvidenceSource,
     createAgentAnnotationAdapter: ({ isCurrentArticle, setStatusMessage }) =>
       createPdfiumSourceReaderController({
         enqueueAgentAnnotationPlayback: (articleId, annotation) =>
@@ -468,6 +472,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   const { scrollToAnnotation, scrollToTocItem } = usePdfiumNavigation({
     annotations,
     documentId,
+    extractPageText: extractPdfiumPageText,
     focusAnnotationId,
     pageCount,
     scroll,

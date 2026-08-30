@@ -51,6 +51,7 @@ function ReaderAppViewComponent(
     chat,
     labels = defaultReaderUiLabels,
     options,
+    overlays,
     selection,
     settings,
     toc,
@@ -331,6 +332,7 @@ function ReaderAppViewComponent(
         {virtualCursors.map((cursor) =>
           cursor.visible ? <VirtualCursor cursor={cursor} key={cursor.id} /> : null,
         )}
+        {overlays}
       </div>
     </ReaderTooltipProvider>
   );

@@ -19,6 +19,23 @@ vi.mock('../app/logger', () => ({
 }));
 
 describe('provider IPC persistence boundary', () => {
+  it.each([true, false])(
+    'omits renderer consent %s while preserving ordinary settings changes',
+    async (readingMemoryRemoteConsent) => {
+      ipcMocks.ipcMainHandle.mockClear();
+      const saveSettings = vi.fn(async () => desktopStore());
+      registerProviderIpc(providerIpcContext({}, {}, { saveSettings }));
+      const handler = ipcMocks.ipcMainHandle.mock.calls.find(
+        ([channel]) => channel === 'settings:save',
+      )?.[1];
+      const input = { readingMemoryRemoteConsent, uiLanguage: 'en' };
+
+      expect(await handler({}, input)).toMatchObject({ ok: true });
+      expect(saveSettings).toHaveBeenCalledWith({ uiLanguage: 'en' });
+      expect(input.readingMemoryRemoteConsent).toBe(readingMemoryRemoteConsent);
+    },
+  );
+
   it('forwards saved settings with their source event', async () => {
     ipcMocks.ipcMainHandle.mockClear();
     const store = desktopStore();

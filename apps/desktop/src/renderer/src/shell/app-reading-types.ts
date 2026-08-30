@@ -4,9 +4,10 @@ export type EbookImportProgressCallback = (progress: number) => void;
 
 export type PdfImportProgressCallback = (progress: number) => void;
 
-export type ReadingLibraryOpenTarget = {
+export type ReadingEvidenceSourceTarget = {
   articleId: string;
   annotationId?: string;
+  view?: 'source' | 'discussion';
 };
 
 export type PromptArticle = {

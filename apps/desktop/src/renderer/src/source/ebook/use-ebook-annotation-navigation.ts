@@ -250,33 +250,35 @@ export function useEbookAnnotationNavigation({
         annotationId: focusAnnotationId,
         annotationCount: currentAnnotations.length,
       });
-      onFocusedAnnotationRef.current();
+      onFocusedAnnotationRef.current(false);
       return;
     }
     let cancelled = false;
     let timer: number | null = null;
-    void goToAnnotation(focusAnnotationId).then((navigated) => {
-      recordRendererPerformanceTiming('reader_focus', {
-        source: 'ebook',
-        phase: cancelled ? 'navigation_cancelled' : 'navigation_complete',
-        articleId: article.id,
-        annotationId: focusAnnotationId,
-        navigated,
-        boxCount: boxes.length,
-        pageInfo: viewRef.current?.getPageInfo?.() ?? null,
-      });
-      if (cancelled) return;
-      timer = window.setTimeout(() => {
+    void goToAnnotation(focusAnnotationId)
+      .catch(() => false)
+      .then((navigated) => {
         recordRendererPerformanceTiming('reader_focus', {
           source: 'ebook',
-          phase: 'complete_timer',
+          phase: cancelled ? 'navigation_cancelled' : 'navigation_complete',
           articleId: article.id,
           annotationId: focusAnnotationId,
+          navigated,
+          boxCount: boxes.length,
           pageInfo: viewRef.current?.getPageInfo?.() ?? null,
         });
-        onFocusedAnnotationRef.current();
-      }, 180);
-    });
+        if (cancelled) return;
+        timer = window.setTimeout(() => {
+          recordRendererPerformanceTiming('reader_focus', {
+            source: 'ebook',
+            phase: 'complete_timer',
+            articleId: article.id,
+            annotationId: focusAnnotationId,
+            pageInfo: viewRef.current?.getPageInfo?.() ?? null,
+          });
+          onFocusedAnnotationRef.current(navigated);
+        }, 180);
+      });
     return () => {
       cancelled = true;
       recordRendererPerformanceTiming('reader_focus', {

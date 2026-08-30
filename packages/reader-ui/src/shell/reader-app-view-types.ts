@@ -190,6 +190,7 @@ export type ReaderUiLabels = {
   adjustSelectionEnd: string;
   adjustSelectionStart: string;
   askSelection: string;
+  findRelated: string;
   assistant: string;
   assistantAnswering: string;
   assistantCompleted: string;
@@ -269,6 +270,7 @@ export const defaultReaderUiLabels: ReaderUiLabels = {
   adjustSelectionEnd: '调整选区终点',
   adjustSelectionStart: '调整选区起点',
   askSelection: '问一下',
+  findRelated: '查找关联',
   assistant: '助手',
   assistantAnswering: '正在回答...',
   assistantCompleted: '已完成',
@@ -373,6 +375,7 @@ export type ReaderSelectionActions = {
   onCopySelection: (action: SelectionAction) => void | Promise<void>;
   onMouseUp: (event: React.MouseEvent<HTMLElement>) => void;
   onAskSelection?: (action: SelectionAction) => void;
+  onFindRelated?: (action: SelectionAction) => void;
   onSelectionHandleDrag?: (point: SelectionAdjustmentPointer) => void;
   onSelectionHandleDragEnd?: (point: SelectionAdjustmentPointer) => void;
   onSelectionHandleDragStart?: (point: SelectionAdjustmentPointer) => void;
@@ -417,6 +420,7 @@ export type ReaderAppViewProps = {
   chat?: ReaderChatModel;
   labels?: ReaderUiLabels;
   options?: ReaderShellOptions;
+  overlays?: React.ReactNode;
   selection: ReaderSelectionModel;
   settings: ReaderSettingsModel;
   toc: ReaderTocModel;

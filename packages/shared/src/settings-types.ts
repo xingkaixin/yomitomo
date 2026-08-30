@@ -57,6 +57,7 @@ export type ResolvedAppSettings = {
   selectionActionShortcuts: SelectionActionShortcuts;
   saveArticleImages: boolean;
   allowLocalNetworkArticleImport: boolean;
+  readingMemoryRemoteConsent: boolean;
   telemetryEnabled: boolean;
   developerModeEnabled: boolean;
   logRetentionDays: number;

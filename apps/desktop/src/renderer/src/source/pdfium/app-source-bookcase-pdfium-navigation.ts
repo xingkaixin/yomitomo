@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useBookmarkCapability } from '@embedpdf/plugin-bookmark/react';
-import { isPdfTextAnchor, type Annotation } from '@yomitomo/shared';
+import { isPdfTextAnchor, resolveTextAnchor, type Annotation } from '@yomitomo/shared';
 import type { TocItem } from '@yomitomo/core';
 import { recordRendererPerformanceTiming } from '../../shell/app-renderer-performance';
 import type { SourceBookcaseProps } from '../bookcase/source-bookcase-types';
@@ -13,6 +13,7 @@ type PdfiumScroll = {
 export function usePdfiumNavigation({
   annotations,
   documentId,
+  extractPageText,
   focusAnnotationId,
   pageCount,
   scroll,
@@ -23,6 +24,7 @@ export function usePdfiumNavigation({
 }: {
   annotations: Annotation[];
   documentId: string;
+  extractPageText: (pageIndex: number) => Promise<string>;
   focusAnnotationId: SourceBookcaseProps['readerControl']['focusAnnotationId'];
   pageCount: number;
   scroll: PdfiumScroll | null | undefined;
@@ -33,7 +35,7 @@ export function usePdfiumNavigation({
 }) {
   const { provides: bookmark } = useBookmarkCapability();
   const onFocusedAnnotationRef = useRef(onFocusedAnnotation);
-  const scrollToAnnotationRef = useRef<(annotationId: string) => void>(() => {});
+  const scrollToAnnotationRef = useRef<(annotationId: string) => boolean>(() => false);
 
   useEffect(() => {
     onFocusedAnnotationRef.current = onFocusedAnnotation;
@@ -61,20 +63,29 @@ export function usePdfiumNavigation({
     (annotationId: string) => {
       onOpenAnnotation(annotationId);
       const annotation = annotations.find((item) => item.id === annotationId);
-      if (!annotation || !isPdfTextAnchor(annotation.anchor)) return;
-      scroll?.scrollToPage({
+      if (
+        !annotation ||
+        !isPdfTextAnchor(annotation.anchor) ||
+        !Number.isInteger(annotation.anchor.pageIndex) ||
+        annotation.anchor.pageIndex < 0 ||
+        annotation.anchor.pageIndex >= pageCount ||
+        !scroll
+      )
+        return false;
+      scroll.scrollToPage({
         pageNumber: annotation.anchor.pageIndex + 1,
         behavior: 'smooth',
       });
+      return true;
     },
-    [annotations, onOpenAnnotation, scroll],
+    [annotations, onOpenAnnotation, pageCount, scroll],
   );
   useEffect(() => {
     scrollToAnnotationRef.current = scrollToAnnotation;
   }, [scrollToAnnotation]);
 
   useEffect(() => {
-    if (!focusAnnotationId) return;
+    if (!focusAnnotationId || !scroll) return;
     recordRendererPerformanceTiming('reader_focus', {
       source: 'pdf',
       phase: 'effect_start',
@@ -83,32 +94,50 @@ export function usePdfiumNavigation({
       annotationCount: annotations.length,
       hasScroll: Boolean(scroll),
     });
-    scrollToAnnotationRef.current(focusAnnotationId);
+    const navigated = scrollToAnnotationRef.current(focusAnnotationId);
+    const annotation = annotations.find((item) => item.id === focusAnnotationId);
     recordRendererPerformanceTiming('reader_focus', {
       source: 'pdf',
       phase: 'navigation_requested',
       articleId: documentId,
       annotationId: focusAnnotationId,
+      navigated,
     });
-    const timer = window.setTimeout(() => {
-      recordRendererPerformanceTiming('reader_focus', {
-        source: 'pdf',
-        phase: 'complete_timer',
-        articleId: documentId,
-        annotationId: focusAnnotationId,
-      });
-      onFocusedAnnotationRef.current();
-    }, 520);
+    let cancelled = false;
+    let timer: number | null = null;
+    const location =
+      navigated && annotation && isPdfTextAnchor(annotation.anchor)
+        ? extractPageText(annotation.anchor.pageIndex)
+            .then((pageText) => Boolean(resolveTextAnchor(pageText, annotation.anchor)))
+            .catch(() => false)
+        : Promise.resolve(false);
+    void location.then((located) => {
+      if (cancelled) return;
+      timer = window.setTimeout(
+        () => {
+          recordRendererPerformanceTiming('reader_focus', {
+            source: 'pdf',
+            phase: 'complete_timer',
+            articleId: documentId,
+            annotationId: focusAnnotationId,
+            located,
+          });
+          onFocusedAnnotationRef.current(located);
+        },
+        located ? 520 : 0,
+      );
+    });
     return () => {
+      cancelled = true;
       recordRendererPerformanceTiming('reader_focus', {
         source: 'pdf',
         phase: 'effect_cleanup',
         articleId: documentId,
         annotationId: focusAnnotationId,
       });
-      window.clearTimeout(timer);
+      if (timer !== null) window.clearTimeout(timer);
     };
-  }, [documentId, focusAnnotationId]);
+  }, [documentId, extractPageText, focusAnnotationId, scroll]);
 
   function scrollToTocItem(item: TocItem) {
     onCloseToc();

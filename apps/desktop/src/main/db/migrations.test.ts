@@ -3,6 +3,39 @@ import { describe, expect, it } from 'vitest';
 import { ensureAdditiveSchemaColumns, migrations } from './migrations';
 
 describe('reading memory migrations', () => {
+  it('defaults remote reading consent to false without changing existing privacy settings', () => {
+    const database = new DatabaseSync(':memory:');
+    for (const id of [
+      '0001_initial',
+      '0005_settings_reading_card',
+      '0018_onboarding_completed_at',
+      '0056_telemetry_settings',
+    ]) {
+      const migration = migrations.find((item) => item.id === id);
+      if (!migration) throw new Error(`missing migration ${id}`);
+      database.exec(migration.sql);
+    }
+    database.exec(
+      "UPDATE app_settings SET telemetry_enabled = 0, onboarding_completed_at = '2026-08-30T00:00:00.000Z'",
+    );
+    const migration = migrations.find((item) => item.id === '0070_reading_memory_remote_consent');
+    if (!migration) throw new Error('missing migration 0070_reading_memory_remote_consent');
+
+    database.exec(migration.sql);
+
+    expect(
+      database
+        .prepare(
+          'SELECT reading_memory_remote_consent, telemetry_enabled, onboarding_completed_at FROM app_settings',
+        )
+        .get(),
+    ).toEqual({
+      reading_memory_remote_consent: 0,
+      telemetry_enabled: 0,
+      onboarding_completed_at: '2026-08-30T00:00:00.000Z',
+    });
+  });
+
   it('adds library content source preferences to app settings', () => {
     const database = new DatabaseSync(':memory:');
     for (const id of [

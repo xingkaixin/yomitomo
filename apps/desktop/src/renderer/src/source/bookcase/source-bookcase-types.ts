@@ -10,6 +10,7 @@ import type {
 } from '@yomitomo/shared';
 import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
 import type { ReaderArticleActions } from '../../shell/app-article-store-actions';
+import type { ReadingEvidenceSourceTarget } from '../../shell/app-reading-types';
 
 type SourceBookcaseContent<TArticle extends ArticleRecord | null> = {
   agents: Agent[];
@@ -20,13 +21,14 @@ type SourceBookcaseContent<TArticle extends ArticleRecord | null> = {
 
 type SourceAnnotationActions = {
   onArticleChange: (article: ArticleRecord) => void;
-  onFocusedAnnotation: () => void;
+  onFocusedAnnotation: (located: boolean) => void;
   onOpenAnnotation: (annotationId: string | null) => void;
 };
 
 type SourceReaderControl = {
   focusAnnotationId: string | null;
   onClose: () => void;
+  onOpenEvidenceSource?: (target: ReadingEvidenceSourceTarget) => void;
   selectedAnnotationId: string | null;
 };
 

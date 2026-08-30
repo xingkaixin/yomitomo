@@ -38,6 +38,7 @@ export function normalizeAppSettings(settings: AppSettingsInput | undefined): Re
     selectionActionShortcuts: normalizeSelectionActionShortcuts(settings?.selectionActionShortcuts),
     saveArticleImages: Boolean(settings?.saveArticleImages),
     allowLocalNetworkArticleImport: Boolean(settings?.allowLocalNetworkArticleImport),
+    readingMemoryRemoteConsent: settings?.readingMemoryRemoteConsent === true,
     telemetryEnabled: normalizeBoolean(settings?.telemetryEnabled, true),
     developerModeEnabled: Boolean(settings?.developerModeEnabled),
     logRetentionDays: normalizeLogRetentionDays(settings?.logRetentionDays),

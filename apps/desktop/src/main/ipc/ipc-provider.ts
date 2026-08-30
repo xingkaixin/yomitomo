@@ -31,7 +31,10 @@ export function registerProviderIpc(context: ProviderIpcContext) {
   handleDesktopIpc('settings:save', async (event, input) => {
     const { storeSettings } = await context.getPersistenceModules();
     await assertSettingsAppLockChangeAllowed(input, storeSettings.readAppLockSettings());
-    const store = await storeSettings.saveSettings(input);
+    const settingsInput = { ...input };
+    // Only the dedicated privacy action can change consent, not stale settings snapshots.
+    delete settingsInput.readingMemoryRemoteConsent;
+    const store = await storeSettings.saveSettings(settingsInput);
     await pruneLogFile(store.settings.logRetentionDays);
     context.sendFullStoreUpdated(event, store);
     return store;

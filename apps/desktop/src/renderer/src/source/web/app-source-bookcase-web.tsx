@@ -58,7 +58,7 @@ export function WebSourceBookcase({
     selectionActionShortcuts,
     uiLanguage,
   },
-  readerControl: { focusAnnotationId, onClose, selectedAnnotationId },
+  readerControl: { focusAnnotationId, onClose, onOpenEvidenceSource, selectedAnnotationId },
 }: WebSourceBookcaseProps) {
   const { mergeArticleAgentAnnotation, saveArticleReadingProgress } = articleActions;
   const sourceReaderApp = useSourceReaderApp({
@@ -66,6 +66,7 @@ export function WebSourceBookcase({
     beforeOpenAnnotation,
     getArticleText: currentArticleText,
     messageSendShortcut,
+    onOpenEvidenceSource,
     settings,
     selectionActionShortcuts,
     session: {

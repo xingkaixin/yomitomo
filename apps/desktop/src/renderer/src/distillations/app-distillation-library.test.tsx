@@ -2,6 +2,7 @@
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import i18next from 'i18next';
 import type { DistillationLibraryListResult } from '../../../ipc-contract';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { DistillationLibrary } from './app-distillation-library';
@@ -31,14 +32,27 @@ afterEach(cleanup);
 describe('DistillationLibrary', () => {
   it('shows published thoughts and opens their original annotations', async () => {
     listDistillationLibrary.mockResolvedValue(libraryResult());
-    const onOpenOriginal = vi.fn();
-    render(<DistillationLibrary onOpenOriginal={onOpenOriginal} />);
+    const onOpenEvidenceSource = vi.fn();
+    render(<DistillationLibrary onOpenEvidenceSource={onOpenEvidenceSource} />);
 
     expect(await screen.findByText('Good modules hide complexity.')).toBeTruthy();
     expect(screen.getByText('The Deep Module')).toBeTruthy();
+    expect(screen.getByText('A narrow interface hides substantial complexity.')).toBeTruthy();
+    expect(screen.getByText(i18next.t('readingEvidence.authors.aiAssisted'))).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: '回到原批注' }));
-    expect(onOpenOriginal).toHaveBeenCalledWith('article_1', 'annotation_1');
+    fireEvent.click(screen.getByRole('button', { name: i18next.t('readingEvidence.openSource') }));
+    expect(onOpenEvidenceSource).toHaveBeenLastCalledWith({
+      articleId: 'article_1',
+      annotationId: 'annotation_1',
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: i18next.t('readingEvidence.openDiscussion') }),
+    );
+    expect(onOpenEvidenceSource).toHaveBeenLastCalledWith({
+      articleId: 'article_1',
+      annotationId: 'annotation_1',
+      view: 'discussion',
+    });
   });
 
   it('debounces search and distinguishes no matches from an empty library', async () => {
@@ -49,7 +63,7 @@ describe('DistillationLibrary', () => {
       totalCount: 0,
       unfilteredCount: 1,
     });
-    render(<DistillationLibrary onOpenOriginal={vi.fn()} />);
+    render(<DistillationLibrary onOpenEvidenceSource={vi.fn()} />);
     await screen.findByText('Good modules hide complexity.');
 
     fireEvent.change(screen.getByRole('searchbox', { name: '搜索沉淀' }), {

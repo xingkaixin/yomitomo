@@ -83,6 +83,7 @@ import {
 } from './store-db';
 import { closeDatabase } from './store-lifecycle';
 import { readStore } from './store-snapshot';
+import { saveSettings, saveSettingsShell } from './store-settings';
 import { normalizeWeReadReadingStats } from '../weread/weread-repository';
 import * as schema from '../db/schema';
 
@@ -107,6 +108,47 @@ beforeEach(async () => {
 afterEach(async () => {
   closeDatabase();
   await rm('/tmp/yomitomo-store-reading-data-test', { recursive: true, force: true });
+});
+
+describe('desktop store reading privacy settings', () => {
+  it('preserves consent through partial updates, reopen, and database backup restore', async () => {
+    expect((await readStore()).settings.readingMemoryRemoteConsent).toBe(false);
+    const privacySettings = {
+      telemetryEnabled: false,
+      onboardingCompletedAt: '2026-08-30T00:00:00.000Z',
+    };
+    expect((await saveSettings(privacySettings)).settings.readingMemoryRemoteConsent).toBe(false);
+    const unconfirmedBackup = join(dirname(getDatabasePath()), 'unconfirmed-backup.sqlite');
+    await backupDatabaseFile(unconfirmedBackup);
+
+    const confirmed = await saveSettingsShell({ readingMemoryRemoteConsent: true });
+    expect(confirmed.settings).toMatchObject({
+      ...privacySettings,
+      readingMemoryRemoteConsent: true,
+    });
+    closeDatabase();
+    expect((await readStore()).settings.readingMemoryRemoteConsent).toBe(true);
+    expect((await saveSettings({ uiLanguage: 'ja' })).settings.readingMemoryRemoteConsent).toBe(
+      true,
+    );
+    const confirmedBackup = join(dirname(getDatabasePath()), 'confirmed-backup.sqlite');
+    await backupDatabaseFile(confirmedBackup);
+    expect(
+      (await saveSettingsShell({ readingMemoryRemoteConsent: false })).settings
+        .readingMemoryRemoteConsent,
+    ).toBe(false);
+
+    await replaceDatabaseFile(confirmedBackup);
+    expect((await readStore()).settings).toMatchObject({
+      ...privacySettings,
+      readingMemoryRemoteConsent: true,
+    });
+    await replaceDatabaseFile(unconfirmedBackup);
+    expect((await readStore()).settings).toMatchObject({
+      ...privacySettings,
+      readingMemoryRemoteConsent: false,
+    });
+  });
 });
 
 describe('desktop store cleanup recovery', () => {

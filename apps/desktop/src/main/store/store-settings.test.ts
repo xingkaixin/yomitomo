@@ -209,6 +209,7 @@ describe('desktop store settings', () => {
       appLockShortcut: undefined,
       saveArticleImages: true,
       allowLocalNetworkArticleImport: true,
+      readingMemoryRemoteConsent: false,
       telemetryEnabled: false,
       developerModeEnabled: false,
       logRetentionDays: 30,

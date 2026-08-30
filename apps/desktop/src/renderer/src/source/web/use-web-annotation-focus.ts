@@ -15,7 +15,7 @@ export function useWebAnnotationFocus({
   articleId: string;
   boxCount: number;
   focusAnnotationId: string | null | undefined;
-  onFocusedAnnotation: () => void;
+  onFocusedAnnotation: (located: boolean) => void;
   scrollRef: RefObject<HTMLElement | null>;
   scrollToAnnotation: (annotationId: string) => boolean;
 }) {
@@ -67,7 +67,7 @@ export function useWebAnnotationFocus({
     let frame: number | null = null;
     let timer: number | null = null;
 
-    const completeFocus = (phase: string, delayMs: number) => {
+    const completeFocus = (phase: string, delayMs: number, located: boolean) => {
       timer = window.setTimeout(() => {
         if (cancelled) return;
         const currentScrollElement = scrollRef.current;
@@ -78,7 +78,7 @@ export function useWebAnnotationFocus({
           annotationId: focusAnnotationId,
           scrollTop: currentScrollElement?.scrollTop ?? null,
         });
-        onFocusedAnnotationRef.current();
+        onFocusedAnnotationRef.current(located);
       }, delayMs);
     };
 
@@ -95,7 +95,7 @@ export function useWebAnnotationFocus({
           annotationCount: currentAnnotations.length,
           attemptCount,
         });
-        onFocusedAnnotationRef.current();
+        onFocusedAnnotationRef.current(false);
         return;
       }
 
@@ -111,7 +111,7 @@ export function useWebAnnotationFocus({
         boxCount: boxCountRef.current,
       });
       if (scrolled) {
-        completeFocus('complete_timer', 520);
+        completeFocus('complete_timer', 520, true);
         return;
       }
 
@@ -125,7 +125,7 @@ export function useWebAnnotationFocus({
           attemptCount,
           boxCount: boxCountRef.current,
         });
-        completeFocus('unavailable_complete', 0);
+        completeFocus('unavailable_complete', 0, false);
         return;
       }
       frame = window.requestAnimationFrame(attemptFocus);
