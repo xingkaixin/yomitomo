@@ -1,4 +1,4 @@
-import { Worker } from 'node:worker_threads';
+import { fork, type ForkOptions } from 'node:child_process';
 import { basename, dirname, isAbsolute, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ReadingMemoryModelLifecycleState } from './reading-memory-model-lifecycle';
@@ -55,32 +55,45 @@ export type ReadingMemoryEmbeddingService = {
   dispose(): Promise<void>;
 };
 
-export type ReadingMemoryEmbeddingWorker = {
+export type ReadingMemoryEmbeddingProcess = {
+  readonly pid?: number;
+  readonly exitCode: number | null;
+  readonly signalCode: NodeJS.Signals | null;
   on(event: 'message', listener: (message: unknown) => void): unknown;
   on(event: 'error', listener: (error: Error) => void): unknown;
-  on(event: 'messageerror', listener: (error: Error) => void): unknown;
-  on(event: 'exit', listener: (code: number) => void): unknown;
+  on(event: 'disconnect', listener: () => void): unknown;
+  on(
+    event: 'exit',
+    listener: (code: number | null, signal: NodeJS.Signals | null) => void,
+  ): unknown;
   off(event: 'message', listener: (message: unknown) => void): unknown;
   off(event: 'error', listener: (error: Error) => void): unknown;
-  off(event: 'messageerror', listener: (error: Error) => void): unknown;
-  off(event: 'exit', listener: (code: number) => void): unknown;
-  postMessage(message: ReadingMemoryEmbeddingWorkerRequest): void;
-  terminate(): Promise<number>;
+  off(event: 'disconnect', listener: () => void): unknown;
+  off(
+    event: 'exit',
+    listener: (code: number | null, signal: NodeJS.Signals | null) => void,
+  ): unknown;
+  send(
+    message: ReadingMemoryEmbeddingWorkerRequest,
+    callback: (error: Error | null) => void,
+  ): boolean;
+  kill(signal: 'SIGKILL'): boolean;
 };
 
 export type ReadingMemoryEmbeddingServiceOptions = {
   timeoutMs?: number;
-  createWorker?: (
+  createProcess?: (
     url: URL,
-    options: { workerData: ReadingMemoryEmbeddingWorkerConfig },
-  ) => ReadingMemoryEmbeddingWorker;
+    options: ForkOptions & { windowsHide: true },
+  ) => ReadingMemoryEmbeddingProcess;
 };
 
 type WorkerSession = {
-  worker: ReadingMemoryEmbeddingWorker;
+  worker: ReadingMemoryEmbeddingProcess;
   onMessage: (message: unknown) => void;
   onError: (error: Error) => void;
-  onExit: (code: number) => void;
+  onDisconnect: () => void;
+  onExit: (code: number | null, signal: NodeJS.Signals | null) => void;
 };
 
 type ActiveBatch = {
@@ -98,10 +111,9 @@ export function createReadingMemoryEmbeddingService(
 ): ReadingMemoryEmbeddingService {
   const config = embeddingWorkerConfig(installation);
   const timeoutMs = positiveTimeout(options.timeoutMs ?? defaultEmbeddingTimeoutMs);
-  const createWorker =
-    options.createWorker ??
-    ((url: URL, workerOptions: { workerData: ReadingMemoryEmbeddingWorkerConfig }) =>
-      new Worker(url, workerOptions));
+  // A separate process contains native ONNX aborts during hard cancellation.
+  const createProcess: NonNullable<ReadingMemoryEmbeddingServiceOptions['createProcess']> =
+    options.createProcess ?? ((url, forkOptions) => fork(url, [], forkOptions));
   let session: WorkerSession | null = null;
   let activeBatch: ActiveBatch | null = null;
   let terminating: Promise<void> | null = null;
@@ -114,9 +126,7 @@ export function createReadingMemoryEmbeddingService(
     let tracked: Promise<void>;
     tracked = (async () => {
       try {
-        await current.worker.terminate();
-      } catch {
-        return;
+        await killProcess(current.worker);
       } finally {
         current.worker.off('error', absorbWorkerError);
       }
@@ -186,19 +196,26 @@ export function createReadingMemoryEmbeddingService(
   };
 
   const spawnSession = () => {
-    const worker: ReadingMemoryEmbeddingWorker = createWorker(readingMemoryEmbeddingWorkerUrl(), {
-      workerData: config,
+    const worker: ReadingMemoryEmbeddingProcess = createProcess(readingMemoryEmbeddingWorkerUrl(), {
+      execPath: process.execPath,
+      execArgv: [],
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', NODE_OPTIONS: '', NODE_PATH: '' },
+      serialization: 'advanced',
+      stdio: ['ignore', 'ignore', 'inherit', 'ipc'],
+      windowsHide: true,
     });
     let current: WorkerSession;
     const onMessage = (message: unknown) => receiveMessage(current, message);
     const onError = (error: Error) => failSession(current, error);
-    const onExit = (code: number) =>
-      failSession(current, new Error(`Embedding worker exited unexpectedly with code ${code}`));
-    current = { worker, onMessage, onError, onExit };
+    const onDisconnect = () =>
+      failSession(current, new Error('Embedding process IPC disconnected'));
+    const onExit = (code: number | null, signal: NodeJS.Signals | null) =>
+      failSession(current, new Error(`Embedding process exited unexpectedly: ${signal ?? code}`));
+    current = { worker, onMessage, onError, onDisconnect, onExit };
     worker.on('message', onMessage);
     worker.on('error', absorbWorkerError);
     worker.on('error', onError);
-    worker.on('messageerror', onError);
+    worker.on('disconnect', onDisconnect);
     worker.on('exit', onExit);
     session = current;
     return current;
@@ -221,6 +238,7 @@ export function createReadingMemoryEmbeddingService(
     if (signal?.aborted) {
       throw new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_CANCELED');
     }
+    const initialize = session === null;
     let current: WorkerSession;
     try {
       current = session ?? spawnSession();
@@ -243,9 +261,14 @@ export function createReadingMemoryEmbeddingService(
       batch = { requestId, count: request.texts.length, session: current, clear, resolve, reject };
       activeBatch = batch;
       signal?.addEventListener('abort', abort, { once: true });
+      const send = (message: ReadingMemoryEmbeddingWorkerRequest) => {
+        current.worker.send(message, (error) => {
+          if (error) failSession(current, error);
+        });
+      };
       try {
-        // oxlint-disable-next-line unicorn/require-post-message-target-origin
-        current.worker.postMessage({ type: 'embed', requestId, ...request });
+        if (initialize) send({ type: 'initialize', config });
+        send({ type: 'embed', requestId, ...request });
       } catch (error) {
         void failBatch(batch, 'READING_MEMORY_EMBEDDING_WORKER_FAILED', error);
       }
@@ -273,14 +296,28 @@ export function createReadingMemoryEmbeddingService(
   return { embed, dispose };
 }
 
-function requestWorkerDisposal(worker: ReadingMemoryEmbeddingWorker) {
+function killProcess(worker: ReadingMemoryEmbeddingProcess): Promise<void> {
+  if (worker.pid === undefined || worker.exitCode !== null || worker.signalCode !== null) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    const onExit = () => {
+      worker.off('exit', onExit);
+      resolve();
+    };
+    worker.on('exit', onExit);
+    worker.kill('SIGKILL');
+  });
+}
+
+function requestWorkerDisposal(worker: ReadingMemoryEmbeddingProcess) {
   return new Promise<void>((resolve) => {
     let timeout: ReturnType<typeof setTimeout> | undefined;
     const finish = () => {
       if (timeout) clearTimeout(timeout);
       worker.off('message', onMessage);
       worker.off('error', finish);
-      worker.off('messageerror', finish);
+      worker.off('disconnect', finish);
       worker.off('exit', finish);
       resolve();
     };
@@ -289,12 +326,13 @@ function requestWorkerDisposal(worker: ReadingMemoryEmbeddingWorker) {
     };
     worker.on('message', onMessage);
     worker.on('error', finish);
-    worker.on('messageerror', finish);
+    worker.on('disconnect', finish);
     worker.on('exit', finish);
     timeout = setTimeout(finish, gracefulDisposeTimeoutMs);
     try {
-      // oxlint-disable-next-line unicorn/require-post-message-target-origin
-      worker.postMessage({ type: 'dispose' });
+      worker.send({ type: 'dispose' }, (error) => {
+        if (error) finish();
+      });
     } catch {
       finish();
     }
@@ -304,7 +342,7 @@ function requestWorkerDisposal(worker: ReadingMemoryEmbeddingWorker) {
 function detachSession(session: WorkerSession) {
   session.worker.off('message', session.onMessage);
   session.worker.off('error', session.onError);
-  session.worker.off('messageerror', session.onError);
+  session.worker.off('disconnect', session.onDisconnect);
   session.worker.off('exit', session.onExit);
 }
 

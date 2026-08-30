@@ -138,6 +138,7 @@ async function runPackagedProbe() {
     const coldBatchMs = performance.now() - started;
     const query = await service.embed({ purpose: 'query', texts: [smokeTexts[0]] });
     assertVectors(query, 1, manifest);
+    const cancellation = await verifyCancellationAndRecovery(service, manifest);
     if (heartbeats === 0) throw new Error('Embedding blocked the main event loop');
     result = {
       platform,
@@ -151,12 +152,52 @@ async function runPackagedProbe() {
       queryCount: 1,
       coldBatchMs,
       mainThreadHeartbeats: heartbeats,
+      ...cancellation,
     };
   } finally {
     clearInterval(heartbeat);
     await service.dispose();
   }
   console.log(`${resultPrefix}${JSON.stringify(result)}`);
+}
+
+async function verifyCancellationAndRecovery(service, manifest) {
+  const canceledCode = 'READING_MEMORY_EMBEDDING_CANCELED';
+  const controller = new AbortController();
+  const texts = Array.from({ length: 4 }, () => 'evidence '.repeat(4096));
+  const started = performance.now();
+  let abortedAt;
+  // The session is already warm; cancel the long batch during native inference, not model loading.
+  const abortTimer = setTimeout(() => {
+    abortedAt = performance.now();
+    console.log(`Canceling warmed embedding batch after ${(abortedAt - started).toFixed(0)}ms`);
+    controller.abort();
+  }, 2000);
+  try {
+    await service.embed({ purpose: 'document', texts }, { signal: controller.signal });
+    throw new Error('Long embedding batch completed without observing cancellation');
+  } catch (error) {
+    if (error?.code !== canceledCode) throw error;
+    if (abortedAt === undefined) {
+      throw new Error('Embedding canceled before the scheduled native-inference interruption', {
+        cause: error,
+      });
+    }
+  } finally {
+    clearTimeout(abortTimer);
+  }
+  const cancellationLatencyMs = performance.now() - abortedAt;
+  const recoveryStarted = performance.now();
+  const recoveredQuery = await service.embed({ purpose: 'query', texts: [smokeTexts[0]] });
+  assertVectors(recoveredQuery, 1, manifest);
+  return {
+    cancellationBatchSize: texts.length,
+    cancellationErrorCode: canceledCode,
+    cancellationDelayMs: abortedAt - started,
+    cancellationLatencyMs,
+    recoveryQueryCount: 1,
+    recoveryQueryMs: performance.now() - recoveryStarted,
+  };
 }
 
 async function prepareModelInstallation(modelCache, modelDirectory) {

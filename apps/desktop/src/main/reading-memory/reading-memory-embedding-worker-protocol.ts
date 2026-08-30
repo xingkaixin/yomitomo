@@ -28,6 +28,7 @@ export type ReadingMemoryEmbeddingWorkerConfig = {
 };
 
 export type ReadingMemoryEmbeddingWorkerRequest =
+  | { type: 'initialize'; config: ReadingMemoryEmbeddingWorkerConfig }
   | (ReadingMemoryEmbeddingRequest & {
       type: 'embed';
       requestId: number;
@@ -70,6 +71,14 @@ export function parseReadingMemoryEmbeddingWorkerConfig(
     intraOpThreads: positiveSafeInteger(config.intraOpThreads, 'intraOpThreads'),
     interOpThreads: positiveSafeInteger(config.interOpThreads, 'interOpThreads'),
   };
+}
+
+export function parseReadingMemoryEmbeddingWorkerInitialization(
+  value: unknown,
+): ReadingMemoryEmbeddingWorkerConfig {
+  const request = recordValue(value, 'embedding initialization');
+  if (request.type !== 'initialize') throw new Error('First embedding message must initialize');
+  return parseReadingMemoryEmbeddingWorkerConfig(request.config);
 }
 
 export function parseReadingMemoryEmbeddingWorkerRequest(

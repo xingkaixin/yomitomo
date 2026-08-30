@@ -1,9 +1,9 @@
 import { isAbsolute } from 'node:path';
-import { parentPort, workerData, type MessagePort } from 'node:worker_threads';
+import process from 'node:process';
 import type { FeatureExtractionPipeline, Tensor } from '@huggingface/transformers';
 import {
   assertReadingMemoryEmbeddingVectors,
-  parseReadingMemoryEmbeddingWorkerConfig,
+  parseReadingMemoryEmbeddingWorkerInitialization,
   parseReadingMemoryEmbeddingWorkerRequest,
   type ReadingMemoryEmbeddingWorkerConfig,
   type ReadingMemoryEmbeddingWorkerRequest,
@@ -14,24 +14,26 @@ import {
 const maximumInferenceBatchSize = 4;
 
 type EmbeddingBatch = Extract<ReadingMemoryEmbeddingWorkerRequest, { type: 'embed' }>;
-type WorkerPort = Pick<MessagePort, 'on' | 'postMessage'>;
-
-if (parentPort) {
-  startReadingMemoryEmbeddingWorker(parentPort, workerData);
-}
-
-function startReadingMemoryEmbeddingWorker(port: WorkerPort, value: unknown) {
-  const config = parseReadingMemoryEmbeddingWorkerConfig(value);
+if (!process.send) throw new Error('Embedding process requires a parent IPC channel');
+const send = process.send.bind(process);
+process.on('disconnect', () => process.exit(0));
+process.once('message', (value: unknown) => {
+  const config = parseReadingMemoryEmbeddingWorkerInitialization(value);
   if (!isAbsolute(config.modelDirectory)) {
     throw new Error('Embedding model directory must be absolute');
   }
+  startReadingMemoryEmbeddingWorker(config);
+});
+
+function startReadingMemoryEmbeddingWorker(config: ReadingMemoryEmbeddingWorkerConfig) {
   let extractorPromise: Promise<FeatureExtractionPipeline> | null = null;
   let activeBatch: Promise<void> | null = null;
   let disposed = false;
 
-  const post = (message: ReadingMemoryEmbeddingWorkerResponse, buffer?: ArrayBuffer) => {
-    // oxlint-disable-next-line unicorn/require-post-message-target-origin
-    port.postMessage(message, buffer ? [buffer] : []);
+  const post = (message: ReadingMemoryEmbeddingWorkerResponse) => {
+    send(message, (error) => {
+      if (error) process.exit(1);
+    });
   };
 
   const dispose = async () => {
@@ -48,22 +50,19 @@ function startReadingMemoryEmbeddingWorker(port: WorkerPort, value: unknown) {
     try {
       const extractor = await (extractorPromise ??= loadExtractor(config));
       const vectors = await embedBatch(extractor, request, config);
-      post(
-        {
-          type: 'result',
-          requestId: request.requestId,
-          count: request.texts.length,
-          dimension: config.dimension,
-          buffer: vectors.buffer,
-        },
-        vectors.buffer,
-      );
+      post({
+        type: 'result',
+        requestId: request.requestId,
+        count: request.texts.length,
+        dimension: config.dimension,
+        buffer: vectors.buffer,
+      });
     } catch (error) {
       post({ type: 'error', requestId: request.requestId, message: errorMessage(error) });
     }
   };
 
-  port.on('message', (message: unknown) => {
+  process.on('message', (message: unknown) => {
     if (isDisposeRequest(message)) {
       void dispose().catch(() => post({ type: 'disposed' }));
       return;

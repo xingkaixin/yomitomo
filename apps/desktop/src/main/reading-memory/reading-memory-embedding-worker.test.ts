@@ -18,37 +18,55 @@ const workerMocks = vi.hoisted(() => {
     intraOpThreads: 4,
     interOpThreads: 1,
   };
-  const posts: Array<{
-    message: unknown;
-    transferredBuffers: number;
-    sourceDetached: boolean;
-  }> = [];
+  const posts: Array<{ message: unknown }> = [];
+  let initializationListener: ((message: unknown) => void) | undefined;
   let messageListener: ((message: unknown) => void) | undefined;
-  const port = {
-    on(_event: string, listener: (message: unknown) => void) {
-      messageListener = listener;
-      return port;
+  let disconnectListener: (() => void) | undefined;
+  let sendError: Error | null = null;
+  const childProcess = {
+    once(_event: string, listener: (message: unknown) => void) {
+      initializationListener = listener;
+      return childProcess;
     },
-    postMessage(message: unknown, transfer: ArrayBuffer[]) {
-      const copied = structuredClone(message, { transfer });
-      posts.push({
-        message: copied,
-        transferredBuffers: transfer.length,
-        sourceDetached: transfer.every((buffer) => buffer.byteLength === 0),
-      });
+    on(event: string, listener: () => void) {
+      if (event === 'message') messageListener = listener;
+      else if (event === 'disconnect') disconnectListener = listener;
+      return childProcess;
     },
+    send(message: unknown, callback: (error: Error | null) => void) {
+      posts.push({ message: structuredClone(message) });
+      queueMicrotask(() => callback(sendError));
+      return true;
+    },
+    exit: vi.fn(),
   };
   return {
     config,
     posts,
-    port,
+    childProcess,
     emit(message: unknown) {
+      if (initializationListener) {
+        const initialize = initializationListener;
+        initializationListener = undefined;
+        initialize(message);
+        return;
+      }
       if (!messageListener) throw new Error('Embedding worker listener was not registered');
       messageListener(message);
     },
+    disconnect() {
+      disconnectListener?.();
+    },
+    failSend() {
+      sendError = new Error('IPC channel disconnected');
+    },
     reset() {
       posts.length = 0;
+      initializationListener = undefined;
       messageListener = undefined;
+      disconnectListener = undefined;
+      sendError = null;
+      childProcess.exit.mockClear();
     },
   };
 });
@@ -64,10 +82,7 @@ const transformerMocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('node:worker_threads', () => ({
-  parentPort: workerMocks.port,
-  workerData: workerMocks.config,
-}));
+vi.mock('node:process', () => ({ default: workerMocks.childProcess }));
 
 vi.mock('@huggingface/transformers', () => transformerMocks);
 
@@ -86,7 +101,7 @@ describe('reading memory embedding worker', () => {
   it('uses local-only inference, explicit prefixes, bounded tokens and exclusive buffers', async () => {
     const { extractor, batches } = createExtractor();
     transformerMocks.pipeline.mockResolvedValue(extractor);
-    await import('./reading-memory-embedding-worker');
+    await startWorker();
     expect(transformerMocks.pipeline).not.toHaveBeenCalled();
 
     workerMocks.emit({
@@ -124,12 +139,11 @@ describe('reading memory embedding worker', () => {
     expect(batches[0].output.normalize).toHaveBeenCalledWith(2, -1);
     expect(workerMocks.posts[0]).toMatchObject({
       message: { type: 'result', requestId: 1, count: 2, dimension: 768 },
-      transferredBuffers: 1,
-      sourceDetached: true,
     });
     const response = workerMocks.posts[0].message as { buffer: ArrayBuffer };
     expect(new Float32Array(response.buffer)).toEqual(unitVectors(2));
     expect(batches[0].normalized.data.byteLength).toBe(2 * 768 * 4);
+    expect(batches[0].normalized.data.every((value) => value === 0)).toBe(true);
     for (const tensor of tensorsInBatch(batches[0])) {
       expect(tensor.dispose).toHaveBeenCalledOnce();
     }
@@ -147,7 +161,7 @@ describe('reading memory embedding worker', () => {
   it('awaits asynchronous extractor disposal before acknowledging shutdown', async () => {
     const { extractor } = createExtractor();
     transformerMocks.pipeline.mockResolvedValue(extractor);
-    await import('./reading-memory-embedding-worker');
+    await startWorker();
     workerMocks.emit({ type: 'embed', requestId: 1, purpose: 'query', texts: ['evidence'] });
     await vi.waitFor(() => expect(workerMocks.posts).toHaveLength(1));
     const disposal = deferred<void>();
@@ -164,7 +178,7 @@ describe('reading memory embedding worker', () => {
   it('runs at most four texts at once and preserves the full batch order', async () => {
     const { extractor, batches } = createExtractor();
     transformerMocks.pipeline.mockResolvedValue(extractor);
-    await import('./reading-memory-embedding-worker');
+    await startWorker();
     const texts = Array.from({ length: 9 }, (_, index) => `evidence-${index}`);
     workerMocks.emit({ type: 'embed', requestId: 1, purpose: 'document', texts });
     await vi.waitFor(() => expect(workerMocks.posts).toHaveLength(1));
@@ -186,7 +200,7 @@ describe('reading memory embedding worker', () => {
   it('rejects invalid tensor output while releasing every temporary tensor', async () => {
     const { extractor, batches } = createExtractor({ invalidDimension: true });
     transformerMocks.pipeline.mockResolvedValue(extractor);
-    await import('./reading-memory-embedding-worker');
+    await startWorker();
     workerMocks.emit({ type: 'embed', requestId: 1, purpose: 'query', texts: ['evidence'] });
     await vi.waitFor(() => expect(workerMocks.posts).toHaveLength(1));
 
@@ -205,14 +219,43 @@ describe('reading memory embedding worker', () => {
     async (kind) => {
       if (kind === 'runtime') transformerMocks.env.version = '4.1.0';
       else transformerMocks.env.backends.onnx.versions.node = '1.23.0';
-      await import('./reading-memory-embedding-worker');
+      await startWorker();
       workerMocks.emit({ type: 'embed', requestId: 1, purpose: 'query', texts: ['evidence'] });
       await vi.waitFor(() => expect(workerMocks.posts).toHaveLength(1));
       expect(workerMocks.posts[0].message).toMatchObject({ type: 'error', requestId: 1 });
       expect(transformerMocks.pipeline).not.toHaveBeenCalled();
     },
   );
+
+  it('requires a valid initialization message before accepting requests', async () => {
+    await import('./reading-memory-embedding-worker');
+    expect(() =>
+      workerMocks.emit({ type: 'embed', requestId: 1, purpose: 'query', texts: ['evidence'] }),
+    ).toThrow('First embedding message must initialize');
+    expect(transformerMocks.pipeline).not.toHaveBeenCalled();
+  });
+
+  it('exits when the parent IPC channel disconnects', async () => {
+    await startWorker();
+    workerMocks.disconnect();
+    expect(workerMocks.childProcess.exit).toHaveBeenCalledWith(0);
+  });
+
+  it('exits if sending a result over IPC fails', async () => {
+    const { extractor } = createExtractor();
+    transformerMocks.pipeline.mockResolvedValue(extractor);
+    await startWorker();
+    workerMocks.failSend();
+    workerMocks.emit({ type: 'embed', requestId: 1, purpose: 'query', texts: ['evidence'] });
+    await vi.waitFor(() => expect(workerMocks.childProcess.exit).toHaveBeenCalledWith(1));
+  });
 });
+
+async function startWorker() {
+  await import('./reading-memory-embedding-worker');
+  expect(transformerMocks.pipeline).not.toHaveBeenCalled();
+  workerMocks.emit({ type: 'initialize', config: workerMocks.config });
+}
 
 function createExtractor({ invalidDimension = false } = {}) {
   const batches: ReturnType<typeof tensorBatch>[] = [];
@@ -238,7 +281,7 @@ function tensorBatch(count: number, invalidDimension: boolean, rowOffset: number
     type: 'float32',
     dims: [count, invalidDimension ? 384 : 768],
     data: unitVectors(count, rowOffset),
-    dispose: vi.fn(),
+    dispose: vi.fn(() => normalized.data.fill(0)),
   };
   const output = {
     normalize: vi.fn(() => normalized),
