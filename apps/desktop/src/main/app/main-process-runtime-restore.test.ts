@@ -17,6 +17,7 @@ import { registerStoreDataIpc } from '../ipc/ipc-store-data';
 import * as schema from '../db/schema';
 import * as weReadRepository from '../weread/weread-repository';
 import * as providerSecrets from '../providers/provider-secrets';
+import type { ReadingMemoryModelLifecycleState } from '../reading-memory/reading-memory-model-lifecycle';
 
 const paths = vi.hoisted(() => ({ userData: '' }));
 const ipcHandlers = vi.hoisted(() => new Map<string, (...args: unknown[]) => unknown>());
@@ -99,6 +100,7 @@ it.each(['weread', 'model-pricing'] as const)(
       logError: vi.fn(),
       createTelemetryController: () => ({ check() {}, dispose() {} }),
       startEvidenceProjectionWorker: () => ({ requestRun() {}, dispose() {} }),
+      readingMemoryModelLifecycle: modelLifecycleStub(),
       syncWeRead: async () => {
         await work();
         return { settings, books: [] };
@@ -187,6 +189,7 @@ it('starts automatic sync when the restore IPC replaces manual settings', async 
   getDatabase().update(schema.wereadAccounts).set({ syncMode: 'manual' }).run();
   const syncWeRead = vi.fn(() => weReadRepository.readWeReadState());
   const requestEvidenceProjection = vi.fn();
+  const reconcileReadingMemoryModel = vi.fn(async () => notInstalledModelState());
   vi.useFakeTimers({
     toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'],
   });
@@ -206,6 +209,7 @@ it('starts automatic sync when the restore IPC replaces manual settings', async 
       requestRun: requestEvidenceProjection,
       dispose() {},
     }),
+    readingMemoryModelLifecycle: modelLifecycleStub(reconcileReadingMemoryModel),
     syncWeRead,
     timing: {
       weReadStartupDelayMs: 10,
@@ -232,6 +236,8 @@ it('starts automatic sync when the restore IPC replaces manual settings', async 
     expect(result).toMatchObject({ ok: true, value: { canceled: false } });
     expect(sendFullStoreUpdated).toHaveBeenCalledOnce();
     expect(requestEvidenceProjection).toHaveBeenCalledWith('database_restored');
+    expect(reconcileReadingMemoryModel).toHaveBeenNthCalledWith(1, 'startup');
+    expect(reconcileReadingMemoryModel).toHaveBeenNthCalledWith(2, 'database-restored');
     await vi.advanceTimersByTimeAsync(10);
     expect(syncWeRead).toHaveBeenCalledOnce();
     await vi.advanceTimersByTimeAsync(100);
@@ -255,4 +261,17 @@ function deferred<T = void>() {
     resolve = settle;
   });
   return { promise, resolve };
+}
+
+function modelLifecycleStub(reconcile = vi.fn(async () => notInstalledModelState())) {
+  return { reconcile, dispose: vi.fn() };
+}
+
+function notInstalledModelState(): ReadingMemoryModelLifecycleState {
+  return {
+    status: 'not-installed',
+    internalId: 'test-model',
+    downloadSizeBytes: 0,
+    resumeBytes: 0,
+  };
 }

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WeReadSettings, WeReadSyncResult } from '@yomitomo/shared';
 import { startMainProcessRuntime } from './main-process-runtime';
 import { readDatabaseLifecycle } from '../store/store-db';
+import type { ReadingMemoryModelLifecycleState } from '../reading-memory/reading-memory-model-lifecycle';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -17,6 +18,8 @@ describe('main process runtime', () => {
 
     expect(dependencies.refreshModelPrices).toHaveBeenCalledOnce();
     expect(dependencies.checkForAppUpdates).toHaveBeenCalledWith('auto');
+    expect(dependencies.reconcileReadingMemoryModel).toHaveBeenCalledOnce();
+    expect(dependencies.reconcileReadingMemoryModel).toHaveBeenCalledWith('startup');
 
     runtime.checkTelemetryFocus();
     expect(dependencies.telemetryCheck).toHaveBeenCalledWith('focus');
@@ -28,16 +31,41 @@ describe('main process runtime', () => {
     expect(dependencies.refreshModelPrices).toHaveBeenCalledOnce();
     expect(dependencies.checkForAppUpdates).toHaveBeenCalledOnce();
     expect(dependencies.projectionDispose).toHaveBeenCalledOnce();
+    expect(dependencies.readingMemoryModelDispose).toHaveBeenCalledOnce();
     expect(dependencies.telemetryDispose).toHaveBeenCalledOnce();
   });
 
-  it('reconfigures database-backed services after a restore', () => {
+  it('reconciles the model in the background after startup and database restore', () => {
+    const reconciliation = deferred<ReadingMemoryModelLifecycleState>();
     const dependencies = runtimeDependencies();
+    dependencies.reconcileReadingMemoryModel.mockReturnValue(reconciliation.promise);
     const runtime = startMainProcessRuntime(dependencies.input);
 
-    runtime.onDatabaseRestored();
+    expect(dependencies.reconcileReadingMemoryModel).toHaveBeenNthCalledWith(1, 'startup');
+    expect(runtime.onDatabaseRestored()).toBeUndefined();
 
     expect(dependencies.projectionRequestRun).toHaveBeenCalledWith('database_restored');
+    expect(dependencies.reconcileReadingMemoryModel).toHaveBeenNthCalledWith(
+      2,
+      'database-restored',
+    );
+    runtime.dispose();
+    reconciliation.resolve(notInstalledModelState());
+  });
+
+  it('records an unexpected model reconciliation rejection', async () => {
+    const dependencies = runtimeDependencies();
+    const error = new Error('model directory failed');
+    dependencies.reconcileReadingMemoryModel.mockRejectedValueOnce(error);
+    const runtime = startMainProcessRuntime(dependencies.input);
+
+    await Promise.resolve();
+
+    expect(dependencies.input.logError).toHaveBeenCalledWith(
+      'reading_memory.model_reconcile_request_failed',
+      error,
+      { reason: 'startup' },
+    );
     runtime.dispose();
   });
 
@@ -129,6 +157,8 @@ function runtimeDependencies(
   const telemetryDispose = vi.fn();
   const projectionRequestRun = vi.fn();
   const projectionDispose = vi.fn();
+  const reconcileReadingMemoryModel = vi.fn(async () => notInstalledModelState());
+  const readingMemoryModelDispose = vi.fn();
   const startEvidenceProjectionWorker = vi.fn(() => ({
     requestRun: projectionRequestRun,
     dispose: projectionDispose,
@@ -144,6 +174,8 @@ function runtimeDependencies(
     projectionRequestRun,
     projectionDispose,
     startEvidenceProjectionWorker,
+    reconcileReadingMemoryModel,
+    readingMemoryModelDispose,
     input: {
       getPersistenceModules: async () => ({
         storeModelPricing: { refreshModelPrices },
@@ -173,7 +205,20 @@ function runtimeDependencies(
       }),
       syncWeRead,
       startEvidenceProjectionWorker,
+      readingMemoryModelLifecycle: {
+        reconcile: reconcileReadingMemoryModel,
+        dispose: readingMemoryModelDispose,
+      },
     },
+  };
+}
+
+function notInstalledModelState(): ReadingMemoryModelLifecycleState {
+  return {
+    status: 'not-installed',
+    internalId: 'test-model',
+    downloadSizeBytes: 0,
+    resumeBytes: 0,
   };
 }
 
