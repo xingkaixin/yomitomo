@@ -18,7 +18,7 @@ import { recordStartupTiming } from './shell/app-renderer-performance';
 import { useAppSession } from './shell/app-session';
 import {
   activeSurfaceComponents,
-  DistillationLibrary,
+  ReadingMemory,
   OnboardingFlow,
   ReadingLibrary,
 } from './shell/app-surface-modules';
@@ -175,9 +175,9 @@ function ReadyApp({
                   onClick={session.actions.openLibrary}
                 />
                 <SettingsNavButton
-                  active={session.surface === 'distillations'}
-                  label={t('nav.distillations')}
-                  onClick={session.actions.openDistillations}
+                  active={session.surface === 'reading-memory'}
+                  label={t('nav.readingMemory')}
+                  onClick={session.actions.openReadingMemory}
                 />
                 <SettingsNavButton
                   active={session.surface === 'agents'}
@@ -272,8 +272,12 @@ function ReadyApp({
                   onOpenDataSources={() => session.actions.openSettingsSection('dataSources')}
                 />
               ) : null}
-              {session.surface === 'distillations' ? (
-                <DistillationLibrary onOpenEvidenceSource={session.actions.openEvidenceSource} />
+              {session.surface === 'reading-memory' ? (
+                <ReadingMemory
+                  collections={store.collections}
+                  catalogRevision={storeState.libraryCatalogRevision}
+                  onOpenEvidenceSource={session.actions.openEvidenceSource}
+                />
               ) : null}
               {session.surface === 'stats' ? (
                 <surfaces.ReadingStatsPanel

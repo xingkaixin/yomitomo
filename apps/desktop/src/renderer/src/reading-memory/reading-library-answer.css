@@ -1,0 +1,105 @@
+.reading-library-answer {
+  display: grid;
+  min-width: 0;
+  gap: 28px;
+  color: hsl(var(--foreground));
+  font-family: var(--font-ui);
+}
+
+.reading-library-answer-section {
+  min-width: 0;
+}
+
+.reading-library-answer-section + .reading-library-answer-section {
+  border-top: 1px solid hsl(var(--border) / 0.65);
+  padding-top: 24px;
+}
+
+.reading-library-answer-section h3 {
+  margin: 0 0 14px;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.reading-library-answer-empty {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.reading-library-answer-claims {
+  display: grid;
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reading-library-answer-claim {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
+
+.reading-library-answer-text {
+  margin: 0;
+  font-family: var(--font-reader-serif);
+  font-size: 17px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.reading-library-answer-citations {
+  min-width: 0;
+}
+
+.reading-library-answer-citations summary {
+  width: fit-content;
+  max-width: 100%;
+  border-radius: calc(var(--radius) / 2);
+  color: var(--app-interactive-link);
+  font-size: 12px;
+  line-height: 1.7;
+  cursor: pointer;
+}
+
+.reading-library-answer-evidence {
+  display: grid;
+  gap: 12px;
+  padding: 12px 0 2px;
+}
+
+.reading-library-answer-save {
+  justify-self: start;
+  min-height: 34px;
+  border: 1px solid var(--app-action-secondary-border);
+  border-radius: calc(var(--radius) * 0.75);
+  background: var(--app-action-secondary-bg);
+  padding: 6px 10px;
+  color: var(--app-action-secondary-fg);
+  font: 600 12px/1.5 var(--font-ui);
+  cursor: pointer;
+}
+
+.reading-library-answer-citations summary:focus-visible,
+.reading-library-answer-save:focus-visible {
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .reading-library-answer-citations summary:hover {
+    color: var(--app-interactive-link-hover);
+  }
+
+  .reading-library-answer-save:hover {
+    background: var(--app-action-secondary-hover-bg);
+  }
+}
+
+.reading-library-answer-save:active {
+  background: var(--app-action-secondary-active-bg);
+}

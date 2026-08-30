@@ -2,8 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Cancel01Icon } from '@hugeicons/core-free-icons';
-import { ReadingEvidenceCard } from '@yomitomo/reader-ui/reading-evidence-card';
-import type { ReadingEvidence, ReadingJudgmentResult } from '@yomitomo/shared';
+import type { ReadingJudgmentResult } from '@yomitomo/shared';
 import { Button } from '../components/ui/button';
 import {
   Dialog,
@@ -15,6 +14,7 @@ import {
 } from '../components/ui/dialog';
 import type { ReadingEvidenceSourceTarget } from '../shell/app-reading-types';
 import type { ReadingRelationsState } from './use-reading-relations';
+import { ReadingMemoryEvidenceCard } from './reading-memory-evidence-card';
 import './reading-relations-panel.css';
 
 export function ReadingRelationsPanel({
@@ -63,15 +63,6 @@ export function ReadingRelationsPanel({
     target.current?.focus();
     return () => (judgeButtonRef.current ?? titleRef.current)?.focus();
   }, [ready?.remote]);
-
-  function openSource(item: ReadingEvidence, view: 'source' | 'discussion') {
-    onOpenEvidenceSource?.({
-      articleId: item.source.ref.id,
-      annotationId: item.location.annotationId,
-      view,
-    });
-    onClose();
-  }
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -168,35 +159,12 @@ export function ReadingRelationsPanel({
                 {evidence.map((item) => {
                   const relation = relations.find((entry) => entry.evidenceId === item.id);
                   return (
-                    <ReadingEvidenceCard
+                    <ReadingMemoryEvidenceCard
                       key={item.id}
-                      evidence={{
-                        content: item.content,
-                        excerpt:
-                          item.content === item.location.anchor.exact
-                            ? undefined
-                            : item.location.anchor.exact,
-                        assetLabel: t(`readingEvidence.assetTypes.${item.assetType}`),
-                        authorLabel: t(`readingEvidence.authors.${evidenceAuthor(item)}`),
-                        sourceTitle: item.source.title,
-                        sourceDetail: item.source.byline,
-                        relation: relation
-                          ? {
-                              label: t(`readingEvidence.relations.${relation.relation}`),
-                              explanation: relation.explanation,
-                            }
-                          : undefined,
-                      }}
-                      labels={{
-                        excerpt: t('readingEvidence.excerpt'),
-                        openSource: t('readingEvidence.openSource'),
-                        openDiscussion: t('readingEvidence.openDiscussion'),
-                        locationUnavailable: t('readingEvidence.locationUnavailable'),
-                      }}
-                      onOpenSource={() => openSource(item, 'source')}
-                      onOpenDiscussion={
-                        onOpenEvidenceSource ? () => openSource(item, 'discussion') : undefined
-                      }
+                      evidence={item}
+                      relation={relation}
+                      onOpenEvidenceSource={onOpenEvidenceSource}
+                      onAfterOpen={onClose}
                     />
                   );
                 })}
@@ -273,13 +241,6 @@ export function ReadingRelationsPanel({
       </DialogPortal>
     </Dialog>
   );
-}
-
-function evidenceAuthor(evidence: ReadingEvidence) {
-  if (evidence.role === 'source') return 'source';
-  if (evidence.authorKind === 'user') return 'user';
-  if (evidence.authorKind === 'ai') return 'ai';
-  return evidence.assetType === 'distillation' ? 'aiAssisted' : 'source';
 }
 
 function judgmentFailureKey(result: ReadingJudgmentResult | undefined) {
