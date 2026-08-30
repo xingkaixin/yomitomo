@@ -223,8 +223,8 @@ describe('ReadingMemorySourcePicker', () => {
     const selected = Array.from({ length: readingLibrarySourceLimit }, (_, index) =>
       source(`selected-${index}`),
     );
-    const { props } = renderPicker(selected);
-    const checkbox = await screen.findByRole('checkbox', { name: 'first' });
+    const { props } = await act(async () => renderPicker(selected));
+    const checkbox = screen.getByRole('checkbox', { name: 'first' });
     expect(checkbox.hasAttribute('disabled')).toBe(true);
     expect(screen.getByText(`${keys}.limitReached ${readingLibrarySourceLimit}`)).toBeTruthy();
 
