@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import {
   assertNativeSqliteVersionAligned,
   resolveNativeSqliteBinding,
@@ -14,6 +15,7 @@ const electronNativeRoot = join(desktopRoot, 'electron-native');
 assertNativeSqliteVersionAligned();
 verifyNodeRoot();
 verifyElectronRoot();
+verifyEmbeddingRuntimeRoot();
 verifyBuilderConfig();
 
 function verifyNodeRoot() {
@@ -65,6 +67,7 @@ function verifyBuilderConfig() {
   const config = requireFromDesktop('./electron-builder.config.cjs');
   const files = Array.isArray(config.files) ? config.files : [];
   const extraResources = Array.isArray(config.extraResources) ? config.extraResources : [];
+  const asarUnpack = Array.isArray(config.asarUnpack) ? config.asarUnpack : [];
 
   if (!files.includes('!node_modules/better-sqlite3/**')) {
     throw new Error('electron-builder must exclude workspace node_modules/better-sqlite3/**');
@@ -83,7 +86,93 @@ function verifyBuilderConfig() {
     throw new Error('electron-builder must package electron-native and its node_modules');
   }
 
+  for (const pattern of [
+    'node_modules/onnxruntime-node/bin/**',
+    'node_modules/@img/sharp-*/lib/**',
+    'node_modules/@img/sharp-libvips-*/lib/**',
+  ]) {
+    if (!asarUnpack.includes(pattern)) {
+      throw new Error(`electron-builder must unpack ${pattern}`);
+    }
+  }
+  if (!files.includes('!node_modules/onnxruntime-web/**')) {
+    throw new Error('electron-builder must exclude the unused browser ONNX runtime');
+  }
+
   console.log('verified electron-builder native root inputs');
+}
+
+function verifyEmbeddingRuntimeRoot() {
+  const desktopPackage = readPackage(join(desktopRoot, 'package.json'));
+  if (desktopPackage.dependencies?.['@huggingface/transformers'] !== '4.2.0') {
+    throw new Error('Desktop must pin @huggingface/transformers to 4.2.0');
+  }
+
+  const transformersEntry = requireFromDesktop.resolve('@huggingface/transformers');
+  const requireFromTransformers = createRequire(transformersEntry);
+  const onnxRuntimeEntry = requireFromTransformers.resolve('onnxruntime-node');
+  const sharpEntry = requireFromTransformers.resolve('sharp');
+  const transformersRoot = dirname(dirname(transformersEntry));
+  const onnxRuntimeRoot = dirname(dirname(onnxRuntimeEntry));
+  const sharpRoot = dirname(dirname(sharpEntry));
+  const transformersPackage = readPackage(join(transformersRoot, 'package.json'));
+  const onnxRuntimePackage = readPackage(join(onnxRuntimeRoot, 'package.json'));
+  const sharpPackage = readPackage(join(sharpRoot, 'package.json'));
+
+  if (transformersPackage.version !== '4.2.0') {
+    throw new Error(`Unexpected Transformers runtime: ${transformersPackage.version}`);
+  }
+  if (onnxRuntimePackage.version !== '1.24.3') {
+    throw new Error(`Unexpected ONNX Runtime: ${onnxRuntimePackage.version}`);
+  }
+
+  const onnxRuntimeNativeRoot = join(
+    onnxRuntimeRoot,
+    'bin',
+    'napi-v6',
+    process.platform,
+    process.arch,
+  );
+  const onnxRuntimeBinding = join(onnxRuntimeNativeRoot, 'onnxruntime_binding.node');
+  if (!existsSync(onnxRuntimeBinding)) {
+    throw new Error(`ONNX Runtime binding is missing: ${onnxRuntimeBinding}`);
+  }
+
+  const electron = requireFromDesktop('electron');
+  execFileSync(
+    electron,
+    [
+      '-e',
+      `
+(async () => {
+  const transformers = await import(${JSON.stringify(pathToFileURL(transformersEntry).href)});
+  const onnxRuntime = require(${JSON.stringify(onnxRuntimeEntry)});
+  const sharp = require(${JSON.stringify(sharpEntry)});
+  if (typeof transformers.pipeline !== 'function') throw new Error('Transformers pipeline missing');
+  if (typeof onnxRuntime.InferenceSession?.create !== 'function') {
+    throw new Error('ONNX Runtime session factory missing');
+  }
+  if (!sharp.versions?.vips) throw new Error('sharp native runtime missing');
+})().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
+`,
+    ],
+    {
+      cwd: desktopRoot,
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+      stdio: 'inherit',
+    },
+  );
+
+  console.log(
+    `verified Electron embedding runtime: Transformers ${transformersPackage.version}, ONNX Runtime ${onnxRuntimePackage.version}, sharp ${sharpPackage.version}`,
+  );
+}
+
+function readPackage(path) {
+  return JSON.parse(readFileSync(path, 'utf8'));
 }
 
 function smokeSQLite(Database) {

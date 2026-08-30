@@ -6,7 +6,13 @@ import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
 const root = dirname(fileURLToPath(import.meta.url));
 const rendererRoot = resolve(root, 'src/renderer');
 const workspaceDeps = ['@yomitomo/ai', '@yomitomo/core', '@yomitomo/shared'];
-const mainExternalDeps = ['electron', '@napi-rs/keyring', 'jsdom', '@embedpdf/pdfium'];
+const mainExternalDeps = [
+  'electron',
+  '@napi-rs/keyring',
+  'jsdom',
+  '@embedpdf/pdfium',
+  '@huggingface/transformers',
+];
 const commonjsFilename = '__filename';
 const commonjsDirname = '__dirname';
 const commonjsFilenameValue =
@@ -61,6 +67,7 @@ export default defineConfig({
       outDir: resolve(root, 'dist/main'),
       rollupOptions: {
         external: mainExternalDeps,
+        preserveEntrySignatures: 'strict',
         output: {
           assetFileNames: 'chunks/[name][extname]',
           chunkFileNames: 'chunks/[name].js',
@@ -70,6 +77,14 @@ export default defineConfig({
         input: {
           index: resolve(root, 'src/main/index.ts'),
           'article-import-worker': resolve(root, 'src/main/articles/article-import-worker.ts'),
+          'reading-memory-embedding-worker': resolve(
+            root,
+            'src/main/reading-memory/reading-memory-embedding-worker.ts',
+          ),
+          'reading-memory-embedding-service': resolve(
+            root,
+            'src/main/reading-memory/reading-memory-embedding-service.ts',
+          ),
         },
         plugins: [electronMainImportMetaCompat()],
       },
