@@ -6,6 +6,34 @@ import {
 } from './reading-evidence-ranking';
 
 describe('reading evidence ranking', () => {
+  it('keeps need-evidence judgments behind other candidates on both retrieval paths', () => {
+    const uncertain = {
+      ...evidence('uncertain', 'article-u', 'judgment'),
+      review: { decision: 'need_evidence' as const, reviewedAt: '2026-08-30T00:00:00.000Z' },
+    };
+    const judgment = evidence('judgment', 'article-j', 'judgment');
+    const source = evidence('source', 'article-s', 'source');
+    expect(rankReadingEvidenceCandidates([uncertain, source, judgment], 3)).toEqual([
+      judgment,
+      source,
+      uncertain,
+    ]);
+    expect(mergeReadingEvidenceCandidates([uncertain, source, judgment], [uncertain], 3)).toEqual([
+      judgment,
+      source,
+      uncertain,
+    ]);
+    const reaffirmed = {
+      ...uncertain,
+      review: { ...uncertain.review, decision: 'still_agree' as const },
+    };
+    expect(rankReadingEvidenceCandidates([reaffirmed, source, judgment], 3)).toEqual([
+      reaffirmed,
+      judgment,
+      source,
+    ]);
+  });
+
   it('deduplicates by evidence id and prioritizes judgments without disturbing FTS order', () => {
     const candidates = [
       evidence('source-a', 'article-a', 'source'),

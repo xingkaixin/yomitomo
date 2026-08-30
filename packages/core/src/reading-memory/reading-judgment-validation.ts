@@ -41,7 +41,12 @@ export function validateReadingJudgment(
     if (!citedJudgments || !supporting || !opposingOrLimiting || !gaps) return null;
     const userJudgmentIds = new Set(
       [...sent.values()]
-        .filter((evidence) => evidence.role === 'judgment' && evidence.authorKind === 'user')
+        .filter(
+          (evidence) =>
+            evidence.role === 'judgment' &&
+            evidence.authorKind === 'user' &&
+            evidence.review?.decision !== 'need_evidence',
+        )
         .map((evidence) => evidence.id),
     );
     const judgments = citedJudgments.filter((claim) =>

@@ -15,6 +15,13 @@ export {
 export { ARTICLE_SOURCE_TYPES, normalizeArticleSourceType } from './sources/article-types';
 export { normalizeArticleTranslationTargetLanguage } from './sources/article-translation';
 export type {
+  ReadingReviewAssetRef,
+  ReadingReviewBase,
+  ReadingReviewDecision,
+  ReadingReviewEvent,
+  ReadingReviewFold,
+} from './reading-memory/reading-review-types';
+export type {
   Agent,
   AgentAnnotatePayload,
   AgentAnnotateResult,

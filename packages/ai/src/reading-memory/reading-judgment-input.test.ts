@@ -6,6 +6,32 @@ import { prepareReadingJudgmentInput } from './reading-judgment-input';
 afterEach(() => vi.restoreAllMocks());
 
 describe('reading judgment input', () => {
+  it('sends only the need-evidence flag from review metadata without exporting review dates or history', () => {
+    const items = (['need_evidence', 'still_agree', 'changed'] as const).map((decision) =>
+      evidence(decision, {
+        review: { decision, reviewedAt: 'private-review-date' },
+      }),
+    );
+    const result = prepareReadingJudgmentInput(
+      provider(),
+      { kind: 'library-answer', question: 'What remains uncertain?' },
+      items,
+    );
+    expect(result).not.toBeNull();
+    if (!result) return;
+    expect(JSON.parse(result.user).evidence).toEqual(
+      items.map((item, index) => ({
+        id: `e${index + 1}`,
+        kind: 'user_judgment',
+        text: item.content,
+        excerpt: 'Source excerpt.',
+        ...(index === 0 ? { needsEvidence: true } : {}),
+      })),
+    );
+    expect(result.user).not.toContain('private-');
+    expect(result.sent.get('e1')).toBe(items[0]);
+  });
+
   it('sends only query and evidence text fields with truthful attribution and temporary ids', () => {
     const items = [
       evidence('user'),
@@ -47,7 +73,10 @@ describe('reading judgment input', () => {
     'enforces the %j evidence and serialized byte limits with equal evidence shares',
     (input, count, byteLimit) => {
       const items = Array.from({ length: 20 }, (_, index) =>
-        evidence(String(index), { content: 'Long evidence. '.repeat(10_000) }),
+        evidence(String(index), {
+          content: 'Long evidence. '.repeat(10_000),
+          review: { decision: 'need_evidence', reviewedAt: '2026-08-30T00:00:00.000Z' },
+        }),
       );
       const result = prepareReadingJudgmentInput(provider(), input, items);
       expect(result).not.toBeNull();
@@ -62,6 +91,7 @@ describe('reading judgment input', () => {
       parsed.evidence.forEach((item, index) => {
         expect(item.text).not.toBe('');
         expect(item.id).toBe(`e${index + 1}`);
+        expect(item).toHaveProperty('needsEvidence', true);
         expect(result.sent.get(item.id)).toBe(items[index]);
       });
     },
