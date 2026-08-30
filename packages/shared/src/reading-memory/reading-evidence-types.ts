@@ -47,3 +47,28 @@ export type ReadingEvidenceProjectionStatus = {
     eligibleAssetCount: number;
   };
 };
+
+export type ReadingMemorySemanticStatus = {
+  state:
+    | 'checking'
+    | 'not_installed'
+    | 'downloading'
+    | 'building'
+    | 'available'
+    | 'rebuilding'
+    | 'failed';
+  modelVersion: string;
+  queryModelVersion: string | null;
+  coverage: {
+    indexedEntryCount: number;
+    eligibleEntryCount: number;
+  };
+  indexingPaused: boolean;
+};
+
+export type ReadingMemoryEvidenceSearchResult = {
+  evidence: ReadingEvidence[];
+  projection: ReadingEvidenceProjectionStatus;
+  semantic: ReadingMemorySemanticStatus;
+  mode: 'keyword' | 'hybrid';
+};

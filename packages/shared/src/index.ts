@@ -172,6 +172,8 @@ export type {
   ReadingEvidenceProjectionStatus,
   ReadingEvidenceRole,
   ReadingEvidenceScope,
+  ReadingMemorySemanticStatus,
+  ReadingMemoryEvidenceSearchResult,
   ReadingTaskContext,
   ReadingTrace,
   ReadingTraceScope,
