@@ -149,7 +149,10 @@ export {
 } from './reading-memory/reading-evidence-projection';
 export type { ProjectedReadingEvidenceEntry } from './reading-memory/reading-evidence-projection';
 
-export { rankReadingEvidenceCandidates } from './reading-memory/reading-evidence-ranking';
+export {
+  mergeReadingEvidenceCandidates,
+  rankReadingEvidenceCandidates,
+} from './reading-memory/reading-evidence-ranking';
 
 export {
   activeTocIndexForOffset,
