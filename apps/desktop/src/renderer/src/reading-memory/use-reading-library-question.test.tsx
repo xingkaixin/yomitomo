@@ -15,6 +15,7 @@ type ReadingMemoryApi = YomitomoDesktopApi['readingMemory'];
 
 const libraryScope: ReadingEvidenceScope = { kind: 'library' };
 const api = {
+  recordUsage: vi.fn<ReadingMemoryApi['recordUsage']>(),
   confirmPrivacy: vi.fn<ReadingMemoryApi['confirmPrivacy']>(),
   library: {
     context: vi.fn<ReadingMemoryApi['library']['context']>(),
@@ -22,10 +23,11 @@ const api = {
     answer: vi.fn<ReadingMemoryApi['library']['answer']>(),
     cancel: vi.fn<ReadingMemoryApi['library']['cancel']>(),
   },
-} satisfies Pick<ReadingMemoryApi, 'confirmPrivacy' | 'library'>;
+} satisfies Pick<ReadingMemoryApi, 'confirmPrivacy' | 'library' | 'recordUsage'>;
 
 beforeEach(() => {
   vi.resetAllMocks();
+  api.recordUsage.mockResolvedValue(undefined);
   api.confirmPrivacy.mockResolvedValue(undefined);
   api.library.context.mockImplementation(async ({ scope }) => context(scope));
   api.library.search.mockImplementation(async ({ requestId, scope }) => session(requestId, scope));
@@ -50,6 +52,7 @@ describe('useReadingLibraryQuestion', () => {
     expect(api.library.context).not.toHaveBeenCalled();
     expect(api.library.search).not.toHaveBeenCalled();
     expect(api.library.answer).not.toHaveBeenCalled();
+    expect(api.recordUsage).not.toHaveBeenCalled();
   });
 
   it('shows zero counts for an empty source selection without searching or falling back to the library', async () => {
@@ -110,6 +113,7 @@ describe('useReadingLibraryQuestion', () => {
       remote: 'idle',
       result: { judgment: { state: 'generated' } },
     });
+    expect(api.recordUsage.mock.calls.filter(([key]) => key === 'query_completed')).toHaveLength(1);
   });
 
   it('retains local evidence while an authorized automatic answer is pending and ignores it after cancel', async () => {
@@ -252,6 +256,54 @@ describe('useReadingLibraryQuestion', () => {
       remote: 'idle',
       result: { judgment: { state: 'generated' } },
     });
+  });
+
+  it('retains local evidence without counting a rejected expired answer as a provider failure', async () => {
+    api.library.answer.mockRejectedValueOnce(new Error('READING_MEMORY_SESSION_EXPIRED'));
+    const { result } = renderHook(() => useReadingLibraryQuestion(libraryScope, 0));
+    await waitFor(() => expect(result.current.contextState).toMatchObject({ phase: 'ready' }));
+    await act(() => result.current.ask('What have I learned?'));
+    await act(() => result.current.answer(true));
+
+    expect(api.confirmPrivacy).toHaveBeenCalledOnce();
+    expect(api.library.answer).toHaveBeenCalledOnce();
+    expect(result.current.state).toMatchObject({
+      remote: 'failed',
+      result: { remoteConsentRequired: false, evidence: [{ id: 'evidence-1' }] },
+    });
+    expect(api.recordUsage).not.toHaveBeenCalledWith('fallback_call_failure');
+  });
+
+  it('counts a confirmed local failed judgment while keeping local evidence readable', async () => {
+    api.library.answer.mockImplementationOnce(async ({ requestId }) => {
+      const local = session(requestId);
+      return {
+        ...local,
+        remoteConsentRequired: false,
+        judgment: {
+          state: 'local',
+          reason: 'failed',
+          evidence: local.evidence,
+          sentEvidenceCount: 1,
+          inputTruncated: false,
+        },
+      };
+    });
+    const { result } = renderHook(() => useReadingLibraryQuestion(libraryScope, 0));
+    await waitFor(() => expect(result.current.contextState).toMatchObject({ phase: 'ready' }));
+    await act(() => result.current.ask('What have I learned?'));
+    await act(() => result.current.answer(true));
+
+    expect(result.current.state).toMatchObject({
+      remote: 'idle',
+      result: {
+        evidence: [{ id: 'evidence-1' }],
+        judgment: { state: 'local', reason: 'failed' },
+      },
+    });
+    expect(
+      api.recordUsage.mock.calls.filter(([key]) => key === 'fallback_call_failure'),
+    ).toHaveLength(1);
   });
 
   it('does not treat failed privacy persistence as consent', async () => {

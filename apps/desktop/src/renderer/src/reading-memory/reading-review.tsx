@@ -236,7 +236,13 @@ export function ReadingReview({
             <Button
               type="button"
               variant="secondary"
-              onClick={() => onOpenEvidenceSource({ ...revealed.sourceTarget, view: 'source' })}
+              onClick={() =>
+                onOpenEvidenceSource({
+                  ...revealed.sourceTarget,
+                  view: 'source',
+                  readingMemoryJump: true,
+                })
+              }
             >
               {t('readingEvidence.openSource')}
             </Button>

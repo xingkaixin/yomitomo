@@ -10,6 +10,7 @@ import { errorMessageOrFallback } from '@yomitomo/shared';
 import { createUserAnnotation, type HighlightBox } from '@yomitomo/core';
 import type { ReaderAppViewProps } from '@yomitomo/reader-ui/reader-app-view';
 import i18next from 'i18next';
+import { readingMemoryEnabled } from '../../../../reading-memory-release';
 import type { ReaderArticleActions } from '../../shell/app-article-store-actions';
 import type { ReadingEvidenceSourceTarget } from '../../shell/app-reading-types';
 import { ReadingRelationsPanel } from '../../reading-memory/reading-relations-panel';
@@ -289,13 +290,14 @@ export function useSourceReaderApp({
           : {}),
       },
       selection: {
-        onFindRelated: onOpenEvidenceSource
-          ? (action) => {
-              void relations.search(adapter.questionContext(action.anchor));
-              adapter.lifecycle?.onClearSelection?.();
-              workspace.selection.clearSelection();
-            }
-          : undefined,
+        onFindRelated:
+          readingMemoryEnabled && onOpenEvidenceSource
+            ? (action) => {
+                void relations.search(adapter.questionContext(action.anchor));
+                adapter.lifecycle?.onClearSelection?.();
+                workspace.selection.clearSelection();
+              }
+            : undefined,
         onAskSelection: (action) => {
           adapter.lifecycle?.onAskSelection?.(action.anchor);
           askSelection(action, adapter.questionContext);
@@ -346,19 +348,21 @@ export function useSourceReaderApp({
       chat: workspace.readerChat.model,
       labels: workspace.labels,
       options: { embedded: true },
-      overlays: relations.state
-        ? createElement(ReadingRelationsPanel, {
-            state: relations.state,
-            returnFocus: surface.canvasRef,
-            onClose: relations.close,
-            onSearch: (question) => {
-              if (relations.state) void relations.search(relations.state.request.context, question);
-            },
-            onJudge: (confirmPrivacy) => void relations.judge(confirmPrivacy),
-            onDismissPrivacy: relations.dismissPrivacy,
-            onOpenEvidenceSource,
-          })
-        : null,
+      overlays:
+        readingMemoryEnabled && relations.state
+          ? createElement(ReadingRelationsPanel, {
+              state: relations.state,
+              returnFocus: surface.canvasRef,
+              onClose: relations.close,
+              onSearch: (question) => {
+                if (relations.state)
+                  void relations.search(relations.state.request.context, question);
+              },
+              onJudge: (confirmPrivacy) => void relations.judge(confirmPrivacy),
+              onDismissPrivacy: relations.dismissPrivacy,
+              onOpenEvidenceSource,
+            })
+          : null,
       selection: {
         composer: workspace.selection.composer,
         highlightChoice: workspace.selection.highlightChoice,

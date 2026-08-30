@@ -1785,9 +1785,9 @@ export const enResources = {
           'When enabled, web article import can access local services, LAN services, and cloud metadata addresses. If you paste an untrusted link, the main process may read those responses and save them to the library. Enable this only when you explicitly need to import intranet articles.',
         localNetworkImportConfirm: 'Enable anyway',
         privacyGroup: 'Privacy',
-        telemetryTitle: 'Send anonymous version and system metrics',
+        telemetryTitle: 'Send anonymous usage metrics',
         telemetryDescription:
-          'Sends the app version, OS version, and architecture at most once per day to understand active version distribution. Reading content, book titles, annotations, file paths, and AI chats are never collected.',
+          'Sends version and system information at most daily, plus separate reading-memory counts for opening, completed queries, source jumps, review decisions, and fallbacks without persistent identifiers. Reading content, book titles, annotations, file paths, and AI chats are never collected. Turning this off clears unsent reading-memory counts.',
       },
       data: {
         trailRoot: 'Settings',

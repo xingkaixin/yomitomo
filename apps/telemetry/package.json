@@ -14,6 +14,9 @@
     "format:check": "oxfmt --check \"src/**/*.ts\" package.json tsconfig.json wrangler.jsonc",
     "test": "vitest run --passWithNoTests"
   },
+  "dependencies": {
+    "@yomitomo/shared": "workspace:*"
+  },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260823.1",
     "typescript": "^7.0.2",

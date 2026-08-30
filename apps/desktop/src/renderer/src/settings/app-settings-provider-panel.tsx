@@ -39,6 +39,7 @@ import { providerDisplayName, providerPresetDisplayName } from '../i18n/app-i18n
 import type { SaveableDraft } from './use-saveable-draft';
 import { AssistantExecutionModeSlider } from './app-settings-execution-mode-slider';
 import { ReadingMemoryModelSettings } from './reading-memory-model-settings';
+import { readingMemoryEnabled } from '../../../reading-memory-release';
 
 type ProviderDraftController = SaveableDraft<ProviderDraft> & {
   create: () => void;
@@ -177,7 +178,7 @@ export function ProviderSettings({ providerDraft, routesDraft, providers }: Prov
           onChange={routesDraft.update}
           onSave={saveRoutes}
         />
-        <ReadingMemoryModelSettings />
+        {readingMemoryEnabled ? <ReadingMemoryModelSettings /> : null}
         <SettingsGroup label={t('settings.models.providerGroup')} flush>
           <ProviderList
             providers={providers}

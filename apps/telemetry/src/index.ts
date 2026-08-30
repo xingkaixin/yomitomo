@@ -1,3 +1,5 @@
+import { parseReadingMemoryUsagePayload, readingMemoryUsageKeys } from '@yomitomo/shared';
+
 type Env = {
   TELEMETRY_ANALYTICS?: AnalyticsEngineDataset;
 };
@@ -19,7 +21,9 @@ type TelemetryHeartbeat = {
 
 const heartbeatPath = '/v1/heartbeat';
 const heartbeatEventType = 'desktop_daily_heartbeat';
-const maxHeartbeatBodyBytes = 2048;
+const readingMemoryCountsPath = '/v1/reading-memory-counts';
+const readingMemoryCountEventType = 'desktop_reading_memory_count';
+const maxTelemetryBodyBytes = 2048;
 const acceptedPastClientDays = 2;
 const acceptedFutureClientDays = 1;
 const dayMs = 24 * 60 * 60 * 1000;
@@ -30,6 +34,7 @@ const methodNotAllowed = () =>
   });
 const notFound = () => new Response('Not found', { status: 404 });
 const badRequest = () => new Response('Bad request', { status: 400 });
+const serviceUnavailable = () => new Response('Service unavailable', { status: 503 });
 
 export default {
   fetch(request: Request, env: Env) {
@@ -43,26 +48,50 @@ export async function handleRequest(
   options: TelemetryRequestOptions = {},
 ) {
   const url = new URL(request.url);
-  if (url.pathname !== heartbeatPath) return notFound();
+  if (url.pathname !== heartbeatPath && url.pathname !== readingMemoryCountsPath) return notFound();
   if (request.method !== 'POST') return methodNotAllowed();
 
-  const heartbeat = await readHeartbeat(request, options.now ?? new Date());
+  const payload = await readTelemetryPayload(request);
+  if (url.pathname === readingMemoryCountsPath) return recordReadingMemoryCounts(env, payload);
+
+  const heartbeat = parseHeartbeat(payload, options.now ?? new Date());
   if (!heartbeat) return badRequest();
 
   recordHeartbeat(env, heartbeat);
   return new Response(null, { status: 204 });
 }
 
-async function readHeartbeat(request: Request, now: Date) {
+async function readTelemetryPayload(request: Request): Promise<unknown> {
   if (!isJsonRequest(request)) return null;
   if (!isContentLengthAllowed(request.headers)) return null;
 
   try {
     const body = await readLimitedRequestText(request);
     if (body === null) return null;
-    return parseHeartbeat(JSON.parse(body), now);
+    return JSON.parse(body);
   } catch {
     return null;
+  }
+}
+
+function recordReadingMemoryCounts(env: Env, input: unknown) {
+  const payload = parseReadingMemoryUsagePayload(input);
+  if (!payload) return badRequest();
+  const analytics = env.TELEMETRY_ANALYTICS;
+  if (!analytics) return serviceUnavailable();
+
+  try {
+    for (const key of readingMemoryUsageKeys) {
+      const count = payload.counts[key];
+      if (count === undefined) continue;
+      analytics.writeDataPoint({
+        blobs: [readingMemoryCountEventType, key],
+        doubles: [count],
+      });
+    }
+    return new Response(null, { status: 204 });
+  } catch {
+    return serviceUnavailable();
   }
 }
 
@@ -146,7 +175,7 @@ function isContentLengthAllowed(headers: Headers) {
   if (!contentLength) return true;
 
   const length = Number(contentLength);
-  return Number.isInteger(length) && length >= 0 && length <= maxHeartbeatBodyBytes;
+  return Number.isInteger(length) && length >= 0 && length <= maxTelemetryBodyBytes;
 }
 
 async function readLimitedRequestText(request: Request) {
@@ -161,7 +190,7 @@ async function readLimitedRequestText(request: Request) {
       const { done, value } = await reader.read();
       if (done) break;
       size += value.byteLength;
-      if (size > maxHeartbeatBodyBytes) {
+      if (size > maxTelemetryBodyBytes) {
         await reader.cancel();
         return null;
       }

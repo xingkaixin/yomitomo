@@ -183,6 +183,7 @@ describe('ReadingReview', () => {
       articleId: first.asset.articleId,
       annotationId: first.asset.annotationId,
       view: 'source',
+      readingMemoryJump: true,
     });
   });
 

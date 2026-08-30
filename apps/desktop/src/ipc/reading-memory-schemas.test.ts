@@ -48,6 +48,23 @@ const searchInput: ReadingRelationsSearchInput = {
   question: 'How does this relate to my earlier reading?',
 };
 
+describe('reading memory usage IPC', () => {
+  it('accepts only a single closed interaction key without content or review decisions', () => {
+    const schema = readingMemoryIpcInvokeSchemas['reading-memory:record-usage'];
+    expect(schema.parse(['source_jump'])).toEqual(['source_jump']);
+    for (const input of [
+      [],
+      ['unknown'],
+      ['review_changed'],
+      ['source_jump', { articleId: 'private-id' }],
+      [{ key: 'query_completed', question: 'private question' }],
+      [{ counts: { query_completed: 1 } }],
+    ]) {
+      expect(schema.safeParse(input).success).toBe(false);
+    }
+  });
+});
+
 describe('reading review IPC authorization inputs', () => {
   const asset = {
     articleId: 'article-1',

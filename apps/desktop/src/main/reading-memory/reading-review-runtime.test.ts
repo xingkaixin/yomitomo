@@ -128,6 +128,7 @@ describe('reading review blind session and local commits', () => {
       expect(current.base.content).toBe(oldJudgment);
       expect(current.current.content).toBe(decision === 'changed' ? blindAnswer : oldJudgment);
       expect(fixture.send).not.toHaveBeenCalled();
+      expect(fixture.onReviewInserted).toHaveBeenCalledExactlyOnceWith(decision);
     },
   );
 
@@ -557,12 +558,14 @@ function createFixture(newerCount = 3) {
     semanticWindow: { candidateLimit: 64, evidenceLimit: 128, lookbackDays: 30 },
   }));
   const logInfo = vi.fn();
+  const onReviewInserted = vi.fn();
   const runtime = createReadingReviewRuntime({
     semanticIndex: { search },
     readQueue,
     getAiModule,
     hydrateProvider,
     logInfo,
+    onReviewInserted,
   });
   runtimes.push(runtime);
   const events = new EventEmitter();
@@ -588,6 +591,7 @@ function createFixture(newerCount = 3) {
     getAiModule,
     readQueue,
     logInfo,
+    onReviewInserted,
     start: () => runtime.start(owner, { requestId: 'request-1', asset }),
     reveal: () => runtime.reveal(1, { requestId: 'request-1', answer: blindAnswer }),
     searchEvidence: (expectedRouteRevision: string, comparisonId = 'comparison-1') =>

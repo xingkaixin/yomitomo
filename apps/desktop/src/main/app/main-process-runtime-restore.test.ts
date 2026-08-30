@@ -21,6 +21,8 @@ import * as providerSecrets from '../providers/provider-secrets';
 const paths = vi.hoisted(() => ({ userData: '' }));
 const ipcHandlers = vi.hoisted(() => new Map<string, (...args: unknown[]) => unknown>());
 
+vi.mock('../../reading-memory-release', () => ({ readingMemoryEnabled: true }));
+
 vi.mock('electron', () => ({
   app: { getPath: () => paths.userData },
   dialog: {
@@ -97,7 +99,11 @@ it.each(['weread', 'model-pricing'] as const)(
         }
       },
       logError: vi.fn(),
-      createTelemetryController: () => ({ check() {}, dispose() {} }),
+      createTelemetryController: () => ({
+        check() {},
+        recordReadingMemoryUsage() {},
+        dispose() {},
+      }),
       startEvidenceProjectionWorker: () => ({ requestRun() {}, dispose() {} }),
       readingMemoryControls: readingMemoryControlsStub(),
       syncWeRead: async () => {
@@ -203,7 +209,7 @@ it('starts automatic sync when the restore IPC replaces manual settings', async 
     elapsedMs: () => 0,
     logInfo: vi.fn(),
     logError: vi.fn(),
-    createTelemetryController: () => ({ check() {}, dispose() {} }),
+    createTelemetryController: () => ({ check() {}, recordReadingMemoryUsage() {}, dispose() {} }),
     startEvidenceProjectionWorker: () => ({
       requestRun: requestEvidenceProjection,
       dispose() {},

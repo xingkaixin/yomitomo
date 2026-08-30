@@ -19,6 +19,17 @@ import { appToast } from '../shell/app-toast';
 import type { SaveState } from '../shell/app-types';
 import { normalizeAppSettings } from '../../../settings/app-settings-normalization';
 
+const release = vi.hoisted(() => ({ enabled: undefined as boolean | undefined }));
+
+vi.mock('../../../reading-memory-release', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../reading-memory-release')>();
+  return {
+    get readingMemoryEnabled() {
+      return release.enabled ?? actual.readingMemoryEnabled;
+    },
+  };
+});
+
 vi.mock('../sound/app-sound-effects', () => ({
   playAppSoundEffect: vi.fn(),
 }));
@@ -56,6 +67,7 @@ afterEach(() => {
 });
 
 beforeEach(() => {
+  release.enabled = undefined;
   initializeAppI18n('zh-CN');
 });
 
@@ -401,6 +413,32 @@ describe('ProviderForm', () => {
 });
 
 describe('ProviderSettings', () => {
+  it.each([false, true])(
+    'mounts local reading-memory settings only in the enabled build (%s)',
+    async (enabled) => {
+      release.enabled = enabled ? true : undefined;
+      const status = vi.fn().mockRejectedValue(new Error('Local fixture model unavailable'));
+      Object.defineProperty(window, 'yomitomoDesktop', {
+        configurable: true,
+        value: { readingMemory: { model: { status } } },
+      });
+      render(
+        <ProviderSettings
+          {...makeProviderSettingsProps({ providerValue: emptyProvider, providers: [] })}
+        />,
+      );
+      expect(screen.getByLabelText('阅读理解助手供应商')).toBeTruthy();
+      if (enabled) {
+        expect(screen.getByRole('region', { name: '本地阅读记忆' })).toBeTruthy();
+        await waitFor(() => expect(status).toHaveBeenCalledOnce());
+      } else {
+        expect(status).not.toHaveBeenCalled();
+        expect(screen.queryByRole('region', { name: '本地阅读记忆' })).toBeNull();
+        expect(screen.queryByText('无法读取本地模型状态，请重试。')).toBeNull();
+      }
+    },
+  );
+
   it('shows task routes and marks routed providers as used', () => {
     const providers = [
       makeProvider('provider_1', 'Anthropic'),

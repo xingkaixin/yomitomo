@@ -197,8 +197,22 @@ describe('ReadingReviewEvidence', () => {
     fireEvent.click(card.getByRole('button', { name: 'readingEvidence.openSource' }));
     fireEvent.click(card.getByRole('button', { name: 'readingEvidence.openDiscussion' }));
     expect(props.onOpenEvidenceSource.mock.calls).toEqual([
-      [{ articleId: 'source-article', annotationId: 'annotation-first', view: 'source' }],
-      [{ articleId: 'source-article', annotationId: 'annotation-first', view: 'discussion' }],
+      [
+        {
+          articleId: 'source-article',
+          annotationId: 'annotation-first',
+          view: 'source',
+          readingMemoryJump: true,
+        },
+      ],
+      [
+        {
+          articleId: 'source-article',
+          annotationId: 'annotation-first',
+          view: 'discussion',
+          readingMemoryJump: true,
+        },
+      ],
     ]);
     expect(props.onCompare).not.toHaveBeenCalled();
   });

@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Collection } from '@yomitomo/shared';
+import { readingMemoryEnabled } from '../../../reading-memory-release';
 import { SegmentedControl } from '../components/ui/segmented-control';
 import { DistillationLibrary } from '../distillations/app-distillation-library';
 import type { ReadingEvidenceSourceTarget } from '../shell/app-reading-types';
 import { ReadingLibraryQuestion } from './reading-library-question';
 import { ReadingReview } from './reading-review';
+import { recordReadingMemoryUsage } from './reading-memory-usage';
 import './app-reading-memory.css';
 
 type ReadingMemoryTab = 'distillations' | 'library' | 'review';
@@ -22,6 +24,9 @@ export function ReadingMemory({
   const { t } = useTranslation();
   const [tab, setTab] = useState<ReadingMemoryTab>('distillations');
 
+  if (!readingMemoryEnabled)
+    return <DistillationLibrary onOpenEvidenceSource={onOpenEvidenceSource} />;
+
   return (
     <section className="reading-memory" aria-label={t('readingMemory.title')}>
       <header className="reading-memory-navigation">
@@ -30,7 +35,11 @@ export function ReadingMemory({
           role="tablist"
           aria-label={t('readingMemory.tabs.label')}
           value={tab}
-          onValueChange={setTab}
+          onValueChange={(next) => {
+            setTab(next);
+            if (next !== tab && next !== 'distillations')
+              recordReadingMemoryUsage('feature_opened');
+          }}
           options={[
             { value: 'distillations', label: t('readingMemory.tabs.distillations') },
             { value: 'library', label: t('readingMemory.tabs.library') },

@@ -8,6 +8,7 @@ export type ReadingEvidenceSourceTarget = {
   articleId: string;
   annotationId?: string;
   view?: 'source' | 'discussion';
+  readingMemoryJump?: true;
 };
 
 export type PromptArticle = {

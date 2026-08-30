@@ -65,6 +65,7 @@ export async function backupDatabaseWithDialog(
 
 export async function restoreDatabaseWithDialog(
   parentWindow: BrowserWindow | null,
+  onDatabaseRestored: () => void,
 ): Promise<DatabaseRestoreResult> {
   const result = await showOpenDatabaseDialog(parentWindow);
   const filePath = result.filePaths[0];
@@ -72,6 +73,7 @@ export async function restoreDatabaseWithDialog(
 
   validateDatabaseBackupFile(filePath);
   const backupPath = await replaceDatabaseFile(filePath);
+  onDatabaseRestored();
   return {
     canceled: false,
     backupPath,
