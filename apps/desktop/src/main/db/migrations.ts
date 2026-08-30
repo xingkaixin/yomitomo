@@ -1238,6 +1238,33 @@ AFTER DELETE ON reading_memory_evidence_entries BEGIN
 END;
 `,
   },
+  {
+    id: '0069_reading_memory_vectors',
+    sql: `
+CREATE TABLE IF NOT EXISTS reading_memory_evidence_vectors (
+  evidence_id TEXT NOT NULL REFERENCES reading_memory_evidence_entries(id) ON DELETE CASCADE,
+  model_version TEXT NOT NULL,
+  source_version TEXT NOT NULL,
+  projector_version TEXT NOT NULL,
+  dimension INTEGER NOT NULL
+    CONSTRAINT reading_memory_evidence_vectors_dimension_check
+    CHECK (typeof(dimension) = 'integer' AND dimension BETWEEN 1 AND 2147483647),
+  vector BLOB NOT NULL
+    CONSTRAINT reading_memory_evidence_vectors_shape_check
+    CHECK (typeof(vector) = 'blob' AND length(vector) = dimension * 4),
+  CONSTRAINT reading_memory_evidence_vectors_pk PRIMARY KEY (evidence_id, model_version)
+);
+
+CREATE INDEX IF NOT EXISTS reading_memory_evidence_vectors_model_idx
+ON reading_memory_evidence_vectors(model_version, evidence_id);
+
+CREATE TABLE IF NOT EXISTS reading_memory_semantic_state (
+  id INTEGER PRIMARY KEY NOT NULL
+    CONSTRAINT reading_memory_semantic_state_singleton_check CHECK (id = 1),
+  active_model_version TEXT NOT NULL
+);
+`,
+  },
 ];
 
 type MigrationDatabase = {

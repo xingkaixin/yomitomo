@@ -9,7 +9,7 @@ import type {
 import { isRecord } from '@yomitomo/shared';
 import { normalizeReadingMemoryEntry } from '@yomitomo/core';
 
-export type SqliteValue = string | number | null;
+export type SqliteValue = string | number | Uint8Array | null;
 
 export function readingMemoryEntrySqlValues(entry: ReadingMemoryEntry): SqliteValue[] {
   return [
