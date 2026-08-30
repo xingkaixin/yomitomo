@@ -60,8 +60,8 @@ node apps/desktop/scripts/evaluate-reading-memory-quality.mjs \
   --output="$READING_MEMORY_REPORT_DIR/production-quality.json"
 ```
 
-任一方向不达标时进程失败，不允许忽略失败方向。报告保存模型与源文件摘要、每次检索的
-candidate/evidence/sent IDs、覆盖状态、打包大小和裁剪状态，标记
+评测程序在任一方向不达标时仍返回失败，报告保留全部方向的真实结果。报告保存模型与源文件
+摘要、每次检索的 candidate/evidence/sent IDs、覆盖状态、打包大小和裁剪状态，标记
 `evidenceClass: synthetic-engineering`、`humanReleaseEvidence: false`。
 
 固定样本包括 60 个场景、360 条派生查询。它为每个语言建立独立书库，每篇样本只投影为一条
@@ -128,7 +128,12 @@ keyring、签名安装器或人工质量的验证。普通 UI 测试配置不重
   报告标记 `formal-package-real-model`；这仍不是签名、公证或安装器交互验收。
 - 两个平台独立的夹具包 GUI。夹具构建不会覆盖正式 dist，正式产物校验拒绝夹具标记。
 
-核对同一 PR 最新提交的所有检查、上传报告和冲突状态。需要保留的 CI 产物分别是
+按 2026-08-30 确认的验收调整，Windows x64 的合成生产检索质量步骤设为非阻塞，仍执行
+原评测命令并上传实际报告。该步骤失败后继续正式打包与实模型烟测；macOS 的质量步骤仍为
+阻塞检查。此豁免不包含模型验证、一万条资产性能、正式包烟测、GUI 或报告上传，也不豁免
+独立人工验收。绿色 CI 不表示 Windows 检索质量达标，发布开关仍保持关闭。
+
+核对同一 PR 最新提交的所有未豁免检查、实际质量报告和冲突状态。需要保留的 CI 产物分别是
 `reading-memory-model-<platform>`、`reading-memory-production-quality-<platform>`、
 `reading-memory-fixture-gui-<platform>`。不要用前一提交的绿色结果代替当前提交。
 

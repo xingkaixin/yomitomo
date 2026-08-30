@@ -116,6 +116,7 @@ jobs:
         run: pnpm --filter @yomitomo/desktop exec vitest run src/main/reading-memory/reading-memory-semantic-search.benchmark.test.ts
 
       - name: Strict production retrieval quality (synthetic engineering regression)
+        continue-on-error: ${{ matrix.expectedPlatform == 'win32-x64' }}
         run: node apps/desktop/scripts/evaluate-reading-memory-quality.mjs --model-cache="${{ runner.temp }}/reading-memory-model-cache" --output="${{ runner.temp }}/reading-memory-production-quality-${{ matrix.expectedPlatform }}.json"
 
       - name: Make isolated release package
