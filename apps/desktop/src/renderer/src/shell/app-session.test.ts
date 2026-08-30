@@ -99,7 +99,7 @@ describe('useAppSession', () => {
     act(() => result.current.actions.openProfileDialog());
     act(() => result.current.actions.setThemeDialogOpen(true));
     act(() => result.current.actions.setReaderOpen(true));
-    act(() => result.current.actions.openArticleFromDistillation({ articleId: 'article_1' }));
+    act(() => result.current.actions.openEvidenceSource({ articleId: 'article_1' }));
     await act(async () => result.current.actions.openStats());
 
     rerender({ storeStatus: 'ready', appLocked: true });

@@ -273,11 +273,7 @@ function ReadyApp({
                 />
               ) : null}
               {session.surface === 'distillations' ? (
-                <DistillationLibrary
-                  onOpenOriginal={(articleId, annotationId) =>
-                    session.actions.openArticleFromDistillation({ articleId, annotationId })
-                  }
-                />
+                <DistillationLibrary onOpenEvidenceSource={session.actions.openEvidenceSource} />
               ) : null}
               {session.surface === 'stats' ? (
                 <surfaces.ReadingStatsPanel

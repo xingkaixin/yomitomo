@@ -1,4 +1,4 @@
-import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
+import { createElement, useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import type {
   Annotation,
   ResolvedAppSettings,
@@ -11,6 +11,9 @@ import { createUserAnnotation, type HighlightBox } from '@yomitomo/core';
 import type { ReaderAppViewProps } from '@yomitomo/reader-ui/reader-app-view';
 import i18next from 'i18next';
 import type { ReaderArticleActions } from '../../shell/app-article-store-actions';
+import type { ReadingEvidenceSourceTarget } from '../../shell/app-reading-types';
+import { ReadingRelationsPanel } from '../../reading-memory/reading-relations-panel';
+import { useReadingRelations } from '../../reading-memory/use-reading-relations';
 import { appToast } from '../../shell/app-toast';
 import {
   useSourceReaderSession,
@@ -111,6 +114,7 @@ export type SourceReaderAppSurface = {
 
 export type UseSourceReaderAppInput = {
   articleActions: ReaderArticleActions;
+  onOpenEvidenceSource?: (target: ReadingEvidenceSourceTarget) => void;
   createAgentAnnotationAdapter?: (context: {
     isCurrentArticle: (articleId: string) => boolean;
     setStatusMessage: Dispatch<SetStateAction<string>>;
@@ -125,6 +129,7 @@ export type UseSourceReaderAppInput = {
 
 export function useSourceReaderApp({
   articleActions,
+  onOpenEvidenceSource,
   beforeOpenAnnotation,
   createAgentAnnotationAdapter,
   getArticleText,
@@ -134,6 +139,7 @@ export function useSourceReaderApp({
   session: sessionInput,
 }: UseSourceReaderAppInput) {
   const surface = useSourceReaderSurface();
+  const relations = useReadingRelations(sessionInput.article.id);
   const [statusMessage, setStatusMessage] = useState('');
   const [tocOpen, setTocOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -283,6 +289,13 @@ export function useSourceReaderApp({
           : {}),
       },
       selection: {
+        onFindRelated: onOpenEvidenceSource
+          ? (action) => {
+              void relations.search(adapter.questionContext(action.anchor));
+              adapter.lifecycle?.onClearSelection?.();
+              workspace.selection.clearSelection();
+            }
+          : undefined,
         onAskSelection: (action) => {
           adapter.lifecycle?.onAskSelection?.(action.anchor);
           askSelection(action, adapter.questionContext);
@@ -333,6 +346,19 @@ export function useSourceReaderApp({
       chat: workspace.readerChat.model,
       labels: workspace.labels,
       options: { embedded: true },
+      overlays: relations.state
+        ? createElement(ReadingRelationsPanel, {
+            state: relations.state,
+            returnFocus: surface.canvasRef,
+            onClose: relations.close,
+            onSearch: (question) => {
+              if (relations.state) void relations.search(relations.state.request.context, question);
+            },
+            onJudge: (confirmPrivacy) => void relations.judge(confirmPrivacy),
+            onDismissPrivacy: relations.dismissPrivacy,
+            onOpenEvidenceSource,
+          })
+        : null,
       selection: {
         composer: workspace.selection.composer,
         highlightChoice: workspace.selection.highlightChoice,

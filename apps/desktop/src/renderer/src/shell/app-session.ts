@@ -4,7 +4,7 @@ import type { AppMenuCommand, AppMenuCommandRequest } from '../../../app-menu-ty
 import type { SettingsSectionKey } from '../settings/app-settings-panels';
 import { getDesktopApi } from './app-desktop-api';
 import { elementDialogSourceRect, type DialogSourceRect } from './app-dialog-transition';
-import type { ReadingLibraryOpenTarget } from './app-reading-types';
+import type { ReadingEvidenceSourceTarget } from './app-reading-types';
 import {
   cancelIdlePreload,
   preloadEntries,
@@ -22,7 +22,7 @@ export type AppSurfaceKey = 'agents' | 'distillations' | 'library' | 'settings' 
 
 type AppNavigationState =
   | {
-      pendingOpenArticle: ReadingLibraryOpenTarget | null;
+      pendingOpenArticle: ReadingEvidenceSourceTarget | null;
       readerOpen: boolean;
       surface: 'library';
     }
@@ -32,7 +32,7 @@ type AppNavigationState =
 
 type AppNavigationEvent =
   | { type: 'article-opened' }
-  | { type: 'open-article'; target: ReadingLibraryOpenTarget }
+  | { type: 'open-article'; target: ReadingEvidenceSourceTarget }
   | { type: 'open-surface'; surface: AppSurfaceKey }
   | { type: 'reset-transients' }
   | { type: 'set-reader-open'; open: boolean };
@@ -285,7 +285,7 @@ export function useAppSession(input: AppSessionInput) {
       closeProfileDialog: () => setProfileDialogOpen(false),
       completeOnboarding: () => setOnboardingForced(false),
       openAgents,
-      openArticleFromDistillation: (target: ReadingLibraryOpenTarget) => {
+      openEvidenceSource: (target: ReadingEvidenceSourceTarget) => {
         dispatchNavigation({ type: 'open-article', target });
       },
       openDistillations: () =>

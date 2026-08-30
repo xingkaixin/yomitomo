@@ -3,6 +3,7 @@ import {
   Copy01Icon,
   MessageAdd01Icon,
   MessageQuestionIcon,
+  Search01Icon,
   Tick01Icon,
 } from '@hugeicons/core-free-icons';
 import { useEffect, useRef, useState } from 'react';
@@ -13,7 +14,10 @@ import type { SelectionMenuAction } from '../reader-types';
 import type { ReaderUiLabels } from './reader-app-view-types';
 import { defaultReaderUiLabels } from './reader-app-view-types';
 
-type SelectionMenuLabels = Pick<ReaderUiLabels, 'askSelection' | 'copySelection' | 'recordThought'>;
+type SelectionMenuLabels = Pick<
+  ReaderUiLabels,
+  'askSelection' | 'copySelection' | 'recordThought' | 'findRelated'
+>;
 
 export function SelectionMenu({
   action,
@@ -21,6 +25,7 @@ export function SelectionMenu({
   shortcuts,
   onAnnotate,
   onAsk,
+  onFindRelated,
   onCopy,
   onCopySettled,
   copyRequestKey = 0,
@@ -31,6 +36,7 @@ export function SelectionMenu({
   copyRequestKey?: number;
   onAnnotate: () => void;
   onAsk?: () => void;
+  onFindRelated?: () => void;
   onCopy: () => void | Promise<void>;
   onCopySettled?: () => void;
 }) {
@@ -104,6 +110,12 @@ export function SelectionMenu({
           <HugeiconsIcon icon={MessageQuestionIcon} size={15} strokeWidth={2.2} />
           {labels.askSelection}
           <Kbd className="reader-kbd">{shortcutKeys.ask}</Kbd>
+        </button>
+      ) : null}
+      {onFindRelated ? (
+        <button className="reader-selection-primary" type="button" onClick={onFindRelated}>
+          <HugeiconsIcon icon={Search01Icon} size={15} strokeWidth={2.2} />
+          {labels.findRelated}
         </button>
       ) : null}
     </div>

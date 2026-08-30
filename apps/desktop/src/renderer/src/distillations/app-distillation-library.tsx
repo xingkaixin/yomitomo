@@ -7,10 +7,12 @@ import {
   LibraryIcon,
   Search01Icon,
 } from '@hugeicons/core-free-icons';
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { DistillationLibraryItem, DistillationLibraryListResult } from '../../../ipc-contract';
+import { ReadingEvidenceCard } from '@yomitomo/reader-ui/reading-evidence-card';
+import type { DistillationLibraryListResult } from '../../../ipc-contract';
 import { getDesktopApi } from '../shell/app-desktop-api';
+import type { ReadingEvidenceSourceTarget } from '../shell/app-reading-types';
 
 const PAGE_SIZE = 12;
 const SEARCH_DEBOUNCE_MS = 180;
@@ -21,9 +23,9 @@ type LoadState =
   | { status: 'error'; result: DistillationLibraryListResult | null };
 
 export function DistillationLibrary({
-  onOpenOriginal,
+  onOpenEvidenceSource,
 }: {
-  onOpenOriginal: (articleId: string, annotationId: string) => void;
+  onOpenEvidenceSource: (target: ReadingEvidenceSourceTarget) => void;
 }) {
   const { i18n, t } = useTranslation();
   const [query, setQuery] = useState('');
@@ -182,14 +184,42 @@ export function DistillationLibrary({
               key={`${result.query}|${result.page}`}
               className={`distillation-library-list${isResolving ? ' is-resolving' : ''}`}
             >
-              {result.items.map((item, index) => (
-                <DistillationCard
+              {result.items.map((item) => (
+                <ReadingEvidenceCard
                   key={item.annotationId}
-                  index={index}
-                  item={item}
-                  formattedDate={dateFormatter.format(new Date(item.updatedAt))}
-                  sourceLabel={t(`library.sources.${item.sourceType}Short`)}
-                  onOpenOriginal={onOpenOriginal}
+                  evidence={{
+                    content: item.content,
+                    excerpt: item.anchorText,
+                    assetLabel: t('readingEvidence.assetTypes.distillation'),
+                    authorLabel: t('readingEvidence.authors.aiAssisted'),
+                    sourceTitle: item.articleTitle,
+                    sourceDetail: [t(`library.sources.${item.sourceType}Short`), item.articleByline]
+                      .filter(Boolean)
+                      .join(' · '),
+                    date: {
+                      dateTime: item.updatedAt,
+                      label: dateFormatter.format(new Date(item.updatedAt)),
+                    },
+                  }}
+                  labels={{
+                    excerpt: t('readingEvidence.excerpt'),
+                    openSource: t('readingEvidence.openSource'),
+                    openDiscussion: t('readingEvidence.openDiscussion'),
+                    locationUnavailable: t('readingEvidence.locationUnavailable'),
+                  }}
+                  onOpenSource={() =>
+                    onOpenEvidenceSource({
+                      articleId: item.articleId,
+                      annotationId: item.annotationId,
+                    })
+                  }
+                  onOpenDiscussion={() =>
+                    onOpenEvidenceSource({
+                      articleId: item.articleId,
+                      annotationId: item.annotationId,
+                      view: 'discussion',
+                    })
+                  }
                 />
               ))}
             </div>
@@ -221,47 +251,6 @@ export function DistillationLibrary({
         ) : null}
       </div>
     </section>
-  );
-}
-
-function DistillationCard({
-  index,
-  item,
-  formattedDate,
-  sourceLabel,
-  onOpenOriginal,
-}: {
-  index: number;
-  item: DistillationLibraryItem;
-  formattedDate: string;
-  sourceLabel: string;
-  onOpenOriginal: (articleId: string, annotationId: string) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <article className="distillation-library-card" style={{ '--i': index } as CSSProperties}>
-      <p className="distillation-library-card-content">{item.content}</p>
-      {item.anchorText ? (
-        <blockquote className="distillation-library-anchor">
-          <span>{t('distillationLibrary.originalText')}</span>
-          <p>{item.anchorText}</p>
-        </blockquote>
-      ) : null}
-      <footer>
-        <div className="distillation-library-source">
-          <div className="distillation-library-card-meta">
-            <span className="distillation-library-source-badge">{sourceLabel}</span>
-            <time dateTime={item.updatedAt}>{formattedDate}</time>
-          </div>
-          <strong>{item.articleTitle}</strong>
-          {item.articleByline ? <span>{item.articleByline}</span> : null}
-        </div>
-        <button type="button" onClick={() => onOpenOriginal(item.articleId, item.annotationId)}>
-          {t('distillationLibrary.openOriginal')}
-          <HugeiconsIcon icon={ArrowRight01Icon} aria-hidden="true" size={15} />
-        </button>
-      </footer>
-    </article>
   );
 }
 

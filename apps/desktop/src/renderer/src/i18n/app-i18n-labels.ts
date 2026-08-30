@@ -12,6 +12,7 @@ export function readerUiLabels(): ReaderUiLabels {
     adjustSelectionEnd: i18next.t('readerUi.adjustSelectionEnd'),
     adjustSelectionStart: i18next.t('readerUi.adjustSelectionStart'),
     askSelection: i18next.t('readerUi.askSelection'),
+    findRelated: i18next.t('readerUi.findRelated'),
     assistant: i18next.t('readerUi.assistant'),
     assistantAnswering: i18next.t('readerUi.assistantAnswering'),
     assistantCompleted: i18next.t('readerUi.assistantCompleted'),

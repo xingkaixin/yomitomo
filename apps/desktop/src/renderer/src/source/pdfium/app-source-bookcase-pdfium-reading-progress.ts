@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useScroll, useScrollCapability } from '@embedpdf/plugin-scroll/react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useScrollCapability } from '@embedpdf/plugin-scroll/react';
 import type { ArticleReadingProgress, ArticleRecord } from '@yomitomo/shared';
 import { recordPdfOpenTiming, type PdfOpenTrace } from './app-source-bookcase-pdfium-open-trace';
 import {
@@ -60,8 +60,11 @@ export function usePdfiumReadingProgress({
   const restoreOverlayHiddenLoggedRef = useRef(false);
   const restoringInitialPageRef = useRef(initialPageIndexRef.current > 0);
   const suppressPageSaveUntilRestoreRef = useRef(initialPageIndexRef.current > 0);
-  const { provides: scroll } = useScroll(documentId);
   const { provides: scrollCapability } = useScrollCapability();
+  const scroll = useMemo(
+    () => scrollCapability?.forDocument(documentId) ?? null,
+    [documentId, scrollCapability],
+  );
   const [restoringInitialPage, setRestoringInitialPage] = useState(
     () => initialPageIndexRef.current > 0,
   );

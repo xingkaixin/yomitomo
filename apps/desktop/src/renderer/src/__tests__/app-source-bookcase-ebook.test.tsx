@@ -393,9 +393,41 @@ describe('EbookBookcase', () => {
     });
 
     await waitFor(() => expect(latestFocused).toHaveBeenCalledTimes(1));
+    expect(latestFocused).toHaveBeenCalledWith(true);
     expect(scrollToAnchor).toHaveBeenCalledTimes(1);
     expect(firstFocused).not.toHaveBeenCalled();
   });
+
+  it.each(['missing quote', 'navigation rejected'])(
+    'reports an unavailable EPUB position for %s',
+    async (failure) => {
+      const note = annotation('note-1');
+      const doc = document.implementation.createHTMLDocument('ebook');
+      doc.body.textContent =
+        failure === 'missing quote' ? 'Different source text' : note.anchor.exact;
+      mocks.view = {
+        book: { sections: [{ id: 'chapter-1' }] },
+        getPageInfo: () => ({ sectionIndex: 0, pageIndex: 0, pageCount: 1 }),
+        goTo: vi.fn().mockResolvedValue(undefined),
+        goToFraction: vi.fn().mockResolvedValue(undefined),
+        renderer: {
+          getContents: () => [{ doc, index: 0 }],
+          scrollToAnchor: vi.fn().mockRejectedValue(new Error('Navigation failed')),
+        },
+      };
+      const onFocusedAnnotation = vi.fn();
+      render(
+        <EbookBookcase
+          {...ebookBookcaseProps(ebookArticle({ annotations: [note] }), [note], {
+            focusAnnotationId: note.id,
+            onFocusedAnnotation,
+          })}
+        />,
+      );
+
+      await waitFor(() => expect(onFocusedAnnotation).toHaveBeenCalledWith(false));
+    },
+  );
 });
 
 function ebookBookcaseProps(
@@ -403,7 +435,7 @@ function ebookBookcaseProps(
   annotations: Annotation[],
   overrides: {
     focusAnnotationId?: string | null;
-    onFocusedAnnotation?: () => void;
+    onFocusedAnnotation?: (located: boolean) => void;
     onOpenAnnotation?: (annotationId: string | null) => void;
   } = {},
 ): EbookBookcaseProps {

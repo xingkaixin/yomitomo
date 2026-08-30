@@ -105,6 +105,9 @@ describe('ReaderAppView surface handle', () => {
       true,
     );
     expect(surfaceRef.current?.getCanvasElement()?.classList.contains('reader-canvas')).toBe(true);
+    const canvas = surfaceRef.current?.getCanvasElement();
+    canvas?.focus();
+    expect(document.activeElement, 'Reader canvas must accept restored dialog focus').toBe(canvas);
     expect(surfaceRef.current?.getArticleElement()?.classList.contains('reader-article')).toBe(
       true,
     );

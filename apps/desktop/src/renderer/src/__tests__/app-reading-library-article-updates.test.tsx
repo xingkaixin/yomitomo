@@ -3,6 +3,7 @@
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
+import i18next from 'i18next';
 import { articleCounts } from '@yomitomo/core';
 import type {
   Annotation,
@@ -14,6 +15,7 @@ import type { SourceBookcaseProps } from '../source/bookcase/app-source-bookcase
 import type { LibraryHome } from '../reading-library/app-reading-library-home';
 import type { CurrentArticleSink } from '../shell/app-article-store';
 import type { ArticleActions } from '../shell/app-article-store-actions';
+import type { ReadingEvidenceSourceTarget } from '../shell/app-reading-types';
 import { ReadingLibrary } from '../reading-library/app-reading-library';
 import { useLibraryQueryState } from '../reading-library/use-library-query-state';
 import { initializeAppI18n } from '../i18n/app-i18n';
@@ -24,6 +26,9 @@ const sourceBookcase = vi.hoisted(() => ({ props: null as SourceBookcaseProps | 
 type LibraryHomeProps = ComponentProps<typeof LibraryHome>;
 const libraryHome = vi.hoisted(() => ({ props: null as LibraryHomeProps | null }));
 const defaultArticleStore = articleStoreSinkStub();
+const toastError = vi.hoisted(() => vi.fn());
+
+vi.mock('../shell/app-toast', () => ({ appToast: { error: toastError } }));
 
 vi.mock('../source/bookcase/app-source-bookcase', () => ({
   SourceBookcase: (props: SourceBookcaseProps) => {
@@ -51,9 +56,100 @@ afterEach(() => {
   cleanup();
   libraryHome.props = null;
   sourceBookcase.props = null;
+  toastError.mockClear();
 });
 
 describe('ReadingLibrary article updates', () => {
+  it('routes evidence to the source annotation or its discussion through the same reader', async () => {
+    const note = annotationRecord();
+    const firstArticle = article();
+    const secondArticle = article({ id: 'article_2', annotations: [note] });
+    const openArticleDiscussion = vi.fn();
+    renderReadingLibrary({
+      articleActions: articleActionStubs({
+        readArticle: vi.fn(async (id) => (id === firstArticle.id ? firstArticle : secondArticle)),
+        openArticleDiscussion,
+      }),
+      articles: [firstArticle, secondArticle],
+      openArticleTarget: { articleId: firstArticle.id },
+    });
+    await waitFor(() => expect(sourceBookcase.props?.content.article?.id).toBe(firstArticle.id));
+
+    act(() =>
+      sourceBookcase.props?.readerControl.onOpenEvidenceSource?.({
+        articleId: secondArticle.id,
+        annotationId: note.id,
+      }),
+    );
+    await waitFor(() =>
+      expect(sourceBookcase.props?.readerControl).toMatchObject({
+        selectedAnnotationId: note.id,
+        focusAnnotationId: note.id,
+      }),
+    );
+    expect(sourceBookcase.props?.content.article?.id).toBe(secondArticle.id);
+    expect(openArticleDiscussion).not.toHaveBeenCalled();
+
+    act(() =>
+      sourceBookcase.props?.readerControl.onOpenEvidenceSource?.({
+        articleId: secondArticle.id,
+        annotationId: note.id,
+        view: 'discussion',
+      }),
+    );
+    await waitFor(() =>
+      expect(openArticleDiscussion).toHaveBeenCalledWith(secondArticle.id, note.id),
+    );
+  });
+
+  it('reports unresolved source positions without discarding their original excerpt', async () => {
+    const note = annotationRecord();
+    const selectedArticle = article({ annotations: [note] });
+    renderReadingLibrary({
+      articleActions: articleActionStubs({ readArticle: vi.fn(async () => selectedArticle) }),
+      articles: [selectedArticle],
+      openArticleTarget: { articleId: selectedArticle.id, annotationId: note.id },
+    });
+    await waitFor(() =>
+      expect(sourceBookcase.props?.readerControl.focusAnnotationId).toBe(note.id),
+    );
+
+    act(() => sourceBookcase.props?.annotationActions.onFocusedAnnotation(false));
+    expect(toastError).toHaveBeenCalledWith(i18next.t('readingEvidence.locationUnavailable'), {
+      description: note.anchor.exact,
+    });
+    expect(sourceBookcase.props?.readerControl.focusAnnotationId).toBeNull();
+    expect(sourceBookcase.props?.content.annotations[0].anchor.exact).toBe(note.anchor.exact);
+  });
+
+  it('does not open a deleted discussion and reports a deleted source article', async () => {
+    const selectedArticle = article();
+    const openArticleDiscussion = vi.fn();
+    renderReadingLibrary({
+      articleActions: articleActionStubs({
+        readArticle: vi.fn(async (id) => (id === selectedArticle.id ? selectedArticle : null)),
+        openArticleDiscussion,
+      }),
+      articles: [selectedArticle],
+      openArticleTarget: {
+        articleId: selectedArticle.id,
+        annotationId: 'deleted',
+        view: 'discussion',
+      },
+    });
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(i18next.t('readingEvidence.sourceUnavailable')),
+    );
+    expect(openArticleDiscussion).not.toHaveBeenCalled();
+
+    act(() =>
+      sourceBookcase.props?.readerControl.onOpenEvidenceSource?.({ articleId: 'deleted_article' }),
+    );
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(i18next.t('library.articleLoadFailed')),
+    );
+  });
+
   it('registers and unregisters the navigation current-article sink', async () => {
     const selectedArticle = article();
     const unregister = vi.fn();
@@ -399,7 +495,7 @@ type ReadingLibraryTestOptions = {
   articleActions: ArticleActions;
   articleStore?: ReturnType<typeof articleStoreSinkStub>;
   articles: ArticleRecord[];
-  openArticleTarget: { articleId: string; annotationId?: string };
+  openArticleTarget: ReadingEvidenceSourceTarget;
 };
 
 type WebArticleRecord = Extract<ArticleRecord, { sourceType: 'web' }>;

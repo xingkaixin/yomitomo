@@ -38,6 +38,7 @@ import { useTranslation } from 'react-i18next';
 import { providerDisplayName, providerPresetDisplayName } from '../i18n/app-i18n-labels';
 import type { SaveableDraft } from './use-saveable-draft';
 import { AssistantExecutionModeSlider } from './app-settings-execution-mode-slider';
+import { ReadingMemoryModelSettings } from './reading-memory-model-settings';
 
 type ProviderDraftController = SaveableDraft<ProviderDraft> & {
   create: () => void;
@@ -176,6 +177,7 @@ export function ProviderSettings({ providerDraft, routesDraft, providers }: Prov
           onChange={routesDraft.update}
           onSave={saveRoutes}
         />
+        <ReadingMemoryModelSettings />
         <SettingsGroup label={t('settings.models.providerGroup')} flush>
           <ProviderList
             providers={providers}

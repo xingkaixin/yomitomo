@@ -26,7 +26,7 @@ import { annotationAuthorName, sortAnnotations, sortArticles } from '@yomitomo/c
 import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
 import { SourceBookcase } from '../source/bookcase/app-source-bookcase';
 import { publicAnnotationAgents } from '../source/bookcase/source-public-agents';
-import type { ReadingLibraryOpenTarget } from '../shell/app-reading-types';
+import type { ReadingEvidenceSourceTarget } from '../shell/app-reading-types';
 import { LibraryHome } from './app-reading-library-home';
 import { WeReadBookcase } from '../shell/app-weread-bookcase';
 import { appToast } from '../shell/app-toast';
@@ -96,7 +96,7 @@ export function ReadingLibrary({
   libraryQuery: LibraryQueryState;
   settings?: ResolvedAppSettings;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
-  openArticleTarget?: ReadingLibraryOpenTarget | null;
+  openArticleTarget?: ReadingEvidenceSourceTarget | null;
   userProfile: UserProfile;
   onArticleOpened?: (articleId: string) => void;
   onAddCollectionMembers: (collectionId: string, members: ContentRef[]) => Promise<void>;
@@ -159,6 +159,26 @@ export function ReadingLibrary({
   const selectedArticleId = selectedArticle?.id || null;
   const openArticleTargetId = openArticleTarget?.articleId;
   const openArticleTargetAnnotationId = openArticleTarget?.annotationId;
+  const openArticleTargetView = openArticleTarget?.view;
+  const openEvidenceSource = useCallback(
+    async (target: ReadingEvidenceSourceTarget) => {
+      const openedArticle = await openLibraryArticle(target.articleId, target.annotationId);
+      if (!openedArticle || target.view !== 'discussion') return openedArticle;
+      if (!navigation.actions.isCurrentArticle(openedArticle.id)) return null;
+      const annotation = openedArticle.annotations.find((item) => item.id === target.annotationId);
+      if (!annotation) {
+        appToast.error(t('readingEvidence.sourceUnavailable'));
+        return openedArticle;
+      }
+      try {
+        await openArticleDiscussion(openedArticle.id, annotation.id);
+      } catch {
+        appToast.error(t('readingEvidence.sourceUnavailable'));
+      }
+      return openedArticle;
+    },
+    [navigation.actions, openArticleDiscussion, openLibraryArticle, t],
+  );
   const weRead = useWeReadLibrarySession({
     onOpenBook: navigation.actions.openWeReadBook,
   });
@@ -203,12 +223,20 @@ export function ReadingLibrary({
 
   useEffect(() => {
     if (!openArticleTargetId) return;
-    void openLibraryArticle(openArticleTargetId, openArticleTargetAnnotationId).then(
-      (openedArticle) => {
-        if (openedArticle) onArticleOpened?.(openedArticle.id);
-      },
-    );
-  }, [onArticleOpened, openArticleTargetAnnotationId, openArticleTargetId, openLibraryArticle]);
+    void openEvidenceSource({
+      articleId: openArticleTargetId,
+      annotationId: openArticleTargetAnnotationId,
+      view: openArticleTargetView,
+    }).then((openedArticle) => {
+      if (openedArticle) onArticleOpened?.(openedArticle.id);
+    });
+  }, [
+    onArticleOpened,
+    openArticleTargetAnnotationId,
+    openArticleTargetId,
+    openArticleTargetView,
+    openEvidenceSource,
+  ]);
 
   useEffect(() => {
     if (!selectedArticleId || !selectedArticle) return;
@@ -364,7 +392,15 @@ export function ReadingLibrary({
                 annotationActions={{
                   onArticleChange: (article) =>
                     navigation.actions.updateArticle(article.id, () => article),
-                  onFocusedAnnotation: distillationSync.onFocusedAnnotation,
+                  onFocusedAnnotation: (located) => {
+                    distillationSync.onFocusedAnnotation();
+                    if (!located) {
+                      appToast.error(t('readingEvidence.locationUnavailable'), {
+                        description: annotations.find((item) => item.id === sourceFocusAnnotationId)
+                          ?.anchor.exact,
+                      });
+                    }
+                  },
                   onOpenAnnotation: navigation.actions.selectAnnotation,
                 }}
                 articleActions={articleActions}
@@ -385,6 +421,7 @@ export function ReadingLibrary({
                 readerControl={{
                   focusAnnotationId: sourceFocusAnnotationId,
                   onClose: openLibraryShelf,
+                  onOpenEvidenceSource: (target) => void openEvidenceSource(target),
                   selectedAnnotationId: selectedAnnotation?.id || null,
                 }}
               />

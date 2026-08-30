@@ -63,7 +63,7 @@ export function EbookBookcase({
     selectionActionShortcuts,
     uiLanguage,
   },
-  readerControl: { focusAnnotationId, onClose, selectedAnnotationId },
+  readerControl: { focusAnnotationId, onClose, onOpenEvidenceSource, selectedAnnotationId },
 }: EbookBookcaseProps) {
   const { mergeArticleAgentAnnotation, saveArticleReadingProgress } = articleActions;
   const { t } = useTranslation();
@@ -92,6 +92,7 @@ export function EbookBookcase({
   }, []);
   const sourceReaderApp = useSourceReaderApp({
     articleActions,
+    onOpenEvidenceSource,
     beforeOpenAnnotation,
     createAgentAnnotationAdapter: ({ isCurrentArticle, setStatusMessage }) =>
       createEbookSourceReaderController({

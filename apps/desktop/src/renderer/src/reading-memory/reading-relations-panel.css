@@ -1,0 +1,206 @@
+.reading-relations-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--app-z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 24px;
+  background: var(--app-overlay-scrim);
+}
+
+.reading-relations-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(620px, 100%);
+  max-height: calc(var(--app-viewport-height, 100dvh) - 48px);
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  box-shadow: var(--app-shell-panel-shadow);
+  font-family: var(--font-ui);
+}
+
+.reading-relations-header,
+.reading-relations-footer {
+  flex: none;
+  padding: 20px 24px;
+}
+
+.reading-relations-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  justify-content: space-between;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.reading-relations-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  outline: none;
+}
+
+.reading-relations-header p,
+.reading-relations-footer p {
+  margin: 6px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.reading-relations-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 50%;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+}
+
+.reading-relations-close:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+.reading-relations-close:focus-visible,
+.reading-relations-query input:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 3px;
+}
+
+.reading-relations-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  padding: 20px 24px;
+}
+
+.reading-relations-selection {
+  margin: 0 0 20px;
+  padding-left: 14px;
+  max-height: 150px;
+  overflow-y: auto;
+  border-left: 2px solid var(--app-reader-accent-strong);
+  font-family: var(--font-reader-serif);
+  font-size: 16px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.reading-relations-query {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.reading-relations-query label {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 6px;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+}
+
+.reading-relations-query input {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid hsl(var(--input));
+  border-radius: calc(var(--radius) / 2);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-size: 14px;
+}
+
+.reading-relations-coverage,
+.reading-relations-status {
+  margin: 16px 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.reading-relations-coverage p {
+  margin: 0;
+}
+
+.reading-relations-evidence {
+  display: grid;
+  gap: 16px;
+}
+
+.reading-relations-privacy {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--muted));
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.reading-relations-privacy h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.reading-relations-privacy p {
+  margin: 10px 0;
+}
+
+.reading-relations-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.reading-relations-actions span {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+}
+
+.reading-relations-footer {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.reading-relations-footer > .action-button {
+  white-space: normal;
+  height: auto;
+  min-height: 40px;
+}
+
+@media (max-width: 640px) {
+  .reading-relations-overlay {
+    padding: 12px;
+  }
+
+  .reading-relations-panel {
+    max-height: calc(var(--app-viewport-height, 100dvh) - 24px);
+  }
+
+  .reading-relations-header,
+  .reading-relations-body,
+  .reading-relations-footer {
+    padding: 16px;
+  }
+
+  .reading-relations-query {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

@@ -61,6 +61,7 @@ type ReaderSurfaceViewLabels = Pick<
   | 'annotationCardTab'
   | 'annotationProcessing'
   | 'askSelection'
+  | 'findRelated'
   | 'assistantParticipationSummary'
   | 'cancel'
   | 'closeHighlightChoice'
@@ -334,7 +335,7 @@ export function ReaderSurfaceView({
   return (
     <div className="reader-surface-frame">
       <section className="reader-surface" ref={surfaceRef} onMouseUp={selectionActions.onMouseUp}>
-        <div className="reader-canvas" ref={canvasRef}>
+        <div className="reader-canvas" ref={canvasRef} tabIndex={-1}>
           <article className="reader-article" ref={articleRef}>
             {articleContent ?? (
               <div
@@ -460,6 +461,11 @@ export function ReaderSurfaceView({
               onAnnotate={() => selectionActions.onOpenComposer(selectionAction)}
               onAsk={
                 chatAvailable ? () => selectionActions.onAskSelection?.(selectionAction) : undefined
+              }
+              onFindRelated={
+                selectionActions.onFindRelated
+                  ? () => selectionActions.onFindRelated?.(selectionAction)
+                  : undefined
               }
               onCopy={() => selectionActions.onCopySelection(selectionAction)}
               onCopySettled={selectionActions.onClearSelection}
