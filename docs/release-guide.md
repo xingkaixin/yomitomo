@@ -14,12 +14,12 @@
 从仓库根目录：
 
 ```bash
-pnpm lint
-pnpm format:check
-pnpm typecheck
-pnpm test
-pnpm build
+mise run check
 ```
+
+该命令覆盖与 CI 同序的完整门禁；无 mise 时使用根目录 `AGENTS.md` 中列出的等价命令。
+阅读记忆还须通过独立的 [发布质量门禁](reading-memory-release.md)：固定夹具、打包烟测和
+CI 通过不替代真实阅读样本及人工质量复核，三个入口的发布开关须共同审核后开放。
 
 桌面端 native 边界（升级 Electron / `better-sqlite3` 后必跑）：
 
