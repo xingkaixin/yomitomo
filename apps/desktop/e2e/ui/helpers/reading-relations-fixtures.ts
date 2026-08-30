@@ -14,7 +14,11 @@ import {
   libraryDocumentButton,
   openLibraryHome,
 } from './library';
-import { withDesktopE2eApp, type DesktopE2eApp } from './electron-app';
+import {
+  withDesktopE2eApp,
+  type DesktopE2eApp,
+  type DesktopE2eLaunchOptions,
+} from './electron-app';
 
 export type RelationSource = {
   kind: 'web' | 'ebook' | 'pdf';
@@ -26,23 +30,46 @@ export async function withRelationDesktopApp(
   name: string,
   baseUrl: string,
   run: (app: DesktopE2eApp) => Promise<void>,
+  launchOptions?: DesktopE2eLaunchOptions,
 ) {
-  await withDesktopE2eApp(name, async (app) => {
-    await openLibraryHome(app.page);
-    const providerId = await configureRelationProvider(app.page, baseUrl);
-    try {
-      await app.page.reload({ waitUntil: 'domcontentloaded' });
-      await app.page.getByRole('button', { name: 'Add content' }).waitFor();
-      await run(app);
-    } finally {
-      await app.page.evaluate(async (id) => {
-        const desktop = (window as Window & { yomitomoDesktop?: YomitomoDesktopApi })
-          .yomitomoDesktop;
-        if (!desktop) throw new Error('RELATION_DESKTOP_API_UNAVAILABLE');
-        await desktop.provider.delete(id);
-      }, providerId);
-    }
-  });
+  await withDesktopE2eApp(
+    name,
+    async (app) => {
+      await openLibraryHome(app.page);
+      const providerId = await configureRelationProvider(app.page, baseUrl);
+      try {
+        await app.page.reload({ waitUntil: 'domcontentloaded' });
+        await app.page.getByRole('button', { name: 'Add content' }).waitFor();
+        await run(app);
+      } finally {
+        await app.page.evaluate(async (id) => {
+          const desktop = (window as Window & { yomitomoDesktop?: YomitomoDesktopApi })
+            .yomitomoDesktop;
+          if (!desktop) throw new Error('RELATION_DESKTOP_API_UNAVAILABLE');
+          await desktop.provider.delete(id);
+        }, providerId);
+      }
+    },
+    {
+      ...launchOptions,
+      env: {
+        YOMITOMO_READING_MEMORY_FIXTURE_SCENARIO: 'not-installed',
+        ...launchOptions?.env,
+      },
+    },
+  );
+}
+
+export async function findReadingRelations(page: Page, source: RelationSource) {
+  await selectRelationQuote(page, source);
+  await page
+    .locator('.reader-selection-menu')
+    .getByRole('button', { name: 'Find related' })
+    .click();
+  const panel = page.getByRole('dialog', { name: 'Related reading', exact: true });
+  await panel.waitFor();
+  await panel.getByRole('region', { name: 'Index coverage for this query' }).waitFor();
+  return panel;
 }
 
 export async function importRelationSource(page: Page, fixtureDir: string, source: RelationSource) {

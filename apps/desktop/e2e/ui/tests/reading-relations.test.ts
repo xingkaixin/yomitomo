@@ -1,10 +1,9 @@
-import type { Page } from 'playwright-core';
 import { describe, expect, it } from 'vitest';
 import {
+  findReadingRelations,
   importRelationSource,
   openRelationSource,
   saveRelationJudgment,
-  selectRelationQuote,
   waitForRelationProjection,
   waitForRelationSource,
   withRelationDesktopApp,
@@ -43,7 +42,7 @@ describe('reading relations', () => {
               expect(saved.anchor).toMatchObject({ kind: 'pdf-text', pageIndex: 0 });
             if (kind === 'ebook') expect(saved.anchor.chapterId).toBeTruthy();
             await waitForRelationProjection(page, 2);
-            const panel = await findRelated(page, source);
+            const panel = await findReadingRelations(page, source);
             const card = panel
               .locator('.reading-evidence-card')
               .filter({ hasText: referenceThought });
@@ -87,7 +86,7 @@ describe('reading relations', () => {
               .locator('.reader-note-quote-text')
               .getByText(quote, { exact: true })
               .waitFor();
-            const returnPanel = await findRelated(page, reference);
+            const returnPanel = await findReadingRelations(page, reference);
             await returnPanel
               .locator('.reading-evidence-card')
               .filter({ hasText: source.title })
@@ -148,7 +147,7 @@ describe('reading relations', () => {
               'Reading memory needs reliable saved judgments.',
             );
             await waitForRelationProjection(page, 2);
-            const panel = await findRelated(page, source);
+            const panel = await findReadingRelations(page, source);
             await panel
               .getByRole('button', { name: 'Compare with Local E2E · controlled-relations' })
               .click();
@@ -161,7 +160,7 @@ describe('reading relations', () => {
             await expect.poll(() => provider.requests[0].canceled).toBe(true);
             await page.getByRole('button', { name: 'Back to library' }).click();
             await openRelationSource(page, reference);
-            const nextPanel = await findRelated(page, reference);
+            const nextPanel = await findReadingRelations(page, reference);
             provider.requests[0].respond('Stale response must never appear.');
             await nextPanel.locator('.reading-evidence-card').first().waitFor();
             expect(await nextPanel.getByText('Stale response must never appear.').count()).toBe(0);
@@ -178,7 +177,7 @@ describe('reading relations', () => {
             await nextPanel.waitFor({ state: 'detached' });
             await waitForRelationSource(page, source);
             await expect.poll(() => provider.requests[1].canceled).toBe(true);
-            const switchedPanel = await findRelated(page, source);
+            const switchedPanel = await findReadingRelations(page, source);
             provider.requests[1].respond('Old source response must never appear.');
             await switchedPanel.locator('.reading-evidence-card').first().waitFor();
             expect(
@@ -197,15 +196,3 @@ describe('reading relations', () => {
     );
   });
 });
-
-async function findRelated(page: Page, source: RelationSource) {
-  await selectRelationQuote(page, source);
-  await page
-    .locator('.reader-selection-menu')
-    .getByRole('button', { name: 'Find related' })
-    .click();
-  const panel = page.getByRole('dialog', { name: 'Related reading', exact: true });
-  await panel.waitFor();
-  await panel.getByRole('region', { name: 'Index coverage for this query' }).waitFor();
-  return panel;
-}

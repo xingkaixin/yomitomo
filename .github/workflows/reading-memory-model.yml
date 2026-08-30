@@ -12,12 +12,30 @@ on:
       - 'apps/desktop/scripts/smoke-packaged-embedding.mjs'
       - 'apps/desktop/scripts/verify-desktop-dist.mjs'
       - 'apps/desktop/scripts/verify-native-roots.mjs'
+      - 'apps/desktop/scripts/reading-memory-acceptance.mjs'
+      - 'apps/desktop/scripts/evaluate-reading-memory-quality.mjs'
+      - 'apps/desktop/e2e/packaged/**'
+      - 'apps/desktop/e2e/helpers/e2e-data.ts'
+      - 'apps/desktop/e2e/ui/helpers/electron-app.ts'
+      - 'apps/desktop/e2e/ui/helpers/reading-*.ts'
+      - 'apps/desktop/e2e/ui/tests/reading-*.test.ts'
+      - 'apps/desktop/src/reading-memory-release.ts'
+      - 'apps/desktop/src/main/index.ts'
+      - 'apps/desktop/src/main/app/main-process-runtime.ts'
+      - 'apps/desktop/src/ipc/reading-memory*'
+      - 'apps/desktop/src/main/ipc/ipc-reading-memory.ts'
+      - 'apps/desktop/src/renderer/src/reading-memory/**'
+      - 'apps/desktop/src/renderer/src/reading-library/**'
+      - 'apps/desktop/src/renderer/src/source/**'
+      - 'apps/desktop/src/renderer/src/settings/app-settings-provider-panel.tsx'
+      - 'apps/desktop/src/renderer/src/shell/app-reading-types.ts'
       - 'apps/desktop/src/main/reading-memory/**'
       - 'apps/desktop/src/main/db/migrations.ts'
       - 'apps/desktop/src/main/db/schema.ts'
       - 'apps/download/model-releases/**'
-      - 'packages/core/src/reading-memory/reading-evidence-*.ts'
-      - 'packages/shared/src/reading-memory/reading-evidence-types.ts'
+      - 'packages/core/src/reading-memory/**'
+      - 'packages/shared/src/reading-memory/**'
+      - 'packages/ai/src/reading-memory/**'
       - 'packages/ai/evaluation/semantic-retrieval/**'
       - 'packages/ai/scripts/evaluate-semantic-retrieval.js'
       - 'packages/ai/src/evaluation/semantic-retrieval-*.ts'
@@ -31,7 +49,7 @@ permissions:
 
 jobs:
   selected-model:
-    name: Selected model (${{ matrix.name }})
+    name: Formal package and selected model (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
@@ -97,12 +115,15 @@ jobs:
           YOMITOMO_READING_MEMORY_BENCHMARK_OUTPUT: ${{ runner.temp }}/reading-memory-hybrid-search-${{ matrix.expectedPlatform }}.json
         run: pnpm --filter @yomitomo/desktop exec vitest run src/main/reading-memory/reading-memory-semantic-search.benchmark.test.ts
 
+      - name: Strict production retrieval quality (synthetic engineering regression)
+        run: node apps/desktop/scripts/evaluate-reading-memory-quality.mjs --model-cache="${{ runner.temp }}/reading-memory-model-cache" --output="${{ runner.temp }}/reading-memory-production-quality-${{ matrix.expectedPlatform }}.json"
+
       - name: Make isolated release package
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
         run: pnpm --filter @yomitomo/desktop exec electron-builder --config electron-builder.config.cjs --config.directories.output="${{ runner.temp }}/reading-memory-package" ${{ matrix.packageArguments }} --publish never
 
-      - name: Smoke packaged embedding runtime
+      - name: Smoke original formal package with real model
         run: pnpm --filter @yomitomo/desktop embedding:smoke:packaged --package-output="${{ runner.temp }}/reading-memory-package" --model-cache="${{ runner.temp }}/reading-memory-model-cache" --output="${{ runner.temp }}/reading-memory-package-${{ matrix.expectedPlatform }}.json"
 
       - name: Upload validation report
@@ -114,4 +135,67 @@ jobs:
             ${{ runner.temp }}/reading-memory-model-${{ matrix.expectedPlatform }}.json
             ${{ runner.temp }}/reading-memory-hybrid-search-${{ matrix.expectedPlatform }}.json
             ${{ runner.temp }}/reading-memory-package-${{ matrix.expectedPlatform }}.json
+          if-no-files-found: error
+
+      - name: Upload strict synthetic engineering quality report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reading-memory-production-quality-${{ matrix.expectedPlatform }}
+          path: ${{ runner.temp }}/reading-memory-production-quality-${{ matrix.expectedPlatform }}.json
+          if-no-files-found: error
+
+  fixture-gui:
+    name: Fixture package GUI (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            platform: darwin-arm64
+          - os: windows-latest
+            platform: win32-x64
+    env:
+      CI: true
+      TZ: Asia/Shanghai
+      EXPECTED_PLATFORM: ${{ matrix.platform }}
+      CSC_IDENTITY_AUTO_DISCOVERY: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Assert fixture runner architecture
+        run: node -e "const actual = process.platform + '-' + process.arch; if (actual !== process.env.EXPECTED_PLATFORM) throw new Error('Expected ' + process.env.EXPECTED_PLATFORM + ', received ' + actual)"
+
+      - name: Verify isolated fixture dependencies
+        run: pnpm --filter @yomitomo/desktop reading-memory:test-fixtures
+
+      - name: Prepare Electron native dependencies
+        run: pnpm --filter @yomitomo/desktop native:verify
+
+      - name: Build non-publishable fixture package and run GUI acceptance
+        run: pnpm --filter @yomitomo/desktop reading-memory:acceptance --package-output="${{ runner.temp }}/reading-memory-fixture-package" --report="${{ runner.temp }}/reading-memory-fixture-gui-${{ matrix.platform }}.json"
+
+      - name: Upload fixture GUI report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reading-memory-fixture-gui-${{ matrix.platform }}
+          path: |
+            ${{ runner.temp }}/reading-memory-fixture-gui-${{ matrix.platform }}.json
+            ${{ runner.temp }}/reading-memory-fixture-package/gui-artifacts/**
           if-no-files-found: error

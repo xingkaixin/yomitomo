@@ -3,6 +3,7 @@ import type { Page } from 'playwright-core';
 import { describe, expect, it } from 'vitest';
 import type { YomitomoDesktopApi } from '../../../src/preload';
 import {
+  openAskLibrary,
   readLibrarySavedFacts,
   readingLibraryCollectionName,
   readingLibraryQuestion,
@@ -307,14 +308,6 @@ describe('ask reading library', () => {
     );
   });
 });
-
-async function openAskLibrary(page: Page) {
-  await page.getByRole('button', { name: 'Reading memory', exact: true }).click();
-  await page.getByRole('tab', { name: 'Ask library', exact: true }).click();
-  const view = page.getByRole('tabpanel', { name: 'Ask library', exact: true });
-  await view.getByRole('textbox', { name: 'Your question' }).waitFor();
-  return view;
-}
 
 async function probeScope(page: Page, scope: ReadingEvidenceScope) {
   return page.evaluate(

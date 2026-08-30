@@ -44,6 +44,10 @@ if (typeof embeddingService.createReadingMemoryEmbeddingService !== 'function') 
   throw new Error('Desktop dist is missing the embedding service factory export');
 }
 
+for (const directory of ['dist/main', 'dist/preload', 'dist/renderer']) {
+  await rejectFixtureOutputs(join(desktopRoot, directory));
+}
+
 console.log('verified desktop dist outputs');
 
 async function isFile(path) {
@@ -59,5 +63,23 @@ async function isNonEmptyDirectory(path) {
     return (await readdir(path)).length > 0;
   } catch {
     return false;
+  }
+}
+
+async function rejectFixtureOutputs(directory) {
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      await rejectFixtureOutputs(path);
+    } else if (/\.(?:js|cjs|mjs)$/.test(entry.name)) {
+      const code = await readFile(path, 'utf8');
+      if (
+        /YOMITOMO_READING_MEMORY_FIXTURE_|YOMITOMO_FIXTURE_NETWORK_BLOCKED|reading-memory-fixture-worker/.test(
+          code,
+        )
+      ) {
+        throw new Error(`Production dist contains reading memory fixture code: ${path}`);
+      }
+    }
   }
 }

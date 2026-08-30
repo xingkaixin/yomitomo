@@ -49,6 +49,7 @@ export async function createE2eRunData(label: string): Promise<E2eRunData> {
   const fixtureDir = join(rootDir, 'fixtures');
   await mkdir(userDataDir, { recursive: true });
   await mkdir(fixtureDir, { recursive: true });
+  await writeFile(join(rootDir, 'desktop-e2e-run.json'), '{"kind":"desktop-e2e-run"}\n');
   return { fixtureDir, rootDir, userDataDir };
 }
 
@@ -73,8 +74,18 @@ export async function cleanupE2ePath(path: string) {
 }
 
 export function createE2eDesktopEnv(data: E2eRunData, baseEnv = process.env) {
+  const environment = Object.fromEntries(
+    Object.entries(baseEnv).filter(
+      ([name, value]) =>
+        value !== undefined &&
+        !/(?:^|_)(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIALS?)(?:_|$)/i.test(name) &&
+        !/^(?:NODE_OPTIONS|NODE_PATH|ELECTRON_RUN_AS_NODE|ELECTRON_RENDERER_URL|SSH_AUTH_SOCK|(?:HTTPS?|ALL)_PROXY)$/i.test(
+          name,
+        ),
+    ),
+  );
   return {
-    ...baseEnv,
+    ...environment,
     ELECTRON_ENABLE_LOGGING: '1',
     YOMITOMO_DISABLE_TELEMETRY: '1',
     YOMITOMO_E2E: '1',

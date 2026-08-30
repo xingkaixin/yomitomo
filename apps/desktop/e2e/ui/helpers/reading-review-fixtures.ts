@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import SQLiteDatabase from 'better-sqlite3';
 import type { ReadingReviewEvent } from '@yomitomo/shared';
-import type { Page } from 'playwright-core';
+import type { Locator, Page } from 'playwright-core';
 import type { YomitomoDesktopApi } from '../../../src/preload';
 import type { DesktopE2eApp } from './electron-app';
 import {
@@ -18,6 +18,44 @@ export type SavedReviewSource = RelationSource & {
   commentId: string;
   judgment: string;
 };
+
+export async function openReviewQueue(page: Page) {
+  await page.getByRole('button', { name: 'Reading memory', exact: true }).click();
+  await page.getByRole('tab', { name: 'Reconsideration', exact: true }).click();
+  return waitForReviewQueue(page);
+}
+
+export async function reopenReviewQueue(page: Page) {
+  await page.getByRole('tab', { name: 'Distillations', exact: true }).click();
+  await page.getByRole('tab', { name: 'Reconsideration', exact: true }).click();
+  return waitForReviewQueue(page);
+}
+
+async function waitForReviewQueue(page: Page) {
+  const view = page.getByRole('tabpanel', { name: 'Reconsideration', exact: true });
+  await view.getByRole('heading', { name: 'Reconsider judgments', exact: true }).waitFor();
+  await view.getByRole('button', { name: 'Start review', exact: true }).first().waitFor();
+  return view;
+}
+
+export async function startReview(view: Locator, title: string) {
+  await view
+    .getByRole('article', { name: title, exact: true })
+    .first()
+    .getByRole('button', { name: 'Start review', exact: true })
+    .click();
+  await view.getByRole('textbox', { name: 'Your current view', exact: true }).waitFor();
+}
+
+export async function revealReview(view: Locator, answer: string) {
+  if (answer) {
+    await view.getByRole('textbox', { name: 'Your current view', exact: true }).fill(answer);
+    await view.getByRole('button', { name: 'Reveal earlier judgment', exact: true }).click();
+  } else {
+    await view.getByRole('button', { name: 'I need more evidence', exact: true }).click();
+  }
+  await view.getByRole('region', { name: 'Earlier effective judgment', exact: true }).waitFor();
+}
 
 export async function seedReviewSources(
   page: Page,

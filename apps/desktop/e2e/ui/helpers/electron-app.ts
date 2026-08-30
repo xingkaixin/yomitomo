@@ -1,6 +1,6 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, realpath, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { _electron as electron } from 'playwright-core';
 import type { ElectronApplication, Page } from 'playwright-core';
 import {
@@ -59,16 +59,19 @@ export type DesktopResizeResult = {
   viewportSize: DesktopContentSize;
 };
 
-type DesktopE2eLaunchOptions = {
+export type DesktopE2eLaunchOptions = {
   cleanupOnClose?: boolean;
   runData?: E2eRunData;
+  executablePath?: string;
+  env?: NodeJS.ProcessEnv;
 };
 
 export async function withDesktopE2eApp<T>(
   testName: string,
   run: (desktopApp: DesktopE2eApp) => Promise<T>,
+  options: DesktopE2eLaunchOptions = {},
 ): Promise<T> {
-  const desktopApp = await launchDesktopE2eApp(testName);
+  const desktopApp = await launchDesktopE2eApp(testName, options);
   try {
     return await run(desktopApp);
   } catch (error) {
@@ -148,7 +151,29 @@ export async function launchDesktopE2eApp(
   testName: string,
   options: DesktopE2eLaunchOptions = {},
 ): Promise<DesktopE2eApp> {
-  await assertDesktopBuildExists();
+  const packagedExecutable = options.executablePath ?? process.env.YOMITOMO_E2E_PACKAGED_EXECUTABLE;
+  if (packagedExecutable) {
+    const resources =
+      process.platform === 'darwin'
+        ? resolve(dirname(packagedExecutable), '../Resources')
+        : join(dirname(packagedExecutable), 'resources');
+    const marker = JSON.parse(
+      await readFile(join(resources, 'reading-memory-fixture.json'), 'utf8'),
+    ) as {
+      label?: string;
+      formalRelease?: boolean;
+      platform?: string;
+    };
+    if (
+      marker.label !== 'fixture-package-gui' ||
+      marker.formalRelease !== false ||
+      marker.platform !== `${process.platform}-${process.arch}`
+    ) {
+      throw new Error('Packaged UI E2E requires the fixture-only acceptance package');
+    }
+  } else {
+    await assertDesktopBuildExists();
+  }
   const artifactsDir = process.env.YOMITOMO_E2E_ARTIFACTS_DIR || defaultArtifactsDir;
   await mkdir(artifactsDir, { recursive: true });
   const runData = options.runData ?? (await createE2eRunData(testName));
@@ -158,10 +183,10 @@ export async function launchDesktopE2eApp(
   let closed = false;
 
   const app = await electron.launch({
-    args: ['--no-sandbox', '.'],
-    cwd: desktopRoot,
-    env: createE2eDesktopEnv(runData),
-    executablePath: electronPath,
+    args: packagedExecutable ? ['--no-sandbox'] : ['--no-sandbox', '.'],
+    cwd: packagedExecutable ? runData.rootDir : desktopRoot,
+    env: createE2eDesktopEnv(runData, { ...process.env, ...options.env }),
+    executablePath: packagedExecutable ?? electronPath,
   });
   const child = app.process();
   child.stdout?.on('data', (chunk) => output.push(chunk.toString('utf8')));
@@ -169,6 +194,40 @@ export async function launchDesktopE2eApp(
 
   let page: Page | null = null;
   try {
+    if (packagedExecutable) {
+      const runtime = await app.evaluate(({ app: desktop }) => ({
+        packaged: desktop.isPackaged,
+        appPath: desktop.getAppPath(),
+        executable: process.execPath,
+        platform: `${process.platform}-${process.arch}`,
+        appData: desktop.getPath('appData'),
+        userData: desktop.getPath('userData'),
+        sessionData: desktop.getPath('sessionData'),
+      }));
+      if (
+        !runtime.packaged ||
+        !runtime.appPath.endsWith('app.asar') ||
+        resolve(runtime.executable) !== resolve(packagedExecutable) ||
+        runtime.platform !== `${process.platform}-${process.arch}`
+      ) {
+        throw new Error(`Unexpected packaged E2E runtime: ${JSON.stringify(runtime)}`);
+      }
+      const expectedProfile = await realpath(runData.userDataDir);
+      if (
+        (await realpath(runtime.userData)) !== expectedProfile ||
+        (await realpath(runtime.sessionData)) !== expectedProfile ||
+        (await realpath(runtime.appData)) !== (await realpath(join(runData.rootDir, 'app-data')))
+      ) {
+        throw new Error(
+          'Fixture appData, userData and sessionData must share the isolated test profile',
+        );
+      }
+      output.push(`packaged-runtime:${JSON.stringify(runtime)}\n`);
+      await writeFile(
+        join(artifactsDir, `${safeName}-runtime.json`),
+        `${JSON.stringify({ label: 'fixture-package-gui', ...runtime }, null, 2)}\n`,
+      );
+    }
     page = await app.firstWindow({ timeout: 20_000 });
     page.on('console', (message) => {
       output.push(`renderer:${message.type()} ${message.text()}\n`);
@@ -194,6 +253,10 @@ export async function launchDesktopE2eApp(
       closed = true;
       await app.close().catch(() => child.kill());
       if (cleanupOnClose) await cleanupE2eData(runData);
+      if (output.some((line) => line.includes('YOMITOMO_FIXTURE_NETWORK_BLOCKED'))) {
+        await writeFile(join(artifactsDir, `${safeName}-network-blocked.log`), output.join(''));
+        throw new Error('Fixture application attempted a non-loopback network request');
+      }
     };
 
     return {
