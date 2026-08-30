@@ -68,6 +68,8 @@ const coreRuntimeExports = [
   'prepareEpubTextAnchorResolver',
   'prepareTextOffsetRangeResolver',
   'projectReadingEvidenceThread',
+  'projectableReadingCommentAuthorKind',
+  'selectProjectableReadingJudgments',
   'rangeFromOffsets',
   'rangeFromOffsetsIgnoringSelector',
   'rangeDistance',

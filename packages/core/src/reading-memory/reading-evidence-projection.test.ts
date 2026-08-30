@@ -3,9 +3,30 @@ import { describe, expect, it } from 'vitest';
 import {
   materializeReadingEvidence,
   projectReadingEvidenceThread,
+  selectProjectableReadingJudgments,
 } from './reading-evidence-projection';
 
 describe('reading evidence projection', () => {
+  it('selects judgments from only the source fields needed for eligibility', () => {
+    const reader = { author: { kind: 'user' as const }, content: '  判断  ' };
+    const assistant = { author: { kind: 'agent' as const }, content: '补充' };
+    const blankReader = { ...reader, content: '\u00a0\u3000\ufeff' };
+    const pendingReader = { ...reader, pending: true };
+
+    expect(
+      selectProjectableReadingJudgments({
+        comments: [assistant, blankReader, pendingReader],
+        distillation: { status: 'published', content: '\u3000提炼\u00a0' },
+      }),
+    ).toEqual({ comments: [], distillationContent: '提炼' });
+    expect(
+      selectProjectableReadingJudgments({
+        comments: [assistant, reader, blankReader, pendingReader],
+        distillation: { status: 'published', content: '\u00a0\u3000\ufeff' },
+      }),
+    ).toEqual({ comments: [assistant, reader], distillationContent: '' });
+  });
+
   it('projects a user annotation with stable asset-specific identity', () => {
     const source = annotation({
       author: userAuthor('reader-secret'),

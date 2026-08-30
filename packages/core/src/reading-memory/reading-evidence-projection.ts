@@ -19,21 +19,41 @@ export type ProjectedReadingEvidenceEntry = {
   sourceUpdatedAt: string;
 };
 
+type JudgmentComment = Pick<Comment, 'content' | 'pending'> & {
+  author: Pick<Comment['author'], 'kind'>;
+};
+
+export function projectableReadingCommentAuthorKind(comment: JudgmentComment) {
+  if (comment.pending === true || comment.content.trim().length === 0) return null;
+  return comment.author.kind === 'user' ? ('user' as const) : ('ai' as const);
+}
+
+export function selectProjectableReadingJudgments<T extends JudgmentComment>(thread: {
+  comments: readonly T[];
+  distillation?: Pick<NonNullable<Annotation['distillation']>, 'status' | 'content'>;
+}) {
+  const activeComments = thread.comments.filter(
+    (comment) => projectableReadingCommentAuthorKind(comment) !== null,
+  );
+  return {
+    comments: activeComments.some(isUserComment) ? activeComments : [],
+    distillationContent:
+      thread.distillation?.status === 'published' ? thread.distillation.content.trim() : '',
+  };
+}
+
 export function projectReadingEvidenceThread(input: {
   articleId: string;
   annotation: Annotation;
   sourceVersion: string;
   projectorVersion: string;
 }): ProjectedReadingEvidenceEntry[] {
-  const activeComments = input.annotation.comments.filter(isProjectableComment);
-  const hasUserComment = activeComments.some(isUserComment);
-  const projectableComments = hasUserComment ? activeComments : [];
-  const publishedDistillation = publishedDistillationContent(input.annotation);
+  const { comments, distillationContent } = selectProjectableReadingJudgments(input.annotation);
   const entries: ProjectedReadingEvidenceEntry[] = [];
 
   if (
     input.annotation.anchor.exact.trim() &&
-    isProjectableAnnotation(input.annotation, hasUserComment, publishedDistillation)
+    isProjectableAnnotation(input.annotation, comments.length > 0, distillationContent)
   ) {
     entries.push({
       id: `reading_evidence_annotation:${input.annotation.id}`,
@@ -52,7 +72,7 @@ export function projectReadingEvidenceThread(input: {
     });
   }
 
-  for (const comment of projectableComments) {
+  for (const comment of comments) {
     entries.push({
       id: `reading_evidence_comment:${comment.id}`,
       assetType: 'comment',
@@ -67,7 +87,7 @@ export function projectReadingEvidenceThread(input: {
     });
   }
 
-  if (publishedDistillation) {
+  if (distillationContent) {
     const { createdAt, updatedAt } = distillationTimestamps(input.annotation);
     entries.push({
       id: `reading_evidence_distillation:${input.annotation.id}`,
@@ -76,7 +96,7 @@ export function projectReadingEvidenceThread(input: {
       projectorVersion: input.projectorVersion,
       isJudgment: true,
       isUserAuthored: false,
-      searchText: searchableText(publishedDistillation, input.annotation.anchor.exact),
+      searchText: searchableText(distillationContent, input.annotation.anchor.exact),
       sourceCreatedAt: createdAt,
       sourceUpdatedAt: updatedAt,
     });
@@ -96,6 +116,7 @@ export function materializeReadingEvidence(input: {
   };
 }): ReadingEvidence | null {
   const { projected, annotation, article } = input;
+  const { comments, distillationContent } = selectProjectableReadingJudgments(annotation);
   const base = {
     id: projected.id,
     assetType: projected.assetType,
@@ -115,15 +136,10 @@ export function materializeReadingEvidence(input: {
 
   if (projected.assetType === 'annotation') {
     const content = annotation.anchor.exact.trim();
-    const activeComments = annotation.comments.filter(isProjectableComment);
     if (
       projected.id !== `reading_evidence_annotation:${annotation.id}` ||
       !content ||
-      !isProjectableAnnotation(
-        annotation,
-        activeComments.some(isUserComment),
-        publishedDistillationContent(annotation),
-      )
+      !isProjectableAnnotation(annotation, comments.length > 0, distillationContent)
     ) {
       return null;
     }
@@ -137,13 +153,8 @@ export function materializeReadingEvidence(input: {
   }
 
   if (projected.assetType === 'comment') {
-    const comment = annotation.comments.find((item) => item.id === projected.sourceCommentId);
-    if (
-      !comment ||
-      projected.id !== `reading_evidence_comment:${comment.id}` ||
-      !isProjectableComment(comment) ||
-      !annotation.comments.some((item) => isProjectableComment(item) && isUserComment(item))
-    ) {
+    const comment = comments.find((item) => item.id === projected.sourceCommentId);
+    if (!comment || projected.id !== `reading_evidence_comment:${comment.id}`) {
       return null;
     }
     return {
@@ -156,22 +167,19 @@ export function materializeReadingEvidence(input: {
     };
   }
 
-  const content = publishedDistillationContent(annotation);
-  if (projected.id !== `reading_evidence_distillation:${annotation.id}` || !content) return null;
+  if (projected.id !== `reading_evidence_distillation:${annotation.id}` || !distillationContent) {
+    return null;
+  }
   const { createdAt, updatedAt } = distillationTimestamps(annotation);
   return {
     ...base,
-    content,
+    content: distillationContent,
     createdAt,
     updatedAt,
   };
 }
 
-function isProjectableComment(comment: Comment) {
-  return comment.pending !== true && comment.content.trim().length > 0;
-}
-
-function isUserComment(comment: Comment) {
+function isUserComment(comment: JudgmentComment) {
   return comment.author.kind === 'user';
 }
 
@@ -181,11 +189,6 @@ function isProjectableAnnotation(
   publishedDistillation: string,
 ) {
   return annotation.author.kind === 'user' || hasUserComment || Boolean(publishedDistillation);
-}
-
-function publishedDistillationContent(annotation: Annotation) {
-  if (annotation.distillation?.status !== 'published') return '';
-  return annotation.distillation.content.trim();
 }
 
 function distillationTimestamps(annotation: Annotation) {

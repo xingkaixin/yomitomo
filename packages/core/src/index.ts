@@ -145,7 +145,9 @@ export type { ReadingMemoryViewRequest } from './reading-memory/reading-memory-v
 
 export {
   materializeReadingEvidence,
+  projectableReadingCommentAuthorKind,
   projectReadingEvidenceThread,
+  selectProjectableReadingJudgments,
 } from './reading-memory/reading-evidence-projection';
 export type { ProjectedReadingEvidenceEntry } from './reading-memory/reading-evidence-projection';
 
