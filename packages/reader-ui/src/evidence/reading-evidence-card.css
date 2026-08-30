@@ -1,0 +1,144 @@
+.reading-evidence-card {
+  display: grid;
+  min-width: 0;
+  gap: 14px;
+  border: 1px solid hsl(var(--border) / 0.7);
+  border-radius: var(--radius);
+  background: hsl(var(--card));
+  padding: 20px;
+  color: hsl(var(--card-foreground));
+  font-family: var(--font-ui);
+  overflow-wrap: anywhere;
+}
+
+.reading-evidence-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.reading-evidence-card-asset {
+  color: var(--app-interactive-link);
+  font-weight: 650;
+}
+
+.reading-evidence-card-meta time {
+  font-variant-numeric: tabular-nums;
+}
+
+.reading-evidence-card-content {
+  margin: 0;
+  font-family: var(--font-reader-serif);
+  font-size: 17px;
+  font-weight: 480;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.reading-evidence-card-excerpt {
+  margin: 0;
+  border-inline-start: 2px solid hsl(var(--border));
+  padding-inline-start: 12px;
+  color: hsl(var(--muted-foreground));
+}
+
+.reading-evidence-card-excerpt > span {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.reading-evidence-card-excerpt p {
+  margin: 4px 0 0;
+  font-family: var(--font-reader-serif);
+  font-size: 14px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.reading-evidence-card-relation {
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.reading-evidence-card-relation strong {
+  font-weight: 650;
+}
+
+.reading-evidence-card-relation p {
+  margin: 4px 0 0;
+  color: hsl(var(--muted-foreground));
+  white-space: pre-wrap;
+}
+
+.reading-evidence-card-footer {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  border-top: 1px solid hsl(var(--border) / 0.55);
+  padding-top: 12px;
+}
+
+.reading-evidence-card-source {
+  display: grid;
+  gap: 3px;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.reading-evidence-card-source strong {
+  color: hsl(var(--card-foreground));
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.reading-evidence-card-unavailable {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.reading-evidence-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.reading-evidence-card-actions button {
+  min-height: 34px;
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) * 0.75);
+  background: transparent;
+  padding: 6px 10px;
+  color: var(--app-interactive-link);
+  font: 600 12px/1.5 var(--font-ui);
+  cursor: pointer;
+}
+
+.reading-evidence-card-actions button:focus-visible {
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .reading-evidence-card-actions button:hover {
+    border-color: var(--app-interactive-hover-border);
+    background: var(--app-interactive-hover-bg);
+  }
+
+  .reading-evidence-card-actions button:active:not(:focus-visible) {
+    transform: scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reading-evidence-card-actions button:active:not(:focus-visible) {
+    transform: none;
+  }
+}
