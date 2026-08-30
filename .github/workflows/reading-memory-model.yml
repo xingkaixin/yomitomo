@@ -5,6 +5,15 @@ on:
   pull_request:
     paths:
       - '.github/workflows/reading-memory-model.yml'
+      - 'apps/desktop/electron-builder.config.cjs'
+      - 'apps/desktop/electron.vite.config.ts'
+      - 'apps/desktop/package.json'
+      - 'apps/desktop/scripts/smoke-packaged-embedding.mjs'
+      - 'apps/desktop/scripts/verify-desktop-dist.mjs'
+      - 'apps/desktop/scripts/verify-native-roots.mjs'
+      - 'apps/desktop/src/main/reading-memory/reading-memory-embedding*.ts'
+      - 'apps/desktop/src/main/reading-memory/reading-memory-model*.ts'
+      - 'apps/download/model-releases/**'
       - 'packages/ai/evaluation/semantic-retrieval/**'
       - 'packages/ai/scripts/evaluate-semantic-retrieval.js'
       - 'packages/ai/src/evaluation/semantic-retrieval-*.ts'
@@ -20,21 +29,23 @@ jobs:
   selected-model:
     name: Selected model (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: macOS arm64 smoke
+          - name: macOS arm64 package smoke
             os: macos-15
             expectedPlatform: darwin-arm64
             mode: smoke
+            packageArguments: --mac --arm64
             minimumCpuThreads: 1
             minimumMemoryBytes: 1
-          - name: Windows x64 benchmark
+          - name: Windows x64 benchmark and package smoke
             os: windows-latest
             expectedPlatform: win32-x64
             mode: benchmark
+            packageArguments: --win --x64
             minimumCpuThreads: 4
             minimumMemoryBytes: 16000000000
 
@@ -76,10 +87,20 @@ jobs:
       - name: Validate selected model
         run: pnpm --filter @yomitomo/ai evaluate:semantic --candidate=selected --mode=${{ matrix.mode }} --iterations=100 --cache-dir="${{ runner.temp }}/reading-memory-model-cache" --output="${{ runner.temp }}/reading-memory-model-${{ matrix.expectedPlatform }}.json"
 
+      - name: Make isolated release package
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: pnpm --filter @yomitomo/desktop exec electron-builder --config electron-builder.config.cjs --config.directories.output="${{ runner.temp }}/reading-memory-package" ${{ matrix.packageArguments }} --publish never
+
+      - name: Smoke packaged embedding runtime
+        run: pnpm --filter @yomitomo/desktop embedding:smoke:packaged --package-output="${{ runner.temp }}/reading-memory-package" --model-cache="${{ runner.temp }}/reading-memory-model-cache" --output="${{ runner.temp }}/reading-memory-package-${{ matrix.expectedPlatform }}.json"
+
       - name: Upload validation report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: reading-memory-model-${{ matrix.expectedPlatform }}
-          path: ${{ runner.temp }}/reading-memory-model-${{ matrix.expectedPlatform }}.json
+          path: |
+            ${{ runner.temp }}/reading-memory-model-${{ matrix.expectedPlatform }}.json
+            ${{ runner.temp }}/reading-memory-package-${{ matrix.expectedPlatform }}.json
           if-no-files-found: error

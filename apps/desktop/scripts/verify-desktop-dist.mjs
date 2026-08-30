@@ -1,10 +1,13 @@
-import { readdir, stat } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const desktopRoot = process.argv[2] ? resolve(process.argv[2]) : dirname(import.meta.dirname);
 const requiredFiles = [
   'dist/main/index.js',
   'dist/main/article-import-worker.js',
+  'dist/main/reading-memory-embedding-worker.js',
+  'dist/main/reading-memory-embedding-service.js',
   'dist/preload/index.cjs',
   'dist/renderer/index.html',
 ];
@@ -23,6 +26,22 @@ if (missingPaths.length > 0) {
   throw new Error(
     `Desktop dist is missing or incomplete: ${missingPaths.join(', ')}. Run "pnpm --filter @yomitomo/desktop build" first.`,
   );
+}
+
+const embeddingWorker = await readFile(
+  join(desktopRoot, 'dist/main/reading-memory-embedding-worker.js'),
+  'utf8',
+);
+if (!/\bimport\s*\(\s*["']@huggingface\/transformers["']\s*\)/.test(embeddingWorker)) {
+  throw new Error(
+    'Embedding worker must keep Transformers external to preserve native runtime paths',
+  );
+}
+const embeddingService = await import(
+  pathToFileURL(join(desktopRoot, 'dist/main/reading-memory-embedding-service.js')).href
+);
+if (typeof embeddingService.createReadingMemoryEmbeddingService !== 'function') {
+  throw new Error('Desktop dist is missing the embedding service factory export');
 }
 
 console.log('verified desktop dist outputs');

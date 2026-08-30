@@ -60,6 +60,13 @@ module.exports = {
     '!node_modules/better-sqlite3/**',
     '!node_modules/effect/src/**',
     '!node_modules/@embedpdf/pdfium/dist/pdfium.wasm',
+    '!node_modules/onnxruntime-node/bin/napi-v6/linux/**',
+    '!node_modules/onnxruntime-node/bin/napi-v6/win32/arm64/**',
+    '!node_modules/onnxruntime-node/lib/**',
+    '!node_modules/onnxruntime-node/script/**',
+    '!node_modules/onnxruntime-web/**',
+    '!node_modules/sharp/install/**',
+    '!node_modules/sharp/src/**',
     '!node_modules/zod/src/**',
   ],
   extraResources: [
@@ -92,7 +99,12 @@ module.exports = {
   asar: {
     smartUnpack: false,
   },
-  asarUnpack: ['node_modules/@napi-rs/**/*.node'],
+  asarUnpack: [
+    'node_modules/@napi-rs/**/*.node',
+    'node_modules/onnxruntime-node/bin/**',
+    'node_modules/@img/sharp-*/lib/**',
+    'node_modules/@img/sharp-libvips-*/lib/**',
+  ],
   publish: [
     {
       provider: 'generic',
@@ -101,6 +113,7 @@ module.exports = {
     },
   ],
   mac: {
+    files: ['!node_modules/onnxruntime-node/bin/napi-v6/win32/**'],
     artifactName: '${productName}-${version}-mac-${arch}.${ext}',
     category: 'public.app-category.productivity',
     entitlements: 'resources/entitlements.mac.plist',
@@ -111,6 +124,7 @@ module.exports = {
     target: ['dmg', 'zip'],
   },
   win: {
+    files: ['!node_modules/onnxruntime-node/bin/napi-v6/darwin/**'],
     artifactName: '${productName}-${version}-win-${arch}.${ext}',
     icon: 'resources/icon.ico',
     target: [
