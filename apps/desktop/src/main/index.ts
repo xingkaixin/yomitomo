@@ -11,6 +11,7 @@ import { getLogPath, logError, logInfo } from './app/logger';
 import { configureDesktopAppStorage } from './app/app-environment';
 import { normalizeExternalUrlForOpen } from './app/external-url';
 import { installAppMenu } from './app/app-menu';
+import { claimDesktopAppInstance } from './app/desktop-app-instance';
 import {
   runPendingChromiumCacheCleanup,
   scheduleChromiumCacheInspection,
@@ -47,6 +48,7 @@ import { registerWeReadIpc } from './ipc/ipc-weread';
 import { createRendererStateEventDispatcher } from './ipc/renderer-state-event-dispatcher';
 import { createRendererRoleRegistry } from './ipc/renderer-role-registry';
 import { configureDesktopIpcRendererRoles } from './ipc/ipc-sender-guard';
+import { createReadingMemoryModelLifecycle } from './reading-memory/reading-memory-model-lifecycle';
 import { secureRendererWebPreferences } from './windows/renderer-window-security';
 import { installRendererNavigationGuard } from './windows/renderer-navigation';
 import { windowChromeOptions } from './windows/window-chrome';
@@ -70,13 +72,21 @@ const HOMEPAGE_URL = 'https://yomitomo.app';
 const FEEDBACK_URL = 'https://github.com/xingkaixin/yomitomo/issues';
 
 configureDesktopAppStorage();
-installDevProcessLifecycle(logInfo);
-recordStartupTiming('main.module_loaded', {
-  pid: process.pid,
-  parentPid: process.ppid,
-  platform: process.platform,
-  packaged: app.isPackaged,
+const ownsDesktopAppInstance = claimDesktopAppInstance({
+  requestLock: () => app.requestSingleInstanceLock(),
+  quit: () => app.quit(),
+  onSecondInstance: (listener) => app.on('second-instance', listener),
+  getWindow: () => mainWindow,
 });
+if (ownsDesktopAppInstance) {
+  installDevProcessLifecycle(logInfo);
+  recordStartupTiming('main.module_loaded', {
+    pid: process.pid,
+    parentPid: process.ppid,
+    platform: process.platform,
+    packaged: app.isPackaged,
+  });
+}
 
 async function getAiModule() {
   aiModulePromise ||= import('@yomitomo/ai');
@@ -235,6 +245,7 @@ async function createWindow() {
 }
 
 void app.whenReady().then(async () => {
+  if (!ownsDesktopAppInstance) return;
   logInfo('app.ready', { logPath: getLogPath() });
   recordStartupTiming('app.ready');
   if (!app.isPackaged && process.platform === 'darwin' && app.dock) app.dock.setIcon(appIconPath);
@@ -251,6 +262,11 @@ void app.whenReady().then(async () => {
     recordStartupTiming,
     setSensitiveRendererEventsLocked,
   });
+  const readingMemoryModelLifecycle = createReadingMemoryModelLifecycle({
+    userDataPath: app.getPath('userData'),
+    logInfo,
+    logError,
+  });
   mainProcessRuntime = startMainProcessRuntime({
     getPersistenceModules,
     getAppUpdaterModule,
@@ -259,6 +275,7 @@ void app.whenReady().then(async () => {
     elapsedMs,
     logInfo,
     logError,
+    readingMemoryModelLifecycle,
   });
   registerIpc(startupStoreInitialization);
   recordStartupTiming('ipc.registered');
@@ -269,16 +286,17 @@ void app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  if (ownsDesktopAppInstance && process.platform !== 'darwin') app.quit();
 });
 
 app.on('before-quit', () => {
+  if (!ownsDesktopAppInstance) return;
   mainProcessRuntime?.dispose();
   mainProcessRuntime = null;
 });
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
+  if (ownsDesktopAppInstance && BrowserWindow.getAllWindows().length === 0) {
     void createWindow();
   }
 });

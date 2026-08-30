@@ -11,6 +11,7 @@ import {
   startReadingMemoryEvidenceProjectionWorker,
   type ReadingMemoryEvidenceProjectionWorker,
 } from '../reading-memory/reading-memory-evidence-projection-worker';
+import type { ReadingMemoryModelLifecycle } from '../reading-memory/reading-memory-model-lifecycle';
 
 const DEFAULT_APP_UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
@@ -45,6 +46,7 @@ type MainProcessRuntimeDependencies = {
   createTelemetryController?: typeof createDesktopTelemetryControllerForEnvironment;
   syncWeRead?: typeof syncWeReadLibrary;
   startEvidenceProjectionWorker?: typeof startReadingMemoryEvidenceProjectionWorker;
+  readingMemoryModelLifecycle: Pick<ReadingMemoryModelLifecycle, 'reconcile' | 'dispose'>;
 };
 
 export type MainProcessRuntime = {
@@ -212,6 +214,17 @@ export function startMainProcessRuntime(
       });
   };
 
+  const reconcileReadingMemoryModel = (reason: string) => {
+    if (disposed) return;
+    void dependencies.readingMemoryModelLifecycle.reconcile(reason).catch((error) => {
+      if (!disposed) {
+        dependencies.logError('reading_memory.model_reconcile_request_failed', error, {
+          reason,
+        });
+      }
+    });
+  };
+
   const disposeModelPriceRefresh = scheduleRecurringTask({
     startupDelayMs: timing.modelPriceStartupDelayMs,
     intervalMs: timing.modelPriceIntervalMs,
@@ -222,6 +235,7 @@ export function startMainProcessRuntime(
     intervalMs: timing.appUpdateIntervalMs,
     run: checkForAppUpdates,
   });
+  reconcileReadingMemoryModel('startup');
   configureWeReadAutoSync('startup');
 
   return {
@@ -230,6 +244,7 @@ export function startMainProcessRuntime(
       if (disposed) return;
       configureWeReadAutoSync('database-restored');
       evidenceProjectionWorker.requestRun('database_restored');
+      reconcileReadingMemoryModel('database-restored');
     },
     checkTelemetryFocus: () => {
       if (!disposed) telemetryController?.check('focus');
@@ -242,6 +257,7 @@ export function startMainProcessRuntime(
       disposeAppUpdateCheck();
       clearWeReadTimers();
       evidenceProjectionWorker.dispose();
+      dependencies.readingMemoryModelLifecycle.dispose();
       telemetryController?.dispose();
       telemetryController = null;
     },
