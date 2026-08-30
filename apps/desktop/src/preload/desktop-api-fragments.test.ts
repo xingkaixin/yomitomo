@@ -4,13 +4,15 @@ import { createYomitomoDesktopApi } from './desktop-api-fragments';
 
 const electronMocks = vi.hoisted(() => ({
   invoke: vi.fn(),
+  on: vi.fn(),
+  removeListener: vi.fn(),
 }));
 
 vi.mock('electron', () => ({
   ipcRenderer: {
     invoke: electronMocks.invoke,
-    on: vi.fn(),
-    removeListener: vi.fn(),
+    on: electronMocks.on,
+    removeListener: electronMocks.removeListener,
     send: vi.fn(),
   },
 }));
@@ -18,6 +20,26 @@ vi.mock('electron', () => ({
 describe('createYomitomoDesktopApi', () => {
   beforeEach(() => {
     electronMocks.invoke.mockReset();
+    electronMocks.on.mockClear();
+    electronMocks.removeListener.mockClear();
+  });
+
+  it('receives payload-free draft notifications and consumes text through the typed invoke', async () => {
+    electronMocks.invoke.mockResolvedValue({ ok: true, value: 'A new thought' });
+    const api = createYomitomoDesktopApi({ platform: 'darwin', preloadLoadedAt: 1 });
+    const onAvailable = vi.fn();
+    const unsubscribe = api.annotations.discussion.onThoughtDraftAvailable(onAvailable);
+    const [channel, listener] = electronMocks.on.mock.calls[0];
+
+    expect(channel).toBe('annotation-discussion:thought-draft-available');
+    listener({});
+    expect(onAvailable).toHaveBeenCalledExactlyOnceWith();
+    await expect(api.annotations.discussion.consumeThoughtDraft()).resolves.toBe('A new thought');
+    expect(electronMocks.invoke).toHaveBeenCalledExactlyOnceWith(
+      'annotation-discussion:consume-thought-draft',
+    );
+    unsubscribe();
+    expect(electronMocks.removeListener).toHaveBeenCalledExactlyOnceWith(channel, listener);
   });
 
   it('loads and caches the PDFium wasm URL asynchronously', async () => {

@@ -5,6 +5,33 @@ import { DesktopIpcError, desktopIpcErrorCodes } from './ipc-errors';
 import { validateDesktopIpcInvokeArgs } from './ipc-schemas';
 
 describe('desktop IPC argument schemas', () => {
+  it('accepts a bounded discussion thought draft without changing ordinary opens', () => {
+    const target = { articleId: 'article_1', annotationId: 'annotation_1' };
+
+    expect(validateDesktopIpcInvokeArgs('annotation-discussion:open', [target])).toEqual([target]);
+    expect(
+      validateDesktopIpcInvokeArgs('annotation-discussion:open', [
+        { ...target, thoughtDraft: '  跨资料的新想法  ' },
+      ]),
+    ).toEqual([{ ...target, thoughtDraft: '跨资料的新想法' }]);
+    expect(
+      validateDesktopIpcInvokeArgs('annotation-discussion:open', [
+        { ...target, thoughtDraft: 'a'.repeat(8_192) },
+      ]),
+    ).toEqual([{ ...target, thoughtDraft: 'a'.repeat(8_192) }]);
+  });
+
+  it.each(['', '   ', 'a'.repeat(8_193), `${' '.repeat(8_192)}a`, 42])(
+    'rejects empty, oversized, or non-text discussion drafts %#',
+    (thoughtDraft) => {
+      const input = { articleId: 'article_1', annotationId: 'annotation_1', thoughtDraft };
+      const args = [input] as unknown as DesktopIpcInvokeArgs<'annotation-discussion:open'>;
+      expect(() => validateDesktopIpcInvokeArgs('annotation-discussion:open', args)).toThrow(
+        DesktopIpcError,
+      );
+    },
+  );
+
   const pdfAnchor = createPdfTextAnchor({
     pageText: 'Reading memory connects saved judgments',
     pageIndex: 0,

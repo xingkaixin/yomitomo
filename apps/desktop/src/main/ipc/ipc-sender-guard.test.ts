@@ -24,12 +24,16 @@ afterEach(() => {
 });
 
 describe('desktop IPC sender authorization', () => {
-  it('lets the main window call every declared channel', () => {
+  it('lets the main window call only its declared channels', () => {
     const main = senderEvent(1);
     roles.register('main', main.sender);
 
-    for (const channel of Object.keys(desktopIpcInvokeRoles)) {
-      expect(() => assertInvoke(channel, main)).not.toThrow();
+    for (const [channel, allowedRoles] of Object.entries(desktopIpcInvokeRoles)) {
+      if ((allowedRoles as readonly string[]).includes('main')) {
+        expect(() => assertInvoke(channel, main)).not.toThrow();
+      } else {
+        expect(() => assertInvoke(channel, main)).toThrow(desktopIpcErrorCodes.senderNotAuthorized);
+      }
     }
     for (const channel of Object.keys(desktopIpcMainEventRoles)) {
       expect(() => assertMainEvent(channel, main)).not.toThrow();
@@ -46,6 +50,7 @@ describe('desktop IPC sender authorization', () => {
 
     expect(allowed.toSorted()).toEqual([
       'agent:mention-route',
+      'annotation-discussion:consume-thought-draft',
       'annotation-sedimentation:commit',
       'annotation-sedimentation:open',
       'app:info',

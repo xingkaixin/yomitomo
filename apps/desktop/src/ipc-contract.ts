@@ -127,6 +127,7 @@ export type DesktopIpcToRendererEventMap = {
   'app-menu:command': AppMenuCommand;
   'store:updated': DesktopStore;
   'annotation-discussion:window-state': AnnotationDiscussionWindowStateEvent;
+  'annotation-discussion:thought-draft-available': undefined;
   'annotation-distillation:committed': AnnotationDistillationCommittedEvent;
   'annotation-window:closing': undefined;
   'updates:status': AppUpdateState;

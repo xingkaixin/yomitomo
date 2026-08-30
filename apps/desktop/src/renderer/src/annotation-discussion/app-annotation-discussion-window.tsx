@@ -6,7 +6,7 @@ import {
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
 } from '@hugeicons/core-free-icons';
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useEffectEvent, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type {
   Agent,
   Annotation,
@@ -62,6 +62,7 @@ import { useElementWidthBelow } from './app-annotation-discussion-hooks';
 import { useAnnotationWindowArticlePatches } from './use-annotation-window-article-patches';
 import { annotationWindowActions } from './app-annotation-window-actions';
 import { getDesktopApi } from '../shell/app-desktop-api';
+import { AppToaster, appToast } from '../shell/app-toast';
 
 export { insertMentionAtSelection } from './app-annotation-discussion-utils';
 
@@ -93,6 +94,7 @@ export function AnnotationDiscussionWindowApp() {
   const articleId = params.get('articleId') || '';
   const annotationId = params.get('annotationId') || '';
   const [status, setStatus] = useState<DiscussionWindowStatus>({ type: 'loading' });
+  const [themeTone, setThemeTone] = useState(() => themeRegistry[readCachedThemeId()].meta.tone);
   const pendingArticleUpdateRef = useRef<ArticleRecord | null | undefined>(undefined);
   const className = annotationDiscussionWindowClassName();
   const windowTransition = useSourceAwareWindowTransition(params);
@@ -108,7 +110,11 @@ export function AnnotationDiscussionWindowApp() {
   });
 
   useEffect(() => {
-    const syncTheme = () => applyAppTheme(themeRegistry[readCachedThemeId()]);
+    const syncTheme = () => {
+      const theme = themeRegistry[readCachedThemeId()];
+      applyAppTheme(theme);
+      setThemeTone(theme.meta.tone);
+    };
     window.addEventListener('storage', syncTheme);
     window.addEventListener('focus', syncTheme);
     return () => {
@@ -179,19 +185,22 @@ export function AnnotationDiscussionWindowApp() {
       );
     }
     return (
-      <AnnotationDiscussionShell
-        agents={status.agents}
-        article={status.article}
-        annotation={annotation}
-        className={windowClassName}
-        settings={status.settings}
-        style={windowTransition.style}
-        uiLanguage={status.uiLanguage}
-        onArticleChange={(article) =>
-          setStatus((current) => (current.type === 'ready' ? { ...current, article } : current))
-        }
-        onRemoved={() => setStatus({ type: 'removed' })}
-      />
+      <>
+        <AnnotationDiscussionShell
+          agents={status.agents}
+          article={status.article}
+          annotation={annotation}
+          className={windowClassName}
+          settings={status.settings}
+          style={windowTransition.style}
+          uiLanguage={status.uiLanguage}
+          onArticleChange={(article) =>
+            setStatus((current) => (current.type === 'ready' ? { ...current, article } : current))
+          }
+          onRemoved={() => setStatus({ type: 'removed' })}
+        />
+        <AppToaster tone={themeTone} topOffset={24} />
+      </>
     );
   }
 
@@ -328,6 +337,7 @@ function AnnotationDiscussionShell({
   const [replyAgentRuns, setReplyAgentRuns] = useState<ReplyAgentRun[]>([]);
   const [statusMessage, setStatusMessage] = useState('');
   const [sendError, setSendError] = useState('');
+  const thoughtDraftHandoffRef = useRef(false);
   const discussionLayoutRef = useRef<HTMLElement>(null);
   const ideasAutoCollapsed = useElementWidthBelow(
     discussionLayoutRef,
@@ -367,6 +377,59 @@ function AnnotationDiscussionShell({
   }, [ideasAutoCollapsed]);
 
   const assistantThoughtWriting = addThoughtAgentRuns.some((run) => run.status === 'active');
+  const receiveThoughtDraft = useEffectEvent((draft: string) => {
+    if (
+      thoughtDraftHandoffRef.current ||
+      newThoughtDraft.length > 0 ||
+      submittingThought ||
+      sendingReply ||
+      assistantThoughtWriting
+    ) {
+      appToast.warning(t('readingMemory.library.thought.draftBusy'));
+      return;
+    }
+    // Multiple IPC replies can settle before React commits the first draft.
+    thoughtDraftHandoffRef.current = true;
+    setNewThoughtDraft(draft);
+    setNewThoughtMode('self');
+    setNewThoughtOpen(true);
+    setNewThoughtCaretIndex(draft.length);
+    setSendError('');
+  });
+  const reportThoughtDraftFailure = useEffectEvent((error: unknown) => {
+    console.warn('[annotation-discussion] thought draft loading failed', {
+      articleId: article.id,
+      annotationId: annotation.id,
+      error,
+    });
+    appToast.error(t('readingMemory.library.thought.draftLoadFailed'));
+  });
+
+  useEffect(() => {
+    thoughtDraftHandoffRef.current = false;
+  }, [newThoughtDraft]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const discussion = getDesktopApi().annotations.discussion;
+    const consumeThoughtDraft = () => {
+      void discussion
+        .consumeThoughtDraft()
+        .then((draft) => {
+          if (!cancelled && draft !== null) receiveThoughtDraft(draft);
+        })
+        .catch((error: unknown) => {
+          if (!cancelled) reportThoughtDraftFailure(error);
+        });
+    };
+    const unsubscribe = discussion.onThoughtDraftAvailable(consumeThoughtDraft);
+    consumeThoughtDraft();
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [annotation.id, article.id]);
+
   useEffect(() => {
     if (!assistantThoughtWriting) return;
     playAppSoundEffect('discussion.assistant_thought_writing', settings);

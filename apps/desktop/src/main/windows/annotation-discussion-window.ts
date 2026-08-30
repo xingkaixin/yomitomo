@@ -4,11 +4,12 @@ import type {
   AnnotationDiscussionWindowStateEvent,
   AnnotationDiscussionWindowsCloseArticleInput,
 } from '../../ipc-contract';
-import { handleDesktopIpc } from '../ipc/ipc';
+import { handleDesktopIpc, type DesktopMainIpcContext } from '../ipc/ipc';
 import { sendDesktopIpcRendererEvent } from '../ipc/ipc-events';
 import {
   annotationWindowRoutes,
   closeArticleAnnotationWindows,
+  consumeAnnotationThoughtDraft,
   openAnnotationWindow,
   type AnnotationWindowConfiguration,
   type AnnotationWindowIpcContext,
@@ -33,12 +34,24 @@ const discussionWindowConfiguration = {
   onRemoved: (context, input, windowId) => sendWindowStateRemoved(context, input, windowId),
 } satisfies AnnotationWindowConfiguration<AnnotationDiscussionWindowOpenInput>;
 
-export function registerAnnotationDiscussionWindowIpc(context: AnnotationWindowIpcContext) {
-  handleDesktopIpc('annotation-discussion:open', (event, input) =>
-    openAnnotationDiscussionWindow(context, input, event),
-  );
+export function registerAnnotationDiscussionWindowIpc(
+  context: AnnotationWindowIpcContext & Pick<DesktopMainIpcContext, 'getPersistenceModules'>,
+) {
+  handleDesktopIpc('annotation-discussion:open', async (event, input) => {
+    if (input.thoughtDraft !== undefined) {
+      const { storeArticles } = await context.getPersistenceModules();
+      const article = await storeArticles.readArticle(input.articleId);
+      if (!article?.annotations.some((annotation) => annotation.id === input.annotationId)) {
+        throw new Error('Reading source is unavailable');
+      }
+    }
+    return openAnnotationDiscussionWindow(context, input, event);
+  });
   handleDesktopIpc('annotation-discussion:close-article', (_event, input) =>
     closeArticleDiscussionWindows(input),
+  );
+  handleDesktopIpc('annotation-discussion:consume-thought-draft', (event) =>
+    consumeAnnotationThoughtDraft(event.sender),
   );
 }
 

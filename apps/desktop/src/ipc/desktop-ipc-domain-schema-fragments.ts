@@ -473,7 +473,11 @@ export const agentDomainIpcInvokeSchemas = {
 };
 
 export const annotationWindowDomainIpcInvokeSchemas = {
-  'annotation-discussion:open': z.tuple([annotationWindowOpenSchema]),
+  'annotation-discussion:open': z.tuple([
+    annotationWindowOpenSchema.extend({
+      thoughtDraft: z.string().max(8_192).trim().min(1).optional(),
+    }),
+  ]),
   'annotation-discussion:close-article': z.tuple([z.object({ articleId: idSchema })]),
   'annotation-sedimentation:open': z.tuple([annotationWindowOpenSchema]),
   'annotation-sedimentation:commit': z.tuple([
