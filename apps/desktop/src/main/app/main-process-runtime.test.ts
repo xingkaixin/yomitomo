@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { setImmediate as nextTurn } from 'node:timers/promises';
 import type { WeReadSettings, WeReadSyncResult } from '@yomitomo/shared';
 import { startMainProcessRuntime } from './main-process-runtime';
 import { readDatabaseLifecycle } from '../store/store-db';
+import { createReadingMemoryControls } from '../reading-memory/reading-memory-controls';
+import type { ReadingMemoryModelLifecycleState } from '../reading-memory/reading-memory-model-lifecycle';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -96,6 +99,88 @@ describe('main process runtime', () => {
     expect(dependencies.semanticReconcile).toHaveBeenLastCalledWith('database-restored');
     expect(dependencies.projectionDispose).not.toHaveBeenCalled();
     await runtime.dispose();
+  });
+
+  it('keeps application-update suspension after an in-flight model removal finishes', async () => {
+    const dependencies = runtimeDependencies();
+    const { controls, removeModel } = runtimeReadingMemoryControls(dependencies);
+    const removalStarted = deferred<void>();
+    const releaseRemoval = deferred<void>();
+    const events: string[] = [];
+    dependencies.semanticSuspend.mockImplementation(async () => {
+      events.push('suspend');
+    });
+    dependencies.semanticResume.mockImplementation(async () => {
+      events.push('resume');
+    });
+    removeModel.mockImplementation(async () => {
+      events.push('remove-start');
+      removalStarted.resolve();
+      await releaseRemoval.promise;
+      events.push('remove-end');
+      return missingModel;
+    });
+    const runtime = startMainProcessRuntime({
+      ...dependencies.input,
+      readingMemoryControls: controls,
+    });
+    const removal = controls.remove();
+    await removalStarted.promise;
+    const preparation = runtime.suspendForAppUpdate();
+    try {
+      await nextTurn();
+      releaseRemoval.resolve();
+      await Promise.all([removal, preparation]);
+      expect(events).toEqual(['suspend', 'remove-start', 'remove-end', 'suspend']);
+      expect(dependencies.semanticResume).not.toHaveBeenCalled();
+      await runtime.resumeAfterAppUpdateFailure();
+      expect(dependencies.semanticResume).toHaveBeenCalledOnce();
+    } finally {
+      releaseRemoval.resolve();
+      await removal;
+      await runtime.dispose();
+    }
+  });
+
+  it('waits for in-flight controls before disposing semantic resources during shutdown', async () => {
+    const dependencies = runtimeDependencies();
+    const { controls, removeModel } = runtimeReadingMemoryControls(dependencies);
+    const removalStarted = deferred<void>();
+    const releaseRemoval = deferred<void>();
+    const events: string[] = [];
+    removeModel.mockImplementation(async () => {
+      events.push('remove-start');
+      removalStarted.resolve();
+      await releaseRemoval.promise;
+      events.push('remove-end');
+      return missingModel;
+    });
+    dependencies.semanticDispose.mockImplementation(async () => {
+      events.push('dispose');
+    });
+    const runtime = startMainProcessRuntime({
+      ...dependencies.input,
+      readingMemoryControls: controls,
+    });
+    const removal = controls.remove();
+    await removalStarted.promise;
+    let disposed = false;
+    const disposal = runtime.dispose().then(() => {
+      disposed = true;
+    });
+    try {
+      await expect(controls.pause()).rejects.toThrow('Reading memory controls are stopped');
+      await nextTurn();
+      expect(disposed).toBe(false);
+      expect(dependencies.semanticDispose).not.toHaveBeenCalled();
+      releaseRemoval.resolve();
+      await Promise.all([removal, disposal]);
+      expect(events).toEqual(['remove-start', 'remove-end', 'dispose']);
+      expect(dependencies.semanticResume).not.toHaveBeenCalled();
+    } finally {
+      releaseRemoval.resolve();
+      await Promise.all([removal, disposal]);
+    }
   });
 
   it('records an unexpected semantic reconciliation rejection', async () => {
@@ -254,11 +339,11 @@ function runtimeDependencies(
       }),
       syncWeRead,
       startEvidenceProjectionWorker,
-      readingMemorySemanticIndex: {
+      readingMemoryControls: {
         reconcile: semanticReconcile,
         dispose: semanticDispose,
-        suspend: semanticSuspend,
-        resume: semanticResume,
+        suspendForAppUpdate: semanticSuspend,
+        resumeAfterAppUpdateFailure: semanticResume,
       },
     },
   };
@@ -270,4 +355,50 @@ function deferred<T>() {
     resolve = promiseResolve;
   });
   return { promise, resolve };
+}
+
+const missingModel: ReadingMemoryModelLifecycleState = {
+  status: 'not-installed',
+  internalId: 'reading-memory-test',
+  downloadSizeBytes: 10,
+  resumeBytes: 0,
+};
+
+function runtimeReadingMemoryControls(dependencies: ReturnType<typeof runtimeDependencies>) {
+  const removeModel = vi.fn(async () => missingModel);
+  const controls = createReadingMemoryControls({
+    userDataPath: '/tmp/yomitomo-runtime-controls',
+    modelLifecycle: {
+      getState: () => missingModel,
+      reconcile: vi.fn(async () => missingModel),
+      download: vi.fn(async () => missingModel),
+      cancelDownload: vi.fn(async () => missingModel),
+      remove: removeModel,
+      dispose: vi.fn(),
+    },
+    semanticIndex: {
+      reconcile: dependencies.semanticReconcile,
+      suspend: dependencies.semanticSuspend,
+      resume: dependencies.semanticResume,
+      dispose: dependencies.semanticDispose,
+      pauseIndexing: vi.fn(async () => {}),
+      resumeIndexing: vi.fn(),
+      rebuild: vi.fn(async () => {}),
+      search: vi.fn(),
+      getStatus: async () => ({
+        projection: {
+          state: 'available',
+          coverage: { projectedAssetCount: 0, eligibleAssetCount: 0 },
+        },
+        semantic: {
+          state: 'not_installed',
+          modelVersion: missingModel.internalId,
+          queryModelVersion: null,
+          coverage: { indexedEntryCount: 0, eligibleEntryCount: 0 },
+          indexingPaused: false,
+        },
+      }),
+    },
+  });
+  return { controls, removeModel };
 }

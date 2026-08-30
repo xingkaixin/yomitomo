@@ -15,6 +15,7 @@ import {
   desktopIpcInvokeRoutesFromDescriptors,
   type DesktopIpcInvokeMapFromDescriptors,
 } from './desktop-ipc-descriptor';
+import { readingMemoryIpcInvokeDescriptors } from './reading-memory-descriptors';
 
 export type {
   DesktopIpcValidationExemption,
@@ -30,6 +31,7 @@ export const desktopIpcInvokeDescriptors = {
   ...dataIpcInvokeDescriptors,
   ...libraryCollectionIpcInvokeDescriptors,
   ...providerIpcInvokeDescriptors,
+  ...readingMemoryIpcInvokeDescriptors,
   ...storeIpcInvokeDescriptors,
   ...updateIpcInvokeDescriptors,
   ...weReadIpcInvokeDescriptors,

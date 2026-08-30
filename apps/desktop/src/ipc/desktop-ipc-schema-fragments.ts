@@ -18,6 +18,7 @@ import {
   providerDomainIpcInvokeSchemas,
   updateDomainIpcInvokeSchemas,
 } from './desktop-ipc-domain-schema-fragments';
+import { readingMemoryIpcInvokeSchemas } from './reading-memory-schemas';
 
 const idSchema = z.string().min(1).max(256);
 const requestIdSchema = z.string().min(1).max(128);
@@ -247,6 +248,7 @@ export const desktopIpcRawInvokeSchemas = {
   ...libraryDomainIpcInvokeSchemas,
   ...libraryCollectionIpcInvokeSchemas,
   ...providerDomainIpcInvokeSchemas,
+  ...readingMemoryIpcInvokeSchemas,
   ...updateDomainIpcInvokeSchemas,
   ...wereadIpcInvokeSchemas,
 };

@@ -91,6 +91,7 @@ const coreRuntimeExports = [
   'selectionActionPosition',
   'selectionAnnotationSpoilerPolicy',
   'selectionThreadSpoilerPolicy',
+  'selectReadingRelationEvidence',
   'sortAnnotations',
   'sortArticles',
   'sourceTextContent',

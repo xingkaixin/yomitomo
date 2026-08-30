@@ -29,6 +29,7 @@ export {
 } from './ipc/article-import-boundary';
 export * from './ipc/desktop-ipc-domain';
 export * from './ipc/desktop-ipc-invoke-contract';
+export * from './ipc/reading-memory-domain';
 
 export type DesktopIpcStreamErrorEvent = {
   type: 'error';

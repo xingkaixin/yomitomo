@@ -99,7 +99,7 @@ it.each(['weread', 'model-pricing'] as const)(
       logError: vi.fn(),
       createTelemetryController: () => ({ check() {}, dispose() {} }),
       startEvidenceProjectionWorker: () => ({ requestRun() {}, dispose() {} }),
-      readingMemorySemanticIndex: semanticIndexStub(),
+      readingMemoryControls: readingMemoryControlsStub(),
       syncWeRead: async () => {
         await work();
         return { settings, books: [] };
@@ -208,7 +208,7 @@ it('starts automatic sync when the restore IPC replaces manual settings', async 
       requestRun: requestEvidenceProjection,
       dispose() {},
     }),
-    readingMemorySemanticIndex: semanticIndexStub(semanticReconcile),
+    readingMemoryControls: readingMemoryControlsStub(semanticReconcile),
     syncWeRead,
     timing: {
       weReadStartupDelayMs: 10,
@@ -262,11 +262,11 @@ function deferred<T = void>() {
   return { promise, resolve };
 }
 
-function semanticIndexStub(reconcile = vi.fn(async () => undefined)) {
+function readingMemoryControlsStub(reconcile = vi.fn(async () => undefined)) {
   return {
     reconcile,
-    suspend: vi.fn(async () => undefined),
-    resume: vi.fn(async () => undefined),
+    suspendForAppUpdate: vi.fn(async () => undefined),
+    resumeAfterAppUpdateFailure: vi.fn(async () => undefined),
     dispose: vi.fn(async () => undefined),
   };
 }

@@ -11,7 +11,7 @@ import {
   startReadingMemoryEvidenceProjectionWorker,
   type ReadingMemoryEvidenceProjectionWorker,
 } from '../reading-memory/reading-memory-evidence-projection-worker';
-import type { ReadingMemorySemanticIndex } from '../reading-memory/reading-memory-semantic-index';
+import type { ReadingMemoryControls } from '../reading-memory/reading-memory-controls';
 
 const DEFAULT_APP_UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
@@ -46,9 +46,9 @@ type MainProcessRuntimeDependencies = {
   createTelemetryController?: typeof createDesktopTelemetryControllerForEnvironment;
   syncWeRead?: typeof syncWeReadLibrary;
   startEvidenceProjectionWorker?: typeof startReadingMemoryEvidenceProjectionWorker;
-  readingMemorySemanticIndex: Pick<
-    ReadingMemorySemanticIndex,
-    'reconcile' | 'suspend' | 'resume' | 'dispose'
+  readingMemoryControls: Pick<
+    ReadingMemoryControls,
+    'reconcile' | 'suspendForAppUpdate' | 'resumeAfterAppUpdateFailure' | 'dispose'
   >;
 };
 
@@ -223,7 +223,7 @@ export function startMainProcessRuntime(
 
   const reconcileReadingMemorySemanticIndex = (reason: string) => {
     if (disposePromise) return;
-    void dependencies.readingMemorySemanticIndex.reconcile(reason).catch((error) => {
+    void dependencies.readingMemoryControls.reconcile(reason).catch((error) => {
       if (!disposePromise) {
         dependencies.logError('reading_memory.semantic_reconcile_request_failed', error, {
           reason,
@@ -258,17 +258,15 @@ export function startMainProcessRuntime(
     },
     suspendForAppUpdate: () => {
       if (disposePromise) return disposePromise;
-      return dependencies.readingMemorySemanticIndex.suspend();
+      return dependencies.readingMemoryControls.suspendForAppUpdate();
     },
     resumeAfterAppUpdateFailure: () => {
       if (disposePromise) return disposePromise;
-      return dependencies.readingMemorySemanticIndex.resume();
+      return dependencies.readingMemoryControls.resumeAfterAppUpdateFailure();
     },
     dispose: () => {
       if (disposePromise) return disposePromise;
-      disposePromise = Promise.resolve().then(() =>
-        dependencies.readingMemorySemanticIndex.dispose(),
-      );
+      disposePromise = dependencies.readingMemoryControls.dispose();
       weReadConfigurationToken += 1;
       disposeModelPriceRefresh();
       disposeAppUpdateCheck();

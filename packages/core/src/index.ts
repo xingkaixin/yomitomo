@@ -156,6 +156,8 @@ export {
 
 export { validateReadingJudgment } from './reading-memory/reading-judgment-validation';
 
+export { selectReadingRelationEvidence } from './reading-memory/reading-relation-evidence';
+
 export {
   activeTocIndexForOffset,
   annotationIdsAtHighlightPoint,
