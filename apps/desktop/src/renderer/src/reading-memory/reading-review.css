@@ -1,0 +1,167 @@
+.reading-review {
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  color: hsl(var(--foreground));
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.reading-review-inner {
+  display: grid;
+  gap: 28px;
+  width: min(100%, 880px);
+  margin: 0 auto;
+  padding: 32px 28px 64px;
+}
+
+.reading-review h1,
+.reading-review h2,
+.reading-review h3,
+.reading-review p {
+  margin: 0;
+}
+
+.reading-review-heading,
+.reading-review-queue-summary,
+.reading-review-source,
+.reading-review-save-status {
+  display: grid;
+  gap: 8px;
+}
+
+.reading-review-heading h1 {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.reading-review h2 {
+  font-size: 19px;
+  font-weight: 600;
+}
+.reading-review h3 {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.reading-review-heading p,
+.reading-review-progress,
+.reading-review-note,
+.reading-review-source > span,
+.reading-review-queue-summary p,
+.reading-review-source-dates {
+  color: hsl(var(--muted-foreground));
+}
+
+.reading-review-progress,
+.reading-review-source-dates,
+.reading-review-queue-summary p {
+  font-size: 12px;
+}
+
+.reading-review-queue,
+.reading-review-stage,
+.reading-review-support {
+  display: grid;
+  gap: 20px;
+}
+
+.reading-review-queue-list {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reading-review-queue-item,
+.reading-review-view-pair > section {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+}
+
+.reading-review-source blockquote,
+.reading-review-view-pair blockquote,
+.reading-review-saved-answer {
+  margin: 0;
+  padding-left: 16px;
+  border-left: 2px solid var(--app-reader-accent-strong);
+  font-family: var(--font-reader-serif);
+  font-size: 18px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.reading-review-source-dates,
+.reading-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.reading-review-actions {
+  justify-content: flex-end;
+}
+.reading-review-actions button {
+  white-space: normal;
+  height: auto;
+  min-height: 40px;
+}
+.reading-review-source-dates {
+  gap: 6px 16px;
+}
+
+.reading-review-answer-label {
+  display: grid;
+  gap: 8px;
+}
+.reading-review-answer-label textarea {
+  min-height: 160px;
+  font-size: 16px;
+  line-height: 1.7;
+}
+.reading-review-view-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.reading-review-decision,
+.reading-review-support {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.reading-review-decision legend {
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+.reading-review-empty {
+  padding: 20px 0;
+}
+.reading-review [tabindex='-1']:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 4px;
+}
+.reading-review p,
+.reading-review strong {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 680px) {
+  .reading-review-inner {
+    padding: 24px 16px 40px;
+  }
+  .reading-review-view-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

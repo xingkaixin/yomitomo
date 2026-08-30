@@ -7,10 +7,12 @@ import { ReadingMemory } from './app-reading-memory';
 
 type ReadingMemoryProps = ComponentProps<typeof ReadingMemory>;
 type DistillationProps = Pick<ReadingMemoryProps, 'onOpenEvidenceSource'>;
+type ReviewProps = Pick<ReadingMemoryProps, 'catalogRevision' | 'onOpenEvidenceSource'>;
 
 const children = vi.hoisted(() => ({
   distillations: vi.fn<(props: DistillationProps) => void>(),
   library: vi.fn<(props: ReadingMemoryProps) => void>(),
+  review: vi.fn<(props: ReviewProps) => void>(),
 }));
 
 vi.mock('react-i18next', () => ({
@@ -33,6 +35,20 @@ vi.mock('./reading-library-question', () => ({
         aria-label="Question child draft"
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
+      />
+    );
+  },
+}));
+
+vi.mock('./reading-review', () => ({
+  ReadingReview: (props: ReviewProps) => {
+    children.review(props);
+    const [answer, setAnswer] = useState('');
+    return (
+      <input
+        aria-label="Review child answer"
+        value={answer}
+        onChange={(event) => setAnswer(event.target.value)}
       />
     );
   },
@@ -67,6 +83,7 @@ describe('ReadingMemory', () => {
       screen.getByRole('tabpanel', { name: 'readingMemory.tabs.distillations' }).textContent,
     ).toBe('Distillation child');
     expect(children.library).not.toHaveBeenCalled();
+    expect(children.review).not.toHaveBeenCalled();
     expect(screen.queryByRole('textbox')).toBeNull();
   });
 
@@ -111,19 +128,35 @@ describe('ReadingMemory', () => {
     expect(screen.getByRole<HTMLInputElement>('textbox').value).toBe('');
   });
 
-  it('keeps review unavailable and skips it when moving between tabs with the keyboard', () => {
-    renderMemory();
-    expect((tab('review') as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(tab('review'));
-    expect(tab('distillations').getAttribute('aria-selected')).toBe('true');
-
+  it('includes review in keyboard navigation and passes the shared navigation and revision inputs', () => {
+    const { props } = renderMemory();
+    expect((tab('review') as HTMLButtonElement).disabled).toBe(false);
     tab('distillations').focus();
     fireEvent.keyDown(tab('distillations'), { key: 'ArrowRight' });
     expect(tab('library').getAttribute('aria-selected')).toBe('true');
     fireEvent.keyDown(tab('library'), { key: 'ArrowRight' });
+    expect(tab('review').getAttribute('aria-selected')).toBe('true');
+    expect(children.review.mock.lastCall?.[0]).toEqual({
+      catalogRevision: props.catalogRevision,
+      onOpenEvidenceSource: props.onOpenEvidenceSource,
+    });
+    fireEvent.keyDown(tab('review'), { key: 'ArrowRight' });
     expect(tab('distillations').getAttribute('aria-selected')).toBe('true');
     fireEvent.keyDown(tab('distillations'), { key: 'ArrowLeft' });
-    expect(tab('library').getAttribute('aria-selected')).toBe('true');
-    expect(tab('review').getAttribute('aria-selected')).toBe('false');
+    expect(tab('review').getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('unmounts a review when leaving and starts with an empty answer on return', () => {
+    renderMemory();
+    fireEvent.click(tab('review'));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Review child answer' }), {
+      target: { value: 'A private answer' },
+    });
+    fireEvent.click(tab('library'));
+    expect(screen.queryByRole('textbox', { name: 'Review child answer' })).toBeNull();
+    fireEvent.click(tab('review'));
+    expect(
+      screen.getByRole<HTMLInputElement>('textbox', { name: 'Review child answer' }).value,
+    ).toBe('');
   });
 });

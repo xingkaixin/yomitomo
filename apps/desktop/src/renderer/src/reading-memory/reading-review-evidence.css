@@ -1,0 +1,66 @@
+.reading-review-evidence,
+.reading-review-evidence-heading,
+.reading-review-evidence-cards {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.reading-review-evidence-heading {
+  gap: 6px;
+}
+
+.reading-review-evidence h3,
+.reading-review-evidence h4,
+.reading-review-evidence p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.reading-review-evidence h3,
+.reading-review-evidence h4 {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.reading-review-evidence-heading > p,
+.reading-review-evidence-coverage,
+.reading-review-evidence-receipt {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.reading-review-evidence-coverage,
+.reading-review-evidence-receipt {
+  display: grid;
+  gap: 4px;
+}
+
+.reading-review-evidence-privacy {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+}
+
+.reading-review-evidence-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.reading-review-evidence-actions button {
+  height: auto;
+  min-height: 40px;
+  white-space: normal;
+}
+
+.reading-review-evidence [tabindex='-1']:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 3px;
+}

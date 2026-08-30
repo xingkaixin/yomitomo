@@ -232,6 +232,104 @@ export const enResources = {
         library: 'Ask library',
         review: 'Reconsideration',
       },
+      review: {
+        title: 'Reconsider judgments',
+        description:
+          'Write your current view before seeing what you thought earlier. Reviews never overwrite the original record.',
+        queueLoading: 'Finding judgments to reconsider…',
+        queueFailed: 'Could not load judgments. Your saved records are unchanged.',
+        retryQueue: 'Reload judgments',
+        emptyQueue: 'There are no judgments to reconsider in this queue.',
+        emptyHint: 'Save a thought or publish a distillation while reading, then return here.',
+        queueCount: '{{count}} judgments in this queue',
+        completedCount: '{{count}} completed this session',
+        timeOrder: 'Ordered by formation and review time',
+        semanticOrder: 'Selected using time and recent evidence',
+        candidateCoverage:
+          '{{eligible}} eligible judgments · {{time}} time candidates · {{semantic}} semantic candidates',
+        candidateWindow:
+          'Semantic selection examines up to {{candidates}} judgments and {{evidence}} recent evidence items from the last {{days}} days.',
+        sourceQuote: 'Original excerpt',
+        missingQuote: 'The original excerpt is unavailable.',
+        formedAt: 'Formed: {{date}}',
+        lastReviewedAt: 'Last reviewed: {{date}}',
+        neverReviewed: 'Not reviewed yet',
+        start: 'Start review',
+        starting: 'Opening this judgment…',
+        startFailed: 'Could not open this judgment. Try again.',
+        retryStart: 'Retry opening',
+        blindTitle: 'Write your current view',
+        blindDescription:
+          'Without looking at your earlier judgment, how do you understand this excerpt now?',
+        answer: 'Your current view',
+        placeholder: 'Write what you think now, including any uncertainty.',
+        reveal: 'Reveal earlier judgment',
+        needEvidenceFirst: 'I need more evidence',
+        revealing: 'Revealing the earlier judgment…',
+        revealFailed:
+          'Could not reveal the judgment. Your answer is frozen; retry or cancel and start again.',
+        retryReveal: 'Retry reveal',
+        revealedTitle: 'Compare your views',
+        currentAnswer: 'Your frozen answer',
+        previousJudgment: 'Earlier effective judgment',
+        answerFrozen: 'This answer is frozen for this review. Cancel and start again to change it.',
+        noAnswer: 'No answer provided; only “Need more evidence” can be saved.',
+        decisions: {
+          still_agree: 'Still agree',
+          changed: 'My view changed',
+          need_evidence: 'Need more evidence',
+        },
+        decisionPrompt: 'Choose how to record this review',
+        submitting: 'Saving review…',
+        submitFailed:
+          'Could not confirm the save. Retry the same review; your frozen answer is unchanged.',
+        retrySubmit: 'Retry save',
+        conflict:
+          'The original record or its latest review changed. Start again to review the current version; this answer will not be applied automatically.',
+        restart: 'Start again',
+        doneTitle: 'Review saved',
+        doneDescription: 'The original record is unchanged. This review is saved separately.',
+        next: 'Next judgment',
+        returnQueue: 'Back to queue',
+        cancel: 'Cancel review',
+        history: {
+          title: 'Review history',
+          originalJudgment: 'Original judgment',
+          snapshot: 'Judgment at the time',
+          answer: 'Your answer at the time',
+          noAnswer: 'No answer provided',
+          empty: 'No reviews yet.',
+          loading: 'Loading review history…',
+          failed: 'Could not load review history. Previously loaded reviews are still available.',
+          loadMore: 'Load more reviews',
+          retry: 'Retry loading',
+        },
+        evidence: {
+          title: 'New evidence',
+          description:
+            'Find evidence in your library when needed. The comparison does not make your review decision for you.',
+          compare: 'Compare new evidence',
+          currentProvider: 'Current provider: {{provider}} / {{model}}',
+          noProvider:
+            'No AI provider is currently configured; a new comparison only finds local candidates.',
+          keywordHint:
+            'Local candidates come from keyword search. A search match alone does not establish a topic or judgment relationship.',
+          inputTooLarge:
+            'The earlier effective judgment exceeds the comparison input budget. You can still save this review.',
+          comparing: 'Comparing new evidence…',
+          failed:
+            'The comparison could not be completed. Local candidates and review submission remain available.',
+          canceled: 'Comparison canceled. Local candidates and review submission remain available.',
+          empty: 'No local evidence was found to compare.',
+          abstained:
+            'The available evidence does not establish a supporting or opposing relationship.',
+          receipt: 'Send receipt',
+          notSent: 'Nothing was sent to an AI provider.',
+          confirmPrivacy: 'Understand and compare new evidence',
+          privacyContent:
+            'Only the earlier effective judgment and up to 6 evidence items are sent within an input budget. Your current answer, review decision, history, source titles, and local identifiers are not sent.',
+        },
+      },
       library: {
         title: 'Ask library',
         description:
