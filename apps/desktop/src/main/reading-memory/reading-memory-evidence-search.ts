@@ -317,6 +317,7 @@ export function materializeReadingEvidenceCandidates(
         annotation: source.annotation,
         sourceVersion: source.sourceVersion,
         projectorVersion: readingMemoryEvidenceProjectorVersion,
+        reviews: source.reviews,
       });
       entriesById = new Map(entries.map((entry) => [entry.id, entry]));
       projectedEntries.set(candidate.targetId, entriesById);
@@ -330,6 +331,7 @@ export function materializeReadingEvidenceCandidates(
       projected,
       annotation: source.annotation,
       article,
+      reviews: source.reviews,
     });
     if (item) evidence.push(item);
   }

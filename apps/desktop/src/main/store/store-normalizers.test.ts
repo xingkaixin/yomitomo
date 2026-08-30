@@ -597,6 +597,7 @@ describe('store normalizers annotation and chat records', () => {
   it('normalizes comments and annotations from persisted rows', () => {
     const comment = rowToComment({
       id: 'comment_1',
+      assetRevision: 'comment_revision',
       annotationId: 'annotation_1',
       author: 'bad',
       content: 'Comment',

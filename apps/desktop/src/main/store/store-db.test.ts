@@ -48,6 +48,7 @@ import {
   withDatabaseLease,
 } from './store-db';
 import { copyFile, rename, rm } from 'node:fs/promises';
+import { migrations } from '../db/migrations';
 
 const actualFs = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises');
 
@@ -143,6 +144,113 @@ describe('store database backup and restore', () => {
     await expect(readFile(safetyBackup)).resolves.toBeInstanceOf(Buffer);
     expect(readMarker()).toBe('source');
     expect(await restoreTemporaryFiles()).toEqual([]);
+  });
+
+  it('restores judgment revisions and complete review history from a native backup', async () => {
+    const sqlite = getSqliteExecutor();
+    writeReadingJudgments(sqlite);
+    sqlite.exec(`
+UPDATE comments SET asset_revision = 'comment-version-original' WHERE id = 'backup-comment';
+UPDATE annotations
+SET distillation_revision = 'distillation-version-original'
+WHERE id = 'backup-annotation';
+
+INSERT INTO reading_memory_reviews (
+  id, article_id, annotation_id, asset_type, asset_id, asset_version,
+  judgment_snapshot, judgment_digest, previous_review_id, decision, answer, created_at
+) VALUES
+  (
+    'review-comment-1', 'backup-article', 'backup-annotation', 'comment', 'backup-comment',
+    'comment-version-original', '旧评论判断', 'comment-digest-original', NULL,
+    'still_agree', '仍然同意原判断', '2026-08-28T00:00:00.000Z'
+  ),
+  (
+    'review-comment-2', 'backup-article', 'backup-annotation', 'comment', 'backup-comment',
+    'comment-version-original', '旧评论判断', 'comment-digest-original', 'review-comment-1',
+    'need_evidence', '', '2026-08-29T00:00:00.000Z'
+  ),
+  (
+    'review-distillation', 'backup-article', 'backup-annotation', 'distillation',
+    'backup-annotation', 'distillation-version-original', '旧提炼判断',
+    'distillation-digest-original', NULL, 'changed', '新的提炼判断',
+    '2026-08-29T01:00:00.000Z'
+  );
+`);
+    const original = readReadingJudgmentBackupState(sqlite);
+    const source = join(testPaths.userData, 'reading-reviews.sqlite');
+    await backupDatabaseFile(source);
+    sqlite.exec(`
+UPDATE comments
+SET content = '备份后的评论', asset_revision = 'comment-version-current'
+WHERE id = 'backup-comment';
+UPDATE annotations
+SET distillation_content = '备份后的提炼', distillation_revision = 'distillation-version-current'
+WHERE id = 'backup-annotation';
+DELETE FROM reading_memory_reviews;
+`);
+    expect(readReadingJudgmentBackupState(sqlite)).not.toEqual(original);
+
+    await replaceDatabaseFile(source);
+
+    expect(readReadingJudgmentBackupState(getSqliteExecutor())).toEqual(original);
+  });
+
+  it('migrates a reader-level-2 backup without changing judgments or inventing reviews', async () => {
+    const source = join(testPaths.userData, 'legacy-reading-judgments.sqlite');
+    const legacy = new BetterSqliteDatabase(':memory:');
+    try {
+      legacy.exec(`
+CREATE TABLE __yomitomo_migrations (
+  id TEXT PRIMARY KEY NOT NULL,
+  applied_at TEXT NOT NULL
+);
+CREATE TABLE __yomitomo_metadata (
+  key TEXT PRIMARY KEY NOT NULL,
+  value TEXT NOT NULL
+);
+INSERT INTO __yomitomo_metadata (key, value) VALUES ('database_reader_level', '2');
+`);
+      const recordMigration = legacy.prepare(
+        'INSERT INTO __yomitomo_migrations (id, applied_at) VALUES (?, ?)',
+      );
+      for (const migration of migrations) {
+        if (migration.id > '0070_reading_memory_remote_consent') break;
+        legacy.exec(migration.sql);
+        recordMigration.run(migration.id, '2026-08-28T00:00:00.000Z');
+      }
+      writeReadingJudgments(legacy);
+      expect(
+        legacy.prepare('SELECT id FROM __yomitomo_migrations ORDER BY id DESC LIMIT 1').get(),
+      ).toEqual({ id: '0070_reading_memory_remote_consent' });
+      await legacy.backup(source);
+    } finally {
+      legacy.close();
+    }
+    writeMarker('current');
+
+    await replaceDatabaseFile(source);
+
+    const restored = getSqliteExecutor();
+    expect(readReadingJudgmentBackupState(restored)).toEqual({
+      judgment: {
+        content: '旧评论判断',
+        asset_revision: expect.stringMatching(/\S/),
+        distillation_status: 'published',
+        distillation_content: '旧提炼判断',
+        distillation_revision: expect.stringMatching(/\S/),
+      },
+      reviews: [],
+    });
+    expect(
+      restored
+        .prepare('SELECT id FROM __yomitomo_migrations WHERE id = ?')
+        .get('0071_reading_memory_reviews'),
+    ).toEqual({ id: '0071_reading_memory_reviews' });
+    expect(
+      restored
+        .prepare("SELECT value FROM __yomitomo_metadata WHERE key = 'database_reader_level'")
+        .get(),
+    ).toEqual({ value: '3' });
   });
 
   it('keeps the current database file when restore copy fails', async () => {
@@ -470,6 +578,43 @@ function readMarkerFromDatabase(filePath: string) {
   } finally {
     database.close();
   }
+}
+
+function writeReadingJudgments(database: BetterSqliteDatabase.Database) {
+  database.exec(`
+INSERT INTO articles (
+  id, url, canonical_url, title, content_hash, created_at, updated_at
+) VALUES (
+  'backup-article', 'https://example.com/backup', 'https://example.com/backup',
+  '备份资料', 'backup-content-hash', '2026-08-27T00:00:00.000Z', '2026-08-27T00:00:00.000Z'
+);
+INSERT INTO annotations (
+  id, article_id, anchor, author, color, created_at, updated_at,
+  distillation_status, distillation_content
+) VALUES (
+  'backup-annotation', 'backup-article', '{}', 'user', 'yellow',
+  '2026-08-27T00:00:00.000Z', '2026-08-27T00:00:00.000Z', 'published', '旧提炼判断'
+);
+INSERT INTO comments (id, annotation_id, author, content, created_at)
+VALUES (
+  'backup-comment', 'backup-annotation', 'user', '旧评论判断', '2026-08-27T00:00:00.000Z'
+);
+`);
+}
+
+function readReadingJudgmentBackupState(database: BetterSqliteDatabase.Database) {
+  return {
+    judgment: database
+      .prepare(
+        `SELECT comment.content, comment.asset_revision,
+                annotation.distillation_status, annotation.distillation_content,
+                annotation.distillation_revision
+         FROM comments comment JOIN annotations annotation ON annotation.id = comment.annotation_id
+         WHERE comment.id = 'backup-comment'`,
+      )
+      .get(),
+    reviews: database.prepare('SELECT * FROM reading_memory_reviews ORDER BY id').all(),
+  };
 }
 
 async function backupTemporaryFiles(target: string) {

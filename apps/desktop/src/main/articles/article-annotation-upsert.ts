@@ -16,6 +16,12 @@ import {
 import { readArticleAnnotations } from './article-annotation-hydration';
 import { readArticleSummaryRows } from './article-row-queries';
 import { buildArticleUpsertPatch, insertCommentRows, touchArticleRows } from './article-row-writes';
+import {
+  distillationAssetRevision,
+  readStoredArticleAssetRevisions,
+  type StoredDistillationAsset,
+} from './article-asset-revisions';
+import { deleteRemovedAssetReviews } from './article-repository-lifecycle';
 
 export function upsertAnnotationRows(
   database: StoreDatabase,
@@ -27,9 +33,21 @@ export function upsertAnnotationRows(
   const queuedAt = new Date().toISOString();
 
   database.transaction((tx) => {
-    upsertAnnotationRow(tx, input.articleId, input.annotation);
+    const previous = readStoredArticleAssetRevisions(tx, input.articleId, input.annotation.id);
+    upsertAnnotationRow(
+      tx,
+      input.articleId,
+      input.annotation,
+      previous.annotations.get(input.annotation.id),
+    );
     tx.delete(schema.comments).where(eq(schema.comments.annotationId, input.annotation.id)).run();
-    insertCommentRows(tx, commentRowsForAnnotation(input.annotation));
+    insertCommentRows(tx, commentRowsForAnnotation(input.annotation, previous.comments));
+    const currentCommentIds = new Set(input.annotation.comments.map((comment) => comment.id));
+    deleteRemovedAssetReviews(executor, {
+      articleId: input.articleId,
+      commentIds: [...previous.comments.keys()].filter((id) => !currentCommentIds.has(id)),
+      distillationAnnotationIds: input.annotation.distillation ? [] : [input.annotation.id],
+    });
     touchArticleRows(tx, input.articleId, input.updatedAt || input.annotation.updatedAt);
     queueStoredAnnotationThreadProjection(executor, {
       articleId: input.articleId,
@@ -54,11 +72,17 @@ export function upsertCommentRows(
   const queuedAt = new Date().toISOString();
 
   database.transaction((tx) => {
+    const previous = tx
+      .select()
+      .from(schema.comments)
+      .where(eq(schema.comments.id, input.comment.id))
+      .get();
+    const row = commentToRow(input.annotationId, input.comment, previous);
     tx.insert(schema.comments)
-      .values(commentToRow(input.annotationId, input.comment))
+      .values(row)
       .onConflictDoUpdate({
         target: schema.comments.id,
-        set: commentToRow(input.annotationId, input.comment),
+        set: row,
       })
       .run();
     touchArticleRows(tx, input.articleId, input.updatedAt || input.comment.createdAt);
@@ -103,10 +127,14 @@ export function saveAnnotationDistillationRows(
         },
       });
     }
+    const distillation = {
+      distillationStatus: input.distillation?.status ?? null,
+      distillationContent: input.distillation?.content ?? null,
+    };
     tx.update(schema.annotations)
       .set({
-        distillationStatus: input.distillation?.status ?? null,
-        distillationContent: input.distillation?.content ?? null,
+        ...distillation,
+        distillationRevision: distillationAssetRevision(storedAnnotation, distillation),
         distillationPublishedAt: input.distillation?.publishedAt ?? null,
         distillationUpdatedAt: input.distillation?.updatedAt ?? null,
         distillationReviewSessions:
@@ -115,6 +143,12 @@ export function saveAnnotationDistillationRows(
       })
       .where(eq(schema.annotations.id, input.annotationId))
       .run();
+    if (!input.distillation) {
+      deleteRemovedAssetReviews(executor, {
+        articleId: input.articleId,
+        distillationAnnotationIds: [input.annotationId],
+      });
+    }
     touchArticleRows(tx, input.articleId, updatedAt);
     queueStoredAnnotationThreadProjection(executor, {
       articleId: input.articleId,
@@ -150,8 +184,13 @@ export function mergeAgentAnnotationRows(
   return patch ? { activeId: result.activeId, patch } : null;
 }
 
-function upsertAnnotationRow(database: StoreExecutor, articleId: string, annotation: Annotation) {
-  const row = annotationToRow(articleId, annotation);
+function upsertAnnotationRow(
+  database: StoreExecutor,
+  articleId: string,
+  annotation: Annotation,
+  previous?: StoredDistillationAsset,
+) {
+  const row = annotationToRow(articleId, annotation, previous);
   database
     .insert(schema.annotations)
     .values(row)

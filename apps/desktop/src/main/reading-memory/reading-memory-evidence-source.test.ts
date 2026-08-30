@@ -57,7 +57,7 @@ describe('reading memory evidence source', () => {
       },
     });
     expect(sources.every((source) => /^[a-f0-9]{64}$/.test(source.sourceVersion))).toBe(true);
-    expect(fixture.selects()).toHaveLength(2);
+    expect(fixture.selects()).toHaveLength(3);
   });
 
   it('uses the same source version when a stored thread is queued', () => {
@@ -84,7 +84,7 @@ describe('reading memory evidence source', () => {
     });
   });
 
-  it('reads every article thread in two bulk queries', () => {
+  it('reads every article thread and review presence in three bulk queries', () => {
     const fixture = createFixture();
     for (let index = 0; index < 12; index += 1) {
       const annotationId = `annotation_${index}`;
@@ -99,7 +99,7 @@ describe('reading memory evidence source', () => {
     expect(readStoredArticleAnnotationThreadSources(fixture.executor, 'article_1')).toHaveLength(
       12,
     );
-    expect(fixture.selects()).toHaveLength(2);
+    expect(fixture.selects()).toHaveLength(3);
   });
 });
 

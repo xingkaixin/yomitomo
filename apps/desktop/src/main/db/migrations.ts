@@ -1271,6 +1271,74 @@ CREATE TABLE IF NOT EXISTS reading_memory_semantic_state (
 ALTER TABLE app_settings ADD COLUMN reading_memory_remote_consent INTEGER NOT NULL DEFAULT 0;
 `,
   },
+  {
+    id: '0071_reading_memory_reviews',
+    minReaderLevel: 3,
+    sql: `
+ALTER TABLE comments ADD COLUMN asset_revision TEXT NOT NULL DEFAULT 'initial';
+ALTER TABLE annotations ADD COLUMN distillation_revision TEXT NOT NULL DEFAULT 'initial';
+
+UPDATE comments SET asset_revision = lower(hex(randomblob(16)));
+UPDATE annotations SET distillation_revision = lower(hex(randomblob(16)));
+
+CREATE TABLE reading_memory_reviews (
+  id TEXT PRIMARY KEY NOT NULL,
+  article_id TEXT NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+  annotation_id TEXT NOT NULL,
+  asset_type TEXT NOT NULL
+    CONSTRAINT reading_memory_reviews_asset_type_check CHECK (asset_type IN ('comment', 'distillation')),
+  asset_id TEXT NOT NULL,
+  asset_version TEXT NOT NULL,
+  judgment_snapshot TEXT NOT NULL,
+  judgment_digest TEXT NOT NULL,
+  previous_review_id TEXT REFERENCES reading_memory_reviews(id) ON DELETE CASCADE,
+  decision TEXT NOT NULL
+    CONSTRAINT reading_memory_reviews_decision_check CHECK (decision IN ('still_agree', 'changed', 'need_evidence')),
+  answer TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  CONSTRAINT reading_memory_reviews_self_reference_check CHECK (previous_review_id IS NULL OR previous_review_id <> id),
+  CONSTRAINT reading_memory_reviews_distillation_identity_check CHECK (asset_type <> 'distillation' OR asset_id = annotation_id)
+);
+
+CREATE UNIQUE INDEX reading_memory_reviews_root_idx
+ON reading_memory_reviews(asset_type, asset_id, asset_version)
+WHERE previous_review_id IS NULL;
+
+CREATE UNIQUE INDEX reading_memory_reviews_successor_idx
+ON reading_memory_reviews(previous_review_id)
+WHERE previous_review_id IS NOT NULL;
+
+CREATE INDEX reading_memory_reviews_asset_idx
+ON reading_memory_reviews(asset_type, asset_id, asset_version, created_at, id);
+
+CREATE INDEX reading_memory_reviews_history_idx
+ON reading_memory_reviews(asset_type, asset_id, created_at, id);
+
+CREATE INDEX reading_memory_reviews_annotation_idx
+ON reading_memory_reviews(article_id, annotation_id);
+
+CREATE TRIGGER reading_memory_reviews_validate_parent
+BEFORE INSERT ON reading_memory_reviews
+WHEN new.previous_review_id IS NOT NULL BEGIN
+  SELECT RAISE(ABORT, 'READING_MEMORY_REVIEW_PARENT_INVALID')
+  WHERE NOT EXISTS (
+    SELECT 1 FROM reading_memory_reviews AS parent
+    WHERE parent.id = new.previous_review_id
+      AND parent.article_id = new.article_id
+      AND parent.annotation_id = new.annotation_id
+      AND parent.asset_type = new.asset_type
+      AND parent.asset_id = new.asset_id
+      AND parent.asset_version = new.asset_version
+      AND parent.created_at <= new.created_at
+  );
+END;
+
+CREATE TRIGGER reading_memory_reviews_immutable
+BEFORE UPDATE ON reading_memory_reviews BEGIN
+  SELECT RAISE(ABORT, 'READING_MEMORY_REVIEW_IMMUTABLE');
+END;
+`,
+  },
 ];
 
 type MigrationDatabase = {

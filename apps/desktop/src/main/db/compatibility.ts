@@ -5,7 +5,7 @@ import { DatabaseTooNewError } from './errors';
 import { migrations, type DatabaseMigration } from './migrations';
 
 const DEFAULT_DATABASE_READER_LEVEL = 1;
-export const SUPPORTED_DATABASE_READER_LEVEL = 2;
+export const SUPPORTED_DATABASE_READER_LEVEL = 3;
 export const DATABASE_READER_LEVEL_KEY = 'database_reader_level';
 
 export { DatabaseTooNewError } from './errors';

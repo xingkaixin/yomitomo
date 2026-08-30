@@ -277,6 +277,7 @@ export const annotations = sqliteTable(
     distillationContent: text('distillation_content'),
     distillationPublishedAt: text('distillation_published_at'),
     distillationUpdatedAt: text('distillation_updated_at'),
+    distillationRevision: text('distillation_revision').notNull().default('initial'),
     distillationReviewSessions: text('distillation_review_sessions', { mode: 'json' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
@@ -301,6 +302,7 @@ export const comments = sqliteTable(
       .references(() => annotations.id, { onDelete: 'cascade' }),
     author: text('author').notNull(),
     content: text('content').notNull(),
+    assetRevision: text('asset_revision').notNull().default('initial'),
     createdAt: text('created_at').notNull(),
     replyTo: text('reply_to'),
     agentId: text('agent_id'),
@@ -321,6 +323,67 @@ export const comments = sqliteTable(
   (table) => [
     index('comments_annotation_id_idx').on(table.annotationId),
     index('comments_created_at_idx').on(table.createdAt),
+  ],
+);
+
+export const readingMemoryReviews = sqliteTable(
+  'reading_memory_reviews',
+  {
+    id: text('id').primaryKey(),
+    articleId: text('article_id')
+      .notNull()
+      .references(() => articles.id, { onDelete: 'cascade' }),
+    annotationId: text('annotation_id').notNull(),
+    assetType: text('asset_type', { enum: ['comment', 'distillation'] }).notNull(),
+    assetId: text('asset_id').notNull(),
+    assetVersion: text('asset_version').notNull(),
+    judgmentSnapshot: text('judgment_snapshot').notNull(),
+    judgmentDigest: text('judgment_digest').notNull(),
+    previousReviewId: text('previous_review_id').references(
+      (): AnySQLiteColumn => readingMemoryReviews.id,
+      { onDelete: 'cascade' },
+    ),
+    decision: text('decision', { enum: ['still_agree', 'changed', 'need_evidence'] }).notNull(),
+    answer: text('answer').notNull().default(''),
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('reading_memory_reviews_root_idx')
+      .on(table.assetType, table.assetId, table.assetVersion)
+      .where(sql`${table.previousReviewId} IS NULL`),
+    uniqueIndex('reading_memory_reviews_successor_idx')
+      .on(table.previousReviewId)
+      .where(sql`${table.previousReviewId} IS NOT NULL`),
+    index('reading_memory_reviews_asset_idx').on(
+      table.assetType,
+      table.assetId,
+      table.assetVersion,
+      table.createdAt,
+      table.id,
+    ),
+    index('reading_memory_reviews_annotation_idx').on(table.articleId, table.annotationId),
+    index('reading_memory_reviews_history_idx').on(
+      table.assetType,
+      table.assetId,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      'reading_memory_reviews_asset_type_check',
+      sql`${table.assetType} IN ('comment', 'distillation')`,
+    ),
+    check(
+      'reading_memory_reviews_decision_check',
+      sql`${table.decision} IN ('still_agree', 'changed', 'need_evidence')`,
+    ),
+    check(
+      'reading_memory_reviews_self_reference_check',
+      sql`${table.previousReviewId} IS NULL OR ${table.previousReviewId} <> ${table.id}`,
+    ),
+    check(
+      'reading_memory_reviews_distillation_identity_check',
+      sql`${table.assetType} <> 'distillation' OR ${table.assetId} = ${table.annotationId}`,
+    ),
   ],
 );
 

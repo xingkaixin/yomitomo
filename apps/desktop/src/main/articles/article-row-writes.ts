@@ -1,6 +1,5 @@
 import { eq } from 'drizzle-orm';
 import type { ArticleRecord, ArticleSummaryRecord, ArticleUpsertPatch } from '@yomitomo/shared';
-import { uniqueNonEmptyStrings } from '@yomitomo/shared';
 import * as schema from '../db/schema';
 import {
   getDatabase,
@@ -20,9 +19,14 @@ import {
 } from '../store/store-normalizers';
 import { buildArticleChildRows, commentRowsForAnnotation } from './article-repository-child-rows';
 import {
+  deleteRemovedAssetReviews,
   trySoftDeleteAnnotationMemoryEntries,
   trySoftDeleteCommentMemoryEntries,
 } from './article-repository-lifecycle';
+import {
+  readStoredArticleAssetRevisions,
+  type StoredArticleAssetRevisions,
+} from './article-asset-revisions';
 import { trySyncArticleAnnotationMemoryEntries } from './article-annotation-memory';
 import { readArticleSummaryRows } from './article-row-queries';
 
@@ -49,7 +53,11 @@ export function buildArticleUpsertPatch(article: ArticleSummaryRecord): ArticleU
   return { type: 'article-upsert', article };
 }
 
-export function writeArticleRows(database: StoreExecutor, article: ArticleRecord) {
+export function writeArticleRows(
+  database: StoreExecutor,
+  article: ArticleRecord,
+  previous = readStoredArticleAssetRevisions(database, article.id),
+) {
   const sourceType = normalizeArticleSourceType(article.sourceType);
   const contentHtml = sourceType === 'ebook' ? null : article.contentHtml;
   database
@@ -108,7 +116,7 @@ export function writeArticleRows(database: StoreExecutor, article: ArticleRecord
     .run();
 
   database.delete(schema.annotations).where(eq(schema.annotations.articleId, article.id)).run();
-  const { annotationRows, commentRows } = buildArticleChildRows(article);
+  const { annotationRows, commentRows } = buildArticleChildRows(article, previous);
   for (let index = 0; index < annotationRows.length; index += INSERT_BATCH_SIZE) {
     database
       .insert(schema.annotations)
@@ -124,9 +132,11 @@ function writeArticleRowsInTransaction(
   executor: ReadingMemorySqliteExecutor,
 ) {
   const queuedAt = new Date().toISOString();
-  const removedSources = readRemovedArticleAnnotationSources(database, article);
-  database.transaction((tx) => {
-    writeArticleRows(tx, article);
+  return database.transaction((tx) => {
+    const previous = readStoredArticleAssetRevisions(tx, article.id);
+    const removedSources = removedArticleAnnotationSources(previous, article);
+    writeArticleRows(tx, article, previous);
+    deleteRemovedAssetReviews(executor, { articleId: article.id, ...removedSources });
     queueStoredArticleAnnotationThreadProjections(executor, {
       articleId: article.id,
       queuedAt,
@@ -138,61 +148,32 @@ function writeArticleRowsInTransaction(
         queuedAt,
       });
     }
+    return removedSources;
   });
-  return removedSources;
 }
 
-type ArticleAnnotationSourceSnapshot = {
-  annotationIds: string[];
-  comments: Array<{ id: string; annotationId: string }>;
-};
-
-function readRemovedArticleAnnotationSources(
-  database: StoreExecutor,
+function removedArticleAnnotationSources(
+  previous: StoredArticleAssetRevisions,
   article: Pick<ArticleRecord, 'id' | 'annotations'>,
 ) {
-  const currentAnnotationIds = new Set(
-    uniqueNonEmptyStrings(article.annotations.map((item) => item.id)),
-  );
+  const currentAnnotationIds = new Set(article.annotations.map((item) => item.id));
   const currentCommentIds = new Set(
-    uniqueNonEmptyStrings(
-      article.annotations.flatMap((item) => item.comments.map((comment) => comment.id)),
-    ),
+    article.annotations.flatMap((item) => item.comments.map((comment) => comment.id)),
   );
-  const storedSources = readArticleAnnotationSourceSnapshot(database, article.id);
-  const annotationIds = storedSources.annotationIds.filter(
+  const annotationIds = [...previous.annotations.keys()].filter(
     (annotationId) => !currentAnnotationIds.has(annotationId),
   );
   const removedAnnotationIdSet = new Set(annotationIds);
-  const commentIds = storedSources.comments
+  const commentIds = [...previous.comments.values()]
     .filter(
       (comment) =>
         !removedAnnotationIdSet.has(comment.annotationId) && !currentCommentIds.has(comment.id),
     )
     .map((comment) => comment.id);
-  return { annotationIds, commentIds };
-}
-
-function readArticleAnnotationSourceSnapshot(
-  database: StoreExecutor,
-  articleId: string,
-): ArticleAnnotationSourceSnapshot {
-  const annotationRows = database
-    .select({ id: schema.annotations.id })
-    .from(schema.annotations)
-    .where(eq(schema.annotations.articleId, articleId))
-    .all();
-  const commentRows = database
-    .select({ id: schema.comments.id, annotationId: schema.comments.annotationId })
-    .from(schema.comments)
-    .innerJoin(schema.annotations, eq(schema.annotations.id, schema.comments.annotationId))
-    .where(eq(schema.annotations.articleId, articleId))
-    .all();
-
-  return {
-    annotationIds: annotationRows.map((row) => row.id),
-    comments: commentRows.map((row) => ({ id: row.id, annotationId: row.annotationId })),
-  };
+  const distillationAnnotationIds = article.annotations
+    .filter((annotation) => !annotation.distillation)
+    .map((annotation) => annotation.id);
+  return { annotationIds, commentIds, distillationAnnotationIds };
 }
 
 export function insertCommentRows(
