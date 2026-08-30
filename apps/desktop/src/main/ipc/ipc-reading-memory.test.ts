@@ -97,7 +97,8 @@ beforeEach(() => {
 });
 
 describe('reading-memory release boundary', () => {
-  it('keeps registration complete while every default-release invocation rejects before runtime work', async () => {
+  it('keeps registration complete while disabled invocations reject before runtime work', async () => {
+    state.enabled = false;
     const { context, operation } = runtimeContext();
     registerReadingMemoryIpc(context);
     expect([...state.handlers.keys()].toSorted()).toEqual(Object.keys(args).toSorted());
@@ -120,8 +121,7 @@ describe('reading-memory release boundary', () => {
     expect(operation).not.toHaveBeenCalled();
   });
 
-  it('routes the enabled test build through the existing typed handlers', async () => {
-    state.enabled = true;
+  it('routes the default build through the existing typed handlers', async () => {
     const { context, operation } = runtimeContext();
     const cancelRelations = vi.fn();
     const cancelLibrary = vi.fn();

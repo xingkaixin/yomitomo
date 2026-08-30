@@ -74,7 +74,7 @@ afterEach(() => {
 });
 
 beforeEach(() => {
-  release.enabled = true;
+  release.enabled = undefined;
 });
 
 function renderMemory() {
@@ -91,8 +91,8 @@ function tab(value: 'distillations' | 'library' | 'review') {
 }
 
 describe('ReadingMemory', () => {
-  it('keeps only the legacy distillation library in the default release', () => {
-    release.enabled = undefined;
+  it('keeps only the legacy distillation library when disabled', () => {
+    release.enabled = false;
     const { props } = renderMemory();
 
     expect(screen.getByText('Distillation child')).toBeTruthy();

@@ -1,1 +1,1 @@
-export const readingMemoryEnabled = false;
+export const readingMemoryEnabled = true;
