@@ -416,7 +416,7 @@ describe('ProviderSettings', () => {
   it.each([false, true])(
     'mounts local reading-memory settings only in the enabled build (%s)',
     async (enabled) => {
-      release.enabled = enabled ? true : undefined;
+      release.enabled = enabled ? undefined : false;
       const status = vi.fn().mockRejectedValue(new Error('Local fixture model unavailable'));
       Object.defineProperty(window, 'yomitomoDesktop', {
         configurable: true,

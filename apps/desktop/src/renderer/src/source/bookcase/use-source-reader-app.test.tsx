@@ -61,7 +61,7 @@ afterEach(() => {
 
 describe('useSourceReaderApp', () => {
   it.each([false, true])('exposes related reading only in the enabled build (%s)', (enabled) => {
-    release.enabled = enabled ? true : undefined;
+    release.enabled = enabled ? undefined : false;
     const search = vi.fn().mockRejectedValue(new Error('Local fixture search unavailable'));
     vi.stubGlobal('yomitomoDesktop', {
       readingMemory: { relations: { search, cancel: vi.fn().mockResolvedValue(undefined) } },
