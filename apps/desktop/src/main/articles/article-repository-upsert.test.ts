@@ -2,7 +2,8 @@ import SQLiteDatabase from 'better-sqlite3';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Annotation, Comment } from '@yomitomo/shared';
+import { createPdfTextAnchor, type Annotation, type Comment } from '@yomitomo/shared';
+import { validateDesktopIpcInvokeArgs } from '../../ipc-schemas';
 import { migrations } from '../db/migrations';
 import * as schema from '../db/schema';
 import type { StoreDatabase } from '../store/store-db';
@@ -27,6 +28,33 @@ describe('article repository local child row writes', () => {
     for (const database of openDatabases) database.close();
     openDatabases.length = 0;
     vi.restoreAllMocks();
+  });
+
+  it('retains validated PDF anchor geometry through a SQLite write and read', () => {
+    const { database, memory } = repositoryDatabase();
+    const anchor = createPdfTextAnchor({
+      pageText: 'Reading memory connects saved judgments',
+      pageIndex: 0,
+      start: 0,
+      end: 39,
+      pageWidth: 600,
+      pageHeight: 400,
+      rects: [{ x: 0.03, y: 0.18, width: 0.7, height: 0.05 }],
+    });
+    const [input] = validateDesktopIpcInvokeArgs('article:save-annotation', [
+      {
+        articleId: 'article_1',
+        annotation: annotation({ anchor }),
+      },
+    ]);
+
+    upsertAnnotationRows(database, input, memory);
+
+    expect(
+      readArticleRows(database, input.articleId)?.annotations.find(
+        (item) => item.id === input.annotation.id,
+      )?.anchor,
+    ).toMatchObject(anchor);
   });
 
   it.each(['annotation', 'comment'] as const)(

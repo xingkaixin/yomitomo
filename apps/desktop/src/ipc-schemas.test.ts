@@ -1,9 +1,62 @@
 import { describe, expect, it } from 'vitest';
+import { createPdfTextAnchor, type TextAnchor } from '@yomitomo/shared';
 import type { DesktopIpcInvokeArgs } from './ipc-contract';
 import { DesktopIpcError, desktopIpcErrorCodes } from './ipc-errors';
 import { validateDesktopIpcInvokeArgs } from './ipc-schemas';
 
 describe('desktop IPC argument schemas', () => {
+  const pdfAnchor = createPdfTextAnchor({
+    pageText: 'Reading memory connects saved judgments',
+    pageIndex: 0,
+    start: 0,
+    end: 39,
+    pageWidth: 600,
+    pageHeight: 400,
+    rects: [{ x: 0.03, y: 0.18, width: 0.7, height: 0.05 }],
+  });
+
+  it('preserves PDF location fields when validating annotation writes', () => {
+    const args = annotationArgs(pdfAnchor);
+
+    expect(validateDesktopIpcInvokeArgs('article:save-annotation', args)).toEqual(args);
+  });
+
+  it('keeps ordinary text anchor parsing and EPUB locations unchanged', () => {
+    const anchor = {
+      exact: 'Reading memory',
+      prefix: '',
+      suffix: '',
+      start: 0,
+      end: 14,
+      chapterId: 'chapter_1',
+      textStartInBook: 20,
+      textEndInBook: 34,
+    };
+    const untrustedAnchor = { ...anchor, injected: true };
+    const args = annotationArgs(untrustedAnchor);
+
+    expect(validateDesktopIpcInvokeArgs('article:save-annotation', args)).toEqual(
+      annotationArgs(anchor),
+    );
+  });
+
+  it.each([
+    { pageIndex: undefined },
+    { pageIndex: -1 },
+    { pageIndex: 0.5 },
+    { pageWidth: 0 },
+    { pageHeight: Number.NaN },
+    { rects: undefined },
+    { rects: [{ x: -0.1, y: 0.2, width: 0.3, height: 0.04 }] },
+    { rects: [{ x: 0.1, y: 0.2, width: Number.POSITIVE_INFINITY, height: 0.04 }] },
+  ])('rejects malformed PDF fields instead of stripping their discriminator: %j', (invalid) => {
+    const args = annotationArgs({ ...pdfAnchor, ...invalid });
+
+    expect(() => validateDesktopIpcInvokeArgs('article:save-annotation', args)).toThrow(
+      DesktopIpcError,
+    );
+  });
+
   it.each([true, false])('preserves explicit remote reading consent %s', (consent) => {
     const args: DesktopIpcInvokeArgs<'settings:save'> = [{ readingMemoryRemoteConsent: consent }];
 
@@ -83,3 +136,20 @@ describe('desktop IPC argument schemas', () => {
     expect(validateDesktopIpcInvokeArgs('article:save-comment', args)).toEqual(args);
   });
 });
+
+function annotationArgs(anchor: TextAnchor): DesktopIpcInvokeArgs<'article:save-annotation'> {
+  return [
+    {
+      articleId: 'pdf_fixture',
+      annotation: {
+        id: 'annotation_fixture',
+        anchor,
+        author: { kind: 'user', username: 'reader' },
+        color: '#f4c95d',
+        comments: [],
+        createdAt: '2026-08-30T04:00:00.000Z',
+        updatedAt: '2026-08-30T04:00:00.000Z',
+      },
+    },
+  ];
+}

@@ -41,6 +41,27 @@ const textAnchorShapeSchema = z.object({
   quoteHash: z.string().max(256).optional(),
 });
 
+const pdfRatioSchema = z.number().min(0).max(1);
+const annotationAnchorSchema = z.discriminatedUnion('kind', [
+  textAnchorShapeSchema.extend({ kind: z.undefined().optional() }),
+  textAnchorShapeSchema.extend({
+    kind: z.literal('pdf-text'),
+    pageIndex: nonnegativeIntegerSchema,
+    pageWidth: z.number().positive().max(Number.MAX_SAFE_INTEGER),
+    pageHeight: z.number().positive().max(Number.MAX_SAFE_INTEGER),
+    rects: z
+      .array(
+        z.object({
+          x: pdfRatioSchema,
+          y: pdfRatioSchema,
+          width: pdfRatioSchema,
+          height: pdfRatioSchema,
+        }),
+      )
+      .max(4096),
+  }),
+]);
+
 const annotationAuthorShapeSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('agent'),
@@ -98,7 +119,7 @@ const distillationSchema =
 
 const annotationShapeSchema = z.object({
   id: idSchema,
-  anchor: textAnchorShapeSchema.refine((anchor) => anchor.end >= anchor.start),
+  anchor: annotationAnchorSchema.refine((anchor) => anchor.end >= anchor.start),
   author: annotationAuthorShapeSchema,
   annotationType: z.enum(['key_point', 'assumption', 'concept', 'question', 'quote']).optional(),
   moveType: z
