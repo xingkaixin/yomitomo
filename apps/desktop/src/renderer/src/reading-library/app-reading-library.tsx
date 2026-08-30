@@ -1,6 +1,6 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowDown01Icon, BubbleChatIcon } from '@hugeicons/core-free-icons';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { ARTICLE_SOURCE_TYPES } from '@yomitomo/shared';
@@ -52,6 +52,7 @@ import type { LibraryQueryState } from './use-library-query-state';
 import { useLibraryQuerySession } from './use-library-query-session';
 import { useMinimizedDiscussionWindows } from './use-minimized-discussion-windows';
 import { useWeReadLibrarySession } from './use-weread-library-session';
+import { recordReadingMemoryUsage } from '../reading-memory/reading-memory-usage';
 
 export { groupLibraryArticles };
 export type { LibrarySort };
@@ -125,11 +126,13 @@ export function ReadingLibrary({
     onCloseArticleDiscussions: closeArticleDiscussions,
     onReadArticle: readArticle,
   });
+  const sourceJumpRef = useRef<ReadingEvidenceSourceTarget | null>(null);
   const reportArticleLoadError = useCallback(() => {
     appToast.error(t('library.articleLoadFailed'));
   }, [t]);
   const openLibraryArticle = useCallback(
     async (article: ArticleRecord | ArticleSummaryRecord | string, focusAnnotationId?: string) => {
+      sourceJumpRef.current = null;
       try {
         return await navigation.actions.openArticle(article, focusAnnotationId);
       } catch {
@@ -160,20 +163,43 @@ export function ReadingLibrary({
   const openArticleTargetId = openArticleTarget?.articleId;
   const openArticleTargetAnnotationId = openArticleTarget?.annotationId;
   const openArticleTargetView = openArticleTarget?.view;
+  const openArticleTargetMemoryJump = openArticleTarget?.readingMemoryJump;
+  const sourceJump = sourceJumpRef.current;
   const openEvidenceSource = useCallback(
     async (target: ReadingEvidenceSourceTarget) => {
-      const openedArticle = await openLibraryArticle(target.articleId, target.annotationId);
-      if (!openedArticle || target.view !== 'discussion') return openedArticle;
-      if (!navigation.actions.isCurrentArticle(openedArticle.id)) return null;
-      const annotation = openedArticle.annotations.find((item) => item.id === target.annotationId);
-      if (!annotation) {
-        appToast.error(t('readingEvidence.sourceUnavailable'));
-        return openedArticle;
+      const opening = openLibraryArticle(target.articleId, target.annotationId);
+      const jump = target.readingMemoryJump ? { ...target } : null;
+      sourceJumpRef.current = jump;
+      const openedArticle = await opening;
+      if (!openedArticle || !navigation.actions.isCurrentArticle(openedArticle.id)) {
+        if (sourceJumpRef.current === jump) sourceJumpRef.current = null;
+        return null;
       }
-      try {
-        await openArticleDiscussion(openedArticle.id, annotation.id);
-      } catch {
-        appToast.error(t('readingEvidence.sourceUnavailable'));
+      if (jump && sourceJumpRef.current !== jump) return openedArticle;
+      if (target.view === 'discussion') {
+        const annotation = openedArticle.annotations.find(
+          (item) => item.id === target.annotationId,
+        );
+        if (!annotation) {
+          if (sourceJumpRef.current === jump) sourceJumpRef.current = null;
+          appToast.error(t('readingEvidence.sourceUnavailable'));
+          return openedArticle;
+        }
+        try {
+          await openArticleDiscussion(openedArticle.id, annotation.id);
+        } catch {
+          if (sourceJumpRef.current === jump) sourceJumpRef.current = null;
+          appToast.error(t('readingEvidence.sourceUnavailable'));
+          return openedArticle;
+        }
+      }
+      if (
+        jump &&
+        sourceJumpRef.current === jump &&
+        (target.view === 'discussion' || !target.annotationId) &&
+        navigation.actions.isCurrentArticle(openedArticle.id)
+      ) {
+        recordReadingMemoryUsage('source_jump');
       }
       return openedArticle;
     },
@@ -211,6 +237,39 @@ export function ReadingLibrary({
   );
   const selectedAnnotation =
     annotations.find((annotation) => annotation.id === selectedAnnotationId) || null;
+  const focusAnnotationAnchor = annotations.find(
+    (item) => item.id === sourceFocusAnnotationId,
+  )?.anchor;
+  const onFocusedAnnotation = useCallback(
+    (located: boolean) => {
+      if (sourceJumpRef.current !== sourceJump) return;
+      if (
+        sourceJump &&
+        sourceJump.view !== 'discussion' &&
+        sourceJump.articleId === selectedArticleId &&
+        sourceJump.annotationId === sourceFocusAnnotationId
+      ) {
+        sourceJumpRef.current = null;
+        if (located && selectedArticleId && navigation.actions.isCurrentArticle(selectedArticleId))
+          recordReadingMemoryUsage('source_jump');
+      }
+      distillationSync.onFocusedAnnotation();
+      if (!located) {
+        appToast.error(t('readingEvidence.locationUnavailable'), {
+          description: focusAnnotationAnchor?.exact,
+        });
+      }
+    },
+    [
+      distillationSync.onFocusedAnnotation,
+      focusAnnotationAnchor,
+      navigation.actions,
+      selectedArticleId,
+      sourceFocusAnnotationId,
+      sourceJump,
+      t,
+    ],
+  );
   const currentMinimizedDiscussionWindows = useMinimizedDiscussionWindows(selectedArticleId);
 
   useEffect(() => {
@@ -227,6 +286,7 @@ export function ReadingLibrary({
       articleId: openArticleTargetId,
       annotationId: openArticleTargetAnnotationId,
       view: openArticleTargetView,
+      readingMemoryJump: openArticleTargetMemoryJump,
     }).then((openedArticle) => {
       if (openedArticle) onArticleOpened?.(openedArticle.id);
     });
@@ -235,6 +295,7 @@ export function ReadingLibrary({
     openArticleTargetAnnotationId,
     openArticleTargetId,
     openArticleTargetView,
+    openArticleTargetMemoryJump,
     openEvidenceSource,
   ]);
 
@@ -278,6 +339,7 @@ export function ReadingLibrary({
 
   useEffect(
     () => () => {
+      sourceJumpRef.current = null;
       notifyReadingModeChange(false);
     },
     [],
@@ -290,6 +352,7 @@ export function ReadingLibrary({
       return;
     }
     if (!isImportMenuCommand(menuRequest.command)) return;
+    sourceJumpRef.current = null;
     navigation.actions.resetLibrary();
   }, [menuRequest?.command, menuRequest?.id, navigation.actions, weRead.syncLibrary]);
 
@@ -304,6 +367,7 @@ export function ReadingLibrary({
   }
 
   function openLibraryShelf() {
+    sourceJumpRef.current = null;
     navigation.actions.returnToLibrary();
   }
 
@@ -340,7 +404,10 @@ export function ReadingLibrary({
       onDeleteArticle: deleteLibraryArticle,
       onOpenArticle: (article: ArticleRecord | ArticleSummaryRecord) =>
         void openLibraryArticle(article),
-      onOpenWeReadBook: (book: WeReadBook) => void weRead.openBook(book),
+      onOpenWeReadBook: (book: WeReadBook) => {
+        sourceJumpRef.current = null;
+        void weRead.openBook(book);
+      },
       onOpenWeReadExternal: (book: WeReadBook) => void weRead.openExternal(book),
       onSetLibraryPin: setLibraryPin,
     },
@@ -392,15 +459,7 @@ export function ReadingLibrary({
                 annotationActions={{
                   onArticleChange: (article) =>
                     navigation.actions.updateArticle(article.id, () => article),
-                  onFocusedAnnotation: (located) => {
-                    distillationSync.onFocusedAnnotation();
-                    if (!located) {
-                      appToast.error(t('readingEvidence.locationUnavailable'), {
-                        description: annotations.find((item) => item.id === sourceFocusAnnotationId)
-                          ?.anchor.exact,
-                      });
-                    }
-                  },
+                  onFocusedAnnotation,
                   onOpenAnnotation: navigation.actions.selectAnnotation,
                 }}
                 articleActions={articleActions}

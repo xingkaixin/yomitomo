@@ -365,13 +365,12 @@ describe('EbookBookcase', () => {
       },
     };
 
-    const firstFocused = vi.fn();
-    const latestFocused = vi.fn();
+    const onFocusedAnnotation = vi.fn();
     const view = render(
       <EbookBookcase
         {...ebookBookcaseProps(ebookArticle({ annotations: [note] }), [note], {
           focusAnnotationId: 'note-1',
-          onFocusedAnnotation: firstFocused,
+          onFocusedAnnotation,
         })}
       />,
     );
@@ -382,7 +381,7 @@ describe('EbookBookcase', () => {
       <EbookBookcase
         {...ebookBookcaseProps(ebookArticle({ annotations: [note] }), [note], {
           focusAnnotationId: 'note-1',
-          onFocusedAnnotation: latestFocused,
+          onFocusedAnnotation,
         })}
       />,
     );
@@ -392,11 +391,58 @@ describe('EbookBookcase', () => {
       resolveScrollToAnchor?.();
     });
 
-    await waitFor(() => expect(latestFocused).toHaveBeenCalledTimes(1));
-    expect(latestFocused).toHaveBeenCalledWith(true);
+    await waitFor(() => expect(onFocusedAnnotation).toHaveBeenCalledTimes(1));
+    expect(onFocusedAnnotation).toHaveBeenCalledWith(true);
     expect(scrollToAnchor).toHaveBeenCalledTimes(1);
-    expect(firstFocused).not.toHaveBeenCalled();
   });
+
+  it.each(['deleted', 'changed-anchor'] as const)(
+    'does not transfer an old successful focus to a %s target with the same id',
+    async (replacement) => {
+      const note = annotation('note-1');
+      const doc = document.implementation.createHTMLDocument('ebook');
+      doc.body.textContent = note.anchor.exact;
+      let finishScroll!: () => void;
+      const scrollToAnchor = vi.fn(() => new Promise<void>((resolve) => (finishScroll = resolve)));
+      mocks.view = {
+        book: { sections: [{ id: 'chapter-1' }] },
+        getPageInfo: () => ({ sectionIndex: 0, pageIndex: 0, pageCount: 1 }),
+        goTo: vi.fn().mockResolvedValue(undefined),
+        goToFraction: vi.fn().mockResolvedValue(undefined),
+        renderer: { getContents: () => [{ doc, index: 0 }], scrollToAnchor },
+      };
+      const firstFocused = vi.fn();
+      const latestFocused = vi.fn();
+      const view = render(
+        <EbookBookcase
+          {...ebookBookcaseProps(ebookArticle({ annotations: [note] }), [note], {
+            focusAnnotationId: note.id,
+            onFocusedAnnotation: firstFocused,
+          })}
+        />,
+      );
+      await waitFor(() => expect(scrollToAnchor).toHaveBeenCalledOnce());
+
+      const annotations =
+        replacement === 'deleted'
+          ? []
+          : [{ ...note, anchor: { ...note.anchor, exact: 'A different absent quotation' } }];
+      view.rerender(
+        <EbookBookcase
+          {...ebookBookcaseProps(ebookArticle({ annotations }), annotations, {
+            focusAnnotationId: note.id,
+            onFocusedAnnotation: latestFocused,
+          })}
+        />,
+      );
+      await act(async () => finishScroll());
+      await waitFor(() => expect(latestFocused).toHaveBeenCalledOnce());
+
+      expect(firstFocused).not.toHaveBeenCalled();
+      expect(latestFocused).toHaveBeenCalledWith(false);
+      expect(scrollToAnchor).toHaveBeenCalledOnce();
+    },
+  );
 
   it.each(['missing quote', 'navigation rejected'])(
     'reports an unavailable EPUB position for %s',

@@ -20,10 +20,8 @@ export function useWebAnnotationFocus({
   scrollToAnnotation: (annotationId: string) => boolean;
 }) {
   const boxCountRef = useRef(boxCount);
-  const onFocusedAnnotationRef = useRef(onFocusedAnnotation);
   const scrollToAnnotationRef = useRef(scrollToAnnotation);
   boxCountRef.current = boxCount;
-  onFocusedAnnotationRef.current = onFocusedAnnotation;
   scrollToAnnotationRef.current = scrollToAnnotation;
 
   useEffect(() => {
@@ -78,7 +76,7 @@ export function useWebAnnotationFocus({
           annotationId: focusAnnotationId,
           scrollTop: currentScrollElement?.scrollTop ?? null,
         });
-        onFocusedAnnotationRef.current(located);
+        onFocusedAnnotation(located);
       }, delayMs);
     };
 
@@ -95,7 +93,7 @@ export function useWebAnnotationFocus({
           annotationCount: currentAnnotations.length,
           attemptCount,
         });
-        onFocusedAnnotationRef.current(false);
+        onFocusedAnnotation(false);
         return;
       }
 
@@ -144,5 +142,5 @@ export function useWebAnnotationFocus({
       if (frame !== null) window.cancelAnimationFrame(frame);
       if (timer !== null) window.clearTimeout(timer);
     };
-  }, [annotationsRef, articleId, focusAnnotationId]);
+  }, [annotationsRef, articleId, focusAnnotationId, onFocusedAnnotation]);
 }

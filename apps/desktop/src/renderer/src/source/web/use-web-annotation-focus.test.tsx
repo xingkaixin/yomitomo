@@ -97,6 +97,32 @@ describe('useWebAnnotationFocus', () => {
     expect(previous.onFocusedAnnotation).not.toHaveBeenCalled();
     expect(current.onFocusedAnnotation).toHaveBeenCalledExactlyOnceWith(false);
   });
+
+  it.each(['deleted', 'changed-anchor'] as const)(
+    'rechecks the same annotation after its focus target is %s',
+    async (change) => {
+      const previous = focusOptions();
+      const { rerender } = renderHook(useWebAnnotationFocus, { initialProps: previous });
+      await act(() => vi.advanceTimersToNextFrame());
+      previous.annotationsRef.current =
+        change === 'deleted'
+          ? []
+          : [{ ...annotation, anchor: { ...annotation.anchor, exact: 'Replacement excerpt.' } }];
+      const current = {
+        ...previous,
+        onFocusedAnnotation: vi.fn(),
+        scrollToAnnotation: vi.fn(() => false),
+      };
+
+      rerender(current);
+      await act(() => vi.runAllTimersAsync());
+
+      expect(previous.onFocusedAnnotation).not.toHaveBeenCalled();
+      expect(current.onFocusedAnnotation).toHaveBeenCalledExactlyOnceWith(false);
+      if (change === 'deleted') expect(current.scrollToAnnotation).not.toHaveBeenCalled();
+      else expect(current.scrollToAnnotation).toHaveBeenCalledWith(annotation.id);
+    },
+  );
 });
 
 function focusOptions(overrides: Partial<FocusOptions> = {}): FocusOptions {
