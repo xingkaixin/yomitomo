@@ -261,8 +261,8 @@ SELECT ${candidateColumns}, stored.vector
 ${currentEntryTables}
 INNER JOIN reading_memory_evidence_vectors AS stored ON ${matchingVectorCondition}
 WHERE ${currentEntryCondition}
-  AND (${scope.sql}) AND entry.id > ?
-ORDER BY entry.id ASC
+  AND (${scope.sql}) AND stored.evidence_id > ?
+ORDER BY stored.evidence_id ASC
 LIMIT ?
 `,
     )
