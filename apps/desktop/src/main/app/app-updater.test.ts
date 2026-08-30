@@ -189,7 +189,7 @@ describe('app updater state machine', () => {
 
     expect(updaterMocks.autoUpdater.checkForUpdates).not.toHaveBeenCalled();
     expect(notify).not.toHaveBeenCalled();
-    expect(updater.installAppUpdate()).toEqual(downloaded);
+    await expect(updater.installAppUpdate()).resolves.toEqual(downloaded);
     expect(updaterMocks.autoUpdater.quitAndInstall).toHaveBeenCalledWith(false, true);
   });
 
@@ -384,7 +384,9 @@ describe('app updater state machine', () => {
     electronMocks.app.isPackaged = false;
     const updater = await loadUpdater();
     const notify = vi.fn();
-    updater.configureAppUpdater(notify);
+    const beforeInstall = vi.fn(async () => undefined);
+    const onInstallFailed = vi.fn(async () => undefined);
+    updater.configureAppUpdater(notify, { beforeInstall, onInstallFailed });
     updater.simulateUpdateAvailable('manual');
 
     const download = updater.downloadAppUpdate();
@@ -412,16 +414,18 @@ describe('app updater state machine', () => {
     });
     expect(updaterMocks.autoUpdater.downloadUpdate).not.toHaveBeenCalled();
 
-    expect(updater.installAppUpdate()).toMatchObject({ status: 'idle' });
+    await expect(updater.installAppUpdate()).resolves.toMatchObject({ status: 'idle' });
     expect(electronMocks.browserWindow.webContents.reload).toHaveBeenCalledOnce();
     expect(updaterMocks.autoUpdater.quitAndInstall).not.toHaveBeenCalled();
+    expect(beforeInstall).not.toHaveBeenCalled();
+    expect(onInstallFailed).not.toHaveBeenCalled();
   });
 
   it('installs only after an update has been downloaded', async () => {
     const updater = await loadUpdater();
     updater.configureAppUpdater(vi.fn());
 
-    expect(updater.installAppUpdate()).toEqual({
+    await expect(updater.installAppUpdate()).resolves.toEqual({
       status: 'error',
       currentVersion: '1.2.3-test',
       message: 'UPDATE_NOT_DOWNLOADED',
@@ -433,11 +437,159 @@ describe('app updater state machine', () => {
       version: '1.2.4',
     });
 
-    expect(updater.installAppUpdate()).toMatchObject({
+    await expect(updater.installAppUpdate()).resolves.toMatchObject({
       status: 'downloaded',
       availableVersion: '1.2.4',
     });
     expect(updaterMocks.autoUpdater.quitAndInstall).toHaveBeenCalledWith(false, true);
+  });
+
+  it('waits for semantic processes to stop and coalesces install requests through handoff', async () => {
+    const updater = await loadUpdater();
+    const stopped = createDeferred<void>();
+    const events: string[] = [];
+    const beforeInstall = vi.fn(async () => {
+      await stopped.promise;
+      events.push('processes-stopped');
+    });
+    const onInstallFailed = vi.fn(async () => undefined);
+    updater.configureAppUpdater(vi.fn(), { beforeInstall, onInstallFailed });
+    emitUpdaterEvent('update-downloaded', { version: '1.2.4' });
+    updaterMocks.autoUpdater.quitAndInstall.mockImplementation(() => {
+      events.push('installer-started');
+    });
+
+    const first = updater.installAppUpdate();
+    expect(updater.installAppUpdate()).toBe(first);
+    await Promise.resolve();
+    expect(beforeInstall).toHaveBeenCalledOnce();
+    expect(updaterMocks.autoUpdater.quitAndInstall).not.toHaveBeenCalled();
+
+    stopped.resolve();
+    await expect(first).resolves.toMatchObject({ status: 'downloaded' });
+    expect(updater.installAppUpdate()).toBe(first);
+    expect(events).toEqual(['processes-stopped', 'installer-started']);
+    expect(updaterMocks.autoUpdater.quitAndInstall).toHaveBeenCalledOnce();
+    expect(onInstallFailed).not.toHaveBeenCalled();
+  });
+
+  it('waits for a pending suspension before recovering an update error, then permits retry', async () => {
+    const updater = await loadUpdater();
+    const stopped = createDeferred<void>();
+    const events: string[] = [];
+    const beforeInstall = vi.fn(async () => {
+      await stopped.promise;
+      events.push('processes-stopped');
+    });
+    const onInstallFailed = vi.fn(async () => {
+      events.push('resumed');
+    });
+    updater.configureAppUpdater(vi.fn(), { beforeInstall, onInstallFailed });
+    emitUpdaterEvent('update-downloaded', { version: '1.2.4' });
+
+    const installation = updater.installAppUpdate();
+    await Promise.resolve();
+    emitUpdaterEvent('error', new Error('native staging failed'));
+    emitUpdaterEvent('error', new Error('native staging failed'));
+    await Promise.resolve();
+    expect(events).toEqual([]);
+    expect(onInstallFailed).not.toHaveBeenCalled();
+    expect(updaterMocks.autoUpdater.quitAndInstall).not.toHaveBeenCalled();
+
+    stopped.resolve();
+    await expect(installation).resolves.toMatchObject({
+      status: 'error',
+      message: 'native staging failed',
+    });
+    expect(events).toEqual(['processes-stopped', 'resumed']);
+    expect(onInstallFailed).toHaveBeenCalledOnce();
+    expect(updaterMocks.autoUpdater.quitAndInstall).not.toHaveBeenCalled();
+
+    emitUpdaterEvent('update-downloaded', { version: '1.2.4' });
+    await updater.installAppUpdate();
+    expect(beforeInstall).toHaveBeenCalledTimes(2);
+    expect(updaterMocks.autoUpdater.quitAndInstall).toHaveBeenCalledOnce();
+  });
+
+  it('resumes without installing when the downloaded state becomes invalid during suspension', async () => {
+    const updater = await loadUpdater();
+    const stopped = createDeferred<void>();
+    const onInstallFailed = vi.fn(async () => undefined);
+    updater.configureAppUpdater(vi.fn(), {
+      beforeInstall: () => stopped.promise,
+      onInstallFailed,
+    });
+    emitUpdaterEvent('update-downloaded', { version: '1.2.4' });
+
+    const installation = updater.installAppUpdate();
+    emitUpdaterEvent('update-not-available', { version: '1.2.3' });
+    stopped.resolve();
+
+    await expect(installation).resolves.toMatchObject({ status: 'not-available' });
+    expect(onInstallFailed).toHaveBeenCalledOnce();
+    expect(updaterMocks.autoUpdater.quitAndInstall).not.toHaveBeenCalled();
+  });
+
+  it('does not hand off a recovering attempt when a later event restores downloaded state', async () => {
+    const updater = await loadUpdater();
+    const stopped = createDeferred<void>();
+    const events: string[] = [];
+    const onInstallFailed = vi.fn(async () => {
+      events.push('resumed');
+    });
+    updater.configureAppUpdater(vi.fn(), {
+      beforeInstall: () => stopped.promise,
+      onInstallFailed,
+    });
+    updaterMocks.autoUpdater.quitAndInstall.mockImplementation(() => events.push('installed'));
+    emitUpdaterEvent('update-downloaded', { version: '1.2.4' });
+
+    const installation = updater.installAppUpdate();
+    emitUpdaterEvent('error', new Error('staging failed'));
+    emitUpdaterEvent('update-downloaded', { version: '1.2.4' });
+    stopped.resolve();
+    await installation;
+    await vi.waitFor(() => expect(onInstallFailed).toHaveBeenCalledOnce());
+    expect(events).toEqual(['resumed']);
+    expect(updaterMocks.autoUpdater.quitAndInstall).not.toHaveBeenCalled();
+  });
+
+  it.each(['suspend', 'install'] as const)('recovers when %s throws', async (failure) => {
+    const updater = await loadUpdater();
+    const error = new Error(`${failure} failed`);
+    const beforeInstall = vi.fn(async () => {
+      if (failure === 'suspend') throw error;
+    });
+    const onInstallFailed = vi.fn(async () => undefined);
+    updater.configureAppUpdater(vi.fn(), { beforeInstall, onInstallFailed });
+    emitUpdaterEvent('update-downloaded', { version: '1.2.4' });
+    updaterMocks.autoUpdater.quitAndInstall.mockImplementation(() => {
+      throw error;
+    });
+
+    await expect(updater.installAppUpdate()).resolves.toMatchObject({
+      status: 'error',
+      message: error.message,
+    });
+    expect(onInstallFailed).toHaveBeenCalledOnce();
+    expect(loggerMocks.logError).toHaveBeenCalledWith('updater.install-failed', error);
+  });
+
+  it('resumes semantic work when native installation reports an error after handoff', async () => {
+    const updater = await loadUpdater();
+    const onInstallFailed = vi.fn(async () => undefined);
+    updater.configureAppUpdater(vi.fn(), {
+      beforeInstall: async () => undefined,
+      onInstallFailed,
+    });
+    emitUpdaterEvent('update-downloaded', { version: '1.2.4' });
+    await updater.installAppUpdate();
+
+    emitUpdaterEvent('error', new Error('native restart failed'));
+    await vi.waitFor(() => expect(onInstallFailed).toHaveBeenCalledOnce());
+
+    expect(updater.getAppUpdateState()).toMatchObject({ status: 'error' });
+    expect(updaterMocks.autoUpdater.quitAndInstall).toHaveBeenCalledOnce();
   });
 });
 

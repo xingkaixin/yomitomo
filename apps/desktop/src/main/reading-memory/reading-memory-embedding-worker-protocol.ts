@@ -1,5 +1,5 @@
 const maximumBatchSize = 16;
-const maximumTextBytes = 64 * 1024;
+export const maximumReadingMemoryEmbeddingTextBytes = 64 * 1024;
 const normalizedVectorTolerance = 0.001;
 
 export type ReadingMemoryEmbeddingPurpose = 'query' | 'document';
@@ -106,8 +106,13 @@ export function validateReadingMemoryEmbeddingRequest(
 
   const texts = request.texts.map((text, index) => {
     if (typeof text !== 'string') throw new Error(`Embedding text ${index} must be a string`);
-    if (text.length > maximumTextBytes || Buffer.byteLength(text, 'utf8') > maximumTextBytes) {
-      throw new Error(`Embedding text ${index} exceeds ${maximumTextBytes} UTF-8 bytes`);
+    if (
+      text.length > maximumReadingMemoryEmbeddingTextBytes ||
+      Buffer.byteLength(text, 'utf8') > maximumReadingMemoryEmbeddingTextBytes
+    ) {
+      throw new Error(
+        `Embedding text ${index} exceeds ${maximumReadingMemoryEmbeddingTextBytes} UTF-8 bytes`,
+      );
     }
     if (text.trim().length === 0) throw new Error(`Embedding text ${index} must not be blank`);
     return text;

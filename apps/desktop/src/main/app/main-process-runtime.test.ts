@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WeReadSettings, WeReadSyncResult } from '@yomitomo/shared';
 import { startMainProcessRuntime } from './main-process-runtime';
 import { readDatabaseLifecycle } from '../store/store-db';
-import type { ReadingMemoryModelLifecycleState } from '../reading-memory/reading-memory-model-lifecycle';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -18,55 +17,101 @@ describe('main process runtime', () => {
 
     expect(dependencies.refreshModelPrices).toHaveBeenCalledOnce();
     expect(dependencies.checkForAppUpdates).toHaveBeenCalledWith('auto');
-    expect(dependencies.reconcileReadingMemoryModel).toHaveBeenCalledOnce();
-    expect(dependencies.reconcileReadingMemoryModel).toHaveBeenCalledWith('startup');
+    expect(dependencies.semanticReconcile).toHaveBeenCalledOnce();
+    expect(dependencies.semanticReconcile).toHaveBeenCalledWith('startup');
 
     runtime.checkTelemetryFocus();
     expect(dependencies.telemetryCheck).toHaveBeenCalledWith('focus');
     expect(dependencies.startEvidenceProjectionWorker).toHaveBeenCalledOnce();
 
-    runtime.dispose();
+    await runtime.dispose();
     await vi.advanceTimersByTimeAsync(100);
 
     expect(dependencies.refreshModelPrices).toHaveBeenCalledOnce();
     expect(dependencies.checkForAppUpdates).toHaveBeenCalledOnce();
     expect(dependencies.projectionDispose).toHaveBeenCalledOnce();
-    expect(dependencies.readingMemoryModelDispose).toHaveBeenCalledOnce();
+    expect(dependencies.semanticDispose).toHaveBeenCalledOnce();
     expect(dependencies.telemetryDispose).toHaveBeenCalledOnce();
   });
 
-  it('reconciles the model in the background after startup and database restore', () => {
-    const reconciliation = deferred<ReadingMemoryModelLifecycleState>();
+  it('reconciles the semantic index in the background after startup and database restore', async () => {
+    const reconciliation = deferred<void>();
     const dependencies = runtimeDependencies();
-    dependencies.reconcileReadingMemoryModel.mockReturnValue(reconciliation.promise);
+    dependencies.semanticReconcile.mockReturnValue(reconciliation.promise);
     const runtime = startMainProcessRuntime(dependencies.input);
 
-    expect(dependencies.reconcileReadingMemoryModel).toHaveBeenNthCalledWith(1, 'startup');
+    expect(dependencies.semanticReconcile).toHaveBeenNthCalledWith(1, 'startup');
     expect(runtime.onDatabaseRestored()).toBeUndefined();
 
     expect(dependencies.projectionRequestRun).toHaveBeenCalledWith('database_restored');
-    expect(dependencies.reconcileReadingMemoryModel).toHaveBeenNthCalledWith(
-      2,
-      'database-restored',
-    );
-    runtime.dispose();
-    reconciliation.resolve(notInstalledModelState());
+    expect(dependencies.semanticReconcile).toHaveBeenNthCalledWith(2, 'database-restored');
+    await runtime.dispose();
+    reconciliation.resolve();
   });
 
-  it('records an unexpected model reconciliation rejection', async () => {
+  it('waits for semantic processes to exit and shares repeated disposal', async () => {
+    const stopped = deferred<void>();
+    const dependencies = runtimeDependencies();
+    dependencies.semanticDispose.mockReturnValue(stopped.promise);
+    const runtime = startMainProcessRuntime(dependencies.input);
+    let finished = false;
+
+    const disposal = runtime.dispose();
+    void disposal.then(() => {
+      finished = true;
+    });
+    expect(runtime.dispose()).toBe(disposal);
+    expect(runtime.resumeAfterAppUpdateFailure()).toBe(disposal);
+    expect(runtime.suspendForAppUpdate()).toBe(disposal);
+    runtime.onDatabaseRestored();
+    await Promise.resolve();
+
+    expect(finished).toBe(false);
+    expect(dependencies.semanticDispose).toHaveBeenCalledOnce();
+    expect(dependencies.semanticResume).not.toHaveBeenCalled();
+    expect(dependencies.semanticSuspend).not.toHaveBeenCalled();
+    expect(dependencies.semanticReconcile).toHaveBeenCalledTimes(1);
+    expect(dependencies.projectionRequestRun).not.toHaveBeenCalled();
+
+    stopped.resolve();
+    await disposal;
+    expect(finished).toBe(true);
+  });
+
+  it('suspends semantic work for installation and resumes without destroying the runtime', async () => {
+    const stopped = deferred<void>();
+    const dependencies = runtimeDependencies();
+    dependencies.semanticSuspend.mockReturnValue(stopped.promise);
+    const runtime = startMainProcessRuntime(dependencies.input);
+
+    const preparation = runtime.suspendForAppUpdate();
+    expect(preparation).toBe(stopped.promise);
+    expect(dependencies.semanticDispose).not.toHaveBeenCalled();
+    stopped.resolve();
+    await preparation;
+    await runtime.resumeAfterAppUpdateFailure();
+    runtime.onDatabaseRestored();
+
+    expect(dependencies.semanticResume).toHaveBeenCalledOnce();
+    expect(dependencies.semanticReconcile).toHaveBeenLastCalledWith('database-restored');
+    expect(dependencies.projectionDispose).not.toHaveBeenCalled();
+    await runtime.dispose();
+  });
+
+  it('records an unexpected semantic reconciliation rejection', async () => {
     const dependencies = runtimeDependencies();
     const error = new Error('model directory failed');
-    dependencies.reconcileReadingMemoryModel.mockRejectedValueOnce(error);
+    dependencies.semanticReconcile.mockRejectedValueOnce(error);
     const runtime = startMainProcessRuntime(dependencies.input);
 
     await Promise.resolve();
 
     expect(dependencies.input.logError).toHaveBeenCalledWith(
-      'reading_memory.model_reconcile_request_failed',
+      'reading_memory.semantic_reconcile_request_failed',
       error,
       { reason: 'startup' },
     );
-    runtime.dispose();
+    await runtime.dispose();
   });
 
   it('schedules and reconfigures automatic WeRead sync', async () => {
@@ -90,7 +135,7 @@ describe('main process runtime', () => {
       expect.objectContaining({ reason: 'auto:startup' }),
     );
     expect(dependencies.syncWeRead).toHaveBeenCalledTimes(2);
-    runtime.dispose();
+    await runtime.dispose();
   });
 
   it('does not schedule WeRead sync after disposal during configuration', async () => {
@@ -99,7 +144,7 @@ describe('main process runtime', () => {
     const dependencies = runtimeDependencies({ settingsPromise: settings.promise });
     const runtime = startMainProcessRuntime(dependencies.input);
 
-    runtime.dispose();
+    await runtime.dispose();
     settings.resolve({ configured: true, openMethod: 'deeplink', syncMode: 'auto' });
     await vi.advanceTimersByTimeAsync(100);
 
@@ -124,7 +169,7 @@ describe('main process runtime', () => {
       );
       expect(readDatabaseLifecycle().leases).toBe(0);
     } finally {
-      runtime.dispose();
+      await runtime.dispose();
     }
   });
 });
@@ -157,8 +202,10 @@ function runtimeDependencies(
   const telemetryDispose = vi.fn();
   const projectionRequestRun = vi.fn();
   const projectionDispose = vi.fn();
-  const reconcileReadingMemoryModel = vi.fn(async () => notInstalledModelState());
-  const readingMemoryModelDispose = vi.fn();
+  const semanticReconcile = vi.fn(async (): Promise<void> => undefined);
+  const semanticDispose = vi.fn(async (): Promise<void> => undefined);
+  const semanticSuspend = vi.fn(async (): Promise<void> => undefined);
+  const semanticResume = vi.fn(async (): Promise<void> => undefined);
   const startEvidenceProjectionWorker = vi.fn(() => ({
     requestRun: projectionRequestRun,
     dispose: projectionDispose,
@@ -174,8 +221,10 @@ function runtimeDependencies(
     projectionRequestRun,
     projectionDispose,
     startEvidenceProjectionWorker,
-    reconcileReadingMemoryModel,
-    readingMemoryModelDispose,
+    semanticReconcile,
+    semanticDispose,
+    semanticSuspend,
+    semanticResume,
     input: {
       getPersistenceModules: async () => ({
         storeModelPricing: { refreshModelPrices },
@@ -205,20 +254,13 @@ function runtimeDependencies(
       }),
       syncWeRead,
       startEvidenceProjectionWorker,
-      readingMemoryModelLifecycle: {
-        reconcile: reconcileReadingMemoryModel,
-        dispose: readingMemoryModelDispose,
+      readingMemorySemanticIndex: {
+        reconcile: semanticReconcile,
+        dispose: semanticDispose,
+        suspend: semanticSuspend,
+        resume: semanticResume,
       },
     },
-  };
-}
-
-function notInstalledModelState(): ReadingMemoryModelLifecycleState {
-  return {
-    status: 'not-installed',
-    internalId: 'test-model',
-    downloadSizeBytes: 0,
-    resumeBytes: 0,
   };
 }
 

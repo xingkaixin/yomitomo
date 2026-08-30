@@ -20,6 +20,7 @@ import { installDevProcessLifecycle } from './app/dev-process-lifecycle';
 import { installElectronSmokeProbe } from './app/electron-smoke-probe';
 import { initializeStartupStore, type StartupStoreInitializationResult } from './app/startup-store';
 import { startMainProcessRuntime, type MainProcessRuntime } from './app/main-process-runtime';
+import { createBeforeQuitHandler } from './app/before-quit';
 import type { AppUpdateState } from '../app-update-types';
 import { isAppLockSettingsLocked, rendererStoreForAppLockState } from '../app-store';
 import type { DesktopStoreLoadErrorInfo } from '../app-store-errors';
@@ -49,6 +50,8 @@ import { createRendererStateEventDispatcher } from './ipc/renderer-state-event-d
 import { createRendererRoleRegistry } from './ipc/renderer-role-registry';
 import { configureDesktopIpcRendererRoles } from './ipc/ipc-sender-guard';
 import { createReadingMemoryModelLifecycle } from './reading-memory/reading-memory-model-lifecycle';
+import { createReadingMemorySemanticIndex } from './reading-memory/reading-memory-semantic-index';
+import { getSqliteExecutor, readDatabaseLifecycle, withDatabaseLease } from './store/store-db';
 import { secureRendererWebPreferences } from './windows/renderer-window-security';
 import { installRendererNavigationGuard } from './windows/renderer-navigation';
 import { windowChromeOptions } from './windows/window-chrome';
@@ -101,7 +104,14 @@ async function getAiModule() {
 async function getAppUpdaterModule() {
   appUpdaterModulePromise ||= import('./app/app-updater');
   const module = await appUpdaterModulePromise;
-  module.configureAppUpdater(sendUpdateStatusUpdated);
+  module.configureAppUpdater(sendUpdateStatusUpdated, {
+    beforeInstall: async () => {
+      await mainProcessRuntime?.suspendForAppUpdate();
+    },
+    onInstallFailed: async () => {
+      await mainProcessRuntime?.resumeAfterAppUpdateFailure();
+    },
+  });
   return module;
 }
 
@@ -267,6 +277,16 @@ void app.whenReady().then(async () => {
     logInfo,
     logError,
   });
+  const readingMemorySemanticIndex = createReadingMemorySemanticIndex({
+    modelLifecycle: readingMemoryModelLifecycle,
+    withDatabase: (operation) =>
+      withDatabaseLease(async () => {
+        const executor = getSqliteExecutor();
+        return operation(executor, readDatabaseLifecycle().generation);
+      }),
+    logInfo,
+    logError,
+  });
   mainProcessRuntime = startMainProcessRuntime({
     getPersistenceModules,
     getAppUpdaterModule,
@@ -275,7 +295,7 @@ void app.whenReady().then(async () => {
     elapsedMs,
     logInfo,
     logError,
-    readingMemoryModelLifecycle,
+    readingMemorySemanticIndex,
   });
   registerIpc(startupStoreInitialization);
   recordStartupTiming('ipc.registered');
@@ -289,10 +309,18 @@ app.on('window-all-closed', () => {
   if (ownsDesktopAppInstance && process.platform !== 'darwin') app.quit();
 });
 
-app.on('before-quit', () => {
+const beforeQuit = createBeforeQuitHandler({
+  dispose: async () => {
+    await mainProcessRuntime?.dispose();
+    mainProcessRuntime = null;
+  },
+  quit: () => app.quit(),
+  logError,
+});
+
+app.on('before-quit', (event) => {
   if (!ownsDesktopAppInstance) return;
-  mainProcessRuntime?.dispose();
-  mainProcessRuntime = null;
+  beforeQuit(event);
 });
 
 app.on('activate', () => {
