@@ -1,50 +1,46 @@
 ---
-title: "AI Reading Companions Done Right: Let the Model Read With You, Not for You"
-description: Worried AI will make reading lazy? Yomitomo's AI companion design positions large language models as reading partners, not replacements — AI joins discussions at the original text anchors, and you remain the one making judgments.
+title: "AI Reading Companions Done Right: Read With the Model, Not for You"
+description: Worried AI is eroding deep reading? Yomitomo positions LLMs as critical co-readers rather than cognitive proxies—anchoring AI dialogue directly to specific passages while keeping your judgment at the center.
 ---
 
-After 2025, "AI reads for you" became a popular pitch. Upload a PDF, get a summary in 30 seconds — key points extracted, highlights delivered. Sounds incredibly efficient. But think about what's missing from this process.
+In the current era of LLMs, "AI reads for you" has become ubiquitous: upload a PDF, wait 30 seconds, and receive an instant executive summary with bulleted takeaways. It promises effortless efficiency. But consider what is quietly lost in the transaction.
 
-What's missing is **you**. When you receive an AI-generated summary, you don't know which original passages it was derived from. You don't know what the AI left out. You don't know how you would have reacted to those passages yourself. You've received a second-hand conclusion, but you've bypassed the process of forming your own judgment. And the value of reading lies precisely in that process — the confusion, the connections, the questioning, the revision.
+What is lost is **you**.
 
-Yomitomo's stance on AI is unambiguous: AI is a **reading companion**, not a **reading replacement**. AI joins the reading you're already doing — it doesn't produce output in your absence.
+When you ingest an AI-generated summary, you cannot tell which empirical passages it was synthesized from, which counter-intuitive nuances were pruned, or what your own intuitive response would have been. You consume a second-hand conclusion while bypassing the cognitive friction of forming judgment. Yet the enduring value of deep reading lives entirely in that friction—the confusion, the cross-references, the skepticism, and the synthesis.
 
-## Text Anchors: AI Responses Must Land on Specific Passages
+Yomitomo takes an uncompromising stance: **AI is a co-reading partner, never a reading replacement.** It augments your active reading stream without ever generating detached output in your absence.
 
-Yomitomo's AI features have a hard constraint: every AI-generated thought or response is bound to a **specific text highlight**.
+## The Anchor Rule: AI Thoughts Must Land on Specific Text Coordinates
 
-This means AI can't float up and say "this article makes three key points." It can only respond after you've selected a passage, written down your reaction, and invited it into your discussion. Its response references the original text, your existing notes, and the surrounding discussion context.
+Yomitomo enforces a strict architectural invariant: **every AI-generated reflection or reply is permanently bound to a concrete text highlight.**
 
-The result: you cannot skip reading and jump straight to AI output. You must highlight first, write something first. And when you review later, every AI response has a clear "source location" — it's not an abstract claim floating in the air, but a **traceable judgment anchored to the original text**.
+AI cannot fabricate sweeping, disconnected summaries out of thin air. It engages only after you have highlighted a passage and captured your authentic reaction. When an assistant responds in your discussion thread, its reasoning cites the selected passage, your personal notes, and surrounding context.
 
-## Role-Based Assistants: Not "One Generic AI," but "Multiple Specialized Reading Perspectives"
+This prevents the temptation to skip reading. More importantly, when you revisit your knowledge base months later, every AI response has an indisputable origin—anchored directly to source evidence.
 
-Yomitomo doesn't give you a single "universal assistant." It provides a set of AI roles, each with a distinct expertise. When you type `@AssistantName` in a discussion area, you're inviting a **specific perspective** into the current conversation:
+## Specialized Personas: A Diverse Reading Panel, Not a Generic Chatbot
 
-**Reading Assistants** lean toward companionship, explanation, and structural guidance:
+Rather than a single, flavorless generalist bot, Yomitomo equips you with specialized personas designed for distinct cognitive moments. Typing `@AssistantName` invites a tailored perspective into the dialogue:
 
-- `@June Hartley` — Margin Reading Companion: clarifies concepts and provides background context
-- `@Gideon Frost` — First-Principles Reviewer: examines premises and causal chains
-- `@Maya Brooks` — Question Mentor: transforms vague confusion into precise questions
-- `@Marcus Reed` — Insight Editor: extracts transferable insights
-- `@Iris Chen` — Concept Translator: explains terminology and conceptual lineage
-- `@Daniel Park` — Structure Navigator: identifies article structure and paragraph functions
+**Reading Companions (Explanation, Inquiry & Mental Models)**:
+- `@June Hartley` (Marginal Co-reader): Clarifies obscure concepts and fills in historical context.
+- `@Gideon Frost` (Root-Cause Reader): Scrutinizes unstated premises and interrogates causal chains.
+- `@Maya Brooks` (Question Mentor): Sharpens vague intuition into incisive, researchable questions.
+- `@Marcus Reed` (Insight Editor): Distills cross-domain principles into transferable mental models.
+- `@Iris Chen` (Concept Translator): Unpacks conceptual genealogy and technical jargon.
+- `@Daniel Park` (Structure Guide): Maps macro-level thesis architecture and paragraph functionality.
 
-**Review Assistants** lean toward evidence, logic, and clarity:
+**Review Assistants (Logic, Evidence & Editorial Rigor)**:
+- `@Arthur Whitfield` (Evidence Librarian): Audits factual claims and empirical references.
+- `@Simone Carter` (Logic Reviewer): Flags cognitive fallacies, non-sequiturs, and circular reasoning.
+- `@Victor Tan` (Risk Reviewer): Identifies overgeneralizations and boundary conditions.
+- `@Julian Cross` (Final Editor): Prunes academic bloat and polishes prose clarity.
 
-- `@Arthur Whitfield` — Evidence Archivist: verifies facts and data provenance
-- `@Simone Carter` — Logic Auditor: detects reasoning flaws
-- `@Victor Tan` — Risk Examiner: flags overgeneralizations and hidden risks
-- `@Julian Cross` — Final Copy Editor: compresses redundancy and sharpens expression
+Summon assistants strictly as your reading demands: call Iris Chen for a terminological roadblock, Gideon Frost for a dubious causal claim, or Julian Cross to sharpen your distilled conclusions.
 
-You won't summon all assistants at once. Which one you choose depends on the **specific problem** you hit with that highlight — don't understand a concept? Call Iris Chen. Doubt a causal claim? Call Gideon Frost. Feel like you've written too much fluff? Call Julian Cross.
+## Active Agency: Invited, Never Intrusive
 
-## Always On-Demand, Never Intrusive
+Yomitomo's AI interactions are purely on-demand. You can read purely with native annotations and no AI active, or maintain two or three key companions for demanding projects. AI never interrupts uninvited.
 
-Yomitomo's AI features are entirely optional. You can disable all assistants and use only the annotation and discussion features. You can enable just the two or three you need most. AI never jumps in unprompted — you must explicitly invite it with `@AssistantName`.
-
-Underlying this design is a conviction about reading: **the most valuable output of reading is not the conclusions AI produces for you, but the judgments you form when you're stimulated, questioned, and challenged during the reading process.** AI is just a tool that makes it easier to arrive at those judgments.
-
-## Who This Is For
-
-Deep readers who want to use AI to improve reading quality without surrendering their agency. If AI summaries make you uneasy, Yomitomo's design philosophy may be closer to how you want to read.
+This design reflects our core conviction: **the highest-leverage outcome of reading is not a prefabricated conclusion generated by a machine, but the durable mental models forged through your own active questioning and synthesis.**

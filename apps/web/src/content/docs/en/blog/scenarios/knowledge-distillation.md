@@ -1,56 +1,58 @@
 ---
-title: "Knowledge Distillation Workflow: From Scattered Highlights to Reusable Knowledge Cards"
-description: Highlighted hundreds of passages but feel like nothing has truly "settled"? Yomitomo's four-level output model — highlight, note, discussion, distillation — transforms fragmented reading behaviors into structured, traceable, reusable knowledge assets.
+title: "Knowledge Distillation Workflow: From Scattered Highlights to Structured Insights"
+description: Highlighted hundreds of passages but feel like nothing has truly crystallized? Yomitomo's four-level cognitive model—Highlight, Thought, Discussion, Distillation—transforms fragmented reading into structured, traceable, and compounding knowledge assets.
 ---
 
-Reading tools give you a "highlight" button. Note-taking tools give you a "save" button. Between them lies a gap: highlights are fragments scattered across dozens of articles, while reusable knowledge requires **synthesis, compression, and structure**. Most people never cross this gap — they highlight hundreds of passages and can use maybe five.
+Reading apps give you a "highlight" tool. Note-taking apps give you a "clipping" tool. Between the two lies a vast cognitive chasm: highlights are isolated sentences scattered across dozens of articles, while actionable personal knowledge demands **deconstruction, restructuring, compression, and synthesis**. Most readers get stranded in this gap—accumulating thousands of yellow lines while retaining almost nothing usable.
 
-Yomitomo builds a clear transformation pipeline between raw input (highlights) and usable output (knowledge).
+Yomitomo bridges the gap between raw input (highlights) and active recall (distilled knowledge) through an intentional four-stage transformation pipeline.
 
-## The Four-Level Output Model
+## The Four-Level Cognitive Pipeline
 
-Yomitomo breaks a complete reading output into four progressive steps:
+Yomitomo partitions deep reading into four progressive intellectual moves:
 
-### Level 1: Highlight — The Evidence Anchor
+### Level 1: Highlight (The Evidence Anchor)
 
-Highlighting is the most basic cognitive marker. Select a passage, press `A`, and create an annotation. Yomitomo doesn't just hand you one color — five annotation types (Key Point, Assumption, Concept, Question, Quote) force you to make a judgment at the moment of highlighting: what role does this passage play in your knowledge structure?
+Highlighting represents the foundational layer of attention. When you select text and press `A`, Yomitomo prompts you with five distinct cognitive dimensions (Key Point, Assumption, Concept, Question, Quote). This forces an immediate metacognitive decision: **what structural role does this claim play in your mental model?**
 
-This extra step might seem tedious, but it's the foundation for everything that follows. At year-end review, you won't be staring at a hundred undifferentiated yellow marks. You can filter by "Question" to surface every point of doubt, or filter by "Concept" to export every term worth mastering.
+This simple step lays the groundwork for all downstream synthesis. During retrospective reviews, you are never left staring at undifferentiated yellow markings; you can instantly filter by "Question" to tackle unresolved doubts or filter by "Concept" to assemble a domain glossary.
 
-### Level 2: Note — The Smallest Unit of Reading Output
+### Level 2: Thought (The Atomic Reaction)
 
-Every highlight has a "note" field. This isn't for copying the original text — it's for capturing your immediate reaction: agreement, objection, confusion, connection to another book, suspicion about the data, a testable hypothesis that comes to mind. One sentence is enough.
+Every highlight features an integrated "Thought" space. This is not for passive transcription; it captures your immediate, raw intellectual response: visceral agreement, a counterexample, a cross-reference to another book, or skepticism toward the methodology. Even a single sentence is invaluable.
 
-What matters here is **immediacy** — a note written in the moment of reading, not reconstructed days later from memory. An instant reaction carries more cognitive value than a carefully composed summary written after the reading experience has faded. It preserves the freshness of your original judgment.
+Immediacy is key: an intuitive reaction captured in the heat of reading holds far more cognitive vitality than a polished retrospective summary written days after the memory has faded.
 
-### Level 3: Discussion — Questioning and Revising
+### Level 3: Discussion (Inquiry & Multi-Turn Dialogue)
 
-Open a highlight's discussion area. Here you can add follow-up thoughts, revise earlier judgments, or type `@AssistantName` to invite an AI assistant into the conversation.
+Enter any highlight's dedicated discussion thread to build upon earlier notes or summon AI specialist personas:
 
-Discussion prevents a note from being a one-off. Use `@Xu Wenqu` (Inquiry Mentor) to transform vague confusion into precise questions. Use `@Zhou Yan` (Root-Cause Reviewer) to challenge your own causal inferences. Use `@Chen Yanshu` (Insights Curator) to extract transferable insights from a specific passage.
+- `@Maya Brooks` (Question Mentor): Sharpens vague intuition into precise, researchable questions.
+- `@Gideon Frost` (Root-Cause Reader): Rigorously challenges the soundness of causal assertions.
+- `@Marcus Reed` (Insight Editor): Distills portable mental models applicable beyond the immediate case.
 
-The AI's responses and your follow-ups sit together in the same discussion area, chronologically ordered. When you revisit, you see a trajectory of evolving thought — not a static final answer.
+AI responses and your sequential thoughts are logged in chronological order. Revisiting the thread reveals an evolving intellectual journey rather than a static, one-shot output.
 
-### Level 4: Distillation — Structured Output
+### Level 4: Distillation (Structured Knowledge Asset)
 
-When a topic has accumulated enough highlights, notes, and discussions, open the Distillation window. Yomitomo aggregates all related content into a single editing area.
+When an article or topic accumulates sufficient highlights and discussion, open the **Distillation Window**. Yomitomo aggregates all related materials into a unified drafting workspace.
 
-Distillation isn't "writing a summary." It's doing three things:
+Distillation is never a passive summary; it achieves three cognitive upgrades:
 
-1. **Deduplication**: When multiple highlights point to the same idea, keep the most central one and drop the duplicates
-2. **Structuring**: Organize scattered thoughts into frameworks — "claim → evidence → example" or "problem → analysis → action"
-3. **Compression**: An 8,000-word article might yield a 500-word distillation — but those 500 words are what you've filtered and reorganized, not what AI summarized on your behalf
+1. **Deduplication**: Merges overlapping highlights and prunes redundant rhetoric.
+2. **Structural Synthesis**: Organizes fragmented observations into robust frameworks (e.g., Claim → Evidence → Practical Action).
+3. **High-Density Compression**: Condenses an 8,000-word essay into 300–500 words of distilled insight where every word represents your vetted judgment.
 
-After writing, invite Review Assistants for feedback — `@He Mingheng` checks for logic gaps, `@Tang Jian` compresses verbosity. Once published, the distillation replaces the raw highlights in the sidebar.
+Once your draft is complete, invite review companions (e.g., `@Simone Carter` for logic validation, `@Julian Cross` for editorial polish). Upon publishing, the distilled note anchors to the sidebar, taking the place of raw highlights.
 
-But the original highlights and discussions remain. You can "unpublish" anytime and return to the raw material. This design ensures that distillation is never a final verdict — it's a revisable output at your current level of understanding.
+Crucially, the underlying highlights and discussion logs remain permanently preserved. You can unpublish at any time to revise your draft. Distillation is never a rigid verdict—it is an iterative milestone reflecting your current understanding.
 
-## The Reuse Value of Distillations
+## Compounding Reuse and Growth
 
-Once published, a distillation becomes a searchable, linkable knowledge card. Search by title keyword in the library. Reference existing distillations while reading new articles. Track your distillation output across topics on the Stats page.
+Published distillations function as modular, searchable knowledge cards. Search across titles in your library, cross-reference previous distillations while reading new materials, and visualize your cognitive output across domains via the Stats dashboard.
 
-After finishing a book, what stays with you isn't the EPUB file gathering dust on your shelf. It's those distillations in the sidebar — your own judgments formed through dialogue with the author, not a restatement of the author's words.
+When you finish an essential book, your lasting asset is not a digital file sitting on a shelf, but the distilled notes in your sidebar—embodying your authentic intellectual synthesis.
 
 ## Who This Is For
 
-Learners who read 30+ long-form articles or 10+ nonfiction books per year and want to build a personal knowledge system. If you're tired of the highlight → forget → highlight-again cycle, this four-level output model is your path from "person who reads" to "person who produces knowledge."
+Knowledge workers, researchers, and lifelong learners reading 30+ long-form articles or 10+ professional books annually who want to build a compounding personal knowledge operating system.

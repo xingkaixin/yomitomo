@@ -1,55 +1,41 @@
 ---
-title: "Why Choose a Local-First Reading Tool: Your Reading Data Should Belong to You"
-description: Reading notes, highlights, annotations — these are your most private thought processes. Why hand them over to the cloud? Yomitomo's local-first architecture guarantees data sovereignty, offline availability, and privacy protection.
+title: "Why Local-First Matters: Building Reading Assets That Truly Belong to You"
+description: Highlights, marginal notes, and immediate reactions represent your most intimate intellectual labor. Why surrender them to the cloud? Yomitomo's local-first architecture guarantees data sovereignty, offline resilience, and absolute privacy.
 ---
 
-By 2026, "cloud-first" has become the default in software development. Notes in the cloud, documents in the cloud, reading data in the cloud. This model brings the convenience of cross-device sync, but it also brings a widely accepted yet rarely discussed cost: **your reading data no longer belongs to you**.
+In modern software development, "cloud-first" has become the unquestioned default: documents in the cloud, notes in the cloud, and reading habits hosted on remote servers. While this enables convenient cross-device synchronization, it comes at a steep, rarely examined price: **your cognitive exhaust is no longer your property**.
 
-Reading data is different from other data. It's not calendar events or task lists — those are records of your interactions with the world. Reading data is your **thinking process**: your marginal notes beside a passage, your doubts about a claim, the path your mind took from one concept to another. This data constitutes your cognitive trajectory. Handing it to the cloud means you've tacitly accepted that the service provider can analyze it, train models on it, or let it disappear when the service shuts down.
+Reading data is fundamentally distinct from calendar events or task lists—which merely record administrative commitments. Your marginalia, intuitive skepticism, and spontaneous conceptual links constitute **your active thought process**. Surrendering them to centralized clouds means tacitly consenting to behavioral analytics, model-training scraping, and the ever-present risk of platform sunsetting.
 
-Yomitomo chose a different path: **local-first**.
+Yomitomo charts a different course: **Local-First**.
 
-## All Data Stored on Your Computer
+## Sovereign Data Ownership: 100% on Your Machine
 
-All of Yomitomo's reading data — imported articles, EPUBs, PDFs, your highlights, annotations, discussions, distillations, reading statistics — is stored entirely in the desktop application data directory. No Yomitomo cloud server stores any of your reading content.
+Every byte of reading data in Yomitomo—imported web essays, EPUBs, academic PDFs, highlights, thoughts, discussions, distillation drafts, and analytics—resides strictly inside your desktop's local application data directory. Yomitomo operates zero central servers collecting reading content.
 
-This means:
+- **Zero Account Gatekeeping**: Download, install, and begin reading immediately with no login barriers.
+- **Immune to Platform Drift**: Unaffected by remote service shutdowns or changing terms of service.
+- **Resilient Offline Utility**: Seamlessly read, annotate, and distill thoughts in airplane mode.
+- **Zero Profiling**: No commercial algorithms analyzing your intellectual curiosity.
 
-- You don't need to create an account. Download, install, and start using it.
-- Your reading data is unaffected by service provider policy changes.
-- You can use all features completely offline (except AI assistants, which require internet to call model APIs).
-- No one can analyze your reading preferences and thinking patterns.
+## System-Grade Credential Protection
 
-## API Keys Stored in the System Keyring
+Yomitomo connects to external LLM providers (OpenAI, Anthropic, DeepSeek, etc.) purely via client-side requests. Crucially, your secrets are never saved in plaintext config files.
 
-Yomitomo needs to connect to AI model providers (OpenAI, Anthropic, DeepSeek, etc.) for assistant features. But your API keys are not stored in Yomitomo's ordinary configuration files.
+API keys are delegated to your operating system's native hardware-backed keystores (macOS Keychain and Windows Credential Manager). The local SQLite database stores only provider metadata and key references. Even if database files are physically copied, plaintext keys cannot be extracted. Furthermore, API calls route straight from your machine to the provider endpoint without intermediary proxy servers.
 
-Yomitomo uses the operating system's keyring (macOS Keychain, Windows Credential Manager) to store API keys. The SQLite database only retains provider configuration and key references — never plaintext keys. This means even if someone gains access to your Yomitomo data files, they cannot read your API keys.
+## Offline-First: Network Extends Power, It Does Not Gate It
 
-API calls are sent directly from your local application to the model provider's servers. Yomitomo does not proxy or forward any of these requests. Your API key is known only to you and the model provider.
+Cloud-first applications degrade or lock up entirely when disconnected. As a local-first application, Yomitomo keeps its entire core engine—content extraction, EPUB/PDF rendering, multi-type annotation, discussion threading, and knowledge distillation—100% functional without internet connectivity. Connectivity merely provides optional leverage when querying cloud models—**the network expands capability; it never holds core features hostage**.
 
-## Fully Functional Offline
+## Transparent Open Standards: No Vendor Lock-In
 
-Yomitomo's core reading features — importing articles, reading EPUBs and PDFs, highlighting, annotating, discussing, distilling — all work completely offline. You don't need an internet connection to complete a full deep reading session.
+Local-first does not mean fragile. Yomitomo includes native one-click backup and restore tools for its underlying SQLite database. Because data is stored in standard SQLite tables rather than proprietary black-box blobs, you retain permanent access. You can query, inspect, and export your entire intellectual history with any generic database tool.
 
-AI assistant features require connectivity (since model inference runs in the cloud), but they are optional. You can disable all AI assistants and use Yomitomo as a purely offline reading and annotation tool.
+Imported WeRead notes also land in your local SQLite store—liberating your reading history from proprietary platform silos.
 
-This design stands in sharp contrast to "cloud-first" tools: cloud tools degrade or become unusable when the network drops, while a local-first tool **gains extra capabilities** when online rather than **losing core capabilities** when offline.
+## Intellectual Privacy: The Freedom to Think Fearlessly
 
-## Data Backup and Portability
+Deep reading is an inherently private sanctuary. The rough thoughts, naive questions, and nascent hypotheses you formulate in the margins belong solely to you.
 
-Local-first doesn't mean data fragility. Yomitomo provides SQLite database backup and restore functionality. You can periodically export the database file and back it up to an external drive or a cloud storage service you trust.
-
-The database format is standard SQLite. This means even if you someday stop using Yomitomo, your data is not locked in a proprietary format. You can open, query, and export your reading data with any SQLite tool.
-
-WeRead synced data is also stored in the local SQLite database. Once your WeRead highlights and thoughts are synced locally, they are fully independent of the WeRead platform.
-
-## The Privacy of Reading
-
-Reading is fundamentally a private act. The passages you mark in a book, the questions you write down — these might be problems you're wrestling with, confusions you're facing, even internal dialogues you're having with yourself. This content doesn't belong on any cloud service's analytics dashboard.
-
-Local-first guarantees that you can safely expose your ignorance and confusion during reading — and that's precisely the prerequisite for deep learning. If you knew every annotation could be analyzed, used for model training, or someday leaked, you'd subconsciously self-censor, writing "safe" notes that reveal no weakness. And those "safe notes" carry zero cognitive value.
-
-## Who This Is For
-
-Anyone sensitive about data privacy, frequently reading in offline environments, or simply believing that "my thinking should stay on my own hard drive." If the "everything to the cloud" trend makes you uneasy, local-first is your most fundamental solution.
+Absolute local privacy empowers you to expose cognitive vulnerabilities and grapple with difficult ideas without fear of surveillance—the fundamental prerequisite for genuine intellectual growth.
