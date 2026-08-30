@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - '.gitattributes'
       - '.github/workflows/reading-memory-model.yml'
       - 'apps/desktop/electron-builder.config.cjs'
       - 'apps/desktop/electron.vite.config.ts'
