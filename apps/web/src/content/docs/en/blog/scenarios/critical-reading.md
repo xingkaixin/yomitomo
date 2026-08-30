@@ -1,58 +1,54 @@
 ---
-title: "Critical Reading in Practice: Using AI Review Assistants to Deconstruct Arguments"
-description: After reading an article, all you can say is "it seems reasonable" or "something feels off"? Yomitomo's Review Assistant matrix helps you systematically examine premises, logical chains, and evidence strength — turning vague impressions into structured critical analysis.
+title: "Critical Reading in Practice: Deconstructing Arguments with AI Review Assistants"
+description: Finish an article with only a vague sense of "it makes sense" or "something feels off"? Yomitomo's Review Assistant matrix helps you systematically dissect premises, causal links, and empirical validity—transforming gut feelings into rigorous critique.
 ---
 
-"That article was pretty good" or "that argument feels wrong" — that's as granular as most people get after reading an opinion piece. It's not that we lack judgment. It's that **critical reading is a skill that requires deliberate practice**. It demands doing several things in parallel while reading: identifying premises, tracing logical chains, evaluating evidence strength, detecting overgeneralizations. Nobody is born doing all of this simultaneously.
+"That was a great piece" or "that argument feels flawed"—that is often the extent of feedback most readers can formulate after finishing a dense analytical essay or industry report.
 
-Yomitomo's Review Assistant matrix breaks the dimensions of critical reading into **distinct AI role specializations**. You don't ask one AI for a generic evaluation. You ask different AI roles for feedback from their respective angles. Ultimately, you integrate those perspectives and form your own judgment.
+This is not a lack of intelligence. **Critical reading is a high-order cognitive skill requiring deliberate practice.** It demands executing multiple demanding tasks simultaneously: uncovering implicit premises, verifying causal chains, evaluating empirical evidence, and spotting survivorship bias. Holding all of these dimensions in active working memory is exceptionally difficult.
 
-## Not Making Judgments for You — Helping You Notice What You Missed
+Yomitomo's **Review Assistant Matrix** modularizes critical reading across specialized AI roles. Instead of relying on a single generic chatbot, you orchestrate a panel of focused advisors—each auditing arguments from distinct analytical vectors—before synthesizing your own definitive judgment.
 
-The design philosophy of Review Assistants is clear: they don't hand down conclusions. What they do is **prompt** — prompt you that this claim might have an unexamined premise, prompt you that this causal chain might have a missing link, prompt you that this data source might be insufficient.
+## Core Principle: AI Illuminates Blind Spots Without Usurping Judgment
 
-You remain the one making the judgment. Review Assistants simply help you see what you might have overlooked.
+The design philosophy behind Review Assistants is clear: **they never hand down lazy conclusions**. Their role is to **prompt and interrogate**—highlighting unstated boundary conditions, flagging skipped steps in causal logic, or pointing out statistical vulnerabilities.
 
-## Four Review Assistants, Four Critical Dimensions
+You remain the primary judge. The assistants function as cognitive lenses that bring subtle blind spots into sharp relief.
 
-### Liang Zhengyan: Evidence Steward
+## Four Specialized Review Dimensions
 
-When you read a passage containing factual claims — "Market X is worth Y billion," "Company Z's data shows" — mark it as "Key Point" or "Assumption," then type `@Liang Zhengyan` in the discussion area.
+### Arthur Whitfield: Evidence Librarian
 
-Liang Zhengyan won't search the internet to verify facts (that's impossible — model knowledge has a cutoff date). What she does is **methodological review**: Is this data from primary research or a second-hand report? Was sample size disclosed? Was there a control group? Does the data's time range match the conclusion?
+When reading factual or quantitative claims ("Market X has reached $50B," "Company data shows..."), highlight the text and mention `@Arthur Whitfield` in the discussion.
 
-What you get isn't necessarily a "this is fake" verdict. It's a prompt: "the evidence strength behind this claim may be insufficient — take note." These prompts make you more sensitive to similar issues in subsequent reading — that's the training effect of critical thinking.
+Arthur does not merely run a web lookup; he performs **methodological scrutiny**: Was this datum gathered via primary research or cited second-hand? Was sample size and distribution disclosed? Was there an explicit control group? Does the temporal baseline align with the conclusion?
 
-### He Mingheng: Logic Reviewer
+His output provides vital skepticism, prompting you to verify whether empirical evidence genuinely supports the claim.
 
-When you encounter a causal claim — "Because of X, therefore Y," "X's growth caused Y's decline" — type `@He Mingheng`.
+### Simone Carter: Logic Reviewer
 
-He Mingheng checks for several common reasoning problems: Is there a skipped intermediate variable between X and Y? Is correlation being mistaken for causation? Are necessary and sufficient conditions being conflated? Does the conclusion overreach beyond the premises?
+When encountering causal claims ("Because policy X was adopted, outcome Y inevitably occurred"), mention `@Simone Carter`.
 
-A seemingly tight argument, under He Mingheng's deconstruction, often reveals leaps — especially those gaps authors paper over with rhetorical flourish.
+Simone audits the deductive spine: Are there unaccounted intermediate variables between X and Y? Is temporal correlation being conflated with direct causation? Are necessary and sufficient conditions mixed up? Does the conclusion overextend beyond its premises?
 
-### Su Dingbai: Risk Reviewer
+Under Simone's audit, rhetorical flourishes that mask logical leaps are systematically exposed.
 
-When you read an article full of "inevitably," "obviously," "beyond doubt" — type `@Su Dingbai`.
+### Victor Tan: Risk Reviewer
 
-Su Dingbai flags potential cognitive biases and risks: Is this conclusion overgeneralizing from a few cases? Is there survivorship bias? Is the author's stance compromising objectivity? Does this prediction underestimate uncertainty?
+When essays overflow with absolutist terms ("inevitably," "unquestionably," "destined to"), mention `@Victor Tan`.
 
-These prompts are especially useful when reading investment reports, industry analyses, and policy commentary — texts that often package themselves as highly professional, but whose core assumptions may not withstand scrutiny.
+Victor flags systemic cognitive biases: Does the argument suffer from survivorship bias? Does the author's financial or institutional posture compromise neutrality? Does a technological projection undercount tail risks and volatility?
 
-### Tang Jian: Final Editor
+This review is indispensable when evaluating investment memos, macroeconomic outlooks, and strategic whitepapers.
 
-Tang Jian plays a slightly different role — she doesn't review the author. She reviews **you**.
+### Julian Cross: Final Editor
 
-When you've written a long block of your own thoughts in an annotation, or finished a distillation draft, type `@Tang Jian`. She compresses redundancy, clarifies expression, and makes your judgment sharper and more readable. This looks like editing, but it's fundamentally an extension of critical reading — you're using AI to scrutinize your own expression, ensuring that your critique is structured rather than just emotionally "I feel like this is wrong."
+Julian plays an entirely unique role—he does not audit the original author, but audits **your own writing and reasoning**.
 
-## Integrated Critique in the Distillation Window
+Once you have drafted your thoughts in an annotation or compiled a distillation draft, mention `@Julian Cross`. He prunes redundant phrasing, sharpens analytical prose, and highlights structural ambiguities. This completes the critical thinking loop: ensuring your own takeaways are rigorous, concise, and structured.
 
-Review Assistant feedback in annotation discussions is **scattered** — one issue per highlight. The Distillation window provides **integration** — you gather all your critical annotations about an article and write a consolidated critical analysis.
+## Synthesizing Critique in the Distillation Window
 
-After writing your analysis draft, you can invite Review Assistants to review **your analysis**. This is a meta-level operation: you're using AI to check whether your own critique is rigorous.
+While discussion threads capture **localized paragraph-level reflections**, the Distillation Window facilitates **macro-level synthesis**. You aggregate all critical annotations across an article into a cohesive analytical report.
 
-The final published distillation isn't a "this article was good/bad" book report. It's a structured critical analysis — containing premise examination, logic analysis, evidence assessment, and your final judgment.
-
-## Who This Is For
-
-Anyone who wants to improve their critical thinking — students, researchers, investors, product managers. If you're unsatisfied with "the article feels off but I can't articulate why" and want to turn critical reading from intuition into a trainable skill.
+You can then invite Review Assistants to perform a Meta-Review on **your own synthesis draft**, checking your critique for blind spots before publication. The resulting distilled note is a permanent intellectual asset.

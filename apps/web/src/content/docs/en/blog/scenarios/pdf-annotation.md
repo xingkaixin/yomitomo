@@ -1,45 +1,41 @@
 ---
-title: "PDF Annotation in Practice: A Close-Reading Method for Contracts, Reports, and Whitepapers"
-description: Facing a 50-page PDF contract, industry report, or policy whitepaper? Yomitomo's PDF reader offers annotation tools that go beyond yellow highlighting — mark key clauses, flag questions, and let AI review assistants provide a second pair of eyes.
+title: "PDF Annotation in Practice: Close Reading for Contracts, Reports, and Whitepapers"
+description: Facing a 50-page PDF contract, financial report, or policy whitepaper? Yomitomo brings structured multi-type annotations, AI review specialists, and distillation workflows to PDF reading.
 ---
 
-PDF is the most common document format in professional life. Contracts, investment reports, technical whitepapers, policy documents — they're mostly PDFs, often dozens of pages dense with clauses and data. Ordinary PDF readers give you a highlighter, an underline tool, and sticky notes. But these tools still operate on the mental model of marking up paper — you annotate a surface, but nothing helps you **understand** that surface.
+PDF is the universal medium for professional and scholarly documentation. Master services agreements, equity research reports, technical whitepapers, and regulatory briefs—often running dozens of dense pages. Conventional PDF readers provide mere highlighters and sticky notes, mimicking paper-based markup without assisting in the structural comprehension of complex documents.
 
-Yomitomo's PDF support isn't a PDF viewer with an annotation layer bolted on. It brings the annotation type system, AI Review Assistants, and the distillation workflow into PDF reading.
+Yomitomo elevates PDF reading by integrating categorized annotations, specialized AI Review Assistants, and an end-to-end distillation pipeline.
 
-## Mark Judgment Types, Not Just Positions
+## Mark Judgment Types, Not Just Visual Coordinates
 
-After importing a PDF, select a clause or passage and press `A` to create an annotation. Yomitomo offers the same five annotation types. In a document review context, they mean:
+When examining a PDF, select any clause or dataset and press `A` to create an annotation. In professional document reviews, the five annotation categories serve distinct tactical roles:
 
-- **Key Point**: Critical clauses, core data points, conclusive statements
-- **Assumption**: Premises the document depends on (e.g., "Based on the assumption of Q3 market stability")
-- **Concept**: Domain-specific terminology or abbreviations that need follow-up research
-- **Question**: Contradictory data, vague wording, items requiring clarification from the other party
-- **Quote**: Passages worth lifting directly into meeting minutes or memos
+- **Key Point**: Essential obligations, core financial metrics, and definitive conclusions.
+- **Assumption**: Baseline premises (e.g., "Assumes stable FX rates through Q4").
+- **Concept**: Domain jargon, technical acronyms, or undefined statutory terms.
+- **Question**: Data discrepancies, ambiguous phrasing, or items requiring counterparty clarification.
+- **Quote**: Definitive excerpts suitable for inclusion in executive memos or board decks.
 
-Here's a concrete scenario: you're reviewing a 45-page SaaS service agreement. Every time you hit a liability clause, mark it as "Key Point." Every time you see "including but not limited to," mark it as "Assumption" — this phrase expands liability scope, but the boundary is undefined. Every undefined term gets marked as "Concept." Every contradictory clause gets marked as "Question."
+**Practical Workflow**: Reviewing a 40-page SaaS contract. Mark indemnification commitments as "Key Point"; tag phrases like "including without limitation" as "Assumption" (highlighting boundary expansion); tag conflicting liability caps as "Question". Once finished, filter by "Question" to instantly compile a consolidated redline inquiry list.
 
-After the review, filter by "Question" to generate a list of items needing clarification from the counterparty. Filter by "Key Point" to quickly reconstruct the contract's core obligation framework. This type-based filtering is something traditional PDF annotation tools cannot do — they know you marked a spot, but they don't know what kind of judgment you made there.
+## Co-Review Complex Documents with AI Assistants
 
-## Let AI Review Assistants Double-Check the Document
+Yomitomo's Review Assistants act as an objective second pair of eyes:
 
-Yomitomo's Review Assistants are especially useful in PDF scenarios because they provide a **second pair of eyes**:
+- Mark an indemnity clause and mention `@Arthur Whitfield` to audit statutory references and regulatory validity.
+- Identify an inferential leap and mention `@Simone Carter` to audit the underlying deductive reasoning.
+- Encounter vague commitments and mention `@Victor Tan` to evaluate unmitigated downside risks.
+- Polish your notes by mentioning `@Julian Cross` to sharpen the legal synthesis.
 
-- After marking a liability clause, type `@Liang Zhengyan` — the Evidence Steward reminds you to check whether the clause references data sources, applicable regulation versions, and whether they're specific enough
-- When you spot a logical gap, type `@He Mingheng` — the Logic Reviewer points out missing links in the reasoning chain
-- When you suspect a statement is too vague, type `@Su Dingbai` — the Risk Reviewer flags potential overgeneralizations and undeclared risks
-- When your own annotation is verbose, type `@Tang Jian` — the Final Editor compresses the fluff
+All AI interactions stay permanently anchored inside the clause's discussion thread. Months later, you can trace the exact rationale behind every negotiated change.
 
-AI responses land in the highlight's discussion area — they don't float in a separate chat window disconnected from the document. This means every annotation has a complete, traceable discussion history. Reopen the contract three months later, and you can reconstruct the full review trail, not just the final conclusions.
+## Robust Engineering for Professional Review
 
-## Practical PDF Import Details
-
-Yomitomo supports batch PDF import — up to 10 files at once, with a per-file limit of 120MB. After import, the library shows page count, filename, and basic metadata. If you try to import the same PDF again, Yomitomo alerts you that the document is already in your library, preventing duplicate entries.
-
-While reading PDFs, you can adjust font size and page width. Under dark themes, PDFs retain their original page colors — this detail matters: many contracts rely on color and formatting for meaning, and inverting colors would make them unreadable. Yomitomo chooses to preserve the document's original appearance rather than sacrifice usability for a "dark mode" aesthetic.
-
-Like EPUBs, PDFs support the Distillation window — you can synthesize structured notes from highlights across multiple related PDFs, producing a consolidated document review output.
+- **Batch Ingestion**: Ingest up to 10 PDFs concurrently (up to 120MB per file) with duplicate detection.
+- **Dark Mode Fidelity**: In dark themes, PDFs preserve their native paper background by default, preventing inverted diagrams or illegible typography.
+- **Multi-Document Distillation**: Synthesize findings across multiple related PDFs into a unified due-diligence memo or whitepaper summary.
 
 ## Who This Is For
 
-Lawyers, legal counsel, consultants, product managers, and investors who regularly review contracts, reports, whitepapers, or policy documents. If what you need isn't just "reading PDFs" but forming judgments, conducting reviews, and producing outputs within PDFs.
+Attorneys, corporate counsel, management consultants, financial analysts, and researchers reviewing high-stakes PDF documents.

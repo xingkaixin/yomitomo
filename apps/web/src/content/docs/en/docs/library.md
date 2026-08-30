@@ -1,47 +1,47 @@
 ---
 title: Library and Import
-description: Manage web articles, EPUB/AZW3/MOBI ebooks, and PDF documents, and understand how Yomitomo stores reading materials.
+description: Manage web articles, EPUB/AZW3/MOBI ebooks, PDFs, and Markdown notes, and understand how Yomitomo stores reading materials.
 ---
 
-The Library is the entry point for all reading materials. Web articles, EPUB/AZW3/MOBI ebooks, PDF documents, WeRead notes, and collections are managed separately so each source can open into the right reading flow. You can customize which content sources appear on the home view in Settings. Deleting items requires confirmation; successful imports and deletes can show toast and optional sound feedback.
+The Library is the central hub for all your reading materials. Web articles, ebooks (EPUB/AZW3/MOBI), PDF documents, Markdown/text files, WeRead highlights, and collections are organized neatly so you can transition into the right reading experience with ease. You can customize which sources appear on the home view in Settings. Deleting items requires confirmation, and actions are accompanied by toast alerts and optional tactile sound effects.
 
 ## Collections
 
-Collections group related reading items so you can review them by topic, project, or reading list. A collection does not copy content; it only organizes items already in your library by membership.
+Collections group related reading items together by topic, project, or custom reading list. A collection never duplicates source files; it simply creates a lightweight membership index across your existing materials.
 
 ### Create a Collection
 
-1. Click the "+" button in the Library.
-2. Choose "New collection".
-3. Enter a collection name (for example, "System Design").
+1. Click the "+" button in the top-right corner of the Library.
+2. Select "New collection".
+3. Enter a collection name (e.g., "Distributed Systems").
 
-The new collection opens empty. You can rename it anytime from its card menu with "Edit collection name".
+The newly created collection opens immediately. You can rename it anytime from its card menu via "Edit collection name".
 
 ### Add Items to a Collection
 
-A collection can hold web articles, ebooks, PDFs, and WeRead books. There are two ways to add them:
+A collection can hold web articles, ebooks, PDFs, plain text, and WeRead titles. You can add items in two ways:
 
-- From inside the collection, click "Add to this collection" and pick existing library items. The picker supports type filtering and search; add items one by one with the "+" button or drag them into the "Pending" tray.
-- From the library grid, drag an item card directly onto a collection card.
+- **Pick from Collection View**: Inside the collection, click "Add to this collection" and select existing items from your library. The selector supports type filtering and keyword search; click "+" on individual items or drag them into the "Pending" tray on the right.
+- **Drag and Drop**: From the main library grid, drag any reading item card directly onto a collection card.
 
-Open an item's card menu inside a collection and choose "Remove from collection" to take it out. This only removes the membership; the original article or book stays in your library.
+To remove an item, open its card menu inside the collection and choose "Remove from collection". This only removes the membership link—the original item remains intact in your library.
 
-### Covers and Pins
+### Covers and Pinning
 
-A collection card shows a cover stack built from up to 9 member covers, with the member count overlaid. An empty collection shows a placeholder cover. You can "Pin" collections and items you use often; pinned ones sort to the top of the library.
+A collection card displays an aesthetic cover stack compiled from up to 9 member covers, along with a badge showing the item count. Empty collections display a subtle placeholder cover. You can "Pin" frequently accessed collections or essential reading items so they always stay anchored at the top of your library.
 
 ### Delete a Collection
 
-Deleting a collection removes only the collection and its memberships. The articles, ebooks, PDFs, and WeRead books inside stay in your library. A confirmation dialog explains this before you delete.
+Deleting a collection only removes the grouping itself and its membership links. All articles, ebooks, and PDFs contained within remain safe in your library.
 
 ## Import Web Articles
 
 1. Click the "+" button in the Library.
-2. Choose "Add Web Page".
-3. Paste an article URL that starts with `http://` or `https://`.
-4. Wait for Yomitomo to extract the title, author, body text, and images.
+2. Select "Add Web Page".
+3. Paste any article URL starting with `http://` or `https://`.
+4. Yomitomo will automatically extract the clean title, author, body text, and images.
 
-For pages that need browser rendering, Yomitomo tries to render the page with the built-in browser before extracting the article body. By default, localhost, private network, and cloud metadata addresses are blocked, and HTML responses larger than 5 MB are not imported.
+For dynamically rendered web pages, Yomitomo uses an internal headless engine to render the DOM before content extraction. For local security, loopback (`localhost`), private intranet, and cloud metadata addresses are blocked by default, and HTML responses exceeding 5 MB are rejected.
 
 <picture>
   <source
@@ -54,10 +54,10 @@ For pages that need browser rendering, Yomitomo tries to render the page with th
 ## Import Ebooks
 
 1. Click the "+" button in the Library.
-2. Choose "Ebook file".
-3. Select or drop a local `.epub`, `.azw3`, or `.mobi` file.
+2. Select "Ebook file".
+3. Choose or drag in local `.epub`, `.azw3`, or `.mobi` files.
 
-Yomitomo parses the cover, table of contents, chapters, and body structure. Ebook import supports batches of up to 10 books, with an 80 MB limit per file. DRM-protected files or files with oversized decompressed content cannot be imported.
+Yomitomo parses covers, hierarchical tables of contents, chapters, and rich typography. Batch imports support up to 10 books at once, with an 80 MB file size limit per book. DRM-encrypted or excessively large decompressed files cannot be imported.
 
 <picture>
   <source
@@ -67,13 +67,13 @@ Yomitomo parses the cover, table of contents, chapters, and body structure. Eboo
   <img src="/assets/en-import-ebook.webp" alt="Yomitomo import an ebook" loading="lazy" decoding="async" />
 </picture>
 
-## Import PDF
+## Import PDFs
 
 1. Click the "+" button in the Library.
-2. Choose "PDF Document".
-3. Select or drop a local `.pdf` file.
+2. Select "PDF Document".
+3. Choose or drag in local `.pdf` files.
 
-PDF import supports batches of up to 10 files, with a 120 MB limit per file. After import, the Library shows page count, file name, and basic metadata. If you import the same PDF again, Yomitomo will tell you it already exists and let you open the existing document.
+PDF import supports batches of up to 10 files at once, with a 120 MB limit per file. Once imported, the card displays page count, filename, and essential metadata. If an identical PDF is imported again, Yomitomo detects the duplicate and allows you to open the existing entry directly.
 
 <picture>
   <source
@@ -85,29 +85,27 @@ PDF import supports batches of up to 10 files, with a 120 MB limit per file. Aft
 
 ## Import Text and Markdown
 
-1. Click the "+" in the top-right of the Library.
-2. Choose "Text file".
-3. Choose "Paste text" to paste directly, or "Upload files" to pick or drop `.txt` / `.md` files (multiple allowed).
+1. Click the "+" button in the Library.
+2. Select "Text file".
+3. Choose "Paste text" for quick pasting, or "Upload files" to pick or drag local `.txt` / `.md` files (batch selection supported).
 
-Unlike other imports, text import adds a confirmation step: before importing you fill in or confirm a title (required) and author (optional), and you confirm each file when uploading several. Yomitomo detects the encoding and infers a title where it can — Markdown prefers front matter or the first heading, while plain text prefers the file name or first line. A file named `.txt`/`.md` whose contents are not text is rejected.
+Text imports include an instant metadata review: Yomitomo detects character encoding and automatically extracts the title (Markdown prefers YAML Front Matter or the first H1 header; plain text uses filename or the first line). You can confirm or edit the title and author before finalizing.
 
-Markdown YAML front matter is rendered as a metadata block at the top of the content; content is sanitized, and remote images are not loaded automatically. Text gets its own manuscript cover and, like other content, can be filtered by the Text type and added to collections.
+Markdown YAML Front Matter renders as a metadata banner at the top of the reader. Content is sanitized, and remote images are blocked from automatic background fetching. Text documents feature custom manuscript-themed covers and can be filtered or grouped into collections like any other item.
 
 ## Filter, Search, and Sort
 
-The Library can filter by reading status:
+The Library lets you filter items by reading status:
 
 - All
 - New
 - Reading
 - Finished
 
-You can also filter by content type, and the type filter is multi-select: collection, web, ebook, PDF, and WeRead. Each selected type shows as a removable chip, and selecting every type is the same as "All". The active type filter, search query, and currently open collection are kept when you switch menus or open an item, so returning to the Library lands back where you were.
+You can also filter by multiple content types: Collections, Web, Ebooks, PDFs, Text, and WeRead. Selected filters appear as removable chips. Filter states, active search queries, and your current collection view persist across navigation so you never lose your place.
 
-Sort by recent reading, recent import, annotation count, or discussion count, and search by title or author.
+Sort by **Recently Read**, **Recently Added**, **Annotation Count**, or **Discussion Count**, with real-time keyword search across titles and authors.
 
-Library cards show reading progress, highlight count, and distilled note count. PDFs are shown as document rows, while web articles and ebooks can keep their cover or source images.
+## Local Storage and Offline Images
 
-## Local Storage
-
-Reading data is stored in the desktop app data directory. When "Save images locally" is enabled, Yomitomo saves article body images to your computer during web import, reducing breakage when the original site changes or removes images.
+All reading data is stored securely in your desktop application data directory. Enabling "Save images locally" downloads article illustrations directly to your disk upon web import, protecting your reading experience against broken links or removed source media.

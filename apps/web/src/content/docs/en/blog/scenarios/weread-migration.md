@@ -1,44 +1,45 @@
 ---
 title: "WeRead Notes Migration Guide: Bring Your Highlights and Thoughts Local"
-description: Accumulated hundreds of highlights on WeRead with no way to export and organize them? Sync your WeRead data to your local machine with Yomitomo, then continue annotating, discussing, and distilling in a more flexible environment.
+description: Accumulated hundreds of highlights on WeRead with no way to export and structure them? Sync your WeRead books and thoughts directly to your local machine with Yomitomo to continue annotating, discussing, and distilling.
 ---
 
-WeRead (微信读书) is one of the smoothest ebook reading experiences in the Chinese market. Many readers have gone through dozens of books on it, accumulating hundreds of highlights and thoughts. But sooner or later, you hit a wall: **your reading data is locked inside the platform**.
+WeRead is widely praised for its reading catalog and interface. Readers often finish dozens of books on the platform, accumulating valuable highlights and thoughts. But sooner or later, an unavoidable barrier arises: **your intellectual labor is locked inside a proprietary platform**.
 
-WeRead doesn't offer an official full-text export. If you want to compile your highlights into reading notes, you have to copy them out one by one by hand. If you want to add follow-up thoughts to an existing note, you can only append a comment inside the app — no linking across books, no free-form editing. Worse: if you ever stop using WeRead, those highlights and thoughts become inaccessible digital relics.
+WeRead does not provide automated full-text structured exports. Compiling highlights into coherent reading systems requires manual copying and pasting. Expanding on an earlier insight with in-depth reasoning is constrained by basic mobile comment fields—with no cross-book linking or rich formatting. If you ever transition away from the ecosystem, your reading history risks becoming an inaccessible digital relic.
 
-Yomitomo provides a **local migration path** through WeRead's open API: sync your highlights, thoughts, and reading progress to your own machine, then continue working with them locally.
+Yomitomo solves this via the official WeRead Skill integration, providing a **seamless local migration pathway**: syncing your books, highlights, thoughts, and progress straight into your local environment for deep intellectual processing.
 
-## Step 1: Get Your API Key and Connect
+## Step 1: Link Your Official WeRead Skill API Key
 
-Yomitomo doesn't run a WeRead proxy server. Sync happens through WeRead's official API. All you need is to grab an API key from the WeRead web client — similar to how many third-party reading stats tools work.
+Yomitomo operates without intermediate proxy servers; synchronization occurs via direct client-side requests to official WeRead endpoints.
 
-The exact steps are in Yomitomo's "Get a WeRead API Key" guide. The whole process takes about two minutes: log into the web reader, open developer tools, locate the key field in a request header, and paste it into Yomitomo's WeRead settings.
+Generating your API key takes under a minute:
+1. Open the <a href="https://weread.qq.com/r/weread-skills" target="_blank" rel="noopener noreferrer">WeRead Skill Portal</a> in your browser (or navigate on mobile to **Me > Settings > WeRead Skill**).
+2. Click **Quick Configuration**, scan to authenticate, and generate your personal API Key.
+3. Copy and paste the key into Yomitomo under **Settings > Data Sources > WeRead** and click Save.
 
-This is a one-time configuration. Once set up, your reading data is requested directly from WeRead's API by your local application — it doesn't pass through any third-party server.
+Once configured, communication occurs directly between your desktop client and WeRead's infrastructure.
 
-## Step 2: Selective Sync
+## Step 2: Selective, Topic-Driven Sync
 
-Yomitomo doesn't blindly pull your entire WeRead library. On the WeRead page, you choose which books to sync, pulling highlights, thoughts, and reading progress on demand.
+Yomitomo enables selective synchronization. Inside the WeRead view, select specific titles to pull their highlights, thoughts, and chapter progress on demand.
 
-Synced content enters Yomitomo's library alongside your locally imported EPUBs, PDFs, and web articles. This means you can:
+Synced materials seamlessly integrate into your Yomitomo Library alongside local EPUBs, PDFs, and web articles:
 
-- Continue annotating your WeRead highlights — Yomitomo's five annotation types (Key Point, Assumption, Concept, Question, Quote) apply to synced content just as they do to local imports
-- Add follow-up comments and questions beneath your original WeRead thoughts
-- Invite AI assistants into the discussion via `@AssistantName`, letting them engage with your WeRead highlights and notes
-- Combine highlights from multiple WeRead books in the Distillation window for cross-book knowledge synthesis
+- **Enhanced Annotation**: Apply Yomitomo's five cognitive categories (Key Point, Assumption, Concept, Question, Quote) to your synced WeRead highlights.
+- **Deepened Threads**: Continue thread discussions and add ongoing reflections beneath original WeRead thoughts.
+- **AI Specialist Collaboration**: Mention specialized AI personas with `@AssistantName` to interrogate ideas captured in WeRead books.
+- **Cross-Book Distillation**: Synthesize passages across multiple WeRead books within the Distillation Window.
 
-## Step 3: Freedom After Localization
+## Step 3: Intellectual Sovereignty and Compounding Freedom
 
-Once your data is local, you gain freedoms the platform can't offer:
+Once localized, your notes unlock capabilities impossible within closed walled gardens:
 
-- **Full-text search**: Search across all your synced books by title keyword in the library
-- **Cross-book synthesis**: The Distillation window can reference highlights from multiple books for topic-based knowledge integration
-- **Reading stats**: Yomitomo's Stats page incorporates WeRead data alongside local reading data, showing activity trends from both sources
-- **Data backup**: Yomitomo supports SQLite database backup and restore — your WeRead notes are protected alongside your local notes
-
-Syncing isn't a one-time "export and done." You can re-sync anytime to pull in the latest reading progress and newly added highlights.
+- **Instant Full-Text Search**: Search keywords across all synced book highlights and thoughts simultaneously.
+- **Thematic Cross-Pollination**: Group highlights from disparate books into single, cohesive distillation cards.
+- **Unified Analytics**: Visualize WeRead reading volumes alongside Yomitomo's local cognitive output.
+- **Open SQLite Portability**: Back up your unified library seamlessly, free from platform lock-in.
 
 ## Who This Is For
 
-Heavy WeRead users who have accumulated substantial highlights and thoughts and want to localize their reading data, work with it more deeply, and free it from platform lock-in.
+Avid WeRead readers with substantial notes who want to secure their intellectual history locally, process insights deeply, and break free from platform constraints.

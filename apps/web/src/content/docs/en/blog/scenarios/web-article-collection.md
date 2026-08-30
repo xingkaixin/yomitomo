@@ -1,44 +1,34 @@
 ---
-title: "Stop Letting Web Articles Gather Dust: Turn \"Read Later\" into \"Think Later\""
-description: Hundreds of articles saved in your "read later" queue, with fewer than ten actually read? Yomitomo transforms web articles from corpses in your bookmark folder into processable material in your reading library — import, read, highlight, distill, all in one flow.
+title: "Escaping the Read-Later Black Hole: Turn \"Read Later\" into \"Think Later\""
+description: Hundreds of articles languishing in your bookmark queues, with fewer than 10% actually digested? Yomitomo breaks the illusion of saving as mastery, transforming web articles into active cognitive raw material.
 ---
 
-Every knowledge worker has a "read later" graveyard. Pocket, Instapaper, browser bookmarks, your WeChat "File Transfer" chat — you've stuffed hundreds of articles into them, harboring the hope that "I'll get to these someday." Occasionally you open the list, feel anxious, swipe away a few headlines, close it, and keep adding more.
+Every knowledge worker's digital life contains a "read-later graveyard." Pocket, Instapaper, browser bookmarks, notes to self—stuffed with hundreds of promising long reads, accompanied by the earnest wish of "I'll read these this weekend." Yet as the queue swells, opening it induces only guilt and cognitive overload.
 
-The problem isn't the "read later" concept itself. It's that the tools treat **saving** as the endpoint. When you save an article, the narrative in your head is "I'll read this eventually." But the tool's design only lets you "read or not read" — open → skim → archive. There's no intermediate processing state: no highlighting, no notes, no output. So most articles, after being "read," are cognitively indistinguishable from never having been read at all — you don't remember what they said or what you thought about them.
+The concept of saving isn't inherently flawed; the flaw lies in treating **the act of bookmarking as the terminal goal**. Clicking save gives your brain a cheap hit of accomplished learning. When you finally open an article, legacy tools offer only a binary choice: skim it quickly and hit archive. There is no intermediate cognitive transformation: no structured annotations, no intellectual friction, no lasting synthesis. Skimming an article leaves you barely better off than having left it unread.
 
-Yomitomo doesn't try to be another "read later" tool. It upgrades the "save → skim" pipeline to "import → read → highlight → distill."
+Yomitomo upgrades this broken loop into an active knowledge pipeline: **Clean Ingestion → Focused Close Reading → Layered Annotations → Multi-Article Distillation**.
 
-## Paste a Link and Start Reading
+## Clean Ingestion with Headless Fidelity
 
-In Yomitomo's Library, click "Add Web Page" and paste the link to that article you just spotted. Yomitomo extracts the title, author, body text, and images, producing a clean reading item.
+Click "Add Web Page" in the Library and paste any article URL. Yomitomo automatically strips away banners, noisy sidebars, and trackers, extracting clean typography, authors, body prose, and inline figures.
 
-This replaces the "save to read later" action. The difference: saving to read later means "I'll deal with this sometime," while importing into Yomitomo means "I'm reading this now, or planning to." The Library supports filtering by reading status — New, Reading, Finished — so importing doubles as lightweight reading triage.
+For dynamic Single Page Applications (SPAs) requiring JavaScript execution, Yomitomo uses an internal headless engine to render the DOM before extraction. Imported items are managed across intuitive states—New, Reading, and Finished—turning passive bookmarks into actionable reading queues.
 
-For pages that require browser rendering (heavily JavaScript-driven dynamic content), Yomitomo attempts to render them with a built-in browser before extracting the body. If it still fails, a small number of sites with aggressive bot protection may not import cleanly.
+## Real-Time Engagement: Stop Passive Skimming
 
-## Mark as You Read — Don't Just Skim
+Inside Yomitomo's distraction-free reader, select text and press `A` to record instant reactions.
 
-Open an imported web article and you'll enter the same reader as for EPUBs and PDFs. Clean typography, centered body text, no sidebars or recommendation feeds. Select text, press `A`, choose an annotation type, write your reaction.
+This transforms ephemeral reactions ("Brilliant formulation," "Dubious methodology," "Directly solves our backlog bug") into **durable notes anchored to exact sentences**.
 
-This step is what brings a web article from "gray" to "alive." When you used to skim, your brain's reactions were "hmm, makes sense," "interesting data point," "I disagree" — and then those reactions evaporated. Now you're turning them into **written records** pinned to the original paragraphs.
+Encountering complex passages? Invoke `@Maya Brooks` to hone fuzzy questions into incisive inquiries, or call `@Marcus Reed` to extract portable heuristics.
 
-You can also toss passages marked as "Question" to an AI assistant. `@Xu Wenqu` transforms vague confusion into precise questions. `@Chen Yanshu` extracts transferable insights from a specific case. The discussion lands beside the highlight, becoming part of your reading trail.
+## Cross-Article Synthesis: From Scraps to Thematic Research
 
-## From Single Articles to Cross-Article Synthesis
+Web articles are inherently **fragmented and decentralized**. A single 2,500-word blog post offers fleeting value on its own. But when you read four or five interrelated perspectives on "Decentralized Database Architectures," the Distillation Window allows you to pool highlights from all five articles into a unified drafting workspace.
 
-Web articles are characterized by being **short, scattered, and numerous**. A 3,000-word long read, an 800-word industry bulletin, a technical analysis from some blog — they come from different sources but often converge on the same themes.
+Synthesize common threads, resolve conflicting claims, and produce an executive-ready distillation note. Months later, you won't need to hunt down five forgotten URLs—you open your distilled note, equipped with your own synthesized conclusions.
 
-Yomitomo's Distillation window can aggregate highlights from multiple articles. Say you've recently read five pieces about "AI coding tools," each with a few highlights. In the Distillation window, select those five articles and synthesize your scattered thoughts into a structured note: which tools were compared, which dimensions you care about, what your judgment is.
+## Offline Image Caching & Deep Local Search
 
-A single web article, read and archived, has limited value. But five articles on the same topic, synthesized into one distillation, become **reusable personal research**. Two months later, when someone asks "what do you think about those AI coding tools," you don't need to re-search the five articles — you open your distillation, and your judgment is right there.
-
-## Don't Lose Historical Articles
-
-Yomitomo can enable "Save images locally." When enabled, importing a web article also saves its body images to your machine. This means even if the original site redesigns, deletes the article, or you're offline, you can still read it in full.
-
-The Library supports search by title and author keywords. When you vaguely remember "I read an article about React Server Components," a keyword search finds it. No more "I'm sure I read it but I can never find it again" frustration.
-
-## Who This Is For
-
-Knowledge workers who encounter lots of worth-reading web articles daily but actually read fewer than 20% of them. If you're tired of the save → forget → save-again cycle and want to transform fragmented reading into accumulative knowledge assets.
+Enable "Save images locally" to download all article figures directly to your disk. Even if the original domain sunsets, pivots, or suffers bit-rot, your local copy remains fully readable and pristine. With instant full-text keyword search, you will never lose a hard-won insight again.

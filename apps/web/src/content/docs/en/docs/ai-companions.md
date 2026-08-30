@@ -1,9 +1,9 @@
 ---
 title: AI Reading Companions and Assistants
-description: Configure reading assistants and review assistants, then use them in highlights, discussions, and distilled notes.
+description: Configure specialized reading companions and in-depth review assistants to enrich highlights, discussions, and distilled notes.
 ---
 
-Yomitomo's AI features work around source-text anchors. Assistant thoughts, replies, and review comments are designed to point back to specific paragraphs, selections, or distilled drafts so you can return to the evidence.
+Yomitomo's AI capabilities are anchored directly to your source text. Every generated reflection, reply, and review comment references specific paragraphs, selections, or distilled drafts—allowing you to verify claims against original evidence at any time.
 
 <picture>
   <source
@@ -13,51 +13,51 @@ Yomitomo's AI features work around source-text anchors. Assistant thoughts, repl
   <img src="/assets/en-assistant.webp" alt="Yomitomo assistants" loading="eager" decoding="async" />
 </picture>
 
-## Use Assistants While Reading
+## Involve Assistants in Your Workflow
 
-There are three ways to involve assistants:
+There are three primary ways to interact with AI assistants during reading:
 
-1. Select source text and create an annotation so an assistant can add a thought based on that passage.
-2. Mention `@assistant name` in a highlight discussion to invite a specific assistant into the thread.
-3. Choose review assistants in the distillation window so they can review a draft note.
+1. **Highlight Reflections**: Create a highlight on selected text to receive instant contextual thoughts from an assistant.
+2. **Discussion `@` Mentions**: Type `@assistant_name` in any highlight discussion thread to invite a specialized persona into the conversation.
+3. **Distillation Review**: In the distillation window, select review assistants to analyze your draft and generate structured improvement suggestions.
 
-Assistant replies try to stay grounded in the source text, existing highlights, and the current discussion instead of producing generic summaries.
+Assistant responses remain strictly grounded in the document context, your notes, and the active discussion—avoiding detached, generic summaries.
 
-## Context Scope
+## Context Awareness and Memory
 
-When assistants generate thoughts, replies, or reviews, they can reference:
+When generating thoughts, replies, or reviews, assistants reference:
 
-- The full text of the current paragraph
-- Your existing annotations and discussions
-- Earlier reading memory
-- The article outline and overall structure
+- The complete text of the current paragraph and surrounding context
+- Your historical annotations, questions, and discussion records
+- Long-term reading memory built across previous reading sessions
+- The document's hierarchical outline and overarching structural flow
 
-For EPUB books, you can also configure spoiler scope: current selection, current chapter, read content, or the whole book.
+For EPUB ebooks, you can also customize the anti-spoiler context boundary: current selection, current chapter, already-read content, or the entire book.
 
-## Reading Assistants
+## Reading Companions Matrix
 
-Reading assistants focus on co-reading, explanation, questioning, and structure:
+Reading companions focus on co-reading, concept clarification, deeper questioning, and structural analysis:
 
-| Assistant    | Role               | Good At                                        |
+| Assistant    | Persona            | Key Specialty                                  |
 | ------------ | ------------------ | ---------------------------------------------- |
-| June Hartley | Marginal co-reader | Clarifying concepts and adding context         |
-| Gideon Frost | Root-cause reader  | Examining premises and tracing causality       |
-| Maya Brooks  | Question mentor    | Turning vague confusion into precise questions |
-| Marcus Reed  | Insight editor     | Extracting transferable insights               |
-| Iris Chen    | Concept translator | Explaining terms and conceptual background     |
-| Daniel Park  | Structure guide    | Identifying structure and paragraph function   |
+| June Hartley | Marginal Co-reader | Clarifying core concepts and adding context    |
+| Gideon Frost | Root-Cause Reader  | Examining premises and tracing causality       |
+| Maya Brooks  | Question Mentor    | Turning vague confusion into precise questions |
+| Marcus Reed  | Insight Editor     | Extracting transferable mental models          |
+| Iris Chen    | Concept Translator | Explaining terminology and historical context  |
+| Daniel Park  | Structure Guide    | Dissecting argument flow and paragraph roles   |
 
-## Review Assistants
+## Review Assistants Matrix
 
-Review assistants focus on evidence, logic, clarity, risk, and actionability:
+Review assistants specialize in factual evidence, logical rigor, clarity of expression, and actionable outcomes:
 
-| Assistant        | Role               | Good At                                    |
+| Assistant        | Persona            | Key Specialty                              |
 | ---------------- | ------------------ | ------------------------------------------ |
-| Arthur Whitfield | Evidence librarian | Checking facts and evidence chains         |
-| Hannah Wells     | Reader advocate    | Protecting the reader's real question      |
-| Julian Cross     | Final editor       | Reducing redundancy and improving clarity  |
-| Simone Carter    | Logic reviewer     | Detecting gaps in reasoning                |
-| Victor Tan       | Risk reviewer      | Flagging overgeneralization and risk       |
-| Grace Kim        | Action calibrator  | Checking whether next steps are executable |
+| Arthur Whitfield | Evidence Librarian | Checking facts and evidence chain validity |
+| Hannah Wells     | Reader Advocate    | Safeguarding reader clarity and questions  |
+| Julian Cross     | Final Editor       | Trimming redundancy and sharpening prose   |
+| Simone Carter    | Logic Reviewer     | Detecting cognitive gaps and leap of logic |
+| Victor Tan       | Risk Reviewer      | Flagging overgeneralizations and biases    |
+| Grace Kim        | Action Calibrator  | Validating feasibility of concrete steps   |
 
-You can enable or disable assistants and review their role descriptions in the Assistants page.
+You can enable or disable specific assistants and inspect their full prompt configurations on the **Assistants** page.
