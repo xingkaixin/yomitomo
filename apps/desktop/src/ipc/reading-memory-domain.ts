@@ -7,6 +7,9 @@ import type {
   ReadingJudgmentResult,
   ReadingMemoryEvidenceSearchResult,
   ReadingMemorySemanticStatus,
+  ReadingReviewAssetRef,
+  ReadingReviewDecision,
+  ReadingReviewEvent,
 } from '@yomitomo/shared';
 
 export type ReadingMemoryProviderDescriptor = {
@@ -64,6 +67,78 @@ export type ReadingLibrarySession = ReadingLibraryContext & {
 };
 
 export type ReadingLibraryAnswerResult = ReadingLibrarySession & {
+  judgment: ReadingJudgmentResult;
+  sentProvider?: ReadingMemoryProviderDescriptor;
+};
+
+export const readingReviewAnswerLimit = 8192;
+
+export type ReadingReviewQueueItem = {
+  asset: ReadingReviewAssetRef;
+  source: ReadingEvidence['source'];
+  quote: string;
+  formedAt: string;
+  lastReviewedAt: string | null;
+};
+
+export type ReadingReviewQueue = {
+  items: ReadingReviewQueueItem[];
+  mode: 'time' | 'semantic';
+  projection: ReadingEvidenceProjectionStatus;
+  semantic: ReadingMemorySemanticStatus;
+  coverage: {
+    eligibleAssetCount: number;
+    timeCandidateCount: number;
+    semanticCandidateCount: number;
+    recentEvidenceCount: number;
+  };
+  semanticWindow: { candidateLimit: 64; evidenceLimit: 128; lookbackDays: 30 };
+};
+
+export type ReadingReviewStartInput = { requestId: string; asset: ReadingReviewAssetRef };
+
+export type ReadingReviewSession = ReadingReviewQueueItem & {
+  requestId: string;
+  provider: ReadingMemoryProviderDescriptor | null;
+  routeRevision: string;
+  remoteConsentRequired: boolean;
+};
+
+export type ReadingReviewHistoryCursor = { createdAt: string; id: string };
+export type ReadingReviewHistoryPage = {
+  events: ReadingReviewEvent[];
+  nextCursor: ReadingReviewHistoryCursor | null;
+};
+
+export type ReadingReviewRevealResult = ReadingReviewSession & {
+  answer: string;
+  currentJudgment: string;
+  baseJudgment: string;
+  history: ReadingReviewHistoryPage;
+  sourceTarget: { articleId: string; annotationId: string };
+};
+
+export type ReadingReviewSubmitInput = {
+  requestId: string;
+  eventId: string;
+  decision: ReadingReviewDecision;
+};
+export type ReadingReviewSubmitResult = { requestId: string; event: ReadingReviewEvent };
+
+export type ReadingReviewEvidenceSearchInput = {
+  requestId: string;
+  comparisonId: string;
+  expectedRouteRevision: string;
+};
+export type ReadingReviewEvidenceSession = ReadingMemoryEvidenceSearchResult & {
+  requestId: string;
+  comparisonId: string;
+  provider: ReadingMemoryProviderDescriptor | null;
+  routeRevision: string;
+  remoteConsentRequired: boolean;
+  providerChanged?: true;
+};
+export type ReadingReviewEvidenceResult = ReadingReviewEvidenceSession & {
   judgment: ReadingJudgmentResult;
   sentProvider?: ReadingMemoryProviderDescriptor;
 };

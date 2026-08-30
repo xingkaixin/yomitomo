@@ -6,6 +6,13 @@ import type {
   ReadingMemoryStatusSnapshot,
   ReadingRelationsJudgeResult,
   ReadingRelationsSession,
+  ReadingReviewQueue,
+  ReadingReviewSession,
+  ReadingReviewRevealResult,
+  ReadingReviewHistoryPage,
+  ReadingReviewSubmitResult,
+  ReadingReviewEvidenceSession,
+  ReadingReviewEvidenceResult,
 } from './reading-memory-domain';
 import type { ReadingMemoryIpcSchemaArgs } from './reading-memory-schemas';
 
@@ -77,6 +84,75 @@ export const readingMemoryIpcInvokeDescriptors = {
     route: ['readingMemory', 'confirmPrivacy'],
     roles: mainOnly,
     validation: { exempt: 'no-args' },
+    databaseIndependent: true,
+  }),
+  'reading-memory:review:queue': desktopIpcInvoke<[], ReadingReviewQueue>()({
+    route: ['readingMemory', 'review', 'queue'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+    databaseIndependent: true,
+  }),
+  'reading-memory:review:start': desktopIpcInvoke<
+    ReadingMemoryIpcSchemaArgs<'reading-memory:review:start'>,
+    ReadingReviewSession
+  >()({
+    route: ['readingMemory', 'review', 'start'],
+    roles: mainOnly,
+    validation: 'schema',
+    databaseIndependent: true,
+  }),
+  'reading-memory:review:reveal': desktopIpcInvoke<
+    ReadingMemoryIpcSchemaArgs<'reading-memory:review:reveal'>,
+    ReadingReviewRevealResult
+  >()({
+    route: ['readingMemory', 'review', 'reveal'],
+    roles: mainOnly,
+    validation: 'schema',
+    databaseIndependent: true,
+  }),
+  'reading-memory:review:history': desktopIpcInvoke<
+    ReadingMemoryIpcSchemaArgs<'reading-memory:review:history'>,
+    ReadingReviewHistoryPage
+  >()({
+    route: ['readingMemory', 'review', 'history'],
+    roles: mainOnly,
+    validation: 'schema',
+    databaseIndependent: true,
+  }),
+  'reading-memory:review:submit': desktopIpcInvoke<
+    ReadingMemoryIpcSchemaArgs<'reading-memory:review:submit'>,
+    ReadingReviewSubmitResult
+  >()({
+    route: ['readingMemory', 'review', 'submit'],
+    roles: mainOnly,
+    validation: 'schema',
+    databaseIndependent: true,
+  }),
+  'reading-memory:review:cancel': desktopIpcInvoke<
+    ReadingMemoryIpcSchemaArgs<'reading-memory:review:cancel'>,
+    void
+  >()({
+    route: ['readingMemory', 'review', 'cancel'],
+    roles: mainOnly,
+    validation: 'schema',
+    databaseIndependent: true,
+  }),
+  'reading-memory:review:search-evidence': desktopIpcInvoke<
+    ReadingMemoryIpcSchemaArgs<'reading-memory:review:search-evidence'>,
+    ReadingReviewEvidenceSession
+  >()({
+    route: ['readingMemory', 'review', 'searchEvidence'],
+    roles: mainOnly,
+    validation: 'schema',
+    databaseIndependent: true,
+  }),
+  'reading-memory:review:compare-evidence': desktopIpcInvoke<
+    ReadingMemoryIpcSchemaArgs<'reading-memory:review:compare-evidence'>,
+    ReadingReviewEvidenceResult
+  >()({
+    route: ['readingMemory', 'review', 'compareEvidence'],
+    roles: mainOnly,
+    validation: 'schema',
     databaseIndependent: true,
   }),
   'reading-memory:model:status': desktopIpcInvoke<[], ReadingMemoryStatusSnapshot>()({

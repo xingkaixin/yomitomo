@@ -3,6 +3,7 @@ import type { PdfTextAnchor, ReadingEvidenceScope, TextAnchor } from '@yomitomo/
 import { validateDesktopIpcInvokeArgs } from '../ipc-schemas';
 import {
   readingLibrarySourceLimit,
+  readingReviewAnswerLimit,
   type ReadingLibrarySearchInput,
   type ReadingRelationsSearchInput,
 } from './reading-memory-domain';
@@ -46,6 +47,108 @@ const searchInput: ReadingRelationsSearchInput = {
   },
   question: 'How does this relate to my earlier reading?',
 };
+
+describe('reading review IPC authorization inputs', () => {
+  const asset = {
+    articleId: 'article-1',
+    annotationId: 'annotation-1',
+    assetType: 'comment',
+    assetId: 'comment-1',
+  };
+
+  it('requires the complete asset identity and rejects renderer snapshots', () => {
+    const schema = readingMemoryIpcInvokeSchemas['reading-memory:review:start'];
+    expect(schema.parse([{ requestId: 'request-1', asset }])).toEqual([
+      { requestId: 'request-1', asset },
+    ]);
+    expect(
+      schema.safeParse([
+        { requestId: 'request-1', asset: { assetType: 'comment', assetId: 'comment-1' } },
+      ]).success,
+    ).toBe(false);
+    expect(
+      schema.safeParse([
+        { requestId: 'request-1', asset, judgmentSnapshot: 'untrusted old judgment' },
+      ]).success,
+    ).toBe(false);
+    expect(
+      schema.safeParse([{ requestId: 'request-1', asset: { ...asset, assetVersion: 'untrusted' } }])
+        .success,
+    ).toBe(false);
+  });
+
+  it('accepts an empty reveal and bounds the frozen blind answer', () => {
+    const schema = readingMemoryIpcInvokeSchemas['reading-memory:review:reveal'];
+    expect(schema.parse([{ requestId: 'request-1', answer: '  ' }])).toEqual([
+      { requestId: 'request-1', answer: '' },
+    ]);
+    expect(schema.parse([{ requestId: 'request-1', answer: '  current view  ' }])[0].answer).toBe(
+      'current view',
+    );
+    expect(
+      schema.safeParse([{ requestId: 'request-1', answer: 'x'.repeat(readingReviewAnswerLimit) }])
+        .success,
+    ).toBe(true);
+    expect(
+      schema.safeParse([
+        { requestId: 'request-1', answer: 'x'.repeat(readingReviewAnswerLimit + 1) },
+      ]).success,
+    ).toBe(false);
+  });
+
+  it('submits only a stable event id and decision, not a mutable answer or version', () => {
+    const schema = readingMemoryIpcInvokeSchemas['reading-memory:review:submit'];
+    for (const decision of ['still_agree', 'changed', 'need_evidence']) {
+      expect(
+        schema.parse([{ requestId: 'request-1', eventId: 'event-1', decision }])[0].decision,
+      ).toBe(decision);
+    }
+    const input = { requestId: 'request-1', eventId: 'event-1', decision: 'changed' };
+    expect(schema.safeParse([{ ...input, answer: 'rewritten after reveal' }]).success).toBe(false);
+    expect(schema.safeParse([{ ...input, judgmentDigest: 'forged' }]).success).toBe(false);
+    expect(schema.safeParse([{ ...input, decision: 'delete' }]).success).toBe(false);
+    expect(schema.safeParse([{ ...input, eventId: '' }]).success).toBe(false);
+  });
+
+  it('keeps comparison ownership separate from session cancellation and rejects supplied evidence', () => {
+    const input = { requestId: 'request-1', comparisonId: 'comparison-1' };
+    const cancel = readingMemoryIpcInvokeSchemas['reading-memory:review:cancel'];
+    expect(cancel.parse([input])).toEqual([input]);
+    expect(cancel.parse([{ requestId: input.requestId }])).toEqual([
+      { requestId: input.requestId },
+    ]);
+    const search = readingMemoryIpcInvokeSchemas['reading-memory:review:search-evidence'];
+    expect(
+      search.parse([{ ...input, expectedRouteRevision: 'a'.repeat(64) }])[0].comparisonId,
+    ).toBe(input.comparisonId);
+    expect(search.safeParse([{ ...input, expectedRouteRevision: 'new-target' }]).success).toBe(
+      false,
+    );
+    const compare = readingMemoryIpcInvokeSchemas['reading-memory:review:compare-evidence'];
+    expect(compare.parse([input])).toEqual([input]);
+    expect(compare.safeParse([{ ...input, evidence: [] }]).success).toBe(false);
+    expect(compare.safeParse([{ ...input, authorize: true }]).success).toBe(false);
+  });
+
+  it('bounds history paging to an exact cursor instead of caller-selected limits', () => {
+    const schema = readingMemoryIpcInvokeSchemas['reading-memory:review:history'];
+    const cursor = { createdAt: '2026-08-30T00:00:00.000Z', id: 'event-1' };
+    expect(schema.parse([{ requestId: 'request-1', cursor }])[0].cursor).toEqual(cursor);
+    expect(
+      schema.safeParse([{ requestId: 'request-1', cursor: { ...cursor, createdAt: 'yesterday' } }])
+        .success,
+    ).toBe(false);
+    expect(
+      schema.safeParse([
+        {
+          requestId: 'request-1',
+          cursor: { ...cursor, createdAt: `2026-08-30T00:00:00.${'0'.repeat(64)}Z` },
+        },
+      ]).success,
+    ).toBe(false);
+    expect(schema.safeParse([{ requestId: 'request-1', limit: 100_000 }]).success).toBe(false);
+  });
+});
 
 describe('reading memory IPC schemas', () => {
   it.each(['web', 'ebook', 'pdf', 'text'] as const)(
