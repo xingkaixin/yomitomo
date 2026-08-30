@@ -22,6 +22,10 @@ export type ReadingMemorySqliteExecutor = {
   prepare(sql: string): SqliteStatement;
 };
 
+export type ReadingMemoryDatabase = <T>(
+  operation: (executor: ReadingMemorySqliteExecutor, generation: number) => T,
+) => Promise<T>;
+
 export type ReadReadingMemoryEntriesOptions = {
   articleId: string;
   kind?: ReadingMemoryEntry['kind'];

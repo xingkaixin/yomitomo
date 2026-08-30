@@ -75,6 +75,7 @@ const coreRuntimeExports = [
   'rangeForTranslationTextAnchor',
   'rangeHighlightBoxes',
   'rankReadingEvidenceCandidates',
+  'mergeReadingEvidenceCandidates',
   'readingContextTextForRange',
   'readingProgressRatio',
   'readingMemoryAnchorCheckpointEntries',

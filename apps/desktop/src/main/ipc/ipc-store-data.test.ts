@@ -84,7 +84,7 @@ describe('store data update IPC', () => {
       checkForAppUpdates: vi.fn(async () => updateState('available')),
       downloadAppUpdate: vi.fn(async () => updateState('downloading')),
       getAppUpdateState: vi.fn(() => updateState('idle')),
-      installAppUpdate: vi.fn(() => updateState('downloaded')),
+      installAppUpdate: vi.fn(async () => updateState('downloaded')),
       simulateUpdateAvailable: vi.fn(() => updateState('available')),
     };
 

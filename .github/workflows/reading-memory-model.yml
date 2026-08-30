@@ -12,9 +12,12 @@ on:
       - 'apps/desktop/scripts/smoke-packaged-embedding.mjs'
       - 'apps/desktop/scripts/verify-desktop-dist.mjs'
       - 'apps/desktop/scripts/verify-native-roots.mjs'
-      - 'apps/desktop/src/main/reading-memory/reading-memory-embedding*.ts'
-      - 'apps/desktop/src/main/reading-memory/reading-memory-model*.ts'
+      - 'apps/desktop/src/main/reading-memory/**'
+      - 'apps/desktop/src/main/db/migrations.ts'
+      - 'apps/desktop/src/main/db/schema.ts'
       - 'apps/download/model-releases/**'
+      - 'packages/core/src/reading-memory/reading-evidence-*.ts'
+      - 'packages/shared/src/reading-memory/reading-evidence-types.ts'
       - 'packages/ai/evaluation/semantic-retrieval/**'
       - 'packages/ai/scripts/evaluate-semantic-retrieval.js'
       - 'packages/ai/src/evaluation/semantic-retrieval-*.ts'
@@ -88,6 +91,12 @@ jobs:
       - name: Validate selected model
         run: pnpm --filter @yomitomo/ai evaluate:semantic --candidate=selected --mode=${{ matrix.mode }} --iterations=100 --cache-dir="${{ runner.temp }}/reading-memory-model-cache" --output="${{ runner.temp }}/reading-memory-model-${{ matrix.expectedPlatform }}.json"
 
+      - name: Benchmark real-model hybrid search over 10000 SQLite vectors
+        env:
+          YOMITOMO_READING_MEMORY_BENCHMARK_MODEL_CACHE: ${{ runner.temp }}/reading-memory-model-cache
+          YOMITOMO_READING_MEMORY_BENCHMARK_OUTPUT: ${{ runner.temp }}/reading-memory-hybrid-search-${{ matrix.expectedPlatform }}.json
+        run: pnpm --filter @yomitomo/desktop exec vitest run src/main/reading-memory/reading-memory-semantic-search.benchmark.test.ts
+
       - name: Make isolated release package
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
@@ -103,5 +112,6 @@ jobs:
           name: reading-memory-model-${{ matrix.expectedPlatform }}
           path: |
             ${{ runner.temp }}/reading-memory-model-${{ matrix.expectedPlatform }}.json
+            ${{ runner.temp }}/reading-memory-hybrid-search-${{ matrix.expectedPlatform }}.json
             ${{ runner.temp }}/reading-memory-package-${{ matrix.expectedPlatform }}.json
           if-no-files-found: error

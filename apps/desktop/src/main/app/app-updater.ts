@@ -13,6 +13,11 @@ const DEVELOPMENT_DOWNLOAD_TOTAL = 150 * 1024 * 1024;
 const DEVELOPMENT_DOWNLOAD_SPEED = 10 * 1024 * 1024;
 const DEVELOPMENT_DOWNLOAD_TICK_MS = 1_000;
 
+type AppUpdateInstallLifecycle = {
+  beforeInstall: () => Promise<void>;
+  onInstallFailed: () => Promise<void>;
+};
+
 let updateState: AppUpdateState = {
   status: 'idle',
   currentVersion: app.getVersion(),
@@ -21,11 +26,20 @@ let notifyUpdateState: (state: AppUpdateState) => void = () => undefined;
 let listenersRegistered = false;
 let checkPromise: Promise<AppUpdateState> | null = null;
 let downloadPromise: Promise<AppUpdateState> | null = null;
+let installLifecycle: AppUpdateInstallLifecycle | undefined;
+let installAttempt: {
+  result: Promise<AppUpdateState>;
+  recover: () => Promise<void>;
+} | null = null;
 // 记录本次检查来源，供 update-available 区分模态/常驻入口；事件回调拿不到 trigger 故用模块级状态承接。
 let pendingTrigger: AppUpdateTrigger = 'manual';
 
-export function configureAppUpdater(notify: (state: AppUpdateState) => void) {
+export function configureAppUpdater(
+  notify: (state: AppUpdateState) => void,
+  lifecycle?: AppUpdateInstallLifecycle,
+) {
   notifyUpdateState = notify;
+  installLifecycle = lifecycle;
   if (listenersRegistered) return;
   listenersRegistered = true;
 
@@ -72,6 +86,7 @@ export function configureAppUpdater(notify: (state: AppUpdateState) => void) {
             message: error.message || 'UPDATE_FAILED',
           },
     );
+    void installAttempt?.recover();
   });
 }
 
@@ -163,15 +178,18 @@ export async function downloadAppUpdate() {
   return downloadPromise;
 }
 
-export function installAppUpdate() {
+export function installAppUpdate(): Promise<AppUpdateState> {
+  if (installAttempt) return installAttempt.result;
   const unsupported = supportedState();
-  if (unsupported) return setUpdateState(unsupported);
+  if (unsupported) return Promise.resolve(setUpdateState(unsupported));
   if (updateState.status !== 'downloaded') {
-    return setUpdateState({
-      status: 'error',
-      availableVersion: updateState.availableVersion,
-      message: 'UPDATE_NOT_DOWNLOADED',
-    });
+    return Promise.resolve(
+      setUpdateState({
+        status: 'error',
+        availableVersion: updateState.availableVersion,
+        message: 'UPDATE_NOT_DOWNLOADED',
+      }),
+    );
   }
 
   logInfo('updater.install', { version: updateState.availableVersion });
@@ -180,10 +198,47 @@ export function installAppUpdate() {
     const nextState = setUpdateState({ status: 'idle' });
     const targetWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
     targetWindow?.webContents.reload();
-    return nextState;
+    return Promise.resolve(nextState);
   }
-  autoUpdater.quitAndInstall(false, true);
-  return updateState;
+  installAttempt = startAppUpdateInstallation();
+  return installAttempt.result;
+}
+
+function startAppUpdateInstallation() {
+  const lifecycle = installLifecycle;
+  const preparation = Promise.resolve().then(() => lifecycle?.beforeInstall());
+  let recoveryPromise: Promise<void> | null = null;
+  const recover = () => {
+    if (recoveryPromise) return recoveryPromise;
+    recoveryPromise = preparation
+      .catch(() => undefined)
+      .then(() => lifecycle?.onInstallFailed())
+      .catch((error: unknown) => logError('updater.install-resume-failed', error))
+      .finally(() => {
+        installAttempt = null;
+      });
+    return recoveryPromise;
+  };
+  const result = (async () => {
+    try {
+      await preparation;
+      if (updateState.status === 'downloaded' && !recoveryPromise) {
+        // NSIS starts its installer before before-quit, so child processes must already be gone.
+        autoUpdater.quitAndInstall(false, true);
+        if (updateState.status === 'downloaded' && !recoveryPromise) return updateState;
+      }
+    } catch (error) {
+      logError('updater.install-failed', error);
+      setUpdateState({
+        status: 'error',
+        availableVersion: updateState.availableVersion,
+        message: errorMessageOrFallback(error, 'UPDATE_INSTALL_FAILED'),
+      });
+    }
+    await recover();
+    return updateState;
+  })();
+  return { result, recover };
 }
 
 function supportedState(): AppUpdateState | null {

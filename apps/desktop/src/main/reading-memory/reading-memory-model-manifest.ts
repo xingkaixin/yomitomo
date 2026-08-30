@@ -57,6 +57,8 @@ const expectedVector = {
   layout: 'row-major',
 } as const;
 
+export const readingMemoryModelVectorDimension = expectedVector.dimension;
+
 const expectedSupportedPlatforms = ['darwin-arm64', 'win32-x64'] as const;
 
 const expectedRedistributionNotices = [

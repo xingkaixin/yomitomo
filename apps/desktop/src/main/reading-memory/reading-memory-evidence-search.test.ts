@@ -5,8 +5,11 @@ import { describe, expect, it } from 'vitest';
 import { migrations } from '../db/migrations';
 import { readingMemoryEvidenceProjectorVersion } from './reading-memory-evidence-projection-batch';
 import {
+  materializeReadingEvidenceCandidates,
+  readKeywordReadingEvidenceCandidates,
   readReadingEvidenceProjectionStatus,
   searchReadingEvidence,
+  type ReadingEvidenceCandidate,
 } from './reading-memory-evidence-search';
 import { readStoredAnnotationThreadSources } from './reading-memory-evidence-source';
 import { replaceReadingEvidenceThreadInTransaction } from './reading-memory-evidence-store';
@@ -195,6 +198,125 @@ describe('reading memory evidence search', () => {
     expect(search(fixture, '候选上限过滤证明', { kind: 'library' }, 1000).evidence).toHaveLength(
       24,
     );
+    const candidates = readKeywordReadingEvidenceCandidates(
+      fixture.executor,
+      '  候选上限过滤证明  ',
+      { kind: 'library' },
+    );
+    expect(candidates).toHaveLength(40);
+    expect(Object.keys(candidates[0]).toSorted()).toEqual([
+      'articleId',
+      'id',
+      'sourceVersion',
+      'targetId',
+    ]);
+    expect(
+      readKeywordReadingEvidenceCandidates(fixture.executor, '  ', { kind: 'library' }),
+    ).toEqual([]);
+  });
+
+  it('materializes cross-language semantic candidates without requiring literal query matches', () => {
+    const fixture = createFixture();
+    const examples = [
+      ['zh', '睡眠能巩固刚学过的内容'],
+      ['en', "A night's rest stabilizes recently acquired knowledge"],
+      ['ja', '眠っている間に学んだことが定着する'],
+    ] as const;
+    const candidates: ReadingEvidenceCandidate[] = [];
+    for (const [suffix, exact] of examples) {
+      const articleId = `article_${suffix}`;
+      const annotationId = `annotation_${suffix}`;
+      fixture.insertArticle({ id: articleId, title: suffix });
+      fixture.insertAnnotation({ id: annotationId, articleId, exact });
+      const source = fixture.project(annotationId);
+      candidates.push({
+        id: `reading_evidence_annotation:${annotationId}`,
+        articleId,
+        targetId: annotationId,
+        sourceVersion: source.sourceVersion,
+      });
+    }
+    const scope: ReadingEvidenceScope = { kind: 'library' };
+    const query = 'why we remember after resting';
+
+    expect(readKeywordReadingEvidenceCandidates(fixture.executor, query, scope)).toEqual([]);
+    expect(
+      materializeReadingEvidenceCandidates(fixture.executor, candidates, scope).map(
+        (item) => item.content,
+      ),
+    ).toEqual(examples.map(([, exact]) => exact));
+    expect(
+      materializeReadingEvidenceCandidates(fixture.executor, candidates, scope, query),
+    ).toEqual([]);
+    expect(
+      materializeReadingEvidenceCandidates(fixture.executor, candidates, scope, '  睡眠  ').map(
+        (item) => item.content,
+      ),
+    ).toEqual(['睡眠能巩固刚学过的内容']);
+  });
+
+  it('rechecks edited, deleted, and moved sources after candidates have been retrieved', () => {
+    const fixture = createFixture();
+    for (const suffix of ['edited', 'deleted', 'moved']) {
+      const articleId = `article_${suffix}`;
+      const annotationId = `annotation_${suffix}`;
+      fixture.insertArticle({ id: articleId, title: suffix });
+      fixture.insertAnnotation({ id: annotationId, articleId, exact: `候选来源 ${suffix}` });
+      fixture.project(annotationId);
+    }
+    fixture.insertCollection('collection_current', [
+      'article_edited',
+      'article_deleted',
+      'article_moved',
+    ]);
+    const scope: ReadingEvidenceScope = {
+      kind: 'collection',
+      collectionId: 'collection_current',
+    };
+    const candidates = readKeywordReadingEvidenceCandidates(fixture.executor, '候选来源', scope);
+    expect(candidates).toHaveLength(3);
+
+    fixture.updateAnnotationAnchor('annotation_edited', '已改写的来源');
+    fixture.deleteAnnotation('annotation_deleted');
+    fixture.removeCollectionMember('collection_current', 'article_moved');
+
+    expect(materializeReadingEvidenceCandidates(fixture.executor, candidates, scope)).toEqual([]);
+    expect(
+      materializeReadingEvidenceCandidates(fixture.executor, candidates, { kind: 'library' }).map(
+        (item) => item.source.ref.id,
+      ),
+    ).toEqual(['article_moved']);
+    expect(
+      materializeReadingEvidenceCandidates(fixture.executor, candidates, {
+        kind: 'sources',
+        sources: [{ kind: 'article', id: 'article_edited' }],
+      }),
+    ).toEqual([]);
+  });
+
+  it('rejects withdrawn judgments and unknown evidence ids during source materialization', () => {
+    const fixture = fixtureWithThread('judgment');
+    fixture.insertComment({
+      id: 'comment_judgment',
+      annotationId: 'annotation_judgment',
+      author: 'user',
+      content: '用户独立形成的判断',
+      createdAt: timestamp,
+    });
+    fixture.project('annotation_judgment');
+    const scope: ReadingEvidenceScope = { kind: 'library' };
+    const candidates = readKeywordReadingEvidenceCandidates(fixture.executor, '独立形成', scope);
+    expect(candidates).toHaveLength(1);
+    expect(
+      materializeReadingEvidenceCandidates(
+        fixture.executor,
+        candidates.map((candidate) => ({ ...candidate, id: 'unknown-evidence' })),
+        scope,
+      ),
+    ).toEqual([]);
+
+    fixture.executor.prepare('DELETE FROM comments WHERE id = ?').run('comment_judgment');
+    expect(materializeReadingEvidenceCandidates(fixture.executor, candidates, scope)).toEqual([]);
   });
 
   it('excludes pending projections before applying the candidate cap', () => {

@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  blob,
   check,
   foreignKey,
   index,
@@ -524,6 +525,44 @@ export const readingMemoryEvidenceEntries = sqliteTable(
       table.id,
     ),
   ],
+);
+
+export const readingMemoryEvidenceVectors = sqliteTable(
+  'reading_memory_evidence_vectors',
+  {
+    evidenceId: text('evidence_id')
+      .notNull()
+      .references(() => readingMemoryEvidenceEntries.id, { onDelete: 'cascade' }),
+    modelVersion: text('model_version').notNull(),
+    sourceVersion: text('source_version').notNull(),
+    projectorVersion: text('projector_version').notNull(),
+    dimension: integer('dimension').notNull(),
+    vector: blob('vector', { mode: 'buffer' }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: 'reading_memory_evidence_vectors_pk',
+      columns: [table.evidenceId, table.modelVersion],
+    }),
+    check(
+      'reading_memory_evidence_vectors_dimension_check',
+      sql`typeof(${table.dimension}) = 'integer' AND ${table.dimension} BETWEEN 1 AND 2147483647`,
+    ),
+    check(
+      'reading_memory_evidence_vectors_shape_check',
+      sql`typeof(${table.vector}) = 'blob' AND length(${table.vector}) = ${table.dimension} * 4`,
+    ),
+    index('reading_memory_evidence_vectors_model_idx').on(table.modelVersion, table.evidenceId),
+  ],
+);
+
+export const readingMemorySemanticState = sqliteTable(
+  'reading_memory_semantic_state',
+  {
+    id: integer('id').primaryKey(),
+    activeModelVersion: text('active_model_version').notNull(),
+  },
+  (table) => [check('reading_memory_semantic_state_singleton_check', sql`${table.id} = 1`)],
 );
 
 export const articleTranslations = sqliteTable(

@@ -11,7 +11,7 @@ import {
   startReadingMemoryEvidenceProjectionWorker,
   type ReadingMemoryEvidenceProjectionWorker,
 } from '../reading-memory/reading-memory-evidence-projection-worker';
-import type { ReadingMemoryModelLifecycle } from '../reading-memory/reading-memory-model-lifecycle';
+import type { ReadingMemorySemanticIndex } from '../reading-memory/reading-memory-semantic-index';
 
 const DEFAULT_APP_UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
@@ -46,14 +46,19 @@ type MainProcessRuntimeDependencies = {
   createTelemetryController?: typeof createDesktopTelemetryControllerForEnvironment;
   syncWeRead?: typeof syncWeReadLibrary;
   startEvidenceProjectionWorker?: typeof startReadingMemoryEvidenceProjectionWorker;
-  readingMemoryModelLifecycle: Pick<ReadingMemoryModelLifecycle, 'reconcile' | 'dispose'>;
+  readingMemorySemanticIndex: Pick<
+    ReadingMemorySemanticIndex,
+    'reconcile' | 'suspend' | 'resume' | 'dispose'
+  >;
 };
 
 export type MainProcessRuntime = {
   configureWeReadAutoSync: (reason: string) => void;
   onDatabaseRestored: () => void;
   checkTelemetryFocus: () => void;
-  dispose: () => void;
+  suspendForAppUpdate: () => Promise<void>;
+  resumeAfterAppUpdateFailure: () => Promise<void>;
+  dispose: () => Promise<void>;
 };
 
 export function startMainProcessRuntime(
@@ -66,7 +71,7 @@ export function startMainProcessRuntime(
   const evidenceProjectionWorker: ReadingMemoryEvidenceProjectionWorker = (
     dependencies.startEvidenceProjectionWorker ?? startReadingMemoryEvidenceProjectionWorker
   )();
-  let disposed = false;
+  let disposePromise: Promise<void> | null = null;
   let weReadConfigurationToken = 0;
   let weReadSyncRunning = false;
   let weReadStartupTimer: NodeJS.Timeout | null = null;
@@ -78,14 +83,14 @@ export function startMainProcessRuntime(
   });
 
   const refreshModelPrices = (reason: string) => {
-    if (disposed) return;
+    if (disposePromise) return;
     const startedAt = performance.now();
     void withDatabaseLease(async () => {
       const modules = await dependencies.getPersistenceModules();
       return modules.storeModelPricing.refreshModelPrices();
     })
       .then((result) => {
-        if (disposed) return;
+        if (disposePromise) return;
         dependencies.logInfo('model_pricing.refresh', {
           reason,
           refreshed: result.refreshed,
@@ -95,20 +100,22 @@ export function startMainProcessRuntime(
         });
       })
       .catch((error) => {
-        if (!disposed) dependencies.logError('model_pricing.refresh_failed', error, { reason });
+        if (!disposePromise)
+          dependencies.logError('model_pricing.refresh_failed', error, { reason });
       });
   };
 
   const checkForAppUpdates = (reason: string) => {
-    if (disposed) return;
+    if (disposePromise) return;
     void dependencies
       .getAppUpdaterModule()
       .then((module) => module.checkForAppUpdates('auto'))
       .then((state) => {
-        if (!disposed) dependencies.logInfo('updater.auto_check', { reason, status: state.status });
+        if (!disposePromise)
+          dependencies.logInfo('updater.auto_check', { reason, status: state.status });
       })
       .catch((error) => {
-        if (!disposed) dependencies.logError('updater.auto_check_failed', error, { reason });
+        if (!disposePromise) dependencies.logError('updater.auto_check_failed', error, { reason });
       });
   };
 
@@ -120,7 +127,7 @@ export function startMainProcessRuntime(
   };
 
   const runWeReadAutoSync = async (reason: string) => {
-    if (disposed) return;
+    if (disposePromise) return;
     if (weReadSyncRunning) {
       dependencies.logInfo('weread.auto_sync.skipped', {
         reason,
@@ -135,7 +142,7 @@ export function startMainProcessRuntime(
       const result = await withDatabaseLease(async () => {
         const modules = await dependencies.getPersistenceModules();
         const settings = await modules.weReadRepository.readWeReadSettings();
-        if (disposed) return;
+        if (disposePromise) return;
         if (!settings.configured || settings.syncMode !== 'auto') {
           dependencies.logInfo('weread.auto_sync.skipped', {
             reason,
@@ -154,7 +161,7 @@ export function startMainProcessRuntime(
           elapsedMs: dependencies.elapsedMs,
         });
       });
-      if (disposed || !result) return;
+      if (disposePromise || !result) return;
       dependencies.sendWeReadStateUpdated(result);
       dependencies.logInfo('weread.auto_sync.complete', {
         reason,
@@ -162,7 +169,7 @@ export function startMainProcessRuntime(
         durationMs: dependencies.elapsedMs(startedAt),
       });
     } catch (error) {
-      if (!disposed) {
+      if (!disposePromise) {
         dependencies.logError('weread.auto_sync.failed', error, {
           reason,
           durationMs: dependencies.elapsedMs(startedAt),
@@ -174,7 +181,7 @@ export function startMainProcessRuntime(
   };
 
   const configureWeReadAutoSync = (reason: string) => {
-    if (disposed) return;
+    if (disposePromise) return;
     const token = ++weReadConfigurationToken;
     clearWeReadTimers();
     void withDatabaseLease(async () => {
@@ -182,7 +189,7 @@ export function startMainProcessRuntime(
       return modules.weReadRepository.readWeReadSettings();
     })
       .then((settings) => {
-        if (disposed || token !== weReadConfigurationToken) return;
+        if (disposePromise || token !== weReadConfigurationToken) return;
         if (!settings.configured || settings.syncMode !== 'auto') {
           dependencies.logInfo('weread.auto_sync.disabled', {
             reason,
@@ -209,16 +216,16 @@ export function startMainProcessRuntime(
         });
       })
       .catch((error) => {
-        if (!disposed)
+        if (!disposePromise)
           dependencies.logError('weread.auto_sync.configure_failed', error, { reason });
       });
   };
 
-  const reconcileReadingMemoryModel = (reason: string) => {
-    if (disposed) return;
-    void dependencies.readingMemoryModelLifecycle.reconcile(reason).catch((error) => {
-      if (!disposed) {
-        dependencies.logError('reading_memory.model_reconcile_request_failed', error, {
+  const reconcileReadingMemorySemanticIndex = (reason: string) => {
+    if (disposePromise) return;
+    void dependencies.readingMemorySemanticIndex.reconcile(reason).catch((error) => {
+      if (!disposePromise) {
+        dependencies.logError('reading_memory.semantic_reconcile_request_failed', error, {
           reason,
         });
       }
@@ -235,31 +242,41 @@ export function startMainProcessRuntime(
     intervalMs: timing.appUpdateIntervalMs,
     run: checkForAppUpdates,
   });
-  reconcileReadingMemoryModel('startup');
+  reconcileReadingMemorySemanticIndex('startup');
   configureWeReadAutoSync('startup');
 
   return {
     configureWeReadAutoSync,
     onDatabaseRestored: () => {
-      if (disposed) return;
+      if (disposePromise) return;
       configureWeReadAutoSync('database-restored');
       evidenceProjectionWorker.requestRun('database_restored');
-      reconcileReadingMemoryModel('database-restored');
+      reconcileReadingMemorySemanticIndex('database-restored');
     },
     checkTelemetryFocus: () => {
-      if (!disposed) telemetryController?.check('focus');
+      if (!disposePromise) telemetryController?.check('focus');
+    },
+    suspendForAppUpdate: () => {
+      if (disposePromise) return disposePromise;
+      return dependencies.readingMemorySemanticIndex.suspend();
+    },
+    resumeAfterAppUpdateFailure: () => {
+      if (disposePromise) return disposePromise;
+      return dependencies.readingMemorySemanticIndex.resume();
     },
     dispose: () => {
-      if (disposed) return;
-      disposed = true;
+      if (disposePromise) return disposePromise;
+      disposePromise = Promise.resolve().then(() =>
+        dependencies.readingMemorySemanticIndex.dispose(),
+      );
       weReadConfigurationToken += 1;
       disposeModelPriceRefresh();
       disposeAppUpdateCheck();
       clearWeReadTimers();
       evidenceProjectionWorker.dispose();
-      dependencies.readingMemoryModelLifecycle.dispose();
       telemetryController?.dispose();
       telemetryController = null;
+      return disposePromise;
     },
   };
 }

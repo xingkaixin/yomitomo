@@ -38,7 +38,7 @@ type ReadReadingEvidenceProjectionStatusOptions = {
   executor: ReadingMemorySqliteExecutor;
 };
 
-type EvidenceCandidate = {
+export type ReadingEvidenceCandidate = {
   id: string;
   articleId: string;
   targetId: string;
@@ -74,18 +74,17 @@ export function searchReadingEvidence(options: SearchReadingEvidenceOptions): {
   const query = options.query.trim().normalize();
   if (!query) return { evidence: [], projection };
 
-  const candidates = readKeywordCandidates(options.executor, query, options.scope);
+  const candidates = readKeywordReadingEvidenceCandidates(options.executor, query, options.scope);
   if (candidates.length === 0) return { evidence: [], projection };
 
-  const evidence = materializeCandidates(options.executor, candidates, query);
-  const allowedArticleIds = readAllowedArticleIds(
+  const evidence = materializeReadingEvidenceCandidates(
     options.executor,
+    candidates,
     options.scope,
-    evidence.map((item) => item.source.ref.id),
+    query,
   );
-  const scopedEvidence = evidence.filter((item) => allowedArticleIds.has(item.source.ref.id));
   return {
-    evidence: rankReadingEvidenceCandidates(scopedEvidence, resultLimit(options.limit)),
+    evidence: rankReadingEvidenceCandidates(evidence, resultLimit(options.limit)),
     projection,
   };
 }
@@ -180,14 +179,17 @@ WHERE ${scope.sql}
   };
 }
 
-function readKeywordCandidates(
+export function readKeywordReadingEvidenceCandidates(
   executor: ReadingMemorySqliteExecutor,
   query: string,
   scope: ReadingEvidenceScope,
-) {
+): ReadingEvidenceCandidate[] {
+  const normalizedQuery = query.trim().normalize();
+  if (!normalizedQuery) return [];
+
   const filter = scopeArticleFilter(scope, 'entry');
   const rows =
-    Array.from(query).length >= 3
+    Array.from(normalizedQuery).length >= 3
       ? executor
           .prepare(
             `
@@ -226,7 +228,7 @@ LIMIT ?
 `,
           )
           .all(
-            ftsPhrase(query),
+            ftsPhrase(normalizedQuery),
             ...filter.values,
             readingMemoryEvidenceProjectorVersion,
             candidateLimit,
@@ -266,7 +268,7 @@ LIMIT ?
 `,
           )
           .all(
-            `%${escapeLike(query)}%`,
+            `%${escapeLike(normalizedQuery)}%`,
             ...filter.values,
             readingMemoryEvidenceProjectorVersion,
             candidateLimit,
@@ -277,11 +279,12 @@ LIMIT ?
   });
 }
 
-function materializeCandidates(
+export function materializeReadingEvidenceCandidates(
   executor: ReadingMemorySqliteExecutor,
-  candidates: EvidenceCandidate[],
-  query: string,
-) {
+  candidates: readonly ReadingEvidenceCandidate[],
+  scope: ReadingEvidenceScope,
+  query?: string,
+): ReadingEvidence[] {
   const sources = readStoredAnnotationThreadSources(
     executor,
     candidates.map((candidate) => candidate.targetId),
@@ -319,7 +322,9 @@ function materializeCandidates(
       projectedEntries.set(candidate.targetId, entriesById);
     }
     const projected = entriesById.get(candidate.id);
-    if (!projected || !matchesSearchText(projected.searchText, query)) continue;
+    if (!projected || (query !== undefined && !matchesSearchText(projected.searchText, query))) {
+      continue;
+    }
 
     const item = materializeReadingEvidence({
       projected,
@@ -328,7 +333,12 @@ function materializeCandidates(
     });
     if (item) evidence.push(item);
   }
-  return evidence;
+  const allowedArticleIds = readAllowedArticleIds(
+    executor,
+    scope,
+    evidence.map((item) => item.source.ref.id),
+  );
+  return evidence.filter((item) => allowedArticleIds.has(item.source.ref.id));
 }
 
 function readArticleMetadata(executor: ReadingMemorySqliteExecutor, articleIds: string[]) {
@@ -388,7 +398,7 @@ ORDER BY member_id ASC
   return new Set(rows.map((row) => stringField(recordField(row, 'articleId'))).filter(Boolean));
 }
 
-function scopeArticleFilter(
+export function scopeArticleFilter(
   scope: ReadingEvidenceScope,
   source: 'annotation' | 'entry',
 ): SqlFilter {
@@ -421,7 +431,7 @@ function articleSourceIds(scope: Extract<ReadingEvidenceScope, { kind: 'sources'
   );
 }
 
-function evidenceCandidate(row: unknown): EvidenceCandidate | null {
+function evidenceCandidate(row: unknown): ReadingEvidenceCandidate | null {
   const id = stringField(recordField(row, 'id'));
   const articleId = stringField(recordField(row, 'articleId'));
   const targetId = stringField(recordField(row, 'targetId'));
@@ -469,5 +479,8 @@ function escapeLike(query: string) {
 }
 
 function matchesSearchText(searchText: string, query: string) {
-  return searchText.normalize().toLocaleLowerCase().includes(query.normalize().toLocaleLowerCase());
+  return searchText
+    .normalize()
+    .toLocaleLowerCase()
+    .includes(query.trim().normalize().toLocaleLowerCase());
 }
