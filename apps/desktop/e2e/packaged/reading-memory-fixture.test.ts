@@ -1,5 +1,5 @@
 import { fork, type ChildProcess } from 'node:child_process';
-import { readFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { readFile, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -31,9 +31,17 @@ describe('packaged reading memory fixture', () => {
   it('retains real partial bytes on cancellation and resumes with a fresh lifecycle', async () => {
     const lifecycle = await createLifecycle('not-installed');
     expect(await lifecycle.reconcile('startup')).toMatchObject({ status: 'not-installed' });
+    const partialPath = join(
+      lifecycle.userDataPath,
+      'models',
+      `.${lifecycle.getState().internalId}.partial`,
+      'onnx/model_q4.onnx',
+    );
     const download = lifecycle.download();
     await vi.waitFor(
-      () => {
+      async () => {
+        // Download progress can advance before the first file write completes.
+        expect((await stat(partialPath)).size).toBeGreaterThan(0);
         const state = lifecycle.getState();
         expect(state.status).toBe('downloading');
         if (state.status === 'downloading') expect(state.downloadedBytes).toBeGreaterThan(0);
