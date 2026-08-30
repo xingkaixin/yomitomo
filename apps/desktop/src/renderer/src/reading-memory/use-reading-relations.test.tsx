@@ -10,18 +10,20 @@ import { useReadingRelations } from './use-reading-relations';
 type ReadingMemoryApi = YomitomoDesktopApi['readingMemory'];
 
 const api = {
+  recordUsage: vi.fn<ReadingMemoryApi['recordUsage']>(),
   confirmPrivacy: vi.fn<ReadingMemoryApi['confirmPrivacy']>(),
   relations: {
     search: vi.fn<ReadingMemoryApi['relations']['search']>(),
     judge: vi.fn<ReadingMemoryApi['relations']['judge']>(),
     cancel: vi.fn<ReadingMemoryApi['relations']['cancel']>(),
   },
-} satisfies Pick<ReadingMemoryApi, 'confirmPrivacy' | 'relations'>;
+} satisfies Pick<ReadingMemoryApi, 'confirmPrivacy' | 'relations' | 'recordUsage'>;
 
 const context: ReaderQuestionContext = { sourceType: 'web', quote: 'Selected reading text' };
 
 beforeEach(() => {
   vi.resetAllMocks();
+  api.recordUsage.mockResolvedValue(undefined);
   api.confirmPrivacy.mockResolvedValue(undefined);
   api.relations.cancel.mockResolvedValue(undefined);
   api.relations.search.mockImplementation(async ({ requestId }) => session(requestId));
@@ -40,6 +42,8 @@ describe('useReadingRelations', () => {
     expect(result.current.state).toBeNull();
     expect(api.relations.search).not.toHaveBeenCalled();
     expect(api.relations.judge).not.toHaveBeenCalled();
+
+    expect(api.recordUsage).not.toHaveBeenCalled();
 
     await act(() => result.current.search(context, '  What connects these ideas?  '));
     expect(api.relations.search).toHaveBeenCalledWith({
@@ -73,6 +77,36 @@ describe('useReadingRelations', () => {
       remote: 'idle',
       result: { judgment: { state: 'generated' } },
     });
+    expect(api.recordUsage.mock.calls.filter(([key]) => key === 'query_completed')).toHaveLength(1);
+  });
+
+  it('counts one panel opening across refinements and another after closing and reopening', async () => {
+    const { result } = renderHook(() => useReadingRelations('article-current'));
+    await act(() => result.current.search(context));
+    await act(() => result.current.search(context, 'Refined question'));
+    const afterRefinement = api.recordUsage.mock.calls.map(([key]) => key);
+    act(() => result.current.close());
+    await act(() => result.current.search(context));
+    const afterReopening = api.recordUsage.mock.calls.map(([key]) => key);
+
+    expect(afterRefinement.filter((key) => key === 'feature_opened')).toHaveLength(1);
+    expect(afterRefinement.filter((key) => key === 'query_completed')).toHaveLength(2);
+    expect(afterReopening.filter((key) => key === 'feature_opened')).toHaveLength(2);
+    expect(afterReopening.filter((key) => key === 'query_completed')).toHaveLength(3);
+  });
+
+  it('does not count an aborted judgment as a remote call failure', async () => {
+    api.relations.search.mockImplementation(async ({ requestId }) =>
+      session(requestId, { remoteConsentRequired: false }),
+    );
+    api.relations.judge.mockRejectedValueOnce(new DOMException('Canceled', 'AbortError'));
+    const { result } = renderHook(() => useReadingRelations('article-current'));
+    await act(() => result.current.search(context));
+    const local = result.current.state;
+    await act(() => result.current.judge());
+
+    expect(result.current.state).toEqual({ ...local, remote: 'failed' });
+    expect(api.recordUsage).not.toHaveBeenCalledWith('fallback_call_failure');
   });
 
   it.each(['close', 'unmount'] as const)(
@@ -128,6 +162,7 @@ describe('useReadingRelations', () => {
     });
     expect(result.current.state).toBe(latest);
     expect(api.relations.judge).not.toHaveBeenCalled();
+    expect(api.recordUsage.mock.calls.filter(([key]) => key === 'query_completed')).toHaveLength(1);
   });
 
   it.each(['new-query', 'article-change'] as const)(

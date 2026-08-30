@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect } from 'react';
 import type { Annotation } from '@yomitomo/shared';
 import { createEpubTextAnchor, type HighlightBox } from '@yomitomo/core';
 import { foliateRangeHighlightBoxes, type EbookBoxUpdateReason } from './ebook-annotation-layout';
@@ -44,12 +44,6 @@ export function useEbookAnnotationNavigation({
   scheduleEbookBoxUpdate: (reason: EbookBoxUpdateReason) => void;
   viewRef: NavigationRef<FoliateViewElement | null>;
 }) {
-  const onFocusedAnnotationRef = useRef(onFocusedAnnotation);
-
-  useEffect(() => {
-    onFocusedAnnotationRef.current = onFocusedAnnotation;
-  }, [onFocusedAnnotation]);
-
   const locateEbookAnchor = useCallback(
     async (annotationId: string, anchor: Annotation['anchor']) => {
       const view = viewRef.current;
@@ -250,7 +244,7 @@ export function useEbookAnnotationNavigation({
         annotationId: focusAnnotationId,
         annotationCount: currentAnnotations.length,
       });
-      onFocusedAnnotationRef.current(false);
+      onFocusedAnnotation(false);
       return;
     }
     let cancelled = false;
@@ -276,7 +270,7 @@ export function useEbookAnnotationNavigation({
             annotationId: focusAnnotationId,
             pageInfo: viewRef.current?.getPageInfo?.() ?? null,
           });
-          onFocusedAnnotationRef.current(navigated);
+          onFocusedAnnotation(navigated);
         }, 180);
       });
     return () => {
@@ -291,7 +285,7 @@ export function useEbookAnnotationNavigation({
       });
       if (timer !== null) window.clearTimeout(timer);
     };
-  }, [article.id, focusAnnotationId]);
+  }, [article.id, focusAnnotationId, onFocusedAnnotation]);
 
   return {
     focusPageAnnotation,

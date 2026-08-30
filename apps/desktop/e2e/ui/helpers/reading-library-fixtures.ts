@@ -11,6 +11,14 @@ import {
 export const readingLibraryQuestion = 'source context';
 export const readingLibraryCollectionName = 'RD971 private collection';
 
+export async function openAskLibrary(page: Page) {
+  await page.getByRole('button', { name: 'Reading memory', exact: true }).click();
+  await page.getByRole('tab', { name: 'Ask library', exact: true }).click();
+  const view = page.getByRole('tabpanel', { name: 'Ask library', exact: true });
+  await view.getByRole('textbox', { name: 'Your question' }).waitFor();
+  return view;
+}
+
 type SeededLibrarySource = RelationSource & {
   articleId: string;
   annotationId: string;

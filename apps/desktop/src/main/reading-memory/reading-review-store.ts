@@ -30,7 +30,7 @@ export type ReadingReviewHistoryCursor = Pick<ReadingReviewEvent, 'createdAt' | 
 export function appendReadingReview(
   executor: ReadingMemorySqliteExecutor,
   input: AppendReadingReviewInput,
-): { asset: ReadingReviewAsset; event: ReadingReviewEvent } {
+): { asset: ReadingReviewAsset; event: ReadingReviewEvent; inserted: boolean } {
   if (input.answer.length > 8192 || (input.decision !== 'need_evidence' && !input.answer.trim())) {
     throw new Error('READING_REVIEW_INVALID_ANSWER');
   }
@@ -42,7 +42,7 @@ export function appendReadingReview(
     if (!asset) throw new Error('READING_REVIEW_CONFLICT');
     if (existing) {
       if (!matchesSubmittedReview(existing, input)) throw new Error('READING_REVIEW_CONFLICT');
-      return { asset, event: existing };
+      return { asset, event: existing, inserted: false };
     }
     if (
       asset.base.assetVersion !== input.assetVersion ||
@@ -91,7 +91,7 @@ judgment_snapshot, judgment_digest, previous_review_id, decision, answer, create
     });
     const updated = readReadingReviewAsset(executor, input.asset);
     if (!updated) throw new Error('READING_REVIEW_CONFLICT');
-    return { asset: updated, event };
+    return { asset: updated, event, inserted: true };
   });
 }
 

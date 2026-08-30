@@ -337,3 +337,11 @@ export {
   uniqueStrings,
   uniqueTrimmedStrings,
 } from './runtime-guards';
+
+export {
+  maxReadingMemoryUsageCount,
+  parseReadingMemoryUsagePayload,
+  readingMemoryUsageKeys,
+  type ReadingMemoryUsageKey,
+  type ReadingMemoryUsagePayload,
+} from './telemetry/reading-memory-usage';

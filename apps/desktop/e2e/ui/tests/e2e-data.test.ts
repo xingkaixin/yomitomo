@@ -18,7 +18,16 @@ describe('desktop E2E data helpers', () => {
       expect((await stat(data.userDataDir)).isDirectory()).toBe(true);
       expect((await stat(data.fixtureDir)).isDirectory()).toBe(true);
 
-      const env = createE2eDesktopEnv(data, { PATH: '/bin' });
+      const env = createE2eDesktopEnv(data, {
+        PATH: '/bin',
+        OPENAI_API_KEY: 'user-key-must-not-be-inherited',
+        GH_TOKEN: 'user-token-must-not-be-inherited',
+        NODE_OPTIONS: '--import=unexpected-module',
+        NODE_PATH: '/unexpected-modules',
+        ELECTRON_RUN_AS_NODE: '1',
+        ELECTRON_RENDERER_URL: 'http://unrelated-server',
+        HTTPS_PROXY: 'http://unrelated-proxy',
+      });
       expect(env).toMatchObject({
         ELECTRON_ENABLE_LOGGING: '1',
         PATH: '/bin',
@@ -26,6 +35,13 @@ describe('desktop E2E data helpers', () => {
         YOMITOMO_E2E: '1',
         YOMITOMO_USER_DATA_DIR: data.userDataDir,
       });
+      expect(Object.keys(env).toSorted()).toEqual([
+        'ELECTRON_ENABLE_LOGGING',
+        'PATH',
+        'YOMITOMO_DISABLE_TELEMETRY',
+        'YOMITOMO_E2E',
+        'YOMITOMO_USER_DATA_DIR',
+      ]);
 
       const text = await createTextFixture(data.fixtureDir, {
         content: 'fixture text',

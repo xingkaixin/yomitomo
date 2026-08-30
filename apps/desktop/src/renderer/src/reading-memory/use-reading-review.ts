@@ -18,6 +18,7 @@ import {
   type ReadingReviewSubmitInput,
 } from '../../../ipc-contract';
 import { getDesktopApi } from '../shell/app-desktop-api';
+import { recordReadingMemoryJudgment, recordReadingMemoryQuery } from './reading-memory-usage';
 
 export type ReadingReviewComparisonState =
   | { phase: 'searching' | 'search-failed' }
@@ -268,6 +269,7 @@ export function useReadingReview(catalogRevision: unknown) {
     try {
       const result = await getDesktopApi().readingMemory.review.searchEvidence(search);
       if (!isCurrentComparison(request, search)) return;
+      recordReadingMemoryQuery(result);
       setComparison({ phase: 'idle', result });
       await compareRemote(request, search, result, false);
     } catch {
@@ -304,9 +306,14 @@ export function useReadingReview(catalogRevision: unknown) {
         requestId: request.requestId,
         comparisonId: search.comparisonId,
       });
-      if (isCurrentComparison(request, search)) setComparison({ phase: 'idle', result: compared });
+      if (isCurrentComparison(request, search)) {
+        recordReadingMemoryJudgment(compared.judgment);
+        setComparison({ phase: 'idle', result: compared });
+      }
     } catch {
-      if (isCurrentComparison(request, search)) setComparison({ phase: 'failed', result: local });
+      if (isCurrentComparison(request, search)) {
+        setComparison({ phase: 'failed', result: local });
+      }
     }
   }
 

@@ -1,5 +1,7 @@
 import { performance } from 'node:perf_hooks';
+import type { ReadingMemoryUsageKey } from '@yomitomo/shared';
 import type { WeReadState } from '../../ipc-contract';
+import { readingMemoryEnabled } from '../../reading-memory-release';
 import { modelPriceRefreshIntervalMs } from '../providers/model-pricing-repository';
 import {
   createDesktopTelemetryControllerForEnvironment,
@@ -56,6 +58,9 @@ export type MainProcessRuntime = {
   configureWeReadAutoSync: (reason: string) => void;
   onDatabaseRestored: () => void;
   checkTelemetryFocus: () => void;
+  checkTelemetrySettings: () => void;
+  recordReadingMemoryUsage: (key: ReadingMemoryUsageKey) => void;
+  requestReadingMemoryProjectionRebuild: () => void;
   suspendForAppUpdate: () => Promise<void>;
   resumeAfterAppUpdateFailure: () => Promise<void>;
   dispose: () => Promise<void>;
@@ -68,9 +73,10 @@ export function startMainProcessRuntime(
   const createTelemetryController =
     dependencies.createTelemetryController ?? createDesktopTelemetryControllerForEnvironment;
   const syncWeRead = dependencies.syncWeRead ?? syncWeReadLibrary;
-  const evidenceProjectionWorker: ReadingMemoryEvidenceProjectionWorker = (
-    dependencies.startEvidenceProjectionWorker ?? startReadingMemoryEvidenceProjectionWorker
-  )();
+  const evidenceProjectionWorker: ReadingMemoryEvidenceProjectionWorker | null =
+    readingMemoryEnabled
+      ? (dependencies.startEvidenceProjectionWorker ?? startReadingMemoryEvidenceProjectionWorker)()
+      : null;
   let disposePromise: Promise<void> | null = null;
   let weReadConfigurationToken = 0;
   let weReadSyncRunning = false;
@@ -222,7 +228,7 @@ export function startMainProcessRuntime(
   };
 
   const reconcileReadingMemorySemanticIndex = (reason: string) => {
-    if (disposePromise) return;
+    if (disposePromise || !readingMemoryEnabled) return;
     void dependencies.readingMemoryControls.reconcile(reason).catch((error) => {
       if (!disposePromise) {
         dependencies.logError('reading_memory.semantic_reconcile_request_failed', error, {
@@ -249,12 +255,23 @@ export function startMainProcessRuntime(
     configureWeReadAutoSync,
     onDatabaseRestored: () => {
       if (disposePromise) return;
+      telemetryController?.check('manual');
       configureWeReadAutoSync('database-restored');
-      evidenceProjectionWorker.requestRun('database_restored');
+      evidenceProjectionWorker?.requestRun('database_restored');
       reconcileReadingMemorySemanticIndex('database-restored');
     },
     checkTelemetryFocus: () => {
       if (!disposePromise) telemetryController?.check('focus');
+    },
+    checkTelemetrySettings: () => {
+      if (!disposePromise) telemetryController?.check('manual');
+    },
+    recordReadingMemoryUsage: (key) => {
+      if (!disposePromise && readingMemoryEnabled)
+        telemetryController?.recordReadingMemoryUsage(key);
+    },
+    requestReadingMemoryProjectionRebuild: () => {
+      if (!disposePromise) evidenceProjectionWorker?.requestRun('manual');
     },
     suspendForAppUpdate: () => {
       if (disposePromise) return disposePromise;
@@ -271,7 +288,7 @@ export function startMainProcessRuntime(
       disposeModelPriceRefresh();
       disposeAppUpdateCheck();
       clearWeReadTimers();
-      evidenceProjectionWorker.dispose();
+      evidenceProjectionWorker?.dispose();
       telemetryController?.dispose();
       telemetryController = null;
       return disposePromise;

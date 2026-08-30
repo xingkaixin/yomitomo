@@ -23,6 +23,7 @@ export type ReadingRelationsProviderRequest = {
   canceled: boolean;
   fail: () => void;
   respond: (explanation?: string) => void;
+  respondWith: (output: unknown) => void;
 };
 
 export type ReadingRelationsProvider = {
@@ -32,7 +33,7 @@ export type ReadingRelationsProvider = {
 
 export async function withReadingRelationsProvider<T>(
   run: (provider: ReadingRelationsProvider) => Promise<T>,
-  options: { holdResponses?: boolean } = {},
+  options: { holdResponses?: boolean; offline?: boolean } = {},
 ): Promise<T> {
   const requests: ReadingRelationsProviderRequest[] = [];
   const server = createServer((request, response) => {
@@ -46,13 +47,20 @@ export async function withReadingRelationsProvider<T>(
     server.listen(0, '127.0.0.1', resolve);
   });
   const address = server.address() as AddressInfo;
+  if (options.offline) {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+    });
+  }
   try {
     return await run({ baseUrl: `http://127.0.0.1:${address.port}/v1`, requests });
   } finally {
-    await new Promise<void>((resolve, reject) => {
-      server.close((error) => (error ? reject(error) : resolve()));
-      server.closeAllConnections();
-    });
+    if (server.listening) {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+        server.closeAllConnections();
+      });
+    }
   }
 }
 
@@ -74,10 +82,13 @@ async function receiveRequest(
       response.end(JSON.stringify({ error: { message: 'Controlled E2E provider failure' } }));
     },
     respond(explanation) {
-      if (response.destroyed || response.writableEnded) return;
       const message = body.messages.find((item) => item.role === 'user');
       const input = JSON.parse(message?.content ?? '{}') as ReadingInput;
-      const text = JSON.stringify(controlledReadingOutput(input, explanation));
+      pending.respondWith(controlledReadingOutput(input, explanation));
+    },
+    respondWith(output) {
+      if (response.destroyed || response.writableEnded) return;
+      const text = JSON.stringify(output);
       response.writeHead(200, { 'content-type': 'application/json' });
       response.end(
         JSON.stringify({

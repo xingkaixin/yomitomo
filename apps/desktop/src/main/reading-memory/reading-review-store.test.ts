@@ -272,6 +272,10 @@ describe('reading review submission consistency', () => {
 
     const retried = appendReadingReview(fixture.executor, input);
 
+    expect(first.inserted).toBe(true);
+    expect(second.inserted).toBe(true);
+    expect(retried.inserted).toBe(false);
+
     expect(retried.event).toEqual(first.event);
     expect(retried.asset.current).toEqual(second.asset.current);
     expect(readReadingReviewHistory(fixture.executor, commentRef).events).toEqual([

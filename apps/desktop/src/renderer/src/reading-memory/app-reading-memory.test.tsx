@@ -2,7 +2,7 @@
 
 import React, { useState, type ComponentProps } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReadingMemory } from './app-reading-memory';
 
 type ReadingMemoryProps = ComponentProps<typeof ReadingMemory>;
@@ -13,7 +13,21 @@ const children = vi.hoisted(() => ({
   distillations: vi.fn<(props: DistillationProps) => void>(),
   library: vi.fn<(props: ReadingMemoryProps) => void>(),
   review: vi.fn<(props: ReviewProps) => void>(),
+  recordUsage: vi.fn(),
 }));
+
+const release = vi.hoisted(() => ({ enabled: undefined as boolean | undefined }));
+
+vi.mock('../../../reading-memory-release', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../reading-memory-release')>();
+  return {
+    get readingMemoryEnabled() {
+      return release.enabled ?? actual.readingMemoryEnabled;
+    },
+  };
+});
+
+vi.mock('./reading-memory-usage', () => ({ recordReadingMemoryUsage: children.recordUsage }));
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -59,6 +73,10 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+beforeEach(() => {
+  release.enabled = true;
+});
+
 function renderMemory() {
   const props: ReadingMemoryProps = {
     collections: [{ id: 'collection-1', name: 'Reading list', createdAt: '', updatedAt: '' }],
@@ -73,6 +91,33 @@ function tab(value: 'distillations' | 'library' | 'review') {
 }
 
 describe('ReadingMemory', () => {
+  it('keeps only the legacy distillation library in the default release', () => {
+    release.enabled = undefined;
+    const { props } = renderMemory();
+
+    expect(screen.getByText('Distillation child')).toBeTruthy();
+    expect(screen.queryByRole('tablist')).toBeNull();
+    expect(children.library).not.toHaveBeenCalled();
+    expect(children.review).not.toHaveBeenCalled();
+    expect(children.recordUsage).not.toHaveBeenCalled();
+    expect(children.distillations.mock.lastCall?.[0].onOpenEvidenceSource).toBe(
+      props.onOpenEvidenceSource,
+    );
+  });
+
+  it('records opening a new tab only after an explicit change to library or review', () => {
+    const { props, rerender } = renderMemory();
+    expect(children.recordUsage).not.toHaveBeenCalled();
+    fireEvent.click(tab('library'));
+    expect(children.recordUsage).toHaveBeenCalledExactlyOnceWith('feature_opened');
+    fireEvent.click(tab('library'));
+    rerender(<ReadingMemory {...props} catalogRevision={8} />);
+    fireEvent.click(tab('distillations'));
+    expect(children.recordUsage).toHaveBeenCalledOnce();
+    fireEvent.click(tab('review'));
+    expect(children.recordUsage.mock.calls).toEqual([['feature_opened'], ['feature_opened']]);
+  });
+
   it('opens the existing distillation library by default without mounting a question session', () => {
     renderMemory();
 

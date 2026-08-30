@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, cleanup, renderHook } from '@testing-library/react';
-import { createPdfTextAnchor, type Annotation } from '@yomitomo/shared';
+import { createPdfTextAnchor, createTextAnchor, type Annotation } from '@yomitomo/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { usePdfiumNavigation } from './app-source-bookcase-pdfium-navigation';
 
@@ -113,6 +113,44 @@ describe('usePdfiumNavigation focus', () => {
     expect(previous.onFocusedAnnotation).not.toHaveBeenCalled();
     expect(current.onFocusedAnnotation).toHaveBeenCalledExactlyOnceWith(false);
   });
+
+  it.each(['deleted', 'changed-anchor'] as const)(
+    'discards an old extraction when the same focus target is %s',
+    async (change) => {
+      const extraction = deferred<string>();
+      const extractPageText = vi
+        .fn<NavigationOptions['extractPageText']>()
+        .mockReturnValueOnce(extraction.promise)
+        .mockResolvedValue(pageText);
+      const previous = navigationOptions({ extractPageText });
+      const { rerender } = renderHook(usePdfiumNavigation, { initialProps: previous });
+      const replacementText = 'Replacement excerpt.';
+      const current = {
+        ...previous,
+        annotations:
+          change === 'deleted'
+            ? []
+            : [
+                {
+                  ...annotation,
+                  anchor: {
+                    ...anchor,
+                    ...createTextAnchor(replacementText, 0, replacementText.length),
+                  },
+                },
+              ],
+        onFocusedAnnotation: vi.fn(),
+      };
+
+      rerender(current);
+      await act(async () => extraction.resolve(pageText));
+      await act(() => vi.runAllTimersAsync());
+
+      expect(previous.onFocusedAnnotation).not.toHaveBeenCalled();
+      expect(current.onFocusedAnnotation).toHaveBeenCalledExactlyOnceWith(false);
+      expect(extractPageText).toHaveBeenCalledTimes(change === 'deleted' ? 1 : 2);
+    },
+  );
 
   it.each(['pending-extraction', 'pending-completion'] as const)(
     'does not complete an unmounted request with %s',

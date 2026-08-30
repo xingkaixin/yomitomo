@@ -202,7 +202,7 @@ describe('GeneralSettings', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('checkbox', { name: /发送匿名版本与系统指标/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /发送匿名使用指标/ }));
 
     expect(screen.queryByText('允许访问本机和私有网络？')).toBeNull();
     const nextDraft = expect.objectContaining({ telemetryEnabled: false });
@@ -223,7 +223,7 @@ describe('GeneralSettings', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('checkbox', { name: /发送匿名版本与系统指标/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /发送匿名使用指标/ }));
     view.rerender(
       <GeneralSettings
         settingsDraft={{ telemetryEnabled: false }}

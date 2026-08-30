@@ -22,6 +22,7 @@ type ReadingMemoryApi = YomitomoDesktopApi['readingMemory'];
 type ReviewApi = ReadingMemoryApi['review'];
 
 const api = {
+  recordUsage: vi.fn<ReadingMemoryApi['recordUsage']>(),
   confirmPrivacy: vi.fn<ReadingMemoryApi['confirmPrivacy']>(),
   review: {
     queue: vi.fn<ReviewApi['queue']>(),
@@ -33,7 +34,7 @@ const api = {
     compareEvidence: vi.fn<ReviewApi['compareEvidence']>(),
     cancel: vi.fn<ReviewApi['cancel']>(),
   },
-} satisfies Pick<ReadingMemoryApi, 'confirmPrivacy' | 'review'>;
+} satisfies Pick<ReadingMemoryApi, 'confirmPrivacy' | 'review' | 'recordUsage'>;
 
 const item: ReadingReviewQueueItem = {
   asset: {
@@ -56,6 +57,7 @@ let consentRequired = true;
 
 beforeEach(() => {
   vi.resetAllMocks();
+  api.recordUsage.mockResolvedValue(undefined);
   consentRequired = true;
   api.confirmPrivacy.mockImplementation(async () => {
     consentRequired = false;
@@ -323,6 +325,8 @@ describe('useReadingReview', () => {
     api.review.searchEvidence.mockReturnValueOnce(searching.promise);
     const { result } = await startRevealed();
     expect(result.current.comparison).toBeNull();
+
+    expect(api.recordUsage).not.toHaveBeenCalled();
     expect(api.review.searchEvidence).not.toHaveBeenCalled();
     expect(api.review.compareEvidence).not.toHaveBeenCalled();
     let compare!: Promise<void>;
@@ -498,6 +502,24 @@ describe('useReadingReview', () => {
     expect(api.confirmPrivacy).toHaveBeenCalledOnce();
     expect(api.review.compareEvidence).toHaveBeenCalledTimes(2);
     expect(result.current.comparison?.phase).toBe('idle');
+  });
+
+  it.each([
+    ['READING_REVIEW_CONFLICT', new Error('READING_REVIEW_CONFLICT')],
+    ['READING_MEMORY_SESSION_EXPIRED', new Error('READING_MEMORY_SESSION_EXPIRED')],
+    ['AbortError', new DOMException('Canceled', 'AbortError')],
+  ])('does not count a %s rejection as a remote call failure', async (_name, error) => {
+    consentRequired = false;
+    api.review.compareEvidence.mockRejectedValueOnce(error);
+    const { result } = await startRevealed();
+    await act(() => result.current.compare());
+
+    expect(result.current.comparison).toMatchObject({
+      phase: 'failed',
+      result: { evidence: [{ id: 'evidence-1' }] },
+    });
+    expect(result.current.state).toMatchObject({ phase: 'revealed', result: { answer } });
+    expect(api.recordUsage).not.toHaveBeenCalledWith('fallback_call_failure');
   });
 
   it('appends history pages without dropping old asset versions or duplicating existing events', async () => {

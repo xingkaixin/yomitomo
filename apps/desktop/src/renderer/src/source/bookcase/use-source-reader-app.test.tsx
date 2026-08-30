@@ -9,7 +9,22 @@ import { useSourceReaderAppView } from './use-source-reader-app-view';
 import { articleActionStubs } from '../../__tests__/article-actions-test-utils';
 import { appToast } from '../../shell/app-toast';
 
+const release = vi.hoisted(() => ({ enabled: undefined as boolean | undefined }));
+
+vi.mock('../../../../reading-memory-release', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../reading-memory-release')>();
+  return {
+    get readingMemoryEnabled() {
+      return release.enabled ?? actual.readingMemoryEnabled;
+    },
+  };
+});
+
 vi.mock('../../shell/app-toast', () => ({ appToast: { error: vi.fn() } }));
+vi.mock('../../sound/app-sound-effects', () => ({
+  playAppSoundEffect: vi.fn(),
+  stopAppSoundEffect: vi.fn(),
+}));
 
 const now = '2026-07-26T00:00:00.000Z';
 const annotation: Annotation = {
@@ -37,12 +52,51 @@ const userProfile: UserProfile = {
 
 afterEach(() => {
   cleanup();
+  release.enabled = undefined;
+  vi.unstubAllGlobals();
   window.localStorage.clear();
   vi.clearAllMocks();
   vi.useRealTimers();
 });
 
 describe('useSourceReaderApp', () => {
+  it.each([false, true])('exposes related reading only in the enabled build (%s)', (enabled) => {
+    release.enabled = enabled ? true : undefined;
+    const search = vi.fn().mockRejectedValue(new Error('Local fixture search unavailable'));
+    vi.stubGlobal('yomitomoDesktop', {
+      readingMemory: { relations: { search, cancel: vi.fn().mockResolvedValue(undefined) } },
+    });
+    const currentArticle = article('web', 'article_1');
+    const { result } = renderHook(() =>
+      useSourceReaderApp({
+        articleActions: articleActionStubs(),
+        onOpenEvidenceSource: vi.fn(),
+        getArticleText: () => 'text',
+        session: {
+          agents: [],
+          annotations: currentArticle.annotations,
+          article: currentArticle,
+          clearPendingOnArticleChange: true,
+          clearPendingOnDeleteAnnotation: true,
+          onArticleChange: vi.fn(),
+          userProfile,
+        },
+      }),
+    );
+    const readerSurface = surface({ onRevealReaderChatContext: vi.fn() });
+    const props = result.current.viewProps(readerSurface);
+    expect(search).not.toHaveBeenCalled();
+    if (!enabled) {
+      expect(props.actions.selection.onFindRelated).toBeUndefined();
+      expect(props.overlays).toBeNull();
+      return;
+    }
+    expect(props.actions.selection.onFindRelated).toBeTypeOf('function');
+    act(() => props.actions.selection.onFindRelated?.({ x: 0, y: 0, anchor: annotation.anchor }));
+    expect(search).toHaveBeenCalledOnce();
+    expect(result.current.viewProps(readerSurface).overlays).not.toBeNull();
+  });
+
   it.each(['web', 'ebook', 'pdf'] as const)(
     'owns the shared %s reader session and workspace lifecycle',
     async (sourceType) => {

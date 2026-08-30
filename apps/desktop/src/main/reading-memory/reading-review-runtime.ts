@@ -4,6 +4,7 @@ import type {
   ReadingEvidence,
   ReadingJudgmentResult,
   ReadingReviewAssetRef,
+  ReadingReviewDecision,
 } from '@yomitomo/shared';
 import {
   readingReviewAnswerLimit,
@@ -57,6 +58,7 @@ type ReadingReviewRuntimeOptions = {
   getAiModule: () => Promise<Pick<typeof import('@yomitomo/ai'), 'runReadingJudgment'>>;
   hydrateProvider?: typeof hydrateProviderApiKey;
   logInfo?: (event: string, data?: Record<string, unknown>) => void;
+  onReviewInserted?: (decision: ReadingReviewDecision) => void;
 };
 
 export type ReadingReviewRuntime = ReturnType<typeof createReadingReviewRuntime>;
@@ -179,7 +181,7 @@ export function createReadingReviewRuntime(options: ReadingReviewRuntimeOptions)
       const result = await withReadingMemoryRequestContext((current) => {
         requests.assertCurrent(ownerId, request, signal);
         if (current.generation !== snapshot.generation) throw sessionExpired();
-        const { event } = appendReadingReview(current.executor, {
+        const { event, inserted } = appendReadingReview(current.executor, {
           id: input.eventId,
           asset: request.input.asset,
           assetVersion: snapshot.asset.base.assetVersion,
@@ -190,6 +192,7 @@ export function createReadingReviewRuntime(options: ReadingReviewRuntimeOptions)
         });
         snapshot.comparison?.controller.abort();
         snapshot.comparison = undefined;
+        if (inserted) options.onReviewInserted?.(event.decision);
         return { requestId: input.requestId, event };
       });
       requests.assertCurrent(ownerId, request, signal);

@@ -103,7 +103,12 @@ describe('store data update IPC', () => {
 
   it('forwards restored stores with their source event', async () => {
     const store = desktopStore();
-    ipcState.restoreDatabaseWithDialog.mockResolvedValue({ canceled: false, store });
+    ipcState.restoreDatabaseWithDialog.mockImplementation(
+      async (_parentWindow, onDatabaseRestored: () => void) => {
+        onDatabaseRestored();
+        return { canceled: false, store };
+      },
+    );
     const context = storeContext({});
     registerStoreDataIpc(context);
     const handler = ipcState.handlers.get('data:database-restore');
@@ -114,6 +119,27 @@ describe('store data update IPC', () => {
     expect(result).toEqual({ ok: true, value: { canceled: false, store } });
     expect(context.sendFullStoreUpdated).toHaveBeenCalledWith(event, store);
     expect(context.onDatabaseRestored).toHaveBeenCalledOnce();
+    expect(ipcState.restoreDatabaseWithDialog).toHaveBeenCalledWith(
+      null,
+      context.onDatabaseRestored,
+    );
+  });
+
+  it('keeps the replacement notification when refreshing the restored snapshot fails', async () => {
+    ipcState.restoreDatabaseWithDialog.mockImplementation(
+      async (_parentWindow, onDatabaseRestored: () => void) => {
+        onDatabaseRestored();
+        throw new Error('Snapshot unavailable');
+      },
+    );
+    const context = storeContext({});
+    registerStoreDataIpc(context);
+
+    const result = await invokeRegisteredHandler('data:database-restore');
+
+    expect(result.ok).toBe(false);
+    expect(context.onDatabaseRestored).toHaveBeenCalledOnce();
+    expect(context.sendFullStoreUpdated).not.toHaveBeenCalled();
   });
 
   it.each(['canceled', 'failed'])(

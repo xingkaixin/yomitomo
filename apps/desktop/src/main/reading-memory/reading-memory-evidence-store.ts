@@ -1,5 +1,6 @@
 import type { ProjectedReadingEvidenceEntry } from '@yomitomo/core';
 import { recordField, stringField } from '@yomitomo/shared';
+import { withReadingMemoryTransaction } from './reading-memory-store';
 import type { ReadingMemorySqliteExecutor } from './reading-memory-store-types';
 
 const annotationThreadTargetType = 'annotation_thread';
@@ -11,6 +12,19 @@ type ReadingMemoryEvidenceReceipt = {
   projectorVersion: string;
   projectedAt: string;
 };
+
+export function resetReadingEvidenceProjection(executor: ReadingMemorySqliteExecutor) {
+  withReadingMemoryTransaction(executor, () => {
+    executor.exec(`
+DELETE FROM reading_memory_evidence_fts;
+DELETE FROM reading_memory_evidence_vectors;
+DELETE FROM reading_memory_evidence_entries;
+DELETE FROM reading_memory_evidence_receipts;
+DELETE FROM reading_memory_projection_jobs;
+DELETE FROM reading_memory_semantic_state;
+`);
+  });
+}
 
 export function replaceReadingEvidenceThreadInTransaction(
   executor: ReadingMemorySqliteExecutor,

@@ -9,6 +9,8 @@
     "build": "pnpm run rebuild:native && node scripts/verify-native-roots.mjs && electron-vite build && pnpm run dist:verify",
     "dist:verify": "node scripts/verify-desktop-dist.mjs",
     "embedding:smoke:packaged": "node scripts/smoke-packaged-embedding.mjs",
+    "reading-memory:test-fixtures": "vitest run --config e2e/packaged/unit.vitest.config.ts",
+    "reading-memory:acceptance": "node scripts/reading-memory-acceptance.mjs",
     "make:mac-arm": "pnpm run build && pnpm run make:mac-arm:from-dist",
     "make:mac-arm:from-dist": "pnpm run dist:verify && node scripts/verify-native-roots.mjs && electron-builder --config electron-builder.config.cjs --config.directories.output=../../dist/app/mac-arm64 --mac --arm64 --publish never",
     "make:win-x64": "pnpm run build && pnpm run make:win-x64:from-dist",

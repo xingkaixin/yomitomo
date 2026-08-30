@@ -186,6 +186,7 @@ describe('ReadingRelationsPanel', () => {
       articleId: 'source-article',
       annotationId: 'annotation-1',
       view,
+      readingMemoryJump: true,
     });
     expect(props.onClose).toHaveBeenCalledOnce();
     expect(props.onOpenEvidenceSource.mock.invocationCallOrder[0]).toBeLessThan(

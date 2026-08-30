@@ -82,7 +82,11 @@ Yomitomo supports update flows on macOS and Windows. The app checks for new vers
 
 ## Privacy and Telemetry
 
-The Privacy group in Settings > General provides a "Send anonymous version and system metrics" toggle, on by default. When enabled, Yomitomo sends an anonymous heartbeat at most once per day containing an anonymous installation ID, app version, platform, OS version, architecture, local day, and optional timezone, used to understand active version and system distribution. It does not collect reading content, book titles, annotations, file paths, or AI conversations. You can turn it off at any time to stop reporting.
+The Privacy group in Settings > General provides a "Send anonymous usage metrics" toggle, on by default. When enabled, Yomitomo sends an anonymous heartbeat at most once per day containing an anonymous installation ID, app version, platform, OS version, architecture, local day, and optional timezone, used to understand active version and system distribution.
+
+Reading memory sends separate requests with no identifiers, containing only counts of explicit feature openings, accepted local query completions, successful source jumps, the three review decisions, and keyword, partial-index, no-provider, or call-failure fallbacks. A later AI answer does not count as a second completion of the same query, and retrying a review does not count twice. These counts contain no dates, versions, questions, titles, excerpts, citations, judgments, or answers, and are never attached to the heartbeat containing the installation ID. Counts stay only in memory and each batch is attempted at most once; failures or exit can lose counts. They are not unique-user counts or exactly deduplicated measurements.
+
+Neither kind of telemetry collects reading content, book titles, annotations, file paths, or AI conversations. You can turn the toggle off at any time to stop reporting and clear unsent reading-memory counts.
 
 ## Assistant Diagnostics
 

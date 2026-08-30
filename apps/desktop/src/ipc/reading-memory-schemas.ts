@@ -108,6 +108,17 @@ const reviewComparisonArgsSchema = z.tuple([
 ]);
 
 export const readingMemoryIpcInvokeSchemas = {
+  'reading-memory:record-usage': z.tuple([
+    z.enum([
+      'feature_opened',
+      'query_completed',
+      'source_jump',
+      'fallback_keyword',
+      'fallback_partial_index',
+      'fallback_no_provider',
+      'fallback_call_failure',
+    ]),
+  ]),
   'reading-memory:relations:search': searchArgsSchema,
   'reading-memory:relations:judge': requestArgsSchema,
   'reading-memory:relations:cancel': requestArgsSchema,

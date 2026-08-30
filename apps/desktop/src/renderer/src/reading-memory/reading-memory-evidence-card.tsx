@@ -21,6 +21,7 @@ export function ReadingMemoryEvidenceCard({
       articleId: evidence.source.ref.id,
       annotationId: evidence.location.annotationId,
       view,
+      readingMemoryJump: true,
     });
     onAfterOpen?.();
   }

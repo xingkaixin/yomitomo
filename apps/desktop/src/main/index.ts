@@ -309,6 +309,7 @@ void app.whenReady().then(async () => {
     modelLifecycle: readingMemoryModelLifecycle,
     semanticIndex: readingMemorySemanticIndex,
     userDataPath: app.getPath('userData'),
+    onProjectionRebuild: () => mainProcessRuntime?.requestReadingMemoryProjectionRebuild(),
   });
   readingRelationsRuntime = createReadingRelationsRuntime({
     semanticIndex: readingMemorySemanticIndex,
@@ -325,6 +326,8 @@ void app.whenReady().then(async () => {
     readQueue: createReadingReviewQueue({ semanticIndex: readingMemorySemanticIndex }),
     getAiModule,
     logInfo,
+    onReviewInserted: (decision) =>
+      mainProcessRuntime?.recordReadingMemoryUsage(`review_${decision}`),
   });
   mainProcessRuntime = startMainProcessRuntime({
     getPersistenceModules,
@@ -341,6 +344,7 @@ void app.whenReady().then(async () => {
     library: readingLibraryRuntime,
     review: readingReviewRuntime,
     controls: readingMemoryControls,
+    recordUsage: (key) => mainProcessRuntime?.recordReadingMemoryUsage(key),
   });
   registerIpc(startupStoreInitialization);
   recordStartupTiming('ipc.registered');
@@ -398,6 +402,7 @@ function registerIpc(startupStoreInitialization: StartupStoreInitializationResul
     recordPerformanceTiming,
     configureWeReadAutoSync: (reason: string) =>
       mainProcessRuntime?.configureWeReadAutoSync(reason),
+    onSettingsSaved: () => mainProcessRuntime?.checkTelemetrySettings(),
     onDatabaseRestored: () => {
       readingRelationsRuntime?.cancelAll();
       readingLibraryRuntime?.cancelAll();

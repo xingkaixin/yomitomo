@@ -47,6 +47,7 @@ describe('desktop telemetry heartbeat', () => {
   it('creates a telemetry controller outside automation environments', () => {
     const controller = {
       check: vi.fn(),
+      recordReadingMemoryUsage: vi.fn(),
       dispose: vi.fn(),
     };
     const createController = vi.fn().mockReturnValue(controller);

@@ -22,6 +22,7 @@ export function createReadingMemoryControls(options: {
   modelLifecycle: ReadingMemoryModelLifecycle;
   semanticIndex: ReadingMemorySemanticIndex;
   userDataPath: string;
+  onProjectionRebuild?: () => void;
 }): ReadingMemoryControls {
   const { modelLifecycle, semanticIndex, userDataPath } = options;
   let mode: 'running' | 'updating' | 'disposed' = 'running';
@@ -81,6 +82,11 @@ export function createReadingMemoryControls(options: {
     await modelLifecycle.cancelDownload();
   };
 
+  const rebuild = async () => {
+    await semanticIndex.rebuild();
+    options.onProjectionRebuild?.();
+  };
+
   return {
     status,
     download: () => {
@@ -123,10 +129,12 @@ export function createReadingMemoryControls(options: {
       control(async () => {
         semanticIndex.resumeIndexing();
       }),
-    rebuild: () => control(() => semanticIndex.rebuild()),
+    rebuild: () => control(rebuild),
     reconcile: (reason) =>
       enqueue(async () => {
-        if (mode === 'running') await semanticIndex.reconcile(reason);
+        if (mode !== 'running') return;
+        if (reason === 'database-restored') await rebuild();
+        await semanticIndex.reconcile(reason);
       }),
     suspendForAppUpdate: () => {
       if (disposePromise) return disposePromise;

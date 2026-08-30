@@ -11,7 +11,10 @@ import type {
   ReadingMemoryModelInstallation,
 } from './reading-memory-embedding-service';
 import type { ReadingMemoryEmbeddingRequest } from './reading-memory-embedding-worker-protocol';
-import { readingMemoryEvidenceProjectorVersion } from './reading-memory-evidence-projection-batch';
+import {
+  readingMemoryEvidenceProjectorVersion,
+  runReadingMemoryEvidenceProjectionBatch,
+} from './reading-memory-evidence-projection-batch';
 import { readStoredAnnotationThreadSources } from './reading-memory-evidence-source';
 import { replaceReadingEvidenceThreadInTransaction } from './reading-memory-evidence-store';
 import type {
@@ -198,6 +201,50 @@ describe('reading memory semantic index scheduling', () => {
     fixture.inference.calls[1].complete();
     await nextTurn();
     expect(fixture.vectorCount()).toBe(1);
+  });
+
+  it('waits for old inference before resetting every derived index and resumes from the rebuilt projection', async () => {
+    const fixture = createFixture(controlledInstallation, installation);
+    fixture.add('a');
+    fixture.seed(installation);
+    activateReadingMemoryModelVersion(fixture.database, model(installation));
+    const original = fixture.database.prepare('SELECT * FROM annotations').all();
+    await fixture.index.reconcile();
+    await tick();
+    const pending = fixture.inference.calls[0];
+    pending.holdAbort = true;
+    let rebuilt = false;
+
+    const rebuild = fixture.index.rebuild().then(() => {
+      rebuilt = true;
+    });
+    await nextTurn();
+    expect(pending.signal.aborted).toBe(true);
+    expect(rebuilt).toBe(false);
+    expect(fixture.vectorCount(installation)).toBe(1);
+    pending.complete();
+    await rebuild;
+
+    const resetStatus = await fixture.index.getStatus();
+    expect(fixture.vectorCount(installation)).toBe(0);
+    expect(fixture.vectorCount()).toBe(0);
+    expect(readActiveReadingMemoryModelVersion(fixture.database)).toBeNull();
+    expect(resetStatus.projection).toEqual({
+      state: 'not_built',
+      coverage: { projectedAssetCount: 0, eligibleAssetCount: 1 },
+    });
+    expect(resetStatus.semantic.state).toBe('building');
+    expect(fixture.database.prepare('SELECT * FROM annotations').all()).toEqual(original);
+    runReadingMemoryEvidenceProjectionBatch(fixture.database);
+    await tick();
+    fixture.inference.calls[1].complete();
+    await nextTurn();
+    await tick();
+
+    expect(fixture.vectorCount()).toBe(1);
+    expect((await fixture.index.getStatus()).semantic.state).toBe('available');
+    expect(fixture.database.prepare('SELECT * FROM annotations').all()).toEqual(original);
+    expect(fixture.logError).not.toHaveBeenCalled();
   });
 
   it('backs off when a source changed before its projection was repaired', async () => {

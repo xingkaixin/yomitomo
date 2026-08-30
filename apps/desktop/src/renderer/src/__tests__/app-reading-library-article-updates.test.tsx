@@ -2,7 +2,7 @@
 
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ComponentProps } from 'react';
+import { useRef, type ComponentProps } from 'react';
 import i18next from 'i18next';
 import { articleCounts } from '@yomitomo/core';
 import type {
@@ -21,18 +21,26 @@ import { useLibraryQueryState } from '../reading-library/use-library-query-state
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { defaultTheme } from '../theme/app-theme';
 import { articleActionStubs, articleStoreSinkStub } from './article-actions-test-utils';
+import { useWebAnnotationFocus } from '../source/web/use-web-annotation-focus';
 
-const sourceBookcase = vi.hoisted(() => ({ props: null as SourceBookcaseProps | null }));
+const sourceBookcase = vi.hoisted(() => ({
+  props: null as SourceBookcaseProps | null,
+  driveFocus: false,
+}));
 type LibraryHomeProps = ComponentProps<typeof LibraryHome>;
 const libraryHome = vi.hoisted(() => ({ props: null as LibraryHomeProps | null }));
 const defaultArticleStore = articleStoreSinkStub();
 const toastError = vi.hoisted(() => vi.fn());
+const recordReadingMemoryUsage = vi.hoisted(() => vi.fn());
+
+vi.mock('../reading-memory/reading-memory-usage', () => ({ recordReadingMemoryUsage }));
 
 vi.mock('../shell/app-toast', () => ({ appToast: { error: toastError } }));
 
 vi.mock('../source/bookcase/app-source-bookcase', () => ({
   SourceBookcase: (props: SourceBookcaseProps) => {
     sourceBookcase.props = props;
+    if (sourceBookcase.driveFocus) return <WebFocusDriver {...props} />;
     return <div data-testid="source-bookcase" />;
   },
 }));
@@ -49,13 +57,16 @@ vi.mock('../sound/app-sound-effects', () => ({
 }));
 
 beforeEach(() => {
+  recordReadingMemoryUsage.mockClear();
   initializeAppI18n('zh-CN');
 });
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   libraryHome.props = null;
   sourceBookcase.props = null;
+  sourceBookcase.driveFocus = false;
   toastError.mockClear();
 });
 
@@ -74,11 +85,13 @@ describe('ReadingLibrary article updates', () => {
       openArticleTarget: { articleId: firstArticle.id },
     });
     await waitFor(() => expect(sourceBookcase.props?.content.article?.id).toBe(firstArticle.id));
+    expect(recordReadingMemoryUsage).not.toHaveBeenCalled();
 
     act(() =>
       sourceBookcase.props?.readerControl.onOpenEvidenceSource?.({
         articleId: secondArticle.id,
         annotationId: note.id,
+        readingMemoryJump: true,
       }),
     );
     await waitFor(() =>
@@ -89,16 +102,40 @@ describe('ReadingLibrary article updates', () => {
     );
     expect(sourceBookcase.props?.content.article?.id).toBe(secondArticle.id);
     expect(openArticleDiscussion).not.toHaveBeenCalled();
+    expect(recordReadingMemoryUsage).not.toHaveBeenCalled();
+    const confirmFocus = sourceBookcase.props!.annotationActions.onFocusedAnnotation;
+    act(() => confirmFocus(true));
+    act(() => confirmFocus(true));
+    expect(recordReadingMemoryUsage).toHaveBeenCalledExactlyOnceWith('source_jump');
 
     act(() =>
       sourceBookcase.props?.readerControl.onOpenEvidenceSource?.({
         articleId: secondArticle.id,
         annotationId: note.id,
         view: 'discussion',
+        readingMemoryJump: true,
       }),
     );
     await waitFor(() =>
       expect(openArticleDiscussion).toHaveBeenCalledWith(secondArticle.id, note.id),
+    );
+    await waitFor(() => expect(recordReadingMemoryUsage).toHaveBeenCalledTimes(2));
+    expect(recordReadingMemoryUsage.mock.calls).toEqual([['source_jump'], ['source_jump']]);
+  });
+
+  it('counts a marked cross-page source only after opening succeeds', async () => {
+    const selectedArticle = article();
+    const loading = deferred<ArticleRecord | null>();
+    renderReadingLibrary({
+      articleActions: articleActionStubs({ readArticle: vi.fn(() => loading.promise) }),
+      articles: [selectedArticle],
+      openArticleTarget: { articleId: selectedArticle.id, readingMemoryJump: true },
+    });
+    expect(recordReadingMemoryUsage).not.toHaveBeenCalled();
+
+    await act(async () => loading.resolve(selectedArticle));
+    await waitFor(() =>
+      expect(recordReadingMemoryUsage).toHaveBeenCalledExactlyOnceWith('source_jump'),
     );
   });
 
@@ -108,18 +145,118 @@ describe('ReadingLibrary article updates', () => {
     renderReadingLibrary({
       articleActions: articleActionStubs({ readArticle: vi.fn(async () => selectedArticle) }),
       articles: [selectedArticle],
-      openArticleTarget: { articleId: selectedArticle.id, annotationId: note.id },
+      openArticleTarget: {
+        articleId: selectedArticle.id,
+        annotationId: note.id,
+        readingMemoryJump: true,
+      },
     });
     await waitFor(() =>
       expect(sourceBookcase.props?.readerControl.focusAnnotationId).toBe(note.id),
     );
 
     act(() => sourceBookcase.props?.annotationActions.onFocusedAnnotation(false));
+    expect(recordReadingMemoryUsage).not.toHaveBeenCalled();
     expect(toastError).toHaveBeenCalledWith(i18next.t('readingEvidence.locationUnavailable'), {
       description: note.anchor.exact,
     });
     expect(sourceBookcase.props?.readerControl.focusAnnotationId).toBeNull();
     expect(sourceBookcase.props?.content.annotations[0].anchor.exact).toBe(note.anchor.exact);
+  });
+
+  it('does not let an old focus result confirm a newer or closed source jump', async () => {
+    const firstNote = annotationRecord();
+    const secondNote = { ...annotationRecord(), id: 'annotation_2' };
+    const selectedArticle = article({ annotations: [firstNote, secondNote] });
+    renderReadingLibrary({
+      articleActions: articleActionStubs({ readArticle: vi.fn(async () => selectedArticle) }),
+      articles: [selectedArticle],
+      openArticleTarget: {
+        articleId: selectedArticle.id,
+        annotationId: firstNote.id,
+        readingMemoryJump: true,
+      },
+    });
+    await waitFor(() =>
+      expect(sourceBookcase.props?.readerControl.focusAnnotationId).toBe(firstNote.id),
+    );
+    const firstFocus = sourceBookcase.props!.annotationActions.onFocusedAnnotation;
+    act(() =>
+      sourceBookcase.props!.readerControl.onOpenEvidenceSource?.({
+        articleId: selectedArticle.id,
+        annotationId: secondNote.id,
+        readingMemoryJump: true,
+      }),
+    );
+    await waitFor(() =>
+      expect(sourceBookcase.props?.readerControl.focusAnnotationId).toBe(secondNote.id),
+    );
+    const secondFocus = sourceBookcase.props!.annotationActions.onFocusedAnnotation;
+
+    act(() => firstFocus(true));
+    expect(recordReadingMemoryUsage).not.toHaveBeenCalled();
+    expect(sourceBookcase.props?.readerControl.focusAnnotationId).toBe(secondNote.id);
+    act(() => sourceBookcase.props!.readerControl.onClose());
+    act(() => secondFocus(true));
+    expect(recordReadingMemoryUsage).not.toHaveBeenCalled();
+  });
+
+  it('cancels an old reader completion when the same source is reopened after deletion', async () => {
+    vi.useFakeTimers();
+    sourceBookcase.driveFocus = true;
+    const note = annotationRecord();
+    let currentArticle = article({ annotations: [note] });
+    renderReadingLibrary({
+      articleActions: articleActionStubs({ readArticle: vi.fn(async () => currentArticle) }),
+      articles: [currentArticle],
+      openArticleTarget: {
+        articleId: currentArticle.id,
+        annotationId: note.id,
+        readingMemoryJump: true,
+      },
+    });
+    await act(async () => undefined);
+    await act(() => vi.advanceTimersToNextFrame());
+    expect(recordReadingMemoryUsage).not.toHaveBeenCalled();
+
+    currentArticle = article({ annotations: [] });
+    await act(async () => {
+      sourceBookcase.props!.readerControl.onOpenEvidenceSource?.({
+        articleId: currentArticle.id,
+        annotationId: note.id,
+        readingMemoryJump: true,
+      });
+    });
+    await act(() => vi.advanceTimersByTimeAsync(1_000));
+
+    expect(sourceBookcase.props?.content.annotations).toHaveLength(0);
+    expect(recordReadingMemoryUsage).not.toHaveBeenCalled();
+    expect(toastError).toHaveBeenCalledWith(i18next.t('readingEvidence.locationUnavailable'), {
+      description: undefined,
+    });
+  });
+
+  it('does not count a source focus confirmed after unmounting', async () => {
+    const note = annotationRecord();
+    const selectedArticle = article({ annotations: [note] });
+    const view = renderReadingLibrary({
+      articleActions: articleActionStubs({ readArticle: vi.fn(async () => selectedArticle) }),
+      articles: [selectedArticle],
+      openArticleTarget: {
+        articleId: selectedArticle.id,
+        annotationId: note.id,
+        readingMemoryJump: true,
+      },
+    });
+    await waitFor(() =>
+      expect(sourceBookcase.props?.readerControl.focusAnnotationId).toBe(note.id),
+    );
+    const confirmFocus = sourceBookcase.props!.annotationActions.onFocusedAnnotation;
+    view.unmount();
+
+    act(() => confirmFocus(true));
+
+    expect(recordReadingMemoryUsage).not.toHaveBeenCalled();
   });
 
   it('does not open a deleted discussion and reports a deleted source article', async () => {
@@ -135,6 +272,7 @@ describe('ReadingLibrary article updates', () => {
         articleId: selectedArticle.id,
         annotationId: 'deleted',
         view: 'discussion',
+        readingMemoryJump: true,
       },
     });
     await waitFor(() =>
@@ -143,11 +281,15 @@ describe('ReadingLibrary article updates', () => {
     expect(openArticleDiscussion).not.toHaveBeenCalled();
 
     act(() =>
-      sourceBookcase.props?.readerControl.onOpenEvidenceSource?.({ articleId: 'deleted_article' }),
+      sourceBookcase.props?.readerControl.onOpenEvidenceSource?.({
+        articleId: 'deleted_article',
+        readingMemoryJump: true,
+      }),
     );
     await waitFor(() =>
       expect(toastError).toHaveBeenCalledWith(i18next.t('library.articleLoadFailed')),
     );
+    expect(recordReadingMemoryUsage).not.toHaveBeenCalled();
   });
 
   it('registers and unregisters the navigation current-article sink', async () => {
@@ -343,6 +485,66 @@ describe('ReadingLibrary article updates', () => {
     expect(onReadArticle).toHaveBeenCalledTimes(1);
   });
 
+  it('preserves reader annotations for progress updates and refreshes real annotation changes', async () => {
+    const note = annotationRecord();
+    const selectedArticle = article({ annotations: [note] });
+    let currentSink: CurrentArticleSink | null = null;
+    const articleStore = articleStoreSinkStub((sink) => {
+      currentSink = sink;
+      return () => {
+        if (currentSink === sink) currentSink = null;
+      };
+    });
+    renderReadingLibrary({
+      articleActions: articleActionStubs({ readArticle: vi.fn(async () => selectedArticle) }),
+      articleStore,
+      articles: [selectedArticle],
+      openArticleTarget: { articleId: selectedArticle.id },
+    });
+    await waitFor(() => expect(sourceBookcase.props?.content.article?.id).toBe(selectedArticle.id));
+    await waitFor(() => expect(currentSink).not.toBeNull());
+    const readerAnnotations = sourceBookcase.props!.content.annotations;
+    const readingProgress = {
+      kind: 'scroll' as const,
+      progress: 1,
+      updatedAt: '2026-07-15T04:31:00.000Z',
+    };
+
+    act(() => {
+      currentSink?.apply({
+        type: 'update',
+        articleId: selectedArticle.id,
+        update: (current) => ({
+          ...current,
+          readingProgress,
+          updatedAt: readingProgress.updatedAt,
+        }),
+      });
+    });
+
+    expect(sourceBookcase.props?.content.article).toMatchObject({
+      readingProgress,
+      updatedAt: readingProgress.updatedAt,
+    });
+    expect(sourceBookcase.props?.content.annotations).toBe(readerAnnotations);
+
+    const laterNote = {
+      ...annotationRecord(),
+      id: 'annotation_2',
+      anchor: { exact: 'later', prefix: '', suffix: '', start: 6, end: 11 },
+    };
+    act(() => {
+      currentSink?.apply({
+        type: 'update',
+        articleId: selectedArticle.id,
+        update: (current) => ({ ...current, annotations: [laterNote, note] }),
+      });
+    });
+
+    expect(sourceBookcase.props?.content.annotations).toEqual([note, laterNote]);
+    expect(sourceBookcase.props?.content.annotations).not.toBe(readerAnnotations);
+  });
+
   it('keeps a route outside the sparse catalog until its delete projection arrives', async () => {
     const selectedArticle = article();
     const unrelatedArticle = article({
@@ -443,6 +645,22 @@ const userProfile: UserProfile = {
   annotationColor: '#f4c95d',
   updatedAt: '2026-07-15T04:00:00.000Z',
 };
+
+function WebFocusDriver(props: SourceBookcaseProps) {
+  const annotationsRef = useRef(props.content.annotations);
+  annotationsRef.current = props.content.annotations;
+  const scrollRef = useRef(document.createElement('div'));
+  useWebAnnotationFocus({
+    annotationsRef,
+    articleId: props.content.article!.id,
+    boxCount: 1,
+    focusAnnotationId: props.readerControl.focusAnnotationId,
+    onFocusedAnnotation: props.annotationActions.onFocusedAnnotation,
+    scrollRef,
+    scrollToAnnotation: () => true,
+  });
+  return <div data-testid="source-bookcase" />;
+}
 
 function renderReadingLibrary(options: ReadingLibraryTestOptions) {
   return render(readingLibrary(options));

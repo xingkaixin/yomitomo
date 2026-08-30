@@ -67,9 +67,11 @@ export function registerStoreDataIpc(context: StoreDataIpcContext) {
   });
   handleDesktopIpc('data:database-restore', async (event) => {
     const { restoreDatabaseWithDialog } = await import('../data-management');
-    const result = await restoreDatabaseWithDialog(context.getMainWindow());
+    const result = await restoreDatabaseWithDialog(
+      context.getMainWindow(),
+      context.onDatabaseRestored,
+    );
     if (!result.canceled) {
-      context.onDatabaseRestored();
       context.sendFullStoreUpdated(event, result.store);
     }
     return result;

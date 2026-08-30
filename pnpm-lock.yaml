@@ -268,6 +268,10 @@ importers:
         version: 4.125.0(@cloudflare/workers-types@5.20260823.1)
 
   apps/telemetry:
+    dependencies:
+      '@yomitomo/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^5.20260823.1

@@ -14,6 +14,7 @@ import {
   type ReadingMemoryEmbeddingPurpose,
 } from './reading-memory-embedding-worker-protocol';
 import { readReadingEvidenceProjectionStatus } from './reading-memory-evidence-search';
+import { resetReadingEvidenceProjection } from './reading-memory-evidence-store';
 import type { ReadingMemoryModelLifecycle } from './reading-memory-model-lifecycle';
 import { readingMemoryModelVectorDimension } from './reading-memory-model-manifest';
 import { searchReadingMemoryEvidence } from './reading-memory-semantic-search';
@@ -366,9 +367,7 @@ export function createReadingMemorySemanticIndex(
     rebuild: () =>
       maintain(async () => {
         if (mode === 'disposed') return;
-        await options.withDatabase((executor) => {
-          deleteReadingMemoryModelVectors(executor, options.modelLifecycle.getState().internalId);
-        });
+        await options.withDatabase(resetReadingEvidenceProjection);
         indexingFailed = false;
       }),
     suspend: () =>

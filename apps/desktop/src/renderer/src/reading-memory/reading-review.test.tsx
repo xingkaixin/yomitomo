@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReadingEvidence, ReadingReviewEvent } from '@yomitomo/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
@@ -134,7 +134,7 @@ describe('ReadingReview', () => {
       name: 'readingMemory.review.answer',
     });
     expect(input.value).toBe('');
-    expect(input).toBe(document.activeElement);
+    await waitFor(() => expect(input).toBe(document.activeElement));
     expect(screen.getByText(first.source.title)).toBeTruthy();
     expect(screen.getByLabelText('readingMemory.review.sourceQuote').textContent).toBe(first.quote);
     expect(screen.getByText(/readingMemory.review.formedAt.*2026/)).toBeTruthy();
@@ -183,6 +183,7 @@ describe('ReadingReview', () => {
       articleId: first.asset.articleId,
       annotationId: first.asset.annotationId,
       view: 'source',
+      readingMemoryJump: true,
     });
   });
 
@@ -304,7 +305,7 @@ describe('ReadingReview', () => {
     const input = await screen.findByRole<HTMLTextAreaElement>('textbox');
     expect(input.value).toBe('');
     expect(input.readOnly).toBe(false);
-    expect(document.activeElement).toBe(input);
+    await waitFor(() => expect(document.activeElement).toBe(input));
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.queryByRole('button', { name: 'readingMemory.review.restart' })).toBeNull();
     expect(

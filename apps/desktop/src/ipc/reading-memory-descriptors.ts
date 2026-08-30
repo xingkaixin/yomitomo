@@ -17,6 +17,15 @@ import type {
 import type { ReadingMemoryIpcSchemaArgs } from './reading-memory-schemas';
 
 export const readingMemoryIpcInvokeDescriptors = {
+  'reading-memory:record-usage': desktopIpcInvoke<
+    ReadingMemoryIpcSchemaArgs<'reading-memory:record-usage'>,
+    void
+  >()({
+    route: ['readingMemory', 'recordUsage'],
+    roles: mainOnly,
+    validation: 'schema',
+    databaseIndependent: true,
+  }),
   'reading-memory:relations:search': desktopIpcInvoke<
     ReadingMemoryIpcSchemaArgs<'reading-memory:relations:search'>,
     ReadingRelationsSession

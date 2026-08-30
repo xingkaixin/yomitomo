@@ -97,6 +97,7 @@ describe('ReadingLibraryAnswer', () => {
           articleId: second.source.ref.id,
           annotationId: second.location.annotationId,
           view: 'source',
+          readingMemoryJump: true,
         },
       ],
       [
@@ -104,6 +105,7 @@ describe('ReadingLibraryAnswer', () => {
           articleId: first.source.ref.id,
           annotationId: first.location.annotationId,
           view: 'discussion',
+          readingMemoryJump: true,
         },
       ],
     ]);

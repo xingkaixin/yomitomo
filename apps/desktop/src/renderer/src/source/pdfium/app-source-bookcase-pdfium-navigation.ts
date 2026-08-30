@@ -34,12 +34,7 @@ export function usePdfiumNavigation({
   onSetTocItems: (items: TocItem[]) => void;
 }) {
   const { provides: bookmark } = useBookmarkCapability();
-  const onFocusedAnnotationRef = useRef(onFocusedAnnotation);
   const scrollToAnnotationRef = useRef<(annotationId: string) => boolean>(() => false);
-
-  useEffect(() => {
-    onFocusedAnnotationRef.current = onFocusedAnnotation;
-  }, [onFocusedAnnotation]);
 
   useEffect(() => {
     if (!bookmark) return;
@@ -122,7 +117,7 @@ export function usePdfiumNavigation({
             annotationId: focusAnnotationId,
             located,
           });
-          onFocusedAnnotationRef.current(located);
+          onFocusedAnnotation(located);
         },
         located ? 520 : 0,
       );
@@ -137,7 +132,7 @@ export function usePdfiumNavigation({
       });
       if (timer !== null) window.clearTimeout(timer);
     };
-  }, [documentId, extractPageText, focusAnnotationId, scroll]);
+  }, [documentId, extractPageText, focusAnnotationId, onFocusedAnnotation, scroll]);
 
   function scrollToTocItem(item: TocItem) {
     onCloseToc();

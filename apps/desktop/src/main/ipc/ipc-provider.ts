@@ -6,6 +6,7 @@ import { DesktopIpcError, desktopIpcErrorCodes } from '../../ipc-errors';
 import { pruneLogFile } from '../app/logger';
 
 type ProviderIpcContext = Pick<DesktopMainIpcContext, 'sendFullStoreUpdated'> & {
+  onSettingsSaved?: () => void;
   getAiModule: () => Promise<Pick<DesktopAiModule, 'listProviderModels' | 'testProvider'>>;
   getPersistenceModules: () => Promise<{
     providerRepository: Pick<
@@ -34,7 +35,10 @@ export function registerProviderIpc(context: ProviderIpcContext) {
     const settingsInput = { ...input };
     // Only the dedicated privacy action can change consent, not stale settings snapshots.
     delete settingsInput.readingMemoryRemoteConsent;
-    const store = await storeSettings.saveSettings(settingsInput);
+    // Settings commit synchronously; the returned promise waits for the full snapshot.
+    const storePromise = storeSettings.saveSettings(settingsInput);
+    context.onSettingsSaved?.();
+    const store = await storePromise;
     await pruneLogFile(store.settings.logRetentionDays);
     context.sendFullStoreUpdated(event, store);
     return store;

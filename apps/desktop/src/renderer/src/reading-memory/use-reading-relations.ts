@@ -6,6 +6,11 @@ import type {
   ReadingRelationsSession,
 } from '../../../ipc-contract';
 import { getDesktopApi } from '../shell/app-desktop-api';
+import {
+  recordReadingMemoryJudgment,
+  recordReadingMemoryQuery,
+  recordReadingMemoryUsage,
+} from './reading-memory-usage';
 
 export type ReadingRelationsState =
   | {
@@ -41,6 +46,7 @@ export function useReadingRelations(articleId: string) {
 
   async function search(context: ReaderQuestionContext, question?: string) {
     const previous = activeRequest.current;
+    if (!previous) recordReadingMemoryUsage('feature_opened');
     if (previous) cancelRequest(previous);
     const request: ReadingRelationsSearchInput = {
       requestId: makeId('reading_relations'),
@@ -53,6 +59,7 @@ export function useReadingRelations(articleId: string) {
     try {
       const result = await getDesktopApi().readingMemory.relations.search(request);
       if (!isCurrent(request)) return;
+      recordReadingMemoryQuery(result);
       setState({ phase: 'ready', request, result, remote: 'idle' });
     } catch {
       if (isCurrent(request)) setState({ phase: 'search-failed', request });
@@ -87,10 +94,13 @@ export function useReadingRelations(articleId: string) {
         requestId: request.requestId,
       });
       if (isCurrent(request)) {
+        recordReadingMemoryJudgment(judged.judgment);
         setState({ phase: 'ready', request, result: judged, remote: 'idle' });
       }
     } catch {
-      if (isCurrent(request)) setState({ ...state, result: localResult, remote: 'failed' });
+      if (isCurrent(request)) {
+        setState({ ...state, result: localResult, remote: 'failed' });
+      }
     }
   }
 

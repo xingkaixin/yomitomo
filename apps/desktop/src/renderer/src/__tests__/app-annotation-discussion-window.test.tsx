@@ -134,7 +134,9 @@ describe('AnnotationDiscussionWindowApp', () => {
     openDiscussionRoute();
     render(<AnnotationDiscussionWindowApp />);
     await screen.findByText('正在讨论的划线');
+    await waitFor(() => expect(desktop.consumeThoughtDraft).toHaveBeenCalledOnce());
     act(() => desktop.notifyThoughtDraftAvailable());
+    expect(desktop.consumeThoughtDraft).toHaveBeenCalledTimes(2);
 
     await act(async () => {
       firstDraft.resolve('先收到的想法');

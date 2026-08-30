@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { ReadingReviewDecision } from '@yomitomo/shared';
-import type { Locator, Page } from 'playwright-core';
+import type { Locator } from 'playwright-core';
 import { describe, expect, it } from 'vitest';
 import {
   readLibrarySavedFacts,
@@ -16,8 +16,12 @@ import { withReadingRelationsProvider } from '../helpers/reading-relations-provi
 import {
   changeReviewComment,
   openReviewDiscussion,
+  openReviewQueue,
   readReviewFacts,
+  reopenReviewQueue,
+  revealReview,
   seedReviewSources,
+  startReview,
   withReviewWritesBlocked,
 } from '../helpers/reading-review-fixtures';
 
@@ -463,44 +467,6 @@ describe('reconsider reading judgments', () => {
     );
   }, 90_000);
 });
-
-async function openReviewQueue(page: Page) {
-  await page.getByRole('button', { name: 'Reading memory', exact: true }).click();
-  await page.getByRole('tab', { name: 'Reconsideration', exact: true }).click();
-  return waitForReviewQueue(page);
-}
-
-async function reopenReviewQueue(page: Page) {
-  await page.getByRole('tab', { name: 'Distillations', exact: true }).click();
-  await page.getByRole('tab', { name: 'Reconsideration', exact: true }).click();
-  return waitForReviewQueue(page);
-}
-
-async function waitForReviewQueue(page: Page) {
-  const view = page.getByRole('tabpanel', { name: 'Reconsideration', exact: true });
-  await view.getByRole('heading', { name: 'Reconsider judgments', exact: true }).waitFor();
-  await view.getByRole('button', { name: 'Start review', exact: true }).first().waitFor();
-  return view;
-}
-
-async function startReview(view: Locator, title: string) {
-  await view
-    .getByRole('article', { name: title, exact: true })
-    .first()
-    .getByRole('button', { name: 'Start review', exact: true })
-    .click();
-  await view.getByRole('textbox', { name: 'Your current view', exact: true }).waitFor();
-}
-
-async function revealReview(view: Locator, answer: string) {
-  if (answer) {
-    await view.getByRole('textbox', { name: 'Your current view', exact: true }).fill(answer);
-    await view.getByRole('button', { name: 'Reveal earlier judgment', exact: true }).click();
-  } else {
-    await view.getByRole('button', { name: 'I need more evidence', exact: true }).click();
-  }
-  await view.getByRole('region', { name: 'Earlier effective judgment', exact: true }).waitFor();
-}
 
 async function assertFrozenAnswer(view: Locator, answer: string) {
   const frozen = view.getByRole('region', { name: 'Your frozen answer', exact: true });

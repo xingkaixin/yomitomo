@@ -7,6 +7,7 @@ import type {
   ReadingLibrarySession,
 } from '../../../ipc-contract';
 import { getDesktopApi } from '../shell/app-desktop-api';
+import { recordReadingMemoryJudgment, recordReadingMemoryQuery } from './reading-memory-usage';
 
 export type ReadingLibraryContextState =
   | { phase: 'loading' | 'failed' }
@@ -109,11 +110,14 @@ export function useReadingLibraryQuestion(
       const answered = await getDesktopApi().readingMemory.library.answer({
         requestId: request.requestId,
       });
-      if (isCurrent(request))
+      if (isCurrent(request)) {
+        recordReadingMemoryJudgment(answered.judgment);
         updateState({ phase: 'ready', request, result: answered, remote: 'idle' });
+      }
     } catch {
-      if (isCurrent(request))
+      if (isCurrent(request)) {
         updateState({ phase: 'ready', request, result: localResult, remote: 'failed' });
+      }
     }
   }
 
@@ -132,6 +136,7 @@ export function useReadingLibraryQuestion(
     try {
       const result = await getDesktopApi().readingMemory.library.search(request);
       if (!isCurrent(request)) return;
+      recordReadingMemoryQuery(result);
       updateState({ phase: 'ready', request, result, remote: 'idle' });
       await generate(request, result, false);
     } catch {

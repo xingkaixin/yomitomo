@@ -58,6 +58,9 @@ import {
   restoreDatabaseWithDialog,
 } from './data-management';
 import { DATABASE_READER_LEVEL_KEY } from './db/compatibility';
+import { createReadingMemoryTelemetry } from './telemetry/reading-memory-telemetry';
+
+const onDatabaseRestored = vi.fn();
 
 beforeEach(async () => {
   const root = await mkdtemp(join(tmpdir(), 'yomitomo-data-management-test-'));
@@ -148,9 +151,12 @@ describe('database restore dialog', () => {
   it('returns canceled when the open dialog is canceled', async () => {
     testState.dialog.showOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] });
 
-    await expect(restoreDatabaseWithDialog(null)).resolves.toEqual({ canceled: true });
+    await expect(restoreDatabaseWithDialog(null, onDatabaseRestored)).resolves.toEqual({
+      canceled: true,
+    });
 
     expect(testState.store.replaceDatabaseFile).not.toHaveBeenCalled();
+    expect(onDatabaseRestored).not.toHaveBeenCalled();
   });
 
   it('rejects files that are not SQLite databases', async () => {
@@ -158,9 +164,10 @@ describe('database restore dialog', () => {
     await writeFile(filePath, 'not a sqlite database');
     testState.dialog.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [filePath] });
 
-    await expect(restoreDatabaseWithDialog(null)).rejects.toThrow(
+    await expect(restoreDatabaseWithDialog(null, onDatabaseRestored)).rejects.toThrow(
       'DATA_MANAGEMENT_INVALID_SQLITE_DATABASE',
     );
+    expect(onDatabaseRestored).not.toHaveBeenCalled();
   });
 
   it('rejects backup files that fail integrity check', async () => {
@@ -174,9 +181,10 @@ describe('database restore dialog', () => {
       close() {}
     };
 
-    await expect(restoreDatabaseWithDialog(null)).rejects.toThrow(
+    await expect(restoreDatabaseWithDialog(null, onDatabaseRestored)).rejects.toThrow(
       'DATA_MANAGEMENT_DATABASE_INTEGRITY_FAILED',
     );
+    expect(onDatabaseRestored).not.toHaveBeenCalled();
   });
 
   it('rejects SQLite files without Yomitomo migration metadata', async () => {
@@ -184,9 +192,10 @@ describe('database restore dialog', () => {
     createSqliteFile(filePath);
     testState.dialog.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [filePath] });
 
-    await expect(restoreDatabaseWithDialog(null)).rejects.toThrow(
+    await expect(restoreDatabaseWithDialog(null, onDatabaseRestored)).rejects.toThrow(
       'DATA_MANAGEMENT_NOT_YOMITOMO_BACKUP',
     );
+    expect(onDatabaseRestored).not.toHaveBeenCalled();
   });
 
   it('rejects backup files that require a newer database reader level', async () => {
@@ -194,7 +203,10 @@ describe('database restore dialog', () => {
     createYomitomoBackupFile(filePath, { readerLevel: 999 });
     testState.dialog.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [filePath] });
 
-    await expect(restoreDatabaseWithDialog(null)).rejects.toThrow('DATABASE_TOO_NEW');
+    await expect(restoreDatabaseWithDialog(null, onDatabaseRestored)).rejects.toThrow(
+      'DATABASE_TOO_NEW',
+    );
+    expect(onDatabaseRestored).not.toHaveBeenCalled();
   });
 
   it('restores a valid backup file and returns the refreshed store', async () => {
@@ -206,15 +218,96 @@ describe('database restore dialog', () => {
     testState.store.replaceDatabaseFile.mockResolvedValue(backupPath);
     testState.store.readStore.mockResolvedValue(store);
 
-    await expect(restoreDatabaseWithDialog(null)).resolves.toEqual({
+    await expect(restoreDatabaseWithDialog(null, onDatabaseRestored)).resolves.toEqual({
       canceled: false,
       backupPath,
       store,
     });
     expect(testState.store.replaceDatabaseFile).toHaveBeenCalledWith(filePath);
+    expect(onDatabaseRestored).toHaveBeenCalledOnce();
     expect(testState.store.readStore).toHaveBeenCalledOnce();
   });
+
+  it('does not notify when the database replacement fails', async () => {
+    const filePath = join(testState.userData, 'valid.sqlite');
+    createYomitomoBackupFile(filePath);
+    testState.dialog.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [filePath] });
+    testState.store.replaceDatabaseFile.mockRejectedValueOnce(new Error('replacement failed'));
+
+    await expect(restoreDatabaseWithDialog(null, onDatabaseRestored)).rejects.toThrow(
+      'replacement failed',
+    );
+    expect(onDatabaseRestored).not.toHaveBeenCalled();
+    expect(testState.store.readStore).not.toHaveBeenCalled();
+  });
+
+  it('notifies once after replacement even if reading the refreshed store fails', async () => {
+    const filePath = join(testState.userData, 'valid.sqlite');
+    createYomitomoBackupFile(filePath);
+    testState.dialog.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [filePath] });
+    testState.store.replaceDatabaseFile.mockResolvedValueOnce('safety-backup.sqlite');
+    testState.store.readStore.mockRejectedValueOnce(new Error('snapshot failed'));
+
+    await expect(restoreDatabaseWithDialog(null, onDatabaseRestored)).rejects.toThrow(
+      'snapshot failed',
+    );
+    expect(onDatabaseRestored).toHaveBeenCalledOnce();
+  });
+
+  it('clears prior usage at replacement while reading the restored snapshot is pending', async () => {
+    const filePath = join(testState.userData, 'valid.sqlite');
+    createYomitomoBackupFile(filePath);
+    testState.dialog.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [filePath] });
+    let telemetryEnabled = true;
+    const send = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 204 }));
+    const telemetry = createReadingMemoryTelemetry({
+      fetch: send,
+      isEnabled: () => telemetryEnabled,
+      endpoint: 'https://telemetry.invalid/counts',
+      timeoutMs: 2000,
+    });
+    const snapshotStarted = deferred<void>();
+    const snapshot = deferred<{ articles: never[]; providers: never[] }>();
+    const store = { articles: [], providers: [] };
+    testState.store.replaceDatabaseFile.mockImplementationOnce(async () => {
+      telemetryEnabled = false;
+      return 'safety-backup.sqlite';
+    });
+    testState.store.readStore.mockImplementationOnce(() => {
+      snapshotStarted.resolve();
+      return snapshot.promise;
+    });
+    onDatabaseRestored.mockImplementationOnce(() => {
+      void telemetry.flush();
+    });
+    telemetry.record('feature_opened');
+    const restoring = restoreDatabaseWithDialog(null, onDatabaseRestored);
+    try {
+      await snapshotStarted.promise;
+      telemetryEnabled = true;
+      await telemetry.flush();
+      expect(onDatabaseRestored).toHaveBeenCalledOnce();
+      expect(send).not.toHaveBeenCalled();
+      telemetry.record('query_completed');
+      await telemetry.flush();
+      expect(send).toHaveBeenCalledOnce();
+      expect(send.mock.calls[0][1]?.body).toBe(JSON.stringify({ counts: { query_completed: 1 } }));
+    } finally {
+      snapshot.resolve(store);
+      await restoring;
+      telemetry.dispose();
+    }
+    expect(onDatabaseRestored).toHaveBeenCalledOnce();
+  });
 });
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((complete) => {
+    resolve = complete;
+  });
+  return { promise, resolve };
+}
 
 function createYomitomoBackupFile(filePath: string, options?: { readerLevel?: number }) {
   const database = createSqliteFile(filePath);

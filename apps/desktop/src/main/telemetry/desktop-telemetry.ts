@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import os from 'node:os';
 import { powerMonitor } from 'electron';
-import type { ResolvedAppSettings } from '@yomitomo/shared';
+import type { ReadingMemoryUsageKey, ResolvedAppSettings } from '@yomitomo/shared';
 import { getDatabase, withDatabaseLease } from '../store/store-db';
 import {
   readTelemetryEnabled,
@@ -9,8 +9,10 @@ import {
   type StoredTelemetryState,
   upsertTelemetryState,
 } from './telemetry-repository';
+import { createReadingMemoryTelemetry } from './reading-memory-telemetry';
 
 const telemetryEndpoint = 'https://telemetry.yomitomo.app/v1/heartbeat';
+const readingMemoryTelemetryEndpoint = 'https://telemetry.yomitomo.app/v1/reading-memory-counts';
 const startupDelayMs = 30_000;
 const checkIntervalMs = 60 * 60 * 1000;
 const requestTimeoutMs = 2_000;
@@ -73,6 +75,7 @@ export type DesktopTelemetryAutomationSuppression = {
 
 export type DesktopTelemetryController = {
   check: (reason: TelemetryReason) => void;
+  recordReadingMemoryUsage: (key: ReadingMemoryUsageKey) => void;
   dispose: () => void;
 };
 
@@ -118,8 +121,17 @@ export function createDesktopTelemetryController(
     logInfo: dependencies.logInfo,
     logError: dependencies.logError,
   };
+  const readingMemoryTelemetry = createReadingMemoryTelemetry({
+    fetch: clientDependencies.fetch,
+    isEnabled: () => clientDependencies.getSettings().telemetryEnabled,
+    endpoint: readingMemoryTelemetryEndpoint,
+    timeoutMs: requestTimeoutMs,
+  });
   let running: Promise<void> | null = null;
+  let disposed = false;
   const run = (reason: TelemetryReason) => {
+    if (disposed) return;
+    void readingMemoryTelemetry.flush();
     if (running) return;
     running = withDatabaseLease(() => runDesktopTelemetryHeartbeat(reason, clientDependencies))
       .then((result) => {
@@ -143,7 +155,10 @@ export function createDesktopTelemetryController(
 
   return {
     check: run,
+    recordReadingMemoryUsage: readingMemoryTelemetry.record,
     dispose: () => {
+      disposed = true;
+      readingMemoryTelemetry.dispose();
       clearTimeout(startupTimer);
       clearInterval(intervalTimer);
       powerMonitor.off('resume', resumeListener);

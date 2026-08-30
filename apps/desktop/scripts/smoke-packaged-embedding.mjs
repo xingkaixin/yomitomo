@@ -141,6 +141,7 @@ async function runPackagedProbe() {
     const cancellation = await verifyCancellationAndRecovery(service, manifest);
     if (heartbeats === 0) throw new Error('Embedding blocked the main event loop');
     result = {
+      label: 'formal-package-real-model',
       platform,
       electronVersion: process.versions.electron,
       transformersVersion: transformersPackage.version,

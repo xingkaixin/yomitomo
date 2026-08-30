@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setImmediate as nextTurn } from 'node:timers/promises';
 import type { WeReadSettings, WeReadSyncResult } from '@yomitomo/shared';
 import { startMainProcessRuntime } from './main-process-runtime';
@@ -6,11 +6,54 @@ import { readDatabaseLifecycle } from '../store/store-db';
 import { createReadingMemoryControls } from '../reading-memory/reading-memory-controls';
 import type { ReadingMemoryModelLifecycleState } from '../reading-memory/reading-memory-model-lifecycle';
 
+const release = vi.hoisted(() => ({ readingMemoryEnabled: true }));
+vi.mock('../../reading-memory-release', () => release);
+
+beforeEach(() => {
+  release.readingMemoryEnabled = true;
+});
+
 afterEach(() => {
   vi.useRealTimers();
 });
 
 describe('main process runtime', () => {
+  it('keeps unreleased projection, model work and usage collection inactive', async () => {
+    release.readingMemoryEnabled = false;
+    const dependencies = runtimeDependencies();
+    const runtime = startMainProcessRuntime(dependencies.input);
+
+    runtime.recordReadingMemoryUsage('feature_opened');
+    runtime.requestReadingMemoryProjectionRebuild();
+    runtime.onDatabaseRestored();
+
+    expect(dependencies.startEvidenceProjectionWorker).not.toHaveBeenCalled();
+    expect(dependencies.semanticReconcile).not.toHaveBeenCalled();
+    expect(dependencies.telemetryRecordUsage).not.toHaveBeenCalled();
+    expect(dependencies.projectionRequestRun).not.toHaveBeenCalled();
+    await runtime.dispose();
+  });
+
+  it('forwards only usage keys and immediately checks changed telemetry consent', async () => {
+    const dependencies = runtimeDependencies();
+    const runtime = startMainProcessRuntime(dependencies.input);
+
+    runtime.recordReadingMemoryUsage('review_changed');
+    runtime.checkTelemetrySettings();
+    runtime.requestReadingMemoryProjectionRebuild();
+
+    expect(dependencies.telemetryRecordUsage).toHaveBeenCalledExactlyOnceWith('review_changed');
+    expect(dependencies.telemetryCheck).toHaveBeenCalledExactlyOnceWith('manual');
+    expect(dependencies.projectionRequestRun).toHaveBeenCalledExactlyOnceWith('manual');
+    await runtime.dispose();
+    runtime.recordReadingMemoryUsage('source_jump');
+    runtime.checkTelemetrySettings();
+    runtime.requestReadingMemoryProjectionRebuild();
+    expect(dependencies.telemetryRecordUsage).toHaveBeenCalledOnce();
+    expect(dependencies.telemetryCheck).toHaveBeenCalledOnce();
+    expect(dependencies.projectionRequestRun).toHaveBeenCalledOnce();
+  });
+
   it('starts scheduled services and disposes every owned lifecycle', async () => {
     vi.useFakeTimers();
     const dependencies = runtimeDependencies();
@@ -285,6 +328,7 @@ function runtimeDependencies(
   const sendWeReadStateUpdated = vi.fn();
   const telemetryCheck = vi.fn();
   const telemetryDispose = vi.fn();
+  const telemetryRecordUsage = vi.fn();
   const projectionRequestRun = vi.fn();
   const projectionDispose = vi.fn();
   const semanticReconcile = vi.fn(async (): Promise<void> => undefined);
@@ -303,6 +347,7 @@ function runtimeDependencies(
     syncWeRead,
     telemetryCheck,
     telemetryDispose,
+    telemetryRecordUsage,
     projectionRequestRun,
     projectionDispose,
     startEvidenceProjectionWorker,
@@ -336,6 +381,7 @@ function runtimeDependencies(
       createTelemetryController: () => ({
         check: telemetryCheck,
         dispose: telemetryDispose,
+        recordReadingMemoryUsage: telemetryRecordUsage,
       }),
       syncWeRead,
       startEvidenceProjectionWorker,
