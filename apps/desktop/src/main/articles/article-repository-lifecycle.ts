@@ -53,6 +53,10 @@ export function deleteAnnotationRowsWithMemoryLifecycle(
         .run(input.articleId, input.annotationId),
     );
     if (deletedCount > 0) {
+      deleteRemovedAssetReviews(executor, {
+        articleId: input.articleId,
+        annotationIds: [input.annotationId],
+      });
       queueDeletedAnnotationThreadProjection(executor, {
         articleId: input.articleId,
         annotationId: input.annotationId,
@@ -85,6 +89,10 @@ export function deleteCommentRowsWithMemoryLifecycle(
       commentIds,
     });
     if (deletedCommentCount > 0) {
+      deleteRemovedAssetReviews(executor, {
+        articleId: input.articleId,
+        commentIds,
+      });
       queueStoredAnnotationThreadProjection(executor, {
         articleId: input.articleId,
         annotationId: input.annotationId,
@@ -102,6 +110,34 @@ export function deleteCommentRowsWithMemoryLifecycle(
         })
       : 0;
   return { deletedCommentCount: result.deletedCommentCount, deletedMemoryCount };
+}
+
+export function deleteRemovedAssetReviews(
+  executor: ReadingMemorySqliteExecutor,
+  input: {
+    articleId: string;
+    annotationIds?: readonly string[];
+    commentIds?: readonly string[];
+    distillationAnnotationIds?: readonly string[];
+  },
+) {
+  const { annotationIds = [], commentIds = [], distillationAnnotationIds = [] } = input;
+  if (annotationIds.length + commentIds.length + distillationAnnotationIds.length === 0) return;
+  executor
+    .prepare(`
+DELETE FROM reading_memory_reviews
+WHERE article_id = ? AND (
+  annotation_id IN (SELECT value FROM json_each(?))
+  OR (asset_type = 'comment' AND asset_id IN (SELECT value FROM json_each(?)))
+  OR (asset_type = 'distillation' AND annotation_id IN (SELECT value FROM json_each(?)))
+)
+`)
+    .run(
+      input.articleId,
+      JSON.stringify(annotationIds),
+      JSON.stringify(commentIds),
+      JSON.stringify(distillationAnnotationIds),
+    );
 }
 
 export function softDeleteAnnotationMemoryEntries(

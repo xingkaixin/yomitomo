@@ -11,11 +11,20 @@ export function rankReadingEvidenceCandidates(
   if (requestedLimit === 0) return [];
 
   const uniqueCandidates = uniqueByEvidenceId(candidates);
+  const prioritizedCandidates = uniqueCandidates.filter(
+    (candidate) => candidate.review?.decision !== 'need_evidence',
+  );
   const orderedCandidates = [
-    ...uniqueCandidates.filter((candidate) => candidate.role === 'judgment'),
-    ...uniqueCandidates.filter((candidate) => candidate.role === 'source'),
+    ...prioritizedCandidates.filter((candidate) => candidate.role === 'judgment'),
+    ...prioritizedCandidates.filter((candidate) => candidate.role === 'source'),
   ];
-  return selectDiverseCandidates([orderedCandidates], requestedLimit);
+  return selectDiverseCandidates(
+    [
+      orderedCandidates,
+      uniqueCandidates.filter((candidate) => candidate.review?.decision === 'need_evidence'),
+    ],
+    requestedLimit,
+  );
 }
 
 export function mergeReadingEvidenceCandidates(
@@ -43,8 +52,15 @@ export function mergeReadingEvidenceCandidates(
     .map((candidate) => candidate.evidence);
   return selectDiverseCandidates(
     [
-      orderedCandidates.filter((candidate) => candidate.role === 'judgment'),
-      orderedCandidates.filter((candidate) => candidate.role === 'source'),
+      orderedCandidates.filter(
+        (candidate) =>
+          candidate.role === 'judgment' && candidate.review?.decision !== 'need_evidence',
+      ),
+      orderedCandidates.filter(
+        (candidate) =>
+          candidate.role === 'source' && candidate.review?.decision !== 'need_evidence',
+      ),
+      orderedCandidates.filter((candidate) => candidate.review?.decision === 'need_evidence'),
     ],
     requestedLimit,
   );

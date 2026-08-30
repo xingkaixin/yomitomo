@@ -4,6 +4,7 @@ import type {
   Comment,
   ReadingEvidence,
   ReadingEvidenceAssetType,
+  ReadingReviewFold,
 } from '@yomitomo/shared';
 
 export type ProjectedReadingEvidenceEntry = {
@@ -47,6 +48,7 @@ export function projectReadingEvidenceThread(input: {
   annotation: Annotation;
   sourceVersion: string;
   projectorVersion: string;
+  reviews?: ReadonlyMap<string, ReadingReviewFold>;
 }): ProjectedReadingEvidenceEntry[] {
   const { comments, distillationContent } = selectProjectableReadingJudgments(input.annotation);
   const entries: ProjectedReadingEvidenceEntry[] = [];
@@ -73,32 +75,46 @@ export function projectReadingEvidenceThread(input: {
   }
 
   for (const comment of comments) {
+    const id = `reading_evidence_comment:${comment.id}`;
+    const current = currentJudgment(
+      {
+        content: comment.content,
+        authorKind: authorKind(comment.author),
+        updatedAt: comment.createdAt,
+      },
+      input.reviews?.get(id),
+    );
     entries.push({
-      id: `reading_evidence_comment:${comment.id}`,
+      id,
       assetType: 'comment',
       sourceCommentId: comment.id,
       sourceVersion: input.sourceVersion,
       projectorVersion: input.projectorVersion,
       isJudgment: true,
-      isUserAuthored: isUserComment(comment),
-      searchText: searchableText(comment.content, input.annotation.anchor.exact),
+      isUserAuthored: current.authorKind === 'user',
+      searchText: searchableText(current.content, input.annotation.anchor.exact),
       sourceCreatedAt: comment.createdAt,
-      sourceUpdatedAt: comment.createdAt,
+      sourceUpdatedAt: current.updatedAt,
     });
   }
 
   if (distillationContent) {
     const { createdAt, updatedAt } = distillationTimestamps(input.annotation);
+    const id = `reading_evidence_distillation:${input.annotation.id}`;
+    const current = currentJudgment(
+      { content: distillationContent, updatedAt },
+      input.reviews?.get(id),
+    );
     entries.push({
-      id: `reading_evidence_distillation:${input.annotation.id}`,
+      id,
       assetType: 'distillation',
       sourceVersion: input.sourceVersion,
       projectorVersion: input.projectorVersion,
       isJudgment: true,
-      isUserAuthored: false,
-      searchText: searchableText(distillationContent, input.annotation.anchor.exact),
+      isUserAuthored: current.authorKind === 'user',
+      searchText: searchableText(current.content, input.annotation.anchor.exact),
       sourceCreatedAt: createdAt,
-      sourceUpdatedAt: updatedAt,
+      sourceUpdatedAt: current.updatedAt,
     });
   }
 
@@ -108,6 +124,7 @@ export function projectReadingEvidenceThread(input: {
 export function materializeReadingEvidence(input: {
   projected: ProjectedReadingEvidenceEntry;
   annotation: Annotation;
+  reviews?: ReadonlyMap<string, ReadingReviewFold>;
   article: {
     id: string;
     sourceType: ArticleSourceType;
@@ -159,11 +176,16 @@ export function materializeReadingEvidence(input: {
     }
     return {
       ...base,
-      content: comment.content.trim(),
-      authorKind: authorKind(comment.author),
+      ...currentJudgment(
+        {
+          content: comment.content,
+          authorKind: authorKind(comment.author),
+          updatedAt: comment.createdAt,
+        },
+        input.reviews?.get(projected.id),
+      ),
       location: { ...base.location, commentId: comment.id },
       createdAt: comment.createdAt,
-      updatedAt: comment.createdAt,
     };
   }
 
@@ -173,9 +195,25 @@ export function materializeReadingEvidence(input: {
   const { createdAt, updatedAt } = distillationTimestamps(annotation);
   return {
     ...base,
-    content: distillationContent,
+    ...currentJudgment(
+      { content: distillationContent, updatedAt },
+      input.reviews?.get(projected.id),
+    ),
     createdAt,
-    updatedAt,
+  };
+}
+
+function currentJudgment(
+  base: Pick<ReadingEvidence, 'content' | 'authorKind' | 'updatedAt'>,
+  review: ReadingReviewFold | undefined,
+) {
+  const currentAuthor = review?.authorKind ?? base.authorKind;
+  const latest = review?.latestReview;
+  return {
+    content: (review?.content ?? base.content).trim(),
+    ...(currentAuthor === undefined ? {} : { authorKind: currentAuthor }),
+    updatedAt: latest?.createdAt ?? base.updatedAt,
+    ...(latest ? { review: { decision: latest.decision, reviewedAt: latest.createdAt } } : {}),
   };
 }
 
@@ -193,10 +231,7 @@ function isProjectableAnnotation(
 
 function distillationTimestamps(annotation: Annotation) {
   return {
-    createdAt:
-      annotation.distillation?.publishedAt ||
-      annotation.distillation?.updatedAt ||
-      annotation.updatedAt,
+    createdAt: annotation.distillation?.publishedAt || annotation.createdAt,
     updatedAt:
       annotation.distillation?.updatedAt ||
       annotation.distillation?.publishedAt ||

@@ -200,6 +200,104 @@ export const jaResources = {
         library: 'ライブラリに質問',
         review: '考え直す',
       },
+      review: {
+        title: '判断を見直す',
+        description:
+          '以前の考えを見る前に、今の判断を書きます。見直しの記録が元の内容を上書きすることはありません。',
+        queueLoading: '見直す判断を探しています…',
+        queueFailed: '判断を読み込めませんでした。保存済みの記録は変更されません。',
+        retryQueue: '判断を再読み込み',
+        emptyQueue: 'このキューには見直せる判断がありません。',
+        emptyHint: '読書中に意見を保存するか、まとめを公開してから、ここに戻ってください。',
+        queueCount: '今回の判断：{{count}} 件',
+        completedCount: 'このセッションで {{count}} 件完了',
+        timeOrder: '作成日と見直し日時順',
+        semanticOrder: '時期と最近の証拠から選択',
+        candidateCoverage:
+          '対象 {{eligible}} 件 · 時間候補 {{time}} 件 · 意味検索候補 {{semantic}} 件',
+        candidateWindow:
+          '意味検索では、最大 {{candidates}} 件の判断と、過去 {{days}} 日間の新しい証拠 {{evidence}} 件を調べます。',
+        sourceQuote: '元の抜粋',
+        missingQuote: '元の抜粋は利用できません。',
+        formedAt: '作成日：{{date}}',
+        lastReviewedAt: '前回の見直し：{{date}}',
+        neverReviewed: 'まだ見直していません',
+        start: '見直しを始める',
+        starting: 'この判断を開いています…',
+        startFailed: 'この判断を開けませんでした。もう一度お試しください。',
+        retryStart: '再度開く',
+        blindTitle: 'まず今の判断を書く',
+        blindDescription: '以前の判断を見ずに、この抜粋を今どう理解しているか書いてください。',
+        answer: '今の判断',
+        placeholder: '今の考えを書いてください。不確かな点も残せます。',
+        reveal: '以前の判断を見る',
+        needEvidenceFirst: 'もっと証拠が必要',
+        revealing: '以前の判断を表示しています…',
+        revealFailed:
+          '以前の判断を表示できませんでした。回答は固定されています。再試行するか、キャンセルしてやり直してください。',
+        retryReveal: '再度表示する',
+        revealedTitle: '今と以前を比較する',
+        currentAnswer: '今回の固定された回答',
+        previousJudgment: 'これまでの有効な判断',
+        answerFrozen:
+          '今回の回答は固定されています。変更するにはキャンセルしてやり直してください。',
+        noAnswer: '回答は未入力です。「証拠がまだ必要」のみ保存できます。',
+        decisions: {
+          still_agree: '今も同意する',
+          changed: '考えが変わった',
+          need_evidence: '証拠がまだ必要',
+        },
+        decisionPrompt: '今回の見直しをどう記録しますか',
+        submitting: '見直しを保存しています…',
+        submitFailed:
+          '保存を確認できませんでした。同じ見直しを再試行してください。固定された回答は変更されません。',
+        retrySubmit: '保存を再試行',
+        conflict:
+          '元の記録または最新の見直しが変更されました。現在の版でやり直してください。この回答が新しい版へ自動適用されることはありません。',
+        restart: '最初からやり直す',
+        doneTitle: '見直しを保存しました',
+        doneDescription:
+          '元の記録は変更されていません。今回の見直しは別の記録として保存されました。',
+        next: '次の判断',
+        returnQueue: 'キューに戻る',
+        cancel: '見直しをキャンセル',
+        history: {
+          title: '見直し履歴',
+          originalJudgment: '元の判断',
+          snapshot: '当時の判断',
+          answer: '当時の回答',
+          noAnswer: '回答なし',
+          empty: '見直しの記録はまだありません。',
+          loading: '見直し履歴を読み込み中…',
+          failed: '見直し履歴を読み込めませんでした。読み込み済みの記録はそのまま表示しています。',
+          loadMore: 'さらに読み込む',
+          retry: '再読み込み',
+        },
+        evidence: {
+          title: '新しい証拠',
+          description:
+            '必要なときにライブラリの証拠を探します。比較結果が見直しの判断を決めることはありません。',
+          compare: '新しい証拠と比較',
+          currentProvider: '現在のプロバイダー：{{provider}} / {{model}}',
+          noProvider:
+            '現在AIプロバイダーは未設定です。新たな比較ではローカル候補のみを検索します。',
+          keywordHint:
+            'ローカル候補はキーワード検索によるものです。検索の一致だけでは、話題や判断の関係は確認できません。',
+          inputTooLarge:
+            '以前の有効な判断が比較の入力上限を超えています。見直しの保存は引き続き行えます。',
+          comparing: '新しい証拠と比較中…',
+          failed: '比較できませんでした。ローカル候補の確認と見直しの保存は引き続き行えます。',
+          canceled:
+            '比較をキャンセルしました。ローカル候補の確認と見直しの保存は引き続き行えます。',
+          empty: '比較できるローカルの証拠が見つかりませんでした。',
+          abstained: '現在の証拠では、支持または反対の関係を確認できません。',
+          receipt: '送信記録',
+          notSent: '今回AIプロバイダーへの送信はありません。',
+          confirmPrivacy: '理解して新しい証拠と比較',
+          privacyContent:
+            'これまでの有効な判断と最大6件の証拠だけを、入力上限内で送信します。今の回答、見直しの決定、履歴、出典タイトル、ローカル識別子は送信しません。',
+        },
+      },
       library: {
         title: 'ライブラリに質問',
         description:

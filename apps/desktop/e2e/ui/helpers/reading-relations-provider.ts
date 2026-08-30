@@ -21,6 +21,7 @@ export const controlledLibraryClaims = {
 export type ReadingRelationsProviderRequest = {
   body: ProviderRequestBody;
   canceled: boolean;
+  fail: () => void;
   respond: (explanation?: string) => void;
 };
 
@@ -67,6 +68,11 @@ async function receiveRequest(
   const pending: ReadingRelationsProviderRequest = {
     body,
     canceled: false,
+    fail() {
+      if (response.destroyed || response.writableEnded) return;
+      response.writeHead(400, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: { message: 'Controlled E2E provider failure' } }));
+    },
     respond(explanation) {
       if (response.destroyed || response.writableEnded) return;
       const message = body.messages.find((item) => item.role === 'user');

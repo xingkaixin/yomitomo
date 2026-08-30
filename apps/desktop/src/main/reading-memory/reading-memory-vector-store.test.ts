@@ -1,7 +1,7 @@
 import type { ReadingEvidenceScope } from '@yomitomo/shared';
 import { projectReadingEvidenceThread } from '@yomitomo/core';
 import SQLiteDatabase from 'better-sqlite3';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { migrations } from '../db/migrations';
 import { readingMemoryEvidenceProjectorVersion } from './reading-memory-evidence-projection-batch';
 import { readStoredAnnotationThreadSources } from './reading-memory-evidence-source';
@@ -12,6 +12,7 @@ import {
   deleteReadingMemoryModelVectors,
   readActiveReadingMemoryModelVersion,
   readMissingReadingMemoryVectors,
+  readReadingMemoryReviewVectorWindow,
   readReadingMemoryVectorChunk,
   readReadingMemoryVectorCoverage,
   writeReadingMemoryVectors,
@@ -25,6 +26,7 @@ const library: ReadingEvidenceScope = { kind: 'library' };
 const databases: SQLiteDatabase.Database[] = [];
 
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const database of databases.splice(0)) database.close();
 });
 
@@ -302,6 +304,167 @@ BEGIN SELECT RAISE(ABORT, 'switch failed'); END;
   });
 });
 
+describe('reading review vector window', () => {
+  it('batch-reads requested and recent vectors with source metadata and shares overlapping rows', () => {
+    const fixture = createFixture();
+    for (const [id, createdAt] of [
+      ['old', '2026-06-01T00:00:00.000Z'],
+      ['boundary', '2026-07-31T00:00:00.000Z'],
+      ['outside', '2026-07-30T23:59:59.999Z'],
+      ['recent', '2026-08-29T00:00:00.000Z'],
+      ['future', '2026-08-31T00:00:00.000Z'],
+    ]) {
+      fixture.add(id, createdAt);
+      fixture.project(id);
+    }
+    fixture.database
+      .prepare(
+        `INSERT INTO comments (id, annotation_id, author, content, created_at)
+VALUES ('comment', 'old', 'user', 'A newer judgment', ?)`,
+      )
+      .run(timestamp);
+    const oldSource = fixture.project('old');
+    fixture.write(fixture.missing());
+    const prepare = vi.spyOn(fixture.database, 'prepare');
+
+    const result = readReadingMemoryReviewVectorWindow(fixture.database, {
+      ...model,
+      candidateEvidenceIds: [
+        'reading_evidence_annotation:old',
+        'reading_evidence_annotation:recent',
+        'reading_evidence_annotation:old',
+      ],
+      now: new Date(timestamp),
+    });
+
+    expect(prepare).toHaveBeenCalledOnce();
+    expect(result.candidateVectors.map((entry) => entry.targetId)).toEqual(['recent', 'old']);
+    expect(result.recentEvidence.map((entry) => entry.id)).toEqual([
+      'reading_evidence_comment:comment',
+      'reading_evidence_annotation:recent',
+      'reading_evidence_annotation:boundary',
+    ]);
+    expect(result.recentEvidence[0]).toMatchObject({
+      id: 'reading_evidence_comment:comment',
+      articleId: 'article_old',
+      targetId: 'old',
+      sourceVersion: oldSource.sourceVersion,
+      assetType: 'comment',
+      sourceCommentId: 'comment',
+      sourceCreatedAt: timestamp,
+    });
+    expect(result.candidateVectors[0]).toBe(result.recentEvidence[1]);
+    expect(Array.from(result.candidateVectors[0].vector)).toEqual([1, 0]);
+  });
+
+  it('applies current model, receipt, job, projector, and vector shape checks to both groups', () => {
+    const fixture = createFixture();
+    const ids = [
+      'good',
+      'same-upsert',
+      'changed',
+      'deleting',
+      'deleted',
+      'old-model',
+      'old-source',
+      'old-projector',
+      'bad-receipt',
+      'bad-shape',
+      'bad-dimension',
+    ];
+    for (const id of ids) {
+      fixture.add(id);
+      fixture.project(id);
+    }
+    fixture.write(fixture.missing());
+    fixture.queue('same-upsert');
+    fixture.change('changed');
+    fixture.queue('changed');
+    fixture.queue('deleting', 'delete');
+    fixture.database.prepare('DELETE FROM annotations WHERE id = ?').run('deleted');
+    fixture.database
+      .prepare('UPDATE reading_memory_evidence_vectors SET model_version = ? WHERE evidence_id = ?')
+      .run(nextModel.modelVersion, 'reading_evidence_annotation:old-model');
+    fixture.database
+      .prepare(
+        'UPDATE reading_memory_evidence_vectors SET source_version = ? WHERE evidence_id = ?',
+      )
+      .run('old', 'reading_evidence_annotation:old-source');
+    fixture.database
+      .prepare(
+        'UPDATE reading_memory_evidence_entries SET projector_version = ? WHERE target_id = ?',
+      )
+      .run('old', 'old-projector');
+    fixture.database
+      .prepare('UPDATE reading_memory_evidence_receipts SET source_version = ? WHERE target_id = ?')
+      .run('different', 'bad-receipt');
+    fixture.database.exec('PRAGMA ignore_check_constraints = ON');
+    fixture.database
+      .prepare('UPDATE reading_memory_evidence_vectors SET vector = ? WHERE evidence_id = ?')
+      .run(Buffer.alloc(4), 'reading_evidence_annotation:bad-shape');
+    fixture.database
+      .prepare('UPDATE reading_memory_evidence_vectors SET dimension = 1 WHERE evidence_id = ?')
+      .run('reading_evidence_annotation:bad-dimension');
+    fixture.database.exec('PRAGMA ignore_check_constraints = OFF');
+
+    const result = readReadingMemoryReviewVectorWindow(fixture.database, {
+      ...model,
+      candidateEvidenceIds: ids.map((id) => `reading_evidence_annotation:${id}`),
+      now: new Date(timestamp),
+    });
+
+    expect(result.candidateVectors.map((entry) => entry.targetId)).toEqual(['good', 'same-upsert']);
+    expect(result.recentEvidence.map((entry) => entry.targetId)).toEqual(['good', 'same-upsert']);
+  });
+
+  it('limits requested candidates to 64 and recent evidence to 128 after excluding stale rows', () => {
+    const fixture = createFixture();
+    const candidateIds = Array.from(
+      { length: 65 },
+      (_, index) => `old-${String(index).padStart(3, '0')}`,
+    );
+    fixture.database.transaction(() => {
+      for (const id of candidateIds) {
+        fixture.add(id, '2026-06-01T00:00:00.000Z');
+        fixture.project(id);
+      }
+      for (let index = 0; index < 130; index += 1) {
+        const id = `recent-${String(index).padStart(3, '0')}`;
+        fixture.add(id);
+        fixture.project(id);
+      }
+    })();
+    fixture.write(readMissingReadingMemoryVectors(fixture.database, { ...model, limit: 200 }));
+    fixture.queue('recent-000', 'delete');
+
+    const result = readReadingMemoryReviewVectorWindow(fixture.database, {
+      ...model,
+      candidateEvidenceIds: candidateIds.map((id) => `reading_evidence_annotation:${id}`),
+      now: new Date(timestamp),
+    });
+
+    expect(result.candidateVectors).toHaveLength(64);
+    expect(result.candidateVectors.at(-1)?.targetId).toBe('old-063');
+    expect(result.recentEvidence).toHaveLength(128);
+    expect(result.recentEvidence[0].targetId).toBe('recent-001');
+    expect(result.recentEvidence.at(-1)?.targetId).toBe('recent-128');
+  });
+
+  it('does not read an unrelated recent window when there are no requested candidates', () => {
+    const fixture = createFixture();
+    const prepare = vi.spyOn(fixture.database, 'prepare');
+
+    expect(
+      readReadingMemoryReviewVectorWindow(fixture.database, {
+        ...model,
+        candidateEvidenceIds: [],
+        now: new Date(timestamp),
+      }),
+    ).toEqual({ candidateVectors: [], recentEvidence: [] });
+    expect(prepare).not.toHaveBeenCalled();
+  });
+});
+
 function createFixture(includeVectorMigration = true) {
   const database = new SQLiteDatabase(':memory:');
   databases.push(database);
@@ -317,7 +480,7 @@ function createFixture(includeVectorMigration = true) {
   }
   return {
     database,
-    add(id: string) {
+    add(id: string, createdAt = timestamp) {
       database
         .prepare(`
 INSERT INTO articles (id, url, canonical_url, title, source_type, content_hash, created_at, updated_at)
@@ -329,8 +492,8 @@ VALUES (?, ?, ?, ?, 'web', ?, ?, ?)
           `https://example.com/${id}`,
           id,
           id,
-          timestamp,
-          timestamp,
+          createdAt,
+          createdAt,
         );
       database
         .prepare(`
@@ -341,8 +504,8 @@ VALUES (?, ?, ?, 'user', '#000000', ?, ?)
           id,
           `article_${id}`,
           JSON.stringify({ exact: `Evidence ${id}`, prefix: '', suffix: '', start: 0, end: 10 }),
-          timestamp,
-          timestamp,
+          createdAt,
+          createdAt,
         );
     },
     change(id: string) {

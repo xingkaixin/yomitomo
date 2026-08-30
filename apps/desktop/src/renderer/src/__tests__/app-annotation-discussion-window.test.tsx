@@ -109,7 +109,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     openDiscussionRoute();
     render(<AnnotationDiscussionWindowApp />);
     await screen.findByText('正在讨论的划线');
-    expect(desktop.consumeThoughtDraft).toHaveBeenCalledOnce();
+    await waitFor(() => expect(desktop.consumeThoughtDraft).toHaveBeenCalledOnce());
     expect(screen.queryByRole('dialog', { name: '添加想法' })).toBeNull();
 
     desktop.consumeThoughtDraft.mockResolvedValueOnce('复用窗口收到的新想法');

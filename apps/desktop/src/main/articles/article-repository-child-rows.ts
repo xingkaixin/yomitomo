@@ -6,16 +6,36 @@ import type {
   ArticleRecord,
   Comment,
 } from '@yomitomo/shared';
+import {
+  commentAssetRevision,
+  distillationAssetRevision,
+  type StoredArticleAssetRevisions,
+  type StoredCommentAsset,
+  type StoredDistillationAsset,
+} from './article-asset-revisions';
 
-export function buildArticleChildRows(article: Pick<ArticleRecord, 'id' | 'annotations'>) {
+export function buildArticleChildRows(
+  article: Pick<ArticleRecord, 'id' | 'annotations'>,
+  previous?: StoredArticleAssetRevisions,
+) {
   const annotationRows = article.annotations.map((annotation) =>
-    annotationToRow(article.id, annotation),
+    annotationToRow(article.id, annotation, previous?.annotations.get(annotation.id)),
   );
-  const commentRows = article.annotations.flatMap(commentRowsForAnnotation);
+  const commentRows = article.annotations.flatMap((annotation) =>
+    commentRowsForAnnotation(annotation, previous?.comments),
+  );
   return { annotationRows, commentRows };
 }
 
-export function annotationToRow(articleId: string, annotation: Annotation) {
+export function annotationToRow(
+  articleId: string,
+  annotation: Annotation,
+  previous?: StoredDistillationAsset,
+) {
+  const distillation = {
+    distillationStatus: annotation.distillation?.status ?? null,
+    distillationContent: annotation.distillation?.content ?? null,
+  };
   return {
     id: annotation.id,
     articleId,
@@ -29,24 +49,33 @@ export function annotationToRow(articleId: string, annotation: Annotation) {
     confidence: annotation.confidence,
     shouldShow: annotation.shouldShow,
     color: annotation.color,
-    distillationStatus: annotation.distillation?.status,
-    distillationContent: annotation.distillation?.content,
-    distillationPublishedAt: annotation.distillation?.publishedAt,
-    distillationUpdatedAt: annotation.distillation?.updatedAt,
-    distillationReviewSessions: serializeAnnotationDistillationReviewSessions(
-      annotation.distillation?.reviewSessions,
-    ),
+    ...distillation,
+    distillationRevision: distillationAssetRevision(previous, distillation),
+    distillationPublishedAt: annotation.distillation?.publishedAt ?? null,
+    distillationUpdatedAt: annotation.distillation?.updatedAt ?? null,
+    distillationReviewSessions:
+      serializeAnnotationDistillationReviewSessions(annotation.distillation?.reviewSessions) ??
+      null,
     createdAt: annotation.createdAt,
     updatedAt: annotation.updatedAt,
   };
 }
 
-export function commentRowsForAnnotation(annotation: Annotation) {
-  return annotation.comments.map((comment) => commentToRow(annotation.id, comment));
+export function commentRowsForAnnotation(
+  annotation: Annotation,
+  previous?: ReadonlyMap<string, StoredCommentAsset>,
+) {
+  return annotation.comments.map((comment) =>
+    commentToRow(annotation.id, comment, previous?.get(comment.id)),
+  );
 }
 
-export function commentToRow(annotationId: string, comment: Comment) {
-  return {
+export function commentToRow(
+  annotationId: string,
+  comment: Comment,
+  previous?: StoredCommentAsset,
+) {
+  const row = {
     id: comment.id,
     annotationId,
     ...annotationAuthorToRow(comment.author),
@@ -56,8 +85,9 @@ export function commentToRow(annotationId: string, comment: Comment) {
     readingIntent: comment.readingIntent,
     reviewLabel: comment.reviewLabel,
     assistantProgress: comment.assistantProgress,
-    pending: comment.pending,
+    pending: comment.pending ?? null,
   };
+  return { ...row, assetRevision: commentAssetRevision(previous, row) };
 }
 
 export function serializeAnnotationDistillationReviewSessions(
@@ -88,8 +118,8 @@ function annotationAuthorToRow(author: AnnotationAuthorRef) {
   if (author.kind === 'agent') {
     return {
       author: 'ai',
-      agentId: author.agentId,
-      agentUsername: author.username,
+      agentId: author.agentId ?? null,
+      agentUsername: author.username ?? null,
       agentNickname: author.nickname,
       agentAvatar: null,
       agentAnnotationColor: author.annotationColor,
@@ -107,8 +137,8 @@ function annotationAuthorToRow(author: AnnotationAuthorRef) {
     agentNickname: null,
     agentAvatar: null,
     agentAnnotationColor: null,
-    userId: author.userId,
-    userUsername: author.username,
+    userId: author.userId ?? null,
+    userUsername: author.username ?? null,
     userNickname: author.nickname,
     userAvatar: null,
     userAnnotationColor: author.annotationColor,

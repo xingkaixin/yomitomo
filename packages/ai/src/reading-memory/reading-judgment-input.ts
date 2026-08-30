@@ -15,6 +15,7 @@ type RemoteEvidence = {
   kind: 'user_judgment' | 'ai_discussion' | 'distillation' | 'source';
   text: string;
   excerpt?: string;
+  needsEvidence?: true;
 };
 
 type EvidenceInput = Omit<RemoteEvidence, 'id'> & { source: ReadingEvidence };
@@ -99,7 +100,13 @@ function selectEvidence(evidence: readonly ReadingEvidence[], limit: number, byt
         ? ''
         : source.location.anchor.exact;
     const excerpt = clipJsonText(originalExcerpt, byteLimit).trim();
-    items.push({ source, kind: evidenceKind(source), text, ...(excerpt ? { excerpt } : {}) });
+    items.push({
+      source,
+      kind: evidenceKind(source),
+      text,
+      ...(excerpt ? { excerpt } : {}),
+      ...(source.review?.decision === 'need_evidence' ? { needsEvidence: true as const } : {}),
+    });
     truncated ||= text !== source.content || excerpt !== originalExcerpt;
   }
   return { items, truncated };
@@ -148,7 +155,12 @@ function fitEvidence(
   id: string,
   byteLimit: number,
 ): RemoteEvidence | null {
-  const item: RemoteEvidence = { id, kind: candidate.kind, text: '' };
+  const item: RemoteEvidence = {
+    id,
+    kind: candidate.kind,
+    text: '',
+    ...(candidate.needsEvidence ? { needsEvidence: true } : {}),
+  };
   let textBytes = byteLimit - jsonByteLength(item);
   if (candidate.excerpt) {
     const overhead = jsonByteLength({ ...item, excerpt: '' }) - jsonByteLength(item);

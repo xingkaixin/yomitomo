@@ -3,6 +3,49 @@ import { describe, expect, it } from 'vitest';
 import { validateReadingJudgment } from './reading-judgment-validation';
 
 describe('reading judgment validation', () => {
+  it('does not treat need-evidence as a settled user position but retains its supporting and gap citations', () => {
+    const current = fixture().current;
+    current[0] = {
+      ...current[0],
+      review: { decision: 'need_evidence', reviewedAt: '2026-08-30T00:00:00.000Z' },
+    };
+    const sent = new Map(current.map((item, index) => [`e${index + 1}`, item]));
+    const result = validateReadingJudgment(
+      'library-answer',
+      answer({
+        judgments: [
+          { text: 'Only an unsettled judgment', evidenceIds: ['e1'] },
+          { text: 'A position with independent support', evidenceIds: ['e1', 'e2'] },
+        ],
+        supporting: [{ text: 'A tentative observation', evidenceIds: ['e1'] }],
+        gaps: [{ text: 'This observation still needs evidence', evidenceIds: ['e1'] }],
+      }),
+      sent,
+      current,
+    );
+    expect(result).toEqual({
+      kind: 'library-answer',
+      ...answer({
+        judgments: [
+          {
+            text: 'A position with independent support',
+            evidenceIds: [current[0].id, current[1].id],
+          },
+        ],
+        supporting: [{ text: 'A tentative observation', evidenceIds: [current[0].id] }],
+        gaps: [{ text: 'This observation still needs evidence', evidenceIds: [current[0].id] }],
+      }),
+    });
+    expect(
+      validateReadingJudgment(
+        'library-answer',
+        answer({ judgments: [{ text: 'Only an unsettled judgment', evidenceIds: ['e1'] }] }),
+        sent,
+        current,
+      ),
+    ).toBeNull();
+  });
+
   it.each(['reading-relations', 'evidence-comparison'] as const)(
     'maps temporary references to current local evidence for %s without changing multilingual text',
     (kind) => {

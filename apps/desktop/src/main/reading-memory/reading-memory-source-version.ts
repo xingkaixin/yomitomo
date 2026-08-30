@@ -1,18 +1,23 @@
 import { createHash } from 'node:crypto';
+import type { ReadingReviewFold } from '@yomitomo/shared';
 
 type PersistedSourceRow = Readonly<Record<string, unknown>> & { readonly id: string };
 
-const annotationThreadSourceFormat = 'reading-memory:annotation-thread:v1';
+const annotationThreadSourceFormat = 'reading-memory:annotation-thread:v2';
 
 export function annotationThreadSourceVersion(
   annotation: PersistedSourceRow,
   comments: readonly PersistedSourceRow[],
+  reviews?: ReadonlyMap<string, ReadingReviewFold>,
 ) {
   return sourceVersion({
     format: annotationThreadSourceFormat,
     operation: 'upsert',
     annotation,
     comments: comments.toSorted(comparePersistedRows),
+    reviews: [...(reviews ?? [])].toSorted(([left], [right]) =>
+      left < right ? -1 : left > right ? 1 : 0,
+    ),
   });
 }
 

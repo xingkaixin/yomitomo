@@ -157,6 +157,17 @@ export {
 } from './reading-memory/reading-evidence-ranking';
 
 export { validateReadingJudgment } from './reading-memory/reading-judgment-validation';
+export { foldReadingReviews } from './reading-memory/reading-review-fold';
+export {
+  deriveReadingReviewSignals,
+  rankReadingReviewCandidates,
+  readingReviewSignalLimits,
+} from './reading-memory/reading-review-signals';
+export type {
+  ReadingReviewSignalCandidate,
+  ReadingReviewSignals,
+  ReadingReviewSignalVector,
+} from './reading-memory/reading-review-signals';
 
 export { selectReadingRelationEvidence } from './reading-memory/reading-relation-evidence';
 

@@ -11,6 +11,17 @@ import type {
   ReadingRelationsJudgeResult,
   ReadingRelationsSearchInput,
   ReadingRelationsSession,
+  ReadingReviewQueue,
+  ReadingReviewStartInput,
+  ReadingReviewSession,
+  ReadingReviewRevealResult,
+  ReadingReviewHistoryCursor,
+  ReadingReviewHistoryPage,
+  ReadingReviewSubmitInput,
+  ReadingReviewSubmitResult,
+  ReadingReviewEvidenceSearchInput,
+  ReadingReviewEvidenceSession,
+  ReadingReviewEvidenceResult,
 } from '../ipc-contract';
 import { desktopIpcInvokeDescriptors, desktopIpcInvokeRoutes } from '../ipc-contract';
 import { readingMemoryIpcInvokeDescriptors } from './reading-memory-descriptors';
@@ -29,6 +40,27 @@ describe('reading memory IPC descriptors', () => {
         search: (input: ReadingLibrarySearchInput) => Promise<ReadingLibrarySession>;
         answer: (input: { requestId: string }) => Promise<ReadingLibraryAnswerResult>;
         cancel: (input: { requestId: string }) => Promise<void>;
+      };
+      review: {
+        queue: () => Promise<ReadingReviewQueue>;
+        start: (input: ReadingReviewStartInput) => Promise<ReadingReviewSession>;
+        reveal: (input: {
+          requestId: string;
+          answer: string;
+        }) => Promise<ReadingReviewRevealResult>;
+        history: (input: {
+          requestId: string;
+          cursor?: ReadingReviewHistoryCursor;
+        }) => Promise<ReadingReviewHistoryPage>;
+        submit: (input: ReadingReviewSubmitInput) => Promise<ReadingReviewSubmitResult>;
+        cancel: (input: { requestId: string; comparisonId?: string }) => Promise<void>;
+        searchEvidence: (
+          input: ReadingReviewEvidenceSearchInput,
+        ) => Promise<ReadingReviewEvidenceSession>;
+        compareEvidence: (input: {
+          requestId: string;
+          comparisonId: string;
+        }) => Promise<ReadingReviewEvidenceResult>;
       };
       confirmPrivacy: () => Promise<void>;
       model: {

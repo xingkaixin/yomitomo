@@ -21,7 +21,7 @@ import { deletedAnnotationThreadSourceVersion } from './reading-memory-source-ve
 import { withReadingMemoryTransaction } from './reading-memory-store';
 import type { ReadingMemorySqliteExecutor } from './reading-memory-store-types';
 
-export const readingMemoryEvidenceProjectorVersion = 'reading-memory-evidence:v1';
+export const readingMemoryEvidenceProjectorVersion = 'reading-memory-evidence:v2';
 
 const defaultJobLimit = 20;
 const defaultBackfillLimit = 50;
@@ -179,6 +179,7 @@ function processProjectionJob(
       annotation: source.annotation,
       sourceVersion: source.sourceVersion,
       projectorVersion,
+      reviews: source.reviews,
     }),
   );
   completeReadingMemoryProjectionJob(executor, job);

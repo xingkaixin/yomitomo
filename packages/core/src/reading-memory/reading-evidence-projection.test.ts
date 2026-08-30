@@ -1,4 +1,4 @@
-import type { Annotation, Comment } from '@yomitomo/shared';
+import type { Annotation, Comment, ReadingReviewFold } from '@yomitomo/shared';
 import { describe, expect, it } from 'vitest';
 import {
   materializeReadingEvidence,
@@ -7,6 +7,139 @@ import {
 } from './reading-evidence-projection';
 
 describe('reading evidence projection', () => {
+  it('keeps distillation formation time stable when an editing session changes updatedAt', () => {
+    const source = annotation({
+      distillation: {
+        status: 'published',
+        content: 'Published judgment',
+        updatedAt: '2026-08-29T00:20:00.000Z',
+      },
+    });
+    const edited = {
+      ...source,
+      distillation: { ...source.distillation!, updatedAt: '2026-08-30T00:00:00.000Z' },
+    };
+    const before = project(source).find((entry) => entry.assetType === 'distillation');
+    const after = project(edited).find((entry) => entry.assetType === 'distillation');
+    if (!before || !after) throw new Error('Missing distillation projection');
+    expect(before.sourceCreatedAt).toBe(source.createdAt);
+    expect(after.sourceCreatedAt).toBe(source.createdAt);
+    expect(
+      materializeReadingEvidence({
+        projected: after,
+        annotation: edited,
+        article: { id: 'article_1', sourceType: 'web', title: 'Source' },
+      })?.createdAt,
+    ).toBe(source.createdAt);
+  });
+
+  it('projects and materializes the effective review without overwriting the original assets', () => {
+    const source = annotation({
+      comments: [
+        comment('reader', userAuthor('reader'), '原用户判断'),
+        comment('assistant', agentAuthor('assistant'), '原助手判断'),
+      ],
+      distillation: {
+        status: 'published',
+        content: '原提炼正文',
+        publishedAt: '2026-08-29T00:20:00.000Z',
+      },
+    });
+    const reviewedAt = '2026-08-30T00:00:00.000Z';
+    const reviews = new Map<string, ReadingReviewFold>([
+      [
+        'reading_evidence_comment:assistant',
+        {
+          content: '用户现在的判断',
+          authorKind: 'user',
+          latestReview: { id: 'changed', decision: 'changed', createdAt: reviewedAt },
+        },
+      ],
+      [
+        'reading_evidence_distillation:annotation_1',
+        {
+          content: '原提炼正文',
+          latestReview: { id: 'need', decision: 'need_evidence', createdAt: reviewedAt },
+        },
+      ],
+    ]);
+    const entries = projectReadingEvidenceThread({
+      articleId: 'article_1',
+      annotation: source,
+      sourceVersion: 'reviewed-v2',
+      projectorVersion: 'projector',
+      reviews,
+    });
+    const changed = entries.find((item) => item.sourceCommentId === 'assistant')!;
+    const distillation = entries.find((item) => item.assetType === 'distillation')!;
+    expect(changed).toMatchObject({
+      searchText: '用户现在的判断 目标原文',
+      isUserAuthored: true,
+      sourceVersion: 'reviewed-v2',
+      sourceCreatedAt: source.comments[1].createdAt,
+      sourceUpdatedAt: reviewedAt,
+    });
+    expect(distillation).toMatchObject({
+      searchText: '原提炼正文 目标原文',
+      isUserAuthored: false,
+      sourceUpdatedAt: reviewedAt,
+    });
+    const article = { id: 'article_1', sourceType: 'web' as const, title: '文章' };
+    expect(
+      materializeReadingEvidence({ projected: changed, annotation: source, article, reviews }),
+    ).toMatchObject({
+      content: '用户现在的判断',
+      authorKind: 'user',
+      review: { decision: 'changed', reviewedAt },
+      createdAt: source.comments[1].createdAt,
+    });
+    expect(
+      materializeReadingEvidence({ projected: distillation, annotation: source, article, reviews }),
+    ).toMatchObject({ content: '原提炼正文', review: { decision: 'need_evidence', reviewedAt } });
+    expect(source.comments[1].content).toBe('原助手判断');
+    expect(source.comments[1].author.kind).toBe('agent');
+    expect(source.distillation?.content).toBe('原提炼正文');
+
+    const removedReader = {
+      ...source,
+      comments: source.comments.slice(1),
+      distillation: undefined,
+    };
+    expect(
+      projectReadingEvidenceThread({
+        articleId: 'article_1',
+        annotation: removedReader,
+        sourceVersion: 'deleted-user',
+        projectorVersion: 'projector',
+        reviews,
+      }),
+    ).toEqual([]);
+    expect(
+      materializeReadingEvidence({
+        projected: changed,
+        annotation: removedReader,
+        article,
+        reviews,
+      }),
+    ).toBeNull();
+    expect(
+      materializeReadingEvidence({
+        projected: distillation,
+        annotation: removedReader,
+        article,
+        reviews,
+      }),
+    ).toBeNull();
+    expect(
+      materializeReadingEvidence({
+        projected: changed,
+        annotation: { ...source, comments: source.comments.slice(0, 1) },
+        article,
+        reviews,
+      }),
+    ).toBeNull();
+  });
+
   it('selects judgments from only the source fields needed for eligibility', () => {
     const reader = { author: { kind: 'user' as const }, content: '  判断  ' };
     const assistant = { author: { kind: 'agent' as const }, content: '补充' };

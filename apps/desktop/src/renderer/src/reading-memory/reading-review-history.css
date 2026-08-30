@@ -1,0 +1,80 @@
+.reading-review-history,
+.reading-review-history-events,
+.reading-review-history-event,
+.reading-review-history-details {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.reading-review-history h3,
+.reading-review-history h4,
+.reading-review-history p,
+.reading-review-history ol,
+.reading-review-history dl,
+.reading-review-history dd {
+  margin: 0;
+}
+
+.reading-review-history h3,
+.reading-review-history h4,
+.reading-review-history-decision {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.reading-review-history-base {
+  display: grid;
+  gap: 8px;
+}
+
+.reading-review-history-text {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.reading-review-history-events {
+  list-style: none;
+  padding: 0;
+}
+
+.reading-review-history-event {
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.reading-review-history-event-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.reading-review-history-details {
+  gap: 12px;
+}
+
+.reading-review-history-details > div {
+  display: grid;
+  gap: 4px;
+}
+
+.reading-review-history-event time,
+.reading-review-history dt,
+.reading-review-history-status {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+}
+
+.reading-review-history-event time {
+  font-variant-numeric: tabular-nums;
+}
+
+.reading-review-history-more {
+  justify-self: start;
+  height: auto;
+  min-height: 40px;
+  white-space: normal;
+}

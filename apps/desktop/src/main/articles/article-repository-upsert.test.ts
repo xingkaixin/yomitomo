@@ -30,6 +30,321 @@ describe('article repository local child row writes', () => {
     vi.restoreAllMocks();
   });
 
+  it('changes a comment revision for direct edits without reviving an A to B to A version', () => {
+    const { database, memory } = repositoryDatabase();
+    const original = comment({
+      content: 'A',
+      author: { kind: 'user', userId: 'reader', username: 'reader' },
+    });
+    upsertAnnotationRows(
+      database,
+      { articleId: 'article_1', annotation: annotation({ comments: [original] }) },
+      memory,
+    );
+    const revision = () =>
+      database.select().from(schema.comments).where(eq(schema.comments.id, original.id)).get()
+        ?.assetRevision;
+    const initial = revision();
+
+    upsertCommentRows(
+      database,
+      {
+        articleId: 'article_1',
+        annotationId: 'annotation_1',
+        comment: { ...original, content: 'B' },
+      },
+      memory,
+    );
+    const changed = revision();
+    upsertCommentRows(
+      database,
+      { articleId: 'article_1', annotationId: 'annotation_1', comment: original },
+      memory,
+    );
+
+    expect(changed).not.toBe(initial);
+    expect(revision()).not.toBe(initial);
+    expect(revision()).not.toBe(changed);
+  });
+
+  it('retains stored revisions through unchanged annotation comment replacement', () => {
+    const { database, memory } = repositoryDatabase();
+    const original = annotation({ comments: [comment()] });
+    upsertAnnotationRows(database, { articleId: 'article_1', annotation: original }, memory);
+    memory
+      .prepare('UPDATE comments SET asset_revision = ? WHERE id = ?')
+      .run('stored-comment-version', 'comment_1');
+    memory
+      .prepare('UPDATE annotations SET distillation_revision = ? WHERE id = ?')
+      .run('stored-distillation-version', 'annotation_1');
+
+    upsertAnnotationRows(database, { articleId: 'article_1', annotation: original }, memory);
+
+    expect(
+      database.select().from(schema.comments).where(eq(schema.comments.id, 'comment_1')).get()
+        ?.assetRevision,
+    ).toBe('stored-comment-version');
+    expect(
+      database
+        .select()
+        .from(schema.annotations)
+        .where(eq(schema.annotations.id, 'annotation_1'))
+        .get()?.distillationRevision,
+    ).toBe('stored-distillation-version');
+  });
+
+  it('keeps comment revisions for display, sibling, and distillation edits', () => {
+    const { database, memory } = repositoryDatabase();
+    const original = comment({ author: { kind: 'user', userId: 'reader', username: 'reader' } });
+    upsertAnnotationRows(
+      database,
+      { articleId: 'article_1', annotation: annotation({ comments: [original] }) },
+      memory,
+    );
+    const before = storedCommentRevision(database, original.id);
+
+    upsertAnnotationRows(
+      database,
+      {
+        articleId: 'article_1',
+        annotation: annotation({
+          color: '#000000',
+          comments: [
+            {
+              ...original,
+              author: {
+                kind: 'user',
+                userId: 'reader',
+                username: 'renamed',
+                nickname: 'New display name',
+                avatar: 'new-avatar',
+              },
+            },
+            comment({ id: 'new-sibling', content: 'another judgment' }),
+          ],
+          distillation: { status: 'published', content: 'another asset' },
+        }),
+      },
+      memory,
+    );
+
+    expect(storedCommentRevision(database, original.id)).toBe(before);
+  });
+
+  it.each([
+    { name: 'pending completion', original: { pending: true }, next: { pending: undefined } },
+    {
+      name: 'author identity',
+      original: { author: { kind: 'user', userId: 'one', username: 'reader' } },
+      next: { author: { kind: 'user', userId: 'two', username: 'reader' } },
+    },
+    {
+      name: 'author kind',
+      original: { author: { kind: 'user', username: 'reader' } },
+      next: { author: { kind: 'agent', agentId: 'agent', username: 'reader' } },
+    },
+  ] satisfies Array<{ name: string; original: Partial<Comment>; next: Partial<Comment> }>)(
+    'changes comment revisions for $name',
+    ({ original, next }) => {
+      const { database, memory } = repositoryDatabase();
+      const initial = comment(original);
+      upsertAnnotationRows(
+        database,
+        { articleId: 'article_1', annotation: annotation({ comments: [initial] }) },
+        memory,
+      );
+      const before = storedCommentRevision(database, initial.id);
+
+      upsertCommentRows(
+        database,
+        { articleId: 'article_1', annotationId: 'annotation_1', comment: { ...initial, ...next } },
+        memory,
+      );
+
+      expect(storedCommentRevision(database, initial.id)).not.toBe(before);
+      const saved = database
+        .select()
+        .from(schema.comments)
+        .where(eq(schema.comments.id, initial.id))
+        .get();
+      expect(saved?.pending === true).toBe(next.pending === true);
+    },
+  );
+
+  it('versions distillation content and publication changes but not its AI editing session', () => {
+    const { database, memory } = repositoryDatabase();
+    const original: NonNullable<Annotation['distillation']> = { status: 'published', content: 'A' };
+    upsertAnnotationRows(
+      database,
+      {
+        articleId: 'article_1',
+        annotation: annotation({ comments: [comment()], distillation: original }),
+      },
+      memory,
+    );
+    const revision = () =>
+      database
+        .select()
+        .from(schema.annotations)
+        .where(eq(schema.annotations.id, 'annotation_1'))
+        .get()?.distillationRevision;
+    const commentRevision = storedCommentRevision(database, 'comment_1');
+    const initial = revision();
+    const save = (distillation: NonNullable<Annotation['distillation']>) => {
+      const stored = database
+        .select()
+        .from(schema.annotations)
+        .where(eq(schema.annotations.id, 'annotation_1'))
+        .get();
+      saveAnnotationDistillationRows(
+        database,
+        {
+          articleId: 'article_1',
+          annotationId: 'annotation_1',
+          expectedDistillationUpdatedAt: stored?.distillationUpdatedAt ?? null,
+          distillation,
+        },
+        memory,
+      );
+    };
+
+    save({
+      ...original,
+      updatedAt: '2026-06-04T01:00:00.000Z',
+      reviewSessions: [
+        {
+          id: 'session',
+          agentId: 'agent',
+          agentUsername: 'assistant',
+          messages: [
+            {
+              id: 'message',
+              author: { kind: 'agent', agentId: 'agent', username: 'assistant' },
+              content: 'suggestion only',
+              createdAt: '2026-06-04T01:00:00.000Z',
+            },
+          ],
+          createdAt: '2026-06-04T01:00:00.000Z',
+          updatedAt: '2026-06-04T01:00:00.000Z',
+        },
+      ],
+    });
+    expect(revision()).toBe(initial);
+    const revisions = [initial];
+    for (const distillation of [
+      { ...original, content: 'B' },
+      original,
+      { ...original, status: 'unpublished' as const },
+      original,
+    ]) {
+      save(distillation);
+      revisions.push(revision());
+    }
+    expect(new Set(revisions).size).toBe(revisions.length);
+    expect(storedCommentRevision(database, 'comment_1')).toBe(commentRevision);
+  });
+
+  it('removes only deleted comment histories and retains unpublished distillation history until removal', () => {
+    const { database, memory } = repositoryDatabase();
+    const target = annotation({
+      comments: [comment(), comment({ id: 'removed' })],
+      distillation: { status: 'published', content: 'original distillation' },
+    });
+    upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, memory);
+    database
+      .insert(schema.readingMemoryReviews)
+      .values([
+        reviewRow('retained-comment', 'comment', 'comment_1'),
+        reviewRow('removed-comment', 'comment', 'removed'),
+        reviewRow('old-distillation', 'distillation', 'annotation_1'),
+        {
+          ...reviewRow('new-distillation', 'distillation', 'annotation_1'),
+          assetVersion: 'version-2',
+        },
+      ])
+      .run();
+    const revision = storedCommentRevision(database, 'comment_1');
+
+    upsertAnnotationRows(
+      database,
+      { articleId: 'article_1', annotation: { ...target, comments: [comment()] } },
+      memory,
+    );
+    expect(
+      database
+        .select({ id: schema.readingMemoryReviews.id })
+        .from(schema.readingMemoryReviews)
+        .all(),
+    ).toHaveLength(3);
+    expect(storedCommentRevision(database, 'comment_1')).toBe(revision);
+    saveAnnotationDistillationRows(
+      database,
+      {
+        articleId: 'article_1',
+        annotationId: 'annotation_1',
+        expectedDistillationUpdatedAt: null,
+        distillation: { status: 'unpublished', content: 'original distillation' },
+      },
+      memory,
+    );
+    expect(database.select().from(schema.readingMemoryReviews).all()).toHaveLength(3);
+
+    saveAnnotationDistillationRows(
+      database,
+      {
+        articleId: 'article_1',
+        annotationId: 'annotation_1',
+        expectedDistillationUpdatedAt: null,
+        distillation: undefined,
+      },
+      memory,
+    );
+
+    expect(
+      database
+        .select({ id: schema.readingMemoryReviews.id })
+        .from(schema.readingMemoryReviews)
+        .all(),
+    ).toEqual([{ id: 'retained-comment' }]);
+    expect(
+      database
+        .select()
+        .from(schema.annotations)
+        .where(eq(schema.annotations.id, 'annotation_1'))
+        .get()?.distillationContent,
+    ).toBeNull();
+  });
+
+  it('rolls back annotation replacement when review cleanup cannot commit', () => {
+    const { database, memory } = repositoryDatabase();
+    const target = annotation({
+      comments: [comment()],
+      distillation: { status: 'published', content: 'original' },
+    });
+    upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, memory);
+    database
+      .insert(schema.readingMemoryReviews)
+      .values(reviewRow('review', 'comment', 'comment_1'))
+      .run();
+    const before = database.select().from(schema.comments).all();
+    const jobs = readReadingMemoryProjectionJobs(memory, 10);
+    memory.exec(
+      "CREATE TRIGGER fail_review_cleanup BEFORE DELETE ON reading_memory_reviews BEGIN SELECT RAISE(ABORT, 'review cleanup failure'); END;",
+    );
+
+    expect(() =>
+      upsertAnnotationRows(
+        database,
+        { articleId: 'article_1', annotation: { ...target, comments: [] } },
+        memory,
+      ),
+    ).toThrow('review cleanup failure');
+
+    expect(database.select().from(schema.comments).all()).toEqual(before);
+    expect(readReadingMemoryProjectionJobs(memory, 10)).toEqual(jobs);
+    expect(database.select().from(schema.readingMemoryReviews).all()).toHaveLength(1);
+  });
+
   it('retains validated PDF anchor geometry through a SQLite write and read', () => {
     const { database, memory } = repositoryDatabase();
     const anchor = createPdfTextAnchor({
@@ -530,6 +845,28 @@ describe('article repository local child row writes', () => {
 
 type ArticleRow = typeof schema.articles.$inferSelect;
 type UserProfileRow = typeof schema.userProfiles.$inferSelect;
+
+function storedCommentRevision(database: StoreDatabase, id: string) {
+  const row = database.select().from(schema.comments).where(eq(schema.comments.id, id)).get();
+  if (!row) throw new Error('missing stored comment');
+  return row.assetRevision;
+}
+
+function reviewRow(id: string, assetType: 'comment' | 'distillation', assetId: string) {
+  return {
+    id,
+    articleId: 'article_1',
+    annotationId: 'annotation_1',
+    assetType,
+    assetId,
+    assetVersion: 'version-1',
+    judgmentSnapshot: 'original',
+    judgmentDigest: 'digest',
+    decision: 'still_agree' as const,
+    answer: '',
+    createdAt: '2026-08-30T00:00:00.000Z',
+  };
+}
 
 function repositoryDatabase(): {
   database: StoreDatabase;

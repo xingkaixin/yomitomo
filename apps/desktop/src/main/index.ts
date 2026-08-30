@@ -61,6 +61,11 @@ import {
   createReadingLibraryRuntime,
   type ReadingLibraryRuntime,
 } from './reading-memory/reading-library-runtime';
+import {
+  createReadingReviewRuntime,
+  type ReadingReviewRuntime,
+} from './reading-memory/reading-review-runtime';
+import { createReadingReviewQueue } from './reading-memory/reading-review-queue';
 import { getSqliteExecutor, readDatabaseLifecycle, withDatabaseLease } from './store/store-db';
 import { secureRendererWebPreferences } from './windows/renderer-window-security';
 import { installRendererNavigationGuard } from './windows/renderer-navigation';
@@ -77,6 +82,7 @@ let persistenceModulesPromise: Promise<DesktopPersistenceModules> | null = null;
 let mainProcessRuntime: MainProcessRuntime | null = null;
 let readingRelationsRuntime: ReadingRelationsRuntime | null = null;
 let readingLibraryRuntime: ReadingLibraryRuntime | null = null;
+let readingReviewRuntime: ReadingReviewRuntime | null = null;
 let sensitiveRendererEventsLocked = false;
 const rendererRoleRegistry = createRendererRoleRegistry();
 const rendererStateEventDispatcher = createRendererStateEventDispatcher(rendererRoleRegistry);
@@ -314,6 +320,12 @@ void app.whenReady().then(async () => {
     getAiModule,
     logInfo,
   });
+  readingReviewRuntime = createReadingReviewRuntime({
+    semanticIndex: readingMemorySemanticIndex,
+    readQueue: createReadingReviewQueue({ semanticIndex: readingMemorySemanticIndex }),
+    getAiModule,
+    logInfo,
+  });
   mainProcessRuntime = startMainProcessRuntime({
     getPersistenceModules,
     getAppUpdaterModule,
@@ -327,6 +339,7 @@ void app.whenReady().then(async () => {
   registerReadingMemoryIpc({
     relations: readingRelationsRuntime,
     library: readingLibraryRuntime,
+    review: readingReviewRuntime,
     controls: readingMemoryControls,
   });
   registerIpc(startupStoreInitialization);
@@ -347,6 +360,8 @@ const beforeQuit = createBeforeQuitHandler({
     readingRelationsRuntime = null;
     readingLibraryRuntime?.cancelAll();
     readingLibraryRuntime = null;
+    readingReviewRuntime?.cancelAll();
+    readingReviewRuntime = null;
     await mainProcessRuntime?.dispose();
     mainProcessRuntime = null;
   },
@@ -386,6 +401,7 @@ function registerIpc(startupStoreInitialization: StartupStoreInitializationResul
     onDatabaseRestored: () => {
       readingRelationsRuntime?.cancelAll();
       readingLibraryRuntime?.cancelAll();
+      readingReviewRuntime?.cancelAll();
       mainProcessRuntime?.onDatabaseRestored();
     },
     storeLoadErrorInfo,
@@ -440,6 +456,7 @@ function setSensitiveRendererEventsLocked(locked: boolean) {
   if (locked) {
     readingRelationsRuntime?.cancelAll();
     readingLibraryRuntime?.cancelAll();
+    readingReviewRuntime?.cancelAll();
   }
 }
 

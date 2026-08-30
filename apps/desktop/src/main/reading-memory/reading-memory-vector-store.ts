@@ -1,5 +1,11 @@
-import type { ReadingEvidenceScope } from '@yomitomo/shared';
-import { finiteNumberFieldOrZero, recordField, stringField } from '@yomitomo/shared';
+import { readingReviewSignalLimits } from '@yomitomo/core';
+import type { ReadingEvidenceAssetType, ReadingEvidenceScope } from '@yomitomo/shared';
+import {
+  finiteNumberFieldOrZero,
+  recordField,
+  stringField,
+  uniqueNonEmptyStrings,
+} from '@yomitomo/shared';
 import { readingMemoryEvidenceProjectorVersion } from './reading-memory-evidence-projection-batch';
 import {
   readReadingEvidenceProjectionStatus,
@@ -13,6 +19,13 @@ import type { ReadingMemorySqliteExecutor } from './reading-memory-store-types';
 export type ReadingMemoryEmbeddingEntry = ReadingEvidenceCandidate & {
   projectorVersion: string;
   searchText: string;
+};
+
+export type ReadingMemoryReviewVector = ReadingEvidenceCandidate & {
+  assetType: ReadingEvidenceAssetType;
+  sourceCommentId?: string;
+  sourceCreatedAt: string;
+  vector: Float32Array;
 };
 
 type VectorModel = {
@@ -279,6 +292,85 @@ LIMIT ?
         vector: vectorFromBytes(recordField(row, 'vector')),
       }),
     );
+}
+
+export function readReadingMemoryReviewVectorWindow(
+  executor: ReadingMemorySqliteExecutor,
+  options: VectorModel & { candidateEvidenceIds: readonly string[]; now: Date },
+): {
+  candidateVectors: ReadingMemoryReviewVector[];
+  recentEvidence: ReadingMemoryReviewVector[];
+} {
+  assertVectorModel(options);
+  const now = options.now.toISOString();
+  const ids = uniqueNonEmptyStrings(options.candidateEvidenceIds).slice(
+    0,
+    readingReviewSignalLimits.candidateCount,
+  );
+  const candidateVectors: ReadingMemoryReviewVector[] = [];
+  const recentEvidence: ReadingMemoryReviewVector[] = [];
+  if (ids.length === 0) return { candidateVectors, recentEvidence };
+  const rows = executor
+    .prepare(
+      `
+WITH recent AS (
+  SELECT entry.id
+  ${currentEntryTables}
+  INNER JOIN reading_memory_evidence_vectors AS stored ON ${matchingVectorCondition}
+  WHERE ${currentEntryCondition}
+    AND julianday(entry.source_created_at) >= julianday(?) - ?
+    AND julianday(entry.source_created_at) <= julianday(?)
+  ORDER BY julianday(entry.source_created_at) DESC, entry.id ASC
+  LIMIT ?
+), selected AS (
+  SELECT value AS id FROM json_each(?)
+  UNION SELECT id FROM recent
+)
+SELECT ${candidateColumns},
+  entry.asset_type AS assetType,
+  entry.source_comment_id AS sourceCommentId,
+  entry.source_created_at AS sourceCreatedAt,
+  stored.vector,
+  recent.id IS NOT NULL AS isRecent
+${currentEntryTables}
+INNER JOIN reading_memory_evidence_vectors AS stored ON ${matchingVectorCondition}
+INNER JOIN selected ON selected.id = entry.id
+LEFT JOIN recent ON recent.id = entry.id
+WHERE ${currentEntryCondition}
+ORDER BY julianday(entry.source_created_at) DESC, entry.id ASC
+`,
+    )
+    .all(
+      options.modelVersion,
+      options.dimension,
+      readingMemoryEvidenceProjectorVersion,
+      now,
+      readingReviewSignalLimits.evidenceWindowDays,
+      now,
+      readingReviewSignalLimits.recentEvidenceCount,
+      JSON.stringify(ids),
+      options.modelVersion,
+      options.dimension,
+      readingMemoryEvidenceProjectorVersion,
+    );
+  const requestedIds = new Set(ids);
+  for (const row of rows) {
+    const assetType = recordField(row, 'assetType');
+    if (assetType !== 'annotation' && assetType !== 'comment' && assetType !== 'distillation') {
+      continue;
+    }
+    const sourceCommentId = stringField(recordField(row, 'sourceCommentId'));
+    const entry: ReadingMemoryReviewVector = {
+      ...candidateFromRow(row),
+      assetType,
+      ...(sourceCommentId ? { sourceCommentId } : {}),
+      sourceCreatedAt: stringField(recordField(row, 'sourceCreatedAt')),
+      vector: vectorFromBytes(recordField(row, 'vector')),
+    };
+    if (requestedIds.has(entry.id)) candidateVectors.push(entry);
+    if (finiteNumberFieldOrZero(recordField(row, 'isRecent'))) recentEvidence.push(entry);
+  }
+  return { candidateVectors, recentEvidence };
 }
 
 function candidateFromRow(row: unknown): ReadingEvidenceCandidate {

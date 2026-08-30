@@ -2,6 +2,7 @@ import { ARTICLE_SOURCE_TYPES, type ReadingEvidenceScope, type TextAnchor } from
 import { z } from 'zod';
 import {
   readingLibrarySourceLimit,
+  readingReviewAnswerLimit,
   type ReadingLibrarySearchInput,
   type ReadingRelationsSearchInput,
 } from './reading-memory-domain';
@@ -96,6 +97,16 @@ const librarySearchArgsSchema: z.ZodType<[ReadingLibrarySearchInput]> = z.tuple(
   }),
 ]);
 
+const reviewAssetSchema = z.strictObject({
+  articleId: idSchema,
+  annotationId: idSchema,
+  assetType: z.enum(['comment', 'distillation']),
+  assetId: idSchema,
+});
+const reviewComparisonArgsSchema = z.tuple([
+  z.strictObject({ requestId: requestIdSchema, comparisonId: requestIdSchema }),
+]);
+
 export const readingMemoryIpcInvokeSchemas = {
   'reading-memory:relations:search': searchArgsSchema,
   'reading-memory:relations:judge': requestArgsSchema,
@@ -104,6 +115,41 @@ export const readingMemoryIpcInvokeSchemas = {
   'reading-memory:library:search': librarySearchArgsSchema,
   'reading-memory:library:answer': requestArgsSchema,
   'reading-memory:library:cancel': requestArgsSchema,
+  'reading-memory:review:start': z.tuple([
+    z.strictObject({ requestId: requestIdSchema, asset: reviewAssetSchema }),
+  ]),
+  'reading-memory:review:reveal': z.tuple([
+    z.strictObject({
+      requestId: requestIdSchema,
+      answer: z.string().trim().max(readingReviewAnswerLimit),
+    }),
+  ]),
+  'reading-memory:review:history': z.tuple([
+    z.strictObject({
+      requestId: requestIdSchema,
+      cursor: z
+        .strictObject({ createdAt: z.iso.datetime({ offset: true }).max(64), id: idSchema })
+        .optional(),
+    }),
+  ]),
+  'reading-memory:review:submit': z.tuple([
+    z.strictObject({
+      requestId: requestIdSchema,
+      eventId: idSchema,
+      decision: z.enum(['still_agree', 'changed', 'need_evidence']),
+    }),
+  ]),
+  'reading-memory:review:cancel': z.tuple([
+    z.strictObject({ requestId: requestIdSchema, comparisonId: requestIdSchema.optional() }),
+  ]),
+  'reading-memory:review:search-evidence': z.tuple([
+    z.strictObject({
+      requestId: requestIdSchema,
+      comparisonId: requestIdSchema,
+      expectedRouteRevision: z.string().regex(/^[a-f0-9]{64}$/),
+    }),
+  ]),
+  'reading-memory:review:compare-evidence': reviewComparisonArgsSchema,
 };
 
 export type ReadingMemoryIpcSchemaArgs<Channel extends keyof typeof readingMemoryIpcInvokeSchemas> =

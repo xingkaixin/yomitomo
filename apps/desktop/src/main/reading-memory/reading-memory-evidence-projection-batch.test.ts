@@ -39,7 +39,10 @@ describe('reading memory evidence projection batch', () => {
     expect(fixture.rows('reading_memory_evidence_receipts')).toHaveLength(8);
     expect(fixture.rows('reading_memory_evidence_entries')).toHaveLength(8);
     expect(fixture.rows('reading_memory_projection_jobs')).toEqual([]);
-    expect(fixture.sourceSelects()).toHaveLength(4);
+    expect(fixture.sourceSelects()).toHaveLength(6);
+    expect(
+      fixture.sourceSelects().filter((sql) => sql.includes('reading_memory_reviews')),
+    ).toHaveLength(2);
   });
 
   it('refreshes stale work before projecting the current source', () => {

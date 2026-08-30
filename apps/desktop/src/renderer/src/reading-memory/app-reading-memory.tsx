@@ -5,6 +5,7 @@ import { SegmentedControl } from '../components/ui/segmented-control';
 import { DistillationLibrary } from '../distillations/app-distillation-library';
 import type { ReadingEvidenceSourceTarget } from '../shell/app-reading-types';
 import { ReadingLibraryQuestion } from './reading-library-question';
+import { ReadingReview } from './reading-review';
 import './app-reading-memory.css';
 
 type ReadingMemoryTab = 'distillations' | 'library' | 'review';
@@ -33,7 +34,7 @@ export function ReadingMemory({
           options={[
             { value: 'distillations', label: t('readingMemory.tabs.distillations') },
             { value: 'library', label: t('readingMemory.tabs.library') },
-            { value: 'review', label: t('readingMemory.tabs.review'), disabled: true },
+            { value: 'review', label: t('readingMemory.tabs.review') },
           ]}
         />
       </header>
@@ -48,6 +49,12 @@ export function ReadingMemory({
         {tab === 'library' ? (
           <ReadingLibraryQuestion
             collections={collections}
+            catalogRevision={catalogRevision}
+            onOpenEvidenceSource={onOpenEvidenceSource}
+          />
+        ) : null}
+        {tab === 'review' ? (
+          <ReadingReview
             catalogRevision={catalogRevision}
             onOpenEvidenceSource={onOpenEvidenceSource}
           />

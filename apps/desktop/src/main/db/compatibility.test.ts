@@ -5,6 +5,7 @@ import {
   databaseReaderCompatibility,
   DatabaseTooNewError,
   migrationReaderLevel,
+  SUPPORTED_DATABASE_READER_LEVEL,
 } from './compatibility';
 import { migrations } from './migrations';
 
@@ -52,11 +53,21 @@ describe('database reader compatibility', () => {
     } catch (error) {
       expect(error).toMatchObject({
         code: 'DATABASE_TOO_NEW',
-        requiredReaderLevel: 3,
-        supportedReaderLevel: 2,
+        requiredReaderLevel: SUPPORTED_DATABASE_READER_LEVEL + 1,
+        supportedReaderLevel: SUPPORTED_DATABASE_READER_LEVEL,
         unknownMigrationIds: ['0099_future_unknown'],
       });
     }
+  });
+
+  it('requires revision-aware writers before opening reading reviews', () => {
+    const migration = migrations.find((item) => item.id === '0071_reading_memory_reviews');
+    expect(migration && migrationReaderLevel(migration)).toBe(3);
+    expect(SUPPORTED_DATABASE_READER_LEVEL).toBe(3);
+    expect(databaseReaderCompatibility(['0071_reading_memory_reviews'], 3)).toEqual({
+      requiredReaderLevel: 3,
+      unknownMigrationIds: [],
+    });
   });
 
   it('requires destructive migrations to declare a higher reader level', () => {

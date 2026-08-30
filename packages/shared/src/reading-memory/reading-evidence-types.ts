@@ -1,6 +1,7 @@
 import type { TextAnchor } from '../anchor-types';
 import type { ArticleSourceType } from '../sources/article-types';
 import type { ContentRef } from '../sources/collection-types';
+import type { ReadingReviewDecision } from './reading-review-types';
 
 export type ReadingEvidenceAssetType = 'annotation' | 'comment' | 'distillation';
 
@@ -16,6 +17,7 @@ export type ReadingEvidence = {
   assetType: ReadingEvidenceAssetType;
   role: ReadingEvidenceRole;
   authorKind?: 'user' | 'ai';
+  review?: { decision: ReadingReviewDecision; reviewedAt: string };
   content: string;
   sourceVersion: string;
   source: {

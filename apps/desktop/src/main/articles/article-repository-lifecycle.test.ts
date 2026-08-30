@@ -48,6 +48,143 @@ describe('article memory lifecycle', () => {
     vi.restoreAllMocks();
   });
 
+  it.each(['comment', 'annotation', 'article'] as const)(
+    'deletes every review version with the actual %s asset',
+    (kind) => {
+      const database = lifecycleDatabase();
+      insertAnnotation(database, 'annotation_1');
+      insertComment(database, 'annotation_1', 'comment_1');
+      insertComment(database, 'annotation_1', 'reply', 'comment_1');
+      insertAssetReview(database, 'old-comment', 'comment', 'comment_1');
+      insertAssetReview(database, 'new-comment', 'comment', 'comment_1', 'version-2');
+      insertAssetReview(database, 'reply', 'comment', 'reply');
+      insertAssetReview(database, 'distillation', 'distillation', 'annotation_1');
+
+      if (kind === 'article') deleteArticleRowsWithMemoryLifecycle(database, 'article_1');
+      else if (kind === 'annotation')
+        deleteAnnotationRowsWithMemoryLifecycle(database, {
+          articleId: 'article_1',
+          annotationId: 'annotation_1',
+        });
+      else
+        deleteCommentRowsWithMemoryLifecycle(database, {
+          articleId: 'article_1',
+          annotationId: 'annotation_1',
+          commentId: 'comment_1',
+        });
+
+      expect(database.prepare('SELECT id FROM reading_memory_reviews ORDER BY id').all()).toEqual(
+        kind === 'comment' ? [{ id: 'distillation' }] : [],
+      );
+      expect(countRows(database, 'comments')).toBe(0);
+    },
+  );
+
+  it('preserves unchanged revisions and history during full replacement, deleting only removed assets', async () => {
+    const database = articleRowsDatabase();
+    const retained = annotationComment({ id: 'retained' });
+    const original = articleRecord({
+      annotations: [
+        annotation({
+          comments: [retained, annotationComment({ id: 'removed' })],
+          distillation: { status: 'published', content: 'published' },
+        }),
+        annotation({
+          id: 'removed-annotation',
+          comments: [],
+          distillation: { status: 'published', content: 'another published asset' },
+        }),
+      ],
+    });
+    await saveArticleRows(original);
+    insertAssetReview(database, 'keep-comment', 'comment', 'retained');
+    insertAssetReview(database, 'remove-comment', 'comment', 'removed');
+    insertAssetReview(database, 'remove-distillation', 'distillation', 'annotation_1');
+    insertAssetReview(
+      database,
+      'remove-annotation',
+      'distillation',
+      'removed-annotation',
+      'version-1',
+      'removed-annotation',
+    );
+    const revisions = database.prepare('SELECT id, asset_revision FROM comments ORDER BY id').all();
+    const distillation = database
+      .prepare('SELECT distillation_revision FROM annotations WHERE id = ?')
+      .get('annotation_1');
+
+    await saveArticleRows({ ...original, title: 'metadata changed' });
+
+    expect(database.prepare('SELECT id, asset_revision FROM comments ORDER BY id').all()).toEqual(
+      revisions,
+    );
+    expect(
+      database
+        .prepare('SELECT distillation_revision FROM annotations WHERE id = ?')
+        .get('annotation_1'),
+    ).toEqual(distillation);
+    expect(countRows(database, 'reading_memory_reviews')).toBe(4);
+
+    await saveArticleRows(articleRecord({ annotations: [annotation({ comments: [retained] })] }));
+
+    expect(database.prepare('SELECT id FROM reading_memory_reviews').all()).toEqual([
+      { id: 'keep-comment' },
+    ]);
+    expect(database.prepare('SELECT id, asset_revision FROM comments').all()).toEqual(
+      revisions.filter((row) => recordField(row, 'id') === 'retained'),
+    );
+  });
+
+  it.each(['comment', 'annotation'] as const)(
+    'rolls back %s deletion when original review cleanup fails',
+    (kind) => {
+      const database = lifecycleDatabase();
+      insertAnnotation(database, 'annotation_1');
+      insertComment(database, 'annotation_1', 'comment_1');
+      insertAssetReview(database, 'review', 'comment', 'comment_1');
+      database.exec(
+        "CREATE TRIGGER fail_review_cleanup BEFORE DELETE ON reading_memory_reviews BEGIN SELECT RAISE(ABORT, 'review cleanup failure'); END;",
+      );
+      const remove = () =>
+        kind === 'comment'
+          ? deleteCommentRowsWithMemoryLifecycle(database, {
+              articleId: 'article_1',
+              annotationId: 'annotation_1',
+              commentId: 'comment_1',
+            })
+          : deleteAnnotationRowsWithMemoryLifecycle(database, {
+              articleId: 'article_1',
+              annotationId: 'annotation_1',
+            });
+
+      expect(remove).toThrow('review cleanup failure');
+      expect(countRows(database, 'annotations')).toBe(1);
+      expect(countRows(database, 'comments')).toBe(1);
+      expect(countRows(database, 'reading_memory_reviews')).toBe(1);
+      expect(countRows(database, 'reading_memory_projection_jobs')).toBe(0);
+    },
+  );
+
+  it('rolls back full replacement when review cleanup fails', async () => {
+    const database = articleRowsDatabase();
+    await saveArticleRows(
+      articleRecord({ annotations: [annotation({ comments: [annotationComment()] })] }),
+    );
+    insertAssetReview(database, 'review', 'comment', 'comment_1');
+    const before = database.prepare('SELECT * FROM comments').all();
+    const jobs = database.prepare('SELECT * FROM reading_memory_projection_jobs').all();
+    database.exec(
+      "CREATE TRIGGER fail_review_cleanup BEFORE DELETE ON reading_memory_reviews BEGIN SELECT RAISE(ABORT, 'review cleanup failure'); END;",
+    );
+
+    await expect(saveArticleRows(articleRecord({ annotations: [] }))).rejects.toThrow(
+      'review cleanup failure',
+    );
+    expect(database.prepare('SELECT * FROM comments').all()).toEqual(before);
+    expect(database.prepare('SELECT * FROM reading_memory_projection_jobs').all()).toEqual(jobs);
+    expect(countRows(database, 'reading_memory_reviews')).toBe(1);
+  });
+
   it('deletes article memory entries, projections, and FTS rows with the article', () => {
     const database = lifecycleDatabase();
     appendReadingMemoryEntries(
@@ -784,6 +921,24 @@ function articleAnnotationIds(executor: ReadingMemorySqliteExecutor, articleId: 
     .map((row) => String(recordField(row, 'id')));
 }
 
+function insertAssetReview(
+  database: ReadingMemorySqliteExecutor,
+  id: string,
+  assetType: 'comment' | 'distillation',
+  assetId: string,
+  version = 'version-1',
+  annotationId = 'annotation_1',
+) {
+  database
+    .prepare(`
+INSERT INTO reading_memory_reviews (
+  id, article_id, annotation_id, asset_type, asset_id, asset_version,
+  judgment_snapshot, judgment_digest, decision, created_at
+) VALUES (?, 'article_1', ?, ?, ?, ?, 'original', 'digest', 'still_agree', '2026-08-30T00:00:00.000Z')
+`)
+    .run(id, annotationId, assetType, assetId, version);
+}
+
 function lifecycleDatabase(): ReadingMemorySqliteExecutor {
   const database = new DatabaseSync(':memory:');
   database.exec('PRAGMA foreign_keys = ON');
@@ -801,6 +956,7 @@ function lifecycleDatabase(): ReadingMemorySqliteExecutor {
     '0066_article_source_cleanup_tasks',
     '0067_reading_memory_projection_jobs',
     '0068_reading_memory_evidence',
+    '0071_reading_memory_reviews',
   ]) {
     const migration = migrations.find((item) => item.id === id);
     if (!migration) throw new Error(`missing migration ${id}`);

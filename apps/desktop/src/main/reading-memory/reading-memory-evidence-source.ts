@@ -1,4 +1,4 @@
-import type { Annotation, AnnotationAuthorRef, Comment } from '@yomitomo/shared';
+import type { Annotation, AnnotationAuthorRef, Comment, ReadingReviewFold } from '@yomitomo/shared';
 import {
   isRecord,
   normalizeAgentReadingIntent,
@@ -13,6 +13,7 @@ import {
 import { normalizeTextAnchor } from '../store/store-normalizers-annotations';
 import type { ReadingMemorySqliteExecutor } from './reading-memory-store-types';
 import { annotationThreadSourceVersion } from './reading-memory-source-version';
+import { readReadingReviewProjectionFolds } from './reading-review-projection';
 
 const annotationSourceColumns = [
   'id',
@@ -42,6 +43,7 @@ const annotationSourceColumns = [
   'distillation_published_at',
   'distillation_updated_at',
   'distillation_review_sessions',
+  'distillation_revision',
   'created_at',
   'updated_at',
 ] as const;
@@ -67,6 +69,7 @@ const commentSourceColumns = [
   'user_avatar',
   'user_annotation_color',
   'pending',
+  'asset_revision',
 ] as const;
 
 const sourceReadChunkSize = 200;
@@ -78,6 +81,7 @@ export type ReadingMemoryEvidenceSource = {
   articleId: string;
   sourceVersion: string;
   annotation: Annotation;
+  reviews?: ReadonlyMap<string, ReadingReviewFold>;
 };
 
 export function readStoredAnnotationThreadSources(
@@ -137,16 +141,22 @@ function evidenceSources(executor: ReadingMemorySqliteExecutor, annotations: Per
     threadComments.push(comment);
     commentsByAnnotation.set(annotationId, threadComments);
   }
+  const reviewsByAnnotation = readReadingReviewProjectionFolds(
+    executor,
+    annotations.map((annotation) => annotation.id),
+  );
 
   return annotations.map((annotation): ReadingMemoryEvidenceSource => {
     const articleId = stringField(annotation.article_id);
     if (!articleId) throw new Error('READING_MEMORY_PROJECTION_SOURCE_INVALID');
     const sourceComments = commentsByAnnotation.get(annotation.id) || [];
+    const reviews = reviewsByAnnotation.get(annotation.id);
     return {
       targetId: annotation.id,
       articleId,
-      sourceVersion: annotationThreadSourceVersion(annotation, sourceComments),
+      sourceVersion: annotationThreadSourceVersion(annotation, sourceComments, reviews),
       annotation: annotationFromSource(annotation, sourceComments),
+      ...(reviews ? { reviews } : {}),
     };
   });
 }
