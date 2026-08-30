@@ -1,33 +1,33 @@
-import type { WebContents } from 'electron';
 import { eq } from 'drizzle-orm';
 import { selectReadingRelationEvidence } from '@yomitomo/core';
 import type { LlmProvider, ReadingEvidence, ReadingJudgmentResult } from '@yomitomo/shared';
 import type {
-  ReadingMemoryProviderDescriptor,
   ReadingRelationsJudgeResult,
   ReadingRelationsSearchInput,
   ReadingRelationsSession,
 } from '../../ipc/reading-memory-domain';
-import { taskProviderRoute } from '../agents/agent-runtime-routing';
 import * as schema from '../db/schema';
 import { assertAppLockSettingsUnlocked } from '../ipc/ipc';
 import { hydrateProviderApiKey } from '../providers/provider-repository';
 import { upsertSettings } from '../store/settings-repository';
+import { getDatabase, withDatabaseLease } from '../store/store-db';
+import { rowToSettings } from '../store/store-normalizers';
 import {
-  getDatabase,
-  getSqliteExecutor,
-  readDatabaseLifecycle,
-  withDatabaseLease,
-} from '../store/store-db';
-import { rowToProvider, rowToSettings } from '../store/store-normalizers';
-import { materializeReadingEvidenceCandidates } from './reading-memory-evidence-search';
+  createReadingMemoryRequests,
+  describeReadingMemoryProvider as describeProvider,
+  knownReadingMemoryEvidence as knownEvidence,
+  localReadingJudgment as localJudgment,
+  readingMemoryProviderRevision as providerIdentity,
+  revalidateReadingMemoryEvidence,
+  withReadingMemoryRequestContext,
+  type ReadingMemoryRequestContext,
+  type ReadingMemoryRequestOwner,
+} from './reading-memory-request';
 import type { ReadingMemorySemanticIndex } from './reading-memory-semantic-index';
-import type { ReadingMemorySqliteExecutor } from './reading-memory-store-types';
 
 const libraryScope = { kind: 'library' } as const;
 const candidateLimit = 24;
 
-type RequestOwner = Pick<WebContents, 'id' | 'isDestroyed' | 'once' | 'off'>;
 type ReadingJudgmentModule = Pick<typeof import('@yomitomo/ai'), 'runReadingJudgment'>;
 
 type ReadingRelationsRuntimeOptions = {
@@ -43,47 +43,14 @@ type RelationsSnapshot = {
   result: ReadingRelationsSession;
 };
 
-type RelationsRequest = {
-  input: ReadingRelationsSearchInput;
-  controller: AbortController;
-  snapshot?: RelationsSnapshot;
-  release: () => void;
-};
-
 export type ReadingRelationsRuntime = ReturnType<typeof createReadingRelationsRuntime>;
 
 export function createReadingRelationsRuntime(options: ReadingRelationsRuntimeOptions) {
-  const requests = new Map<number, RelationsRequest>();
+  const requests = createReadingMemoryRequests<ReadingRelationsSearchInput, RelationsSnapshot>();
+  const { start, assertCurrent, cancel, cancelAll } = requests;
   const hydrateProvider = options.hydrateProvider ?? hydrateProviderApiKey;
 
-  function cancel(ownerId: number, requestId?: string) {
-    const request = requests.get(ownerId);
-    if (!request || (requestId !== undefined && request.input.requestId !== requestId)) return;
-    requests.delete(ownerId);
-    request.controller.abort();
-    request.release();
-  }
-
-  function assertCurrent(ownerId: number, request: RelationsRequest, signal: AbortSignal) {
-    signal.throwIfAborted();
-    if (requests.get(ownerId) !== request) throw sessionExpired();
-  }
-
-  function start(owner: RequestOwner, input: ReadingRelationsSearchInput) {
-    cancel(owner.id);
-    if (owner.isDestroyed()) throw sessionExpired();
-    const onDestroyed = () => cancel(owner.id);
-    const request: RelationsRequest = {
-      input,
-      controller: new AbortController(),
-      release: () => owner.off('destroyed', onDestroyed),
-    };
-    requests.set(owner.id, request);
-    owner.once('destroyed', onDestroyed);
-    return request;
-  }
-
-  async function search(owner: RequestOwner, input: ReadingRelationsSearchInput) {
+  async function search(owner: ReadingMemoryRequestOwner, input: ReadingRelationsSearchInput) {
     const request = start(owner, input);
     const { signal } = request.controller;
     try {
@@ -102,7 +69,7 @@ export function createReadingRelationsRuntime(options: ReadingRelationsRuntimeOp
         assertCurrent(owner.id, request, signal);
         if (context.generation !== generation) throw sessionExpired();
         const evidence = selectReadingRelationEvidence(
-          revalidateEvidence(context.executor, found.evidence),
+          revalidateReadingMemoryEvidence(context.executor, found.evidence, libraryScope),
           input,
         );
         return {
@@ -147,9 +114,10 @@ export function createReadingRelationsRuntime(options: ReadingRelationsRuntimeOp
         assertCurrent(ownerId, request, signal);
         if (context.generation !== snapshot.generation) throw sessionExpired();
         if (!context.remoteConsent) throw new Error('READING_MEMORY_PRIVACY_CONFIRMATION_REQUIRED');
-        const current = revalidateEvidence(
+        const current = revalidateReadingMemoryEvidence(
           context.executor,
           knownEvidence(snapshot.result.evidence, evidence),
+          libraryScope,
         );
         return { ...context, evidence: current };
       });
@@ -219,9 +187,7 @@ export function createReadingRelationsRuntime(options: ReadingRelationsRuntimeOp
     search,
     judge,
     cancel,
-    cancelAll: () => {
-      for (const ownerId of requests.keys()) cancel(ownerId);
-    },
+    cancelAll,
     confirmPrivacy: () =>
       withDatabaseLease(async () => {
         const database = getDatabase();
@@ -234,66 +200,18 @@ export function createReadingRelationsRuntime(options: ReadingRelationsRuntimeOp
 
 function withRelationsDatabase<T>(
   input: ReadingRelationsSearchInput,
-  operation: (context: {
-    executor: ReadingMemorySqliteExecutor;
-    generation: number;
-    provider: LlmProvider | undefined;
-    remoteConsent: boolean;
-  }) => T,
+  operation: (context: ReadingMemoryRequestContext) => T,
 ): Promise<T> {
-  return withDatabaseLease(async () => {
+  return withReadingMemoryRequestContext((context) => {
     const database = getDatabase();
-    const settings = rowToSettings(database.select().from(schema.appSettings).limit(1).get());
-    assertAppLockSettingsUnlocked(settings);
     const article = database
       .select({ sourceType: schema.articles.sourceType })
       .from(schema.articles)
       .where(eq(schema.articles.id, input.articleId))
       .get();
     if (!article || article.sourceType !== input.context.sourceType) throw sessionExpired();
-    const providers = database.select().from(schema.providers).all().map(rowToProvider);
-    return operation({
-      executor: getSqliteExecutor(),
-      generation: readDatabaseLifecycle().generation,
-      provider: taskProviderRoute(providers, settings, 'readingAssistant'),
-      remoteConsent: settings.readingMemoryRemoteConsent,
-    });
+    return operation(context);
   });
-}
-
-function revalidateEvidence(
-  executor: ReadingMemorySqliteExecutor,
-  evidence: readonly ReadingEvidence[],
-) {
-  return materializeReadingEvidenceCandidates(
-    executor,
-    evidence.map((item) => ({
-      id: item.id,
-      articleId: item.source.ref.id,
-      targetId: item.location.annotationId,
-      sourceVersion: item.sourceVersion,
-    })),
-    libraryScope,
-  );
-}
-
-function knownEvidence(allowed: readonly ReadingEvidence[], supplied: readonly ReadingEvidence[]) {
-  const versions = new Map(allowed.map((item) => [item.id, item.sourceVersion]));
-  return supplied.filter((item) => versions.get(item.id) === item.sourceVersion);
-}
-
-function describeProvider(
-  provider: LlmProvider | undefined,
-): ReadingMemoryProviderDescriptor | null {
-  return provider
-    ? { id: provider.id, name: provider.name, type: provider.type, modelName: provider.modelName }
-    : null;
-}
-
-function providerIdentity(provider: LlmProvider | undefined) {
-  return provider
-    ? JSON.stringify([provider.id, provider.type, provider.baseUrl, provider.modelName])
-    : '';
 }
 
 function changedProviderResult(
@@ -313,20 +231,6 @@ function changedProviderResult(
     ...snapshot.result,
     judgment: localJudgment('failed', evidence, previousJudgment),
     providerChanged: true,
-  };
-}
-
-function localJudgment(
-  reason: Extract<ReadingJudgmentResult, { state: 'local' }>['reason'],
-  evidence: ReadingEvidence[],
-  previousJudgment?: ReadingJudgmentResult,
-): ReadingJudgmentResult {
-  return {
-    state: 'local',
-    reason,
-    evidence,
-    inputTruncated: previousJudgment?.inputTruncated ?? false,
-    sentEvidenceCount: previousJudgment?.sentEvidenceCount ?? 0,
   };
 }
 

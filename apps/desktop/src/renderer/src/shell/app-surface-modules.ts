@@ -11,9 +11,9 @@ export const ReadingLibrary = lazy(() =>
   })),
 );
 
-export const DistillationLibrary = lazy(() =>
-  import('../distillations/app-distillation-library').then((module) => ({
-    default: module.DistillationLibrary,
+export const ReadingMemory = lazy(() =>
+  import('../reading-memory/app-reading-memory').then((module) => ({
+    default: module.ReadingMemory,
   })),
 );
 

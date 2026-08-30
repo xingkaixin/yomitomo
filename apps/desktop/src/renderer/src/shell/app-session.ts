@@ -18,7 +18,7 @@ import {
 } from './app-renderer-performance';
 import { useLibraryQueryState } from '../reading-library/use-library-query-state';
 
-export type AppSurfaceKey = 'agents' | 'distillations' | 'library' | 'settings' | 'stats';
+export type AppSurfaceKey = 'agents' | 'reading-memory' | 'library' | 'settings' | 'stats';
 
 type AppNavigationState =
   | {
@@ -288,8 +288,8 @@ export function useAppSession(input: AppSessionInput) {
       openEvidenceSource: (target: ReadingEvidenceSourceTarget) => {
         dispatchNavigation({ type: 'open-article', target });
       },
-      openDistillations: () =>
-        dispatchNavigation({ type: 'open-surface', surface: 'distillations' }),
+      openReadingMemory: () =>
+        dispatchNavigation({ type: 'open-surface', surface: 'reading-memory' }),
       openLibrary: () => dispatchNavigation({ type: 'open-surface', surface: 'library' }),
       openProfileDialog,
       openSettings,

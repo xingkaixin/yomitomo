@@ -1583,6 +1583,10 @@ function installDesktopApi(sourceArticle: ArticleRecord) {
         requestDistillationReviewStream: desktop.requestAgentDistillationReviewStream,
       },
       annotations: {
+        discussion: {
+          consumeThoughtDraft: vi.fn().mockResolvedValue(null),
+          onThoughtDraftAvailable: vi.fn(() => () => undefined),
+        },
         sedimentation: {
           commit: desktop.commitAnnotationSedimentation,
         },

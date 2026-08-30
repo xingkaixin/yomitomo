@@ -2,10 +2,12 @@ import {
   BrowserWindow,
   type BrowserWindowConstructorOptions,
   type IpcMainInvokeEvent,
+  type WebContents,
 } from 'electron';
 import type { WindowAnimationSourceRect } from '../../ipc-contract';
 import { mainPath } from '../app/main-paths';
 import type { DesktopMainIpcContext } from '../ipc/ipc';
+import { sendDesktopIpcRendererEvent } from '../ipc/ipc-events';
 import { secureRendererWebPreferences } from './renderer-window-security';
 import { installRendererNavigationGuard } from './renderer-navigation';
 import {
@@ -30,6 +32,7 @@ type AnnotationWindowIdentity = {
 };
 
 type AnnotationWindowOpenInput = AnnotationWindowIdentity & {
+  thoughtDraft?: string;
   sourceRect?: WindowAnimationSourceRect;
 };
 
@@ -57,6 +60,7 @@ export type AnnotationWindowConfiguration<Input extends AnnotationWindowOpenInpu
 type AnnotationWindowEntry = AnnotationWindowIdentity & {
   route: AnnotationWindowRoute;
   window: BrowserWindow;
+  pendingThoughtDraft: string | null;
   finalize: () => void;
 };
 
@@ -71,6 +75,16 @@ export function openAnnotationWindow<Input extends AnnotationWindowOpenInput>(
   const key = annotationWindowKey(configuration.route, input);
   const existing = annotationWindows.get(key);
   if (existing && !existing.window.isDestroyed()) {
+    if (input.thoughtDraft !== undefined) {
+      if (existing.pendingThoughtDraft !== null) {
+        throw new Error('A thought draft is already awaiting delivery');
+      }
+      existing.pendingThoughtDraft = input.thoughtDraft;
+      sendDesktopIpcRendererEvent(
+        existing.window.webContents,
+        'annotation-discussion:thought-draft-available',
+      );
+    }
     restoreAndFocus(existing.window);
     return { reused: true, windowId: existing.window.id };
   }
@@ -98,6 +112,7 @@ export function openAnnotationWindow<Input extends AnnotationWindowOpenInput>(
     annotationId: input.annotationId,
     route: configuration.route,
     window,
+    pendingThoughtDraft: input.thoughtDraft ?? null,
     finalize: () => {
       if (isFinalized) return;
       isFinalized = true;
@@ -127,6 +142,22 @@ export function openAnnotationWindow<Input extends AnnotationWindowOpenInput>(
   });
 
   return { reused: false, windowId: window.id };
+}
+
+export function consumeAnnotationThoughtDraft(sender: WebContents): string | null {
+  for (const entry of annotationWindows.values()) {
+    if (
+      entry.route !== annotationWindowRoutes.discussion ||
+      entry.window.webContents !== sender ||
+      entry.window.isDestroyed()
+    ) {
+      continue;
+    }
+    const draft = entry.pendingThoughtDraft;
+    entry.pendingThoughtDraft = null;
+    return draft;
+  }
+  return null;
 }
 
 export function closeAnnotationWindow(

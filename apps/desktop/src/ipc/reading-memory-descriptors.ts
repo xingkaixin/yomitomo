@@ -1,5 +1,8 @@
 import { desktopIpcInvoke, mainOnly } from './desktop-ipc-descriptor';
 import type {
+  ReadingLibraryAnswerResult,
+  ReadingLibraryContext,
+  ReadingLibrarySession,
   ReadingMemoryStatusSnapshot,
   ReadingRelationsJudgeResult,
   ReadingRelationsSession,
@@ -30,6 +33,42 @@ export const readingMemoryIpcInvokeDescriptors = {
     void
   >()({
     route: ['readingMemory', 'relations', 'cancel'],
+    roles: mainOnly,
+    validation: 'schema',
+    databaseIndependent: true,
+  }),
+  'reading-memory:library:context': desktopIpcInvoke<
+    ReadingMemoryIpcSchemaArgs<'reading-memory:library:context'>,
+    ReadingLibraryContext
+  >()({
+    route: ['readingMemory', 'library', 'context'],
+    roles: mainOnly,
+    validation: 'schema',
+    databaseIndependent: true,
+  }),
+  'reading-memory:library:search': desktopIpcInvoke<
+    ReadingMemoryIpcSchemaArgs<'reading-memory:library:search'>,
+    ReadingLibrarySession
+  >()({
+    route: ['readingMemory', 'library', 'search'],
+    roles: mainOnly,
+    validation: 'schema',
+    databaseIndependent: true,
+  }),
+  'reading-memory:library:answer': desktopIpcInvoke<
+    ReadingMemoryIpcSchemaArgs<'reading-memory:library:answer'>,
+    ReadingLibraryAnswerResult
+  >()({
+    route: ['readingMemory', 'library', 'answer'],
+    roles: mainOnly,
+    validation: 'schema',
+    databaseIndependent: true,
+  }),
+  'reading-memory:library:cancel': desktopIpcInvoke<
+    ReadingMemoryIpcSchemaArgs<'reading-memory:library:cancel'>,
+    void
+  >()({
+    route: ['readingMemory', 'library', 'cancel'],
     roles: mainOnly,
     validation: 'schema',
     databaseIndependent: true,

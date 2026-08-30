@@ -1,13 +1,29 @@
 import type { ReadingMemoryControls } from '../reading-memory/reading-memory-controls';
 import type { ReadingRelationsRuntime } from '../reading-memory/reading-relations-runtime';
+import type { ReadingLibraryRuntime } from '../reading-memory/reading-library-runtime';
 import { handleDesktopIpc } from './ipc';
 
 type ReadingMemoryIpcContext = {
   relations: ReadingRelationsRuntime;
+  library: ReadingLibraryRuntime;
   controls: ReadingMemoryControls;
 };
 
-export function registerReadingMemoryIpc({ relations, controls }: ReadingMemoryIpcContext) {
+export function registerReadingMemoryIpc({
+  relations,
+  library,
+  controls,
+}: ReadingMemoryIpcContext) {
+  handleDesktopIpc('reading-memory:library:context', (_event, input) => library.context(input));
+  handleDesktopIpc('reading-memory:library:search', (event, input) =>
+    library.search(event.sender, input),
+  );
+  handleDesktopIpc('reading-memory:library:answer', (event, input) =>
+    library.answer(event.sender.id, input.requestId),
+  );
+  handleDesktopIpc('reading-memory:library:cancel', (event, input) =>
+    library.cancel(event.sender.id, input.requestId),
+  );
   handleDesktopIpc('reading-memory:relations:search', (event, input) =>
     relations.search(event.sender, input),
   );

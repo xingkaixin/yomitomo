@@ -6,6 +6,18 @@ type ProviderRequestBody = {
   messages: { role: string; content: string }[];
 };
 
+type ReadingInput = {
+  kind?: string;
+  evidence?: { id: string; kind: string }[];
+};
+
+export const controlledLibraryClaims = {
+  judgments: 'Saved reading judgments require reviewable source context.',
+  supporting: 'The cited notes connect reading judgments with their original evidence.',
+  opposingOrLimiting: 'Similarity alone does not establish agreement between judgments.',
+  gaps: 'These excerpts do not establish outcomes beyond the cited reading situations.',
+};
+
 export type ReadingRelationsProviderRequest = {
   body: ProviderRequestBody;
   canceled: boolean;
@@ -55,14 +67,11 @@ async function receiveRequest(
   const pending: ReadingRelationsProviderRequest = {
     body,
     canceled: false,
-    respond(explanation = 'Controlled reading relation.') {
+    respond(explanation) {
       if (response.destroyed || response.writableEnded) return;
       const message = body.messages.find((item) => item.role === 'user');
-      const input = JSON.parse(message?.content ?? '{}') as { evidence?: { id: string }[] };
-      const evidenceId = input.evidence?.[0]?.id;
-      const text = JSON.stringify({
-        relations: evidenceId ? [{ evidenceId, relation: 'complementary', explanation }] : [],
-      });
+      const input = JSON.parse(message?.content ?? '{}') as ReadingInput;
+      const text = JSON.stringify(controlledReadingOutput(input, explanation));
       response.writeHead(200, { 'content-type': 'application/json' });
       response.end(
         JSON.stringify({
@@ -84,4 +93,38 @@ async function receiveRequest(
     return;
   }
   if (!holdResponses) pending.respond();
+}
+
+function controlledReadingOutput(input: ReadingInput, explanation?: string) {
+  if (input.kind === 'library-answer') {
+    const evidenceIds = input.evidence?.slice(0, 2).map((item) => item.id) ?? [];
+    const userEvidence = input.evidence?.filter((item) => item.kind === 'user_judgment') ?? [];
+    const userIds = [
+      ...new Set([userEvidence[0], userEvidence.at(-1)].flatMap((item) => (item ? [item.id] : []))),
+    ];
+    return {
+      judgments: userIds.length
+        ? [{ text: explanation ?? controlledLibraryClaims.judgments, evidenceIds: userIds }]
+        : [],
+      supporting: evidenceIds.length
+        ? [{ text: controlledLibraryClaims.supporting, evidenceIds }]
+        : [],
+      opposingOrLimiting: evidenceIds.length
+        ? [{ text: controlledLibraryClaims.opposingOrLimiting, evidenceIds }]
+        : [],
+      gaps: evidenceIds.length ? [{ text: controlledLibraryClaims.gaps, evidenceIds }] : [],
+    };
+  }
+  const evidenceId = input.evidence?.[0]?.id;
+  return {
+    relations: evidenceId
+      ? [
+          {
+            evidenceId,
+            relation: 'complementary',
+            explanation: explanation ?? 'Controlled reading relation.',
+          },
+        ]
+      : [],
+  };
 }

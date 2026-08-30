@@ -220,7 +220,7 @@ describe('appNavigationReducer', () => {
 
   it('moves pending article navigation into the library state', () => {
     const opening = appNavigationReducer(
-      { surface: 'distillations' },
+      { surface: 'reading-memory' },
       { type: 'open-article', target: { articleId: 'article_1', annotationId: 'annotation_1' } },
     );
 

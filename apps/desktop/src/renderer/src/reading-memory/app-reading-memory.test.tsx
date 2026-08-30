@@ -1,0 +1,129 @@
+// @vitest-environment jsdom
+
+import React, { useState, type ComponentProps } from 'react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ReadingMemory } from './app-reading-memory';
+
+type ReadingMemoryProps = ComponentProps<typeof ReadingMemory>;
+type DistillationProps = Pick<ReadingMemoryProps, 'onOpenEvidenceSource'>;
+
+const children = vi.hoisted(() => ({
+  distillations: vi.fn<(props: DistillationProps) => void>(),
+  library: vi.fn<(props: ReadingMemoryProps) => void>(),
+}));
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (key: string) => key }),
+}));
+
+vi.mock('../distillations/app-distillation-library', () => ({
+  DistillationLibrary: (props: DistillationProps) => {
+    children.distillations(props);
+    return <div>Distillation child</div>;
+  },
+}));
+
+vi.mock('./reading-library-question', () => ({
+  ReadingLibraryQuestion: (props: ReadingMemoryProps) => {
+    children.library(props);
+    const [draft, setDraft] = useState('');
+    return (
+      <input
+        aria-label="Question child draft"
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+      />
+    );
+  },
+}));
+
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
+
+function renderMemory() {
+  const props: ReadingMemoryProps = {
+    collections: [{ id: 'collection-1', name: 'Reading list', createdAt: '', updatedAt: '' }],
+    catalogRevision: { revision: 7 },
+    onOpenEvidenceSource: vi.fn(),
+  };
+  return { props, ...render(<ReadingMemory {...props} />) };
+}
+
+function tab(value: 'distillations' | 'library' | 'review') {
+  return screen.getByRole('tab', { name: `readingMemory.tabs.${value}` });
+}
+
+describe('ReadingMemory', () => {
+  it('opens the existing distillation library by default without mounting a question session', () => {
+    renderMemory();
+
+    expect(screen.getByRole('region', { name: 'readingMemory.title' })).toBeTruthy();
+    expect(screen.getByRole('tablist', { name: 'readingMemory.tabs.label' })).toBeTruthy();
+    expect(tab('distillations').getAttribute('aria-selected')).toBe('true');
+    expect(
+      screen.getByRole('tabpanel', { name: 'readingMemory.tabs.distillations' }).textContent,
+    ).toBe('Distillation child');
+    expect(children.library).not.toHaveBeenCalled();
+    expect(screen.queryByRole('textbox')).toBeNull();
+  });
+
+  it('passes library inputs and the same evidence navigation callback directly to the children', () => {
+    const { props } = renderMemory();
+    const distillationProps = children.distillations.mock.lastCall?.[0];
+    expect(distillationProps?.onOpenEvidenceSource).toBe(props.onOpenEvidenceSource);
+
+    fireEvent.click(tab('library'));
+
+    const libraryProps = children.library.mock.lastCall?.[0];
+    expect(libraryProps?.collections).toBe(props.collections);
+    expect(libraryProps?.catalogRevision).toBe(props.catalogRevision);
+    expect(libraryProps?.onOpenEvidenceSource).toBe(props.onOpenEvidenceSource);
+    expect(screen.queryByText('Distillation child')).toBeNull();
+    expect(screen.getByRole('tabpanel', { name: 'readingMemory.tabs.library' })).toBeTruthy();
+
+    const target = {
+      articleId: 'article-1',
+      annotationId: 'annotation-1',
+      view: 'discussion' as const,
+    };
+    libraryProps?.onOpenEvidenceSource(target);
+    expect(props.onOpenEvidenceSource).toHaveBeenCalledExactlyOnceWith(target);
+  });
+
+  it('unmounts the short question session when leaving and starts with a fresh draft on return', () => {
+    renderMemory();
+    fireEvent.click(tab('library'));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Question child draft' }), {
+      target: { value: 'A temporary question' },
+    });
+    expect(screen.getByRole<HTMLInputElement>('textbox').value).toBe('A temporary question');
+
+    fireEvent.click(tab('distillations'));
+
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(screen.getByText('Distillation child')).toBeTruthy();
+
+    fireEvent.click(tab('library'));
+
+    expect(screen.getByRole<HTMLInputElement>('textbox').value).toBe('');
+  });
+
+  it('keeps review unavailable and skips it when moving between tabs with the keyboard', () => {
+    renderMemory();
+    expect((tab('review') as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(tab('review'));
+    expect(tab('distillations').getAttribute('aria-selected')).toBe('true');
+
+    tab('distillations').focus();
+    fireEvent.keyDown(tab('distillations'), { key: 'ArrowRight' });
+    expect(tab('library').getAttribute('aria-selected')).toBe('true');
+    fireEvent.keyDown(tab('library'), { key: 'ArrowRight' });
+    expect(tab('distillations').getAttribute('aria-selected')).toBe('true');
+    fireEvent.keyDown(tab('distillations'), { key: 'ArrowLeft' });
+    expect(tab('library').getAttribute('aria-selected')).toBe('true');
+    expect(tab('review').getAttribute('aria-selected')).toBe('false');
+  });
+});

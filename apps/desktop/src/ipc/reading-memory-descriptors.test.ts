@@ -1,7 +1,12 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
+import type { ReadingEvidenceScope } from '@yomitomo/shared';
 import type {
   DesktopIpcInvokeApi,
   DesktopIpcInvokeArgs,
+  ReadingLibraryAnswerResult,
+  ReadingLibraryContext,
+  ReadingLibrarySearchInput,
+  ReadingLibrarySession,
   ReadingMemoryStatusSnapshot,
   ReadingRelationsJudgeResult,
   ReadingRelationsSearchInput,
@@ -17,6 +22,12 @@ describe('reading memory IPC descriptors', () => {
       relations: {
         search: (input: ReadingRelationsSearchInput) => Promise<ReadingRelationsSession>;
         judge: (input: { requestId: string }) => Promise<ReadingRelationsJudgeResult>;
+        cancel: (input: { requestId: string }) => Promise<void>;
+      };
+      library: {
+        context: (input: { scope: ReadingEvidenceScope }) => Promise<ReadingLibraryContext>;
+        search: (input: ReadingLibrarySearchInput) => Promise<ReadingLibrarySession>;
+        answer: (input: { requestId: string }) => Promise<ReadingLibraryAnswerResult>;
         cancel: (input: { requestId: string }) => Promise<void>;
       };
       confirmPrivacy: () => Promise<void>;
@@ -35,6 +46,12 @@ describe('reading memory IPC descriptors', () => {
 
     expectTypeOf<DesktopIpcInvokeArgs<'reading-memory:relations:search'>>().toEqualTypeOf<
       [ReadingRelationsSearchInput]
+    >();
+    expectTypeOf<DesktopIpcInvokeArgs<'reading-memory:library:search'>>().toEqualTypeOf<
+      [ReadingLibrarySearchInput]
+    >();
+    expectTypeOf<DesktopIpcInvokeArgs<'reading-memory:library:context'>>().toEqualTypeOf<
+      [{ scope: ReadingEvidenceScope }]
     >();
   });
 

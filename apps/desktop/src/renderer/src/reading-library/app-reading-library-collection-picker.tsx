@@ -50,6 +50,7 @@ import {
 } from './app-reading-library-dnd';
 import type { LibraryTypeScope } from './library-filter-types';
 import { useLibraryCatalog } from './use-library-catalog';
+import { toggleCatalogSelection } from './library-catalog-selection';
 
 const PICKER_PAGE_SIZE = 30;
 
@@ -116,13 +117,9 @@ function CollectionPickerDialogContent({
     typeOptions.find((option) => option.value === typeScope)?.label || t('library.typeFilter.all');
 
   function toggleItem(item: LibraryCatalogItem) {
-    setSelectedRefs((current) => {
-      const next = new Map(current);
-      const key = contentRefKey(libraryCatalogItemRef(item));
-      if (next.has(key)) next.delete(key);
-      else next.set(key, item);
-      return next;
-    });
+    setSelectedRefs((current) =>
+      toggleCatalogSelection(current, libraryCatalogItemRef(item), item),
+    );
   }
   function toggleItemRef(ref: ContentRef) {
     const key = contentRefKey(ref);

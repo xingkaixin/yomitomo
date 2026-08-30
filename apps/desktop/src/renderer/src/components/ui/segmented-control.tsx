@@ -31,14 +31,18 @@ export function SegmentedControl<T extends string>({
     options.findIndex((option) => option.value === value),
     0,
   );
+  const enabledOptions = options.filter((option) => !option.disabled);
+  const currentEnabledIndex = Math.max(
+    enabledOptions.findIndex((option) => option.value === value),
+    0,
+  );
 
-  function moveSelection(direction: -1 | 1) {
-    const enabledOptions = options.filter((option) => !option.disabled);
-    const currentEnabledIndex = enabledOptions.findIndex((option) => option.value === value);
-    if (currentEnabledIndex === -1) return;
+  function moveSelection(direction: -1 | 1, group: HTMLDivElement) {
+    if (enabledOptions.length === 0) return;
     const nextIndex =
       (currentEnabledIndex + direction + enabledOptions.length) % enabledOptions.length;
     onValueChange(enabledOptions[nextIndex].value);
+    group.querySelectorAll<HTMLButtonElement>(':scope > button:not(:disabled)')[nextIndex]?.focus();
   }
 
   return (
@@ -55,11 +59,11 @@ export function SegmentedControl<T extends string>({
       onKeyDown={(event) => {
         if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
           event.preventDefault();
-          moveSelection(-1);
+          moveSelection(-1, event.currentTarget);
         }
         if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
           event.preventDefault();
-          moveSelection(1);
+          moveSelection(1, event.currentTarget);
         }
       }}
     >
@@ -73,6 +77,7 @@ export function SegmentedControl<T extends string>({
           disabled={option.disabled}
           key={option.value}
           role={role === 'tablist' ? 'tab' : 'radio'}
+          tabIndex={option.value === enabledOptions[currentEnabledIndex]?.value ? 0 : -1}
           type="button"
           onClick={() => onValueChange(option.value)}
         >

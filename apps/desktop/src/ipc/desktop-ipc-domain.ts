@@ -223,6 +223,7 @@ export type WindowAnimationSourceRect = {
 export type AnnotationDiscussionWindowOpenInput = {
   articleId: string;
   annotationId: string;
+  thoughtDraft?: string;
   sourceRect?: WindowAnimationSourceRect;
 };
 

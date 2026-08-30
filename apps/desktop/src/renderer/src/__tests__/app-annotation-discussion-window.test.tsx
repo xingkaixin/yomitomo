@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
+import i18next from 'i18next';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Agent, Annotation, ArticleRecord, Comment } from '@yomitomo/shared';
@@ -17,6 +18,7 @@ import {
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { publicAnnotationAgents } from '../source/bookcase/source-public-agents';
 import { emptyStore } from '../settings/app-settings';
+import { appToast } from '../shell/app-toast';
 
 vi.mock('../sound/app-sound-effects', () => ({
   playAppSoundEffect: vi.fn(),
@@ -27,6 +29,8 @@ const now = '2026-05-31T06:00:00.000Z';
 
 beforeEach(() => {
   initializeAppI18n('zh-CN');
+  vi.spyOn(appToast, 'warning');
+  vi.spyOn(appToast, 'error');
   Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
     configurable: true,
     value: vi.fn(),
@@ -34,6 +38,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  act(() => appToast.dismiss());
   cleanup();
   vi.useRealTimers();
   window.localStorage.clear();
@@ -67,6 +72,203 @@ describe('discussion time formatting', () => {
 });
 
 describe('AnnotationDiscussionWindowApp', () => {
+  it('receives an early thought draft after subscribing and saves only through the composer', async () => {
+    const desktop = installDesktopApi(article(annotation()));
+    desktop.consumeThoughtDraft.mockResolvedValueOnce('从书库回答带来的想法');
+    openDiscussionRoute();
+
+    render(<AnnotationDiscussionWindowApp />);
+
+    const thoughtInput = (await screen.findByRole('textbox', {
+      name: '想法内容',
+    })) as HTMLTextAreaElement;
+    expect(thoughtInput.value).toBe('从书库回答带来的想法');
+    expect(screen.getByRole('tab', { name: '自己写' }).getAttribute('aria-selected')).toBe('true');
+    expect(desktop.onThoughtDraftAvailable.mock.invocationCallOrder[0]).toBeLessThan(
+      desktop.consumeThoughtDraft.mock.invocationCallOrder[0],
+    );
+    expect(desktop.saveArticleComment).not.toHaveBeenCalled();
+    expect(desktop.saveArticle).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: '添加' }));
+
+    await waitFor(() =>
+      expect(desktop.saveArticleComment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          articleId: 'article_1',
+          annotationId: 'annotation_1',
+          comment: expect.objectContaining({ content: '从书库回答带来的想法' }),
+        }),
+      ),
+    );
+    expect(desktop.saveArticle).not.toHaveBeenCalled();
+  });
+
+  it('receives a new thought draft when an existing window is notified', async () => {
+    const desktop = installDesktopApi(article(annotation()));
+    openDiscussionRoute();
+    render(<AnnotationDiscussionWindowApp />);
+    await screen.findByText('正在讨论的划线');
+    expect(desktop.consumeThoughtDraft).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('dialog', { name: '添加想法' })).toBeNull();
+
+    desktop.consumeThoughtDraft.mockResolvedValueOnce('复用窗口收到的新想法');
+    act(() => desktop.notifyThoughtDraftAvailable());
+
+    const thoughtInput = (await screen.findByRole('textbox', {
+      name: '想法内容',
+    })) as HTMLTextAreaElement;
+    expect(thoughtInput.value).toBe('复用窗口收到的新想法');
+    expect(desktop.consumeThoughtDraft).toHaveBeenCalledTimes(2);
+    expect(desktop.onThoughtDraftAvailable).toHaveBeenCalledOnce();
+    expect(desktop.saveArticleComment).not.toHaveBeenCalled();
+  });
+
+  it('keeps the first draft when two consumed drafts arrive in one render batch', async () => {
+    const firstDraft = deferred<string | null>();
+    const secondDraft = deferred<string | null>();
+    const desktop = installDesktopApi(article(annotation()));
+    desktop.consumeThoughtDraft
+      .mockReturnValueOnce(firstDraft.promise)
+      .mockReturnValueOnce(secondDraft.promise);
+    openDiscussionRoute();
+    render(<AnnotationDiscussionWindowApp />);
+    await screen.findByText('正在讨论的划线');
+    act(() => desktop.notifyThoughtDraftAvailable());
+
+    await act(async () => {
+      firstDraft.resolve('先收到的想法');
+      secondDraft.resolve('后收到的想法');
+    });
+
+    const thoughtInput = screen.getByRole('textbox', { name: '想法内容' }) as HTMLTextAreaElement;
+    expect(thoughtInput.value).toBe('先收到的想法');
+    expect(appToast.warning).toHaveBeenCalledWith(
+      i18next.t('readingMemory.library.thought.draftBusy'),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '关闭添加想法' }));
+    desktop.consumeThoughtDraft.mockResolvedValueOnce('清空编辑器后收到的想法');
+    act(() => desktop.notifyThoughtDraftAvailable());
+
+    const nextThoughtInput = await screen.findByRole<HTMLTextAreaElement>('textbox', {
+      name: '想法内容',
+    });
+    expect(nextThoughtInput.value).toBe('清空编辑器后收到的想法');
+  });
+
+  it('does not overwrite text entered while a thought draft is being consumed', async () => {
+    const pendingDraft = deferred<string | null>();
+    const desktop = installDesktopApi(article(annotation()));
+    desktop.consumeThoughtDraft.mockReturnValueOnce(pendingDraft.promise);
+    openDiscussionRoute();
+    render(<AnnotationDiscussionWindowApp />);
+    await screen.findByText('正在讨论的划线');
+    fireEvent.click(screen.getByRole('button', { name: '添加想法' }));
+    const thoughtInput = screen.getByRole('textbox', { name: '想法内容' }) as HTMLTextAreaElement;
+    fireEvent.change(thoughtInput, { target: { value: '我正在编辑的想法' } });
+
+    await act(async () => pendingDraft.resolve('迟到的书库想法'));
+
+    expect(thoughtInput.value).toBe('我正在编辑的想法');
+    expect(appToast.warning).toHaveBeenCalledWith(
+      i18next.t('readingMemory.library.thought.draftBusy'),
+    );
+    expect(desktop.consumeThoughtDraft).toHaveBeenCalledOnce();
+    expect(desktop.onThoughtDraftAvailable).toHaveBeenCalledOnce();
+    expect(desktop.saveArticleComment).not.toHaveBeenCalled();
+    const feedback = await screen.findByText(i18next.t('readingMemory.library.thought.draftBusy'), {
+      selector: 'span',
+    });
+    expect(screen.getAllByRole('alert')).toContain(feedback.closest('[role="alert"]'));
+  });
+
+  it('keeps the current thought while its save is pending', async () => {
+    const pendingSave = deferred<void>();
+    const desktop = installDesktopApi(article(annotation()));
+    desktop.saveArticleComment.mockReturnValueOnce(pendingSave.promise);
+    openDiscussionRoute();
+    render(<AnnotationDiscussionWindowApp />);
+    await screen.findByText('正在讨论的划线');
+    fireEvent.click(screen.getByRole('button', { name: '添加想法' }));
+    const thoughtInput = screen.getByRole('textbox', { name: '想法内容' }) as HTMLTextAreaElement;
+    fireEvent.change(thoughtInput, { target: { value: '正在保存的想法' } });
+    fireEvent.click(screen.getByRole('button', { name: '添加' }));
+    desktop.consumeThoughtDraft.mockResolvedValueOnce('不应替换保存中的想法');
+
+    act(() => desktop.notifyThoughtDraftAvailable());
+
+    await waitFor(() => expect(appToast.warning).toHaveBeenCalledOnce());
+    expect(thoughtInput.value).toBe('正在保存的想法');
+    expect(thoughtInput.disabled).toBe(true);
+    expect(desktop.saveArticleComment).toHaveBeenCalledOnce();
+    await act(async () => pendingSave.resolve());
+  });
+
+  it('does not open a new thought while an assistant reply is running', async () => {
+    const pendingReply = deferred<Comment>();
+    const desktop = installDesktopApi(article(annotation({ comments: [rootThought()] })), {
+      requestAgentCommentStream: vi.fn(() => pendingReply.promise),
+    });
+    openDiscussionRoute();
+    render(<AnnotationDiscussionWindowApp />);
+    const replyInput = await screen.findByPlaceholderText(/回复这条想法/);
+    fireEvent.change(replyInput, { target: { value: '@zhou 继续展开' } });
+    fireEvent.click(screen.getByRole('button', { name: '回复' }));
+    await waitFor(() => expect(desktop.requestAgentCommentStream).toHaveBeenCalledOnce());
+    desktop.consumeThoughtDraft.mockResolvedValueOnce('等待助手完成后再添加');
+
+    act(() => desktop.notifyThoughtDraftAvailable());
+
+    await waitFor(() => expect(appToast.warning).toHaveBeenCalledOnce());
+    expect(screen.queryByRole('dialog', { name: '添加想法' })).toBeNull();
+    await act(async () => pendingReply.resolve(aiComment({ agentUsername: 'zhou' })));
+  });
+
+  it('ignores a thought draft that arrives after the window is unmounted', async () => {
+    const pendingDraft = deferred<string | null>();
+    const desktop = installDesktopApi(article(annotation()));
+    desktop.consumeThoughtDraft.mockReturnValueOnce(pendingDraft.promise);
+    openDiscussionRoute();
+    const view = render(<AnnotationDiscussionWindowApp />);
+    await screen.findByText('正在讨论的划线');
+
+    view.unmount();
+    await act(async () => pendingDraft.resolve('已经关闭的窗口不再接收'));
+
+    expect(desktop.unsubscribeThoughtDraft).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('dialog', { name: '添加想法' })).toBeNull();
+    expect(appToast.warning).not.toHaveBeenCalled();
+    expect(appToast.error).not.toHaveBeenCalled();
+    expect(desktop.saveArticleComment).not.toHaveBeenCalled();
+  });
+
+  it('reports a thought draft consumption failure without opening the composer', async () => {
+    const error = new Error('draft unavailable');
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const desktop = installDesktopApi(article(annotation()));
+    desktop.consumeThoughtDraft.mockRejectedValueOnce(error);
+    openDiscussionRoute();
+    render(<AnnotationDiscussionWindowApp />);
+
+    await waitFor(() =>
+      expect(appToast.error).toHaveBeenCalledWith(
+        i18next.t('readingMemory.library.thought.draftLoadFailed'),
+      ),
+    );
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[annotation-discussion] thought draft loading failed',
+      expect.objectContaining({ error }),
+    );
+    const feedback = await screen.findByText(
+      i18next.t('readingMemory.library.thought.draftLoadFailed'),
+      { selector: 'span' },
+    );
+    expect(screen.getAllByRole('alert')).toContain(feedback.closest('[role="alert"]'));
+    expect(screen.queryByRole('dialog', { name: '添加想法' })).toBeNull();
+    expect(desktop.saveArticleComment).not.toHaveBeenCalled();
+  });
+
   it('shows the discussed highlight as a titled context block', async () => {
     installDesktopApi(article(annotation({ anchor: anchor('这是一段正在讨论的划线原文') })));
     openDiscussionRoute();
@@ -822,6 +1024,10 @@ function installDesktopApi(
     requestAgentCommentStream?: ReturnType<typeof vi.fn>;
   } = {},
 ) {
+  let thoughtDraftListener: (() => void) | undefined;
+  const unsubscribeThoughtDraft = vi.fn(() => {
+    thoughtDraftListener = undefined;
+  });
   const desktop = {
     getArticle: vi.fn().mockResolvedValue(sourceArticle),
     getState: vi.fn().mockResolvedValue({
@@ -849,6 +1055,13 @@ function installDesktopApi(
     saveArticle: vi.fn().mockResolvedValue(undefined),
     saveArticleComment: vi.fn().mockResolvedValue(undefined),
     openAnnotationSedimentation: vi.fn().mockResolvedValue(undefined),
+    consumeThoughtDraft: vi.fn<() => Promise<string | null>>().mockResolvedValue(null),
+    onThoughtDraftAvailable: vi.fn((callback: () => void) => {
+      thoughtDraftListener = callback;
+      return unsubscribeThoughtDraft;
+    }),
+    notifyThoughtDraftAvailable: () => thoughtDraftListener?.(),
+    unsubscribeThoughtDraft,
   };
   Object.defineProperty(window, 'yomitomoDesktop', {
     configurable: true,
@@ -859,6 +1072,10 @@ function installDesktopApi(
         requestCommentStream: desktop.requestAgentCommentStream,
       },
       annotations: {
+        discussion: {
+          consumeThoughtDraft: desktop.consumeThoughtDraft,
+          onThoughtDraftAvailable: desktop.onThoughtDraftAvailable,
+        },
         sedimentation: {
           open: desktop.openAnnotationSedimentation,
         },

@@ -68,6 +68,11 @@ export function createYomitomoDesktopApi(input: DesktopPreloadApiInput) {
     },
     annotations: {
       ...invokeApi.annotations,
+      discussion: {
+        ...invokeApi.annotations.discussion,
+        onThoughtDraftAvailable: (callback: () => void) =>
+          onDesktopIpcRendererEvent('annotation-discussion:thought-draft-available', callback),
+      },
       onDiscussionWindowState: (callback: (event: AnnotationDiscussionWindowStateEvent) => void) =>
         onDesktopIpcRendererEvent('annotation-discussion:window-state', callback),
       onDistillationCommitted: (callback: (event: AnnotationDistillationCommittedEvent) => void) =>

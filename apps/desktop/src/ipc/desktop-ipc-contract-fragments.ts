@@ -142,6 +142,11 @@ export const annotationWindowIpcInvokeDescriptors = {
     roles: mainOnly,
     validation: 'schema',
   }),
+  'annotation-discussion:consume-thought-draft': desktopIpcInvoke<[], string | null>()({
+    route: ['annotations', 'discussion', 'consumeThoughtDraft'],
+    roles: ['annotation'],
+    validation: { exempt: 'no-args' },
+  }),
   'annotation-sedimentation:open': desktopIpcInvoke<
     DesktopIpcSchemaArgs<'annotation-sedimentation:open'>,
     AnnotationSedimentationWindowOpenResult
