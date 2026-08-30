@@ -293,6 +293,38 @@ describe('reading memory controls', () => {
     expect(fixture.lifecycle.download).not.toHaveBeenCalled();
   });
 
+  it('wakes projection after a successful rebuild and resets only restored databases on reconcile', async () => {
+    const onProjectionRebuild = vi.fn();
+    const fixture = createFixture(onProjectionRebuild);
+    const reset = deferred();
+    fixture.index.rebuild.mockImplementationOnce(() => reset.promise);
+
+    const rebuilding = fixture.controls.rebuild();
+    await nextTurn();
+    expect(onProjectionRebuild).not.toHaveBeenCalled();
+    reset.resolve();
+    await rebuilding;
+    expect(onProjectionRebuild).toHaveBeenCalledTimes(1);
+
+    await fixture.controls.reconcile('startup');
+    expect(fixture.index.rebuild).toHaveBeenCalledTimes(1);
+    await fixture.controls.reconcile('database-restored');
+    expect(fixture.index.rebuild).toHaveBeenCalledTimes(2);
+    expect(onProjectionRebuild).toHaveBeenCalledTimes(2);
+    expect(fixture.index.reconcile).toHaveBeenLastCalledWith('database-restored');
+  });
+
+  it('does not wake projection after a failed reset and allows a later retry', async () => {
+    const onProjectionRebuild = vi.fn();
+    const fixture = createFixture(onProjectionRebuild);
+    fixture.index.rebuild.mockRejectedValueOnce(new Error('storage unavailable'));
+
+    await expect(fixture.controls.rebuild()).rejects.toThrow('storage unavailable');
+    expect(onProjectionRebuild).not.toHaveBeenCalled();
+    await fixture.controls.rebuild();
+    expect(onProjectionRebuild).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps a later pause effective when resume was requested in the same turn', async () => {
     const fixture = createFixture();
     const resumed = fixture.controls.resume();
@@ -411,7 +443,7 @@ describe('reading memory controls', () => {
   });
 });
 
-function createFixture() {
+function createFixture(onProjectionRebuild?: () => void) {
   let state = notInstalled;
   let indexingPaused = false;
   const lifecycle = {
@@ -467,6 +499,7 @@ function createFixture() {
       modelLifecycle: lifecycle,
       semanticIndex: index,
       userDataPath,
+      onProjectionRebuild,
     }),
   };
 }
