@@ -1,7 +1,9 @@
 import type {
   LlmProvider,
   ReaderQuestionContext,
+  ReadingEvidence,
   ReadingEvidenceProjectionStatus,
+  ReadingEvidenceScope,
   ReadingJudgmentResult,
   ReadingMemoryEvidenceSearchResult,
   ReadingMemorySemanticStatus,
@@ -30,6 +32,39 @@ export type ReadingRelationsSession = ReadingMemoryEvidenceSearchResult & {
 export type ReadingRelationsJudgeResult = ReadingRelationsSession & {
   judgment: ReadingJudgmentResult;
   providerChanged?: true;
+  sentProvider?: ReadingMemoryProviderDescriptor;
+};
+
+export const readingLibrarySourceLimit = 500;
+
+export type ReadingLibraryContext = {
+  scope: ReadingEvidenceScope;
+  collectionName?: string;
+  sourceCount: number;
+  judgmentCount: number;
+  provider: ReadingMemoryProviderDescriptor | null;
+  routeRevision: string;
+  remoteConsentRequired: boolean;
+  projection: ReadingEvidenceProjectionStatus;
+  semantic: ReadingMemorySemanticStatus;
+};
+
+export type ReadingLibrarySearchInput = {
+  requestId: string;
+  question: string;
+  scope: ReadingEvidenceScope;
+  expectedRouteRevision: string;
+};
+
+export type ReadingLibrarySession = ReadingLibraryContext & {
+  requestId: string;
+  evidence: ReadingEvidence[];
+  mode: 'keyword' | 'hybrid';
+  providerChanged?: true;
+};
+
+export type ReadingLibraryAnswerResult = ReadingLibrarySession & {
+  judgment: ReadingJudgmentResult;
   sentProvider?: ReadingMemoryProviderDescriptor;
 };
 

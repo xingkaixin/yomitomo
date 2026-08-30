@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { PdfTextAnchor, TextAnchor } from '@yomitomo/shared';
+import type { PdfTextAnchor, ReadingEvidenceScope, TextAnchor } from '@yomitomo/shared';
 import { validateDesktopIpcInvokeArgs } from '../ipc-schemas';
-import type { ReadingRelationsSearchInput } from './reading-memory-domain';
+import {
+  readingLibrarySourceLimit,
+  type ReadingLibrarySearchInput,
+  type ReadingRelationsSearchInput,
+} from './reading-memory-domain';
 import { readingMemoryIpcInvokeSchemas } from './reading-memory-schemas';
 
 const textAnchor: TextAnchor = {
@@ -142,25 +146,166 @@ describe('reading memory IPC schemas', () => {
     ).toMatchObject({ success: false });
   });
 
-  it.each(['reading-memory:relations:judge', 'reading-memory:relations:cancel'] as const)(
-    '%s accepts only one bounded request identifier',
-    (channel) => {
-      const schema = readingMemoryIpcInvokeSchemas[channel];
+  it.each([
+    'reading-memory:relations:judge',
+    'reading-memory:relations:cancel',
+    'reading-memory:library:answer',
+    'reading-memory:library:cancel',
+  ] as const)('%s accepts only one bounded request identifier', (channel) => {
+    const schema = readingMemoryIpcInvokeSchemas[channel];
 
-      expect(validateDesktopIpcInvokeArgs(channel, [{ requestId: 'request-1' }])).toEqual([
-        { requestId: 'request-1' },
-      ]);
-      for (const args of [
-        [],
-        [{ requestId: '' }],
-        [{ requestId: 'x'.repeat(129) }],
-        [{ requestId: 'request-1', evidence: [] }],
-        [{ requestId: 'request-1', authorize: true }],
-        [{ requestId: 'request-1', confirmPrivacy: true }],
-        [{ requestId: 'request-1' }, true],
-      ]) {
-        expect(schema.safeParse(args)).toMatchObject({ success: false });
-      }
+    expect(validateDesktopIpcInvokeArgs(channel, [{ requestId: 'request-1' }])).toEqual([
+      { requestId: 'request-1' },
+    ]);
+    for (const args of [
+      [],
+      [{ requestId: '' }],
+      [{ requestId: 'x'.repeat(129) }],
+      [{ requestId: 'request-1', evidence: [] }],
+      [{ requestId: 'request-1', authorize: true }],
+      [{ requestId: 'request-1', confirmPrivacy: true }],
+      [{ requestId: 'request-1' }, true],
+    ]) {
+      expect(schema.safeParse(args)).toMatchObject({ success: false });
+    }
+  });
+});
+
+const librarySearchInput: ReadingLibrarySearchInput = {
+  requestId: 'library-request',
+  question: 'What have I learned about memory?',
+  scope: { kind: 'library' },
+  expectedRouteRevision: 'ab'.repeat(32),
+};
+
+describe('reading library IPC schemas', () => {
+  it.each<ReadingEvidenceScope>([
+    { kind: 'library' },
+    { kind: 'collection', collectionId: 'collection-1' },
+    {
+      kind: 'sources',
+      sources: [
+        { kind: 'article', id: 'article-1' },
+        { kind: 'article', id: 'article-1' },
+      ],
+    },
+  ])('preserves an explicit scope and leaves source deduplication to main: %#', (scope) => {
+    expect(validateDesktopIpcInvokeArgs('reading-memory:library:context', [{ scope }])).toEqual([
+      { scope },
+    ]);
+    const input = { ...librarySearchInput, scope };
+    expect(validateDesktopIpcInvokeArgs('reading-memory:library:search', [input])).toEqual([input]);
+  });
+
+  it('allows empty manual selection only when inspecting context, never when searching', () => {
+    const scope: ReadingEvidenceScope = { kind: 'sources', sources: [] };
+
+    expect(validateDesktopIpcInvokeArgs('reading-memory:library:context', [{ scope }])).toEqual([
+      { scope },
+    ]);
+    expect(
+      readingMemoryIpcInvokeSchemas['reading-memory:library:search'].safeParse([
+        { ...librarySearchInput, scope },
+      ]),
+    ).toMatchObject({ success: false });
+    expect(
+      readingMemoryIpcInvokeSchemas['reading-memory:library:context'].safeParse([{}]),
+    ).toMatchObject({ success: false });
+    const { scope: _scope, ...withoutScope } = librarySearchInput;
+    expect(
+      readingMemoryIpcInvokeSchemas['reading-memory:library:search'].safeParse([withoutScope]),
+    ).toMatchObject({ success: false });
+  });
+
+  it('accepts the shared source limit and rejects an oversized source list', () => {
+    const sources = Array.from({ length: readingLibrarySourceLimit }, (_, index) => ({
+      kind: 'article' as const,
+      id: `article-${index}`,
+    }));
+    const scope: ReadingEvidenceScope = { kind: 'sources', sources };
+    expect(
+      validateDesktopIpcInvokeArgs('reading-memory:library:search', [
+        { ...librarySearchInput, scope },
+      ])[0].scope,
+    ).toEqual(scope);
+
+    const oversized = { kind: 'sources', sources: [...sources, { kind: 'article', id: 'extra' }] };
+    expect(
+      readingMemoryIpcInvokeSchemas['reading-memory:library:context'].safeParse([
+        { scope: oversized },
+      ]),
+    ).toMatchObject({ success: false });
+    expect(
+      readingMemoryIpcInvokeSchemas['reading-memory:library:search'].safeParse([
+        { ...librarySearchInput, scope: oversized },
+      ]),
+    ).toMatchObject({ success: false });
+  });
+
+  it.each([
+    { kind: 'unknown' },
+    { kind: 'library', collectionId: 'unexpected' },
+    { kind: 'collection' },
+    { kind: 'collection', collectionId: '' },
+    { kind: 'collection', collectionId: 'x'.repeat(257) },
+    { kind: 'sources', sources: [{ kind: 'weread', id: 'book-1' }] },
+    { kind: 'sources', sources: [{ kind: 'article', id: '' }] },
+    { kind: 'sources', sources: [{ kind: 'article', id: 'x'.repeat(257) }] },
+    { kind: 'sources', sources: [{ kind: 'article', id: 'article-1', evidence: [] }] },
+    { kind: 'sources', sources: [{ kind: 'article', id: 'article-1' }], authorize: true },
+  ])('rejects malformed, unsupported or expanded scopes at both entry points: %#', (scope) => {
+    expect(
+      readingMemoryIpcInvokeSchemas['reading-memory:library:context'].safeParse([{ scope }]),
+    ).toMatchObject({ success: false });
+    expect(
+      readingMemoryIpcInvokeSchemas['reading-memory:library:search'].safeParse([
+        { ...librarySearchInput, scope },
+      ]),
+    ).toMatchObject({ success: false });
+  });
+
+  it('trims the question and accepts its maximum normalized size', () => {
+    const question = 'x'.repeat(10_000);
+    const input = { ...librarySearchInput, question: ` \n${question}\t ` };
+
+    expect(validateDesktopIpcInvokeArgs('reading-memory:library:search', [input])[0].question).toBe(
+      question,
+    );
+  });
+
+  it.each([
+    { requestId: '' },
+    { requestId: 'x'.repeat(129) },
+    { question: '' },
+    { question: ' \n\t ' },
+    { question: 'x'.repeat(10_001) },
+    { expectedRouteRevision: '' },
+    { expectedRouteRevision: 'AB'.repeat(32) },
+    { expectedRouteRevision: 'g'.repeat(64) },
+    { expectedRouteRevision: 'a'.repeat(63) },
+    { expectedRouteRevision: 'a'.repeat(65) },
+    { expectedRouteRevision: undefined },
+  ])('rejects invalid request identifiers, questions or route revisions: %#', (patch) => {
+    expect(
+      readingMemoryIpcInvokeSchemas['reading-memory:library:search'].safeParse([
+        { ...librarySearchInput, ...patch },
+      ]),
+    ).toMatchObject({ success: false });
+  });
+
+  it.each(['evidence', 'authorize', 'confirmPrivacy', 'provider', 'sourceCount'])(
+    'does not accept renderer-owned %s on a context or search request',
+    (field) => {
+      expect(
+        readingMemoryIpcInvokeSchemas['reading-memory:library:context'].safeParse([
+          { scope: librarySearchInput.scope, [field]: true },
+        ]),
+      ).toMatchObject({ success: false });
+      expect(
+        readingMemoryIpcInvokeSchemas['reading-memory:library:search'].safeParse([
+          { ...librarySearchInput, [field]: true },
+        ]),
+      ).toMatchObject({ success: false });
     },
   );
 });
