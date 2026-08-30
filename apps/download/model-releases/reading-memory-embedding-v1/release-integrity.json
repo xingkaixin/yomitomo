@@ -1,0 +1,20 @@
+{
+  "manifest": {
+    "sizeBytes": 4884,
+    "sha256": "fd5469b94ddb387c68e9e2527ad600a8ccd91a998dd59abcd5fc747b400334f3"
+  },
+  "legal": {
+    "NOTICE": {
+      "sizeBytes": 97,
+      "sha256": "66f856d7da72797f528fca46b7c80634ab481f917bfe020960e123d84b19f75f"
+    },
+    "GEMMA_TERMS_OF_USE.txt": {
+      "sizeBytes": 8950,
+      "sha256": "42bf787a62bff11421e6fc0af964e502eec706d98dde1fda175a86c3256e7762"
+    },
+    "MODIFICATIONS": {
+      "sizeBytes": 423,
+      "sha256": "2217581188fecd078fecd8dd19d64af276a72b7ef550b25d8e6f0d0051cb90ba"
+    }
+  }
+}

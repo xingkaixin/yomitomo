@@ -1,3 +1,9 @@
+import {
+  isModelDistributionPath,
+  modelDistributionResponse,
+  type ModelAssetBucket,
+} from './model-distribution';
+
 const GITHUB_RELEASES_ORIGIN = 'https://github.com/xingkaixin/yomitomo';
 
 const versionSegment = String.raw`\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?`;
@@ -12,6 +18,7 @@ const updateManifestPathPattern = /^\/updates\/latest(?:-mac)?\.yml$/;
 
 type Env = {
   DOWNLOAD_ANALYTICS?: AnalyticsEngineDataset;
+  MODEL_ASSETS?: ModelAssetBucket;
 };
 
 type AssetSource = 'website' | 'updater';
@@ -35,11 +42,12 @@ type DownloadRequest = {
   };
 };
 
-const notFound = () => new Response('Not found', { status: 404 });
+const notFound = () =>
+  new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } });
 const methodNotAllowed = () =>
   new Response('Method not allowed', {
     status: 405,
-    headers: { Allow: 'GET, HEAD' },
+    headers: { Allow: 'GET, HEAD', 'Cache-Control': 'no-store' },
   });
 
 export default {
@@ -52,6 +60,10 @@ export async function handleRequest(request: Request, env: Env = {}) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return methodNotAllowed();
 
   const requestUrl = new URL(request.url);
+  if (isModelDistributionPath(requestUrl.pathname)) {
+    return modelDistributionResponse(request, env.MODEL_ASSETS);
+  }
+
   const downloadRequest = parseDownloadRequest(requestUrl);
   if (!downloadRequest) return notFound();
 
