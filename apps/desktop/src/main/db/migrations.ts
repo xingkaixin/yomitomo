@@ -1265,6 +1265,12 @@ CREATE TABLE IF NOT EXISTS reading_memory_semantic_state (
 );
 `,
   },
+  {
+    id: '0070_reading_memory_remote_consent',
+    sql: `
+ALTER TABLE app_settings ADD COLUMN reading_memory_remote_consent INTEGER NOT NULL DEFAULT 0;
+`,
+  },
 ];
 
 type MigrationDatabase = {

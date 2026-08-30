@@ -4,6 +4,20 @@ import { DesktopIpcError, desktopIpcErrorCodes } from './ipc-errors';
 import { validateDesktopIpcInvokeArgs } from './ipc-schemas';
 
 describe('desktop IPC argument schemas', () => {
+  it.each([true, false])('preserves explicit remote reading consent %s', (consent) => {
+    const args: DesktopIpcInvokeArgs<'settings:save'> = [{ readingMemoryRemoteConsent: consent }];
+
+    expect(validateDesktopIpcInvokeArgs('settings:save', args)).toEqual(args);
+  });
+
+  it('rejects non-boolean remote reading consent', () => {
+    const args = [
+      { readingMemoryRemoteConsent: 'true' },
+    ] as unknown as DesktopIpcInvokeArgs<'settings:save'>;
+
+    expect(() => validateDesktopIpcInvokeArgs('settings:save', args)).toThrow(DesktopIpcError);
+  });
+
   it('returns parsed arguments without unknown object fields', () => {
     const args = [
       {

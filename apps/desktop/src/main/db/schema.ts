@@ -56,6 +56,9 @@ export const appSettings = sqliteTable('app_settings', {
   })
     .notNull()
     .default(false),
+  readingMemoryRemoteConsent: integer('reading_memory_remote_consent', { mode: 'boolean' })
+    .notNull()
+    .default(false),
   telemetryEnabled: integer('telemetry_enabled', { mode: 'boolean' }).notNull().default(true),
   developerModeEnabled: integer('developer_mode_enabled', { mode: 'boolean' })
     .notNull()

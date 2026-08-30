@@ -29,6 +29,7 @@ const settingsDraftSectionByField = {
   saveArticleImages: 'general',
   allowLocalNetworkArticleImport: 'general',
   telemetryEnabled: 'general',
+  readingMemoryRemoteConsent: 'external',
   developerModeEnabled: 'external',
   logRetentionDays: 'external',
   onboardingCompletedAt: 'external',
