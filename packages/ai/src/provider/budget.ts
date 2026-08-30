@@ -15,17 +15,16 @@ const TASK_ARTICLE_BUDGETS: Record<ModelInputTask, number> = {
   'agent-annotate': 50_000,
 };
 
+export function articleTextInputLimit(provider: LlmProvider, task: ModelInputTask): number {
+  return TASK_ARTICLE_BUDGETS[task] * articleTextBudgetFactor(provider);
+}
+
 export function budgetArticleText(
   provider: LlmProvider,
   task: ModelInputTask,
   text: string,
 ): { text: string; report: ModelBudgetReport } {
-  return budgetText(
-    task,
-    'articleText',
-    text,
-    TASK_ARTICLE_BUDGETS[task] * articleTextBudgetFactor(provider),
-  );
+  return budgetText(task, 'articleText', text, articleTextInputLimit(provider, task));
 }
 
 export function formatBudgetNotice(reports: ModelBudgetReport[]) {
