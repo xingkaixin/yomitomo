@@ -281,6 +281,35 @@ describe('reading memory model lifecycle', () => {
     ]);
   });
 
+  it('honors reconciliation requested while the previous scan settles', async () => {
+    const reconciliations: Array<Record<string, unknown> | undefined> = [];
+    let trailing: Promise<unknown> | undefined;
+    let manager!: ReturnType<typeof createReadingMemoryModelLifecycle>;
+    manager = createManager({
+      logInfo: (event, data) => {
+        if (event !== 'reading_memory.model_reconciled') return;
+        reconciliations.push(data);
+        if (data?.reason !== 'startup') return;
+        // Arrive after the scan loop exits but before its queued promise settles.
+        queueMicrotask(() => {
+          queueMicrotask(() => {
+            renameSync(finalDirectory(), join(userDataPath, 'externally-moved-model'));
+            trailing = manager.reconcile('database-restored');
+          });
+        });
+      },
+    });
+    await expect(manager.download()).resolves.toMatchObject({ status: 'available' });
+
+    await manager.reconcile('startup');
+    await expect(trailing).resolves.toMatchObject({ status: 'not-installed' });
+
+    expect(reconciliations).toEqual([
+      { reason: 'startup', status: 'available' },
+      { reason: 'database-restored', status: 'not-installed' },
+    ]);
+  });
+
   it('removes an installed model without touching unrelated user data', async () => {
     await writeUserDataSentinels();
     const manager = createManager({ request: createRequest() });

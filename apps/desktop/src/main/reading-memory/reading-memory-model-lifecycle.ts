@@ -197,8 +197,7 @@ export function createReadingMemoryModelLifecycle(
     const controller = new AbortController();
     reconcileController = controller;
     if (!downloadPromise) setState(baseState(context, 'checking'));
-    let tracked: Promise<ReadingMemoryModelLifecycleState>;
-    tracked = enqueue(async () => {
+    reconcilePromise = enqueue(async () => {
       try {
         let result = state;
         while (pendingReconcileReason !== null) {
@@ -213,15 +212,12 @@ export function createReadingMemoryModelLifecycle(
           return state;
         }
         throw error;
-      }
-    }).finally(() => {
-      if (reconcilePromise === tracked) {
+      } finally {
         reconcilePromise = null;
         reconcileController = null;
       }
     });
-    reconcilePromise = tracked;
-    return tracked;
+    return reconcilePromise;
   };
 
   const download = () => {
