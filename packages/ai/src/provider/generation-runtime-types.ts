@@ -1,4 +1,5 @@
 export type GenerateOptions = {
+  disableTelemetry?: boolean;
   failOnMaxTokens?: boolean;
   signal?: AbortSignal;
 };

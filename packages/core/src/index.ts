@@ -154,6 +154,8 @@ export {
   rankReadingEvidenceCandidates,
 } from './reading-memory/reading-evidence-ranking';
 
+export { validateReadingJudgment } from './reading-memory/reading-judgment-validation';
+
 export {
   activeTocIndexForOffset,
   annotationIdsAtHighlightPoint,

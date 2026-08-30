@@ -98,6 +98,7 @@ const coreRuntimeExports = [
   'timestamp',
   'translationElementForRange',
   'updateAnnotationComment',
+  'validateReadingJudgment',
   'wholeBookSpoilerPolicy',
 ];
 

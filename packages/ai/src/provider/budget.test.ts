@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { LlmProvider } from '@yomitomo/shared';
-import { budgetArticleText, formatBudgetNotice, normalizeAnthropicError } from './budget';
+import {
+  articleTextInputLimit,
+  budgetArticleText,
+  formatBudgetNotice,
+  normalizeAnthropicError,
+} from './budget';
 
 describe('llm input budget', () => {
   it('keeps short input unchanged', () => {
@@ -51,6 +56,18 @@ describe('llm input budget', () => {
   it('normalizes context overflow errors', () => {
     expect(normalizeAnthropicError(400, 'input context length exceeds maximum tokens')).toBe(
       'Model context limit exceeded. Use a larger-context model, narrow the article scope, or reduce annotation evidence and try again.',
+    );
+  });
+
+  it('exposes the same provider and task limits used by article packing', () => {
+    const configured = provider('claude-haiku-4-5', 'anthropic');
+    expect(articleTextInputLimit(configured, 'agent-message')).toBe(18_000);
+    expect(articleTextInputLimit(configured, 'agent-annotate')).toBe(30_000);
+    expect(articleTextInputLimit(provider('claude-future', 'anthropic'), 'agent-message')).toBe(
+      22_500,
+    );
+    expect(budgetArticleText(configured, 'agent-annotate', 'x'.repeat(50_000)).text.length).toBe(
+      articleTextInputLimit(configured, 'agent-annotate'),
     );
   });
 });
