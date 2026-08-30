@@ -80,6 +80,7 @@ export type SemanticRetrievalDirectionMetrics = {
   relateQueryCount: number;
   askQueryCount: number;
   relateHitAt3: number;
+  /** Fraction of ask queries whose complete necessary evidence set is in the final top twelve. */
   askNecessaryCoverageAt12: number;
   relations: Record<SemanticRetrievalRelation, SemanticRetrievalRelationMetrics>;
   hardNegativeComparisonCount: number;
@@ -324,7 +325,7 @@ export function evaluateSemanticRetrievalRankings(
         relateQueryCount: relateQueries.length,
         askQueryCount: askQueries.length,
         relateHitAt3: hitRate(relateQueries, rankingsByQueryId, 3),
-        askNecessaryCoverageAt12: necessaryCoverage(askQueries, rankingsByQueryId, 12),
+        askNecessaryCoverageAt12: necessaryQueryCoverage(askQueries, rankingsByQueryId, 12),
         relations: relationMetrics,
         hardNegativeComparisonCount: directionQueries.length,
         necessaryBeforeHardNegativeRate: hardNegativeWins / directionQueries.length,
@@ -495,23 +496,18 @@ function hitRate(
   return hits / queries.length;
 }
 
-function necessaryCoverage(
+function necessaryQueryCoverage(
   queries: readonly SemanticRetrievalQuery[],
   rankings: ReadonlyMap<string, readonly SemanticRetrievalRankedItem[]>,
   limit: number,
 ) {
-  let matched = 0;
-  let total = 0;
-  for (const query of queries) {
+  const fullyCoveredQueries = queries.filter((query) => {
     const resultIds = new Set(
       (rankings.get(query.id) || []).slice(0, limit).map((item) => item.id),
     );
-    for (const requiredEvidenceId of query.necessaryEvidenceIds) {
-      total += 1;
-      if (resultIds.has(requiredEvidenceId)) matched += 1;
-    }
-  }
-  return matched / total;
+    return query.necessaryEvidenceIds.every((id) => resultIds.has(id));
+  }).length;
+  return fullyCoveredQueries / queries.length;
 }
 
 function necessaryRanksBeforeHardNegative(

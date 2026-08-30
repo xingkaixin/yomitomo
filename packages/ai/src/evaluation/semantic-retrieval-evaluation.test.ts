@@ -122,6 +122,25 @@ describe('semantic retrieval cosine ranking', () => {
 });
 
 describe('semantic retrieval evaluation metrics', () => {
+  it('counts ask queries only when every necessary evidence item is in the final top twelve', () => {
+    const evaluationQueries = buildSemanticRetrievalQueries(semanticRetrievalScenarios);
+    for (const query of evaluationQueries) {
+      if (query.direction === 'zh->zh' && query.kind === 'ask')
+        query.necessaryEvidenceIds = Array.from(
+          { length: 10 },
+          (_, index) => `${query.id}:required-${index}`,
+        );
+    }
+    const rankings = evaluationQueries.map((query) => ({
+      queryId: query.id,
+      results: query.necessaryEvidenceIds.slice(0, 9).map((id, index) => ({ id, score: -index })),
+    }));
+    const direction = evaluateSemanticRetrievalRankings(evaluationQueries, rankings).directions[0];
+
+    expect(direction.askQueryCount).toBe(20);
+    expect(direction.askNecessaryCoverageAt12).toBe(0);
+  });
+
   it('reports perfect direction, relation and hard-negative metrics for ideal rankings', () => {
     const evaluationQueries = buildEvaluationQueries();
     const result = evaluateSemanticRetrievalRankings(

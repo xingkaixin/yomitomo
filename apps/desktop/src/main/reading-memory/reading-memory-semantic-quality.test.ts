@@ -247,6 +247,7 @@ async function qualitySourceDigests() {
     'packages/core/src/reading-memory/reading-evidence-ranking.ts',
     'packages/core/src/reading-memory/reading-relation-evidence.ts',
     'packages/ai/src/reading-memory/reading-judgment-input.ts',
+    'packages/ai/src/evaluation/semantic-retrieval-evaluation.ts',
     'packages/ai/src/evaluation/semantic-retrieval-production-evaluation.ts',
   ];
   return Object.fromEntries(
