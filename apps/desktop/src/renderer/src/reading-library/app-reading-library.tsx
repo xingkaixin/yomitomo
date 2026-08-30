@@ -232,8 +232,8 @@ export function ReadingLibrary({
     settings: resolvedSettings,
   });
   const annotations = useMemo<Annotation[]>(
-    () => (selectedArticle ? sortAnnotations(selectedArticle.annotations) : []),
-    [selectedArticle],
+    () => sortAnnotations(selectedArticle?.annotations ?? []),
+    [selectedArticle?.annotations],
   );
   const selectedAnnotation =
     annotations.find((annotation) => annotation.id === selectedAnnotationId) || null;

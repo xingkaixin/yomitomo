@@ -485,6 +485,66 @@ describe('ReadingLibrary article updates', () => {
     expect(onReadArticle).toHaveBeenCalledTimes(1);
   });
 
+  it('preserves reader annotations for progress updates and refreshes real annotation changes', async () => {
+    const note = annotationRecord();
+    const selectedArticle = article({ annotations: [note] });
+    let currentSink: CurrentArticleSink | null = null;
+    const articleStore = articleStoreSinkStub((sink) => {
+      currentSink = sink;
+      return () => {
+        if (currentSink === sink) currentSink = null;
+      };
+    });
+    renderReadingLibrary({
+      articleActions: articleActionStubs({ readArticle: vi.fn(async () => selectedArticle) }),
+      articleStore,
+      articles: [selectedArticle],
+      openArticleTarget: { articleId: selectedArticle.id },
+    });
+    await waitFor(() => expect(sourceBookcase.props?.content.article?.id).toBe(selectedArticle.id));
+    await waitFor(() => expect(currentSink).not.toBeNull());
+    const readerAnnotations = sourceBookcase.props!.content.annotations;
+    const readingProgress = {
+      kind: 'scroll' as const,
+      progress: 1,
+      updatedAt: '2026-07-15T04:31:00.000Z',
+    };
+
+    act(() => {
+      currentSink?.apply({
+        type: 'update',
+        articleId: selectedArticle.id,
+        update: (current) => ({
+          ...current,
+          readingProgress,
+          updatedAt: readingProgress.updatedAt,
+        }),
+      });
+    });
+
+    expect(sourceBookcase.props?.content.article).toMatchObject({
+      readingProgress,
+      updatedAt: readingProgress.updatedAt,
+    });
+    expect(sourceBookcase.props?.content.annotations).toBe(readerAnnotations);
+
+    const laterNote = {
+      ...annotationRecord(),
+      id: 'annotation_2',
+      anchor: { exact: 'later', prefix: '', suffix: '', start: 6, end: 11 },
+    };
+    act(() => {
+      currentSink?.apply({
+        type: 'update',
+        articleId: selectedArticle.id,
+        update: (current) => ({ ...current, annotations: [laterNote, note] }),
+      });
+    });
+
+    expect(sourceBookcase.props?.content.annotations).toEqual([note, laterNote]);
+    expect(sourceBookcase.props?.content.annotations).not.toBe(readerAnnotations);
+  });
+
   it('keeps a route outside the sparse catalog until its delete projection arrives', async () => {
     const selectedArticle = article();
     const unrelatedArticle = article({
