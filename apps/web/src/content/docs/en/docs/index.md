@@ -1,9 +1,9 @@
 ---
 title: Quick Start
-description: Learn the basic Yomitomo workflow, from first launch to importing your first reading item.
+description: Learn the essential Yomitomo workflow, from first launch to importing your first reading item.
 ---
 
-Yomitomo is a local-first AI reading companion for desktop. It does not read instead of you. It helps you highlight, annotate, question, and discuss while you read. Articles, annotations, discussions, provider settings, and API keys stay on your computer.
+Yomitomo is a local-first AI reading companion for desktop. It does not read on your behalf; instead, it accompanies you as you highlight, annotate, question, and discuss your reading materials. All articles, notes, discussions, provider settings, and API keys remain safely stored on your local machine.
 
 <picture>
   <source
@@ -13,34 +13,34 @@ Yomitomo is a local-first AI reading companion for desktop. It does not read ins
   <img src="/assets/en-home.webp" alt="Yomitomo reading library" loading="eager" decoding="async" />
 </picture>
 
-## First Run
+## Getting Started
 
-1. Open Yomitomo and read the onboarding introduction.
-2. Go to Settings, then Models and Routing.
-3. Add a model provider, enter its API key, and test the connection.
-4. Assign task routes for reading assistants and review assistants.
-5. Return to the Library and import a web article, EPUB/AZW3/MOBI ebook, or PDF document.
+1. Launch Yomitomo and click through the welcome introduction.
+2. Go to **Settings > Models and Routing**.
+3. Add your preferred AI model provider, enter the API key, and test the connection.
+4. Assign task routes for reading comprehension, in-depth review, and bilingual translation.
+5. Return to the **Library** and import a web article, EPUB/AZW3/MOBI ebook, PDF document, or Markdown text.
 
-You can switch the app language in Settings. Website docs are available in [Chinese](/docs/), [English](/en/docs/), and [Japanese](/ja/docs/). To sync highlights, thoughts, and reading progress from WeRead, first read "[Get a WeRead API Key](/en/docs/weread-api-key/)".
+You can switch display languages anytime in Settings. Product documentation is available in [Chinese](/docs/), [English](/en/docs/), and [Japanese](/ja/docs/). To sync highlights, thoughts, and reading progress from WeRead, check out "[Get a WeRead API Key](/en/docs/weread-api-key/)".
 
-## Product Areas
+## Core Product Areas
 
-Yomitomo is organized around a few core areas:
+Yomitomo is organized around several key modules:
 
-- Library manages web articles, EPUB/AZW3/MOBI ebooks, PDF documents, WeRead notes, and collections.
-- Reader handles reading, highlights, annotations, discussions, and distilled notes (see "Distilled Notes and Review").
-- Assistants manages AI reading assistants and review assistants.
-- Stats reviews local reading activity and WeRead statistics.
-- Settings configures language, models, themes, sound effects, App Lock, shortcuts, data management, updates, and privacy.
-- WeRead syncs highlights, thoughts, and reading progress through an API key.
+- **Library**: Organize web articles, ebooks (EPUB/AZW3/MOBI), PDFs, Markdown/text files, WeRead highlights, and custom reading collections.
+- **Reader**: Deep text reading, precise text anchoring, inline discussions, bilingual translation, and knowledge distillation (see "[Distilled Notes and Review](/en/docs/sedimentation/)").
+- **Assistants**: Manage specialized AI reading companions and review assistants with tailored personas and prompts.
+- **Stats**: Track local reading streaks, annotation trends, and activity heatmaps, or query synced WeRead statistics.
+- **Settings**: Configure UI language, AI providers, themes, sound effects, App Lock, shortcuts, data backups, and privacy preferences.
+- **WeRead**: Seamlessly sync your books, highlights, thoughts, and progress via official Skill credentials.
 
-## Reading Model
+## The Reading Philosophy
 
-Yomitomo is not built around summaries. It is built around keeping your chain of judgment:
+Yomitomo is not built for generic summaries. It is designed to preserve your active train of thought:
 
-- Highlights are evidence anchors in the source text.
-- Notes are the smallest durable output of reading.
-- Comments keep a note open to questioning and revision.
-- AI assistants join only when you need them in a discussion or co-reading flow.
+- **Highlights** anchor your claims directly to source evidence.
+- **Thoughts** capture your immediate, authentic reactions while reading.
+- **Discussions** allow hypotheses to be questioned, challenged, and refined.
+- **AI Companions** step in only when invited to stimulate deeper inquiry or co-reading.
 
-Continue with "Library and Import" to bring in your first reading item.
+Continue to "[Library and Import](/en/docs/library/)" to bring in your first reading material.

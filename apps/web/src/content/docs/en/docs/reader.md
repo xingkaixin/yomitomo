@@ -1,9 +1,9 @@
 ---
 title: Reader, Annotations, and Discussions
-description: Use highlights, notes, discussions, distilled notes, and shortcuts for close reading.
+description: Master highlights, thoughts, inline discussions, bilingual translation, and distilled notes for an immersive close-reading workflow.
 ---
 
-The Reader keeps source text, highlights, discussions, and distilled notes in one reading workspace. You can return to the exact source location behind a judgment instead of keeping detached notes.
+The Reader seamlessly integrates full-text reading, precise text anchoring, discussion threads, and distilled notes into a single cohesive workspace. You can instantly jump back from any note to its exact context in the original text, ensuring your insights never lose their grounding.
 
 <picture>
   <source
@@ -13,46 +13,49 @@ The Reader keeps source text, highlights, discussions, and distilled notes in on
   <img src="/assets/en-reader.webp" alt="Yomitomo reader" loading="eager" decoding="async" />
 </picture>
 
-## Reading View
+## Reading Workspace and Controls
 
-The Reader includes the body text, highlight marks, highlight connections, and a sidebar. The floating toolbar offers common actions like table of contents, search, and highlight navigation, plus persistent chat to question assistants about the current item. Web articles also support bilingual translation, with feedback on the affected paragraphs as the translation is applied back to the body so you can confirm which text changed.
+The Reader is composed of the main reading canvas, anchored highlight highlights, visual connection trails, and a dedicated sidebar. The floating toolbar provides instant access to essential tools:
 
-- **Table of contents**: toggle the TOC to expand the chapter list. It highlights and focuses the active section so you can inspect surrounding structure from your current position.
-- **Search body**: search keywords in the current item and jump to the matching position.
-- **Highlight navigation**: jump quickly between the previous and next highlight without scrolling through the body.
+- **Table of Contents (TOC)**: Expand the chapter hierarchy. The active section is highlighted and centered automatically, making it easy to track your reading progress.
+- **Full-Text Search**: Search keywords across the current document and jump directly to matches.
+- **Highlight Navigation**: Cruise forward and backward between highlights without manual scrolling.
+- **Persistent Assistant Chat**: Ask questions about the entire document at any time with multi-turn context retention.
+- **Bilingual Translation**: Translate web articles paragraph by paragraph with visual status indicators on modified blocks.
 
-You can adjust the layout:
+### Typography and Visual Styling
 
-- Web articles and ebooks: **font size** and **article width**.
-- PDF: use **PDF zoom** to change page size, which corresponds to font size and page width for the other source types.
+- **Web Articles and Ebooks**: Adjust **Font Size** and **Article Width** to match your reading preferences.
+- **PDFs**: Use **PDF Zoom** to achieve optimal readability.
+- **Themes and Reader Paper**: Switch themes (Light, Dark, Dusk Indigo) and paper textures from the main home page. Paper styles apply across articles, ebooks, and PDFs. In dark mode, PDFs preserve their original page colors to avoid inverted, unreadable diagrams.
 
-Theme and reader paper are switched from the theme entry on the **home** page (light, dark, dusk indigo, and other themes plus reader paper), not from inside the Reader. Paper colors affect web articles, ebooks, and PDF reading surfaces. In dark mode, PDFs keep their original page colors.
+## Create Highlights and Thoughts
 
-## Create a Highlight
+1. Select any text in the reading area.
+2. Drag the handles at both ends of the selection to fine-tune boundaries without re-selecting (supported across web articles, ebooks, and PDFs).
+3. Press the default shortcut `A` or click the annotation button on the floating menu.
+4. Record your immediate reaction, question, or analysis.
 
-1. Select text in the Reader.
-2. Draggable handles appear at both ends of the selection — drag them to extend or shrink the range without reselecting (supported in web articles, ebooks, and PDFs).
-3. Press the default `A` shortcut, or use the selection action button.
-4. Write a thought, question, or note.
+Highlights appear in your personalized color and remain anchored to their exact source coordinates. Highlight creation and text copying can provide tactile audio feedback (configurable in Settings > General).
 
-The highlight is shown in your personal color and anchored to the source text. Highlight creation, copying a selection, and similar actions can be paired with sound feedback (toggle sound and volume in Settings > General).
+## Highlight Discussion Threads
 
-## Discussion
+Every highlight comes with its own focused discussion thread. Click any annotation card to enter the discussion view:
 
-Every highlight has its own discussion thread. Open the discussion from an annotation card to add thoughts, reply to existing notes, or mention an AI assistant with `@assistant name`. Assistant replies are generated from article context, the selected passage, and the existing discussion.
+- Add ongoing reflections or reply to earlier thoughts.
+- Type `@assistant_name` to bring specialized AI companions into the conversation. Responses are generated using document context, the highlighted snippet, and the full discussion thread.
+- Pin key thoughts, delete outdated notes, and switch seamlessly between split and left-aligned layouts.
 
-Discussions support pinning important notes, deleting your own notes, and switching between split and left-aligned layouts.
+## Distillation
 
-## Distilled Notes
+When your reflections around a passage mature into a concrete takeaway, framework, or actionable insight, open the **Distillation Window**. You can synthesize scattered notes into a polished draft and receive structured review feedback with live diff previews. See "[Distilled Notes and Review](/en/docs/sedimentation/)".
 
-When a highlight has grown into a judgment, framework, question, or action reminder worth keeping, open the distillation window and turn scattered comments into a concise note, then validate, preview, and apply review assistants' structured feedback item by item. See "[Distilled Notes and Review](/en/docs/sedimentation/)".
-
-## Shortcuts
+## Essential Shortcuts
 
 | Shortcut | Action                                |
 | -------- | ------------------------------------- |
 | `C`      | Copy selected text                    |
 | `A`      | Create a highlight from selected text |
-| `Q`      | Ask about selected text               |
+| `Q`      | Ask AI about selected text            |
 
-These shortcuts can be customized in Settings > Shortcuts.
+All shortcuts can be customized in **Settings > Shortcuts**.

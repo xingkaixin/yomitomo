@@ -1,93 +1,67 @@
 ---
 title: Settings, Models, and Data
-description: Configure providers, task routing, shortcuts, local data, and app updates.
+description: Configure AI model providers, task routing, shortcut preferences, local database backups, and privacy controls.
 ---
 
-Settings covers the product boundaries: UI language, external model providers, themes and sound effects, App Lock, user input preferences, local data, and app updates.
+The Settings center manages all high-level application preferences: multi-language localization, external AI providers, themes, haptic sound effects, App Lock, shortcuts, local database backups, and updates.
 
-## Model Providers
+## Model Provider Configuration
 
-Yomitomo supports preset providers and custom OpenAI-compatible providers. Configuring a provider takes two steps: first choose a protocol provider, then add the connection details and models.
+Yomitomo supports popular preset providers as well as any custom OpenAI-compatible endpoint. Configuration is straightforward: select the protocol provider, then provide the endpoint credentials and models.
 
-Preset providers include:
+Built-in preset providers include:
 
 - OpenAI
 - Anthropic
 - Google Gemini
 - DeepSeek
-- Alibaba Cloud Bailian
-- Moonshot
-- Zhipu
-- Volcengine
+- Alibaba Cloud DashScope
+- Moonshot AI (Kimi)
+- Zhipu GLM
+- ByteDance Volcengine (Doubao)
 - Xiaomi MiMo
 
-After choosing a provider in the first step, the second step asks for its name, base URL, and API key, plus the models to use. Once an API key is entered, you can click "Fetch" to pull the available model list from the provider; if fetching fails, preset models are shown as fallback candidates. Preset models are tagged "Preset" and custom models "Custom". You can add, edit, and delete custom models, and hide preset models you do not need.
+After selecting a provider, enter a display name, API Base URL, and your API Key. Click **Fetch** to automatically retrieve available models from the remote endpoint; if network conditions prevent dynamic fetching, reliable preset fallbacks are readily available. You can add, edit, delete, or hide models as needed.
 
-API keys are stored securely by the operating system—Keychain on macOS and Credential Manager on Windows. Yomitomo keeps only the provider settings and a reference to the key on your machine, never the key itself.
+API keys are safely managed by your operating system's native secure enclave—Keychain on macOS and Credential Manager on Windows. Yomitomo never stores raw plaintext secrets on disk.
 
-## WeRead
+## WeRead Integration
 
-WeRead sync requires a separate WeRead API key. See "[Get a WeRead API Key](/en/docs/weread-api-key/)".
+WeRead reading note sync requires a dedicated WeRead Skill API Key (see "[Get a WeRead API Key](/en/docs/weread-api-key/)").
 
-Once the API key is set, choose a sync mode:
+Once configured, choose your synchronization strategy:
 
-- **Manual**: sync only when you click "Sync WeRead" in the library.
-- **Automatic**: sync once after startup, then every 30 minutes in the background.
+- **Manual Sync**: Triggers updates only when you click "Sync WeRead" in the Library.
+- **Automatic Sync**: Syncs once on application launch, then silently every 30 minutes in the background. Ongoing sync processes will not collide or duplicate.
 
-Automatic mode does not collide with manual sync: if a sync is still running, the scheduled tick is skipped.
+## Intelligent Task Routing
 
-## Task Routing
+Assign the best-suited model to distinct cognitive tasks according to reasoning intensity:
 
-After configuring providers, assign models to different tasks:
+| Task Scenario           | Primary Responsibility                               |
+| ----------------------- | ---------------------------------------------------- |
+| Reading Comprehension   | Inline highlight thoughts, `@` replies, and Q&A      |
+| In-Depth Review         | Evidence verification, logical audit, and copy polish|
+| Bilingual Translation   | Paragraph-level streaming translation and refresh    |
 
-| Task                  | Purpose                                                   |
-| --------------------- | --------------------------------------------------------- |
-| Reading assistants    | Reader annotations, `@` mention replies, and conversations |
-| Review assistants     | Evidence, logic, and clarity review                        |
-| Bilingual translation | Web-article paragraph translation and refresh              |
+The **Assistant Execution Mode** applies globally: **Fast Response** prioritizes low latency, whereas **Deep Verification** empowers assistants to employ tools and multi-step reasoning before answering.
 
-Assistant execution mode applies globally to reader annotations, follow-up questions, and co-reading tasks. Choose Fast response to prioritize a quick result, or Deep verification to have the assistant verify with tools before answering.
+## Language and Visual Customization
 
-## Language
+- **Language**: Toggle between Simplified Chinese, English, and Japanese in Settings > General. UI text and assistant personas adapt instantly.
+- **Themes and Paper**: Switch between Light, Dark, and Dusk Indigo palettes alongside textured reading paper. In Dark Mode, PDFs retain their original background color to protect the contrast of technical diagrams and formulas.
+- **Audio Feedback**: Adjust or mute tactile UI sound effects (e.g., successful imports, deletions, highlight creation, distillation publishing, unlock events, and typing effects).
 
-In Settings > General you can switch the UI language between Simplified Chinese, English, and Japanese. App UI, assistant persona copy, and many prompts follow the selected language.
+## Security and Privacy Controls
 
-## Theme and Reader Paper
+- **App Lock (PIN Code)**: Protects your local reading library behind a secure PIN screen. Passcode verification relies on native OS keystores.
+- **Intranet Scraping Safeguards**: Blocks web imports from resolving to `localhost`, private intranet IPs, or cloud metadata endpoints by default.
+- **Telemetry Controls**: Sends an anonymous daily heartbeat (anonymous UUID, app version, OS architecture) strictly for platform stability metrics. **Never transmits reading content, titles, highlights, local paths, or AI dialogues.** Can be disabled entirely in settings.
 
-The theme button in the sidebar switches between light, dark, dusk indigo, and reader paper themes, including a hand-drawn ink paper picker. Reader paper only affects web articles, EPUB books, and PDF reading surfaces. In dark mode, PDFs keep their original page colors to avoid reducing document readability.
+## Data Management and Backup
 
-## Sound Effects
+Access local data folders, inspect operational logs, and execute full local SQLite backups or restores with a single click (backups exclude OS-secured API keys and raw external ebook source files).
 
-Settings > General lets you toggle in-app sound effects and adjust volume—for example import success, library delete, highlight creation, distillation commit, App Lock unlock, and assistant writing in discussions.
+## Non-Intrusive Updates
 
-## App Lock
-
-Settings > General lets you enable App Lock and set a PIN. When enabled, Yomitomo shows a lock screen and requires the PIN before continuing into the local reading workspace. PIN verification material is stored securely by the operating system—Keychain on macOS and Credential Manager on Windows.
-
-## Shortcuts
-
-Message sending can use either `Enter` or `Cmd/Ctrl+Enter`. Reader selection actions support custom copy and annotation shortcuts. Each shortcut must be a single letter and cannot conflict with another shortcut.
-
-## Data Management
-
-Data management provides entries for the data directory, logs, and database file. It can configure log retention, clear logs, and back up or restore the SQLite database. Database backups do not include model API keys stored in Keychain or Credential Manager, or separately saved ebook source files.
-
-## Web Import Safety
-
-Settings > General can allow or block web-article import access to localhost, private network, and cloud metadata addresses. It is off by default; enable it only when you explicitly need to import intranet articles.
-
-## App Updates
-
-Yomitomo supports update flows on macOS and Windows. The app checks for new versions automatically after startup, then silently every 24 hours. When an update is available it does not open a dialog to interrupt reading; instead an "Update available" badge appears in the top navigation, and clicking it opens Settings > About to download and install. The download button shows transferred size, total size, and live speed. Closing the dialog leaves the download running in the background, and the header badge can reopen its progress at any time. When the download finishes, Yomitomo asks whether to restart now; choosing later lets you keep working and installs the update after a normal quit. You can also check manually with "Check for updates" in Settings > About. When an update is available, release notes for that version are shown (fetched from the website before update, bundled locally after update). Public macOS installers are signed and notarized.
-
-## Privacy and Telemetry
-
-The Privacy group in Settings > General provides a "Send anonymous usage metrics" toggle, on by default. When enabled, Yomitomo sends an anonymous heartbeat at most once per day containing an anonymous installation ID, app version, platform, OS version, architecture, local day, and optional timezone, used to understand active version and system distribution.
-
-Reading memory sends separate requests with no identifiers, containing only counts of explicit feature openings, accepted local query completions, successful source jumps, the three review decisions, and keyword, partial-index, no-provider, or call-failure fallbacks. A later AI answer does not count as a second completion of the same query, and retrying a review does not count twice. These counts contain no dates, versions, questions, titles, excerpts, citations, judgments, or answers, and are never attached to the heartbeat containing the installation ID. Counts stay only in memory and each batch is attempted at most once; failures or exit can lose counts. They are not unique-user counts or exactly deduplicated measurements.
-
-Neither kind of telemetry collects reading content, book titles, annotations, file paths, or AI conversations. You can turn the toggle off at any time to stop reporting and clear unsent reading-memory counts.
-
-## Assistant Diagnostics
-
-If an assistant does not respond as expected, open Assistant Diagnostics in Settings to inspect the most recent call state. This page is mainly for diagnosing model configuration, network issues, or provider errors.
+Yomitomo checks for new releases on startup and every 24 hours in the background. When an update is available, a subtle badge appears in the top navigation bar without interrupting your reading. You can inspect release notes, download in the background, and choose whether to restart immediately or upon your next regular exit. All macOS and Windows packages are digitally signed and notarized.

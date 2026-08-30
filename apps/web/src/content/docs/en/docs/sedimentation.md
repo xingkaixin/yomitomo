@@ -1,48 +1,51 @@
 ---
 title: Distilled Notes and Review
-description: Turn a highlight discussion into a distilled note, then validate, preview, and apply review assistants' structured feedback item by item.
+description: Turn highlight discussions into structured distilled notes, then validate, preview, and apply review assistants' structured feedback item by item.
 ---
 
-Distillation turns the scattered thoughts on a highlight into a judgment, framework, question, or action reminder worth keeping. The distilled note stays anchored to the source text, so you can return to the evidence instead of keeping a detached note.
+Distillation transforms scattered thoughts accumulated around a highlight into a durable, structured takeaway—such as an analytical judgment, a conceptual framework, an unanswered question, or an actionable checklist. The distilled note remains permanently anchored to the original text, allowing you to return to the factual ground at any time.
 
 ## Open the Distillation Window
 
-From an annotation card, open its discussion, then open the distillation window. The draft is on the left and the review discussion on the right.
+From any annotation card, enter the discussion thread and click the **Distill** button. The distillation window opens with your working draft on the left and the review companion panel on the right.
 
-You can edit the draft by hand or lean on review assistants to organize the discussion and propose changes. Each draft has two states: "Draft" and "Published". Publishing replaces the raw highlight with the distilled note in the sidebar; unpublishing keeps the draft and review records.
+You can craft the draft manually or invite review assistants to synthesize discussions and propose specific enhancements. Drafts support two lifecycle states:
 
-## Review Flow
+- **Draft**: An editable workspace for drafting, reasoning, and iterative refinement.
+- **Published**: Once published, the distilled note replaces the raw highlight in the sidebar. Unpublishing restores the original highlight while preserving your distillation draft and review history.
 
-In the review discussion on the right, select one review assistant and send a review request about the draft. The assistant gives structured feedback instead of a generic block of prose:
+## Structured Review Workflow
 
-- **Overview**: an overall verdict on the draft, such as "solid", "mixed", or "weak".
-- **Findings**: specific issues grouped by category—evidence, logic, coverage, clarity, and action—each with a severity label, sometimes quoting the related draft passage.
-- **Proposals**: draft changes you can apply, split into insert, replace, and delete.
+Select a specialized review assistant on the right panel and submit a review request. The assistant delivers actionable, structured evaluation rather than unorganized prose:
 
-Review results stream in as they are generated, so you do not wait for the whole response.
+- **Executive Verdict**: A concise assessment of draft strength (e.g., "Solid foundation," "Mixed evidence," or "Logical gap detected").
+- **Categorized Findings**: Specific issues classified by **Evidence**, **Logic**, **Coverage**, **Clarity**, and **Actionability**, each tagged with severity levels and exact draft citations.
+- **Concrete Proposals**: Targeted text modifications categorized into Insertions, Replacements, and Deletions.
 
-## Proposal Validation
+Review feedback streams in real time so you can review points without waiting for full completion.
 
-Every proposal is checked against the current draft before it can be applied, so changes do not misfire or miss their target. Common cases give a clear reason, for example:
+## Proposal Validation Safeguards
 
-- The target text is not found in the draft, or appears more than once and needs manual placement.
-- The inserted content already exists.
-- The proposal was based on an older draft and its anchor can no longer be located.
+Every modification proposal is cross-verified against your current draft before application, preventing unintended overrides or target misalignments:
 
-Each proposal either lands precisely on the draft or tells you plainly that it needs manual handling.
+- Warns if target text cannot be located or appears multiple times.
+- Detects if proposed additions already exist in the text.
+- Alerts if the proposal was based on an earlier revision whose text anchors have shifted.
 
-## Preview Changes
+Each proposal either applies cleanly or provides explicit guidance for manual intervention.
 
-Before accepting a proposal, click "Preview change" to see the effect inline on the draft. During preview, insertions show in green, deletions show as red strikethrough, and the draft becomes read-only.
+## Inline Change Preview
 
-Preview is item by item: for each change you can choose "Keep" or "Discard". If proposals in a batch overlap and cannot be previewed together, you are asked to handle them manually.
+Before accepting any suggestion, click **Preview Change** to view an inline diff within your draft: additions appear in green highlights, removals are struck through in red, and the editor enters a temporary read-only state.
 
-## Organize Discussion
+You can accept or reject changes **item by item**. If proposals in a batch conflict or overlap, Yomitomo flags them for manual resolution.
 
-"Organize discussion" asks the current review assistant to read the highlight, your thoughts, and the whole review discussion, then turn them into additions you can drop straight into the draft. It only produces insert proposals; it never rewrites or deletes existing draft text.
+## Synthesize Discussion
 
-After it finishes, each result can be "Add to draft" individually, reusing the preview flow before it is written.
+Clicking **Organize Discussion** instructs the active review assistant to analyze the highlighted excerpt, your initial reactions, and the full multi-turn discussion to extract additive insights. This process generates additive proposals only—it never overwrites or deletes existing draft text without consent.
 
-## Anchor Highlighting
+Each synthesized insight can be individually previewed and merged into your draft.
 
-When you hover or focus a finding or an organized result, the draft highlights the target location that proposal points at, so you can see where a change would land before accepting it. If the draft has changed since the proposal was generated, the highlight uses a different color to warn that the anchor may have drifted.
+## Dynamic Anchor Highlighting
+
+Hovering over or focusing on any review finding or proposal highlights the exact corresponding passage in the draft. If the draft text has been modified after feedback generation, an adaptive color indicator warns that the anchor position may have drifted.

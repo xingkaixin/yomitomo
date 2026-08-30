@@ -1,69 +1,68 @@
 ---
 title: Reading Stats and FAQ
-description: Review local reading and WeRead stats, and troubleshoot import, AI, and local data issues.
+description: Review reading metrics across local and WeRead sources, and troubleshoot import, AI, and local storage issues.
 ---
 
-The Stats page helps you review reading activity instead of only seeing a list of materials. It includes Local Reading and WeRead sources.
+The Stats dashboard gives you an inspiring, quantitative overview of your reading habits and cognitive momentum over time. It aggregates data from two primary dimensions: **Local Reading** and **WeRead**.
 
-## Metrics
+## Key Metrics
 
-Stats shows:
+The Stats dashboard visualizes several core dimensions:
 
-- Today's activity
-- Recorded days
-- Weekly active days
-- Peak activity
-- Imported articles
-- Annotation count
-- Distilled note count
-- Discussion count
-- Assistant participation count (including assistant contributions in summary metrics)
+- **Daily Activity**: Today's reading interactions and engagement frequency
+- **Consistency & Milestones**: Total recorded days, active days per week, and all-time peak streaks
+- **Cognitive Output**: Total imported articles, annotations, and distilled notes
+- **Dialogue & Reflection**: Total discussion comments and AI companion co-reading contributions
 
-Charts show trends for article imports, highlights, distilled notes, and discussion comments. After the Settings IA refresh, assistant usage is also easier to review from stats-related views. The activity calendar shows reading activity over the last 70 days.
+Trend charts illustrate your historical trajectory across imports, highlights, distillations, and discussion threads, while the 70-day activity heatmap reflects your sustained reading cadence.
 
-## WeRead Stats
+## WeRead Stats Synchronization
 
-After configuring a WeRead API key, switch the Stats page to WeRead. WeRead stats can be queried by week, month, year, or all time. Switching the period only reads saved data. Click Query or Re-query when you need to update a period.
+After configuring your WeRead API Key in Settings, you can switch to the **WeRead** tab in Stats. Query your reading duration and book distributions across **Weekly**, **Monthly**, **Yearly**, and **All-Time** periods. Query results are cached locally so you can review previously loaded periods instantly without extra network roundtrips.
 
-WeRead query results are cached, so previously fetched periods remain available without another API request.
+---
 
-## AI Features Do Not Respond
+## Frequently Asked Questions & Troubleshooting
 
-Check:
+### Why is the AI assistant not responding?
 
-1. Whether at least one model provider has been added.
-2. Whether the API key is correct.
-3. Whether "Test connection" succeeds.
-4. Whether task routing has been configured for the relevant task.
+Please verify the following checkpoints:
 
-## Web Article Import Fails
+1. **Provider Setup**: Ensure at least one AI provider is added under **Settings > Models and Routing**.
+2. **API Key Validity**: Check that the API key was pasted without unintended whitespace.
+3. **Connectivity Test**: Click **Test Connection** on the provider card to verify endpoint reachability.
+4. **Task Routing**: Confirm that models are actively assigned to specific tasks (e.g., Reading Comprehension and In-Depth Review).
+
+### Why did a web article import fail?
 
 Common causes include:
 
-- The URL is not a valid `http://` or `https://` address.
-- The URL points to localhost, a private network, or a cloud metadata address, which is blocked by default.
-- The HTML response is larger than 5 MB.
-- The source site has anti-scraping protection.
-- The network connection timed out.
+- The URL is invalid or does not start with `http://` or `https://`.
+- The target address points to loopback (`localhost`), private intranets, or cloud metadata endpoints (blocked by local security policy).
+- The raw HTML payload exceeds the 5 MB threshold.
+- The destination website enforces aggressive anti-scraping protections or strict login paywalls.
+- Network connection timed out.
 
-Yomitomo tries to render pages with the built-in browser, but some sites may still fail to parse.
+Yomitomo automatically attempts headless rendering for single-page dynamic apps, though heavily customized interfaces may still resist automated extraction.
 
-## Ebook Import Fails
+### Why did an ebook import fail?
 
-Make sure the file is a `.epub`, `.azw3`, or `.mobi` file and is no larger than 80 MB. DRM-protected files or files with oversized decompressed content cannot be imported.
+- Ensure the file is a standard `.epub`, `.azw3`, or `.mobi` file under 80 MB.
+- DRM-encrypted ebooks and files with oversized decompressed payloads cannot be imported.
 
-## PDF Import Fails
+### Why did a PDF import fail?
 
-Make sure the file is a standard `.pdf` file and is no larger than 120 MB.
+- Ensure the file is a standard `.pdf` document under 120 MB.
+- Password-protected or corrupted PDFs must be decrypted or repaired before importing.
 
-## Where Is Data Stored?
+### Where is my reading data stored?
 
-All data is stored in the local app data directory and is not uploaded to Yomitomo servers. API keys are saved in the system keyring.
+All reading materials, highlights, discussion threads, and distilled notes are stored strictly within your **local desktop application directory**. Data is never uploaded to Yomitomo servers. Model API keys are secured via native OS keystores (macOS Keychain and Windows Credential Manager).
 
-## Does Yomitomo Send Anonymous Data?
+### Does Yomitomo collect private user data?
 
-By default, Yomitomo sends an anonymous heartbeat at most once per day containing an anonymous installation ID, app version, platform, OS version, architecture, local day, and optional timezone, used to understand active version and system distribution. It does not collect reading content, book titles, annotations, file paths, or AI conversations. You can turn it off with the "Send anonymous version and system metrics" toggle in the Privacy group under Settings > General.
+By default, Yomitomo sends a lightweight anonymous heartbeat at most once per day (containing an anonymous installation UUID, app version, OS platform, architecture, and local timezone) solely for aggregated platform metrics. **It never collects reading texts, book titles, highlights, file paths, or AI conversation contents.** You can disable this anytime under **Settings > General > Privacy**.
 
-## Supported Systems
+### Which operating systems are supported?
 
-Yomitomo currently supports macOS and Windows.
+Yomitomo natively supports **macOS (Apple Silicon & Intel)** and **Windows (x64 & ARM64)**.
