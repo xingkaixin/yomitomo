@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ReadingMemoryStatusSnapshot } from '../../../ipc-contract';
+import {
+  readingMemoryModelSources,
+  type ReadingMemoryModelSource,
+} from '../../../reading-memory-model-sources';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { getDesktopApi } from '../shell/app-desktop-api';
@@ -49,7 +60,7 @@ function useReadingMemoryModelStatus() {
     };
   }, []);
 
-  async function run(action: ModelAction) {
+  async function run(action: ModelAction, source: ReadingMemoryModelSource = 'modelscope') {
     const session = sessionRef.current;
     if (!session) return;
     if (session.operation && !(action === 'cancel' && session.operation.action === 'download')) {
@@ -63,7 +74,7 @@ function useReadingMemoryModelStatus() {
     try {
       const { model, index } = getDesktopApi().readingMemory;
       const actions = {
-        download: model.download,
+        download: () => model.download(source),
         cancel: model.cancel,
         remove: model.remove,
         pause: index.pause,
@@ -93,8 +104,10 @@ function useReadingMemoryModelStatus() {
 export function ReadingMemoryModelSettings() {
   const { t, i18n } = useTranslation();
   const { snapshot, error, pending, run, refresh } = useReadingMemoryModelStatus();
+  const [selectedSource, setSource] = useState<ReadingMemoryModelSource>('modelscope');
   const [removeConfirmationOpen, setRemoveConfirmationOpen] = useState(false);
   const model = snapshot?.model;
+  const source = model?.source ?? selectedSource;
   const downloading = model?.status === 'downloading' || pending === 'download';
   const busy = pending !== null;
   const canIndex = model?.status === 'available' && !busy && error !== 'load';
@@ -154,7 +167,7 @@ export function ReadingMemoryModelSettings() {
                     snapshot.model.status === 'checking' ||
                     snapshot.model.failure === 'unsupported-platform'
                   }
-                  onClick={() => void run('download')}
+                  onClick={() => void run('download', source)}
                 >
                   {t(
                     snapshot.model.downloadedBytes > 0
@@ -164,6 +177,29 @@ export function ReadingMemoryModelSettings() {
                 </Button>
               ) : null}
             </SettingsRow>
+            <SettingsRow
+              title={t('settings.models.localMemory.downloadSource')}
+              description={t('settings.models.localMemory.downloadSourceHint')}
+            >
+              <Select
+                value={source}
+                disabled={busy || downloading}
+                onValueChange={(value) => {
+                  if (value === 'modelscope' || value === 'huggingface') setSource(value);
+                }}
+              >
+                <SelectTrigger aria-label={t('settings.models.localMemory.downloadSource')}>
+                  <SelectValue>{readingMemoryModelSources[source].name}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(readingMemoryModelSources).map(([id, item]) => (
+                    <SelectItem key={id} value={id}>
+                      {item.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </SettingsRow>
             <div className="space-y-3 px-4 py-3">
               <dl className="space-y-3 text-xs">
                 {[
@@ -171,7 +207,7 @@ export function ReadingMemoryModelSettings() {
                     t('settings.models.localMemory.downloadSize'),
                     bytes(snapshot.model.downloadSizeBytes),
                   ],
-                  [t('settings.models.localMemory.source'), snapshot.model.sourceUrl],
+                  [t('settings.models.localMemory.source'), readingMemoryModelSources[source].url],
                   [t('settings.models.localMemory.directory'), snapshot.model.directory],
                 ].map(([label, value]) => (
                   <div

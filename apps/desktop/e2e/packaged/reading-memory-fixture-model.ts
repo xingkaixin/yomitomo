@@ -2,7 +2,8 @@ import { fork } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
-import releaseManifest from '../../../download/model-releases/reading-memory-embedding-v1/manifest.json';
+import { readingMemoryModelFileUrl } from '../../src/reading-memory-model-sources';
+import releaseManifest from '../../model-releases/reading-memory-embedding-v1/manifest.json';
 import { createReadingMemoryEmbeddingService } from '../../src/main/reading-memory/reading-memory-embedding-service';
 import { createReadingMemoryModelLifecycle as createModelLifecycle } from '../../src/main/reading-memory/reading-memory-model-lifecycle';
 import type { ReadingMemoryModelManifest } from '../../src/main/reading-memory/reading-memory-model-manifest';
@@ -13,8 +14,6 @@ type ModelRequest = NonNullable<LifecycleOptions['request']>;
 type FixtureScenario = 'available' | 'not-installed' | 'download-failed' | 'embedding-failed';
 
 const modelBytes = Buffer.from('RD-973 fixture bytes; this is not an ONNX model.\n'.repeat(256));
-const modelUrl = 'https://reading-memory-fixture.invalid/model.bin';
-const manifestUrl = 'https://reading-memory-fixture.invalid/manifest.json';
 const manifest = {
   ...releaseManifest,
   internalId: 'reading-memory-fixture-v1',
@@ -25,7 +24,6 @@ const manifest = {
     files: [
       {
         path: 'onnx/model_q4.onnx',
-        url: modelUrl,
         sizeBytes: modelBytes.byteLength,
         sha256: digest(modelBytes),
       },
@@ -38,7 +36,8 @@ const manifestJson = JSON.stringify(manifest);
 const manifestBytes = Buffer.from(manifestJson);
 const release = {
   internalId: manifest.internalId,
-  manifestUrl,
+  manifestText: manifestJson,
+  downloadSizeBytes: modelBytes.byteLength,
   manifestSizeBytes: manifestBytes.byteLength,
   manifestSha256: digest(manifestBytes),
   distributionDownloadSizeBytes: modelBytes.byteLength,
@@ -95,7 +94,11 @@ export function createReadingMemorySemanticIndex(
 
 const requestFixtureAsset: ModelRequest = async (url, { headers, signal }) => {
   signal.throwIfAborted();
-  const bytes = url === manifestUrl ? manifestBytes : url === modelUrl ? modelBytes : null;
+  const bytes = (['modelscope', 'huggingface'] as const).some(
+    (source) => url === readingMemoryModelFileUrl('onnx/model_q4.onnx', source),
+  )
+    ? modelBytes
+    : null;
   if (!bytes) throw new Error('Fixture transport refuses unknown URLs');
   const range = headers.Range;
   const match = range?.match(/^bytes=(\d+)-$/);

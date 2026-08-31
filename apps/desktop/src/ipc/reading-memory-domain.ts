@@ -1,3 +1,4 @@
+import type { ReadingMemoryModelSource } from '../reading-memory-model-sources';
 import type {
   LlmProvider,
   ReaderQuestionContext,
@@ -149,8 +150,8 @@ export type ReadingMemoryStatusSnapshot = {
     internalId: string;
     downloadSizeBytes: number;
     downloadedBytes: number;
+    source: ReadingMemoryModelSource | null;
     directory: string;
-    sourceUrl: string;
     failure: 'integrity' | 'network' | 'storage' | 'timeout' | 'unsupported-platform' | null;
   };
   projection: ReadingEvidenceProjectionStatus;

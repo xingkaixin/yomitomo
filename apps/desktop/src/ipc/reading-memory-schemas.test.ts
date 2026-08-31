@@ -48,6 +48,20 @@ const searchInput: ReadingRelationsSearchInput = {
   question: 'How does this relate to my earlier reading?',
 };
 
+it('accepts only supported model download sources over IPC', () => {
+  const schema = readingMemoryIpcInvokeSchemas['reading-memory:model:download'];
+  expect(schema.parse(['modelscope'])).toEqual(['modelscope']);
+  expect(schema.parse(['huggingface'])).toEqual(['huggingface']);
+  for (const input of [
+    [],
+    ['unknown'],
+    ['https://example.com/model'],
+    ['modelscope', 'huggingface'],
+  ]) {
+    expect(schema.safeParse(input).success).toBe(false);
+  }
+});
+
 describe('reading memory usage IPC', () => {
   it('accepts only a single closed interaction key without content or review decisions', () => {
     const schema = readingMemoryIpcInvokeSchemas['reading-memory:record-usage'];

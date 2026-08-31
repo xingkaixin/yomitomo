@@ -4,15 +4,13 @@ import { describe, expect, it } from 'vitest';
 import {
   parseReadingMemoryModelManifest,
   readingMemoryModelFiles,
+  readingMemoryModelLegalContents,
   readingMemoryModelRelease,
   type ReadingMemoryModelFile,
 } from './reading-memory-model-manifest';
 
 const checkedManifestBytes = readFileSync(
-  new URL(
-    '../../../../download/model-releases/reading-memory-embedding-v1/manifest.json',
-    import.meta.url,
-  ),
+  new URL('../../../model-releases/reading-memory-embedding-v1/manifest.json', import.meta.url),
 );
 const checkedManifest = parseReadingMemoryModelManifest(
   JSON.parse(checkedManifestBytes.toString('utf8')),
@@ -43,6 +41,29 @@ describe('reading memory model manifest', () => {
     ]);
     expect(checkedManifest.artifact.downloadSizeBytes).toBe(218_726_989);
     expect(checkedManifest.legal.downloadSizeBytes).toBe(9_470);
+  });
+
+  it('bundles the exact legal files and preserves the evaluated model artifacts', () => {
+    for (const file of checkedManifest.legal.files) {
+      const bytes = Buffer.from(readingMemoryModelLegalContents[file.path], 'utf8');
+      expect(bytes.byteLength).toBe(file.sizeBytes);
+      expect(createHash('sha256').update(bytes).digest('hex')).toBe(file.sha256);
+    }
+    const selected = JSON.parse(
+      readFileSync(
+        new URL(
+          '../../../../../packages/ai/evaluation/semantic-retrieval/selected-model-v1.json',
+          import.meta.url,
+        ),
+        'utf8',
+      ),
+    );
+    expect(checkedManifest.artifact.files).toEqual(
+      selected.artifact.files.map(({ url: _url, ...file }: { url: string }) => file),
+    );
+    expect(checkedManifest.artifact.downloadSizeBytes).toBe(
+      readingMemoryModelRelease.downloadSizeBytes,
+    );
   });
 
   it('rejects unknown fields at every strict object level', () => {
@@ -138,35 +159,6 @@ describe('reading memory model manifest', () => {
     );
   });
 
-  it.each([
-    'http://download.yomitomo.app/models/reading-memory-embedding-v1/objects/sha256/',
-    'https://user@download.yomitomo.app/models/reading-memory-embedding-v1/objects/sha256/',
-    'https://example.com/models/reading-memory-embedding-v1/objects/sha256/',
-  ])('rejects non-first-party model URL %s', (prefix) => {
-    const file = checkedManifest.artifact.files[0];
-    expect(() =>
-      parseReadingMemoryModelManifest(
-        withArtifactFile(0, { url: `${prefix}${file.sha256}/${file.path}` }),
-      ),
-    ).toThrow('artifact.files[0].url must be the canonical first-party content-addressed URL');
-  });
-
-  it('rejects URL path, digest, query, and fragment drift', () => {
-    const file = checkedManifest.artifact.files[0];
-    const changedDigest = 'a'.repeat(64);
-    for (const url of [
-      file.url.replace(file.sha256, changedDigest),
-      file.url.replace(file.path, 'other.json'),
-      `${file.url}?download=1`,
-      `${file.url}#asset`,
-      ` ${file.url}`,
-    ]) {
-      expect(() => parseReadingMemoryModelManifest(withArtifactFile(0, { url }))).toThrow(
-        'artifact.files[0].url must be the canonical first-party content-addressed URL',
-      );
-    }
-  });
-
   it.each(['A'.repeat(64), 'a'.repeat(63), ` ${'a'.repeat(64)}`])(
     'rejects invalid SHA-256 %s',
     (sha256) => {
@@ -187,12 +179,10 @@ describe('reading memory model manifest', () => {
 
   it('rejects duplicate, missing, or mismatched fixed files', () => {
     const first = checkedManifest.artifact.files[0];
-    const second = checkedManifest.artifact.files[1];
     expect(() =>
       parseReadingMemoryModelManifest(
         withArtifactFile(1, {
           path: first.path,
-          url: objectUrl(first.path, second.sha256),
         }),
       ),
     ).toThrow('artifact.files does not contain the fixed artifact paths');
@@ -279,8 +269,4 @@ function withLegalFile(index: number, patch: Readonly<Record<string, unknown>>) 
       ),
     },
   };
-}
-
-function objectUrl(path: string, sha256: string) {
-  return `https://download.yomitomo.app/models/${readingMemoryModelRelease.internalId}/objects/sha256/${sha256}/${path}`;
 }

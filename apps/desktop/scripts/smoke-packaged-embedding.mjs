@@ -21,7 +21,7 @@ const scriptPath = fileURLToPath(import.meta.url);
 const repositoryRoot = resolve(dirname(scriptPath), '../../..');
 const releaseDirectory = join(
   repositoryRoot,
-  'apps/download/model-releases/reading-memory-embedding-v1',
+  'apps/desktop/model-releases/reading-memory-embedding-v1',
 );
 const resultPrefix = 'YOMITOMO_PACKAGED_EMBEDDING_RESULT ';
 const smokeTexts = [

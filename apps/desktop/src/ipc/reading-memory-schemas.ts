@@ -108,6 +108,7 @@ const reviewComparisonArgsSchema = z.tuple([
 ]);
 
 export const readingMemoryIpcInvokeSchemas = {
+  'reading-memory:model:download': z.tuple([z.enum(['modelscope', 'huggingface'])]),
   'reading-memory:record-usage': z.tuple([
     z.enum([
       'feature_opened',

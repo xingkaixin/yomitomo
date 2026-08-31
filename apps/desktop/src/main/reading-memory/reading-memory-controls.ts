@@ -1,12 +1,12 @@
 import { join } from 'node:path';
 import type { ReadingMemoryStatusSnapshot } from '../../ipc/reading-memory-domain';
 import type { ReadingMemoryModelLifecycle } from './reading-memory-model-lifecycle';
-import { readingMemoryModelRelease } from './reading-memory-model-manifest';
+import type { ReadingMemoryModelSource } from '../../reading-memory-model-sources';
 import type { ReadingMemorySemanticIndex } from './reading-memory-semantic-index';
 
 export type ReadingMemoryControls = {
   status(): Promise<ReadingMemoryStatusSnapshot>;
-  download(): Promise<ReadingMemoryStatusSnapshot>;
+  download(source?: ReadingMemoryModelSource): Promise<ReadingMemoryStatusSnapshot>;
   cancel(): Promise<ReadingMemoryStatusSnapshot>;
   remove(): Promise<ReadingMemoryStatusSnapshot>;
   pause(): Promise<ReadingMemoryStatusSnapshot>;
@@ -48,8 +48,8 @@ export function createReadingMemoryControls(options: {
         internalId: model.internalId,
         downloadSizeBytes: model.downloadSizeBytes,
         downloadedBytes,
+        source: model.status === 'downloading' ? model.source : null,
         directory: join(userDataPath, 'models', model.internalId),
-        sourceUrl: readingMemoryModelRelease.manifestUrl,
         failure: model.status === 'failed' ? model.failure : null,
       },
       ...indexStatus,
@@ -89,14 +89,14 @@ export function createReadingMemoryControls(options: {
 
   return {
     status,
-    download: () => {
+    download: (source = 'modelscope') => {
       if (pendingDownload && !pendingDownload.controller.signal.aborted) {
         return pendingDownload.promise;
       }
       const controller = new AbortController();
       const promise = control(async () => {
         if (controller.signal.aborted) return;
-        const model = await modelLifecycle.download();
+        const model = await modelLifecycle.download(source);
         if (model.status === 'available' && !controller.signal.aborted) {
           await semanticIndex.reconcile('model-downloaded');
         }

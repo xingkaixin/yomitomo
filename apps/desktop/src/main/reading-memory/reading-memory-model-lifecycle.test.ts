@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { Readable, Writable } from 'node:stream';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createReadingMemoryModelLifecycle } from './reading-memory-model-lifecycle';
+import { readingMemoryModelFileUrl } from '../../reading-memory-model-sources';
 import type { ReadingMemoryModelManifest } from './reading-memory-model-manifest';
 
 type LifecycleOptions = Parameters<typeof createReadingMemoryModelLifecycle>[0];
@@ -16,7 +17,6 @@ const platform = 'test-platform';
 const modelBytes = Buffer.from('small reading memory model payload');
 const modelFile = {
   path: 'model.bin',
-  url: 'https://models.test/model.bin',
   sizeBytes: modelBytes.byteLength,
   sha256: digest(modelBytes),
 };
@@ -30,7 +30,8 @@ const manifest = {
 const manifestBytes = Buffer.from(JSON.stringify({ schemaVersion: 1, test: true }));
 const release = {
   internalId: manifest.internalId,
-  manifestUrl: 'https://models.test/manifest.json',
+  manifestText: manifestBytes.toString('utf8'),
+  downloadSizeBytes: modelFile.sizeBytes,
   manifestSizeBytes: manifestBytes.byteLength,
   manifestSha256: digest(manifestBytes),
   distributionDownloadSizeBytes: modelFile.sizeBytes,
@@ -93,7 +94,9 @@ describe('reading memory model lifecycle', () => {
       status: 'not-installed',
       resumeBytes: partialBytes.byteLength,
     });
-    await expect(resumedManager.download()).resolves.toMatchObject({ status: 'available' });
+    await expect(resumedManager.download('huggingface')).resolves.toMatchObject({
+      status: 'available',
+    });
 
     expect(fileRequests).toHaveLength(2);
     expect(fileRequests[1]).toMatchObject({ Range: `bytes=${partialBytes.byteLength}-` });
@@ -174,11 +177,14 @@ describe('reading memory model lifecycle', () => {
     expect(await readFile(finalModelPath())).toEqual(modelBytes);
   });
 
-  it('rejects manifest bytes before parsing when the trust anchor does not match', async () => {
+  it('rejects bundled manifest bytes before parsing when the trust anchor does not match', async () => {
     const parseManifest = vi.fn(() => manifest);
-    const request: ModelRequest = async () =>
-      response(Buffer.alloc(manifestBytes.byteLength, 0x78), manifestBytes.byteLength);
-    const manager = createManager({ request, parseManifest });
+    const request = vi.fn(createRequest());
+    const manager = createManager({
+      request,
+      parseManifest,
+      release: { ...release, manifestText: 'x'.repeat(manifestBytes.byteLength) },
+    });
 
     await expect(manager.download()).resolves.toMatchObject({
       status: 'failed',
@@ -249,7 +255,59 @@ describe('reading memory model lifecycle', () => {
       expect.objectContaining({ status: 'available' }),
       expect.objectContaining({ status: 'available' }),
     ]);
-    expect(requestedUrls).toEqual([release.manifestUrl, modelFile.url]);
+    expect(requestedUrls).toEqual([readingMemoryModelFileUrl(modelFile.path, 'modelscope')]);
+  });
+
+  it('follows the CDN redirect and preserves the resume range', async () => {
+    await seedPartialModel(modelBytes.subarray(0, 11));
+    const cdnUrl = 'https://cdn-lfs-cn-1.modelscope.cn/model.bin?signature=temporary';
+    const request = vi.fn<ModelRequest>(async (url, options) => {
+      if (!options.headers['User-Agent']) {
+        return { statusCode: 403, headers: {}, body: Readable.from([]) };
+      }
+      if (url !== cdnUrl) {
+        return { statusCode: 302, headers: { location: cdnUrl }, body: Readable.from([]) };
+      }
+      return rangedModelResponse(options.headers.Range);
+    });
+    const manager = createManager({ request });
+    await expect(manager.download()).resolves.toMatchObject({ status: 'available' });
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(request.mock.calls[1][1].headers.Range).toBe('bytes=11-');
+    expect(await readFile(finalModelPath())).toEqual(modelBytes);
+  });
+
+  it.each([
+    'http://cdn-lfs-cn-1.modelscope.cn/model.bin',
+    'https://modelscope.cn.attacker.example/model.bin',
+    'https://user:password@huggingface.co/model.bin',
+    'https://127.0.0.1/model.bin',
+  ])('does not follow an untrusted model redirect to %s', async (location) => {
+    const request = vi.fn<ModelRequest>(async () => ({
+      statusCode: 302,
+      headers: { location },
+      body: Readable.from([]),
+    }));
+    const manager = createManager({ request });
+    await expect(manager.download()).resolves.toMatchObject({
+      status: 'failed',
+      failure: 'network',
+    });
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(await pathExists(finalDirectory())).toBe(false);
+  });
+
+  it('bounds redirect loops', async () => {
+    const request = vi.fn<ModelRequest>(async (url) => ({
+      statusCode: 302,
+      headers: { location: url },
+      body: Readable.from([]),
+    }));
+    await expect(createManager({ request }).download()).resolves.toMatchObject({
+      status: 'failed',
+      failure: 'network',
+    });
+    expect(request).toHaveBeenCalledTimes(6);
   });
 
   it('runs a trailing scan when restore reconciliation arrives during a scan', async () => {
@@ -442,10 +500,13 @@ function createRequest(
 ): ModelRequest {
   return async (url, options) => {
     requestedUrls.push(url);
-    if (url === release.manifestUrl) {
-      return response(manifestBytes, manifestBytes.byteLength);
-    }
-    if (url !== modelFile.url) throw new Error(`Unexpected model URL: ${url}`);
+    if (
+      ![
+        readingMemoryModelFileUrl(modelFile.path, 'modelscope'),
+        readingMemoryModelFileUrl(modelFile.path, 'huggingface'),
+      ].includes(url)
+    )
+      throw new Error(`Unexpected model URL: ${url}`);
     if (fileResponse) return fileResponse(options);
     if (options.headers.Range) return rangedModelResponse(options.headers.Range);
     return response(modelBytes, modelBytes.byteLength);

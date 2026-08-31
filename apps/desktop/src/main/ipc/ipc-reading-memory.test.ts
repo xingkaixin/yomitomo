@@ -82,7 +82,7 @@ const args = {
   ],
   'reading-memory:review:compare-evidence': [comparison],
   'reading-memory:model:status': [],
-  'reading-memory:model:download': [],
+  'reading-memory:model:download': ['modelscope'],
   'reading-memory:model:cancel': [],
   'reading-memory:model:remove': [],
   'reading-memory:index:pause': [],

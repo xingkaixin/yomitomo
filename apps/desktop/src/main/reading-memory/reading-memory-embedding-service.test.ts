@@ -15,10 +15,7 @@ import { parseReadingMemoryModelManifest } from './reading-memory-model-manifest
 const manifest = parseReadingMemoryModelManifest(
   JSON.parse(
     readFileSync(
-      new URL(
-        '../../../../download/model-releases/reading-memory-embedding-v1/manifest.json',
-        import.meta.url,
-      ),
+      new URL('../../../model-releases/reading-memory-embedding-v1/manifest.json', import.meta.url),
       'utf8',
     ),
   ),

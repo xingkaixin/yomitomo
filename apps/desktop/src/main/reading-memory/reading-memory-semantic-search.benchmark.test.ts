@@ -26,7 +26,7 @@ const modelCache = process.env.YOMITOMO_READING_MEMORY_BENCHMARK_MODEL_CACHE ?? 
 const reportPath = process.env.YOMITOMO_READING_MEMORY_BENCHMARK_OUTPUT;
 const workerUrl = new URL('../../../dist/main/reading-memory-embedding-worker.js', import.meta.url);
 const releaseDirectory = fileURLToPath(
-  new URL('../../../../download/model-releases/reading-memory-embedding-v1/', import.meta.url),
+  new URL('../../../model-releases/reading-memory-embedding-v1/', import.meta.url),
 );
 const timestamp = '2026-08-30T00:00:00.000Z';
 const entryCount = 10_000;

@@ -1919,6 +1919,8 @@ export const zhCNResources = {
       },
       models: {
         localMemory: {
+          downloadSource: '下载源',
+          downloadSourceHint: '中国大陆建议使用 ModelScope；下载中断后可以换源继续。',
           title: '本地阅读记忆',
           description: '在本机检索批注、评论和沉淀，不生成回答，也不向模型供应商发送阅读内容。',
           model: '检索模型',
