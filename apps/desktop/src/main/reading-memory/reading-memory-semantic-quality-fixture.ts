@@ -21,7 +21,7 @@ import { parseReadingMemoryModelManifest } from './reading-memory-model-manifest
 
 const timestamp = '2026-08-30T00:00:00.000Z';
 const releaseDirectory = fileURLToPath(
-  new URL('../../../../download/model-releases/reading-memory-embedding-v1/', import.meta.url),
+  new URL('../../../model-releases/reading-memory-embedding-v1/', import.meta.url),
 );
 const inputBudgetProvider: LlmProvider = {
   id: 'quality-input-budget',

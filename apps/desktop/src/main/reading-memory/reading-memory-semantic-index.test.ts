@@ -39,10 +39,7 @@ const library: ReadingEvidenceScope = { kind: 'library' };
 const manifest = parseReadingMemoryModelManifest(
   JSON.parse(
     readFileSync(
-      new URL(
-        '../../../../download/model-releases/reading-memory-embedding-v1/manifest.json',
-        import.meta.url,
-      ),
+      new URL('../../../model-releases/reading-memory-embedding-v1/manifest.json', import.meta.url),
       'utf8',
     ),
   ),
@@ -435,6 +432,7 @@ describe('reading memory semantic index scheduling', () => {
       if (operation === 'resume') await fixture.index.suspend();
       fixture.model.state = {
         status: 'downloading',
+        source: 'modelscope',
         internalId: installation.internalId,
         downloadSizeBytes: installation.downloadSizeBytes,
         downloadedBytes: 1,
@@ -478,6 +476,7 @@ describe('reading memory semantic index scheduling', () => {
     activateReadingMemoryModelVersion(fixture.database, model(installation));
     fixture.model.state = {
       status: 'downloading',
+      source: 'modelscope',
       internalId: controlledInstallation.internalId,
       downloadSizeBytes: controlledInstallation.downloadSizeBytes,
       downloadedBytes: 1,

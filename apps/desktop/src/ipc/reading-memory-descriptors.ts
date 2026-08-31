@@ -170,10 +170,13 @@ export const readingMemoryIpcInvokeDescriptors = {
     validation: { exempt: 'no-args' },
     databaseIndependent: true,
   }),
-  'reading-memory:model:download': desktopIpcInvoke<[], ReadingMemoryStatusSnapshot>()({
+  'reading-memory:model:download': desktopIpcInvoke<
+    ReadingMemoryIpcSchemaArgs<'reading-memory:model:download'>,
+    ReadingMemoryStatusSnapshot
+  >()({
     route: ['readingMemory', 'model', 'download'],
     roles: mainOnly,
-    validation: { exempt: 'no-args' },
+    validation: 'schema',
     databaseIndependent: true,
   }),
   'reading-memory:model:cancel': desktopIpcInvoke<[], ReadingMemoryStatusSnapshot>()({

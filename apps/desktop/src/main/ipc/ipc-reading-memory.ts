@@ -77,7 +77,9 @@ export function registerReadingMemoryIpc({
   );
   handleReadingMemoryIpc('reading-memory:confirm-privacy', () => relations.confirmPrivacy());
   handleReadingMemoryIpc('reading-memory:model:status', () => controls.status());
-  handleReadingMemoryIpc('reading-memory:model:download', () => controls.download());
+  handleReadingMemoryIpc('reading-memory:model:download', (_event, source) =>
+    controls.download(source),
+  );
   handleReadingMemoryIpc('reading-memory:model:cancel', () => controls.cancel());
   handleReadingMemoryIpc('reading-memory:model:remove', () => controls.remove());
   handleReadingMemoryIpc('reading-memory:index:pause', () => controls.pause());

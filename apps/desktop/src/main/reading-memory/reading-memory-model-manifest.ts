@@ -1,11 +1,21 @@
-const distributionOrigin = 'https://download.yomitomo.app';
+import manifestText from '../../../model-releases/reading-memory-embedding-v1/manifest.json?raw';
+import notice from '../../../model-releases/reading-memory-embedding-v1/NOTICE?raw';
+import terms from '../../../model-releases/reading-memory-embedding-v1/GEMMA_TERMS_OF_USE.txt?raw';
+import modifications from '../../../model-releases/reading-memory-embedding-v1/MODIFICATIONS?raw';
+
+export const readingMemoryModelLegalContents: Readonly<Record<string, string>> = {
+  NOTICE: notice,
+  'GEMMA_TERMS_OF_USE.txt': terms,
+  MODIFICATIONS: modifications,
+};
 
 export const readingMemoryModelRelease = {
   internalId: 'reading-memory-embedding-v1',
-  manifestUrl: 'https://download.yomitomo.app/models/reading-memory-embedding-v1/manifest.json',
-  manifestSizeBytes: 4_884,
-  manifestSha256: 'fd5469b94ddb387c68e9e2527ad600a8ccd91a998dd59abcd5fc747b400334f3',
+  manifestText,
+  manifestSizeBytes: 3_444,
+  manifestSha256: 'bbba7946e491ad2b88e7111e16f99df370b9aedc39f2a02c37bce299c89870ce',
   distributionDownloadSizeBytes: 218_736_459,
+  downloadSizeBytes: 218_726_989,
 } as const;
 
 const expectedSource = {
@@ -87,7 +97,6 @@ type ReadingMemoryModelLegalFileKind = (typeof expectedLegalFiles)[number]['kind
 
 export type ReadingMemoryModelFile = {
   readonly path: string;
-  readonly url: string;
   readonly sizeBytes: number;
   readonly sha256: string;
 };
@@ -247,13 +256,13 @@ function parseLegal(value: unknown): ReadingMemoryModelManifest['legal'] {
 }
 
 function parseModelFile(value: unknown, label: string): ReadingMemoryModelFile {
-  const file = strictRecord(value, ['path', 'url', 'sizeBytes', 'sha256'], label);
+  const file = strictRecord(value, ['path', 'sizeBytes', 'sha256'], label);
   return parseModelFileFields(file, label);
 }
 
 function parseLegalFile(value: unknown, index: number): ReadingMemoryModelLegalFile {
   const label = `legal.files[${index}]`;
-  const file = strictRecord(value, ['kind', 'path', 'url', 'sizeBytes', 'sha256'], label);
+  const file = strictRecord(value, ['kind', 'path', 'sizeBytes', 'sha256'], label);
   const kind = stringValue(file.kind, `${label}.kind`);
   if (!expectedLegalFiles.some((expected) => expected.kind === kind)) {
     invalid(`${label}.kind`, 'is not supported');
@@ -277,12 +286,8 @@ function parseModelFileFields(
     invalid(`${label}.sha256`, 'must be a lowercase SHA-256 digest');
   }
 
-  const url = stringValue(file.url, `${label}.url`);
-  assertDistributionUrl(url, path, sha256, `${label}.url`);
-
   return {
     path,
-    url,
     sizeBytes: positiveSafeInteger(file.sizeBytes, `${label}.sizeBytes`),
     sha256,
   };
@@ -393,13 +398,10 @@ function assertExpectedLegalFiles(files: readonly ReadingMemoryModelLegalFile[])
 
 function assertUniqueFiles(files: readonly ReadingMemoryModelFile[]) {
   const paths = new Set<string>();
-  const urls = new Set<string>();
   for (const file of files) {
     const caseFoldedPath = file.path.toLowerCase();
     if (paths.has(caseFoldedPath)) invalid('files', `contains duplicate path: ${file.path}`);
-    if (urls.has(file.url)) invalid('files', `contains duplicate URL: ${file.url}`);
     paths.add(caseFoldedPath);
-    urls.add(file.url);
   }
 }
 
@@ -424,32 +426,6 @@ function assertSafeRelativePath(path: string, label: string) {
   ) {
     invalid(label, 'must be a safe relative path');
   }
-}
-
-function assertDistributionUrl(url: string, path: string, sha256: string, label: string) {
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    invalid(label, 'must be a valid URL');
-  }
-
-  if (
-    parsed.origin !== distributionOrigin ||
-    parsed.username !== '' ||
-    parsed.password !== '' ||
-    parsed.search !== '' ||
-    parsed.hash !== '' ||
-    url !== parsed.href ||
-    parsed.href !== distributionUrl(path, sha256)
-  ) {
-    invalid(label, 'must be the canonical first-party content-addressed URL');
-  }
-}
-
-function distributionUrl(path: string, sha256: string) {
-  const encodedPath = path.split('/').map(encodeURIComponent).join('/');
-  return `${distributionOrigin}/models/${readingMemoryModelRelease.internalId}/objects/sha256/${sha256}/${encodedPath}`;
 }
 
 function invalid(field: string, reason: string): never {

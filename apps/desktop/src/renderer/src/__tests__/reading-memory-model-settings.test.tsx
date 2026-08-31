@@ -5,6 +5,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReadingMemoryStatusSnapshot } from '../../../ipc-contract';
 import { initializeAppI18n } from '../i18n/app-i18n';
+import { readingMemoryModelSources } from '../../../reading-memory-model-sources';
 import { ReadingMemoryModelSettings } from '../settings/reading-memory-model-settings';
 
 function status(
@@ -16,8 +17,8 @@ function status(
       internalId: 'reading-memory-v1',
       downloadSizeBytes: 218_123_456,
       downloadedBytes: 0,
+      source: null,
       directory: '/Users/reader/Library/Application Support/yomitomo/reading-memory/models',
-      sourceUrl: 'https://download.yomitomo.app/models/reading-memory/v1',
       failure: null,
     },
     projection: {
@@ -88,7 +89,7 @@ describe('ReadingMemoryModelSettings', () => {
 
     expect(await screen.findByRole('button', { name: '下载模型' })).toBeTruthy();
     expect(screen.getByText('218.1 MB（218,123,456 字节）')).toBeTruthy();
-    expect(screen.getByText(snapshot.model.sourceUrl)).toBeTruthy();
+    expect(screen.getByText(readingMemoryModelSources.modelscope.url)).toBeTruthy();
     expect(screen.getByText(snapshot.model.directory)).toBeTruthy();
     expect(screen.getByText('已整理 7 / 9 项资产')).toBeTruthy();
     expect(screen.getByText('已索引 4 / 12 条记忆')).toBeTruthy();
@@ -116,8 +117,33 @@ describe('ReadingMemoryModelSettings', () => {
     expect(screen.getByRole('button', { name: '继续下载' })).toBeTruthy();
     expect(screen.getByText('已保留 1 MB（1,000,000 字节），可继续下载。')).toBeTruthy();
     expect(api.model.download).toHaveBeenCalledOnce();
+    expect(api.model.download).toHaveBeenCalledWith('modelscope');
     expect(api.model.cancel).toHaveBeenCalledOnce();
     expect(screen.queryByText('已就绪')).toBeNull();
+  });
+
+  it('downloads from the selected source only after explicit opt-in', async () => {
+    const api = installApi(status('not-installed'));
+    render(<ReadingMemoryModelSettings />);
+    fireEvent.click(await screen.findByRole('combobox', { name: '下载源' }));
+    const option = await screen.findByRole('option', { name: 'Hugging Face' });
+    fireEvent.pointerDown(option, { pointerType: 'mouse' });
+    fireEvent.click(option);
+    expect(screen.getByText(readingMemoryModelSources.huggingface.url)).toBeTruthy();
+    expect(api.model.download).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '下载模型' }));
+    await waitFor(() => expect(api.model.download).toHaveBeenCalledWith('huggingface'));
+  });
+
+  it('shows the active source when reopening settings during a download', async () => {
+    const snapshot = status('downloading');
+    snapshot.model.source = 'huggingface';
+    installApi(snapshot);
+    render(<ReadingMemoryModelSettings />);
+    const source = await screen.findByRole('combobox', { name: '下载源' });
+    expect(source.textContent).toContain('Hugging Face');
+    expect(source.hasAttribute('disabled')).toBe(true);
+    expect(screen.getByText(readingMemoryModelSources.huggingface.url)).toBeTruthy();
   });
 
   it('requires confirmation before deleting only model files and the derived index', async () => {

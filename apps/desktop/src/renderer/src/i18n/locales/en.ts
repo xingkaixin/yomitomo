@@ -2003,6 +2003,9 @@ export const enResources = {
       },
       models: {
         localMemory: {
+          downloadSource: 'Download source',
+          downloadSourceHint:
+            'Use ModelScope in mainland China. Interrupted downloads can resume from either source.',
           title: 'Local reading memory',
           description:
             'Search annotations, comments, and distillations on this device. This model does not generate answers or send reading content to model providers.',

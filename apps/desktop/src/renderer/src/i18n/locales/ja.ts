@@ -1998,6 +1998,9 @@ export const jaResources = {
       },
       models: {
         localMemory: {
+          downloadSource: 'ダウンロード元',
+          downloadSourceHint:
+            '中国本土では ModelScope を推奨します。中断後は取得元を切り替えて再開できます。',
           title: 'ローカル読書メモリ',
           description:
             'この端末で注釈、コメント、まとめを検索します。このモデルは回答を生成せず、読書内容をモデル提供元に送信しません。',

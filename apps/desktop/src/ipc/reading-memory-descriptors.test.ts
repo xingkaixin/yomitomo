@@ -65,7 +65,7 @@ describe('reading memory IPC descriptors', () => {
       confirmPrivacy: () => Promise<void>;
       model: {
         status: () => Promise<ReadingMemoryStatusSnapshot>;
-        download: () => Promise<ReadingMemoryStatusSnapshot>;
+        download: (source: 'modelscope' | 'huggingface') => Promise<ReadingMemoryStatusSnapshot>;
         cancel: () => Promise<ReadingMemoryStatusSnapshot>;
         remove: () => Promise<ReadingMemoryStatusSnapshot>;
       };

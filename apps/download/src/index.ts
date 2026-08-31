@@ -1,9 +1,3 @@
-import {
-  isModelDistributionPath,
-  modelDistributionResponse,
-  type ModelAssetBucket,
-} from './model-distribution';
-
 const GITHUB_RELEASES_ORIGIN = 'https://github.com/xingkaixin/yomitomo';
 
 const versionSegment = String.raw`\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?`;
@@ -18,7 +12,6 @@ const updateManifestPathPattern = /^\/updates\/latest(?:-mac)?\.yml$/;
 
 type Env = {
   DOWNLOAD_ANALYTICS?: AnalyticsEngineDataset;
-  MODEL_ASSETS?: ModelAssetBucket;
 };
 
 type AssetSource = 'website' | 'updater';
@@ -60,10 +53,6 @@ export async function handleRequest(request: Request, env: Env = {}) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return methodNotAllowed();
 
   const requestUrl = new URL(request.url);
-  if (isModelDistributionPath(requestUrl.pathname)) {
-    return modelDistributionResponse(request, env.MODEL_ASSETS);
-  }
-
   const downloadRequest = parseDownloadRequest(requestUrl);
   if (!downloadRequest) return notFound();
 

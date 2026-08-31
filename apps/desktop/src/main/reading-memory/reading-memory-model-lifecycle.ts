@@ -9,9 +9,15 @@ import {
   parseReadingMemoryModelManifest,
   readingMemoryModelFiles,
   readingMemoryModelRelease,
+  readingMemoryModelLegalContents,
   type ReadingMemoryModelFile,
   type ReadingMemoryModelManifest,
 } from './reading-memory-model-manifest';
+
+import {
+  readingMemoryModelFileUrl,
+  type ReadingMemoryModelSource,
+} from '../../reading-memory-model-sources';
 
 const defaultRequestTimeoutMs = 5 * 60 * 1000;
 const manifestFileName = 'manifest.json';
@@ -51,6 +57,7 @@ export type ReadingMemoryModelLifecycleState =
   | (ReadingMemoryModelStateBase & { status: 'not-installed'; resumeBytes: number })
   | (ReadingMemoryModelStateBase & {
       status: 'downloading';
+      source: ReadingMemoryModelSource;
       downloadedBytes: number;
     })
   | (ReadingMemoryModelStateBase & {
@@ -67,7 +74,7 @@ export type ReadingMemoryModelLifecycleState =
 export type ReadingMemoryModelLifecycle = {
   getState(): ReadingMemoryModelLifecycleState;
   reconcile(reason?: string): Promise<ReadingMemoryModelLifecycleState>;
-  download(): Promise<ReadingMemoryModelLifecycleState>;
+  download(source?: ReadingMemoryModelSource): Promise<ReadingMemoryModelLifecycleState>;
   cancelDownload(): Promise<ReadingMemoryModelLifecycleState>;
   remove(): Promise<ReadingMemoryModelLifecycleState>;
   dispose(): void;
@@ -75,10 +82,10 @@ export type ReadingMemoryModelLifecycle = {
 
 type ModelRelease = {
   internalId: string;
-  manifestUrl: string;
+  manifestText: string;
+  downloadSizeBytes: number;
   manifestSizeBytes: number;
   manifestSha256: string;
-  distributionDownloadSizeBytes: number;
 };
 
 type ModelHttpResponse = {
@@ -220,7 +227,7 @@ export function createReadingMemoryModelLifecycle(
     return reconcilePromise;
   };
 
-  const download = () => {
+  const download = (source: ReadingMemoryModelSource = 'modelscope') => {
     if (disposed) return Promise.resolve(state);
     if (downloadPromise) return downloadPromise;
     const controller = new AbortController();
@@ -240,25 +247,34 @@ export function createReadingMemoryModelLifecycle(
         if (installed.status === 'available') {
           return setState(availableState(context, installed.manifest));
         }
-        setState(downloadingState(context, 0));
-        const { bytes: manifestBytes, manifest } = await downloadManifest(
-          context,
-          controller.signal,
-        );
+        setState(downloadingState(context, source, 0));
+        const { bytes: manifestBytes, manifest } = bundledManifest(context);
+        context.logInfo('reading_memory.model_download_started', {
+          source,
+          internalId: context.release.internalId,
+        });
         assertSupportedPlatform(context, manifest);
         await preparePartialDirectory(context);
         const partialManifestPath = join(context.partialDirectory, manifestFileName);
         await rm(partialManifestPath, { force: true });
         await writeFile(partialManifestPath, manifestBytes, { flush: true });
-        await downloadModelFiles(context, manifest, controller.signal, (downloadedBytes) => {
-          setState(downloadingState(context, downloadedBytes));
-        });
+        await installLegalFiles(context, manifest);
+        await downloadModelFiles(
+          context,
+          manifest,
+          source,
+          controller.signal,
+          (downloadedBytes) => {
+            setState(downloadingState(context, source, downloadedBytes));
+          },
+        );
         throwIfCanceled(controller.signal);
         await rm(context.finalDirectory, { recursive: true, force: true });
         await rename(context.partialDirectory, context.finalDirectory);
         context.logInfo('reading_memory.model_downloaded', {
           internalId: context.release.internalId,
-          downloadSizeBytes: context.release.distributionDownloadSizeBytes,
+          downloadSizeBytes: context.release.downloadSizeBytes,
+          source,
         });
         return setState(availableState(context, manifest));
       } catch (error) {
@@ -353,68 +369,47 @@ async function reconcileInstallation(
   return setState(notInstalledState(context, resumeBytes));
 }
 
-async function downloadManifest(context: LifecycleContext, signal: AbortSignal) {
-  const response = await requestWithFailureMapping(
-    context,
-    context.release.manifestUrl,
-    {
-      'Accept-Encoding': 'identity',
-    },
-    signal,
-  );
-  try {
-    if (response.statusCode !== 200) {
+function bundledManifest(context: LifecycleContext) {
+  const bytes = Buffer.from(context.release.manifestText, 'utf8');
+  if (
+    bytes.byteLength !== context.release.manifestSizeBytes ||
+    sha256(bytes) !== context.release.manifestSha256
+  ) {
+    throw new ModelLifecycleError('integrity', 'Bundled model manifest digest does not match');
+  }
+  const manifest = context.parseManifest(JSON.parse(bytes.toString('utf8')) as unknown);
+  return { bytes, manifest };
+}
+
+async function installLegalFiles(context: LifecycleContext, manifest: ReadingMemoryModelManifest) {
+  for (const file of manifest.legal.files) {
+    const content = readingMemoryModelLegalContents[file.path];
+    if (content === undefined)
+      throw new ModelLifecycleError('integrity', `Missing bundled notice: ${file.path}`);
+    const bytes = Buffer.from(content, 'utf8');
+    if (bytes.byteLength !== file.sizeBytes || sha256(bytes) !== file.sha256) {
       throw new ModelLifecycleError(
-        'network',
-        `Model manifest returned HTTP ${response.statusCode}`,
+        'integrity',
+        `Bundled notice digest does not match: ${file.path}`,
       );
     }
-    assertIdentityEncoding(response);
-    const contentLength = headerSafeInteger(response.headers, 'content-length');
-    if (contentLength !== null && contentLength !== context.release.manifestSizeBytes) {
-      throw new ModelLifecycleError('integrity', 'Model manifest length does not match');
-    }
-    const bytes = await readBoundedBody(response.body, context.release.manifestSizeBytes, signal);
-    if (
-      bytes.byteLength !== context.release.manifestSizeBytes ||
-      sha256(bytes) !== context.release.manifestSha256
-    ) {
-      throw new ModelLifecycleError('integrity', 'Model manifest digest does not match');
-    }
-    let value: unknown;
-    try {
-      value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
-    } catch (error) {
-      throw new ModelLifecycleError('integrity', 'Model manifest is not valid JSON', error);
-    }
-    let manifest: ReadingMemoryModelManifest;
-    try {
-      manifest = context.parseManifest(value);
-    } catch (error) {
-      throw new ModelLifecycleError('integrity', 'Model manifest is invalid', error);
-    }
-    if (
-      manifest.internalId !== context.release.internalId ||
-      manifest.distributionDownloadSizeBytes !== context.release.distributionDownloadSizeBytes
-    ) {
-      throw new ModelLifecycleError('integrity', 'Model manifest identity does not match');
-    }
-    return { bytes, manifest };
-  } catch (error) {
-    await closeResponseBody(response.body);
-    throw error;
+    const filePath = safeModelPath(context.partialDirectory, file.path);
+    await ensureSafeParentDirectory(context.partialDirectory, filePath);
+    await rm(filePath, { recursive: true, force: true });
+    await writeFile(filePath, bytes, { flush: true });
   }
 }
 
 async function downloadModelFiles(
   context: LifecycleContext,
   manifest: ReadingMemoryModelManifest,
+  source: ReadingMemoryModelSource,
   signal: AbortSignal,
   reportProgress: (downloadedBytes: number) => void,
 ) {
   const prepared = [] as Array<{ file: ReadingMemoryModelFile; offset: number }>;
   let downloadedBytes = 0;
-  for (const file of readingMemoryModelFiles(manifest)) {
+  for (const file of manifest.artifact.files) {
     const filePath = safeModelPath(context.partialDirectory, file.path);
     await ensureSafeParentDirectory(context.partialDirectory, filePath);
     const offset = await preparePartialFile(filePath, file, signal);
@@ -430,13 +425,14 @@ async function downloadModelFiles(
     downloadedBytes = await downloadModelFile(
       context,
       item.file,
+      source,
       before,
       downloadedBytes,
       signal,
       reportProgress,
     );
   }
-  if (downloadedBytes !== manifest.distributionDownloadSizeBytes) {
+  if (downloadedBytes !== context.release.downloadSizeBytes) {
     throw new ModelLifecycleError('integrity', 'Installed model size does not match the manifest');
   }
 }
@@ -444,6 +440,7 @@ async function downloadModelFiles(
 async function downloadModelFile(
   context: LifecycleContext,
   file: ReadingMemoryModelFile,
+  source: ReadingMemoryModelSource,
   initialOffset: number,
   initialDownloadedBytes: number,
   signal: AbortSignal,
@@ -451,16 +448,33 @@ async function downloadModelFile(
 ): Promise<number> {
   const filePath = safeModelPath(context.partialDirectory, file.path);
   await ensureSafeParentDirectory(context.partialDirectory, filePath);
-  const headers: Record<string, string> = { 'Accept-Encoding': 'identity' };
+  // ModelScope's CDN rejects requests without a User-Agent.
+  const headers: Record<string, string> = {
+    'Accept-Encoding': 'identity',
+    'User-Agent': 'Yomitomo',
+  };
   if (initialOffset > 0) headers.Range = `bytes=${initialOffset}-`;
-  const response = await requestWithFailureMapping(context, file.url, headers, signal);
+  const response = await requestWithFailureMapping(
+    context,
+    readingMemoryModelFileUrl(file.path, source),
+    headers,
+    signal,
+  );
   let offset = initialOffset;
   let downloadedBytes = initialDownloadedBytes;
   try {
     assertIdentityEncoding(response);
     if (offset > 0 && response.statusCode === 416) {
       await closeResponseBody(response.body);
-      return downloadModelFile(context, file, 0, downloadedBytes - offset, signal, reportProgress);
+      return downloadModelFile(
+        context,
+        file,
+        source,
+        0,
+        downloadedBytes - offset,
+        signal,
+        reportProgress,
+      );
     }
     if (offset > 0 && response.statusCode === 200) {
       downloadedBytes -= offset;
@@ -541,12 +555,33 @@ async function requestWithFailureMapping(
 ) {
   throwIfCanceled(signal);
   try {
-    return await context.request(url, {
-      headers,
-      headersTimeout: context.requestTimeoutMs,
-      bodyTimeout: context.requestTimeoutMs,
-      signal,
-    });
+    for (let redirects = 0; redirects <= 5; redirects += 1) {
+      const response = await context.request(url, {
+        headers,
+        headersTimeout: context.requestTimeoutMs,
+        bodyTimeout: context.requestTimeoutMs,
+        signal,
+      });
+      if (![301, 302, 303, 307, 308].includes(response.statusCode)) return response;
+      const location = responseHeader(response.headers, 'location');
+      await closeResponseBody(response.body);
+      if (!location) throw new Error('Model redirect has no location');
+      const target = new URL(location, url);
+      const trustedHost = ['huggingface.co', 'hf.co', 'modelscope.cn'].some(
+        (host) => target.hostname === host || target.hostname.endsWith(`.${host}`),
+      );
+      if (
+        target.protocol !== 'https:' ||
+        target.username ||
+        target.password ||
+        target.port ||
+        !trustedHost
+      ) {
+        throw new Error('Model redirect is outside the trusted download hosts');
+      }
+      url = target.href;
+    }
+    throw new Error('Too many model download redirects');
   } catch (error) {
     if (signal.aborted) throw new ModelDownloadCanceledError();
     if (isTimeoutError(error)) {
@@ -639,7 +674,7 @@ async function inspectResumeBytes(context: LifecycleContext) {
     if (!partialInfo.isDirectory() || partialInfo.isSymbolicLink()) return 0;
     const manifest = await readInstalledManifest(context, context.partialDirectory);
     let total = 0;
-    for (const file of readingMemoryModelFiles(manifest)) {
+    for (const file of manifest.artifact.files) {
       try {
         const filePath = safeModelPath(context.partialDirectory, file.path);
         await assertSafeParentDirectory(context.partialDirectory, filePath);
@@ -797,25 +832,6 @@ async function hashFilePrefix(
   }
 }
 
-async function readBoundedBody(
-  body: AsyncIterable<Uint8Array>,
-  maximumBytes: number,
-  signal: AbortSignal,
-) {
-  const chunks: Buffer[] = [];
-  let sizeBytes = 0;
-  for await (const chunk of body) {
-    throwIfCanceled(signal);
-    const bytes = Buffer.from(chunk);
-    sizeBytes = safeAdd(sizeBytes, bytes.byteLength);
-    if (sizeBytes > maximumBytes) {
-      throw new ModelLifecycleError('integrity', 'Model manifest exceeds its expected size');
-    }
-    chunks.push(bytes);
-  }
-  return Buffer.concat(chunks, sizeBytes);
-}
-
 function assertSupportedPlatform(context: LifecycleContext, manifest: ReadingMemoryModelManifest) {
   if (!manifest.supportedPlatforms.includes(context.platform)) {
     throw new ModelLifecycleError(
@@ -939,7 +955,7 @@ function baseState(
   return {
     status,
     internalId: context.release.internalId,
-    downloadSizeBytes: context.release.distributionDownloadSizeBytes,
+    downloadSizeBytes: context.release.downloadSizeBytes,
   };
 }
 
@@ -950,19 +966,21 @@ function notInstalledState(
   return {
     status: 'not-installed',
     internalId: context.release.internalId,
-    downloadSizeBytes: context.release.distributionDownloadSizeBytes,
+    downloadSizeBytes: context.release.downloadSizeBytes,
     resumeBytes,
   };
 }
 
 function downloadingState(
   context: LifecycleContext,
+  source: ReadingMemoryModelSource,
   downloadedBytes: number,
 ): ReadingMemoryModelLifecycleState {
   return {
     status: 'downloading',
+    source,
     internalId: context.release.internalId,
-    downloadSizeBytes: context.release.distributionDownloadSizeBytes,
+    downloadSizeBytes: context.release.downloadSizeBytes,
     downloadedBytes,
   };
 }
@@ -974,7 +992,7 @@ function availableState(
   return {
     status: 'available',
     internalId: context.release.internalId,
-    downloadSizeBytes: context.release.distributionDownloadSizeBytes,
+    downloadSizeBytes: context.release.downloadSizeBytes,
     directory: context.finalDirectory,
     manifest,
   };
@@ -988,7 +1006,7 @@ function failedState(
   return {
     status: 'failed',
     internalId: context.release.internalId,
-    downloadSizeBytes: context.release.distributionDownloadSizeBytes,
+    downloadSizeBytes: context.release.downloadSizeBytes,
     failure,
     resumeBytes,
   };

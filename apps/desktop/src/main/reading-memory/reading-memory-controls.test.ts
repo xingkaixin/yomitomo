@@ -10,19 +10,13 @@ import {
   type ReadingMemoryModelLifecycle,
   type ReadingMemoryModelLifecycleState,
 } from './reading-memory-model-lifecycle';
-import {
-  parseReadingMemoryModelManifest,
-  readingMemoryModelRelease,
-} from './reading-memory-model-manifest';
+import { parseReadingMemoryModelManifest } from './reading-memory-model-manifest';
 import type { ReadingMemorySemanticIndex } from './reading-memory-semantic-index';
 
 const manifest = parseReadingMemoryModelManifest(
   JSON.parse(
     readFileSync(
-      new URL(
-        '../../../../download/model-releases/reading-memory-embedding-v1/manifest.json',
-        import.meta.url,
-      ),
+      new URL('../../../model-releases/reading-memory-embedding-v1/manifest.json', import.meta.url),
       'utf8',
     ),
   ),
@@ -65,7 +59,7 @@ describe('reading memory controls', () => {
       failure: null,
     },
     {
-      state: { ...modelBase, status: 'downloading', downloadedBytes: 128 },
+      state: { ...modelBase, status: 'downloading', source: 'modelscope', downloadedBytes: 128 },
       downloadedBytes: 128,
       failure: null,
     },
@@ -84,8 +78,8 @@ describe('reading memory controls', () => {
         ...modelBase,
         status: testCase.state.status,
         downloadedBytes: testCase.downloadedBytes,
+        source: testCase.state.status === 'downloading' ? testCase.state.source : null,
         directory: join(fixture.userDataPath, 'models', manifest.internalId),
-        sourceUrl: readingMemoryModelRelease.manifestUrl,
         failure: testCase.failure,
       },
       ...(await fixture.index.getStatus()),
@@ -98,7 +92,12 @@ describe('reading memory controls', () => {
     const fixture = createFixture();
     const downloaded = deferred();
     fixture.lifecycle.download.mockImplementation(async () => {
-      fixture.setState({ ...modelBase, status: 'downloading', downloadedBytes: 128 });
+      fixture.setState({
+        ...modelBase,
+        status: 'downloading',
+        source: 'modelscope',
+        downloadedBytes: 128,
+      });
       await downloaded.promise;
       fixture.setState(installation);
       return installation;
@@ -109,6 +108,7 @@ describe('reading memory controls', () => {
     await nextTurn();
     expect((await fixture.controls.status()).model).toMatchObject({
       status: 'downloading',
+      source: 'modelscope',
       downloadedBytes: 128,
     });
     expect(fixture.index.reconcile).not.toHaveBeenCalled();
@@ -124,7 +124,12 @@ describe('reading memory controls', () => {
     const exited = deferred();
     const partial: ReadingMemoryModelLifecycleState = { ...notInstalled, resumeBytes: 128 };
     fixture.lifecycle.download.mockImplementation(async () => {
-      fixture.setState({ ...modelBase, status: 'downloading', downloadedBytes: 128 });
+      fixture.setState({
+        ...modelBase,
+        status: 'downloading',
+        source: 'modelscope',
+        downloadedBytes: 128,
+      });
       await exited.promise;
       fixture.setState(partial);
       return partial;
