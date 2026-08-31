@@ -5,6 +5,16 @@ sidebar:
   hidden: true
 ---
 
+## 0.15.0
+
+Released: 2026-08-31
+
+- Added Reading Memory: local vector embeddings with isolated process inference, scoped library questions, and citation-bound judgments.
+- Explore connected evidence directly from reading selections across Web, EPUB, and PDF, with source jumping and draft handoffs.
+- Serialized WeRead sync, protected catalog pagination and filters across edits, and preserved text selections during progress saves.
+
+[View 0.15.0 release notes](/en/changelogs/v0-15-0/)
+
 ## 0.14.1
 
 Released: 2026-08-25

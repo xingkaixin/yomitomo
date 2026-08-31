@@ -1,0 +1,35 @@
+{
+  "version": "0.15.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "本地阅读记忆开启智能检索",
+      "description": "你的笔记与批注现在能生成本地向量索引，支持从 ModelScope 或 Hugging Face 直接下载模型，所有向量计算完全在本地独立进程中运行，隐私安全且不卡顿。",
+      "audience": "settings"
+    },
+    {
+      "type": "new",
+      "title": "选中文本即刻探索关联证据",
+      "description": "在网页、EPUB 或 PDF 中选中文本即可查看相关的历史阅读证据卡片，点击可一键精准跳转回原文上下文及 PDF 页面坐标。",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "基于全书库阅读资产可信问答",
+      "description": "针对你阅读过的书籍和文章提问，助手会严格根据原文证据生成带引用的研判，还能把引用的观点直接放入对话草稿继续探讨。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "微信读书同步与书库流转更稳固",
+      "description": "微信读书同步改为串行执行并保护设置变更顺序，电子书采用完整文件指纹防重，重新导入或编辑书库后自动保留分页与筛选状态。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "阅读选区与对话上下文无缝保留",
+      "description": "保存阅读进度不再清除当前选区，对话请求严格绑定当前文章并携带最近上下文，中断的翻译会话也能无缝恢复。",
+      "audience": "reader"
+    }
+  ]
+}

@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.15.0 - 2026-08-31
+
+### Features
+
+- Added Reading Memory: a local-first semantic evidence and retrieval system that projects notes and highlights into versioned embeddings, supporting direct model downloads from ModelScope and Hugging Face with isolated child-process inference. (#865–#870, #872, #880)
+- Added scoped library questions with citation-bound judgments, allowing you to query across your reading notes and sources, verify claims against source excerpts, and hand off cited thoughts directly into conversation drafts. (#871, #873, #875)
+- Added reading evidence relations across Web, EPUB, and PDF formats, connecting current reading selections to related evidence cards with accurate source jumping (including PDF coordinates) and explicit privacy consent. (#874)
+- Added a blind judgment review flow to record append-only evidence evaluations and establish release quality gates with directional retrieval validation. (#876, #877, #878)
+- Added privacy-friendly Umami visit tracking on the landing page. (#864)
+
+### Performance
+
+- Isolated native embedding inference in a dedicated child process, decoupled vector indexing from SQLite database leases, and capped batch sizes and bitmap allocations to keep reading and memory usage bounded. (#847, #848, #868, #870, #872)
+
+### Fixes
+
+- Serialized WeRead synchronization, preserved setting mutation order, applied saved credentials before draft resets, and reconfigured sync handlers cleanly after database restores. (#844, #855, #859, #862, #863)
+- Bound chat requests and annotation updates strictly to their source article, preserved active text selections across reading-progress saves, and included recent conversation history. (#839, #840, #842, #852, #854, #873)
+- Preserved catalog pages, filters, and imported sources across reimports and catalog edits, and fingerprinted complete ebook files to prevent collisions across editions. (#841, #845, #849, #850, #858)
+- Guarded pending manual settings saves against draft resets, serialized provider additions and deletions, and restored interrupted translation sessions while matching the active target language. (#843, #846, #851, #853, #856)
+- Guarded background work during database restores, recovered post-restore cleanup, and preserved active download state across update checks. (#838, #857, #860, #861)
+
+### Engineering
+
+- Built comprehensive release quality gates, directional retrieval benchmarks, blind judgment evaluation workflows, and isolated package test fixtures for Reading Memory. (#867, #870, #876, #877, #878)
+- Optimized help documentation and scenario guides across English, Simplified Chinese, and Japanese. (#879)
+
 ## 0.14.1 - 2026-08-25
 
 ### Features
