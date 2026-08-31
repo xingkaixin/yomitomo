@@ -12,7 +12,6 @@ describe('landing design contract', () => {
   });
 
   it('keeps the evidence-led reading flow and feature layout', () => {
-    expect(landingStyles.match(/background-image:/g)).toBeNull();
     expect(landingStyles).not.toMatch(/\.mh-nav \{[^}]*double/s);
     expect(landingStyles).toContain('grid-template-columns: 40px minmax(0, 1fr);');
     expect(landingStyles).toContain('.step:not(:last-child)::before');

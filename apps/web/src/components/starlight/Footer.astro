@@ -1,8 +1,3 @@
 ---
-import LandingFooter from '../landing/LandingFooter.astro';
-
-const path = Astro.url.pathname;
-const lang = path.startsWith('/en/') ? 'en' : path.startsWith('/ja/') ? 'ja' : 'zh-CN';
+// PageFrame renders the site footer outside the reading column.
 ---
-
-<LandingFooter lang={lang} />

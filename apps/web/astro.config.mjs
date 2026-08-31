@@ -85,6 +85,7 @@ export default defineConfig({
       ],
       components: {
         Header: './src/components/starlight/Header.astro',
+        PageFrame: './src/components/starlight/PageFrame.astro',
         Footer: './src/components/starlight/Footer.astro',
         MobileMenuFooter: './src/components/starlight/MobileMenuFooter.astro',
         ThemeProvider: './src/components/starlight/ThemeProvider.astro',
