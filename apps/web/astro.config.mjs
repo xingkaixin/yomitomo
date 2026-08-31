@@ -1,6 +1,9 @@
 import starlight from '@astrojs/starlight';
 import react from '@astrojs/react';
 import { defineConfig } from 'astro/config';
+import { prepareWebFonts } from './scripts/prepare-web-fonts.mjs';
+
+await prepareWebFonts();
 
 export default defineConfig({
   site: 'https://yomitomo.app',
@@ -30,38 +33,6 @@ export default defineConfig({
       },
       favicon: '/assets/favicon.png',
       customCss: ['./src/styles/starlight.css'],
-      head: [
-        {
-          tag: 'link',
-          attrs: {
-            rel: 'preload',
-            as: 'font',
-            type: 'font/woff2',
-            href: '/assets/fonts/SourceSerif4-Bold.woff2',
-            crossorigin: '',
-          },
-        },
-        {
-          tag: 'link',
-          attrs: {
-            rel: 'preload',
-            as: 'font',
-            type: 'font/woff2',
-            href: '/assets/fonts/JetBrainsMono-Bold.woff2',
-            crossorigin: '',
-          },
-        },
-        {
-          tag: 'link',
-          attrs: {
-            rel: 'preload',
-            as: 'font',
-            type: 'font/woff2',
-            href: '/assets/fonts/NotoSerifSC-Regular.woff2',
-            crossorigin: '',
-          },
-        },
-      ],
       social: [
         {
           icon: 'github',

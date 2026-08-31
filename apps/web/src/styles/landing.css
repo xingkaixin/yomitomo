@@ -6,38 +6,38 @@
 /* ---------- Fonts ----------
  * Self-hosted, matching the desktop renderer's font set: Source Serif 4
  * (Latin display serif), JetBrains Mono (mono labels), Noto Serif/Sans SC
- * (CJK). Same woff2 subsets the desktop app ships, for identical typography. */
+ * (CJK). Subsets are regenerated from site content before Astro starts. */
 @font-face {
   font-family: 'Source Serif 4';
-  src: url('/assets/fonts/SourceSerif4-Regular.woff2') format('woff2');
+  src: url('../../.astro/web-fonts/SourceSerif4-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Source Serif 4';
-  src: url('/assets/fonts/SourceSerif4-Bold.woff2') format('woff2');
+  src: url('../../.astro/web-fonts/SourceSerif4-Bold.woff2') format('woff2');
   font-weight: 700 900;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Source Serif 4';
-  src: url('/assets/fonts/SourceSerif4-Italic.woff2') format('woff2');
+  src: url('../../.astro/web-fonts/SourceSerif4-Italic.woff2') format('woff2');
   font-weight: 400;
   font-style: italic;
   font-display: swap;
 }
 @font-face {
   font-family: 'JetBrains Mono';
-  src: url('/assets/fonts/JetBrainsMono-Regular.woff2') format('woff2');
+  src: url('../../.astro/web-fonts/JetBrainsMono-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'JetBrains Mono';
-  src: url('/assets/fonts/JetBrainsMono-Bold.woff2') format('woff2');
+  src: url('../../.astro/web-fonts/JetBrainsMono-Bold.woff2') format('woff2');
   font-weight: 600 800;
   font-style: normal;
   font-display: swap;
@@ -46,14 +46,14 @@
  * bold for 700/900 headings so CJK weight stays consistent with the Latin Bold. */
 @font-face {
   font-family: 'Noto Serif SC';
-  src: url('/assets/fonts/NotoSerifSC-Regular.woff2') format('woff2');
+  src: url('../../.astro/web-fonts/NotoSerifSC-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Noto Sans SC';
-  src: url('/assets/fonts/NotoSansSC-Regular.woff2') format('woff2');
+  src: url('../../.astro/web-fonts/NotoSansSC-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;

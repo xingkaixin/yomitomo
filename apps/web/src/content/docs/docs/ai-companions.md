@@ -7,10 +7,10 @@ Yomitomo 的 AI 功能严格围绕原文锚点设计。助手生成的思考、�
 
 <picture>
   <source
-    srcset="/assets/cn-assistant-1600.webp 1600w, /assets/cn-assistant-2400.webp 2400w, /assets/cn-assistant.webp 3388w"
+    srcset="/assets/cn-assistant-640.webp 640w, /assets/cn-assistant-960.webp 960w, /assets/cn-assistant-1280.webp 1280w, /assets/cn-assistant-1600.webp 1600w, /assets/cn-assistant-2400.webp 2400w, /assets/cn-assistant.webp 3388w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/cn-assistant.webp" alt="Yomitomo 助手" loading="eager" decoding="async" />
+  <img src="/assets/cn-assistant.webp" alt="Yomitomo 助手" loading="eager" width="3388" height="2520" fetchpriority="high" decoding="async" />
 </picture>
 
 ## 在阅读流中调用助手

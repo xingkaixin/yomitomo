@@ -7,10 +7,10 @@ Yomitomo's AI capabilities are anchored directly to your source text. Every gene
 
 <picture>
   <source
-    srcset="/assets/en-assistant-1600.webp 1600w, /assets/en-assistant-2400.webp 2400w, /assets/en-assistant.webp 3388w"
+    srcset="/assets/en-assistant-640.webp 640w, /assets/en-assistant-960.webp 960w, /assets/en-assistant-1280.webp 1280w, /assets/en-assistant-1600.webp 1600w, /assets/en-assistant-2400.webp 2400w, /assets/en-assistant.webp 3388w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/en-assistant.webp" alt="Yomitomo assistants" loading="eager" decoding="async" />
+  <img src="/assets/en-assistant.webp" alt="Yomitomo assistants" loading="eager" width="3388" height="2520" fetchpriority="high" decoding="async" />
 </picture>
 
 ## Involve Assistants in Your Workflow

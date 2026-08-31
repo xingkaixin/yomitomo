@@ -31,7 +31,10 @@ const copy = isJapanese
       alt: 'Yomitomo 桌面阅读器，原文划线连接到边栏讨论卡片',
       };
 
-const previewSrc = isEnglish || isJapanese ? '/assets/en-reader-1600.webp' : '/assets/cn-reader-1600.webp';
+const previewBase = isEnglish || isJapanese ? '/assets/en-reader' : '/assets/cn-reader';
+const previewSrcset = [640, 960, 1280, 1600]
+  .map((width) => `${previewBase}-${width}.webp ${width}w`)
+  .join(', ');
 ---
 
 <section class="mobile-product-preview" aria-labelledby="mobile-preview-title">
@@ -48,7 +51,9 @@ const previewSrc = isEnglish || isJapanese ? '/assets/en-reader-1600.webp' : '/a
       <div class="mobile-preview-scene">
         <img
           class="mobile-preview-image"
-          src={previewSrc}
+          src={`${previewBase}-1600.webp`}
+          srcset={previewSrcset}
+          sizes="(max-width: 640px) calc((100vw - 42px) * 1.65), calc((100vw - 66px) * 1.65)"
           width="1600"
           height="1032"
           loading="lazy"

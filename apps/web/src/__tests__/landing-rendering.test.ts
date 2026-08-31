@@ -72,8 +72,8 @@ describe('landing page rendering', () => {
 
     expect(avatars.length).toBeGreaterThan(0);
     for (const avatar of avatars) {
-      expect(avatar.width).toBe(384);
-      expect(avatar.height).toBe(384);
+      expect(avatar.width).toBe(96);
+      expect(avatar.height).toBe(96);
     }
   });
 

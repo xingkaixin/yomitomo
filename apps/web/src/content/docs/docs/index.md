@@ -7,10 +7,10 @@ Yomitomo 是一款本地优先的 AI 伴读桌面应用。它不替你阅读，�
 
 <picture>
   <source
-    srcset="/assets/cn-home-1600.webp 1600w, /assets/cn-home-2400.webp 2400w, /assets/cn-home.webp 3388w"
+    srcset="/assets/cn-home-640.webp 640w, /assets/cn-home-960.webp 960w, /assets/cn-home-1280.webp 1280w, /assets/cn-home-1600.webp 1600w, /assets/cn-home-2400.webp 2400w, /assets/cn-home.webp 3388w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/cn-home.webp" alt="Yomitomo 阅读库界面" loading="eager" decoding="async" />
+  <img src="/assets/cn-home.webp" alt="Yomitomo 阅读库界面" loading="eager" width="3388" height="2372" fetchpriority="high" decoding="async" />
 </picture>
 
 ## 首次上手

@@ -45,10 +45,10 @@ For dynamically rendered web pages, Yomitomo uses an internal headless engine to
 
 <picture>
   <source
-    srcset="/assets/en-import-web-1600.webp 1600w, /assets/en-import-web-2400.webp 2400w, /assets/en-import-web.webp 3388w"
+    srcset="/assets/en-import-web-640.webp 640w, /assets/en-import-web-960.webp 960w, /assets/en-import-web-1280.webp 1280w, /assets/en-import-web-1600.webp 1600w, /assets/en-import-web-2400.webp 2400w, /assets/en-import-web.webp 3388w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/en-import-web.webp" alt="Yomitomo import a web article" loading="lazy" decoding="async" />
+  <img src="/assets/en-import-web.webp" alt="Yomitomo import a web article" loading="lazy" width="3388" height="2520" decoding="async" />
 </picture>
 
 ## Import Ebooks
@@ -61,10 +61,10 @@ Yomitomo parses covers, hierarchical tables of contents, chapters, and rich typo
 
 <picture>
   <source
-    srcset="/assets/en-import-ebook-1600.webp 1600w, /assets/en-import-ebook-2400.webp 2400w, /assets/en-import-ebook.webp 3388w"
+    srcset="/assets/en-import-ebook-640.webp 640w, /assets/en-import-ebook-960.webp 960w, /assets/en-import-ebook-1280.webp 1280w, /assets/en-import-ebook-1600.webp 1600w, /assets/en-import-ebook-2400.webp 2400w, /assets/en-import-ebook.webp 3388w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/en-import-ebook.webp" alt="Yomitomo import an ebook" loading="lazy" decoding="async" />
+  <img src="/assets/en-import-ebook.webp" alt="Yomitomo import an ebook" loading="lazy" width="3388" height="2520" decoding="async" />
 </picture>
 
 ## Import PDFs
@@ -77,10 +77,10 @@ PDF import supports batches of up to 10 files at once, with a 120 MB limit per f
 
 <picture>
   <source
-    srcset="/assets/en-import-pdf-1600.webp 1600w, /assets/en-import-pdf-2400.webp 2400w, /assets/en-import-pdf.webp 3388w"
+    srcset="/assets/en-import-pdf-640.webp 640w, /assets/en-import-pdf-960.webp 960w, /assets/en-import-pdf-1280.webp 1280w, /assets/en-import-pdf-1600.webp 1600w, /assets/en-import-pdf-2400.webp 2400w, /assets/en-import-pdf.webp 3388w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/en-import-pdf.webp" alt="Yomitomo import a PDF" loading="lazy" decoding="async" />
+  <img src="/assets/en-import-pdf.webp" alt="Yomitomo import a PDF" loading="lazy" width="3388" height="2520" decoding="async" />
 </picture>
 
 ## Import Text and Markdown
