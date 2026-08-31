@@ -19,7 +19,8 @@ You can currently download macOS Apple Silicon and Windows x64 installers from [
 - WeRead sync: sync book notes, thoughts, and reading statistics after configuring an API key.
 - Reading library: manage web articles, ebooks, annotations, comments, and original-source links in one place.
 - Distillation library: gather every published distillation into one searchable, read-only list with source context and a jump back to the original annotation.
-- UI and themes: Chinese/English switching, themes including dusk indigo, hand-drawn ink paper and theme pickers, and unified toast notifications.
+- Reading memory: local vector indexing for notes and highlights using multilingual embeddings, supporting cross-source questions, connected reading evidence, and citation-bound judgments with accurate source jumping.
+- UI and themes: Chinese/English/Japanese switching, themes including dusk indigo, hand-drawn ink paper and theme pickers, and unified toast notifications.
 - App updates and data management: check for updates, view release notes, open the data directory, view logs, and back up or restore the local database; macOS installers are signed and notarized.
 - Reading statistics: generate local reading trends by article, annotation, and discussion.
 - Local-first reading privacy: reading content, book titles, annotations, file paths, AI conversations, and provider API keys stay local; anonymous app, version, and system metrics are sent at most once per day by default and can be disabled in Settings.

@@ -1,0 +1,35 @@
+{
+  "version": "0.15.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "Local Reading Memory for Smart Retrieval",
+      "description": "Your notes and annotations now build local vector indexes, downloading models directly from ModelScope or Hugging Face. All embeddings run in an isolated process to protect privacy without UI lag.",
+      "audience": "settings"
+    },
+    {
+      "type": "new",
+      "title": "Explore Connected Evidence from Any Selection",
+      "description": "Select text in Web, EPUB, or PDF articles to uncover relevant past reading evidence cards, with one-click navigation directly back to source passages and PDF page coordinates.",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "Grounded Answers Across Your Reading Library",
+      "description": "Ask questions across your reading library to get citation-bound judgments grounded in your actual notes, and turn cited thoughts directly into conversation drafts.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "Rock-Solid WeRead Sync and Library State",
+      "description": "WeRead sync now runs serially to preserve setting mutations, ebooks use full-file fingerprinting, and the Library maintains pages and active filters across edits and reimports.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "Seamless Reading Selection and Chat Context",
+      "description": "Saving reading progress no longer clears active selections, chat requests stay strictly bound to the current article with recent context, and interrupted translations recover cleanly.",
+      "audience": "reader"
+    }
+  ]
+}
