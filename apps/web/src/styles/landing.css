@@ -6,38 +6,38 @@
 /* ---------- Fonts ----------
  * Self-hosted, matching the desktop renderer's font set: Source Serif 4
  * (Latin display serif), JetBrains Mono (mono labels), Noto Serif/Sans SC
- * (CJK). Same woff2 subsets the desktop app ships, for identical typography. */
+ * (CJK). Subsets are regenerated from site content before Astro starts. */
 @font-face {
   font-family: 'Source Serif 4';
-  src: url('/assets/fonts/SourceSerif4-Regular.woff2') format('woff2');
+  src: url('../../.astro/web-fonts/SourceSerif4-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Source Serif 4';
-  src: url('/assets/fonts/SourceSerif4-Bold.woff2') format('woff2');
+  src: url('../../.astro/web-fonts/SourceSerif4-Bold.woff2') format('woff2');
   font-weight: 700 900;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Source Serif 4';
-  src: url('/assets/fonts/SourceSerif4-Italic.woff2') format('woff2');
+  src: url('../../.astro/web-fonts/SourceSerif4-Italic.woff2') format('woff2');
   font-weight: 400;
   font-style: italic;
   font-display: swap;
 }
 @font-face {
   font-family: 'JetBrains Mono';
-  src: url('/assets/fonts/JetBrainsMono-Regular.woff2') format('woff2');
+  src: url('../../.astro/web-fonts/JetBrainsMono-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'JetBrains Mono';
-  src: url('/assets/fonts/JetBrainsMono-Bold.woff2') format('woff2');
+  src: url('../../.astro/web-fonts/JetBrainsMono-Bold.woff2') format('woff2');
   font-weight: 600 800;
   font-style: normal;
   font-display: swap;
@@ -46,14 +46,14 @@
  * bold for 700/900 headings so CJK weight stays consistent with the Latin Bold. */
 @font-face {
   font-family: 'Noto Serif SC';
-  src: url('/assets/fonts/NotoSerifSC-Regular.woff2') format('woff2');
+  src: url('../../.astro/web-fonts/NotoSerifSC-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Noto Sans SC';
-  src: url('/assets/fonts/NotoSansSC-Regular.woff2') format('woff2');
+  src: url('../../.astro/web-fonts/NotoSansSC-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -479,8 +479,26 @@ body {
  * ============================================================ */
 .hero-c {
   position: relative;
+  isolation: isolate;
   overflow: hidden;
   padding: clamp(56px, 9vh, 104px) 0 clamp(48px, 7vh, 80px);
+}
+.hero-c::before,
+.companions-section::before,
+.lp-footer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-repeat: no-repeat;
+}
+.hero-c::before {
+  background-image: url('/assets/backgrounds/reading-focus.webp');
+  background-position: center;
+  background-size: cover;
+  mask-image: linear-gradient(transparent, black 14%, black 82%, transparent);
+  opacity: 0.85;
 }
 .hero-c-inner {
   position: relative;
@@ -1274,6 +1292,9 @@ body {
   gap: clamp(48px, 6vw, 80px);
   align-items: start;
 }
+.concept-section {
+  background-color: color-mix(in srgb, var(--paper) 45%, var(--page));
+}
 .concept-layout .sec-title {
   font-size: clamp(25px, 3vw, 36px);
   text-wrap: pretty;
@@ -1333,6 +1354,17 @@ body {
 }
 
 /* agents row */
+.companions-section {
+  position: relative;
+  isolation: isolate;
+}
+.companions-section::before {
+  background-image: url('/assets/backgrounds/reading-companions.webp');
+  background-position: center;
+  background-size: cover;
+  mask-image: linear-gradient(transparent, black 20%, black 75%, transparent);
+  opacity: 0.65;
+}
 .agents-row {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
@@ -1543,8 +1575,18 @@ body {
  * Footer
  * ============================================================ */
 .lp-footer {
+  position: relative;
+  isolation: isolate;
   border-top: 3px double var(--ink);
+  background-color: var(--page);
   padding: 36px 0 48px;
+}
+.lp-footer::before {
+  background-image: url('/assets/backgrounds/reading-footer.webp');
+  background-position: right bottom;
+  background-size: max(100%, 960px) auto;
+  mask-image: linear-gradient(transparent, black);
+  opacity: 0.8;
 }
 .lp-footer .row {
   display: flex;
@@ -1794,6 +1836,18 @@ body {
   }
 }
 @media (max-width: 800px) {
+  .hero-c::before {
+    background-position: 65% center;
+    opacity: 0.4;
+  }
+  .companions-section::before {
+    background-size: auto 100%;
+    opacity: 0.4;
+  }
+  .lp-footer::before {
+    background-size: auto 240px;
+    opacity: 0.6;
+  }
   .demo-section {
     display: none;
   }
@@ -1929,6 +1983,14 @@ body {
 
   :lang(en) .mh-nav a.nav-item {
     font-size: 13px;
+  }
+
+  :lang(ja) .mh-nav {
+    gap: clamp(4px, 1.2vw, 6px);
+  }
+
+  :lang(ja) .mh-nav a.nav-item {
+    font-size: clamp(12px, 3.2vw, 13px);
   }
 
   .mh-pill {

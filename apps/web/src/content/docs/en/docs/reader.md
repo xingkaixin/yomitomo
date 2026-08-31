@@ -7,10 +7,10 @@ The Reader seamlessly integrates full-text reading, precise text anchoring, disc
 
 <picture>
   <source
-    srcset="/assets/en-reader-1600.webp 1600w, /assets/en-reader-2400.webp 2400w, /assets/en-reader.webp 3388w"
+    srcset="/assets/en-reader-640.webp 640w, /assets/en-reader-960.webp 960w, /assets/en-reader-1280.webp 1280w, /assets/en-reader-1600.webp 1600w, /assets/en-reader-2400.webp 2400w, /assets/en-reader.webp 3388w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/en-reader.webp" alt="Yomitomo reader" loading="eager" decoding="async" />
+  <img src="/assets/en-reader.webp" alt="Yomitomo reader" loading="eager" width="3388" height="2184" fetchpriority="high" decoding="async" />
 </picture>
 
 ## Reading Workspace and Controls

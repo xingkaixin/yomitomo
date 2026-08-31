@@ -101,8 +101,8 @@ const agentColors: Record<string, string> = {
 
 /** Landing uses small persona thumbnails; full-size art stays in public for richer pages. */
 function avatarFor(id: string, lang: Locale): string {
-  if (id === 'yomitomo') return '/assets/landing-avatars/common/yomitomo.webp';
-  return `/assets/landing-avatars/${lang}/${id}.webp`;
+  if (id === 'yomitomo') return '/assets/landing-avatars/common/yomitomo-96.webp';
+  return `/assets/landing-avatars/${lang}/${id}-96.webp`;
 }
 
 function buildAgents(lang: Locale, nicknames: Record<string, string>): Agent[] {

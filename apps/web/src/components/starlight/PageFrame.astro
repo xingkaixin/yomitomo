@@ -1,0 +1,14 @@
+---
+import StarlightPageFrame from '@astrojs/starlight/components/PageFrame.astro';
+import LandingFooter from '../landing/LandingFooter.astro';
+
+const { lang } = Astro.locals.starlightRoute;
+const footerLang = lang === 'en' || lang === 'ja' ? lang : 'zh-CN';
+---
+
+<StarlightPageFrame>
+  <slot name="header" slot="header" />
+  <slot name="sidebar" slot="sidebar" />
+  <slot />
+</StarlightPageFrame>
+<LandingFooter lang={footerLang} />

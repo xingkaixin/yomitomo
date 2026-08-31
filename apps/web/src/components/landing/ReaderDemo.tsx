@@ -177,7 +177,7 @@ function DiscussionModal({
                     onClick={() => setSelected(index)}
                   >
                     <span className="av">
-                      <img src={author.avatar} alt="" width={384} height={384} />
+                      <img src={author.avatar} alt="" width={96} height={96} />
                     </span>
                     <div>
                       <div className="dm-idea-name">{author.nickname}</div>
@@ -199,7 +199,7 @@ function DiscussionModal({
                   return (
                     <div className={`dm-msg${me ? ' me' : ''}`} key={comment.id}>
                       <span className="av">
-                        <img src={author.avatar} alt="" width={384} height={384} />
+                        <img src={author.avatar} alt="" width={96} height={96} />
                       </span>
                       <div className={`dm-msg-bubble${me ? '' : ' them'}`}>
                         <div className="dm-msg-name">{author.nickname}</div>
@@ -284,7 +284,7 @@ function Note({
         <span className="avatar-stack">
           {ids.map((id) => (
             <span className="av" key={id}>
-              <img src={getAgent(id).avatar} alt="" width={384} height={384} />
+              <img src={getAgent(id).avatar} alt="" width={96} height={96} />
             </span>
           ))}
         </span>

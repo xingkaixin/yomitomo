@@ -73,7 +73,7 @@ const copy = isJapanese
 const avatarDir = isEnglish ? 'en' : isJapanese ? 'ja' : 'zh-CN';
 ---
 
-<section class="section">
+<section class="section companions-section">
   <div class="lp-container">
     <div class="section-copy">
       <p class="sec-kicker">{copy.kicker}</p>
@@ -87,6 +87,8 @@ const avatarDir = isEnglish ? 'en' : isJapanese ? 'ja' : 'zh-CN';
             <div class="face">
               <img
                 src={`/assets/landing-avatars/${avatarDir}/${id}.webp`}
+                srcset={`/assets/landing-avatars/${avatarDir}/${id}-192.webp 192w, /assets/landing-avatars/${avatarDir}/${id}-320.webp 320w, /assets/landing-avatars/${avatarDir}/${id}.webp 384w`}
+                sizes="(max-width: 640px) calc((100vw - 56px) / 2), (max-width: 800px) calc((100vw - 80px) / 2), (max-width: 1080px) calc((100vw - 96px) / 3), 174px"
                 alt={`${profiles[id].role} ${profiles[id].name}`}
                 width="384"
                 height="384"

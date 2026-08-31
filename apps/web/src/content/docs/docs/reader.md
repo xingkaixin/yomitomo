@@ -7,10 +7,10 @@ description: 掌握划线、想法、讨论、双语翻译与知识沉淀，构�
 
 <picture>
   <source
-    srcset="/assets/cn-reader-1600.webp 1600w, /assets/cn-reader-2400.webp 2400w, /assets/cn-reader.webp 3388w"
+    srcset="/assets/cn-reader-640.webp 640w, /assets/cn-reader-960.webp 960w, /assets/cn-reader-1280.webp 1280w, /assets/cn-reader-1600.webp 1600w, /assets/cn-reader-2400.webp 2400w, /assets/cn-reader.webp 3388w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/cn-reader.webp" alt="Yomitomo 阅读界面" loading="eager" decoding="async" />
+  <img src="/assets/cn-reader.webp" alt="Yomitomo 阅读界面" loading="eager" width="3388" height="2184" fetchpriority="high" decoding="async" />
 </picture>
 
 ## 阅读界面与工具

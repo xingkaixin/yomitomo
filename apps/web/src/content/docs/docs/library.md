@@ -45,10 +45,10 @@ description: 管理网页文章、EPUB/AZW3/MOBI 电子书、PDF 与文本文档
 
 <picture>
   <source
-    srcset="/assets/cn-import-web-1600.webp 1600w, /assets/cn-import-web-2400.webp 2400w, /assets/cn-import-web.webp 3388w"
+    srcset="/assets/cn-import-web-640.webp 640w, /assets/cn-import-web-960.webp 960w, /assets/cn-import-web-1280.webp 1280w, /assets/cn-import-web-1600.webp 1600w, /assets/cn-import-web-2400.webp 2400w, /assets/cn-import-web.webp 3388w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/cn-import-web.webp" alt="Yomitomo 导入网页文章" loading="lazy" decoding="async" />
+  <img src="/assets/cn-import-web.webp" alt="Yomitomo 导入网页文章" loading="lazy" width="3388" height="2520" decoding="async" />
 </picture>
 
 ## 导入电子书
@@ -61,10 +61,10 @@ Yomitomo 会完整解析书籍封面、多级目录、章节层级与样式结�
 
 <picture>
   <source
-    srcset="/assets/cn-import-ebook-1600.webp 1600w, /assets/cn-import-ebook-2400.webp 2400w, /assets/cn-import-ebook.webp 3388w"
+    srcset="/assets/cn-import-ebook-640.webp 640w, /assets/cn-import-ebook-960.webp 960w, /assets/cn-import-ebook-1280.webp 1280w, /assets/cn-import-ebook-1600.webp 1600w, /assets/cn-import-ebook-2400.webp 2400w, /assets/cn-import-ebook.webp 3388w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/cn-import-ebook.webp" alt="Yomitomo 导入电子书" loading="lazy" decoding="async" />
+  <img src="/assets/cn-import-ebook.webp" alt="Yomitomo 导入电子书" loading="lazy" width="3388" height="2520" decoding="async" />
 </picture>
 
 ## 导入 PDF
@@ -77,10 +77,10 @@ PDF 支持批量导入（单次最多 10 份，单份上限 120MB）。导入完
 
 <picture>
   <source
-    srcset="/assets/cn-import-pdf-1600.webp 1600w, /assets/cn-import-pdf-2400.webp 2400w, /assets/cn-import-pdf.webp 3388w"
+    srcset="/assets/cn-import-pdf-640.webp 640w, /assets/cn-import-pdf-960.webp 960w, /assets/cn-import-pdf-1280.webp 1280w, /assets/cn-import-pdf-1600.webp 1600w, /assets/cn-import-pdf-2400.webp 2400w, /assets/cn-import-pdf.webp 3388w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/cn-import-pdf.webp" alt="Yomitomo 导入 PDF" loading="lazy" decoding="async" />
+  <img src="/assets/cn-import-pdf.webp" alt="Yomitomo 导入 PDF" loading="lazy" width="3388" height="2520" decoding="async" />
 </picture>
 
 ## 导入纯文本与 Markdown

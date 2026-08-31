@@ -7,10 +7,10 @@ Yomitomo は、デスクトップ向けのローカルファースト AI 読書�
 
 <picture>
   <source
-    srcset="/assets/en-home-1600.webp 1600w, /assets/en-home-2400.webp 2400w, /assets/en-home.webp 3388w"
+    srcset="/assets/en-home-640.webp 640w, /assets/en-home-960.webp 960w, /assets/en-home-1280.webp 1280w, /assets/en-home-1600.webp 1600w, /assets/en-home-2400.webp 2400w, /assets/en-home.webp 3388w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/en-home.webp" alt="Yomitomo リーディングライブラリ画面" loading="eager" decoding="async" />
+  <img src="/assets/en-home.webp" alt="Yomitomo リーディングライブラリ画面" loading="eager" width="3388" height="2372" fetchpriority="high" decoding="async" />
 </picture>
 
 ## はじめの使い方

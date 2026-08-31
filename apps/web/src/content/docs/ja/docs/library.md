@@ -45,10 +45,10 @@ Web 記事、電子書籍、PDF、テキスト、WeRead 書籍など、あらゆ
 
 <picture>
   <source
-    srcset="/assets/en-import-web-1600.webp 1600w, /assets/en-import-web-2400.webp 2400w, /assets/en-import-web.webp 3388w"
+    srcset="/assets/en-import-web-640.webp 640w, /assets/en-import-web-960.webp 960w, /assets/en-import-web-1280.webp 1280w, /assets/en-import-web-1600.webp 1600w, /assets/en-import-web-2400.webp 2400w, /assets/en-import-web.webp 3388w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/en-import-web.webp" alt="Yomitomo Web 記事のインポート" loading="lazy" decoding="async" />
+  <img src="/assets/en-import-web.webp" alt="Yomitomo Web 記事のインポート" loading="lazy" width="3388" height="2520" decoding="async" />
 </picture>
 
 ## 電子書籍のインポート
@@ -61,10 +61,10 @@ Yomitomo は表紙、多階層の目次、章構造、本文レイアウトを�
 
 <picture>
   <source
-    srcset="/assets/en-import-ebook-1600.webp 1600w, /assets/en-import-ebook-2400.webp 2400w, /assets/en-import-ebook.webp 3388w"
+    srcset="/assets/en-import-ebook-640.webp 640w, /assets/en-import-ebook-960.webp 960w, /assets/en-import-ebook-1280.webp 1280w, /assets/en-import-ebook-1600.webp 1600w, /assets/en-import-ebook-2400.webp 2400w, /assets/en-import-ebook.webp 3388w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/en-import-ebook.webp" alt="Yomitomo 電子書籍のインポート" loading="lazy" decoding="async" />
+  <img src="/assets/en-import-ebook.webp" alt="Yomitomo 電子書籍のインポート" loading="lazy" width="3388" height="2520" decoding="async" />
 </picture>
 
 ## PDF 文書のインポート
@@ -77,10 +77,10 @@ PDF は最大 10 ファイルまでの一括インポートに対応（1 ファ�
 
 <picture>
   <source
-    srcset="/assets/en-import-pdf-1600.webp 1600w, /assets/en-import-pdf-2400.webp 2400w, /assets/en-import-pdf.webp 3388w"
+    srcset="/assets/en-import-pdf-640.webp 640w, /assets/en-import-pdf-960.webp 960w, /assets/en-import-pdf-1280.webp 1280w, /assets/en-import-pdf-1600.webp 1600w, /assets/en-import-pdf-2400.webp 2400w, /assets/en-import-pdf.webp 3388w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/en-import-pdf.webp" alt="Yomitomo PDF ドキュメントのインポート" loading="lazy" decoding="async" />
+  <img src="/assets/en-import-pdf.webp" alt="Yomitomo PDF ドキュメントのインポート" loading="lazy" width="3388" height="2520" decoding="async" />
 </picture>
 
 ## テキストと Markdown のインポート
