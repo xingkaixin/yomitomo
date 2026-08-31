@@ -1,9 +1,0 @@
-EmbeddingGemma ONNX conversion notice
-
-The model weights in onnx/model_q4.onnx and onnx/model_q4.onnx_data are
-conversion artifacts of google/embeddinggemma-300m at revision
-57c266a740f537b4dc058e1b0cda161fd15afa75. The conversion was published by
-onnx-community/embeddinggemma-300m-ONNX at revision
-5090578d9565bb06545b4552f76e6bc2c93e4a66.
-
-Yomitomo redistributes those conversion artifacts without changing their bytes.

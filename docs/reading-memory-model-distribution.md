@@ -1,84 +1,43 @@
-# 阅读记忆模型分发
+# 阅读记忆模型下载
 
-本文记录 `reading-memory-embedding-v1` 的第一方分发契约、R2 初始化、发布和验证方式。
-桌面端只应消费这里的版本清单，不直接依赖上游模型地址。
+`reading-memory-embedding-v1` 使用现有公共模型仓库直接下载，不经过 Yomitomo Download Worker，
+不需要创建 R2 bucket、配置发布凭据或复制模型权重。
 
-## 分发契约
+## 固定来源
 
-- 清单地址：`https://download.yomitomo.app/models/reading-memory-embedding-v1/manifest.json`
-- 文件地址：`/models/reading-memory-embedding-v1/objects/sha256/{sha256}/{path}`
-- R2 bucket：`yomitomo-model-assets`
-- Worker binding：`MODEL_ASSETS`
+两个来源都是 `onnx-community/embeddinggemma-300m-ONNX`：
 
-版本清单由 RD-964 的固定模型选择和仓库内许可证文件确定性生成。所有模型、NOTICE、Gemma
-条款和转换说明都使用带 SHA-256 的不可变地址；固定版本清单也只允许首次创建，不能覆盖。
-上游 Hugging Face 地址仅作为发布器的受控来源，不由 Download Worker 代理。
+| 来源 | 仓库 | 固定 revision |
+| --- | --- | --- |
+| ModelScope | https://modelscope.cn/models/onnx-community/embeddinggemma-300m-ONNX | `8a5a38f48e040757f2ccca1782d11c4279e0a34b` |
+| Hugging Face | https://huggingface.co/onnx-community/embeddinggemma-300m-ONNX | `5090578d9565bb06545b4552f76e6bc2c93e4a66` |
 
-发布器会先把所有来源复制到临时目录并核对大小与 SHA-256，再按以下顺序操作：
+下载地址由 `apps/desktop/src/reading-memory-model-sources.ts` 统一构造。两个平台的 revision
+不同，但当前使用的五个文件大小与 SHA-256 相同；不能把 Hugging Face commit 直接用作
+ModelScope revision，也不能把同名模型的其他格式或量化版本作为替代。
 
-1. 使用 `If-None-Match: *` 创建内容地址对象；已存在对象只能通过相同大小、摘要元数据和远端内容回读校验。
-2. 回读并重新计算每个远端对象的 SHA-256。
-3. 仅在所有对象验证通过后，以相同规则创建并回读版本清单。
+设置页默认选择 ModelScope，用户可切换到 Hugging Face。不根据界面语言推断所在地。
+中断后可以选择另一来源继续下载；运行中的下载需要先取消。没有自动测速或自动换源。
+大陆实际速度和成功率需要在当地不同运营商网络验证，仓库存在与 HTTP 成功不构成速度保证。
 
-因此，失败可能留下不可见的内容地址对象，但不会让清单引用缺失或错误内容。发布器不提供删除或覆盖能力。
+## 客户端契约
 
-## 首次初始化
+- 清单和完整的 NOTICE、Gemma 条款、转换说明位于 `apps/desktop/model-releases/reading-memory-embedding-v1/`，随客户端内置。
+- 模型文件不随安装包分发；用户明确下载后才请求所选平台，下载量为 218,726,989 字节。
+- 内置清单有固定 SHA-256；下载文件按该清单核验大小、SHA-256 和相对路径。
+- 下载只允许跳转到 HTTPS 的 Hugging Face / ModelScope 及其 CDN 域名，最多跟随五次重定向。
+- 模型先写入 `userData/models/.reading-memory-embedding-v1.partial`，全部文件和随附声明就绪后再原子重命名。
+- 续传使用 Range；源不支持 Range 时从头下载该文件。完成后始终验证完整文件摘要。
+- 下载来源不参与模型身份或向量版本。换源不更换模型，也不需要重建索引。
+- 安装后的模型加载和校验均离线执行，不向模型平台发送阅读内容。
 
-先确认 Wrangler 已登录目标 Cloudflare account，再创建专用 bucket：
+## 验证与更新
 
-```bash
-pnpm --filter @yomitomo/download exec wrangler whoami
-pnpm --filter @yomitomo/download exec wrangler r2 bucket create yomitomo-model-assets
-```
+普通测试不联网下载完整模型。生命周期测试覆盖取消、跨源续传、重定向、摘要失败和磁盘错误；
+清单测试核对评测选定的五个文件与随附声明；打包 smoke 继续使用真实模型缓存验证本地推理。
 
-在 Cloudflare R2 管理页创建只允许读写该 bucket 的 S3 API token，并把以下值配置为 GitHub
-Actions repository secrets：
+来源变更前，先通过平台 API 比较固定 revision 的每个文件大小、摘要，再验证匿名 GET 与
+Range 请求。发布前应实测完整下载和安装，以及大陆电信、联通、移动的下载成功率与耗时。
 
-- `CLOUDFLARE_ACCOUNT_ID`
-- `R2_ACCESS_KEY_ID`
-- `R2_SECRET_ACCESS_KEY`
-
-`apps/download/wrangler.jsonc` 已声明 `MODEL_ASSETS` binding。创建 bucket 后部署 Download
-Worker：
-
-```bash
-pnpm --filter @yomitomo/download deploy:cf
-```
-
-## 发布
-
-合并模型清单、许可证或发布器改动后，从 `main` 手动运行 GitHub Actions 的
-`Publish Reading Memory Model`。工作流拒绝从其他分支发布，并通过并发组保证同一时刻只有一个发布任务。
-
-本地使用同一发布器时，需要设置上述三个环境变量，然后运行：
-
-```bash
-pnpm --filter @yomitomo/download model:publish
-```
-
-重复运行是只读验证：内容完全相同时成功，任何对象或清单不同时失败，不会替换远端数据。
-
-条件写保证本发布器不能覆盖同名对象，但不会限制其他持写权限的客户端。若生产威胁模型要求
-存储层也禁止覆盖或删除，应在首次发布和校验完成后，为
-`reading-memory-embedding-v1/` 前缀配置 R2 Bucket Lock。保留规则在有效期内不能绕过，设置前必须
-确认保护范围和期限，因此不由发布脚本自动创建。
-
-## 发布后验证
-
-先取得清单中的一个文件 URL，再检查完整读取、HEAD 和单段 Range：
-
-```bash
-manifest_url='https://download.yomitomo.app/models/reading-memory-embedding-v1/manifest.json'
-object_url="$(curl -fsS "$manifest_url" | jq -r '.artifact.files[0].url')"
-
-curl -fsS "$manifest_url" | jq '.internalId, .distributionDownloadSizeBytes'
-curl -fsSI "$object_url"
-curl -fsS -D - -o /dev/null -H 'Range: bytes=0-0' "$object_url"
-```
-
-预期：清单和对象返回 `Cache-Control: public, max-age=31536000, immutable`；HEAD 返回准确的
-`Content-Length`；Range 返回 `206`、`Accept-Ranges: bytes` 和正确的 `Content-Range`。
-不存在对象、非法 Range 或摘要元数据不符必须返回非成功状态和 `Cache-Control: no-store`。
-
-如需更新模型内容，必须创建新的产品模型版本、目录和固定清单，不能修改
-`reading-memory-embedding-v1` 已发布对象。
+更换权重、tokenizer、推理参数或向量格式需要新的模型版本和相应评测。仅调整镜像地址时保留
+模型版本与文件摘要。修改内置清单后同步更新桌面端固定摘要；不依赖远端可变清单。
