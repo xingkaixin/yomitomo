@@ -1,34 +1,86 @@
 ---
-title: "Escaping the Read-Later Black Hole: Turn \"Read Later\" into \"Think Later\""
-description: Hundreds of articles languishing in your bookmark queues, with fewer than 10% actually digested? Yomitomo breaks the illusion of saving as mastery, transforming web articles into active cognitive raw material.
+title: "Escaping the Read-It-Later Black Hole: Turn Saved Articles into Synthesized Knowledge"
+description: Hundreds of articles languishing unread in browser bookmarks and read-it-later apps? Yomitomo dismantles the illusion of passive hoarding, transforming web essays into raw intellectual materials.
 ---
 
-Every knowledge worker's digital life contains a "read-later graveyard." Pocket, Instapaper, browser bookmarks, notes to self—stuffed with hundreds of promising long reads, accompanied by the earnest wish of "I'll read these this weekend." Yet as the queue swells, opening it induces only guilt and cognitive overload.
+Every knowledge worker has a "read-it-later black hole": Pocket, Instapaper, browser bookmarks, and message threads stuffed with articles saved with the best intentions. As unread counts climb into the hundreds, the feeling of empowerment curdles into chronic guilt.
 
-The concept of saving isn't inherently flawed; the flaw lies in treating **the act of bookmarking as the terminal goal**. Clicking save gives your brain a cheap hit of accomplished learning. When you finally open an article, legacy tools offer only a binary choice: skim it quickly and hit archive. There is no intermediate cognitive transformation: no structured annotations, no intellectual friction, no lasting synthesis. Skimming an article leaves you barely better off than having left it unread.
+The flaw lies not in the desire to save articles, but in tools that treat **passive hoarding** as the finish line. Saving gives the illusion of learning; opening an article later only presents an option to "archive"—without categorization, AI dialogue, or distillation.
 
-Yomitomo upgrades this broken loop into an active knowledge pipeline: **Clean Ingestion → Focused Close Reading → Layered Annotations → Multi-Article Distillation**.
+Yomitomo upgrades the entire workflow: **Fast Ingestion → Focused Reading → Multi-Tier Annotation → Cross-Article Distillation**.
 
-## Clean Ingestion with Headless Fidelity
+---
 
-Click "Add Web Page" in the Library and paste any article URL. Yomitomo automatically strips away banners, noisy sidebars, and trackers, extracting clean typography, authors, body prose, and inline figures.
+## Web Article Deep Reading & Anti-Loss Workflow
 
-For dynamic Single Page Applications (SPAs) requiring JavaScript execution, Yomitomo uses an internal headless engine to render the DOM before extraction. Imported items are managed across intuitive states—New, Reading, and Finished—turning passive bookmarks into actionable reading queues.
+| Pipeline Stage | User Action & Input | System Background Processing | Output & Asset | Boundaries & Limits |
+|---|---|---|---|---|
+| **One-Click Ingestion** | Paste web article URL | Built-in headless DOM parser strips ads and popups | Clean standalone article with typography and high-res images | Supports public URLs; paywalled/login pages require cookies or manual text paste |
+| **Local Anti-Loss** | Enable "Save Images Locally" | Asynchronously downloads all referenced images to disk | Permanently accessible offline archive (immune to 404s/deletions) | Disk usage depends on image volume; cache can be cleared anytime |
+| **Active Annotation** | Select text, press `A` | Binds passage coordinates with cognitive tags; supports `@` AI debate | Deep annotation stream with traceable reasoning history | Stored in local SQLite; does not modify external web pages |
+| **Thematic Distillation** | Press `T` to aggregate notes across articles | Synthesizes insights across disparate essays into coherent memo | High-density structured research brief (Markdown format) | Permanent local knowledge card ready for reuse |
 
-## Real-Time Engagement: Stop Passive Skimming
+---
 
-Inside Yomitomo's distraction-free reader, select text and press `A` to record instant reactions.
+## Clean Ingestion for Focused Reading
 
-This transforms ephemeral reactions ("Brilliant formulation," "Dubious methodology," "Directly solves our backlog bug") into **durable notes anchored to exact sentences**.
+In Yomitomo's Library, click **Add Webpage** and paste a URL. The system strips extraneous sidebars, tracking scripts, and banner ads, extracting a pristine text layout with high-resolution images.
 
-Encountering complex passages? Invoke `@Maya Brooks` to hone fuzzy questions into incisive inquiries, or call `@Marcus Reed` to extract portable heuristics.
+Articles are organized through clear reading states: **New**, **In Progress**, and **Completed**—turning saved links into purposeful reading projects.
 
-## Cross-Article Synthesis: From Scraps to Thematic Research
+---
 
-Web articles are inherently **fragmented and decentralized**. A single 2,500-word blog post offers fleeting value on its own. But when you read four or five interrelated perspectives on "Decentralized Database Architectures," the Distillation Window allows you to pool highlights from all five articles into a unified drafting workspace.
+## Capturing Thoughts in the Flow of Reading
 
-Synthesize common threads, resolve conflicting claims, and produce an executive-ready distillation note. Months later, you won't need to hunt down five forgotten URLs—you open your distilled note, equipped with your own synthesized conclusions.
+Select text and press `A` to record instant reflections right in the margin. Mention `@XuWenqu` (Inquiry Mentor) to turn vague intuitions into sharp inquiries, or `@ChenYanshu` (Insight Curator) to extract cross-domain mental models.
 
-## Offline Image Caching & Deep Local Search
+---
 
-Enable "Save images locally" to download all article figures directly to your disk. Even if the original domain sunsets, pivots, or suffers bit-rot, your local copy remains fully readable and pristine. With instant full-text keyword search, you will never lose a hard-won insight again.
+## Cross-Article Thematic Distillation
+
+Individual 3,000-word blog posts are often fragmented. But when researching a topic (e.g., "The Evolution of AI Coding Paradigms"), Yomitomo lets you aggregate highlights across 5 distinct essays in Distillation Studio (`T`).
+
+Cross-examine arguments, eliminate redundant points, and synthesize a unified 800-word research brief. When teammates discuss the topic, you present a structured synthesis rather than a pile of disparate URLs.
+
+---
+
+## Local Image Preservation Against Link Rot
+
+Enable **Save Images Locally** to download all article images to your hard drive. If the original website redesigns, moves behind a paywall, or suffers a 404 error, your local copy remains fully intact and searchable.
+
+---
+
+## Target Audience & Usage Boundaries
+
+### Who This Is For
+
+- Readers tracking Substack essays, Medium posts, technical blogs, and industry analysis;
+- Heavy bookmarkers seeking to cure read-it-later paralysis and produce actionable summaries;
+- Researchers requiring local, permanent archives of transient online publications.
+
+### What This Is Not For
+
+- **Passive mobile social media doomscrolling**: Yomitomo is engineered for desktop deep study;
+- **Bypassing hard subscriber paywalls without credentials**: Paywalled content without login access can be pasted directly into Yomitomo via "Add Text".
+
+---
+
+## Frequently Asked Questions (FAQ)
+
+### Q1: Can I ingest articles behind login walls or newsletter subscriptions?
+**Answer:** Public articles parse instantly. For content behind logins, Yomitomo uses headless browser rendering; for strict paywalls, simply copy the text and import via **Add Text**.
+
+### Q2: Will saved web images consume significant disk space?
+**Answer:** Text consumes mere kilobytes. Optimized local images typically take 2–5MB per article, safely managed inside your local data folder with one-click cache clearing.
+
+### Q3: How do I mark finished articles?
+**Answer:** Press `D` on any article to mark it as **Completed**, keeping your active queue clean and organized.
+
+---
+
+## Related Guides & Workflows
+
+- [Knowledge Distillation Workflow: From Highlights to Structured Cards](/en/blog/scenarios/knowledge-distillation/)
+- [Why Local-First Architecture Matters for Reading Privacy](/en/blog/scenarios/local-first-privacy/)
+- [Deep Reading for Non-Fiction eBooks](/en/blog/scenarios/deep-ebook-reading/)
+- [Library Management & Web Clipping Documentation](/en/docs/library/)
