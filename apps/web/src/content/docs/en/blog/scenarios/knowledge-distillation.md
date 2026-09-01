@@ -1,58 +1,80 @@
 ---
-title: "Knowledge Distillation Workflow: From Scattered Highlights to Structured Insights"
-description: Highlighted hundreds of passages but feel like nothing has truly crystallized? Yomitomo's four-level cognitive model—Highlight, Thought, Discussion, Distillation—transforms fragmented reading into structured, traceable, and compounding knowledge assets.
+title: "Knowledge Distillation Workflow: From Fragmented Highlights to Structured Cards"
+description: Highlighted hundreds of passages without building an actionable knowledge base? Yomitomo's 4-tier cognitive model—Highlight, Thought, Discussion, Distillation—refines raw inputs into permanent intellectual assets.
 ---
 
-Reading apps give you a "highlight" tool. Note-taking apps give you a "clipping" tool. Between the two lies a vast cognitive chasm: highlights are isolated sentences scattered across dozens of articles, while actionable personal knowledge demands **deconstruction, restructuring, compression, and synthesis**. Most readers get stranded in this gap—accumulating thousands of yellow lines while retaining almost nothing usable.
+Reading tools capture highlights; note-taking apps store text clippings. Yet a massive cognitive gap separates the two: highlights are isolated fragments scattered across dozens of articles, while actionable personal knowledge requires **deconstruction, restructuring, and compression**. Most learners remain stuck in this gap—accumulating thousands of passive highlights that yield no practical output.
 
-Yomitomo bridges the gap between raw input (highlights) and active recall (distilled knowledge) through an intentional four-stage transformation pipeline.
+Yomitomo bridges the divide with a four-tier cognitive distillation pipeline.
 
-## The Four-Level Cognitive Pipeline
+---
 
-Yomitomo partitions deep reading into four progressive intellectual moves:
+## The Four-Tier Cognitive Distillation Model
 
-### Level 1: Highlight (The Evidence Anchor)
+| Tier | Cognitive Action | User Input & Trigger | System Processing | Output Format |
+|---|---|---|---|---|
+| **Tier 1: Highlight** | Anchor evidence | Select text, press `A`, assign cognitive type | Precision DOM/text anchor with semantic tag | Categorized source anchor |
+| **Tier 2: Thought** | Capture intuition | Record immediate reaction in highlight popover | Persisted with timestamp alongside highlight | Lightweight raw reflection |
+| **Tier 3: Discussion** | Dialectic debate | Mention AI specialists (`@Agent`) in thread | Injects passage context into multi-turn dialogue | Verifiable thought evolution log |
+| **Tier 4: Distillation** | Structural synthesis | Press `T` to aggregate notes; polish with review agents | De-duplicates ideas and sharpens arguments | Standalone high-density knowledge card |
 
-Highlighting represents the foundational layer of attention. When you select text and press `A`, Yomitomo prompts you with five distinct cognitive dimensions (Key Point, Assumption, Concept, Question, Quote). This forces an immediate metacognitive decision: **what structural role does this claim play in your mental model?**
+---
 
-This simple step lays the groundwork for all downstream synthesis. During retrospective reviews, you are never left staring at undifferentiated yellow markings; you can instantly filter by "Question" to tackle unresolved doubts or filter by "Concept" to assemble a domain glossary.
+## Detailed Walkthrough of the Four Tiers
 
-### Level 2: Thought (The Atomic Reaction)
+### Tier 1: Highlight (Empirical Anchor)
+Select text and press `A` to categorize the passage into one of five cognitive roles (Key Point, Assumption, Concept, Question, Quote). This forces an instant meta-cognitive evaluation: **What function does this sentence serve in your knowledge network?**
 
-Every highlight features an integrated "Thought" space. This is not for passive transcription; it captures your immediate, raw intellectual response: visceral agreement, a counterexample, a cross-reference to another book, or skepticism toward the methodology. Even a single sentence is invaluable.
+### Tier 2: Thought (Spontaneous Reaction)
+Attach an immediate reaction to the highlight: a sudden counter-argument, an intuitive doubt, or a connection to another project. Even a single sentence holds immense value when captured in the flow of reading.
 
-Immediacy is key: an intuitive reaction captured in the heat of reading holds far more cognitive vitality than a polished retrospective summary written days after the memory has faded.
+### Tier 3: Discussion (Dialectic Deepening)
+Inside the highlight's discussion stream, question the premise and invoke specialized AI personas:
+- `@XuWenqu` (Inquiry Mentor): Sharpens vague intuition into precise queries;
+- `@ZhouYan` (Root Cause Inquirer): Audits whether your own deductions contain blind spots;
+- `@ChenYanshu` (Insight Curator): Generalizes specific examples into reusable frameworks.
 
-### Level 3: Discussion (Inquiry & Multi-Turn Dialogue)
+### Tier 4: Distillation (Structured Knowledge Card)
+When you accumulate sufficient notes across a chapter or topic, press `T` to enter Distillation Studio:
+1. **De-duplicate**: Merge passages pointing to the same underlying dynamic;
+2. **Structure**: Organize insights into structured models (e.g., Problem—Mechanism—Countermeasure);
+3. **Compress**: Condense 10,000 words of reading into a 300–500 word synthesis card.
 
-Enter any highlight's dedicated discussion thread to build upon earlier notes or summon AI specialist personas:
+Polish your draft with `@HeMingheng` and `@TangJian`. Once published, your distillation card lives permanently in the sidebar while retaining deep jump links to underlying source text.
 
-- `@Maya Brooks` (Question Mentor): Sharpens vague intuition into precise, researchable questions.
-- `@Gideon Frost` (Root-Cause Reader): Rigorously challenges the soundness of causal assertions.
-- `@Marcus Reed` (Insight Editor): Distills portable mental models applicable beyond the immediate case.
+---
 
-AI responses and your sequential thoughts are logged in chronological order. Revisiting the thread reveals an evolving intellectual journey rather than a static, one-shot output.
+## Target Audience & Usage Boundaries
 
-### Level 4: Distillation (Structured Knowledge Asset)
+### Who This Is For
 
-When an article or topic accumulates sufficient highlights and discussion, open the **Distillation Window**. Yomitomo aggregates all related materials into a unified drafting workspace.
+- Knowledge workers and scholars reading 30+ deep articles or 10+ professional books annually;
+- Writers, course creators, and analysts needing structured, high-reusability knowledge cards;
+- Readers tired of fragmented digital clipping who want a genuine synthesis pipeline.
 
-Distillation is never a passive summary; it achieves three cognitive upgrades:
+### What This Is Not For
 
-1. **Deduplication**: Merges overlapping highlights and prunes redundant rhetoric.
-2. **Structural Synthesis**: Organizes fragmented observations into robust frameworks (e.g., Claim → Evidence → Practical Action).
-3. **High-Density Compression**: Condenses an 8,000-word essay into 300–500 words of distilled insight where every word represents your vetted judgment.
+- **Passive web bookmark hoarding**: If you never intend to read or process captured URLs, simple browser bookmarks suffice;
+- **Automated robotic content spinning**: Distillation requires human reasoning and judgment.
 
-Once your draft is complete, invite review companions (e.g., `@Simone Carter` for logic validation, `@Julian Cross` for editorial polish). Upon publishing, the distilled note anchors to the sidebar, taking the place of raw highlights.
+---
 
-Crucially, the underlying highlights and discussion logs remain permanently preserved. You can unpublish at any time to revise your draft. Distillation is never a rigid verdict—it is an iterative milestone reflecting your current understanding.
+## Frequently Asked Questions (FAQ)
 
-## Compounding Reuse and Growth
+### Q1: Can I edit or unpublish a distillation card after publishing?
+**Answer:** Yes. You can edit any published distillation card or revert it to a draft at any time. When reverted, the full timeline of underlying highlights and AI discussions re-appears.
 
-Published distillations function as modular, searchable knowledge cards. Search across titles in your library, cross-reference previous distillations while reading new materials, and visualize your cognitive output across domains via the Stats dashboard.
+### Q2: Does distillation output support Obsidian and Notion?
+**Answer:** Yes. All distillation cards are stored in standard Markdown and can be copied or exported with full formatting directly into your Obsidian or Notion vaults.
 
-When you finish an essential book, your lasting asset is not a digital file sitting on a shelf, but the distilled notes in your sidebar—embodying your authentic intellectual synthesis.
+### Q3: Why is manual distillation superior to AI one-click summaries?
+**Answer:** An AI summary is the model's compression; a distillation card is **your own cognitive assimilation**. Knowledge only becomes actionable when restructured through your personal mental framework.
 
-## Who This Is For
+---
 
-Knowledge workers, researchers, and lifelong learners reading 30+ long-form articles or 10+ professional books annually who want to build a compounding personal knowledge operating system.
+## Related Guides & Workflows
+
+- [Critical Reading in Practice: Deconstruct Arguments with Review Agents](/en/blog/scenarios/critical-reading/)
+- [Deep Reading for Non-Fiction eBooks](/en/blog/scenarios/deep-ebook-reading/)
+- [Why Local-First Architecture Matters](/en/blog/scenarios/local-first-privacy/)
+- [Distillation Editor Feature Documentation](/en/docs/sedimentation/)

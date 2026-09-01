@@ -1,38 +1,79 @@
 ---
-title: "Data-Driven Reading Habits: Track and Elevate Your Intellectual Cadence"
-description: Unsure how many days you truly read last month, when your cognitive focus peaks, or what your reading actually outputs? Yomitomo transforms ambiguous impressions into actionable reading analytics.
+title: "Improving Reading Habits with Local Analytics: Building a Data-Driven Cadence"
+description: Cannot quantify how many days you truly read, when your peak focus occurs, or how much you distilled? Yomitomo translates reading behaviors into private local charts.
 ---
 
-"How many books or in-depth papers did you truly master this year?"—most readers can only answer with vague impressions. Fewer still know: On how many days last month did you engage in sustained focus? What time of day produces your sharpest insights? What percentage of your highlights convert into durable notes?
+"How many books or deep articles did you genuinely master this year?"—most people can only offer vague guesses. Fewer still know how many days they maintained focused reading, which hours produced their highest-quality reflections, or what percentage of highlights converted into structured knowledge.
 
-Building an enduring reading habit should not rely on fleeting bursts of willpower. Yomitomo aggregates behavioral data across your reading sessions, allowing you to optimize your intellectual rhythm through **empirical data**.
+Sustainable reading habits should not rely on fleeting bursts of willpower. Yomitomo quantifies key cognitive behaviors locally, giving you **verifiable data** to optimize your reading cadence.
 
-## Local Reading Dashboard: Visualizing Cognitive Footprints
+---
 
-Yomitomo automatically captures key interactions within your local environment:
+## Local Reading Analytics Metrics Model
 
-- **Today's Activity**: Daily reading time, newly imported items, highlight counts, and published distillations.
-- **Consistency Metrics**: Total active days recorded, weekly streak density, and all-time peak activity windows.
-- **Cognitive Conversion**: Ratio of raw highlights to synthesized, published distillations.
-- **AI Collaboration**: Discussion frequency and persona invocation breakdowns.
+| Dimension | Data Source | Calculation Logic | Visual Presentation | Habit Diagnostic Value |
+|---|---|---|---|---|
+| **Focused Time** | Local reader focus tracking | Excludes idle time; logs active engagement | Daily/Weekly charts and historical trends | Pinpoints true focus time without self-deception |
+| **Cognitive Density** | Highlights (`A`), thoughts, discussions | Tracks frequency across 5 cognitive categories | Category breakdown donut chart & hourly distribution | Evaluates thinking depth (high Question/Assumption ratio = active critique) |
+| **Distillation Ratio** | Published distillation cards (`T`) | Ratio of `Distillation Cards ÷ Total Highlights` | Conversion funnel & weekly distillation velocity | Warns against the "highlighting without synthesizing" trap |
+| **Consistency Grid** | 70-day rolling activity | Daily cognitive score mapped to color density | GitHub-style 70-day activity matrix | Provides visual positive feedback to sustain momentum |
 
-The primary value of these metrics is **surfacing actionable signals**. For example, if active days drop from 5 days a week to 2, your routine is slipping and requires proactive adjustment. If late-night highlights rarely get referenced in downstream distillations, you may benefit from moving intensive reading to higher-energy morning hours.
+---
 
-## Trends and Heatmaps: Monitoring Processing Depth
+## The Local Analytics Dashboard
 
-- **Activity Trend Curves**: Tracks highlight creation, discussion comments, and distillation publications. If highlights remain high while distillations plummet, you are slipping into "passive skimming"—collecting inputs without synthesis.
-- **70-Day Activity Heatmap**: Visualizes engagement density over the past ten weeks. Seeing an unbroken sequence of dark-emerald cells provides powerful intrinsic motivation to sustain daily momentum.
+- **Daily Activity**: Active reading time, imported articles, highlight count, and distillation submissions;
+- **Streaks & Consistency**: Total recorded days, active days per week, and peak cognitive time blocks;
+- **Conversion Velocity**: Historical curve comparing raw highlights to finalized knowledge cards;
+- **AI Collaboration Distribution**: Call frequency breakdown across various specialist personas.
 
-## WeRead Synergy: Input Breadth Meets Cognitive Depth
+These metrics expose hidden habit signals: if active days drop from 5 to 2, your routine is slipping; if late-night highlights are never referenced in distillation drafts, move deep reading to the morning.
 
-When linked with a WeRead API Key, the dashboard switches seamlessly to display synced reading durations, finished books, and reading progress across Weekly, Monthly, Yearly, and All-Time views.
+---
 
-WeRead reflects **input breadth** (hours spent turning pages), while Yomitomo captures **processing depth** (questions raised and insights crystallized). Together, they offer a complete portrait of your intellectual life.
+## 70-Day Consistency Matrix
 
-## Practical Steps for the Data-Driven Reader
+The 70-day heatmap uses varying green shades to visualize reading density over the past two months. This continuous positive feedback builds internal momentum far more effectively than abstract resolutions.
 
-1. **Establish a Cadence Baseline**: Aim for at least 4 active days weekly, monitored via the heatmap.
-2. **Monitor Conversion Rates**: Maintain a distillation-to-highlight ratio above 15% to combat passive hoarding.
-3. **Monthly Retrospectives**: Compare month-over-month trends to rebalance reading schedules and topical focus.
+---
 
-Deep reading is a long-horizon endeavor. Yomitomo's analytics close the feedback gap, ensuring you can observe every milestone in your intellectual growth.
+## WeRead Data Integration: Breadth Meets Depth
+
+When configured with your WeRead API Key, the analytics center switches seamlessly to visualize your WeRead reading duration across weekly, monthly, and yearly horizons. WeRead represents **input breadth** (hours spent, pages turned), while Yomitomo metrics represent **processing depth** (questions raised, knowledge distilled).
+
+---
+
+## Target Audience & Usage Boundaries
+
+### Who This Is For
+
+- Readers seeking to build a sustainable analytical reading routine backed by quantitative data;
+- Knowledge workers monitoring their highlight-to-distillation conversion efficiency;
+- WeRead power users wishing to combine input volume with deep desktop synthesis.
+
+### What This Is Not For
+
+- **Social leaderboard competition**: Analytics are 100% private to your local device without public leaderboards or social sharing buttons;
+- **Artificial time farming**: Focus tracking detects idle windows and pauses automatically when inactive.
+
+---
+
+## Frequently Asked Questions (FAQ)
+
+### Q1: Is my reading analytics data uploaded to any server?
+**Answer:** Never. All telemetry, timestamps, and heatmaps live exclusively inside your local SQLite database.
+
+### Q2: Does the timer keep running if I step away from my desk?
+**Answer:** No. Yomitomo includes intelligent idle detection. When the window loses focus or experiences no interaction, the timer pauses automatically.
+
+### Q3: Will my 70-day heatmap transfer when switching computers?
+**Answer:** Yes. Exporting your database backup under **Settings > General** and importing it on your new computer restores all historical analytics and heatmaps completely.
+
+---
+
+## Related Guides & Workflows
+
+- [Knowledge Distillation Workflow: From Highlights to Structured Cards](/en/blog/scenarios/knowledge-distillation/)
+- [WeRead Notes Migration Guide: Bring Highlights Local](/en/blog/scenarios/weread-migration/)
+- [Escaping the Read-It-Later Black Hole](/en/blog/scenarios/web-article-collection/)
+- [Reading Analytics & FAQ Documentation](/en/docs/stats-and-faq/)

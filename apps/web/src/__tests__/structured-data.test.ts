@@ -72,6 +72,10 @@ describe('structured data', () => {
     expect(isBlogScenarioPath('/blog/scenarios/pdf-annotation/')).toBe(true);
     expect(isBlogScenarioPath('/en/blog/scenarios/pdf-annotation/')).toBe(true);
     expect(isBlogScenarioPath('/ja/blog/scenarios/pdf-annotation/')).toBe(true);
+    expect(isBlogScenarioPath('/blog/scenarios/readwise-reader-alternative/')).toBe(true);
+    expect(isBlogScenarioPath('/blog/scenarios/local-ai-reading-with-ollama/')).toBe(true);
+    expect(isBlogScenarioPath('/blog/scenarios/zotero-academic-workflow/')).toBe(true);
+    expect(isBlogScenarioPath('/blog/scenarios/obsidian-knowledge-bridge/')).toBe(true);
     expect(isBlogScenarioPath('/blog/')).toBe(false);
     expect(isBlogScenarioPath('/docs/reader/')).toBe(false);
   });
