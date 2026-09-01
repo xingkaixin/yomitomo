@@ -218,6 +218,15 @@ h1#_top {
   .sidebar-content {
     height: auto;
   }
+
+  /* Keep the fixed sidebar usable when the page footer enters the viewport. */
+  :root[data-has-sidebar] body > .lp-footer {
+    z-index: calc(var(--sl-z-index-menu) - 1);
+  }
+
+  :root[data-has-sidebar] body > .lp-footer .lp-container {
+    padding-inline-start: var(--sl-sidebar-width);
+  }
 }
 
 @media (max-width: 50rem) {
