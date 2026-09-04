@@ -42,7 +42,7 @@ Bundled font notices are discovered from:
 | CC0-1.0 | 1 |
 | ISC | 12 |
 | LGPL-3.0-or-later | 1 |
-| MIT | 157 |
+| MIT | 158 |
 | MIT-0 | 2 |
 | OFL-1.1 | 11 |
 | Python-2.0 | 1 |
@@ -51,13 +51,13 @@ Bundled font notices are discovered from:
 
 | Package | Versions | License | Homepage |
 | --- | --- | --- | --- |
-| @ai-sdk/anthropic | 4.0.41 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
-| @ai-sdk/gateway | 4.0.62 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
-| @ai-sdk/google | 4.0.50 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
-| @ai-sdk/openai | 4.0.46 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
-| @ai-sdk/openai-compatible | 3.0.35 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
-| @ai-sdk/provider | 4.0.7 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
-| @ai-sdk/provider-utils | 5.0.29 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
+| @ai-sdk/anthropic | 4.0.49 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
+| @ai-sdk/gateway | 4.0.73 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
+| @ai-sdk/google | 4.0.63 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
+| @ai-sdk/openai | 4.0.57 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
+| @ai-sdk/openai-compatible | 3.0.43 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
+| @ai-sdk/provider | 4.0.10 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
+| @ai-sdk/provider-utils | 5.0.36 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
 | @asamuzakjp/css-color | 6.0.7 | MIT | [link](https://github.com/asamuzaK/cssColor#readme) |
 | @asamuzakjp/dom-selector | 8.3.2 | MIT | [link](https://github.com/asamuzaK/domSelector#readme) |
 | @babel/helper-string-parser | 7.29.7 | MIT | [link](https://babel.dev/docs/en/next/babel-helper-string-parser) |
@@ -105,8 +105,8 @@ Bundled font notices are discovered from:
 | @mixmark-io/domino | 2.2.0 | BSD-2-Clause | [link](https://github.com/mixmark-io/domino#readme) |
 | @mozilla/readability | 0.6.0 | Apache-2.0 | [link](https://github.com/mozilla/readability) |
 | @msgpackr-extract/msgpackr-extract-darwin-arm64 | 3.0.4 | MIT | [link](https://github.com/kriszyp/msgpackr-extract#readme) |
-| @napi-rs/keyring | 1.3.0 | MIT | [link](https://github.com/Brooooooklyn/keyring-node#readme) |
-| @napi-rs/keyring-darwin-arm64 | 1.3.0 | MIT | [link](https://github.com/Brooooooklyn/keyring-node#readme) |
+| @napi-rs/keyring | 2.0.0 | MIT | [link](https://github.com/Brooooooklyn/keyring-node#readme) |
+| @napi-rs/keyring-darwin-arm64 | 2.0.0 | MIT | [link](https://github.com/Brooooooklyn/keyring-node#readme) |
 | @noble/hashes | 2.3.0 | MIT | [link](https://paulmillr.com/noble/) |
 | @opentelemetry/api | 1.9.1 | Apache-2.0 | [link](https://github.com/open-telemetry/opentelemetry-js/tree/main/api) |
 | @protobufjs/aspromise | 1.1.2 | BSD-3-Clause | [link](https://github.com/dcodeIO/protobuf.js#readme) |
@@ -122,7 +122,7 @@ Bundled font notices are discovered from:
 | @sveltejs/acorn-typescript | 1.0.10 | MIT | [link](https://github.com/sveltejs/acorn-typescript#readme) |
 | @types/better-sqlite3 | 9.6.0 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/better-sqlite3) |
 | @types/estree | 1.0.9 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/estree) |
-| @types/node | 26.2.0 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/node) |
+| @types/node | 26.2.0, 26.4.1 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/node) |
 | @types/trusted-types | 2.0.7 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/trusted-types) |
 | @typescript/typescript-darwin-arm64 | 7.0.2 | Apache-2.0 | [link](https://www.typescriptlang.org/) |
 | @vercel/oidc | 3.2.0 | Apache-2.0 | [link](https://vercel.com) |
@@ -139,7 +139,7 @@ Bundled font notices are discovered from:
 | @xmldom/xmldom | 0.9.12 | MIT | [link](https://github.com/xmldom/xmldom) |
 | acorn | 8.18.0 | MIT | [link](https://github.com/acornjs/acorn) |
 | adm-zip | 0.5.18 | MIT | [link](https://github.com/cthackers/adm-zip) |
-| ai | 7.0.77 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
+| ai | 7.0.91 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
 | argparse | 2.0.1 | Python-2.0 | [link](https://github.com/nodeca/argparse#readme) |
 | aria-query | 5.3.1 | Apache-2.0 | [link](https://github.com/A11yance/aria-query#readme) |
 | axobject-query | 4.1.0 | Apache-2.0 | [link](https://github.com/A11yance/axobject-query#readme) |
@@ -224,7 +224,7 @@ Bundled font notices are discovered from:
 | mathml-to-latex | 1.8.0 | MIT | [link](https://github.com/asnunes/mathml-to-latex#readme) |
 | mdn-data | 2.27.1 | CC0-1.0 | [link](https://developer.mozilla.org) |
 | ms | 2.1.3 | MIT | [link](https://github.com/vercel/ms#readme) |
-| msgpackr | 2.0.5 | MIT | [link](https://github.com/kriszyp/msgpackr#readme) |
+| msgpackr | 2.1.0 | MIT | [link](https://github.com/kriszyp/msgpackr#readme) |
 | msgpackr-extract | 3.0.4 | MIT | [link](https://github.com/kriszyp/msgpackr-extract#readme) |
 | multipasta | 0.2.8 | MIT | [link](https://github.com/tim-smart/multipasta#readme) |
 | nanoid | 3.3.18 | MIT | [link](https://github.com/ai/nanoid#readme) |
@@ -264,9 +264,10 @@ Bundled font notices are discovered from:
 | source-map-js | 1.2.1 | BSD-3-Clause | [link](https://github.com/7rulnik/source-map-js) |
 | sprintf-js | 1.1.3 | BSD-3-Clause | [link](https://github.com/alexei/sprintf.js#readme) |
 | string_decoder | 1.1.1 | MIT | [link](https://github.com/nodejs/string_decoder) |
+| supports-color | 10.2.2 | MIT | [link](https://github.com/chalk/supports-color#readme) |
 | svelte | 5.55.9 | MIT | [link](https://svelte.dev) |
 | symbol-tree | 3.2.4 | MIT | [link](https://github.com/jsdom/js-symbol-tree#symbol-tree) |
-| temml | 0.13.4 | MIT | [link](https://temml.org) |
+| temml | 0.13.5 | MIT | [link](https://temml.org) |
 | tiny-typed-emitter | 2.1.0 | MIT | [link](https://github.com/binier/tiny-typed-emitter#readme) |
 | tldts | 7.4.10 | MIT | [link](https://github.com/remusao/tldts#readme) |
 | tldts-core | 7.4.10 | MIT | [link](https://github.com/remusao/tldts#readme) |
@@ -276,7 +277,7 @@ Bundled font notices are discovered from:
 | turndown | 7.2.4 | MIT | [link](https://github.com/mixmark-io/turndown#readme) |
 | type-fest | 0.13.1 | (MIT OR CC0-1.0) | [link](https://github.com/sindresorhus/type-fest#readme) |
 | uhyphen | 0.2.0 | ISC | [link](https://github.com/WebReflection/uhyphen#readme) |
-| undici | 7.28.0, 7.29.0, 8.10.0 | MIT | [link](https://undici.nodejs.org) |
+| undici | 7.28.0, 7.29.0, 8.10.1 | MIT | [link](https://undici.nodejs.org) |
 | undici-types | 8.3.0 | MIT | [link](https://undici.nodejs.org) |
 | universalify | 2.0.1 | MIT | [link](https://github.com/RyanZim/universalify#readme) |
 | use-sync-external-store | 1.6.0 | MIT | [link](https://github.com/facebook/react#readme) |
@@ -291,4 +292,4 @@ Bundled font notices are discovered from:
 | xmlchars | 2.2.0 | MIT | [link](https://github.com/lddubeau/xmlchars#readme) |
 | yaml | 2.9.0 | ISC | [link](https://eemeli.org/yaml/) |
 | zimmerframe | 1.1.4 | MIT | [link](https://github.com/sveltejs/zimmerframe#readme) |
-| zod | 4.4.3 | MIT | [link](https://zod.dev) |
+| zod | 4.5.4 | MIT | [link](https://zod.dev) |

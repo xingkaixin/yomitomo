@@ -16,12 +16,12 @@
     "deploy:cf": "pnpm build && wrangler pages deploy dist --project-name yomitomo"
   },
   "dependencies": {
-    "@astrojs/react": "^6.0.4",
-    "@astrojs/starlight": "^0.41.7",
+    "@astrojs/react": "^6.0.5",
+    "@astrojs/starlight": "^0.42.0",
     "@base-ui/react": "^1.7.0",
     "@hugeicons/core-free-icons": "^4.3.0",
     "@hugeicons/react": "^1.1.10",
-    "astro": "^7.2.4",
+    "astro": "^7.3.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
