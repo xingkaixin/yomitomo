@@ -2,6 +2,9 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('../settings/app-settings-agent-panel', () => ({}));
+vi.mock('../reading-stats/app-reading-stats', () => ({}));
+
 beforeEach(() => {
   vi.resetModules();
 });

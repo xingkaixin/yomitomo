@@ -42,7 +42,7 @@ Bundled font notices are discovered from:
 | CC0-1.0 | 1 |
 | ISC | 12 |
 | LGPL-3.0-or-later | 1 |
-| MIT | 156 |
+| MIT | 157 |
 | MIT-0 | 2 |
 | OFL-1.1 | 11 |
 | Python-2.0 | 1 |
@@ -122,6 +122,7 @@ Bundled font notices are discovered from:
 | @sveltejs/acorn-typescript | 1.0.10 | MIT | [link](https://github.com/sveltejs/acorn-typescript#readme) |
 | @types/better-sqlite3 | 9.6.0 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/better-sqlite3) |
 | @types/estree | 1.0.9 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/estree) |
+| @types/node | 26.2.0 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/node) |
 | @types/trusted-types | 2.0.7 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/trusted-types) |
 | @typescript/typescript-darwin-arm64 | 7.0.2 | Apache-2.0 | [link](https://www.typescriptlang.org/) |
 | @vercel/oidc | 3.2.0 | Apache-2.0 | [link](https://vercel.com) |
