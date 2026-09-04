@@ -69,9 +69,9 @@ Bundled font notices are discovered from:
 | @bramus/specificity | 2.4.2 | MIT | [link](https://github.com/bramus/specificity#readme) |
 | @csstools/color-helpers | 6.1.1 | MIT-0 | [link](https://github.com/csstools/postcss-plugins/tree/main/packages/color-helpers#readme) |
 | @csstools/css-calc | 3.3.0 | MIT | [link](https://github.com/csstools/postcss-plugins/tree/main/packages/css-calc#readme) |
-| @csstools/css-color-parser | 4.2.0 | MIT | [link](https://github.com/csstools/postcss-plugins/tree/main/packages/css-color-parser#readme) |
+| @csstools/css-color-parser | 4.2.2 | MIT | [link](https://github.com/csstools/postcss-plugins/tree/main/packages/css-color-parser#readme) |
 | @csstools/css-parser-algorithms | 4.0.0 | MIT | [link](https://github.com/csstools/postcss-plugins/tree/main/packages/css-parser-algorithms#readme) |
-| @csstools/css-syntax-patches-for-csstree | 1.1.8 | MIT-0 | [link](https://github.com/csstools/postcss-plugins/tree/main/packages/css-syntax-patches-for-csstree#readme) |
+| @csstools/css-syntax-patches-for-csstree | 1.1.12 | MIT-0 | [link](https://github.com/csstools/postcss-plugins/tree/main/packages/css-syntax-patches-for-csstree#readme) |
 | @csstools/css-tokenizer | 4.0.0 | MIT | [link](https://github.com/csstools/postcss-plugins/tree/main/packages/css-tokenizer#readme) |
 | @date-fns/tz | 1.5.0 | MIT | [link](https://github.com/date-fns/date-fns#readme) |
 | @embedpdf/engines | 2.15.0 | MIT | [link](https://www.embedpdf.com/docs/engines/introduction) |
@@ -95,19 +95,19 @@ Bundled font notices are discovered from:
 | @huggingface/tokenizers | 0.1.3 | Apache-2.0 | [link](https://github.com/huggingface/tokenizers.js#readme) |
 | @huggingface/transformers | 4.2.0 | Apache-2.0 | [link](https://github.com/huggingface/transformers.js#readme) |
 | @img/colour | 1.1.0 | MIT | [link](https://github.com/lovell/colour#readme) |
-| @img/sharp-darwin-arm64 | 0.35.3 | Apache-2.0 | [link](https://sharp.pixelplumbing.com) |
-| @img/sharp-libvips-darwin-arm64 | 1.3.2 | LGPL-3.0-or-later | [link](https://sharp.pixelplumbing.com) |
+| @img/sharp-darwin-arm64 | 0.35.4 | Apache-2.0 | [link](https://sharp.pixelplumbing.com) |
+| @img/sharp-libvips-darwin-arm64 | 1.3.3 | LGPL-3.0-or-later | [link](https://sharp.pixelplumbing.com) |
 | @jridgewell/gen-mapping | 0.3.13 | MIT | [link](https://github.com/jridgewell/sourcemaps/tree/main/packages/gen-mapping) |
 | @jridgewell/remapping | 2.3.5 | MIT | [link](https://github.com/jridgewell/sourcemaps/tree/main/packages/remapping) |
 | @jridgewell/resolve-uri | 3.1.2 | MIT | [link](https://github.com/jridgewell/resolve-uri#readme) |
-| @jridgewell/sourcemap-codec | 1.5.5 | MIT | [link](https://github.com/jridgewell/sourcemaps/tree/main/packages/sourcemap-codec) |
+| @jridgewell/sourcemap-codec | 1.6.0 | MIT | [link](https://github.com/jridgewell/sourcemaps/tree/main/packages/sourcemap-codec) |
 | @jridgewell/trace-mapping | 0.3.31 | MIT | [link](https://github.com/jridgewell/sourcemaps/tree/main/packages/trace-mapping) |
 | @mixmark-io/domino | 2.2.0 | BSD-2-Clause | [link](https://github.com/mixmark-io/domino#readme) |
 | @mozilla/readability | 0.6.0 | Apache-2.0 | [link](https://github.com/mozilla/readability) |
 | @msgpackr-extract/msgpackr-extract-darwin-arm64 | 3.0.4 | MIT | [link](https://github.com/kriszyp/msgpackr-extract#readme) |
 | @napi-rs/keyring | 2.0.0 | MIT | [link](https://github.com/Brooooooklyn/keyring-node#readme) |
 | @napi-rs/keyring-darwin-arm64 | 2.0.0 | MIT | [link](https://github.com/Brooooooklyn/keyring-node#readme) |
-| @noble/hashes | 2.3.0 | MIT | [link](https://paulmillr.com/noble/) |
+| @noble/hashes | 2.4.0 | MIT | [link](https://paulmillr.com/noble/) |
 | @opentelemetry/api | 1.9.1 | Apache-2.0 | [link](https://github.com/open-telemetry/opentelemetry-js/tree/main/api) |
 | @protobufjs/aspromise | 1.1.2 | BSD-3-Clause | [link](https://github.com/dcodeIO/protobuf.js#readme) |
 | @protobufjs/base64 | 1.1.2 | BSD-3-Clause | [link](https://github.com/dcodeIO/protobuf.js#readme) |
@@ -122,7 +122,7 @@ Bundled font notices are discovered from:
 | @sveltejs/acorn-typescript | 1.0.10 | MIT | [link](https://github.com/sveltejs/acorn-typescript#readme) |
 | @types/better-sqlite3 | 9.6.0 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/better-sqlite3) |
 | @types/estree | 1.0.9 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/estree) |
-| @types/node | 26.2.0, 26.4.1 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/node) |
+| @types/node | 26.4.1 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/node) |
 | @types/trusted-types | 2.0.7 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/trusted-types) |
 | @typescript/typescript-darwin-arm64 | 7.0.2 | Apache-2.0 | [link](https://www.typescriptlang.org/) |
 | @vercel/oidc | 3.2.0 | Apache-2.0 | [link](https://vercel.com) |
@@ -138,7 +138,7 @@ Bundled font notices are discovered from:
 | @workflow/serde | 4.1.0 | Apache-2.0 | [link](https://github.com/vercel/workflow#readme) |
 | @xmldom/xmldom | 0.9.12 | MIT | [link](https://github.com/xmldom/xmldom) |
 | acorn | 8.18.0 | MIT | [link](https://github.com/acornjs/acorn) |
-| adm-zip | 0.5.18 | MIT | [link](https://github.com/cthackers/adm-zip) |
+| adm-zip | 0.6.0 | MIT | [link](https://github.com/cthackers/adm-zip) |
 | ai | 7.0.91 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
 | argparse | 2.0.1 | Python-2.0 | [link](https://github.com/nodeca/argparse#readme) |
 | aria-query | 5.3.1 | Apache-2.0 | [link](https://github.com/A11yance/aria-query#readme) |
@@ -165,7 +165,7 @@ Bundled font notices are discovered from:
 | defuddle | 0.19.3 | MIT | [link](https://github.com/kepano/defuddle) |
 | detect-libc | 2.1.2 | Apache-2.0 | [link](https://github.com/lovell/detect-libc#readme) |
 | detect-node | 2.1.0 | MIT | [link](https://github.com/iliakan/detect-node) |
-| devalue | 5.9.1 | MIT | [link](https://github.com/sveltejs/devalue#readme) |
+| devalue | 5.9.2 | MIT | [link](https://github.com/sveltejs/devalue#readme) |
 | dom-serializer | 2.0.0, 3.1.1 | MIT | [link](https://github.com/cheeriojs/dom-serializer#readme) |
 | domelementtype | 2.3.0, 3.0.0 | BSD-2-Clause | [link](https://github.com/fb55/domelementtype#readme) |
 | domhandler | 5.0.3, 6.0.1 | BSD-2-Clause | [link](https://github.com/fb55/domhandler#readme) |
@@ -204,7 +204,7 @@ Bundled font notices are discovered from:
 | is-reference | 3.0.3 | MIT | [link](https://github.com/Rich-Harris/is-reference#readme) |
 | isarray | 1.0.0 | MIT | [link](https://github.com/juliangruber/isarray) |
 | JetBrains Mono | 2.304 | OFL-1.1 | [link](https://github.com/JetBrains/JetBrainsMono) |
-| js-yaml | 4.3.0 | MIT | [link](https://github.com/nodeca/js-yaml#readme) |
+| js-yaml | 4.3.2 | MIT | [link](https://github.com/nodeca/js-yaml#readme) |
 | jsdom | 30.0.1 | MIT | [link](https://github.com/jsdom/jsdom#readme) |
 | json-schema | 0.4.0 | (AFL-2.1 OR BSD-3-Clause) | [link](https://github.com/kriszyp/json-schema#readme) |
 | json-stringify-safe | 5.0.1 | ISC | [link](https://github.com/isaacs/json-stringify-safe) |
@@ -241,7 +241,7 @@ Bundled font notices are discovered from:
 | parse5 | 8.0.1 | MIT | [link](https://parse5.js.org) |
 | picocolors | 1.1.1 | ISC | [link](https://github.com/alexeyraspopov/picocolors#readme) |
 | platform | 1.3.6 | MIT | [link](https://github.com/bestiejs/platform.js#readme) |
-| postcss | 8.5.23 | MIT | [link](https://postcss.org/) |
+| postcss | 8.5.28 | MIT | [link](https://postcss.org/) |
 | preact | 10.29.2 | MIT | [link](https://preactjs.com) |
 | process-nextick-args | 2.0.1 | MIT | [link](https://github.com/calvinmetcalf/process-nextick-args) |
 | protobufjs | 7.6.6 | BSD-3-Clause | [link](https://protobufjs.github.io/protobuf.js/) |
@@ -259,7 +259,7 @@ Bundled font notices are discovered from:
 | semver-compare | 1.0.0 | MIT | [link](https://github.com/substack/semver-compare) |
 | serialize-error | 7.0.1 | MIT | [link](https://github.com/sindresorhus/serialize-error#readme) |
 | setimmediate | 1.0.5 | MIT | [link](https://github.com/YuzuJS/setImmediate#readme) |
-| sharp | 0.35.3 | Apache-2.0 | [link](https://sharp.pixelplumbing.com) |
+| sharp | 0.35.4 | Apache-2.0 | [link](https://sharp.pixelplumbing.com) |
 | Source Serif 4 | 4.005 | OFL-1.1 | [link](https://github.com/adobe-fonts/source-serif) |
 | source-map-js | 1.2.1 | BSD-3-Clause | [link](https://github.com/7rulnik/source-map-js) |
 | sprintf-js | 1.1.3 | BSD-3-Clause | [link](https://github.com/alexei/sprintf.js#readme) |
@@ -269,15 +269,15 @@ Bundled font notices are discovered from:
 | symbol-tree | 3.2.4 | MIT | [link](https://github.com/jsdom/js-symbol-tree#symbol-tree) |
 | temml | 0.13.5 | MIT | [link](https://temml.org) |
 | tiny-typed-emitter | 2.1.0 | MIT | [link](https://github.com/binier/tiny-typed-emitter#readme) |
-| tldts | 7.4.10 | MIT | [link](https://github.com/remusao/tldts#readme) |
-| tldts-core | 7.4.10 | MIT | [link](https://github.com/remusao/tldts#readme) |
+| tldts | 7.4.11 | MIT | [link](https://github.com/remusao/tldts#readme) |
+| tldts-core | 7.4.11 | MIT | [link](https://github.com/remusao/tldts#readme) |
 | toml | 4.3.0 | MIT | [link](https://github.com/BinaryMuse/toml-node#readme) |
 | tough-cookie | 6.0.2 | BSD-3-Clause | [link](https://github.com/salesforce/tough-cookie) |
 | tr46 | 6.0.0 | MIT | [link](https://github.com/jsdom/tr46#readme) |
 | turndown | 7.2.4 | MIT | [link](https://github.com/mixmark-io/turndown#readme) |
 | type-fest | 0.13.1 | (MIT OR CC0-1.0) | [link](https://github.com/sindresorhus/type-fest#readme) |
 | uhyphen | 0.2.0 | ISC | [link](https://github.com/WebReflection/uhyphen#readme) |
-| undici | 7.28.0, 7.29.0, 8.10.1 | MIT | [link](https://undici.nodejs.org) |
+| undici | 7.29.0, 7.29.1, 8.10.1 | MIT | [link](https://undici.nodejs.org) |
 | undici-types | 8.3.0 | MIT | [link](https://undici.nodejs.org) |
 | universalify | 2.0.1 | MIT | [link](https://github.com/RyanZim/universalify#readme) |
 | use-sync-external-store | 1.6.0 | MIT | [link](https://github.com/facebook/react#readme) |
