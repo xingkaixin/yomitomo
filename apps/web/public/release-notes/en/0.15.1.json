@@ -1,0 +1,29 @@
+{
+  "version": "0.15.1",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "In-Depth Reading Scenario Guides",
+      "description": "Explore practical guides for academic research, local LLMs, and note distillation—including Zotero workflows, Ollama setup, Readwise migration, and Obsidian bidirectional links.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Upgraded Core Runtime & Dependencies",
+      "description": "Upgraded the underlying Electron runtime and build dependencies to secure releases, reinforcing child process isolation and day-to-day reading stability.",
+      "audience": "settings"
+    },
+    {
+      "type": "changed",
+      "title": "Refined Web & Documentation Experience",
+      "description": "The website and guides now feature tactile paper-textured backdrops and dynamic CJK font subsets that slash payload by 93% for a crisper browsing experience.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "Reading Layout & Sidebar Visibility Fixes",
+      "description": "Fixed sidebar layering near page footers on long articles and refined multi-device typography, keeping navigation clear across all window sizes.",
+      "audience": "reader"
+    }
+  ]
+}

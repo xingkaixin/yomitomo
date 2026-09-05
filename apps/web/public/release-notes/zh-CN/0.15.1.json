@@ -1,0 +1,29 @@
+{
+  "version": "0.15.1",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "新增深度阅读场景指南",
+      "description": "面向学术文献研究、本地大模型伴读与个人知识沉淀，新增涵盖 Zotero 联动、Ollama 本地配置、Readwise 迁移与 Obsidian 双链的完整场景实践指南。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "升级核心运行时与安全依赖",
+      "description": "全面升级底层 Electron 运行时与工程依赖链，修复已知安全隐患并增强底层进程隔离与稳定性，让日常持续阅读更加轻快安心。",
+      "audience": "settings"
+    },
+    {
+      "type": "changed",
+      "title": "官网与文档阅读体验重塑",
+      "description": "官网与帮助文档全新融入素雅纸张质感背景，并通过按需中文字体子集化将字体体积缩减超 93%，在线查阅指南更加清爽迅速。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "长文侧栏与页面布局稳定性修复",
+      "description": "修复博客与长文档侧栏目录在页面触底时的遮挡层级，优化多端视口布局，确保在各种窗口尺寸下目录导航与正文阅读始终清晰无阻。",
+      "audience": "reader"
+    }
+  ]
+}
