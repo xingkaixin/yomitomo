@@ -5,6 +5,16 @@ sidebar:
   hidden: true
 ---
 
+## 0.15.1
+
+Released: 2026-09-05
+
+- Added paper-textured decorative backgrounds across the website and sliced font payload by 93% with dynamic CJK subsetting.
+- Expanded in-depth reading scenario guides covering Zotero research, local Ollama companions, Readwise migration, and Obsidian graphs.
+- Upgraded Electron, runtime, and Vitest tooling to secure releases, and fixed table-of-contents layering near page footers.
+
+[View 0.15.1 release notes](/en/changelogs/v0-15-1/)
+
 ## 0.15.0
 
 Released: 2026-08-31
