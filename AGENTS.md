@@ -4,7 +4,7 @@
 
 ## 技术与事实来源
 
-- 包管理器使用 `pnpm@11`，workspace 由 `pnpm-workspace.yaml` 定义，构建由 Turbo 编排。
+- 包管理器使用 `pnpm@12`，workspace 由 `pnpm-workspace.yaml` 定义，构建由 Turbo 编排。
 - 依赖版本和 package scripts 以根目录及各 workspace 的 `package.json` 为准，工具链版本以 `mise.toml` 为准。
 - 项目使用 TypeScript 和 ESM。除 `@yomitomo/web` 外统一使用 TypeScript 7；`apps/web` 保持 TypeScript 6，供 Astro 与 `@astrojs/check` 使用。不要在没有明确迁移任务时统一这两个版本。
 - 桌面端使用 Electron、electron-vite、React、Vite 和 Tailwind CSS；官网使用 Astro、React、Vite 和 Tailwind CSS；下载与匿名遥测服务使用 Cloudflare Workers 和 Wrangler。

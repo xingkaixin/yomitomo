@@ -46,7 +46,7 @@ assets             项目静态资源
 
 ## 技术栈
 
-- 包管理器：`pnpm@11.x`
+- 包管理器：`pnpm@12.x`
 - 构建编排：Turbo
 - 语言：TypeScript，ESM
 - 桌面端：Electron 41、electron-vite、React 19、Vite 8、Tailwind CSS 4
