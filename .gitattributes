@@ -1,2 +1,5 @@
 # Model release checksums and sizes describe exact bytes on every platform.
 /apps/desktop/model-releases/** -text
+
+# pnpm patch parsing requires LF line endings on Windows.
+/patches/*.patch text eol=lf

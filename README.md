@@ -46,7 +46,7 @@ assets             Project static assets
 
 ## Tech Stack
 
-- Package manager: `pnpm@11.x`
+- Package manager: `pnpm@12.x`
 - Build orchestration: Turbo
 - Language: TypeScript, ESM
 - Desktop: Electron 41, electron-vite, React 19, Vite 8, Tailwind CSS 4

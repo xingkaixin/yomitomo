@@ -2,7 +2,7 @@
   "name": "yomitomo",
   "private": true,
   "license": "MIT",
-  "packageManager": "pnpm@11.25.0",
+  "packageManager": "pnpm@12.3.4",
   "scripts": {
     "dev": "turbo dev",
     "dev:app": "pnpm --filter @yomitomo/desktop dev",
