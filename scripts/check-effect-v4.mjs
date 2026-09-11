@@ -11,7 +11,7 @@ const consumerManifests = [
 ];
 const sourceRoots = ['apps/desktop/src', 'packages/ai/src', 'packages/core/src'];
 const migrationDocument = 'docs/effect-v4-runtime.md';
-const exactBetaPattern = /^4\.0\.0-beta\.\d+$/;
+const exactPrereleasePattern = /^4\.0\.0-(?:beta|rc)\.\d+$/;
 const effectImportPattern = /\bfrom\s*['"]effect['"]/;
 const effectApiPattern = /\b(?:Cause|Deferred|Effect|Exit|Fiber|Semaphore)\.[A-Za-z_$][\w$]*/g;
 const retiredApis = ['Effect.async', 'Effect.catchAll', 'Effect.fork', 'Effect.makeSemaphore'];
@@ -33,8 +33,8 @@ function sourceFiles(path) {
 const consumerVersions = consumerManifests.map((manifestPath) => {
   const manifest = JSON.parse(readRepositoryFile(manifestPath));
   const version = manifest.dependencies?.effect;
-  if (typeof version !== 'string' || !exactBetaPattern.test(version)) {
-    violations.push(`${manifestPath}: effect must use an exact 4.0.0-beta.x version`);
+  if (typeof version !== 'string' || !exactPrereleasePattern.test(version)) {
+    violations.push(`${manifestPath}: effect must use an exact 4.0.0-beta.x or 4.0.0-rc.x version`);
   }
   return { manifestPath, version };
 });

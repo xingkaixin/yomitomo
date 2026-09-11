@@ -23,8 +23,8 @@
     "@mozilla/readability": "^0.6.0",
     "@yomitomo/shared": "workspace:*",
     "defuddle": "^0.19.3",
-    "dompurify": "^3.4.14",
-    "effect": "4.0.0-beta.98"
+    "dompurify": "^3.4.15",
+    "effect": "4.0.0-rc.113"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

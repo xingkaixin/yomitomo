@@ -12,18 +12,10 @@ const vendorRoots = ['apps/desktop/src/renderer/src/vendor'];
 const fontNoticePaths = ['apps/desktop/resources/licenses/fonts/THIRD_PARTY_FONT_NOTICES.md'];
 const checkOnly = process.argv.includes('--check');
 const ignoredPackageNames = ignoredWorkspacePackageNames();
+const productionVersions = productionDependencyVersions();
 
-const pnpmLicenses = JSON.parse(
-  execFileSync(
-    process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm',
-    ['licenses', 'list', '--prod', '--json', '--filter', pnpmLicenseFilter],
-    {
-      cwd: repoRoot,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'inherit'],
-    },
-  ),
-);
+// pnpm 12's licenses --prod omits transitive optional dependencies, including native binaries.
+const pnpmLicenses = pnpmJson(['licenses', 'list', '--json', '--filter', pnpmLicenseFilter]);
 
 const notices = renderNotices([
   ...licenseEntries(pnpmLicenses),
@@ -45,12 +37,53 @@ function licenseEntries(licensesByType) {
   return Object.entries(licensesByType).flatMap(([license, packages]) =>
     packages
       .filter((item) => !ignoredPackageNames.has(item.name))
-      .map((item) => ({
-        name: item.name,
-        versions: normalizeVersions(item.versions),
-        license: item.license || license,
-        homepage: item.homepage || '',
-      })),
+      .flatMap((item) => {
+        const versions = item.versions.filter((version) =>
+          productionVersions.has(`${item.name}@${version}`),
+        );
+        if (versions.length === 0) return [];
+        return [
+          {
+            name: item.name,
+            versions: normalizeVersions(versions),
+            license: item.license || license,
+            homepage: item.homepage || '',
+          },
+        ];
+      }),
+  );
+}
+
+function productionDependencyVersions() {
+  const pending = pnpmJson([
+    'list',
+    '--prod',
+    '--depth',
+    'Infinity',
+    '--json',
+    '--filter',
+    pnpmLicenseFilter,
+  ]);
+  const versions = new Set();
+  for (const dependency of pending) {
+    for (const [name, child] of Object.entries({
+      ...dependency.dependencies,
+      ...dependency.optionalDependencies,
+    })) {
+      versions.add(`${name}@${child.version}`);
+      pending.push(child);
+    }
+  }
+  return versions;
+}
+
+function pnpmJson(args) {
+  return JSON.parse(
+    execFileSync(process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm', args, {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'inherit'],
+    }),
   );
 }
 

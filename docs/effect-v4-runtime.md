@@ -1,6 +1,6 @@
 # Effect v4 Runtime Boundary
 
-Pinned Effect version: `4.0.0-beta.98`
+Pinned Effect version: `4.0.0-rc.113`
 
 Production Effect modules: `12`
 
@@ -15,6 +15,11 @@ provider and models.dev HTTP boundaries decode unknown JSON with `Schema.decodeU
 domain mapping.
 
 ## Runtime Semantics
+
+The upgrade from `4.0.0-beta.98` to `4.0.0-rc.113` preserves the APIs in the production inventory.
+`Effect.try` and `Effect.tryPromise` now distinguish the direct callback overload from explicit
+`{ try, catch }` error mapping. Existing callers already use the latter where typed errors are needed.
+`Effect.acquireUseRelease` also runs the release action when the use callback throws synchronously.
 
 | API | v3 to v4 boundary | Required repository behavior | Evidence |
 | --- | --- | --- | --- |
@@ -40,7 +45,7 @@ shape.
 ## Upgrade Procedure
 
 1. Update `apps/desktop/package.json`, `packages/ai/package.json`, and `packages/core/package.json` to
-   the same exact `4.0.0-beta.x`; ranges and the `beta` dist-tag are not allowed.
+   the same exact `4.0.0-beta.x` or `4.0.0-rc.x`; ranges and dist-tags are not allowed.
 2. Run `pnpm install --lockfile-only` and confirm `pnpm why effect -r` reports one version.
 3. Diff the pinned package source for every API in the production inventory. Update the pinned
    version, module count, inventory, and semantic rows in this document before changing application
