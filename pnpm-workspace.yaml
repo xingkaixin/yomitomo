@@ -2,7 +2,7 @@ packages:
   - "apps/*"
   - "packages/*"
 allowBuilds:
-  better-sqlite3: true
+  better-sqlite3: false
   electron: true
   electron-winstaller: true
   esbuild: true

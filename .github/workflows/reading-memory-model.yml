@@ -48,6 +48,10 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   selected-model:
     name: Formal package and selected model (${{ matrix.name }})
