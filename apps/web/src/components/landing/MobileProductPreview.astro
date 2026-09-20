@@ -14,6 +14,7 @@ const copy = isJapanese
       caption:
         'YomitomoはmacOSとWindowsのデスクトップアプリです。記事、線、対話を一つの読書ワークスペースに保ちます。',
       alt: '原文の線とサイドバーの対話カードがつながったYomitomoデスクトップリーダー',
+      enlarge: '画像を拡大して見る',
     }
   : isEnglish
     ? {
@@ -22,6 +23,7 @@ const copy = isJapanese
       caption:
         'Yomitomo is a macOS and Windows desktop app. Articles, highlights, and discussions stay in one reading workspace.',
       alt: 'Yomitomo desktop reader with source highlights connected to a discussion card',
+      enlarge: 'View full-size image',
       }
     : {
       kicker: '桌面端阅读工作台',
@@ -29,6 +31,7 @@ const copy = isJapanese
       caption:
         'Yomitomo 是 macOS 与 Windows 桌面应用。文章、画线与讨论始终在同一阅读工作台中。',
       alt: 'Yomitomo 桌面阅读器，原文划线连接到边栏讨论卡片',
+      enlarge: '查看完整大图',
       };
 
 const previewBase = isEnglish || isJapanese ? '/assets/en-reader' : '/assets/cn-reader';
@@ -44,23 +47,20 @@ const previewSrcset = [640, 960, 1280, 1600]
       <h2 id="mobile-preview-title">{copy.title}</h2>
     </div>
     <figure class="mobile-preview-window">
-      <div class="mobile-preview-titlebar" aria-hidden="true">
-        <span></span><span></span><span></span>
-        <b>Yomitomo</b>
-      </div>
-      <div class="mobile-preview-scene">
+      <a class="mobile-preview-scene" href={`${previewBase}-2400.webp`}>
         <img
           class="mobile-preview-image"
           src={`${previewBase}-1600.webp`}
           srcset={previewSrcset}
-          sizes="(max-width: 640px) calc((100vw - 42px) * 1.65), calc((100vw - 66px) * 1.65)"
+          sizes="(max-width: 640px) calc(100vw - 42px), calc(100vw - 66px)"
           width="1600"
           height="1032"
           loading="lazy"
           decoding="async"
           alt={copy.alt}
         />
-      </div>
+        <span class="mobile-preview-enlarge">{copy.enlarge}</span>
+      </a>
       <figcaption>{copy.caption}</figcaption>
     </figure>
   </div>

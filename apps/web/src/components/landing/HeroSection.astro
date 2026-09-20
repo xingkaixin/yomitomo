@@ -18,7 +18,8 @@ const copy = isJapanese
         'YomitomoはローカルファーストのAI読書パートナー。',
         '線は根拠の印、考えは読書の成果です。',
       ],
-      cta: 'Yomitomoをダウンロード',
+      ctaMac: 'macOS版をダウンロード',
+      ctaWin: 'Windows版をダウンロード',
       altMac: 'macOS版もあります →',
       altWin: 'Windows版もあります →',
       version: `v${version} · 無料・オープンソース · 読書データはローカルに保存`,
@@ -33,7 +34,8 @@ const copy = isJapanese
         'Yomitomo is a local-first AI reading companion.',
         'Highlights are your evidence. Calls are your output.',
       ],
-      cta: 'Download Yomitomo',
+      ctaMac: 'Download for macOS',
+      ctaWin: 'Download for Windows',
       altMac: 'Also on macOS →',
       altWin: 'Also on Windows →',
       version: `v${version} · Free & open source · Reading data stays local`,
@@ -47,7 +49,8 @@ const copy = isJapanese
         'Yomitomo 是本地优先的 AI 伴读桌面应用',
         '划线是证据锚点，想法是阅读产出。',
       ],
-      cta: '下载 Yomitomo',
+      ctaMac: '下载 macOS 版',
+      ctaWin: '下载 Windows 版',
       altMac: '也支持 macOS →',
       altWin: '也支持 Windows →',
       version: `v${version} · 免费开源 · 阅读数据保存在本地`,
@@ -75,7 +78,7 @@ const copy = isJapanese
             d="M1.8 4.2 10.8 3v8.5h-9V4.2Zm10.4-1.4 10-1.4v10.1h-10V2.8ZM1.8 12.5h9V21l-9-1.2v-7.3Zm10.4 0h10v10.1l-10-1.4v-8.7Z"
           ></path>
         </svg>
-        {copy.cta}
+        <span data-cta-mac={copy.ctaMac} data-cta-win={copy.ctaWin}>{copy.ctaMac}</span>
       </a>
       <div class="cta-alt">
         <a href="#download" data-alt-mac={copy.altMac} data-alt-win={copy.altWin}>{copy.altWin}</a>
@@ -89,8 +92,9 @@ const copy = isJapanese
   const isWin =
     /Win/i.test(navigator.userAgentData?.platform || navigator.platform || '') ||
     /Windows/i.test(navigator.userAgent || '');
-  // The primary button targets the detected platform; the alt link points to
-  // the *other* one. So on macOS the alt reads "also on Windows", and vice versa.
+  for (const el of document.querySelectorAll('[data-cta-mac][data-cta-win]')) {
+    el.textContent = isWin ? el.dataset.ctaWin : el.dataset.ctaMac;
+  }
   for (const el of document.querySelectorAll('.btn-primary .mark-apple')) {
     el.style.display = isWin ? 'none' : '';
   }
