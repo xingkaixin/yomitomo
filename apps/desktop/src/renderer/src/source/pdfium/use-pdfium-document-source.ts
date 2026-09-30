@@ -33,7 +33,7 @@ export function usePdfiumDocumentSource(article: PdfArticleRecord) {
     isLoading,
   } = usePdfiumEngine({
     wasmUrl,
-    worker: false,
+    worker: true,
     fontFallback: pdfiumFontFallback,
   });
 
