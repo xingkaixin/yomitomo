@@ -37,7 +37,8 @@ macOS 首次迁移仍通过旧更新器下载完整 ZIP；安装并重启后才�
 这样较早版本的用户仍能直接升级到最新版本，无须先安装指定的中间版本。
 保持应用名、bundle ID、Developer ID 和用户数据路径不变。
 
-`make:mac-arm:from-dist` 下载并校验固定版本的 Sparkle，编译原生桥接并放入应用包。
+electron-builder 的 macOS `beforePack` 下载并校验固定版本的 Sparkle，编译目标架构的原生桥接并放入应用包。
+正式发布和直接调用 electron-builder 的隔离打包验证都使用这一入口。
 原有 Developer ID 签名及 notarization 流程继续使用。
 发布 CI 的 `generate-sparkle-release.mjs` 从最近两个包含 Sparkle feed 的正式版本下载 ZIP，
 生成当前版本的差分包。新 feed 只公告当前版本，历史 ZIP 只用于差分生成，不重新上传到新版本。

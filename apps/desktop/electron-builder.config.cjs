@@ -1,10 +1,21 @@
 const { readdir, rm } = require('node:fs/promises');
+const { execFileSync } = require('node:child_process');
 const { join } = require('node:path');
+const { Arch } = require('electron-builder');
 
 const retainedElectronLocaleBases = new Set(['en', 'en_GB', 'zh_CN', 'zh_TW']);
 
 function electronLocaleBase(name) {
   return name.replace(/\.lproj$/, '').replace(/_(FEMININE|MASCULINE|NEUTER)$/, '');
+}
+
+function prepareMacUpdater(context) {
+  if (context.electronPlatformName !== 'darwin') return;
+  execFileSync(
+    process.execPath,
+    [join(__dirname, 'scripts/prepare-sparkle.mjs'), `--arch=${Arch[context.arch]}`],
+    { stdio: 'inherit' },
+  );
 }
 
 async function pruneElectronFrameworkLocales(context) {
@@ -96,6 +107,7 @@ module.exports = {
       ],
     },
   ],
+  beforePack: prepareMacUpdater,
   afterPack: pruneElectronFrameworkLocales,
   asar: {
     smartUnpack: false,
