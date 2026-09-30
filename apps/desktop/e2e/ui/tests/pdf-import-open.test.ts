@@ -12,7 +12,7 @@ import {
 const pdfTitle = 'RD-797 PDF Path';
 
 describe('pdf import and open', () => {
-  it('imports a PDF through the UI, opens it, and keeps it after restart', async () => {
+  it('imports a PDF, opens and searches it, and keeps it after restart', async () => {
     const runData = await createE2eRunData('pdf-import-open');
     let firstApp: DesktopE2eApp | undefined;
     let restartedApp: DesktopE2eApp | undefined;
@@ -33,6 +33,17 @@ describe('pdf import and open', () => {
 
       await openReaderDocument(firstApp.page, pdfTitle);
       await waitForPdfReaderReady(firstApp.page);
+      await firstApp.page.getByRole('button', { name: 'Search body', exact: true }).click();
+      await firstApp.page
+        .getByRole('searchbox', { name: 'Search body', exact: true })
+        .fill('page text appears');
+      await firstApp.page.waitForFunction(
+        () =>
+          document.querySelector('.reader-floating-value.is-search-count')?.textContent === '1/1',
+      );
+      await firstApp.page
+        .getByRole('searchbox', { name: 'Search body', exact: true })
+        .press('Escape');
       await firstApp.page.getByRole('button', { name: 'Back to library' }).click();
       await waitForLibraryDocument(firstApp.page, pdfTitle, 'PDF');
 

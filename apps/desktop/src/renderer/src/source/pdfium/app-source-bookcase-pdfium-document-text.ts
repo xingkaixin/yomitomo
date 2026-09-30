@@ -13,7 +13,7 @@ const PDF_TEXT_EXTRACT_DELAY_MS = 120;
 const PDF_TEXT_EXTRACT_CONCURRENCY = 2;
 const PDF_TEXT_PREFETCH_RADIUS = 1;
 
-function pdfTextExtractionOrder(pageCount: number, currentPageIndex: number) {
+function pdfTextExtractionOrder(pageCount: number, currentPageIndex: number, prefetchOnly = false) {
   const pageIndexes: number[] = [];
   const seen = new Set<number>();
   const normalizedCurrentPageIndex =
@@ -32,6 +32,7 @@ function pdfTextExtractionOrder(pageCount: number, currentPageIndex: number) {
     addPageIndex(normalizedCurrentPageIndex - offset);
     addPageIndex(normalizedCurrentPageIndex + offset);
   }
+  if (prefetchOnly) return pageIndexes;
   for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
     addPageIndex(pageIndex);
   }
@@ -41,10 +42,12 @@ function pdfTextExtractionOrder(pageCount: number, currentPageIndex: number) {
 
 async function extractPdfTextPages({
   extractPageText,
+  isCurrent,
   orderedPageIndexes,
   pageCount,
 }: {
   extractPageText: (pageIndex: number) => Promise<string>;
+  isCurrent: () => boolean;
   orderedPageIndexes: number[];
   pageCount: number;
 }) {
@@ -55,6 +58,7 @@ async function extractPdfTextPages({
   await Promise.all(
     Array.from({ length: workerCount }, async () => {
       while (cursor < orderedPageIndexes.length) {
+        if (!isCurrent()) throw new DOMException('PDF text extraction cancelled', 'AbortError');
         const pageIndex = orderedPageIndexes[cursor];
         cursor += 1;
         if (pageIndex === undefined) continue;
@@ -63,6 +67,7 @@ async function extractPdfTextPages({
     }),
   );
 
+  if (!isCurrent()) throw new DOMException('PDF text extraction cancelled', 'AbortError');
   return pageTexts;
 }
 
@@ -79,13 +84,21 @@ export function usePdfiumDocumentText({
   engine: PdfEngine;
   openTrace: PdfOpenTrace;
 }) {
-  const pageTextCacheRef = useRef(new Map<number, Promise<string>>());
+  const pageTextCacheRef = useRef(new Map<number, { promise: Promise<string>; text?: string }>());
   const pdfTextDocumentRef = useRef<PdfTextDocument | null>(null);
   const fullTextDocumentPromiseRef = useRef<Promise<PdfTextDocument> | null>(null);
   const currentPageIndexRef = useRef(currentPageIndex);
   const textExtractionGenerationRef = useRef(0);
   const [pdfTextDocument, setPdfTextDocument] = useState<PdfTextDocument | null>(null);
   const [pdfFirstPageReady, setPdfFirstPageReady] = useState(false);
+  const [pdfTextIndexPreparing, setPdfTextIndexPreparing] = useState(false);
+
+  useEffect(
+    () => () => {
+      textExtractionGenerationRef.current += 1;
+    },
+    [],
+  );
 
   useEffect(() => {
     currentPageIndexRef.current = currentPageIndex;
@@ -100,10 +113,24 @@ export function usePdfiumDocumentText({
     async (pageIndex: number) => {
       if (!document) return '';
       const cached = pageTextCacheRef.current.get(pageIndex);
-      if (cached) return cached;
-      const text = engine.extractText(document, [pageIndex]).toPromise();
-      pageTextCacheRef.current.set(pageIndex, text);
-      return text;
+      if (cached) return cached.promise;
+      const entry: { promise: Promise<string>; text?: string } = {
+        promise: engine.extractText(document, [pageIndex]).toPromise(),
+      };
+      entry.promise = entry.promise.then(
+        (text) => {
+          entry.text = text;
+          return text;
+        },
+        (error: unknown) => {
+          if (pageTextCacheRef.current.get(pageIndex) === entry) {
+            pageTextCacheRef.current.delete(pageIndex);
+          }
+          throw error;
+        },
+      );
+      pageTextCacheRef.current.set(pageIndex, entry);
+      return entry.promise;
     },
     [document, engine],
   );
@@ -119,8 +146,12 @@ export function usePdfiumDocumentText({
     const generation = textExtractionGenerationRef.current;
     const pageCount = document.pages.length;
     const orderedPageIndexes = pdfTextExtractionOrder(pageCount, currentPageIndexRef.current);
+    const textExtractStartedAt = performance.now();
+    setPdfTextIndexPreparing(true);
+    recordPdfOpenTiming(openTrace, 'text_extract_start', { pageCount });
     const textDocumentPromise = extractPdfTextPages({
       extractPageText: extractPdfiumPageText,
+      isCurrent: () => textExtractionGenerationRef.current === generation,
       orderedPageIndexes,
       pageCount,
     })
@@ -128,6 +159,12 @@ export function usePdfiumDocumentText({
         const nextTextDocument = buildPdfTextDocument(pageTexts);
         if (textExtractionGenerationRef.current === generation) {
           commitPdfTextDocument(nextTextDocument);
+          setPdfTextIndexPreparing(false);
+          recordPdfOpenTiming(openTrace, 'text_extract_done', {
+            durationMs: rendererPerformanceElapsedMs(textExtractStartedAt),
+            pageCount,
+            textChars: nextTextDocument.text.length,
+          });
         }
         return nextTextDocument;
       })
@@ -135,13 +172,23 @@ export function usePdfiumDocumentText({
         if (textExtractionGenerationRef.current === generation) {
           fullTextDocumentPromiseRef.current = null;
           commitPdfTextDocument(null);
+          setPdfTextIndexPreparing(false);
+          recordPdfOpenTiming(openTrace, 'text_extract_error', {
+            durationMs: rendererPerformanceElapsedMs(textExtractStartedAt),
+            pageCount,
+          });
         }
         throw error;
       });
 
     fullTextDocumentPromiseRef.current = textDocumentPromise;
     return textDocumentPromise;
-  }, [commitPdfTextDocument, document, extractPdfiumPageText]);
+  }, [commitPdfTextDocument, document, extractPdfiumPageText, openTrace]);
+
+  const cachedPdfiumPageText = useCallback(
+    (pageIndex: number) => pageTextCacheRef.current.get(pageIndex)?.text,
+    [],
+  );
 
   const currentArticleText = useCallback(async () => {
     const existingTextDocument = pdfTextDocumentRef.current;
@@ -156,6 +203,7 @@ export function usePdfiumDocumentText({
     pageTextCacheRef.current = new Map();
     fullTextDocumentPromiseRef.current = null;
     setPdfFirstPageReady(false);
+    setPdfTextIndexPreparing(false);
     commitPdfTextDocument(null);
   }, [commitPdfTextDocument]);
 
@@ -169,6 +217,7 @@ export function usePdfiumDocumentText({
       pageTextCacheRef.current = new Map();
       fullTextDocumentPromiseRef.current = null;
       setPdfFirstPageReady(false);
+      setPdfTextIndexPreparing(false);
       commitPdfTextDocument(null);
       return;
     }
@@ -177,29 +226,13 @@ export function usePdfiumDocumentText({
     let cancelled = false;
     const timer = window.setTimeout(() => {
       if (cancelled) return;
-      const textExtractStartedAt = performance.now();
-      recordPdfOpenTiming(openTrace, 'text_extract_start', {
-        pageCount: document.pageCount,
-      });
-      ensurePdfTextDocument()
-        .then((textDocument) => {
-          if (!cancelled) {
-            recordPdfOpenTiming(openTrace, 'text_extract_done', {
-              durationMs: rendererPerformanceElapsedMs(textExtractStartedAt),
-              pageCount: textDocument.pages.length,
-              textChars: textDocument.text.length,
-            });
-          }
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setPdfTextDocument(null);
-            recordPdfOpenTiming(openTrace, 'text_extract_error', {
-              durationMs: rendererPerformanceElapsedMs(textExtractStartedAt),
-              pageCount: document.pageCount,
-            });
-          }
-        });
+      const generation = textExtractionGenerationRef.current;
+      void extractPdfTextPages({
+        extractPageText: extractPdfiumPageText,
+        isCurrent: () => !cancelled && textExtractionGenerationRef.current === generation,
+        orderedPageIndexes: pdfTextExtractionOrder(document.pages.length, currentPageIndex, true),
+        pageCount: document.pages.length,
+      }).catch(() => undefined);
     }, PDF_TEXT_EXTRACT_DELAY_MS);
 
     return () => {
@@ -209,18 +242,20 @@ export function usePdfiumDocumentText({
   }, [
     articleId,
     commitPdfTextDocument,
+    currentPageIndex,
     document,
-    ensurePdfTextDocument,
-    openTrace,
+    extractPdfiumPageText,
     pdfFirstPageReady,
   ]);
 
   return {
+    cachedPdfiumPageText,
     currentArticleText,
+    ensurePdfTextDocument,
     extractPdfiumPageText,
     markPdfiumFirstPageReady,
     pdfFirstPageReady,
-    pdfTextIndexPreparing: Boolean(document && pdfFirstPageReady && !pdfTextDocument),
+    pdfTextIndexPreparing,
     pdfTextDocument,
     resetPdfiumTextDocument,
   };

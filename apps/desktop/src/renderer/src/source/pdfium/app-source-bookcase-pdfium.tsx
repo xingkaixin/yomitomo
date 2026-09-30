@@ -284,7 +284,9 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     onSaveArticleReadingProgress: saveArticleReadingProgress,
   });
   const {
+    cachedPdfiumPageText,
     currentArticleText,
+    ensurePdfTextDocument,
     extractPdfiumPageText,
     markPdfiumFirstPageReady,
     pdfTextDocument,
@@ -315,7 +317,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
               page as PdfiumLoadedDocument['pages'][number],
             )
             .toPromise(),
-        getPdfTextDocument: () => pdfTextDocument,
+        getPdfTextDocument: ensurePdfTextDocument,
         isCurrentArticle,
         setStatusMessage,
         startAgentDock: (agent) => startPdfiumAgentDock(agent),
@@ -579,9 +581,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
         ? i18next.t('pdfReader.pageLabel', { page: anchor.pageIndex + 1 })
         : undefined,
       anchor,
-      nearbyText: isPdfTextAnchor(anchor)
-        ? pdfTextDocument?.pages.find((page) => page.pageIndex === anchor.pageIndex)?.pageText
-        : undefined,
+      nearbyText: isPdfTextAnchor(anchor) ? cachedPdfiumPageText(anchor.pageIndex) : undefined,
     };
   }
 
@@ -674,7 +674,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   );
 
   const pdfHeaderByline = formatPdfHeaderAuthors(article.pdf.metadata.author || '');
-  const { viewProps: readerAppViewProps } = useSourceReaderAppView({
+  const { searchOpen, viewProps: readerAppViewProps } = useSourceReaderAppView({
     app: sourceReaderApp,
     adapter: {
       navigation: {
@@ -848,6 +848,16 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     },
     userProfile,
   });
+  useEffect(() => {
+    if (!searchOpen || !loadedDocument) return;
+    let cancelled = false;
+    void ensurePdfTextDocument().catch(() => {
+      if (!cancelled) setStatusMessage(i18next.t('pdfReader.readFailed'));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [ensurePdfTextDocument, loadedDocument, searchOpen, setStatusMessage]);
   const visibleReaderAppViewProps = selectionAction
     ? {
         ...readerAppViewProps,

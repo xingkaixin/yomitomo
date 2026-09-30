@@ -8,6 +8,7 @@ import type {
 import { buildAgentAnnotationRequestInput } from '../source/bookcase/app-source-agent-request';
 import { createEbookSourceReaderController } from '../source/ebook/app-source-bookcase-ebook-controller';
 import { createPdfiumSourceReaderController } from '../source/pdfium/app-source-bookcase-pdfium-controller';
+import { buildPdfTextDocument } from '../source/pdfium/pdfium-text-document';
 import { createWebSourceReaderController } from '../source/web/app-source-bookcase-web-controller';
 import type { PromptArticle } from '../shell/app-reading-types';
 import type { ArticleAgentAnnotationMergeResult } from '../../../ipc-contract';
@@ -198,36 +199,59 @@ describe('source agent annotation controllers', () => {
     await expect(handling).resolves.toBe(true);
   });
 
-  it('finishes an empty visible PDF playback as a successful dock session', async () => {
-    const finishAgentDock = vi.fn();
-    const finishVirtualReading = vi.fn();
-    const controller = createPdfiumSourceReaderController({
-      enqueueAgentAnnotationPlayback: vi.fn(async () => undefined),
-      extractPageText: vi.fn(async () => article.text),
-      finishAgentDock,
-      finishVirtualReading,
-      getDocument: () => ({ pages: [{ size: { height: 800, width: 600 } }] }),
-      getPageGeometry: vi.fn(async () => null),
-      getPdfTextDocument: () => null,
-      isCurrentArticle: () => true,
-      setStatusMessage: vi.fn(),
-      startAgentDock: vi.fn(),
-      startVirtualReading: vi.fn(),
-    });
-    const run = await controller.prepare({
-      agent,
-      currentArticle,
-      options: { article },
-      surface,
-    });
-    if (!run) throw new Error('expected PDF annotation run');
+  it.each(['page', 'reading-plan'] as const)(
+    'prepares page and reading-plan PDF playback: %s',
+    async (mode) => {
+      const finishAgentDock = vi.fn();
+      const finishVirtualReading = vi.fn();
+      const textDocument = buildPdfTextDocument([article.text]);
+      const getPdfTextDocument = vi.fn(async () => textDocument);
+      const controller = createPdfiumSourceReaderController({
+        enqueueAgentAnnotationPlayback: vi.fn(async () => undefined),
+        extractPageText: vi.fn(async () => article.text),
+        finishAgentDock,
+        finishVirtualReading,
+        getDocument: () => ({ pages: [{ size: { height: 800, width: 600 } }] }),
+        getPageGeometry: vi.fn(async () => null),
+        getPdfTextDocument,
+        isCurrentArticle: () => true,
+        setStatusMessage: vi.fn(),
+        startAgentDock: vi.fn(),
+        startVirtualReading: vi.fn(),
+      });
+      const run = await controller.prepare({
+        agent,
+        currentArticle,
+        options: {
+          article,
+          readingPlan:
+            mode === 'reading-plan'
+              ? [
+                  {
+                    sectionId: 'page_0',
+                    sectionTitle: 'Page 1',
+                    sectionStart: textDocument.pages[0].bodyStart,
+                    sectionEnd: textDocument.pages[0].bodyEnd,
+                  },
+                ]
+              : undefined,
+        },
+        surface,
+      });
+      if (!run) throw new Error('expected PDF annotation run');
+      expect(run.context.articleText).toBe(
+        mode === 'reading-plan' ? textDocument.text : article.text,
+      );
+      expect(getPdfTextDocument).toHaveBeenCalledTimes(mode === 'reading-plan' ? 1 : 0);
+      if (mode === 'reading-plan') return;
 
-    const playback = await run.start(requestInput);
-    await playback.finish({ status: 'empty' });
+      const playback = await run.start(requestInput);
+      await playback.finish({ status: 'empty' });
 
-    expect(finishVirtualReading).toHaveBeenCalledOnce();
-    expect(finishAgentDock).toHaveBeenCalledWith(agent.id, true);
-  });
+      expect(finishVirtualReading).toHaveBeenCalledOnce();
+      expect(finishAgentDock).toHaveBeenCalledWith(agent.id, true);
+    },
+  );
 });
 
 function articleSummary(id: string): ArticleSummaryRecord {
