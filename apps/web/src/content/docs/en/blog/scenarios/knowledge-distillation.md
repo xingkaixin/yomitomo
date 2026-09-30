@@ -65,7 +65,7 @@ Polish your draft with `@HeMingheng` and `@TangJian`. Once published, your disti
 **Answer:** Yes. You can edit any published distillation card or revert it to a draft at any time. When reverted, the full timeline of underlying highlights and AI discussions re-appears.
 
 ### Q2: Does distillation output support Obsidian and Notion?
-**Answer:** Yes. All distillation cards are stored in standard Markdown and can be copied or exported with full formatting directly into your Obsidian or Notion vaults.
+**Answer:** There is currently no Markdown file export or automatic sync to external note apps. Select the text in the Distillation Studio editing area and copy it manually into Obsidian or Notion, where you can add bidirectional links. Check the pasted formatting and links; source anchors and discussion records do not transfer automatically.
 
 ### Q3: Why is manual distillation superior to AI one-click summaries?
 **Answer:** An AI summary is the model's compression; a distillation card is **your own cognitive assimilation**. Knowledge only becomes actionable when restructured through your personal mental framework.

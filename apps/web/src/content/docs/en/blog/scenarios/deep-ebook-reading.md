@@ -70,7 +70,7 @@ Synthesize the chapter's core arguments, test your practical takeaways, and invo
 **Answer:** Yomitomo natively supports standard EPUB eBooks, PDF whitepapers/papers, and captured web articles. For MOBI or AZW3 files, convert them to standard EPUB using Calibre before importing.
 
 ### Q2: How do I export all chapter distillations for an entire book?
-**Answer:** In the Library view, open the book's overview panel to view all completed chapter distillation cards. You can copy them in one click as a unified Markdown document.
+**Answer:** There is currently no combined export of a book's chapter distillations. Open each distillation in Distillation Studio, select its text in the editing area, and copy it manually into an external note or blog editor to assemble your summary. Check formatting and links; source anchors and discussion records do not transfer automatically.
 
 ### Q3: Why do published distillation cards replace raw highlights in the sidebar?
 **Answer:** Cognitive load management: once you have distilled a chapter, your high-density conclusions take precedence, reducing visual clutter while retaining instant jump links back to source passages.

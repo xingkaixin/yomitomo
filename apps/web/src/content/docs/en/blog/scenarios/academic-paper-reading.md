@@ -18,7 +18,7 @@ Yomitomo restructures academic paper reading into a verifiable, compounding cogn
 | **Document Ingestion** | PDF preprints / journal articles (≤120MB) | Local high-fidelity rendering via PDFium engine; vector text layer extraction | Local reading entries; dark mode with original chart color preservation | Scanned pure-image PDFs require pre-OCR processing |
 | **Five-Dimensional Tagging** | Select text and press `A` | Binds text anchor; tags as Key Point, Assumption, Concept, Question, or Quote | Structured semantic highlights filterable by cognitive type | Coordinate-based non-destructive overlay; does not alter raw PDF binary |
 | **AI Dialectic Inquiry** | Mention specific agents (e.g., `@ZhouYan`, `@GuXingjian`) | Injects highlighted text, paragraph context, and user prompt directly to LLM | Persistent multi-turn debate thread anchored to specific text | AI is tightly bound to selected passage; does not generate detached summaries |
-| **Synthesis & Distillation** | Press `T` to open Distillation Studio | Compile insights; invoke `@HeMingheng` & `@LiangZhengyan` for evidence audit | High-density 300–500 word literature synthesis card (Markdown export) | Focuses on researcher's synthesized findings, not robotic word-for-word translation |
+| **Synthesis & Distillation** | Press `T` to open Distillation Studio | Compile insights; invoke `@HeMingheng` & `@LiangZhengyan` for evidence audit | High-density 300–500 word literature synthesis card (stored locally) | Focuses on researcher's synthesized findings, not robotic word-for-word translation |
 
 ---
 
@@ -78,7 +78,7 @@ After finishing a set of related papers, press `T` to launch Distillation Studio
 **Answer:** No. Yomitomo uses anchored contextual injection: only the selected highlight and its surrounding paragraph are fed into the prompt, preventing token bloat and attention drift.
 
 ### Q3: Can I export synthesized notes to Obsidian or LaTeX?
-**Answer:** Yes. Distillation cards are saved in clean standard Markdown, ready to copy or export into Obsidian, Logseq, or LaTeX bibliographies.
+**Answer:** Select the text in the Distillation Studio editing area and copy it manually into an external tool. There is currently no Markdown, LaTeX, or BibTeX file export. Check formatting and links after pasting into Obsidian, Logseq, or Notion. For LaTeX reviews or bibliographies, format the text and verify citations yourself. Source anchors and discussion records do not transfer automatically.
 
 ---
 

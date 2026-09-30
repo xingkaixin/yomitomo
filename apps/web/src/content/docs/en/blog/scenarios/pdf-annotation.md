@@ -16,7 +16,7 @@ Yomitomo integrates semantic annotations, AI review experts, and distillation wo
 | **Batch Ingestion** | Import PDF reports/contracts (≤120MB per file) | High-fidelity local PDFium rendering; duplicate detection | Clean local document; dark mode preserves original chart colors | Max 120MB per file; requires vector text layer (pre-OCR for scans) |
 | **Clause Tagging** | Select text, press `A`, tag as Key Point, Assumption, Question | Precision coordinate anchoring in local SQLite | Filterable structured annotation index in sidebar | Non-destructive; leaves original PDF binary intact |
 | **Risk & Compliance Audit** | Summon `@LiangZhengyan` or `@SuDingbai` in thread | Injects clause text and context to LLM for risk analysis | Risk ratings, evidentiary audits, and counter-clause drafts | AI provides cognitive prompts, not formal legal certification |
-| **Synthesis & Reporting** | Press `T` to open Distillation Studio | Consolidates key findings and open issues into executive summary | High-density due diligence memo (Markdown format) | Stored locally; ready for export to team wikis |
+| **Synthesis & Reporting** | Press `T` to open Distillation Studio | Consolidates key findings and open issues into executive summary | High-density due diligence memo (Markdown format) | Stored locally; manually copy text from the distillation editing area |
 
 ---
 
@@ -29,7 +29,7 @@ In Yomitomo, select a clause or table and press `A` to assign an explicit cognit
 - **Question**: Ambiguous obligations, clause conflicts, or terms requiring negotiation;
 - **Quote**: Definitive statements suited for investment committee presentations.
 
-**Practical Use Case**: Reviewing a 40-page vendor framework agreement. Mark core obligations as **Key Point**, open-ended indemnities as **Assumption**, and conflicting termination clauses as **Question**. When finished, filter by **Question** to export an instant negotiation checklist.
+**Practical Use Case**: Reviewing a 40-page vendor framework agreement. Mark core obligations as **Key Point**, open-ended indemnities as **Assumption**, and conflicting termination clauses as **Question**. When finished, filter by **Question**, compile a clarification checklist, and manually copy its text from the distillation editing area for negotiation.
 
 ---
 
