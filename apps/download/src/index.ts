@@ -9,18 +9,23 @@ const updateAssetPathPattern = new RegExp(
 );
 const latestManifestPathPattern = /^\/latest(?:-mac)?\.yml$/;
 const updateManifestPathPattern = /^\/updates\/latest(?:-mac)?\.yml$/;
+const sparkleManifestPathPattern = /^\/updates\/appcast-mac-arm64\.xml$/;
+const sparkleDeltaPathPattern = new RegExp(
+  String.raw`^/updates/releases/download/v(?<releaseVersion>${versionSegment})/(?<filename>Yomitomo[0-9A-Za-z.+_-]+\.delta)$`,
+);
 
 type Env = {
   DOWNLOAD_ANALYTICS?: AnalyticsEngineDataset;
 };
 
 type AssetSource = 'website' | 'updater';
-type AssetKind = 'manifest' | 'installer' | 'zip' | 'blockmap';
+type AssetKind = 'manifest' | 'installer' | 'zip' | 'blockmap' | 'delta';
 type DownloadEventType =
   | 'manual_download_asset'
   | 'update_manifest_check'
   | 'update_asset_download'
-  | 'update_blockmap_download';
+  | 'update_blockmap_download'
+  | 'update_delta_download';
 
 type DownloadRequest = {
   upstreamUrl: URL;
@@ -69,6 +74,27 @@ export function githubReleaseUrl(url: URL) {
 }
 
 export function parseDownloadRequest(url: URL): DownloadRequest | null {
+  if (sparkleManifestPathPattern.test(url.pathname)) {
+    return manifestRequest('/appcast-mac-arm64.xml');
+  }
+  const delta = sparkleDeltaPathPattern.exec(url.pathname);
+  if (delta?.groups) {
+    const { releaseVersion, filename } = delta.groups;
+    return {
+      upstreamUrl: new URL(
+        `${GITHUB_RELEASES_ORIGIN}/releases/download/v${releaseVersion}/${filename}`,
+      ),
+      event: {
+        eventType: 'update_delta_download',
+        releaseVersion,
+        assetVersion: releaseVersion,
+        platform: 'mac',
+        arch: 'arm64',
+        assetKind: 'delta',
+        source: 'updater',
+      },
+    };
+  }
   const releaseAsset = releaseAssetPathPattern.exec(url.pathname);
   if (releaseAsset?.groups) return releaseAssetRequest(url.pathname, releaseAsset.groups);
 
@@ -99,7 +125,11 @@ function upstreamRequest(url: URL, request: Request) {
 }
 
 function cachePolicy(pathname: string): RequestInitCfProperties {
-  if (latestManifestPathPattern.test(pathname) || updateManifestPathPattern.test(pathname)) {
+  if (
+    latestManifestPathPattern.test(pathname) ||
+    updateManifestPathPattern.test(pathname) ||
+    sparkleManifestPathPattern.test(pathname)
+  ) {
     return {
       cacheEverything: true,
       cacheTtlByStatus: {
@@ -176,8 +206,9 @@ function manifestRequest(pathname: string) {
       eventType: 'update_manifest_check',
       releaseVersion: 'latest',
       assetVersion: 'latest',
-      platform: pathname === '/latest-mac.yml' ? 'mac' : 'windows',
-      arch: 'unknown',
+      platform:
+        pathname === '/latest-mac.yml' || pathname === '/appcast-mac-arm64.xml' ? 'mac' : 'windows',
+      arch: pathname === '/appcast-mac-arm64.xml' ? 'arm64' : 'unknown',
       assetKind: 'manifest',
       source: 'updater',
     },

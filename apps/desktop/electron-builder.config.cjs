@@ -122,6 +122,19 @@ module.exports = {
     icon: 'resources/icon.icns',
     notarize: process.env.YOMITOMO_MAC_NOTARIZE === '1',
     target: ['dmg', 'zip'],
+    extraFiles: [
+      { from: '.cache/sparkle/Sparkle.framework', to: 'Frameworks/Sparkle.framework' },
+      { from: '.cache/sparkle/sparkle.node', to: 'Resources/sparkle.node' },
+      { from: '.cache/sparkle/LICENSE', to: 'Resources/Sparkle-LICENSE.txt' },
+    ],
+    extendInfo: {
+      SUFeedURL: 'https://download.yomitomo.app/updates/appcast-mac-arm64.xml',
+      SUPublicEDKey: '87a6aKP7MeF4C7IkoHWrmD4M36q0PVi/KUdj1NF4iWQ=',
+      SUEnableAutomaticChecks: false,
+      SUAutomaticallyUpdate: false,
+      SURequireSignedFeed: true,
+      SUVerifyUpdateBeforeExtraction: true,
+    },
   },
   win: {
     files: ['!node_modules/onnxruntime-node/bin/napi-v6/darwin/**'],

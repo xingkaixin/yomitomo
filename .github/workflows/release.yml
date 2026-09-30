@@ -30,6 +30,8 @@ jobs:
               dist/app/mac-arm64/*.zip
               dist/app/mac-arm64/*.blockmap
               dist/app/mac-arm64/latest*.yml
+              dist/app/mac-arm64/appcast-mac-arm64.xml
+              dist/app/mac-arm64/*.delta
           - name: Windows x64
             os: windows-latest
             command: pnpm make:app:win-x64:from-dist
@@ -139,6 +141,14 @@ jobs:
             exit 1
           fi
 
+      - name: Generate signed Sparkle feed and deltas
+        if: matrix.artifact == 'yomitomo-macos-arm64'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: node apps/desktop/scripts/generate-sparkle-release.mjs
+
       - name: Upload release assets
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -164,6 +174,7 @@ jobs:
         run: |
           for metadata in \
             release-assets/yomitomo-macos-arm64/latest-mac.yml \
+            release-assets/yomitomo-macos-arm64/appcast-mac-arm64.xml \
             release-assets/yomitomo-windows-x64/latest.yml
           do
             if [ ! -f "$metadata" ]; then
@@ -177,6 +188,8 @@ jobs:
             -name '*.zip' -o \
             -name '*.exe' -o \
             -name '*.blockmap' -o \
+            -name '*.delta' -o \
+            -name 'appcast-mac-arm64.xml' -o \
             -name 'latest*.yml' \
           \) | sort)
 
