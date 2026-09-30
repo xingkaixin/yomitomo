@@ -52,6 +52,7 @@ module.exports = {
     '!resources/icon.icns',
     '!resources/icon.ico',
     '!resources/licenses/**',
+    '!resources/dmg/**',
     '!node_modules/@embedpdf/fonts-*/fonts/**',
     '!node_modules/**/*.map',
     '!node_modules/**/*.d.ts',
@@ -135,6 +136,16 @@ module.exports = {
       SURequireSignedFeed: true,
       SUVerifyUpdateBeforeExtraction: true,
     },
+  },
+  dmg: {
+    background: 'dmg/background.png',
+    window: { width: 640, height: 400 },
+    iconSize: 84,
+    iconTextSize: 14,
+    contents: [
+      { x: 170, y: 190, type: 'file' },
+      { x: 470, y: 190, type: 'link', path: '/Applications' },
+    ],
   },
   win: {
     files: ['!node_modules/onnxruntime-node/bin/napi-v6/darwin/**'],
