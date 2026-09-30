@@ -18,7 +18,7 @@ Yomitomo builds upon the official WeRead Skill open protocol to offer a **lossle
 | **API Authorization** | Official WeRead Skill API Key | Stored securely in OS Keyring; establishes direct HTTPS connection | Encrypted local credentials for library sync | Does not collect WeChat passwords or personal account tokens |
 | **Selective Sync** | Select books from shelf | Incremental fetching of chapters, highlights, and thoughts | Mirrored library entries in local SQLite database | Syncs user annotations and TOCs; does not download DRM-protected full texts |
 | **Cognitive Tagging** | Synced highlights & thoughts | Map to 5 cognitive categories (`A`); mention AI companions in threads | Deep debate threads anchored to original highlights | Requires configured local or cloud LLM credentials |
-| **Knowledge Distillation** | Cross-book highlight clusters | Aggregate into Distillation Studio (`T`); verify with review agents | High-density Markdown distillation cards for external export | Output stays local; does not write back to WeRead cloud |
+| **Knowledge Distillation** | Cross-book highlight clusters | Aggregate into Distillation Studio (`T`); verify with review agents | Structured distillation text stored locally | Output stays local; does not write back to WeRead cloud |
 
 ---
 
@@ -42,9 +42,11 @@ In Yomitomo's dedicated WeRead view, select specific titles to sync:
 - **Assign Cognitive Roles**: Select a highlight and press `A` to categorize it into one of five cognitive dimensions (Key Point, Assumption, Concept, Question, Quote).
 - **Multi-Turn AI Dialogue**: Mention `@ZhouYan` to audit causal logic or `@ShenQingyuan` to unpack theoretical origins.
 
-### Step 3: Cross-Book Synthesis and Export
+### Step 3: Cross-Book Synthesis and Manual Copying
 
 Break free from single-book silos. Press `T` to open the Distillation Studio and group highlights across different books sharing common themes (e.g., comparing organizational structures across three management classics). Call review agents like `@HeMingheng` (Logic Auditor) and `@TangJian` (Senior Editor) to polish your output into a standalone knowledge card.
+
+To continue in an external note app, select the text in the editing area and copy it manually. There is currently no Markdown file export or automatic sync to external note apps. Source anchors and discussion records do not transfer automatically.
 
 ---
 

@@ -25,7 +25,7 @@ Web Essays / EPUB eBooks / Academic PDFs / WeRead Sync
 [ Distillation Card Layer ]
 300–500 word high-density Markdown knowledge cards (audited by review agents)
       │
-      ▼ (One-click copy / export to external vaults)
+      ▼ (Manually copy text from the distillation editing area)
 [ Second Brain Layer ]
 Obsidian / Logseq / Notion knowledge vault (bidirectional links & thematic tags)
 ```
@@ -43,9 +43,9 @@ Upon finishing a chapter or a cluster of related articles, press `T` to open Dis
 2. **Restructure in Your Words**: Synthesize the core mechanism, practical applications, and potential boundary conditions;
 3. **Refine with Reviewers**: Invoke `@HeMingheng` to audit logic and `@TangJian` to sharpen phrasing.
 
-### Step 3: Seamless Flow into Obsidian with Bidirectional Links
-Published distillation cards are stored natively in standard Markdown:
-- Copy the card and paste it into an Obsidian concept note (e.g., `[[Cognitive-Science/Working-Memory]]`);
+### Step 3: Manually Copy to Obsidian and Add Bidirectional Links
+Distillation text is stored in the local database. There is currently no Markdown file export or automatic sync to external note apps:
+- Select the text in the Distillation Studio editing area and copy it manually into an Obsidian concept note (e.g., `[[Cognitive-Science/Working-Memory]]`);
 - Add tags (`#reading/distillation`) and establish `[[bidirectional links]]` to related ideas;
 - If you ever need to verify the author's original data or context, use Yomitomo's instant full-text search to return to the original passage.
 
@@ -80,10 +80,10 @@ Published distillation cards are stored natively in standard Markdown:
 ## Frequently Asked Questions (FAQ)
 
 ### Q1: Does copying distillation cards to Obsidian preserve formatting?
-**Answer:** Yes. Yomitomo outputs strictly compliant CommonMark Markdown, including headers, bullet lists, bold text, and code blocks, rendering flawlessly inside Obsidian, Logseq, or Typora.
+**Answer:** Manual copying transfers the text from the editing area. Its appearance depends on how the destination handles Markdown and links. Check headings, lists, code blocks, and links after pasting. Source anchors and discussion records do not transfer automatically, and the result may differ from its display in Yomitomo.
 
 ### Q2: If I edit a note in Obsidian, does it sync back to Yomitomo?
-**Answer:** No. Yomitomo serves as the **reading and distillation workshop**, while Obsidian serves as the **second-brain knowledge network**. A unidirectional flow preserves clean architectural boundaries and prevents merge conflicts.
+**Answer:** No. There is currently no automatic sync with Obsidian. After editing the text in either tool, copy it manually to the other tool if needed.
 
 ---
 
