@@ -173,16 +173,23 @@ async function readSemanticCandidates(
       for (let index = 0; index < embedding.dimension; index += 1) {
         score += vector[index] * embedding.vectors[index];
       }
-      if (Number.isFinite(score)) scored.push({ candidate, score });
+      if (!Number.isFinite(score)) continue;
+      if (
+        scored.length === semanticCandidateLimit &&
+        score <= scored[semanticCandidateLimit - 1].score
+      ) {
+        continue;
+      }
+      const position = scored.findIndex((entry) => score > entry.score);
+      if (position === -1) scored.push({ candidate, score });
+      else scored.splice(position, 0, { candidate, score });
+      if (scored.length > semanticCandidateLimit) scored.pop();
     }
     if (chunk.length < vectorChunkSize) break;
     afterId = chunk[chunk.length - 1].id;
     await setImmediate(undefined, { signal: options.signal });
   }
-  return scored
-    .toSorted((left, right) => right.score - left.score)
-    .slice(0, semanticCandidateLimit)
-    .map(({ candidate }) => candidate);
+  return scored.map(({ candidate }) => candidate);
 }
 
 function resultLimit(limit: number | undefined) {
