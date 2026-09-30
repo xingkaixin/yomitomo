@@ -290,6 +290,34 @@ describe('reading memory semantic search', () => {
     expect((await fixture.search({ limit: 3 })).evidence).toHaveLength(3);
   });
 
+  it.each(['equal', 'ascending', 'mixed'] as const)(
+    'preserves ranked results across chunks with %s scores',
+    async (distribution) => {
+      const fixture = createFixture();
+      const rows = Array.from({ length: 300 }, (_, index) => ({
+        id: `item_${String(index).padStart(5, '0')}`,
+        score:
+          distribution === 'equal'
+            ? 0.5
+            : distribution === 'ascending'
+              ? index / 299
+              : ((index * 17) % 31) / 31,
+      }));
+      fixture.database.transaction(() => {
+        for (const row of rows) fixture.add(row.id, 'Stored evidence', true, row.score);
+      })();
+
+      const result = await fixture.search({ limit: 24 });
+      const expected = rows
+        .toSorted((left, right) => right.score - left.score)
+        .slice(0, 24)
+        .map((row) => row.id);
+
+      expect(result.mode).toBe('hybrid');
+      expect(result.evidence.map((item) => item.location.annotationId)).toEqual(expected);
+    },
+  );
+
   it('measures all 10,000 SQLite vectors at the release dimension with a final-chunk match', async () => {
     const fixture = createFixture();
     fixture.populate(10_000);
