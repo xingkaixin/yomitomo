@@ -57,7 +57,7 @@ Yomitomo automatically attempts headless rendering for single-page dynamic apps,
 
 ### Where is my reading data stored?
 
-All reading materials, highlights, discussion threads, and distilled notes are stored strictly within your **local desktop application directory**. Data is never uploaded to Yomitomo servers. Model API keys are secured via native OS keystores (macOS Keychain and Windows Credential Manager).
+All reading materials, highlights, discussion threads, and distilled notes are stored strictly within your **local desktop application directory**. Data is never uploaded to Yomitomo servers. Model API keys are secured via native OS keystores (macOS Keychain and Windows Credential Manager). Remote AI features send the reading content and conversation needed for the task to your configured model endpoint. A model running on your own computer performs inference locally.
 
 ### Does Yomitomo collect private user data?
 

@@ -67,7 +67,7 @@ In Yomitomo, select a clause or table and press `A` to assign an explicit cognit
 ## Frequently Asked Questions (FAQ)
 
 ### Q1: Are confidential contracts uploaded to any cloud server?
-**Answer:** Never. Yomitomo's local-first architecture stores all PDFs and annotations exclusively on your machine. When paired with local Ollama models, document review is completely air-gapped.
+**Answer:** Imported PDFs and annotations are stored locally. Remote AI review sends the reading content needed for the task to your configured model endpoint. A model running on your computer, such as local Ollama, performs inference locally.
 
 ### Q2: Does PDF annotation alter the original PDF file?
 **Answer:** No. Annotations reside in Yomitomo's local database overlay, leaving your source PDF binary completely unmodified.

@@ -17,7 +17,7 @@ const zhFaq: FaqItem[] = [
   {
     question: '我的阅读数据会上传到云端吗？',
     answer:
-      '不会。文章、批注、讨论和 API Key 全部保存在你自己的电脑上，Yomitomo 不会把任何阅读数据上传到云端。',
+      '文章、批注与讨论保存在本机，API Key 由系统凭据库保管。使用远程 AI 时，相关内容会发送到你配置的模型端点。',
   },
   {
     question: 'Yomitomo 收费吗？',
@@ -50,7 +50,7 @@ const enFaq: FaqItem[] = [
   {
     question: 'Is my reading data uploaded to the cloud?',
     answer:
-      'No. Your articles, annotations, discussions, and API keys all stay on your own computer. Yomitomo never uploads any of your reading data to the cloud.',
+      'Articles, annotations and discussions are stored locally, with API keys in the OS keystore. Remote AI requests send relevant content to your configured model endpoint.',
   },
   {
     question: 'Is Yomitomo free?',
@@ -83,7 +83,7 @@ const jaFaq: FaqItem[] = [
   {
     question: '読書データはクラウドへ送信されますか？',
     answer:
-      '送信されません。記事、注釈、対話、APIキーはあなたのコンピューターに保存され、Yomitomoが読書データをクラウドへアップロードすることはありません。',
+      '記事、注釈、対話はローカルに保存し、APIキーはOSの資格情報ストアで管理します。リモートAIを使うと、関連する内容が設定したモデルの接続先へ送信されます。',
   },
   {
     question: 'Yomitomoは無料ですか？',
