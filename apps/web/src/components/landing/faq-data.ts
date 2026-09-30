@@ -32,7 +32,7 @@ const zhFaq: FaqItem[] = [
   {
     question: '使用 Yomitomo 需要配置 API Key 吗？',
     answer:
-      '需要。AI 功能依赖你自己的大模型 API Key，配置后会安全保存在本地系统中，仅用于在你的设备上调用 AI 助手。',
+      '普通阅读和手动批注不需要。使用 AI 功能时，需配置模型供应商与任务路由；远程服务通常需要自己的 API Key，也可以连接本地模型。',
   },
 ];
 
@@ -65,7 +65,7 @@ const enFaq: FaqItem[] = [
   {
     question: 'Do I need an API key to use Yomitomo?',
     answer:
-      'Yes. AI features use your own LLM API key, which is stored securely on your local system and used only to call AI assistants on your device.',
+      'Reading and manual annotations do not require an API key. AI features require a configured provider and task routes. Remote services usually need your own API key; you can also connect a local model.',
   },
 ];
 
@@ -98,7 +98,7 @@ const jaFaq: FaqItem[] = [
   {
     question: 'Yomitomoを使うにはAPIキーが必要ですか？',
     answer:
-      'AI機能にはご自身のLLM APIキーが必要です。キーはローカルシステムに安全に保存され、端末からAIアシスタントを呼び出すためだけに使われます。',
+      '読書と手動の注釈には不要です。AI機能にはプロバイダーとタスクルートの設定が必要です。リモートサービスには通常ご自身のAPIキーが必要ですが、ローカルモデルにも接続できます。',
   },
 ];
 

@@ -28,7 +28,7 @@
 .onboarding-screen::after {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 1;
   background: rgb(255 250 239 / 0.86);
   content: '';
   pointer-events: none;
