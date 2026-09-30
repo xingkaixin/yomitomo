@@ -24,17 +24,33 @@ export function findReaderSearchMatches(
   query: string,
   options: ReaderSearchOptions = {},
 ): ReaderSearchResult {
-  const normalizedQuery = normalizeSearchText(query, options.caseSensitive);
-  if (!text || !normalizedQuery.text) return { limited: false, matches: [] };
+  return createReaderSearch(text, options.caseSensitive)(query, options);
+}
 
-  const normalizedText = normalizeSearchText(text, options.caseSensitive);
+export function createReaderSearch(text: string, caseSensitive = false) {
+  let normalizedText: ReturnType<typeof normalizeSearchText> | undefined;
+  return (query: string, options: Omit<ReaderSearchOptions, 'caseSensitive'> = {}) => {
+    const normalizedQuery = normalizeSearchText(query, caseSensitive);
+    if (!text || !normalizedQuery.text) return { limited: false, matches: [] };
+
+    normalizedText ??= normalizeSearchText(text, caseSensitive);
+    return searchMatches(text, normalizedText, normalizedQuery.text, options);
+  };
+}
+
+function searchMatches(
+  text: string,
+  normalizedText: ReturnType<typeof normalizeSearchText>,
+  query: string,
+  options: Omit<ReaderSearchOptions, 'caseSensitive'>,
+): ReaderSearchResult {
   const limit = positiveLimit(options.limit);
   const previewRadius = positiveInteger(options.previewRadius, DEFAULT_PREVIEW_RADIUS);
   const matches: ReaderSearchMatch[] = [];
-  let cursor = normalizedText.text.indexOf(normalizedQuery.text);
+  let cursor = normalizedText.text.indexOf(query);
 
   while (cursor >= 0) {
-    const endCursor = cursor + normalizedQuery.text.length;
+    const endCursor = cursor + query.length;
     const start = normalizedText.map[cursor] ?? 0;
     const end = (normalizedText.map[endCursor - 1] ?? start) + 1;
 
@@ -46,17 +62,11 @@ export function findReaderSearchMatches(
     });
 
     if (matches.length >= limit) {
-      const nextCursor = normalizedText.text.indexOf(
-        normalizedQuery.text,
-        cursor + Math.max(1, normalizedQuery.text.length),
-      );
+      const nextCursor = normalizedText.text.indexOf(query, cursor + Math.max(1, query.length));
       return { limited: nextCursor >= 0, matches };
     }
 
-    cursor = normalizedText.text.indexOf(
-      normalizedQuery.text,
-      cursor + Math.max(1, normalizedQuery.text.length),
-    );
+    cursor = normalizedText.text.indexOf(query, cursor + Math.max(1, query.length));
   }
 
   return { limited: false, matches };
