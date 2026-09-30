@@ -1,14 +1,13 @@
 import { app, BrowserWindow } from 'electron';
-import electronUpdater, {
-  type ProgressInfo,
-  type UpdateDownloadedEvent,
-  type UpdateInfo,
-} from 'electron-updater';
+import type { EventEmitter } from 'node:events';
+import electronUpdater, { type ProgressInfo, type UpdateInfo } from 'electron-updater';
 import { errorMessageOrFallback } from '@yomitomo/shared';
 import type { AppUpdateState, AppUpdateTrigger } from '../../app-update-types';
 import { logError, logInfo } from './logger';
+import { packagedSparkleUpdater, type SparkleUpdater } from './sparkle-updater';
 
 const { autoUpdater } = electronUpdater;
+let updater: typeof autoUpdater | SparkleUpdater = autoUpdater;
 const DEVELOPMENT_DOWNLOAD_TOTAL = 150 * 1024 * 1024;
 const DEVELOPMENT_DOWNLOAD_SPEED = 10 * 1024 * 1024;
 const DEVELOPMENT_DOWNLOAD_TICK_MS = 1_000;
@@ -41,28 +40,32 @@ export function configureAppUpdater(
   notifyUpdateState = notify;
   installLifecycle = lifecycle;
   if (listenersRegistered) return;
+  updater = packagedSparkleUpdater() || autoUpdater;
+  const events: EventEmitter = updater;
   listenersRegistered = true;
 
-  autoUpdater.autoDownload = false;
-  autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.allowPrerelease = false;
-  if (process.env.YOMITOMO_DEV_UPDATER === '1') {
-    // 开发期验证 A 场景：跳过打包校验，让 checkForUpdates 真正走本地假 feed。
-    autoUpdater.forceDevUpdateConfig = true;
+  if (updater === autoUpdater) {
+    autoUpdater.autoDownload = false;
+    autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.allowPrerelease = false;
+    if (process.env.YOMITOMO_DEV_UPDATER === '1') {
+      // 开发期验证 A 场景：跳过打包校验，让 checkForUpdates 真正走本地假 feed。
+      autoUpdater.forceDevUpdateConfig = true;
+    }
+    autoUpdater.logger = {
+      info: (message?: unknown) => logInfo('updater.info', { message: logMessage(message) }),
+      warn: (message?: unknown) => logInfo('updater.warn', { message: logMessage(message) }),
+      error: (message?: unknown) => logError('updater.log-error', message),
+    };
   }
-  autoUpdater.logger = {
-    info: (message?: unknown) => logInfo('updater.info', { message: logMessage(message) }),
-    warn: (message?: unknown) => logInfo('updater.warn', { message: logMessage(message) }),
-    error: (message?: unknown) => logError('updater.log-error', message),
-  };
 
-  autoUpdater.on('checking-for-update', () => {
+  events.on('checking-for-update', () => {
     setUpdateState({ status: 'checking' });
   });
-  autoUpdater.on('update-available', (info) => {
+  events.on('update-available', (info: UpdateInfo) => {
     setUpdateState(updateAvailableState(info));
   });
-  autoUpdater.on('update-not-available', (info) => {
+  events.on('update-not-available', (info: UpdateInfo) => {
     setUpdateState({
       status: 'not-available',
       availableVersion: info.version,
@@ -70,13 +73,13 @@ export function configureAppUpdater(
       checkedAt: new Date().toISOString(),
     });
   });
-  autoUpdater.on('download-progress', (progress) => {
+  events.on('download-progress', (progress: ProgressInfo) => {
     setUpdateState(downloadProgressState(progress));
   });
-  autoUpdater.on('update-downloaded', (event) => {
+  events.on('update-downloaded', (event: UpdateInfo) => {
     setUpdateState(updateDownloadedState(event));
   });
-  autoUpdater.on('error', (error) => {
+  events.on('error', (error: Error) => {
     logError('updater.error', error);
     setUpdateState(
       updateState.status === 'downloading'
@@ -116,7 +119,7 @@ export async function checkForAppUpdates(trigger: AppUpdateTrigger = 'manual') {
   if (checkPromise) return checkPromise;
 
   pendingTrigger = trigger;
-  checkPromise = autoUpdater
+  checkPromise = updater
     .checkForUpdates()
     .then(() => updateState)
     .catch((error: unknown) => {
@@ -162,7 +165,7 @@ export async function downloadAppUpdate() {
   const download =
     updateState.simulation === 'development' && !app.isPackaged
       ? simulateDevelopmentDownload()
-      : autoUpdater.downloadUpdate();
+      : updater.downloadUpdate();
 
   downloadPromise = download
     .then(() => updateState)
@@ -224,7 +227,7 @@ function startAppUpdateInstallation() {
       await preparation;
       if (updateState.status === 'downloaded' && !recoveryPromise) {
         // NSIS starts its installer before before-quit, so child processes must already be gone.
-        autoUpdater.quitAndInstall(false, true);
+        updater.quitAndInstall(false, true);
         if (updateState.status === 'downloaded' && !recoveryPromise) return updateState;
       }
     } catch (error) {
@@ -353,7 +356,7 @@ function delay(milliseconds: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
 }
 
-function updateDownloadedState(event: UpdateDownloadedEvent): AppUpdateState {
+function updateDownloadedState(event: UpdateInfo): AppUpdateState {
   return {
     status: 'downloaded',
     currentVersion: app.getVersion(),

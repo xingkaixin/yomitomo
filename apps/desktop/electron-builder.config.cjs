@@ -1,10 +1,21 @@
 const { readdir, rm } = require('node:fs/promises');
+const { execFileSync } = require('node:child_process');
 const { join } = require('node:path');
+const { Arch } = require('electron-builder');
 
 const retainedElectronLocaleBases = new Set(['en', 'en_GB', 'zh_CN', 'zh_TW']);
 
 function electronLocaleBase(name) {
   return name.replace(/\.lproj$/, '').replace(/_(FEMININE|MASCULINE|NEUTER)$/, '');
+}
+
+function prepareMacUpdater(context) {
+  if (context.electronPlatformName !== 'darwin') return;
+  execFileSync(
+    process.execPath,
+    [join(__dirname, 'scripts/prepare-sparkle.mjs'), `--arch=${Arch[context.arch]}`],
+    { stdio: 'inherit' },
+  );
 }
 
 async function pruneElectronFrameworkLocales(context) {
@@ -52,6 +63,7 @@ module.exports = {
     '!resources/icon.icns',
     '!resources/icon.ico',
     '!resources/licenses/**',
+    '!resources/dmg/**',
     '!node_modules/@embedpdf/fonts-*/fonts/**',
     '!node_modules/**/*.map',
     '!node_modules/**/*.d.ts',
@@ -95,6 +107,7 @@ module.exports = {
       ],
     },
   ],
+  beforePack: prepareMacUpdater,
   afterPack: pruneElectronFrameworkLocales,
   asar: {
     smartUnpack: false,
@@ -122,6 +135,29 @@ module.exports = {
     icon: 'resources/icon.icns',
     notarize: process.env.YOMITOMO_MAC_NOTARIZE === '1',
     target: ['dmg', 'zip'],
+    extraFiles: [
+      { from: '.cache/sparkle/Sparkle.framework', to: 'Frameworks/Sparkle.framework' },
+      { from: '.cache/sparkle/sparkle.node', to: 'Resources/sparkle.node' },
+      { from: '.cache/sparkle/LICENSE', to: 'Resources/Sparkle-LICENSE.txt' },
+    ],
+    extendInfo: {
+      SUFeedURL: 'https://download.yomitomo.app/updates/appcast-mac-arm64.xml',
+      SUPublicEDKey: '87a6aKP7MeF4C7IkoHWrmD4M36q0PVi/KUdj1NF4iWQ=',
+      SUEnableAutomaticChecks: false,
+      SUAutomaticallyUpdate: false,
+      SURequireSignedFeed: true,
+      SUVerifyUpdateBeforeExtraction: true,
+    },
+  },
+  dmg: {
+    background: 'dmg/background.png',
+    window: { width: 640, height: 400 },
+    iconSize: 84,
+    iconTextSize: 14,
+    contents: [
+      { x: 170, y: 190, type: 'file' },
+      { x: 470, y: 190, type: 'link', path: '/Applications' },
+    ],
   },
   win: {
     files: ['!node_modules/onnxruntime-node/bin/napi-v6/darwin/**'],

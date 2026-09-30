@@ -29,6 +29,40 @@ pnpm --filter @yomitomo/desktop native:verify
 
 确认 `apps/desktop/package.json` 的 `version` 与目标版本一致。
 
+### macOS Sparkle 更新
+
+macOS 使用官方 Sparkle 2.10.0，Windows 继续使用 NSIS 和 electron-updater。
+macOS 首次迁移仍通过旧更新器下载完整 ZIP；安装并重启后才开始使用 Sparkle。
+继续发布 `latest-mac.yml`、ZIP 和 blockmap，不能因为新客户端改用 Sparkle 就移除这些产物。
+这样较早版本的用户仍能直接升级到最新版本，无须先安装指定的中间版本。
+保持应用名、bundle ID、Developer ID 和用户数据路径不变。
+
+electron-builder 的 macOS `beforePack` 下载并校验固定版本的 Sparkle，编译目标架构的原生桥接并放入应用包。
+正式发布和直接调用 electron-builder 的隔离打包验证都使用这一入口。
+原有 Developer ID 签名及 notarization 流程继续使用。
+发布 CI 的 `generate-sparkle-release.mjs` 从最近两个包含 Sparkle feed 的正式版本下载 ZIP，
+生成当前版本的差分包。新 feed 只公告当前版本，历史 ZIP 只用于差分生成，不重新上传到新版本。
+首个包含 Sparkle 的版本没有历史 Sparkle 版本可比较，因此只有完整包；后续版本才提供差分。
+更早版本或差分验证失败时，Sparkle 回退到签名的完整 ZIP。
+
+GitHub Actions 必须配置 `SPARKLE_ED_PRIVATE_KEY`，其 Ed25519 公钥必须与
+`electron-builder.config.cjs` 中的 `SUPublicEDKey` 一致。
+私钥不进入仓库，不输出到日志。首次配置已完成；不要直接替换密钥，否则存量 Sparkle 客户端无法验证新更新。
+feed 和更新包由 Sparkle 工具签名，上传后不要手工修改 XML。
+发布产物除旧通道文件外还包括 `appcast-mac-arm64.xml` 和 `*.delta`。
+
+本次新增的 Download Worker feed 与 delta 路由须在首个 Sparkle 版本发布前部署。
+CI 的 macOS 烟测使用独立应用和临时密钥，验证检查不自动下载、差分安装重启、损坏差分回退完整包。
+本地可运行：
+
+```bash
+node apps/desktop/scripts/prepare-sparkle.mjs
+node apps/desktop/scripts/smoke-sparkle.mjs
+```
+
+历史 `0.15.0 → 0.15.1` 样本的完整 ZIP 约 237 MB，旧 blockmap 估算需下载约 198 MB，
+官方 Sparkle 差分包为 47,930,334 字节（约 48 MB）。实际收益随 Electron、依赖和资源变更而变化。
+
 ## 发布前检查（Download Worker）
 
 Download Worker 是官网下载入口和自动更新 feed 的代理层，入口域名为
@@ -122,10 +156,13 @@ curl -I https://download.yomitomo.app/releases/download/vX.Y.Z/Yomitomo-X.Y.Z-ma
 curl -I https://download.yomitomo.app/latest-mac.yml
 curl -I https://download.yomitomo.app/updates/latest-mac.yml
 curl -I https://download.yomitomo.app/updates/releases/download/vX.Y.Z/Yomitomo-X.Y.Z-mac-arm64.zip.blockmap
+curl -I https://download.yomitomo.app/updates/appcast-mac-arm64.xml
 ```
 
 预期：安装包和 blockmap 返回 `200` 或 GitHub 跟随后的成功响应；manifest 内容来自 latest release
 的 `latest-mac.yml`，且 `/latest-mac.yml` 与 `/updates/latest-mac.yml` 指向同一上游 manifest。
+Sparkle feed 应来自 latest release 的 `appcast-mac-arm64.xml`，完整保留其签名。
+从 XML 中复制实际 delta URL，再用 `curl -I` 和带 `Range: bytes=0-1023` 的请求检查差分包可访问。
 
 ## 撰写 CHANGELOG 的步骤
 

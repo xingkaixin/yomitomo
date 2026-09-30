@@ -2,6 +2,48 @@ import { describe, expect, it, vi } from 'vitest';
 import { githubReleaseUrl, handleRequest, parseDownloadRequest } from './index';
 
 describe('download worker', () => {
+  it('serves the Sparkle feed with a short cache lifetime', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('feed'));
+    try {
+      const url = new URL('https://download.yomitomo.app/updates/appcast-mac-arm64.xml');
+      expect(githubReleaseUrl(url)?.href).toBe(
+        'https://github.com/xingkaixin/yomitomo/releases/latest/download/appcast-mac-arm64.xml',
+      );
+      await handleRequest(new Request(url));
+      expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+        cf: { cacheTtlByStatus: { '200-299': 60 } },
+      });
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('maps Sparkle deltas to their immutable release and preserves range requests', async () => {
+    const url = new URL(
+      'https://download.yomitomo.app/updates/releases/download/v0.16.0/Yomitomo0.16.0-0.15.2.delta',
+    );
+    const request = parseDownloadRequest(url);
+    expect(request?.upstreamUrl.href).toBe(
+      'https://github.com/xingkaixin/yomitomo/releases/download/v0.16.0/Yomitomo0.16.0-0.15.2.delta',
+    );
+    expect(request?.event).toMatchObject({
+      platform: 'mac',
+      arch: 'arm64',
+      assetKind: 'delta',
+      source: 'updater',
+    });
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(null, { status: 206 }));
+    try {
+      await handleRequest(new Request(url, { headers: { Range: 'bytes=0-99' } }));
+      const upstream = fetchMock.mock.calls[0]?.[0] as Request;
+      expect(upstream.headers.get('range')).toBe('bytes=0-99');
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+
   it('maps versioned release assets to GitHub Releases', () => {
     const url = githubReleaseUrl(
       new URL(
