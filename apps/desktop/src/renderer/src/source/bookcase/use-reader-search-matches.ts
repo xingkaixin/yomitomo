@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { findReaderSearchMatches, type ReaderSearchOptions } from '@yomitomo/core';
+import { createReaderSearch, type ReaderSearchOptions } from '@yomitomo/core';
 
 const READER_SEARCH_DEBOUNCE_MS = 220;
 
@@ -23,15 +23,13 @@ export function useReaderSearchMatches(
     return () => window.clearTimeout(timer);
   }, [debounceMs, query]);
 
+  const search = useMemo(
+    () => createReaderSearch(text, searchOptions.caseSensitive),
+    [text, searchOptions.caseSensitive],
+  );
   const result = useMemo(
-    () => findReaderSearchMatches(text, matchedQuery, searchOptions),
-    [
-      matchedQuery,
-      searchOptions.caseSensitive,
-      searchOptions.limit,
-      searchOptions.previewRadius,
-      text,
-    ],
+    () => search(matchedQuery, searchOptions),
+    [matchedQuery, search, searchOptions.limit, searchOptions.previewRadius],
   );
 
   return {

@@ -34,6 +34,7 @@ const coreRuntimeExports = [
   'createEpubTextAnchor',
   'createEpubTextAnchorFromQuote',
   'createLexicalRelatedPassageCache',
+  'createReaderSearch',
   'createTranslationTextAnchor',
   'createUserAnnotation',
   'createUserComment',

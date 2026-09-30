@@ -202,5 +202,5 @@ export type {
   TocItem,
 } from './reader/reader-dom';
 
-export { findReaderSearchMatches } from './reader/search';
+export { createReaderSearch, findReaderSearchMatches } from './reader/search';
 export type { ReaderSearchMatch, ReaderSearchOptions, ReaderSearchResult } from './reader/search';
