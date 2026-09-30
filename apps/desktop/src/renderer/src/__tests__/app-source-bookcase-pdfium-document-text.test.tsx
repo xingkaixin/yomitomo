@@ -69,7 +69,7 @@ describe('usePdfiumDocumentText', () => {
     vi.useRealTimers();
   });
 
-  it('starts the background index with a bounded current-page extraction window', async () => {
+  it('prefetches only the current page and its neighbors without building the full index', async () => {
     vi.useFakeTimers();
     const document = createPdfDocument(6);
     const deferredByPageIndex = new Map<number, ReturnType<typeof createDeferred<string>>>();
@@ -111,9 +111,22 @@ describe('usePdfiumDocumentText', () => {
     expect(deferredByPageIndex.has(3)).toBe(false);
     expect(deferredByPageIndex.has(4)).toBe(false);
     expect(deferredByPageIndex.has(5)).toBe(false);
+
+    await act(async () => {
+      deferredByPageIndex.get(2)?.resolve('current page');
+      deferredByPageIndex.get(1)?.resolve('previous page');
+      await flushMicrotasks();
+      deferredByPageIndex.get(3)?.resolve('next page');
+      await flushMicrotasks();
+    });
+
+    expect(extractText.mock.calls.map((call) => call[1]?.[0])).toEqual([2, 1, 3]);
+    expect(state().cachedPdfiumPageText(2)).toBe('current page');
+    expect(state().pdfTextDocument).toBeNull();
+    expect(state().pdfTextIndexPreparing).toBe(false);
   });
 
-  it('builds the full PDF text document after the limited queue drains', async () => {
+  it('builds the full document on demand and reuses prefetched pages', async () => {
     vi.useFakeTimers();
     const document = createPdfDocument(4);
     const pageTexts = ['alpha', 'bravo', 'charlie', 'delta'];
@@ -136,9 +149,47 @@ describe('usePdfiumDocumentText', () => {
       await flushMicrotasks();
     });
 
+    expect(state().pdfTextDocument).toBeNull();
+    expect(extractText.mock.calls.map((call) => call[1]?.[0])).toEqual([1, 0, 2]);
+
+    await act(async () => {
+      const [text, textDocument] = await Promise.all([
+        state().currentArticleText(),
+        state().ensurePdfTextDocument(),
+      ]);
+      expect(text).toBe(textDocument.text);
+    });
+
     expect(state().pdfTextDocument?.pages).toHaveLength(4);
     expect(state().pdfTextDocument?.text).toContain('alpha');
     expect(state().pdfTextDocument?.text).toContain('delta');
     expect(extractText.mock.calls.map((call) => call[1]?.[0])).toEqual([1, 0, 2, 3]);
+  });
+
+  it('stops queuing old pages when the document is reset', async () => {
+    const pending = createDeferred<string>();
+    const extractText = vi.fn(() => ({ toPromise: () => pending.promise }));
+    const state = renderPdfiumDocumentText({
+      currentPageIndex: 0,
+      document: createPdfDocument(100),
+      engine: { extractText } as unknown as PdfiumDocumentTextOptions['engine'],
+    });
+    let extraction!: Promise<string>;
+    act(() => {
+      extraction = state().currentArticleText();
+    });
+    const rejected = expect(extraction).rejects.toMatchObject({ name: 'AbortError' });
+    expect(extractText).toHaveBeenCalledTimes(2);
+    expect(state().pdfTextIndexPreparing).toBe(true);
+
+    await act(async () => {
+      state().resetPdfiumTextDocument();
+      pending.resolve('old page');
+      await rejected;
+    });
+
+    expect(extractText).toHaveBeenCalledTimes(2);
+    expect(state().pdfTextDocument).toBeNull();
+    expect(state().pdfTextIndexPreparing).toBe(false);
   });
 });

@@ -56,7 +56,7 @@ type PdfiumSourceReaderControllerOptions = {
     document: PdfiumControllerDocument,
     page: PdfiumControllerPage,
   ) => Promise<PdfPageGeometry | null>;
-  getPdfTextDocument: () => PdfTextDocument | null;
+  getPdfTextDocument: () => PdfTextDocument | null | Promise<PdfTextDocument>;
   isCurrentArticle: (articleId: string) => boolean;
   setStatusMessage: Dispatch<SetStateAction<string>>;
   startAgentDock: (agent: PublicAgent) => void;
@@ -90,7 +90,7 @@ export function createPdfiumSourceReaderController({
       if (!document || !articleId) return null;
 
       if (requestOptions.readingPlan?.length && !requestOptions.targetAnchor) {
-        const textDocument = getPdfTextDocument();
+        const textDocument = await getPdfTextDocument();
         if (!textDocument) return null;
         const context: SourceAgentAnnotationContext<PdfiumReadingPlanSource> = {
           article: promptArticle(currentArticle, textDocument.text),
