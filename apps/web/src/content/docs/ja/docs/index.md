@@ -5,6 +5,8 @@ description: 初回起動から最初の読書アイテムの取り込みまで�
 
 Yomitomo は、デスクトップ向けのローカルファースト AI 読書コンパニオンです。あなたに代わって本を読むのではなく、読書中にハイライトを引き、疑問を投げかけ、メモを深め、AI と対話するための環境を提供します。記事、注釈、ディスカッション履歴、モデル設定、API キーはすべてローカル端末内に安全に保存されます。
 
+リモート AI 機能では、タスクに必要な読書内容と対話が設定したモデルの接続先へ送信されます。自分の端末で動くモデルに接続する場合、推論は端末内で行われます。
+
 <picture>
   <source
     srcset="/assets/en-home-640.webp 640w, /assets/en-home-960.webp 960w, /assets/en-home-1280.webp 1280w, /assets/en-home-1600.webp 1600w, /assets/en-home-2400.webp 2400w, /assets/en-home.webp 3388w"

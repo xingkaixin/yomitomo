@@ -5,6 +5,8 @@ description: 从首次启动到导入第一篇阅读材料，快速了解 Yomito
 
 Yomitomo 是一款本地优先的 AI 伴读桌面应用。它不替你阅读，而是在你阅读时陪你划线、批注、追问与讨论。所有文章、批注、讨论记录、模型配置和 API Key 均完整保存在本机。
 
+使用远程 AI 功能时，任务所需的阅读内容与对话会发送到你配置的模型端点；连接本机模型时，推理在本机完成。
+
 <picture>
   <source
     srcset="/assets/cn-home-640.webp 640w, /assets/cn-home-960.webp 960w, /assets/cn-home-1280.webp 1280w, /assets/cn-home-1600.webp 1600w, /assets/cn-home-2400.webp 2400w, /assets/cn-home.webp 3388w"

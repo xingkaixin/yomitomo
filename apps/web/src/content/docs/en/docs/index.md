@@ -5,6 +5,8 @@ description: Learn the essential Yomitomo workflow, from first launch to importi
 
 Yomitomo is a local-first AI reading companion for desktop. It does not read on your behalf; instead, it accompanies you as you highlight, annotate, question, and discuss your reading materials. All articles, notes, discussions, provider settings, and API keys remain safely stored on your local machine.
 
+Remote AI features send the reading content and conversation needed for the task to your configured model endpoint. A model running on your own computer performs inference locally.
+
 <picture>
   <source
     srcset="/assets/en-home-640.webp 640w, /assets/en-home-960.webp 960w, /assets/en-home-1280.webp 1280w, /assets/en-home-1600.webp 1600w, /assets/en-home-2400.webp 2400w, /assets/en-home.webp 3388w"

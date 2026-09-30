@@ -1,6 +1,6 @@
 ---
 title: "Why Local-First Architecture Matters: Building Lifelong Intellectual Assets"
-description: Highlights and reflections are your most private intellectual traces. Why entrust them to corporate clouds? Yomitomo champions a local-first architecture for sovereign data, offline autonomy, and absolute privacy.
+description: Understand the boundaries of local storage, remote AI requests, OS credentials, and database backups.
 ---
 
 "Cloud-first" has become the default architecture for reading and note-taking apps: your documents are in the cloud, your highlights are in the cloud, and your reading analytics are in the cloud. While this delivers convenience, it incurs an under-discussed cost: **your intellectual labor no longer truly belongs to you**.
@@ -9,16 +9,18 @@ Reading data carries an intimate privacy profile. Unlike public status updates, 
 
 Yomitomo takes a fundamentally different path: **Local-First Architecture**.
 
+Remote AI requests send the reading content and conversation needed for the task to your configured model endpoint. A model running on your computer performs inference locally.
+
 ---
 
 ## Local-First Architecture & Data Flow
 
 | Component | User Input & Operations | System Internal Processing | Storage & Output | Security & Data Boundaries |
 |---|---|---|---|---|
-| **Document Library** | Import EPUB, PDF, or capture web articles | Local parsing, cleaning, and persistence | Local SQLite relational database | Zero proxy servers; no centralized telemetry collecting reading text |
+| **Document Library** | Import EPUB, PDF, or capture web articles | Local parsing, cleaning, and persistence | Local SQLite and source document files | Zero proxy servers; no centralized telemetry collecting reading text |
 | **Annotations & Threads** | Highlights (`A`), thoughts, discussion threads | Physical anchor binding; categorization; full-text indexing | Local structured graph and instant search index | Fully functional offline without internet access |
-| **AI Model Credentials** | BYOK API Keys (OpenAI / Claude / DeepSeek / Ollama) | Encrypted storage via OS Keyring (macOS Keychain / Windows Credential Manager) | Local SQLite stores only provider metadata & key handles | Direct HTTPS requests from desktop client to model endpoints |
-| **Distillation & Backup** | Aggregate highlights into Markdown cards | One-click standard SQLite database cold backup & Markdown exports | Local `.sqlite` file and standard `.md` documents | Standard open formats; zero proprietary binary lock-in |
+| **AI Model Credentials** | BYOK API Keys (OpenAI / Claude / DeepSeek / Ollama) | Encrypted storage via OS Keyring (macOS Keychain / Windows Credential Manager) | Local SQLite stores only provider metadata & key handles | Direct requests to configured model endpoints; remote AI receives task content |
+| **Distillation & Backup** | Aggregate highlights into Markdown cards | Local SQLite database backup | Local `.sqlite` file | Excludes original PDF and ebook files and OS credentials; keep source files separately |
 
 ---
 
@@ -37,7 +39,7 @@ Yomitomo supports Bring Your Own Key (BYOK) for any OpenAI-compatible provider o
 - macOS: Written directly into **Keychain**;
 - Windows: Written directly into **Credential Manager**.
 
-Even if your database file is copied, plaintext API keys cannot be extracted. All AI requests connect directly to official endpoints without intermediaries.
+SQLite stores provider metadata and key references. Model requests go directly to your configured endpoint; remote providers receive the reading content and conversation needed for the task.
 
 ### 3. True Offline Autonomy: Network as an Enhancement, Not a Requirement
 
@@ -45,7 +47,7 @@ While cloud apps fail or show blank screens offline, Yomitomo's core engine—pa
 
 ### 4. Open Standards: Zero Format Lock-In
 
-Your notes are saved in standard SQLite relational tables and clean Markdown. If you ever choose to leave Yomitomo, you can extract every highlight, thought, and distillation card with any standard SQL viewer or file manager.
+Your annotations, discussions, and distillation bodies are stored in standard SQLite tables. You can read them with standard database tools. Original PDF and ebook files are stored separately from the database.
 
 ---
 
@@ -68,10 +70,10 @@ Your notes are saved in standard SQLite relational tables and clean Markdown. If
 ## Frequently Asked Questions (FAQ)
 
 ### Q1: Does local-first mean I cannot sync between my laptop and desktop?
-**Answer:** Yomitomo provides one-click database export and import under **Settings > General**. You can place the exported `.sqlite` backup into your trusted private cloud storage (e.g., iCloud Drive, Dropbox, Syncthing) to migrate seamlessly between devices.
+**Answer:** Back up and restore the database in Settings. Keep the backup in storage you trust. Original PDF and ebook files and OS credentials are excluded; retain source files separately and configure keys again on the new device.
 
 ### Q2: Can Yomitomo developers access my OpenAI or DeepSeek API Keys?
-**Answer:** Never. Yomitomo is a pure desktop client without intermediate proxy servers. API keys are stored in your OS Keyring, and all API calls are made directly from your computer to model endpoints over HTTPS.
+**Answer:** Yomitomo does not relay LLM requests. API keys are stored in the OS keystore, and requests go directly to your configured model endpoint. Remote providers receive task content and the key used for authentication.
 
 ### Q3: What happens to my reading history if Yomitomo ceases development?
 **Answer:** Your data remains completely accessible and functional forever. Because data resides in a standard local SQLite database, you can open and export it anytime using standard database tools.

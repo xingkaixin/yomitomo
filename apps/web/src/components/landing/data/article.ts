@@ -176,7 +176,7 @@ const zhAnnotations: Annotation[] = [
     quote: '云端阅读器',
     authorId: 'yomitomo',
     content:
-      '你的文章、批注、讨论、API Key 全部保存在你的电脑上。我们不会上传你的阅读数据到任何云端。',
+      '文章、批注与讨论保存在本机，API Key 由系统凭据库保管。使用远程 AI 时，相关内容会发送到你配置的模型端点。',
     type: 'distillation',
     createdAt: '2025-01-15',
     agentIds: ['yomitomo'],
@@ -506,7 +506,7 @@ const zhParagraphs: Paragraph[] = [
       {
         type: 'text',
         content:
-          'Yomitomo 完全免费、开源，你的数据永远在你自己的电脑上。它不向你推送，不替你排序，也不把你的阅读卖给任何人。它只做一件事：帮你把读过的，变成留得下的。',
+          'Yomitomo 完全免费、开源，阅读记录保存在本机。使用远程 AI 时，相关内容会发送到你配置的模型端点。它不向你推送，不替你排序，也不把你的阅读卖给任何人。它只做一件事：帮你把读过的，变成留得下的。',
       },
     ],
   },
@@ -605,7 +605,7 @@ const enAnnotations: Annotation[] = [
     quote: 'cloud reader',
     authorId: 'yomitomo',
     content:
-      'Your articles, annotations, discussions and API keys are all kept on your own computer. We never upload your reading data to any cloud.',
+      'Articles, annotations and discussions are stored locally, with API keys in the OS keystore. Remote AI requests send relevant content to your configured model endpoint.',
     type: 'distillation',
     createdAt: '2025-01-15',
     agentIds: ['yomitomo'],
@@ -964,7 +964,7 @@ const enParagraphs: Paragraph[] = [
       {
         type: 'text',
         content:
-          "Yomitomo is completely free and open source, and your data always stays on your own computer. It doesn't push to you, doesn't reorder for you, and doesn't sell your reading to anyone. It does one thing: help you turn what you read into something that stays.",
+          "Yomitomo is completely free and open source. Reading records are stored locally; remote AI requests send relevant content to your configured model endpoint. It doesn't push to you, doesn't reorder for you, and doesn't sell your reading to anyone. It does one thing: help you turn what you read into something that stays.",
       },
     ],
   },
@@ -1057,7 +1057,7 @@ const jaAnnotations: Annotation[] = [
     quote: 'クラウド型リーダー',
     authorId: 'yomitomo',
     content:
-      '記事、注釈、対話、APIキーはあなたのコンピューターに保存されます。読書データをクラウドへアップロードしません。',
+      '記事、注釈、対話はローカルに保存し、APIキーはOSの資格情報ストアで管理します。リモートAIを使うと、関連する内容が設定したモデルの接続先へ送信されます。',
     type: 'distillation',
     createdAt: '2025-01-15',
     agentIds: ['yomitomo'],
@@ -1302,7 +1302,7 @@ const jaParagraphs: Paragraph[] = [
       {
         type: 'text',
         content:
-          'Yomitomoは完全無料のオープンソースで、データはあなたのコンピューターに残ります。読んだことを、あとで使える形へ変える。それだけに集中します。',
+          'Yomitomoは完全無料のオープンソースで、読書記録はローカルに保存されます。リモートAIを使うと、関連する内容が設定したモデルの接続先へ送信されます。読んだことを、あとで使える形へ変える。それだけに集中します。',
       },
     ],
   },

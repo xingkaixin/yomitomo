@@ -54,13 +54,18 @@ The **Assistant Execution Mode** applies globally: **Fast Response** prioritizes
 
 ## Security and Privacy Controls
 
+- **Model requests**: Remote AI features send the source text, annotations, and conversation needed for the task to your configured model endpoint. A model running on your computer performs inference locally.
 - **App Lock (PIN Code)**: Protects your local reading library behind a secure PIN screen. Passcode verification relies on native OS keystores.
 - **Intranet Scraping Safeguards**: Blocks web imports from resolving to `localhost`, private intranet IPs, or cloud metadata endpoints by default.
 - **Telemetry Controls**: Sends an anonymous daily heartbeat (anonymous UUID, app version, OS architecture) strictly for platform stability metrics. **Never transmits reading content, titles, highlights, local paths, or AI dialogues.** Can be disabled entirely in settings.
 
 ## Data Management and Backup
 
-Access local data folders, inspect operational logs, and execute full local SQLite backups or restores with a single click (backups exclude OS-secured API keys and raw external ebook source files).
+Open local data folders, inspect logs, and back up or restore the SQLite database. Database backups include stored annotations, discussions, distillations, and settings. They exclude original PDF and ebook files and API keys in the OS keystore. Keep source files separately and configure keys again on a new device.
+
+## Reading Memory Data Scope
+
+Reading Memory searches your saved highlights and thoughts, discussions you participated in, and published distillations. It does not automatically search the full text of every imported document. Semantic indexing and retrieval run locally; AI judgments send the selected evidence and question to your configured model endpoint.
 
 ## Non-Intrusive Updates
 
