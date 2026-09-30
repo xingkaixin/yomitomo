@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { emptyStore } from '../settings/app-settings';
@@ -18,7 +18,7 @@ afterEach(() => {
 });
 
 describe('OnboardingFlow', () => {
-  it('completes onboarding from the enter button', async () => {
+  it('allows entering before the welcome animation completes', () => {
     vi.useFakeTimers();
     const onSaveSettings = vi.fn().mockResolvedValue({
       ...emptyStore,
@@ -28,10 +28,6 @@ describe('OnboardingFlow', () => {
     render(<OnboardingFlow store={emptyStore} onSaveSettings={onSaveSettings} />);
 
     expect(screen.getByRole('dialog', { name: /你有多久/ })).toBeTruthy();
-
-    await act(async () => {
-      vi.advanceTimersByTime(10_000);
-    });
 
     fireEvent.click(screen.getByRole('button', { name: /进入 Yomitomo/ }));
 

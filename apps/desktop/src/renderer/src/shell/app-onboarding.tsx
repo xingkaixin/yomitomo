@@ -52,7 +52,6 @@ export function OnboardingFlow({
     [t],
   );
   const onboardingLineCount = onboardingCopyBlocks.at(-1)?.endLine ?? 0;
-  const copyComplete = visibleLineCount >= onboardingLineCount;
 
   useEffect(() => {
     const reducedMotion =
@@ -114,17 +113,15 @@ export function OnboardingFlow({
               ))}
             </div>
             {status ? <p className="onboarding-status">{status}</p> : null}
-            {copyComplete ? (
-              <Button
-                className="onboarding-enter-button"
-                disabled={busy}
-                type="button"
-                onClick={completeOnboarding}
-              >
-                {busy ? t('onboarding.entering') : t('onboarding.enter')}
-                <HugeiconsIcon icon={ArrowRight01Icon} size={18} />
-              </Button>
-            ) : null}
+            <Button
+              className="onboarding-enter-button"
+              disabled={busy}
+              type="button"
+              onClick={completeOnboarding}
+            >
+              {busy ? t('onboarding.entering') : t('onboarding.enter')}
+              <HugeiconsIcon icon={ArrowRight01Icon} size={18} />
+            </Button>
           </div>
         </DialogContent>
       </DialogPortal>
