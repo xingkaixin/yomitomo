@@ -105,7 +105,7 @@ export function useReaderThemeController({
     const nextBackgroundColor = compatibleReaderBackgroundForTheme(
       themeId,
       preferredReaderBackgroundColor || readerBackgroundColor,
-      activeThemeId,
+      preferredReaderBackgroundColor ? undefined : activeThemeId,
     );
     if (nextBackgroundColor !== readerBackgroundColor) {
       const nextSettings = normalizeDesktopReaderSettings({
