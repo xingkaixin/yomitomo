@@ -4,7 +4,6 @@ import { useState, type CSSProperties } from 'react';
 import {
   defaultReaderBackgroundForTone,
   readerBackgroundOptions,
-  readerBackgroundTone,
   type ReaderBackgroundTone,
 } from '@yomitomo/reader-ui/reader-settings';
 import {
@@ -14,18 +13,14 @@ import {
   type AppThemeTone,
   type AppThemeId,
 } from './app-theme';
-import { AppearancePreview, type AppearancePreviewScene } from './app-appearance-preview';
+import { AppearancePreview } from './app-appearance-preview';
 import {
   elementDialogSourceRect,
   useSourceAwareDialogTransition,
   type DialogSourceRect,
 } from '../shell/app-dialog-transition';
 import { useTranslation } from 'react-i18next';
-import {
-  readerPaperDisplayName,
-  themeDisplayDescription,
-  themeDisplayName,
-} from '../i18n/app-i18n-labels';
+import { readerPaperDisplayName, themeDisplayName } from '../i18n/app-i18n-labels';
 import {
   Dialog,
   DialogContent,
@@ -35,7 +30,6 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 import { IconButton } from '../components/ui/icon-button';
-import { Button } from '../components/ui/button';
 import type { ResolvedAppSettings } from '@yomitomo/shared';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 
@@ -85,47 +79,18 @@ function ThemeDialog({
   dialogStyle,
 }: ThemeSelectorProps & { dialogStyle: CSSProperties }) {
   const { t } = useTranslation();
-  const [draft, setDraft] = useState<{ themeId: AppThemeId; paper: string }>({
-    themeId: activeThemeId,
-    paper: readerBackgroundColor,
-  });
-  const [browsingTone, setBrowsingTone] = useState(themeRegistry[activeThemeId].meta.tone);
-  const [scene, setScene] = useState<AppearancePreviewScene>('library');
-  const [choicesByTone, setChoicesByTone] = useState<
-    Record<AppThemeTone, { themeId: AppThemeId; paper: string }>
-  >({
-    light: { themeId: themeIdsByTone.light, paper: readerBackgroundsByTone.light },
-    dark: { themeId: themeIdsByTone.dark, paper: readerBackgroundsByTone.dark },
-    [themeRegistry[activeThemeId].meta.tone]: {
-      themeId: activeThemeId,
-      paper: readerBackgroundColor,
-    },
-  });
-  const changed = draft.themeId !== activeThemeId || draft.paper !== readerBackgroundColor;
+  const activeTone = themeRegistry[activeThemeId].meta.tone;
 
-  function selectTheme(themeId: AppThemeId) {
-    const tone = themeRegistry[themeId].meta.tone;
-    const next: { themeId: AppThemeId; paper: string } = { ...choicesByTone[tone], themeId };
-    setDraft(next);
-    setChoicesByTone({ ...choicesByTone, [tone]: next });
-    setScene('library');
+  function selectTone(tone: AppThemeTone) {
+    if (tone === activeTone) return;
+    onSelectTheme(themeIdsByTone[tone], readerBackgroundsByTone[tone]);
+    onSelectReaderBackground(readerBackgroundsByTone[tone]);
   }
 
   function selectPaper(paper: string) {
-    const tone = readerBackgroundTone(paper);
-    const next: { themeId: AppThemeId; paper: string } = { ...choicesByTone[tone], paper };
-    setDraft(next);
-    setChoicesByTone({ ...choicesByTone, [tone]: next });
-    setScene('reader');
-  }
-
-  function apply() {
-    if (draft.themeId !== activeThemeId) onSelectTheme(draft.themeId, draft.paper);
-    if (draft.paper !== readerBackgroundColor) {
-      onSelectReaderBackground(draft.paper);
-      playAppSoundEffect('theme.paper_switch', soundSettings);
-    }
-    onOpenChange(false);
+    if (paper === readerBackgroundColor) return;
+    onSelectReaderBackground(paper);
+    playAppSoundEffect('theme.paper_switch', soundSettings);
   }
 
   return (
@@ -135,13 +100,8 @@ function ThemeDialog({
           <DialogContent className="theme-dialog source-aware-dialog" style={dialogStyle}>
             <header className="theme-dialog-header">
               <div>
-                <span className="theme-dialog-icon">
-                  <HugeiconsIcon icon={ColorPickerIcon} aria-hidden="true" size={18} />
-                </span>
-                <div>
-                  <DialogTitle>{t('theme.title')}</DialogTitle>
-                  <DialogDescription>{t('theme.description')}</DialogDescription>
-                </div>
+                <DialogTitle>{t('theme.title')}</DialogTitle>
+                <DialogDescription>{t('theme.description')}</DialogDescription>
               </div>
               <IconButton
                 aria-label={t('theme.close')}
@@ -152,49 +112,78 @@ function ThemeDialog({
               </IconButton>
             </header>
             <div className="theme-dialog-body">
-              <div className="theme-dialog-choices">
-                <section aria-labelledby="theme-interface-title">
-                  <h3 id="theme-interface-title">{t('theme.interfaceTitle')}</h3>
-                  <div className="theme-tone-switch" role="group" aria-label={t('theme.category')}>
-                    {(['light', 'dark'] as const).map((tone) => (
+              <section aria-label={t('theme.title')}>
+                <div className="theme-tone-switch" role="group" aria-label={t('theme.category')}>
+                  {(['light', 'dark'] as const).map((tone) => (
+                    <button
+                      key={tone}
+                      className={
+                        activeTone === tone ? 'theme-tone-option is-active' : 'theme-tone-option'
+                      }
+                      aria-pressed={activeTone === tone}
+                      type="button"
+                      onClick={() => selectTone(tone)}
+                    >
+                      {t(`theme.${tone}`)}
+                    </button>
+                  ))}
+                </div>
+                <div className="theme-card-grid">
+                  {visibleThemeIds
+                    .filter((id) => themeRegistry[id].meta.tone === activeTone)
+                    .map((id) => (
                       <button
-                        key={tone}
-                        className={
-                          browsingTone === tone
-                            ? 'theme-tone-option is-active'
-                            : 'theme-tone-option'
-                        }
-                        aria-pressed={browsingTone === tone}
+                        key={id}
+                        className={activeThemeId === id ? 'theme-card is-active' : 'theme-card'}
+                        aria-label={themeDisplayName(id)}
+                        aria-pressed={activeThemeId === id}
                         type="button"
-                        onClick={() => setBrowsingTone(tone)}
+                        onClick={() => {
+                          if (id !== activeThemeId) onSelectTheme(id);
+                        }}
                       >
-                        {t(`theme.${tone}`)}
+                        <AppearancePreview themeId={id} />
+                        <strong>{themeDisplayName(id)}</strong>
+                        {activeThemeId === id ? (
+                          <HugeiconsIcon
+                            className="theme-card-check"
+                            icon={Tick01Icon}
+                            size={16}
+                            aria-hidden="true"
+                          />
+                        ) : null}
                       </button>
                     ))}
-                  </div>
-                  <div className="theme-card-grid">
-                    {visibleThemeIds
-                      .filter((id) => themeRegistry[id].meta.tone === browsingTone)
-                      .map((id) => (
+                </div>
+              </section>
+              <section aria-labelledby="reader-paper-title" className="theme-reader-paper">
+                <h3 id="reader-paper-title">{t('theme.readerPaperTitle')}</h3>
+                <p>{t('theme.readerPaperDescription')}</p>
+                <div className="theme-reader-paper-options">
+                  {readerBackgroundOptions
+                    .filter((option) => option.tone === activeTone)
+                    .map((option) => {
+                      const label = readerPaperDisplayName(option.label);
+                      return (
                         <button
-                          key={id}
-                          className={draft.themeId === id ? 'theme-card is-active' : 'theme-card'}
-                          aria-pressed={draft.themeId === id}
+                          key={option.value}
+                          className={
+                            readerBackgroundColor === option.value
+                              ? 'theme-reader-paper-option is-active'
+                              : 'theme-reader-paper-option'
+                          }
+                          aria-label={t('theme.readerPaperOption', { label })}
+                          aria-pressed={readerBackgroundColor === option.value}
                           type="button"
-                          onClick={() => selectTheme(id)}
+                          onClick={() => selectPaper(option.value)}
                         >
                           <AppearancePreview
-                            themeId={id}
-                            paper={choicesByTone[browsingTone].paper}
-                            thumbnail
+                            themeId={activeThemeId}
+                            paper={option.value}
+                            scene="reader"
                           />
-                          <span className="theme-card-body">
-                            <strong>{themeDisplayName(id)}</strong>
-                            <small>
-                              {themeDisplayDescription(id, themeRegistry[id].meta.description)}
-                            </small>
-                          </span>
-                          {draft.themeId === id ? (
+                          <strong>{label}</strong>
+                          {readerBackgroundColor === option.value ? (
                             <HugeiconsIcon
                               className="theme-card-check"
                               icon={Tick01Icon}
@@ -203,104 +192,12 @@ function ThemeDialog({
                             />
                           ) : null}
                         </button>
-                      ))}
-                  </div>
-                </section>
-                <section aria-labelledby="reader-paper-title" className="theme-reader-paper">
-                  <h3 id="reader-paper-title">{t('theme.readerPaperTitle')}</h3>
-                  <p>{t('theme.readerPaperDescription')}</p>
-                  <div className="theme-reader-paper-options">
-                    {readerBackgroundOptions
-                      .filter((option) => option.tone === browsingTone)
-                      .map((option) => {
-                        const label = readerPaperDisplayName(option.label);
-                        return (
-                          <button
-                            key={option.value}
-                            className={
-                              draft.paper === option.value
-                                ? 'theme-reader-paper-option is-active'
-                                : 'theme-reader-paper-option'
-                            }
-                            aria-label={t('theme.readerPaperOption', { label })}
-                            aria-pressed={draft.paper === option.value}
-                            type="button"
-                            onClick={() => selectPaper(option.value)}
-                          >
-                            <span
-                              className="theme-reader-paper-sheet"
-                              aria-hidden="true"
-                              style={
-                                {
-                                  '--reader-paper-option': option.value,
-                                  '--reader-paper-ink':
-                                    themeRegistry[choicesByTone[browsingTone].themeId].reader.ink,
-                                } as CSSProperties
-                              }
-                            >
-                              <b>Aa</b>
-                              <span>{t('theme.sample.paperLine')}</span>
-                              <i />
-                            </span>
-                            <strong>{label}</strong>
-                          </button>
-                        );
-                      })}
-                  </div>
-                </section>
-              </div>
-              <section className="theme-dialog-preview" aria-label={t('theme.previewTitle')}>
-                <div className="theme-preview-heading">
-                  <h3>{t('theme.previewTitle')}</h3>
-                  <span>{t(changed ? 'theme.pending' : 'theme.current')}</span>
+                      );
+                    })}
                 </div>
-                <div
-                  className="theme-preview-scenes"
-                  role="group"
-                  aria-label={t('theme.previewScene')}
-                >
-                  {(['library', 'reader', 'pdf'] as const).map((item) => (
-                    <button
-                      key={item}
-                      aria-pressed={scene === item}
-                      className={scene === item ? 'is-active' : ''}
-                      type="button"
-                      onClick={() => setScene(item)}
-                    >
-                      {t(`theme.preview.${item}`)}
-                    </button>
-                  ))}
-                </div>
-                <AppearancePreview themeId={draft.themeId} paper={draft.paper} scene={scene} />
-                <div className="theme-preview-caption">
-                  <strong>
-                    {themeDisplayName(draft.themeId)} ·{' '}
-                    {readerPaperDisplayName(
-                      readerBackgroundOptions.find((option) => option.value === draft.paper)
-                        ?.label || draft.paper,
-                    )}
-                  </strong>
-                  <p>
-                    {t(
-                      scene === 'pdf' && readerBackgroundTone(draft.paper) === 'dark'
-                        ? 'theme.pdfKeepsOriginalColor'
-                        : 'theme.previewDescription',
-                    )}
-                  </p>
-                </div>
+                {activeTone === 'dark' ? <p>{t('theme.pdfKeepsOriginalColor')}</p> : null}
               </section>
             </div>
-            <footer className="theme-dialog-footer">
-              <p>{t('theme.applyHint')}</p>
-              <div>
-                <Button variant="outline" onClick={() => onOpenChange(false)}>
-                  {t('common.cancel')}
-                </Button>
-                <Button disabled={!changed} onClick={apply}>
-                  {t('theme.apply')}
-                </Button>
-              </div>
-            </footer>
           </DialogContent>
         </DialogOverlay>
       </DialogPortal>

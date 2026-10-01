@@ -6,6 +6,7 @@ import {
   ArrowLeft01Icon,
   ColorPickerIcon,
   PlusSignIcon,
+  PencilEdit01Icon,
   Search01Icon,
 } from '@hugeicons/core-free-icons';
 import type { ArticleSummaryRecord } from '@yomitomo/shared';
@@ -17,31 +18,35 @@ import { SettingsNavButton } from '../settings/app-settings-nav-button';
 import { ArticleLibraryCard } from '../reading-library/app-reading-library-card';
 import { Input } from '../components/ui/input';
 
-export type AppearancePreviewScene = 'library' | 'reader' | 'pdf';
+const previewViewports = {
+  library: { width: 1000, height: 560 },
+  reader: { width: 400, height: 280 },
+};
 
 export function AppearancePreview({
   themeId,
   paper,
   scene = 'library',
-  thumbnail = false,
 }: {
   themeId: AppThemeId;
-  paper: string;
-  scene?: AppearancePreviewScene;
-  thumbnail?: boolean;
+  paper?: string;
+  scene?: 'library' | 'reader';
 }) {
   const { t, i18n } = useTranslation();
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLSpanElement>(null);
   const [frameDocument, setFrameDocument] = useState<Document | null>(null);
   const [scale, setScale] = useState(1);
+  const viewport = previewViewports[scene];
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container || typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(([entry]) => setScale(entry.contentRect.width / 1000));
+    const observer = new ResizeObserver(([entry]) =>
+      setScale(entry.contentRect.width / viewport.width),
+    );
     observer.observe(container);
     return () => observer.disconnect();
-  }, []);
+  }, [viewport.width]);
 
   useEffect(() => {
     if (!frameDocument) return;
@@ -50,13 +55,18 @@ export function AppearancePreview({
   }, [frameDocument, themeId, i18n.resolvedLanguage]);
 
   return (
-    <div className="appearance-preview" ref={containerRef} aria-hidden={thumbnail || undefined}>
+    <span
+      className="appearance-preview"
+      ref={containerRef}
+      aria-hidden="true"
+      style={{ aspectRatio: `${viewport.width} / ${viewport.height}` }}
+    >
       <iframe
         title={t(`theme.preview.${scene}`)}
         tabIndex={-1}
         sandbox="allow-same-origin"
         srcDoc="<!doctype html><html><head></head><body inert><div id='root'></div></body></html>"
-        style={{ transform: `scale(${scale})` }}
+        style={{ width: viewport.width, height: viewport.height, transform: `scale(${scale})` }}
         onLoad={(event) => {
           const doc = event.currentTarget.contentDocument;
           if (!doc) return;
@@ -79,12 +89,12 @@ export function AppearancePreview({
             scene === 'library' ? (
               <LibraryPreview />
             ) : (
-              <ReaderPreview paper={paper} pdf={scene === 'pdf'} />
+              <ReaderPreview paper={paper ?? themeRegistry[themeId].reader.paper} />
             ),
             frameDocument.getElementById('root')!,
           )
         : null}
-    </div>
+    </span>
   );
 }
 
@@ -181,68 +191,42 @@ function LibraryPreview() {
   );
 }
 
-function ReaderPreview({ paper, pdf }: { paper: string; pdf: boolean }) {
+function ReaderPreview({ paper }: { paper: string }) {
   const { t } = useTranslation();
   const tone = readerBackgroundTone(paper);
   return (
-    <main className={`app-shell is-${desktopPlatform()} is-reader-open`}>
-      <div
-        className={`source-bookcase source-reader-shell${pdf ? ' source-pdf-reader-shell' : ''}`}
-      >
+    <main className={`app-shell is-${desktopPlatform()} is-reader-open appearance-paper-scene`}>
+      <div className="source-bookcase source-reader-shell">
         <div
           className={`reader-app is-embedded is-reader-background-${tone}`}
-          style={
-            {
-              '--reader-font-size': '20px',
-              '--reader-content-width': '680px',
-              '--reader-content-bg': paper,
-            } as CSSProperties
-          }
+          style={{ '--reader-font-size': '20px', '--reader-content-bg': paper } as CSSProperties}
         >
           <header className="reader-toolbar">
             <button className="reader-back" type="button">
               <HugeiconsIcon icon={ArrowLeft01Icon} size={18} />
               <span>{t('nav.library')}</span>
             </button>
-            <div className="reader-toolbar-article">
-              <div className="reader-toolbar-article-copy">
-                <div className="reader-toolbar-article-title">{t('theme.sample.book1')}</div>
-                <p className="reader-toolbar-article-meta">
-                  <span>{t('theme.sample.author')}</span>
-                  <span>{pdf ? 'PDF' : t('theme.preview.reader')}</span>
-                </p>
-              </div>
-            </div>
             <div className="reader-toolbar-actions">
-              <span>35%</span>
+              <HugeiconsIcon icon={Search01Icon} size={18} />
+              <HugeiconsIcon icon={PencilEdit01Icon} size={18} />
             </div>
           </header>
-          <div className="appearance-reader-layout">
-            <article className={pdf ? 'appearance-pdf-page' : 'reader-article'}>
-              <header className="reader-article-header">
-                <h1>{t('theme.sample.book1')}</h1>
-                <p>{t('theme.sample.author')}</p>
-              </header>
-              <div className="reader-article-body">
-                <p>{t('theme.sample.paragraph1')}</p>
-                <p>
-                  <mark className="reader-highlight">{t('theme.sample.highlight')}</mark>
-                </p>
-                <p>{t('theme.sample.paragraph2')}</p>
-                <h2>{t('theme.sample.section')}</h2>
-                <p>{t('theme.sample.paragraph3')}</p>
-              </div>
-            </article>
-            <aside className="appearance-reader-notes">
-              <div className="reader-note">
-                <div className="reader-note-body">
-                  <strong>{t('theme.sample.noteTitle')}</strong>
-                  <blockquote>{t('theme.sample.highlight')}</blockquote>
-                  <p>{t('theme.sample.note')}</p>
-                </div>
-              </div>
-            </aside>
-          </div>
+          <article className="reader-article">
+            <header className="reader-article-header">
+              <h1>{t('theme.sample.book1')}</h1>
+              <p>{t('theme.sample.author')}</p>
+            </header>
+            <div className="reader-article-body">
+              <p>{t('theme.sample.paperLine')}</p>
+              <p>
+                <mark className="reader-highlight">{t('theme.sample.highlight')}</mark>
+              </p>
+              <p>{t('theme.sample.readingLine')}</p>
+            </div>
+            <span className="appearance-paper-note" aria-hidden="true">
+              <HugeiconsIcon icon={PencilEdit01Icon} size={18} />
+            </span>
+          </article>
         </div>
       </div>
     </main>
