@@ -369,7 +369,7 @@ describe('generateYomitomoText response schema', () => {
     });
   });
 
-  it('passes responseSchema to Gemini generation config', async () => {
+  it('passes responseJsonSchema to Gemini generation config', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({
         candidates: [{ content: { parts: [{ text: '{"ok":true}' }] } }],
@@ -390,10 +390,7 @@ describe('generateYomitomoText response schema', () => {
       generationConfig?: Record<string, unknown>;
     };
     expect(body.generationConfig?.responseMimeType).toBe('application/json');
-    expect(body.generationConfig?.responseSchema).toMatchObject({
-      required: ['ok'],
-      properties: testResponseSchema().schema.properties,
-    });
+    expect(body.generationConfig?.responseJsonSchema).toEqual(testResponseSchema().schema);
   });
 
   it('rejects with the empty model response error from the Effect boundary', async () => {
