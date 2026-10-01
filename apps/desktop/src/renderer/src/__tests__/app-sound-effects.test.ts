@@ -46,7 +46,7 @@ describe('app sound effects', () => {
   it('skips playback when app sound effects are disabled', () => {
     vi.stubGlobal('Audio', MockAudio);
 
-    playAppSoundEffect('theme.paper_switch', {
+    playAppSoundEffect('theme.appearance_switch', {
       soundEffectsEnabled: false,
       soundEffectsVolume: 1,
     });
@@ -58,7 +58,7 @@ describe('app sound effects', () => {
   it('applies global volume as a multiplier over the effect base volume', () => {
     vi.stubGlobal('Audio', MockAudio);
 
-    playAppSoundEffect('theme.paper_switch', {
+    playAppSoundEffect('theme.appearance_switch', {
       soundEffectsEnabled: true,
       soundEffectsVolume: 0.5,
     });

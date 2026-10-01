@@ -5,7 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppSettingsPatch, DesktopStore } from '@yomitomo/shared';
 import { readDesktopReaderSettings } from '../settings/app-reader-settings';
 import { emptyStore } from '../settings/app-settings';
-import { inkBlackThemeId, shadLingoDarkThemeId, themeRegistry } from '../theme/app-theme';
+import {
+  inkBlackThemeId,
+  inkPaperThemeId,
+  shadLingoThemeId,
+  shadLingoDarkThemeId,
+  themeRegistry,
+} from '../theme/app-theme';
 import {
   compatibleReaderBackgroundForTheme,
   useReaderThemeController,
@@ -62,6 +68,31 @@ describe('useReaderThemeController', () => {
       expect(applyStore).toHaveBeenCalledWith(nextStore);
     },
   );
+
+  it('preserves the explicitly previewed paper when changing the theme', async () => {
+    const latest: { current?: ReturnType<typeof useReaderThemeController> } = {};
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: {
+        store: { saveSettings: vi.fn().mockResolvedValue(makeStore({ themeId: inkPaperThemeId })) },
+      },
+    });
+    render(
+      <Harness
+        applyStore={vi.fn()}
+        latest={latest}
+        settings={{ ...emptyStore.settings, themeId: shadLingoThemeId }}
+      />,
+    );
+    await act(async () => {
+      latest.current?.selectReaderBackground('#ffffff');
+    });
+    await act(async () => {
+      await latest.current?.selectTheme(inkPaperThemeId, '#ffffff');
+    });
+    expect(readDesktopReaderSettings().backgroundColor).toBe('#ffffff');
+    expect(screen.getByTestId('reader-background').textContent).toBe('#ffffff');
+  });
 
   it('computes compatible reader paper for theme changes without persistence', () => {
     expect(compatibleReaderBackgroundForTheme(inkBlackThemeId, '#fffdf8')).toBe(

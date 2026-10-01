@@ -7,277 +7,138 @@ import { ThemeSelector } from '../theme/app-theme-selector';
 import {
   defaultThemeId,
   duskIndigoThemeId,
-  inkBlackThemeId,
   inkPaperThemeId,
   shadLingoThemeId,
-  shadLingoDarkThemeId,
+  type AppThemeId,
 } from '../theme/app-theme';
 import { initializeAppI18n } from '../i18n/app-i18n';
+import { playAppSoundEffect } from '../sound/app-sound-effects';
+
+vi.mock('../sound/app-sound-effects', () => ({ playAppSoundEffect: vi.fn() }));
 
 afterEach(cleanup);
-
 beforeEach(() => {
+  vi.clearAllMocks();
   initializeAppI18n('zh-CN');
-  vi.stubGlobal(
-    'Audio',
-    class {
-      currentTime = 0;
-      volume = 1;
-
-      play = vi.fn().mockResolvedValue(undefined);
-    },
-  );
 });
 
-describe('ThemeSelector', () => {
-  it('shows only user-visible themes with real preview variables', () => {
-    render(
-      <ThemeSelector
-        activeThemeId={defaultThemeId}
-        open
-        readerBackgroundColor={defaultReaderBackgroundColor}
-        onOpenChange={() => undefined}
-        onSelectReaderBackground={() => undefined}
-        onSelectTheme={() => undefined}
-      />,
-    );
+function props() {
+  return {
+    activeThemeId: defaultThemeId as AppThemeId,
+    open: true,
+    readerBackgroundColor: defaultReaderBackgroundColor,
+    soundSettings: { soundEffectsEnabled: false },
+    onOpenChange: vi.fn(),
+    onSelectReaderBackground: vi.fn(),
+    onSelectTheme: vi.fn(),
+  };
+}
 
+describe('ThemeSelector', () => {
+  it('shows library samples for visible themes and reading samples for light paper choices', () => {
+    render(<ThemeSelector {...props()} />);
     expect(screen.getByRole('dialog', { name: '主题' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '亮色' }).getAttribute('aria-pressed')).toBe('true');
-    expect(screen.getByRole('button', { name: /当前 Yomitomo/ })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /墨纸/ })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /青芽.*白色纸面/ })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /墨黑/ })).toBeNull();
-    expect(screen.queryByRole('button', { name: /米色纸/ })).toBeNull();
-    expect(screen.getByRole('button', { name: '阅读器纸张：纸白' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '青芽' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '米色纸' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '墨黑' })).toBeNull();
+    expect(screen.getAllByTitle('阅读库')).toHaveLength(3);
+    expect(screen.getAllByTitle('文章 / 电子书')).toHaveLength(5);
     expect(screen.getByRole('button', { name: '阅读器纸张：淡绿' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '阅读器纸张：松烟' })).toBeNull();
-    expect(screen.queryByText('PDF 将保留原始页面颜色')).toBeNull();
-
-    const preview = document.querySelector('.theme-preview-frame') as HTMLElement | null;
-    expect(preview?.style.getPropertyValue('--app-paper-pattern-image')).toBeTruthy();
-    expect(preview?.style.getPropertyValue('--app-interactive-link')).toBeTruthy();
   });
 
-  it('selects a theme without closing the dialog', () => {
-    const onSelectTheme = vi.fn();
-    const onOpenChange = vi.fn();
-
-    render(
-      <ThemeSelector
-        activeThemeId={defaultThemeId}
-        open
-        readerBackgroundColor={defaultReaderBackgroundColor}
-        onOpenChange={onOpenChange}
-        onSelectReaderBackground={() => undefined}
-        onSelectTheme={onSelectTheme}
-      />,
+  it('selects a theme immediately with one drawing sound and keeps the picker open', () => {
+    const callbacks = props();
+    const { rerender } = render(<ThemeSelector {...callbacks} />);
+    fireEvent.click(screen.getByRole('button', { name: '青芽' }));
+    expect(callbacks.onSelectTheme).toHaveBeenCalledExactlyOnceWith(shadLingoThemeId);
+    expect(playAppSoundEffect).toHaveBeenCalledExactlyOnceWith(
+      'theme.appearance_switch',
+      callbacks.soundSettings,
     );
-
-    fireEvent.click(screen.getByRole('button', { name: /墨纸/ }));
-
-    expect(onSelectTheme).toHaveBeenCalledWith(inkPaperThemeId);
-    expect(onOpenChange).not.toHaveBeenCalled();
-    expect(screen.getByRole('dialog', { name: '主题' })).toBeTruthy();
+    rerender(<ThemeSelector {...callbacks} activeThemeId={shadLingoThemeId} />);
+    fireEvent.click(screen.getByRole('button', { name: '青芽' }));
+    expect(playAppSoundEffect).toHaveBeenCalledTimes(1);
+    expect(callbacks.onSelectTheme).toHaveBeenCalledTimes(1);
+    expect(callbacks.onSelectReaderBackground).not.toHaveBeenCalled();
+    expect(callbacks.onOpenChange).not.toHaveBeenCalled();
   });
 
-  it.each([
-    [shadLingoThemeId, '#ffffff', /青芽.*白色纸面/],
-    [shadLingoDarkThemeId, '#012032', /青芽·夜.*深蓝夜色/],
-  ] as const)('selects the localized %s theme', (themeId, paper, name) => {
-    const onSelectTheme = vi.fn();
-    render(
-      <ThemeSelector
-        activeThemeId={themeId}
-        open
-        readerBackgroundColor={paper}
-        onOpenChange={() => undefined}
-        onSelectReaderBackground={() => undefined}
-        onSelectTheme={onSelectTheme}
-      />,
+  it('selects paper independently without saving an unchanged theme or paper', () => {
+    const callbacks = props();
+    render(<ThemeSelector {...callbacks} />);
+    fireEvent.click(screen.getByRole('button', { name: '纸白' }));
+    fireEvent.click(screen.getByRole('button', { name: '阅读器纸张：纸白' }));
+    expect(callbacks.onSelectTheme).not.toHaveBeenCalled();
+    expect(callbacks.onSelectReaderBackground).not.toHaveBeenCalled();
+    expect(playAppSoundEffect).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '阅读器纸张：淡绿' }));
+    expect(callbacks.onSelectReaderBackground).toHaveBeenCalledExactlyOnceWith('#eef4e8');
+    expect(playAppSoundEffect).toHaveBeenCalledExactlyOnceWith(
+      'theme.appearance_switch',
+      callbacks.soundSettings,
     );
-
-    fireEvent.click(screen.getByRole('button', { name }));
-
-    expect(onSelectTheme).toHaveBeenCalledWith(themeId);
+    expect(callbacks.onSelectTheme).not.toHaveBeenCalled();
+    expect(callbacks.onOpenChange).not.toHaveBeenCalled();
   });
 
-  it('opens the dialog from the theme trigger source', () => {
-    const { rerender } = render(
-      <ThemeSelector
-        activeThemeId={defaultThemeId}
-        open={false}
-        readerBackgroundColor={defaultReaderBackgroundColor}
-        onOpenChange={() => undefined}
-        onSelectReaderBackground={() => undefined}
-        onSelectTheme={() => undefined}
-      />,
-    );
-
-    const trigger = screen.getByRole('button', { name: '打开主题选择' });
-    trigger.getBoundingClientRect = () =>
-      ({
-        x: 640,
-        y: 48,
-        width: 40,
-        height: 40,
-      }) as DOMRect;
-
-    fireEvent.click(trigger);
+  it('restores remembered theme and paper pairs when switching tone', () => {
+    const callbacks = {
+      ...props(),
+      activeThemeId: inkPaperThemeId,
+      readerBackgroundColor: '#eef4e8',
+      readerBackgroundsByTone: { light: '#eef4e8', dark: '#171a21' },
+      themeIdsByTone: { light: inkPaperThemeId, dark: duskIndigoThemeId },
+    } satisfies Parameters<typeof ThemeSelector>[0];
+    const { rerender } = render(<ThemeSelector {...callbacks} />);
+    fireEvent.click(screen.getByRole('button', { name: '暗色' }));
+    expect(callbacks.onSelectTheme).toHaveBeenCalledExactlyOnceWith(duskIndigoThemeId, '#171a21');
+    expect(callbacks.onSelectReaderBackground).toHaveBeenCalledExactlyOnceWith('#171a21');
     rerender(
       <ThemeSelector
-        activeThemeId={defaultThemeId}
-        open
-        readerBackgroundColor={defaultReaderBackgroundColor}
-        onOpenChange={() => undefined}
-        onSelectReaderBackground={() => undefined}
-        onSelectTheme={() => undefined}
-      />,
-    );
-
-    const dialog = screen.getByRole('dialog', { name: '主题' });
-    expect(dialog.classList.contains('source-aware-dialog')).toBe(true);
-    expect(dialog.getAttribute('style')).toContain('--dialog-source-origin-x');
-  });
-
-  it('selects the extracted ink black theme', () => {
-    const onSelectTheme = vi.fn();
-
-    render(
-      <ThemeSelector
-        activeThemeId={inkBlackThemeId}
-        open
-        readerBackgroundColor="#242019"
-        onOpenChange={() => undefined}
-        onSelectReaderBackground={() => undefined}
-        onSelectTheme={onSelectTheme}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: /墨黑/ }));
-
-    expect(onSelectTheme).toHaveBeenCalledWith(inkBlackThemeId);
-  });
-
-  it('selects the extracted dusk indigo theme', () => {
-    const onSelectTheme = vi.fn();
-
-    render(
-      <ThemeSelector
+        {...callbacks}
         activeThemeId={duskIndigoThemeId}
-        open
         readerBackgroundColor="#171a21"
-        onOpenChange={() => undefined}
-        onSelectReaderBackground={() => undefined}
-        onSelectTheme={onSelectTheme}
       />,
     );
-
-    fireEvent.click(screen.getByRole('button', { name: /冷调靛青夜色/ }));
-
-    expect(onSelectTheme).toHaveBeenCalledWith(duskIndigoThemeId);
-  });
-
-  it('switches the visible theme and paper category together', () => {
-    const onSelectReaderBackground = vi.fn();
-    const onSelectTheme = vi.fn();
-
-    render(
-      <ThemeSelector
-        activeThemeId={defaultThemeId}
-        open
-        readerBackgroundColor={defaultReaderBackgroundColor}
-        onOpenChange={() => undefined}
-        onSelectReaderBackground={onSelectReaderBackground}
-        onSelectTheme={onSelectTheme}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: '暗色' }));
-
-    expect(onSelectTheme).toHaveBeenCalledWith(inkBlackThemeId, '#242019');
-    expect(onSelectReaderBackground).toHaveBeenCalledWith('#242019');
-  });
-
-  it('restores remembered theme and paper choices when switching tone', () => {
-    const onSelectReaderBackground = vi.fn();
-    const onSelectTheme = vi.fn();
-
-    render(
-      <ThemeSelector
-        activeThemeId={inkPaperThemeId}
-        open
-        readerBackgroundColor="#eef4e8"
-        readerBackgroundsByTone={{ light: '#eef4e8', dark: '#171a21' }}
-        themeIdsByTone={{ light: inkPaperThemeId, dark: duskIndigoThemeId }}
-        onOpenChange={() => undefined}
-        onSelectReaderBackground={onSelectReaderBackground}
-        onSelectTheme={onSelectTheme}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: '暗色' }));
-
-    expect(onSelectTheme).toHaveBeenCalledWith(duskIndigoThemeId, '#171a21');
-    expect(onSelectReaderBackground).toHaveBeenCalledWith('#171a21');
-  });
-
-  it('selects the independent reader paper background', () => {
-    const onSelectReaderBackground = vi.fn();
-
-    render(
-      <ThemeSelector
-        activeThemeId={defaultThemeId}
-        open
-        readerBackgroundColor={defaultReaderBackgroundColor}
-        onOpenChange={() => undefined}
-        onSelectReaderBackground={onSelectReaderBackground}
-        onSelectTheme={() => undefined}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: '阅读器纸张：淡绿' }));
-
-    expect(onSelectReaderBackground).toHaveBeenCalledWith('#eef4e8');
-  });
-
-  it('selects the extracted ink paper background within the dark category', () => {
-    const onSelectReaderBackground = vi.fn();
-
-    render(
-      <ThemeSelector
-        activeThemeId={inkBlackThemeId}
-        open
-        readerBackgroundColor="#242019"
-        onOpenChange={() => undefined}
-        onSelectReaderBackground={onSelectReaderBackground}
-        onSelectTheme={() => undefined}
-      />,
-    );
-
-    expect(screen.queryByRole('button', { name: '阅读器纸张：纸白' })).toBeNull();
+    expect(screen.getByRole('button', { name: '黛蓝' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.queryByRole('button', { name: '墨纸' })).toBeNull();
+    expect(
+      screen.getByRole('button', { name: '阅读器纸张：黛蓝' }).getAttribute('aria-pressed'),
+    ).toBe('true');
+    expect(screen.getAllByTitle('文章 / 电子书')).toHaveLength(3);
     expect(screen.getByText('PDF 将保留原始页面颜色')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '阅读器纸张：松烟' }));
-
-    expect(onSelectReaderBackground).toHaveBeenCalledWith('#242019');
+    fireEvent.click(screen.getByRole('button', { name: '暗色' }));
+    expect(callbacks.onSelectTheme).toHaveBeenCalledTimes(1);
+    expect(playAppSoundEffect).toHaveBeenCalledExactlyOnceWith(
+      'theme.appearance_switch',
+      callbacks.soundSettings,
+    );
+    fireEvent.click(screen.getByRole('button', { name: '亮色' }));
+    expect(playAppSoundEffect).toHaveBeenCalledTimes(2);
+    expect(callbacks.onSelectTheme).toHaveBeenLastCalledWith(inkPaperThemeId, '#eef4e8');
+    expect(callbacks.onSelectReaderBackground).toHaveBeenLastCalledWith('#eef4e8');
   });
 
-  it('selects the dusk indigo reader paper background within the dark category', () => {
-    const onSelectReaderBackground = vi.fn();
+  it('closes the picker without changing settings again', () => {
+    const callbacks = props();
+    render(<ThemeSelector {...callbacks} />);
+    fireEvent.click(screen.getByRole('button', { name: '关闭主题选择' }));
+    expect(callbacks.onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
+    expect(callbacks.onSelectTheme).not.toHaveBeenCalled();
+    expect(callbacks.onSelectReaderBackground).not.toHaveBeenCalled();
+  });
 
-    render(
-      <ThemeSelector
-        activeThemeId={duskIndigoThemeId}
-        open
-        readerBackgroundColor="#171a21"
-        onOpenChange={() => undefined}
-        onSelectReaderBackground={onSelectReaderBackground}
-        onSelectTheme={() => undefined}
-      />,
+  it('opens from the trigger and preserves the source-aware dialog transition', () => {
+    const callbacks = props();
+    const { rerender } = render(<ThemeSelector {...callbacks} open={false} />);
+    const trigger = screen.getByRole('button', { name: '打开主题选择' });
+    trigger.getBoundingClientRect = () => ({ x: 640, y: 48, width: 40, height: 40 }) as DOMRect;
+    fireEvent.click(trigger);
+    expect(callbacks.onOpenChange).toHaveBeenCalledExactlyOnceWith(true);
+    rerender(<ThemeSelector {...callbacks} />);
+    expect(screen.getByRole('dialog', { name: '主题' }).getAttribute('style')).toContain(
+      '--dialog-source-origin-x',
     );
-
-    fireEvent.click(screen.getByRole('button', { name: '阅读器纸张：黛蓝' }));
-
-    expect(onSelectReaderBackground).toHaveBeenCalledWith('#171a21');
   });
 });
