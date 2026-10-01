@@ -1,0 +1,35 @@
+{
+  "version": "0.16.0",
+  "highlights": [
+    {
+      "type": "changed",
+      "title": "今後の macOS 更新のダウンロード量を削減",
+      "description": "本版で Sparkle を導入しました。旧バージョンからの初回更新は完全パッケージが必要です。インストールして再起動した後は、次回以降に差分を利用でき、必要に応じて完全パッケージに切り替わります。",
+      "audience": "settings"
+    },
+    {
+      "type": "changed",
+      "title": "PDF を開く際の全文処理を削減",
+      "description": "現在のページと隣接ページのテキストを優先し、検索やアシスタント操作で必要なときに全文を準備します。PDF エンジンも Worker に移し、UI スレッドの処理を減らしました。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "検索語を変える際の重複処理を削減",
+      "description": "同じ長い文書で検索語を繰り返し変更するとき、準備済みの検索テキストを再利用します。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "読書メモリの検索時メモリ使用量を削減",
+      "description": "意味検索の一時的な候補リストを制限し、大きな読書ライブラリを検索する際のメモリ使用量を抑えます。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "初回起動ですぐに読書を開始",
+      "description": "初回ガイドをすべて読まなくてもライブラリに入れます。先に資料を取り込み、AI は後から設定できます。",
+      "audience": "reader"
+    }
+  ]
+}

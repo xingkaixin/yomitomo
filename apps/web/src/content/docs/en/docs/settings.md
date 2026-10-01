@@ -69,4 +69,6 @@ Reading Memory searches your saved highlights and thoughts, discussions you part
 
 ## Non-Intrusive Updates
 
-Yomitomo checks for new releases on startup and every 24 hours in the background. When an update is available, a subtle badge appears in the top navigation bar without interrupting your reading. You can inspect release notes, download in the background, and choose whether to restart immediately or upon your next regular exit. All macOS and Windows packages are digitally signed and notarized.
+Yomitomo checks for updates in the background on startup and every 24 hours. A badge in the top bar lets you view release notes and start downloading. Once the download finishes, you can restart to install.
+
+Starting with 0.16.0, macOS uses Sparkle. The first upgrade from an older version still downloads a full ZIP. After installation and restart, subsequent releases can use delta updates, falling back to a full package when no suitable delta is available or delta verification fails. macOS packages continue to use Developer ID signing and notarization; Windows keeps its existing update mechanism.

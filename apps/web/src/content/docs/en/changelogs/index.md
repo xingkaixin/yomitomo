@@ -5,6 +5,16 @@ sidebar:
   hidden: true
 ---
 
+## 0.16.0
+
+Released: 2026-10-01
+
+- Introduced Sparkle on macOS for delta updates in subsequent releases; the first upgrade from an older version still uses a full package.
+- Moved PDF work into a Worker, prepared full text on demand, and reduced repeated search work and Reading Memory query memory usage.
+- Enabled immediate entry on first launch, clarified privacy, backups, and manual copying, and improved mobile website previews.
+
+[View 0.16.0 release notes](/en/changelogs/v0-16-0/)
+
 ## 0.15.1
 
 Released: 2026-09-05

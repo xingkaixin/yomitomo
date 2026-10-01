@@ -1,0 +1,35 @@
+{
+  "version": "0.16.0",
+  "highlights": [
+    {
+      "type": "changed",
+      "title": "为后续 macOS 更新减少下载量",
+      "description": "本版接入 Sparkle。首次从旧版升级仍需完整包；安装并重启后，后续版本可使用差分包，必要时自动回退完整包。",
+      "audience": "settings"
+    },
+    {
+      "type": "changed",
+      "title": "打开 PDF 时减少后台全文处理",
+      "description": "阅读时优先准备当前页和相邻页文本，全文搜索或需要全文的助手操作再准备全文；PDF 引擎移入 Worker，减少对界面线程的占用。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "连续查找关键词减少等待",
+      "description": "在同一篇长文中反复修改搜索词时，复用已准备的搜索文本，减少重复计算。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "阅读记忆检索减少内存占用",
+      "description": "查询较大的阅读资料库时，限制语义检索的临时候选列表，减少查询过程中的内存占用。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "首次启动即可开始阅读",
+      "description": "无需看完全部引导即可进入书库，先导入阅读材料，稍后再配置 AI。",
+      "audience": "reader"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "version": "0.16.0",
+  "highlights": [
+    {
+      "type": "changed",
+      "title": "Smaller downloads for future macOS updates",
+      "description": "This release introduces Sparkle. The first upgrade from an older version still needs a full package; after installation and restart, subsequent releases can use deltas with full-package fallback.",
+      "audience": "settings"
+    },
+    {
+      "type": "changed",
+      "title": "Less full-document work when opening PDFs",
+      "description": "Reading prioritizes text from the current and neighboring pages. Search and assistant actions prepare full text when needed, while the PDF engine runs in a Worker to reduce UI-thread work.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Less repeated work when searching",
+      "description": "When refining search terms in the same long document, prepared search text is reused to reduce repeated processing.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Lower memory use in Reading Memory queries",
+      "description": "Semantic retrieval limits temporary candidate lists to reduce memory usage when querying larger reading libraries.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "Start reading on your first launch",
+      "description": "Enter the library without finishing every onboarding page, import your reading material, and configure AI later.",
+      "audience": "reader"
+    }
+  ]
+}
