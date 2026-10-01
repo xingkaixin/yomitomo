@@ -175,6 +175,8 @@ export const jaResources = {
         米色: 'ベージュ',
         松烟: 'すす黒',
         黛蓝: 'インディゴ',
+        纯白: '純白',
+        深蓝: '深青',
       },
     },
     readingEvidence: {

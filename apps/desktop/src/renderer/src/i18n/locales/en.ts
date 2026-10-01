@@ -207,6 +207,8 @@ export const enResources = {
         米色: 'Beige',
         松烟: 'Soot black',
         黛蓝: 'Indigo',
+        纯白: 'Pure white',
+        深蓝: 'Deep blue',
       },
     },
     readingEvidence: {

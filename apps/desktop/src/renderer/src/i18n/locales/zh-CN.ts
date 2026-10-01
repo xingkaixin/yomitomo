@@ -202,6 +202,8 @@ export const zhCNResources = {
         米色: '米色',
         松烟: '松烟',
         黛蓝: '黛蓝',
+        纯白: '纯白',
+        深蓝: '深蓝',
       },
     },
     readingEvidence: {
