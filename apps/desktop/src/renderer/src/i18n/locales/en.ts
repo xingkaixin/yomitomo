@@ -176,15 +176,47 @@ export const enResources = {
     theme: {
       open: 'Open theme picker',
       title: 'Theme',
-      description: 'Choose paper, ink, and interface styling for reading.',
+      description: 'Preview your library and reading pages before applying a combination.',
       close: 'Close theme picker',
       category: 'Theme category',
       light: 'Light',
       dark: 'Dark',
       readerPaperTitle: 'Reader paper',
-      readerPaperDescription: 'Only affects the article, ebook, and PDF reading surface.',
+      readerPaperDescription:
+        'Changes the reading page color. Preview articles, ebooks, and PDFs on the right.',
       readerPaperOption: 'Reader paper: {{label}}',
       pdfKeepsOriginalColor: 'PDF keeps the original page colors',
+      interfaceTitle: 'Interface theme',
+      previewTitle: 'Appearance preview',
+      previewScene: 'Preview scene',
+      pending: 'Not applied',
+      current: 'Current combination',
+      applyHint: 'Your settings stay unchanged until you apply. Closing cancels the preview.',
+      apply: 'Apply appearance',
+      previewDescription: 'The same sample content makes each combination easy to compare.',
+      preview: {
+        library: 'Library',
+        reader: 'Article / ebook',
+        pdf: 'PDF',
+      },
+      sample: {
+        book1: 'Make reading part of your thinking',
+        book2: 'Slow down and read deeply',
+        book3: 'Keep the sentences that matter',
+        book4: 'Start with a highlight',
+        author: 'Yomitomo reading notes',
+        paragraph1:
+          'While reading, we often find a sentence worth pausing over. Highlight it and add your own interpretation to connect the words with your experience.',
+        highlight: 'Good reading is about what stays with you as much as what you finish.',
+        paragraph2:
+          'Open an article again and revisit your highlights and notes. You may discover that your understanding has changed. Take your time and give each thought some room.',
+        section: 'Make your thoughts clearer',
+        paragraph3:
+          'Choose a passage you like and read it carefully. Explain why it matters in your own words, then connect those notes to your other ideas.',
+        noteTitle: 'My note',
+        note: 'Start with this sentence when revisiting the article.',
+        paperLine: 'Read. Pause. Reflect.',
+      },
       names: {
         default: 'Paper White',
         'beige-paper': 'Warm Beige',
@@ -195,7 +227,7 @@ export const enResources = {
         'shadlingo-dark': 'ShadLingo Dark',
       },
       descriptions: {
-        default: 'The default light reading environment for Yomitomo.',
+        default: 'Warm white pages, a fine grid, and terracotta accents.',
         'beige-paper': 'A soft beige paper surface for longer reading sessions.',
         'ink-black': 'A warm near-black night reading environment.',
         'dusk-indigo': 'A cool indigo night reading environment.',

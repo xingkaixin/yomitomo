@@ -143,15 +143,47 @@ export const jaResources = {
     theme: {
       open: 'テーマピッカーを開く',
       title: 'テーマ',
-      description: '読書用の紙、インク、インターフェイスのスタイルを選択します。',
+      description: 'ライブラリと本文の見た目を確認してから、好みの組み合わせを適用できます。',
       close: 'テーマピッカーを閉じる',
       category: 'テーマカテゴリ',
       light: '光',
       dark: 'ダーク',
       readerPaperTitle: 'リーダー用紙',
-      readerPaperDescription: '記事、電子ブック、PDF の閲覧面にのみ影響します。',
+      readerPaperDescription:
+        '本文の用紙の色を変更します。記事・電子書籍・PDF の見た目を右側で確認できます。',
       readerPaperOption: 'リーダー論文: {{label}}',
       pdfKeepsOriginalColor: 'PDF は元のページの色を保持します',
+      interfaceTitle: '画面テーマ',
+      previewTitle: '表示プレビュー',
+      previewScene: 'プレビュー画面',
+      pending: '未適用',
+      current: '現在の組み合わせ',
+      applyHint: '適用するまで設定は変わりません。閉じるとプレビューを取り消します。',
+      apply: '組み合わせを適用',
+      previewDescription: '同じサンプルを使い、組み合わせごとの見た目を比較できます。',
+      preview: {
+        library: 'ライブラリ',
+        reader: '記事・電子書籍',
+        pdf: 'PDF',
+      },
+      sample: {
+        book1: '読書を自分の思考につなげる',
+        book2: 'ゆっくり、深く読む',
+        book3: '大切な一文を残す',
+        book4: 'ハイライトから始める',
+        author: 'Yomitomo 読書ノート',
+        paragraph1:
+          '読書中には、立ち止まりたくなる一文に出会います。その一文に印を付け、自分なりの解釈を書き添えると、言葉が自分の経験につながります。',
+        highlight: 'よい読書は、何を読み終えたかだけでなく、何が心に残ったかにも表れます。',
+        paragraph2:
+          '記事をもう一度開き、ハイライトやメモを振り返ると、理解の変化に気付くことがあります。急がず、一つひとつの考えに余白を残しましょう。',
+        section: '考えを少しずつ明確にする',
+        paragraph3:
+          '好きな一節を選び、丁寧に読んでみましょう。なぜ役に立つのかを自分の言葉で説明し、ほかのメモにつなげていきます。',
+        noteTitle: '自分のメモ',
+        note: '次に記事を読み返すときは、この一文から始める。',
+        paperLine: '読んで、考える。',
+      },
       names: {
         default: 'ペーパーホワイト',
         'beige-paper': 'ウォームベージュ',
@@ -162,7 +194,7 @@ export const jaResources = {
         'shadlingo-dark': '若葉・夜',
       },
       descriptions: {
-        default: 'Yomitomoのデフォルトの軽い読書環境。',
+        default: '暖かな白い用紙、細かな格子柄、テラコッタ色のアクセント。',
         'beige-paper': '柔らかいベージュ色の紙面で、長時間の読書に最適です。',
         'ink-black': '真っ暗に近い暖かい夜の読書環境。',
         'dusk-indigo': '涼しい藍色の夜の読書環境。',

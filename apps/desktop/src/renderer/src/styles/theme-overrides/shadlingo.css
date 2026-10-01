@@ -119,17 +119,3 @@
     color: var(--app-interactive-success-fg);
   }
 }
-
-.theme-preview-frame[data-theme^='shadlingo'] {
-  border-radius: var(--radius);
-
-  .theme-preview-shell,
-  .theme-preview-book,
-  .theme-preview-actions span {
-    border-radius: calc(var(--radius) * 0.4);
-  }
-
-  .theme-preview-book {
-    box-shadow: var(--app-subtle-panel-shadow);
-  }
-}
