@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.16.0 - 2026-10-01
+
+### Features
+
+- Switched macOS updates to Sparkle and added reading-themed DMG artwork. The first upgrade from an older version still downloads a full ZIP; after installation and restart, subsequent releases can use delta updates with full-package fallback. (#893)
+
+### Performance
+
+- Reused normalized text and offset maps for the current document to reduce repeated work when changing reader search queries. (#894)
+- Moved the PDF engine into a Worker to reduce work on the UI thread. Opening a PDF prioritizes text from the current and neighboring pages; full-document text is prepared on demand for search and assistant actions that need it. (#895, #896)
+- Bound temporary semantic search candidate lists to reduce Reading Memory query memory usage in large libraries. (#899)
+- Cached fingerprinted website assets for a year to reduce downloads on repeat visits. (#890)
+
+### Fixes
+
+- Allowed readers to enter the app immediately on first launch without completing every onboarding page, with AI setup available later. (#897)
+- Improved mobile website product previews and platform labels on download buttons. (#892)
+- Clarified local reading data, remote AI requests, and database backup boundaries; corrected documentation to describe manual copying of individual entries instead of unsupported whole-book exports. (#898, #900)
+
+### Engineering
+
+- Upgraded Electron to 44.3.0, pnpm to 12.3.4, and runtime and build dependencies. (#889, #891)
+- Added signed Sparkle feeds, delta release assets, and macOS update smoke tests while retaining ZIPs, blockmaps, and latest-mac.yml for older clients. (#893)
+
 ## 0.15.1 - 2026-09-05
 
 ### Features
