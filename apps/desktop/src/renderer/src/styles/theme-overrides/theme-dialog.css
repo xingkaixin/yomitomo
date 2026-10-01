@@ -135,7 +135,7 @@
   border-color: var(--app-interactive-hover-border);
 }
 
-:is(.theme-card, .theme-reader-paper-option).is-active .appearance-preview {
+.theme-card.is-active .appearance-preview {
   border-color: var(--app-interactive-selected-border);
   box-shadow: 0 0 0 1px var(--app-interactive-selected-border);
 }
@@ -163,6 +163,51 @@
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
   margin-top: 12px;
+}
+
+.theme-reader-paper-option strong {
+  position: relative;
+  min-width: 60px;
+  justify-self: center;
+  color: hsl(var(--muted-foreground));
+}
+
+.theme-reader-paper-option.is-active strong {
+  color: hsl(var(--foreground));
+}
+
+.theme-paper-scribble {
+  position: absolute;
+  inset: -8px -10px;
+  width: calc(100% + 20px);
+  height: calc(100% + 16px);
+  overflow: visible;
+  pointer-events: none;
+}
+
+.theme-paper-scribble path {
+  fill: none;
+  stroke: hsl(var(--foreground));
+  stroke-width: 2px;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.theme-reader-paper-option.is-active .theme-paper-scribble path {
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 320ms ease-out;
+}
+
+.theme-dialog .theme-reader-paper-note {
+  margin-top: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-reader-paper-option.is-active .theme-paper-scribble path {
+    transition: none;
+  }
 }
 
 :is(.theme-tone-option, .theme-card, .theme-reader-paper-option):focus-visible {
