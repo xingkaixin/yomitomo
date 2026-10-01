@@ -18,6 +18,15 @@
     border-radius: var(--radius);
   }
 
+  .app-section-links {
+    gap: 8px;
+  }
+
+  .app-section-nav .settings-nav-item {
+    height: 40px;
+    padding-inline: 10px;
+  }
+
   .settings-nav-item:hover,
   .reader-toc-item:hover {
     background: var(--app-interactive-hover-bg);
