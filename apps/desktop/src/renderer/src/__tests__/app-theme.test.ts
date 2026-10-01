@@ -62,6 +62,8 @@ describe('app theme contract', () => {
       inkPaperThemeId,
       inkBlackThemeId,
       duskIndigoThemeId,
+      'shadlingo',
+      'shadlingo-dark',
     ]);
     expect(visibleThemeIds).not.toContain(beigePaperThemeId);
     expect(defaultThemeIdForTone('light')).toBe(defaultThemeId);

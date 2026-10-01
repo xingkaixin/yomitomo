@@ -1,0 +1,135 @@
+:root[data-theme^='shadlingo'] {
+  .library-home,
+  .settings-panel {
+    background: hsl(var(--card));
+  }
+
+  .app-header-mark {
+    border-radius: calc(var(--radius) * 0.4);
+    background: var(--app-action-primary-bg);
+    color: var(--app-action-primary-fg);
+  }
+
+  .settings-nav {
+    gap: 4px;
+  }
+
+  .settings-nav-item {
+    border-radius: var(--radius);
+  }
+
+  .app-section-links {
+    gap: 8px;
+  }
+
+  .app-section-nav .settings-nav-item {
+    height: 40px;
+    padding-inline: 10px;
+  }
+
+  .settings-nav-item:hover,
+  .reader-toc-item:hover {
+    background: var(--app-interactive-hover-bg);
+  }
+
+  .settings-nav-item.is-active {
+    background: var(--app-interactive-selected-bg);
+    color: var(--app-interactive-selected-fg);
+  }
+
+  .settings-nav-item.is-active::before {
+    opacity: 0;
+  }
+
+  :is(
+    .theme-dialog,
+    .library-import-dialog,
+    .provider-editor-dialog,
+    .user-profile-dialog,
+    .reader-settings-panel,
+    .reader-composer,
+    .reader-chat-panel
+  ) {
+    border-radius: calc(var(--radius) * 1.4);
+    box-shadow: var(--app-shell-panel-shadow);
+  }
+
+  :is(
+    .library-empty,
+    .provider-card,
+    .agent-profile-card,
+    .stats-chart-card,
+    .stats-activity-card,
+    .stats-status-card
+  ) {
+    border-radius: calc(var(--radius) * 1.4);
+    box-shadow: var(--app-card-shadow);
+  }
+
+  :is(
+    .library-add-trigger,
+    .library-home-actions .inline-flex,
+    .sidebar-profile-button,
+    .library-add-menu-popover,
+    .provider-select-trigger,
+    .task-route-select-trigger,
+    .library-article-import-box,
+    .library-ebook-dropzone,
+    .reader-toc-item,
+    .reader-note,
+    .reader-stepper,
+    .reader-add-comment
+  ) {
+    border-radius: var(--radius);
+  }
+
+  .library-home-actions .library-add-trigger {
+    background: var(--app-action-primary-bg);
+    color: var(--app-action-primary-fg);
+    box-shadow: var(--app-subtle-panel-shadow);
+  }
+
+  .library-home-actions .library-add-trigger:hover,
+  .library-home-actions .library-add-trigger:focus-visible {
+    background: var(--app-action-primary-hover-bg);
+    color: var(--app-action-primary-fg);
+  }
+
+  .reader-add-comment {
+    background: var(--app-action-primary-bg);
+    color: var(--app-action-primary-fg);
+  }
+
+  .reader-note {
+    box-shadow: var(--app-reader-note-shadow);
+  }
+
+  .reader-composer:focus-within {
+    box-shadow:
+      var(--app-reader-composer-shadow),
+      0 0 0 2px var(--app-interactive-focus-ring);
+  }
+
+  .theme-select-content [role='option'][data-highlighted],
+  .theme-select-content [role='option']:focus {
+    background: var(--app-interactive-hover-bg);
+  }
+
+  .auto-save-status.is-saved {
+    color: var(--app-interactive-success-fg);
+  }
+}
+
+.theme-preview-frame[data-theme^='shadlingo'] {
+  border-radius: var(--radius);
+
+  .theme-preview-shell,
+  .theme-preview-book,
+  .theme-preview-actions span {
+    border-radius: calc(var(--radius) * 0.4);
+  }
+
+  .theme-preview-book {
+    box-shadow: var(--app-subtle-panel-shadow);
+  }
+}

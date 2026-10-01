@@ -32,7 +32,7 @@ export function usePdfiumDocumentSource(article: PdfArticleRecord) {
     error: engineError,
     isLoading,
   } = usePdfiumEngine({
-    wasmUrl,
+    wasmUrl: new URL(wasmUrl, window.location.href).href,
     worker: true,
     fontFallback: pdfiumFontFallback,
   });

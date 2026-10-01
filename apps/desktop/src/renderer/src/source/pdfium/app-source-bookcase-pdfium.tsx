@@ -172,7 +172,12 @@ export function PdfiumBookcase({
                       <div className="pdf-reader-status is-error" role="status">
                         <span>{t('pdfReader.embedLoadFailed')}</span>
                       </div>
-                    ) : null
+                    ) : (
+                      <div className="pdf-reader-status" role="status">
+                        <HugeiconsIcon icon={Loading03Icon} className="is-spinning" size={18} />
+                        <span>{t('pdfReader.loadingEmbedDocument')}</span>
+                      </div>
+                    )
                   }
                 </DocumentContent>
               ) : (

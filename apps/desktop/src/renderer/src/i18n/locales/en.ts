@@ -191,6 +191,8 @@ export const enResources = {
         'ink-black': 'Ink Black',
         'dusk-indigo': 'Dusk Indigo',
         'ink-paper': 'Ink Paper',
+        shadlingo: 'ShadLingo',
+        'shadlingo-dark': 'ShadLingo Dark',
       },
       descriptions: {
         default: 'The default light reading environment for Yomitomo.',
@@ -198,6 +200,8 @@ export const enResources = {
         'ink-black': 'A warm near-black night reading environment.',
         'dusk-indigo': 'A cool indigo night reading environment.',
         'ink-paper': 'A calm warm-paper reading environment with subtle dots and ink-blue accents.',
+        shadlingo: 'White paper, deep blue text, and fresh green ShadLingo accents.',
+        'shadlingo-dark': 'Deep blue surfaces, pale blue text, and fresh green ShadLingo accents.',
       },
       readerPaperNames: {
         纸白: 'Paper white',
@@ -207,6 +211,8 @@ export const enResources = {
         米色: 'Beige',
         松烟: 'Soot black',
         黛蓝: 'Indigo',
+        纯白: 'Pure white',
+        深蓝: 'Deep blue',
       },
     },
     readingEvidence: {

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppSettingsPatch, DesktopStore } from '@yomitomo/shared';
 import { readDesktopReaderSettings } from '../settings/app-reader-settings';
 import { emptyStore } from '../settings/app-settings';
-import { inkBlackThemeId, themeRegistry } from '../theme/app-theme';
+import { inkBlackThemeId, shadLingoDarkThemeId, themeRegistry } from '../theme/app-theme';
 import {
   compatibleReaderBackgroundForTheme,
   useReaderThemeController,
@@ -24,43 +24,44 @@ afterEach(() => {
 });
 
 describe('useReaderThemeController', () => {
-  it('keeps reader paper compatible when selecting a different theme tone', async () => {
-    const nextStore = makeStore({ themeId: inkBlackThemeId });
-    const applyStore = vi.fn();
-    const latest: { current?: ReturnType<typeof useReaderThemeController> } = {};
+  it.each([inkBlackThemeId, shadLingoDarkThemeId] as const)(
+    'keeps reader paper compatible when selecting %s',
+    async (themeId) => {
+      const nextStore = makeStore({ themeId });
+      const applyStore = vi.fn();
+      const latest: { current?: ReturnType<typeof useReaderThemeController> } = {};
 
-    Object.defineProperty(window, 'yomitomoDesktop', {
-      configurable: true,
-      value: {
-        store: {
-          saveSettings: vi.fn().mockResolvedValue(nextStore),
+      Object.defineProperty(window, 'yomitomoDesktop', {
+        configurable: true,
+        value: {
+          store: {
+            saveSettings: vi.fn().mockResolvedValue(nextStore),
+          },
         },
-      },
-    });
+      });
 
-    render(
-      <Harness
-        applyStore={applyStore}
-        latest={latest}
-        settings={{ ...emptyStore.settings, themeId: 'default' }}
-      />,
-    );
+      render(
+        <Harness
+          applyStore={applyStore}
+          latest={latest}
+          settings={{ ...emptyStore.settings, themeId: 'default' }}
+        />,
+      );
 
-    await act(async () => {
-      await latest.current?.selectTheme(inkBlackThemeId);
-    });
+      await act(async () => {
+        await latest.current?.selectTheme(themeId);
+      });
 
-    await waitFor(() =>
-      expect(window.yomitomoDesktop.store.saveSettings).toHaveBeenCalledWith({
-        themeId: inkBlackThemeId,
-      }),
-    );
-    expect(readDesktopReaderSettings().backgroundColor).toBe(
-      themeRegistry[inkBlackThemeId].reader.paper,
-    );
-    expect(screen.getByTestId('theme-id').textContent).toBe(inkBlackThemeId);
-    expect(applyStore).toHaveBeenCalledWith(nextStore);
-  });
+      await waitFor(() =>
+        expect(window.yomitomoDesktop.store.saveSettings).toHaveBeenCalledWith({
+          themeId,
+        }),
+      );
+      expect(readDesktopReaderSettings().backgroundColor).toBe(themeRegistry[themeId].reader.paper);
+      expect(screen.getByTestId('theme-id').textContent).toBe(themeId);
+      expect(applyStore).toHaveBeenCalledWith(nextStore);
+    },
+  );
 
   it('computes compatible reader paper for theme changes without persistence', () => {
     expect(compatibleReaderBackgroundForTheme(inkBlackThemeId, '#fffdf8')).toBe(

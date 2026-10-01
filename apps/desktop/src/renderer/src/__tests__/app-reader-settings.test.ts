@@ -3,6 +3,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   readDesktopReaderBackgroundsByTone,
+  readDesktopReaderSettings,
   subscribeDesktopReaderSettings,
   writeDesktopReaderSettings,
 } from '../settings/app-reader-settings';
@@ -12,6 +13,16 @@ afterEach(() => {
 });
 
 describe('desktop reader settings', () => {
+  it.each([
+    ['#ffffff', 'light'],
+    ['#012032', 'dark'],
+  ] as const)('persists the ShadLingo paper %s in the %s category', (backgroundColor, tone) => {
+    writeDesktopReaderSettings({ fontSize: 20, contentWidth: 860, backgroundColor });
+
+    expect(readDesktopReaderSettings().backgroundColor).toBe(backgroundColor);
+    expect(readDesktopReaderBackgroundsByTone()[tone]).toBe(backgroundColor);
+  });
+
   it('notifies open readers when paper settings change', () => {
     const listener = vi.fn();
     const unsubscribe = subscribeDesktopReaderSettings(listener);

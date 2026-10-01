@@ -20,6 +20,10 @@ vi.mock('@embedpdf/engines/react', () => ({
   usePdfiumEngine: engineMocks.usePdfiumEngine,
 }));
 
+vi.mock('@embedpdf/pdfium/pdfium.wasm?url', () => ({
+  default: '/pdfium.wasm',
+}));
+
 function pdfArticle(): PdfArticleRecord {
   return {
     id: 'pdf_article_1',
@@ -87,7 +91,7 @@ describe('usePdfiumDocumentSource', () => {
     });
   });
 
-  it('uses the Vite-served PDFium wasm URL in dev', () => {
+  it('resolves the Vite-served PDFium wasm URL for a blob worker in dev', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
@@ -119,5 +123,6 @@ describe('usePdfiumDocumentSource', () => {
     expect(engineOptions?.wasmUrl).toContain('pdfium.wasm');
     expect(engineOptions?.wasmUrl).not.toBe('file:///blocked/pdfium.wasm');
     expect(engineOptions?.wasmUrl.startsWith('file:')).toBe(false);
+    expect(new URL(engineOptions?.wasmUrl || '').origin).toBe(window.location.origin);
   });
 });

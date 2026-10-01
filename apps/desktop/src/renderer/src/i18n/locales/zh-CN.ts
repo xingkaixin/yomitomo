@@ -186,6 +186,8 @@ export const zhCNResources = {
         'ink-black': '墨黑',
         'dusk-indigo': '黛蓝',
         'ink-paper': '墨纸',
+        shadlingo: '青芽',
+        'shadlingo-dark': '青芽·夜',
       },
       descriptions: {
         default: '当前 Yomitomo 桌面端默认视觉，提炼为主题契约的基准主题。',
@@ -193,6 +195,8 @@ export const zhCNResources = {
         'ink-black': '暖调近黑、松烟纸面和余烬赤陶强调的夜间阅读主题。',
         'dusk-indigo': '冷调靛青夜色、月白正文和赤陶余烬强调的暗色阅读主题。',
         'ink-paper': '暖纸底、淡点阵和墨蓝强调的沉静阅读环境。',
+        shadlingo: '白色纸面、深蓝文字和青绿强调的 ShadLingo 阅读主题。',
+        'shadlingo-dark': '深蓝夜色、浅蓝正文和青绿强调的 ShadLingo 阅读主题。',
       },
       readerPaperNames: {
         纸白: '纸白',
@@ -202,6 +206,8 @@ export const zhCNResources = {
         米色: '米色',
         松烟: '松烟',
         黛蓝: '黛蓝',
+        纯白: '纯白',
+        深蓝: '深蓝',
       },
     },
     readingEvidence: {
