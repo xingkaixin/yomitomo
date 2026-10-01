@@ -1,0 +1,29 @@
+{
+  "version": "0.16.1",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "新增 ShadLingo 明暗主题",
+      "description": "想换一种阅读氛围时，可以选择白色纸面、深蓝文字的亮色主题，或深蓝底色的暗色主题。",
+      "audience": "settings"
+    },
+    {
+      "type": "new",
+      "title": "新增纯白与深蓝阅读纸张",
+      "description": "阅读网页文章或电子书时，可选择纯白或深蓝纸张；暗色模式下 PDF 仍保留原始页面颜色。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "选主题和纸张时先看示例",
+      "description": "选项中直接展示书库和阅读器样本，便于比较文字与背景。切换明暗分类时，准确恢复该分类记住的主题和纸张。",
+      "audience": "settings"
+    },
+    {
+      "type": "fixed",
+      "title": "修复 PDF 加载失败",
+      "description": "修复 PDF 引擎在 Worker 中加载地址解析的问题，并在文档准备期间显示加载提示。",
+      "audience": "reader"
+    }
+  ]
+}

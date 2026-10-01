@@ -5,6 +5,16 @@ sidebar:
   hidden: true
 ---
 
+## 0.16.1
+
+Released: 2026-10-01
+
+- Added ShadLingo light and dark themes with pure white and deep blue reading paper.
+- Theme and paper choices show library and reader samples; switching light/dark categories restores the remembered paper correctly.
+- Fixed PDF Worker loading failures and restored the document loading indicator.
+
+[View 0.16.1 release notes](/en/changelogs/v0-16-1/)
+
 ## 0.16.0
 
 Released: 2026-10-01

@@ -1,0 +1,29 @@
+{
+  "version": "0.16.1",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "New ShadLingo light and dark themes",
+      "description": "For a different reading atmosphere, choose white surfaces with deep blue text, or a dark theme with deep blue surfaces.",
+      "audience": "settings"
+    },
+    {
+      "type": "new",
+      "title": "Pure white and deep blue reading paper",
+      "description": "Choose pure white or deep blue paper for web articles and ebooks. PDFs keep their original page colors in dark mode.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Compare theme and paper samples",
+      "description": "Options show library and reader samples to compare text and backgrounds. Switching light or dark categories correctly restores the theme and paper remembered for that category.",
+      "audience": "settings"
+    },
+    {
+      "type": "fixed",
+      "title": "Fixed PDF loading failures",
+      "description": "Fixed URL resolution when loading the PDF engine in a Worker, and added a loading indicator while the document is being prepared.",
+      "audience": "reader"
+    }
+  ]
+}

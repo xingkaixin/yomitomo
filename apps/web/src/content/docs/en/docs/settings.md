@@ -49,7 +49,7 @@ The **Assistant Execution Mode** applies globally: **Fast Response** prioritizes
 ## Language and Visual Customization
 
 - **Language**: Toggle between Simplified Chinese, English, and Japanese in Settings > General. UI text and assistant personas adapt instantly.
-- **Themes and Paper**: Switch between Light, Dark, and Dusk Indigo palettes alongside textured reading paper. In Dark Mode, PDFs retain their original background color to protect the contrast of technical diagrams and formulas.
+- **Themes and Paper**: The sidebar theme picker groups themes into light and dark categories, including ShadLingo variants. Theme cards show library samples, while paper cards show reader samples with choices such as pure white and deep blue. Within a category, custom paper choices are kept and default paper follows the theme; switching categories restores the remembered theme and paper. PDFs retain their original page colors in dark mode.
 - **Audio Feedback**: Adjust or mute tactile UI sound effects (e.g., successful imports, deletions, highlight creation, distillation publishing, unlock events, and typing effects).
 
 ## Security and Privacy Controls

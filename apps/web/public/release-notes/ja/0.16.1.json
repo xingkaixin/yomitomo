@@ -1,0 +1,29 @@
+{
+  "version": "0.16.1",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "ShadLingo の明暗テーマを追加",
+      "description": "読書の雰囲気を変えたいときに、白い紙面と深い青の文字のライトテーマ、または深い青の背景のダークテーマを選べます。",
+      "audience": "settings"
+    },
+    {
+      "type": "new",
+      "title": "純白と深青の用紙を追加",
+      "description": "Web 記事や電子書籍で純白・深青の用紙を選べます。ダークモードでも PDF は元のページ色を保持します。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "テーマと用紙をサンプルで比較",
+      "description": "選択肢にライブラリとリーダーのサンプルを表示します。明暗カテゴリの切り替え時には、記憶したテーマと用紙を正しく復元します。",
+      "audience": "settings"
+    },
+    {
+      "type": "fixed",
+      "title": "PDF の読み込み失敗を修正",
+      "description": "Worker で PDF エンジンを読み込む際の URL 解決を修正し、文書の準備中に読み込み表示を追加しました。",
+      "audience": "reader"
+    }
+  ]
+}
