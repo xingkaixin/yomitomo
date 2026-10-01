@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.16.1 - 2026-10-01
+
+### Features
+
+- Added ShadLingo light and dark themes with pure white and deep blue reading paper. (#903)
+- Added compact library and reader samples to theme and paper choices, so you can compare appearances before selecting. (#904)
+
+### Fixes
+
+- Fixed PDF engine loading in a Worker by resolving the WASM URL before loading, and restored the document loading indicator. (#903)
+- Fixed light/dark category switching to restore the remembered reading paper instead of replacing it with the theme default. (#904)
+
+### Engineering
+
+- Upgraded Electron to 44.5.0, pnpm to 12.8.1, and runtime and build dependencies. (#902)
+
 ## 0.16.0 - 2026-10-01
 
 ### Features
