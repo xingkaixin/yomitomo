@@ -45,6 +45,12 @@ electron-builder 的 macOS `beforePack` 下载并校验固定版本的 Sparkle�
 首个包含 Sparkle 的版本没有历史 Sparkle 版本可比较，因此只有完整包；后续版本才提供差分。
 更早版本或差分验证失败时，Sparkle 回退到签名的完整 ZIP。
 
+v0.16.0 是首个 Sparkle 版本，具体执行顺序和待验收项目见
+[v0.16.0 发布清单](releases/v0.16.0.md)。首发没有 `.delta` 属于预期，不能对旧版用户
+承诺本次升级即可减少下载量。后续发布须保留历史正式版的 ZIP 和 feed：当前脚本只查询
+最近 30 条 GitHub Release，并选取其中两个较旧、非草稿、非预发布且含 feed 的版本作为基线。
+若预期基线未被选中，先检查该范围与历史产物是否完整。
+
 GitHub Actions 必须配置 `SPARKLE_ED_PRIVATE_KEY`，其 Ed25519 公钥必须与
 `electron-builder.config.cjs` 中的 `SUPublicEDKey` 一致。
 私钥不进入仓库，不输出到日志。首次配置已完成；不要直接替换密钥，否则存量 Sparkle 客户端无法验证新更新。
@@ -163,6 +169,16 @@ curl -I https://download.yomitomo.app/updates/appcast-mac-arm64.xml
 的 `latest-mac.yml`，且 `/latest-mac.yml` 与 `/updates/latest-mac.yml` 指向同一上游 manifest。
 Sparkle feed 应来自 latest release 的 `appcast-mac-arm64.xml`，完整保留其签名。
 从 XML 中复制实际 delta URL，再用 `curl -I` 和带 `Range: bytes=0-1023` 的请求检查差分包可访问。
+
+HEAD 成功不能代替内容校验。使用 `curl -fsSL` 获取 manifest 和 feed，核对目标版本、
+完整 ZIP URL、签名与长度；差分存在时核对来源版本，并确认 Range GET 返回 `206` 和正确的
+`Content-Range`。首个 Sparkle 版本没有差分时跳过差分项，但仍检查完整 ZIP。
+
+Release workflow 默认创建草稿，自动生成的说明需替换为本版面向用户的说明。
+Worker 的 feed 和 manifest 都指向 GitHub 的 latest 正式版，草稿阶段不会切换到新版本。
+先核对草稿产物，再公开为 latest，随后检查代理 URL；manifest/feed 的成功响应缓存为
+60 秒，4xx 缓存为 10 秒。不要把缓存尚未刷新误判为发布失败。
+版本化产物缓存可达一年，公开发布后不要覆盖同名 ZIP、差分或签名文件；修复应发新版本。
 
 ## 撰写 CHANGELOG 的步骤
 
