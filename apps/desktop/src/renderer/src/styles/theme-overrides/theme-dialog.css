@@ -135,23 +135,6 @@
   border-color: var(--app-interactive-hover-border);
 }
 
-.theme-card.is-active .appearance-preview {
-  border-color: var(--app-interactive-selected-border);
-  box-shadow: 0 0 0 1px var(--app-interactive-selected-border);
-}
-
-.theme-card-check {
-  position: absolute;
-  right: 6px;
-  bottom: 34px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--app-interactive-selected-bg);
-  color: var(--app-interactive-selected-fg);
-  padding: 2px;
-}
-
 .theme-reader-paper {
   margin-top: 20px;
   border-top: 1px solid hsl(var(--border) / 0.6);
@@ -165,18 +148,18 @@
   margin-top: 12px;
 }
 
-.theme-reader-paper-option strong {
+:is(.theme-card, .theme-reader-paper-option) strong {
   position: relative;
   min-width: 60px;
   justify-self: center;
   color: hsl(var(--muted-foreground));
 }
 
-.theme-reader-paper-option.is-active strong {
+:is(.theme-card, .theme-reader-paper-option).is-active strong {
   color: hsl(var(--foreground));
 }
 
-.theme-paper-scribble {
+.theme-choice-scribble {
   position: absolute;
   inset: -8px -10px;
   width: calc(100% + 20px);
@@ -185,7 +168,7 @@
   pointer-events: none;
 }
 
-.theme-paper-scribble path {
+.theme-choice-scribble path {
   fill: none;
   stroke: hsl(var(--foreground));
   stroke-width: 2px;
@@ -195,9 +178,18 @@
   vector-effect: non-scaling-stroke;
 }
 
-.theme-reader-paper-option.is-active .theme-paper-scribble path {
+:is(.theme-card, .theme-reader-paper-option).is-active .theme-choice-scribble path {
   stroke-dashoffset: 0;
-  transition: stroke-dashoffset 320ms ease-out;
+  animation: theme-choice-circle-draw 320ms ease-out;
+}
+
+@keyframes theme-choice-circle-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 .theme-dialog .theme-reader-paper-note {
@@ -205,8 +197,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .theme-reader-paper-option.is-active .theme-paper-scribble path {
-    transition: none;
+  :is(.theme-card, .theme-reader-paper-option).is-active .theme-choice-scribble path {
+    animation: none;
   }
 }
 

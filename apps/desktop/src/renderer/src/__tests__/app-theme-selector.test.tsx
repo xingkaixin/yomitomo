@@ -12,9 +12,15 @@ import {
   type AppThemeId,
 } from '../theme/app-theme';
 import { initializeAppI18n } from '../i18n/app-i18n';
+import { playAppSoundEffect } from '../sound/app-sound-effects';
+
+vi.mock('../sound/app-sound-effects', () => ({ playAppSoundEffect: vi.fn() }));
 
 afterEach(cleanup);
-beforeEach(() => initializeAppI18n('zh-CN'));
+beforeEach(() => {
+  vi.clearAllMocks();
+  initializeAppI18n('zh-CN');
+});
 
 function props() {
   return {
@@ -41,11 +47,19 @@ describe('ThemeSelector', () => {
     expect(screen.queryByRole('button', { name: '阅读器纸张：松烟' })).toBeNull();
   });
 
-  it('selects a theme immediately and keeps the picker open', () => {
+  it('selects a theme immediately with one drawing sound and keeps the picker open', () => {
     const callbacks = props();
-    render(<ThemeSelector {...callbacks} />);
+    const { rerender } = render(<ThemeSelector {...callbacks} />);
     fireEvent.click(screen.getByRole('button', { name: '青芽' }));
     expect(callbacks.onSelectTheme).toHaveBeenCalledExactlyOnceWith(shadLingoThemeId);
+    expect(playAppSoundEffect).toHaveBeenCalledExactlyOnceWith(
+      'theme.appearance_switch',
+      callbacks.soundSettings,
+    );
+    rerender(<ThemeSelector {...callbacks} activeThemeId={shadLingoThemeId} />);
+    fireEvent.click(screen.getByRole('button', { name: '青芽' }));
+    expect(playAppSoundEffect).toHaveBeenCalledTimes(1);
+    expect(callbacks.onSelectTheme).toHaveBeenCalledTimes(1);
     expect(callbacks.onSelectReaderBackground).not.toHaveBeenCalled();
     expect(callbacks.onOpenChange).not.toHaveBeenCalled();
   });
@@ -57,8 +71,13 @@ describe('ThemeSelector', () => {
     fireEvent.click(screen.getByRole('button', { name: '阅读器纸张：纸白' }));
     expect(callbacks.onSelectTheme).not.toHaveBeenCalled();
     expect(callbacks.onSelectReaderBackground).not.toHaveBeenCalled();
+    expect(playAppSoundEffect).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: '阅读器纸张：淡绿' }));
     expect(callbacks.onSelectReaderBackground).toHaveBeenCalledExactlyOnceWith('#eef4e8');
+    expect(playAppSoundEffect).toHaveBeenCalledExactlyOnceWith(
+      'theme.appearance_switch',
+      callbacks.soundSettings,
+    );
     expect(callbacks.onSelectTheme).not.toHaveBeenCalled();
     expect(callbacks.onOpenChange).not.toHaveBeenCalled();
   });
@@ -91,7 +110,12 @@ describe('ThemeSelector', () => {
     expect(screen.getByText('PDF 将保留原始页面颜色')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '暗色' }));
     expect(callbacks.onSelectTheme).toHaveBeenCalledTimes(1);
+    expect(playAppSoundEffect).toHaveBeenCalledExactlyOnceWith(
+      'theme.appearance_switch',
+      callbacks.soundSettings,
+    );
     fireEvent.click(screen.getByRole('button', { name: '亮色' }));
+    expect(playAppSoundEffect).toHaveBeenCalledTimes(2);
     expect(callbacks.onSelectTheme).toHaveBeenLastCalledWith(inkPaperThemeId, '#eef4e8');
     expect(callbacks.onSelectReaderBackground).toHaveBeenLastCalledWith('#eef4e8');
   });

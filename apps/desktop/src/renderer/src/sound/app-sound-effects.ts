@@ -26,7 +26,7 @@ export type AppSoundEffectId =
   | 'reader.annotation_created'
   | 'reader.distillation_committed'
   | 'settings.sound_preview'
-  | 'theme.paper_switch';
+  | 'theme.appearance_switch';
 
 type SoundEffectDefinition = {
   baseVolume: number;
@@ -86,7 +86,7 @@ const soundEffects: Record<AppSoundEffectId, SoundEffectDefinition> = {
     baseVolume: 1,
     urls: [soundPreviewUrl],
   },
-  'theme.paper_switch': {
+  'theme.appearance_switch': {
     baseVolume: 0.4,
     urls: [scribbleCircleSoundUrl],
   },

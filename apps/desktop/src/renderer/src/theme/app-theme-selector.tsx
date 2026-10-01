@@ -1,5 +1,5 @@
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Cancel01Icon, ColorPickerIcon, Tick01Icon } from '@hugeicons/core-free-icons';
+import { Cancel01Icon, ColorPickerIcon } from '@hugeicons/core-free-icons';
 import { useState, type CSSProperties } from 'react';
 import {
   defaultReaderBackgroundForTone,
@@ -85,12 +85,19 @@ function ThemeDialog({
     if (tone === activeTone) return;
     onSelectTheme(themeIdsByTone[tone], readerBackgroundsByTone[tone]);
     onSelectReaderBackground(readerBackgroundsByTone[tone]);
+    playAppSoundEffect('theme.appearance_switch', soundSettings);
+  }
+
+  function selectTheme(themeId: AppThemeId) {
+    if (themeId === activeThemeId) return;
+    onSelectTheme(themeId);
+    playAppSoundEffect('theme.appearance_switch', soundSettings);
   }
 
   function selectPaper(paper: string) {
     if (paper === readerBackgroundColor) return;
     onSelectReaderBackground(paper);
-    playAppSoundEffect('theme.paper_switch', soundSettings);
+    playAppSoundEffect('theme.appearance_switch', soundSettings);
   }
 
   return (
@@ -138,20 +145,13 @@ function ThemeDialog({
                         aria-label={themeDisplayName(id)}
                         aria-pressed={activeThemeId === id}
                         type="button"
-                        onClick={() => {
-                          if (id !== activeThemeId) onSelectTheme(id);
-                        }}
+                        onClick={() => selectTheme(id)}
                       >
                         <AppearancePreview themeId={id} />
-                        <strong>{themeDisplayName(id)}</strong>
-                        {activeThemeId === id ? (
-                          <HugeiconsIcon
-                            className="theme-card-check"
-                            icon={Tick01Icon}
-                            size={16}
-                            aria-hidden="true"
-                          />
-                        ) : null}
+                        <strong>
+                          {themeDisplayName(id)}
+                          <SelectionCircle />
+                        </strong>
                       </button>
                     ))}
                 </div>
@@ -184,17 +184,7 @@ function ThemeDialog({
                           />
                           <strong>
                             {label}
-                            <svg
-                              aria-hidden="true"
-                              className="theme-paper-scribble"
-                              preserveAspectRatio="none"
-                              viewBox="0 0 70 78"
-                            >
-                              <path
-                                d="M48 8 C34 0 10 8 6 26 C2 46 12 68 33 70 C54 72 68 56 65 36 C62 16 46 2 27 7 C17 10 10 17 8 27 C6 36 9 45 15 52"
-                                pathLength={1}
-                              />
-                            </svg>
+                            <SelectionCircle />
                           </strong>
                         </button>
                       );
@@ -209,6 +199,22 @@ function ThemeDialog({
         </DialogOverlay>
       </DialogPortal>
     </Dialog>
+  );
+}
+
+function SelectionCircle() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="theme-choice-scribble"
+      preserveAspectRatio="none"
+      viewBox="0 0 70 78"
+    >
+      <path
+        d="M48 8 C34 0 10 8 6 26 C2 46 12 68 33 70 C54 72 68 56 65 36 C62 16 46 2 27 7 C17 10 10 17 8 27 C6 36 9 45 15 52"
+        pathLength={1}
+      />
+    </svg>
   );
 }
 
