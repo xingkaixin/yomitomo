@@ -9,6 +9,8 @@ import {
   duskIndigoThemeId,
   inkBlackThemeId,
   inkPaperThemeId,
+  shadLingoThemeId,
+  shadLingoDarkThemeId,
 } from '../theme/app-theme';
 import { initializeAppI18n } from '../i18n/app-i18n';
 
@@ -44,6 +46,7 @@ describe('ThemeSelector', () => {
     expect(screen.getByRole('button', { name: '亮色' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('button', { name: /当前 Yomitomo/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /墨纸/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /青芽.*白色纸面/ })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /墨黑/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /米色纸/ })).toBeNull();
     expect(screen.getByRole('button', { name: '阅读器纸张：纸白' })).toBeTruthy();
@@ -76,6 +79,27 @@ describe('ThemeSelector', () => {
     expect(onSelectTheme).toHaveBeenCalledWith(inkPaperThemeId);
     expect(onOpenChange).not.toHaveBeenCalled();
     expect(screen.getByRole('dialog', { name: '主题' })).toBeTruthy();
+  });
+
+  it.each([
+    [shadLingoThemeId, '#ffffff', /青芽.*白色纸面/],
+    [shadLingoDarkThemeId, '#012032', /青芽·夜.*深蓝夜色/],
+  ] as const)('selects the localized %s theme', (themeId, paper, name) => {
+    const onSelectTheme = vi.fn();
+    render(
+      <ThemeSelector
+        activeThemeId={themeId}
+        open
+        readerBackgroundColor={paper}
+        onOpenChange={() => undefined}
+        onSelectReaderBackground={() => undefined}
+        onSelectTheme={onSelectTheme}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name }));
+
+    expect(onSelectTheme).toHaveBeenCalledWith(themeId);
   });
 
   it('opens the dialog from the theme trigger source', () => {

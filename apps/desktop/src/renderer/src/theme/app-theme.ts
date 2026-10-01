@@ -3,6 +3,7 @@ import {
   type CssVariableMap,
   type ReaderTheme,
 } from '@yomitomo/reader-ui/reader-theme';
+import { createShadLingoTheme } from './shadlingo-theme';
 
 export type AppTheme = {
   meta: {
@@ -120,6 +121,8 @@ export const beigePaperThemeId = 'beige-paper';
 export const inkBlackThemeId = 'ink-black';
 export const duskIndigoThemeId = 'dusk-indigo';
 export const inkPaperThemeId = 'ink-paper';
+export const shadLingoThemeId = 'shadlingo';
+export const shadLingoDarkThemeId = 'shadlingo-dark';
 const cachedThemeStorageKey = 'yomitomo.themeId';
 const cachedThemeIdsByToneStorageKey = 'yomitomo.themeIdsByTone';
 
@@ -1065,12 +1068,17 @@ export const inkPaperTheme: AppTheme = {
   reader: inkPaperReaderTheme,
 };
 
+export const shadLingoTheme = createShadLingoTheme(defaultTheme, 'light');
+export const shadLingoDarkTheme = createShadLingoTheme(defaultTheme, 'dark');
+
 export const themeRegistry = {
   [defaultThemeId]: defaultTheme,
   [inkPaperThemeId]: inkPaperTheme,
   [inkBlackThemeId]: inkBlackTheme,
   [duskIndigoThemeId]: duskIndigoTheme,
   [beigePaperThemeId]: beigePaperTheme,
+  [shadLingoThemeId]: shadLingoTheme,
+  [shadLingoDarkThemeId]: shadLingoDarkTheme,
 } as const satisfies Record<string, AppTheme>;
 
 export type AppThemeId = keyof typeof themeRegistry;

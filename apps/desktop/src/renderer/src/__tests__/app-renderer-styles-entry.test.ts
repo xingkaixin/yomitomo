@@ -101,6 +101,7 @@ describe('renderer styles entry', () => {
       './theme-overrides/settings-agent-stats.css',
       './theme-overrides/library-import-theme.css',
       './theme-overrides/responsive-overrides.css',
+      './theme-overrides/shadlingo.css',
     ]);
     expect(imports).not.toContain('./theme-overrides/legacy-shell.css');
     expect(imports).not.toContain('./theme-overrides/legacy-library.css');

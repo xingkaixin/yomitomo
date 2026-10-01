@@ -158,6 +158,8 @@ export const jaResources = {
         'ink-black': 'インクブラック',
         'dusk-indigo': '黄昏インディゴ',
         'ink-paper': 'インク紙',
+        shadlingo: '若葉',
+        'shadlingo-dark': '若葉・夜',
       },
       descriptions: {
         default: 'Yomitomoのデフォルトの軽い読書環境。',
@@ -166,6 +168,8 @@ export const jaResources = {
         'dusk-indigo': '涼しい藍色の夜の読書環境。',
         'ink-paper':
           '繊細なドットとインクブルーのアクセントを備えた、落ち着いた温かみのある紙の読書環境。',
+        shadlingo: '白い紙面、深い青の文字、若葉色のアクセントの ShadLingo テーマ。',
+        'shadlingo-dark': '深い青の背景、淡い青の文字、若葉色のアクセントの ShadLingo テーマ。',
       },
       readerPaperNames: {
         纸白: '紙白',
