@@ -17,18 +17,18 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^4.0.52",
-    "@ai-sdk/google": "^4.0.67",
-    "@ai-sdk/openai": "^4.0.65",
-    "@ai-sdk/openai-compatible": "^3.0.47",
+    "@ai-sdk/anthropic": "^4.0.69",
+    "@ai-sdk/google": "^4.0.86",
+    "@ai-sdk/openai": "^4.0.82",
+    "@ai-sdk/openai-compatible": "^3.0.60",
     "@yomitomo/core": "workspace:*",
     "@yomitomo/shared": "workspace:*",
-    "ai": "^7.0.97",
-    "effect": "4.0.0-rc.113"
+    "ai": "^7.0.123",
+    "effect": "4.0.0"
   },
   "devDependencies": {
     "@huggingface/transformers": "4.2.0",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.2"
   }
 }
