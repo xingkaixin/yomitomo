@@ -242,14 +242,14 @@ describe('ask reading library', () => {
             const view = await openAskLibrary(page);
             const context = view.getByRole('region', { name: 'Current scope and destination' });
             await view
-              .getByRole('combobox', { name: 'Evidence scope' })
+              .getByRole('combobox', { name: 'Reading record scope' })
               .selectOption({ label: 'Collection' });
             await view
               .getByRole('combobox', { name: 'Choose a collection' })
               .selectOption(collection.id);
             await context.getByText('2 sources · 10 saved judgments', { exact: true }).waitFor();
             await view
-              .getByRole('combobox', { name: 'Evidence scope' })
+              .getByRole('combobox', { name: 'Reading record scope' })
               .selectOption({ label: 'Selected sources' });
             await view.getByRole('button', { name: 'Choose sources', exact: true }).click();
             const picker = page.getByRole('dialog', { name: 'Choose sources', exact: true });

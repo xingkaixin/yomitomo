@@ -331,9 +331,11 @@ export const enResources = {
       library: {
         title: 'Ask library',
         description:
-          'Ask across saved highlights, thoughts, and distillations. This session clears when you leave.',
-        scope: 'Evidence scope',
-        scopeLibrary: 'Whole library',
+          'Search saved highlights, thoughts, discussions you participated in, and published distillations. This session clears when you leave.',
+        scopeHint:
+          'Search covers reading records in the selected sources, excluding the full text of books and articles and unpublished distillation drafts.',
+        scope: 'Reading record scope',
+        scopeLibrary: 'Reading records from all sources',
         scopeCollection: 'Collection',
         scopeSources: 'Selected sources',
         collection: 'Choose a collection',
@@ -343,7 +345,7 @@ export const enResources = {
         chooseSomeSources: 'Choose at least one source to ask.',
         question: 'Your question',
         keywordHint:
-          'Keyword search is active. Try a short phrase from your sources. Full natural-language questions may not match when the semantic model is not installed or is unavailable.',
+          'Keyword search is active. Try a short phrase from your saved highlights or thoughts. Full natural-language questions may not match when the semantic model is not installed or is unavailable.',
         placeholder: 'For example: where have my views on learning changed?',
         ask: 'Ask library',
         context: 'Current scope and destination',
@@ -357,7 +359,8 @@ export const enResources = {
         reloadContext: 'Retry scope check',
         localEvidence: 'Evidence from this scope',
         evidenceCount: '{{count}} local evidence items',
-        emptyEvidence: 'No relevant saved evidence was found in this scope.',
+        emptyEvidence:
+          'No relevant evidence was found in these reading records. Try different keywords, or save relevant highlights and thoughts while reading.',
         answering: 'Answering from the selected evidence…',
         canceled: 'Canceled. Local evidence remains available.',
         generationFailed:
@@ -407,7 +410,7 @@ export const enResources = {
       },
       scopeLibrary: 'Scope: saved reading assets across the library',
       coverage: 'Index coverage for this query',
-      projectionCoverage: 'Text projection: {{count}} / {{total}} assets',
+      projectionCoverage: 'Reading record index: {{count}} / {{total}} records',
       semanticCoverage: 'Semantic index: {{count}} / {{total}} entries',
       mode: { keyword: 'Keyword relation candidates', hybrid: 'Keyword and semantic candidates' },
       noProvider: 'No reading assistant provider is configured. Only local evidence is shown.',
