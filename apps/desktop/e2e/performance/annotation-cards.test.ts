@@ -23,7 +23,8 @@ const paragraphs = Array.from(
   (_, index) =>
     `Paragraph ${String(index).padStart(4, '0')}: Reading a source carefully helps distinguish the author's claims from the reader's own interpretation. This paragraph provides stable text for a saved reading note and its source anchor.`,
 );
-const profile = process.env.YOMITOMO_ANNOTATION_PROFILE === '1';
+const profilePhase = process.env.YOMITOMO_ANNOTATION_PROFILE === 'font' ? 'font' : 'scroll';
+const profile = ['1', 'font'].includes(process.env.YOMITOMO_ANNOTATION_PROFILE ?? '');
 
 it('observes annotation cards without machine-specific performance thresholds', async () => {
   const runData = await createE2eRunData('annotation-card-performance');
@@ -87,7 +88,7 @@ it('observes annotation cards without machine-specific performance thresholds', 
             });
           }),
         );
-        if (profile) {
+        if (profile && profilePhase === 'scroll') {
           await cdp.send('Profiler.enable');
           await cdp.send('Profiler.start');
         }
@@ -108,7 +109,7 @@ it('observes annotation cards without machine-specific performance thresholds', 
             });
           }),
         );
-        if (profile) {
+        if (profile && profilePhase === 'scroll') {
           const { profile: cpuProfile } = await cdp.send('Profiler.stop');
           await writeFile(
             join(desktop.artifactsDir, 'annotation-cards-scroll.cpuprofile'),
@@ -119,6 +120,10 @@ it('observes annotation cards without machine-specific performance thresholds', 
         await expect(
           page.getByRole('slider', { name: 'Font size', exact: true }).inputValue(),
         ).resolves.toBe('20');
+        if (profile && profilePhase === 'font') {
+          await cdp.send('Profiler.enable');
+          await cdp.send('Profiler.start');
+        }
         phases.push(
           await measure(page, cdp, 'font', async () => {
             await page.getByRole('button', { name: '增加Font size', exact: true }).click();
@@ -130,6 +135,13 @@ it('observes annotation cards without machine-specific performance thresholds', 
             );
           }),
         );
+        if (profile && profilePhase === 'font') {
+          const { profile: cpuProfile } = await cdp.send('Profiler.stop');
+          await writeFile(
+            join(desktop.artifactsDir, 'annotation-cards-font.cpuprofile'),
+            JSON.stringify(cpuProfile),
+          );
+        }
         await page.keyboard.press('Escape');
         if (sample === 0)
           await page.screenshot({
@@ -157,6 +169,7 @@ it('observes annotation cards without machine-specific performance thresholds', 
             chrome: process.versions.chrome,
           })),
           profile,
+          profilePhase: profile ? profilePhase : undefined,
           viewport: { width: 1500, height: 860 },
           fixture: {
             paragraphs: 1000,

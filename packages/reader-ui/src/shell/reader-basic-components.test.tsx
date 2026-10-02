@@ -247,7 +247,17 @@ describe('ReaderSettingsToolbarControls', () => {
   });
 });
 
-describe('ReaderSurfaceView empty notes', () => {
+const highlightBox = (annotationId: string, top: number): HighlightBox => ({
+  id: `${annotationId}-${top}`,
+  annotationId,
+  color: '#f4c95d',
+  top,
+  left: 24,
+  width: 120,
+  height: 20,
+});
+
+describe('ReaderSurfaceView', () => {
   function surfaceView({
     composer = null,
     highlights = {},
@@ -409,6 +419,108 @@ describe('ReaderSurfaceView empty notes', () => {
 
     expect(highlight?.classList.contains('is-new')).toBe(true);
     expect(highlight?.style.getPropertyValue('--highlight-grow-delay')).toBe('0ms');
+  });
+
+  it('reuses later highlights after earlier text reflows and updates their targets', () => {
+    const first = annotation({ id: 'first' });
+    const later = annotation({ id: 'later' });
+    const view = surfaceView({
+      highlights: {
+        annotations: [first, later],
+        boxes: [highlightBox('first', 10), highlightBox('later', 60)],
+      },
+    });
+    const { container, rerender } = render(view);
+    const laterHighlight = container.querySelectorAll('.reader-highlight')[1];
+    const onHighlightClick = vi.fn();
+    const changedActions = {
+      ...view.props.actions,
+      annotation: { ...view.props.actions.annotation, onHighlightClick },
+    };
+    rerender(
+      React.cloneElement(view, {
+        actions: changedActions,
+        annotations: {
+          ...view.props.annotations,
+          boxes: [highlightBox('first', 10), highlightBox('first', 40), highlightBox('later', 90)],
+        },
+      }),
+    );
+    const highlights = container.querySelectorAll<HTMLElement>('.reader-highlight');
+    expect(highlights).toHaveLength(3);
+    expect(highlights[2]).toBe(laterHighlight);
+    expect(highlights[2]?.style.top).toBe('90px');
+    fireEvent.click(highlights[2]);
+    expect(onHighlightClick).toHaveBeenLastCalledWith('later', expect.anything(), ['later']);
+
+    rerender(
+      React.cloneElement(view, {
+        actions: changedActions,
+        annotations: {
+          ...view.props.annotations,
+          boxes: [highlightBox('first', 90), highlightBox('later', 90)],
+        },
+      }),
+    );
+    const overlap = container.querySelector<HTMLElement>('.reader-highlight')!;
+    expect(container.querySelectorAll('.reader-highlight')).toHaveLength(1);
+    fireEvent.click(overlap);
+    expect(onHighlightClick).toHaveBeenLastCalledWith('first', expect.anything(), [
+      'first',
+      'later',
+    ]);
+  });
+
+  it('uses the latest card actions without rerendering unchanged content', () => {
+    const item = annotation();
+    const thoughtSummary = vi.fn(defaultReaderUiLabels.thoughtSummary);
+    const base = surfaceView({ highlights: { annotations: [item] } });
+    const original = {
+      ...base.props.actions.annotation,
+      onOpenAnnotationDiscussion: vi.fn(),
+    };
+    const view = React.cloneElement(base, {
+      labels: { ...defaultReaderUiLabels, thoughtSummary },
+      actions: { ...base.props.actions, annotation: original },
+      annotationRail: {
+        ...base.props.annotationRail,
+        annotationRailItems: [
+          {
+            annotation: item,
+            isStackFront: true,
+            railSide: 'right',
+            stackCount: 1,
+            stackIndex: 0,
+            style: { top: 0 },
+          },
+        ],
+      },
+    });
+    const { rerender } = render(view);
+    const calls = thoughtSummary.mock.calls.length;
+    const latest = {
+      ...original,
+      onScrollToHighlight: vi.fn(),
+      onDeleteAnnotation: vi.fn(),
+      onOpenAnnotationDiscussion: vi.fn(),
+    };
+    rerender(
+      React.cloneElement(view, {
+        actions: { ...view.props.actions, annotation: latest },
+      }),
+    );
+    expect(thoughtSummary.mock.calls.length).toBe(calls);
+    fireEvent.click(screen.getByRole('button', { name: item.anchor.exact }));
+    fireEvent.click(screen.getByRole('button', { name: '进入讨论区' }));
+    fireEvent.click(screen.getByRole('button', { name: '打开划线操作' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '删除划线' }));
+    fireEvent.click(screen.getByRole('dialog').querySelector('.reader-confirm-delete')!);
+    expect(latest.onScrollToHighlight).toHaveBeenCalledWith(item.id);
+    expect(latest.onOpenAnnotationDiscussion).toHaveBeenCalledWith(item.id, expect.anything());
+    expect(latest.onDeleteAnnotation).toHaveBeenCalledWith(item.id);
+    expect(original.onScrollToHighlight).not.toHaveBeenCalled();
+    expect(original.onOpenAnnotationDiscussion).not.toHaveBeenCalled();
+    expect(original.onDeleteAnnotation).not.toHaveBeenCalled();
   });
 
   it('renders selection adjustment handles from temporary highlight boxes', () => {

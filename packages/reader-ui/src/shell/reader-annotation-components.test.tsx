@@ -3,6 +3,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AnnotationCard } from '../annotations/reader-annotation-card';
+import { defaultReaderUiLabels } from './reader-app-view-types';
 import { ReaderTocPanel } from './reader-toc-panel';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 
@@ -78,6 +79,67 @@ function annotation(overrides: Partial<Annotation> = {}): Annotation {
 }
 
 describe('AnnotationCard', () => {
+  it('updates placement and relative time without rerendering unchanged content', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-12T08:00:30.000Z'));
+    const thoughtSummary = vi.fn(defaultReaderUiLabels.thoughtSummary);
+    const props = {
+      active: false,
+      agents: [],
+      annotation: annotation(),
+      labels: { ...defaultReaderUiLabels, thoughtSummary },
+      noteRef: vi.fn(),
+      userProfile,
+      onDelete: vi.fn(),
+      onFocus: vi.fn(),
+    };
+    const { container, rerender } = render(<AnnotationCard {...props} style={{ top: 10 }} />);
+    const calls = thoughtSummary.mock.calls.length;
+    expect(screen.getByText('刚才')).toBeTruthy();
+
+    vi.setSystemTime(new Date('2026-05-12T08:00:45.000Z'));
+    rerender(<AnnotationCard {...props} style={{ top: 90 }} />);
+    expect(container.querySelector<HTMLElement>('.reader-note')?.style.top).toBe('90px');
+    expect(thoughtSummary.mock.calls.length).toBe(calls);
+
+    vi.setSystemTime(new Date('2026-05-12T08:01:01.000Z'));
+    rerender(<AnnotationCard {...props} style={{ top: 90 }} />);
+    expect(screen.getByText('1 分钟前')).toBeTruthy();
+    expect(thoughtSummary.mock.calls.length).toBeGreaterThan(calls);
+  });
+
+  it('refreshes changed thoughts, pending assistants and labels', () => {
+    const props = {
+      active: false,
+      agents: [],
+      annotation: annotation(),
+      noteRef: vi.fn(),
+      userProfile,
+      onDelete: vi.fn(),
+      onFocus: vi.fn(),
+    };
+    const { container, rerender } = render(<AnnotationCard {...props} />);
+    expect(container.querySelector('.reader-comment-count')?.textContent).toBe('1');
+
+    rerender(
+      <AnnotationCard
+        {...props}
+        annotation={{ ...props.annotation, comments: [] }}
+        labels={{ ...defaultReaderUiLabels, annotationCardTab: '注釈' }}
+        pendingAgents={[agent('reviewer', 'Reviewer')]}
+      />,
+    );
+    expect(screen.getByText('注釈')).toBeTruthy();
+    expect(container.querySelector('.reader-comment-count')?.textContent).toBe('1');
+    expect(
+      container.querySelector('.reader-pending-agent-stack')?.getAttribute('aria-label'),
+    ).toContain('Reviewer');
+
+    rerender(<AnnotationCard {...props} annotation={{ ...props.annotation, comments: [] }} />);
+    expect(container.querySelector('.reader-comment-count')?.textContent).toBe('0');
+    expect(container.querySelector('.reader-pending-agent-stack')).toBeNull();
+  });
+
   it('summarizes thoughts without rendering the inline discussion', () => {
     const { container } = render(
       <AnnotationCard

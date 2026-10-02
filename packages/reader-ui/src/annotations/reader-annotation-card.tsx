@@ -7,7 +7,7 @@ import {
   BubbleChatIcon,
   MoreHorizontalIcon,
 } from '@hugeicons/core-free-icons';
-import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import {
   annotationCommentThreads,
@@ -61,7 +61,6 @@ type AnnotationCardLabels = Pick<
 
 type PendingAgentStackLabels = Pick<ReaderUiLabels, 'annotationProcessing'>;
 type AssistantParticipationLabels = Pick<ReaderUiLabels, 'assistantParticipationSummary'>;
-type ReaderRelativeTimeLabels = Pick<ReaderUiLabels, 'dateLocale' | 'relativeTimeLabel'>;
 type DeleteActionMenuLabels = Pick<
   ReaderUiLabels,
   | 'cancel'
@@ -74,26 +73,7 @@ type DeleteActionMenuLabels = Pick<
 
 export type { ReaderWindowSourceRect } from './reader-annotation-types';
 
-export function AnnotationCard({
-  active,
-  agents,
-  annotation,
-  distillationAnimation,
-  exiting = false,
-  isStackFront = true,
-  labels = defaultReaderUiLabels,
-  noteRef,
-  railSide = 'right',
-  reviewAgents = [],
-  stackCount = 1,
-  stackIndex = 0,
-  style,
-  userProfile,
-  onDelete,
-  onFocus,
-  onOpenDiscussion,
-  pendingAgents = [],
-}: {
+type AnnotationCardProps = {
   active: boolean;
   agents: PublicAgent[];
   annotation: Annotation;
@@ -122,21 +102,36 @@ export function AnnotationCard({
   onFocus: (annotationId: string) => void;
   onOpenDiscussion?: (annotationId: string, sourceRect?: ReaderWindowSourceRect) => void;
   pendingAgents?: PublicAgent[];
-}) {
-  const personaAgents = useMemo(() => [...agents, ...reviewAgents], [agents, reviewAgents]);
-  const author = annotationAuthor(annotation, userProfile, personaAgents);
-  const discussionThreads = useMemo(() => annotationDiscussionThreads(annotation), [annotation]);
-  const visibleThoughtCount = discussionThreads.length + pendingAgents.length;
-  const assistantParticipants = useMemo(
-    () => uniqueAssistantParticipants(annotation.comments, userProfile, personaAgents),
-    [annotation.comments, personaAgents, userProfile],
-  );
-  const summaryBusy = pendingAgents.length > 0;
-  const assistantSummary = assistantParticipationSummary(
-    assistantParticipants,
-    pendingAgents,
-    labels,
-  );
+  timeFormatter?: Intl.DateTimeFormat;
+};
+
+const emptyAgents: PublicAgent[] = [];
+
+export function AnnotationCard({
+  noteRef,
+  style,
+  exiting = false,
+  isStackFront = true,
+  railSide = 'right',
+  stackCount = 1,
+  stackIndex = 0,
+  timeFormatter,
+  distillationAnimation,
+  ...props
+}: AnnotationCardProps) {
+  const { annotation, active, onFocus, labels = defaultReaderUiLabels } = props;
+  const isDualMorph =
+    distillationAnimation?.phase !== 'update' &&
+    (distillationAnimation?.transition === 'publish' ||
+      distillationAnimation?.transition === 'unpublish') &&
+    Boolean(distillationAnimation.overlayDistillation);
+  const overlay = isDualMorph ? distillationAnimation?.overlayDistillation : undefined;
+  const distillationTime =
+    overlay?.updatedAt ||
+    overlay?.publishedAt ||
+    annotation.distillation?.updatedAt ||
+    annotation.distillation?.publishedAt ||
+    annotation.updatedAt;
   const [shuffling, setShuffling] = useState(false);
   const prevStackFrontRef = useRef(isStackFront);
 
@@ -145,23 +140,7 @@ export function AnnotationCard({
     prevStackFrontRef.current = isStackFront;
     if (!exiting && stackCount > 1 && wasFront && !isStackFront) setShuffling(true);
   }, [exiting, isStackFront, stackCount]);
-  const isDualMorph =
-    distillationAnimation?.phase !== 'update' &&
-    (distillationAnimation?.transition === 'publish' ||
-      distillationAnimation?.transition === 'unpublish') &&
-    Boolean(distillationAnimation.overlayDistillation);
-  const thoughtSummaryId = `annotation-${annotation.id}-thought-summary`;
-  const discussionSummaryLabel = `${labels.thoughtSummary(visibleThoughtCount, false)}，${assistantSummary}`;
-  const summaryClassName = [
-    'reader-note-discussion-summary',
-    summaryBusy ? 'is-busy' : '',
-    visibleThoughtCount === 0 ? 'is-empty' : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
-  const toolbarClassName = ['reader-note-toolbar', 'reader-note-summary-toolbar']
-    .filter(Boolean)
-    .join(' ');
+
   const noteClassName = [
     'reader-note',
     active ? 'is-active' : '',
@@ -186,16 +165,8 @@ export function AnnotationCard({
   const displaysDistillation =
     annotation.distillation?.status === 'published' && distillationContent.length > 0;
   const displayedText = displaysDistillation ? distillationContent : annotation.anchor.exact;
-  const distillationPublishedAt =
-    annotation.distillation?.updatedAt ||
-    annotation.distillation?.publishedAt ||
-    annotation.updatedAt;
-  const dualMorphDistillation = distillationAnimation?.overlayDistillation;
-  const dualMorphDistillationContent = dualMorphDistillation?.content.trim() || distillationContent;
-  const dualMorphDistillationTime =
-    dualMorphDistillation?.updatedAt ||
-    dualMorphDistillation?.publishedAt ||
-    distillationPublishedAt;
+  const dualMorphDistillationContent =
+    distillationAnimation?.overlayDistillation?.content.trim() || distillationContent;
   const dualMorphAnnotationRef = useRef<HTMLDivElement | null>(null);
   const dualMorphDistillationRef = useRef<HTMLDivElement | null>(null);
   const [dualMorphHeight, setDualMorphHeight] = useState<number | null>(null);
@@ -215,13 +186,6 @@ export function AnnotationCard({
     setDualMorphHeight(nextHeight);
   });
 
-  const setNoteElement = useCallback(
-    (element: HTMLElement | null) => {
-      noteRef(element);
-    },
-    [noteRef],
-  );
-
   function handleCardClick(event: React.MouseEvent<HTMLElement>) {
     if (active) return;
     if (!(event.target instanceof Element)) return;
@@ -229,6 +193,123 @@ export function AnnotationCard({
     onFocus(annotation.id);
   }
 
+  function renderContent(face: 'annotation' | 'distillation', text: string) {
+    const timestamp = face === 'annotation' ? annotation.createdAt : distillationTime;
+    return (
+      <AnnotationCardContent
+        {...props}
+        face={face}
+        displayedText={text}
+        timestamp={timestamp}
+        timeLabel={formatRelativeTime(timestamp, labels)}
+        fullTime={formatTime(timestamp, labels, timeFormatter)}
+      />
+    );
+  }
+
+  return (
+    <section
+      className={noteClassName}
+      data-stack-count={stackCount}
+      data-stack-index={stackIndex}
+      data-annotation-id={annotation.id}
+      data-rail-side={railSide}
+      data-distillation-animation={distillationAnimation?.token}
+      data-distillation-transition={distillationAnimation?.transition}
+      ref={noteRef}
+      style={shuffling ? { ...style, zIndex: 70 } : style}
+      onClick={handleCardClick}
+      onAnimationEnd={(event) => {
+        if (event.animationName.startsWith('reader-note-shuffle')) setShuffling(false);
+      }}
+    >
+      {isDualMorph ? (
+        <div
+          className="reader-note-dual-morph-stage"
+          style={dualMorphHeight === null ? undefined : { height: `${dualMorphHeight}px` }}
+        >
+          <div
+            className="reader-note-dual-face reader-note-dual-face-annotation"
+            ref={dualMorphAnnotationRef}
+          >
+            {renderContent('annotation', annotation.anchor.exact)}
+          </div>
+          <div
+            className="reader-note-dual-face reader-note-dual-face-distillation"
+            ref={dualMorphDistillationRef}
+          >
+            {renderContent('distillation', dualMorphDistillationContent)}
+          </div>
+        </div>
+      ) : (
+        renderContent(displaysDistillation ? 'distillation' : 'annotation', displayedText)
+      )}
+    </section>
+  );
+}
+
+type AnnotationCardContentProps = Omit<
+  AnnotationCardProps,
+  | 'noteRef'
+  | 'style'
+  | 'exiting'
+  | 'isStackFront'
+  | 'railSide'
+  | 'stackCount'
+  | 'stackIndex'
+  | 'timeFormatter'
+  | 'distillationAnimation'
+> & {
+  face: 'annotation' | 'distillation';
+  displayedText: string;
+  timestamp: string;
+  timeLabel: string;
+  fullTime: string;
+};
+
+const AnnotationCardContent = React.memo(function AnnotationCardContent({
+  active,
+  agents,
+  annotation,
+  labels = defaultReaderUiLabels,
+  reviewAgents = emptyAgents,
+  userProfile,
+  onDelete,
+  onFocus,
+  onOpenDiscussion,
+  pendingAgents = emptyAgents,
+  face,
+  displayedText,
+  timestamp,
+  timeLabel,
+  fullTime,
+}: AnnotationCardContentProps) {
+  const personaAgents = useMemo(() => [...agents, ...reviewAgents], [agents, reviewAgents]);
+  const author = annotationAuthor(annotation, userProfile, personaAgents);
+  const discussionThreads = useMemo(() => annotationDiscussionThreads(annotation), [annotation]);
+  const visibleThoughtCount = discussionThreads.length + pendingAgents.length;
+  const assistantParticipants = useMemo(
+    () => uniqueAssistantParticipants(annotation.comments, userProfile, personaAgents),
+    [annotation.comments, personaAgents, userProfile],
+  );
+  const summaryBusy = pendingAgents.length > 0;
+  const assistantSummary = assistantParticipationSummary(
+    assistantParticipants,
+    pendingAgents,
+    labels,
+  );
+  const thoughtSummaryId = `annotation-${annotation.id}-thought-summary`;
+  const discussionSummaryLabel = `${labels.thoughtSummary(visibleThoughtCount, false)}，${assistantSummary}`;
+  const summaryClassName = [
+    'reader-note-discussion-summary',
+    summaryBusy ? 'is-busy' : '',
+    visibleThoughtCount === 0 ? 'is-empty' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const toolbarClassName = ['reader-note-toolbar', 'reader-note-summary-toolbar']
+    .filter(Boolean)
+    .join(' ');
   function openDiscussion(sourceElement: Element) {
     if (!active) onFocus(annotation.id);
     onOpenDiscussion?.(annotation.id, elementWindowSourceRect(sourceElement));
@@ -258,7 +339,7 @@ export function AnnotationCard({
             </span>
             <span className="reader-note-meta-copy">
               <strong>{author.nickname}</strong>
-              <ReaderRelativeTime labels={labels} value={annotation.createdAt} />
+              <ReaderRelativeTime fullTime={fullTime} value={timestamp} text={timeLabel} />
             </span>
           </div>
           <DeleteActionMenu
@@ -302,7 +383,7 @@ export function AnnotationCard({
     );
   }
 
-  function renderDistillationSurface(content: string, time?: string) {
+  function renderDistillationSurface(content: string) {
     return (
       <>
         <span className="reader-note-tab">
@@ -329,12 +410,13 @@ export function AnnotationCard({
             onOpenDiscussion={openDiscussion}
           />
         </div>
-        {time ? (
+        {timestamp ? (
           <footer className="reader-note-toolbar reader-note-distillation-footer">
             <ReaderRelativeTime
               className="reader-note-distillation-time"
-              labels={labels}
-              value={time}
+              fullTime={fullTime}
+              value={timestamp}
+              text={timeLabel}
             />
           </footer>
         ) : null}
@@ -342,54 +424,10 @@ export function AnnotationCard({
     );
   }
 
-  const commonSectionProps = {
-    className: noteClassName,
-    'data-stack-count': stackCount,
-    'data-stack-index': stackIndex,
-    'data-annotation-id': annotation.id,
-    'data-rail-side': railSide,
-    'data-distillation-animation': distillationAnimation?.token,
-    'data-distillation-transition': distillationAnimation?.transition,
-    ref: setNoteElement,
-    style: shuffling ? { ...style, zIndex: 70 } : style,
-    onClick: handleCardClick,
-    onAnimationEnd: (event: React.AnimationEvent<HTMLElement>) => {
-      if (event.animationName.startsWith('reader-note-shuffle')) setShuffling(false);
-    },
-  };
-
-  if (isDualMorph) {
-    return (
-      <section {...commonSectionProps}>
-        <div
-          className="reader-note-dual-morph-stage"
-          style={dualMorphHeight === null ? undefined : { height: `${dualMorphHeight}px` }}
-        >
-          <div
-            className="reader-note-dual-face reader-note-dual-face-annotation"
-            ref={dualMorphAnnotationRef}
-          >
-            {renderAnnotationSurface()}
-          </div>
-          <div
-            className="reader-note-dual-face reader-note-dual-face-distillation"
-            ref={dualMorphDistillationRef}
-          >
-            {renderDistillationSurface(dualMorphDistillationContent, dualMorphDistillationTime)}
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  return (
-    <section {...commonSectionProps}>
-      {displaysDistillation
-        ? renderDistillationSurface(displayedText, distillationPublishedAt)
-        : renderAnnotationSurface()}
-    </section>
-  );
-}
+  return face === 'distillation'
+    ? renderDistillationSurface(displayedText)
+    : renderAnnotationSurface();
+});
 
 type DiscussionThread = {
   root: Annotation['comments'][number];
@@ -511,17 +549,19 @@ function avatarColorStyle(color: string): React.CSSProperties {
 
 function ReaderRelativeTime({
   className,
-  labels,
+  fullTime,
   value,
+  text,
 }: {
   className?: string;
-  labels: ReaderRelativeTimeLabels;
+  fullTime: string;
   value: string;
+  text: string;
 }) {
   return (
-    <ReaderTooltip content={formatTime(value, labels)}>
+    <ReaderTooltip content={fullTime}>
       <time className={className} dateTime={value} tabIndex={0}>
-        {formatRelativeTime(value, labels)}
+        {text}
       </time>
     </ReaderTooltip>
   );

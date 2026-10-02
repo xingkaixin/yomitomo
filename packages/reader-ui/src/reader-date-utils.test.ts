@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { formatRelativeTime, formatTime, type ReaderDateLabels } from './reader-date-utils';
+import {
+  createReaderTimeFormatter,
+  formatRelativeTime,
+  formatTime,
+  type ReaderDateLabels,
+} from './reader-date-utils';
 
 describe('reader date utils', () => {
   beforeEach(() => {
@@ -9,6 +14,7 @@ describe('reader date utils', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllEnvs();
   });
 
   it('formats relative time with coarser long-distance buckets', () => {
@@ -23,6 +29,26 @@ describe('reader date utils', () => {
 
   it('formats full time for exact timestamp tooltips', () => {
     expect(formatTime('2026-05-27T11:45:00.000Z')).toContain('2026');
+  });
+
+  it('preserves date formatting when language or system time zone changes', () => {
+    const value = '1970-01-01T11:45:00.000Z';
+    for (const timeZone of ['Asia/Shanghai', 'Asia/Singapore', 'America/New_York']) {
+      vi.stubEnv('TZ', timeZone);
+      for (const dateLocale of ['zh-CN', 'en', 'ja', undefined]) {
+        const expected = new Intl.DateTimeFormat(dateLocale || 'zh-CN', {
+          year: 'numeric',
+          month: 'numeric',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }).format(new Date(value));
+        const formatter = createReaderTimeFormatter({ dateLocale });
+        expect(formatTime(value, { dateLocale })).toBe(expected);
+        expect(formatTime(value, { dateLocale }, formatter)).toBe(expected);
+      }
+    }
+    expect(formatTime('invalid date')).toBe('invalid date');
   });
 
   it('uses injected labels for localized relative time', () => {

@@ -12,6 +12,7 @@ import { normalizeMessageSendShortcut, normalizeSelectionActionShortcuts } from 
 import { articlePublishedDistillationCount } from '@yomitomo/core';
 import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
 import { readerUiLabels } from '../../i18n/app-i18n-labels';
+import { currentAppI18nLanguage } from '../../i18n/app-i18n';
 import { useDesktopReaderSettings } from '../../settings/app-reader-settings';
 import { useReaderChatSession } from './use-reader-chat-session';
 import { useSourceSelectionComposer } from './use-source-selection-composer';
@@ -47,6 +48,8 @@ export function useSourceReaderWorkspace({
   onRequestSelectionCopy,
   onSaveArticleReaderChatState,
 }: UseSourceReaderWorkspaceInput) {
+  const language = currentAppI18nLanguage();
+  const labels = useMemo(() => readerUiLabels(), [language]);
   const selection = useSourceSelectionComposer({
     canvasRef,
     onRequestSelectionCopy,
@@ -74,7 +77,7 @@ export function useSourceReaderWorkspace({
   return {
     actionShortcuts,
     annotationTotals,
-    labels: readerUiLabels(),
+    labels,
     readerChat,
     readerSettings,
     selection,
