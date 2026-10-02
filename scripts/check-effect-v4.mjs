@@ -12,8 +12,9 @@ const consumerManifests = [
 const sourceRoots = ['apps/desktop/src', 'packages/ai/src', 'packages/core/src'];
 const migrationDocument = 'docs/effect-v4-runtime.md';
 const exactVersionPattern = /^4\.\d+\.\d+(?:-(?:beta|rc)\.\d+)?$/;
-const effectImportPattern = /\bfrom\s*['"]effect['"]/;
-const effectApiPattern = /\b(?:Cause|Deferred|Effect|Exit|Fiber|Semaphore)\.[A-Za-z_$][\w$]*/g;
+const effectImportPattern = /\bfrom\s*['"]effect(?:\/[^'"]+)?['"]/;
+const effectApiPattern =
+  /\b(?:Cause|Deferred|Effect|Exit|Fiber|Semaphore|Schema|Schedule|Scope|Queue|Layer|Context|ManagedRuntime|Ref|FiberMap|HttpClient|HttpClientRequest|HttpClientResponse)\.[A-Za-z_$][\w$]*/g;
 const retiredApis = ['Effect.async', 'Effect.catchAll', 'Effect.fork', 'Effect.makeSemaphore'];
 const violations = [];
 
