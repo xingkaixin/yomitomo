@@ -315,7 +315,7 @@ export const jaResources = {
         chooseSomeSources: '資料を1件以上選択してください。',
         question: '質問',
         keywordHint:
-          '現在はキーワード検索を使用しています。資料に含まれる短い語句をお試しください。意味検索モデルが未インストールまたは利用できない場合、自然文の質問では一致しないことがあります。',
+          '現在はキーワード検索を使用しています。保存したハイライトや考えに含まれる短い語句をお試しください。意味検索モデルが未インストールまたは利用できない場合、自然文の質問では一致しないことがあります。',
         placeholder: '例：学びに対する自分の考えはどこで変わった？',
         ask: 'ライブラリに質問',
         context: '現在の範囲と送信先',
@@ -382,7 +382,7 @@ export const jaResources = {
       },
       scopeLibrary: '範囲：ライブラリ全体の保存済み読書記録',
       coverage: '今回の検索のインデックス範囲',
-      projectionCoverage: '全文インデックス {{count}} / {{total}} 件',
+      projectionCoverage: '読書記録のインデックス {{count}} / {{total}} 件',
       semanticCoverage: '意味検索インデックス {{count}} / {{total}} 件',
       mode: { keyword: 'キーワードによる関連候補', hybrid: 'キーワードと意味検索による関連候補' },
       noProvider: '読書アシスタントのプロバイダーが未設定です。ローカルの根拠のみ表示します。',

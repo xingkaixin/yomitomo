@@ -324,7 +324,7 @@ export const zhCNResources = {
         chooseSomeSources: '请至少选择一份资料。',
         question: '你的问题',
         keywordHint:
-          '当前仅用关键词检索，可尝试资料中出现过的短语。语义模型未安装或暂不可用时，完整自然语言问题可能找不到匹配。',
+          '当前仅用关键词检索，可尝试已保存的划线或想法中出现过的短语。语义模型未安装或暂不可用时，完整自然语言问题可能找不到匹配。',
         placeholder: '例如：我对学习的看法在哪些地方发生过变化？',
         ask: '问书库',
         context: '当前范围和发送目标',
@@ -385,7 +385,7 @@ export const zhCNResources = {
       },
       scopeLibrary: '范围：整个书库中已有的阅读资产',
       coverage: '本次查询的索引覆盖',
-      projectionCoverage: '全文投影 {{count}} / {{total}} 项',
+      projectionCoverage: '阅读记录索引 {{count}} / {{total}} 项',
       semanticCoverage: '语义索引 {{count}} / {{total}} 条',
       mode: { keyword: '关键词关联候选', hybrid: '关键词与语义关联候选' },
       noProvider: '未配置阅读助手提供商，仅展示本地证据。',

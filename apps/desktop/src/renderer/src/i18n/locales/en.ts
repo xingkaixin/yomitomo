@@ -345,7 +345,7 @@ export const enResources = {
         chooseSomeSources: 'Choose at least one source to ask.',
         question: 'Your question',
         keywordHint:
-          'Keyword search is active. Try a short phrase from your sources. Full natural-language questions may not match when the semantic model is not installed or is unavailable.',
+          'Keyword search is active. Try a short phrase from your saved highlights or thoughts. Full natural-language questions may not match when the semantic model is not installed or is unavailable.',
         placeholder: 'For example: where have my views on learning changed?',
         ask: 'Ask library',
         context: 'Current scope and destination',
@@ -410,7 +410,7 @@ export const enResources = {
       },
       scopeLibrary: 'Scope: saved reading assets across the library',
       coverage: 'Index coverage for this query',
-      projectionCoverage: 'Text projection: {{count}} / {{total}} assets',
+      projectionCoverage: 'Reading record index: {{count}} / {{total}} records',
       semanticCoverage: 'Semantic index: {{count}} / {{total}} entries',
       mode: { keyword: 'Keyword relation candidates', hybrid: 'Keyword and semantic candidates' },
       noProvider: 'No reading assistant provider is configured. Only local evidence is shown.',
