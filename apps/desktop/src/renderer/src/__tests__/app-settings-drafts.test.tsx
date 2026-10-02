@@ -160,6 +160,35 @@ describe('useSettingsDrafts', () => {
     expect(result.current.provider.saveState).toBe('saved');
   });
 
+  it('persists the default model with route settings and preserves task overrides', async () => {
+    const initial = makeStore({ settings: { reviewAssistantProviderId: 'review-provider' } });
+    const saveSettings = vi.fn(async (patch: AppSettingsPatch) => ({
+      ...initial,
+      settings: normalizeAppSettings({ ...initial.settings, ...patch }),
+    }));
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: { store: { saveSettings } },
+    });
+    const { result } = renderStoreDrafts(initial);
+    act(() =>
+      result.current.routes.update({
+        ...result.current.routes.value,
+        defaultProviderId: 'default-provider',
+      }),
+    );
+    expect(result.current.routes.canSave).toBe(true);
+    await act(async () => void (await result.current.routes.save()));
+    expect(saveSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        defaultProviderId: 'default-provider',
+        reviewAssistantProviderId: 'review-provider',
+      }),
+    );
+    expect(result.current.store.settings.defaultProviderId).toBe('default-provider');
+    expect(result.current.routes.canSave).toBe(false);
+  });
+
   it('saves only the general section and preserves unsaved shortcut edits', async () => {
     const latest: { current?: ReturnType<typeof useSettingsDrafts> } = {};
     const saveSettings = vi.fn().mockResolvedValue(emptyStore);

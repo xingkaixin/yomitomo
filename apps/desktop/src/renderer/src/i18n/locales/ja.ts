@@ -2069,10 +2069,14 @@ export const jaResources = {
         },
         trailRoot: '設定',
         trailPage: 'モデルとルーティング',
-        description:
-          '読み取りタスク用のデフォルト モデルを割り当て、モデル プロバイダーを管理します。',
+        description: 'プロバイダーを追加し、各読書タスクで使う既定のモデルを選びます。',
         providerGroup: 'モデルプロバイダー',
-        routeGroup: 'タスクルーティング',
+        routeGroup: 'モデルの使い方',
+        defaultRouteTitle: '既定のモデル',
+        defaultRouteDescription:
+          '読解、詳しいレビュー、対訳に使用します。必要に応じてタスクごとに選べます。',
+        taskOverrides: 'タスクごとに設定',
+        useDefaultModel: '既定のモデルを使用',
         routePrivacyNotice:
           'これらのルートが使用されると、関連するコンテンツ (選択内容、コンテキスト、およびバイリンガル翻訳の記事全文) が、構成したエンドポイントにアップロードされます。',
         noProvidersNote:

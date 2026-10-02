@@ -79,6 +79,7 @@ export function ProviderSettings({ providerDraft, routesDraft, providers }: Prov
   const testStatus = testState.status;
   const usedProviderIds = new Set(
     [
+      settingsDraft.defaultProviderId,
       settingsDraft.readingAssistantProviderId,
       settingsDraft.reviewAssistantProviderId,
       settingsDraft.bilingualTranslationProviderId,
@@ -170,15 +171,6 @@ export function ProviderSettings({ providerDraft, routesDraft, providers }: Prov
         trail={[t('settings.models.trailRoot'), t('settings.models.trailPage')]}
         description={t('settings.models.description')}
       >
-        <TaskProviderRoutes
-          providers={providers}
-          saveError={routeSaveError}
-          saveState={routeSaveState}
-          settingsDraft={settingsDraft}
-          onChange={routesDraft.update}
-          onSave={saveRoutes}
-        />
-        {readingMemoryEnabled ? <ReadingMemoryModelSettings /> : null}
         <SettingsGroup label={t('settings.models.providerGroup')} flush>
           <ProviderList
             providers={providers}
@@ -188,6 +180,15 @@ export function ProviderSettings({ providerDraft, routesDraft, providers }: Prov
             onEdit={selectProvider}
           />
         </SettingsGroup>
+        <TaskProviderRoutes
+          providers={providers}
+          saveError={routeSaveError}
+          saveState={routeSaveState}
+          settingsDraft={settingsDraft}
+          onChange={routesDraft.update}
+          onSave={saveRoutes}
+        />
+        {readingMemoryEnabled ? <ReadingMemoryModelSettings /> : null}
       </SettingsPage>
       {editorDialog}
     </>
@@ -548,7 +549,10 @@ function providerProtocolLabel(type: ProviderPreset['type']) {
 const taskRouteOptions: Array<{
   key: keyof Pick<
     ResolvedAppSettings,
-    'readingAssistantProviderId' | 'reviewAssistantProviderId' | 'bilingualTranslationProviderId'
+    | 'defaultProviderId'
+    | 'readingAssistantProviderId'
+    | 'reviewAssistantProviderId'
+    | 'bilingualTranslationProviderId'
   >;
   descriptionKey: string;
   icon: React.ReactNode;
@@ -574,6 +578,13 @@ const taskRouteOptions: Array<{
   },
 ];
 
+const defaultRouteOption: (typeof taskRouteOptions)[number] = {
+  key: 'defaultProviderId',
+  titleKey: 'settings.models.defaultRouteTitle',
+  descriptionKey: 'settings.models.defaultRouteDescription',
+  icon: <HugeiconsIcon icon={BookOpen01Icon} size={18} />,
+};
+
 function TaskProviderRoutes({
   providers,
   settingsDraft,
@@ -590,126 +601,144 @@ function TaskProviderRoutes({
   onSave: (draft?: ResolvedAppSettings) => void;
 }) {
   const { t } = useTranslation();
-  const hasProviders = providers.length > 0;
-  const executionMode = settingsDraft.assistantExecutionMode || 'fast_response';
-  const routePrivacyNotice = t('settings.models.routePrivacyNotice');
-  const routeGroupNote = hasProviders ? (
-    routePrivacyNotice
-  ) : (
-    <>
-      {routePrivacyNotice}
-      <br />
-      {t('settings.models.noProvidersNote')}
-    </>
+  const [showTaskRoutes, setShowTaskRoutes] = useState(() =>
+    taskRouteOptions.some((option) => Boolean(settingsDraft[option.key])),
   );
+  const executionMode = settingsDraft.assistantExecutionMode || 'fast_response';
+
+  function updateRoute(key: (typeof taskRouteOptions)[number]['key'], providerId: string) {
+    const nextDraft = { ...settingsDraft, [key]: providerId || undefined };
+    onChange(nextDraft);
+    onSave(nextDraft);
+  }
 
   return (
     <SettingsGroup
       label={t('settings.models.routeGroup')}
-      note={routeGroupNote}
+      note={t('settings.models.routePrivacyNotice')}
       aside={<AutoSaveStatus error={saveError} state={saveState} onRetry={() => onSave()} />}
     >
-      <SettingsRow
-        leading={<HugeiconsIcon icon={FlashIcon} size={18} />}
-        title={t('settings.models.executionModeTitle')}
-        description={t('settings.models.executionModeDescription')}
-      >
-        <AssistantExecutionModeSlider
-          value={executionMode}
-          onChange={(value) => {
-            const nextDraft = { ...settingsDraft, assistantExecutionMode: value };
-            onChange(nextDraft);
-            onSave(nextDraft);
-          }}
-        />
-      </SettingsRow>
-      {taskRouteOptions.map((option) => {
-        const title = t(option.titleKey);
-        const selectedProvider = providers.find(
-          (provider) => provider.id === settingsDraft[option.key],
-        );
-        return (
-          <SettingsRow
+      <ProviderRouteRow
+        option={defaultRouteOption}
+        providers={providers}
+        settings={settingsDraft}
+        onChange={updateRoute}
+      />
+      <div className="px-4 py-3">
+        <Button
+          variant="ghost"
+          aria-expanded={showTaskRoutes}
+          aria-controls="provider-task-overrides"
+          onClick={() => setShowTaskRoutes((shown) => !shown)}
+        >
+          {t('settings.models.taskOverrides')}
+        </Button>
+      </div>
+      <div id="provider-task-overrides" hidden={!showTaskRoutes}>
+        {taskRouteOptions.map((option) => (
+          <ProviderRouteRow
             key={option.key}
-            leading={option.icon}
-            title={title}
-            description={
-              hasProviders
-                ? t(option.descriptionKey)
-                : t('settings.models.routeNoProviderDescription', { title })
-            }
-          >
-            <Select
-              disabled={!hasProviders}
-              value={settingsDraft[option.key] || ''}
-              onValueChange={(providerId) => {
-                const nextDraft = { ...settingsDraft, [option.key]: providerId };
-                onChange(nextDraft);
-                onSave(nextDraft);
-              }}
-            >
-              <SelectTrigger
-                aria-label={t('settings.models.providerSelectAria', { title })}
-                className="task-route-select-trigger"
-              >
-                <SelectValue
-                  placeholder={
-                    hasProviders
-                      ? t('settings.models.chooseProvider')
-                      : t('settings.models.addProviderFirst')
-                  }
-                >
-                  {selectedProvider ? (
-                    <span className="provider-option-content">
-                      <img
-                        className="provider-select-logo"
-                        src={
-                          providerLogoMap[selectedProvider.logo || 'anthropic.png'] ||
-                          providerLogoMap['anthropic.png']
-                        }
-                        alt=""
-                      />
-                      <span className="provider-select-item-copy">
-                        <strong>{providerDisplayName(selectedProvider)}</strong>
-                        <span>{selectedProvider.modelName}</span>
-                      </span>
-                    </span>
-                  ) : undefined}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent className="theme-select-content provider-select-content">
-                <SelectGroup>
-                  {providers.map((provider) => {
-                    const displayName = providerDisplayName(provider);
-                    return (
-                      <SelectItem
-                        className="provider-select-item"
-                        key={provider.id}
-                        value={provider.id}
-                      >
-                        <span className="provider-option-content">
-                          <img
-                            className="provider-select-logo"
-                            src={
-                              providerLogoMap[provider.logo || 'anthropic.png'] ||
-                              providerLogoMap['anthropic.png']
-                            }
-                            alt=""
-                          />
-                          <span className="provider-select-item-copy">
-                            <strong>{displayName}</strong>
-                            <span>{provider.modelName}</span>
-                          </span>
-                        </span>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </SettingsRow>
-        );
-      })}
+            option={option}
+            providers={providers}
+            settings={settingsDraft}
+            onChange={updateRoute}
+          />
+        ))}
+        <SettingsRow
+          leading={<HugeiconsIcon icon={FlashIcon} size={18} />}
+          title={t('settings.models.executionModeTitle')}
+          description={t('settings.models.executionModeDescription')}
+        >
+          <AssistantExecutionModeSlider
+            value={executionMode}
+            onChange={(value) => {
+              const nextDraft = { ...settingsDraft, assistantExecutionMode: value };
+              onChange(nextDraft);
+              onSave(nextDraft);
+            }}
+          />
+        </SettingsRow>
+      </div>
     </SettingsGroup>
+  );
+}
+
+function ProviderRouteRow({
+  option,
+  providers,
+  settings,
+  onChange,
+}: {
+  option: (typeof taskRouteOptions)[number];
+  providers: LlmProvider[];
+  settings: ResolvedAppSettings;
+  onChange: (key: (typeof taskRouteOptions)[number]['key'], providerId: string) => void;
+}) {
+  const { t } = useTranslation();
+  const title = t(option.titleKey);
+  const isTaskRoute = option.key !== 'defaultProviderId';
+  const inherited = isTaskRoute && !settings[option.key];
+  const selectedProvider = providers.find(
+    (provider) => provider.id === (inherited ? settings.defaultProviderId : settings[option.key]),
+  );
+  return (
+    <SettingsRow
+      leading={option.icon}
+      title={title}
+      description={
+        providers.length > 0 ? t(option.descriptionKey) : t('settings.models.addProviderFirst')
+      }
+    >
+      <Select
+        disabled={providers.length === 0}
+        value={settings[option.key] || ''}
+        onValueChange={(providerId) => onChange(option.key, providerId)}
+      >
+        <SelectTrigger
+          aria-label={t('settings.models.providerSelectAria', { title })}
+          className="task-route-select-trigger"
+        >
+          <SelectValue placeholder={t('settings.models.chooseProvider')}>
+            {selectedProvider ? (
+              <span className="provider-select-item-copy">
+                <strong>
+                  {inherited
+                    ? t('settings.models.useDefaultModel')
+                    : providerDisplayName(selectedProvider)}
+                </strong>
+                <span>{selectedProvider.modelName}</span>
+              </span>
+            ) : inherited ? (
+              t('settings.models.useDefaultModel')
+            ) : undefined}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent className="theme-select-content provider-select-content">
+          <SelectGroup>
+            {isTaskRoute ? (
+              <SelectItem value="">{t('settings.models.useDefaultModel')}</SelectItem>
+            ) : null}
+            {providers.map((provider) => (
+              <SelectItem className="provider-select-item" key={provider.id} value={provider.id}>
+                <span className="provider-option-content">
+                  <img
+                    className="provider-select-logo"
+                    src={
+                      providerLogoMap[provider.logo || 'anthropic.png'] ||
+                      providerLogoMap['anthropic.png']
+                    }
+                    alt=""
+                  />
+                  <span className="provider-select-item-copy">
+                    <strong>{providerDisplayName(provider)}</strong>
+                    <span>{provider.modelName}</span>
+                  </span>
+                </span>
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    </SettingsRow>
   );
 }

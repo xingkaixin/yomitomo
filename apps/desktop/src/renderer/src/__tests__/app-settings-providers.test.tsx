@@ -459,7 +459,7 @@ describe('ProviderSettings', () => {
       />,
     );
 
-    expect(screen.getByText('为伴读任务分配默认模型，并管理模型服务商配置。')).toBeTruthy();
+    expect(screen.getByText('先添加供应商并选择一个默认模型，即可用于各项伴读任务。')).toBeTruthy();
     expect(screen.getByText(/双语翻译为整篇文章全文.*所配置的端点/)).toBeTruthy();
     expect(screen.getByLabelText('阅读理解助手供应商')).toBeTruthy();
     expect(screen.getByLabelText('深度审阅助手供应商')).toBeTruthy();
@@ -471,6 +471,31 @@ describe('ProviderSettings', () => {
     expect(screen.getAllByText('claude-sonnet-4-5').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Anthropic').length).toBeGreaterThan(0);
     expect(screen.queryByText('设为默认')).toBeNull();
+  });
+
+  it('lets a task return to the default model without changing other routes', async () => {
+    const provider = makeProvider('provider_1', 'Anthropic');
+    const onRouteSave = vi.fn();
+    render(
+      <ProviderSettings
+        {...makeProviderSettingsProps({
+          providerValue: provider,
+          providers: [provider],
+          routesValue: { defaultProviderId: provider.id, reviewAssistantProviderId: provider.id },
+          onRouteSave,
+        })}
+      />,
+    );
+    fireEvent.click(screen.getByRole('combobox', { name: '深度审阅助手供应商' }));
+    const option = await screen.findByRole('option', { name: '使用默认模型' });
+    fireEvent.pointerDown(option, { pointerType: 'mouse' });
+    fireEvent.click(option);
+    expect(onRouteSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        defaultProviderId: provider.id,
+        reviewAssistantProviderId: undefined,
+      }),
+    );
   });
 
   it('saves the selected assistant execution mode', () => {
@@ -489,6 +514,7 @@ describe('ProviderSettings', () => {
       />,
     );
 
+    fireEvent.click(screen.getByRole('button', { name: '按任务单独设置' }));
     fireEvent.change(screen.getByRole('slider', { name: '助手执行模式' }), {
       target: { value: '1' },
     });
@@ -611,9 +637,11 @@ describe('ProviderSettings', () => {
 
     render(<StatefulEmptyProviderSettings onCreate={onCreate} onTest={onTest} />);
 
-    expect(screen.getByText(/当前还没有可选供应商.*这里会开放选择/)).toBeTruthy();
+    expect(screen.getByLabelText('默认模型供应商')).toHaveProperty('disabled', true);
     expect(screen.getByText(/双语翻译为整篇文章全文.*所配置的端点/)).toBeTruthy();
-    expect(screen.getAllByText('先新增供应商')).toHaveLength(3);
+    expect(
+      screen.getByRole('button', { name: '按任务单独设置' }).getAttribute('aria-expanded'),
+    ).toBe('false');
     expect(screen.getByText('添加供应商')).toBeTruthy();
     expect(screen.getByText('配置模型服务商和 API Key')).toBeTruthy();
     expect(screen.queryByText('管理模型服务商、API Key、Base URL 和可用模型。')).toBeNull();
