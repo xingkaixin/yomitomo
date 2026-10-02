@@ -476,7 +476,11 @@ describe('ReadingLibrary actions', () => {
       updatedAt: '2026-05-10T12:00:00.000Z',
     };
 
-    renderLibrary([], { collections: [collection], onAddCollectionMembers: addCollectionMembers });
+    renderLibrary([], {
+      collections: [collection],
+      onAddCollectionMembers: addCollectionMembers,
+      wereadBooks: state.books,
+    });
 
     fireEvent.click(screen.getByRole('button', { name: '打开合集：研究合集' }));
     fireEvent.click(screen.getByRole('button', { name: '添加内容' }));

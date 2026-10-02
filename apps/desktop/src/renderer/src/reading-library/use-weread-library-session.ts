@@ -18,6 +18,7 @@ const DEFAULT_WEREAD_SETTINGS: WeReadSettings = { configured: false, openMethod:
 export function useWeReadLibrarySession({ onOpenBook }: UseWeReadLibrarySessionInput) {
   const { t } = useTranslation();
   const [books, setBooks] = useState<WeReadBook[]>([]);
+  const [catalogRevision, setCatalogRevision] = useState(0);
   const [settings, setSettings] = useState<WeReadSettings | null>(null);
   const [librarySyncing, setLibrarySyncing] = useState(false);
   const [pendingBookSyncs, setPendingBookSyncs] = useState(0);
@@ -45,6 +46,7 @@ export function useWeReadLibrarySession({ onOpenBook }: UseWeReadLibrarySessionI
     return subscribe((state) => {
       setSettings(state.settings);
       setBooks(state.books);
+      setCatalogRevision((revision) => revision + 1);
     });
   }, []);
 
@@ -55,6 +57,7 @@ export function useWeReadLibrarySession({ onOpenBook }: UseWeReadLibrarySessionI
         const result = await getDesktopApi().weRead.sync();
         setSettings(result.settings);
         setBooks(result.books);
+        setCatalogRevision((revision) => revision + 1);
         if (options.manual) {
           appToast.success(t('library.weReadSyncSuccess'), {
             description: t('library.weReadSyncSuccessDescription', weReadSyncSummary(result.books)),
@@ -77,6 +80,7 @@ export function useWeReadLibrarySession({ onOpenBook }: UseWeReadLibrarySessionI
     setPendingBookSyncs((count) => count + 1);
     try {
       const detail = await getDesktopApi().weRead.syncBook(bookId);
+      setCatalogRevision((revision) => revision + 1);
       if (!detail) {
         setBooks((current) => current.filter((book) => book.bookId !== bookId));
         return null;
@@ -128,6 +132,7 @@ export function useWeReadLibrarySession({ onOpenBook }: UseWeReadLibrarySessionI
 
   return {
     books,
+    catalogRevision,
     settings: settings ?? DEFAULT_WEREAD_SETTINGS,
     available: books.length > 0 ? true : (settings?.configured ?? null),
     librarySyncing,

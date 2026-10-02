@@ -213,7 +213,7 @@ describe('ReadingLibrary reading', () => {
       },
     });
 
-    renderLibrary([]);
+    renderLibrary([], { wereadBooks: state.books });
 
     expect(
       (await screen.findAllByRole('button', { name: '打开微信读书笔记：微信读书标题' })).length,
@@ -270,7 +270,7 @@ describe('ReadingLibrary reading', () => {
       },
     });
 
-    renderLibrary([]);
+    renderLibrary([], { wereadBooks: state.books });
 
     await screen.findByRole('button', { name: '打开微信读书笔记：上次阅读较新' });
     expect(screen.getAllByRole('heading', { level: 3 }).map((item) => item.textContent)).toEqual([

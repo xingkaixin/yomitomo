@@ -15,6 +15,7 @@ import type {
   ContentRef,
   LibraryPin,
   UserProfile,
+  WeReadBook,
 } from '@yomitomo/shared';
 import { createLibraryCatalogTestAdapter } from '../../../main/library/library-catalog-test-adapter';
 import { ReadingLibrary } from '../reading-library/app-reading-library';
@@ -229,6 +230,7 @@ export function installDefaultCatalog(
     collectionMembers?: CollectionMember[];
     collections?: Collection[];
     pins?: LibraryPin[];
+    wereadBooks?: WeReadBook[];
   } = {},
 ) {
   type DesktopApi = NonNullable<typeof window.yomitomoDesktop>;
@@ -239,16 +241,9 @@ export function installDefaultCatalog(
     collectionMembers: options.collectionMembers || [],
     collections: options.collections || [],
     pins: options.pins || [],
+    wereadBooks: options.wereadBooks || [],
   });
   closeDefaultCatalog = () => catalog.close();
-  const readWeReadState = desktopApi?.weRead?.getState;
-  const getWeReadState = readWeReadState
-    ? async () => {
-        const state = await readWeReadState();
-        catalog.replaceWeReadBooks(state.books);
-        return state;
-      }
-    : undefined;
   const subscribeToWeReadState = desktopApi?.weRead?.onStateUpdated;
   const onWeReadStateUpdated = subscribeToWeReadState
     ? (listener: Parameters<NonNullable<typeof subscribeToWeReadState>>[0]) =>
@@ -283,7 +278,7 @@ export function installDefaultCatalog(
     },
     weRead: {
       ...desktopApi?.weRead,
-      getState: getWeReadState,
+      getState: desktopApi?.weRead?.getState,
       onStateUpdated: onWeReadStateUpdated,
     },
   });
@@ -321,6 +316,7 @@ export function renderLibrary(
     collectionMembers?: CollectionMember[];
     menuRequest?: AppMenuCommandRequest | null;
     pins?: LibraryPin[];
+    wereadBooks?: WeReadBook[];
     settings?: AppSettingsPatch;
   } = {},
 ) {

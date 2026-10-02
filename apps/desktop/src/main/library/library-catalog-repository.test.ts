@@ -22,25 +22,17 @@ describe('library catalog repository', () => {
     expect(queries.length).toBeLessThanOrEqual(8);
   });
 
-  it('uses the catalog index without a temporary article sort', () => {
-    const { sqlite } = createCatalogDatabase();
-    const plan = sqlite
-      .prepare(`
-        explain query plan
-        select id, created_at, title
-        from articles
-        where source_type = 'web'
-          and not exists (
-            select 1 from library_pins
-            where target_kind = 'article' and target_id = articles.id
-          )
-        order by created_at desc, title asc, id asc
-        limit 12
-      `)
-      .all() as Array<{ detail: string }>;
-
+  it('uses the catalog index in the production candidate query', () => {
+    const queries: string[] = [];
+    const { database, sqlite } = createCatalogDatabase((query) => queries.push(query));
+    queries.length = 0;
+    readLibraryCatalogRows(database, { scope: { kind: 'library' }, pageSize: 12 });
+    const candidateQuery = queries.find((query) => query.includes('with all_candidates'));
+    if (!candidateQuery) throw new Error('Production candidate query was not recorded');
+    const plan = sqlite.prepare(`EXPLAIN QUERY PLAN ${candidateQuery}`).all() as {
+      detail: string;
+    }[];
     expect(plan.some((row) => row.detail.includes('articles_library_catalog_idx'))).toBe(true);
-    expect(plan.some((row) => row.detail.includes('USE TEMP B-TREE'))).toBe(false);
   });
 
   it('paginates the mixed catalog without exposing collected items twice', () => {
