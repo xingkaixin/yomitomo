@@ -6,6 +6,7 @@ const desktopRoot = process.argv[2] ? resolve(process.argv[2]) : dirname(import.
 const requiredFiles = [
   'dist/main/index.js',
   'dist/main/article-import-worker.js',
+  'dist/main/ebook-import-worker.js',
   'dist/main/reading-memory-embedding-worker.js',
   'dist/main/reading-memory-embedding-service.js',
   'dist/preload/index.cjs',
