@@ -2,9 +2,9 @@
 
 Pinned Effect version: `4.0.0`
 
-Production Effect modules: `13`
+Production Effect modules: `15`
 
-Production API inventory: `Deferred.Deferred,Deferred.await,Deferred.complete,Deferred.make,Deferred.succeed,Effect.Effect,Effect.Success,Effect.acquireUseRelease,Effect.all,Effect.callback,Effect.catch,Effect.ensuring,Effect.fail,Effect.flatMap,Effect.fn,Effect.forEach,Effect.forkChild,Effect.gen,Effect.map,Effect.mapError,Effect.promise,Effect.runPromise,Effect.succeed,Effect.sync,Effect.tapError,Effect.try,Effect.tryPromise,Exit.isFailure,Fiber.join,Schema.Array,Schema.Constraint,Schema.Number,Schema.Record,Schema.String,Schema.Struct,Schema.Unknown,Schema.decodeUnknownEffect,Schema.optionalKey,Semaphore.make`
+Production API inventory: `Deferred.Deferred,Deferred.await,Deferred.complete,Deferred.make,Deferred.succeed,Effect.Effect,Effect.Success,Effect.acquireUseRelease,Effect.all,Effect.callback,Effect.catch,Effect.ensuring,Effect.fail,Effect.flatMap,Effect.fn,Effect.forEach,Effect.forkChild,Effect.gen,Effect.map,Effect.mapError,Effect.promise,Effect.runPromise,Effect.succeed,Effect.sync,Effect.tapError,Effect.try,Effect.tryPromise,Effect.uninterruptible,Exit.isFailure,Fiber.join,Schema.Array,Schema.Constraint,Schema.Number,Schema.Record,Schema.String,Schema.Struct,Schema.Unknown,Schema.decodeUnknownEffect,Schema.optionalKey,Semaphore.make`
 
 ## Scope
 
@@ -18,6 +18,11 @@ WeRead library synchronization composes the client's Effect operations directly.
 loading interrupts sibling requests on failure before the serialized snapshot queue advances;
 only a complete authoritative response reaches persistence. The gateway envelope is decoded with
 Schema before endpoint-specific validation and mapping.
+
+Bilingual translation composes generation effects inside a bounded three-block workflow. Session
+AbortSignals interrupt active provider requests and prevent queued blocks from starting. Expected
+per-block failures remain isolated; segment writes already in progress finish before the session
+queue advances to deletion. The public Promise API remains available for other callers.
 
 The inventory includes root and subpath imports and the Schema, scheduling, scope, queue, layer,
 runtime, and HTTP namespaces used by the staged runtime adoption.

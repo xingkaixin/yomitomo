@@ -1,6 +1,7 @@
+import { Effect } from 'effect';
 import type { LlmProvider } from '@yomitomo/shared';
 import { parseJsonArray, stringValue } from '../json';
-import { generateYomitomoText } from '../provider/generation-runtime';
+import { generateYomitomoTextEffect, runOptions } from '../provider/generation-runtime';
 
 export const bilingualTranslationPromptVersion = 1;
 
@@ -23,56 +24,56 @@ type TranslationBatchResult = {
 
 const maxBatchCharacters = 6000;
 
-export async function translateBilingualArticleBlocks(input: {
+type BilingualTranslationInput = {
   provider: LlmProvider;
   blocks: BilingualTranslationBlock[];
   targetLanguage: string;
   title?: string;
   summary?: string;
-}): Promise<TranslationBatchResult> {
-  const batches = batchBlocks(input.blocks, maxBatchCharacters);
-  const translations: BilingualTranslationResult[] = [];
-  let inputTokens = 0;
-  let outputTokens = 0;
+};
 
-  for (const batch of batches) {
-    const result = await translateBilingualArticleBlockBatch({ ...input, blocks: batch });
-    translations.push(...result.translations);
-    inputTokens += result.inputTokens;
-    outputTokens += result.outputTokens;
-  }
-
-  return { translations, inputTokens, outputTokens };
+export function translateBilingualArticleBlocks(
+  input: BilingualTranslationInput,
+  signal?: AbortSignal,
+): Promise<TranslationBatchResult> {
+  return Effect.runPromise(translateBilingualArticleBlocksEffect(input), runOptions(signal));
 }
 
-async function translateBilingualArticleBlockBatch(input: {
-  provider: LlmProvider;
-  blocks: BilingualTranslationBlock[];
-  targetLanguage: string;
-  title?: string;
-  summary?: string;
-}): Promise<TranslationBatchResult> {
-  const result = await generateYomitomoText(
-    input.provider,
-    {
-      system: bilingualTranslationSystemPrompt(input),
-      user: JSON.stringify(
-        input.blocks.map((block) => ({ id: block.id, context: block.context, text: block.text })),
-        null,
-        2,
-      ),
-      maxTokens: 4096,
-      temperature: 0.2,
-    },
-    { failOnMaxTokens: true },
-  );
+export const translateBilingualArticleBlocksEffect = Effect.fn('Translation.translateBlocks')(
+  function* (input: BilingualTranslationInput) {
+    const batches = batchBlocks(input.blocks, maxBatchCharacters);
+    const translations: BilingualTranslationResult[] = [];
+    let inputTokens = 0;
+    let outputTokens = 0;
 
-  return {
-    translations: parseTranslationResults(result.text),
-    inputTokens: result.usage.inputTokens || 0,
-    outputTokens: result.usage.outputTokens || 0,
-  };
-}
+    for (const batch of batches) {
+      const result = yield* generateYomitomoTextEffect(
+        input.provider,
+        {
+          system: bilingualTranslationSystemPrompt(input),
+          user: JSON.stringify(
+            batch.map((block) => ({ id: block.id, context: block.context, text: block.text })),
+            null,
+            2,
+          ),
+          maxTokens: 4096,
+          temperature: 0.2,
+        },
+        { failOnMaxTokens: true },
+      );
+      translations.push(
+        ...(yield* Effect.try({
+          try: () => parseTranslationResults(result.text),
+          catch: (error) => error,
+        })),
+      );
+      inputTokens += result.usage.inputTokens || 0;
+      outputTokens += result.usage.outputTokens || 0;
+    }
+
+    return { translations, inputTokens, outputTokens };
+  },
+);
 
 function bilingualTranslationSystemPrompt(input: {
   targetLanguage: string;

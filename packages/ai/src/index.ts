@@ -19,6 +19,7 @@ export {
 export {
   bilingualTranslationPromptVersion,
   translateBilingualArticleBlocks,
+  translateBilingualArticleBlocksEffect,
 } from './translation/bilingual-translation';
 export { planAgentMentionRoute } from './agent/annotation-metadata';
 export {

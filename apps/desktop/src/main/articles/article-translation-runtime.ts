@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { JSDOM } from 'jsdom';
 import { extractWebArticleTranslationBlocks } from '@yomitomo/core';
 import type {
@@ -36,7 +37,10 @@ type TranslationProvider = Awaited<ReturnType<typeof taskProvider>>;
 
 export type ArticleTranslationRuntimeContext = {
   getAiModule: () => Promise<
-    Pick<DesktopAiModule, 'bilingualTranslationPromptVersion' | 'translateBilingualArticleBlocks'>
+    Pick<
+      DesktopAiModule,
+      'bilingualTranslationPromptVersion' | 'translateBilingualArticleBlocksEffect'
+    >
   >;
   getPersistenceModules: () => Promise<{
     providerRepository: Pick<
@@ -143,6 +147,7 @@ async function runTranslationSession(
   session: TranslationSessionInput,
 ): Promise<ArticleTranslation> {
   const { articlePersistence, input, key, onUpdate, signal, source } = session;
+  signal.throwIfAborted();
   const current = articlePersistence.recoverInterruptedArticleTranslation(key);
   if (!input.force && !input.sourceBlockIds?.length && current?.status === 'ready') return current;
 
@@ -157,6 +162,7 @@ async function runTranslationSession(
     (current?.segments || []).map((segment) => segment.sourceBlockId),
   );
   const provider = await session.provider();
+  signal.throwIfAborted();
   let latest = await articlePersistence.initializeArticleTranslation({
     ...key,
     providerId: provider.id,
@@ -172,25 +178,46 @@ async function runTranslationSession(
         Boolean(input.force) || !translatedBlockIds.has(block.id) || selectedBlockIds.has(block.id),
     })),
   });
+  if (signal.aborted) return latest;
   onUpdate(latest);
 
   const segmentIndexByBlockId = new Map(
     latest.segments.map((segment, index) => [segment.sourceBlockId, index]),
   );
-  await runWithConcurrency(targetBlocks, TRANSLATION_CONCURRENCY, async (block) => {
-    if (signal.cancelled) return;
-    const update = await translateTranslationBlock({ block, blocks, session, provider });
-    if (signal.cancelled) return;
-    const segment = await articlePersistence.updateArticleTranslationSegment({
-      translationId: latest.id,
-      sourceBlockId: block.id,
-      ...update,
-    });
-    if (!segment) return;
-    latest = replaceTranslationSegment(latest, segmentIndexByBlockId, segment);
-    onUpdate(latest);
-  });
-  if (signal.cancelled) return latest;
+  try {
+    await Effect.runPromise(
+      Effect.forEach(
+        targetBlocks,
+        (block) =>
+          Effect.gen(function* () {
+            const update = yield* translateTranslationBlockEffect({
+              block,
+              blocks,
+              session,
+              provider,
+            });
+            // Deletion shares the session queue and must wait for an already-started write.
+            const segment = yield* Effect.tryPromise({
+              try: () =>
+                articlePersistence.updateArticleTranslationSegment({
+                  translationId: latest.id,
+                  sourceBlockId: block.id,
+                  ...update,
+                }),
+              catch: (error) => error,
+            }).pipe(Effect.uninterruptible);
+            if (!segment) return;
+            latest = replaceTranslationSegment(latest, segmentIndexByBlockId, segment);
+            onUpdate(latest);
+          }),
+        { concurrency: TRANSLATION_CONCURRENCY, discard: true },
+      ),
+      { signal },
+    );
+  } catch (error) {
+    if (!signal.aborted) throw error;
+  }
+  if (signal.aborted) return latest;
 
   const finalized = await articlePersistence.finalizeArticleTranslation({
     translationId: latest.id,
@@ -201,51 +228,50 @@ async function runTranslationSession(
   return latest;
 }
 
-async function translateTranslationBlock(input: {
+const translateTranslationBlockEffect = Effect.fn('Translation.translateBlock')(function (input: {
   block: ArticleTranslationBlock;
   blocks: ArticleTranslationBlock[];
   session: TranslationSessionInput;
   provider: TranslationProvider;
-}): Promise<{
-  status: 'ready' | 'failed';
-  translatedText?: string;
-  error?: string;
-  updatedAt: string;
-}> {
+}) {
   const { block, blocks, provider, session } = input;
   const updatedAt = new Date().toISOString();
-  try {
-    const translationBlock = {
-      context: session.settings.bilingualTranslationAiContextAware
-        ? translationBlockContext(block.order, blocks)
-        : undefined,
-      id: block.id,
-      text: block.text,
-    };
-    const result =
-      e2eFakeTranslationResult(provider, translationBlock) ||
-      (await session.aiModule.translateBilingualArticleBlocks({
+  const translationBlock = {
+    context: session.settings.bilingualTranslationAiContextAware
+      ? translationBlockContext(block.order, blocks)
+      : undefined,
+    id: block.id,
+    text: block.text,
+  };
+  const fakeResult = e2eFakeTranslationResult(provider, translationBlock);
+  const generate = fakeResult
+    ? Effect.succeed(fakeResult)
+    : session.aiModule.translateBilingualArticleBlocksEffect({
         provider,
         blocks: [translationBlock],
         targetLanguage: session.key.targetLanguage,
         title: session.source.title,
         summary: session.source.summary,
-      }));
-    const translatedText = result.translations[0]?.translation.trim();
-    return {
-      status: translatedText ? 'ready' : 'failed',
-      error: translatedText ? undefined : 'TRANSLATION_MISSING',
-      translatedText,
-      updatedAt,
-    };
-  } catch (error) {
-    return {
-      status: 'failed',
-      error: error instanceof Error ? error.message : 'TRANSLATION_FAILED',
-      updatedAt,
-    };
-  }
-}
+      });
+  return generate.pipe(
+    Effect.map((result) => {
+      const translatedText = result.translations[0]?.translation.trim();
+      return {
+        status: translatedText ? ('ready' as const) : ('failed' as const),
+        error: translatedText ? undefined : 'TRANSLATION_MISSING',
+        translatedText,
+        updatedAt,
+      };
+    }),
+    Effect.catch((error) =>
+      Effect.succeed({
+        status: 'failed' as const,
+        error: error instanceof Error ? error.message : 'TRANSLATION_FAILED',
+        updatedAt,
+      }),
+    ),
+  );
+});
 
 function replaceTranslationSegment(
   translation: ArticleTranslation,
@@ -358,22 +384,6 @@ type ArticleTranslationSettings = {
   bilingualTranslationAiContextAware?: boolean;
   bilingualTranslationTargetLanguage?: string;
 };
-
-async function runWithConcurrency<T>(
-  items: T[],
-  concurrency: number,
-  worker: (item: T) => Promise<void>,
-) {
-  let cursor = 0;
-  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
-    while (cursor < items.length) {
-      const item = items[cursor];
-      cursor += 1;
-      await worker(item);
-    }
-  });
-  await Promise.all(workers);
-}
 
 function translationBlockContext(order: number, blocks: ArticleTranslationBlock[]) {
   const contextBlocks = blocks

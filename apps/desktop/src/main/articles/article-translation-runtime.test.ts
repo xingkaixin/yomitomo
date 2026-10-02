@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SQLiteDatabase from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
@@ -206,6 +207,27 @@ describe('article translation runtime', () => {
     expect(harness.countTranslations()).toBe(0);
   });
 
+  it('aborts active generation and skips queued blocks when the translation is deleted', async () => {
+    const signals: AbortSignal[] = [];
+    const harness = translationHarness(5, (_blockId, signal) => {
+      signals.push(signal);
+      return new Promise<string>((_resolve, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+      });
+    });
+    const running = harness.runtime.translate(translateRequest(5), () => {});
+    await vi.waitFor(() => expect(signals).toHaveLength(3));
+
+    await harness.runtime.deleteCurrent(translateRequest(5));
+    await running;
+
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    expect(harness.translateBlocks).toHaveBeenCalledTimes(3);
+    expect(harness.calls.updateSegment).toBe(0);
+    expect(harness.calls.finalize).toBe(0);
+    expect(harness.countTranslations()).toBe(0);
+  });
+
   it('reuses a ready translation instead of calling the provider again', async () => {
     const harness = translationHarness(2);
 
@@ -232,7 +254,8 @@ describe('article translation runtime', () => {
 
 function translationHarness(
   blockCount: number,
-  translateBlock: (blockId: string) => Promise<string> = async (blockId) => `translated ${blockId}`,
+  translateBlock: (blockId: string, signal: AbortSignal) => Promise<string> = async (blockId) =>
+    `translated ${blockId}`,
 ) {
   const sqlite = new SQLiteDatabase(':memory:');
   for (const migration of migrations) sqlite.exec(migration.sql);
@@ -248,21 +271,27 @@ INSERT INTO articles (
   let article = ebookArticle(blockCount);
   const calls = { initialize: 0, updateSegment: 0, finalize: 0 };
 
-  const translateBlocks = vi.fn(async (input: { blocks: { id: string; text: string }[] }) => ({
-    translations: await Promise.all(
-      input.blocks.map(async (block) => ({
-        id: block.id,
-        translation: await translateBlock(block.id),
-      })),
-    ),
-    inputTokens: 0,
-    outputTokens: 0,
-  }));
+  const translateBlocks = vi.fn(
+    async (input: { blocks: { id: string; text: string }[]; signal: AbortSignal }) => ({
+      translations: await Promise.all(
+        input.blocks.map(async (block) => ({
+          id: block.id,
+          translation: await translateBlock(block.id, input.signal),
+        })),
+      ),
+      inputTokens: 0,
+      outputTokens: 0,
+    }),
+  );
 
   const runtime: TranslationRuntime = createArticleTranslationRuntime({
     getAiModule: async () => ({
       bilingualTranslationPromptVersion: 1,
-      translateBilingualArticleBlocks: translateBlocks,
+      translateBilingualArticleBlocksEffect: (input) =>
+        Effect.tryPromise({
+          try: (signal) => translateBlocks({ ...input, signal }),
+          catch: (error) => error,
+        }),
     }),
     getPersistenceModules: async () => ({
       providerRepository: { hydrateProviderApiKey: vi.fn() },

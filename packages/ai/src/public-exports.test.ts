@@ -16,6 +16,7 @@ describe('@yomitomo/ai public exports', () => {
       'setAiLogger',
       'testProvider',
       'translateBilingualArticleBlocks',
+      'translateBilingualArticleBlocksEffect',
     ]);
   });
 });
