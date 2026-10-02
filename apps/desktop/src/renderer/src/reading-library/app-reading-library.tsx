@@ -159,6 +159,9 @@ export function ReadingLibrary({
     selectedAnnotationId,
     wereadBook: selectedWeReadBook,
   } = navigation.model;
+  const readingModeOpen = Boolean(
+    (selectedArticle || selectedWeReadBook) && activeShelf === 'source',
+  );
   const selectedArticleId = selectedArticle?.id || null;
   const openArticleTargetId = openArticleTarget?.articleId;
   const openArticleTargetAnnotationId = openArticleTarget?.annotationId;
@@ -224,6 +227,7 @@ export function ReadingLibrary({
     [catalogRevision, weRead.books],
   );
   const libraryQuerySession = useLibraryQuerySession({
+    catalogEnabled: !readingModeOpen,
     availableTypes: availableCatalogTypes,
     catalogRevision: catalogRevisionToken,
     collectionIds,
@@ -326,9 +330,6 @@ export function ReadingLibrary({
     sortedArticles,
   ]);
 
-  const readingModeOpen = Boolean(
-    (selectedArticle || selectedWeReadBook) && activeShelf === 'source',
-  );
   const notifyReadingModeChange = React.useEffectEvent((open: boolean) => {
     onReadingModeChange?.(open);
   });

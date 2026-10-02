@@ -12,6 +12,7 @@ type UseLibraryQuerySessionOptions = {
   settings: ResolvedAppSettings;
   onSaveSettings: (settings: AppSettingsPatch) => Promise<void> | void;
   catalogRevision: unknown;
+  catalogEnabled?: boolean;
   query: LibraryQueryState;
   availableTypes: readonly LibraryCatalogItemType[] | null;
   collectionIds: readonly string[];
@@ -21,6 +22,7 @@ export function useLibraryQuerySession({
   availableTypes,
   collectionIds,
   catalogRevision,
+  catalogEnabled = true,
   onSaveSettings,
   query,
   settings,
@@ -43,7 +45,7 @@ export function useLibraryQuerySession({
     }),
     [selectedTypesKey, state.page, state.pageSize, state.scope, state.searchQuery],
   );
-  const catalog = useLibraryCatalog(catalogInput, catalogRevision);
+  const catalog = useLibraryCatalog(catalogInput, catalogRevision, catalogEnabled);
   const resolvedAvailableTypes = useMemo<readonly LibraryCatalogItemType[]>(
     () => resolvedLibraryAvailableTypes(availableTypes, catalog.result?.itemCounts.weread),
     [availableTypes, catalog.result?.itemCounts.weread],

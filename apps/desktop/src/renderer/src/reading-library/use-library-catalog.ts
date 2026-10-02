@@ -18,6 +18,7 @@ export type LibraryCatalogState = Pick<ResolvedCatalog, 'result' | 'status' | 'e
 export function useLibraryCatalog(
   input: LibraryCatalogListInput,
   revision: unknown,
+  enabled = true,
 ): LibraryCatalogState {
   const [query, setQuery] = useState(input.query || '');
   useEffect(() => {
@@ -32,6 +33,7 @@ export function useLibraryCatalog(
   const [resolvedCatalog, setResolvedCatalog] = useState<ResolvedCatalog | null>(null);
 
   useEffect(() => {
+    if (!enabled) return;
     const listCatalog = getOptionalDesktopApi()?.library?.catalog?.list;
     if (!listCatalog) {
       setResolvedCatalog({
@@ -80,7 +82,7 @@ export function useLibraryCatalog(
     return () => {
       cancelled = true;
     };
-  }, [requestKey, revision, scopeKey]);
+  }, [enabled, requestKey, revision, scopeKey]);
 
   if (resolvedCatalog?.scopeKey !== scopeKey) {
     return { result: null, status: 'loading', error: null };
