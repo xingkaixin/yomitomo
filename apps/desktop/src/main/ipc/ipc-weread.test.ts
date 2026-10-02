@@ -1,8 +1,9 @@
+import { Effect } from 'effect';
 import { describe, expect, it, vi } from 'vitest';
 import type { WeReadBook, WeReadBookDetail } from '@yomitomo/shared';
 import { registerWeReadIpc } from './ipc-weread';
 import { fetchWeReadBookDetail, testWeReadConnection } from '../weread/weread-client';
-import { fetchWeReadSyncDetails } from '../weread/weread-sync';
+import { fetchWeReadSyncDetailsEffect } from '../weread/weread-sync';
 
 const ipcMocks = vi.hoisted(() => ({
   ipcMainHandle: vi.fn(),
@@ -179,23 +180,29 @@ describe('weread IPC sync detail loading', () => {
     let completed = 0;
     let maxActive = 0;
 
-    const promise = fetchWeReadSyncDetails({
-      books: Array.from({ length: 7 }, (_, index) => book(`book_${index}`)),
-      fetchBookDetail: async (bookId) => {
-        active += 1;
-        maxActive = Math.max(maxActive, active);
-        await new Promise<void>((resolve) => releases.push(resolve));
-        active -= 1;
-        completed += 1;
-        return detail(bookId);
-      },
-      hasValidContent: () => true,
-      mergeNotebookBook: (bookDetail) => bookDetail,
-      logError: vi.fn(),
-      logInfo: vi.fn(),
-      elapsedMs: () => 1,
-      concurrency: 3,
-    });
+    const promise = Effect.runPromise(
+      fetchWeReadSyncDetailsEffect({
+        books: Array.from({ length: 7 }, (_, index) => book(`book_${index}`)),
+        fetchBookDetail: (bookId) =>
+          Effect.tryPromise({
+            try: async () => {
+              active += 1;
+              maxActive = Math.max(maxActive, active);
+              await new Promise<void>((resolve) => releases.push(resolve));
+              active -= 1;
+              completed += 1;
+              return detail(bookId);
+            },
+            catch: (error) => error,
+          }),
+        hasValidContent: () => true,
+        mergeNotebookBook: (bookDetail) => bookDetail,
+        logError: vi.fn(),
+        logInfo: vi.fn(),
+        elapsedMs: () => 1,
+        concurrency: 3,
+      }),
+    );
 
     await flushTasks();
     expect(active).toBe(3);
@@ -215,17 +222,17 @@ describe('weread IPC sync detail loading', () => {
     const logError = vi.fn();
 
     await expect(
-      fetchWeReadSyncDetails({
-        books: [book('book_failed', '失败书籍')],
-        fetchBookDetail: async () => {
-          throw error;
-        },
-        hasValidContent: () => true,
-        mergeNotebookBook: (bookDetail) => bookDetail,
-        logError,
-        logInfo: vi.fn(),
-        elapsedMs: () => 1,
-      }),
+      Effect.runPromise(
+        fetchWeReadSyncDetailsEffect({
+          books: [book('book_failed', '失败书籍')],
+          fetchBookDetail: () => Effect.fail(error),
+          hasValidContent: () => true,
+          mergeNotebookBook: (bookDetail) => bookDetail,
+          logError,
+          logInfo: vi.fn(),
+          elapsedMs: () => 1,
+        }),
+      ),
     ).rejects.toThrow(error);
 
     expect(logError).toHaveBeenCalledWith('weread.sync.book_detail_failed', error, {

@@ -1,4 +1,5 @@
 import { performance } from 'node:perf_hooks';
+import { Effect } from 'effect';
 import type { WeReadBook, WeReadBookDetail, WeReadSyncResult } from '@yomitomo/shared';
 
 const WEREAD_SYNC_DETAIL_CONCURRENCY = 3;
@@ -28,7 +29,7 @@ type WeReadSyncInput = {
 let librarySyncQueue: Promise<void> = Promise.resolve();
 
 export function syncWeReadLibrary(input: WeReadSyncInput) {
-  const result = librarySyncQueue.then(() => runWeReadLibrarySync(input));
+  const result = librarySyncQueue.then(() => Effect.runPromise(runWeReadLibrarySyncEffect(input)));
   librarySyncQueue = result.then(
     () => undefined,
     () => undefined,
@@ -36,42 +37,46 @@ export function syncWeReadLibrary(input: WeReadSyncInput) {
   return result;
 }
 
-async function runWeReadLibrarySync(input: WeReadSyncInput) {
+const runWeReadLibrarySyncEffect = Effect.fn('WeRead.syncLibrary')(function* (
+  input: WeReadSyncInput,
+) {
   const startedAt = performance.now();
-  const apiKey = await input.persistence.readStoredWeReadApiKey();
-  if (!apiKey) throw new Error('WEREAD_API_KEY_REQUIRED');
+  const apiKey = yield* Effect.tryPromise({
+    try: () => input.persistence.readStoredWeReadApiKey(),
+    catch: (error) => error,
+  });
+  if (!apiKey) return yield* Effect.fail(new Error('WEREAD_API_KEY_REQUIRED'));
 
-  const {
-    fetchWeReadBookDetail,
-    fetchWeReadNotebooks,
-    hasValidWeReadBookDetailContent,
-    mergeWeReadNotebookBook,
-  } = await import('./weread-client');
+  const client = yield* Effect.tryPromise({
+    try: () => import('./weread-client'),
+    catch: (error) => error,
+  });
   input.logInfo('weread.sync.start', { reason: input.reason });
-  try {
+  return yield* Effect.gen(function* () {
     const notebooksStartedAt = performance.now();
-    const books = await fetchWeReadNotebooks(apiKey);
+    const books = yield* client.fetchWeReadNotebooksEffect(apiKey);
     input.logInfo('weread.sync.notebooks_loaded', {
       reason: input.reason,
       bookCount: books.length,
       durationMs: elapsedMs(input, notebooksStartedAt),
     });
-    const details = await fetchWeReadSyncDetails({
+    const details = yield* fetchWeReadSyncDetailsEffect({
       books,
-      fetchBookDetail: (bookId) => fetchWeReadBookDetail(apiKey, bookId),
-      hasValidContent: hasValidWeReadBookDetailContent,
+      fetchBookDetail: (bookId) => client.fetchWeReadBookDetailEffect(apiKey, bookId),
+      hasValidContent: client.hasValidWeReadBookDetailContent,
       logError: input.logError,
       logInfo: input.logInfo,
-      mergeNotebookBook: mergeWeReadNotebookBook,
+      mergeNotebookBook: client.mergeWeReadNotebookBook,
       elapsedMs: input.elapsedMs,
     });
-    const result = await input.persistence.saveWeReadLibrarySnapshot(
-      {
-        details,
-        authoritativeBookIds: books.map((book) => book.bookId),
-      },
-      input.logInfo,
-    );
+    const result = yield* Effect.tryPromise({
+      try: () =>
+        input.persistence.saveWeReadLibrarySnapshot(
+          { details, authoritativeBookIds: books.map((book) => book.bookId) },
+          input.logInfo,
+        ),
+      catch: (error) => error,
+    });
     input.logInfo('weread.sync.complete', {
       reason: input.reason,
       bookCount: books.length,
@@ -79,18 +84,21 @@ async function runWeReadLibrarySync(input: WeReadSyncInput) {
       durationMs: elapsedMs(input, startedAt),
     });
     return result;
-  } catch (error) {
-    input.logError('weread.sync.failed', error, {
-      reason: input.reason,
-      durationMs: elapsedMs(input, startedAt),
-    });
-    throw error;
-  }
-}
+  }).pipe(
+    Effect.tapError((error) =>
+      Effect.sync(() =>
+        input.logError('weread.sync.failed', error, {
+          reason: input.reason,
+          durationMs: elapsedMs(input, startedAt),
+        }),
+      ),
+    ),
+  );
+});
 
-export async function fetchWeReadSyncDetails(input: {
+export const fetchWeReadSyncDetailsEffect = Effect.fn('WeRead.fetchSyncDetails')(function* (input: {
   books: WeReadBook[];
-  fetchBookDetail: (bookId: string) => Promise<WeReadBookDetail>;
+  fetchBookDetail: (bookId: string) => Effect.Effect<WeReadBookDetail, unknown>;
   hasValidContent: (detail: WeReadBookDetail) => boolean;
   mergeNotebookBook: (detail: WeReadBookDetail, book: WeReadBook) => WeReadBookDetail;
   logInfo: WeReadSyncLogger['logInfo'];
@@ -98,43 +106,36 @@ export async function fetchWeReadSyncDetails(input: {
   elapsedMs?: (startedAt: number) => number;
   concurrency?: number;
 }) {
-  const concurrency = Math.max(1, input.concurrency ?? WEREAD_SYNC_DETAIL_CONCURRENCY);
-  const details: Array<WeReadBookDetail | undefined> = [];
-  let nextIndex = 0;
-
-  async function worker() {
-    for (;;) {
-      const index = nextIndex;
-      nextIndex += 1;
-      const book = input.books[index];
-      if (!book) return;
-
-      const startedAt = performance.now();
-      try {
-        const detail = input.mergeNotebookBook(await input.fetchBookDetail(book.bookId), book);
-        if (input.hasValidContent(detail)) details[index] = detail;
+  const details = yield* Effect.forEach(
+    input.books,
+    (book) =>
+      Effect.gen(function* () {
+        const startedAt = performance.now();
+        const detail = yield* input.fetchBookDetail(book.bookId).pipe(
+          Effect.map((value) => input.mergeNotebookBook(value, book)),
+          Effect.tapError((error) =>
+            Effect.sync(() =>
+              input.logError('weread.sync.book_detail_failed', error, {
+                bookId: book.bookId,
+                title: book.title,
+                stage: 'book_detail',
+                durationMs: elapsedMs(input, startedAt),
+              }),
+            ),
+          ),
+        );
         input.logInfo('weread.sync.book_detail_loaded', {
           bookId: book.bookId,
           title: book.title,
           stage: 'book_detail',
           durationMs: elapsedMs(input, startedAt),
         });
-      } catch (error) {
-        input.logError('weread.sync.book_detail_failed', error, {
-          bookId: book.bookId,
-          title: book.title,
-          stage: 'book_detail',
-          durationMs: elapsedMs(input, startedAt),
-        });
-        throw error;
-      }
-    }
-  }
-
-  const workerCount = Math.min(concurrency, input.books.length);
-  await Promise.all(Array.from({ length: workerCount }, () => worker()));
-  return details.filter((detail): detail is WeReadBookDetail => Boolean(detail));
-}
+        return input.hasValidContent(detail) ? detail : undefined;
+      }),
+    { concurrency: Math.max(1, input.concurrency ?? WEREAD_SYNC_DETAIL_CONCURRENCY) },
+  );
+  return details.filter((detail): detail is WeReadBookDetail => detail !== undefined);
+});
 
 function elapsedMs(input: { elapsedMs?: (startedAt: number) => number }, startedAt: number) {
   return input.elapsedMs?.(startedAt) ?? Number((performance.now() - startedAt).toFixed(2));

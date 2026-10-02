@@ -49,6 +49,51 @@ afterEach(async () => {
 });
 
 describe('WeRead full sync persistence', () => {
+  it('aborts sibling requests and skips queued books when a detail request fails', async () => {
+    await seedStoredBook('book_existing');
+    let markReady: () => void;
+    const ready = new Promise<void>((resolve) => {
+      markReady = resolve;
+    });
+    const pendingSignals: AbortSignal[] = [];
+    const requestedBooks: string[] = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
+      const body = JSON.parse(typeof init?.body === 'string' ? init.body : '') as {
+        api_name: string;
+        bookId: string;
+      };
+      if (body.api_name === '/user/notebooks') {
+        return new Response(
+          JSON.stringify({
+            books: ['failed', 'second', 'third', 'queued'].map((bookId) => ({ bookId })),
+            hasMore: 0,
+          }),
+        );
+      }
+      if (body.api_name !== '/book/info') {
+        return new Response(JSON.stringify(validDetailResponse(body.api_name, body.bookId)));
+      }
+      requestedBooks.push(body.bookId);
+      if (body.bookId === 'failed') {
+        await ready;
+        throw new Error('gateway disconnected');
+      }
+      const signal = init?.signal;
+      if (!signal) throw new Error('Request must be cancellable');
+      pendingSignals.push(signal);
+      if (pendingSignals.length === 2) markReady();
+      return new Promise<Response>((_resolve, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+      });
+    });
+
+    await expect(runSync()).rejects.toThrow('gateway disconnected');
+
+    expect(requestedBooks).toEqual(['failed', 'second', 'third']);
+    expect(pendingSignals.every((signal) => signal.aborted)).toBe(true);
+    expectStoredBookAndReferences('book_existing');
+  });
+
   it.each([
     ['missing books', { hasMore: 0 }],
     ['wrong books type', { books: {}, hasMore: 0 }],

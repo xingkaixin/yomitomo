@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WeReadBook, WeReadBookDetail } from '@yomitomo/shared';
 import { syncWeReadLibrary } from './weread-sync';
@@ -9,7 +10,14 @@ import {
 } from './weread-client';
 
 vi.mock('./weread-client', () => ({
+  fetchWeReadBookDetailEffect: (apiKey: string, bookId: string) =>
+    Effect.tryPromise({
+      try: () => fetchWeReadBookDetail(apiKey, bookId),
+      catch: (error) => error,
+    }),
   fetchWeReadBookDetail: vi.fn(),
+  fetchWeReadNotebooksEffect: (apiKey: string) =>
+    Effect.tryPromise({ try: () => fetchWeReadNotebooks(apiKey), catch: (error) => error }),
   fetchWeReadNotebooks: vi.fn(),
   hasValidWeReadBookDetailContent: vi.fn(),
   mergeWeReadNotebookBook: vi.fn(),

@@ -11,7 +11,7 @@ import type {
   WeReadUser,
 } from '@yomitomo/shared';
 import { errorMessage, isRecord } from '@yomitomo/shared';
-import { Effect } from 'effect';
+import { Effect, Schema } from 'effect';
 import { withTimeoutAbortSignalEffect } from '../effect-abort-signal';
 
 const WEREAD_GATEWAY_URL = 'https://i.weread.qq.com/api/agent/gateway';
@@ -19,6 +19,7 @@ export const WEREAD_REQUEST_TIMEOUT_MS = 30_000;
 export const WEREAD_SKILL_VERSION = '1.0.3';
 
 type WeReadGatewayResponse = Record<string, unknown>;
+const gatewayResponseSchema = Schema.Record(Schema.String, Schema.Unknown);
 type WeReadClientError =
   | WeReadApiError
   | WeReadGatewayDecodeError
@@ -127,7 +128,9 @@ export function hasValidWeReadBookDetailContent(detail: WeReadBookDetail) {
   return detail.highlights.length + detail.thoughts.length > 0;
 }
 
-function fetchWeReadNotebooksEffect(apiKey: string) {
+export const fetchWeReadNotebooksEffect = Effect.fn('WeRead.fetchNotebooks')(function (
+  apiKey: string,
+) {
   return Effect.gen(function* () {
     const books: WeReadBook[] = [];
     const bookIds = new Set<string>();
@@ -163,9 +166,12 @@ function fetchWeReadNotebooksEffect(apiKey: string) {
       new WeReadGatewayDecodeError('notebooks pagination exceeds 50 pages'),
     );
   });
-}
+});
 
-function fetchWeReadBookDetailEffect(apiKey: string, bookId: string) {
+export const fetchWeReadBookDetailEffect = Effect.fn('WeRead.fetchBookDetail')(function (
+  apiKey: string,
+  bookId: string,
+) {
   return Effect.gen(function* () {
     const [info, chaptersResponse, progressResponse, bookmarksResponse, thoughtsResponse] =
       yield* Effect.all(
@@ -207,7 +213,7 @@ function fetchWeReadBookDetailEffect(apiKey: string, bookId: string) {
 
     return { book, chapters, highlights, thoughts };
   });
-}
+});
 
 function fetchWeReadReadingStatsEffect(
   apiKey: string,
@@ -296,12 +302,9 @@ function requestWeReadEffect(
             ? new WeReadTimeoutError(apiName)
             : new WeReadGatewayDecodeError(error),
       });
-      const data = objectValue(value);
-      if (!data) {
-        return yield* Effect.fail(
-          new WeReadGatewayDecodeError('gateway response must be an object'),
-        );
-      }
+      const data = yield* Schema.decodeUnknownEffect(gatewayResponseSchema)(value).pipe(
+        Effect.mapError((error) => new WeReadGatewayDecodeError(error)),
+      );
       if (data.upgrade_info && typeof data.upgrade_info === 'object') {
         const message = stringValue(objectValue(data.upgrade_info)?.message);
         return yield* Effect.fail(new WeReadUpgradeError(message));
