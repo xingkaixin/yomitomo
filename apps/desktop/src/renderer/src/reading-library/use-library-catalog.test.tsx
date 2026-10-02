@@ -115,6 +115,45 @@ it('keeps the last good result and exposes an explicit refresh error', async () 
   await screen.findByText('first:error:database busy');
 });
 
+it('defers hidden catalog revisions and refreshes once when the library returns', async () => {
+  const list = vi.fn().mockResolvedValue(catalogResult('current'));
+  vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list } } });
+  const { result, rerender } = renderHook(
+    ({ revision, enabled }) =>
+      useLibraryCatalog({ scope: { kind: 'library' }, page: 1, pageSize: 12 }, revision, enabled),
+    { initialProps: { revision: 0, enabled: true } },
+  );
+  await waitFor(() => expect(result.current.status).toBe('ready'));
+  for (let revision = 1; revision <= 20; revision++) rerender({ revision, enabled: false });
+  expect(list).toHaveBeenCalledOnce();
+  rerender({ revision: 20, enabled: true });
+  await waitFor(() => expect(result.current.status).toBe('ready'));
+  expect(list).toHaveBeenCalledTimes(2);
+  rerender({ revision: 21, enabled: true });
+  await waitFor(() => expect(list).toHaveBeenCalledTimes(3));
+});
+
+it('discards a response from before suspension and loads the latest request on resume', async () => {
+  const stale = deferred<LibraryCatalogListResult>();
+  const list = vi
+    .fn()
+    .mockReturnValueOnce(stale.promise)
+    .mockResolvedValue(catalogResult('latest'));
+  vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list } } });
+  const { result, rerender } = renderHook(
+    ({ page, enabled }) =>
+      useLibraryCatalog({ scope: { kind: 'library' }, page, pageSize: 12 }, 0, enabled),
+    { initialProps: { page: 1, enabled: true } },
+  );
+  rerender({ page: 2, enabled: false });
+  await act(async () => stale.resolve(catalogResult('stale')));
+  expect(result.current.result).toBeNull();
+  expect(list).toHaveBeenCalledOnce();
+  rerender({ page: 2, enabled: true });
+  await waitFor(() => expect(result.current.result?.query).toBe('latest'));
+  expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }));
+});
+
 function Harness({ revision }: { revision: number }) {
   useLibraryCatalog({ scope: { kind: 'library' }, page: 1, pageSize: 12 }, revision);
   return null;
