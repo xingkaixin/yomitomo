@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { emptyStore } from '../settings/app-settings';
@@ -11,29 +11,32 @@ beforeEach(() => {
   initializeAppI18n('zh-CN');
 });
 
-afterEach(() => {
-  cleanup();
-  vi.useRealTimers();
-  vi.clearAllMocks();
-});
+afterEach(cleanup);
 
 describe('OnboardingFlow', () => {
-  it('allows entering before the welcome animation completes', () => {
-    vi.useFakeTimers();
-    const onSaveSettings = vi.fn().mockResolvedValue({
-      ...emptyStore,
-      settings: { onboardingCompletedAt: '2026-05-10T00:00:00.000Z' },
-    });
+  it.each([
+    ['导入 EPUB', 'import-ebook'],
+    ['导入 PDF', 'import-pdf'],
+    ['导入网页', 'import-web'],
+    ['先进入阅读库', undefined],
+  ])('enters the selected destination after saving: %s', async (label, command) => {
+    const onSaveSettings = vi.fn().mockResolvedValue(emptyStore);
+    const onStartReading = vi.fn();
+    render(<OnboardingFlow onSaveSettings={onSaveSettings} onStartReading={onStartReading} />);
 
-    render(<OnboardingFlow store={emptyStore} onSaveSettings={onSaveSettings} />);
+    fireEvent.click(screen.getByRole('button', { name: label }));
+    await waitFor(() => expect(onStartReading).toHaveBeenCalledWith(command));
+    expect(onSaveSettings).toHaveBeenCalledWith({ onboardingCompletedAt: expect.any(String) });
+  });
 
-    expect(screen.getByRole('dialog', { name: /你有多久/ })).toBeTruthy();
+  it('keeps the task choices available when saving fails', async () => {
+    const onSaveSettings = vi.fn().mockRejectedValue(new Error('Save failed'));
+    const onStartReading = vi.fn();
+    render(<OnboardingFlow onSaveSettings={onSaveSettings} onStartReading={onStartReading} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /进入 Yomitomo/ }));
-
-    expect(onSaveSettings).toHaveBeenCalledTimes(1);
-    const settings = onSaveSettings.mock.calls[0]?.[0];
-    expect(settings.onboardingCompletedAt).toEqual(expect.any(String));
-    expect(new Date(settings.onboardingCompletedAt).toString()).not.toBe('Invalid Date');
+    fireEvent.click(screen.getByRole('button', { name: '导入 EPUB' }));
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Save failed');
+    expect(onStartReading).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: '导入 EPUB' })).toHaveProperty('disabled', false);
   });
 });
