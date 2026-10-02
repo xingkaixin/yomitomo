@@ -1,9 +1,9 @@
 ---
 title: Settings, Models, and Data
-description: Configure AI model providers, task routing, shortcut preferences, local database backups, and privacy controls.
+description: Configure AI model providers, task routing, shortcut preferences, local data backups, and privacy controls.
 ---
 
-The Settings center manages all high-level application preferences: multi-language localization, external AI providers, themes, haptic sound effects, App Lock, shortcuts, local database backups, and updates.
+The Settings center manages all high-level application preferences: multi-language localization, external AI providers, themes, haptic sound effects, App Lock, shortcuts, local data backups, and updates.
 
 ## Model Provider Configuration
 
@@ -36,7 +36,7 @@ Once configured, choose your synchronization strategy:
 
 ## Intelligent Task Routing
 
-Assign the best-suited model to distinct cognitive tasks according to reasoning intensity:
+Choose one default model for reading comprehension, in-depth review, and bilingual translation. Expand per-task settings when you need different models; each task can also keep using the default.
 
 | Task Scenario           | Primary Responsibility                               |
 | ----------------------- | ---------------------------------------------------- |
@@ -61,11 +61,16 @@ The **Assistant Execution Mode** applies globally: **Fast Response** prioritizes
 
 ## Data Management and Backup
 
-Open local data folders, inspect logs, and back up or restore the SQLite database. Database backups include stored annotations, discussions, distillations, and settings. They exclude original PDF and ebook files and API keys in the OS keystore. Keep source files separately and configure keys again on a new device.
+Open local data folders, inspect logs, and choose a complete backup or a database-only backup.
+
+- **Complete backup**: Creates a folder containing the database, original ebooks and PDFs, PDF thumbnails, and a file checksum manifest. Keep the entire folder when moving devices. Restore verifies the files and database, keeps a safety backup of current data, and rolls back if installing the backup fails.
+- **Database only**: Saves a SQLite file containing stored annotations, discussions, distillations, and settings. Original ebooks, PDFs, and thumbnails are excluded; keep source files separately.
+
+Complete backups exclude API keys and do not transfer App Lock. After restoring, configure model and WeRead keys again and enable App Lock if needed. Download local Reading Memory models again on the new device.
 
 ## Reading Memory Data Scope
 
-Reading Memory searches your saved highlights and thoughts, discussions you participated in, and published distillations. It does not automatically search the full text of every imported document. Semantic indexing and retrieval run locally; AI judgments send the selected evidence and question to your configured model endpoint.
+Reading Memory searches your saved highlights and thoughts, discussions you participated in, and published distillations. It excludes full document text and unpublished distillation drafts. Library questions can search reading records from all sources, a collection, or selected sources. Semantic indexing and retrieval run locally; AI judgments send the selected evidence and question to your configured model endpoint.
 
 ## Non-Intrusive Updates
 

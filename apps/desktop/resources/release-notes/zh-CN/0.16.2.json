@@ -1,0 +1,41 @@
+{
+  "version": "0.16.2",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "把原文件一起备份",
+      "description": "换电脑或留存副本时，可完整备份数据库、电子书、PDF 和 PDF 缩略图。还原前会校验文件并保留当前数据的安全备份；API Key 需重新配置。",
+      "audience": "settings"
+    },
+    {
+      "type": "new",
+      "title": "从第一篇内容开始阅读",
+      "description": "首次启动可直接导入 EPUB、PDF 或网页，按引导保存第一条划线或想法，无需先配置 AI。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "先选一个默认模型",
+      "description": "阅读理解、深度审阅和双语翻译可共用默认模型；需要不同模型时，再展开按任务设置。",
+      "audience": "settings"
+    },
+    {
+      "type": "changed",
+      "title": "密集批注与导入更轻快",
+      "description": "滚动批注、调整字号和书库初始化减少重复处理，电子书导入改为后台解析，本地推理空闲时释放内存。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "取消翻译时停止请求",
+      "description": "取消翻译会中止模型请求；微信读书同步批次失败后，也会取消剩余请求。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "看清问书库的搜索范围",
+      "description": "问书库会明确检索已保存的划线、想法、参与的讨论和已发布沉淀，不搜索资料全文或未发布草稿。",
+      "audience": "reader"
+    }
+  ]
+}

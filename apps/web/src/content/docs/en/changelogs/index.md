@@ -5,6 +5,17 @@ sidebar:
   hidden: true
 ---
 
+## 0.16.2
+
+Released: 2026-10-03
+
+- Complete backups include the database and original ebooks and PDFs, with verified restore.
+- Import directly from the first-reading guide and start AI setup with one default model.
+- Reduced work for dense annotations, library queries, and ebook imports; idle local inference processes release memory.
+- Fixed request cancellation for translation and failed WeRead sync, and clarified the scope of library questions.
+
+[Read the 0.16.2 release notes](/en/changelogs/v0-16-2/)
+
 ## 0.16.1
 
 Released: 2026-10-01

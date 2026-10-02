@@ -1,0 +1,41 @@
+{
+  "version": "0.16.2",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "Back up original files too",
+      "description": "When moving computers or keeping a copy, back up the database, ebooks, PDFs, and PDF thumbnails together. Restore verifies files and keeps a safety backup; configure API keys again afterward.",
+      "audience": "settings"
+    },
+    {
+      "type": "new",
+      "title": "Start with your first reading",
+      "description": "Import an EPUB, PDF, or web article directly from the first-launch guide, then save a highlight or thought without setting up AI first.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Choose one default model",
+      "description": "Use one model for reading, in-depth review, and bilingual translation. Expand per-task settings only when you need different models.",
+      "audience": "settings"
+    },
+    {
+      "type": "changed",
+      "title": "Lighter annotations and imports",
+      "description": "Scrolling annotations, changing font size, and loading the library do less repeated work. Ebook parsing runs in the background, and idle local inference releases memory.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "Stop requests when you cancel",
+      "description": "Canceling a translation aborts its model request. Failed WeRead sync batches also cancel their remaining requests.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "See what library questions search",
+      "description": "Library questions explicitly search saved highlights, thoughts, discussions you joined, and published distillations—not full documents or unpublished drafts.",
+      "audience": "reader"
+    }
+  ]
+}
