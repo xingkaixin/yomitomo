@@ -61,6 +61,19 @@ export function registerStoreDataIpc(context: StoreDataIpcContext) {
     const { openDataManagementPath } = await import('../data-management');
     return openDataManagementPath(kind);
   });
+  handleDesktopIpc('data:full-backup', async () => {
+    const { backupFullDataWithDialog } = await import('../data-management');
+    return backupFullDataWithDialog(context.getMainWindow());
+  });
+  handleDesktopIpc('data:full-restore', async (event) => {
+    const { restoreFullDataWithDialog } = await import('../data-management');
+    const result = await restoreFullDataWithDialog(
+      context.getMainWindow(),
+      context.onDatabaseRestored,
+    );
+    if (!result.canceled) context.sendFullStoreUpdated(event, result.store);
+    return result;
+  });
   handleDesktopIpc('data:database-backup', async () => {
     const { backupDatabaseWithDialog } = await import('../data-management');
     return backupDatabaseWithDialog(context.getMainWindow());

@@ -1677,7 +1677,7 @@ export const jaResources = {
         models: 'タスク モデルを割り当て、モデル プロバイダーを保守します。',
         dataSources: 'WeRead などの外部コンテンツ ソースを管理します。',
         shortcuts: '選択、思考、返信のショートカットを設定します。',
-        data: 'パスを検査し、ログをクリアし、データベースをバックアップします。',
+        data: 'ローカルデータ、バックアップ、端末間の移行を管理します。',
         aiTrace: 'アシスタントの実行状態とサニタイズされたトレースを検査します。',
         about: 'バージョン、リンク、オープンソース ライセンスを表示します。',
       },
@@ -1786,7 +1786,7 @@ export const jaResources = {
         trailRoot: '設定',
         trailPage: 'データ管理',
         description:
-          'ローカルのデータの場所を検査し、ログの保存を管理し、データベースをバックアップまたは復元します。',
+          '書庫のバックアップと復元、新しい端末への移行、ローカルデータの管理を行います。',
         localGroup: 'ローカルの場所',
         dataDir: 'データディレクトリ',
         logFile: 'ログファイル',
@@ -1804,6 +1804,22 @@ export const jaResources = {
           'これにより、現在のローカル ログ ファイルの内容がクリアされます。データベース、記事、設定は削除されませんが、消去されたログをアプリ内から復元することはできません。',
         clearLogConfirm: 'ログファイルをクリアする',
         logCleared: 'ログファイルがクリアされました。',
+        fullBackupGroup: '完全バックアップと移行',
+        fullBackupNote:
+          '記事、注釈、議論、設定、電子書籍と PDF の原本を含みます。保存先を選び、作成されたフォルダ全体を新しい端末にコピーしてください。モデルキー、WeRead の認証情報、アプリロックは再設定が必要です。ローカルモデルは再ダウンロードしてください。',
+        fullBackup: '完全バックアップを作成',
+        fullRestore: '完全バックアップから復元',
+        fullBackupBusy: 'バックアップ中…',
+        fullRestoreBusy: '復元中…',
+        fullBackupDone: '完全バックアップを作成しました',
+        fullRestoreDone: '完全バックアップを復元しました',
+        fullRestoreDoneDescription:
+          '元のデータは {{path}} にバックアップしました。モデルキー、WeRead の認証情報、アプリロックを再設定してください。',
+        fullBackupFailed: '完全バックアップに失敗しました',
+        fullRestoreFailed: '完全復元に失敗しました',
+        fullRestoreConfirmTitle: '完全バックアップから復元しますか？',
+        fullRestoreConfirmDescription:
+          'バックアップフォルダを選択してください。現在のデータを完全にバックアップしてから、データベースと原本ファイルを置き換えます。復元後はモデルキー、WeRead の認証情報、アプリロックの再設定が必要です。',
         databaseGroup: 'データベース',
         backupNote:
           'バックアップには、キーチェーン内のモデル キーや個別に保存された電子書籍ソース ファイルは含まれません。',
@@ -1835,6 +1851,15 @@ export const jaResources = {
         },
         errorFallback: 'データ管理操作に失敗しました。',
         errors: {
+          backupInsideDataDirectory: 'アプリのデータフォルダ以外の保存先を選んでください。',
+          invalidFullBackup:
+            '変更されていない完全な Yomitomo バックアップフォルダを選んでください。',
+          backupChecksumFailed:
+            'バックアップファイルが破損または変更されています。復元していません。',
+          databaseBusy: 'データ処理が実行中です。しばらくしてから再試行してください。',
+          databaseReplacing: 'バックアップまたは復元中です。しばらくしてから再試行してください。',
+          restoreRollbackFailed:
+            '復元と自動ロールバックに失敗しました。復旧のためデータフォルダ内の backups フォルダを保管してください。',
           unknownPath: '不明なデータ パスです。',
           invalidSqliteDatabase: '有効な SQLite データベース ファイルを選択してください。',
           databaseIntegrityFailed: 'データベースの整合性チェックに失敗しました。',

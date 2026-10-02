@@ -434,6 +434,18 @@ export const articleIpcInvokeDescriptors = {
 } as const;
 
 export const dataIpcInvokeDescriptors = {
+  'data:full-backup': desktopIpcInvoke<[], DatabaseBackupResult>()({
+    route: ['data', 'backupFullData'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+    databaseLifecycle: true,
+  }),
+  'data:full-restore': desktopIpcInvoke<[], DatabaseRestoreResult>()({
+    route: ['data', 'restoreFullData'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+    databaseLifecycle: true,
+  }),
   'data:database-backup': desktopIpcInvoke<[], DatabaseBackupResult>()({
     route: ['data', 'backupDatabase'],
     roles: mainOnly,
