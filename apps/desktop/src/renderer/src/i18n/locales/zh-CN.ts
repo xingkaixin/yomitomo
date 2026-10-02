@@ -123,48 +123,22 @@ export const zhCNResources = {
       annotationAgentNotFound: '找不到批注助手{{name}}。',
     },
     onboarding: {
-      ariaLabel: '你有多久，没有真正读完一篇文章了？',
-      enter: '进入 Yomitomo',
+      ariaLabel: '开始第一次阅读',
+      title: '读一段，留下一点想法',
+      description: '选择你想读的内容，完成一次阅读和记录。',
+      enter: '先进入阅读库',
       entering: '正在进入',
       enterFailed: '进入应用失败。',
-      blocks: {
-        title: {
-          lines: ['你有多久，没有真正', '读完一篇文章了？'],
-        },
-        opening: {
-          lines: [
-            '不是扫一眼标题、收藏、再也没打开。',
-            '是真的读完。读到中间会停下来想一想，',
-            '读到某句话会画一道线，读完之后，能跟谁聊一聊。',
-          ],
-        },
-        origin: {
-          lines: ['我们做了 Yomitomo，因为我们也想念那种感觉。'],
-        },
-        companion: {
-          lines: [
-            '它是一个 AI 伴读。你读文章的时候，它也在读。',
-            '你画的高亮，它会回应。',
-            '它画的高亮，你可以追问。',
-            '你写下一句感受，它接一句它的看法。',
-            '就像两个人捧着同一本书，时不时抬头看看对方。',
-          ],
-        },
-        principle: {
-          lines: ['伴读不是替你读。'],
-        },
-        memory: {
-          lines: [
-            '我们不会替你总结一篇文章——那只是把"没读"包装得更体面。',
-            '我们想做的是，在你读的时候，陪你想得更深一点。',
-            '读完之后，那些批注、那些来回的对话、',
-            '那些当时灵光一闪的想法，都留下来。',
-            '明天、下个月、甚至几年后，你打开同一篇文章，',
-            '会发现你和它一起读过。',
-          ],
-        },
-        closing: {
-          lines: ['这是 Yomitomo，伴读。', '你专注地读，它认真地陪。'],
+      importEbook: '导入 EPUB',
+      importPdf: '导入 PDF',
+      importWeb: '导入网页',
+      localReading: '阅读、划线和记录想法无需配置 AI 模型。',
+      steps: {
+        import: { title: '导入内容', description: '选择本地 EPUB、PDF，或粘贴一篇文章的网址。' },
+        read: { title: '打开并阅读', description: '导入后打开内容，读到一句值得停下来的话。' },
+        save: {
+          title: '保存划线或想法',
+          description: '选中文字，点击“记录想法”，再保存划线或写下你的想法。',
         },
       },
     },

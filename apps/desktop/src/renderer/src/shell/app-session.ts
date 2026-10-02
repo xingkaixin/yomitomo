@@ -300,6 +300,7 @@ export function useAppSession(input: AppSessionInput) {
         openSettingsSection('about');
         setUpdateDialogRequest((request) => request + 1);
       },
+      runMenuCommand,
       setPendingArticleOpened: () => dispatchNavigation({ type: 'article-opened' }),
       setReaderOpen: (open: boolean) => dispatchNavigation({ type: 'set-reader-open', open }),
       setThemeDialogOpen,

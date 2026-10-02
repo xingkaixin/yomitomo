@@ -1,96 +1,29 @@
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowRight01Icon } from '@hugeicons/core-free-icons';
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import type { AppSettingsPatch, DesktopStore } from '@yomitomo/shared';
 import { errorMessageOrFallback } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
+import type { AppMenuCommand } from '../../../app-menu-types';
 import { Button } from '../components/ui/button';
 import { Dialog, DialogContent, DialogPortal } from '../components/ui/dialog';
 import onboardingBackground from '../assets/onboarding/onboarding-background.webp';
 
-type OnboardingCopyBlock = {
-  id: string;
-  kind: 'h1' | 'h2' | 'p';
-  lines: string[];
-  startLine: number;
-  endLine: number;
-};
-
-const lineRevealDelayMs = 900;
-const lineRevealIntervalMs = 260;
-
-const onboardingCopyBlockTemplates: Array<Pick<OnboardingCopyBlock, 'id' | 'kind'>> = [
-  { id: 'title', kind: 'h1' },
-  { id: 'opening', kind: 'p' },
-  { id: 'origin', kind: 'p' },
-  { id: 'companion', kind: 'p' },
-  { id: 'principle', kind: 'h2' },
-  { id: 'memory', kind: 'p' },
-  { id: 'closing', kind: 'p' },
-];
-
 export function OnboardingFlow({
-  store,
   onSaveSettings,
+  onStartReading,
 }: {
-  store: DesktopStore;
   onSaveSettings: (settings: AppSettingsPatch) => Promise<DesktopStore>;
+  onStartReading: (command?: AppMenuCommand) => void;
 }) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
-  const [visibleLineCount, setVisibleLineCount] = useState(0);
-  const onboardingCopyBlocks = useMemo(
-    () =>
-      createCopyBlocks(
-        onboardingCopyBlockTemplates.map((block) => ({
-          id: block.id,
-          kind: block.kind,
-          lines: t(`onboarding.blocks.${block.id}.lines`, { returnObjects: true }) as string[],
-        })),
-      ),
-    [t],
-  );
-  const onboardingLineCount = onboardingCopyBlocks.at(-1)?.endLine ?? 0;
 
-  useEffect(() => {
-    const reducedMotion =
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    if (reducedMotion) {
-      setVisibleLineCount(onboardingLineCount);
-      return;
-    }
-
-    let intervalId: number | undefined;
-    const delayId = window.setTimeout(() => {
-      setVisibleLineCount(1);
-      intervalId = window.setInterval(() => {
-        setVisibleLineCount((count) => {
-          const nextCount = Math.min(count + 1, onboardingLineCount);
-          if (nextCount >= onboardingLineCount && intervalId) {
-            window.clearInterval(intervalId);
-          }
-          return nextCount;
-        });
-      }, lineRevealIntervalMs);
-    }, lineRevealDelayMs);
-
-    return () => {
-      window.clearTimeout(delayId);
-      if (intervalId) window.clearInterval(intervalId);
-    };
-  }, [onboardingLineCount]);
-
-  async function completeOnboarding() {
+  async function completeOnboarding(command?: AppMenuCommand) {
     setBusy(true);
     setStatus('');
     try {
-      await onSaveSettings({
-        ...store.settings,
-        onboardingCompletedAt: new Date().toISOString(),
-      });
+      await onSaveSettings({ onboardingCompletedAt: new Date().toISOString() });
+      onStartReading(command);
     } catch (error) {
       setStatus(errorMessageOrFallback(error, t('onboarding.enterFailed')));
       setBusy(false);
@@ -104,83 +37,54 @@ export function OnboardingFlow({
           <img alt="" className="onboarding-background" src={onboardingBackground} />
           <div className="onboarding-copy">
             <div className="onboarding-scroll">
-              {onboardingCopyBlocks.map((block) => (
-                <OnboardingCopyLine
-                  block={block}
-                  key={block.id}
-                  visibleLineCount={visibleLineCount}
-                />
-              ))}
+              <p className="onboarding-brand">Yomitomo</p>
+              <h1>{t('onboarding.title')}</h1>
+              <p>{t('onboarding.description')}</p>
+              <ol className="onboarding-steps">
+                {(['import', 'read', 'save'] as const).map((step) => (
+                  <li key={step}>
+                    <h2>{t(`onboarding.steps.${step}.title`)}</h2>
+                    <p>{t(`onboarding.steps.${step}.description`)}</p>
+                  </li>
+                ))}
+              </ol>
+              <p>{t('onboarding.localReading')}</p>
             </div>
-            {status ? <p className="onboarding-status">{status}</p> : null}
+            {status ? (
+              <p className="onboarding-status" role="alert">
+                {status}
+              </p>
+            ) : null}
+            <div className="onboarding-actions">
+              <Button disabled={busy} onClick={() => void completeOnboarding('import-ebook')}>
+                {t('onboarding.importEbook')}
+              </Button>
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={() => void completeOnboarding('import-pdf')}
+              >
+                {t('onboarding.importPdf')}
+              </Button>
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={() => void completeOnboarding('import-web')}
+              >
+                {t('onboarding.importWeb')}
+              </Button>
+            </div>
             <Button
-              className="onboarding-enter-button"
+              className="onboarding-skip"
+              variant="ghost"
               disabled={busy}
-              type="button"
-              onClick={completeOnboarding}
+              onClick={() => void completeOnboarding()}
             >
               {busy ? t('onboarding.entering') : t('onboarding.enter')}
-              <HugeiconsIcon icon={ArrowRight01Icon} size={18} />
             </Button>
           </div>
         </DialogContent>
       </DialogPortal>
     </Dialog>
   );
-}
-
-function OnboardingCopyLine({
-  block,
-  visibleLineCount,
-}: {
-  block: OnboardingCopyBlock;
-  visibleLineCount: number;
-}) {
-  const children = block.lines.map((line, index) => (
-    <span
-      className={
-        block.startLine + index < visibleLineCount
-          ? 'onboarding-line is-visible'
-          : 'onboarding-line'
-      }
-      key={`${block.id}-${index}`}
-    >
-      {line}
-    </span>
-  ));
-
-  const className =
-    block.endLine <= visibleLineCount
-      ? 'onboarding-copy-block is-visible'
-      : 'onboarding-copy-block';
-
-  if (block.kind === 'h1') {
-    return (
-      <h1 className={className} id="onboarding-title">
-        {children}
-      </h1>
-    );
-  }
-
-  if (block.kind === 'h2') {
-    return <h2 className={className}>{children}</h2>;
-  }
-
-  return <p className={className}>{children}</p>;
-}
-
-function createCopyBlocks(
-  blocks: Array<Pick<OnboardingCopyBlock, 'id' | 'kind' | 'lines'>>,
-): OnboardingCopyBlock[] {
-  let cursor = 0;
-  return blocks.map((block) => {
-    const startLine = cursor;
-    const endLine = startLine + block.lines.length;
-    cursor = endLine;
-    return {
-      ...block,
-      startLine,
-      endLine,
-    };
-  });
 }

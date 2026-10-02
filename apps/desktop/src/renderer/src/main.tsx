@@ -142,11 +142,11 @@ function ReadyApp({
       <Suspense fallback={null}>
         <OnboardingFlow
           key={session.onboardingFlowKey}
-          store={store}
-          onSaveSettings={async (settings) => {
-            const nextStore = await saveSettings(settings);
-            if (settings.onboardingCompletedAt) session.actions.completeOnboarding();
-            return nextStore;
+          onSaveSettings={saveSettings}
+          onStartReading={(command) => {
+            session.actions.completeOnboarding();
+            if (command) session.actions.runMenuCommand(command);
+            else session.actions.openLibrary();
           }}
         />
       </Suspense>

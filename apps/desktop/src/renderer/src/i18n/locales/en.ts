@@ -125,51 +125,29 @@ export const enResources = {
       annotationAgentNotFound: 'Annotation assistant {{name}} was not found.',
     },
     onboarding: {
-      ariaLabel: 'How long has it been since you truly finished an article?',
+      ariaLabel: 'Start your first reading',
+      title: 'Read a passage. Save a thought.',
+      description: 'Choose something you want to read and leave your first note.',
       enter: 'Enter Yomitomo',
       entering: 'Entering',
       enterFailed: 'Failed to enter the app.',
-      blocks: {
-        title: {
-          lines: ['How long has it been', 'since you truly finished an article?'],
+      importEbook: 'Import EPUB',
+      importPdf: 'Import PDF',
+      importWeb: 'Import web article',
+      localReading: 'Reading, highlighting, and saving thoughts do not require an AI model.',
+      steps: {
+        import: {
+          title: 'Import something to read',
+          description: 'Choose a local EPUB or PDF, or paste an article URL.',
         },
-        opening: {
-          lines: [
-            'Not skimming a headline, saving it, and never opening it again.',
-            'Really finishing it. Pausing halfway to think,',
-            'marking a sentence, and having someone to talk with after reading.',
-          ],
+        read: {
+          title: 'Open it and read',
+          description: 'Open the imported content and find a passage worth pausing over.',
         },
-        origin: {
-          lines: ['We made Yomitomo because we missed that feeling too.'],
-        },
-        companion: {
-          lines: [
-            'It is an AI reading companion. While you read, it reads too.',
-            'The highlights you make, it responds to.',
-            'The highlights it makes, you can question.',
-            'You leave a thought, and it adds its view.',
-            'Like two people holding the same book, looking up at each other now and then.',
-          ],
-        },
-        principle: {
-          lines: ['A companion does not read for you.'],
-        },
-        memory: {
-          lines: [
-            'We will not summarize an article for you. That only dresses up not reading.',
-            'What we want is to help you think a little deeper while you read.',
-            'After you finish, the annotations, the back-and-forth conversations,',
-            'and the thoughts that flashed by at the time all stay.',
-            'Tomorrow, next month, or years later, when you open the same article,',
-            'you will find that you read it together.',
-          ],
-        },
-        closing: {
-          lines: [
-            'This is Yomitomo, companion reading.',
-            'You read with focus. It keeps you company.',
-          ],
+        save: {
+          title: 'Save a highlight or thought',
+          description:
+            'Select text, choose “Record thought”, then save a highlight or write your thought.',
         },
       },
     },
