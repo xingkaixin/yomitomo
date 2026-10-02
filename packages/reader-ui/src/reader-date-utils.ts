@@ -1,4 +1,4 @@
-import { formatDateTimeValue, relativeTimeParts, type RelativeTimeParts } from '@yomitomo/shared';
+import { relativeTimeParts, type RelativeTimeParts } from '@yomitomo/shared';
 
 export type ReaderDateLabels = {
   dateLocale?: string;
@@ -18,14 +18,24 @@ export function defaultReaderRelativeTimeLabel(parts: RelativeTimeParts) {
   return `${parts.count} ${unitLabels[parts.unit]}前`;
 }
 
-export function formatTime(value: string, labels?: ReaderDateLabels) {
-  return formatDateTimeValue(value, labels?.dateLocale, {
+export function createReaderTimeFormatter(labels?: ReaderDateLabels) {
+  return new Intl.DateTimeFormat(labels?.dateLocale || 'zh-CN', {
     year: 'numeric',
     month: 'numeric',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+export function formatTime(
+  value: string,
+  labels?: ReaderDateLabels,
+  formatter?: Intl.DateTimeFormat,
+) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return (formatter ?? createReaderTimeFormatter(labels)).format(date);
 }
 
 export function formatRelativeTime(value: string, labels?: ReaderDateLabels) {

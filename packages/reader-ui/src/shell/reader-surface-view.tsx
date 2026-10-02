@@ -2,7 +2,7 @@ import React from 'react';
 import { annotationOrdinalsById, highlightDiscussionLabel } from './reader-highlight-labels';
 import type { Annotation, MessageSendShortcut, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { buildHighlightSegments, highlightSegmentStyle } from '@yomitomo/core';
-import { AnnotationCard } from '../annotations/reader-annotation-card';
+import { AnnotationCard, type ReaderWindowSourceRect } from '../annotations/reader-annotation-card';
 import type { ReaderAnnotationRailState } from '../annotations/use-reader-annotation-rail';
 import { Composer, type ComposerPopupPhase } from './reader-composer';
 import { EmptyNotes } from './reader-empty-notes';
@@ -20,6 +20,7 @@ import type {
   ReaderUiLabels,
 } from './reader-app-view-types';
 import { defaultReaderUiLabels } from './reader-app-view-types';
+import { createReaderTimeFormatter } from '../reader-date-utils';
 
 type AnnotationRailStyle = React.CSSProperties & {
   '--reader-empty-left': string;
@@ -239,12 +240,7 @@ function getCssDurationMs(element: Element, variableName: string, fallback: numb
 
 export function ReaderSurfaceView({
   actions: { annotation: annotationActions, selection: selectionActions },
-  agents: {
-    agents,
-    pendingAnnotationAgents = {},
-    reviewAgents = [],
-    theaterBoxes: agentTheaterBoxes,
-  },
+  agents: { agents, pendingAnnotationAgents = {}, reviewAgents, theaterBoxes: agentTheaterBoxes },
   annotationRail: {
     annotationRailItems,
     exitingAnnotationIds,
@@ -276,7 +272,30 @@ export function ReaderSurfaceView({
   settings: { messageSendShortcut, selectionActionShortcuts, shortcutModifier },
   userProfile,
 }: ReaderSurfaceViewProps) {
-  const highlightSegments = React.useMemo(() => buildHighlightSegments(boxes), [boxes]);
+  const timeFormatter = createReaderTimeFormatter(labels);
+  const annotationActionsRef = React.useRef(annotationActions);
+  React.useLayoutEffect(() => {
+    annotationActionsRef.current = annotationActions;
+  }, [annotationActions]);
+  const cardActions = React.useMemo(
+    () => ({
+      onDelete: (id: string) => annotationActionsRef.current.onDeleteAnnotation(id),
+      onFocus: (id: string) => annotationActionsRef.current.onScrollToHighlight(id),
+      onOpenDiscussion: (id: string, rect?: ReaderWindowSourceRect) =>
+        annotationActionsRef.current.onOpenAnnotationDiscussion?.(id, rect),
+    }),
+    [],
+  );
+  const highlightSegments = React.useMemo(() => {
+    const occurrences = new Map<string, number>();
+    return buildHighlightSegments(boxes).map((segment) => {
+      const group = JSON.stringify(segment.annotationIds);
+      const occurrence = occurrences.get(group) ?? 0;
+      occurrences.set(group, occurrence + 1);
+      // Global line numbers shift on reflow; keep each annotation's fragments mounted.
+      return Object.assign(segment, { renderKey: `${group}:${occurrence}` });
+    });
+  }, [boxes]);
   const temporarySegments = React.useMemo(
     () => buildHighlightSegments(temporaryBoxes),
     [temporaryBoxes],
@@ -363,7 +382,7 @@ export function ReaderSurfaceView({
                   className={['reader-highlight', active ? 'is-active' : '', isNew ? 'is-new' : '']
                     .filter(Boolean)
                     .join(' ')}
-                  key={`highlight-${segment.id}`}
+                  key={`highlight-${segment.renderKey}`}
                   style={segmentStyle}
                   type="button"
                   onClick={(event) =>
@@ -438,15 +457,20 @@ export function ReaderSurfaceView({
                   key={annotation.id}
                   labels={labels}
                   noteRef={noteRefForAnnotation(annotation.id)}
-                  pendingAgents={pendingAnnotationAgents[annotation.id] || []}
+                  pendingAgents={pendingAnnotationAgents[annotation.id]}
                   stackCount={stackCount}
                   stackIndex={stackIndex}
                   railSide={railSide}
                   style={style}
                   userProfile={userProfile}
-                  onDelete={annotationActions.onDeleteAnnotation}
-                  onFocus={annotationActions.onScrollToHighlight}
-                  onOpenDiscussion={annotationActions.onOpenAnnotationDiscussion}
+                  timeFormatter={timeFormatter}
+                  onDelete={cardActions.onDelete}
+                  onFocus={cardActions.onFocus}
+                  onOpenDiscussion={
+                    annotationActions.onOpenAnnotationDiscussion
+                      ? cardActions.onOpenDiscussion
+                      : undefined
+                  }
                   reviewAgents={reviewAgents}
                 />
               ),
