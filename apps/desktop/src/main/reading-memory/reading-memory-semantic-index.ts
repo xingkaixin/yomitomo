@@ -4,6 +4,7 @@ import type {
   ReadingMemoryEvidenceSearchResult,
   ReadingMemorySemanticStatus,
 } from '@yomitomo/shared';
+import { Effect, Exit, Fiber, Scope } from 'effect';
 import {
   createReadingMemoryEmbeddingService,
   type ReadingMemoryEmbeddingService,
@@ -77,11 +78,12 @@ export function createReadingMemorySemanticIndex(
     document: null,
   };
   const queries = new Set<AbortController>();
+  const scope = Scope.makeUnsafe();
   let mode: 'running' | 'suspended' | 'disposed' = 'running';
   let indexingPaused = false;
   let indexingFailed = false;
-  let timer: NodeJS.Timeout | null = null;
-  let background: { controller: AbortController; promise: Promise<void> } | null = null;
+  let scheduled: Fiber.Fiber<void> | null = null;
+  let background: Fiber.Fiber<void> | null = null;
   let queryTail = Promise.resolve();
   let maintenance: Promise<void> | null = null;
   let disposePromise: Promise<void> | null = null;
@@ -125,9 +127,10 @@ export function createReadingMemorySemanticIndex(
     };
   };
 
-  const clearTimer = () => {
-    if (timer) clearTimeout(timer);
-    timer = null;
+  const interruptBackground = () => {
+    if (scheduled) Effect.runFork(Fiber.interrupt(scheduled));
+    scheduled = null;
+    return background ? Effect.runPromise(Fiber.interrupt(background)) : Promise.resolve();
   };
 
   const embed = async (
@@ -239,52 +242,62 @@ export function createReadingMemorySemanticIndex(
       indexingPaused ||
       queries.size > 0 ||
       background ||
-      timer
+      scheduled
     ) {
       return;
     }
-    timer = setTimeout(() => {
-      timer = null;
-      const controller = new AbortController();
-      let nextDelay = idleDelayMs;
-      const promise = buildNextBatch(controller.signal)
-        .then((delay) => {
-          nextDelay = delay;
-        })
-        .catch((error: unknown) => {
-          if (controller.signal.aborted) return;
+    let fiber: Fiber.Fiber<void>;
+    let nextDelay = idleDelayMs;
+    const pass = Effect.gen(function* () {
+      scheduled = null;
+      background = fiber;
+      nextDelay = yield* Effect.callback<number, unknown>((resume, signal) => {
+        const settled = buildNextBatch(signal).then(
+          (delay) => resume(Effect.succeed(delay)),
+          (error: unknown) => resume(Effect.fail(error)),
+        );
+        // Native exit and database leases must settle before a query or maintenance can proceed.
+        return Effect.promise(() => settled);
+      }).pipe(
+        Effect.catch((error) => {
           indexingFailed = true;
-          nextDelay = retryDelayMs;
           options.logError?.('reading_memory.semantic_index_failed', error);
-        })
-        .finally(() => {
+          return Effect.succeed(retryDelayMs);
+        }),
+      );
+    }).pipe(
+      Effect.ensuring(
+        Effect.sync(() => {
           background = null;
           schedule(nextDelay);
-        });
-      background = { controller, promise };
-    }, delayMs);
-    timer.unref?.();
-  };
-
-  const abortWork = () => {
-    clearTimer();
-    background?.controller.abort();
-    for (const controller of queries) controller.abort();
+        }),
+      ),
+    );
+    // A positive delay keeps continuation on the timer turn, matching Node's setTimeout(0).
+    fiber = Effect.runSync(
+      Effect.forkIn(Effect.sleep(Math.max(1, delayMs)).pipe(Effect.flatMap(() => pass)), scope, {
+        startImmediately: true,
+      }),
+    );
+    scheduled = fiber;
   };
 
   const releaseInference = async () => {
     const services = [slots.query, slots.document];
     slots.query = null;
     slots.document = null;
-    await Promise.all([...services.map((slot) => slot?.service.dispose()), background?.promise]);
+    await Promise.all(
+      services.filter((slot) => slot !== null).map((slot) => slot.service.dispose()),
+    );
   };
 
   const maintain = (operation: () => Promise<void>): Promise<void> => {
-    abortWork();
+    const waitingForBackground = interruptBackground();
+    for (const controller of queries) controller.abort();
     const pending = (maintenance ?? Promise.resolve())
       .catch(() => undefined)
       .then(async () => {
-        await releaseInference();
+        await Promise.all([releaseInference(), waitingForBackground]);
         await operation();
       })
       .finally(() => {
@@ -322,10 +335,8 @@ export function createReadingMemorySemanticIndex(
         ? AbortSignal.any([controller.signal, callOptions.signal])
         : controller.signal;
       queries.add(controller);
-      clearTimer();
-      background?.controller.abort();
+      const waitingForBackground = interruptBackground();
       const waitingForMaintenance = maintenance;
-      const waitingForBackground = background?.promise;
       const result = queryTail
         .then(async () => {
           await waitingForMaintenance;
@@ -356,9 +367,7 @@ export function createReadingMemorySemanticIndex(
     },
     pauseIndexing: async () => {
       indexingPaused = true;
-      clearTimer();
-      background?.controller.abort();
-      await background?.promise;
+      await interruptBackground();
     },
     resumeIndexing: () => {
       indexingPaused = false;
@@ -385,7 +394,9 @@ export function createReadingMemorySemanticIndex(
       mode = 'disposed';
       options.modelLifecycle.dispose();
       options.previousModelLifecycle?.dispose();
-      disposePromise = maintain(async () => {});
+      disposePromise = maintain(async () => {
+        await Effect.runPromise(Scope.close(scope, Exit.void));
+      });
       return disposePromise;
     },
   };

@@ -1,6 +1,7 @@
 import { fork, type ForkOptions } from 'node:child_process';
 import { basename, dirname, isAbsolute, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Cause, Deferred, Effect, Exit, Fiber, Schema } from 'effect';
 import type { ReadingMemoryModelLifecycleState } from './reading-memory-model-lifecycle';
 import {
   assertReadingMemoryEmbeddingVectors,
@@ -100,9 +101,8 @@ type ActiveBatch = {
   requestId: number;
   count: number;
   session: WorkerSession;
-  clear: () => void;
-  resolve: (result: ReadingMemoryEmbeddingResult) => void;
-  reject: (error: ReadingMemoryEmbeddingError) => void;
+  response: Deferred.Deferred<ReadingMemoryEmbeddingResult, ReadingMemoryEmbeddingError>;
+  fiber: Fiber.Fiber<ReadingMemoryEmbeddingResult, ReadingMemoryEmbeddingError>;
 };
 
 export function createReadingMemoryEmbeddingService(
@@ -141,20 +141,16 @@ export function createReadingMemoryEmbeddingService(
     batch: ActiveBatch,
     code: ReadingMemoryEmbeddingErrorCode,
     cause?: unknown,
-  ): Promise<void> => {
-    if (activeBatch !== batch) return Promise.resolve();
-    activeBatch = null;
-    batch.clear();
-    return terminateSession(batch.session).then(() => {
-      batch.reject(new ReadingMemoryEmbeddingError(code, cause));
-    });
+  ) => {
+    if (activeBatch !== batch) return;
+    Deferred.doneUnsafe(batch.response, Effect.fail(new ReadingMemoryEmbeddingError(code, cause)));
   };
 
   const failSession = (current: WorkerSession, cause: unknown) => {
     if (session !== current) return;
     const batch = activeBatch;
     if (batch?.session === current) {
-      void failBatch(batch, 'READING_MEMORY_EMBEDDING_WORKER_FAILED', cause);
+      failBatch(batch, 'READING_MEMORY_EMBEDDING_WORKER_FAILED', cause);
       return;
     }
     void terminateSession(current);
@@ -168,31 +164,7 @@ export function createReadingMemoryEmbeddingService(
       return;
     }
 
-    try {
-      const message = parseWorkerResponse(value);
-      if (message.type === 'disposed' || message.requestId !== batch.requestId) {
-        throw new Error('Embedding worker returned an unexpected response');
-      }
-      if (message.type === 'error') {
-        void failBatch(batch, 'READING_MEMORY_EMBEDDING_WORKER_FAILED', new Error(message.message));
-        return;
-      }
-      if (message.count !== batch.count || message.dimension !== config.dimension) {
-        throw new Error('Embedding response shape metadata does not match the request');
-      }
-      const vectors = new Float32Array(message.buffer);
-      assertReadingMemoryEmbeddingVectors(
-        vectors,
-        message.count,
-        message.dimension,
-        config.normalized,
-      );
-      batch.clear();
-      activeBatch = null;
-      batch.resolve({ modelVersion: config.modelVersion, dimension: config.dimension, vectors });
-    } catch (error) {
-      void failBatch(batch, 'READING_MEMORY_EMBEDDING_WORKER_FAILED', error);
-    }
+    Deferred.doneUnsafe(batch.response, decodeWorkerResult(value, batch, config));
   };
 
   const spawnSession = () => {
@@ -245,41 +217,63 @@ export function createReadingMemoryEmbeddingService(
     } catch (error) {
       throw new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_WORKER_FAILED', error);
     }
+    if (signal?.aborted) {
+      await terminateSession(current);
+      throw new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_CANCELED');
+    }
 
     const requestId = nextRequestId;
     nextRequestId = requestId === Number.MAX_SAFE_INTEGER ? 1 : requestId + 1;
-    return new Promise<ReadingMemoryEmbeddingResult>((resolve, reject) => {
-      let batch: ActiveBatch;
-      const abort = () => void failBatch(batch, 'READING_MEMORY_EMBEDDING_CANCELED');
-      const timeout = setTimeout(() => {
-        void failBatch(batch, 'READING_MEMORY_EMBEDDING_TIMEOUT');
-      }, timeoutMs);
-      const clear = () => {
-        clearTimeout(timeout);
-        signal?.removeEventListener('abort', abort);
-      };
-      batch = { requestId, count: request.texts.length, session: current, clear, resolve, reject };
-      activeBatch = batch;
-      signal?.addEventListener('abort', abort, { once: true });
-      const send = (message: ReadingMemoryEmbeddingWorkerRequest) => {
-        current.worker.send(message, (error) => {
-          if (error) failSession(current, error);
-        });
-      };
-      try {
-        if (initialize) send({ type: 'initialize', config });
-        send({ type: 'embed', requestId, ...request });
-      } catch (error) {
-        void failBatch(batch, 'READING_MEMORY_EMBEDDING_WORKER_FAILED', error);
+    const response = Deferred.makeUnsafe<
+      ReadingMemoryEmbeddingResult,
+      ReadingMemoryEmbeddingError
+    >();
+    const fiber = Effect.runFork(
+      Deferred.await(response).pipe(
+        Effect.timeoutOrElse({
+          duration: timeoutMs,
+          orElse: () =>
+            Effect.fail(new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_TIMEOUT')),
+        }),
+        Effect.onExit((exit) =>
+          Effect.gen(function* () {
+            if (Exit.isFailure(exit)) yield* Effect.promise(() => terminateSession(current));
+            if (activeBatch?.response === response) activeBatch = null;
+          }),
+        ),
+      ),
+      { signal },
+    );
+    const batch = { requestId, count: request.texts.length, session: current, response, fiber };
+    activeBatch = batch;
+    const send = (message: ReadingMemoryEmbeddingWorkerRequest) => {
+      current.worker.send(message, (error) => {
+        if (error) failSession(current, error);
+      });
+    };
+    try {
+      if (initialize) send({ type: 'initialize', config });
+      send({ type: 'embed', requestId, ...request });
+    } catch (error) {
+      failBatch(batch, 'READING_MEMORY_EMBEDDING_WORKER_FAILED', error);
+    }
+    const exit = await Effect.runPromise(Fiber.await(fiber));
+    if (Exit.isFailure(exit)) {
+      if (Cause.hasInterrupts(exit.cause)) {
+        throw new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_CANCELED');
       }
-    });
+      throw Cause.squash(exit.cause);
+    }
+    return exit.value;
   };
 
   const dispose = () => {
     if (disposePromise) return disposePromise;
     disposePromise = (async () => {
       if (activeBatch) {
-        await failBatch(activeBatch, 'READING_MEMORY_EMBEDDING_DISPOSED');
+        const batch = activeBatch;
+        failBatch(batch, 'READING_MEMORY_EMBEDDING_DISPOSED');
+        await Effect.runPromise(Fiber.await(batch.fiber));
         return;
       }
       if (terminating) await terminating;
@@ -311,15 +305,16 @@ function killProcess(worker: ReadingMemoryEmbeddingProcess): Promise<void> {
 }
 
 function requestWorkerDisposal(worker: ReadingMemoryEmbeddingProcess) {
-  return new Promise<void>((resolve) => {
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    const finish = () => {
-      if (timeout) clearTimeout(timeout);
+  const acknowledgment = Effect.callback<void>((resume) => {
+    const cleanup = () => {
       worker.off('message', onMessage);
       worker.off('error', finish);
       worker.off('disconnect', finish);
       worker.off('exit', finish);
-      resolve();
+    };
+    const finish = () => {
+      cleanup();
+      resume(Effect.void);
     };
     const onMessage = (message: unknown) => {
       if (isDisposedResponse(message)) finish();
@@ -328,7 +323,6 @@ function requestWorkerDisposal(worker: ReadingMemoryEmbeddingProcess) {
     worker.on('error', finish);
     worker.on('disconnect', finish);
     worker.on('exit', finish);
-    timeout = setTimeout(finish, gracefulDisposeTimeoutMs);
     try {
       worker.send({ type: 'dispose' }, (error) => {
         if (error) finish();
@@ -336,7 +330,9 @@ function requestWorkerDisposal(worker: ReadingMemoryEmbeddingProcess) {
     } catch {
       finish();
     }
+    return Effect.sync(cleanup);
   });
+  return Effect.runPromise(acknowledgment.pipe(Effect.timeoutOption(gracefulDisposeTimeoutMs)));
 }
 
 function detachSession(session: WorkerSession) {
@@ -388,40 +384,58 @@ function readingMemoryEmbeddingWorkerUrl() {
   return new URL(relativeWorkerPath, import.meta.url);
 }
 
-function parseWorkerResponse(value: unknown) {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new Error('Embedding worker response must be an object');
-  }
-  const response = value as Record<string, unknown>;
-  if (response.type === 'disposed') return { type: 'disposed' } as const;
-  if (!Number.isSafeInteger(response.requestId) || (response.requestId as number) <= 0) {
-    throw new Error('Embedding worker response has an invalid request ID');
-  }
-  const requestId = response.requestId as number;
-  if (response.type === 'error') {
-    if (typeof response.message !== 'string') {
-      throw new Error('Embedding worker error has no message');
-    }
-    return { type: 'error', requestId, message: response.message } as const;
-  }
-  if (response.type !== 'result') throw new Error('Embedding worker response type is invalid');
-  if (!Number.isSafeInteger(response.count) || (response.count as number) <= 0) {
-    throw new Error('Embedding worker response count is invalid');
-  }
-  if (!Number.isSafeInteger(response.dimension) || (response.dimension as number) <= 0) {
-    throw new Error('Embedding worker response dimension is invalid');
-  }
-  if (!(response.buffer instanceof ArrayBuffer)) {
-    throw new Error('Embedding worker response buffer is invalid');
-  }
-  return {
-    type: 'result',
-    requestId,
-    count: response.count as number,
-    dimension: response.dimension as number,
-    buffer: response.buffer,
-  } as const;
-}
+const positiveSafeInteger = Schema.Number.check(
+  Schema.isInt(),
+  Schema.isGreaterThan(0),
+  Schema.isLessThanOrEqualTo(Number.MAX_SAFE_INTEGER),
+);
+const workerResponseSchema = Schema.Union([
+  Schema.Struct({ type: Schema.Literal('disposed') }),
+  Schema.Struct({
+    type: Schema.Literal('error'),
+    requestId: positiveSafeInteger,
+    message: Schema.String,
+  }),
+  Schema.Struct({
+    type: Schema.Literal('result'),
+    requestId: positiveSafeInteger,
+    count: positiveSafeInteger,
+    dimension: positiveSafeInteger,
+    buffer: Schema.instanceOf(ArrayBuffer),
+  }),
+]);
+
+const decodeWorkerResult = Effect.fn('ReadingMemory.decodeWorkerResult')(
+  (
+    value: unknown,
+    batch: Pick<ActiveBatch, 'requestId' | 'count'>,
+    config: ReadingMemoryEmbeddingWorkerConfig,
+  ) =>
+    Schema.decodeUnknownEffect(workerResponseSchema)(value).pipe(
+      Effect.flatMap((message) =>
+        Effect.try(() => {
+          if (message.type === 'disposed' || message.requestId !== batch.requestId) {
+            throw new Error('Embedding worker returned an unexpected response');
+          }
+          if (message.type === 'error') throw new Error(message.message);
+          if (message.count !== batch.count || message.dimension !== config.dimension) {
+            throw new Error('Embedding response shape metadata does not match the request');
+          }
+          const vectors = new Float32Array(message.buffer);
+          assertReadingMemoryEmbeddingVectors(
+            vectors,
+            message.count,
+            message.dimension,
+            config.normalized,
+          );
+          return { modelVersion: config.modelVersion, dimension: config.dimension, vectors };
+        }),
+      ),
+      Effect.mapError(
+        (error) => new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_WORKER_FAILED', error),
+      ),
+    ),
+);
 
 function isDisposedResponse(value: unknown) {
   return (

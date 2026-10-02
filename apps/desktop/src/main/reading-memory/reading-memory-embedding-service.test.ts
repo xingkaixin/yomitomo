@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events';
 import { fork, type ForkOptions } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
+import { setImmediate as nextTurn } from 'node:timers/promises';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createReadingMemoryEmbeddingService,
@@ -210,6 +211,29 @@ describe('reading memory embedding service', () => {
     await recovered;
   });
 
+  it('joins an already interrupted batch when disposal starts before native exit', async () => {
+    const { service, workers } = createService();
+    const controller = new AbortController();
+    const pending = service.embed(request, { signal: controller.signal });
+    const rejected = expect(pending).rejects.toMatchObject({
+      code: 'READING_MEMORY_EMBEDDING_CANCELED',
+    });
+    workers[0].autoExit = false;
+    controller.abort();
+    let disposed = false;
+    const disposal = service.dispose().then(() => {
+      disposed = true;
+    });
+    await nextTurn();
+    expect(disposed).toBe(false);
+    expect(workers[0].killSignals).toEqual(['SIGKILL']);
+
+    workers[0].exit(null, 'SIGKILL');
+    await Promise.all([disposal, rejected]);
+    expect(disposed).toBe(true);
+    expect(workers[0].eventNames()).toEqual([]);
+  });
+
   it('terminates a timed-out worker and allows the next request to restart', async () => {
     vi.useFakeTimers();
     const { service, workers } = createService({ timeoutMs: 20 });
@@ -319,6 +343,25 @@ describe('reading memory embedding service', () => {
     await expect(service.embed(request)).rejects.toMatchObject({
       code: 'READING_MEMORY_EMBEDDING_DISPOSED',
     });
+  });
+
+  it('rejects malformed IPC payloads as worker failures and recovers on the next request', async () => {
+    const { service, workers } = createService();
+    const pending = service.embed(request);
+    workers[0].emit('message', {
+      type: 'result',
+      requestId: 1,
+      count: 1,
+      dimension: 768,
+      buffer: unitVectors(1),
+    });
+    await expect(pending).rejects.toMatchObject({
+      code: 'READING_MEMORY_EMBEDDING_WORKER_FAILED',
+    });
+    expect(workers[0].killSignals).toEqual(['SIGKILL']);
+    const recovered = service.embed(request);
+    respond(workers[1]);
+    await expect(recovered).resolves.toMatchObject({ dimension: 768 });
   });
 
   it('terminates an active worker when disposed and rejects the active batch', async () => {
