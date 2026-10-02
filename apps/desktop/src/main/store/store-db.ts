@@ -170,23 +170,31 @@ export function closeDatabase() {
   }
 }
 
-export async function replaceDatabaseFile(sourcePath: string) {
+export type DatabaseRestoreFiles = {
+  install: () => Promise<void>;
+  rollback: () => Promise<void>;
+};
+
+export async function replaceDatabaseFile(sourcePath: string, files?: DatabaseRestoreFiles) {
   const source = resolve(sourcePath);
   const target = resolve(databasePath());
   if (source === target) throw new Error('DATA_MANAGEMENT_RESTORE_SOURCE_IS_CURRENT_DATABASE');
+  return withDatabaseMaintenance(() => installDatabaseReplacement(source, target, files));
+}
 
+export async function withDatabaseMaintenance<T>(operation: () => Promise<T>): Promise<T> {
   if (lifecycle !== 'open') throw new Error('DATA_MANAGEMENT_DATABASE_REPLACING');
   lifecycle = 'draining';
-  logInfo('store.database_replace_started', {
+  logInfo('store.database_maintenance_started', {
     leases: activeLeases,
     generation: connectionGeneration,
   });
   try {
     await drainDatabaseLeases();
-    return await installDatabaseReplacement(source, target);
+    return await operation();
   } finally {
     lifecycle = 'open';
-    logInfo('store.database_replace_settled', { generation: connectionGeneration });
+    logInfo('store.database_maintenance_settled', { generation: connectionGeneration });
   }
 }
 
@@ -207,7 +215,11 @@ async function drainDatabaseLeases() {
   });
 }
 
-async function installDatabaseReplacement(source: string, target: string) {
+async function installDatabaseReplacement(
+  source: string,
+  target: string,
+  files?: DatabaseRestoreFiles,
+) {
   const backupPath = await safetyBackupPath();
   const targetExists = existsSync(target);
   if (targetExists) await backupDatabaseFile(backupPath);
@@ -222,6 +234,7 @@ async function installDatabaseReplacement(source: string, target: string) {
     validateRestoreCandidate(temporaryTarget);
     await removeSqliteSidecarFiles(temporaryTarget);
 
+    await files?.install();
     lifecycle = 'replacing';
     closeDatabase();
     databaseClosed = true;
@@ -234,10 +247,15 @@ async function installDatabaseReplacement(source: string, target: string) {
     openDatabaseConnection();
     lifecycle = 'draining';
     databaseClosed = false;
-    await removeBackupTemporaryFiles(rollbackTarget);
+    await removeBackupTemporaryFiles(rollbackTarget).catch((error) => {
+      logInfo('store.database_restore_cleanup_failed', { error: String(error) });
+    });
     return backupPath;
   } catch (error) {
-    await removeBackupTemporaryFiles(temporaryTarget);
+    const failures: unknown[] = [error];
+    await removeBackupTemporaryFiles(temporaryTarget).catch((cleanupError) =>
+      failures.push(cleanupError),
+    );
     if (databaseClosed) {
       await rollbackDatabaseReplacement({
         target,
@@ -245,7 +263,11 @@ async function installDatabaseReplacement(source: string, target: string) {
         targetExists,
         replacementInstalled,
         restoreError: error,
-      });
+      }).catch((rollbackError) => failures.push(rollbackError));
+    }
+    await files?.rollback().catch((rollbackError) => failures.push(rollbackError));
+    if (failures.length > 1) {
+      throw new AggregateError(failures, 'DATA_MANAGEMENT_RESTORE_ROLLBACK_FAILED');
     }
     throw error;
   }

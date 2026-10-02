@@ -9,6 +9,7 @@ import { registerStoreDataIpc } from './ipc-store-data';
 const ipcState = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   restoreDatabaseWithDialog: vi.fn(),
+  restoreFullDataWithDialog: vi.fn(),
 }));
 
 vi.mock('electron', () => ({
@@ -33,11 +34,13 @@ vi.mock('../app/logger', () => ({
 
 vi.mock('../data-management', () => ({
   restoreDatabaseWithDialog: ipcState.restoreDatabaseWithDialog,
+  restoreFullDataWithDialog: ipcState.restoreFullDataWithDialog,
 }));
 
 beforeEach(() => {
   ipcState.handlers.clear();
   ipcState.restoreDatabaseWithDialog.mockReset();
+  ipcState.restoreFullDataWithDialog.mockReset();
 });
 
 describe('store data update IPC', () => {
@@ -120,6 +123,30 @@ describe('store data update IPC', () => {
     expect(context.sendFullStoreUpdated).toHaveBeenCalledWith(event, store);
     expect(context.onDatabaseRestored).toHaveBeenCalledOnce();
     expect(ipcState.restoreDatabaseWithDialog).toHaveBeenCalledWith(
+      null,
+      context.onDatabaseRestored,
+    );
+  });
+
+  it('forwards complete backup restored stores with their source event', async () => {
+    const store = desktopStore();
+    ipcState.restoreFullDataWithDialog.mockImplementation(
+      async (_parentWindow, onDatabaseRestored: () => void) => {
+        onDatabaseRestored();
+        return { canceled: false, store };
+      },
+    );
+    const context = storeContext({});
+    registerStoreDataIpc(context);
+    const handler = ipcState.handlers.get('data:full-restore');
+    const event = { sender: { id: 17 } };
+
+    const result = await handler?.(event);
+
+    expect(result).toEqual({ ok: true, value: { canceled: false, store } });
+    expect(context.sendFullStoreUpdated).toHaveBeenCalledWith(event, store);
+    expect(context.onDatabaseRestored).toHaveBeenCalledOnce();
+    expect(ipcState.restoreFullDataWithDialog).toHaveBeenCalledWith(
       null,
       context.onDatabaseRestored,
     );

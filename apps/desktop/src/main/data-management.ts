@@ -7,12 +7,7 @@ import {
   type OpenDialogOptions,
   type SaveDialogOptions,
 } from 'electron';
-import type SQLiteDatabase from 'better-sqlite3';
-import {
-  assertDatabaseReaderCompatible,
-  readAppliedDatabaseMigrationIds,
-  readDatabaseReaderLevelIfPresent,
-} from './db/compatibility';
+import { validateDatabaseBackupFile } from './db/backup-validation';
 import type {
   DataManagementPathKind,
   DataManagementPaths,
@@ -26,8 +21,8 @@ import {
   getDatabasePath,
   replaceDatabaseFile,
 } from './store/store-db';
+import { createFullBackup, restoreFullBackup } from './full-backup';
 import { getLogPath } from './app/logger';
-import { loadSQLiteDatabase } from './native/sqlite';
 
 export function getDataManagementPaths(): DataManagementPaths {
   return {
@@ -81,34 +76,42 @@ export async function restoreDatabaseWithDialog(
   };
 }
 
-function validateDatabaseBackupFile(filePath: string) {
-  let database: SQLiteDatabase.Database;
-  const SQLiteDatabase = loadSQLiteDatabase();
-  try {
-    database = new SQLiteDatabase(filePath, { readonly: true, fileMustExist: true });
-  } catch (error) {
-    throw new Error('DATA_MANAGEMENT_INVALID_SQLITE_DATABASE', { cause: error });
-  }
-
-  try {
-    const integrity = checkDatabaseIntegrity(database);
-    if (integrity !== 'ok') throw new Error('DATA_MANAGEMENT_DATABASE_INTEGRITY_FAILED');
-
-    const migrationIds = readAppliedDatabaseMigrationIds(database);
-    if (!migrationIds) throw new Error('DATA_MANAGEMENT_NOT_YOMITOMO_BACKUP');
-
-    assertDatabaseReaderCompatible(migrationIds, readDatabaseReaderLevelIfPresent(database));
-  } finally {
-    database.close();
-  }
+export async function backupFullDataWithDialog(
+  parentWindow: BrowserWindow | null,
+): Promise<DatabaseBackupResult> {
+  const result = await showBackupDirectoryDialog(
+    parentWindow,
+    'Choose where to save a complete backup',
+  );
+  const directory = result.filePaths[0];
+  if (result.canceled || !directory) return { canceled: true };
+  return { canceled: false, filePath: await createFullBackup(directory) };
 }
 
-function checkDatabaseIntegrity(database: SQLiteDatabase.Database) {
-  try {
-    return database.pragma('integrity_check', { simple: true });
-  } catch (error) {
-    throw new Error('DATA_MANAGEMENT_INVALID_SQLITE_DATABASE', { cause: error });
-  }
+export async function restoreFullDataWithDialog(
+  parentWindow: BrowserWindow | null,
+  onDatabaseRestored: () => void,
+): Promise<DatabaseRestoreResult> {
+  const result = await showBackupDirectoryDialog(
+    parentWindow,
+    'Choose a complete Yomitomo backup folder',
+  );
+  const directory = result.filePaths[0];
+  if (result.canceled || !directory) return { canceled: true };
+  const backupPath = await restoreFullBackup(directory);
+  onDatabaseRestored();
+  return { canceled: false, backupPath, store: await readStore() };
+}
+
+function showBackupDirectoryDialog(parentWindow: BrowserWindow | null, title: string) {
+  const options: OpenDialogOptions = {
+    title,
+    defaultPath: app.getPath('documents'),
+    properties: ['openDirectory', 'createDirectory'],
+  };
+  return parentWindow
+    ? dialog.showOpenDialog(parentWindow, options)
+    : dialog.showOpenDialog(options);
 }
 
 function showSaveDatabaseDialog(parentWindow: BrowserWindow | null) {

@@ -59,6 +59,12 @@ function installDesktopDataApi() {
     openDataManagementPath: vi.fn().mockResolvedValue(undefined),
     saveSettings: vi.fn().mockResolvedValue(retainedStore),
     clearLog: vi.fn().mockResolvedValue(undefined),
+    backupFullData: vi.fn().mockResolvedValue({ canceled: false, filePath: '/tmp/full-backup' }),
+    restoreFullData: vi.fn().mockResolvedValue({
+      canceled: false,
+      backupPath: '/tmp/previous-data',
+      store: restoredStore,
+    }),
     backupDatabase: vi.fn().mockResolvedValue({
       canceled: false,
       filePath: '/tmp/yomitomo-backup.sqlite',
@@ -74,6 +80,8 @@ function installDesktopDataApi() {
     configurable: true,
     value: {
       data: {
+        backupFullData: desktop.backupFullData,
+        restoreFullData: desktop.restoreFullData,
         backupDatabase: desktop.backupDatabase,
         getPaths: desktop.getDataManagementPaths,
         openPath: desktop.openDataManagementPath,
@@ -190,6 +198,28 @@ describe('DataManagementSettings', () => {
     expect(appToast.success).toHaveBeenCalledWith('数据库已还原', {
       description: '原数据库已备份到 /tmp/yomitomo/backups/yomitomo-before-restore.sqlite',
     });
+  });
+
+  it('confirms full replacement and applies the restored store', async () => {
+    const desktop = installDesktopDataApi();
+    const onStoreUpdated = vi.fn();
+    render(<DataManagementSettings settings={{}} onStoreUpdated={onStoreUpdated} />);
+    fireEvent.click(screen.getByRole('button', { name: '创建完整备份' }));
+    await waitFor(() =>
+      expect(appToast.success).toHaveBeenCalledWith('完整备份已创建', {
+        description: '已保存到 /tmp/full-backup',
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: '从完整备份恢复' }));
+    expect(desktop.restoreFullData).not.toHaveBeenCalled();
+    fireEvent.click(
+      within(screen.getByRole('dialog', { name: '从完整备份恢复？' })).getByRole('button', {
+        name: '选择备份并还原',
+      }),
+    );
+    await waitFor(() => expect(desktop.restoreFullData).toHaveBeenCalledOnce());
+    expect(onStoreUpdated).toHaveBeenCalledOnce();
+    expect(desktop.restoreDatabase).not.toHaveBeenCalled();
   });
 
   it('shows warning toasts when database backup or restore is canceled', async () => {

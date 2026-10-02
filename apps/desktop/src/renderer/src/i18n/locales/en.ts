@@ -1684,7 +1684,7 @@ export const enResources = {
         models: 'Assign task models and maintain model providers.',
         dataSources: 'Manage external content sources such as WeRead.',
         shortcuts: 'Configure selection, thought, and reply shortcuts.',
-        data: 'Inspect paths, clear logs, and back up the database.',
+        data: 'Manage local data, backups, and migration.',
         aiTrace: 'Inspect assistant execution state and sanitized traces.',
         about: 'View version, links, and open-source licenses.',
       },
@@ -1794,7 +1794,7 @@ export const enResources = {
         trailRoot: 'Settings',
         trailPage: 'Data management',
         description:
-          'Inspect local data locations, manage log retention, and back up or restore the database.',
+          'Back up or restore your library, migrate to another device, and manage local data.',
         localGroup: 'Local locations',
         dataDir: 'Data directory',
         logFile: 'Log file',
@@ -1812,6 +1812,22 @@ export const enResources = {
           'This clears the contents of the current local log file. It does not delete the database, articles, or settings, but cleared logs cannot be restored from inside the app.',
         clearLogConfirm: 'Clear log file',
         logCleared: 'Log file cleared.',
+        fullBackupGroup: 'Complete backup and migration',
+        fullBackupNote:
+          'Includes articles, annotations, discussions, settings, ebooks, and original PDFs. Choose a destination and copy the entire generated folder to your new device. Set up model keys, WeRead credentials, and your app lock again; download local models again.',
+        fullBackup: 'Create complete backup',
+        fullRestore: 'Restore complete backup',
+        fullBackupBusy: 'Backing up…',
+        fullRestoreBusy: 'Restoring…',
+        fullBackupDone: 'Complete backup created',
+        fullRestoreDone: 'Complete backup restored',
+        fullRestoreDoneDescription:
+          'Previous data was backed up to {{path}}. Set up model keys, WeRead credentials, and your app lock again.',
+        fullBackupFailed: 'Complete backup failed',
+        fullRestoreFailed: 'Complete restore failed',
+        fullRestoreConfirmTitle: 'Restore a complete backup?',
+        fullRestoreConfirmDescription:
+          'Choose a backup folder. This replaces the current database and source files after saving a complete backup of your current data. Set up model keys, WeRead credentials, and your app lock again after restoring.',
         databaseGroup: 'Database',
         backupNote:
           'Backups do not include model keys in the keychain or separately saved ebook source files.',
@@ -1842,6 +1858,13 @@ export const enResources = {
         },
         errorFallback: 'Data management operation failed.',
         errors: {
+          backupInsideDataDirectory: 'Choose a backup location outside the app data directory.',
+          invalidFullBackup: 'Choose a complete, unmodified Yomitomo backup folder.',
+          backupChecksumFailed: 'A backup file is damaged or changed. Nothing was restored.',
+          databaseBusy: 'Data operations are still running. Try again shortly.',
+          databaseReplacing: 'Data backup or restore is in progress. Try again shortly.',
+          restoreRollbackFailed:
+            'Restore and automatic rollback failed. Keep the backups folder in your app data directory for recovery.',
           unknownPath: 'Unknown data path.',
           invalidSqliteDatabase: 'Choose a valid SQLite database file.',
           databaseIntegrityFailed: 'Database integrity check failed.',

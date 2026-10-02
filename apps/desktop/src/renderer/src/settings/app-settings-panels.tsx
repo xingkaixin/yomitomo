@@ -452,7 +452,9 @@ export function DataManagementSettings({
   const [busyAction, setBusyAction] = useState('');
   const [status, setStatus] = useState('');
   const [lastRetentionDays, setLastRetentionDays] = useState(90);
-  const [confirmAction, setConfirmAction] = useState<'clear-log' | 'restore-db' | null>(null);
+  const [confirmAction, setConfirmAction] = useState<
+    'clear-log' | 'restore-db' | 'restore-full' | null
+  >(null);
   const retentionSave = useSaveStatus({
     errorMessage: (error) => dataManagementErrorMessage(error, t),
   });
@@ -504,26 +506,35 @@ export function DataManagementSettings({
     });
   }
 
-  async function backupDatabase() {
-    await runDataAction('backup-db', async () => {
-      const result = await getDesktopApi().data.backupDatabase();
+  async function backupDatabase(complete = false) {
+    await runDataAction(complete ? 'backup-full' : 'backup-db', async () => {
+      const result = await (complete
+        ? getDesktopApi().data.backupFullData()
+        : getDesktopApi().data.backupDatabase());
       if (result.canceled) {
+        if (complete) return;
         appToast.warning(t('settings.data.toast.backupCanceledTitle'), {
           description: t('settings.data.toast.backupCanceledDescription'),
         });
         return;
       }
-      appToast.success(t('settings.data.toast.backupDoneTitle'), {
-        description: t('settings.data.toast.backupDoneDescription', { path: result.filePath }),
-      });
+      appToast.success(
+        t(complete ? 'settings.data.fullBackupDone' : 'settings.data.toast.backupDoneTitle'),
+        {
+          description: t('settings.data.toast.backupDoneDescription', { path: result.filePath }),
+        },
+      );
     });
   }
 
-  async function restoreDatabase() {
+  async function restoreDatabase(complete = false) {
     setConfirmAction(null);
-    await runDataAction('restore-db', async () => {
-      const result = await getDesktopApi().data.restoreDatabase();
+    await runDataAction(complete ? 'restore-full' : 'restore-db', async () => {
+      const result = await (complete
+        ? getDesktopApi().data.restoreFullData()
+        : getDesktopApi().data.restoreDatabase());
       if (result.canceled) {
+        if (complete) return;
         appToast.warning(t('settings.data.toast.restoreCanceledTitle'), {
           description: t('settings.data.toast.restoreCanceledDescription'),
         });
@@ -531,9 +542,17 @@ export function DataManagementSettings({
       }
 
       onStoreUpdated(result.store);
-      appToast.success(t('settings.data.toast.restoreDoneTitle'), {
-        description: t('settings.data.toast.restoreDoneDescription', { path: result.backupPath }),
-      });
+      appToast.success(
+        t(complete ? 'settings.data.fullRestoreDone' : 'settings.data.toast.restoreDoneTitle'),
+        {
+          description: t(
+            complete
+              ? 'settings.data.fullRestoreDoneDescription'
+              : 'settings.data.toast.restoreDoneDescription',
+            { path: result.backupPath },
+          ),
+        },
+      );
     });
   }
 
@@ -562,19 +581,61 @@ export function DataManagementSettings({
           description: t('settings.data.clearLogConfirmDescription'),
           confirmLabel: t('settings.data.clearLogConfirm'),
         }
-      : confirmAction === 'restore-db'
+      : confirmAction === 'restore-full'
         ? {
-            title: t('settings.data.restoreDatabaseConfirmTitle'),
-            description: t('settings.data.restoreDatabaseConfirmDescription'),
+            title: t('settings.data.fullRestoreConfirmTitle'),
+            description: t('settings.data.fullRestoreConfirmDescription'),
             confirmLabel: t('settings.data.restoreDatabaseConfirm'),
           }
-        : null;
+        : confirmAction === 'restore-db'
+          ? {
+              title: t('settings.data.restoreDatabaseConfirmTitle'),
+              description: t('settings.data.restoreDatabaseConfirmDescription'),
+              confirmLabel: t('settings.data.restoreDatabaseConfirm'),
+            }
+          : null;
 
   return (
     <SettingsPage
       trail={[t('settings.data.trailRoot'), t('settings.data.trailPage')]}
       description={t('settings.data.description')}
     >
+      <SettingsGroup label={t('settings.data.fullBackupGroup')} padded>
+        <div className="settings-callout">
+          <HugeiconsIcon icon={InformationCircleIcon} size={16} />
+          <span>{t('settings.data.fullBackupNote')}</span>
+        </div>
+        <div className="settings-card-actions">
+          <Button
+            className="action-button data-primary-action"
+            disabled={Boolean(busyAction)}
+            type="button"
+            onClick={() => void backupDatabase(true)}
+          >
+            <HugeiconsIcon icon={Download01Icon} size={15} />
+            {t(
+              busyAction === 'backup-full'
+                ? 'settings.data.fullBackupBusy'
+                : 'settings.data.fullBackup',
+            )}
+          </Button>
+          <Button
+            className="action-button data-restore-action"
+            disabled={Boolean(busyAction)}
+            type="button"
+            variant="secondary"
+            onClick={() => setConfirmAction('restore-full')}
+          >
+            <HugeiconsIcon icon={Upload01Icon} size={15} />
+            {t(
+              busyAction === 'restore-full'
+                ? 'settings.data.fullRestoreBusy'
+                : 'settings.data.fullRestore',
+            )}
+          </Button>
+        </div>
+      </SettingsGroup>
+
       <SettingsGroup label={t('settings.data.localGroup')}>
         <DataPathRow
           icon={<HugeiconsIcon icon={HardDriveIcon} size={18} />}
@@ -614,7 +675,7 @@ export function DataManagementSettings({
           options={logRetentionOptions.map((option) => ({
             label: t('settings.data.retentionDays', { count: option.value }),
             value: option.value,
-            disabled: busyAction === `retention:${option.value}`,
+            disabled: Boolean(busyAction),
           }))}
           onChange={(value) => void saveLogRetention(value)}
         />
@@ -625,7 +686,7 @@ export function DataManagementSettings({
                 ? 'action-button data-danger-action is-loading'
                 : 'action-button data-danger-action'
             }
-            disabled={busyAction === 'clear-log'}
+            disabled={Boolean(busyAction)}
             type="button"
             variant="secondary"
             onClick={() => setConfirmAction('clear-log')}
@@ -648,7 +709,7 @@ export function DataManagementSettings({
                 ? 'action-button data-primary-action is-loading'
                 : 'action-button data-primary-action'
             }
-            disabled={busyAction === 'backup-db'}
+            disabled={Boolean(busyAction)}
             type="button"
             onClick={() => void backupDatabase()}
           >
@@ -661,7 +722,7 @@ export function DataManagementSettings({
                 ? 'action-button data-restore-action is-loading'
                 : 'action-button data-restore-action'
             }
-            disabled={busyAction === 'restore-db'}
+            disabled={Boolean(busyAction)}
             type="button"
             variant="secondary"
             onClick={() => setConfirmAction('restore-db')}
@@ -684,6 +745,7 @@ export function DataManagementSettings({
           onConfirm={() => {
             if (confirmAction === 'clear-log') void clearLog();
             if (confirmAction === 'restore-db') void restoreDatabase();
+            if (confirmAction === 'restore-full') void restoreDatabase(true);
           }}
         />
       ) : null}
@@ -739,11 +801,13 @@ function dataManagementErrorKey(message: string) {
 }
 
 function isToastDataAction(action: string) {
-  return action === 'clear-log' || action === 'backup-db' || action === 'restore-db';
+  return ['clear-log', 'backup-db', 'restore-db', 'backup-full', 'restore-full'].includes(action);
 }
 
 function dataActionErrorToastTitleKey(action: string) {
   if (action === 'clear-log') return 'settings.data.toast.clearLogFailedTitle';
+  if (action === 'backup-full') return 'settings.data.fullBackupFailed';
+  if (action === 'restore-full') return 'settings.data.fullRestoreFailed';
   if (action === 'backup-db') return 'settings.data.toast.backupFailedTitle';
   return 'settings.data.toast.restoreFailedTitle';
 }
