@@ -1,3 +1,4 @@
+import { Effect, Exit, Option, Queue, Schedule, Scope } from 'effect';
 import { logError, logInfo } from '../app/logger';
 import { getSqliteExecutor, withDatabaseLease } from '../store/store-db';
 import {
@@ -16,7 +17,7 @@ export type ReadingMemoryEvidenceProjectionRunReason =
 
 export type ReadingMemoryEvidenceProjectionWorker = {
   requestRun(reason?: ReadingMemoryEvidenceProjectionRunReason): void;
-  dispose(): void;
+  dispose(): Promise<void>;
 };
 
 export type ReadingMemoryEvidenceProjectionWorkerOptions = {
@@ -36,71 +37,61 @@ export function startReadingMemoryEvidenceProjectionWorker(
 ): ReadingMemoryEvidenceProjectionWorker {
   const startupDelayMs = nonNegativeDelay(options.startupDelayMs, defaultStartupDelayMs);
   const idleDelayMs = positiveDelay(options.idleDelayMs, defaultIdleDelayMs);
-  let disposed = false;
-  let running = false;
-  let rerunReason: ReadingMemoryEvidenceProjectionRunReason | undefined;
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  const scope = Scope.makeUnsafe();
+  const requests = Effect.runSync(
+    Queue.make<ReadingMemoryEvidenceProjectionRunReason>({
+      capacity: 1,
+      strategy: 'sliding',
+    }),
+  );
+  let disposePromise: Promise<void> | undefined;
+  let nextDelayMs = startupDelayMs;
+  let nextReason: InternalRunReason = 'startup';
 
-  const schedule = (delayMs: number, reason: InternalRunReason) => {
-    if (disposed) return;
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => {
-      timer = undefined;
-      void run(reason);
-    }, delayMs);
-    timer.unref?.();
-  };
-
-  const run = async (reason: InternalRunReason) => {
-    if (disposed || running) return;
-    running = true;
-    let result: ReadingMemoryEvidenceProjectionBatchResult | undefined;
-    try {
-      result = await withDatabaseLease(async () =>
-        runReadingMemoryEvidenceProjectionBatch(getSqliteExecutor(), {
-          ...options.batchOptions,
-          now: new Date(),
+  const pass = Effect.gen(function* () {
+    const request = yield* Queue.take(requests).pipe(Effect.timeoutOption(nextDelayMs));
+    const reason = Option.getOrElse(request, () => nextReason);
+    // A database lease must settle before shutdown releases this worker.
+    const result = yield* Effect.tryPromise({
+      try: () =>
+        withDatabaseLease(async () =>
+          runReadingMemoryEvidenceProjectionBatch(getSqliteExecutor(), {
+            ...options.batchOptions,
+            now: new Date(),
+          }),
+        ),
+      catch: (error) => error,
+    }).pipe(
+      Effect.uninterruptible,
+      Effect.catch((error) =>
+        Effect.sync(() => {
+          if (isDatabaseReplacing(error)) {
+            logInfo('reading_memory.evidence_projection_database_wait', { reason });
+          } else {
+            logError('reading_memory.evidence_projection_batch_failed', error, { reason });
+          }
+          return undefined;
         }),
-      );
-      logBatchResult(reason, result);
-    } catch (error) {
-      if (isDatabaseReplacing(error)) {
-        logInfo('reading_memory.evidence_projection_database_wait', { reason });
-      } else {
-        logError('reading_memory.evidence_projection_batch_failed', error, { reason });
-      }
-    } finally {
-      running = false;
-    }
-
-    if (disposed) return;
-    if (rerunReason) {
-      const requestedReason = rerunReason;
-      rerunReason = undefined;
-      schedule(0, requestedReason);
-    } else if (result?.hasImmediateWork) {
-      schedule(0, 'continued');
-    } else {
-      schedule(idleDelayMs, 'poll');
-    }
-  };
-
-  schedule(startupDelayMs, 'startup');
+      ),
+    );
+    if (result) logBatchResult(reason, result);
+    nextDelayMs = result?.hasImmediateWork ? 0 : idleDelayMs;
+    nextReason = result?.hasImmediateWork ? 'continued' : 'poll';
+  });
+  Effect.runSync(
+    Effect.forkIn(
+      pass.pipe(Effect.repeat(Schedule.spaced(0)), Effect.ensuring(Queue.shutdown(requests))),
+      scope,
+      { startImmediately: true },
+    ),
+  );
   return {
     requestRun: (reason = 'manual') => {
-      if (disposed) return;
-      if (running) {
-        rerunReason = reason;
-        return;
-      }
-      schedule(0, reason);
+      if (!disposePromise) Queue.offerUnsafe(requests, reason);
     },
     dispose: () => {
-      if (disposed) return;
-      disposed = true;
-      rerunReason = undefined;
-      if (timer) clearTimeout(timer);
-      timer = undefined;
+      disposePromise ??= Effect.runPromise(Scope.close(scope, Exit.void));
+      return disposePromise;
     },
   };
 }

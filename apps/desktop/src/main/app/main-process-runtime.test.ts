@@ -95,6 +95,27 @@ describe('main process runtime', () => {
     reconciliation.resolve();
   });
 
+  it('waits for an active refresh lease before shutdown and never overlaps passes', async () => {
+    vi.useFakeTimers();
+    const dependencies = runtimeDependencies();
+    const refresh = deferred<Awaited<ReturnType<typeof dependencies.refreshModelPrices>>>();
+    dependencies.refreshModelPrices.mockReturnValue(refresh.promise);
+    const runtime = startMainProcessRuntime(dependencies.input);
+    await vi.advanceTimersByTimeAsync(10);
+    const finished = vi.fn();
+    const disposal = runtime.dispose().then(finished);
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(finished).not.toHaveBeenCalled();
+    expect(dependencies.refreshModelPrices).toHaveBeenCalledOnce();
+
+    refresh.resolve({ refreshed: true, recordCount: 1, reason: 'updated' });
+    await disposal;
+    expect(readDatabaseLifecycle().leases).toBe(0);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(dependencies.refreshModelPrices).toHaveBeenCalledOnce();
+  });
+
   it('waits for semantic processes to exit and shares repeated disposal', async () => {
     const stopped = deferred<void>();
     const dependencies = runtimeDependencies();

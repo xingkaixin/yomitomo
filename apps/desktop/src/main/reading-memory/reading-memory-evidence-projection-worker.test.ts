@@ -60,7 +60,7 @@ describe('reading memory evidence projection worker', () => {
     expect(testState.withDatabaseLease.mock.invocationCallOrder[0]).toBeLessThan(
       testState.getSqliteExecutor.mock.invocationCallOrder[0] || 0,
     );
-    worker.dispose();
+    await worker.dispose();
   });
 
   it('yields between full batches and reacquires the executor', async () => {
@@ -77,7 +77,7 @@ describe('reading memory evidence projection worker', () => {
     expect(testState.runBatch).toHaveBeenCalledTimes(2);
     expect(testState.withDatabaseLease).toHaveBeenCalledTimes(2);
     expect(testState.getSqliteExecutor).toHaveBeenCalledTimes(2);
-    worker.dispose();
+    await worker.dispose();
   });
 
   it('coalesces requests received during a run without overlapping batches', async () => {
@@ -118,7 +118,7 @@ describe('reading memory evidence projection worker', () => {
 
     expect(testState.runBatch).toHaveBeenCalledTimes(2);
     expect(maximumLeaseCount).toBe(1);
-    worker.dispose();
+    await worker.dispose();
   });
 
   it('lets an explicit request preempt the delayed startup timer', async () => {
@@ -136,7 +136,7 @@ describe('reading memory evidence projection worker', () => {
       'reading_memory.evidence_projection_batch_complete',
       expect.objectContaining({ reason: 'database_restored' }),
     );
-    worker.dispose();
+    await worker.dispose();
   });
 
   it('waits quietly when the database is being replaced', async () => {
@@ -155,7 +155,7 @@ describe('reading memory evidence projection worker', () => {
       { reason: 'startup' },
     );
     expect(testState.logError).not.toHaveBeenCalled();
-    worker.dispose();
+    await worker.dispose();
   });
 
   it('logs retained job failures and keeps polling', async () => {
@@ -200,12 +200,12 @@ describe('reading memory evidence projection worker', () => {
     );
     await vi.advanceTimersByTimeAsync(100);
     expect(testState.runBatch).toHaveBeenCalledTimes(2);
-    worker.dispose();
+    await worker.dispose();
   });
 
   it('disposes pending and in-flight schedules without starting another batch', async () => {
     const pending = startReadingMemoryEvidenceProjectionWorker({ startupDelayMs: 20 });
-    pending.dispose();
+    await pending.dispose();
     await vi.advanceTimersByTimeAsync(20);
     expect(testState.runBatch).not.toHaveBeenCalled();
 
@@ -221,9 +221,13 @@ describe('reading memory evidence projection worker', () => {
     });
     await vi.advanceTimersByTimeAsync(0);
     expect(testState.runBatch).toHaveBeenCalledOnce();
-    running.dispose();
-    gate.resolve();
+    const disposal = running.dispose();
+    const finished = vi.fn();
+    void disposal.then(finished);
     await Promise.resolve();
+    expect(finished).not.toHaveBeenCalled();
+    gate.resolve();
+    await disposal;
     await vi.advanceTimersByTimeAsync(100);
 
     expect(testState.runBatch).toHaveBeenCalledOnce();

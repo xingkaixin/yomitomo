@@ -2,9 +2,9 @@
 
 Pinned Effect version: `4.0.0`
 
-Production Effect modules: `15`
+Production Effect modules: `18`
 
-Production API inventory: `Deferred.Deferred,Deferred.await,Deferred.complete,Deferred.make,Deferred.succeed,Effect.Effect,Effect.Success,Effect.acquireUseRelease,Effect.all,Effect.callback,Effect.catch,Effect.ensuring,Effect.fail,Effect.flatMap,Effect.fn,Effect.forEach,Effect.forkChild,Effect.gen,Effect.map,Effect.mapError,Effect.promise,Effect.runPromise,Effect.succeed,Effect.sync,Effect.tapError,Effect.try,Effect.tryPromise,Effect.uninterruptible,Exit.isFailure,Fiber.join,Schema.Array,Schema.Constraint,Schema.Number,Schema.Record,Schema.String,Schema.Struct,Schema.Unknown,Schema.decodeUnknownEffect,Schema.optionalKey,Semaphore.make`
+Production API inventory: `Deferred.Deferred,Deferred.await,Deferred.complete,Deferred.make,Deferred.succeed,Effect.Effect,Effect.Success,Effect.acquireUseRelease,Effect.all,Effect.callback,Effect.catch,Effect.delay,Effect.ensuring,Effect.fail,Effect.flatMap,Effect.fn,Effect.forEach,Effect.forkChild,Effect.forkIn,Effect.gen,Effect.map,Effect.mapError,Effect.promise,Effect.repeat,Effect.runFork,Effect.runPromise,Effect.runSync,Effect.sleep,Effect.succeed,Effect.sync,Effect.tapError,Effect.timeoutOption,Effect.try,Effect.tryPromise,Effect.uninterruptible,Exit.isFailure,Exit.void,Fiber.Fiber,Fiber.interrupt,Fiber.join,Option.getOrElse,Queue.make,Queue.offerUnsafe,Queue.shutdown,Queue.take,Schedule.spaced,Schema.Array,Schema.Constraint,Schema.Number,Schema.Record,Schema.String,Schema.Struct,Schema.Unknown,Schema.decodeUnknownEffect,Schema.optionalKey,Scope.Scope,Scope.close,Scope.makeUnsafe,Semaphore.make`
 
 ## Scope
 
@@ -23,6 +23,13 @@ Bilingual translation composes generation effects inside a bounded three-block w
 AbortSignals interrupt active provider requests and prevent queued blocks from starting. Expected
 per-block failures remain isolated; segment writes already in progress finish before the session
 queue advances to deletion. The public Promise API remains available for other callers.
+
+Main-process recurring tasks belong to a Scope and use Schedule.spaced after each completed pass,
+so slow work cannot overlap the next pass. The evidence projector uses a sliding one-item wakeup
+queue: explicit requests preempt idle waits and coalesce while a batch runs. Shutdown interrupts
+waits, joins in-flight database leases, and closes the queue. Persisted projection jobs, retry
+timestamps, and database-generation checks remain authoritative. Schedule tests use TestClock via
+the matching `@effect/vitest@4.0.0`; existing Promise-boundary tests retain their timer fixtures.
 
 The inventory includes root and subpath imports and the Schema, scheduling, scope, queue, layer,
 runtime, and HTTP namespaces used by the staged runtime adoption.
@@ -50,6 +57,8 @@ The renamed Schema filters and changed `Effect.partition` result order are not u
 | `Effect.fn` | Named operations add stable stack and trace boundaries. | Public and non-trivial AI workflows use domain-first operation names without introducing service layers. | AI runtime tests execute the named operations through their Effect-native exports. |
 | `Effect.promise` | Rejection remains a defect rather than a typed failure. | It is limited to promises whose implementations absorb rejection; other Promise boundaries use `tryPromise`. | Article response cancellation absorbs errors; assistant tool rejection is asserted as a typed failure. |
 | `Schema.decodeUnknownEffect` | Decoding reports `SchemaError` through the typed error channel. | HTTP JSON remains `unknown` until endpoint schemas validate consumed fields; schema failures map to domain response errors before business mapping or writes. | Provider model and models.dev tests cover malformed valid JSON and distinguish failures from defects. |
+| `Scope.close`, `Effect.forkIn`, `Schedule.spaced` | Closing a scope interrupts and joins its children; spaced repetition waits after completion. | Recurring tasks never overlap themselves, and shutdown waits for opaque operations to release database leases. | TestClock and main-process disposal tests cover timing and joining. |
+| `Queue.make`, `Queue.take`, `Effect.timeoutOption` | A sliding capacity-one queue retains the latest pending request; timeout interrupts the waiting take. | Projection requests wake idle work and coalesce during a batch without replacing persisted job state. | Projection worker tests cover preemption, coalescing, database replacement, and disposal. |
 | `Effect.all`, `Effect.gen`, `Effect.try`, `Effect.catch`, `Effect.fail`, `Effect.succeed`, `Effect.sync`, `Effect.map`, `Effect.flatMap`, `Effect.mapError` | `Effect.catch` replaces `Effect.catchAll`; the remaining primitives have no repository-relevant v4 semantic change. | Keep explicit concurrency, composition, and typed error mapping at the call site. | Existing domain tests cover their behavior. |
 
 The test-only inventory additionally uses `Cause.hasDies`, `Cause.hasFails`, `Cause.hasInterrupts`,
