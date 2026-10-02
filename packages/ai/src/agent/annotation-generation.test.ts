@@ -235,6 +235,34 @@ describe('agent annotation generation', () => {
     });
   });
 
+  it('maps compact fallback matches back to the allowed paragraph offsets', () => {
+    const chapters = [
+      {
+        id: 'chapter-1',
+        title: 'Chapter',
+        paragraphs: ['Alpha Beta Gamma', 'Alpha \n\t Beta Gamma'],
+      },
+    ];
+    const text = epubIndexText(chapters);
+    const index = buildEpubBookIndex({ articleId: 'article-1', chapters });
+    const paragraph = index.paragraphs[1];
+    const result = createAgentAnnotation(
+      agent,
+      text,
+      { exact: 'AlphaBetaGamma', comment: 'compact match' },
+      '2026-01-02T00:00:00.000Z',
+      {
+        ebookIndex: index,
+        allowedTextStart: paragraph.textStart,
+        allowedTextEnd: paragraph.textEnd,
+        allowedParagraphIds: [paragraph.id],
+      },
+    );
+    expect(result?.anchor.start).toBe(text.indexOf('Alpha', paragraph.textStart));
+    expect(result?.anchor.exact).toBe('Alpha Beta Gamma');
+    expect(result?.anchor.paragraphId).toBe(paragraph.id);
+  });
+
   it('anchors the longest recoverable fragment when a model uses ellipses', () => {
     const result = createAgentAnnotation(
       agent,
