@@ -27,8 +27,8 @@ type AgentAnnotationNormalizedText = ReturnType<typeof normalizeTextWithMap>;
 
 type AgentAnnotationMatcherContext = {
   searchScope: AgentAnnotationSearchScope;
-  whitespaceInsensitiveText: AgentAnnotationNormalizedText;
-  whitespaceAgnosticText: AgentAnnotationNormalizedText;
+  whitespaceInsensitiveText?: AgentAnnotationNormalizedText;
+  whitespaceAgnosticText?: AgentAnnotationNormalizedText;
   allowedSegmentIds?: Set<string>;
   allowedParagraphIds?: Set<string>;
 };
@@ -111,8 +111,11 @@ function findAgentAnnotationCandidate(
     };
   }
 
+  const normalizedText = (matcherContext.whitespaceInsensitiveText ??= normalizeTextWithMap(
+    searchScope.text,
+  ));
   const allNormalizedMatches = offsetAgentAnnotationMatches(
-    findWhitespaceInsensitiveMatches(matcherContext.whitespaceInsensitiveText, exact),
+    findWhitespaceInsensitiveMatches(normalizedText, exact),
     searchScope.offset,
   );
   stats.whitespaceInsensitiveMatchCount += allNormalizedMatches.length;
@@ -129,8 +132,12 @@ function findAgentAnnotationCandidate(
     };
   }
 
+  const compactText = (matcherContext.whitespaceAgnosticText ??= normalizeTextWithMap(
+    searchScope.text,
+    'remove',
+  ));
   const allCompactMatches = offsetAgentAnnotationMatches(
-    findWhitespaceAgnosticMatches(matcherContext.whitespaceAgnosticText, exact),
+    findWhitespaceAgnosticMatches(compactText, exact),
     searchScope.offset,
   );
   stats.whitespaceAgnosticMatchCount += allCompactMatches.length;
@@ -153,8 +160,6 @@ function createAgentAnnotationMatcherContext(
   const searchScope = agentAnnotationSearchScope(articleText, options);
   return {
     searchScope,
-    whitespaceInsensitiveText: normalizeTextWithMap(searchScope.text),
-    whitespaceAgnosticText: normalizeTextWithMap(searchScope.text, 'remove'),
     allowedSegmentIds: agentAnnotationAllowedIdSet(options.allowedSegmentIds),
     allowedParagraphIds: agentAnnotationAllowedIdSet(options.allowedParagraphIds),
   };
