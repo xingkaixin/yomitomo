@@ -178,9 +178,9 @@ export function createReadingMemorySemanticIndex(
     if (deleted) await options.previousModelLifecycle?.remove();
   };
 
-  const buildNextBatch = async (signal: AbortSignal): Promise<number> => {
+  const buildNextBatch = async (signal: AbortSignal): Promise<number | null> => {
     const installation = installedModel(options.modelLifecycle);
-    if (!installation) return idleDelayMs;
+    if (!installation) return null;
     const model = {
       modelVersion: installation.internalId,
       dimension: installation.manifest.vector.dimension,
@@ -247,11 +247,11 @@ export function createReadingMemorySemanticIndex(
       return;
     }
     let fiber: Fiber.Fiber<void>;
-    let nextDelay = idleDelayMs;
+    let nextDelay: number | null = idleDelayMs;
     const pass = Effect.gen(function* () {
       scheduled = null;
       background = fiber;
-      nextDelay = yield* Effect.callback<number, unknown>((resume, signal) => {
+      nextDelay = yield* Effect.callback<number | null, unknown>((resume, signal) => {
         const settled = buildNextBatch(signal).then(
           (delay) => resume(Effect.succeed(delay)),
           (error: unknown) => resume(Effect.fail(error)),
@@ -269,7 +269,7 @@ export function createReadingMemorySemanticIndex(
       Effect.ensuring(
         Effect.sync(() => {
           background = null;
-          schedule(nextDelay);
+          if (nextDelay !== null) schedule(nextDelay);
         }),
       ),
     );

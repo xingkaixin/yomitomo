@@ -69,6 +69,32 @@ afterEach(async () => {
 });
 
 describe('reading memory semantic index scheduling', () => {
+  it('stops polling without a model and resumes after download reconciliation', async () => {
+    const fixture = createFixture();
+    fixture.add('a');
+    fixture.model.state = {
+      status: 'not-installed',
+      internalId: installation.internalId,
+      downloadSizeBytes: installation.downloadSizeBytes,
+      resumeBytes: 0,
+    };
+    const getState = vi.spyOn(fixture.model.lifecycle, 'getState');
+    await fixture.index.reconcile();
+    await tick();
+    const checksAfterFirstPass = getState.mock.calls.length;
+    await tick(60_000);
+    expect(getState).toHaveBeenCalledTimes(checksAfterFirstPass);
+    expect(fixture.inference.calls).toHaveLength(0);
+
+    fixture.model.state = installation;
+    await fixture.index.reconcile('model-downloaded');
+    await tick();
+    expect(fixture.inference.calls).toHaveLength(1);
+    fixture.inference.calls[0].complete();
+    await nextTurn();
+    expect(fixture.vectorCount()).toBe(1);
+  });
+
   it('indexes four entries per batch and resumes only committed gaps after a pause', async () => {
     const fixture = createFixture();
     for (const id of ['a', 'b', 'c', 'd', 'e', 'f']) fixture.add(id);
