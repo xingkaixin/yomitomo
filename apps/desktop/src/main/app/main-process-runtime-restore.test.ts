@@ -104,7 +104,7 @@ it.each(['weread', 'model-pricing'] as const)(
         recordReadingMemoryUsage() {},
         dispose() {},
       }),
-      startEvidenceProjectionWorker: () => ({ requestRun() {}, dispose() {} }),
+      startEvidenceProjectionWorker: () => ({ requestRun() {}, async dispose() {} }),
       readingMemoryControls: readingMemoryControlsStub(),
       syncWeRead: async () => {
         await work();
@@ -212,7 +212,7 @@ it('starts automatic sync when the restore IPC replaces manual settings', async 
     createTelemetryController: () => ({ check() {}, recordReadingMemoryUsage() {}, dispose() {} }),
     startEvidenceProjectionWorker: () => ({
       requestRun: requestEvidenceProjection,
-      dispose() {},
+      async dispose() {},
     }),
     readingMemoryControls: readingMemoryControlsStub(semanticReconcile),
     syncWeRead,

@@ -46,6 +46,7 @@ minimumReleaseAgeExclude:
   - zod@4.6.2
   - vite@8.3.0
   - effect@4.0.0
+  - "@effect/vitest@4.0.0"
 overrides:
   "@electron/get>undici": "7.30.0"
   "@babel/core@<=7.29.0": "7.29.7"

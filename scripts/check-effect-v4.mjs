@@ -14,7 +14,7 @@ const migrationDocument = 'docs/effect-v4-runtime.md';
 const exactVersionPattern = /^4\.\d+\.\d+(?:-(?:beta|rc)\.\d+)?$/;
 const effectImportPattern = /\bfrom\s*['"]effect(?:\/[^'"]+)?['"]/;
 const effectApiPattern =
-  /\b(?:Cause|Deferred|Effect|Exit|Fiber|Semaphore|Schema|Schedule|Scope|Queue|Layer|Context|ManagedRuntime|Ref|FiberMap|HttpClient|HttpClientRequest|HttpClientResponse)\.[A-Za-z_$][\w$]*/g;
+  /\b(?:Cause|Deferred|Effect|Exit|Fiber|Semaphore|Schema|Schedule|Option|Scope|Queue|Layer|Context|ManagedRuntime|Ref|FiberMap|HttpClient|HttpClientRequest|HttpClientResponse)\.[A-Za-z_$][\w$]*/g;
 const retiredApis = ['Effect.async', 'Effect.catchAll', 'Effect.fork', 'Effect.makeSemaphore'];
 const violations = [];
 
@@ -36,6 +36,14 @@ const consumerVersions = consumerManifests.map((manifestPath) => {
   const version = manifest.dependencies?.effect;
   if (typeof version !== 'string' || !exactVersionPattern.test(version)) {
     violations.push(`${manifestPath}: effect must use an exact v4 stable, beta, or rc version`);
+  }
+  for (const [name, dependencyVersion] of Object.entries({
+    ...manifest.dependencies,
+    ...manifest.devDependencies,
+  })) {
+    if (name.startsWith('@effect/') && dependencyVersion !== version) {
+      violations.push(`${manifestPath}: ${name} must match effect@${version}`);
+    }
   }
   return { manifestPath, version };
 });

@@ -1,4 +1,6 @@
 import { performance } from 'node:perf_hooks';
+import { Effect, Exit, Fiber, Scope } from 'effect';
+import { recurringTaskEffect } from './recurring-task';
 import type { ReadingMemoryUsageKey } from '@yomitomo/shared';
 import type { WeReadState } from '../../ipc-contract';
 import { readingMemoryEnabled } from '../../reading-memory-release';
@@ -70,6 +72,7 @@ export function startMainProcessRuntime(
   dependencies: MainProcessRuntimeDependencies,
 ): MainProcessRuntime {
   const timing = { ...defaultTiming, ...dependencies.timing };
+  const scope = Scope.makeUnsafe('parallel');
   const createTelemetryController =
     dependencies.createTelemetryController ?? createDesktopTelemetryControllerForEnvironment;
   const syncWeRead = dependencies.syncWeRead ?? syncWeReadLibrary;
@@ -80,8 +83,7 @@ export function startMainProcessRuntime(
   let disposePromise: Promise<void> | null = null;
   let weReadConfigurationToken = 0;
   let weReadSyncRunning = false;
-  let weReadStartupTimer: NodeJS.Timeout | null = null;
-  let weReadIntervalTimer: NodeJS.Timeout | null = null;
+  let weReadFiber: Fiber.Fiber<void> | null = null;
   let telemetryController: DesktopTelemetryController | null = createTelemetryController({
     getAppVersion: dependencies.getAppVersion,
     logInfo: dependencies.logInfo,
@@ -91,7 +93,7 @@ export function startMainProcessRuntime(
   const refreshModelPrices = (reason: string) => {
     if (disposePromise) return;
     const startedAt = performance.now();
-    void withDatabaseLease(async () => {
+    return withDatabaseLease(async () => {
       const modules = await dependencies.getPersistenceModules();
       return modules.storeModelPricing.refreshModelPrices();
     })
@@ -113,7 +115,7 @@ export function startMainProcessRuntime(
 
   const checkForAppUpdates = (reason: string) => {
     if (disposePromise) return;
-    void dependencies
+    return dependencies
       .getAppUpdaterModule()
       .then((module) => module.checkForAppUpdates('auto'))
       .then((state) => {
@@ -125,11 +127,9 @@ export function startMainProcessRuntime(
       });
   };
 
-  const clearWeReadTimers = () => {
-    if (weReadStartupTimer) clearTimeout(weReadStartupTimer);
-    if (weReadIntervalTimer) clearInterval(weReadIntervalTimer);
-    weReadStartupTimer = null;
-    weReadIntervalTimer = null;
+  const stopWeReadSchedule = () => {
+    if (weReadFiber) Effect.runFork(Fiber.interrupt(weReadFiber));
+    weReadFiber = null;
   };
 
   const runWeReadAutoSync = async (reason: string) => {
@@ -189,7 +189,7 @@ export function startMainProcessRuntime(
   const configureWeReadAutoSync = (reason: string) => {
     if (disposePromise) return;
     const token = ++weReadConfigurationToken;
-    clearWeReadTimers();
+    stopWeReadSchedule();
     void withDatabaseLease(async () => {
       const modules = await dependencies.getPersistenceModules();
       return modules.weReadRepository.readWeReadSettings();
@@ -205,16 +205,11 @@ export function startMainProcessRuntime(
           return;
         }
 
-        weReadStartupTimer = setTimeout(
-          () => void runWeReadAutoSync('startup'),
-          timing.weReadStartupDelayMs,
-        );
-        weReadStartupTimer.unref?.();
-        weReadIntervalTimer = setInterval(
-          () => void runWeReadAutoSync('interval'),
-          timing.weReadIntervalMs,
-        );
-        weReadIntervalTimer.unref?.();
+        weReadFiber = scheduleRecurringTask(scope, {
+          startupDelayMs: timing.weReadStartupDelayMs,
+          intervalMs: timing.weReadIntervalMs,
+          run: runWeReadAutoSync,
+        });
         dependencies.logInfo('weread.auto_sync.scheduled', {
           reason,
           startupDelayMs: timing.weReadStartupDelayMs,
@@ -238,12 +233,12 @@ export function startMainProcessRuntime(
     });
   };
 
-  const disposeModelPriceRefresh = scheduleRecurringTask({
+  scheduleRecurringTask(scope, {
     startupDelayMs: timing.modelPriceStartupDelayMs,
     intervalMs: timing.modelPriceIntervalMs,
     run: refreshModelPrices,
   });
-  const disposeAppUpdateCheck = scheduleRecurringTask({
+  scheduleRecurringTask(scope, {
     startupDelayMs: timing.appUpdateStartupDelayMs,
     intervalMs: timing.appUpdateIntervalMs,
     run: checkForAppUpdates,
@@ -283,12 +278,13 @@ export function startMainProcessRuntime(
     },
     dispose: () => {
       if (disposePromise) return disposePromise;
-      disposePromise = dependencies.readingMemoryControls.dispose();
+      disposePromise = Promise.all([
+        Effect.runPromise(Scope.close(scope, Exit.void)),
+        dependencies.readingMemoryControls.dispose(),
+        evidenceProjectionWorker?.dispose(),
+      ]).then(() => undefined);
       weReadConfigurationToken += 1;
-      disposeModelPriceRefresh();
-      disposeAppUpdateCheck();
-      clearWeReadTimers();
-      evidenceProjectionWorker?.dispose();
+      weReadFiber = null;
       telemetryController?.dispose();
       telemetryController = null;
       return disposePromise;
@@ -296,19 +292,28 @@ export function startMainProcessRuntime(
   };
 }
 
-function scheduleRecurringTask(input: {
-  startupDelayMs: number;
-  intervalMs: number;
-  run: (reason: 'startup' | 'interval') => void;
-}) {
-  const startupTimer = setTimeout(() => input.run('startup'), input.startupDelayMs);
-  startupTimer.unref?.();
-  const intervalTimer = setInterval(() => input.run('interval'), input.intervalMs);
-  intervalTimer.unref?.();
-  return () => {
-    clearTimeout(startupTimer);
-    clearInterval(intervalTimer);
-  };
+function scheduleRecurringTask(
+  scope: Scope.Scope,
+  input: {
+    startupDelayMs: number;
+    intervalMs: number;
+    run: (reason: 'startup' | 'interval') => void | Promise<void>;
+  },
+) {
+  return Effect.runSync(
+    Effect.forkIn(
+      recurringTaskEffect({
+        ...input,
+        // Opaque operations must release their database leases before shutdown completes.
+        run: (reason) =>
+          Effect.promise(async () => {
+            await input.run(reason);
+          }).pipe(Effect.uninterruptible),
+      }),
+      scope,
+      { startImmediately: true },
+    ),
+  );
 }
 
 function appUpdateCheckIntervalMs() {
