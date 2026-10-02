@@ -223,8 +223,8 @@ export function ReadingLibrary({
     [collections],
   );
   const catalogRevisionToken = useMemo(
-    () => ({ catalogRevision, wereadBooks: weRead.books }),
-    [catalogRevision, weRead.books],
+    () => ({ catalogRevision, wereadRevision: weRead.catalogRevision }),
+    [catalogRevision, weRead.catalogRevision],
   );
   const libraryQuerySession = useLibraryQuerySession({
     catalogEnabled: !readingModeOpen,

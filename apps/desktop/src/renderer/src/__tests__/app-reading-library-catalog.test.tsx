@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Collection } from '@yomitomo/shared';
 import type { LibraryCatalogListInput, LibraryCatalogListResult } from '../../../ipc-contract';
@@ -14,6 +14,48 @@ import {
 } from './app-reading-library-test-support';
 
 describe('ReadingLibrary catalog', () => {
+  it('does not reload the catalog after the initial WeRead read, but reloads on changes', async () => {
+    const state = {
+      settings: { configured: false, openMethod: 'deeplink' as const },
+      books: [],
+    };
+    let finishInitialRead: (value: typeof state) => void = () => {};
+    const initialRead = new Promise<typeof state>((resolve) => {
+      finishInitialRead = resolve;
+    });
+    let emitChange: (value: typeof state) => void = () => {};
+    const listLibraryCatalog = vi.fn(async (): Promise<LibraryCatalogListResult> => ({
+      entities: [],
+      itemCounts: { web: 0, ebook: 0, pdf: 0, text: 0, weread: 0 },
+      page: 1,
+      pageSize: 12,
+      query: '',
+      totalCount: 0,
+      unfilteredCount: 0,
+    }));
+    vi.stubGlobal('yomitomoDesktop', {
+      library: { catalog: { list: listLibraryCatalog } },
+      weRead: {
+        getState: () => initialRead,
+        onStateUpdated: (listener: typeof emitChange) => {
+          emitChange = listener;
+          return vi.fn();
+        },
+      },
+    });
+    renderLibrary([]);
+    await waitFor(() => expect(listLibraryCatalog).toHaveBeenCalledOnce());
+    await act(async () => {
+      finishInitialRead(state);
+      await initialRead;
+    });
+    expect(listLibraryCatalog).toHaveBeenCalledOnce();
+    await act(async () => {
+      emitChange({ ...state, books: [] });
+    });
+    expect(listLibraryCatalog).toHaveBeenCalledTimes(2);
+  });
+
   it('uses the paged catalog as the mixed library fact source', async () => {
     const listLibraryCatalog = vi.fn(
       async (input: LibraryCatalogListInput): Promise<LibraryCatalogListResult> => {
@@ -219,6 +261,7 @@ describe('ReadingLibrary catalog', () => {
         }),
       ],
       {
+        wereadBooks: state.books,
         settings: {
           libraryContentSources: [
             { id: 'web', enabled: false },
