@@ -116,6 +116,98 @@ describe('reading memory embedding service', () => {
     ]);
   });
 
+  it('releases the worker after one idle minute and initializes a new one on demand', async () => {
+    vi.useFakeTimers();
+    const { service, workers } = createService();
+    const first = service.embed(request);
+    respond(workers[0]);
+    await first;
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(workers[0].killSignals).toEqual([]);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(workers[0].killSignals).toEqual(['SIGKILL']);
+    expect(workers[0].eventNames()).toEqual([]);
+
+    const recovered = service.embed(request);
+    expect(workers).toHaveLength(2);
+    expect(workers[1].requests[0].type).toBe('initialize');
+    respond(workers[1]);
+    await expect(recovered).resolves.toMatchObject({ dimension: 768 });
+  });
+
+  it('resets idle expiry after each result and never expires an active batch', async () => {
+    vi.useFakeTimers();
+    const { service, workers } = createService({ idleTimeoutMs: 20 });
+    const first = service.embed(request);
+    respond(workers[0]);
+    await first;
+    await vi.advanceTimersByTimeAsync(15);
+    const second = service.embed(request);
+    await vi.advanceTimersByTimeAsync(30);
+    expect(workers[0].killSignals).toEqual([]);
+    respond(workers[0]);
+    await second;
+    await vi.advanceTimersByTimeAsync(19);
+    expect(workers[0].killSignals).toEqual([]);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(workers[0].killSignals).toEqual(['SIGKILL']);
+  });
+
+  it('joins planned idle exit before restarting instead of returning busy', async () => {
+    vi.useFakeTimers();
+    const { service, workers } = createService({ idleTimeoutMs: 20 });
+    const first = service.embed(request);
+    respond(workers[0]);
+    await first;
+    workers[0].autoExit = false;
+    await vi.advanceTimersByTimeAsync(20);
+    const recovered = service.embed(request);
+    expect(workers).toHaveLength(1);
+    expect(workers[0].killSignals).toEqual(['SIGKILL']);
+    workers[0].exit(null, 'SIGKILL');
+    await nextTurn();
+    expect(workers).toHaveLength(2);
+    respond(workers[1]);
+    await recovered;
+  });
+
+  it.each(['cancel', 'dispose'] as const)(
+    'does not restart when a request is stopped by %s while joining idle exit',
+    async (action) => {
+      vi.useFakeTimers();
+      const { service, workers } = createService({ idleTimeoutMs: 20 });
+      const first = service.embed(request);
+      respond(workers[0]);
+      await first;
+      workers[0].autoExit = false;
+      await vi.advanceTimersByTimeAsync(20);
+      const controller = new AbortController();
+      const pending = service.embed(request, { signal: controller.signal });
+      const assertion = expect(pending).rejects.toMatchObject({
+        code:
+          action === 'cancel'
+            ? 'READING_MEMORY_EMBEDDING_CANCELED'
+            : 'READING_MEMORY_EMBEDDING_DISPOSED',
+      });
+      let disposal: Promise<void> | undefined;
+      if (action === 'cancel') controller.abort();
+      else disposal = service.dispose();
+      workers[0].exit(null, 'SIGKILL');
+      await assertion;
+      await disposal;
+      expect(workers).toHaveLength(1);
+    },
+  );
+
+  it('cleans up when disposal races a successful response', async () => {
+    const { service, workers } = createService();
+    const pending = service.embed(request);
+    respond(workers[0]);
+    await Promise.all([pending, service.dispose()]);
+    expect(workers[0].killSignals).toEqual(['SIGKILL']);
+    expect(workers[0].eventNames()).toEqual([]);
+  });
+
   it('rejects blank and oversized UTF-8 batches before starting a worker', async () => {
     const { service, workers } = createService();
     for (const texts of [[], [''], [' \n\t'], Array(17).fill('a'), ['中'.repeat(21_846)]]) {

@@ -34,13 +34,16 @@ the matching `@effect/vitest@4.0.0`; existing Promise-boundary tests retain thei
 Embedding requests use Deferred responses and Effect timeouts. A single exit finalizer recycles
 failed or interrupted workers and waits for the operating system's exit event before releasing
 the busy slot. Disposal joins that same request fiber, including cancellation already in progress.
+Successful requests reset a one-minute idle timer; idle native exit is joined before an incoming
+request starts a fresh worker. Disposal cancels that timer and joins pending exit.
 Worker responses are decoded with Schema before checking request identity, vector dimensions,
 finite values, and normalization. Idle workers retain their bounded graceful-disposal handshake.
 
 Semantic indexing owns its scheduled and active fibers in a Scope. Interruption aborts the embedding
 call and joins native exit and database leases before a query, reset, or suspension proceeds.
 Queries remain serialized; committed vectors, source snapshots, generation checks, and model
-activation still govern recovery. Continuation batches use a positive timer delay so pauses and
+activation still govern recovery. An absent model stops background polling until an explicit
+reconcile, such as download completion. Continuation batches use a positive timer delay so pauses and
 queries can preempt the next batch, matching Node's previous zero-delay timer behavior.
 
 The inventory includes root and subpath imports and the Schema, scheduling, scope, queue, layer,

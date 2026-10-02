@@ -14,6 +14,7 @@ import {
 
 const defaultEmbeddingTimeoutMs = 2 * 60 * 1000;
 const gracefulDisposeTimeoutMs = 5_000;
+const defaultIdleTimeoutMs = 60_000;
 const embeddingErrorMessages = {
   READING_MEMORY_EMBEDDING_INVALID_INPUT: 'Embedding request is invalid',
   READING_MEMORY_EMBEDDING_BUSY: 'Embedding service is already processing or cleaning up a batch',
@@ -83,6 +84,7 @@ export type ReadingMemoryEmbeddingProcess = {
 
 export type ReadingMemoryEmbeddingServiceOptions = {
   timeoutMs?: number;
+  idleTimeoutMs?: number;
   createProcess?: (
     url: URL,
     options: ForkOptions & { windowsHide: true },
@@ -111,30 +113,56 @@ export function createReadingMemoryEmbeddingService(
 ): ReadingMemoryEmbeddingService {
   const config = embeddingWorkerConfig(installation);
   const timeoutMs = positiveTimeout(options.timeoutMs ?? defaultEmbeddingTimeoutMs);
+  const idleTimeoutMs = positiveTimeout(options.idleTimeoutMs ?? defaultIdleTimeoutMs);
   // A separate process contains native ONNX aborts during hard cancellation.
   const createProcess: NonNullable<ReadingMemoryEmbeddingServiceOptions['createProcess']> =
     options.createProcess ?? ((url, forkOptions) => fork(url, [], forkOptions));
   let session: WorkerSession | null = null;
   let activeBatch: ActiveBatch | null = null;
-  let terminating: Promise<void> | null = null;
+  let terminating: { promise: Promise<void>; reason: 'idle' | 'failure' } | null = null;
+  let idle: Fiber.Fiber<void> | null = null;
   let nextRequestId = 1;
   let disposePromise: Promise<void> | null = null;
 
-  const terminateSession = (current: WorkerSession): Promise<void> => {
+  const cancelIdle = () => {
+    if (idle) Effect.runFork(Fiber.interrupt(idle));
+    idle = null;
+  };
+
+  const terminateSession = (
+    current: WorkerSession,
+    reason: 'idle' | 'failure' = 'failure',
+  ): Promise<void> => {
+    cancelIdle();
     if (session === current) session = null;
     detachSession(current);
-    let tracked: Promise<void>;
-    tracked = (async () => {
-      try {
-        await killProcess(current.worker);
-      } finally {
-        current.worker.off('error', absorbWorkerError);
-      }
-    })().finally(() => {
-      if (terminating === tracked) terminating = null;
-    });
+    const tracked = {
+      reason,
+      promise: (async () => {
+        try {
+          await killProcess(current.worker);
+        } finally {
+          current.worker.off('error', absorbWorkerError);
+        }
+      })().finally(() => {
+        if (terminating === tracked) terminating = null;
+      }),
+    };
     terminating = tracked;
-    return tracked;
+    return tracked.promise;
+  };
+
+  const scheduleIdle = (current: WorkerSession) => {
+    cancelIdle();
+    idle = Effect.runFork(
+      Effect.sleep(idleTimeoutMs).pipe(
+        Effect.flatMap(() => {
+          idle = null;
+          if (session !== current || activeBatch || disposePromise) return Effect.void;
+          return Effect.promise(() => terminateSession(current, 'idle'));
+        }),
+      ),
+    );
   };
 
   const failBatch = (
@@ -197,6 +225,7 @@ export function createReadingMemoryEmbeddingService(
     requestValue: ReadingMemoryEmbeddingRequest,
     { signal }: ReadingMemoryEmbeddingCallOptions = {},
   ) => {
+    if (terminating?.reason === 'idle') await terminating.promise;
     if (disposePromise) throw new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_DISPOSED');
     if (activeBatch || terminating) {
       throw new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_BUSY');
@@ -210,6 +239,7 @@ export function createReadingMemoryEmbeddingService(
     if (signal?.aborted) {
       throw new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_CANCELED');
     }
+    cancelIdle();
     const initialize = session === null;
     let current: WorkerSession;
     try {
@@ -239,6 +269,9 @@ export function createReadingMemoryEmbeddingService(
           Effect.gen(function* () {
             if (Exit.isFailure(exit)) yield* Effect.promise(() => terminateSession(current));
             if (activeBatch?.response === response) activeBatch = null;
+            if (!Exit.isFailure(exit) && session === current && !disposePromise) {
+              scheduleIdle(current);
+            }
           }),
         ),
       ),
@@ -269,14 +302,14 @@ export function createReadingMemoryEmbeddingService(
 
   const dispose = () => {
     if (disposePromise) return disposePromise;
+    cancelIdle();
     disposePromise = (async () => {
       if (activeBatch) {
         const batch = activeBatch;
         failBatch(batch, 'READING_MEMORY_EMBEDDING_DISPOSED');
         await Effect.runPromise(Fiber.await(batch.fiber));
-        return;
       }
-      if (terminating) await terminating;
+      if (terminating) await terminating.promise;
       const current = session;
       if (!current) return;
       session = null;
