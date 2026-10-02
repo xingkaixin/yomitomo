@@ -2,7 +2,7 @@
 
 Pinned Effect version: `4.0.0`
 
-Production Effect modules: `20`
+Production Effect modules: `21`
 
 Production API inventory: `Cause.hasInterrupts,Cause.squash,Deferred.Deferred,Deferred.await,Deferred.complete,Deferred.doneUnsafe,Deferred.make,Deferred.makeUnsafe,Deferred.succeed,Effect.Effect,Effect.Success,Effect.acquireUseRelease,Effect.all,Effect.callback,Effect.catch,Effect.delay,Effect.ensuring,Effect.fail,Effect.flatMap,Effect.fn,Effect.forEach,Effect.forkChild,Effect.forkIn,Effect.gen,Effect.map,Effect.mapError,Effect.onExit,Effect.promise,Effect.repeat,Effect.runFork,Effect.runPromise,Effect.runSync,Effect.sleep,Effect.succeed,Effect.sync,Effect.tapError,Effect.timeoutOption,Effect.timeoutOrElse,Effect.try,Effect.tryPromise,Effect.uninterruptible,Effect.void,Exit.isFailure,Exit.void,Fiber.Fiber,Fiber.await,Fiber.interrupt,Fiber.join,Option.getOrElse,Queue.make,Queue.offerUnsafe,Queue.shutdown,Queue.take,Schedule.spaced,Schema.Array,Schema.Constraint,Schema.Literal,Schema.Number,Schema.Record,Schema.String,Schema.Struct,Schema.Union,Schema.Unknown,Schema.decodeUnknownEffect,Schema.instanceOf,Schema.isGreaterThan,Schema.isInt,Schema.isLessThanOrEqualTo,Schema.optionalKey,Scope.Scope,Scope.close,Scope.makeUnsafe,Semaphore.make`
 
