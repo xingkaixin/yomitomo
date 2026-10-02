@@ -1,6 +1,6 @@
 ---
 title: "Why Local-First Architecture Matters: Building Lifelong Intellectual Assets"
-description: Understand the boundaries of local storage, remote AI requests, OS credentials, and database backups.
+description: Understand the boundaries of local storage, remote AI requests, OS credentials, and data backups.
 ---
 
 "Cloud-first" has become the default architecture for reading and note-taking apps: your documents are in the cloud, your highlights are in the cloud, and your reading analytics are in the cloud. While this delivers convenience, it incurs an under-discussed cost: **your intellectual labor no longer truly belongs to you**.
@@ -20,7 +20,7 @@ Remote AI requests send the reading content and conversation needed for the task
 | **Document Library** | Import EPUB, PDF, or capture web articles | Local parsing, cleaning, and persistence | Local SQLite and source document files | Zero proxy servers; no centralized telemetry collecting reading text |
 | **Annotations & Threads** | Highlights (`A`), thoughts, discussion threads | Physical anchor binding; categorization; full-text indexing | Local structured graph and instant search index | Fully functional offline without internet access |
 | **AI Model Credentials** | BYOK API Keys (OpenAI / Claude / DeepSeek / Ollama) | Encrypted storage via OS Keyring (macOS Keychain / Windows Credential Manager) | Local SQLite stores only provider metadata & key handles | Direct requests to configured model endpoints; remote AI receives task content |
-| **Distillation & Backup** | Aggregate highlights into Markdown cards | Local SQLite database backup | Local `.sqlite` file | Excludes original PDF and ebook files and OS credentials; keep source files separately |
+| **Distillation & Backup** | Aggregate highlights into Markdown cards | Complete or database-only backup | Local backup folder or `.sqlite` file | Complete backups include original ebooks, PDFs, and PDF thumbnails, but exclude API keys |
 
 ---
 
@@ -70,7 +70,7 @@ Your annotations, discussions, and distillation bodies are stored in standard SQ
 ## Frequently Asked Questions (FAQ)
 
 ### Q1: Does local-first mean I cannot sync between my laptop and desktop?
-**Answer:** Back up and restore the database in Settings. Keep the backup in storage you trust. Original PDF and ebook files and OS credentials are excluded; retain source files separately and configure keys again on the new device.
+**Answer:** Create a complete backup in Settings > Data Management, copy the entire folder to the other computer, and restore it there. It includes the database, original ebooks and PDFs, and PDF thumbnails. API keys and App Lock do not transfer; configure keys again afterward. Database-only backups still require keeping source files separately. See the [backup guide](/en/docs/settings/#data-management-and-backup).
 
 ### Q2: Can Yomitomo developers access my OpenAI or DeepSeek API Keys?
 **Answer:** Yomitomo does not relay LLM requests. API keys are stored in the OS keystore, and requests go directly to your configured model endpoint. Remote providers receive task content and the key used for authentication.

@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.16.2 - 2026-10-03
+
+### Features
+
+- Added complete backup and restore for the database, original ebooks and PDFs, and PDF thumbnails. Backups exclude API keys; restores verify file checksums and keep a safety backup. (#913)
+- Replaced the welcome introduction with a first-reading guide that opens EPUB, PDF, or web imports directly. Reading and manual annotations still work without AI setup. (#910)
+- Added one default model for reading, review, and translation, with optional per-task overrides. (#912)
+
+### Performance
+
+- Reduced repeated annotation card rendering and date formatting, and reused highlight elements when changing font size. (#920)
+- Paused hidden library catalog queries while reading and removed a redundant initial query. (#915, #918)
+- Moved ebook import parsing into a Worker and released idle local embedding processes to reduce main-process work and memory use. (#916, #917)
+- Deferred annotation text map construction until fallback matching needs it. (#914)
+
+### Fixes
+
+- Canceling a translation now aborts the underlying model request. (#907)
+- Failed WeRead sync batches cancel remaining requests instead of leaving them running. (#906)
+- Clarified that library questions search saved reading records, excluding full document text and unpublished distillation drafts. (#911)
+
+### Engineering
+
+- Scoped background tasks and local inference with Effect to coordinate cancellation and cleanup. (#908, #909)
+- Added library query and annotation card performance measurements to guide optimizations. (#918, #919, #920)
+
 ## 0.16.1 - 2026-10-01
 
 ### Features

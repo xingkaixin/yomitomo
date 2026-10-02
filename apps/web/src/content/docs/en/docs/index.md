@@ -17,11 +17,11 @@ Remote AI features send the reading content and conversation needed for the task
 
 ## Getting Started
 
-1. Launch Yomitomo and enter immediately, or read the welcome introduction first.
+1. Launch Yomitomo and import an EPUB, PDF, or web article directly from the first-reading guide, or enter the Library first.
 2. In the **Library**, import a web article, EPUB/AZW3/MOBI ebook, PDF document, or Markdown text.
 3. Open the material, highlight text, and record a thought. Reading and manual annotations do not require an API key.
 
-When you want AI companionship, in-depth review, or bilingual translation, go to **Settings > Models and Routing**, add a provider, test the connection, and assign a model to the tasks you need. Remote services usually require your own API key; you can also connect a local model. See "[Settings, Models, and Data](/en/docs/settings/)".
+When you want AI companionship, in-depth review, or bilingual translation, go to **Settings > Models and Routing**, add a provider, test the connection, and choose one default model. Expand per-task settings when you need different models. Remote services usually require your own API key; you can also connect a local model. See "[Settings, Models, and Data](/en/docs/settings/)".
 
 You can switch display languages anytime in Settings. Product documentation is available in [Chinese](/docs/), [English](/en/docs/), and [Japanese](/ja/docs/). To sync highlights, thoughts, and reading progress from WeRead, check out "[Get a WeRead API Key](/en/docs/weread-api-key/)".
 
