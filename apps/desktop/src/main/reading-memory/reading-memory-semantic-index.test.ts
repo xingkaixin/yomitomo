@@ -559,7 +559,7 @@ describe('reading memory semantic index scheduling', () => {
   });
 });
 
-async function tick(milliseconds = 0) {
+async function tick(milliseconds = 1) {
   await vi.advanceTimersByTimeAsync(milliseconds);
   await nextTurn();
 }

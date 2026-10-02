@@ -2,9 +2,9 @@
 
 Pinned Effect version: `4.0.0`
 
-Production Effect modules: `18`
+Production Effect modules: `20`
 
-Production API inventory: `Deferred.Deferred,Deferred.await,Deferred.complete,Deferred.make,Deferred.succeed,Effect.Effect,Effect.Success,Effect.acquireUseRelease,Effect.all,Effect.callback,Effect.catch,Effect.delay,Effect.ensuring,Effect.fail,Effect.flatMap,Effect.fn,Effect.forEach,Effect.forkChild,Effect.forkIn,Effect.gen,Effect.map,Effect.mapError,Effect.promise,Effect.repeat,Effect.runFork,Effect.runPromise,Effect.runSync,Effect.sleep,Effect.succeed,Effect.sync,Effect.tapError,Effect.timeoutOption,Effect.try,Effect.tryPromise,Effect.uninterruptible,Exit.isFailure,Exit.void,Fiber.Fiber,Fiber.interrupt,Fiber.join,Option.getOrElse,Queue.make,Queue.offerUnsafe,Queue.shutdown,Queue.take,Schedule.spaced,Schema.Array,Schema.Constraint,Schema.Number,Schema.Record,Schema.String,Schema.Struct,Schema.Unknown,Schema.decodeUnknownEffect,Schema.optionalKey,Scope.Scope,Scope.close,Scope.makeUnsafe,Semaphore.make`
+Production API inventory: `Cause.hasInterrupts,Cause.squash,Deferred.Deferred,Deferred.await,Deferred.complete,Deferred.doneUnsafe,Deferred.make,Deferred.makeUnsafe,Deferred.succeed,Effect.Effect,Effect.Success,Effect.acquireUseRelease,Effect.all,Effect.callback,Effect.catch,Effect.delay,Effect.ensuring,Effect.fail,Effect.flatMap,Effect.fn,Effect.forEach,Effect.forkChild,Effect.forkIn,Effect.gen,Effect.map,Effect.mapError,Effect.onExit,Effect.promise,Effect.repeat,Effect.runFork,Effect.runPromise,Effect.runSync,Effect.sleep,Effect.succeed,Effect.sync,Effect.tapError,Effect.timeoutOption,Effect.timeoutOrElse,Effect.try,Effect.tryPromise,Effect.uninterruptible,Effect.void,Exit.isFailure,Exit.void,Fiber.Fiber,Fiber.await,Fiber.interrupt,Fiber.join,Option.getOrElse,Queue.make,Queue.offerUnsafe,Queue.shutdown,Queue.take,Schedule.spaced,Schema.Array,Schema.Constraint,Schema.Literal,Schema.Number,Schema.Record,Schema.String,Schema.Struct,Schema.Union,Schema.Unknown,Schema.decodeUnknownEffect,Schema.instanceOf,Schema.isGreaterThan,Schema.isInt,Schema.isLessThanOrEqualTo,Schema.optionalKey,Scope.Scope,Scope.close,Scope.makeUnsafe,Semaphore.make`
 
 ## Scope
 
@@ -30,6 +30,18 @@ queue: explicit requests preempt idle waits and coalesce while a batch runs. Shu
 waits, joins in-flight database leases, and closes the queue. Persisted projection jobs, retry
 timestamps, and database-generation checks remain authoritative. Schedule tests use TestClock via
 the matching `@effect/vitest@4.0.0`; existing Promise-boundary tests retain their timer fixtures.
+
+Embedding requests use Deferred responses and Effect timeouts. A single exit finalizer recycles
+failed or interrupted workers and waits for the operating system's exit event before releasing
+the busy slot. Disposal joins that same request fiber, including cancellation already in progress.
+Worker responses are decoded with Schema before checking request identity, vector dimensions,
+finite values, and normalization. Idle workers retain their bounded graceful-disposal handshake.
+
+Semantic indexing owns its scheduled and active fibers in a Scope. Interruption aborts the embedding
+call and joins native exit and database leases before a query, reset, or suspension proceeds.
+Queries remain serialized; committed vectors, source snapshots, generation checks, and model
+activation still govern recovery. Continuation batches use a positive timer delay so pauses and
+queries can preempt the next batch, matching Node's previous zero-delay timer behavior.
 
 The inventory includes root and subpath imports and the Schema, scheduling, scope, queue, layer,
 runtime, and HTTP namespaces used by the staged runtime adoption.
@@ -59,6 +71,7 @@ The renamed Schema filters and changed `Effect.partition` result order are not u
 | `Schema.decodeUnknownEffect` | Decoding reports `SchemaError` through the typed error channel. | HTTP JSON remains `unknown` until endpoint schemas validate consumed fields; schema failures map to domain response errors before business mapping or writes. | Provider model and models.dev tests cover malformed valid JSON and distinguish failures from defects. |
 | `Scope.close`, `Effect.forkIn`, `Schedule.spaced` | Closing a scope interrupts and joins its children; spaced repetition waits after completion. | Recurring tasks never overlap themselves, and shutdown waits for opaque operations to release database leases. | TestClock and main-process disposal tests cover timing and joining. |
 | `Queue.make`, `Queue.take`, `Effect.timeoutOption` | A sliding capacity-one queue retains the latest pending request; timeout interrupts the waiting take. | Projection requests wake idle work and coalesce during a batch without replacing persisted job state. | Projection worker tests cover preemption, coalescing, database replacement, and disposal. |
+| `Deferred.makeUnsafe`, `Deferred.doneUnsafe`, `Effect.timeoutOrElse`, `Effect.onExit`, `Fiber.await` | Callback boundaries can complete a Deferred directly; exit finalizers finish before a fiber's Exit is observable. | Embedding errors and cancellation recycle the child process exactly once; busy requests stay rejected until OS exit, and disposal joins pending cleanup. | Embedding service tests cover native exit, timeout, malformed IPC, graceful disposal, and disposal during cancellation. |
 | `Effect.all`, `Effect.gen`, `Effect.try`, `Effect.catch`, `Effect.fail`, `Effect.succeed`, `Effect.sync`, `Effect.map`, `Effect.flatMap`, `Effect.mapError` | `Effect.catch` replaces `Effect.catchAll`; the remaining primitives have no repository-relevant v4 semantic change. | Keep explicit concurrency, composition, and typed error mapping at the call site. | Existing domain tests cover their behavior. |
 
 The test-only inventory additionally uses `Cause.hasDies`, `Cause.hasFails`, `Cause.hasInterrupts`,
