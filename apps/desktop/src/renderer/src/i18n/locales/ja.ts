@@ -301,9 +301,11 @@ export const jaResources = {
       library: {
         title: 'ライブラリに質問',
         description:
-          '保存したハイライト、考え、まとめを資料横断で振り返ります。この画面を離れると今回のセッションは消去されます。',
-        scope: '根拠の範囲',
-        scopeLibrary: 'ライブラリ全体',
+          '保存したハイライト、考え、自分が参加した議論、公開済みのまとめを検索します。この画面を離れると今回のセッションは消去されます。',
+        scopeHint:
+          '検索対象は選択した資料の読書記録です。書籍や記事の全文、未公開のまとめの下書きは含みません。',
+        scope: '読書記録の範囲',
+        scopeLibrary: 'すべての資料の読書記録',
         scopeCollection: 'コレクション',
         scopeSources: '選択した資料',
         collection: 'コレクションを選択',
@@ -327,7 +329,8 @@ export const jaResources = {
         reloadContext: '範囲を再確認',
         localEvidence: 'この範囲のローカルな根拠',
         evidenceCount: 'ローカルな根拠 {{count}} 件',
-        emptyEvidence: 'この範囲には関連する保存済みの根拠が見つかりませんでした。',
+        emptyEvidence:
+          'この読書記録には関連する根拠が見つかりませんでした。別のキーワードを試すか、読書中に関連するハイライトや考えを保存してください。',
         answering: '選択した根拠に基づいて回答中…',
         canceled: 'キャンセルしました。ローカルな根拠は引き続き確認できます。',
         generationFailed:

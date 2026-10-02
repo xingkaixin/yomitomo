@@ -311,9 +311,10 @@ export const zhCNResources = {
       },
       library: {
         title: '问书库',
-        description: '围绕已保存的划线、想法和提炼跨资料提问。离开此页后清空本次会话。',
-        scope: '证据范围',
-        scopeLibrary: '整个书库',
+        description: '检索已保存的划线、想法、你参与的讨论和已发布沉淀。离开此页后清空本次会话。',
+        scopeHint: '仅搜索所选资料中的阅读记录，不搜索书籍或文章全文，也不包含未发布的沉淀草稿。',
+        scope: '阅读记录范围',
+        scopeLibrary: '全部资料的阅读记录',
         scopeCollection: '收藏夹',
         scopeSources: '手选资料',
         collection: '选择收藏夹',
@@ -337,7 +338,8 @@ export const zhCNResources = {
         reloadContext: '重新核对范围',
         localEvidence: '此范围内的本地证据',
         evidenceCount: '{{count}} 条本地证据',
-        emptyEvidence: '此范围内未找到相关的已保存证据。',
+        emptyEvidence:
+          '所选资料的阅读记录中没有找到相关证据。可换个关键词，或先在原文中保存相关划线和想法。',
         answering: '正在根据所选证据回答…',
         canceled: '已取消，本地证据仍可查看。',
         generationFailed: '未能生成有可靠依据的回答，本地证据仍可查看。',

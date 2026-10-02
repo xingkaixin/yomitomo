@@ -331,9 +331,11 @@ export const enResources = {
       library: {
         title: 'Ask library',
         description:
-          'Ask across saved highlights, thoughts, and distillations. This session clears when you leave.',
-        scope: 'Evidence scope',
-        scopeLibrary: 'Whole library',
+          'Search saved highlights, thoughts, discussions you participated in, and published distillations. This session clears when you leave.',
+        scopeHint:
+          'Search covers reading records in the selected sources, excluding the full text of books and articles and unpublished distillation drafts.',
+        scope: 'Reading record scope',
+        scopeLibrary: 'Reading records from all sources',
         scopeCollection: 'Collection',
         scopeSources: 'Selected sources',
         collection: 'Choose a collection',
@@ -357,7 +359,8 @@ export const enResources = {
         reloadContext: 'Retry scope check',
         localEvidence: 'Evidence from this scope',
         evidenceCount: '{{count}} local evidence items',
-        emptyEvidence: 'No relevant saved evidence was found in this scope.',
+        emptyEvidence:
+          'No relevant evidence was found in these reading records. Try different keywords, or save relevant highlights and thoughts while reading.',
         answering: 'Answering from the selected evidence…',
         canceled: 'Canceled. Local evidence remains available.',
         generationFailed:

@@ -103,6 +103,7 @@ export function ReadingLibraryQuestion({
         <header className="reading-library-heading">
           <h1>{t('readingMemory.library.title')}</h1>
           <p>{t('readingMemory.library.description')}</p>
+          <p>{t('readingMemory.library.scopeHint')}</p>
         </header>
         <div className="reading-library-scope-controls">
           <label>
