@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it, vi } from 'vitest';
 import type { Annotation, ArticleRecord, ArticleTranslation } from '@yomitomo/shared';
 import { SourceImportError } from '../../ipc/article-import-boundary';
@@ -357,7 +358,11 @@ describe('article translation IPC', () => {
         {
           getAiModule: async () => ({
             bilingualTranslationPromptVersion: 1,
-            translateBilingualArticleBlocks,
+            translateBilingualArticleBlocksEffect: (input) =>
+              Effect.tryPromise({
+                try: () => translateBilingualArticleBlocks(input),
+                catch: (error) => error,
+              }),
           }),
         },
       ),
@@ -550,7 +555,7 @@ function articleIpcContext(
     elapsedMs: () => 1,
     getAiModule: async () => ({
       bilingualTranslationPromptVersion: 1,
-      translateBilingualArticleBlocks: vi.fn(),
+      translateBilingualArticleBlocksEffect: vi.fn(),
     }),
     getPersistenceModules: async () => ({
       storeAgents: {

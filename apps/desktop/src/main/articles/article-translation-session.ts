@@ -1,7 +1,6 @@
-export type ArticleTranslationSessionSignal = { readonly cancelled: boolean };
+export type ArticleTranslationSessionSignal = AbortSignal;
 
-type MutableSignal = { cancelled: boolean };
-type Session = { queue: Promise<unknown>; signals: Set<MutableSignal> };
+type Session = { queue: Promise<unknown>; signals: Set<AbortController> };
 
 /**
  * Serializes work per logical translation key so one owner writes a translation at a
@@ -20,21 +19,21 @@ export function createArticleTranslationSessions() {
       const session = sessions.get(key) || { queue: Promise.resolve(), signals: new Set() };
       sessions.set(key, session);
 
-      const signal: MutableSignal = { cancelled: false };
-      session.signals.add(signal);
+      const controller = new AbortController();
+      session.signals.add(controller);
 
       const result = session.queue.then(
-        () => task(signal),
-        () => task(signal),
+        () => task(controller.signal),
+        () => task(controller.signal),
       );
       session.queue = result.then(ignore, ignore);
       return result.finally(() => {
-        session.signals.delete(signal);
+        session.signals.delete(controller);
         if (session.signals.size === 0 && sessions.get(key) === session) sessions.delete(key);
       });
     },
     cancel(key: string) {
-      for (const signal of sessions.get(key)?.signals || []) signal.cancelled = true;
+      for (const controller of sessions.get(key)?.signals || []) controller.abort();
     },
   };
 }

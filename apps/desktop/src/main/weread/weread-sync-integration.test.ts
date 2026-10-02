@@ -65,7 +65,10 @@ describe('WeRead full sync persistence', () => {
       if (body.api_name === '/user/notebooks') {
         return new Response(
           JSON.stringify({
-            books: ['failed', 'second', 'third', 'queued'].map((bookId) => ({ bookId })),
+            books: ['failed', 'second', 'third', 'queued'].map((bookId, index) => ({
+              bookId,
+              sort: 4 - index,
+            })),
             hasMore: 0,
           }),
         );
