@@ -16,7 +16,7 @@ const settingsDraftSectionByField = {
   appLockShortcut: 'external',
   libraryPageSize: 'external',
   libraryContentSources: 'general',
-  defaultProviderId: 'external',
+  defaultProviderId: 'routes',
   readingAssistantProviderId: 'routes',
   reviewAssistantProviderId: 'routes',
   bilingualTranslationProviderId: 'routes',
