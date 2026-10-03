@@ -1,0 +1,76 @@
+---
+type Props = {
+  lang?: 'zh-CN' | 'en' | 'ja';
+};
+
+const { lang = 'zh-CN' } = Astro.props;
+const copy = lang === 'en'
+  ? {
+      title: 'Choose your reading workflow.',
+      links: [
+        { href: '/en/blog/scenarios/readwise-reader-alternative/', title: 'Yomitomo or Readwise Reader?', description: 'Compare desktop reading, sync, AI and note exports.' },
+        { href: '/en/blog/scenarios/local-ai-reading-with-ollama/', title: 'Read with a local model in Ollama', description: 'Configure your model, try a passage, and check what stays local.' },
+      ],
+    }
+  : lang === 'ja'
+    ? {
+        title: '目的に合わせて使い始める。',
+        links: [
+          { href: '/ja/blog/scenarios/pdf-annotation/', title: 'PDFに注釈を付け、AIと読み進める', description: '取り込み、ハイライト、対話の手順と対応範囲。' },
+          { href: '/ja/blog/scenarios/zotero-academic-workflow/', title: 'Zoteroの論文をYomitomoで精読する', description: 'PDFの手動取り込みと、読書メモを戻す方法。' },
+        ],
+      }
+    : {
+        title: '从你的阅读场景开始。',
+        links: [
+          { href: '/docs/weread-api-key/', title: '获取微信读书 API Key', description: '找到官方入口，完成配置，排查连接问题。' },
+          { href: '/blog/scenarios/weread-migration/', title: '把微信读书划线和想法同步到本地', description: '了解同步范围、操作步骤和备份方式。' },
+        ],
+      };
+---
+
+<section class="section">
+  <div class="lp-container">
+    <h2 class="sec-title">{copy.title}</h2>
+    <ul class="guide-links">
+      {copy.links.map((link) => (
+        <li>
+          <a href={link.href}>{link.title}</a>
+          <p>{link.description}</p>
+        </li>
+      ))}
+    </ul>
+  </div>
+</section>
+
+<style>
+  .guide-links {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px 48px;
+    list-style: none;
+    padding: 0;
+    margin: 32px 0 0;
+  }
+  li {
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+  }
+  a {
+    color: var(--accent);
+    font-size: 20px;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+  p {
+    color: var(--ink-2);
+    margin: 12px 0 0;
+    line-height: 1.6;
+  }
+  @media (max-width: 800px) {
+    .guide-links {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

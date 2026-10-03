@@ -1,99 +1,70 @@
 ---
-title: "Air-Gapped & Private AI Reading: Yomitomo + Ollama Local LLM Workflow"
-description: Need AI reading companions in offline or secure environments? Connect Yomitomo to local Ollama instances running DeepSeek-R1, Qwen 2.5, or Llama 3 for 100% private, zero-data-leakage study.
+title: "Read PDFs and EPUBs with local AI: Yomitomo + Ollama setup"
+description: Connect Yomitomo to a local Ollama model, annotate a PDF or EPUB, and discuss selected passages. Includes endpoint settings, troubleshooting and the limits of offline reading.
+lastUpdated: 2026-10-03
 ---
 
-As Large Language Models become integral to research, due diligence, and code review, a pressing paradox arises: **the higher the sensitivity of the reading material (unreleased patents, proprietary M&A contracts, cutting-edge drafts), the less acceptable it is to upload it to commercial cloud APIs**.
+Yomitomo can send reading questions to an Ollama model running on the same computer. Configure an OpenAI-compatible connection at `http://localhost:11434/v1`, select a downloaded local model, and assign it to reading tasks. Your local model handles those AI requests; remote providers send the required context to their configured servers.
 
-Furthermore, during international flights or inside classified network zones, cloud-dependent AI reading tools fail entirely.
+Maintained by the Yomitomo project, based on the v0.16.2 configuration and [Ollama's OpenAI compatibility documentation](https://docs.ollama.com/api/openai-compatibility). This is a setup guide, not a hardware performance benchmark.
 
-Yomitomo natively supports local inference engines like **Ollama** and **LM Studio**, enabling an **air-gapped, zero-data-leakage, fully offline** analytical reading environment.
+## 1. Prepare a local model
 
----
+Install [Ollama](https://ollama.com/) and download a model while connected to the internet. For example:
 
-## Local Private AI Reading Architecture
+```bash
+ollama pull qwen2.5:7b
+ollama run qwen2.5:7b
+```
 
-| Pipeline Node | Input | System Processing | Output Deliverable | Security & Boundary |
-|---|---|---|---|---|
-| **Model Hosting** | Local Ollama service running `qwen2.5` or `deepseek-r1` | Local CPU/GPU hosts `http://localhost:11434` HTTP endpoint | High-speed offline inference ready on device | Zero external network calls; model weights reside on local disk |
-| **Endpoint Setup** | Configure `http://localhost:11434/v1` in Yomitomo | Validates local endpoint and maps to companion personas | Local models assigned to `@ZhouYan`, `@HeMingheng`, etc. | No external API keys required; zero token subscription fees |
-| **Passage Debate** | Select text, press `A`, mention companion in thread | Yomitomo extracts anchor context and POSTs prompt to `localhost` | Millisecond-level logic critiques and concept clarifications | Data packets circulate strictly within local loopback |
-| **Synthesis Card** | Press `T` to open Distillation Studio and audit draft | Local LLM checks reasoning gaps and refines prose | High-density Markdown distillation cards in SQLite | Knowledge assets archived offline for permanent reuse |
+This tag is an example, not a universal hardware recommendation. Model size, quantization, context length and available memory affect whether a model fits and how quickly it responds. Use a model supported by your hardware and check it in Ollama first.
 
----
+Choose a locally downloaded model rather than a cloud model if local inference is your objective. A localhost endpoint alone does not prove that the selected model runs locally.
 
-## 4 Steps to Configure Yomitomo + Ollama for Offline Reading
+## 2. Connect Yomitomo
 
-### Step 1: Install and Launch Ollama
-1. Visit <a href="https://ollama.com" target="_blank" rel="noopener noreferrer">Ollama's official site</a> to download the installer for macOS, Windows, or Linux.
-2. In your terminal, pull your preferred analytical model:
-   ```bash
-   # Recommended for bilingual non-fiction & concept parsing:
-   ollama run qwen2.5:14b
+In **Settings > Models & routing**, add a provider using the OpenAI Chat Completions protocol and configure:
 
-   # Recommended for intense logical auditing & reasoning:
-   ollama run deepseek-r1:14b
-   ```
+| Field | Value |
+| --- | --- |
+| Name | Ollama local |
+| Base URL | `http://localhost:11434/v1` |
+| API Key | `ollama` as a placeholder for the local server |
+| Model | The exact installed tag, such as `qwen2.5:7b` |
 
-### Step 2: Configure Custom Provider in Yomitomo
-1. In Yomitomo, navigate to **Settings > AI Models**.
-2. Click **Add Provider** and set the following parameters:
-   - **Provider Type**: `Custom / OpenAI Compatible`;
-   - **Base URL**: `http://localhost:11434/v1`;
-   - **API Key**: Enter any placeholder string (e.g., `ollama`);
-   - **Model Name**: Enter your pulled model tag (e.g., `qwen2.5:14b` or `deepseek-r1:14b`).
-3. Click **Test Connection** and save upon success.
+Fetch the model list or add the model manually, test the connection, then save. Choose this provider and model as the default. Check any task overrides so reading and review requests use the intended local model. Start with **Fast response**; tool-based workflows also depend on the model's capabilities.
 
-### Step 3: Map Local Models to Reading & Review Companions
-Under **Settings > AI Assistants**, assign your local Ollama model as the default engine across all reading and review companions.
+## 3. Try one passage
 
-### Step 4: Air-Gapped Deep Reading
-Turn off Wi-Fi or switch to airplane mode, then open an EPUB or PDF paper:
-- Select a paragraph and press `A`;
-- In the thread, type: `@ZhouYan Audit the necessary conditions for this causal deduction`;
-- Your local GPU performs rapid inference, generating rigorous critiques right in your margin;
-- Press `T` to distill your conclusions into permanent knowledge assets.
+1. Import a local text-based PDF or EPUB from the library's add menu.
+2. Open it and select a short paragraph.
+3. Create a highlight with `A`, open its discussion, and mention a reading assistant.
+4. Ask a question with a verifiable answer, such as which sentence supports the author's conclusion.
+5. Compare the reply with the source before saving your own note.
 
----
+<figure>
+  <img src="/assets/en-import-pdf-1280.webp" alt="Yomitomo Add PDF document dialog with a file selection and drop area" width="1280" height="953" loading="lazy" decoding="async" />
+  <figcaption>Import a local PDF before testing passage-level AI discussion.</figcaption>
+</figure>
 
-## Recommended Hardware & Model Sizing
+Scanned PDFs may need OCR in another tool before their text can be selected. There is no need to test the setup with sensitive material.
 
-| Hardware Setup | Recommended Model | Strengths | Expected Inference Speed |
-|---|---|---|---|
-| **Apple Silicon (16GB Unified RAM)** | `qwen2.5:7b` / `deepseek-r1:8b` | Rapid concept explanations, standard logical audits | 30–45 tokens/s |
-| **Apple Silicon (32GB+ Unified RAM)** | `qwen2.5:14b` / `deepseek-r1:14b` | Deep academic critiques, rigorous evidence auditing | 20–35 tokens/s |
-| **PC + RTX 4070/4080 (12–16GB VRAM)** | `qwen2.5:14b-instruct` | Blazing-fast document analysis and debate | 40–60 tokens/s |
+## What works offline?
 
----
+Previously imported documents, manual notes and a compatible downloaded local model can be used without a cloud model API. Download the application and model weights first, then verify your intended reading task with the network disconnected.
 
-## Target Audience & Usage Boundaries
+Web imports, WeRead sync, update checks and model downloads require network access. Yomitomo also has optional anonymous usage metrics in settings. Connecting Ollama does not disable these features or make the computer physically isolated. See [settings and data](/en/docs/settings/) for model routing and telemetry controls.
 
-### Who This Is For
+## Troubleshooting
 
-- Researchers, legal analysts, and engineers handling sensitive data under strict non-disclosure terms;
-- Knowledge workers needing uninterrupted study workflows during flights or in offline research spaces;
-- Power users with modern hardware looking for zero-cost, unlimited local token generation.
+| Symptom | Check |
+| --- | --- |
+| Connection refused | Ollama must be running on the same computer at the configured port. |
+| Model not found | Match the full installed model tag, including its size suffix. |
+| Slow replies or out-of-memory errors | Try a smaller model and shorter context; close other memory-intensive applications. |
+| Basic replies work but review or tools fail | Model capabilities vary. Try Fast response and a model compatible with the requested task. |
+| A request still goes to a remote provider | Check the default model and every task override. |
 
-### What This Is Not For
+Local inference can consume substantial memory, power and GPU time. We do not promise a fixed tokens-per-second rate or negligible battery use.
 
-- **Low-spec machines (e.g., 8GB RAM without dedicated GPU)**: Running 14B models locally may cause sluggishness; lighter 7B models or cloud APIs are advised;
-- **Real-time live web search**: Local models focus on logical deconstruction of the provided passages rather than real-time web querying.
-
----
-
-## Frequently Asked Questions (FAQ)
-
-### Q1: Does running local models drain my laptop battery rapidly?
-**Answer:** Yomitomo only triggers local inference when you deliberately invoke an assistant with `@` or request a distillation review (generating only a few hundred tokens per call). It does not run continuous background workloads, minimizing battery impact.
-
-### Q2: Do I need to configure firewall rules for Ollama?
-**Answer:** No. Ollama listens on `http://localhost:11434`. As long as Yomitomo runs on the same machine, communication travels across local loopback without modifying firewall policies.
-
----
-
-## Related Guides & Workflows
-
-- [Why Local-First Architecture Matters for Reading Privacy](/en/blog/scenarios/local-first-privacy/)
-- [Academic Paper Deep Reading: An AI-Powered Workflow](/en/blog/scenarios/academic-paper-reading/)
-- [Critical Reading in Practice: Deconstruct Arguments](/en/blog/scenarios/critical-reading/)
-- [Yomitomo Model Configuration Documentation](/en/docs/settings/)
+<a href="/en/#download" data-umami-event="download_section_click" data-umami-event-language="en" data-umami-event-placement="guide">Download Yomitomo and try reading with a local model</a>. For everyday annotation controls, see the [reader guide](/en/docs/reader/).

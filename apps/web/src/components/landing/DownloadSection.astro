@@ -42,7 +42,14 @@ const copy = isJapanese
         <p>{copy.desc[0]}<br />{copy.desc[1]}</p>
       </div>
       <div class="dl-cards">
-        <a class="dl-card" href={downloads.mac}>
+        <a
+          class="dl-card"
+          href={downloads.mac}
+          data-umami-event="download_click"
+          data-umami-event-platform="macos-arm64"
+          data-umami-event-language={lang}
+          data-umami-event-version={downloads.version}
+        >
           <span class="plat">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path
@@ -55,7 +62,14 @@ const copy = isJapanese
           <span class="arch">Apple Silicon</span>
           <span class="ext">.DMG</span>
         </a>
-        <a class="dl-card" href={downloads.windows}>
+        <a
+          class="dl-card"
+          href={downloads.windows}
+          data-umami-event="download_click"
+          data-umami-event-platform="windows-x64"
+          data-umami-event-language={lang}
+          data-umami-event-version={downloads.version}
+        >
           <span class="plat">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path

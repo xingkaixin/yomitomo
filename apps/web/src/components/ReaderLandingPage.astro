@@ -1,5 +1,6 @@
 ---
 import desktopPackage from '../../../desktop/package.json';
+import Analytics from './Analytics.astro';
 import LandingMasthead from './landing/LandingMasthead.astro';
 import HeroSection from './landing/HeroSection.astro';
 import MobileProductPreview from './landing/MobileProductPreview.astro';
@@ -7,6 +8,7 @@ import DemoSection from './landing/DemoSection.astro';
 import StepsSection from './landing/StepsSection.astro';
 import AgentsSection from './landing/AgentsSection.astro';
 import FeaturesSection from './landing/FeaturesSection.astro';
+import GuidesSection from './landing/GuidesSection.astro';
 import FaqSection from './landing/FaqSection.astro';
 import DownloadSection from './landing/DownloadSection.astro';
 import LandingFooter from './landing/LandingFooter.astro';
@@ -44,15 +46,15 @@ const localeUrls = {
 const canonicalUrl = localeUrls[lang];
 const defaultLocaleUrl = `${siteUrl}/`;
 const pageTitle = isEnglish
-  ? 'Yomitomo - Local-first AI reading companion'
+  ? 'Yomitomo — Open-source AI Reader for PDF & EPUB'
   : isJapanese
-    ? 'Yomitomo - ローカルファーストのAI読書パートナー'
-    : 'Yomitomo - 本地优先的 AI 伴读桌面应用';
+    ? 'Yomitomo — PDF・EPUBに対応した無料のAI読書アプリ'
+    : 'Yomitomo：免费开源 AI 阅读器，支持 PDF、EPUB 与网页批注';
 const pageDescription = isEnglish
-  ? 'Yomitomo is a local-first AI reading companion for desktop. Highlight, capture thoughts, discuss with assistants, and keep your reading judgments anchored to the source.'
+  ? 'Read PDF, EPUB and web articles on macOS and Windows. Highlight passages, discuss them with AI, and keep notes locally. Free and open source; bring your own model.'
   : isJapanese
-    ? 'YomitomoはローカルファーストのAI読書パートナーです。原文に線を引き、考えを残し、AIアシスタントと対話しながら、自分の判断を根拠と結びつけて保存できます。'
-    : 'Yomitomo 是本地优先的 AI 伴读桌面应用。划线、记下想法、和 AI 助手讨论，把阅读判断留在原文现场。';
+    ? 'PDF・EPUB・Web記事を読み、原文に注釈を付けてAIと対話。読書メモは端末内に保存。macOS・Windows対応の無料オープンソースアプリです。AIには自分のAPIキーやローカルモデルを使えます。'
+    : '用 Yomitomo 阅读 PDF、EPUB 和网页文章，在原文划线、记笔记并与 AI 讨论，支持微信读书笔记同步。免费开源，适用于 macOS 和 Windows，阅读数据保存在本机，AI 可使用自备 API 或本地模型。';
 const ogImageUrl = `${siteUrl}/assets/og-image.jpg`;
 const faqItems = getFaqItems(lang);
 const jsonLd = buildLandingStructuredData({
@@ -115,16 +117,7 @@ const jsonLd = buildLandingStructuredData({
     <meta name="theme-color" content="#fbf9f3" />
 
     <script type="application/ld+json" is:inline set:html={JSON.stringify(jsonLd)} />
-    {
-      import.meta.env.PROD && (
-        <script
-          is:inline
-          defer
-          src="https://umami.xingkaixin.me/script.js"
-          data-website-id="08d9ce5d-0cd7-403c-9947-5eba7cd04bb8"
-        />
-      )
-    }
+    <Analytics />
   </head>
   <body>
     <div class="lp-root">
@@ -137,6 +130,7 @@ const jsonLd = buildLandingStructuredData({
         <div class="reveal"><StepsSection lang={lang} /></div>
         <div class="reveal"><AgentsSection lang={lang} /></div>
         <div class="reveal"><FeaturesSection lang={lang} /></div>
+        <GuidesSection lang={lang} />
         <div class="reveal"><FaqSection lang={lang} /></div>
         <div class="reveal"><DownloadSection lang={lang} downloads={downloads} /></div>
       </main>

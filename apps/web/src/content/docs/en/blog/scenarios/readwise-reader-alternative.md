@@ -1,72 +1,53 @@
 ---
-title: "Yomitomo vs Readwise Reader: Local Deep Distillation vs Cloud Read-It-Later"
-description: Searching for a local-first Readwise Reader alternative? Compare Yomitomo and Readwise Reader across data sovereignty, AI interaction models, annotation taxonomies, and cost structures.
+title: "Yomitomo vs Readwise Reader: a local, open-source alternative"
+description: Compare Yomitomo and Readwise Reader for PDF, EPUB and web reading. Check local storage, AI setup, device support, note exports and migration limits before switching.
+lastUpdated: 2026-10-03
 ---
 
-In the digital reading and read-it-later landscape, Readwise Reader has earned acclaim for RSS aggregation, seamless cloud sync, and direct note-taking integrations. However, as concerns surrounding reading privacy, local data sovereignty, model customizability, and recurring subscriptions mount, serious researchers increasingly seek a focused, sovereign **Local-First alternative**.
+Yomitomo is a free, open-source desktop option for reading PDFs, EPUBs and web articles with passage-level notes and AI discussion. Readwise Reader is a better fit when you need a reading queue across mobile and desktop, RSS feeds, or automatic highlight exports to other tools. Choose around the workflow you use every day.
 
-Yomitomo and Readwise Reader are not direct duplicates; they embody two distinct product philosophies: **Cloud Multi-Device Read-It-Later** versus **Local-First Deep Distillation and Intellectual Synthesis**.
+Maintained by the Yomitomo project. Yomitomo features refer to v0.16.2. Readwise information was checked against its official product and pricing pages on October 3, 2026.
 
----
+## Compare the workflows
 
-## Core Feature Comparison Matrix
+| Need | Yomitomo | Readwise Reader |
+| --- | --- | --- |
+| Devices | macOS and Windows desktop | Web, desktop and mobile apps |
+| Reading material | PDF, EPUB, web articles, text and WeRead notes | Articles, PDFs, EPUBs, newsletters and RSS |
+| Reading data | Stored on your computer | Synced through a Readwise account |
+| AI | Your configured model API or compatible local model; discussion attached to passages | Built-in Ghostreader tools |
+| Notes in other tools | Copy text manually; no automatic Obsidian/Notion export | Highlight export integrations |
+| Cost | Free application; external model providers may charge for usage | Subscription; see [current pricing](https://readwise.io/pricing) |
 
-| Dimension | Yomitomo | Readwise Reader |
-|---|---|---|
-| **Core Positioning** | Local-first AI deep co-reading & distillation workbench | Cloud multi-device aggregation reader & highlight routing hub |
-| **Storage & Privacy** | 100% local SQLite storage; API keys encrypted in OS Keyring | Centralized cloud databases hosted on remote servers |
-| **Offline Autonomy** | Full functionality offline; supports private air-gapped local LLMs | Limited offline cache; AI features unavailable offline |
-| **AI Interaction Model** | Passage-anchored panel of specialists (dialectic debate & logic audit) | Ghostreader shortcuts (global summaries, Q&A, definitions) |
-| **Annotation System** | 5-tier cognitive taxonomy (Key Point, Assumption, Concept, Question, Quote) | Standard multi-color highlighter + linear notes |
-| **WeRead Integration** | Direct official Skill API sync to local SQLite with AI debate support | Requires third-party community plugins or manual sync |
-| **Pricing & Business Model** | Free open-source / BYOK (zero perpetual software subscription fees) | SaaS subscription model ($9.99–$12.99 / month) |
+Readwise features are described on the [official Reader page](https://readwise.io/read). This guide is maintained by Yomitomo and is not an independent benchmark.
 
----
+## What reading in Yomitomo looks like
 
-## Deep Dive into Fundamental Differences
+Import a document, select a passage and press the default `A` shortcut to create a highlight. Add your own note, then open its discussion and mention a reading assistant. The discussion stays attached to the source passage so you can return to the surrounding text.
 
-### 1. Annotation Model: Cognitive Taxonomy vs. Color Highlighting
-- **Readwise Reader**: Utilizes standard colored highlights (yellow, blue, etc.) with single-line notes, ideal for rapid scanning across daily newsfeeds.
-- **Yomitomo**: Pressing `A` prompts the reader to categorize highlights as **Key Point, Assumption, Concept, Question, or Quote**. You can filter by **Question** before seminars, moving from passive highlighting to active critical inquiry.
+<figure>
+  <img src="/assets/en-reader-1280.webp" alt="Yomitomo reading view with highlighted web passages and annotation cards beside the source" width="1280" height="826" loading="lazy" decoding="async" />
+  <figcaption>A web article with passage-linked annotations in Yomitomo.</figcaption>
+</figure>
 
-### 2. AI Philosophy: Anchored Specialist Debates vs. Global Generation
-- **Readwise Reader (Ghostreader)**: Emphasizes skimming speed, generating 300-word summaries or key takeaway bullets for entire articles.
-- **Yomitomo**: Enforces the **passage-anchoring iron rule**. AI companions never summarize in your absence. Readers summon `@ZhouYan` to interrogate causal links or `@ShenQingyuan` to unpack technical terminology within dedicated discussion threads.
+When you want a longer conclusion, use the distillation workspace to edit a draft and request a review. You remain responsible for checking the model's claims against the original material.
 
-### 3. Knowledge Assets: Structured Synthesis vs. Raw Fragment Exports
-- **Readwise Reader**: Acts as a routing pipe, pushing unvarnished highlights automatically into Obsidian, Notion, or Logseq.
-- **Yomitomo**: Completes the cognitive loop at the point of reading. Pressing `T` opens Distillation Studio to de-duplicate highlights, structure arguments, and refine prose with review specialists into 300–500 word knowledge cards.
+## Can I migrate my Readwise library?
 
----
+There is no direct Readwise account connection or importer for its CSV highlight archive. Importing the original PDF or EPUB does not restore the highlights you made in Readwise.
 
-## Choosing the Right Tool for Your Workflow
+You can import supported original documents. You can also import Markdown or plain-text notes as text documents, but this does not recreate their original passage anchors or discussion threads. Try one document and keep your existing library before deciding how much to move.
 
-### Choose Yomitomo When:
-- Reading serious non-fiction books, whitepapers, and academic PDF literature requiring logical scrutiny;
-- Working with confidential documents, sensitive commercial data, or proprietary research that cannot be uploaded to public clouds;
-- You prefer Bring Your Own Key (BYOK) with DeepSeek-R1, Claude 3.7, GPT-4o, or local Ollama instances;
-- You reject perpetual SaaS subscriptions and demand lifelong data sovereignty.
+See the [library and import guide](/en/docs/library/) for supported file types and import limits.
 
-### Choose Readwise Reader When:
-- You track hundreds of RSS feeds, newsletters, and Twitter threads daily;
-- You require instant cross-device sync across mobile, iPad, e-ink readers (Kindle/Boox), and web browsers;
-- You prefer automated bulk synchronization of raw highlights directly into your notes.
+## What does local storage mean for AI privacy?
 
----
+Reading data is stored locally. If you configure a remote model, the context needed for that AI task is sent to that endpoint. A model running on your own computer can handle inference locally; it does not make every application feature independent of the network.
 
-## Frequently Asked Questions (FAQ)
+For a local setup, follow the [Ollama reading guide](/en/blog/scenarios/local-ai-reading-with-ollama/). For backups and optional anonymous usage metrics, see [settings and data](/en/docs/settings/).
 
-### Q1: Can I migrate my past highlights from Readwise to Yomitomo?
-**Answer:** Yes. You can export your Readwise library to Markdown or CSV and re-import EPUB/PDF source texts into Yomitomo to begin structured distillation.
+## Try it with one document
 
-### Q2: Will Yomitomo release a mobile app like Readwise?
-**Answer:** Yomitomo is intentionally designed for focused, desktop-based deep analytical reading, annotation, and knowledge card drafting. Mobile skimming is outside its design scope.
+Start with a PDF or EPUB you already own. Make one highlight, write a note, and try a discussion using your chosen model. Check whether that workflow is useful before migrating more material.
 
----
-
-## Related Guides & Workflows
-
-- [Why Local-First Architecture Matters for Reading Privacy](/en/blog/scenarios/local-first-privacy/)
-- [Knowledge Distillation Workflow: From Highlights to Structured Cards](/en/blog/scenarios/knowledge-distillation/)
-- [WeRead Notes Migration Guide: Bring Highlights Local](/en/blog/scenarios/weread-migration/)
-- [AI Companion System Architecture Documentation](/en/docs/ai-companions/)
+<a href="/en/#download" data-umami-event="download_section_click" data-umami-event-language="en" data-umami-event-placement="guide">Download Yomitomo for macOS or Windows</a>.
