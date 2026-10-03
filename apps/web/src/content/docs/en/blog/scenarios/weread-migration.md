@@ -1,6 +1,7 @@
 ---
 title: "WeRead Notes Migration Guide: Bring Your Highlights and Thoughts Local"
 description: Cannot export highlights and thoughts from WeRead? Sync your books, annotations, and reflections to local SQLite via official Skill APIs with Yomitomo, continuing structured distillation in freedom.
+lastUpdated: 2026-10-03
 ---
 
 WeRead offers a polished reading catalog, making it the primary reading tool for many serious readers. But after finishing dozens of books and accumulating hundreds of highlights, an inevitable bottleneck emerges: **your intellectual traces are trapped inside a closed platform**.
@@ -69,10 +70,10 @@ To continue in an external note app, select the text in the editing area and cop
 ## Frequently Asked Questions (FAQ)
 
 ### Q1: Will using the WeRead API Key get my account flagged or banned?
-**Answer:** No. Yomitomo uses Tencent's official "WeRead Skill" open developer protocol. It does not utilize web scraping, memory injection, or unofficial reverse-engineered APIs.
+**Answer:** Yomitomo uses the official WeRead Skill API, but cannot guarantee account status, future policies or API availability. Follow the current WeRead rules and respond to authorization or rate-limit errors using the official guidance.
 
 ### Q2: Where is synced data stored, and how do I migrate to a new machine?
-**Answer:** 100% of data is stored in your local SQLite database. You can export a database backup anytime under **Settings > General** and restore it on any new device.
+**Answer:** Synced notes are stored locally. Use **Settings > Data management** for backups. A database-only backup does not include original PDFs or ebooks; choose a full backup when moving those too. Configure your API keys again after restoring.
 
 ### Q3: If a book is delisted from WeRead, will my synced notes disappear?
 **Answer:** No. Once synced to local SQLite, all highlights, thoughts, AI dialogues, and distillation cards are permanent local assets, entirely independent of cloud library changes.
