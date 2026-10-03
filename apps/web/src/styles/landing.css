@@ -1608,6 +1608,7 @@ body {
 }
 .lp-footer .links {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 22px;
   font-size: 13px;

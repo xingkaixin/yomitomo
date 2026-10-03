@@ -10,13 +10,13 @@ const isJapanese = lang === 'ja';
 
 const copy = isJapanese
   ? {
-      eyebrow: '500本保存して、本当に残った判断はいくつ？',
-      headPre: '読書の最小単位を、記事から',
-      headEm: '判断',
-      headTail: 'へ。',
+      eyebrow: '無料・オープンソースのAI読書アプリ',
+      headPre: 'PDF・EPUBを読み、',
+      headEm: 'AIと考える',
+      headTail: '。',
       subLines: [
-        'YomitomoはローカルファーストのAI読書パートナー。',
-        '線は根拠の印、考えは読書の成果です。',
+        'PDF・EPUB・Web記事の原文に線を引き、メモを書き、AIと対話。',
+        '読書データは端末内に保存。AIには自分のAPIキーやローカルモデルを使えます。',
       ],
       ctaMac: 'macOS版をダウンロード',
       ctaWin: 'Windows版をダウンロード',
@@ -26,13 +26,13 @@ const copy = isJapanese
     }
   : isEnglish
     ? {
-      eyebrow: '500 SAVED · FEW KEPT',
-      headPre: 'Shrink reading from the article to the',
-      headEm: 'call',
+      eyebrow: 'FREE, OPEN-SOURCE AI READER',
+      headPre: 'Read PDFs and EPUBs.',
+      headEm: 'Think with AI',
       headTail: '.',
       subLines: [
-        'Yomitomo is a local-first AI reading companion.',
-        'Highlights are your evidence. Calls are your output.',
+        'Highlight PDF, EPUB and web passages, take notes, and discuss them with AI.',
+        'Keep your reading data on your computer. Bring your own API key or local model.',
       ],
       ctaMac: 'Download for macOS',
       ctaWin: 'Download for Windows',
@@ -41,13 +41,13 @@ const copy = isJapanese
       version: `v${version} · Free & open source · Reading data stays local`,
       }
     : {
-      eyebrow: '收藏了 500 篇文章 · 真正留下来的判断有几个',
-      headPre: '把阅读的最小单位，从文章变成',
-      headEm: '判断',
+      eyebrow: '免费开源的 AI 阅读器',
+      headPre: '读 PDF、EPUB，和',
+      headEm: 'AI 一起思考',
       headTail: '。',
       subLines: [
-        'Yomitomo 是本地优先的 AI 伴读桌面应用',
-        '划线是证据锚点，想法是阅读产出。',
+        '在 PDF、EPUB 和网页原文中划线、记笔记、与 AI 讨论，也能同步微信读书笔记。',
+        '阅读数据保存在本机，AI 可使用自备 API Key 或本地模型。',
       ],
       ctaMac: '下载 macOS 版',
       ctaWin: '下载 Windows 版',
@@ -65,7 +65,13 @@ const copy = isJapanese
       {copy.subLines[0]}<br />{copy.subLines[1]}
     </p>
     <div class="hero-c-cta">
-      <a class="btn-primary" href="#download">
+      <a
+        class="btn-primary"
+        href="#download"
+        data-umami-event="download_section_click"
+        data-umami-event-language={lang}
+        data-umami-event-placement="hero"
+      >
         <svg class="mark-apple" viewBox="0 0 24 24" aria-hidden="true">
           <path
             fill="currentColor"
@@ -81,7 +87,14 @@ const copy = isJapanese
         <span data-cta-mac={copy.ctaMac} data-cta-win={copy.ctaWin}>{copy.ctaMac}</span>
       </a>
       <div class="cta-alt">
-        <a href="#download" data-alt-mac={copy.altMac} data-alt-win={copy.altWin}>{copy.altWin}</a>
+        <a
+          href="#download"
+          data-alt-mac={copy.altMac}
+          data-alt-win={copy.altWin}
+          data-umami-event="download_section_click"
+          data-umami-event-language={lang}
+          data-umami-event-placement="hero-alternative"
+        >{copy.altWin}</a>
         <span class="v">{copy.version}</span>
       </div>
     </div>

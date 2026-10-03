@@ -45,6 +45,12 @@ const fine = isEnglish
         Yomitomo
       </a>
       <div class="links">
+        <a
+          href={`${prefix}/#download`}
+          data-umami-event="download_section_click"
+          data-umami-event-language={lang}
+          data-umami-event-placement="footer"
+        >{isEnglish ? 'Download' : isJapanese ? 'ダウンロード' : '下载'}</a>
         {links.map((link) => <a href={link.href}>{link.label}</a>)}
         <span class="social-sep"></span>
         <a class="social" href={githubUrl} target="_blank" rel="noopener" aria-label="GitHub">
