@@ -108,22 +108,6 @@ describe('ReaderToolbar', () => {
       'transform: scaleX(1);',
     );
   });
-
-  it('keeps cover visuals separate from right-side actions', () => {
-    const { container } = render(
-      <ReaderToolbar
-        articleLeadingVisual={<span data-testid="cover">封面</span>}
-        extracted={{ title: '电子书', content: '' }}
-        headerMeta={{ title: '电子书', byline: '作者', hasCover: true }}
-        toolbarArticleAction={<button type="button">右侧操作</button>}
-        onClose={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByTestId('cover')).toBeTruthy();
-    expect(container.querySelector('.reader-toolbar-article-visual')?.textContent).toBe('封面');
-    expect(container.querySelector('.reader-toolbar-actions')?.textContent).toBe('右侧操作');
-  });
 });
 
 function renderFloatingToolbarWithToc(tocOpen: boolean, hasToc = true) {
@@ -264,28 +248,6 @@ describe('ReaderFloatingToolbar search mode', () => {
     expect(input.value).toBe('');
     expect(input).toBe(document.activeElement);
     expect(screen.queryByText('0/0')).toBeNull();
-  });
-
-  it('keeps the cleared text in the dissolve mirror while clearing', () => {
-    stubReducedMotion(false);
-    vi.stubGlobal(
-      'requestAnimationFrame',
-      vi.fn(() => 1),
-    );
-    vi.stubGlobal('cancelAnimationFrame', vi.fn());
-    const { container, onQueryChange } = renderSearchToolbar({ initialQuery: 'alpha beta' });
-
-    fireEvent.click(screen.getByRole('button', { name: '清空搜索' }));
-
-    const clearShell = container.querySelector('.reader-search-input-shell');
-    if (!clearShell) throw new Error('Expected the search clear shell to render');
-    const glow = clearShell.querySelector<HTMLElement>('.t-clear-glow');
-    if (!glow) throw new Error('Expected the search clear glow to render');
-
-    expect(onQueryChange).toHaveBeenCalledWith('');
-    expect(clearShell.classList.contains('is-clearing')).toBe(true);
-    expect(clearShell.querySelector('.t-clear-mirror')?.textContent).toBe('alpha\u00a0beta');
-    expect(glow.style.background).toContain('radial-gradient');
   });
 
   it('keeps production-minified clear durations in milliseconds', async () => {

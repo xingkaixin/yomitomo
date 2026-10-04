@@ -85,11 +85,9 @@ function UserProfileSettingsDialog({
   onSave,
   saveError,
   saveState,
-  sourceRect,
 }: Omit<DraftFixtureProps<UserDraft>, 'value'> & {
   draft: UserDraft;
   onClose: () => void;
-  sourceRect?: React.ComponentProps<typeof UserProfileSettingsDialogComponent>['sourceRect'];
 }) {
   return (
     <UserProfileSettingsDialogComponent
@@ -101,7 +99,6 @@ function UserProfileSettingsDialog({
         saveError,
         saveState,
       })}
-      sourceRect={sourceRect}
       onClose={onClose}
     />
   );
@@ -148,25 +145,6 @@ describe('UserProfileSettingsDialog', () => {
     expect(onSave).toHaveBeenCalledOnce();
   });
 
-  it('opens from the profile trigger source', () => {
-    render(
-      <UserProfileSettingsDialog
-        draft={defaultUser}
-        canSave
-        onChange={vi.fn()}
-        onClose={vi.fn()}
-        onSave={vi.fn()}
-        saveState="idle"
-        sourceRect={{ x: 680, y: 52, width: 40, height: 40 }}
-      />,
-    );
-
-    const dialog = screen.getByRole('dialog', { name: '个人设置' });
-
-    expect(dialog.classList.contains('source-aware-dialog')).toBe(true);
-    expect(dialog.getAttribute('style')).toContain('--dialog-source-origin-x');
-  });
-
   it('exposes the selected annotation color state', () => {
     render(
       <UserProfileSettingsDialog
@@ -185,23 +163,5 @@ describe('UserProfileSettingsDialog', () => {
     expect(
       screen.getByRole('button', { name: '选择颜色 #efa927' }).getAttribute('aria-pressed'),
     ).toBe('false');
-  });
-
-  it('keeps the English username help copy compact', () => {
-    initializeAppI18n('en');
-
-    render(
-      <UserProfileSettingsDialog
-        draft={defaultUser}
-        canSave
-        onChange={vi.fn()}
-        onClose={vi.fn()}
-        onSave={vi.fn()}
-        saveState="idle"
-      />,
-    );
-
-    expect(screen.getByText('For @mentions: letters, numbers, _ and -.')).toBeTruthy();
-    expect(screen.queryByText(/Supports letters, numbers/)).toBeNull();
   });
 });

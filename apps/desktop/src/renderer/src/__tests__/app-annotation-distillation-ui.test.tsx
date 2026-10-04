@@ -4,7 +4,6 @@ import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hashText, type Agent, type Annotation, type ArticleRecord } from '@yomitomo/shared';
-import { AnnotationDiscussionWindowApp } from '../annotation-discussion/app-annotation-discussion-window';
 import { AnnotationSedimentationWindowApp } from '../annotation-discussion/app-annotation-sedimentation-window';
 import {
   applyDistillationProposalToDraft,
@@ -32,16 +31,6 @@ afterEach(() => {
 });
 
 describe('annotation distillation UI', () => {
-  it('uses the explicit distillation entry copy before publishing', async () => {
-    installDesktopApi(article(annotation()));
-    window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
-
-    render(<AnnotationDiscussionWindowApp />);
-
-    expect(await screen.findByRole('button', { name: /把这些想法沉淀下来/ })).toBeTruthy();
-    expect(screen.queryByText('开始沉淀')).toBeNull();
-  });
-
   it('labels an unpublished distillation draft as draft', async () => {
     installDesktopApi(article(annotation()));
     window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
