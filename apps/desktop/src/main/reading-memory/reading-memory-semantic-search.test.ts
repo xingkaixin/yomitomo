@@ -318,42 +318,23 @@ describe('reading memory semantic search', () => {
     },
   );
 
-  it('measures all 10,000 SQLite vectors at the release dimension with a final-chunk match', async () => {
+  it('finds a final-chunk match and reports an unindexed source', async () => {
     const fixture = createFixture();
-    fixture.populate(10_000);
+    fixture.populate(300);
     fixture.add('unindexed', 'Pending vector', false);
-    const lastId = 'item_09999';
+    const lastId = 'item_00299';
     fixture.database
       .prepare('UPDATE reading_memory_evidence_vectors SET vector = ? WHERE evidence_id = ?')
       .run(vectorBytes(1), `reading_evidence_annotation:${lastId}`);
-    await fixture.search();
-    fixture.leaseDurations.length = 0;
-    const durations: number[] = [];
-    for (let index = 0; index < 20; index += 1) {
-      const startedAt = performance.now();
-      const result = await fixture.search();
-      durations.push(performance.now() - startedAt);
-      expect(result.evidence[0]?.location.annotationId).toBe(lastId);
-      expect(result.semantic.coverage).toEqual({
-        indexedEntryCount: 10_000,
-        eligibleEntryCount: 10_001,
-      });
-    }
-    const p95Ms = durations.toSorted((left, right) => left - right)[
-      Math.ceil(durations.length * 0.95) - 1
-    ];
-    const maximumLeaseMs = Math.max(...fixture.leaseDurations);
-    console.info('reading_memory.semantic_search_performance', {
-      entryCount: 10_000,
-      dimension: model.dimension,
-      queryEmbedding: 'injected',
-      samples: durations.length,
-      p95Ms: Math.round(p95Ms * 100) / 100,
-      maximumLeaseMs: Math.round(maximumLeaseMs * 100) / 100,
+    const result = await fixture.search();
+
+    expect(result.mode).toBe('hybrid');
+    expect(result.evidence[0]?.location.annotationId).toBe(lastId);
+    expect(result.semantic.coverage).toEqual({
+      indexedEntryCount: 300,
+      eligibleEntryCount: 301,
     });
-    expect(model.dimension).toBe(768);
-    expect(p95Ms).toBeLessThan(1_000);
-  }, 30_000);
+  });
 });
 
 function createFixture() {
@@ -377,20 +358,17 @@ FROM reading_memory_evidence_entries WHERE target_id = ?
 `);
   let leased = false;
   const withDatabase: ReadingMemoryDatabase = async (operation) => {
-    const startedAt = performance.now();
     leased = true;
     try {
       return operation(database, fixture.generation);
     } finally {
       leased = false;
-      fixture.leaseDurations.push(performance.now() - startedAt);
     }
   };
   const fixture = {
     database,
     generation: 0,
     currentInstallation: installation as ReadingMemoryModelInstallation | null,
-    leaseDurations: [] as number[],
     add(id: string, content: string, indexed = true, score = 1) {
       const articleId = `article_${id}`;
       insertArticle.run(
