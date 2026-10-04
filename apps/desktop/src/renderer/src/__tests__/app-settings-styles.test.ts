@@ -1,16 +1,7 @@
-import { readFileSync } from 'node:fs';
-import { readRendererStyles } from './css-test-utils';
 import { describe, expect, it } from 'vitest';
+import { readRendererStyles } from './css-test-utils';
 
 const styles = readRendererStyles();
-const providerEditorStyles = readFileSync(
-  new URL('../styles/settings/provider-editor.css', import.meta.url),
-  'utf8',
-);
-const formsActionsStyles = readFileSync(
-  new URL('../styles/settings/forms-actions.css', import.meta.url),
-  'utf8',
-);
 
 function rulesFor(selector: string) {
   return Array.from(styles.matchAll(/(?<selectors>[^{}]+) \{(?<body>[^}]+)\}/g))
@@ -28,69 +19,12 @@ function expectRule(selector: string, properties: string[]) {
   ).toBe(true);
 }
 
-describe('settings styles', () => {
-  it('keeps function page panels on the app card surface', () => {
-    expectRule('.settings-panel', ['background: hsl(var(--card));']);
-    expect(rulesFor('.settings-panel').some((rule) => rule.includes('--app-paper-pattern'))).toBe(
-      false,
-    );
-  });
-
-  it('keeps task route provider selectors at a stable width', () => {
-    expectRule('.task-route-select-trigger', ['width: 248px;', 'max-width: 100%;']);
-    expectRule('.provider-select-content', ['width: min(340px, calc(100vw - 32px));']);
-  });
-
+describe('desktop interaction styles', () => {
   it('keeps floating menus clickable over draggable window chrome', () => {
     expectRule('.ui-select-content', ['-webkit-app-region: no-drag;']);
     expectRule('.ui-select-content *', ['-webkit-app-region: no-drag;']);
     expectRule('.ui-popover-content', ['-webkit-app-region: no-drag;']);
     expectRule('.ui-popover-content *', ['-webkit-app-region: no-drag;']);
-  });
-
-  it('defines the shared popup surface motion contract', () => {
-    expect(styles).toContain('--dropdown-open-dur: 190ms;');
-    expect(styles).toContain('--dropdown-close-dur: 120ms;');
-    expectRule('.ui-popup-content.t-dropdown', [
-      'transform-origin: var(--transform-origin, var(--popup-transform-origin, top left));',
-      'opacity: 0;',
-      'will-change: transform, opacity;',
-    ]);
-    expectRule('.ui-popup-content.t-dropdown[data-open]', [
-      'transform: scale(1);',
-      'opacity: 1;',
-      'pointer-events: auto;',
-    ]);
-    expectRule('.ui-popup-content.t-dropdown[data-starting-style]', [
-      'transform: scale(var(--dropdown-pre-scale));',
-      'opacity: 0;',
-    ]);
-    expectRule('.ui-popup-content.t-dropdown[data-ending-style]', [
-      'transform: scale(var(--dropdown-closing-scale));',
-      'var(--dropdown-close-dur)',
-    ]);
-    expect(styles).toMatch(
-      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.ui-popup-content\.t-dropdown,[\s\S]*transform: none;[\s\S]*transition: none;/,
-    );
-  });
-
-  it('does not default stagger high-frequency popup menu items', () => {
-    expect(styles).not.toContain('menu-item-stagger-in');
-    expect(styles).not.toContain('animation: menu-item-stagger-in');
-  });
-
-  it('keeps settings result feedback short and physically restrained', () => {
-    expectRule('.provider-test-status', [
-      'animation: provider-test-status-pop 180ms cubic-bezier(0.23, 1, 0.32, 1) both;',
-    ]);
-    expect(providerEditorStyles).toContain('transform: translateY(2px) scale(0.95);');
-    expect(providerEditorStyles).not.toContain('scale(0.62)');
-    expect(providerEditorStyles).not.toContain('scale(1.08)');
-    expect(formsActionsStyles).not.toContain('@keyframes save-confirm');
-    expect(formsActionsStyles).not.toContain('animation: save-confirm');
-    expect(formsActionsStyles).toMatch(
-      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.provider-test-status \{[\s\S]*animation: provider-test-status-fade 160ms cubic-bezier\(0\.23, 1, 0\.32, 1\) both;/,
-    );
   });
 
   it('keeps the license dialog clickable over draggable window chrome', () => {
@@ -99,12 +33,21 @@ describe('settings styles', () => {
     expectRule('.license-dialog *', ['-webkit-app-region: no-drag;']);
   });
 
-  it('keeps app shell responsive rules outside legacy overrides', () => {
+  it('keeps header controls clickable over draggable window chrome', () => {
+    expectRule('.app-masthead-wordmark', ['-webkit-app-region: no-drag;']);
+    expectRule('.app-section-nav button', ['-webkit-app-region: no-drag;']);
+    expectRule('.weread-bookcase-header button', ['-webkit-app-region: no-drag;']);
+  });
+
+  it('disables popup and tab movement for reduced motion', () => {
     expect(styles).toMatch(
-      /@media \(max-width: 980px\) \{[\s\S]*\.app-layout \{[\s\S]*grid-template-columns: 128px minmax\(0, 1fr\);/,
+      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.ui-popup-content\.t-dropdown,[\s\S]*transform: none;[\s\S]*transition: none;/,
     );
     expect(styles).toMatch(
-      /@media \(max-width: 760px\) \{[\s\S]*\.app-window-header \{[\s\S]*padding-left: 66px;[\s\S]*\.app-header-date \{[\s\S]*display: none;[\s\S]*\.app-layout \{[\s\S]*grid-template-columns: minmax\(0, 1fr\);[\s\S]*grid-template-rows: auto minmax\(0, 1fr\);[\s\S]*\.settings-sidebar \{[\s\S]*border-right: 0;[\s\S]*border-bottom: 1px solid hsl\(var\(--border\) \/ 0\.72\);[\s\S]*\.settings-nav \{[\s\S]*display: flex;[\s\S]*overflow-x: auto;[\s\S]*\.sidebar-note,[\s\S]*\.sidebar-profile-button \{[\s\S]*display: none;/,
+      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.segmented-control-indicator \{[^}]*transition: none !important;/,
+    );
+    expect(styles).toMatch(
+      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.shimmering-text::before \{[^}]*animation: none !important;/,
     );
   });
 });

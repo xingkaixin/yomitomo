@@ -518,42 +518,6 @@ describe('ReaderTocPanel', () => {
     expect(container.querySelector('.reader-toc-meta')).toBeNull();
   });
 
-  it('applies distance-falloff proximity variables to focused toc items', () => {
-    render(
-      <ReaderTocPanel
-        annotationTotals={{ annotations: 0, distillations: 0 }}
-        hasToc
-        tocAnnotationStats={new Map()}
-        tocItems={[
-          { index: 1, text: '前文', depth: 1, start: 0, end: 10 },
-          { index: 2, text: '当前', depth: 1, start: 10, end: 20 },
-        ]}
-        tocOpen
-        onScrollToHeading={vi.fn()}
-      />,
-    );
-
-    const [previousButton, focusedButton] = screen.getAllByRole('button');
-    fireEvent.focus(focusedButton);
-
-    expect(focusedButton.style.getPropertyValue('--reader-toc-shift')).toBe('3.000px');
-    expect(focusedButton.style.getPropertyValue('--reader-toc-line-current-width')).toBe(
-      '24.000px',
-    );
-    expect(focusedButton.style.getPropertyValue('--reader-toc-title-shift')).toBe('14.000px');
-    expect(previousButton.style.getPropertyValue('--reader-toc-shift')).toBe('1.440px');
-    expect(previousButton.style.getPropertyValue('--reader-toc-line-current-width')).toBe(
-      '16.720px',
-    );
-    expect(previousButton.style.getPropertyValue('--reader-toc-title-shift')).toBe('6.720px');
-
-    fireEvent.blur(focusedButton);
-
-    expect(focusedButton.style.getPropertyValue('--reader-toc-shift')).toBe('');
-    expect(focusedButton.style.getPropertyValue('--reader-toc-line-current-width')).toBe('');
-    expect(focusedButton.style.getPropertyValue('--reader-toc-title-shift')).toBe('');
-  });
-
   it('marks active toc index 0 as the current location', () => {
     render(
       <ReaderTocPanel

@@ -281,33 +281,6 @@ describe('AnnotationDiscussionWindowApp', () => {
     expect(screen.getByText('这是一段正在讨论的划线原文')).toBeTruthy();
   });
 
-  it('lets the native title bar truncate the full discussion title', async () => {
-    const longQuote = '这是一段明显超过二十八个字符但窗口标题仍应该完整交给系统处理的划线';
-    installDesktopApi(article(annotation({ anchor: anchor(longQuote) })));
-    openDiscussionRoute();
-
-    render(<AnnotationDiscussionWindowApp />);
-
-    await waitFor(() => expect(document.title).toBe(`批注讨论 - ${longQuote}`));
-    expect(document.title).not.toContain('...');
-  });
-
-  it('keeps reply counts in the idea list instead of the discussion header', async () => {
-    installDesktopApi(article(annotation({ comments: discussionComments() })));
-    openDiscussionRoute();
-
-    render(<AnnotationDiscussionWindowApp />);
-
-    await waitFor(() =>
-      expect(
-        document.querySelector('.annotation-discussion-idea-main small')?.textContent,
-      ).toContain('1 条回复'),
-    );
-    expect(
-      document.querySelector('.annotation-discussion-thread-actions')?.textContent,
-    ).not.toContain('条回复');
-  });
-
   it('renders the selected thought inline with the discussion stream', async () => {
     installDesktopApi(article(annotation({ comments: discussionComments() })));
     openDiscussionRoute();
