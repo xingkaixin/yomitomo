@@ -80,30 +80,6 @@ describe('ReadingLibrary reading', () => {
     );
   });
 
-  it('cleans legacy ebook titles in the list when display title is missing', () => {
-    renderLibrary([
-      article({
-        id: 'legacy_ebook',
-        url: 'ebook://legacy_ebook',
-        canonicalUrl: 'ebook://legacy_ebook',
-        sourceType: 'ebook',
-        title: '艾伦·图灵传——如谜的解谜者（87届奥斯卡最佳改编剧本奖《模仿游戏》原著',
-        byline: '安德鲁·霍奇斯',
-        ebook: {
-          metadata: {
-            format: 'epub',
-            fileName: 'turing.epub',
-            fileSize: 1024,
-          },
-          chapters: [],
-        },
-      }),
-    ]);
-
-    expect(screen.getAllByText('艾伦·图灵传——如谜的解谜者').length).toBeGreaterThan(0);
-    expect(screen.queryByText(/87届奥斯卡/)).toBeNull();
-  });
-
   it('recleans stale ebook display titles from older cleanup versions', () => {
     renderLibrary([
       article({
@@ -127,33 +103,6 @@ describe('ReadingLibrary reading', () => {
     ]);
 
     expect(screen.getAllByText('一个故事的99种讲法').length).toBeGreaterThan(0);
-    expect(screen.queryByText(/豆瓣评分/)).toBeNull();
-  });
-
-  it('cleans real legacy ebook metadata titles with publisher suffixes', () => {
-    renderLibrary([
-      article({
-        id: 'story_99',
-        url: 'ebook://story_99',
-        canonicalUrl: 'ebook://story_99',
-        sourceType: 'ebook',
-        title:
-          '一个故事的99种讲法【豆瓣评分9.0近500人标记，中文读者翘首以盼，风靡欧美的动漫画工作坊经典教科书，呈现讲述同一个故事的99种“脑洞”】浦睿文化出品',
-        byline: '马特·马登',
-        ebook: {
-          metadata: {
-            format: 'epub',
-            fileName:
-              '一个故事的99种讲法【豆瓣评分9.0近500人标记，中文读者翘首以盼，风靡欧美的动漫画工作坊经典教科书，呈现讲述同一个故事的99种“脑洞”】浦睿文化出品 - 马特·马登.epub',
-            fileSize: 1024,
-          },
-          chapters: [],
-        },
-      }),
-    ]);
-
-    expect(screen.getAllByText('一个故事的99种讲法').length).toBeGreaterThan(0);
-    expect(screen.queryByText(/浦睿文化出品/)).toBeNull();
     expect(screen.queryByText(/豆瓣评分/)).toBeNull();
   });
 

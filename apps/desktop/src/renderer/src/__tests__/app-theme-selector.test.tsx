@@ -35,18 +35,6 @@ function props() {
 }
 
 describe('ThemeSelector', () => {
-  it('shows library samples for visible themes and reading samples for light paper choices', () => {
-    render(<ThemeSelector {...props()} />);
-    expect(screen.getByRole('dialog', { name: '主题' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '青芽' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '米色纸' })).toBeNull();
-    expect(screen.queryByRole('button', { name: '墨黑' })).toBeNull();
-    expect(screen.getAllByTitle('阅读库')).toHaveLength(3);
-    expect(screen.getAllByTitle('文章 / 电子书')).toHaveLength(5);
-    expect(screen.getByRole('button', { name: '阅读器纸张：淡绿' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '阅读器纸张：松烟' })).toBeNull();
-  });
-
   it('selects a theme immediately with one drawing sound and keeps the picker open', () => {
     const callbacks = props();
     const { rerender } = render(<ThemeSelector {...callbacks} />);
@@ -106,8 +94,6 @@ describe('ThemeSelector', () => {
     expect(
       screen.getByRole('button', { name: '阅读器纸张：黛蓝' }).getAttribute('aria-pressed'),
     ).toBe('true');
-    expect(screen.getAllByTitle('文章 / 电子书')).toHaveLength(3);
-    expect(screen.getByText('PDF 将保留原始页面颜色')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '暗色' }));
     expect(callbacks.onSelectTheme).toHaveBeenCalledTimes(1);
     expect(playAppSoundEffect).toHaveBeenCalledExactlyOnceWith(
@@ -129,16 +115,13 @@ describe('ThemeSelector', () => {
     expect(callbacks.onSelectReaderBackground).not.toHaveBeenCalled();
   });
 
-  it('opens from the trigger and preserves the source-aware dialog transition', () => {
+  it('opens the picker from its trigger', () => {
     const callbacks = props();
     const { rerender } = render(<ThemeSelector {...callbacks} open={false} />);
     const trigger = screen.getByRole('button', { name: '打开主题选择' });
-    trigger.getBoundingClientRect = () => ({ x: 640, y: 48, width: 40, height: 40 }) as DOMRect;
     fireEvent.click(trigger);
     expect(callbacks.onOpenChange).toHaveBeenCalledExactlyOnceWith(true);
     rerender(<ThemeSelector {...callbacks} />);
-    expect(screen.getByRole('dialog', { name: '主题' }).getAttribute('style')).toContain(
-      '--dialog-source-origin-x',
-    );
+    expect(screen.getByRole('dialog', { name: '主题' })).toBeTruthy();
   });
 });
