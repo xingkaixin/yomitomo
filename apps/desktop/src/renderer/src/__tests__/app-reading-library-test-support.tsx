@@ -425,13 +425,6 @@ export function successfulArticleImport(record: ArticleRecord): ArticleImportRes
   };
 }
 
-export function hasScheduledDelay(
-  setTimeoutSpy: { mock: { calls: Array<unknown[]> } },
-  delayMs: number,
-) {
-  return setTimeoutSpy.mock.calls.some((call) => call[1] === delayMs);
-}
-
 export async function flushMicrotasks() {
   await act(async () => {
     for (let index = 0; index < 4; index += 1) await Promise.resolve();

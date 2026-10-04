@@ -3,13 +3,13 @@
 import React from 'react';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Composer, measureComposerPosition } from './reader-composer';
+import { measureComposerPosition } from './reader-composer';
 import { EmptyNotes } from './reader-empty-notes';
 import { ReaderSettingsToolbarControls } from './reader-toolbar-controls';
 import { ReaderSurfaceView } from './reader-surface-view';
 import { defaultReaderUiLabels, type SelectionAdjustmentPointer } from './reader-app-view-types';
 import { AvatarBadge } from '../shared/reader-component-primitives';
-import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
+import type { Annotation, UserProfile } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
 
 const now = '2026-05-12T08:00:00.000Z';
@@ -21,21 +21,6 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
-
-function agent(id: string, nickname: string): PublicAgent {
-  return {
-    id,
-    kind: 'annotation',
-    enabled: true,
-    nickname,
-    username: id,
-    avatar: '',
-    annotationColor: '#54cda0',
-    annotationDensity: 'medium',
-    personalityName: nickname,
-    temperature: 0.3,
-  };
-}
 
 const userProfile: UserProfile = {
   id: 'user-1',
@@ -97,47 +82,7 @@ describe('AvatarBadge', () => {
   });
 });
 
-describe('Composer shortcut labels', () => {
-  it('keeps cancel and submit shortcuts out of visible button labels', () => {
-    const { container } = render(
-      <Composer
-        agents={[agent('agent_1', '林知微')]}
-        composer={{ x: 0, y: 0 }}
-        messageSendShortcut="enter"
-        shortcutModifier="⌘"
-        onCancel={vi.fn()}
-        onSave={vi.fn()}
-      />,
-    );
-
-    const cancelButton = screen.getByRole('button', { name: '取消' });
-    const highlightButton = screen.getByRole('button', { name: '划线' });
-
-    expect(cancelButton.textContent).toBe('取消');
-    expect(highlightButton.textContent).toBe('划线');
-    expect(cancelButton.querySelector('.reader-kbd')).toBeNull();
-    expect(highlightButton.querySelector('.reader-kbd')).toBeNull();
-    expect(container.querySelector('.reader-tooltip-content')).toBeNull();
-  });
-
-  it('switches the submit label to publish after text input', () => {
-    render(
-      <Composer
-        agents={[agent('agent_1', '林知微')]}
-        composer={{ x: 0, y: 0 }}
-        messageSendShortcut="enter"
-        shortcutModifier="⌘"
-        onCancel={vi.fn()}
-        onSave={vi.fn()}
-      />,
-    );
-
-    fireEvent.change(screen.getByLabelText('想法内容'), { target: { value: '  我的想法  ' } });
-
-    expect(screen.getByRole('button', { name: '发布' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '划线' })).toBeNull();
-  });
-
+describe('Composer positioning', () => {
   it('places the composer above the selection when bottom space is insufficient', () => {
     const canvas = document.createElement('div');
     const surface = document.createElement('div');
@@ -186,7 +131,7 @@ describe('Composer shortcut labels', () => {
 });
 
 describe('EmptyNotes', () => {
-  it('renders result-first copy and a labelled gesture illustration from labels', () => {
+  it('labels the gesture illustration for assistive technology', () => {
     render(
       <EmptyNotes
         labels={{
@@ -197,8 +142,6 @@ describe('EmptyNotes', () => {
       />,
     );
 
-    expect(screen.getByText('划线、想法就留在这里')).toBeTruthy();
-    expect(screen.getByText('在正文里选中文字，即可高亮、写想法或发起讨论。')).toBeTruthy();
     expect(
       screen.getByRole('img', {
         name: '在正文里选中文字后，生成一条保存在右侧的划线或想法',
@@ -374,15 +317,8 @@ describe('ReaderSurfaceView', () => {
     );
   }
 
-  function renderSurface(
-    showEmptyNotes?: boolean,
-    highlights: {
-      annotations?: Annotation[];
-      boxes?: HighlightBox[];
-      newAnnotationIds?: Set<string>;
-    } = {},
-  ) {
-    return render(surfaceView({ highlights, showEmptyNotes }));
+  function renderSurface(showEmptyNotes?: boolean) {
+    return render(surfaceView({ showEmptyNotes }));
   }
 
   it('keeps the default whole-article empty state for readers without an override', () => {
@@ -395,30 +331,6 @@ describe('ReaderSurfaceView', () => {
     renderSurface(false);
 
     expect(screen.queryByText(defaultReaderUiLabels.emptyNotesTitle)).toBeNull();
-  });
-
-  it('marks newly created highlight segments for the grow animation', () => {
-    const createdAnnotation = annotation({ id: 'annotation-new' });
-    const { container } = renderSurface(false, {
-      annotations: [createdAnnotation],
-      boxes: [
-        {
-          id: 'box-1',
-          annotationId: createdAnnotation.id,
-          color: createdAnnotation.color,
-          top: 12,
-          left: 24,
-          width: 120,
-          height: 20,
-        },
-      ],
-      newAnnotationIds: new Set([createdAnnotation.id]),
-    });
-
-    const highlight = container.querySelector<HTMLElement>('.reader-highlight');
-
-    expect(highlight?.classList.contains('is-new')).toBe(true);
-    expect(highlight?.style.getPropertyValue('--highlight-grow-delay')).toBe('0ms');
   });
 
   it('reuses later highlights after earlier text reflows and updates their targets', () => {

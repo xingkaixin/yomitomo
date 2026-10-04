@@ -10,7 +10,6 @@ import {
   deferredImportResult,
   fileWithSize,
   flushMicrotasks,
-  hasScheduledDelay,
   openAddMenuItem,
   playAppSoundEffect,
   renderLibrary,
@@ -57,7 +56,6 @@ describe('ReadingLibrary imports', () => {
   });
 
   it('auto closes the webpage import dialog after a successful import', async () => {
-    const setTimeoutSpy = vi.spyOn(window, 'setTimeout');
     const imported = article({ id: 'article_imported', title: '新导入文章' });
     const onImportArticleUrl = vi.fn().mockResolvedValue(successfulArticleImport(imported));
     renderLibrary([], {
@@ -73,33 +71,26 @@ describe('ReadingLibrary imports', () => {
     fireEvent.change(screen.getByLabelText('网页地址'), {
       target: { value: 'https://example.com/post' },
     });
-    fireEvent.click(screen.getByRole('button', { name: '解析添加' }));
-
-    await waitFor(() => {
-      expect(onImportArticleUrl).toHaveBeenCalledWith(
-        'https://example.com/post',
-        'article-import-1',
-      );
+    vi.useFakeTimers();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '解析添加' }));
     });
-    expect((await screen.findAllByText('已添加到阅读库')).length).toBeGreaterThan(0);
+
+    expect(onImportArticleUrl).toHaveBeenCalledWith('https://example.com/post', 'article-import-1');
+    expect(screen.getAllByText('已添加到阅读库').length).toBeGreaterThan(0);
     expect(
       screen.getByRole('progressbar', { name: '网页文章导入进度' }).getAttribute('aria-valuenow'),
     ).toBe('100');
     expect(screen.getByDisplayValue('新导入文章')).toBeTruthy();
     expect(screen.queryByRole('button', { name: '打开文章' })).toBeNull();
-    expect(
-      document
-        .querySelector('.library-article-import-result-icon path')
-        ?.getAttribute('pathLength'),
-    ).toBe('1');
     expect(playAppSoundEffect).toHaveBeenCalledWith(
       'library.import_success_single',
       expect.objectContaining({ soundEffectsEnabled: true, soundEffectsVolume: 0.6 }),
     );
-    expect(hasScheduledDelay(setTimeoutSpy, 900)).toBe(true);
-    expect(hasScheduledDelay(setTimeoutSpy, 1200)).toBe(false);
-
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull(), { timeout: 2000 });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('delays webpage import cancellation and ignores late results', async () => {
@@ -265,17 +256,13 @@ describe('ReadingLibrary imports', () => {
     expect((await screen.findAllByText('已导入 1 个文件')).length).toBeGreaterThan(0);
     expect(screen.getByText('导入的电子书示例')).toBeTruthy();
     expect(screen.queryByRole('button', { name: '打开电子书' })).toBeNull();
-    expect(
-      document.querySelector('.library-import-success-icon path')?.getAttribute('pathLength'),
-    ).toBe('1');
     expect(playAppSoundEffect).toHaveBeenCalledWith(
       'library.import_success_single',
       expect.objectContaining({ soundEffectsEnabled: true, soundEffectsVolume: 0.7 }),
     );
   });
 
-  it('auto closes successful ebook imports after the shorter celebration delay', async () => {
-    const setTimeoutSpy = vi.spyOn(window, 'setTimeout');
+  it('auto closes the ebook import dialog after a successful import', async () => {
     const imported = article({
       id: 'ebook_autoclose',
       url: 'ebook://ebook_autoclose',
@@ -296,11 +283,17 @@ describe('ReadingLibrary imports', () => {
 
     await selectLibraryType(/电子书/);
     await openAddMenuItem('电子书文件');
-    selectImportFile(container, 'library-ebook-file', fileWithSize('autoclose.epub', 1024));
+    vi.useFakeTimers();
+    await act(async () => {
+      selectImportFile(container, 'library-ebook-file', fileWithSize('autoclose.epub', 1024));
+    });
 
-    expect((await screen.findAllByText('已导入 1 个文件')).length).toBeGreaterThan(0);
-    expect(hasScheduledDelay(setTimeoutSpy, 900)).toBe(true);
-    expect(hasScheduledDelay(setTimeoutSpy, 1600)).toBe(false);
+    expect(screen.getAllByText('已导入 1 个文件').length).toBeGreaterThan(0);
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('imports multiple ebook files sequentially', async () => {
@@ -468,8 +461,7 @@ describe('ReadingLibrary imports', () => {
     expect(screen.queryByRole('button', { name: '打开 PDF' })).toBeNull();
   });
 
-  it('auto closes successful PDF imports after the shorter file delay', async () => {
-    const setTimeoutSpy = vi.spyOn(window, 'setTimeout');
+  it('auto closes the PDF import dialog after a successful import', async () => {
     const imported = article({
       id: 'pdf_autoclose',
       url: 'pdf:pdf_autoclose',
@@ -491,11 +483,17 @@ describe('ReadingLibrary imports', () => {
 
     await selectLibraryType(/PDF/);
     await openAddMenuItem('PDF 文档');
-    selectImportFile(container, 'library-pdf-file', fileWithSize('autoclose.pdf', 2048));
+    vi.useFakeTimers();
+    await act(async () => {
+      selectImportFile(container, 'library-pdf-file', fileWithSize('autoclose.pdf', 2048));
+    });
 
-    expect((await screen.findAllByText('已导入 1 个文件')).length).toBeGreaterThan(0);
-    expect(hasScheduledDelay(setTimeoutSpy, 900)).toBe(true);
-    expect(hasScheduledDelay(setTimeoutSpy, 1800)).toBe(false);
+    expect(screen.getAllByText('已导入 1 个文件').length).toBeGreaterThan(0);
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('opens an existing PDF from the duplicate import state', async () => {

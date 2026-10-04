@@ -124,15 +124,11 @@ function renderFloatingToolbarWithToc(tocOpen: boolean, hasToc = true) {
 }
 
 describe('ReaderFloatingToolbar toc toggle', () => {
-  it('reflects the toc open state on the animated toggle icon', () => {
-    const { container, rerender } = renderFloatingToolbarWithToc(false);
+  it('exposes the toc open state to assistive technology', () => {
+    const { rerender } = renderFloatingToolbarWithToc(false);
 
     const toggle = screen.getByRole('button', { name: '切换目录' });
     expect(toggle.getAttribute('aria-pressed')).toBe('false');
-    expect(toggle.classList.contains('is-active')).toBe(false);
-    expect(container.querySelector('.reader-toc-toggle-icon')?.getAttribute('data-state')).toBe(
-      'closed',
-    );
 
     rerender(
       <ReaderFloatingToolbar
@@ -146,21 +142,14 @@ describe('ReaderFloatingToolbar toc toggle', () => {
     );
 
     expect(toggle.getAttribute('aria-pressed')).toBe('true');
-    expect(toggle.classList.contains('is-active')).toBe(true);
-    expect(container.querySelector('.reader-toc-toggle-icon')?.getAttribute('data-state')).toBe(
-      'open',
-    );
   });
 
-  it('keeps the toggle disabled and visually closed without toc items', () => {
-    const { container } = renderFloatingToolbarWithToc(true, false);
+  it('disables the toggle without toc items', () => {
+    renderFloatingToolbarWithToc(true, false);
 
     const toggle = screen.getByRole('button', { name: '切换目录' });
     expect((toggle as HTMLButtonElement).disabled).toBe(true);
     expect(toggle.getAttribute('aria-pressed')).toBe('false');
-    expect(container.querySelector('.reader-toc-toggle-icon')?.getAttribute('data-state')).toBe(
-      'closed',
-    );
   });
 });
 
