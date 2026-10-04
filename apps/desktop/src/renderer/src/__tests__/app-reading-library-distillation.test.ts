@@ -1,6 +1,4 @@
-// @vitest-environment jsdom
-
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   articleDistillationStateChanged,
   articleWithCommittedDistillation,
@@ -11,7 +9,11 @@ import {
   annotation,
   annotationWithPublishedDistillation,
   article,
-} from './app-reading-library-test-support';
+} from './app-reading-library-fixtures';
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('articleWithDistillationAnimationStart', () => {
   it('starts publish morph from the unpublished annotation card state', () => {

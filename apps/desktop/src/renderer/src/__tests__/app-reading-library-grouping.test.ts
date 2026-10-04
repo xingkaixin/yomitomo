@@ -1,12 +1,19 @@
-// @vitest-environment jsdom
-
-import { describe, expect, it, vi } from 'vitest';
-import { groupLibraryArticles } from '../reading-library/app-reading-library';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { initializeAppI18n } from '../i18n/app-i18n';
+import { groupLibraryArticles } from '../reading-library/app-reading-library-utils';
 import {
   annotation,
   annotationWithPublishedDistillation,
   article,
-} from './app-reading-library-test-support';
+} from './app-reading-library-fixtures';
+
+beforeEach(() => {
+  initializeAppI18n('zh-CN');
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('groupLibraryArticles', () => {
   it('groups recent reading by article update time', () => {
