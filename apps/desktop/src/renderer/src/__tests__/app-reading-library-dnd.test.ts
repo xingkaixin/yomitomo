@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-
 import { describe, expect, it, vi } from 'vitest';
 import { dispatchLibraryDrop } from '../reading-library/app-reading-library-dnd';
 

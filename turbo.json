@@ -1,5 +1,7 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [".oxfmtrc.json", ".oxlintrc.json", "mise.toml", "tsconfig.base.json"],
+  "globalEnv": ["CI", "NODE_ENV", "TZ"],
   "tasks": {
     "dev": {
       "cache": false,
@@ -20,6 +22,7 @@
       "outputLogs": "new-only"
     },
     "lint": {
+      "dependsOn": ["^lint"],
       "outputs": [],
       "outputLogs": "new-only"
     },
