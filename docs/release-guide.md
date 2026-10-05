@@ -73,7 +73,7 @@ node apps/desktop/scripts/smoke-sparkle.mjs
 
 Download Worker 是官网下载入口和自动更新 feed 的代理层，入口域名为
 `https://download.yomitomo.app`。每次发布前都应把它作为独立链路检查；如果本轮修改了
-`apps/download/**`、`apps/download/wrangler.jsonc`、根目录部署脚本或下载/更新 asset
+`apps/download/**`、`apps/download/cloudflare.config.ts`、根目录部署脚本或下载/更新 asset
 命名规则，在公开发布前部署 Worker：
 
 ```bash
