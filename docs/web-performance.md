@@ -1,18 +1,26 @@
 # 官网资源加载与缓存
 
-## Cloudflare Pages 缓存
+## 部署
+
+开发与部署使用 mise 全局安装并已登录的 `cf`，不在项目中安装 cf。根目录执行 `pnpm deploy:cf` 构建官网并发布到 Worker `yomitomo`，绑定 `yomitomo.app` 和 `www.yomitomo.app`。
+
+`cloudflare.config.ts` 保存 Worker 配置；`wrangler.config.ts` 仅保存 cf 委托构建所需的静态资源目录和类型生成选项。当前 cf 仍依赖 Wrangler 完成这类项目的构建，因此保留 Wrangler 构建依赖。静态 Astro 的自动构建尚不生成 cf Build Output，部署脚本先执行 `cf-wrangler build` 打包已构建的 `dist`，再通过 `cf deploy --prebuilt` 上传，避免 cf 再次运行 Astro 丢失 sitemap alias。配置直接导出对象，不依赖全局包的模块解析路径。下载与遥测分别通过 `pnpm deploy:download`、`pnpm deploy:telemetry` 发布。
+
+首次从 Pages 切换时，先部署并验证 Worker 的 workers.dev 地址，再解除 Pages 的两个自定义域名，将域名交给 Worker。原 Pages 部署暂留作回退；后续发布只使用 cf。关闭原 Pages 的 Web Analytics 注入，官网仅保留 Umami；下载和桌面遥测的 Analytics Engine 数据集保持原样。
+
+## Cloudflare Workers 静态资源缓存
 
 `apps/web/public/_headers` 随 Astro 构建复制到发布目录，仅为 `/_astro/*` 设置 `Cache-Control: public, max-age=31536000, immutable`。该目录存放 Astro 构建生成的带内容哈希的 CSS、JavaScript 和字体；内容变化时 URL 随之变化，浏览器可以长期复用未变化的文件，减少回访时的重新验证和下载。
 
-HTML、`/assets/*` 下固定名称的截图与背景、版本信息继续使用 Pages 默认缓存策略。不要将固定 URL 的文件放入 `/_astro/`，也不要将长期缓存规则扩展到全站，否则发布后浏览器可能继续使用旧内容。
+HTML、`/assets/*` 下固定名称的截图与背景、版本信息继续使用 Workers 静态资源默认缓存策略。不要将固定 URL 的文件放入 `/_astro/`，也不要将长期缓存规则扩展到全站，否则发布后浏览器可能继续使用旧内容。
 
-Pages 已提供 CDN 和分层缓存，无需另加 Worker、R2 或全站 Cache Everything 规则。配置依据见 [Pages 缓存说明](https://developers.cloudflare.com/pages/configuration/serving-pages/)和[自定义浏览器缓存](https://developers.cloudflare.com/pages/configuration/headers/#configure-custom-browser-cache-behavior)。
+Workers 静态资源由 Cloudflare 缓存，无需另加 R2 或全站 Cache Everything 规则。配置依据见 [Workers 静态资源缓存](https://developers.cloudflare.com/workers/static-assets/binding/#caching)和[响应头配置](https://developers.cloudflare.com/workers/static-assets/headers/)。
 
-验证时运行官网生产构建，确认发布目录包含 `_headers`，再使用 `wrangler pages dev apps/web/dist` 检查 CSS、JavaScript 和字体的响应头。首页、文档页、固定路径图片和版本信息不应出现 `immutable`。生产部署后重复检查；使用已有 Cloudflare Web Analytics 按地区、设备和页面比较回访体验，不将本机请求耗时当作真实用户首屏指标。
+验证时运行官网生产构建，确认发布目录包含 `_headers`，再使用 `cd apps/web && pnpm exec cf-wrangler dev` 检查 CSS、JavaScript 和字体的响应头。首页、文档页、固定路径图片和版本信息不应出现 `immutable`。生产部署后重复检查；使用 Umami 按地区、设备和页面查看访问情况，不将本机请求耗时当作真实用户首屏指标。
 
 ## Cloudflare 连接恢复
 
-`yomitomo.app` 的免费 0-RTT 连接恢复已于 2026-09-11 在 Cloudflare 控制台启用。该设置属于域名配置，不由 Pages 部署管理；位置为 Speed → Settings → Protocol Optimization → 0-RTT Connection Resumption，可在同处关闭。
+`yomitomo.app` 的免费 0-RTT 连接恢复已于 2026-09-11 在 Cloudflare 控制台启用。该设置属于域名配置，不由 Workers 部署管理；位置为 Speed → Settings → Protocol Optimization → 0-RTT Connection Resumption，可在同处关闭。
 
 0-RTT 仅减少支持该能力的客户端再次连接时的等待，不改善首次连接。Cloudflare 支持 GET、HEAD 和 OPTIONS 的 0-RTT，不支持 POST；桌面遥测使用 POST。域名下的下载服务使用 GET/HEAD，并按请求记录下载事件，因此下载事件数仍是请求次数，不应作为去重下载人数。能力与免费范围见 [0-RTT 官方说明](https://developers.cloudflare.com/speed/optimization/protocol/0-rtt-connection-resumption/)。
 
