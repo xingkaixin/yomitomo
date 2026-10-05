@@ -4,14 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev:worker": "wrangler dev",
-    "deploy:cf": "wrangler deploy",
+    "dev:worker": "cf dev",
+    "deploy:cf": "cf deploy",
     "build": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "oxlint src --type-aware",
     "lint:fix": "oxlint src --fix",
-    "format": "oxfmt --write \"src/**/*.ts\" package.json tsconfig.json wrangler.jsonc",
-    "format:check": "oxfmt --check \"src/**/*.ts\" package.json tsconfig.json wrangler.jsonc",
+    "format": "oxfmt --write \"src/**/*.ts\" package.json tsconfig.json cloudflare.config.ts wrangler.config.ts",
+    "format:check": "oxfmt --check \"src/**/*.ts\" package.json tsconfig.json cloudflare.config.ts wrangler.config.ts",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
