@@ -6,6 +6,7 @@
 
 - 包管理器使用 `pnpm@12`，workspace 由 `pnpm-workspace.yaml` 定义，构建由 Turbo 编排。
 - 依赖版本和 package scripts 以根目录及各 workspace 的 `package.json` 为准，工具链版本以 `mise.toml` 为准。
+- 多个 workspace 共用的依赖版本集中在 `pnpm-workspace.yaml` 的 `catalog` 中，各 `package.json` 使用 `catalog:` 引用。升级共用依赖时修改 catalog；`apps/web` 的 TypeScript 6 单独声明，`apps/desktop/electron-native` 保持独立安装配置。
 - 项目使用 TypeScript 和 ESM。除 `@yomitomo/web` 外统一使用 TypeScript 7；`apps/web` 保持 TypeScript 6，供 Astro 与 `@astrojs/check` 使用。不要在没有明确迁移任务时统一这两个版本。
 - 桌面端使用 Electron、electron-vite、React、Vite 和 Tailwind CSS；官网使用 Astro、React、Vite 和 Tailwind CSS；下载与匿名遥测服务使用 Cloudflare Workers，开发与部署通过系统全局 cf CLI 调用。
 - 测试使用 Vitest，lint 使用 oxlint，format 使用 oxfmt。

@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { resolveDependencyVersion } from '../../../scripts/resolve-dependency-version.mjs';
 import {
   assertNativeSqliteVersionAligned,
   resolveNativeSqliteBinding,
@@ -104,7 +105,11 @@ function verifyBuilderConfig() {
 
 function verifyEmbeddingRuntimeRoot() {
   const desktopPackage = readPackage(join(desktopRoot, 'package.json'));
-  if (desktopPackage.dependencies?.['@huggingface/transformers'] !== '4.2.0') {
+  const transformersVersion = resolveDependencyVersion(
+    '@huggingface/transformers',
+    desktopPackage.dependencies?.['@huggingface/transformers'],
+  );
+  if (transformersVersion !== '4.2.0') {
     throw new Error('Desktop must pin @huggingface/transformers to 4.2.0');
   }
 
