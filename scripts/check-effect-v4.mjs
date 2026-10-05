@@ -2,6 +2,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveDependencyVersion } from './resolve-dependency-version.mjs';
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const consumerManifests = [
@@ -33,7 +34,7 @@ function sourceFiles(path) {
 
 const consumerVersions = consumerManifests.map((manifestPath) => {
   const manifest = JSON.parse(readRepositoryFile(manifestPath));
-  const version = manifest.dependencies?.effect;
+  const version = resolveDependencyVersion('effect', manifest.dependencies?.effect);
   if (typeof version !== 'string' || !exactVersionPattern.test(version)) {
     violations.push(`${manifestPath}: effect must use an exact v4 stable, beta, or rc version`);
   }
@@ -41,7 +42,10 @@ const consumerVersions = consumerManifests.map((manifestPath) => {
     ...manifest.dependencies,
     ...manifest.devDependencies,
   })) {
-    if (name.startsWith('@effect/') && dependencyVersion !== version) {
+    if (
+      name.startsWith('@effect/') &&
+      resolveDependencyVersion(name, dependencyVersion) !== version
+    ) {
       violations.push(`${manifestPath}: ${name} must match effect@${version}`);
     }
   }

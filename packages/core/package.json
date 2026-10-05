@@ -24,10 +24,10 @@
     "@yomitomo/shared": "workspace:*",
     "defuddle": "^0.19.4",
     "dompurify": "^3.4.16",
-    "effect": "4.0.0"
+    "effect": "catalog:"
   },
   "devDependencies": {
-    "typescript": "^7.0.2",
-    "vitest": "^5.0.2"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

@@ -18,9 +18,9 @@
     "@yomitomo/shared": "workspace:*"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20260930.1",
-    "typescript": "^7.0.2",
-    "vitest": "^5.0.2",
-    "wrangler": "^4.144.0"
+    "@cloudflare/workers-types": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "wrangler": "catalog:"
   }
 }

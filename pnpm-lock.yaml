@@ -162,6 +162,72 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+catalogs:
+  default:
+    '@base-ui/react':
+      specifier: ^1.8.0
+      version: 1.8.0
+    '@cloudflare/workers-types':
+      specifier: ^5.20260930.1
+      version: 5.20260930.1
+    '@effect/vitest':
+      specifier: 4.0.0
+      version: 4.0.0
+    '@hugeicons/core-free-icons':
+      specifier: ^4.3.5
+      version: 4.3.5
+    '@hugeicons/react':
+      specifier: ^1.1.10
+      version: 1.1.10
+    '@huggingface/transformers':
+      specifier: 4.2.0
+      version: 4.2.0
+    '@tailwindcss/postcss':
+      specifier: ^4.3.3
+      version: 4.3.3
+    '@testing-library/dom':
+      specifier: ^10.4.2
+      version: 10.4.2
+    '@testing-library/react':
+      specifier: ^16.3.3
+      version: 16.3.3
+    '@types/jsdom':
+      specifier: ^30.0.0
+      version: 30.0.0
+    '@types/react':
+      specifier: ^19.3.0
+      version: 19.3.0
+    '@types/react-dom':
+      specifier: ^19.3.0
+      version: 19.3.0
+    effect:
+      specifier: 4.0.0
+      version: 4.0.0
+    jsdom:
+      specifier: ^30.1.1
+      version: 30.1.1
+    react:
+      specifier: ^19.3.0
+      version: 19.3.0
+    react-dom:
+      specifier: ^19.3.0
+      version: 19.3.0
+    tailwindcss:
+      specifier: ^4.3.3
+      version: 4.3.3
+    typescript:
+      specifier: ^7.0.2
+      version: 7.0.2
+    vite:
+      specifier: ^8.3.1
+      version: 8.3.1
+    vitest:
+      specifier: ^5.0.2
+      version: 5.0.2
+    wrangler:
+      specifier: ^4.144.0
+      version: 4.144.0
+
 overrides:
   '@electron/get>undici': 7.30.0
   '@babel/core@<=7.29.0': 7.29.7
@@ -186,13 +252,13 @@ importers:
   .:
     devDependencies:
       '@testing-library/dom':
-        specifier: ^10.4.2
+        specifier: 'catalog:'
         version: 10.4.2
       '@testing-library/react':
-        specifier: ^16.3.3
+        specifier: 'catalog:'
         version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       jsdom:
-        specifier: ^30.1.1
+        specifier: 'catalog:'
         version: 30.1.1(@noble/hashes@2.4.0)
       oxfmt:
         specifier: ^0.71.0
@@ -207,10 +273,10 @@ importers:
         specifier: ^2.11.5
         version: 2.11.5
       typescript:
-        specifier: ^7.0.2
+        specifier: 'catalog:'
         version: 7.0.2
       vitest:
-        specifier: ^5.0.2
+        specifier: 'catalog:'
         version: 5.0.2(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(jsdom@30.1.1(@noble/hashes@2.4.0))(vite@8.3.1(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
 
   apps/desktop:
@@ -225,13 +291,13 @@ importers:
         specifier: 2.15.1
         version: 2.15.1
       '@hugeicons/core-free-icons':
-        specifier: ^4.3.5
+        specifier: 'catalog:'
         version: 4.3.5
       '@hugeicons/react':
-        specifier: ^1.1.10
+        specifier: 'catalog:'
         version: 1.1.10(react@19.3.0)
       '@huggingface/transformers':
-        specifier: 4.2.0
+        specifier: 'catalog:'
         version: 4.2.0(@types/node@26.6.3)
       '@napi-rs/keyring':
         specifier: ^2.1.0
@@ -240,13 +306,13 @@ importers:
         specifier: ^0.45.3
         version: 0.45.3(@cloudflare/workers-types@5.20260903.1)(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(better-sqlite3@13.0.3)
       effect:
-        specifier: 4.0.0
+        specifier: 'catalog:'
         version: 4.0.0
       electron-updater:
         specifier: ^6.8.9
         version: 6.8.9(supports-color@10.2.2)
       jsdom:
-        specifier: ^30.1.1
+        specifier: 'catalog:'
         version: 30.1.1(@noble/hashes@2.4.0)
       jszip:
         specifier: ^3.10.2
@@ -259,7 +325,7 @@ importers:
         version: 4.6.5
     devDependencies:
       '@base-ui/react':
-        specifier: ^1.8.0
+        specifier: 'catalog:'
         version: 1.8.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@dnd-kit/dom':
         specifier: 0.5.0
@@ -268,7 +334,7 @@ importers:
         specifier: 0.5.0
         version: 0.5.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@effect/vitest':
-        specifier: 4.0.0
+        specifier: 'catalog:'
         version: 4.0.0(effect@4.0.0)(vitest@5.0.2(@opentelemetry/api@1.9.1)(@types/node@26.6.3)(jsdom@30.1.1(@noble/hashes@2.4.0))(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0)))
       '@electron/rebuild':
         specifier: ^4.2.0
@@ -301,22 +367,22 @@ importers:
         specifier: 2.15.1
         version: 2.15.1(905ac7258d684d33536a7b292f2046ab)
       '@tailwindcss/postcss':
-        specifier: ^4.3.3
+        specifier: 'catalog:'
         version: 4.3.3
       '@types/better-sqlite3':
         specifier: ^9.6.0
         version: 9.6.0
       '@types/jsdom':
-        specifier: ^30.0.0
+        specifier: 'catalog:'
         version: 30.0.0
       '@types/node':
         specifier: ^26.6.3
         version: 26.6.3
       '@types/react':
-        specifier: ^19.3.0
+        specifier: 'catalog:'
         version: 19.3.0
       '@types/react-dom':
-        specifier: ^19.3.0
+        specifier: 'catalog:'
         version: 19.3.0(@types/react@19.3.0)
       '@vitejs/plugin-react':
         specifier: ^6.1.1
@@ -379,13 +445,13 @@ importers:
         specifier: ^8.5.28
         version: 8.5.28
       react:
-        specifier: ^19.3.0
+        specifier: 'catalog:'
         version: 19.3.0
       react-day-picker:
         specifier: ^10.0.1
         version: 10.0.1(@types/react@19.3.0)(react@19.3.0)
       react-dom:
-        specifier: ^19.3.0
+        specifier: 'catalog:'
         version: 19.3.0(react@19.3.0)
       react-i18next:
         specifier: ^17.0.15
@@ -397,31 +463,31 @@ importers:
         specifier: ^3.7.0
         version: 3.7.0
       tailwindcss:
-        specifier: ^4.3.3
+        specifier: 'catalog:'
         version: 4.3.3
       typescript:
-        specifier: ^7.0.2
+        specifier: 'catalog:'
         version: 7.0.2
       vite:
-        specifier: ^8.3.1
+        specifier: 'catalog:'
         version: 8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0)
       vitest:
-        specifier: ^5.0.2
+        specifier: 'catalog:'
         version: 5.0.2(@opentelemetry/api@1.9.1)(@types/node@26.6.3)(jsdom@30.1.1(@noble/hashes@2.4.0))(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
 
   apps/download:
     devDependencies:
       '@cloudflare/workers-types':
-        specifier: ^5.20260930.1
+        specifier: 'catalog:'
         version: 5.20260930.1
       typescript:
-        specifier: ^7.0.2
+        specifier: 'catalog:'
         version: 7.0.2
       vitest:
-        specifier: ^5.0.2
+        specifier: 'catalog:'
         version: 5.0.2(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(jsdom@30.1.1(@noble/hashes@2.4.0))(vite@8.3.1(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
       wrangler:
-        specifier: ^4.144.0
+        specifier: 'catalog:'
         version: 4.144.0(@cloudflare/workers-types@5.20260930.1)(@types/node@26.4.1)
 
   apps/telemetry:
@@ -431,16 +497,16 @@ importers:
         version: link:../../packages/shared
     devDependencies:
       '@cloudflare/workers-types':
-        specifier: ^5.20260930.1
+        specifier: 'catalog:'
         version: 5.20260930.1
       typescript:
-        specifier: ^7.0.2
+        specifier: 'catalog:'
         version: 7.0.2
       vitest:
-        specifier: ^5.0.2
+        specifier: 'catalog:'
         version: 5.0.2(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(jsdom@30.1.1(@noble/hashes@2.4.0))(vite@8.3.1(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
       wrangler:
-        specifier: ^4.144.0
+        specifier: 'catalog:'
         version: 4.144.0(@cloudflare/workers-types@5.20260930.1)(@types/node@26.4.1)
 
   apps/web:
@@ -452,65 +518,65 @@ importers:
         specifier: ^0.42.4
         version: 0.42.4(astro@7.3.5(@types/node@26.4.1)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))(supports-color@10.2.2)(typescript@6.0.3)
       '@base-ui/react':
-        specifier: ^1.8.0
+        specifier: 'catalog:'
         version: 1.8.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@hugeicons/core-free-icons':
-        specifier: ^4.3.5
+        specifier: 'catalog:'
         version: 4.3.5
       '@hugeicons/react':
-        specifier: ^1.1.10
+        specifier: 'catalog:'
         version: 1.1.10(react@19.3.0)
       astro:
         specifier: ^7.3.5
         version: 7.3.5(@types/node@26.4.1)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0)
       react:
-        specifier: ^19.3.0
+        specifier: 'catalog:'
         version: 19.3.0
       react-dom:
-        specifier: ^19.3.0
+        specifier: 'catalog:'
         version: 19.3.0(react@19.3.0)
     devDependencies:
       '@astrojs/check':
         specifier: ^0.9.10
         version: 0.9.10(prettier@3.9.6)(typescript@6.0.3)
       '@tailwindcss/postcss':
-        specifier: ^4.3.3
+        specifier: 'catalog:'
         version: 4.3.3
       '@testing-library/dom':
-        specifier: ^10.4.2
+        specifier: 'catalog:'
         version: 10.4.2
       '@testing-library/react':
-        specifier: ^16.3.3
+        specifier: 'catalog:'
         version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@types/jsdom':
-        specifier: ^30.0.0
+        specifier: 'catalog:'
         version: 30.0.0
       '@types/react':
-        specifier: ^19.3.0
+        specifier: 'catalog:'
         version: 19.3.0
       '@types/react-dom':
-        specifier: ^19.3.0
+        specifier: 'catalog:'
         version: 19.3.0(@types/react@19.3.0)
       jsdom:
-        specifier: ^30.1.1
+        specifier: 'catalog:'
         version: 30.1.1(@noble/hashes@2.4.0)
       subset-font:
         specifier: 2.9.0
         version: 2.9.0
       tailwindcss:
-        specifier: ^4.3.3
+        specifier: 'catalog:'
         version: 4.3.3
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
       vite:
-        specifier: ^8.3.1
+        specifier: 'catalog:'
         version: 8.3.1(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0)
       vitest:
-        specifier: ^5.0.2
+        specifier: 'catalog:'
         version: 5.0.2(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(jsdom@30.1.1(@noble/hashes@2.4.0))(vite@8.3.1(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
       wrangler:
-        specifier: ^4.144.0
+        specifier: 'catalog:'
         version: 4.144.0(@cloudflare/workers-types@5.20260930.1)(@types/node@26.4.1)
 
   packages/ai:
@@ -537,17 +603,17 @@ importers:
         specifier: ^7.0.123
         version: 7.0.123(zod@4.6.5)
       effect:
-        specifier: 4.0.0
+        specifier: 'catalog:'
         version: 4.0.0
     devDependencies:
       '@huggingface/transformers':
-        specifier: 4.2.0
+        specifier: 'catalog:'
         version: 4.2.0(@types/node@26.4.1)
       typescript:
-        specifier: ^7.0.2
+        specifier: 'catalog:'
         version: 7.0.2
       vitest:
-        specifier: ^5.0.2
+        specifier: 'catalog:'
         version: 5.0.2(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(jsdom@30.1.1(@noble/hashes@2.4.0))(vite@8.3.1(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
 
   packages/core:
@@ -565,26 +631,26 @@ importers:
         specifier: ^3.4.16
         version: 3.4.16
       effect:
-        specifier: 4.0.0
+        specifier: 'catalog:'
         version: 4.0.0
     devDependencies:
       typescript:
-        specifier: ^7.0.2
+        specifier: 'catalog:'
         version: 7.0.2
       vitest:
-        specifier: ^5.0.2
+        specifier: 'catalog:'
         version: 5.0.2(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(jsdom@30.1.1(@noble/hashes@2.4.0))(vite@8.3.1(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
 
   packages/reader-ui:
     dependencies:
       '@base-ui/react':
-        specifier: ^1.8.0
+        specifier: 'catalog:'
         version: 1.8.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@hugeicons/core-free-icons':
-        specifier: ^4.3.5
+        specifier: 'catalog:'
         version: 4.3.5
       '@hugeicons/react':
-        specifier: ^1.1.10
+        specifier: 'catalog:'
         version: 1.1.10(react@19.3.0)
       '@yomitomo/core':
         specifier: workspace:*
@@ -593,26 +659,26 @@ importers:
         specifier: workspace:*
         version: link:../shared
       react:
-        specifier: ^19.3.0
+        specifier: 'catalog:'
         version: 19.3.0
     devDependencies:
       '@types/react':
-        specifier: ^19.3.0
+        specifier: 'catalog:'
         version: 19.3.0
       typescript:
-        specifier: ^7.0.2
+        specifier: 'catalog:'
         version: 7.0.2
       vitest:
-        specifier: ^5.0.2
+        specifier: 'catalog:'
         version: 5.0.2(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(jsdom@30.1.1(@noble/hashes@2.4.0))(vite@8.3.1(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
 
   packages/shared:
     devDependencies:
       typescript:
-        specifier: ^7.0.2
+        specifier: 'catalog:'
         version: 7.0.2
       vitest:
-        specifier: ^5.0.2
+        specifier: 'catalog:'
         version: 5.0.2(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(jsdom@30.1.1(@noble/hashes@2.4.0))(vite@8.3.1(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
 
 packages:

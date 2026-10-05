@@ -24,11 +24,11 @@
     "@yomitomo/core": "workspace:*",
     "@yomitomo/shared": "workspace:*",
     "ai": "^7.0.123",
-    "effect": "4.0.0"
+    "effect": "catalog:"
   },
   "devDependencies": {
-    "@huggingface/transformers": "4.2.0",
-    "typescript": "^7.0.2",
-    "vitest": "^5.0.2"
+    "@huggingface/transformers": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }
