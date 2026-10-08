@@ -133,7 +133,12 @@ telemetry → shared
 - **拆分要有独立的变更原因。** 行数和复杂度指标不是拆分理由。持久化边界（SQLite row、
   credential、legacy 迁移和 normalization 的转换）集中在 `apps/desktop/src/main/store` 是有意的。
 - **性能改动以测量为前提。** 观测脚本在 `apps/desktop/e2e/performance`，使用隔离数据，
-  不设机器相关阈值，不进入默认测试。结论只适用于测量时的数据形态。
+  不设机器相关阈值，不进入默认测试。结论只适用于测量时的数据形态。批注卡片脚本需要先构建桌面端，
+  `YOMITOMO_ANNOTATION_PROFILE=1` 或 `font` 额外采集 CPU profile：
+
+  ```bash
+  pnpm --filter @yomitomo/desktop exec vitest run --config e2e/performance/vitest.config.ts
+  ```
 - **批注卡片不做虚拟化。** 1,000 条批注仍全部挂载；当前优化只减少重复渲染。引入按视口挂载前
   需要测量证明，并保留卡片高度缓存、活动卡片和退出动画的挂载、跳转到未挂载批注的定位，
   分别验证 EPUB 翻页与 PDF 缩放。
