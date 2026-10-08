@@ -2,7 +2,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { FloppyDiskIcon, Tick01Icon, Upload01Icon, UserIcon } from '@hugeicons/core-free-icons';
 import React from 'react';
 import { sanitizeUsernameInput, userAnnotationColors, type UserDraft } from './app-settings';
-import { readFileAsDataUrl } from '../shell/app-avatar';
+import { readAvatarFile } from '../shell/app-avatar';
 import { AvatarImage } from '../shell/app-ui';
 import { ColorPicker } from './app-settings-color-picker';
 import { Button } from '../components/ui/button';
@@ -204,7 +204,7 @@ function ProfileAvatarEditor({ onChange }: { onChange: (avatar: string) => void 
 
   async function loadFile(file: File | undefined) {
     if (!file) return;
-    onChange(await readFileAsDataUrl(file));
+    onChange(await readAvatarFile(file));
   }
 
   return (
