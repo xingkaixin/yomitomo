@@ -434,78 +434,9 @@
 }
 
 .app-shell.is-sidebar-collapsed .settings-nav-item span,
-.app-shell.is-sidebar-collapsed .sidebar-note,
 .app-shell.is-sidebar-collapsed .sidebar-profile-button > span:last-child,
 .app-shell.is-sidebar-collapsed .sidebar-profile-button::after {
   display: none;
-}
-
-.sidebar-note {
-  display: grid;
-  margin-top: auto;
-  place-items: stretch;
-}
-
-.daily-quote-card {
-  display: grid;
-  gap: 8px;
-  border: 0;
-  border-top: 1px solid hsl(var(--border) / 0.72);
-  border-bottom: 1px solid hsl(var(--border) / 0.72);
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  color: hsl(var(--foreground));
-  padding: 13px 4px;
-  transform: none;
-}
-
-.daily-quote-header {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 8px;
-}
-
-.daily-quote-card .avatar-image.daily-quote-avatar {
-  width: 30px;
-  height: 30px;
-  border-color: hsl(var(--border) / 0.72);
-  background: hsl(var(--card));
-  box-shadow: none;
-}
-
-.daily-quote-title {
-  display: grid;
-  min-width: 0;
-  gap: 3px;
-}
-
-.daily-quote-title strong {
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-}
-
-.daily-quote-title span {
-  color: hsl(var(--muted-foreground));
-  font-size: 11px;
-  font-weight: 780;
-  line-height: 1.3;
-}
-
-.daily-quote-card blockquote {
-  display: -webkit-box;
-  overflow: hidden;
-  margin: 0;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
-  font-family: var(--font-reader-serif);
-  font-size: 14px;
-  font-weight: 650;
-  line-height: 1.5;
-  color: hsl(var(--muted-foreground));
-  overflow-wrap: anywhere;
 }
 
 .sidebar-profile-button {
@@ -653,7 +584,6 @@
     overflow-x: auto;
   }
 
-  .sidebar-note,
   .sidebar-profile-button {
     display: none;
   }
