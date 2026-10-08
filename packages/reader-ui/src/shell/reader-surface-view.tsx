@@ -272,7 +272,7 @@ export function ReaderSurfaceView({
   settings: { messageSendShortcut, selectionActionShortcuts, shortcutModifier },
   userProfile,
 }: ReaderSurfaceViewProps) {
-  const timeFormatter = createReaderTimeFormatter(labels);
+  const timeFormatter = React.useMemo(() => createReaderTimeFormatter(labels), [labels]);
   const annotationActionsRef = React.useRef(annotationActions);
   React.useLayoutEffect(() => {
     annotationActionsRef.current = annotationActions;
