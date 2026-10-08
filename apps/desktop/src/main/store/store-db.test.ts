@@ -250,7 +250,7 @@ INSERT INTO __yomitomo_metadata (key, value) VALUES ('database_reader_level', '2
       restored
         .prepare("SELECT value FROM __yomitomo_metadata WHERE key = 'database_reader_level'")
         .get(),
-    ).toEqual({ value: '3' });
+    ).toEqual({ value: '4' });
   });
 
   it('keeps the current database file when restore copy fails', async () => {

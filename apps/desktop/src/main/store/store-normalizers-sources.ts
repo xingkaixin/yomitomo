@@ -27,7 +27,8 @@ import {
   stringValue,
 } from './store-normalizers-common';
 
-type ArticleRow = typeof schema.articles.$inferSelect;
+export type ArticleRow = typeof schema.articles.$inferSelect &
+  Omit<typeof schema.articleBodies.$inferSelect, 'articleId'>;
 export type ArticleSummaryRow = Pick<
   ArticleRow,
   | 'id'
