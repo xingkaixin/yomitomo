@@ -169,7 +169,7 @@ function buildNormalizedDomTextIndex(
         pendingWhitespace = text.length > 0;
         continue;
       }
-      if (pendingWhitespace && !text.endsWith(' ')) {
+      if (pendingWhitespace) {
         text += ' ';
         positions.push({ node, offset, virtual: true });
       }
@@ -270,7 +270,7 @@ function renderedTextForNode(root: Node) {
         pendingWhitespace = text.length > 0;
         continue;
       }
-      if (pendingWhitespace && !text.endsWith(' ')) text += ' ';
+      if (pendingWhitespace) text += ' ';
       pendingWhitespace = false;
       text += char;
     }
