@@ -29,6 +29,14 @@ pnpm --filter @yomitomo/desktop native:verify
 
 确认 `apps/desktop/package.json` 的 `version` 与目标版本一致。
 
+### 应用包内容
+
+app.asar 只包含 `dist/main`、`dist/preload`、`dist/renderer`、`resources` 和运行时依赖。
+`apps/desktop/package.json` 的 `dependencies` 只放 main 和 preload 产物在运行时 import 的外部包；
+被 Vite 打进产物的包（renderer 依赖、已 bundle 的 main 依赖）放 `devDependencies`，否则会被重复打进
+`node_modules`。`mac.files`、`win.files` 会替换顶层 `files`，必须先展开共享列表再追加平台排除项，
+否则 electron-builder 会回退到 `**/*` 打包整个项目目录；`native:verify` 会检查这一点。
+
 ### macOS Sparkle 更新
 
 macOS 使用官方 Sparkle 2.10.0，Windows 继续使用 NSIS 和 electron-updater。

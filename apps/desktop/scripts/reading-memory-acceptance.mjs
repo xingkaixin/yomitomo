@@ -135,6 +135,10 @@ async function buildFixturePackage() {
     `${JSON.stringify({ label: report.label, formalRelease: false, platform })}\n`,
   );
   const production = require('../electron-builder.config.cjs');
+  const fixtureFiles = (files) => [
+    ...files.filter((path) => !path.startsWith('dist/')),
+    { from: distDirectory, to: 'dist', filter: ['**/*'] },
+  ];
   await packageDesktop({
     projectDir: desktopRoot,
     targets:
@@ -149,17 +153,23 @@ async function buildFixturePackage() {
       forceCodeSigning: false,
       directories: { ...production.directories, output: packageOutput },
       extraMetadata: { readingMemoryFixture: true },
-      files: [
-        ...production.files.filter((path) => !path.startsWith('dist/')),
-        { from: distDirectory, to: 'dist', filter: ['**/*'] },
-      ],
+      files: fixtureFiles(production.files),
       extraResources: [
         ...production.extraResources,
         { from: markerPath, to: 'reading-memory-fixture.json' },
       ],
       publish: null,
-      mac: { ...production.mac, identity: null, notarize: false },
-      win: { ...production.win, signAndEditExecutable: false },
+      mac: {
+        ...production.mac,
+        files: fixtureFiles(production.mac.files),
+        identity: null,
+        notarize: false,
+      },
+      win: {
+        ...production.win,
+        files: fixtureFiles(production.win.files),
+        signAndEditExecutable: false,
+      },
     },
   });
 }
