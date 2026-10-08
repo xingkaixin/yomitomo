@@ -21,7 +21,9 @@ export function useWebReadingProgress({
   scrollRef: RefObject<HTMLElement | null>;
 }) {
   const restoredArticleRef = useRef<string | null>(null);
-  const [progress, setProgress] = useState(() => normalizeSavedProgress(initialProgress) ?? 0);
+  const [progress] = useState(() =>
+    createReadingProgressSource(normalizeSavedProgress(initialProgress) ?? 0),
+  );
   const shouldSave = useCallback(
     (next: ArticleReadingProgress, saved: ArticleReadingProgress | null) =>
       next.kind === 'scroll' &&
@@ -37,7 +39,7 @@ export function useWebReadingProgress({
   });
 
   useEffect(() => {
-    setProgress(normalizeSavedProgress(initialProgress) ?? 0);
+    progress.set(normalizeSavedProgress(initialProgress) ?? 0);
     restoredArticleRef.current = null;
   }, [articleId]);
 
@@ -55,7 +57,7 @@ export function useWebReadingProgress({
       if (cancelled) return;
       const maxScrollTop = webReaderMaxScrollTop(scrollElement);
       if (maxScrollTop > 0) scrollElement.scrollTo({ top: maxScrollTop * savedProgress });
-      setProgress(savedProgress);
+      progress.set(savedProgress);
       restoredArticleRef.current = articleId;
     };
     const frame = window.requestAnimationFrame(() => window.requestAnimationFrame(restore));
@@ -63,13 +65,13 @@ export function useWebReadingProgress({
       cancelled = true;
       window.cancelAnimationFrame(frame);
     };
-  }, [articleId, initialProgress, scrollRef]);
+  }, [articleId, initialProgress, progress, scrollRef]);
 
   useEffect(() => {
     const scrollElement = scrollRef.current;
     if (!scrollElement) return;
 
-    const progressFrame = createWebReadingProgressFrame(setProgress);
+    const progressFrame = createWebReadingProgressFrame(progress.set);
     const updateProgress = () => {
       const nextProgress = webReaderProgress(scrollElement);
       progressFrame.schedule(nextProgress);
@@ -84,7 +86,7 @@ export function useWebReadingProgress({
       initialFrame = window.requestAnimationFrame(() => {
         initialFrame = null;
         const nextProgress = webReaderProgress(scrollElement);
-        setProgress(nextProgress);
+        progress.set(nextProgress);
         if (webReaderMaxScrollTop(scrollElement) <= 0) {
           void saveNow(webReadingProgressSnapshot(nextProgress));
         }
@@ -96,9 +98,28 @@ export function useWebReadingProgress({
       if (initialFrame !== null) window.cancelAnimationFrame(initialFrame);
       progressFrame.cancel();
     };
-  }, [articleId, saveNow, scheduleSave, scrollRef]);
+  }, [articleId, progress, saveNow, scheduleSave, scrollRef]);
 
   return progress;
+}
+
+function createReadingProgressSource(initialValue: number) {
+  let value = initialValue;
+  const listeners = new Set<() => void>();
+  return {
+    getSnapshot: () => value,
+    set: (nextValue: number) => {
+      if (nextValue === value) return;
+      value = nextValue;
+      for (const listener of listeners) listener();
+    },
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
 }
 
 function normalizeSavedProgress(progress: ArticleReadingProgress | undefined) {

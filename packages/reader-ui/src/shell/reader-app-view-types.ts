@@ -173,12 +173,18 @@ export type ReaderTocModel = {
   open: boolean;
 };
 
+// Scroll-driven readers publish progress through a source so only the toolbar re-renders.
+export type ReaderProgressSource = {
+  getSnapshot: () => number;
+  subscribe: (listener: () => void) => () => void;
+};
+
 export type ReaderToolbarModel = {
   articleAction?: React.ReactNode;
   articleLeadingVisual?: React.ReactNode;
   controls?: React.ReactNode;
   headerMeta?: ReaderHeaderArticleMeta;
-  readingProgress?: number;
+  readingProgress?: number | ReaderProgressSource;
   search?: ReaderSearchToolbarState;
 };
 
