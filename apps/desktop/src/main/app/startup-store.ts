@@ -7,7 +7,7 @@ import type { StoreReadProfileEntry } from '../store/store-db';
 
 type StartupStoreContext = {
   getPersistenceModules: () => Promise<{
-    storeSettings: Pick<typeof import('../store/store-settings'), 'saveSettingsShell'>;
+    storeSettings: Pick<typeof import('../store/store-settings'), 'saveSettings'>;
     storeSnapshot: Pick<typeof import('../store/store-snapshot'), 'readShellStoreWithProfile'>;
   }>;
   recordStartupTiming: (event: string, data?: Record<string, unknown>) => void;
@@ -48,13 +48,13 @@ export async function initializeStartupStore(
 
 async function applyStartupAppLock(
   store: DesktopStore,
-  storeSettings: Pick<typeof import('../store/store-settings'), 'saveSettingsShell'>,
+  storeSettings: Pick<typeof import('../store/store-settings'), 'saveSettings'>,
   context: Pick<StartupStoreContext, 'recordStartupTiming'>,
 ) {
   if (!shouldLockAppOnStartup(store.settings)) return store;
 
   const startedAt = performance.now();
-  const lockedStore = await storeSettings.saveSettingsShell({ appLockLocked: true });
+  const lockedStore = await storeSettings.saveSettings({ appLockLocked: true });
   context.recordStartupTiming('app_lock.startup_lock_applied', {
     durationMs: elapsedMs(startedAt),
   });

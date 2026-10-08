@@ -44,7 +44,7 @@ describe('provider IPC persistence boundary', () => {
         finish = () =>
           outcome === 'resolved' ? resolve(store) : reject(new Error('Snapshot unavailable'));
       });
-      const readStore = vi.spyOn(storeSnapshot, 'readStore').mockReturnValue(snapshot);
+      const readStore = vi.spyOn(storeSnapshot, 'readShellStore').mockReturnValue(snapshot);
       const send = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 204 }));
       const telemetry = createReadingMemoryTelemetry({
         fetch: send,
@@ -252,7 +252,6 @@ function providerIpcContext(
         saveSettings:
           persistenceOverrides.saveSettings ||
           vi.fn<ProviderPersistenceModules['storeSettings']['saveSettings']>(),
-        saveSettingsShell: vi.fn(),
         saveUser: vi.fn(),
       },
     }),

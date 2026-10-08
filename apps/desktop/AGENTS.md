@@ -21,7 +21,7 @@
 - main 侧通过 `handleDesktopIpc(...)` 注册 invoke handler，preload 侧通过 `invokeDesktopIpc(...)` 调用。不要在两端重复声明裸 channel、参数或返回类型。
 - Invoke contract 与 event map 分开维护。事件 channel 在 `apps/desktop/src/ipc-contract.ts` 的事件 map 中声明，不要混入 `DesktopIpcInvokeMap`。
 - 高频文章写入返回局部 `ArticleStorePatch`。跨窗口文章同步使用 `article:patched`；`store:updated` 只用于完整 store 替换。
-- `store:get`、数据库恢复和 `settings:save` 等全量快照或全量替换场景可以使用完整 `DesktopStore`。`provider:save/delete`、`agent:save/delete`、`user:save` 返回对应设置切片 patch；文章保存、导入、删除和阅读进度更新走局部 patch。
+- `store:get`、数据库恢复和 `settings:save` 等全量快照或全量替换场景可以使用完整 `DesktopStore`；`store:get` 与 `settings:save` 返回不含文章摘要的快照，文章列表由书库目录分页查询。`provider:save/delete`、`agent:save/delete`、`user:save` 返回对应设置切片 patch；文章保存、导入、删除和阅读进度更新走局部 patch。
 - renderer 通过统一的 article store commit/apply 入口更新受影响文章，避免替换无关 store 数据。
 
 ## UI

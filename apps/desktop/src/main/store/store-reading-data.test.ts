@@ -83,7 +83,7 @@ import {
 } from './store-db';
 import { closeDatabase } from './store-lifecycle';
 import { readStore } from './store-snapshot';
-import { saveSettings, saveSettingsShell } from './store-settings';
+import { saveSettings } from './store-settings';
 import { normalizeWeReadReadingStats } from '../weread/weread-repository';
 import * as schema from '../db/schema';
 
@@ -121,7 +121,7 @@ describe('desktop store reading privacy settings', () => {
     const unconfirmedBackup = join(dirname(getDatabasePath()), 'unconfirmed-backup.sqlite');
     await backupDatabaseFile(unconfirmedBackup);
 
-    const confirmed = await saveSettingsShell({ readingMemoryRemoteConsent: true });
+    const confirmed = await saveSettings({ readingMemoryRemoteConsent: true });
     expect(confirmed.settings).toMatchObject({
       ...privacySettings,
       readingMemoryRemoteConsent: true,
@@ -134,7 +134,7 @@ describe('desktop store reading privacy settings', () => {
     const confirmedBackup = join(dirname(getDatabasePath()), 'confirmed-backup.sqlite');
     await backupDatabaseFile(confirmedBackup);
     expect(
-      (await saveSettingsShell({ readingMemoryRemoteConsent: false })).settings
+      (await saveSettings({ readingMemoryRemoteConsent: false })).settings
         .readingMemoryRemoteConsent,
     ).toBe(false);
 
