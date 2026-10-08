@@ -20,6 +20,7 @@
 - `settings.css` 及 `styles/settings/*`：设置页 panel、provider、agent、表单、统计、日志等设置域样式。
 - `library.css` 及 `styles/library/*`：资料库首页、搜索过滤、卡片、书架、封面、空状态和 notebook 相关样式。
 - `annotation-discussion.css` 及其 partial：批注讨论窗口和 composer。
+- `distillation-library.css`：沉淀库列表与来源上下文。
 - `source-reader-shared.css`、`source-reader.css`、`source-ebook.css`、`source-pdf.css`：source reader 容器、EPUB/PDF 阅读器桥接与阅读状态。
 
 如果某个 class 的语义属于一个区域，最终声明应放在该区域模块内，而不是先写在模块里再由 `theme-overrides/legacy-*` 覆盖。
