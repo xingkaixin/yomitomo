@@ -45,9 +45,10 @@ const PDF_COVER_PALETTES = [
 
 const NATIVE_COVER_SHELL = '#151515';
 const DEFAULT_NATIVE_RATIO = 0.72;
-const articleCoverCache = new Map<string, string | null>();
-const pdfThumbnailCache = new Map<string, string | null>();
-const siteIconCache = new Map<string, string | null>();
+// Covers and thumbnails are data URLs of up to a few MB; keep the recently shown ones only.
+const articleCoverCache = createRecentCache(96);
+const pdfThumbnailCache = createRecentCache(96);
+const siteIconCache = createRecentCache(256);
 
 type ArticleBookRecord = ArticleRecord | ArticleSummaryRecord;
 
@@ -515,4 +516,23 @@ function authorScale(value: string) {
   if (length <= 20) return 0.052;
   if (length <= 36) return 0.046;
   return 0.039;
+}
+
+function createRecentCache(limit: number) {
+  const entries = new Map<string, string | null>();
+  return {
+    get(key: string) {
+      const value = entries.get(key);
+      if (value !== undefined) {
+        entries.delete(key);
+        entries.set(key, value);
+      }
+      return value;
+    },
+    set(key: string, value: string | null) {
+      entries.delete(key);
+      entries.set(key, value);
+      if (entries.size > limit) entries.delete(entries.keys().next().value as string);
+    },
+  };
 }
