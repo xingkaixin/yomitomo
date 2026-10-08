@@ -214,6 +214,32 @@ WHERE ${currentEntryCondition} AND (${scope.sql})
   };
 }
 
+export function hasReadingMemoryVectors(
+  executor: ReadingMemorySqliteExecutor,
+  options: ScopedVectorModel,
+): boolean {
+  assertVectorModel(options);
+  const scope = scopeArticleFilter(options.scope, 'entry');
+  const row = executor
+    .prepare(
+      `
+SELECT EXISTS (
+  SELECT 1
+  ${currentEntryTables}
+  INNER JOIN reading_memory_evidence_vectors AS stored ON ${matchingVectorCondition}
+  WHERE ${currentEntryCondition} AND (${scope.sql})
+) AS present
+`,
+    )
+    .get(
+      options.modelVersion,
+      options.dimension,
+      readingMemoryEvidenceProjectorVersion,
+      ...scope.values,
+    );
+  return finiteNumberFieldOrZero(recordField(row, 'present')) === 1;
+}
+
 export function readActiveReadingMemoryModelVersion(
   executor: ReadingMemorySqliteExecutor,
 ): string | null {
@@ -393,8 +419,18 @@ function vectorBytes(vector: Float32Array): Uint8Array {
   return bytes;
 }
 
+const nativeLittleEndian = new Uint8Array(new Uint32Array([1]).buffer)[0] === 1;
+
 function vectorFromBytes(bytes: unknown): Float32Array {
   if (!(bytes instanceof Uint8Array)) throw new Error('Invalid reading memory vector bytes');
+  // Searches decode every stored vector; little-endian hosts can view the blob without copying.
+  if (nativeLittleEndian && bytes.byteOffset % Float32Array.BYTES_PER_ELEMENT === 0) {
+    return new Float32Array(
+      bytes.buffer,
+      bytes.byteOffset,
+      bytes.byteLength / Float32Array.BYTES_PER_ELEMENT,
+    );
+  }
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const vector = new Float32Array(bytes.byteLength / Float32Array.BYTES_PER_ELEMENT);
   for (let index = 0; index < vector.length; index += 1) {
