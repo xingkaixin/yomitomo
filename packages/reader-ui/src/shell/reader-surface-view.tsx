@@ -240,7 +240,7 @@ function getCssDurationMs(element: Element, variableName: string, fallback: numb
 
 export function ReaderSurfaceView({
   actions: { annotation: annotationActions, selection: selectionActions },
-  agents: { agents, pendingAnnotationAgents = {}, reviewAgents, theaterBoxes: agentTheaterBoxes },
+  agents: { agents, pendingAnnotationAgents = {}, personaAgents, theaterBoxes: agentTheaterBoxes },
   annotationRail: {
     annotationRailItems,
     exitingAnnotationIds,
@@ -471,7 +471,7 @@ export function ReaderSurfaceView({
                       ? cardActions.onOpenDiscussion
                       : undefined
                   }
-                  reviewAgents={reviewAgents}
+                  personaAgents={personaAgents}
                 />
               ),
             )}
@@ -498,7 +498,7 @@ export function ReaderSurfaceView({
           {highlightChoice && highlightChoiceAnnotations.length > 1 ? (
             <HighlightChoiceMenu
               action={highlightChoice}
-              agents={agents}
+              agents={personaAgents ?? agents}
               annotations={highlightChoiceAnnotations}
               labels={labels}
               userProfile={userProfile}

@@ -18,7 +18,12 @@ export function publicReviewAgents(agents: Agent[], uiLanguage?: UiLanguage): Pu
     .map((agent) => publicAgentWithPersonaAssets(agent, uiLanguage));
 }
 
-function publicAgentWithPersonaAssets(agent: Agent, uiLanguage?: UiLanguage): PublicAgent {
+// Resolves authors of saved annotations and comments, including disabled agents.
+export function publicPersonaAgents(agents: Agent[], uiLanguage?: UiLanguage): PublicAgent[] {
+  return agents.map((agent) => publicAgentWithPersonaAssets(agent, uiLanguage));
+}
+
+export function publicAgentWithPersonaAssets(agent: Agent, uiLanguage?: UiLanguage): PublicAgent {
   const publicAgent = resolveAgentPublicIdentity(agent, uiLanguage);
   const assets = resolveAgentPersonaAssets(uiLanguage || 'zh-CN', resolveAgentPresetId(agent));
   return assets ? { ...publicAgent, avatar: assets.avatar } : publicAgent;

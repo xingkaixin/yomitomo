@@ -15,6 +15,7 @@ import type {
   Comment,
   PublicAgent,
   UiLanguage,
+  UserProfile,
 } from '@yomitomo/shared';
 import { normalizeUiLanguage } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
@@ -26,7 +27,10 @@ import {
 } from '../source/bookcase/app-source-agent-mention-request';
 import { annotationsWithSavedComment } from '../source/bookcase/source-annotation-updates';
 import { promptArticle } from '../source/bookcase/source-prompt-article';
-import { publicAnnotationAgents } from '../source/bookcase/source-public-agents';
+import {
+  publicAnnotationAgents,
+  publicPersonaAgents,
+} from '../source/bookcase/source-public-agents';
 import { runSourceAgentCommentRequest } from '../source/bookcase/app-source-agent-comment-request';
 import { playAppSoundEffect, stopAppSoundEffect } from '../sound/app-sound-effects';
 import {
@@ -83,6 +87,7 @@ type DiscussionWindowStatus =
       article: ArticleRecord;
       settings: ResolvedAppSettings;
       uiLanguage: UiLanguage;
+      user: UserProfile;
     }
   | { type: 'missing' }
   | { type: 'removed' }
@@ -156,6 +161,7 @@ export function AnnotationDiscussionWindowApp() {
                 article: currentArticle,
                 settings: store.settings,
                 uiLanguage: normalizeUiLanguage(store.settings.uiLanguage),
+                user: store.user,
               }
             : { type: 'missing' },
         );
@@ -194,6 +200,7 @@ export function AnnotationDiscussionWindowApp() {
           settings={status.settings}
           style={windowTransition.style}
           uiLanguage={status.uiLanguage}
+          user={status.user}
           onArticleChange={(article) =>
             setStatus((current) => (current.type === 'ready' ? { ...current, article } : current))
           }
@@ -299,6 +306,7 @@ function AnnotationDiscussionShell({
   settings,
   style,
   uiLanguage,
+  user,
 }: {
   agents: Agent[];
   annotation: Annotation;
@@ -309,6 +317,7 @@ function AnnotationDiscussionShell({
   settings: ResolvedAppSettings;
   style: CSSProperties;
   uiLanguage: UiLanguage;
+  user: UserProfile;
 }) {
   const { t } = useTranslation();
   const { annotationsRef, applyAnnotations, articleRef, replaceArticle } =
@@ -348,11 +357,15 @@ function AnnotationDiscussionShell({
     () => publicAnnotationAgents(agents, uiLanguage),
     [agents, uiLanguage],
   );
+  const personaAgents = useMemo(
+    () => publicPersonaAgents(agents, uiLanguage),
+    [agents, uiLanguage],
+  );
   const replyRuleAgents = useMemo(
     () => publicAnnotationAgents(agents, uiLanguage, { includeDisabled: true }),
     [agents, uiLanguage],
   );
-  const userProfile = annotationUserProfile(annotation, article);
+  const userProfile = annotationUserProfile(annotation, article, user);
   const threads = useMemo(
     () => discussionThreads(annotation, pinnedThoughtIds),
     [annotation, pinnedThoughtIds],
@@ -912,7 +925,7 @@ function AnnotationDiscussionShell({
                   isDeleting={deletingCommentId === thread.root.id}
                   isSelected={thread.root.id === selectedThread?.root.id}
                   thread={thread}
-                  agents={annotationAgents}
+                  agents={personaAgents}
                   userProfile={userProfile}
                   onDelete={() => void deleteComment(thread.root.id)}
                   onPin={() => togglePinnedThought(thread.root.id)}
@@ -966,6 +979,7 @@ function AnnotationDiscussionShell({
               replyDraft={replyDraft}
               replyCaretIndex={replyCaretIndex}
               annotationAgents={annotationAgents}
+              personaAgents={personaAgents}
               sendingReply={sendingReply}
               sendError={sendError}
               statusMessage={statusMessage}

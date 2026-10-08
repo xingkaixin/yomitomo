@@ -134,7 +134,8 @@ export type ReaderAgentModel = {
   dockCompleting: boolean;
   dockItems: AgentDockItem[];
   pendingAnnotationAgents?: Record<string, PublicAgent[]>;
-  reviewAgents?: PublicAgent[];
+  // Authors of saved notes, including disabled agents; only used to resolve names and avatars.
+  personaAgents?: PublicAgent[];
   theaterBoxes: HighlightBox[];
   virtualCursors: VirtualCursorState[];
 };

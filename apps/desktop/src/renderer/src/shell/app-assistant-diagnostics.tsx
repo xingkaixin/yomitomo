@@ -14,6 +14,8 @@ import {
   assistantExecutionStatuses,
   assistantExecutionTaskTypes,
   errorMessageOrFallback,
+  normalizeUiLanguage,
+  resolveAgentPresetId,
   type Agent,
   type LlmProvider,
 } from '@yomitomo/shared';
@@ -26,6 +28,7 @@ import type {
   AssistantExecutionTotals,
 } from '../../../preload';
 import { AvatarImage, PanelHeader } from './app-ui';
+import { resolveAgentPersonaAssets } from '../settings/agent-persona-assets';
 import { providerLogoMap } from '../settings/app-settings-provider-assets';
 import { Button } from '../components/ui/button';
 import { Calendar } from '../components/ui/calendar';
@@ -595,14 +598,19 @@ function AgentIdentity({
   fallbackName: string;
   children?: React.ReactNode;
 }) {
+  const { i18n } = useTranslation();
   const name = agent?.nickname || fallbackName;
   const fallback = (name || agent?.username || '?').trim().slice(0, 1).toUpperCase() || '?';
+  const personaAvatar = agent
+    ? resolveAgentPersonaAssets(normalizeUiLanguage(i18n.language), resolveAgentPresetId(agent))
+        ?.avatar
+    : undefined;
   return (
     <span className="diagnostics-agent-identity">
       <AvatarImage
         className="diagnostics-agent-avatar"
         fallback={fallback}
-        value={agent?.avatar || fallback}
+        value={personaAvatar || agent?.avatar || fallback}
       />
       <span className="diagnostics-agent-copy">
         <strong>{name}</strong>

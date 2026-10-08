@@ -9,6 +9,11 @@
 `Annotation.comments` 保存顶层想法和回复；`Comment.replyTo` 为空表示顶层想法，否则指向
 同一批注中的父评论。
 
+作者只保存 `agentId`/`userId` 等身份字段，SQLite 行和 `article:get` 返回的批注都不带头像。
+renderer 用 store 中的用户资料和全部助手（含已停用的助手和审阅助手，见
+`apps/desktop/src/renderer/src/source/bookcase/source-public-agents.ts` 的 `publicPersonaAgents`）
+解析头像。IPC 序列化不会合并重复字符串，把头像写进每条批注会让负载随批注数线性放大。
+
 类型定义位于：
 
 - `packages/shared/src/sources/article-types.ts`：`ArticleRecord`。

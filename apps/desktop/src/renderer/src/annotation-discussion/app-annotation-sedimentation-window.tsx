@@ -48,6 +48,7 @@ export function AnnotationSedimentationWindowApp() {
   const articleId = params.get('articleId') || '';
   const annotationId = params.get('annotationId') || '';
   const [status, setStatus] = useState<SedimentationWindowStatus>({ type: 'loading' });
+  const [user, setUser] = useState<UserProfile | null>(null);
   const pendingArticleUpdateRef = useRef<ArticleRecord | null | undefined>(undefined);
   const windowTransition = useSourceAwareWindowTransition(params);
 
@@ -89,6 +90,7 @@ export function AnnotationSedimentationWindowApp() {
       .loadWindow(articleId)
       .then(({ article, store }) => {
         if (cancelled) return;
+        setUser(store.user);
         const pendingArticle = pendingArticleUpdateRef.current;
         const currentArticle = pendingArticle === undefined ? article : pendingArticle;
         const annotation = currentArticle?.annotations.find((item) => item.id === annotationId);
@@ -117,10 +119,10 @@ export function AnnotationSedimentationWindowApp() {
     };
   }, [annotationId, articleId, t]);
 
-  if (status.type !== 'ready') {
+  if (status.type !== 'ready' || !user) {
     return (
       <SedimentationEmptyState
-        status={status}
+        status={status.type === 'ready' ? { type: 'loading' } : status}
         className={windowTransition.className}
         style={windowTransition.style}
       />
@@ -129,6 +131,7 @@ export function AnnotationSedimentationWindowApp() {
   return (
     <SedimentationShell
       status={status}
+      user={user}
       style={windowTransition.style}
       className={windowTransition.className}
       onStatusChange={setStatus}
@@ -140,10 +143,12 @@ function SedimentationShell({
   className,
   status,
   style,
+  user,
   onStatusChange,
 }: {
   className: string;
   status: SedimentationReadyStatus;
+  user: UserProfile;
   style: CSSProperties;
   onStatusChange: (status: SedimentationWindowStatus) => void;
 }) {
@@ -153,7 +158,7 @@ function SedimentationShell({
     status,
     onStatusChange,
   });
-  const userProfile = sedimentationUserProfile(annotation, article);
+  const userProfile = sedimentationUserProfile(annotation, article, user);
   const statusLabel = publication.isPublished
     ? t('sedimentation.status.published')
     : t('sedimentation.status.draft');
@@ -437,13 +442,17 @@ function compactTitleText(value: string) {
   return normalized.length > 34 ? `${normalized.slice(0, 34)}...` : normalized;
 }
 
-function sedimentationUserProfile(annotation: Annotation, article: ArticleRecord): UserProfile {
+function sedimentationUserProfile(
+  annotation: Annotation,
+  article: ArticleRecord,
+  user: UserProfile,
+): UserProfile {
   const author = annotation.author.kind === 'user' ? annotation.author : undefined;
   return {
     id: author?.userId || 'user',
     nickname: author ? annotationAuthorName(author) : i18next.t('common.me'),
     username: author?.username || 'user',
-    avatar: author?.avatar || '',
+    avatar: user.avatar,
     annotationColor: author?.annotationColor || annotation.color,
     updatedAt: article.updatedAt,
   };
