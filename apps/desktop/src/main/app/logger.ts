@@ -10,6 +10,10 @@ const MAX_LOG_DEPTH = 8;
 const MAX_LOG_ITEMS = 100;
 const MAX_LOG_STRING_LENGTH = 10_000;
 
+let preparedLogPath: string | undefined;
+// Appends run one at a time so lines keep their order and each costs a single file operation.
+let logWriteTail = Promise.resolve();
+
 export function logInfo(event: string, data?: Record<string, unknown>) {
   dispatchLog('info', event, data);
 }
@@ -77,8 +81,18 @@ async function writeLog(
   });
 
   console[level === 'error' ? 'error' : 'log']('[Yomitomo]', event, serializedData || '');
-  await ensureLogFile();
-  await appendFile(getLogPath(), `${line}\n`, 'utf8');
+  const write = logWriteTail.then(async () => {
+    const logPath = getLogPath();
+    if (preparedLogPath !== logPath) {
+      await ensureLogFile();
+      preparedLogPath = logPath;
+    }
+    await appendFile(logPath, `${line}\n`, 'utf8');
+  });
+  logWriteTail = write.catch(() => {
+    preparedLogPath = undefined;
+  });
+  await write;
 }
 
 function serializeLogData(data?: Record<string, unknown>, error?: unknown) {
