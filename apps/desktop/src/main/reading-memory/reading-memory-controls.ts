@@ -13,6 +13,7 @@ export type ReadingMemoryControls = {
   resume(): Promise<ReadingMemoryStatusSnapshot>;
   rebuild(): Promise<ReadingMemoryStatusSnapshot>;
   reconcile(reason?: string): Promise<void>;
+  notifyEvidenceChanged(): void;
   suspendForAppUpdate(): Promise<void>;
   resumeAfterAppUpdateFailure(): Promise<void>;
   dispose(): Promise<void>;
@@ -136,6 +137,9 @@ export function createReadingMemoryControls(options: {
         if (reason === 'database-restored') await rebuild();
         await semanticIndex.reconcile(reason);
       }),
+    notifyEvidenceChanged: () => {
+      if (mode === 'running') semanticIndex.notifyEvidenceChanged();
+    },
     suspendForAppUpdate: () => {
       if (disposePromise) return disposePromise;
       mode = 'updating';

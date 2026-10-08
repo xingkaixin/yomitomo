@@ -124,10 +124,33 @@ describe('reading memory semantic index scheduling', () => {
     fixture.inference.calls[1].complete();
     await nextTurn();
     await tick();
+    // Reaching the end of the cursor range triggers one pass from the start before activation.
+    await tick();
     expect(fixture.vectorCount()).toBe(6);
     expect(readActiveReadingMemoryModelVersion(fixture.database)).toBe(installation.internalId);
     expect((await fixture.index.getStatus()).semantic.state).toBe('available');
     expect(fixture.inference.leaseCounts).toEqual([0, 0]);
+  });
+
+  it('stays idle after activation until new evidence is reported', async () => {
+    const fixture = createFixture();
+    fixture.add('a');
+    await fixture.index.reconcile();
+    await tick();
+    fixture.inference.calls[0].complete();
+    await nextTurn();
+    await tick();
+    await tick();
+    expect(readActiveReadingMemoryModelVersion(fixture.database)).toBe(installation.internalId);
+    expect(vi.getTimerCount()).toBe(0);
+
+    fixture.add('b');
+    await tick(60_000);
+    expect(fixture.inference.calls).toHaveLength(1);
+
+    fixture.index.notifyEvidenceChanged();
+    await tick();
+    expect(fixture.inference.calls[1].request.texts).toEqual(['Evidence b']);
   });
 
   it('waits for background exit before querying and resumes from a fresh source snapshot', async () => {
@@ -374,6 +397,7 @@ describe('reading memory semantic index scheduling', () => {
     fixture.inference.calls[2].complete();
     await nextTurn();
     oldQuery.holdDispose = true;
+    await tick();
     await tick();
     expect(readActiveReadingMemoryModelVersion(fixture.database)).toBe(target.internalId);
     expect(oldQuery.disposeStarted).toBe(true);

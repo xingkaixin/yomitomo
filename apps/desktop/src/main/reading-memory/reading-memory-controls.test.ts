@@ -488,6 +488,7 @@ function createFixture(onProjectionRebuild?: () => void) {
       indexingPaused = false;
     }),
     rebuild: vi.fn(async () => {}),
+    notifyEvidenceChanged: vi.fn(),
     suspend: vi.fn(async () => {}),
     resume: vi.fn(async () => {}),
     dispose: vi.fn(async () => {}),
