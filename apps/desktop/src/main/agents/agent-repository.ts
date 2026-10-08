@@ -1,6 +1,5 @@
 import type { Agent, DesktopStore, LlmProvider } from '@yomitomo/shared';
 import { agentPersonalities, makeId } from '@yomitomo/shared';
-import { presetAgentAvatars } from './agent-avatars';
 import * as schema from '../db/schema';
 import { type StoreDatabase, type StoreExecutor } from '../store/store-db';
 import {
@@ -69,8 +68,7 @@ export function ensurePresetAgents(
       providerId: existing?.providerId || defaultProviderId,
       nickname: personality.name,
       username: personality.name,
-      avatar:
-        presetAgentAvatars[personality.id] || existing?.avatar || personality.name.slice(0, 1),
+      avatar: personality.name.slice(0, 1),
       annotationColor: existing?.annotationColor || personality.defaultColor,
       annotationDensity: normalizeAnnotationDensity(existing?.annotationDensity) || 'medium',
       temperature: personality.temperature,
