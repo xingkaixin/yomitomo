@@ -1,5 +1,4 @@
 import { Effect } from 'effect';
-import { JSDOM } from 'jsdom';
 import { extractWebArticleTranslationBlocks } from '@yomitomo/core';
 import type {
   ArticleRecord,
@@ -32,7 +31,7 @@ type ArticlePersistence = Pick<
   | 'updateArticleTranslationSegment'
 >;
 type ArticleTranslationBlock = ReturnType<typeof extractWebArticleTranslationBlocks>[number];
-type ArticleTranslationSource = ReturnType<typeof articleTranslationSource>;
+type ArticleTranslationSource = Awaited<ReturnType<typeof articleTranslationSource>>;
 type TranslationProvider = Awaited<ReturnType<typeof taskProvider>>;
 
 export type ArticleTranslationRuntimeContext = {
@@ -113,7 +112,7 @@ async function translateArticle(
     settings: store.settings,
     promptVersion: aiModule.bilingualTranslationPromptVersion,
   });
-  const source = articleTranslationSource(article, input, identity.sourceId);
+  const source = await articleTranslationSource(article, input, identity.sourceId);
 
   return sessions.run(articleTranslationIdentityKey(identity), (signal) =>
     runTranslationSession({
@@ -311,14 +310,14 @@ async function deleteCurrentArticleTranslation(
   );
 }
 
-function articleTranslationSource(
+async function articleTranslationSource(
   article: ArticleRecord,
   input: ArticleTranslationRequest,
   sourceId: string,
 ) {
   if (article.sourceType === 'web') {
     return {
-      blocks: extractArticleTranslationBlocks(article),
+      blocks: await extractArticleTranslationBlocks(article),
       sourceId,
       summary: article.excerpt,
       title: article.title,
@@ -393,7 +392,8 @@ function translationBlockContext(order: number, blocks: ArticleTranslationBlock[
   return contextBlocks || undefined;
 }
 
-function extractArticleTranslationBlocks(article: ArticleRecord) {
+async function extractArticleTranslationBlocks(article: ArticleRecord) {
+  const { JSDOM } = await import('jsdom');
   const dom = new JSDOM('<!doctype html><html><body></body></html>');
   return extractWebArticleTranslationBlocks(dom.window.document, article.contentHtml || '');
 }

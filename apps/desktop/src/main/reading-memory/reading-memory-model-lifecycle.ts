@@ -4,7 +4,6 @@ import { lstat, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { Transform, type Readable, type Writable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { request as undiciRequest } from 'undici';
 import {
   parseReadingMemoryModelManifest,
   readingMemoryModelFiles,
@@ -1012,11 +1011,13 @@ function failedState(
   };
 }
 
-const requestModelAsset: ModelHttpRequest = async (url, options) =>
-  undiciRequest(url, {
+const requestModelAsset: ModelHttpRequest = async (url, options) => {
+  const { request } = await import('undici');
+  return request(url, {
     method: 'GET',
     headers: options.headers,
     headersTimeout: options.headersTimeout,
     bodyTimeout: options.bodyTimeout,
     signal: options.signal,
   });
+};
