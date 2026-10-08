@@ -179,6 +179,7 @@ export {
   cursorPositionFromOffset,
   extractTocItems,
   findCurrentTocTarget,
+  findTocTargets,
   getArticleSelection,
   highlightSegmentStyle,
   highlightStyle,

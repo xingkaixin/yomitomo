@@ -133,10 +133,26 @@ function findWhitespaceNormalizedMatches(text: string, exact: string) {
   return matches;
 }
 
+type NormalizedTextWithMap = { text: string; map: number[] };
+
+// Anchor fallbacks and selection drags normalize the same full text repeatedly; keep the last one.
+let lastNormalizedText:
+  | { source: string; mode: TextWhitespaceMapMode; result: NormalizedTextWithMap }
+  | undefined;
+
 export function normalizeTextWithMap(
   text: string,
   whitespaceMode: TextWhitespaceMapMode = 'collapse-to-last-whitespace',
-) {
+): NormalizedTextWithMap {
+  if (lastNormalizedText?.mode === whitespaceMode && lastNormalizedText.source === text) {
+    return lastNormalizedText.result;
+  }
+  const result = buildNormalizedTextWithMap(text, whitespaceMode);
+  lastNormalizedText = { source: text, mode: whitespaceMode, result };
+  return result;
+}
+
+function buildNormalizedTextWithMap(text: string, whitespaceMode: TextWhitespaceMapMode) {
   let normalized = '';
   const map: number[] = [];
   let pendingWhitespaceIndex = -1;

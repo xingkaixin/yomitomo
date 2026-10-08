@@ -12,6 +12,7 @@ import {
   offsetFromArticleStartIgnoringSelector,
   prepareTextOffsetRangeResolver,
   rangeFromOffsetsIgnoringSelector,
+  rangeHighlightBoxes,
   type HighlightBox,
 } from './reader-dom';
 
@@ -141,6 +142,43 @@ describe('reader DOM highlights', () => {
     expect(highlightSegmentStyle(segment, false)).toMatchObject({
       '--highlight-edge-size': '22px',
     });
+  });
+});
+
+describe('rangeHighlightBoxes', () => {
+  it('measures only the text nodes inside a cross-paragraph range', () => {
+    document.body.innerHTML =
+      '<article><p>Alpha one</p><p>Beta two</p><p>Gamma three</p><p>Delta four</p></article>';
+    const paragraphs = Array.from(document.querySelectorAll('p'));
+    const lineTop = new Map<Node | null, number>(
+      paragraphs.map((paragraph, index) => [paragraph.firstChild, index * 20]),
+    );
+    const original = Object.getOwnPropertyDescriptor(Range.prototype, 'getClientRects');
+    Object.defineProperty(Range.prototype, 'getClientRects', {
+      configurable: true,
+      value(this: Range) {
+        return [new DOMRect(0, lineTop.get(this.startContainer) ?? -1, 40, 10)];
+      },
+    });
+    try {
+      const textRange = document.createRange();
+      textRange.setStart(paragraphs[1].firstChild!, 2);
+      textRange.setEnd(paragraphs[2].firstChild!, 3);
+      const elementRange = document.createRange();
+      elementRange.setStart(document.querySelector('article')!, 1);
+      elementRange.setEnd(document.querySelector('article')!, 3);
+      const canvasRect = new DOMRect(0, 0, 400, 400);
+
+      expect(rangeHighlightBoxes(textRange, canvasRect, 'text').map((item) => item.top)).toEqual([
+        20, 40,
+      ]);
+      expect(
+        rangeHighlightBoxes(elementRange, canvasRect, 'element').map((item) => item.top),
+      ).toEqual([20, 40]);
+    } finally {
+      if (original) Object.defineProperty(Range.prototype, 'getClientRects', original);
+      else Reflect.deleteProperty(Range.prototype, 'getClientRects');
+    }
   });
 });
 

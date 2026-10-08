@@ -165,7 +165,19 @@ export function findCurrentTocTarget(
   options: ExtractTocOptions = {},
 ) {
   if (item.index < 0) return article;
+  return tocTargetFromEntries(getTocEntries(article, options), item);
+}
+
+export function findTocTargets(
+  article: HTMLElement,
+  items: TocItem[],
+  options: ExtractTocOptions = {},
+) {
   const entries = getTocEntries(article, options);
+  return items.map((item) => (item.index < 0 ? article : tocTargetFromEntries(entries, item)));
+}
+
+function tocTargetFromEntries(entries: TocEntry[], item: TocItem) {
   const indexed = entries[item.index];
   if (indexed?.text === item.text) return indexed.target;
   return entries.find((entry) => entry.text === item.text)?.target || null;
@@ -272,16 +284,27 @@ export function rangeHighlightBoxes(
     const node = range.commonAncestorContainer;
     if (node.textContent?.trim()) collectNodeRects(node);
   } else {
-    const walker = document.createTreeWalker(range.commonAncestorContainer, NodeFilter.SHOW_TEXT, {
-      acceptNode(node) {
-        if (!range.intersectsNode(node)) return NodeFilter.FILTER_REJECT;
-        return node.textContent?.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
-      },
-    });
-
-    while (walker.nextNode()) {
-      const node = walker.currentNode;
-      if (isTextNode(node)) collectNodeRects(node);
+    // Start at the range instead of the common ancestor: for cross-paragraph ranges the ancestor
+    // is the whole article. Text nodes inside a range are contiguous, so stop at the first miss.
+    const walker = document.createTreeWalker(range.commonAncestorContainer, NodeFilter.SHOW_TEXT);
+    const { startContainer, startOffset } = range;
+    walker.currentNode = isTextNode(startContainer)
+      ? startContainer
+      : (startContainer.childNodes[startOffset] ?? startContainer);
+    let entered = false;
+    for (
+      let node: Node | null = isTextNode(walker.currentNode)
+        ? walker.currentNode
+        : walker.nextNode();
+      node;
+      node = walker.nextNode()
+    ) {
+      if (!range.intersectsNode(node)) {
+        if (entered) break;
+        continue;
+      }
+      entered = true;
+      if (isTextNode(node) && node.textContent?.trim()) collectNodeRects(node);
     }
   }
 

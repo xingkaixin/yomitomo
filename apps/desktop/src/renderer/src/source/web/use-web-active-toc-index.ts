@@ -1,5 +1,5 @@
 import { useEffect, useState, type RefObject } from 'react';
-import { findCurrentTocTarget, type TocItem } from '@yomitomo/core';
+import { findTocTargets, type TocItem } from '@yomitomo/core';
 import { sourceTocOptions } from './use-web-reader-boxes';
 
 export function useWebActiveTocIndex({
@@ -23,10 +23,16 @@ export function useWebActiveTocIndex({
       return;
     }
 
+    const sortedItems = tocItems
+      .filter((item) => item.index >= 0)
+      .toSorted((left, right) => left.start - right.start);
+    const resolveTargets = () => findTocTargets(articleElement, sortedItems, sourceTocOptions);
+    let targets = resolveTargets();
     let frame = 0;
     const update = () => {
       frame = 0;
-      const nextIndex = webActiveTocIndex(articleElement, scrollElement, tocItems);
+      if (targets.some((target) => target && !target.isConnected)) targets = resolveTargets();
+      const nextIndex = webActiveTocIndex(scrollElement, sortedItems, targets);
       setActiveIndex((current) => (current === nextIndex ? current : nextIndex));
     };
     const schedule = () => {
@@ -47,20 +53,17 @@ export function useWebActiveTocIndex({
 }
 
 function webActiveTocIndex(
-  articleElement: HTMLElement,
   scrollElement: HTMLElement,
-  tocItems: TocItem[],
+  sortedItems: TocItem[],
+  targets: Array<HTMLElement | null>,
 ) {
   const scrollRect = scrollElement.getBoundingClientRect();
   const sampleY = scrollRect.top + scrollRect.height * 0.2;
-  const sortedItems = tocItems
-    .filter((item) => item.index >= 0)
-    .toSorted((left, right) => left.start - right.start);
   let firstIndex: number | null = null;
   let activeIndex: number | null = null;
 
-  for (const item of sortedItems) {
-    const target = findCurrentTocTarget(articleElement, item, sourceTocOptions);
+  for (const [position, item] of sortedItems.entries()) {
+    const target = targets[position];
     if (!target) continue;
     firstIndex ??= item.index;
     if (target.getBoundingClientRect().top <= sampleY) activeIndex = item.index;
