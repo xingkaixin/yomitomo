@@ -113,8 +113,11 @@ export default defineConfig({
     root: rendererRoot,
     build: {
       outDir: resolve(root, 'dist/renderer'),
+      // Strip whitespace and compress, but keep names so renderer stack traces stay readable.
+      minify: true,
       rollupOptions: {
         input: resolve(rendererRoot, 'index.html'),
+        output: { minify: { compress: true, mangle: false } },
       },
     },
     plugins: [react(), dropEmbedPdfFallbackWasm()],
