@@ -24,7 +24,7 @@
 | shared reader UI | `packages/reader-ui/src/annotations/reader-annotation-card.tsx` | 展示批注 thread，发出新增、回复、删除和审阅意图 |
 | IPC contract | `apps/desktop/src/ipc-contract.ts` | 统一声明保存、删除和 AI channel 的参数与返回值 |
 | main persistence | `apps/desktop/src/main/store/store-articles.ts` | 将 renderer 意图路由到文章、批注和评论 repository |
-| core/AI | `packages/core/src/reader/annotations.ts`、`packages/ai/src/agent` | 纯数据变换、prompt 构造和模型输出解析 |
+| core/AI | `packages/core/src/reader/annotations.ts`、`packages/core/src/reader/agent-annotations.ts`、`packages/ai/src/agent` | 纯数据变换、合并规则、prompt 构造和模型输出解析 |
 
 ## 选区到锚点
 
@@ -101,30 +101,43 @@ SQLite schema 位于 `apps/desktop/src/main/db/schema.ts`；`articles`、`annota
 
 ## AI 回复与新想法
 
+当前 UI 中的 AI 输出都以评论形式写入用户已有的批注，经由 `agent:comment:stream`。
+main 入口为 `apps/desktop/src/main/ipc/ipc-agent.ts`，任务路由位于
+`apps/desktop/src/main/agents/agent-runtime-routing.ts`，prompt 和上下文组装位于
+`packages/ai/src/agent/agent-message.ts` 与 `packages/ai/src/context/selection-context.ts`。
+
 ### 回复现有 thread
 
 `apps/desktop/src/renderer/src/source/bookcase/app-source-agent-comment-request.ts` 先插入
 `pending` 评论，再通过 `agent:comment:stream` 接收增量。流式完成后用
 `useSourceAnnotations().saveComment()` 保存最终评论；`pending` 只是 renderer 内存态。
+讨论窗口 `apps/desktop/src/renderer/src/annotation-discussion/app-annotation-discussion-window.tsx`
+复用同一请求函数。
 
-main 入口为 `apps/desktop/src/main/ipc/ipc-agent.ts`，prompt 和上下文组装位于
-`packages/ai/src/agent/agent-message.ts` 与 `packages/ai/src/context/selection-context.ts`。
+### 在划线下追加助手想法
 
-### 创建 AI 批注或顶层想法
+讨论窗口选择让助手写想法时，
+`apps/desktop/src/renderer/src/annotation-discussion/app-annotation-discussion-agent-thought.ts`
+以 `responseMode: 'create_thought'` 调用同一 comment stream。结果是该批注下一条顶层 AI 想法
+（`replyTo` 为空）；划线仍归属用户，用户输入作为指令发送，不写成用户想法。
+
+### 生成新的锚定批注（当前无 UI 入口）
 
 `apps/desktop/src/renderer/src/source/bookcase/app-source-agent-request.ts` 构造
-`AgentAnnotatePayload`，通过 `agent:annotate:stream` 接收模型生成的批注。main 仍由
-`apps/desktop/src/main/ipc/ipc-agent.ts` 选择助手、provider 和阅读记忆，AI 实现在
-`packages/ai/src/agent/agent-annotation.ts`。
+`AgentAnnotatePayload`，通过 `agent:annotate:stream` 接收模型生成的新批注，AI 实现在
+`packages/ai/src/agent/agent-annotation.ts`。聚焦共读规划 UI 移除后，
+`useSourceReaderSession().requestAgentAnnotations()` 没有生产调用方；执行链路和重新接入约束见
+`docs/focus-co-reading-data-flow.md`。
 
 模型输出不会直接落库。renderer 先验证锚点属于请求范围，再由
-`packages/reader-ui/src/agent/reader-agent-annotation-playback.ts` 的
-`mergeAgentAnnotationAsThought()` 合并：相同划线已有批注时追加顶层 AI 想法，否则新增批注。
-保存仍回到前述 article persistence seam。
+`packages/core/src/reader/agent-annotations.ts` 的 `mergeAgentAnnotationAsThought()`
+合并：相同划线已有批注时追加顶层 AI 想法，否则新增批注。保存走 `article:merge-agent-annotation`，
+仍回到前述 article persistence seam。
 
 ## 播放状态边界
 
-Web、EPUB、PDF 分别通过以下 adapter 把统一 AI 流映射到各自坐标系统：
+这一节只适用于 `agent:annotate:stream`。Web、EPUB、PDF 分别通过以下 adapter 把统一 AI 流映射到
+各自坐标系统：
 
 - `apps/desktop/src/renderer/src/source/web/app-source-bookcase-web-controller.ts`
 - `apps/desktop/src/renderer/src/source/ebook/app-source-bookcase-ebook-controller.ts`
@@ -140,7 +153,7 @@ adapter 可以维护虚拟鼠标、dock、临时高亮和播放队列，但只�
 2. 锚点能否在重新打开后恢复高亮和批注定位？
 3. UI 是否只发意图，由宿主的 `useSourceAnnotations()` 更新事实来源？
 4. 单批注、单评论改动是否走细粒度 IPC，而非整篇 `article:save`？
-5. AI 输出是否经过范围约束和 `mergeAgentAnnotationAsThought()` 后才保存？
+5. AI 生成的新批注是否经过范围约束和 `mergeAgentAnnotationAsThought()` 后才保存？
 6. 失败与取消是否只清理临时状态，不删除已经保存的用户内容？
 
 仓库路径由 `pnpm docs:check-paths` 校验；新增或移动上述模块时，应在同一提交更新本文。

@@ -5,10 +5,11 @@
 `reading-memory-embedding-v1` 固定为 EmbeddingGemma 300M 的 q4 ONNX 产物，使用 768 维、
 L2 归一化的 `float32` 向量。这个标识是内部契约；产品界面和业务数据不依赖上游模型名。
 
-本次选择带有明确的发布约束，而不是把未达到的指标记成通过：纯语义检索在九个语言方向中，
-Top-12 必要证据覆盖全部达标，Top-3 有帮助证据命中通过八个方向；`zh->zh` 为 15/20，
-距离 16/20 的门槛差一条。RD-968 必须用设计中已经要求的全文与语义混合排序补齐这一缺口，
-RD-973 必须重跑九方向门禁。任何一个方向仍未达标时，阅读记忆不能开放。
+本次选择没有把未达到的指标记成通过：纯语义检索在九个语言方向中，Top-12 必要证据覆盖
+全部达标，Top-3 有帮助证据命中通过八个方向；`zh->zh` 为 15/20，距离 16/20 的门槛差一条。
+这一缺口由全文与语义混合排序补齐，实现见
+`apps/desktop/src/main/reading-memory/reading-memory-semantic-search.ts`；九方向回归与发布门槛见
+[阅读记忆发布门禁](reading-memory-release.md)。
 
 GTE 与 EmbeddingGemma 都只差一个查询，但失败位置不同：GTE 的 Top-3 九方向全部达标，
 `ja→en` Top-12 为 17/20；EmbeddingGemma 的 Top-12 九方向全部达标，`zh→zh` Top-3 为
@@ -30,7 +31,7 @@ GTE 与 EmbeddingGemma 都只差一个查询，但失败位置不同：GTE 的 T
 问书库查询。方向门禁在目标语言语料中计算，这是跨语言检索评测的可解释口径；完整的中英日
 混合语料排名同时记录为更严格的诊断结果，但不替代分方向门禁。
 
-计分规则直接对应 RD-754：
+计分规则：
 
 - 阅读中关联：每个方向至少 16/20 的查询在 Top-3 命中目标必要证据；
 - 问书库：每个方向至少 18/20 的查询在 Top-12 覆盖目标必要证据；
@@ -68,15 +69,15 @@ Node 进程启动到缓存模型可用，P95 包含单条查询嵌入及 10,000 
 - 中、英、日三条输入的加载、维度、有限数值与 L2 范数；
 - Windows 四核、16 GB runner 上的 10,000 条候选性能。
 
-当前工作只验证 Node 桌面运行时。Electron 打包后的 native 资源装载属于 RD-967，最终安装包
-双平台验证属于 RD-973。
+本次评测只覆盖 Node 运行时；打包后的模型装载与双平台烟测见
+[阅读记忆发布门禁](reading-memory-release.md)。
 
 EmbeddingGemma 允许商业使用和再分发，但不是 Apache/MIT 许可证。本次依据的是
 2026-04-01 版 Gemma 条款。后续分发必须把 Section 3.2 使用限制纳入可执行协议并通知下游
 用户，向接收者提供完整协议副本，让每个修改文件带有显著修改标记，并在非 hosted 分发中
 附带 `NOTICE` 文件，其指定文本为 “Gemma is provided under and subject to the Gemma Terms of
-Use found at ai.google.dev/gemma/terms”。这些义务已写入机器可读清单；RD-965 在把模型放入产品
-控制的固定版本对象前必须再次校验并真正落实。
+Use found at ai.google.dev/gemma/terms”。这些义务已写入机器可读清单；
+客户端随附的声明与条款副本见 [阅读记忆模型下载](reading-memory-model-distribution.md)。
 
 上游依据：
 

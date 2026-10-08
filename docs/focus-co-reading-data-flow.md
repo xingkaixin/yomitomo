@@ -1,9 +1,9 @@
 # 聚焦共读执行数据流
 
-本文描述当前代码中“带阅读计划创建 AI 批注”的执行 seam。它不再描述已删除的聚焦共读
-规划 UI：当前生产 reader 没有调用 `requestAgentAnnotations(agent, { readingPlan })` 的入口，
-也没有独立 `focus-co-reading:route` channel。若重新引入规划 UI，应在 renderer 生成
-`AgentReadingPlanItem[]`，复用下述执行链路，而不是恢复旧的并行实现。
+本文描述当前代码中“带阅读计划创建 AI 批注”的执行 seam。聚焦共读规划 UI 已删除：
+当前生产 UI 没有调用 `requestAgentAnnotations()` 的入口，`agent:annotate:stream` 整条链路
+只由测试覆盖，也没有独立 `focus-co-reading:route` channel。若重新引入规划 UI，应在 renderer
+生成 `AgentReadingPlanItem[]`，复用下述执行链路，而不是恢复旧的并行实现。
 
 ## 当前边界
 
@@ -88,7 +88,7 @@ source-specific anchor 可恢复。source 差异止于 adapter，不进入共享
 
 ## 合并、保存与阅读记忆
 
-`packages/reader-ui/src/agent/reader-agent-annotation-playback.ts` 的
+`packages/core/src/reader/agent-annotations.ts` 的
 `mergeAgentAnnotationAsThought()` 是最终合并规则：同一 exact key 已存在时，把 AI comment 追加为
 顶层想法；否则新增批注。Web、EPUB、PDF 的保存边界与普通 AI 批注一致，详见
 `docs/annotation-data-flow.md`。

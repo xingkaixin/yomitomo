@@ -1,6 +1,6 @@
 # Yomitomo 版本发布指南
 
-本文记录从上一版本 tag 到对外发布的一整套文档与产物同步流程。文件名按惯例写作 `release-guide.md`
+本文记录从上一版本 tag 到对外发布的一整套文档与产物同步流程。
 
 ## 范围与原则
 
@@ -18,8 +18,8 @@ mise run check
 ```
 
 该命令覆盖与 CI 同序的完整门禁；无 mise 时使用根目录 `AGENTS.md` 中列出的等价命令。
-阅读记忆还须通过独立的 [发布质量门禁](reading-memory-release.md)：固定夹具、打包烟测和
-CI 通过不替代真实阅读样本及人工质量复核，三个入口的发布开关须共同审核后开放。
+阅读记忆的人工质量验收见 [发布质量门禁](reading-memory-release.md)：固定夹具、打包烟测和
+CI 通过不替代真实阅读样本及人工质量复核。
 
 桌面端 native 边界（升级 Electron / `better-sqlite3` 后必跑）：
 
@@ -32,7 +32,7 @@ pnpm --filter @yomitomo/desktop native:verify
 ### macOS Sparkle 更新
 
 macOS 使用官方 Sparkle 2.10.0，Windows 继续使用 NSIS 和 electron-updater。
-macOS 首次迁移仍通过旧更新器下载完整 ZIP；安装并重启后才开始使用 Sparkle。
+v0.16.0 是首个 Sparkle 版本。更早的客户端仍通过旧更新器下载完整 ZIP，安装并重启后才开始使用 Sparkle。
 继续发布 `latest-mac.yml`、ZIP 和 blockmap，不能因为新客户端改用 Sparkle 就移除这些产物。
 这样较早版本的用户仍能直接升级到最新版本，无须先安装指定的中间版本。
 保持应用名、bundle ID、Developer ID 和用户数据路径不变。
@@ -42,14 +42,11 @@ electron-builder 的 macOS `beforePack` 下载并校验固定版本的 Sparkle�
 原有 Developer ID 签名及 notarization 流程继续使用。
 发布 CI 的 `generate-sparkle-release.mjs` 从最近两个包含 Sparkle feed 的正式版本下载 ZIP，
 生成当前版本的差分包。新 feed 只公告当前版本，历史 ZIP 只用于差分生成，不重新上传到新版本。
-首个包含 Sparkle 的版本没有历史 Sparkle 版本可比较，因此只有完整包；后续版本才提供差分。
 更早版本或差分验证失败时，Sparkle 回退到签名的完整 ZIP。
 
-v0.16.0 是首个 Sparkle 版本，具体执行顺序和待验收项目见
-[v0.16.0 发布清单](releases/v0.16.0.md)。首发没有 `.delta` 属于预期，不能对旧版用户
-承诺本次升级即可减少下载量。后续发布须保留历史正式版的 ZIP 和 feed：当前脚本只查询
-最近 30 条 GitHub Release，并选取其中两个较旧、非草稿、非预发布且含 feed 的版本作为基线。
-若预期基线未被选中，先检查该范围与历史产物是否完整。
+每次发布须保留历史正式版的 ZIP 和 feed：当前脚本只查询最近 30 条 GitHub Release，
+并选取其中两个较旧、非草稿、非预发布且含 feed 的版本作为基线。草稿和预发布过多时可能把
+基线挤出查询范围；若预期基线未被选中，先检查该范围与历史产物是否完整。
 
 GitHub Actions 必须配置 `SPARKLE_ED_PRIVATE_KEY`，其 Ed25519 公钥必须与
 `electron-builder.config.cjs` 中的 `SUPublicEDKey` 一致。
@@ -57,7 +54,6 @@ GitHub Actions 必须配置 `SPARKLE_ED_PRIVATE_KEY`，其 Ed25519 公钥必须�
 feed 和更新包由 Sparkle 工具签名，上传后不要手工修改 XML。
 发布产物除旧通道文件外还包括 `appcast-mac-arm64.xml` 和 `*.delta`。
 
-本次新增的 Download Worker feed 与 delta 路由须在首个 Sparkle 版本发布前部署。
 CI 的 macOS 烟测使用独立应用和临时密钥，验证检查不自动下载、差分安装重启、损坏差分回退完整包。
 本地可运行：
 
@@ -163,6 +159,9 @@ curl -I https://download.yomitomo.app/latest-mac.yml
 curl -I https://download.yomitomo.app/updates/latest-mac.yml
 curl -I https://download.yomitomo.app/updates/releases/download/vX.Y.Z/Yomitomo-X.Y.Z-mac-arm64.zip.blockmap
 curl -I https://download.yomitomo.app/updates/appcast-mac-arm64.xml
+curl -I https://download.yomitomo.app/releases/download/vX.Y.Z/Yomitomo-X.Y.Z-win-x64.exe
+curl -I https://download.yomitomo.app/latest.yml
+curl -I https://download.yomitomo.app/updates/latest.yml
 ```
 
 预期：安装包和 blockmap 返回 `200` 或 GitHub 跟随后的成功响应；manifest 内容来自 latest release
@@ -172,13 +171,27 @@ Sparkle feed 应来自 latest release 的 `appcast-mac-arm64.xml`，完整保留
 
 HEAD 成功不能代替内容校验。使用 `curl -fsSL` 获取 manifest 和 feed，核对目标版本、
 完整 ZIP URL、签名与长度；差分存在时核对来源版本，并确认 Range GET 返回 `206` 和正确的
-`Content-Range`。首个 Sparkle 版本没有差分时跳过差分项，但仍检查完整 ZIP。
+`Content-Range`。没有差分时跳过差分项，但仍检查完整 ZIP。
 
-Release workflow 默认创建草稿，自动生成的说明需替换为本版面向用户的说明。
 Worker 的 feed 和 manifest 都指向 GitHub 的 latest 正式版，草稿阶段不会切换到新版本。
-先核对草稿产物，再公开为 latest，随后检查代理 URL；manifest/feed 的成功响应缓存为
-60 秒，4xx 缓存为 10 秒。不要把缓存尚未刷新误判为发布失败。
-版本化产物缓存可达一年，公开发布后不要覆盖同名 ZIP、差分或签名文件；修复应发新版本。
+manifest/feed 的成功响应缓存为 60 秒，4xx 缓存为 10 秒。不要把缓存尚未刷新误判为发布失败。
+
+## 发布顺序
+
+1. PR 合并后，在合并提交上创建 annotated tag `vX.Y.Z`（`Release vX.Y.Z`）并推送。
+2. 等待 Release workflow 两平台成功，确认 macOS 签名与公证步骤通过。workflow 默认创建草稿。
+3. 核对草稿产物齐全且版本一致：macOS 的 DMG、ZIP、ZIP blockmap、`latest-mac.yml`、
+   `appcast-mac-arm64.xml` 与实际 `.delta`；Windows 的 EXE、blockmap、`latest.yml`。
+   查看差分生成日志，确认选中了预期基线；生成失败时允许回退完整包。
+4. 用 `CHANGELOG.md` 对应版本节替换自动生成的 Release 正文，再公开为 latest。
+5. 执行上面的 Download Worker smoke check。
+6. 在 main 执行 `pnpm deploy:cf` 部署官网，验证新版本下载链接、三语 changelog 和
+   `/release-notes/{locale}/X.Y.Z.json`。官网安装包链接由桌面版本号生成，正式包可下载后再部署，
+   避免新链接先指向不存在的产物。
+7. 用真实已安装的上一正式版验收升级、重启以及书库和设置保留。自动化结果不替代这一项。
+
+版本化产物缓存可达一年。公开发布后不要覆盖同名 ZIP、差分或签名文件；workflow 重跑会以
+`--clobber` 上传，不能用来修复已公开版本。正式发布发现问题时递增版本重新发布。
 
 ## 撰写 CHANGELOG 的步骤
 
