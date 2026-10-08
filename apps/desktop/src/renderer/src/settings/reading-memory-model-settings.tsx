@@ -23,7 +23,24 @@ type ModelSettingsSession = {
   revision: number;
   operation: { action: ModelAction } | null;
   refresh: () => Promise<void>;
+  wake: (snapshot: ReadingMemoryStatusSnapshot) => void;
 };
+
+const activeStatusPollMs = 1_000;
+const idleStatusPollMs = 10_000;
+
+// Each status read runs coverage queries in main; poll quickly only while something is changing.
+function statusPollDelay(snapshot: ReadingMemoryStatusSnapshot | undefined) {
+  if (!snapshot) return idleStatusPollMs;
+  const active =
+    snapshot.model.status === 'checking' ||
+    snapshot.model.status === 'downloading' ||
+    snapshot.semantic.state === 'building' ||
+    snapshot.semantic.state === 'rebuilding' ||
+    snapshot.projection.state === 'building' ||
+    snapshot.projection.state === 'stale';
+  return active ? activeStatusPollMs : idleStatusPollMs;
+}
 
 function useReadingMemoryModelStatus() {
   const [snapshot, setSnapshot] = useState<ReadingMemoryStatusSnapshot | null>(null);
@@ -32,7 +49,8 @@ function useReadingMemoryModelStatus() {
   const sessionRef = useRef<ModelSettingsSession | null>(null);
 
   useEffect(() => {
-    const session: ModelSettingsSession = { revision: 0, operation: null, refresh };
+    let latest: ReadingMemoryStatusSnapshot | undefined;
+    const session: ModelSettingsSession = { revision: 0, operation: null, refresh, wake };
     sessionRef.current = session;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -41,6 +59,7 @@ function useReadingMemoryModelStatus() {
       try {
         const next = await getDesktopApi().readingMemory.model.status();
         if (sessionRef.current !== session || revision !== session.revision) return;
+        latest = next;
         setSnapshot(next);
         setError((current) => (current === 'load' ? null : current));
       } catch {
@@ -48,9 +67,21 @@ function useReadingMemoryModelStatus() {
       }
     }
 
+    function schedule() {
+      clearTimeout(timer);
+      if (sessionRef.current === session) {
+        timer = setTimeout(() => void poll(), statusPollDelay(latest));
+      }
+    }
+
     async function poll() {
       await refresh();
-      if (sessionRef.current === session) timer = setTimeout(() => void poll(), 1_000);
+      schedule();
+    }
+
+    function wake(next: ReadingMemoryStatusSnapshot) {
+      latest = next;
+      schedule();
     }
 
     void poll();
@@ -85,6 +116,7 @@ function useReadingMemoryModelStatus() {
       if (sessionRef.current !== session || session.operation !== operation) return;
       session.revision += 1;
       setSnapshot(next);
+      session.wake(next);
       setError(null);
     } catch {
       if (sessionRef.current !== session || session.operation !== operation) return;
