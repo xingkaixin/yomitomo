@@ -44,6 +44,7 @@ export function DiscussionThreadView({
   onReplyCaretChange,
   onReplyDraftChange,
   onSubmitReply,
+  personaAgents,
   replyCaretIndex,
   replyDraft,
   sendError,
@@ -60,6 +61,7 @@ export function DiscussionThreadView({
   onReplyCaretChange: (value: number) => void;
   onReplyDraftChange: (value: string) => void;
   onSubmitReply: () => void;
+  personaAgents: PublicAgent[];
   replyCaretIndex: number;
   replyDraft: string;
   sendError: string;
@@ -314,7 +316,7 @@ export function DiscussionThreadView({
             <div className={className}>
               {messages.map((message) => (
                 <DiscussionMessage
-                  agents={annotationAgents}
+                  agents={personaAgents}
                   isDeleting={deletingCommentId === message.id}
                   key={message.id}
                   message={message}

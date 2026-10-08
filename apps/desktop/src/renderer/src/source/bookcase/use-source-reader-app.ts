@@ -337,7 +337,7 @@ export function useSourceReaderApp({
       agents: {
         agents: session.annotationAgents,
         pendingAnnotationAgents: session.pendingAnnotationAgents,
-        reviewAgents: session.reviewAgents,
+        personaAgents: session.personaAgents,
         ...agentPlayback,
       },
       annotations: {

@@ -111,7 +111,7 @@ afterEach(async () => {
 });
 
 describe('desktop store article relations', () => {
-  it('hydrates annotation avatars from current actor rows without persisting copies', () => {
+  it('keeps actor avatars out of annotation rows and article reads', () => {
     const database = getDatabase();
     insertProviderRow({ id: 'provider_avatar' });
     database.insert(schema.agents).values(agentRow()).run();
@@ -178,31 +178,13 @@ describe('desktop store article relations', () => {
       ]),
     );
 
-    const hydratedArticle = readArticleRows(database, 'avatar_article');
-    expect(hydratedArticle?.annotations).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: 'annotation_user_avatar',
-          author: expect.objectContaining({ avatar: 'current-user-avatar' }),
-          comments: [
-            expect.objectContaining({
-              id: 'comment_user_avatar',
-              author: expect.objectContaining({ avatar: 'current-user-avatar' }),
-            }),
-          ],
-        }),
-        expect.objectContaining({
-          id: 'annotation_agent_avatar',
-          author: expect.objectContaining({ avatar: 'current-agent-avatar' }),
-          comments: [
-            expect.objectContaining({
-              id: 'comment_agent_avatar',
-              author: expect.objectContaining({ avatar: 'current-agent-avatar' }),
-            }),
-          ],
-        }),
-      ]),
+    const storedArticle = readArticleRows(database, 'avatar_article');
+    const avatars = storedArticle?.annotations.flatMap((annotation) =>
+      [annotation.author, ...annotation.comments.map((comment) => comment.author)].map(
+        (author) => author.avatar,
+      ),
     );
+    expect(avatars).toEqual([undefined, undefined, undefined, undefined]);
   });
 
   it('includes collections members and pins in store snapshots', async () => {

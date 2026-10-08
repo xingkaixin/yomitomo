@@ -134,13 +134,17 @@ export function discussionArticleText(article: ArticleRecord) {
     .join('\n\n');
 }
 
-export function annotationUserProfile(annotation: Annotation, article: ArticleRecord): UserProfile {
+export function annotationUserProfile(
+  annotation: Annotation,
+  article: ArticleRecord,
+  user: UserProfile,
+): UserProfile {
   const author = annotation.author.kind === 'user' ? annotation.author : undefined;
   return {
     id: author?.userId || 'user',
     nickname: author ? annotationAuthorName(author) : i18next.t('common.me'),
     username: author?.username || 'user',
-    avatar: author?.avatar || '',
+    avatar: user.avatar,
     annotationColor: author?.annotationColor || annotation.color,
     updatedAt: article.updatedAt,
   };

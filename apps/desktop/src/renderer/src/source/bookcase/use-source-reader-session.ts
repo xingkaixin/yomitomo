@@ -10,7 +10,7 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import { resolveTextAnchor } from '@yomitomo/shared';
-import { publicAnnotationAgents, publicReviewAgents } from './source-public-agents';
+import { publicAnnotationAgents, publicPersonaAgents } from './source-public-agents';
 import type { SourceAgentAnnotationRequestOptions } from './app-source-agent-request';
 import { runSourceAgentCommentRequest } from './app-source-agent-comment-request';
 import { runSourceAgentReviewRequest } from './app-source-agent-review-request';
@@ -124,7 +124,10 @@ export function useSourceReaderSession({
     () => publicAnnotationAgents(agents, uiLanguage),
     [agents, uiLanguage],
   );
-  const reviewAgents = useMemo(() => publicReviewAgents(agents, uiLanguage), [agents, uiLanguage]);
+  const personaAgents = useMemo(
+    () => publicPersonaAgents(agents, uiLanguage),
+    [agents, uiLanguage],
+  );
   const pendingAgents = usePendingAnnotationAgents();
   const { clearAllPendingAnnotationAgents, clearPendingAnnotationAgents } = pendingAgents;
   const requestAgentCommentRef = useRef<
@@ -310,7 +313,7 @@ export function useSourceReaderSession({
   return {
     annotationAgents,
     registerAgentAnnotationAdapter,
-    reviewAgents,
+    personaAgents,
     requestAgentComment,
     requestAgentAnnotations,
     requestAnnotationReview,

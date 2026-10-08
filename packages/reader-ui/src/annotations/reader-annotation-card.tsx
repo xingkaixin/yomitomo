@@ -93,7 +93,7 @@ type AnnotationCardProps = {
   labels?: AnnotationCardLabels;
   noteRef: (element: HTMLElement | null) => void;
   railSide?: AnnotationRailSide;
-  reviewAgents?: PublicAgent[];
+  personaAgents?: PublicAgent[];
   stackCount?: number;
   stackIndex?: number;
   style?: React.CSSProperties;
@@ -272,7 +272,7 @@ const AnnotationCardContent = React.memo(function AnnotationCardContent({
   agents,
   annotation,
   labels = defaultReaderUiLabels,
-  reviewAgents = emptyAgents,
+  personaAgents: extraPersonaAgents = emptyAgents,
   userProfile,
   onDelete,
   onFocus,
@@ -284,7 +284,10 @@ const AnnotationCardContent = React.memo(function AnnotationCardContent({
   timeLabel,
   fullTime,
 }: AnnotationCardContentProps) {
-  const personaAgents = useMemo(() => [...agents, ...reviewAgents], [agents, reviewAgents]);
+  const personaAgents = useMemo(
+    () => [...agents, ...extraPersonaAgents],
+    [agents, extraPersonaAgents],
+  );
   const author = annotationAuthor(annotation, userProfile, personaAgents);
   const discussionThreads = useMemo(() => annotationDiscussionThreads(annotation), [annotation]);
   const visibleThoughtCount = discussionThreads.length + pendingAgents.length;

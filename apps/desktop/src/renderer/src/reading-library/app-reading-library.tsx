@@ -25,7 +25,7 @@ import { errorMessageOrFallback, normalizeUiLanguage } from '@yomitomo/shared';
 import { annotationAuthorName, sortAnnotations, sortArticles } from '@yomitomo/core';
 import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
 import { SourceBookcase } from '../source/bookcase/app-source-bookcase';
-import { publicAnnotationAgents } from '../source/bookcase/source-public-agents';
+import { publicPersonaAgents } from '../source/bookcase/source-public-agents';
 import type { ReadingEvidenceSourceTarget } from '../shell/app-reading-types';
 import { LibraryHome } from './app-reading-library-home';
 import { WeReadBookcase } from '../shell/app-weread-bookcase';
@@ -491,7 +491,7 @@ export function ReadingLibrary({
       )}
       {selectedArticle && activeShelf === 'source' ? (
         <AnnotationDiscussionCapsules
-          agents={publicAnnotationAgents(agents, normalizeUiLanguage(settings?.uiLanguage))}
+          agents={publicPersonaAgents(agents, normalizeUiLanguage(settings?.uiLanguage))}
           article={selectedArticle}
           windows={currentMinimizedDiscussionWindows}
           onOpen={openArticleDiscussion}

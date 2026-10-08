@@ -10,7 +10,6 @@ import {
 import { normalizeArticleSourceType, sortByCreatedAt } from '../store/store-normalizers';
 import {
   groupAnnotationsByArticle,
-  readAnnotationActorAvatars,
   readAnnotationRowsForArticles,
   readCommentRowsForAnnotations,
 } from './article-annotation-hydration';
@@ -64,8 +63,7 @@ export function backfillStoredArticleAnnotationMemoryEntries(
   const annotationRows = readAnnotationRowsForArticles(database, articleIds);
   const annotationIds = annotationRows.map((row) => row.id);
   const commentRows = readCommentRowsForAnnotations(database, annotationIds);
-  const actorAvatars = readAnnotationActorAvatars(database, annotationRows, commentRows);
-  const annotationsByArticle = groupAnnotationsByArticle(annotationRows, commentRows, actorAvatars);
+  const annotationsByArticle = groupAnnotationsByArticle(annotationRows, commentRows);
   const articles = articleRows.map((row) => ({
     id: row.id,
     sourceType: normalizeArticleSourceType(row.sourceType),
