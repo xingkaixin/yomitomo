@@ -408,6 +408,7 @@ function runtimeDependencies(
       startEvidenceProjectionWorker,
       readingMemoryControls: {
         reconcile: semanticReconcile,
+        notifyEvidenceChanged: vi.fn(),
         dispose: semanticDispose,
         suspendForAppUpdate: semanticSuspend,
         resumeAfterAppUpdateFailure: semanticResume,
@@ -450,6 +451,7 @@ function runtimeReadingMemoryControls(dependencies: ReturnType<typeof runtimeDep
       dispose: dependencies.semanticDispose,
       pauseIndexing: vi.fn(async () => {}),
       resumeIndexing: vi.fn(),
+      notifyEvidenceChanged: vi.fn(),
       rebuild: vi.fn(async () => {}),
       search: vi.fn(),
       getStatus: async () => ({

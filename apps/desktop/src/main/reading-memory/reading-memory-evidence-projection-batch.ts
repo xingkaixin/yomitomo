@@ -14,6 +14,7 @@ import {
   deferFailedReadingMemoryProjectionJob,
   queueReadingMemoryProjectionJob,
   readDueReadingMemoryProjectionJobs,
+  readNextReadingMemoryProjectionJobAvailableAt,
   type DueReadingMemoryProjectionJob,
   type ReadingMemoryProjectionJob,
 } from './reading-memory-projection-job-store';
@@ -43,6 +44,8 @@ export type ReadingMemoryEvidenceProjectionBatchResult = {
   deletedOrphanCount: number;
   failures: ReadingMemoryEvidenceProjectionFailure[];
   hasImmediateWork: boolean;
+  hasPendingMaintenance: boolean;
+  nextJobAvailableAt: string | null;
 };
 
 export type ReadingMemoryEvidenceProjectionBatchOptions = {
@@ -51,6 +54,8 @@ export type ReadingMemoryEvidenceProjectionBatchOptions = {
   jobLimit?: number;
   backfillLimit?: number;
   orphanLimit?: number;
+  // Orphan cleanup and backfill scan whole tables; writers queue jobs for normal changes.
+  maintenance?: boolean;
 };
 
 export function runReadingMemoryEvidenceProjectionBatch(
@@ -63,15 +68,16 @@ export function runReadingMemoryEvidenceProjectionBatch(
   const jobLimit = positiveLimit(options.jobLimit, defaultJobLimit);
   const backfillLimit = positiveLimit(options.backfillLimit, defaultBackfillLimit);
   const orphanLimit = positiveLimit(options.orphanLimit, defaultOrphanLimit);
+  const maintenance = options.maintenance ?? true;
 
-  const deletedOrphanCount = withReadingMemoryTransaction(executor, () =>
-    deleteOrphanedReadingEvidenceReceipts(executor, orphanLimit),
-  );
-  const backfillTargetIds = readReadingEvidenceBackfillTargetIds(
-    executor,
-    projectorVersion,
-    backfillLimit,
-  );
+  const deletedOrphanCount = maintenance
+    ? withReadingMemoryTransaction(executor, () =>
+        deleteOrphanedReadingEvidenceReceipts(executor, orphanLimit),
+      )
+    : 0;
+  const backfillTargetIds = maintenance
+    ? readReadingEvidenceBackfillTargetIds(executor, projectorVersion, backfillLimit)
+    : [];
   const backfillSources = readStoredAnnotationThreadSources(executor, backfillTargetIds);
   withReadingMemoryTransaction(executor, () => {
     for (const source of backfillSources) {
@@ -120,6 +126,8 @@ export function runReadingMemoryEvidenceProjectionBatch(
     }
   }
 
+  const hasPendingMaintenance =
+    backfillTargetIds.length === backfillLimit || deletedOrphanCount === orphanLimit;
   return {
     selectedJobCount: jobs.length,
     completedJobCount,
@@ -127,11 +135,9 @@ export function runReadingMemoryEvidenceProjectionBatch(
     queuedBackfillCount: backfillSources.length,
     deletedOrphanCount,
     failures,
-    hasImmediateWork:
-      refreshedJobCount > 0 ||
-      jobs.length === jobLimit ||
-      backfillTargetIds.length === backfillLimit ||
-      deletedOrphanCount === orphanLimit,
+    hasImmediateWork: refreshedJobCount > 0 || jobs.length === jobLimit || hasPendingMaintenance,
+    hasPendingMaintenance,
+    nextJobAvailableAt: readNextReadingMemoryProjectionJobAvailableAt(executor),
   };
 }
 

@@ -197,6 +197,7 @@ function runtimeContext() {
       resume: operation,
       rebuild: operation,
       reconcile: operation,
+      notifyEvidenceChanged: operation,
       suspendForAppUpdate: operation,
       resumeAfterAppUpdateFailure: operation,
       dispose: operation,

@@ -6,9 +6,10 @@ import {
   type ReadingMemoryEvidenceProjectionBatchOptions,
   type ReadingMemoryEvidenceProjectionBatchResult,
 } from './reading-memory-evidence-projection-batch';
+import { onReadingMemoryProjectionJobsQueued } from './reading-memory-projection-job-queue';
 
 const defaultStartupDelayMs = 2_000;
-const defaultIdleDelayMs = 5_000;
+const defaultRetryDelayMs = 5_000;
 
 export type ReadingMemoryEvidenceProjectionRunReason =
   | 'source_changed'
@@ -22,21 +23,22 @@ export type ReadingMemoryEvidenceProjectionWorker = {
 
 export type ReadingMemoryEvidenceProjectionWorkerOptions = {
   startupDelayMs?: number;
-  idleDelayMs?: number;
-  batchOptions?: Omit<ReadingMemoryEvidenceProjectionBatchOptions, 'now'>;
+  retryDelayMs?: number;
+  batchOptions?: Omit<ReadingMemoryEvidenceProjectionBatchOptions, 'now' | 'maintenance'>;
+  onEvidenceChanged?: () => void;
 };
 
 type InternalRunReason =
   | ReadingMemoryEvidenceProjectionRunReason
   | 'startup'
   | 'continued'
-  | 'poll';
+  | 'retry';
 
 export function startReadingMemoryEvidenceProjectionWorker(
   options: ReadingMemoryEvidenceProjectionWorkerOptions = {},
 ): ReadingMemoryEvidenceProjectionWorker {
   const startupDelayMs = nonNegativeDelay(options.startupDelayMs, defaultStartupDelayMs);
-  const idleDelayMs = positiveDelay(options.idleDelayMs, defaultIdleDelayMs);
+  const retryDelayMs = positiveDelay(options.retryDelayMs, defaultRetryDelayMs);
   const scope = Scope.makeUnsafe();
   const requests = Effect.runSync(
     Queue.make<ReadingMemoryEvidenceProjectionRunReason>({
@@ -45,18 +47,32 @@ export function startReadingMemoryEvidenceProjectionWorker(
     }),
   );
   let disposePromise: Promise<void> | undefined;
-  let nextDelayMs = startupDelayMs;
+  // null waits for a request: writers notify when they queue jobs.
+  let nextDelayMs: number | null = startupDelayMs;
   let nextReason: InternalRunReason = 'startup';
+  let maintenancePending = true;
+  const requestRun = (reason: ReadingMemoryEvidenceProjectionRunReason) => {
+    if (!disposePromise) Queue.offerUnsafe(requests, reason);
+  };
+  const stopListening = onReadingMemoryProjectionJobsQueued(() => requestRun('source_changed'));
 
   const pass = Effect.gen(function* () {
-    const request = yield* Queue.take(requests).pipe(Effect.timeoutOption(nextDelayMs));
-    const reason = Option.getOrElse(request, () => nextReason);
+    const reason: InternalRunReason =
+      nextDelayMs === null
+        ? yield* Queue.take(requests)
+        : Option.getOrElse(
+            yield* Queue.take(requests).pipe(Effect.timeoutOption(nextDelayMs)),
+            () => nextReason,
+          );
+    if (reason === 'database_restored' || reason === 'manual') maintenancePending = true;
+    const maintenance = maintenancePending;
     // A database lease must settle before shutdown releases this worker.
     const result = yield* Effect.tryPromise({
       try: () =>
         withDatabaseLease(async () =>
           runReadingMemoryEvidenceProjectionBatch(getSqliteExecutor(), {
             ...options.batchOptions,
+            maintenance,
             now: new Date(),
           }),
         ),
@@ -74,9 +90,16 @@ export function startReadingMemoryEvidenceProjectionWorker(
         }),
       ),
     );
-    if (result) logBatchResult(reason, result);
-    nextDelayMs = result?.hasImmediateWork ? 0 : idleDelayMs;
-    nextReason = result?.hasImmediateWork ? 'continued' : 'poll';
+    if (!result) {
+      nextDelayMs = retryDelayMs;
+      nextReason = 'retry';
+      return;
+    }
+    logBatchResult(reason, result);
+    if (maintenance) maintenancePending = result.hasPendingMaintenance;
+    if (result.completedJobCount > 0) options.onEvidenceChanged?.();
+    nextDelayMs = result.hasImmediateWork ? 0 : wakeDelay(result.nextJobAvailableAt, retryDelayMs);
+    nextReason = result.hasImmediateWork ? 'continued' : 'retry';
   });
   Effect.runSync(
     Effect.forkIn(
@@ -86,14 +109,20 @@ export function startReadingMemoryEvidenceProjectionWorker(
     ),
   );
   return {
-    requestRun: (reason = 'manual') => {
-      if (!disposePromise) Queue.offerUnsafe(requests, reason);
-    },
+    requestRun: (reason = 'manual') => requestRun(reason),
     dispose: () => {
+      stopListening();
       disposePromise ??= Effect.runPromise(Scope.close(scope, Exit.void));
       return disposePromise;
     },
   };
+}
+
+// A job that is still due after a pass could not be deferred; retry it no faster than before.
+function wakeDelay(availableAt: string | null, minimumDelayMs: number) {
+  if (availableAt === null) return null;
+  const delay = Date.parse(availableAt) - Date.now();
+  return Number.isFinite(delay) ? Math.max(minimumDelayMs, delay) : minimumDelayMs;
 }
 
 function logBatchResult(

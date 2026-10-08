@@ -8,6 +8,7 @@ const testState = vi.hoisted(() => ({
   runBatch: vi.fn(),
   logInfo: vi.fn(),
   logError: vi.fn(),
+  jobsQueued: undefined as (() => void) | undefined,
 }));
 
 vi.mock('../app/logger', () => ({
@@ -22,6 +23,15 @@ vi.mock('../store/store-db', () => ({
 
 vi.mock('./reading-memory-evidence-projection-batch', () => ({
   runReadingMemoryEvidenceProjectionBatch: testState.runBatch,
+}));
+
+vi.mock('./reading-memory-projection-job-queue', () => ({
+  onReadingMemoryProjectionJobsQueued: (listener: () => void) => {
+    testState.jobsQueued = listener;
+    return () => {
+      testState.jobsQueued = undefined;
+    };
+  },
 }));
 
 import { startReadingMemoryEvidenceProjectionWorker } from './reading-memory-evidence-projection-worker';
@@ -44,7 +54,6 @@ describe('reading memory evidence projection worker', () => {
   it('starts after a delay and acquires a fresh executor inside the database lease', async () => {
     const worker = startReadingMemoryEvidenceProjectionWorker({
       startupDelayMs: 20,
-      idleDelayMs: 100,
     });
 
     await vi.advanceTimersByTimeAsync(19);
@@ -69,7 +78,6 @@ describe('reading memory evidence projection worker', () => {
       .mockReturnValueOnce(batchResult());
     const worker = startReadingMemoryEvidenceProjectionWorker({
       startupDelayMs: 10,
-      idleDelayMs: 100,
     });
 
     await vi.advanceTimersToNextTimerAsync();
@@ -106,7 +114,7 @@ describe('reading memory evidence projection worker', () => {
       });
     const worker = startReadingMemoryEvidenceProjectionWorker({
       startupDelayMs: 0,
-      idleDelayMs: 100,
+      retryDelayMs: 100,
     });
     await vi.advanceTimersByTimeAsync(0);
 
@@ -125,7 +133,6 @@ describe('reading memory evidence projection worker', () => {
     testState.runBatch.mockReturnValue(batchResult({ selectedJobCount: 1, completedJobCount: 1 }));
     const worker = startReadingMemoryEvidenceProjectionWorker({
       startupDelayMs: 100,
-      idleDelayMs: 1_000,
     });
 
     worker.requestRun('database_restored');
@@ -144,7 +151,7 @@ describe('reading memory evidence projection worker', () => {
     testState.withDatabaseLease.mockRejectedValueOnce(error);
     const worker = startReadingMemoryEvidenceProjectionWorker({
       startupDelayMs: 0,
-      idleDelayMs: 100,
+      retryDelayMs: 100,
     });
 
     await vi.advanceTimersByTimeAsync(0);
@@ -158,7 +165,7 @@ describe('reading memory evidence projection worker', () => {
     await worker.dispose();
   });
 
-  it('logs retained job failures and keeps polling', async () => {
+  it('logs retained job failures and wakes when the retry is due', async () => {
     const error = new Error('projection failed');
     testState.runBatch.mockReturnValue(
       batchResult({
@@ -180,11 +187,12 @@ describe('reading memory evidence projection worker', () => {
             retryAt: '2026-08-29T00:00:20.000Z',
           },
         ],
+        nextJobAvailableAt: '2026-08-29T00:00:20.000Z',
       }),
     );
     const worker = startReadingMemoryEvidenceProjectionWorker({
       startupDelayMs: 0,
-      idleDelayMs: 100,
+      retryDelayMs: 100,
     });
 
     await vi.advanceTimersByTimeAsync(0);
@@ -198,8 +206,57 @@ describe('reading memory evidence projection worker', () => {
         retryAt: '2026-08-29T00:00:20.000Z',
       }),
     );
-    await vi.advanceTimersByTimeAsync(100);
+    await vi.advanceTimersByTimeAsync(19_999);
+    expect(testState.runBatch).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1);
     expect(testState.runBatch).toHaveBeenCalledTimes(2);
+    await worker.dispose();
+  });
+
+  it('sleeps until a writer queues jobs and scans tables only at startup or restore', async () => {
+    const worker = startReadingMemoryEvidenceProjectionWorker({ startupDelayMs: 0 });
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(testState.runBatch).toHaveBeenCalledOnce();
+    expect(testState.runBatch).toHaveBeenLastCalledWith(
+      testState.executor,
+      expect.objectContaining({ maintenance: true }),
+    );
+
+    testState.jobsQueued?.();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(testState.runBatch).toHaveBeenCalledTimes(2);
+    expect(testState.runBatch).toHaveBeenLastCalledWith(
+      testState.executor,
+      expect.objectContaining({ maintenance: false }),
+    );
+
+    worker.requestRun('database_restored');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(testState.runBatch).toHaveBeenLastCalledWith(
+      testState.executor,
+      expect.objectContaining({ maintenance: true }),
+    );
+    await worker.dispose();
+    expect(testState.jobsQueued).toBeUndefined();
+  });
+
+  it('tells the semantic index when projected evidence changes', async () => {
+    const onEvidenceChanged = vi.fn();
+    testState.runBatch
+      .mockReturnValueOnce(batchResult())
+      .mockReturnValueOnce(batchResult({ selectedJobCount: 1, completedJobCount: 1 }));
+    const worker = startReadingMemoryEvidenceProjectionWorker({
+      startupDelayMs: 0,
+      onEvidenceChanged,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(onEvidenceChanged).not.toHaveBeenCalled();
+
+    testState.jobsQueued?.();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(onEvidenceChanged).toHaveBeenCalledOnce();
     await worker.dispose();
   });
 
@@ -215,10 +272,7 @@ describe('reading memory evidence projection worker', () => {
       await gate.promise;
       return result;
     });
-    const running = startReadingMemoryEvidenceProjectionWorker({
-      startupDelayMs: 0,
-      idleDelayMs: 10,
-    });
+    const running = startReadingMemoryEvidenceProjectionWorker({ startupDelayMs: 0 });
     await vi.advanceTimersByTimeAsync(0);
     expect(testState.runBatch).toHaveBeenCalledOnce();
     const disposal = running.dispose();
@@ -245,6 +299,8 @@ function batchResult(
     deletedOrphanCount: 0,
     failures: [],
     hasImmediateWork: false,
+    hasPendingMaintenance: false,
+    nextJobAvailableAt: null,
     ...overrides,
   };
 }

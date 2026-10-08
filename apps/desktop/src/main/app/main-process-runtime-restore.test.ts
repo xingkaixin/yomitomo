@@ -271,6 +271,7 @@ function deferred<T = void>() {
 function readingMemoryControlsStub(reconcile = vi.fn(async () => undefined)) {
   return {
     reconcile,
+    notifyEvidenceChanged: vi.fn(),
     suspendForAppUpdate: vi.fn(async () => undefined),
     resumeAfterAppUpdateFailure: vi.fn(async () => undefined),
     dispose: vi.fn(async () => undefined),

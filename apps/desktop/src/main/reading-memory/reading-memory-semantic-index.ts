@@ -34,7 +34,7 @@ import {
 
 const libraryScope: ReadingEvidenceScope = { kind: 'library' };
 const backgroundBatchSize = 4;
-const idleDelayMs = 5_000;
+const staleBatchDelayMs = 5_000;
 const retryDelayMs = 30_000;
 
 type EmbeddingSlot = {
@@ -61,6 +61,7 @@ export type ReadingMemorySemanticIndex = {
     projection: ReadingEvidenceProjectionStatus;
     semantic: ReadingMemorySemanticStatus;
   }>;
+  notifyEvidenceChanged(): void;
   pauseIndexing(): Promise<void>;
   resumeIndexing(): void;
   rebuild(): Promise<void>;
@@ -87,6 +88,8 @@ export function createReadingMemorySemanticIndex(
   let queryTail = Promise.resolve();
   let maintenance: Promise<void> | null = null;
   let disposePromise: Promise<void> | null = null;
+  // Keyset cursor over evidence ids, so each batch does not rescan already indexed rows.
+  let indexCursor = { generation: -1, afterId: '' };
 
   const selectModel = (executor: ReadingMemorySqliteExecutor) => {
     const target = installedModel(options.modelLifecycle);
@@ -187,15 +190,23 @@ export function createReadingMemorySemanticIndex(
     };
     const snapshot = await options.withDatabase((executor, generation) => {
       signal.throwIfAborted();
+      const afterId = indexCursor.generation === generation ? indexCursor.afterId : '';
       return {
+        afterId,
         generation,
         entries: readMissingReadingMemoryVectors(executor, {
           ...model,
+          afterId,
           limit: backgroundBatchSize,
         }),
       };
     });
     signal.throwIfAborted();
+    if (snapshot.entries.length === 0 && snapshot.afterId) {
+      // Entries projected behind the cursor are only found by a pass from the start.
+      indexCursor = { generation: snapshot.generation, afterId: '' };
+      return 0;
+    }
     if (snapshot.entries.length > 0) {
       const result = await embed(
         'document',
@@ -222,7 +233,12 @@ export function createReadingMemorySemanticIndex(
         writtenCount: written,
       });
       indexingFailed = false;
-      return written > 0 ? 0 : idleDelayMs;
+      if (written === 0) return staleBatchDelayMs;
+      indexCursor = {
+        generation: snapshot.generation,
+        afterId: snapshot.entries[snapshot.entries.length - 1].id,
+      };
+      return 0;
     }
     const activated = await options.withDatabase((executor, generation) => {
       signal.throwIfAborted();
@@ -232,7 +248,7 @@ export function createReadingMemorySemanticIndex(
     });
     if (activated) await retirePreviousModel(snapshot.generation, signal);
     indexingFailed = false;
-    return idleDelayMs;
+    return null;
   };
 
   const schedule = (delayMs = 0) => {
@@ -247,7 +263,7 @@ export function createReadingMemorySemanticIndex(
       return;
     }
     let fiber: Fiber.Fiber<void>;
-    let nextDelay: number | null = idleDelayMs;
+    let nextDelay: number | null = null;
     const pass = Effect.gen(function* () {
       scheduled = null;
       background = fiber;
@@ -323,6 +339,10 @@ export function createReadingMemorySemanticIndex(
     reconcile: async (reason = 'manual') => {
       await maintain(async () => {});
       await reconcileModels(reason);
+    },
+    notifyEvidenceChanged: () => {
+      indexCursor = { generation: -1, afterId: '' };
+      schedule();
     },
     getStatus: (scope = libraryScope) =>
       options.withDatabase((executor) => ({

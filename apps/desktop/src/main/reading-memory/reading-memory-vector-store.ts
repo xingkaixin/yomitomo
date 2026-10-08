@@ -80,7 +80,7 @@ entry.source_version AS sourceVersion
 
 export function readMissingReadingMemoryVectors(
   executor: ReadingMemorySqliteExecutor,
-  options: VectorModel & { limit: number },
+  options: VectorModel & { afterId?: string; limit: number },
 ): ReadingMemoryEmbeddingEntry[] {
   assertVectorModel(options);
   if (!validLimit(options.limit)) return [];
@@ -94,6 +94,7 @@ ${currentEntryTables}
 LEFT JOIN reading_memory_evidence_vectors AS stored ON ${matchingVectorCondition}
 WHERE ${currentEntryCondition}
   AND stored.evidence_id IS NULL
+  AND entry.id > ?
 ORDER BY entry.id ASC
 LIMIT ?
 `,
@@ -102,6 +103,7 @@ LIMIT ?
       options.modelVersion,
       options.dimension,
       readingMemoryEvidenceProjectorVersion,
+      options.afterId ?? '',
       options.limit,
     )
     .map((row) =>
