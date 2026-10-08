@@ -233,7 +233,6 @@ function context(storeModule: ReturnType<typeof createStoreModule>) {
       storeSettings: {
         readAppLockSettings: storeModule.readAppLockSettings,
         saveSettings: storeModule.saveSettings,
-        saveSettingsShell: storeModule.saveSettings,
       },
       storeSnapshot: {
         readStore: storeModule.readStore,

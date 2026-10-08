@@ -21,8 +21,8 @@ describe('startup store initialization', () => {
     await expect(initializeStartupStore(first.context)).resolves.toEqual({ ok: true });
     await expect(initializeStartupStore(second.context)).resolves.toEqual({ ok: true });
 
-    expect(first.saveSettingsShell).toHaveBeenCalledWith({ appLockLocked: true });
-    expect(second.saveSettingsShell).toHaveBeenCalledWith({ appLockLocked: true });
+    expect(first.saveSettings).toHaveBeenCalledWith({ appLockLocked: true });
+    expect(second.saveSettings).toHaveBeenCalledWith({ appLockLocked: true });
     expect(first.setSensitiveRendererEventsLocked).toHaveBeenCalledWith(true);
     expect(second.setSensitiveRendererEventsLocked).toHaveBeenCalledWith(true);
   });
@@ -97,7 +97,7 @@ describe('startup store initialization', () => {
 });
 
 function startupContext(store: DesktopStore, options: { readError?: Error } = {}) {
-  const saveSettingsShell = vi.fn(async (settings: AppSettingsPatch) => ({
+  const saveSettings = vi.fn(async (settings: AppSettingsPatch) => ({
     ...store,
     settings: normalizeAppSettings({ ...store.settings, ...settings }),
   }));
@@ -106,7 +106,7 @@ function startupContext(store: DesktopStore, options: { readError?: Error } = {}
   return {
     context: {
       getPersistenceModules: async () => ({
-        storeSettings: { saveSettingsShell },
+        storeSettings: { saveSettings },
         storeSnapshot: {
           readShellStoreWithProfile: vi.fn(async () => {
             if (options.readError) throw options.readError;
@@ -121,7 +121,7 @@ function startupContext(store: DesktopStore, options: { readError?: Error } = {}
       setSensitiveRendererEventsLocked,
     },
     recordStartupTiming,
-    saveSettingsShell,
+    saveSettings,
     setSensitiveRendererEventsLocked,
   };
 }

@@ -39,7 +39,10 @@ export function registerProviderIpc(context: ProviderIpcContext) {
     const storePromise = storeSettings.saveSettings(settingsInput);
     context.onSettingsSaved?.();
     const store = await storePromise;
-    await pruneLogFile(store.settings.logRetentionDays);
+    // Startup prunes the log; a settings save only needs to when the retention changes.
+    if (settingsInput.logRetentionDays !== undefined) {
+      await pruneLogFile(store.settings.logRetentionDays);
+    }
     context.sendFullStoreUpdated(event, store);
     return store;
   });
