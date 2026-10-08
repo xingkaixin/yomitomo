@@ -213,7 +213,7 @@ export function WebSourceBookcase({
 
   useEffect(() => {
     clearAnnotationUiState();
-  }, [article?.id, annotations, clearAnnotationUiState]);
+  }, [article?.id, clearAnnotationUiState]);
 
   useEffect(() => {
     setStatusMessage('');
