@@ -5,8 +5,10 @@ const defaultDocuments = [
   'README.md',
   'README_zh.md',
   'docs/annotation-data-flow.md',
+  'docs/architecture.md',
   'docs/effect-v4-runtime.md',
   'docs/focus-co-reading-data-flow.md',
+  'docs/product.md',
 ];
 const repositoryPathPattern = /`((?:apps|docs|packages|scripts)\/[A-Za-z0-9._@/-]+)`/g;
 const documents = process.argv.slice(2).length > 0 ? process.argv.slice(2) : defaultDocuments;

@@ -25,6 +25,16 @@
 
 Workspace 包使用 `@yomitomo/*` 命名。跨包引用基础类型和底层纯函数时使用 `@yomitomo/shared`，业务逻辑使用 `@yomitomo/core`，AI provider 和生成链路使用 `@yomitomo/ai`，阅读器界面复用使用 `@yomitomo/reader-ui`。库 package 从自己的 `src/index.ts` 或 `package.json#exports` 暴露公共 API。
 
+## 文档
+
+动手前先读与任务相关的文档。改动目标、边界或流程时，在同一 PR 更新对应文档；文档与代码不一致时，核实后修正文档。
+
+- 方向与架构：`docs/product.md`（目标、非目标、取舍原则、隐私边界）、`docs/architecture.md`（模块边界、依赖方向、关键决策）、`CONTEXT.md`（领域术语）。
+- 子系统设计：`docs/annotation-data-flow.md`、`docs/focus-co-reading-data-flow.md`、`docs/effect-v4-runtime.md`、`docs/ui-primitives.md`、`docs/desktop-style-ownership.md`、`docs/reading-memory-model-evaluation.md`。
+- 发布与运维：`docs/release-guide.md`、`docs/reading-memory-release.md`、`docs/reading-memory-model-distribution.md`、`docs/web-performance.md`、`docs/web-backgrounds.md`。
+
+`docs/` 只保存仍然有效的目标、约束和流程。一次性的代码审查、拆分计划、spike、性能实验和单次发布清单不进入仓库；结论写进对应文档，过程留在 PR 和 commit history。
+
 ## 命令与门禁
 
 - 从根目录运行 workspace 级任务；需要缩小范围时使用 `pnpm --filter <package> <script>`。
