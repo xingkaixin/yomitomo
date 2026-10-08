@@ -52,7 +52,11 @@ type MainProcessRuntimeDependencies = {
   startEvidenceProjectionWorker?: typeof startReadingMemoryEvidenceProjectionWorker;
   readingMemoryControls: Pick<
     ReadingMemoryControls,
-    'reconcile' | 'suspendForAppUpdate' | 'resumeAfterAppUpdateFailure' | 'dispose'
+    | 'reconcile'
+    | 'notifyEvidenceChanged'
+    | 'suspendForAppUpdate'
+    | 'resumeAfterAppUpdateFailure'
+    | 'dispose'
   >;
 };
 
@@ -78,7 +82,9 @@ export function startMainProcessRuntime(
   const syncWeRead = dependencies.syncWeRead ?? syncWeReadLibrary;
   const evidenceProjectionWorker: ReadingMemoryEvidenceProjectionWorker | null =
     readingMemoryEnabled
-      ? (dependencies.startEvidenceProjectionWorker ?? startReadingMemoryEvidenceProjectionWorker)()
+      ? (dependencies.startEvidenceProjectionWorker ?? startReadingMemoryEvidenceProjectionWorker)({
+          onEvidenceChanged: () => dependencies.readingMemoryControls.notifyEvidenceChanged(),
+        })
       : null;
   let disposePromise: Promise<void> | null = null;
   let weReadConfigurationToken = 0;

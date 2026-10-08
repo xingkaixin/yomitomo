@@ -10,6 +10,16 @@ import {
 import type { ReadingMemorySqliteExecutor } from './reading-memory-store-types';
 import { deletedAnnotationThreadSourceVersion } from './reading-memory-source-version';
 
+let jobsQueuedListener: (() => void) | undefined;
+
+// The projection worker sleeps until a writer queues a job instead of polling the table.
+export function onReadingMemoryProjectionJobsQueued(listener: () => void) {
+  jobsQueuedListener = listener;
+  return () => {
+    if (jobsQueuedListener === listener) jobsQueuedListener = undefined;
+  };
+}
+
 type QueueAnnotationThreadProjectionInput = {
   articleId: string;
   annotationId: string;
@@ -50,6 +60,7 @@ export function queueDeletedAnnotationThreadProjection(
     operation: 'delete',
     queuedAt: input.queuedAt,
   });
+  jobsQueuedListener?.();
 }
 
 function queueStoredAnnotationThreads(
@@ -68,4 +79,5 @@ function queueStoredAnnotationThreads(
     };
     queueReadingMemoryProjectionJob(executor, job);
   }
+  if (sources.length > 0) jobsQueuedListener?.();
 }

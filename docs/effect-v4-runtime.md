@@ -26,9 +26,12 @@ queue advances to deletion. The public Promise API remains available for other c
 
 Main-process recurring tasks belong to a Scope and use Schedule.spaced after each completed pass,
 so slow work cannot overlap the next pass. The evidence projector uses a sliding one-item wakeup
-queue: explicit requests preempt idle waits and coalesce while a batch runs. Shutdown interrupts
-waits, joins in-flight database leases, and closes the queue. Persisted projection jobs, retry
-timestamps, and database-generation checks remain authoritative. Schedule tests use TestClock via
+queue: explicit requests preempt idle waits and coalesce while a batch runs. It does not poll:
+writers that queue projection jobs request a run, and between runs the worker sleeps until the
+earliest persisted retry time. Orphan cleanup and backfill scan whole tables, so they run only at
+startup, after a database restore, and on manual rebuild. Shutdown interrupts waits, joins in-flight
+database leases, and closes the queue. Persisted projection jobs, retry timestamps, and
+database-generation checks remain authoritative. Schedule tests use TestClock via
 the matching `@effect/vitest@4.0.0`; existing Promise-boundary tests retain their timer fixtures.
 
 Embedding requests use Deferred responses and Effect timeouts. A single exit finalizer recycles
@@ -42,9 +45,11 @@ finite values, and normalization. Idle workers retain their bounded graceful-dis
 Semantic indexing owns its scheduled and active fibers in a Scope. Interruption aborts the embedding
 call and joins native exit and database leases before a query, reset, or suspension proceeds.
 Queries remain serialized; committed vectors, source snapshots, generation checks, and model
-activation still govern recovery. An absent model stops background polling until an explicit
-reconcile, such as download completion. Continuation batches use a positive timer delay so pauses and
-queries can preempt the next batch, matching Node's previous zero-delay timer behavior.
+activation still govern recovery. Batches read missing vectors with a keyset cursor over evidence
+ids; reaching the end triggers one pass from the start, and activation then stops the loop until the
+projector reports changed evidence or an explicit reconcile, such as download completion.
+Continuation batches use a positive timer delay so pauses and queries can preempt the next batch,
+matching Node's previous zero-delay timer behavior.
 
 The inventory includes root and subpath imports and the Schema, scheduling, scope, queue, layer,
 runtime, and HTTP namespaces used by the staged runtime adoption.

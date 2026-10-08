@@ -112,6 +112,22 @@ LIMIT ?
     .all(now, limit) as DueReadingMemoryProjectionJob[];
 }
 
+export function readNextReadingMemoryProjectionJobAvailableAt(
+  executor: ReadingMemorySqliteExecutor,
+): string | null {
+  const row = executor
+    .prepare(
+      `
+SELECT available_at AS availableAt
+FROM reading_memory_projection_jobs
+ORDER BY available_at ASC
+LIMIT 1
+`,
+    )
+    .get() as { availableAt: string } | undefined;
+  return row?.availableAt ?? null;
+}
+
 export function deferFailedReadingMemoryProjectionJob(
   executor: ReadingMemorySqliteExecutor,
   job: Pick<ReadingMemoryProjectionJob, 'targetType' | 'targetId' | 'sourceVersion'>,
