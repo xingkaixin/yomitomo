@@ -15,6 +15,8 @@ import { initializeAppI18n } from '../i18n/app-i18n';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 
 vi.mock('../sound/app-sound-effects', () => ({ playAppSoundEffect: vi.fn() }));
+// Previews render into iframes; jsdom gives them no body once they load.
+vi.mock('../theme/app-appearance-preview', () => ({ AppearancePreview: () => null }));
 
 afterEach(cleanup);
 beforeEach(() => {
@@ -35,10 +37,10 @@ function props() {
 }
 
 describe('ThemeSelector', () => {
-  it('selects a theme immediately with one drawing sound and keeps the picker open', () => {
+  it('selects a theme immediately with one drawing sound and keeps the picker open', async () => {
     const callbacks = props();
     const { rerender } = render(<ThemeSelector {...callbacks} />);
-    fireEvent.click(screen.getByRole('button', { name: '青芽' }));
+    fireEvent.click(await screen.findByRole('button', { name: '青芽' }));
     expect(callbacks.onSelectTheme).toHaveBeenCalledExactlyOnceWith(shadLingoThemeId);
     expect(playAppSoundEffect).toHaveBeenCalledExactlyOnceWith(
       'theme.appearance_switch',
@@ -52,10 +54,10 @@ describe('ThemeSelector', () => {
     expect(callbacks.onOpenChange).not.toHaveBeenCalled();
   });
 
-  it('selects paper independently without saving an unchanged theme or paper', () => {
+  it('selects paper independently without saving an unchanged theme or paper', async () => {
     const callbacks = props();
     render(<ThemeSelector {...callbacks} />);
-    fireEvent.click(screen.getByRole('button', { name: '纸白' }));
+    fireEvent.click(await screen.findByRole('button', { name: '纸白' }));
     fireEvent.click(screen.getByRole('button', { name: '阅读器纸张：纸白' }));
     expect(callbacks.onSelectTheme).not.toHaveBeenCalled();
     expect(callbacks.onSelectReaderBackground).not.toHaveBeenCalled();
@@ -70,7 +72,7 @@ describe('ThemeSelector', () => {
     expect(callbacks.onOpenChange).not.toHaveBeenCalled();
   });
 
-  it('restores remembered theme and paper pairs when switching tone', () => {
+  it('restores remembered theme and paper pairs when switching tone', async () => {
     const callbacks = {
       ...props(),
       activeThemeId: inkPaperThemeId,
@@ -79,7 +81,7 @@ describe('ThemeSelector', () => {
       themeIdsByTone: { light: inkPaperThemeId, dark: duskIndigoThemeId },
     } satisfies Parameters<typeof ThemeSelector>[0];
     const { rerender } = render(<ThemeSelector {...callbacks} />);
-    fireEvent.click(screen.getByRole('button', { name: '暗色' }));
+    fireEvent.click(await screen.findByRole('button', { name: '暗色' }));
     expect(callbacks.onSelectTheme).toHaveBeenCalledExactlyOnceWith(duskIndigoThemeId, '#171a21');
     expect(callbacks.onSelectReaderBackground).toHaveBeenCalledExactlyOnceWith('#171a21');
     rerender(
@@ -106,22 +108,22 @@ describe('ThemeSelector', () => {
     expect(callbacks.onSelectReaderBackground).toHaveBeenLastCalledWith('#eef4e8');
   });
 
-  it('closes the picker without changing settings again', () => {
+  it('closes the picker without changing settings again', async () => {
     const callbacks = props();
     render(<ThemeSelector {...callbacks} />);
-    fireEvent.click(screen.getByRole('button', { name: '关闭主题选择' }));
+    fireEvent.click(await screen.findByRole('button', { name: '关闭主题选择' }));
     expect(callbacks.onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
     expect(callbacks.onSelectTheme).not.toHaveBeenCalled();
     expect(callbacks.onSelectReaderBackground).not.toHaveBeenCalled();
   });
 
-  it('opens the picker from its trigger', () => {
+  it('opens the picker from its trigger', async () => {
     const callbacks = props();
     const { rerender } = render(<ThemeSelector {...callbacks} open={false} />);
     const trigger = screen.getByRole('button', { name: '打开主题选择' });
     fireEvent.click(trigger);
     expect(callbacks.onOpenChange).toHaveBeenCalledExactlyOnceWith(true);
     rerender(<ThemeSelector {...callbacks} />);
-    expect(screen.getByRole('dialog', { name: '主题' })).toBeTruthy();
+    expect(await screen.findByRole('dialog', { name: '主题' })).toBeTruthy();
   });
 });

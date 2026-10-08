@@ -1,6 +1,6 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { LockKeyIcon } from '@hugeicons/core-free-icons';
-import { Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { AppSettingsPatch } from '@yomitomo/shared';
 import { normalizeUiLanguage } from '@yomitomo/shared';
@@ -32,8 +32,6 @@ import { useSettingsDrafts } from './settings/app-settings-drafts';
 import { SettingsNavButton } from './settings/app-settings-nav-button';
 import { getDesktopApi } from './shell/app-desktop-api';
 import { StoreLoadErrorScreen } from './shell/app-store-load-error';
-import { AnnotationDiscussionWindowApp } from './annotation-discussion/app-annotation-discussion-window';
-import { AnnotationSedimentationWindowApp } from './annotation-discussion/app-annotation-sedimentation-window';
 import { ThemeSelector } from './theme/app-theme-selector';
 import { useReaderThemeController } from './theme/use-reader-theme-controller';
 import { UpdateReleaseDialog } from './shell/app-update-dialog';
@@ -371,6 +369,18 @@ recordStartupTiming('renderer.module_loaded', {
   rendererModuleLoadedAt,
 });
 
+// Annotation windows share this entry; the main window should not parse their apps.
+const AnnotationDiscussionWindowApp = lazy(() =>
+  import('./annotation-discussion/app-annotation-discussion-window').then((module) => ({
+    default: module.AnnotationDiscussionWindowApp,
+  })),
+);
+const AnnotationSedimentationWindowApp = lazy(() =>
+  import('./annotation-discussion/app-annotation-sedimentation-window').then((module) => ({
+    default: module.AnnotationSedimentationWindowApp,
+  })),
+);
+
 const rendererWindowKind = new URLSearchParams(window.location.search).get('window');
 const RootApp =
   rendererWindowKind === 'annotation-discussion'
@@ -379,5 +389,9 @@ const RootApp =
       ? AnnotationSedimentationWindowApp
       : App;
 
-createRoot(document.getElementById('root')!).render(<RootApp />);
+createRoot(document.getElementById('root')!).render(
+  <Suspense fallback={null}>
+    <RootApp />
+  </Suspense>,
+);
 recordStartupTiming('react.render_scheduled');
