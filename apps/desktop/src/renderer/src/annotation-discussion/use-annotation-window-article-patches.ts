@@ -16,7 +16,7 @@ export function useAnnotationWindowArticlePatches(
     let refreshVersion = 0;
 
     const unsubscribe = annotationWindowActions.subscribeToArticlePatches((patch) => {
-      if (articleIdFromPatch(patch) !== articleId) return;
+      if (!changesAnnotationWindow(patch) || articleIdFromPatch(patch) !== articleId) return;
       const version = ++refreshVersion;
       void annotationWindowActions
         .loadArticle(articleId)
@@ -33,6 +33,12 @@ export function useAnnotationWindowArticlePatches(
       unsubscribe();
     };
   }, [annotationId, articleId]);
+}
+
+// Annotation windows do not show reading progress or reader chat state; reloading the full
+// article for those patches would run on every page turn.
+function changesAnnotationWindow(patch: ArticleStorePatch) {
+  return patch.type !== 'article-reading-progress' && patch.type !== 'article-reader-chat-state';
 }
 
 function articleIdFromPatch(patch: ArticleStorePatch) {
