@@ -165,7 +165,19 @@ export function findCurrentTocTarget(
   options: ExtractTocOptions = {},
 ) {
   if (item.index < 0) return article;
+  return tocTargetFromEntries(getTocEntries(article, options), item);
+}
+
+export function findTocTargets(
+  article: HTMLElement,
+  items: TocItem[],
+  options: ExtractTocOptions = {},
+) {
   const entries = getTocEntries(article, options);
+  return items.map((item) => (item.index < 0 ? article : tocTargetFromEntries(entries, item)));
+}
+
+function tocTargetFromEntries(entries: TocEntry[], item: TocItem) {
   const indexed = entries[item.index];
   if (indexed?.text === item.text) return indexed.target;
   return entries.find((entry) => entry.text === item.text)?.target || null;
