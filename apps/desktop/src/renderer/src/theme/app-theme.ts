@@ -228,7 +228,8 @@ export const defaultTheme: AppTheme = {
     visible: true,
   },
   font: {
-    ui: "'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei UI', system-ui, sans-serif",
+    // System CJK fonts first: the bundled Noto Sans SC is 4.2 MB and would load in every window.
+    ui: "'PingFang SC', 'Microsoft YaHei UI', 'Noto Sans SC', system-ui, sans-serif",
     mono: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
     readerSerif: "'Source Serif 4', 'Noto Serif SC', 'Songti SC', Georgia, serif",
   },
