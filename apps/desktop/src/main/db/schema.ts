@@ -202,17 +202,12 @@ export const articles = sqliteTable(
     excerpt: text('excerpt'),
     siteName: text('site_name'),
     siteIconUrl: text('site_icon_url'),
-    leadImageUrl: text('lead_image_url'),
     themeColor: text('theme_color'),
-    contentHtml: text('content_html'),
     contentHash: text('content_hash').notNull(),
     ebookMetadata: text('ebook_metadata', { mode: 'json' }),
-    ebookChapters: text('ebook_chapters', { mode: 'json' }),
-    ebookIndex: text('ebook_index', { mode: 'json' }),
     pdfMetadata: text('pdf_metadata', { mode: 'json' }),
     textMetadata: text('text_metadata', { mode: 'json' }),
     readingProgress: text('reading_progress', { mode: 'json' }),
-    focusCoReadingPlan: text('focus_co_reading_plan', { mode: 'json' }),
     readerChatState: text('reader_chat_state', { mode: 'json' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
@@ -245,6 +240,19 @@ export const articles = sqliteTable(
     ),
   ],
 );
+
+// Content and inline cover images live apart so progress and metadata updates do not rewrite
+// megabytes per save.
+export const articleBodies = sqliteTable('article_bodies', {
+  articleId: text('article_id')
+    .primaryKey()
+    .references(() => articles.id, { onDelete: 'cascade' }),
+  leadImageUrl: text('lead_image_url'),
+  contentHtml: text('content_html'),
+  ebookChapters: text('ebook_chapters', { mode: 'json' }),
+  ebookIndex: text('ebook_index', { mode: 'json' }),
+  focusCoReadingPlan: text('focus_co_reading_plan', { mode: 'json' }),
+});
 
 export const annotations = sqliteTable(
   'annotations',

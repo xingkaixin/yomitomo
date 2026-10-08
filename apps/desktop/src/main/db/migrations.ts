@@ -1339,6 +1339,38 @@ BEFORE UPDATE ON reading_memory_reviews BEGIN
 END;
 `,
   },
+  {
+    id: '0072_article_bodies',
+    minReaderLevel: 4,
+    sql: `
+CREATE TABLE article_bodies (
+  article_id TEXT PRIMARY KEY NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+  lead_image_url TEXT,
+  content_html TEXT,
+  ebook_chapters TEXT,
+  ebook_index TEXT,
+  focus_co_reading_plan TEXT
+);
+
+INSERT INTO article_bodies (
+  article_id,
+  lead_image_url,
+  content_html,
+  ebook_chapters,
+  ebook_index,
+  focus_co_reading_plan
+)
+SELECT id, lead_image_url, content_html, ebook_chapters, ebook_index, focus_co_reading_plan
+FROM articles;
+
+ALTER TABLE articles DROP COLUMN lead_image_url;
+ALTER TABLE articles DROP COLUMN reading_receipt_state;
+ALTER TABLE articles DROP COLUMN content_html;
+ALTER TABLE articles DROP COLUMN ebook_chapters;
+ALTER TABLE articles DROP COLUMN ebook_index;
+ALTER TABLE articles DROP COLUMN focus_co_reading_plan;
+`,
+  },
 ];
 
 type MigrationDatabase = {

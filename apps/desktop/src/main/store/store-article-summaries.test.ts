@@ -117,8 +117,13 @@ describe('desktop store articles', () => {
     });
     database
       .update(schema.articles)
-      .set({ ebookMetadata: null, ebookChapters: null })
+      .set({ ebookMetadata: null })
       .where(eq(schema.articles.id, 'corrupt_ebook'))
+      .run();
+    database
+      .update(schema.articleBodies)
+      .set({ ebookChapters: null })
+      .where(eq(schema.articleBodies.articleId, 'corrupt_ebook'))
       .run();
 
     await expect(readStore()).resolves.toMatchObject({
@@ -301,11 +306,31 @@ describe('desktop store articles', () => {
 
     const row = database
       .select()
-      .from(schema.articles)
+      .from(schema.articleBodies)
       .all()
-      .find((item) => item.id === 'ebook_article');
+      .find((item) => item.articleId === 'ebook_article');
     expect(row?.contentHtml).toBeNull();
     expect(row?.ebookChapters).toEqual(ebookArticle.ebook?.chapters);
+  });
+});
+
+describe('desktop store article bodies', () => {
+  it('saves and re-saves a PDF article without body fields', () => {
+    const database = getDatabase();
+    const { contentHtml: _contentHtml, ...base } = articleRecord({ id: 'pdf_article' });
+    const pdfArticle: ArticleRecord = {
+      ...base,
+      sourceType: 'pdf',
+      pdf: { metadata: { format: 'pdf', fileName: 'paper.pdf', fileSize: 1024, pageCount: 1 } },
+    };
+
+    writeArticleRows(database, pdfArticle);
+    writeArticleRows(database, { ...pdfArticle, title: 'Renamed' });
+
+    expect(readArticleRows(database, 'pdf_article')).toMatchObject({
+      sourceType: 'pdf',
+      title: 'Renamed',
+    });
   });
 });
 

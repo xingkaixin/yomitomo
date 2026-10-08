@@ -72,17 +72,12 @@ export function writeArticleRows(
       excerpt: article.excerpt,
       siteName: article.siteName,
       siteIconUrl: article.siteIconUrl,
-      leadImageUrl: article.leadImageUrl,
       themeColor: article.themeColor,
-      contentHtml,
       contentHash: article.contentHash,
       ebookMetadata: article.ebook?.metadata,
-      ebookChapters: article.ebook?.chapters,
-      ebookIndex: article.ebook?.index,
       pdfMetadata: article.pdf?.metadata,
       textMetadata: article.text,
       readingProgress: normalizeArticleReadingProgress(article.readingProgress, sourceType),
-      focusCoReadingPlan: article.focusCoReadingPlan,
       readerChatState: normalizeReaderChatState(article.readerChatState, article.id),
       createdAt: article.createdAt,
       updatedAt: article.updatedAt,
@@ -98,22 +93,35 @@ export function writeArticleRows(
         excerpt: article.excerpt,
         siteName: article.siteName,
         siteIconUrl: article.siteIconUrl,
-        leadImageUrl: article.leadImageUrl,
         themeColor: article.themeColor,
-        contentHtml,
         contentHash: article.contentHash,
         ebookMetadata: article.ebook?.metadata,
-        ebookChapters: article.ebook?.chapters,
-        ebookIndex: article.ebook?.index,
         pdfMetadata: article.pdf?.metadata,
         textMetadata: article.text,
         readingProgress: normalizeArticleReadingProgress(article.readingProgress, sourceType),
-        focusCoReadingPlan: article.focusCoReadingPlan,
         readerChatState: normalizeReaderChatState(article.readerChatState, article.id),
         updatedAt: article.updatedAt,
       },
     })
     .run();
+  const body = {
+    leadImageUrl: article.leadImageUrl,
+    contentHtml,
+    ebookChapters: article.ebook?.chapters,
+    ebookIndex: article.ebook?.index,
+    focusCoReadingPlan: article.focusCoReadingPlan,
+  };
+  const insertBody = database
+    .insert(schema.articleBodies)
+    .values({ articleId: article.id, ...body });
+  // Undefined fields keep their stored value, as in the articles upsert; PDFs have none to set.
+  const changedBody = Object.fromEntries(
+    Object.entries(body).filter(([, value]) => value !== undefined),
+  ) as Partial<typeof body>;
+  (Object.keys(changedBody).length > 0
+    ? insertBody.onConflictDoUpdate({ target: schema.articleBodies.articleId, set: changedBody })
+    : insertBody.onConflictDoNothing()
+  ).run();
 
   database.delete(schema.annotations).where(eq(schema.annotations.articleId, article.id)).run();
   const { annotationRows, commentRows } = buildArticleChildRows(article, previous);

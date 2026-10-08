@@ -580,6 +580,57 @@ VALUES (
     });
   });
 
+  it('moves article bodies out of the articles row', () => {
+    const database = new DatabaseSync(':memory:');
+    database.exec('PRAGMA foreign_keys = ON');
+    for (const migration of migrations) {
+      if (migration.id === '0072_article_bodies') break;
+      database.exec(migration.sql);
+    }
+    database
+      .prepare(
+        `
+INSERT INTO articles (
+  id, url, canonical_url, title, content_hash, source_type, lead_image_url, content_html,
+  ebook_chapters, ebook_index, focus_co_reading_plan, reading_progress, reading_receipt_state,
+  created_at, updated_at
+)
+VALUES ('book', 'ebook:1', 'ebook:1', 'Book', 'hash', 'ebook', 'data:image/png;base64,AA', NULL,
+  '[{"id":"c1"}]', '{"textLength":4}', '{"steps":[]}', '{"kind":"ebook"}', '{}', ?, ?)
+`,
+      )
+      .run('2026-10-08T00:00:00.000Z', '2026-10-08T00:00:00.000Z');
+
+    const migration = migrations.find((item) => item.id === '0072_article_bodies');
+    if (!migration) throw new Error('missing migration 0072_article_bodies');
+    database.exec(migration.sql);
+
+    const articleColumns = columnNames(database, 'articles');
+    for (const column of [
+      'lead_image_url',
+      'content_html',
+      'ebook_chapters',
+      'ebook_index',
+      'focus_co_reading_plan',
+      'reading_receipt_state',
+    ]) {
+      expect(articleColumns).not.toContain(column);
+    }
+    expect(articleColumns).toContain('reading_progress');
+    expect(database.prepare('SELECT * FROM article_bodies').all()).toEqual([
+      {
+        article_id: 'book',
+        lead_image_url: 'data:image/png;base64,AA',
+        content_html: null,
+        ebook_chapters: '[{"id":"c1"}]',
+        ebook_index: '{"textLength":4}',
+        focus_co_reading_plan: '{"steps":[]}',
+      },
+    ]);
+    database.exec("DELETE FROM articles WHERE id = 'book'");
+    expect(countRows(database, 'article_bodies')).toBe(0);
+  });
+
   it('adds private sqlite maintenance state storage', () => {
     const database = new DatabaseSync(':memory:');
     const migration = migrations.find((item) => item.id === '0059_database_maintenance_state');

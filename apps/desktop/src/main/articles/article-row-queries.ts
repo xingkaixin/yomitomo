@@ -12,10 +12,25 @@ import {
 import { readArticleSummaryCountsForArticles } from './article-summary-counts';
 
 export function readArticleRows(database: StoreDatabase, id: string): ArticleRecord | null {
-  const row = database.select().from(schema.articles).where(eq(schema.articles.id, id)).get();
+  const row = database
+    .select({ article: schema.articles, body: schema.articleBodies })
+    .from(schema.articles)
+    .leftJoin(schema.articleBodies, eq(schema.articleBodies.articleId, schema.articles.id))
+    .where(eq(schema.articles.id, id))
+    .get();
   if (!row) return null;
 
-  return rowToArticle(row, readArticleAnnotations(database, id));
+  return rowToArticle(
+    {
+      ...row.article,
+      leadImageUrl: row.body?.leadImageUrl ?? null,
+      contentHtml: row.body?.contentHtml ?? null,
+      ebookChapters: row.body?.ebookChapters ?? null,
+      ebookIndex: row.body?.ebookIndex ?? null,
+      focusCoReadingPlan: row.body?.focusCoReadingPlan ?? null,
+    },
+    readArticleAnnotations(database, id),
+  );
 }
 
 export function readArticleSummaryRows(
@@ -78,9 +93,9 @@ export function findArticleInListByIdentity<T extends ArticleIdentity>(
 export function readArticleCoverRows(database: StoreDatabase, id: string): string {
   return (
     database
-      .select({ leadImageUrl: schema.articles.leadImageUrl })
-      .from(schema.articles)
-      .where(eq(schema.articles.id, id))
+      .select({ leadImageUrl: schema.articleBodies.leadImageUrl })
+      .from(schema.articleBodies)
+      .where(eq(schema.articleBodies.articleId, id))
       .get()?.leadImageUrl || ''
   );
 }

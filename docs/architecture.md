@@ -59,6 +59,9 @@ telemetry → shared
   级别来降级。
 - **原始数据与派生数据分开。** 文章、批注、评论、复审历史是原始数据；FTS、检索条目、投影任务、
   向量和语义状态是派生数据，可以清空重建。重建索引不触碰原始数据。
+- **文章正文与元数据分表。** 正文 HTML、电子书章节与索引、共读计划和内联封面存在 1:1 的
+  `article_bodies` 表，只有 `article:get`、封面读取和整篇保存会访问。`articles` 行只放元数据和
+  阅读状态；SQLite 更新时会重写整行及其溢出页，大字段留在行内会让每次进度保存重写数 MB。
 - **密钥不进数据库。** provider 和微信读书 API key 存系统 keyring，数据库只存引用，见
   `apps/desktop/src/main/providers/provider-secrets.ts`。完整备份
   （`apps/desktop/src/main/full-backup.ts`）清除这些引用，不包含 keyring、本地模型和日志。

@@ -217,7 +217,9 @@ function seedAnnotations(userDataDir: string) {
     const createdAt = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     for (const count of counts) {
       const row = sqlite
-        .prepare('SELECT id, content_html FROM articles WHERE title = ?')
+        .prepare(
+          'SELECT article.id, body.content_html FROM articles AS article JOIN article_bodies AS body ON body.article_id = article.id WHERE article.title = ?',
+        )
         .get(`Annotation measurement ${count}`) as { id: string; content_html: string } | undefined;
       if (!row) throw new Error(`Missing article for ${count} annotations`);
       articleIds.set(count, row.id);

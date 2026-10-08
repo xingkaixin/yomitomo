@@ -1,6 +1,5 @@
 import type { Annotation, ArticleRecord, ArticleSummaryRecord } from '@yomitomo/shared';
 import { articleCounts } from '@yomitomo/core';
-import * as schema from '../db/schema';
 import { normalizeReaderChatState } from './store-normalizers-reader-chat';
 import {
   normalizeArticleReadingProgress,
@@ -13,10 +12,10 @@ import {
   rowToPdfSummary,
   rowToText,
   rowToTextSummary,
+  type ArticleRow,
   type ArticleSummaryRow,
 } from './store-normalizers-sources';
 
-type ArticleRow = typeof schema.articles.$inferSelect;
 export type { ArticleSummaryRow };
 type ArticleBaseRow = ArticleSummaryRow &
   Partial<Pick<ArticleRow, 'siteIconUrl' | 'leadImageUrl' | 'readerChatState'>>;
