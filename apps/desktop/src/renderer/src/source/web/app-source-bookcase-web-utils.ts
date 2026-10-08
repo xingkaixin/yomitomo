@@ -171,7 +171,9 @@ export function webAnnotationNavigationState({
   return annotationNavigationForViewportRange(annotations, positions, viewportTop, viewportBottom);
 }
 
-export function sourceArticleBodyHtml(article: ArticleRecord) {
+export function sourceArticleBodyHtml(
+  article: Pick<ArticleRecord, 'canonicalUrl' | 'contentHtml' | 'excerpt' | 'url'>,
+) {
   const html =
     article.contentHtml ||
     `<p>${escapeHtml(article.excerpt || i18next.t('source.emptyContent'))}</p>`;

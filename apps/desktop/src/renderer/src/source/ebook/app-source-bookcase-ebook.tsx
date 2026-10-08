@@ -203,7 +203,8 @@ export function EbookBookcase({
     requestSelectionCopy,
     openComposer,
   } = selection;
-  const ebookText = useMemo(() => ebookArticleText(article), [article]);
+  const { ebook } = article;
+  const ebookText = useMemo(() => ebookArticleText(ebook.chapters), [ebook.chapters]);
   const articleAnnotationSignature = useMemo(
     () => ebookHighlightAnnotationsSignature(articleAnnotations, userProfile, annotationAgents),
     [annotationAgents, articleAnnotations, userProfile],
@@ -348,8 +349,8 @@ export function EbookBookcase({
     viewRef,
   });
   const readerTocItems = useMemo(
-    () => ebookTocItemsForReader(tocItems, article),
-    [article, tocItems],
+    () => ebookTocItemsForReader(tocItems, { ebook }),
+    [ebook, tocItems],
   );
   const activeTocIndex = useMemo(() => {
     const textLength = article.ebook.index?.textLength ?? 0;
