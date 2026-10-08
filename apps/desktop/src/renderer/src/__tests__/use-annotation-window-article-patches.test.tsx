@@ -36,6 +36,14 @@ describe('annotation window article patch sync', () => {
     );
 
     act(() => emitPatch({ type: 'article-delete', articleId: 'other_article' }));
+    act(() =>
+      emitPatch({
+        type: 'article-reading-progress',
+        articleId: 'article_1',
+        readingProgress: { kind: 'scroll', progress: 0.4, updatedAt: '2026-07-18T00:03:00.000Z' },
+        updatedAt: '2026-07-18T00:03:00.000Z',
+      }),
+    );
 
     expect(getArticle).not.toHaveBeenCalled();
 

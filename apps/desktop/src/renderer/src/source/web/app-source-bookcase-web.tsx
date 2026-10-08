@@ -106,7 +106,12 @@ export function WebSourceBookcase({
   const { annotations, annotationsRef, annotationAgents, deleteAnnotation, saveAnnotation } =
     sourceReaderSession;
   const [articleSearchText, setArticleSearchText] = useState('');
-  const contentHtml = useMemo(() => (article ? sourceArticleBodyHtml(article) : ''), [article]);
+  const { canonicalUrl, contentHtml: articleHtml, excerpt, url: articleUrl } = article;
+  const contentHtml = useMemo(
+    () =>
+      sourceArticleBodyHtml({ canonicalUrl, contentHtml: articleHtml, excerpt, url: articleUrl }),
+    [articleHtml, articleUrl, canonicalUrl, excerpt],
+  );
   const bilingualTranslation = useWebBilingualTranslation({
     annotations,
     article,

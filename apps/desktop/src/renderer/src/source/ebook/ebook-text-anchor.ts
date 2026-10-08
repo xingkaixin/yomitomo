@@ -21,17 +21,11 @@ export type DomTextIndexTiming = {
   textChars: number;
 };
 
-export function ebookArticleText(
-  article: ArticleRecord & { ebook: NonNullable<ArticleRecord['ebook']> },
-) {
-  const chapters = article.ebook.chapters.map((chapter) => ({
-    id: chapter.id,
-    title: chapter.title,
-    href: chapter.href,
-    paragraphs: ebookChapterParagraphs(chapter.html),
-  }));
+export function ebookArticleText(chapters: NonNullable<ArticleRecord['ebook']>['chapters']) {
   return chapters
-    .map((chapter) => chapter.paragraphs.map(normalizeRenderedText).filter(Boolean).join('\n\n'))
+    .map((chapter) =>
+      ebookChapterParagraphs(chapter.html).map(normalizeRenderedText).filter(Boolean).join('\n\n'),
+    )
     .filter(Boolean)
     .join('\n\n');
 }

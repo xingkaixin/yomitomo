@@ -7,13 +7,14 @@ import {
   PencilEdit01Icon,
   Search01Icon,
 } from '@hugeicons/core-free-icons';
-import React from 'react';
+import React, { useSyncExternalStore } from 'react';
 import type {
   AnnotationNavigationDirection,
   AnnotationNavigationState,
   ReaderSearchToolbarState,
   ReaderArticle,
   ReaderHeaderArticleMeta,
+  ReaderProgressSource,
   ReaderUiLabels,
 } from './reader-app-view-types';
 import { defaultReaderUiLabels } from './reader-app-view-types';
@@ -53,7 +54,7 @@ export type ReaderToolbarProps = {
   articleLeadingVisual?: React.ReactNode;
   headerMeta?: ReaderHeaderArticleMeta;
   labels?: ReaderToolbarLabels;
-  readingProgress?: number;
+  readingProgress?: number | ReaderProgressSource;
   toolbarArticleAction?: React.ReactNode;
   onClose: () => void;
 };
@@ -88,8 +89,6 @@ export function ReaderToolbar({
   const metaItems = [articleMeta.byline, articleMeta.dateLabel].filter((item): item is string =>
     Boolean(item),
   );
-  const progress = clampReaderProgress(readingProgress);
-  const progressNow = Math.round(progress * 100);
 
   return (
     <header className="reader-toolbar">
@@ -130,18 +129,41 @@ export function ReaderToolbar({
           <div className="reader-toolbar-article-action">{toolbarArticleAction}</div>
         ) : null}
       </div>
-      <div
-        className="reader-toolbar-progress"
-        role="progressbar"
-        aria-label={labels.readingProgress}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={progressNow}
-      >
-        <span style={{ transform: `scaleX(${progress})` }} />
-      </div>
+      <ReaderToolbarProgress label={labels.readingProgress} readingProgress={readingProgress} />
     </header>
   );
+}
+
+function ReaderToolbarProgress({
+  label,
+  readingProgress,
+}: {
+  label: string;
+  readingProgress?: number | ReaderProgressSource;
+}) {
+  const progress = clampReaderProgress(useReaderProgressValue(readingProgress));
+  return (
+    <div
+      className="reader-toolbar-progress"
+      role="progressbar"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(progress * 100)}
+    >
+      <span style={{ transform: `scaleX(${progress})` }} />
+    </div>
+  );
+}
+
+const subscribeToNothing = () => () => undefined;
+
+function useReaderProgressValue(value: number | ReaderProgressSource | undefined) {
+  const source = typeof value === 'object' ? value : undefined;
+  const sourceValue = useSyncExternalStore(source?.subscribe ?? subscribeToNothing, () =>
+    source?.getSnapshot(),
+  );
+  return typeof value === 'object' ? sourceValue : value;
 }
 
 function clampReaderProgress(value: number | undefined) {

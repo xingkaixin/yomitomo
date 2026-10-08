@@ -107,7 +107,7 @@ type AnnotationCardProps = {
 
 const emptyAgents: PublicAgent[] = [];
 
-export function AnnotationCard({
+export const AnnotationCard = React.memo(function AnnotationCard({
   noteRef,
   style,
   exiting = false,
@@ -246,7 +246,7 @@ export function AnnotationCard({
       )}
     </section>
   );
-}
+});
 
 type AnnotationCardContentProps = Omit<
   AnnotationCardProps,

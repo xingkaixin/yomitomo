@@ -29,7 +29,7 @@ export function ebookReaderReadingSections(
 
 export function ebookTocItemsForReader(
   tocItems: FoliateTocItem[],
-  article: ArticleRecord & { ebook: NonNullable<ArticleRecord['ebook']> },
+  article: { ebook: NonNullable<ArticleRecord['ebook']> },
 ): TocItem[] {
   const textLength = article.ebook.index?.textLength || 0;
   const chapters = article.ebook.index?.chapters || [];
@@ -70,7 +70,7 @@ function nextTocBoundary(
 }
 
 export function ebookChapterForHref(
-  article: ArticleRecord & { ebook: NonNullable<ArticleRecord['ebook']> },
+  article: { ebook: NonNullable<ArticleRecord['ebook']> },
   href: unknown,
 ) {
   const normalizedHref = normalizeEbookHref(href);
