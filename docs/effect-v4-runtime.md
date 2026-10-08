@@ -84,8 +84,10 @@ shape.
 
 ## Upgrade Procedure
 
-1. Update `apps/desktop/package.json`, `packages/ai/package.json`, and `packages/core/package.json` to
-   the same exact v4 stable, beta, or rc version; ranges and dist-tags are not allowed.
+1. Update `effect` and `@effect/vitest` in the `pnpm-workspace.yaml` catalog to the same exact v4
+   stable, beta, or rc version; ranges and dist-tags are not allowed. `apps/desktop`, `packages/ai`,
+   and `packages/core` reference them through `catalog:`. Update the matching
+   `minimumReleaseAgeExclude` entries when the new version is younger than the release-age window.
 2. Run `pnpm install --lockfile-only` and confirm `pnpm why effect -r` reports one version.
 3. Diff the pinned package source for every API in the production inventory. Update the pinned
    version, module count, inventory, and semantic rows in this document before changing application

@@ -37,6 +37,7 @@ You can currently download macOS Apple Silicon and Windows x64 installers from [
 apps/desktop       Electron desktop app, including main, preload, and renderer
 apps/web           Astro product website, including landing page, download entry point, SEO, and static product images
 apps/download      Cloudflare Worker for download.yomitomo.app and auto-update asset proxying
+apps/telemetry     Cloudflare Worker that receives anonymous desktop heartbeats into Analytics Engine
 packages/ai        LLM provider calls, model input budgeting, and AI generation pipelines
 packages/core      Core business logic, including annotations, comments, reading statistics, EPUB/PDF indexing, and pure reader DOM logic
 packages/reader-ui Desktop reader React UI, styles, utilities, and hooks
@@ -49,8 +50,8 @@ assets             Project static assets
 - Package manager: `pnpm@12.x`
 - Build orchestration: Turbo
 - Language: TypeScript, ESM
-- Desktop: Electron 41, electron-vite, React 19, Vite 8, Tailwind CSS 4
-- Website: Astro 6, React 19, Vite 7, Tailwind CSS 4
+- Desktop: Electron 44, electron-vite, React 19, Vite 8, Tailwind CSS 4
+- Website: Astro 7, React 19, Vite 8, Tailwind CSS 4
 - Local database: SQLite, better-sqlite3, Drizzle ORM
 - Tests: Vitest
 - Lint / format: oxlint and oxfmt through Turbo
@@ -60,7 +61,7 @@ assets             Project static assets
 ### Prerequisites
 
 - Node.js
-- pnpm 11
+- pnpm 12
 - macOS desktop development environment
 - Xcode Command Line Tools for `better-sqlite3` native rebuilds
 
@@ -169,6 +170,7 @@ pnpm build
 - `apps/desktop/src/renderer/src/reading-library`, `apps/desktop/src/renderer/src/reading-stats`, `apps/desktop/src/renderer/src/settings`, `apps/desktop/src/renderer/src/shell`, and `apps/desktop/src/renderer/src/source` contain the desktop library, statistics, settings, application shell/log UI, and Web/EPUB/PDF reader surfaces.
 - `apps/web/src` contains Astro website pages, product carousel, and global styles. Download links are generated from the version in `apps/desktop/package.json`.
 - `apps/download/src` contains the Cloudflare Worker that proxies GitHub Release installers, update manifests, and blockmap files for `download.yomitomo.app`.
+- `apps/telemetry/src` contains the Cloudflare Worker that receives anonymous desktop heartbeats and writes them to Analytics Engine.
 
 ## Pre-Commit Checks
 

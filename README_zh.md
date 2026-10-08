@@ -37,6 +37,7 @@ Yomitomo 是一个本地优先的 AI 伴读桌面应用。Electron 桌面端负�
 apps/desktop       Electron 桌面端，包含 main、preload、renderer
 apps/web           Astro 产品官网，包含 landing page、下载入口、SEO 和静态产品图
 apps/download      Cloudflare Worker，负责 download.yomitomo.app 和自动更新资源代理
+apps/telemetry     Cloudflare Worker，接收桌面端匿名 heartbeat 并写入 Analytics Engine
 packages/ai        LLM provider 调用、模型输入预算和 AI 生成链路
 packages/core      业务核心逻辑，包括批注、评论、阅读统计、EPUB/PDF 索引和阅读器 DOM 纯逻辑
 packages/reader-ui 桌面阅读器 React UI、样式、工具和 hooks
@@ -49,8 +50,8 @@ assets             项目静态资源
 - 包管理器：`pnpm@12.x`
 - 构建编排：Turbo
 - 语言：TypeScript，ESM
-- 桌面端：Electron 41、electron-vite、React 19、Vite 8、Tailwind CSS 4
-- 官网：Astro 6、React 19、Vite 7、Tailwind CSS 4
+- 桌面端：Electron 44、electron-vite、React 19、Vite 8、Tailwind CSS 4
+- 官网：Astro 7、React 19、Vite 8、Tailwind CSS 4
 - 本地数据库：SQLite、better-sqlite3、Drizzle ORM
 - 测试：Vitest
 - Lint / Format：通过 Turbo 运行 oxlint、oxfmt
@@ -60,7 +61,7 @@ assets             项目静态资源
 ### 环境准备
 
 - Node.js
-- pnpm 11
+- pnpm 12
 - macOS 桌面开发环境
 - Xcode Command Line Tools，供 `better-sqlite3` native rebuild 使用
 
@@ -170,6 +171,7 @@ pnpm build
 - `apps/desktop/src/renderer/src/reading-library`、`apps/desktop/src/renderer/src/reading-stats`、`apps/desktop/src/renderer/src/settings`、`apps/desktop/src/renderer/src/shell` 和 `apps/desktop/src/renderer/src/source` 分别放桌面端阅读库、统计、设置、应用外壳/日志 UI，以及 Web/EPUB/PDF 阅读器界面。
 - `apps/web/src` 放 Astro 官网页面、产品轮播和全局样式，下载链接从 `apps/desktop/package.json` 的版本号生成。
 - `apps/download/src` 放 Cloudflare Worker，代理 GitHub Release 安装包、更新 manifest 和 blockmap 文件到 `download.yomitomo.app`。
+- `apps/telemetry/src` 放 Cloudflare Worker，接收桌面端匿名 heartbeat 并写入 Analytics Engine。
 
 ## 提交前检查
 
