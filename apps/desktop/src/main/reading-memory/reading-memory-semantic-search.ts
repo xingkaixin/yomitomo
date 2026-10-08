@@ -23,9 +23,9 @@ import type {
   ReadingMemorySqliteExecutor,
 } from './reading-memory-store-types';
 import {
+  hasReadingMemoryVectors,
   readActiveReadingMemoryModelVersion,
   readReadingMemoryVectorChunk,
-  readReadingMemoryVectorCoverage,
 } from './reading-memory-vector-store';
 
 const vectorChunkSize = 256;
@@ -65,14 +65,15 @@ export async function searchReadingMemoryEvidence(
       activeVersion: readActiveReadingMemoryModelVersion(executor),
       installation,
       keywordCandidates: readKeywordReadingEvidenceCandidates(executor, query, scope),
-      indexedEntryCount:
-        installation && query
-          ? readReadingMemoryVectorCoverage(executor, {
-              modelVersion: installation.manifest.internalId,
-              dimension: installation.manifest.vector.dimension,
-              scope,
-            }).indexedEntryCount
-          : 0,
+      hasVectors: Boolean(
+        installation &&
+        query &&
+        hasReadingMemoryVectors(executor, {
+          modelVersion: installation.manifest.internalId,
+          dimension: installation.manifest.vector.dimension,
+          scope,
+        }),
+      ),
     };
   });
   signal.throwIfAborted();
@@ -84,7 +85,7 @@ export async function searchReadingMemoryEvidence(
       snapshot.installation?.manifest.internalId;
   let semanticCandidates: ReadingEvidenceCandidate[] | null = null;
   let semanticFailed = false;
-  if (snapshot.installation && snapshot.indexedEntryCount > 0) {
+  if (snapshot.installation && snapshot.hasVectors) {
     try {
       const embedding = await options.embedQuery(snapshot.installation, query, signal);
       signal.throwIfAborted();

@@ -590,6 +590,10 @@ async function requestWithFailureMapping(
   }
 }
 
+// Hashing all model files reads ~219 MB; after one full check, unchanged size, mtime and inode
+// are trusted until a file changes.
+const verifiedStampFileName = '.verified';
+
 async function inspectInstallation(
   context: LifecycleContext,
   directory: string,
@@ -627,15 +631,28 @@ async function inspectInstallation(
     throwIfCanceled(signal);
     const manifest = await readInstalledManifest(context, directory, signal);
     assertSupportedPlatform(context, manifest);
+    const files = [];
     for (const file of readingMemoryModelFiles(manifest)) {
-      throwIfCanceled(signal);
       const filePath = safeModelPath(directory, file.path);
       await assertSafeParentDirectory(directory, filePath);
-      const digest = await digestFile(filePath, signal);
+      files.push({ ...file, filePath, info: await lstat(filePath) });
+    }
+    const stamp = JSON.stringify({
+      manifestSha256: context.release.manifestSha256,
+      files: files.map(({ path, info }) => [path, info.size, info.mtimeMs, info.ino]),
+    });
+    const stampPath = join(directory, verifiedStampFileName);
+    if ((await readFile(stampPath, 'utf8').catch(() => null)) === stamp) {
+      return { status: 'available', manifest };
+    }
+    for (const file of files) {
+      throwIfCanceled(signal);
+      const digest = await digestFile(file.filePath, signal);
       if (digest.sizeBytes !== file.sizeBytes || digest.sha256 !== file.sha256) {
         throw new ModelLifecycleError('integrity', `${file.path} is not a verified model file`);
       }
     }
+    await writeFile(stampPath, stamp).catch(() => undefined);
     return { status: 'available', manifest };
   } catch (error) {
     return { status: 'invalid', error: installationInspectionError(error) };

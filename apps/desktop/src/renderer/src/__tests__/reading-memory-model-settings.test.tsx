@@ -35,6 +35,11 @@ function status(
   };
 }
 
+function building(): ReadingMemoryStatusSnapshot {
+  const snapshot = status();
+  return { ...snapshot, semantic: { ...snapshot.semantic, state: 'building' } };
+}
+
 function installApi(snapshot = status()) {
   const api = {
     model: {
@@ -187,11 +192,11 @@ describe('ReadingMemoryModelSettings', () => {
 
   it('does not let an earlier poll overwrite an action and stops polling after unmount', async () => {
     vi.useFakeTimers();
-    const api = installApi();
+    const api = installApi(building());
     const stalePoll = deferred<ReadingMemoryStatusSnapshot>();
     const unmountedPoll = deferred<ReadingMemoryStatusSnapshot>();
     api.model.status
-      .mockResolvedValueOnce(status())
+      .mockResolvedValueOnce(building())
       .mockReturnValueOnce(stalePoll.promise)
       .mockReturnValueOnce(unmountedPoll.promise);
     let unmount!: () => void;
@@ -220,6 +225,22 @@ describe('ReadingMemoryModelSettings', () => {
     await vi.advanceTimersByTimeAsync(10_000);
     expect(api.model.status).toHaveBeenCalledTimes(3);
     expect(api.model.cancel).not.toHaveBeenCalled();
+  });
+
+  it('polls idle status every ten seconds', async () => {
+    vi.useFakeTimers();
+    const api = installApi();
+    await act(async () => {
+      render(<ReadingMemoryModelSettings />);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(9_999);
+    });
+    expect(api.model.status).toHaveBeenCalledOnce();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(api.model.status).toHaveBeenCalledTimes(2);
   });
 
   it('offers status retry and reports action failure without losing the last snapshot', async () => {
