@@ -74,6 +74,14 @@ function verifyBuilderConfig() {
     throw new Error('electron-builder must exclude workspace node_modules/better-sqlite3/**');
   }
 
+  // Platform-level files replace the shared list; an ignore-only list packages the whole project.
+  for (const platform of ['mac', 'win']) {
+    const platformFiles = config[platform]?.files;
+    if (platformFiles && !files.every((pattern) => platformFiles.includes(pattern))) {
+      throw new Error(`electron-builder ${platform}.files must include the shared file list`);
+    }
+  }
+
   const hasNativePackage = extraResources.some(
     (entry) => entry?.from === 'electron-native' && entry?.to === 'electron-native',
   );

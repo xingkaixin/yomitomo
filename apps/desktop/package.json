@@ -30,20 +30,11 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@embedpdf/engines": "2.15.1",
-    "@embedpdf/models": "2.15.1",
     "@embedpdf/pdfium": "2.15.1",
-    "@hugeicons/core-free-icons": "catalog:",
-    "@hugeicons/react": "catalog:",
     "@huggingface/transformers": "catalog:",
     "@napi-rs/keyring": "^2.1.0",
-    "drizzle-orm": "^0.45.3",
     "effect": "catalog:",
-    "electron-updater": "^6.8.9",
-    "jsdom": "catalog:",
-    "jszip": "^3.10.2",
-    "undici": "8.11.2",
-    "zod": "4.6.5"
+    "jsdom": "catalog:"
   },
   "devDependencies": {
     "@base-ui/react": "catalog:",
@@ -52,6 +43,8 @@
     "@effect/vitest": "catalog:",
     "@electron/rebuild": "^4.2.0",
     "@embedpdf/core": "2.15.1",
+    "@embedpdf/engines": "2.15.1",
+    "@embedpdf/models": "2.15.1",
     "@embedpdf/plugin-bookmark": "2.15.1",
     "@embedpdf/plugin-document-manager": "2.15.1",
     "@embedpdf/plugin-interaction-manager": "2.15.1",
@@ -60,6 +53,8 @@
     "@embedpdf/plugin-selection": "2.15.1",
     "@embedpdf/plugin-viewport": "2.15.1",
     "@embedpdf/plugin-zoom": "2.15.1",
+    "@hugeicons/core-free-icons": "catalog:",
+    "@hugeicons/react": "catalog:",
     "@tailwindcss/postcss": "catalog:",
     "@types/better-sqlite3": "^9.6.0",
     "@types/jsdom": "catalog:",
@@ -76,14 +71,17 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "drizzle-kit": "^0.31.11",
+    "drizzle-orm": "^0.45.3",
     "electron": "^44.5.0",
     "electron-builder": "^26.17.0",
     "electron-builder-squirrel-windows": "^26.17.0",
+    "electron-updater": "^6.8.9",
     "electron-vite": "^5.0.0",
     "framer-motion": "^13.4.6",
     "goey-toast": "^0.5.0",
     "i18next": "^26.4.2",
     "input-otp": "^1.5.0",
+    "jszip": "^3.10.2",
     "playwright-core": "^1.63.0",
     "postcss": "^8.5.28",
     "react": "catalog:",
@@ -94,7 +92,9 @@
     "tailwind-merge": "^3.7.0",
     "tailwindcss": "catalog:",
     "typescript": "catalog:",
+    "undici": "8.11.2",
     "vite": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "zod": "4.6.5"
   }
 }
