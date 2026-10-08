@@ -59,8 +59,8 @@ export function agentWritingAnimationDuration(asset: AgentWritingAnimationAsset)
 function writingAnimation(sprite: string): AgentWritingAnimationAsset {
   return {
     frameCount: 7,
-    frameHeight: 192,
-    frameWidth: 192,
+    frameHeight: 96,
+    frameWidth: 96,
     sprite,
   };
 }
