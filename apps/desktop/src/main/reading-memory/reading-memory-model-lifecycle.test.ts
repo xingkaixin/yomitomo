@@ -413,6 +413,7 @@ describe('reading memory model lifecycle', () => {
   it('stops reporting availability after installed files are damaged externally', async () => {
     const manager = createManager({ request: createRequest() });
     await expect(manager.download()).resolves.toMatchObject({ status: 'available' });
+    await expect(manager.reconcile('verified')).resolves.toMatchObject({ status: 'available' });
     await writeFile(finalModelPath(), Buffer.alloc(modelBytes.byteLength, 0x78));
 
     await expect(manager.reconcile('external-change')).resolves.toMatchObject({
