@@ -43,39 +43,6 @@ export function agentInstructionFromNote(note: string, mentionedAgents: PublicAg
 
 type MentionRouteRequester = Pick<YomitomoDesktopApi['agent'], 'planMentionRoute'>;
 
-export async function planSelectionMentionRoute({
-  desktop,
-  note,
-  targetAnchor,
-  agents,
-  article,
-}: {
-  desktop: MentionRouteRequester | undefined;
-  note: string;
-  targetAnchor: Annotation['anchor'];
-  agents: PublicAgent[];
-  article: PromptArticle;
-}): Promise<AgentMentionRoutePlan> {
-  if (agents.length === 0) return { createUserThought: true, directives: [] };
-  if (!desktop) return fallbackMentionRoute(note, agents, 'comment');
-  try {
-    const route = normalizeMentionRoute(
-      await desktop.planMentionRoute({
-        note,
-        targetAnchor,
-        agents,
-        allowedActions: ['comment', 'create_thought'],
-        article,
-      }),
-      agents,
-      ['comment', 'create_thought'],
-    );
-    return route.directives.length > 0 ? route : fallbackMentionRoute(note, agents, 'comment');
-  } catch {
-    return fallbackMentionRoute(note, agents, 'comment');
-  }
-}
-
 export async function routeFocusReadingPlanMessages({
   desktop,
   agent,
@@ -118,23 +85,6 @@ export function mentionDirectivesForAgent(
         (!directive.agentId && directive.agentUsername === agent.nickname),
     )
     .filter((directive) => !action || directive.action === action);
-}
-
-function fallbackMentionRoute(
-  note: string,
-  agents: PublicAgent[],
-  action: AgentMentionDirective['action'],
-): AgentMentionRoutePlan {
-  const instruction = agentInstructionFromNote(note, agents);
-  return {
-    createUserThought: Boolean(instruction),
-    directives: agents.map((agent) => ({
-      agentId: agent.id,
-      agentUsername: agent.username,
-      action,
-      instruction: instruction || undefined,
-    })),
-  };
 }
 
 function normalizeMentionRoute(
