@@ -38,7 +38,6 @@ Please verify the following checkpoints:
 Common causes include:
 
 - The URL is invalid or does not start with `http://` or `https://`.
-- The target address points to loopback (`localhost`), private intranets, or cloud metadata endpoints (blocked by local security policy).
 - The raw HTML payload exceeds the 5 MB threshold.
 - The destination website enforces aggressive anti-scraping protections or strict login paywalls.
 - Network connection timed out.

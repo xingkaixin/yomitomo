@@ -41,7 +41,7 @@ Deleting a collection only removes the grouping itself and its membership links.
 3. Paste any article URL starting with `http://` or `https://`.
 4. Yomitomo will automatically extract the clean title, author, body text, and images.
 
-For dynamically rendered web pages, Yomitomo uses an internal headless engine to render the DOM before content extraction. For local security, loopback (`localhost`), private intranet, and cloud metadata addresses are blocked by default, and HTML responses exceeding 5 MB are rejected.
+For dynamically rendered web pages, Yomitomo uses an internal headless engine to render the DOM before content extraction. HTML responses exceeding 5 MB are rejected.
 
 <picture>
   <source

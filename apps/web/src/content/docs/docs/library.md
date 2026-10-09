@@ -41,7 +41,7 @@ description: 管理网页文章、EPUB/AZW3/MOBI 电子书、PDF 与文本文档
 3. 粘贴以 `http://` 或 `https://` 开头的文章链接。
 4. 等待 Yomitomo 智能提取标题、作者、正文及插图。
 
-对于依赖客户端动态渲染的页面，Yomitomo 会调用内置无头环境解析后再提取主体内容。为保障本地安全，默认拦截本地回环（localhost）、私有局域网及云元数据地址；单篇 HTML 响应超过 5MB 时会自动跳过。
+对于依赖客户端动态渲染的页面，Yomitomo 会调用内置无头环境解析后再提取主体内容。单篇 HTML 响应超过 5MB 时会自动跳过。
 
 <picture>
   <source
