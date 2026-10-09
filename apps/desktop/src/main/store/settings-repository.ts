@@ -29,11 +29,10 @@ export function readAppLockSettings(database: StoreExecutor): AppLockSettings {
 
 export function readImportSettings(
   database: StoreExecutor,
-): Pick<ResolvedAppSettings, 'saveArticleImages' | 'allowLocalNetworkArticleImport'> {
+): Pick<ResolvedAppSettings, 'saveArticleImages'> {
   const settings = database.select().from(schema.appSettings).limit(1).get();
   return {
     saveArticleImages: Boolean(settings?.saveArticleImages),
-    allowLocalNetworkArticleImport: Boolean(settings?.allowLocalNetworkArticleImport),
   };
 }
 

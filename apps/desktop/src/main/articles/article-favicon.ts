@@ -1,22 +1,15 @@
 import { Buffer } from 'node:buffer';
-import {
-  fetchArticleImportUrl,
-  isArticleImportRedirectStatus,
-  type ArticleImportNetworkPolicyOptions,
-} from './article-import-network-policy';
+import { isArticleImportRedirectStatus } from './article-import-response';
 
 const FAVICON_TIMEOUT_MS = 8_000;
 const MAX_FAVICON_BYTES = 512 * 1024;
 const MAX_FAVICON_REDIRECTS = 5;
 
-export async function fetchFaviconDataUrl(
-  initialUrl: string,
-  options: ArticleImportNetworkPolicyOptions = {},
-): Promise<string> {
+export async function fetchFaviconDataUrl(initialUrl: string): Promise<string> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FAVICON_TIMEOUT_MS);
   try {
-    const response = await fetchFaviconResponse(initialUrl, controller.signal, options);
+    const response = await fetchFaviconResponse(initialUrl, controller.signal);
     try {
       if (!response.ok) return '';
 
@@ -37,23 +30,15 @@ export async function fetchFaviconDataUrl(
   }
 }
 
-async function fetchFaviconResponse(
-  initialUrl: string,
-  signal: AbortSignal,
-  options: ArticleImportNetworkPolicyOptions,
-) {
+async function fetchFaviconResponse(initialUrl: string, signal: AbortSignal) {
   let url = initialUrl;
 
   for (let redirectCount = 0; redirectCount <= MAX_FAVICON_REDIRECTS; redirectCount += 1) {
-    const response = await fetchArticleImportUrl(
-      url,
-      {
-        headers: { accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8' },
-        redirect: 'manual',
-        signal,
-      },
-      options,
-    );
+    const response = await fetch(url, {
+      headers: { accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8' },
+      redirect: 'manual',
+      signal,
+    });
     if (!isArticleImportRedirectStatus(response.status)) return response;
 
     const location = response.headers.get('location');

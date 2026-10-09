@@ -231,10 +231,7 @@ describe('useSettingsDrafts', () => {
     });
   });
 
-  it.each([
-    ['telemetryEnabled', { telemetryEnabled: false }],
-    ['allowLocalNetworkArticleImport', { allowLocalNetworkArticleImport: true }],
-  ] as const)('detects %s-only general settings changes', async (_field, settings) => {
+  it('detects telemetryEnabled-only general settings changes', async () => {
     const latest: { current?: ReturnType<typeof useSettingsDrafts> } = {};
 
     function Harness() {
@@ -251,7 +248,7 @@ describe('useSettingsDrafts', () => {
     await waitFor(() => expect(latest.current?.general.value).toEqual(emptyStore.settings));
 
     act(() => {
-      latest.current?.general.update({ ...emptyStore.settings, ...settings });
+      latest.current?.general.update({ ...emptyStore.settings, telemetryEnabled: false });
     });
 
     expect(latest.current?.general.canSave).toBe(true);

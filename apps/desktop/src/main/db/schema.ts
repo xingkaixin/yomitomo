@@ -51,11 +51,6 @@ export const appSettings = sqliteTable('app_settings', {
   messageSendShortcut: text('message_send_shortcut').notNull().default('enter'),
   selectionActionShortcuts: text('selection_action_shortcuts', { mode: 'json' }),
   saveArticleImages: integer('save_article_images', { mode: 'boolean' }).notNull().default(false),
-  allowLocalNetworkArticleImport: integer('allow_local_network_article_import', {
-    mode: 'boolean',
-  })
-    .notNull()
-    .default(false),
   readingMemoryRemoteConsent: integer('reading_memory_remote_consent', { mode: 'boolean' })
     .notNull()
     .default(false),

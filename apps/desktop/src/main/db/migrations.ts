@@ -1371,6 +1371,13 @@ ALTER TABLE articles DROP COLUMN ebook_index;
 ALTER TABLE articles DROP COLUMN focus_co_reading_plan;
 `,
   },
+  {
+    id: '0073_remove_local_network_article_import_setting',
+    minReaderLevel: 4,
+    sql: `
+ALTER TABLE app_settings DROP COLUMN allow_local_network_article_import;
+`,
+  },
 ];
 
 type MigrationDatabase = {
@@ -1412,10 +1419,6 @@ export function ensureAdditiveSchemaColumns(database: MigrationDatabase) {
     {
       name: 'app_lock_shortcut',
       sql: 'ALTER TABLE app_settings ADD COLUMN app_lock_shortcut TEXT',
-    },
-    {
-      name: 'allow_local_network_article_import',
-      sql: 'ALTER TABLE app_settings ADD COLUMN allow_local_network_article_import INTEGER NOT NULL DEFAULT 0',
     },
     {
       name: 'telemetry_enabled',

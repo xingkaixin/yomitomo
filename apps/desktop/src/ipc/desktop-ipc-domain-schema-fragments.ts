@@ -348,7 +348,6 @@ const settingsSchema = checkedSchema<AppSettingsPatch>(
       })
       .optional(),
     saveArticleImages: z.boolean().optional(),
-    allowLocalNetworkArticleImport: z.boolean().optional(),
     readingMemoryRemoteConsent: z.boolean().optional(),
     telemetryEnabled: z.boolean().optional(),
     developerModeEnabled: z.boolean().optional(),

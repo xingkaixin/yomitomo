@@ -1010,8 +1010,6 @@ export const jaResources = {
           unsupportedContentType: '応答は HTML ではないため、インポートできません',
           responseTooLarge: 'Web ページは 5MB を超えているためインポートできません',
           timeout: 'Web ページのリクエストがタイムアウトしました',
-          blockedNetworkTarget:
-            'セキュリティ上の理由から、ローカルホストとプライベート ネットワークのアドレスはインポートできません',
           idleHeader: '記事のリンクを貼り付けます。解析後にライブラリに保存されます。',
           idleFooter:
             'Yomitomoは、タイトル、ソース、本文、および読み取り可能なコンテンツを抽出します。',
@@ -1730,14 +1728,6 @@ export const jaResources = {
         saveImagesTitle: 'キャプチャ中に記事画像を保存する',
         saveImagesDescription:
           '記事画像をローカルに保存して、ソース画像の有効期限が切れたり、ホットリンクをブロックしたり、移動したりした場合に読み取れなくなることを減らします。',
-        localNetworkImportTitle: 'ローカルホストとプライベート ネットワークのインポートを許可する',
-        localNetworkImportDescription:
-          '有効にすると、Web 記事のインポートはローカルホスト、LAN、およびクラウドのメタデータ アドレスにアクセスできます。',
-        localNetworkImportConfirmTitle:
-          'ローカル ネットワークとプライベート ネットワークへのアクセスを許可しますか?',
-        localNetworkImportConfirmDescription:
-          '有効にすると、Web 記事のインポートでローカル サービス、LAN サービス、およびクラウド メタデータ アドレスにアクセスできるようになります。信頼できないリンクを貼り付けると、メイン プロセスがそれらの応答を読み取り、ライブラリに保存する可能性があります。イントラネット記事を明示的にインポートする必要がある場合にのみ、これを有効にします。',
-        localNetworkImportConfirm: 'とにかく有効にする',
         privacyGroup: 'プライバシー',
         telemetryTitle: '匿名の利用状況を送信',
         telemetryDescription:

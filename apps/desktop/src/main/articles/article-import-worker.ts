@@ -9,18 +9,15 @@ import { inlineArticleFavicon, inlineArticleImages } from '@yomitomo/core/articl
 import { isRecord, stringField } from '@yomitomo/shared';
 import { isSourceImportError, SourceImportError } from '../../ipc/article-import-boundary';
 import {
-  fetchArticleImportUrl,
   isArticleImportRedirectStatus,
-  type ArticleImportNetworkPolicyOptions,
-} from './article-import-network-policy';
-import { readArticleImportResponseBytes } from './article-import-response';
+  readArticleImportResponseBytes,
+} from './article-import-response';
 
 const ARTICLE_IMAGE_TIMEOUT_MS = 10_000;
 const MAX_ARTICLE_IMAGE_BYTES = 2_000_000;
 const MAX_ARTICLE_IMAGE_REDIRECTS = 5;
 
 type ArticleImportWorkerData = {
-  allowLocalNetworkArticleImport?: boolean;
   html: string;
   inlineImages: boolean;
   url: string;
@@ -58,15 +55,7 @@ async function extractArticleRecord(input: unknown) {
   try {
     let article = await extractArticleFromDocument(dom.window.document, data.url);
     const fetcher = (imageUrl: string, signal?: AbortSignal) =>
-      fetchArticleImageDataUrl(
-        imageUrl,
-        article.url,
-        data.userAgent,
-        {
-          allowLocalNetworkArticleImport: data.allowLocalNetworkArticleImport,
-        },
-        signal,
-      );
+      fetchArticleImageDataUrl(imageUrl, article.url, data.userAgent, signal);
     if (data.inlineImages) {
       article = await inlineArticleImages(article, {
         articleDocument: dom.window.document,
@@ -89,7 +78,6 @@ function articleImportWorkerData(input: unknown): ArticleImportWorkerData {
   const userAgent = stringField(input.userAgent) || undefined;
   if (!html || !url) throw new SourceImportError('ARTICLE_IMPORT_INVALID_TASK');
   return {
-    allowLocalNetworkArticleImport: input.allowLocalNetworkArticleImport === true,
     html,
     inlineImages: input.inlineImages === true,
     url,
@@ -101,7 +89,6 @@ async function fetchArticleImageDataUrl(
   url: string,
   articleUrl: string,
   userAgent: string | undefined,
-  options: ArticleImportNetworkPolicyOptions = {},
   parentSignal?: AbortSignal,
 ) {
   const controller = new AbortController();
@@ -111,13 +98,7 @@ async function fetchArticleImageDataUrl(
     : controller.signal;
 
   try {
-    const { response } = await fetchArticleImageResponse(
-      url,
-      articleUrl,
-      userAgent,
-      signal,
-      options,
-    );
+    const { response } = await fetchArticleImageResponse(url, articleUrl, userAgent, signal);
     try {
       if (!response.ok) return null;
 
@@ -146,20 +127,15 @@ async function fetchArticleImageResponse(
   articleUrl: string,
   userAgent: string | undefined,
   signal: AbortSignal,
-  options: ArticleImportNetworkPolicyOptions,
 ): Promise<ArticleImageResponse> {
   let url = initialUrl;
 
   for (let redirectCount = 0; redirectCount <= MAX_ARTICLE_IMAGE_REDIRECTS; redirectCount += 1) {
-    const response = await fetchArticleImportUrl(
-      url,
-      {
-        headers: imageHeaders(articleUrl, userAgent),
-        redirect: 'manual',
-        signal,
-      },
-      options,
-    );
+    const response = await fetch(url, {
+      headers: imageHeaders(articleUrl, userAgent),
+      redirect: 'manual',
+      signal,
+    });
 
     if (!isArticleImportRedirectStatus(response.status)) return { response, url };
     if (redirectCount === MAX_ARTICLE_IMAGE_REDIRECTS)

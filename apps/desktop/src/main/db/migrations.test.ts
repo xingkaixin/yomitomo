@@ -667,7 +667,6 @@ ALTER TABLE app_settings ADD COLUMN bilingual_translation_target_language TEXT;
       'app_settings.app_lock_locked',
       'app_settings.app_lock_lock_on_startup',
       'app_settings.app_lock_shortcut',
-      'app_settings.allow_local_network_article_import',
       'app_settings.telemetry_enabled',
     ]);
     expect(columnNames(database, 'app_settings')).toEqual(
@@ -680,7 +679,6 @@ ALTER TABLE app_settings ADD COLUMN bilingual_translation_target_language TEXT;
         'app_lock_locked',
         'app_lock_lock_on_startup',
         'app_lock_shortcut',
-        'allow_local_network_article_import',
         'telemetry_enabled',
       ]),
     );

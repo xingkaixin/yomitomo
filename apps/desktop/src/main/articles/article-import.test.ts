@@ -65,9 +65,7 @@ vi.mock('electron', () => ({
       ),
       session: {
         clearCache: vi.fn().mockResolvedValue(undefined),
-        closeAllConnections: vi.fn().mockResolvedValue(undefined),
         clearStorageData: vi.fn().mockResolvedValue(undefined),
-        setProxy: vi.fn().mockResolvedValue(undefined),
       },
     };
     readonly options: {
@@ -115,9 +113,7 @@ const browserWindowMocks = vi.hoisted(() => ({
     webContents: {
       session: {
         clearCache: ReturnType<typeof vi.fn>;
-        closeAllConnections: ReturnType<typeof vi.fn>;
         clearStorageData: ReturnType<typeof vi.fn>;
-        setProxy: ReturnType<typeof vi.fn>;
       };
     };
   }>,
@@ -130,14 +126,6 @@ const browserWindowMocks = vi.hoisted(() => ({
         url: string;
       }
     | undefined,
-}));
-
-const dnsMocks = vi.hoisted(() => ({
-  lookup: vi.fn(async () => [{ address: '93.184.216.34', family: 4 as const }]),
-}));
-
-vi.mock('node:dns/promises', () => ({
-  lookup: dnsMocks.lookup,
 }));
 
 import {
@@ -157,8 +145,6 @@ describe('article import', () => {
     browserWindowMocks.nextRenderedPage = undefined;
     workerMocks.MockWorker.nextMessage = undefined;
     workerMocks.MockWorker.delayMessage = false;
-    dnsMocks.lookup.mockReset();
-    dnsMocks.lookup.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
   });
 
   it('fetches html and extracts the article in a worker', async () => {
@@ -186,62 +172,14 @@ describe('article import', () => {
     expect(cancelArticleImport('import-1')).toBe(false);
   });
 
-  it.each([
-    'http://127.0.0.1:8080/post',
-    'http://0.0.0.0/post',
-    'http://10.0.0.1/post',
-    'http://100.100.100.200/latest/meta-data',
-    'http://172.16.0.1/post',
-    'http://192.168.1.10/post',
-    'http://169.254.169.254/latest/meta-data',
-    'http://224.0.0.1/post',
-    'http://[::1]/post',
-    'http://[fc00::1]/post',
-    'http://[fe80::1]/post',
-    'http://localhost:8080/post',
-  ])('rejects blocked article import target %s before fetching', async (url) => {
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(new Response('<html><body>local</body></html>'));
-
-    await expect(articleRecordFromUrl(url)).rejects.toThrow(
-      'ARTICLE_IMPORT_BLOCKED_NETWORK_TARGET',
-    );
-
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(workerMocks.instances).toHaveLength(0);
-  });
-
-  it('rejects article import targets that resolve to private addresses', async () => {
-    dnsMocks.lookup.mockResolvedValueOnce([{ address: '192.168.1.10', family: 4 }]);
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(new Response('<html><body>private</body></html>'));
-
-    await expect(articleRecordFromUrl('https://internal.example/post')).rejects.toThrow(
-      'ARTICLE_IMPORT_BLOCKED_NETWORK_TARGET',
-    );
-
-    expect(dnsMocks.lookup).toHaveBeenCalledWith('internal.example', {
-      all: true,
-      verbatim: true,
-    });
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(workerMocks.instances).toHaveLength(0);
-  });
-
-  it('allows blocked article import targets when local network import is enabled', async () => {
+  it('fetches local and private network targets', async () => {
     const article = articleRecord();
     workerMocks.MockWorker.nextMessage = { ok: true, article };
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(new Response('<html><body>local</body></html>'));
 
-    await expect(
-      articleRecordFromUrl('http://127.0.0.1:8080/post', {
-        allowLocalNetworkArticleImport: true,
-      }),
-    ).resolves.toEqual(article);
+    await expect(articleRecordFromUrl('http://127.0.0.1:8080/post')).resolves.toEqual(article);
 
     expect(fetchMock).toHaveBeenCalledWith(
       'http://127.0.0.1:8080/post',
@@ -250,27 +188,7 @@ describe('article import', () => {
     expect(workerMocks.instances).toHaveLength(1);
   });
 
-  it('rejects redirects to blocked article import targets', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response('', {
-        headers: { location: 'http://127.0.0.1:8080/private' },
-        status: 302,
-      }),
-    );
-
-    await expect(articleRecordFromUrl('https://example.com/post')).rejects.toThrow(
-      'ARTICLE_IMPORT_BLOCKED_NETWORK_TARGET',
-    );
-
-    expect(fetchMock).toHaveBeenCalledOnce();
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://example.com/post',
-      expect.objectContaining({ redirect: 'manual' }),
-    );
-    expect(workerMocks.instances).toHaveLength(0);
-  });
-
-  it('follows public redirects after validating each target', async () => {
+  it('follows redirects', async () => {
     const article = articleRecord();
     workerMocks.MockWorker.nextMessage = { ok: true, article };
     const fetchMock = vi
@@ -465,13 +383,6 @@ describe('article import', () => {
     expect(partition).toMatch(/^yomitomo-import-/);
     expect(partition?.startsWith('persist:')).toBe(false);
     expect(browserWindow.options.webPreferences?.sandbox).toBe(true);
-    expect(browserWindow.webContents.session.setProxy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        proxyBypassRules: '<-loopback>',
-        proxyRules: expect.stringMatching(/^http:\/\/127\.0\.0\.1:\d+$/),
-      }),
-    );
-    expect(browserWindow.webContents.session.closeAllConnections).toHaveBeenCalledOnce();
     expect(browserWindow.destroyed).toBe(true);
     expect(browserWindow.webContents.session.clearStorageData).toHaveBeenCalledOnce();
     expect(browserWindow.webContents.session.clearCache).toHaveBeenCalledOnce();
@@ -482,24 +393,6 @@ describe('article import', () => {
         persistent: false,
       }),
     );
-  });
-
-  it('does not install rendered request policy when local network import is enabled', async () => {
-    const article = articleRecord();
-    workerMocks.MockWorker.nextMessage = { ok: true, article };
-    vi.spyOn(console, 'info').mockImplementation(() => undefined);
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('<html>cf-browser-verification</html>'),
-    );
-
-    await expect(
-      articleRecordFromUrl('http://127.0.0.1:8080/post', {
-        allowLocalNetworkArticleImport: true,
-      }),
-    ).resolves.toEqual(article);
-
-    expect(browserWindowMocks.instances).toHaveLength(1);
-    expect(browserWindowMocks.instances[0].webContents.session.setProxy).not.toHaveBeenCalled();
   });
 });
 

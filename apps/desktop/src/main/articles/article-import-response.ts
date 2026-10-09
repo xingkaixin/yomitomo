@@ -53,3 +53,7 @@ function throwIfSignalAborted(signal: AbortSignal) {
   error.name = 'AbortError';
   throw error;
 }
+
+export function isArticleImportRedirectStatus(status: number) {
+  return [301, 302, 303, 307, 308].includes(status);
+}
