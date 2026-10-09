@@ -1,5 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "agentGuidance": false,
   "globalDependencies": [".oxfmtrc.json", ".oxlintrc.json", "mise.toml", "tsconfig.base.json"],
   "globalEnv": ["CI", "NODE_ENV", "TZ"],
   "tasks": {
