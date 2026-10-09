@@ -1,0 +1,35 @@
+{
+  "version": "0.16.3",
+  "highlights": [
+    {
+      "type": "changed",
+      "title": "Less startup work and image memory",
+      "description": "More modules load on demand when opening the app. Cover caches are bounded, and assistant images are stored at display size.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Less repeated work while reading and saving",
+      "description": "Reading, annotations, and Reading Memory search do less repeated computation. Saving your reading position no longer rewrites the entire book body.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "Keep your text selection",
+      "description": "Web reader selections stay in place while annotations update, so you can continue copying or annotating.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "Restore imports behind fake-IP proxies",
+      "description": "Fixed web imports being rejected behind fake-IP proxies such as Clash and Surge. Private network articles can also be imported directly.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Back up before upgrading",
+      "description": "This release migrates the database. v0.16.2 and earlier cannot open the upgraded data. To downgrade, restore a compatible backup made before upgrading.",
+      "audience": "settings"
+    }
+  ]
+}
