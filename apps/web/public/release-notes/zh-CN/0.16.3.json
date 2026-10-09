@@ -1,0 +1,35 @@
+{
+  "version": "0.16.3",
+  "highlights": [
+    {
+      "type": "changed",
+      "title": "启动与图片占用更少",
+      "description": "打开应用时按需加载更多模块，封面缓存设定上限，助手图片按显示尺寸保存。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "阅读与保存减少重复工作",
+      "description": "滚动阅读、处理批注和阅读记忆检索减少重复计算；保存阅读进度不再重写整本书的正文。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "批注更新不打断选字",
+      "description": "网页阅读器更新批注时保留文字选区，便于继续复制或批注。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "代理环境下也能导入网页",
+      "description": "修复 Clash、Surge 等 fake-IP 代理下网页导入被拒绝的问题，内网文章也可直接导入。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "升级前请备份数据",
+      "description": "本版会升级数据库，v0.16.2 及更早版本无法打开升级后的数据。需要降级时，请还原升级前的兼容备份。",
+      "audience": "settings"
+    }
+  ]
+}

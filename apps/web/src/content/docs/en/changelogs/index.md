@@ -5,6 +5,17 @@ sidebar:
   hidden: true
 ---
 
+## 0.16.3
+
+Released: 2026-10-09
+
+- Reduced startup work and memory used by cover caches and assistant images.
+- Reduced repeated work in the reader, Reading Memory, and reading progress saves.
+- Preserved text selections during annotation updates and allowed private network article imports.
+- Back up before upgrading: v0.16.2 and earlier cannot open the migrated database.
+
+[View 0.16.3 release notes](/en/changelogs/v0-16-3/)
+
 ## 0.16.2
 
 Released: 2026-10-03

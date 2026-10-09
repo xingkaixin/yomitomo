@@ -60,6 +60,8 @@ The **Assistant Execution Mode** applies globally: **Fast Response** prioritizes
 
 ## Data Management and Backup
 
+Back up your data before upgrading. v0.16.3 migrates the database to reader level 4; v0.16.2 and earlier cannot open it afterward. To downgrade, restore a compatible backup made before upgrading.
+
 Open local data folders, inspect logs, and choose a complete backup or a database-only backup.
 
 - **Complete backup**: Creates a folder containing the database, original ebooks and PDFs, PDF thumbnails, and a file checksum manifest. Keep the entire folder when moving devices. Restore verifies the files and database, keeps a safety backup of current data, and rolls back if installing the backup fails.

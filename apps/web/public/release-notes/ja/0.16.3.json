@@ -1,0 +1,35 @@
+{
+  "version": "0.16.3",
+  "highlights": [
+    {
+      "type": "changed",
+      "title": "起動処理と画像メモリを削減",
+      "description": "起動時のモジュールを必要に応じて読み込みます。表紙キャッシュに上限を設け、アシスタント画像を表示サイズで保存します。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "読書と保存の重複処理を削減",
+      "description": "読書、注釈、読書メモリ検索の再計算を減らしました。読書位置の保存時に本の本文全体を書き直さなくなりました。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "文字の選択範囲を保持",
+      "description": "Web リーダーの注釈が更新されても選択範囲を保持し、コピーや注釈を続けられます。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "fake-IP プロキシでの取り込みを修正",
+      "description": "Clash や Surge などの fake-IP プロキシで記事の取り込みが拒否される問題を修正しました。内部ネットワークの記事も直接取り込めます。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "更新前にバックアップしてください",
+      "description": "本版はデータベースを移行します。更新後のデータは v0.16.2 以前では開けません。旧版に戻す場合は、更新前の互換性のあるバックアップを復元してください。",
+      "audience": "settings"
+    }
+  ]
+}
