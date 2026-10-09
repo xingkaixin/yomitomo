@@ -61,7 +61,6 @@ describe('article IPC patch broadcasts', () => {
       new SourceImportError('ARTICLE_IMPORT_REQUEST_FAILED'),
     );
     const readImportSettings = vi.fn().mockReturnValue({
-      allowLocalNetworkArticleImport: false,
       saveArticleImages: false,
     });
     registerArticleIpc(articleIpcContext({ readImportSettings }, {}));
@@ -89,7 +88,6 @@ describe('article IPC patch broadcasts', () => {
       articleIpcContext(
         {
           readImportSettings: vi.fn().mockReturnValue({
-            allowLocalNetworkArticleImport: false,
             saveArticleImages: false,
           }),
         },

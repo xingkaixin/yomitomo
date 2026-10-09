@@ -56,7 +56,6 @@ The **Assistant Execution Mode** applies globally: **Fast Response** prioritizes
 
 - **Model requests**: Remote AI features send the source text, annotations, and conversation needed for the task to your configured model endpoint. A model running on your computer performs inference locally.
 - **App Lock (PIN Code)**: Protects your local reading library behind a secure PIN screen. Passcode verification relies on native OS keystores.
-- **Intranet Scraping Safeguards**: Blocks web imports from resolving to `localhost`, private intranet IPs, or cloud metadata endpoints by default.
 - **Telemetry Controls**: Sends an anonymous daily heartbeat (anonymous UUID, app version, OS architecture) strictly for platform stability metrics. **Never transmits reading content, titles, highlights, local paths, or AI dialogues.** Can be disabled entirely in settings.
 
 ## Data Management and Backup

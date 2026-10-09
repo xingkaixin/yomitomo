@@ -143,52 +143,6 @@ describe('GeneralSettings', () => {
     );
   });
 
-  it('requires confirmation before enabling local network article imports', () => {
-    const onSettingsChange = vi.fn();
-    const onSave = vi.fn();
-    render(
-      <GeneralSettings
-        settingsDraft={{ allowLocalNetworkArticleImport: false }}
-        canSave={false}
-        onSettingsChange={onSettingsChange}
-        onSave={onSave}
-        saveState="idle"
-      />,
-    );
-
-    fireEvent.click(screen.getByRole('checkbox', { name: /允许导入本机和私有网络地址/ }));
-
-    expect(onSettingsChange).not.toHaveBeenCalled();
-    expect(screen.getByText('允许访问本机和私有网络？')).toBeTruthy();
-
-    fireEvent.click(screen.getByRole('button', { name: '确认开启' }));
-
-    const nextDraft = expect.objectContaining({ allowLocalNetworkArticleImport: true });
-    expect(onSettingsChange).toHaveBeenCalledWith(nextDraft);
-    expect(onSave).toHaveBeenCalledWith(nextDraft);
-  });
-
-  it('disables local network article imports without confirmation', () => {
-    const onSettingsChange = vi.fn();
-    const onSave = vi.fn();
-    render(
-      <GeneralSettings
-        settingsDraft={{ allowLocalNetworkArticleImport: true }}
-        canSave={false}
-        onSettingsChange={onSettingsChange}
-        onSave={onSave}
-        saveState="idle"
-      />,
-    );
-
-    fireEvent.click(screen.getByRole('checkbox', { name: /允许导入本机和私有网络地址/ }));
-
-    expect(screen.queryByText('允许访问本机和私有网络？')).toBeNull();
-    const nextDraft = expect.objectContaining({ allowLocalNetworkArticleImport: false });
-    expect(onSettingsChange).toHaveBeenCalledWith(nextDraft);
-    expect(onSave).toHaveBeenCalledWith(nextDraft);
-  });
-
   it('saves the telemetry opt-out setting without confirmation', () => {
     const onSettingsChange = vi.fn();
     const onSave = vi.fn();

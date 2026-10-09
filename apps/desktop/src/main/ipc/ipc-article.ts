@@ -150,7 +150,6 @@ export function registerArticleIpc(context: ArticleIpcContext) {
       const importSettings = articlePersistence.readImportSettings();
       const record = await canceledArticleSourceImport(
         articleRecordFromUrl(input.url, {
-          allowLocalNetworkArticleImport: importSettings.allowLocalNetworkArticleImport,
           inlineImages: importSettings.saveArticleImages,
           requestId: input.requestId,
         }),

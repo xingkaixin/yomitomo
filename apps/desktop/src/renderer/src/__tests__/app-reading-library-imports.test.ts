@@ -22,9 +22,6 @@ describe('article import errors', () => {
     expect(articleImportErrorMessage(new DesktopIpcError('ARTICLE_IMPORT_TIMEOUT'), keyT)).toBe(
       'library.import.article.timeout',
     );
-    expect(
-      articleImportErrorMessage(new DesktopIpcError('ARTICLE_IMPORT_BLOCKED_NETWORK_TARGET'), keyT),
-    ).toBe('library.import.article.blockedNetworkTarget');
   });
 
   it('falls back to the generic article import error for unknown errors', () => {

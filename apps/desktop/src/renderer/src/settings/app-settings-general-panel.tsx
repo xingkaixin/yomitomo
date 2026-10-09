@@ -6,7 +6,6 @@ import {
   InternetAntenna01Icon,
   LanguageCircleIcon,
   LockKeyIcon,
-  SecurityWarningIcon,
   Tick01Icon,
   VolumeHighIcon,
 } from '@hugeicons/core-free-icons';
@@ -20,7 +19,6 @@ import {
 import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
 import { useTranslation } from 'react-i18next';
 import { AutoSaveStatus } from './app-settings-save-status';
-import { SettingsConfirmDialog } from './app-settings-confirm-dialog';
 import { SettingsElasticSlider } from './app-settings-elastic-slider';
 import {
   SettingsGroup,
@@ -81,7 +79,6 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<ResolvedAppSet
   const [translationLanguageOpen, setTranslationLanguageOpen] = useState(false);
   const [translationStyleOpen, setTranslationStyleOpen] = useState(false);
   const [saveSection, setSaveSection] = useState<GeneralSaveSection | null>(null);
-  const [localNetworkConfirmOpen, setLocalNetworkConfirmOpen] = useState(false);
   const committedSoundVolumePercentRef = useRef(savedSoundVolumePercent);
   const appLockWorkflow = useAppLockSettingsWorkflow({
     messages: {
@@ -146,11 +143,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<ResolvedAppSet
     if (checked) playAppSoundEffect('settings.sound_preview', nextDraft);
   }
 
-  function saveCollectionSettings(
-    patch: Partial<
-      Pick<ResolvedAppSettings, 'saveArticleImages' | 'allowLocalNetworkArticleImport'>
-    >,
-  ) {
+  function saveCollectionSettings(patch: Pick<ResolvedAppSettings, 'saveArticleImages'>) {
     const nextDraft = {
       ...settingsDraft,
       ...patch,
@@ -168,19 +161,6 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<ResolvedAppSet
     onSettingsChange(nextDraft);
     setSaveSection('telemetry');
     onSave(nextDraft);
-  }
-
-  function toggleLocalNetworkArticleImport(checked: boolean) {
-    if (checked) {
-      setLocalNetworkConfirmOpen(true);
-      return;
-    }
-    saveCollectionSettings({ allowLocalNetworkArticleImport: false });
-  }
-
-  function confirmLocalNetworkArticleImport() {
-    setLocalNetworkConfirmOpen(false);
-    saveCollectionSettings({ allowLocalNetworkArticleImport: true });
   }
 
   function toggleAppLockOnStartup(checked: boolean) {
@@ -523,18 +503,6 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<ResolvedAppSet
             onChange={(checked) => saveCollectionSettings({ saveArticleImages: checked })}
           />
         </SettingsRow>
-        <SettingsRow
-          leading={<HugeiconsIcon icon={SecurityWarningIcon} size={20} />}
-          title={t('settings.general.localNetworkImportTitle')}
-          description={t('settings.general.localNetworkImportDescription')}
-        >
-          <SettingsToggle
-            id="general-local-network-import"
-            checked={settingsDraft.allowLocalNetworkArticleImport}
-            label={t('settings.general.localNetworkImportTitle')}
-            onChange={toggleLocalNetworkArticleImport}
-          />
-        </SettingsRow>
       </SettingsGroup>
 
       <SettingsGroup
@@ -562,15 +530,6 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<ResolvedAppSet
       </SettingsGroup>
 
       <AppLockSettingsDialog workflow={appLockWorkflow} />
-      <SettingsConfirmDialog
-        cancelLabel={t('settings.confirm.cancel')}
-        confirmLabel={t('settings.general.localNetworkImportConfirm')}
-        description={t('settings.general.localNetworkImportConfirmDescription')}
-        open={localNetworkConfirmOpen}
-        title={t('settings.general.localNetworkImportConfirmTitle')}
-        onCancel={() => setLocalNetworkConfirmOpen(false)}
-        onConfirm={confirmLocalNetworkArticleImport}
-      />
     </SettingsPage>
   );
 }

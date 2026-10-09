@@ -131,10 +131,7 @@ export async function deleteCurrentArticleTranslation(input: ArticleTranslationI
   return translation;
 }
 
-export function readImportSettings(): Pick<
-  ResolvedAppSettings,
-  'saveArticleImages' | 'allowLocalNetworkArticleImport'
-> {
+export function readImportSettings(): Pick<ResolvedAppSettings, 'saveArticleImages'> {
   return readImportSettingsRows(getDatabase());
 }
 
@@ -153,9 +150,8 @@ export async function ensureArticleSiteIcon(id: string): Promise<string> {
   if (raw.startsWith('data:image/')) return raw;
   if (!/^https?:\/\//i.test(raw)) return '';
 
-  const { allowLocalNetworkArticleImport } = readImportSettingsRows(database);
   const { fetchFaviconDataUrl } = await import('../articles/article-favicon');
-  const dataUrl = await fetchFaviconDataUrl(raw, { allowLocalNetworkArticleImport });
+  const dataUrl = await fetchFaviconDataUrl(raw);
   updateArticleSiteIconRows(database, id, dataUrl);
   return dataUrl;
 }

@@ -77,7 +77,6 @@ import { closeDatabase } from './store-lifecycle';
 import { ensureArticleSiteIcon, readArticle } from './store-articles';
 import { readShellStore, readStore } from './store-snapshot';
 import { rowToArticleSummary, type ArticleSummaryRow } from './store-normalizers';
-import { upsertSettings } from './settings-repository';
 import * as schema from '../db/schema';
 
 beforeEach(async () => {
@@ -151,22 +150,19 @@ describe('desktop store articles', () => {
     });
   });
 
-  it('applies import network settings when localizing a site icon', async () => {
+  it('localizes a remote site icon', async () => {
     const database = getDatabase();
-    const remoteUrl = 'http://127.0.0.1/favicon.png';
+    const remoteUrl = 'https://example.com/favicon.png';
     const dataUrl = 'data:image/png;base64,AQI=';
     writeArticleRows(database, {
       ...articleRecord({ id: 'article-site-icon' }),
       siteIconUrl: remoteUrl,
     });
-    upsertSettings(database, { allowLocalNetworkArticleImport: true });
     testState.fetchFaviconDataUrl.mockResolvedValue(dataUrl);
 
     await expect(ensureArticleSiteIcon('article-site-icon')).resolves.toBe(dataUrl);
 
-    expect(testState.fetchFaviconDataUrl).toHaveBeenCalledWith(remoteUrl, {
-      allowLocalNetworkArticleImport: true,
-    });
+    expect(testState.fetchFaviconDataUrl).toHaveBeenCalledWith(remoteUrl);
     expect(readArticleRows(database, 'article-site-icon')?.siteIconUrl).toBe(dataUrl);
   });
 
@@ -183,9 +179,7 @@ describe('desktop store articles', () => {
     await expect(ensureArticleSiteIcon('article-failed-site-icon')).resolves.toBe('');
 
     expect(testState.fetchFaviconDataUrl).toHaveBeenCalledOnce();
-    expect(testState.fetchFaviconDataUrl).toHaveBeenCalledWith(remoteUrl, {
-      allowLocalNetworkArticleImport: false,
-    });
+    expect(testState.fetchFaviconDataUrl).toHaveBeenCalledWith(remoteUrl);
     expect(readArticleSiteIconRawRows(database, 'article-failed-site-icon')).toBe('');
   });
 

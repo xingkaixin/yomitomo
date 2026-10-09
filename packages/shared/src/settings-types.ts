@@ -56,7 +56,6 @@ export type ResolvedAppSettings = {
   messageSendShortcut: MessageSendShortcut;
   selectionActionShortcuts: SelectionActionShortcuts;
   saveArticleImages: boolean;
-  allowLocalNetworkArticleImport: boolean;
   readingMemoryRemoteConsent: boolean;
   telemetryEnabled: boolean;
   developerModeEnabled: boolean;

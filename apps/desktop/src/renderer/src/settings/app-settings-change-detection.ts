@@ -27,7 +27,6 @@ const settingsDraftSectionByField = {
   messageSendShortcut: 'shortcuts',
   selectionActionShortcuts: 'shortcuts',
   saveArticleImages: 'general',
-  allowLocalNetworkArticleImport: 'general',
   telemetryEnabled: 'general',
   readingMemoryRemoteConsent: 'external',
   developerModeEnabled: 'external',
