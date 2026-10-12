@@ -1,5 +1,5 @@
 import { and, count, eq, inArray, isNotNull, sql, type SQL } from 'drizzle-orm';
-import type { ArticleCounts } from '@yomitomo/shared';
+import type { ArticleActivityDates, ArticleCounts } from '@yomitomo/shared';
 import * as schema from '../db/schema';
 import type { StoreDatabase, StoreReadProfileEntry } from '../store/store-db';
 import { measureStoreRead } from '../store/store-read-profile';
@@ -106,7 +106,7 @@ function readArticleSummaryCountsInternal(
   }
 
   for (const row of distillationReviewRows) {
-    const aiReviewMessageCount = countAiDistillationReviewMessages(row.reviewSessions);
+    const aiReviewMessageCount = aiDistillationReviewMessageDates(row.reviewSessions).length;
     if (aiReviewMessageCount === 0) continue;
     const counts = countsByArticle.get(row.articleId);
     if (counts) counts.aiCommentCount += aiReviewMessageCount;
@@ -123,24 +123,114 @@ function readArticleSummaryCountsInternal(
   return countsByArticle;
 }
 
-function countAiDistillationReviewMessages(sessions: unknown) {
-  if (!Array.isArray(sessions)) return 0;
-  return sessions.reduce(
-    (total, session) => total + countAiDistillationReviewSessionMessages(session),
-    0,
+export function readArticleActivityDates(
+  database: StoreDatabase,
+  profile?: StoreReadProfileEntry[],
+) {
+  const annotationRows = measureStoreRead(profile, 'read_annotation_activity_dates', () =>
+    database
+      .select({
+        articleId: schema.annotations.articleId,
+        createdAt: schema.annotations.createdAt,
+        updatedAt: schema.annotations.updatedAt,
+        distillationStatus: schema.annotations.distillationStatus,
+        distillationPublishedAt: schema.annotations.distillationPublishedAt,
+        distillationUpdatedAt: schema.annotations.distillationUpdatedAt,
+      })
+      .from(schema.annotations)
+      .all(),
   );
+  const commentRows = measureStoreRead(profile, 'read_comment_activity_dates', () =>
+    database
+      .select({
+        articleId: schema.annotations.articleId,
+        annotationId: schema.comments.annotationId,
+        author: schema.comments.author,
+        createdAt: schema.comments.createdAt,
+        replyTo: schema.comments.replyTo,
+        annotationAuthor: schema.annotations.author,
+        annotationCreatedAt: schema.annotations.createdAt,
+      })
+      .from(schema.comments)
+      .innerJoin(schema.annotations, eq(schema.comments.annotationId, schema.annotations.id))
+      .all(),
+  );
+  const distillationReviewRows = measureStoreRead(
+    profile,
+    'read_distillation_review_activity_dates',
+    () =>
+      database
+        .select({
+          articleId: schema.annotations.articleId,
+          reviewSessions: schema.annotations.distillationReviewSessions,
+        })
+        .from(schema.annotations)
+        .where(isNotNull(schema.annotations.distillationReviewSessions))
+        .all(),
+  );
+  const datesByArticle = new Map<string, ArticleActivityDates>();
+  const articleDates = (articleId: string) => {
+    const existing = datesByArticle.get(articleId);
+    if (existing) return existing;
+    const dates: ArticleActivityDates = {
+      annotations: [],
+      thoughts: [],
+      discussionComments: [],
+      aiComments: [],
+      distillations: [],
+    };
+    datesByArticle.set(articleId, dates);
+    return dates;
+  };
+
+  for (const row of annotationRows) {
+    const dates = articleDates(row.articleId);
+    dates.annotations.push(row.createdAt);
+    if (row.distillationStatus === 'published') {
+      dates.distillations.push(
+        row.distillationPublishedAt || row.distillationUpdatedAt || row.updatedAt || row.createdAt,
+      );
+    }
+  }
+
+  const annotationsWithPrimaryComment = new Set<string>();
+  for (const row of commentRows) {
+    const dates = articleDates(row.articleId);
+    if (!row.replyTo) dates.thoughts.push(row.createdAt);
+    if (row.author === 'ai') dates.aiComments.push(row.createdAt);
+    const isPrimaryComment =
+      row.author === row.annotationAuthor && row.createdAt === row.annotationCreatedAt;
+    if (isPrimaryComment && !annotationsWithPrimaryComment.has(row.annotationId)) {
+      annotationsWithPrimaryComment.add(row.annotationId);
+      continue;
+    }
+    dates.discussionComments.push(row.createdAt);
+  }
+
+  for (const row of distillationReviewRows) {
+    articleDates(row.articleId).aiComments.push(
+      ...aiDistillationReviewMessageDates(row.reviewSessions),
+    );
+  }
+
+  return datesByArticle;
 }
 
-function countAiDistillationReviewSessionMessages(session: unknown) {
-  if (!session || typeof session !== 'object') return 0;
+function aiDistillationReviewMessageDates(sessions: unknown): string[] {
+  if (!Array.isArray(sessions)) return [];
+  return sessions.flatMap(aiDistillationReviewSessionMessageDates);
+}
+
+function aiDistillationReviewSessionMessageDates(session: unknown): string[] {
+  if (!session || typeof session !== 'object') return [];
   const messages = (session as { messages?: unknown }).messages;
-  if (!Array.isArray(messages)) return 0;
-  return messages.filter(
-    (message): message is { author: string } =>
-      Boolean(message) &&
-      typeof message === 'object' &&
-      (message as { author?: unknown }).author === 'ai',
-  ).length;
+  if (!Array.isArray(messages)) return [];
+  return messages.flatMap((message: unknown) => {
+    if (!message || typeof message !== 'object') return [];
+    const { author, createdAt } = message as { author?: unknown; createdAt?: unknown };
+    if (author !== 'ai') return [];
+    return [typeof createdAt === 'string' ? createdAt : ''];
+  });
 }
 
 function andConditions(...conditions: Array<SQL | undefined>) {

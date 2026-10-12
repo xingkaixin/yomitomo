@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { Annotation, ArticleRecord, ArticleSummaryRecord } from '@yomitomo/shared';
+import type {
+  Annotation,
+  ArticleRecord,
+  ArticleStatsRecord,
+  ArticleSummaryRecord,
+} from '@yomitomo/shared';
 import {
   computeReadingActivityDays,
   computeReadingStats,
@@ -292,6 +297,46 @@ describe('reading core', () => {
       aiComments: 2,
       distillations: 2,
     });
+  });
+
+  it('counts stats summary activity on the day each event happened', () => {
+    const now = new Date('2026-10-11T12:00:00.000Z');
+    const summary: ArticleStatsRecord = {
+      id: 'old-book',
+      url: 'https://example.com/old-book',
+      canonicalUrl: 'https://example.com/old-book',
+      sourceType: 'web',
+      title: 'Old book',
+      contentHash: 'old-book',
+      counts: {
+        annotationCount: 1,
+        thoughtCount: 1,
+        discussionCommentCount: 0,
+        aiCommentCount: 0,
+        distillationCount: 0,
+      },
+      activityDates: {
+        annotations: ['2026-09-01T12:00:00.000Z'],
+        thoughts: ['2026-09-01T12:00:00.000Z'],
+        discussionComments: [],
+        aiComments: [],
+        distillations: [],
+      },
+      createdAt: '2026-08-20T12:00:00.000Z',
+      updatedAt: '2026-10-11T11:00:00.000Z',
+    };
+
+    const stats = computeReadingStats([summary], now);
+    const days = computeReadingActivityDays([summary], 70, now);
+
+    expect(stats.today).toMatchObject({ articles: 1, annotations: 0, thoughts: 0 });
+    expect(stats.total).toMatchObject({ annotations: 1, thoughts: 1 });
+    expect(days.find((day) => day.date === '2026-09-01')).toMatchObject({
+      annotations: 1,
+      thoughts: 1,
+      score: 1,
+    });
+    expect(days.at(-1)).toMatchObject({ articles: 1, annotations: 0, thoughts: 0, score: 1 });
   });
 
   it('keeps summary and detailed thought and discussion counts consistent', () => {

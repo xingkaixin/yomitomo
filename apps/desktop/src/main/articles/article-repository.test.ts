@@ -6,6 +6,7 @@ import type { StoreDatabase, StoreReadProfileEntry } from '../store/store-db';
 import type { ArticleSummaryRow } from '../store/store-normalizers';
 import { readArticleLibraryListRows } from './article-library-queries';
 import {
+  readArticleActivityDates,
   readArticleSummaryCounts,
   readArticleSummaryCountsForArticles,
 } from './article-summary-counts';
@@ -142,6 +143,26 @@ describe('article repository summaries', () => {
       'count_annotation_summary_by_article_scoped',
       'count_comment_summary_by_article_scoped',
       'read_distillation_review_sessions_by_article_scoped',
+    ]);
+  });
+
+  it('reads per-event activity dates that agree with summary counts', () => {
+    const database = summaryCountsSqliteDatabase(1, 10);
+
+    const counts = readArticleSummaryCounts(database).get('article_0');
+    const dates = readArticleActivityDates(database).get('article_0');
+
+    expect({
+      annotationCount: dates?.annotations.length,
+      thoughtCount: dates?.thoughts.length,
+      discussionCommentCount: dates?.discussionComments.length,
+      aiCommentCount: dates?.aiComments.length,
+      distillationCount: dates?.distillations.length,
+    }).toEqual(counts);
+    expect(dates?.discussionComments.toSorted()).toEqual([
+      ...Array.from({ length: 10 }, () => '2026-06-04T00:01:00.000Z'),
+      '2026-06-04T00:02:00.000Z',
+      '2026-06-04T00:02:00.000Z',
     ]);
   });
 });
@@ -296,7 +317,10 @@ function summaryCountsSqliteDatabase(articleCount: number, annotationsPerArticle
       article_id TEXT NOT NULL,
       author TEXT NOT NULL,
       created_at TEXT NOT NULL,
+      updated_at TEXT,
       distillation_status TEXT,
+      distillation_published_at TEXT,
+      distillation_updated_at TEXT,
       distillation_review_sessions TEXT
     );
     CREATE TABLE comments (

@@ -209,6 +209,16 @@ type ArticleSummarySourceRecord =
 
 export type ArticleSummaryRecord = ArticleSummaryRecordBase & ArticleSummarySourceRecord;
 
+export type ArticleActivityDates = {
+  annotations: string[];
+  thoughts: string[];
+  discussionComments: string[];
+  aiComments: string[];
+  distillations: string[];
+};
+
+export type ArticleStatsRecord = ArticleSummaryRecord & { activityDates: ArticleActivityDates };
+
 export type FocusCoReadingMessage = {
   id: string;
   content: string;

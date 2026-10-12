@@ -1,4 +1,10 @@
-import type { Annotation, ArticleRecord, ArticleSummaryRecord } from '@yomitomo/shared';
+import type {
+  Annotation,
+  ArticleActivityDates,
+  ArticleRecord,
+  ArticleStatsRecord,
+  ArticleSummaryRecord,
+} from '@yomitomo/shared';
 import { annotationThoughtComments, annotationThreadComments } from './annotations';
 import { annotationAiContributionDates, articleCounts } from './article-counts';
 import { annotationHasPublishedDistillation } from './reader-annotations';
@@ -25,7 +31,7 @@ export type ReadingActivityDay = ReadingStatsPeriod & {
   level: number;
 };
 
-type ReadingStatsArticle = ArticleRecord | ArticleSummaryRecord;
+type ReadingStatsArticle = ArticleRecord | ArticleSummaryRecord | ArticleStatsRecord;
 
 export function sortArticles<T extends ReadingStatsArticle>(articles: T[]) {
   return articles.toSorted((left, right) => timestamp(right.updatedAt) - timestamp(left.updatedAt));
@@ -77,7 +83,7 @@ export function computeReadingActivityDays(
       day.articles += 1;
       day.score += 1;
     });
-    if ('counts' in article) {
+    if ('counts' in article && !('activityDates' in article)) {
       addToDay(article.updatedAt, (day) => {
         const counts = articleCounts(article);
         day.annotations += counts.annotationCount;
@@ -90,33 +96,34 @@ export function computeReadingActivityDays(
       });
       continue;
     }
-    for (const annotation of article.annotations) {
-      addToDay(annotation.createdAt, (day) => {
+    const dates = articleActivityDates(article);
+    for (const value of dates.annotations) {
+      addToDay(value, (day) => {
         day.annotations += 1;
         day.score += 1;
       });
-      for (const comment of annotationThreadComments(annotation)) {
-        addToDay(comment.createdAt, (day) => {
-          day.comments += 1;
-          day.score += 1;
-        });
-      }
-      for (const comment of annotationThoughtComments(annotation)) {
-        addToDay(comment.createdAt, (day) => {
-          day.thoughts += 1;
-        });
-      }
-      for (const contribution of annotationAiContributionDates(annotation)) {
-        addToDay(contribution, (day) => {
-          day.aiComments += 1;
-        });
-      }
-      if (annotationHasPublishedDistillation(annotation)) {
-        addToDay(distillationActivityDate(annotation), (day) => {
-          day.distillations += 1;
-          day.score += 1;
-        });
-      }
+    }
+    for (const value of dates.discussionComments) {
+      addToDay(value, (day) => {
+        day.comments += 1;
+        day.score += 1;
+      });
+    }
+    for (const value of dates.thoughts) {
+      addToDay(value, (day) => {
+        day.thoughts += 1;
+      });
+    }
+    for (const value of dates.aiComments) {
+      addToDay(value, (day) => {
+        day.aiComments += 1;
+      });
+    }
+    for (const value of dates.distillations) {
+      addToDay(value, (day) => {
+        day.distillations += 1;
+        day.score += 1;
+      });
     }
   }
 
@@ -144,7 +151,7 @@ function countReadingStats(
 
   return articles.reduce(
     (result, article) => {
-      if ('counts' in article) {
+      if ('counts' in article && !('activityDates' in article)) {
         const counts = inPeriod(article.updatedAt) ? articleCounts(article) : null;
         return {
           articles: result.articles + (inPeriod(article.updatedAt) ? 1 : 0),
@@ -156,35 +163,36 @@ function countReadingStats(
         };
       }
 
-      const annotations = article.annotations.filter((annotation) =>
-        inPeriod(annotation.createdAt),
-      );
-      const comments = article.annotations.flatMap((annotation) =>
-        annotationThreadComments(annotation).filter((comment) => inPeriod(comment.createdAt)),
-      );
-      const thoughts = article.annotations.flatMap((annotation) =>
-        annotationThoughtComments(annotation).filter((comment) => inPeriod(comment.createdAt)),
-      );
-      const distillations = article.annotations.filter(
-        (annotation) =>
-          annotationHasPublishedDistillation(annotation) &&
-          inPeriod(distillationActivityDate(annotation)),
-      );
-      const aiContributions = article.annotations.flatMap((annotation) =>
-        annotationAiContributionDates(annotation).filter(inPeriod),
-      );
-
+      const dates = articleActivityDates(article);
       return {
         articles: result.articles + (inPeriod(article.updatedAt) ? 1 : 0),
-        annotations: result.annotations + annotations.length,
-        thoughts: result.thoughts + thoughts.length,
-        comments: result.comments + comments.length,
-        aiComments: result.aiComments + aiContributions.length,
-        distillations: result.distillations + distillations.length,
+        annotations: result.annotations + dates.annotations.filter(inPeriod).length,
+        thoughts: result.thoughts + dates.thoughts.filter(inPeriod).length,
+        comments: result.comments + dates.discussionComments.filter(inPeriod).length,
+        aiComments: result.aiComments + dates.aiComments.filter(inPeriod).length,
+        distillations: result.distillations + dates.distillations.filter(inPeriod).length,
       };
     },
     { articles: 0, annotations: 0, thoughts: 0, comments: 0, aiComments: 0, distillations: 0 },
   );
+}
+
+function articleActivityDates(article: ArticleRecord | ArticleStatsRecord): ArticleActivityDates {
+  if ('activityDates' in article) return article.activityDates;
+  const { annotations } = article;
+  return {
+    annotations: annotations.map((annotation) => annotation.createdAt),
+    thoughts: annotations.flatMap((annotation) =>
+      annotationThoughtComments(annotation).map((comment) => comment.createdAt),
+    ),
+    discussionComments: annotations.flatMap((annotation) =>
+      annotationThreadComments(annotation).map((comment) => comment.createdAt),
+    ),
+    aiComments: annotations.flatMap(annotationAiContributionDates),
+    distillations: annotations
+      .filter(annotationHasPublishedDistillation)
+      .map(distillationActivityDate),
+  };
 }
 
 function startOfDay(date: Date) {
