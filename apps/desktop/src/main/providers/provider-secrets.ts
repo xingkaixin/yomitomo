@@ -29,18 +29,17 @@ export async function saveStoredSecret(ref: string, secret: string) {
   entry.setPassword(secret);
 }
 
-export async function readProviderApiKey(providerId: string, apiKeyRef?: string | null) {
-  const entry = await createEntry(apiKeyRef || providerApiKeyRef(providerId));
-  try {
-    return entry.getPassword() || '';
-  } catch (error) {
-    if (isNoEntryError(error)) return '';
-    throw error;
-  }
+export function readProviderApiKey(apiKeyRef?: string | null) {
+  return readStoredSecret(apiKeyRef);
 }
 
-export async function readWeReadApiKey(apiKeyRef?: string | null, accountId = 'default') {
-  const entry = await createEntry(apiKeyRef || wereadApiKeyRef(accountId));
+export function readWeReadApiKey(apiKeyRef?: string | null) {
+  return readStoredSecret(apiKeyRef);
+}
+
+async function readStoredSecret(ref?: string | null) {
+  if (!ref) return '';
+  const entry = await createEntry(ref);
   try {
     return entry.getPassword() || '';
   } catch (error) {

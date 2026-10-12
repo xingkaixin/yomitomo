@@ -49,8 +49,8 @@ vi.mock('../providers/provider-secrets', () => {
       if (testState.saveProviderApiKeyError) throw testState.saveProviderApiKeyError;
       testState.secrets.set(ref, secret);
     },
-    readProviderApiKey: async (providerId: string, apiKeyRef?: string | null) =>
-      testState.secrets.get(apiKeyRef || testState.providerApiKeyRef(providerId)) || '',
+    readProviderApiKey: async (apiKeyRef?: string | null) =>
+      (apiKeyRef && testState.secrets.get(apiKeyRef)) || '',
     deleteStoredSecret: async (secretRef: string) => {
       if (testState.deleteStoredSecretError) throw testState.deleteStoredSecretError;
       testState.secrets.delete(secretRef);

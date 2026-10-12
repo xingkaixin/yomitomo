@@ -84,8 +84,17 @@ describe('provider secrets keyring', () => {
     const secrets = await loadProviderSecrets();
     state.getPasswordError = new Error('NoEntry');
 
-    await expect(secrets.readProviderApiKey('openai')).resolves.toBe('');
-    await expect(secrets.readWeReadApiKey(null, 'weread_1')).resolves.toBe('');
+    await expect(secrets.readProviderApiKey('provider:openai:apiKey')).resolves.toBe('');
+    await expect(secrets.readWeReadApiKey('weread:weread_1:apiKey')).resolves.toBe('');
+  });
+
+  it('reads empty refs as missing keys without consulting the keyring', async () => {
+    const secrets = await loadProviderSecrets();
+    state.passwords.set('weread:default:apiKey', 'stale-weread-secret');
+
+    await expect(secrets.readProviderApiKey(null)).resolves.toBe('');
+    await expect(secrets.readWeReadApiKey(null)).resolves.toBe('');
+    expect(state.entryCalls).toEqual([]);
   });
 
   it('ignores missing secret deletes when keyring returns noentry', async () => {
@@ -102,7 +111,7 @@ describe('provider secrets keyring', () => {
     const deleteError = new Error('permission denied');
     state.getPasswordError = readError;
 
-    await expect(secrets.readProviderApiKey('openai')).rejects.toThrow(readError);
+    await expect(secrets.readProviderApiKey('provider:openai:apiKey')).rejects.toThrow(readError);
 
     state.getPasswordError = undefined;
     state.deletePasswordError = deleteError;
@@ -114,7 +123,7 @@ describe('provider secrets keyring', () => {
     const secrets = await loadProviderSecrets();
 
     await secrets.saveProviderApiKey('openai', 'provider-secret');
-    await secrets.readProviderApiKey('openai');
+    await secrets.readProviderApiKey('provider:openai:apiKey');
     await secrets.deleteStoredSecret('provider:openai:apiKey');
 
     expect(state.moduleLoads).toBe(1);

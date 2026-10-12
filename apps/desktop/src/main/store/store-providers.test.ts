@@ -45,8 +45,8 @@ vi.mock('../providers/provider-secrets', () => {
       if (testState.saveProviderApiKeyError) throw testState.saveProviderApiKeyError;
       testState.secrets.set(ref, secret);
     },
-    readProviderApiKey: async (providerId: string, apiKeyRef?: string | null) =>
-      testState.secrets.get(apiKeyRef || testState.providerApiKeyRef(providerId)) || '',
+    readProviderApiKey: async (apiKeyRef?: string | null) =>
+      (apiKeyRef && testState.secrets.get(apiKeyRef)) || '',
     deleteStoredSecret: async (secretRef: string) => {
       if (testState.deleteStoredSecretError) throw testState.deleteStoredSecretError;
       testState.secrets.delete(secretRef);
@@ -472,6 +472,7 @@ describe('desktop store providers', () => {
   });
 
   it('reads stored provider api keys from the keyring', async () => {
+    insertProviderRow({ id: 'provider_1', apiKeyRef: 'provider:provider_1:apiKey' });
     testState.secrets.set('provider:provider_1:apiKey', 'sk-stored');
 
     await expect(readStoredProviderApiKey('provider_1')).resolves.toBe('sk-stored');

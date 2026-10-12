@@ -63,8 +63,9 @@ telemetry → shared
   `article_bodies` 表，只有 `article:get`、封面读取和整篇保存会访问。`articles` 行只放元数据和
   阅读状态；SQLite 更新时会重写整行及其溢出页，大字段留在行内会让每次进度保存重写数 MB。
 - **密钥不进数据库。** provider 和微信读书 API key 存系统 keyring，数据库只存引用，见
-  `apps/desktop/src/main/providers/provider-secrets.ts`。旧版本留在 SQLite 的明文 provider key
-  在迁移进 keyring 前原样保留以便重试，运行时不读取。完整备份
+  `apps/desktop/src/main/providers/provider-secrets.ts`。引用为空即视为没有密钥，读取不回退到按
+  id 推导的固定 keyring 条目。旧版本留在 SQLite 的明文 provider key 在迁移进 keyring 前原样保留
+  以便重试，运行时不读取。完整备份
   （`apps/desktop/src/main/full-backup.ts`）清除这些引用，不包含 keyring、本地模型和日志。
 - **文章写入与阅读记忆镜像不是原子的，这是有意的降级。** 保存文章或批注时，阅读记忆镜像在
   事务外执行，失败只记录警告，不回滚文章（`apps/desktop/src/main/articles/article-row-writes.ts`）；
