@@ -285,6 +285,37 @@ describe('WeReadSettingsPanel', () => {
     expect(screen.getByRole('radio', { name: /手动/ }).getAttribute('aria-checked')).toBe('true');
   });
 
+  it('retries the WeRead sync mode the user chose after a failed save', async () => {
+    const saveWeReadSettings = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('sync write failed'))
+      .mockResolvedValueOnce({
+        settings: { configured: true, openMethod: 'deeplink', syncMode: 'auto' },
+        books: [],
+      });
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: {
+        weRead: {
+          getState: vi.fn().mockResolvedValue({
+            settings: { configured: true, openMethod: 'deeplink', syncMode: 'manual' },
+            books: [],
+          }),
+          saveSettings: saveWeReadSettings,
+        },
+      },
+    });
+
+    render(<WeReadSettingsPanel />);
+
+    fireEvent.click(await screen.findByRole('radio', { name: /自动/ }));
+    fireEvent.click(await screen.findByRole('button', { name: '重试' }));
+
+    await waitFor(() => expect(saveWeReadSettings).toHaveBeenCalledTimes(2));
+    expect(saveWeReadSettings).toHaveBeenLastCalledWith({ syncMode: 'auto' });
+    expect(await screen.findByText('已保存')).toBeTruthy();
+  });
+
   it('clears pending WeRead save-state timers on unmount', async () => {
     const setTimeoutSpy = vi.spyOn(window, 'setTimeout');
     const clearTimeoutSpy = vi.spyOn(window, 'clearTimeout');
