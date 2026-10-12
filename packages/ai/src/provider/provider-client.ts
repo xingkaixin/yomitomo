@@ -2,7 +2,7 @@ import type { LlmProvider, ProviderModel } from '@yomitomo/shared';
 import { errorMessage, providerPresets } from '@yomitomo/shared';
 import { Effect, Schema } from 'effect';
 import { normalizeAnthropicError } from './budget';
-import { geminiBaseUrl, openAIBaseUrl } from './ai-sdk-provider-adapter';
+import { anthropicBaseUrl, geminiBaseUrl, openAIBaseUrl } from './ai-sdk-provider-adapter';
 
 const defaultProviderPreset = providerPresets.find((preset) => preset.id === 'deepseek');
 
@@ -164,7 +164,7 @@ function listAnthropicModelsEffect(
 ): Effect.Effect<ProviderModel[], ProviderClientError> {
   return Effect.gen(function* () {
     const response = yield* fetchProviderModels(
-      `${trimSlash(provider.baseUrl)}/v1/models`,
+      `${anthropicBaseUrl(provider.baseUrl)}/models`,
       budget,
       {
         headers: {
@@ -355,8 +355,4 @@ async function readBoundedStream(
 
 function isTimeoutAbort(error: unknown) {
   return error instanceof Error && error.name === 'TimeoutError';
-}
-
-function trimSlash(value: string) {
-  return value.replace(/\/+$/, '');
 }
