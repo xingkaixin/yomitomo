@@ -138,19 +138,21 @@ export function useWebBilingualTranslation({
       translationAnnotationsForBlocks(annotations, blockIds).length,
     [annotations],
   );
-  const removeTranslationAnnotations = useCallback(
-    async (blockIds: ReadonlySet<string>) => {
+  const prepareTranslationAnnotationRemoval = useCallback(
+    (blockIds: ReadonlySet<string>) => {
       const affected = translationAnnotationsForBlocks(annotationsRef.current, blockIds);
-      for (const annotation of affected) await deleteAnnotation(annotation.id);
+      return async () => {
+        for (const annotation of affected) await deleteAnnotation(annotation.id);
+      };
     },
     [deleteAnnotation],
   );
   const translationAnnotations = useMemo(
     () => ({
       count: countTranslationAnnotations,
-      remove: removeTranslationAnnotations,
+      prepareRemoval: prepareTranslationAnnotationRemoval,
     }),
-    [countTranslationAnnotations, removeTranslationAnnotations],
+    [countTranslationAnnotations, prepareTranslationAnnotationRemoval],
   );
   const session = useSourceBilingualTranslation({
     articleId: article.id,
