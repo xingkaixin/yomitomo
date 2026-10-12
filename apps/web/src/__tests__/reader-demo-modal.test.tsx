@@ -13,7 +13,7 @@ afterEach(cleanup);
 
 describe('reader demo discussion modal', () => {
   it('opens with focus and restores focus after the closing state', async () => {
-    render(<ReaderDemo lang="zh-CN" />);
+    const { container } = render(<ReaderDemo lang="zh-CN" />);
     const trigger = screen.getAllByRole('button', { name: /进入讨论区/ })[0];
 
     fireEvent.click(trigger);
@@ -22,6 +22,7 @@ describe('reader demo discussion modal', () => {
     const closeButton = screen.getByRole('button', { name: '关闭' });
     await waitFor(() => expect(document.activeElement).toBe(closeButton));
     expect(dialog.closest('.dm-overlay')?.getAttribute('data-state')).toBe('open');
+    expect(container.hasAttribute('inert')).toBe(true);
 
     fireEvent.click(closeButton);
 
@@ -29,6 +30,7 @@ describe('reader demo discussion modal', () => {
     expect(overlay?.getAttribute('data-state')).toBe('closing');
     expect(overlay?.getAttribute('aria-hidden')).toBe('true');
     expect(overlay?.hasAttribute('inert')).toBe(true);
+    expect(container.hasAttribute('inert')).toBe(false);
     expect(document.activeElement).toBe(trigger);
     await waitFor(() => expect(screen.queryByRole('dialog', { hidden: true })).toBeNull());
   });
