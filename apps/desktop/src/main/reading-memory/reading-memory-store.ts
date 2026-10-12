@@ -156,6 +156,13 @@ export function searchReadingMemoryEntries(options: SearchReadingMemoryEntriesOp
     return [];
   }
   const limit = Math.max(1, Math.min(options.limit || 20, 100));
+  const { where, values } = readingMemoryWhereClause({
+    articleId: options.articleId,
+    agentId: options.agentId,
+    excludeAgentId: options.excludeAgentId,
+    requireAgentId: options.requireAgentId,
+    visibility: options.visibility,
+  });
   const rows = executor
     .prepare(
       `
@@ -163,11 +170,17 @@ SELECT entry_id AS entryId
 FROM reading_memory_entry_fts
 WHERE reading_memory_entry_fts MATCH ?
   AND article_id = ?
+  AND EXISTS (
+    SELECT 1
+    FROM reading_memory_entries
+    ${where}
+      AND reading_memory_entries.id = reading_memory_entry_fts.entry_id
+  )
 ORDER BY bm25(reading_memory_entry_fts)
 LIMIT ?
 `,
     )
-    .all(ftsQuery, options.articleId, limit);
+    .all(ftsQuery, options.articleId, ...values, limit);
   const ids = rows.map((row) => stringValue(recordField(row, 'entryId'))).filter(Boolean);
   if (ids.length === 0) {
     const fallback = options.fallbackToSubstring
