@@ -5,7 +5,6 @@ import { sanitizeArticleContentHtml } from './article-content-html';
 import { resolveHttpUrl } from './article-url';
 
 export type ExtractedArticle = {
-  id: string;
   url: string;
   canonicalUrl: string;
   title: string;
@@ -21,7 +20,6 @@ export type ExtractedArticle = {
 };
 
 export type ArticlePreview = {
-  id: string;
   url: string;
   canonicalUrl: string;
   title: string;
@@ -61,7 +59,6 @@ export async function extractArticleFromDocument(
     );
     const contentHash = articleContentHash(articleDocument, content);
     return {
-      id: hashText(canonicalUrl || contentHash),
       url: pageUrl,
       canonicalUrl,
       title,
@@ -84,7 +81,6 @@ export async function extractArticleFromDocument(
   const contentHash = articleContentHash(articleDocument, content);
 
   return {
-    id: hashText(canonicalUrl || contentHash),
     url: pageUrl,
     canonicalUrl,
     title: parsed?.title || fallbackTitle,
@@ -116,7 +112,6 @@ export function fallbackArticleFromDocument(
   const contentHash = articleContentHash(articleDocument, content);
 
   return {
-    id: hashText(canonicalUrl || contentHash),
     url: pageUrl,
     canonicalUrl,
     title:
@@ -136,7 +131,6 @@ export function articlePreviewFromExtractedArticle(
 ): ArticlePreview {
   const wordCount = countReadableWords(textFromHtml(articleDocument, article.content));
   return {
-    id: article.id,
     url: article.url,
     canonicalUrl: article.canonicalUrl,
     title: article.title,
@@ -149,10 +143,11 @@ export function articlePreviewFromExtractedArticle(
 
 export function articleRecordFromExtractedArticle(
   article: ExtractedArticle,
+  id: string,
   timestamp = new Date().toISOString(),
 ): ArticleRecord {
   return {
-    id: article.id,
+    id,
     url: article.url,
     canonicalUrl: article.canonicalUrl,
     sourceType: 'web',
@@ -189,7 +184,6 @@ async function extractWithDefuddle(
       siteIconUrl: result.favicon,
     });
     return {
-      id: hashText(canonicalUrl || contentHash),
       url: pageUrl,
       canonicalUrl,
       title:

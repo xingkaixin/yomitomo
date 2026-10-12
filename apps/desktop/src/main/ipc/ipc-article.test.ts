@@ -109,6 +109,30 @@ describe('article IPC patch broadcasts', () => {
     });
   });
 
+  it('replaces a challenge article under its stored id', async () => {
+    storageMocks.ipcMainHandle.mockClear();
+    storageMocks.importArticleSource.mockClear();
+    const next = { id: 'web_next', createdAt: '2026-06-04T00:00:00.000Z' };
+    storageMocks.articleRecordFromUrl.mockResolvedValueOnce(next);
+    storageMocks.importArticleSource.mockResolvedValueOnce({ status: 'duplicate', article: next });
+    registerArticleIpc(
+      articleIpcContext(
+        { readImportSettings: vi.fn().mockReturnValue({ saveArticleImages: false }) },
+        {},
+      ),
+    );
+    const handler = storageMocks.ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === 'article:import-url',
+    )?.[1];
+
+    await handler({}, { url: 'https://example.com/post' });
+    const { mergeExistingArticle } = storageMocks.importArticleSource.mock.calls[0][0];
+
+    expect(
+      mergeExistingArticle(next, { id: 'legacy', createdAt: '2026-06-01T00:00:00.000Z' }),
+    ).toEqual({ id: 'legacy', createdAt: '2026-06-01T00:00:00.000Z' });
+  });
+
   it('broadcasts article patches after saving annotation distillation', async () => {
     storageMocks.ipcMainHandle.mockClear();
     const patch = articlePatch();

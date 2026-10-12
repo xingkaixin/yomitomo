@@ -90,7 +90,6 @@ describe('article extraction', () => {
 
   it('builds article preview metadata', () => {
     const preview = articlePreviewFromExtractedArticle({
-      id: 'id',
       url: 'https://www.example.com/post',
       canonicalUrl: 'https://www.example.com/post',
       title: '文章标题',
@@ -99,7 +98,6 @@ describe('article extraction', () => {
     });
 
     expect(preview).toEqual({
-      id: 'id',
       url: 'https://www.example.com/post',
       canonicalUrl: 'https://www.example.com/post',
       title: '文章标题',

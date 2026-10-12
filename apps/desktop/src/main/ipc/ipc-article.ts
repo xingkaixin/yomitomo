@@ -163,6 +163,7 @@ export function registerArticleIpc(context: ArticleIpcContext) {
         isDuplicate: (article) => Boolean(article && !isArticleImportChallengeRecord(article)),
         mergeExistingArticle: (next, existing) => ({
           ...next,
+          id: existing.id,
           createdAt: existing.createdAt,
         }),
       });

@@ -173,7 +173,6 @@ describe('inlineArticleImages', () => {
 
 function articleRecord(overrides: Partial<ExtractedArticle> = {}): ExtractedArticle {
   return {
-    id: 'article-1',
     url: 'https://example.com/post',
     canonicalUrl: 'https://example.com/post',
     title: 'Article',
