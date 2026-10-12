@@ -205,9 +205,10 @@ function duplicateThoughtEvidence(
     query: thought,
     limit: limitField(raw),
     visibility: ['default'],
+    nearTextRange: input.currentAnchor ? anchorRange('', input.currentAnchor) : undefined,
     fallbackToSubstring: true,
     executor: input.executor,
-  }).filter((entry) => memoryNearAnchor(entry, input.currentAnchor));
+  });
   return entries.map((entry) => {
     const evidence = memoryEntryEvidence(entry);
     evidence.summary = `可能重复的既有记忆：${memoryEntrySummary(entry)}`;
@@ -269,15 +270,6 @@ function memoryEntryEvidence(entry: ReadingMemoryEntry): AssistantToolEvidenceIn
 
 function memoryEntrySummary(entry: ReadingMemoryEntry) {
   return readingMemoryEntrySearchText(entry) || `${entry.kind}:${entry.scope}:${entry.id}`;
-}
-
-function memoryNearAnchor(entry: ReadingMemoryEntry, anchor: TextAnchor | undefined) {
-  if (!anchor || !entry.textRange) return true;
-  const range = anchorRange('', anchor);
-  return (
-    entry.textRange.textEnd >= range.textStart - 2400 &&
-    entry.textRange.textStart <= range.textEnd + 2400
-  );
 }
 
 function annotationForTool(input: AssistantReadingContextProviderInput, annotationId: string) {

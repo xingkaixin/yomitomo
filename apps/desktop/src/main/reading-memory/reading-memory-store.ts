@@ -162,6 +162,7 @@ export function searchReadingMemoryEntries(options: SearchReadingMemoryEntriesOp
     excludeAgentId: options.excludeAgentId,
     requireAgentId: options.requireAgentId,
     visibility: options.visibility,
+    nearTextRange: options.nearTextRange,
   });
   const rows = executor
     .prepare(
@@ -208,6 +209,7 @@ LIMIT ?
     excludeAgentId: options.excludeAgentId,
     requireAgentId: options.requireAgentId,
     visibility: options.visibility,
+    nearTextRange: options.nearTextRange,
     executor,
   });
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
@@ -238,6 +240,7 @@ function searchReadingMemoryEntriesBySubstring(
     excludeAgentId: options.excludeAgentId,
     requireAgentId: options.requireAgentId,
     visibility: options.visibility,
+    nearTextRange: options.nearTextRange,
   });
   const rows = executor
     .prepare(
@@ -265,6 +268,7 @@ LIMIT ?
     excludeAgentId: options.excludeAgentId,
     requireAgentId: options.requireAgentId,
     visibility: options.visibility,
+    nearTextRange: options.nearTextRange,
     executor,
   });
   logReadingMemoryTiming(options.performanceLogger, 'substring_fallback', startedAt, {
@@ -280,7 +284,13 @@ LIMIT ?
 function readReadingMemoryEntriesByIds(
   options: Pick<
     SearchReadingMemoryEntriesOptions,
-    'articleId' | 'agentId' | 'excludeAgentId' | 'requireAgentId' | 'visibility' | 'executor'
+    | 'articleId'
+    | 'agentId'
+    | 'excludeAgentId'
+    | 'requireAgentId'
+    | 'visibility'
+    | 'nearTextRange'
+    | 'executor'
   > & { ids: string[] },
 ) {
   const ids = uniqueNonEmptyStrings(options.ids);
@@ -292,6 +302,7 @@ function readReadingMemoryEntriesByIds(
     excludeAgentId: options.excludeAgentId,
     requireAgentId: options.requireAgentId,
     visibility: options.visibility,
+    nearTextRange: options.nearTextRange,
   });
   const placeholders = questionMarks(ids.length);
   const rows = executor

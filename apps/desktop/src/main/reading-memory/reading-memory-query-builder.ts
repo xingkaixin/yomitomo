@@ -41,6 +41,7 @@ export function readingMemoryWhereClause(options: ReadReadingMemoryEntriesOption
     clauses.push('segment_id = ?');
     values.push(options.segmentId);
   }
+  addNearTextRangeClause(clauses, values, options.nearTextRange, 2400);
   if (!options.includeDeleted) clauses.push('deleted_at IS NULL');
   return { where: `WHERE ${clauses.join('\n  AND ')}`, values };
 }

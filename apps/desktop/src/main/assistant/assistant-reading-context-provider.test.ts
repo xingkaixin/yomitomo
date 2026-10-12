@@ -85,6 +85,38 @@ describe('assistant reading context provider', () => {
     );
   });
 
+  it('keeps nearby duplicate memories when distant hits rank first', () => {
+    const database = memoryDatabase();
+    appendReadingMemoryEntries(
+      [
+        memoryEntry({
+          id: 'distant_memory',
+          textRange: { textStart: 10000, textEnd: 10010 },
+          payload: { summary: 'selection pressure' },
+        }),
+        memoryEntry({
+          id: 'nearby_memory',
+          textRange: { textStart: 0, textEnd: 20 },
+          payload: { summary: 'selection pressure shapes the target view in a longer note' },
+        }),
+      ],
+      database,
+    );
+    const provider = createAssistantReadingContextProvider({
+      article: articleRecord(),
+      articleText: articleText(),
+      agentId: 'agent_1',
+      currentAnchor: anchor(),
+      executor: database,
+    });
+
+    expect(
+      provider
+        .checkDuplicateThought({ candidateThought: 'selection pressure', limit: 1 })
+        .map((evidence) => evidence.text),
+    ).toEqual(['selection pressure shapes the target view in a longer note']);
+  });
+
   it('builds fast prompt memory evidence snapshots', () => {
     const database = memoryDatabase();
     appendReadingMemoryEntries(
