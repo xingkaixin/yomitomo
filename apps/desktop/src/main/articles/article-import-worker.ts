@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import { createHash } from 'node:crypto';
 import { parentPort, workerData } from 'node:worker_threads';
 import { JSDOM } from 'jsdom';
 import {
@@ -65,10 +66,17 @@ async function extractArticleRecord(input: unknown) {
       // 不内联正文图片时也单独把 favicon 落成 data URI，展示离线可用。
       article = await inlineArticleFavicon(article, fetcher);
     }
-    return articleRecordFromExtractedArticle(article);
+    return articleRecordFromExtractedArticle(
+      article,
+      webArticleId(article.canonicalUrl || article.contentHash),
+    );
   } finally {
     dom.window.close();
   }
+}
+
+function webArticleId(identity: string) {
+  return `web_${createHash('sha256').update(identity).digest('hex')}`;
 }
 
 function articleImportWorkerData(input: unknown): ArticleImportWorkerData {
@@ -174,5 +182,6 @@ export const articleImportWorkerTestApi = {
   extractArticleRecord,
   fetchArticleImageDataUrl,
   postArticleImportWorkerResult,
+  webArticleId,
   workerError,
 };

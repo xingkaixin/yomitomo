@@ -90,6 +90,12 @@ describe('article import worker', () => {
     expect(jsdomMocks.closeWindow).toHaveBeenCalledTimes(1);
   });
 
+  it('gives urls with colliding short hashes distinct article ids', () => {
+    expect(articleImportWorkerTestApi.webArticleId('https://example.com/articles/1r')).not.toBe(
+      articleImportWorkerTestApi.webArticleId('https://example.com/articles/30'),
+    );
+  });
+
   it('returns null for non-image and oversized image responses', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch');
     fetchMock.mockResolvedValueOnce(
