@@ -206,6 +206,29 @@ describe('executeAgentCommentTask', () => {
     expect(fixture.recorder.recordRuntimeExecution).toHaveBeenCalledOnce();
   });
 
+  it('drops streamed deep runtime text before the fast fallback reply', async () => {
+    const fixture = taskFixture({ settings: { assistantExecutionMode: 'deep_verification' } });
+    runtimeMocks.runAgentMessageWithToolLoop.mockImplementation(async (input) => {
+      input.onRuntimeEvent({ type: 'text_delta', delta: 'partial deep text' });
+      return {
+        status: 'fallback',
+        failureReason: 'provider_stream_error',
+        runtime: runtimeTrace(),
+      };
+    });
+    fixture.ai.runAgentStream.mockImplementation(async (_provider, _agent, _payload, onDelta) => {
+      onDelta('fallback reply');
+    });
+    const events: Array<{ type: string }> = [];
+
+    const result = await executeAgentCommentTask(fixture.context, messagePayload(), (event) =>
+      events.push(event),
+    );
+
+    expect(result.content).toBe('fallback reply');
+    expect(events.map((event) => event.type)).toEqual(['start', 'delta', 'start', 'delta']);
+  });
+
   it('falls back after a skipped deep runtime without recording a runtime attempt', async () => {
     const fixture = taskFixture({ settings: { assistantExecutionMode: 'deep_verification' } });
     runtimeMocks.runAgentMessageWithToolLoop.mockResolvedValue({
