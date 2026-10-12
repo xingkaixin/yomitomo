@@ -2,9 +2,9 @@ packages:
   - "apps/*"
   - "packages/*"
 catalog:
-  "@base-ui/react": "^1.8.0"
-  "@cloudflare/workers-types": "^5.20260930.1"
-  "@effect/vitest": "4.0.0"
+  "@base-ui/react": "^1.9.0"
+  "@cloudflare/workers-types": "^5.20261011.1"
+  "@effect/vitest": "4.0.3"
   "@hugeicons/core-free-icons": "^4.3.5"
   "@hugeicons/react": "^1.1.10"
   "@huggingface/transformers": "4.2.0"
@@ -14,15 +14,15 @@ catalog:
   "@types/jsdom": "^30.0.0"
   "@types/react": "^19.3.0"
   "@types/react-dom": "^19.3.0"
-  "effect": "4.0.0"
-  "jsdom": "^30.1.1"
+  "effect": "4.0.3"
+  "jsdom": "^30.1.2"
   "react": "^19.3.0"
   "react-dom": "^19.3.0"
   "tailwindcss": "^4.3.3"
   "typescript": "^7.0.2"
-  "vite": "^8.3.1"
-  "vitest": "^5.0.2"
-  "wrangler": "^4.144.0"
+  "vite": "^8.3.4"
+  "vitest": "^5.0.3"
+  "wrangler": "^4.149.0"
 allowBuilds:
   better-sqlite3: false
   electron: true
@@ -67,8 +67,8 @@ minimumReleaseAgeExclude:
   - wrangler@4.131.0
   - zod@4.6.2
   - vite@8.3.0
-  - effect@4.0.0
-  - "@effect/vitest@4.0.0"
+  - effect@4.0.3
+  - "@effect/vitest@4.0.3"
 overrides:
   "@electron/get>undici": "7.30.0"
   "@babel/core@<=7.29.0": "7.29.7"

@@ -64,8 +64,11 @@ describe('landing masthead interactions', () => {
     const trigger = document.querySelector<HTMLButtonElement>('[data-toc-toggle]')!;
     const sidebar = document.getElementById('starlight__sidebar')!;
     const firstControl = sidebar.querySelector<HTMLAnchorElement>('a')!;
-    const toggle = (newState: 'open' | 'closed') =>
+    const toggle = (newState: 'open' | 'closed') => {
+      // jsdom hides closed popovers but does not implement showPopover/hidePopover.
+      sidebar.style.display = newState === 'open' ? 'block' : 'none';
       sidebar.dispatchEvent(Object.assign(new Event('toggle'), { newState }));
+    };
 
     expect(trigger.getAttribute('popovertarget')).toBe(sidebar.id);
 

@@ -1,6 +1,6 @@
 # Effect v4 Runtime Boundary
 
-Pinned Effect version: `4.0.0`
+Pinned Effect version: `4.0.3`
 
 Production Effect modules: `21`
 
@@ -35,7 +35,7 @@ earliest persisted retry time. Orphan cleanup and backfill scan whole tables, so
 startup, after a database restore, and on manual rebuild. Shutdown interrupts waits, joins in-flight
 database leases, and closes the queue. Persisted projection jobs, retry timestamps, and
 database-generation checks remain authoritative. Schedule tests use TestClock via
-the matching `@effect/vitest@4.0.0`; existing Promise-boundary tests retain their timer fixtures.
+the matching `@effect/vitest@4.0.3`; existing Promise-boundary tests retain their timer fixtures.
 
 Embedding requests use Deferred responses and Effect timeouts. A single exit finalizer recycles
 failed or interrupted workers and waits for the operating system's exit event before releasing
@@ -58,6 +58,17 @@ The inventory includes root and subpath imports and the Schema, scheduling, scop
 runtime, and HTTP namespaces used by the staged runtime adoption.
 
 ## Runtime Semantics
+
+The `4.0.0` to `4.0.3` source comparison covers every production namespace above and the
+internal runtime implementations. The API inventory and signatures remain compatible.
+`Queue.take` now delivers dequeued results in the same fiber step to avoid message loss on
+interruption. Fibers preserve Node async context across yields and deferred starts;
+`Effect.tryPromise` runs its error mapper in the restored context. Scope closure enters its
+uninterruptible region before running finalizers, and immediate child fibers register with
+the parent before execution. Repetition preserves mixed failure/interruption causes.
+Existing projection, shutdown, cancellation, and runtime tests protect these boundaries.
+`Schema.isInt` changes JSON Schema output only; this application uses its runtime decoder.
+The cache and transaction fixes affect APIs outside the production inventory.
 
 The upgrade from `4.0.0-rc.113` to stable `4.0.0` preserves the APIs in the production inventory.
 The source comparison covers `Effect`, `Cause`, `Exit`, `Fiber`, `Deferred`, `Semaphore`, and `Schema`.
