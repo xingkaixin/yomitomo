@@ -5,20 +5,59 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const noticesPath = join(repoRoot, 'THIRD_PARTY_NOTICES.md');
-const pnpmLicenseFilter = '@yomitomo/desktop...';
-const desktopPackagePath = 'apps/desktop/package.json';
-const ignoredWorkspacePackagePaths = ['apps/download/package.json', 'apps/web/package.json'];
+const desktopPackageName = '@yomitomo/desktop';
+const pnpmLicenseFilter = `${desktopPackageName}...`;
+const electronNativeDir = 'apps/desktop/electron-native';
+// electron-vite externalizes only desktop dependencies and bundles the devDependencies that
+// main, preload, and renderer import (docs/release-guide.md), so every desktop devDependency
+// counts as shipped except these build and test packages. Electron ships its own license
+// files, and the packaged better-sqlite3 comes from electron-native.
+const desktopToolPackages = [
+  '@effect/vitest',
+  '@electron/rebuild',
+  '@tailwindcss/postcss',
+  '@vitejs/plugin-react',
+  'better-sqlite3',
+  'drizzle-kit',
+  'electron',
+  'electron-builder',
+  'electron-builder-squirrel-windows',
+  'electron-vite',
+  'playwright-core',
+  'postcss',
+  'vite',
+  'vitest',
+];
+// Type declarations and the compiler are never packaged, even when a runtime package lists them
+// as a dependency or an optional peer.
+const typePackages = ['@types/*', '@cloudflare/workers-types', 'typescript'];
 const vendorRoots = ['apps/desktop/src/renderer/src/vendor'];
 const fontNoticePaths = ['apps/desktop/resources/licenses/fonts/THIRD_PARTY_FONT_NOTICES.md'];
 const checkOnly = process.argv.includes('--check');
-const ignoredPackageNames = ignoredWorkspacePackageNames();
-const productionVersions = productionDependencyVersions();
 
-// pnpm 12's licenses --prod omits transitive optional dependencies, including native binaries.
-const pnpmLicenses = pnpmJson(['licenses', 'list', '--json', '--filter', pnpmLicenseFilter]);
+if (!existsSync(join(repoRoot, electronNativeDir, 'node_modules'))) {
+  console.error(
+    `${electronNativeDir}/node_modules is missing. Run pnpm --filter ${desktopPackageName} native:install.`,
+  );
+  process.exit(1);
+}
 
 const notices = renderNotices([
-  ...licenseEntries(pnpmLicenses),
+  ...licenseEntries(
+    // pnpm 12's licenses --prod omits transitive optional dependencies, including native binaries.
+    pnpmJson(['licenses', 'list', '--json', '--filter', pnpmLicenseFilter]),
+    shippedVersions(
+      pnpmJson(['list', '--depth', 'Infinity', '--json', '--filter', pnpmLicenseFilter]),
+      desktopRuntimeDependencies,
+    ),
+  ),
+  ...licenseEntries(
+    pnpmJson(['licenses', 'list', '--json', '--dir', electronNativeDir]),
+    shippedVersions(
+      pnpmJson(['list', '--prod', '--depth', 'Infinity', '--json', '--dir', electronNativeDir]),
+      (project) => dependencyEntries(project),
+    ),
+  ),
   ...vendorEntries(),
   ...fontEntries(),
 ]);
@@ -33,48 +72,69 @@ if (checkOnly) {
   writeFileSync(noticesPath, notices);
 }
 
-function licenseEntries(licensesByType) {
+function licenseEntries(licensesByType, shipped) {
   return Object.entries(licensesByType).flatMap(([license, packages]) =>
-    packages
-      .filter((item) => !ignoredPackageNames.has(item.name))
-      .flatMap((item) => {
-        const versions = item.versions.filter((version) =>
-          productionVersions.has(`${item.name}@${version}`),
-        );
-        if (versions.length === 0) return [];
-        return [
-          {
-            name: item.name,
-            versions: normalizeVersions(versions),
-            license: item.license || license,
-            homepage: item.homepage || '',
-          },
-        ];
-      }),
+    packages.flatMap((item) => {
+      const versions = item.versions.filter((version) => shipped.has(`${item.name}@${version}`));
+      if (versions.length === 0) return [];
+      return [
+        {
+          name: item.name,
+          versions: normalizeVersions(versions),
+          license: item.license || license,
+          homepage: item.homepage || '',
+        },
+      ];
+    }),
   );
 }
 
-function productionDependencyVersions() {
-  const pending = pnpmJson([
-    'list',
-    '--prod',
-    '--depth',
-    'Infinity',
-    '--json',
-    '--filter',
-    pnpmLicenseFilter,
-  ]);
+function desktopRuntimeDependencies(project) {
+  const dependencies = dependencyEntries(project);
+  if (project.name !== desktopPackageName) return dependencies;
+
+  return [
+    ...dependencies,
+    ...dependencyEntries(project, ['devDependencies']).filter(
+      ([name]) => !matchesPackage(name, desktopToolPackages),
+    ),
+  ];
+}
+
+function matchesPackage(name, patterns) {
+  return patterns.some((pattern) =>
+    pattern.endsWith('/*') ? name.startsWith(pattern.slice(0, -1)) : name === pattern,
+  );
+}
+
+function shippedVersions(projects, rootDependencies) {
+  // pnpm list prints a package's children at only one of its occurrences.
+  const childrenByPath = new Map();
+  const pending = projects.flatMap((project) =>
+    dependencyEntries(project, ['dependencies', 'optionalDependencies', 'devDependencies']),
+  );
+  for (const [, node] of pending) {
+    const children = dependencyEntries(node);
+    childrenByPath.set(node.path, [...(childrenByPath.get(node.path) || []), ...children]);
+    pending.push(...children);
+  }
+
   const versions = new Set();
-  for (const dependency of pending) {
-    for (const [name, child] of Object.entries({
-      ...dependency.dependencies,
-      ...dependency.optionalDependencies,
-    })) {
-      versions.add(`${name}@${child.version}`);
-      pending.push(child);
-    }
+  const visitedPaths = new Set();
+  const queue = projects.flatMap(rootDependencies);
+  for (const [name, node] of queue) {
+    // Workspace links also list their devDependencies; each workspace project is its own root.
+    if (node.version.startsWith('link:') || matchesPackage(name, typePackages)) continue;
+    if (visitedPaths.has(node.path)) continue;
+    visitedPaths.add(node.path);
+    versions.add(`${name}@${node.version}`);
+    queue.push(...childrenByPath.get(node.path));
   }
   return versions;
+}
+
+function dependencyEntries(node, groups = ['dependencies', 'optionalDependencies']) {
+  return groups.flatMap((group) => Object.entries(node[group] || {}));
 }
 
 function pnpmJson(args) {
@@ -85,28 +145,6 @@ function pnpmJson(args) {
       stdio: ['ignore', 'pipe', 'inherit'],
     }),
   );
-}
-
-function ignoredWorkspacePackageNames() {
-  const names = ignoredWorkspacePackagePaths.reduce((ignoredNames, packagePath) => {
-    const absolutePath = join(repoRoot, packagePath);
-    if (!existsSync(absolutePath)) return ignoredNames;
-
-    const manifest = JSON.parse(readFileSync(absolutePath, 'utf8'));
-    for (const key of [
-      'dependencies',
-      'devDependencies',
-      'optionalDependencies',
-      'peerDependencies',
-    ]) {
-      for (const name of Object.keys(manifest[key] || {})) ignoredNames.add(name);
-    }
-    return ignoredNames;
-  }, new Set());
-
-  const desktopManifest = JSON.parse(readFileSync(join(repoRoot, desktopPackagePath), 'utf8'));
-  for (const name of Object.keys(desktopManifest.dependencies || {})) names.delete(name);
-  return names;
 }
 
 function vendorEntries() {
@@ -189,7 +227,7 @@ function renderNotices(entries) {
 
   return `# Third Party Notices
 
-This file lists third-party production dependencies, vendored components, and bundled fonts used by Yomitomo Desktop.
+This file lists third-party packages, vendored components, and bundled fonts distributed with Yomitomo Desktop.
 It is generated from pnpm dependency metadata, vendor upstream metadata, and bundled font notices with:
 
 \`\`\`bash
@@ -198,13 +236,19 @@ pnpm licenses:generate
 
 The project source code is licensed under MIT. Third-party packages, vendored components, and bundled fonts remain under their own licenses.
 
-pnpm package licenses are limited to:
+pnpm packages are the dependency closures of:
 
-- \`${pnpmLicenseFilter}\`
+- \`${desktopPackageName}\` dependencies and the devDependencies bundled into the app
+- the \`dependencies\` of workspace packages matched by \`${pnpmLicenseFilter}\`
+- the \`dependencies\` of \`${electronNativeDir}\`
 
-Direct dependencies declared only by non-desktop apps are excluded from the generated desktop notice:
+Desktop devDependencies used only to build or test the app are excluded:
 
-${ignoredWorkspacePackagePaths.map((path) => `- \`${path}\``).join('\n')}
+${desktopToolPackages.map((name) => `- \`${name}\``).join('\n')}
+
+Type declarations and the TypeScript compiler are excluded wherever they appear:
+
+${typePackages.map((name) => `- \`${name}\``).join('\n')}
 
 Vendored components are discovered from:
 
