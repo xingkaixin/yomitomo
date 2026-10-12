@@ -64,3 +64,4 @@ provider API key 保存在系统 keyring，数据库只存引用；完整备份�
 | ModelScope / Hugging Face | 用户明确下载阅读记忆模型 | 固定版本模型文件请求，不含阅读内容 |
 | `download.yomitomo.app`、`yomitomo.app` | 检查与下载更新 | 更新 manifest、安装包与更新说明请求 |
 | `telemetry.yomitomo.app` | 默认开启，可在设置中关闭 | 每天最多一次匿名 heartbeat（安装标识、版本、平台与系统信息）；阅读记忆动作计数，不含安装标识 |
+| `models.dev` | 启动后及每 24 小时检查，本地价格缓存超过 24 小时时请求；不受遥测开关控制 | 获取公开模型价格目录的 GET 请求，用于估算助手调用花费；不含阅读内容、API key 或安装标识 |

@@ -60,7 +60,7 @@ All reading materials, highlights, discussion threads, and distilled notes are s
 
 ### Does Yomitomo collect private user data?
 
-By default, Yomitomo sends a lightweight anonymous heartbeat at most once per day (containing an anonymous installation UUID, app version, OS platform, architecture, and local timezone) solely for aggregated platform metrics. **It never collects reading texts, book titles, highlights, file paths, or AI conversation contents.** You can disable this anytime under **Settings > General > Privacy**.
+By default, Yomitomo sends a lightweight anonymous heartbeat at most once per day (containing an anonymous installation UUID, app version, OS platform and version, architecture, local date, and timezone) solely for aggregated platform metrics. Reading Memory separately sends counts for opens, completed queries, source jumps, review decisions, and fallbacks, without the installation UUID. **It never collects reading texts, book titles, highlights, file paths, or AI conversation contents.** You can disable this anytime under **Settings > General > Privacy**; turning it off also clears unsent Reading Memory counts.
 
 ### Which operating systems are supported?
 
