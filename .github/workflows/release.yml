@@ -65,6 +65,11 @@ jobs:
       - name: Build workspace
         run: pnpm build
 
+      # THIRD_PARTY_NOTICES.md lists macOS arm64 native packages, so only that runner can match it.
+      - name: Check third-party notices
+        if: matrix.artifact == 'yomitomo-macos-arm64'
+        run: pnpm licenses:check
+
       - name: Make macOS release package
         if: matrix.artifact == 'yomitomo-macos-arm64'
         shell: bash

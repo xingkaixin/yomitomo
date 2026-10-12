@@ -27,6 +27,18 @@ CI 通过不替代真实阅读样本及人工质量复核。
 pnpm --filter @yomitomo/desktop native:verify
 ```
 
+第三方声明 `THIRD_PARTY_NOTICES.md` 打包进应用，作为「开源许可证」列表。清单含平台相关的 native 包，
+只能在 macOS arm64 上生成和校验：
+
+```bash
+pnpm --filter @yomitomo/desktop native:install
+pnpm licenses:check
+```
+
+失败时运行 `pnpm licenses:generate` 并提交结果。清单覆盖 desktop `dependencies`、被 Vite 打进产物的
+`devDependencies`、`@yomitomo/*` 包的 `dependencies` 和 `apps/desktop/electron-native` 的依赖，均含传递依赖。
+Release workflow 的 macOS 任务在打包前运行同一检查，清单过期时发布失败。
+
 确认 `apps/desktop/package.json` 的 `version` 与目标版本一致。
 
 ### 应用包内容
@@ -34,7 +46,9 @@ pnpm --filter @yomitomo/desktop native:verify
 app.asar 只包含 `dist/main`、`dist/preload`、`dist/renderer`、`resources` 和运行时依赖。
 `apps/desktop/package.json` 的 `dependencies` 只放 main 和 preload 产物在运行时 import 的外部包；
 被 Vite 打进产物的包（renderer 依赖、已 bundle 的 main 依赖）放 `devDependencies`，否则会被重复打进
-`node_modules`。`mac.files`、`win.files` 会替换顶层 `files`，必须先展开共享列表再追加平台排除项，
+`node_modules`。第三方声明默认把 desktop 的 `devDependencies` 视为随包分发；新增只用于构建或测试的
+`devDependencies` 时，把它加入 `scripts/generate-third-party-notices.mjs` 的 `desktopToolPackages`。
+`mac.files`、`win.files` 会替换顶层 `files`，必须先展开共享列表再追加平台排除项，
 否则 electron-builder 会回退到 `**/*` 打包整个项目目录；`native:verify` 会检查这一点。
 
 ### macOS Sparkle 更新
