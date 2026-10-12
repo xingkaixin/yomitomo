@@ -88,8 +88,12 @@ function normalizeSearchText(text: string, caseSensitive = false) {
       map.push(index);
     }
     pendingWhitespace = false;
-    normalized.push(caseSensitive ? char : char.toLocaleLowerCase());
-    map.push(index);
+    const folded = caseSensitive ? char : char.toLowerCase();
+    normalized.push(folded);
+    // 'İ' lowercases to 'i' + U+0307, so one source char can span several normalized units.
+    for (let unit = 0; unit < folded.length; unit += 1) {
+      map.push(index);
+    }
   }
 
   return { text: trimTrailingSearchWhitespace(normalized).join(''), map };
