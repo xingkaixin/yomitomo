@@ -15,7 +15,7 @@ async function renderMasthead(active: 'home' | 'docs' = 'home') {
     request: new Request('https://yomitomo.app/docs/'),
   });
   return new JSDOM(
-    `<!doctype html><html><body><aside id="starlight__sidebar"><a href="/docs/start">开始</a></aside>${html}</body></html>`,
+    `<!doctype html><html><body><header class="header">${html}</header><nav class="sidebar"><sl-sidebar-pane popover id="starlight__sidebar" class="sidebar-pane"><a href="/docs/start">开始</a></sl-sidebar-pane></nav></body></html>`,
     {
       pretendToBeVisual: true,
       runScripts: 'dangerously',
@@ -58,23 +58,27 @@ describe('landing masthead interactions', () => {
     dom.window.close();
   });
 
-  it('moves focus into the mobile drawer and restores it after Escape', async () => {
+  it('opens the sidebar popover and follows its toggle state', async () => {
     const dom = await renderMasthead('docs');
-    const { document, KeyboardEvent, MouseEvent } = dom.window;
+    const { document, Event } = dom.window;
     const trigger = document.querySelector<HTMLButtonElement>('[data-toc-toggle]')!;
-    const firstControl = document.querySelector<HTMLAnchorElement>('#starlight__sidebar a')!;
+    const sidebar = document.getElementById('starlight__sidebar')!;
+    const firstControl = sidebar.querySelector<HTMLAnchorElement>('a')!;
+    const toggle = (newState: 'open' | 'closed') =>
+      sidebar.dispatchEvent(Object.assign(new Event('toggle'), { newState }));
 
-    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(trigger.getAttribute('popovertarget')).toBe(sidebar.id);
+
+    toggle('open');
 
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
     expect(document.body.hasAttribute('data-mobile-menu-visible')).toBe(true);
     expect(document.activeElement).toBe(firstControl);
 
-    document.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Escape' }));
+    toggle('closed');
 
     expect(trigger.getAttribute('aria-expanded')).toBe('false');
     expect(document.body.hasAttribute('data-mobile-menu-closing')).toBe(true);
-    expect(document.activeElement).toBe(trigger);
     await new Promise((resolve) => dom.window.setTimeout(resolve, 0));
     expect(document.body.hasAttribute('data-mobile-menu-visible')).toBe(false);
     expect(document.body.hasAttribute('data-mobile-menu-closing')).toBe(false);
