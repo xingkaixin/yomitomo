@@ -38,7 +38,13 @@ function DiscussionModal({
 }: {
   annotation: Annotation | null;
   agents: Agent[];
-  labels: { quote: string; ideas: string; discussion: (n: number) => string; pick: string };
+  labels: {
+    quote: string;
+    ideas: string;
+    discussion: (n: number) => string;
+    pick: string;
+    close: string;
+  };
   returnFocusTarget: HTMLElement | null;
   onClosed: () => void;
 }) {
@@ -172,7 +178,7 @@ function DiscussionModal({
             ref={closeButtonRef}
             type="button"
             onClick={requestClose}
-            aria-label="关闭"
+            aria-label={labels.close}
           >
             <HugeiconsIcon icon={Cancel01Icon} size={16} />
           </button>
@@ -388,6 +394,7 @@ export default function ReaderDemo({ lang = 'zh-CN' }: { lang?: Locale }) {
     ideas: ui.ideasLabel,
     discussion: (n: number) => `${ui.discussionLabel} · ${ui.replies(n)}`,
     pick: ui.selectThought,
+    close: ui.closeLabel,
   };
   const noteLabels = {
     distill: isEnglish

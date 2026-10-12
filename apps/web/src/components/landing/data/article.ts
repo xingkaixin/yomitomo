@@ -74,6 +74,7 @@ export type UiStrings = {
   ideasLabel: string;
   discussionLabel: string;
   selectThought: string;
+  closeLabel: string;
   replies: (n: number) => string;
   footer: string;
 };
@@ -538,6 +539,7 @@ const zhContent: LandingContent = {
     ideasLabel: '想法',
     discussionLabel: '讨论',
     selectThought: '选择一条想法查看讨论',
+    closeLabel: '关闭',
     replies: (n) => `${n} 条回复`,
     footer: '© 2025 Yomitomo. 开源在 MIT 协议下。',
   },
@@ -996,6 +998,7 @@ const enContent: LandingContent = {
     ideasLabel: 'Ideas',
     discussionLabel: 'Discussion',
     selectThought: 'Select a thought to see the discussion',
+    closeLabel: 'Close',
     replies: (n) => `${n} ${n === 1 ? 'reply' : 'replies'}`,
     footer: '© 2025 Yomitomo. Open source under the MIT license.',
   },
@@ -1334,6 +1337,7 @@ const jaContent: LandingContent = {
     ideasLabel: '考え',
     discussionLabel: '対話',
     selectThought: '考えを選んで対話を表示',
+    closeLabel: '閉じる',
     replies: (n) => `${n}件の返信`,
     footer: '© 2025 Yomitomo. MITライセンスのオープンソース。',
   },
