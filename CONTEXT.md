@@ -28,6 +28,13 @@ independent whole-book progress reported by the reader. Presentation code derive
 through `readingProgressRatio`.
 _Avoid_: one universal record padded with synthetic or redundant fields
 
+**Reading Activity**:
+The dated events behind reading stats and the activity heatmap. Annotations, thoughts, discussion
+comments and AI contributions count on the local day they were created; published distillations
+count on their publish day. An Article counts as read on the day of its `updatedAt`, which also
+moves when only reading progress or reader chat state is saved.
+_Avoid_: attributing an Article's historical annotation counts to its `updatedAt`
+
 **Article Translation**:
 A source-bound translation of an Article for one target language and prompt version. Its source
 content identity determines whether an existing translation can be reused; it does not replace the
