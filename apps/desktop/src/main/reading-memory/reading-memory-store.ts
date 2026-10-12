@@ -156,6 +156,14 @@ export function searchReadingMemoryEntries(options: SearchReadingMemoryEntriesOp
     return [];
   }
   const limit = Math.max(1, Math.min(options.limit || 20, 100));
+  const { where, values } = readingMemoryWhereClause({
+    articleId: options.articleId,
+    agentId: options.agentId,
+    excludeAgentId: options.excludeAgentId,
+    requireAgentId: options.requireAgentId,
+    visibility: options.visibility,
+    nearTextRange: options.nearTextRange,
+  });
   const rows = executor
     .prepare(
       `
@@ -163,11 +171,17 @@ SELECT entry_id AS entryId
 FROM reading_memory_entry_fts
 WHERE reading_memory_entry_fts MATCH ?
   AND article_id = ?
+  AND EXISTS (
+    SELECT 1
+    FROM reading_memory_entries
+    ${where}
+      AND reading_memory_entries.id = reading_memory_entry_fts.entry_id
+  )
 ORDER BY bm25(reading_memory_entry_fts)
 LIMIT ?
 `,
     )
-    .all(ftsQuery, options.articleId, limit);
+    .all(ftsQuery, options.articleId, ...values, limit);
   const ids = rows.map((row) => stringValue(recordField(row, 'entryId'))).filter(Boolean);
   if (ids.length === 0) {
     const fallback = options.fallbackToSubstring
@@ -195,6 +209,7 @@ LIMIT ?
     excludeAgentId: options.excludeAgentId,
     requireAgentId: options.requireAgentId,
     visibility: options.visibility,
+    nearTextRange: options.nearTextRange,
     executor,
   });
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
@@ -225,6 +240,7 @@ function searchReadingMemoryEntriesBySubstring(
     excludeAgentId: options.excludeAgentId,
     requireAgentId: options.requireAgentId,
     visibility: options.visibility,
+    nearTextRange: options.nearTextRange,
   });
   const rows = executor
     .prepare(
@@ -252,6 +268,7 @@ LIMIT ?
     excludeAgentId: options.excludeAgentId,
     requireAgentId: options.requireAgentId,
     visibility: options.visibility,
+    nearTextRange: options.nearTextRange,
     executor,
   });
   logReadingMemoryTiming(options.performanceLogger, 'substring_fallback', startedAt, {
@@ -267,7 +284,13 @@ LIMIT ?
 function readReadingMemoryEntriesByIds(
   options: Pick<
     SearchReadingMemoryEntriesOptions,
-    'articleId' | 'agentId' | 'excludeAgentId' | 'requireAgentId' | 'visibility' | 'executor'
+    | 'articleId'
+    | 'agentId'
+    | 'excludeAgentId'
+    | 'requireAgentId'
+    | 'visibility'
+    | 'nearTextRange'
+    | 'executor'
   > & { ids: string[] },
 ) {
   const ids = uniqueNonEmptyStrings(options.ids);
@@ -279,6 +302,7 @@ function readReadingMemoryEntriesByIds(
     excludeAgentId: options.excludeAgentId,
     requireAgentId: options.requireAgentId,
     visibility: options.visibility,
+    nearTextRange: options.nearTextRange,
   });
   const placeholders = questionMarks(ids.length);
   const rows = executor

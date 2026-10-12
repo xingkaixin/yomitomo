@@ -180,6 +180,37 @@ describe('reading memory store', () => {
     ).toEqual(['other_entry']);
   });
 
+  it('applies agent filters before limiting FTS hits', () => {
+    const database = memoryDatabase();
+    appendReadingMemoryEntries(
+      [
+        entry({
+          id: 'other_entry',
+          scope: 'agent',
+          agentId: 'agent_2',
+          payload: { summary: 'shared motif' },
+        }),
+        entry({
+          id: 'own_entry',
+          scope: 'agent',
+          agentId: 'agent_1',
+          payload: { summary: 'shared motif returns later in a longer own note' },
+        }),
+      ],
+      database,
+    );
+
+    expect(
+      searchReadingMemoryEntries({
+        articleId: 'article_1',
+        query: 'shared motif',
+        agentId: 'agent_1',
+        limit: 1,
+        executor: database,
+      }).map((item) => item.id),
+    ).toEqual(['own_entry']);
+  });
+
   it('maps FTS hits by id without reading every article entry', () => {
     const database = recordingExecutor(memoryDatabase());
     appendReadingMemoryEntries(
