@@ -22,7 +22,7 @@ export function createYomitomoLanguageModel(provider: LlmProvider): YomitomoLang
     return {
       model: createAnthropic({
         apiKey: provider.apiKey,
-        baseURL: trimSlash(provider.baseUrl),
+        baseURL: anthropicBaseUrl(provider.baseUrl),
       })(provider.modelName),
       providerOptions: anthropicProviderOptions(provider),
       providerId: 'anthropic',
@@ -189,6 +189,11 @@ function thinkingBudget(effort: ReasoningEffort, maxTokens: number) {
 export function openAIBaseUrl(baseUrl: string) {
   const base = trimSlash(baseUrl);
   return /\/v\d+(?:beta)?$/.test(base) ? base : `${base}/v1`;
+}
+
+export function anthropicBaseUrl(baseUrl: string) {
+  const base = trimSlash(baseUrl);
+  return /\/v\d+$/.test(base) ? base : `${base}/v1`;
 }
 
 export function geminiBaseUrl(baseUrl: string) {

@@ -81,6 +81,35 @@ describe('listProviderModels', () => {
     );
   });
 
+  it.each(['https://proxy.example.com', 'https://proxy.example.com/v1/'])(
+    'sends Anthropic model list and generation requests under /v1 for %s',
+    async (baseUrl) => {
+      const fetchMock = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(jsonResponse({ data: [] }))
+        .mockResolvedValueOnce(
+          jsonResponse({
+            id: 'msg-1',
+            type: 'message',
+            role: 'assistant',
+            model: 'model',
+            content: [{ type: 'text', text: 'ok' }],
+            stop_reason: 'end_turn',
+            usage: { input_tokens: 1, output_tokens: 1 },
+          }),
+        );
+      const target = providerFor('anthropic', 'anthropic', baseUrl);
+
+      await listProviderModels(target);
+      await generateYomitomoText(target, payload());
+
+      expect(fetchMock.mock.calls.map(([input]) => input)).toEqual([
+        'https://proxy.example.com/v1/models',
+        'https://proxy.example.com/v1/messages',
+      ]);
+    },
+  );
+
   it('rejects with a response decode error when JSON parsing fails', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('not json', { status: 200 }));
 
