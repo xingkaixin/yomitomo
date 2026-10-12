@@ -3,7 +3,7 @@ import type {
   ResolvedAppSettings,
   ArticleReadingProgress,
   ArticleRecord,
-  ArticleSummaryRecord,
+  ArticleStatsRecord,
   ArticleUpsertPatch,
   Comment,
 } from '@yomitomo/shared';
@@ -94,7 +94,7 @@ export async function listLibraryArticles(
   return readArticleLibraryListRows(database, input);
 }
 
-export async function readArticleStatsSummaries(): Promise<ArticleSummaryRecord[]> {
+export async function readArticleStatsSummaries(): Promise<ArticleStatsRecord[]> {
   const database = getDatabase();
   await migrateProviderApiKeys(database);
   return readArticleStatsSummaryRows(database);

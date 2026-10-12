@@ -4,7 +4,7 @@ import type {
   ArticleReaderChatStatePatch,
   ArticleReadingProgressPatch,
   ArticleRecord,
-  ArticleSummaryRecord,
+  ArticleStatsRecord,
   ArticleTranslation,
   ArticleUpsertPatch,
   CollectionStorePatch,
@@ -339,7 +339,7 @@ export const articleIpcInvokeDescriptors = {
     roles: mainOnly,
     validation: 'schema',
   }),
-  'article:stats-summaries': desktopIpcInvoke<[], ArticleSummaryRecord[]>()({
+  'article:stats-summaries': desktopIpcInvoke<[], ArticleStatsRecord[]>()({
     route: ['article', 'readStatsSummaries'],
     roles: mainOnly,
     validation: { exempt: 'no-args' },
