@@ -47,6 +47,9 @@ renderer 用 store 中的用户资料和全部助手（含已停用的助手和�
 结合章节、前后文和全书文本反查 EPUB 锚点。章节与全书坐标转换位于
 `packages/core/src/epub/ebook-index.ts`。无法稳定定位时不创建批注。
 
+全书文本按 `textContent` 提取，`<br>` 处没有空白；选区文本和 iframe 内的锚点恢复把 `<br>` 当作空格。
+因此建锚和恢复在空白折叠后匹配不到时，会按去掉全部空白的文本再匹配一次，多处命中时仍按前后文选取。
+
 ### PDF
 
 `apps/desktop/src/renderer/src/source/pdfium/app-source-bookcase-pdfium-selection-bridge.tsx`
