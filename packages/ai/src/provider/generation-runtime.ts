@@ -1,6 +1,6 @@
 import { generateText, jsonSchema, Output, streamText, type JSONSchema7 } from 'ai';
 import type { LlmProvider } from '@yomitomo/shared';
-import { errorMessage } from '@yomitomo/shared';
+import { errorMessage, recordField, stringField } from '@yomitomo/shared';
 import { Effect } from 'effect';
 import { createYomitomoLanguageModel } from './ai-sdk-provider-adapter';
 import { logAiInfo } from '../logger';
@@ -57,6 +57,14 @@ export async function streamYomitomoText(
   return Effect.runPromise(
     streamYomitomoTextEffect(provider, payload, onDelta),
     runOptions(signal),
+  );
+}
+
+/** Provider error parts can carry raw API payloads such as `{ message, type }` instead of an Error. */
+export function providerStreamError(error: unknown) {
+  if (error instanceof Error) return error;
+  return new Error(
+    stringField(error) || stringField(recordField(error, 'message')) || JSON.stringify(error),
   );
 }
 
@@ -128,11 +136,14 @@ export const streamYomitomoTextEffect = Effect.fn('Provider.streamText')(functio
           abortSignal: signal,
         });
         let text = '';
-        for await (const delta of result.textStream) {
-          text += delta;
-          onDelta(delta);
+        for await (const part of result.fullStream) {
+          if (part.type === 'error') throw providerStreamError(part.error);
+          if (part.type !== 'text-delta') continue;
+          text += part.text;
+          onDelta(part.text);
         }
         const [usage, finishReason] = await Promise.all([result.usage, result.finishReason]);
+        if (finishReason === 'error') throw new Error('Provider stream finished with an error');
         return { text, usage: normalizeAiUsage(usage), finishReason };
       },
       catch: (error) => new GenerationProviderError(error),

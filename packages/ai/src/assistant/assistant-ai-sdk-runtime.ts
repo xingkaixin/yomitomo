@@ -1,5 +1,5 @@
 import { isStepCount, jsonSchema, streamText, type JSONSchema7 } from 'ai';
-import { runOptions } from '../provider/generation-runtime';
+import { providerStreamError, runOptions } from '../provider/generation-runtime';
 import { Effect, Exit } from 'effect';
 import {
   createYomitomoLanguageModel,
@@ -132,7 +132,7 @@ export const runAssistantAiSdkToolRuntimeEffect = Effect.fn('Assistant.runAiSdkT
               })
             : finalActionFromText(
                 options,
-                yield* consumeRuntimeTextStreamEffect(result.textStream, options.onEvent),
+                yield* consumeRuntimeTextStreamEffect(result.fullStream, options.onEvent),
               );
           const finishReason = yield* promiseEffect(
             result.finishReason,
@@ -148,6 +148,9 @@ export const runAssistantAiSdkToolRuntimeEffect = Effect.fn('Assistant.runAiSdkT
                 `model_output_reached_max_tokens:${options.payload.maxTokens}`,
               ),
             );
+          }
+          if (finishReason === 'error') {
+            return emitFallback(options, kernel.finishWithFallback('provider_stream_error'));
           }
 
           const step = kernel.handleFinalAction(
@@ -238,15 +241,19 @@ function aiSdkStreamTextEffect(input: Parameters<typeof streamText>[0], abortSig
 }
 
 function consumeRuntimeTextStreamEffect(
-  textStream: AsyncIterable<string>,
+  fullStream: ReturnType<typeof streamText>['fullStream'],
   onEvent?: (event: AssistantRuntimeStreamEvent) => void,
 ) {
   return Effect.tryPromise({
     try: async () => {
       let text = '';
-      for await (const delta of textStream) {
-        text += delta;
-        onEvent?.({ type: 'text_delta', delta });
+      for await (const part of fullStream) {
+        if (part.type === 'error') throw providerStreamError(part.error);
+        // The SDK returns tool errors to the model; only failures from our executor end the run.
+        if (part.type === 'tool-error' && isAssistantRuntimeError(part.error)) throw part.error;
+        if (part.type !== 'text-delta') continue;
+        text += part.text;
+        onEvent?.({ type: 'text_delta', delta: part.text });
       }
       return text;
     },
@@ -324,10 +331,14 @@ async function executeAssistantTool(
 }
 
 function assistantRuntimeBoundaryFailure(error: unknown) {
-  if (error instanceof AssistantRuntimeFailure || error instanceof AssistantRuntimeToolFailure) {
-    return error;
-  }
+  if (isAssistantRuntimeError(error)) return error;
   return new AssistantRuntimeProviderFailure(error);
+}
+
+function isAssistantRuntimeError(
+  error: unknown,
+): error is AssistantRuntimeFailure | AssistantRuntimeToolFailure {
+  return error instanceof AssistantRuntimeFailure || error instanceof AssistantRuntimeToolFailure;
 }
 
 function finalActionFromText(
