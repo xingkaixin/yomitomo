@@ -230,24 +230,18 @@ h1#_top {
 }
 
 @media (max-width: 50rem) {
-  /* The mobile menu toggle lives in the masthead nav (see LandingMasthead),
-     not as Starlight's fixed floating button. Hide the original so its web
-     component and global `[data-mobile-menu-expanded]` rules still work. */
-  starlight-menu-button {
+  /* The masthead toggle (see LandingMasthead) opens the same sidebar popover
+     and replaces Starlight's floating menu button. */
+  .sl-menu-button {
     display: none;
-  }
-
-  /* Sidebar drawer visibility is driven by the body attribute the masthead
-     toggle maintains, replacing Starlight's sibling-selector linkage that
-     broke once the toggle left `nav.sidebar`. */
-  body[data-mobile-menu-visible] .sidebar-pane {
-    --sl-sidebar-visibility: visible;
   }
 
   /* Bottom sheet drawer: anchored to the bottom, capped at 70vh, scrolls
      internally when the TOC is long. Same opaque paper surface as the page.
      Centered with translateX(-50%); z-index raised above the masthead so the
-     overlay (which lives inside the .header stacking context) never covers it. */
+     overlay (which lives inside the .header stacking context) never covers it.
+     Transitioning display and overlay keeps the closing popover rendered until
+     it has slid out. */
   .sidebar-pane {
     --panel-translate-y: 100%;
 
@@ -268,11 +262,14 @@ h1#_top {
     transition:
       transform var(--panel-close-dur, 350ms) var(--panel-ease, cubic-bezier(0.22, 1, 0.36, 1)),
       opacity var(--panel-close-dur, 350ms) var(--panel-ease, cubic-bezier(0.22, 1, 0.36, 1)),
-      filter var(--panel-close-dur, 350ms) var(--panel-ease, cubic-bezier(0.22, 1, 0.36, 1));
+      filter var(--panel-close-dur, 350ms) var(--panel-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+      display var(--panel-close-dur, 350ms),
+      overlay var(--panel-close-dur, 350ms);
+    transition-behavior: allow-discrete;
     will-change: transform, opacity, filter;
   }
 
-  body[data-mobile-menu-expanded] .sidebar-pane {
+  .sidebar-pane:popover-open {
     opacity: 1;
     filter: blur(0);
     pointer-events: auto;
@@ -281,6 +278,14 @@ h1#_top {
       transform var(--panel-open-dur, 400ms) var(--panel-ease, cubic-bezier(0.22, 1, 0.36, 1)),
       opacity var(--panel-open-dur, 400ms) var(--panel-ease, cubic-bezier(0.22, 1, 0.36, 1)),
       filter var(--panel-open-dur, 400ms) var(--panel-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  }
+
+  @starting-style {
+    .sidebar-pane:popover-open {
+      opacity: 0;
+      filter: blur(var(--panel-blur, 2px));
+      transform: translateX(-50%) translateY(var(--panel-translate-y));
+    }
   }
 
   .sidebar-content {
