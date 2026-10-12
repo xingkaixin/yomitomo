@@ -56,7 +56,7 @@ The **Assistant Execution Mode** applies globally: **Fast Response** prioritizes
 
 - **Model requests**: Remote AI features send the source text, annotations, and conversation needed for the task to your configured model endpoint. A model running on your computer performs inference locally.
 - **App Lock (PIN Code)**: Protects your local reading library behind a secure PIN screen. Passcode verification relies on native OS keystores.
-- **Telemetry Controls**: Sends an anonymous daily heartbeat (anonymous UUID, app version, OS architecture) strictly for platform stability metrics. **Never transmits reading content, titles, highlights, local paths, or AI dialogues.** Can be disabled entirely in settings.
+- **Telemetry Controls**: On by default. Sends two kinds of data to `telemetry.yomitomo.app`: an anonymous heartbeat at most once per day (anonymous installation UUID, app version, OS platform and version, architecture, local date, and timezone), and Reading Memory counts for opens, completed queries, source jumps, review decisions, and fallbacks, without the installation UUID. **Neither transmits reading content, titles, highlights, local paths, or AI dialogues.** Can be disabled under **Settings > General > Privacy**; turning it off also clears unsent Reading Memory counts.
 
 ## Data Management and Backup
 
