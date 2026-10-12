@@ -34,7 +34,10 @@ type RuntimePersistenceModules = {
   storeModelPricing: Pick<typeof import('../store/store-model-pricing'), 'refreshModelPrices'>;
   weReadRepository: Pick<
     typeof import('../weread/weread-repository'),
-    'readStoredWeReadApiKey' | 'readWeReadSettings' | 'saveWeReadLibrarySnapshot'
+    | 'readStoredWeReadApiKey'
+    | 'readWeReadApiKeyRef'
+    | 'readWeReadSettings'
+    | 'saveWeReadLibrarySnapshot'
   >;
 };
 

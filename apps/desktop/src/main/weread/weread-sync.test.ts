@@ -48,6 +48,7 @@ describe('syncWeReadLibrary', () => {
     );
     const snapshots: string[][] = [];
     const persistence = {
+      readWeReadApiKeyRef: () => 'weread-key-ref',
       readStoredWeReadApiKey: vi.fn(async () => 'weread-key'),
       saveWeReadLibrarySnapshot: vi.fn(async (input: { authoritativeBookIds: string[] }) => {
         snapshots.push(input.authoritativeBookIds);
@@ -71,6 +72,7 @@ describe('syncWeReadLibrary', () => {
     vi.mocked(fetchWeReadNotebooks).mockRejectedValueOnce(error).mockResolvedValueOnce([]);
     const result = syncResult();
     const persistence = {
+      readWeReadApiKeyRef: () => 'weread-key-ref',
       readStoredWeReadApiKey: vi.fn(async () => 'weread-key'),
       saveWeReadLibrarySnapshot: vi.fn(async () => result),
     };
@@ -89,6 +91,7 @@ describe('syncWeReadLibrary', () => {
 
   it('rejects before loading notebooks when the API key is missing', async () => {
     const persistence = {
+      readWeReadApiKeyRef: () => 'weread-key-ref',
       readStoredWeReadApiKey: vi.fn(async () => ''),
       saveWeReadLibrarySnapshot: vi.fn(),
     };
@@ -112,6 +115,7 @@ describe('syncWeReadLibrary', () => {
     vi.mocked(fetchWeReadNotebooks).mockResolvedValueOnce([]);
     const result = syncResult();
     const persistence = {
+      readWeReadApiKeyRef: () => 'weread-key-ref',
       readStoredWeReadApiKey: vi.fn(async () => 'weread-key'),
       saveWeReadLibrarySnapshot: vi.fn(async () => result),
     };
@@ -131,6 +135,7 @@ describe('syncWeReadLibrary', () => {
       {
         details: [],
         authoritativeBookIds: [],
+        apiKeyRef: 'weread-key-ref',
       },
       logger.logInfo,
     );
@@ -155,6 +160,7 @@ describe('syncWeReadLibrary', () => {
     );
     const result = syncResult();
     const persistence = {
+      readWeReadApiKeyRef: () => 'weread-key-ref',
       readStoredWeReadApiKey: vi.fn(async () => 'weread-key'),
       saveWeReadLibrarySnapshot: vi.fn(async () => result),
     };
@@ -181,6 +187,7 @@ describe('syncWeReadLibrary', () => {
           }),
         ],
         authoritativeBookIds: ['book_1', 'book_empty'],
+        apiKeyRef: 'weread-key-ref',
       },
       logger.logInfo,
     );
@@ -191,6 +198,7 @@ describe('syncWeReadLibrary', () => {
     vi.mocked(fetchWeReadNotebooks).mockResolvedValueOnce([bookFixture('book_failed')]);
     vi.mocked(fetchWeReadBookDetail).mockRejectedValueOnce(error);
     const persistence = {
+      readWeReadApiKeyRef: () => 'weread-key-ref',
       readStoredWeReadApiKey: vi.fn(async () => 'weread-key'),
       saveWeReadLibrarySnapshot: vi.fn(),
     };

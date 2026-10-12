@@ -120,11 +120,15 @@ describe('weread IPC persistence boundary', () => {
     const bookDetail = detail('book_1');
     vi.mocked(fetchWeReadBookDetail).mockResolvedValueOnce(bookDetail);
     const readStoredWeReadApiKey = vi.fn(async () => 'weread-secret');
+    const readWeReadApiKeyRef = vi.fn(() => 'weread-secret-ref');
     const saveWeReadBookDetail = vi.fn(async () => bookDetail);
     const logInfo = vi.fn();
 
     registerWeReadIpc(
-      weReadIpcContext({ readStoredWeReadApiKey, saveWeReadBookDetail }, { logInfo }),
+      weReadIpcContext(
+        { readStoredWeReadApiKey, readWeReadApiKeyRef, saveWeReadBookDetail },
+        { logInfo },
+      ),
     );
 
     const handler = ipcMocks.ipcMainHandle.mock.calls.find(
@@ -135,7 +139,7 @@ describe('weread IPC persistence boundary', () => {
     await handler({}, 'book_1');
 
     expect(fetchWeReadBookDetail).toHaveBeenCalledWith('weread-secret', 'book_1');
-    expect(saveWeReadBookDetail).toHaveBeenCalledWith(bookDetail, logInfo);
+    expect(saveWeReadBookDetail).toHaveBeenCalledWith(bookDetail, 'weread-secret-ref', logInfo);
   });
 });
 
@@ -154,6 +158,7 @@ function weReadIpcContext(
     getPersistenceModules: async () => ({
       weReadRepository: {
         readStoredWeReadApiKey: vi.fn(),
+        readWeReadApiKeyRef: vi.fn(),
         readWeReadBookDetail: vi.fn(),
         readWeReadReadingStatsState: vi.fn(),
         readWeReadSettings: vi.fn(),

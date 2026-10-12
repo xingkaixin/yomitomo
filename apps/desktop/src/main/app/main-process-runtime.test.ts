@@ -381,6 +381,7 @@ function runtimeDependencies(
         storeModelPricing: { refreshModelPrices },
         weReadRepository: {
           readStoredWeReadApiKey: vi.fn(async () => 'api-key'),
+          readWeReadApiKeyRef: vi.fn(() => 'api-key-ref'),
           readWeReadSettings,
           saveWeReadLibrarySnapshot: vi.fn(async () => syncResult),
         },

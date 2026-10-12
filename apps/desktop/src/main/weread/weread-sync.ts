@@ -11,11 +11,13 @@ type WeReadSyncLogger = {
 };
 
 type WeReadSyncPersistence = {
+  readWeReadApiKeyRef: () => string | undefined;
   readStoredWeReadApiKey: () => Promise<string>;
   saveWeReadLibrarySnapshot: (
     input: {
       details: WeReadBookDetail[];
       authoritativeBookIds: string[];
+      apiKeyRef: string | undefined;
     },
     logInfo?: WeReadSyncLogger['logInfo'],
   ) => Promise<WeReadSyncResult>;
@@ -41,6 +43,12 @@ const runWeReadLibrarySyncEffect = Effect.fn('WeRead.syncLibrary')(function* (
   input: WeReadSyncInput,
 ) {
   const startedAt = performance.now();
+  // Read the ref before the key: if the key is replaced in between, the save is rejected
+  // rather than storing the old account's library under the new ref.
+  const apiKeyRef = yield* Effect.try({
+    try: () => input.persistence.readWeReadApiKeyRef(),
+    catch: (error) => error,
+  });
   const apiKey = yield* Effect.tryPromise({
     try: () => input.persistence.readStoredWeReadApiKey(),
     catch: (error) => error,
@@ -72,7 +80,7 @@ const runWeReadLibrarySyncEffect = Effect.fn('WeRead.syncLibrary')(function* (
     const result = yield* Effect.tryPromise({
       try: () =>
         input.persistence.saveWeReadLibrarySnapshot(
-          { details, authoritativeBookIds: books.map((book) => book.bookId) },
+          { details, authoritativeBookIds: books.map((book) => book.bookId), apiKeyRef },
           input.logInfo,
         ),
       catch: (error) => error,

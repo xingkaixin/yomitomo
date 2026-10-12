@@ -11,6 +11,7 @@ type WeReadIpcContext = Pick<
     weReadRepository: Pick<
       typeof import('../weread/weread-repository'),
       | 'readStoredWeReadApiKey'
+      | 'readWeReadApiKeyRef'
       | 'readWeReadBookDetail'
       | 'readWeReadReadingStatsState'
       | 'readWeReadSettings'
@@ -70,11 +71,12 @@ export function registerWeReadIpc(context: WeReadIpcContext) {
   });
   handleDesktopIpc('weread:sync-book', async (_event, bookId) => {
     const { weReadRepository: weReadPersistence } = await context.getPersistenceModules();
+    const apiKeyRef = weReadPersistence.readWeReadApiKeyRef();
     const apiKey = await weReadPersistence.readStoredWeReadApiKey();
     if (!apiKey) throw new Error('WEREAD_API_KEY_REQUIRED');
     const { fetchWeReadBookDetail } = await import('../weread/weread-client');
     const detail = await fetchWeReadBookDetail(apiKey, bookId);
-    return weReadPersistence.saveWeReadBookDetail(detail, context.logInfo);
+    return weReadPersistence.saveWeReadBookDetail(detail, apiKeyRef, context.logInfo);
   });
   handleDesktopIpc('weread:get-book', async (_event, bookId) => {
     const { weReadRepository: weReadPersistence } = await context.getPersistenceModules();
