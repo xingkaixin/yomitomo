@@ -126,6 +126,7 @@ export function useEbookFoliateView({
     message: i18next.t('ebookReader.opening'),
   });
   const readerStateStatusRef = useRef<EbookReaderState['status']>(readerState.status);
+  const [openSettledArticleId, setOpenSettledArticleId] = useState<string | null>(null);
   const { scheduleSave: scheduleEbookProgressSave } = useSourceReadingProgressSaver({
     articleId: article.id,
     initialProgress: article.readingProgress,
@@ -171,6 +172,7 @@ export function useEbookFoliateView({
     setProgress(savedProgress);
     readerStateStatusRef.current = 'loading';
     setReaderState({ status: 'loading', message: i18next.t('ebookReader.opening') });
+    setOpenSettledArticleId(null);
   }, [article.id, onCleanupFoliateDocumentListeners, pageTurnTraceRef]);
 
   const beginPageTurnTrace = useCallback(
@@ -333,6 +335,7 @@ export function useEbookFoliateView({
         }
         onAttachFoliateDocumentListeners(view);
         onScheduleEbookBoxUpdate('open_ebook');
+        setOpenSettledArticleId(article.id);
       } catch (error) {
         if (cancelled) return;
         readerStateStatusRef.current = 'error';
@@ -340,6 +343,7 @@ export function useEbookFoliateView({
           status: 'error',
           message: ebookOpenErrorMessage(error),
         });
+        setOpenSettledArticleId(article.id);
       }
     }
 
@@ -444,6 +448,7 @@ export function useEbookFoliateView({
     sectionPageCounts,
     progress,
     readerState,
+    openSettled: openSettledArticleId === article.id,
     goLeft,
     goRight,
     goToProgress,
