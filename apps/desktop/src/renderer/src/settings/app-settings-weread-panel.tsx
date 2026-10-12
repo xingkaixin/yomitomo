@@ -55,6 +55,8 @@ export function WeReadSettingsPanel() {
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
   const [testState, setTestState] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [testMessage, setTestMessage] = useState('');
+  const [lastOpenMethod, setLastOpenMethod] = useState<WeReadOpenMethod>('deeplink');
+  const [lastSyncMode, setLastSyncMode] = useState<WeReadSyncMode>('manual');
   const revealRequestRef = useRef(0);
   const testResetTimerRef = useRef<number | undefined>(undefined);
   const credentialSave = useSaveStatus({
@@ -202,6 +204,7 @@ export function WeReadSettingsPanel() {
 
   async function saveOpenMethod(openMethod: WeReadOpenMethod) {
     const previous = settings.openMethod;
+    setLastOpenMethod(openMethod);
     setSettings((current) => ({ ...current, openMethod }));
     await openMethodSave.run(() => getDesktopApi().weRead.saveSettings({ openMethod }), {
       onError: () => setSettings((current) => ({ ...current, openMethod: previous })),
@@ -211,6 +214,7 @@ export function WeReadSettingsPanel() {
 
   async function saveSyncMode(syncMode: WeReadSyncMode) {
     const previous = settings.syncMode ?? 'manual';
+    setLastSyncMode(syncMode);
     setSettings((current) => ({ ...current, syncMode }));
     await syncModeSave.run(() => getDesktopApi().weRead.saveSettings({ syncMode }), {
       onError: () => setSettings((current) => ({ ...current, syncMode: previous })),
@@ -389,7 +393,7 @@ export function WeReadSettingsPanel() {
           <AutoSaveStatus
             error={openMethodSave.saveError}
             state={openMethodSave.saveState}
-            onRetry={() => void saveOpenMethod(settings.openMethod)}
+            onRetry={() => void saveOpenMethod(lastOpenMethod)}
           />
         }
         cardProps={{ role: 'radiogroup', 'aria-label': t('settings.weread.openMethodAria') }}
@@ -427,7 +431,7 @@ export function WeReadSettingsPanel() {
           <AutoSaveStatus
             error={syncModeSave.saveError}
             state={syncModeSave.saveState}
-            onRetry={() => void saveSyncMode(settings.syncMode ?? 'manual')}
+            onRetry={() => void saveSyncMode(lastSyncMode)}
           />
         }
         cardProps={{ role: 'radiogroup', 'aria-label': t('settings.weread.syncModeAria') }}
