@@ -1,4 +1,11 @@
-import { createElement, useEffect, useState, type Dispatch, type SetStateAction } from 'react';
+import {
+  createElement,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import type {
   Annotation,
   ResolvedAppSettings,
@@ -175,6 +182,7 @@ export function useSourceReaderApp({
     sessionInput.article.id,
     settings,
   );
+  const submittedComposerRef = useRef<typeof workspace.selection.composer>(null);
 
   useEffect(() => {
     setSettingsOpen(false);
@@ -193,9 +201,15 @@ export function useSourceReaderApp({
 
   async function createAnnotation(note: string) {
     const composer = workspace.selection.composer;
-    if (!composer) return;
+    if (!composer || submittedComposerRef.current === composer) return;
+    submittedComposerRef.current = composer;
     const annotation = createUserAnnotation(composer.anchor, sessionInput.userProfile, note);
-    await session.saveAnnotation(annotation);
+    try {
+      await session.saveAnnotation(annotation);
+    } catch (error) {
+      if (submittedComposerRef.current === composer) submittedComposerRef.current = null;
+      throw error;
+    }
     if (!isCurrentArticle(sessionInput.article.id)) return;
     workspace.selection.cancelComposer();
     markAnnotationCreated(annotation.id);

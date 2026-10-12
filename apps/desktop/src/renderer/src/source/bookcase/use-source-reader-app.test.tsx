@@ -259,6 +259,50 @@ describe('useSourceReaderApp', () => {
     expect(appToast.error).toHaveBeenCalledWith('Save failed.', { description: 'disk failed' });
   });
 
+  it('ignores repeat annotation submits while a save is pending', async () => {
+    const currentArticle = article('web', 'article_1');
+    let fail!: (error: Error) => void;
+    const pending = new Promise<undefined>((_, reject) => {
+      fail = reject;
+    });
+    const saveArticleAnnotation = vi
+      .fn()
+      .mockReturnValueOnce(pending)
+      .mockResolvedValueOnce(undefined);
+    const { result } = renderHook(() =>
+      useSourceReaderApp({
+        articleActions: articleActionStubs({ saveArticleAnnotation }),
+        getArticleText: () => 'text',
+        session: {
+          agents: [],
+          annotations: currentArticle.annotations,
+          article: currentArticle,
+          clearPendingOnArticleChange: true,
+          clearPendingOnDeleteAnnotation: true,
+          onArticleChange: vi.fn(),
+          userProfile,
+        },
+      }),
+    );
+
+    act(() =>
+      result.current.workspace.selection.openComposer({ x: 12, y: 16, anchor: annotation.anchor }),
+    );
+    let first!: Promise<void>;
+    act(() => {
+      first = result.current.createAnnotation('note');
+    });
+    await act(() => result.current.createAnnotation('note'));
+    expect(saveArticleAnnotation).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      fail(new Error('disk failed'));
+      await expect(first).rejects.toThrow('disk failed');
+    });
+    await act(() => result.current.createAnnotation('note'));
+    expect(saveArticleAnnotation).toHaveBeenCalledTimes(2);
+  });
+
   it('keeps the new article composer open when an old annotation save completes', async () => {
     let complete!: () => void;
     const pending = new Promise<undefined>((resolve) => {
