@@ -1,4 +1,5 @@
 import type { Annotation, ArticleRecord } from '@yomitomo/shared';
+import { normalizeTextWithMap } from '@yomitomo/shared';
 import { bilingualTranslationSelector } from '@yomitomo/core';
 import { rendererPerformanceElapsedMs } from '../../shell/app-renderer-performance';
 
@@ -136,21 +137,47 @@ function ebookAnchorMatchInIndex(
   anchor: Annotation['anchor'],
   query: string,
 ) {
+  const bestMatch =
+    bestDomAnchorMatch(index.text, index.text, query, anchor, (offset) => offset) ??
+    compactDomAnchorMatch(index.text, query, anchor);
+  return bestMatch ? { index, match: bestMatch } : null;
+}
+
+// Book text keeps no whitespace at <br>, while the DOM index inserts a space there.
+function compactDomAnchorMatch(text: string, query: string, anchor: Annotation['anchor']) {
+  const compact = normalizeTextWithMap(text, 'remove');
+  return bestDomAnchorMatch(
+    text,
+    compact.text,
+    query.replace(/\s/g, ''),
+    anchor,
+    (offset) => compact.map[offset],
+  );
+}
+
+function bestDomAnchorMatch(
+  text: string,
+  searchText: string,
+  query: string,
+  anchor: Annotation['anchor'],
+  textOffset: (searchOffset: number) => number,
+) {
   let bestMatch: { start: number; end: number } | null = null;
   let bestScore = Number.NEGATIVE_INFINITY;
-  let cursor = index.text.indexOf(query);
+  let cursor = searchText.indexOf(query);
 
   while (cursor >= 0) {
-    const end = cursor + query.length;
-    const score = domAnchorMatchScore(index.text, cursor, end, anchor);
+    const start = textOffset(cursor);
+    const end = textOffset(cursor + query.length - 1) + 1;
+    const score = domAnchorMatchScore(text, start, end, anchor);
     if (score > bestScore) {
-      bestMatch = { start: cursor, end };
+      bestMatch = { start, end };
       bestScore = score;
     }
-    cursor = index.text.indexOf(query, cursor + Math.max(1, query.length));
+    cursor = searchText.indexOf(query, cursor + Math.max(1, query.length));
   }
 
-  return bestMatch ? { index, match: bestMatch } : null;
+  return bestMatch;
 }
 
 function buildNormalizedDomTextIndex(

@@ -8,6 +8,7 @@ import {
   type EpubParagraphIndex,
   type EpubSegmentIndex,
   type TextAnchor,
+  type TextWhitespaceMapMode,
 } from '@yomitomo/shared';
 
 const DEFAULT_MAX_SEGMENT_TEXT_LENGTH = 2800;
@@ -389,32 +390,44 @@ export function createEpubTextAnchorFromQuote(
   if (!normalizedQuote) return null;
 
   const ranges = anchorSearchRanges(index, text.length, options);
+  // Rendered selections turn <br> into a space, while book text keeps no whitespace there.
+  const bestMatch =
+    bestQuoteMatch(text, ranges, normalizedQuote, 'collapse-to-next-character', options) ??
+    bestQuoteMatch(text, ranges, normalizedQuote.replace(/\s/g, ''), 'remove', options);
+
+  return bestMatch ? createEpubTextAnchor(index, text, bestMatch.start, bestMatch.end) : null;
+}
+
+function bestQuoteMatch(
+  text: string,
+  ranges: Array<{ start: number; end: number }>,
+  quote: string,
+  whitespaceMode: TextWhitespaceMapMode,
+  options: CreateEpubTextAnchorFromQuoteOptions,
+) {
   let bestMatch: { start: number; end: number } | null = null;
   let bestScore = Number.NEGATIVE_INFINITY;
 
   for (const range of ranges) {
     const normalizedRange = normalizeTextWithMap(
       text.slice(range.start, range.end),
-      'collapse-to-next-character',
+      whitespaceMode,
     );
-    let indexInRange = normalizedRange.text.indexOf(normalizedQuote);
+    let indexInRange = normalizedRange.text.indexOf(quote);
 
     while (indexInRange >= 0) {
       const start = range.start + normalizedRange.map[indexInRange];
-      const end = range.start + normalizedRange.map[indexInRange + normalizedQuote.length - 1] + 1;
+      const end = range.start + normalizedRange.map[indexInRange + quote.length - 1] + 1;
       const score = anchorMatchScore(text, start, end, options);
       if (score > bestScore) {
         bestMatch = { start, end };
         bestScore = score;
       }
-      indexInRange = normalizedRange.text.indexOf(
-        normalizedQuote,
-        indexInRange + Math.max(1, normalizedQuote.length),
-      );
+      indexInRange = normalizedRange.text.indexOf(quote, indexInRange + Math.max(1, quote.length));
     }
   }
 
-  return bestMatch ? createEpubTextAnchor(index, text, bestMatch.start, bestMatch.end) : null;
+  return bestMatch;
 }
 
 function resolveEpubStructuralTextAnchor(
