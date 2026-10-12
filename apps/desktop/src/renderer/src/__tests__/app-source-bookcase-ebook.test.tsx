@@ -37,6 +37,7 @@ const mocks = vi.hoisted(() => ({
       }
     | undefined,
   view: null as unknown,
+  openSettled: true,
   pageInfo: null as { sectionIndex: number; pageIndex: number; pageCount: number } | null,
   sectionPageCounts: [] as Array<number | null>,
   foliateViewInput: undefined as
@@ -81,6 +82,7 @@ vi.mock('../source/ebook/use-ebook-foliate-view', () => ({
       sectionPageCounts: mocks.sectionPageCounts,
       progress: 0,
       readerState: { status: 'ready', message: '' },
+      openSettled: mocks.openSettled,
       goLeft: mocks.goLeft,
       goRight: mocks.goRight,
       goToProgress: mocks.goToProgress,
@@ -142,6 +144,7 @@ afterEach(() => {
   mocks.boxes = [];
   mocks.readerShellProps = undefined;
   mocks.view = null;
+  mocks.openSettled = true;
   mocks.pageInfo = null;
   mocks.sectionPageCounts = [];
   mocks.foliateViewInput = undefined;
@@ -394,6 +397,34 @@ describe('EbookBookcase', () => {
     await waitFor(() => expect(onFocusedAnnotation).toHaveBeenCalledTimes(1));
     expect(onFocusedAnnotation).toHaveBeenCalledWith(true);
     expect(scrollToAnchor).toHaveBeenCalledTimes(1);
+  });
+
+  it('focuses an annotation once a cold-started EPUB finishes opening', async () => {
+    const note = annotation('note-1');
+    const doc = document.implementation.createHTMLDocument('ebook');
+    doc.body.textContent = note.anchor.exact;
+    const onFocusedAnnotation = vi.fn();
+    const props = ebookBookcaseProps(ebookArticle({ annotations: [note] }), [note], {
+      focusAnnotationId: note.id,
+      onFocusedAnnotation,
+    });
+    mocks.openSettled = false;
+    const view = render(<EbookBookcase {...props} />);
+
+    const scrollToAnchor = vi.fn().mockResolvedValue(undefined);
+    mocks.view = {
+      book: { sections: [{ id: 'chapter-1' }] },
+      getPageInfo: () => ({ sectionIndex: 0, pageIndex: 0, pageCount: 1 }),
+      goTo: vi.fn().mockResolvedValue(undefined),
+      goToFraction: vi.fn().mockResolvedValue(undefined),
+      renderer: { getContents: () => [{ doc, index: 0 }], scrollToAnchor },
+    };
+    mocks.openSettled = true;
+    view.rerender(<EbookBookcase {...props} />);
+
+    await waitFor(() => expect(onFocusedAnnotation).toHaveBeenCalledOnce());
+    expect(onFocusedAnnotation).toHaveBeenCalledWith(true);
+    expect(scrollToAnchor).toHaveBeenCalledOnce();
   });
 
   it.each(['deleted', 'changed-anchor'] as const)(

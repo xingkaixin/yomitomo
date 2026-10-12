@@ -27,6 +27,7 @@ export function useEbookAnnotationNavigation({
   focusAnnotationId,
   onFocusedAnnotation,
   openAnnotation,
+  openSettled,
   pageInfo,
   scheduleEbookBoxUpdate,
   viewRef,
@@ -40,6 +41,7 @@ export function useEbookAnnotationNavigation({
   focusAnnotationId: EbookBookcaseProps['readerControl']['focusAnnotationId'];
   onFocusedAnnotation: EbookBookcaseProps['annotationActions']['onFocusedAnnotation'];
   openAnnotation: (annotationId: string) => void;
+  openSettled: boolean;
   pageInfo: FoliatePageInfo | null;
   scheduleEbookBoxUpdate: (reason: EbookBoxUpdateReason) => void;
   viewRef: NavigationRef<FoliateViewElement | null>;
@@ -224,7 +226,7 @@ export function useEbookAnnotationNavigation({
   );
 
   useEffect(() => {
-    if (!focusAnnotationId) return;
+    if (!focusAnnotationId || !openSettled) return;
     recordRendererPerformanceTiming('reader_focus', {
       source: 'ebook',
       phase: 'effect_start',
@@ -285,7 +287,7 @@ export function useEbookAnnotationNavigation({
       });
       if (timer !== null) window.clearTimeout(timer);
     };
-  }, [article.id, focusAnnotationId, onFocusedAnnotation]);
+  }, [article.id, focusAnnotationId, onFocusedAnnotation, openSettled]);
 
   return {
     focusPageAnnotation,
