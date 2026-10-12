@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProviderForm, ProviderSettings } from '../settings/app-settings-panels';
 import {
@@ -159,6 +159,50 @@ describe('ProviderForm', () => {
 
     expect(await screen.findByText('已获取 1 个模型')).toBeTruthy();
     expect(trigger.textContent).toContain('custom/model');
+  });
+
+  it('discards fetched models when the api key changes during the request', async () => {
+    const models = deferred<Array<{ id: string }>>();
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: {
+        provider: { listModels: vi.fn(() => models.promise) },
+      },
+    });
+
+    render(<StatefulProviderForm initialDraft={{ ...emptyProvider, apiKey: 'sk-old' }} />);
+
+    openModelMenu();
+    fireEvent.click(screen.getByRole('button', { name: /获取/ }));
+    const apiKeyInput = screen.getByLabelText('API Key') as HTMLInputElement;
+    fireEvent.change(apiKeyInput, { target: { value: 'sk-new' } });
+    await act(async () => models.resolve([{ id: 'stale-model' }]));
+
+    expect(apiKeyInput.value).toBe('sk-new');
+    expect(screen.queryByText('已获取 1 个模型')).toBeNull();
+    expect(screen.queryByText('stale-model')).toBeNull();
+  });
+
+  it('ignores fetched models after the form unmounts', async () => {
+    const models = deferred<Array<{ id: string }>>();
+    const onChange = vi.fn();
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: {
+        provider: { listModels: vi.fn(() => models.promise) },
+      },
+    });
+
+    const { unmount } = render(
+      <ProviderForm draft={{ ...emptyProvider, apiKey: 'sk-test' }} onChange={onChange} />,
+    );
+
+    openModelMenu();
+    fireEvent.click(screen.getByRole('button', { name: /获取/ }));
+    unmount();
+    await act(async () => models.resolve([{ id: 'gpt-5.2' }]));
+
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it('edits and deletes custom models without exposing preset models to editing', () => {
@@ -779,4 +823,12 @@ function makeProvider(id: string, name: string): LlmProvider {
     createdAt: '2026-05-04T00:00:00.000Z',
     updatedAt: '2026-05-04T00:00:00.000Z',
   };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((promiseResolve) => {
+    resolve = promiseResolve;
+  });
+  return { promise, resolve };
 }
