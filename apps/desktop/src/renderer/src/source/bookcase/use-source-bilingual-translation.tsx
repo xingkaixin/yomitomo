@@ -21,7 +21,7 @@ export type TranslationSurfaceAdapter<ApplyResult = unknown> = {
 
 type TranslationAnnotationsAdapter = {
   count: (blockIds: ReadonlySet<string>) => number;
-  remove: (blockIds: ReadonlySet<string>) => Promise<void>;
+  prepareRemoval: (blockIds: ReadonlySet<string>) => () => Promise<void>;
 };
 
 type TranslationContentKind = 'article' | 'chapter';
@@ -124,11 +124,21 @@ export function useSourceBilingualTranslation<ApplyResult>({
       setVisible(true);
       setSessionBusy(true);
       progressToast.start();
+      let stopWatchingStart: (() => void) | undefined;
       try {
         const replacedBlockIds = options.force
           ? currentTranslationBlockIds(translation)
           : new Set(options.sourceBlockIds || []);
-        await translationAnnotationsRef.current?.remove(replacedBlockIds);
+        const removeReplacedAnnotations = runOnce(
+          translationAnnotationsRef.current?.prepareRemoval(replacedBlockIds),
+        );
+        // Main emits the first update only after it resets the replaced segments, so failures
+        // before that point, such as a missing provider or API key, keep the annotations.
+        stopWatchingStart = getOptionalDesktopApi()?.article?.translation?.onUpdated((update) => {
+          if (translationMatches(update, articleId, requestedSourceId, targetLanguage)) {
+            removeReplacedAnnotations().catch(() => {});
+          }
+        });
         const nextTranslation = await getDesktopApi().article.translation.translate({
           articleId,
           force: options.force,
@@ -141,6 +151,7 @@ export function useSourceBilingualTranslation<ApplyResult>({
             : {}),
           targetLanguage,
         });
+        await removeReplacedAnnotations();
         if (
           operationToken !== operationTokenRef.current ||
           articleIdRef.current !== articleId ||
@@ -155,6 +166,7 @@ export function useSourceBilingualTranslation<ApplyResult>({
       } catch (error) {
         if (operationToken === operationTokenRef.current) progressToast.fail(error);
       } finally {
+        stopWatchingStart?.();
         if (operationToken === operationTokenRef.current) setSessionBusy(false);
       }
     },
@@ -179,7 +191,9 @@ export function useSourceBilingualTranslation<ApplyResult>({
     const operationToken = ++operationTokenRef.current;
     setSessionBusy(true);
     try {
-      await translationAnnotationsRef.current?.remove(currentTranslationBlockIds(translation));
+      await translationAnnotationsRef.current?.prepareRemoval(
+        currentTranslationBlockIds(translation),
+      )();
       await getDesktopApi().article.translation.deleteCurrent({
         articleId,
         ...(deletedSourceId ? { sourceId: deletedSourceId } : {}),
@@ -337,6 +351,11 @@ export function useSourceBilingualTranslation<ApplyResult>({
     translationInProgress,
     visible,
   };
+}
+
+function runOnce(task: (() => Promise<void>) | undefined) {
+  let running: Promise<void> | undefined;
+  return () => (running ??= task ? task() : Promise.resolve());
 }
 
 function currentTranslationBlockIds(translation: ArticleTranslation | null) {

@@ -186,6 +186,45 @@ describe('useWebBilingualTranslation', () => {
   );
 
   it.each([
+    ['keeps', 'before', 0],
+    ['removes', 'after', 1],
+  ] as const)(
+    '%s translation annotations when retranslation fails %s it starts',
+    async (_outcome, failurePoint, deletedCount) => {
+      const cached = translationFor();
+      const api = installDesktopApi(cached);
+      const blockId = cached.segments[0]?.sourceBlockId;
+      const annotation: Annotation = {
+        id: 'annotation-1',
+        anchor: { exact: '你好', prefix: '', suffix: '', start: 0, end: 2, segmentId: blockId },
+        author: { kind: 'user', username: 'reader' },
+        color: 'yellow',
+        comments: [],
+        createdAt: now,
+        updatedAt: now,
+      };
+      const deleteAnnotation = vi.fn(async () => {});
+      api.translateArticle.mockImplementationOnce(async () => {
+        if (failurePoint === 'after') {
+          api.callbacks.forEach((receive) => receive({ ...cached, status: 'translating' }));
+        }
+        throw new Error('TRANSLATION_FAILED');
+      });
+      const { result } = renderTranslationHook({ annotations: [annotation], deleteAnnotation });
+      await waitFor(() =>
+        expect(renderedTranslationText(result.current.renderedHtml)).toBeDefined(),
+      );
+
+      const dialog = result.current.dialog as React.ReactElement<{
+        onConfirm: (action: 'retranslate') => Promise<void>;
+      }>;
+      await act(() => dialog.props.onConfirm('retranslate'));
+
+      expect(deleteAnnotation).toHaveBeenCalledTimes(deletedCount);
+    },
+  );
+
+  it.each([
     ['en', 'English'],
     ['ja', '日本語'],
   ])(
