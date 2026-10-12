@@ -16,6 +16,15 @@ describe('findReaderSearchMatches', () => {
     });
   });
 
+  it('keeps offsets after characters that lengthen when lowercased', () => {
+    const text = 'İstanbul and Ankara and İzmir and Ankara';
+    const slices = findReaderSearchMatches(text, 'ankara').matches.map(({ start, end }) =>
+      text.slice(start, end),
+    );
+
+    expect(slices).toEqual(['Ankara', 'Ankara']);
+  });
+
   it('reports when results are limited', () => {
     const result = findReaderSearchMatches('a a a a', 'a', { limit: 2 });
 
