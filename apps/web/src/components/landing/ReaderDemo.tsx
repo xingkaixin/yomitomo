@@ -1,7 +1,7 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { BubbleChatIcon, Cancel01Icon } from '@hugeicons/core-free-icons';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { createPortal, flushSync } from 'react-dom';
 import {
   getLandingContent,
   type Agent,
@@ -38,7 +38,13 @@ function DiscussionModal({
 }: {
   annotation: Annotation | null;
   agents: Agent[];
-  labels: { quote: string; ideas: string; discussion: (n: number) => string; pick: string };
+  labels: {
+    quote: string;
+    ideas: string;
+    discussion: (n: number) => string;
+    pick: string;
+    close: string;
+  };
   returnFocusTarget: HTMLElement | null;
   onClosed: () => void;
 }) {
@@ -49,6 +55,7 @@ function DiscussionModal({
   // Portal to <body> so the fixed overlay centers against the viewport instead
   // of the demo section, whose backdrop-filter would otherwise contain it.
   const [mounted, setMounted] = useState(false);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const closeTimerRef = useRef<number | null>(null);
   const openFrameRef = useRef<number | null>(null);
@@ -95,7 +102,8 @@ function DiscussionModal({
       window.cancelAnimationFrame(focusFrameRef.current);
       focusFrameRef.current = null;
     }
-    setPhase('closing');
+    // Commit now so the background leaves inert before focus returns to it.
+    flushSync(() => setPhase('closing'));
     returnFocusTarget?.focus({ preventScroll: true });
     const closeMs = prefersReducedMotion() ? 0 : getCssDurationMs('--modal-close-dur', 150);
     closeTimerRef.current = window.setTimeout(() => {
@@ -103,6 +111,20 @@ function DiscussionModal({
       finishClose();
     }, closeMs);
   }, [finishClose, phase, returnFocusTarget]);
+
+  const isOpen = phase === 'opening' || phase === 'open';
+
+  useLayoutEffect(() => {
+    const overlay = overlayRef.current;
+    if (!isOpen || !overlay) return;
+    const background = Array.from(document.body.children).filter(
+      (el) => el !== overlay && !el.hasAttribute('inert'),
+    );
+    for (const el of background) el.setAttribute('inert', '');
+    return () => {
+      for (const el of background) el.removeAttribute('inert');
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (phase !== 'open' && phase !== 'opening') return;
@@ -135,6 +157,7 @@ function DiscussionModal({
   return createPortal(
     <div
       className="dm-overlay"
+      ref={overlayRef}
       data-state={phase}
       aria-hidden={phase === 'closing'}
       inert={phase === 'closing' ? true : undefined}
@@ -155,7 +178,7 @@ function DiscussionModal({
             ref={closeButtonRef}
             type="button"
             onClick={requestClose}
-            aria-label="关闭"
+            aria-label={labels.close}
           >
             <HugeiconsIcon icon={Cancel01Icon} size={16} />
           </button>
@@ -371,6 +394,7 @@ export default function ReaderDemo({ lang = 'zh-CN' }: { lang?: Locale }) {
     ideas: ui.ideasLabel,
     discussion: (n: number) => `${ui.discussionLabel} · ${ui.replies(n)}`,
     pick: ui.selectThought,
+    close: ui.closeLabel,
   };
   const noteLabels = {
     distill: isEnglish
