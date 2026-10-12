@@ -72,14 +72,15 @@ Web 和 EPUB 的用户划线入口分别在
 
 1. source reader 将选区转换成 `Annotation.anchor`。
 2. `packages/core/src/reader/annotations.ts` 创建或更新用户批注与评论。
-3. `apps/desktop/src/renderer/src/source/bookcase/use-source-annotations.ts` 先更新当前阅读器的
-   `annotationsRef` 和 React state，再调用持久化回调。
+3. `apps/desktop/src/renderer/src/source/bookcase/use-source-annotations.ts` 先调用持久化回调，
+   成功后再基于当前 `annotationsRef` 合并结果并更新 React state，时间戳使用 main 返回的
+   `updatedAt`。持久化失败时不修改 state，由调用方保留用户输入（例如 composer 保持打开）。
 4. `packages/reader-ui/src/annotations/reader-annotation-card.tsx` 添加顶层想法或回复时，只通过
    `onAddComment(annotationId, content, replyTo)` 把意图交还宿主，不直接访问 Electron API。
 5. 评论包含 `@助手` 时，`useSourceReaderSession()` 在保存用户评论后启动 AI 回复，确保模型失败
    不会回滚用户内容。
 
-`useSourceAnnotations()` 仍保留整篇 `onSaveArticle` fallback，但桌面应用提供细粒度回调后优先使用：
+`useSourceAnnotations()` 只走细粒度回调，没有整篇文章写入的 fallback：
 
 - `saveAnnotation()` → `onSaveArticleAnnotation()`。
 - `saveComment()` → `onSaveArticleComment()`。
