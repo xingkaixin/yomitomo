@@ -70,7 +70,11 @@ export async function resolveProviderApiKeyStorage(
     remove: input.removeApiKey,
     secret: input.apiKey,
   });
-  return { credentialChange, storedApiKey: '' };
+  const retainsLegacyApiKey = !credentialChange.apiKeyRef && !input.removeApiKey;
+  return {
+    credentialChange,
+    storedApiKey: retainsLegacyApiKey ? existingRow?.apiKey || '' : '',
+  };
 }
 
 export function buildProviderRecord(
@@ -80,10 +84,9 @@ export function buildProviderRecord(
     id?: string;
     now: string;
     apiKeyRef?: string;
-    storedApiKey: string;
   },
 ): LlmProvider {
-  const { existing, apiKeyRef, storedApiKey } = options;
+  const { existing, apiKeyRef } = options;
   const id = options.id || existing?.id || makeId('provider');
   const preset =
     providerPresets.find((item) => item.id === input.presetId) ||
@@ -104,7 +107,7 @@ export function buildProviderRecord(
       defaultProviderPreset?.baseUrl ||
       'https://api.deepseek.com',
     apiKey: '',
-    hasApiKey: Boolean(apiKeyRef || storedApiKey),
+    hasApiKey: Boolean(apiKeyRef),
     modelName:
       input.modelName?.trim() ||
       existing?.modelName ||

@@ -387,10 +387,27 @@ describe('desktop store providers', () => {
     expect([...testState.secrets.values()]).toEqual(['sk-test']);
   });
 
-  it('does not preserve existing legacy api keys as SQLite fallback', async () => {
-    await expect(
-      resolveProviderApiKeyStorage('provider_1', {}, { apiKey: 'legacy-key', apiKeyRef: null }),
-    ).resolves.toEqual({ credentialChange: {}, storedApiKey: '' });
+  it('retains unmigrated legacy api keys when saving provider settings', async () => {
+    testState.saveProviderApiKeyError = new Error('keyring locked');
+    insertProviderRow({ id: 'provider_1', apiKey: 'legacy-key' });
+
+    const saved = await saveProvider({ id: 'provider_1', name: 'Renamed' });
+
+    expect(readProviderRow('provider_1')).toMatchObject({
+      name: 'Renamed',
+      apiKey: 'legacy-key',
+      apiKeyRef: null,
+    });
+    expect(saved.providers[0]).toMatchObject({ hasApiKey: false });
+
+    testState.saveProviderApiKeyError = undefined;
+    await readStore();
+
+    expect(testState.secrets.get('provider:provider_1:apiKey')).toBe('legacy-key');
+    expect(readProviderRow('provider_1')).toMatchObject({
+      apiKey: '',
+      apiKeyRef: 'provider:provider_1:apiKey',
+    });
   });
 
   it('builds provider records without leaking api keys into the public store', () => {
@@ -406,7 +423,6 @@ describe('desktop store providers', () => {
         id: 'provider_1',
         now: '2026-05-16T00:00:00.000Z',
         apiKeyRef: 'provider:provider_1:apiKey',
-        storedApiKey: '',
       },
     );
 
@@ -442,7 +458,6 @@ describe('desktop store providers', () => {
         id: 'provider_1',
         now: '2026-05-16T00:00:00.000Z',
         existing,
-        storedApiKey: '',
       },
     );
 
