@@ -117,8 +117,8 @@ function verifyEmbeddingRuntimeRoot() {
     '@huggingface/transformers',
     desktopPackage.dependencies?.['@huggingface/transformers'],
   );
-  if (transformersVersion !== '4.3.1') {
-    throw new Error('Desktop must pin @huggingface/transformers to 4.3.1');
+  if (transformersVersion !== '4.2.0') {
+    throw new Error('Desktop must pin @huggingface/transformers to 4.2.0');
   }
 
   const transformersEntry = requireFromDesktop.resolve('@huggingface/transformers');
@@ -132,10 +132,10 @@ function verifyEmbeddingRuntimeRoot() {
   const onnxRuntimePackage = readPackage(join(onnxRuntimeRoot, 'package.json'));
   const sharpPackage = readPackage(join(sharpRoot, 'package.json'));
 
-  if (transformersPackage.version !== '4.3.1') {
+  if (transformersPackage.version !== '4.2.0') {
     throw new Error(`Unexpected Transformers runtime: ${transformersPackage.version}`);
   }
-  if (onnxRuntimePackage.version !== '1.30.0') {
+  if (onnxRuntimePackage.version !== '1.24.3') {
     throw new Error(`Unexpected ONNX Runtime: ${onnxRuntimePackage.version}`);
   }
 

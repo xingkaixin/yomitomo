@@ -59,11 +59,11 @@ Bundled font notices are discovered from:
 | Apache-2.0 | 24 |
 | BlueOak-1.0.0 | 2 |
 | BSD-2-Clause | 9 |
-| BSD-3-Clause | 14 |
+| BSD-3-Clause | 16 |
 | CC0-1.0 | 1 |
-| ISC | 20 |
+| ISC | 21 |
 | LGPL-3.0-or-later | 1 |
-| MIT | 186 |
+| MIT | 190 |
 | MIT AND ISC | 1 |
 | MIT-0 | 2 |
 | OFL-1.1 | 11 |
@@ -131,8 +131,8 @@ Bundled font notices are discovered from:
 | @hugeicons/core-free-icons | 4.3.5 | MIT | [link](https://hugeicons.com) |
 | @hugeicons/react | 1.1.10 | MIT | [link](https://hugeicons.com) |
 | @huggingface/jinja | 0.5.10 | MIT | [link](https://github.com/huggingface/huggingface.js#readme) |
-| @huggingface/tokenizers | 0.2.0 | Apache-2.0 | [link](https://github.com/huggingface/tokenizers.js#readme) |
-| @huggingface/transformers | 4.3.1 | Apache-2.0 | [link](https://github.com/huggingface/transformers.js#readme) |
+| @huggingface/tokenizers | 0.1.3 | Apache-2.0 | [link](https://github.com/huggingface/tokenizers.js#readme) |
+| @huggingface/transformers | 4.2.0 | Apache-2.0 | [link](https://github.com/huggingface/transformers.js#readme) |
 | @img/colour | 1.1.0 | MIT | [link](https://github.com/lovell/colour#readme) |
 | @img/sharp-darwin-arm64 | 0.35.5 | Apache-2.0 | [link](https://sharp.pixelplumbing.com) |
 | @img/sharp-libvips-darwin-arm64 | 1.3.4 | LGPL-3.0-or-later | [link](https://sharp.pixelplumbing.com) |
@@ -184,6 +184,7 @@ Bundled font notices are discovered from:
 | bidi-js | 1.1.0 | MIT | [link](https://github.com/lojjic/bidi-js#readme) |
 | bindings | 1.5.0 | MIT | [link](https://github.com/TooTallNate/node-bindings) |
 | boolbase | 2.0.0 | ISC | [link](https://github.com/fb55/boolbase) |
+| boolean | 3.2.0 | MIT | [link](https://github.com/thenativeweb/boolean#readme) |
 | builder-util-runtime | 9.7.0 | MIT | [link](https://github.com/electron-userland/electron-builder) |
 | class-variance-authority | 0.7.1 | Apache-2.0 | [link](https://github.com/joe-bell/cva#readme) |
 | clsx | 2.1.1 | MIT | [link](https://github.com/lukeed/clsx#readme) |
@@ -214,6 +215,7 @@ Bundled font notices are discovered from:
 | define-properties | 1.2.1 | MIT | [link](https://github.com/ljharb/define-properties#readme) |
 | defuddle | 0.19.5 | MIT | [link](https://github.com/kepano/defuddle) |
 | detect-libc | 2.1.2 | Apache-2.0 | [link](https://github.com/lovell/detect-libc#readme) |
+| detect-node | 2.1.0 | MIT | [link](https://github.com/iliakan/detect-node) |
 | devalue | 5.9.4 | MIT | [link](https://github.com/sveltejs/devalue#readme) |
 | dom-serializer | 2.0.0, 3.1.1 | MIT | [link](https://github.com/cheeriojs/dom-serializer#readme) |
 | domelementtype | 2.3.0, 3.0.0 | BSD-2-Clause | [link](https://github.com/fb55/domelementtype#readme) |
@@ -227,6 +229,7 @@ Bundled font notices are discovered from:
 | es-define-property | 1.0.1 | MIT | [link](https://github.com/ljharb/es-define-property#readme) |
 | es-errors | 1.3.0 | MIT | [link](https://github.com/ljharb/es-errors#readme) |
 | es-toolkit | 1.52.0 | MIT | [link](https://es-toolkit.dev) |
+| es6-error | 4.1.1 | MIT | [link](https://github.com/bjyoungblood/es6-error) |
 | escape-string-regexp | 4.0.0 | MIT | [link](https://github.com/sindresorhus/escape-string-regexp#readme) |
 | esm-env | 1.2.2 | MIT | [link](https://github.com/benmccann/esm-env) |
 | esrap | 2.2.12 | MIT | [link](https://github.com/sveltejs/esrap#readme) |
@@ -238,7 +241,7 @@ Bundled font notices are discovered from:
 | foliate-js | vendored 78914ae | MIT | [link](https://github.com/johnfactotum/foliate-js) |
 | framer-motion | 14.1.0 | MIT |  |
 | fs-extra | 10.1.0 | MIT | [link](https://github.com/jprichardson/node-fs-extra) |
-| global-agent | 4.1.3 | BSD-3-Clause | [link](https://github.com/gajus/global-agent#readme) |
+| global-agent | 3.0.0 | BSD-3-Clause | [link](https://github.com/gajus/global-agent#readme) |
 | globalthis | 1.0.4 | MIT | [link](https://github.com/ljharb/System.global#readme) |
 | goey-toast | 0.5.0 | MIT | [link](https://goey-toast.vercel.app) |
 | gopd | 1.2.0 | MIT | [link](https://github.com/ljharb/gopd#readme) |
@@ -262,6 +265,7 @@ Bundled font notices are discovered from:
 | js-yaml | 4.3.2 | MIT | [link](https://github.com/nodeca/js-yaml#readme) |
 | jsdom | 30.1.2 | MIT | [link](https://github.com/jsdom/jsdom#readme) |
 | json-schema | 0.4.0 | (AFL-2.1 OR BSD-3-Clause) | [link](https://github.com/kriszyp/json-schema#readme) |
+| json-stringify-safe | 5.0.1 | ISC | [link](https://github.com/isaacs/json-stringify-safe) |
 | jsonfile | 6.2.1 | MIT | [link](https://github.com/jprichardson/node-jsonfile#readme) |
 | jszip | 3.10.2 | (MIT OR GPL-3.0-or-later) | [link](https://github.com/Stuk/jszip#readme) |
 | lazy-val | 1.0.5 | MIT | [link](https://github.com/develar/lazy-val) |
@@ -273,7 +277,7 @@ Bundled font notices are discovered from:
 | long | 5.3.2 | Apache-2.0 | [link](https://github.com/dcodeIO/long.js#readme) |
 | lru-cache | 11.5.3 | BlueOak-1.0.0 | [link](https://github.com/isaacs/node-lru-cache#readme) |
 | magic-string | 0.30.21 | MIT | [link](https://github.com/Rich-Harris/magic-string#readme) |
-| matcher | 4.0.0 | MIT | [link](https://github.com/sindresorhus/matcher#readme) |
+| matcher | 3.0.0 | MIT | [link](https://github.com/sindresorhus/matcher#readme) |
 | mathml-to-latex | 1.8.0 | MIT | [link](https://github.com/asnunes/mathml-to-latex#readme) |
 | mdn-data | 2.27.1 | CC0-1.0 | [link](https://developer.mozilla.org) |
 | motion-dom | 14.1.0 | MIT | [link](https://github.com/motiondivision/motion#readme) |
@@ -286,9 +290,9 @@ Bundled font notices are discovered from:
 | Noto Serif SC | bundled | OFL-1.1 | [link](https://fonts.google.com/noto/specimen/Noto+Serif+SC) |
 | nth-check | 3.0.1 | BSD-2-Clause | [link](https://github.com/fb55/nth-check) |
 | object-keys | 1.1.1 | MIT | [link](https://github.com/ljharb/object-keys#readme) |
-| onnxruntime-common | 1.30.0, 1.31.0-dev.20260911-2a43ec07e | MIT | [link](https://github.com/Microsoft/onnxruntime#readme) |
-| onnxruntime-node | 1.30.0 | MIT | [link](https://github.com/Microsoft/onnxruntime#readme) |
-| onnxruntime-web | 1.31.0-dev.20260914-8d85527a0 | MIT | [link](https://github.com/Microsoft/onnxruntime#readme) |
+| onnxruntime-common | 1.24.0-dev.20251116-b39e144322, 1.24.3 | MIT | [link](https://github.com/Microsoft/onnxruntime#readme) |
+| onnxruntime-node | 1.24.3 | MIT | [link](https://github.com/Microsoft/onnxruntime#readme) |
+| onnxruntime-web | 1.26.0-dev.20260416-b7804b056c | MIT | [link](https://github.com/Microsoft/onnxruntime#readme) |
 | pako | 1.0.11 | (MIT AND Zlib) | [link](https://github.com/nodeca/pako) |
 | parse5 | 8.0.1 | MIT | [link](https://parse5.js.org) |
 | picocolors | 1.1.1 | ISC | [link](https://github.com/alexeyraspopov/picocolors#readme) |
@@ -310,17 +314,20 @@ Bundled font notices are discovered from:
 | redux-thunk | 3.1.0 | MIT | [link](https://github.com/reduxjs/redux-thunk) |
 | require-from-string | 2.0.2 | MIT | [link](https://github.com/floatdrop/require-from-string#readme) |
 | reselect | 5.2.0, 5.3.0 | MIT | [link](https://github.com/reduxjs/reselect#readme) |
+| roarr | 2.15.4 | BSD-3-Clause | [link](https://github.com/gajus/roarr#readme) |
 | safe-buffer | 5.1.2 | MIT | [link](https://github.com/feross/safe-buffer) |
 | sax | 1.6.1 | BlueOak-1.0.0 | [link](https://github.com/isaacs/sax-js#readme) |
 | saxes | 6.0.0 | ISC | [link](https://github.com/lddubeau/saxes#readme) |
 | scheduler | 0.28.0 | MIT | [link](https://react.dev/) |
 | semver | 7.7.4, 7.8.5 | ISC | [link](https://github.com/npm/node-semver#readme) |
-| serialize-error | 8.1.0 | MIT | [link](https://github.com/sindresorhus/serialize-error#readme) |
+| semver-compare | 1.0.0 | MIT | [link](https://github.com/substack/semver-compare) |
+| serialize-error | 7.0.1 | MIT | [link](https://github.com/sindresorhus/serialize-error#readme) |
 | setimmediate | 1.0.5 | MIT | [link](https://github.com/YuzuJS/setImmediate#readme) |
 | sharp | 0.35.5 | Apache-2.0 | [link](https://sharp.pixelplumbing.com) |
 | sonner | 2.0.8 | MIT | [link](https://sonner.emilkowal.ski/) |
 | Source Serif 4 | 4.005 | OFL-1.1 | [link](https://github.com/adobe-fonts/source-serif) |
 | source-map-js | 1.2.1, 1.2.2 | BSD-3-Clause | [link](https://github.com/7rulnik/source-map-js) |
+| sprintf-js | 1.1.3 | BSD-3-Clause | [link](https://github.com/alexei/sprintf.js#readme) |
 | string_decoder | 1.1.1 | MIT | [link](https://github.com/nodejs/string_decoder) |
 | supports-color | 10.2.2 | MIT | [link](https://github.com/chalk/supports-color#readme) |
 | svelte | 5.55.9 | MIT | [link](https://svelte.dev) |
@@ -335,7 +342,7 @@ Bundled font notices are discovered from:
 | tr46 | 6.0.0, 7.0.0 | MIT | [link](https://github.com/jsdom/tr46#readme) |
 | tslib | 2.8.1 | 0BSD | [link](https://www.typescriptlang.org/) |
 | turndown | 7.2.4 | MIT | [link](https://github.com/mixmark-io/turndown#readme) |
-| type-fest | 0.20.2 | (MIT OR CC0-1.0) | [link](https://github.com/sindresorhus/type-fest#readme) |
+| type-fest | 0.13.1 | (MIT OR CC0-1.0) | [link](https://github.com/sindresorhus/type-fest#readme) |
 | uhyphen | 0.2.0 | ISC | [link](https://github.com/WebReflection/uhyphen#readme) |
 | undici | 7.30.0, 8.11.2 | MIT | [link](https://undici.nodejs.org) |
 | universalify | 2.0.1 | MIT | [link](https://github.com/RyanZim/universalify#readme) |

@@ -61,8 +61,10 @@ Node 进程启动到缓存模型可用，P95 包含单条查询嵌入及 10,000 
 
 ## 平台与许可证边界
 
-当前模型运行时使用 `@huggingface/transformers@4.3.1` 和
-`onnxruntime-node@1.30.0`。上表保留原始评测结果，不代表升级后的性能测量。
+模型运行时固定使用 `@huggingface/transformers@4.2.0` 和
+`onnxruntime-node@1.24.3`，与内置清单及已安装模型的摘要契约一致。
+升级这组依赖前，必须处理现有模型清单的迁移，并重新通过真实模型门禁；
+只修改依赖版本会被 worker 的运行时校验拒绝，直接替换清单会使已有安装摘要失效。
 独立 workflow 在 `macos-15` 的 arm64 runner 与 `windows-latest` 的 x64 runner 上
 先构建桌面应用，再校验：
 
