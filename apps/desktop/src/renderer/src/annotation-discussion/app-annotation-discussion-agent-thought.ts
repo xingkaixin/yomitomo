@@ -105,6 +105,7 @@ export async function runSourceAgentThoughtRequest({
       },
       (event) => {
         if (event.type === 'start') {
+          stream.reset();
           const nextAnnotations = updateAnnotationComment(
             annotationsRef.current,
             annotation.id,

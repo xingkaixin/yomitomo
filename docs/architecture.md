@@ -93,6 +93,9 @@ telemetry → shared
 - 工具循环任务（thread reply、create thought、沉淀审阅等）在
   `packages/ai/src/assistant/assistant-ai-sdk-runtime.ts` 中执行，每类任务有步数和工具结果预算
   （`packages/ai/src/assistant/assistant-runtime-types.ts`）。
+- 流式生成遍历 AI SDK 的 `fullStream`。provider 在流中发出 error part 或以 `finishReason: 'error'`
+  结束时按失败处理，已流出的半截正文不作为成功结果：快速回复走失败路径，工具循环回退到快速回复。
+  工具执行器抛错或 kernel 判定回退时同样结束工具循环；AI SDK 自身的工具输入校验错误仍交还模型。
 - 发给模型的文章正文按 `packages/ai/src/provider/budget.ts` 截断，并告知模型压缩情况；
   不改变已保存的文章。
 - 模型生成的批注候选在 `packages/ai/src/agent/annotation-suggestion-acceptance.ts` 中按确定性规则

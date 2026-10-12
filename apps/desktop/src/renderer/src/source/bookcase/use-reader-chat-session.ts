@@ -175,11 +175,14 @@ export function useReaderChatSession({
           history: readerChatHistoryComments(previousState, agents),
         }),
         (event) => {
-          if (event.type !== 'delta') return;
+          if (event.type !== 'start' && event.type !== 'delta') return;
           const nextState = updateActiveSession(chat.state || pendingState, (messages) =>
             messages.map((message) =>
               message.id === assistantMessage.id
-                ? { ...message, content: `${message.content}${event.delta}` }
+                ? {
+                    ...message,
+                    content: event.type === 'start' ? '' : `${message.content}${event.delta}`,
+                  }
                 : message,
             ),
           );

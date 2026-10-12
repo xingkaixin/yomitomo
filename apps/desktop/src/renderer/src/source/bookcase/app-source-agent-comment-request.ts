@@ -173,6 +173,7 @@ export async function runSourceAgentCommentRequest({
         },
         (event) => {
           if (event.type === 'start') {
+            stream.reset();
             const placeholderId = pendingCommentId;
             pendingCommentId = event.comment.id || placeholderId;
             pendingComment = localizedAgentComment(agent, {

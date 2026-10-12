@@ -119,6 +119,8 @@ main 入口为 `apps/desktop/src/main/ipc/ipc-agent.ts`，任务路由位于
 `apps/desktop/src/renderer/src/source/bookcase/app-source-agent-comment-request.ts` 先插入
 `pending` 评论，再通过 `agent:comment:stream` 接收增量。流式完成后用
 `useSourceAnnotations().saveComment()` 保存最终评论；`pending` 只是 renderer 内存态。
+深度核验回退到快速回复时，main 清空已流出的正文并重新发送 `start`；comment stream 的 renderer
+消费方收到 `start` 时丢弃已显示的增量，最终只保存快速回复。
 讨论窗口 `apps/desktop/src/renderer/src/annotation-discussion/app-annotation-discussion-window.tsx`
 复用同一请求函数。
 

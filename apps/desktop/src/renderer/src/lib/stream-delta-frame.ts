@@ -27,6 +27,11 @@ export function createStreamDeltaFrame(
     pendingDelta = '';
   };
 
+  const reset = () => {
+    cancel();
+    streamedContent = '';
+  };
+
   const flush = () => {
     if (frame !== null) window.cancelAnimationFrame(frame);
     commitPendingDelta();
@@ -36,6 +41,7 @@ export function createStreamDeltaFrame(
     append,
     cancel,
     flush,
+    reset,
     get streamedContent() {
       return streamedContent;
     },

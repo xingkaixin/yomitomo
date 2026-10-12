@@ -157,6 +157,11 @@ export async function executeAgentCommentTask(
       throwIfAgentTaskCancelled(signal);
       const fastInput = agentMessageFastInput(context, payloadWithRoster, agent.id);
       throwIfAgentTaskCancelled(signal);
+      if (comment.content) {
+        comment.content = '';
+        // Renderers drop already streamed deep-runtime text when a comment restarts.
+        emit({ type: 'start', comment });
+      }
       await ai.runAgentStream(
         provider,
         agent,
