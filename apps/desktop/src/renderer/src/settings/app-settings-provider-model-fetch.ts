@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { providerPresets } from '@yomitomo/shared';
 import type { ProviderDraft } from './app-settings';
 import { appToast } from '../shell/app-toast';
@@ -14,6 +14,9 @@ export function useProviderModelFetch(
   const [modelLoading, setModelLoading] = useState(false);
   const [modelError, setModelError] = useState('');
   const [modelNotice, setModelNotice] = useState('');
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const modelRequestRef = useRef(0);
   const selectedPreset = providerPresets.find((preset) => preset.id === draft.presetId);
   const presetModels = selectedPreset?.modelNames || [];
   const storedVisibleModels = draft.modelNames === undefined ? presetModels : draft.modelNames;
@@ -21,6 +24,15 @@ export function useProviderModelFetch(
     (modelName) => !presetModels.includes(modelName) || storedVisibleModels.includes(modelName),
   );
   const visibleModels = mergeModelNames(storedVisibleModels, fetchedVisibleModels);
+
+  // Models fetched for another provider, endpoint or key must not reach the current draft.
+  useEffect(
+    () => () => {
+      modelRequestRef.current += 1;
+      setModelLoading(false);
+    },
+    [draft.id, draft.presetId, draft.type, draft.baseUrl, draft.apiKey, draft.hasApiKey],
+  );
 
   function clearModelStatus() {
     setModelOptions([]);
@@ -50,11 +62,14 @@ export function useProviderModelFetch(
       }
       return;
     }
+    const requestId = ++modelRequestRef.current;
     setModelLoading(true);
     setModelError('');
     setModelNotice('');
     try {
       const models = await getDesktopApi().provider.listModels(draft);
+      if (requestId !== modelRequestRef.current) return;
+      const latestDraft = draftRef.current;
       const names = models.map((model) => model.id).filter(Boolean);
       setModelOptions(names);
       setModelNotice(
@@ -63,7 +78,8 @@ export function useProviderModelFetch(
           : t('settings.models.noModelsFetched'),
       );
       if (names.length > 0) {
-        const baseModelNames = draft.modelNames === undefined ? fallbackModels : draft.modelNames;
+        const baseModelNames =
+          latestDraft.modelNames === undefined ? fallbackModels : latestDraft.modelNames;
         const nextModelNames = mergeModelNames(
           baseModelNames,
           names.filter(
@@ -72,27 +88,29 @@ export function useProviderModelFetch(
           ),
         );
         onChange({
-          ...draft,
+          ...latestDraft,
           modelInputMode: 'list',
-          modelName: nextModelNames.includes(draft.modelName || '')
-            ? draft.modelName
+          modelName: nextModelNames.includes(latestDraft.modelName || '')
+            ? latestDraft.modelName
             : nextModelNames[0],
           modelNames: nextModelNames,
         });
       } else {
         onChange({
-          ...draft,
+          ...latestDraft,
           modelInputMode: 'list',
-          modelNames: draft.modelNames === undefined ? fallbackModels : draft.modelNames,
+          modelNames:
+            latestDraft.modelNames === undefined ? fallbackModels : latestDraft.modelNames,
         });
       }
     } catch (error) {
+      if (requestId !== modelRequestRef.current) return;
       setModelError(
         error instanceof Error ? error.message : t('settings.models.fetchModelsFailed'),
       );
       setModelNotice(fallbackModels.length > 0 ? t('settings.models.presetModelsFallback') : '');
     } finally {
-      setModelLoading(false);
+      if (requestId === modelRequestRef.current) setModelLoading(false);
     }
   }
 
