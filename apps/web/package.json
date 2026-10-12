@@ -16,12 +16,12 @@
     "deploy:cf": "pnpm build && cf-wrangler build && cf deploy --prebuilt"
   },
   "dependencies": {
-    "@astrojs/react": "^7.0.0",
-    "@astrojs/starlight": "^0.42.4",
+    "@astrojs/react": "^7.0.1",
+    "@astrojs/starlight": "^0.42.6",
     "@base-ui/react": "catalog:",
     "@hugeicons/core-free-icons": "catalog:",
     "@hugeicons/react": "catalog:",
-    "astro": "^7.3.5",
+    "astro": "^7.3.8",
     "react": "catalog:",
     "react-dom": "catalog:"
   },

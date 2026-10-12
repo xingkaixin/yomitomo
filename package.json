@@ -2,7 +2,7 @@
   "name": "yomitomo",
   "private": true,
   "license": "MIT",
-  "packageManager": "pnpm@12.8.1",
+  "packageManager": "pnpm@12.11.2",
   "scripts": {
     "dev": "turbo dev",
     "dev:app": "pnpm --filter @yomitomo/desktop dev",
@@ -39,10 +39,10 @@
     "@testing-library/dom": "catalog:",
     "@testing-library/react": "catalog:",
     "jsdom": "catalog:",
-    "oxfmt": "^0.71.0",
-    "oxlint": "^1.86.0",
-    "oxlint-tsgolint": "^7.0.2003",
-    "turbo": "^2.11.5",
+    "oxfmt": "^0.72.0",
+    "oxlint": "^1.87.0",
+    "oxlint-tsgolint": "^7.0.2004",
+    "turbo": "^2.11.7",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

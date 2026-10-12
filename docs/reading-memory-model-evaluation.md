@@ -61,9 +61,10 @@ Node 进程启动到缓存模型可用，P95 包含单条查询嵌入及 10,000 
 
 ## 平台与许可证边界
 
-模型运行时使用 `@huggingface/transformers@4.2.0` 和
-`onnxruntime-node@1.24.3`。独立 workflow 在 `macos-15` 的 arm64 runner 与
-`windows-latest` 的 x64 runner 上先构建桌面应用，再校验：
+当前模型运行时使用 `@huggingface/transformers@4.3.1` 和
+`onnxruntime-node@1.30.0`。上表保留原始评测结果，不代表升级后的性能测量。
+独立 workflow 在 `macos-15` 的 arm64 runner 与 `windows-latest` 的 x64 runner 上
+先构建桌面应用，再校验：
 
 - 固定 revision 的每个文件大小与 SHA-256；
 - 中、英、日三条输入的加载、维度、有限数值与 L2 范数；
