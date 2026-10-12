@@ -230,10 +230,9 @@ h1#_top {
 }
 
 @media (max-width: 50rem) {
-  /* The mobile menu toggle lives in the masthead nav (see LandingMasthead),
-     not as Starlight's fixed floating button. Hide the original so its web
-     component and global `[data-mobile-menu-expanded]` rules still work. */
-  starlight-menu-button {
+  /* The masthead toggle (see LandingMasthead) opens the same sidebar popover
+     and replaces Starlight's floating menu button. */
+  .sl-menu-button {
     display: none;
   }
 
