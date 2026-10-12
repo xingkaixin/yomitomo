@@ -52,7 +52,6 @@ async function saveProviderRecord(input: SaveProviderInput): Promise<ProviderSto
     now,
     existing,
     apiKeyRef,
-    storedApiKey,
   });
 
   try {
