@@ -36,7 +36,8 @@ telemetry → shared
 - renderer 窗口启用 `sandbox`、`contextIsolation`，关闭 `nodeIntegration`，见
   `apps/desktop/src/main/windows/renderer-window-security.ts`。
 - 窗口分三类：主窗口；批注窗口（讨论与沉淀两个路由，按文章和批注复用，见
-  `apps/desktop/src/main/windows/annotation-window-lifecycle.ts`）；使用独立 session 的隐藏网页导入窗口。
+  `apps/desktop/src/main/windows/annotation-window-lifecycle.ts`）；使用独立 session 的隐藏网页导入窗口，
+  拒绝页面的权限请求和新窗口（`apps/desktop/src/main/articles/article-import.ts`）。
 - 每个 invoke channel 由一个 descriptor 声明路由、允许的窗口角色和参数校验方式，见
   `apps/desktop/src/ipc/desktop-ipc-descriptor.ts`。参数在 main 侧用 Zod 校验
   （`apps/desktop/src/ipc-schemas.ts`）；角色表按类型穷尽，新 channel 不声明角色无法编译

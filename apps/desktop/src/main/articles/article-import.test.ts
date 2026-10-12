@@ -66,7 +66,10 @@ vi.mock('electron', () => ({
       session: {
         clearCache: vi.fn().mockResolvedValue(undefined),
         clearStorageData: vi.fn().mockResolvedValue(undefined),
+        setPermissionCheckHandler: vi.fn(),
+        setPermissionRequestHandler: vi.fn(),
       },
+      setWindowOpenHandler: vi.fn(),
     };
     readonly options: {
       webPreferences?: {
@@ -114,7 +117,10 @@ const browserWindowMocks = vi.hoisted(() => ({
       session: {
         clearCache: ReturnType<typeof vi.fn>;
         clearStorageData: ReturnType<typeof vi.fn>;
+        setPermissionCheckHandler: ReturnType<typeof vi.fn>;
+        setPermissionRequestHandler: ReturnType<typeof vi.fn>;
       };
+      setWindowOpenHandler: ReturnType<typeof vi.fn>;
     };
   }>,
   nextRenderedPage: undefined as
@@ -393,6 +399,26 @@ describe('article import', () => {
         persistent: false,
       }),
     );
+  });
+
+  it('denies page permissions and new windows in the rendered import window', async () => {
+    workerMocks.MockWorker.nextMessage = { ok: true, article: articleRecord() };
+    vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('<html>cf-browser-verification</html>'),
+    );
+
+    await articleRecordFromUrl('https://example.com/post');
+
+    const { webContents } = browserWindowMocks.instances[0];
+    const requestPermission = webContents.session.setPermissionRequestHandler.mock.calls[0][0];
+    const callback = vi.fn();
+    requestPermission(webContents, 'notifications', callback, {});
+    expect(callback).toHaveBeenCalledWith(false);
+    const checkPermission = webContents.session.setPermissionCheckHandler.mock.calls[0][0];
+    expect(checkPermission(webContents, 'geolocation', 'https://example.com', {})).toBe(false);
+    const openWindow = webContents.setWindowOpenHandler.mock.calls[0][0];
+    expect(openWindow({ url: 'https://example.com/popup' })).toEqual({ action: 'deny' });
   });
 });
 

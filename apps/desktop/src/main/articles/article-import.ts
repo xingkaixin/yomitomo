@@ -263,6 +263,7 @@ async function loadRenderedArticleHtml(
     webPreferences,
   });
   const importSession = browserWindow.webContents.session;
+  denyArticleImportPageCapabilities(browserWindow.webContents);
   logArticleImportSession(url, importId, webPreferences.partition);
 
   const deadline = Date.now() + RENDERED_IMPORT_TIMEOUT_MS;
@@ -307,6 +308,14 @@ function createArticleImportWebPreferences(
     partition: `yomitomo-import-${importId}`,
     sandbox: true,
   };
+}
+
+function denyArticleImportPageCapabilities(webContents: WebContents) {
+  webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) =>
+    callback(false),
+  );
+  webContents.session.setPermissionCheckHandler(() => false);
+  webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 }
 
 async function clearArticleImportSession(importSession: Session, importId: string) {
