@@ -44,6 +44,8 @@ telemetry → shared
   （`apps/desktop/src/ipc-authorization.ts`）。
 - main 处理 invoke 的顺序固定为：发送方检查、应用锁检查、参数校验、handler，见
   `apps/desktop/src/main/ipc/ipc.ts`。默认只允许主窗口；批注窗口只开放所需的少数 channel。
+- 应用锁定时 main 关闭全部批注窗口，不依赖 renderer 在锁定后发起 IPC；窗口销毁会取消它发起的
+  流式请求，见 `apps/desktop/src/main/ipc/agent-stream-tasks.ts`。
 - 流式请求按 `${channel}:${requestId}` 回传事件，取消走 `agent:stream-cancel`，见
   `apps/desktop/src/ipc-stream-channel.ts`。
 - 写入结果以 patch 广播给其他窗口，不回发给发起窗口，见

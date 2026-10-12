@@ -104,6 +104,7 @@ vi.mock('electron', () => ({
 
 import {
   annotationWindowRoutes,
+  closeAllAnnotationWindows,
   closeAnnotationWindow,
   consumeAnnotationThoughtDraft,
   openAnnotationWindow,
@@ -244,6 +245,31 @@ describe('annotation window lifecycle', () => {
     expect(opened).toEqual({ ok: true, value: { reused: false, windowId: window.id } });
     expect(readArticle).toHaveBeenLastCalledWith(input.articleId);
     expect(await consume({ sender: window.webContents })).toEqual({ ok: true, value: 'Draft' });
+  });
+
+  it('closes discussion and sedimentation windows of every article at once', () => {
+    const { context } = createContext();
+    const event = { sender: {} } as IpcMainInvokeEvent;
+    const sedimentation = { ...configuration, route: annotationWindowRoutes.sedimentation };
+    const input = { articleId: 'article-1', annotationId: 'annotation-1' };
+    openAnnotationWindow(context, event, input, configuration);
+    openAnnotationWindow(context, event, input, sedimentation);
+    openAnnotationWindow(
+      context,
+      event,
+      { articleId: 'article-2', annotationId: 'annotation-2' },
+      configuration,
+    );
+
+    expect(closeAllAnnotationWindows()).toBe(3);
+    expect(electronMocks.instances.map((window) => window.isDestroyed())).toEqual([
+      true,
+      true,
+      true,
+    ]);
+    expect(openAnnotationWindow(context, event, input, configuration)).toMatchObject({
+      reused: false,
+    });
   });
 
   it('restores and focuses an existing window instead of creating another one', () => {

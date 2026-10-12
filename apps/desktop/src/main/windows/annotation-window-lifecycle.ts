@@ -224,9 +224,19 @@ export function minimizeOtherAnnotationWindows(
 }
 
 export function closeArticleAnnotationWindows(route: AnnotationWindowRoute, articleId: string) {
+  return closeAnnotationWindowsWhere(
+    (entry) => entry.route === route && entry.articleId === articleId,
+  );
+}
+
+export function closeAllAnnotationWindows() {
+  return closeAnnotationWindowsWhere(() => true);
+}
+
+function closeAnnotationWindowsWhere(matches: (entry: AnnotationWindowEntry) => boolean) {
   let closed = 0;
   for (const [key, entry] of annotationWindows) {
-    if (entry.route !== route || entry.articleId !== articleId) continue;
+    if (!matches(entry)) continue;
     annotationWindows.delete(key);
     if (entry.window.isDestroyed()) {
       entry.finalize();
