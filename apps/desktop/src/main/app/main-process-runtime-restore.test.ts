@@ -86,6 +86,7 @@ it.each(['weread', 'model-pricing'] as const)(
         weReadRepository: {
           readWeReadSettings: async () => settings,
           readStoredWeReadApiKey: async () => 'test-key',
+          readWeReadApiKeyRef: () => 'test-key-ref',
           saveWeReadLibrarySnapshot: async () => ({ settings, books: [] }),
         },
       }),

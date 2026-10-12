@@ -31,7 +31,12 @@ vi.mock('../providers/provider-secrets', () => ({
 
 import * as schema from '../db/schema';
 import { closeDatabase, getDatabase } from '../store/store-db';
-import { readWeReadBookDetail, saveWeReadLibrarySnapshot } from './weread-repository';
+import {
+  readWeReadApiKeyRef,
+  readWeReadBookDetail,
+  saveWeReadLibrarySnapshot,
+  saveWeReadSettings,
+} from './weread-repository';
 import { syncWeReadLibrary } from './weread-sync';
 
 beforeEach(async () => {
@@ -156,6 +161,7 @@ describe('WeRead full sync persistence', () => {
 function runSync() {
   return syncWeReadLibrary({
     persistence: {
+      readWeReadApiKeyRef,
       readStoredWeReadApiKey: async () => 'secret',
       saveWeReadLibrarySnapshot,
     },
@@ -192,9 +198,11 @@ function validDetailResponse(apiName: string, bookId: string) {
 }
 
 async function seedStoredBook(bookId: string) {
+  await saveWeReadSettings({ apiKey: 'secret' });
   await saveWeReadLibrarySnapshot({
     details: [storedDetail(bookId)],
     authoritativeBookIds: [bookId],
+    apiKeyRef: readWeReadApiKeyRef(),
   });
   insertLibraryReferences(bookId);
 }

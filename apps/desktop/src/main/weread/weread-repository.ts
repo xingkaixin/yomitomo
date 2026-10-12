@@ -165,6 +165,7 @@ export async function saveWeReadLibrarySnapshot(
   input: {
     details: WeReadBookDetail[];
     authoritativeBookIds: string[];
+    apiKeyRef: string | undefined;
   },
   logInfo?: WeReadRepositoryLogInfo,
 ) {
@@ -174,21 +175,17 @@ export async function saveWeReadLibrarySnapshot(
   const startedAt = performance.now();
   let writeStatementCount = 0;
   database.transaction((tx) => {
+    const existing = requireCurrentWeReadCredential(tx, input.apiKeyRef);
     writeStatementCount = replaceWeReadBookDetails(tx, input.details, detailRows);
     removeStaleWeReadBooks(tx, input.authoritativeBookIds);
-    const existing = tx
-      .select()
-      .from(schema.wereadAccounts)
-      .where(eq(schema.wereadAccounts.id, WEREAD_ACCOUNT_ID))
-      .get();
     upsertWeReadAccountRow(tx, {
-      apiKeyRef: existing?.apiKeyRef || null,
-      openMethod: normalizeWeReadOpenMethod(existing?.openMethod),
-      syncMode: normalizeWeReadSyncMode(existing?.syncMode),
+      apiKeyRef: existing.apiKeyRef,
+      openMethod: normalizeWeReadOpenMethod(existing.openMethod),
+      syncMode: normalizeWeReadSyncMode(existing.syncMode),
       status: 'connected',
       message: null,
       lastSyncAt: new Date().toISOString(),
-      lastTestAt: existing?.lastTestAt,
+      lastTestAt: existing.lastTestAt,
     });
   });
   logWeReadDetailWrite(logInfo, 'library_snapshot', input.details.length, detailRows, {
@@ -221,6 +218,7 @@ function validateWeReadSyncSnapshot(input: {
 
 export async function saveWeReadBookDetail(
   detail: WeReadBookDetail,
+  apiKeyRef: string | undefined,
   logInfo?: WeReadRepositoryLogInfo,
 ) {
   const hasNotes = detail.highlights.length + detail.thoughts.length > 0;
@@ -231,6 +229,7 @@ export async function saveWeReadBookDetail(
   const startedAt = performance.now();
   let writeStatementCount = 0;
   database.transaction((tx) => {
+    requireCurrentWeReadCredential(tx, apiKeyRef);
     if (!hasNotes) removeWeReadBookRows(tx, [detail.book.bookId]);
     else writeStatementCount = replaceWeReadBookDetails(tx, [detail], detailRows);
   });
@@ -313,12 +312,28 @@ export function saveWeReadReadingStatsSnapshot(snapshot: WeReadReadingStatsSnaps
   return readWeReadReadingStatsState();
 }
 
+export function readWeReadApiKeyRef() {
+  return readWeReadAccountRow()?.apiKeyRef || undefined;
+}
+
 function readWeReadAccountRow() {
   return getDatabase()
     .select()
     .from(schema.wereadAccounts)
     .where(eq(schema.wereadAccounts.id, WEREAD_ACCOUNT_ID))
     .get();
+}
+
+function requireCurrentWeReadCredential(database: StoreExecutor, apiKeyRef: string | undefined) {
+  const account = database
+    .select()
+    .from(schema.wereadAccounts)
+    .where(eq(schema.wereadAccounts.id, WEREAD_ACCOUNT_ID))
+    .get();
+  if (!account?.apiKeyRef || account.apiKeyRef !== apiKeyRef) {
+    throw new Error('WEREAD_CREDENTIAL_CHANGED');
+  }
+  return account;
 }
 
 function upsertWeReadAccount(input: {

@@ -88,6 +88,8 @@ afterEach(async () => {
 });
 
 describe('WeRead repository book details', () => {
+  beforeEach(() => insertWeReadAccount('weread:default:apiKey'));
+
   it('persists book detail rows and reads them back', async () => {
     const saved = await saveDetailsSnapshot([detail('book_1')]);
 
@@ -318,6 +320,7 @@ describe('WeRead repository book details', () => {
       saveWeReadLibrarySnapshot({
         details: [detail('book_outside_authority')],
         authoritativeBookIds: ['book_existing'],
+        apiKeyRef: 'weread:default:apiKey',
       }),
     ).rejects.toThrow('WEREAD_SYNC_SNAPSHOT_INCONSISTENT_DETAILS');
 
@@ -328,14 +331,35 @@ describe('WeRead repository book details', () => {
   it('removes a single book when its detail no longer has notes', async () => {
     await saveDetailsSnapshot([detail('book_empty_after_sync')]);
 
-    const saved = await saveWeReadBookDetail({
-      ...detail('book_empty_after_sync'),
-      highlights: [],
-      thoughts: [],
-    });
+    const saved = await saveWeReadBookDetail(
+      { ...detail('book_empty_after_sync'), highlights: [], thoughts: [] },
+      'weread:default:apiKey',
+    );
 
     expect(saved).toBeNull();
     expect(readWeReadBookDetail('book_empty_after_sync')).toBeNull();
+  });
+
+  it('discards library writes fetched with a replaced credential', async () => {
+    await saveDetailsSnapshot([detail('book_current')]);
+    insertLibraryReferences('book_current');
+    const staleRef = readWeReadAccount()?.apiKeyRef ?? undefined;
+    await saveWeReadSettings({ apiKey: 'weread-replacement' });
+
+    await expect(
+      saveWeReadLibrarySnapshot({
+        details: [detail('book_stale')],
+        authoritativeBookIds: ['book_stale'],
+        apiKeyRef: staleRef,
+      }),
+    ).rejects.toThrow('WEREAD_CREDENTIAL_CHANGED');
+    await expect(saveWeReadBookDetail(detail('book_stale'), staleRef)).rejects.toThrow(
+      'WEREAD_CREDENTIAL_CHANGED',
+    );
+
+    expect(readWeReadBooks().map((savedBook) => savedBook.bookId)).toEqual(['book_current']);
+    expect(tableRows(schema.collectionMembers)).toHaveLength(1);
+    expect(tableRows(schema.libraryPins)).toHaveLength(1);
   });
 });
 
@@ -637,7 +661,10 @@ function saveDetailsSnapshot(
   details: WeReadBookDetail[],
   authoritativeBookIds = details.map((item) => item.book.bookId),
 ) {
-  return saveWeReadLibrarySnapshot({ details, authoritativeBookIds }, repositoryLogger.logInfo);
+  return saveWeReadLibrarySnapshot(
+    { details, authoritativeBookIds, apiKeyRef: readWeReadAccount()?.apiKeyRef ?? undefined },
+    repositoryLogger.logInfo,
+  );
 }
 
 function childInsertStatements() {

@@ -34,7 +34,10 @@ type RuntimePersistenceModules = {
   storeModelPricing: Pick<typeof import('../store/store-model-pricing'), 'refreshModelPrices'>;
   weReadRepository: Pick<
     typeof import('../weread/weread-repository'),
-    'readStoredWeReadApiKey' | 'readWeReadSettings' | 'saveWeReadLibrarySnapshot'
+    | 'readStoredWeReadApiKey'
+    | 'readWeReadApiKeyRef'
+    | 'readWeReadSettings'
+    | 'saveWeReadLibrarySnapshot'
   >;
 };
 
@@ -88,7 +91,6 @@ export function startMainProcessRuntime(
       : null;
   let disposePromise: Promise<void> | null = null;
   let weReadConfigurationToken = 0;
-  let weReadSyncRunning = false;
   let weReadFiber: Fiber.Fiber<void> | null = null;
   let telemetryController: DesktopTelemetryController | null = createTelemetryController({
     getAppVersion: dependencies.getAppVersion,
@@ -140,16 +142,7 @@ export function startMainProcessRuntime(
 
   const runWeReadAutoSync = async (reason: string) => {
     if (disposePromise) return;
-    if (weReadSyncRunning) {
-      dependencies.logInfo('weread.auto_sync.skipped', {
-        reason,
-        skippedReason: 'in_flight',
-      });
-      return;
-    }
-
     const startedAt = performance.now();
-    weReadSyncRunning = true;
     try {
       const result = await withDatabaseLease(async () => {
         const modules = await dependencies.getPersistenceModules();
@@ -165,6 +158,8 @@ export function startMainProcessRuntime(
           return;
         }
 
+        // A run from a replaced schedule may still be in flight; the sync queue runs this one
+        // after it, so a changed key is synced now instead of at the next interval.
         return syncWeRead({
           persistence: modules.weReadRepository,
           reason: `auto:${reason}`,
@@ -187,8 +182,6 @@ export function startMainProcessRuntime(
           durationMs: dependencies.elapsedMs(startedAt),
         });
       }
-    } finally {
-      weReadSyncRunning = false;
     }
   };
 

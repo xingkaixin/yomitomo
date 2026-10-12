@@ -17,7 +17,10 @@ domain mapping.
 WeRead library synchronization composes the client's Effect operations directly. Bounded detail
 loading interrupts sibling requests on failure before the serialized snapshot queue advances;
 only a complete authoritative response reaches persistence. The gateway envelope is decoded with
-Schema before endpoint-specific validation and mapping.
+Schema before endpoint-specific validation and mapping. Library and single-book syncs capture the
+account's credential ref before reading the key; their write transactions reject with
+`WEREAD_CREDENTIAL_CHANGED` when the ref no longer matches, so a key replaced or removed mid-sync
+cannot write the previous account's books.
 
 Bilingual translation composes generation effects inside a bounded three-block workflow. Session
 AbortSignals interrupt active provider requests and prevent queued blocks from starting. Expected
