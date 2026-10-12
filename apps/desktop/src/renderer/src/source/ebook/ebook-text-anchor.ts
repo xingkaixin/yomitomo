@@ -251,8 +251,12 @@ function domAnchorMatchScore(
 ) {
   const prefix = normalizeRenderedText(anchor.prefix || '');
   const suffix = normalizeRenderedText(anchor.suffix || '');
-  const before = text.slice(Math.max(0, start - Math.max(120, prefix.length * 3)), start);
-  const after = text.slice(end, Math.min(text.length, end + Math.max(120, suffix.length * 3)));
+  const before = normalizeRenderedText(
+    text.slice(Math.max(0, start - Math.max(120, prefix.length * 3)), start),
+  );
+  const after = normalizeRenderedText(
+    text.slice(end, Math.min(text.length, end + Math.max(120, suffix.length * 3))),
+  );
   return commonSuffixLength(before, prefix) + commonPrefixLength(after, suffix);
 }
 

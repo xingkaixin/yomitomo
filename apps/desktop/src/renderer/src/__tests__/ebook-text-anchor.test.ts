@@ -42,4 +42,21 @@ describe('ebook text anchor', () => {
     expect(range?.startContainer).toBe(first);
     expect(range?.endContainer).toBe(second);
   });
+
+  it('restores repeated quotes at the occurrence that matches their context', () => {
+    const doc = document.implementation.createHTMLDocument('');
+    doc.body.innerHTML = '<p>I saw the cat today. You fed the cat yesterday.</p>';
+    const textNode = doc.querySelector('p')!.firstChild!;
+
+    const range = rangeForEbookAnchorInDocument(doc, {
+      exact: 'the cat',
+      prefix: 'I saw the cat today. You fed ',
+      suffix: ' yesterday.',
+      start: 29,
+      end: 36,
+    });
+
+    expect(range?.startContainer).toBe(textNode);
+    expect(range?.startOffset).toBe(textNode.textContent!.lastIndexOf('the cat'));
+  });
 });
