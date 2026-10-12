@@ -20,6 +20,14 @@ export function EmbedPdfSelectionBridge({
   const documentState = useDocumentState(documentId);
   const { provides } = useSelectionCapability();
   const ignoreSelectionClearUntilRef = useRef(0);
+  const selectionGenerationRef = useRef(0);
+
+  useEffect(
+    () => () => {
+      selectionGenerationRef.current += 1;
+    },
+    [documentId],
+  );
 
   useEffect(() => {
     if (!provides || !documentState?.document) return;
@@ -31,9 +39,11 @@ export function EmbedPdfSelectionBridge({
       if (performance.now() < ignoreSelectionClearUntilRef.current) {
         return;
       }
+      selectionGenerationRef.current += 1;
       onSelection(null);
     });
     const unsubscribeEnd = scope.onEndSelection(() => {
+      const generation = ++selectionGenerationRef.current;
       const state = scope.getState();
       const formattedSelections = scope.getFormattedSelection();
       if (formattedSelections.length > 1) {
@@ -53,6 +63,7 @@ export function EmbedPdfSelectionBridge({
         .extractText(document, [formatted.pageIndex])
         .toPromise()
         .then((pageText) => {
+          if (generation !== selectionGenerationRef.current) return;
           const anchor = createPdfTextAnchor({
             pageText,
             pageIndex: formatted.pageIndex,
@@ -69,6 +80,7 @@ export function EmbedPdfSelectionBridge({
           clearEmbedPdfSelection(scope);
         })
         .catch(() => {
+          if (generation !== selectionGenerationRef.current) return;
           onSelection(null);
         });
     });
