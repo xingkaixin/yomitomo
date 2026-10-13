@@ -8,6 +8,16 @@
 
 首次从 Pages 切换时，先部署并验证 Worker 的 workers.dev 地址，再解除 Pages 的两个自定义域名，将域名交给 Worker。原 Pages 部署暂留作回退；后续发布只使用 cf。关闭原 Pages 的 Web Analytics 注入，官网仅保留 Umami；下载和桌面遥测的 Analytics Engine 数据集保持原样。
 
+## 官网规范地址
+
+官网统一使用 `https://yomitomo.app`。Cloudflare Single Redirects 中的「官网 HTTP 和 WWW 统一到 HTTPS 根域名」规则返回 301，将 HTTP 根域名及 HTTP/HTTPS 的 `www` 域名直接跳转到规范地址，保留路径和查询参数。
+
+匹配表达式为 `(http.host eq "www.yomitomo.app") or (http.host eq "yomitomo.app" and not ssl)`，目标表达式为 `concat("https://yomitomo.app", http.request.uri.path)`，开启 `preserve_query_string`。仅匹配官网两个 hostname，不包含下载和遥测等其他子域名。
+
+该规则属于域名配置，不由 Workers 部署管理；通过 Cloudflare 控制台 Rules → Redirect Rules 或全局 `cf` 的 Rulesets API 管理。修改时更新现有规则，不重复添加 HTTPS 或 www 跳转，以免形成多次跳转。配置方式见 [Single Redirects API](https://developers.cloudflare.com/rules/url-forwarding/single-redirects/create-api/)。
+
+验证时检查 HTTP 根域名、HTTP www、HTTPS www 的首页及带查询参数的子路径：应一次 301 跳转到 HTTPS 根域名，正式页面正常返回 200，且查询参数保持不变。页面 canonical 与 sitemap 继续使用 HTTPS 根域名。
+
 ## Cloudflare Workers 静态资源缓存
 
 `apps/web/public/_headers` 随 Astro 构建复制到发布目录，仅为 `/_astro/*` 设置 `Cache-Control: public, max-age=31536000, immutable`。该目录存放 Astro 构建生成的带内容哈希的 CSS、JavaScript 和字体；内容变化时 URL 随之变化，浏览器可以长期复用未变化的文件，减少回访时的重新验证和下载。
