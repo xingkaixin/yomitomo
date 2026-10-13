@@ -1,0 +1,41 @@
+{
+  "version": "0.16.4",
+  "highlights": [
+    {
+      "type": "fixed",
+      "title": "More accurate reading positions",
+      "description": "EPUB notes open at the right position, including repeated text and selections across line breaks. Delayed PDF text no longer replaces your current selection.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "Keep notes when saving or retranslating",
+      "description": "Repeated save actions no longer create duplicate notes. Existing translation notes stay intact if retranslation cannot start.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "Handle interrupted AI replies correctly",
+      "description": "Fixed custom Anthropic proxy URLs. Interrupted replies are no longer saved as successful, and fast fallback does not include unfinished deep text.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "Keep sync and model settings current",
+      "description": "Changing your WeRead API key discards the old account’s sync results. Late model-list responses no longer overwrite edits made while loading.",
+      "audience": "settings"
+    },
+    {
+      "type": "fixed",
+      "title": "Reading activity stays on its actual day",
+      "description": "Reopening an old article no longer moves its notes, discussions, and distillations to today. Reading streaks follow the actual activity dates.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "More reliable keys and app locking",
+      "description": "Legacy keys awaiting migration survive a temporarily unavailable keyring. After key removal or a backup restore, the app no longer uses old credentials. Locking closes discussion and distillation windows.",
+      "audience": "settings"
+    }
+  ]
+}

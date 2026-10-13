@@ -5,6 +5,17 @@ sidebar:
   hidden: true
 ---
 
+## 0.16.4
+
+Released: 2026-10-13
+
+- Fixed EPUB annotation anchors, selections across line breaks, and delayed PDF selection text.
+- Prevented duplicate annotation saves, preserved notes when retranslation cannot start, and fixed AI stream errors.
+- Fixed reading activity dates, WeRead sync, and stale responses overwriting provider settings.
+- Fixed credential compatibility and app lock window cleanup, and restored the mobile docs sidebar.
+
+[View 0.16.4 release notes](/en/changelogs/v0-16-4/)
+
 ## 0.16.3
 
 Released: 2026-10-09

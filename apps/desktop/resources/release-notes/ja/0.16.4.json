@@ -1,0 +1,41 @@
+{
+  "version": "0.16.4",
+  "highlights": [
+    {
+      "type": "fixed",
+      "title": "読書位置を正確に復元",
+      "description": "EPUB の注釈への移動、繰り返し文や改行をまたぐ選択の位置を修正しました。PDF の古い選択テキストが現在の選択を上書きしなくなりました。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "保存・再翻訳時に注釈を保持",
+      "description": "保存を連続操作しても注釈が重複しません。再翻訳を開始できない場合も、既存の翻訳注釈を保持します。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "AI の途中エラーを正しく処理",
+      "description": "カスタム Anthropic プロキシの URL を修正しました。途中で失敗した応答を成功として保存せず、高速応答への切り替え時に未完の詳細応答を混ぜません。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "同期とモデル設定を最新に保持",
+      "description": "WeRead の API キー変更後は旧アカウントの同期結果を破棄します。モデル一覧を取得中に編集しても、遅い応答が設定を上書きしません。",
+      "audience": "settings"
+    },
+    {
+      "type": "fixed",
+      "title": "読書活動を実際の日付で記録",
+      "description": "古い記事を開き直しても、注釈・議論・まとめが今日の活動に移りません。連続読書日数も実際の活動日で計算します。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "キーとロック状態を確実に管理",
+      "description": "キーチェーンが一時的に使えなくても、移行待ちの旧キーを保持します。削除や復元後に古い資格情報を使わず、ロック時は議論・まとめウィンドウを閉じます。",
+      "audience": "settings"
+    }
+  ]
+}

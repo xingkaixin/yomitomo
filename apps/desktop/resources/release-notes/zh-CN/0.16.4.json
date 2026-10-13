@@ -1,0 +1,41 @@
+{
+  "version": "0.16.4",
+  "highlights": [
+    {
+      "type": "fixed",
+      "title": "阅读定位更准确",
+      "description": "打开 EPUB 时可正确跳转到批注，重复文本和跨换行划线定位更准确；PDF 不再用旧选区的延迟结果覆盖当前选择。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "保存与重新翻译保留批注",
+      "description": "连续点击保存不再生成重复批注，重新翻译无法启动时也会保留已有翻译批注。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "AI 出错时正确处理回复",
+      "description": "修复自定义 Anthropic 代理地址。中途出错的回复不再按成功保存，深度核验回退时也不会混入未完成的正文。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "同步与模型设置不被旧结果覆盖",
+      "description": "更换微信读书 API Key 后不再写入旧账号的同步结果；获取模型列表时继续编辑，设置不会被迟到的响应覆盖。",
+      "audience": "settings"
+    },
+    {
+      "type": "fixed",
+      "title": "阅读活动留在实际日期",
+      "description": "重新打开旧文章不会把历史批注、讨论和沉淀挪到今天，阅读连续天数也会按实际活动计算。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "密钥与锁定状态更可靠",
+      "description": "钥匙串暂不可用时保留待迁移的旧密钥；删除密钥或还原备份后不再使用旧凭据。锁定应用会关闭讨论与沉淀窗口。",
+      "audience": "settings"
+    }
+  ]
+}
