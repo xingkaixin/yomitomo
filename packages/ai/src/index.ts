@@ -3,20 +3,6 @@ export { testProvider } from './provider/provider-test';
 export { setAiLogger } from './logger';
 export { type NormalizedAiUsage } from './provider/usage';
 export {
-  type AssistantRuntimeResult,
-  type AssistantRuntimeStreamEvent,
-  type AssistantToolCall,
-  type AssistantToolDefinition,
-  type AssistantToolEvidenceInput,
-  type AssistantToolExecutionResult,
-  type AgentToolLoopTaskType,
-} from './assistant/assistant-runtime';
-export {
-  runAgentToolLoopTask,
-  type AgentToolLoopTaskInput,
-  type AgentToolLoopTaskResult,
-} from './agent/agent-tool-loop-task';
-export {
   bilingualTranslationPromptVersion,
   translateBilingualArticleBlocks,
   translateBilingualArticleBlocksEffect,
@@ -26,6 +12,7 @@ export {
   runAgentDistillationReviewStructuredStream,
   type AgentMessageReadingContextSnapshot,
 } from './agent/agent-message';
+export type { ReadingEvidence } from './agent/agent-message-reading-context';
 export { runAgentAnnotateStream } from './agent/agent-annotation';
 export { buildChannelAgentInstructions } from './agent/agent-channel-prompt';
 export {

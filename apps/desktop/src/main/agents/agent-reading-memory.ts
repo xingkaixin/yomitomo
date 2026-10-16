@@ -5,10 +5,7 @@ import type {
   AgentMessagePayload,
   ReadingMemoryEntry,
 } from '@yomitomo/shared';
-import type {
-  AgentMessageReadingContextSnapshot,
-  AssistantToolEvidenceInput as ReadingEvidence,
-} from '@yomitomo/ai';
+import type { AgentMessageReadingContextSnapshot, ReadingEvidence } from '@yomitomo/ai';
 import { makeId } from '@yomitomo/shared';
 import {
   readingMemoryAnchorCheckpointEntries,

@@ -7,13 +7,7 @@ import {
   createEpubTextAnchor,
   epubIndexText,
 } from '@yomitomo/core';
-import {
-  buildAgentCreateThoughtRuntimePayload,
-  buildAgentDistillationReviewRuntimePayload,
-  buildAgentMessageSystemPrompt,
-  buildAgentPrompt,
-  buildAgentThreadReplyRuntimePayload,
-} from './agent-message';
+import { buildAgentMessageSystemPrompt, buildAgentPrompt } from './agent-message';
 
 describe('agent message prompts', () => {
   const provider: LlmProvider = {
@@ -197,32 +191,13 @@ describe('agent message prompts', () => {
         content: '请整理讨论，生成可加入沉淀稿的新增建议。',
       },
     };
-    const runtimeAgent = {
-      id: lin.id,
-      presetId: 'reading-partner',
-      soul: readingPartnerSoul,
-      username: lin.username,
-      nickname: lin.nickname,
-      avatar: lin.avatar,
-      annotationColor: lin.annotationColor,
-      temperature: lin.temperature,
-    };
     const prompt = buildAgentPrompt(provider, organizePayload, lin);
-    const runtimePayload = buildAgentDistillationReviewRuntimePayload(
-      provider,
-      runtimeAgent,
-      organizePayload,
-    );
 
     expect(prompt).toContain('请整理讨论');
     expect(prompt).toContain('当前草稿为空，不能写“草稿已经”“草稿抓住”“草稿遗漏”“整体可靠”');
     expect(prompt).toContain('不要假装用户已经写出了这些判断');
     expect(prompt).not.toContain('请审阅这段沉淀');
     expect(prompt).not.toContain('是否值得发布');
-    expect(runtimePayload.user).toContain('讨论整理要求');
-    expect(runtimePayload.user).toContain('不要评价现有草稿质量');
-    expect(runtimePayload.user).not.toContain('判断沉淀稿是否站得住');
-    expect(runtimePayload.distillationReviewMode).toBe('organize_discussion');
   });
 
   it('adds the selected interface language to assistant replies', () => {
@@ -241,31 +216,6 @@ describe('agent message prompts', () => {
     expect(system).toContain('## Reading Assistant Principles');
     expect(system).toContain('You are a reading assistant, not a generic summarizer.');
     expect(system).toContain('引用原文、用户名、助手名、代码、JSON 字段名和工具参数保持原样');
-  });
-
-  it('repeats response language near tool runtime final output requirements', () => {
-    const runtimeAgent = {
-      id: lin.id,
-      presetId: 'reading-partner',
-      soul: readingPartnerSoul,
-      username: lin.username,
-      nickname: lin.nickname,
-      avatar: lin.avatar,
-      annotationColor: lin.annotationColor,
-      temperature: lin.temperature,
-    };
-    const replyRuntime = buildAgentThreadReplyRuntimePayload(provider, runtimeAgent, {
-      ...payload,
-      uiLanguage: 'zh-CN',
-    });
-    const thoughtRuntime = buildAgentCreateThoughtRuntimePayload(provider, runtimeAgent, {
-      ...payload,
-      responseMode: 'create_thought',
-      uiLanguage: 'en',
-    });
-
-    expect(replyRuntime.user.slice(-160)).toContain('最终面向读者的自然语言内容必须使用简体中文');
-    expect(thoughtRuntime.user.slice(-160)).toContain('最终面向读者的自然语言内容必须使用English');
   });
 
   it('uses English draft review principles for English distillation reviews', () => {
