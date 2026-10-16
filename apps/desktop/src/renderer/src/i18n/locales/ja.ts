@@ -1287,7 +1287,6 @@ export const jaResources = {
       threadView: {
         rootThought: '考えた内容',
         assistantReplying: 'アシスタントが返信中',
-        replyQueue: 'アシスタントの返信キュー',
         expanded: 'ディスカッションの拡大',
         noDiscussionTitle: 'まだ議論はありません',
         noDiscussionDescription: 'この考えにはまだ返答がありません。',

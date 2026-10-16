@@ -1,6 +1,6 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowDown01Icon, BubbleChatIcon, SentIcon } from '@hugeicons/core-free-icons';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PublicAgent, UserProfile } from '@yomitomo/shared';
 import { getMentionQuery } from '@yomitomo/core';
@@ -30,13 +30,7 @@ import { renderDiscussionMessageMarkdown } from './app-annotation-discussion-men
 import { DiscussionMessage } from './app-annotation-discussion-message';
 
 type DiscussionLayoutMode = AnnotationMessageLayoutMode;
-type ActiveReplyAgent = {
-  agent: PublicAgent;
-  status: 'active' | 'queued';
-};
-
 export function DiscussionThreadView({
-  activeReplyAgents,
   annotationAgents,
   deletingCommentId,
   layoutMode,
@@ -49,11 +43,9 @@ export function DiscussionThreadView({
   replyDraft,
   sendError,
   sendingReply,
-  statusMessage,
   thread,
   userProfile,
 }: {
-  activeReplyAgents?: ActiveReplyAgent[];
   annotationAgents: PublicAgent[];
   deletingCommentId: string | null;
   layoutMode: DiscussionLayoutMode;
@@ -66,7 +58,6 @@ export function DiscussionThreadView({
   replyDraft: string;
   sendError: string;
   sendingReply: boolean;
-  statusMessage: string;
   thread: DiscussionThread;
   userProfile: UserProfile;
 }) {
@@ -97,21 +88,12 @@ export function DiscussionThreadView({
       ? []
       : annotationAgents.filter((agent) => matchesAgentMentionQuery(agent, mentionQuery.query));
   const shortcutModifier = getShortcutModifier();
-  const hasReplyAgents = (activeReplyAgents?.length || 0) > 0;
-  const composerStatus =
-    sendError ||
-    (!hasReplyAgents && (statusMessage || (sendingReply ? t('discussion.sending') : '')));
+  const composerStatus = sendError || (sendingReply ? t('discussion.sending') : '');
   const replyPlaceholder = discussionReplyPlaceholder(thread.root, annotationAgents);
   const className = [
     'annotation-discussion-messages',
     layoutMode === 'left' ? 'is-left-aligned' : 'is-split',
   ].join(' ');
-  const bodyClassName = [
-    'annotation-discussion-thread-body',
-    hasReplyAgents ? 'has-reply-agents' : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
   activeThreadIdRef.current = thread.root.id;
   hasRepliesRef.current = hasReplies;
 
@@ -286,7 +268,7 @@ export function DiscussionThreadView({
 
   return (
     <ReaderTooltipProvider>
-      <div className={bodyClassName}>
+      <div className="annotation-discussion-thread-body">
         <div
           ref={threadScrollRef}
           className="annotation-discussion-thread-scroll"
@@ -343,9 +325,6 @@ export function DiscussionThreadView({
             >
               <HugeiconsIcon icon={ArrowDown01Icon} size={16} />
             </button>
-          ) : null}
-          {activeReplyAgents && activeReplyAgents.length > 0 ? (
-            <ReplyAgentQueueTray agents={activeReplyAgents} />
           ) : null}
           <FloatingComposer
             ref={textareaRef}
@@ -444,69 +423,5 @@ export function DiscussionThreadView({
         </footer>
       </div>
     </ReaderTooltipProvider>
-  );
-}
-
-function ReplyAgentQueueTray({ agents }: { agents: ActiveReplyAgent[] }) {
-  const { t } = useTranslation();
-  const activeAgent = agents.find((run) => run.status === 'active')?.agent || agents[0]?.agent;
-  const queuedAgents = agents
-    .filter((run) => run.agent.id !== activeAgent?.id)
-    .map((run) => run.agent);
-  const previousActiveAgentIdRef = useRef(activeAgent?.id);
-  const [promotedAgentId, setPromotedAgentId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const previousActiveAgentId = previousActiveAgentIdRef.current;
-    if (activeAgent?.id && previousActiveAgentId && activeAgent.id !== previousActiveAgentId) {
-      setPromotedAgentId(activeAgent.id);
-      const timeout = window.setTimeout(() => setPromotedAgentId(null), 520);
-      previousActiveAgentIdRef.current = activeAgent.id;
-      return () => window.clearTimeout(timeout);
-    }
-    previousActiveAgentIdRef.current = activeAgent?.id;
-  }, [activeAgent?.id]);
-
-  if (!activeAgent) return null;
-
-  return (
-    <div
-      className="annotation-discussion-reply-agent-tray"
-      role="region"
-      aria-label={t('discussion.threadView.replyQueue')}
-    >
-      <div className="annotation-discussion-reply-agent-active">
-        <span
-          className={[
-            'annotation-discussion-reply-agent-active-avatar',
-            promotedAgentId === activeAgent.id ? 'is-promoted' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          title={activeAgent.nickname}
-        >
-          <AvatarBadge avatar={activeAgent.avatar} fallback={activeAgent.nickname.slice(0, 1)} />
-        </span>
-        <span className="annotation-discussion-typing-dots" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-        </span>
-      </div>
-      {queuedAgents.length > 0 ? (
-        <div className="annotation-discussion-reply-agent-queue">
-          {queuedAgents.map((agent, index) => (
-            <span
-              className="annotation-discussion-reply-agent-queued"
-              key={agent.id}
-              style={{ '--reply-agent-index': index } as CSSProperties}
-              title={agent.nickname}
-            >
-              <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
-            </span>
-          ))}
-        </div>
-      ) : null}
-    </div>
   );
 }

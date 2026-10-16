@@ -66,10 +66,6 @@
   padding: 2px 6px 10px 2px;
 }
 
-.annotation-discussion-thread-body.has-reply-agents .annotation-discussion-thread-scroll {
-  padding-bottom: 24px;
-}
-
 .annotation-discussion-root-thought {
   display: grid;
   min-width: 0;

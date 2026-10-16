@@ -4,7 +4,15 @@ import React from 'react';
 import i18next from 'i18next';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Agent, Annotation, ArticleRecord, Comment } from '@yomitomo/shared';
+import type {
+  Agent,
+  Annotation,
+  ArticleRecord,
+  ArticleStorePatch,
+  AssistantDeliveryRequest,
+  AssistantRunEvent,
+  Comment,
+} from '@yomitomo/shared';
 import { DesktopIpcError, desktopIpcErrorCodes } from '../../../ipc-errors';
 import {
   AnnotationDiscussionWindowApp,
@@ -207,24 +215,24 @@ describe('AnnotationDiscussionWindowApp', () => {
     await act(async () => pendingSave.resolve());
   });
 
-  it('does not open a new thought while an assistant reply is running', async () => {
-    const pendingReply = deferred<Comment>();
+  it('does not open a new thought while an assistant reply is being sent', async () => {
+    const pendingDelivery = deferred<{ runKey: string | null }>();
     const desktop = installDesktopApi(article(annotation({ comments: [rootThought()] })), {
-      requestAgentCommentStream: vi.fn(() => pendingReply.promise),
+      deliver: vi.fn(() => pendingDelivery.promise),
     });
     openDiscussionRoute();
     render(<AnnotationDiscussionWindowApp />);
     const replyInput = await screen.findByPlaceholderText(/回复这条想法/);
     fireEvent.change(replyInput, { target: { value: '@zhou 继续展开' } });
     fireEvent.click(screen.getByRole('button', { name: '回复' }));
-    await waitFor(() => expect(desktop.requestAgentCommentStream).toHaveBeenCalledOnce());
+    await waitFor(() => expect(desktop.deliver).toHaveBeenCalledOnce());
     desktop.consumeThoughtDraft.mockResolvedValueOnce('等待助手完成后再添加');
 
     act(() => desktop.notifyThoughtDraftAvailable());
 
     await waitFor(() => expect(appToast.warning).toHaveBeenCalledOnce());
     expect(screen.queryByRole('dialog', { name: '添加想法' })).toBeNull();
-    await act(async () => pendingReply.resolve(aiComment({ agentUsername: 'zhou' })));
+    await act(async () => pendingDelivery.resolve({ runKey: null }));
   });
 
   it('ignores a thought draft that arrives after the window is unmounted', async () => {
@@ -606,10 +614,10 @@ describe('AnnotationDiscussionWindowApp', () => {
     fireEvent.change(replyInput, { target: { value: '我同意这个方向' } });
     fireEvent.click(screen.getByRole('button', { name: '回复' }));
 
-    await waitFor(() => expect(desktop.requestAgentCommentStream).toHaveBeenCalledOnce());
-    expect(desktop.requestAgentCommentStream.mock.calls[0]?.[0]).toMatchObject({
+    await waitFor(() => expect(desktop.deliver).toHaveBeenCalledOnce());
+    expect(desktop.deliver.mock.calls[0]?.[0]).toMatchObject({
       agentId: 'agent_1',
-      agentUsername: 'zhou',
+      channel: { kind: 'thread', annotationId: 'annotation_1', threadId: 'thought_ai' },
       instruction: '我同意这个方向',
     });
   });
@@ -644,10 +652,9 @@ describe('AnnotationDiscussionWindowApp', () => {
     fireEvent.change(replyInput, { target: { value: '继续说' } });
     fireEvent.click(screen.getByRole('button', { name: '回复' }));
 
-    await waitFor(() => expect(desktop.requestAgentCommentStream).toHaveBeenCalledOnce());
-    expect(desktop.requestAgentCommentStream.mock.calls[0]?.[0]).toMatchObject({
+    await waitFor(() => expect(desktop.deliver).toHaveBeenCalledOnce());
+    expect(desktop.deliver.mock.calls[0]?.[0]).toMatchObject({
       agentId: 'agent_2',
-      agentUsername: 'lin',
       instruction: '继续说',
       allowDisabledAgentForRule: true,
     });
@@ -680,22 +687,19 @@ describe('AnnotationDiscussionWindowApp', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: '回复' }));
 
-    await waitFor(() => expect(desktop.requestAgentCommentStream).toHaveBeenCalledOnce());
-    expect(desktop.requestAgentCommentStream.mock.calls[0]?.[0]).toMatchObject({
+    await waitFor(() => expect(desktop.deliver).toHaveBeenCalledOnce());
+    expect(desktop.deliver.mock.calls[0]?.[0]).toMatchObject({
       agentId: 'agent_2',
-      agentUsername: 'lin',
       instruction: '你怎么看',
     });
   });
 
-  it('shows active and queued assistant replies above the composer', async () => {
-    const firstRequest = deferred<Comment>();
-    const secondRequest = deferred<Comment>();
+  it('shows a streaming placeholder for each assistant replying in parallel', async () => {
     const desktop = installDesktopApi(article(annotation({ comments: [rootThought()] })), {
       agents: agents().concat(agent({ id: 'agent_2', nickname: '林知', username: 'lin' })),
-      requestAgentCommentStream: vi.fn((payload) =>
-        payload.agentUsername === 'zhou' ? firstRequest.promise : secondRequest.promise,
-      ),
+      deliver: vi.fn(async (request: AssistantDeliveryRequest) => ({
+        runKey: `run_${request.agentId}`,
+      })),
     });
     openDiscussionRoute();
 
@@ -706,45 +710,64 @@ describe('AnnotationDiscussionWindowApp', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: '回复' }));
 
-    expect(await screen.findByRole('region', { name: '助手回复队列' })).toBeTruthy();
-    expect(
-      document.querySelector('.annotation-discussion-reply-agent-active [title="周现"]'),
-    ).toBeTruthy();
-    expect(screen.queryByText('周现 正在回复')).toBeNull();
-    expect(document.querySelector('[title="林知"]')).toBeTruthy();
-    expect(desktop.requestAgentCommentStream).toHaveBeenCalledOnce();
-
-    await act(async () => {
-      firstRequest.resolve(
-        aiComment({ agentId: 'agent_1', agentNickname: '周现', agentUsername: 'zhou' }),
-      );
-      await firstRequest.promise;
-    });
-
-    await waitFor(() => expect(desktop.requestAgentCommentStream).toHaveBeenCalledTimes(2));
-    await waitFor(() =>
-      expect(
-        document.querySelector(
-          '.annotation-discussion-reply-agent-active-avatar.is-promoted[title="林知"]',
-        ),
-      ).toBeTruthy(),
+    await waitFor(() => expect(desktop.deliver).toHaveBeenCalledTimes(2));
+    const [zhouRequest, linRequest] = desktop.deliver.mock.calls.map(
+      (call) => call[0] as AssistantDeliveryRequest,
     );
-    expect(screen.queryByText('林知 正在回复')).toBeNull();
+    desktop.emitRun(runEvent(zhouRequest!, 'run_agent_1', { text: '第一份草稿' }));
+    desktop.emitRun(runEvent(linRequest!, 'run_agent_2', { text: '第二份草稿' }));
 
-    await act(async () => {
-      secondRequest.resolve(
-        aiComment({ agentId: 'agent_2', agentNickname: '林知', agentUsername: 'lin' }),
-      );
-      await secondRequest.promise;
-    });
+    expect(await screen.findByText('第一份草稿')).toBeTruthy();
+    expect(screen.getByText('第二份草稿')).toBeTruthy();
+    expect(document.querySelectorAll('.annotation-discussion-message.is-pending')).toHaveLength(2);
 
-    await waitFor(() => expect(screen.queryByRole('region', { name: '助手回复队列' })).toBeNull());
+    desktop.emitRun(runEvent(zhouRequest!, 'run_agent_1', { status: 'failed', text: '' }));
+
+    await waitFor(() => expect(screen.queryByText('第一份草稿')).toBeNull());
+    expect(screen.getByText('第二份草稿')).toBeTruthy();
+    expect(await screen.findByText('回复发送失败')).toBeTruthy();
   });
 
-  it('turns a failed assistant reply into a discussion message', async () => {
+  it('keeps the placeholder until the finished reply reaches the window', async () => {
+    const desktop = installDesktopApi(article(annotation({ comments: [rootThought()] })), {
+      deliver: vi.fn(async () => ({ runKey: 'run_agent_1' })),
+    });
+    openDiscussionRoute();
+
+    render(<AnnotationDiscussionWindowApp />);
+
+    fireEvent.change(await screen.findByPlaceholderText(/回复这条想法/), {
+      target: { value: '@zhou 请继续' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '回复' }));
+    await waitFor(() => expect(desktop.deliver).toHaveBeenCalledOnce());
+    const request = desktop.deliver.mock.calls[0]?.[0] as AssistantDeliveryRequest;
+
+    desktop.emitRun(runEvent(request, 'run_agent_1', { text: '完整的回复' }));
+    desktop.emitRun(
+      runEvent(request, 'run_agent_1', {
+        status: 'done',
+        text: '完整的回复',
+        commentId: 'comment_reply',
+      }),
+    );
+    expect(screen.getByText('完整的回复')).toBeTruthy();
+
+    await desktop.saveAgentComment(
+      'annotation_1',
+      aiComment({ id: 'comment_reply', content: '完整的回复', replyTo: 'thought_1' }),
+    );
+
+    await waitFor(() =>
+      expect(document.querySelector('.annotation-discussion-message.is-pending')).toBeNull(),
+    );
+    expect(screen.getAllByText('完整的回复')).toHaveLength(1);
+  });
+
+  it('reports a delivery that cannot start', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const desktop = installDesktopApi(article(annotation({ comments: [rootThought()] })), {
-      requestAgentCommentStream: vi.fn(async () => {
+      deliver: vi.fn(async () => {
         throw new DesktopIpcError(desktopIpcErrorCodes.providerApiKeyRequired);
       }),
     });
@@ -757,47 +780,9 @@ describe('AnnotationDiscussionWindowApp', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: '回复' }));
 
-    await waitFor(() =>
-      expect(
-        document.querySelector('.annotation-discussion-message.is-assistant')?.textContent,
-      ).toContain('请先为供应商配置 API Key。'),
-    );
-    expect(screen.queryByRole('region', { name: '助手回复队列' })).toBeNull();
-    expect(screen.queryByText('助手回复中')).toBeNull();
-    expect(screen.queryByText('回复发送失败')).toBeNull();
-    expect(desktop.saveArticleComment).toHaveBeenCalledTimes(2);
-    expect(desktop.saveArticleComment.mock.calls[1]?.[0].comment).toEqual(
-      expect.objectContaining({
-        author: expect.objectContaining({ kind: 'agent' }),
-        content: '请先为供应商配置 API Key。',
-        pending: false,
-        replyTo: 'thought_1',
-      }),
-    );
-  });
-
-  it('removes an assistant placeholder when its final reply cannot be saved', async () => {
-    const saveError = new Error('assistant save failed');
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const desktop = installDesktopApi(article(annotation({ comments: [rootThought()] })));
-    desktop.saveArticleComment.mockResolvedValueOnce(undefined).mockRejectedValueOnce(saveError);
-    openDiscussionRoute();
-
-    render(<AnnotationDiscussionWindowApp />);
-
-    const replyInput = await screen.findByPlaceholderText(/回复这条想法/);
-    fireEvent.change(replyInput, { target: { value: '@zhou 请继续' } });
-    fireEvent.click(screen.getByRole('button', { name: '回复' }));
-
-    expect(await screen.findByText('assistant save failed')).toBeTruthy();
-    expect(desktop.saveArticleComment).toHaveBeenCalledTimes(2);
-    expect((replyInput as HTMLTextAreaElement).value).toBe('');
-    expect(
-      document.querySelector('.annotation-discussion-thread-scroll')?.textContent,
-    ).not.toContain('助手想法');
-    expect(document.querySelector('.annotation-discussion-thread-scroll')?.textContent).toContain(
-      '@zhou 请继续',
-    );
+    expect(await screen.findByText('请先为供应商配置 API Key。')).toBeTruthy();
+    expect(desktop.saveArticleComment).toHaveBeenCalledOnce();
+    expect(document.querySelector('.annotation-discussion-message.is-assistant')).toBeNull();
   });
 
   it('keeps a reply-free thought at the top instead of scrolling to the bottom', async () => {
@@ -853,7 +838,7 @@ describe('AnnotationDiscussionWindowApp', () => {
 
     await openAssistantThoughtDialog('@zhou 补一条独立想法');
 
-    await waitFor(() => expect(desktop.saveArticleComment).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(desktop.deliver).toHaveBeenCalledOnce());
     await waitFor(() => expect(screen.queryByRole('dialog', { name: '添加想法' })).toBeNull(), {
       timeout: 1800,
     });
@@ -877,13 +862,9 @@ describe('AnnotationDiscussionWindowApp', () => {
   });
 
   it('starts assistant thought requests in parallel', async () => {
-    const firstRequest = deferred<Comment>();
-    const secondRequest = deferred<Comment>();
     const desktop = installDesktopApi(article(annotation()), {
       agents: agents().concat(agent({ id: 'agent_2', nickname: '林知', username: 'lin' })),
-      requestAgentCommentStream: vi.fn((payload) =>
-        payload.agentUsername === 'zhou' ? firstRequest.promise : secondRequest.promise,
-      ),
+      deliver: vi.fn(async () => ({ runKey: null })),
     });
     openDiscussionRoute();
 
@@ -891,30 +872,27 @@ describe('AnnotationDiscussionWindowApp', () => {
 
     await openAssistantThoughtDialog('@zhou @lin 分别补一条想法');
 
-    await waitFor(() => expect(desktop.requestAgentCommentStream).toHaveBeenCalledTimes(2));
-    expect(
-      desktop.requestAgentCommentStream.mock.calls.map((call) => call[0].agentUsername),
-    ).toEqual(['zhou', 'lin']);
-    firstRequest.resolve(aiComment({ agentUsername: 'zhou' }));
-    secondRequest.resolve(aiComment({ agentUsername: 'lin' }));
+    await waitFor(() => expect(desktop.deliver).toHaveBeenCalledTimes(2));
+    expect(desktop.deliver.mock.calls.map((call) => call[0])).toEqual([
+      expect.objectContaining({
+        agentId: 'agent_1',
+        channel: { kind: 'annotation', annotationId: 'annotation_1' },
+      }),
+      expect.objectContaining({ agentId: 'agent_2' }),
+    ]);
   });
 
   it('keeps failed assistant thought runs open and retries only the failed agent', async () => {
     let linAttempts = 0;
     const desktop = installDesktopApi(article(annotation()), {
       agents: agents().concat(agent({ id: 'agent_2', nickname: '林知', username: 'lin' })),
-      requestAgentCommentStream: vi.fn(async (payload) => {
-        if (payload.agentUsername === 'lin') linAttempts += 1;
-        if (payload.agentUsername === 'lin' && linAttempts === 1) {
-          throw new Error('模型暂时不可用');
-        }
-        return aiComment({
-          agentId: payload.agentId,
-          agentNickname: payload.agentUsername === 'lin' ? '林知' : '周现',
-          agentUsername: payload.agentUsername,
-          content: `${payload.agentUsername} 想法`,
-        });
-      }),
+    });
+    desktop.deliver.mockImplementation(async (request: AssistantDeliveryRequest) => {
+      if (request.agentId === 'agent_2') linAttempts += 1;
+      if (request.agentId === 'agent_2' && linAttempts === 1) {
+        throw new Error('模型暂时不可用');
+      }
+      return desktop.finishSoon(request);
     });
     openDiscussionRoute();
 
@@ -924,13 +902,13 @@ describe('AnnotationDiscussionWindowApp', () => {
 
     expect(await screen.findByText('1 位助手已完成，1 位助手失败')).toBeTruthy();
     expect(screen.getByText('模型暂时不可用')).toBeTruthy();
-    expect(desktop.saveArticleComment).toHaveBeenCalledTimes(1);
+    expect(desktop.saveArticleComment).not.toHaveBeenCalled();
     expect(desktop.saveArticle).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: '重试' }));
 
-    await waitFor(() => expect(desktop.requestAgentCommentStream).toHaveBeenCalledTimes(3));
-    expect(desktop.requestAgentCommentStream.mock.calls[2]?.[0].agentUsername).toBe('lin');
+    await waitFor(() => expect(desktop.deliver).toHaveBeenCalledTimes(3));
+    expect(desktop.deliver.mock.calls[2]?.[0].agentId).toBe('agent_2');
   });
 });
 
@@ -996,15 +974,56 @@ function installDesktopApi(
   sourceArticle: ArticleRecord,
   options: {
     agents?: Agent[];
-    requestAgentCommentStream?: ReturnType<typeof vi.fn>;
+    deliver?: ReturnType<typeof vi.fn>;
   } = {},
 ) {
+  let currentArticle = sourceArticle;
   let thoughtDraftListener: (() => void) | undefined;
+  const runListeners = new Set<(event: AssistantRunEvent) => void>();
+  let patchListener: ((patch: ArticleStorePatch) => void) | undefined;
   const unsubscribeThoughtDraft = vi.fn(() => {
     thoughtDraftListener = undefined;
   });
+  // Mirrors main: the comment is saved and broadcast before the run reports done.
+  const saveAgentComment = async (annotationId: string, comment: Comment) => {
+    currentArticle = {
+      ...currentArticle,
+      annotations: currentArticle.annotations.map((item) =>
+        item.id === annotationId ? { ...item, comments: [...item.comments, comment] } : item,
+      ),
+    };
+    const patch = {
+      type: 'article-upsert',
+      article: currentArticle,
+    } as unknown as ArticleStorePatch;
+    await act(async () => patchListener?.(patch));
+  };
+  const finishSoon = (request: AssistantDeliveryRequest) => {
+    const runKey = `run_${request.agentId}_${request.triggerId}`;
+    setTimeout(() => {
+      const comment = aiComment({
+        id: `${runKey}_comment`,
+        agentId: request.agentId,
+        ...(request.channel.kind === 'thread' ? { replyTo: request.channel.threadId } : {}),
+      });
+      void saveAgentComment(request.channel.annotationId, comment).then(() =>
+        emitRun(
+          runEvent(request, runKey, {
+            status: 'done',
+            text: comment.content,
+            commentId: comment.id,
+          }),
+        ),
+      );
+    });
+    return { runKey };
+  };
+  const emitRun = (event: AssistantRunEvent) =>
+    act(() => {
+      for (const listener of runListeners) listener(event);
+    });
   const desktop = {
-    getArticle: vi.fn().mockResolvedValue(sourceArticle),
+    getArticle: vi.fn(async (): Promise<ArticleRecord | null> => currentArticle),
     getState: vi.fn().mockResolvedValue({
       ...emptyStore,
       agents: options.agents || agents(),
@@ -1017,15 +1036,11 @@ function installDesktopApi(
         action: 'create_thought' as const,
       })),
     })),
-    requestAgentCommentStream:
-      options.requestAgentCommentStream ||
-      vi.fn(async (payload) =>
-        aiComment({
-          agentId: payload.agentId,
-          agentNickname: payload.agentUsername,
-          agentUsername: payload.agentUsername,
-        }),
-      ),
+    deliver:
+      options.deliver || vi.fn(async (request: AssistantDeliveryRequest) => finishSoon(request)),
+    emitRun,
+    finishSoon,
+    saveAgentComment,
     deleteArticleComment: vi.fn().mockResolvedValue(undefined),
     saveArticle: vi.fn().mockResolvedValue(undefined),
     saveArticleComment: vi.fn().mockResolvedValue(undefined),
@@ -1044,7 +1059,14 @@ function installDesktopApi(
       platform: 'darwin',
       agent: {
         planMentionRoute: desktop.planAgentMentionRoute,
-        requestCommentStream: desktop.requestAgentCommentStream,
+      },
+      assistant: {
+        deliver: desktop.deliver,
+        runs: vi.fn().mockResolvedValue([]),
+        onRun: (callback: (event: AssistantRunEvent) => void) => {
+          runListeners.add(callback);
+          return () => runListeners.delete(callback);
+        },
       },
       annotations: {
         discussion: {
@@ -1059,6 +1081,12 @@ function installDesktopApi(
         deleteComment: desktop.deleteArticleComment,
         get: desktop.getArticle,
         saveComment: desktop.saveArticleComment,
+        onPatched: (callback: (patch: ArticleStorePatch) => void) => {
+          patchListener = callback;
+          return () => {
+            patchListener = undefined;
+          };
+        },
       },
       store: {
         getState: desktop.getState,
@@ -1066,6 +1094,22 @@ function installDesktopApi(
     },
   });
   return desktop;
+}
+
+function runEvent(
+  request: AssistantDeliveryRequest,
+  runKey: string,
+  overrides: Partial<AssistantRunEvent> = {},
+): AssistantRunEvent {
+  return {
+    runKey,
+    articleId: request.articleId,
+    agentId: request.agentId,
+    channel: request.channel,
+    status: 'running',
+    text: '',
+    ...overrides,
+  };
 }
 
 function discussionLayoutElement() {

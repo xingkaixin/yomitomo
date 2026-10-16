@@ -10,6 +10,8 @@ import { useEffect, useEffectEvent, useMemo, useRef, useState, type CSSPropertie
 import type {
   Agent,
   Annotation,
+  AssistantChannel,
+  AssistantDeliveryRequest,
   ResolvedAppSettings,
   ArticleRecord,
   Comment,
@@ -17,7 +19,7 @@ import type {
   UiLanguage,
   UserProfile,
 } from '@yomitomo/shared';
-import { normalizeUiLanguage } from '@yomitomo/shared';
+import { makeId, normalizeUiLanguage } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
 import { createUserComment, findMentionedAgents, sortAnnotations } from '@yomitomo/core';
 import { applyAppTheme, readCachedThemeId, themeRegistry } from '../theme/app-theme';
@@ -31,22 +33,20 @@ import {
   publicAnnotationAgents,
   publicPersonaAgents,
 } from '../source/bookcase/source-public-agents';
-import { runSourceAgentCommentRequest } from '../source/bookcase/app-source-agent-comment-request';
 import { playAppSoundEffect, stopAppSoundEffect } from '../sound/app-sound-effects';
 import {
   AnnotationLayoutControl,
   type AnnotationMessageLayoutMode,
 } from './app-annotation-layout-control';
-import {
-  applyAssistantRuntimeProgress,
-  assistantRuntimeErrorMessage,
-} from '../shell/app-assistant-runtime-progress';
+import { assistantRuntimeErrorMessage } from '../shell/app-assistant-runtime-progress';
+import { deliverAssistantMessage, useAssistantRuns } from '../shell/app-assistant-runs';
 import {
   elementWindowSourceRect,
   useSourceAwareWindowTransition,
 } from '../shell/app-window-transition';
 import {
   annotationUserProfile,
+  annotationWithAssistantRuns,
   assistantThoughtRouteNote,
   discussionArticleText,
   replyTargetAgents,
@@ -58,10 +58,6 @@ import type { AddThoughtAgentRun } from './app-annotation-discussion-add-run';
 import { AddThoughtDialog } from './app-annotation-discussion-add-dialog';
 import { ThoughtListItem } from './app-annotation-discussion-thread-list';
 import { DiscussionThreadView } from './app-annotation-discussion-thread-view';
-import {
-  runSourceAgentThoughtRequest,
-  type RunSourceAgentThoughtLifecycle,
-} from './app-annotation-discussion-agent-thought';
 import { useElementWidthBelow } from './app-annotation-discussion-hooks';
 import { useAnnotationWindowArticlePatches } from './use-annotation-window-article-patches';
 import { annotationWindowActions } from './app-annotation-window-actions';
@@ -72,12 +68,6 @@ export { insertMentionAtSelection } from './app-annotation-discussion-utils';
 
 type DiscussionLayoutMode = AnnotationMessageLayoutMode;
 const DISCUSSION_IDEAS_AUTO_COLLAPSE_WIDTH = 760;
-
-type ReplyAgentRun = {
-  agent: PublicAgent;
-  rootId: string;
-  status: 'active' | 'queued';
-};
 
 type DiscussionWindowStatus =
   | { type: 'loading' }
@@ -343,10 +333,9 @@ function AnnotationDiscussionShell({
   const [addThoughtAgentRuns, setAddThoughtAgentRuns] = useState<AddThoughtAgentRun[]>([]);
   const [addThoughtCelebrating, setAddThoughtCelebrating] = useState(false);
   const [sendingReply, setSendingReply] = useState(false);
-  const [replyAgentRuns, setReplyAgentRuns] = useState<ReplyAgentRun[]>([]);
-  const [statusMessage, setStatusMessage] = useState('');
   const [sendError, setSendError] = useState('');
   const thoughtDraftHandoffRef = useRef(false);
+  const awaitedThoughtIdRef = useRef<string | null>(null);
   const discussionLayoutRef = useRef<HTMLElement>(null);
   const ideasAutoCollapsed = useElementWidthBelow(
     discussionLayoutRef,
@@ -366,9 +355,17 @@ function AnnotationDiscussionShell({
     [agents, uiLanguage],
   );
   const userProfile = annotationUserProfile(annotation, article, user);
+  const { runs: assistantRuns, settle: settleAssistantRun } = useAssistantRuns(
+    article.id,
+    annotation.id,
+  );
   const threads = useMemo(
-    () => discussionThreads(annotation, pinnedThoughtIds),
-    [annotation, pinnedThoughtIds],
+    () =>
+      discussionThreads(
+        annotationWithAssistantRuns(annotation, assistantRuns, replyRuleAgents),
+        pinnedThoughtIds,
+      ),
+    [annotation, assistantRuns, pinnedThoughtIds, replyRuleAgents],
   );
   const selectedThread =
     threads.find((thread) => thread.root.id === selectedThoughtId) || threads[0] || null;
@@ -454,12 +451,25 @@ function AnnotationDiscussionShell({
       setSelectedThoughtId(null);
       return;
     }
+    const awaitedThoughtId = awaitedThoughtIdRef.current;
+    if (threads.some((thread) => thread.root.id === awaitedThoughtId)) {
+      awaitedThoughtIdRef.current = null;
+    }
+    // A finished assistant thought is selected before the reloaded article brings it in.
     setSelectedThoughtId((current) =>
-      current && threads.some((thread) => thread.root.id === current)
+      current &&
+      (current === awaitedThoughtId || threads.some((thread) => thread.root.id === current))
         ? current
         : threads[0].root.id,
     );
   }, [threads]);
+
+  useEffect(() => {
+    const commentIds = new Set(annotation.comments.map((comment) => comment.id));
+    for (const run of assistantRuns) {
+      if (run.commentId && commentIds.has(run.commentId)) settleAssistantRun(run.runKey);
+    }
+  }, [annotation, assistantRuns, settleAssistantRun]);
 
   async function deleteComment(commentId: string) {
     if (deletingCommentId) return;
@@ -534,27 +544,19 @@ function AnnotationDiscussionShell({
           ? mentionedAgents
           : replyTargetAgents(trimmed, selectedRoot, replyRuleAgents);
       const instruction = agentInstructionFromNote(trimmed, targetAgents) || undefined;
-      setReplyAgentRuns(
-        targetAgents.map((agent, index) => ({
-          agent,
-          rootId: selectedRoot.id,
-          status: index === 0 ? 'active' : 'queued',
-        })),
+      const channel: AssistantChannel = {
+        kind: 'thread',
+        annotationId: annotation.id,
+        threadId: selectedRoot.id,
+      };
+      await Promise.all(
+        targetAgents.map((agent) =>
+          requestAgentReply(agent, channel, userComment.id, {
+            instruction,
+            allowDisabledAgentForRule: mentionedAgents.length === 0,
+          }),
+        ),
       );
-      for (const [index, agent] of targetAgents.entries()) {
-        setReplyAgentRuns(
-          targetAgents.slice(index).map((runAgent, runIndex) => ({
-            agent: runAgent,
-            rootId: selectedRoot.id,
-            status: runIndex === 0 ? 'active' : 'queued',
-          })),
-        );
-        const latestAnnotation =
-          annotationsRef.current.find((item) => item.id === annotation.id) || annotation;
-        await requestAgentReply(agent, latestAnnotation, userComment, instruction, {
-          allowDisabledAgentForRule: mentionedAgents.length === 0,
-        });
-      }
     } catch (error) {
       console.warn('[annotation-discussion] reply submission failed', {
         articleId: article.id,
@@ -568,8 +570,6 @@ function AnnotationDiscussionShell({
       setSendError(assistantRuntimeErrorMessage(error, 'discussion.replyFailed'));
     } finally {
       setSendingReply(false);
-      setReplyAgentRuns([]);
-      setStatusMessage('');
     }
   }
 
@@ -588,11 +588,16 @@ function AnnotationDiscussionShell({
 
         const mentionedAgents = findMentionedAgents(trimmed, annotationAgents);
         const instruction = agentInstructionFromNote(trimmed, mentionedAgents) || undefined;
-        for (const agent of mentionedAgents) {
-          const latestAnnotation =
-            annotationsRef.current.find((item) => item.id === annotation.id) || annotation;
-          await requestAgentReply(agent, latestAnnotation, userComment, instruction);
-        }
+        const channel: AssistantChannel = {
+          kind: 'thread',
+          annotationId: annotation.id,
+          threadId: userComment.id,
+        };
+        await Promise.all(
+          mentionedAgents.map((agent) =>
+            requestAgentReply(agent, channel, userComment.id, { instruction }),
+          ),
+        );
       } else {
         setAddThoughtCelebrating(false);
         setAddThoughtAgentRuns(
@@ -638,7 +643,6 @@ function AnnotationDiscussionShell({
       setSendError(assistantRuntimeErrorMessage(error, 'discussion.addThought.failed'));
     } finally {
       setSubmittingThought(false);
-      setStatusMessage('');
     }
   }
 
@@ -676,7 +680,6 @@ function AnnotationDiscussionShell({
       }
     } finally {
       setSubmittingThought(false);
-      setStatusMessage('');
     }
   }
 
@@ -689,29 +692,14 @@ function AnnotationDiscussionShell({
   ) {
     const results = await Promise.all(
       tasks.map(async (task) => {
-        const latestAnnotation =
-          annotationsRef.current.find((item) => item.id === annotation.id) || annotation;
         try {
-          await requestAgentThought(
-            task.agent,
-            latestAnnotation,
-            task.instruction,
-            task.readingIntent,
-            {
-              onComplete: () => {
-                updateAddThoughtAgentRun(task.agent.id, {
-                  errorMessage: undefined,
-                  status: 'done',
-                });
-                playAppSoundEffect('discussion.assistant_thought_done', settings);
-              },
-              onError: () => updateAddThoughtAgentRun(task.agent.id, { status: 'failed' }),
-              onProgress: (progress) =>
-                updateAddThoughtAgentRun(task.agent.id, (current) => ({
-                  progress: applyAssistantRuntimeProgress(current.progress, progress),
-                })),
-            },
-          );
+          const event = await requestAgentThought(task.agent, task.instruction, task.readingIntent);
+          updateAddThoughtAgentRun(task.agent.id, { errorMessage: undefined, status: 'done' });
+          playAppSoundEffect('discussion.assistant_thought_done', settings);
+          if (event.commentId) {
+            awaitedThoughtIdRef.current = event.commentId;
+            setSelectedThoughtId(event.commentId);
+          }
           return true;
         } catch (error) {
           updateAddThoughtAgentRun(task.agent.id, {
@@ -756,53 +744,49 @@ function AnnotationDiscussionShell({
     }
   }
 
+  function assistantRequest(
+    agent: PublicAgent,
+    channel: AssistantChannel,
+    triggerId: string,
+    options: Pick<
+      AssistantDeliveryRequest,
+      'allowDisabledAgentForRule' | 'instruction' | 'readingIntent'
+    > = {},
+  ): AssistantDeliveryRequest {
+    return { articleId: article.id, channel, agentId: agent.id, triggerId, ...options };
+  }
+
   async function requestAgentReply(
     agent: PublicAgent,
-    annotationValue: Annotation,
-    userComment: Comment,
-    instruction?: string,
-    options: { allowDisabledAgentForRule?: boolean } = {},
+    channel: AssistantChannel,
+    triggerId: string,
+    options: Pick<AssistantDeliveryRequest, 'allowDisabledAgentForRule' | 'instruction'> = {},
   ) {
-    await runSourceAgentCommentRequest({
-      agent,
-      annotation: annotationValue,
-      userComment,
-      instruction,
-      allowDisabledAgentForRule: options.allowDisabledAgentForRule,
-      desktop: getDesktopApi().agent,
-      currentArticle: articleRef.current,
-      articleText: discussionArticleText(articleRef.current),
-      uiLanguage,
-      annotationsRef,
-      applyAnnotations,
-      saveComment,
-      setStatusMessage,
+    const delivery = await deliverAssistantMessage(
+      assistantRequest(agent, channel, triggerId, options),
+    );
+    void delivery?.settled.then((event) => {
+      if (event.status !== 'failed') return;
+      console.warn('[annotation-discussion] assistant reply failed', event);
+      setSendError(t('discussion.replyFailed'));
     });
   }
 
   async function requestAgentThought(
     agent: PublicAgent,
-    annotationValue: Annotation,
     instruction: string,
     readingIntent?: Comment['readingIntent'],
-    lifecycle?: RunSourceAgentThoughtLifecycle,
   ) {
-    await runSourceAgentThoughtRequest({
-      agent,
-      annotation: annotationValue,
-      instruction,
-      readingIntent,
-      uiLanguage,
-      desktop: annotationWindowActions,
-      currentArticle: articleRef.current,
-      articleText: discussionArticleText(articleRef.current),
-      annotationsRef,
-      applyAnnotations,
-      saveComment,
-      setStatusMessage,
-      onThoughtStart: setSelectedThoughtId,
-      lifecycle,
-    });
+    const delivery = await deliverAssistantMessage(
+      assistantRequest(agent, { kind: 'annotation', annotationId: annotation.id }, makeId('ask'), {
+        instruction,
+        readingIntent,
+      }),
+    );
+    const event = await delivery?.settled;
+    if (event?.status === 'done') return event;
+    console.warn('[annotation-discussion] assistant thought failed', event);
+    throw new Error(t('discussion.addThought.assistantFailed'));
   }
 
   function updateAddThoughtAgentRun(
@@ -965,9 +949,6 @@ function AnnotationDiscussionShell({
           </header>
           {selectedThread ? (
             <DiscussionThreadView
-              activeReplyAgents={replyAgentRuns.filter(
-                (run) => run.rootId === selectedThread.root.id,
-              )}
               deletingCommentId={deletingCommentId}
               layoutMode={layoutMode}
               thread={selectedThread}
@@ -982,7 +963,6 @@ function AnnotationDiscussionShell({
               personaAgents={personaAgents}
               sendingReply={sendingReply}
               sendError={sendError}
-              statusMessage={statusMessage}
             />
           ) : (
             <div className="annotation-discussion-thread-placeholder">
