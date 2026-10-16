@@ -281,3 +281,16 @@ export type ReadingTaskContext =
   | SelectionThreadContext
   | ChapterRouteContext
   | SegmentAnnotationContext;
+
+export type ArticleTextSection = {
+  id: string;
+  title: string;
+  depth?: number;
+  start: number;
+  end: number;
+};
+
+export type ArticleTextSnapshot = {
+  text: string;
+  sections: ArticleTextSection[];
+};

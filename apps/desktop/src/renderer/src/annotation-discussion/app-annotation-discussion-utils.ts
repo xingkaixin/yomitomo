@@ -7,6 +7,7 @@ import type {
 } from '@yomitomo/shared';
 import { formatDateTimeValue, relativeTimeParts } from '@yomitomo/shared';
 import {
+  annotationAgentAuthorRef,
   annotationAuthorName,
   annotationCommentThreads,
   findMentionedAgents,
@@ -15,6 +16,7 @@ import {
 import { mentionDraftWithAgent } from '@yomitomo/reader-ui/reader-mention-utils';
 import i18next from 'i18next';
 import { articlePlainText } from '../shell/app-article-presentation';
+import type { AssistantRunView } from '../shell/app-assistant-runs';
 
 export type DiscussionThread = {
   isPinned: boolean;
@@ -197,4 +199,30 @@ function htmlText(value: string) {
   const container = document.createElement('div');
   container.innerHTML = value;
   return container.textContent?.replace(/\s+/g, ' ').trim() || '';
+}
+
+export function annotationWithAssistantRuns(
+  annotation: Annotation,
+  runs: AssistantRunView[],
+  agents: PublicAgent[],
+): Annotation {
+  const commentIds = new Set(annotation.comments.map((comment) => comment.id));
+  const placeholders = runs.flatMap((run): Comment[] => {
+    const agent = agents.find((item) => item.id === run.agentId);
+    if (!agent || (run.commentId && commentIds.has(run.commentId))) return [];
+    return [
+      {
+        id: `assistant-run:${run.runKey}`,
+        author: annotationAgentAuthorRef(agent),
+        content: run.text,
+        createdAt: run.startedAt,
+        pending: true,
+        ...(run.steps?.length ? { assistantProgress: { steps: run.steps } } : {}),
+        ...(run.channel.kind === 'thread' ? { replyTo: run.channel.threadId } : {}),
+      },
+    ];
+  });
+  return placeholders.length > 0
+    ? { ...annotation, comments: [...annotation.comments, ...placeholders] }
+    : annotation;
 }

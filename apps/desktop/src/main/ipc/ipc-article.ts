@@ -6,6 +6,7 @@ import {
   createArticleTranslationRuntime,
   type ArticleTranslationRuntimeContext,
 } from '../articles/article-translation-runtime';
+import { removeArticleAssistantSession } from '../assistant-sessions/assistant-session-lifecycle';
 import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
 import { sendDesktopIpcRendererEvent } from './ipc-events';
@@ -273,6 +274,9 @@ export function registerArticleIpc(context: ArticleIpcContext) {
     context.sendArticlePatched(event, { type: 'article-delete', ...patch });
     const { completeArticleSourceCleanup } = await import('../articles/article-source-cleanup');
     void completeArticleSourceCleanup(id);
+    void removeArticleAssistantSession(id).catch((error: unknown) =>
+      context.logError('assistant_session.delete_failed', error, { articleId: id }),
+    );
     return patch;
   });
 }

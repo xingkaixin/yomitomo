@@ -1,11 +1,4 @@
-import type {
-  Agent,
-  AgentMessagePayload,
-  ResolvedAppSettings,
-  AssistantExecutionMode,
-  LlmProvider,
-  UiLanguage,
-} from '@yomitomo/shared';
+import type { Agent, ResolvedAppSettings, LlmProvider, UiLanguage } from '@yomitomo/shared';
 import { resolveAgentPublicIdentity } from '@yomitomo/shared';
 import { DesktopIpcError, desktopIpcErrorCodes } from '../../ipc-errors';
 import { ProviderApiKeyRequiredError } from '../providers/provider-repository';
@@ -120,23 +113,6 @@ export function findReviewAgent(agents: Agent[], agentId: string | undefined, us
 
 export function providerTaskForAgent(agent: Agent): ProviderTask {
   return agent.kind === 'review' ? 'reviewAssistant' : 'readingAssistant';
-}
-
-export function agentMessageRuntimeTaskType(payload: AgentMessagePayload) {
-  if (payload.responseMode === 'create_thought') return 'create_thought';
-  if (payload.responseMode === 'distillation_review') return 'distillation_review';
-  return 'thread_reply';
-}
-
-export type AgentRuntimeTaskType = ReturnType<typeof agentMessageRuntimeTaskType>;
-
-export function selectAgentRuntime<TaskType extends AgentRuntimeTaskType>(input: {
-  requestedMode: AssistantExecutionMode;
-  taskType: AgentRuntimeTaskType;
-  supportedTaskTypes: readonly TaskType[];
-}) {
-  if (input.requestedMode !== 'deep_verification') return null;
-  return input.supportedTaskTypes.find((taskType) => taskType === input.taskType) || null;
 }
 
 export function publicCommentAgents(agents: Agent[], uiLanguage: UiLanguage) {

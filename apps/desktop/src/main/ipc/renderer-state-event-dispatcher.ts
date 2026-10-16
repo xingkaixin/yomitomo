@@ -9,7 +9,11 @@ import type { RendererRoleRegistry, RendererRoleTarget } from './renderer-role-r
 
 type RendererStateEventChannel = Extract<
   DesktopIpcToRendererEventChannel,
-  'article:patched' | 'collection:patched' | 'library-pin:patched' | 'store:updated'
+  | 'article:patched'
+  | 'assistant:run'
+  | 'collection:patched'
+  | 'library-pin:patched'
+  | 'store:updated'
 >;
 
 export type RendererStateEventTargetRole = RendererRole;
@@ -23,6 +27,10 @@ type RendererStateEventPolicy = {
 const eventPolicies: Record<RendererStateEventChannel, RendererStateEventPolicy> = {
   'article:patched': {
     senderDelivery: 'exclude',
+    targetRoles: ['main', 'annotation'],
+  },
+  'assistant:run': {
+    senderDelivery: 'include',
     targetRoles: ['main', 'annotation'],
   },
   'collection:patched': {

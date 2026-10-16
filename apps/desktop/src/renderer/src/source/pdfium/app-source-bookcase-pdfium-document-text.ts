@@ -190,14 +190,6 @@ export function usePdfiumDocumentText({
     [],
   );
 
-  const currentArticleText = useCallback(async () => {
-    const existingTextDocument = pdfTextDocumentRef.current;
-    if (existingTextDocument) return existingTextDocument.text;
-    if (!document) return '';
-    const textDocument = await ensurePdfTextDocument();
-    return textDocument.text;
-  }, [document, ensurePdfTextDocument]);
-
   const resetPdfiumTextDocument = useCallback(() => {
     textExtractionGenerationRef.current += 1;
     pageTextCacheRef.current = new Map();
@@ -250,7 +242,6 @@ export function usePdfiumDocumentText({
 
   return {
     cachedPdfiumPageText,
-    currentArticleText,
     ensurePdfTextDocument,
     extractPdfiumPageText,
     markPdfiumFirstPageReady,

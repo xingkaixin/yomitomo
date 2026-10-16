@@ -7,6 +7,7 @@ import type {
   ArticleStatsRecord,
   ArticleTranslation,
   ArticleUpsertPatch,
+  AssistantRunEvent,
   CollectionStorePatch,
   CollectionWithMembers,
   Comment,
@@ -131,7 +132,7 @@ export const annotationWindowIpcInvokeDescriptors = {
     AnnotationDiscussionWindowOpenResult
   >()({
     route: ['annotations', 'discussion', 'open'],
-    roles: mainOnly,
+    roles: annotationAndMain,
     validation: 'schema',
   }),
   'annotation-discussion:close-article': desktopIpcInvoke<
@@ -430,6 +431,52 @@ export const articleIpcInvokeDescriptors = {
     route: ['article', 'text', 'commitImport'],
     roles: mainOnly,
     validation: 'schema',
+  }),
+} as const;
+
+export const assistantIpcInvokeDescriptors = {
+  'assistant:save-article-text': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'assistant:save-article-text'>,
+    void
+  >()({
+    route: ['assistant', 'saveArticleText'],
+    roles: mainOnly,
+    validation: 'schema',
+    databaseIndependent: true,
+  }),
+  'assistant:has-article-text': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'assistant:has-article-text'>,
+    boolean
+  >()({
+    route: ['assistant', 'hasArticleText'],
+    roles: mainOnly,
+    validation: 'schema',
+    databaseIndependent: true,
+  }),
+  'assistant:deliver': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'assistant:deliver'>,
+    { runKey: string | null }
+  >()({
+    route: ['assistant', 'deliver'],
+    roles: annotationAndMain,
+    validation: 'schema',
+  }),
+  'assistant:runs': desktopIpcInvoke<DesktopIpcSchemaArgs<'assistant:runs'>, AssistantRunEvent[]>()(
+    {
+      route: ['assistant', 'runs'],
+      roles: annotationAndMain,
+      validation: 'schema',
+      databaseIndependent: true,
+    },
+  ),
+  'assistant:reveal-passage': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'assistant:reveal-passage'>,
+    void
+  >()({
+    route: ['assistant', 'revealPassage'],
+    roles: annotationAndMain,
+    validation: 'schema',
+    databaseIndependent: true,
   }),
 } as const;
 

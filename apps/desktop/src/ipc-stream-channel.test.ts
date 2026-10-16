@@ -6,7 +6,9 @@ describe('desktopIpcStreamResponseChannel', () => {
   it.each(['', 'request:other-channel', 'request/path', 'r'.repeat(129)])(
     'rejects unsafe request id %s',
     (requestId) => {
-      expect(() => desktopIpcStreamResponseChannel('agent:comment:stream', requestId)).toThrowError(
+      expect(() =>
+        desktopIpcStreamResponseChannel('agent:distillation-review:stream', requestId),
+      ).toThrowError(
         expect.objectContaining({
           code: desktopIpcErrorCodes.invalidArgs,
         }),

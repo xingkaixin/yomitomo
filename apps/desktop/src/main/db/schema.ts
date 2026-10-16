@@ -22,6 +22,8 @@ export const userProfiles = sqliteTable('user_profiles', {
   updatedAt: text('updated_at').notNull(),
 });
 
+// assistant_execution_mode stays in SQLite so released readers at level 4 can still open the
+// database; drop it with the next reader-level bump.
 export const appSettings = sqliteTable('app_settings', {
   id: text('id').primaryKey(),
   uiLanguage: text('ui_language').notNull().default('zh-CN'),
@@ -47,7 +49,6 @@ export const appSettings = sqliteTable('app_settings', {
   bilingualTranslationAiContextAware: integer('bilingual_translation_ai_context_aware', {
     mode: 'boolean',
   }),
-  assistantExecutionMode: text('assistant_execution_mode').notNull().default('fast_response'),
   messageSendShortcut: text('message_send_shortcut').notNull().default('enter'),
   selectionActionShortcuts: text('selection_action_shortcuts', { mode: 'json' }),
   saveArticleImages: integer('save_article_images', { mode: 'boolean' }).notNull().default(false),

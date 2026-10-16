@@ -27,7 +27,7 @@ export function AssistantRuntimeProgressList({
   if (!progress || (progress.steps.length === 0 && !progress.fallbackMessage)) return null;
 
   return (
-    <div className="assistant-runtime-progress" aria-label={t('assistantProgress.deepSteps')}>
+    <div className="assistant-runtime-progress" aria-label={t('assistantProgress.processSteps')}>
       {progress.steps.length > 0 ? (
         <ol>
           {progress.steps.map((step) => (
@@ -95,8 +95,12 @@ function assistantRuntimeStepLabel(
   fallback: string,
   t: ReturnType<typeof useTranslation>['t'],
 ) {
-  const label = t(`assistantProgress.steps.${stepId}`, { defaultValue: '' });
-  return label || fallback;
+  // Tool steps carry the call id as id and the tool name as label.
+  return (
+    t(`assistantProgress.steps.${stepId}`, { defaultValue: '' }) ||
+    t(`assistantProgress.steps.${fallback}`, { defaultValue: '' }) ||
+    fallback
+  );
 }
 
 function assistantRuntimeFallbackMessage(

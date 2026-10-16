@@ -2,9 +2,10 @@ import { ipcRenderer } from 'electron';
 import type {
   AgentAnnotatePayload,
   AgentDistillationReviewPayload,
-  AgentMessagePayload,
   ArticleStorePatch,
   ArticleTranslation,
+  AssistantPassageRevealRequest,
+  AssistantRunEvent,
   CollectionStorePatch,
   DesktopStore,
   LibraryPinPatch,
@@ -108,6 +109,13 @@ export function createYomitomoDesktopApi(input: DesktopPreloadApiInput) {
           onDesktopIpcRendererEvent('library-pin:patched', callback),
       },
     },
+    assistant: {
+      ...invokeApi.assistant,
+      onRun: (callback: (event: AssistantRunEvent) => void) =>
+        onDesktopIpcRendererEvent('assistant:run', callback),
+      onRevealPassage: (callback: (request: AssistantPassageRevealRequest) => void) =>
+        onDesktopIpcRendererEvent('assistant:reveal-passage', callback),
+    },
     weRead: {
       ...invokeApi.weRead,
       onStateUpdated: (callback: (state: WeReadState) => void) =>
@@ -125,18 +133,6 @@ export function createYomitomoDesktopApi(input: DesktopPreloadApiInput) {
           payload,
           onEvent,
           (event) => event.message,
-          signal,
-        ),
-      requestCommentStream: (
-        payload: AgentMessagePayload,
-        onEvent: (event: DesktopIpcStreamProgressEvent<'agent:comment:stream'>) => void,
-        signal?: AbortSignal,
-      ) =>
-        desktopIpcStreamClient.request(
-          'agent:comment:stream',
-          payload,
-          onEvent,
-          (event) => event.comment,
           signal,
         ),
       requestAnnotationsStream: (

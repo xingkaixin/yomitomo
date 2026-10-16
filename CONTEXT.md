@@ -49,8 +49,9 @@ _Avoid_: Library Item Entity; parallel ref, type, and optional payload discrimin
 # Assistant Execution
 
 **Assistant Runtime Task**:
-One of the tool-loop workflows supported by the assistant runtime: thread reply, thought creation,
-distillation review, selection-first annotation, or co-reading section annotation.
+One of the workflows recorded by the retired tool-loop runtime: thread reply, thought creation,
+distillation review, selection-first annotation, or co-reading section annotation. New replies run
+in an Assistant Session instead.
 _Avoid_: Agent Runtime Trace Task
 
 **Assistant Execution Task**:
@@ -71,3 +72,26 @@ _Avoid_: encoding retention in Runtime Result
 **Assistant Execution Status**:
 Whether a persisted AI invocation succeeded, used a fallback path, or ended in error. It summarizes
 the whole invocation rather than the narrower tool-loop Runtime Result.
+
+# Assistant Sessions
+
+**Assistant Session**:
+The pi-durable conversation one agent keeps for one Article. It is a rebuildable cache next to the
+main database, not a source of truth, and it is not part of a full backup.
+_Avoid_: thread session; per-channel session
+
+**Channel**:
+A place where readers and agents exchange messages: an annotation thread, the top-level thoughts of
+an annotation, or one 问一问 session. Its messages live in the main database; agents only read
+deliveries and write replies back.
+_Avoid_: treating the Assistant Session as the channel's history
+
+**Delivery**:
+The channel messages an agent has not seen yet, appended to its Assistant Session together with the
+request to reply. Deleted messages arrive later as retraction notes instead of being removed.
+_Avoid_: resending the whole channel
+
+**Assistant Run**:
+One agent working on one or more deliveries in a fork of its Assistant Session. It ends with a reply
+written back to the channel or with a failure; closing a window does not stop it.
+_Avoid_: request; stream

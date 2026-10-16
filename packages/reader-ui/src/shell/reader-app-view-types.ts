@@ -204,6 +204,7 @@ export type ReaderUiLabels = {
   assistantParticipationSummary: (names: string[], processing: boolean) => string;
   assistantReadingActive: string;
   assistantReadingStatus: string;
+  assistantToolStep: (toolName: string) => string;
   backToLibrary: string;
   cancel: string;
   clearSearch: string;
@@ -283,6 +284,7 @@ export const defaultReaderUiLabels: ReaderUiLabels = {
   assistantCompleted: '已完成',
   assistantReadingActive: '正在共读',
   assistantReadingStatus: '助手共读状态',
+  assistantToolStep: (toolName) => toolName,
   assistantParticipationSummary: (names, processing) => {
     if (names.length === 0) return '暂无助手参与';
     const visibleNames = names.slice(0, 2).join('、');
@@ -393,6 +395,7 @@ export type ReaderChatActions = {
   onClearDraftContext?: () => void;
   onClose: () => void;
   onOpen: () => void;
+  onOpenReference?: (href: string) => boolean;
   onRevealContext?: (context: ReaderQuestionContext) => void | Promise<void>;
   onSelectAssistant?: (assistantId: string) => void;
   onSubmit: (content: string) => void | Promise<void>;

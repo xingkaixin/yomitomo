@@ -22,7 +22,7 @@ import { resolvePromptAgentIdentity } from '@yomitomo/shared';
 import { createYomitomoLanguageModel } from '../provider/ai-sdk-provider-adapter';
 import { budgetArticleText, formatBudgetNotice } from '../provider/budget';
 import { logAiInfo } from '../logger';
-import { generateYomitomoText, streamYomitomoText } from '../provider/generation-runtime';
+import { generateYomitomoText } from '../provider/generation-runtime';
 import {
   collectDistillationReviewItemsFromElementStream,
   collectDistillationReviewItemsFromJsonTextStream,
@@ -46,29 +46,12 @@ import {
   spoilerScopePrompt,
 } from './agent-runtime-prompts';
 import { readingMemoryViewContextBlocks } from '../context/reading-memory-view-context-blocks';
-import { finalResponseLanguageReminder, responseLanguageSystemPrompt } from './agent-language';
+import { responseLanguageSystemPrompt } from './agent-language';
 
 export type {
   AgentMessageReadingContextSnapshot,
   AgentMessageRunOptions,
 } from './agent-message-reading-context';
-
-export async function runAgentStream(
-  provider: LlmProvider,
-  agent: PromptAgent & { temperature: number },
-  payload: AgentMessagePayload,
-  onDelta: (delta: string) => void,
-  options: AgentMessageRunOptions = {},
-): Promise<void> {
-  const system = buildAgentMessageSystemPrompt(agent, payload);
-  const user = buildAgentPrompt(provider, payload, agent, options);
-  await streamYomitomoText(
-    provider,
-    { system, user, maxTokens: agentMessageMaxTokens(payload), temperature: agent.temperature },
-    onDelta,
-    options.signal,
-  );
-}
 
 export async function runAgentDistillationReviewStructuredStream(
   provider: LlmProvider,
@@ -151,77 +134,6 @@ export async function runAgent(
     content: text,
     createdAt: new Date().toISOString(),
     readingIntent: payload.readingIntent,
-  };
-}
-
-export function buildAgentThreadReplyRuntimePayload(
-  provider: LlmProvider,
-  agent: PromptAgent & { temperature: number },
-  payload: AgentMessagePayload,
-) {
-  const runtimePayload = {
-    ...payload,
-    responseMode: 'thread_reply' as const,
-    readingMemoryView: undefined,
-  };
-  return {
-    system: `${buildAgentMessageSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 回复批注 thread。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。完成工具探索后，最终直接输出将写入 thread 的回复正文，不要输出 JSON。`,
-    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\nthread 回复要求：\n- 先理解当前批注 thread 的原始想法：谁写的、想法内容是什么、它和原文锚点是什么关系。\n- 如果读者只是 @ 你，默认是在邀请你评论或接续这条原始想法，而不是只和读者单独聊天。\n- 回复应当自然带入原始想法作者的观点：可以补充、回应、赞同、追问或挑战，但不要让原始想法作者在语义上消失。\n- 如果原始想法来自其他助手，必要时用对方昵称或 @ 指代其观点。\n- 没有工具证据时不要编造历史断言。\n\n最终输出要求：直接输出回复正文，不要输出 JSON、字段名、证据列表或解释性包装。${finalResponseLanguageReminder(payload.uiLanguage)}`,
-    maxTokens: 1200,
-    temperature: agent.temperature,
-  };
-}
-
-export function buildAgentCreateThoughtRuntimePayload(
-  provider: LlmProvider,
-  agent: PromptAgent & { temperature: number },
-  payload: AgentMessagePayload,
-) {
-  const runtimePayload = {
-    ...payload,
-    responseMode: 'create_thought' as const,
-    readingMemoryView: undefined,
-  };
-  return {
-    system: `${buildAgentMessageSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 为当前批注添加顶层助手想法。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。完成工具探索后，最终直接输出将写入当前批注的顶层助手想法，不要输出 JSON。`,
-    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\n新增想法要求：\n- 先理解当前高亮、已有想法和讨论，避免重复已有观点。\n- 可以查证原文上下文、当前 thread 和阅读记忆。\n- 你的输出会作为当前批注下的新顶层想法，不是回复某一条评论。\n- 没有工具证据时不要编造历史断言。\n\n最终输出要求：直接输出顶层助手想法正文，不要输出 JSON、字段名、证据列表或解释性包装。${finalResponseLanguageReminder(payload.uiLanguage)}`,
-    maxTokens: 1200,
-    temperature: agent.temperature,
-  };
-}
-
-export function buildAgentDistillationReviewRuntimePayload(
-  provider: LlmProvider,
-  agent: PromptAgent & { temperature: number },
-  payload: AgentMessagePayload,
-) {
-  const runtimePayload = {
-    ...payload,
-    responseMode: 'distillation_review' as const,
-    readingMemoryView: undefined,
-  };
-  const isOrganizeDiscussion = payload.distillationReviewMode === 'organize_discussion';
-  const proposalRequirement = isOrganizeDiscussion
-    ? 'proposals 只能包含 insert，用 content 放可直接追加到沉淀稿的新增文本；不要生成 replace 或 delete。'
-    : 'proposals 可以为空，也可以包含 insert、replace、delete；replace/delete 必须带当前草稿中明确存在的 targetText。';
-  const taskRequirement = isOrganizeDiscussion
-    ? `讨论整理要求：
-- 先核对当前高亮、已有想法和讨论，再整理可新增到沉淀稿的内容。
-- 当前草稿只用于避免重复，不要评价现有草稿质量。
-- 当前草稿为空时，不要写“草稿已经”“草稿抓住”“草稿遗漏”“整体可靠”等评价现有草稿的话。
-- 只输出可新增的方向、判断或补充，不修改、不删除、不发布沉淀稿。
-- 没有工具证据时不要编造历史断言。`
-    : `沉淀审阅要求：
-- 先核对当前高亮、已有想法和讨论，再判断沉淀稿是否站得住。
-- 可以查证原文上下文、当前 thread 和阅读记忆。
-- 只输出审阅意见、质疑、补充或可带走的判断框架，不直接发布或覆盖沉淀稿。
-- 没有工具证据时不要编造历史断言。`;
-  return {
-    system: `${buildAgentMessageSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 审阅当前批注的沉淀稿。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。完成工具探索后，按运行时要求输出结构化审阅 item。`,
-    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\n${taskRequirement}\n\n最终输出要求：按运行时要求输出结构化审阅 item。proposal 只允许 insert、replace、delete。insert 必须带 content；replace 必须带 targetText 和 replacementText；delete 必须带 targetText。没有可靠建议时不要输出 proposal。删除和替换必须能在当前草稿中找到明确目标，不要无依据删除用户观点。${proposalRequirement}${finalResponseLanguageReminder(payload.uiLanguage)}`,
-    maxTokens: 1200,
-    temperature: agent.temperature,
-    distillationReviewMode: payload.distillationReviewMode,
   };
 }
 

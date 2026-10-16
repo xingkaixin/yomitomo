@@ -10,6 +10,7 @@ import {
   type AgentReviewPayload,
   type Annotation,
   type AppSettingsPatch,
+  type AssistantDeliveryRequest,
   type Comment,
   type LlmProvider,
   type ReaderChatState,
@@ -338,7 +339,6 @@ const settingsSchema = checkedSchema<AppSettingsPatch>(
       .enum(['blur', 'blockquote', 'weakened', 'dashedLine', 'border'])
       .optional(),
     bilingualTranslationAiContextAware: z.boolean().optional(),
-    assistantExecutionMode: z.enum(assistantExecutionModes).optional(),
     messageSendShortcut: z.enum(['enter', 'mod-enter']).optional(),
     selectionActionShortcuts: z
       .object({
@@ -421,6 +421,7 @@ const readerChatStateShapeSchema = z.object({
               role: z.enum(['user', 'assistant']),
               content: boundedStringSchema,
               assistantId: idSchema.optional(),
+              assistantProgress: assistantProgressShapeSchema.optional(),
               context: z.record(z.string(), z.unknown()).optional(),
               createdAt: timestampSchema,
             }),
@@ -469,6 +470,60 @@ export const agentDomainIpcInvokeSchemas = {
   'assistant-executions:list': z.tuple([assistantExecutionQuerySchema]),
   'assistant-executions:detail': z.tuple([idSchema]),
   'assistant-executions:summary': z.tuple([assistantExecutionQuerySchema]),
+};
+
+const articleTextSnapshotSchema = z.object({
+  text: z.string().max(50_000_000),
+  sections: z
+    .array(
+      z.object({
+        id: idSchema,
+        title: z.string().max(2_000),
+        depth: nonnegativeIntegerSchema.max(32).optional(),
+        start: nonnegativeIntegerSchema,
+        end: nonnegativeIntegerSchema,
+      }),
+    )
+    .max(100_000),
+});
+
+const assistantChannelSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('thread'), annotationId: idSchema, threadId: idSchema }),
+  z.object({ kind: z.literal('annotation'), annotationId: idSchema }),
+  z.object({ kind: z.literal('chat'), sessionId: idSchema }),
+]);
+
+export const assistantDomainIpcInvokeSchemas = {
+  'assistant:save-article-text': z.tuple([
+    z.object({ articleId: idSchema, snapshot: articleTextSnapshotSchema }),
+  ]),
+  'assistant:has-article-text': z.tuple([idSchema]),
+  'assistant:deliver': z.tuple([
+    checkedSchema<AssistantDeliveryRequest>(
+      z.object({
+        articleId: idSchema,
+        channel: assistantChannelSchema,
+        agentId: idSchema,
+        triggerId: idSchema,
+        instruction: z.string().max(8_192).optional(),
+        readingIntent: z
+          .enum(['explain', 'decompose', 'challenge', 'question', 'connect'])
+          .optional(),
+        reviewTargetCommentId: idSchema.optional(),
+        allowDisabledAgentForRule: z.boolean().optional(),
+      }),
+    ),
+  ]),
+  'assistant:runs': z.tuple([idSchema]),
+  'assistant:reveal-passage': z.tuple([
+    z
+      .object({
+        articleId: idSchema,
+        start: nonnegativeIntegerSchema,
+        end: nonnegativeIntegerSchema,
+      })
+      .refine((input) => input.end > input.start),
+  ]),
 };
 
 export const annotationWindowDomainIpcInvokeSchemas = {

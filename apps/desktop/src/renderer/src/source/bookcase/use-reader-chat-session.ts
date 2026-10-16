@@ -1,27 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type {
-  AgentMessagePayload,
-  Annotation,
   ArticleRecord,
-  Comment,
   PublicAgent,
   ReaderChatMessage,
   ReaderChatState,
   ReaderQuestionContext,
-  UiLanguage,
 } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
 import i18next from 'i18next';
-import { promptArticle } from './source-prompt-article';
-import { readerChatHistoryComments } from './reader-chat-history';
 import { assistantRuntimeErrorMessage } from '../../shell/app-assistant-runtime-progress';
-import { getDesktopApi } from '../../shell/app-desktop-api';
+import {
+  type AssistantRunView,
+  assistantRunScope,
+  deliverAssistantMessage,
+  useAssistantRuns,
+} from '../../shell/app-assistant-runs';
 
 type UseReaderChatSessionInput = {
   agents: PublicAgent[];
   article: ArticleRecord;
-  getArticleText: () => string | Promise<string>;
-  uiLanguage?: UiLanguage;
   onSaveArticleReaderChatState?: (
     articleId: string,
     readerChatState?: ReaderChatState,
@@ -52,33 +49,42 @@ function updateActiveSession(
 export function useReaderChatSession({
   agents,
   article,
-  getArticleText,
-  uiLanguage,
   onSaveArticleReaderChatState,
 }: UseReaderChatSessionInput) {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<ReaderChatState | undefined>(() => article.readerChatState);
   const [draftContext, setDraftContext] = useState<ReaderQuestionContext | undefined>();
-  const [sending, setSending] = useState(false);
+  const [submittingArticleId, setSubmittingArticleId] = useState<string>();
   const [error, setError] = useState('');
   const articleChatRef = useRef<ArticleChatState>({ articleId: article.id, state });
-  const requestChatRef = useRef<ArticleChatState | undefined>(undefined);
+  const submittingRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
-    const requestChat = requestChatRef.current;
-    if (requestChat?.articleId === article.id) {
-      if (articleChatRef.current === requestChat) return;
-      articleChatRef.current = requestChat;
-    } else {
-      articleChatRef.current = { articleId: article.id, state: article.readerChatState };
-    }
-    setState(articleChatRef.current.state);
-    setError('');
+    articleChatRef.current = { articleId: article.id, state: article.readerChatState };
+    setState(article.readerChatState);
   }, [article.id, article.readerChatState]);
 
   useEffect(() => {
     setDraftContext(undefined);
+    setError('');
   }, [article.id]);
+
+  const activeSessionId = state?.activeSessionId;
+  const { runs, settle } = useAssistantRuns(
+    article.id,
+    activeSessionId ? assistantRunScope({ kind: 'chat', sessionId: activeSessionId }) : '',
+  );
+
+  useEffect(() => {
+    const session = state?.sessions.find((item) => item.id === state.activeSessionId);
+    const ids = new Set(session?.messages.map((message) => message.id));
+    for (const run of runs) if (run.commentId && ids.has(run.commentId)) settle(run.runKey);
+  }, [runs, settle, state]);
+
+  const viewState = useMemo(() => stateWithAssistantRuns(state, runs), [runs, state]);
+  // The assistant reply is appended by the main process, so a new question waits for it to
+  // land instead of rewriting the chat state underneath the run.
+  const sending = submittingArticleId === article.id || runs.length > 0;
 
   const selectedAssistantId = useMemo(
     () => state?.selectedAssistantId || agents[0]?.id,
@@ -128,89 +134,47 @@ export function useReaderChatSession({
   async function submit(content: string) {
     const question = content.trim();
     const assistant = agents.find((agent) => agent.id === selectedAssistantId) || agents[0];
-    if (!question || !assistant || requestChatRef.current) return;
+    if (!question || !assistant || sending || submittingRef.current) return;
 
     const chat = articleChatRef.current;
-    const context = draftContext;
     const userMessage: ReaderChatMessage = {
       id: makeId('reader_chat_message'),
       role: 'user',
       content: question,
-      context,
+      context: draftContext,
       createdAt: new Date().toISOString(),
     };
-    const assistantMessage: ReaderChatMessage = {
-      id: makeId('reader_chat_message'),
-      role: 'assistant',
-      content: '',
-      assistantId: assistant.id,
-      createdAt: new Date().toISOString(),
-    };
-
-    setDraftContext(undefined);
-    requestChatRef.current = chat;
-    setSending(true);
-    setError('');
-
-    const pendingState = updateActiveSession(ensureState(chat, assistant.id), (messages) => [
+    const previousState = chat.state;
+    const nextState = updateActiveSession(ensureState(chat, assistant.id), (messages) => [
       ...messages,
       userMessage,
-      assistantMessage,
     ]);
-    const previousState = chat.state;
-    replaceState(chat, pendingState);
 
+    setDraftContext(undefined);
+    setError('');
+    submittingRef.current = chat.articleId;
+    setSubmittingArticleId(chat.articleId);
+    const showError = (message: string) => {
+      if (articleChatRef.current.articleId === chat.articleId) setError(message);
+    };
     try {
-      const articleText = await getArticleText();
-      if (!(await persistState(chat, chat.state || pendingState, previousState))) return;
-      const finalComment = await getDesktopApi().agent.requestCommentStream(
-        readerChatPayload({
-          agent: assistant,
-          article,
-          articleText,
-          context,
-          question,
-          uiLanguage,
-          userMessageId: userMessage.id,
-          history: readerChatHistoryComments(previousState, agents),
-        }),
-        (event) => {
-          if (event.type !== 'start' && event.type !== 'delta') return;
-          const nextState = updateActiveSession(chat.state || pendingState, (messages) =>
-            messages.map((message) =>
-              message.id === assistantMessage.id
-                ? {
-                    ...message,
-                    content: event.type === 'start' ? '' : `${message.content}${event.delta}`,
-                  }
-                : message,
-            ),
-          );
-          replaceState(chat, nextState);
-        },
-      );
-      const completedState = updateActiveSession(chat.state || pendingState, (messages) =>
-        messages.map((message) =>
-          message.id === assistantMessage.id
-            ? { ...message, content: finalComment.content || message.content }
-            : message,
-        ),
-      );
-      await persistState(chat, completedState, pendingState);
+      if (!(await persistState(chat, nextState, previousState))) return;
+      const delivery = await deliverAssistantMessage({
+        articleId: chat.articleId,
+        channel: { kind: 'chat', sessionId: nextState.activeSessionId },
+        agentId: assistant.id,
+        triggerId: userMessage.id,
+      });
+      const settled = await delivery?.settled;
+      if (settled?.status !== 'done' || !settled.commentId) {
+        console.warn('[reader-chat] assistant run failed', settled?.error ?? 'not_started');
+        showError(i18next.t('source.readerChatFailed'));
+      }
     } catch (requestError) {
-      const message = assistantRuntimeErrorMessage(requestError, 'source.readerChatFailed');
-      if (articleChatRef.current === chat) setError(message);
-      const failedState = updateActiveSession(chat.state || pendingState, (messages) =>
-        messages.map((item) =>
-          item.id === assistantMessage.id
-            ? { ...item, content: i18next.t('source.requestFailedWithMessage', { message }) }
-            : item,
-        ),
-      );
-      await persistState(chat, failedState, pendingState);
+      showError(assistantRuntimeErrorMessage(requestError, 'source.readerChatFailed'));
     } finally {
-      requestChatRef.current = undefined;
-      setSending(false);
+      submittingRef.current = undefined;
+      setSubmittingArticleId((current) => (current === chat.articleId ? undefined : current));
     }
   }
 
@@ -229,8 +193,36 @@ export function useReaderChatSession({
       open,
       selectedAssistantId,
       sending,
-      state,
+      state: viewState,
     },
+  };
+}
+
+function stateWithAssistantRuns(
+  state: ReaderChatState | undefined,
+  runs: AssistantRunView[],
+): ReaderChatState | undefined {
+  if (!state || runs.length === 0) return state;
+  const session = state.sessions.find((item) => item.id === state.activeSessionId);
+  const saved = new Set(session?.messages.map((message) => message.id));
+  const pending = runs
+    .filter((run) => !run.commentId || !saved.has(run.commentId))
+    .map((run): ReaderChatMessage => ({
+      id: `assistant-run:${run.runKey}`,
+      role: 'assistant',
+      content: run.text,
+      assistantId: run.agentId,
+      assistantProgress: run.steps?.length ? { steps: run.steps } : undefined,
+      createdAt: run.startedAt,
+    }));
+  if (pending.length === 0) return state;
+  return {
+    ...state,
+    sessions: state.sessions.map((item) =>
+      item.id === state.activeSessionId
+        ? { ...item, messages: [...item.messages, ...pending] }
+        : item,
+    ),
   };
 }
 
@@ -255,60 +247,5 @@ function ensureState(chat: ArticleChatState, assistantId: string) {
     ],
     createdAt: now,
     updatedAt: now,
-  };
-}
-
-function readerChatPayload({
-  agent,
-  article,
-  articleText,
-  context,
-  question,
-  uiLanguage,
-  userMessageId,
-  history,
-}: {
-  agent: PublicAgent;
-  article: ArticleRecord;
-  articleText: string;
-  context?: ReaderQuestionContext;
-  question: string;
-  uiLanguage?: UiLanguage;
-  userMessageId: string;
-  history: Comment[];
-}): AgentMessagePayload {
-  const anchor = context?.anchor || {
-    exact: article.title || i18next.t('source.currentArticle'),
-    prefix: '',
-    suffix: '',
-    start: 0,
-    end: Math.max(1, Math.min(articleText.length, article.title.length || 1)),
-  };
-  const userComment: Comment = {
-    id: userMessageId,
-    author: { kind: 'user', username: 'reader' },
-    content: question,
-    createdAt: new Date().toISOString(),
-  };
-  const annotation: Annotation = {
-    id: makeId('reader_chat_anchor'),
-    anchor,
-    author: { kind: 'user', username: 'reader' },
-    color: '#d7b35a',
-    comments: [...history, userComment],
-    createdAt: userComment.createdAt,
-    updatedAt: userComment.createdAt,
-  };
-
-  return {
-    agentId: agent.id,
-    agentUsername: agent.username,
-    uiLanguage,
-    article: promptArticle(article, articleText),
-    annotation,
-    instruction: context
-      ? i18next.t('source.readerChatSelectionInstruction')
-      : i18next.t('source.readerChatArticleInstruction'),
-    userComment,
   };
 }

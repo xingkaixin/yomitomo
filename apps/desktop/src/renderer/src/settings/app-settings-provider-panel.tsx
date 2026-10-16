@@ -37,7 +37,6 @@ import {
 import { useTranslation } from 'react-i18next';
 import { providerDisplayName, providerPresetDisplayName } from '../i18n/app-i18n-labels';
 import type { SaveableDraft } from './use-saveable-draft';
-import { AssistantExecutionModeSlider } from './app-settings-execution-mode-slider';
 import { ReadingMemoryModelSettings } from './reading-memory-model-settings';
 import { readingMemoryEnabled } from '../../../reading-memory-release';
 
@@ -604,7 +603,6 @@ function TaskProviderRoutes({
   const [showTaskRoutes, setShowTaskRoutes] = useState(() =>
     taskRouteOptions.some((option) => Boolean(settingsDraft[option.key])),
   );
-  const executionMode = settingsDraft.assistantExecutionMode || 'fast_response';
 
   function updateRoute(key: (typeof taskRouteOptions)[number]['key'], providerId: string) {
     const nextDraft = { ...settingsDraft, [key]: providerId || undefined };
@@ -644,20 +642,6 @@ function TaskProviderRoutes({
             onChange={updateRoute}
           />
         ))}
-        <SettingsRow
-          leading={<HugeiconsIcon icon={FlashIcon} size={18} />}
-          title={t('settings.models.executionModeTitle')}
-          description={t('settings.models.executionModeDescription')}
-        >
-          <AssistantExecutionModeSlider
-            value={executionMode}
-            onChange={(value) => {
-              const nextDraft = { ...settingsDraft, assistantExecutionMode: value };
-              onChange(nextDraft);
-              onSave(nextDraft);
-            }}
-          />
-        </SettingsRow>
       </div>
     </SettingsGroup>
   );

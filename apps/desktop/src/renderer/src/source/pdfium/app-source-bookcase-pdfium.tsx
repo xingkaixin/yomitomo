@@ -40,7 +40,10 @@ import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { readerDesktopEmbeddedBundleStyles } from '@yomitomo/reader-ui/reader-styles';
 import { selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
 import type { SourceBookcaseProps } from '../bookcase/source-bookcase-types';
+import { saveAssistantArticleText } from '../bookcase/assistant-article-text';
+import { useAssistantPassageReveal } from '../bookcase/use-assistant-passage-reveal';
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
+import { getOptionalDesktopApi } from '../../shell/app-desktop-api';
 import {
   useReaderPageTurnKeys,
   type ReaderPageTurnDirection,
@@ -58,7 +61,7 @@ import {
   pageProgress,
   pdfPageProgressPercent,
 } from './app-source-bookcase-pdfium-reading-progress';
-import { pdfiumTocAnnotationStats } from './pdfium-text-document';
+import { pdfiumTocAnnotationStats, pdfReaderReadingSections } from './pdfium-text-document';
 import { createPdfiumSourceReaderController } from './app-source-bookcase-pdfium-controller';
 import { EmbedPdfSelectionBridge } from './app-source-bookcase-pdfium-selection-bridge';
 import type { PdfOpenTrace } from './app-source-bookcase-pdfium-open-trace';
@@ -290,10 +293,10 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   });
   const {
     cachedPdfiumPageText,
-    currentArticleText,
     ensurePdfTextDocument,
     extractPdfiumPageText,
     markPdfiumFirstPageReady,
+    pdfFirstPageReady,
     pdfTextDocument,
     pdfTextIndexPreparing,
     resetPdfiumTextDocument,
@@ -328,7 +331,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
         startAgentDock: (agent) => startPdfiumAgentDock(agent),
         startVirtualReading: (agent, anchor) => startPdfiumVirtualReading(agent, anchor),
       }),
-    getArticleText: currentArticleText,
     messageSendShortcut,
     selectionActionShortcuts,
     settings,
@@ -852,6 +854,39 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       readingProgress: pageProgress(currentPage - 1, pageCount),
     },
     userProfile,
+  });
+  useEffect(() => {
+    if (!loadedDocument || !pdfFirstPageReady) return;
+    let cancelled = false;
+    void (async () => {
+      const hasArticleText = getOptionalDesktopApi()?.assistant?.hasArticleText;
+      // Full-text extraction is slow on long PDFs, so it runs only until main has a copy.
+      if (!hasArticleText) return;
+      if (!pdfTextDocument && (await hasArticleText(article.id).catch(() => true))) return;
+      const textDocument = pdfTextDocument ?? (await ensurePdfTextDocument());
+      if (cancelled) return;
+      saveAssistantArticleText(article.id, {
+        text: textDocument.text,
+        sections: pdfReaderReadingSections(textDocument, tocItems, loadedDocument.pages.length),
+      });
+    })().catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    article.id,
+    ensurePdfTextDocument,
+    loadedDocument,
+    pdfFirstPageReady,
+    pdfTextDocument,
+    tocItems,
+  ]);
+  useAssistantPassageReveal(article.id, (start) => {
+    void (async () => {
+      const textDocument = pdfTextDocument ?? (await ensurePdfTextDocument());
+      const page = textDocument.pages.find((item) => start < item.textEnd);
+      if (page) scroll?.scrollToPage({ pageNumber: page.pageIndex + 1, behavior: 'smooth' });
+    })().catch(() => undefined);
   });
   useEffect(() => {
     if (!searchOpen || !loadedDocument) return;

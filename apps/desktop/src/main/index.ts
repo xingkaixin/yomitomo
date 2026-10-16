@@ -34,6 +34,7 @@ import { registerAnnotationDiscussionWindowIpc } from './windows/annotation-disc
 import { registerAnnotationSedimentationWindowIpc } from './windows/annotation-sedimentation-window';
 import { closeAllAnnotationWindows } from './windows/annotation-window-lifecycle';
 import { registerAgentIpc } from './ipc/ipc-agent';
+import { registerAssistantIpc } from './ipc/ipc-assistant';
 import { registerAppLockIpc } from './ipc/ipc-app-lock';
 import { registerAppIpc } from './ipc/ipc-app';
 import { registerArticleIpc } from './ipc/ipc-article';
@@ -72,6 +73,12 @@ import { secureRendererWebPreferences } from './windows/renderer-window-security
 import { installRendererNavigationGuard } from './windows/renderer-navigation';
 import { windowChromeOptions } from './windows/window-chrome';
 import { mainPath } from './app/main-paths';
+import {
+  configureAssistantSessions,
+  disposeAssistantSessions,
+  removeAllAssistantSessions,
+  resumePendingAssistantRuns,
+} from './assistant-sessions/assistant-session-lifecycle';
 import type { AppMenuCommand } from '../app-menu-types';
 
 let mainWindow: BrowserWindow | null = null;
@@ -347,11 +354,24 @@ void app.whenReady().then(async () => {
     controls: readingMemoryControls,
     recordUsage: (key) => mainProcessRuntime?.recordReadingMemoryUsage(key),
   });
+  configureAssistantSessions({
+    publishRun: (event) => {
+      if (!sensitiveRendererEventsLocked)
+        rendererStateEventDispatcher.dispatch(null, 'assistant:run', event);
+    },
+    publishArticlePatch: (patch) => {
+      if (!sensitiveRendererEventsLocked)
+        rendererStateEventDispatcher.dispatch(null, 'article:patched', patch);
+    },
+  });
   registerIpc(startupStoreInitialization);
   recordStartupTiming('ipc.registered');
   recordStartupTiming('updater.deferred');
   await runStartupChromiumCacheCleanup();
   await createWindow();
+  void resumePendingAssistantRuns().catch((error: unknown) =>
+    logError('assistant_session.resume_failed', error),
+  );
   scheduleChromiumCacheInspection({ logger: { info: logInfo, error: logError } });
 });
 
@@ -369,6 +389,7 @@ const beforeQuit = createBeforeQuitHandler({
     readingReviewRuntime = null;
     await mainProcessRuntime?.dispose();
     mainProcessRuntime = null;
+    await disposeAssistantSessions();
   },
   quit: () => app.quit(),
   logError,
@@ -409,6 +430,9 @@ function registerIpc(startupStoreInitialization: StartupStoreInitializationResul
       readingLibraryRuntime?.cancelAll();
       readingReviewRuntime?.cancelAll();
       mainProcessRuntime?.onDatabaseRestored();
+      void removeAllAssistantSessions().catch((error: unknown) =>
+        logError('assistant_session.restore_cleanup_failed', error),
+      );
     },
     storeLoadErrorInfo,
     elapsedMs,
@@ -426,6 +450,7 @@ function registerIpc(startupStoreInitialization: StartupStoreInitializationResul
   registerAppLockIpc(context);
   registerProviderIpc(context);
   registerAgentIpc(context);
+  registerAssistantIpc(context);
   registerAnnotationDiscussionWindowIpc(context);
   registerAnnotationSedimentationWindowIpc(context);
   assertDesktopIpcRegistrationComplete();

@@ -1,5 +1,12 @@
 import { HugeiconsIcon } from '@hugeicons/react';
-import { MessageQuestionIcon, MinusSignIcon, SentIcon } from '@hugeicons/core-free-icons';
+import {
+  Cancel01Icon,
+  Loading03Icon,
+  MessageQuestionIcon,
+  MinusSignIcon,
+  SentIcon,
+  Tick01Icon,
+} from '@hugeicons/core-free-icons';
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { renderSafeMarkdown } from '@yomitomo/core/safe-markdown';
 import type {
@@ -59,7 +66,12 @@ type ReaderChatViewport = {
 
 type ReaderChatMessageLabels = Pick<
   ReaderUiLabels,
-  'assistant' | 'assistantAnswering' | 'dateLocale' | 'me' | 'relativeTimeLabel'
+  | 'assistant'
+  | 'assistantAnswering'
+  | 'assistantToolStep'
+  | 'dateLocale'
+  | 'me'
+  | 'relativeTimeLabel'
 >;
 
 type ReaderChatPanelLabels = ReaderChatMessageLabels &
@@ -95,6 +107,7 @@ export type ReaderChatPanelProps = {
   onClearDraftContext?: () => void;
   onClose: (source: ReaderChatActivationSource) => void;
   onOpen: (source: ReaderChatActivationSource) => void;
+  onOpenReference?: (href: string) => boolean;
   onRevealContext?: (context: ReaderQuestionContext) => void | Promise<void>;
   onSelectAssistant?: (assistantId: string) => void;
   onSubmit: (content: string) => void | Promise<void>;
@@ -115,6 +128,7 @@ export function ReaderChatPanel({
   onClearDraftContext,
   onClose,
   onOpen,
+  onOpenReference,
   onRevealContext,
   onSelectAssistant,
   onSubmit,
@@ -398,6 +412,7 @@ export function ReaderChatPanel({
                 labels={labels}
                 message={message}
                 streaming={message.id === streamingAssistantMessageId}
+                onOpenReference={onOpenReference}
                 onRevealContext={onRevealContext}
               />
             ))
@@ -475,12 +490,14 @@ function ReaderChatMessageView({
   labels = defaultReaderUiLabels,
   message,
   streaming = false,
+  onOpenReference,
   onRevealContext,
 }: {
   agents: PublicAgent[];
   labels?: ReaderChatMessageLabels;
   message: ReaderChatMessage;
   streaming?: boolean;
+  onOpenReference?: (href: string) => boolean;
   onRevealContext?: (context: ReaderQuestionContext) => void | Promise<void>;
 }) {
   const isAssistant = message.role === 'assistant';
@@ -517,10 +534,38 @@ function ReaderChatMessageView({
             {message.context.quote}
           </button>
         ) : null}
+        {isAssistant && message.assistantProgress?.steps.length ? (
+          <ol className="reader-chat-message-steps">
+            {message.assistantProgress.steps.map((step) => (
+              <li className={`is-${step.status}`} key={step.id}>
+                <HugeiconsIcon
+                  icon={
+                    step.status === 'done'
+                      ? Tick01Icon
+                      : step.status === 'failed'
+                        ? Cancel01Icon
+                        : Loading03Icon
+                  }
+                  size={10}
+                />
+                <span>{labels.assistantToolStep(step.label)}</span>
+              </li>
+            ))}
+          </ol>
+        ) : null}
         {isAssistant && streaming ? (
           <p>{message.content || labels.assistantAnswering}</p>
         ) : isAssistant ? (
-          <div className="reader-chat-markdown" dangerouslySetInnerHTML={{ __html: html }} />
+          <div
+            className="reader-chat-markdown"
+            dangerouslySetInnerHTML={{ __html: html }}
+            onClick={(event) => {
+              const link =
+                event.target instanceof Element ? event.target.closest('a[href^="#"]') : null;
+              const href = link?.getAttribute('href');
+              if (href && onOpenReference?.(href)) event.preventDefault();
+            }}
+          />
         ) : (
           <p>{message.content}</p>
         )}

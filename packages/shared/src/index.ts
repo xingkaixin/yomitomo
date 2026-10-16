@@ -7,7 +7,6 @@ export {
   cleanEpubFileNameTitle,
   defaultLibraryContentSourceOrder,
   EPUB_TITLE_CLEANUP_VERSION,
-  normalizeAssistantExecutionMode,
   normalizeLibraryContentSources,
   normalizeSoundEffectsVolume,
   normalizeUiLanguage,
@@ -38,6 +37,12 @@ export type {
   AgentPersonality,
   AgentPersonalityPresentation,
   AgentReadingIntent,
+  ArticleTextSection,
+  AssistantChannel,
+  AssistantDeliveryRequest,
+  AssistantPassageRevealRequest,
+  AssistantRunEvent,
+  ArticleTextSnapshot,
   AgentReadingPlanItem,
   AgentReadingPlanMessage,
   AgentReviewPayload,
@@ -277,6 +282,9 @@ export {
 export type { ReviewOpinionLabelTone } from './agents/agents';
 
 export { normalizeTraceItemType } from './trace';
+
+export { assistantReferenceHref, parseAssistantReference } from './agents/assistant-reference';
+export type { AssistantReference } from './agents/assistant-reference';
 
 export { hashText, makeId } from './ids';
 

@@ -355,6 +355,38 @@ export const chatAgentStyles = `.reader-chat-fab {
 .reader-chat-message-context:disabled {
   cursor:default
 }
+.reader-chat-message-steps {
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+  margin:0;
+  padding:0;
+  list-style:none;
+  font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif)
+}
+.reader-chat-message-steps li {
+  display:inline-flex;
+  min-width:0;
+  max-width:100%;
+  align-items:center;
+  gap:3px;
+  border:1px solid color-mix(in srgb, currentColor 14%, transparent);
+  border-radius:999px;
+  padding:1px 6px;
+  font-size:10px;
+  font-weight:700;
+  line-height:1.4;
+  opacity:.68
+}
+.reader-chat-message-steps li span {
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.reader-chat-message-steps svg {
+  flex:0 0 auto
+}
 .reader-chat-markdown {
   min-width:0;
   max-width:100%;
@@ -379,6 +411,18 @@ export const chatAgentStyles = `.reader-chat-fab {
 .reader-chat-markdown p {
   margin:0 0 .65em;
   white-space:normal
+}
+.reader-chat-markdown a {
+  color:inherit;
+  cursor:pointer;
+  text-decoration:underline;
+  text-decoration-color:color-mix(in srgb,var(--reader-ink) 32%,transparent);
+  text-decoration-thickness:1px;
+  text-underline-offset:.16em
+}
+.reader-chat-markdown a:hover {
+  color:var(--reader-red);
+  text-decoration-color:currentColor
 }
 .reader-chat-empty {
   display:grid;

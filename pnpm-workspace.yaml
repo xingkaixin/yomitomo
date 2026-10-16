@@ -4,6 +4,9 @@ packages:
 catalog:
   "@base-ui/react": "^1.9.0"
   "@cloudflare/workers-types": "^5.20261011.1"
+  "@earendil-works/chord": "1.3.0"
+  "@earendil-works/pi-ai": "1.3.0"
+  "@earendil-works/pi-durable": "1.3.0"
   "@effect/vitest": "4.0.3"
   "@hugeicons/core-free-icons": "^4.3.5"
   "@hugeicons/react": "^1.1.10"
@@ -24,6 +27,7 @@ catalog:
   "vitest": "^5.0.3"
   "wrangler": "^4.149.0"
 allowBuilds:
+  "@google/genai": false
   better-sqlite3: false
   electron: true
   electron-winstaller: true
@@ -69,6 +73,11 @@ minimumReleaseAgeExclude:
   - vite@8.3.0
   - effect@4.0.3
   - "@effect/vitest@4.0.3"
+  - "@earendil-works/chord@1.3.0"
+  - "@earendil-works/pi-ai@1.3.0"
+  - "@earendil-works/pi-codemode@1.3.0"
+  - "@earendil-works/pi-durable@1.3.0"
+  - "@earendil-works/pi-telemetry@1.3.0"
 overrides:
   "@electron/get>undici": "7.30.0"
   "@babel/core@<=7.29.0": "7.29.7"

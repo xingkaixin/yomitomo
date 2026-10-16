@@ -3,7 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ArticleRecord, PublicAgent, ReaderChatState } from '@yomitomo/shared';
+import type {
+  ArticleRecord,
+  AssistantDeliveryRequest,
+  AssistantRunEvent,
+  PublicAgent,
+  ReaderChatState,
+} from '@yomitomo/shared';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { useReaderChatSession } from '../source/bookcase/use-reader-chat-session';
 
@@ -27,7 +33,6 @@ function renderReaderChatSession(
     articleId: string,
     readerChatState?: ReaderChatState,
   ) => void | Promise<void> = () => undefined,
-  getArticleText: () => string | Promise<string> = () => '这是一段可以提问的正文。',
 ) {
   let session: ReaderChatSession | null = null;
   let updateArticle: React.Dispatch<React.SetStateAction<ArticleRecord>> | null = null;
@@ -39,7 +44,6 @@ function renderReaderChatSession(
     const nextSession = useReaderChatSession({
       agents,
       article,
-      getArticleText,
       onSaveArticleReaderChatState: async (articleId, readerChatState) => {
         await onSaveArticleReaderChatState(articleId, readerChatState);
         savedReaderChatState = readerChatState;
@@ -72,39 +76,69 @@ function renderReaderChatSession(
 }
 
 describe('useReaderChatSession', () => {
-  it('includes earlier questions and assistant replies in a follow-up request', async () => {
-    const requestAgentCommentStream = vi.fn((_payload, _onEvent) =>
-      Promise.resolve({
-        id: 'answer_1',
-        author: 'ai' as const,
-        content: '第一轮回答',
-        createdAt: now,
-      }),
-    );
-    mockDesktop({ requestAgentCommentStream });
-    const { session } = renderReaderChatSession();
-
-    await act(async () => {
-      await session().actions.onSubmit('第一轮问题');
-    });
-    await act(async () => {
-      await session().actions.onSelectAssistant('agent_2');
-    });
-    await act(async () => {
-      await session().actions.onSubmit('请解释刚才的答案');
+  it('delivers the question to its chat channel and shows the reply the main process saves', async () => {
+    const desktop = mockDesktop();
+    const { session, updateArticle } = renderReaderChatSession();
+    act(() => {
+      session().askSelection({ sourceType: 'web', quote: '可以提问的正文', title: '文章' });
     });
 
-    const payload = requestAgentCommentStream.mock.calls[1][0];
-    expect(payload.annotation.comments).toMatchObject([
-      { author: { kind: 'user' }, content: '第一轮问题' },
-      { author: { kind: 'agent', agentId: 'agent_1', username: 'agent_1' }, content: '第一轮回答' },
-      { author: { kind: 'user' }, content: '请解释刚才的答案' },
+    let submit: Promise<void> | undefined;
+    act(() => {
+      submit = session().actions.onSubmit('这是什么意思？');
+    });
+    await waitFor(() => expect(desktop.deliver).toHaveBeenCalledOnce());
+    const request = desktop.deliver.mock.calls[0][0];
+    const saved = session().model.state!;
+    const userMessage = saved.sessions[0].messages[0];
+    expect(userMessage).toMatchObject({ role: 'user', context: { quote: '可以提问的正文' } });
+    expect(request).toMatchObject({
+      articleId: 'article_1',
+      agentId: 'agent_1',
+      channel: { kind: 'chat', sessionId: saved.activeSessionId },
+      triggerId: userMessage.id,
+    });
+
+    act(() => desktop.emit(runEvent(request, { status: 'running', text: '正在回答' })));
+    expect(session().model.sending).toBe(true);
+    expect(session().model.state?.sessions[0].messages.at(-1)).toMatchObject({
+      role: 'assistant',
+      content: '正在回答',
+    });
+
+    const reply = { id: 'reader_chat_message_reply', role: 'assistant' as const };
+    act(() => {
+      updateArticle((current) => ({
+        ...current,
+        readerChatState: {
+          ...saved,
+          sessions: [
+            {
+              ...saved.sessions[0],
+              messages: [
+                userMessage,
+                { ...reply, content: '完整回答', assistantId: 'agent_1', createdAt: now },
+              ],
+            },
+          ],
+        },
+      }));
+      desktop.emit(runEvent(request, { status: 'done', text: '完整回答', commentId: reply.id }));
+    });
+    await act(async () => {
+      await submit;
+    });
+
+    await waitFor(() => expect(session().model.sending).toBe(false));
+    expect(session().model.state?.sessions[0].messages).toMatchObject([
+      { role: 'user', content: '这是什么意思？' },
+      { id: reply.id, content: '完整回答' },
     ]);
-    expect(payload.agentId).toBe('agent_2');
-    expect(payload.userComment.content).toBe('请解释刚才的答案');
+    expect(session().model.error).toBe('');
   });
 
   it('keeps the quoted selection when switching the selected assistant', async () => {
+    mockDesktop();
     const { session } = renderReaderChatSession();
 
     act(() => {
@@ -125,70 +159,39 @@ describe('useReaderChatSession', () => {
     expect(session().model.draftContext?.quote).toBe('可以提问的正文');
   });
 
-  it('saves the assistant reply and resets sending after a reader chat request', async () => {
-    const requestAgentCommentStream = vi.fn((_payload, onEvent) => {
-      onEvent({ type: 'delta', delta: '流式' });
-      return Promise.resolve({
-        id: 'comment_1',
-        author: 'ai' as const,
-        content: '流式回答',
-        createdAt: now,
-      });
-    });
-    mockDesktop({ requestAgentCommentStream });
-    const { session } = renderReaderChatSession();
-
-    act(() => {
-      session().askSelection({
-        sourceType: 'web',
-        quote: '可以提问的正文',
-        title: '文章',
-      });
-    });
-
-    await act(async () => {
-      await session().actions.onSubmit('这是什么意思？');
-    });
-
-    await waitFor(() => expect(session().model.sending).toBe(false));
-    const messages = session().model.state?.sessions[0]?.messages;
-    expect(messages).toMatchObject([
-      { role: 'user', content: '这是什么意思？', context: { quote: '可以提问的正文' } },
-      { role: 'assistant', content: '流式回答', assistantId: 'agent_1' },
-    ]);
-    expect(messages?.[1]).not.toHaveProperty('context');
-    expect(requestAgentCommentStream).toHaveBeenCalledOnce();
-  });
-
-  it.each(['request', 'article text'] as const)(
-    'resets sending and keeps a failed assistant message when %s rejects',
+  it.each(['delivery', 'run'] as const)(
+    'reports a failed %s and keeps the question',
     async (failure) => {
-      mockDesktop({
-        requestAgentCommentStream: vi.fn(() => Promise.reject(new Error('network failed'))),
-      });
-      const { session } = renderReaderChatSession(
-        undefined,
-        failure === 'article text' ? () => Promise.reject(new Error('text failed')) : undefined,
+      const desktop = mockDesktop(
+        failure === 'delivery' ? () => Promise.reject(new Error('network failed')) : undefined,
       );
-
+      const { session } = renderReaderChatSession();
+      let submit: Promise<void> | undefined;
+      act(() => {
+        submit = session().actions.onSubmit('会失败吗？');
+      });
+      await waitFor(() => expect(desktop.deliver).toHaveBeenCalledOnce());
       await act(async () => {
-        await session().actions.onSubmit('会失败吗？');
+        if (failure === 'run') {
+          desktop.emit(
+            runEvent(desktop.deliver.mock.calls[0][0], { status: 'failed', error: 'empty_answer' }),
+          );
+        }
+        await submit;
       });
 
-      await waitFor(() => expect(session().model.sending).toBe(false));
-      expect(session().model.state?.sessions[0]?.messages).toEqual([
+      expect(session().model.sending).toBe(false);
+      expect(session().model.error).toBe(
+        failure === 'delivery' ? 'network failed' : '问答请求失败，请稍后重试',
+      );
+      expect(session().model.state?.sessions[0].messages).toEqual([
         expect.objectContaining({ role: 'user', content: '会失败吗？' }),
-        expect.objectContaining({
-          role: 'assistant',
-          content: expect.stringContaining('请求失败'),
-        }),
       ]);
     },
   );
 
   it('restores the last saved chat state when persistence fails', async () => {
-    const requestAgentCommentStream = vi.fn();
-    mockDesktop({ requestAgentCommentStream });
+    const desktop = mockDesktop();
     const saveReaderChatState = vi.fn(() => Promise.reject(new Error('save failed')));
     const { savedReaderChatState, session } = renderReaderChatSession(saveReaderChatState);
 
@@ -197,118 +200,35 @@ describe('useReaderChatSession', () => {
     });
 
     expect(saveReaderChatState).toHaveBeenCalledOnce();
-    expect(requestAgentCommentStream).not.toHaveBeenCalled();
+    expect(desktop.deliver).not.toHaveBeenCalled();
     expect(savedReaderChatState()).toBeUndefined();
     expect(session().model.state).toBeUndefined();
     expect(session().model.error).toBe('保存失败。');
     expect(session().model.sending).toBe(false);
   });
 
-  it('keeps the streaming reader chat state when stale article props arrive mid-request', async () => {
-    let resolveRequest:
-      | ((value: { author: 'ai'; content: string; createdAt: string }) => void)
-      | null = null;
-    const requestAgentCommentStream = vi.fn((_payload, onEvent) => {
-      onEvent({ type: 'delta', delta: '正在回答' });
-      return new Promise<{ author: 'ai'; content: string; createdAt: string }>((resolve) => {
-        resolveRequest = resolve;
-      });
-    });
-    mockDesktop({ requestAgentCommentStream });
-    const { session, updateArticle } = renderReaderChatSession();
-
-    let pendingSubmit: Promise<void> | undefined;
+  it('does not send another question while a reply is still running', async () => {
+    const desktop = mockDesktop();
+    const save = vi.fn();
+    const { session } = renderReaderChatSession(save);
     act(() => {
-      pendingSubmit = Promise.resolve(session().actions.onSubmit('这个问题是什么？'));
+      void session().actions.onSubmit('第一个问题');
     });
-    await waitFor(() => expect(session().model.sending).toBe(true));
-    expect(session().model.state?.sessions[0]?.messages).toHaveLength(2);
-
-    act(() => {
-      updateArticle((current) => ({
-        ...current,
-        readerChatState: undefined,
-        updatedAt: '2026-06-06T00:00:01.000Z',
-      }));
-    });
-
-    expect(session().model.state?.sessions[0]?.messages).toEqual([
-      expect.objectContaining({ role: 'user', content: '这个问题是什么？' }),
-      expect.objectContaining({ role: 'assistant', content: '正在回答' }),
-    ]);
+    await waitFor(() => expect(desktop.deliver).toHaveBeenCalledOnce());
+    act(() => desktop.emit(runEvent(desktop.deliver.mock.calls[0][0], { status: 'running' })));
 
     await act(async () => {
-      resolveRequest?.({ author: 'ai', content: '最终回答', createdAt: now });
-      await pendingSubmit;
+      await session().actions.onSubmit('第二个问题');
     });
-    await waitFor(() => expect(session().model.sending).toBe(false));
-    expect(session().model.state?.sessions[0]?.messages[1]).toMatchObject({
-      role: 'assistant',
-      content: '最终回答',
-    });
+
+    expect(desktop.deliver).toHaveBeenCalledOnce();
+    expect(save).toHaveBeenCalledOnce();
   });
-
-  it.each(['success', 'failure'] as const)(
-    'keeps the original article as owner after navigation and request %s',
-    async (outcome) => {
-      const reply = deferred<{ author: 'ai'; content: string; createdAt: string }>();
-      const requestAgentCommentStream = vi.fn((_payload, _onEvent) => reply.promise);
-      mockDesktop({ requestAgentCommentStream });
-      const save = vi.fn();
-      const { session, updateArticle } = renderReaderChatSession(save);
-      let submit: Promise<void> | undefined;
-      act(() => {
-        submit = session().actions.onSubmit('文章一的问题');
-      });
-      await waitFor(() => expect(requestAgentCommentStream).toHaveBeenCalledOnce());
-      act(() => {
-        updateArticle({ ...articleRecord(), id: 'article_2', title: '文章二' });
-      });
-      await act(async () => {
-        await session().actions.onSelectAssistant?.('agent_2');
-      });
-      const secondArticleState = session().model.state;
-      act(() => {
-        requestAgentCommentStream.mock.calls[0][1]({ type: 'delta', delta: '文章一的回答' });
-      });
-      await act(async () => {
-        if (outcome === 'success') {
-          reply.resolve({ author: 'ai', content: '文章一的完整回答', createdAt: now });
-        } else {
-          reply.reject(new Error('article one failed'));
-        }
-        await submit;
-      });
-
-      const [savedArticleId, savedState] = save.mock.calls.at(-1)!;
-      expect(savedArticleId).toBe('article_1');
-      expect(savedState).toMatchObject({
-        articleId: 'article_1',
-        sessions: [
-          {
-            articleId: 'article_1',
-            messages: [
-              { role: 'user', content: '文章一的问题' },
-              {
-                role: 'assistant',
-                content:
-                  outcome === 'success' ? '文章一的完整回答' : expect.stringContaining('请求失败'),
-              },
-            ],
-          },
-        ],
-      });
-      expect(session().model.state).toEqual(secondArticleState);
-      expect(session().model.error).toBe('');
-      expect(session().model.sending).toBe(false);
-    },
-  );
 
   it('does not roll back another article when a pending save fails', async () => {
     const pendingSave = deferred<void>();
     const save = vi.fn().mockImplementationOnce(() => pendingSave.promise);
-    const requestAgentCommentStream = vi.fn();
-    mockDesktop({ requestAgentCommentStream });
+    const desktop = mockDesktop();
     const { session, updateArticle } = renderReaderChatSession(save);
     let submit: Promise<void> | undefined;
     act(() => {
@@ -326,91 +246,10 @@ describe('useReaderChatSession', () => {
       pendingSave.reject(new Error('article one save failed'));
       await submit;
     });
-    expect(requestAgentCommentStream).not.toHaveBeenCalled();
+    expect(desktop.deliver).not.toHaveBeenCalled();
     expect(session().model.state).toEqual(secondArticleState);
     expect(session().model.error).toBe('');
     expect(session().model.sending).toBe(false);
-  });
-
-  it('resumes the same in-flight state when returning to its article', async () => {
-    const reply = deferred<{ author: 'ai'; content: string; createdAt: string }>();
-    const requestAgentCommentStream = vi.fn((_payload, _onEvent) => reply.promise);
-    mockDesktop({ requestAgentCommentStream });
-    const { session, updateArticle, savedReaderChatState } = renderReaderChatSession();
-    let submit: Promise<void> | undefined;
-    act(() => {
-      submit = session().actions.onSubmit('文章一的问题');
-    });
-    await waitFor(() => expect(requestAgentCommentStream).toHaveBeenCalledOnce());
-    const savedState = savedReaderChatState();
-    act(() => {
-      updateArticle({ ...articleRecord(), id: 'article_2' });
-    });
-    act(() => {
-      requestAgentCommentStream.mock.calls[0][1]({ type: 'delta', delta: '尚未持久化的回答' });
-    });
-    act(() => {
-      updateArticle({ ...articleRecord(), readerChatState: savedState });
-    });
-    expect(session().model.state?.sessions[0]?.messages[1]?.content).toBe('尚未持久化的回答');
-    await act(async () => {
-      await session().actions.onSelectAssistant?.('agent_2');
-      const duplicateSubmit = session().actions.onSubmit('不应重复发送');
-      reply.resolve({ author: 'ai', content: '完整回答', createdAt: now });
-      await Promise.all([submit, duplicateSubmit]);
-    });
-    expect(requestAgentCommentStream).toHaveBeenCalledOnce();
-    expect(session().model.selectedAssistantId).toBe('agent_2');
-    expect(savedReaderChatState()?.sessions[0]?.messages[1]?.content).toBe('完整回答');
-  });
-
-  it('captures article text before saving can yield to navigation', async () => {
-    let articleText = '文章一的正文';
-    const pendingSave = deferred<void>();
-    const save = vi.fn().mockImplementationOnce(() => pendingSave.promise);
-    const requestAgentCommentStream = vi.fn().mockResolvedValue({ content: '回答' });
-    mockDesktop({ requestAgentCommentStream });
-    const { session, updateArticle } = renderReaderChatSession(save, () => articleText);
-    let submit: Promise<void> | undefined;
-    act(() => {
-      submit = session().actions.onSubmit('文章一的问题');
-    });
-    await waitFor(() => expect(save).toHaveBeenCalledOnce());
-    act(() => {
-      articleText = '文章二的正文';
-      updateArticle({ ...articleRecord(), id: 'article_2' });
-    });
-    await act(async () => {
-      pendingSave.resolve();
-      await submit;
-    });
-    expect(requestAgentCommentStream.mock.calls[0][0].article).toMatchObject({
-      id: 'article_1',
-      text: '文章一的正文',
-    });
-  });
-
-  it('keeps assistant selection changes made while article text is loading', async () => {
-    const articleText = deferred<string>();
-    mockDesktop({ requestAgentCommentStream: vi.fn().mockResolvedValue({ content: '回答' }) });
-    const { session, savedReaderChatState } = renderReaderChatSession(
-      undefined,
-      () => articleText.promise,
-    );
-    let submit: Promise<void> | undefined;
-    act(() => {
-      submit = session().actions.onSubmit('文章一的问题');
-    });
-    await act(async () => {
-      await session().actions.onSelectAssistant?.('agent_2');
-      articleText.resolve('文章一的正文');
-      await submit;
-    });
-    expect(savedReaderChatState()?.selectedAssistantId).toBe('agent_2');
-    expect(savedReaderChatState()?.sessions[0]?.messages[1]).toMatchObject({
-      assistantId: 'agent_1',
-      content: '回答',
-    });
   });
 });
 
@@ -424,15 +263,50 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-function mockDesktop({
-  requestAgentCommentStream,
-}: {
-  requestAgentCommentStream: ReturnType<typeof vi.fn>;
-}) {
+function mockDesktop(
+  deliver: (request: AssistantDeliveryRequest) => Promise<{ runKey: string | null }> = async (
+    request,
+  ) => ({ runKey: runKeyFor(request) }),
+) {
+  const listeners = new Set<(event: AssistantRunEvent) => void>();
+  const desktop = {
+    deliver: vi.fn(deliver),
+    emit: (event: AssistantRunEvent) => {
+      for (const listener of listeners) listener(event);
+    },
+  };
   Object.defineProperty(window, 'yomitomoDesktop', {
     configurable: true,
-    value: { agent: { requestCommentStream: requestAgentCommentStream } },
+    value: {
+      assistant: {
+        deliver: desktop.deliver,
+        runs: async () => [],
+        onRun: (listener: (event: AssistantRunEvent) => void) => {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        },
+      },
+    },
   });
+  return desktop;
+}
+
+function runKeyFor(request: AssistantDeliveryRequest) {
+  return `run_${request.triggerId}`;
+}
+
+function runEvent(
+  request: AssistantDeliveryRequest,
+  event: Partial<AssistantRunEvent> & Pick<AssistantRunEvent, 'status'>,
+): AssistantRunEvent {
+  return {
+    runKey: runKeyFor(request),
+    articleId: request.articleId,
+    agentId: request.agentId,
+    channel: request.channel,
+    text: '',
+    ...event,
+  };
 }
 
 function agent(id: string, nickname: string): PublicAgent {

@@ -23,7 +23,6 @@ const settingsDraftSectionByField = {
   bilingualTranslationTargetLanguage: 'general',
   bilingualTranslationStyle: 'general',
   bilingualTranslationAiContextAware: 'general',
-  assistantExecutionMode: 'routes',
   messageSendShortcut: 'shortcuts',
   selectionActionShortcuts: 'shortcuts',
   saveArticleImages: 'general',

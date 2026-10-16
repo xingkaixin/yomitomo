@@ -32,10 +32,6 @@ export function createAnnotationWindowActions(getDesktop: () => AnnotationWindow
       input: Parameters<AnnotationWindowDesktopApi['agent']['planMentionRoute']>[0],
     ) => getDesktop().agent.planMentionRoute(input),
     platform: () => getDesktop().platform,
-    requestAgentCommentStream: (
-      payload: Parameters<AnnotationWindowDesktopApi['agent']['requestCommentStream']>[0],
-      onEvent: Parameters<AnnotationWindowDesktopApi['agent']['requestCommentStream']>[1],
-    ) => getDesktop().agent.requestCommentStream(payload, onEvent),
     requestAgentDistillationReviewStream: (
       payload: Parameters<
         AnnotationWindowDesktopApi['agent']['requestDistillationReviewStream']

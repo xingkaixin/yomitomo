@@ -308,24 +308,18 @@ const agentAnnotatePayloadSchema = boundedPayload(
 );
 
 const desktopIpcStreamSchemas = {
-  'agent:comment:stream': streamRequestSchema(agentMessagePayloadSchema),
   'agent:distillation-review:stream': streamRequestSchema(agentDistillationReviewPayloadSchema),
   'agent:annotate:stream': streamRequestSchema(agentAnnotatePayloadSchema),
 } satisfies Record<DesktopIpcStreamChannel, z.ZodType>;
 
 const streamCancelSchema = z.object({
-  channel: z.enum([
-    'agent:comment:stream',
-    'agent:distillation-review:stream',
-    'agent:annotate:stream',
-  ]),
+  channel: z.enum(['agent:distillation-review:stream', 'agent:annotate:stream']),
   requestId: z.string().min(1).max(128),
 });
 
 const desktopIpcMainEventSchemas = {
   'app:renderer-ready': z.tuple([]),
   'agent:stream-cancel': z.tuple([streamCancelSchema]),
-  'agent:comment:stream': z.tuple([desktopIpcStreamSchemas['agent:comment:stream']]),
   'agent:distillation-review:stream': z.tuple([
     desktopIpcStreamSchemas['agent:distillation-review:stream'],
   ]),

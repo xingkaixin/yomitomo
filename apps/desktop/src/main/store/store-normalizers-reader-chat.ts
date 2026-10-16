@@ -5,7 +5,10 @@ import type {
   ReaderQuestionContext,
 } from '@yomitomo/shared';
 import { recordValue, stringValue } from './store-normalizers-common';
-import { normalizeTextAnchor } from './store-normalizers-annotations';
+import {
+  normalizeAssistantRuntimeProgress,
+  normalizeTextAnchor,
+} from './store-normalizers-annotations';
 import { normalizeArticleSourceType } from './store-normalizers-sources';
 
 export function normalizeReaderChatState(
@@ -74,6 +77,7 @@ function normalizeReaderChatMessages(value: unknown): ReaderChatMessage[] {
         role,
         content,
         assistantId: stringValue(message.assistantId) || undefined,
+        assistantProgress: normalizeAssistantRuntimeProgress(message.assistantProgress),
         context: normalizeReaderQuestionContext(message.context),
         createdAt,
       },

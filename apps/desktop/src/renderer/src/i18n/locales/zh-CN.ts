@@ -34,15 +34,13 @@ export const zhCNResources = {
       openLatest: '打开最新版',
     },
     assistantProgress: {
-      deepSteps: '深入探索步骤',
+      processSteps: '处理过程',
       steps: {
-        get_current_thread: '读取当前讨论',
-        get_anchor_context: '查看高亮附近原文',
-        search_article_passages: '检索相关原文',
-        search_article_memory: '查找文章内已有记忆',
-        search_own_memory: '回看这位助手的既有判断',
-        search_other_agents_memory: '参考其他助手的相关想法',
-        check_duplicate_thought: '检查是否重复已有想法',
+        article_outline: '查看目录',
+        read_article: '读取原文',
+        search_article: '检索原文',
+        search_reading_memory: '查找已有批注',
+        read_thread: '读取讨论',
       },
       fallback: {
         fastResponse: '深入探索未完成，已切换快速回复',
@@ -1128,11 +1126,6 @@ export const zhCNResources = {
       },
       readerChatFailed: '问答请求失败，请稍后重试',
       requestFailedWithMessage: '请求失败：{{message}}',
-      currentArticle: '当前文章',
-      readerChatSelectionInstruction:
-        '这是阅读器浮动问答。请围绕用户引用的选区和问题回答，不要把回复写成批注讨论。',
-      readerChatArticleInstruction:
-        '这是阅读器浮动问答。请围绕当前文章和用户问题回答，不要把回复写成批注讨论。',
       mixedSelectionToast: '请只选择原文或只选择译文',
     },
     discussion: {
@@ -1211,7 +1204,6 @@ export const zhCNResources = {
       threadView: {
         rootThought: '想法内容',
         assistantReplying: '助手回复中',
-        replyQueue: '助手回复队列',
         expanded: '讨论展开',
         noDiscussionTitle: '当前没有讨论',
         noDiscussionDescription: '这条想法还没有回复。',
@@ -1936,13 +1928,6 @@ export const zhCNResources = {
         routePrivacyNotice:
           '使用这些路由时，相应内容（选区、上下文，双语翻译为整篇文章全文）会上传到你所配置的端点。',
         noProvidersNote: '当前还没有可选供应商。新增并保存供应商后，这里会开放选择。',
-        executionModeTitle: '助手执行模式',
-        executionModeDescription: '全局影响阅读批注、追问和共读任务。',
-        executionModeAria: '助手执行模式',
-        fastResponse: '快速回应',
-        fastResponseDescription: '优先快速完成',
-        deepVerification: '深入查证',
-        deepVerificationDescription: '使用工具核验',
         readingRouteTitle: '阅读理解助手',
         readingRouteDescription: '用于阅读器批注、追问和理解型对话。',
         reviewRouteTitle: '深度审阅助手',

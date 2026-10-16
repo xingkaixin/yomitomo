@@ -7,6 +7,7 @@ import type { Annotation, ReaderQuestionContext } from '@yomitomo/shared';
 import {
   activeTocIndexForOffset,
   annotationIdsAtHighlightPoint,
+  createEpubTextAnchor,
   type HighlightBox,
   type TocItem,
 } from '@yomitomo/core';
@@ -46,6 +47,8 @@ import {
 import { ArticleBook } from '../../shell/app-article-book';
 import { articleDisplayTitle } from '../../reading-library/app-reading-library-utils';
 import { createEbookSourceReaderController } from './app-source-bookcase-ebook-controller';
+import { saveAssistantArticleText } from '../bookcase/assistant-article-text';
+import { useAssistantPassageReveal } from '../bookcase/use-assistant-passage-reveal';
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
 import { useSourceReaderAppView } from '../bookcase/use-source-reader-app-view';
 import { appendAgentAnnotationToArticle as appendPersistedAgentAnnotation } from '../bookcase/append-agent-annotation-to-article';
@@ -117,7 +120,6 @@ export function EbookBookcase({
           await sleep(900);
         },
       }),
-    getArticleText: currentArticleText,
     messageSendShortcut,
     selectionActionShortcuts,
     settings,
@@ -205,6 +207,15 @@ export function EbookBookcase({
   } = selection;
   const { ebook } = article;
   const ebookText = useMemo(() => ebookArticleText(ebook.chapters), [ebook.chapters]);
+  useEffect(() => {
+    const sections = (ebook.index?.chapters ?? []).map((chapter) => ({
+      id: chapter.id,
+      title: chapter.title,
+      start: chapter.textStart,
+      end: chapter.textEnd,
+    }));
+    saveAssistantArticleText(article.id, { text: ebookText, sections });
+  }, [article.id, ebook.index, ebookText]);
   const articleAnnotationSignature = useMemo(
     () => ebookHighlightAnnotationsSignature(articleAnnotations, userProfile, annotationAgents),
     [annotationAgents, articleAnnotations, userProfile],
@@ -349,6 +360,11 @@ export function EbookBookcase({
     pageInfo,
     scheduleEbookBoxUpdate,
     viewRef,
+  });
+  useAssistantPassageReveal(article.id, (start, end) => {
+    if (!ebook.index) return;
+    const anchor = createEpubTextAnchor(ebook.index, ebookText, start, end);
+    void ebookNavigation.goToEbookAnchor('reader-chat-context', anchor);
   });
   const readerTocItems = useMemo(
     () => ebookTocItemsForReader(tocItems, { ebook }),

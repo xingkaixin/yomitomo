@@ -6,7 +6,6 @@ import type {
   PublicAgent,
   ReaderChatState,
   SelectionActionShortcuts,
-  UiLanguage,
 } from '@yomitomo/shared';
 import { normalizeMessageSendShortcut, normalizeSelectionActionShortcuts } from '@yomitomo/shared';
 import { articlePublishedDistillationCount } from '@yomitomo/core';
@@ -25,11 +24,9 @@ type SourceReaderWorkspaceSession = {
 type UseSourceReaderWorkspaceInput = {
   article: ArticleRecord;
   canvasRef: RefObject<HTMLElement | null>;
-  getArticleText: () => string | Promise<string>;
   messageSendShortcut?: MessageSendShortcut;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   session: SourceReaderWorkspaceSession;
-  uiLanguage?: UiLanguage;
   onRequestSelectionCopy: () => void;
   onSaveArticleReaderChatState?: (
     articleId: string,
@@ -40,11 +37,9 @@ type UseSourceReaderWorkspaceInput = {
 export function useSourceReaderWorkspace({
   article,
   canvasRef,
-  getArticleText,
   messageSendShortcut,
   selectionActionShortcuts,
   session,
-  uiLanguage,
   onRequestSelectionCopy,
   onSaveArticleReaderChatState,
 }: UseSourceReaderWorkspaceInput) {
@@ -58,8 +53,6 @@ export function useSourceReaderWorkspace({
   const readerChat = useReaderChatSession({
     agents: session.annotationAgents,
     article,
-    getArticleText,
-    uiLanguage,
     onSaveArticleReaderChatState,
   });
   const annotationTotals = useMemo(
