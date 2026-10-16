@@ -38,6 +38,8 @@ export type {
   AgentPersonality,
   AgentPersonalityPresentation,
   AgentReadingIntent,
+  ArticleTextSection,
+  ArticleTextSnapshot,
   AgentReadingPlanItem,
   AgentReadingPlanMessage,
   AgentReviewPayload,

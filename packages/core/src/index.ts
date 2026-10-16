@@ -49,6 +49,14 @@ export type {
   BilingualTranslationSourceBlock,
   WebArticleTranslationBlock,
 } from './articles/article-translation';
+export { createArticleTextIndex, splitArticleTextBlocks } from './articles/article-text-index';
+export type {
+  ArticleTextBlock,
+  ArticleTextIndex,
+  ArticleTextOutlineItem,
+  ArticleTextRead,
+  ArticleTextSearchHit,
+} from './articles/article-text-index';
 
 export {
   buildEpubBookIndex,

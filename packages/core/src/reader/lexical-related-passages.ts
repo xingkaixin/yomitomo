@@ -86,6 +86,12 @@ type PreparedLexicalRelatedPassageIndex = {
   paragraphDocuments: Map<string, CachedParagraphLexicalDocument>;
 };
 
+export type LexicalDocument = {
+  normalizedText: string;
+  terms: Map<string, number>;
+  length: number;
+};
+
 export type LexicalRelatedPassageCache = {
   readonly kind: 'lexical-related-passage-cache';
 };
@@ -175,6 +181,21 @@ export function buildCurrentChapterLexicalRelatedPassages(
     lexicalCacheMissCount: cacheStats.missCount,
   });
   return passages;
+}
+
+export function lexicalDocument(text: string): LexicalDocument | null {
+  const normalizedText = normalizeLexicalText(text);
+  const terms = termCounts(tokenizeNormalizedLexicalText(normalizedText));
+  return terms.size > 0 ? { normalizedText, terms, length: tokenLength(terms) } : null;
+}
+
+export function rankLexicalDocuments<T extends LexicalDocument>(documents: T[], query: string) {
+  const queries = queryTexts(query);
+  const queryTerms = termCounts(queries.flatMap(tokenizeLexicalText));
+  if (queryTerms.size === 0 || documents.length === 0) return [];
+  return scoreDocuments(documents, queryTerms, queries).toSorted(
+    (left, right) => right.score - left.score,
+  );
 }
 
 function paragraphLexicalDocument(
@@ -281,11 +302,11 @@ function candidateChapterIds(
   return new Set([...(input.readerProgress?.readChapterIds || []), chapter.id]);
 }
 
-function scoreDocuments(
-  documents: ParagraphDocument[],
+function scoreDocuments<T extends LexicalDocument>(
+  documents: T[],
   queryTerms: Map<string, number>,
   queryPhrases: string[],
-): ScoredParagraph[] {
+): Array<T & { score: number; matchedTerms: string[] }> {
   const avgLength =
     documents.reduce((total, document) => total + document.length, 0) / documents.length || 1;
   const documentFrequency = documentFrequencyForQueryTerms(documents, queryTerms);
@@ -326,7 +347,7 @@ function scoreDocuments(
 }
 
 function documentFrequencyForQueryTerms(
-  documents: ParagraphDocument[],
+  documents: LexicalDocument[],
   queryTerms: Map<string, number>,
 ) {
   const queryTermSet = new Set(queryTerms.keys());
