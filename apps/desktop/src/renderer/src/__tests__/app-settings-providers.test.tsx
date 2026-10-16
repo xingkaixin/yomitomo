@@ -253,7 +253,7 @@ describe('ProviderForm', () => {
 
     const listbox = screen.getByRole('listbox');
     expect(within(listbox).queryByRole('option', { name: /deepseek-v4-pro/ })).toBeNull();
-    expect(screen.getByText('隐藏的预设模型')).toBeTruthy();
+    expect(screen.getByText('其他预设模型')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'deepseek-v4-pro' }));
     expect(within(listbox).getByRole('option', { name: /deepseek-v4-pro/ })).toBeTruthy();

@@ -2131,7 +2131,7 @@ export const jaResources = {
         presetModelTag: 'プリセット',
         customModelTag: 'カスタム',
         hidePresetModel: 'プリセット モデル {{model}} を非表示',
-        hiddenPresetModels: '非表示のプリセットモデル',
+        hiddenPresetModels: 'その他のプリセットモデル',
         editCustomModel: 'カスタム モデル {{model}} を編集する',
         deleteCustomModel: 'カスタム モデル {{model}} を削除します',
         apiKeyStoredPlaceholder: '安全に保存されました。新しいキーを入力して置き換えます',

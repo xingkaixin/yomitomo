@@ -162,15 +162,19 @@ function ProviderModelPicker({
   const menuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const normalizedModels = useMemo(() => mergeModelNames(models), [models]);
-  const hiddenPresetModels = useMemo(
-    () => presetModels.filter((model) => !normalizedModels.includes(model)),
-    [normalizedModels, presetModels],
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredModels = useMemo(
+    () => normalizedModels.filter((model) => model.toLowerCase().includes(normalizedQuery)),
+    [normalizedModels, normalizedQuery],
   );
-  const filteredModels = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return normalizedModels;
-    return normalizedModels.filter((model) => model.toLowerCase().includes(normalizedQuery));
-  }, [normalizedModels, query]);
+  const hiddenPresetModels = useMemo(
+    () =>
+      presetModels.filter(
+        (model) =>
+          !normalizedModels.includes(model) && model.toLowerCase().includes(normalizedQuery),
+      ),
+    [normalizedModels, normalizedQuery, presetModels],
+  );
   const updateMenuPlacement = useCallback(() => {
     if (!rootRef.current) return;
     setMenuPlacement(getProviderModelMenuPlacement(rootRef.current));
@@ -269,78 +273,93 @@ function ProviderModelPicker({
                 onChange={(event) => setQuery(event.target.value)}
               />
             </label>
-            <div className="provider-model-options" role="listbox" aria-labelledby={labelledBy}>
-              {filteredModels.map((model) => {
-                const isPreset = presetModels.includes(model);
-                const selected = modelName === model;
-                const canRemove = normalizedModels.length > 1;
-                return (
-                  <div
-                    className={
-                      selected ? 'provider-model-option is-selected' : 'provider-model-option'
-                    }
-                    key={model}
-                    role="option"
-                    aria-selected={selected}
-                  >
-                    <button
-                      className="provider-model-option-main"
-                      type="button"
-                      onClick={() => {
-                        onChange(model);
-                        setOpen(false);
-                      }}
+            <div className="provider-model-scroll">
+              <div className="provider-model-options" role="listbox" aria-labelledby={labelledBy}>
+                {filteredModels.map((model) => {
+                  const isPreset = presetModels.includes(model);
+                  const selected = modelName === model;
+                  const canRemove = normalizedModels.length > 1;
+                  return (
+                    <div
+                      className={
+                        selected ? 'provider-model-option is-selected' : 'provider-model-option'
+                      }
+                      key={model}
+                      role="option"
+                      aria-selected={selected}
                     >
-                      <span className="provider-model-radio">
-                        {selected ? <HugeiconsIcon icon={Tick01Icon} size={12} /> : null}
-                      </span>
-                      <span className="provider-model-option-name">{model}</span>
-                      <span className="provider-model-option-tag">
-                        {isPreset
-                          ? t('settings.models.presetModelTag')
-                          : t('settings.models.customModelTag')}
-                      </span>
-                    </button>
-                    {isPreset ? (
                       <button
-                        className="provider-model-row-action"
-                        disabled={!canRemove}
+                        className="provider-model-option-main"
                         type="button"
-                        aria-label={t('settings.models.hidePresetModel', { model })}
-                        onClick={() => onHidePresetModel(model)}
+                        onClick={() => {
+                          onChange(model);
+                          setOpen(false);
+                        }}
                       >
-                        <HugeiconsIcon icon={ViewOffIcon} size={14} />
+                        <span className="provider-model-radio">
+                          {selected ? <HugeiconsIcon icon={Tick01Icon} size={12} /> : null}
+                        </span>
+                        <span className="provider-model-option-name">{model}</span>
+                        <span className="provider-model-option-tag">
+                          {isPreset
+                            ? t('settings.models.presetModelTag')
+                            : t('settings.models.customModelTag')}
+                        </span>
                       </button>
-                    ) : (
-                      <>
-                        <button
-                          className="provider-model-row-action"
-                          type="button"
-                          aria-label={t('settings.models.editCustomModel', { model })}
-                          onClick={() => editCustomModel(model)}
-                        >
-                          <HugeiconsIcon icon={PencilIcon} size={14} />
-                        </button>
+                      {isPreset ? (
                         <button
                           className="provider-model-row-action"
                           disabled={!canRemove}
                           type="button"
-                          aria-label={t('settings.models.deleteCustomModel', { model })}
-                          onClick={() => onDeleteCustomModel(model)}
+                          aria-label={t('settings.models.hidePresetModel', { model })}
+                          onClick={() => onHidePresetModel(model)}
                         >
-                          <HugeiconsIcon icon={Delete02Icon} size={14} />
+                          <HugeiconsIcon icon={ViewOffIcon} size={14} />
                         </button>
-                      </>
-                    )}
+                      ) : (
+                        <>
+                          <button
+                            className="provider-model-row-action"
+                            type="button"
+                            aria-label={t('settings.models.editCustomModel', { model })}
+                            onClick={() => editCustomModel(model)}
+                          >
+                            <HugeiconsIcon icon={PencilIcon} size={14} />
+                          </button>
+                          <button
+                            className="provider-model-row-action"
+                            disabled={!canRemove}
+                            type="button"
+                            aria-label={t('settings.models.deleteCustomModel', { model })}
+                            onClick={() => onDeleteCustomModel(model)}
+                          >
+                            <HugeiconsIcon icon={Delete02Icon} size={14} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+                {filteredModels.length === 0 ? (
+                  <span className="provider-model-empty">
+                    {query.trim()
+                      ? t('settings.models.noMatchedModelWithQuery', { query: query.trim() })
+                      : t('settings.models.noModelsYet')}
+                  </span>
+                ) : null}
+              </div>
+              {hiddenPresetModels.length > 0 ? (
+                <div className="provider-model-hidden-presets">
+                  <span>{t('settings.models.hiddenPresetModels')}</span>
+                  <div>
+                    {hiddenPresetModels.map((model) => (
+                      <button key={model} type="button" onClick={() => onShowPresetModel(model)}>
+                        <HugeiconsIcon icon={ViewIcon} size={13} />
+                        {model}
+                      </button>
+                    ))}
                   </div>
-                );
-              })}
-              {filteredModels.length === 0 ? (
-                <span className="provider-model-empty">
-                  {query.trim()
-                    ? t('settings.models.noMatchedModelWithQuery', { query: query.trim() })
-                    : t('settings.models.noModelsYet')}
-                </span>
+                </div>
               ) : null}
             </div>
             <div className="provider-model-menu-footer">
@@ -399,19 +418,6 @@ function ProviderModelPicker({
                   ? t('settings.models.fetchingModel')
                   : t('settings.models.fetchModel')}
               </Button>
-              {hiddenPresetModels.length > 0 ? (
-                <div className="provider-model-hidden-presets">
-                  <span>{t('settings.models.hiddenPresetModels')}</span>
-                  <div>
-                    {hiddenPresetModels.map((model) => (
-                      <button key={model} type="button" onClick={() => onShowPresetModel(model)}>
-                        <HugeiconsIcon icon={ViewIcon} size={13} />
-                        {model}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
             </div>
           </div>,
           document.body,

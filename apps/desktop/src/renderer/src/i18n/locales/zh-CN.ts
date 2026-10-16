@@ -2006,7 +2006,7 @@ export const zhCNResources = {
         presetModelTag: '预设',
         customModelTag: '自定义',
         hidePresetModel: '隐藏预设模型 {{model}}',
-        hiddenPresetModels: '隐藏的预设模型',
+        hiddenPresetModels: '其他预设模型',
         editCustomModel: '编辑自定义模型 {{model}}',
         deleteCustomModel: '删除自定义模型 {{model}}',
         apiKeyStoredPlaceholder: '已安全保存，输入新 Key 会覆盖',

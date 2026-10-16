@@ -2102,7 +2102,7 @@ export const enResources = {
         presetModelTag: 'Preset',
         customModelTag: 'Custom',
         hidePresetModel: 'Hide preset model {{model}}',
-        hiddenPresetModels: 'Hidden preset models',
+        hiddenPresetModels: 'More preset models',
         editCustomModel: 'Edit custom model {{model}}',
         deleteCustomModel: 'Delete custom model {{model}}',
         apiKeyStoredPlaceholder: 'Safely saved. Enter a new key to replace it',
