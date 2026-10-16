@@ -5,12 +5,7 @@ import {
   type PublicAgent,
   type UserProfile,
 } from '@yomitomo/shared';
-import {
-  annotationColor,
-  annotationAuthorName,
-  selectionActionPosition,
-  type HighlightBox,
-} from '@yomitomo/core';
+import { annotationColor, selectionActionPosition, type HighlightBox } from '@yomitomo/core';
 import type { AnnotationRailLayout } from '@yomitomo/reader-ui/reader-annotations';
 import type { SelectionAction } from '@yomitomo/reader-ui/reader-app-view';
 import { pageMetricIntersectsBox, type PageMetric } from './pdfium-geometry';
@@ -21,10 +16,6 @@ export type PdfAnnotationNavigationState = {
   nextId: string | null;
   totalCount: number;
 };
-
-export function pdfiumAnnotationAgentName(annotation: Annotation) {
-  return annotationAuthorName(annotation.author);
-}
 
 const PDF_ANNOTATION_RAIL_GAP = 20;
 const PDF_ANNOTATION_RAIL_MIN_WIDTH = 220;
@@ -136,43 +127,6 @@ export function pdfiumAnnotationBoxes(
   });
 }
 
-export function pdfiumAnnotationTheaterBoxes(
-  annotation: Annotation,
-  pageMetrics: Record<number, PageMetric>,
-): HighlightBox[] {
-  if (!isPdfTextAnchor(annotation.anchor)) return [];
-  const metric = pageMetrics[annotation.anchor.pageIndex];
-  if (!metric) return [];
-  return annotation.anchor.rects.flatMap((rect, index) => {
-    const box = {
-      id: `theater-${annotation.id}-${index}`,
-      annotationId: annotation.id,
-      contributorId:
-        annotation.author.kind === 'agent'
-          ? annotation.author.agentId
-          : annotation.author.userId || annotation.id,
-      color: annotation.color,
-      top: metric.top + rect.y * metric.height,
-      left: metric.left + rect.x * metric.width,
-      width: Math.max(1, rect.width * metric.width),
-      height: Math.max(2, rect.height * metric.height),
-    };
-    return pageMetricIntersectsBox(metric, box) ? [box] : [];
-  });
-}
-
-export function pdfiumAnnotationIsVisible(
-  annotationId: string | null,
-  annotations: Annotation[],
-  metrics: Record<number, PageMetric>,
-) {
-  if (!annotationId) return false;
-  const annotation = annotations.find((item) => item.id === annotationId);
-  return Boolean(
-    annotation && isPdfTextAnchor(annotation.anchor) && metrics[annotation.anchor.pageIndex],
-  );
-}
-
 export function pdfiumAnnotationNavigationState(
   annotations: Annotation[],
   activeId: string | null,
@@ -223,45 +177,6 @@ export function pdfiumNavigableAnnotations(annotations: Annotation[]) {
         left.createdAt.localeCompare(right.createdAt)
       );
     });
-}
-
-export function pdfiumAnchorReadingPosition(
-  anchor: Annotation['anchor'],
-  pageMetrics: Record<number, PageMetric>,
-  step: number,
-): { x: number; y: number } | null {
-  if (!isPdfTextAnchor(anchor)) return null;
-  const metric = pageMetrics[anchor.pageIndex];
-  if (!metric) return null;
-  const boxes = anchor.rects.flatMap((rect) => {
-    const box = {
-      top: metric.top + rect.y * metric.height,
-      left: metric.left + rect.x * metric.width,
-      width: Math.max(1, rect.width * metric.width),
-      height: Math.max(2, rect.height * metric.height),
-    };
-    return pageMetricIntersectsBox(metric, box) ? [box] : [];
-  });
-  const totalWidth = boxes.reduce((sum, box) => sum + box.width, 0);
-  if (totalWidth <= 0) return null;
-
-  let offset = step % totalWidth;
-  for (const box of boxes) {
-    if (offset <= box.width) {
-      return {
-        x: box.left + offset,
-        y: box.top + box.height / 2,
-      };
-    }
-    offset -= box.width;
-  }
-  const lastBox = boxes[boxes.length - 1];
-  return lastBox
-    ? {
-        x: lastBox.left + lastBox.width,
-        y: lastBox.top + lastBox.height / 2,
-      }
-    : null;
 }
 
 export function pdfiumTemporaryBoxes(

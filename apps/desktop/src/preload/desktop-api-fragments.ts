@@ -1,6 +1,5 @@
 import { ipcRenderer } from 'electron';
 import type {
-  AgentAnnotatePayload,
   AgentDistillationReviewPayload,
   ArticleStorePatch,
   ArticleTranslation,
@@ -133,21 +132,6 @@ export function createYomitomoDesktopApi(input: DesktopPreloadApiInput) {
           payload,
           onEvent,
           (event) => event.message,
-          signal,
-        ),
-      requestAnnotationsStream: (
-        payload: AgentAnnotatePayload,
-        onEvent: (event: DesktopIpcStreamProgressEvent<'agent:annotate:stream'>) => void,
-        signal?: AbortSignal,
-      ) =>
-        desktopIpcStreamClient.request(
-          'agent:annotate:stream',
-          payload,
-          onEvent,
-          (event) => ({
-            annotations: event.annotations,
-            readingMemory: event.readingMemory,
-          }),
           signal,
         ),
     },

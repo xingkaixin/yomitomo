@@ -254,10 +254,6 @@ describe('ReaderSurfaceView', () => {
         }}
         agents={{
           agents: [],
-          dockCompleting: false,
-          dockItems: [],
-          theaterBoxes: [],
-          virtualCursors: [],
         }}
         annotationRail={{
           annotationRailItems: [],

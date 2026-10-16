@@ -1,5 +1,3 @@
-import type { PublicAgent } from '@yomitomo/shared';
-
 export type SelectionMenuAction = {
   x: number;
   y: number;
@@ -19,22 +17,6 @@ export type ReaderSettings = {
   fontSize: number;
   contentWidth: number;
   backgroundColor: string;
-};
-
-export type VirtualCursorState = {
-  id: string;
-  visible: boolean;
-  leaving?: boolean;
-  x: number;
-  y: number;
-  label: string;
-  offscreen: 'above' | 'below' | null;
-  agent?: PublicAgent;
-};
-
-export type AgentDockItem = {
-  agent: PublicAgent;
-  state: 'active' | 'done';
 };
 
 export type HighlightChoiceAction = {

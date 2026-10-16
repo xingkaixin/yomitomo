@@ -87,7 +87,7 @@ describe('ProviderForm', () => {
     const onChange = vi.fn();
     const listProviderModels = vi
       .fn()
-      .mockResolvedValue([{ id: 'gpt-5.2' }, { id: 'gpt-5.2-mini' }]);
+      .mockResolvedValue([{ id: 'gpt-6-astra' }, { id: 'gpt-6.1-sol' }]);
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
@@ -102,7 +102,7 @@ describe('ProviderForm', () => {
           presetId: 'openai',
           type: 'openai-chat',
           apiKey: 'sk-test',
-          modelName: 'gpt-5.1',
+          modelName: 'gpt-5.4',
           modelNames: undefined,
         }}
         onChange={onChange}
@@ -118,8 +118,8 @@ describe('ProviderForm', () => {
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
         modelInputMode: 'list',
-        modelName: 'gpt-5.1',
-        modelNames: expect.arrayContaining(['gpt-5.2', 'gpt-5.2-mini']),
+        modelName: 'gpt-5.4',
+        modelNames: expect.arrayContaining(['gpt-6-astra', 'gpt-6.1-sol']),
       }),
     );
   });
@@ -211,14 +211,14 @@ describe('ProviderForm', () => {
         initialDraft={{
           ...emptyProvider,
           modelName: 'custom/model',
-          modelNames: ['deepseek-chat', 'custom/model'],
+          modelNames: ['deepseek-flash', 'custom/model'],
           modelInputMode: 'list',
         }}
       />,
     );
 
     openModelMenu();
-    expect(screen.queryByLabelText('编辑自定义模型 deepseek-chat')).toBeNull();
+    expect(screen.queryByLabelText('编辑自定义模型 deepseek-flash')).toBeNull();
 
     fireEvent.click(screen.getByLabelText('编辑自定义模型 custom/model'));
     fireEvent.change(screen.getByLabelText('自定义模型名称'), {
@@ -231,7 +231,7 @@ describe('ProviderForm', () => {
     openModelMenu();
     fireEvent.click(screen.getByLabelText('删除自定义模型 custom/model-v2'));
 
-    expect(screen.getByRole('combobox', { name: '模型' }).textContent).toContain('deepseek-chat');
+    expect(screen.getByRole('combobox', { name: '模型' }).textContent).toContain('deepseek-flash');
     openModelMenu();
     expect(screen.queryByText('custom/model-v2')).toBeNull();
   });
@@ -241,22 +241,22 @@ describe('ProviderForm', () => {
       <StatefulProviderForm
         initialDraft={{
           ...emptyProvider,
-          modelName: 'deepseek-chat',
-          modelNames: ['deepseek-chat', 'deepseek-reasoner'],
+          modelName: 'deepseek-flash',
+          modelNames: ['deepseek-flash', 'deepseek-v4-pro'],
           modelInputMode: 'list',
         }}
       />,
     );
 
     openModelMenu();
-    fireEvent.click(screen.getByLabelText('隐藏预设模型 deepseek-reasoner'));
+    fireEvent.click(screen.getByLabelText('隐藏预设模型 deepseek-v4-pro'));
 
     const listbox = screen.getByRole('listbox');
-    expect(within(listbox).queryByRole('option', { name: /deepseek-reasoner/ })).toBeNull();
-    expect(screen.getByText('隐藏的预设模型')).toBeTruthy();
+    expect(within(listbox).queryByRole('option', { name: /deepseek-v4-pro/ })).toBeNull();
+    expect(screen.getByText('其他预设模型')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'deepseek-reasoner' }));
-    expect(within(listbox).getByRole('option', { name: /deepseek-reasoner/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'deepseek-v4-pro' }));
+    expect(within(listbox).getByRole('option', { name: /deepseek-v4-pro/ })).toBeTruthy();
   });
 
   it('filters long fetched model lists in the model menu', () => {

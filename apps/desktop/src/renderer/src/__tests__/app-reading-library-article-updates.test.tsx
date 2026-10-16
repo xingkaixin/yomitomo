@@ -311,31 +311,6 @@ describe('ReadingLibrary article updates', () => {
     expect(unregister).toHaveBeenCalledOnce();
   });
 
-  it('forwards granular agent annotation merges to the source reader', async () => {
-    const selectedArticle = article();
-    const annotation = annotationRecord();
-    const onMergeArticleAgentAnnotation = vi.fn().mockResolvedValue(null);
-
-    renderReadingLibrary({
-      articleActions: articleActionStubs({
-        mergeArticleAgentAnnotation: onMergeArticleAgentAnnotation,
-        readArticle: vi.fn(async () => selectedArticle),
-      }),
-      articles: [selectedArticle],
-      openArticleTarget: { articleId: selectedArticle.id },
-    });
-
-    await waitFor(() => expect(sourceBookcase.props?.content.article?.id).toBe(selectedArticle.id));
-    await act(async () => {
-      await sourceBookcase.props!.articleActions.mergeArticleAgentAnnotation(
-        selectedArticle.id,
-        annotation,
-      );
-    });
-
-    expect(onMergeArticleAgentAnnotation).toHaveBeenCalledWith(selectedArticle.id, annotation);
-  });
-
   it('uses the route article as the reader change owner', async () => {
     const selectedArticle = article();
     const changedArticle = article({

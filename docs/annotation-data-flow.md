@@ -1,7 +1,7 @@
 # 批注、想法与 AI 数据流
 
 本文记录当前 Web、EPUB 和 PDF 阅读器共享的批注边界。重点是数据由谁拥有、在哪一层转换，
-以及何时真正写入 SQLite；临时高亮、虚拟鼠标和 dock 都不是持久化事实来源。
+以及何时真正写入 SQLite；临时高亮不是持久化事实来源。
 
 ## 事实来源与模块边界
 
@@ -25,11 +25,11 @@ renderer 用 store 中的用户资料和全部助手（含已停用的助手和�
 | 层 | 稳定入口 | 职责 |
 | --- | --- | --- |
 | source reader | `apps/desktop/src/renderer/src/source` | 把 Web、EPUB、PDF 选区转换为锚点，并提供正文坐标 |
-| renderer orchestration | `apps/desktop/src/renderer/src/source/bookcase/use-source-reader-session.ts` | 组合批注状态、AI 请求和各阅读器播放适配器 |
+| renderer orchestration | `apps/desktop/src/renderer/src/source/bookcase/use-source-reader-session.ts` | 组合批注状态、助手列表和待回复助手状态 |
 | shared reader UI | `packages/reader-ui/src/annotations/reader-annotation-card.tsx` | 展示批注 thread，发出新增、回复、删除和审阅意图 |
 | IPC contract | `apps/desktop/src/ipc-contract.ts` | 统一声明保存、删除和 AI channel 的参数与返回值 |
 | main persistence | `apps/desktop/src/main/store/store-articles.ts` | 将 renderer 意图路由到文章、批注和评论 repository |
-| core/AI | `packages/core/src/reader/annotations.ts`、`packages/core/src/reader/agent-annotations.ts`、`packages/ai/src/agent` | 纯数据变换、合并规则、prompt 构造和模型输出解析 |
+| core/AI | `packages/core/src/reader/annotations.ts`、`packages/ai/src/agent` | 纯数据变换、prompt 构造和模型输出解析 |
 
 ## 选区到锚点
 
@@ -56,8 +56,8 @@ renderer 用 store 中的用户资料和全部助手（含已停用的助手和�
 接收 PDFium 选区事件；
 `apps/desktop/src/renderer/src/source/pdfium/pdfium-geometry.ts`
 负责页内文字范围与 PDF rect 的转换，
-`apps/desktop/src/renderer/src/source/pdfium/pdfium-agent-plan.ts`
-负责页内锚点与全局文本坐标之间的映射。
+`apps/desktop/src/renderer/src/source/pdfium/pdfium-text-document.ts`
+把各页文本拼成全文，并记录每页在全文中的偏移。
 
 所有阅读器最终都必须提供：原文 `exact`、可恢复位置，以及能从锚点重建的正文高亮 box。
 
@@ -77,8 +77,8 @@ Web 和 EPUB 的用户划线入口分别在
    `updatedAt`。持久化失败时不修改 state，由调用方保留用户输入（例如 composer 保持打开）。
 4. `packages/reader-ui/src/annotations/reader-annotation-card.tsx` 添加顶层想法或回复时，只通过
    `onAddComment(annotationId, content, replyTo)` 把意图交还宿主，不直接访问 Electron API。
-5. 评论包含 `@助手` 时，`useSourceReaderSession()` 在保存用户评论后启动 AI 回复，确保模型失败
-   不会回滚用户内容。
+5. 评论包含 `@助手` 时，讨论窗口先保存用户评论再投递给助手（见下文“回复现有 thread”），
+   模型失败不会回滚用户内容。
 
 `useSourceAnnotations()` 只走细粒度回调，没有整篇文章写入的 fallback：
 
@@ -149,39 +149,12 @@ reader chat state，再投递到 `{ kind: 'chat', sessionId }` 频道。main 把
 并广播 `article-reader-chat-state` patch。两边都整列写 reader chat state，所以回答生成期间
 renderer 不发送新问题，避免覆盖 main 刚写入的回答。
 
-### 生成新的锚定批注（当前无 UI 入口）
-
-`apps/desktop/src/renderer/src/source/bookcase/app-source-agent-request.ts` 构造
-`AgentAnnotatePayload`，通过 `agent:annotate:stream` 接收模型生成的新批注，AI 实现在
-`packages/ai/src/agent/agent-annotation.ts`。聚焦共读规划 UI 移除后，
-`useSourceReaderSession().requestAgentAnnotations()` 没有生产调用方；执行链路和重新接入约束见
-`docs/focus-co-reading-data-flow.md`。
-
-模型输出不会直接落库。renderer 先验证锚点属于请求范围，再由
-`packages/core/src/reader/agent-annotations.ts` 的 `mergeAgentAnnotationAsThought()`
-合并：相同划线已有批注时追加顶层 AI 想法，否则新增批注。保存走 `article:merge-agent-annotation`，
-仍回到前述 article persistence seam。
-
-## 播放状态边界
-
-这一节只适用于 `agent:annotate:stream`。Web、EPUB、PDF 分别通过以下 adapter 把统一 AI 流映射到
-各自坐标系统：
-
-- `apps/desktop/src/renderer/src/source/web/app-source-bookcase-web-controller.ts`
-- `apps/desktop/src/renderer/src/source/ebook/app-source-bookcase-ebook-controller.ts`
-- `apps/desktop/src/renderer/src/source/pdfium/app-source-bookcase-pdfium-controller.ts`
-
-adapter 可以维护虚拟鼠标、dock、临时高亮和播放队列，但只有成功通过锚点约束并进入
-`saveAnnotation()`/`saveComment()` 的数据才是持久化结果。后台文章或无法播放的锚点可跳过演出，
-但不能跳过范围校验与 repository 写入。
-
 ## 接入或排查清单
 
 1. 选区是否能稳定转换成 source-specific `TextAnchor`？
 2. 锚点能否在重新打开后恢复高亮和批注定位？
 3. UI 是否只发意图，由宿主的 `useSourceAnnotations()` 更新事实来源？
 4. 单批注、单评论改动是否走细粒度 IPC，而非整篇 `article:save`？
-5. AI 生成的新批注是否经过范围约束和 `mergeAgentAnnotationAsThought()` 后才保存？
-6. 失败与取消是否只清理临时状态，不删除已经保存的用户内容？
+5. 失败与取消是否只清理临时状态，不删除已经保存的用户内容？
 
 仓库路径由 `pnpm docs:check-paths` 校验；新增或移动上述模块时，应在同一提交更新本文。

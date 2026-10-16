@@ -32,7 +32,7 @@ export function prepareReadingJudgmentInput(
   evidence: readonly ReadingEvidence[],
 ): PreparedReadingJudgmentInput | null {
   const limits = inputLimits[input.kind];
-  const byteLimit = Math.min(limits.bytes, articleTextInputLimit(provider, 'agent-message'));
+  const byteLimit = Math.min(limits.bytes, articleTextInputLimit(provider));
   const query = queryInput(input);
   if (Object.values(query).some((value) => value.length > byteLimit)) return null;
   const required =

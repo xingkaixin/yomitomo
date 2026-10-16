@@ -113,7 +113,7 @@ export function buildProviderRecord(
       existing?.modelName ||
       preset?.modelName ||
       defaultProviderPreset?.modelName ||
-      'deepseek-chat',
+      'deepseek-flash',
     modelNames:
       modelInputMode === 'custom'
         ? undefined

@@ -1,5 +1,4 @@
 import type {
-  AgentReadingPlanItem,
   EpubBookIndex,
   EpubChapterIndex,
   EpubParagraphIndex,
@@ -44,7 +43,6 @@ export type BuildCurrentChapterLexicalRelatedPassagesInput = {
   segmentId?: string;
   paragraphId?: string;
   targetAnchor?: TextAnchor;
-  readingPlan?: AgentReadingPlanItem[];
   readerProgress?: ReaderProgress;
   spoilerPolicy?: SpoilerPolicy;
   scope?: LexicalRelatedPassageScope;
@@ -131,7 +129,6 @@ export function buildCurrentChapterLexicalRelatedPassages(
   const allowedRanges = buildEpubReadingContextScope(prepared.epub, {
     articleText: input.articleText,
     targetAnchor: input.targetAnchor,
-    readingPlan: input.readingPlan,
     readerProgress: input.readerProgress,
     spoilerPolicy: input.spoilerPolicy,
   }).textRanges;
@@ -286,10 +283,6 @@ function currentChapter(
     return (
       locateEpubTextAnchor(input.ebookIndex, input.articleText, input.targetAnchor)?.chapter || null
     );
-  }
-  const firstPlanItem = input.readingPlan?.[0];
-  if (firstPlanItem) {
-    return prepared.epub.locateOffset(firstPlanItem.sectionStart)?.chapter || null;
   }
   return prepared.epub.locateOffset(0)?.chapter || null;
 }

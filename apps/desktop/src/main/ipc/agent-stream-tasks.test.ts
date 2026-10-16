@@ -18,14 +18,14 @@ describe('agent stream tasks', () => {
     const tasks = createAgentStreamTasks();
     const owner = streamOwner(2);
     const other = streamOwner(3);
-    const commentTask = tasks.start(owner, 'agent:distillation-review:stream', 'request_1');
-    const annotateTask = tasks.start(owner, 'agent:annotate:stream', 'request_2');
+    const firstTask = tasks.start(owner, 'agent:distillation-review:stream', 'request_1');
+    const secondTask = tasks.start(owner, 'agent:distillation-review:stream', 'request_2');
     const otherTask = tasks.start(other, 'agent:distillation-review:stream', 'request_3');
 
     owner.destroy();
 
-    expect(commentTask.signal.aborted).toBe(true);
-    expect(annotateTask.signal.aborted).toBe(true);
+    expect(firstTask.signal.aborted).toBe(true);
+    expect(secondTask.signal.aborted).toBe(true);
     expect(otherTask.signal.aborted).toBe(false);
     expect(tasks.activeCount()).toBe(1);
   });

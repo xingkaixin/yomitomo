@@ -2,17 +2,7 @@ import type { LlmProvider } from '@yomitomo/shared';
 import { Cause, Effect, Exit, Fiber } from 'effect';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { setAiLogger } from '../logger';
 import { listProviderModels, listProviderModelsEffect } from './provider-client';
-import {
-  generateYomitomoText,
-  generateYomitomoTextEffect,
-  streamYomitomoText,
-} from './generation-runtime';
-
-function requestBodyText(value: unknown) {
-  return typeof value === 'string' ? value : '';
-}
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status });
@@ -82,31 +72,13 @@ describe('listProviderModels', () => {
   });
 
   it.each(['https://proxy.example.com', 'https://proxy.example.com/v1/'])(
-    'sends Anthropic model list and generation requests under /v1 for %s',
+    'sends Anthropic model list requests under /v1 for %s',
     async (baseUrl) => {
-      const fetchMock = vi
-        .spyOn(globalThis, 'fetch')
-        .mockResolvedValueOnce(jsonResponse({ data: [] }))
-        .mockResolvedValueOnce(
-          jsonResponse({
-            id: 'msg-1',
-            type: 'message',
-            role: 'assistant',
-            model: 'model',
-            content: [{ type: 'text', text: 'ok' }],
-            stop_reason: 'end_turn',
-            usage: { input_tokens: 1, output_tokens: 1 },
-          }),
-        );
-      const target = providerFor('anthropic', 'anthropic', baseUrl);
+      const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ data: [] }));
 
-      await listProviderModels(target);
-      await generateYomitomoText(target, payload());
+      await listProviderModels(providerFor('anthropic', 'anthropic', baseUrl));
 
-      expect(fetchMock.mock.calls.map(([input]) => input)).toEqual([
-        'https://proxy.example.com/v1/models',
-        'https://proxy.example.com/v1/messages',
-      ]);
+      expect(fetchMock.mock.calls[0]?.[0]).toBe('https://proxy.example.com/v1/models');
     },
   );
 
@@ -281,185 +253,6 @@ describe('listProviderModels', () => {
   });
 });
 
-describe('streamYomitomoText', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it('streams text deltas through AI SDK', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
-        new ReadableStream({
-          start(controller) {
-            controller.enqueue(
-              new TextEncoder().encode(
-                'data: {"choices":[{"index":0,"delta":{"content":"tail"},"finish_reason":null}]}\n\n',
-              ),
-            );
-            controller.enqueue(
-              new TextEncoder().encode(
-                'data: {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\n',
-              ),
-            );
-            controller.close();
-          },
-        }),
-        { status: 200 },
-      ),
-    );
-
-    let text = '';
-    await streamYomitomoText(provider(), payload(), (delta) => {
-      text += delta;
-    });
-
-    expect(text).toBe('tail');
-  });
-});
-
-describe('generateYomitomoText response schema', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it('passes JSON schema response_format to OpenAI chat providers', async () => {
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(
-        jsonResponse({ choices: [{ index: 0, message: { content: '{"ok":true}' } }] }),
-      );
-
-    await generateYomitomoText(
-      {
-        ...provider(),
-        presetId: 'openai',
-        baseUrl: 'https://api.openai.com',
-      },
-      { ...payload(), responseSchema: testResponseSchema() },
-    );
-
-    const body = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]?.body)) as {
-      response_format?: unknown;
-    };
-    expect(body.response_format).toEqual({
-      type: 'json_schema',
-      json_schema: {
-        name: 'test_schema',
-        strict: true,
-        schema: testResponseSchema().schema,
-      },
-    });
-  });
-
-  it('passes JSON schema text format to OpenAI responses providers', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      jsonResponse({
-        id: 'response-1',
-        created_at: 0,
-        model: 'model',
-        output: [
-          {
-            id: 'message-1',
-            type: 'message',
-            role: 'assistant',
-            content: [
-              {
-                type: 'output_text',
-                text: '{"ok":true}',
-                annotations: [],
-              },
-            ],
-          },
-        ],
-        usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
-      }),
-    );
-
-    await generateYomitomoText(
-      {
-        ...provider(),
-        type: 'openai-responses',
-        presetId: 'openai',
-        baseUrl: 'https://api.openai.com',
-      },
-      { ...payload(), responseSchema: testResponseSchema() },
-    );
-
-    const body = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]?.body)) as {
-      text?: unknown;
-    };
-    expect(body.text).toEqual({
-      format: {
-        type: 'json_schema',
-        name: 'test_schema',
-        strict: true,
-        schema: testResponseSchema().schema,
-      },
-    });
-  });
-
-  it('passes responseJsonSchema to Gemini generation config', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      jsonResponse({
-        candidates: [{ content: { parts: [{ text: '{"ok":true}' }] } }],
-      }),
-    );
-
-    await generateYomitomoText(
-      {
-        ...provider(),
-        type: 'gemini',
-        presetId: 'gemini',
-        baseUrl: 'https://generativelanguage.googleapis.com',
-      },
-      { ...payload(), responseSchema: testResponseSchema() },
-    );
-
-    const body = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]?.body)) as {
-      generationConfig?: Record<string, unknown>;
-    };
-    expect(body.generationConfig?.responseMimeType).toBe('application/json');
-    expect(body.generationConfig?.responseJsonSchema).toEqual(testResponseSchema().schema);
-  });
-
-  it('rejects with the empty model response error from the Effect boundary', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      jsonResponse({ choices: [{ index: 0, message: { content: '' } }] }),
-    );
-
-    await expect(generateYomitomoText(provider(), payload())).rejects.toThrow(
-      'Provider returned an empty response',
-    );
-  });
-
-  it('preserves generation errors through provider Effect composition', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      jsonResponse({ choices: [{ index: 0, message: { content: '' } }] }),
-    );
-
-    const exit = await Effect.runPromiseExit(generateYomitomoTextEffect(provider(), payload()));
-
-    expect(Exit.isFailure(exit)).toBe(true);
-    if (Exit.isSuccess(exit)) return;
-
-    expect(Cause.hasFails(exit.cause)).toBe(true);
-    expect(Cause.hasDies(exit.cause)).toBe(false);
-    expect(Cause.squash(exit.cause)).toMatchObject({
-      _tag: 'GenerationEmptyResponseError',
-    });
-  });
-
-  it('aborts generation when its Effect fiber is interrupted', async () => {
-    const started = pendingFetch();
-    const fiber = Effect.runFork(generateYomitomoTextEffect(provider(), payload()));
-
-    const signal = await started;
-    await Effect.runPromise(Fiber.interrupt(fiber));
-
-    expect(signal.aborted).toBe(true);
-  });
-});
-
 function pendingFetch() {
   const started = createDeferred<AbortSignal>();
   vi.spyOn(globalThis, 'fetch').mockImplementation((_input, init) => {
@@ -481,72 +274,6 @@ function createDeferred<T>() {
   return { promise, resolve: (value: T) => resolvePromise?.(value) };
 }
 
-describe('provider generation logging', () => {
-  afterEach(() => {
-    setAiLogger({});
-    vi.restoreAllMocks();
-  });
-
-  it('does not expose API key-derived fields in generation logs', async () => {
-    const apiKey = 'rd819-sensitive-credential';
-    const startEvents = captureGenerationStarts();
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      jsonResponse({ choices: [{ index: 0, message: { content: 'ok' } }] }),
-    );
-
-    await generateYomitomoText({ ...provider(), apiKey }, payload());
-
-    expect(startEvents).toHaveLength(1);
-    expect(startEvents[0]).toMatchObject({
-      providerId: 'provider-1',
-      hasApiKey: true,
-    });
-    expectLogToExcludeCredential(startEvents[0], apiKey);
-  });
-
-  it('does not expose API key fragments when generation fails', async () => {
-    const apiKey = 'rd819-failing-credential';
-    const startEvents = captureGenerationStarts();
-    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'));
-
-    await expect(generateYomitomoText({ ...provider(), apiKey }, payload())).rejects.toThrow();
-
-    expect(startEvents).toHaveLength(1);
-    expectLogToExcludeCredential(startEvents[0], apiKey);
-  });
-
-  it('records when an API key is not configured', async () => {
-    const startEvents = captureGenerationStarts();
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      jsonResponse({ choices: [{ index: 0, message: { content: 'ok' } }] }),
-    );
-
-    await generateYomitomoText({ ...provider(), apiKey: '' }, payload());
-
-    expect(startEvents[0]).toMatchObject({ hasApiKey: false });
-  });
-});
-
-function captureGenerationStarts() {
-  const events: Array<Record<string, unknown>> = [];
-  setAiLogger({
-    info(event, data) {
-      if (event === 'assistant.generation.start' && data) events.push(data);
-    },
-  });
-  return events;
-}
-
-function expectLogToExcludeCredential(
-  log: Record<string, unknown> | undefined,
-  credential: string,
-) {
-  const serializedLog = JSON.stringify(log);
-  expect(serializedLog).not.toContain(credential);
-  expect(serializedLog).not.toContain(credential.slice(0, 4));
-  expect(serializedLog).not.toContain(credential.slice(-4));
-}
-
 function provider(): LlmProvider {
   return {
     id: 'provider-1',
@@ -566,27 +293,4 @@ function providerFor(
   baseUrl: string,
 ): LlmProvider {
   return { ...provider(), type, presetId, baseUrl };
-}
-
-function payload() {
-  return {
-    system: 'system',
-    user: 'user',
-    maxTokens: 128,
-  };
-}
-
-function testResponseSchema() {
-  return {
-    name: 'test_schema',
-    strict: true,
-    schema: {
-      type: 'object',
-      additionalProperties: false,
-      required: ['ok'],
-      properties: {
-        ok: { type: 'boolean' },
-      },
-    },
-  };
 }

@@ -2,7 +2,7 @@ import type { LlmProvider, ProviderModel } from '@yomitomo/shared';
 import { errorMessage, providerPresets } from '@yomitomo/shared';
 import { Effect, Schema } from 'effect';
 import { normalizeAnthropicError } from './budget';
-import { anthropicBaseUrl, geminiBaseUrl, openAIBaseUrl } from './ai-sdk-provider-adapter';
+import { anthropicBaseUrl, geminiBaseUrl, openAIBaseUrl } from './provider-urls';
 
 const defaultProviderPreset = providerPresets.find((preset) => preset.id === 'deepseek');
 
@@ -113,7 +113,7 @@ function normalizeProvider(provider: Partial<LlmProvider>): LlmProvider {
     logo: provider.logo || preset?.logo,
     baseUrl: provider.baseUrl || preset?.baseUrl || 'https://api.deepseek.com',
     apiKey: provider.apiKey || '',
-    modelName: provider.modelName || preset?.modelName || 'deepseek-chat',
+    modelName: provider.modelName || preset?.modelName || 'deepseek-flash',
     reasoningEffort: provider.reasoningEffort || 'none',
     createdAt: provider.createdAt || now,
     updatedAt: provider.updatedAt || now,

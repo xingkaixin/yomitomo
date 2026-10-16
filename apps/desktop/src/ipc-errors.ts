@@ -3,7 +3,6 @@ import { sourceImportErrorCodes, type SourceImportErrorCode } from './ipc/articl
 export const desktopIpcErrorCodes = {
   agentNotFound: 'AGENT_NOT_FOUND',
   annotationDistillationConflict: 'ANNOTATION_DISTILLATION_CONFLICT',
-  annotationAgentNotFound: 'ANNOTATION_AGENT_NOT_FOUND',
   appLockPinInvalid: 'APP_LOCK_PIN_INVALID',
   appLockPinMismatch: 'APP_LOCK_PIN_MISMATCH',
   appLockPinRequired: 'APP_LOCK_PIN_REQUIRED',

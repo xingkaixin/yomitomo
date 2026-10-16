@@ -125,7 +125,7 @@ describe('ReadingLibraryQuestion', () => {
     await screen.findByText(`${keys}.counts 4 2`);
     submit('  A question  ');
     const privacy = await screen.findByRole('region', { name: 'readingMemory.privacy.title' });
-    expect(document.activeElement).toBe(privacy);
+    await waitFor(() => expect(document.activeElement).toBe(privacy));
     expect(screen.getByRole('region', { name: `${keys}.localEvidence` })).toBeTruthy();
     expect(api.library.search).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -144,7 +144,7 @@ describe('ReadingLibraryQuestion', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: `${keys}.confirmPrivacy` }));
     await waitFor(() => expect(api.confirmPrivacy).toHaveBeenCalledOnce());
-    expect(document.activeElement).toBe(screen.getByText(`${keys}.answering`));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByText(`${keys}.answering`)));
     const cancel = screen.getByRole('button', { name: 'common.cancel' });
     fireEvent.click(cancel);
     expect(screen.getByText(`${keys}.canceled`)).toBeTruthy();

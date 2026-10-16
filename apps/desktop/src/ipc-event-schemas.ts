@@ -182,35 +182,6 @@ const publicAgentSchema = z.looseObject({
   personalityName: shortTextSchema,
 });
 
-const textRangeSchema = z.looseObject({
-  textStart: offsetSchema,
-  textEnd: offsetSchema,
-});
-
-const readingMemorySchema = z.looseObject({
-  textSummaries: z
-    .array(
-      z.looseObject({
-        scope: z.enum(['segment', 'chapter', 'book']),
-        sourceRange: textRangeSchema,
-        summary: articleTextSchema,
-        keyTerms: z.array(shortTextSchema).max(MAX_LIST_LENGTH),
-        updatedAt: timestampSchema,
-      }),
-    )
-    .max(MAX_LIST_LENGTH),
-  readingTraces: z
-    .array(
-      z.looseObject({
-        scope: z.enum(['segment', 'chapter', 'agent', 'reader']),
-        items: z.array(z.record(z.string().max(MAX_ID_LENGTH), z.unknown())).max(MAX_LIST_LENGTH),
-        updatedAt: timestampSchema,
-      }),
-    )
-    .max(MAX_LIST_LENGTH),
-  updatedAt: timestampSchema,
-});
-
 const readingMemoryViewSchema = z.looseObject({
   articleId: idSchema,
   viewType: z.enum([
@@ -235,33 +206,6 @@ const readingMemoryViewSchema = z.looseObject({
   sourceEntryIds: z.array(idSchema).max(MAX_LIST_LENGTH),
   updatedAt: timestampSchema,
 });
-
-const agentReadingPlanSchema = z
-  .array(
-    z.looseObject({
-      sectionId: idSchema,
-      sectionTitle: shortTextSchema,
-      sectionStart: offsetSchema,
-      sectionEnd: offsetSchema,
-      readingIntent: readingIntentSchema.optional(),
-      sectionSummary: optionalShortTextSchema,
-      sectionTag: optionalShortTextSchema,
-      targetDensity: z.enum(['low', 'medium', 'high']).optional(),
-      messages: z
-        .array(
-          z.looseObject({
-            content: shortTextSchema,
-            agentId: optionalIdSchema,
-            agentUsername: optionalIdSchema,
-            agentIds: z.array(idSchema).max(MAX_ROSTER_LENGTH).optional(),
-            agentUsernames: z.array(idSchema).max(MAX_ROSTER_LENGTH).optional(),
-          }),
-        )
-        .max(MAX_ROSTER_LENGTH)
-        .optional(),
-    }),
-  )
-  .max(MAX_LIST_LENGTH);
 
 const agentPayloadBase = {
   agentId: optionalIdSchema,
@@ -296,24 +240,12 @@ const agentDistillationReviewPayloadSchema = agentMessagePayloadSchema.safeExten
   reviewMessageId: optionalIdSchema,
 });
 
-const agentAnnotatePayloadSchema = boundedPayload(
-  z.looseObject({
-    ...agentPayloadBase,
-    annotationType: z.enum(['key_point', 'assumption', 'concept', 'question', 'quote']).optional(),
-    annotations: z.array(annotationSchema).max(MAX_LIST_LENGTH).optional(),
-    readingMemory: readingMemorySchema.optional(),
-    readingPlan: agentReadingPlanSchema.optional(),
-    targetAnchor: textAnchorSchema.optional(),
-  }),
-);
-
 const desktopIpcStreamSchemas = {
   'agent:distillation-review:stream': streamRequestSchema(agentDistillationReviewPayloadSchema),
-  'agent:annotate:stream': streamRequestSchema(agentAnnotatePayloadSchema),
 } satisfies Record<DesktopIpcStreamChannel, z.ZodType>;
 
 const streamCancelSchema = z.object({
-  channel: z.enum(['agent:distillation-review:stream', 'agent:annotate:stream']),
+  channel: z.enum(['agent:distillation-review:stream']),
   requestId: z.string().min(1).max(128),
 });
 
@@ -323,7 +255,6 @@ const desktopIpcMainEventSchemas = {
   'agent:distillation-review:stream': z.tuple([
     desktopIpcStreamSchemas['agent:distillation-review:stream'],
   ]),
-  'agent:annotate:stream': z.tuple([desktopIpcStreamSchemas['agent:annotate:stream']]),
 } satisfies Record<DesktopIpcToMainEventChannel, z.ZodType>;
 
 export function validateDesktopIpcMainEventArgs<Channel extends DesktopIpcToMainEventChannel>(

@@ -10,7 +10,7 @@ describe('provider defaults', () => {
       name: '深度求索',
       type: 'openai-chat',
       baseUrl: 'https://api.deepseek.com',
-      modelName: 'deepseek-chat',
+      modelName: 'deepseek-flash',
       reasoningEffort: 'none',
     });
   });

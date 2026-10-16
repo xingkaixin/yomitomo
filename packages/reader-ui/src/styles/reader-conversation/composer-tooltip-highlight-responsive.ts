@@ -351,7 +351,7 @@ export const composerTooltipHighlightResponsiveStyles = `.reader-note-comments-p
 .reader-highlight.is-filter-dimmed .reader-highlight-dots {
   opacity:.42
 }
-.reader-highlight.is-temporary,.reader-highlight.is-agent-theater {
+.reader-highlight.is-temporary {
   background:transparent;
   box-shadow:none
 }
@@ -448,18 +448,6 @@ export const composerTooltipHighlightResponsiveStyles = `.reader-note-comments-p
   .reader-tooltip-content {
     animation:none!important
   }
-  .reader-virtual-cursor {
-    transition:none!important
-  }
-  .reader-virtual-cursor.is-leaving {
-    animation:none!important;
-    opacity:0
-  }
-  .reader-completion-burst {
-    display:none!important
-  }
-  .reader-agent-dock.is-completing,
-  .reader-agent-dock-item.is-active,
   .reader-review-invite.is-reviewing svg,
   .reader-review-active-avatars>span,
   .reader-thought-review-motion>span,
@@ -468,14 +456,6 @@ export const composerTooltipHighlightResponsiveStyles = `.reader-note-comments-p
   .reader-highlight.is-new::before,
   .reader-highlight.is-new .reader-highlight-dots {
     animation:none!important
-  }
-  .reader-agent-dock.is-completing {
-    opacity:0;
-    filter:none;
-    transform:translateX(-50%)
-  }
-  .reader-agent-dock-item.is-active {
-    transform:none
   }
   .reader-pending-agent-avatar::after {
     opacity:1;

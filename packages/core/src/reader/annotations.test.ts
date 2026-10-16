@@ -9,7 +9,6 @@ import {
   annotationPrimaryComment,
   annotationThoughtComments,
   annotationThreadComments,
-  annotationToPublicAgent,
   annotationTypeLabel,
   annotationUserAuthorRef,
   appendAnnotationComment,
@@ -313,13 +312,6 @@ describe('annotation core', () => {
       username: agent.username,
     });
     expect(annotationColor(aiAnnotation, user, [])).toBe(agent.annotationColor);
-    expect(annotationToPublicAgent(aiAnnotation)).toEqual(
-      expect.objectContaining({
-        id: agent.id,
-        nickname: agent.nickname,
-        username: agent.username,
-      }),
-    );
   });
 
   it('resolves one display name for both author kinds', () => {

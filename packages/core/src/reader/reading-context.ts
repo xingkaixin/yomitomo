@@ -1,5 +1,4 @@
 import type {
-  AgentReadingPlanItem,
   EpubBookIndex,
   EpubChapterIndex,
   EpubSegmentIndex,
@@ -11,7 +10,6 @@ import type {
 import { prepareEpubBookIndex, type PreparedEpubBookIndex } from '../epub/ebook-index';
 import {
   createMergedReadingContextRangeLookup,
-  intersectTextRanges,
   mergeReadingContextTextRanges,
   type ReadingContextRangeLookup,
   type ReadingContextTextRange,
@@ -26,12 +24,6 @@ export const selectionAnnotationSpoilerPolicy: SpoilerPolicy = {
 };
 
 export const selectionThreadSpoilerPolicy: SpoilerPolicy = {
-  allowedScope: 'read-so-far',
-  allowFutureChapterEvidence: false,
-  allowFuturePlotEvents: false,
-};
-
-export const segmentAnnotationSpoilerPolicy: SpoilerPolicy = {
   allowedScope: 'read-so-far',
   allowFutureChapterEvidence: false,
   allowFuturePlotEvents: false,
@@ -57,7 +49,6 @@ export type BuildReadingContextBundleInput = {
   articleText: string;
   ebookIndex?: EpubBookIndex;
   targetAnchor?: TextAnchor;
-  readingPlan?: AgentReadingPlanItem[];
   readerProgress?: ReaderProgress;
   spoilerPolicy?: SpoilerPolicy;
   relatedPassages?: ReadingContextPassageInput[];
@@ -126,18 +117,8 @@ export function buildEpubReadingContextScope(
   };
 }
 
-export function readingContextTextForRange(
-  articleText: string,
-  ranges: ReadingContextTextRange[],
-  textStart: number,
-  textEnd: number,
-) {
-  return readingContextText(articleText, intersectTextRanges(ranges, { textStart, textEnd }));
-}
-
 function defaultSpoilerPolicy(input: BuildReadingContextBundleInput): SpoilerPolicy {
   if (input.targetAnchor) return selectionAnnotationSpoilerPolicy;
-  if (input.readingPlan?.length) return segmentAnnotationSpoilerPolicy;
   return wholeBookSpoilerPolicy;
 }
 
@@ -164,18 +145,10 @@ function inferReaderProgress(
   input: BuildReadingContextBundleInput,
 ): ReaderProgress | undefined {
   const target = input.targetAnchor ? prepared.locateAnchor(articleText, input.targetAnchor) : null;
-  if (target) {
-    const location = prepared.locateOffset(target.textStart);
-    return location
-      ? progressFromLocation(prepared, location.chapter, location.segment, target.textEnd)
-      : undefined;
-  }
-
-  const firstPlanItem = input.readingPlan?.[0];
-  if (!firstPlanItem) return undefined;
-  const location = prepared.locateOffset(firstPlanItem.sectionStart);
+  if (!target) return undefined;
+  const location = prepared.locateOffset(target.textStart);
   return location
-    ? progressFromLocation(prepared, location.chapter, location.segment, firstPlanItem.sectionEnd)
+    ? progressFromLocation(prepared, location.chapter, location.segment, target.textEnd)
     : undefined;
 }
 

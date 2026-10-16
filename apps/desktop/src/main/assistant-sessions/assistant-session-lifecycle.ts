@@ -2,6 +2,7 @@ import { readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { app } from 'electron';
 import { createArticleTextStore } from './assistant-article-text';
+import type { DistillationReviewRequest } from './assistant-distillation-review';
 import { pendingArticleId, removeArticleFiles } from './assistant-session-files';
 import type { AssistantSessionHost } from './assistant-sessions';
 
@@ -37,6 +38,10 @@ export async function resumePendingAssistantRuns() {
 export async function activeAssistantRuns(articleId: string) {
   if (!loaded) return [];
   return (await loadAssistantSessions()).runtime.activeRuns(articleId);
+}
+
+export async function runDistillationReview(request: DistillationReviewRequest) {
+  return (await loadAssistantSessions()).distillationReview.run(request);
 }
 
 export async function removeArticleAssistantSession(articleId: string) {

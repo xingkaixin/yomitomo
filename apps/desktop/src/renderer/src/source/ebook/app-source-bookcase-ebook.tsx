@@ -1,7 +1,7 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowLeft01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons';
 import type React from 'react';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Annotation, ReaderQuestionContext } from '@yomitomo/shared';
 import {
@@ -11,7 +11,6 @@ import {
   type HighlightBox,
   type TocItem,
 } from '@yomitomo/core';
-import { sleep } from '@yomitomo/reader-ui/reader-animation';
 import { buildTocAnnotationStats } from '@yomitomo/reader-ui/reader-annotations';
 import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { ReaderSettingsToolbarControls } from '@yomitomo/reader-ui/reader-toolbar-controls';
@@ -21,7 +20,6 @@ import {
 } from './ebook-annotation-layout';
 import { ebookHasStableSectionChapterMapping, ebookTocItemsForReader } from './ebook-content';
 import {
-  currentFoliateContent,
   formatEbookPageLabel,
   isEbookPageNavigationReady,
   isEbookPaginationReady,
@@ -31,9 +29,7 @@ import {
 } from './ebook-foliate-view';
 import { ebookArticleText } from './ebook-text-anchor';
 import { EbookReaderShell } from './app-source-ebook-reader-shell';
-import { playEbookAgentAnnotationPlayback } from './app-source-ebook-agent-playback';
 import type { EbookBookcaseProps } from '../bookcase/source-bookcase-types';
-import { useEbookAgentVirtualReading } from './use-ebook-agent-virtual-reading';
 import { useEbookFoliateView } from './use-ebook-foliate-view';
 import { useEbookBilingualTranslation } from './use-ebook-bilingual-translation';
 import { useEbookReaderBoxes } from './use-ebook-reader-boxes';
@@ -46,12 +42,10 @@ import {
 } from '../../shell/use-reader-page-turn-keys';
 import { ArticleBook } from '../../shell/app-article-book';
 import { articleDisplayTitle } from '../../reading-library/app-reading-library-utils';
-import { createEbookSourceReaderController } from './app-source-bookcase-ebook-controller';
 import { saveAssistantArticleText } from '../bookcase/assistant-article-text';
 import { useAssistantPassageReveal } from '../bookcase/use-assistant-passage-reveal';
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
 import { useSourceReaderAppView } from '../bookcase/use-source-reader-app-view';
-import { appendAgentAnnotationToArticle as appendPersistedAgentAnnotation } from '../bookcase/append-agent-annotation-to-article';
 import { useEbookSpreadLayout } from './use-ebook-spread-layout';
 
 export function EbookBookcase({
@@ -68,7 +62,7 @@ export function EbookBookcase({
   },
   readerControl: { focusAnnotationId, onClose, onOpenEvidenceSource, selectedAnnotationId },
 }: EbookBookcaseProps) {
-  const { mergeArticleAgentAnnotation, saveArticleReadingProgress } = articleActions;
+  const { saveArticleReadingProgress } = articleActions;
   const { t } = useTranslation();
   const scheduleEbookBoxUpdateRef = useRef<(reason: EbookBoxUpdateReason) => void>(() => {});
   const pageTurnTraceRef = useRef<EbookPageTurnTrace | null>(null);
@@ -97,29 +91,6 @@ export function EbookBookcase({
     articleActions,
     onOpenEvidenceSource,
     beforeOpenAnnotation,
-    createAgentAnnotationAdapter: ({ isCurrentArticle, setStatusMessage }) =>
-      createEbookSourceReaderController({
-        appendAgentAnnotationToArticle,
-        currentArticleText,
-        enqueueAgentAnnotationPlayback: (articleId, annotation, options) =>
-          enqueueEbookAgentAnnotationPlayback(articleId, annotation, options),
-        finishAgentDock: (agentId, completed) => finishEbookAgentDock(agentId, completed),
-        finishVirtualReading: (agentId, message) => finishEbookVirtualReading(agentId, message),
-        isAgentAnnotating: (agentId) => annotatingAgentIds.includes(agentId),
-        isCurrentArticle,
-        setAgentAnnotating: (agentId, annotating) =>
-          setAnnotatingAgentIds((ids) => {
-            if (annotating) return ids.includes(agentId) ? ids : [...ids, agentId];
-            return ids.filter((id) => id !== agentId);
-          }),
-        setStatusMessage,
-        startAgentDock: (agent) => startEbookAgentDock(agent),
-        startVirtualReading: (agent, targetAnchor) => startEbookVirtualReading(agent, targetAnchor),
-        waitForPlaybackCompletion: async () => {
-          await ebookAgentAnimationQueueRef.current;
-          await sleep(900);
-        },
-      }),
     messageSendShortcut,
     selectionActionShortcuts,
     settings,
@@ -174,7 +145,6 @@ export function EbookBookcase({
     askSelection,
     closeSettings,
     closeToc,
-    isCurrentArticle,
     newAnnotationIds,
     openAnnotation,
     session: sourceReaderSession,
@@ -182,8 +152,7 @@ export function EbookBookcase({
     statusMessage,
     workspace: sourceReaderWorkspace,
   } = sourceReaderApp;
-  const { annotations, annotationsRef, annotationAgents, applyAnnotations } = sourceReaderSession;
-  const [annotatingAgentIds, setAnnotatingAgentIds] = useState<string[]>([]);
+  const { annotations, annotationsRef, annotationAgents } = sourceReaderSession;
 
   const {
     actionShortcuts,
@@ -379,27 +348,6 @@ export function EbookBookcase({
     () => buildTocAnnotationStats(readerTocItems, annotations, userProfile, annotationAgents),
     [annotationAgents, annotations, readerTocItems, userProfile],
   );
-  const {
-    agentDockCompleting: ebookAgentDockCompleting,
-    agentDockItems: ebookAgentDockItems,
-    agentTheaterBoxes,
-    virtualCursors,
-    agentAnimationQueueRef: ebookAgentAnimationQueueRef,
-    cleanupAgentTheater: cleanupEbookAgentTheater,
-    cursorAgent: ebookCursorAgent,
-    finishAgentDock: finishEbookAgentDock,
-    finishVirtualReading: finishEbookVirtualReading,
-    setAgentTheaterBoxes,
-    startAgentDock: startEbookAgentDock,
-    startVirtualReading: startEbookVirtualReading,
-    stopVirtualReadingTimer: stopEbookVirtualReadingTimer,
-    updateVirtualCursor: updateEbookVirtualCursor,
-  } = useEbookAgentVirtualReading({
-    agents: annotationAgents,
-    canvasRef,
-    viewHostRef,
-    viewRef,
-  });
   beforeEbookPageTurnRef.current = (trace) => {
     clearAnnotationUiState();
     hideEbookBoxLayer();
@@ -412,10 +360,8 @@ export function EbookBookcase({
   useLayoutEffect(() => {
     resetEbookBoxState();
     clearAnnotationUiState();
-    setAnnotatingAgentIds([]);
-    cleanupEbookAgentTheater();
     setStatusMessage('');
-  }, [article.id, cleanupEbookAgentTheater, clearAnnotationUiState, resetEbookBoxState]);
+  }, [article.id, clearAnnotationUiState, resetEbookBoxState]);
 
   useEffect(() => {
     const previous = articleAnnotationSignatureRef.current;
@@ -428,13 +374,6 @@ export function EbookBookcase({
     }
     scheduleEbookBoxUpdate('annotations_applied');
   }, [article.id, articleAnnotationSignature, scheduleEbookBoxUpdate]);
-
-  useEffect(
-    () => () => {
-      cleanupEbookAgentTheater();
-    },
-    [cleanupEbookAgentTheater],
-  );
 
   function goToReaderTocItem(item: TocItem) {
     const tocItem = tocItems[item.index];
@@ -458,53 +397,6 @@ export function EbookBookcase({
     clearAnnotationUiState();
     closeSettings();
     if (selectedAnnotationId) onOpenAnnotation(null);
-  }
-
-  function enqueueEbookAgentAnnotationPlayback(
-    articleId: string,
-    annotation: Annotation,
-    options: { revealMissingRange?: boolean } = {},
-  ) {
-    const run = async () => {
-      try {
-        await playEbookAgentAnnotation(articleId, annotation, options);
-      } catch (error) {
-        console.warn(error);
-        await appendAgentAnnotationToArticle(articleId, annotation);
-      }
-    };
-    const next = ebookAgentAnimationQueueRef.current.then(run, run);
-    ebookAgentAnimationQueueRef.current = next.then(
-      () => undefined,
-      () => undefined,
-    );
-  }
-
-  async function playEbookAgentAnnotation(
-    articleId: string,
-    annotation: Annotation,
-    options: { revealMissingRange?: boolean } = {},
-  ) {
-    await playEbookAgentAnnotationPlayback({
-      articleId,
-      annotation,
-      revealMissingRange: options.revealMissingRange,
-      canvasElement: canvasRef.current,
-      surfaceElement: surfaceRef.current,
-      document: currentFoliateContent(viewRef.current)?.doc || null,
-      cursorAgent: ebookCursorAgent(annotation),
-      isCurrentArticle,
-      appendAgentAnnotationToArticle,
-      goToAnnotation,
-      finishEbookVirtualReading,
-      stopEbookVirtualReadingTimer,
-      updateEbookVirtualCursor,
-      setAgentTheaterBoxes,
-    });
-  }
-
-  function currentArticleText() {
-    return ebookText;
   }
 
   function beforeOpenAnnotation() {
@@ -531,20 +423,6 @@ export function EbookBookcase({
   async function revealReaderChatContext(context: ReaderQuestionContext) {
     if (!context.anchor) return;
     await ebookNavigation.goToEbookAnchor('reader-chat-context', context.anchor);
-  }
-
-  async function appendAgentAnnotationToArticle(articleId: string, annotation: Annotation) {
-    return appendPersistedAgentAnnotation({
-      annotations: () => annotationsRef.current,
-      applyAnnotations,
-      isCurrentArticle,
-      mergeArticleAgentAnnotation,
-      onOpenAnnotation: (annotationId) => {
-        if (annotationId) openAnnotation(annotationId);
-      },
-      articleId,
-      annotation,
-    });
   }
 
   function handleHighlightClick(
@@ -611,10 +489,6 @@ export function EbookBookcase({
     return true;
   }
 
-  async function goToAnnotation(annotationId: string) {
-    return ebookNavigation.goToAnnotation(annotationId);
-  }
-
   const progressPercent = Math.round(progress * 100);
   const pageNavigationReady = isEbookPageNavigationReady(pageInfo);
   const paginationReady = isEbookPaginationReady(pageInfo, sectionPageCounts);
@@ -657,12 +531,6 @@ export function EbookBookcase({
         onSelectionHandleDragEnd: finishEbookSelectionAdjustment,
         onSelectionHandleDragStart: startEbookSelectionAdjustment,
       },
-    },
-    agentPlayback: {
-      dockCompleting: ebookAgentDockCompleting,
-      dockItems: ebookAgentDockItems,
-      theaterBoxes: agentTheaterBoxes,
-      virtualCursors,
     },
     annotations: {
       activeId: selectedAnnotationId,

@@ -1,3 +1,5 @@
+import type { Usage } from '@earendil-works/pi-ai';
+
 export type NormalizedAiUsage = {
   inputTokens?: number;
   outputTokens?: number;
@@ -7,26 +9,13 @@ export type NormalizedAiUsage = {
   totalTokens?: number;
 };
 
-export function normalizeAiUsage(usage: {
-  inputTokens?: number;
-  outputTokens?: number;
-  totalTokens?: number;
-  reasoningTokens?: number;
-  cachedInputTokens?: number;
-  inputTokenDetails?: {
-    cacheReadTokens?: number;
-    cacheWriteTokens?: number;
-  };
-  outputTokenDetails?: {
-    reasoningTokens?: number;
-  };
-}): NormalizedAiUsage {
+export function normalizePiUsage(usage: Usage): NormalizedAiUsage {
   return compactUsage({
-    inputTokens: usage.inputTokens,
-    outputTokens: usage.outputTokens,
-    reasoningTokens: usage.outputTokenDetails?.reasoningTokens ?? usage.reasoningTokens,
-    cachedInputTokens: usage.inputTokenDetails?.cacheReadTokens ?? usage.cachedInputTokens,
-    cacheWriteTokens: usage.inputTokenDetails?.cacheWriteTokens,
+    inputTokens: usage.input,
+    outputTokens: usage.output,
+    reasoningTokens: usage.reasoning,
+    cachedInputTokens: usage.cacheRead,
+    cacheWriteTokens: usage.cacheWrite,
     totalTokens: usage.totalTokens,
   });
 }

@@ -1,9 +1,9 @@
-import type { AgentAnnotationDensity, AgentReadingIntent, PublicAgent } from './agent-types';
-import type { Annotation, AnnotationType, Comment } from '../annotation-types';
+import type { AgentReadingIntent, PublicAgent } from './agent-types';
+import type { Annotation, Comment } from '../annotation-types';
 import type { TextAnchor } from '../anchor-types';
 import type { EpubBookIndex } from '../sources/ebook-types';
 import type { ReadingMemoryView } from '../reading-memory/reading-memory-entry-types';
-import type { ReaderProgress, ReadingMemory, SpoilerPolicy } from '../reader-context-types';
+import type { ReaderProgress, SpoilerPolicy } from '../reader-context-types';
 import type { UiLanguage } from '../locale-types';
 
 export type AgentMessagePayload = {
@@ -37,73 +37,6 @@ export type AgentMessagePayload = {
 export type AgentDistillationReviewPayload = Omit<AgentMessagePayload, 'responseMode'> & {
   responseMode?: 'distillation_review';
   reviewMessageId?: string;
-};
-
-export type AgentReviewPayload = {
-  agentId?: string;
-  agentUsername: string;
-  uiLanguage?: UiLanguage;
-  agentRoster?: PublicAgent[];
-  readerProgress?: ReaderProgress;
-  spoilerPolicy?: SpoilerPolicy;
-  article: {
-    id?: string;
-    title: string;
-    url: string;
-    text: string;
-    ebookIndex?: EpubBookIndex;
-  };
-  annotation: Annotation;
-};
-
-export type AgentAnnotatePayload = {
-  agentId?: string;
-  agentUsername: string;
-  uiLanguage?: UiLanguage;
-  annotationType?: AnnotationType;
-  readingIntent?: AgentReadingIntent;
-  instruction?: string;
-  annotations?: Annotation[];
-  readingMemory?: ReadingMemory;
-  readingMemoryView?: ReadingMemoryView;
-  readingPlan?: AgentReadingPlanItem[];
-  targetAnchor?: TextAnchor;
-  readerProgress?: ReaderProgress;
-  spoilerPolicy?: SpoilerPolicy;
-  article: {
-    id?: string;
-    title: string;
-    url: string;
-    text: string;
-    ebookIndex?: EpubBookIndex;
-  };
-};
-
-export type AgentAnnotateResult = {
-  annotations: Annotation[];
-  readingMemory?: ReadingMemory;
-};
-
-export type AgentReadingPlanItem = {
-  sectionId: string;
-  sectionTitle: string;
-  sectionStart: number;
-  sectionEnd: number;
-  readingIntent?: AgentReadingIntent;
-  sectionSummary?: string;
-  sectionTag?: string;
-  targetDensity?: AgentAnnotationDensity;
-  messages?: AgentReadingPlanMessage[];
-};
-
-export type AgentReadingPlanMessage = {
-  content: string;
-  agentId?: string;
-  agentUsername?: string;
-  agentNickname?: string;
-  agentIds?: string[];
-  agentUsernames?: string[];
-  agentNicknames?: string[];
 };
 
 export type AgentMentionInstructionPayload = {

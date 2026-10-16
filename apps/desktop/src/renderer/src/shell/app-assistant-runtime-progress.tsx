@@ -72,9 +72,6 @@ function assistantRuntimeIpcErrorMessage(error: unknown) {
   if (error.code === desktopIpcErrorCodes.reviewAgentNotFound) {
     return i18next.t('assistantErrors.reviewAgentNotFound', { name });
   }
-  if (error.code === desktopIpcErrorCodes.annotationAgentNotFound) {
-    return i18next.t('assistantErrors.annotationAgentNotFound', { name });
-  }
   if (error.code === desktopIpcErrorCodes.providerRouteRequired) {
     const task = typeof error.detail?.task === 'string' ? error.detail.task : '';
     if (task === 'readingAssistant')

@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Delete02Icon } from '@hugeicons/core-free-icons';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ReadingMemoryStatusSnapshot } from '../../../ipc-contract';
 import {
@@ -12,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
-import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { getDesktopApi } from '../shell/app-desktop-api';
 import { SettingsConfirmDialog } from './app-settings-confirm-dialog';
@@ -133,6 +134,49 @@ function useReadingMemoryModelStatus() {
   return { snapshot, error, pending, run, refresh: () => sessionRef.current?.refresh() };
 }
 
+type StatusTone = 'ready' | 'active' | 'idle' | 'error';
+type ReadingMemoryModelStatus = ReadingMemoryStatusSnapshot['model']['status'];
+
+const modelTone: Record<ReadingMemoryModelStatus, StatusTone> = {
+  checking: 'active',
+  'not-installed': 'idle',
+  downloading: 'active',
+  available: 'ready',
+  failed: 'error',
+};
+const projectionTone: Record<ReadingMemoryStatusSnapshot['projection']['state'], StatusTone> = {
+  not_built: 'idle',
+  building: 'active',
+  available: 'ready',
+  stale: 'active',
+  failed: 'error',
+};
+const semanticTone: Record<ReadingMemoryStatusSnapshot['semantic']['state'], StatusTone> = {
+  checking: 'active',
+  not_installed: 'idle',
+  downloading: 'active',
+  building: 'active',
+  available: 'ready',
+  rebuilding: 'active',
+  failed: 'error',
+};
+
+function StatusLabel({
+  tone,
+  live = false,
+  children,
+}: {
+  tone: StatusTone;
+  live?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <span className="reading-memory-status" data-tone={tone} role={live ? 'status' : undefined}>
+      {children}
+    </span>
+  );
+}
+
 export function ReadingMemoryModelSettings() {
   const { t, i18n } = useTranslation();
   const { snapshot, error, pending, run, refresh } = useReadingMemoryModelStatus();
@@ -156,6 +200,57 @@ export function ReadingMemoryModelSettings() {
       bytes: number(value),
     });
 
+  if (!snapshot) {
+    return (
+      <SettingsGroup
+        label={t('settings.models.localMemory.title')}
+        note={t('settings.models.localMemory.description')}
+        cardProps={{ role: 'region', 'aria-label': t('settings.models.localMemory.title') }}
+      >
+        <p className="px-4 py-3 text-sm text-muted-foreground" role="status">
+          {error
+            ? t('settings.models.localMemory.loadFailed')
+            : t('settings.models.localMemory.loading')}
+        </p>
+        {error === 'load' ? <LoadRetry onRetry={() => void refresh()} /> : null}
+      </SettingsGroup>
+    );
+  }
+
+  const { semantic, projection } = snapshot;
+  const modelAvailable = snapshot.model.status === 'available';
+  const showRemove =
+    !downloading &&
+    snapshot.model.status !== 'checking' &&
+    (modelAvailable ||
+      snapshot.model.downloadedBytes > 0 ||
+      semantic.coverage.indexedEntryCount > 0);
+  const showQueryVersion =
+    semantic.queryModelVersion !== null && semantic.queryModelVersion !== semantic.modelVersion;
+  const facts: Array<{ label: string; value: string; mono?: boolean }> = [
+    {
+      label: t('settings.models.localMemory.downloadSize'),
+      value: bytes(snapshot.model.downloadSizeBytes),
+    },
+    {
+      label: t('settings.models.localMemory.source'),
+      value: readingMemoryModelSources[source].url,
+      mono: true,
+    },
+    {
+      label: t('settings.models.localMemory.directory'),
+      value: snapshot.model.directory,
+      mono: true,
+    },
+  ];
+  if (showQueryVersion) {
+    facts.push({
+      label: t('settings.models.localMemory.queryModelVersion'),
+      value: semantic.queryModelVersion ?? '',
+      mono: true,
+    });
+  }
+
   return (
     <>
       <SettingsGroup
@@ -163,182 +258,152 @@ export function ReadingMemoryModelSettings() {
         note={t('settings.models.localMemory.description')}
         cardProps={{ role: 'region', 'aria-label': t('settings.models.localMemory.title') }}
       >
-        {!snapshot ? (
-          <p className="px-4 py-3 text-sm text-muted-foreground" role="status">
-            {error
-              ? t('settings.models.localMemory.loadFailed')
-              : t('settings.models.localMemory.loading')}
-          </p>
-        ) : (
-          <>
-            <SettingsRow
-              title={t('settings.models.localMemory.model')}
-              description={
-                <span className="font-mono text-xs break-all">{snapshot.model.internalId}</span>
-              }
-              className="flex-wrap"
-            >
-              <Badge variant="outline" role="status">
-                {t(`settings.models.localMemory.lifecycle.${snapshot.model.status}`)}
-              </Badge>
-              {downloading ? (
-                <Button
-                  className="action-button"
-                  variant="secondary"
-                  disabled={busy && pending !== 'download'}
-                  onClick={() => void run('cancel')}
-                >
-                  {t('settings.models.localMemory.cancelDownload')}
-                </Button>
-              ) : snapshot.model.status !== 'available' ? (
-                <Button
-                  className="action-button"
-                  disabled={
-                    busy ||
-                    error === 'load' ||
-                    snapshot.model.status === 'checking' ||
-                    snapshot.model.failure === 'unsupported-platform'
-                  }
-                  onClick={() => void run('download', source)}
-                >
-                  {t(
-                    snapshot.model.downloadedBytes > 0
-                      ? 'settings.models.localMemory.resumeDownload'
-                      : 'settings.models.localMemory.download',
-                  )}
-                </Button>
-              ) : null}
-            </SettingsRow>
-            <SettingsRow
-              title={t('settings.models.localMemory.downloadSource')}
-              description={t('settings.models.localMemory.downloadSourceHint')}
-            >
-              <Select
-                value={source}
-                disabled={busy || downloading}
-                onValueChange={(value) => {
-                  if (value === 'modelscope' || value === 'huggingface') setSource(value);
-                }}
+        <div>
+          <SettingsRow
+            title={t('settings.models.localMemory.model')}
+            description={<span className="reading-memory-id">{snapshot.model.internalId}</span>}
+            className="flex-wrap"
+          >
+            <StatusLabel tone={modelTone[snapshot.model.status]} live>
+              {t(`settings.models.localMemory.lifecycle.${snapshot.model.status}`)}
+            </StatusLabel>
+            {downloading ? (
+              <Button
+                className="action-button"
+                variant="secondary"
+                disabled={busy && pending !== 'download'}
+                onClick={() => void run('cancel')}
               >
-                <SelectTrigger aria-label={t('settings.models.localMemory.downloadSource')}>
-                  <SelectValue>{readingMemoryModelSources[source].name}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(readingMemoryModelSources).map(([id, item]) => (
-                    <SelectItem key={id} value={id}>
-                      {item.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </SettingsRow>
-            <div className="space-y-3 px-4 py-3">
-              <dl className="space-y-3 text-xs">
-                {[
-                  [
-                    t('settings.models.localMemory.downloadSize'),
-                    bytes(snapshot.model.downloadSizeBytes),
-                  ],
-                  [t('settings.models.localMemory.source'), readingMemoryModelSources[source].url],
-                  [t('settings.models.localMemory.directory'), snapshot.model.directory],
-                ].map(([label, value]) => (
-                  <div
-                    key={label}
-                    className="grid gap-1 sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-3"
-                  >
-                    <dt className="text-muted-foreground">{label}</dt>
-                    <dd className="m-0 select-text font-mono leading-relaxed break-all">{value}</dd>
-                  </div>
-                ))}
-              </dl>
-              {downloading ? (
-                <div className="space-y-2">
-                  <progress
-                    className="block h-1.5 w-full accent-primary"
-                    aria-label={t('settings.models.localMemory.downloadProgress', {
-                      downloaded: bytes(snapshot.model.downloadedBytes),
-                      total: bytes(snapshot.model.downloadSizeBytes),
-                    })}
-                    max={Math.max(snapshot.model.downloadSizeBytes, 1)}
-                    value={snapshot.model.downloadedBytes}
-                  />
-                  <p className="m-0 text-xs text-muted-foreground tabular-nums">
-                    {t('settings.models.localMemory.downloadProgress', {
-                      downloaded: bytes(snapshot.model.downloadedBytes),
-                      total: bytes(snapshot.model.downloadSizeBytes),
-                    })}
-                  </p>
-                </div>
-              ) : snapshot.model.status !== 'available' && snapshot.model.downloadedBytes > 0 ? (
-                <p className="m-0 text-xs text-muted-foreground">
-                  {t('settings.models.localMemory.retainedProgress', {
-                    bytes: bytes(snapshot.model.downloadedBytes),
-                  })}
-                </p>
-              ) : null}
-              {snapshot.model.failure ? (
-                <p className="m-0 text-sm text-destructive" role="alert">
-                  {t(`settings.models.localMemory.failure.${snapshot.model.failure}`)}
-                </p>
-              ) : null}
+                {t('settings.models.localMemory.cancelDownload')}
+              </Button>
+            ) : !modelAvailable ? (
+              <Button
+                className="action-button"
+                disabled={
+                  busy ||
+                  error === 'load' ||
+                  snapshot.model.status === 'checking' ||
+                  snapshot.model.failure === 'unsupported-platform'
+                }
+                onClick={() => void run('download', source)}
+              >
+                {t(
+                  snapshot.model.downloadedBytes > 0
+                    ? 'settings.models.localMemory.resumeDownload'
+                    : 'settings.models.localMemory.download',
+                )}
+              </Button>
+            ) : null}
+          </SettingsRow>
+          {downloading ? (
+            <div className="reading-memory-progress">
+              <progress
+                aria-label={t('settings.models.localMemory.downloadProgress', {
+                  downloaded: bytes(snapshot.model.downloadedBytes),
+                  total: bytes(snapshot.model.downloadSizeBytes),
+                })}
+                max={Math.max(snapshot.model.downloadSizeBytes, 1)}
+                value={snapshot.model.downloadedBytes}
+              />
+              <p>
+                {t('settings.models.localMemory.downloadProgress', {
+                  downloaded: bytes(snapshot.model.downloadedBytes),
+                  total: bytes(snapshot.model.downloadSizeBytes),
+                })}
+              </p>
             </div>
-            <SettingsRow
-              title={t('settings.models.localMemory.projection')}
-              description={
-                <span>
-                  {t('settings.models.localMemory.projectionCoverage', {
-                    count: snapshot.projection.coverage.projectedAssetCount,
-                    total: number(snapshot.projection.coverage.eligibleAssetCount),
-                  })}
-                </span>
-              }
-              className="flex-wrap"
+          ) : !modelAvailable && snapshot.model.downloadedBytes > 0 ? (
+            <p className="reading-memory-notice">
+              {t('settings.models.localMemory.retainedProgress', {
+                bytes: bytes(snapshot.model.downloadedBytes),
+              })}
+            </p>
+          ) : null}
+          {snapshot.model.failure ? (
+            <p className="reading-memory-notice is-error" role="alert">
+              {t(`settings.models.localMemory.failure.${snapshot.model.failure}`)}
+            </p>
+          ) : null}
+        </div>
+        {modelAvailable ? null : (
+          <SettingsRow
+            title={t('settings.models.localMemory.downloadSource')}
+            description={t('settings.models.localMemory.downloadSourceHint')}
+          >
+            <Select
+              value={source}
+              disabled={busy || downloading}
+              onValueChange={(value) => {
+                if (value === 'modelscope' || value === 'huggingface') setSource(value);
+              }}
             >
-              <span className="text-xs text-muted-foreground">
-                {t(`settings.models.localMemory.projectionState.${snapshot.projection.state}`)}
-              </span>
-            </SettingsRow>
-            <SettingsRow
-              title={t('settings.models.localMemory.semantic')}
-              description={
-                <span>
-                  {t('settings.models.localMemory.semanticCoverage', {
-                    count: snapshot.semantic.coverage.indexedEntryCount,
-                    total: number(snapshot.semantic.coverage.eligibleEntryCount),
-                  })}
-                </span>
-              }
-              className="flex-wrap"
-            >
-              <span className="text-xs text-muted-foreground">
-                {t(`settings.models.localMemory.semanticState.${snapshot.semantic.state}`)}
-                {snapshot.semantic.indexingPaused
-                  ? ` · ${t('settings.models.localMemory.paused')}`
-                  : ''}
-              </span>
-            </SettingsRow>
-            <div className="space-y-3 px-4 py-3">
-              <dl className="space-y-1 text-xs text-muted-foreground">
-                <div className="flex flex-wrap gap-x-3">
-                  <dt>{t('settings.models.localMemory.modelVersion')}</dt>
-                  <dd className="m-0 font-mono break-all">{snapshot.semantic.modelVersion}</dd>
-                </div>
-                <div className="flex flex-wrap gap-x-3">
-                  <dt>{t('settings.models.localMemory.queryModelVersion')}</dt>
-                  <dd className="m-0 font-mono break-all">
-                    {snapshot.semantic.queryModelVersion ?? '—'}
-                  </dd>
-                </div>
-              </dl>
-              <div className="flex flex-wrap items-center gap-2">
+              <SelectTrigger
+                aria-label={t('settings.models.localMemory.downloadSource')}
+                className="task-route-select-trigger"
+              >
+                <SelectValue>{readingMemoryModelSources[source].name}</SelectValue>
+              </SelectTrigger>
+              <SelectContent className="theme-select-content">
+                {Object.entries(readingMemoryModelSources).map(([id, item]) => (
+                  <SelectItem key={id} value={id}>
+                    {item.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </SettingsRow>
+        )}
+        <dl className="reading-memory-facts">
+          {facts.map((fact) => (
+            <div key={fact.label}>
+              <dt>{fact.label}</dt>
+              <dd className={fact.mono ? 'is-mono' : undefined}>{fact.value}</dd>
+            </div>
+          ))}
+        </dl>
+        <SettingsRow
+          title={t('settings.models.localMemory.projection')}
+          description={
+            <span>
+              {t('settings.models.localMemory.projectionCoverage', {
+                count: projection.coverage.projectedAssetCount,
+                total: number(projection.coverage.eligibleAssetCount),
+              })}
+            </span>
+          }
+        >
+          <StatusLabel tone={projectionTone[projection.state]}>
+            {t(`settings.models.localMemory.projectionState.${projection.state}`)}
+          </StatusLabel>
+        </SettingsRow>
+        <SettingsRow
+          title={t('settings.models.localMemory.semantic')}
+          description={
+            <span>
+              {t('settings.models.localMemory.semanticCoverage', {
+                count: semantic.coverage.indexedEntryCount,
+                total: number(semantic.coverage.eligibleEntryCount),
+              })}
+            </span>
+          }
+        >
+          <StatusLabel tone={semantic.indexingPaused ? 'idle' : semanticTone[semantic.state]}>
+            {t(`settings.models.localMemory.semanticState.${semantic.state}`)}
+            {semantic.indexingPaused ? ` · ${t('settings.models.localMemory.paused')}` : ''}
+          </StatusLabel>
+        </SettingsRow>
+        {modelAvailable || showRemove ? (
+          <div className="reading-memory-actions">
+            {modelAvailable ? (
+              <>
                 <Button
                   className="action-button"
                   variant="secondary"
                   disabled={!canIndex}
-                  onClick={() => void run(snapshot.semantic.indexingPaused ? 'resume' : 'pause')}
+                  onClick={() => void run(semantic.indexingPaused ? 'resume' : 'pause')}
                 >
                   {t(
-                    snapshot.semantic.indexingPaused
+                    semantic.indexingPaused
                       ? 'settings.models.localMemory.resume'
                       : 'settings.models.localMemory.pause',
                   )}
@@ -351,39 +416,37 @@ export function ReadingMemoryModelSettings() {
                 >
                   {t('settings.models.localMemory.rebuild')}
                 </Button>
-                <Button
-                  className="action-button"
-                  variant="ghost"
-                  disabled={!canRemove}
-                  onClick={() => setRemoveConfirmationOpen(true)}
-                >
-                  {t('settings.models.localMemory.remove')}
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
-        {pending ? (
+              </>
+            ) : null}
+            {showRemove ? (
+              <Button
+                className="action-button reading-memory-remove"
+                variant="ghost"
+                disabled={!canRemove}
+                onClick={() => setRemoveConfirmationOpen(true)}
+              >
+                <HugeiconsIcon icon={Delete02Icon} size={15} />
+                {t('settings.models.localMemory.remove')}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+        {pending && pending !== 'download' ? (
           <p className="px-4 py-3 text-xs text-muted-foreground" role="status">
             {t('settings.models.localMemory.working')}
           </p>
         ) : null}
-        {error ? (
+        {error === 'action' ? (
+          <p className="px-4 py-3 text-sm text-destructive" role="alert">
+            {t('settings.models.localMemory.actionFailed')}
+          </p>
+        ) : null}
+        {error === 'load' ? (
           <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-            {snapshot || error === 'action' ? (
-              <p className="m-0 text-sm text-destructive" role="alert">
-                {t(
-                  error === 'load'
-                    ? 'settings.models.localMemory.loadFailed'
-                    : 'settings.models.localMemory.actionFailed',
-                )}
-              </p>
-            ) : null}
-            {error === 'load' ? (
-              <Button className="action-button" variant="secondary" onClick={() => void refresh()}>
-                {t('settings.models.localMemory.refresh')}
-              </Button>
-            ) : null}
+            <p className="m-0 text-sm text-destructive" role="alert">
+              {t('settings.models.localMemory.loadFailed')}
+            </p>
+            <LoadRetry onRetry={() => void refresh()} />
           </div>
         ) : null}
       </SettingsGroup>
@@ -400,5 +463,14 @@ export function ReadingMemoryModelSettings() {
         }}
       />
     </>
+  );
+}
+
+function LoadRetry({ onRetry }: { onRetry: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <Button className="action-button" variant="secondary" onClick={onRetry}>
+      {t('settings.models.localMemory.refresh')}
+    </Button>
   );
 }

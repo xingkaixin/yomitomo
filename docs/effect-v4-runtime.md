@@ -2,7 +2,7 @@
 
 Pinned Effect version: `4.0.3`
 
-Production Effect modules: `19`
+Production Effect modules: `16`
 
 Production API inventory: `Cause.hasInterrupts,Cause.squash,Deferred.Deferred,Deferred.await,Deferred.complete,Deferred.doneUnsafe,Deferred.make,Deferred.makeUnsafe,Deferred.succeed,Effect.Effect,Effect.Success,Effect.acquireUseRelease,Effect.all,Effect.callback,Effect.catch,Effect.delay,Effect.ensuring,Effect.fail,Effect.flatMap,Effect.fn,Effect.forEach,Effect.forkChild,Effect.forkIn,Effect.gen,Effect.map,Effect.mapError,Effect.onExit,Effect.promise,Effect.repeat,Effect.runFork,Effect.runPromise,Effect.runSync,Effect.sleep,Effect.succeed,Effect.sync,Effect.tapError,Effect.timeoutOption,Effect.timeoutOrElse,Effect.try,Effect.tryPromise,Effect.uninterruptible,Effect.void,Exit.isFailure,Exit.void,Fiber.Fiber,Fiber.await,Fiber.interrupt,Fiber.join,Option.getOrElse,Queue.make,Queue.offerUnsafe,Queue.shutdown,Queue.take,Schedule.spaced,Schema.Array,Schema.Constraint,Schema.Literal,Schema.Number,Schema.Record,Schema.String,Schema.Struct,Schema.Union,Schema.Unknown,Schema.decodeUnknownEffect,Schema.instanceOf,Schema.isGreaterThan,Schema.isInt,Schema.isLessThanOrEqualTo,Schema.optionalKey,Scope.Scope,Scope.close,Scope.makeUnsafe,Semaphore.make`
 
@@ -79,7 +79,7 @@ The renamed Schema filters and changed `Effect.partition` result order are not u
 
 | API | v3 to v4 boundary | Required repository behavior | Evidence |
 | --- | --- | --- | --- |
-| `Effect.tryPromise` | The `try` callback receives a runtime `AbortSignal`. | Raw fetch adapters combine it with timeout and business cancellation signals. AI SDK generation forwards it to the provider call. Rejecting promises use the typed error channel. | Adapter and AI provider interruption tests cover fetch cancellation. |
+| `Effect.tryPromise` | The `try` callback receives a runtime `AbortSignal`. | Raw fetch adapters combine it with timeout and business cancellation signals. pi-ai generation forwards it to the provider call. Rejecting promises use the typed error channel. | Adapter and AI provider interruption tests cover fetch cancellation. |
 | `Effect.callback` | Replaces the retired `Effect.async` name and may return a cleanup Effect. | Worker listeners and termination are cleaned once; runtime interruption uses the supplied signal. | The callback semantic test covers interruption and completion; article import covers worker termination. |
 | `Effect.forkChild` | Replaces `Effect.fork`; child startup is deferred unless `startImmediately: true` is set. | Image fetch children start immediately so the configured concurrency of four is real. | Runtime and bounded-concurrency tests cover deferred and immediate startup. |
 | `Semaphore.make` | Replaces `Effect.makeSemaphore`. | Permits bracket image requests and are released after failure or interruption. | Image tests cover a failed batch reaching the final queued request. |

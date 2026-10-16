@@ -13,7 +13,7 @@ async function requestPayload(provider: LlmProvider) {
   const controller = new AbortController();
   let payload: Record<string, unknown> | undefined;
   // pi-durable omits `reasoning` for an unset or "off" thinking level.
-  const thinkingLevel = piThinkingLevel(provider.reasoningEffort);
+  const thinkingLevel = piThinkingLevel(provider);
   await models.completeSimple(
     model,
     { messages: [{ role: 'user', content: 'hi', timestamp: 0 }] },
@@ -33,11 +33,12 @@ function compatible(
   presetId: LlmProvider['presetId'],
   modelName: string,
   reasoningEffort: ReasoningEffort,
+  type: LlmProvider['type'] = 'openai-chat',
 ): LlmProvider {
   return {
     id: 'provider-1',
     name: 'Provider',
-    type: 'openai-chat',
+    type,
     presetId,
     baseUrl: 'https://example.invalid/v1',
     apiKey: 'key',
@@ -50,14 +51,14 @@ function compatible(
 
 describe('piProviderFor', () => {
   it.each([
-    ['dashscope', 'qwen3.5-plus', 'none', { enable_thinking: false }],
+    ['dashscope', 'qwen3.5-plus', 'none', { enable_thinking: false, temperature: 0.3 }],
     ['dashscope', 'qwen3.5-plus', 'high', { enable_thinking: true }],
-    ['zhipu', 'glm-5', 'none', { thinking: { type: 'disabled' } }],
+    ['zhipu', 'glm-5', 'none', { thinking: { type: 'disabled' }, temperature: 0.3 }],
     ['zhipu', 'glm-5', 'medium', { thinking: { type: 'enabled' } }],
-    ['deepseek', 'deepseek-v4', 'none', { thinking: { type: 'disabled' } }],
+    ['deepseek', 'deepseek-v4', 'none', { thinking: { type: 'disabled' }, temperature: 0.3 }],
   ] as const)('sends %s %s thinking %s', async (presetId, model, effort, expected) => {
     const payload = await requestPayload(compatible(presetId, model, effort));
-    expect(payload).toMatchObject({ model, temperature: 0.3, ...expected });
+    expect(payload).toMatchObject({ model, ...expected });
     expect(payload).not.toHaveProperty('store');
   });
 
@@ -73,4 +74,25 @@ describe('piProviderFor', () => {
       expect(payload).not.toHaveProperty('enable_thinking');
     },
   );
+
+  it('omits temperature once a compatible model thinks', async () => {
+    const payload = await requestPayload(compatible('deepseek', 'deepseek-flash', 'high'));
+    expect(payload).toMatchObject({ thinking: { type: 'enabled' } });
+    expect(payload).not.toHaveProperty('temperature');
+  });
+
+  it('uses the lowest thinking level for models that cannot turn thinking off', async () => {
+    const claude = await requestPayload(
+      compatible('anthropic', 'claude-sonnet-5-5', 'none', 'anthropic'),
+    );
+    expect(claude).not.toHaveProperty('temperature');
+    expect(claude).toMatchObject({ thinking: { type: 'adaptive' } });
+
+    const gemini = await requestPayload(compatible('gemini', 'gemini-3.8-flash', 'none', 'gemini'));
+    expect(gemini).toMatchObject({ config: { thinkingConfig: { thinkingLevel: 'LOW' } } });
+
+    const openai = await requestPayload(compatible('openai', 'gpt-6-astra', 'none'));
+    expect(openai).toMatchObject({ reasoning_effort: 'low' });
+    expect(openai).not.toHaveProperty('temperature');
+  });
 });

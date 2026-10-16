@@ -7,7 +7,6 @@ const defaultDocuments = [
   'docs/annotation-data-flow.md',
   'docs/architecture.md',
   'docs/effect-v4-runtime.md',
-  'docs/focus-co-reading-data-flow.md',
   'docs/product.md',
 ];
 const repositoryPathPattern = /`((?:apps|docs|packages|scripts)\/[A-Za-z0-9._@/-]+)`/g;

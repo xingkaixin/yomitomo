@@ -19,12 +19,6 @@ export function intersectTextRanges(
   });
 }
 
-export function rangeDistance(left: ReadingContextTextRange, right: ReadingContextTextRange) {
-  if (left.textStart < right.textEnd && right.textStart < left.textEnd) return 0;
-  if (left.textEnd <= right.textStart) return right.textStart - left.textEnd;
-  return left.textStart - right.textEnd;
-}
-
 export function mergeReadingContextTextRanges(
   ranges: ReadingContextTextRange[],
 ): ReadingContextTextRange[] {

@@ -1,15 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AgentMentionRoutePlan, Annotation, PublicAgent } from '@yomitomo/shared';
-import {
-  agentInstructionFromNote,
-  routeFocusReadingPlanMessages,
-  targetAnchorReadingPlan,
-} from '../source/bookcase/app-source-agent-mention-request';
-import { initializeAppI18n } from '../i18n/app-i18n';
-
-beforeEach(() => {
-  initializeAppI18n('zh-CN');
-});
+import { describe, expect, it } from 'vitest';
+import type { PublicAgent } from '@yomitomo/shared';
+import { agentInstructionFromNote } from '../source/bookcase/app-source-agent-mention-request';
 
 function agent(overrides: Partial<PublicAgent> = {}): PublicAgent {
   return {
@@ -36,91 +27,6 @@ describe('agentInstructionFromNote', () => {
   it('uses both username and nickname as mention handles', () => {
     expect(agentInstructionFromNote('@reader 总结一下', [agent({ nickname: 'reader' })])).toBe(
       '总结一下',
-    );
-  });
-});
-
-describe('targetAnchorReadingPlan', () => {
-  const anchor: Annotation['anchor'] = {
-    exact: '原文',
-    prefix: '',
-    suffix: '',
-    start: 4,
-    end: 8,
-  };
-
-  it('returns an empty plan without a target anchor', () => {
-    expect(targetAnchorReadingPlan(undefined, 'explain')).toEqual([]);
-  });
-
-  it('builds a selected-anchor plan without a reading intent', () => {
-    expect(targetAnchorReadingPlan(anchor, undefined)).toEqual([
-      {
-        sectionId: 'target-selection',
-        sectionTitle: '选区',
-        sectionStart: 4,
-        sectionEnd: 8,
-      },
-    ]);
-  });
-
-  it('builds a single-section plan for the selected anchor', () => {
-    expect(targetAnchorReadingPlan(anchor, 'challenge')).toEqual([
-      {
-        sectionId: 'target-selection',
-        sectionTitle: '选区',
-        sectionStart: 4,
-        sectionEnd: 8,
-        readingIntent: 'challenge',
-      },
-    ]);
-  });
-});
-
-describe('routeFocusReadingPlanMessages', () => {
-  it('routes mentioned section messages as create-thought instructions', async () => {
-    const lin = agent();
-    const zhou = agent({ id: 'agent_zhou', username: 'zhou', nickname: 'zhou' });
-    const route: AgentMentionRoutePlan = {
-      createUserThought: false,
-      directives: [
-        {
-          agentId: zhou.id,
-          agentUsername: zhou.username,
-          action: 'create_thought',
-          instruction: '提出反方想法',
-          readingIntent: 'challenge',
-        },
-      ],
-    };
-    const desktop = { planMentionRoute: vi.fn(async () => route) };
-
-    const readingPlan = await routeFocusReadingPlanMessages({
-      desktop,
-      agent: zhou,
-      agents: [lin, zhou],
-      article: { title: '标题', url: '', text: '这是一段章节正文。' },
-      readingPlan: [
-        {
-          sectionId: 's1',
-          sectionTitle: '第一节',
-          sectionStart: 0,
-          sectionEnd: 8,
-          messages: [
-            {
-              content: '@lin 解释一下，@zhou 从反方看',
-            },
-          ],
-        },
-      ],
-    });
-
-    expect(readingPlan[0]?.messages?.map((message) => message.content)).toEqual(['提出反方想法']);
-    expect(desktop.planMentionRoute).toHaveBeenCalledWith(
-      expect.objectContaining({
-        allowedActions: ['create_thought'],
-        agents: [lin, zhou],
-      }),
     );
   });
 });

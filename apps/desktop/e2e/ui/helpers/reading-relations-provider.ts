@@ -4,6 +4,7 @@ import type { AddressInfo } from 'node:net';
 type ProviderRequestBody = {
   model: string;
   messages: { role: string; content: string }[];
+  stream?: boolean;
 };
 
 type ReadingInput = {
@@ -89,13 +90,26 @@ async function receiveRequest(
     respondWith(output) {
       if (response.destroyed || response.writableEnded) return;
       const text = JSON.stringify(output);
+      const usage = { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 };
+      if (body.stream) {
+        response.writeHead(200, { 'content-type': 'text/event-stream' });
+        response.end(
+          [
+            { choices: [{ index: 0, delta: { role: 'assistant', content: text } }] },
+            { choices: [{ index: 0, delta: {}, finish_reason: 'stop' }], usage },
+          ]
+            .map((chunk) => `data: ${JSON.stringify({ id: 'e2e', ...chunk })}\n\n`)
+            .join('') + 'data: [DONE]\n\n',
+        );
+        return;
+      }
       response.writeHead(200, { 'content-type': 'application/json' });
       response.end(
         JSON.stringify({
           choices: [
             { index: 0, message: { role: 'assistant', content: text }, finish_reason: 'stop' },
           ],
-          usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+          usage,
         }),
       );
     },

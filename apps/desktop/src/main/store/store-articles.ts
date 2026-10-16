@@ -24,7 +24,6 @@ import {
   updateArticleSiteIconRows,
 } from '../articles/article-row-queries';
 import {
-  mergeAgentAnnotationRows,
   saveAnnotationDistillationRows,
   upsertAnnotationRows,
   upsertCommentRows,
@@ -176,13 +175,6 @@ export async function saveArticleAnnotationDistillation(input: {
   updatedAt?: string;
 }) {
   return saveAnnotationDistillationRows(getDatabase(), input, getReadingMemorySqliteExecutor());
-}
-
-export async function mergeArticleAgentAnnotation(input: {
-  articleId: string;
-  annotation: Annotation;
-}) {
-  return mergeAgentAnnotationRows(getDatabase(), input, getReadingMemorySqliteExecutor());
 }
 
 export async function saveArticleComment(input: {
