@@ -7,6 +7,7 @@ import type {
   ArticleStatsRecord,
   ArticleTranslation,
   ArticleUpsertPatch,
+  AssistantRunEvent,
   CollectionStorePatch,
   CollectionWithMembers,
   Comment,
@@ -431,6 +432,34 @@ export const articleIpcInvokeDescriptors = {
     roles: mainOnly,
     validation: 'schema',
   }),
+} as const;
+
+export const assistantIpcInvokeDescriptors = {
+  'assistant:save-article-text': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'assistant:save-article-text'>,
+    void
+  >()({
+    route: ['assistant', 'saveArticleText'],
+    roles: mainOnly,
+    validation: 'schema',
+    databaseIndependent: true,
+  }),
+  'assistant:deliver': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'assistant:deliver'>,
+    { runKey: string | null }
+  >()({
+    route: ['assistant', 'deliver'],
+    roles: annotationAndMain,
+    validation: 'schema',
+  }),
+  'assistant:runs': desktopIpcInvoke<DesktopIpcSchemaArgs<'assistant:runs'>, AssistantRunEvent[]>()(
+    {
+      route: ['assistant', 'runs'],
+      roles: annotationAndMain,
+      validation: 'schema',
+      databaseIndependent: true,
+    },
+  ),
 } as const;
 
 export const dataIpcInvokeDescriptors = {

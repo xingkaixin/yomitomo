@@ -34,6 +34,11 @@ export async function resumePendingAssistantRuns() {
   await Promise.all(articleIds.map((articleId) => store.use(articleId, async () => {})));
 }
 
+export async function activeAssistantRuns(articleId: string) {
+  if (!loaded) return [];
+  return (await loadAssistantSessions()).runtime.activeRuns(articleId);
+}
+
 export async function removeArticleAssistantSession(articleId: string) {
   assistantArticleTexts.forget(articleId);
   if (loaded) return (await loadAssistantSessions()).store.remove(articleId);

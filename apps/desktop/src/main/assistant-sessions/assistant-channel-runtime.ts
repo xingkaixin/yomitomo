@@ -61,10 +61,7 @@ export type ResolvedChannelAgent = {
 
 export type AssistantChannelPorts = {
   store: AssistantSessionStore;
-  articleTexts: {
-    load: (articleId: string) => Promise<ArticleTextSnapshot | undefined>;
-    save: (articleId: string, snapshot: ArticleTextSnapshot) => Promise<void>;
-  };
+  articleText: (articleId: string) => Promise<ArticleTextSnapshot | undefined>;
   models: ReturnType<typeof createModels>;
   resolveAgent: (agentId: string, allowDisabled: boolean) => Promise<ResolvedChannelAgent>;
   annotation: (articleId: string, annotationId: string) => Annotation | undefined;
@@ -106,11 +103,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       Boolean(request.allowDisabledAgentForRule),
     );
     await registerProvider(resolved);
-    let text = await ports.articleTexts.load(request.articleId);
-    if (!text && request.fallbackText) {
-      text = request.fallbackText;
-      await ports.articleTexts.save(request.articleId, text);
-    }
+    const text = await ports.articleText(request.articleId);
     const key = channelKey(request.channel);
     const requestId = `deliver:${request.agentId}:${request.triggerId}`;
     const runKey = await serialize(`${request.articleId}|${cursorKey(request.agentId, key)}`, () =>

@@ -58,6 +58,8 @@ describe('desktop IPC sender authorization', () => {
       'article:get',
       'article:save-annotation-distillation',
       'article:save-comment',
+      'assistant:deliver',
+      'assistant:runs',
       'performance:timing',
       'store:get',
       'url:open',

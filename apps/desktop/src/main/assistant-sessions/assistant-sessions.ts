@@ -83,7 +83,7 @@ function createAssistantSessions(host: AssistantSessionHost) {
   const runtime = createAssistantChannelRuntime({
     store,
     models,
-    articleTexts: assistantArticleTexts,
+    articleText: (articleId) => assistantArticleTexts.load(articleId),
     resolveAgent,
     annotation: (articleId, annotationId) =>
       readArticleAnnotations(getDatabase(), articleId).find((item) => item.id === annotationId),

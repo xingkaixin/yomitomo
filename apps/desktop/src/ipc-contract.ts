@@ -8,6 +8,7 @@ import type {
   ArticleRecord,
   ArticleStorePatch,
   ArticleTranslation,
+  AssistantRunEvent,
   AssistantRuntimeProgressEvent,
   CollectionStorePatch,
   Comment,
@@ -133,6 +134,7 @@ export type DesktopIpcToRendererEventMap = {
   'updates:status': AppUpdateState;
   'article:patched': ArticleStorePatch;
   'article-translation:updated': ArticleTranslation;
+  'assistant:run': AssistantRunEvent;
   'collection:patched': CollectionStorePatch;
   'library-pin:patched': LibraryPinPatch;
   'weread:state-updated': WeReadState;

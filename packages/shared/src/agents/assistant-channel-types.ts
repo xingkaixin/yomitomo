@@ -1,5 +1,4 @@
 import type { AgentReadingIntent } from './agent-types';
-import type { ArticleTextSnapshot } from '../reader-context-types';
 
 export type AssistantChannel =
   | { kind: 'thread'; annotationId: string; threadId: string }
@@ -14,8 +13,6 @@ export type AssistantDeliveryRequest = {
   readingIntent?: AgentReadingIntent;
   reviewTargetCommentId?: string;
   allowDisabledAgentForRule?: boolean;
-  /** Used only until the reader window has saved the article's own text snapshot. */
-  fallbackText?: ArticleTextSnapshot;
 };
 
 export type AssistantRunEvent = {

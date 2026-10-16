@@ -5,6 +5,7 @@ import type {
   AgentMessagePayload,
   ArticleStorePatch,
   ArticleTranslation,
+  AssistantRunEvent,
   CollectionStorePatch,
   DesktopStore,
   LibraryPinPatch,
@@ -107,6 +108,11 @@ export function createYomitomoDesktopApi(input: DesktopPreloadApiInput) {
         onPatched: (callback: (patch: LibraryPinPatch) => void) =>
           onDesktopIpcRendererEvent('library-pin:patched', callback),
       },
+    },
+    assistant: {
+      ...invokeApi.assistant,
+      onRun: (callback: (event: AssistantRunEvent) => void) =>
+        onDesktopIpcRendererEvent('assistant:run', callback),
     },
     weRead: {
       ...invokeApi.weRead,
