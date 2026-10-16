@@ -93,6 +93,9 @@ export function createArticleTextIndex(
       return snapshot.sections.find((section) => section.id === id);
     },
     sectionFor,
+    blockAt(offset: number) {
+      return blocks.find((block) => block.end > offset);
+    },
     readSection(sectionId: string, fromBlockId?: string, maxChars = DEFAULT_READ_CHARS) {
       const section = snapshot.sections.find((item) => item.id === sectionId);
       if (!section) return null;
