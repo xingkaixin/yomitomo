@@ -2,7 +2,7 @@ import type { LlmProvider, ProviderModel } from '@yomitomo/shared';
 import { errorMessage, providerPresets } from '@yomitomo/shared';
 import { Effect, Schema } from 'effect';
 import { normalizeAnthropicError } from './budget';
-import { anthropicBaseUrl, geminiBaseUrl, openAIBaseUrl } from './ai-sdk-provider-adapter';
+import { anthropicBaseUrl, geminiBaseUrl, openAIBaseUrl } from './provider-urls';
 
 const defaultProviderPreset = providerPresets.find((preset) => preset.id === 'deepseek');
 

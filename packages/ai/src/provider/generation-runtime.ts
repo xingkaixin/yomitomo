@@ -1,11 +1,12 @@
-import { generateText, jsonSchema, Output, streamText, type JSONSchema7 } from 'ai';
+import type { AssistantMessage } from '@earendil-works/pi-ai';
+import { createModels } from '@earendil-works/pi-ai/models';
 import type { LlmProvider } from '@yomitomo/shared';
-import { errorMessage, recordField, stringField } from '@yomitomo/shared';
+import { errorMessage } from '@yomitomo/shared';
 import { Effect } from 'effect';
-import { createYomitomoLanguageModel } from './ai-sdk-provider-adapter';
 import { logAiInfo } from '../logger';
 import type { GenerateOptions, TextPayload } from './generation-runtime-types';
-import { normalizeAiUsage, type NormalizedAiUsage } from './usage';
+import { piModelRef, piProviderFor, piThinkingLevel } from './pi-provider';
+import { normalizePiUsage, type NormalizedAiUsage } from './usage';
 
 export type YomitomoTextGenerationResult = {
   text: string;
@@ -48,27 +49,7 @@ export async function generateYomitomoText(
   );
 }
 
-export async function streamYomitomoText(
-  provider: LlmProvider,
-  payload: TextPayload,
-  onDelta: (delta: string) => void,
-  signal?: AbortSignal,
-): Promise<YomitomoTextGenerationResult> {
-  return Effect.runPromise(
-    streamYomitomoTextEffect(provider, payload, onDelta),
-    runOptions(signal),
-  );
-}
-
-/** Provider error parts can carry raw API payloads such as `{ message, type }` instead of an Error. */
-export function providerStreamError(error: unknown) {
-  if (error instanceof Error) return error;
-  return new Error(
-    stringField(error) || stringField(recordField(error, 'message')) || JSON.stringify(error),
-  );
-}
-
-/** Bridges a caller's AbortSignal into the Effect fiber, which already reaches the AI SDK. */
+/** Bridges a caller's AbortSignal into the Effect fiber, which already reaches the provider request. */
 export function runOptions(signal?: AbortSignal) {
   return signal ? { signal } : undefined;
 }
@@ -79,83 +60,58 @@ export const generateYomitomoTextEffect = Effect.fn('Provider.generateText')(fun
   options: GenerateOptions = {},
 ) {
   return Effect.gen(function* () {
-    const adapter = createYomitomoLanguageModel(provider);
-    logProviderRequest(provider, payload, false);
-    const result = yield* Effect.tryPromise({
-      try: (signal) =>
-        generateText({
-          model: adapter.model,
-          instructions: payload.system,
-          prompt: payload.user,
-          maxOutputTokens: payload.maxTokens,
-          temperature: payload.temperature,
-          providerOptions: adapter.providerOptions,
-          abortSignal: signal,
-          telemetry: options.disableTelemetry ? { isEnabled: false } : undefined,
-          output:
-            payload.responseSchema && adapter.supportsStructuredOutput
-              ? Output.object({
-                  name: payload.responseSchema.name,
-                  schema: jsonSchema(payload.responseSchema.schema as JSONSchema7),
-                })
-              : undefined,
-        }),
+    logProviderRequest(provider, payload);
+    const message = yield* Effect.tryPromise({
+      try: (signal) => completeOnce(provider, payload, signal),
       catch: (error) => new GenerationProviderError(error),
     });
-    const text = yield* structuredTextOrFallbackEffect(
-      result,
-      Boolean(payload.responseSchema),
-    ).pipe(Effect.map((value) => value.trim()));
+    if (message.stopReason === 'error' || message.stopReason === 'aborted') {
+      return yield* Effect.fail(
+        new GenerationProviderError(message.errorMessage ?? message.stopReason),
+      );
+    }
+    const text = message.content
+      .flatMap((part) => (part.type === 'text' ? [part.text] : []))
+      .join('')
+      .trim();
     if (!text) return yield* Effect.fail(new GenerationEmptyResponseError());
-    if (options.failOnMaxTokens && result.finishReason === 'length') {
+    if (options.failOnMaxTokens && message.stopReason === 'length') {
       return yield* Effect.fail(new GenerationMaxTokensError(payload.maxTokens));
     }
-    const usage = normalizeAiUsage(result.usage);
+    const usage = normalizePiUsage(message.usage);
     logProviderResponse(provider, text.length, usage);
-    return { text, usage, finishReason: result.finishReason };
+    return { text, usage, finishReason: message.stopReason };
   });
 });
 
-export const streamYomitomoTextEffect = Effect.fn('Provider.streamText')(function (
+function completeOnce(
   provider: LlmProvider,
   payload: TextPayload,
-  onDelta: (delta: string) => void,
-) {
-  return Effect.gen(function* () {
-    const adapter = createYomitomoLanguageModel(provider);
-    logProviderRequest(provider, payload, true);
-    const generation = yield* Effect.tryPromise({
-      try: async (signal) => {
-        const result = streamText({
-          model: adapter.model,
-          instructions: payload.system,
-          prompt: payload.user,
-          maxOutputTokens: payload.maxTokens,
-          temperature: payload.temperature,
-          providerOptions: adapter.providerOptions,
-          abortSignal: signal,
-        });
-        let text = '';
-        for await (const part of result.fullStream) {
-          if (part.type === 'error') throw providerStreamError(part.error);
-          if (part.type !== 'text-delta') continue;
-          text += part.text;
-          onDelta(part.text);
-        }
-        const [usage, finishReason] = await Promise.all([result.usage, result.finishReason]);
-        if (finishReason === 'error') throw new Error('Provider stream finished with an error');
-        return { text, usage: normalizeAiUsage(usage), finishReason };
-      },
-      catch: (error) => new GenerationProviderError(error),
-    });
-    logProviderResponse(provider, generation.text.length, generation.usage);
-    return generation;
-  });
-});
+  signal: AbortSignal,
+): Promise<AssistantMessage> {
+  const task = { id: 'task', temperature: payload.temperature };
+  const models = createModels();
+  models.setProvider(piProviderFor(provider, task));
+  const ref = piModelRef(provider, task);
+  const model = models.getModel(ref.provider, ref.modelId)!;
+  const level = piThinkingLevel(provider);
+  const thinks = level !== undefined && level !== 'off';
+  return models.completeSimple(
+    model,
+    {
+      systemPrompt: payload.system,
+      messages: [{ role: 'user', content: payload.user, timestamp: Date.now() }],
+    },
+    {
+      ...(thinks ? { reasoning: level } : { temperature: payload.temperature }),
+      maxTokens: payload.maxTokens,
+      signal,
+    },
+  );
+}
 
-function logProviderRequest(provider: LlmProvider, payload: TextPayload, stream: boolean) {
+function logProviderRequest(provider: LlmProvider, payload: TextPayload) {
   logAiInfo('assistant.generation.start', {
-    stream,
     type: provider.type,
     model: provider.modelName,
     providerId: provider.id,
@@ -164,29 +120,6 @@ function logProviderRequest(provider: LlmProvider, payload: TextPayload, stream:
     temperature: payload.temperature,
     reasoningEffort: provider.reasoningEffort || 'none',
     hasApiKey: Boolean(provider.apiKey),
-  });
-}
-
-function structuredTextOrFallback(
-  result: Awaited<ReturnType<typeof generateText>>,
-  structuredOutputRequested: boolean,
-) {
-  if (!structuredOutputRequested) return result.text;
-  try {
-    return result.output ? JSON.stringify(result.output) : result.text;
-  } catch (error) {
-    if (result.text.trim()) return result.text;
-    throw error;
-  }
-}
-
-function structuredTextOrFallbackEffect(
-  result: Awaited<ReturnType<typeof generateText>>,
-  structuredOutputRequested: boolean,
-) {
-  return Effect.try({
-    try: () => structuredTextOrFallback(result, structuredOutputRequested),
-    catch: (error) => new GenerationProviderError(error),
   });
 }
 

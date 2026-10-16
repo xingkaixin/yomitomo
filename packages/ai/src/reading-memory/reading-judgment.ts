@@ -63,7 +63,7 @@ export async function runReadingJudgment(
         user: prepared.user,
         maxTokens: 2048,
       },
-      { signal, failOnMaxTokens: true, disableTelemetry: true },
+      { signal, failOnMaxTokens: true },
     );
     signal.throwIfAborted();
     const fresh = await options.revalidateEvidence([...prepared.sent.values()]);

@@ -19,7 +19,7 @@
 - `apps/telemetry`：Cloudflare Worker 匿名遥测服务，接收桌面端 daily heartbeat 并写入 Analytics Engine。
 - `packages/shared`：共享类型、ID/哈希工具、文本锚定逻辑、PDF 和微信读书协议类型。
 - `packages/core`：业务核心逻辑，包括批注、评论、阅读统计、EPUB/PDF 索引和阅读器 DOM 纯逻辑。
-- `packages/ai`：LLM provider 调用、AI SDK 运行时、模型输入预算、AI 批注和 EPUB/PDF 阅读上下文。
+- `packages/ai`：LLM provider 调用（pi-ai）、单次生成运行时、模型输入预算、助手与沉淀审阅提示词、翻译和阅读记忆判断。
 - `packages/reader-ui`：桌面阅读器 React UI、样式、工具和助手批注队列。
 - `dist/**`：各应用构建产物。
 
@@ -30,7 +30,7 @@ Workspace 包使用 `@yomitomo/*` 命名。跨包引用基础类型和底层纯�
 动手前先读与任务相关的文档。改动目标、边界或流程时，在同一 PR 更新对应文档；文档与代码不一致时，核实后修正文档。
 
 - 方向与架构：`docs/product.md`（目标、非目标、取舍原则、隐私边界）、`docs/architecture.md`（模块边界、依赖方向、关键决策）、`CONTEXT.md`（领域术语）。
-- 子系统设计：`docs/annotation-data-flow.md`、`docs/focus-co-reading-data-flow.md`、`docs/effect-v4-runtime.md`、`docs/ui-primitives.md`、`docs/desktop-style-ownership.md`、`docs/reading-memory-model-evaluation.md`。
+- 子系统设计：`docs/annotation-data-flow.md`、`docs/effect-v4-runtime.md`、`docs/ui-primitives.md`、`docs/desktop-style-ownership.md`、`docs/reading-memory-model-evaluation.md`。
 - 发布与运维：`docs/release-guide.md`、`docs/reading-memory-release.md`、`docs/reading-memory-model-distribution.md`、`docs/web-performance.md`、`docs/web-backgrounds.md`。
 
 `docs/` 只保存仍然有效的目标、约束和流程。一次性的代码审查、拆分计划、spike、性能实验和单次发布清单不进入仓库；结论写进对应文档，过程留在 PR 和 commit history。

@@ -599,18 +599,6 @@ importers:
 
   packages/ai:
     dependencies:
-      '@ai-sdk/anthropic':
-        specifier: ^4.0.78
-        version: 4.0.78(zod@4.6.5)
-      '@ai-sdk/google':
-        specifier: ^4.0.93
-        version: 4.0.93(zod@4.6.5)
-      '@ai-sdk/openai':
-        specifier: ^4.0.91
-        version: 4.0.91(zod@4.6.5)
-      '@ai-sdk/openai-compatible':
-        specifier: ^3.0.67
-        version: 3.0.67(zod@4.6.5)
       '@earendil-works/chord':
         specifier: 'catalog:'
         version: 1.3.0
@@ -626,9 +614,6 @@ importers:
       '@yomitomo/shared':
         specifier: workspace:*
         version: link:../shared
-      ai:
-        specifier: ^7.0.137
-        version: 7.0.137(zod@4.6.5)
       effect:
         specifier: 'catalog:'
         version: 4.0.3
@@ -709,46 +694,6 @@ importers:
         version: 5.0.3(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(jsdom@30.1.2(@noble/hashes@1.8.0))(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
 
 packages:
-
-  '@ai-sdk/anthropic@4.0.78':
-    resolution: {integrity: sha512-lVMxa9tLM5WoB72bqxjzWEWQlCwtBTo1L3yIKxAefowWATd+1YKohrINey6wTn8gtGEqyYm79z4DUGJBYauUFw==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
-
-  '@ai-sdk/gateway@4.0.110':
-    resolution: {integrity: sha512-5IwnOR6v7KC+D9eddUqsCobXl/FbLUVb2LaQc/uyuQdpP3/n9s0YLc9zl4/W3IS/R2pjHrqUfCzEAeOu7bFLoQ==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
-
-  '@ai-sdk/google@4.0.93':
-    resolution: {integrity: sha512-hubOUxbG2W7oD3acdCxxnrQ84NlnLqfzcHe9uWMmwkglHxq/rwsbjloPhvebeQlcQ2G0gaX+akDF1Ddm/fNAnQ==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
-
-  '@ai-sdk/openai-compatible@3.0.67':
-    resolution: {integrity: sha512-w1l+CRQoPgXGRuDMpD0hal7RWXYXzbr0uMzTF7L/zHusYRUfwQHphs/voY/H8yMWLc+8chu2UCfvfwUGSANubA==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
-
-  '@ai-sdk/openai@4.0.91':
-    resolution: {integrity: sha512-Nk382R6us0GNxI1cGJUXMryz1XHpyrmC3K/Rmqdx9tIsqAlc7UtuO/hC9dd31F41w8uzoS362HJSDXgAI7zKbA==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
-
-  '@ai-sdk/provider-utils@5.0.58':
-    resolution: {integrity: sha512-iXSwKR/7LpHzAlyrUl+bTinwzmZ3Nmup1viwPisM5Gn5cogRdIG4rV9w1ZDuKFcrXyu/AeVs42E1CX/0aNwrfQ==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
-
-  '@ai-sdk/provider@4.0.26':
-    resolution: {integrity: sha512-BZ443uBEq6HuMA+Z4b7Hpm65GpZSo7pWqnYqpf/7tAO3C48JbtvAhOE2JnODFj+jodsZzfRHkAyQb64xuD2tZQ==}
-    engines: {node: '>=22'}
 
   '@alloc/quick-lru@5.3.0':
     resolution: {integrity: sha512-U4+70Pc5ZS9osnCBCE5Jha/ciHM+Yp+CNMNC/7HvYbNRk1Ldd+f7qO65W5qfhu/TCv+/ozljlXXe9Nj8419DMA==}
@@ -3129,10 +3074,6 @@ packages:
   '@ungap/structured-clone@1.4.0':
     resolution: {integrity: sha512-1mEZtMKPM09vDmQt5y7YvmN2+DFTP7Tg0EWXdic8/C6VRnpb33e4ghisCIE3WZjsE2N8mf+QV1Zqh7ZFYLWInQ==}
 
-  '@vercel/oidc@3.2.0':
-    resolution: {integrity: sha512-UycprH3T6n3jH0k44NHMa7pnFHGu/N05MjojYr+Mc6I7obkoLIJujSWwin1pCvdy/eOxrI/l3uDLQsmcrOb4ug==}
-    engines: {node: '>= 20'}
-
   '@vitejs/plugin-react@6.1.1':
     resolution: {integrity: sha512-yxLaQV9gkhS8ezJqCM6+ndU7mDY6gqAg75NQ+0IjwEI8IYOmQCgkRwHKVSfWXW076DsqMo0Dk+0FK1U+M5RgFw==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -3249,9 +3190,6 @@ packages:
   '@vue/shared@3.5.34':
     resolution: {integrity: sha512-24uqU4OIiX29ryC3MeWid/Xf2fa2EFRUVLb77nRhk+UrTVrh/XiGtFAFmJBAtBRbjwNdsPRP+jj/OL27Eg1NDA==}
 
-  '@workflow/serde@4.1.0':
-    resolution: {integrity: sha512-pav4F2BoirECWR7Nf1TKt+2eETcBj7jj4cBefQ8VXQCA6NPkaKeLfj/zMgi+3zYV5ZIBT4GuUiphsj0/b9hPQQ==}
-
   '@xmldom/xmldom@0.8.15':
     resolution: {integrity: sha512-/5NV/vDALVFDXgLmfsy9TRCBlKwO2LNBFzpzvb9iIj+jR+eSc6DLYYvVOdivT/jm7MtU6TebYuRmzEOI7w40UA==}
     engines: {node: '>=10.0.0'}
@@ -3280,12 +3218,6 @@ packages:
   agent-base@9.0.0:
     resolution: {integrity: sha512-TQf59BsZnytt8GdJKLPfUZ54g/iaUL2OWDSFCCvMOhsHduDQxO8xC4PNeyIkVcA5KwL2phPSv0douC0fgWzmnA==}
     engines: {node: '>= 20'}
-
-  ai@7.0.137:
-    resolution: {integrity: sha512-JxrPkSQknxIN/gYqS3UQksExS6eWI23QMPBrKMGXeeFHhru6xFtF4MuMq17WaHD+lXPh0lne6H0BM2Z2VMW9EQ==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
 
   ajv-draft-04@1.0.0:
     resolution: {integrity: sha512-mv00Te6nmYbRp5DCwclxtt7yV/joXJPGS7nM+97GdxvuttCOfgI3K4U25zboyeX0O+myI8ERluxQe5wljMmVIw==}
@@ -4120,10 +4052,6 @@ packages:
   eventemitter3@5.0.4:
     resolution: {integrity: sha512-mlsTRyGaPBjPedk6Bvw+aqbsXDtoAyAzm5MO7JgU+yVRyMQ5O8bD4Kcci7BS85f93veegeCPkL8R4GLClnjLFw==}
 
-  eventsource-parser@3.1.1:
-    resolution: {integrity: sha512-EKN1vKAMcZ8MlYMpaNuxN6R9yakzH6uajHcHVTqWJzvu5pWw9DyhbP35HH8MVBQ+dZjAfDxk+A8NiR9KWaXiyQ==}
-    engines: {node: '>=18.0.0'}
-
   expect-type@1.4.0:
     resolution: {integrity: sha512-KfYbmpRm0VbLjEvVa9yGwCi9GI34xvi7A/HXYWQO65CSD2u3MczUJSuwXKFIxlGsgBQizV9q5J9NHj4VG0n+pA==}
     engines: {node: '>=12.0.0'}
@@ -4577,9 +4505,6 @@ packages:
 
   json-schema-traverse@1.0.0:
     resolution: {integrity: sha512-NM8/P9n3XjXhIZn1lLhkFaACTOURQXjWhV4BA/RnOv8xvgqtqpAX9IO4mRQxSx1Rlo4tqzeqb0sOlruaOy3dug==}
-
-  json-schema@0.4.0:
-    resolution: {integrity: sha512-es94M3nTIfsEPisRafak+HDLfHXnKBhV3vU5eqPcS3flIWqcxJWgXHXiey3YrpaNsanY5ei1VoYEbOzijuq9BA==}
 
   json-stringify-safe@5.0.1:
     resolution: {integrity: sha512-ZClg6AaYvamvYEE82d3Iyd3vSSIjQ+odgjaTzRuO3s7toCdFKczob2i0zCh7JE8kWn17yvAWhUVxvqGwUalsRA==}
@@ -6409,50 +6334,6 @@ packages:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
 snapshots:
-
-  '@ai-sdk/anthropic@4.0.78(zod@4.6.5)':
-    dependencies:
-      '@ai-sdk/provider': 4.0.26
-      '@ai-sdk/provider-utils': 5.0.58(zod@4.6.5)
-      zod: 4.6.5
-
-  '@ai-sdk/gateway@4.0.110(zod@4.6.5)':
-    dependencies:
-      '@ai-sdk/provider': 4.0.26
-      '@ai-sdk/provider-utils': 5.0.58(zod@4.6.5)
-      '@vercel/oidc': 3.2.0
-      zod: 4.6.5
-
-  '@ai-sdk/google@4.0.93(zod@4.6.5)':
-    dependencies:
-      '@ai-sdk/provider': 4.0.26
-      '@ai-sdk/provider-utils': 5.0.58(zod@4.6.5)
-      zod: 4.6.5
-
-  '@ai-sdk/openai-compatible@3.0.67(zod@4.6.5)':
-    dependencies:
-      '@ai-sdk/provider': 4.0.26
-      '@ai-sdk/provider-utils': 5.0.58(zod@4.6.5)
-      zod: 4.6.5
-
-  '@ai-sdk/openai@4.0.91(zod@4.6.5)':
-    dependencies:
-      '@ai-sdk/provider': 4.0.26
-      '@ai-sdk/provider-utils': 5.0.58(zod@4.6.5)
-      zod: 4.6.5
-
-  '@ai-sdk/provider-utils@5.0.58(zod@4.6.5)':
-    dependencies:
-      '@ai-sdk/provider': 4.0.26
-      '@standard-schema/spec': 1.1.0
-      '@workflow/serde': 4.1.0
-      eventsource-parser: 3.1.1
-      undici: 7.30.0
-      zod: 4.6.5
-
-  '@ai-sdk/provider@4.0.26':
-    dependencies:
-      json-schema: 0.4.0
 
   '@alloc/quick-lru@5.3.0': {}
 
@@ -8616,8 +8497,6 @@ snapshots:
 
   '@ungap/structured-clone@1.4.0': {}
 
-  '@vercel/oidc@3.2.0': {}
-
   '@vitejs/plugin-react@6.1.1(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
@@ -8749,8 +8628,6 @@ snapshots:
 
   '@vue/shared@3.5.34': {}
 
-  '@workflow/serde@4.1.0': {}
-
   '@xmldom/xmldom@0.8.15': {}
 
   '@xmldom/xmldom@0.9.12': {}
@@ -8764,13 +8641,6 @@ snapshots:
   agent-base@7.1.4: {}
 
   agent-base@9.0.0: {}
-
-  ai@7.0.137(zod@4.6.5):
-    dependencies:
-      '@ai-sdk/gateway': 4.0.110(zod@4.6.5)
-      '@ai-sdk/provider': 4.0.26
-      '@ai-sdk/provider-utils': 5.0.58(zod@4.6.5)
-      zod: 4.6.5
 
   ajv-draft-04@1.0.0(ajv@8.20.0):
     optionalDependencies:
@@ -9655,8 +9525,6 @@ snapshots:
 
   eventemitter3@5.0.4: {}
 
-  eventsource-parser@3.1.1: {}
-
   expect-type@1.4.0: {}
 
   exponential-backoff@3.1.3: {}
@@ -10209,8 +10077,6 @@ snapshots:
       ts-algebra: 2.0.0
 
   json-schema-traverse@1.0.0: {}
-
-  json-schema@0.4.0: {}
 
   json-stringify-safe@5.0.1: {}
 
@@ -11646,7 +11512,8 @@ snapshots:
 
   undici@7.29.1: {}
 
-  undici@7.30.0: {}
+  undici@7.30.0:
+    optional: true
 
   undici@8.11.2: {}
 

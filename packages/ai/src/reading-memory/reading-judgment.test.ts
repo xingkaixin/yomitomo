@@ -545,9 +545,9 @@ function provider(protocol: Protocol = 'compatible'): LlmProvider {
 }
 
 function endpoint(protocol: Protocol) {
-  if (protocol === 'anthropic') return 'https://api.anthropic.com/v1/messages';
+  if (protocol === 'anthropic') return 'https://api.anthropic.com/v1/messages?beta=true';
   if (protocol === 'gemini')
-    return 'https://generativelanguage.googleapis.com/v1beta/models/test-model:generateContent';
+    return 'https://generativelanguage.googleapis.com/v1beta/models/test-model:streamGenerateContent?alt=sse';
   if (protocol === 'openai-responses') return 'https://api.openai.com/v1/responses';
   return `${provider(protocol).baseUrl.replace(/\/v1$/, '')}/v1/chat/completions`;
 }
@@ -593,41 +593,91 @@ function userText(body: RequestBody) {
 
 function providerResponse(protocol: Protocol, text: string) {
   if (protocol === 'anthropic')
-    return jsonResponse({
-      type: 'message',
-      id: 'message-test',
-      model: 'test-model',
-      role: 'assistant',
-      content: [{ type: 'text', text }],
-      stop_reason: 'end_turn',
-      stop_sequence: null,
-      usage: { input_tokens: 1, output_tokens: 1 },
-    });
-  if (protocol === 'gemini')
-    return jsonResponse({
-      candidates: [{ content: { role: 'model', parts: [{ text }] }, finishReason: 'STOP' }],
-      usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 1, totalTokenCount: 2 },
-    });
-  if (protocol === 'openai-responses')
-    return jsonResponse({
-      id: 'response-test',
-      created_at: 0,
-      model: 'test-model',
-      status: 'completed',
-      output: [
-        {
+    return sseResponse([
+      {
+        type: 'message_start',
+        message: {
           id: 'message-test',
           type: 'message',
           role: 'assistant',
-          content: [{ type: 'output_text', text, annotations: [] }],
+          model: 'test-model',
+          content: [],
+          stop_reason: null,
+          usage: { input_tokens: 1, output_tokens: 0 },
         },
-      ],
-      usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
-    });
-  return jsonResponse({
-    choices: [{ index: 0, message: { role: 'assistant', content: text }, finish_reason: 'stop' }],
-    usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
-  });
+      },
+      { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } },
+      { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } },
+      { type: 'content_block_stop', index: 0 },
+      { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 1 } },
+      { type: 'message_stop' },
+    ]);
+  if (protocol === 'gemini')
+    return sseResponse([
+      {
+        candidates: [{ content: { role: 'model', parts: [{ text }] }, finishReason: 'STOP' }],
+        usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 1, totalTokenCount: 2 },
+      },
+    ]);
+  if (protocol === 'openai-responses') {
+    const message = {
+      id: 'message-test',
+      type: 'message',
+      role: 'assistant',
+      status: 'completed',
+      content: [{ type: 'output_text', text, annotations: [] }],
+    };
+    return sseResponse([
+      { type: 'response.created', response: { id: 'response-test', status: 'in_progress' } },
+      {
+        type: 'response.output_item.added',
+        output_index: 0,
+        item: { ...message, status: 'in_progress', content: [] },
+      },
+      {
+        type: 'response.content_part.added',
+        item_id: 'message-test',
+        output_index: 0,
+        content_index: 0,
+        part: { type: 'output_text', text: '', annotations: [] },
+      },
+      {
+        type: 'response.output_text.delta',
+        item_id: 'message-test',
+        output_index: 0,
+        content_index: 0,
+        delta: text,
+      },
+      { type: 'response.output_item.done', output_index: 0, item: message },
+      {
+        type: 'response.completed',
+        response: {
+          id: 'response-test',
+          status: 'completed',
+          output: [message],
+          usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+        },
+      },
+    ]);
+  }
+  return sseResponse([
+    { choices: [{ index: 0, delta: { role: 'assistant', content: text }, finish_reason: null }] },
+    {
+      choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+    },
+  ]);
+}
+
+function sseResponse(events: Record<string, unknown>[]) {
+  const body = events
+    .map((event) =>
+      typeof event.type === 'string'
+        ? `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`
+        : `data: ${JSON.stringify(event)}\n\n`,
+    )
+    .join('');
+  return new Response(body, { status: 200, headers: { 'content-type': 'text/event-stream' } });
 }
 
 function jsonResponse(body: unknown, status = 200) {

@@ -55,8 +55,8 @@ telemetry → shared
 ## 数据与事实来源
 
 - **SQLite 是唯一持久化事实来源。** schema 在 `apps/desktop/src/main/db/schema.ts`，迁移是
-  `apps/desktop/src/main/db/migrations.ts` 中手写的有序 SQL。renderer state、pending 评论、
-  临时高亮和播放状态都不是事实来源。
+  `apps/desktop/src/main/db/migrations.ts` 中手写的有序 SQL。renderer state、pending 评论和
+  临时高亮都不是事实来源。
 - **数据库只升不降。** 旧版本无法读取的迁移必须提升 `minReaderLevel`；数据库要求的级别高于当前
   客户端时拒绝打开，见 `apps/desktop/src/main/db/compatibility.ts`。不通过删除迁移记录或降低
   级别来降级。
@@ -106,16 +106,16 @@ telemetry → shared
 - 同一 agent 被多个频道同时触发时，各自 fork 主会话并行运行；同一频道再次投递时 steer 进正在运行
   的 fork，不排队。生成在 main 进程继续，关闭窗口或锁定应用不会中断；未完成的运行留下 pending
   标记，启动时恢复。
-- 沉淀审阅和批注生成仍由 `agent-task-execution.ts` 直接调用 `@yomitomo/ai`，翻译同样直连 provider。
-- 流式生成遍历 AI SDK 的 `fullStream`。provider 在流中发出 error part 或以 `finishReason: 'error'`
-  结束时按失败处理，已流出的半截正文不作为成功结果。
-- 发给模型的文章正文按 `packages/ai/src/provider/budget.ts` 截断，并告知模型压缩情况；
-  不改变已保存的文章。
-- 模型生成的批注候选在 `packages/ai/src/agent/annotation-suggestion-acceptance.ts` 中按确定性规则
-  接受或丢弃，并记录丢弃原因。
-- 当前 UI 中，批注上的 AI 输出都以评论形式写入已有批注，问一问的回答写入文章的 reader chat
-  state。生成新锚定批注的 `agent:annotate:stream`
-  链路没有 UI 入口，见 [聚焦共读执行数据流](focus-co-reading-data-flow.md)。
+- 沉淀审阅同样在助手会话里运行：从审阅 agent 在该文章的主会话 fork 一次，模型每次调用
+  `add_review_item` 工具提交一条审阅项。参数不合法时工具返回错误，由模型修正后重新提交。
+- 翻译、阅读记忆判断、@ 路由和连接测试是单次调用，不建会话，经
+  `packages/ai/src/provider/generation-runtime.ts` 走 pi-ai。provider 以 error 或 aborted 结束、
+  返回空正文时按失败处理。
+- 思考强度和采样参数由 `packages/ai/src/provider/pi-provider.ts` 按 pi-ai 模型目录换算；目录里没有的
+  模型按 provider 协议推断。
+- 阅读记忆判断的输入上限按 `packages/ai/src/provider/budget.ts` 的模型系数计算，不改变已保存的文章。
+- 批注上的 AI 输出都以评论形式写入已有批注，问一问的回答写入文章的 reader chat state。助手不生成
+  新的锚定批注。
 
 ## 阅读记忆
 

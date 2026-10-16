@@ -17,7 +17,7 @@ import { OPENAI_MODELS } from '@earendil-works/pi-ai/providers/openai.models';
 import { XIAOMI_MODELS } from '@earendil-works/pi-ai/providers/xiaomi.models';
 import { ZAI_MODELS } from '@earendil-works/pi-ai/providers/zai.models';
 import type { Agent, LlmProvider, ProviderPresetId } from '@yomitomo/shared';
-import { geminiBaseUrl, openAIBaseUrl } from './ai-sdk-provider-adapter';
+import { geminiBaseUrl, openAIBaseUrl } from './provider-urls';
 
 const CONTEXT_WINDOW = 128_000;
 const MAX_OUTPUT_TOKENS = 4096;
@@ -41,7 +41,7 @@ export function piModelRef(provider: LlmProvider, agent: Pick<Agent, 'id'>): PiM
 // pi-durable conversations reference a model and cannot set temperature per request.
 export function piProviderFor(
   provider: LlmProvider,
-  agent: Pick<Agent, 'id' | 'temperature'>,
+  agent: Pick<Agent, 'id'> & { temperature?: number },
 ): Provider {
   const ref = piModelRef(provider, agent);
   const model = {
