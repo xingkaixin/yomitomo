@@ -202,7 +202,7 @@ export function createAssistantReadingExtension(ports: AssistantReadingPorts) {
           run?.articleTitle ? `当前文章：《${run.articleTitle}》` : '',
           '你看不到文章全文，需要时用工具按章节、段落或关键词读取原文，用 search_reading_memory 和 read_thread 查已有批注与讨论。',
           '读者的划线可能只是半句或几个词。回答前先用 read_article 的 aroundBlockId 读划线所在段落和前后文，不够再继续读或检索，不要让读者替你提供原文。',
-          '工具只返回读者已读范围内的内容；不要猜测或透露范围之外的情节。',
+          '工具只返回可读范围内的内容；不要猜测或透露范围之外的情节。',
           '引用原文时直接引用原句，不要编造原文。',
           '要指向某段原文或某条讨论时，写成 Markdown 链接，地址是 # 加段落 id 或评论 id，例如 [新版序言](#b35)、[另一条讨论](#comment_xxx)，读者点开会跳过去；不要在正文里单独写 id。',
           `一次回复最多调用 ${MAX_TOOL_CALLS} 次工具，信息足够时就直接回答。`,
@@ -253,7 +253,7 @@ function textResult(text: string, isError = false): ToolExecutionResult {
 }
 
 function formatRead(blocks: ArticleTextBlock[], nextBlockId?: string) {
-  if (blocks.length === 0) return '这里没有可读内容（可能超出读者已读范围）。';
+  if (blocks.length === 0) return '这里没有可读内容（可能超出可读范围）。';
   const text = blocks.map((block) => `[${block.id}] ${block.text}`).join('\n\n');
   return nextBlockId ? `${text}\n\n（未读完，继续读取请用 fromBlockId=${nextBlockId}）` : text;
 }
