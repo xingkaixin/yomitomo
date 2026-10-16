@@ -65,7 +65,7 @@ export function createAssistantChannelSources(publishPatch: (patch: ArticleStore
     return true;
   }
 
-  return { readChannel, publishReply, existingMessageIds };
+  return { readChannel, publishReply, existingMessageIds, findDiscussion };
 }
 
 function readChannel(articleId: string, channel: AssistantChannel): ChannelSnapshot | undefined {
@@ -103,6 +103,13 @@ function readChat(articleId: string, sessionId: string): ChannelSnapshot | undef
     quote: context?.quote,
     anchor: context?.anchor,
   };
+}
+
+function findDiscussion(articleId: string, id: string) {
+  return readArticleAnnotations(getDatabase(), articleId).find(
+    (annotation) =>
+      annotation.id === id || annotation.comments.some((comment) => comment.id === id),
+  )?.id;
 }
 
 function existingMessageIds(articleId: string, ids: string[]) {

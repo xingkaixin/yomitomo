@@ -48,6 +48,7 @@ import {
 import { formatDelivery, formatRetraction } from './assistant-channel-delivery';
 import type { ChannelReply, ChannelSnapshot } from './assistant-channel-sources';
 import { RunContextDoc } from './assistant-reading-extension';
+import { resolveReplyLinks } from './assistant-reply-links';
 import { joinRunText, messageText, readRunTranscript } from './assistant-run-transcript';
 import type { AssistantSessionStore } from './assistant-session-store';
 
@@ -76,6 +77,7 @@ export type AssistantChannelPorts = {
   readChannel: (articleId: string, channel: AssistantChannel) => ChannelSnapshot | undefined;
   publishReply: (articleId: string, channel: AssistantChannel, reply: ChannelReply) => boolean;
   existingMessageIds: (articleId: string, ids: string[]) => Set<string>;
+  findDiscussion: (articleId: string, id: string) => string | undefined;
   articleMeta: (articleId: string) => ArticleMeta | undefined;
   publishRun: (event: AssistantRunEvent) => void;
   markPending: (articleId: string, pending: boolean) => Promise<void>;
@@ -288,6 +290,9 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       return;
     }
 
+    const content = resolveReplyLinks(text, await ports.articleText(articleId), (id) =>
+      ports.findDiscussion(articleId, id),
+    );
     const resolved = await ports.resolveAgent(first.agentId, true).catch(() => undefined);
     const hash = createHash('sha256').update(`${articleId}:${forkId}:${answerId}`).digest('hex');
     const commentId = `${first.channel.kind === 'chat' ? 'reader_chat_message' : 'comment'}_${hash.slice(0, 24)}`;
@@ -296,7 +301,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       author: resolved
         ? annotationAgentAuthorRef(resolveAgentPublicIdentity(resolved.agent, resolved.uiLanguage))
         : { kind: 'agent', agentId: first.agentId, username: first.agentId },
-      content: text,
+      content,
       createdAt: new Date().toISOString(),
       ...(first.readingIntent ? { readingIntent: first.readingIntent as AgentReadingIntent } : {}),
       ...(steps.length > 0 ? { assistantProgress: { steps } } : {}),
@@ -351,7 +356,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       agentId: first.agentId,
       channel: first.channel,
       status: saved ? 'done' : 'failed',
-      text,
+      text: content,
       steps,
       ...(saved ? { commentId } : { error: 'channel_deleted' }),
     });

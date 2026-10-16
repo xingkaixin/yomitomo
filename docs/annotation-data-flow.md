@@ -123,6 +123,13 @@ renderer 在 `apps/desktop/src/renderer/src/shell/app-assistant-runs.ts` 中把�
 全文，前面的文本不会被后面的覆盖。工具调用只记录工具名和成败，写进回复的 `assistantProgress`，
 界面显示成步骤标签，不展开参数和结果。
 
+agent 引用原文段落或另一条讨论时写 `[文字](#b35)`、`[文字](#comment_x)`。保存回复时
+`assistant-reply-links.ts` 把段落 id 换成 `#passage:<start>-<end>`（全文偏移），把评论或批注 id 换成
+`#discussion:<annotationId>`；找不到目标的引用只保留文字。格式定义在
+`packages/shared/src/agents/assistant-reference.ts`，Markdown 渲染只放行这两种站内链接。点击段落
+链接时主窗口阅读器跳到对应文字（PDF 跳到所在页），点击讨论链接打开该批注的讨论窗口。没写成链接的
+裸 id 不转换。
+
 ### 回复现有 thread
 
 讨论窗口 `apps/desktop/src/renderer/src/annotation-discussion/app-annotation-discussion-window.tsx`
