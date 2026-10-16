@@ -25,14 +25,15 @@ import {
 import type {
   Agent,
   AgentReadingIntent,
-  Annotation,
+  ArticleReadingProgress,
   ArticleTextSnapshot,
   AssistantChannel,
   AssistantDeliveryRequest,
   AssistantRunEvent,
-  Comment,
   EpubBookIndex,
   LlmProvider,
+  ReaderProgress,
+  TextAnchor,
   UiLanguage,
 } from '@yomitomo/shared';
 import { resolveAgentPublicIdentity } from '@yomitomo/shared';
@@ -44,7 +45,8 @@ import {
   cursorKey,
   type AssistantRunRecord,
 } from './assistant-channel-docs';
-import { channelMessages, formatDelivery, formatRetraction } from './assistant-channel-delivery';
+import { formatDelivery, formatRetraction } from './assistant-channel-delivery';
+import type { ChannelReply, ChannelSnapshot } from './assistant-channel-sources';
 import { RunContextDoc } from './assistant-reading-extension';
 import type { AssistantSessionStore } from './assistant-session-store';
 
@@ -59,15 +61,21 @@ export type ResolvedChannelAgent = {
   fake: boolean;
 };
 
+type ArticleMeta = {
+  title: string;
+  ebookIndex?: EpubBookIndex;
+  readingProgress?: ArticleReadingProgress;
+};
+
 export type AssistantChannelPorts = {
   store: AssistantSessionStore;
   articleText: (articleId: string) => Promise<ArticleTextSnapshot | undefined>;
   models: ReturnType<typeof createModels>;
   resolveAgent: (agentId: string, allowDisabled: boolean) => Promise<ResolvedChannelAgent>;
-  annotation: (articleId: string, annotationId: string) => Annotation | undefined;
-  existingCommentIds: (articleId: string, ids: string[]) => Set<string>;
-  articleMeta: (articleId: string) => { title: string; ebookIndex?: EpubBookIndex } | undefined;
-  saveComment: (input: { articleId: string; annotationId: string; comment: Comment }) => boolean;
+  readChannel: (articleId: string, channel: AssistantChannel) => ChannelSnapshot | undefined;
+  publishReply: (articleId: string, channel: AssistantChannel, reply: ChannelReply) => boolean;
+  existingMessageIds: (articleId: string, ids: string[]) => Set<string>;
+  articleMeta: (articleId: string) => ArticleMeta | undefined;
   publishRun: (event: AssistantRunEvent) => void;
   markPending: (articleId: string, pending: boolean) => Promise<void>;
   logError: (event: string, error: unknown, data?: Record<string, unknown>) => void;
@@ -126,9 +134,9 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     text: ArticleTextSnapshot | undefined,
   ) {
     await reconcileRetractions(harness, request.articleId);
-    const annotation = ports.annotation(request.articleId, request.channel.annotationId);
-    if (!annotation) throw new Error('ASSISTANT_CHANNEL_NOT_FOUND');
-    const messages = channelMessages(request.channel, annotation);
+    const snapshot = ports.readChannel(request.articleId, request.channel);
+    if (!snapshot) throw new Error('ASSISTANT_CHANNEL_NOT_FOUND');
+    const { anchor, messages, quote } = snapshot;
     const cursor = cursorKey(request.agentId, request.channel);
     const state = await harness.commit(async (tx) => {
       const agents = await tx.doc(AgentConversationsDoc);
@@ -160,9 +168,9 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     const delivery = formatDelivery({
       agentId: request.agentId,
       channel: request.channel,
-      annotation,
+      quote,
       messages: state.fresh,
-      anchorBlockId: text ? anchorBlockId(text, annotation) : undefined,
+      anchorBlockId: text && anchor ? anchorBlockId(text, anchor) : undefined,
       instruction: request.instruction,
       readingIntent: request.readingIntent,
       reviewTargetCommentId: request.reviewTargetCommentId,
@@ -199,7 +207,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
           articleTitle: meta?.title ?? '',
           agentId: request.agentId,
           channelId: channelKey(request.channel),
-          visibleRanges: visibleRanges(text, annotation, meta?.ebookIndex),
+          visibleRanges: visibleRanges(text, anchor, meta),
           toolCalls: 0,
         });
         (await tx.doc(ChannelRunsDoc)).runs[requestId] = { ...record, forkId: id };
@@ -280,20 +288,17 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     }
 
     const resolved = await ports.resolveAgent(first.agentId, true).catch(() => undefined);
-    const commentId = `comment_${createHash('sha256').update(`${articleId}:${forkId}:${answerId}`).digest('hex').slice(0, 24)}`;
-    const comment: Comment = {
+    const hash = createHash('sha256').update(`${articleId}:${forkId}:${answerId}`).digest('hex');
+    const commentId = `${first.channel.kind === 'chat' ? 'reader_chat_message' : 'comment'}_${hash.slice(0, 24)}`;
+    const saved = ports.publishReply(articleId, first.channel, {
       id: commentId,
       author: resolved
         ? annotationAgentAuthorRef(resolveAgentPublicIdentity(resolved.agent, resolved.uiLanguage))
         : { kind: 'agent', agentId: first.agentId, username: first.agentId },
       content: text,
       createdAt: new Date().toISOString(),
-      ...(first.channel.kind === 'thread' ? { replyTo: first.channel.threadId } : {}),
       ...(first.readingIntent ? { readingIntent: first.readingIntent as AgentReadingIntent } : {}),
-    };
-    const saved =
-      channelStillExists(articleId, first.channel) &&
-      ports.saveComment({ articleId, annotationId: first.channel.annotationId, comment });
+    });
 
     const mainId = (await harness.snapshot(AgentConversationsDoc, context))?.conversations[
       first.agentId
@@ -420,7 +425,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     const cursors = (await harness.snapshot(ChannelCursorsDoc, context))?.delivered ?? {};
     const deliveredIds = [...new Set(Object.values(cursors).flat())];
     if (deliveredIds.length === 0) return;
-    const existing = ports.existingCommentIds(articleId, deliveredIds);
+    const existing = ports.existingMessageIds(articleId, deliveredIds);
     const removedByAgent = new Map<string, string[]>();
     for (const [key, ids] of Object.entries(cursors)) {
       const removed = ids.filter((id) => !existing.has(id));
@@ -467,15 +472,6 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       if (resolved) await registerProvider(resolved);
       void track(articleId, requestId);
     }
-  }
-
-  function channelStillExists(articleId: string, channel: AssistantChannel) {
-    const annotation = ports.annotation(articleId, channel.annotationId);
-    if (!annotation) return false;
-    return (
-      channel.kind !== 'thread' ||
-      annotation.comments.some((comment) => comment.id === channel.threadId)
-    );
   }
 
   async function registerProvider(resolved: ResolvedChannelAgent) {
@@ -526,30 +522,48 @@ function answerText(message: AssistantMessage) {
     .trim();
 }
 
-function anchorOffset(text: string, annotation: Annotation) {
-  const anchor = annotation.anchor;
+function anchorOffset(text: string, anchor: TextAnchor) {
   const start = anchor.textStartInBook ?? anchor.start;
   if (text.slice(start, start + anchor.exact.length) === anchor.exact) return start;
   const found = text.indexOf(anchor.exact);
   return found >= 0 ? found : undefined;
 }
 
-function anchorBlockId(snapshot: ArticleTextSnapshot, annotation: Annotation) {
-  const offset = anchorOffset(snapshot.text, annotation);
+function anchorBlockId(snapshot: ArticleTextSnapshot, anchor: TextAnchor) {
+  const offset = anchorOffset(snapshot.text, anchor);
   return offset === undefined ? undefined : createArticleTextIndex(snapshot).blockAt(offset)?.id;
 }
 
 function visibleRanges(
   text: ArticleTextSnapshot | undefined,
-  annotation: Annotation,
-  ebookIndex: EpubBookIndex | undefined,
+  anchor: TextAnchor | undefined,
+  meta: ArticleMeta | undefined,
 ) {
-  if (!ebookIndex || !text) return null;
-  return buildEpubReadingContextScope(prepareEpubBookIndex(ebookIndex), {
+  if (!meta?.ebookIndex || !text) return null;
+  const prepared = prepareEpubBookIndex(meta.ebookIndex);
+  return buildEpubReadingContextScope(prepared, {
     articleText: text.text,
-    targetAnchor: annotation.anchor,
+    targetAnchor: anchor,
+    readerProgress: anchor ? undefined : readerProgress(prepared, meta.readingProgress),
     spoilerPolicy: selectionThreadSpoilerPolicy,
   }).textRanges;
+}
+
+// A question without a selection is scoped by how far the reader has read the book.
+function readerProgress(
+  prepared: ReturnType<typeof prepareEpubBookIndex>,
+  progress: ArticleReadingProgress | undefined,
+): ReaderProgress | undefined {
+  if (progress?.kind !== 'chapter') return undefined;
+  const chapter = prepared.chapters().find((item) => item.indexInBook === progress.chapterIndex);
+  if (!chapter) return undefined;
+  const readUntil = chapter.textStart + Math.round(progress.chapterProgress * chapter.textLength);
+  return {
+    currentChapterId: chapter.id,
+    currentSegmentId: prepared.locateOffset(readUntil)?.segment.id,
+    readChapterIds: prepared.chaptersBefore(chapter),
+    readUntilTextOffset: readUntil,
+  };
 }
 
 async function e2eFakeProvider(resolved: ResolvedChannelAgent) {

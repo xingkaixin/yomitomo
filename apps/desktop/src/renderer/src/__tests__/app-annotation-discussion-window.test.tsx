@@ -1006,6 +1006,7 @@ function installDesktopApi(
         agentId: request.agentId,
         ...(request.channel.kind === 'thread' ? { replyTo: request.channel.threadId } : {}),
       });
+      if (request.channel.kind === 'chat') return;
       void saveAgentComment(request.channel.annotationId, comment).then(() =>
         emitRun(
           runEvent(request, runKey, {

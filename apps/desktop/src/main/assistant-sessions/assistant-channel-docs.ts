@@ -11,9 +11,9 @@ export type AssistantRunRecord = {
 };
 
 export function channelKey(channel: AssistantChannel) {
-  return channel.kind === 'thread'
-    ? `thread:${channel.threadId}`
-    : `annotation:${channel.annotationId}`;
+  if (channel.kind === 'thread') return `thread:${channel.threadId}`;
+  if (channel.kind === 'chat') return `chat:${channel.sessionId}`;
+  return `annotation:${channel.annotationId}`;
 }
 
 export function cursorKey(agentId: string, channel: AssistantChannel | string) {

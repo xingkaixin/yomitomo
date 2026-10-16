@@ -490,6 +490,7 @@ const articleTextSnapshotSchema = z.object({
 const assistantChannelSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('thread'), annotationId: idSchema, threadId: idSchema }),
   z.object({ kind: z.literal('annotation'), annotationId: idSchema }),
+  z.object({ kind: z.literal('chat'), sessionId: idSchema }),
 ]);
 
 export const assistantDomainIpcInvokeSchemas = {

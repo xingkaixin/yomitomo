@@ -39,7 +39,11 @@ import {
   type AnnotationMessageLayoutMode,
 } from './app-annotation-layout-control';
 import { assistantRuntimeErrorMessage } from '../shell/app-assistant-runtime-progress';
-import { deliverAssistantMessage, useAssistantRuns } from '../shell/app-assistant-runs';
+import {
+  assistantRunScope,
+  deliverAssistantMessage,
+  useAssistantRuns,
+} from '../shell/app-assistant-runs';
 import {
   elementWindowSourceRect,
   useSourceAwareWindowTransition,
@@ -357,7 +361,7 @@ function AnnotationDiscussionShell({
   const userProfile = annotationUserProfile(annotation, article, user);
   const { runs: assistantRuns, settle: settleAssistantRun } = useAssistantRuns(
     article.id,
-    annotation.id,
+    assistantRunScope({ kind: 'annotation', annotationId: annotation.id }),
   );
   const threads = useMemo(
     () =>

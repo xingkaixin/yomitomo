@@ -1,8 +1,13 @@
 import { rm, writeFile } from 'node:fs/promises';
 import { createModels } from '@earendil-works/pi-ai/models';
 import { createRegistry, type HarnessSettings } from '@earendil-works/pi-durable';
-import { eq, inArray } from 'drizzle-orm';
-import type { ArticleUpsertPatch, AssistantRunEvent, EpubBookIndex } from '@yomitomo/shared';
+import { eq } from 'drizzle-orm';
+import type {
+  ArticleReadingProgress,
+  ArticleStorePatch,
+  AssistantRunEvent,
+  EpubBookIndex,
+} from '@yomitomo/shared';
 import { normalizeUiLanguage } from '@yomitomo/shared';
 import { logError } from '../app/logger';
 import { readArticleAnnotations } from '../articles/article-annotation-hydration';
@@ -16,10 +21,9 @@ import {
 import * as schema from '../db/schema';
 import { searchReadingMemoryEntries } from '../reading-memory/reading-memory-store';
 import { readAgentRuntimeContext } from '../store/store-agents';
-import { upsertCommentRows } from '../articles/article-annotation-upsert';
 import { getDatabase } from '../store/store-db';
-import { getReadingMemorySqliteExecutor } from '../store/store-reading-memory-lifecycle';
 import { createAssistantChannelRuntime } from './assistant-channel-runtime';
+import { createAssistantChannelSources } from './assistant-channel-sources';
 import { assistantArticleTexts, sessionDirectory } from './assistant-session-lifecycle';
 import { pendingMarkerPath } from './assistant-session-files';
 import { createAssistantReadingExtension } from './assistant-reading-extension';
@@ -35,7 +39,7 @@ const settings: HarnessSettings = {
 
 export type AssistantSessionHost = {
   publishRun: (event: AssistantRunEvent) => void;
-  publishArticlePatch: (patch: ArticleUpsertPatch) => void;
+  publishArticlePatch: (patch: ArticleStorePatch) => void;
 };
 
 let sessions: ReturnType<typeof createAssistantSessions> | undefined;
@@ -85,32 +89,25 @@ function createAssistantSessions(host: AssistantSessionHost) {
     models,
     articleText: (articleId) => assistantArticleTexts.load(articleId),
     resolveAgent,
-    annotation: (articleId, annotationId) =>
-      readArticleAnnotations(getDatabase(), articleId).find((item) => item.id === annotationId),
-    existingCommentIds: (_articleId, ids) =>
-      new Set(
-        getDatabase()
-          .select({ id: schema.comments.id })
-          .from(schema.comments)
-          .where(inArray(schema.comments.id, ids))
-          .all()
-          .map((row) => row.id),
-      ),
+    ...createAssistantChannelSources(host.publishArticlePatch),
     articleMeta: (articleId) => {
       const row = getDatabase()
-        .select({ title: schema.articles.title, ebookIndex: schema.articleBodies.ebookIndex })
+        .select({
+          title: schema.articles.title,
+          readingProgress: schema.articles.readingProgress,
+          ebookIndex: schema.articleBodies.ebookIndex,
+        })
         .from(schema.articles)
         .leftJoin(schema.articleBodies, eq(schema.articleBodies.articleId, schema.articles.id))
         .where(eq(schema.articles.id, articleId))
         .get();
       return row
-        ? { title: row.title, ebookIndex: (row.ebookIndex as EpubBookIndex | null) ?? undefined }
+        ? {
+            title: row.title,
+            ebookIndex: (row.ebookIndex as EpubBookIndex | null) ?? undefined,
+            readingProgress: (row.readingProgress as ArticleReadingProgress | null) ?? undefined,
+          }
         : undefined;
-    },
-    saveComment: (input) => {
-      const patch = upsertCommentRows(getDatabase(), input, getReadingMemorySqliteExecutor());
-      if (patch) host.publishArticlePatch(patch);
-      return Boolean(patch);
     },
     publishRun: host.publishRun,
     markPending: async (articleId, pending) => {

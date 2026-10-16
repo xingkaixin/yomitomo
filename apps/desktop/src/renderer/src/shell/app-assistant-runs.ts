@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { AssistantDeliveryRequest, AssistantRunEvent } from '@yomitomo/shared';
+import type {
+  AssistantChannel,
+  AssistantDeliveryRequest,
+  AssistantRunEvent,
+} from '@yomitomo/shared';
 import { getDesktopApi, getOptionalDesktopApi } from './app-desktop-api';
 
 export type AssistantRunView = AssistantRunEvent & { startedAt: string };
@@ -40,7 +44,14 @@ export async function deliverAssistantMessage(request: AssistantDeliveryRequest)
   return { runKey, settled };
 }
 
-export function useAssistantRuns(articleId: string, annotationId: string) {
+// An annotation's thread and new-thought runs render in the same discussion window.
+export function assistantRunScope(channel: AssistantChannel) {
+  return channel.kind === 'chat'
+    ? `chat:${channel.sessionId}`
+    : `annotation:${channel.annotationId}`;
+}
+
+export function useAssistantRuns(articleId: string, scope: string) {
   const [runs, setRuns] = useState<ReadonlyMap<string, AssistantRunView>>(() => new Map());
 
   useEffect(() => {
@@ -49,9 +60,7 @@ export function useAssistantRuns(articleId: string, annotationId: string) {
       setRuns((current) => {
         const next = new Map(current);
         for (const event of events) {
-          if (event.articleId !== articleId || event.channel.annotationId !== annotationId) {
-            continue;
-          }
+          if (event.articleId !== articleId || assistantRunScope(event.channel) !== scope) continue;
           if (initial && next.has(event.runKey)) continue;
           if (event.status === 'failed' || (event.status === 'done' && !event.commentId)) {
             next.delete(event.runKey);
@@ -74,7 +83,7 @@ export function useAssistantRuns(articleId: string, annotationId: string) {
       stop();
       setRuns(new Map());
     };
-  }, [annotationId, articleId]);
+  }, [articleId, scope]);
 
   // A finished run keeps its placeholder until the saved comment reaches this window.
   const settle = useCallback((runKey: string) => {

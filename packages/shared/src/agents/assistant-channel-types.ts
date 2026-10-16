@@ -2,7 +2,8 @@ import type { AgentReadingIntent } from './agent-types';
 
 export type AssistantChannel =
   | { kind: 'thread'; annotationId: string; threadId: string }
-  | { kind: 'annotation'; annotationId: string };
+  | { kind: 'annotation'; annotationId: string }
+  | { kind: 'chat'; sessionId: string };
 
 export type AssistantDeliveryRequest = {
   articleId: string;
