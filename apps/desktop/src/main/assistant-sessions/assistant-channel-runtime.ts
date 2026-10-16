@@ -534,7 +534,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
 }
 
 function agentChange(resolved: ResolvedChannelAgent): AgentChange {
-  const thinkingLevel = piThinkingLevel(resolved.provider.reasoningEffort);
+  const thinkingLevel = piThinkingLevel(resolved.provider);
   return {
     model: piModelRef(resolved.provider, resolved.agent),
     ...(thinkingLevel ? { thinkingLevel } : {}),

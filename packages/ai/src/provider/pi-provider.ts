@@ -8,12 +8,28 @@ import { anthropicMessagesApi } from '@earendil-works/pi-ai/api/anthropic-messag
 import { googleGenerativeAIApi } from '@earendil-works/pi-ai/api/google-generative-ai.lazy';
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy';
 import { openAIResponsesApi } from '@earendil-works/pi-ai/api/openai-responses.lazy';
-import { createProvider, type Provider } from '@earendil-works/pi-ai/models';
-import type { Agent, LlmProvider, ReasoningEffort } from '@yomitomo/shared';
+import { clampThinkingLevel, createProvider, type Provider } from '@earendil-works/pi-ai/models';
+import { ANTHROPIC_MODELS } from '@earendil-works/pi-ai/providers/anthropic.models';
+import { DEEPSEEK_MODELS } from '@earendil-works/pi-ai/providers/deepseek.models';
+import { GOOGLE_MODELS } from '@earendil-works/pi-ai/providers/google.models';
+import { MOONSHOTAI_CN_MODELS } from '@earendil-works/pi-ai/providers/moonshotai-cn.models';
+import { OPENAI_MODELS } from '@earendil-works/pi-ai/providers/openai.models';
+import { XIAOMI_MODELS } from '@earendil-works/pi-ai/providers/xiaomi.models';
+import { ZAI_MODELS } from '@earendil-works/pi-ai/providers/zai.models';
+import type { Agent, LlmProvider, ProviderPresetId } from '@yomitomo/shared';
 import { geminiBaseUrl, openAIBaseUrl } from './ai-sdk-provider-adapter';
 
 const CONTEXT_WINDOW = 128_000;
 const MAX_OUTPUT_TOKENS = 4096;
+
+type ModelCatalog = Readonly<Record<string, Model<Api>>>;
+
+const PRESET_CATALOGS: Partial<Record<ProviderPresetId, ModelCatalog>> = {
+  deepseek: DEEPSEEK_MODELS,
+  moonshot: MOONSHOTAI_CN_MODELS,
+  zhipu: ZAI_MODELS,
+  mimo: XIAOMI_MODELS,
+};
 
 export type PiModelRef = { provider: string; modelId: string };
 
@@ -30,7 +46,8 @@ export function piProviderFor(
   const ref = piModelRef(provider, agent);
   const model = {
     ...piModel(provider, ref.provider),
-    samplingParams: { temperature: agent.temperature },
+    // Thinking models reject or ignore temperature, so it only applies when thinking is off.
+    samplingParamsByThinkingLevel: { off: { temperature: agent.temperature } },
   };
   return createProvider({
     id: ref.provider,
@@ -52,23 +69,40 @@ export function piProviderFor(
   });
 }
 
-export function piThinkingLevel(
-  effort: ReasoningEffort | undefined,
-): ModelThinkingLevel | undefined {
-  switch (effort ?? 'none') {
-    case 'default':
-    case 'auto':
-      return undefined;
-    case 'none':
-      return 'off';
-    case 'xhigh':
-      return 'high';
-    default:
-      return effort as ModelThinkingLevel;
-  }
+// Models that cannot turn thinking off get their lowest supported level instead of "off".
+export function piThinkingLevel(provider: LlmProvider): ModelThinkingLevel | undefined {
+  const effort = provider.reasoningEffort ?? 'none';
+  if (effort === 'default' || effort === 'auto') return undefined;
+  return clampThinkingLevel(piModel(provider, provider.id), effort === 'none' ? 'off' : effort);
 }
 
 function piModel(provider: LlmProvider, providerId: string): Model<Api> {
+  const model = fallbackModel(provider, providerId);
+  if (provider.reasoningEffort === 'default') return { ...model, reasoning: false };
+  const known = catalogModel(provider);
+  if (!known) return model;
+  return {
+    ...model,
+    reasoning: known.reasoning,
+    thinkingLevelMap: known.thinkingLevelMap,
+    contextWindow: known.contextWindow,
+    ...(known.api === model.api && { compat: { ...model.compat, ...known.compat } }),
+  } as Model<Api>;
+}
+
+function catalogModel(provider: LlmProvider): Model<Api> | undefined {
+  const catalog: ModelCatalog | undefined =
+    provider.type === 'anthropic'
+      ? ANTHROPIC_MODELS
+      : provider.type === 'gemini'
+        ? GOOGLE_MODELS
+        : isOfficialOpenAI(provider)
+          ? OPENAI_MODELS
+          : provider.presetId && PRESET_CATALOGS[provider.presetId];
+  return catalog?.[provider.modelName];
+}
+
+function fallbackModel(provider: LlmProvider, providerId: string): Model<Api> {
   const base = {
     id: provider.modelName,
     name: provider.modelName,
@@ -114,7 +148,6 @@ function piModel(provider: LlmProvider, providerId: string): Model<Api> {
 
 function compatibleThinking(provider: LlmProvider): OpenAICompletionsCompat | null {
   const effort = provider.reasoningEffort || 'none';
-  if (effort === 'default') return null;
   const model = provider.modelName.toLowerCase();
   if (provider.presetId === 'dashscope' && /(qwen|deepseek|glm|kimi)/.test(model)) {
     return { thinkingFormat: 'qwen', thinkingTokenBudgetField: 'thinking_budget' };
