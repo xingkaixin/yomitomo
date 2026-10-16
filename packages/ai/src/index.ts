@@ -28,5 +28,12 @@ export {
   type AgentMessageReadingContextSnapshot,
 } from './agent/agent-message';
 export { runAgentAnnotateStream } from './agent/agent-annotation';
+export { buildChannelAgentInstructions } from './agent/agent-channel-prompt';
+export {
+  piModelRef,
+  piProviderFor,
+  piThinkingLevel,
+  type PiModelRef,
+} from './provider/pi-provider';
 export { runAgentReview } from './agent/agent-review';
 export { runReadingJudgment } from './reading-memory/reading-judgment';
