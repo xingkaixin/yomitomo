@@ -953,6 +953,7 @@ function AnnotationDiscussionShell({
           </header>
           {selectedThread ? (
             <DiscussionThreadView
+              articleId={article.id}
               deletingCommentId={deletingCommentId}
               layoutMode={layoutMode}
               thread={selectedThread}

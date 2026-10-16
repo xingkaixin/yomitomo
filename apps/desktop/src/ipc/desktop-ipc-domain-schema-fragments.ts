@@ -515,6 +515,15 @@ export const assistantDomainIpcInvokeSchemas = {
     ),
   ]),
   'assistant:runs': z.tuple([idSchema]),
+  'assistant:reveal-passage': z.tuple([
+    z
+      .object({
+        articleId: idSchema,
+        start: nonnegativeIntegerSchema,
+        end: nonnegativeIntegerSchema,
+      })
+      .refine((input) => input.end > input.start),
+  ]),
 };
 
 export const annotationWindowDomainIpcInvokeSchemas = {

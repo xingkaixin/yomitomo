@@ -40,6 +40,7 @@ export type {
   ArticleTextSection,
   AssistantChannel,
   AssistantDeliveryRequest,
+  AssistantPassageRevealRequest,
   AssistantRunEvent,
   ArticleTextSnapshot,
   AgentReadingPlanItem,

@@ -450,7 +450,7 @@ function registerIpc(startupStoreInitialization: StartupStoreInitializationResul
   registerAppLockIpc(context);
   registerProviderIpc(context);
   registerAgentIpc(context);
-  registerAssistantIpc();
+  registerAssistantIpc(context);
   registerAnnotationDiscussionWindowIpc(context);
   registerAnnotationSedimentationWindowIpc(context);
   assertDesktopIpcRegistrationComplete();

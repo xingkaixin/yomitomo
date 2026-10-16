@@ -31,6 +31,7 @@ import {
 import { useSourceReaderWorkspace } from './use-source-reader-workspace';
 import { useRecentAnnotationFeedback } from './use-recent-annotation-feedback';
 import { useSourceReaderSurface } from './use-source-reader-surface';
+import { openAssistantReference } from '../../shell/app-assistant-references';
 
 type ReaderAppActions = ReaderAppViewProps['actions'];
 type ReaderAnnotationActions = ReaderAppActions['annotation'];
@@ -291,6 +292,7 @@ export function useSourceReaderApp({
       },
       chat: {
         ...workspace.readerChat.actions,
+        onOpenReference: (href) => openAssistantReference(sessionInput.article.id, href),
         ...(adapter.onRevealReaderChatContext
           ? { onRevealContext: adapter.onRevealReaderChatContext }
           : {}),

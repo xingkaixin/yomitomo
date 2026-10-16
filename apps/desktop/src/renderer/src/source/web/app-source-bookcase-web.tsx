@@ -1,7 +1,7 @@
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Annotation, ReaderQuestionContext } from '@yomitomo/shared';
-import { resolveTextAnchor } from '@yomitomo/shared';
+import { createTextAnchor, resolveTextAnchor } from '@yomitomo/shared';
 import {
   annotationIdsAtHighlightPoint,
   findCurrentTocTarget,
@@ -37,6 +37,7 @@ import {
 } from './app-source-bookcase-web-utils';
 import { createWebSourceReaderController } from './app-source-bookcase-web-controller';
 import { saveAssistantArticleText, sectionsFromHeadings } from '../bookcase/assistant-article-text';
+import { useAssistantPassageReveal } from '../bookcase/use-assistant-passage-reveal';
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
 import { useSourceReaderAppView } from '../bookcase/use-source-reader-app-view';
 import { useWebAnnotationRailDiagnostics } from './use-web-annotation-rail-diagnostics';
@@ -156,6 +157,10 @@ export function WebSourceBookcase({
     const headings = tocItems.map((item) => ({ title: item.text, depth: item.depth }));
     saveAssistantArticleText(article.id, { text, sections: sectionsFromHeadings(text, headings) });
   }, [article.id, tocItems]);
+  useAssistantPassageReveal(article.id, (start, end) => {
+    const anchor = createTextAnchor(currentArticleText(), start, end);
+    revealReaderChatContext({ sourceType: article.sourceType, quote: anchor.exact, anchor });
+  });
 
   const {
     agentDockCompleting,

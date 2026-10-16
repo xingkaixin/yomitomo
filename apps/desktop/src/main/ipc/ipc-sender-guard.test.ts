@@ -51,6 +51,7 @@ describe('desktop IPC sender authorization', () => {
     expect(allowed.toSorted()).toEqual([
       'agent:mention-route',
       'annotation-discussion:consume-thought-draft',
+      'annotation-discussion:open',
       'annotation-sedimentation:commit',
       'annotation-sedimentation:open',
       'app:info',
@@ -59,6 +60,7 @@ describe('desktop IPC sender authorization', () => {
       'article:save-annotation-distillation',
       'article:save-comment',
       'assistant:deliver',
+      'assistant:reveal-passage',
       'assistant:runs',
       'performance:timing',
       'store:get',

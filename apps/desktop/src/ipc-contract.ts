@@ -7,6 +7,7 @@ import type {
   ArticleRecord,
   ArticleStorePatch,
   ArticleTranslation,
+  AssistantPassageRevealRequest,
   AssistantRunEvent,
   AssistantRuntimeProgressEvent,
   CollectionStorePatch,
@@ -121,6 +122,7 @@ export type DesktopIpcToRendererEventMap = {
   'article:patched': ArticleStorePatch;
   'article-translation:updated': ArticleTranslation;
   'assistant:run': AssistantRunEvent;
+  'assistant:reveal-passage': AssistantPassageRevealRequest;
   'collection:patched': CollectionStorePatch;
   'library-pin:patched': LibraryPinPatch;
   'weread:state-updated': WeReadState;

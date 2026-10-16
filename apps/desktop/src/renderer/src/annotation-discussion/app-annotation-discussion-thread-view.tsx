@@ -20,6 +20,7 @@ import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
 import { useCompositionSubmit } from '@yomitomo/reader-ui/use-composition-submit';
 import type { AnnotationMessageLayoutMode } from './app-annotation-layout-control';
 import { AssistantRuntimeProgressList } from '../shell/app-assistant-runtime-progress';
+import { openAssistantReferenceFromClick } from '../shell/app-assistant-references';
 import {
   discussionReplyPlaceholder,
   formatAbsoluteTime,
@@ -32,6 +33,7 @@ import { DiscussionMessage } from './app-annotation-discussion-message';
 type DiscussionLayoutMode = AnnotationMessageLayoutMode;
 export function DiscussionThreadView({
   annotationAgents,
+  articleId,
   deletingCommentId,
   layoutMode,
   onDelete,
@@ -47,6 +49,7 @@ export function DiscussionThreadView({
   userProfile,
 }: {
   annotationAgents: PublicAgent[];
+  articleId: string;
   deletingCommentId: string | null;
   layoutMode: DiscussionLayoutMode;
   onDelete: (commentId: string) => void;
@@ -272,6 +275,7 @@ export function DiscussionThreadView({
         <div
           ref={threadScrollRef}
           className="annotation-discussion-thread-scroll"
+          onClick={(event) => openAssistantReferenceFromClick(event, articleId)}
           onScroll={updateScrollBottomVisibility}
         >
           <section

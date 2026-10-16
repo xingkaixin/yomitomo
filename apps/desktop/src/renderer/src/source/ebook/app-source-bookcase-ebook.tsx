@@ -7,6 +7,7 @@ import type { Annotation, ReaderQuestionContext } from '@yomitomo/shared';
 import {
   activeTocIndexForOffset,
   annotationIdsAtHighlightPoint,
+  createEpubTextAnchor,
   type HighlightBox,
   type TocItem,
 } from '@yomitomo/core';
@@ -47,6 +48,7 @@ import { ArticleBook } from '../../shell/app-article-book';
 import { articleDisplayTitle } from '../../reading-library/app-reading-library-utils';
 import { createEbookSourceReaderController } from './app-source-bookcase-ebook-controller';
 import { saveAssistantArticleText } from '../bookcase/assistant-article-text';
+import { useAssistantPassageReveal } from '../bookcase/use-assistant-passage-reveal';
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
 import { useSourceReaderAppView } from '../bookcase/use-source-reader-app-view';
 import { appendAgentAnnotationToArticle as appendPersistedAgentAnnotation } from '../bookcase/append-agent-annotation-to-article';
@@ -358,6 +360,11 @@ export function EbookBookcase({
     pageInfo,
     scheduleEbookBoxUpdate,
     viewRef,
+  });
+  useAssistantPassageReveal(article.id, (start, end) => {
+    if (!ebook.index) return;
+    const anchor = createEpubTextAnchor(ebook.index, ebookText, start, end);
+    void ebookNavigation.goToEbookAnchor('reader-chat-context', anchor);
   });
   const readerTocItems = useMemo(
     () => ebookTocItemsForReader(tocItems, { ebook }),

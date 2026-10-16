@@ -41,6 +41,7 @@ import { readerDesktopEmbeddedBundleStyles } from '@yomitomo/reader-ui/reader-st
 import { selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
 import type { SourceBookcaseProps } from '../bookcase/source-bookcase-types';
 import { saveAssistantArticleText } from '../bookcase/assistant-article-text';
+import { useAssistantPassageReveal } from '../bookcase/use-assistant-passage-reveal';
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
 import { getOptionalDesktopApi } from '../../shell/app-desktop-api';
 import {
@@ -880,6 +881,13 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     pdfTextDocument,
     tocItems,
   ]);
+  useAssistantPassageReveal(article.id, (start) => {
+    void (async () => {
+      const textDocument = pdfTextDocument ?? (await ensurePdfTextDocument());
+      const page = textDocument.pages.find((item) => start < item.textEnd);
+      if (page) scroll?.scrollToPage({ pageNumber: page.pageIndex + 1, behavior: 'smooth' });
+    })().catch(() => undefined);
+  });
   useEffect(() => {
     if (!searchOpen || !loadedDocument) return;
     let cancelled = false;

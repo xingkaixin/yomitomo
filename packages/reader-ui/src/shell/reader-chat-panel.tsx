@@ -107,6 +107,7 @@ export type ReaderChatPanelProps = {
   onClearDraftContext?: () => void;
   onClose: (source: ReaderChatActivationSource) => void;
   onOpen: (source: ReaderChatActivationSource) => void;
+  onOpenReference?: (href: string) => boolean;
   onRevealContext?: (context: ReaderQuestionContext) => void | Promise<void>;
   onSelectAssistant?: (assistantId: string) => void;
   onSubmit: (content: string) => void | Promise<void>;
@@ -127,6 +128,7 @@ export function ReaderChatPanel({
   onClearDraftContext,
   onClose,
   onOpen,
+  onOpenReference,
   onRevealContext,
   onSelectAssistant,
   onSubmit,
@@ -410,6 +412,7 @@ export function ReaderChatPanel({
                 labels={labels}
                 message={message}
                 streaming={message.id === streamingAssistantMessageId}
+                onOpenReference={onOpenReference}
                 onRevealContext={onRevealContext}
               />
             ))
@@ -487,12 +490,14 @@ function ReaderChatMessageView({
   labels = defaultReaderUiLabels,
   message,
   streaming = false,
+  onOpenReference,
   onRevealContext,
 }: {
   agents: PublicAgent[];
   labels?: ReaderChatMessageLabels;
   message: ReaderChatMessage;
   streaming?: boolean;
+  onOpenReference?: (href: string) => boolean;
   onRevealContext?: (context: ReaderQuestionContext) => void | Promise<void>;
 }) {
   const isAssistant = message.role === 'assistant';
@@ -551,7 +556,16 @@ function ReaderChatMessageView({
         {isAssistant && streaming ? (
           <p>{message.content || labels.assistantAnswering}</p>
         ) : isAssistant ? (
-          <div className="reader-chat-markdown" dangerouslySetInnerHTML={{ __html: html }} />
+          <div
+            className="reader-chat-markdown"
+            dangerouslySetInnerHTML={{ __html: html }}
+            onClick={(event) => {
+              const link =
+                event.target instanceof Element ? event.target.closest('a[href^="#"]') : null;
+              const href = link?.getAttribute('href');
+              if (href && onOpenReference?.(href)) event.preventDefault();
+            }}
+          />
         ) : (
           <p>{message.content}</p>
         )}

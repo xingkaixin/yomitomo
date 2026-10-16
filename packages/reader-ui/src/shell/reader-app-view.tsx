@@ -323,6 +323,7 @@ function ReaderAppViewComponent(
             onClearDraftContext={chatActions.onClearDraftContext}
             onClose={closeReaderChat}
             onOpen={openReaderChat}
+            onOpenReference={chatActions.onOpenReference}
             onRevealContext={chatActions.onRevealContext}
             onSelectAssistant={chatActions.onSelectAssistant}
             onSubmit={chatActions.onSubmit}

@@ -395,6 +395,7 @@ export type ReaderChatActions = {
   onClearDraftContext?: () => void;
   onClose: () => void;
   onOpen: () => void;
+  onOpenReference?: (href: string) => boolean;
   onRevealContext?: (context: ReaderQuestionContext) => void | Promise<void>;
   onSelectAssistant?: (assistantId: string) => void;
   onSubmit: (content: string) => void | Promise<void>;

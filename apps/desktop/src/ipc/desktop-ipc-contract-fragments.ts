@@ -132,7 +132,7 @@ export const annotationWindowIpcInvokeDescriptors = {
     AnnotationDiscussionWindowOpenResult
   >()({
     route: ['annotations', 'discussion', 'open'],
-    roles: mainOnly,
+    roles: annotationAndMain,
     validation: 'schema',
   }),
   'annotation-discussion:close-article': desktopIpcInvoke<
@@ -469,6 +469,15 @@ export const assistantIpcInvokeDescriptors = {
       databaseIndependent: true,
     },
   ),
+  'assistant:reveal-passage': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'assistant:reveal-passage'>,
+    void
+  >()({
+    route: ['assistant', 'revealPassage'],
+    roles: annotationAndMain,
+    validation: 'schema',
+    databaseIndependent: true,
+  }),
 } as const;
 
 export const dataIpcInvokeDescriptors = {

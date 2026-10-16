@@ -28,3 +28,9 @@ export type AssistantRunEvent = {
   commentId?: string;
   error?: string;
 };
+
+export type AssistantPassageRevealRequest = {
+  articleId: string;
+  start: number;
+  end: number;
+};

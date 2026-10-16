@@ -4,6 +4,7 @@ import type {
   AgentDistillationReviewPayload,
   ArticleStorePatch,
   ArticleTranslation,
+  AssistantPassageRevealRequest,
   AssistantRunEvent,
   CollectionStorePatch,
   DesktopStore,
@@ -112,6 +113,8 @@ export function createYomitomoDesktopApi(input: DesktopPreloadApiInput) {
       ...invokeApi.assistant,
       onRun: (callback: (event: AssistantRunEvent) => void) =>
         onDesktopIpcRendererEvent('assistant:run', callback),
+      onRevealPassage: (callback: (request: AssistantPassageRevealRequest) => void) =>
+        onDesktopIpcRendererEvent('assistant:reveal-passage', callback),
     },
     weRead: {
       ...invokeApi.weRead,
