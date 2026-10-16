@@ -1,6 +1,7 @@
 @import './settings/base-panels.css';
 @import './settings/provider-cards.css';
 @import './settings/provider-models.css';
+@import './settings/reading-memory-settings.css';
 @import './settings/agent-library.css';
 @import './settings/provider-editor.css';
 @import './settings/agent-profile-dialogs.css';
