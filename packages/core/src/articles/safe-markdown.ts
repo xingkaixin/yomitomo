@@ -1,3 +1,4 @@
+import { parseAssistantReference } from '@yomitomo/shared';
 import { sanitizeArticleContentHtml } from './article-content-html';
 
 export function renderMarkdown(content: string): string {
@@ -109,6 +110,9 @@ function renderMarkdownInline(content: string) {
     token(`<code>${escapeMarkdownHtml(code)}</code>`),
   );
   text = text.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_match, label: string, href: string) => {
+    if (parseAssistantReference(href)) {
+      return token(`<a href="${escapeMarkdownHtml(href)}">${escapeMarkdownHtml(label)}</a>`);
+    }
     if (!/^(https?:\/\/|mailto:)/i.test(href)) return escapeMarkdownHtml(label);
     const safeHref = escapeMarkdownHtml(href);
     return token(
