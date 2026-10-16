@@ -339,7 +339,6 @@ const settingsSchema = checkedSchema<AppSettingsPatch>(
       .enum(['blur', 'blockquote', 'weakened', 'dashedLine', 'border'])
       .optional(),
     bilingualTranslationAiContextAware: z.boolean().optional(),
-    assistantExecutionMode: z.enum(assistantExecutionModes).optional(),
     messageSendShortcut: z.enum(['enter', 'mod-enter']).optional(),
     selectionActionShortcuts: z
       .object({

@@ -2023,14 +2023,6 @@ export const enResources = {
           'When these routes are used, the relevant content (selection, context, and the full article for bilingual translation) is uploaded to the endpoint you configured.',
         noProvidersNote:
           'No providers are available yet. Add and save a provider to enable routing.',
-        executionModeTitle: 'Assistant execution mode',
-        executionModeDescription:
-          'Globally affects reader annotations, follow-up questions, and co-reading tasks.',
-        executionModeAria: 'Assistant execution mode',
-        fastResponse: 'Fast response',
-        fastResponseDescription: 'Prioritize a quick result',
-        deepVerification: 'Deep verification',
-        deepVerificationDescription: 'Verify with tools',
         readingRouteTitle: 'Reading assistant',
         readingRouteDescription:
           'Used for reader annotations, follow-up questions, and comprehension conversations.',

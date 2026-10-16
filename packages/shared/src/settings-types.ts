@@ -6,6 +6,7 @@ export type { UiLanguage } from './locale-types';
 
 export type MessageSendShortcut = 'enter' | 'mod-enter';
 
+// Only historical assistant execution rows carry deep_verification; agents no longer pick a mode.
 export const assistantExecutionModes = ['fast_response', 'deep_verification'] as const;
 
 export type AssistantExecutionMode = (typeof assistantExecutionModes)[number];
@@ -52,7 +53,6 @@ export type ResolvedAppSettings = {
   bilingualTranslationTargetLanguage: BilingualTranslationTargetLanguage;
   bilingualTranslationStyle: BilingualTranslationStyle;
   bilingualTranslationAiContextAware: boolean;
-  assistantExecutionMode: AssistantExecutionMode;
   messageSendShortcut: MessageSendShortcut;
   selectionActionShortcuts: SelectionActionShortcuts;
   saveArticleImages: boolean;
@@ -74,10 +74,6 @@ export type AppSettingsPatch = Omit<
 
 export function normalizeUiLanguage(value: unknown): UiLanguage {
   return value === 'en' || value === 'ja' ? value : 'zh-CN';
-}
-
-export function normalizeAssistantExecutionMode(value: unknown): AssistantExecutionMode {
-  return value === 'deep_verification' ? 'deep_verification' : 'fast_response';
 }
 
 export function normalizeSoundEffectsVolume(value: unknown): number {

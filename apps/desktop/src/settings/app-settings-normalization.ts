@@ -1,6 +1,5 @@
 import type { ResolvedAppSettings } from '@yomitomo/shared';
 import {
-  normalizeAssistantExecutionMode,
   normalizeLibraryContentSources,
   normalizeMessageSendShortcut,
   normalizeSelectionActionShortcuts,
@@ -33,7 +32,6 @@ export function normalizeAppSettings(settings: AppSettingsInput | undefined): Re
     ),
     bilingualTranslationStyle: normalizeTranslationStyle(settings?.bilingualTranslationStyle),
     bilingualTranslationAiContextAware: Boolean(settings?.bilingualTranslationAiContextAware),
-    assistantExecutionMode: normalizeAssistantExecutionMode(settings?.assistantExecutionMode),
     messageSendShortcut: normalizeMessageSendShortcut(settings?.messageSendShortcut),
     selectionActionShortcuts: normalizeSelectionActionShortcuts(settings?.selectionActionShortcuts),
     saveArticleImages: Boolean(settings?.saveArticleImages),

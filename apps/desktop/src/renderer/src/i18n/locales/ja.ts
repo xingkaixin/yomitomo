@@ -2051,14 +2051,6 @@ export const jaResources = {
           'これらのルートが使用されると、関連するコンテンツ (選択内容、コンテキスト、およびバイリンガル翻訳の記事全文) が、構成したエンドポイントにアップロードされます。',
         noProvidersNote:
           'まだ利用できるプロバイダーはありません。プロバイダーを追加して保存し、ルーティングを有効にします。',
-        executionModeTitle: 'アシスタント実行モード',
-        executionModeDescription:
-          '読者の注釈、フォローアップの質問、および共読タスクに全体的に影響します。',
-        executionModeAria: 'アシスタント実行モード',
-        fastResponse: '素早い対応',
-        fastResponseDescription: '早い結果を優先する',
-        deepVerification: '詳細な検証',
-        deepVerificationDescription: 'ツールで確認する',
         readingRouteTitle: '読書アシスタント',
         readingRouteDescription:
           '読者の注釈、フォローアップの質問、内容を理解するための会話に使用されます。',

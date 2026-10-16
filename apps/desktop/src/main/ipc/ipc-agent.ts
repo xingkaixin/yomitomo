@@ -15,7 +15,6 @@ import {
   reviewAgentNotFoundError,
   taskProvider,
 } from '../agents/agent-runtime-routing';
-import { appendAgentRuntimeTrace } from '../agents/agent-runtime-trace-log';
 import { getSqliteExecutor } from '../store/store-db';
 import type { DesktopAiModule, DesktopMainIpcContext } from './ipc';
 import { assertDesktopIpcAppLockUnlocked, handleDesktopIpc } from './ipc';
@@ -45,7 +44,6 @@ export function registerAgentIpc(context: AgentIpcContext) {
   const taskExecutionContext: AgentTaskExecutionContext = {
     ...context,
     recorder: createAssistantExecutionRecorder({
-      appendRuntimeTrace: appendAgentRuntimeTrace,
       recordAssistantExecutionRun: (input) =>
         context
           .getPersistenceModules()

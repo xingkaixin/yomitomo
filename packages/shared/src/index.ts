@@ -7,7 +7,6 @@ export {
   cleanEpubFileNameTitle,
   defaultLibraryContentSourceOrder,
   EPUB_TITLE_CLEANUP_VERSION,
-  normalizeAssistantExecutionMode,
   normalizeLibraryContentSources,
   normalizeSoundEffectsVolume,
   normalizeUiLanguage,

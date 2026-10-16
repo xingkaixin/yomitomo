@@ -109,7 +109,6 @@ async function configureReaderAiFakeProvider(page: Page) {
 
       await desktop.store.saveSettings({
         ...store.settings,
-        assistantExecutionMode: 'fast_response',
         defaultProviderId: provider.id,
         readingAssistantProviderId: provider.id,
       });

@@ -1930,13 +1930,6 @@ export const zhCNResources = {
         routePrivacyNotice:
           '使用这些路由时，相应内容（选区、上下文，双语翻译为整篇文章全文）会上传到你所配置的端点。',
         noProvidersNote: '当前还没有可选供应商。新增并保存供应商后，这里会开放选择。',
-        executionModeTitle: '助手执行模式',
-        executionModeDescription: '全局影响阅读批注、追问和共读任务。',
-        executionModeAria: '助手执行模式',
-        fastResponse: '快速回应',
-        fastResponseDescription: '优先快速完成',
-        deepVerification: '深入查证',
-        deepVerificationDescription: '使用工具核验',
         readingRouteTitle: '阅读理解助手',
         readingRouteDescription: '用于阅读器批注、追问和理解型对话。',
         reviewRouteTitle: '深度审阅助手',
