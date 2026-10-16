@@ -1183,11 +1183,6 @@ export const enResources = {
       },
       readerChatFailed: 'Q&A request failed. Try again later.',
       requestFailedWithMessage: 'Request failed: {{message}}',
-      currentArticle: 'Current article',
-      readerChatSelectionInstruction:
-        'This is the reader floating Q&A. Answer around the selected quote and the user question; do not write the reply as an annotation discussion.',
-      readerChatArticleInstruction:
-        'This is the reader floating Q&A. Answer around the current article and the user question; do not write the reply as an annotation discussion.',
       mixedSelectionToast: 'Select only the original text or only the translation',
     },
     discussion: {

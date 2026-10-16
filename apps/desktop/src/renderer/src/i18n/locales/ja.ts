@@ -1199,11 +1199,6 @@ export const jaResources = {
       },
       readerChatFailed: 'Q&A リクエストは失敗しました。後でもう一度試してください。',
       requestFailedWithMessage: 'リクエストが失敗しました: {{message}}',
-      currentArticle: '現在の記事',
-      readerChatSelectionInstruction:
-        'これは読者フローティング Q&A です。選択した引用とユーザーの質問に基づいて回答します。返信を注釈ディスカッションとして書き込まないでください。',
-      readerChatArticleInstruction:
-        'これは読者フローティング Q&A です。現在の記事とユーザーの質問について回答します。返信を注釈ディスカッションとして書き込まないでください。',
       mixedSelectionToast: '原文のみ、または翻訳のみを選択してください',
     },
     discussion: {

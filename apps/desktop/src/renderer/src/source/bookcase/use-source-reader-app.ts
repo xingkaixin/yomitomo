@@ -170,12 +170,10 @@ export function useSourceReaderApp({
   const workspace = useSourceReaderWorkspace({
     article: sessionInput.article,
     canvasRef: surface.canvasRef,
-    getArticleText,
     messageSendShortcut,
     onRequestSelectionCopy: surface.requestSelectionCopy,
     selectionActionShortcuts,
     session,
-    uiLanguage: sessionInput.uiLanguage,
     onSaveArticleReaderChatState: articleActions.saveArticleReaderChatState,
   });
   const { markAnnotationCreated, newAnnotationIds } = useRecentAnnotationFeedback(

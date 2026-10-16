@@ -1128,11 +1128,6 @@ export const zhCNResources = {
       },
       readerChatFailed: '问答请求失败，请稍后重试',
       requestFailedWithMessage: '请求失败：{{message}}',
-      currentArticle: '当前文章',
-      readerChatSelectionInstruction:
-        '这是阅读器浮动问答。请围绕用户引用的选区和问题回答，不要把回复写成批注讨论。',
-      readerChatArticleInstruction:
-        '这是阅读器浮动问答。请围绕当前文章和用户问题回答，不要把回复写成批注讨论。',
       mixedSelectionToast: '请只选择原文或只选择译文',
     },
     discussion: {

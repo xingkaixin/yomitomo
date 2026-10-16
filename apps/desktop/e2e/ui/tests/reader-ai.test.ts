@@ -72,8 +72,8 @@ This second sentence keeps the reader surface stable for selection and chat.
         .locator('.reader-chat-message.is-assistant')
         .filter({ hasText: fakeResponsePrefix });
       await assistantMessage.waitFor({ timeout: 15_000 });
-      await assistantMessage.getByText(readerAiQuote).waitFor({ timeout: 15_000 });
-      await assistantMessage.getByText(readerAiQuestion).waitFor({ timeout: 15_000 });
+      await assistantMessage.getByText(readerAiQuote).first().waitFor({ timeout: 15_000 });
+      await assistantMessage.getByText(readerAiQuestion).first().waitFor({ timeout: 15_000 });
 
       await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
       await page.keyboard.press('q');
