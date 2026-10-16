@@ -113,6 +113,8 @@ function piModel(provider: LlmProvider, providerId: string): Model<Api> {
 }
 
 function compatibleThinking(provider: LlmProvider): OpenAICompletionsCompat | null {
+  const effort = provider.reasoningEffort || 'none';
+  if (effort === 'default') return null;
   const model = provider.modelName.toLowerCase();
   if (provider.presetId === 'dashscope' && /(qwen|deepseek|glm|kimi)/.test(model)) {
     return { thinkingFormat: 'qwen', thinkingTokenBudgetField: 'thinking_budget' };
@@ -120,8 +122,7 @@ function compatibleThinking(provider: LlmProvider): OpenAICompletionsCompat | nu
   if (/doubao-seed-(1[-.]8|2[-.]0)/.test(model)) return { thinkingFormat: 'deepseek' };
   if (/deepseek/.test(model)) return { thinkingFormat: 'deepseek' };
   if (/(doubao|glm|mimo|kimi)/.test(model)) return { thinkingFormat: 'zai' };
-  const effort = provider.reasoningEffort || 'none';
-  return effort === 'none' || effort === 'default' ? null : { thinkingFormat: 'openai' };
+  return effort === 'none' ? null : { thinkingFormat: 'openai' };
 }
 
 function isOfficialOpenAI(provider: LlmProvider) {

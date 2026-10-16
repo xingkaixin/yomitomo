@@ -12,11 +12,13 @@ async function requestPayload(provider: LlmProvider) {
   const model = models.getModel(ref.provider, ref.modelId)!;
   const controller = new AbortController();
   let payload: Record<string, unknown> | undefined;
+  // pi-durable omits `reasoning` for an unset or "off" thinking level.
+  const thinkingLevel = piThinkingLevel(provider.reasoningEffort);
   await models.completeSimple(
     model,
     { messages: [{ role: 'user', content: 'hi', timestamp: 0 }] },
     {
-      reasoning: piThinkingLevel(provider.reasoningEffort),
+      ...(thinkingLevel && thinkingLevel !== 'off' ? { reasoning: thinkingLevel } : {}),
       signal: controller.signal,
       onPayload: (value) => {
         payload = value as Record<string, unknown>;
@@ -59,9 +61,16 @@ describe('piProviderFor', () => {
     expect(payload).not.toHaveProperty('store');
   });
 
-  it('omits reasoning parameters for models outside known thinking families', async () => {
-    const payload = await requestPayload(compatible('moonshot', 'moonshot-v1-auto', 'none'));
-    expect(payload).not.toHaveProperty('reasoning_effort');
-    expect(payload).not.toHaveProperty('thinking');
-  });
+  it.each([
+    ['moonshot', 'moonshot-v1-auto', 'none'],
+    ['dashscope', 'qwen3.5-plus', 'default'],
+  ] as const)(
+    'leaves %s %s thinking %s to the provider default',
+    async (presetId, model, effort) => {
+      const payload = await requestPayload(compatible(presetId, model, effort));
+      expect(payload).not.toHaveProperty('reasoning_effort');
+      expect(payload).not.toHaveProperty('thinking');
+      expect(payload).not.toHaveProperty('enable_thinking');
+    },
+  );
 });
