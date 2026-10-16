@@ -1,9 +1,4 @@
-import type {
-  MemoryViewType,
-  ReaderProgress,
-  ReadingMemoryEntry,
-  TextRange,
-} from '@yomitomo/shared';
+import type { ReadingMemoryEntry, TextRange } from '@yomitomo/shared';
 import type { SqliteValue } from './reading-memory-row-mapper';
 
 export type ReadingMemoryPerformanceLogger = (
@@ -53,23 +48,6 @@ export type SearchReadingMemoryEntriesOptions = {
   nearTextRange?: TextRange;
   fallbackToSubstring?: boolean;
   limit?: number;
-  performanceLogger?: ReadingMemoryPerformanceLogger;
-  executor?: ReadingMemorySqliteExecutor;
-};
-
-export type BuildReadingMemoryViewOptions = {
-  articleId: string;
-  viewType: Extract<
-    MemoryViewType,
-    'selection' | 'selection_thread' | 'article_section' | 'segment' | 'chapter'
-  >;
-  chapterId?: string;
-  segmentId?: string;
-  textRange?: TextRange;
-  query?: string;
-  readerProgress?: ReaderProgress;
-  structuredLimit?: number;
-  ftsLimit?: number;
   performanceLogger?: ReadingMemoryPerformanceLogger;
   executor?: ReadingMemorySqliteExecutor;
 };

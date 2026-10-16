@@ -148,27 +148,6 @@ const articleSchema = z.looseObject({
   ebookIndex: epubIndexSchema.optional(),
 });
 
-const readerProgressSchema = z.looseObject({
-  currentChapterId: idSchema,
-  currentSegmentId: optionalIdSchema,
-  readChapterIds: z.array(idSchema).max(MAX_INDEX_LIST_LENGTH),
-  readUntilTextOffset: offsetSchema.optional(),
-});
-
-const spoilerPolicySchema = z.looseObject({
-  allowedScope: z.enum([
-    'current-selection',
-    'current-segment',
-    'current-chapter-so-far',
-    'current-chapter',
-    'read-so-far',
-    'whole-book',
-  ]),
-  allowFutureChapterEvidence: z.boolean(),
-  allowFuturePlotEvents: z.boolean(),
-  userOverride: z.boolean().optional(),
-});
-
 const publicAgentSchema = z.looseObject({
   id: idSchema,
   kind: z.enum(['annotation', 'review']),
@@ -182,31 +161,6 @@ const publicAgentSchema = z.looseObject({
   personalityName: shortTextSchema,
 });
 
-const readingMemoryViewSchema = z.looseObject({
-  articleId: idSchema,
-  viewType: z.enum([
-    'selection',
-    'selection_thread',
-    'article_section',
-    'segment',
-    'chapter',
-    'agent',
-    'legacy',
-  ]),
-  viewKey: idSchema,
-  entries: z
-    .array(
-      z.looseObject({
-        entry: z.record(z.string().max(MAX_ID_LENGTH), z.unknown()),
-        source: z.enum(['structured', 'fts']),
-        score: z.number().finite().optional(),
-      }),
-    )
-    .max(MAX_LIST_LENGTH),
-  sourceEntryIds: z.array(idSchema).max(MAX_LIST_LENGTH),
-  updatedAt: timestampSchema,
-});
-
 const agentPayloadBase = {
   agentId: optionalIdSchema,
   agentUsername: idSchema,
@@ -214,9 +168,6 @@ const agentPayloadBase = {
   readingIntent: readingIntentSchema.optional(),
   instruction: optionalShortTextSchema,
   agentRoster: z.array(publicAgentSchema).max(MAX_ROSTER_LENGTH).optional(),
-  readerProgress: readerProgressSchema.optional(),
-  readingMemoryView: readingMemoryViewSchema.optional(),
-  spoilerPolicy: spoilerPolicySchema.optional(),
   article: articleSchema,
 };
 

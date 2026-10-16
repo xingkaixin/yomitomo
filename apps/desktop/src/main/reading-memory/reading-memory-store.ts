@@ -1,5 +1,5 @@
 import { performance } from 'node:perf_hooks';
-import type { ReadingMemoryEntry, ReadingMemoryView } from '@yomitomo/shared';
+import type { ReadingMemoryEntry } from '@yomitomo/shared';
 import { recordField, uniqueNonEmptyStrings } from '@yomitomo/shared';
 import {
   applySupersededEntryFilter,
@@ -11,7 +11,6 @@ import {
   readingMemoryFtsQuery,
   readingMemoryWhereClause,
   sourceWhereClause,
-  structuredMemoryViewCandidateClause,
 } from './reading-memory-query-builder';
 import {
   readingMemoryEntrySqlValues,
@@ -19,19 +18,13 @@ import {
   type SqliteValue,
 } from './reading-memory-row-mapper';
 import type {
-  BuildReadingMemoryViewOptions,
   ReadingMemoryPerformanceLogger,
   ReadingMemorySqliteExecutor,
   ReadReadingMemoryEntriesOptions,
   SearchReadingMemoryEntriesOptions,
   SoftDeleteReadingMemoryEntriesBySourceOptions,
 } from './reading-memory-store-types';
-import {
-  buildReadingMemoryViewFromCandidates,
-  readingMemoryViewLimits,
-} from './reading-memory-view-policy';
 export type {
-  BuildReadingMemoryViewOptions,
   ReadingMemorySqliteExecutor,
   ReadReadingMemoryEntriesOptions,
   SearchReadingMemoryEntriesOptions,
@@ -321,71 +314,6 @@ ORDER BY created_at ASC, id ASC
     return entry ? [entry] : [];
   });
   return applySupersededEntryFilter(entries);
-}
-
-export function buildReadingMemoryView(options: BuildReadingMemoryViewOptions): ReadingMemoryView {
-  const startedAt = performance.now();
-  const executor = options.executor || defaultExecutor();
-  const limits = readingMemoryViewLimits(options);
-  const structuredCandidates = readStructuredMemoryViewCandidates(options, executor);
-  const query = options.query?.trim();
-  const searchCandidates = query
-    ? searchReadingMemoryEntries({
-        articleId: options.articleId,
-        query,
-        limit: limits.fts * 3,
-        performanceLogger: options.performanceLogger,
-        executor,
-      })
-    : [];
-  const view = buildReadingMemoryViewFromCandidates({
-    options,
-    searchCandidates,
-    structuredCandidates,
-  });
-  logReadingMemoryTiming(options.performanceLogger, 'view_build', startedAt, {
-    articleId: options.articleId,
-    viewType: options.viewType,
-    viewKey: view.viewKey,
-    structuredCount: view.entries.filter((item) => item.source === 'structured').length,
-    ftsCount: view.entries.filter((item) => item.source === 'fts').length,
-    entryCount: view.entries.length,
-  });
-  return view;
-}
-
-function readStructuredMemoryViewCandidates(
-  options: BuildReadingMemoryViewOptions,
-  executor: ReadingMemorySqliteExecutor,
-) {
-  const startedAt = performance.now();
-  const candidate = structuredMemoryViewCandidateClause(options);
-  const rows = executor
-    .prepare(
-      `
-SELECT *
-FROM reading_memory_entries
-WHERE article_id = ?
-  AND deleted_at IS NULL
-  AND ((${candidate.where}) OR supersedes_entry_id IS NOT NULL)
-ORDER BY created_at ASC, id ASC
-`,
-    )
-    .all(options.articleId, ...candidate.values);
-  const entries = rows.flatMap((row) => {
-    const entry = rowToReadingMemoryEntry(row);
-    return entry ? [entry] : [];
-  });
-  const result = applySupersededEntryFilter(entries);
-  logReadingMemoryTiming(options.performanceLogger, 'entry_query', startedAt, {
-    articleId: options.articleId,
-    viewType: options.viewType,
-    chapterId: options.chapterId,
-    segmentId: options.segmentId,
-    includeDeleted: false,
-    entryCount: result.length,
-  });
-  return result;
 }
 
 export function softDeleteReadingMemoryEntriesBySource(

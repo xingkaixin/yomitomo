@@ -181,10 +181,6 @@ describe('runAgentStreamIpc', () => {
       },
     ],
     [
-      'invalid nested reader progress',
-      { ...agentMessagePayload, readerProgress: { currentChapterId: 1, readChapterIds: [] } },
-    ],
-    [
       'invalid annotation author identity',
       {
         ...agentMessagePayload,
@@ -228,7 +224,7 @@ describe('runAgentStreamIpc', () => {
     expect(() =>
       ipcHandler('agent:distillation-review:stream')(
         { sender },
-        request('req_destroyed', { ...agentMessagePayload, readerProgress: null }),
+        request('req_destroyed', { ...agentMessagePayload, agentRoster: null }),
       ),
     ).not.toThrow();
 

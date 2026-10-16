@@ -2,8 +2,6 @@ import type { AgentReadingIntent, PublicAgent } from './agent-types';
 import type { Annotation, Comment } from '../annotation-types';
 import type { TextAnchor } from '../anchor-types';
 import type { EpubBookIndex } from '../sources/ebook-types';
-import type { ReadingMemoryView } from '../reading-memory/reading-memory-entry-types';
-import type { ReaderProgress, SpoilerPolicy } from '../reader-context-types';
 import type { UiLanguage } from '../locale-types';
 
 export type AgentMessagePayload = {
@@ -20,9 +18,6 @@ export type AgentMessagePayload = {
   reviewTargetCommentId?: string;
   allowDisabledAgentForRule?: boolean;
   agentRoster?: PublicAgent[];
-  readerProgress?: ReaderProgress;
-  readingMemoryView?: ReadingMemoryView;
-  spoilerPolicy?: SpoilerPolicy;
   article: {
     id?: string;
     title: string;
