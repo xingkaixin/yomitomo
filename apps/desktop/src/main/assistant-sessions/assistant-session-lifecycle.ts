@@ -1,7 +1,7 @@
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { app } from 'electron';
-import { removeSessionFiles, sessionFilePath } from './assistant-session-files';
+import { removeArticleFiles } from './assistant-session-files';
 
 export function sessionDirectory() {
   return join(app.getPath('userData'), 'assistant-sessions');
@@ -16,7 +16,7 @@ export async function loadAssistantSessions() {
 
 export async function removeArticleAssistantSession(articleId: string) {
   if (loaded) return (await loadAssistantSessions()).store.remove(articleId);
-  await removeSessionFiles(sessionFilePath(sessionDirectory(), articleId));
+  await removeArticleFiles(sessionDirectory(), articleId);
 }
 
 export async function removeAllAssistantSessions() {

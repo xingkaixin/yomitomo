@@ -1,8 +1,16 @@
-import { mkdir, readdir, rm } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
 import { Harness, type HarnessOptions } from '@earendil-works/pi-durable';
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node';
-import { removeSessionFiles, sessionArticleId, sessionFilePath } from './assistant-session-files';
+import type { ArticleTextSnapshot } from '@yomitomo/shared';
+import {
+  articleTextFilePath,
+  removeArticleFiles,
+  removeSessionFiles,
+  sessionArticleId,
+  sessionFilePath,
+} from './assistant-session-files';
 
 const IDLE_CLOSE_MS = 10 * 60_000;
 
@@ -21,6 +29,7 @@ export function createAssistantSessionStore(input: {
   logError: (event: string, error: unknown, data?: Record<string, unknown>) => void;
 }) {
   const entries = new Map<string, StoreEntry>();
+  const texts = new Map<string, { hash: string; snapshot: ArticleTextSnapshot }>();
 
   async function use<T>(articleId: string, run: (harness: Harness) => Promise<T>): Promise<T> {
     const entry = acquire(articleId);
@@ -77,7 +86,32 @@ export function createAssistantSessionStore(input: {
     return Harness.open(storage, input.harnessOptions(), BACKGROUND_CONTEXT);
   }
 
+  // The renderer owns text extraction (DOM, EPUB, PDF), so each request carries the snapshot
+  // and runs that outlive the window read it back from here.
+  async function saveArticleText(articleId: string, snapshot: ArticleTextSnapshot) {
+    const hash = createHash('sha256').update(JSON.stringify(snapshot)).digest('hex');
+    if (texts.get(articleId)?.hash === hash) return;
+    const path = articleTextFilePath(input.directory, articleId);
+    await mkdir(input.directory, { recursive: true });
+    await writeFile(`${path}.tmp`, JSON.stringify({ hash, snapshot }));
+    await rename(`${path}.tmp`, path);
+    texts.set(articleId, { hash, snapshot });
+  }
+
+  async function articleText(articleId: string) {
+    const cached = texts.get(articleId);
+    if (cached) return cached.snapshot;
+    const raw = await readFile(articleTextFilePath(input.directory, articleId), 'utf8').catch(
+      () => undefined,
+    );
+    if (!raw) return undefined;
+    const stored = JSON.parse(raw) as { hash: string; snapshot: ArticleTextSnapshot };
+    texts.set(articleId, stored);
+    return stored.snapshot;
+  }
+
   async function close(articleId: string) {
+    texts.delete(articleId);
     const entry = entries.get(articleId);
     if (!entry) return;
     entries.delete(articleId);
@@ -88,7 +122,7 @@ export function createAssistantSessionStore(input: {
 
   async function remove(articleId: string) {
     await close(articleId);
-    await removeSessionFiles(sessionFilePath(input.directory, articleId));
+    await removeArticleFiles(input.directory, articleId);
   }
 
   async function storedArticleIds() {
@@ -97,6 +131,7 @@ export function createAssistantSessionStore(input: {
   }
 
   async function removeAll() {
+    texts.clear();
     await Promise.all([...entries.keys()].map(close));
     await rm(input.directory, { recursive: true, force: true });
   }
@@ -105,5 +140,5 @@ export function createAssistantSessionStore(input: {
     await Promise.all([...entries.keys()].map(close));
   }
 
-  return { use, remove, removeAll, storedArticleIds, dispose };
+  return { use, saveArticleText, articleText, remove, removeAll, storedArticleIds, dispose };
 }
