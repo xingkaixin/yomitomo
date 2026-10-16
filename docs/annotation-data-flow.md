@@ -110,27 +110,32 @@ SQLite schema 位于 `apps/desktop/src/main/db/schema.ts`；`articles`、`annota
 
 ## AI 回复与新想法
 
-当前 UI 中的 AI 输出都以评论形式写入用户已有的批注，经由 `agent:comment:stream`。
-main 入口为 `apps/desktop/src/main/ipc/ipc-agent.ts`，任务路由位于
-`apps/desktop/src/main/agents/agent-runtime-routing.ts`，prompt 和上下文组装位于
-`packages/ai/src/agent/agent-message.ts` 与 `packages/ai/src/context/selection-context.ts`。
+讨论串回复、追加想法和问一问都投递到助手会话的频道，入口是 `assistant:deliver`
+（`apps/desktop/src/main/ipc/ipc-assistant.ts`）。main 的
+`apps/desktop/src/main/assistant-sessions/assistant-channel-runtime.ts` 读取频道快照，把该 agent
+尚未收到的消息追加进会话；频道读写位于 `assistant-channel-sources.ts`，投递文本格式位于
+`assistant-channel-delivery.ts`。运行进度通过 `assistant:run` 事件广播给主窗口和讨论窗口，
+renderer 在 `apps/desktop/src/renderer/src/shell/app-assistant-runs.ts` 中把运行中的回复显示成占位，
+保存后的回复到达时撤掉占位。
 
 ### 回复现有 thread
 
-`apps/desktop/src/renderer/src/source/bookcase/app-source-agent-comment-request.ts` 先插入
-`pending` 评论，再通过 `agent:comment:stream` 接收增量。流式完成后用
-`useSourceAnnotations().saveComment()` 保存最终评论；`pending` 只是 renderer 内存态。
-深度核验回退到快速回复时，main 清空已流出的正文并重新发送 `start`；comment stream 的 renderer
-消费方收到 `start` 时丢弃已显示的增量，最终只保存快速回复。
 讨论窗口 `apps/desktop/src/renderer/src/annotation-discussion/app-annotation-discussion-window.tsx`
-复用同一请求函数。
+先保存用户评论，再为每个被 @ 或按规则回复的 agent 投递到 `{ kind: 'thread' }` 频道，多个 agent
+并行，互不覆盖。main 用 `upsertCommentRows()` 保存回复（`replyTo` 为该 thread），并广播 article
+patch；不再有 renderer 侧的 `pending` 评论落库。
 
 ### 在划线下追加助手想法
 
-讨论窗口选择让助手写想法时，
-`apps/desktop/src/renderer/src/annotation-discussion/app-annotation-discussion-agent-thought.ts`
-以 `responseMode: 'create_thought'` 调用同一 comment stream。结果是该批注下一条顶层 AI 想法
-（`replyTo` 为空）；划线仍归属用户，用户输入作为指令发送，不写成用户想法。
+讨论窗口选择让助手写想法时投递到 `{ kind: 'annotation' }` 频道，用户输入作为指令随投递发送，
+不写成用户想法。结果是该批注下一条顶层 AI 想法（`replyTo` 为空），划线仍归属用户。
+
+### 问一问
+
+`apps/desktop/src/renderer/src/source/bookcase/use-reader-chat-session.ts` 先把用户消息写入文章的
+reader chat state，再投递到 `{ kind: 'chat', sessionId }` 频道。main 把回答追加到同一 state，
+并广播 `article-reader-chat-state` patch。两边都整列写 reader chat state，所以回答生成期间
+renderer 不发送新问题，避免覆盖 main 刚写入的回答。
 
 ### 生成新的锚定批注（当前无 UI 入口）
 

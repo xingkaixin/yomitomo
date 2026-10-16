@@ -92,17 +92,27 @@ telemetry → shared
   stream 发出意图并接收结果。
 - main 侧的任务执行和 provider 路由在 `apps/desktop/src/main/agents/agent-task-execution.ts` 和
   `apps/desktop/src/main/agents/agent-runtime-routing.ts`。
-- 工具循环任务（thread reply、create thought、沉淀审阅等）在
-  `packages/ai/src/assistant/assistant-ai-sdk-runtime.ts` 中执行，每类任务有步数和工具结果预算
-  （`packages/ai/src/assistant/assistant-runtime-types.ts`）。
+- 讨论串回复、在划线下追加想法和问一问由助手会话执行
+  （`apps/desktop/src/main/assistant-sessions`），运行时是 pi-durable。每个 agent × 文章一个会话，
+  一篇文章的会话存成应用数据目录 `assistant-sessions/` 下的一个 SQLite 文件。会话是可重建缓存，
+  不进完整备份；删除文章或还原数据库时一并删除。
+- 讨论串、批注想法和问一问会话都是频道（channel）。频道消息以主库为准（comments 表、文章的
+  reader chat state）。投递时把该 agent 尚未收到的消息追加进会话，回复写回频道；已删除的消息在
+  下次投递时以“已废弃”标记追加，不改写会话历史。
+- 文章正文不放进 system prompt。阅读器打开文章时把全文和章节写入会话目录，agent 用检索工具按需
+  读取。可见范围沿用剧透设置：有选区时以锚点为界，问一问没有选区时以阅读进度为界。
+- 同一 agent 被多个频道同时触发时，各自 fork 主会话并行运行；同一频道再次投递时 steer 进正在运行
+  的 fork，不排队。生成在 main 进程继续，关闭窗口或锁定应用不会中断；未完成的运行留下 pending
+  标记，启动时恢复。
+- 沉淀审阅和批注生成仍由 `agent-task-execution.ts` 直接调用 `@yomitomo/ai`，翻译同样直连 provider。
 - 流式生成遍历 AI SDK 的 `fullStream`。provider 在流中发出 error part 或以 `finishReason: 'error'`
-  结束时按失败处理，已流出的半截正文不作为成功结果：快速回复走失败路径，工具循环回退到快速回复。
-  工具执行器抛错或 kernel 判定回退时同样结束工具循环；AI SDK 自身的工具输入校验错误仍交还模型。
+  结束时按失败处理，已流出的半截正文不作为成功结果。
 - 发给模型的文章正文按 `packages/ai/src/provider/budget.ts` 截断，并告知模型压缩情况；
   不改变已保存的文章。
 - 模型生成的批注候选在 `packages/ai/src/agent/annotation-suggestion-acceptance.ts` 中按确定性规则
   接受或丢弃，并记录丢弃原因。
-- 当前 UI 中的 AI 输出都以评论形式写入已有批注。生成新锚定批注的 `agent:annotate:stream`
+- 当前 UI 中，批注上的 AI 输出都以评论形式写入已有批注，问一问的回答写入文章的 reader chat
+  state。生成新锚定批注的 `agent:annotate:stream`
   链路没有 UI 入口，见 [聚焦共读执行数据流](focus-co-reading-data-flow.md)。
 
 ## 阅读记忆
