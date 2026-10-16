@@ -113,7 +113,7 @@ function normalizeProvider(provider: Partial<LlmProvider>): LlmProvider {
     logo: provider.logo || preset?.logo,
     baseUrl: provider.baseUrl || preset?.baseUrl || 'https://api.deepseek.com',
     apiKey: provider.apiKey || '',
-    modelName: provider.modelName || preset?.modelName || 'deepseek-chat',
+    modelName: provider.modelName || preset?.modelName || 'deepseek-flash',
     reasoningEffort: provider.reasoningEffort || 'none',
     createdAt: provider.createdAt || now,
     updatedAt: provider.updatedAt || now,

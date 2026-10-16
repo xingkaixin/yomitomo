@@ -124,7 +124,7 @@ function openAICompatibleReasoningParams(provider: LlmProvider, maxTokens: numbe
     if (provider.presetId === 'dashscope' && /(qwen|deepseek|glm|kimi)/.test(model)) {
       return { enable_thinking: false };
     }
-    if (/(doubao|glm|mimo|kimi|deepseek-v4|deepseek-v5)/.test(model)) {
+    if (/(doubao|glm|mimo|kimi|deepseek-(?:v4|v5|flash))/.test(model)) {
       return { thinking: { type: 'disabled' } };
     }
     return {};

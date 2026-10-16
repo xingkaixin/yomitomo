@@ -69,7 +69,7 @@ export const emptyProvider: ProviderDraft = {
   type: defaultProviderPreset?.type || 'openai-chat',
   logo: defaultProviderPreset?.logo,
   baseUrl: defaultProviderPreset?.baseUrl || 'https://api.deepseek.com',
-  modelName: defaultProviderPreset?.modelName || 'deepseek-chat',
+  modelName: defaultProviderPreset?.modelName || 'deepseek-flash',
   modelNames: defaultProviderPreset?.modelNames,
   modelInputMode: 'list',
   apiKey: '',
