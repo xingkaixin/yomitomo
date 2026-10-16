@@ -15,7 +15,6 @@ import { makeId, normalizeAssistantExecutionMode, normalizeUiLanguage } from '@y
 import type { DesktopAiModule, DesktopMainIpcContext } from '../ipc/ipc';
 import { distillationReviewMessagePayload } from './agent-distillation-proposals';
 import {
-  pendingAgentComment,
   pendingDistillationReviewMessage,
   reduceAssistantRuntimeEvent,
   type AgentRuntimeExecutionEvent,
@@ -24,32 +23,21 @@ import { annotateResultUsage, type AssistantExecutionRecorder } from './agent-ex
 import type { AgentReadingMemoryPort } from './agent-reading-memory';
 import {
   agentMessageRuntimeTaskType,
-  agentNotFoundError,
   annotationAgentNotFoundError,
   findAnnotationAgent,
-  findCommentAgent,
   findReviewAgent,
-  providerTaskForAgent,
-  publicCommentAgents,
   reviewAgentNotFoundError,
   selectAgentRuntime,
   taskProvider,
-  taskProviderRoute,
 } from './agent-runtime-routing';
 import {
   runAgentMessageWithToolLoop,
   type DistillationReviewRuntimeResult,
-  type ThreadReplyRuntimeResult,
 } from './agent-message-runtime';
-
-const e2eFakeAgentProviderBaseUrl = 'https://e2e.invalid/yomitomo-ai';
 
 type AgentTaskAiModule = Pick<
   DesktopAiModule,
-  | 'runAgentAnnotateStream'
-  | 'runAgentDistillationReviewStructuredStream'
-  | 'runAgentStream'
-  | 'runAgentToolLoopTask'
+  'runAgentAnnotateStream' | 'runAgentDistillationReviewStructuredStream' | 'runAgentToolLoopTask'
 >;
 
 export type AgentTaskExecutionContext = Pick<
@@ -68,10 +56,6 @@ export type AgentTaskExecutionContext = Pick<
   readingMemory: AgentReadingMemoryPort;
 };
 
-export type AgentCommentExecutionEvent =
-  | { type: 'start'; comment: Comment }
-  | AgentRuntimeExecutionEvent;
-
 export type AgentDistillationReviewExecutionEvent =
   | { type: 'start'; message: AnnotationDistillationReviewMessage }
   | { type: 'item'; item: AnnotationDistillationReviewItem }
@@ -80,114 +64,6 @@ export type AgentDistillationReviewExecutionEvent =
 export type AgentAnnotationExecutionEvent =
   | { type: 'start' }
   | { type: 'item'; annotation: ArticleRecord['annotations'][number] };
-
-export async function executeAgentCommentTask(
-  context: AgentTaskExecutionContext,
-  payload: AgentMessagePayload,
-  emit: (event: AgentCommentExecutionEvent) => void,
-  signal?: AbortSignal,
-): Promise<Comment> {
-  const store = await readAgentRuntimeStore(context);
-  const taskType = agentMessageRuntimeTaskType(payload);
-  const agent = findCommentAgent(
-    store.agents,
-    payload.agentId,
-    payload.agentUsername,
-    payload.allowDisabledAgentForRule && taskType === 'thread_reply',
-  );
-  if (!agent) throw agentNotFoundError(payload.agentUsername);
-
-  const comment = pendingAgentComment({
-    agent,
-    payload,
-    id: makeId('comment'),
-    createdAt: new Date().toISOString(),
-  });
-  const providerRoute = taskProviderRoute(
-    store.providers,
-    store.settings,
-    providerTaskForAgent(agent),
-  );
-  if (isE2eFakeAgentProvider(providerRoute)) {
-    emit({ type: 'start', comment });
-    appendCommentText(comment, e2eFakeAgentCommentContent(payload), emit);
-    return finalAgentComment(comment);
-  }
-
-  const ai = await context.getAiModule();
-  const provider = await taskProvider(
-    context,
-    store.providers,
-    store.settings,
-    providerTaskForAgent(agent),
-  );
-  const requestedMode = normalizeAssistantExecutionMode(store.settings.assistantExecutionMode);
-  const startedAt = performance.now();
-  const payloadWithRoster = {
-    ...payload,
-    uiLanguage: normalizeUiLanguage(store.settings.uiLanguage),
-    agentRoster: publicCommentAgents(store.agents, normalizeUiLanguage(store.settings.uiLanguage)),
-    readingIntent: payload.readingIntent || comment.readingIntent,
-  };
-  emit({ type: 'start', comment });
-  const outcome = await runDeepThenFast({
-    signal,
-    attemptRuntime: () =>
-      runCommentRuntime({
-        ai,
-        provider,
-        agent,
-        signal,
-        payload: payloadWithRoster,
-        readingMemoryExecutor: context.readingMemory.executor,
-        requestedMode,
-        taskType,
-        onRuntimeEvent: (event) => applyRuntimeEvent(comment, event, emit),
-      }),
-    recordRuntime: (runtime) =>
-      context.recorder.recordRuntimeExecution({
-        result: runtime,
-        provider,
-        agent,
-        requestedMode,
-        taskType,
-        durationMs: context.elapsedMs(startedAt),
-      }),
-    fastFallback: async () => {
-      throwIfAgentTaskCancelled(signal);
-      const fastInput = agentMessageFastInput(context, payloadWithRoster, agent.id);
-      throwIfAgentTaskCancelled(signal);
-      if (comment.content) {
-        comment.content = '';
-        // Renderers drop already streamed deep-runtime text when a comment restarts.
-        emit({ type: 'start', comment });
-      }
-      await ai.runAgentStream(
-        provider,
-        agent,
-        fastInput.payload,
-        (delta) => appendCommentText(comment, delta, emit),
-        { ...fastInput.options, signal },
-      );
-    },
-    recordFast: (failureReason) =>
-      recordFastExecution(
-        context,
-        agent,
-        provider,
-        taskType,
-        requestedMode,
-        failureReason,
-        context.elapsedMs(startedAt),
-      ),
-  });
-
-  if (outcome.state === 'deep_final') {
-    if (!comment.content) appendCommentText(comment, outcome.result.comment.content, emit);
-    return finalAgentComment(comment);
-  }
-  return finalAgentComment(comment);
-}
 
 export async function executeAgentDistillationReviewTask(
   context: AgentTaskExecutionContext,
@@ -339,38 +215,6 @@ type DeepThenFastOutcome<FinalResult, FastResult> =
   | { state: 'deep_final'; result: FinalResult }
   | { state: 'fast'; result: FastResult };
 
-async function runCommentRuntime(input: {
-  ai: AgentTaskAiModule;
-  provider: LlmProvider;
-  agent: Agent;
-  signal?: AbortSignal;
-  payload: AgentMessagePayload;
-  readingMemoryExecutor: AgentReadingMemoryPort['executor'];
-  requestedMode: ReturnType<typeof normalizeAssistantExecutionMode>;
-  taskType: ReturnType<typeof agentMessageRuntimeTaskType>;
-  onRuntimeEvent: (event: AssistantRuntimeStreamEvent) => void;
-}): Promise<
-  RuntimeAttempt<ThreadReplyRuntimeResult, Extract<ThreadReplyRuntimeResult, { status: 'comment' }>>
-> {
-  const selectedRuntime = selectAgentRuntime({
-    requestedMode: input.requestedMode,
-    taskType: input.taskType,
-    supportedTaskTypes: ['thread_reply', 'create_thought'],
-  });
-  if (!selectedRuntime) {
-    return {
-      state: 'not_selected',
-      failureReason: 'runtime_not_applicable',
-      result: { status: 'fallback', failureReason: 'runtime_not_applicable' },
-    };
-  }
-  const result = await runAgentMessageWithToolLoop({ ...input, taskType: selectedRuntime });
-  if (result.status === 'comment') return { state: 'deep_final', result };
-  return result.runtime
-    ? { state: 'deep_fallback', failureReason: result.failureReason, result }
-    : { state: 'skipped', failureReason: result.failureReason, result };
-}
-
 async function runDistillationReviewRuntime(input: {
   ai: AgentTaskAiModule;
   provider: LlmProvider;
@@ -431,19 +275,6 @@ async function runDeepThenFast<
 
 function throwIfAgentTaskCancelled(signal: AbortSignal | undefined) {
   if (signal?.aborted) throw new Error('AGENT_TASK_CANCELLED');
-}
-
-function finalAgentComment(comment: Comment): Comment {
-  return { ...comment, pending: false };
-}
-
-function appendCommentText(
-  comment: Comment,
-  delta: string,
-  emit: (event: AgentCommentExecutionEvent) => void,
-) {
-  comment.content += delta;
-  emit({ type: 'delta', delta });
 }
 
 function applyRuntimeDistillationReview(
@@ -540,14 +371,4 @@ function recordFastExecution(
     usage,
     durationMs,
   });
-}
-
-function isE2eFakeAgentProvider(provider: LlmProvider | undefined) {
-  return process.env.YOMITOMO_E2E === '1' && provider?.baseUrl === e2eFakeAgentProviderBaseUrl;
-}
-
-function e2eFakeAgentCommentContent(payload: AgentMessagePayload) {
-  const quote = payload.annotation.anchor.exact.trim() || payload.article.title;
-  const question = payload.userComment.content.trim();
-  return `RD-795 fake AI response.\nQuote: ${quote}\nQuestion: ${question}`;
 }

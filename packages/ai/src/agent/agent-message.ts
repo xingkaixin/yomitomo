@@ -22,7 +22,7 @@ import { resolvePromptAgentIdentity } from '@yomitomo/shared';
 import { createYomitomoLanguageModel } from '../provider/ai-sdk-provider-adapter';
 import { budgetArticleText, formatBudgetNotice } from '../provider/budget';
 import { logAiInfo } from '../logger';
-import { generateYomitomoText, streamYomitomoText } from '../provider/generation-runtime';
+import { generateYomitomoText } from '../provider/generation-runtime';
 import {
   collectDistillationReviewItemsFromElementStream,
   collectDistillationReviewItemsFromJsonTextStream,
@@ -52,23 +52,6 @@ export type {
   AgentMessageReadingContextSnapshot,
   AgentMessageRunOptions,
 } from './agent-message-reading-context';
-
-export async function runAgentStream(
-  provider: LlmProvider,
-  agent: PromptAgent & { temperature: number },
-  payload: AgentMessagePayload,
-  onDelta: (delta: string) => void,
-  options: AgentMessageRunOptions = {},
-): Promise<void> {
-  const system = buildAgentMessageSystemPrompt(agent, payload);
-  const user = buildAgentPrompt(provider, payload, agent, options);
-  await streamYomitomoText(
-    provider,
-    { system, user, maxTokens: agentMessageMaxTokens(payload), temperature: agent.temperature },
-    onDelta,
-    options.signal,
-  );
-}
 
 export async function runAgentDistillationReviewStructuredStream(
   provider: LlmProvider,

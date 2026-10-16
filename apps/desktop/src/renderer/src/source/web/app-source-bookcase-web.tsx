@@ -65,7 +65,6 @@ export function WebSourceBookcase({
   const sourceReaderApp = useSourceReaderApp({
     articleActions,
     beforeOpenAnnotation,
-    getArticleText: currentArticleText,
     messageSendShortcut,
     onOpenEvidenceSource,
     settings,

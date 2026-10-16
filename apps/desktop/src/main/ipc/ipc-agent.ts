@@ -1,7 +1,6 @@
 import { makeId, normalizeUiLanguage } from '@yomitomo/shared';
 import {
   executeAgentAnnotationTask,
-  executeAgentCommentTask,
   executeAgentDistillationReviewTask,
   type AgentTaskExecutionContext,
 } from '../agents/agent-task-execution';
@@ -94,20 +93,6 @@ export function registerAgentIpc(context: AgentIpcContext) {
     return comments;
   });
   registerAgentStreamCancelIpc();
-  runAgentStreamIpc(
-    'agent:comment:stream',
-    'AGENT_REPLY_FAILED',
-    async (input, sender) => {
-      const comment = await executeAgentCommentTask(
-        taskExecutionContext,
-        input.payload,
-        (event) => sender.send(event),
-        sender.signal,
-      );
-      sender.send({ type: 'done', comment });
-    },
-    () => assertDesktopIpcAppLockUnlocked(context),
-  );
   runAgentStreamIpc(
     'agent:distillation-review:stream',
     'AGENT_DISTILLATION_REVIEW_FAILED',

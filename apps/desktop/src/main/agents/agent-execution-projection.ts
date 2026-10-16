@@ -2,10 +2,8 @@ import type { AssistantRuntimeStreamEvent } from '@yomitomo/ai';
 import type {
   Agent,
   AgentDistillationReviewPayload,
-  AgentMessagePayload,
   AssistantRuntimeProgressEvent,
   AssistantRuntimeProgressSummary,
-  Comment,
   AnnotationDistillationReviewMessage,
 } from '@yomitomo/shared';
 import { annotationAgentAuthorRef } from '@yomitomo/core';
@@ -18,23 +16,6 @@ type RuntimeProjectionState = {
   content: string;
   assistantProgress?: AssistantRuntimeProgressSummary;
 };
-
-export function pendingAgentComment(input: {
-  agent: Agent;
-  payload: AgentMessagePayload;
-  id: string;
-  createdAt: string;
-}): Comment {
-  return {
-    id: input.id,
-    author: annotationAgentAuthorRef(input.agent),
-    content: '',
-    createdAt: input.createdAt,
-    replyTo: agentMessageReplyTo(input.payload),
-    readingIntent: input.payload.readingIntent,
-    pending: true,
-  };
-}
 
 export function pendingDistillationReviewMessage(input: {
   agent: Agent;
@@ -111,11 +92,4 @@ function runtimeProgressEvent(
     return { type: 'fallback', message: 'ASSISTANT_RUNTIME_FALLBACK_FAST_RESPONSE' };
   }
   return null;
-}
-
-function agentMessageReplyTo(payload: AgentMessagePayload) {
-  if (payload.responseMode === 'create_thought' || payload.responseMode === 'distillation_review') {
-    return undefined;
-  }
-  return payload.reviewTargetCommentId || payload.userComment.replyTo || payload.userComment.id;
 }

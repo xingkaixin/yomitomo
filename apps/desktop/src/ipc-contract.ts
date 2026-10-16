@@ -2,7 +2,6 @@ import type {
   AgentAnnotatePayload,
   AgentAnnotateResult,
   AgentDistillationReviewPayload,
-  AgentMessagePayload,
   AnnotationDistillationReviewItem,
   AnnotationDistillationReviewMessage,
   ArticleRecord,
@@ -11,7 +10,6 @@ import type {
   AssistantRunEvent,
   AssistantRuntimeProgressEvent,
   CollectionStorePatch,
-  Comment,
   DesktopStore,
   LibraryPinPatch,
 } from '@yomitomo/shared';
@@ -38,13 +36,6 @@ export type DesktopIpcStreamErrorEvent = {
   error?: SerializedDesktopIpcError;
 };
 
-type AgentCommentStreamEvent =
-  | { type: 'start'; comment: Comment }
-  | { type: 'delta'; delta: string }
-  | { type: 'progress'; progress: AssistantRuntimeProgressEvent }
-  | { type: 'done'; comment: Comment }
-  | DesktopIpcStreamErrorEvent;
-
 type AgentDistillationReviewStreamEvent =
   | { type: 'start'; message: AnnotationDistillationReviewMessage }
   | { type: 'delta'; delta: string }
@@ -64,11 +55,6 @@ type AgentAnnotateStreamEvent =
   | DesktopIpcStreamErrorEvent;
 
 export type DesktopIpcStreamMap = {
-  'agent:comment:stream': {
-    payload: AgentMessagePayload;
-    event: AgentCommentStreamEvent;
-    result: Comment;
-  };
   'agent:distillation-review:stream': {
     payload: AgentDistillationReviewPayload;
     event: AgentDistillationReviewStreamEvent;

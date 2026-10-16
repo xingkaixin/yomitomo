@@ -71,7 +71,6 @@ describe('useSourceReaderApp', () => {
       useSourceReaderApp({
         articleActions: articleActionStubs(),
         onOpenEvidenceSource: vi.fn(),
-        getArticleText: () => 'text',
         session: {
           agents: [],
           annotations: currentArticle.annotations,
@@ -106,7 +105,6 @@ describe('useSourceReaderApp', () => {
         ({ currentArticle }) =>
           useSourceReaderApp({
             articleActions,
-            getArticleText: () => 'text',
             session: {
               agents: [],
               annotations: currentArticle.annotations,
@@ -142,7 +140,6 @@ describe('useSourceReaderApp', () => {
     const { result } = renderHook(() =>
       useSourceReaderApp({
         articleActions,
-        getArticleText: () => 'text',
         session: {
           agents: [],
           annotations: currentArticle.annotations,
@@ -184,7 +181,6 @@ describe('useSourceReaderApp', () => {
       useSourceReaderApp({
         articleActions,
         beforeOpenAnnotation,
-        getArticleText: () => 'text',
         session: {
           agents: [],
           annotations: currentArticle.annotations,
@@ -230,7 +226,6 @@ describe('useSourceReaderApp', () => {
     const { result } = renderHook(() =>
       useSourceReaderApp({
         articleActions,
-        getArticleText: () => 'text',
         session: {
           agents: [],
           annotations: currentArticle.annotations,
@@ -272,7 +267,6 @@ describe('useSourceReaderApp', () => {
     const { result } = renderHook(() =>
       useSourceReaderApp({
         articleActions: articleActionStubs({ saveArticleAnnotation }),
-        getArticleText: () => 'text',
         session: {
           agents: [],
           annotations: currentArticle.annotations,
@@ -314,7 +308,6 @@ describe('useSourceReaderApp', () => {
       ({ currentArticle }) =>
         useSourceReaderApp({
           articleActions,
-          getArticleText: () => 'text',
           session: {
             agents: [],
             article: currentArticle,
@@ -353,7 +346,6 @@ describe('useSourceReaderApp', () => {
     const { result } = renderHook(() =>
       useSourceReaderApp({
         articleActions,
-        getArticleText: () => 'text',
         session: {
           agents: [],
           annotations: currentArticle.annotations,
@@ -424,7 +416,6 @@ describe('useSourceReaderApp', () => {
     const { result } = renderHook(() => {
       const app = useSourceReaderApp({
         articleActions,
-        getArticleText: () => 'text',
         session: {
           agents: [],
           annotations: currentArticle.annotations,
@@ -491,7 +482,6 @@ describe('useSourceReaderApp', () => {
       ({ revealSearchMatch }) => {
         const app = useSourceReaderApp({
           articleActions,
-          getArticleText: () => 'text',
           session: {
             agents: [],
             annotations: currentArticle.annotations,

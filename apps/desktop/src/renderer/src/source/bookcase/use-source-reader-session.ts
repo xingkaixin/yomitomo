@@ -12,8 +12,6 @@ import type {
 import { resolveTextAnchor } from '@yomitomo/shared';
 import { publicAnnotationAgents, publicPersonaAgents } from './source-public-agents';
 import type { SourceAgentAnnotationRequestOptions } from './app-source-agent-request';
-import { runSourceAgentCommentRequest } from './app-source-agent-comment-request';
-import { runSourceAgentReviewRequest } from './app-source-agent-review-request';
 import { usePendingAnnotationAgents } from '../../shell/use-pending-annotation-agents';
 import { useSourceAnnotations } from './use-source-annotations';
 import {
@@ -44,13 +42,7 @@ export type UseSourceReaderSessionOptions = {
   article: ArticleRecord;
   clearPendingOnArticleChange: boolean;
   clearPendingOnDeleteAnnotation: boolean;
-  getArticleText?: () => Promise<string> | string;
   onArticleChange: (article: ArticleRecord) => void;
-  onAgentCommentMentioned?: (
-    agent: PublicAgent,
-    annotation: Annotation,
-    comment: AnnotationComment,
-  ) => void;
   onAnnotationsApplied?: (change: SourceAnnotationsChange) => void;
   onAnnotationsSaved?: (change: SourceAnnotationsChange) => void;
   onBeforeDeleteAnnotation?: (annotationId: string) => void;
@@ -75,15 +67,8 @@ export type UseSourceReaderSessionOptions = {
     comment: AnnotationComment,
     updatedAt?: string,
   ) => Promise<string | void> | string | void;
-  setStatusMessage?: (message: string) => void;
   uiLanguage?: UiLanguage;
   userProfile: UserProfile;
-};
-
-type RequestAgentCommentOptions = {
-  instruction?: string;
-  readingIntent?: Annotation['readingIntent'];
-  pendingAnnotationId?: string;
 };
 
 export function useSourceReaderSession({
@@ -93,9 +78,7 @@ export function useSourceReaderSession({
   article,
   clearPendingOnArticleChange,
   clearPendingOnDeleteAnnotation,
-  getArticleText,
   onArticleChange,
-  onAgentCommentMentioned,
   onAnnotationsApplied,
   onAnnotationsSaved,
   onBeforeDeleteAnnotation,
@@ -104,7 +87,6 @@ export function useSourceReaderSession({
   onOpenAnnotation,
   onSaveArticleAnnotation,
   onSaveArticleComment,
-  setStatusMessage,
   uiLanguage,
   userProfile,
 }: UseSourceReaderSessionOptions) {
@@ -130,16 +112,6 @@ export function useSourceReaderSession({
   );
   const pendingAgents = usePendingAnnotationAgents();
   const { clearAllPendingAnnotationAgents, clearPendingAnnotationAgents } = pendingAgents;
-  const requestAgentCommentRef = useRef<
-    (
-      agent: PublicAgent,
-      annotation: Annotation,
-      userComment: AnnotationComment,
-      reviewTargetCommentId?: string,
-      options?: RequestAgentCommentOptions,
-    ) => Promise<void>
-  >(async () => undefined);
-  const canRunAgentActions = Boolean(getArticleText && setStatusMessage);
   const registerAgentAnnotationAdapter = useCallback((adapter: SourceAgentAnnotationAdapter) => {
     agentAnnotationAdapterRef.current = adapter;
     return () => {
@@ -156,16 +128,6 @@ export function useSourceReaderSession({
       onBeforeDeleteAnnotation?.(annotationId);
       if (clearPendingOnDeleteAnnotation) clearPendingAnnotationAgents(annotationId);
     },
-    onCommentSaved: ({ annotation, comment, mentionedAgents }) => {
-      if (onAgentCommentMentioned) {
-        for (const agent of mentionedAgents) onAgentCommentMentioned(agent, annotation, comment);
-        return;
-      }
-      if (!canRunAgentActions) return;
-      for (const agent of mentionedAgents) {
-        void requestAgentCommentRef.current(agent, annotation, comment);
-      }
-    },
     onOpenAnnotation,
     onDeleteArticleAnnotation,
     onDeleteArticleComment,
@@ -179,97 +141,6 @@ export function useSourceReaderSession({
   useEffect(() => {
     if (clearPendingOnArticleChange) clearAllPendingAnnotationAgents();
   }, [article.id, clearAllPendingAnnotationAgents, clearPendingOnArticleChange]);
-
-  const requestAgentComment = useCallback(
-    async (
-      agent: PublicAgent,
-      annotation: Annotation,
-      userComment: AnnotationComment,
-      reviewTargetCommentId?: string,
-      options: RequestAgentCommentOptions = {},
-    ) => {
-      const currentArticle = { ...article, annotations: sourceAnnotations.annotationsRef.current };
-      if (!getArticleText || !setStatusMessage) {
-        if (options.pendingAnnotationId) {
-          pendingAgents.removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
-        }
-        return;
-      }
-
-      try {
-        await runSourceAgentCommentRequest({
-          agent,
-          annotation,
-          userComment,
-          instruction: options.instruction,
-          readingIntent: options.readingIntent,
-          desktop: getDesktopApi().agent,
-          currentArticle,
-          articleText: await getArticleText(),
-          reviewTargetCommentId,
-          uiLanguage,
-          annotationsRef: sourceAnnotations.annotationsRef,
-          applyAnnotations: sourceAnnotations.applyAnnotations,
-          saveComment: sourceAnnotations.saveComment,
-          setStatusMessage,
-        });
-      } finally {
-        if (options.pendingAnnotationId) {
-          pendingAgents.removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
-        }
-      }
-    },
-    [
-      getArticleText,
-      pendingAgents,
-      setStatusMessage,
-      article,
-      sourceAnnotations.annotationsRef,
-      sourceAnnotations.applyAnnotations,
-      sourceAnnotations.saveComment,
-      uiLanguage,
-    ],
-  );
-  requestAgentCommentRef.current = requestAgentComment;
-
-  const requestAnnotationReview = useCallback(
-    async (annotationId: string, selectedAgents: PublicAgent[]) => {
-      const currentArticle = { ...article, annotations: sourceAnnotations.annotationsRef.current };
-      const currentAnnotation = sourceAnnotations.annotationsRef.current.find(
-        (annotation) => annotation.id === annotationId,
-      );
-      if (
-        !currentAnnotation ||
-        selectedAgents.length === 0 ||
-        !getArticleText ||
-        !setStatusMessage
-      ) {
-        return;
-      }
-
-      await runSourceAgentReviewRequest({
-        agents: selectedAgents,
-        annotation: currentAnnotation,
-        desktop: getDesktopApi().agent,
-        currentArticle,
-        articleText: await getArticleText(),
-        uiLanguage,
-        annotationsRef: sourceAnnotations.annotationsRef,
-        applyAnnotations: sourceAnnotations.applyAnnotations,
-        saveComment: sourceAnnotations.saveComment,
-        setStatusMessage,
-      });
-    },
-    [
-      getArticleText,
-      setStatusMessage,
-      article,
-      sourceAnnotations.annotationsRef,
-      sourceAnnotations.applyAnnotations,
-      sourceAnnotations.saveComment,
-      uiLanguage,
-    ],
-  );
 
   const requestAgentAnnotations = useCallback(
     async (agent: PublicAgent, options: SourceAgentAnnotationRequestOptions = {}) => {
@@ -314,9 +185,7 @@ export function useSourceReaderSession({
     annotationAgents,
     registerAgentAnnotationAdapter,
     personaAgents,
-    requestAgentComment,
     requestAgentAnnotations,
-    requestAnnotationReview,
     ...pendingAgents,
     ...sourceAnnotations,
   };

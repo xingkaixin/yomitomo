@@ -292,7 +292,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   });
   const {
     cachedPdfiumPageText,
-    currentArticleText,
     ensurePdfTextDocument,
     extractPdfiumPageText,
     markPdfiumFirstPageReady,
@@ -331,7 +330,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
         startAgentDock: (agent) => startPdfiumAgentDock(agent),
         startVirtualReading: (agent, anchor) => startPdfiumVirtualReading(agent, anchor),
       }),
-    getArticleText: currentArticleText,
     messageSendShortcut,
     selectionActionShortcuts,
     settings,

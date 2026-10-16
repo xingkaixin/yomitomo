@@ -23,7 +23,6 @@ export const desktopIpcInvokeRoles = desktopIpcInvokeRolesFromDescriptors(
 
 export const desktopIpcMainEventRoles = {
   'agent:annotate:stream': mainOnly,
-  'agent:comment:stream': annotationAndMain,
   'agent:distillation-review:stream': annotationAndMain,
   'agent:stream-cancel': annotationAndMain,
   'app:renderer-ready': mainOnly,

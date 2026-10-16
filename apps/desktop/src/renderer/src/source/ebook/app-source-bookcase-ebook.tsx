@@ -118,7 +118,6 @@ export function EbookBookcase({
           await sleep(900);
         },
       }),
-    getArticleText: currentArticleText,
     messageSendShortcut,
     selectionActionShortcuts,
     settings,

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { AgentMessagePayload, Comment } from '@yomitomo/shared';
+import type {
+  AgentDistillationReviewPayload,
+  AnnotationDistillationReviewMessage,
+} from '@yomitomo/shared';
 import type {
   DesktopIpcStreamChannel,
   DesktopIpcStreamEvent,
@@ -15,43 +18,49 @@ describe('desktop IPC stream client', () => {
     const client = createDesktopIpcStreamClient(transport, () => 'request_1');
     const events: unknown[] = [];
     const result = client.request(
-      'agent:comment:stream',
+      'agent:distillation-review:stream',
       agentMessagePayload,
       (event) => events.push(event),
-      (event) => event.comment,
+      (event) => event.message,
     );
 
     expect(transport.sent).toEqual([
       {
-        channel: 'agent:comment:stream',
+        channel: 'agent:distillation-review:stream',
         request: { requestId: 'request_1', payload: agentMessagePayload },
       },
     ]);
-    expect(transport.listenerCount('agent:comment:stream:request_1')).toBe(1);
+    expect(transport.listenerCount('agent:distillation-review:stream:request_1')).toBe(1);
 
-    transport.emit('agent:comment:stream:request_1', { type: 'start', comment: pendingComment });
-    transport.emit('agent:comment:stream:request_1', { type: 'delta', delta: 'done' });
-    transport.emit('agent:comment:stream:request_1', { type: 'done', comment: finalComment });
+    transport.emit('agent:distillation-review:stream:request_1', {
+      type: 'start',
+      message: pendingMessage,
+    });
+    transport.emit('agent:distillation-review:stream:request_1', { type: 'delta', delta: 'done' });
+    transport.emit('agent:distillation-review:stream:request_1', {
+      type: 'done',
+      message: finalMessage,
+    });
 
-    await expect(result).resolves.toEqual(finalComment);
+    await expect(result).resolves.toEqual(finalMessage);
     expect(events).toEqual([
-      { type: 'start', comment: pendingComment },
+      { type: 'start', message: pendingMessage },
       { type: 'delta', delta: 'done' },
     ]);
-    expect(transport.listenerCount('agent:comment:stream:request_1')).toBe(0);
+    expect(transport.listenerCount('agent:distillation-review:stream:request_1')).toBe(0);
   });
 
   it('turns an error envelope into a desktop IPC error and cleans up', async () => {
     const transport = new MemoryDesktopIpcStreamTransport();
     const client = createDesktopIpcStreamClient(transport, () => 'request_error');
     const result = client.request(
-      'agent:comment:stream',
+      'agent:distillation-review:stream',
       agentMessagePayload,
       () => undefined,
-      (event) => event.comment,
+      (event) => event.message,
     );
 
-    transport.emit('agent:comment:stream:request_error', {
+    transport.emit('agent:distillation-review:stream:request_error', {
       type: 'error',
       message: desktopIpcErrorCodes.agentNotFound,
       error: {
@@ -64,7 +73,7 @@ describe('desktop IPC stream client', () => {
       code: desktopIpcErrorCodes.agentNotFound,
       message: desktopIpcErrorCodes.agentNotFound,
     });
-    expect(transport.listenerCount('agent:comment:stream:request_error')).toBe(0);
+    expect(transport.listenerCount('agent:distillation-review:stream:request_error')).toBe(0);
   });
 
   it('removes only the listeners attached to the completed response channel', async () => {
@@ -72,53 +81,59 @@ describe('desktop IPC stream client', () => {
     const requestIds = ['request_1', 'request_2'];
     const client = createDesktopIpcStreamClient(transport, () => requestIds.shift() || 'missing');
     const first = client.request(
-      'agent:comment:stream',
+      'agent:distillation-review:stream',
       agentMessagePayload,
       () => undefined,
-      (event) => event.comment,
+      (event) => event.message,
     );
     const second = client.request(
-      'agent:comment:stream',
+      'agent:distillation-review:stream',
       agentMessagePayload,
       () => undefined,
-      (event) => event.comment,
+      (event) => event.message,
     );
 
-    transport.emit('agent:comment:stream:request_1', { type: 'done', comment: finalComment });
+    transport.emit('agent:distillation-review:stream:request_1', {
+      type: 'done',
+      message: finalMessage,
+    });
 
-    await expect(first).resolves.toEqual(finalComment);
-    expect(transport.listenerCount('agent:comment:stream:request_1')).toBe(0);
-    expect(transport.listenerCount('agent:comment:stream:request_2')).toBe(1);
+    await expect(first).resolves.toEqual(finalMessage);
+    expect(transport.listenerCount('agent:distillation-review:stream:request_1')).toBe(0);
+    expect(transport.listenerCount('agent:distillation-review:stream:request_2')).toBe(1);
 
-    transport.emit('agent:comment:stream:request_2', { type: 'done', comment: finalComment });
-    await expect(second).resolves.toEqual(finalComment);
-    expect(transport.listenerCount('agent:comment:stream:request_2')).toBe(0);
+    transport.emit('agent:distillation-review:stream:request_2', {
+      type: 'done',
+      message: finalMessage,
+    });
+    await expect(second).resolves.toEqual(finalMessage);
+    expect(transport.listenerCount('agent:distillation-review:stream:request_2')).toBe(0);
   });
 
   it('cleans up duplicate listeners attached to the same response channel', async () => {
     const transport = new MemoryDesktopIpcStreamTransport();
     const client = createDesktopIpcStreamClient(transport, () => 'shared_request');
     const first = client.request(
-      'agent:comment:stream',
+      'agent:distillation-review:stream',
       agentMessagePayload,
       () => undefined,
-      (event) => event.comment,
+      (event) => event.message,
     );
     const second = client.request(
-      'agent:comment:stream',
+      'agent:distillation-review:stream',
       agentMessagePayload,
       () => undefined,
-      (event) => event.comment,
+      (event) => event.message,
     );
 
-    expect(transport.listenerCount('agent:comment:stream:shared_request')).toBe(2);
-    transport.emit('agent:comment:stream:shared_request', {
+    expect(transport.listenerCount('agent:distillation-review:stream:shared_request')).toBe(2);
+    transport.emit('agent:distillation-review:stream:shared_request', {
       type: 'done',
-      comment: finalComment,
+      message: finalMessage,
     });
 
-    await expect(Promise.all([first, second])).resolves.toEqual([finalComment, finalComment]);
-    expect(transport.listenerCount('agent:comment:stream:shared_request')).toBe(0);
+    await expect(Promise.all([first, second])).resolves.toEqual([finalMessage, finalMessage]);
+    expect(transport.listenerCount('agent:distillation-review:stream:shared_request')).toBe(0);
   });
 });
 
@@ -172,18 +187,18 @@ class MemoryDesktopIpcStreamTransport implements DesktopIpcStreamTransport {
   }
 }
 
-const agentMessagePayload = {} as AgentMessagePayload;
+const agentMessagePayload = {} as AgentDistillationReviewPayload;
 
-const pendingComment: Comment = {
-  id: 'comment_1',
+const pendingMessage: AnnotationDistillationReviewMessage = {
+  id: 'review_message_1',
   author: { kind: 'agent', agentId: 'agent_1', username: 'agent' },
   content: '',
   createdAt: '2026-07-15T00:00:00.000Z',
-  pending: true,
+  status: 'pending',
 };
 
-const finalComment: Comment = {
-  ...pendingComment,
+const finalMessage: AnnotationDistillationReviewMessage = {
+  ...pendingMessage,
   content: 'done',
-  pending: false,
+  status: 'done',
 };

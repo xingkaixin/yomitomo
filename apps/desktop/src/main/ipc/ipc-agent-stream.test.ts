@@ -3,7 +3,7 @@ import type {
   AgentAnnotatePayload,
   AgentMessagePayload,
   Annotation,
-  Comment,
+  AnnotationDistillationReviewMessage,
   PublicAgent,
 } from '@yomitomo/shared';
 import { DesktopIpcError, desktopIpcErrorCodes } from '../../ipc-errors';
@@ -29,42 +29,52 @@ beforeEach(() => {
 
 describe('runAgentStreamIpc', () => {
   it('sends handler events to the request-scoped response channel', async () => {
-    runAgentStreamIpc('agent:comment:stream', 'STREAM_FAILED', async (input, sender) => {
-      sender.send({
-        type: 'done',
-        comment: {
-          ...finalComment,
-          author: {
-            kind: 'agent',
-            agentId: 'agent_1',
-            username: input.payload.agentUsername,
+    runAgentStreamIpc(
+      'agent:distillation-review:stream',
+      'STREAM_FAILED',
+      async (input, sender) => {
+        sender.send({
+          type: 'done',
+          message: {
+            ...finalMessage,
+            author: {
+              kind: 'agent',
+              agentId: 'agent_1',
+              username: input.payload.agentUsername,
+            },
           },
-        },
-      });
-    });
+        });
+      },
+    );
     const sender = streamSender();
 
-    await ipcHandler('agent:comment:stream')({ sender }, request('req_1', agentMessagePayload));
+    await ipcHandler('agent:distillation-review:stream')(
+      { sender },
+      request('req_1', agentMessagePayload),
+    );
 
-    expect(sender.send).toHaveBeenCalledWith('agent:comment:stream:req_1', {
+    expect(sender.send).toHaveBeenCalledWith('agent:distillation-review:stream:req_1', {
       type: 'done',
-      comment: {
-        ...finalComment,
+      message: {
+        ...finalMessage,
         author: { kind: 'agent', agentId: 'agent_1', username: 'agent' },
       },
     });
   });
 
   it('serializes stream errors with the fallback message for generic failures', async () => {
-    runAgentStreamIpc('agent:comment:stream', 'STREAM_FAILED', async () => {
+    runAgentStreamIpc('agent:distillation-review:stream', 'STREAM_FAILED', async () => {
       throw new Error('low level error');
     });
     const sender = streamSender();
 
-    await ipcHandler('agent:comment:stream')({ sender }, request('req_2', agentMessagePayload));
+    await ipcHandler('agent:distillation-review:stream')(
+      { sender },
+      request('req_2', agentMessagePayload),
+    );
 
     expect(sender.send).toHaveBeenCalledWith(
-      'agent:comment:stream:req_2',
+      'agent:distillation-review:stream:req_2',
       expect.objectContaining({
         type: 'error',
         message: 'STREAM_FAILED',
@@ -74,7 +84,7 @@ describe('runAgentStreamIpc', () => {
   });
 
   it('keeps known desktop IPC error messages', async () => {
-    runAgentStreamIpc('agent:comment:stream', 'STREAM_FAILED', async () => {
+    runAgentStreamIpc('agent:distillation-review:stream', 'STREAM_FAILED', async () => {
       throw new DesktopIpcError(
         desktopIpcErrorCodes.agentNotFound,
         desktopIpcErrorCodes.agentNotFound,
@@ -82,10 +92,13 @@ describe('runAgentStreamIpc', () => {
     });
     const sender = streamSender();
 
-    await ipcHandler('agent:comment:stream')({ sender }, request('req_3', agentMessagePayload));
+    await ipcHandler('agent:distillation-review:stream')(
+      { sender },
+      request('req_3', agentMessagePayload),
+    );
 
     expect(sender.send).toHaveBeenCalledWith(
-      'agent:comment:stream:req_3',
+      'agent:distillation-review:stream:req_3',
       expect.objectContaining({
         type: 'error',
         message: desktopIpcErrorCodes.agentNotFound,
@@ -95,13 +108,21 @@ describe('runAgentStreamIpc', () => {
   });
 
   it('does not send done after a cancelled stream handler returns', async () => {
-    runAgentStreamIpc('agent:comment:stream', 'STREAM_FAILED', async (input, sender, event) => {
-      agentStreamTasks.cancel(event.sender.id, 'agent:comment:stream', input.requestId);
-      sender.send({ type: 'done', comment: finalComment });
-    });
+    runAgentStreamIpc(
+      'agent:distillation-review:stream',
+      'STREAM_FAILED',
+      async (input, sender, event) => {
+        agentStreamTasks.cancel(
+          event.sender.id,
+          'agent:distillation-review:stream',
+          input.requestId,
+        );
+        sender.send({ type: 'done', message: finalMessage });
+      },
+    );
     const sender = streamSender();
 
-    await ipcHandler('agent:comment:stream')(
+    await ipcHandler('agent:distillation-review:stream')(
       { sender },
       request('req_cancelled', agentMessagePayload),
     );
@@ -111,16 +132,19 @@ describe('runAgentStreamIpc', () => {
 
   it('runs the guard before the stream handler', async () => {
     const handler = vi.fn();
-    runAgentStreamIpc('agent:comment:stream', 'STREAM_FAILED', handler, async () => {
+    runAgentStreamIpc('agent:distillation-review:stream', 'STREAM_FAILED', handler, async () => {
       throw new DesktopIpcError(desktopIpcErrorCodes.appLockRequired);
     });
     const sender = streamSender();
 
-    await ipcHandler('agent:comment:stream')({ sender }, request('req_4', agentMessagePayload));
+    await ipcHandler('agent:distillation-review:stream')(
+      { sender },
+      request('req_4', agentMessagePayload),
+    );
 
     expect(handler).not.toHaveBeenCalled();
     expect(sender.send).toHaveBeenCalledWith(
-      'agent:comment:stream:req_4',
+      'agent:distillation-review:stream:req_4',
       expect.objectContaining({
         type: 'error',
         message: desktopIpcErrorCodes.appLockRequired,
@@ -136,10 +160,12 @@ describe('runAgentStreamIpc', () => {
   ])('drops a %s before guard and handler execution', async (_label, malformedRequest) => {
     const guard = vi.fn();
     const handler = vi.fn();
-    runAgentStreamIpc('agent:comment:stream', 'STREAM_FAILED', handler, guard);
+    runAgentStreamIpc('agent:distillation-review:stream', 'STREAM_FAILED', handler, guard);
     const sender = streamSender();
 
-    expect(() => ipcHandler('agent:comment:stream')({ sender }, malformedRequest)).not.toThrow();
+    expect(() =>
+      ipcHandler('agent:distillation-review:stream')({ sender }, malformedRequest),
+    ).not.toThrow();
 
     expect(guard).not.toHaveBeenCalled();
     expect(handler).not.toHaveBeenCalled();
@@ -172,17 +198,17 @@ describe('runAgentStreamIpc', () => {
   ])('rejects %s before guard and handler execution', async (_label, payload) => {
     const guard = vi.fn();
     const handler = vi.fn();
-    runAgentStreamIpc('agent:comment:stream', 'STREAM_FAILED', handler, guard);
+    runAgentStreamIpc('agent:distillation-review:stream', 'STREAM_FAILED', handler, guard);
     const sender = streamSender();
 
     expect(() =>
-      ipcHandler('agent:comment:stream')({ sender }, request('req_invalid', payload)),
+      ipcHandler('agent:distillation-review:stream')({ sender }, request('req_invalid', payload)),
     ).not.toThrow();
 
     expect(guard).not.toHaveBeenCalled();
     expect(handler).not.toHaveBeenCalled();
     expect(sender.send).toHaveBeenCalledWith(
-      'agent:comment:stream:req_invalid',
+      'agent:distillation-review:stream:req_invalid',
       expect.objectContaining({
         type: 'error',
         message: desktopIpcErrorCodes.invalidArgs,
@@ -219,7 +245,7 @@ describe('runAgentStreamIpc', () => {
 
   it('does not surface send failures while rejecting malformed requests', () => {
     const handler = vi.fn();
-    runAgentStreamIpc('agent:comment:stream', 'STREAM_FAILED', handler);
+    runAgentStreamIpc('agent:distillation-review:stream', 'STREAM_FAILED', handler);
     const sender = {
       send: vi.fn(() => {
         throw new Error('sender destroyed');
@@ -227,7 +253,7 @@ describe('runAgentStreamIpc', () => {
     };
 
     expect(() =>
-      ipcHandler('agent:comment:stream')(
+      ipcHandler('agent:distillation-review:stream')(
         { sender },
         request('req_destroyed', { ...agentMessagePayload, readerProgress: null }),
       ),
@@ -237,7 +263,7 @@ describe('runAgentStreamIpc', () => {
     expect(logError).toHaveBeenCalledWith(
       'ipc.invalid_response_failed',
       expect.any(Error),
-      expect.objectContaining({ channel: 'agent:comment:stream' }),
+      expect.objectContaining({ channel: 'agent:distillation-review:stream' }),
     );
   });
 });
@@ -301,7 +327,7 @@ const agentMessagePayload = {
   },
 } as AgentMessagePayload;
 
-const finalComment: Comment = {
+const finalMessage: AnnotationDistillationReviewMessage = {
   id: 'comment_1',
   author: { kind: 'agent', agentId: 'agent_1', username: 'agent' },
   content: 'done',

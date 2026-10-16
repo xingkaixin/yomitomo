@@ -45,13 +45,11 @@ type ReaderSearchHighlightBox = Omit<HighlightBox, 'annotationId' | 'color' | 'c
 type SourceReaderSessionInput = Omit<
   UseSourceReaderSessionOptions,
   | 'agentAnnotationAdapter'
-  | 'getArticleText'
   | 'onDeleteArticleAnnotation'
   | 'onDeleteArticleComment'
   | 'onSaveArticleAnnotation'
   | 'onSaveArticleComment'
   | 'onOpenAnnotation'
-  | 'setStatusMessage'
 > & {
   onOpenAnnotation?: (annotationId: string | null) => void;
 };
@@ -127,7 +125,6 @@ export type UseSourceReaderAppInput = {
     isCurrentArticle: (articleId: string) => boolean;
     setStatusMessage: Dispatch<SetStateAction<string>>;
   }) => SourceAgentAnnotationAdapter;
-  getArticleText: () => string | Promise<string>;
   beforeOpenAnnotation?: () => void;
   messageSendShortcut?: MessageSendShortcut;
   settings?: ResolvedAppSettings;
@@ -140,7 +137,6 @@ export function useSourceReaderApp({
   onOpenEvidenceSource,
   beforeOpenAnnotation,
   createAgentAnnotationAdapter,
-  getArticleText,
   messageSendShortcut,
   settings,
   selectionActionShortcuts,
@@ -157,7 +153,6 @@ export function useSourceReaderApp({
       isCurrentArticle,
       setStatusMessage,
     }),
-    getArticleText,
     onDeleteArticleAnnotation: articleActions.deleteArticleAnnotation,
     onDeleteArticleComment: articleActions.deleteArticleComment,
     onSaveArticleAnnotation: articleActions.saveArticleAnnotation,
@@ -165,7 +160,6 @@ export function useSourceReaderApp({
     onOpenAnnotation: sessionInput.onOpenAnnotation
       ? (annotationId) => openAnnotation(annotationId)
       : undefined,
-    setStatusMessage,
   });
   const workspace = useSourceReaderWorkspace({
     article: sessionInput.article,

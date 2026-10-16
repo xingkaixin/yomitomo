@@ -24,7 +24,6 @@ export {
 export { planAgentMentionRoute } from './agent/annotation-metadata';
 export {
   runAgentDistillationReviewStructuredStream,
-  runAgentStream,
   type AgentMessageReadingContextSnapshot,
 } from './agent/agent-message';
 export { runAgentAnnotateStream } from './agent/agent-annotation';

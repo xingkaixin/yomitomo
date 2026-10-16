@@ -1,5 +1,9 @@
 import { describe, expectTypeOf, it } from 'vitest';
-import type { AgentMessagePayload, ArticleStorePatch, Comment } from '@yomitomo/shared';
+import type {
+  AgentDistillationReviewPayload,
+  AnnotationDistillationReviewMessage,
+  ArticleStorePatch,
+} from '@yomitomo/shared';
 import type {
   DesktopIpcDeclaredSchemaChannel,
   DesktopIpcEventChannel,
@@ -67,17 +71,18 @@ describe('desktop IPC event contract', () => {
 
   it('derives stream payload, progress, and completion events', () => {
     expectTypeOf<
-      DesktopIpcStreamPayload<'agent:comment:stream'>
-    >().toEqualTypeOf<AgentMessagePayload>();
+      DesktopIpcStreamPayload<'agent:distillation-review:stream'>
+    >().toEqualTypeOf<AgentDistillationReviewPayload>();
     expectTypeOf<{ type: 'delta'; delta: string }>().toMatchTypeOf<
-      DesktopIpcStreamProgressEvent<'agent:comment:stream'>
+      DesktopIpcStreamProgressEvent<'agent:distillation-review:stream'>
     >();
-    expectTypeOf<{ type: 'done'; comment: Comment }>().not.toMatchTypeOf<
-      DesktopIpcStreamProgressEvent<'agent:comment:stream'>
-    >();
-    expectTypeOf<DesktopIpcStreamDoneEvent<'agent:comment:stream'>>().toEqualTypeOf<{
+    expectTypeOf<{
       type: 'done';
-      comment: Comment;
+      message: AnnotationDistillationReviewMessage;
+    }>().not.toMatchTypeOf<DesktopIpcStreamProgressEvent<'agent:distillation-review:stream'>>();
+    expectTypeOf<DesktopIpcStreamDoneEvent<'agent:distillation-review:stream'>>().toEqualTypeOf<{
+      type: 'done';
+      message: AnnotationDistillationReviewMessage;
     }>();
   });
 });

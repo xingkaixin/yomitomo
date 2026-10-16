@@ -1,33 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Agent, AgentMessagePayload } from '@yomitomo/shared';
 import {
-  pendingAgentComment,
   pendingDistillationReviewMessage,
   reduceAssistantRuntimeEvent,
   reduceAssistantRuntimeProgress,
 } from './agent-execution-projection';
 
 describe('assistant task execution projections', () => {
-  it('constructs pending comments from injected identity and clock values', () => {
-    const payload = messagePayload();
-
-    const comment = pendingAgentComment({
-      agent: agent(),
-      payload,
-      id: 'comment_1',
-      createdAt: '2026-07-31T00:00:00.000Z',
-    });
-
-    expect(comment).toEqual({
-      id: 'comment_1',
-      author: agentAuthor(agent()),
-      content: '',
-      createdAt: '2026-07-31T00:00:00.000Z',
-      replyTo: 'comment_user',
-      pending: true,
-    });
-  });
-
   it('keeps a supplied review message id while constructing the pending author reference', () => {
     const message = pendingDistillationReviewMessage({
       agent: agent({ kind: 'review' }),

@@ -153,11 +153,11 @@ describe('usePdfiumDocumentText', () => {
     expect(extractText.mock.calls.map((call) => call[1]?.[0])).toEqual([1, 0, 2]);
 
     await act(async () => {
-      const [text, textDocument] = await Promise.all([
-        state().currentArticleText(),
+      const [first, second] = await Promise.all([
+        state().ensurePdfTextDocument(),
         state().ensurePdfTextDocument(),
       ]);
-      expect(text).toBe(textDocument.text);
+      expect(first).toBe(second);
     });
 
     expect(state().pdfTextDocument?.pages).toHaveLength(4);
@@ -176,7 +176,9 @@ describe('usePdfiumDocumentText', () => {
     });
     let extraction!: Promise<string>;
     act(() => {
-      extraction = state().currentArticleText();
+      extraction = state()
+        .ensurePdfTextDocument()
+        .then((textDocument) => textDocument.text);
     });
     const rejected = expect(extraction).rejects.toMatchObject({ name: 'AbortError' });
     expect(extractText).toHaveBeenCalledTimes(2);
