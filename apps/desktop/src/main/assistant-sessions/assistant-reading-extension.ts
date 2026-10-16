@@ -201,6 +201,7 @@ export function createAssistantReadingExtension(ports: AssistantReadingPorts) {
         return [
           run?.articleTitle ? `当前文章：《${run.articleTitle}》` : '',
           '你看不到文章全文，需要时用工具按章节、段落或关键词读取原文，用 search_reading_memory 和 read_thread 查已有批注与讨论。',
+          '读者的划线可能只是半句或几个词。回答前先用 read_article 的 aroundBlockId 读划线所在段落和前后文，不够再继续读或检索，不要让读者替你提供原文。',
           '工具只返回读者已读范围内的内容；不要猜测或透露范围之外的情节。',
           '引用原文时直接引用原句，不要编造原文，不要把段落 id 写进回复。',
           `一次回复最多调用 ${MAX_TOOL_CALLS} 次工具，信息足够时就直接回答。`,

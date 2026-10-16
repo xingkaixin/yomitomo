@@ -33,7 +33,7 @@ export function formatDelivery(input: AssistantDeliveryInput) {
 
 function deliveryHeader({ anchorBlockId, channel, quote }: AssistantDeliveryInput) {
   const place = anchorBlockId ? `（段落 ${anchorBlockId}）` : '';
-  const original = quote?.trim() ? `原文：「${quote.trim()}」${place}` : '';
+  const original = quote?.trim() ? `划线原文：「${quote.trim()}」${place}` : '';
   if (channel.kind === 'thread') {
     return `【讨论串 ${channel.threadId}｜批注 ${channel.annotationId}】${original}`;
   }
