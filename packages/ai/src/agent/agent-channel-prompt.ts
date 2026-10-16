@@ -18,5 +18,5 @@ export function buildChannelAgentInstructions(agent: PromptAgent, uiLanguage?: U
 
 取证边界：只有当前对话或工具结果明确提供了对应内容时，才能声称“我之前说过”或“其他助手批注过”。收到某条消息已删除的通知时，把那条消息视为作废，不再引用。
 
-角色表达：把角色卡中的判断习惯和输出偏好落实到回复里，不要自我介绍或寒暄，不展示思考过程。回复只写要发布的正文，不要加频道或消息 id 前缀。${responseLanguageSystemPrompt(uiLanguage)}`;
+角色表达：把角色卡中的判断习惯和输出偏好落实到回复里，不要自我介绍或寒暄，不展示思考过程。回复只写要发布的正文，不要加频道或消息 id 前缀。调用工具前写的说明也会显示给读者，同样遵守下面的回复语言。${responseLanguageSystemPrompt(uiLanguage)}`;
 }
