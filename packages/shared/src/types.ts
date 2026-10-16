@@ -18,4 +18,5 @@ export * from './reading-memory/reading-judgment-types';
 export * from './sources/article-types';
 export * from './store-types';
 export * from './agents/agent-payload-types';
+export * from './agents/assistant-channel-types';
 export * from './release-notes/release-note-types';

@@ -184,7 +184,7 @@ export function createAssistantReadingExtension(ports: AssistantReadingPorts) {
         .annotations(run.articleId)
         .find((item) => item.id === args.annotationId);
       if (!annotation) throw new Error(`没有找到批注 ${args.annotationId}。`);
-      return formatThread(annotation, args.threadId);
+      return formatThread(annotation, args.threadId, run.agentId);
     },
   });
 
