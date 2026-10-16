@@ -328,6 +328,20 @@
   margin: 0 0 8px;
 }
 
+.annotation-discussion-markdown a {
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--app-reader-ink) 32%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.16em;
+}
+
+.annotation-discussion-markdown a:hover {
+  color: var(--app-reader-accent-strong);
+  text-decoration-color: currentColor;
+}
+
 .annotation-discussion-markdown ul,
 .annotation-discussion-markdown ol {
   padding-left: 18px;

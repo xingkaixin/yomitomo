@@ -412,6 +412,18 @@ export const chatAgentStyles = `.reader-chat-fab {
   margin:0 0 .65em;
   white-space:normal
 }
+.reader-chat-markdown a {
+  color:inherit;
+  cursor:pointer;
+  text-decoration:underline;
+  text-decoration-color:color-mix(in srgb,var(--reader-ink) 32%,transparent);
+  text-decoration-thickness:1px;
+  text-underline-offset:.16em
+}
+.reader-chat-markdown a:hover {
+  color:var(--reader-red);
+  text-decoration-color:currentColor
+}
 .reader-chat-empty {
   display:grid;
   min-height:128px;
