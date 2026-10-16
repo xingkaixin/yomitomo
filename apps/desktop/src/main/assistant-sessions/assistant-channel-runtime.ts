@@ -17,8 +17,8 @@ import {
 } from '@yomitomo/ai';
 import {
   annotationAgentAuthorRef,
-  buildEpubReadingContextScope,
   createArticleTextIndex,
+  epubReadableTextRanges,
   prepareEpubBookIndex,
   selectionThreadSpoilerPolicy,
 } from '@yomitomo/core';
@@ -566,14 +566,14 @@ export function visibleRanges(
 ) {
   if (!meta?.ebookIndex || !text) return null;
   const prepared = prepareEpubBookIndex(meta.ebookIndex);
-  return buildEpubReadingContextScope(prepared, {
+  return epubReadableTextRanges(prepared, {
     articleText: text.text,
     targetAnchor: anchor,
     readerProgress: anchor
       ? highlightChapterProgress(prepared, text.text, anchor)
       : readerProgress(prepared, meta.readingProgress),
     spoilerPolicy: selectionThreadSpoilerPolicy,
-  }).textRanges;
+  });
 }
 
 // A highlight opens its whole chapter, so agents can read past a cut sentence or a heading.

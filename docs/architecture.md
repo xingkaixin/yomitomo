@@ -121,7 +121,8 @@ telemetry → shared
 
 - main 侧在 `apps/desktop/src/main/reading-memory`：投影 worker 把原始资产写成检索证据，
   语义索引把向量存进 SQLite，embedding 在 fork 出的子进程中运行，空闲时释放。
-  `packages/core/src/reading-memory` 放排序、合并等纯逻辑，`packages/ai/src/reading-memory` 放模型判断。
+  `packages/core/src/reading-memory` 放证据投影、排序和判断校验等纯逻辑，`packages/ai/src/reading-memory`
+  放模型判断。
 - 检索是关键词与语义混合排序；没有模型、索引不完整或没有 provider 时降级，不阻断查询。
 - 保存不等待投影、向量或远程 AI。投影任务持久化，重启后继续。
 - 总开关在 `apps/desktop/src/reading-memory-release.ts`，同时控制界面入口、IPC handler 和后台任务。

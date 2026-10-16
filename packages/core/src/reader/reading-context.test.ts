@@ -1,16 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import type { SpoilerPolicy } from '@yomitomo/shared';
 import {
   buildEpubBookIndex,
   epubIndexText,
   prepareEpubBookIndex,
   type EpubBookIndexChapterInput,
 } from '../epub/ebook-index';
-import {
-  buildEpubReadingContextScope,
-  buildReadingContextBundle,
-  selectionAnnotationSpoilerPolicy,
-  wholeBookSpoilerPolicy,
-} from './reading-context';
+import { epubReadableTextRanges, selectionThreadSpoilerPolicy } from './reading-context';
 
 const chapters: EpubBookIndexChapterInput[] = [
   {
@@ -30,187 +26,55 @@ const chapters: EpubBookIndexChapterInput[] = [
   },
 ];
 
-function bookFixture() {
+function readableText(spoilerPolicy: SpoilerPolicy) {
   const index = buildEpubBookIndex({ articleId: 'book-1', chapters });
-  return { index, text: epubIndexText(chapters) };
+  const text = epubIndexText(chapters);
+  const ranges = epubReadableTextRanges(prepareEpubBookIndex(index), {
+    articleText: text,
+    readerProgress: {
+      currentChapterId: 'chapter-2',
+      currentSegmentId: 'chapter-2-segment-1',
+      readChapterIds: ['chapter-1'],
+      readUntilTextOffset: text.indexOf('第二章未读反转'),
+    },
+    spoilerPolicy,
+  });
+  return ranges.map((range) => text.slice(range.textStart, range.textEnd)).join('\n');
 }
 
-describe('buildReadingContextBundle', () => {
-  it('reuses a prepared EPUB lookup without materializing article text', () => {
-    const { index, text } = bookFixture();
-    const input = {
-      articleText: text,
-      readerProgress: {
-        currentChapterId: 'chapter-2',
-        currentSegmentId: 'chapter-2-segment-1',
-        readChapterIds: ['chapter-1'],
-        readUntilTextOffset: text.indexOf('第二章未读反转'),
-      },
-      spoilerPolicy: selectionAnnotationSpoilerPolicy,
-      relatedPassages: [
-        {
-          id: 'read',
-          chapterId: 'chapter-1',
-          text: '第一章已经读完。',
-        },
-        {
-          id: 'future',
-          chapterId: 'chapter-3',
-          text: '第三章未来剧情。',
-        },
-      ],
-    };
-
-    const scope = buildEpubReadingContextScope(prepareEpubBookIndex(index), input);
-    const bundle = buildReadingContextBundle({ ...input, ebookIndex: index });
-
-    expect(scope).toEqual({
-      textRanges: bundle.textRanges,
-      readerProgress: bundle.readerProgress,
-      spoilerPolicy: bundle.spoilerPolicy,
-      relatedPassages: bundle.relatedPassages,
-      chapterSummaries: bundle.chapterSummaries,
+describe('epubReadableTextRanges', () => {
+  it('limits the current chapter to the read offset', () => {
+    const text = readableText({
+      allowedScope: 'current-chapter-so-far',
+      allowFutureChapterEvidence: false,
+      allowFuturePlotEvents: false,
     });
-    expect(scope).not.toHaveProperty('articleText');
+
+    expect(text).toContain('第二章开头。');
+    expect(text).toContain('第二章已读论证。');
+    expect(text).not.toContain('第一章已经读完。');
+    expect(text).not.toContain('第二章未读反转。');
+    expect(text).not.toContain('第三章未来剧情。');
   });
 
-  it('limits current chapter context to the read offset', () => {
-    const { index, text } = bookFixture();
-    const readUntilTextOffset = text.indexOf('第二章未读反转');
-    const bundle = buildReadingContextBundle({
-      articleText: text,
-      ebookIndex: index,
-      readerProgress: {
-        currentChapterId: 'chapter-2',
-        currentSegmentId: 'chapter-2-segment-1',
-        readChapterIds: ['chapter-1'],
-        readUntilTextOffset,
-      },
-      spoilerPolicy: selectionAnnotationSpoilerPolicy,
-    });
+  it('keeps read chapters and stops at the read offset for read-so-far', () => {
+    const text = readableText(selectionThreadSpoilerPolicy);
 
-    expect(bundle.articleText).toContain('第二章开头。');
-    expect(bundle.articleText).toContain('第二章已读论证。');
-    expect(bundle.articleText).not.toContain('第二章未读反转。');
-    expect(bundle.articleText).not.toContain('第三章未来剧情。');
+    expect(text).toContain('第一章已经读完。');
+    expect(text).toContain('第二章已读论证。');
+    expect(text).not.toContain('第二章未读反转。');
+    expect(text).not.toContain('第三章未来剧情。');
   });
 
-  it('filters passages and chapter summaries from unread chapters', () => {
-    const { index, text } = bookFixture();
-    const readUntilTextOffset = text.indexOf('第二章未读反转');
-    const bundle = buildReadingContextBundle({
-      articleText: text,
-      ebookIndex: index,
-      readerProgress: {
-        currentChapterId: 'chapter-2',
-        currentSegmentId: 'chapter-2-segment-1',
-        readChapterIds: ['chapter-1'],
-        readUntilTextOffset,
-      },
-      spoilerPolicy: {
-        allowedScope: 'read-so-far',
-        allowFutureChapterEvidence: false,
-        allowFuturePlotEvents: false,
-      },
-      relatedPassages: [
-        {
-          id: 'read',
-          chapterId: 'chapter-1',
-          text: '第一章已经读完。',
-        },
-        {
-          id: 'future',
-          chapterId: 'chapter-3',
-          text: '第三章未来剧情。',
-        },
-      ],
-      chapterSummaries: [
-        {
-          chapterId: 'chapter-1',
-          summary: '第一章摘要。',
-        },
-        {
-          chapterId: 'chapter-3',
-          summary: '第三章剧透摘要。',
-        },
-      ],
+  it('allows the whole book when the user overrides spoiler limits', () => {
+    const text = readableText({
+      allowedScope: 'whole-book',
+      allowFutureChapterEvidence: true,
+      allowFuturePlotEvents: true,
+      userOverride: true,
     });
 
-    expect(bundle.relatedPassages.map((passage) => passage.id)).toEqual(['read']);
-    expect(bundle.chapterSummaries.map((summary) => summary.chapterId)).toEqual(['chapter-1']);
-  });
-
-  it('clips a passage to each allowed range without exposing unread text', () => {
-    const { index, text } = bookFixture();
-    const readUntilTextOffset = text.indexOf('第二章未读反转');
-    const bundle = buildReadingContextBundle({
-      articleText: text,
-      ebookIndex: index,
-      readerProgress: {
-        currentChapterId: 'chapter-2',
-        currentSegmentId: 'chapter-2-segment-1',
-        readChapterIds: ['chapter-1'],
-        readUntilTextOffset,
-      },
-      spoilerPolicy: {
-        allowedScope: 'read-so-far',
-        allowFutureChapterEvidence: false,
-        allowFuturePlotEvents: false,
-      },
-      relatedPassages: [
-        {
-          id: 'cross-chapter',
-          text: text.slice(index.chapters[0].textStart, index.chapters[1].textEnd),
-          textStart: index.chapters[0].textStart,
-          textEnd: index.chapters[1].textEnd,
-        },
-      ],
-    });
-
-    expect(bundle.relatedPassages).toEqual([
-      expect.objectContaining({
-        id: 'cross-chapter',
-        text: '第一章已经读完。\n\n第一章结论。',
-      }),
-      expect.objectContaining({
-        id: 'cross-chapter',
-        text: '第二章开头。\n\n第二章已读论证。',
-      }),
-    ]);
-    expect(bundle.relatedPassages.map((passage) => passage.text).join('\n')).not.toContain(
-      '第二章未读反转。',
-    );
-  });
-
-  it('allows whole-book evidence when the user overrides spoiler limits', () => {
-    const { index, text } = bookFixture();
-    const bundle = buildReadingContextBundle({
-      articleText: text,
-      ebookIndex: index,
-      readerProgress: {
-        currentChapterId: 'chapter-2',
-        currentSegmentId: 'chapter-2-segment-1',
-        readChapterIds: ['chapter-1'],
-        readUntilTextOffset: text.indexOf('第二章未读反转'),
-      },
-      spoilerPolicy: wholeBookSpoilerPolicy,
-      relatedPassages: [
-        {
-          id: 'future',
-          chapterId: 'chapter-3',
-          text: '第三章未来剧情。',
-        },
-      ],
-      chapterSummaries: [
-        {
-          chapterId: 'chapter-3',
-          summary: '第三章剧透摘要。',
-        },
-      ],
-    });
-
-    expect(bundle.articleText).toContain('第三章未来剧情。');
-    expect(bundle.relatedPassages.map((passage) => passage.id)).toEqual(['future']);
-    expect(bundle.chapterSummaries.map((summary) => summary.chapterId)).toEqual(['chapter-3']);
+    expect(text).toContain('第二章未读反转。');
+    expect(text).toContain('第三章未来剧情。');
   });
 });

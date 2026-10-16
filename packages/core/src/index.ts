@@ -74,16 +74,6 @@ export type {
   PreparedEpubTextAnchorResolver,
 } from './epub/ebook-index';
 
-export {
-  buildCurrentChapterLexicalRelatedPassages,
-  createLexicalRelatedPassageCache,
-} from './reader/lexical-related-passages';
-export type {
-  BuildCurrentChapterLexicalRelatedPassagesInput,
-  LexicalRelatedPassageCache,
-  LexicalRelatedPassageScope,
-} from './reader/lexical-related-passages';
-
 export { performanceElapsedMs, performanceStart } from './performance';
 export type { PerformanceTimingLogger } from './performance';
 
@@ -99,22 +89,8 @@ export {
 } from './reader/reading';
 export type { ReadingActivityDay, ReadingStats, ReadingStatsPeriod } from './reader/reading';
 
-export {
-  buildEpubReadingContextScope,
-  buildReadingContextBundle,
-  selectionAnnotationSpoilerPolicy,
-  selectionThreadSpoilerPolicy,
-  wholeBookSpoilerPolicy,
-} from './reader/reading-context';
-export { intersectTextRanges } from './reader/reading-context-ranges';
-export type {
-  BuildReadingContextBundleInput,
-  ReadingContextBundle,
-  ReadingContextChapterSummaryInput,
-  ReadingContextPassageInput,
-  ReadingContextScope,
-  ReadingContextTextRange,
-} from './reader/reading-context';
+export { epubReadableTextRanges, selectionThreadSpoilerPolicy } from './reader/reading-context';
+export type { ReadingContextTextRange } from './reader/reading-context';
 
 export {
   annotationHasPublishedDistillation,
@@ -123,19 +99,14 @@ export {
 } from './reader/reader-annotations';
 export type { TocAnnotationStats } from './reader/reader-annotations';
 
-export { mergeReadingMemory } from './reading-memory/reading-memory-merge';
-
 export { parseReadingMemoryEntryPayload } from './reading-memory/reading-memory-entry-payload';
 export type { ParsedReadingMemoryEntryPayload } from './reading-memory/reading-memory-entry-payload';
 
 export {
   applySupersededEntryFilter,
   normalizeReadingMemoryEntry,
-  readingMemoryAnchorCheckpointEntries,
   readingMemoryEntriesFromAnnotationThread,
-  readingMemoryEntriesFromMemoryDelta,
   readingMemoryEntrySearchText,
-  readingMemoryFromEntries,
 } from './reading-memory/reading-memory-entries';
 
 export {

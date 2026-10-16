@@ -1,27 +1,17 @@
 import type {
-  EpubBookIndex,
   EpubChapterIndex,
   EpubSegmentIndex,
   ReaderProgress,
-  RelatedPassageInput,
   SpoilerPolicy,
   TextAnchor,
 } from '@yomitomo/shared';
-import { prepareEpubBookIndex, type PreparedEpubBookIndex } from '../epub/ebook-index';
+import type { PreparedEpubBookIndex } from '../epub/ebook-index';
 import {
-  createMergedReadingContextRangeLookup,
   mergeReadingContextTextRanges,
-  type ReadingContextRangeLookup,
   type ReadingContextTextRange,
 } from './reading-context-ranges';
 
 export type { ReadingContextTextRange } from './reading-context-ranges';
-
-export const selectionAnnotationSpoilerPolicy: SpoilerPolicy = {
-  allowedScope: 'current-chapter-so-far',
-  allowFutureChapterEvidence: false,
-  allowFuturePlotEvents: false,
-};
 
 export const selectionThreadSpoilerPolicy: SpoilerPolicy = {
   allowedScope: 'read-so-far',
@@ -29,97 +19,23 @@ export const selectionThreadSpoilerPolicy: SpoilerPolicy = {
   allowFuturePlotEvents: false,
 };
 
-export const wholeBookSpoilerPolicy: SpoilerPolicy = {
-  allowedScope: 'whole-book',
-  allowFutureChapterEvidence: true,
-  allowFuturePlotEvents: true,
-  userOverride: true,
-};
-
-export type ReadingContextPassageInput = RelatedPassageInput;
-
-export type ReadingContextChapterSummaryInput = {
-  chapterId: string;
-  title?: string;
-  summary: string;
-  scope?: 'descriptor' | 'summary';
-};
-
-export type BuildReadingContextBundleInput = {
+export type EpubReadableRangeInput = {
   articleText: string;
-  ebookIndex?: EpubBookIndex;
   targetAnchor?: TextAnchor;
   readerProgress?: ReaderProgress;
-  spoilerPolicy?: SpoilerPolicy;
-  relatedPassages?: ReadingContextPassageInput[];
-  chapterSummaries?: ReadingContextChapterSummaryInput[];
-};
-
-export type ReadingContextBundle = {
-  articleText: string;
-  textRanges: ReadingContextTextRange[];
-  readerProgress?: ReaderProgress;
   spoilerPolicy: SpoilerPolicy;
-  relatedPassages: ReadingContextPassageInput[];
-  chapterSummaries: ReadingContextChapterSummaryInput[];
 };
 
-export type ReadingContextScope = Omit<ReadingContextBundle, 'articleText'>;
-
-export function buildReadingContextBundle(
-  input: BuildReadingContextBundleInput,
-): ReadingContextBundle {
-  const policy = input.spoilerPolicy || defaultSpoilerPolicy(input);
-  if (!input.ebookIndex) {
-    const range = { textStart: 0, textEnd: input.articleText.length };
-    return {
-      articleText: input.articleText,
-      textRanges: input.articleText ? [range] : [],
-      readerProgress: input.readerProgress,
-      spoilerPolicy: policy,
-      relatedPassages: input.relatedPassages || [],
-      chapterSummaries: input.chapterSummaries || [],
-    };
-  }
-
-  const prepared = prepareEpubBookIndex(input.ebookIndex);
-  const scope = buildEpubReadingContextScope(prepared, input);
-
-  return {
-    articleText: readingContextText(input.articleText, scope.textRanges),
-    ...scope,
-  };
-}
-
-export function buildEpubReadingContextScope(
+export function epubReadableTextRanges(
   prepared: PreparedEpubBookIndex,
-  input: Omit<BuildReadingContextBundleInput, 'ebookIndex'>,
-): ReadingContextScope {
-  const policy = input.spoilerPolicy || defaultSpoilerPolicy(input);
+  input: EpubReadableRangeInput,
+): ReadingContextTextRange[] {
   const targetRange = resolveTargetRange(prepared, input.articleText, input.targetAnchor);
-  const progress = input.readerProgress || inferReaderProgress(prepared, input.articleText, input);
-  const ranges = mergeReadingContextTextRanges(
-    scopeTextRanges(prepared, progress, targetRange, policy),
+  const progress =
+    input.readerProgress || inferReaderProgress(prepared, input.articleText, input.targetAnchor);
+  return mergeReadingContextTextRanges(
+    scopeTextRanges(prepared, progress, targetRange, input.spoilerPolicy),
   );
-  const rangeLookup = createMergedReadingContextRangeLookup(ranges);
-
-  return {
-    textRanges: ranges,
-    readerProgress: progress,
-    spoilerPolicy: policy,
-    relatedPassages: filterRelatedPassages(
-      prepared,
-      input.articleText,
-      rangeLookup,
-      input.relatedPassages || [],
-    ),
-    chapterSummaries: filterChapterSummaries(prepared, rangeLookup, input.chapterSummaries || []),
-  };
-}
-
-function defaultSpoilerPolicy(input: BuildReadingContextBundleInput): SpoilerPolicy {
-  if (input.targetAnchor) return selectionAnnotationSpoilerPolicy;
-  return wholeBookSpoilerPolicy;
 }
 
 function resolveTargetRange(
@@ -142,9 +58,9 @@ function resolveTargetRange(
 function inferReaderProgress(
   prepared: PreparedEpubBookIndex,
   articleText: string,
-  input: BuildReadingContextBundleInput,
+  anchor: TextAnchor | undefined,
 ): ReaderProgress | undefined {
-  const target = input.targetAnchor ? prepared.locateAnchor(articleText, input.targetAnchor) : null;
+  const target = anchor ? prepared.locateAnchor(articleText, anchor) : null;
   if (!target) return undefined;
   const location = prepared.locateOffset(target.textStart);
   return location
@@ -271,75 +187,6 @@ function filterFutureChapterRanges(
     const chapter = prepared.locateOffset(range.textStart)?.chapter;
     return !chapter || chapter.indexInBook <= current.indexInBook;
   });
-}
-
-function filterRelatedPassages(
-  prepared: PreparedEpubBookIndex,
-  articleText: string,
-  allowedRanges: ReadingContextRangeLookup,
-  passages: ReadingContextPassageInput[],
-): ReadingContextPassageInput[] {
-  return passages.flatMap((passage) => {
-    const range = passageRange(prepared, passage);
-    if (!range) return [];
-
-    const intersections = allowedRanges.intersections(range);
-    if (intersections.length === 0) return [];
-    if (
-      intersections.length === 1 &&
-      intersections[0]?.textStart === range.textStart &&
-      intersections[0].textEnd === range.textEnd
-    ) {
-      return [passage];
-    }
-
-    return intersections.flatMap((item) => {
-      const text = articleText.slice(item.textStart, item.textEnd).trim();
-      return text ? [{ ...passage, text, textStart: item.textStart, textEnd: item.textEnd }] : [];
-    });
-  });
-}
-
-function filterChapterSummaries(
-  prepared: PreparedEpubBookIndex,
-  allowedRanges: ReadingContextRangeLookup,
-  summaries: ReadingContextChapterSummaryInput[],
-) {
-  return summaries.filter((summary) => {
-    if (summary.scope === 'descriptor') return true;
-    const chapter = prepared.chapter(summary.chapterId);
-    return chapter ? allowedRanges.fullyCovers(chapter) : false;
-  });
-}
-
-function passageRange(
-  prepared: PreparedEpubBookIndex,
-  passage: ReadingContextPassageInput,
-): ReadingContextTextRange | null {
-  const textStart = integerValue(passage.textStart);
-  const textEnd = integerValue(passage.textEnd);
-  if (textStart !== null && textEnd !== null && textEnd > textStart) return { textStart, textEnd };
-
-  if (passage.paragraphId) {
-    const paragraph = prepared.paragraph(passage.paragraphId);
-    if (paragraph) return { textStart: paragraph.textStart, textEnd: paragraph.textEnd };
-  }
-  if (passage.segmentId) {
-    const segment = prepared.segment(passage.segmentId);
-    if (segment) return { textStart: segment.textStart, textEnd: segment.textEnd };
-  }
-  if (passage.chapterId) {
-    const chapter = prepared.chapter(passage.chapterId);
-    if (chapter) return { textStart: chapter.textStart, textEnd: chapter.textEnd };
-  }
-  return null;
-}
-
-function readingContextText(articleText: string, ranges: ReadingContextTextRange[]) {
-  return ranges
-    .map((range) => articleText.slice(range.textStart, range.textEnd).trim())
-    .filter(Boolean)
-    .join('\n\n');
 }
 
 function integerValue(value: number | undefined): number | null {

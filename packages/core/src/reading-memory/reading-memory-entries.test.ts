@@ -3,12 +3,9 @@ import type { Annotation, ReadingMemoryEntry } from '@yomitomo/shared';
 import {
   activeReadingMemoryEntries,
   normalizeReadingMemoryEntry,
-  readingMemoryAnchorCheckpointEntries,
   readingMemoryEntriesFromAnnotationThread,
-  readingMemoryEntriesFromMemoryDelta,
   readingMemoryEntryFromAnnotation,
   readingMemoryEntryFromComment,
-  readingMemoryFromEntries,
   readingMemoryEntrySearchText,
 } from './reading-memory-entries';
 import { parseReadingMemoryEntryPayload } from './reading-memory-entry-payload';
@@ -50,7 +47,6 @@ describe('reading memory entries', () => {
 
     expect(normalizeReadingMemoryEntry(futureEntry)).toEqual(futureEntry);
     expect(parseReadingMemoryEntryPayload(futureEntry)).toBeNull();
-    expect(readingMemoryFromEntries([futureEntry])).toBeUndefined();
   });
 
   it('rejects payloads that conflict with their source type', () => {
@@ -114,65 +110,6 @@ describe('reading memory entries', () => {
     expect(text).toBe(
       'agent_observation 助手注意到人物动机变化 medium chapter_segment_annotation 关键原文',
     );
-  });
-
-  it('creates summary and trace entries from reading memory deltas', () => {
-    const entries = readingMemoryEntriesFromMemoryDelta({
-      articleId: 'article_1',
-      agentId: 'agent_1',
-      sourceTaskId: 'task_1',
-      createdAt: '2026-05-26T00:00:00.000Z',
-      current: {
-        updatedAt: '2026-05-26T00:00:00.000Z',
-        textSummaries: [],
-        readingTraces: [],
-      },
-      next: {
-        updatedAt: '2026-05-26T00:00:00.000Z',
-        textSummaries: [
-          {
-            scope: 'segment',
-            chapterId: 'chapter_1',
-            segmentId: 'segment_1',
-            sourceRange: { textStart: 0, textEnd: 100 },
-            summary: '这一段交代人物进入新环境。',
-            keyTerms: ['人物'],
-            updatedAt: '2026-05-26T00:00:00.000Z',
-          },
-        ],
-        readingTraces: [
-          {
-            scope: 'chapter',
-            chapterId: 'chapter_1',
-            agentId: 'agent_1',
-            sourceRange: { textStart: 0, textEnd: 100 },
-            items: [traceItem('注意人物动机')],
-            updatedAt: '2026-05-26T00:00:00.000Z',
-          },
-        ],
-      },
-    });
-
-    expect(entries).toMatchObject([
-      {
-        id: 'task_1_summary_0',
-        articleId: 'article_1',
-        kind: 'summary',
-        scope: 'segment',
-        sourceType: 'ai_task',
-        sourceTaskId: 'task_1',
-        payload: { summary: '这一段交代人物进入新环境。', keyTerms: ['人物'] },
-      },
-      {
-        id: 'task_1_trace_1',
-        articleId: 'article_1',
-        kind: 'trace',
-        scope: 'chapter',
-        sourceType: 'ai_task',
-        sourceTaskId: 'task_1',
-        payload: { items: [traceItem('注意人物动机')] },
-      },
-    ]);
   });
 
   it('creates deterministic memory entries from user annotations', () => {
@@ -275,173 +212,6 @@ describe('reading memory entries', () => {
     ]);
     expect(readingMemoryEntrySearchText(entries[1])).toContain('用户补充自己的想法');
   });
-
-  it('skips unchanged memory facts when building delta entries', () => {
-    const memory = {
-      updatedAt: '2026-05-26T00:00:00.000Z',
-      textSummaries: [
-        {
-          scope: 'segment' as const,
-          chapterId: 'chapter_1',
-          segmentId: 'segment_1',
-          sourceRange: { textStart: 0, textEnd: 100 },
-          summary: '旧摘要',
-          keyTerms: ['旧'],
-          updatedAt: '2026-05-26T00:00:00.000Z',
-        },
-      ],
-      readingTraces: [],
-    };
-
-    expect(
-      readingMemoryEntriesFromMemoryDelta({
-        articleId: 'article_1',
-        sourceTaskId: 'task_1',
-        createdAt: '2026-05-26T00:00:00.000Z',
-        current: memory,
-        next: memory,
-      }),
-    ).toEqual([]);
-  });
-
-  it('projects active summary and trace entries to legacy reading memory', () => {
-    const memory = readingMemoryFromEntries([
-      entry({
-        id: 'summary_1',
-        kind: 'summary',
-        payload: { summary: '投影摘要', keyTerms: ['投影'] },
-      }),
-      entry({
-        id: 'trace_1',
-        kind: 'trace',
-        payload: { items: [traceItem('投影 trace')] },
-        updatedAt: '2026-05-26T01:00:00.000Z',
-      }),
-    ]);
-
-    expect(memory).toEqual({
-      updatedAt: '2026-05-26T01:00:00.000Z',
-      textSummaries: [
-        {
-          scope: 'segment',
-          chapterId: 'chapter_1',
-          segmentId: 'segment_1',
-          sourceRange: { textStart: 0, textEnd: 100 },
-          summary: '投影摘要',
-          keyTerms: ['投影'],
-          updatedAt: '2026-05-26T00:00:00.000Z',
-        },
-      ],
-      readingTraces: [
-        {
-          scope: 'segment',
-          chapterId: 'chapter_1',
-          segmentId: 'segment_1',
-          sourceRange: { textStart: 0, textEnd: 100 },
-          items: [traceItem('投影 trace')],
-          updatedAt: '2026-05-26T01:00:00.000Z',
-        },
-      ],
-    });
-  });
-
-  it('excludes deleted and superseded entries from legacy projection', () => {
-    const memory = readingMemoryFromEntries([
-      entry({ id: 'old', payload: { summary: '旧摘要', keyTerms: [] } }),
-      entry({
-        id: 'deleted',
-        deletedAt: '2026-05-26T01:00:00.000Z',
-        payload: { summary: '删除摘要', keyTerms: [] },
-      }),
-      entry({
-        id: 'new',
-        supersedesEntryId: 'old',
-        payload: { summary: '新摘要', keyTerms: [] },
-      }),
-    ]);
-
-    expect(memory?.textSummaries.map((summary) => summary.summary)).toEqual(['新摘要']);
-  });
-
-  it('creates anchor checkpoint entries for memory facts', () => {
-    const checkpoints = readingMemoryAnchorCheckpointEntries({
-      articleText: '前文。目标句子在这里。后文。',
-      sourceTaskId: 'task_1',
-      createdAt: '2026-05-26T00:00:00.000Z',
-      entries: [
-        entry({
-          id: 'summary_1',
-          textRange: { textStart: 3, textEnd: 11 },
-        }),
-      ],
-    });
-
-    expect(checkpoints).toMatchObject([
-      {
-        id: 'task_1_anchor_0',
-        kind: 'anchor',
-        articleId: 'article_1',
-        sourceEntryIds: ['summary_1'],
-        anchor: {
-          exact: '目标句子在这里。',
-          start: 3,
-          end: 11,
-        },
-        payload: {
-          label: 'summary:segment',
-        },
-      },
-    ]);
-  });
-
-  it('projects correction entries while excluding the superseded fact', () => {
-    const old = entry({
-      id: 'old_trace',
-      kind: 'trace',
-      payload: { items: [traceItem('旧判断')] },
-    });
-    const correction = entry({
-      id: 'correction_1',
-      articleId: 'article_1',
-      kind: 'correction',
-      scope: old.scope,
-      chapterId: old.chapterId,
-      segmentId: old.segmentId,
-      paragraphId: old.paragraphId,
-      textRange: old.textRange,
-      sourceType: 'correction',
-      sourceId: 'correction_1',
-      sourceTaskId: undefined,
-      sourceEntryIds: ['old_trace'],
-      supersedesEntryId: 'old_trace',
-      payload: {
-        reason: '旧判断不成立',
-        replacement: '应理解为人物在试探环境',
-      },
-      createdAt: '2026-05-26T01:00:00.000Z',
-      updatedAt: '2026-05-26T01:00:00.000Z',
-      anchor: {
-        exact: '目标句子',
-        prefix: '',
-        suffix: '',
-        start: 3,
-        end: 7,
-      },
-    });
-
-    expect(correction).toMatchObject({
-      kind: 'correction',
-      sourceType: 'correction',
-      sourceEntryIds: ['old_trace'],
-      supersedesEntryId: 'old_trace',
-    });
-
-    const memory = readingMemoryFromEntries([old, correction]);
-
-    expect(
-      memory?.readingTraces.flatMap((trace) => trace.items.map((item) => item.content)),
-    ).toEqual(['correction：旧判断不成立；replacement：应理解为人物在试探环境']);
-  });
 });
 
 function entry(overrides: Partial<ReadingMemoryEntry> = {}): ReadingMemoryEntry {
@@ -465,16 +235,6 @@ function entry(overrides: Partial<ReadingMemoryEntry> = {}): ReadingMemoryEntry 
     createdAt: '2026-05-26T00:00:00.000Z',
     updatedAt: '2026-05-26T00:00:00.000Z',
     ...overrides,
-  };
-}
-
-function traceItem(content: string) {
-  return {
-    type: 'agent_observation' as const,
-    content,
-    evidenceAnchors: [],
-    confidence: 'medium' as const,
-    createdFromTask: 'chapter_segment_annotation',
   };
 }
 
