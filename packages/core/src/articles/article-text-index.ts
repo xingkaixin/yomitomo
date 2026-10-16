@@ -1,9 +1,5 @@
 import type { ArticleTextSection, ArticleTextSnapshot } from '@yomitomo/shared';
-import {
-  lexicalDocument,
-  rankLexicalDocuments,
-  type LexicalDocument,
-} from '../reader/lexical-related-passages';
+import { lexicalDocument, rankLexicalDocuments, type LexicalDocument } from './lexical-ranking';
 import {
   createMergedReadingContextRangeLookup,
   mergeReadingContextTextRanges,

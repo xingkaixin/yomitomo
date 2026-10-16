@@ -5,19 +5,7 @@ export type ReadingContextTextRange = {
 
 export type ReadingContextRangeLookup = {
   intersections(target: ReadingContextTextRange): ReadingContextTextRange[];
-  fullyCovers(target: ReadingContextTextRange): boolean;
 };
-
-export function intersectTextRanges(
-  ranges: ReadingContextTextRange[],
-  target: ReadingContextTextRange,
-) {
-  return ranges.flatMap((range) => {
-    const textStart = Math.max(range.textStart, target.textStart);
-    const textEnd = Math.min(range.textEnd, target.textEnd);
-    return textEnd > textStart ? [{ textStart, textEnd }] : [];
-  });
-}
 
 export function mergeReadingContextTextRanges(
   ranges: ReadingContextTextRange[],
@@ -45,12 +33,6 @@ export function createMergedReadingContextRangeLookup(
 ): ReadingContextRangeLookup {
   return {
     intersections: (target) => intersectSortedRanges(ranges, target),
-    fullyCovers: (target) => {
-      const index = firstRangeEndingAfter(ranges, target.textStart);
-      if (index >= ranges.length) return false;
-      const range = ranges[index];
-      return range.textStart <= target.textStart && range.textEnd >= target.textEnd;
-    },
   };
 }
 

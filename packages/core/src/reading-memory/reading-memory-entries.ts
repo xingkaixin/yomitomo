@@ -1,21 +1,15 @@
 import type {
   Annotation,
   Comment,
-  EpubBookIndex,
-  ReadingMemory,
   ReadingMemoryEntry,
   ReadingMemoryEntryKind,
   ReadingMemoryScope,
   ReadingMemorySourceType,
   ReadingMemoryVisibility,
-  ReadingTrace,
   TextAnchor,
-  TextSummary,
   TextRange,
 } from '@yomitomo/shared';
-import { createTextAnchor, uniqueTrimmedStrings } from '@yomitomo/shared';
-import { createEpubTextAnchor } from '../epub/ebook-index';
-import { parseReadingMemoryEntryPayload } from './reading-memory-entry-payload';
+import { uniqueTrimmedStrings } from '@yomitomo/shared';
 
 const ENTRY_KINDS = new Set<ReadingMemoryEntryKind>([
   'summary',
@@ -85,39 +79,6 @@ export function readingMemoryEntrySearchText(entry: ReadingMemoryEntry) {
   const parts = collectSearchTextParts(entry.payload);
   if (entry.anchor?.exact) parts.push(entry.anchor.exact);
   return compactSearchText(parts.join(' '));
-}
-
-export function readingMemoryEntriesFromMemoryDelta(input: {
-  articleId: string;
-  agentId?: string;
-  sourceTaskId: string;
-  createdAt: string;
-  current?: ReadingMemory;
-  next?: ReadingMemory;
-}): ReadingMemoryEntry[] {
-  const next = input.next;
-  if (!next) return [];
-  const entries: ReadingMemoryEntry[] = [];
-  const currentSummaries = new Map(
-    (input.current?.textSummaries || []).map((summary) => [textSummaryKey(summary), summary]),
-  );
-  const currentTraces = new Map(
-    (input.current?.readingTraces || []).map((trace) => [readingTraceKey(trace), trace]),
-  );
-
-  for (const summary of next.textSummaries || []) {
-    const previous = currentSummaries.get(textSummaryKey(summary));
-    if (previous && JSON.stringify(previous) === JSON.stringify(summary)) continue;
-    entries.push(summaryEntry(input, summary, entries.length));
-  }
-
-  for (const trace of next.readingTraces || []) {
-    const previous = currentTraces.get(readingTraceKey(trace));
-    if (previous && JSON.stringify(previous) === JSON.stringify(trace)) continue;
-    entries.push(traceEntry(input, trace, entries.length));
-  }
-
-  return entries;
 }
 
 export function readingMemoryEntryFromAnnotation(input: {
@@ -233,87 +194,6 @@ export function readingMemoryEntriesFromAnnotationThread(input: {
   return annotationEntry ? [annotationEntry, ...commentEntries] : commentEntries;
 }
 
-export function readingMemoryAnchorCheckpointEntries(input: {
-  articleText: string;
-  ebookIndex?: EpubBookIndex;
-  sourceTaskId: string;
-  createdAt: string;
-  entries: ReadingMemoryEntry[];
-}): ReadingMemoryEntry[] {
-  const checkpoints: ReadingMemoryEntry[] = [];
-  const seen = new Set<string>();
-
-  for (const entry of input.entries) {
-    if (!entry.textRange) continue;
-    const anchor = anchorForEntry(input.articleText, input.ebookIndex, entry.textRange);
-    if (!anchor) continue;
-    const key = [
-      entry.articleId,
-      entry.scope,
-      entry.chapterId || '',
-      entry.segmentId || '',
-      anchor.start,
-      anchor.end,
-      anchor.quoteHash || anchor.exact,
-    ].join(':');
-    if (seen.has(key)) continue;
-    seen.add(key);
-
-    checkpoints.push({
-      id: `${input.sourceTaskId}_anchor_${checkpoints.length}`,
-      articleId: entry.articleId,
-      kind: 'anchor',
-      scope: entry.scope,
-      visibility: 'default',
-      payloadVersion: 1,
-      chapterId: entry.chapterId || anchor.chapterId,
-      segmentId: entry.segmentId || anchor.segmentId,
-      paragraphId: entry.paragraphId || anchor.paragraphId,
-      textRange: entry.textRange,
-      agentId: entry.agentId,
-      sourceType: entry.sourceType,
-      sourceId: entry.sourceId,
-      sourceAnnotationId: entry.sourceAnnotationId,
-      sourceCommentId: entry.sourceCommentId,
-      sourceTaskId: entry.sourceTaskId,
-      sourceEntryIds: [entry.id],
-      anchor,
-      payload: {
-        anchor,
-        label: `${entry.kind}:${entry.scope}`,
-      },
-      createdAt: input.createdAt,
-      updatedAt: input.createdAt,
-    });
-  }
-
-  return checkpoints;
-}
-
-export function readingMemoryFromEntries(entries: ReadingMemoryEntry[]): ReadingMemory | undefined {
-  const activeEntries = activeReadingMemoryEntries(entries);
-  if (activeEntries.length === 0) return undefined;
-
-  const projectedEntries: ReadingMemoryEntry[] = [];
-  const textSummaries = activeEntries.flatMap((entry) => {
-    const summary = textSummaryFromEntry(entry);
-    if (summary) projectedEntries.push(entry);
-    return summary ? [summary] : [];
-  });
-  const readingTraces = activeEntries.flatMap((entry) => {
-    const trace = readingTraceFromEntry(entry) || correctionTraceFromEntry(entry);
-    if (trace) projectedEntries.push(entry);
-    return trace ? [trace] : [];
-  });
-  if (textSummaries.length === 0 && readingTraces.length === 0) return undefined;
-
-  return {
-    textSummaries,
-    readingTraces,
-    updatedAt: latestUpdatedAt(projectedEntries),
-  };
-}
-
 function normalizeTextRange(range: TextRange | undefined) {
   if (!range) return undefined;
   if (!Number.isInteger(range.textStart) || !Number.isInteger(range.textEnd)) return null;
@@ -337,19 +217,6 @@ function compactSearchText(text: string) {
   return text.replace(/\s+/g, ' ').trim();
 }
 
-function anchorForEntry(
-  articleText: string,
-  ebookIndex: EpubBookIndex | undefined,
-  range: TextRange,
-): TextAnchor | null {
-  if (range.textStart < 0 || range.textEnd > articleText.length) return null;
-  if (range.textEnd <= range.textStart) return null;
-  const anchor = ebookIndex
-    ? createEpubTextAnchor(ebookIndex, articleText, range.textStart, range.textEnd)
-    : createTextAnchor(articleText, range.textStart, range.textEnd);
-  return anchor.exact.trim() ? anchor : null;
-}
-
 function anchorTextRange(anchor: TextAnchor): TextRange | undefined {
   const textStart = anchor.textStartInBook ?? anchor.start;
   const textEnd = anchor.textEndInBook ?? anchor.end;
@@ -364,182 +231,4 @@ function annotationMemoryEntryId(annotationId: string) {
 
 function commentMemoryEntryId(commentId: string) {
   return `comment_memory_${commentId}`;
-}
-
-function textSummaryFromEntry(entry: ReadingMemoryEntry): TextSummary | null {
-  if (!entry.textRange) return null;
-  if (entry.scope !== 'segment' && entry.scope !== 'chapter' && entry.scope !== 'book') {
-    return null;
-  }
-  const parsed = parseReadingMemoryEntryPayload(entry);
-  if (parsed?.type !== 'summary') return null;
-  return {
-    scope: entry.scope,
-    chapterId: entry.chapterId,
-    segmentId: entry.segmentId,
-    sourceRange: entry.textRange,
-    summary: parsed.payload.summary,
-    keyTerms: parsed.payload.keyTerms,
-    updatedAt: entry.updatedAt,
-  };
-}
-
-function readingTraceFromEntry(entry: ReadingMemoryEntry): ReadingTrace | null {
-  if (
-    entry.scope !== 'segment' &&
-    entry.scope !== 'chapter' &&
-    entry.scope !== 'agent' &&
-    entry.scope !== 'reader'
-  ) {
-    return null;
-  }
-  const parsed = parseReadingMemoryEntryPayload(entry);
-  if (parsed?.type !== 'trace') return null;
-  return {
-    scope: entry.scope,
-    chapterId: entry.chapterId,
-    segmentId: entry.segmentId,
-    sourceRange: entry.textRange,
-    agentId: entry.agentId,
-    items: parsed.payload.items,
-    updatedAt: entry.updatedAt,
-  };
-}
-
-function correctionTraceFromEntry(entry: ReadingMemoryEntry): ReadingTrace | null {
-  if (
-    entry.scope !== 'segment' &&
-    entry.scope !== 'chapter' &&
-    entry.scope !== 'agent' &&
-    entry.scope !== 'reader'
-  ) {
-    return null;
-  }
-  const parsed = parseReadingMemoryEntryPayload(entry);
-  if (parsed?.type !== 'correction') return null;
-  const replacementText =
-    parsed.payload.replacement === undefined
-      ? ''
-      : `；replacement：${stringifyCorrectionReplacement(parsed.payload.replacement)}`;
-  return {
-    scope: entry.scope,
-    chapterId: entry.chapterId,
-    segmentId: entry.segmentId,
-    sourceRange: entry.textRange,
-    agentId: entry.agentId,
-    items: [
-      {
-        type: 'reader_interest',
-        content: `correction：${parsed.payload.reason}${replacementText}`,
-        evidenceAnchors: entry.anchor ? [entry.anchor] : [],
-        confidence: 'high',
-        createdFromTask: 'memory_correction',
-      },
-    ],
-    updatedAt: entry.updatedAt,
-  };
-}
-
-function stringifyCorrectionReplacement(value: unknown) {
-  if (typeof value === 'string') return value;
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
-}
-
-function latestUpdatedAt(entries: ReadingMemoryEntry[]) {
-  return entries.reduce((latest, entry) => {
-    if (!latest || entry.updatedAt > latest) return entry.updatedAt;
-    return latest;
-  }, '');
-}
-
-function summaryEntry(
-  input: {
-    articleId: string;
-    agentId?: string;
-    sourceTaskId: string;
-    createdAt: string;
-  },
-  summary: TextSummary,
-  index: number,
-): ReadingMemoryEntry {
-  return {
-    id: `${input.sourceTaskId}_summary_${index}`,
-    articleId: input.articleId,
-    kind: 'summary',
-    scope: summary.scope,
-    visibility: 'default',
-    payloadVersion: 1,
-    chapterId: summary.chapterId,
-    segmentId: summary.segmentId,
-    textRange: summary.sourceRange,
-    agentId: input.agentId,
-    sourceType: 'ai_task',
-    sourceId: input.sourceTaskId,
-    sourceTaskId: input.sourceTaskId,
-    sourceEntryIds: [],
-    payload: {
-      summary: summary.summary,
-      keyTerms: summary.keyTerms,
-    },
-    createdAt: input.createdAt,
-    updatedAt: input.createdAt,
-  };
-}
-
-function traceEntry(
-  input: {
-    articleId: string;
-    agentId?: string;
-    sourceTaskId: string;
-    createdAt: string;
-  },
-  trace: ReadingTrace,
-  index: number,
-): ReadingMemoryEntry {
-  return {
-    id: `${input.sourceTaskId}_trace_${index}`,
-    articleId: input.articleId,
-    kind: 'trace',
-    scope: trace.scope,
-    visibility: 'default',
-    payloadVersion: 1,
-    chapterId: trace.chapterId,
-    segmentId: trace.segmentId,
-    textRange: trace.sourceRange,
-    agentId: trace.agentId || input.agentId,
-    sourceType: 'ai_task',
-    sourceId: input.sourceTaskId,
-    sourceTaskId: input.sourceTaskId,
-    sourceEntryIds: [],
-    payload: {
-      items: trace.items,
-    },
-    createdAt: input.createdAt,
-    updatedAt: input.createdAt,
-  };
-}
-
-function textSummaryKey(summary: TextSummary) {
-  return [
-    summary.scope,
-    summary.chapterId || '',
-    summary.segmentId || '',
-    summary.sourceRange.textStart,
-    summary.sourceRange.textEnd,
-  ].join(':');
-}
-
-function readingTraceKey(trace: ReadingTrace) {
-  return [
-    trace.scope,
-    trace.chapterId || '',
-    trace.segmentId || '',
-    trace.agentId || '',
-    trace.sourceRange?.textStart ?? '',
-    trace.sourceRange?.textEnd ?? '',
-  ].join(':');
 }
