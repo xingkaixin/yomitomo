@@ -8,18 +8,22 @@ export {
   translateBilingualArticleBlocksEffect,
 } from './translation/bilingual-translation';
 export { planAgentMentionRoute } from './agent/annotation-metadata';
-export {
-  runAgentDistillationReviewStructuredStream,
-  type AgentMessageReadingContextSnapshot,
-} from './agent/agent-message';
-export type { ReadingEvidence } from './agent/agent-message-reading-context';
-export { runAgentAnnotateStream } from './agent/agent-annotation';
 export { buildChannelAgentInstructions } from './agent/agent-channel-prompt';
+export {
+  buildDistillationReviewInput,
+  buildDistillationReviewInstructions,
+  DISTILLATION_REVIEW_TOOL,
+  distillationReviewItemParameters,
+} from './agent/agent-distillation-review';
+export {
+  distillationReviewContentFromItems,
+  distillationReviewProposalsFromItems,
+  parseDistillationReviewItem,
+} from './assistant/distillation-review-items';
 export {
   piModelRef,
   piProviderFor,
   piThinkingLevel,
   type PiModelRef,
 } from './provider/pi-provider';
-export { runAgentReview } from './agent/agent-review';
 export { runReadingJudgment } from './reading-memory/reading-judgment';

@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   Agent,
-  AgentAnnotatePayload,
   AgentDistillationReviewPayload,
   AgentMessagePayload,
   Annotation,
@@ -9,10 +8,8 @@ import type {
   LlmProvider,
 } from '@yomitomo/shared';
 import type { AssistantExecutionRunInput } from '../assistant/assistant-execution-repository';
-import type { AgentReadingMemoryPort } from './agent-reading-memory';
 
 import {
-  executeAgentAnnotationTask,
   executeAgentDistillationReviewTask,
   type AgentTaskExecutionContext,
 } from './agent-task-execution';
@@ -22,56 +19,41 @@ beforeEach(() => {
 });
 
 describe('executeAgentDistillationReviewTask', () => {
-  it('loads AI before persistence for a review task', async () => {
+  it('streams review items from the assistant session and records the run', async () => {
     const reviewAgent = agent({ id: 'review_1', kind: 'review', username: 'reviewer' });
     const fixture = taskFixture({ agents: [reviewAgent] });
-    const order: string[] = [];
-    fixture.getPersistenceModules.mockImplementation(async () => {
-      order.push('persistence');
-      return fixture.persistence;
+    const item = {
+      id: 'item_1',
+      type: 'overview' as const,
+      stance: 'mixed' as const,
+      content: 'ok',
+    };
+    fixture.runDistillationReview.mockImplementation(async (request) => {
+      request.onItem(item);
+      return { items: [item], content: 'review result', proposals: [] };
     });
-    fixture.getAiModule.mockImplementation(async () => {
-      order.push('ai');
-      return fixture.ai as unknown as TaskAiModule;
-    });
-    fixture.ai.runAgentDistillationReviewStructuredStream.mockResolvedValue(
-      reviewMessage(reviewAgent),
-    );
-
-    await executeAgentDistillationReviewTask(fixture.context, reviewPayload(reviewAgent), vi.fn());
-
-    expect(order.slice(0, 2)).toEqual(['ai', 'persistence']);
-  });
-
-  it('runs structured fast review behind the task interface', async () => {
-    const reviewAgent = agent({ id: 'review_1', kind: 'review', username: 'reviewer' });
-    const fixture = taskFixture({ agents: [reviewAgent] });
-    fixture.ai.runAgentDistillationReviewStructuredStream.mockResolvedValue(
-      reviewMessage(reviewAgent),
-    );
     const events: unknown[] = [];
 
     const result = await executeAgentDistillationReviewTask(
       fixture.context,
-      {
-        ...messagePayload(),
-        agentId: reviewAgent.id,
-        agentUsername: reviewAgent.username,
-        responseMode: 'distillation_review',
-      },
+      reviewPayload(reviewAgent),
       (event) => events.push(event),
     );
 
-    expect(result).toMatchObject({ content: 'review result', author: agentAuthor(reviewAgent) });
+    expect(fixture.runDistillationReview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        articleId: 'article_1',
+        resolved: expect.objectContaining({ agent: reviewAgent, uiLanguage: 'zh-CN' }),
+      }),
+    );
+    expect(result).toMatchObject({
+      content: 'review result',
+      items: [item],
+      author: agentAuthor(reviewAgent),
+    });
     expect(events).toEqual([
-      {
-        type: 'start',
-        message: expect.objectContaining({
-          author: expect.objectContaining({
-            ...agentAuthor(reviewAgent),
-          }),
-        }),
-      },
+      { type: 'start', message: expect.objectContaining({ author: agentAuthor(reviewAgent) }) },
+      { type: 'item', item },
     ]);
     await expectExecutionRecorded(fixture, {
       taskType: 'distillation_review',
@@ -79,17 +61,15 @@ describe('executeAgentDistillationReviewTask', () => {
     });
   });
 
-  it('forwards fast review cancellation and does not record a cancelled fallback', async () => {
+  it('forwards cancellation and does not record a cancelled review', async () => {
     const reviewAgent = agent({ id: 'review_1', kind: 'review', username: 'reviewer' });
     const fixture = taskFixture({ agents: [reviewAgent] });
     const controller = new AbortController();
-    fixture.ai.runAgentDistillationReviewStructuredStream.mockImplementation(
-      async (_provider, _agent, _payload, _onItem, options) => {
-        expect(options?.signal).toBe(controller.signal);
-        controller.abort();
-        return reviewMessage(reviewAgent);
-      },
-    );
+    fixture.runDistillationReview.mockImplementation(async (request) => {
+      expect(request.signal).toBe(controller.signal);
+      controller.abort();
+      return { items: [], content: '', proposals: [] };
+    });
 
     await expect(
       executeAgentDistillationReviewTask(
@@ -101,106 +81,8 @@ describe('executeAgentDistillationReviewTask', () => {
     ).rejects.toThrow('AGENT_TASK_CANCELLED');
 
     expect(fixture.recorder.recordFastExecution).not.toHaveBeenCalled();
-    expect(executionRows(fixture)).toHaveLength(0);
   });
 });
-
-describe('executeAgentAnnotationTask', () => {
-  it('loads AI before persistence for an annotation task', async () => {
-    const fixture = taskFixture();
-    const order: string[] = [];
-    fixture.getPersistenceModules.mockImplementation(async () => {
-      order.push('persistence');
-      return fixture.persistence;
-    });
-    fixture.getAiModule.mockImplementation(async () => {
-      order.push('ai');
-      return fixture.ai as unknown as TaskAiModule;
-    });
-    fixture.ai.runAgentAnnotateStream.mockResolvedValue({ annotations: [] });
-
-    await executeAgentAnnotationTask(fixture.context, annotatePayload(), vi.fn());
-
-    expect(order.slice(0, 2)).toEqual(['ai', 'persistence']);
-  });
-
-  it('owns memory preparation, item streaming, and usage recording', async () => {
-    const fixture = taskFixture();
-    const generatedAnnotation = annotation({
-      id: 'annotation_generated',
-      author: { kind: 'agent', agentId: 'agent_1', username: 'agent' },
-    });
-    fixture.ai.runAgentAnnotateStream.mockImplementation(
-      async (_provider, _agent, _payload, onAnnotation) => {
-        onAnnotation(generatedAnnotation);
-        return {
-          annotations: [generatedAnnotation],
-          usage: { inputTokens: 12, outputTokens: 4, totalTokens: 16 },
-        };
-      },
-    );
-    const events: unknown[] = [];
-
-    const result = await executeAgentAnnotationTask(fixture.context, annotatePayload(), (event) =>
-      events.push(event),
-    );
-
-    expect(result.annotations).toEqual([generatedAnnotation]);
-    expect(events).toEqual([{ type: 'start' }, { type: 'item', annotation: generatedAnnotation }]);
-    expect(fixture.readingMemory.saveAnnotateEntries).toHaveBeenCalledOnce();
-    await expectExecutionRecorded(fixture, {
-      taskType: 'annotation',
-      effectiveMode: 'fast_response',
-      usage: { inputTokens: 12, outputTokens: 4, totalTokens: 16 },
-    });
-  });
-
-  it('does not write memory or execution when cancelled before AI resolution', async () => {
-    const fixture = taskFixture();
-    const controller = new AbortController();
-    let resolveAi: ((value: TaskAiModule) => void) | undefined;
-    fixture.getAiModule.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolveAi = resolve;
-        }),
-    );
-
-    const task = executeAgentAnnotationTask(
-      fixture.context,
-      annotatePayload(),
-      vi.fn(),
-      controller.signal,
-    );
-    controller.abort();
-    resolveAi?.(fixture.ai as unknown as TaskAiModule);
-
-    await expect(task).rejects.toThrow('AGENT_TASK_CANCELLED');
-
-    expect(fixture.readingMemory.enrichAnnotatePayload).not.toHaveBeenCalled();
-    expect(fixture.readingMemory.saveAnnotateEntries).not.toHaveBeenCalled();
-    expect(executionRows(fixture)).toHaveLength(0);
-  });
-
-  it('does not write memory or execution when cancelled after annotation generation', async () => {
-    const fixture = taskFixture();
-    const controller = new AbortController();
-    fixture.ai.runAgentAnnotateStream.mockImplementation(async () => {
-      controller.abort();
-      return { annotations: [] };
-    });
-
-    await expect(
-      executeAgentAnnotationTask(fixture.context, annotatePayload(), vi.fn(), controller.signal),
-    ).rejects.toThrow('AGENT_TASK_CANCELLED');
-
-    expect(fixture.readingMemory.saveAnnotateEntries).not.toHaveBeenCalled();
-    expect(fixture.recorder.recordFastExecution).not.toHaveBeenCalled();
-    expect(executionRows(fixture)).toHaveLength(0);
-  });
-});
-
-type TaskAiModule = Awaited<ReturnType<AgentTaskExecutionContext['getAiModule']>>;
 
 function taskFixture(
   overrides: {
@@ -210,22 +92,11 @@ function taskFixture(
   } = {},
 ) {
   const store = storeWith(overrides);
-  const ai = {
-    runAgentAnnotateStream: vi.fn(),
-    runAgentDistillationReviewStructuredStream: vi.fn(),
-  } as unknown as { [Key in keyof TaskAiModule]: ReturnType<typeof vi.fn> };
   const executionRuns: AssistantExecutionRunInput[] = [];
   const recorder = {
     recordFastExecution: vi.fn((input: AssistantExecutionRunInput) => {
       executionRuns.push(input);
     }),
-  };
-  const readingMemory = {
-    executor: readingMemoryExecutor(),
-    enrichAnnotatePayload: vi.fn((payload: AgentAnnotatePayload) => payload),
-    enrichMessagePayload: vi.fn((payload: AgentMessagePayload) => payload),
-    saveAnnotateEntries: vi.fn(),
-    createMessageReadingContextSnapshot: vi.fn(),
   };
   const persistence = {
     storeAgents: {
@@ -235,27 +106,16 @@ function taskFixture(
       hydrateProviderApiKey: vi.fn(async (provider: LlmProvider) => provider),
     },
   };
-  const getAiModule = vi.fn(async () => ai as unknown as TaskAiModule);
-  const getPersistenceModules = vi.fn(async () => persistence);
+  const runDistillationReview = vi.fn<AgentTaskExecutionContext['runDistillationReview']>();
   const context: AgentTaskExecutionContext = {
     elapsedMs: () => 12,
-    getAiModule,
-    getPersistenceModules,
+    getPersistenceModules: vi.fn(async () => persistence),
     logError: vi.fn(),
     logInfo: vi.fn(),
     recorder,
-    readingMemory: readingMemory as AgentReadingMemoryPort,
+    runDistillationReview,
   };
-  return {
-    ai,
-    context,
-    executionRuns,
-    getAiModule,
-    getPersistenceModules,
-    persistence,
-    readingMemory,
-    recorder,
-  };
+  return { context, executionRuns, recorder, runDistillationReview };
 }
 
 async function expectExecutionRecorded(
@@ -271,30 +131,12 @@ function executionRows(fixture: ReturnType<typeof taskFixture>) {
   return fixture.executionRuns;
 }
 
-function readingMemoryExecutor(): AgentReadingMemoryPort['executor'] {
-  return {
-    exec: vi.fn(),
-    prepare: vi.fn(),
-  } as unknown as AgentReadingMemoryPort['executor'];
-}
-
 function reviewPayload(reviewAgent: Agent): AgentDistillationReviewPayload {
   return {
     ...messagePayload(),
     agentId: reviewAgent.id,
     agentUsername: reviewAgent.username,
     responseMode: 'distillation_review',
-  };
-}
-
-function reviewMessage(reviewAgent: Agent) {
-  return {
-    id: '',
-    author: { kind: 'agent' as const, agentId: reviewAgent.id, username: reviewAgent.username },
-    content: 'review result',
-    createdAt: '2026-07-18T00:00:00.000Z',
-    items: [],
-    proposals: [],
   };
 }
 
@@ -376,19 +218,6 @@ function messagePayload(): AgentMessagePayload {
       author: { kind: 'user', userId: 'user_1', username: 'reader' },
       content: 'question',
       createdAt: '2026-07-18T00:00:00.000Z',
-    },
-  };
-}
-
-function annotatePayload(): AgentAnnotatePayload {
-  return {
-    agentId: 'agent_1',
-    agentUsername: 'agent',
-    article: {
-      id: 'article_1',
-      title: 'Article',
-      url: 'https://example.com/article',
-      text: 'Article text',
     },
   };
 }

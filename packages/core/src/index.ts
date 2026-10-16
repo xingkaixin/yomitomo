@@ -5,7 +5,6 @@ export {
   annotationAuthorName,
   annotationPersona,
   annotationPrimaryComment,
-  annotationToPublicAgent,
   annotationTypeLabel,
   appendAnnotationComment,
   commentPersona,
@@ -23,10 +22,6 @@ export type {
   CreateUserAnnotationOptions,
   MentionQuery,
 } from './reader/annotations';
-export {
-  mergeAgentAnnotationAsThought,
-  type MergedAgentAnnotationResult,
-} from './reader/agent-annotations';
 
 export type { ArticleImageInlineOptions, ImageFetcher } from './articles/article-images';
 
@@ -107,13 +102,11 @@ export type { ReadingActivityDay, ReadingStats, ReadingStatsPeriod } from './rea
 export {
   buildEpubReadingContextScope,
   buildReadingContextBundle,
-  readingContextTextForRange,
-  segmentAnnotationSpoilerPolicy,
   selectionAnnotationSpoilerPolicy,
   selectionThreadSpoilerPolicy,
   wholeBookSpoilerPolicy,
 } from './reader/reading-context';
-export { intersectTextRanges, rangeDistance } from './reader/reading-context-ranges';
+export { intersectTextRanges } from './reader/reading-context-ranges';
 export type {
   BuildReadingContextBundleInput,
   ReadingContextBundle,
@@ -144,12 +137,6 @@ export {
   readingMemoryEntrySearchText,
   readingMemoryFromEntries,
 } from './reading-memory/reading-memory-entries';
-
-export {
-  readingMemoryViewRequestForAnnotatePayload,
-  readingMemoryViewRequestForMessagePayload,
-} from './reading-memory/reading-memory-view-request';
-export type { ReadingMemoryViewRequest } from './reading-memory/reading-memory-view-request';
 
 export {
   materializeReadingEvidence,
@@ -184,7 +171,6 @@ export {
   annotationIdsAtHighlightPoint,
   articleTitleTocItems,
   buildHighlightSegments,
-  cursorPositionFromOffset,
   extractTocItems,
   findCurrentTocTarget,
   findTocTargets,

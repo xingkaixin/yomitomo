@@ -24,6 +24,7 @@ import { readAgentRuntimeContext } from '../store/store-agents';
 import { getDatabase } from '../store/store-db';
 import { createAssistantChannelRuntime } from './assistant-channel-runtime';
 import { createAssistantChannelSources } from './assistant-channel-sources';
+import { createDistillationReview } from './assistant-distillation-review';
 import { assistantArticleTexts, sessionDirectory } from './assistant-session-lifecycle';
 import { pendingMarkerPath } from './assistant-session-files';
 import { createAssistantReadingExtension } from './assistant-reading-extension';
@@ -58,29 +59,33 @@ export async function disposeAssistantSessions() {
 function createAssistantSessions(host: AssistantSessionHost) {
   const models = createModels();
   const registry = createRegistry();
-  registry.install(
-    createAssistantReadingExtension({
-      articleText: (articleId) => assistantArticleTexts.load(articleId),
-      searchMemory: (input) =>
-        searchReadingMemoryEntries({
-          ...input,
-          visibility: ['default'],
-          fallbackToSubstring: true,
-        }),
-      annotations: (articleId) => readArticleAnnotations(getDatabase(), articleId),
-      agentName: (agentId) => {
-        const row = getDatabase()
-          .select({ nickname: schema.agents.nickname, username: schema.agents.username })
-          .from(schema.agents)
-          .where(eq(schema.agents.id, agentId))
-          .get();
-        return row ? row.nickname || row.username : undefined;
-      },
-    }),
-  );
+  const reading = createAssistantReadingExtension({
+    articleText: (articleId) => assistantArticleTexts.load(articleId),
+    searchMemory: (input) =>
+      searchReadingMemoryEntries({
+        ...input,
+        visibility: ['default'],
+        fallbackToSubstring: true,
+      }),
+    annotations: (articleId) => readArticleAnnotations(getDatabase(), articleId),
+    agentName: (agentId) => {
+      const row = getDatabase()
+        .select({ nickname: schema.agents.nickname, username: schema.agents.username })
+        .from(schema.agents)
+        .where(eq(schema.agents.id, agentId))
+        .get();
+      return row ? row.nickname || row.username : undefined;
+    },
+  });
+  registry.install(reading);
   const store = createAssistantSessionStore({
     directory: sessionDirectory(),
-    harnessOptions: () => ({ models, registry, settings, onReport: reportHarnessError }),
+    harnessOptions: () => ({
+      models,
+      registry,
+      settings: { ...settings, extensions: [reading] },
+      onReport: reportHarnessError,
+    }),
     onOpen: (articleId, harness) => runtime.resume(articleId, harness),
     logError,
   });
@@ -90,25 +95,7 @@ function createAssistantSessions(host: AssistantSessionHost) {
     articleText: (articleId) => assistantArticleTexts.load(articleId),
     resolveAgent,
     ...createAssistantChannelSources(host.publishArticlePatch),
-    articleMeta: (articleId) => {
-      const row = getDatabase()
-        .select({
-          title: schema.articles.title,
-          readingProgress: schema.articles.readingProgress,
-          ebookIndex: schema.articleBodies.ebookIndex,
-        })
-        .from(schema.articles)
-        .leftJoin(schema.articleBodies, eq(schema.articleBodies.articleId, schema.articles.id))
-        .where(eq(schema.articles.id, articleId))
-        .get();
-      return row
-        ? {
-            title: row.title,
-            ebookIndex: (row.ebookIndex as EpubBookIndex | null) ?? undefined,
-            readingProgress: (row.readingProgress as ArticleReadingProgress | null) ?? undefined,
-          }
-        : undefined;
-    },
+    articleMeta: runtimeArticleMeta,
     publishRun: host.publishRun,
     markPending: async (articleId, pending) => {
       const path = pendingMarkerPath(sessionDirectory(), articleId);
@@ -116,7 +103,34 @@ function createAssistantSessions(host: AssistantSessionHost) {
     },
     logError,
   });
-  return { models, registry, store, runtime };
+  const distillationReview = createDistillationReview({
+    store,
+    articleText: (articleId) => assistantArticleTexts.load(articleId),
+    articleMeta: runtimeArticleMeta,
+    registerProvider: runtime.registerProvider,
+  });
+  registry.install(distillationReview.extension);
+  return { models, registry, store, runtime, distillationReview };
+}
+
+function runtimeArticleMeta(articleId: string) {
+  const row = getDatabase()
+    .select({
+      title: schema.articles.title,
+      readingProgress: schema.articles.readingProgress,
+      ebookIndex: schema.articleBodies.ebookIndex,
+    })
+    .from(schema.articles)
+    .leftJoin(schema.articleBodies, eq(schema.articleBodies.articleId, schema.articles.id))
+    .where(eq(schema.articles.id, articleId))
+    .get();
+  return row
+    ? {
+        title: row.title,
+        ebookIndex: (row.ebookIndex as EpubBookIndex | null) ?? undefined,
+        readingProgress: (row.readingProgress as ArticleReadingProgress | null) ?? undefined,
+      }
+    : undefined;
 }
 
 async function resolveAgent(agentId: string, allowDisabled: boolean) {

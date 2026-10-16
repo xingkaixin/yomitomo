@@ -528,12 +528,13 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
   return {
     deliver,
     resume,
+    registerProvider,
     activeRuns: (articleId: string) =>
       [...active.values()].filter((event) => event.articleId === articleId),
   };
 }
 
-function agentChange(resolved: ResolvedChannelAgent): AgentChange {
+export function agentChange(resolved: ResolvedChannelAgent): AgentChange {
   const thinkingLevel = piThinkingLevel(resolved.provider);
   return {
     model: piModelRef(resolved.provider, resolved.agent),
@@ -553,12 +554,12 @@ function anchorOffset(text: string, anchor: TextAnchor) {
   return found >= 0 ? found : undefined;
 }
 
-function anchorBlockId(snapshot: ArticleTextSnapshot, anchor: TextAnchor) {
+export function anchorBlockId(snapshot: ArticleTextSnapshot, anchor: TextAnchor) {
   const offset = anchorOffset(snapshot.text, anchor);
   return offset === undefined ? undefined : createArticleTextIndex(snapshot).blockAt(offset)?.id;
 }
 
-function visibleRanges(
+export function visibleRanges(
   text: ArticleTextSnapshot | undefined,
   anchor: TextAnchor | undefined,
   meta: ArticleMeta | undefined,

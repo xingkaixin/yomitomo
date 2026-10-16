@@ -1,4 +1,3 @@
-import { jsonSchema, Output, type JSONSchema7 } from 'ai';
 import type {
   AnnotationDistillationProposal,
   AnnotationDistillationProposalKind,
@@ -8,7 +7,6 @@ import type {
   AnnotationDistillationReviewStance,
 } from '@yomitomo/shared';
 import { isRecord, makeId, trimmedStringField } from '@yomitomo/shared';
-import { extractJsonObjects } from '../json';
 
 export type GeneratedDistillationReviewItem =
   | {
@@ -35,93 +33,6 @@ export type GeneratedDistillationReviewItem =
       content?: string;
     };
 
-export const distillationReviewStructuredOutput = Output.array<GeneratedDistillationReviewItem>({
-  name: 'distillation_review_items',
-  description:
-    'A sequence of readable distillation review items: overview, findings, and actionable draft proposals.',
-  element: jsonSchema<GeneratedDistillationReviewItem>(distillationReviewItemJsonSchema(), {
-    validate: validateGeneratedDistillationReviewItem,
-  }),
-});
-
-export function distillationReviewStructuredOutputPrompt(input: {
-  jsonlFallback: boolean;
-  mode?: 'review' | 'organize_discussion';
-}) {
-  const itemRules = `结构化 item 类型：
-- overview：整体判断，字段为 type="overview"、stance="solid"|"mixed"|"weak"、content。
-- finding：审阅意见，字段为 type="finding"、category="evidence"|"logic"|"coverage"|"clarity"|"actionability"、severity="low"|"medium"|"high"、title、content，可选 draftTargetText。
-- proposal：可直接应用到沉淀稿的修改建议，字段为 type="proposal"、kind="insert"|"replace"|"delete"、title，可选 rationale。insert 必须有 content；replace 必须有 targetText 和 replacementText；delete 必须有 targetText。`;
-  const overviewRule =
-    input.mode === 'organize_discussion'
-      ? '- 第一条应该是 overview，用自然语言概括可沉淀方向；不要评价现有草稿质量。'
-      : '- 第一条应该是 overview，用自然语言给出总评。';
-  const modeRules =
-    input.mode === 'organize_discussion'
-      ? `
-整理讨论模式约束：
-- overview 总结可沉淀方向，不要写成“草稿已经...”这类现有草稿评价。
-- finding 只指出可以补充、澄清或拆出的方向，不要断言空草稿已经具备某种质量。
-- proposal 只能使用 kind="insert"，用 content 放可直接加入草稿的新文本。`
-      : '';
-
-  const outputRule = input.jsonlFallback
-    ? '最终只输出 JSONL：每行一个完整 JSON object，不要输出数组、Markdown、代码块或解释性包装。'
-    : '最终输出 1 到 6 个结构化 item，不要输出 Markdown、代码块或解释性包装。';
-
-  return `${outputRule}
-
-${itemRules}${modeRules}
-
-输出约束：
-${overviewRule}
-- finding 用于指出证据、逻辑、覆盖范围、表达清晰度或可行动性问题。
-- proposal 只用于真正能被用户接受/忽略并应用到草稿的修改，不要把泛泛评价写成 proposal。
-- 没有可靠可应用修改时可以不输出 proposal。`;
-}
-
-export async function collectDistillationReviewItemsFromElementStream(input: {
-  elementStream: AsyncIterable<GeneratedDistillationReviewItem>;
-  onItem?: (item: AnnotationDistillationReviewItem) => void;
-  now?: () => string;
-}) {
-  const items: AnnotationDistillationReviewItem[] = [];
-  for await (const generated of input.elementStream) {
-    const item = normalizeGeneratedDistillationReviewItem(generated, input.now);
-    items.push(item);
-    input.onItem?.(item);
-  }
-  return items;
-}
-
-export async function collectDistillationReviewItemsFromJsonTextStream(input: {
-  textStream: AsyncIterable<string>;
-  onItem?: (item: AnnotationDistillationReviewItem) => void;
-  now?: () => string;
-}) {
-  const items: AnnotationDistillationReviewItem[] = [];
-  let buffer = '';
-  for await (const delta of input.textStream) {
-    buffer += delta;
-    const extracted = extractJsonObjects(buffer);
-    buffer = extracted.rest;
-    for (const objectText of extracted.objects) {
-      const generated = parseGeneratedDistillationReviewItem(objectText);
-      const item = normalizeGeneratedDistillationReviewItem(generated, input.now);
-      items.push(item);
-      input.onItem?.(item);
-    }
-  }
-  const extracted = extractJsonObjects(buffer);
-  for (const objectText of extracted.objects) {
-    const generated = parseGeneratedDistillationReviewItem(objectText);
-    const item = normalizeGeneratedDistillationReviewItem(generated, input.now);
-    items.push(item);
-    input.onItem?.(item);
-  }
-  return items;
-}
-
 export function distillationReviewContentFromItems(items: AnnotationDistillationReviewItem[]) {
   return items
     .flatMap((item) => {
@@ -138,7 +49,17 @@ export function distillationReviewProposalsFromItems(items: AnnotationDistillati
   return items.flatMap((item) => (item.type === 'proposal' ? [item.proposal] : []));
 }
 
-export function normalizeGeneratedDistillationReviewItem(
+export function parseDistillationReviewItem(
+  value: unknown,
+  now?: () => string,
+): { item: AnnotationDistillationReviewItem } | { error: string } {
+  const result = validateGeneratedDistillationReviewItem(value);
+  return result.success
+    ? { item: normalizeGeneratedDistillationReviewItem(result.value, now) }
+    : { error: result.error.message };
+}
+
+function normalizeGeneratedDistillationReviewItem(
   item: GeneratedDistillationReviewItem,
   now: () => string = () => new Date().toISOString(),
 ): AnnotationDistillationReviewItem {
@@ -187,13 +108,6 @@ function generatedProposalToProposal(
     content: item.kind === 'insert' ? content : undefined,
     updatedAt,
   };
-}
-
-function parseGeneratedDistillationReviewItem(value: string) {
-  const parsed = JSON.parse(value) as unknown;
-  const result = validateGeneratedDistillationReviewItem(parsed);
-  if (!result.success) throw result.error;
-  return result.value;
 }
 
 function validateGeneratedDistillationReviewItem(
@@ -254,31 +168,6 @@ function validateGeneratedDistillationReviewItem(
     };
   }
   return invalidGeneratedItem('item.type is invalid');
-}
-
-function distillationReviewItemJsonSchema(): JSONSchema7 {
-  return {
-    type: 'object',
-    additionalProperties: false,
-    required: ['type'],
-    properties: {
-      type: { type: 'string', enum: ['overview', 'finding', 'proposal'] },
-      stance: { type: 'string', enum: ['solid', 'mixed', 'weak'] },
-      category: {
-        type: 'string',
-        enum: ['evidence', 'logic', 'coverage', 'clarity', 'actionability'],
-      },
-      severity: { type: 'string', enum: ['low', 'medium', 'high'] },
-      kind: { type: 'string', enum: ['insert', 'replace', 'delete'] },
-      title: { type: 'string' },
-      content: { type: 'string' },
-      rationale: { type: 'string' },
-      insertAfterText: { type: 'string' },
-      targetText: { type: 'string' },
-      replacementText: { type: 'string' },
-      draftTargetText: { type: 'string' },
-    },
-  };
 }
 
 function invalidGeneratedItem(message: string) {
