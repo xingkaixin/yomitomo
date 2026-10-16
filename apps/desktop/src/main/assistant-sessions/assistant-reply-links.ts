@@ -5,27 +5,66 @@ import {
   type AssistantReference,
 } from '@yomitomo/shared';
 
-const AGENT_LINK = /\[([^\]\n]+)\]\(#([\w-]+)\)/g;
+export type ReplyDiscussion = { annotationId: string; quote: string };
 
-// Agents cite a paragraph as [label](#b12) and a discussion as [label](#comment_id). Saved replies
-// carry in-app links instead, and a citation that resolves to nothing keeps only its label.
+const CITED_ID = String.raw`b\d+|(?:comment|annotation)_\w+`;
+// An agent link [label](#id), a bracketed id [b12], or a bare id such as b12 or comment_x.
+const CITATION = new RegExp(
+  String.raw`\[([^\]\n]+)\]\(#([\w-]+)\)|\[(${CITED_ID})\](?!\()|(?<![\w#:/.-])(${CITED_ID})(?!\w)`,
+  'g',
+);
+const ONLY_CITED_ID = new RegExp(String.raw`^(?:${CITED_ID})$`);
+const EXCERPT_LENGTH = 16;
+const graphemes = new Intl.Segmenter('zh', { granularity: 'grapheme' });
+
+// Agents are asked to cite as [label](#b12) but often write the bare id. Saved replies carry
+// in-app links instead; a bare id gets the cited text as its label, and a link that resolves
+// to nothing keeps only its label.
 export function resolveReplyLinks(
   text: string,
   snapshot: ArticleTextSnapshot | undefined,
-  findDiscussion: (id: string) => string | undefined,
+  findDiscussion: (id: string) => ReplyDiscussion | undefined,
 ) {
   let index: ReturnType<typeof createArticleTextIndex> | undefined;
-  const resolve = (id: string): AssistantReference | undefined => {
+  const resolve = (id: string): { reference: AssistantReference; label: string } | undefined => {
     if (/^b\d+$/.test(id)) {
       index ??= snapshot ? createArticleTextIndex(snapshot) : undefined;
       const block = index?.readBlocks(id, 1)?.blocks[0];
-      return block ? { kind: 'passage', start: block.start, end: block.end } : undefined;
+      return block
+        ? {
+            reference: { kind: 'passage', start: block.start, end: block.end },
+            label: excerpt(block.text),
+          }
+        : undefined;
     }
-    const annotationId = findDiscussion(id);
-    return annotationId ? { kind: 'discussion', annotationId } : undefined;
+    const discussion = findDiscussion(id);
+    return discussion
+      ? {
+          reference: { kind: 'discussion', annotationId: discussion.annotationId },
+          label: excerpt(discussion.quote),
+        }
+      : undefined;
   };
-  return text.replace(AGENT_LINK, (_match, label: string, id: string) => {
-    const reference = resolve(id);
-    return reference ? `[${label}](${assistantReferenceHref(reference)})` : label;
-  });
+  return text.replace(
+    CITATION,
+    (
+      match,
+      label: string | undefined,
+      linkId: string | undefined,
+      bracketId: string | undefined,
+      bareId: string | undefined,
+    ) => {
+      const resolved = resolve((linkId ?? bracketId ?? bareId)!);
+      if (!resolved) return label ?? match;
+      const shown = label && !ONLY_CITED_ID.test(label) ? label : resolved.label;
+      return `[${shown}](${assistantReferenceHref(resolved.reference)})`;
+    },
+  );
+}
+
+function excerpt(text: string) {
+  const cleaned = text.replace(/[[\]]/g, '').replace(/\s+/g, ' ').trim();
+  const chars = Array.from(graphemes.segment(cleaned), (part) => part.segment);
+  const head = chars.slice(0, EXCERPT_LENGTH).join('');
+  return `「${chars.length > EXCERPT_LENGTH ? `${head}…` : head}」`;
 }

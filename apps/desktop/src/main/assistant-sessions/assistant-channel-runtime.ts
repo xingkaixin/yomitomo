@@ -48,7 +48,7 @@ import {
 import { formatDelivery, formatRetraction } from './assistant-channel-delivery';
 import type { ChannelReply, ChannelSnapshot } from './assistant-channel-sources';
 import { RunContextDoc } from './assistant-reading-extension';
-import { resolveReplyLinks } from './assistant-reply-links';
+import { resolveReplyLinks, type ReplyDiscussion } from './assistant-reply-links';
 import { joinRunText, messageText, readRunTranscript } from './assistant-run-transcript';
 import type { AssistantSessionStore } from './assistant-session-store';
 
@@ -77,7 +77,7 @@ export type AssistantChannelPorts = {
   readChannel: (articleId: string, channel: AssistantChannel) => ChannelSnapshot | undefined;
   publishReply: (articleId: string, channel: AssistantChannel, reply: ChannelReply) => boolean;
   existingMessageIds: (articleId: string, ids: string[]) => Set<string>;
-  findDiscussion: (articleId: string, id: string) => string | undefined;
+  findDiscussion: (articleId: string, id: string) => ReplyDiscussion | undefined;
   articleMeta: (articleId: string) => ArticleMeta | undefined;
   publishRun: (event: AssistantRunEvent) => void;
   markPending: (articleId: string, pending: boolean) => Promise<void>;

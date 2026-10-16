@@ -14,6 +14,7 @@ import * as schema from '../db/schema';
 import { getDatabase } from '../store/store-db';
 import { getReadingMemorySqliteExecutor } from '../store/store-reading-memory-lifecycle';
 import { threadComments } from './assistant-channel-format';
+import type { ReplyDiscussion } from './assistant-reply-links';
 
 export type ChannelSnapshot = { messages: Comment[]; quote?: string; anchor?: TextAnchor };
 
@@ -105,11 +106,11 @@ function readChat(articleId: string, sessionId: string): ChannelSnapshot | undef
   };
 }
 
-function findDiscussion(articleId: string, id: string) {
-  return readArticleAnnotations(getDatabase(), articleId).find(
-    (annotation) =>
-      annotation.id === id || annotation.comments.some((comment) => comment.id === id),
-  )?.id;
+function findDiscussion(articleId: string, id: string): ReplyDiscussion | undefined {
+  const annotation = readArticleAnnotations(getDatabase(), articleId).find(
+    (item) => item.id === id || item.comments.some((comment) => comment.id === id),
+  );
+  return annotation && { annotationId: annotation.id, quote: annotation.anchor.exact };
 }
 
 function existingMessageIds(articleId: string, ids: string[]) {
